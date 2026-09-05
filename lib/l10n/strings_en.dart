@@ -76,6 +76,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'The end time must be after the start time.',
   'A lavagem está a decorrer.':
       'The wash is under way.',
+  'A ligar-se ao motorista…':
+      'Connecting to your driver…',
   'A limpeza já estava cancelada.':
       'The cleaning had already been cancelled.',
   'A limpeza tem de ser agendada com mais antecedência.':
@@ -324,6 +326,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'Rate trip',
   'Avaliação':
       'Rating',
+  'Avaliação enviada mais tarde.':
+      'Rating will be sent later.',
   'Avaliação privada':
       'Private rating',
   'Avaliações de {0}':
@@ -506,6 +510,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'Arrival at destination in ~{0} min',
   'Chegada confirmada. O parceiro foi avisado.':
       'Arrival confirmed. The partner has been notified.',
+  'Chegas ao destino em ~{0} min':
+      'You arrive at your destination in ~{0} min',
   'Chegou':
       'Arrived',
   'Cidade':
@@ -1066,6 +1072,10 @@ const Map<String, String> kStringsEn = <String, String>{
       'The car\'s number plate is missing.',
   'Falta o pagamento':
       'Payment missing',
+  'Falta o seu contacto':
+      'Your contact details are missing',
+  'Falta o seu contacto para concluir':
+      'Your contact details are needed to finish',
   'Falta o seu telemóvel.':
       'Your mobile number is missing.',
   'Faltam dados. Volta atrás e completa a marcação.':
@@ -1380,6 +1390,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'Reason:',
   'Motorista':
       'Driver',
+  'Motorista a caminho':
+      'Driver on the way',
   'Motorista a caminho · chega em ~{0} min':
       'Driver on the way · arrives in ~{0} min',
   'Movimentos relacionados com este pedido.':
@@ -1508,6 +1520,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'The order could not be created. Please try again.',
   'Não foi possível entrar nesse perfil. Tenta novamente.':
       'You could not switch to that profile. Try again.',
+  'Não foi possível enviar a avaliação.':
+      'The rating could not be sent.',
   'Não foi possível enviar a mensagem.':
       'The message could not be sent.',
   'Não foi possível enviar a substituição.':
@@ -1598,6 +1612,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'The car has been delivered. Confirm to close.',
   'O carro já está com o lavador.':
       'The car is already with the washer.',
+  'O carro já está no ponto de recolha.':
+      'The car is already at the pickup point.',
   'O cartão {0} •••• {1} deixa de estar guardado. Podes voltar a guardá-lo no próximo pagamento.':
       'Card {0} •••• {1} will no longer be saved. You can save it again on your next payment.',
   'O desconto em Bora Tokens excede o máximo de {0}% do pedido.':
@@ -1608,6 +1624,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'The courier sees the photo before accepting. It avoids surprises in size/weight. (BR §7.5)',
   'O meu trabalho no Bora':
       'My work at Bora',
+  'O motorista chega em ~{0} min':
+      'Your driver arrives in ~{0} min',
   'O motorista chegou':
       'The driver has arrived',
   'O pagamento do plano está disponível na app móvel.':
@@ -1644,6 +1662,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'Your code',
   'O teu estafeta':
       'Your courier',
+  'O teu motorista':
+      'Your driver',
   'O valor da compra ajusta-se ao talão real.':
       'The purchase amount is adjusted to the actual receipt.',
   'Obrigado pela avaliação! 💚':
@@ -1688,6 +1708,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'My earnings',
   'Os pagamentos no cartão estão desativados de momento.':
       'Card payments are currently disabled.',
+  'Os seus contactos':
+      'Your contact details',
   'Os teus dados pessoais serão apagados imediatamente.\n\nPor obrigação legal, os dados fiscais (faturas) são guardados por 10 anos.\n\nConfirmar?':
       'Your personal data will be deleted immediately.\n\nBy legal obligation, tax data (invoices) is kept for 10 years.\n\nConfirm?',
   'Os teus pedidos anteriores nesta loja vão aparecer aqui para reordenar com um toque.':
@@ -1940,6 +1962,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'Fill in the label and address.',
   'Premium':
       'Premium',
+  'Prepara-te para sair.':
+      'Get ready to head out.',
   'Preço':
       'Price',
   'Preço (€)':
@@ -2488,6 +2512,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'Vehicle',
   'Viagem concluída':
       'Trip completed',
+  'Viagem em curso':
+      'Trip in progress',
   'Viagem em curso · chegada ~{0} min':
       'Trip in progress · arriving in ~{0} min',
   'Volta incluída no pacote — não pagaste nada.':
@@ -2546,6 +2572,10 @@ const Map<String, String> kStringsEn = <String, String>{
       '{0} + €{1}/km above 4 km (€{2} for {3} extra km).',
   '{0} + €{1}/km acima de 4 km.':
       '{0} + €{1}/km above 4 km.',
+  '{0} chega em ~{1} min':
+      '{0} arrives in ~{1} min',
+  '{0} chegou':
+      '{0} has arrived',
   '{0} copiado':
       '{0} copied',
   '{0} corridas · Segunda a Sexta · 2 por dia útil':
@@ -2554,6 +2584,10 @@ const Map<String, String> kStringsEn = <String, String>{
       '{0} of {1} rides left',
   '{0} em {1}\n{2}':
       '{0} at {1}\n{2}',
+  '{0} está a caminho':
+      '{0} is on the way',
+  '{0} está quase a chegar':
+      '{0} is almost there',
   '{0} km — o valor final é pela distância real.':
       '{0} km — the final amount is based on the actual distance.',
   '{0} limpezas':

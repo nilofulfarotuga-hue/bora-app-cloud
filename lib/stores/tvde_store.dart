@@ -853,6 +853,20 @@ class TvdeStore extends ChangeNotifier {
     }
   }
 
+  /// Lê um double de platform_settings via get_setting; devolve [fallback] em
+  /// erro. Necessário para as chaves de navegação que NÃO são inteiras
+  /// (`tvde_nav_zoom` = 17.5); `getSettingInt` truncava-as para 17.
+  Future<double> getSettingDouble(String key, double fallback) async {
+    try {
+      final res = await _sb.rpc('get_setting', params: {'p_key': key}).timeout(kAcaoTimeout);
+      if (res == null) return fallback;
+      return double.tryParse(res.toString()) ?? fallback;
+    } catch (e) {
+      debugPrint('TvdeStore.getSettingDouble($key) error => $e');
+      return fallback;
+    }
+  }
+
   /// Lê um bool de platform_settings (ex.: o kill switch
   /// `tvde_card_payments_enabled`). Falha fechada → devolve [fallback].
   Future<bool> getSettingBool(String key, bool fallback) async {

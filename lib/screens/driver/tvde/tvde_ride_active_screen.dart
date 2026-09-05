@@ -2,7 +2,8 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -23,6 +24,7 @@ import '../../../stores/tvde_chat_store.dart';
 import '../../../stores/tvde_driver_store.dart';
 import '../../../stores/tvde_store.dart';
 import '../../../utils/map_utils.dart';
+import '../../../utils/route_deviation.dart';
 import '../../../widgets/bora/bora.dart';
 import '../../../widgets/payments/collect_badge.dart';
 import '../../../widgets/payments/collect_reminder_dialog.dart';
@@ -92,6 +94,11 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   GoogleMapController? _mapCtrl;
   Set<Polyline> _routePolys = <Polyline>{};
 
+  /// [nav 05/09] Rota COMPLETA como veio do Directions. É a fonte da verdade:
+  /// a polilinha desenhada é recortada a partir daqui a cada leitura de GPS,
+  /// nunca destruída — se o carro parar ou recuar, a linha reaparece certa.
+  List<ll.LatLng> _routePoints = const [];
+
   /// ETA para o motorista (B6): até à recolha (a caminho) ou ao destino (viagem).
   String? _etaText;
 
@@ -107,13 +114,37 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   bool _etaSpeedLoaded = false;
   Timer? _etaTicker;
 
-  /// Assinatura (fase + posição grosseira) da última rota pedida — evita
-  /// refazer o pedido Directions a cada rebuild/movimento pequeno.
+  /// [nav 05/09] Assinatura da FASE (corrida + troço + nº de paradas) da última
+  /// rota desenhada com sucesso. A posição do carro JÁ NÃO entra na chave: era
+  /// isso que pedia rota nova a cada ~111 m (`toStringAsFixed(3)`), ou seja de
+  /// 8 em 8 segundos a conduzir. Agora só se pede rota por fase nova, por falta
+  /// de linha, ou por DESVIO real (ver `_maybeFetchRoute`).
   String? _routeKey;
+
+  /// Assinatura da última fase TENTADA (mesmo que a chamada falhe). Serve para
+  /// distinguir "fase nova, pede já" de "a mesma fase a retentar" — sem isto,
+  /// uma falha do Directions voltava a parecer fase nova a cada frame.
+  String? _routeAttemptKey;
+
+  /// Instante da última TENTATIVA de rota. Impõe o intervalo mínimo entre
+  /// recálculos (`tvde_nav_reroute_min_seconds`). Marcado no início da chamada,
+  /// não no fim — uma chamada falhada também conta, senão volta a martelar.
+  DateTime? _lastRouteFetchAt;
 
   /// [Perf] Já há um pedido de rota em voo (evita rajada de pedidos ao
   /// Directions quando um deles é lento ou falha).
   bool _routeFetchInFlight = false;
+
+  /// [nav 05/09] Deteta que o carro saiu da linha (matemática pura em
+  /// `lib/utils/route_deviation.dart`). Limites vêm de `platform_settings`.
+  final OffRouteDetector _offRoute = OffRouteDetector();
+
+  /// Onde começava a linha da última vez que a desenhámos. Serve para NÃO
+  /// reenviar a polilinha inteira ao mapa quando o pé da perpendicular quase
+  /// não andou (carro parado no semáforo, ruído de GPS) — aí o redesenho só
+  /// custava canal e fazia a ponta da linha tremer.
+  int? _drawnSeg;
+  ll.LatLng? _drawnFrom;
 
   /// [Perf] Já há uma callback de pós-frame agendada (uma de cada vez).
   bool _afterFrameScheduled = false;
@@ -131,13 +162,22 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   bool _followCam = true;
   bool _progCamMove = false;
 
-  /// [PERF 2026-07-08] Trava do reposicionamento da câmara. O DriverStore
-  /// interpola a localização em passos (notifyListeners a cada passo), pelo que
-  /// sem trava o `_followDriver` disparava um `animateCamera` a CADA tick de
-  /// interpolação (vários por segundo) → o mapa "travava". Só reposiciona se o
-  /// motorista andou ≥ 15 m OU passou ≥ 1 s desde o último movimento de câmara.
-  DateTime? _lastCamMove;
-  LatLng? _lastCamTarget;
+  /// [nav 05/09] GPS PRÓPRIO deste ecrã. O ecrã do motorista deixa de depender
+  /// da posição interpolada do `DriverStore` (essa continua a existir e serve o
+  /// mapa do CLIENTE — não foi tocada). Duas razões: (1) a home alimenta o
+  /// store com `distanceFilter: 50`, ou seja um ponto a cada 50 m — o carro
+  /// saltava meio quarteirão de cada vez; (2) o store notifica por qualquer
+  /// motorista que se mexa, e o ecrã não tem de acordar por causa disso.
+  StreamSubscription<Position>? _gps;
+  LatLng? _gpsPos;
+
+  /// Valores de navegação afináveis em `platform_settings` (categoria `tvde`).
+  /// Os defaults abaixo são os valores que estavam cravados no código.
+  double _navZoom = 17.5;
+  double _navTilt = 45.0;
+  int _camFollowMs = 900;
+  int _rerouteMinSeconds = 15;
+  bool _navSettingsLoaded = false;
 
   /// [PERF 2026-07-08] Conjunto de marcadores REUTILIZADO — não recriamos a
   /// identidade do Set (nem os Marker) a cada rebuild; só o reconstruímos
@@ -159,15 +199,65 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   void initState() {
     super.initState();
     _loadDriverArrowIcon();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // Semente: enquanto o GPS local não dá o primeiro ponto, mostra a última
+      // posição conhecida do store (não fica mapa vazio ao abrir).
+      _semearPosicaoDoStore();
+      _ensureNavSettingsLoaded();
+      _startGps();
+    });
     // [31/08] parado (GPS sem tick novo), o ETA reavalia-se na mesma a cada 30 s.
     _etaTicker = Timer.periodic(const Duration(seconds: 30), (_) {
       if (!mounted) return;
+      // Rede de segurança: GPS local sem permissão/sinal → volta ao store, que
+      // a home continua a alimentar (este ecrã é `push`, a home fica montada).
+      if (_gpsPos == null) _semearPosicaoDoStore();
       final ride = context.read<TvdeDriverStore>().activeRide;
-      final pos = context.read<DriverStore>().currentDriver?.location;
-      if (ride != null && pos != null) {
-        _updateEtaLive(ride, LatLng(pos.latitude, pos.longitude));
-      }
+      final pos = _gpsPos;
+      if (ride != null && pos != null) _updateEtaLive(ride, pos);
     });
+  }
+
+  void _semearPosicaoDoStore() {
+    if (!mounted) return;
+    final loc = context.read<DriverStore>().currentDriver?.location;
+    if (loc == null) return;
+    final atual = _gpsPos;
+    if (atual != null &&
+        atual.latitude == loc.latitude &&
+        atual.longitude == loc.longitude) {
+      return; // igual → não repinta à toa
+    }
+    setState(() => _gpsPos = LatLng(loc.latitude, loc.longitude));
+  }
+
+  /// [nav 05/09] Stream de GPS do próprio ecrã, cadência de navegação.
+  /// `bestForNavigation` + filtro curto: a conduzir chegam pontos ~1×/s (a
+  /// câmara encadeia animações de 900 ms e nunca congela entre elas); PARADO o
+  /// filtro de distância cala o stream — sem ticks, sem bateria, sem tremer.
+  Future<void> _startGps() async {
+    if (kIsWeb) return; // na Web fica a semente do store (sem FGS/navegação)
+    await _gps?.cancel();
+    final LocationSettings settings;
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      settings = AndroidSettings(
+        accuracy: LocationAccuracy.bestForNavigation,
+        distanceFilter: 3,
+        intervalDuration: const Duration(milliseconds: 700),
+      );
+    } else {
+      settings = const LocationSettings(
+        accuracy: LocationAccuracy.bestForNavigation,
+        distanceFilter: 3,
+      );
+    }
+    try {
+      _gps = Geolocator.getPositionStream(locationSettings: settings).listen(
+        (p) => _onGpsFix(LatLng(p.latitude, p.longitude)),
+        onError: (Object _) {/* fica a semente do store; o ticker retenta */},
+      );
+    } catch (_) {/* sem GPS local → o ecrã continua com a posição do store */}
   }
 
   @override
@@ -175,6 +265,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     _waitTicker?.cancel();
     _stopsTicker?.cancel();
     _etaTicker?.cancel();
+    _gps?.cancel();
     _mapCtrl?.dispose();
     _directions.dispose();
     _sheetCtrl.dispose();
@@ -182,13 +273,69 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     super.dispose();
   }
 
+  /// [nav 05/09] O CORAÇÃO do mapa: uma leitura de GPS → um `setState`.
+  /// Antes cada tick do store repintava o ecrã inteiro; agora repinta-se ao
+  /// ritmo do GPS (~1×/s a conduzir, 0 parado) e faz-se tudo de uma vez:
+  /// bearing suavizado, câmara, recorte da rota atrás do carro, teste de
+  /// desvio, e só então (se for caso disso) um pedido novo ao Directions.
+  void _onGpsFix(LatLng pos) {
+    if (!mounted) return;
+    _atualizarBearing(pos);
+    // Uma única varredura da rota devolve as DUAS coisas de que precisamos:
+    // o troço que falta (para desenhar) e a distância perpendicular à linha.
+    final prog = _routePoints.length >= 2
+        ? projetarNaRota(_routePoints, ll.LatLng(pos.latitude, pos.longitude))
+        : null;
+    final Set<Polyline>? novaLinha = prog != null && _deveRedesenharRota(prog)
+        ? {_polylineDaRota(prog.aFrente)}
+        : null;
+    setState(() {
+      _gpsPos = pos;
+      if (novaLinha != null) _routePolys = novaLinha;
+    });
+    _followDriver(pos);
+    final ride = context.read<TvdeDriverStore>().activeRide;
+    if (ride == null) return;
+    _updateEtaLive(ride, pos);
+    // Desvio: só dispara depois de N leituras SEGUIDAS fora da linha.
+    final saiuDaRota =
+        prog != null && _offRoute.adicionarDistancia(prog.distanciaMetros);
+    _maybeFetchRoute(ride, pos, offRoute: saiuDaRota);
+  }
+
   /// [Bloco B 2026-07-04] Câmara estilo Waze no modo corrida ativa: zoom
   /// aproximado + tilt 45° (sensação 3D de seguir a rua). Este ecrã é SEMPRE
   /// "em corrida", por isso aplica-se sempre aqui (a home mantém o seu zoom).
-  /// Valores em settings (tvde_nav_zoom / tvde_nav_tilt) para o Danilo afinar
-  /// sem build — leitura dinâmica pendente; por agora os defaults abaixo.
-  static const double _kNavZoom = 17.5; // faixa 17–18 (Waze usa 17)
-  static const double _kNavTilt = 45.0; // 3D following
+  /// [4E 05/09] "leitura dinâmica pendente" FECHADA: zoom, tilt, duração do
+  /// follow e intervalo mínimo de recálculo vêm todos de `platform_settings`
+  /// (categoria `tvde`), com os valores antigos como fallback. Uma leitura por
+  /// abertura de ecrã; falha de rede → fica o default, o mapa nunca pára por
+  /// causa disto.
+  Future<void> _ensureNavSettingsLoaded() async {
+    if (_navSettingsLoaded) return;
+    _navSettingsLoaded = true;
+    try {
+      final store = context.read<TvdeStore>();
+      final zoom = await store.getSettingDouble('tvde_nav_zoom', 17.5);
+      final tilt = await store.getSettingDouble('tvde_nav_tilt', 45.0);
+      final offM = await store.getSettingInt('tvde_nav_offroute_meters', 45);
+      final offN = await store.getSettingInt('tvde_nav_offroute_fixes', 3);
+      final minS =
+          await store.getSettingInt('tvde_nav_reroute_min_seconds', 15);
+      final camMs = await store.getSettingInt('tvde_nav_camera_follow_ms', 900);
+      if (!mounted) return;
+      setState(() {
+        _navZoom = zoom > 0 ? zoom : _navZoom;
+        _navTilt = tilt >= 0 ? tilt : _navTilt;
+        _rerouteMinSeconds = minS > 0 ? minS : _rerouteMinSeconds;
+        _camFollowMs = camMs > 0 ? camMs : _camFollowMs;
+      });
+      _offRoute
+        ..metrosLimite = offM > 0 ? offM.toDouble() : _offRoute.metrosLimite
+        ..leiturasSeguidas =
+            offN > 0 ? offN : _offRoute.leiturasSeguidas;
+    } catch (_) {/* ficam os defaults */}
+  }
 
   /// B5 — botão mira: recentra a câmara no motorista (zoom Waze) e RELIGA o
   /// seguimento heading-up (o gesto do utilizador tinha-o pausado).
@@ -198,14 +345,11 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     _followCam = true;
     _progCamMove = true;
     final target = driverPos ?? fallback;
-    // [PERF] Mantém a trava coerente: o próximo follow-tick não re-anima já.
-    _lastCamMove = DateTime.now();
-    _lastCamTarget = target;
     await c.animateCamera(CameraUpdate.newCameraPosition(
       CameraPosition(
         target: target,
-        zoom: _kNavZoom,
-        tilt: _kNavTilt,
+        zoom: _navZoom,
+        tilt: _navTilt,
         bearing: _bearing,
       ),
     ));
@@ -217,34 +361,24 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   void _followDriver(LatLng target) {
     final c = _mapCtrl;
     if (c == null || !_followCam) return;
-    // [PERF 2026-07-08] Trava: NÃO animar a câmara a cada tick de GPS. O
-    // DriverStore interpola a posição em passos curtos → sem isto eram vários
-    // animateCamera por segundo (o mapa "travava"). Só reposiciona se o
-    // motorista andou ≥ 15 m OU passou ≥ 1 s desde o último movimento de câmara.
-    final now = DateTime.now();
-    final last = _lastCamMove;
-    final lastTarget = _lastCamTarget;
-    if (last != null && lastTarget != null) {
-      final movedFromCam = Geolocator.distanceBetween(lastTarget.latitude,
-          lastTarget.longitude, target.latitude, target.longitude);
-      if (movedFromCam < 15 && now.difference(last).inMilliseconds < 1000) {
-        return;
-      }
-    }
-    _lastCamMove = now;
-    _lastCamTarget = target;
+    // [4C 05/09] SEM trava de 15 m / 1 s. A trava antiga existia porque a fonte
+    // era o store interpolado (muitos ticks por segundo); com o GPS próprio a
+    // fonte já é rala, e travar por cima dela era o "travando": a câmara
+    // deslizava 400 ms e congelava os outros 600. Agora anima-se CADA leitura
+    // com uma duração (900 ms) MAIOR do que o intervalo entre leituras
+    // (~700 ms) — a animação seguinte começa antes de a anterior acabar e o
+    // movimento encadeia, sem parar entre pontos.
     _progCamMove = true;
     c.animateCamera(
       CameraUpdate.newCameraPosition(
         CameraPosition(
           target: target,
-          zoom: _kNavZoom,
-          tilt: _kNavTilt,
+          zoom: _navZoom,
+          tilt: _navTilt,
           bearing: _bearing,
         ),
       ),
-      // [PERF] Glide suave (~400 ms) em vez de salto instantâneo entre updates.
-      duration: const Duration(milliseconds: 400),
+      duration: Duration(milliseconds: _camFollowMs),
     );
   }
 
@@ -282,70 +416,134 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     return bytes!.buffer.asUint8List();
   }
 
-  /// [Item N / PART1] Atualiza o bearing da seta a partir de posições GPS
-  /// consecutivas E faz a câmara SEGUIR o motorista (heading-up contínuo).
-  /// O bearing só é fiável em MOVIMENTO: atualiza quando andou ≥ 5 m; parado
-  /// mantém o último (não gira à toa). Movimento menor ainda faz a câmara
-  /// acompanhar a posição, sem mudar a rotação.
-  void _updateBearing(LatLng? driverPos) {
-    if (driverPos == null) return;
+  /// [Item N / PART1] Direção de marcha da seta, a partir de posições GPS
+  /// consecutivas. O bearing só é fiável em MOVIMENTO: atualiza quando andou
+  /// ≥ 5 m; parado mantém o último (não gira à toa).
+  ///
+  /// [4C 05/09] Agora SUAVIZADO — `novo*0.3 + antigo*0.7`. Ruído de GPS de
+  /// poucos metros dava saltos de dezenas de graus e a câmara arrancava para os
+  /// lados; com o filtro a rotação entra devagar. A soma é feita pela diferença
+  /// angular curta (359° → 1° passa por 0°, não pelo caminho longo de 180°).
+  ///
+  /// Não faz `setState` — quem chama (`_onGpsFix`) já repinta uma vez por
+  /// leitura; dois setState na mesma leitura era frame perdido de borla.
+  void _atualizarBearing(LatLng driverPos) {
     final prev = _lastArrowPos;
-    if (prev != null) {
-      final moved = Geolocator.distanceBetween(
-          prev.latitude, prev.longitude, driverPos.latitude, driverPos.longitude);
-      if (moved >= 5) {
-        var b = Geolocator.bearingBetween(prev.latitude, prev.longitude,
-            driverPos.latitude, driverPos.longitude);
-        if (b < 0) b += 360;
-        if (mounted) setState(() => _bearing = b);
-        _followDriver(driverPos);
-      } else if (moved >= 1) {
-        // Movimento pequeno: acompanha a posição, mantém o bearing anterior.
-        _followDriver(driverPos);
-      }
-    }
     _lastArrowPos = driverPos;
+    if (prev == null) return;
+    final moved = Geolocator.distanceBetween(
+        prev.latitude, prev.longitude, driverPos.latitude, driverPos.longitude);
+    if (moved < 5) return;
+    var bruto = Geolocator.bearingBetween(prev.latitude, prev.longitude,
+        driverPos.latitude, driverPos.longitude);
+    if (bruto < 0) bruto += 360;
+    var delta = bruto - _bearing;
+    while (delta > 180) {
+      delta -= 360;
+    }
+    while (delta < -180) {
+      delta += 360;
+    }
+    var suave = _bearing + delta * 0.3;
+    if (suave < 0) suave += 360;
+    if (suave >= 360) suave -= 360;
+    _bearing = suave;
   }
+
+  /// [4B 05/09] Vale a pena reenviar a linha ao mapa? Só se o carro passou de
+  /// segmento ou se o pé da perpendicular andou ≥ 5 m (a ~1 px/m neste zoom,
+  /// menos do que isso fica escondido debaixo da seta). Parado, não redesenha.
+  bool _deveRedesenharRota(ProgressoNaRota prog) {
+    final seg = _drawnSeg;
+    final de = _drawnFrom;
+    final novoPe = prog.aFrente.isEmpty ? null : prog.aFrente.first;
+    if (novoPe == null) return false;
+    if (seg == null || de == null || seg != prog.indiceSegmento) {
+      _drawnSeg = prog.indiceSegmento;
+      _drawnFrom = novoPe;
+      return true;
+    }
+    if (distanciaEntrePontosMetros(de, novoPe) < 5) return false;
+    _drawnFrom = novoPe;
+    return true;
+  }
+
+  /// B2 — a linha grossa da rota (sempre com o mesmo id, o mapa só troca os
+  /// pontos). Recebe já o troço recortado à frente do carro.
+  Polyline _polylineDaRota(List<ll.LatLng> pontos) => Polyline(
+        polylineId: const PolylineId('tvde_route'),
+        points: pontos.toGMaps(),
+        color: AppColors.primary,
+        width: 12, // B2 — linha grossa (cobre quase a largura da rua)
+        startCap: Cap.roundCap,
+        endCap: Cap.roundCap,
+        jointType: JointType.round,
+      );
 
   /// B2/B6 — pede a rota real (rua a rua) do troço atual e atualiza a polyline
   /// grossa + o ETA. Troço: a caminho/chegou → motorista→recolha; em viagem →
-  /// motorista→destino. Idempotente por `_routeKey` (fase + posição ~100 m).
-  Future<void> _maybeFetchRoute(TvdeRide ride, LatLng? driverPos) async {
+  /// motorista→destino.
+  ///
+  /// [4A 05/09] REGRA NOVA. Antes a chave incluía a posição arredondada a 3
+  /// casas (~111 m): a conduzir eram dezenas de pedidos HTTP por corrida, um a
+  /// cada ~8 s, cada um a redesenhar a linha toda dentro de um `setState` — e
+  /// mesmo assim NUNCA recalculava na hora certa, porque ninguém perguntava se
+  /// o carro tinha saído da estrada. Agora pede-se rota só quando:
+  ///   (a) a FASE muda (a caminho → em viagem) ou entra/sai uma paragem;
+  ///   (b) não há linha nenhuma desenhada (primeira vez, ou falha anterior);
+  ///   (c) o carro está mesmo FORA da rota ([offRoute], ver OffRouteDetector).
+  /// (a) passa já; (b) e (c) respeitam `tvde_nav_reroute_min_seconds`.
+  Future<void> _maybeFetchRoute(TvdeRide ride, LatLng? driverPos,
+      {bool offRoute = false}) async {
     final target = ride.isInProgress
         ? ll.LatLng(ride.destLat, ride.destLng)
         : ll.LatLng(ride.originLat, ride.originLng);
     final fromLl = driverPos != null
         ? ll.LatLng(driverPos.latitude, driverPos.longitude)
         : ll.LatLng(ride.originLat, ride.originLng);
-    // Chave grosseira: fase + origem arredondada a ~100 m + id da corrida.
-    final key = '${ride.id}|${ride.isInProgress}|'
-        '${fromLl.latitude.toStringAsFixed(3)},${fromLl.longitude.toStringAsFixed(3)}';
-    // [Item N] Só trava a chave DEPOIS de uma rota válida — antes, uma falha
-    // transitória do Directions prendia a chave e a rota NUNCA voltava a
-    // desenhar (o "sumiu depois do build"). Sem polyline ainda → retenta.
-    if (key == _routeKey && _routePolys.isNotEmpty) return;
+    // Chave da FASE — sem posição lá dentro (era essa a fuga de pedidos).
+    final key = '${ride.id}|${ride.isInProgress}|${ride.extraStopsCount}';
+    final faseNova = key != _routeAttemptKey;
+    final temLinha = _routePoints.length >= 2 && key == _routeKey;
+    final agora = DateTime.now();
+    final ultima = _lastRouteFetchAt;
+    final arrefeceu = ultima == null ||
+        agora.difference(ultima).inSeconds >= _rerouteMinSeconds;
+    if (!faseNova && !((offRoute || !temLinha) && arrefeceu)) return;
     // [Perf] Trava de concorrência: sem isto, uma chamada lenta ou falhada ao
     // Directions deixava passar um pedido novo por frame — dezenas de pedidos
     // HTTP em voo ao mesmo tempo (custo Google e frames perdidos a sério).
     if (_routeFetchInFlight) return;
     _routeFetchInFlight = true;
+    // Marcado ANTES da chamada: uma tentativa falhada também tem de arrefecer,
+    // senão o retry de "sem linha" volta a martelar o Directions frame a frame.
+    _lastRouteFetchAt = agora;
+    _routeAttemptKey = key;
+    if (faseNova) _offRoute.reset(); // rota velha não conta como desvio
     try {
       final route =
           await _directions.fetchRoute(origin: fromLl, destination: target);
       if (!mounted || route == null || route.points.isEmpty) return;
+      // [Item N] Só trava a chave DEPOIS de uma rota válida — antes, uma falha
+      // transitória do Directions prendia a chave e a rota NUNCA voltava a
+      // desenhar (o "sumiu depois do build"). Sem polyline ainda → retenta.
       _routeKey = key;
+      _offRoute.reset(); // linha nova: o carro está em cima dela outra vez
       setState(() {
-        _routePolys = {
-          Polyline(
-            polylineId: const PolylineId('tvde_route'),
-            points: route.points.toGMaps(),
-            color: AppColors.primary,
-            width: 12, // B2 — linha grossa (cobre quase a largura da rua)
-            startCap: Cap.roundCap,
-            endCap: Cap.roundCap,
-            jointType: JointType.round,
-          ),
-        };
+        _routePoints = List<ll.LatLng>.unmodifiable(route.points);
+        // Linha nova → os índices do recorte anterior deixam de valer.
+        _drawnSeg = null;
+        _drawnFrom = null;
+        // Já nasce recortada no carro, sem esperar pela leitura seguinte.
+        List<ll.LatLng> aFrente = _routePoints;
+        if (driverPos != null) {
+          final prog = projetarNaRota(_routePoints,
+              ll.LatLng(driverPos.latitude, driverPos.longitude));
+          aFrente = prog.aFrente;
+          _drawnSeg = prog.indiceSegmento;
+          _drawnFrom = prog.aFrente.first;
+        }
+        _routePolys = {_polylineDaRota(aFrente)};
         // [31/08] regista a fonte do ETA vivo; o texto sai do _updateEtaLive.
         _routeEtaMin = route.durationMinutes;
         _routeEtaAt = DateTime.now();
@@ -387,15 +585,27 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     final at = _routeEtaAt;
     final from = _routeEtaFrom;
     final routeMin = _routeEtaMin;
+    final decorridoMin =
+        at == null ? null : DateTime.now().difference(at).inSeconds / 60.0;
     final fresh = routeMin != null &&
         at != null &&
         from != null &&
-        DateTime.now().difference(at).inSeconds < 45 &&
+        decorridoMin! < 0.75 && // 45 s
         Geolocator.distanceBetween(from.latitude, from.longitude,
                 pos.latitude, pos.longitude) <
             150;
+    // [4A 05/09] Nível do meio, novo. Com o recálculo por desvio a rota passa a
+    // viver muito mais tempo (é esse o objetivo), e sem isto o ETA caía sempre
+    // no haversine ao fim de 45 s — pior do que era antes, porque antes a rota
+    // era repedida de ~8 em ~8 s. Enquanto a linha desenhada continuar a ser a
+    // que estamos a seguir, desconta-se o tempo já andado à duração da rota.
+    final double restante = routeMin != null && decorridoMin != null
+        ? routeMin - decorridoMin
+        : -1.0;
     if (fresh) {
       minutes = routeMin;
+    } else if (_routePoints.length >= 2 && restante > 0.5) {
+      minutes = restante;
     } else {
       final km = Geolocator.distanceBetween(pos.latitude, pos.longitude,
               target.latitude, target.longitude) /
@@ -925,10 +1135,12 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   Widget build(BuildContext context) {
     final store = context.watch<TvdeDriverStore>();
     final ride = store.activeRide;
-    final ll.LatLng? driverLl =
-        context.select<DriverStore, ll.LatLng?>((d) => d.currentDriver?.location);
-    final LatLng? driverPos =
-        driverLl == null ? null : LatLng(driverLl.latitude, driverLl.longitude);
+    // [4D 05/09] A posição vem do GPS PRÓPRIO deste ecrã (`_gpsPos`), já não de
+    // `context.select<DriverStore>`. O store continua a interpolar as posições
+    // — isso é o que faz o carro deslizar no mapa do CLIENTE e não se mexeu —,
+    // mas este ecrã deixa de acordar a esse ritmo. Além disso a home alimenta o
+    // store só de 50 em 50 m; aqui o carro anda de metros em metros.
+    final LatLng? driverPos = _gpsPos;
 
     if (ride == null) {
       // Corrida terminou e foi limpa — volta à home.
@@ -954,19 +1166,16 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
         }
       });
     }
-    // B2/B6 — mantém a rota real + ETA atualizados (idempotente por _routeKey).
-    // [Item N] + atualiza o bearing da seta do motorista.
-    // [CAMPO-02 · F1] + recarrega as paradas se o cliente as mudou (realtime).
-    // [Perf] UMA callback pendente de cada vez. Antes registava-se uma por
-    // build — com o store a notificar muitas vezes por segundo, isto corria
-    // dezenas de vezes por segundo e mantinha o frame sempre ocupado.
+    // [4A 05/09] Aqui trata-se só do que muda por ESTADO da corrida: fase nova
+    // (a caminho → em viagem), paragens novas, ETA. O bearing e a câmara saíram
+    // daqui — vivem em `_onGpsFix`, ao ritmo do GPS. `_maybeFetchRoute` já não
+    // olha para a posição: se a fase não mudou e há linha, não pede nada.
     if (!_afterFrameScheduled) {
       _afterFrameScheduled = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _afterFrameScheduled = false;
         if (!mounted) return;
         _maybeFetchRoute(ride, driverPos);
-        _updateBearing(driverPos);
         _maybeReloadStops(ride);
         // [31/08] ETA vivo: recalcula com a posição realtime (throttle
         // interno — só repinta quando o minuto muda).
@@ -1033,10 +1242,18 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
             onMapCreated: (c) => _mapCtrl = c,
             // [PART1] Gesto do dedo pausa o seguimento (deixa explorar o mapa);
             // o nosso animateCamera (com _progCamMove) não conta como gesto.
+            // [4C 05/09] A flag passa a ser CONSUMIDA no primeiro arranque de
+            // câmara em vez de esperar pelo `onCameraIdle`: com as animações
+            // encadeadas o mapa quase nunca fica parado, e à espera do idle a
+            // flag ficava presa em `true` — o arrastar do dedo deixava de
+            // pausar o seguimento. Cada `animateCamera` nosso gera exactamente
+            // um arranque; gastamo-lo aqui, e o seguinte já é do utilizador.
             onCameraMoveStarted: () {
-              if (!_progCamMove && _followCam) {
-                setState(() => _followCam = false);
+              if (_progCamMove) {
+                _progCamMove = false;
+                return;
               }
+              if (_followCam) setState(() => _followCam = false);
             },
             onCameraIdle: () => _progCamMove = false,
             ),
@@ -1062,10 +1279,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
             Align(
               alignment: Alignment.topCenter,
               child: SafeArea(
-                child: _QueuedOfferBanner(
-                  offer: store.offeredRide!,
-                  busy: store.busy,
-                ),
+                child: _QueuedOfferBanner(offer: store.offeredRide!),
               ),
             ),
           // [Item N] Card arrastável (bottom sheet), igual ao delivery: puxar
@@ -1640,9 +1854,8 @@ class _WaitChip extends StatelessWidget {
 /// recolha e countdown, com aceitar/recusar. Nunca modal full-screen com
 /// passageiro a bordo. O som vem do push (notify-tvde-driver, intacto).
 class _QueuedOfferBanner extends StatefulWidget {
-  const _QueuedOfferBanner({required this.offer, required this.busy});
+  const _QueuedOfferBanner({required this.offer});
   final TvdeRide offer;
-  final bool busy;
 
   @override
   State<_QueuedOfferBanner> createState() => _QueuedOfferBannerState();
@@ -1681,7 +1894,18 @@ class _QueuedOfferBannerState extends State<_QueuedOfferBanner> {
     super.dispose();
   }
 
+  /// [Bloco 3C · 05/09] Guarda LOCAL desta oferta. Antes, os dois botões
+  /// dependiam do `busy` GLOBAL do store: bastava outra operação a meio — um
+  /// refresh, o ETA, um poll — para "Recusar" e "Aceitar" nascerem mortos.
+  /// E esta oferta tem contagem decrescente: um botão morto durante alguns
+  /// segundos é a oferta a expirar sozinha nas mãos do motorista. É a mesma
+  /// cicatriz que prendeu um passageiro no ecrã de avaliação a 05/09/2026, e
+  /// a mesma que já tinha sido paga uma vez no `tvde_offer_screen`.
+  bool _respondendo = false;
+
   Future<void> _accept() async {
+    if (_respondendo) return;
+    setState(() => _respondendo = true);
     final store = context.read<TvdeDriverStore>();
     try {
       await store.acceptOffer(widget.offer.id);
@@ -1695,13 +1919,17 @@ class _QueuedOfferBannerState extends State<_QueuedOfferBanner> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Esta corrida já não está disponível.')));
     }
+    if (mounted) setState(() => _respondendo = false);
   }
 
   Future<void> _reject() async {
+    if (_respondendo) return;
+    setState(() => _respondendo = true);
     final store = context.read<TvdeDriverStore>();
     try {
       await store.rejectOffer(widget.offer.id);
     } catch (_) {/* best-effort */}
+    if (mounted) setState(() => _respondendo = false);
   }
 
   @override
@@ -1756,7 +1984,7 @@ class _QueuedOfferBannerState extends State<_QueuedOfferBanner> {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: widget.busy ? null : _reject,
+                  onPressed: _respondendo ? null : _reject,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white,
                     side: const BorderSide(color: Colors.white54),
@@ -1768,7 +1996,7 @@ class _QueuedOfferBannerState extends State<_QueuedOfferBanner> {
               const SizedBox(width: Spacing.sm),
               Expanded(
                 child: FilledButton(
-                  onPressed: widget.busy ? null : _accept,
+                  onPressed: _respondendo ? null : _accept,
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.accent,
                     visualDensity: VisualDensity.compact,

@@ -165,6 +165,39 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
       'small_order_fee_enabled',
     };
     if (smallOrderFeeKeys.contains(key)) return true;
+    // BLOCO 4E (2026-09-05) — mapa/navegação do TVDE. Corrigimos o cliente
+    // sem ver o carro no mapa e o mapa do motorista a travar; todo o
+    // comportamento novo ficou afinável por platform_settings para o Danilo
+    // mexer sem esperar por build. São OPERACIONAIS: afinam o zoom/inclinação
+    // da câmara, a sensibilidade de desvio de rota, a suavidade da animação
+    // da câmara e a frequência de polling do cartão do motorista no ecrã do
+    // cliente. NENHUMA altera um valor cobrado a cliente nem pago a
+    // motorista — não são 🔴 zona vermelha.
+    const tvdeNavOperational = {
+      'tvde_nav_zoom',
+      'tvde_nav_tilt',
+      'tvde_nav_offroute_meters',
+      'tvde_nav_offroute_fixes',
+      'tvde_nav_reroute_min_seconds',
+      'tvde_nav_camera_follow_ms',
+      'tvde_driver_card_poll_seconds',
+    };
+    if (tvdeNavOperational.contains(key)) return true;
+    // BLOCO 4E (2026-09-05) — ETA do TVDE mostrado ao cliente. Mesma regra
+    // do `eta_*` genérico (linha ~75): afinam só o TEMPO MOSTRADO no ecrã,
+    // nunca um valor cobrado ou pago. Usam o prefixo `tvde_eta_`, não
+    // `eta_`, por isso precisam de entrada própria aqui — o
+    // `startsWith('eta_')` de cima não as apanha.
+    const tvdeEtaClientOperational = {
+      'tvde_eta_client_discount_pct',
+      'tvde_eta_client_discount_max_min',
+      'tvde_eta_client_floor_min',
+      'tvde_eta_arriving_push_min',
+    };
+    if (tvdeEtaClientOperational.contains(key)) return true;
+    // As chaves em cêntimos da parada adicional (tvde_stop_fee_cents = taxa
+    // do cliente, tvde_stop_driver_cents = ganho do motorista) NÃO entram em
+    // nenhum destes blocos — continuam blindadas (nota na linha ~81).
     return false;
   }
 

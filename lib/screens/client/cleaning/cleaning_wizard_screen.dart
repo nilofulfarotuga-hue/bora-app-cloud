@@ -277,8 +277,13 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
             Spacing.lg, Spacing.sm, Spacing.lg, Spacing.md),
         child: Row(
           children: [
+            // A saída está SEMPRE viva. Estava presa ao `busy` global do
+            // store — bastava outra operação a meio para o "Cancelar" morrer
+            // e o utilizador ficar fechado no assistente (mesma cicatriz do
+            // ecrã de avaliação do TVDE, corrida real 05/09/2026). `_goBack`
+            // não cria nada: no passo 0 fecha, nos outros recua um passo.
             TextButton(
-              onPressed: store.busy ? null : _goBack,
+              onPressed: _goBack,
               child: Text(_step == 0 ? 'Cancelar' : 'Voltar',
                   style: const TextStyle(color: AppColors.textSecondary)),
             ),

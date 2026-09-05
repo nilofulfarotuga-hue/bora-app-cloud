@@ -422,8 +422,13 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
         return;
       }
 
+      // [4F · 05/09] `desiredAccuracy` saiu com o geolocator 14 (era só
+      // deprecação, mas a subida foi minha — arruma-se já). Mesmo nível de
+      // precisão, forma nova.
       final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
       ).timeout(const Duration(seconds: 15));
       if (!mounted) return;
       final gps = LatLng(pos.latitude, pos.longitude);

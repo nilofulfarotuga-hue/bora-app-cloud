@@ -29,7 +29,13 @@ dependencies:
   shared_preferences: ^2.3.2
 
   # MAPA E LOCALIZAÇÃO
-  geolocator: ^10.1.0
+  # ATENÇÃO: versão FIXA de propósito, sem o `^`. NÃO trocar por `^14.0.2`.
+  # O 14.0.3 puxa geolocator_linux → package_info_plus ^10 → win32 ^6, e o
+  # flutter_secure_storage 9.x exige win32 ^5: o `pub get` FALHA. Como o
+  # pubspec.lock é gitignored, o CI resolve do zero — com `^` apanhava o
+  # 14.0.3 e o build parava. Subir daqui exige resolver o win32 primeiro.
+  # (Subido de ^10.1.0 nesta missão, 2026-09-05: mapa TVDE a travar.)
+  geolocator: 14.0.2
   geocoding: ^2.2.0
   google_maps_flutter: ^2.6.0
   latlong2: ^0.9.0

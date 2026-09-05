@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -15,6 +18,8 @@ import '../../../models/tvde_fare_view.dart';
 import '../../../models/tvde_ride.dart';
 import '../../../services/directions_service.dart';
 import '../../../services/payment_service.dart';
+import '../../../services/tvde_arriving_notice.dart';
+import '../../../services/tvde_eta_display.dart';
 import '../../../stores/tvde_chat_store.dart';
 import '../../../stores/tvde_store.dart';
 import '../../../utils/map_utils.dart';
@@ -49,9 +54,47 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
   String? _driverCarColor;
   String? _driverPlate;
   String? _driverPhone; // E — botão ligar
+  int? _driverRatingsCount; // nº de avaliações (vem da RPC do cartão)
   Timer? _driverPoll;
   Timer? _animTimer;
   bool _navigatedToRate = false;
+
+  // ── [TVDE 05/09 · 1A] Cartão do motorista pela RPC ────────────────────────
+  // A RLS de `public.drivers` só deixa ler a própria linha (ou admin) — e bem:
+  // essa tabela tem IBAN, NIF, morada e documento de identidade. O SELECT que
+  // aqui estava devolvia SEMPRE vazio ao cliente e o erro morria num catch
+  // mudo: nem carro no mapa, nem nome, nem matrícula, nem ETA. O cartão
+  // PÚBLICO vem agora de `tvde_ride_driver_card` (SECURITY DEFINER), que só
+  // responde ao cliente daquela corrida.
+  int _driverPollSeconds = 5; // fallback; vem de tvde_driver_card_poll_seconds
+  int _driverCardFails = 0;
+  bool _driverCardDegraded = false; // ≥3 falhas → dizê-lo ao cliente
+
+  /// Direção de marcha do carro (graus). Preferimos o `heading` do
+  /// dispositivo; sem ele (ou parado) cai no `_bearing` calculado entre as
+  /// duas últimas posições. Suavizado para o carrinho não tremer no mapa.
+  double? _driverHeading;
+  double? _driverSpeedKmh;
+
+  /// Carrinho azul visto de cima (desenhado em código — não há asset).
+  /// Null na Web: `BitmapDescriptor.bytes` não existe lá.
+  BitmapDescriptor? _carIcon;
+
+  // ── [TVDE 05/09 · 2A/2B/2C] ETA ───────────────────────────────────────────
+  /// ETA sem rota real (distância a direito ÷ velocidade média). Serve para
+  /// mostrar sempre um número, mas não é fiável ao ponto de prometer chegada —
+  /// por isso não dispara o aviso do 2C.
+  bool _etaIsRough = false;
+
+  /// Regra do Danilo: o número MOSTRADO é menor que o real. Fallbacks aqui,
+  /// verdade em `platform_settings` (categoria `eta`).
+  int _etaDiscountPct = kTvdeEtaClientDiscountPct;
+  int _etaDiscountMaxMin = kTvdeEtaClientDiscountMaxMin;
+  int _etaFloorMin = kTvdeEtaClientFloorMin;
+  int _etaArrivingMin = 2; // tvde_eta_arriving_push_min
+
+  /// Marca do aviso "está quase a chegar" — uma vez por corrida.
+  String? _arrivingNotifiedRideId;
 
   /// [Item I] chat da corrida — ouvido para o badge de nao-lidas (lado cliente).
   TvdeChatStore? _chatStore;
@@ -115,7 +158,8 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     // (ex.: corrida entretanto cancelada noutro device / pelo cron).
     WidgetsBinding.instance.addPostFrameCallback(
         (_) => context.read<TvdeStore>().refreshActiveRide());
-    _driverPoll = Timer.periodic(const Duration(seconds: 5), (_) => _pollDriver());
+    _restartDriverPoll();
+    _loadCarIcon();
     _stopsTicker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       _stopsTick++;
@@ -153,6 +197,15 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     super.dispose();
   }
 
+  /// [05/09] O intervalo do poll deixa de estar cravado nos 5 s — vem de
+  /// `tvde_driver_card_poll_seconds` (4 s hoje). Idempotente: cancela o timer
+  /// anterior antes de abrir outro.
+  void _restartDriverPoll() {
+    _driverPoll?.cancel();
+    final s = _driverPollSeconds < 1 ? 1 : _driverPollSeconds;
+    _driverPoll = Timer.periodic(Duration(seconds: s), (_) => _pollDriver());
+  }
+
   Future<void> _loadStopSettings() async {
     final store = context.read<TvdeStore>();
     final max = await store.getSettingInt('tvde_max_stops', 2);
@@ -160,11 +213,23 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     final timer = await store.getSettingInt('tvde_stop_timer_seconds', 120);
     final grace = await store.getSettingInt('cancel_grace_seconds', 180);
     final etaSpeed = await store.getSettingInt('eta_avg_speed_kmh', 28);
+    // [05/09] cadência do cartão do motorista + regra do ETA mostrado.
+    final pollS = await store.getSettingInt(
+        'tvde_driver_card_poll_seconds', _driverPollSeconds);
+    final etaPct = await store.getSettingInt(
+        'tvde_eta_client_discount_pct', kTvdeEtaClientDiscountPct);
+    final etaCut = await store.getSettingInt(
+        'tvde_eta_client_discount_max_min', kTvdeEtaClientDiscountMaxMin);
+    final etaFloor = await store.getSettingInt(
+        'tvde_eta_client_floor_min', kTvdeEtaClientFloorMin);
+    final arriving =
+        await store.getSettingInt('tvde_eta_arriving_push_min', _etaArrivingMin);
     final ride = store.activeRide;
     final pkg = ride != null
         ? await TvdeRoundtripPrice.loadForRide(store, ride)
         : TvdeRoundtripPrice.fallbackCents;
     if (mounted) {
+      final pollMudou = pollS > 0 && pollS != _driverPollSeconds;
       setState(() {
         _maxStops = max;
         _stopFeeCents = fee;
@@ -172,7 +237,13 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
         _cancelGraceSeconds = grace;
         _packageCents = pkg;
         if (etaSpeed > 0) _etaSpeedKmh = etaSpeed;
+        if (pollS > 0) _driverPollSeconds = pollS;
+        _etaDiscountPct = etaPct;
+        _etaDiscountMaxMin = etaCut;
+        _etaFloorMin = etaFloor;
+        _etaArrivingMin = arriving;
       });
+      if (pollMudou) _restartDriverPoll();
     }
   }
 
@@ -503,13 +574,80 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
       final movedM = Geolocator.distanceBetween(
           from.latitude, from.longitude, pos.latitude, pos.longitude);
       if (DateTime.now().difference(at).inSeconds < 45 && movedM < 150) {
+        _etaIsRough = false;
         final mins = routeMin.ceil();
         return mins < 1 ? 1 : mins;
       }
     }
+    // Sem rota fresca: distância a direito ÷ velocidade média. Dá sempre um
+    // número (nunca "—"), mas fica marcado como estimativa grosseira.
+    _etaIsRough = true;
     final km = _haversineKm(pos.latitude, pos.longitude, tLat, tLng);
     final mins = (km / _etaSpeedKmh * 60).ceil();
     return mins < 1 ? 1 : mins;
+  }
+
+  /// [2B · 05/09] O número que o CLIENTE vê — o real menos o desconto de
+  /// apresentação (regra do Danilo, toda em `platform_settings`). O ETA real
+  /// nunca sai daqui: quem decide o aviso do 2C é `_etaMinutes`.
+  int? _etaShownMinutes(TvdeRide ride) {
+    final real = _etaMinutes(ride);
+    if (real == null) return null;
+    return tvdeEtaShownMinutes(
+      real,
+      discountPct: _etaDiscountPct,
+      discountMaxMin: _etaDiscountMaxMin,
+      floorMin: _etaFloorMin,
+    );
+  }
+
+  /// O carro já está no ponto de recolha? O estado `motorista_chegou` pode
+  /// demorar a chegar pelo realtime, e quem tem o carro à porta não pode
+  /// continuar a ler "chega em ~1 min".
+  bool _motoristaNoPonto(TvdeRide ride) {
+    final pos = _driverPos;
+    if (pos == null || ride.isInProgress) return false;
+    final metros = Geolocator.distanceBetween(
+        pos.latitude, pos.longitude, ride.originLat, ride.originLng);
+    if (metros < 100) return true;
+    // Parado mesmo à porta: o GPS urbano erra uns metros, e um carro travado
+    // a 120 m do ponto já ali está.
+    final v = _driverSpeedKmh;
+    return v != null && v < 3 && metros < 150;
+  }
+
+  /// [2C · 05/09] Aviso "está quase a chegar", uma vez por corrida, quando
+  /// faltam `tvde_eta_arriving_push_min` minutos de ETA **REAL**.
+  ///
+  /// Só com rota real: uma estimativa a direito não é firme o suficiente para
+  /// mandar alguém descer à rua.
+  void _maybeAvisarQuaseAChegar(TvdeRide ride) {
+    if (_arrivingNotifiedRideId == ride.id) return;
+    // `isAssigned` já inclui `motorista_chegou`: quem chegou não está "quase".
+    // E em fila (back-to-back) o motorista ainda nem vem a caminho.
+    if (!ride.isAssigned ||
+        ride.isInProgress ||
+        ride.hasArrived ||
+        ride.isQueued) {
+      return;
+    }
+    final real = _etaMinutes(ride);
+    if (real == null || _etaIsRough || real > _etaArrivingMin) return;
+
+    _arrivingNotifiedRideId = ride.id; // marca ANTES: nunca sai duas vezes
+    final quem = _primeiroNome(_driverName) ?? 'O teu motorista'.tr;
+    final carro = <String>[
+      if (_driverCar != null && _driverCar!.isNotEmpty) _driverCar!,
+      if (_driverCarColor != null && _driverCarColor!.isNotEmpty)
+        _driverCarColor!,
+      if (_driverPlate != null && _driverPlate!.isNotEmpty)
+        _formataMatricula(_driverPlate!),
+    ].join(', ');
+    unawaited(TvdeArrivingNotice.show(
+      rideId: ride.id,
+      title: '{0} está quase a chegar'.trArgs([quem]),
+      body: carro.isEmpty ? 'Prepara-te para sair.'.tr : carro,
+    ));
   }
 
   Future<void> _pollDriver() async {
@@ -521,36 +659,94 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
       return;
     }
     try {
-      // `driver_id` = auth uid do motorista → a linha resolve por user_id
-      // (em motoristas reais drivers.id <> user_id; usar 'id' não encontrava
-      // nada e o marker/cartão do motorista nunca aparecia).
-      final row = await Supabase.instance.client
-          .from('drivers')
-          .select(
-              'name, avg_rating, lat, lng, photo_url, vehicle_make_model, vehicle_color, license_plate, phone')
-          .eq('user_id', ride.driverId!)
-          .maybeSingle();
-      final lat = (row?['lat'] as num?)?.toDouble();
-      final lng = (row?['lng'] as num?)?.toDouble();
-      if (mounted) {
-        setState(() {
-          _driverName = (row?['name'] as String?)?.trim();
-          _driverRating = (row?['avg_rating'] as num?)?.toDouble();
-          _driverPhotoUrl = (row?['photo_url'] as String?)?.trim();
-          _driverCar = (row?['vehicle_make_model'] as String?)?.trim();
-          _driverCarColor = (row?['vehicle_color'] as String?)?.trim();
-          _driverPlate = (row?['license_plate'] as String?)?.trim();
-          _driverPhone = (row?['phone'] as String?)?.trim();
-        });
-        // C4 — anima em vez de saltar.
-        if (lat != null && lng != null) {
-          final pos = LatLng(lat, lng);
-          _setDriverPos(pos);
-          // [Bloco 5] rota viva do motorista (→recolha / →destino).
-          _maybeFetchDriverRoute(ride, pos);
+      // [1A · 05/09] Cartão PÚBLICO do motorista. A RPC recebe o id da
+      // CORRIDA (não o do motorista) e é ela que decide se quem pergunta é
+      // mesmo o passageiro desta corrida — por isso pode ser SECURITY DEFINER
+      // sem abrir a tabela `drivers`, onde vivem IBAN, NIF e documentos.
+      final res = await Supabase.instance.client
+          .rpc('tvde_ride_driver_card', params: {'p_ride_id': ride.id});
+      // `RETURNS TABLE` chega como lista; aceitamos também o mapa único, para
+      // a tela não voltar a ficar muda se a assinatura mudar de forma.
+      Map<String, dynamic>? bruto;
+      if (res is List) {
+        if (res.isNotEmpty && res.first is Map) {
+          bruto = Map<String, dynamic>.from(res.first as Map);
         }
+      } else if (res is Map) {
+        bruto = Map<String, dynamic>.from(res);
       }
-    } catch (_) {}
+      if (bruto == null) {
+        _notaFalhaCartao('resposta vazia');
+        return;
+      }
+      final row = bruto; // não-nulo: o setState lá abaixo é um closure
+
+      final lat = (row['lat'] as num?)?.toDouble();
+      final lng = (row['lng'] as num?)?.toDouble();
+      final heading = (row['heading'] as num?)?.toDouble();
+      final speed = (row['speed_kmh'] as num?)?.toDouble();
+      if (!mounted) return;
+
+      // C4 — anima em vez de saltar. Primeiro a posição: é ela que atualiza o
+      // `_bearing` calculado entre pontos, que serve de plano B ao heading.
+      if (lat != null && lng != null) {
+        final pos = LatLng(lat, lng);
+        _setDriverPos(pos);
+        // [Bloco 5] rota viva do motorista (→recolha / →destino).
+        _maybeFetchDriverRoute(ride, pos);
+      }
+      if (!mounted) return;
+      setState(() {
+        _driverName = (row['name'] as String?)?.trim();
+        _driverRating = (row['avg_rating'] as num?)?.toDouble();
+        _driverRatingsCount = (row['ratings_count'] as num?)?.toInt();
+        _driverPhotoUrl = (row['photo_url'] as String?)?.trim();
+        _driverCar = (row['vehicle_make_model'] as String?)?.trim();
+        _driverCarColor = (row['vehicle_color'] as String?)?.trim();
+        _driverPlate = (row['license_plate'] as String?)?.trim();
+        _driverPhone = (row['phone'] as String?)?.trim();
+        _driverSpeedKmh = speed;
+        // 1B — para onde o carrinho aponta: heading do dispositivo enquanto
+        // anda; parado (ou sem heading) usa a direção entre as duas últimas
+        // posições; sem nem isso, mantém a última — parado não gira à toa.
+        final aMexer = speed == null || speed > 1.5;
+        final alvo = (heading != null && aMexer)
+            ? heading
+            : (_lastBearingPos != null ? _bearing : null);
+        if (alvo != null) _driverHeading = _suavizaHeading(_driverHeading, alvo);
+        _driverCardFails = 0;
+        _driverCardDegraded = false;
+      });
+      // 2C — "está quase a chegar" (usa o ETA REAL, nunca o com desconto).
+      _maybeAvisarQuaseAChegar(ride);
+    } catch (e) {
+      // Nunca mais em silêncio: um catch mudo escondeu este bug durante
+      // semanas, com passageiros reais a olhar para um mapa vazio.
+      _notaFalhaCartao(e.toString());
+    }
+  }
+
+  /// Falha ao ler o cartão do motorista. Regista sempre; ao fim de TRÊS
+  /// seguidas assume-se ao cliente que estamos a tentar ligar-nos — um ecrã
+  /// que falha calado é pior do que um que se explica.
+  void _notaFalhaCartao(String motivo) {
+    _driverCardFails++;
+    debugPrint('[TVDE-CLIENTE] tvde_ride_driver_card falhou '
+        '(${_driverCardFails}.ª seguida): $motivo');
+    if (_driverCardFails >= 3 && !_driverCardDegraded && mounted) {
+      setState(() => _driverCardDegraded = true);
+    }
+  }
+
+  /// Suaviza a rotação do carrinho (novo×0,3 + antigo×0,7) pelo caminho mais
+  /// curto do círculo — sem isto, passar de 359° para 1° dava uma pirueta.
+  double _suavizaHeading(double? anterior, double novo) {
+    final n = ((novo % 360) + 360) % 360;
+    if (anterior == null) return n;
+    var delta = (n - anterior) % 360;
+    if (delta > 180) delta -= 360;
+    if (delta < -180) delta += 360;
+    return ((anterior + delta * 0.3) % 360 + 360) % 360;
   }
 
   /// [Bloco 5, 30/08] Rota do motorista até ao alvo da fase atual — como o
@@ -615,6 +811,62 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     }
   }
 
+  /// [1B · 05/09] Carrinho AZUL visto de cima, desenhado em código — não há
+  /// asset de carro no projeto. Mesmo padrão da seta verde do ecrã do
+  /// motorista: `BitmapDescriptor.bytes` NÃO existe na Web, por isso lá fica o
+  /// marker nativo (azul na mesma) em vez de um ecrã partido.
+  ///
+  /// Azul porque o verde e o laranja são as cores da marca e já estão nos
+  /// pinos de recolha e destino — o carro tem de se distinguir deles.
+  Future<void> _loadCarIcon() async {
+    if (kIsWeb) return;
+    try {
+      final bytes = await _createCarIcon();
+      if (!mounted) return;
+      setState(() => _carIcon = BitmapDescriptor.bytes(bytes));
+    } catch (_) {/* fallback: marker nativo azul */}
+  }
+
+  Future<Uint8List> _createCarIcon() async {
+    const size = 72.0;
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+
+    // Desenhado a apontar para CIMA (0° = norte). Quem o roda é o
+    // `Marker.rotation`, com o heading do motorista.
+    final corpo = ui.Path()
+      ..moveTo(36, 4) // bico da frente
+      ..lineTo(52, 20)
+      ..lineTo(52, 62)
+      ..quadraticBezierTo(52, 68, 46, 68)
+      ..lineTo(26, 68)
+      ..quadraticBezierTo(20, 68, 20, 62)
+      ..lineTo(20, 20)
+      ..close();
+
+    // Halo branco primeiro: sem ele o carro azul desaparece por cima de uma
+    // estrada escura do mapa.
+    canvas.drawPath(
+      corpo,
+      Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 5
+        ..strokeJoin = StrokeJoin.round,
+    );
+    canvas.drawPath(corpo, Paint()..color = AppColors.mapDropoff);
+    // Tejadilho claro — é o que dá o sentido da marcha num ícone pequeno.
+    canvas.drawRRect(
+      RRect.fromLTRBR(25, 26, 47, 48, const Radius.circular(5)),
+      Paint()..color = Colors.white.withValues(alpha: 0.92),
+    );
+
+    final img =
+        await recorder.endRecording().toImage(size.toInt(), size.toInt());
+    final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
+    return bytes!.buffer.asUint8List();
+  }
+
   Set<Marker> _markers(TvdeRide ride) {
     final markers = <Marker>{
       Marker(
@@ -630,11 +882,17 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
       ),
     };
     if (_driverPos != null) {
+      // [1B] Carro azul, deitado no mapa e virado para onde segue — em vez do
+      // alfinete laranja, que não dizia nada sobre a direção de marcha.
       markers.add(Marker(
         markerId: const MarkerId('driver'),
         position: _driverPos!,
-        infoWindow: InfoWindow(title: 'Motorista'.tr),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+        anchor: const Offset(0.5, 0.5), // roda sobre o próprio centro
+        flat: true,
+        rotation: _driverHeading ?? _bearing,
+        infoWindow: InfoWindow(title: _driverName ?? 'Motorista'.tr),
+        icon: _carIcon ??
+            BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
       ));
     }
     // [Feature 1] paradas adicionais numeradas.
@@ -934,17 +1192,24 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     // — aí a informação É o ecrã.
     final compact = ride.isAssigned || ride.isInProgress;
     const stripSize = 0.14;
+    // [2A] Chegou = o estado do servidor OU o carro já ali (o realtime pode
+    // demorar, e quem vê o carro à porta não pode ler "chega em ~1 min").
+    final chegou = ride.hasArrived || _motoristaNoPonto(ride);
     final panel = _StatusPanel(
       ride: ride,
       busy: store.busy,
       driverName: _driverName,
       driverRating: _driverRating,
+      driverRatingsCount: _driverRatingsCount,
       driverPhotoUrl: _driverPhotoUrl,
       driverCar: _driverCar,
       driverCarColor: _driverCarColor,
       driverPlate: _driverPlate,
       hasPhone: _driverPhone != null && _driverPhone!.isNotEmpty,
-      etaMinutes: _etaMinutes(ride),
+      driverArrived: chegou,
+      driverCardDegraded: _driverCardDegraded,
+      // [2B] O painel recebe o número JÁ com o desconto de apresentação.
+      etaMinutes: _etaShownMinutes(ride),
       unreadCount: context.watch<TvdeChatStore>().unreadFor(ride.id, 'client'),
       stops: _stops,
       maxStops: _maxStops,
@@ -1045,7 +1310,9 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
                       ride: ride,
                       fare: TvdeFareView.of(ride,
                           packageCents: _packageCents),
-                      etaMinutes: _etaMinutes(ride),
+                      etaMinutes: _etaShownMinutes(ride),
+                      driverFirstName: _primeiroNome(_driverName),
+                      driverArrived: chegou,
                     ),
                     panel,
                   ],
@@ -1058,6 +1325,29 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
   }
 }
 
+/// [1C · 05/09] Primeiro nome do motorista. "Danilo chega em ~8 min" é uma
+/// pessoa a caminho; "Motorista a caminho" é uma abstração. Vazio → null, para
+/// o texto cair no genérico em vez de mostrar espaço em branco.
+String? _primeiroNome(String? completo) {
+  final n = completo?.trim();
+  if (n == null || n.isEmpty) return null;
+  final primeiro = n.split(RegExp(r'\s+')).first;
+  return primeiro.isEmpty ? null : primeiro;
+}
+
+/// [1C · 05/09] Matrícula portuguesa em pares: "CH90PX" → "CH-90-PX". É por
+/// ela que o passageiro reconhece o carro certo na rua, por isso tem de estar
+/// legível. Já com traços — ou com outro número de caracteres — fica como
+/// está: nunca se inventa formato em cima do que a base tem.
+String _formataMatricula(String bruta) {
+  final t = bruta.trim().toUpperCase();
+  if (t.contains('-')) return t;
+  final limpa = t.replaceAll(RegExp(r'[^A-Z0-9]'), '');
+  if (limpa.length != 6) return t;
+  return '${limpa.substring(0, 2)}-${limpa.substring(2, 4)}-'
+      '${limpa.substring(4, 6)}';
+}
+
 /// [Bloco 5, 30/08] A fitinha do fundo — estilo Uber: uma linha com o estado,
 /// o ETA e o preço; puxar para cima mostra o painel completo (paradas,
 /// mensagem, ligar, cancelar).
@@ -1066,22 +1356,37 @@ class _CompactStrip extends StatelessWidget {
     required this.ride,
     required this.fare,
     required this.etaMinutes,
+    required this.driverFirstName,
+    required this.driverArrived,
   });
 
   final TvdeRide ride;
   final TvdeFareView fare;
-  final int? etaMinutes;
 
+  /// Já com o desconto de apresentação (2B) — nunca o ETA real.
+  final int? etaMinutes;
+  final String? driverFirstName;
+  final bool driverArrived;
+
+  /// [2A · 05/09] Os textos falam do motorista pelo nome e mexem-se com o ETA.
   String get _texto {
+    final quem = driverFirstName;
     if (ride.isInProgress) {
       return etaMinutes != null
-          ? 'Viagem em curso · chegada ~{0} min'.trArgs([etaMinutes])
-          : 'Viagem em curso';
+          ? 'Chegas ao destino em ~{0} min'.trArgs([etaMinutes])
+          : 'Viagem em curso'.tr;
     }
-    if (ride.hasArrived) return 'O motorista chegou'.tr;
-    return etaMinutes != null
-        ? 'Motorista a caminho · chega em ~{0} min'.trArgs([etaMinutes])
-        : 'Motorista a caminho';
+    if (driverArrived) {
+      return quem != null ? '{0} chegou'.trArgs([quem]) : 'O motorista chegou'.tr;
+    }
+    if (etaMinutes == null) {
+      return quem != null
+          ? '{0} está a caminho'.trArgs([quem])
+          : 'Motorista a caminho'.tr;
+    }
+    return quem != null
+        ? '{0} chega em ~{1} min'.trArgs([quem, etaMinutes])
+        : 'Motorista a caminho · chega em ~{0} min'.trArgs([etaMinutes]);
   }
 
   @override
@@ -1130,11 +1435,14 @@ class _StatusPanel extends StatelessWidget {
     required this.busy,
     required this.driverName,
     required this.driverRating,
+    required this.driverRatingsCount,
     required this.driverPhotoUrl,
     required this.driverCar,
     required this.driverCarColor,
     required this.driverPlate,
     required this.hasPhone,
+    required this.driverArrived,
+    required this.driverCardDegraded,
     required this.etaMinutes,
     required this.unreadCount,
     required this.stops,
@@ -1157,6 +1465,9 @@ class _StatusPanel extends StatelessWidget {
   final bool busy;
   final String? driverName;
   final double? driverRating;
+
+  /// [1C] Nº de avaliações — "5,0" sozinho não vale nada se for de uma só.
+  final int? driverRatingsCount;
   // D1 — cartão completo do motorista.
   final String? driverPhotoUrl;
   final String? driverCar;
@@ -1164,7 +1475,15 @@ class _StatusPanel extends StatelessWidget {
   final String? driverPlate;
   final bool hasPhone;
 
+  /// [2A] Chegou (estado do servidor ou carro já no ponto).
+  final bool driverArrived;
+
+  /// [1A] Três leituras seguidas falhadas → dizer ao cliente que estamos a
+  /// tentar, em vez de o deixar a olhar para um cartão vazio.
+  final bool driverCardDegraded;
+
   /// C5 — "chega em ~X min" (recolha) / "destino em ~X min" (em viagem).
+  /// Já com o desconto de apresentação (2B).
   final int? etaMinutes;
   /// [Item I] mensagens por ler (badge no botão Mensagem).
   final int unreadCount;
@@ -1186,14 +1505,36 @@ class _StatusPanel extends StatelessWidget {
   final VoidCallback onRetry;
   final VoidCallback onClose;
 
-  /// D1 — linha do carro: "Renault Clio · Cinzento · AA-00-BB".
+  /// [1C] Linha do carro: "Hyundai Ioniq 5 · Azul". A matrícula saiu daqui de
+  /// propósito — é o dado que serve para reconhecer o carro na rua e passou a
+  /// ter destaque próprio, não mais uma palavra numa linha comprida.
   String? _carLine() {
     final parts = <String>[
       if (driverCar != null && driverCar!.isNotEmpty) driverCar!,
       if (driverCarColor != null && driverCarColor!.isNotEmpty) driverCarColor!,
-      if (driverPlate != null && driverPlate!.isNotEmpty) driverPlate!,
     ];
     return parts.isEmpty ? null : parts.join(' · ');
+  }
+
+  /// [2A] Linha do ETA, pelo nome do motorista. O número já vem com o
+  /// desconto de apresentação — aqui só se escolhe a frase.
+  String _etaTexto(int minutos) {
+    if (ride.isInProgress) {
+      return 'Chegas ao destino em ~{0} min'.trArgs([minutos]);
+    }
+    final quem = _primeiroNome(driverName);
+    return quem != null
+        ? '{0} chega em ~{1} min'.trArgs([quem, minutos])
+        : 'O motorista chega em ~{0} min'.trArgs([minutos]);
+  }
+
+  /// [1C] Cabeçalho do cartão: uma pessoa, não uma função.
+  String _headline() {
+    final quem = _primeiroNome(driverName);
+    if (quem == null) return 'Motorista'.tr;
+    if (ride.isInProgress) return quem;
+    if (driverArrived) return '{0} chegou'.trArgs([quem]);
+    return '{0} está a caminho'.trArgs([quem]);
   }
 
   @override
@@ -1218,7 +1559,10 @@ class _StatusPanel extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (ride.isAssigned &&
+          // [1C · 05/09] O cartão vive também EM VIAGEM: antes só aparecia com
+          // `isAssigned`, e a linha do ETA ao destino aqui dentro nunca chegava
+          // a ser desenhada. Quem já embarcou continua a precisar do contacto.
+          if ((ride.isAssigned || ride.isInProgress) &&
               driverName != null &&
               driverName!.isNotEmpty) ...[
             Row(
@@ -1239,12 +1583,14 @@ class _StatusPanel extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(driverName!,
+                      Text(_headline(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 15,
                               color: AppColors.textPrimary)),
-                      // D1 — carro: marca/modelo · cor · matrícula.
+                      // [1C] carro: marca/modelo · cor (a matrícula vai à parte).
                       if (_carLine() != null)
                         Text(_carLine()!,
                             maxLines: 1,
@@ -1262,9 +1608,53 @@ class _StatusPanel extends StatelessWidget {
                       style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           color: AppColors.textPrimary)),
+                  // [1C] "5,0" de uma única avaliação não é o mesmo que de 200.
+                  if (driverRatingsCount != null && driverRatingsCount! > 0) ...[
+                    const SizedBox(width: 3),
+                    Text('($driverRatingsCount)',
+                        style: const TextStyle(
+                            fontSize: 12, color: AppColors.textSubtle)),
+                  ],
                 ],
               ],
             ),
+            // [1C] MATRÍCULA — o elemento mais importante do cartão: é por ela
+            // que o passageiro reconhece o carro certo na rua, muitas vezes ao
+            // longe e com pressa. Grande, espaçada e com moldura própria.
+            if (driverPlate != null && driverPlate!.isNotEmpty) ...[
+              const SizedBox(height: Spacing.md),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: Spacing.md, vertical: Spacing.sm),
+                decoration: BoxDecoration(
+                  color: AppColors.surface2,
+                  borderRadius: BorderRadius.circular(Radii.md),
+                  border: Border.all(color: AppColors.dividerStrong, width: 1.5),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.directions_car,
+                        size: 20, color: AppColors.textSecondary),
+                    const SizedBox(width: Spacing.sm),
+                    Flexible(
+                      child: Text(
+                        _formataMatricula(driverPlate!),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 2.5,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             // E — falar com o motorista (chat + ligar).
             const SizedBox(height: Spacing.sm),
             Row(
@@ -1303,22 +1693,43 @@ class _StatusPanel extends StatelessWidget {
                 ],
               ],
             ),
-            // C5 — ETA do motorista (recolha ou destino).
-            if (etaMinutes != null && !ride.isQueued) ...[
-              const SizedBox(height: Spacing.xs),
+            // [2A] ETA do motorista (recolha ou destino), pelo nome dele.
+            // Chegou → deixa de haver contagem: já ali está.
+            if (driverArrived && !ride.isInProgress) ...[
+              const SizedBox(height: Spacing.sm),
+              Row(
+                children: [
+                  const Icon(Icons.where_to_vote,
+                      size: 15, color: AppColors.primary),
+                  const SizedBox(width: 4),
+                  // O cabeçalho já diz "{Nome} chegou" — aqui vale a pena o
+                  // dado a mais, não repetir a mesma frase duas vezes.
+                  Text(
+                    'O carro já está no ponto de recolha.'.tr,
+                    style: const TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+            ] else if (etaMinutes != null && !ride.isQueued) ...[
+              const SizedBox(height: Spacing.sm),
               Row(
                 children: [
                   const Icon(Icons.schedule,
                       size: 15, color: AppColors.primary),
                   const SizedBox(width: 4),
-                  Text(
-                    ride.isInProgress
-                        ? 'Chegada ao destino em ~{0} min'.trArgs([etaMinutes])
-                        : 'O motorista chega em ~$etaMinutes min',
-                    style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700),
+                  Expanded(
+                    child: Text(
+                      _etaTexto(etaMinutes!),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700),
+                    ),
                   ),
                 ],
               ),
@@ -1390,6 +1801,26 @@ class _StatusPanel extends StatelessWidget {
             '${ride.originLabel ?? 'Recolha'} → ${ride.destLabel ?? 'Destino'}',
             style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
           ),
+          // [1A] Não conseguimos ler o cartão do motorista há três tentativas.
+          // Dizê-lo baixinho é melhor do que deixar o cliente a olhar para um
+          // ecrã parado sem perceber se é dele, se é nosso.
+          if (driverCardDegraded) ...[
+            const SizedBox(height: Spacing.xs),
+            Row(
+              children: [
+                const Icon(Icons.sync_problem,
+                    size: 14, color: AppColors.textSubtle),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    'A ligar-se ao motorista…'.tr,
+                    style: const TextStyle(
+                        color: AppColors.textSubtle, fontSize: 11.5),
+                  ),
+                ),
+              ],
+            ),
+          ],
           // Corrida estacionada à espera do pagamento: NÃO está a chamar
           // motorista nenhum. Dizê-lo por palavras, para o cliente não pensar
           // que já vem alguém a caminho.

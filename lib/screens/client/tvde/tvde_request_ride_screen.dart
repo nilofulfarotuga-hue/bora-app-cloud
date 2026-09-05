@@ -5,6 +5,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../auth/auth_store.dart';
 import '../../../config/app_colors.dart';
@@ -975,12 +976,18 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final priceEur = _roundtripPriceCents / 100;
 
+    // Um id por compra. Vai como chave de idempotência até à Stripe: se o pedido
+    // se perder na rede e for repetido, volta o MESMO PaymentIntent em vez de
+    // nascer uma segunda cobrança. Nasce aqui, uma vez, e não se reaproveita.
+    final requestId = const Uuid().v4();
+
     // 1) PaymentIntent do preço dinâmico (server-side). MB Way confirma-se na
     //    app do banco; cartão confirma-se já a seguir.
     final created = isMbway
         ? await store.createRoundtripPaymentMbway(mbwayPhone!, km,
-            tokensUsed: tokensUsed)
-        : await store.createRoundtripPayment(km, tokensUsed: tokensUsed);
+            tokensUsed: tokensUsed, requestId: requestId)
+        : await store.createRoundtripPayment(km,
+            tokensUsed: tokensUsed, requestId: requestId);
     if (!mounted) return;
     final paymentIntentId = created?['paymentIntentId'] as String?;
     if (created == null || paymentIntentId == null) {

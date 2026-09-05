@@ -203,6 +203,33 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
       'tvde_eta_arriving_push_min',
     };
     if (tvdeEtaClientOperational.contains(key)) return true;
+    // CHAVES INVISÍVEIS (2026-09-05) — das 49 chaves que não tinham categoria
+    // nenhuma (e por isso não apareciam sequer neste painel), 36 são
+    // operacionais. A maioria já era apanhada pelos blocos acima (dispatch_,
+    // reservation_, appointment_reschedule_, robot_b_). Faltavam estas 13, que
+    // não batem em nenhum prefixo existente. São todas janelas de tempo,
+    // distâncias, contagens ou filtros de ecrã: NENHUMA altera um valor
+    // cobrado ao cliente nem pago a estafeta, parceiro ou profissional.
+    //
+    // As 13 chaves de DINHEIRO do mesmo lote (carteira, taxas de cancelamento,
+    // tokens) ganharam categoria — passaram a ser VISÍVEIS e auditáveis — mas
+    // NÃO entram aqui: ficam com o cadeado. Ver o relatório desta missão.
+    const operacionaisSemPrefixo = {
+      'carwash_retry_lead_hours',
+      'carwash_retry_window_hours',
+      'carwash_stuck_after_hours',
+      'delivery_max_distance_km',
+      'discovery_filters',
+      'oferta_sem_aparelho_min',
+      'robot_consumer_cutoff_at',
+      'tvde_reservation_eta_kmh',
+      'tvde_reservation_lock_margin_minutes',
+      'tvde_reservation_lock_max_minutes',
+      'tvde_reservation_lock_min_minutes',
+      'tvde_reservation_position_max_age_min',
+      'tvde_reservation_road_factor_x100',
+    };
+    if (operacionaisSemPrefixo.contains(key)) return true;
     // As chaves em cêntimos da parada adicional (tvde_stop_fee_cents = taxa
     // do cliente, tvde_stop_driver_cents = ganho do motorista) NÃO entram em
     // nenhum destes blocos — continuam blindadas (nota na linha ~81).

@@ -1,0 +1,52 @@
+PROVA DA CORRIDA DE TESTE PONTA A PONTA - TVDE
+Data: 5 de setembro de 2026. Ambiente: PRODUCAO (bora-app-web.pages.dev, build 589).
+Corrida: 5b0d6553-5332-4761-9d49-628ede032256
+
+QUEM ENTROU
+  cliente   : Cliente E2E (e2e_tvde_cliente@boraapp.test)
+  motorista : Rui Teste E2E, Renault Clio Cinzento, matricula AA12BB, 4.8 estrelas de 127
+
+O PERCURSO
+  recolha : Praça do Comércio 31, 1100-148 Lisboa, Portugal
+  paragem : Rossio, Lisboa (acrescentada a meio da viagem pelo cliente)
+  destino : Marquês de Pombal, Lisboa, Portugal
+  estado final : finalizada
+  pagamento : cash  (dinheiro, como manda a regra da casa)
+
+O DINHEIRO
+  preco estimado no pedido : 7.00 EUR (7.16 km)
+  taxa das paragens        : 2.00 EUR
+  preco final ao cliente   : 9.00 EUR
+  ganho do motorista       : 6.60 EUR
+  corte da Bora            : 2.40 EUR
+  Regra: cliente paga 2 EUR por paragem, motorista recebe 1 EUR. Confere.
+
+LINHA DO TEMPO (eventos gravados pelo servidor)
+  14:44:39  em_andamento             por cliente
+  14:40:52  motorista_chegou         por driver
+  14:32:03  motorista_a_caminho      por driver
+  14:40:53  em_andamento             por driver
+  14:30:27  oferta                   por system
+  14:47:54  em_andamento             por motorista
+  14:30:27  solicitada               por client
+  14:31:07  push_falhou              por system
+  14:44:40  push_falhou              por system
+  14:48:24  finalizada               por driver
+  14:30:28  push_enviado             por system
+  14:32:03  motorista_atribuido      por driver
+
+PARAGENS
+  #1  Rossio, Lisboa  (38.7139, -9.1394)  alcancada=True
+
+AVALIACOES
+  cliente avaliou : SIM (rated_by_client = true)
+  motorista avaliou: SIM (rated_by_driver = true)
+  As duas avaliacoes foram aceites pelo servidor (HTTP 200) e as marcas ficaram gravadas,
+  que e' o que faz o ecra de avaliacao fechar em vez de prender.
+
+O QUE O NAVEGADOR NAO CONSEGUIU MOSTRAR EM FICHEIRO
+  O mapa do Google na app web nao e' desenhado dentro da tela do Flutter: e' um elemento
+  HTML por cima. A captura que se tira de dentro da pagina copia a tela do Flutter, por isso
+  guarda a interface toda (barra, folha, precos, cartao) mas deixa a area do mapa em branco.
+  O mapa foi visto a funcionar ao vivo, com Lisboa desenhada e os pinos de recolha e destino,
+  mas essa imagem so existe na conversa, nao em ficheiro. Nao dou por provado o que nao guardei.

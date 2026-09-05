@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 import '../models/falha_de_acao.dart';
 import '../models/cleaning_models.dart';
@@ -138,7 +139,13 @@ class CleaningStore extends ChangeNotifier {
   }) async {
     _setBusy(true);
     try {
+      // Uma chave por marcação, criada AQUI e não dentro do fecho: se o tecto de
+      // tempo disparar e o pedido for repetido, vai a MESMA chave, e o servidor
+      // devolve a reserva que já criou em vez de criar uma segunda. Se nascesse
+      // dentro do fecho, a repetição levava chave nova e o duplicado voltava.
+      final chaveDaMarcacao = const Uuid().v4();
       final res = await criarComTectoSeguro(() => _sb.rpc('create_cleaning_booking', params: {
+        'p_idempotency_key': chaveDaMarcacao,
         'p_cleaning_type': cleaningType,
         'p_pricing_mode': pricingMode,
         'p_home_size': homeSize,

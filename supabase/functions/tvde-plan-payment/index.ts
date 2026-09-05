@@ -1,4 +1,4 @@
-// supabase/functions/tvde-plan-payment/index.ts — v5 (Item A + CAMPO-02 F3 roundtrip + KM 2026-08-25)
+// supabase/functions/tvde-plan-payment/index.ts — v6 (Item A + CAMPO-02 F3 roundtrip + KM + idempotência)
 //
 // Pagamento do PLANO TVDE por cartão OU MB Way (Stripe) + ativação automática,
 // SEM tocar no webhook Stripe existente. Função nova e ISOLADA (regra do Danilo).
@@ -8,6 +8,10 @@
 //     nos metadata do PaymentIntent. Na activação o km vem dos METADATA, nunca do pedido,
 //     para o cliente não poder pagar um plano curto e activar um plano longo.
 //     Sem distance_km tudo se comporta exactamente como na v3.
+// v6 (2026-09-05): CHAVE DE IDEMPOTÊNCIA no pacote ida-e-volta (cartão e MB Way).
+//     Uma repetição de rede deixa de criar um segundo PaymentIntent. Aceita
+//     `request_id` do app; sem ele usa utilizador+valor+janela de 10 min.
+//     Nenhum preço, comissão ou valor cobrado mudou.
 
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -101,6 +105,24 @@ Deno.serve(async (req: Request) => {
     const originLabel = typeof body?.origin_label === 'string' ? body.origin_label : null;
     const destLabel = typeof body?.dest_label === 'string' ? body.dest_label : null;
 
+    // v6 (2026-09-05) — CHAVE DE IDEMPOTÊNCIA no pacote ida-e-volta.
+    // A trava que estava no ecrã protegia o dedo do cliente (duplo toque), mas
+    // não protegia uma REPETIÇÃO DE REDE: um pedido que se perde a meio e é
+    // repetido criava um segundo PaymentIntent, ou seja, uma segunda cobrança.
+    // Agora o pedido leva uma chave: a Stripe devolve o MESMO PaymentIntent em
+    // vez de criar outro. O app manda `request_id` (um por compra); se não
+    // mandar, cai numa chave derivada do utilizador + valor + janela de 10 min,
+    // que chega para apanhar a repetição sem travar uma compra legítima depois.
+    // Nenhum preço mudou — isto só impede repetir.
+    const requestId = typeof body?.request_id === 'string'
+      ? body.request_id.trim().slice(0, 80).replace(/[^A-Za-z0-9._:-]/g, '')
+      : '';
+    const chaveIdem = (prefixo: string, valorCents: number): string => {
+      if (requestId) return `${prefixo}-${user.id}-${requestId}`;
+      const janela = Math.floor(Date.now() / 600000); // balde de 10 minutos
+      return `${prefixo}-${user.id}-${valorCents}-${janela}`;
+    };
+
     // ── [CAMPO-02 F3] IDA-E-VOLTA — pacote pré-pago reusa este checkout ──
     if (action === 'create_roundtrip' || action === 'create_roundtrip_mbway' ||
         action === 'activate_roundtrip') {
@@ -160,7 +182,7 @@ Deno.serve(async (req: Request) => {
           ...(customerId ? { customer: customerId, setup_future_usage: 'off_session' as const } : {}),
           automatic_payment_methods: { enabled: true },
           metadata: rtMeta,
-        });
+        }, { idempotencyKey: chaveIdem('tvde-rt-card', amountCents) });
         return json({
           clientSecret: paymentIntent.client_secret,
           paymentIntentId: paymentIntent.id,
@@ -182,7 +204,7 @@ Deno.serve(async (req: Request) => {
           payment_method_data: { type: 'mb_way', billing_details: { phone: e164 } },
           confirm: true,
           metadata: rtMeta,
-        });
+        }, { idempotencyKey: chaveIdem('tvde-rt-mbway', amountCents) });
       } catch (e) {
         const m = e instanceof Error ? e.message : String(e);
         return json({ error: 'mbway_create_failed', details: m }, 400);

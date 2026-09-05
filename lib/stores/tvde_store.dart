@@ -1210,13 +1210,18 @@ class TvdeStore extends ChangeNotifier {
   /// toggle da folha de pagamento. A Edge Fn recomputa o desconto em cêntimos
   /// (nunca aceita um valor de desconto vindo do cliente); aqui só viaja a
   /// CONTAGEM.
+  /// [requestId] identifica ESTA compra. Vai como chave de idempotência para a
+  /// Stripe: se o pedido se perder na rede e for repetido, volta o MESMO
+  /// PaymentIntent em vez de nascer uma segunda cobrança. Um id novo por compra,
+  /// nunca reaproveitado entre compras diferentes.
   Future<Map<String, dynamic>?> createRoundtripPayment(double distanceKm,
-      {int tokensUsed = 0}) async {
+      {int tokensUsed = 0, String? requestId}) async {
     try {
       final res = await _sb.functions.invoke('tvde-plan-payment', body: {
         'action': 'create_roundtrip',
         'distance_km': distanceKm,
         'tokens_used': tokensUsed,
+        if (requestId != null) 'request_id': requestId,
       });
       final data = res.data;
       if (data is Map && data['clientSecret'] != null) {
@@ -1233,15 +1238,19 @@ class TvdeStore extends ChangeNotifier {
   /// MB Way do pacote ida-e-volta (server-confirm com phone E.164).
   /// [distanceKm] é obrigatório — ver nota em [createRoundtripPayment].
   /// [tokensUsed] (PROPOSTA, não deployado) — ver nota em [createRoundtripPayment].
+  /// [requestId] — mesma chave de idempotência descrita em
+  /// [createRoundtripPayment]. No MB Way isto é ainda mais importante: dois
+  /// pedidos eram dois toques na app do banco.
   Future<Map<String, dynamic>?> createRoundtripPaymentMbway(
       String phone, double distanceKm,
-      {int tokensUsed = 0}) async {
+      {int tokensUsed = 0, String? requestId}) async {
     try {
       final res = await _sb.functions.invoke('tvde-plan-payment', body: {
         'action': 'create_roundtrip_mbway',
         'phone': phone,
         'distance_km': distanceKm,
         'tokens_used': tokensUsed,
+        if (requestId != null) 'request_id': requestId,
       });
       final data = res.data;
       if (data is Map && data['paymentIntentId'] != null) {

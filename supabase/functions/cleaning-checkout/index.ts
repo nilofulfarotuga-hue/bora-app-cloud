@@ -5,11 +5,16 @@
 //    cleaning_stripe_enabled=true). v2 (2026-07-05): cartão passou de hold
 //    manual para COBRANÇA NA RESERVA (hold expirava em ~7 dias).
 //
+// v3 (2026-07-21) — Carteira Única: a ação `create` (cartão) passa a GUARDAR o
+//    cartão (Stripe Customer + setup_future_usage 'off_session') e a REUSAR cartão
+//    salvo (saved_pm_id -> confirm off_session, isenção MIT). ADITIVO: create_mbway,
+//    mark_held, capture e reverse INTACTOS. stripe-webhook não tocado.
+//
 // Padrão: espelha tvde-plan-payment (Edge Fn Stripe ISOLADA, sem tocar no
 // stripe-webhook v17+ nem em create-payment-intent). verify_jwt = true.
 //
 // Ações (POST JSON):
-//   { action:'create',        bookingId }
+//   { action:'create',        bookingId, saved_pm_id? }
 //     → CARTÃO: PaymentIntent normal — COBRA NA RESERVA (decisão do Danilo
 //       2026-07-05: o hold manual expirava em ~7 dias e reservas antecipadas
 //       perdiam a retenção). Estorno automático no cancelamento ('reverse').
@@ -65,6 +70,39 @@ function toE164(raw: string): string {
   return '+351' + digits;
 }
 
+// v3 — Carteira Única: Stripe Customer idempotente por user (admin service-role;
+// RLS bloqueia update user-side de users.stripe_customer_id). Falha = non-blocking.
+// deno-lint-ignore no-explicit-any
+async function getOrCreateCustomer(admin: any, userId: string): Promise<string | null> {
+  try {
+    const { data: userRow } = await admin
+      .from('users').select('stripe_customer_id, email, name')
+      .eq('id', userId).maybeSingle();
+    if (userRow?.stripe_customer_id) return userRow.stripe_customer_id as string;
+    const customer = await stripe.customers.create({
+      email: (userRow?.email as string | undefined) ?? undefined,
+      name: (userRow?.name as string | undefined) ?? undefined,
+      metadata: { supabase_uid: userId },
+    });
+    const { error: updErr } = await admin
+      .from('users').update({ stripe_customer_id: customer.id })
+      .eq('id', userId).is('stripe_customer_id', null);
+    if (updErr) {
+      const { data: refetch } = await admin
+        .from('users').select('stripe_customer_id').eq('id', userId).maybeSingle();
+      const winner = refetch?.stripe_customer_id as string | undefined;
+      if (winner && winner !== customer.id) {
+        try { await stripe.customers.del(customer.id); } catch (_) { /* swallow */ }
+        return winner;
+      }
+    }
+    return customer.id;
+  } catch (err) {
+    console.error('[cleaning-checkout] getOrCreateCustomer error:', err);
+    return null;
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -95,21 +133,60 @@ Deno.serve(async (req: Request) => {
     const amountCents = Number(booking.total_cents ?? 0);
     if (!amountCents || amountCents < 50) return json({ error: 'amount_below_minimum' }, 400);
 
-    // ── CREATE (cartão, cobra na reserva) ───────────────────────────────────
+    // ── CREATE (cartão, cobra na reserva) — v3 guarda/reusa cartão ───────────
     if (action === 'create') {
       if (booking.payment_method !== 'card') return json({ error: 'not_card_booking' }, 400);
       if (booking.payment_status !== 'unpaid') return json({ error: 'already_paid' }, 400);
 
-      const pi = await stripe.paymentIntents.create({
-        amount: amountCents,
-        currency: 'eur',
-        // Cobra na reserva (sem capture manual — hold expirava em ~7 dias).
-        automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
-        metadata: { kind: 'cleaning', booking_id: bookingId, user_id: user.id },
-      });
+      const customerId = await getOrCreateCustomer(admin, user.id);
+      const savedPmId = typeof body?.saved_pm_id === 'string' ? body.saved_pm_id : null;
+      const meta = { kind: 'cleaning', booking_id: bookingId, user_id: user.id };
+
+      let pi;
+      try {
+        if (savedPmId && customerId) {
+          // 1-toque: cartão salvo, off_session (MIT).
+          pi = await stripe.paymentIntents.create({
+            amount: amountCents,
+            currency: 'eur',
+            customer: customerId,
+            payment_method: savedPmId,
+            confirm: true,
+            off_session: true,
+            automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
+            metadata: meta,
+          });
+        } else {
+          // cartão novo: cobra na reserva + guarda no Customer para reuso futuro.
+          pi = await stripe.paymentIntents.create({
+            amount: amountCents,
+            currency: 'eur',
+            ...(customerId ? { customer: customerId, setup_future_usage: 'off_session' as const } : {}),
+            automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
+            metadata: meta,
+          });
+        }
+      } catch (err) {
+        // cartão salvo exigiu 3DS: devolve o PI p/ auth on-session.
+        // deno-lint-ignore no-explicit-any
+        const anyErr = err as any;
+        const authPi = anyErr?.raw?.payment_intent ?? anyErr?.payment_intent;
+        if (authPi?.id) {
+          return json({
+            clientSecret: authPi.client_secret,
+            paymentIntentId: authPi.id,
+            amountCents,
+            status: authPi.status,
+            requiresAction: true,
+          });
+        }
+        const m = err instanceof Error ? err.message : String(err);
+        return json({ error: 'stripe_create_failed', details: m }, 400);
+      }
+
       console.log('[cleaning-checkout create]', bookingId,
         `amount=€${(amountCents / 100).toFixed(2)}`, `mode=${STRIPE_MODE}`);
-      return json({ clientSecret: pi.client_secret, paymentIntentId: pi.id, amountCents });
+      return json({ clientSecret: pi.client_secret, paymentIntentId: pi.id, amountCents, status: pi.status });
     }
 
     // ── CREATE_MBWAY (cobra na reserva; estorno automático em cancelamento) ─
@@ -194,6 +271,17 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── REVERSE (cancelamento: liberta retenção / estorna o excedente) ──────
+    //
+    // v4 (2026-09-05) — SEGURA DE REPETIR. Antes desta versão, chamar 'reverse'
+    // duas vezes estornava duas vezes: nada perguntava à Stripe se o estorno já
+    // tinha sido feito. Só a ordem das chamadas no app é que impedia isso na
+    // prática — protecção por acidente, não por desenho. Agora há duas travas:
+    //   1. pergunta-se à Stripe se este PaymentIntent já tem estorno; se tiver,
+    //      devolve-se o que já existe e não se cria nada;
+    //   2. o pedido leva uma CHAVE DE IDEMPOTÊNCIA fixa por reserva, por isso
+    //      duas chamadas ao mesmo tempo devolvem o MESMO estorno, não dois.
+    // A trava 1 apanha repetições tardias (a chave da Stripe dura 24 h); a
+    // trava 2 apanha a corrida de rede. Nenhum valor mudou.
     if (action === 'reverse') {
       if (!['cancelled_client', 'cancelled_cleaner'].includes(booking.status)) {
         return json({ error: 'booking_not_cancelled' }, 400);
@@ -205,16 +293,20 @@ Deno.serve(async (req: Request) => {
       catch (_) { return json({ error: 'payment_intent_not_found' }, 404); }
 
       const feeCents = Number(booking.cancel_fee_cents ?? 0);
+      // Chave estável por reserva: a segunda chamada reusa o mesmo pedido Stripe.
+      const idem = (sufixo: string) => `cleaning-reverse-${bookingId}-${sufixo}`;
 
       if (pi.status === 'requires_capture') {
         // cartão retido: taxa 0 → cancela tudo; taxa >0 → captura parcial da taxa
         if (feeCents <= 0) {
-          await stripe.paymentIntents.cancel(pi.id);
+          await stripe.paymentIntents.cancel(pi.id, undefined, {
+            idempotencyKey: idem('cancel'),
+          });
           return json({ ok: true, note: 'hold_released' });
         }
         const captured = await stripe.paymentIntents.capture(pi.id, {
           amount_to_capture: Math.max(feeCents, 50),
-        });
+        }, { idempotencyKey: idem('capture') });
         return json({ ok: true, note: 'fee_captured', status: captured.status });
       }
 
@@ -222,12 +314,31 @@ Deno.serve(async (req: Request) => {
         // mb way (ou cartão já capturado): estorna o que exceder a taxa
         const backCents = amountCents - feeCents;
         if (backCents <= 0) return json({ ok: true, note: 'fee_equals_total' });
+
+        // TRAVA 1 — já foi estornado alguma vez? Então não se estorna outra vez.
+        try {
+          const jaFeitos = await stripe.refunds.list({ payment_intent: pi.id, limit: 10 });
+          const anterior = jaFeitos.data.find((x) => x.status !== 'failed' && x.status !== 'canceled');
+          if (anterior) {
+            console.log('[cleaning-checkout reverse] ja estornado, nao repete:', bookingId, anterior.id);
+            return json({
+              ok: true, note: 'already_reversed', refundId: anterior.id,
+              refundStatus: anterior.status, backCents: anterior.amount,
+            });
+          }
+        } catch (e) {
+          // Se a listagem falhar, seguimos — a TRAVA 2 (chave) ainda protege.
+          console.error('[cleaning-checkout reverse] refunds.list falhou:',
+            e instanceof Error ? e.message : String(e));
+        }
+
+        // TRAVA 2 — chave de idempotência fixa por reserva.
         const r = await stripe.refunds.create({
           payment_intent: pi.id,
           amount: backCents,
           metadata: { kind: 'cleaning', booking_id: bookingId },
-        });
-        return json({ ok: true, note: 'reversed', refundStatus: r.status, backCents });
+        }, { idempotencyKey: idem('refund') });
+        return json({ ok: true, note: 'reversed', refundId: r.id, refundStatus: r.status, backCents });
       }
 
       return json({ ok: true, note: 'no_action_for_status', status: pi.status });

@@ -193,6 +193,19 @@ Bateria de testes inteira verde: quatrocentos e catorze testes, contra os trezen
 e quatro da ronda anterior. Corri-a duas vezes, a segunda depois de reinstalar as
 dependencias todas de raiz.
 
+Os tres trabalhos do servidor de compilacao passaram todos, com o commit desta missao: o
+das imagens de referencia, o da web, e o do Android que vai para a loja. Esse ultimo e a
+prova que faltava de que a subida do pacote de localizacao nao parte a compilacao — e a
+unica maneira honesta de o saber, porque a lista de versoes travadas nao viaja e o servidor
+resolve tudo de novo sozinho.
+
+E fui ver por dentro o que ficou publicado na web, e nao so se o servidor disse que sim.
+Dentro do ficheiro compilado que esta no ar estao a funcao nova do cartao do motorista, a
+frase do aviso de estar quase a chegar, a frase da avaliacao que segue mais tarde, a linha
+que diz que se esta a ligar ao motorista, e a chave da sensibilidade de desvio. E, o mais
+importante, a leitura antiga a tabela dos motoristas, que era a causa do problema todo,
+desapareceu de la. O codigo que causava o defeito ja nao existe no que esta publicado.
+
 Escrevi quatro ficheiros de teste novos. Um prova a regra dos vinte por cento com o teu
 exemplo dos dez que mostram oito, o tecto dos dois minutos, o minimo de um, e que valores
 disparatados postos no painel nunca produzem zero nem negativos nem um tempo maior que o

@@ -960,7 +960,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
   void _notaFalhaCartao(String motivo) {
     _driverCardFails++;
     debugPrint('[TVDE-CLIENTE] tvde_ride_driver_card falhou '
-        '(${_driverCardFails}.ª seguida): $motivo');
+        '($_driverCardFails.ª seguida): $motivo');
     if (_driverCardFails >= 3 && !_driverCardDegraded && mounted) {
       setState(() => _driverCardDegraded = true);
     }

@@ -1157,7 +1157,9 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
         // O pino redondo assenta pelo CENTRO; o de recurso é uma gota e assenta
         // pela ponta (o anchor por omissão).
         anchor: redondo != null ? const Offset(0.5, 0.5) : const Offset(0.5, 1),
-        zIndex: s.reached ? 1.0 : 2.0, // a que falta fica por cima da já feita
+        // `zIndex` (double) ficou deprecated: em algumas plataformas era
+        // truncado para int e a ordem dos pinos saía instável.
+        zIndexInt: s.reached ? 1 : 2, // a que falta fica por cima da já feita
         infoWindow: InfoWindow(
           title: s.reached
               ? 'Paragem $numero de ${paradas.length} — feita'

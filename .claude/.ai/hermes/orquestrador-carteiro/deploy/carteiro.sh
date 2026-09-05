@@ -35,14 +35,25 @@
 #   PC mata, devolve "MOTIVO_KILL:INATIVIDADE:Xmin" ou "MOTIVO_KILL:TETO-DURO:Xmin" no stdout;
 #   ver pc_exec() e a leitura de $motivo_kill mais abaixo — nunca mais "TIMEOUT-3600s" genérico.
 set -u
+# COSTURAS DE TESTE (2026-08-11, FASE 1 SISTEMA-100) — todas DEFAULT-OFF: sem estas variáveis
+# no ambiente, o comportamento é byte-a-byte o de antes (a fila viva, o log vivo, o Telegram
+# real). Existem porque a prova exigida ("mostra a ordem a chegar ao fim por vários arranques")
+# não se pode fazer a sério contra a fila de produção nem a mandar avisos verdadeiros ao Danilo.
+# Com elas, os testes correm o CARTEIRO REAL — a mesma máquina de estados, os mesmos ramos — só
+# que sobre uma fila descartável e com um executor de mentira que morre quando queremos.
+# Testar uma cópia do código não provava nada; isto prova o código que corre a sério.
 C=hermes-agent-fvnc-hermes-agent-1
-HOSTDATA=/docker/hermes-agent-fvnc/data
-FILA="$HOSTDATA/cortex-brain/orquestracao"
+HOSTDATA="${CARTEIRO_HOSTDATA:-/docker/hermes-agent-fvnc/data}"
+FILA="${CARTEIRO_FILA:-$HOSTDATA/cortex-brain/orquestracao}"
 CTRL="$FILA/_controlo.md"
-LOG=/root/orquestracao/carteiro.log
-LOCK=/root/orquestracao/.carteiro.lock
+LOG="${CARTEIRO_LOG:-/root/orquestracao/carteiro.log}"
+LOCK="${CARTEIRO_LOCK:-/root/orquestracao/.carteiro.lock}"
 PAUSA_TOTAL="$FILA/.pausa-total"           # STOP global (Danilo)
 PAUSA_RL="$FILA/.pausa-rate-limit"         # pausa automática por rate-limit (guarda epoch de retoma)
+# 2026-08-11: memória de que o PLANO Claude está esgotado (guarda o epoch do reset lido da
+# própria mensagem). Diferente do PAUSA_RL: este NÃO pára a fila — só evita que cada ordem
+# nova gaste um arranque de claude.exe a redescobrir o limite. Verde segue no Go, vermelha espera.
+PLANO_ESGOTADO="$FILA/.plano-esgotado"
 RL_AVISADO=/root/orquestracao/.rate-limit.avisado
 # PARIDADE PARTE 2.2 (2026-08-01): ordens que CONCLUÍRAM mas cujo juiz não devolveu veredito.
 # Vão para aqui (revisão humana no daily-pulse) em vez de `travada` + Telegram — não é travamento,
@@ -50,8 +61,67 @@ RL_AVISADO=/root/orquestracao/.rate-limit.avisado
 REVISAO_PENDENTE=/root/orquestracao/revisao-pendente.tsv
 # I4: travadas NÃO-vermelhas arquivadas aqui em vez de Telegram (revistas no daily-pulse).
 ARQUIVO_TRAVADAS=/root/orquestracao/travadas-arquivadas.tsv
+LATCH_TRAVADA=/root/orquestracao/.travadas-avisadas   # 2026-08-11: latch por ordem (1 aviso/12h)
 FILA_ESTADO=/root/orquestracao/.fila-estado   # transição ocupado<->vazio (2026-07-16, substitui f523):
                                                # linha1=ocupada|vazia, linha2=epoch do último aviso (cooldown 30min)
+# FASE 2 SISTEMA-100 (2026-08-11): loop total com conselho — ver revisao_conselho() abaixo.
+# CONSELHO_ENV é o MESMO .env do conselho-mcp (não duplica o segredo); se não existir, a
+# revisão salta em silêncio (best-effort, nunca trava o fecho da ordem).
+CONSELHO_ENV="${CONSELHO_ENV:-/root/conselho-mcp/.env}"
+CONSELHO_URL="${CONSELHO_URL:-https://conselho.srv1786862.hstgr.cloud/}"
+CONSELHO_RONDAS_MAX="${CONSELHO_RONDAS_MAX:-3}"
+# Livro de bordo do conselho: uma linha por ronda, com consenso E divergência (ver revisao_conselho).
+CONSELHO_REGISTO="${CONSELHO_REGISTO:-/root/orquestracao/conselho-registo.tsv}"
+# FASE 3 (2026-08-11): acordar a Claude.ai quando uma ordem fecha, trava, ou fica à espera de
+# autorização de dinheiro. Best-effort ABSOLUTO: nunca falha para fora, nunca trava uma ordem.
+ACORDAR_CLAUDE="${ACORDAR_CLAUDE:-/root/orquestracao/acordar-claude.sh}"
+acordar_claude(){ # $1=evento $2=id $3=estado $4=resumo
+  [ -x "$ACORDAR_CLAUDE" ] || return 0
+  [ -n "${CARTEIRO_NOTIFY_STUB:-}" ] && return 0   # em modo de prova não acorda ninguém a sério
+  "$ACORDAR_CLAUDE" "$1" "$2" "$3" "$4" >/dev/null 2>&1 || true
+}
+# FASE 1 SISTEMA-100-AUTONOMO (2026-08-11): AUTO-FATIAMENTO + FAILOVER DE PLANO.
+# CONT_MAX = teto ABSOLUTO de arranques encadeados por ordem. Bater no --max-turns deixou de
+# gastar tentativa (é pausa, não falha), portanto sem este número uma ordem impossível ficava a
+# arrancar para sempre. 12 arranques × 150 turnos é folga real para qualquer ordem legítima; lá
+# chegar significa "grande demais mesmo fatiada" e trava com essa nota exata, nunca em silêncio.
+CONT_MAX="${CONT_MAX:-12}"
+# Motor de recurso quando o PLANO Claude (Pro) bate no limite: custo fixo, não esgota como o Pro.
+# 2026-08-11: era `qwen3.8-max` — ERRADO. O 3.8 responde a TEXTO mas está em baixo do lado do
+# fornecedor como MOTOR de agente ("Endpoint is unavailable"), por isso o salto antigo só podia
+# produzir texto. O que corre COM FERRAMENTAS é o qwen3.7-max (ferramentas\motores\README.md,
+# testado 2026-08-10; reconfirmado ao vivo 2026-08-11 a criar ficheiro na conta `hermes`).
+GO_FAILOVER_MODELO="${GO_FAILOVER_MODELO:-qwen3.7-max}"
+# ============================================================================================
+# FASE 1 MISSÃO DE FECHO (2026-08-11 23:xx) — A CADEIA NÃO PODE FICAR PRESA NUM DEGRAU
+# ============================================================================================
+# MEDIDO no bora-live.log do Danilo:
+#   [21:24:38] API Error: Request rejected (429) · 5-hour usage limit reached. Resets in 2hr 16min
+#   [22:01:13] API Error: Request rejected (429) · 5-hour usage limit reached. Resets in 1hr 39min
+# e, entre as duas, "MOTOR-GO ativo :: modelo=qwen3.7-max" às 21:25, 21:40 e 22:00 — o loop
+# ficou 40 minutos a bater de 15/20 em 20 minutos contra um motor JÁ ESGOTADO.
+# O plano OpenCode Go também tem janela de 5h: um único degrau de recurso não chega.
+#
+# CADEIA (ordem pedida pelo Danilo): Claude Pro -> qwen3.8-max -> qwen3.7-max -> minimax-m3
+#                                    -> último recurso: Hermes na VPS (ferramentas próprias).
+# NOTA HONESTA sobre o 1º degrau: a 2026-08-10 o qwen3.8-max respondia a TEXTO mas estava em
+# baixo como MOTOR de agente ("Endpoint is unavailable"). Fica na cadeia porque foi o pedido e
+# porque cada degrau se AUTO-VERIFICA: se não devolver trabalho, é marcado indisponível por
+# COOLDOWN_FALHA e a cadeia desce sozinha. Não custa nada tentar; custava ficar preso.
+GO_CADEIA="${GO_CADEIA:-qwen3.8-max qwen3.7-max minimax-m3}"
+# Livro de esgotamentos POR MODELO: uma linha "modelo<TAB>epoch_do_reset". A hora vem lida da
+# própria mensagem ("Resets in 2hr 16min"), como já se fazia para o plano Claude.
+MOTORES_ESGOTADOS="${MOTORES_ESGOTADOS:-$FILA/.motores-esgotados}"
+# Quando um degrau falha sem dizer porquê (endpoint em baixo, saída vazia), não se marca "5h" —
+# marca-se um castigo curto, para ele voltar a ser tentado quando o fornecedor recuperar.
+COOLDOWN_FALHA="${COOLDOWN_FALHA:-1800}"     # 30 min
+# Janela assumida quando a mensagem de limite não traz os minutos (o plano Go é de 5 horas).
+JANELA_GO_DEFAULT="${JANELA_GO_DEFAULT:-300}"  # minutos
+# go_failover corre em subshell `$(...)`; variáveis não sobem. Estes ficheiros são o canal de volta.
+GO_MOTOR_USADO_F="$FILA/.go-motor-usado"
+# Latch do aviso "todos os degraus esgotados" — UMA vez, não a cada 20 minutos (pedido 3 da FASE 1).
+CADEIA_AVISADO="$FILA/.cadeia-esgotada.avisado"
+HERMES_CONTAINER="${HERMES_CONTAINER:-hermes-agent-fvnc-hermes-agent-1}"
 
 # T3 money-filter. -iE (case-insensitive). 2026-07-11: menos sensível a PALAVRAS
 # (ver wiki/licoes/classificador-zona-menos-sensivel-a-palavras.md). Vermelho exige INTENÇÃO
@@ -73,7 +143,13 @@ FILA_ESTADO=/root/orquestracao/.fila-estado   # transição ocupado<->vazio (202
 RED_ALWAYS='disable row level|--force|force.?with.?lease|reset .*--hard|force.?push'
 RED_TERMS='dispatch_engine|pricing_service|finalizePurchase|bora[ _]tokens?|tokens?_applied|tvde[a-z_ ]*tokens?|stripe|payment|webhook|wallet|ledger|refund|payout|commission|platform_settings'
 WRITE_INTENT='mud(a|ar|e|ei|ou|anca|ança)|atualiz|altera|modific|mexer?|edita|reescrev|refator|aplica|grava|escrev|deploy|remov|apaga|dropa|insere|inserir|configura|corrig|ajusta|\b(UPDATE|INSERT|DELETE|ALTER|DROP|TRUNCATE)\b'
-NEG='\b(sem|nao|não|nunca|jamais|nem)\b'
+# FIX 2026-08-05 (ordem 7bcc): NEG cobria "não/sem/nunca/jamais/nem" mas não "proibido" — a Parte 1
+# de 01/08 já tinha achado isto em flagrante (prop-5345589b, "PROIBIDO tocar EFs de dinheiro") e
+# ficou por corrigir. Confirmado ao vivo: "É proibido mexer no pricing_service" continuava VERMELHA
+# (RED_TERMS+WRITE_INTENT na cláusula, NEG não via "proibido" como negação). Aditivo: só acrescenta
+# o radical "proibid" (cobre proibido/proibida/proibição/proibitivo) — nada removido de RED_TERMS/
+# RED_ALWAYS/WRITE_INTENT, proteção real intacta (ver prova em classificador-zona-prova-2026-08-05.md).
+NEG='\b(sem|nao|não|nunca|jamais|nem)\b|proibid'
 zona_vermelha(){ # $1=tarefa -> 0 (vermelho) / 1 (verde)
   echo "$1" | grep -iqE "$RED_ALWAYS" && return 0
   local clausulas clausula
@@ -101,7 +177,21 @@ ts(){ date -u +%Y-%m-%dT%H:%M:%SZ; }
 log(){ echo "[$(ts)] $*" >> "$LOG"; }
 get(){ grep -E "^$1:" "$2" 2>/dev/null | head -1 | sed "s/^$1: *//" | tr -d '\r'; }
 setf(){ if grep -qE "^$1:" "$3"; then sed -i "s|^$1:.*|$1: $2|" "$3"; else echo "$1: $2" >> "$3"; fi; }
-notify(){ docker exec -u hermes "$C" hermes send -t telegram "$1" >/dev/null 2>&1 || log "notify(best-effort) falhou"; }
+notify(){
+  # COSTURA DE TESTE (default-off): nas provas os avisos vão para um ficheiro em vez do Telegram
+  # real — provar o mecanismo não pode custar spam ao Danilo. Sem a variável, vai para o Telegram.
+  if [ -n "${CARTEIRO_NOTIFY_STUB:-}" ]; then printf '%s\n---\n' "$1" >> "$CARTEIRO_NOTIFY_STUB"; return; fi
+  # 2026-08-11 (ENTREGAS FANTASMA): a versão antiga mandava a resposta do servidor para
+  # /dev/null. Resultado: NUNCA ficava prova de que a mensagem tinha sido aceite — e uma ordem
+  # podia jurar "avisei o Danilo no Telegram" sem que nada tivesse chegado, exatamente o que
+  # aconteceu na ordem-20260811143542-1fa4. Agora a ACEITAÇÃO fica registada no log, literal.
+  local _resp _rc
+  _resp=$(docker exec -u hermes "$C" hermes send -t telegram "$1" 2>&1); _rc=$?
+  if [ "$_rc" -eq 0 ]; then
+    log "notify: ACEITE pelo servidor -> $(printf '%s' "$_resp" | tr '\n' ' ' | cut -c1-160)"
+  else
+    log "notify(best-effort) FALHOU rc=$_rc -> $(printf '%s' "$_resp" | tr '\n' ' ' | cut -c1-160)"
+  fi; }
 # clean() — remove RUÍDO da saída das pontes, NUNCA erros.
 #
 # AUDITORIA 2026-08-01 (ordem do Danilo, depois de o clean() ter apagado a prova do juiz morto):
@@ -145,6 +235,245 @@ audit_id_valido(){ # $1=audit_id
   [ "$r" = "true" ]
 }
 
+# ---------------- FASE 2 SISTEMA-100 (2026-08-11): LOOP TOTAL COM CONSELHO ----------------
+# Ao fechar uma ordem avulsa (sem missão) que o Juiz mecânico já aprovou, uma segunda opinião
+# (3 modelos do go_conselho, cada um por si) revê o resumo+resultado. NUNCA decide o gate — o
+# Juiz mecânico continua o portão duro, isto só corre DEPOIS de "APROVADA" já estar decidido.
+# Se ≥2 vozes pedirem ajuste concreto (marcador CONSELHO: AJUSTAR, nunca palavra solta — grep de
+# palavras soltas tipo "falta/errado" apanha "não falta nada" como falso positivo, o mesmo erro
+# de classe já documentado no NEG de zona_vermelha() acima), a ordem reabre com a crítica anexa
+# SÓ na chamada ao executor (nunca no campo tarefa: — esse é lido linha-a-linha por get() em todo
+# o resto do ficheiro; escrever texto multi-linha lá corromperia essa leitura). Teto de 3 rondas
+# (CONSELHO_RONDAS_MAX): a quota semanal do plano Go é partilhada, nunca ciclo infinito. Qualquer
+# falha (VPS do conselho em baixo, rede, JSON ilegível) é best-effort — fecha a ordem exatamente
+# como já fechava antes desta função existir.
+conselho_divergiu(){ # $1=texto do conselho -> "sim" se >=2 vozes pedem ajuste E mais que as que dizem OK
+  local t="$1" n_aj n_ok
+  n_aj=$(printf '%s' "$t" | grep -c 'CONSELHO: *AJUSTAR')
+  n_ok=$(printf '%s' "$t" | grep -c 'CONSELHO: *OK')
+  if [ "$n_aj" -ge 2 ] && [ "$n_aj" -gt "$n_ok" ]; then echo sim; else echo nao; fi
+}
+revisao_conselho(){ # $1=of $2=id $3=tarefa $4=saida -> stdout: "DIVERGENCIA" ou "CONSENSO" (vazio se saltou)
+  local of="$1" id="$2" tarefa="$3" saida="$4" token ronda resumo_saida corpo_json resposta_txt texto_conselho
+  [ -f "$CONSELHO_ENV" ] || { log "ordem $id: conselho — sem $CONSELHO_ENV, salto (best-effort)"; return 0; }
+  token=$(grep -m1 '^CONSELHO_TOKEN=' "$CONSELHO_ENV" 2>/dev/null | cut -d= -f2-)
+  [ -n "$token" ] || { log "ordem $id: conselho — sem CONSELHO_TOKEN, salto"; return 0; }
+
+  ronda=$(get conselho_ronda "$of"); ronda=${ronda:-0}; ronda=$((ronda+1))
+  if [ "$ronda" -gt "$CONSELHO_RONDAS_MAX" ]; then
+    log "ordem $id: conselho — teto de $CONSELHO_RONDAS_MAX rondas já atingido, fecho sem nova consulta"
+    return 0
+  fi
+
+  resumo_saida=$(printf '%s' "$saida" | tail -c 6000)
+  corpo_json=$(TAREFA="$tarefa" RESUMO="$resumo_saida" python3 -c '
+import json, os
+print(json.dumps({
+  "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+  "params": {"name": "go_conselho", "arguments": {
+    "tarefa": ("Reve este fecho de uma ordem do loop autonomo do Bora. Diz em 2-4 pontos curtos "
+               "o que reparaste. NA ULTIMA LINHA da tua resposta escreve exatamente uma destas "
+               "duas: \"CONSELHO: OK\" (tudo bem, mesmo com sugestoes menores) ou "
+               "\"CONSELHO: AJUSTAR\" (so se houver algo CONCRETO e IMPORTANTE por corrigir). "
+               "Na duvida escreve OK - nao travas o fecho por preferencia de estilo."),
+    "contexto": [{"nome": "tarefa pedida", "texto": os.environ["TAREFA"]},
+                 {"nome": "resultado do executor (fim)", "texto": os.environ["RESUMO"]}],
+    # FASE 5 (2026-08-11): HERMES COMO 4.ª VOZ. O servidor do conselho já o sabia invocar
+    # (chamar_hermes -> HERMES_SHIM_URL, um shim HTTP — NENHUMA senha de administrador é
+    # guardada em lado nenhum, era essa a condição). O que faltava era o carteiro pedi-lo.
+    # Ele acrescenta o que os outros três não têm: memória do projeto e pesquisa web —
+    # provado a 2026-08-11 com uma pergunta que só se responde assim.
+    # Custo: é o mais lento dos quatro (~17s medido, contra ~3s dos outros). O `--max-time 200`
+    # do curl abaixo é o travão: se ele se atrasar, a resposta chega sem ele e o fecho segue —
+    # o conselho nunca fica refém da voz mais lenta.
+    "modelos": ["glm-5.2", "qwen3.7-max", "minimax-m3", "hermes"]
+  }}
+}, ensure_ascii=False))
+' 2>/dev/null)
+  [ -n "$corpo_json" ] || { log "ordem $id: conselho — falha a montar o pedido JSON, salto"; return 0; }
+
+  resposta_txt=$(curl -s --max-time 200 -X POST "$CONSELHO_URL" \
+    -H "Authorization: Bearer $token" -H "Content-Type: application/json" \
+    -d "$corpo_json" 2>/dev/null)
+  [ -n "$resposta_txt" ] || { log "ordem $id: conselho — sem resposta (rede/timeout), fecho sem revisão"; return 0; }
+
+  texto_conselho=$(RESP="$resposta_txt" python3 -c '
+import json, os, sys
+try:
+    d = json.loads(os.environ["RESP"])
+    print(d["result"]["content"][0]["text"])
+except Exception as e:
+    sys.stderr.write(str(e))
+' 2>/dev/null)
+  [ -n "$texto_conselho" ] || { log "ordem $id: conselho — resposta ilegivel, fecho sem revisão"; return 0; }
+
+  setf conselho_ronda "$ronda" "$of"
+  printf '%s\n' "$texto_conselho" > "$FILA/$id.conselho-r$ronda.txt"
+  log "ordem $id: conselho revisto (ronda $ronda/$CONSELHO_RONDAS_MAX) -> $id.conselho-r$ronda.txt"
+
+  local vd n_aj n_ok
+  if [ "$(conselho_divergiu "$texto_conselho")" = sim ]; then vd=DIVERGENCIA; else vd=CONSENSO; fi
+  # FASE 2 (2026-08-11): REGISTAR CONSENSO **E** DIVERGÊNCIAS. Antes só ia para o log corrido,
+  # onde se perde, e a contagem de vozes (quantas pediram ajuste vs quantas disseram OK) não
+  # ficava em lado nenhum. Sem isso não se responde à pergunta que interessa — "o conselho
+  # costuma concordar com o que o loop produz?" — nem se apanha um modelo que discorda sempre.
+  # Uma linha por ronda, TSV, para o daily-pulse ler.
+  n_aj=$(printf '%s' "$texto_conselho" | grep -c 'CONSELHO: *AJUSTAR')
+  n_ok=$(printf '%s' "$texto_conselho" | grep -c 'CONSELHO: *OK')
+  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$(date -u +%FT%TZ)" "$id" "$ronda" "$vd" "ajustar=$n_aj" "ok=$n_ok" \
+    >> "$CONSELHO_REGISTO" 2>/dev/null || true
+  echo "$vd"
+}
+
+# ---------------- FASE 1 SISTEMA-100 (2026-08-11): FAILOVER DE PLANO ----------------
+# Quando o PLANO Claude Pro bate no limite, o trabalho parava até ao reset (podia ser meio dia).
+# Pedido explícito do Danilo: a tarefa NÃO pode parar — continua no motor mais forte do OpenCode
+# Go (custo fixo, não esgota como o Pro), retomando pelos marcos já feitos.
+#
+# CORRIGIDO 2026-08-11 (ENTREGAS FANTASMA — causa raiz descoberta pelo Danilo):
+# ------------------------------------------------------------------------------------------
+# COMO ERA (defeito): este caminho fazia um curl de TEXTO ao conselho-mcp (tool `go_perguntar`).
+# Um modelo chamado por texto NAO TEM FERRAMENTAS — nao escreve ficheiros, nao corre comandos,
+# nao abre browser, nao envia Telegram. Ele apenas DESCREVIA o trabalho; o carteiro colhia as
+# linhas `MARCO:` desse texto e a ordem fechava como concluida SEM NADA TER SIDO FEITO.
+# Prova: ordem-20260811143542-1fa4 fechou `estado: concluida`, `motor_final: qwen3.8-max`, com
+# 5 marcos todos do genero "pronto para executar / pronto para gravar / pronto para colar" — e a
+# rotina nunca foi criada nem chegou mensagem ao Telegram. O Danilo estava a ver a janela do loop
+# e NAO viu sessao nenhuma arrancar, porque de facto nenhuma arrancou (`_saltou_claude=1`).
+#
+# COMO E' AGORA: o salto arranca uma SESSAO REAL DE AGENTE — o MESMO executor de sempre
+# (claude.exe com ferramentas no PC, via pc-loop-go -> run-claude-loop.cmd --motor-go), so
+# trocando o MOTOR por tras para o plano OpenCode Go (custo fixo, nao esgota como o Pro).
+# Caminho ja provado: ferramentas\motores\_motor.cmd (2026-08-10) e reconfirmado ao vivo a
+# 2026-08-11 na propria conta `hermes` (criou ficheiro com a ferramenta Write).
+#
+# MODELO: qwen3.7-max, NAO qwen3.8-max. O 3.8 responde a texto mas esta em baixo do lado do
+# fornecedor como MOTOR ("Endpoint is unavailable") — era mais uma razao para o salto antigo so
+# poder produzir texto. Ver ferramentas\motores\README.md.
+#
+# EXCEÇÃO DE SEGURANÇA (regra do Danilo): ordem em zona vermelha NUNCA passa para o Go. Aí é
+# melhor esperar pelo Pro do que arriscar dinheiro/dispatch no modelo mais fraco.
+# ---------------- FASE 1 MISSÃO DE FECHO: LIVRO DE ESGOTAMENTOS **POR MODELO** ----------------
+# O plano Claude já tinha memória (.plano-esgotado). Os motores do Go não tinham nenhuma, por
+# isso o loop voltava a bater no mesmo motor morto de 20 em 20 minutos. Uma linha por modelo:
+#   <modelo>\t<epoch do reset>
+motor_esgotado_ate(){ # $1=modelo -> epoch futuro, ou 0 se está disponível
+  local m="$1" now ep
+  [ -f "$MOTORES_ESGOTADOS" ] || { echo 0; return; }
+  now=$(date +%s)
+  ep=$(awk -F'\t' -v m="$m" '$1==m{v=$2} END{print v+0}' "$MOTORES_ESGOTADOS" 2>/dev/null)
+  ep=$(printf '%s' "${ep:-0}" | tr -dc '0-9'); ep=${ep:-0}
+  [ "$ep" -gt "$now" ] && { echo "$ep"; return; }
+  echo 0
+}
+motor_marcar_esgotado(){ # $1=modelo $2=epoch $3=motivo
+  local m="$1" ep="$2" motivo="${3:-}" tmp
+  tmp="${MOTORES_ESGOTADOS}.tmp.$$"
+  if [ -f "$MOTORES_ESGOTADOS" ]; then awk -F'\t' -v m="$m" '$1!=m' "$MOTORES_ESGOTADOS" > "$tmp" 2>/dev/null || : ; fi
+  printf '%s\t%s\n' "$m" "$ep" >> "$tmp"
+  mv -f "$tmp" "$MOTORES_ESGOTADOS" 2>/dev/null || true
+  log "motor $m marcado ESGOTADO ate $(hhmm "$ep") UTC${motivo:+ ($motivo)}"
+}
+eh_motor_go(){ case " $GO_CADEIA " in *" $1 "*) return 0;; esac; return 1; }
+motor_do_sinal(){ # lê ##BORA-MOTOR##: <modelo> que o parser do PC passou a emitir
+  printf '%s' "$1" | sed -n 's/.*##BORA-MOTOR##: *\([^ ]*\).*/\1/p' | head -1; }
+# Minutos até o reset lidos da PRÓPRIA mensagem ("Resets in 2hr 16min" -> 136), como já se fazia
+# para o "resets 4:10pm" do Claude. Sem minutos na mensagem, assume a janela de 5h do plano Go.
+go_reset_epoch(){ # $1=saida -> epoch em que ESTE motor volta
+  local txt mins h m now
+  now=$(date +%s)
+  txt=$(printf '%s' "$1" | tr -d '\r')
+  mins=$(printf '%s' "$txt" | sed -n 's/.*##BORA-RESET-MIN##: *\([0-9][0-9]*\).*/\1/p' | head -1)
+  mins=${mins:-0}
+  if [ "$mins" -le 0 ] 2>/dev/null; then
+    h=$(printf '%s' "$txt" | grep -oiE 'resets in *[0-9]+ *hr' | grep -oE '[0-9]+' | head -1)
+    m=$(printf '%s' "$txt" | grep -oiE '(hr|resets in) *[0-9]+ *min' | grep -oE '[0-9]+' | tail -1)
+    h=${h:-0}; m=${m:-0}
+    mins=$((h*60+m))
+  fi
+  [ "$mins" -gt 0 ] 2>/dev/null || mins="$JANELA_GO_DEFAULT"
+  echo $((now + mins*60))
+}
+cadeia_proximo_reset(){ # -> epoch do PRIMEIRO degrau a repor; 0 se algum degrau está vivo
+  local m ep best=0
+  for m in $GO_CADEIA; do
+    ep=$(motor_esgotado_ate "$m")
+    [ "$ep" -eq 0 ] && { echo 0; return; }
+    { [ "$best" -eq 0 ] || [ "$ep" -lt "$best" ]; } && best="$ep"
+  done
+  echo "$best"
+}
+# ÚLTIMO DEGRAU: o Hermes, na própria VPS, com as ferramentas dele. Não depende do plano Go nem
+# do plano Claude — é o que sobra quando os dois fecham a porta.
+hermes_ultimo_recurso(){ # $1=tarefa -> stdout (vazio = falhou)
+  local out
+  if [ -n "${CARTEIRO_HERMES_STUB:-}" ] && [ -x "${CARTEIRO_HERMES_STUB:-}" ]; then
+    printf '%s' "$1" | "$CARTEIRO_HERMES_STUB"; return
+  fi
+  printf '%s' "$1" > "$HOSTDATA/orq_task_hermes.txt"
+  out=$(docker exec -u hermes "$HERMES_CONTAINER" sh -lc 'timeout 3600 hermes chat -q "$(cat /opt/data/orq_task_hermes.txt)"' 2>&1 | clean)
+  printf '%s' "$out" | grep -qiE 'not logged|authentication failed|command not found' && return 1
+  [ -n "$out" ] || return 1
+  printf '%s' "$out"
+}
+
+go_failover(){ # $1=tarefa $2=ficheiro de marcos -> stdout: saida real (vazio = cadeia toda em baixo)
+  local tarefa="$1" marcosf="$2" feitos="" retoma="" saida_go="" modelo="" ep=0
+  : > "$GO_MOTOR_USADO_F" 2>/dev/null || true
+  # COSTURA DE TESTE (2026-08-11, mesma família de CARTEIRO_EXEC_STUB/JUDGE_STUB): default-OFF.
+  if [ -n "${CARTEIRO_GO_STUB:-}" ] && [ -x "${CARTEIRO_GO_STUB:-}" ]; then
+    printf '%s' "$tarefa" | "$CARTEIRO_GO_STUB"; return
+  fi
+  [ -s "$marcosf" ] && feitos=$(cat "$marcosf")
+  [ -n "$feitos" ] && retoma="
+
+--- JA ESTA FEITO (nao repitas, continua a partir daqui) ---
+$feitos"
+  # O executor do Go recebe a MESMA tarefa e as MESMAS ferramentas. A unica coisa que muda em
+  # relacao a uma corrida normal e' o motor — por isso NAO se lhe diz "nao tens acesso ao disco"
+  # (era essa frase que, no caminho antigo, o convidava a descrever em vez de fazer).
+  # Nome do ficheiro da tarefa: parametrizável para que a prova (--prova-cadeia) NUNCA escreva
+  # por cima da tarefa de uma ordem de produção que esteja a correr ao mesmo tempo.
+  _taskf="${ORQ_TASK_BASENAME:-orq_task.txt}"
+  printf '%s' "$tarefa$retoma" > "$HOSTDATA/$_taskf"
+  # ---- A CADEIA: cada degrau só é usado se o anterior estiver marcado como esgotado ----
+  for modelo in $GO_CADEIA; do
+    ep=$(motor_esgotado_ate "$modelo")
+    if [ "$ep" -gt 0 ]; then
+      log "cadeia: degrau $modelo ESGOTADO ate $(hhmm "$ep") UTC — salto (nao gasto arranque)"
+      continue
+    fi
+    log "cadeia: a tentar o degrau $modelo"
+    saida_go=$(docker exec -u hermes -e ORQ_MODELO="$modelo" -e ORQ_TASKF="$_taskf" -e ORQ_TIMEOUT="${GO_TIMEOUT:-14700}" "$C" sh -lc 'export PATH=/opt/data/.local/bin:$PATH; timeout "$ORQ_TIMEOUT" pc-loop-go --modelo "$ORQ_MODELO" "$(cat "/opt/data/$ORQ_TASKF")"' 2>&1 | clean)
+    if [ -z "$saida_go" ]; then
+      log "cadeia: $modelo nao devolveu saida — castigo curto de $((COOLDOWN_FALHA/60))min e desco"
+      motor_marcar_esgotado "$modelo" "$(( $(date +%s) + COOLDOWN_FALHA ))" "sem saida"
+      continue
+    fi
+    if is_rate_limit "$saida_go"; then
+      ep=$(go_reset_epoch "$saida_go")
+      motor_marcar_esgotado "$modelo" "$ep" "429 do plano Go"
+      log "cadeia: $modelo bateu no limite — volta $(hhmm "$ep") UTC; desco ao degrau seguinte"
+      continue
+    fi
+    printf '%s' "$modelo" > "$GO_MOTOR_USADO_F"
+    log "cadeia: degrau $modelo assumiu e devolveu trabalho"
+    printf '%s' "$saida_go"
+    return 0
+  done
+  # ---- ÚLTIMO RECURSO ----
+  log "cadeia: todos os motores Go indisponiveis — entrego a ordem ao HERMES na VPS"
+  saida_go=$(hermes_ultimo_recurso "$tarefa$retoma")
+  if [ -n "$saida_go" ]; then
+    printf '%s' "hermes" > "$GO_MOTOR_USADO_F"
+    log "cadeia: o HERMES (VPS) assumiu a ordem"
+    printf '%s' "$saida_go"
+    return 0
+  fi
+  log "failover: cadeia inteira em baixo (Go + Hermes) — nao ha motor vivo"
+  return 1
+}
+
 # FASE 4 (2026-07-17): ao marcar zona_vermelha, surfaca a ordem VERMELHA NOVA na Central (tab Cortex)
 # escrevendo uma linha em proposals.jsonl -- o MESMO caminho do claude.ai/cortex_propor (nao inventa
 # caminho novo). NAO toca zona_vermelha()/classificador/Lista Vermelha; so torna a ordem aprovavel.
@@ -177,9 +506,45 @@ pc_exec(){ printf '%s' "$1" > "$HOSTDATA/orq_task.txt"
   # A deteccao real de inatividade agora e' do stale-output-watchdog.ps1 no PC (ve cabecalho do
   # ficheiro); este timeout so fica como rede de seguranca externa (bridge/SSH pendurado) —
   # 14700s = 4h10min, sempre por CIMA do teto duro do PC (4h) para nunca disparar primeiro.
-  docker exec -u hermes "$C" sh -lc 'export PATH=/opt/data/.local/bin:$PATH; timeout 14700 pc-loop "$(cat /opt/data/orq_task.txt)"' 2>&1 | clean; }
-pc_judge(){ printf '%s' "$1" > "$HOSTDATA/orq_judge.txt"
-  docker exec -u hermes "$C" sh -lc 'export PATH=/opt/data/.local/bin:$PATH; timeout 400 pc-judge "$(cat /opt/data/orq_judge.txt)"' 2>&1 | clean; }
+  docker exec -u hermes "$C" sh -lc 'export PATH=/opt/data/.local/bin:$PATH; timeout 3600 pc-loop-novo "$(cat /opt/data/orq_task.txt)"' 2>&1 | clean; }
+# ---------------- BLINDAGEM CONTRA ENTREGA FANTASMA (2026-08-11) ----------------
+# REGRA (ordem do Danilo): uma ordem só pode fechar como CONCLUÍDA se existir prova MATERIAL do
+# trabalho — ficheiro criado/alterado em disco ou commit. Marcos extraídos de TEXTO não chegam.
+# Sem prova material a ordem fecha como INCOMPLETA e diz o que falta.
+#
+# Porque não basta o Juiz: no caso que originou isto (ordem-20260811143542-1fa4) o Juiz morreu
+# ("[juiz] ERRO: base64 vazio") e o carteiro fechou a ordem como concluída à mesma. Esta sonda é
+# de propósito burra e independente — sem LLM, sem rede, só relógio do sistema de ficheiros e git.
+PROVA_MATERIAL_TXT=""            # última saída da sonda (para a nota da ordem)
+prova_material(){ # $1=epoch de arranque da tentativa -> 0 = há prova, 1 = não há
+  local inicio="$1" out rc
+  PROVA_MATERIAL_TXT=""
+  # COSTURA DE TESTE (default-OFF, mesma família de CARTEIRO_EXEC_STUB/JUDGE_STUB/GO_STUB).
+  if [ -n "${CARTEIRO_PROVA_STUB:-}" ] && [ -x "${CARTEIRO_PROVA_STUB:-}" ]; then
+    out=$("$CARTEIRO_PROVA_STUB" "$inicio" 2>&1); rc=$?
+    PROVA_MATERIAL_TXT="$out"; return $rc
+  fi
+  [ -n "$inicio" ] || { PROVA_MATERIAL_TXT="PROVA-MATERIAL: sem epoch de arranque"; return 1; }
+  out=$(docker exec -u hermes "$C" sh -lc "export PATH=/opt/data/.local/bin:\$PATH; timeout 300 pc-prova-novo $inicio" 2>&1); rc=$?
+  PROVA_MATERIAL_TXT=$(printf '%s' "$out" | grep -E '^PROVA-(MATERIAL|FICHEIRO|COMMIT):' | head -20)
+  # Falha da PONTE (ssh/docker em baixo) não é o mesmo que ausência de prova: se a sonda nem
+  # chegou a responder, não invento um veredito — deixo passar e registo, para não travar o loop
+  # inteiro por causa de uma ponte constipada. Ausência de prova só conta quando a sonda RESPONDEU.
+  if [ -z "$PROVA_MATERIAL_TXT" ]; then
+    PROVA_MATERIAL_TXT="PROVA-MATERIAL: sonda nao respondeu (ponte) — nao conta como ausencia de prova"
+    log "prova material: sonda nao respondeu (rc=$rc) — nao bloqueio o fecho por isto"
+    return 0
+  fi
+  return $rc
+}
+
+pc_judge(){
+  # COSTURA DE TESTE (default-off) — ver bloco no topo.
+  if [ -n "${CARTEIRO_JUDGE_STUB:-}" ] && [ -x "${CARTEIRO_JUDGE_STUB:-}" ]; then
+    printf '%s' "$1" | "$CARTEIRO_JUDGE_STUB"; return
+  fi
+  printf '%s' "$1" > "$HOSTDATA/orq_judge.txt"
+  docker exec -u hermes "$C" sh -lc 'export PATH=/opt/data/.local/bin:$PATH; timeout 1200 pc-judge-novo "$(cat /opt/data/orq_judge.txt)"' 2>&1 | clean; }
 
 # ---- ACORDAR O CLAUDE.AI DESKTOP na fila vazia (2026-07-17, PEÇA 2) ----
 # Mesma ponte SSH do pc_exec/pc-loop (container -> tailscale nc -> hermes@PC), mas para o
@@ -188,7 +553,12 @@ pc_judge(){ printf '%s' "$1" > "$HOSTDATA/orq_judge.txt"
 # curta e chama schtasks /run; se falhar (UAC, sessão do Danilo fechada, etc.) só regista o
 # erro — NUNCA força, o Telegram (acima) já notificou de qualquer forma.
 pc_wake_heartbeat(){
-  docker exec -u hermes "$C" sh -lc 'ssh -o ProxyCommand="tailscale nc %h %p" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 hermes@100.71.105.7 "C:\\Users\\danil\\Desktop\\projetosflutter\\bora_app\\.claude\\.ai\\hermes\\heartbeat-desktop\\fila-vazia-wake.cmd"' 2>&1; }
+  # COSTURA DE TESTE (default-off) — apanhado ao vivo a 2026-08-11: a primeira corrida da prova
+  # do auto-fatiamento esvaziou a fila DE TESTE, o ramo fila-vazia disparou, e este wake foi
+  # acordar o desktop REAL do Danilo a meio da missão. O notify() já estava desviado; este
+  # caminho não estava. Uma prova não pode ter efeitos no mundo verdadeiro.
+  if [ -n "${CARTEIRO_NOTIFY_STUB:-}" ]; then printf '[WAKE-DESKTOP suprimido em modo de prova]\n' >> "$CARTEIRO_NOTIFY_STUB"; return 0; fi
+  docker exec -u hermes "$C" sh -lc 'ssh -o ProxyCommand="tailscale nc %h %p" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 danil@100.75.79.116 "C:\\Users\\danil\\Desktop\\projetosflutter\\bora_app\\.claude\\.ai\\hermes\\heartbeat-desktop\\fila-vazia-wake.cmd"' 2>&1; }
 
 # ---------------- EXECUÇÃO LOCAL NA VPS (2026-07-14, tira a dependência do PC de 4GB) ----------------
 # claude -p corre diretamente no host da VPS (wrapper /root/claude-vps-exec.sh, tarefa por
@@ -206,6 +576,11 @@ vps_exec(){ # $1=tarefa -> saida (stdout+stderr do wrapper); grava rc em $VPS_RC
   printf '%s' "$out"
 }
 exec_ordem(){ # $1=tarefa -> PC-ONLY (2026-07-15 missao religar-loop): despacha SEMPRE pela ponte
+  # COSTURA DE TESTE (default-off): executor de mentira, para as provas poderem escolher quando
+  # o executor morre por teto de turnos. Sem CARTEIRO_EXEC_STUB no ambiente isto nem é lido.
+  if [ -n "${CARTEIRO_EXEC_STUB:-}" ] && [ -x "${CARTEIRO_EXEC_STUB:-}" ]; then
+    printf '%s' "$1" | "$CARTEIRO_EXEC_STUB"; return
+  fi
   # SSH do PC. A rota VPS-local (vps_exec) fica definida mas DESATIVADA — a VPS foi abandonada
   # como executor (1 core/4GB, token ~2h). Reverter: apagar as 2 linhas seguintes.
   pc_exec "$1"; return
@@ -280,7 +655,21 @@ cli_sem_auth_linha(){
 # o falso-positivo exigindo que a saída inteira seja curta (bloqueio genuíno
 # nunca passa disto; 600 é ~10x a maior saída real observada e ~3x menor que a
 # menor saída falsa observada — larga margem dos dois lados).
+# 2026-08-11 (PROVA DO ECRÃ DO DANILO, bora-live.log 101058-101073): a guarda dos 600 bytes
+# acima tornava o detector CEGO ao caso normal — bater no limite DEPOIS de já ter trabalhado.
+# Medido: 16:04:25 "You've hit your session limit · resets 4:10pm" com turns=17 → a saída era
+# longa → is_rate_limit=falso → sem pausa, sem failover, relançou em opus às 16:07:32. O
+# esgotamento de plano quase nunca acontece ao turno 0; a guarda só apanhava esse caso raro.
+# Correção: o bora-live-parser.ps1 (PC) passou a converter a assinatura real num sinal CURTO e
+# canónico — e este ramo (a) aceita-o a qualquer tamanho. A guarda antiga fica no ramo (c),
+# intacta, para quem chegar aqui sem passar pelo parser.
 is_rate_limit(){
+  # (a) SINAL CANÓNICO do parser do PC — o parser já distinguiu bloqueio genuíno de citação
+  #     (decide por BLOCO de texto, não pela saída inteira). Vale a QUALQUER tamanho.
+  printf '%s' "$1" | grep -qE '^##BORA-LIMITE-PLANO##' && return 0
+  # (b) rede / ferramenta / modelo NÃO é esgotamento de plano — nunca aciona o failover.
+  printf '%s' "$1" | grep -iqE "ECONNRESET|ETIMEDOUT|ENOTFOUND|socket hang up|fetch failed|connection (refused|reset)|overloaded|529|502 bad gateway|503 service|504 gateway|tool_use_error" && return 1
+  # (c) legado: assinatura crua numa saída curta (bloqueio que corta ali, sem relatório).
   printf '%s' "$1" | grep -iqE "hit your (session|usage) limit|session limit|usage limit|rate limit|reached your (usage|session)? *limit" || return 1
   [ "$(printf '%s' "$1" | wc -c)" -le 600 ]
 }
@@ -300,6 +689,14 @@ rl_resume_epoch(){
     [ "$ap" = pm ] && [ "$hh" != 12 ] && h24=$((hh+12))
     [ "$ap" = am ] && [ "$hh" = 12 ] && h24=0
     ep=$(TZ='Europe/London' date -d "today ${h24}:${mm}" +%s 2>/dev/null)
+    # BUG DIÁRIO CORRIGIDO 2026-08-11 (apanhado pelo --selftest desta missão, falhava desde
+    # sempre a partir das 09:05): quando a hora do reset JÁ PASSOU hoje, "today HH:MM" dá um
+    # epoch no passado, a condição `-gt now` reprovava e caíamos no now+3600 defensivo. Efeito
+    # real: um "resets 9:05am" lido às 12:30 pausava 1h em vez de até ao reset verdadeiro — a
+    # fila retomava cedo, batia OUTRA VEZ no limite e voltava a pausar, em ciclo. Hora que já
+    # passou significa a PRÓXIMA ocorrência, portanto rola para amanhã. O now+3600 fica só para
+    # o que é genuinamente impossível de parsear (sem hora no texto).
+    [ -n "$ep" ] && [ "$ep" -le "$now" ] && ep=$(TZ='Europe/London' date -d "tomorrow ${h24}:${mm}" +%s 2>/dev/null)
     [ -n "$ep" ] && [ "$ep" -gt "$now" ] && { echo "$ep"; return; }
   fi
   echo $((now+3600))
@@ -458,12 +855,70 @@ Responde SÓ com UMA frase: a regra generalizável que evitaria repetir isto. Se
   return 0
 }
 
+# 2026-08-11 (ordem "repor os avisos automaticos no Telegram"): o Danilo voltou a pedir o aviso
+# de TRAVADA. I4 (2026-08-01) tinha-o silenciado por RUIDO (aviso a cada ~40 min na mesma ordem),
+# nao por o canal estar mau -- o canal sempre esteve vivo (provado: hermes send devolve
+# success/message_id). Reposto aqui COM o travao que faltava em 2026-07-13: latch por ordem,
+# no maximo 1 aviso por ordem a cada 12h. O arquivo TSV do daily-pulse continua a ser escrito
+# na mesma (rede de seguranca inalterada).
+aviso_travada(){ # $1=oid  $2=texto
+  local latch="$LATCH_TRAVADA/$1" agora mt=0
+  mkdir -p "$LATCH_TRAVADA" 2>/dev/null
+  agora=$(date -u +%s)
+  [ -f "$latch" ] && mt=$(stat -c %Y "$latch" 2>/dev/null || echo 0)
+  if [ $((agora - mt)) -ge 43200 ]; then
+    notify "$2"
+    : > "$latch" 2>/dev/null || true
+    log "ordem $1: travada -> Telegram (latch 12h renovado)"
+  else
+    log "ordem $1: travada -> aviso suprimido (ja avisado ha <12h)"
+  fi
+}
+
+# --------- FASE 2 SISTEMA-100 (2026-08-11): A TRAVADA ABRE O SEU PRÓPRIO DIAGNÓSTICO ---------
+# Até aqui, uma ordem que travava de vez gerava um rascunho de lição (passivo: fica à espera que o
+# Bibliotecário o promova) e um aviso. Ninguém ia PERCEBER a falha sem o Danilo mandar. Agora a
+# travagem nasce já com a sua ordem de diagnóstico na fila — o sistema investiga-se a si próprio.
+#
+# Três travões, porque um gerador automático de ordens é precisamente onde se faz um ciclo infinito
+# sem dar por isso:
+#   1. NUNCA diagnostica um diagnóstico (ids `-diag`): senão um diagnóstico que trave gera outro,
+#      que trava, que gera outro, para sempre.
+#   2. Idempotente: se o ficheiro do diagnóstico já existe, não cria segundo.
+#   3. O texto é de INVESTIGAÇÃO (ler, medir, explicar), nunca de correção. Diagnosticar uma falha
+#      em zona de dinheiro é seguro; consertá-la sozinho não seria — e continua a precisar do "vai".
+ordem_diagnostico(){ # $1=ficheiro da ordem travada
+  local of="$1" oid did dfile nota_o resumo_o ult
+  oid=$(get id "$of")
+  case "$oid" in *-diag|*-diag-*) log "diagnostico: $oid ja e um diagnostico — nao gero outro (anti-recursao)"; return 0;; esac
+  did="${oid}-diag"; dfile="$FILA/$did.md"
+  [ -f "$dfile" ] && { log "diagnostico: $did ja existe — nao duplico"; return 0; }
+  nota_o=$(get nota "$of")
+  resumo_o=$(resumo_tarefa "$(get tarefa "$of")")
+  ult=$(grep -vE '^[[:space:]]*$' "$FILA/$oid.saida.txt" 2>/dev/null | tail -1 | cut -c1-200 | tr -d '\r|')
+  {
+    printf 'id: %s\n' "$did"
+    # `tarefa:` TEM de caber numa linha — o get() lê linha-a-linha e texto multi-linha aqui
+    # corromperia a leitura de todos os outros campos do ficheiro.
+    printf 'tarefa: [MODELO: SONNET] INVESTIGACAO (so ler e medir, NAO corrigir): a ordem %s travou de vez. Nota registada: "%s". Ultima linha da saida: "%s". Tarefa original: "%s". Le na VPS (ssh root@srv1786862.hstgr.cloud) os ficheiros %s/%s.saida.txt e %s/%s.veredito.txt e o /root/orquestracao/carteiro.log, descobre a CAUSA MEDIDA (nao adivinhada) e devolve: causa provada + correcao minima recomendada + se e seguro aplica-la sozinho. NAO apliques nada.\n' \
+      "$oid" "${nota_o:-sem nota}" "${ult:-<saida vazia>}" "$resumo_o" "$FILA" "$oid" "$FILA" "$oid"
+    printf 'estado: aberta\ntentativa: 0\nteto_tentativas: 2\n'
+    printf 'criada: %s\n' "$(date -u +%FT%TZ)"
+    printf 'origem: diagnostico-automatico de %s\n' "$oid"
+  } > "$dfile" 2>/dev/null || { log "diagnostico: falhei a escrever $did (ignorado)"; return 0; }
+  setf diagnostico_gerado "$did" "$of"
+  log "ordem $oid: TRAVADA -> ordem de diagnostico $did criada automaticamente (sem humano)"
+  acordar_claude TRAVOU "$oid" travada "travou: ${nota_o:-sem nota} · diagnostico $did aberto sozinho"   # FASE 3
+  return 0
+}
+
 missao_travada_ou_silencio(){ # $1=of $2=mid $3=passo
   local of="$1" mid="$2" p="$3" mf oid nota
   # C4: este é o funil ÚNICO por onde passam os 4 caminhos de TRAVADA (teto de 5,
   # EXECUTOR-PAROU, saída vazia, e 5 tentativas pós-juiz). Enganchar aqui cobre todos
   # sem tocar em nenhum deles.
   licao_de_falha "$of"
+  ordem_diagnostico "$of"
   # I4 (2026-08-01, ordem do Danilo): `travada` NÃO-VERMELHA deixa de chamar o Danilo.
   # HISTÓRIA (não apagar): a 2026-07-13 (ordem f523) estes avisos foram RESTAURADOS de propósito,
   # porque antes o loop ficava mudo à espera do watchdog (>12h) e uma travada exigia decisão
@@ -479,12 +934,22 @@ missao_travada_ou_silencio(){ # $1=of $2=mid $3=passo
     mkdir -p "$(dirname "$ARQUIVO_TRAVADAS")" 2>/dev/null
     printf '%s\t%s\tmissao=%s passo=%s\t%s\n' "$(date -u +%FT%TZ)" "$oid" "$mid" "$p" "${nota:-—}" >> "$ARQUIVO_TRAVADAS" \
       || log "ordem $oid: AVISO — não consegui escrever em $ARQUIVO_TRAVADAS"
-    log "missão $mid: passo $p travado -> ARQUIVO (daily-pulse). SEM Telegram (I4)."
+    log "missão $mid: passo $p travado -> ARQUIVO (daily-pulse)."
+    # FASE 4 (2026-08-11): 3 linhas — o quê · veredito · o que falta. E o "falta" já não é
+    # uma tarefa para o Danilo: é a ordem de diagnóstico que o sistema abriu sozinho.
+    aviso_travada "$oid" "⛔ Bora: ordem \`$oid\` travou (passo $p da missão $mid).
+· O quê: ${nota:-motivo desconhecido}
+· Conselho: não chegou a haver — a ordem nem passou o Juiz.
+· Falta: nada da tua parte — abri sozinho o diagnóstico \`$oid-diag\`; conto-te o que descobrir."
   else
     mkdir -p "$(dirname "$ARQUIVO_TRAVADAS")" 2>/dev/null
     printf '%s\t%s\t%s\t%s\n' "$(date -u +%FT%TZ)" "$oid" "sem-missao" "${nota:-motivo desconhecido}" >> "$ARQUIVO_TRAVADAS" \
       || log "ordem $oid: AVISO — não consegui escrever em $ARQUIVO_TRAVADAS"
-    log "ordem $oid: travada (sem missão) -> ARQUIVO (daily-pulse). SEM Telegram (I4)."
+    log "ordem $oid: travada (sem missão) -> ARQUIVO (daily-pulse)."
+    aviso_travada "$oid" "⛔ Bora: ordem \`$oid\` travou de vez.
+· O quê: ${nota:-motivo desconhecido}
+· Conselho: não chegou a haver — a ordem nem passou o Juiz.
+· Falta: nada da tua parte — abri sozinho o diagnóstico \`$oid-diag\`; conto-te o que descobrir."
   fi
 }
 
@@ -497,6 +962,25 @@ if [ "${1:-}" = "--selftest" ]; then
   # era diagnosticar rate-limit) nao pode disparar pausa -- so bloqueio curto conta.
   relatorio_longo="Confirmado: o relatorio ja existe e responde a pergunta pedida. $(printf 'x%.0s' $(seq 1 500)) TEXTO EXATO DETECTADO: \"You've hit your session limit · resets 1pm (Europe/London)\" · E RATE-LIMIT REAL: sim (mas essa janela ja passou ha muito)."
   is_rate_limit "$relatorio_longo" && bad "relatorio longo que cita a frase NAO devia disparar rate-limit" || ok "relatorio longo citando a frase nao dispara (falso-positivo a73d corrigido)"
+  # REGRESSAO 2026-08-11 (o bug que o Danilo viu no ecra as 16:04): o limite REAL bate DEPOIS
+  # de ja se ter trabalhado (turns=17) -> a saida e longa -> a guarda dos 600 bytes cegava o
+  # detector. O parser do PC passou a emitir este sinal canonico curto; aqui prova-se que o
+  # carteiro o aceita a QUALQUER tamanho, colando o TEXTO LITERAL do log real.
+  sinal_real="##BORA-LIMITE-PLANO##
+You've hit your session limit · resets 4:10pm (Europe/London)
+LIMITE-DE-PLANO-REAL: sim turns=17 custo=0.9385517999999999"
+  is_rate_limit "$sinal_real" && ok "sinal canonico do parser detecta (texto LITERAL do log real 16:04:25)" || bad "sinal canonico do parser NAO detectou (bug 16:04 por corrigir)"
+  is_rate_limit "$sinal_real
+$(printf 'z%.0s' $(seq 1 2000))" && ok "sinal canonico detecta mesmo com saida LONGA (fim da cegueira dos 600 bytes)" || bad "sinal canonico morreu na guarda dos 600 bytes"
+  ep_real=$(rl_resume_epoch "$sinal_real"); agora_real=$(date +%s)
+  { [ "$ep_real" -gt "$agora_real" ] && [ "$(date -u -d "@$ep_real" +%M)" = "10" ]; } \
+    && ok "hora do reset lida da propria mensagem real (4:10pm -> minutos 10)" || bad "reset 4:10pm do log real"
+  # Erro de rede/ferramenta/modelo NUNCA e esgotamento de plano -> nunca aciona o failover.
+  for e in "API Error: fetch failed (ECONNRESET) ao contactar o modelo" \
+           "Error: overloaded_error 529 upstream" \
+           "tool_use_error: Bash timed out after 120s"; do
+    is_rate_limit "$e" && bad "erro nao-plano disparou rate-limit: $e" || ok "erro nao-plano nao dispara: ${e%% *}"
+  done
   now=$(date +%s)
   ep=$(rl_resume_epoch "resets 5pm (Europe/London)")
   [ "$ep" -gt "$now" ] && ok "reset 5pm -> epoch sempre futuro (nunca pausa no passado)" || bad "reset 5pm epoch futuro"
@@ -601,8 +1085,81 @@ if [ "${1:-}" = "--selftest" ]; then
   else
     ok "licao_de_falha: teste saltado (reflexao.py/python3 ausentes nesta máquina)"
   fi
+  # FASE 2 SISTEMA-100 (2026-08-11): conselho_divergiu — puro texto, sem rede. Regressao alvo:
+  # grep de palavra solta ("falta"/"errado") apanharia "nao falta nada" como falso positivo —
+  # por isso o parser exige o marcador exato CONSELHO: AJUSTAR/OK, nunca palavra livre.
+  [ "$(conselho_divergiu "CONSELHO: OK")" = nao ] && ok "conselho_divergiu: 1 OK -> nao diverge" || bad "conselho_divergiu 1 OK"
+  [ "$(conselho_divergiu "$(printf 'CONSELHO: AJUSTAR\nCONSELHO: AJUSTAR\nCONSELHO: OK')")" = sim ] && ok "conselho_divergiu: 2 AJUSTAR vs 1 OK -> diverge" || bad "conselho_divergiu 2v1"
+  [ "$(conselho_divergiu "$(printf 'CONSELHO: AJUSTAR\nCONSELHO: OK\nCONSELHO: OK')")" = nao ] && ok "conselho_divergiu: 1 AJUSTAR vs 2 OK -> nao diverge (nao e maioria)" || bad "conselho_divergiu 1v2"
+  [ "$(conselho_divergiu "sem marcador nenhum, so texto livre com a palavra errado e falta")" = nao ] && ok "conselho_divergiu: sem marcador exato -> nao diverge (fail-safe, nao apanha palavra solta)" || bad "conselho_divergiu sem marcadores"
+  [ "$(conselho_divergiu "")" = nao ] && ok "conselho_divergiu: texto vazio -> nao diverge" || bad "conselho_divergiu vazio"
+
+  # ---- FASE 1 MISSÃO DE FECHO (2026-08-11): CADEIA DE MOTORES -------------------------------
+  # Provas contra o TEXTO LITERAL do ecrã do Danilo (bora-live.log 21:24:38 e 22:01:13).
+  _t429='API Error: Request rejected (429) · 5-hour usage limit reached. Resets in 2hr 16min. To continue using this model now, edit your Claude Code settings and select a different model.'
+  _t429b='##BORA-LIMITE-PLANO##
+API Error: Request rejected (429) · 5-hour usage limit reached. Resets in 1hr 39min.
+##BORA-MOTOR##: qwen3.7-max
+##BORA-RESET-MIN##: 99
+LIMITE-DE-PLANO-REAL: sim turns=1 custo=0'
+  is_rate_limit "$_t429" && ok "429 do plano Go LITERAL reconhecido como limite" || bad "429 literal nao reconhecido"
+  _now=$(date +%s); _ep=$(go_reset_epoch "$_t429")
+  [ "$((_ep-_now))" -ge 8100 ] && [ "$((_ep-_now))" -le 8220 ] \
+    && ok "hora lida da propria mensagem: 'Resets in 2hr 16min' -> 136 min" || bad "reset 2hr16min ($(( (_ep-_now)/60 )) min)"
+  _ep=$(go_reset_epoch "$_t429b")
+  [ "$((_ep-_now))" -ge 5880 ] && [ "$((_ep-_now))" -le 6000 ] \
+    && ok "##BORA-RESET-MIN##: 99 -> 99 min" || bad "reset via marcador do parser"
+  [ "$(motor_do_sinal "$_t429b")" = "qwen3.7-max" ] \
+    && ok "atribuicao: o sinal diz QUAL motor se esgotou (qwen3.7-max)" || bad "motor_do_sinal"
+  eh_motor_go "qwen3.7-max" && ok "qwen3.7-max reconhecido como degrau da cadeia" || bad "eh_motor_go"
+  eh_motor_go "claude-opus" && bad "claude-opus nao pode contar como degrau Go" || ok "claude-opus NAO e degrau Go (plano Claude fica intacto)"
+  # Livro de esgotamentos por modelo, em disco descartavel.
+  _tdm=$(mktemp -d); MOTORES_ESGOTADOS="$_tdm/.motores-esgotados"
+  [ "$(motor_esgotado_ate qwen3.7-max)" = 0 ] && ok "motor sem registo -> disponivel" || bad "motor sem registo"
+  motor_marcar_esgotado "qwen3.7-max" "$((_now+3600))" "teste" >/dev/null 2>&1
+  [ "$(motor_esgotado_ate qwen3.7-max)" -gt "$_now" ] && ok "motor marcado -> fica esgotado ate a hora do reset" || bad "marcar esgotado"
+  [ "$(motor_esgotado_ate qwen3.8-max)" = 0 ] && ok "esgotar um degrau NAO esgota os outros" || bad "esgotamento contagiou"
+  motor_marcar_esgotado "qwen3.7-max" "$((_now-10))" "ja passou" >/dev/null 2>&1
+  [ "$(motor_esgotado_ate qwen3.7-max)" = 0 ] && ok "hora do reset passou -> motor volta sozinho" || bad "motor nao volta apos reset"
+  [ "$(cadeia_proximo_reset)" = 0 ] && ok "ha degrau vivo -> nao ha espera" || bad "cadeia_proximo_reset com degrau vivo"
+  for _m in $GO_CADEIA; do motor_marcar_esgotado "$_m" "$((_now+7200))" "teste" >/dev/null 2>&1; done
+  motor_marcar_esgotado "minimax-m3" "$((_now+900))" "teste" >/dev/null 2>&1
+  [ "$(cadeia_proximo_reset)" = "$((_now+900))" ] \
+    && ok "cadeia toda esgotada -> espera pelo PRIMEIRO a repor (minimax-m3, +15min)" || bad "cadeia_proximo_reset primeiro"
+  rm -rf "$_tdm"
+
   [ "$fail" = 0 ] && echo "SELFTEST: TODOS OK" || echo "SELFTEST: HÁ FALHAS"
   exit "$fail"
+fi
+# ---- PROVA RE-EXECUTÁVEL DA CADEIA (FASE 1 MISSÃO DE FECHO, 2026-08-11) ---------------------
+# `carteiro.sh --prova-cadeia [tarefa]` corre o go_failover VERDADEIRO (o mesmo que a fila usa)
+# contra os motores REAIS, num livro de esgotamentos descartável, e mostra o rasto: que degraus
+# saltou, qual bateu no limite, e qual assumiu. Não toca na fila de produção.
+if [ "${1:-}" = "--prova-cadeia" ]; then
+  _pd=$(mktemp -d)
+  MOTORES_ESGOTADOS="$_pd/.motores-esgotados"
+  GO_MOTOR_USADO_F="$_pd/.go-motor-usado"
+  LOG="$_pd/prova.log"
+  ORQ_TASK_BASENAME="orq_task_prova.txt"   # nunca pisa a tarefa de uma ordem em curso
+  GO_TIMEOUT="${GO_TIMEOUT:-600}"          # a prova é curta; não fica 4h presa
+  _tarefa="${2:-Corre este comando exato e mostra a saida: echo VIVO-\$env:MOTOR_GO_MODEL > C:\\Users\\danil\\Desktop\\ferramentas\\provas-cadeia-motores\\PROVA-DEGRAU.txt ; type C:\\Users\\danil\\Desktop\\ferramentas\\provas-cadeia-motores\\PROVA-DEGRAU.txt . Depois responde numa linha: MARCO: escrevi PROVA-DEGRAU.txt}"
+  echo "=== PROVA DA CADEIA — degraus: $GO_CADEIA -> hermes ==="
+  echo "=== livro de esgotamentos descartavel: $MOTORES_ESGOTADOS ==="
+  _saida=$(go_failover "$_tarefa" /dev/null)
+  echo
+  echo "--- RASTO (o que o carteiro registou) ---"
+  cat "$LOG" 2>/dev/null
+  echo
+  echo "--- LIVRO DE ESGOTAMENTOS no fim ---"
+  if [ -s "$MOTORES_ESGOTADOS" ]; then
+    while IFS="$(printf '\t')" read -r _m _e; do echo "  $_m esgotado ate $(hhmm "$_e") UTC"; done < "$MOTORES_ESGOTADOS"
+  else echo "  (vazio — nenhum degrau precisou de ser marcado)"; fi
+  echo
+  echo "--- MOTOR QUE ASSUMIU: $(cat "$GO_MOTOR_USADO_F" 2>/dev/null || echo NENHUM) ---"
+  echo "--- SAIDA (200 primeiros chars) ---"
+  printf '%s' "$_saida" | head -c 200; echo
+  rm -rf "$_pd"
+  exit 0
 fi
 if [ "${1:-}" = "--iniciar-missao" ]; then   # arranca a missão: dispara os primeiros passos elegíveis
   mid="${2:-}"; mf=$(missao_path "$mid")
@@ -625,7 +1182,7 @@ if [ -f "$PAUSA_RL" ]; then
   if [ -n "$resume" ] && [ "$now" -lt "$resume" ]; then
     log "PAUSA-RATE-LIMIT: fila pausada até $(hhmm "$resume") UTC — saio"; exit 0
   fi
-  rm -f "$PAUSA_RL" "$RL_AVISADO"; log "PAUSA-RATE-LIMIT: reset atingido — retomo o ciclo"
+  rm -f "$PAUSA_RL" "$RL_AVISADO" "$CADEIA_AVISADO"; log "PAUSA-RATE-LIMIT: reset atingido — retomo o ciclo"
   # 2026-07-13: ao expirar, isto só limpava o ficheiro de controlo — a ordem que estava
   # EM EXECUÇÃO no instante exato do rate-limit ficava gravada em `estado: pausada-rate-limit`
   # (linha ~280) e o loop abaixo só processa `estado: aberta`, logo nada a devolvia. Ficava
@@ -681,6 +1238,7 @@ for f in "$FILA"/*.md; do
   if [ "$autz_ok" != 1 ] && zona_vermelha "$tarefa" && [ "$(get vai "$f")" != "sim" ]; then
     setf estado zona_vermelha "$f"; setf nota "🔴 ZONA VERMELHA — precisa de decisão humana (dinheiro)" "$f"
     log "ordem $id: 🔴 ZONA VERMELHA -> aprovacao humana"
+    acordar_claude ESPERA-AUTORIZACAO "$id" zona_vermelha "$(resumo_tarefa "$tarefa")"   # FASE 3
     # 2026-07-14 (aviso-espera-telegram): antes o aviso só dizia "toca zona vermelha — precisa
     # de ti", sem dizer O QUE a ordem faz nem como desbloquear — o Danilo ficava a saber que
     # algo esperava, mas preso sem contexto nem ação direta. Agora leva o resumo da tarefa +
@@ -702,9 +1260,14 @@ Para libertar para a fila normal, responde aqui: vai $id
     continue
   fi
   # T1 — teto 5
-  if [ "$tent" -ge 5 ]; then setf estado travada "$f"
-    [ -z "$(get nota "$f")" ] && setf nota "⛔ TRAVADA nas 5 tentativas" "$f"
-    log "ordem $id: TRAVADA (5 tentativas)"; ultima_veredito="TRAVADA"; missao_travada_ou_silencio "$f" "$missao" "$passo"; continue; fi
+  # (2026-08-11) FONTE DA VERDADE = campo `teto_tentativas:` do ficheiro da ordem. Antes estava
+  # 5 CRAVADO aqui e o campo era decorativo -- mudar o campo nao mudava nada. Default 3: com a
+  # RETOMA por marcos (abaixo), 3 tentativas que CONTINUAM valem mais que 5 que recomecam.
+  teto=$(get teto_tentativas "$f"); case "$teto" in ''|*[!0-9]*) teto=3;; esac
+  [ "$teto" -lt 1 ] && teto=3
+  if [ "$tent" -ge "$teto" ]; then setf estado travada "$f"
+    [ -z "$(get nota "$f")" ] && setf nota "⛔ TRAVADA nas $teto tentativas" "$f"
+    log "ordem $id: TRAVADA ($teto tentativas)"; ultima_veredito="TRAVADA"; missao_travada_ou_silencio "$f" "$missao" "$passo"; continue; fi
 
   tent=$((tent+1)); setf tentativa "$tent" "$f"; setf estado executando "$f"
   # inicio da ORDEM = campo criada: (nao o relogio da tentativa) — commit feito numa tentativa
@@ -713,8 +1276,114 @@ Para libertar para a fila normal, responde aqui: vai $id
   criada_ts=$(grep -m1 '^criada:' "$f" | sed 's/criada: *//' | tr -d '\r')
   t0=""; [ -n "$criada_ts" ] && t0=$(date -d "$criada_ts" +%s 2>/dev/null)
   t0=${t0:-$(date +%s)}
-  saida=$(exec_ordem "$tarefa"); printf '%s\n' "$saida" > "$FILA/$id.saida.txt"
-  setf estado respondida "$f"; log "ordem $id: respondida (tentativa $tent)"
+  # FASE 2 SISTEMA-100: se uma ronda anterior do conselho deixou critica pendente, anexa-a
+  # SO nesta chamada (em memoria — tarefa_exec, nunca escrita no campo tarefa: do ficheiro).
+  tarefa_exec="$tarefa"
+  if [ "$(get conselho_pendente "$f")" = "sim" ]; then
+    ronda_c=$(get conselho_ronda "$f"); ronda_c=${ronda_c:-1}
+    critica_arq="$FILA/$id.conselho-r$ronda_c.txt"
+    if [ -f "$critica_arq" ]; then
+      tarefa_exec="$tarefa
+
+[Revisao do conselho, ronda $ronda_c/$CONSELHO_RONDAS_MAX -- ajusta o que fizer sentido, ignora o resto se ja estiver certo:]
+$(cat "$critica_arq")"
+      log "ordem $id: a incluir critica do conselho (ronda $ronda_c) nesta tentativa"
+    fi
+    setf conselho_pendente nao "$f"
+  fi
+  # ---- RETOMA POR MARCOS (2026-08-11) ----
+  # Antes cada tentativa mandava a tarefa CRUA -> a tentativa 2 recomecava tudo do zero e batia
+  # no mesmo sitio. Agora a ordem tem MEMORIA: o executor devolve `MARCO: <o que ficou feito>` no
+  # RESULTADO (tem de ser no RESULTADO: o bora-live-parser.ps1 so deixa passar o resultado final),
+  # guardamos em $id.marcos.txt e a tentativa seguinte recebe a lista com ordem de CONTINUAR.
+  MARCOF="$FILA/$id.marcos.txt"
+  tarefa_exec="$tarefa_exec
+
+--- CONTABILIDADE DE PROGRESSO (obrigatorio) ---
+No RESULTADO final inclui UMA LINHA por cada fase/passo que ficou MESMO concluido, no formato:
+MARCO: <descricao curta do que ficou feito>
+Escreve-as mesmo que nao tenhas acabado tudo - servem para a proxima tentativa continuar daqui."
+  # (2026-08-11, FASE 1 SISTEMA-100) A condição era `tent -gt 1 && -s MARCOF`. Com o
+  # auto-fatiamento isso passou a estar ERRADO: bater no teto de turnos já NÃO gasta tentativa,
+  # logo um 2.º arranque da mesma ordem pode acontecer com `tent` ainda em 1 — e a RETOMA nunca
+  # seria injetada, fazendo o arranque seguinte recomeçar tudo (exatamente a avaria que a Fase 1
+  # veio matar). Agora a regra é a única que importa: SE HÁ MARCOS, RETOMA-SE.
+  _cont_feitas=$(get continuacoes "$f"); case "$_cont_feitas" in ''|*[!0-9]*) _cont_feitas=0;; esac
+  if [ -s "$MARCOF" ]; then
+    tarefa_exec="$tarefa_exec
+
+--- RETOMA: tentativa $tent de $teto · arranque $((_cont_feitas+1)) (NAO RECOMECES DO ZERO) ---
+Esta ordem JA FOI TENTADA. Isto JA ESTA FEITO (confirma que existe, nao repitas):
+$(cat "$MARCOF")
+Continua a partir do primeiro passo que NAO esta nessa lista."
+    log "ordem $id: RETOMA com $(wc -l < "$MARCOF" | tr -d ' ') marco(s) (tentativa $tent, arranque $((_cont_feitas+1)))"
+  fi
+  # ---- MOTOR / MODELO (2026-08-11) ----
+  # O executor (run-claude-loop.cmd, FASE 1.3) so sobe para Opus se encontrar a string LITERAL
+  # "[MODELO: OPUS]" (findstr /C:). O Danilo escreve "MOTOR: OPUS" -> nunca batia. Medido no
+  # bora-live.log: 667 de 669 arranques em sonnet, 2 em opus. Normaliza-se aqui.
+  _motor_low=$(printf '%s' "$tarefa_exec" | tr 'A-Z' 'a-z')
+  case "$_motor_low" in
+    *"[modelo: opus]"*) : ;;
+    *"motor: opus"*|*"motor:opus"*|*"modelo: opus"*|*"modelo:opus"*)
+      tarefa_exec="[MODELO: OPUS]
+$tarefa_exec"
+      log "ordem $id: motor OPUS pedido no cabecalho -> etiqueta [MODELO: OPUS] injetada" ;;
+  esac
+  t_att=$(date +%s)   # relogio DESTA tentativa (o t0 e' da ordem toda) — usado na nota medida
+  # ---- MEMÓRIA DO PLANO ESGOTADO (2026-08-11) ----------------------------------------------
+  # Medido no carteiro.log de hoje (36424 e 36437): o failover FUNCIONOU nas duas vezes, mas o
+  # carteiro não guardava que o plano estava esgotado. Resultado: a ordem SEGUINTE era à mesma
+  # despachada para o Claude, subia um claude.exe inteiro no PC de 4GB, batia no limite ao turno
+  # 1 (~14s, custo $0) e só então caía no failover. Era isto que o Danilo via no ecrã como
+  # "relançou no mesmo motor e queimou tempo" — não era retentativa da mesma ordem, era cada
+  # ordem nova a redescobrir sozinha que o plano tinha acabado.
+  # Agora, enquanto a janela do limite não passar: verde vai DIRETO ao Go (zero arranques
+  # desperdiçados) e vermelha fica segura à espera do Pro. Ficheiro apaga-se sozinho no reset.
+  _saltou_claude=0
+  if [ -f "$PLANO_ESGOTADO" ]; then
+    _pe=$(tr -dc '0-9' < "$PLANO_ESGOTADO" 2>/dev/null); _pe=${_pe:-0}
+    if [ "$_pe" -le "$(date +%s)" ]; then
+      rm -f "$PLANO_ESGOTADO"; log "plano Claude voltou (janela do limite passou) — arranques normais retomados"
+    elif zona_vermelha "$tarefa"; then
+      setf tentativa "$((tent-1))" "$f"; setf estado pausada-rate-limit "$f"
+      echo "$_pe" > "$PAUSA_RL"
+      setf nota "🔴 SEGURA — zona protegida e plano Claude no limite (retoma $(hhmm "$_pe") UTC); não deixo o motor mais fraco assumir." "$f"
+      log "limite do plano detectado -> ordem segura (zona protegida) ate $(hhmm "$_pe") UTC"
+      log "ordem $id: plano no limite + ZONA VERMELHA — nem sequer arranco o executor; espero o Pro"
+      # FIX 2026-08-11 (apanhado pela prova com a frase literal): este ramo segurava a ordem
+      # em SILENCIO. O ramo do RATE-LIMIT avisava; este — que trata de TODAS as ordens
+      # protegidas seguintes enquanto a janela dura — nao. Marcador por-ordem para avisar
+      # uma vez por ordem (nao a cada volta do carteiro), com a hora lida da propria mensagem.
+      if [ ! -f "$FILA/$id.rl-vermelha.avisado" ]; then
+        touch "$FILA/$id.rl-vermelha.avisado"
+        notify "🔴 Bora: a ordem \`$id\` toca zona protegida (dinheiro/dispatch) e o plano Claude Pro está no limite.
+· Veredito: SEGURA — não deixo o motor mais fraco assumir nestas; nem sequer arranco o executor.
+· Falta: esperar o reset ($(hhmm "$_pe") UTC); retomo sozinho, sem gastar tentativa."
+      fi
+      ultima_veredito="RATE-LIMIT"; break
+    else
+      log "limite do plano detectado -> a continuar pela cadeia Go ($GO_CADEIA -> hermes)"
+      log "ordem $id: plano ainda no limite ate $(hhmm "$_pe") UTC — vou DIRETO a cadeia, sem gastar um arranque do Claude"
+      saida=$(go_failover "$tarefa_exec" "$MARCOF" 2>/dev/null)
+      _mgo_direto=$(cat "$GO_MOTOR_USADO_F" 2>/dev/null)
+      if [ -n "$saida" ]; then _saltou_claude=1; setf motor_final "${_mgo_direto:-$GO_FAILOVER_MODELO}" "$f"; fi
+    fi
+  fi
+  [ "$_saltou_claude" -eq 1 ] || saida=$(exec_ordem "$tarefa_exec")
+  printf '%s\n' "$saida" > "$FILA/$id.saida.txt"
+  printf '%s\n' "$saida" | grep -E '^[[:space:]]*MARCO:' | sed 's/^[[:space:]]*//' >> "$MARCOF" 2>/dev/null || true
+  if [ -s "$MARCOF" ]; then sort -u "$MARCOF" -o "$MARCOF"; setf marcos "$(wc -l < "$MARCOF" | tr -d ' ')" "$f"; fi
+  setf estado respondida "$f"
+  # (2026-08-11, FASE 1) Regista QUAL plano/motor terminou este arranque. Com o failover de plano
+  # uma mesma ordem pode acabar parte em Claude e parte no Go — sem esta linha o log deixava de
+  # dizer quem fez o quê, e a promessa "distingue no log qual modelo terminou cada arranque"
+  # ficava por cumprir. O ramo do failover reescreve este campo quando assume.
+  if [ "$_saltou_claude" -eq 1 ]; then _motor_usado="${_mgo_direto:-$GO_FAILOVER_MODELO}"   # nem chegou a subir claude.exe
+  else case "$tarefa_exec" in *"[MODELO: OPUS]"*) _motor_usado="claude-opus";; *) _motor_usado="claude-sonnet";; esac
+  fi
+  setf motor_final "$_motor_usado" "$f"
+  log "ordem $id: respondida (tentativa $tent, motor $_motor_usado)"
   # PARTE A (2026-07-16): se o vigia de inatividade do PC matou o executor, o run-claude-loop.cmd
   # devolve esta linha no stdout — conta como saida vazia (nao houve resultado real), mas o
   # MOTIVO fica preservado para a nota nunca dizer "timeout" generico.
@@ -726,7 +1395,12 @@ Para libertar para a fila normal, responde aqui: vai $id
   # gasta tentativa nem chama o juiz (não há nada real para avaliar); reabre para a próxima
   # volta tentar de novo, sem queimar o teto T1 nem confundir com falha do juiz.
   if is_ram_baixa "$saida"; then
-    livres=$(printf '%s' "$saida" | grep -oiE "RAM insuficiente no PC \(([0-9]+)MB livres\)" | grep -oE "[0-9]+MB" | head -1)
+    # FIX 2026-09-05 (tudo-05-09-mao): esta linha nunca apanhava o numero, por isso as notas
+    # das ordens ficavam todas com "(? livres)" -- 6 ordens travadas assim, sem se saber
+    # quanta RAM havia. Esperava "RAM insuficiente no PC (123MB livres)", mas o executor
+    # escreve "RAM insuficiente no PC (PREFLIGHT-RAM: BLOCK motivo=... avail=222MB ...)".
+    # Passa a aceitar as duas formas.
+    livres=$(printf %s "$saida" | grep -oiE "avail=[0-9]+MB|\(([0-9]+)MB livres\)" | grep -oE "[0-9]+MB" | head -1)
     setf tentativa "$((tent-1))" "$f"
     setf estado aberta "$f"
     setf nota "🧠 RAM-BAIXA — o PC não tinha memória (${livres:-?} livres) para subir o executor; reagendada sem gastar tentativa." "$f"
@@ -758,10 +1432,56 @@ Para libertar para a fila normal, responde aqui: vai $id
     # `pausa_teto: 1` diz ao hook para usar o teto GENEROSO (uma tarefa grande pode precisar de
     # várias continuações) em vez do teto 2 das travadas genuínas. Continua a haver teto absoluto,
     # para um loop infinito não correr para sempre — e o hook regista quando lá chega.
-    setf estado travada "$f"
+    #
+    # AUTO-FATIAMENTO (2026-08-11, FASE 1 SISTEMA-100) — o teto deixa de matar, passa a ser só
+    # o tamanho da fatia. Antes este ramo marcava `travada` e DELEGAVA a continuação num hook
+    # externo (hermes-hook-conclusao.sh). Duas fragilidades: (a) a ordem ficava `travada` no
+    # disco entre o teto e o hook — quem olhasse via uma falha que não existia; (b) dependia de
+    # uma segunda peça correr. Agora é tratado AQUI, na mesma classe de RAM-BAIXA/LOCK-OCUPADO:
+    # devolve a tentativa (não foi o trabalho que falhou, foi a fatia que acabou), reabre a
+    # ordem, e o arranque seguinte apanha os marcos pela RETOMA acima. Uma ordem grande passa a
+    # ser vários arranques encadeados até acabar.
+    cont=$(get continuacoes "$f"); case "$cont" in ''|*[!0-9]*) cont=0;; esac
+    cont=$((cont+1)); setf continuacoes "$cont" "$f"
+    nmarcos=0; [ -s "$MARCOF" ] && nmarcos=$(wc -l < "$MARCOF" | tr -d ' ')
+    #
+    # TRAVÃO DO PROGRESSO (2026-08-11) — acrescentado DEPOIS de o conselho de 4 vozes criticar
+    # a primeira versão desta função. As três vozes independentes bateram no mesmo ponto: um
+    # arranque que não gasta tentativa não tem custo visível, portanto o único travão passava a
+    # ser o contador — e um trabalho que não avança ganhava 12 arranques de borla à mesma.
+    # Tinham razão na substância. A resposta certa não é voltar a queimar tentativa (o Danilo
+    # pediu explicitamente o contrário, e um arranque produtivo NÃO é uma falha); é distinguir
+    # PAUSA de EMPERRAMENTO: um arranque só é gratuito se tiver produzido pelo menos um marco
+    # novo. Dois arranques seguidos sem marco novo não é uma tarefa grande, é uma tarefa presa —
+    # e essa trava já, em vez de rodar 12 vezes contra a mesma parede.
+    marcos_antes=$(get marcos_no_arranque_anterior "$f"); case "$marcos_antes" in ''|*[!0-9]*) marcos_antes=-1;; esac
+    setf marcos_no_arranque_anterior "$nmarcos" "$f"
+    if [ "$nmarcos" -le "$marcos_antes" ]; then
+      sem_progresso=$(get arranques_sem_progresso "$f"); case "$sem_progresso" in ''|*[!0-9]*) sem_progresso=0;; esac
+      sem_progresso=$((sem_progresso+1)); setf arranques_sem_progresso "$sem_progresso" "$f"
+      if [ "$sem_progresso" -ge 2 ]; then
+        setf estado travada "$f"
+        setf nota "⛔ EMPERRADA — $sem_progresso arranques seguidos sem UM marco novo (fica em $nmarcos). Não é tarefa grande, é tarefa presa: relançar outra vez daria o mesmo. $linha_parou" "$f"
+        log "ordem $id: EMPERRADA — $sem_progresso arranques sem progresso (marcos parados em $nmarcos) -> travada em vez de gastar os $CONT_MAX"
+        ultima_veredito="TRAVADA"; missao_travada_ou_silencio "$f" "$missao" "$passo"
+        continue
+      fi
+      log "ordem $id: arranque $cont sem marco novo ($sem_progresso/2) — dou-lhe mais uma, depois trava"
+    else
+      setf arranques_sem_progresso 0 "$f"    # avançou: o contador de emperramento reinicia
+    fi
+    if [ "$cont" -ge "$CONT_MAX" ]; then
+      setf estado travada "$f"
+      setf nota "⛔ TETO ABSOLUTO DE ARRANQUES ($CONT_MAX) — $linha_parou; $nmarcos marco(s) feitos. Grande demais mesmo fatiada: precisa de ser dividida em ordens separadas." "$f"
+      log "ordem $id: TETO-ABSOLUTO de arranques ($cont/$CONT_MAX) — travada com $nmarcos marco(s)"
+      ultima_veredito="TRAVADA"; missao_travada_ou_silencio "$f" "$missao" "$passo"
+      continue
+    fi
+    setf tentativa "$((tent-1))" "$f"          # teto de turnos NÃO é falha -> não queima tentativa
+    setf estado aberta "$f"
     setf pausa_teto 1 "$f"
-    setf nota "⏸️ PAUSA-POR-TETO (não é falha): $linha_parou — continuação automática, o trabalho segue de onde parou." "$f"
-    log "ordem $id: PAUSA-POR-TETO -> continuação silenciosa (sem Telegram) — $linha_parou"
+    setf nota "⏸️ PAUSA-POR-TETO (não é falha, não gasta tentativa): $linha_parou — arranque $cont/$CONT_MAX, $nmarcos marco(s) em memória; continua da fase seguinte." "$f"
+    log "ordem $id: PAUSA-POR-TETO -> reaberta SEM gastar tentativa (arranque $cont/$CONT_MAX, $nmarcos marco(s)) — $linha_parou"
     ultima_veredito="PAUSA-TETO"
     continue
   fi
@@ -769,21 +1489,83 @@ Para libertar para a fila normal, responde aqui: vai $id
   # ---- RATE-LIMIT: não gasta tentativa, pausa a fila, avisa 1x, retoma sozinho ----
   if is_rate_limit "$saida"; then
     setf tentativa "$((tent-1))" "$f"                 # devolve a tentativa (foi limite, não trabalho)
-    setf estado pausada-rate-limit "$f"
-    resume=$(rl_resume_epoch "$saida"); echo "$resume" > "$PAUSA_RL"
-    setf nota "🚫 RATE-LIMIT (conta Claude no limite; retoma $(hhmm "$resume") UTC)" "$f"
-    log "ordem $id: 🚫 RATE-LIMIT — fila pausada até $(hhmm "$resume") UTC"
-    if [ ! -f "$RL_AVISADO" ]; then
-      notify "🚫 Bora/orquestração: conta Claude Code no limite de sessão. Fila PAUSADA até $(hhmm "$resume") UTC — retomo sozinho, sem gastar tentativas."; touch "$RL_AVISADO"
+    # ---- FAILOVER DE PLANO (2026-08-11, FASE 1 SISTEMA-100, pedido explícito do Danilo) ----
+    # O plano Pro esgotou, mas a tarefa não pode parar: passa para o motor mais forte do
+    # OpenCode Go (custo fixo). EXCEÇÃO DURA: zona vermelha (dinheiro/dispatch/zonas que exigem
+    # Opus) NÃO passa — nessas é melhor esperar pelo Pro do que arriscar no modelo mais fraco.
+    _fo_ok=0
+    _resume_calc=$(rl_resume_epoch "$saida")          # calcula AGORA: a $saida pode ser substituída
+    # ---- DE QUEM É ESTE LIMITE? (FASE 1 MISSÃO DE FECHO, 2026-08-11) --------------------
+    # Defeito medido às 21:01:15: o 429 do plano **Go** era lido aqui e escrito em
+    # .plano-esgotado como se fosse o plano **Claude**. A seguir, o ramo do "plano no limite"
+    # mandava a ordem DIRETA ao qwen3.7-max — precisamente o motor que estava morto. O parser
+    # do PC passou a dizer quem foi (##BORA-MOTOR##); aqui usa-se essa etiqueta.
+    _motor_lim=$(motor_do_sinal "$saida")
+    if [ -n "$_motor_lim" ] && eh_motor_go "$_motor_lim"; then
+      _ep_go=$(go_reset_epoch "$saida")
+      motor_marcar_esgotado "$_motor_lim" "$_ep_go" "429 lido do arranque"
+      log "ordem $id: o limite era do motor $_motor_lim (plano Go), NAO do Claude Pro — plano Claude fica intacto"
+    else
+      # Grava a janela do limite para as ordens SEGUINTES não gastarem cada uma um arranque a
+      # redescobrir o mesmo (ver "MEMÓRIA DO PLANO ESGOTADO" acima). Apaga-se sozinho no reset.
+      echo "$_resume_calc" > "$PLANO_ESGOTADO"
+      log "limite do plano registado ate $(hhmm "$_resume_calc") UTC — as proximas ordens verdes vao direto a cadeia Go"
     fi
-    ultima_veredito="RATE-LIMIT"
-    break                                             # não processa mais nada até ao reset
+    if zona_vermelha "$tarefa"; then
+      # Linha LEGÍVEL pedida pelo Danilo (2026-08-11): quem lê o log tem de perceber o que
+      # aconteceu sem decifrar siglas — e a hora vem lida da PRÓPRIA mensagem do limite.
+      log "limite do plano detectado -> ordem segura (zona protegida) ate $(hhmm "$_resume_calc") UTC"
+      log "ordem $id: RATE-LIMIT em ZONA VERMELHA — failover BLOQUEADO de propósito, seguro a ordem até o Pro voltar"
+      notify "🔴 Bora: a ordem \`$id\` toca zona protegida (dinheiro/dispatch) e o plano Claude Pro está no limite.
+· Veredito: SEGURA — não deixo o motor mais fraco assumir nestas.
+· Falta: esperar o reset ($(hhmm "$_resume_calc") UTC); retomo sozinho, sem gastar tentativa."
+    else
+      log "limite do plano detectado -> a continuar pela cadeia Go ($GO_CADEIA -> hermes)"
+      log "ordem $id: RATE-LIMIT — desco a cadeia de motores ate encontrar um vivo"
+      _saida_go=$(go_failover "$tarefa_exec" "$MARCOF" 2>/dev/null)
+      _mgo=$(cat "$GO_MOTOR_USADO_F" 2>/dev/null); _mgo=${_mgo:-$GO_FAILOVER_MODELO}
+      if [ -n "$_saida_go" ]; then
+        saida="$_saida_go"
+        printf '%s\n' "$saida" > "$FILA/$id.saida.txt"
+        printf '%s\n' "$saida" | grep -E '^[[:space:]]*MARCO:' | sed 's/^[[:space:]]*//' >> "$MARCOF" 2>/dev/null || true
+        if [ -s "$MARCOF" ]; then sort -u "$MARCOF" -o "$MARCOF"; setf marcos "$(wc -l < "$MARCOF" | tr -d ' ')" "$f"; fi
+        setf tentativa "$tent" "$f"                   # houve trabalho real: a tentativa volta a contar
+        setf motor_final "$_mgo" "$f"
+        log "ordem $id: FAILOVER-PLANO OK — arranque terminado em $_mgo (degrau vivo da cadeia)"
+        _fo_ok=1                                      # segue para o Juiz pelo caminho normal
+      else
+        log "ordem $id: cadeia inteira sem motor vivo — caio na pausa normal até ao primeiro reset"
+      fi
+    fi
+    if [ "$_fo_ok" -eq 0 ]; then
+      setf estado pausada-rate-limit "$f"
+      # ---- FASE 1, pedido 3: NÃO QUEIMAR CICLOS ------------------------------------------
+      # Se TODOS os degraus estão esgotados, a ordem espera pela hora do PRIMEIRO que repõe
+      # (Claude ou Go, o que vier antes) e o Danilo é avisado UMA vez — não de 20 em 20 min.
+      _ep_cad=$(cadeia_proximo_reset)
+      resume="$_resume_calc"
+      [ "$_ep_cad" -gt 0 ] && [ "$_ep_cad" -lt "$resume" ] && resume="$_ep_cad"
+      echo "$resume" > "$PAUSA_RL"
+      setf nota "🚫 RATE-LIMIT (todos os motores no limite; retoma $(hhmm "$resume") UTC)" "$f"
+      log "ordem $id: 🚫 RATE-LIMIT — fila pausada até $(hhmm "$resume") UTC"
+      if [ "$_ep_cad" -gt 0 ]; then
+        if [ ! -f "$CADEIA_AVISADO" ]; then
+          notify "🚫 Bora/orquestração: TODOS os motores no limite (Claude Pro + $GO_CADEIA). Fila PAUSADA até $(hhmm "$resume") UTC — o primeiro a repor assume, retomo sozinho e sem gastar tentativas."; touch "$CADEIA_AVISADO"
+        else
+          log "ordem $id: cadeia toda esgotada — aviso ja dado (latch), nao repito no Telegram"
+        fi
+      elif [ ! -f "$RL_AVISADO" ]; then
+        notify "🚫 Bora/orquestração: conta Claude Code no limite de sessão. Fila PAUSADA até $(hhmm "$resume") UTC — retomo sozinho, sem gastar tentativas."; touch "$RL_AVISADO"
+      fi
+      ultima_veredito="RATE-LIMIT"
+      break                                           # não processa mais nada até ao reset
+    fi
   fi
 
   # juiz — META_JUIZ leva o inicio_epoch p/ o chao mecanico do PC (juiz-mecanico.ps1) verificar
   # commit novo/ficheiro em disco. O veredito completo (com as linhas PROVA-JUIZ) fica auditavel
   # em $id.veredito.txt — prova no proprio veredito, nunca no e2e_log.
-  jinput=$(printf 'TAREFA:\n%s\nMETA_JUIZ: inicio_epoch=%s\n\nSAIDA DO EXECUTOR:\n%s\n' "$tarefa" "${t0:-}" "$(printf '%s' "$saida" | tail -50)")
+  jinput=$(printf 'TAREFA:\n%s\nMETA_JUIZ: inicio_epoch=%s\n\nSAIDA DO EXECUTOR:\n%s\n' "$tarefa" "${t0:-}" "$(printf '%s' "$saida" | tail -300)")
   veredito=$(pc_judge "$jinput")
 
   # PARIDADE PARTE 2.2 (2026-08-01): O JUIZ DEIXA DE MATAR TRABALHO BOM.
@@ -809,9 +1591,63 @@ Para libertar para a fila normal, responde aqui: vai $id
   # tendo feito o trabalho certo), o MESMO defeito ja corrigido no juiz-mecanico esta manha
   # (recusa honesta != falha real). O juiz JA distingue os dois casos no seu VEREDITO; reabrir
   # e' decisao EXCLUSIVA dele (CORRIGIR), nunca de um grep paralelo sobre o texto do executor.
+  # BLINDAGEM CONTRA ENTREGA FANTASMA (2026-08-11) — corre ANTES de qualquer fecho POSITIVO.
+  # Nem o "APROVADA" do Juiz dispensa prova material: o Juiz julga TEXTO, e texto foi exatamente
+  # o que a ordem-20260811143542-1fa4 produziu (5 marcos, zero entregas). Ficheiro em disco ou
+  # commit — senão a ordem fecha INCOMPLETA a dizer o que falta, nunca concluída.
+  #
+  # SÓ intercepta os fechos POSITIVOS (APROVADA, ou juiz mudo com saída não-vazia = o antigo
+  # "CONCLUÍDA COM REVISÃO PENDENTE", que foi por onde a ordem fantasma passou). Um CORRIGIR ou
+  # uma travagem seguem o caminho normal: aí a ordem ainda vai voltar a correr, e exigir-lhe prova
+  # agora só matava a re-tentativa legítima — o defeito que a PARIDADE 2.2 já tinha pago caro.
+  _fecho_positivo=0
+  printf '%s' "$vline" | grep -iq 'APROVADA' && _fecho_positivo=1
+  [ -z "$vline" ] && [ "$vazio" -eq 0 ] && _fecho_positivo=1
+
+  _tem_prova=1
+  if [ "$_fecho_positivo" -eq 1 ]; then
+    if prova_material "${t0:-}"; then _tem_prova=1; else _tem_prova=0; fi
+    _prova_linha=$(printf '%s' "$PROVA_MATERIAL_TXT" | grep -m1 '^PROVA-MATERIAL:')
+    log "ordem $id: ${_prova_linha:-PROVA-MATERIAL: <sonda sem resposta>}"
+    printf '%s\n' "$PROVA_MATERIAL_TXT" > "$FILA/$id.prova-material.txt" 2>/dev/null || true
+  fi
+
+  if [ "$_tem_prova" -eq 0 ]; then
+    # Sem prova material NÃO se fecha como concluída, diga o Juiz o que disser. Estado próprio
+    # (`incompleta`) para o Danilo distinguir de `travada` (avaria) e de `concluida` (entregue).
+    setf estado incompleta "$f"
+    setf nota "👻 INCOMPLETA — SEM PROVA MATERIAL: nenhum ficheiro criado/alterado em disco nem commit desde o arranque da ordem. O executor produziu TEXTO (marcos: $(get marcos "$f")), mas texto não é entrega. Falta: fazer mesmo o trabalho descrito na saída ($id.saida.txt). Sonda: ${_prova_linha:-<sem resposta>}" "$f"
+    setf revisao pendente "$f"
+    printf '%s\t%s\t%s\n' "$(date -u +%FT%TZ)" "$id" "sem prova material (entrega fantasma) — motor_final=$(get motor_final "$f")" >> "$REVISAO_PENDENTE"
+    log "ordem $id: 👻 INCOMPLETA (sem prova material) — motor_final=$(get motor_final "$f"), veredito=${vline:-<nenhum>}"
+    ultima_veredito="INCOMPLETA-SEM-PROVA"
+    sync_espelho
+    continue
+  fi
+
   if printf '%s' "$vline" | grep -iq 'APROVADA'; then
     setf estado aprovada "$f"; setf nota "" "$f"; log "ordem $id: APROVADA"
     ultima_veredito="APROVADA"; n_aprovadas=$((n_aprovadas+1))
+
+    # FASE 2 SISTEMA-100 (2026-08-11): segunda opiniao do conselho DEPOIS do Juiz mecanico ja
+    # ter aprovado — ver revisao_conselho() acima. So ordens avulsas (sem missao, para nao
+    # interferir no encadeamento existente). Falha de qualquer tipo aqui = fecha na mesma.
+    if [ -z "$missao" ]; then
+      cv=$(revisao_conselho "$f" "$id" "$tarefa" "$saida")
+      ronda_c=$(get conselho_ronda "$f"); ronda_c=${ronda_c:-0}
+      if [ "$cv" = "DIVERGENCIA" ] && [ "$ronda_c" -lt "$CONSELHO_RONDAS_MAX" ]; then
+        setf estado aberta "$f"
+        setf tentativa "$((tent-1))" "$f"     # revisao de qualidade nao gasta o teto T1
+        setf conselho_pendente sim "$f"
+        setf nota "🔎 conselho pediu ajuste (ronda $ronda_c/$CONSELHO_RONDAS_MAX) — ver $id.conselho-r$ronda_c.txt" "$f"
+        log "ordem $id: conselho pediu ajuste (ronda $ronda_c/$CONSELHO_RONDAS_MAX) -> reaberta"
+        sync_espelho
+        continue
+      fi
+      [ "$cv" = "DIVERGENCIA" ] && log "ordem $id: conselho ainda com objecoes na ronda $ronda_c, teto atingido -> fecha registando divergencia"
+      [ "$cv" = "CONSENSO" ] && log "ordem $id: conselho sem objecoes (ronda $ronda_c) -> consenso"
+    fi
+
     if [ -n "$missao" ]; then
       missao_avanca "$missao" "$passo"
     else
@@ -819,8 +1655,23 @@ Para libertar para a fila normal, responde aqui: vai $id
       # silêncio total (reengenharia 2026-07-12, pensada só para não repetir
       # aviso a cada passo de uma MISSÃO). Ordem avulsa aprovada volta a avisar.
       resumo=$(resultado_1linha "$saida")
-      notify "✅ Bora: tarefa $id concluída com sucesso. ${resumo:-(sem resumo)}"
+      # FASE 4 (2026-08-11): formato de 3 LINHAS, igual em todos os avisos —
+      # o quê · veredito do conselho · o que falta. Antes era uma linha só e não dizia se o
+      # conselho tinha concordado, o que obrigava o Danilo a ir ver o ficheiro para saber se
+      # podia confiar no "concluída". A informação que decide já vem no aviso.
+      case "${cv:-}" in
+        CONSENSO)    _vc="conselho concordou (ronda ${ronda_c:-1})";;
+        DIVERGENCIA) _vc="conselho MANTEVE objeções ao fim de ${ronda_c:-?} rondas — vale uma vista de olhos";;
+        *)           _vc="conselho não opinou (fora de serviço ou missão encadeada)";;
+      esac
+      _falta="nada — fechada pelo Juiz e pelo conselho"
+      [ "${cv:-}" = "DIVERGENCIA" ] && _falta="ver $id.conselho-r${ronda_c:-1}.txt (o que o conselho ainda queria)"
+      notify "✅ Bora: ordem \`$id\` concluída.
+· O quê: ${resumo:-(sem resumo)}
+· Conselho: $_vc
+· Falta: $_falta"
       log "ordem $id: aprovada -> Telegram (conclusão)"
+      acordar_claude FECHOU "$id" aprovada "${resumo:-sem resumo}"   # FASE 3
     fi
   else
     # ---- NOTA NUNCA VAZIA — causa explícita por construção ----
@@ -844,7 +1695,12 @@ Para libertar para a fila normal, responde aqui: vai $id
           nota="⏱️ TETO-DURO-4h (${motivo_kill#MOTIVO_KILL:TETO-DURO:}min corridos) — output ainda saía mas ultrapassou o teto máximo de segurança; DIVIDIR em passos menores (convencoes.md)."
           ;;
         *)
-          nota="⏱️ SAIDA-VAZIA — executor não devolveu texto (tarefa grande demais? dividir em passos menores — ver convencoes.md)"
+          # (2026-08-11) A nota antiga ADIVINHAVA ("tarefa grande demais?"). Essa frase ja escondeu
+          # 4 dias de avaria real (o binario da CLI mudou de sitio a 27/07). Agora diz o MEDIDO.
+          _dur=$(( $(date +%s) - ${t_att:-$(date +%s)} ))
+          _bytes=$(printf '%s' "$saida" | wc -c | tr -d ' ')
+          _ultima=$(printf '%s' "$saida" | grep -v '^[[:space:]]*$' | tail -1 | cut -c1-120)
+          nota="⏱️ SAIDA-VAZIA (medido) — executor devolveu ${_bytes} bytes uteis em ${_dur}s na tentativa ${tent}; ultima linha: ${_ultima:-<nenhuma>}. Nao morreu por inatividade nem por teto (esses tem nota propria)."
           ;;
       esac
     elif [ -z "$vline" ] && [ "$vazio" -eq 0 ]; then
@@ -881,8 +1737,8 @@ Para libertar para a fila normal, responde aqui: vai $id
       setf estado travada "$f"
       setf nota "$nota (x$tent — não re-tento a mesma coisa)" "$f"
       log "ordem $id: TRAVADA (não re-tenta tarefa vazia/inativa) — $nota"; ultima_veredito="TRAVADA-VAZIA"; missao_travada_ou_silencio "$f" "$missao" "$passo"
-    elif [ "$tent" -ge 5 ]; then
-      setf estado travada "$f"; log "ordem $id: TRAVADA (5 tentativas) — nota: $nota"; ultima_veredito="TRAVADA"; missao_travada_ou_silencio "$f" "$missao" "$passo"
+    elif [ "$tent" -ge "$teto" ]; then
+      setf estado travada "$f"; log "ordem $id: TRAVADA ($teto tentativas) — nota: $nota"; ultima_veredito="TRAVADA"; missao_travada_ou_silencio "$f" "$missao" "$passo"
     else
       setf estado aberta "$f"; log "ordem $id: CORRIGIR -> reaberta (nota: $nota)"; ultima_veredito="CORRIGIR"; n_corrigir=$((n_corrigir+1))
     fi

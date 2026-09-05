@@ -31,7 +31,8 @@ try:
     print('\n'.join(parts))
 except Exception:
     print('')" 2>/dev/null)
-[ -z "$T" ] && T="$payload"   # fail-safe
+T_OK=1
+[ -z "$T" ] && { T="$payload"; T_OK=0; }   # fail-safe (JSON ilegivel)
 
 TOOLNAME=$(printf '%s' "$payload" | python -c "import sys,json
 try: print(json.load(sys.stdin).get('tool_name',''))
@@ -53,8 +54,35 @@ PROTSLUG='stripe-webhook|dispatch-engine|finalize-order-from-intent|create-payme
 
 # ---- 1) Git destrutivo (SEMPRE) ------------------------------------------
 has 'git[[:space:]]+reset[[:space:]]+--hard' && deny "git reset --hard"
-if has 'git[[:space:]]+push'; then
-  has '(--force|--force-with-lease|(^|[[:space:]])-f([[:space:]]|$))' && deny "git push --force / -f"
+# BUG 7 (2026-09-05, sessao fila-ganho-05-09) -- FALSO POSITIVO MEDIDO 2x NO DIA.
+# A versao anterior era:
+#   if has 'git[[:space:]]+push'; then
+#     has '(--force|--force-with-lease|(^|[[:space:]])-f([[:space:]]|$))' && deny ...
+#   fi
+# Procurava a invocacao num sitio da linha e a bandeira noutro sitio da MESMA
+# linha, sem ligar uma coisa a outra -- e o has() compara sem distinguir
+# maiusculas. Resultado: um `git commit -q -F -` (mensagem por stdin) encadeado
+# com um envio NORMAL para o ramo de trabalho ficava bloqueado, porque o -F da
+# mensagem era lido como a bandeira curta. E um relatorio que CITASSE esta
+# propria mensagem de bloqueio tambem ficava bloqueado.
+#
+# Agora quem decide e o _push_forcado.py, ao lado deste ficheiro: liga a
+# bandeira ao subcomando, so olha para o mesmo segmento de comando, e ignora
+# TEXTO (aspas, e corpos de heredoc que nao sejam entregues a uma shell).
+#
+# A PROTECCAO NAO AFROUXA -- 20 casos de teste em _push_forcado_testes.py:
+# bandeira longa, com lease, curta (mesmo colada, tipo -qf), refspec com +, e
+# heredoc entregue a bash continuam todos a bloquear; passou ate a apanhar uma
+# invocacao precedida de `timeout 5 ...`, que a versao antiga so apanhava por
+# acaso.
+PUSHCHK="$(dirname "$0")/_push_forcado.py"
+if [ "$T_OK" = "1" ] && [ -f "$PUSHCHK" ]; then
+  printf '%s' "$T" | python "$PUSHCHK" && deny "git push forcado (bandeira de forca ou refspec com +)"
+else
+  # Payload ilegivel ou detector ausente -> volta a rede grosseira, fail-closed.
+  if has 'git[[:space:]]+push'; then
+    has '(--force|--force-with-lease|(^|[[:space:]])-f([[:space:]]|$))' && deny "git push forcado (modo grosseiro: payload ilegivel ou detector ausente)"
+  fi
 fi
 
 # ---- 2) supabase db reset (SEMPRE) ---------------------------------------

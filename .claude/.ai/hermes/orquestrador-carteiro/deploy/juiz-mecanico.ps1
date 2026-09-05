@@ -11,8 +11,6 @@
 
 $ErrorActionPreference = 'Continue'
 # PC NOVO 2026-08-31: caminho real (o Desktop e junction e a sessao SSH de rede nao a atravessa).
-# Sincronizado com a copia viva em hermes-bridge (bloco-d1d2, 2026-09-05) -- a master aqui tinha
-# ficado parada no caminho antigo desde a mudanca de PC.
 $Proj = 'C:\BoraLocal\projetosflutter\bora_app'
 Set-Location $Proj
 
@@ -59,10 +57,31 @@ foreach ($cand in @('python', 'py', 'C:\Users\danil\AppData\Local\Programs\Pytho
 }
 
 # base para os checks de diff: o commit em que o repo estava quando a ordem arrancou
-$base = 'HEAD'
+# ---- BUG 6 (2026-09-05, sessao fila-ganho-05-09): ATRIBUICAO POR ASSINATURA ----
+# Ate aqui a base era "o ultimo commit antes de a ordem arrancar", e tudo o que
+# viesse a seguir contava como sendo da ordem. Isso e o RELOGIO a decidir, nao a
+# autoria. Media-se duas vezes no mesmo dia: uma ordem foi reprovada por zona
+# vermelha por causa de um commit de uma sessao manual a trabalhar no mesmo
+# repositorio, e outra foi dada por provada com 46 ficheiros que tambem nao eram
+# dela. Agora o executor assina o que commita (GIT_COMMITTER_EMAIL no .cmd) e so
+# esses commits sao desta ordem.
+$MARCA_LOOP = 'loop@bora.local'
+$meusCommits = @()
 if ($inicio) {
-  $b = (git rev-list -1 --before="@$inicio" HEAD 2>$null)
-  if ($b) { $base = $b.Trim() }
+  $meusCommits = @(git log --all --committer="$MARCA_LOOP" --since="@$inicio" --format=%H 2>$null |
+                   Where-Object { $_ -and $_.Trim() -ne '' } | ForEach-Object { $_.Trim() })
+}
+Proof "commits desta ordem (committer=$MARCA_LOOP desde @$inicio)" $(if ($meusCommits.Count) { ($meusCommits -join ' ') } else { '(nenhum)' })
+
+# O anti_trapaca precisa de um intervalo (base..arvore-de-trabalho). Se a ordem
+# committou, comeca no PAI do commit dela mais antigo; se nao committou nada,
+# fica em HEAD e olha so para a arvore de trabalho -- que e exactamente o que ha
+# para julgar. Commits de outra sessao deixam de entrar na conta.
+$base = 'HEAD'
+if ($meusCommits.Count) {
+  $maisAntigo = $meusCommits[$meusCommits.Count - 1]
+  $pai = (git rev-parse "$maisAntigo^" 2>$null)
+  if ($pai) { $base = $pai.Trim() }
 }
 
 # ---- (d) anti_trapaca.py - SEMPRE primeiro, chao deterministico (se existir e aplicavel) ----
@@ -82,10 +101,17 @@ if ((Test-Path $at) -and $pyExe) {
 # aqui o Juiz confere o DIFF real. head=HEAD (so commits) para nao apanhar ruido da working tree.
 $zd = Join-Path $Proj '.claude\juiz\zonas_diff.py'
 if ((Test-Path $zd) -and $pyExe -and $inicio) {
-  $zdOut = (& $pyExe $zd --base $base --head HEAD 2>&1) -join ' | '
-  $zdRc = $LASTEXITCODE
-  Proof "python zonas_diff.py --base $base --head HEAD (rc=$zdRc)" $zdOut
-  if ($zdRc -eq 2) { Reprova 'o diff commitado desde o arranque da ordem toca ZONA PROTEGIDA (Lista Vermelha) - nada disso passa pelo loop; volta para decisao humana' }
+  # BUG 6: um commit de cada vez, e SO os desta ordem. Antes era um intervalo
+  # base..HEAD que engolia o que outra sessao tivesse commitado no meio.
+  if (-not $meusCommits.Count) {
+    Proof 'zonas_diff' 'esta ordem nao commitou nada - nao ha diff commitado para conferir'
+  }
+  foreach ($c in $meusCommits) {
+    $zdOut = (& $pyExe $zd --base "$c^" --head "$c" 2>&1) -join ' | '
+    $zdRc = $LASTEXITCODE
+    Proof "python zonas_diff.py --base $c^ --head $c (rc=$zdRc)" $zdOut
+    if ($zdRc -eq 2) { Reprova 'um commit DESTA ordem toca ZONA PROTEGIDA (Lista Vermelha) - nada disso passa pelo loop; volta para decisao humana' }
+  }
 }
 
 # ---- de-acentuar tarefa+saida e padroes de ESCAPE/DIAGNOSTICO (defeitos A+B, 2026-07-16) ----
@@ -183,8 +209,11 @@ if ($recusaValida) {
     $hashExisteOk = $true
     if ($inicio) {
       $ct = [int64]((git show -s --format=%ct $h 2>$null) | Select-Object -First 1)
-      Proof "git show -s --format=%ct $h" "committer_epoch=$ct (inicio=$inicio)"
-      if ($ct -ge $inicio) { $hashNovoOk = $true }
+      $ce = ((git show -s --format=%ce $h 2>$null) | Select-Object -First 1)
+      Proof "git show -s $h" "committer_epoch=$ct (inicio=$inicio) committer=$ce"
+      # BUG 6: o cinto extra tambem passa a exigir a assinatura do executor -- um
+      # hash recente de outra sessao ja nao serve de prova a esta ordem.
+      if (($ct -ge $inicio) -and ("$ce".Trim() -eq $MARCA_LOOP)) { $hashNovoOk = $true }
     }
   }
   # b2: PROVA REAL - tem de haver commit NOVO desde o arranque da ordem no git log (fonte unica
@@ -192,9 +221,10 @@ if ($recusaValida) {
   # falso-negativo do --since), OU (sem META inicio_epoch) pelo menos um hash alegado que exista
   # mesmo no repo.
   if ($inicio) {
-    $novo = (git log --all --oneline --since="@$inicio" 2>&1) -join ' | '
-    Proof "git log --all --oneline --since=@$inicio" $(if ($novo) { $novo } else { '(vazio)' })
-    if ((-not $novo) -and (-not $hashNovoOk)) { Reprova 'a ordem pedia commit/push e NAO ha nenhum commit novo desde o arranque da ordem (prova = git log real, nunca o texto do executor)' }
+    # BUG 6: o commit tem de ser DESTA ordem, nao apenas recente.
+    $novo = (git log --all --committer="$MARCA_LOOP" --oneline --since="@$inicio" 2>&1) -join ' | '
+    Proof "git log --all --committer=$MARCA_LOOP --oneline --since=@$inicio" $(if ($novo) { $novo } else { '(vazio)' })
+    if ((-not $novo) -and (-not $hashNovoOk)) { Reprova 'a ordem pedia commit/push e NAO ha nenhum commit DESTA ordem (prova = git log real com a assinatura do executor, nunca o relogio nem o texto)' }
   } else {
     $novo = (git log --all --oneline --since='3 hours ago' 2>&1) -join ' | '
     Proof "git log --all --oneline --since='3 hours ago' (sem META inicio_epoch)" $(if ($novo) { $novo } else { '(vazio)' })

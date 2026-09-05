@@ -691,6 +691,29 @@ sítios onde ele pode estar — não pela lista das minhas alterações.
 > cinco. Eram sete. As fichas dos dois bowls, que eu nunca tinha tocado,
 > continuavam a prometer a mais, e foi o Danilo que as encontrou.
 
+### 3.13 Um botão trava-se pelo SEU pedido, nunca por um estado global de ocupado
+
+Nenhum botão pode ficar desligado por causa de um `busy` de store partilhado. O
+estado de envio é **local ao ecrã que o disparou**. Um interruptor único que
+dezenas de operações mexem transforma qualquer refrescamento de fundo num botão
+morto — e o utilizador não vê um botão morto, vê uma app avariada.
+
+**E nenhum ecrã de fim de fluxo pode existir sem uma saída sempre viva.** Fim de
+corrida, avaliação, confirmação, recibo: a porta de saída não depende de rede,
+nem de servidor, nem de estado partilhado. Se o envio não fechar em poucos
+segundos, o ecrã fecha na mesma e o trabalho fica guardado para seguir depois.
+
+> **Cicatriz (05/09):** corrida real, passageiro a pagar. No fim carregou em
+> "Enviar avaliação" e não aconteceu nada — o botão tinha `loading: store.busy`
+> e já **nascia** desligado, porque outra operação do `TvdeStore` estava a meio.
+> Só saiu pelo "Agora não", que era um `TextButton` sem essa dependência. A
+> varredura ao problema (não às minhas alterações — ver 3.12) encontrou o mesmo
+> defeito em cerca de 30 sítios. O pior nem era a avaliação: era o **"Recusar"**
+> de uma oferta encadeada no ecrã do motorista, que tem contagem decrescente —
+> botão morto ali é a oferta a expirar sozinha nas mãos dele. E a mesma cicatriz
+> já tinha sido paga uma vez no `tvde_offer_screen`, com comentário e tudo: a
+> lição existia, mas não se tinha espalhado. É por isso que está aqui.
+
 
 ## 4. PUBLICAÇÃO E SEGREDOS
 

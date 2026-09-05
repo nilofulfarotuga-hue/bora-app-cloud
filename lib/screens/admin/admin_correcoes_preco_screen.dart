@@ -25,7 +25,7 @@ class AdminCorrecoesPrecoScreen extends StatefulWidget {
 
 class _AdminCorrecoesPrecoScreenState extends State<AdminCorrecoesPrecoScreen>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: 2, vsync: this);
+  late final TabController _tabs = TabController(length: 3, vsync: this);
 
   @override
   void dispose() {
@@ -40,15 +40,17 @@ class _AdminCorrecoesPrecoScreenState extends State<AdminCorrecoesPrecoScreen>
         title: const Text('Preços por talão'),
         bottom: TabBar(
           controller: _tabs,
+          isScrollable: true,
           tabs: const [
             Tab(icon: Icon(Icons.price_change_outlined), text: 'Correções'),
+            Tab(icon: Icon(Icons.storefront_outlined), text: 'Fontes de preço'),
             Tab(icon: Icon(Icons.image_outlined), text: 'Imagens'),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabs,
-        children: const [_AbaCorrecoes(), _AbaImagens()],
+        children: const [_AbaCorrecoes(), _AbaFontesDePreco(), _AbaImagens()],
       ),
     );
   }
@@ -337,7 +339,271 @@ class _AbaCorrecoesState extends State<_AbaCorrecoes> {
   }
 }
 
-// ───────────────────────── Aba 2 — estado das imagens ─────────────────────
+// ───────────────────── Aba 2 — fontes de preço (Bloco E) ──────────────────
+//
+// Missão preco-de-balcao (2026-09-05). Os preços do catálogo vieram de crawler
+// da Glovo, e a Glovo não é preço de balcão: o restaurante inflaciona na
+// plataforma para pagar a comissão dela. O custo real que o estafeta paga é o
+// preço de balcão. Esta aba põe as três fontes lado a lado.
+//
+// O aviso vermelho é o mais urgente: `nosso base ACIMA do balcão` significa
+// que estamos a cobrar ao cliente mais do que o produto custa na loja.
+
+class _AbaFontesDePreco extends StatefulWidget {
+  const _AbaFontesDePreco();
+
+  @override
+  State<_AbaFontesDePreco> createState() => _AbaFontesDePrecoState();
+}
+
+class _AbaFontesDePrecoState extends State<_AbaFontesDePreco> {
+  final _supabase = Supabase.instance.client;
+  List<Map<String, dynamic>> _linhas = [];
+  List<String> _lojas = [];
+  String? _lojaFiltro;
+  bool _soComBalcao = false;
+  bool _carregando = true;
+  String? _erro;
+
+  @override
+  void initState() {
+    super.initState();
+    _carregar();
+  }
+
+  Future<void> _carregar() async {
+    setState(() {
+      _carregando = true;
+      _erro = null;
+    });
+    try {
+      final dados = await _supabase.rpc('admin_fontes_de_preco',
+          params: {'p_restaurant_id': _lojaFiltro});
+      final linhas = List<Map<String, dynamic>>.from(dados as List);
+      final lojas = <String>{};
+      for (final l in linhas) {
+        final v = l['restaurant_id'] as String?;
+        if (v != null) lojas.add(v);
+      }
+      if (!mounted) return;
+      setState(() {
+        _linhas = linhas;
+        if (_lojaFiltro == null) _lojas = lojas.toList()..sort();
+        _carregando = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _erro = '$e';
+        _carregando = false;
+      });
+    }
+  }
+
+  double? _n(dynamic v) => v == null ? null : (v as num).toDouble();
+
+  @override
+  Widget build(BuildContext context) {
+    if (_carregando) return const Center(child: CircularProgressIndicator());
+    if (_erro != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text('Erro ao carregar: $_erro'),
+        ),
+      );
+    }
+
+    final visiveis = _soComBalcao
+        ? _linhas.where((l) => l['balcao'] != null).toList()
+        : _linhas;
+    final acima = _linhas.where((l) => l['acima_do_balcao'] == true).length;
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+          child: Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String?>(
+                  initialValue: _lojaFiltro,
+                  decoration: const InputDecoration(
+                    labelText: 'Loja',
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                  ),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                        value: null, child: Text('Todas')),
+                    ..._lojas.map((l) =>
+                        DropdownMenuItem<String?>(value: l, child: Text(l))),
+                  ],
+                  onChanged: (v) {
+                    setState(() => _lojaFiltro = v);
+                    _carregar();
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              FilterChip(
+                label: const Text('Só com balcão'),
+                selected: _soComBalcao,
+                onSelected: (v) => setState(() => _soComBalcao = v),
+              ),
+            ],
+          ),
+        ),
+        if (acima > 0)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              border: Border.all(color: Colors.red.shade200),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              '⚠️ $acima produto(s) com o nosso preço ACIMA do balcão — '
+              'estamos cobrando mais do que custa na loja.',
+              style: TextStyle(
+                  color: Colors.red.shade800, fontWeight: FontWeight.w600),
+            ),
+          ),
+        Expanded(
+          child: visiveis.isEmpty
+              ? const Center(child: Text('Sem recolha de preços ainda.'))
+              : RefreshIndicator(
+                  onRefresh: _carregar,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: visiveis.length,
+                    itemBuilder: (_, i) => _cartao(visiveis[i]),
+                  ),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _cartao(Map<String, dynamic> l) {
+    final base = _n(l['nosso_base']);
+    final balcao = _n(l['balcao']);
+    final glovo = _n(l['glovo']);
+    final uber = _n(l['ubereats']);
+    final acima = l['acima_do_balcao'] == true;
+    final duvidoso = l['duvidoso'] == true;
+    final quando = l['apanhado_em'] == null
+        ? null
+        : DateTime.tryParse(l['apanhado_em'] as String);
+
+    String gordura(double? plataforma) {
+      if (plataforma == null || balcao == null || balcao == 0) return '—';
+      final pct = (plataforma - balcao) / balcao * 100;
+      return '${pct >= 0 ? '+' : ''}${pct.toStringAsFixed(0)}%';
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: acima
+            ? BorderSide(color: Colors.red.shade400, width: 1.5)
+            : BorderSide.none,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    (l['produto'] as String?) ?? '',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                if (duvidoso)
+                  Tooltip(
+                    message: 'Emparelhamento com confiança abaixo de 0,80 — conferir',
+                    child: Icon(Icons.help_outline,
+                        size: 18, color: Colors.orange.shade800),
+                  ),
+              ],
+            ),
+            Text('${l['loja_nome'] ?? l['restaurant_id']} · ${l['categoria'] ?? ''}',
+                style: const TextStyle(fontSize: 12, color: Colors.black54)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 14,
+              runSpacing: 6,
+              children: [
+                _valor('Nosso base', base,
+                    cor: acima ? Colors.red.shade700 : null, negrito: true),
+                _valor('Balcão', balcao, cor: AppColors.primary, negrito: true),
+                _valor('Glovo', glovo, sufixo: gordura(glovo)),
+                _valor('Uber Eats', uber, sufixo: gordura(uber)),
+              ],
+            ),
+            if (acima) ...[
+              const SizedBox(height: 6),
+              Text(
+                '⚠️ Estamos cobrando €${(base! - balcao!).toStringAsFixed(2)} '
+                'acima do que custa na loja.',
+                style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.red.shade800,
+                    fontWeight: FontWeight.w600),
+              ),
+            ] else if (balcao != null && base != null && base < balcao) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Abaixo do balcão em €${(balcao - base).toStringAsFixed(2)} '
+                '— margem por recuperar.',
+                style: TextStyle(fontSize: 12, color: Colors.orange.shade800),
+              ),
+            ],
+            if (quando != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  'Recolhido em ${quando.day.toString().padLeft(2, '0')}/'
+                  '${quando.month.toString().padLeft(2, '0')}/${quando.year}',
+                  style: const TextStyle(fontSize: 11, color: Colors.black45),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _valor(String rotulo, double? v,
+      {Color? cor, bool negrito = false, String? sufixo}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(rotulo,
+            style: const TextStyle(fontSize: 11, color: Colors.black54)),
+        Text(
+          v == null ? '—' : '€${v.toStringAsFixed(2)}',
+          style: TextStyle(
+            color: cor,
+            fontWeight: negrito ? FontWeight.w800 : FontWeight.w600,
+          ),
+        ),
+        if (sufixo != null && sufixo != '—')
+          Text(sufixo,
+              style: const TextStyle(fontSize: 10, color: Colors.black45)),
+      ],
+    );
+  }
+}
+
+// ───────────────────────── Aba 3 — estado das imagens ─────────────────────
 
 class _AbaImagens extends StatefulWidget {
   const _AbaImagens();

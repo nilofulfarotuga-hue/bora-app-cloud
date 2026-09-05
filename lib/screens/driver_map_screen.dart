@@ -28,6 +28,7 @@ import '../services/navigation_service.dart';
 import '../widgets/bora_support_fab.dart';
 import '../services/route_optimizer.dart';
 import '../stores/driver_store.dart';
+import '../services/talao_nao_parceiro_service.dart';
 import '../stores/order_store.dart';
 import '../stores/restaurant_store.dart';
 import '../utils/constants.dart';
@@ -3266,9 +3267,20 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                           // BUG 1 — Fork V2 para storeShopping não-parceiro.
                           // Decisão NOVA: foto+valor obrigatórios em TODOS
                           // payment_methods para auditoria admin.
-                          final useV2 = order.serviceType ==
-                                  OrderServiceType.storeShopping &&
-                              !order.isPartnerStore;
+                          //
+                          // Bloco C (2026-09-05) — o comprovativo passa a
+                          // decidir-se pelo PARCEIRO, não pelo tipo de serviço:
+                          // Burger King, McDonald's e KFC são restaurantes
+                          // não-parceiros e também precisam de talão. A base
+                          // recusa a entrega sem ele (trg_exige_talao_antes_de_
+                          // entregar), por isso a app tem de o pedir aqui —
+                          // senão o estafeta batia na parede sem saber porquê.
+                          // carryGroceries/sendPackage ficam de fora: não há compra.
+                          final useV2 = !order.isPartnerStore &&
+                              (order.serviceType ==
+                                      OrderServiceType.storeShopping ||
+                                  order.serviceType ==
+                                      OrderServiceType.restaurant);
                           if (useV2) {
                             final result =
                                 await _captureReceiptForV2(context, order);
@@ -3297,15 +3309,38 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                               return;
                             }
 
-                            final reason = await orderStore
-                                .finalizeStoreShoppingV2WithReceipt(
-                              orderId: order.id,
-                              photoStoragePath: storagePath,
-                              driverTypedTotalCents: totalCents,
-                              items: canonicalItems,
-                              itemsAdded: itemsAdded,
-                              bagCount: _bagCount,
-                            );
+                            // Bloco C — dois caminhos, de propósito.
+                            // MERCADO (storeShopping): RPC v2 de sempre.
+                            // RESTAURANTE não-parceiro: talão pela RPC nova +
+                            // o cálculo de dinheiro pelo caminho já validado.
+                            // A RPC v2 cobra saco a €0,10 (supermercado); o
+                            // restaurante são €0,30 fixos — misturá-los mudaria
+                            // o valor cobrado ao cliente.
+                            final String? reason;
+                            if (order.serviceType ==
+                                OrderServiceType.storeShopping) {
+                              reason = await orderStore
+                                  .finalizeStoreShoppingV2WithReceipt(
+                                orderId: order.id,
+                                photoStoragePath: storagePath,
+                                driverTypedTotalCents: totalCents,
+                                items: canonicalItems,
+                                itemsAdded: itemsAdded,
+                                bagCount: _bagCount,
+                              );
+                            } else {
+                              final erroTalao =
+                                  await TalaoNaoParceiroService.registar(
+                                orderId: order.id,
+                                photoStoragePath: storagePath,
+                                driverTypedTotalCents: totalCents,
+                              );
+                              reason = erroTalao ??
+                                  await orderStore.finalizePurchaseWithReason(
+                                    orderId: order.id,
+                                    purchaseValue: totalCents / 100.0,
+                                  );
+                            }
                             if (!mounted) return;
                             if (reason != null) {
                               messenger.showSnackBar(
@@ -3319,7 +3354,8 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                             return;
                           }
 
-                          // V1 legacy (storeShopping partner OU restaurant).
+                          // V1 legacy — só lojas PARCEIRAS (a partir do Bloco C,
+                          // 2026-09-05, todo o não-parceiro com compra vai por V2).
                           final reason =
                               await orderStore.finalizePurchaseV2(
                             orderId: order.id,

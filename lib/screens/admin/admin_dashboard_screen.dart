@@ -65,6 +65,7 @@ import 'admin_whatsapp_screen.dart';
 import 'admin_motores_screen.dart';
 import 'admin_orphan_payments_screen.dart';
 import 'admin_payments_cards_screen.dart';
+import 'admin_correcoes_preco_screen.dart';
 import 'admin_receipts_screen.dart';
 import 'admin_ai_assistant_screen.dart';
 import '../../widgets/admin_closed_partners_card.dart';
@@ -1372,8 +1373,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 // Missão 02/09/2026 (noite) — Motores: o roteador grátis partilhado (WhatsApp, Hermes, Conselho)
                 _NavCard(
                   icon: Icons.bolt,
-                  title: 'Motores',
-                  subtitle: 'Fornecedores grátis · quota gasta hoje · latência · castigados · pausar',
+                  title: 'Motores e Agentes',
+                  subtitle: 'Fornecedores grátis · quota · latência · castigados · e ligar/desligar cada bot',
                   color: Colors.deepOrange,
                   onTap: () => Navigator.push(
                       context,
@@ -1413,6 +1414,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       context,
                       MaterialPageRoute(
                           builder: (_) => const AdminReceiptsScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.price_change_outlined,
+                  title: 'Preços por talão',
+                  subtitle:
+                      'Correções do OCR (aprovar/rejeitar/reverter) · estado das imagens',
+                  color: AppColors.primary,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminCorrecoesPrecoScreen())),
                 ),
                 const SizedBox(height: 16),
                 Center(

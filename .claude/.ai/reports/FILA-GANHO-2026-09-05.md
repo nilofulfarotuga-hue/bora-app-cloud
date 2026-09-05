@@ -472,3 +472,135 @@ a versão antiga, o mesmo teste dá 1 falha — exactamente o caso do bug 8.
 
 Também deixou de despejar o comando inteiro no erro (truncado a 300 caracteres); era
 por isso que o bloqueio cuspia o relatório todo para o ecrã.
+
+## 5. RECTIFICAÇÃO DA TAREFA 1 — o tecto não era a causa
+
+Subi o tecto de 400 para 1200 s como foi pedido, e está feito. Mas ao ir buscar a
+prova (*"uma ordem grande julgada até ao fim, sem JUIZ-SEM-VEREDITO"*) o juiz
+continuou mudo — e o que se mediu foi outra coisa.
+
+A ordem `provainfra0509` (tarefa de 3460 B) morreu **três vezes**, cada uma aos
+~215 segundos. Com o tecto a 1200 s. Ou seja: **não era o tecto que disparava**.
+
+Reprodução com o prompt exacto dessa ordem (3569 B), à mão:
+
+```
+pedido: 2026-09-05T16:38:03Z
+Timeout, server 100.75.79.116 not responding.
+fim:    2026-09-05T16:41:34Z          → 211 segundos
+```
+
+E o ficheiro da tarefa no PC ficou com o mtime da corrida **anterior** — o `.cmd`
+nem chegou a escrevê-lo.
+
+### A causa real, por bissecção
+
+| Prompt | base64 | Resultado |
+|---|---|---|
+| 977 B | ~1,3 KB | **veredito em 6 s** |
+| 2249 B | ~3,0 KB | emperra |
+| 2704 B | ~3,6 KB | emperra |
+| 3158 B | ~4,2 KB | emperra |
+| 3886 B | ~5,2 KB | emperra |
+
+Acima de cerca de 2 KB de base64, o pipe entre o `ssh` e o `cmd.exe` enche,
+ninguém drena, e a ligação morre aos ~180 s (`ServerAliveInterval 30` ×
+`CountMax 6`). O tecto do carteiro **nunca chega a disparar porque o ssh desiste
+primeiro** — é por isso que 400 e 1200 dão exactamente o mesmo resultado.
+
+E não era só o juiz: o **executor** falhou na mesma ordem, pela mesma razão
+(`Timeout, server ... not responding`, tarefa de 3460 B, nada criado em disco).
+
+Entregar por `powershell` directo em vez do `cmd.exe` subia o tecto mas não o
+tirava: 2925 B passava em 2 s, 11496 B continuava a emperrar.
+
+### O conserto
+
+O prompt sai do `stdin`. As pontes passam a: (1) escrever o prompt num ficheiro,
+(2) mandá-lo por **`scp`** (57 KB em 1 segundo, medido), (3) correr o `.cmd` **sem
+stdin**, com a bandeira nova `--jaentregue`. Se a entrega falhar, a ponte **não
+corre nada** — correr com o ficheiro da corrida anterior seria julgar ou executar
+a ordem errada, em silêncio.
+
+Os mesmos tamanhos, depois:
+
+| Prompt | Antes | Depois |
+|---|---|---|
+| 944 B | 6 s ✔ | **9 s ✔** |
+| 2307 B | emperra | **7 s ✔** |
+| 3700 B | emperra | **5 s ✔** (duas corridas) |
+| 11035 B | emperra | **6 s ✔** |
+| 36489 B | emperra | **44 s ✔** |
+
+Ficheiros: `entrega-prompt.ps1` (novo), `pc-judge-novo` e `pc-loop-novo`
+reescritos, `run-claude-judge-novopc.cmd` com a bandeira `--jaentregue`. O
+`run-claude-loop-pcnovo-limpo.cmd` não precisou de mudar: só descodifica quando o
+primeiro argumento é `--b64stdin`, e mais à frente já exigia que o ficheiro da
+tarefa existisse.
+
+**O tecto de 1200 s fica**, e agora faz sentido: com a entrega a funcionar, o
+juiz pode mesmo levar minutos num prompt grande sem ser cortado a meio.
+
+## 6. AS PROVAS DAS TRÊS TAREFAS
+
+### Ordem grande julgada até ao fim — sem JUIZ-SEM-VEREDITO
+
+`ordem-20260905165556-provainfra2`, tarefa de **3460 bytes** (o mesmo tamanho que
+antes matava o juiz três vezes seguidas):
+
+```
+16:56:08Z  aberta
+16:56:59Z  respondida (tentativa 1, motor claude-sonnet)   ← pedido ao juiz
+16:57:05Z  VEREDITO: APROVADA                              ← 6 segundos depois
+16:57:08Z  PROVA-MATERIAL: ficheiros=7 commits=1 veredito=HA-PROVA
+16:57:08Z  APROVADA
+```
+
+**Hora do pedido 16:56:59Z · hora do veredito 16:57:05Z · 6 segundos.** Uma só
+tentativa, zero `JUIZ-SEM-VEREDITO`.
+
+Para comparar, a mesma tarefa antes do conserto (`provainfra0509`):
+`16:36:23Z` juiz sem veredito (2/3) · `16:39:58Z` (3/3) · `16:43:34Z` desistiu.
+
+E o teste anti-mentira passou nos dois sítios:
+
+```
+C:\Users\danil\AppData\Local\Temp\prova-infra-0509-w4t8.txt   25 bytes
+PROVA-INFRA-0509-W4T8-OK
+```
+
+### Um commit de outra sessão ao mesmo tempo, e a ordem já não o apanha
+
+Dentro da janela da ordem (16:56:08Z → 16:57:08Z) houve **dois** commits:
+
+```
+91a26fa1  16:56:44Z  committer=bora-loop <loop@bora.local>        ← do executor
+150977e1  16:56:50Z  committer=nilofulfarotuga@gmail.com          ← desta sessão
+```
+
+E a sonda contou **`commits=1`**. Só o do executor. O meu, feito seis segundos
+depois e dentro da mesma janela, ficou de fora — que é exactamente o que a regra
+velha não sabia fazer.
+
+Repare-se ainda no autor: `autor=Danilo (Hermes autonomous)`, `committer=bora-loop`.
+Só a assinatura mudou; o histórico continua a ler-se como sempre.
+
+### O mesmo, medido à parte com o juiz real
+
+Antes desta ordem, com um arranque simulado (`inicio_epoch=1788625615`) e um
+commit intruso `d2300156` feito **depois** desse instante:
+
+```
+PROVA-JUIZ: [commits desta ordem (committer=loop@bora.local desde @1788625615)] -> (nenhum)
+PROVA-JUIZ: [zonas_diff] -> esta ordem nao commitou nada - nao ha diff commitado para conferir
+```
+
+Contraste directo das duas regras no mesmo instante:
+
+```
+regra velha:  git log --since=@1788625615                      -> d2300156
+regra nova:   git log --committer=loop@bora.local --since=@...  -> (vazio)
+```
+
+E na ordem `provainfra0509`, que corria enquanto eu tinha três commits meus na
+janela: `PROVA-MATERIAL: ... commits=0`. Nenhum dos meus contou.

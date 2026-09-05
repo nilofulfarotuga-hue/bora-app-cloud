@@ -105,18 +105,18 @@ void main() {
     });
   });
 
-  group('o texto que o cliente lê', () {
-    test('abaixo de um minuto conta em segundos', () {
-      expect(textoIdadeDaPosicao(50), 'há 50 s');
+  group('a idade em segundos, que é o que o ecrã mostra ao cliente', () {
+    // O ecrã escolhe entre "há X s" e "há X min" a partir deste número, e
+    // monta a frase com `.tr` sobre as chaves do dicionário. A conversão para
+    // texto NÃO vive aqui de propósito: um helper que devolvesse português
+    // cru mostrava português a um cliente em inglês (ver nota no ficheiro).
+    test('conta os segundos desde a última posição', () {
+      expect(segundosDesdeFix(haSegundos(50), agora: agora), 50);
+      expect(segundosDesdeFix(haSegundos(185), agora: agora), 185);
     });
 
-    test('acima de um minuto conta em minutos', () {
-      expect(textoIdadeDaPosicao(60), 'há 1 min');
-      expect(textoIdadeDaPosicao(185), 'há 3 min');
-    });
-
-    test('sem posição não há texto', () {
-      expect(textoIdadeDaPosicao(null), isNull);
+    test('sem posição não há idade nenhuma para mostrar', () {
+      expect(segundosDesdeFix(null, agora: agora), isNull);
     });
   });
 }

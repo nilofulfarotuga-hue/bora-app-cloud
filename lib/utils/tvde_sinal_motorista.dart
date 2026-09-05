@@ -64,11 +64,10 @@ EstadoSinalMotorista estadoDoSinal(
 bool devoAnimarCarro(EstadoSinalMotorista estado) =>
     estado == EstadoSinalMotorista.fresco;
 
-/// "há X min" / "há X s" — o que aparece por baixo do cartão quando o sinal
-/// está velho. PT-PT. Devolve `null` quando não há nada a dizer.
-String? textoIdadeDaPosicao(int? segundos) {
-  if (segundos == null) return null;
-  if (segundos < 60) return 'há $segundos s';
-  final min = segundos ~/ 60;
-  return 'há $min min';
-}
+// NOTA: aqui esteve um `textoIdadeDaPosicao` que devolvia "há X min" em
+// português cru. Foi removido de propósito: só o teste o usava, e um helper de
+// texto que não passa pelo dicionário é uma armadilha — o primeiro ecrã que o
+// adoptasse mostrava português a um cliente em inglês. A frase que o cliente
+// lê é montada no ecrã com `.tr`, sobre as chaves 'Última posição há {0} s' e
+// '... {0} min', que existem no dicionário. Se um dia isto voltar, tem de
+// devolver a CHAVE, não a frase.

@@ -1,0 +1,3 @@
+# smoke-test-critical-paths — dependências Python (não instalar nesta sessão)
+requests>=2.31
+python-dotenv>=1.0

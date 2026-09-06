@@ -1,0 +1,37 @@
+-- CORRECOES 1o DIA REAL (16/08, missao + adendos 2/3/4) — indice das
+-- migrations APLICADAS em producao nesta data (corpo completo em producao;
+-- ler via MCP antes de editar qualquer uma):
+--
+--  furos_do_euro_ledger_e_divida_cash_2026_08_16
+--  furos_do_euro_divida_cash_v2_sem_colisao_2026_08_16
+--    -> post_order_to_ledger: cash_adjustment = -(total - ganhos - talao);
+--       fn_apply_client_debt_settlement_on_cash_delivery debita o estafeta
+--       automaticamente (ledger + driver_transactions order_id NULL +
+--       driver_balances). Provas ao centimo em transacao (ver relatorio).
+--
+--  delivered_sempre_com_driver_id_f5_2026_08_16
+--    -> trg_delivered_garante_driver_id (BEFORE UPDATE orders) + backfill:
+--       todo delivered tem driver_id (0 orfaos apos backfill).
+--
+--  preco_vivo_pelo_talao_f_nova_2026_08_16 (+ fix search_path extensions)
+--    -> tabela catalog_price_updates (RLS admin) + kill switch
+--       catalog_price_live_update_enabled + RPC catalog_price_update_from_receipt
+--       (matching pg_trgm qty+nome >=0.45; so nao-parceiro; +-30% auto senao
+--       pendente; nunca <=0) + admin_revert/approve_catalog_price_update.
+--
+--  reconciler_v2_prometido_vs_entregue_2026_08_16
+--    -> reconcile_dia1_checks() no cron payments-reconciler-daily:
+--       tokens prometidos sem credito · ganho sem ledger · delivered sem
+--       driver_id · snapshot >100km do dropoff.
+--
+--  driver_earnings_summary_f6_2026_08_16
+--    -> RPC driver_earnings_summary(): dia/semana/extrato unificado
+--       (ledger + tvde_rides + bora_tokens por user_id) + ultimo acerto.
+--
+--  admin_reassign_order_adendo2_2026_08_16
+--    -> RPC admin_reassign_order(order, driver, motivo) auditada; aceita
+--       drivers.id OU user_id; limpa oferta.
+--
+-- Edge Functions redeployadas hoje: ocr-receipt v11 (retry gemini-3.1-flash,
+-- looks_like_receipt, gancho preco-vivo). Staged para o Danilo/Claude.ai:
+-- platform_settings.staged_stripe_webhook_v34 + staged_fix_centimo_20260816.

@@ -1,0 +1,181 @@
+// Sessão 5A-2 B12 — BoraSupportSheet
+// 3 cards condicionais: Bora IA (se enabled) + WhatsApp + Email.
+// WhatsApp tap NÃO cria ticket (anti-spam — §31.6).
+
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../config/app_colors.dart';
+import '../providers/support_settings_provider.dart';
+import '../screens/support_chat_screen.dart';
+import '../screens/support_email_form_screen.dart';
+
+import '../l10n/tr.dart';
+
+class BoraSupportSheet extends StatelessWidget {
+  const BoraSupportSheet({
+    super.key,
+    this.orderId,
+    this.showAgentCard = true,
+  });
+
+  final String? orderId;
+  // Sessão 6 B2 — quando false, esconde card BoraIA (usado pelo botão
+  // "Falar com humano" dentro do chat para mostrar só WhatsApp+Email).
+  final bool showAgentCard;
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = context.watch<SupportSettingsProvider>();
+    return SafeArea(
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Text(
+              'Como podemos ajudar?'.tr,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 4),
+            if (orderId != null)
+              Text(
+                'Sobre pedido #{0}'.trArgs([orderId]),
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+              ),
+            const SizedBox(height: 16),
+            if (showAgentCard && provider.shouldShowAiCard)
+              _ContactCard(
+                icon: Icons.smart_toy_outlined,
+                color: AppColors.accent,
+                title: 'Falar com Bora IA'.tr,
+                subtitle: 'Resposta imediata · 24/7'.tr,
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => SupportChatScreen(orderId: orderId),
+                    ),
+                  );
+                },
+              ),
+            if (showAgentCard && provider.shouldShowAiCard)
+              const SizedBox(height: 12),
+            _ContactCard(
+              icon: Icons.chat_bubble_outline,
+              color: const Color(0xFF25D366),
+              title: 'WhatsApp'.tr,
+              subtitle: provider.whatsappNumber,
+              onTap: () {
+                Navigator.pop(context);
+                final msg = orderId == null
+                    ? 'Olá Bora! Preciso de ajuda.'.tr
+                    : 'Olá Bora! Pedido #$orderId';
+                final phone =
+                    provider.whatsappNumber.replaceAll(RegExp(r'[^0-9]'), '');
+                final uri = Uri.parse(
+                  'https://wa.me/$phone?text=${Uri.encodeComponent(msg)}',
+                );
+                launchUrl(uri, mode: LaunchMode.externalApplication);
+              },
+            ),
+            const SizedBox(height: 12),
+            _ContactCard(
+              icon: Icons.email_outlined,
+              color: const Color(0xFF1976D2),
+              title: 'Email'.tr,
+              subtitle:
+                  'Resposta em até {0}h · {1}'.trArgs([provider.slaHours, provider.supportEmail]),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => SupportEmailFormScreen(orderId: orderId),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ContactCard extends StatelessWidget {
+  const _ContactCard({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(22),
+              ),
+              child: Icon(icon, color: color),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 2),
+                  Text(subtitle,
+                      style: TextStyle(
+                          fontSize: 12, color: Colors.grey.shade600)),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: Colors.grey),
+          ],
+        ),
+      ),
+    );
+  }
+}

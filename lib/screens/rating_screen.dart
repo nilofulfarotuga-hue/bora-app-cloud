@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config/app_colors.dart';
 import '../models/order_model.dart';
 import '../models/rating_model.dart';
+import '../widgets/bora/bora_accent_button.dart';
+import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/tip_selector.dart';
+
+import '../l10n/tr.dart';
 
 /// Rating screen shown to the client after an order is delivered (BR §13).
 ///
@@ -35,6 +40,7 @@ class _RatingScreenState extends State<RatingScreen> {
   final _commentController = TextEditingController();
   final Set<String> _selectedTags = <String>{};
   bool _submitting = false;
+  bool _isPrivate = false;
   int _tipCents = 0;
 
   @override
@@ -65,29 +71,27 @@ class _RatingScreenState extends State<RatingScreen> {
       if (user == null) {
         setState(() => _submitting = false);
         messenger.showSnackBar(
-          const SnackBar(content: Text('Sessão expirou.')),
+          SnackBar(content: Text('Sessão expirou.'.tr)),
         );
         return;
       }
 
       final isDriverSubject =
           widget.subjectType == RatingSubjectType.driver;
-      final rating = RatingModel(
-        orderId: widget.order.id,
-        driverId: widget.subjectId,
-        rating: _stars,
-        comment: _commentController.text.trim().isEmpty
+      // Sessão 6: server-side RPC valida order ownership + status='delivered'
+      // + idempotência (UNIQUE INDEX parcial em order_id+subject_type+rater).
+      await client.rpc('submit_rating', params: {
+        'p_order_id': widget.order.id,
+        'p_subject_type':
+            widget.subjectType == RatingSubjectType.driver ? 'driver' : 'partner',
+        'p_subject_id': widget.subjectId,
+        'p_stars': _stars,
+        'p_comment': _commentController.text.trim().isEmpty
             ? null
             : _commentController.text.trim(),
-        tags: _selectedTags.toList(),
-        isPrivate: !isDriverSubject &&
-            widget.subjectType == RatingSubjectType.client,
-        subjectType: widget.subjectType,
-        subjectId: widget.subjectId,
-        raterUserId: user.id,
-      );
-
-      await client.from('ratings').insert(rating.toSupabase());
+        'p_tags': _selectedTags.toList(),
+        'p_is_private': _isPrivate,
+      });
 
       // Persist tip (BR §4.5) — best-effort, failure does not invalidate rating.
       if (_tipCents > 0 && isDriverSubject) {
@@ -103,14 +107,14 @@ class _RatingScreenState extends State<RatingScreen> {
 
       if (!mounted) return;
       messenger.showSnackBar(
-        const SnackBar(content: Text('Obrigado pela tua avaliação!')),
+        SnackBar(content: Text('Obrigado pela tua avaliação!'.tr)),
       );
       navigator.pop(true);
     } catch (e) {
       if (!mounted) return;
       setState(() => _submitting = false);
       messenger.showSnackBar(
-        SnackBar(content: Text('Erro a gravar avaliação: $e')),
+        SnackBar(content: Text('Erro a gravar avaliação: {0}'.trArgs([e]))),
       );
     }
   }
@@ -119,16 +123,16 @@ class _RatingScreenState extends State<RatingScreen> {
   Widget build(BuildContext context) {
     final tagsToShow = _suggestedTags;
     return Scaffold(
-      appBar: AppBar(title: const Text('Avaliar')),
+      appBar: BoraScreenAppBar(title: 'Avaliar'.tr),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                'Como correu?',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+              Text(
+                'Como correu?'.tr,
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 16),
               Row(
@@ -142,15 +146,15 @@ class _RatingScreenState extends State<RatingScreen> {
                         : () => setState(() => _stars = i + 1),
                     icon: Icon(
                       filled ? Icons.star : Icons.star_border,
-                      color: Colors.amber,
+                      color: AppColors.warning,
                     ),
                   );
                 }),
               ),
               if (tagsToShow.isNotEmpty) ...[
                 const SizedBox(height: 8),
-                const Text('Etiquetas rápidas',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
+                Text('Etiquetas rápidas'.tr,
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
@@ -178,12 +182,15 @@ class _RatingScreenState extends State<RatingScreen> {
                 controller: _commentController,
                 maxLines: 4,
                 enabled: !_submitting,
-                decoration: const InputDecoration(
-                  labelText: 'Comentário (opcional)',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: 'Comentário (opcional)'.tr,
+                  border: const OutlineInputBorder(),
                 ),
               ),
-              if (widget.subjectType == RatingSubjectType.driver) ...[
+              // BUG 9 — esconder gorjeta em CASH. Em CASH não há como cobrar
+              // gorjeta extra (cliente já entregou dinheiro exacto no balcão).
+              if (widget.subjectType == RatingSubjectType.driver &&
+                  widget.order.paymentMethod != PaymentMethod.cash) ...[
                 const SizedBox(height: 20),
                 TipSelector(
                   initialCents: 0,
@@ -191,32 +198,31 @@ class _RatingScreenState extends State<RatingScreen> {
                   onChanged: (cents) => _tipCents = cents,
                 ),
               ],
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _canSubmit ? _submit : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFE65100),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
-                  ),
-                  child: _submitting
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Text('Enviar avaliação'),
+              const SizedBox(height: 12),
+              SwitchListTile(
+                value: _isPrivate,
+                onChanged: _submitting ? null : (v) => setState(() => _isPrivate = v),
+                title: Text(
+                  'Avaliação privada'.tr,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
+                subtitle: Text(
+                  'Apenas a equipa Bora vê. Não aparece no perfil público.'.tr,
+                  style: const TextStyle(fontSize: 12),
+                ),
+                contentPadding: EdgeInsets.zero,
+                activeThumbColor: AppColors.primary,
+              ),
+              const SizedBox(height: 12),
+              BoraAccentButton(
+                label: 'Enviar avaliação'.tr,
+                loading: _submitting,
+                onPressed: _canSubmit ? _submit : null,
               ),
               const SizedBox(height: 8),
               TextButton(
                 onPressed: _submitting ? null : () => Navigator.pop(context),
-                child: const Text('Saltar'),
+                child: Text('Saltar'.tr),
               ),
             ],
           ),

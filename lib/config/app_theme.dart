@@ -1,29 +1,38 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Paleta oficial Bora (BR cabeçalho + design reference 2026-04-18).
-  static const Color primary = Color(0xFF1B5E20); // verde principal
-  static const Color primaryDark = Color(0xFF0F3D14);
-  static const Color primaryLight = Color(0xFF2E7D32);
-  static const Color secondary = Color(0xFFE65100); // laranja/vermelho
-  static const Color secondaryLight = Color(0xFFF57C00);
-  static const Color background = Color(0xFFFFFFFF);
-  static const Color surface = Color(0xFFF5F5F5);
-  static const Color textPrimary = Color(0xFF1A1A1A);
-  static const Color textSecondary = Color(0xFF757575);
+  // Paleta oficial Bora (design system handoff 2026-05-28).
+  static const Color primary = Color(0xFF16A34A); // verde principal
+  static const Color primaryDark = Color(0xFF065F46); // hover/gradient
+  static const Color primaryDeep = Color(0xFF053D28); // extremo gradient
+  static const Color primaryMid = Color(0xFF15803D); // verde médio (era primaryLight pré-3.1A)
+  static const Color primaryLight = Color(0xFFDCFCE7); // tint suave (NOVA semântica)
+  static const Color primaryWash = Color(0xFFF0FDF4); // tint+ ultra leve
+  static const Color secondary = Color(0xFFF97316); // laranja acento
+  static const Color secondaryDark = Color(0xFFEA580C); // laranja hover/pressed
+  static const Color secondaryLight = Color(0xFFFB923C); // legacy compat
+  static const Color background = Color(0xFFF0F2EF); // fundo geral verde-acinzentado
+  static const Color surface = Color(0xFFFFFFFF); // cards/sheets
+  static const Color surface2 = Color(0xFFF7F8F6); // superfície alternativa
+  static const Color textPrimary = Color(0xFF111111);
+  static const Color textSecondary = Color(0xFF6B7280);
+  static const Color textSubtle = Color(0xFF9CA3AF); // placeholder/ícones inactivos
   static const Color cardBg = Color(0xFFFFFFFF);
-  static const Color divider = Color(0xFFE0E0E0);
+  static const Color divider = Color(0xFFE5E7EB);
+  static const Color dividerStrong = Color(0xFFD1D5DB);
 
-  // Gradientes reutilizáveis (design reference 2026-04-18).
+  // Gradientes oficiais (design system handoff 2026-05-28).
+  // 2026-06-10 (Danilo, M6): header passa a VERDE SÓLIDO #16A34A em todos os
+  // ecrãs — padrão Glovo de cabeçalho colorido consistente, sem variações.
   static const LinearGradient headerGradient = LinearGradient(
-    colors: [primary, primaryLight],
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
+    colors: [primary, primary],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
   );
   static const LinearGradient promoGradient = LinearGradient(
-    colors: [secondary, secondaryLight],
-    begin: Alignment.centerLeft,
-    end: Alignment.centerRight,
+    colors: [secondary, secondaryDark],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
   );
 
   static ThemeData get lightTheme {
@@ -32,6 +41,7 @@ class AppTheme {
 
     return ThemeData(
       useMaterial3: false,
+      fontFamily: 'Inter',
       primaryColor: primaryColor,
       scaffoldBackgroundColor: background,
       colorScheme: const ColorScheme.light(
@@ -58,13 +68,14 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: secondaryColor,
+          backgroundColor: primaryColor,
           foregroundColor: Colors.white,
           minimumSize: const Size(88, 52),
           shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(12)),
+            borderRadius: BorderRadius.all(Radius.circular(14)),
           ),
           textStyle: const TextStyle(
+            fontFamily: 'Inter',
             fontSize: 16,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.3,
@@ -78,9 +89,10 @@ class AppTheme {
           minimumSize: const Size(88, 52),
           side: const BorderSide(color: primaryColor, width: 1.5),
           shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(12)),
+            borderRadius: BorderRadius.all(Radius.circular(14)),
           ),
           textStyle: const TextStyle(
+            fontFamily: 'Inter',
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
@@ -88,12 +100,12 @@ class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: secondaryColor,
+          foregroundColor: primaryColor,
         ),
       ),
       inputDecorationTheme: const InputDecorationTheme(
         filled: true,
-        fillColor: Color(0xFFF5F5F5),
+        fillColor: Color(0xFFFFFFFF),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.all(Radius.circular(12)),
           borderSide: BorderSide(color: Color(0xFFE0E0E0)),
@@ -121,7 +133,7 @@ class AppTheme {
       cardTheme: const CardThemeData(
         elevation: 2,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(14)),
+          borderRadius: BorderRadius.all(Radius.circular(16)),
         ),
         color: cardBg,
         margin: EdgeInsets.zero,

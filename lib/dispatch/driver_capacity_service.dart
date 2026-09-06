@@ -23,6 +23,14 @@ class DriverCapacityService {
     final assignments = driver.activeAssignments;
     if (assignments.isEmpty) return true;
     if (assignments.length >= maxBatchOrders) return false;
+    // FAVORES — não-batchable (estafeta tem de estar livre, mesma regra de
+    // logística). Cobre pedidos com paragens múltiplas e compras adiantadas.
+    if (order.serviceType == OrderServiceType.errand) return false;
+    // Mesma regra: errand existente bloqueia novos assignments.
+    if (assignments
+        .any((a) => a.serviceType == OrderServiceType.errand)) {
+      return false;
+    }
     return true;
   }
 

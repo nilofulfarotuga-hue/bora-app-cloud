@@ -1,23 +1,49 @@
 import 'dart:async';
-import 'dart:io';
+import 'dart:convert';
+import '../utils/io_compat.dart';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
+
+import '../utils/safe_image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../widgets/bora_support_fab.dart';
 
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
-import '../config/app_theme.dart';
+import '../services/roles_service.dart';
+import '../widgets/biometric_login_tile.dart';
+import '../widgets/bora/bora_screen_app_bar.dart';
+import '../widgets/profile_switcher_button.dart';
 import '../models/driver_model.dart';
 import '../services/auth_admin_service.dart';
+import '../services/wallet_service.dart';
 import '../stores/driver_store.dart';
 import '../stores/session_store.dart';
+import 'cleaner/cleaner_home_screen.dart';
+import 'ganhos_screen.dart';
+import 'trabalhar_no_bora_screen.dart';
+import 'washer/washer_home_screen.dart';
+import 'client/reservation/my_reservation_lists_screen.dart';
+import 'client/services/my_appointments_screen.dart';
+import 'client_reservations_screen.dart';
 import 'orders_screen.dart';
+import 'client_addresses_screen.dart';
+import 'client_promo_code_screen.dart';
+import 'connect/connect_payments_screen.dart';
+import 'connect/connect_statement_screen.dart';
+import 'driver_permissions_screen.dart';
+import 'my_cards_screen.dart';
+import 'referral_screen.dart';
 import 'support_screen.dart';
+import 'wallet_history_screen.dart';
+
+import '../l10n/tr.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -27,18 +53,72 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final _imagePicker = ImagePicker();
-
   String? _photoUrl;
   XFile? _localPreview;
   bool _isUploading = false;
   bool _photoLoaded = false;
   bool _isDeletingAccount = false;
+  bool _driverSyncing = false;
+
+  // MULTI-PAPEL: saber se o utilizador já é profissional de limpeza para
+  // adaptar a entrada de Limpeza (convite vs "a minha limpeza").
+  RolesSummary _roles = RolesSummary.empty();
 
   @override
   void initState() {
     super.initState();
     _loadPhotoUrl();
+    _validateSession();
+    _ensureDriverLoaded();
+    _loadRoles();
+  }
+
+  Future<void> _loadRoles() async {
+    final r = await RolesService.mySummary();
+    if (mounted) setState(() => _roles = r);
+  }
+
+  Future<void> _ensureDriverLoaded() async {
+    final authStore = context.read<AuthStore>();
+    if (authStore.role != AuthRole.driver) return;
+    final driverStore = context.read<DriverStore>();
+    if (driverStore.currentDriver != null) return;
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (uid == null || uid.isEmpty) return;
+    if (!mounted) return;
+    setState(() => _driverSyncing = true);
+    try {
+      await driverStore.syncDriverWithAuth(uid);
+    } catch (e) {
+      debugPrint('[profile_screen] driver sync error: $e');
+    } finally {
+      if (mounted) setState(() => _driverSyncing = false);
+    }
+  }
+
+  /// Strategy D — Pre-emptively refresh the JWT when the profile screen opens,
+  /// so by the time the user taps the avatar button, the session is fresh.
+  /// If session is missing or refresh fails silently, the upload path itself
+  /// has its own guards (refreshSession + Edge Function fallback).
+  Future<void> _validateSession() async {
+    final client = Supabase.instance.client;
+    final session = client.auth.currentSession;
+    if (session == null) {
+      // No Supabase session — could be local-only auth (demo/cached client).
+      // Don't disrupt; the upload path handles re-auth.
+      return;
+    }
+    final nowS = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final expiresAt = session.expiresAt; // seconds since epoch
+    final aboutToExpire = expiresAt != null && expiresAt - nowS < 60;
+    if (aboutToExpire) {
+      try {
+        await client.auth.refreshSession();
+        debugPrint('[profile_screen] session refreshed on initState');
+      } catch (e) {
+        debugPrint('[profile_screen] initState refresh failed: ${e} — will retry inside _pickAndUploadAvatar');
+      }
+    }
   }
 
   Future<void> _loadPhotoUrl() async {
@@ -107,12 +187,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.photo_camera),
-              title: const Text('Tirar foto'),
+              title: Text('Tirar foto'.tr),
               onTap: () => Navigator.of(ctx).pop(ImageSource.camera),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library),
-              title: const Text('Escolher da galeria'),
+              title: Text('Escolher da galeria'.tr),
               onTap: () => Navigator.of(ctx).pop(ImageSource.gallery),
             ),
           ],
@@ -159,10 +239,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
         SnackBar(
           content: Text(
             isDemo
-                ? 'Demo accounts não podem fazer upload de foto. Cria uma conta real.'
+                ? 'Demo accounts não podem fazer upload de foto. Cria uma conta real.'.tr
                 : 'Sessão expirada. Faz logout e login novamente.',
           ),
         ),
+      );
+      return;
+    }
+
+    // T1 FIX: Always refresh the JWT before upload to avoid stale-token 403.
+    // The Supabase storage SDK does NOT auto-refresh before requests; it relies
+    // on the existing session. An expired token (>1h session, background use)
+    // causes StorageException(statusCode: 400/403) even though currentUser≠null.
+    try {
+      await supabase.auth.refreshSession();
+      userId = supabase.auth.currentUser?.id;
+    } catch (_) {
+      // Refresh failed (offline / network) — proceed with existing token.
+      // If the token is still valid, the upload succeeds; otherwise the catch
+      // at the upload site will surface the error to the user.
+    }
+
+    if (userId == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Sessão inválida após refresh. Faz logout e login novamente.'.tr)),
       );
       return;
     }
@@ -172,7 +273,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     XFile? picked;
     try {
-      picked = await _imagePicker.pickImage(
+      picked = await SafeImagePicker.pickImage(
         source: chosen,
         maxWidth: 1200,
         imageQuality: 85,
@@ -180,7 +281,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao seleccionar imagem: $e')),
+        SnackBar(content: Text('Erro ao seleccionar imagem: {0}'.trArgs([e]))),
       );
       return;
     }
@@ -197,23 +298,58 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // Centre-crop square + resize to 500px (smaller upload, consistent UI).
       final processed = await _squareResize(rawBytes) ?? rawBytes;
 
-      final path = '$userId/avatar.jpg';
-      final storage = Supabase.instance.client.storage;
+      String? versionedUrl;
 
-      await storage.from('avatars').uploadBinary(
-            path,
-            processed,
-            fileOptions: const FileOptions(
-              upsert: true,
-              contentType: 'image/jpeg',
-            ),
-          );
+      // ── Strategy A: direct upload (fast path) ────────────────────────────
+      try {
+        final path = '$userId/avatar.jpg';
+        final storage = Supabase.instance.client.storage;
+        await storage
+            .from('avatars')
+            .uploadBinary(
+              path,
+              processed,
+              fileOptions: const FileOptions(
+                upsert: true,
+                contentType: 'image/jpeg',
+              ),
+            )
+            .timeout(const Duration(seconds: 8));
 
-      final publicUrl = storage.from('avatars').getPublicUrl(path);
-      // Cache-bust version suffix — stored in metadata so every device
-      // sees the new image without waiting for Flutter's network cache.
-      final bust = DateTime.now().millisecondsSinceEpoch;
-      final versionedUrl = '$publicUrl?v=$bust';
+        final publicUrl = storage.from('avatars').getPublicUrl(path);
+        final bust = DateTime.now().millisecondsSinceEpoch;
+        versionedUrl = '$publicUrl?v=$bust';
+        debugPrint('[profile_screen] direct upload OK: $versionedUrl');
+      } catch (directErr) {
+        // ── Strategy C: fallback to Edge Function `upload-avatar` ──────────
+        // service_role bypasses RLS — handles stale-JWT corner cases.
+        debugPrint('[profile_screen] direct upload failed (${directErr}) — falling back to upload-avatar Edge Function');
+        try {
+          final base64 = base64Encode(processed);
+          final res = await Supabase.instance.client.functions
+              .invoke('upload-avatar', body: {
+                'fileBase64': base64,
+                'contentType': 'image/jpeg',
+              })
+              .timeout(const Duration(seconds: 30));
+          if (res.status != 200) {
+            throw Exception('upload-avatar HTTP ${res.status}: ${res.data}');
+          }
+          final data = res.data is Map
+              ? Map<String, dynamic>.from(res.data as Map)
+              : <String, dynamic>{};
+          versionedUrl = data['versioned_url'] as String?;
+          if (versionedUrl == null) {
+            throw Exception('upload-avatar response missing versioned_url');
+          }
+          debugPrint('[profile_screen] edge fn upload OK: $versionedUrl');
+        } catch (edgeErr) {
+          // Both strategies failed — surface the original direct error
+          // (more actionable for debugging).
+          throw Exception(
+              'Direct upload: $directErr · Edge function: $edgeErr');
+        }
+      }
 
       // Single source of truth — AuthStore persists locally + to Supabase.
       // `authStore` is captured above (before async gaps).
@@ -226,7 +362,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _isUploading = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Foto de perfil actualizada.')),
+        SnackBar(content: Text('Foto de perfil actualizada.'.tr)),
       );
     } catch (e) {
       if (!mounted) return;
@@ -234,8 +370,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _localPreview = null;
         _isUploading = false;
       });
+      // Log full error for debugging (StorageException has statusCode field).
+      debugPrint('[profile_screen] avatar upload error: $e · userId=$userId');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao enviar foto: $e')),
+        SnackBar(
+          content: Text('Erro ao enviar foto: {0}'.trArgs([e])),
+          duration: const Duration(seconds: 6),
+        ),
       );
     }
   }
@@ -246,7 +387,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final driverStore = context.watch<DriverStore>();
 
     if (!authStore.isLogged) {
-      return const Center(child: Text('Sessão terminada.'));
+      return Center(child: Text('Sessão terminada.'.tr));
     }
 
     final role = authStore.role;
@@ -255,18 +396,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U';
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(
-        title: const Text(
-          'Perfil',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        flexibleSpace: const DecoratedBox(
-          decoration: BoxDecoration(gradient: AppColors.headerGradient),
-        ),
+      backgroundColor: AppColors.background,
+      floatingActionButton: const BoraSupportFab(),
+      // MULTI-PAPEL: o botão só aparece a quem tem mais do que um papel.
+      appBar: BoraScreenAppBar(
+        title: 'Perfil'.tr,
+        actions: const [ProfileSwitcherButton()],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.only(bottom: Spacing.xxxl),
@@ -293,7 +428,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 4),
                   Text(
                     role == AuthRole.driver
-                        ? 'Estafeta'
+                        ? 'Estafeta'.tr
                         : role == AuthRole.partner
                             ? 'Parceiro'
                             : 'Cliente',
@@ -314,59 +449,87 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 if (role == AuthRole.client) ...[
                   _InfoTile(
                     icon: Icons.email_outlined,
-                    label: 'Email',
+                    label: 'Email'.tr,
                     value: authStore.currentClient?.email ?? '-',
                   ),
                   _InfoTile(
                     icon: Icons.phone_outlined,
-                    label: 'Telemóvel',
+                    label: 'Telemóvel'.tr,
                     value: authStore.currentClient?.phone ?? '-',
                   ),
                 ] else if (role == AuthRole.driver) ...[
-                  _InfoTile(
-                    icon: Icons.phone_outlined,
-                    label: 'Telemóvel',
-                    value: authStore.currentDriver?.phone ?? '-',
-                  ),
-                  _InfoTile(
-                    icon: Icons.directions_car_outlined,
-                    label: 'Veículo',
-                    value: driverStore.currentVehicleType.label,
-                  ),
-                  _InfoTile(
-                    icon: Icons.badge_outlined,
-                    label: 'Matrícula',
-                    value: authStore.currentDriver?.licensePlate ?? '-',
-                  ),
+                  if (_driverSyncing && driverStore.currentDriver == null)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: Spacing.lg),
+                      child: Center(
+                        child: SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                    )
+                  else ...[
+                    _InfoTile(
+                      icon: Icons.phone_outlined,
+                      label: 'Telemóvel'.tr,
+                      value: authStore.currentDriver?.phone ??
+                          driverStore.currentDriver?.phone ??
+                          '-',
+                    ),
+                    _InfoTile(
+                      icon: Icons.directions_car_outlined,
+                      label: 'Veículo'.tr,
+                      value: driverStore.currentVehicleType.label,
+                    ),
+                    _InfoTile(
+                      icon: Icons.badge_outlined,
+                      label: 'Matrícula'.tr,
+                      value: authStore.currentDriver?.licensePlate ?? '-',
+                    ),
+                  ],
                 ] else if (role == AuthRole.partner) ...[
                   _InfoTile(
                     icon: Icons.email_outlined,
-                    label: 'Email',
+                    label: 'Email'.tr,
                     value: authStore.currentPartner?.email ?? '-',
                   ),
                   _InfoTile(
                     icon: Icons.phone_outlined,
-                    label: 'Telefone',
+                    label: 'Telefone'.tr,
                     value: authStore.currentPartner?.phone ?? '-',
                   ),
                   _InfoTile(
                     icon: Icons.location_on_outlined,
-                    label: 'Endereço',
+                    label: 'Endereço'.tr,
                     value: authStore.currentPartner?.address ?? '-',
                   ),
                   _InfoTile(
                     icon: Icons.restaurant_outlined,
-                    label: 'Tipo de cozinha',
+                    label: 'Tipo de cozinha'.tr,
                     value: authStore.currentPartner?.cuisineType ?? '-',
                   ),
                 ],
               ],
             ),
 
-            // ── Token balance ──────────────────────────────────────────────
-            if (role == AuthRole.client || role == AuthRole.driver) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+            // ── L3 — Login com biometria (esconde-se sem biometria) ───────
+            BiometricLoginTile(
+              role: role == AuthRole.driver
+                  ? 'driver'
+                  : role == AuthRole.partner
+                      ? 'partner'
+                      : 'client',
+            ),
+            const SizedBox(height: 12),
+
+            // ── Wallet (cliente: 2 cards saldo livre + tokens) ─────────────
+            if (role == AuthRole.client) ...[
+              const _WalletCardsBlock(),
+              const SizedBox(height: 12),
+            ] else if (role == AuthRole.driver) ...[
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
                 child: _TokenBalanceRow(),
               ),
               const SizedBox(height: 12),
@@ -389,6 +552,132 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     )
                     .toList(),
               ),
+              // Sessão 2026-06-11 — estado das permissões críticas de
+              // pedidos (FSI/notif/overlay/bateria) com correcção. A Play
+              // revoga USE_FULL_SCREEN_INTENT na instalação (Android 14+);
+              // sem este ecrã o estafeta não tinha onde ver o ❌.
+              _SectionCard(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.phonelink_ring_outlined,
+                        color: AppColors.primary),
+                    title: Text('Permissões de pedidos'.tr),
+                    subtitle: Text(
+                        'Ecrã bloqueado, notificações, bateria'.tr),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const DriverPermissionsScreen(),
+                      ),
+                    ),
+                  ),
+                  // MULTI-PAPEL: a porta também tem de aparecer ao estafeta
+                  // (a secção "Quick links" abaixo é só do cliente, por isso o
+                  // convite ficava invisível para drivers).
+                  // A PORTA (2026-08-29). Substitui o convite que era só da
+                  // Limpeza: a lavagem não tinha convite nenhum e as entregas
+                  // e corridas viviam noutro sítio. Uma entrada, quatro
+                  // actividades, o estado real de cada uma.
+                  ListTile(
+                    leading: const Icon(Icons.badge_outlined,
+                        color: AppColors.primary),
+                    title: Text(_roles.temAlgumPapel
+                        ? 'O meu trabalho no Bora'.tr
+                        : 'Quero trabalhar no Bora'),
+                    subtitle: Text(_roles.temAlgumPapel
+                        ? 'Vê o que já fazes e acrescenta actividades'.tr
+                        : 'Entregas, corridas, limpeza ou lavagem de carros'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const TrabalharNoBoraScreen()),
+                    ).then((_) {
+                      if (mounted) _loadRoles();
+                    }),
+                  ),
+                  // Quem já é faxineiro continua a ter o atalho directo para o
+                  // painel dele — a porta é para escolher, não para trabalhar.
+                  if (_roles.hasCleaner)
+                    ListTile(
+                      leading: const Icon(Icons.cleaning_services_outlined,
+                          color: AppColors.primary),
+                      title: Text('A minha Limpeza'.tr),
+                      subtitle:
+                          Text('Gere as tuas limpezas e disponibilidade'.tr),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const CleanerHomeScreen()),
+                      ).then((_) {
+                        if (mounted) _loadRoles();
+                      }),
+                    ),
+                  // OS MEUS GANHOS (2026-08-29): um so ecra para quem
+                  // trabalha, com hoje, a semana e o acerto por semana ja
+                  // somado de todos os papeis.
+                  if (_roles.temAlgumPapel)
+                    ListTile(
+                      leading: const Icon(Icons.payments_outlined,
+                          color: AppColors.primary),
+                      title: Text('Os meus ganhos'.tr),
+                      subtitle: Text(
+                          'Hoje, esta semana e o acerto de cada semana'.tr),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const GanhosScreen()),
+                      ),
+                    ),
+                  if (_roles.hasWasher)
+                    ListTile(
+                      leading: const Icon(Icons.local_car_wash_outlined,
+                          color: AppColors.primary),
+                      title: Text('A minha Lavagem'.tr),
+                      subtitle: Text('Vê e aceita lavagens perto de ti'.tr),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const WasherHomeScreen()),
+                      ).then((_) {
+                        if (mounted) _loadRoles();
+                      }),
+                    ),
+                  // Stripe Connect Fase 1 (2026-08-06).
+                  ListTile(
+                    leading: const Icon(Icons.account_balance_outlined,
+                        color: AppColors.primary),
+                    title: Text('Receber pagamentos'.tr),
+                    subtitle: Text('Configura como recebes pelo Bora'.tr),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ConnectPaymentsScreen(
+                            connectRole: 'driver'),
+                      ),
+                    ),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.receipt_long_outlined,
+                        color: AppColors.primary),
+                    title: Text('Extrato'.tr),
+                    subtitle:
+                        Text('Movimentos, comissões e pagamentos'.tr),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ConnectStatementScreen(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
 
             // ── Quick links ────────────────────────────────────────────────
@@ -397,8 +686,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   ListTile(
                     leading: const Icon(Icons.receipt_long_outlined,
-                        color: AppTheme.primary),
-                    title: const Text('Histórico de pedidos'),
+                        color: AppColors.primary),
+                    title: Text('Histórico de pedidos'.tr),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.push(
                       context,
@@ -406,9 +695,177 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                   ListTile(
+                    leading: const Icon(Icons.calendar_today_outlined,
+                        color: AppColors.primary),
+                    title: Text('Minhas Reservas'.tr),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ClientReservationsScreen()),
+                    ),
+                  ),
+                  // Sessão 2026-06-11 — gap device: o ecrã existia mas só era
+                  // alcançável do booking_success; cliente não tinha onde
+                  // rever as marcações pagas (padrão Fresha/Booksy).
+                  ListTile(
+                    leading: const Icon(Icons.content_cut,
+                        color: AppColors.primary),
+                    title: Text('As minhas marcações'.tr),
+                    subtitle: Text('Barbearia e outros serviços'.tr),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const MyAppointmentsScreen()),
+                    ),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.format_list_bulleted,
+                        color: AppColors.primary),
+                    title: Text('Minhas Listas'.tr),
+                    subtitle: Text('Fila de espera e avisos'.tr),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const MyReservationListsScreen()),
+                    ),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.account_balance_wallet_outlined,
+                        color: AppColors.primary),
+                    title: Text('Saldo Bora'.tr),
+                    subtitle: Text('Saldo livre + tokens + histórico'.tr),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const WalletHistoryScreen()),
+                    ),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.credit_card_outlined,
+                        color: AppColors.primary),
+                    title: Text('Meus Cartões'.tr),
+                    subtitle: Text('Cartões guardados para pagar num toque'.tr),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const MyCardsScreen()),
+                    ),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.location_on_outlined,
+                        color: AppColors.primary),
+                    title: Text('Os meus endereços'.tr),
+                    subtitle: Text('Casa, Trabalho e outros'.tr),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ClientAddressesScreen()),
+                    ),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.redeem_outlined,
+                        color: AppColors.primary),
+                    title: Text('Tenho um código'.tr),
+                    subtitle: Text('Resgata tokens com um código promocional'.tr),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ClientPromoCodeScreen()),
+                    ),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.card_giftcard_outlined,
+                        color: AppColors.primary),
+                    title: Text('Convidar amigos'.tr),
+                    subtitle: Text('1000 tokens (≈€5) para ti + para o teu amigo'.tr),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ReferralScreen()),
+                    ),
+                  ),
+                  // A PORTA (2026-08-29). Substitui o convite que era só da
+                  // Limpeza: a lavagem não tinha convite nenhum e as entregas
+                  // e corridas viviam noutro sítio. Uma entrada, quatro
+                  // actividades, o estado real de cada uma.
+                  ListTile(
+                    leading: const Icon(Icons.badge_outlined,
+                        color: AppColors.primary),
+                    title: Text(_roles.temAlgumPapel
+                        ? 'O meu trabalho no Bora'.tr
+                        : 'Quero trabalhar no Bora'),
+                    subtitle: Text(_roles.temAlgumPapel
+                        ? 'Vê o que já fazes e acrescenta actividades'.tr
+                        : 'Entregas, corridas, limpeza ou lavagem de carros'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const TrabalharNoBoraScreen()),
+                    ).then((_) {
+                      if (mounted) _loadRoles();
+                    }),
+                  ),
+                  // Quem já é faxineiro continua a ter o atalho directo para o
+                  // painel dele — a porta é para escolher, não para trabalhar.
+                  if (_roles.hasCleaner)
+                    ListTile(
+                      leading: const Icon(Icons.cleaning_services_outlined,
+                          color: AppColors.primary),
+                      title: Text('A minha Limpeza'.tr),
+                      subtitle:
+                          Text('Gere as tuas limpezas e disponibilidade'.tr),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const CleanerHomeScreen()),
+                      ).then((_) {
+                        if (mounted) _loadRoles();
+                      }),
+                    ),
+                  // OS MEUS GANHOS (2026-08-29): um so ecra para quem
+                  // trabalha, com hoje, a semana e o acerto por semana ja
+                  // somado de todos os papeis.
+                  if (_roles.temAlgumPapel)
+                    ListTile(
+                      leading: const Icon(Icons.payments_outlined,
+                          color: AppColors.primary),
+                      title: Text('Os meus ganhos'.tr),
+                      subtitle: Text(
+                          'Hoje, esta semana e o acerto de cada semana'.tr),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const GanhosScreen()),
+                      ),
+                    ),
+                  if (_roles.hasWasher)
+                    ListTile(
+                      leading: const Icon(Icons.local_car_wash_outlined,
+                          color: AppColors.primary),
+                      title: Text('A minha Lavagem'.tr),
+                      subtitle: Text('Vê e aceita lavagens perto de ti'.tr),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const WasherHomeScreen()),
+                      ).then((_) {
+                        if (mounted) _loadRoles();
+                      }),
+                    ),
+                  ListTile(
                     leading: const Icon(Icons.support_agent_outlined,
-                        color: AppTheme.primary),
-                    title: const Text('Suporte'),
+                        color: AppColors.primary),
+                    title: Text('Suporte'.tr),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.push(
                       context,
@@ -430,7 +887,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: ElevatedButton.icon(
                     onPressed: () => Navigator.pushNamed(context, '/admin'),
                     icon: const Icon(Icons.admin_panel_settings_outlined),
-                    label: const Text('Painel Admin'),
+                    label: Text('Painel Admin'.tr),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
@@ -461,9 +918,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         )
                       : const Icon(Icons.delete_forever,
                           color: AppColors.error),
-                  label: const Text(
-                    'Apagar conta',
-                    style: TextStyle(color: AppColors.error),
+                  label: Text(
+                    'Apagar conta'.tr,
+                    style: const TextStyle(color: AppColors.error),
                   ),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: AppColors.error),
@@ -490,9 +947,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Navigator.of(context).popUntil((route) => route.isFirst);
                   },
                   icon: const Icon(Icons.logout, color: AppColors.error),
-                  label: const Text(
-                    'Terminar sessão',
-                    style: TextStyle(color: AppColors.error),
+                  label: Text(
+                    'Terminar sessão'.tr,
+                    style: const TextStyle(color: AppColors.error),
                   ),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: AppColors.error),
@@ -513,7 +970,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildAvatar({required String initial}) {
     ImageProvider? bgImage;
     if (_localPreview != null) {
-      bgImage = FileImage(File(_localPreview!.path));
+      bgImage = boraLocalImage(_localPreview!.path);
     } else if (_photoUrl != null && _photoUrl!.isNotEmpty) {
       // ValueKey on the CircleAvatar forces rebuild when URL changes (bust).
       bgImage = NetworkImage(_photoUrl!);
@@ -592,7 +1049,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: const Icon(
                 Icons.camera_alt,
                 size: 16,
-                color: AppTheme.primary,
+                color: AppColors.primary,
               ),
             ),
           ),
@@ -605,16 +1062,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Remover foto de perfil?'),
+        title: Text('Remover foto de perfil?'.tr),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancelar'),
+            child: Text('Cancelar'.tr),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Remover'),
+            child: Text('Remover'.tr),
           ),
         ],
       ),
@@ -637,13 +1094,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _isUploading = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Foto removida.')),
+        SnackBar(content: Text('Foto removida.'.tr)),
       );
     } catch (e) {
       if (!mounted) return;
       setState(() => _isUploading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao remover foto: $e')),
+        SnackBar(content: Text('Erro ao remover foto: {0}'.trArgs([e]))),
       );
     }
   }
@@ -668,23 +1125,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Apagar conta'),
-        content: const SingleChildScrollView(
+        title: Text('Apagar conta'.tr),
+        content: SingleChildScrollView(
           child: Text(
-            'Os teus dados pessoais serão apagados imediatamente.\n\n'
-            'Por obrigação legal, os dados fiscais (faturas) são '
-            'guardados por 10 anos.\n\nConfirmar?',
+            'Os teus dados pessoais serão apagados imediatamente.\n\nPor obrigação legal, os dados fiscais (faturas) são guardados por 10 anos.\n\nConfirmar?'.tr,
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancelar'),
+            child: Text('Cancelar'.tr),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Apagar'),
+            child: Text('Apagar'.tr),
           ),
         ],
       ),
@@ -703,9 +1158,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (response.status >= 400) {
         setState(() => _isDeletingAccount = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
-                'Não foi possível apagar a conta. Tenta novamente mais tarde.'),
+                'Não foi possível apagar a conta. Tenta novamente mais tarde.'.tr),
           ),
         );
         return;
@@ -717,14 +1172,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Conta apagada.')),
+        SnackBar(content: Text('Conta apagada.'.tr)),
       );
       Navigator.of(context).popUntil((route) => route.isFirst);
     } catch (e) {
       if (!mounted) return;
       setState(() => _isDeletingAccount = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao apagar conta: $e')),
+        SnackBar(content: Text('Erro ao apagar conta: {0}'.trArgs([e]))),
       );
     }
   }
@@ -746,13 +1201,7 @@ class _SectionCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          boxShadow: AppColors.shadowCard,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -794,7 +1243,7 @@ class _InfoTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(icon, color: AppTheme.primary, size: 22),
+      leading: Icon(icon, color: AppColors.primary, size: 22),
       title: Text(
         label,
         style: const TextStyle(fontSize: 12, color: Colors.black54),
@@ -812,14 +1261,231 @@ class _InfoTile extends StatelessWidget {
   }
 }
 
+// ─── Wallet cards block (cliente — saldo livre + tokens) ─────────────────────
+// Shows TWO cards (saldo livre verde + tokens amarelo) tappable → wallet history.
+// Wallet free balance comes from `client_wallets` (since 2026-04-30).
+// Texto rodapé "Saldo não reembolsável em dinheiro" para compliance PT.
+
+class _WalletCardsBlock extends StatelessWidget {
+  const _WalletCardsBlock();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<WalletBalance>(
+      future: WalletService.instance.getBalance(),
+      builder: (ctx, snap) {
+        final loading = snap.connectionState == ConnectionState.waiting;
+        final b = snap.data;
+        // Sessão 3B: card adapta cor ao estado (verde / amarelo / vermelho).
+        final isNeg = b?.isNegative ?? false;
+        final isBlocked = b?.isBlocked ?? false;
+        final isWarning = b?.isWarning ?? false;
+        final cardColor = isBlocked
+            ? Colors.red.shade50
+            : (isWarning
+                ? Colors.orange.shade50
+                : (isNeg ? Colors.red.shade50 : Colors.green.shade50));
+        final borderColor = isBlocked
+            ? Colors.red.shade300
+            : (isWarning
+                ? Colors.orange.shade300
+                : (isNeg ? Colors.red.shade200 : Colors.green.shade200));
+        final iconColor = isBlocked || isNeg
+            ? Colors.red.shade700
+            : (isWarning ? Colors.orange.shade700 : Colors.green);
+        final subtitle = isBlocked
+            ? 'Não pode fazer pedidos · regularize'.tr
+            : (isNeg
+                ? 'Saldo devedor — descontado na próxima compra'.tr
+                : 'Livre — nunca expira');
+        final valueColor = isNeg ? Colors.red.shade700 : null;
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            children: [
+              _walletTile(
+                context,
+                color: cardColor,
+                borderColor: borderColor,
+                icon: Icons.account_balance_wallet,
+                iconColor: iconColor,
+                title: 'Saldo Bora'.tr,
+                subtitle: subtitle,
+                value: loading ? null : (b?.freeFormatted ?? '€0.00'),
+                valueColor: valueColor,
+              ),
+              if (!loading && isBlocked) ...[
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    border: Border.all(color: Colors.red.shade300),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning_amber, color: Colors.red.shade700, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Carteira em dívida grave. Liquide para fazer novos pedidos.'.tr,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.red.shade900,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 8),
+              _walletTile(
+                context,
+                color: Colors.amber.shade50,
+                borderColor: Colors.amber.shade200,
+                icon: Icons.toll,
+                iconColor: Colors.amber.shade700,
+                title: 'Tokens'.tr,
+                subtitle: loading
+                    ? 'Até 50% desconto no checkout'.tr
+                    : 'Até 50% desconto · ≈€${((b?.tokensValueCents ?? 0) / 100).toStringAsFixed(2)}',
+                value: loading ? null : '${b?.tokensBalance ?? 0}',
+              ),
+              const SizedBox(height: 6),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text(
+                  'Saldo não reembolsável em dinheiro.'.tr,
+                  style: const TextStyle(fontSize: 11, color: Colors.black45),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _walletTile(
+    BuildContext context, {
+    required Color color,
+    required Color borderColor,
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required String? value,
+    Color? valueColor,
+  }) {
+    return InkWell(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const WalletHistoryScreen()),
+      ),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: borderColor),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: iconColor, size: 22),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black87)),
+                  Text(subtitle,
+                      style: const TextStyle(
+                          fontSize: 11, color: Colors.black54)),
+                ],
+              ),
+            ),
+            value == null
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : Text(
+                    value,
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: valueColor),
+                  ),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right, color: Colors.black38, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ─── Token balance row ────────────────────────────────────────────────────────
 // Fetches the active token balance via get_user_tokens() RPC and displays it.
 // Works for both client and driver — uses the currently authenticated user ID.
 
-class _TokenBalanceRow extends StatelessWidget {
-  _TokenBalanceRow();
+// BUG #6 (2026-05-12) — Stateful + WidgetsBindingObserver para refrescar
+// tokens automaticamente quando a app volta ao foreground (resumed).
+// Antes era StatelessWidget com FutureBuilder cuja future era recriada por
+// cada rebuild — mas sem trigger de rebuild quando focus muda. Resultado:
+// saldo desactualizado até pull-to-refresh manual.
+class _TokenBalanceRow extends StatefulWidget {
+  const _TokenBalanceRow();
 
+  @override
+  State<_TokenBalanceRow> createState() => _TokenBalanceRowState();
+}
+
+class _TokenBalanceRowState extends State<_TokenBalanceRow>
+    with WidgetsBindingObserver {
   final _client = Supabase.instance.client;
+  late Future<int> _balanceFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _balanceFuture = _fetch();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      setState(() => _balanceFuture = _fetch());
+    }
+  }
+
+  Future<int> _fetch() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return 0;
+    try {
+      final v = await _client
+          .rpc('get_user_tokens', params: {'p_user_id': userId});
+      return (v as num?)?.toInt() ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -828,8 +1494,7 @@ class _TokenBalanceRow extends StatelessWidget {
     if (userId == null) return const SizedBox.shrink();
 
     return FutureBuilder<int>(
-      future: _client.rpc('get_user_tokens',
-          params: {'p_user_id': userId}).then((v) => (v as int?) ?? 0),
+      future: _balanceFuture,
       builder: (context, snapshot) {
         final balance = snapshot.data ?? 0;
         final isLoading = snapshot.connectionState == ConnectionState.waiting;
@@ -848,9 +1513,9 @@ class _TokenBalanceRow extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Bora Tokens',
-                    style: TextStyle(
+                  Text(
+                    'Bora Tokens'.tr,
+                    style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: Colors.black54,
@@ -866,7 +1531,7 @@ class _TokenBalanceRow extends StatelessWidget {
                           ),
                         )
                       : Text(
-                          '$balance tokens',
+                          '{0} tokens'.trArgs([balance]),
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,

@@ -12,8 +12,20 @@
 .swiftpm/
 migrate_working_dir/
 
+# ── Flutter run artifacts (debug screenshots / capture) ──────────────────────
+flutter_*.png
+flutter_*.jpg
+
+# ── Ad-hoc dumps / scratch files ─────────────────────────────────────────────
+temp_*.sql
+temp_*.json
+*.dump
+schema_dump_*.sql
+
 # ── JVM heap dumps (gigabyte-sized crash files) ───────────────────────────────
 *.hprof
+hs_err_pid*.log
+replay_pid*.log
 
 # ── IntelliJ / Android Studio ────────────────────────────────────────────────
 *.iml
@@ -71,6 +83,30 @@ scripts/scraper/.env
 scripts/scraper/output/
 scripts/scraper/node_modules/
 
+# ── RAG ingest secrets + logs (Sessão 5C-α/7) ────────────────────────────────
+scripts/rag/.env
+scripts/rag/*.log
+
+# ── Deno cache lockfile (CLI-generated, per-machine) ─────────────────────────
+deno.lock
+
+# ── Supabase CLI temp files (per-machine, regenerated on every CLI run) ───────
+supabase/.temp/
+
+# ── Repo hygiene (auditoria 2026-05-31) ──────────────────────────────────────
+# node_modules da raiz (Playwright/TestSprite) — nunca versionar
+/node_modules/
+# testes auto-gerados pelo TestSprite (dependem de node_modules)
+/testsprite_tests/
+# bytecode Python das skills + scratch
+**/__pycache__/
+# screenshots de device/ADB soltos (debug)
+device_screenshot_*.png
+# scratch/outputs da skill taxonomy-mapper (dados de debug regeneraveis; .py preservados)
+.claude/skills/taxonomy-mapper/scripts/*.json
+.claude/skills/taxonomy-mapper/scripts/*.err
+.claude/skills/taxonomy-mapper/scripts/sql_batches/
+
 # ── Claude Code local settings (per-machine, never commit) ───────────────────
 .claude/settings.local.json
 
@@ -86,3 +122,58 @@ backend/.env
 *.pem
 *.p12
 *.keystore
+*.jks
+key.properties
+android/key.properties
+
+# ── Obsidian vault (.obsidian-vault/) — local config & cache ──────────────────
+# Vault canónico vive em bora_app/.obsidian-vault/ (commit 2026-05-04).
+# Setup partilhável commitado: notas .md + lista de plugins.
+# Ignorado: caches, workspace, plugins binários, smart-env (>1MB).
+.obsidian-vault/.obsidian/workspace*
+.obsidian-vault/.obsidian/workspace.json
+.obsidian-vault/.obsidian/cache
+.obsidian-vault/.obsidian/app.json
+.obsidian-vault/.obsidian/plugins/
+.obsidian-vault/.obsidian/themes/
+.obsidian-vault/.smart-env/
+.obsidian-vault/.trash/
+# Artefacto plugin: .obsidian/.obsidian/ recursivo (preservado em disco
+# para SHA256 match com source, mas NAO commitado - contem .exe + caches)
+.obsidian-vault/.obsidian/.obsidian/
+.obsidian-vault/.obsidian/.smart-env/
+testsprite_tests\tmp\config.json
+
+# MCP config (contém API keys)
+.mcp.json
+
+# ── Cérebro: memória de trabalho efémera (Fase 2) ────────────────────────────
+# Checkpoints de tarefas são descartáveis; só o .gitkeep é versionado.
+.claude/.ai/knowledge/sessao/*
+!.claude/.ai/knowledge/sessao/.gitkeep
+
+# ── Backups descartáveis ─────────────────────────────────────────────────────
+*.bak
+
+# ── Graphify: grafo de código gerado (não versionar — regenerável via AST) ────
+graphify-out/
+.graphify/
+.graphify_analysis.json
+.graphify_labels.json
+
+# ── Órfãos root-owned (workaround de permissões hermes-exec, ver
+#    .claude/.ai/reports/hermes-exec-permissoes-reais-2026-07-14.md) — cópias
+#    root:root que não conseguimos apagar sem sudo; conteúdo já duplicado e
+#    corrigido no caminho original. Não tocar sem root disponível.
+*-oldperm-20260715/
+supabase/functions/stripe-webhook/index.ts.bak
+
+# Token pessoal do Supabase CLI (local, nunca commitado) — 2026-08-20
+.supabase-token.env
+
+# Credenciais de service account — 2026-08-20.
+# A chave da Play Store vive FORA do repo, em C:\Users\danil\.credenciais\bora-play\.
+# Estes padroes sao a rede de seguranca para o caso de alguem a copiar para ca.
+.credenciais/
+*play-service-account*.json
+boraapp-d2bea-*.json

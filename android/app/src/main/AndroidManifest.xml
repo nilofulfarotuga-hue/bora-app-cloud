@@ -7,10 +7,56 @@
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
 <!-- Android 14+ requires a typed foreground-service permission for location -->
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+<!-- Foreground service (2026-05-17) — driver online + partner loja aberta.
+     dataSync = heartbeat 30s para Supabase; required em Android 14+. -->
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+<!-- Android 13+ runtime permission para mostrar notificações (POST_NOTIFICATIONS).
+     Necessário para a notificação persistente do foreground service +
+     pedidos urgentes do canal 'bora_orders_urgent'. -->
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+<!-- Vibração para notificações urgentes de novo pedido. -->
+<uses-permission android:name="android.permission.VIBRATE"/>
+<!-- Sessão 2026-05-18 — Full-screen intent estilo Uber/Glovo: permite que a
+     notificação de novo pedido acorde o ecrã e seja mostrada sobre o lock
+     screen com botões aceitar/rejeitar. Exigido em Android 10+ para
+     fullScreenIntent=true funcionar. Em Android 14+ requer também que o
+     utilizador conceda a permissão "Apps que podem mostrar ecrã completo"
+     em Definições → Apps → Bora → Notificações. -->
+<uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
+<!-- Necessário para o sistema acordar/manter o ecrã ligado quando chega o
+     fullScreenIntent com app fechada. -->
+<uses-permission android:name="android.permission.TURN_SCREEN_ON"/>
+<!-- Boot completed (opcional) — flutter_foreground_task permite autoRunOnBoot
+     mas mantemos autoRunOnBoot=false; perm declarada para compatibilidade. -->
+<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
 <!-- Wake-lock: prevents CPU from sleeping while tracking is active -->
 <uses-permission android:name="android.permission.WAKE_LOCK"/>
-<!-- Camera: profile photo, sendPackage photo, carryGroceries photo (BR §7.5/§7.6) -->
+<!-- Battery optimisation: permite pedir ao utilizador para excluir a app
+     da gestão de bateria → foreground service sobrevive em background longo. -->
+<uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+<!-- Draw over other apps: necessário para flutter_foreground_task mostrar
+     overlay estilo Uber/Glovo por cima de outras apps. -->
+<uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+<!-- Sessão 2026-05-21 — flutter_overlay_window: card de oferta de pedido
+     novo por cima de outras apps. Em Android 14+ requer specialUse FGS. -->
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
+<!-- Sessão 2026-05-22 — Android 12+ FCM data-only com fullScreenIntent +
+     background overlay exige FOREGROUND_SERVICE_REMOTE_MESSAGING. Sem isto
+     Android 14+ mata o foreground service ao acordar pelo FCM de background
+     e o overlay nunca chega a ser desenhado quando driver está noutra app. -->
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING"/>
+<!-- Camera: profile photo, sendPackage photo, carryGroceries photo (BR §7.5/§7.6), partner product photo -->
 <uses-permission android:name="android.permission.CAMERA"/>
+<!-- Gallery access for partner product photo: Android 13+ usa o Android Photo Picker
+     (image_picker ^1.1.2 — sem permissão). READ_MEDIA_IMAGES removido para cumprir a
+     Google Play "Photo and Video Permissions policy" (usar seletor de sistema).
+     Android <=12 continua a usar READ_EXTERNAL_STORAGE. -->
+<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
+<!-- L3 (2026-06-12) — login com biometria (digital/rosto) via local_auth/
+     BiometricPrompt. USE_FINGERPRINT cobre Android <9 (deprecated mas
+     recomendado pelo plugin para compatibilidade). -->
+<uses-permission android:name="android.permission.USE_BIOMETRIC"/>
+<uses-permission android:name="android.permission.USE_FINGERPRINT"/>
         <application
         android:label="bora_app"
         android:name="${applicationName}"
@@ -18,6 +64,27 @@
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyBYLjK1RtPdi4WM7pMGmupesBgUIWMkfkw"/>
+
+        <!-- 2026-05-14: Google Pay (Stripe PaymentSheet). Habilita Wallet API
+             no dispositivo Android para o sheet mostrar a opcao Google Pay
+             quando configurada no Stripe Dashboard + SHA-1 release no Play Console. -->
+        <meta-data
+            android:name="com.google.android.gms.wallet.api.enabled"
+            android:value="true" />
+
+        <!-- 2026-05-22: FCM default channel id. Critico para heads-up em background:
+             sem este meta-data, quando o FCM SDK recebe a mensagem com app fora
+             do foreground, cai no canal default (IMPORTANCE_DEFAULT) e a
+             notificacao NAO aparece como heads-up. Tem de bater certo com o
+             channel_id criado em MainActivity.kt + main.dart + payload FCM. -->
+        <!-- Sessão 2026-05-24 (exec2 FIX A): canal v3 com som EXPLÍCITO
+             bora_alert (v2 nasceu sem setSound — Android trancou-o em default).
+             MainActivity.kt cria este canal com AudioAttributes ringtone +
+             FLAG_AUDIBILITY_ENFORCED. Tem de bater certo com o channel ID
+             usado em notification_service.dart. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="bora_orders_urgent_v3"/>
 
         <activity
             android:name=".MainActivity"
@@ -27,6 +94,9 @@
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
+            android:showOnLockScreen="true"
+            android:turnScreenOn="true"
+            android:showWhenLocked="true"
             android:windowSoftInputMode="adjustResize">
             <!-- Specifies an Android theme to apply to this Activity as soon as
                  the Android process has started. This theme is visible to the user
@@ -40,7 +110,62 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Recuperação de palavra-passe (2026-07-14) — deep link de volta
+                 ao app depois do clique no email de reset do Supabase Auth.
+                 Tem de bater certo com o redirectTo em auth_store.dart e estar
+                 na allow-list "Redirect URLs" do Supabase Auth (dashboard). -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="pt.boraapp.bora" android:host="reset-password"/>
+            </intent-filter>
         </activity>
+        <!-- flutter_foreground_task v8.17 — service DEVE ser declarado manualmente
+             aqui (o próprio package SÓ declara receivers — RebootReceiver,
+             RestartReceiver — confirmado em pub cache).
+             Exec6.17 BUGFIX (2026-05-25): nome anterior 'com.foregroundtask.
+             FlutterForegroundTaskService' era do v6/v7 e apontava para classe
+             inexistente em v8 → startService retornava true mas service NUNCA
+             arrancava (isRunningService=false em todos os testes).
+             Nome correcto v8: com.pravera.flutter_foreground_task.service.ForegroundService -->
+        <!-- ⛔ NÃO ACRESCENTAR "location" A ESTE SERVIÇO (verificado 2026-09-05).
+             Este serviço é PARTILHADO: estafeta Online (DriverStore) e parceiro
+             com loja aberta (RestaurantStore). O plugin arranca-o sempre com
+             ServiceInfo.FOREGROUND_SERVICE_TYPE_MANIFEST (ForegroundService.kt
+             linha ~257), ou seja com TODOS os tipos aqui declarados, em todas as
+             chamadas — não dá para escolher o tipo por arranque.
+             A doc do Android diz que um serviço arrancado com vários tipos "must
+             adhere to the platform enforcement requirements of ALL types", e que
+             falhar um requisito atira SecurityException depois de startForeground().
+             Como o tipo "location" exige ACCESS_FINE/COARSE_LOCATION concedida em
+             tempo de execução, o PARCEIRO (que não tem razão para dar GPS) passaria
+             a rebentar ao abrir a loja em Android 14+.
+             O GPS em primeiro plano das corridas TVDE/entregas NÃO precisa disto:
+             usa o serviço próprio do geolocator (GeolocatorLocationService, já
+             declarado com foregroundServiceType="location" no manifesto do
+             geolocator_android 5.0.3 e fundido aqui pelo merger do Gradle),
+             activado ao passar foregroundNotificationConfig ao AndroidSettings.
+             Ver lib/services/tvde_corrida_localizacao_service.dart. -->
+        <service
+            android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
+            android:exported="false"
+            android:stopWithTask="false"
+            android:foregroundServiceType="dataSync|remoteMessaging"/>
+
+        <!-- flutter_overlay_window — Sessão 2026-05-21. Serviço que desenha o
+             card da oferta por cima de outras apps quando FCM new_order_offer
+             chega com app em background. Android 14+ requer specialUse FGS
+             + property com descrição user-facing. -->
+        <service
+            android:name="flutter.overlay.window.flutter_overlay_window.OverlayService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Mostra card de novo pedido ao estafeta quando o app está em background"/>
+        </service>
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
@@ -56,6 +181,12 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- Sessão 7-UI-BUG004: tel: launcher para botão "Ligar agora" do
+             bottom sheet de cancelamento bloqueado pós-pickedUp. -->
+        <intent>
+            <action android:name="android.intent.action.DIAL"/>
+            <data android:scheme="tel"/>
         </intent>
     </queries>
 </manifest>

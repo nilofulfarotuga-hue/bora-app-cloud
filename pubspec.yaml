@@ -3,7 +3,7 @@ description: Plataforma híbrida de entregas BORA
 
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 1.0.1+598
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -11,16 +11,31 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # BUG #12 (2026-05-13) — necessario para showDatePicker em locales nao-EN.
+  # Sem isto, o calendario renderiza em branco/crashava em Android.
+  flutter_localizations:
+    sdk: flutter
   cupertino_icons: ^1.0.6
   vibration: ^3.1.8
   provider: ^6.1.2
   http: ^1.2.0
-  flutter_stripe: ^10.1.1
+# F4/adendo4 (2026-08-16): 10.1.1 embutia stripe-android 20.44.2 — versão com
+  # bug documentado de "blank screen no FlowController com Google Pay ativo"
+  # (aviso do Play Console 16/08; bate com zero pagamentos cartão desde 31/07).
+  # 11.3.0 = a MENOR versão com stripe-android >= 20.47 (traz 20.52.*).
+  # Breaking 11.0.0 não nos toca (IntentMode não usado; Dart >= 3.0 ok).
+  flutter_stripe: ^11.3.0
   supabase_flutter: ^2.5.6
   shared_preferences: ^2.3.2
 
   # MAPA E LOCALIZAÇÃO
-  geolocator: ^10.1.0
+  # ATENÇÃO: versão FIXA de propósito, sem o `^`. NÃO trocar por `^14.0.2`.
+  # O 14.0.3 puxa geolocator_linux → package_info_plus ^10 → win32 ^6, e o
+  # flutter_secure_storage 9.x exige win32 ^5: o `pub get` FALHA. Como o
+  # pubspec.lock é gitignored, o CI resolve do zero — com `^` apanhava o
+  # 14.0.3 e o build parava. Subir daqui exige resolver o win32 primeiro.
+  # (Subido de ^10.1.0 nesta missão, 2026-09-05: mapa TVDE a travar.)
+  geolocator: 14.0.2
   geocoding: ^2.2.0
   google_maps_flutter: ^2.6.0
   latlong2: ^0.9.0
@@ -36,6 +51,50 @@ dependencies:
   firebase_messaging: ^15.0.0
   image_picker: ^1.1.2
   image: ^4.5.4
+  # 2026-05-14 perf: cache de imagens em disco (Image.network re-download a cada
+  # build — em listas grandes [restaurants, products, stores] e' notavelmente
+  # lento). cached_network_image usa flutter_cache_manager por baixo.
+  cached_network_image: ^3.4.1
+
+  # SHARE + EXPORTS (CSV/PDF) — admin reports + cliente referral share sheet
+  share_plus: ^10.0.0
+  csv: ^6.0.0
+  pdf: ^3.10.0
+  printing: ^5.11.0
+  path_provider: ^2.1.4
+
+  # FOREGROUND SERVICE (Sessão 2026-05-17) — mantém driver/parceiro sempre
+  # online em background com notificação persistente (padrão Glovo/Uber Eats).
+  # Requer Kotlin >=1.9.10 e Gradle >=8.6.0 (confirmados: 2.3.10 / 8.14).
+  flutter_foreground_task: ^8.17.0
+  # Necessário para registar o canal Android 'bora_orders_urgent' (Importance.MAX)
+  # antes de FCM enviar pedidos novos — sem canal registado, Android Oreo+
+  # silencia notificações de alta prioridade.
+  flutter_local_notifications: ^17.2.4
+
+  # FLOATING BUBBLE (Sessão 2026-05-19) — bolinha estilo Uber/Glovo que aparece
+  # quando driver Online + app vai para background. Android-only (iOS não
+  # suporta system overlays). Requer SYSTEM_ALERT_WINDOW (já declarado).
+  # API: FloatingBubbleOverlay.instance.startBubble/stopBubble + onTap traz app
+  # ao foreground built-in. v1.0.5 publicado Dez/2025, minSdk 21 (compatível).
+  floating_bubble_overlay: ^1.0.5
+
+  # SYSTEM ALERT OVERLAY (Sessão 2026-05-21) — janela sobreposta com card de
+  # oferta de pedido novo por cima de qualquer outra app (estilo Uber/Glovo).
+  # Resolve: quando estafeta está com app em background, FCM dispara local
+  # notification (som/vibração) MAS o card visual fica escondido até abrir o
+  # Bora. flutter_overlay_window mostra um Material widget acima de outras
+  # apps. Android-only (iOS não suporta system overlays).
+  flutter_overlay_window: ^0.4.5
+
+  # LOGIN FACILITADO L3 (Sessão 2026-06-12) — login com biometria (digital/
+  # rosto) estilo apps de banca. local_auth exige MainActivity =
+  # FlutterFragmentActivity (já é, desde a sessão CallKit 2026-05-21).
+  # flutter_secure_storage guarda o refresh token Supabase encriptado pelo
+  # Android Keystore — NUNCA em SharedPreferences.
+  local_auth: ^2.3.0
+  flutter_secure_storage: ^9.2.2
+  table_calendar: ^3.2.0
 
 
 
@@ -56,9 +115,33 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  integration_test:
+    sdk: flutter
   flutter_lints: ^3.0.1
+  flutter_launcher_icons: ^0.14.1
 
 flutter:
   uses-material-design: true
   assets:
     - assets/sounds/bora_alert.wav
+    - assets/categories/
+    - assets/branding/
+    - assets/fonts/
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-VariableFont.ttf
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "tool/branding/bora_app_icon.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "tool/branding/bora_app_icon.png"
+  min_sdk_android: 21
+  web:
+    generate: false
+  windows:
+    generate: false
+  macos:
+    generate: false

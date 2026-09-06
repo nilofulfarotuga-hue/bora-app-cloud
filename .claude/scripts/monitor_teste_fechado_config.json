@@ -1,0 +1,5 @@
+{
+  "start_date": null,
+  "mid_update_done": false,
+  "_nota": "start_date (YYYY-MM-DD) = dia em que houver >=12 opt-ins ativos. Definir quando confirmado no dashboard."
+}

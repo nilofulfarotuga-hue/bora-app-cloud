@@ -1,0 +1,32 @@
+# Subflow: logout do cliente (single-device: liberta o telemóvel para o próximo papel).
+# Resiliente: volta atrás até ver a bottom nav ("Perfil"), relança a app se preciso,
+# Perfil → "Terminar sessão" → ecrã de papéis (RoleScreen).
+appId: pt.boraapp.bora
+---
+# voltar até a bottom nav aparecer (máx 4 backs — ex.: ecrã de tracking pós-pedido)
+- repeat:
+    times: 4
+    while:
+      notVisible: "Perfil"
+    commands:
+      - back
+# se os backs saíram da app, relança (sessão mantém-se — clearState: false).
+# fix 2026-07-11: o relançar após os backs falha transitoriamente em host com pouca
+# RAM ("Unable to launch app pt.boraapp.bora") e abortava o reset inteiro → retry.
+- retry:
+    maxRetries: 2
+    commands:
+      - launchApp:
+          clearState: false
+      - extendedWaitUntil:
+          visible: "Perfil"
+          timeout: 15000
+- tapOn: "Perfil"
+- scrollUntilVisible:
+    element:
+      text: "Terminar sessão"
+- tapOn: "Terminar sessão"
+# resultado esperado: RoleScreen (botão "Sou Cliente")
+- extendedWaitUntil:
+    visible: "Sou Cliente"
+    timeout: 20000

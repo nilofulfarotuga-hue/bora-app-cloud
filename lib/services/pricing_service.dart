@@ -19,7 +19,15 @@ class OrderPricingBreakdown {
   /// Only populated for partner orders. For reporting/settlement purposes.
   final double partnerMarkupHidden;
 
-  double get customerTotal => subtotal + serviceFee + deliveryFee + bagFee;
+  /// True when partner called the driver directly (cliente comprou direto com o
+  /// parceiro). Comissão (10%) é descontada da receita do parceiro no acerto
+  /// semanal — nunca cobrada ao cliente. O cliente paga apenas subtotal +
+  /// taxa serviço (5%) + taxa entrega.
+  final bool isPartnerSelfDispatch;
+
+  double get customerTotal {
+    return subtotal + serviceFee + deliveryFee + bagFee;
+  }
 
   const OrderPricingBreakdown({
     required this.distanceKm,
@@ -32,6 +40,7 @@ class OrderPricingBreakdown {
     this.apartmentDelivery = false,
     this.bagFee = 0,
     this.partnerMarkupHidden = 0,
+    this.isPartnerSelfDispatch = false,
   });
 }
 
@@ -42,6 +51,11 @@ class PricingService {
 
   /// Charged automatically for all restaurant orders (takeaway bag).
   static const double _restaurantBagFee = 0.30;
+
+  /// Charged per bag for storeShopping orders. The checkout always sends
+  /// bag_count=1, and the server (`pricing_calculate`) charges
+  /// €0.10 × GREATEST(1, bag_count) — mirror it so the summary matches.
+  static const double _marketBagFeePerBag = 0.10;
   // ── Driver earnings — delivery (partner + non-partner) ───────────────────
   static const double _driverBasePay = 3.80;
   static const double _driverPerKmRate = 0.2;
@@ -94,10 +108,20 @@ class PricingService {
 
   /// Returns [basePrice] with the non-partner markup applied when [isPartner]
   /// is false. Partner prices are returned unchanged.
-  /// This is the single source of truth for markup — call only from CartStore.
+  ///
+  /// Single source of truth para o preço EXIBIDO/COBRADO por unidade — chamar
+  /// de todos os call sites que criam CartItem ou mostram preço de catálogo
+  /// (B1 2026-06-11). NÃO arredonda: o servidor (`create_order`) aplica o
+  /// markup à SOMA dos preços base e arredonda UMA vez no fim — arredondar
+  /// por unidade divergia ±1 cêntimo com quantidade > 1. Arredondar apenas
+  /// na formatação (`toStringAsFixed(2)`).
   static double applyMarkup(double basePrice, bool isPartner) {
     if (isPartner) return basePrice;
-    return _roundCurrency(basePrice * (1 + _nonPartnerMarkupRate));
+    // F1 (2026-08-16, "vai centimo" do Danilo - pedido 4db5882d): arredondar
+    // AO CENTIMO no momento em que o preco nasce (fonte unica, ~20 call
+    // sites herdam). Exibido = somado = cobrado - fim do 6,98 vs 6,99.
+    return ((basePrice * (1 + _nonPartnerMarkupRate)) * 100).roundToDouble() /
+        100;
   }
 
   static OrderPricingBreakdown calculateBreakdown({
@@ -108,6 +132,13 @@ class PricingService {
     bool apartmentDelivery = false,
     /// Set to true when this is the 2nd stacked partner order — adds €3 driver bonus.
     bool isStackedPartnerBonus = false,
+    /// Set to true for "partner-calls-driver" flow (parceiro chama estafeta
+    /// por conta própria — cliente comprou direto). Sem markup escondido
+    /// (cliente já sabe o preço real). Comissão total = 15% em vez de 20%.
+    bool isPartnerSelfDispatch = false,
+    /// Number of bags for storeShopping orders. Checkout charges min. 1 bag
+    /// (server: GREATEST(1, bag_count)) — keep default 1 to match.
+    int bagCount = 1,
   }) {
     final normalizedDistance = _sanitizeDistance(distanceKm);
     final normalizedSubtotal = _sanitizeAmount(subtotal);
@@ -190,10 +221,11 @@ class PricingService {
       final packageFee = _packageBaseFee + (extraDistance * _packageExtraPerKm);
       deliveryFee = packageFee + apartmentSurcharge;
       platformCommission = _packagePlatformShare + apartmentPlatformBonus;
-      // Logistics drivers carry/collect AND deliver → €0.80 bonus applies.
+      // Driver: base pay + per-km rate applied only to km beyond base distance.
+      // No _shoppingDriverBonus — logistics base already accounts for the
+      // collection effort (logistics_driver_base_cents = 400 cents = €4.00).
       driverEarnings = _roundCurrency(_logisticsDriverBasePay +
-          (_logisticsDriverPerKmRate * normalizedDistance) +
-          _shoppingDriverBonus +
+          (_logisticsDriverPerKmRate * extraDistance) +
           apartmentDriverBonus);
     } else {
       // ── FALLBACK (should not normally be reached) ──────────────────────────
@@ -206,10 +238,21 @@ class PricingService {
           apartmentDriverBonus);
     }
 
-    final double bagFee =
-        serviceType == OrderServiceType.restaurant ? _restaurantBagFee : 0.0;
+    // Mirror of server `pricing_calculate` (B1 2026-06-11): restaurant €0.30
+    // fixo; storeShopping €0.10 × GREATEST(1, bags) cobrado no checkout.
+    final double bagFee = serviceType == OrderServiceType.restaurant
+        ? _restaurantBagFee
+        : serviceType == OrderServiceType.storeShopping
+            ? _roundCurrency(_marketBagFeePerBag * math.max(1, bagCount))
+            : 0.0;
 
     final bool isPartner = isPartnerRestaurant || isPartnerRetail;
+    // Partner-calls-driver: SEM markup escondido. Cliente comprou direto com
+    // o parceiro e já conhece o preço real, portanto a Bora não pode embutir
+    // 5% no preço do produto neste fluxo.
+    final double computedMarkupHidden = (isPartner && !isPartnerSelfDispatch)
+        ? _roundCurrency(normalizedSubtotal * _partnerMarkupHiddenRate)
+        : 0.0;
     return OrderPricingBreakdown(
       distanceKm: normalizedDistance,
       subtotal: normalizedSubtotal,
@@ -220,9 +263,8 @@ class PricingService {
       apartmentSurcharge: _roundCurrency(apartmentSurcharge),
       apartmentDelivery: apartmentDelivery,
       bagFee: bagFee,
-      partnerMarkupHidden: isPartner
-          ? _roundCurrency(normalizedSubtotal * _partnerMarkupHiddenRate)
-          : 0.0,
+      partnerMarkupHidden: computedMarkupHidden,
+      isPartnerSelfDispatch: isPartnerSelfDispatch && isPartner,
     );
   }
 

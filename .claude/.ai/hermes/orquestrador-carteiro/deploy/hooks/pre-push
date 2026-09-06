@@ -1,0 +1,25 @@
+#!/bin/sh
+# pre-push (hook do repo do EXECUTOR no PC) — dispara o sync por-tarefa do espelho Córtex no VPS.
+# Cobre QUALQUER push à branch autonomous-night (loop do carteiro OU push manual do Danilo),
+# não só os do carteiro. É best-effort e NUNCA bloqueia/atrasa o push (corre em segundo plano).
+#
+# Git não tem hook "post-push"; então agendamos um sync ATRASADO (~6s, tempo do push assentar no
+# origin) em background e devolvemos 0 já. Instalar em .git/hooks/pre-push (ver DEPLOY.md).
+BR=autonomous-night-2026-04-29
+KEY=/c/Users/danil/.ssh/id_ed25519_vps
+VPS=root@srv1786862.hstgr.cloud
+C=hermes-agent-fvnc-hermes-agent-1
+
+MATCH=0
+while read -r _lref _lsha _rref _rsha; do
+  case "$_rref" in */"$BR") MATCH=1;; esac
+done
+[ "$MATCH" = 1 ] || exit 0
+[ -f "$KEY" ] || exit 0
+
+( sleep 6
+  ssh -i "$KEY" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 "$VPS" \
+    "docker exec -u hermes -e HOME=/opt/data -i $C sh -s fast < /root/cortex-mcp/sync-brain.sh" \
+    >/dev/null 2>&1
+) &
+exit 0

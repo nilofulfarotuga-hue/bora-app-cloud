@@ -1,0 +1,10 @@
+[
+  { "log": "boot debug DDC (lazy compile no 1o load)", "sleep": 50000 },
+  { "shot": "01_role_consent" },
+  { "log": "fechar consentimento", "click": [692, 1886] },
+  { "sleep": 3000 },
+  { "shot": "02_role_limpo" },
+  { "log": "Sou Cliente", "click": [692, 1487] },
+  { "sleep": 6000 },
+  { "shot": "03_client_login" }
+]

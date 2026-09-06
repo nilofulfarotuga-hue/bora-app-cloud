@@ -1,0 +1,33 @@
+# Audit 1 laranja/ecrã
+
+- [X] `lib\screens\driver_login_screen.dart` — 10 dominante / 0 semântico
+- [X] `lib\screens\driver_signup_screen.dart` — 5 dominante / 0 semântico
+- [X] `lib\screens\admin\admin_dashboard_screen.dart` — 4 dominante / 0 semântico
+- [X] `lib\screens\cart_screen.dart` — 3 dominante / 0 semântico
+- [X] `lib\screens\partner_dashboard_screen.dart` — 3 dominante / 0 semântico
+- [X] `lib\screens\support_chat_screen.dart` — 3 dominante / 0 semântico
+- [!] `lib\screens\driver_home_screen.dart` — 2 dominante / 0 semântico
+- [!] `lib\screens\pending_approval_screen.dart` — 2 dominante / 0 semântico
+- [!] `lib\screens\register_client_screen.dart` — 2 dominante / 0 semântico
+- [!] `lib\screens\register_partner_screen.dart` — 2 dominante / 0 semântico
+- [!] `lib\screens\reservation_flow_screen.dart` — 2 dominante / 0 semântico
+- [!] `lib\screens\restaurants_screen.dart` — 2 dominante / 0 semântico
+- [!] `lib\screens\store_shopping_purchase_screen.dart` — 2 dominante / 0 semântico
+- [!] `lib\screens\support_email_form_screen.dart` — 2 dominante / 0 semântico
+- [OK] `lib\screens\admin\admin_crosstalk_screen.dart` — 1 dominante / 0 semântico
+- [OK] `lib\screens\admin\admin_driver_approval_screen.dart` — 1 dominante / 0 semântico
+- [OK] `lib\screens\admin\admin_partner_detail_screen.dart` — 1 dominante / 0 semântico
+- [OK] `lib\screens\admin\admin_pending_actions_screen.dart` — 1 dominante / 0 semântico
+- [OK] `lib\screens\admin\admin_receipts_screen.dart` — 1 dominante / 0 semântico
+- [OK] `lib\screens\admin\admin_skill_suggestions_metrics_screen.dart` — 1 dominante / 0 semântico
+- [OK] `lib\screens\admin\admin_skill_suggestions_screen.dart` — 1 dominante / 0 semântico
+- [OK] `lib\screens\driver_map_screen.dart` — 1 dominante / 0 semântico
+- [OK] `lib\screens\driver_rejected_screen.dart` — 1 dominante / 0 semântico
+- [OK] `lib\screens\order_details_screen.dart` — 1 dominante / 0 semântico
+- [OK] `lib\screens\order_tracking_screen.dart` — 1 dominante / 0 semântico
+- [OK] `lib\screens\orders_screen.dart` — 1 dominante / 0 semântico
+- [OK] `lib\screens\product_detail_screen.dart` — 1 dominante / 0 semântico
+- [OK] `lib\screens\rating_screen.dart` — 1 dominante / 0 semântico
+- [OK] `lib\screens\restaurant_menu_screen.dart` — 1 dominante / 0 semântico
+- [OK] `lib\screens\role_screen.dart` — 1 dominante / 0 semântico
+- [OK] `lib\screens\welcome_address_screen.dart` — 1 dominante / 0 semântico

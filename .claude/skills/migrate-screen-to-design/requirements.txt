@@ -1,0 +1,1 @@
+# migrate-screen-to-design — sem dependências externas (stdlib + ficheiros locais)

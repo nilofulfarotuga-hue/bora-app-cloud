@@ -1,5 +1,16 @@
 # ⚠️ PRIORITY CONTEXT (READ FIRST)
 
+## 📕 LÊ `PADRAO_BORA.md` ANTES DE QUALQUER PLANO
+
+`PADRAO_BORA.md`, na raiz do repositório, é a **lei da casa**: a lista fechada do que uma
+categoria ou papel novo tem de ter para estar lançado, a regra dos gémeos (onde cada verdade
+vive), as regras de prova, as de publicação e segredos, como o Danilo trabalha, e as zonas
+que não se tocam. Cada regra lá tem a **cicatriz** real que a originou, com data.
+
+**Obrigatório:** lê-o no arranque de toda a missão, antes de planear. Manda sobre hábitos e
+sobre planos; só perde para uma ordem explícita do Danilo na conversa. Se estiver errado,
+corrige-se o documento — não se contorna.
+
 ## Project: BORA APP
 
 ### Core Rules (ALWAYS FOLLOW)
@@ -19,25 +30,151 @@
 - OrderStore uses ID comparison (not reference)
 - Realtime replaces objects → never rely on object identity
 - DispatchEngine is memory-based with DB sync for offers
+## 🧠 Cérebro (memória estruturada) — LER ANTES DE TRABALHAR
+
+- **TODO agente lê `.claude/.ai/knowledge/INDEX.md` antes de trabalhar** e carrega **só** os
+  ficheiros do seu tema (nunca o Cérebro inteiro — foi o que rebentou o MEMORY.md de 45 KB).
+- **Só o agente `bibliotecario-cerebro` escreve no Cérebro.** Os outros entregam-lhe um *handoff*
+  no fim da tarefa (ver `.claude/.ai/knowledge/PROTOCOLO.md`). Escrita de memória é operação de
+  primeira classe, com gatilho explícito — não "o modelo decide sozinho o que lembrar".
+- **Frescura:** aplicar só factos `estado: atual`; um facto `superado` fica na história, não se aplica.
+- **Invariante:** índice e cada ficheiro carregam abaixo de ~24 KB. Passou → o Bibliotecário parte.
+
+## Nota: `context-mode` (ctx_*/`/ctx doctor`/`/ctx stats`) não vale no executor headless
+
+A regra "usa sempre `ctx_*` em vez de Bash/Read para output grande" (injetada pelo hook
+`SessionStart` do plugin `context-mode`) só se aplica a **sessões interactivas** (Claude Code
+app/CLI com MCP ligado — confirmado ao vivo 2026-08-01, `ctx_doctor`/`ctx_stats` respondem).
+**Não vale no loop autónomo** (`run-claude-loop.cmd` → `claude -p --output-format stream-json`):
+o modo `-p` não-interactivo não despacha comandos-slash e corre sem `--mcp-config`, logo nenhuma
+ferramenta `ctx_*` existe nesse processo — não é regressão nem falta de instalação, é o desenho
+do modo `-p`. Um agente/ordem a correr dentro do loop autónomo deve continuar a usar
+Bash/Read/Grep directamente; só uma sessão interactiva (Claude.ai, Claude Code app) deve preferir
+`ctx_*`. Ver `.claude/.ai/reports/sistema-redondo-FECHO-2026-08-01.md` §6(d) e
+`.claude/.ai/reports/sistema-redondo-continuacao-2026-08-01.md` (Bloco C.3).
+
 ## Skill Usage Rule
 
 - ALWAYS prefer using skills instead of long prompts
 - When a task matches a skill, EXECUTE the skill immediately
 - Do not ask for clarification if skill context is sufficient
 - Combine skill + short context instead of large explanations
-## Validation Gate (MANDATORY)
 
-Before executing ANY task that touches:
-- Payments (Stripe, MBWay, cash flow)
-- Database (tables, triggers, migrations, seeds)
-- Security (RLS policies, auth, permissions)
-- OR has estimated effort > 1h
+## Sistema de Agentes
 
-**STOP and output exactly this message first:**
+- **Path:** `.claude/agents/` (no repo `bora_app/`). Ver `.claude/agents/README.md`.
+- **Princípio:** Agentes **orquestram** skills (ferramentas); nunca duplicam a lógica delas.
+  Quando existe um agente responsável por um domínio, usa o agente — ele chama as skills certas.
+  Skills sem agente dono continuam a ser invocadas diretamente (ver "Skill Usage Rule").
+  **O CEO-AI é o dispatcher master.** Todos os agentes leem `agent-memory.md` no arranque.
+- **Regra obrigatória:** cada agente tem secção **"Admin Panel Needed?"**. Toda feature nova →
+  invocar o agente `admin` no final (gatilho de paridade).
+- **TODO agente lê `.claude/.ai/knowledge/INDEX.md` antes de trabalhar** (só o seu tema) e faz
+  *handoff* ao `bibliotecario-cerebro` no fim. Proteção: 🟢 zona segura · 🟡 sensível · 🔴 dinheiro
+  = **PROPOSE-ONLY** (a Trava bloqueia a edição; o agente lê e propõe, o Danilo aprova).
 
-⚠️ VALIDAÇÃO RECOMENDADA — Envia esta resposta ao Claude.ai para validação antes de aprovar.
+**Elenco canónico (Fase Marketing+Evolução, 2026-07-10) — 29 agentes** (Fase 5: +`maestro-autonomia`;
+Marketing+Evolução 2026-07-10: +`diretor-criativo` +`social-media` +`evolution-engine`). Ver `README.md`.
+- **Domínio:** `cliente`🟢 · `estafeta-motorista`🟡 · `parceiro-restaurante`🟡 · `parceiro-servicos`🟢
+  · `mercados`🟢 · `favores`🟢 · `pagamentos-wallet`🔴 · `dispatch`🔴 · `admin`🟢 · `notificacoes`🟢 · `chat-suporte`🟢
+- **Ofício:** `flutter-ui`🟢 · `backend-supabase`🟡 · `seguranca`🟡 · `dados-sql`🟢 · `devops-ci`🟡
+  · `compliance-pt`🟡 · `pesquisa-concorrencia`🟢 · `catalogo-visual`🟢 · `marketing-push`🟢 · `obsidian-sync`🟢
+- **Marketing & Evolução (2026-07-10):** `diretor-criativo`🟢 (marca/campanhas; catálogo=produto,
+  diretor=marca) · `social-media`🟢 (Postiz; nunca cria contas, nunca publica sem Juiz+Danilo)
+  · `evolution-engine`🟡 (meta-agente de evolução de skills; nunca se auto-modifica).
+- **Cérebro:** `bibliotecario-cerebro`🟡 (único que escreve na memória).
+- **Juiz (Fase 4):** `juiz-revisor`🟡 (gate anti-trapaça) — **absorveu** `checkout-fixer` (fixer de
+  regressão de checkout) e `e2e-test-builder` (geração de teste) como braços.
 
-Do NOT proceed until the user explicitly approves.
+### 🧑‍⚖️ GATE DO JUIZ (obrigatório — Fase 4)
+**NENHUM trabalho de agente é ACEITE (commit/merge) até o `juiz-revisor` passar as 3 camadas.**
+- **Camada 1** (mecânica): TestSprite via MCP — corre + classifica falha (bug/fragilidade/ambiente).
+- **Camada 2**: (1) `flutter analyze` limpo · (2) `flutter test` verde · (3) nenhuma zona protegida
+  tocada · (4) nenhuma business_rule violada.
+- **Camada 3**: rubrica UI (funcional/visual/layout/UX) para mudanças Flutter.
+- **CHÃO determinístico (não-negociável):** `python .claude/juiz/anti_trapaca.py` corre **SEMPRE
+  primeiro** — apanha teste apagado/enfraquecido/skip/valor-esperado-trocado/conserto-fantasma via
+  git diff. Mecânico — não dá para conversar em volta. exit 2 → REJEITA.
+- **Rejeição → aprendizado:** o Juiz gera lição (`.claude/juiz/reflexao.py`) → handoff ao
+  `bibliotecario-cerebro` → grava em `procedural/licoes/` → próximo agente lê antes de trabalhar.
+- Scripts em `.claude/juiz/` (NÃO em `.claude/hooks/`). Ver `.claude/juiz/README.md`.
+
+### 🎛️ CENTRAL DE AUTONOMIA + O LOOP (Fase 5, 2026-07-01)
+O **primeiro loop autónomo seguro**, apontado ao backlog de **paridade admin** (auditoria 360°).
+Híbrido: `robot_suggestions` = a fila de itens; `autonomy_goals` + `autonomy_backlog_items` = a
+camada de **goals** (o `/goal`, o placar, os tetos). **Superfície ÚNICA de aprovação:**
+`AdminRobotSuggestionsScreen` — o placar de paridade + kill switch + dial são o **cabeçalho** dessa
+mesma caixa (guardrail: `autonomy_goals` não é um segundo inbox).
+- **Maestro (26.º agente):** `.claude/agents/maestro-autonomia.md` 🟡 — dono do ciclo (pega →
+  classifica nível → esquadrão pequeno → **Juiz obrigatório** → posta na Central). Evolui `robot-b`.
+- **Os 3 níveis (× Trava × Juiz × dial):** **N1 🟢** auto reversível (só se o dial permitir) · **N2 🟡**
+  1 toque (fila + push) · **N3 🔴** dinheiro = **só propõe** (a Trava bloqueia aplicar; ato humano).
+- **Dial de confiança** (`platform_settings.robot_b_auto_level1_enabled`) — **COMEÇA CAUTELOSO**
+  (tudo passa por ti). **Kill switch "PARAR TUDO"** (`robot_b_enabled=false`) — suspende o loop já.
+- **Envelope de segurança (5 paredes):** Trava · Juiz · Tetos · Humano-acima-do-L1 · Kill switch.
+  Ver `docs/fase5/ENVELOPE_SEGURANCA.md` + `docs/fase5/GOAL_PARIDADE_ADMIN.md`.
+- **Push in-system (sem Hermes):** `notify-admin-urgent` modo `generic` quando itens ficam `aguarda_ti`.
+- **Aprendizado no loop:** rejeição do Juiz → lição → `bibliotecario-cerebro` → próximo ciclo já sabe.
+
+### Regras de despacho do CEO-AI (esquadrões pequenos — NUNCA o exército todo)
+Para cada tipo de tarefa, o CEO-AI convoca um **líder + 2 a 4** agentes. Fan-out (muitos) só em
+varreduras grandes (auditoria/migração ampla).
+
+| Tarefa | Esquadrão (líder primeiro) |
+|---|---|
+| Nova categoria de loja | `mercados` + `flutter-ui` + `catalogo-visual` + `admin` |
+| Bug de pagamento | `pagamentos-wallet`[propõe] + `backend-supabase` + `seguranca` |
+| Bug/afinação de dispatch | `dispatch`[propõe] + `backend-supabase` + `dados-sql` |
+| Ecrã novo do cliente | `cliente` + `flutter-ui` + `admin` |
+| Fluxo do estafeta / TVDE | `estafeta-motorista` + `compliance-pt` + `notificacoes` + `admin` |
+| Onboarding de parceiro | `parceiro-restaurante` + `backend-supabase` + `admin` |
+| Reserva/serviço | `parceiro-servicos` + `flutter-ui` + `admin` |
+| Favor/errand + talão | `favores` + `dados-sql` + `admin` |
+| Push/campanha | `marketing-push` + `notificacoes` + `admin` |
+| Campanha de marca/criativos | `diretor-criativo` + `marketing-push` + `catalogo-visual` + `admin` |
+| Publicar redes/métricas sociais | `social-media` + `diretor-criativo` + `admin` |
+| Evolução de skills (telemetria) | `evolution-engine`[propõe] → `juiz-revisor` (gate) → Danilo |
+| RLS/segurança | `seguranca` + `backend-supabase` |
+| Release/CI | `devops-ci` + `juiz-revisor` (gate antes do release) |
+| Gerar/reparar teste | `juiz-revisor` → braços `e2e-test-builder` (gerar) / `checkout-fixer` (regressão checkout) |
+| Benchmark/paridade de UX | `pesquisa-concorrencia` + o agente de domínio + `admin` |
+| Suporte/FAQ | `chat-suporte` + `admin` |
+| Auditoria/migração ampla | **fan-out** coordenado pelo CEO-AI + `bibliotecario-cerebro` |
+| Loop autónomo (paridade admin) | `maestro-autonomia` → esquadrão por item → `juiz-revisor` (gate) → Central |
+
+**GATE DO JUIZ (obrigatório):** qualquer esquadrão que produza código → o `juiz-revisor` corre o
+chão anti-trapaça + 3 camadas **antes** de aceitar (commit/merge). Rejeição → lição → Bibliotecário.
+
+**GATILHO DE PARIDADE (obrigatório):** qualquer feature construída num domínio → convocar também
+`admin` para garantir o ecrã de gestão correspondente (PT-BR). **Escalonamento 🔴:** se o esquadrão
+tocar dinheiro real, `pagamentos-wallet` entra em modo PROPOSE-ONLY e a alteração final espera "vai".
+
+- **Edge Functions (contagem real):** **53 funções locais** em `supabase/functions/*/index.ts`
+  (contadas a 2026-08-01; eram 44 na contagem anterior). Dessas, **24 não declaram `verify_jwt`**
+  em nenhum ficheiro da sua pasta — vale a pena auditar quais deviam ser públicas.
+  A skill CEO-AI ainda diz "43 deployed / 38 locais" — **stale**; confirmar deployed via MCP
+  `list_edge_functions` e atualizar `SKILL.md` com aprovação do Danilo.
+
+## Validation Gate — SÓ DINHEIRO (revisto 2026-07-01)
+
+Regra do Danilo: tarefas normais (bugs, ecrãs, features, infra, admin não-financeiro,
+DB/segurança não-financeira, pesquisa) → **DECIDE E EXECUTA ponta-a-ponta**, sem parar,
+sem menus de escolha, sem prompts em inglês. No fim, relatório do que foi feito.
+
+A ÚNICA travagem é **dinheiro real** — a 🔴 LISTA VERMELHA (ver `.claude/skills/ceo-ai/SKILL.md` §1.6):
+- Stripe / pagamentos / refund / MBWay / webhook + chaves Stripe
+- Preços / taxas / comissões (`pricing_service`, fees, markup, service_fee)
+- `finalizePurchase` e checkout que cobra
+- `bora_tokens` e triggers de tokens
+- `platform_settings` financeiros (`stripe_*`, `pricing_*`, `commission_*`, `fee_*`, `token_*`)
+- Migrations/UPDATE que alterem valores cobrados a clientes ou pagos a estafetas/parceiros
+
+Para a Lista Vermelha: **faz todo o trabalho de preparação, mas NÃO aplica a alteração final.**
+Em vez de parar com pergunta em inglês, escreve no relatório, em português, bem claro:
+
+⚠️ ISTO MEXE EM PAGAMENTO/DINHEIRO. Está tudo pronto — confirma que eu aplico.
+
+Só aplica depois de o Danilo responder "vai". Tudo o resto executa sozinho.
 
 ## Execution Mode
 
@@ -55,6 +192,11 @@ Do NOT proceed until the user explicitly approves.
 
 - Always simulate the result mentally before finishing
 - Only finish when the system is fully working
+
+**LEI DO PRE-VOO (2026-07-13):** antes de começar (não só antes de terminar), simula mentalmente
+se o caminho vai dar certo — timeout, ficheiro/device em falta, permissão. Previsão de falha →
+muda a abordagem antes de agir. 2 falhas iguais → muda de abordagem, nunca uma 3ª tentativa igual.
+Ver `.claude/.ai/knowledge/permanente/procedural/decision-brain.md` (secção "LEI DO PRE-VOO").
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
@@ -72,6 +214,20 @@ flutter build apk        # build Android release
 There are no custom scripts or Makefile. No test suite exists in this project.
 
 ---
+
+## Schema source of truth
+
+`supabase/schema.sql` é a **fonte da verdade declarativa do schema actual**
+(snapshot CREATE TABLE consolidado). É documento, **não migration aplicável**.
+Migrations efectivas estão em `supabase/migrations/` (ordem cronológica).
+
+Notas:
+- `restaurants.id`, `products.id`, `orders.id` são **TEXT** em prod (legado).
+  Migration plan em `decisions/2026-04-29-restaurants-id-uuid-refactor.md`.
+- `migration_trigger_dispatch.sql` (raiz `supabase/`) é boot scaffold legado
+  — substituído pelas migrations `dispatch_trigger_pgcron` e
+  `dispatch_ttl_auto_reject`. Não re-aplicar.
+- `debug_dispatch.sql` é diagnóstico ad-hoc; não é parte do schema.
 
 ## Architecture Overview
 
@@ -214,3 +370,172 @@ Each file exports `createPlaceAutocompleteServiceImpl`. The stub returns empty r
 - `BusinessCategory` — enum on `RestaurantModel`: `restaurant`, `supermarket`, `store`, `pharmacy`.
 - `VehicleType` — on `DriverModel`: affects which service types a driver can handle (via `supportsService()`).
 - Partner orders go through `restaurantAcceptOrder → restaurantMarkReady → callingDriver` flow; non-partner orders skip directly to `preparing → callingDriver` after a simulated delay.
+
+---
+
+## Karpathy Guidelines — Comportamento obrigatório do Claude Code
+
+Behavioral guidelines to reduce common LLM coding mistakes.
+
+**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+
+### 1. Think Before Coding
+
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
+
+Before implementing:
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them - don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+### 2. Simplicity First
+
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+### 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it - don't delete it.
+
+When your changes create orphans:
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: Every changed line should trace directly to the user's request.
+
+### 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+---
+
+**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+
+---
+
+# BORA APP — CONTEXTO NUCLEAR (leia isto ANTES de qualquer tarefa)
+
+> Este ficheiro é o núcleo. O detalhe completo vive em `docs/contexto/` — o índice no fim diz onde está o quê. **Abra o capítulo relevante antes de mexer na área correspondente.** Nunca adivinhe: se a resposta não está aqui nem nos capítulos, investigue no código/DB.
+
+---
+
+## 1. O QUE É O BORA
+
+Plataforma multi-serviço para a **Guarda, Portugal**, construída por **um único fundador (Danilo)** com orquestração de IA. Verticais:
+
+- **Delivery** (restaurantes + mercados/supermercados + lojas + farmácias)
+- **TVDE** (ride-hailing tipo Uber/Bolt)
+- **Limpeza** (tipo Helpling)
+- **Reservas** (mesas com pré-pagamento €3)
+- **Favores/Errands** (compras por encomenda, OCR de talão)
+- **Serviços** (barbearias, salões de beleza — marcações)
+
+Referências de mercado: **Glovo, Uber Eats, iFood, Uber, Bolt, Helpling**. Regra: nunca inventar padrão novo — copiar o que essas apps consagraram.
+
+## 2. QUEM É DANILO (o dono)
+
+- Brasileiro a viver na Guarda, Portugal. Fundador solo. Motorista TVDE (Uber/Bolt) como renda atual — conhece os dois lados do negócio na pele.
+- Comunica em PT-BR informal, quase sempre por voz (voice-to-text — mensagens chegam fragmentadas; interpretar pela intenção).
+- Não é programador: **decide e aprova**; a execução é 100% dos agentes de IA. NUNCA pedir tarefa manual técnica a ele (exceção: decisões legais/financeiras e ações que as travas de segurança exigem que sejam humanas).
+- Estilo: respostas curtas e diretas; odeia repetição e enrolação.
+
+## 3. STACK E IDENTIFICADORES
+
+| Item | Valor |
+|---|---|
+| Frontend | Flutter (app cliente + estafeta + parceiro + painel admin web) |
+| Backend | Supabase — Postgres, RLS, Edge Functions, pg_cron, Realtime, Storage |
+| Pagamentos | **Stripe LIVE** (cuidado: cobranças reais) + MB Way |
+| Push | Firebase FCM (`boraapp-d2bea`) |
+| Repo | `nilofulfarotuga-hue/bora-app-cloud`, branch `autonomous-night-2026-04-29` |
+| Supabase project | `ojykpzwqrtusfeakzrna` |
+| Package Android | `pt.boraapp.bora` |
+| Path local | `C:\Users\danil\Desktop\projetosflutter\bora_app\` |
+| Vault Obsidian | `C:\Users\danil\Desktop\Bora` |
+| Web app | bora-app-web.pages.dev (mesmo codebase, Cloudflare Pages) |
+| Site institucional | bora-site.pages.dev (repo público `bora-site`) |
+| PC do Danilo | Acer Celeron N4500, **4GB RAM** — gargalo permanente; nada pesado local |
+
+## 4. REGRAS INVIOLÁVEIS (quebrar = falha grave)
+
+1. **ZONAS PROTEGIDAS** — não tocar sem ordem explícita: `dispatch_engine`, `pricing_service.dart`, `finalizePurchase`, `bora_tokens`, Stripe webhook v17+, RLS de `orders`/`wallets`/`ledger`, `.claude/settings.json` (Trava protege-dinheiro).
+2. **versionCode**: o CI (`build_android.yml`) auto-incrementa. NUNCA incrementar no pubspec.
+3. **Push = publicação**: push na branch dispara build Android → Play alpha E deploy web. Commits só-`.md` ou só-`.claude/` não disparam (paths-ignore), MAS o paths-ignore avalia TODOS os commits do push — código pendente "pega boleia". Sempre verificar o que viaja junto antes de push.
+4. **Idiomas**: apps (cliente/estafeta/parceiro) = **PT-PT**; painel admin = **PT-BR** (só Danilo usa).
+5. **Design**: verde `#16A34A`, laranja `#F97316`, fonte Inter. NUNCA alterar fotos reais de produtos.
+6. **Painel admin**: toda feature nova/alterada exige perguntar se precisa de correspondência no painel admin (Danilo quer autoridade total: ver/editar/criar/banir/configurar/exportar/auditar).
+7. **Testes de pagamento**: sempre em DINHEIRO (Stripe é live — cartão cobra de verdade).
+8. **Web + Android saem juntos**: toda atualização que vai pro Play atualiza também o web app.
+9. **Fonte de verdade**: 1º `business_rules.md` (vault Obsidian), 2º código do app, 3º padrão Glovo/Uber Eats/iFood. Dúvida → investigar, nunca chutar.
+10. **CEO-AI**: todo prompt de missão invoca o orchestrator em `.claude/skills/ceo-ai/` primeiro.
+
+## 5. REGRAS DE DINHEIRO (resumo — detalhe no cap. 03)
+
+- **PARCEIRO** (só restaurantes): 10% comissão visível + 5% markup oculto + 5% taxa serviço. Estafeta €3,80 + €0,20/km.
+- **NÃO-PARCEIRO**: preço base + 15% fixo incluído; fee €2,50 fixo. Estafeta €3,80 + €0,20/km + €0,80 + 30% lucro líquido Bora. **TODOS os mercados são não-parceiros.**
+- Entrega €2,50 até 4km, +€0,50/km. Cash máx €40. Sacos: restaurante €0,30, mercado €0,10/saco.
+- Tokens: cliente ROUND(preço×3) mín 1; estafeta +40 normal / +50 parceiro.
+- Refund p/ wallet: split **80% saldo livre + 20% tokens (60d)**, configurável em `platform_settings`.
+- Reservas: pré-pagamento €3 (parceiro €2 / Bora €1; no-show e cancel <2h = Bora 100%).
+- TVDE ida-e-volta €8 = preço TOTAL do cliente; motorista da ida ganha €4, da volta €3,50, Bora ~€0,50 — acerto no fecho semanal. Payout é SEMANAL, nunca reembolso instantâneo.
+- Buffer MB Way: `payment_buffer_total = fees_total + round(estimativa × 1.2)` — NUNCA ×1.15.
+
+**Confundir parceiro/não-parceiro = erro grave.**
+
+## 6. ÍNDICE DO CONTEXTO COMPLETO (`docs/contexto/`)
+
+| Capítulo | Quando abrir |
+|---|---|
+| `01-fundador-e-visao.md` | Decisões de produto/estratégia; entender "por quê" |
+| `02-arquitetura.md` | Mexer em estrutura, CI/CD, deploy, Edge Functions |
+| `03-regras-de-negocio.md` | QUALQUER coisa que toque preço, comissão, wallet, refund |
+| `04-verticais.md` | Trabalhar em delivery, TVDE, Limpeza, Reservas, Favores, Serviços |
+| `05-parceiros-reais.md` | Lojas reais: Sabores de Casa, Ouro e Prata, BeUnique, mini-sites |
+| `06-infra-automacao.md` | Hermes, Córtex, loop autônomo, robôs, motor de conhecimento |
+| `07-estado-atual.md` | Saber o que está pronto, pendente e em curso |
+| `08-licoes-aprendidas.md` | ANTES de repetir abordagem que já falhou (SSH, GPU, OOM...) |
+
+---
+*Mantido por Claude.ai a partir da memória persistente + Córtex Bora. Última consolidação: 2026-07-22.*
+
+---
+
+## Agent skills
+
+> Escrito pela skill `setup-matt-pocock-skills` na missao `skills-matt-pocock-2026-08-29`.
+
+### Issue tracker
+
+Ficheiros locais em `.scratch/` — **nunca** GitHub Issues. A fila real do Bora e o
+Cortex e nao se abre uma segunda. Ver `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` na raiz + ADRs em `.claude/.ai/knowledge/wiki/decisoes/`
+(nao `docs/adr/`, para nao criar gemeos). Ver `docs/agents/domain.md`.

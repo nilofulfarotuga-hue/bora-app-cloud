@@ -1,0 +1,75 @@
+{
+  "_doc": "Registo de fluxos E2E. runner.py lê isto. devices: papel→serial (usado só em --two-devices; o DEFAULT --single-device corre tudo sequencial num telemóvel só, com logout_flows na troca de papel). dois_devices=true = fluxo multi-papel (sequencial em single-device). manual_2_devices=true = EXIGE 2 telemóveis em tempo real → runner marca MANUAL-2-DEVICES e NÃO corre. CONVENÇÃO: papel de PARCEIRO = painel admin/web no PC (browser), nunca telemóvel. db_checks correm no fim (read-only). Fluxos vêm de permanente/semantica/mapa-de-fluxos*.md",
+  "devices": {
+    "cliente": "RZGYB1XQD2P",
+    "estafeta": "N75LTG5X5DSKDMV4"
+  },
+  "logout_flows": {
+    "cliente": "cliente/logout.yaml",
+    "estafeta": "estafeta/logout.yaml"
+  },
+  "app_id": "pt.boraapp.bora",
+  "fluxos": [
+    {
+      "id": "smoke-login-cliente",
+      "papel": "cliente",
+      "dois_devices": false,
+      "passos": [
+        { "tipo": "maestro", "device": "cliente", "yaml": "cliente/login.yaml" }
+      ],
+      "db_checks": []
+    },
+    {
+      "id": "login-estafeta",
+      "papel": "estafeta",
+      "dois_devices": false,
+      "passos": [
+        { "tipo": "maestro", "device": "estafeta", "yaml": "estafeta/login.yaml" }
+      ],
+      "db_checks": []
+    },
+    {
+      "id": "delivery-mercado-cash",
+      "papel": "cliente+estafeta",
+      "dois_devices": true,
+      "_nota": "PROVA-MESTRE: mercado NÃO-parceiro (auto-avança para callingDriver, sem device de parceiro). Cash, máx €40. Pré-condições: teste-estafeta online e ÚNICO elegível; endereço definido no cliente.",
+      "passos": [
+        { "tipo": "maestro", "device": "cliente", "yaml": "cliente/delivery-mercado-cash.yaml" },
+        { "tipo": "poll_db", "tabela": "orders", "filtro": "status=in.(calling_driver,callingDriver,driver_accepted,driverAccepted)", "guarda": "order", "timeout_s": 240 },
+        { "tipo": "maestro", "device": "estafeta", "yaml": "estafeta/aceitar-e-entregar.yaml", "env_de_db": { "PIN": "delivery_code" } },
+        { "tipo": "poll_db", "tabela": "orders", "filtro": "status=eq.delivered", "timeout_s": 420 }
+      ],
+      "db_checks": [
+        { "nome": "entregue", "tabela": "orders", "filtro": "status=eq.delivered", "espera_min": 1 },
+        { "nome": "ledger-trio", "tabela": "ledger_entries", "filtro": "", "espera_min": 1, "_nota": "earning/platform/commission após delivered (read-only)" }
+      ]
+    },
+    {
+      "id": "delivery-restaurante-cash",
+      "papel": "cliente+estafeta",
+      "dois_devices": true,
+      "_nota": "PROVA-MESTRE categoria Restaurante (2026-07-14): restaurante PARCEIRO (pizza danilo — único parceiro aprovado aberto 24h; McDonald's é NÃO-parceiro, Sabores de Casa Açaí fecha às 22h). Sem 3º device de parceiro no rig (README: parceiro = admin/web, nunca telemóvel) — o passo 'script' invoca partner-simulate-accept-ready.py, que replica byte-a-byte restaurantAcceptOrder+restaurantMarkReady de lib/stores/order_store.dart (UPDATE status + invoke dispatch-engine). Cash, máx €40.",
+      "passos": [
+        { "tipo": "maestro", "device": "cliente", "yaml": "cliente/delivery-restaurante-cash.yaml" },
+        { "tipo": "poll_db", "tabela": "orders", "filtro": "status=eq.created&service_type=eq.restaurant&is_partner_store=eq.true", "guarda": "order", "timeout_s": 150 },
+        { "tipo": "script", "arquivo": "partner-simulate-accept-ready.py", "timeout_s": 60 },
+        { "tipo": "poll_db", "tabela": "orders", "filtro": "status=in.(calling_driver,callingDriver,driver_accepted,driverAccepted)", "guarda": "order", "timeout_s": 120 },
+        { "tipo": "maestro", "device": "estafeta", "yaml": "estafeta/aceitar-e-entregar.yaml", "env_de_db": { "PIN": "delivery_code" } },
+        { "tipo": "poll_db", "tabela": "orders", "filtro": "status=eq.delivered", "timeout_s": 420 }
+      ],
+      "db_checks": [
+        { "nome": "entregue", "tabela": "orders", "filtro": "status=eq.delivered", "espera_min": 1 },
+        { "nome": "ledger-trio", "tabela": "ledger_entries", "filtro": "", "espera_min": 1, "_nota": "earning/platform/commission após delivered (read-only)" }
+      ]
+    },
+    {
+      "id": "tvde-corrida-cliente-motorista",
+      "papel": "cliente+motorista",
+      "dois_devices": true,
+      "manual_2_devices": true,
+      "_nota": "EXIGE 2 devices em tempo real (cliente↔motorista com localização ao vivo — a corrida TVDE não espera numa fila como o delivery). O runner NÃO corre este fluxo: marca MANUAL-2-DEVICES no relatório. Correr manualmente com 2 telemóveis + runner --two-devices quando os passos forem escritos.",
+      "passos": [],
+      "db_checks": []
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+appId: pt.boraapp.bora
+name: Cliente — Reservar mesa €3 (Reservas Pro)
+tags:
+  - cliente
+  - reservas
+---
+- launchApp:
+    clearState: true
+- runFlow: ../../_shared/login_cliente.yaml
+
+# NOTA (2026-07-07): reservation_flow_screen.dart é agora um form único
+# (Nome/Telefone obrigatórios + Data/Hora/Pessoas/Notas) com botão direto
+# "Confirmar reserva" — já não há um passo intermédio "Continuar".
+- tapOn: "Reservar Mesa"
+- extendedWaitUntil:
+    visible: ".*[Pp]izza.*"
+    timeout: 20000
+- tapOn:
+    text: ".*[Pp]izza.*"
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible: ".*Confirmar reserva.*"
+    timeout: 15000
+- tapOn: "Nome"
+- inputText: "Teste E2E"
+- tapOn: "Telefone"
+- inputText: "910000000"
+- hideKeyboard
+
+# Verifica breakdown €1+€2 do pré-pagamento anti-no-show.
+- assertVisible: ".*Pré-pagamento €3.*"
+- assertVisible: ".*€1 taxa de serviço Bora.*"
+- assertVisible: ".*€2 descontados da tua conta.*"
+
+# Botão final (não confirma para evitar Stripe charge real em E2E).
+- assertVisible: ".*Confirmar reserva.*"

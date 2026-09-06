@@ -3,11 +3,16 @@ import 'dart:async';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../dispatch/driver_capacity_service.dart';
 import '../models/driver_model.dart';
 import '../models/order_model.dart';
+import '../services/floating_bubble_service.dart';
+import '../services/foreground_service.dart';
+import '../services/offer_presentation_gate.dart';
+import '../services/push_token_service.dart';
 import '../utils/constants.dart';
 
 class DriverStore extends ChangeNotifier {
@@ -16,8 +21,14 @@ class DriverStore extends ChangeNotifier {
   static const Duration _locationAnimationStepDuration =
       Duration(milliseconds: 80);
 
+  /// Exec6.16 CAMADA 4 — referência singleton para o lifecycle observer
+  /// em main.dart chamar forceResubscribeIfStale() on resumed sem precisar
+  /// de context (Provider). Provider já garante única instância via app tree.
+  static DriverStore? instance;
+
   DriverStore({DriverCapacityService? capacityService})
       : _capacityService = capacityService ?? DriverCapacityService() {
+    instance = this;
     _initialiseRealtimeDriverTracking();
     _listenAuthChanges();
   }
@@ -34,6 +45,11 @@ class DriverStore extends ChangeNotifier {
   Timer? _trackingTimer;
   String? _trackedOrderId;
   RealtimeChannel? _driverLocationChannel;
+  // Sessão 2026-05-24 (Fix #2 — híbrido Uber): canal realtime que ouve o
+  // broadcast `driver-offer:{driverId}` emitido pelo notify-driver v29.
+  // Caminho mais rápido do híbrido (<1s) — vence quase sempre o FCM (1-5s).
+  // Dedup cross-path em NotificationService.showDriverOfferOverlay.
+  RealtimeChannel? _driverOfferChannel;
   final Map<String, Timer> _locationAnimations = <String, Timer>{};
   StreamSubscription<AuthState>? _authSubscription;
   StreamSubscription<String>? _fcmTokenRefreshSubscription;
@@ -64,7 +80,7 @@ class DriverStore extends ChangeNotifier {
         'get_user_tokens',
         params: {'p_user_id': userId},
       );
-      return (response as int?) ?? 0;
+      return (response as num?)?.toInt() ?? 0;
     } catch (e) {
       debugPrint('[DriverStore] fetchTokenBalance error: $e');
       return 0;
@@ -84,17 +100,22 @@ class DriverStore extends ChangeNotifier {
       final settings = await messaging.requestPermission();
       if (settings.authorizationStatus == AuthorizationStatus.denied) return;
 
+      // Fallback multi-device: garante driver_push_tokens mesmo que o UPDATE
+      // em drivers.fcm_token falhe por RLS (driver não aprovado).
+      PushTokenService.registerForRole('driver').ignore();
+
       final token = await messaging.getToken();
       if (token != null) {
         await _client
             .from('drivers')
             .update({'fcm_token': token}).eq('id', driverId);
-        debugPrint('[DriverStore] FCM token saved for driver=$driverId');
+        debugPrint('[DriverStore] FCM token saved for driver=$driverId: ${token.substring(0, 20)}...');
       }
 
       _fcmTokenRefreshSubscription?.cancel();
       _fcmTokenRefreshSubscription =
           messaging.onTokenRefresh.listen((newToken) async {
+        PushTokenService.registerForRole('driver').ignore();
         await _client
             .from('drivers')
             .update({'fcm_token': newToken}).eq('id', _primaryDriverId);
@@ -146,8 +167,11 @@ class DriverStore extends ChangeNotifier {
     }
 
     try {
+      // Chave correta = user_id (= auth.uid()). Nos motoristas reais id <> user_id;
+      // por id a query não achava a linha → currentDriver ficava null → o toggle
+      // online (getDriverById) era bloqueado e o GPS/ping nunca arrancava.
       final rows =
-          await _client.from('drivers').select().eq('id', uid).limit(1);
+          await _client.from('drivers').select().eq('user_id', uid).limit(1);
 
       if (rows.isNotEmpty) {
         final row = rows.first;
@@ -161,11 +185,11 @@ class DriverStore extends ChangeNotifier {
           location: (lat != null && lng != null)
               ? LatLng(lat.toDouble(), lng.toDouble())
               : const LatLng(40.5321, -7.2671),
-          vehicleType: VehicleType.values.firstWhere(
-              (v) => v.name == (rawVehicle ?? ''),
-              orElse: () => VehicleType.motorcycle),
+          vehicleType: VehicleTypeDb.fromDb(rawVehicle),
           phone: row['phone'] as String? ?? '',
           isOnline: row['is_online'] as bool? ?? false,
+          avgRating: (row['avg_rating'] as num?)?.toDouble(),
+          ratingsCount: (row['ratings_count'] as num?)?.toInt() ?? 0,
         );
         _drivers.add(driver);
         debugPrint(
@@ -262,7 +286,176 @@ class DriverStore extends ChangeNotifier {
     driver.isOnline = value;
     notifyListeners();
     unawaited(updateDriverOnlineStatus(driverId, value));
+    // Sessão 2026-05-17 — foreground service: notificação persistente +
+    // processo activo enquanto driver está Online (padrão Glovo/Uber).
+    unawaited(_syncForegroundService(value, driverId));
     return true;
+  }
+
+  /// Liga o foreground service quando driver vai Online; pára quando offline.
+  /// Pede POST_NOTIFICATIONS (Android 13+) se ainda não concedido.
+  /// Sessão 2026-05-19 — também activa a floating bubble (Sistema B).
+  Future<void> _syncForegroundService(bool online, String driverId) async {
+    try {
+      if (online) {
+        final granted =
+            await BoraForegroundService.ensureNotificationPermission();
+        if (!granted) {
+          debugPrint(
+              '[DriverStore] foreground notif perm denied — service não iniciado');
+          return;
+        }
+        // Resolver ID: 'driver-main' é um placeholder inválido para polling.
+        // Usar sempre o auth UID como source-of-truth; se ainda não disponível,
+        // abortar (o driver não devia estar a ir Online sem sessão auth válida).
+        final authId = _client.auth.currentUser?.id ?? '';
+        final resolvedId =
+            (driverId.isEmpty || driverId == 'driver-main') ? authId : driverId;
+        if (resolvedId.isEmpty || resolvedId == 'driver-main') {
+          debugPrint(
+              '[DriverStore] FGS abortado — driverId não resolvido (raw=$driverId authId=$authId)');
+          return;
+        }
+        // Salvar driverId ANTES de startDriver para que o primeiro onRepeatEvent
+        // já encontre o ID disponível via getData (evita early return por null).
+        await BoraForegroundService.saveDriverId(resolvedId);
+        debugPrint('[DriverStore] FGS saveDriverId OK: $resolvedId');
+        // Persiste também para SharedPreferences padrão — usado pelo handler de
+        // acção de notificação em background (sem acesso ao FGS).
+        SharedPreferences.getInstance().then(
+          (prefs) => prefs.setString('bora_driver_id', resolvedId),
+        );
+        await BoraForegroundService.startDriver();
+        // Bolinha estilo Uber/Glovo — pede SYSTEM_ALERT_WINDOW se ainda não
+        // concedido. Se utilizador recusar, foreground service continua a
+        // funcionar; só a bolinha não aparece.
+        unawaited(BoraBubbleService.ensureOverlayPermission()
+            .then((_) => BoraBubbleService.setDriverOnline(true)));
+        // Fix #2 (2026-05-24) — Híbrido Uber completo: ouvir broadcast
+        // realtime `driver-offer:{driverId}` que o notify-driver v29 emite
+        // em paralelo com o FCM data-only. Caminho mais rápido (<1s).
+        _subscribeDriverOfferChannel(resolvedId);
+      } else {
+        await BoraForegroundService.clearDriverId();
+        await BoraForegroundService.stop();
+        await BoraBubbleService.setDriverOnline(false);
+        await _unsubscribeDriverOfferChannel();
+      }
+    } catch (e) {
+      debugPrint('[DriverStore] _syncForegroundService error: $e');
+    }
+  }
+
+  // ── Realtime driver-offer broadcast (Fix #2, 2026-05-24) ────────────────
+  //
+  // O notify-driver v29 publica em `driver-offer:{driverId}` o evento
+  // `new_order_offer` em paralelo com o FCM data-only. Como o broadcast
+  // chega ao app em <1s (vs 1-5s do FCM) é normalmente o primeiro a
+  // disparar o overlay. Dedup cross-path em
+  // NotificationService.showDriverOfferOverlay garante zero duplicação.
+  //
+  // Sobrevive a navegação entre ecrãs (DriverStore é singleton via Provider)
+  // mas NÃO sobrevive a app em background — para isso continuamos a
+  // depender do FCM + FGS bridge. É exactamente o desenho do Uber:
+  // realtime ganha em foreground, push ganha em background.
+  // Exec6.16 (2026-05-25) CAMADA 4 — reconnect agressivo p/ WebSocket Samsung.
+  // Driver id sticky para forceResubscribe sem precisar de re-call do callsite.
+  String? _lastSubscribedDriverId;
+  Timer? _reconnectTimer;
+  int _reconnectAttempt = 0;
+  static const _maxReconnectDelaySeconds = 30;
+
+  void _subscribeDriverOfferChannel(String driverId) {
+    if (_driverOfferChannel != null) return;
+    _lastSubscribedDriverId = driverId;
+    _reconnectAttempt = 0;
+    _attachOfferChannel(driverId);
+  }
+
+  void _attachOfferChannel(String driverId) {
+    try {
+      final ch = _client.channel('driver-offer:$driverId')
+        ..onBroadcast(
+          event: 'new_order_offer',
+          callback: (Map<String, dynamic> payload) {
+            try {
+              final inner = (payload['payload'] is Map)
+                  ? Map<String, dynamic>.from(payload['payload'] as Map)
+                  : payload;
+              final orderId = inner['orderId']?.toString() ?? '';
+              if (orderId.isEmpty) return;
+              debugPrint('[Realtime] driver-offer broadcast order=$orderId');
+              debugPrint('[BORA-OFFER] driver_store realtime BROADCAST → gate.present order=$orderId');
+              OfferPresentationGate.present(
+                orderId: orderId,
+                vendorName: inner['vendorName']?.toString() ?? 'Novo pedido',
+                total: inner['total']?.toString() ?? '0.00',
+                distanceKm: inner['distanceKm']?.toString() ?? '0',
+                driverEarnings:
+                    inner['driverEarnings']?.toString() ?? '0.00',
+                dropoffAddress: inner['dropoffAddress']?.toString() ?? '',
+              );
+            } catch (e) {
+              debugPrint('[Realtime] broadcast callback error: $e');
+            }
+          },
+        );
+      // CAMADA 4 — subscribe com onError → backoff reconnect.
+      ch.subscribe((status, error) {
+        debugPrint('[DriverStore] driver-offer status=$status err=$error');
+        if (status == RealtimeSubscribeStatus.subscribed) {
+          _reconnectAttempt = 0; // reset
+        } else if (status == RealtimeSubscribeStatus.channelError ||
+            status == RealtimeSubscribeStatus.closed ||
+            status == RealtimeSubscribeStatus.timedOut) {
+          _scheduleReconnect();
+        }
+      });
+      _driverOfferChannel = ch;
+      debugPrint('[DriverStore] subscribed realtime driver-offer:$driverId');
+    } catch (e) {
+      debugPrint('[DriverStore] _attachOfferChannel error: $e');
+      _scheduleReconnect();
+    }
+  }
+
+  void _scheduleReconnect() {
+    final id = _lastSubscribedDriverId;
+    if (id == null || id.isEmpty) return;
+    _reconnectAttempt++;
+    final delay =
+        (_reconnectAttempt * 3).clamp(3, _maxReconnectDelaySeconds);
+    debugPrint(
+        '[DriverStore] CAMADA 4 reconnect agendado em ${delay}s (attempt=$_reconnectAttempt)');
+    _reconnectTimer?.cancel();
+    _reconnectTimer = Timer(Duration(seconds: delay), () async {
+      await _unsubscribeDriverOfferChannel();
+      _attachOfferChannel(id);
+    });
+  }
+
+  /// Chamado pelo lifecycle observer no resumed — força re-subscribe se canal
+  /// estiver fechado/com erro (WebSocket Samsung pode ter morrido em BG).
+  Future<void> forceResubscribeIfStale() async {
+    final id = _lastSubscribedDriverId;
+    if (id == null || id.isEmpty) return;
+    debugPrint('[DriverStore] CAMADA 4 forceResubscribeIfStale driverId=$id');
+    await _unsubscribeDriverOfferChannel();
+    _reconnectAttempt = 0;
+    _attachOfferChannel(id);
+  }
+
+  Future<void> _unsubscribeDriverOfferChannel() async {
+    final ch = _driverOfferChannel;
+    if (ch == null) return;
+    try {
+      await _client.removeChannel(ch);
+      debugPrint('[DriverStore] unsubscribed realtime driver-offer');
+    } catch (e) {
+      debugPrint('[DriverStore] _unsubscribeDriverOfferChannel error: $e');
+    } finally {
+      _driverOfferChannel = null;
+    }
   }
 
   /// INSERT a drivers row for [uid] only if one does not already exist.
@@ -279,7 +472,7 @@ class DriverStore extends ChangeNotifier {
           'name': existing?.name ?? '',
           'phone': existing?.phone ?? '',
           'email': '',
-          'vehicle_type': existing?.vehicleType.name ?? 'motorcycle',
+          'vehicle_type': existing?.vehicleType.dbValue ?? 'motorcycle',
           'license_plate': '',
           'is_online': false,
           'lat': kGuardaLat,
@@ -383,18 +576,80 @@ class DriverStore extends ChangeNotifier {
     return _capacityService.canAssignOrder(driver, order);
   }
 
+  // BUG 4 — throttle para orders.driver_lat/lng (max 1 update / 5s).
+  DateTime? _lastOrderLocationDbUpdate;
+
+  // Throttle do upsert de posição a `drivers` (ver updateDriverLocation).
+  DateTime? _lastDriverUpsertAt;
+  LatLng? _lastDriverUpsertLocation;
+
+  double _distanceMeters(LatLng a, LatLng b) =>
+      const Distance().as(LengthUnit.Meter, a, b);
+
   void updateDriverLocation(String driverId, LatLng location) {
     final driver = getDriverById(driverId);
     if (driver == null) return;
     driver.location = location;
     notifyListeners();
 
-    _client.from('drivers').upsert({
-      'id': driverId,
-      'lat': location.latitude,
-      'lng': location.longitude,
-      'updated_at': DateTime.now().toUtc().toIso8601String(),
-    });
+    // Envio por lotes (padrão Uber/Glovo): a UI local actualiza a cada tick,
+    // mas o envio à rede respeita um intervalo mínimo — em corrida o stream
+    // emite a cada 1s e sem isto o rádio nunca dorme. 5s alinha com o
+    // throttle que o cliente já vê em orders.driver_lat. Um salto grande
+    // (>30m) fura o throttle para o dispatch nunca ver posição velha.
+    final agora = DateTime.now();
+    final ultimo = _lastDriverUpsertAt;
+    final saltoGrande = _lastDriverUpsertLocation != null &&
+        _distanceMeters(_lastDriverUpsertLocation!, location) > 30;
+    if (ultimo != null &&
+        agora.difference(ultimo).inSeconds < 5 &&
+        !saltoGrande) {
+      return; // orders.driver_lat abaixo tem o seu próprio throttle de 5s
+    }
+    _lastDriverUpsertAt = agora;
+    _lastDriverUpsertLocation = location;
+
+    // F5.1 (2026-08-16): era um UPSERT por `id` — se o id da app fosse o
+    // user_id, criava um motorista FANTASMA; e é um 3º escritor de presença
+    // fora da RPC canónica. Passa a UPDATE (nunca cria) tolerante às duas
+    // chaves (doença id≠user_id, caso Valdemir/Erika).
+    unawaited(_client
+        .from('drivers')
+        .update({
+          'lat': location.latitude,
+          'lng': location.longitude,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .or('id.eq.$driverId,user_id.eq.$driverId')
+        .then((_) {})
+        .catchError((Object e) {
+      debugPrint('[DriverStore] drivers.lat update err: $e');
+    }));
+
+    // BUG 4 — também actualiza orders.driver_lat/lng quando há pedido activo
+    // em fase em que cliente vê estafeta no mapa. Throttle 5s.
+    final trackedId = _trackedOrderId;
+    if (trackedId == null || trackedId.isEmpty) return;
+    final now = DateTime.now();
+    if (_lastOrderLocationDbUpdate != null &&
+        now.difference(_lastOrderLocationDbUpdate!).inSeconds < 5) {
+      return;
+    }
+    _lastOrderLocationDbUpdate = now;
+    unawaited(
+      _client
+          .from('orders')
+          .update({
+            'driver_lat': location.latitude,
+            'driver_lng': location.longitude,
+          })
+          .eq('id', trackedId)
+          .inFilter('status',
+              ['driverAccepted', 'pickedUp', 'onTheWay']).catchError((e) {
+        debugPrint('[DriverStore] orders.driver_lat update err: $e');
+        return <Map<String, dynamic>>[];
+      }),
+    );
   }
 
   /// Marks this order as the currently tracked one and starts the periodic
@@ -494,9 +749,7 @@ class DriverStore extends ChangeNotifier {
             id: id,
             name: rawName is String && rawName.isNotEmpty ? rawName : id,
             location: location,
-            vehicleType: VehicleType.values.firstWhere(
-                (v) => v.name == (rawVehicle ?? ''),
-                orElse: () => VehicleType.motorcycle),
+            vehicleType: VehicleTypeDb.fromDb(rawVehicle as String?),
             phone: item['phone'] as String? ?? '',
             isOnline: item['is_online'] as bool? ?? false,
           );
@@ -557,6 +810,25 @@ class DriverStore extends ChangeNotifier {
     }
     final isOnlineRaw = record['is_online'] as bool?;
     if (isOnlineRaw != null) driver.isOnline = isOnlineRaw;
+
+    // [Perf] O próprio motorista NÃO se anima a si mesmo.
+    //
+    // Ele escreve a sua posição em `drivers` (updateDriverLocation) e o realtime
+    // devolve-lhe o seu próprio UPDATE. Animar isso disparava um
+    // Timer.periodic(80ms) × 12 com notifyListeners() a cada passo — ~12
+    // rebuilds/segundo de toda a árvore, com dois GoogleMap montados. Era a
+    // causa dominante do mapa a travar ao aceitar corrida.
+    //
+    // A interpolação suave existe para o mapa do CLIENTE ver o carro dos
+    // OUTROS deslizar; para o próprio, o GPS local já é a fonte melhor e mais
+    // fresca — aqui basta assentar a posição sem animação.
+    if (id == _primaryDriverId) {
+      driver.location = target;
+      _locationAnimations.remove(driver.id)?.cancel();
+      notifyListeners();
+      return;
+    }
+
     _animateDriverTowards(driver, target);
   }
 

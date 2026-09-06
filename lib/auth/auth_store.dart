@@ -5,12 +5,33 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config/auth_links.dart';
 import '../models/driver_model.dart';
 import '../models/restaurant_model.dart';
+import '../services/biometric_auth_service.dart';
 import '../services/notification_service.dart';
+import '../services/secure_credentials_store.dart';
 import '../utils/constants.dart';
 
 enum AuthRole { client, driver, partner }
+
+/// Desfecho de um pedido de email de recuperação de palavra-passe.
+///
+/// [ok] NÃO significa "a conta existe" — o Supabase responde 200 mesmo para
+/// emails desconhecidos, de propósito, para não revelar quem tem conta.
+enum PasswordResetOutcome {
+  /// Pedido aceite pelo servidor. Mostrar sempre a mesma frase neutra.
+  ok,
+
+  /// 429 — o utilizador pediu outra vez cedo demais.
+  rateLimited,
+
+  /// O servidor aceitou o pedido mas falhou a enviar o email (SMTP).
+  emailNotSent,
+
+  /// Falha genérica (rede, servidor em baixo).
+  failed,
+}
 
 class ClientAccount {
   const ClientAccount({
@@ -27,10 +48,11 @@ class ClientAccount {
   final String password;
   final String photoUrl;
 
-  ClientAccount copyWith({String? photoUrl}) => ClientAccount(
-        name: name,
+  ClientAccount copyWith({String? photoUrl, String? name, String? phone}) =>
+      ClientAccount(
+        name: name ?? this.name,
         email: email,
-        phone: phone,
+        phone: phone ?? this.phone,
         password: password,
         photoUrl: photoUrl ?? this.photoUrl,
       );
@@ -98,24 +120,15 @@ class PartnerAccount {
 
 class AuthStore extends ChangeNotifier {
   AuthStore() {
-    _clientsByEmail['cliente@bora.app'] = const ClientAccount(
-      name: 'Cliente Demo',
-      email: 'cliente@bora.app',
-      phone: '910000001',
-      password: '123456',
-    );
-
-    const driverDemo = DriverAccount(
-      name: 'Estafeta Demo',
-      email: 'driver@bora.app',
-      phone: '910000000',
-      vehicleType: VehicleType.car,
-      licensePlate: 'AB-12-CD',
-      password: '123456',
-    );
-    _driversByEmail['driver@bora.app'] = driverDemo;
-    _driversByPhone['910000000'] = driverDemo;
-
+    // 2026-07-31 (varredura de lançamento) — REMOVIDAS as contas de demo
+    // hard-coded `cliente@bora.app` e `driver@bora.app` / telefone 910000000,
+    // ambas com password '123456'. Viviam em memória e funcionavam OFFLINE,
+    // logo eram porta de entrada em RELEASE para quem soubesse as credenciais.
+    //
+    // Continuam válidas (e intocadas) as duas contas de sistema, que são
+    // contas REAIS no Supabase Auth, não hard-coded aqui:
+    //   · guest@bora.com — modo convidado
+    //   · demo@bora.app  — credencial de revisão da Google Play
     _authSubscription =
         _supabase.auth.onAuthStateChange.listen(_onAuthStateChange);
 
@@ -126,6 +139,25 @@ class AuthStore extends ChangeNotifier {
   final _supabase = Supabase.instance.client;
   StreamSubscription<AuthState>? _authSubscription;
 
+  /// Mensagem devolvida quando o email já tem conta confirmada no Supabase
+  /// Auth — comparação por identidade (==) permite ao caller distinguir este
+  /// caso de outros erros sem re-parsear texto.
+  static const String duplicatePartnerEmailMessage =
+      'Este email já tem uma conta. Faz login em vez de criar uma nova conta.';
+
+  /// FONTE DE VERDADE DO PAPEL, e é só esta.
+  ///
+  /// O papel do utilizador autenticado lê-se do `user_metadata` do token, por
+  /// esta chave. A app NÃO decide o papel por `user_roles` nem por
+  /// `users.role` — essas tabelas existem para o servidor (RLS) e para o
+  /// painel admin as gerir, e ler o papel de lá seria abrir a porta a três
+  /// respostas diferentes para a mesma pergunta.
+  ///
+  /// Nota da investigação de 2026-08-27: quando o dono da Goola caía no
+  /// wizard de criar conta, a suspeita era o papel estar divergente entre
+  /// esses sítios. Não era — o papel vinha bem daqui. O que falhava era a
+  /// ligação LOJA↔DONO, que era feita comparando `restaurants.email` com o
+  /// email do login. Ver `partner_entry_screen.dart`.
   static const _kRole = 'bora_role';
   static const _kName = 'bora_name';
   static const _kPhone = 'bora_phone';
@@ -217,7 +249,9 @@ class AuthStore extends ChangeNotifier {
       final row = await _supabase
           .from('drivers')
           .select('approval_status')
-          .eq('id', uid)
+          // Chave correta = user_id (= auth.uid()). Nos motoristas reais
+          // id <> user_id; filtrar por id devolvia NULL → gate preso "em análise".
+          .eq('user_id', uid)
           .maybeSingle();
       final statusStr = row?['approval_status'] as String? ?? 'pending';
       final fresh = DriverStatus.values.firstWhere(
@@ -250,6 +284,53 @@ class AuthStore extends ChangeNotifier {
   /// Writes to: (1) in-memory account, (2) SharedPreferences, (3) Supabase
   /// user_metadata. notifyListeners() is called so UI widgets rebuild.
   ///
+  /// Grava nome e telemóvel do cliente actual em `public.users`, no metadata
+  /// do auth e no estado local.
+  ///
+  /// Sessão `tudo-04-09-noite` (2026-09-04): 60 dos 74 clientes estavam sem
+  /// nome e 69 sem telemóvel, e não havia caminho nenhum na app para os
+  /// preencher depois do registo — o ecrã de perfil só os MOSTRAVA. Este é
+  /// esse caminho, usado pelo ecrã de completar perfil e pelo checkout.
+  ///
+  /// Escreve nos dois sítios de propósito: `public.users` é o que o painel
+  /// admin e as Edge Functions leem; o metadata do auth é o que repovoa
+  /// `public.users` se a linha for recriada (ver `handle_new_auth_user`).
+  ///
+  /// Devolve `null` quando correu bem, ou a mensagem de erro em PT-PT.
+  Future<String?> updateClientContact({
+    required String name,
+    required String phone,
+  }) async {
+    final client = _currentClient;
+    if (client == null) return 'Sessão não iniciada.';
+
+    final n = name.trim();
+    final p = phone.trim();
+    if (n.isEmpty || p.isEmpty) return 'Preencha o nome e o telemóvel.';
+
+    try {
+      final uid = _supabase.auth.currentUser?.id;
+      if (uid != null) {
+        await _supabase
+            .from('users')
+            .update({'name': n, 'phone': p}).eq('id', uid);
+        await _supabase.auth.updateUser(
+          UserAttributes(data: {_kName: n, _kPhone: p}),
+        );
+      }
+    } catch (e) {
+      debugPrint('updateClientContact falhou => $e');
+      return 'Não foi possível guardar. Verifique a ligação e tente de novo.';
+    }
+
+    final updated = client.copyWith(name: n, phone: p);
+    _currentClient = updated;
+    if (updated.email.isNotEmpty) _clientsByEmail[updated.email] = updated;
+    _persistClient(updated);
+    notifyListeners();
+    return null;
+  }
+
   /// [url] may be empty to clear the photo.
   Future<void> updateCurrentUserPhoto(String url) async {
     if (_currentClient != null) {
@@ -282,6 +363,35 @@ class AuthStore extends ChangeNotifier {
       debugPrint('AuthStore: updateUser photoUrl failed => $e');
     }
 
+    // Push to public tables so other devices and admin screens see the photo.
+    // UPSERT for users (row may not exist — no auto-create trigger from auth).
+    // UPDATE for drivers/restaurants (row always exists after signup/onboarding).
+    final uid = _supabase.auth.currentUser?.id;
+    if (uid != null) {
+      try {
+        if (_currentClient != null) {
+          await _supabase
+              .from('users')
+              .upsert({'id': uid, 'photo_url': url});
+        } else if (_currentDriver != null) {
+          await _supabase
+              .from('drivers')
+              .update({'photo_url': url})
+              .eq('user_id', uid);
+        } else if (_currentPartner != null) {
+          final restaurantId = _partnerRestaurant?.id;
+          if (restaurantId != null) {
+            await _supabase
+                .from('restaurants')
+                .update({'photo_url': url})
+                .eq('id', restaurantId);
+          }
+        }
+      } catch (e) {
+        debugPrint('AuthStore: updateCurrentUserPhoto public table => $e');
+      }
+    }
+
     notifyListeners();
   }
 
@@ -294,12 +404,33 @@ class AuthStore extends ChangeNotifier {
       return;
     }
 
+    // Recuperação de palavra-passe: o Supabase cria uma sessão temporária ao
+    // abrir o link do email. NÃO hidratar conta aqui — isso "logaria" o
+    // utilizador direto no ecrã principal do seu papel antes de escolher a
+    // nova palavra-passe. main.dart escuta este evento à parte e abre o
+    // ResetPasswordScreen.
+    if (state.event == AuthChangeEvent.passwordRecovery) return;
+
+    // L3 — o Supabase roda o refresh token a cada refresh; mantém o token
+    // biométrico guardado em dia (só para papéis com biometria ativa e
+    // email coincidente). Fire-and-forget.
+    if (state.event == AuthChangeEvent.tokenRefreshed ||
+        state.event == AuthChangeEvent.signedIn) {
+      BiometricAuthService.instance.syncRefreshedToken(session).ignore();
+    }
+
     if (_currentClient != null ||
         _currentDriver != null ||
         _currentPartner != null) {
       return;
     }
 
+    _hydrateAccountFromSession(session);
+  }
+
+  /// Constrói a conta em memória a partir dos metadados da sessão Supabase.
+  /// Usado pelo listener onAuthStateChange e pelo restauro biométrico (L3).
+  void _hydrateAccountFromSession(Session session) {
     final meta = session.user.userMetadata ?? {};
     final boraRole = meta[_kRole] as String?;
 
@@ -311,6 +442,7 @@ class AuthStore extends ChangeNotifier {
           email: email,
           phone: meta[_kPhone] as String? ?? '',
           password: '',
+          photoUrl: meta[_kPhotoUrl] as String? ?? '',
         );
         _clientsByEmail[email] = account;
         _currentClient = account;
@@ -325,10 +457,8 @@ class AuthStore extends ChangeNotifier {
           name: meta[_kName] as String? ?? '',
           email: email,
           phone: phone,
-          vehicleType: VehicleType.values.firstWhere(
-            (v) => v.name == vtStr,
-            orElse: () => VehicleType.car,
-          ),
+          // fromDb aceita nomes do enum E o canónico da DB ('carro_passageiros').
+          vehicleType: VehicleTypeDb.fromDb(vtStr),
           licensePlate: meta[_kLicensePlate] as String? ?? '',
           password: '',
         );
@@ -336,6 +466,11 @@ class AuthStore extends ChangeNotifier {
         if (phone.isNotEmpty) _driversByPhone[phone] = account;
         _currentDriver = account;
         notifyListeners();
+        // [TVDE P0 2026-07-02] Fonte de verdade = coluna DB. O metadata pode
+        // estar desatualizado (ex.: admin mudou para 'carro_passageiros') e
+        // sem isto a aba TVDE desaparecia ao reabrir o app (hydrate só lia o
+        // metadata). Fire-and-forget: corrige e notifica quando chegar.
+        unawaited(_refreshDriverVehicleTypeFromDb(session.user.id, email));
         break;
 
       case 'partner':
@@ -356,6 +491,101 @@ class AuthStore extends ChangeNotifier {
 
       default:
         break;
+    }
+  }
+
+  /// [TVDE P0 2026-07-02] Reconcilia o vehicleType do driver em memória com a
+  /// coluna `drivers.vehicle_type` (fonte de verdade, chave = user_id). O
+  /// hydrate por metadata podia devolver 'car'/'motorcycle' num motorista
+  /// 'carro_passageiros' → _RootNavigator não mostrava o modo TVDE.
+  Future<void> _refreshDriverVehicleTypeFromDb(
+      String userId, String email) async {
+    try {
+      final row = await _supabase
+          .from('drivers')
+          .select('vehicle_type')
+          .eq('user_id', userId)
+          .maybeSingle();
+      final vtDb = row?['vehicle_type'] as String?;
+      if (vtDb == null || vtDb.isEmpty) return;
+      final current = _currentDriver;
+      if (current == null || current.email != email) return;
+      final resolved = VehicleTypeDb.fromDb(vtDb);
+      if (resolved == current.vehicleType) return;
+      final account = DriverAccount(
+        name: current.name,
+        email: current.email,
+        phone: current.phone,
+        vehicleType: resolved,
+        licensePlate: current.licensePlate,
+        password: current.password,
+        photoUrl: current.photoUrl,
+      );
+      _driversByEmail[email] = account;
+      if (current.phone.isNotEmpty) _driversByPhone[current.phone] = account;
+      _currentDriver = account;
+      notifyListeners();
+    } catch (_) {
+      // Sem rede/na dúvida mantém o que o metadata deu — não bloqueia o login.
+    }
+  }
+
+  /// L3 — restaura a sessão Supabase a partir do refresh token guardado em
+  /// secure storage (login biométrico). Devolve null em sucesso, 'invalid'
+  /// quando o token foi revogado/expirou ou o papel não bate (o ecrã deve
+  /// apagar o token e cair para a palavra-passe), 'error' em falha de rede.
+  Future<String?> restoreSessionWithRefreshToken(
+    String refreshToken, {
+    required String expectedRole,
+  }) async {
+    try {
+      // Igual aos logins por palavra-passe: limpa sessão guest/obsoleta
+      // antes, para auth.currentUser nunca ficar com UID errado.
+      try {
+        await _supabase.auth.signOut();
+      } catch (_) {}
+
+      final res = await _supabase.auth.setSession(refreshToken);
+      final user = res.user;
+      final session = res.session;
+      if (user == null || session == null) return 'invalid';
+
+      final meta = user.userMetadata ?? {};
+      final role = meta[_kRole] as String?;
+      // Contas legadas/demo de cliente podem não ter role nos metadados —
+      // mesma tolerância do loginClientAsync.
+      //
+      // MULTI-PERFIL (2026-08-29): o `bora_role` é o modo em que a app ficou,
+      // não a lista do que a pessoa é. Quem tem o papel em `user_roles` entra
+      // pela biometria como entra pela palavra-passe.
+      var roleOk =
+          role == expectedRole || (expectedRole == 'client' && role == null);
+      if (!roleOk) {
+        roleOk = await _temPapelNoServidor(expectedRole);
+        if (roleOk) {
+          debugPrint(
+              'AuthStore: restoreSession — "$expectedRole" confirmado em user_roles');
+        }
+      }
+      if (!roleOk) {
+        debugPrint(
+            'AuthStore: restoreSession wrong role "$role" (expected "$expectedRole")');
+        try {
+          await _supabase.auth.signOut();
+        } catch (_) {}
+        return 'invalid';
+      }
+
+      _hydrateAccountFromSession(session);
+      debugPrint(
+          'AuthStore: biometric session restored — uid=${user.id} role=$expectedRole');
+      return null;
+    } on AuthException catch (e) {
+      debugPrint('AuthStore: restoreSession AuthException => ${e.message}');
+      return 'invalid';
+    } catch (e) {
+      debugPrint('AuthStore: restoreSession error => $e');
+      return 'error';
     }
   }
 
@@ -576,16 +806,27 @@ class AuthStore extends ChangeNotifier {
       }
 
       final meta = user.userMetadata ?? {};
-      final metaRole = meta[_kRole] as String?;
-      // Accept accounts with role 'client' OR legacy/demo accounts with no
-      // role metadata. Reject anything explicitly tagged as driver/partner.
-      if (metaRole != null && metaRole != 'client') {
-        debugPrint(
-            '[AuthStore] loginClientAsync → wrong role: "$metaRole" — signing out');
-        try {
-          await _supabase.auth.signOut();
-        } catch (_) {}
-        return false;
+
+      // UMA CONTA, UMA PESSOA, TODOS OS PERFIS (2026-08-29).
+      //
+      // Aqui estava a expulsão. Lia-se `bora_role` — que é UM campo só, o do
+      // último papel usado — e fazia-se signOut a quem não dissesse 'client'.
+      // Resultado, nos `auth_logs` de um cliente real a 28/08: login 200
+      // seguido de logout no MESMO segundo, quatro vezes. A palavra-passe
+      // estava certa; era a app que o deitava fora por ele também ser
+      // estafeta.
+      //
+      // Cliente não tem aprovação nem candidatura: quem tem conta pode ser
+      // cliente. Por isso não se pergunta nada — garante-se o papel e segue.
+      // A verdade de quem é o quê vive em `user_roles`, que acumula; o
+      // `bora_role` é só o modo em que a app está, e trocar de modo não é
+      // motivo para pôr ninguém fora.
+      try {
+        await _supabase.rpc('add_client_role_to_me');
+      } catch (e) {
+        // Não bloqueia: sem rede, o papel entra na próxima vez. Expulsar por
+        // causa disto seria repetir o defeito que se está a corrigir.
+        debugPrint('[AuthStore] loginClientAsync → add_client_role_to_me: $e');
       }
 
       final local = _clientsByEmail[normalizedEmail];
@@ -595,6 +836,7 @@ class AuthStore extends ChangeNotifier {
             email: normalizedEmail,
             phone: meta[_kPhone] as String? ?? '',
             password: password,
+            photoUrl: meta[_kPhotoUrl] as String? ?? '',
           );
       _currentClient = account;
       _currentDriver = null;
@@ -672,7 +914,9 @@ class AuthStore extends ChangeNotifier {
           'name': name.trim(),
           'phone': normalizedPhone,
           'email': normalizedEmail,
-          'vehicle_type': vehicleType.name,
+          // Canónico da DB (carPassengers → 'carro_passageiros'); .name daria
+          // uma 5.ª grafia e o dispatch/aba TVDE não reconheciam (P0 2026-07-02).
+          'vehicle_type': vehicleType.dbValue,
           'license_plate': licensePlate.trim(),
           'is_online': false,
           'lat': kGuardaLat,
@@ -744,14 +988,20 @@ class AuthStore extends ChangeNotifier {
 
       final meta = user.userMetadata ?? {};
       final role = meta[_kRole] as String?;
+
+      // UMA CONTA, TODOS OS PERFIS (2026-08-29). Era `role != 'driver'` →
+      // signOut. Quem se candidatou a estafeta e depois usou a app como
+      // cliente ficava com `bora_role: 'client'` e deixava de conseguir
+      // entrar na SUA PRÓPRIA área de estafeta.
+      //
+      // O que decide é ter perfil de estafeta, não o modo em que a app
+      // ficou da última vez. A linha em `drivers` é lida logo a seguir; se
+      // não existir, aí sim não é estafeta — e devolve-se falso com a sessão
+      // MANTIDA, para o ecrã poder dizer "ainda não és estafeta,
+      // candidata-te" em vez de a pessoa levar com um erro de palavra-passe.
       if (role != 'driver') {
         debugPrint(
-            '[AuthStore] loginDriverAsync → wrong role: "$role" (expected "driver") — signing out');
-        // Sign out immediately so the non-driver session is not left active.
-        try {
-          await _supabase.auth.signOut();
-        } catch (_) {}
-        return false;
+            '[AuthStore] loginDriverAsync → bora_role="$role"; confirmo pelo perfil');
       }
 
       debugPrint(
@@ -761,13 +1011,21 @@ class AuthStore extends ChangeNotifier {
       final phone = meta[_kPhone] as String? ?? '';
       // Fetch driver status from DB to enforce approval gate.
       DriverStatus driverStatus = DriverStatus.approved;
+      // Fonte de verdade do tipo de veículo = coluna DB (canónica, p.ex.
+      // 'carro_passageiros'). Necessária para rotear o motorista TVDE para o
+      // modo passageiros. Fallback para o metadata se a coluna vier vazia.
+      String? vtDb;
       try {
         final row = await _supabase
             .from('drivers')
-            .select('approval_status')
-            .eq('id', user.id)
+            .select('approval_status, vehicle_type')
+            // Chave correta = user_id (= auth.uid()). Por id, no motorista TVDE
+            // (id <> user_id) vinha NULL → vehicle_type não detetado → não roteava
+            // para o modo passageiros.
+            .eq('user_id', user.id)
             .maybeSingle();
         final statusStr = row?['approval_status'] as String? ?? 'approved';
+        vtDb = row?['vehicle_type'] as String?;
         driverStatus = DriverStatus.values.firstWhere(
           (s) => s.name == statusStr,
           orElse: () => DriverStatus.approved,
@@ -778,10 +1036,10 @@ class AuthStore extends ChangeNotifier {
         name: meta[_kName] as String? ?? '',
         email: normalizedEmail,
         phone: phone,
-        vehicleType: VehicleType.values.firstWhere(
-          (v) => v.name == vtStr,
-          orElse: () => VehicleType.car,
-        ),
+        vehicleType: (vtDb != null && vtDb.isNotEmpty)
+            ? VehicleTypeDb.fromDb(vtDb)
+            // fromDb aceita nomes do enum e grafias legadas ('carPassengers').
+            : VehicleTypeDb.fromDb(vtStr),
         licensePlate: meta[_kLicensePlate] as String? ?? '',
         password: password,
       );
@@ -800,20 +1058,46 @@ class AuthStore extends ChangeNotifier {
     }
   }
 
-  Future<void> resetDriverPassword(String email) async {
-    try {
-      await _supabase.auth.resetPasswordForEmail(email.trim().toLowerCase());
-    } catch (e) {
-      debugPrint('AuthStore: resetDriverPassword error => $e');
-    }
-  }
+  /// Página para onde o Supabase reencaminha depois do clique no email de
+  /// recuperação. Fonte única em `lib/config/auth_links.dart` — tem de estar
+  /// na allow-list "Redirect URLs" do Supabase Auth (dashboard).
+  static const String _passwordResetRedirect = passwordResetRedirect;
 
-  /// Generic password-reset email — works for any role (partner + driver).
-  Future<void> resetPassword(String email) async {
+  Future<PasswordResetOutcome> resetDriverPassword(String email) =>
+      resetPassword(email);
+
+  /// Pede o email de recuperação. Serve os três papéis (cliente, estafeta,
+  /// parceiro) — do lado do Supabase é sempre a mesma operação `/recover`.
+  ///
+  /// Devolve o desfecho em vez de o engolir: o ecrã precisa de distinguir
+  /// "pedimos demasiadas vezes seguidas" de "o servidor de email está em
+  /// baixo", senão o utilizador fica à espera de um email que nunca chega
+  /// sem perceber porquê. Nunca revela se a conta existe — isso é decidido
+  /// pelo ecrã, que mostra sempre a mesma frase em [PasswordResetOutcome.ok].
+  Future<PasswordResetOutcome> resetPassword(String email) async {
     try {
-      await _supabase.auth.resetPasswordForEmail(email.trim().toLowerCase());
+      await _supabase.auth.resetPasswordForEmail(
+        email.trim().toLowerCase(),
+        redirectTo: _passwordResetRedirect,
+      );
+      return PasswordResetOutcome.ok;
+    } on AuthException catch (e) {
+      debugPrint('AuthStore: resetPassword AuthException => ${e.statusCode} ${e.message}');
+      // 429 = demasiados pedidos seguidos (limite do Supabase Auth).
+      if (e.statusCode == '429' ||
+          e.message.toLowerCase().contains('rate limit') ||
+          e.message.toLowerCase().contains('security purposes')) {
+        return PasswordResetOutcome.rateLimited;
+      }
+      // 500 + "error sending" = SMTP mal configurado no dashboard. Para o
+      // utilizador é indistinguível de avaria — mas o log diz a verdade.
+      if (e.message.toLowerCase().contains('sending')) {
+        return PasswordResetOutcome.emailNotSent;
+      }
+      return PasswordResetOutcome.failed;
     } catch (e) {
       debugPrint('AuthStore: resetPassword error => $e');
+      return PasswordResetOutcome.failed;
     }
   }
 
@@ -900,7 +1184,7 @@ class AuthStore extends ChangeNotifier {
   /// version (registerPartner) races Supabase and can leave a partner logged-in
   /// locally with no real account in the DB.
   ///
-  /// [photoUrl] is required — pass a non-empty URL or return an error.
+  /// [photoUrl] is optional — pass empty string to register without photo.
   /// Returns null on success, human-readable error message on failure.
   Future<String?> registerPartnerAsync({
     required String restaurantName,
@@ -917,9 +1201,6 @@ class AuthStore extends ChangeNotifier {
         normalizedEmail.isEmpty ||
         password.isEmpty) {
       return 'Preencha todos os campos obrigatórios.';
-    }
-    if (photoUrl.trim().isEmpty) {
-      return 'Adicione uma foto do restaurante.';
     }
     if (_partnersByEmail.containsKey(normalizedEmail)) {
       return 'Já existe um parceiro registado com este email.';
@@ -949,6 +1230,13 @@ class AuthStore extends ChangeNotifier {
         return 'Não foi possível criar a conta. Tente novamente.';
       }
 
+      // Supabase devolve um user "fantasma" com identities vazio quando o
+      // email já tem conta confirmada (proteção anti-enumeração) — não
+      // lança AuthException, por isso é preciso detetar aqui explicitamente.
+      if (user.identities == null || user.identities!.isEmpty) {
+        return duplicatePartnerEmailMessage;
+      }
+
       // Ensure session is active (some Supabase configs require email confirm).
       if (res.session == null) {
         try {
@@ -976,10 +1264,214 @@ class AuthStore extends ChangeNotifier {
       _persistPartner(partner);
       return null;
     } on AuthException catch (e) {
-      // Surface Supabase errors (e.g. "User already registered") as-is.
+      // Caso real (validado ao vivo contra este projecto Supabase): conta já
+      // confirmada => 422 code=user_already_exists, NÃO o "user fantasma"
+      // de identities vazio. Sem este check, o erro chegava em inglês e sem
+      // isDuplicateEmail, e o ecrã não voltava ao passo "Conta de Acesso".
+      if (e.code == 'user_already_exists') {
+        return duplicatePartnerEmailMessage;
+      }
+      // Restantes erros do Supabase (ex.: password fraca) — mostra tal qual.
       return e.message;
     } catch (e) {
       return 'Erro ao criar conta. Tente novamente.';
+    }
+  }
+
+  /// Novo: registra parceiro com documentos (NIF, IBAN, owner_doc_url, activity_doc_url).
+  /// Documentos são OPCIONAIS — validação de formato só se preenchidos.
+  /// Workflow: 1) registerPartnerAsync (cria auth user) → 2) invocar Edge Function
+  /// register-partner (insere restaurants com approval_status='pending').
+  /// Retorna { restaurantId, approvalStatus } ou erro.
+  Future<Map<String, dynamic>?> registerPartnerWithDocumentsAsync({
+    required String restaurantName,
+    required String address,
+    required String phone,
+    required String email,
+    required String password,
+    required String cuisineType,
+    required String category,
+    double? lat,
+    double? lng,
+    String? nif,
+    String? iban,
+    String? ownerDocUrl,
+    String? activityDocUrl,
+    String? photoUrl,
+    String? coverUrl,
+    bool reservationsEnabled = false,
+    bool takeawayEnabled = false,
+    DateTime? consentAcceptedAt,
+  }) async {
+    // Step 1: Cria auth user via registerPartnerAsync
+    final authError = await registerPartnerAsync(
+      restaurantName: restaurantName,
+      address: address,
+      phone: phone,
+      email: email,
+      password: password,
+      photoUrl: '',
+      cuisineType: cuisineType,
+      consentAcceptedAt: consentAcceptedAt,
+    );
+
+    if (authError != null) {
+      debugPrint('[AuthStore] registerPartnerWithDocumentsAsync: registerPartnerAsync failed => $authError');
+      return {
+        'error': authError,
+        'isDuplicateEmail': authError == duplicatePartnerEmailMessage,
+      };
+    }
+
+    return _submitRestaurantEdgeFunction(
+      restaurantName: restaurantName,
+      address: address,
+      phone: phone,
+      email: email,
+      cuisineType: cuisineType,
+      category: category,
+      lat: lat,
+      lng: lng,
+      nif: nif,
+      iban: iban,
+      ownerDocUrl: ownerDocUrl,
+      activityDocUrl: activityDocUrl,
+      photoUrl: photoUrl,
+      coverUrl: coverUrl,
+      reservationsEnabled: reservationsEnabled,
+      takeawayEnabled: takeawayEnabled,
+    );
+  }
+
+  /// Retoma o registo de um parceiro que JÁ está autenticado (login com conta
+  /// existente) mas ainda não tem `restaurants`/`service_providers` — caso da
+  /// conta de acesso criada numa tentativa anterior cuja submissão falhou.
+  /// Ao contrário de [registerPartnerWithDocumentsAsync], NÃO chama
+  /// [registerPartnerAsync] (isso tentaria criar de novo o auth user e falha
+  /// sempre com "email já existe", prendendo o utilizador num loop mesmo já
+  /// autenticado). Usa a sessão Supabase corrente — a Edge Function
+  /// register-partner só precisa do JWT (extrai o user_id de lá).
+  Future<Map<String, dynamic>?> resumePartnerRegistrationAsync({
+    required String restaurantName,
+    required String address,
+    required String phone,
+    required String cuisineType,
+    required String category,
+    double? lat,
+    double? lng,
+    String? nif,
+    String? iban,
+    String? ownerDocUrl,
+    String? activityDocUrl,
+    String? photoUrl,
+    String? coverUrl,
+    bool reservationsEnabled = false,
+    bool takeawayEnabled = false,
+  }) async {
+    final partner = _currentPartner;
+    if (partner == null) {
+      return {
+        'error': 'Sessão expirada. Faz login novamente.',
+        'isDuplicateEmail': false,
+      };
+    }
+    return _submitRestaurantEdgeFunction(
+      restaurantName: restaurantName,
+      address: address,
+      phone: phone,
+      email: partner.email,
+      cuisineType: cuisineType,
+      category: category,
+      lat: lat,
+      lng: lng,
+      nif: nif,
+      iban: iban,
+      ownerDocUrl: ownerDocUrl,
+      activityDocUrl: activityDocUrl,
+      photoUrl: photoUrl,
+      coverUrl: coverUrl,
+      reservationsEnabled: reservationsEnabled,
+      takeawayEnabled: takeawayEnabled,
+    );
+  }
+
+  /// Invoca a Edge Function register-partner c/ service_role (Step 2 do
+  /// workflow de registo). Extraído para ser partilhado por
+  /// [registerPartnerWithDocumentsAsync] (fluxo novo, cria conta primeiro) e
+  /// [resumePartnerRegistrationAsync] (fluxo de retomada, já autenticado).
+  Future<Map<String, dynamic>?> _submitRestaurantEdgeFunction({
+    required String restaurantName,
+    required String address,
+    required String phone,
+    required String email,
+    required String cuisineType,
+    required String category,
+    double? lat,
+    double? lng,
+    String? nif,
+    String? iban,
+    String? ownerDocUrl,
+    String? activityDocUrl,
+    String? photoUrl,
+    String? coverUrl,
+    bool reservationsEnabled = false,
+    bool takeawayEnabled = false,
+  }) async {
+    try {
+      final response = await _supabase.functions.invoke(
+        'register-partner',
+        body: {
+          'restaurantName': restaurantName,
+          'address': address,
+          'phone': phone,
+          'email': email,
+          'cuisineType': cuisineType,
+          'category': category,
+          'lat': lat,
+          'lng': lng,
+          'nif': nif,
+          'iban': iban,
+          'ownerDocUrl': ownerDocUrl,
+          'activityDocUrl': activityDocUrl,
+          'photoUrl': photoUrl,
+          'coverUrl': coverUrl,
+          'reservationsEnabled': reservationsEnabled,
+          'takeawayEnabled': takeawayEnabled,
+        },
+      );
+
+      if (response.status != 201) {
+        debugPrint('[AuthStore] register-partner EF returned ${response.status}: ${response.data}');
+        // A conta de acesso (email+senha) JÁ foi criada no passo anterior —
+        // não é um problema de email/password. O backend já devolve uma
+        // mensagem específica em `error` (ex.: "NIF formato inválido") —
+        // mostra-a em vez do texto genérico, para o utilizador saber o que
+        // corrigir sem contactar o suporte.
+        final responseData = response.data;
+        final backendError =
+            responseData is Map ? responseData['error']?.toString() : null;
+        return {
+          'error': (backendError != null && backendError.trim().isNotEmpty)
+              ? backendError
+              : 'A tua conta de acesso foi criada, mas houve um erro ao registar o estabelecimento. Contacta o suporte — não precisas de repetir o email/senha.',
+          'isDuplicateEmail': false,
+        };
+      }
+
+      final data = Map<String, dynamic>.from(response.data as Map);
+      return {
+        'restaurant_id': data['restaurant_id'],
+        'provider_id': data['provider_id'],
+        'approval_status': data['status'],
+        'message': data['message'],
+      };
+    } catch (e) {
+      debugPrint('[AuthStore] _submitRestaurantEdgeFunction failed => $e');
+      return {
+        'error':
+            'A tua conta de acesso foi criada, mas houve um erro de ligação ao registar o estabelecimento. Contacta o suporte — não precisas de repetir o email/senha.',
+        'isDuplicateEmail': false,
+      };
     }
   }
 
@@ -1007,7 +1499,12 @@ class AuthStore extends ChangeNotifier {
       _currentClient = null;
       _currentDriver = null;
       notifyListeners();
-      _signInBackground(
+      // BUG 3 (2026-07-17): esperar a sessão real do Supabase Auth aqui —
+      // sem isto, o dashboard do parceiro abre com auth.uid() ainda nulo e
+      // os toggles (reservationsEnabled/takeawayEnabled/curbsideEnabled)
+      // falham em silêncio contra a RLS "auth.uid() IS NOT NULL" da tabela
+      // restaurants, revertendo ao reabrir a app.
+      await _signInBackground(
           email: normalizedEmail,
           password: password,
           tag: 'loginPartnerAsync-local');
@@ -1021,7 +1518,19 @@ class AuthStore extends ChangeNotifier {
       if (user == null) return false;
 
       final meta = user.userMetadata ?? {};
-      if ((meta[_kRole] as String?) != 'partner') return false;
+
+      // UMA CONTA, TODOS OS PERFIS (2026-08-29). Era `!= 'partner'` → falso,
+      // e o lojista que tivesse feito um pedido como cliente deixava de poder
+      // entrar na sua própria loja. Confirma-se pelo papel em `user_roles`,
+      // que acumula, e não pelo modo em que a app ficou.
+      if ((meta[_kRole] as String?) != 'partner') {
+        final tem = await _temPapelNoServidor('partner');
+        if (!tem) {
+          debugPrint('[AuthStore] loginPartnerAsync → sem papel de parceiro');
+          return false;
+        }
+        debugPrint('[AuthStore] loginPartnerAsync → papel confirmado em user_roles');
+      }
 
       final account = PartnerAccount(
         restaurantName: meta[_kRestaurantName] as String? ?? '',
@@ -1056,13 +1565,165 @@ class AuthStore extends ChangeNotifier {
   DriverAccount? driverAccountByEmail(String email) =>
       _driversByEmail[email.trim().toLowerCase()];
 
+  /// Os papéis desta pessoa, lidos do servidor (`my_roles`).
+  ///
+  /// `user_roles` é a única fonte que aguenta acumulação — uma linha por
+  /// papel. O `user_metadata.bora_role` guarda só o modo em que a app está e
+  /// **nunca** deve ser usado para decidir se alguém pode entrar.
+  Future<bool> _temPapelNoServidor(String papel) async {
+    try {
+      final res = await _supabase.rpc('my_roles');
+      final lista = (res as List?) ?? const [];
+      return lista.any((e) => (e as Map)['role'] == papel);
+    } catch (e) {
+      debugPrint('AuthStore: my_roles falhou => $e');
+      // Na dúvida NÃO se expulsa. Um erro de rede não pode fechar a porta a
+      // quem tem o papel — foi assim que se perdeu um cliente real.
+      return false;
+    }
+  }
+
+  // ─── Troca de papel (multi-papel) ──────────────────────────────────────────
+
+  /// MULTI-PAPEL (2026-08-05) — activa [role] na sessão Supabase Auth já
+  /// aberta, SEM signOut/signIn novo: `user_roles` permite que a mesma conta
+  /// tenha várias linhas (ex.: cliente + parceiro), e o JWT actual já serve
+  /// para todas. Só troca qual conta local (`_currentClient` /
+  /// `_currentDriver` / `_currentPartner`) fica activa — `PartnerEntryScreen`
+  /// e `_RootNavigator` resolvem o resto sozinhos a partir daí.
+  /// Devolve false se não houver sessão activa (não devia acontecer, quem
+  /// chama já veio de um login bem-sucedido) ou, para `driver`, se este
+  /// dispositivo nunca carregou os dados desse papel (precisa de matrícula/
+  /// veículo, que não vêm do `user_metadata` genérico).
+  Future<bool> switchToRole(AuthRole role) async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return false;
+    final email = (user.email ?? '').trim().toLowerCase();
+    final meta = user.userMetadata ?? {};
+
+    switch (role) {
+      case AuthRole.client:
+        final account = _clientsByEmail[email] ??
+            ClientAccount(
+              name: meta[_kName] as String? ?? '',
+              email: email,
+              phone: meta[_kPhone] as String? ?? '',
+              password: '',
+              photoUrl: meta[_kPhotoUrl] as String? ?? '',
+            );
+        _currentClient = account;
+        _currentDriver = null;
+        _currentPartner = null;
+        _clientsByEmail[email] = account;
+        notifyListeners();
+        _persistClient(account);
+        return true;
+
+      case AuthRole.partner:
+        // SO ENTRA QUEM E (2026-08-29). Isto montava a conta de parceiro a
+        // partir do metadata e devolvia `true` a QUALQUER pessoa — e desde que
+        // o ecra de escolha deixou de fazer logout, um cliente que carregasse
+        // em "Sou Parceiro" caia no assistente de criar loja, que para ele e
+        // um beco. A porta so abre a quem tem o papel.
+        if (_partnersByEmail[email] == null &&
+            !await _temPapelNoServidor('partner')) {
+          debugPrint('AuthStore: switchToRole(partner) — sem papel de parceiro');
+          return false;
+        }
+        final account = _partnersByEmail[email] ??
+            PartnerAccount(
+              restaurantName: meta[_kRestaurantName] as String? ?? '',
+              address: meta[_kAddress] as String? ?? '',
+              phone: meta[_kPhone] as String? ?? '',
+              email: email,
+              password: '',
+              photoUrl: meta[_kPhotoUrl] as String? ?? '',
+              cuisineType: meta[_kCuisineType] as String? ?? '',
+            );
+        _currentPartner = account;
+        _currentClient = null;
+        _currentDriver = null;
+        _partnersByEmail[email] = account;
+        notifyListeners();
+        _persistPartner(account);
+        return true;
+
+      case AuthRole.driver:
+        // Se este aparelho nunca carregou os dados de estafeta (matrícula,
+        // veículo) vai buscá-los à base em vez de recusar a troca. Recusar
+        // obrigava a pessoa a sair e a escrever a palavra-passe outra vez —
+        // que é exactamente o que esta troca existe para evitar.
+        final account =
+            _driversByEmail[email] ?? await _carregarEstafetaDaBase(email);
+        if (account == null) return false;
+        _driversByEmail[email] = account;
+        _currentDriver = account;
+        _currentClient = null;
+        _currentPartner = null;
+        notifyListeners();
+        _persistDriver(account);
+        return true;
+    }
+  }
+
+  /// Monta a conta de estafeta a partir da base, para a troca de perfil
+  /// funcionar num aparelho onde só se entrou como cliente.
+  Future<DriverAccount?> _carregarEstafetaDaBase(String email) async {
+    final uid = _supabase.auth.currentUser?.id;
+    if (uid == null) return null;
+    try {
+      final row = await _supabase
+          .from('drivers')
+          .select('name, phone, vehicle_type, license_plate, approval_status')
+          .eq('user_id', uid)
+          .maybeSingle();
+      if (row == null) return null;
+      final vt = VehicleType.values.firstWhere(
+        (v) => v.dbValue == (row['vehicle_type'] as String? ?? ''),
+        orElse: () => VehicleType.motorcycle,
+      );
+      return DriverAccount(
+        name: (row['name'] as String?) ?? '',
+        phone: (row['phone'] as String?) ?? '',
+        email: email,
+        password: '',
+        vehicleType: vt,
+        licensePlate: (row['license_plate'] as String?) ?? '',
+      );
+    } catch (e) {
+      debugPrint('AuthStore: _carregarEstafetaDaBase => $e');
+      return null;
+    }
+  }
+
   // ─── Logout ───────────────────────────────────────────────────────────────
 
-  void logout() {
+  /// Larga a conta ACTIVA em memória mas **mantém a sessão Supabase**.
+  ///
+  /// É o que "Mudar modo" precisa: a pessoa não está a sair da app, está a
+  /// escolher outro perfil da mesma conta. Fazer `logout()` aqui — como se
+  /// fazia até 2026-08-29 nos três ecrãs — deitava o JWT fora e obrigava a
+  /// escrever a palavra-passe outra vez a seguir.
+  void clearActiveAccountsKeepingSession() {
+    _currentClient = null;
+    _currentDriver = null;
+    _currentPartner = null;
+    _partnerRestaurant = null;
+    notifyListeners();
+  }
+
+  /// [wipeBiometrics]: true (default) em logout explícito ("Sair"/"Terminar
+  /// sessão") — apaga também os tokens biométricos (L3, regra de segurança).
+  /// Trocas de papel/modo (RoleScreen, "Mudar modo", gates de aprovação)
+  /// passam false para o login biométrico continuar disponível.
+  void logout({bool wipeBiometrics = true}) {
     // Clear FCM binding BEFORE wiping state so the previous user stops
     // receiving pushes on this device. Fire-and-forget — logout must not
     // block on network failure.
     NotificationService.instance.clearTokenForCurrentUser().ignore();
+    if (wipeBiometrics) {
+      BiometricAuthService.instance.disableAll().ignore();
+    }
     _currentClient = null;
     _currentDriver = null;
     _currentPartner = null;
@@ -1097,19 +1758,27 @@ class AuthStore extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
 
       // ── Restore local account objects ─────────────────────────────────
+      // SEC (2026-06-12) — a password vem do secure storage (Keystore);
+      // o campo 'password' no JSON é LEGADO (instalações antigas) e, quando
+      // presente, é migrado: re-persistimos a conta, o que grava a password
+      // no secure storage e regrava o JSON sem ela.
       final clientJson = prefs.getString(_kClientAccount);
       if (clientJson != null) {
         try {
           final map = jsonDecode(clientJson) as Map<String, dynamic>;
           final email = map['email'] as String? ?? '';
+          final legacyPassword = map['password'] as String? ?? '';
+          var password = await SecureCredentialsStore.read('client');
+          if (password.isEmpty) password = legacyPassword;
           final account = ClientAccount(
             name: map['name'] as String? ?? '',
             email: email,
             phone: map['phone'] as String? ?? '',
-            password: map['password'] as String? ?? '',
+            password: password,
             photoUrl: map['photoUrl'] as String? ?? '',
           );
           if (email.isNotEmpty) _clientsByEmail[email] = account;
+          if (legacyPassword.isNotEmpty) _persistClient(account);
         } catch (_) {}
       }
 
@@ -1118,36 +1787,43 @@ class AuthStore extends ChangeNotifier {
         final map = jsonDecode(driverJson) as Map<String, dynamic>;
         final phone = map['phone'] as String? ?? '';
         final email = map['email'] as String? ?? '';
+        final legacyPassword = map['password'] as String? ?? '';
+        var password = await SecureCredentialsStore.read('driver');
+        if (password.isEmpty) password = legacyPassword;
         final account = DriverAccount(
           name: map['name'] as String? ?? '',
           email: email,
           phone: phone,
-          vehicleType: VehicleType.values.firstWhere(
-            (v) => v.name == (map['vehicleType'] as String? ?? 'car'),
-            orElse: () => VehicleType.car,
-          ),
+          // fromDb aceita nomes do enum e grafias legadas ('carPassengers').
+          vehicleType:
+              VehicleTypeDb.fromDb(map['vehicleType'] as String? ?? 'car'),
           licensePlate: map['licensePlate'] as String? ?? '',
-          password: map['password'] as String? ?? '',
+          password: password,
           photoUrl: map['photoUrl'] as String? ?? '',
         );
         if (email.isNotEmpty) _driversByEmail[email] = account;
         if (phone.isNotEmpty) _driversByPhone[phone] = account;
+        if (legacyPassword.isNotEmpty) _persistDriver(account);
       }
 
       final partnerJson = prefs.getString(_kPartnerAccount);
       if (partnerJson != null) {
         final map = jsonDecode(partnerJson) as Map<String, dynamic>;
         final email = map['email'] as String;
+        final legacyPassword = map['password'] as String? ?? '';
+        var password = await SecureCredentialsStore.read('partner');
+        if (password.isEmpty) password = legacyPassword;
         final account = PartnerAccount(
           restaurantName: map['restaurantName'] as String,
           address: map['address'] as String,
           phone: map['phone'] as String,
           email: email,
-          password: map['password'] as String,
-          photoUrl: map['photoUrl'] as String,
-          cuisineType: map['cuisineType'] as String,
+          password: password,
+          photoUrl: map['photoUrl'] as String? ?? '',
+          cuisineType: map['cuisineType'] as String? ?? '',
         );
         _partnersByEmail[email] = account;
+        if (legacyPassword.isNotEmpty) _persistPartner(account);
       }
 
       // ── Restore active session ────────────────────────────────────────
@@ -1157,9 +1833,10 @@ class AuthStore extends ChangeNotifier {
       if (roleStr == 'driver' && driverJson != null) {
         final map = jsonDecode(driverJson) as Map<String, dynamic>;
         final email = map['email'] as String? ?? '';
-        final password = map['password'] as String? ?? '';
         final phone = map['phone'] as String? ?? '';
         _currentDriver = _driversByEmail[email] ?? _driversByPhone[phone];
+        // SEC — a conta já traz a password do secure storage (ou legada).
+        final password = _currentDriver?.password ?? '';
 
         if (_currentDriver != null && email.isNotEmpty && password.isNotEmpty) {
           // ── FIX CRITICAL: Re-authenticate with Supabase so that
@@ -1204,8 +1881,9 @@ class AuthStore extends ChangeNotifier {
         try {
           final map = jsonDecode(clientJson) as Map<String, dynamic>;
           final email = map['email'] as String? ?? '';
-          final password = map['password'] as String? ?? '';
           _currentClient = _clientsByEmail[email];
+          // SEC — a conta já traz a password do secure storage (ou legada).
+          final password = _currentClient?.password ?? '';
 
           if (_currentClient != null &&
               email.isNotEmpty &&
@@ -1227,8 +1905,9 @@ class AuthStore extends ChangeNotifier {
       } else if (roleStr == 'partner' && partnerJson != null) {
         final map = jsonDecode(partnerJson) as Map<String, dynamic>;
         final email = map['email'] as String;
-        final password = map['password'] as String? ?? '';
         _currentPartner = _partnersByEmail[email];
+        // SEC — a conta já traz a password do secure storage (ou legada).
+        final password = _currentPartner?.password ?? '';
 
         if (_currentPartner != null &&
             email.isNotEmpty &&
@@ -1273,6 +1952,8 @@ class AuthStore extends ChangeNotifier {
   }
 
   void _persistClient(ClientAccount account) {
+    // SEC — password no Keystore (write ignora vazias); JSON sem segredos.
+    SecureCredentialsStore.write('client', account.password).ignore();
     SharedPreferences.getInstance().then((prefs) {
       prefs.setString(
         _kClientAccount,
@@ -1280,14 +1961,23 @@ class AuthStore extends ChangeNotifier {
           'email': account.email,
           'phone': account.phone,
           'name': account.name,
-          'password': account.password,
           'photoUrl': account.photoUrl,
         }),
       );
     });
   }
 
+  void persistDriverFromSignup(DriverAccount account) {
+    _currentDriver = account;
+    _driversByEmail[account.email] = account;
+    if (account.phone.isNotEmpty) _driversByPhone[account.phone] = account;
+    _persistDriver(account);
+    notifyListeners();
+  }
+
   void _persistDriver(DriverAccount account) {
+    // SEC — password no Keystore (write ignora vazias); JSON sem segredos.
+    SecureCredentialsStore.write('driver', account.password).ignore();
     SharedPreferences.getInstance().then((prefs) {
       prefs.setString(
         _kDriverAccount,
@@ -1297,7 +1987,6 @@ class AuthStore extends ChangeNotifier {
           'name': account.name,
           'vehicleType': account.vehicleType.name,
           'licensePlate': account.licensePlate,
-          'password': account.password,
           'photoUrl': account.photoUrl,
         }),
       );
@@ -1305,6 +1994,8 @@ class AuthStore extends ChangeNotifier {
   }
 
   void _persistPartner(PartnerAccount account) {
+    // SEC — password no Keystore (write ignora vazias); JSON sem segredos.
+    SecureCredentialsStore.write('partner', account.password).ignore();
     SharedPreferences.getInstance().then((prefs) {
       prefs.setString(
         _kPartnerAccount,
@@ -1315,13 +2006,14 @@ class AuthStore extends ChangeNotifier {
           'phone': account.phone,
           'photoUrl': account.photoUrl,
           'cuisineType': account.cuisineType,
-          'password': account.password,
         }),
       );
     });
   }
 
   void _clearPersistedAccounts() {
+    // SEC — limpa também as passwords no secure storage.
+    SecureCredentialsStore.clearAll().ignore();
     SharedPreferences.getInstance().then((prefs) {
       prefs.remove(_kClientAccount);
       prefs.remove(_kDriverAccount);

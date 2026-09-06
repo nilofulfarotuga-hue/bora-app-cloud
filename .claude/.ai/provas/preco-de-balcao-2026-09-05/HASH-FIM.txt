@@ -1,0 +1,11 @@
+MISSAO preco-de-balcao · 2026-09-05 · FECHO
+
+hash_inicio : a25d2f4371a9d88280f77ce6b56aaa54
+hash_fim    : a25d2f4371a9d88280f77ce6b56aaa54   <-- IGUAL
+produtos    : 519  (igual)
+soma_precos : 3019.87  (igual)
+precos_alterados_vs_snapshot : 0
+
+REGRA NUMERO UM CUMPRIDA: nenhum products.price mudou nesta missao.
+Toda a recolha ficou em product_price_sources (616 linhas).
+flutter analyze: 0 erros, 0 avisos.

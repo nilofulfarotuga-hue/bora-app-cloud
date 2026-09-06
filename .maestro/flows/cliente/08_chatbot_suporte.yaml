@@ -1,0 +1,25 @@
+appId: pt.boraapp.bora
+name: Cliente — Suporte (FAB WhatsApp/Email)
+tags:
+  - cliente
+  - suporte
+---
+# NOTA (2026-07-07): "AI chatbot suporte (usa ChatStore)" está listado como
+# PÓS-LANÇAMENTO em PROJECT_CONTEXT.md — ainda não existe. O BoraSupportFab
+# atual abre um bottom sheet de contacto (WhatsApp/Email), não um chat IA.
+- launchApp:
+    clearState: true
+- runFlow: ../../_shared/login_cliente.yaml
+
+# FAB de suporte (BoraSupportFab): ícone puro (sem texto), só o tooltip
+# "Suporte Bora" fica exposto na árvore de acessibilidade.
+- tapOn:
+    text: "Suporte Bora"
+- extendedWaitUntil:
+    visible:
+      text: ".*(Como podemos ajudar|WhatsApp|Email).*"
+    timeout: 15000
+- assertVisible:
+    text: ".*WhatsApp.*"
+- assertVisible:
+    text: ".*Email.*"

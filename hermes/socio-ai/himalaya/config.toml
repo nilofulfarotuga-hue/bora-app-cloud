@@ -1,0 +1,53 @@
+# himalaya config — Sócio-AI email autónomo (Hermes VPS)
+# Local no container: /opt/data/.config/himalaya/config.toml  (HOME do hermes = /opt/data)
+#
+# AUTENTICAÇÃO: NÃO usamos secret-tool (não existe no container — verificado 2026-07-07).
+# Usamos ficheiros de segredo com permissão 600 em /opt/data/.secrets/ (opção sancionada
+# pelo prompt: "keyring do container OU .env com permissão 600"). O himalaya lê a password
+# via `auth.cmd` que faz `cat` do ficheiro 600.
+#
+# App passwords (16 chars) são injetados por: hermes/socio-ai/inject-app-password.sh
+# — só existem DEPOIS de o Danilo os gerar (precisa do 2FA dele). Até lá os ficheiros
+# estão vazios e o himalaya vai falhar autenticação (esperado).
+#
+# NOTA DE VERSÃO (himalaya v1.2.0): se `auth.cmd` não for reconhecido nesta build, a
+# chave alternativa é `auth.command`. Verificar na ativação com:
+#   himalaya envelope list -a boraapp
+# e trocar cmd<->command se der erro de config.
+
+[accounts.boraapp]
+default = true
+email = "boraappbora@gmail.com"
+display-name = "Bora App"
+backend.type = "imap"
+backend.host = "imap.gmail.com"
+backend.port = 993
+backend.encryption.type = "tls"
+backend.login = "boraappbora@gmail.com"
+backend.auth.type = "password"
+backend.auth.cmd = "cat /opt/data/.secrets/gmail_boraapp.pass"
+message.send.backend.type = "smtp"
+message.send.backend.host = "smtp.gmail.com"
+message.send.backend.port = 465
+message.send.backend.encryption.type = "tls"
+message.send.backend.login = "boraappbora@gmail.com"
+message.send.backend.auth.type = "password"
+message.send.backend.auth.cmd = "cat /opt/data/.secrets/gmail_boraapp.pass"
+
+[accounts.cloudflare]
+email = "nilofulfarotuga@gmail.com"
+display-name = "Nilo (Bora)"
+backend.type = "imap"
+backend.host = "imap.gmail.com"
+backend.port = 993
+backend.encryption.type = "tls"
+backend.login = "nilofulfarotuga@gmail.com"
+backend.auth.type = "password"
+backend.auth.cmd = "cat /opt/data/.secrets/gmail_cloudflare.pass"
+message.send.backend.type = "smtp"
+message.send.backend.host = "smtp.gmail.com"
+message.send.backend.port = 465
+message.send.backend.encryption.type = "tls"
+message.send.backend.login = "nilofulfarotuga@gmail.com"
+message.send.backend.auth.type = "password"
+message.send.backend.auth.cmd = "cat /opt/data/.secrets/gmail_cloudflare.pass"

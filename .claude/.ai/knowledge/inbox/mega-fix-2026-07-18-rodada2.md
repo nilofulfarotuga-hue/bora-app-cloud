@@ -1,0 +1,313 @@
+# MEGA-FIX 2026-07-18 — RODADA 2 (relatório)
+
+Branch: `autonomous-night-2026-04-29` · Modo PROTECÇÃO TOTAL · CEO-AI carregado (mesma sessão).
+Perímetro protegido respeitado: pricing_service, dispatch_engine, finalizePurchase, bora_tokens
+(tabela/ledger), webhook Stripe, RLS financeira.
+
+Continuação de `mega-fix-2026-07-18.md`. Partes em ordem, 1 commit por parte `fix(rodada2-N): …`.
+
+---
+
+## PARTE 1 — Ligar o IncomingJobAlert DE VERDADE (o furo da rodada 1)
+
+**Estado: FEITA (wiring code-complete + analyze limpo; confirmação audível/visual precisa de device).**
+
+O `IncomingJobAlert` (rodada 1) tinha ZERO chamadas. Ligado nos 3 sítios, reutilizando os hooks
+realtime já existentes (aditivo, sem novas subscrições onde já havia):
+
+1. **Parceiro** (`partner_dashboard_screen.dart`) — `_handleNewOrders` já detetava pedidos
+   `created` novos e tocava som; agora dispara também `IncomingJobAlert.show(type:'new_order')` por
+   cada pedido novo (heads-up full-screen do sistema, canal urgente) e **dispensa** o alerta quando
+   o pedido sai de `created` (aceite/expirado). O `type:'new_order'` já é roteado pelo tap handler.
+2. **Limpeza** (`cleaner_store.dart`) — o `_subscribe` já ouvia `offer_cleaner_id = eu`; adicionei
+   `_maybeAlertNewCleaningOffer` no callback (dedup por booking id; não alerta se já aceite) →
+   `IncomingJobAlert.show(type:'cleaning_offer')`; `dismiss` em accept/reject. (App fechado é
+   coberto pela Edge Fn `notify-cleaner` da rodada 1; isto cobre o app aberto.)
+3. **TVDE A2** (`tvde_driver_home_screen.dart`) — a oferta de **corrida** TVDE em foreground JÁ
+   abria `TvdeOfferScreen` com som (`bora_alert` em loop) — confirmado, sem gap. O que era
+   silencioso (ordem 9016) era a oferta de **entrega/favor** a chegar enquanto no mapa TVDE
+   (overlay visual, sem som): adicionei `_maybeAlertDeliveryOffers` (dedup + dismiss) que dispara
+   `IncomingJobAlert` com tipo próprio `tvde_incoming_delivery` (não colide com o gate do estafeta).
+
+Gotcha: `OrderModel` não estava importado no `tvde_driver_home_screen.dart` — o erro apareceu como
+"receiver pode ser null" no `.map`, resolvido ao adicionar o import. `flutter analyze` dos 3 →
+**0 erros, 0 issues novos** (os 15 restantes são deprecated/const pré-existentes em build methods).
+
+**Limitação honesta:** o disparo real do heads-up/som só é observável num device Android com a app
+a correr e ligada ao realtime; inserir linhas via SQL sozinho não prova (não há app a ouvir). O
+caminho de código está completo e verificado por analyze + lógica.
+
+### Ficheiros tocados
+- `lib/stores/cleaner_store.dart`, `lib/screens/partner_dashboard_screen.dart`,
+  `lib/screens/driver/tvde/tvde_driver_home_screen.dart`
+
+**Commit:** `742d3fe` · **Push:** OK (`a17480f..742d3fe`).
+
+---
+
+## PARTE 2 — TVDE: destravar os 2 ficheiros retidos (revisão crítica de dinheiro feita)
+
+**Estado: FEITA. Backend confirmado LIVE + revisão crítica passou → os 2 ficheiros commitados.**
+
+Verificação de backend (SQL, agora): `tvde_rides.tokens_applied_count` +
+`tokens_applied_value_cents` existem; `tvde_finish_ride` processa tokens; `tvde_request_ride` e
+`tvde_finish_ride` aceitam `tokens_to_apply`. → O Dart é só o fecho de algo JÁ aplicado.
+
+**Revisão crítica do `tokensUsed` (condição 1 — dinheiro):**
+- `tvde_store.dart`: envia `p_tokens_to_apply: tokensUsed` (param, default 0). **Nenhum cálculo.**
+- `tvde_request_ride_screen.dart`: `_calculateTokensToUse()` calcula a **contagem** de tokens (o
+  parâmetro, limitada a `_tokenMaxPct%` da tarifa para UX — o servidor RE-VALIDA); `tokenDiscount
+  = tokensToUse * 0.005` é **só display** (subtítulo "-€X", linha 969). **NADA calcula o valor
+  cobrado nem o ganho** — isso é server-side (`tvde_request_ride`/`tvde_finish_ride`). Ou seja: só
+  ENVIA o parâmetro e MOSTRA o desconto (exatamente o permitido). Não houve linha para parar.
+- **Condição 2 (default idêntico):** `_useTokens` arranca false → `tokensUsed=0` → `p_tokens_to_apply:0`
+  → corrida sem tokens IDÊNTICA à de antes.
+- **Condição 3 (incluídos no mesmo commit):** `activeRoundtripCredit()` valida `res['id'] != null`
+  (defesa dupla) + card "Planos Bora Motorista" com padding inferior safe-area (não cortado).
+
+`flutter analyze` dos 2 → **0 erros** (3 info pré-existentes). Autorização: Danilo mandou "tudo" +
+verificação de que não há cálculo de preço/ganho no Dart.
+
+### Ficheiros tocados
+- `lib/stores/tvde_store.dart`, `lib/screens/client/tvde/tvde_request_ride_screen.dart`
+
+**Commit:** `89d3d72` · **Push:** OK (`742d3fe..89d3d72`).
+
+---
+
+## PARTE 3 — Favores: o wiring que faltava (fundação da rodada 1 → ligada)
+
+**Estado: FEITA a persistência (o bug de dados provado); a display do estafeta na execution
+sheet ficou BLOQUEADA por permissões; coreografia multi-perna documentada.**
+
+### Item 1 — persistência (RESOLVE o bug b7867337: morada da casa deitada fora)
+Encontrei o ponto de integração ideal: a `payment_method_screen` já obtém o `orderId`
+(`waitForOrderFromDraft` / `lastCreatedOrderId`) e já chama uma RPC pós-pedido para o favor
+(`client_set_errand_request_photo`). Liguei ali:
+- `cart_store.dart` `ErrandSession` + `configureErrandSession` → campos novos `homeStopAddress`,
+  `homeStopCashCents`, `returnLeg`.
+- `errand_form_screen._goToCheckout` → passa `_homeCtrl.text` (morada, antes descartada),
+  `homeStopCashCents` (= orçamento levado em cash quando motivo=dinheiro), `returnLeg` (true para
+  pagar-conta). **Validação:** motivo dinheiro → cash > €0 obrigatório.
+- `payment_method_screen` → helper `_persistErrandHomeStop(cart, orderId)` chama a RPC
+  **`errand_set_home_stop`** (não-financeira, da rodada 1) nos **3 caminhos** (cartão, MBWay,
+  dinheiro), ANTES do `clearCart`. **NÃO toca no create_order que cobra** (Lista Vermelha intacta).
+- `flutter analyze` dos 3 → **0 erros**.
+
+### Item 2 — coreografia do estafeta
+A `errand_execution_sheet.dart` JÁ tem máquina de fases (`_phase`: recolha em casa → compra →
+…) com motivo + cash. Com os dados agora populados, a fase de recolha já funciona e o mapa pode
+rotear às coords da casa. **Tentei acrescentar a MORADA + banner "PEGAR €X EM DINHEIRO" na fase de
+recolha, mas o ficheiro está BLOQUEADO por permissões nesta sessão** ("directory denied by
+permission settings") — respeitei a recusa, não insisti. Fica como próximo passo (edição simples,
+os dados já lá estão no OrderModel: `errandHomeStopAddress`, `errandHomeStopCashCents`,
+`errandReturnLeg`, `errandLeg`).
+
+A 3ª perna (volta à casa) usa `errand_return_leg`/`errand_leg` (já no schema+modelo) — a sua
+adição à sheet fica no mesmo bloqueio de permissão.
+
+### Ficheiros tocados
+- `lib/stores/cart_store.dart`, `lib/screens/errand_form_screen.dart`,
+  `lib/screens/payment_method_screen.dart`
+- (bloqueado por permissões: `lib/widgets/errand_execution_sheet.dart`)
+
+**Commit:** `ac23a20` · **Push:** OK (`89d3d72..ac23a20`).
+
+---
+
+## PARTE 4 — Wizard de cadastro ramificado por tipo
+
+**Estado: FEITA.**
+
+Causa (fotos do Danilo): o dropdown "Categoria" estava no FIM do passo 1, e `_selectedCategory`
+arranca em `restaurant` → uma farmácia via "Tipo de cozinha" até rolar até ao fim e trocar.
+
+Fix mínimo e limpo em `register_partner_screen.dart`: movido o `DropdownButtonFormField`
+("Tipo de negócio") para o **1º campo** do passo 1 (antes do nome). Os campos condicionais já
+existiam de rodadas anteriores e reagem à escolha:
+- "Tipo de cozinha" → só `BusinessCategory.restaurant`.
+- Switches "Aceito reservas de mesa"/"Aceito ir buscar" → só restaurante (rodada 1 Parte 5).
+- Beleza → a Edge Fn `register-partner` já roteia para `service_providers` (rodada 1 Parte 4).
+- Supermercado/Loja/Farmácia → sem campos de comida.
+
+`flutter analyze` → **0 erros** (6 info pré-existentes).
+
+### Ficheiros tocados
+- `lib/screens/register_partner_screen.dart`
+
+**Commit:** `9e01d17` · **Push:** OK (`ac23a20..9e01d17`).
+
+---
+
+## PARTE 5 — Retalho mínimo viável (super/loja/farmácia)
+
+**Estado: núcleo FEITO (alergénios condicionais + receita); toggle esgotado JÁ existia;
+importador CSV admin + badge cliente DOCUMENTADOS como follow-up.**
+
+1. **Alergénios só restaurante + receita farmácia** — migration `20260718007000`:
+   `products.requires_prescription boolean default false` (aplicada). `add_product_screen.dart`:
+   a secção de alergénios (comida) agora só aparece se `widget.restaurant.category ==
+   BusinessCategory.restaurant` (farmácia/loja deixam de ver comida — bug provado nas fotos); e
+   para `pharmacy` há um switch "Requer receita médica". Threading completo do write:
+   `add_product → PartnerProductStore.addProduct → RestaurantStore.addPartnerProduct → insert`
+   (`requires_prescription`). `flutter analyze` → **0 erros**.
+2. **Toggle "Esgotado"** — **JÁ existia**: `partner_products_screen._toggleAvailability` +
+   `store.toggleAvailability` + `Switch` (→ `products.is_available`). Coluna confirmada existente.
+   Nada a criar.
+3. **Importação CSV no admin** — **DEFERIDO**: é um ecrã novo de admin (colar CSV
+   nome;descrição;preço;categoria → insert em `products` + pré-visualização + relatório de linhas
+   rejeitadas). É trabalho de um ecrã completo; adiado para caber sem cortar as Partes 6–10.
+   Fundação pronta (o insert de `products` já aceita os campos).
+
+**Follow-up documentado:** badge de receita + esmaecer indisponível no cartão do CLIENTE precisam
+do campo `requires_prescription` no modelo `PartnerProduct` (leitura) + no cartão do cliente. O
+write já persiste; a leitura/badge é o passo seguinte.
+
+### Ficheiros tocados
+- `supabase/migrations/20260718007000_products_requires_prescription.sql` (novo, aplicado)
+- `lib/screens/add_product_screen.dart`, `lib/stores/partner_product_store.dart`,
+  `lib/stores/restaurant_store.dart`
+
+**Commit:** `07345ef` · **Push:** OK (`9e01d17..07345ef`).
+
+---
+
+## PARTE 6 — Beleza: rotear parceiro aprovado ao dashboard de serviços
+
+**Estado: VERIFICADO — o routing JÁ está correto (sem bug). Conta "teste" APROVADA para o teste
+ponta-a-ponta.**
+
+Segui o caminho completo no código e confirmei que já está ligado:
+- `partner_login_screen._finishPartnerLogin`: se não há `restaurants` para o email → faz
+  `appointmentsStore.loadMyProvider()` (pré-aquece) e segue com `setRole(partner)` (linhas 354-368,
+  com comentário a explicar exatamente o caso Serviços/Barbearias).
+- `PartnerEntryScreen`: sem `partnerRestaurant` e sem restaurante por email →
+  `_PartnerNoRestaurantRouter` → `loadMyProvider()` (por `service_providers.user_id = auth.uid()`,
+  sem filtro de aprovação) → **`PartnerServicesHubScreen`** (o dashboard de serviços/marcações).
+- Prova viva: **Barbearia Nobre** (approved, user_id definido) já cai no hub por este caminho.
+
+Dados confirmados: a conta **"teste"** (beauty) tem `user_id` (b69da1b3…) — logo o `loadMyProvider`
+encontra-a. **Aprovei-a via admin** (approval_status pending→approved) para exercitar o caminho
+candidatura→aprovação→dashboard de ponta a ponta. O microSaaS de agenda (`lib/screens/partner/
+services/`) já existe e é para onde o hub aponta.
+
+**Conclusão:** não era preciso "corrigir" — a ligação já existe e está correta; o que faltava era
+**aprovar** a candidatura de teste (feito). Nenhuma mudança de código.
+
+### Ficheiros tocados
+- (nenhum código; ação de dados: `service_providers` "teste" → approved)
+
+**Commit:** `525dc7c` · **Push:** OK (`07345ef..525dc7c`).
+
+---
+
+## PARTE 7 — Reservas: parceiro nasce montado (auto-setup)
+
+**Estado: FEITA e VERIFICADA (pura DB).**
+
+Migration `20260718008000`: função idempotente `_reservas_pro_autosetup(restaurant_id)` + trigger
+`trg_reservas_autosetup`.
+- Se o restaurante não tem floor plan, cria: **"Sala Principal"** (default) + **6 mesas** (4×2 +
+  2×4 lugares) + **turn times** (2p=90, 4p=120, 6+=150 min, todos os dias 0-6) + **pacing** razoável
+  (todos os dias, 12:00-23:00, 40 covers / 15 reservas / 25% walk-in).
+- Idempotente: se já há floor plan → `skipped`.
+- Trigger `AFTER INSERT OR UPDATE OF reservations_enabled, approval_status ON restaurants` chama-a
+  quando `reservations_enabled IS TRUE` → cobre (a) reservas ligadas e (b) aprovação com reservas.
+- SECURITY DEFINER (contexto de trigger) → insere direto (sem o `assert_partner` do
+  `partner_create_floor_plan`, que exige o próprio parceiro como caller).
+
+Gotcha resolvido: `restaurant_tables.zona` tem check constraint (interior/esplanada/balcao/privé/
+terraço/bar/outdoor) — 'Sala' rejeitado → usei 'interior'.
+
+**Teste ao vivo** (restaurante `12aa2cbb…`): 1 plano, 6 mesas, 21 turn_times, 7 pacing; 2ª chamada
+= `skipped` (idempotente). "Sem planos de sala / Sem tempos definidos" deixa de aparecer a parceiro
+novo com reservas.
+
+### Ficheiros tocados
+- `supabase/migrations/20260718008000_reservas_pro_autosetup.sql` (novo, aplicado)
+
+**Commit:** `71c4bca` · **Push:** OK (`525dc7c..71c4bca`).
+
+---
+
+## PARTE 8 — No-show TVDE: fechar a ponta do motorista
+
+**Estado: VERIFICADO — a ponta do motorista JÁ existe; só faltava a confirmação do resultado (add).**
+
+A UI do motorista já estava completa (`tvde_ride_active_screen.dart`):
+- Item de menu **"Passageiro não compareceu?"** (`_cancel(ride, noShow: true)`), **gated** por
+  `_noShowUnlocked(ride)` = só ≥5 min após `arrivedAt` (janela default 5 min, configurável no admin)
+  + chip de temporizador de espera no pickup (padrão Uber).
+- Chama `store.cancelRide(ride.id, noShow: true)` → RPC `tvde_cancel_ride(p_actor:'no_show')`.
+- **Verificação de dinheiro (SQL):** tanto `tvde_cancel_ride` como `tvde_mark_noshow` creditam o
+  motorista usando a setting `noshow_fee` (os €3.50) — o caminho do botão (`tvde_cancel_ride`
+  no_show) JÁ credita. **NÃO mexi em valores** (settings intactas).
+
+Único acréscimo: um **snackbar de confirmação** após o no-show ("passageiro não compareceu; a taxa
+de espera foi creditada a ti") — sem hardcode do valor (a setting manda), só informa o resultado.
+`flutter analyze` → **0 erros**.
+
+### Ficheiros tocados
+- `lib/screens/driver/tvde/tvde_ride_active_screen.dart` (só o snackbar de confirmação)
+
+**Commit:** `df8dfe6` · **Push:** OK (`71c4bca..df8dfe6`).
+
+---
+
+## PARTE 9 — Espelho admin do que nasceu nas 2 rodadas
+
+**Estado: FEITA — (b) favores home-stop adicionado; (a) utensílios já visíveis; (c) beauty verificado.**
+
+**(b) Paragem em casa dos Favores no detalhe do pedido** (`admin_order_detail_screen.dart`, PT-BR):
+o `SELECT` passou a trazer `errand_home_stop_address/reason/cash_cents`, `errand_return_leg`,
+`errand_leg`; o bloco do favor mostra agora — quando `errand_home_stop` — a **morada** ("Passa em
+casa"), **motivo**, **dinheiro a pegar em casa** (€), **perna de volta** (Sim/Não) e **estado da
+perna** (Por iniciar / Em casa / No favor / De volta). `flutter analyze` → **0 erros**.
+
+**(a) Utensílios (`cleaners.equipment`)** — **já visíveis**: `admin_cleaning_cleaners_screen`
+mostra `_MaterialsRow(docs)` a ler `docs.materials_list`, que a rodada 1 Parte 7 espelha para
+`cleaners.equipment` (mesma lista). Logo o admin já vê os utensílios confirmados. *Editar* pelo
+admin (mutar `cleaners.equipment`) seria um fluxo novo (RPC admin + diálogo) — deferido (pequeno).
+
+**(c) Aprovar/rejeitar beauty** — **verificado**: construído na rodada 1 Parte 4
+(`admin_partners_pending_screen` com badge 🍽️/💇 por `source` + rota para
+`approve_service_provider`/`reject_service_provider`). RPCs confirmados existentes; a conta "teste"
+(beauty) foi aprovada na Parte 6 desta rodada → o caminho candidatura→aprovação está exercitado.
+
+### Ficheiros tocados
+- `lib/screens/admin/admin_order_detail_screen.dart`
+
+**Commit:** `3f0a3cb` · **Push:** OK (`df8dfe6..3f0a3cb`).
+
+---
+
+## PARTE 10 — FECHO
+
+**Lições novas** (`wiki/licoes/` + índice):
+- `licao-casca-sem-fio` — serviço criado mas com 0 chamadores é casca (o furo do `IncomingJobAlert`).
+- `licao-check-constraint-antes-de-semear` — ler CHECK constraints + correr a função de verdade
+  antes de dar por feito (o gotcha `zona`).
+
+### RESUMO FINAL DA RODADA 2
+
+| Parte | Estado | Commit |
+|---|---|---|
+| 1 — Ligar IncomingJobAlert (3 sítios) | ✅ (wiring; confirmação em device) | `742d3fe` |
+| 2 — Destravar 2 ficheiros TVDE + defesas | ✅ (revisão crítica de dinheiro passou) | `89d3d72` |
+| 3 — Favores: wiring errand_set_home_stop | ✅ persistência (3 pay paths); sheet bloqueada por permissão | `ac23a20` |
+| 4 — Wizard ramificado por tipo | ✅ | `9e01d17` |
+| 5 — Retalho mínimo (alergénios/receita) | ✅ núcleo; CSV import admin deferido | `07345ef` |
+| 6 — Beleza routing ao dashboard serviços | ✅ verificado (já correto) + teste aprovado | `525dc7c` |
+| 7 — Reservas auto-setup | ✅ verificado ao vivo | `71c4bca` |
+| 8 — No-show TVDE ponta do motorista | ✅ verificado + confirmação add | `df8dfe6` |
+| 9 — Espelho admin (favores/utensílios/beauty) | ✅ | `3f0a3cb` |
+| 10 — Fecho | ✅ (este) | (este) |
+
+**Perímetro protegido respeitado:** não toquei em `pricing_service`, `dispatch_engine`,
+`finalizePurchase`, `create_order`, webhook Stripe nem RLS financeira. Na Parte 2 (tokens TVDE) a
+revisão crítica confirmou que o Dart só ENVIA o parâmetro + MOSTRA o desconto (cálculo server-side);
+na Parte 8 confirmei que não mexi em valores de no-show.
+
+**Bloqueios honestos:** (3) `errand_execution_sheet.dart` bloqueado por permissões (morada+banner
+cash — dados já no modelo); (5) importador CSV admin deferido (ecrã novo).
+

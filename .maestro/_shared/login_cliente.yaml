@@ -1,0 +1,38 @@
+appId: pt.boraapp.bora
+---
+# Sub-flow: login como cliente. Invocado via runFlow.
+# Pre-condição: app aberta no role-picker OU já logada (idempotente).
+
+# Dismiss GDPR consent dialog (aparece no primeiro launch após clearState).
+- runFlow:
+    when:
+      visible: "Privacidade e Cookies"
+    commands:
+      - tapOn: "Aceitar tudo"
+      - extendedWaitUntil:
+          notVisible: "Privacidade e Cookies"
+          timeout: 5000
+
+- evalScript: ${output.email = MAESTRO_CLIENT_EMAIL ?? "nilofulfarotuga@gmail.com"}
+- evalScript: ${output.pwd = MAESTRO_CLIENT_PASSWORD ?? "Bora1234"}
+
+# Se já há sessão activa o role-picker não aparece — saltar com runFlow when.
+- runFlow:
+    when:
+      visible: "Sou Cliente"
+    commands:
+      - tapOn: "Sou Cliente"
+      - extendedWaitUntil:
+          visible: "Email"
+          timeout: 10000
+      - tapOn:
+          id: "email"
+          optional: true
+      - tapOn: "Email"
+      - inputText: ${output.email}
+      - tapOn: "Palavra-passe"
+      - inputText: ${output.pwd}
+      - tapOn: "Entrar"
+      - extendedWaitUntil:
+          notVisible: "Entrar"
+          timeout: 15000

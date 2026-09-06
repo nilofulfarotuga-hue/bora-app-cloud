@@ -1,0 +1,6 @@
+# Sessão 7E-A — dependências do framework E2E (pinned).
+# Decisão arquitectural #2: versões pinned para determinismo cross-machine.
+pytest==8.3.4
+supabase==2.10.0
+httpx==0.27.2
+python-dotenv==1.0.1

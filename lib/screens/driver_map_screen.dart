@@ -1,7 +1,14 @@
 import 'dart:async';
+import '../utils/io_compat.dart' show File, boraLocalImage;
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
+import 'package:image_picker/image_picker.dart';
+
+import '../utils/safe_image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../services/receipt_upload_service.dart';
 
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
@@ -10,28 +17,38 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' hide LatLng;
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-import '../config/business_rules.dart' show BRBags, BRDriver;
+import '../config/app_colors.dart';
+import '../config/business_rules.dart' show BRBags, BRBusiness, BRDriver;
 import '../models/cart_item.dart';
-import '../models/chat_message.dart';
 import '../models/order_model.dart';
 import '../services/directions_service.dart';
 import '../services/navigation_service.dart';
+import '../widgets/bora_support_fab.dart';
 import '../services/route_optimizer.dart';
 import '../stores/driver_store.dart';
+import '../services/talao_nao_parceiro_service.dart';
 import '../stores/order_store.dart';
 import '../stores/restaurant_store.dart';
 import '../utils/constants.dart';
 import '../utils/map_marker_helper.dart';
 import '../utils/map_utils.dart';
 import '../widgets/address_text.dart';
-import 'chat_screen.dart';
+import '../widgets/driver_chat_fab.dart';
 import 'driver_order_action_helper.dart';
 
+// BUG 29: Google sobrepunha o nome da rua mais próxima (ex: "Alexandre
+// Herculano") perto do marker do dropoff, fazendo crer ao estafeta que a
+// entrega era nessa rua e não na real (Rua do Torreão). orders.dropoff_address
+// na DB é correcto; era o Google a renderizar o POI label nativo.
+// Fix: esconder labels de texto em road.local (mantém arterial+highway para
+// orientação geral). Driver navega pela polyline + GPS da app de mapas.
 const String _mapStyle = '''[
   {"featureType":"poi","stylers":[{"visibility":"off"}]},
   {"featureType":"transit","stylers":[{"visibility":"simplified"}]},
   {"featureType":"road","elementType":"labels.icon","stylers":[{"visibility":"off"}]},
+  {"featureType":"road.local","elementType":"labels.text","stylers":[{"visibility":"off"}]},
   {"featureType":"road","elementType":"geometry.fill","stylers":[{"color":"#FFFFFF"}]},
   {"featureType":"road.arterial","elementType":"geometry.fill","stylers":[{"color":"#F3F4F6"}]},
   {"featureType":"road.highway","elementType":"geometry.fill","stylers":[{"color":"#E5E7EB"}]},
@@ -101,6 +118,19 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       Duration(milliseconds: 16); // ~60 fps
   static const double _jitterThresholdMetres = 1.0; // skip animation below this
 
+  // ── Waze-style camera (BUG B) ─────────────────────────────────────────────
+  // Driver pose: closer zoom, 3D tilt, bearing follows direction of travel.
+  static const double _wazeZoom = 17.5;
+  static const double _wazeTilt = 45.0;
+  // Auto-resume follow after 15 s if user pans manually.
+  static const Duration _followResumeDelay = Duration(seconds: 15);
+  bool _followCamera = true;
+  Timer? _followResumeTimer;
+  // Differentiate user-initiated vs programmatic camera moves. Set true
+  // immediately before any animateCamera call; reset after 250 ms.
+  bool _programmaticMove = false;
+  Timer? _programmaticMoveTimer;
+
   // Debounce timer: delays the Directions API call by 2.5 s after the last
   // qualifying movement, preventing bursts during rapid position updates.
   Timer? _debounceTimer;
@@ -147,7 +177,7 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
     const size = 56.0;
-    final paint = Paint()..color = const Color(0xFF1B5E20); // Bora deep green
+    final paint = Paint()..color = AppColors.primary; // Bora deep green
     final path = Path()
       ..moveTo(size / 2, 0) // top point
       ..lineTo(size, size) // bottom-right
@@ -170,6 +200,8 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
   void dispose() {
     _debounceTimer?.cancel();
     _interpolationTimer?.cancel();
+    _followResumeTimer?.cancel();
+    _programmaticMoveTimer?.cancel();
     _positionSubscription?.cancel();
     _directionsService.dispose();
     super.dispose();
@@ -265,8 +297,11 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
         _mapController?.animateCamera(CameraUpdate.newLatLng(loc.toGMaps()));
         // DO NOT add postFrameCallback here — setState above already triggers
         // rebuild. The GoogleMap's ValueKey(_gpsCenter) detects the change.
-        final driverStore = context.read<DriverStore>();
-        driverStore.updateDriverLocation(driverStore.currentDriverId, loc);
+        // F5.1 (2026-08-16, 1º dia real): getLastKnownPosition é o CACHE do
+        // SO — no pedido 4db5882d devolveu uma posição do Algarve (37.18) numa
+        // entrega na Guarda e envenenou orders.driver_lat. Serve SÓ para
+        // centrar a câmara; NUNCA se propaga ao store/servidor. O stream de
+        // GPS real (abaixo) é quem escreve posição.
       } else if (mounted && _gpsCenter == null) {
         // getLastKnownPosition() returned null (cold start / no OS cache).
         // Attempt to unblock the rendering guard using the last position
@@ -302,8 +337,9 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       locationSettings = AndroidSettings(
         // bestForNavigation: highest accuracy, continuous updates
         accuracy: LocationAccuracy.bestForNavigation,
-        // distanceFilter: 0 = update on every movement (no throttling)
-        distanceFilter: 0,
+        // 5 m: a conduzir é contínuo na mesma; parado (semáforo, espera no
+        // restaurante) o GPS cala-se em vez de emitir a cada segundo.
+        distanceFilter: 5,
         // Update frequency: 1 second (fast enough for real-time tracking)
         intervalDuration: const Duration(seconds: 1),
         foregroundNotificationConfig: const ForegroundNotificationConfig(
@@ -316,8 +352,8 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       locationSettings = const LocationSettings(
         // bestForNavigation: highest accuracy for navigation apps
         accuracy: LocationAccuracy.bestForNavigation,
-        // distanceFilter: 0 = update on every movement (no throttling)
-        distanceFilter: 0,
+        // 5 m: mesmo racional do ramo Android — sem ticks quando parado.
+        distanceFilter: 5,
       );
     }
 
@@ -345,6 +381,22 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       _trimPassedRoutePoints(newLoc);
       // 2C/2D: reroute if driver strays > 50 m from the current polyline.
       _checkOffRouteAndReroute(newLoc);
+    }, onError: (Object e) {
+      // GPS desligado a meio do stream emite LocationServiceDisabledException.
+      // Sem este handler, o erro fica por tratar e rebenta o app.
+      if (!mounted) return;
+      if (e is LocationServiceDisabledException) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('GPS desativado. Ative a localização para tracking.'),
+            duration: Duration(seconds: 8),
+            action: SnackBarAction(
+              label: 'Ativar',
+              onPressed: Geolocator.openLocationSettings,
+            ),
+          ),
+        );
+      }
     });
   }
 
@@ -405,6 +457,56 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     if (mounted) setState(() {});
   }
 
+  /// Wraps animateCamera so user-vs-programmatic moves can be told apart.
+  /// Sets [_programmaticMove] for ~250 ms; onCameraMoveStarted treats moves
+  /// during that window as system-driven and won't pause follow mode.
+  void _animateCameraProgrammatic(CameraUpdate update) {
+    _programmaticMove = true;
+    _programmaticMoveTimer?.cancel();
+    _programmaticMoveTimer = Timer(const Duration(milliseconds: 250), () {
+      _programmaticMove = false;
+    });
+    _mapController?.animateCamera(update);
+  }
+
+  /// Builds the Waze-style camera pose for the driver map (zoom 17.5,
+  /// tilt 45°, bearing follows direction of travel).
+  CameraUpdate _wazeCameraUpdate(ll.LatLng target) {
+    return CameraUpdate.newCameraPosition(CameraPosition(
+      target: target.toGMaps(),
+      zoom: _wazeZoom,
+      tilt: _wazeTilt,
+      bearing: _bearing,
+    ));
+  }
+
+  /// User panned the map manually → pause auto-follow for [_followResumeDelay].
+  void _onUserCameraMoveStarted() {
+    if (_programmaticMove) return; // ignore our own animateCamera triggers
+    _followResumeTimer?.cancel();
+    _followResumeTimer = Timer(_followResumeDelay, () {
+      if (!mounted) return;
+      setState(() => _followCamera = true);
+      final pos = _smoothedPosition;
+      if (pos != null) {
+        _animateCameraProgrammatic(_wazeCameraUpdate(pos));
+      }
+    });
+    if (_followCamera) {
+      setState(() => _followCamera = false);
+    }
+  }
+
+  /// Recenter button → snap to driver with full Waze pose + resume follow.
+  void _onRecenter() {
+    final pos = _smoothedPosition;
+    _followResumeTimer?.cancel();
+    setState(() => _followCamera = true);
+    if (pos != null) {
+      _animateCameraProgrammatic(_wazeCameraUpdate(pos));
+    }
+  }
+
   /// Smooth Uber-style interpolation from the CURRENT displayed position to
   /// the new GPS fix. Updates both the marker (via [_smoothedPosition] +
   /// setState) and the camera (via [animateCamera]) in lockstep at ~60 fps.
@@ -423,9 +525,13 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     if (_smoothedPosition == null) {
       _smoothedPosition = newPos;
       if (mounted) setState(() {});
-      _mapController?.animateCamera(
-        CameraUpdate.newLatLng(newPos.toGMaps()),
-      );
+      if (_followCamera) {
+        _animateCameraProgrammatic(_wazeCameraUpdate(newPos));
+      } else {
+        _animateCameraProgrammatic(
+          CameraUpdate.newLatLng(newPos.toGMaps()),
+        );
+      }
       return;
     }
 
@@ -477,9 +583,9 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       setState(() {
         _smoothedPosition = intermediate;
       });
-      _mapController?.animateCamera(
-        CameraUpdate.newLatLng(intermediate.toGMaps()),
-      );
+      if (_followCamera) {
+        _animateCameraProgrammatic(_wazeCameraUpdate(intermediate));
+      }
 
       if (currentFrame >= totalFrames) {
         // Clamp to exact target and stop.
@@ -527,9 +633,25 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     final nextStop =
         optimizedRoute.stops.isNotEmpty ? optimizedRoute.stops.first : null;
 
-    // Focus order: the order whose next stop comes first.
-    // If no orders, focusOrder is null (will render empty map).
-    final focusOrder = myOrders.isNotEmpty
+    // D1 (2026-05-16): focusOrder = primeiro pedido com acção pendente,
+    // ordenado pela RouteOptimizer (pickups primeiro, dropoffs depois).
+    // Antes era "primeiro stop optimizado" — mas com stacking esse stop podia
+    // ser uma entrega de pedido already-picked-up (mais próximo do estafeta),
+    // deixando Chat / Notas / Apartment-banner a referenciar um pedido sem
+    // acção activa. business_rules.md §6.6 + §7.x.
+    OrderModel? focusOrder;
+    for (final stop in optimizedRoute.stops) {
+      final candidates = myOrders.where((o) => o.id == stop.orderId);
+      if (candidates.isEmpty) continue;
+      final o = candidates.first;
+      if (resolveDriverOrderAction(orderStore, o) != null) {
+        focusOrder = o;
+        break;
+      }
+    }
+    // Fallback: nenhum pedido com acção pendente → usar o pedido cuja paragem
+    // é primeira (ou o primeiro pedido na lista).
+    focusOrder ??= myOrders.isNotEmpty
         ? (nextStop != null
             ? myOrders.firstWhere(
                 (o) => o.id == nextStop.orderId,
@@ -579,16 +701,18 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       );
     }
 
-    // Uber/Glovo style: só o PRÓXIMO stop tem marker no mapa.
-    // Os restantes stops ficam visíveis no painel inferior (_StopList).
-    if (optimizedRoute.stops.isNotEmpty) {
-      final stop = optimizedRoute.stops.first;
+    // BUG 7 (Fase 6 / 2026-04-30): mostrar TODOS os stops simultaneamente.
+    // Antes: só o NEXT stop tinha marker → estafeta não via partner pin
+    // depois de marcar pickup nem em pedidos com batching.
+    // Agora: pickup laranja + delivery verde sempre visíveis em paralelo.
+    final totalStops = optimizedRoute.stops.length;
+    for (var i = 0; i < totalStops; i++) {
+      final stop = optimizedRoute.stops[i];
       final isPickup = stop.isPickup;
-      final totalStops = optimizedRoute.stops.length;
-      final stepLabel = totalStops > 1 ? ' 1/$totalStops' : '';
+      final stepLabel = totalStops > 1 ? ' ${i + 1}/$totalStops' : '';
       markers.add(
         Marker(
-          markerId: const MarkerId('stop_next'),
+          markerId: MarkerId('stop_${i}_${stop.orderId}'),
           position: stop.location.toGMaps(),
           icon: isPickup
               ? MapMarkerHelper.pickupIcon
@@ -597,7 +721,8 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
             title: isPickup ? 'Recolha$stepLabel' : 'Entrega$stepLabel',
             snippet: stop.label,
           ),
-          zIndexInt: 1,
+          // Stop seguinte (i==0) tem zIndex maior para destaque.
+          zIndexInt: i == 0 ? 2 : 1,
         ),
       );
     }
@@ -668,12 +793,40 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       }
     });
 
-    final nextAction = focusOrder != null
-        ? resolveDriverOrderAction(orderStore, focusOrder)
-        : null;
+    // BUG-STACKING-BOTAO (2026-05-16): with multiple stacked orders, a single
+    // `nextAction` tied to focusOrder could be null (e.g. focusOrder is a
+    // delivery for an already-picked-up order while another order still waits
+    // for pickup) → driver had no button to advance the pending pickup.
+    // Build one action per pending order, ordered by RouteOptimizer
+    // (pickups first, then deliveries per business_rules.md §6.6).
+    final pendingActions =
+        <({OrderModel order, DriverOrderAction action})>[];
+    final seenOrderIds = <String>{};
+    for (final stop in optimizedRoute.stops) {
+      if (seenOrderIds.contains(stop.orderId)) continue;
+      final candidates = myOrders.where((x) => x.id == stop.orderId);
+      if (candidates.isEmpty) continue;
+      final o = candidates.first;
+      seenOrderIds.add(o.id);
+      final a = resolveDriverOrderAction(orderStore, o);
+      if (a == null) continue;
+      pendingActions.add((order: o, action: a));
+    }
+    if (pendingActions.isEmpty && focusOrder != null) {
+      final a = resolveDriverOrderAction(orderStore, focusOrder);
+      if (a != null) {
+        pendingActions.add((order: focusOrder, action: a));
+      }
+    }
+    final nextAction =
+        pendingActions.isNotEmpty ? pendingActions.first.action : null;
     final topPadding = MediaQuery.of(context).padding.top;
 
     return Scaffold(
+      floatingActionButton: const BoraSupportFab(
+        position: FabPosition.topRight,
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endTop,
       body: Stack(
         children: [
           // GoogleMap must have explicit size on Web (PlatformView requirement).
@@ -701,6 +854,7 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
               onMapCreated: (controller) {
                 _mapController = controller;
               },
+              onCameraMoveStarted: _onUserCameraMoveStarted,
             ),
           ),
 
@@ -714,21 +868,34 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
             ),
           ),
 
-          // Center-on-driver button — centres on the currently-displayed
-          // (smoothed) position so the camera lands exactly where the marker
-          // is, even mid-animation.
+          // Recenter button — restores Waze pose (zoom 17.5, tilt 45°,
+          // bearing) and resumes follow mode. Positioned mid-right so it
+          // doesn't collide with the support FAB (top) or the bottom sheet.
           Positioned(
-            top: topPadding + 8,
-            right: 12,
-            child: _MapButton(
-              icon: Icons.my_location,
-              onTap: () {
-                _mapController?.animateCamera(
-                  CameraUpdate.newLatLng(displayPosition.toGMaps()),
-                );
-              },
+            right: 16,
+            top: MediaQuery.of(context).size.height * 0.62,
+            child: Semantics(
+              label: 'Centralizar mapa',
+              button: true,
+              child: FloatingActionButton.small(
+                heroTag: 'map_recenter_btn_driver',
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                onPressed: _onRecenter,
+                child: const Icon(Icons.my_location),
+              ),
             ),
           ),
+
+          // Parte C (2026-06-12): chat do pedido ativo SEMPRE visível como
+          // botão flutuante com badge de não-lidas — antes só existia dentro
+          // do bottom sheet e o estafeta não percebia mensagens novas.
+          if (focusOrder != null)
+            Positioned(
+              right: 16,
+              top: MediaQuery.of(context).size.height * 0.62 + 52,
+              child: DriverChatFab(order: focusOrder),
+            ),
 
           // Bottom info panel — draggable sheet: map fills most of the screen,
           // panel minimised by default, expands on drag.
@@ -750,6 +917,7 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
                     orders: myOrders,
                     driverPosition: displayPosition,
                     nextAction: nextAction,
+                    pendingActions: pendingActions,
                     routeDurationMinutes: _routeDurationMinutes,
                   ),
                 );
@@ -920,6 +1088,7 @@ class _BottomPanel extends StatefulWidget {
     required this.orders,
     required this.driverPosition,
     required this.nextAction,
+    required this.pendingActions,
     this.routeDurationMinutes,
   });
 
@@ -929,6 +1098,7 @@ class _BottomPanel extends StatefulWidget {
   final List<OrderModel> orders;
   final ll.LatLng? driverPosition;
   final DriverOrderAction? nextAction;
+  final List<({OrderModel order, DriverOrderAction action})> pendingActions;
   final double? routeDurationMinutes;
 
   @override
@@ -943,7 +1113,10 @@ class _BottomPanelState extends State<_BottomPanel> {
   /// Shows a 4-digit code dialog before completing the delivery.
   /// Returns `true` if the driver entered the correct code and the order
   /// action succeeded, `false` otherwise (wrong code, cancelled, or failure).
-  Future<bool> _showDeliveryCodeDialog(DriverOrderAction action) async {
+  /// [order] é o pedido DESTA ação — com stacking, validar contra o focusOrder
+  /// recusava o código certo do outro pedido empilhado.
+  Future<bool> _showDeliveryCodeDialog(
+      DriverOrderAction action, OrderModel order) async {
     final controller = TextEditingController();
     final formKey = GlobalKey<FormState>();
     String? errorText;
@@ -966,22 +1139,25 @@ class _BottomPanelState extends State<_BottomPanel> {
                       'Peça ao cliente o código de 4 dígitos para confirmar a entrega.',
                     ),
                     const SizedBox(height: 16),
-                    TextFormField(
-                      controller: controller,
-                      keyboardType: TextInputType.number,
-                      maxLength: 4,
-                      autofocus: true,
-                      decoration: InputDecoration(
-                        labelText: 'Código',
-                        counterText: '',
-                        errorText: errorText,
-                        border: const OutlineInputBorder(),
+                    Semantics(
+                      identifier: 'fld_codigo_entrega',
+                      child: TextFormField(
+                        controller: controller,
+                        keyboardType: TextInputType.number,
+                        maxLength: 4,
+                        autofocus: true,
+                        decoration: InputDecoration(
+                          labelText: 'Código',
+                          counterText: '',
+                          errorText: errorText,
+                          border: const OutlineInputBorder(),
+                        ),
+                        onChanged: (_) {
+                          if (errorText != null) {
+                            setDialogState(() => errorText = null);
+                          }
+                        },
                       ),
-                      onChanged: (_) {
-                        if (errorText != null) {
-                          setDialogState(() => errorText = null);
-                        }
-                      },
                     ),
                   ],
                 ),
@@ -992,19 +1168,36 @@ class _BottomPanelState extends State<_BottomPanel> {
                   child: const Text('Cancelar'),
                 ),
                 ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     final entered = controller.text.trim();
                     if (entered.length != 4) {
                       setDialogState(() => errorText = 'Digite os 4 dígitos.');
                       return;
                     }
-                    if (entered != widget.focusOrder?.deliveryCode) {
-                      setDialogState(() =>
-                          errorText = 'Código incorreto. Tente novamente.');
+                    // P6 (2026-08-17) — o SERVIDOR valida o PIN e fecha a
+                    // entrega. A app envia; nunca decide localmente.
+                    final r = await context
+                        .read<OrderStore>()
+                        .finishOrderWithPin(order, entered);
+                    if (r.ok) {
+                      if (dialogContext.mounted) {
+                        Navigator.of(dialogContext).pop(true);
+                      }
+                    } else if (r.error == 'wrong_pin') {
+                      setDialogState(() => errorText =
+                          'Código incorreto. Tentativas restantes: '
+                          '${r.attemptsLeft ?? '-'}.');
                       controller.clear();
-                      return;
+                    } else if (r.error == 'blocked') {
+                      setDialogState(() => errorText =
+                          'Bloqueado após 5 tentativas. O suporte foi avisado.');
+                    } else if (r.error == 'network') {
+                      setDialogState(() => errorText =
+                          'Sem ligação ao servidor. Tenta de novo.');
+                    } else {
+                      setDialogState(() => errorText =
+                          'Não foi possível concluir (${r.error ?? 'erro'}).');
                     }
-                    Navigator.of(dialogContext).pop(true);
                   },
                   child: const Text('Confirmar'),
                 ),
@@ -1015,36 +1208,23 @@ class _BottomPanelState extends State<_BottomPanel> {
       },
     );
 
+    // O PIN é validado e a entrega fechada pelo servidor dentro do diálogo
+    // (finishOrderWithPin). Aqui só reagimos ao resultado — NÃO se chama
+    // action.execute() (o servidor já pôs delivered e libertou o estafeta).
     if (confirmed != true) return false;
-
-    // Code was correct — proceed with the action.
     if (!mounted) return false;
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
-    setState(() => _isLoading = true);
-    final success = await action.execute();
-    if (mounted) setState(() => _isLoading = false);
-    if (success) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(action.successMessage),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-      // Refresh token balance in the background — the trigger already ran on
-      // the DB side, so this fetch will return the updated value.
-      if (mounted) {
-        unawaited(context.read<DriverStore>().loadTokenBalance());
-      }
-      navigator.maybePop();
-    } else {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Não foi possível atualizar o pedido.'),
-        ),
-      );
-    }
-    return success;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(action.successMessage),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+    // Saldo de tokens: o trigger de entrega já correu no servidor.
+    unawaited(context.read<DriverStore>().loadTokenBalance());
+    navigator.maybePop();
+    return true;
   }
 
   void _showShoppingListSheet(BuildContext context, OrderModel order) {
@@ -1075,11 +1255,96 @@ class _BottomPanelState extends State<_BottomPanel> {
     );
   }
 
+  // BUG-STACKING-BOTAO (2026-05-16): per-order action button.
+  // Each entry in widget.pendingActions renders one of these. `showVendor`
+  // appends " — <vendor>" to the label so the driver can tell apart multiple
+  // stacked orders. `_isLoading` is shared across buttons (driver can only
+  // execute one action at a time).
+  Widget _buildActionButton({
+    required ({OrderModel order, DriverOrderAction action}) entry,
+    required bool showVendor,
+  }) {
+    final order = entry.order;
+    final action = entry.action;
+    final vendor =
+        (order.vendorName?.trim().isNotEmpty ?? false)
+            ? order.vendorName!.trim()
+            : order.serviceType.label;
+    final label = showVendor ? '${action.label} — $vendor' : action.label;
+    // Semantics identifiers para testes E2E (Maestro): action.label → id.
+    const semanticsIds = {
+      'Recolher pedido': 'btn_recolher',
+      'Iniciar entrega': 'btn_iniciar_entrega',
+      'Concluir entrega': 'btn_concluir_entrega',
+    };
+    final button = ElevatedButton(
+      onPressed: _isLoading
+          ? null
+          : () async {
+              final willFinish = order.status == OrderStatus.onTheWay;
+              // BUG 33: cash skips the 4-digit code (driver receives physical
+              // cash = real validation). Card/MBWay still require code.
+              final isCash = order.paymentMethod == PaymentMethod.cash;
+              if (willFinish && !isCash) {
+                await _showDeliveryCodeDialog(action, order);
+                return;
+              }
+              final messenger = ScaffoldMessenger.of(context);
+              final nav = Navigator.of(context);
+              setState(() => _isLoading = true);
+              final success = await action.execute();
+              if (success) {
+                if (mounted) setState(() => _isLoading = false);
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(action.successMessage),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+                // BUG 5 — pós Concluir entrega volta para home estafeta em vez
+                // de ficar na tela detail vazia. Só pop quando NÃO há mais
+                // pedidos activos; com stacking, ficar no mapa.
+                if (willFinish && mounted && widget.orders.length <= 1) {
+                  nav.popUntil((route) => route.isFirst);
+                }
+              } else {
+                if (mounted) setState(() => _isLoading = false);
+                messenger.showSnackBar(
+                  const SnackBar(
+                    content: Text('Não foi possível atualizar o pedido.'),
+                  ),
+                );
+              }
+            },
+      style: ElevatedButton.styleFrom(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+      ),
+      child: _isLoading
+          ? const SizedBox(
+              height: 18,
+              width: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            )
+          : Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+    );
+    final semanticsId = semanticsIds[action.label];
+    if (semanticsId == null) return button;
+    return Semantics(identifier: semanticsId, child: button);
+  }
+
   @override
   Widget build(BuildContext context) {
     final focusOrder = widget.focusOrder;
     final nextStop = widget.nextStop;
-    final nextAction = widget.nextAction;
     final eta = widget.routeDurationMinutes != null
         ? '${widget.routeDurationMinutes!.round()} min'
         : null;
@@ -1091,18 +1356,17 @@ class _BottomPanelState extends State<_BottomPanel> {
           topLeft: Radius.circular(24),
           topRight: Radius.circular(24),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x26000000),
-            blurRadius: 16,
-            offset: Offset(0, -4),
-          ),
-        ],
+        boxShadow: AppColors.shadowNav,
       ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+      // [botoes-navbar-eta 31/08] Antes era SafeArea(top:false)+16 — mas
+      // dentro de sheet/scroll o `MediaQuery.padding` pode chegar consumido e
+      // o fim do painel colava na navbar de 3 botões. `viewPadding` nunca é
+      // consumido: 16 além do sistema, garantido (mesmo contrato do
+      // BoraBottomActionBar).
+      child: Builder(
+        builder: (context) => Padding(
+          padding: EdgeInsets.fromLTRB(20, 12, 20,
+              16 + MediaQuery.of(context).viewPadding.bottom),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1113,7 +1377,7 @@ class _BottomPanelState extends State<_BottomPanel> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
+                    color: AppColors.divider,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -1178,14 +1442,39 @@ class _BottomPanelState extends State<_BottomPanel> {
                     _InfoItem(
                       icon: Icons.monetization_on_outlined,
                       label: 'Tokens',
-                      value:
-                          '+${(focusOrder.driverEarnings * BRDriver.DRIVER_TOKENS_PER_EUR).round()}',
+                      // F3 (2026-08-16, 1º dia real): a promessa dizia +52
+                      // (earnings×10 — fórmula que NÃO existe no servidor) e o
+                      // trigger creditou +40. A promessa passa a ser a MESMA
+                      // regra que o fn_award_tokens_on_delivery paga:
+                      // 50 parceiro / 40 não-parceiro.
+                      value: '+${focusOrder.isPartnerStore ? 50 : 40}',
                       valueColor: Colors.amber.shade700,
                     ),
                   ],
                 ),
 
                 const SizedBox(height: 16),
+
+                // Banner NOVO — só fluxo "parceiro chama estafeta". Antes de
+                // recolher, estafeta tem de PAGAR o valor total ao parceiro em
+                // dinheiro (cliente paga depois o mesmo ao estafeta → empate).
+                if (focusOrder.isPartnerSelfDispatch &&
+                    focusOrder.paymentMethod == PaymentMethod.cash &&
+                    (focusOrder.status == OrderStatus.callingDriver ||
+                        focusOrder.status == OrderStatus.driverAccepted)) ...[
+                  _PartnerSelfDispatchPickupBanner(order: focusOrder),
+                  const SizedBox(height: 16),
+                ],
+
+                // BUG 9 (2026-05-15) — banner "RECEBER €X" para pedidos cash
+                // a partir de pickedUp (estafeta já recolheu, está a caminho).
+                // Texto diferenciado parceiro/não-parceiro/self-dispatch.
+                if (focusOrder.paymentMethod == PaymentMethod.cash &&
+                    (focusOrder.status == OrderStatus.pickedUp ||
+                        focusOrder.status == OrderStatus.onTheWay)) ...[
+                  _CashCollectBanner(order: focusOrder),
+                  const SizedBox(height: 16),
+                ],
 
                 // "Ver compras" button — pickup phase only, if order has items
                 if (focusOrder.items.isNotEmpty &&
@@ -1214,10 +1503,47 @@ class _BottomPanelState extends State<_BottomPanel> {
                   const SizedBox(height: 12),
                 ],
 
-                // Action buttons row
-                Row(
-                  children: [
-                    OutlinedButton.icon(
+                // Action buttons — one per pending order.
+                // Single-pending layout = Navegar + Expanded(action) inline
+                // (identical to pre-2026-05-16 behaviour). Multi-pending
+                // layout = Navegar full-width on top, one labelled button per
+                // pending order below. Empty list = Navegar only.
+                if (widget.pendingActions.length <= 1) ...[
+                  Row(
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: nextStop == null
+                            ? null
+                            : () => NavigationService.openNavigationOptions(
+                                  context,
+                                  nextStop.location,
+                                ),
+                        icon:
+                            const Icon(Icons.navigation_outlined, size: 18),
+                        label: const Text('Navegar'),
+                        style: OutlinedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                        ),
+                      ),
+                      if (widget.pendingActions.isNotEmpty) ...[
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildActionButton(
+                            entry: widget.pendingActions.first,
+                            showVendor: false,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ] else ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
                       onPressed: nextStop == null
                           ? null
                           : () => NavigationService.openNavigationOptions(
@@ -1230,82 +1556,19 @@ class _BottomPanelState extends State<_BottomPanel> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                     ),
-                    if (nextAction != null) ...[
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: _isLoading
-                              ? null
-                              : () async {
-                                  // Capture before async gap: the widget may be
-                                  // disposed when finishOrder removes it from
-                                  // myOrders, making mounted == false too early.
-                                  final action = nextAction;
-                                  final willFinish =
-                                      widget.focusOrder?.status ==
-                                          OrderStatus.onTheWay;
-
-                                  const bool kRequireDeliveryCode = true;
-                                  if (willFinish && kRequireDeliveryCode) {
-                                    await _showDeliveryCodeDialog(action);
-                                    return;
-                                  }
-
-                                  final messenger =
-                                      ScaffoldMessenger.of(context);
-                                  setState(() => _isLoading = true);
-                                  final success = await action.execute();
-                                  if (success) {
-                                    if (mounted) {
-                                      setState(() => _isLoading = false);
-                                    }
-                                    messenger.showSnackBar(
-                                      SnackBar(
-                                        content: Text(action.successMessage),
-                                        duration: const Duration(seconds: 2),
-                                      ),
-                                    );
-                                  } else {
-                                    if (mounted) {
-                                      setState(() => _isLoading = false);
-                                    }
-                                    messenger.showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                            'Não foi possível atualizar o pedido.'),
-                                      ),
-                                    );
-                                  }
-                                },
-                          style: ElevatedButton.styleFrom(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  height: 18,
-                                  width: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : Text(
-                                  nextAction.label,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w600),
-                                ),
-                        ),
-                      ),
-                    ],
+                  ),
+                  for (final entry in widget.pendingActions) ...[
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child:
+                          _buildActionButton(entry: entry, showVendor: true),
+                    ),
                   ],
-                ),
+                ],
               ] else ...[
                 // No order accepted — show empty map message
                 Center(
@@ -1325,51 +1588,98 @@ class _BottomPanelState extends State<_BottomPanel> {
 
               // If focusOrder is available: show finalize/chat sections
               if (focusOrder != null) ...[
-                // Finalize purchase — only for orders where driver buys goods.
-                // Available from driverAccepted onwards so the driver can
-                // finalize BEFORE confirming pickup (Confirmar recolha is
-                // hidden while !isPurchaseFinalized in driverAccepted).
-                if (!_isMultiStop &&
-                    !focusOrder.isPartnerStore &&
-                    (focusOrder.serviceType == OrderServiceType.storeShopping ||
-                        focusOrder.serviceType ==
-                            OrderServiceType.restaurant) &&
-                    (focusOrder.status == OrderStatus.driverAccepted ||
-                        focusOrder.status == OrderStatus.pickedUp ||
-                        focusOrder.status == OrderStatus.onTheWay)) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Pedido #${focusOrder.id.length >= 6 ? focusOrder.id.substring(0, 6).toUpperCase() : focusOrder.id.toUpperCase()}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                // BUG-STACKING-FINALIZED (2026-05-16): with 2+ stacked orders
+                // the previous `!_isMultiStop` guard hid the FinalizedBanner
+                // for non-partner orders entirely — driver lost confirmation
+                // that the purchase reconcile had succeeded. Iterate every
+                // active non-partner shopping/restaurant order and render
+                // its own banner.
+                for (final o in widget.orders.where((x) =>
+                    !x.isPartnerStore &&
+                    (x.serviceType == OrderServiceType.storeShopping ||
+                        x.serviceType == OrderServiceType.restaurant) &&
+                    (x.status == OrderStatus.driverAccepted ||
+                        x.status == OrderStatus.pickedUp ||
+                        x.status == OrderStatus.onTheWay) &&
+                    x.isPurchaseFinalized &&
+                    x.finalTotal != null)) ...[
                   const SizedBox(height: 12),
-                  if (focusOrder.isPurchaseFinalized &&
-                      focusOrder.finalTotal != null)
-                    _FinalizedBanner(finalTotal: focusOrder.finalTotal!)
-                  else if (!focusOrder.isPurchaseFinalized)
-                    _FinalizePurchaseButton(order: focusOrder),
+                  _FinalizedBanner(order: o),
                 ],
 
-                // Chat button — always visible for active single orders
-                if (!_isMultiStop) ...[
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ChatScreen(
-                            order: focusOrder,
-                            senderType: ChatSenderType.driver,
+                // Chat + Call buttons — visible whenever there's a focusOrder.
+                // BUG-STACKING-CHAT (2026-05-16): previously gated by
+                // `!_isMultiStop` which silently dropped contact buttons as
+                // soon as the driver had 2+ stacked orders. Now tied to
+                // focusOrder (the order with the next pending action).
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      // Parte C: seletor de destinatário — pedido parceiro
+                      // abre escolha Cliente/Restaurante; não-parceiro vai
+                      // direto ao cliente (a loja não tem interlocutor).
+                      child: OutlinedButton.icon(
+                        onPressed: () => openDriverChat(context, focusOrder),
+                        icon: const Icon(Icons.chat_bubble_outline),
+                        // BUG-UI (2026-05-20) — label curto + ellipsis evita
+                        // overflow em ecrãs pequenos (esp. multi-stop com
+                        // Row partilhada com botão "Ligar").
+                        label: const Flexible(
+                          child: Text(
+                            'Chat',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            softWrap: false,
                           ),
                         ),
                       ),
-                      icon: const Icon(Icons.chat_bubble_outline),
-                      label: const Text('Chat com cliente'),
                     ),
-                  ),
-                ],
+                    // FASE 5: tel: link directo. Twilio masking
+                    // post-launch (anotado em todos-pos-launch.md).
+                    if (focusOrder.clientPhone != null &&
+                        focusOrder.clientPhone!.trim().isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final tel = focusOrder.clientPhone!.trim();
+                            final uri = Uri.parse('tel:$tel');
+                            try {
+                              await launchUrl(uri);
+                            } catch (e) {
+                              if (!context.mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Não foi possível ligar: $e')),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.phone_outlined),
+                          label: const Text('Ligar'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.green.shade700,
+                            side: BorderSide(color: Colors.green.shade300),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ],
 
-              // Customer notes (single order only — too noisy for multi)
-              if (!_isMultiStop &&
-                  focusOrder != null &&
+              // Customer notes — tied to focusOrder (the order with the next
+              // pending action). BUG-STACKING-NOTES (2026-05-16): removed
+              // `!_isMultiStop` guard that previously hid the customer note
+              // entirely once the driver had 2+ stacked orders.
+              if (focusOrder != null &&
                   focusOrder.customerNotes != null &&
                   focusOrder.customerNotes!.isNotEmpty) ...[
                 const SizedBox(height: 12),
@@ -1398,8 +1708,9 @@ class _BottomPanelState extends State<_BottomPanel> {
                 ),
               ],
 
-              if (!_isMultiStop &&
-                  focusOrder != null &&
+              // Apartment delivery banner — tied to focusOrder.
+              // BUG-STACKING-APT (2026-05-16): removed `!_isMultiStop` guard.
+              if (focusOrder != null &&
                   focusOrder.apartmentDelivery) ...[
                 const SizedBox(height: 12),
                 const _ApartmentDeliveryBanner(),
@@ -1644,6 +1955,11 @@ class _StatusBadge extends StatelessWidget {
       case OrderStatus.created:
       case OrderStatus.preparing:
         return Colors.orange;
+      case OrderStatus.readyForPickup:
+        // Defensivo — driver não deve receber pedido takeaway; mantém cinza
+        // para que a UI não rebente se o realtime entregar uma ordem deste
+        // tipo por engano.
+        return Colors.grey;
       case OrderStatus.callingDriver:
       case OrderStatus.driverAccepted:
         return const Color(0xFF1C6EF2);
@@ -1766,138 +2082,57 @@ class _InfoItem extends StatelessWidget {
   }
 }
 
-// ─── Finalize purchase ────────────────────────────────────────────────────────
+class _SummaryRow extends StatelessWidget {
+  const _SummaryRow({
+    required this.label,
+    required this.value,
+    this.color,
+    this.bold = false,
+  });
 
-/// Button shown while purchase is not yet finalized.
-/// Opens a dialog, validates input, then calls [OrderStore.finalizePurchase].
-class _FinalizePurchaseButton extends StatefulWidget {
-  const _FinalizePurchaseButton({required this.order});
-
-  final OrderModel order;
-
-  @override
-  State<_FinalizePurchaseButton> createState() =>
-      _FinalizePurchaseButtonState();
-}
-
-class _FinalizePurchaseButtonState extends State<_FinalizePurchaseButton> {
-  bool _loading = false;
-
-  Future<void> _openDialog() async {
-    final value = await showDialog<double>(
-      context: context,
-      builder: (_) => const _FinalizePurchaseDialog(),
-    );
-    if (value == null || !mounted) return;
-
-    setState(() => _loading = true);
-    await context.read<OrderStore>().finalizePurchase(
-          orderId: widget.order.id,
-          purchaseValue: value,
-        );
-    if (mounted) setState(() => _loading = false);
-  }
+  final String label;
+  final double value;
+  final Color? color;
+  final bool bold;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton.icon(
-        onPressed: _loading ? null : _openDialog,
-        icon: _loading
-            ? SizedBox(
-                height: 16,
-                width: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.orange.shade700,
-                ),
-              )
-            : const Icon(Icons.shopping_cart_checkout_outlined, size: 18),
-        label: const Text('Finalizar compra'),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: Colors.orange.shade700,
-          side: BorderSide(color: Colors.orange.shade300),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-        ),
-      ),
+    final style = TextStyle(
+      fontSize: 13,
+      fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+      color: color,
     );
-  }
-}
-
-/// Dialog that collects and validates the real purchase amount from the driver.
-class _FinalizePurchaseDialog extends StatefulWidget {
-  const _FinalizePurchaseDialog();
-
-  @override
-  State<_FinalizePurchaseDialog> createState() =>
-      _FinalizePurchaseDialogState();
-}
-
-class _FinalizePurchaseDialogState extends State<_FinalizePurchaseDialog> {
-  final _controller = TextEditingController();
-  String? _error;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _confirm() {
-    final text = _controller.text.trim();
-    if (text.isEmpty) {
-      setState(() => _error = 'Introduza um valor');
-      return;
-    }
-    final value = double.tryParse(text.replaceAll(',', '.'));
-    if (value == null || value <= 0) {
-      setState(() => _error = 'Valor inválido');
-      return;
-    }
-    Navigator.pop(context, value);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Valor da compra'),
-      content: TextField(
-        controller: _controller,
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        autofocus: true,
-        decoration: InputDecoration(
-          hintText: 'Ex: 18.50',
-          prefixText: '€ ',
-          errorText: _error,
-          border: const OutlineInputBorder(),
-        ),
-        onSubmitted: (_) => _confirm(),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: style),
+          Text('€${value.toStringAsFixed(2)}', style: style),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-        TextButton(
-          onPressed: _confirm,
-          child: const Text('Confirmar'),
-        ),
-      ],
     );
   }
 }
 
 /// Banner shown after the driver has confirmed the real purchase value.
 class _FinalizedBanner extends StatelessWidget {
-  const _FinalizedBanner({required this.finalTotal});
+  const _FinalizedBanner({required this.order});
 
-  final double finalTotal;
+  final OrderModel order;
 
   @override
   Widget build(BuildContext context) {
+    final finalTotal = order.finalTotal ?? 0;
+    final isCash = order.paymentMethod == PaymentMethod.cash;
+
+    if (isCash) {
+      // 2026-05-16: banner cash legacy (BUG 32) removido — _CashCollectBanner
+      // já cobre esta responsabilidade (parceiro + não-parceiro). Evita duplo
+      // "RECEBER €X EM DINHEIRO" no widget tree.
+      return const SizedBox.shrink();
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -1926,6 +2161,156 @@ class _FinalizedBanner extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+
+/// BUG 9 (2026-05-15) — banner persistente "RECEBER €X" durante a entrega
+/// para qualquer pedido cash. Distinto de _FinalizedBanner (storeShopping V2).
+/// Texto diferenciado:
+///   - Parceiro: "RECEBER €X — entregar ao parceiro"
+///   - Não-parceiro: "RECEBER €X EM DINHEIRO"
+/// Instanciado a partir de pickedUp (estafeta já recolheu o pedido).
+class _CashCollectBanner extends StatelessWidget {
+  const _CashCollectBanner({required this.order});
+
+  final OrderModel order;
+
+  @override
+  Widget build(BuildContext context) {
+    if (order.paymentMethod != PaymentMethod.cash) {
+      return const SizedBox.shrink();
+    }
+    final amount = order.totalToCollectCash;
+    final hasDebt = order.hasCashDebt;
+    final debtEur = order.debtCollectedCents / 100.0;
+    final isPartner = order.isPartnerStore;
+    final isPartnerSelfDispatch = order.isPartnerSelfDispatch;
+    final String mainText;
+    if (isPartnerSelfDispatch) {
+      // Fluxo "parceiro chama estafeta": o estafeta JÁ pagou o mesmo valor
+      // ao parceiro na recolha — agora recebe-o do cliente. Empate.
+      mainText =
+          'RECEBER €${amount.toStringAsFixed(2)} DO CLIENTE EM DINHEIRO';
+    } else if (isPartner) {
+      mainText = 'RECEBER €${amount.toStringAsFixed(2)} — entregar ao parceiro';
+    } else {
+      mainText = 'RECEBER €${amount.toStringAsFixed(2)} EM DINHEIRO';
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      decoration: BoxDecoration(
+        color: AppColors.accent,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x33000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          const Text('💵', style: TextStyle(fontSize: 28)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  mainText,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 20,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                if (hasDebt) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'inclui +€${debtEur.toStringAsFixed(2)} de dívida anterior',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Banner mostrado ao estafeta antes da recolha em pedidos do fluxo
+/// "parceiro chama estafeta por conta própria" (ver business_rules.md §2.4.1).
+/// O cliente comprou direto com o parceiro; o estafeta paga o valor total ao
+/// parceiro na recolha e cobra esse MESMO valor ao cliente na entrega →
+/// empate financeiro do estafeta. A Bora paga apenas a corrida (€3,80 + km)
+/// no acerto semanal.
+class _PartnerSelfDispatchPickupBanner extends StatelessWidget {
+  const _PartnerSelfDispatchPickupBanner({required this.order});
+
+  final OrderModel order;
+
+  @override
+  Widget build(BuildContext context) {
+    final amount = order.totalToCollectCash;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      decoration: BoxDecoration(
+        color: AppColors.primary,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x33000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          const Text('🏪', style: TextStyle(fontSize: 28)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'PAGAR €${amount.toStringAsFixed(2)} AO ESTABELECIMENTO',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 20,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'O cliente paga-te depois o mesmo valor em dinheiro. '
+                  'Ficas empatado — a Bora paga a tua corrida no fecho semanal.',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _ApartmentDeliveryBanner extends StatelessWidget {
   const _ApartmentDeliveryBanner();
@@ -1985,12 +2370,24 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
   late final List<CartItem> _items;
   late int _bagCount;
 
+  /// B3 (2026-06-11): fotos do catálogo por productId — o estafeta precisa de
+  /// VER o produto para comprar o certo. URLs já existentes em products
+  /// (zero storage extra); 1 query ao abrir o sheet, best-effort.
+  final Map<String, String> _photoUrls = <String, String>{};
+
   bool get _isRestaurant =>
       widget.order.serviceType == OrderServiceType.restaurant;
 
-  double get _bagFee => _isRestaurant
-      ? BRBags.RESTAURANT_BAG_FEE
-      : _bagCount * BRBags.MARKET_BAG_FEE;
+  bool get _isPartnerStore => widget.order.isPartnerStore;
+
+  double get _bagFee {
+    if (_isRestaurant) {
+      // BUG 4: partner restaurant absorbs the bag (0€), non-partner pays
+      // the fixed €0.30 already collected at checkout.
+      return _isPartnerStore ? 0 : BRBags.RESTAURANT_BAG_FEE;
+    }
+    return _bagCount * BRBags.MARKET_BAG_FEE;
+  }
 
   @override
   void initState() {
@@ -1999,6 +2396,87 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
     _bagCount = widget.order.bagCount > 0
         ? widget.order.bagCount
         : (_isRestaurant ? 1 : 1);
+    _loadProductPhotos();
+  }
+
+  Future<void> _loadProductPhotos() async {
+    final ids = _items
+        .map((i) => i.productId)
+        .where((id) => id.isNotEmpty && !id.contains(' '))
+        .toSet()
+        .toList();
+    if (ids.isEmpty) return;
+    try {
+      final rows = await Supabase.instance.client
+          .from('products')
+          .select('id, photo_url')
+          .inFilter('id', ids);
+      if (!mounted) return;
+      setState(() {
+        for (final r in rows as List) {
+          final m = Map<String, dynamic>.from(r as Map);
+          final url = (m['photo_url'] as String?) ?? '';
+          if (url.isNotEmpty) _photoUrls[m['id'] as String] = url;
+        }
+      });
+    } catch (e) {
+      // Best-effort: sem foto a lista continua funcional.
+      debugPrint('[ShoppingList] _loadProductPhotos: $e');
+    }
+  }
+
+  /// Amplia a foto (fullscreen com pinch-zoom) — tap fora fecha.
+  void _showPhotoZoom(String url, String name) {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (_) => Dialog.fullscreen(
+        backgroundColor: Colors.black,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 5,
+                child: Center(
+                  child: Image.network(
+                    url,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Icon(
+                      Icons.image_not_supported_outlined,
+                      color: Colors.white54,
+                      size: 64,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 24,
+              child: Text(
+                name,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: SafeArea(
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   // ── Add-product dialog ──────────────────────────────────────────────────
@@ -2135,21 +2613,69 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
     );
   }
 
+  bool _isExtraItem(CartItem i) => i.productId.startsWith('extra_');
+
   // ── Build ───────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final order = widget.order;
+    // Canonical items (from orders.items) vs extra items (driver-added).
+    final canonicalItems = _items.where((i) => !_isExtraItem(i)).toList();
+    final extraItems = _items
+        .where((i) => _isExtraItem(i) && i.purchaseStatus == 'bought')
+        .toList();
+
     final boughtCount =
-        _items.where((i) => i.purchaseStatus == 'bought').length;
+        canonicalItems.where((i) => i.purchaseStatus == 'bought').length;
     final unavailableCount =
-        _items.where((i) => i.purchaseStatus == 'unavailable').length;
-    final totalCount = _items.length;
+        canonicalItems.where((i) => i.purchaseStatus == 'unavailable').length;
+    final totalCount = canonicalItems.length;
     final pendingCount = totalCount - boughtCount - unavailableCount;
     final allDecided = pendingCount == 0;
 
-    final boughtTotal = _items
+    // B4 (2026-06-12) + F2 (2026-08-16, 1º dia real — pedido 4db5882d): o
+    // estafeta paga PREÇO BASE na caixa. O fallback antigo (basePrice ?? price)
+    // mostrou €7,09 (preços COM markup) ao Valdemir quando o basePrice não
+    // chegou — a caixa real do Auchan cobrou €6,06. Se a base não viajou,
+    // REVERTE-SE o markup (round(price÷1,15) recupera a base exata) em vez de
+    // mostrar o preço do cliente. Extras: prateleira → sem markup.
+    double baseOf(CartItem i) {
+      final b = i.basePrice;
+      if (b != null) return b;
+      if (_isPartnerStore) return i.price; // parceiro não tem markup
+      return ((i.price / (1 + BRBusiness.NON_PARTNER_MARKUP_RATIO)) * 100)
+              .roundToDouble() /
+          100;
+    }
+
+    final boughtTotal = canonicalItems
+        .where((i) => i.purchaseStatus == 'bought')
+        .fold<double>(0, (s, i) => s + baseOf(i) * i.quantity);
+
+    final addedFinalTotal =
+        extraItems.fold<double>(0, (s, i) => s + i.price * i.quantity);
+
+    // Valores do lado do CLIENTE (com markup) — só para a cobrança em
+    // dinheiro e para a diferença vs buffer. O servidor é a fonte
+    // autoritativa; aqui é preview com a MESMA constante das BR.
+    final clientBoughtTotal = canonicalItems
         .where((i) => i.purchaseStatus == 'bought')
         .fold<double>(0, (s, i) => s + i.price * i.quantity);
+    final clientAddedTotal = extraItems.fold<double>(
+        0,
+        (s, i) =>
+            s + (i.price * (1 + BRBusiness.NON_PARTNER_MARKUP_RATIO) * i.quantity));
+    final clientAdjustedTotal = clientBoughtTotal + _bagFee + clientAddedTotal;
+
+    final origTotal = order.paymentBufferTotal;
+    // F2 (2026-08-16): o saco do Bora NÃO passa na caixa da loja — sai do
+    // total do estafeta (fica só na conta do CLIENTE, clientAdjustedTotal).
+    final adjustedTotal = boughtTotal + addedFinalTotal;
+    final diff = clientAdjustedTotal - origTotal;
+    // BUG 16+17 — extraToCharge/refundDue retirados; agora exibimos
+    // diff directo com texto explicativo distinto por payment_method.
+
+    final isCash = order.paymentMethod == PaymentMethod.cash;
 
     final progress = totalCount > 0 ? boughtCount / totalCount : 0.0;
 
@@ -2175,7 +2701,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
+                    color: AppColors.divider,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -2270,25 +2796,101 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                   Icon(Icons.radio_button_unchecked,
                                       color: Colors.grey.shade400, size: 20),
                                 const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    '${item.name} × ${item.quantity}',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                      decoration: isUnavailable
-                                          ? TextDecoration.lineThrough
-                                          : null,
-                                      color: isUnavailable
-                                          ? Colors.grey
-                                          : Colors.black87,
+                                // B3 (2026-06-11): thumbnail do catálogo —
+                                // tap amplia (o estafeta compara com a
+                                // prateleira para comprar o produto certo).
+                                Builder(builder: (_) {
+                                  final photoUrl =
+                                      _photoUrls[item.productId];
+                                  if (photoUrl == null) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  return Padding(
+                                    padding:
+                                        const EdgeInsets.only(right: 8),
+                                    child: GestureDetector(
+                                      onTap: () => _showPhotoZoom(
+                                          photoUrl, item.name),
+                                      child: ClipRRect(
+                                        borderRadius:
+                                            BorderRadius.circular(8),
+                                        child: Image.network(
+                                          photoUrl,
+                                          width: 44,
+                                          height: 44,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) =>
+                                              const SizedBox.shrink(),
+                                        ),
+                                      ),
                                     ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                  );
+                                }),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '${item.name} × ${item.quantity}',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500,
+                                          decoration: isUnavailable
+                                              ? TextDecoration.lineThrough
+                                              : null,
+                                          color: isUnavailable
+                                              ? Colors.grey
+                                              : Colors.black87,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      // Quantidade × preço unitário — visível mesmo
+                                      // quando o nome acima é cortado pelo ellipsis
+                                      // (nome longo escondia o "× qty" fundido nele).
+                                      if (item.quantity > 1)
+                                        Padding(
+                                          padding:
+                                              const EdgeInsets.only(top: 2),
+                                          child: Text(
+                                            '${item.quantity} × €${(_isExtraItem(item) ? item.price : (item.basePrice ?? item.price)).toStringAsFixed(2)}',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey.shade600,
+                                            ),
+                                          ),
+                                        ),
+                                      // Opções escolhidas pelo cliente (bebida,
+                                      // acompanhamento, molhos...) — o estafeta
+                                      // precisa de as ver para pedir certo.
+                                      // T1: displayOptions inclui o preço
+                                      // cobrado por extra quando gravado.
+                                      if (item.displayOptions.isNotEmpty)
+                                        Padding(
+                                          padding:
+                                              const EdgeInsets.only(top: 2),
+                                          child: Text(
+                                            item.displayOptions
+                                                .map((o) =>
+                                                    '${o.group}: ${o.items.join(', ')}')
+                                                .join('\n'),
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              height: 1.3,
+                                              color: Colors.grey.shade600,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                 ),
                                 Text(
-                                  '€${(item.price * item.quantity).toStringAsFixed(2)}',
+                                  // B4 (2026-06-12): o estafeta vê o preço
+                                  // que paga na CAIXA (base, sem +15%).
+                                  // Canónicos: basePrice (pré-B1: price já
+                                  // era base). Extras: preço digitado.
+                                  '€${((_isExtraItem(item) ? item.price : (item.basePrice ?? item.price)) * item.quantity).toStringAsFixed(2)}',
                                   style: TextStyle(
                                     fontWeight: FontWeight.w600,
                                     fontSize: 14,
@@ -2302,7 +2904,8 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                 ),
                               ],
                             ),
-                            if (isPending) ...[
+                            // Partner stores: read-only list (driver only picks up).
+                            if (!_isPartnerStore && isPending) ...[
                               const SizedBox(height: 8),
                               Row(
                                 children: [
@@ -2339,10 +2942,12 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                       child: ElevatedButton.icon(
                                         onPressed: () {
                                           setState(() {
-                                            item.purchaseStatus = 'unavailable';
+                                            item.purchaseStatus =
+                                                'unavailable';
                                           });
                                         },
-                                        icon: const Icon(Icons.close, size: 16),
+                                        icon: const Icon(Icons.close,
+                                            size: 16),
                                         label: const Text('Não há',
                                             style: TextStyle(fontSize: 12)),
                                         style: ElevatedButton.styleFrom(
@@ -2371,33 +2976,37 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
               const SizedBox(height: 8),
               const Divider(height: 1),
               const SizedBox(height: 12),
-              // ── Add product button ──
-              Center(
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    final newItem = await _showAddProductDialog();
-                    if (newItem != null && mounted) {
-                      setState(() {
-                        _items.add(newItem);
-                      });
-                    }
-                  },
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Adicionar produto'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.green.shade700,
-                    side: BorderSide(color: Colors.green.shade700),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+              // ── Add product button (only for non-partner storeShopping) ──
+              if (!_isPartnerStore)
+                Center(
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      final newItem = await _showAddProductDialog();
+                      if (newItem != null && mounted) {
+                        setState(() {
+                          _items.add(newItem);
+                        });
+                      }
+                    },
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Adicionar produto'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.green.shade700,
+                      side: BorderSide(color: Colors.green.shade700),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
                     ),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   ),
                 ),
-              ),
-              const SizedBox(height: 12),
               // ── Bags section ──
-              Container(
+              // BUG 4: partner restaurant absorbs the bag (hide section).
+              // Non-partner restaurant: fixed €0.30. storeShopping: per-bag slider.
+              if (!(_isRestaurant && _isPartnerStore)) ...[
+                const SizedBox(height: 12),
+                Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: Colors.orange.shade50,
@@ -2414,14 +3023,14 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Saco de transporte',
+                                  'Sacos',
                                   style: TextStyle(
                                     fontWeight: FontWeight.w600,
                                     fontSize: 14,
                                   ),
                                 ),
                                 Text(
-                                  '(incluído automaticamente)',
+                                  '€0.30 (fixo)',
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: Colors.grey,
@@ -2485,7 +3094,8 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                             ),
                           ),
                           IconButton(
-                            onPressed: _bagCount < 20
+                            // Cap 5 sacos × €0.10 = €0.50 max (Sessão 3 / 2026-05-04)
+                            onPressed: _bagCount < 5
                                 ? () => setState(() => _bagCount++)
                                 : null,
                             icon:
@@ -2505,60 +3115,36 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                         ],
                       ),
               ),
+              ],
               const SizedBox(height: 12),
               // ── Totals breakdown ──
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Subtotal:',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey.shade700,
-                    ),
-                  ),
-                  Text(
-                    '€${boughtTotal.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey.shade700,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Sacos:',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey.shade700,
-                    ),
-                  ),
-                  Text(
-                    '€${_bagFee.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey.shade700,
-                    ),
-                  ),
-                ],
-              ),
+              // F2 (2026-08-16): sem linha "Sacos" aqui — o saco é do Bora,
+              // não passa na caixa da loja (aparece na conta do cliente).
+              _SummaryRow(
+                  label: 'Subtotal comprado', value: boughtTotal),
+              if (addedFinalTotal > 0) ...[
+                const SizedBox(height: 4),
+                _SummaryRow(
+                    label: 'Adicionados',
+                    value: addedFinalTotal,
+                    color: Colors.blue),
+              ],
               const SizedBox(height: 6),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
-                    'Total:',
+                    // B4+F2: total que o estafeta paga na caixa (preços base,
+                    // sem markup e sem o saco do Bora). "Estimado" porque o
+                    // preço de prateleira pode divergir do catálogo.
+                    'Total estimado na caixa:',
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 15,
                     ),
                   ),
                   Text(
-                    '€${(boughtTotal + _bagFee).toStringAsFixed(2)}',
+                    '€${adjustedTotal.toStringAsFixed(2)}',
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 15,
@@ -2567,6 +3153,86 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                   ),
                 ],
               ),
+              const SizedBox(height: 6),
+              if (isCash) ...[
+                // BUG H (sessão exec 2026-05-12) — breakdown completo em CASH.
+                // Estafeta cobra ao cliente TOTAL = produtos + sacos +
+                // adicionados + taxa serviço + entrega.
+                // F2: a linha "Sacos" vive AQUI (conta do cliente), não na caixa.
+                _SummaryRow(label: 'Sacos', value: _bagFee),
+                _SummaryRow(
+                    label: 'Taxa de serviço', value: order.serviceFee),
+                _SummaryRow(label: 'Entrega', value: order.deliveryFee),
+                const Divider(height: 12),
+                Builder(builder: (_) {
+                  // B4: o cliente paga preços COM markup — usar o total do
+                  // lado do cliente, não o total de caixa do estafeta.
+                  final cashTotal = clientAdjustedTotal +
+                      order.serviceFee +
+                      order.deliveryFee;
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Cliente paga na entrega:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 17,
+                        ),
+                      ),
+                      Text(
+                        '€${cashTotal.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 17,
+                          color: Colors.green.shade700,
+                        ),
+                      ),
+                    ],
+                  );
+                }),
+              ] else ...[
+                // BUG 16+17 fix — pedido MBWay/Stripe: cliente JÁ pagou na app.
+                // NÃO mostrar "Cliente pagou" (era confuso e usava field errado).
+                // Mostrar valor que Bora reembolsa ao estafeta + diferença vs
+                // estimativa.
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Bora reembolsa-te:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
+                    ),
+                    Text(
+                      '€${adjustedTotal.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                        color: Colors.green.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+                if (diff.abs() > 0.01)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      diff < 0
+                          ? 'Cliente recebe €${(-diff).toStringAsFixed(2)} de reembolso (compras saíram mais baratas)'
+                          : 'Cliente será cobrado +€${diff.toStringAsFixed(2)} (compras saíram mais caras)',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: diff < 0
+                            ? Colors.green.shade700
+                            : Colors.orange.shade700,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+              ],
               if (unavailableCount > 0)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
@@ -2588,24 +3254,126 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                           final orderStore = context.read<OrderStore>();
                           final messenger = ScaffoldMessenger.of(context);
                           final nav = Navigator.of(context);
-                          final ok = await orderStore.updateOrderItems(
-                            order.id,
-                            _items,
+                          final itemsAdded = extraItems
+                              .map((i) => <String, dynamic>{
+                                    'name': i.name,
+                                    'price_base_cents':
+                                        (i.price * 100).round(),
+                                    'qty': i.quantity,
+                                    'reason': 'driver_added',
+                                  })
+                              .toList();
+
+                          // BUG 1 — Fork V2 para storeShopping não-parceiro.
+                          // Decisão NOVA: foto+valor obrigatórios em TODOS
+                          // payment_methods para auditoria admin.
+                          //
+                          // Bloco C (2026-09-05) — o comprovativo passa a
+                          // decidir-se pelo PARCEIRO, não pelo tipo de serviço:
+                          // Burger King, McDonald's e KFC são restaurantes
+                          // não-parceiros e também precisam de talão. A base
+                          // recusa a entrega sem ele (trg_exige_talao_antes_de_
+                          // entregar), por isso a app tem de o pedir aqui —
+                          // senão o estafeta batia na parede sem saber porquê.
+                          // carryGroceries/sendPackage ficam de fora: não há compra.
+                          final useV2 = !order.isPartnerStore &&
+                              (order.serviceType ==
+                                      OrderServiceType.storeShopping ||
+                                  order.serviceType ==
+                                      OrderServiceType.restaurant);
+                          if (useV2) {
+                            final result =
+                                await _captureReceiptForV2(context, order);
+                            if (!mounted) return;
+                            if (result == null) return; // cancelado
+                            final photoFile = result.$1;
+                            final totalCents = result.$2;
+
+                            // BUG #1 v2 (sessão exec 2026-05-12 pós-teste) —
+                            // Upload via Edge Function `upload-receipt` em vez
+                            // de storage.from() directo. Bypass storage rate
+                            // limits, validação server-side completa, mensagens
+                            // erro PT-PT por código.
+                            String storagePath;
+                            try {
+                              storagePath = await ReceiptUploadService.uploadReceipt(
+                                orderId: order.id,
+                                photoFile: photoFile,
+                                totalCents: totalCents,
+                              );
+                            } catch (e) {
+                              debugPrint(
+                                  '[driver_map] receipt upload error: $e');
+                              if (!mounted) return;
+                              await _showUploadErrorDialog(context);
+                              return;
+                            }
+
+                            // Bloco C — dois caminhos, de propósito.
+                            // MERCADO (storeShopping): RPC v2 de sempre.
+                            // RESTAURANTE não-parceiro: talão pela RPC nova +
+                            // o cálculo de dinheiro pelo caminho já validado.
+                            // A RPC v2 cobra saco a €0,10 (supermercado); o
+                            // restaurante são €0,30 fixos — misturá-los mudaria
+                            // o valor cobrado ao cliente.
+                            final String? reason;
+                            if (order.serviceType ==
+                                OrderServiceType.storeShopping) {
+                              reason = await orderStore
+                                  .finalizeStoreShoppingV2WithReceipt(
+                                orderId: order.id,
+                                photoStoragePath: storagePath,
+                                driverTypedTotalCents: totalCents,
+                                items: canonicalItems,
+                                itemsAdded: itemsAdded,
+                                bagCount: _bagCount,
+                              );
+                            } else {
+                              final erroTalao =
+                                  await TalaoNaoParceiroService.registar(
+                                orderId: order.id,
+                                photoStoragePath: storagePath,
+                                driverTypedTotalCents: totalCents,
+                              );
+                              reason = erroTalao ??
+                                  await orderStore.finalizePurchaseWithReason(
+                                    orderId: order.id,
+                                    purchaseValue: totalCents / 100.0,
+                                  );
+                            }
+                            if (!mounted) return;
+                            if (reason != null) {
+                              messenger.showSnackBar(
+                                  SnackBar(content: Text(reason)));
+                            } else {
+                              nav.pop();
+                              messenger.showSnackBar(const SnackBar(
+                                  content: Text(
+                                      'Compra finalizada — siga para entrega')));
+                            }
+                            return;
+                          }
+
+                          // V1 legacy — só lojas PARCEIRAS (a partir do Bloco C,
+                          // 2026-09-05, todo o não-parceiro com compra vai por V2).
+                          final reason =
+                              await orderStore.finalizePurchaseV2(
+                            orderId: order.id,
+                            items: canonicalItems,
+                            itemsAdded: itemsAdded,
                             bagCount: _isRestaurant ? 1 : _bagCount,
-                            bagFee: _bagFee,
                           );
                           if (!mounted) return;
-                          if (ok) {
+                          if (reason != null) {
+                            messenger.showSnackBar(
+                              SnackBar(content: Text(reason)),
+                            );
+                          } else {
                             nav.pop();
                             messenger.showSnackBar(
                               const SnackBar(
-                                content: Text('Compra confirmada ✅'),
-                              ),
-                            );
-                          } else {
-                            messenger.showSnackBar(
-                              const SnackBar(
-                                content: Text('Erro ao confirmar compra.'),
+                                content: Text(
+                                    'Compra confirmada — siga para entrega'),
                               ),
                             );
                           }
@@ -2633,6 +3401,269 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── BUG 1 — Capture receipt photo + typed total (modal bottom sheet) ──────
+
+/// BUG C (sessão exec 2026-05-12) — AlertDialog PT-PT quando upload falha.
+/// Substitui SnackBar transient (4s) por dialog modal mais visível.
+Future<void> _showUploadErrorDialog(BuildContext context) async {
+  await showDialog<void>(
+    context: context,
+    builder: (_) => AlertDialog(
+      icon: const Icon(Icons.error_outline, color: Colors.red, size: 48),
+      title: const Text('Falha ao enviar talão'),
+      content: const Text(
+        'Não foi possível guardar a foto do talão. Verifica a tua '
+        'ligação à internet e tenta de novo.\n\n'
+        'Se o problema persistir, contacta o admin.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('OK'),
+        ),
+      ],
+    ),
+  );
+}
+
+/// Mostra modal para estafeta tirar foto do talão + digitar valor total.
+/// Returns (File, totalCents) ou null se cancelado. Decisão G: só câmara.
+Future<(File, int)?> _captureReceiptForV2(
+    BuildContext context, OrderModel order) async {
+  final isCash = order.paymentMethod == PaymentMethod.cash;
+  return showModalBottomSheet<(File, int)>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (sheetCtx) {
+      return _ReceiptCaptureSheet(isCash: isCash);
+    },
+  );
+}
+
+class _ReceiptCaptureSheet extends StatefulWidget {
+  const _ReceiptCaptureSheet({required this.isCash});
+  final bool isCash;
+
+  @override
+  State<_ReceiptCaptureSheet> createState() => _ReceiptCaptureSheetState();
+}
+
+class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
+  File? _photo;
+  final _totalCtrl = TextEditingController();
+  bool _submitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // BUG I — rebuild on total text change para enable/disable Confirmar
+    _totalCtrl.addListener(_onTotalChanged);
+    // F4 (2026-08-16, caso real do Valdemir): o Android pode MATAR o processo
+    // enquanto a câmara está aberta ("o aplicativo falhou, reiniciou e
+    // desligou") — a foto NÃO se perde: o SO devolve-a no arranque seguinte
+    // via retrieveLostData e recuperamo-la aqui.
+    unawaited(_recoverLostPhoto());
+  }
+
+  Future<void> _recoverLostPhoto() async {
+    try {
+      final lost = await SafeImagePicker.retrieveLostData();
+      final f = lost.file;
+      if (!lost.isEmpty && f != null && mounted && _photo == null) {
+        setState(() => _photo = File(f.path));
+        debugPrint('[bora-talao] foto recuperada após morte do processo');
+      }
+    } catch (e) {
+      debugPrint('[bora-talao] retrieveLostData falhou: $e');
+    }
+  }
+
+  void _onTotalChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _totalCtrl.removeListener(_onTotalChanged);
+    _totalCtrl.dispose();
+    super.dispose();
+  }
+
+  bool get _canSubmit =>
+      !_submitting && _photo != null && _totalCtrl.text.trim().isNotEmpty;
+
+  Future<void> _takePhoto() async {
+    try {
+      final picked = await SafeImagePicker.pickImage(
+        source: ImageSource.camera, // Decisão G — só câmara
+        preferredCameraDevice: CameraDevice.rear,
+        imageQuality: 80,
+        maxWidth: 1600,
+      );
+      if (picked != null && mounted) {
+        setState(() => _photo = File(picked.path));
+      }
+    } catch (e) {
+      // F4 (2026-08-16): tag estável p/ adb logcat + mensagem com retry.
+      debugPrint('[bora-talao] erro na câmara: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro na câmara — tenta outra vez. ($e)'),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
+  }
+
+  void _onSubmit() {
+    final eur = double.tryParse(_totalCtrl.text.replaceAll(',', '.'));
+    if (eur == null || eur <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Valor do talão inválido.')),
+      );
+      return;
+    }
+    if (_photo == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tira foto do talão primeiro.')),
+      );
+      return;
+    }
+    final cents = (eur * 100).round();
+    setState(() => _submitting = true);
+    Navigator.of(context).pop<(File, int)>((_photo!, cents));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final hint = widget.isCash
+        ? 'Foto guardada para registo Bora (auditoria).'
+        : 'Foto + valor permitem Bora reembolsar-te o valor correcto do talão.';
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+              margin: const EdgeInsets.only(bottom: 16),
+            ),
+            const Text(
+              'Foto do talão + valor pago',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              hint,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            GestureDetector(
+              onTap: _takePhoto,
+              child: Container(
+                height: 160,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: _photo == null
+                    ? const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.camera_alt, size: 36),
+                            SizedBox(height: 8),
+                            Text('Tirar foto do talão'),
+                          ],
+                        ),
+                      )
+                    : ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child:
+                            Image(
+                                image: boraLocalImage(_photo!.path),
+                                fit: BoxFit.cover),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _totalCtrl,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Valor total no talão (€)',
+                prefixIcon: Icon(Icons.euro),
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              // BUG I — disabled até foto + valor preenchidos
+              onPressed: _canSubmit ? _onSubmit : null,
+              icon: _submitting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.check),
+              label: Text(_submitting ? 'A enviar...' : 'Confirmar'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green.shade600,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: Colors.grey.shade300,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+            // BUG I — texto helper quando disabled
+            if (!_canSubmit && !_submitting)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  _photo == null
+                      ? 'Tira foto do talão para continuar'
+                      : 'Digita o valor pago no talão',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                    fontStyle: FontStyle.italic,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancelar'),
+            ),
+          ],
         ),
       ),
     );

@@ -1,0 +1,95 @@
+PROVA DO TESTE PONTA-A-PONTA — LAVAGEM AUTO
+Corrido contra PRODUCAO (ojykpzwqrtusfeakzrna) em 2026-08-27 12:09.
+Script: .claude/testes-e2e/e2e_carwash.py
+Metodo: chamadas REST reais com JWT de cada utilizador (passa por RLS e pelas
+        RPCs exactamente como a app faz). O service_role so foi usado para
+        criar as contas e para LER o estado final (a prova).
+
+========================================================================
+TESTE E2E - LAVAGEM AUTO - producao - 2026-08-27 12:09
+========================================================================
+
+1) CONTAS
+   lavador lava.leva@bora.app -> 0e8289fa-e4e5-48e5-bc6d-a7107c13cbf2 (criado)
+   cliente teste.lavagem@bora.app -> 35393026-dfff-40ee-afc8-454e5020bb24 (criado)
+   perfil Lava & Leva criado -> 73ced1e6-b377-46f3-a2ae-7c449071a040
+  [OK]    os dois conseguem entrar (JWT emitido)
+
+2) PRECO (fonte unica no servidor)
+   carwash_quote('full') -> {"base_cents": 2000, "total_cents": 2000, "duration_min": 110,
+                             "service_type": "full", "bora_fee_cents": 300,
+                             "washer_earnings_cents": 1700}
+  [OK]    lavagem completa = 20,00 EUR  2000
+  [OK]    comissao Bora = 15% = 3,00 EUR  300
+  [OK]    lavador recebe 17,00 EUR  1700
+  [OK]    'so interior' esta DESLIGADO (recusa)  P0001 service_not_enabled
+
+3) PORTAO ANTES DO STRIPE (licao 31/07)
+  [OK]    cartao recusado ANTES de tocar no Stripe  P0001 card_mbway_not_enabled
+  [OK]    morada fora do raio de 8 km e recusada    P0001 out_of_service_area
+
+4) PEDIDO REAL (dinheiro)
+   pedido criado -> dee3cbd6-eebb-4169-bec5-c7ecd286de07
+  [OK]    estado inicial = scheduled
+  [OK]    total gravado = 2000 centimos
+  [OK]    oferta foi para o Lava & Leva  73ced1e6-b377-46f3-a2ae-7c449071a040
+  [OK]    oferta tem prazo (10 min)  2026-08-27T11:19:53.065611+00:00
+
+5) O LAVADOR VE A OFERTA (licao Valdemir: chave = user_id)
+  [OK]    lavador ve o pedido na sua lista
+          [{'id': 'dee3cbd6-eebb-4169-bec5-c7ecd286de07', 'plate': 'AA-11-BB'}]
+
+6) ACEITAR + ETA
+  [OK]    estado = accepted
+  [OK]    lavador atribuido
+  [OK]    ETA calculado e multiplo de 5   10 min
+  [OK]    ETA >= buffer de 10 min
+   ETA prometido: 10 min (chega ~2026-08-27T11:19:53.645+00:00)
+
+7) AS 4 FOTOS SAO OBRIGATORIAS (validado no SERVIDOR, nao so no botao)
+  [OK]    recolha SEM fotos e recusada        missing_photos: frente, tras, esquerda, direita
+  [OK]    recolha com SO 2 fotos e recusada   missing_photos: esquerda, direita
+  [OK]    recolha com as 4 fotos passa
+
+8) RESTO DO CICLO
+  [OK]    started    -> in_progress
+  [OK]    delivering -> delivering
+  [OK]    delivered  -> delivered
+
+9) CLIENTE CONFIRMA E AVALIA
+  [OK]    estado final = completed
+  [OK]    pagamento em dinheiro fica cash_pending
+
+10) PROVA POR SELECT NO SERVIDOR (nao pela palavra do executor)
+   {"status": "completed", "total_cents": 2000, "washer_earnings_cents": 1700,
+    "bora_fee_cents": 300, "eta_minutes": 10, "rating": 5,
+    "accepted_at":  "2026-08-27T11:09:53.645+00:00",
+    "picked_up_at": "2026-08-27T11:09:54.270513+00:00",
+    "delivered_at": "2026-08-27T11:09:54.724636+00:00",
+    "completed_at": "2026-08-27T11:09:54.845447+00:00",
+    "payment_method": "cash"}
+  [OK]    status no banco = completed
+  [OK]    total = 2000
+  [OK]    lavador = 1700 (85%)
+  [OK]    Bora = 300 (15%)
+  [OK]    contas batem (1700+300=2000)
+  [OK]    4 fotos gravadas
+  [OK]    carimbos do ciclo todos preenchidos
+  [OK]    avaliacao gravada = 5
+   lavador: {"washes_done": 1, "rating_avg": 5.0, "ratings_count": 1}
+  [OK]    contador de lavagens subiu
+
+========================================================================
+RESULTADO: 33 passaram, 0 falharam
+booking de teste: dee3cbd6-eebb-4169-bec5-c7ecd286de07
+washer_id: 73ced1e6-b377-46f3-a2ae-7c449071a040
+washer_uid: 0e8289fa-e4e5-48e5-bc6d-a7107c13cbf2
+========================================================================
+
+O QUE ESTE TESTE **NAO** PROVA
+------------------------------
+O teste no TELEMOVEL nao foi feito: `adb devices` devolveu lista vazia
+(nenhum aparelho ligado por USB). Por ordem expressa da missao, isso NAO se
+dá por feito. Falta portanto validar no aparelho: os ecras, a camara nas 4
+fotos, e o push a chegar. O motor por tras — que e o que este teste cobre —
+esta provado.

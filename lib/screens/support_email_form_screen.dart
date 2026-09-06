@@ -1,0 +1,152 @@
+// Sessão 5A-2 B14 — SupportEmailFormScreen
+// Form simples — submete via Edge Fn support-submit-ticket (channel='email').
+
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../config/app_colors.dart';
+import '../providers/support_settings_provider.dart';
+import '../widgets/bora/bora_primary_button.dart';
+import '../widgets/bora/bora_screen_app_bar.dart';
+
+import '../l10n/tr.dart';
+
+class SupportEmailFormScreen extends StatefulWidget {
+  const SupportEmailFormScreen({super.key, this.orderId});
+
+  final String? orderId;
+
+  @override
+  State<SupportEmailFormScreen> createState() =>
+      _SupportEmailFormScreenState();
+}
+
+class _SupportEmailFormScreenState extends State<SupportEmailFormScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _subjectCtrl = TextEditingController();
+  final _bodyCtrl = TextEditingController();
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    _subjectCtrl.dispose();
+    _bodyCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _submitting = true);
+    try {
+      final res = await Supabase.instance.client.functions.invoke(
+        'support-submit-ticket',
+        body: {
+          'channel': 'email',
+          'subject': _subjectCtrl.text.trim(),
+          'body': _bodyCtrl.text.trim(),
+          if (widget.orderId != null) 'order_id': widget.orderId,
+        },
+      );
+      final data = res.data as Map<String, dynamic>?;
+      final ticketId = data?['ticket_id'] as String?;
+      final sla = data?['sla_hours'] as int? ??
+          context.read<SupportSettingsProvider>().slaHours;
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            ticketId == null
+                ? 'Recebemos. Resposta em até {0}h.'.trArgs([sla])
+                : 'Recebemos #${ticketId.substring(0, 8)}. Resposta em até ${sla}h.',
+          ),
+        ),
+      );
+      Navigator.of(context).pop();
+    } on FunctionException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro: {0}'.trArgs([e.details ?? e.status]))),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro de comunicação. Tenta novamente.'.tr)),
+        );
+      }
+      debugPrint('[SupportEmailFormScreen] $e');
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = context.watch<SupportSettingsProvider>();
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(title: 'Enviar email ao suporte'.tr),
+      body: SafeArea(
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              if (widget.orderId != null)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF3E0),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'Sobre pedido #{0}'.trArgs([widget.orderId]),
+                    style: const TextStyle(color: AppColors.accent),
+                  ),
+                ),
+              TextFormField(
+                controller: _subjectCtrl,
+                maxLength: 200,
+                decoration: InputDecoration(
+                  labelText: 'Assunto'.tr,
+                  border: const OutlineInputBorder(),
+                ),
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'Assunto obrigatório'.tr
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _bodyCtrl,
+                maxLength: 5000,
+                maxLines: 8,
+                decoration: InputDecoration(
+                  labelText: 'Mensagem'.tr,
+                  border: const OutlineInputBorder(),
+                  alignLabelWithHint: true,
+                ),
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'Mensagem obrigatória'.tr
+                    : null,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Resposta em até {0}h em {1}'.trArgs([provider.slaHours, provider.supportEmail]),
+                style: const TextStyle(
+                    fontSize: 12, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 16),
+              BoraPrimaryButton(
+                label: 'Enviar'.tr,
+                loading: _submitting,
+                onPressed: _submitting ? null : _submit,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"C:\\Users\\danil\\.claude\\plugins\\cache\\context-mode\\context-mode\\1.0.75/hooks/pretooluse.mjs\""
+            "command": "node \"C:\\Users\\danil\\.claude\\plugins\\cache\\context-mode\\context-mode\\1.0.89/hooks/pretooluse.mjs\""
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"C:\\Users\\danil\\.claude\\plugins\\cache\\context-mode\\context-mode\\1.0.75/hooks/posttooluse.mjs\""
+            "command": "node \"C:\\Users\\danil\\.claude\\plugins\\cache\\context-mode\\context-mode\\1.0.89/hooks/posttooluse.mjs\""
           }
         ]
       }
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"C:\\Users\\danil\\.claude\\plugins\\cache\\context-mode\\context-mode\\1.0.75/hooks/precompact.mjs\""
+            "command": "node \"C:\\Users\\danil\\.claude\\plugins\\cache\\context-mode\\context-mode\\1.0.89/hooks/precompact.mjs\""
           }
         ]
       }
@@ -39,7 +39,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"C:\\Users\\danil\\.claude\\plugins\\cache\\context-mode\\context-mode\\1.0.75/hooks/sessionstart.mjs\""
+            "command": "node \"C:\\Users\\danil\\.claude\\plugins\\cache\\context-mode\\context-mode\\1.0.89/hooks/sessionstart.mjs\""
           }
         ]
       }

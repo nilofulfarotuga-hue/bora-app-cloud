@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../config/app_colors.dart';
 import '../models/cart_item.dart';
 import '../models/partner_product.dart';
 import '../models/product_variant.dart';
@@ -12,9 +11,15 @@ import '../services/pricing_service.dart';
 import '../stores/cart_store.dart';
 import '../stores/favorite_store.dart';
 import '../stores/restaurant_store.dart';
+import '../utils/cart_feedback.dart';
 import '../widgets/bora/bora_product_card.dart';
+import '../widgets/bora/bora_screen_app_bar.dart';
+import '../widgets/bora/coming_soon.dart';
+import '../widgets/bora_support_fab.dart';
 import 'cart_screen.dart';
 import 'product_detail_screen.dart';
+
+import '../l10n/tr.dart';
 
 class StoreProductsScreen extends StatefulWidget {
   final String restaurantId;
@@ -38,8 +43,6 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
   late String _selectedCategory;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
-  bool _showSuggestions = false;
-
   // RPC-backed search (robust to accents/case via server-side normalization).
   Timer? _rpcDebounce;
   List<Map<String, dynamic>> _rpcRows = const [];
@@ -60,6 +63,15 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
   void initState() {
     super.initState();
     _selectedCategory = widget.initialCategory ?? 'Todos';
+    // Hotfix (2026-06-12): carrega a loja INTEIRA ao abrir (full-load
+    // on-demand). Necessário para o filtro/secções por categoria verem todas
+    // as categorias. Idempotente (não recarrega se já carregada).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context
+          .read<RestaurantStore>()
+          .loadFullStoreProducts(widget.restaurantId);
+    });
   }
 
   @override
@@ -191,27 +203,25 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
     final categories = _buildCategories(products);
     final filtered = _applyFilters(products);
     final suggestions =
-        _showSuggestions ? _getSuggestions(products) : <PartnerProduct>[];
+        _searchQuery.trim().length >= 2 ? _getSuggestions(products) : <PartnerProduct>[];
     final isFruit = _isFruitCategory(_selectedCategory);
     final grouped = _showSections ? _groupByCategory(filtered) : null;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
-      appBar: AppBar(
-        title: Text(
-          widget.storeName,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.white,
-        foregroundColor: AppColors.primary,
-        iconTheme: const IconThemeData(color: AppColors.primary, size: 26),
-        elevation: 0,
+      floatingActionButton: const BoraSupportFab(),
+      appBar: BoraScreenAppBar(
+        title: widget.storeName,
         actions: [
           _CartBadge(cartStore: cartStore),
         ],
       ),
       body: Column(
         children: [
+          // "Em breve": banner por baixo do cabeçalho. Produtos e preços
+          // continuam todos visíveis.
+          if (cartStore.vendorComingSoon)
+            ComingSoonBanner(text: cartStore.vendorComingSoonText),
           // ── Search bar ─────────────────────────────────────────────────────
           Container(
             color: Colors.white,
@@ -219,15 +229,12 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
             child: TextField(
               controller: _searchController,
               onChanged: (v) {
-                setState(() {
-                  _searchQuery = v;
-                  _showSuggestions = v.isNotEmpty;
-                });
+                setState(() => _searchQuery = v);
                 _scheduleRpcSearch(v);
               },
-              onSubmitted: (_) => setState(() => _showSuggestions = false),
+              onSubmitted: (_) {},
               decoration: InputDecoration(
-                hintText: 'Buscar produtos...',
+                hintText: 'Buscar produtos...'.tr,
                 hintStyle: TextStyle(color: Colors.grey.shade400),
                 prefixIcon: Icon(Icons.search, color: Colors.grey.shade400),
                 suffixIcon: _searchQuery.isNotEmpty
@@ -235,7 +242,11 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
                         icon: const Icon(Icons.clear),
                         onPressed: () {
                           _searchController.clear();
-                          setState(() => _searchQuery = '');
+                          setState(() {
+                            _searchQuery = '';
+                            _rpcRows = const [];
+                            _rpcLoading = false;
+                          });
                         },
                       )
                     : null,
@@ -250,89 +261,107 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
             ),
           ),
 
-          // ── Search suggestions ─────────────────────────────────────────────
-          if (_showSuggestions && _searchQuery.trim().length >= 2)
-            _SuggestionsPanel(
-              rpcRows: _rpcRows,
-              rpcLoading: _rpcLoading,
-              localFallback: suggestions,
-              loadedProducts: products,
-              isPartnerStore: widget.isPartnerStore,
-              onPickSection: (categoryRoot) {
-                _searchController.clear();
-                setState(() {
-                  _searchQuery = '';
-                  _showSuggestions = false;
-                  _rpcRows = const [];
-                  _selectedCategory = _capitalize(categoryRoot);
-                });
-              },
-              onPickProduct: (p) {
-                _searchController.text = p.name;
-                setState(() {
-                  _searchQuery = p.name;
-                  _showSuggestions = false;
-                });
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => ProductDetailScreen(product: p)),
-                );
-              },
+          // ── Search mode: RPC results fill screen / Browse mode: chips + grid ─
+          // 2026-06-05: antes os resultados RPC só apareciam num painel 360px
+          // que desaparecia ao pressionar Enter. A lista principal usava apenas
+          // filtro local (contains), falhando em queries fuzzy (ex: "aguas" →
+          // "Água"). Agora quando há query ≥ 2 chars, o painel RPC ocupa o
+          // Expanded completo — funciona para TODAS as lojas, mesmo sem produtos
+          // em memória (RPC sintetiza PartnerProduct do row DB directamente).
+          if (_searchQuery.trim().length >= 2) ...[
+            Expanded(
+              child: _SuggestionsPanel(
+                rpcRows: _rpcRows,
+                rpcLoading: _rpcLoading,
+                localFallback: suggestions,
+                loadedProducts: products,
+                isPartnerStore: widget.isPartnerStore,
+                onPickSection: (categoryRoot) {
+                  _searchController.clear();
+                  setState(() {
+                    _searchQuery = '';
+                    _rpcRows = const [];
+                    _rpcLoading = false;
+                    _selectedCategory = _capitalize(categoryRoot);
+                  });
+                },
+                onPickProduct: (p) {
+                  _searchController.clear();
+                  setState(() {
+                    _searchQuery = '';
+                    _rpcRows = const [];
+                    _rpcLoading = false;
+                  });
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => ProductDetailScreen(
+                              product: p,
+                              isPartnerStore: widget.isPartnerStore,
+                            )),
+                  );
+                },
+              ),
             ),
-
-          // ── Horizontal category chips ───────────────────────────────────────
-          Container(
-            color: Colors.white,
-            height: 50,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              itemCount: categories.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (_, i) {
-                final cat = categories[i];
-                final isSelected = cat == _selectedCategory;
-                return ChoiceChip(
-                  label: Text(cat),
-                  selected: isSelected,
-                  onSelected: (_) => setState(() => _selectedCategory = cat),
-                  selectedColor: Theme.of(context).colorScheme.primary,
-                  backgroundColor: const Color(0xFFF0F0F0),
-                  labelStyle: TextStyle(
-                    color: isSelected ? Colors.white : Colors.black87,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20)),
-                );
-              },
+          ] else ...[
+            // ── Browse mode: category chips + sectioned/flat grid ───────────
+            Container(
+              color: Colors.white,
+              height: 50,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                itemCount: categories.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (_, i) {
+                  final cat = categories[i];
+                  final isSelected = cat == _selectedCategory;
+                  return ChoiceChip(
+                    label: Text(cat),
+                    selected: isSelected,
+                    onSelected: (_) =>
+                        setState(() => _selectedCategory = cat),
+                    selectedColor: Theme.of(context).colorScheme.primary,
+                    backgroundColor: const Color(0xFFF0F0F0),
+                    labelStyle: TextStyle(
+                      color: isSelected ? Colors.white : Colors.black87,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20)),
+                  );
+                },
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-
-          // ── Content area ───────────────────────────────────────────────────
-          Expanded(
-            child: filtered.isEmpty
-                ? _EmptyState(
-                    hasSearch: _searchQuery.isNotEmpty,
-                    searchQuery: _searchQuery,
-                    onRefresh: () => setState(() {}),
-                  )
-                : _showSections
-                    ? _SectionedView(
-                        grouped: grouped!,
-                        isFruitCategory: _isFruitCategory,
-                        isPartnerStore: widget.isPartnerStore,
-                      )
-                    : _FlatGridView(
-                        products: filtered,
-                        showPerKg: isFruit,
-                        isPartnerStore: widget.isPartnerStore,
-                      ),
-          ),
+            const SizedBox(height: 4),
+            Expanded(
+              // Hotfix (2026-06-12): a loja é carregada inteira ao abrir
+              // (loadFullStoreProducts). Enquanto carrega e ainda não há
+              // produtos da categoria → spinner; vazio real → _EmptyState.
+              child: filtered.isEmpty
+                  ? (restaurantStore.storeProductsLoading(widget.restaurantId)
+                      ? const Center(child: CircularProgressIndicator())
+                      : _EmptyState(
+                          hasSearch: _searchQuery.isNotEmpty,
+                          searchQuery: _searchQuery,
+                          onRefresh: () => setState(() {}),
+                        ))
+                  : _showSections
+                      ? _SectionedView(
+                          grouped: grouped!,
+                          isFruitCategory: _isFruitCategory,
+                          isPartnerStore: widget.isPartnerStore,
+                        )
+                      : _FlatGridView(
+                          products: filtered,
+                          showPerKg: isFruit,
+                          isPartnerStore: widget.isPartnerStore,
+                        ),
+            ),
+          ],
 
           // ── Fixed "Ver carrinho" button ────────────────────────────────────
           if (cartStore.items.isNotEmpty)
@@ -348,7 +377,7 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
                   ),
                   icon: const Icon(Icons.shopping_cart),
                   label: Text(
-                    'Ver carrinho · €${cartStore.total.toStringAsFixed(2)}',
+                    'Ver carrinho · €{0}'.trArgs([cartStore.total.toStringAsFixed(2)]),
                     style: const TextStyle(
                         fontWeight: FontWeight.w600, fontSize: 16),
                   ),
@@ -395,7 +424,7 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               hasSearch
-                  ? 'Sem resultados para "$searchQuery"'
+                  ? 'Sem resultados para "{0}"'.trArgs([searchQuery])
                   : 'Nenhum produto disponível',
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -407,7 +436,7 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               hasSearch
-                  ? 'Tente outro termo de busca.'
+                  ? 'Tente outro termo de busca.'.tr
                   : 'Este estabelecimento ainda não tem produtos cadastrados.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
@@ -417,7 +446,7 @@ class _EmptyState extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: onRefresh,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Atualizar'),
+                label: Text('Atualizar'.tr),
                 style: OutlinedButton.styleFrom(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -855,14 +884,19 @@ class _BoraProductCardTile extends StatelessWidget {
 
     return BoraProductCard(
       product: product,
-      displayPrice:
-          PricingService.applyMarkup(product.price, isPartnerStore),
+      // B1 (2026-06-11): preço exibido = preço cobrado. A DB tem o preço BASE
+      // do site oficial (a nota de 2026-05-21 estava errada — provado pelo
+      // pedido 80ba3a2e); o markup não-parceiro aplica-se em runtime.
+      displayPrice: PricingService.applyMarkup(product.price, isPartnerStore),
       isFavorite: isFav,
       onFavoriteToggle: () => favoriteStore.toggle(product.id),
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => ProductDetailScreen(product: product),
+          builder: (_) => ProductDetailScreen(
+            product: product,
+            isPartnerStore: isPartnerStore,
+          ),
         ),
       ),
       onAdd: () {
@@ -870,22 +904,10 @@ class _BoraProductCardTile extends StatelessWidget {
         context.read<CartStore>().addItem(CartItem(
               productId: product.id,
               name: product.name,
-              price: product.price,
+              price: PricingService.applyMarkup(product.price, isPartnerStore),
+              basePrice: product.price,
             ));
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            SnackBar(
-              content: Text('${product.name} adicionado ao carrinho'),
-              duration: const Duration(milliseconds: 1200),
-              behavior: SnackBarBehavior.floating,
-              margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
-              dismissDirection: DismissDirection.horizontal,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          );
+        showAddedToCartSnack(context, '{0} no carrinho'.trArgs([product.name]));
       },
     );
   }
@@ -955,7 +977,10 @@ class _ProductCardState extends State<_ProductCard>
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => ProductDetailScreen(product: widget.product),
+          builder: (_) => ProductDetailScreen(
+            product: widget.product,
+            isPartnerStore: widget.isPartnerStore,
+          ),
         ),
       ),
       child: ScaleTransition(
@@ -1019,13 +1044,13 @@ class _ProductCardState extends State<_ProductCard>
                   Row(
                     children: [
                       if (widget.product.isPopular)
-                        const Padding(
-                          padding: EdgeInsets.only(right: 6),
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
                           child: _Badge(
-                              label: 'Mais vendido', color: Colors.orange),
+                              label: 'Mais vendido'.tr, color: Colors.orange),
                         ),
                       if (widget.product.isOnSale)
-                        const _Badge(label: 'Promoção', color: Colors.red),
+                        _Badge(label: 'Promoção'.tr, color: Colors.red),
                     ],
                   ),
                 ],
@@ -1046,6 +1071,7 @@ class _ProductCardState extends State<_ProductCard>
                     children: [
                       Text(
                         widget.product.price > 0
+                            // B1: exibido = cobrado (markup runtime não-parceiro).
                             ? '€${PricingService.applyMarkup(widget.product.price, widget.isPartnerStore).toStringAsFixed(2)}'
                             : 'Preço indisponível',
                         style: TextStyle(
@@ -1059,28 +1085,19 @@ class _ProductCardState extends State<_ProductCard>
                       _QtyButton(
                         icon: Icons.add,
                         color: primaryColor,
+                        semanticId: 'btn_add_carrinho',
                         onTap: () {
                           if (widget.product.price <= 0) return;
                           context.read<CartStore>().addItem(CartItem(
                                 productId: widget.product.id,
                                 name: widget.product.name,
-                                price: widget.product.price,
+                                price: PricingService.applyMarkup(
+                                    widget.product.price,
+                                    widget.isPartnerStore),
+                                basePrice: widget.product.price,
                               ));
-                          ScaffoldMessenger.of(context)
-                            ..hideCurrentSnackBar()
-                            ..showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                    '${widget.product.name} adicionado ao carrinho'),
-                                duration: const Duration(milliseconds: 1200),
-                                behavior: SnackBarBehavior.floating,
-                                margin: const EdgeInsets.only(
-                                    bottom: 80, left: 16, right: 16),
-                                dismissDirection: DismissDirection.horizontal,
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10)),
-                              ),
-                            );
+                          showAddedToCartSnack(
+                              context, '{0} no carrinho'.trArgs([widget.product.name]));
                         },
                       ),
                     ],
@@ -1141,32 +1158,20 @@ class _VariantMiniCard extends StatelessWidget {
   final bool showPremiumBadge;
   final bool isPartnerStore;
 
-  String get _variantKey => '${productName}__${variant.id}';
+  // Sessão 4C: ProductVariant.id é UUID válido — usar directamente.
+  // Embeber o nome do produto criava productId que falhava lookup na RPC.
+  String get _variantKey => variant.id;
 
   void _addToCart(BuildContext context) {
+    // B1 (2026-06-11): variantes podem não existir em `products` — o servidor
+    // usa unit_price (basePrice) como fallback e aplica o markup à soma.
     context.read<CartStore>().addItem(CartItem(
           productId: _variantKey,
           name: '$productName (${variant.brandName})',
-          price: variant.price,
+          price: PricingService.applyMarkup(variant.price, isPartnerStore),
+          basePrice: variant.price,
         ));
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text('${variant.brandName} adicionado ao carrinho'),
-          duration: const Duration(milliseconds: 1200),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
-          dismissDirection: DismissDirection.horizontal,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          action: SnackBarAction(
-            label: 'Ver',
-            onPressed: () => Navigator.push(
-                context, MaterialPageRoute(builder: (_) => const CartScreen())),
-          ),
-        ),
-      );
+    showAddedToCartSnack(context, '{0} no carrinho'.trArgs([variant.brandName]));
   }
 
   @override
@@ -1174,6 +1179,8 @@ class _VariantMiniCard extends StatelessWidget {
     final qty = cartStore.items
         .where((i) => i.productId == _variantKey)
         .fold<int>(0, (sum, i) => sum + i.quantity);
+    // B1 (2026-06-11): exibido = cobrado. A DB tem preço BASE (a nota de
+    // 2026-05-21 estava errada); markup não-parceiro aplicado em runtime.
     final markedPrice =
         PricingService.applyMarkup(variant.price, isPartnerStore);
     final priceLabel = showPerKg
@@ -1221,10 +1228,10 @@ class _VariantMiniCard extends StatelessWidget {
                     ),
                     if (showCheapestBadge) ...[
                       const SizedBox(height: 3),
-                      const _Badge(label: 'Mais barato', color: Colors.green),
+                      _Badge(label: 'Mais barato'.tr, color: Colors.green),
                     ] else if (showPremiumBadge) ...[
                       const SizedBox(height: 3),
-                      const _Badge(label: 'Premium', color: Colors.blue),
+                      _Badge(label: 'Premium'.tr, color: Colors.blue),
                     ],
                   ],
                 ),
@@ -1247,6 +1254,7 @@ class _VariantMiniCard extends StatelessWidget {
                 _QtyButton(
                   icon: Icons.add,
                   color: primaryColor,
+                  semanticId: 'btn_add_carrinho',
                   onTap: () => _addToCart(context),
                 )
               else
@@ -1404,26 +1412,41 @@ class _PlaceholderImage extends StatelessWidget {
 
 class _QtyButton extends StatelessWidget {
   const _QtyButton(
-      {required this.icon, required this.color, required this.onTap});
+      {required this.icon,
+      required this.color,
+      required this.onTap,
+      this.semanticId});
 
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
+  // Identificador estável para o botão pequeno de "+" (adicionar ao carrinho).
+  // O E2E toca-o por id (btn_add_carrinho) em vez de adivinhar a coordenada do
+  // ícone sem texto no canto do card — ver flows/cliente/delivery-mercado-cash.yaml.
+  final String? semanticId;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
+    // Loja em "Em breve": o "+" fica cinzento e explica porquê ao toque.
+    // O "-" (remover) não é afectado.
+    final comingSoon = icon == Icons.add &&
+        context.watch<CartStore>().vendorBlocksAddToCart;
+    final effectiveColor = comingSoon ? Colors.grey.shade500 : color;
+    final button = InkWell(
+      onTap: comingSoon ? () => showComingSoonBlockedSnackBar(context) : onTap,
       borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
+          color: effectiveColor.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(icon, size: 18, color: color),
+        child: Icon(icon, size: 18, color: effectiveColor),
       ),
     );
+    return semanticId == null
+        ? button
+        : Semantics(identifier: semanticId, button: true, child: button);
   }
 }
 
@@ -1538,9 +1561,7 @@ class _SuggestionsPanel extends StatelessWidget {
 
     return Container(
       color: Colors.white,
-      constraints: const BoxConstraints(maxHeight: 360),
       child: ListView(
-        shrinkWrap: true,
         padding: const EdgeInsets.symmetric(vertical: 4),
         children: [
           for (final s in sections)
@@ -1552,8 +1573,8 @@ class _SuggestionsPanel extends StatelessWidget {
                 style:
                     const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
               ),
-              subtitle: const Text('Categoria',
-                  style: TextStyle(fontSize: 11, color: Colors.grey)),
+              subtitle: Text('Categoria'.tr,
+                  style: const TextStyle(fontSize: 11, color: Colors.grey)),
               onTap: () => onPickSection(
                   (s['category_root'] ?? s['name'] ?? '').toString()),
             ),
@@ -1584,6 +1605,7 @@ class _SuggestionsPanel extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 13, fontWeight: FontWeight.w600)),
                 subtitle: Text(
+                    // B1: exibido = cobrado (markup runtime não-parceiro).
                     '€${PricingService.applyMarkup(p.price, isPartnerStore).toStringAsFixed(2)}',
                     style: const TextStyle(fontSize: 12)),
                 onTap: () => onPickProduct(p),
@@ -1613,6 +1635,7 @@ class _SuggestionsPanel extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 13, fontWeight: FontWeight.w600)),
                 subtitle: Text(
+                    // B1: exibido = cobrado (markup runtime não-parceiro).
                     '€${PricingService.applyMarkup(p.price, isPartnerStore).toStringAsFixed(2)}',
                     style: const TextStyle(fontSize: 12)),
                 onTap: () => onPickProduct(p),

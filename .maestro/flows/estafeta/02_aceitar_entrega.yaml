@@ -1,0 +1,61 @@
+appId: pt.boraapp.bora
+name: Estafeta — Aceitar entrega → recolhido → entregue
+tags:
+  - estafeta
+  - entregas
+  - golden
+---
+- launchApp:
+    clearState: true
+- runFlow: ../../_shared/login_estafeta.yaml
+
+# Pôr online se ainda não estiver. O toggle é um Switch puro ao lado do
+# Text("Online"/"Offline") — tocar no texto não muda o estado (não está
+# ligado ao onChanged). Key adicionada no código (driver_online_toggle),
+# mas precisa de novo build; por agora usa o Switch do bottom sheet
+# "Estás offline" (mesmo estado isAvailable).
+- runFlow:
+    when:
+      visible: ".*Estás offline.*"
+    commands:
+      - tapOn:
+          point: "83%,65%"
+      - extendedWaitUntil:
+          visible: ".*Online.*"
+          timeout: 10000
+
+# Aguardar oferta (DispatchEngine envia em ~10s tipicamente).
+- extendedWaitUntil:
+    visible:
+      text: ".*Aceitar.*"
+    timeout: 60000
+
+- tapOn: ".*Aceitar.*"
+- extendedWaitUntil:
+    visible:
+      text: ".*Recolhido.*"
+    timeout: 15000
+
+- tapOn:
+    text: ".*Recolhido.*"
+- extendedWaitUntil:
+    visible:
+      text: ".*Entregue.*"
+    timeout: 15000
+
+- tapOn:
+    text: ".*Entregue.*"
+
+# Código 4-dígitos (BR §7.7) — preencher com 0000 placeholder se solicitado.
+- runFlow:
+    when:
+      visible:
+        text: ".*Código.*"
+    commands:
+      - inputText: "0000"
+      - tapOn: ".*Confirmar.*"
+
+- extendedWaitUntil:
+    visible:
+      text: ".*(delivered|entregue|Conclu).*"
+    timeout: 30000

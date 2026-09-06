@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <base href="/">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="description" content="Bora — entregas, mercados, boleias, limpeza, reservas e marcações na Guarda. Pede pelo site, sem instalar nada.">
+  <meta name="theme-color" content="#16A34A">
+
+  <!-- iOS: permite guardar no ecrã principal como app -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Bora">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>Bora</title>
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Pré-ligação aos dois servidores de que o primeiro ecrã depende:
+       poupa o handshake TLS quando o campo de morada e a sessão arrancam. -->
+  <link rel="preconnect" href="https://ojykpzwqrtusfeakzrna.supabase.co" crossorigin>
+  <link rel="preconnect" href="https://maps.googleapis.com">
+  <link rel="preconnect" href="https://maps.gstatic.com" crossorigin>
+
+  <!-- Google Maps + Places — carregamento CONTROLADO.
+       `directions` NÃO é uma biblioteca da Maps JavaScript API (as válidas são
+       places, geometry, drawing, visualization, marker, routes). As Directions
+       fazem parte da API base. `loading=async` é o padrão recomendado.
+
+       Porquê controlado e não um <script async> solto: se o script for
+       bloqueado (extensão de privacidade), falhar (rede fraca) ou demorar,
+       ninguém sabia — o campo de morada ficava morto em silêncio para sempre
+       (cliente TVDE perdida 2x, 2026-08-31). Agora há um estado global que o
+       Dart consulta: window.boraMapsEstado = 'a-carregar' | 'pronto' |
+       'indisponivel', com motivo em window.boraMapsMotivo, e uma função de
+       retentativa window.boraCarregarMaps() que o Dart pode voltar a chamar. -->
+  <script>
+    window.boraMapsEstado = 'a-carregar';
+    window.boraMapsMotivo = null;
+    window.__boraMapsUltimaTentativa = 0;
+
+    window.boraMapsCallback = function () {
+      // O callback da Google só dispara com a API pronta a usar.
+      window.boraMapsEstado = 'pronto';
+      window.boraMapsMotivo = null;
+    };
+
+    function boraMapsFalhou(motivo) {
+      if (window.boraMapsEstado === 'pronto') return;
+      window.boraMapsEstado = 'indisponivel';
+      window.boraMapsMotivo = motivo;
+    }
+
+    window.boraCarregarMaps = function () {
+      if (window.boraMapsEstado === 'pronto') return;
+      var agora = new Date().getTime();
+      // Não martelar: no máximo uma tentativa a cada 10 s.
+      if (agora - window.__boraMapsUltimaTentativa < 10000) return;
+      window.__boraMapsUltimaTentativa = agora;
+      window.boraMapsEstado = 'a-carregar';
+
+      var antigo = document.getElementById('bora-maps-script');
+      if (antigo) antigo.remove();
+
+      var s = document.createElement('script');
+      s.id = 'bora-maps-script';
+      s.async = true;
+      s.src = 'https://maps.googleapis.com/maps/api/js?key=AIzaSyBYLjK1RtPdi4WM7pMGmupesBgUIWMkfkw&libraries=places&loading=async&callback=boraMapsCallback';
+      s.onerror = function () { boraMapsFalhou('script-bloqueado'); };
+      document.head.appendChild(s);
+
+      // Rede lenta: ao fim de 8 s sem callback declara-se indisponível.
+      // Se o script chegar mais tarde, o callback repõe 'pronto' sozinho.
+      setTimeout(function () {
+        if (window.boraMapsEstado === 'a-carregar') boraMapsFalhou('timeout');
+      }, 8000);
+    };
+
+    window.boraCarregarMaps();
+  </script>
+
+  <!-- Versão nova sem cache velha: o CI carimba o commit deste build em
+       cba6133a321f02e629699be28a52d2f28eb07b90 e publica /versao.json sem cache. Se o que está no ar
+       for diferente do que este browser carregou, limpa-se o service worker e
+       as caches e recarrega-se UMA vez (guarda anti-loop em sessionStorage).
+       Num build local sem carimbo o placeholder fica intacto e nada corre. -->
+  <script>
+    (function () {
+      var COMMIT = 'cba6133a321f02e629699be28a52d2f28eb07b90';
+      if (COMMIT.indexOf('__BORA') === 0) return; // build local, sem carimbo
+      var escondidoDesde = 0;
+
+      function verificar() {
+        fetch('versao.json?nc=' + new Date().getTime(), { cache: 'no-store' })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (v) {
+            if (!v || !v.commit || v.commit === COMMIT) return;
+            var guarda = null;
+            try { guarda = sessionStorage.getItem('bora_reload_versao'); } catch (e) {}
+            if (guarda === v.commit) return; // já recarregámos para esta versão
+            try { sessionStorage.setItem('bora_reload_versao', v.commit); } catch (e) {}
+            var limpezas = [];
+            try {
+              if (window.caches && caches.keys) {
+                limpezas.push(caches.keys().then(function (ks) {
+                  return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+                }));
+              }
+              if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+                limpezas.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
+                  return Promise.all(rs.map(function (r) { return r.unregister(); }));
+                }));
+              }
+            } catch (e) {}
+            Promise.all(limpezas)
+              .catch(function () {})
+              .then(function () { window.location.reload(); });
+          })
+          .catch(function () {});
+      }
+
+      verificar();
+      // Ao voltar ao separador: só verifica se esteve escondido 5+ minutos,
+      // para não recarregar a meio de um pedido por causa de um alt-tab.
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'hidden') {
+          escondidoDesde = new Date().getTime();
+        } else if (escondidoDesde && new Date().getTime() - escondidoDesde > 300000) {
+          verificar();
+        }
+      });
+    })();
+  </script>
+
+  <style>
+    html, body { margin:0; padding:0; height:100%; background:#fff; }
+
+    /* Arrancar o Flutter Web demora uns segundos — nunca deixar ecrã branco. */
+    #bora-splash {
+      position:fixed; inset:0; z-index:9998;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      background:#fff;
+      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+      transition:opacity .35s ease;
+    }
+    #bora-splash.sai { opacity:0; pointer-events:none; }
+    #bora-splash img { width:96px; height:96px; border-radius:22px; }
+    #bora-splash .nome {
+      margin-top:18px; font-size:26px; font-weight:800;
+      color:#16A34A; letter-spacing:-.6px;
+    }
+    #bora-splash .barra {
+      margin-top:26px; width:132px; height:3px; border-radius:2px;
+      background:#E5E7EB; overflow:hidden;
+    }
+    #bora-splash .barra i {
+      display:block; width:40%; height:100%; background:#16A34A; border-radius:2px;
+      animation:corre 1.1s ease-in-out infinite;
+    }
+    @keyframes corre {
+      0%   { transform:translateX(-100%); }
+      100% { transform:translateX(330%); }
+    }
+
+    /* Banner "adicionar ao ecrã principal" — só iPhone, só no browser. */
+    #bora-ios {
+      position:fixed; left:12px; right:12px; bottom:calc(12px + env(safe-area-inset-bottom));
+      z-index:9999; display:none;
+      background:#fff; border:1px solid #E5E7EB; border-radius:16px;
+      box-shadow:0 10px 34px rgba(0,0,0,.16);
+      padding:14px 16px;
+      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+      color:#111827;
+    }
+    #bora-ios .t { font-size:15px; font-weight:700; margin-bottom:4px; }
+    #bora-ios .p { font-size:13px; line-height:1.5; color:#6B7280; }
+    #bora-ios .x {
+      position:absolute; top:8px; right:10px;
+      background:none; border:0; font-size:22px; line-height:1;
+      color:#9CA3AF; cursor:pointer; padding:4px 8px;
+    }
+    #bora-ios .quad {
+      display:inline-block; vertical-align:-2px; width:15px; height:15px;
+      border:1.6px solid #16A34A; border-radius:4px; position:relative; margin:0 2px;
+    }
+    #bora-ios .quad::after {
+      content:''; position:absolute; left:5.7px; top:2px;
+      width:1.6px; height:8px; background:#16A34A;
+    }
+    #bora-ios .quad::before {
+      content:''; position:absolute; left:3.4px; top:3.4px;
+      width:5px; height:5px; border-top:1.6px solid #16A34A;
+      border-left:1.6px solid #16A34A; transform:rotate(45deg);
+    }
+  </style>
+</head>
+<body>
+
+  <div id="bora-splash">
+    <img src="icons/Icon-192.png" alt="Bora">
+    <div class="nome">Bora</div>
+    <div class="barra"><i></i></div>
+  </div>
+
+  <div id="bora-ios" role="dialog" aria-label="Adicionar o Bora ao ecrã principal">
+    <button class="x" aria-label="Fechar" onclick="boraFecharIos()">&times;</button>
+    <div class="t">Adiciona o Bora ao ecrã principal</div>
+    <div class="p">
+      1. Toca em <span class="quad" aria-hidden="true"></span> Partilhar, em baixo.<br>
+      2. Escolhe <b>Adicionar ao ecrã principal</b>.
+    </div>
+  </div>
+
+  <script>
+    // Tira o splash assim que o Flutter pinta o primeiro frame.
+    window.addEventListener('flutter-first-frame', function () {
+      var s = document.getElementById('bora-splash');
+      if (!s) return;
+      s.classList.add('sai');
+      setTimeout(function () { s.remove(); }, 400);
+    });
+
+    function boraFecharIos() {
+      document.getElementById('bora-ios').style.display = 'none';
+      try { localStorage.setItem('bora_ios_banner', 'fechado'); } catch (e) {}
+    }
+
+    (function () {
+      var ua = window.navigator.userAgent;
+      var eIos = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+      // Dentro do PWA já instalado não faz sentido convidar a instalar.
+      var jaInstalado = window.navigator.standalone === true ||
+                        window.matchMedia('(display-mode: standalone)').matches;
+      var dispensado = false;
+      try { dispensado = localStorage.getItem('bora_ios_banner') === 'fechado'; } catch (e) {}
+
+      if (eIos && !jaInstalado && !dispensado) {
+        setTimeout(function () {
+          document.getElementById('bora-ios').style.display = 'block';
+        }, 3200);
+      }
+    })();
+  </script>
+
+  <script src="flutter_bootstrap.js" async></script>
+
+</body>
+</html>

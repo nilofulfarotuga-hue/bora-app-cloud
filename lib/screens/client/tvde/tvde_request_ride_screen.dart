@@ -82,6 +82,24 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
   // [CAMPO-02 · Feature 3] "Garantir a volta": pacote ida+volta pago adiantado.
   bool _roundtrip = false;
   int _roundtripPriceCents = 0;
+
+  /// [Idempotência 06/09] Id DESTA compra do pacote ida-e-volta. Vive no ecrã,
+  /// não dentro do método de pagamento.
+  ///
+  /// **Porquê:** nascia com `Uuid().v4()` DENTRO de `_solicitarRoundtripOnline`,
+  /// ou seja um id novo a cada toque. Duas tentativas do mesmo cliente iam com
+  /// chaves diferentes e a Stripe criava DOIS PaymentIntents — duas cobranças.
+  /// Pior: como o app manda `request_id`, o servidor deixava de aplicar o seu
+  /// próprio recurso (a janela de 10 minutos por utilizador+valor), que teria
+  /// apanhado a repetição. Mandar um id novo era pior do que não mandar nenhum.
+  ///
+  /// Agora é estável enquanto a compra é a mesma, tal como o ecrã dos planos já
+  /// fazia (`_idDaCompraDe`). Só se renova quando a compra fecha ou quando a
+  /// rota muda — aí é outra compra e merece chave nova.
+  String? _idDaCompraRoundtrip;
+
+  String _idDaCompraRoundtripAtual() =>
+      _idDaCompraRoundtrip ??= const Uuid().v4();
   int _roundtripSavingCents = 0;
   Map<String, dynamic>? _activeCredit; // vale-volta ativo (mostra "Chamar a volta")
 
@@ -371,8 +389,16 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     final quote = await store.quoteRoundtrip(km);
     if (!mounted || quote == null) return;
     setState(() {
+      final anterior = _roundtripPriceCents;
       _roundtripPriceCents = (quote['price_cents'] as num?)?.toInt() ?? 0;
       _roundtripSavingCents = (quote['saving_cents'] as num?)?.toInt() ?? 0;
+      // Preço diferente = outra compra, e tem de levar chave nova. A chave de
+      // idempotência da Stripe é rejeitada se for reutilizada com um valor
+      // diferente — sem isto, mudar a rota depois de uma tentativa falhada
+      // dava erro em vez de uma compra nova.
+      if (anterior != 0 && anterior != _roundtripPriceCents) {
+        _idDaCompraRoundtrip = null;
+      }
     });
   }
 
@@ -976,10 +1002,11 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final priceEur = _roundtripPriceCents / 100;
 
-    // Um id por compra. Vai como chave de idempotência até à Stripe: se o pedido
-    // se perder na rede e for repetido, volta o MESMO PaymentIntent em vez de
-    // nascer uma segunda cobrança. Nasce aqui, uma vez, e não se reaproveita.
-    final requestId = const Uuid().v4();
+    // Um id por COMPRA (não por toque). Vai como chave de idempotência até à
+    // Stripe: se o pedido se perder na rede e o cliente tentar outra vez, volta
+    // o MESMO PaymentIntent em vez de nascer uma segunda cobrança. Vive no
+    // ecrã — ver `_idDaCompraRoundtrip`.
+    final requestId = _idDaCompraRoundtripAtual();
 
     // 1) PaymentIntent do preço dinâmico (server-side). MB Way confirma-se na
     //    app do banco; cartão confirma-se já a seguir.
@@ -1066,6 +1093,11 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     // Ida criada → completa o par pendente com o id dela.
     await store.savePendingRoundtrip(
         paymentIntentId: paymentIntentId, outboundRideId: ida.id);
+    // Esta compra está feita: o id sai de cena. Sem isto, um segundo pacote
+    // igual (mesma rota, mesmo preço) na mesma sessão do ecrã reusava a chave
+    // e a Stripe devolvia o PaymentIntent ANTIGO — a segunda compra não era
+    // cobrada. A chave só protege repetições da MESMA compra.
+    _idDaCompraRoundtrip = null;
     if (!mounted) return;
 
     // 3) Liga a ida ao vale. O `activate_roundtrip` só passa com o PaymentIntent

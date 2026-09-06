@@ -230,10 +230,41 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
       'tvde_reservation_road_factor_x100',
     };
     if (operacionaisSemPrefixo.contains(key)) return true;
-    // As chaves em cêntimos da parada adicional (tvde_stop_fee_cents = taxa
-    // do cliente, tvde_stop_driver_cents = ganho do motorista) NÃO entram em
-    // nenhum destes blocos — continuam blindadas (nota na linha ~81).
+    // AUTORIDADE TOTAL (2026-09-06) — ordem explícita do Danilo: as chaves de
+    // DINHEIRO passam a ser editáveis aqui, "com autoridade total: ver, editar,
+    // auditar".
+    //
+    // É a mesma regra que já valia para o `tvde_roundtrip_discount_pct` e para
+    // as taxas de marcação, agora estendida: o painel admin é a superfície onde
+    // o DONO mexe no preço do seu próprio produto. O que muda em relação ao
+    // resto é o CAMINHO: uma chave de dinheiro nunca passa pelo diálogo comum.
+    // Vai pelo `_editMoneySetting`, que exige MOTIVO e escreve no
+    // `admin_audit_log` quem mudou, de quanto para quanto e porquê — o mesmo
+    // tratamento que as taxas de cancelamento já tinham desde o Bloco 4.
+    //
+    // Isto continua a NÃO dar a um agente o direito de mexer nestes valores: a
+    // Trava e a Lista Vermelha mantêm-se do lado de cá. É o dono, ao vivo, no
+    // painel dele.
+    if (_isMoneyKey(key)) return true;
     return false;
+  }
+
+  /// A chave mexe em dinheiro? Decide o CAMINHO de edição (auditado, com
+  /// motivo), não o direito de a editar.
+  ///
+  /// Deliberadamente generosa: uma chave de dinheiro classificada como comum
+  /// perde a auditoria; uma comum classificada como dinheiro só ganha um
+  /// diálogo mais exigente. O erro barato é o segundo.
+  bool _isMoneyKey(String key) {
+    // `_ratio` e não `ratio`: a palavra "duration" contém "ratio" lá dentro
+    // (du-RATIO-n), e sem o underscore o `carwash_duration_min` passava a
+    // exigir motivo escrito para se afinar a duração de uma lavagem.
+    const marcas = [
+      'cents', '_ratio', '_pct', 'pct_', 'price', 'fee_', '_fee',
+      'wallet', 'token', 'payout', 'reward', 'markup', 'commission',
+      'cut_', '_cut', 'share', 'stripe_',
+    ];
+    return marcas.any(key.contains);
   }
 
   /// Validação das três chaves da taxa de pedido pequeno.
@@ -403,6 +434,124 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
   }
 
   /// Bloco 4 — edição auditada de uma taxa de cancelamento (motivo obrigatório).
+  /// [Autoridade total · 06/09] Edição de uma chave de DINHEIRO, com motivo
+  /// obrigatório e rasto no `admin_audit_log`.
+  ///
+  /// Espelha o `_editCancelSetting` (que já fazia isto para as 5 taxas de
+  /// cancelamento) e estende-o a todas as chaves de dinheiro, por ordem do
+  /// Danilo. O servidor exige o motivo também — a validação daqui é
+  /// conveniência, não é a trava.
+  ///
+  /// O TIPO é preservado: um número continua número, um booleano continua
+  /// booleano. Trocar o tipo partia quem lê a chave em runtime, e o erro só
+  /// apareceria no próximo checkout — longe daqui.
+  Future<void> _editMoneySetting(_Setting s) async {
+    final ehBool = s.value is bool;
+    final ctrl = TextEditingController(text: s.value.toString());
+    final reasonCtrl = TextEditingController();
+    var boolVal = s.value is bool ? s.value as bool : false;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          title: Text(s.key),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (s.description != null)
+                  Text(s.description!, style: const TextStyle(fontSize: 12)),
+                const SizedBox(height: 8),
+                if (ehBool)
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(boolVal ? 'Ligado' : 'Desligado'),
+                    value: boolVal,
+                    onChanged: (v) => setD(() => boolVal = v),
+                  )
+                else
+                  TextField(
+                    controller: ctrl,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true, signed: true),
+                    decoration: const InputDecoration(
+                      labelText: 'Novo valor (número)',
+                      border: OutlineInputBorder(),
+                      hintText: 'ex: 250 (centavos) · 0.5 (proporção) · -2000 (limite negativo)',
+                    ),
+                  ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: reasonCtrl,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Motivo (obrigatório)',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (_) => setD(() {}),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  '⚠️ ISTO MEXE EM DINHEIRO. A mudança entra em vigor na hora, '
+                  'em produção, e fica registrada com seu nome, o valor antigo, '
+                  'o novo e este motivo.',
+                  style: TextStyle(color: AppColors.error, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancelar')),
+            FilledButton(
+              onPressed: reasonCtrl.text.trim().length < 3
+                  ? null
+                  : () => Navigator.pop(ctx, true),
+              child: const Text('Atualizar'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (ok != true) return;
+
+    final Object novo;
+    if (ehBool) {
+      novo = boolVal;
+    } else {
+      final n = num.tryParse(ctrl.text.trim());
+      if (n == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('Valor inválido — use um número.')));
+        }
+        return;
+      }
+      novo = n;
+    }
+
+    try {
+      await Supabase.instance.client.rpc('admin_update_money_setting', params: {
+        'p_key': s.key,
+        'p_value': novo,
+        'p_reason': reasonCtrl.text.trim(),
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Valor atualizado e auditado')));
+      }
+      await _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Erro: $e')));
+      }
+    }
+  }
+
   Future<void> _editCancelSetting(_Setting s) async {
     final ctrl = TextEditingController(text: s.value.toString());
     final reasonCtrl = TextEditingController();
@@ -566,10 +715,15 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
                             subtitle: s.description != null ? Text(s.description!) : null,
                             trailing: Text(s.value.toString(),
                                 style: const TextStyle(fontWeight: FontWeight.w600)),
+                            // Dinheiro nunca passa pelo diálogo comum: vai
+                            // sempre pelo caminho com motivo obrigatório e
+                            // rasto no admin_audit_log.
                             onTap: () => editable
                                 ? (_isCancelKey(s.key)
                                     ? _editCancelSetting(s)
-                                    : _editSetting(s))
+                                    : _isMoneyKey(s.key)
+                                        ? _editMoneySetting(s)
+                                        : _editSetting(s))
                                 : _showProtectedInfo(s),
                           );
                         }).toList(),

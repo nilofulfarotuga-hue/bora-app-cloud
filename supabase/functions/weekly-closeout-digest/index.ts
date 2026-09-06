@@ -37,6 +37,36 @@ function ddmm(iso) {
   return p(d.getUTCDate()) + '/' + p(d.getUTCMonth() + 1)
 }
 
+
+// Enderecos que NUNCA recebem correio, e que por isso nunca devem sair daqui.
+//
+// `.test`, `.invalid`, `.example` e `.localhost` estao reservadas por norma
+// (RFC 2606 e RFC 6761): nao existem na internet. As caixas inventadas nos
+// fornecedores grandes (test@gmail.com e afins) tambem nao recebem.
+//
+// Porque e que isto importa aqui: este digest manda a partir de
+// `fecho@boraguarda.com`, que e o MESMO dominio que o Em Dia usa para mandar o
+// codigo de entrada. Cada devolucao gasta a reputacao desse dominio para toda
+// a gente. A 6 de setembro de 2026 sete de quinze envios do Em Dia foram
+// devolvidos por causa de dois enderecos inventados, e um deles acabou na
+// lista negra da Resend. As fixtures E2E do Bora usam `@boraapp.test`; basta
+// uma delas chegar a `weekly_digest_log` para o mesmo acontecer por aqui.
+const TERMINACOES_MORTAS = ['.test', '.invalid', '.example', '.localhost', '.local',
+  'example.com', 'example.org', 'example.net']
+const CAIXAS_INVENTADAS = ['test', 'teste', 'testes', 'testing', 'newuser', 'demo',
+  'exemplo', 'example', 'noreply', 'no-reply', 'asdf', 'qwerty']
+const FORNECEDORES_GRANDES = ['gmail.com', 'hotmail.com', 'outlook.com', 'outlook.pt',
+  'live.com', 'yahoo.com', 'icloud.com', 'sapo.pt']
+
+function enderecoMorto(email: string): boolean {
+  const e = String(email || '').trim().toLowerCase()
+  if (!e.includes('@')) return true
+  if (TERMINACOES_MORTAS.some((f) => e.endsWith(f))) return true
+  const [caixa, dominio] = e.split('@')
+  return FORNECEDORES_GRANDES.includes(dominio) &&
+    CAIXAS_INVENTADAS.includes(caixa.split('+')[0])
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
@@ -87,13 +117,18 @@ Deno.serve(async (req) => {
   // vez de ficar so uma palavra na tabela que ninguem le.
   const problemas = []
   for (const r of weekRows) {
-    const to = r.subject_email && String(r.subject_email).includes('@') ? String(r.subject_email) : null
+    const emailBruto = r.subject_email ? String(r.subject_email) : ''
+    // Um endereco que nao recebe e pior do que nenhum: manda-se, volta para
+    // tras, e a devolucao fica no registo do dominio.
+    const to = emailBruto.includes('@') && !enderecoMorto(emailBruto) ? emailBruto : null
     const html = buildReceiptHtml(r, boraMbway)
     let status = r.email_status
     let erro = null
     if (!to) {
       status = 'skipped'; skipped++
-      erro = 'sem email valido'
+      erro = emailBruto.includes('@')
+        ? 'endereco que nao recebe correio (' + emailBruto + ') — nao enviei para nao gastar a reputacao do dominio'
+        : 'sem email valido'
       problemas.push({ name: r.subject_name, type: r.subject_type, motivo: erro,
                        amount_cents: r.net_cents, mbway: r.subject_phone })
     } else if (emailsEnabled || to.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {

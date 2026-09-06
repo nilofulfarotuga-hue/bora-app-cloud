@@ -1948,6 +1948,9 @@ const Map<String, String> kStringsEn = <String, String>{
       'By size',
   'Precisa de iniciar sessão para pedir.':
       'You need to sign in to order.',
+  'Precisamos do seu nome e telemóvel para lhe ligarmos se algo correr mal com o seu pedido. Não é usado para mais nada.':
+      'We need your name and mobile number so we can call you if anything goes '
+          'wrong with your order. It is not used for anything else.',
   'Precisas de conta Bora':
       'You need a Bora account',
   'Predefinido':

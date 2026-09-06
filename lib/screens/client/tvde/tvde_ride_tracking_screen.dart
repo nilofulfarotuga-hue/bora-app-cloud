@@ -2156,8 +2156,12 @@ class _StatusPanel extends StatelessWidget {
                   child: Text(
                     lastFixSeconds! < 60
                         ? 'Última posição há {0} s'.trArgs([lastFixSeconds!])
-                        : 'Última posição há {0} min'
-                            .trArgs([lastFixSeconds! ~/ 60]),
+                        // O `.trArgs(` tem de ficar COLADO à frase: a varredura
+                        // do teste de idioma só apanha o `.tr` que venha logo
+                        // a seguir às aspas, e uma quebra ali punha esta frase
+                        // fora da rede que garante que ela tem inglês.
+                        : 'Última posição há {0} min'.trArgs(
+                            [lastFixSeconds! ~/ 60]),
                     style: const TextStyle(
                         color: AppColors.textSubtle, fontSize: 11.5),
                   ),

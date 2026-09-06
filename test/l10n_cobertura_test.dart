@@ -12,6 +12,38 @@ import 'package:flutter_test/flutter_test.dart';
 /// caso de uma tradução em falta é ficar em português — mas isso conta como
 /// falha de cobertura e é isso que o primeiro teste apanha.
 void main() {
+  // A rede só serve se apanhar o que tem de apanhar. Este grupo prova que a
+  // varredura não tem os dois buracos que já teve — senão o teste passa a
+  // verde por estar a olhar para o sítio errado, que é pior do que falhar.
+  group('a varredura não pode ter buracos', () {
+    test('apanha a frase quando o formatador parte a linha', () {
+      // Cicatriz real: o `dart format` atirou o `.trArgs(` para a linha
+      // seguinte e a frase saiu da rede — ficou sem inglês, sem alarme.
+      expect(_padraoTr.hasMatch("'Olá'.tr"), isTrue);
+      expect(_padraoTr.hasMatch("'Olá {0}'.trArgs([x])"), isTrue);
+      expect(_padraoTr.hasMatch("'Última posição há {0} min'\n    .trArgs([n])"),
+          isTrue,
+          reason: 'frase partida pelo formatador tem de continuar na rede');
+      expect(_padraoTr.hasMatch("'Olá'\n  .tr"), isTrue);
+    });
+
+    test('não confunde `.trim()` e afins com um pedido de tradução', () {
+      // Se confundisse, o teste passaria a exigir inglês para strings que
+      // nunca foram traduções — e alguém acabava por desligar o teste.
+      expect(_padraoTr.hasMatch("'  espaço  '.trim()"), isFalse);
+      expect(_padraoTr.hasMatch("'abc'.trimLeft()"), isFalse);
+      expect(_padraoTr.hasMatch("'abc'\n   .trim()"), isFalse);
+      expect(_padraoTr.hasMatch("'abc'.transform()"), isFalse);
+    });
+
+    test('aceita o `.tr` seguido do que normalmente o segue', () {
+      for (final fim in [';', ',', ')', ']', '}', ' ']) {
+        expect(_padraoTr.hasMatch("'abc'.tr$fim"), isTrue,
+            reason: 'não apanhou `.tr` seguido de "$fim"');
+      }
+    });
+  });
+
   group('dicionário PT→EN', () {
     test('toda a chave pedida por .tr existe no dicionário inglês', () {
       final pedidas = _chavesPedidasNoCodigo();
@@ -115,6 +147,13 @@ void main() {
 ///
 /// Faz a varredura no disco de propósito: um teste que só olhasse para o mapa
 /// nunca daria pela frase nova que alguém acrescentou a um ecrã.
+/// A expressão da varredura, no topo para o teste de auto-verificação lhe poder
+/// chamar directamente. Ver o comentário longo em [_chavesPedidasNoCodigo].
+final RegExp _padraoTr = RegExp(
+  r"""(['"])((?:\\.|(?!\1).)*?)\1\s*\.tr(?:Args\()?(?![A-Za-z])""",
+  dotAll: true,
+);
+
 Set<String> _chavesPedidasNoCodigo() {
   final chaves = <String>{};
   final lib = Directory('lib');
@@ -122,10 +161,20 @@ Set<String> _chavesPedidasNoCodigo() {
 
   // 'texto'.tr  |  'texto'.trArgs(  — apanha aspas simples e duplas, com os
   // escapes lá dentro (\' \" \\ \n) tratados como um só caractere.
-  final padrao = RegExp(
-    r"""(['"])((?:\\.|(?!\1).)*?)\1\.tr(?:Args\()?""",
-    dotAll: true,
-  );
+  //
+  // [05/09] Duas correcções, ambas com cicatriz:
+  //
+  // `\s*` antes do `.tr` — o `dart format` parte a expressão quando a frase é
+  // longa e atira o `.tr` para a linha seguinte. A versão anterior exigia-o
+  // COLADO às aspas, por isso essas frases saíam da rede: ficavam sem inglês e
+  // ninguém dava por isso. Foi assim que escapou a frase da recolha de contacto
+  // no `complete_profile_screen.dart`, que esteve sem tradução sem alarme.
+  //
+  // `(?![A-Za-z])` depois — ao aceitar espaços antes do `.tr`, passaria a
+  // apanhar também `'texto'.trim()`, `.trimLeft()`, `.transform()`… e o teste
+  // exigiria inglês para strings que nunca foram traduções. Isto exige que o
+  // `.tr` acabe ali (`.tr,` `.tr;` `.tr)`) ou seja `.trArgs(`.
+  final padrao = _padraoTr;
 
   for (final f in lib.listSync(recursive: true).whereType<File>()) {
     if (!f.path.endsWith('.dart')) continue;

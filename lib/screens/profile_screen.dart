@@ -1146,30 +1146,63 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
 
     if (confirmed != true || !mounted) return;
+    await _encerrarConta(confirmar: false);
+  }
 
+  /// Chama a Edge Function `delete-account` e SÓ diz que apagou se a resposta
+  /// trouxer a prova.
+  ///
+  /// Até 2026-09-07 este ecrã olhava apenas para `status >= 400`. A função que
+  /// estava no ar era uma página HTML que devolvia 200, e por isso a app dizia
+  /// "Conta apagada." sem nada ter sido apagado, durante meses. Um 200 é o
+  /// invólucro; a prova é o corpo.
+  Future<void> _encerrarConta({required bool confirmar}) async {
     setState(() => _isDeletingAccount = true);
 
     try {
-      final supabase = Supabase.instance.client;
-      final response = await supabase.functions.invoke('delete-account');
-
+      final resposta = await Supabase.instance.client.functions.invoke(
+        'delete-account',
+        body: {'confirm': confirmar},
+      );
       if (!mounted) return;
 
-      if (response.status >= 400) {
+      final corpo = resposta.data;
+      final dados = corpo is Map<String, dynamic> ? corpo : <String, dynamic>{};
+
+      // 1. Trabalho em curso ou acerto por fechar — motivo real, não genérico.
+      final bloqueios = (dados['blocked'] as List?)?.cast<String>() ?? const [];
+      if (bloqueios.isNotEmpty) {
+        setState(() => _isDeletingAccount = false);
+        await _mostrarBloqueio(bloqueios);
+        return;
+      }
+
+      // 2. Há saldo ou tokens a perder — mostrar quanto e pedir aceitação.
+      if (dados['needs_confirmation'] == true) {
+        setState(() => _isDeletingAccount = false);
+        final perde = (dados['forfeit'] as Map?)?.cast<String, dynamic>() ?? {};
+        final aceita = await _confirmarPerda(perde);
+        if (aceita == true && mounted) await _encerrarConta(confirmar: true);
+        return;
+      }
+
+      // 3. Só isto conta como sucesso: ok verdadeiro E prova no corpo.
+      if (dados['ok'] != true || dados['prova'] == null) {
         setState(() => _isDeletingAccount = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                'Não foi possível apagar a conta. Tenta novamente mais tarde.'.tr),
+              'A conta NÃO foi apagada. O servidor não confirmou a eliminação. Fala connosco pelo suporte.'
+                  .tr,
+            ),
+            duration: const Duration(seconds: 6),
           ),
         );
         return;
       }
 
-      // Local cleanup — match the existing logout flow.
       context.read<AuthStore>().logout();
       await context.read<SessionStore>().clearRole();
-
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Conta apagada.'.tr)),
@@ -1182,6 +1215,89 @@ class _ProfileScreenState extends State<ProfileScreen> {
         SnackBar(content: Text('Erro ao apagar conta: {0}'.trArgs([e]))),
       );
     }
+  }
+
+  Future<void> _mostrarBloqueio(List<String> bloqueios) async {
+    // Os códigos vêm no formato `etiqueta_em_curso:N` ou `acerto_..._por_fechar:N`.
+    String legivel(String codigo) {
+      final parte = codigo.split(':').first;
+      if (parte.startsWith('acerto_estafeta')) {
+        return 'Tens um acerto semanal por fechar. Assim que for pago, podes apagar a conta.';
+      }
+      if (parte.startsWith('acerto_parceiro')) {
+        return 'A tua loja tem um acerto por fechar. Assim que for pago, podes apagar a conta.';
+      }
+      if (parte.startsWith('divida_estafeta')) {
+        return 'Tens um valor em dívida por regularizar.';
+      }
+      if (parte.startsWith('nao_foi_possivel_verificar')) {
+        return 'Não conseguimos confirmar se tens trabalho em curso. Tenta mais tarde.';
+      }
+      const nomes = {
+        'pedidos': 'pedidos',
+        'entregas': 'entregas',
+        'reservas': 'reservas',
+        'viagens': 'viagens',
+        'marcacoes': 'marcações',
+        'limpezas': 'limpezas',
+      };
+      final chave = parte.replaceAll('_em_curso', '');
+      return 'Tens ${nomes[chave] ?? chave} em curso.';
+    }
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Ainda não dá para apagar'.tr),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: bloqueios.map((b) => Text('• ${legivel(b)}')).toList(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text('Entendi'.tr),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool?> _confirmarPerda(Map<String, dynamic> perde) {
+    final saldo = (perde['saldo_livre_cents'] as num?)?.toInt() ?? 0;
+    final tokens = (perde['tokens_por_usar'] as num?)?.toInt() ?? 0;
+    final linhas = <String>[
+      if (saldo > 0) '• ${(saldo / 100).toStringAsFixed(2)} € de saldo na carteira',
+      if (tokens > 0) '• $tokens tokens por usar',
+    ];
+
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Vais perder isto'.tr),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ...linhas.map(Text.new),
+            const SizedBox(height: 12),
+            Text('Este valor não é devolvido nem transferido. Continuar?'.tr),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('Cancelar'.tr),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: Text('Perder e apagar'.tr),
+          ),
+        ],
+      ),
+    );
   }
 }
 

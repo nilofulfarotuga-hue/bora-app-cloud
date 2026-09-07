@@ -1,9 +1,9 @@
 ---
-tema: estado-vivo · escopo: projeto · estado: atual · atualizado: 2026-09-07
+tema: estado-vivo · escopo: projeto · estado: atual · atualizado: 2026-09-08
 id: estado-vivo
 tipo: foto
-origem: [reescrito pela Claude.ai 2026-09-05 a pedido do Danilo — foto geral + cascata de ferramentas; cascata de IMAGEM corrigida por medição no BoraStudio 2026-09-05; cadência das redes e executor-com-navegador actualizados 2026-09-07 pela sessão redes-hoje-07-09]
-ultima_confirmacao: 2026-09-07
+origem: [reescrito pela Claude.ai 2026-09-05 a pedido do Danilo — foto geral + cascata de ferramentas; cascata de IMAGEM corrigida por medição no BoraStudio 2026-09-05; cadência das redes e executor-com-navegador actualizados 2026-09-07 pela sessão redes-hoje-07-09; cascata de VÍDEO medida e passada a config na noite de 07→08/09 pela missão cascata-video-tres-motores]
+ultima_confirmacao: 2026-09-08
 zona: verde
 confianca: alta
 ---
@@ -13,19 +13,37 @@ confianca: alta
 > **ÚNICA página do Cérebro que se REESCREVE.** Quem precisa da "foto da empresa" lê ESTA página.
 > Foto operacional ao minuto: o daily-pulse escreve `/opt/data/estado-vivo.md` na VPS.
 
-## ⚙️ CASCATA DE FERRAMENTAS — qual usar e por que ordem (2026-09-05)
+## ⚙️ CASCATA DE FERRAMENTAS — qual usar e por que ordem
 
 Vale para TUDO o que gera imagem ou vídeo: filme das filhas (Bora Studio), artes das
 redes, cartazes, mini-sites de clientes, propaganda.
 
-**VÍDEO**
-1. **Veo, dentro do Gemini web** (gemini.google.com, sessão iniciada no Chrome do PC, pelo
-   agente de clique). Disponível desde 05/09 — o Danilo passou a ter o plano Google AI Plus.
-   É a via principal. *Nota: os limites desta via não foram medidos por ninguém — quando se
-   usar, regista-se o que a plataforma responde, não o que se espera dela.*
-2. **Bora Studio na GPU do Kaggle** (Wan I2V) quando o Veo estiver sem limite ou o plano
-   for cancelado. A quota semanal do Kaggle renova ao sábado.
-3. Nunca: Sora (descontinuado), Higgsfield (sem créditos), nem serviço novo de fora.
+**VÍDEO — deixou de viver nesta página (2026-09-08)**
+
+A ordem dos motores é agora **config que o sistema lê e por onde cai sozinho**:
+`canon/cascata_video.yaml`, conduzida por `agentes/cascata_video.py`. Esta secção é só o
+resumo; **a fonte é o ficheiro**. Prosa não cai sozinha — quando o degrau de cima falhava,
+quem descia ao seguinte era uma pessoa a ler esta página.
+
+1. **Veo, dentro do Gemini web** (`veo_gemini_web`) — sessão Google AI Plus, pelo clique.
+   **Medido a 07/09, a primeira vez que alguém o mediu:** 1280×720, 10,01 s por clipe,
+   **com som** (aac 2ch 48 kHz), enquadramento travado (deslocamento 0,0–0,1%), e segurou o
+   sinal das irmãs 2/2. Tempo até ao ficheiro: 546 s e 183 s. Faz também **9:16 vertical**.
+2. **Bora Studio na GPU do Kaggle** (`kaggle_wan_i2v`, Wan I2V) — grátis, quota semanal, renova
+   ao sábado. Medido: 768×432 em 158 dos 190 clipes do disco, 5,04 s, **sem som nenhum**
+   (0/190), deslocamento até 4,5%, e perdeu o sinal das irmãs 1 vez em 2 — no `b2_s04` o rosa
+   da Tabita caiu de 2,485% para 0,148%. ⚠️ **Sem quota desde 07/09**: corridas 356 a 360
+   recusadas pela própria plataforma.
+3. **Vibes (Meta / Movie Gen)** (`vibes_meta`) — acrescentado, **nunca chegou a gerar**.
+   `estado: bloqueado_porta_legal`: o login exige *criar uma conta da Meta e aceitar os Termos*,
+   que é acto legal e só o Danilo o faz, num clique, uma vez. Fica **vivo na config, não
+   apagado**. Ver `prova-motores-video-2026-09`.
+4. Nunca: Sora (descontinuado), Higgsfield (pago, R-E), nem serviço novo de fora.
+
+**A ordem confirmou-se pela medição — não mudou.** A diferença é que antes era prosa e agora
+tem números por baixo. E há duas leis no ficheiro: **nunca se remove um degrau** (morre com
+data e causa, há um `mortos:`), e **a ordem só muda com medição** (`reordenar()` levanta erro
+sem números). Prova de que cai sozinha: `agentes/prova_cascata_video.py`, 4/4.
 
 **IMAGEM**
 1. **API do Gemini** enquanto houver quota (o tecto do projecto não se mexe).
@@ -58,23 +76,23 @@ crítico → FABLE. O loop automático corre SEMPRE no Claude Code.
 
 - `fiscal_arte.py` — peça vs referência, nota separada em FEITURA (60) e MARCA (40).
   **Abaixo de 80 não publica.** Provado nos dois sentidos: peça fraca 46, peça boa 86.
-- `fiscal_video.py` — metade máquina (movimento, cortes, formato, som), metade olho.
-  Régua medida em 6 reels reais do Glovo: movimento ≥12, máx. 4s por plano, 9:16, 7–20s,
-  com som. Filme antigo do Bora: 13/45. Glovo: 40/45.
+- `fiscal_video.py` — metade máquina, metade olho. Régua medida em 6 reels reais do Glovo:
+  movimento ≥12, máx. 4s por plano, 9:16, 7–20s, com som. Filme antigo do Bora: 13/45.
+  Glovo: 40/45. **Vive na VPS e só ele dá o veredicto.** No PC mede-se só as ENTRADAS
+  (`comparar_motores.entradas_da_regua_reels`) — escrever cá uma segunda régua era criar a
+  segunda conta que discorda em silêncio.
 - Referências reais em `/opt/data/social/referencias/` (50 peças) e `referencias-video/`
   (6 reels), colhidas da **Biblioteca de Anúncios da Meta** — melhor que o feed, porque só
   lá está o que as marcas escolheram mesmo pôr a correr.
 - `juiz_visao.py` estava partido (chamava modelos do Gemini já desligados) e passava tudo
   em silêncio. Corrigido 05/09. Lição: script que falha para o lado seguro parece funcionar.
-- **Uma regra só julga o artefacto de que fala (R62, BoraStudio 05/09).** O portão de
-  fotogramas entregava ao juiz regras sobre como se DESENHA uma ficha e reprovava por elas
-  planos de cinema, que nunca as podiam cumprir. Um alarme que aponta ao lado é pior do que
-  não ter alarme. Ao recolher critérios de um documento vivo, trazer também o âmbito.
-- **Um controlo que não falha é uma prova que não prova (R63, BoraStudio 05/09).** Se o
-  cenário de controlo passa quando devia rebentar, a prova está a medir a ausência do
-  problema, não a presença da cura.
+- **Uma regra só julga o artefacto de que fala (R62).** Medido outra vez a 08/09: o clipe de
+  cinema do Veo, passado pela régua dos reels, dá movimento 6,78 (<12) e plano mais longo de
+  9 s (>4) — **reprovaria**, e reprovaria bem, porque essa régua não é para ele.
+- **Um controlo que não falha é uma prova que não prova (R63).** Se o cenário de controlo passa
+  quando devia rebentar, a prova está a medir a ausência do problema, não a presença da cura.
 
-## Snapshot 2026-09-07
+## Snapshot 2026-09-08
 
 **Redes sociais** — Facebook e Instagram do Bora no ar (`@boraappbora`). A ligação à Meta
 está viva e provada com publicações reais a 07/09: loja do dia às 12h, story às 13h,
@@ -125,6 +143,8 @@ uma segunda ordem, a sério, disparou sozinha; o PC entrou em suspensão a meio 
 **retomou quando o PC acordou**.
 Armadilhas antigas que se mantêm: cancelar ordem em execução NÃO liberta o `flock` — é preciso
 matar o processo também; `.vps-exec.rc=97` não é avaria, foi desligado de propósito em Julho.
+⚠️ **A VPS esteve inalcançável na noite de 07→08/09**: `100.71.105.7` (Tailscale) deu timeout
+com as três chaves. Quem depender dela conte com isso e verifique antes.
 
 **Campanha paga (07/09)** — "Bora Guarda - trafego - 5 EUR dia - 2 dias", conta
 `act_1105400138585537`. Com o intervalo em **Máximo**: os três níveis Activos, resultados
@@ -144,6 +164,10 @@ corrigiu-se o portão de fotogramas (ver R62 acima) e mediu-se o verdadeiro estr
 (verde = Tailine, rosa = Tabita, medido 20/20, e aguenta-se até nos planos onde o cabelo
 falha); o penteado é que anda atribuído à irmã errada. A cor subiu à `assinatura_inegociavel`
 e cada irmã ganhou âncora de imagem recortada de um plano aprovado.
+**08/09:** a cascata de vídeo passou a config (acima) e mediu-se pela primeira vez o Veo
+contra o Kaggle nos mesmos planos. Um achado que toca directamente no problema das irmãs: o
+Wan perdeu o sinal de cor de uma delas num dos dois planos; o Veo não. Ver
+`prova-motores-video-2026-09`.
 
 **TVDE** — o travão de reserva passou de 20 minutos fixos a cálculo por rota. Corrigidos
 três defeitos em cadeia do caso do Valdemir (o ecrã trocava de corrida sozinho com

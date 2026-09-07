@@ -115,10 +115,8 @@ jobs:
       - name: Testes unitários + goldens
         run: flutter test
 
-      # É AQUI que os erros de iOS aparecem pela primeira vez na vida do projeto.
-      - name: Compilar para o simulador
-        run: flutter build ios --simulator --debug --dart-define-from-file=.dart_defines
-
+      # O simulador arranca ANTES de compilar, porque a compilação precisa de um
+      # destino concreto (ver o passo seguinte).
       - name: Arrancar o simulador ${{ env.SIMULATOR }}
         run: |
           UDID=$(xcrun simctl list devices available -j \
@@ -126,6 +124,35 @@ jobs:
           echo "UDID=$UDID" >> $GITHUB_ENV
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
+
+      # PORQUE NÃO É UM `flutter build ios --simulator` E PRONTO
+      # Foi o que estava aqui, e falhou (corrida 34161051379) com:
+      #   "Unable to find a destination matching the provided destination
+      #    specifier: { platform:iOS, name:Any iOS Device,
+      #    error:iOS 26.0 is not installed }"
+      # O `pod install` tinha corrido bem (166 s) — o problema é só de destino:
+      # o Flutter resolveu o destino genérico de DISPOSITIVO, e o runner tem os
+      # runtimes de simulador mas não a plataforma de dispositivo iOS 26.
+      #
+      # `--config-only` gera o Generated.xcconfig com os dart-defines sem tocar
+      # em destinos nenhuns; a compilação a sério vai depois pelo xcodebuild,
+      # apontada ao simulador que acabou de arrancar. É aqui que os erros de
+      # iOS do código aparecem pela primeira vez na vida do projeto.
+      - name: Preparar a configuração do Xcode
+        run: flutter build ios --config-only --simulator --debug --dart-define-from-file=.dart_defines
+
+      - name: Compilar para o simulador (destino explícito)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination "platform=iOS Simulator,id=${UDID}" \
+            -derivedDataPath build/ios_sim \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            build 2>&1 | tail -60
 
       - name: Gravar vídeo do ecrã
         run: |

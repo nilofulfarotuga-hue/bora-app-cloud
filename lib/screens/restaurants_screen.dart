@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
+import '../config/ios_launch_flags.dart';
 import '../models/order_service_type.dart';
 import '../models/restaurant_model.dart';
 import '../services/order_eta_service.dart';
@@ -445,7 +446,11 @@ class _RestaurantLogo extends StatelessWidget {
     final textColor = isPartner ? AppColors.primary : AppColors.accent;
     final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
 
-    if (photoUrl.isNotEmpty) {
+    // Interruptor 5.2.1 (ios-lancamento): logótipo de loja NÃO-parceira
+    // escondido no iOS quando ligado — ver config/ios_launch_flags.dart.
+    final esconder = shouldHideStoreLogo(isPartner: isPartner);
+
+    if (photoUrl.isNotEmpty && !esconder) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(Radii.md),
         child: SizedBox(

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../config/app_colors.dart';
+import '../config/ios_launch_flags.dart';
 import '../models/business_view_models.dart';
 import '../models/order_service_type.dart';
 import '../models/restaurant_model.dart';
@@ -475,7 +476,12 @@ class _StoreTile extends StatelessWidget {
                 children: [
                   const SizedBox(width: 16),
                   _StoreLogo(
-                    photoUrl: entry.business.photoUrl,
+                    // Interruptor 5.2.1 (ios-lancamento): logótipo de loja
+                    // NÃO-parceira escondido no iOS quando ligado — ver
+                    // config/ios_launch_flags.dart.
+                    photoUrl: shouldHideStoreLogo(isPartner: entry.business.isPartner)
+                        ? ''
+                        : entry.business.photoUrl,
                     name: entry.store.name,
                     bannerColor: bannerColor,
                     fallbackIcon: _categoryIcon(cat),

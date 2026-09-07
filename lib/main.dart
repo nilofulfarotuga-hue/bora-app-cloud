@@ -30,6 +30,7 @@ import 'services/offer_presentation_gate.dart';
 // ignore: unused_import
 import 'widgets/driver_order_overlay.dart';
 import 'auth/auth_store.dart';
+import 'config/ios_launch_flags.dart';
 import 'dispatch/dispatch_engine.dart';
 import 'l10n/bora_lang.dart';
 import 'screens/admin/admin_crosstalk_screen.dart';
@@ -489,6 +490,11 @@ Future<void> main() async {
   // Fire-and-forget de proposito — falhar aqui NUNCA pode travar o arranque;
   // sem leitura fica o estado seguro (taxa nenhuma).
   unawaited(SmallOrderFeeService.carregarGlobal());
+
+  // Interruptor 5.2.1 (missão ios-lancamento): esconder logótipo de loja
+  // não-parceira só no iOS. Fire-and-forget — sem leitura, mostra-se o
+  // logótipo (estado seguro, igual ao que já acontece hoje).
+  unawaited(carregarIosHideNonPartnerLogos());
 
   // Recuperação de palavra-passe: rede de segurança do arranque.
   //

@@ -191,6 +191,21 @@ jobs:
             --dart-define-from-file=.dart_defines \
             --reporter expanded 2>&1 | tee artefactos/integration.log
 
+      # Capturas de ecrã para a App Store (missão `ios-lancamento`,
+      # 2026-09-07) — ecrãs estáticos e sem rede (ver
+      # `lib/screens/capturas/captura_screens.dart`), por isso NÃO leva
+      # `continue-on-error`: se este falhar é para saber-se a sério. O
+      # simulador escolhido acima já é o maior iPhone disponível ("Pro Max"),
+      # que é o 6,9" (1320×2868) exigido pela Apple nas capturas.
+      - name: Gerar capturas de ecrã (App Store)
+        run: |
+          mkdir -p artefactos/capturas
+          flutter drive \
+            --driver=test_driver/capturas_driver.dart \
+            --target=integration_test/capturas_loja_test.dart \
+            -d "$UDID" \
+            --dart-define-from-file=.dart_defines
+
       - name: Parar a gravação
         if: always()
         run: |

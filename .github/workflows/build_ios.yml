@@ -1,0 +1,288 @@
+# Build iOS — missão `ios-lancamento` (2026-09-07).
+#
+# Porque existem DOIS jobs separados:
+#
+#   • JOB A "simulador" — NÃO precisa de conta Apple nenhuma. Corre desde o
+#     primeiro dia e é onde se apanham os erros reais de compilação iOS (pods,
+#     Swift, plugins Android-only) antes de haver conta paga. É o job que tem
+#     de ficar verde primeiro.
+#
+#   • JOB B "release" — precisa de certificado + perfil + chave da API do App
+#     Store Connect. Só corre à mão (`workflow_dispatch` com `enviar=true`)
+#     para nunca pintar o CI de vermelho enquanto os segredos não existirem.
+#
+# NOTA versionCode: o Android tem o seu contador auto-incrementado pelo CI e
+# NÃO se toca. O iOS usa `github.run_number` como CFBundleVersion — contadores
+# independentes, como a Apple e a Google esperam.
+
+name: build-ios
+
+on:
+  push:
+    branches:
+      - ios-lancamento
+    paths:
+      - "lib/**"
+      - "ios/**"
+      - "integration_test/**"
+      - "pubspec.yaml"
+      - ".github/workflows/build_ios.yml"
+  pull_request:
+    branches: [autonomous-night-2026-04-29]
+    paths:
+      - "lib/**"
+      - "ios/**"
+      - "pubspec.yaml"
+  workflow_dispatch:
+    inputs:
+      enviar:
+        description: "Correr o job de release e enviar para o App Store Connect (precisa dos segredos de assinatura)"
+        type: boolean
+        default: false
+
+env:
+  # Mesma versão que TODOS os outros workflows do repo fixam (build_android,
+  # build_web_deploy, dart, e2e-web, olho_golden, testlab_robo).
+  FLUTTER_VERSION: "3.41.2"
+  XCODE_VERSION: "26.0"
+  SIMULATOR: "iPhone 16 Pro Max"
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────
+  simulador:
+    name: A · Compila e corre no simulador (sem conta Apple)
+    runs-on: macos-26
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fixar Xcode ${{ env.XCODE_VERSION }}
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
+
+      - name: Versões do que está instalado (prova)
+        run: |
+          xcodebuild -version
+          swift --version
+          xcrun simctl list runtimes | grep -i ios || true
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Segredos de build (dart-defines)
+        env:
+          DART_DEFINES_FILE_B64: ${{ secrets.DART_DEFINES_FILE_B64 }}
+        run: |
+          if [ -n "$DART_DEFINES_FILE_B64" ]; then
+            echo "$DART_DEFINES_FILE_B64" | base64 --decode > .dart_defines
+            echo "dart-defines injetados ($(wc -l < .dart_defines) linhas)"
+          else
+            # Sem o segredo o build tem de continuar: as chaves só são lidas em
+            # runtime. Serve para o job correr num fork ou antes dos segredos.
+            : > .dart_defines
+            echo "AVISO: sem DART_DEFINES_FILE_B64 — a compilar sem chaves."
+          fi
+
+      - name: GoogleService-Info.plist (Firebase iOS)
+        env:
+          GOOGLE_SERVICE_INFO_PLIST_B64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_B64 }}
+        run: |
+          if [ -n "$GOOGLE_SERVICE_INFO_PLIST_B64" ]; then
+            echo "$GOOGLE_SERVICE_INFO_PLIST_B64" | base64 --decode > ios/Runner/GoogleService-Info.plist
+            echo "GoogleService-Info.plist colocado."
+          else
+            echo "AVISO: app iOS ainda não registada no Firebase — push não funciona neste build."
+          fi
+
+      - name: Dependências
+        run: flutter pub get
+
+      - name: Cache dos pods
+        uses: actions/cache@v4
+        with:
+          path: ios/Pods
+          key: pods-${{ runner.os }}-${{ hashFiles('ios/Podfile') }}-${{ hashFiles('pubspec.yaml') }}
+          restore-keys: pods-${{ runner.os }}-
+
+      - name: Análise estática (0 erros obrigatório)
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Testes unitários + goldens
+        run: flutter test
+
+      # É AQUI que os erros de iOS aparecem pela primeira vez na vida do projeto.
+      - name: Compilar para o simulador
+        run: flutter build ios --simulator --debug --dart-define-from-file=.dart_defines
+
+      - name: Arrancar o simulador ${{ env.SIMULATOR }}
+        run: |
+          UDID=$(xcrun simctl list devices available -j \
+            | python3 -c "import sys,json;d=json.load(sys.stdin)['devices'];print([x['udid'] for r in d for x in d[r] if x['name']=='${{ env.SIMULATOR }}'][0])")
+          echo "UDID=$UDID" >> $GITHUB_ENV
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+
+      - name: Gravar vídeo do ecrã
+        run: |
+          mkdir -p artefactos
+          xcrun simctl io "$UDID" recordVideo --codec=h264 --force artefactos/demo.mp4 &
+          echo "REC_PID=$!" >> $GITHUB_ENV
+
+      - name: Percorrer os fluxos (integration_test)
+        continue-on-error: true
+        run: |
+          flutter test integration_test \
+            -d "$UDID" \
+            --dart-define-from-file=.dart_defines \
+            --reporter expanded 2>&1 | tee artefactos/integration.log
+
+      - name: Parar a gravação
+        if: always()
+        run: |
+          kill -INT "${REC_PID}" 2>/dev/null || true
+          sleep 3
+
+      - name: Captura final do ecrã
+        if: always()
+        run: xcrun simctl io "$UDID" screenshot artefactos/ecra-final.png || true
+
+      - name: Publicar artefactos (vídeo, capturas, log)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulador-${{ github.run_number }}
+          path: artefactos/
+          if-no-files-found: warn
+          retention-days: 14
+
+  # ─────────────────────────────────────────────────────────────────────────
+  release:
+    name: B · IPA assinado → App Store Connect
+    # Só à mão e só com o interruptor ligado — sem isto o CI ficava vermelho
+    # todos os dias enquanto a conta Apple não estivesse activa.
+    if: github.event_name == 'workflow_dispatch' && inputs.enviar
+    needs: simulador
+    runs-on: macos-26
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fixar Xcode ${{ env.XCODE_VERSION }}
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Conferir que os segredos de assinatura existem
+        env:
+          CERT: ${{ secrets.IOS_DIST_CERT_P12_B64 }}
+          PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE_B64 }}
+          ASC_KEY: ${{ secrets.ASC_KEY_P8_B64 }}
+        run: |
+          faltam=""
+          [ -z "$CERT" ]    && faltam="$faltam IOS_DIST_CERT_P12_B64"
+          [ -z "$PROFILE" ] && faltam="$faltam IOS_PROVISIONING_PROFILE_B64"
+          [ -z "$ASC_KEY" ] && faltam="$faltam ASC_KEY_P8_B64"
+          if [ -n "$faltam" ]; then
+            echo "::error::Faltam segredos:$faltam — a conta Apple ainda não está pronta."
+            exit 1
+          fi
+
+      - name: Instalar certificado e perfil
+        env:
+          CERT_B64: ${{ secrets.IOS_DIST_CERT_P12_B64 }}
+          CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+          PROFILE_B64: ${{ secrets.IOS_PROVISIONING_PROFILE_B64 }}
+        run: |
+          KEYCHAIN=$RUNNER_TEMP/bora.keychain-db
+          KEYCHAIN_PASS=$(uuidgen)
+          security create-keychain -p "$KEYCHAIN_PASS" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASS" "$KEYCHAIN"
+
+          echo "$CERT_B64" | base64 --decode > $RUNNER_TEMP/cert.p12
+          security import $RUNNER_TEMP/cert.p12 -P "$CERT_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security list-keychain -d user -s "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASS" "$KEYCHAIN"
+
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$PROFILE_B64" | base64 --decode > \
+            ~/Library/MobileDevice/Provisioning\ Profiles/bora.mobileprovision
+
+      - name: Segredos de build
+        env:
+          DART_DEFINES_FILE_B64: ${{ secrets.DART_DEFINES_FILE_B64 }}
+          GOOGLE_SERVICE_INFO_PLIST_B64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_B64 }}
+        run: |
+          echo "$DART_DEFINES_FILE_B64" | base64 --decode > .dart_defines
+          echo "$GOOGLE_SERVICE_INFO_PLIST_B64" | base64 --decode > ios/Runner/GoogleService-Info.plist
+
+      - name: Dependências
+        run: flutter pub get
+
+      # O ExportOptions.plist NÃO está no repo de propósito: leva o Team ID, que
+      # só existe depois de a conta Apple estar activa. Gera-se aqui a partir do
+      # segredo, para não haver um ficheiro com um valor falso a enganar.
+      - name: Gerar ExportOptions.plist
+        env:
+          ASC_TEAM_ID: ${{ secrets.ASC_TEAM_ID }}
+        run: |
+          cat > ios/ExportOptions.plist <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store-connect</string>
+            <key>teamID</key>
+            <string>${ASC_TEAM_ID}</string>
+            <key>uploadSymbols</key>
+            <true/>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>destination</key>
+            <string>export</string>
+          </dict>
+          </plist>
+          PLIST
+          plutil -lint ios/ExportOptions.plist
+
+      - name: Construir o IPA
+        run: |
+          flutter build ipa --release \
+            --dart-define-from-file=.dart_defines \
+            --build-number=${{ github.run_number }} \
+            --export-options-plist=ios/ExportOptions.plist
+
+      - name: Enviar para o App Store Connect
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_B64: ${{ secrets.ASC_KEY_P8_B64 }}
+        run: |
+          mkdir -p ~/private_keys
+          echo "$ASC_KEY_P8_B64" | base64 --decode > ~/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          IPA=$(ls build/ios/ipa/*.ipa | head -1)
+          xcrun altool --upload-app -f "$IPA" -t ios \
+            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+
+      - name: Publicar o IPA
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa-${{ github.run_number }}
+          path: build/ios/ipa/*.ipa
+          if-no-files-found: warn
+          retention-days: 14

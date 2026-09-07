@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../config/ios_launch_flags.dart';
 
 import '../models/saved_card.dart';
 import 'web_checkout.dart';
@@ -113,10 +114,8 @@ class PaymentService {
           phone: CollectionMode.never,
           address: AddressCollectionMode.never,
         ),
-        // Apple Pay (iOS) — funciona out-of-the-box em Portugal Stripe LIVE.
-        applePay: const PaymentSheetApplePay(
-          merchantCountryCode: 'PT',
-        ),
+        // Apple Pay (iOS) — desligado na v1 iOS (ver config/ios_launch_flags.dart).
+        applePay: boraApplePay,
         // 2026-05-14: Google Pay activado (PT/EUR, live mode).
         // Pre-requisitos operacionais:
         //   1. Stripe Dashboard → Settings → Payment methods → Google Pay ON.
@@ -362,7 +361,7 @@ class PaymentService {
           paymentIntentClientSecret: clientSecret,
           merchantDisplayName: 'BORA APP',
           style: ThemeMode.system,
-          applePay: const PaymentSheetApplePay(merchantCountryCode: 'PT'),
+          applePay: boraApplePay,
           googlePay: const PaymentSheetGooglePay(
             merchantCountryCode: 'PT',
             currencyCode: 'EUR',

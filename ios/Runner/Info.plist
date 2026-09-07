@@ -53,18 +53,12 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+	<!-- Missão ios-lancamento (2026-09-07): SÓ retrato. A app nunca foi desenhada
+	     para paisagem (nenhum ecrã tem layout horizontal) e a Apple reprova
+	     ecrãs partidos ao rodar. Combina com TARGETED_DEVICE_FAMILY = "1". -->
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-	<key>UISupportedInterfaceOrientations~ipad</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>A Bora usa a câmara para tirares foto de perfil, de encomendas (Enviar Encomenda) e de compras (Levar Compras).</string>
@@ -93,11 +87,25 @@
 		<string>com.pravera.flutter_foreground_task</string>
 	</array>
 	<!-- Sessão 7-UI-BUG004: tel: launcher para botão "Ligar agora" do
-	     bottom sheet de cancelamento bloqueado pós-pickedUp. -->
+	     bottom sheet de cancelamento bloqueado pós-pickedUp.
+	     Missão ios-lancamento (2026-09-07): juntos os esquemas que o
+	     `url_launcher` abre a partir da app — sem eles o `canLaunchUrl`
+	     devolve false no iOS e o botão parece partido ao revisor. -->
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>tel</string>
+		<string>whatsapp</string>
+		<string>maps</string>
+		<string>comgooglemaps</string>
+		<string>mailto</string>
 	</array>
+
+	<!-- Missão ios-lancamento (2026-09-07): a app só fala HTTPS (Supabase,
+	     Stripe, Google Maps) — não traz criptografia própria nem não-isenta.
+	     Declarar aqui evita a pergunta de conformidade de exportação a CADA
+	     build enviado para o App Store Connect. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<!-- Recuperação de palavra-passe (2026-07-14) — deep link de volta ao app
 	     depois do clique no email de reset do Supabase Auth. Tem de bater
 	     certo com o redirectTo em auth_store.dart. -->

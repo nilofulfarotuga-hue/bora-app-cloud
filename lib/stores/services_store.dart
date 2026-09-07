@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 // `flutter_stripe` exporta `Card` que colide com Material `Card`.
 import 'package:flutter_stripe/flutter_stripe.dart' hide Card;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../config/ios_launch_flags.dart';
 
 import '../models/falha_de_acao.dart';
 import '../models/appointment_model.dart';
@@ -452,7 +453,7 @@ class ServicesStore extends ChangeNotifier {
                 const BillingDetailsCollectionConfiguration(
               name: CollectionMode.always,
             ),
-            applePay: const PaymentSheetApplePay(merchantCountryCode: 'PT'),
+            applePay: boraApplePay,
             googlePay: const PaymentSheetGooglePay(
               merchantCountryCode: 'PT',
               currencyCode: 'EUR',

@@ -6,6 +6,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../config/ios_launch_flags.dart';
 
 import '../config/app_colors.dart';
 import '../models/restaurant_model.dart';
@@ -180,7 +181,7 @@ class _ReservationFlowScreenState extends State<ReservationFlowScreen> {
                 const BillingDetailsCollectionConfiguration(
               name: CollectionMode.always,
             ),
-            applePay: const PaymentSheetApplePay(merchantCountryCode: 'PT'),
+            applePay: boraApplePay,
             googlePay: const PaymentSheetGooglePay(
               merchantCountryCode: 'PT',
               currencyCode: 'EUR',

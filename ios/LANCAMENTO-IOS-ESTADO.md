@@ -2,8 +2,57 @@
 
 > Missão `ios-lancamento` · run_id `ios-lancamento-2026-09-07`
 > **Este ficheiro diz onde retomar.** Cada linha tem prova.
-> Última actualização: 2026-09-07, fim da 1.ª sessão.
+> Última actualização: 2026-09-07, fim da 2.ª sessão.
 > Modo de trabalho: ver `carta-de-autonomia-ios` na memória do projeto.
+
+## 0. FIM DA 2.ª SESSÃO — LER PRIMEIRO
+
+Feito nesta sessão (commit local `8e8e1d80`, ramo `ios-lancamento`,
+**ainda não publicado** — ver bloqueio abaixo):
+
+1. **Arnês de capturas** (§1-b resolvido): `lib/main_capturas.dart`,
+   `lib/screens/capturas/captura_screens.dart` (7 ecrãs estáticos, sem rede,
+   sem timers), `integration_test/capturas_loja_test.dart`,
+   `test_driver/capturas_driver.dart`, e um passo novo em `build_ios.yml`
+   ("Gerar capturas de ecrã (App Store)", sem `continue-on-error`). `flutter
+   analyze` limpo e `flutter test` com 473 verdes — verificado duas vezes
+   (pelo agente que construiu e por mim a seguir). **Falta a prova real**: só
+   a próxima corrida do CI (macOS) confirma que os 7 PNG saem de facto.
+2. **Interruptor 5.2.1** (`ios_hide_nonpartner_logos`) — lado Flutter pronto:
+   `lib/config/ios_launch_flags.dart` (`shouldHideStoreLogo` +
+   `carregarIosHideNonPartnerLogos`), ligado no arranque via `lib/main.dart`,
+   aplicado em `stores_screen.dart` e `restaurants_screen.dart`. Continua
+   desligado por omissão em `platform_settings`.
+3. **Textos da loja**: `ios/APP_STORE_COPY.md` (nome, subtítulo, categoria,
+   keywords, descrição, release notes, URLs — todas verificadas ao vivo por
+   `curl`, todas `200`).
+4. **Checklist da Apple**: `ios/CHECKLIST-APPLE.md` criado de raiz (não
+   existia) — 10 blocos, cada linha com prova ou motivo do bloqueio.
+
+**BLOQUEIO NOVO — publicação.** Não há credencial de escrita do GitHub nesta
+sessão headless: `git push` falha (`could not read Username`), `git
+credential fill` falha (sem `/dev/tty`, GCM não tem nada em cache),
+`cmdkey /list` devolve `* NONE *`. O `publicar.py` que a ordem desta sessão
+referia **não existe** no repo nem em `.scratch/`. Avisei o Danilo pela ponte
+do Telegram a pedir um token de acesso pessoal (repo scope) ou um `git push`
+manual dele uma vez para o Windows guardar a credencial. **Até isso
+acontecer, todo o trabalho desta sessão fica só local**, commit
+`8e8e1d80` em cima de `14b3d000` (que corresponde ao `172a2734` publicado no
+fim da 1.ª sessão — os hashes locais e remotos DIVERGEM sempre porque a
+publicação de sessões anteriores foi feita pela API do GitHub, não por
+`git push`; ver §4).
+
+**Continuar por aqui, por ordem:**
+1. Assim que houver credencial: publicar este commit (ver §4 para o cuidado
+   com a divergência local/remoto) e confirmar que
+   `autonomous-night-2026-04-29` não mexeu.
+2. Ver se a corrida seguinte do CI gera mesmo os 7 PNG; se sim, cortar o
+   vídeo de 60–120 s e publicar no YouTube (item 1 de `ios/CHECKLIST-APPLE.md`
+   §2 e §7).
+3. Ler `ios/CHECKLIST-APPLE.md` do topo — está ordenado, cada `[ ]` por fazer
+   diz exactamente o que falta e porquê.
+
+---
 
 ---
 

@@ -241,6 +241,32 @@ passaram, saída zero. Não se tocou no versionCode, que é o CI que trata. Não
 em nenhuma fórmula de dinheiro: as funções de cálculo estão exactamente como estavam,
 e o que mudou foi estado, comunicação, automação e ecrã.
 
+O trabalho foi para o repositório no commit a7c545d3, com vinte e sete ficheiros, todos
+acrescentados por caminho explícito. Não havia nenhum commit local à espera, portanto
+não foi nada à boleia. As catorze alterações à base de dados que tinham sido aplicadas
+directamente foram trazidas de volta para ficheiros no repositório, para a história ficar
+onde se lê. O olho-golden passou; o build Android e o deploy web arrancaram.
+
+## A prova que ficou por fazer, e porquê
+
+Faltou o retrato do ecrã já preenchido com a lista da semana. Para isso era preciso
+sessão de administrador na aplicação, e a palavra-passe que foi tentada não passa: o
+servidor de autenticação respondeu 400 ao pedido de entrada. Não é do código desta
+missão — é credencial. E tem solução à mão, precisamente por causa do que se destrancou
+hoje: o "Esqueci-me da palavra-passe" passou a funcionar de manhã, com prova.
+
+O que está provado sobre esse ecrã, sem depender da sessão: a morada
+/admin/acertos-semana abre mesmo o ecrã, com o título e os dois botões novos visíveis, e
+antes desta sessão não abria coisa nenhuma; e as funções que ele chama respondem certo
+quando chamadas com sessão de administrador real, incluindo os três totais da semana de
+31 de agosto — 19,80 euros a pagar, 33,18 a receber, saldo de 13,38 a favor da Bora.
+
+Fica também por fazer o retrato no emulador do toque na notificação. O emulador está a
+correr e a aplicação compila, mas provar isso ponta a ponta obrigava a ter sessão de
+administrador lá dentro e um registo de aparelho para o envio — a mesma parede da
+palavra-passe. O caminho está feito e escrito nos três sítios (aplicação fechada, em
+segundo plano, e aberta noutro ecrã); falta o retrato.
+
 ---
 
 DIGEST PARA O HERMES

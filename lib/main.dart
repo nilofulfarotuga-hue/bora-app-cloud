@@ -433,6 +433,17 @@ Future<void> main() async {
     }
     Stripe.publishableKey = stripePublishableKey;
     Stripe.merchantIdentifier = 'merchant.com.boraapp.app';
+    // 2026-09-07 (missão ios-lancamento) — esquema de retorno do 3DS.
+    //
+    // Nunca esteve definido. No Android o Stripe safariviewcontroller não é
+    // usado e o 3DS volta sozinho, por isso ninguém deu pela falta; no iOS o
+    // banco abre o desafio fora da app e, sem esquema registado, o utilizador
+    // fica preso no Safari e o pagamento nunca confirma.
+    //
+    // TEM de ser exactamente igual ao CFBundleURLSchemes do ios/Runner/
+    // Info.plist, que é `pt.boraapp.bora` (não `bora`). O mesmo esquema já
+    // serve o deep link de recuperação de palavra-passe.
+    Stripe.urlScheme = 'pt.boraapp.bora';
     // 2026-05-14 perf: Stripe.applySettings + Firebase chain correm em paralelo
     // (eram em serie). NotificationService depende do Firebase, por isso fica
     // encadeado dentro da mesma future.

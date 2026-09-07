@@ -24,20 +24,74 @@ A ordem escrita a 07/09 assumia coisas que **não** batem com o repositório e a
 Corrijo aqui para não se trabalhar em cima de premissa errada.
 
 ### 1.1 "NÃO existe RPC de auto-eliminação. Sem isto a Apple reprova (5.1.1(v))"
-**ERRADO — já existe, ponta a ponta, e está no ar.**
 
-- UI: [profile_screen.dart:905](../lib/screens/profile_screen.dart) botão "Apagar conta";
-  `_confirmDeleteAccount()` em [profile_screen.dart:1124](../lib/screens/profile_screen.dart)
-  com diálogo de confirmação em PT-PT.
-- Chama `supabase.functions.invoke('delete-account')`.
-- Edge Function **DEPLOYED e ACTIVE**, versão 21 — prova por MCP `list_edge_functions`:
-  `{"slug":"delete-account","status":"ACTIVE","version":21}`
-- O código local anonimiza pedidos, apaga mensagens de chat, apaga tokens não usados,
-  apaga a linha `auth.users` (cascata para `drivers`), e **não toca** no rasto fiscal.
+> **🔴 CORRIGIDO 2026-09-07, mais tarde no mesmo dia.**
+> A minha primeira leitura disse "já existe, ponta a ponta, e está no ar". **Estava errada.**
+> Confirmei que a função estava `ACTIVE` e li o código **local** — nunca li o código
+> **deployed**. É exactamente a armadilha que as regras da casa descrevem:
+> *"um 200 não prova que o trabalho por dentro correu — verifica o efeito, não o invólucro."*
+> A premissa original da ordem estava mais perto da verdade do que a minha correcção.
 
-**Consequência:** o Bloco 2.6 (construir a eliminação de conta) **não é preciso de raiz**.
-Fica só por **verificar** que funciona nos três perfis e na web, e que o ecrã é alcançável
-no perfil estafeta e parceiro (medição por fazer).
+**O QUE ESTÁ MESMO NO AR: uma página HTML. A conta NUNCA é apagada.**
+
+`get_edge_function('delete-account')` devolve, na íntegra, uma página estática
+"Como pedir a eliminação da sua conta" — do tipo que a Google Play exige como URL de
+eliminação de dados. **Não tem uma única linha de lógica de eliminação.**
+
+Prova, chamada real ao endpoint de produção:
+
+```
+POST /functions/v1/delete-account
+HTTP 200
+Content-Type: text/html; charset=utf-8
+Bytes: 2171
+
+<!DOCTYPE html><html lang="pt"><head>… <title>Eliminar Conta — Bora App</title> …
+```
+
+E a app trata isso como sucesso ([profile_screen.dart:1158](../lib/screens/profile_screen.dart)):
+
+```dart
+if (response.status >= 400) { … erro … }   // 200 não é >= 400 → passa
+context.read<AuthStore>().logout();
+… Text('Conta apagada.')                    // MENTIRA ao utilizador
+```
+
+**Consequências, por ordem de gravidade:**
+
+1. **Violação de RGPD em produção, agora.** Quem pediu para apagar a conta foi informado
+   de que foi apagada e não foi. Os dados continuam todos lá e a pessoa pode voltar a entrar.
+2. **Reprovação certa da Apple (5.1.1(v)).** O revisor toca em "Apagar conta", vê
+   "Conta apagada.", volta a entrar com as mesmas credenciais e a conta está viva.
+3. O código local (`supabase/functions/delete-account/index.ts`) tem a lógica **certa**,
+   mas **nunca foi deployed** — o ar tem outra coisa em cima.
+
+### 1.1-b O código local também não está correcto (medido na DB)
+
+Mesmo o ficheiro local, se fosse deployed hoje, falhava. `pg_constraint` sobre `auth.users`:
+
+| Problema | Prova | Efeito |
+|---|---|---|
+| `drivers` **não tem** FK `user_id → auth.users` | única FK é `drivers_approved_by_fkey` sobre `approved_by` | apagar o utilizador deixa a linha do estafeta **órfã**, com nome, telefone, NIF, IBAN e documentos — o RGPD não fica cumprido |
+| `appointments.client_user_id` = **NO ACTION** | consulta a `pg_constraint` | cliente com marcação: o `deleteUser` **rebenta** com violação de chave |
+| `cleaning_bookings.client_user_id` = **NO ACTION** | idem | cliente com limpeza marcada: rebenta |
+| `service_providers.user_id` / `cleaners.user_id` = **NO ACTION** | idem | prestador nunca consegue apagar a conta |
+| `restaurants.user_id` = **CASCADE** | idem | parceiro que apaga a conta **apaga a loja inteira** — é o comportamento actual, a decidir se é o desejado |
+
+Quantos utilizadores reais ficariam presos hoje: **5** (4 marcações + 5 limpezas,
+5 clientes distintos).
+
+### 1.1-c Quem sequer consegue chegar ao botão
+
+| Perfil | Tem o botão? | Prova |
+|---|---|---|
+| Cliente | ✅ | `ProfileScreen()` em `client_main_screen.dart:88` |
+| Estafeta | ✅ | `ProfileScreen()` em `driver_home_screen.dart:1166` |
+| **Parceiro** | ❌ **não existe caminho nenhum** | `grep -rl "Apagar conta" lib/screens/` → só `profile_screen.dart`; o parceiro aterra em `PartnerEntryScreen` → `PartnerDashboardScreen` / `PartnerServicesHubScreen`, nenhum deles com perfil ou definições de conta |
+| Web | mesmo código Flutter | logo: cliente e estafeta sim, parceiro não |
+
+**Este é agora o bloqueador nº 1 da missão** — e é maior do que o iOS: está a mentir a
+utilizadores reais em produção, hoje.
 
 ### 1.2 "Se houver QUALQUER login social ativo, a Apple obriga a Sign in with Apple (4.8)"
 **NÃO SE APLICA — os botões estão desligados por defeito, medido.**
@@ -175,13 +229,77 @@ em commits desta missão.)
 ## 7. ONDE RETOMAR
 
 - [x] **Bloco 0** — reconhecimento (este ficheiro)
-- [ ] **Bloco 1** — conta Apple (a arrancar)
-- [ ] **Bloco 2** — projeto iOS
-- [ ] **Bloco 3** — testes
-- [ ] **Bloco 4** — vídeo + YouTube
-- [ ] **Bloco 5** — loja
+- [ ] **Bloco 1** — conta Apple → **BLOQUEADO, ver §8.1**
+- [~] **Bloco 2** — projeto iOS → base feita e commitada (`f9778dae`); falta
+      Firebase iOS, chave Maps iOS, `returnURL` do Stripe, conta demo estafeta,
+      coluna `platform`, interruptor de logótipos
+- [ ] **Bloco 3** — testes → depende do primeiro build verde
+- [ ] **Bloco 4** — vídeo + YouTube → depende do Bloco 3
+- [ ] **Bloco 5** — loja → textos e capturas podem avançar sem conta
 - [ ] **Bloco 6** — submissão
 - [ ] **Bloco 7** — pós-aprovação
 
-### Paragens à espera do Danilo
-_(nenhuma ainda — primeira mensagem por enviar)_
+### O que ficou feito e provado (commit `f9778dae`, branch `ios-lancamento`)
+
+| Alteração | Prova |
+|---|---|
+| Bundle ID `com.example.boraApp` → `pt.boraapp.bora` | `grep -c 'com\.example' project.pbxproj` → **0** |
+| Só iPhone (`TARGETED_DEVICE_FAMILY = "1"`) | grep no pbxproj |
+| Alvo iOS 15.0 | grep no pbxproj |
+| `Info.plist`: retrato só, `ITSAppUsesNonExemptEncryption=false`, 5 esquemas de URL | `plistlib.load()` → XML válido, 27 chaves |
+| `PrivacyInfo.xcprivacy` criado **e registado nas 4 secções** do pbxproj | grep → linhas 17, 61, 120, 224 |
+| `Podfile` criado (nunca existiu), plataforma 15.0 | ficheiro novo |
+| Apple Pay desligado no iOS em 6 sítios | `grep 'applePay:'` → 5 usam `boraApplePay`, 0 literais |
+| Alfa do ícone removido só no iOS | `remove_alpha_ios: true` no pubspec |
+| `build_ios.yml` (Job A simulador + Job B release) | `yaml.safe_load` → válido, 2 jobs |
+| Nada compilado partiu | `flutter analyze` → **0 erros**; nenhum aviso nos ficheiros tocados |
+| `versionCode` intacto | `version: 1.0.1+599` |
+| Push não publica nada | `build_android` e `build_web_deploy` só disparam em `autonomous-night-2026-04-29` (lido dos YAML) |
+
+---
+
+## 8. PARAGENS — o que espera pelo Danilo
+
+### 8.1 🔴 A conta Apple tem de ser criada por ele (limite de segurança, não escolha minha)
+
+A ordem dizia "conta, formulários, termos… és tu". **Criar contas e escrever
+palavras-passe está fora do que eu posso fazer**, mesmo com autorização escrita.
+Não é o guardrail do repo nem falta de ferramentas — é um limite fixo meu.
+
+O que **não** posso: criar o Apple ID, escrever a palavra-passe, escrever o
+número do cartão de cidadão, escrever dados do cartão de crédito.
+
+O que **posso** e faço: abrir as páginas certas no separador certo, preencher o
+que não é credencial, ler os códigos que chegam ao Gmail, vigiar o estado da
+inscrição, e tratar de **tudo** o resto (build, testes, vídeo, capturas, textos,
+loja, submissão, respostas à Apple).
+
+Na prática muda pouco no calendário: em vez de 4 momentos dele, são 5, e três
+deles são na mesma sentada (criar conta → inscrever → pagar).
+
+### 8.2 🟡 O push da branch está bloqueado pelo guardrail
+
+```
+BLOQUEADO pelo guardrail de git: push para 'ios-lancamento';
+so e permitido: autonomous-night-2026-04-29
+```
+
+O hook está em `.claude/settings.json:137` e aponta para
+`C:/Users/danil/Desktop/projetosflutter/bora_app/.claude/hooks/git-guardrails.sh`
+(a árvore **antiga**, não esta). `.claude/settings.json` é zona protegida — não
+se toca sem ordem.
+
+O commit está **seguro localmente** (`f9778dae`). Sem o push, o primeiro build
+iOS da história do projeto não corre. Comando para o Danilo:
+
+```bash
+git -C C:/BoraLocal/projetosflutter/bora_app push -u origin ios-lancamento
+```
+
+Alternativa **recusada**: fazer merge para `autonomous-night-2026-04-29` para
+contornar. Isso dispararia build Android para a Play e deploy web — publicação
+real — só para poder testar iOS. Não se faz.
+
+### 8.3 Decisão de dinheiro que fica com ele
+O Supabase está em plano grátis e já pausou a app a 28/08. Se pausar durante a
+revisão, a Apple reprova. Plano Pro = 25 USD/mês. **Não é decisão minha.**

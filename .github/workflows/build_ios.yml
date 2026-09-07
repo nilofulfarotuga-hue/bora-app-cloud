@@ -44,7 +44,11 @@ env:
   # Mesma versão que TODOS os outros workflows do repo fixam (build_android,
   # build_web_deploy, dart, e2e-web, olho_golden, testlab_robo).
   FLUTTER_VERSION: "3.41.2"
-  XCODE_VERSION: "26.0"
+  # NAO se crava a versao exacta. Forcar "26.0" deu SDKROOT=iphonesimulator26.0
+  # enquanto a imagem so tem runtimes 26.2/26.4/26.5 -- o simulador arrancava e
+  # o destino ficava "ineligible" (corrida 34162271844). latest-stable numa
+  # imagem macos-26 da na mesma um Xcode 26, que e o que a Apple exige.
+  XCODE_VERSION: "latest-stable"
   # Nao ha nome de simulador cravado: a imagem do runner muda e um nome fixo
   # parte o build sem avisar. O passo "Escolher e arrancar" decide na hora.
 
@@ -156,6 +160,11 @@ jobs:
       - name: Preparar a configuração do Xcode
         run: flutter build ios --config-only --simulator --debug --dart-define-from-file=.dart_defines
 
+      - name: Destinos elegiveis para o Runner (diagnostico)
+        run: |
+          xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner \
+            -showdestinations 2>&1 | head -30 || true
+
       - name: Compilar para o simulador (destino explícito)
         run: |
           set -o pipefail
@@ -163,7 +172,6 @@ jobs:
             -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -configuration Debug \
-            -sdk iphonesimulator \
             -destination "platform=iOS Simulator,id=${UDID}" \
             -derivedDataPath build/ios_sim \
             COMPILER_INDEX_STORE_ENABLE=NO \

@@ -74,7 +74,15 @@ class _PartnerWeeklyCloseoutCardState extends State<PartnerWeeklyCloseoutCard> {
       'partner_my_weekly_closeout',
       params: {'p_restaurant_id': widget.restaurantId},
     );
-    return res is Map ? Map<String, dynamic>.from(res) : <String, dynamic>{};
+    final mapa = res is Map ? Map<String, dynamic>.from(res) : <String, dynamic>{};
+    // [Fecho semanal 2026-09-07] Quem fica a dever tem de ver PARA ONDE pagar.
+    // Antes lia-se "a entregar à Bora" sem número nenhum. Best-effort: se
+    // falhar, o cartão aparece na mesma (o recibo por email leva o número).
+    try {
+      final mb = await Supabase.instance.client.rpc('bora_mbway_para_cobranca');
+      mapa['bora_mbway'] = (mb as String?) ?? '';
+    } catch (_) {/* sem número; o resto do cartão continua útil */}
+    return mapa;
   }
 
   @override
@@ -138,6 +146,18 @@ class _PartnerWeeklyCloseoutCardState extends State<PartnerWeeklyCloseoutCard> {
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
                         color: netColor)),
+                if (direction.endsWith('_pays_bora') &&
+                    ((data['bora_mbway'] as String?) ?? '').isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: Spacing.xxs),
+                    child: Text(
+                      'Pague por MB Way para ${data['bora_mbway']}',
+                      style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textSecondary),
+                    ),
+                  ),
                 const Text(
                   'O fecho é feito todas as segundas-feiras.',
                   style:

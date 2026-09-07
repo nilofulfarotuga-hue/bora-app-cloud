@@ -81,7 +81,6 @@ import 'admin_reservations_metrics_screen.dart';
 import 'admin_reservations_screen.dart';
 import 'admin_tokens_screen.dart';
 import 'admin_wallets_screen.dart';
-import 'admin_weekly_settlements_screen.dart';
 import 'admin_cleaning_bookings_screen.dart';
 import 'admin_carwash_screen.dart';
 import 'admin_cleaning_cleaners_screen.dart';
@@ -554,11 +553,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                           builder: (_) => const AdminPapeisScreen())),
                 ),
                 const SizedBox(height: 10),
+                // Entrada ÚNICA do fecho semanal (2026-09-07). Antes havia dois
+                // cartões — este e "Fechos Semanais" — a abrir ecrãs diferentes
+                // sobre o mesmo dinheiro, e abria-se o velho (PADRÃO 2.5). O
+                // contador de pendentes veio para aqui com o cartão que saiu.
                 _NavCard(
                   icon: Icons.calendar_month,
                   title: 'Acertos da semana',
-                  subtitle: 'Fecho unificado: quem recebe e quem deve · marcar pago',
+                  subtitle:
+                      'Quem a Bora paga e quem deve · marcar pago/recebido',
                   color: AppColors.primary,
+                  badgeCount: _pendingSettlementsCount,
                   onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -756,20 +761,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                           builder: (_) => const AdminWalletsScreen())),
                 ),
                 const SizedBox(height: 10),
-                // Fechos Semanais (2026-06-12) — settlements estafetas+parceiros.
-                _NavCard(
-                  icon: Icons.payments_outlined,
-                  title: 'Fechos Semanais',
-                  subtitle: 'Quem paga quem esta semana · marcar pago/recebido',
-                  color: Colors.lightGreen,
-                  badgeCount: _pendingSettlementsCount,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminWeeklySettlementsScreen())),
-                ),
-                const SizedBox(height: 10),
+                // "Fechos Semanais" saiu daqui a 2026-09-07: dizia o mesmo que
+                // "Acertos da semana" mas só via estafetas e parceiros (nem
+                // limpeza, nem serviços, nem lavagem). O contador de pendentes
+                // passou para lá.
+
                 _NavCard(
                   icon: Icons.map,
                   title: 'Pedidos ao Vivo',

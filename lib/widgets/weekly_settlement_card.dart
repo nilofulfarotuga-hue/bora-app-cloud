@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// FASE 4 — Cartão semanal de settlement do estafeta.
@@ -18,6 +19,11 @@ class _WeeklySettlementCardState extends State<WeeklySettlementCard> {
   List<dynamic> _orders = const [];
   List<dynamic> _history = const [];
   String? _mbwayPhone;
+
+  /// MB Way da Bora — para onde o estafeta paga quando fica a dever.
+  /// [Fecho semanal 2026-09-07] Faltava: o cartão dizia "vais pagar via MBWay"
+  /// sem dizer para que número, e a pessoa tinha de perguntar.
+  String _mbwayDaBora = '';
 
   @override
   void initState() {
@@ -42,6 +48,12 @@ class _WeeklySettlementCardState extends State<WeeklySettlementCard> {
         _mbwayPhone = data['mbway_phone'] as String?;
         _loading = false;
       });
+      // Best-effort: se falhar, o cartão continua a funcionar sem o número.
+      try {
+        final mb = await Supabase.instance.client
+            .rpc('bora_mbway_para_cobranca');
+        if (mounted) setState(() => _mbwayDaBora = (mb as String?) ?? '');
+      } catch (_) {/* fica vazio; o recibo por email leva o número */}
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -195,11 +207,38 @@ class _WeeklySettlementCardState extends State<WeeklySettlementCard> {
                   const SizedBox(height: 4),
                   Text(
                     isOwe
-                        ? 'Vais pagar via MBWay segunda-feira'
-                        : 'Bora vai transferir segunda-feira',
+                        // [2026-09-07] Dizia só "vais pagar via MBWay" e a
+                        // pessoa não sabia para onde. O número da Bora vem
+                        // agora do servidor e pode ser copiado com um toque.
+                        ? (_mbwayDaBora.isEmpty
+                            ? 'Vais pagar por MB Way na segunda-feira'
+                            : 'Paga por MB Way para $_mbwayDaBora')
+                        : 'A Bora transfere na segunda-feira',
                     style: TextStyle(
                         fontSize: 11, color: Colors.grey.shade700),
                   ),
+                  if (isOwe && _mbwayDaBora.isNotEmpty)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: const Size(0, 30),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        onPressed: () async {
+                          await Clipboard.setData(
+                              ClipboardData(text: _mbwayDaBora));
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content:
+                                  Text('MB Way $_mbwayDaBora copiado.')));
+                        },
+                        icon: const Icon(Icons.copy, size: 14),
+                        label: const Text('Copiar número',
+                            style: TextStyle(fontSize: 12)),
+                      ),
+                    ),
                 ],
                 const SizedBox(height: 12),
                 // MBWay config
@@ -353,13 +392,26 @@ class _WeeklySettlementCardState extends State<WeeklySettlementCard> {
       'disputed' => Colors.red.shade700,
       _ => Colors.grey.shade700,
     };
+    // [2026-09-07] O estado dizia só PAID/RECEIVED em maiúsculas, sem dizer
+    // quem pagou a quem nem quando. "Pago" e "recebido" são opostos e a pessoa
+    // tem direito a ver qual dos dois aconteceu, e em que dia.
+    final pago = DateTime.tryParse(h['paid_at'] as String? ?? '')?.toLocal();
+    final quando = pago == null ? '' : ' em ${pad(pago.day)}/${pad(pago.month)}';
+    final estado = switch (status) {
+      'paid' => 'Pago pela Bora$quando',
+      'received' => 'Recebido pela Bora$quando',
+      'pending' => net >= 0 ? 'A Bora vai pagar' : 'Falta pagares',
+      'disputed' => 'Em revisão',
+      _ => status,
+    };
+
     return ListTile(
       dense: true,
       leading: Icon(Icons.receipt_outlined, size: 18, color: color),
       title: Text(range, style: const TextStyle(fontSize: 13)),
       subtitle: Text('${h['total_deliveries']} entregas · saldo ${_fmtEur(net)}',
           style: const TextStyle(fontSize: 11)),
-      trailing: Text(status.toUpperCase(),
+      trailing: Text(estado,
           style: TextStyle(
               fontSize: 10, color: color, fontWeight: FontWeight.w700)),
     );

@@ -94,15 +94,24 @@ class AdminPushService {
 
     FirebaseMessaging.onMessageOpenedApp.listen((msg) {
       final route = _routeForMessage(msg);
-      if (route != null) navigator.pushNamed(route);
+      if (route != null) navigator.pushNamed(route, arguments: _argFor(msg));
     });
 
     // Cold-start: tap on push that launched the app.
     FirebaseMessaging.instance.getInitialMessage().then((msg) {
       if (msg == null) return;
       final route = _routeForMessage(msg);
-      if (route != null) navigator.pushNamed(route);
+      if (route != null) navigator.pushNamed(route, arguments: _argFor(msg));
     });
+  }
+
+  /// [Fecho semanal 2026-09-07] O aviso é sempre de um assunto concreto, e o
+  /// ecrã tem de abrir nesse assunto — não na lista genérica. Para o fecho, o
+  /// `ref` é `weekly_closeout_<AAAA-MM-DD>` e o argumento é a semana.
+  static String? _argFor(RemoteMessage msg) {
+    final ref = msg.data['ref']?.toString() ?? '';
+    const marca = 'weekly_closeout_';
+    return ref.startsWith(marca) ? ref.substring(marca.length) : null;
   }
 
   /// Maps an incoming admin push to a named route (or null when unhandled).

@@ -10,6 +10,19 @@
 // perdia-se na consola (a falha de 31/08 so se explicou por deducao). E quem
 // fica 'skipped' por nao ter email valido passa a aparecer no aviso ao Danilo,
 // em vez de desaparecer em silencio. Textos do recibo passam a PT-PT com acentos.
+// v5 (2026-09-07): CAUSA REAL da falha de sempre encontrada — o projeto NUNCA
+// teve RESEND_API_KEY nas variaveis de ambiente das Edge Functions (confirmado:
+// 19 variaveis, nenhuma de email), por isso nenhum recibo saiu desde que o fecho
+// existe. A chave passa a poder vir tambem do vault (RPC get_resend_key), para
+// poder ser gravada por SQL sem ida ao painel. Ordem: env primeiro, vault depois.
+// v6 (2026-09-07): idempotente — quem ja tem email_status='sent' NAO recebe outra
+// vez em execucoes seguintes, a nao ser que o pedido traga force:true (e o que o
+// botao 'Reenviar recibos' do painel manda, via admin_resend_weekly_digest).
+// v7 (2026-09-07): REPOE a verificacao de enderecos mortos. O repo tinha-a desde
+// a v4; as v5 e v6 foram publicadas a partir de outro sitio e deitaram-na fora
+// sem ninguem dar por isso. A cicatriz que a originou (06/09: sete de quinze
+// envios devolvidos, um endereco na lista negra da Resend) nao desapareceu por
+// o codigo ter desaparecido — por isso volta, junto com tudo o que a v6 traz.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -84,10 +97,30 @@ Deno.serve(async (req) => {
   }
 
   let weekStart = null
-  try { const b = await req.json(); weekStart = b?.week_start ? String(b.week_start) : null } catch (_e) {}
+  let force = false
+  try {
+    const b = await req.json()
+    weekStart = b?.week_start ? String(b.week_start) : null
+    force = b?.force === true
+  } catch (_e) {}
 
   const supabase = createClient(supabaseUrl, serviceKey)
-  const resendKey = Deno.env.get('RESEND_API_KEY')
+
+  // v5: env primeiro; se faltar, tenta o vault. Assim a chave pode ser posta
+  // por SQL, sem ida ao painel — foi como se desbloqueou o envio a 07/09.
+  let resendKey = Deno.env.get('RESEND_API_KEY') ?? null
+  let resendKeyOrigem = resendKey ? 'env' : null
+  if (!resendKey) {
+    try {
+      const { data: vaultKey } = await supabase.rpc('get_resend_key')
+      if (vaultKey && String(vaultKey).trim().length > 0) {
+        resendKey = String(vaultKey).trim()
+        resendKeyOrigem = 'vault'
+      }
+    } catch (e) {
+      console.error('[weekly-closeout] falhou ler a chave do vault:', e)
+    }
+  }
 
   const { data: summary, error: compErr } = await supabase
     .rpc('weekly_closeout_compile', { p_week_start: weekStart })
@@ -112,11 +145,14 @@ Deno.serve(async (req) => {
     .select('*').gte('week_start_at', ws + 'T00:00:00Z').lte('week_start_at', ws + 'T23:59:59Z')
   const weekRows = weekRowsRaw ?? []
 
-  let sent = 0, queued = 0, skipped = 0
+  let sent = 0, queued = 0, skipped = 0, jaEnviados = 0
   // v4: quem ficou de fora, e porque. Vai no aviso ao Danilo la em baixo, em
   // vez de ficar so uma palavra na tabela que ninguem le.
   const problemas = []
   for (const r of weekRows) {
+    // v6: recibo ja enviado nao vai outra vez (so com force:true). Sem isto,
+    // uma segunda passagem na mesma semana manda o recibo duas vezes.
+    if (r.email_status === 'sent' && !force) { jaEnviados++; continue }
     const emailBruto = r.subject_email ? String(r.subject_email) : ''
     // Um endereco que nao recebe e pior do que nenhum: manda-se, volta para
     // tras, e a devolucao fica no registo do dominio.
@@ -197,11 +233,12 @@ Deno.serve(async (req) => {
 
   return new Response(JSON.stringify({
     ok: true, week_start: ws, week_end: summary.week_end,
-    subjects: weekRows.length, emails_sent: sent, emails_aguarda_dominio: queued, emails_skipped: skipped,
+    subjects: weekRows.length, emails_sent: sent, emails_ja_enviados_antes: jaEnviados,
+    emails_aguarda_dominio: queued, emails_skipped: skipped, force,
     problemas,
     admin_push: adminPush, admin_email: adminEmail,
     to_pay: toPay.length, to_receive: toReceive.length, zero: zeroCount,
-    emails_enabled: emailsEnabled, resend_key_present: !!resendKey,
+    emails_enabled: emailsEnabled, resend_key_present: !!resendKey, resend_key_origem: resendKeyOrigem,
   }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 })
 

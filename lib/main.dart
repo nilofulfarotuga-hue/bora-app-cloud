@@ -46,7 +46,7 @@ import 'screens/admin/admin_tvde_reservas_screen.dart';
 import 'screens/admin/admin_cleaning_cleaners_screen.dart';
 import 'screens/admin/admin_ratings_screen.dart';
 import 'screens/admin/admin_skill_suggestions_metrics_screen.dart';
-import 'screens/admin/admin_weekly_settlements_screen.dart';
+import 'screens/admin/admin_acertos_semana_screen.dart';
 import 'screens/restaurant_ratings_list_screen.dart';
 import 'screens/cleaner/cleaner_home_screen.dart';
 import 'screens/washer/washer_home_screen.dart';
@@ -340,6 +340,18 @@ Future<void> main() async {
           ? const CleanerHomeScreen()
           : const WasherHomeScreen(),
     ));
+  };
+
+  // [Fecho semanal 2026-09-07] Tocar no aviso do painel abre o ecrã certo, no
+  // assunto certo — um toque, sem procurar nada. Mesmo sítio e mesma razão do
+  // gancho acima: ao nível da app, para não ficar a null com um ecrã por cima.
+  NotificationService.abrirAdmin = (rota, ref) {
+    final nav = NotificationService.navigatorKey.currentState;
+    if (nav == null) return;
+    // `weekly_closeout_2026-08-30` → abre já nessa semana.
+    const marca = 'weekly_closeout_';
+    final semana = ref.startsWith(marca) ? ref.substring(marca.length) : null;
+    nav.pushNamed(rota, arguments: semana);
   };
 
   // TODO: remover após diagnóstico — handlers globais de crash.
@@ -695,9 +707,19 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               const AdminSkillSuggestionsMetricsScreen(),
           // Sessão 6 §44 — Avaliações
           '/admin/ratings': (_) => const AdminRatingsScreen(),
-          // Fechos Semanais (2026-06-12) — deep link do push de 2ª-feira
-          // (run_weekly_closeout → notify-admin-urgent route '/admin/settlements').
-          '/admin/settlements': (_) => const AdminWeeklySettlementsScreen(),
+          // Acertos da semana (2026-09-07) — é AQUI que o aviso do fecho abre.
+          // Faltava esta linha: o push do digest mandava '/admin/acertos-semana'
+          // e, como a rota não existia, tocar no aviso não abria nada. O ecrã
+          // já estava construído e ligado ao painel; só ninguém lhe deu morada.
+          // O argumento é a semana (YYYY-MM-DD), para abrir já na semana certa.
+          '/admin/acertos-semana': (ctx) => AdminAcertosSemanaScreen(
+                semanaInicial:
+                    ModalRoute.of(ctx)?.settings.arguments as String?,
+              ),
+          // Fechos Semanais (2026-06-12) — ecrã antigo. Mantido porque o push
+          // de versões já instaladas ainda aponta para cá; reencaminha para os
+          // Acertos da semana em vez de mostrar duas verdades (PADRÃO 2.5).
+          '/admin/settlements': (_) => const AdminAcertosSemanaScreen(),
           // PARTE A (2026-07-17) — deep links dos 5 pushes admin persistentes
           '/admin/robot': (_) => const AdminRobotSuggestionsScreen(),
           '/admin/drivers/approval': (_) => const AdminDriverApprovalScreen(),

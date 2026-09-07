@@ -542,6 +542,17 @@ void _onLocalNotifTap(NotificationResponse response) {
       }
       return;
     }
+    // [Fecho semanal 2026-09-07] Tocar no aviso do fecho abre os "Acertos da
+    // semana" NA SEMANA DO AVISO. Antes caía aqui sem tratamento e a app só
+    // vinha para a frente na home — o Danilo tinha de procurar o ecrã à mão.
+    // O gancho vive no main.dart, ao nível da app (cicatriz de 2026-08-20:
+    // preso ao initState de um ecrã, ficava a null com outro ecrã por cima).
+    if (data['type'] == 'admin_generic' || data['type'] == 'crosstalk_critical') {
+      final rota = data['route']?.toString() ?? '/admin';
+      final ref = data['ref']?.toString() ?? '';
+      NotificationService.abrirAdmin?.call(rota, ref);
+      return;
+    }
     // [Serviços 2026-07-28] Tocar num push de marcação abre a AGENDA do
     // parceiro (não só a home) — padrão do delivery, que abre o pedido.
     const apptTypes = {
@@ -1153,6 +1164,25 @@ Future<void> _showPersistentCategoryNotification(RemoteMessage message) async {
         },
       );
       return;
+    case 'settlement_receipt':
+    case 'settlement_reminder':
+      // [Fecho semanal 2026-09-07] Comprovativo de pagamento e lembrete de
+      // acerto por regularizar. Data-only (a Edge não manda bloco
+      // `notification`), por isso o título e o corpo vêm dentro de `data`.
+      // Canal normal: é informação, não é uma oferta de trabalho a expirar.
+      final semana = data['week_start']?.toString() ?? '';
+      await _showPersistentStatusNotification(
+        type: type,
+        title: data['title']?.toString() ??
+            (type == 'settlement_receipt'
+                ? 'Acerto da semana'
+                : 'Acerto por regularizar'),
+        body: data['body']?.toString() ?? '',
+        notificationId:
+            semana.isNotEmpty ? '$type$semana'.hashCode : type.hashCode,
+        payload: {'type': type, 'week_start': semana},
+      );
+      return;
     case 'admin_generic':
     case 'crosstalk_critical':
       // [Admin push 2026-07-31] notify-admin-urgent v15 passou a DATA-ONLY.
@@ -1168,7 +1198,14 @@ Future<void> _showPersistentCategoryNotification(RemoteMessage message) async {
         title: data['title']?.toString() ?? notif?.title ?? '🔴 Bora Admin',
         body: data['body']?.toString() ?? notif?.body ?? '',
         notificationId: ref.isNotEmpty ? ref.hashCode : type.hashCode,
-        payload: {'route': data['route']?.toString() ?? '/admin'},
+        // [Fecho semanal 2026-09-07] O `ref` passa a viajar no payload. Sem
+        // ele, tocar no aviso do fecho abria a lista na semana errada — o
+        // aviso é de uma semana concreta (`weekly_closeout_<data>`).
+        payload: {
+          'type': type,
+          'route': data['route']?.toString() ?? '/admin',
+          'ref': ref,
+        },
         channelOverride: 'bora_admin_urgent',
         channelNameOverride: 'Bora Admin — Ações pendentes',
       );
@@ -1365,6 +1402,11 @@ class NotificationService {
   /// o Danilo apanhou-o a 2026-08-28 com a lavagem. Registado uma vez no
   /// `main.dart`, para responder mesmo com a pessoa noutro papel.
   static void Function(String categoria, String bookingId)? abrirTrabalho;
+
+  /// Tocar num aviso do painel abre o ecrã certo, já no assunto certo.
+  /// `ref` traz o assunto (ex.: `weekly_closeout_2026-08-30` → a semana).
+  /// Registado no `main.dart`, ao nível da app — nunca dentro de um ecrã.
+  static void Function(String rota, String ref)? abrirAdmin;
 
   final _sound = SoundService();
   bool _initialized = false;

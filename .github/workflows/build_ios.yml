@@ -45,7 +45,8 @@ env:
   # build_web_deploy, dart, e2e-web, olho_golden, testlab_robo).
   FLUTTER_VERSION: "3.41.2"
   XCODE_VERSION: "26.0"
-  SIMULATOR: "iPhone 16 Pro Max"
+  # Nao ha nome de simulador cravado: a imagem do runner muda e um nome fixo
+  # parte o build sem avisar. O passo "Escolher e arrancar" decide na hora.
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────────
@@ -117,11 +118,25 @@ jobs:
 
       # O simulador arranca ANTES de compilar, porque a compilação precisa de um
       # destino concreto (ver o passo seguinte).
-      - name: Arrancar o simulador ${{ env.SIMULATOR }}
+      # O nome do aparelho NÃO se crava: a imagem do runner muda de mês para mês
+      # e um nome fixo parte o build sem avisar (foi o que aconteceu na corrida
+      # 34161752681 com "iPhone 16 Pro Max"). Escolhe-se por preferência, com
+      # alternativas, e imprime-se o que existe e o que foi escolhido.
+      - name: Escolher e arrancar um simulador
         run: |
-          UDID=$(xcrun simctl list devices available -j \
-            | python3 -c "import sys,json;d=json.load(sys.stdin)['devices'];print([x['udid'] for r in d for x in d[r] if x['name']=='${{ env.SIMULATOR }}'][0])")
+          set -euo pipefail
+          echo "--- aparelhos disponíveis ---"
+          xcrun simctl list devices available | grep -E '^\s+iPhone' || true
+
+          # Sem heredoc de propósito: dentro de um bloco YAML a indentação do
+          # terminador parte o heredoc. Uma linha só, com o peso pelo tamanho de
+          # ecrã — 6,9" primeiro, que é o que a App Store exige nas capturas.
+          ESCOLHA=$(xcrun simctl list devices available -j | python3 -c "import sys,json;d=json.load(sys.stdin)['devices'];i=[x for r in d for x in d[r] if x['name'].startswith('iPhone')];sys.exit('sem simuladores de iPhone neste runner') if not i else None;w=lambda n:0 if 'Pro Max' in n else 1 if 'Plus' in n else 2 if 'Pro' in n else 3;e=sorted(i,key=lambda x:(w(x['name']),x['name']))[0];print(e['udid']+'|'+e['name'])")
+          UDID=${ESCOLHA%%|*}
+          NOME=${ESCOLHA##*|}
+          echo "escolhido: $NOME ($UDID)"
           echo "UDID=$UDID" >> $GITHUB_ENV
+          echo "SIM_NOME=$NOME" >> $GITHUB_ENV
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
 

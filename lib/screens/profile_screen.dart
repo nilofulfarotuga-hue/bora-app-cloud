@@ -1128,7 +1128,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         title: Text('Apagar conta'.tr),
         content: SingleChildScrollView(
           child: Text(
-            'Os teus dados pessoais serão apagados imediatamente.\n\nPor obrigação legal, os dados fiscais (faturas) são guardados por 10 anos.\n\nConfirmar?'.tr,
+            'O que desaparece: o teu nome, o teu contacto, a tua morada, as tuas fotos e o acesso a esta conta. Não voltas a poder entrar com este email.\n\nO que fica guardado: as faturas dos pedidos que já fizeste. A lei portuguesa obriga a guardá-las 10 anos, mas ficam sem o teu nome.\n\nQueres mesmo apagar?'.tr,
           ),
         ),
         actions: [

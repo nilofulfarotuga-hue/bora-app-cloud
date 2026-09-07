@@ -270,6 +270,21 @@ const Map<String, String> kStringsEn = <String, String>{
       'Delete',
   'Apagar conta':
       'Delete account',
+  // Encerramento de conta (2026-09-07, missão ios-lancamento).
+  'A conta NÃO foi apagada. O servidor não confirmou a eliminação. Fala connosco pelo suporte.':
+      'Your account was NOT deleted. The server did not confirm the deletion. Please contact support.',
+  'Ainda não dá para apagar':
+      'Not possible to delete yet',
+  'Entendi':
+      'Got it',
+  'Este valor não é devolvido nem transferido. Continuar?':
+      'This amount is not refunded or transferred. Continue?',
+  'O que desaparece: o teu nome, o teu contacto, a tua morada, as tuas fotos e o acesso a esta conta. Não voltas a poder entrar com este email.\n\nO que fica guardado: as faturas dos pedidos que já fizeste. A lei portuguesa obriga a guardá-las 10 anos, mas ficam sem o teu nome.\n\nQueres mesmo apagar?':
+      'What disappears: your name, your contact details, your address, your photos and access to this account. You will not be able to sign in with this email again.\n\nWhat is kept: the invoices for orders you already placed. Portuguese law requires keeping them for 10 years, but they no longer carry your name.\n\nAre you sure you want to delete?',
+  'Perder e apagar':
+      'Forfeit and delete',
+  'Vais perder isto':
+      'You will lose this',
   'Apenas a equipa Bora vê. Não aparece no perfil público.':
       'Only the Bora team sees this. It does not appear on the public profile.',
   'Apenas no horário exacto.':

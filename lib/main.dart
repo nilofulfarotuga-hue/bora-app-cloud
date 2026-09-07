@@ -87,6 +87,7 @@ import 'providers/support_settings_provider.dart';
 import 'stores/consent_store.dart';
 import 'stores/session_store.dart';
 import 'widgets/consent_banner.dart';
+import 'services/platform_tag_service.dart';
 
 // Injected at build time via --dart-define=SUPABASE_URL=... --dart-define=SUPABASE_ANON_KEY=...
 // or --dart-define-from-file=.dart_defines
@@ -288,6 +289,18 @@ Future<void> main() async {
       authFlowType: AuthFlowType.implicit,
     ),
   );
+
+  // De onde vem esta conta: android, ios ou web (missão ios-lancamento).
+  // Fire-and-forget de propósito — é telemetria para o painel, nunca deve
+  // atrasar nem partir o arranque. Escreve só em `users.platform`; quem
+  // preenche `orders.platform` é um gatilho na base de dados, para esta
+  // camada nunca poder tocar num pedido.
+  unawaited(PlatformTagService.registar());
+  Supabase.instance.client.auth.onAuthStateChange.listen((estado) {
+    if (estado.event == AuthChangeEvent.signedIn) {
+      unawaited(PlatformTagService.registar());
+    }
+  });
 
   // Recuperação de palavra-passe — o link do email abre o deep link
   // pt.boraapp.bora://reset-password, o Supabase cria uma sessão de

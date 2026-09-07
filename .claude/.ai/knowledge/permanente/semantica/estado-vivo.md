@@ -1,9 +1,9 @@
 ---
-tema: estado-vivo · escopo: projeto · estado: atual · atualizado: 2026-09-05
+tema: estado-vivo · escopo: projeto · estado: atual · atualizado: 2026-09-07
 id: estado-vivo
 tipo: foto
-origem: [reescrito pela Claude.ai 2026-09-05 a pedido do Danilo — foto geral + cascata de ferramentas; cascata de IMAGEM corrigida por medição no BoraStudio 2026-09-05]
-ultima_confirmacao: 2026-09-05
+origem: [reescrito pela Claude.ai 2026-09-05 a pedido do Danilo — foto geral + cascata de ferramentas; cascata de IMAGEM corrigida por medição no BoraStudio 2026-09-05; cadência das redes e executor-com-navegador actualizados 2026-09-07 pela sessão redes-hoje-07-09]
+ultima_confirmacao: 2026-09-07
 zona: verde
 confianca: alta
 ---
@@ -74,26 +74,69 @@ crítico → FABLE. O loop automático corre SEMPRE no Claude Code.
   cenário de controlo passa quando devia rebentar, a prova está a medir a ausência do
   problema, não a presença da cura.
 
-## Snapshot 2026-09-05
+## Snapshot 2026-09-07
 
-**Redes sociais** — Facebook e Instagram do Bora no ar (`@boraappbora`), 8 publicações,
-3 seguidores. Publicador automático na VPS com a cadência nova: 5 reels/semana (seg–sex
-18h), 4 de feed, stories quase diários. A ligação à Meta está viva e provada com
-publicação real hoje às 10:49. A app "Bora Social" está em **modo de desenvolvimento** —
-enquanto assim for, o robô de atendimento a clientes é impossível (exige app publicada e
-revisão da Meta). Travão instalado: ao 3.º erro seguido de autenticação pára e recua para
-de hora a hora, em vez de bater de 10 em 10 minutos.
+**Redes sociais** — Facebook e Instagram do Bora no ar (`@boraappbora`). A ligação à Meta
+está viva e provada com publicações reais a 07/09: loja do dia às 12h, story às 13h,
+carrossel a seguir e o reel de categorias às 15h06, todos por relógio ou por clique.
+A app "Bora Social" continua em **modo de desenvolvimento** — enquanto assim for, o robô de
+atendimento a clientes é impossível (exige app publicada e revisão da Meta). Travão
+instalado: ao 3.º erro seguido de autenticação pára e recua para de hora a hora.
 
-**Cadência e alcance** — falta pôr a **etiqueta de local "Guarda"** a sério (o `location_id`
-da API); hoje só há hashtags, e sem ela o Instagram não sabe a que mercado a conta
-pertence. O `rotacao.md` continua com uma linha por dia enquanto a cadência publica a loja
-do dia 2x por semana — a fila atrasa-se e hoje um parceiro ficou para trás.
+**Cadência das redes (revista 2026-09-07, ordem do Danilo)** — toda por cron na VPS, cada
+slot com a sua guarda `.<slot>-feito-<data>`: 09h10 plano dos grupos · 10h00 story da manhã
+(NOVO; o `social-story.sh` aceita `SOCIAL_SLOT=manha` com guarda separada — se partilhassem
+guarda, o da manhã marcava o dia como feito e o da noite saltava-se a si próprio) · 12h00
+loja do dia · 15h00 formato extra (era 16h00, e passou a diário) · 18h00 reel à segunda,
+quarta e sexta · 18h00 carrossel à terça, quinta e sábado (era 13h00 de segunda e quinta) ·
+18h30 resumo dos grupos · 19h30 story com pergunta · 21h30 os três números · domingo 11h00
+grelha da semana. O verificador das 21h30 passou a contar **cada slot** pelas guardas reais
+e a dizer o que faltou, em vez de só listar o que saiu.
+Backups: `/root/orquestracao/crontab.bak-cadencia-2026-09-07`,
+`social-story.sh.bak-slot-2026-09-07`, `resumo_do_dia.py.bak-slots-2026-09-07`.
+Continua por fazer a **etiqueta de local "Guarda"** a sério (o `location_id` da API); hoje só
+há hashtags. E há gémeos a divergir: o `rotacao.md` diz que a loja do dia é 2x por semana e a
+crontab diz diária — mandou a crontab, porque é o que o Danilo pediu.
 
-**Loop/orquestração** — tecto por tentativa baixado para 1h (era 4h05 e entupia a fila).
-Armadilha aberta: cancelar ordem em execução NÃO liberta o `flock` — é preciso matar o
-processo também. `.vps-exec.rc=97` não é avaria, foi desligado de propósito em Julho.
-O juiz recebia o prompt truncado a 27% pelo tecto de 8191 caracteres do `cmd`; corrigido,
-agora chega byte a byte.
+**Grupos do Facebook** — 25 grupos no ficheiro de estado, 19 com escrita permitida. Publicar
+num grupo **exige sempre um navegador a clicar** (a via automática morreu em 2024) e por isso
+só sai com o PC do Danilo ligado, na sessão dele, com o Chrome aberto. Cuidado com o ficheiro
+de estado: diz `joined: true` para grupos onde o botão "Aderir ao grupo" ainda aparece — a 07/09
+uma publicação falhou por isso. Regras: máx. 5 por dia, ≥20 min entre elas, texto diferente,
+uma por grupo por semana, parar tudo ao primeiro aviso da Meta.
+
+**Loop/orquestração — o executor passou a ter navegador (2026-09-07)** — causa medida, não
+suposta: o lançador vivo `run-claude-loop-pcnovo-limpo.cmd` (em
+`C:\BoraLocal\Desktop-PC-antigo\produtividade-ia\hermes-bridge`) corria `claude -p` **sem a
+bandeira `--chrome`**. Sem ela o executor responde literalmente `SEM-NAVEGADOR`; com ela ganha
+as 20 ferramentas `mcp__claude-in-chrome__*`. Não era MCP em falta, nem Chrome fechado, nem
+perfil errado. De caminho repôs-se a detecção de `[MODELO: OPUS]`, que esse lançador tinha
+perdido (tinha sonnet cravado).
+**Relógio do dia no PC:** 5 tarefas no Agendador do Windows, sessão `danil`, sem elevação —
+`BoraBancoPecas` 08h00, `BoraGruposManha` 09h30, `BoraGruposTarde` 14h30, `BoraGruposNoite`
+18h30, e `BoraGuardaChrome` ao logon e de 15 em 15 min (mantém o Chrome vivo, senão a ordem
+corre e não faz nada). Gatilho: `orquestracao/disparar-ordem-fixa.cmd <nome>`, que escreve a
+ordem fixa de `orquestracao/ordens-fixas/` no ficheiro de tarefa e chama o executor. Não passa
+pelo carteiro da VPS de propósito: o carteiro só corre à hora certa (`:17`) e atrasaria cada
+ordem até 60 minutos, estragando a regra dos 20 minutos entre publicações.
+Provado a 07/09: às 15h37 uma ordem disparada por esse gatilho abriu o Facebook no Chrome
+real, gravou uma captura de 606 KB no disco e escreveu a linha 1342 no `e2e_log`. Às 16h02
+uma segunda ordem, a sério, disparou sozinha; o PC entrou em suspensão a meio e a ordem
+**retomou quando o PC acordou**.
+Armadilhas antigas que se mantêm: cancelar ordem em execução NÃO liberta o `flock` — é preciso
+matar o processo também; `.vps-exec.rc=97` não é avaria, foi desligado de propósito em Julho.
+
+**Campanha paga (07/09)** — "Bora Guarda - trafego - 5 EUR dia - 2 dias", conta
+`act_1105400138585537`. Com o intervalo em **Máximo**: os três níveis Activos, resultados
+traço, **gasto 0,00 €** desde sempre. O dinheiro não é o travão — 10 € de fundos disponíveis,
+modo "Fundos disponíveis", limite diário da Meta 17,28 €, pagamento manual de 10 € do dia 5
+marcado Pago. A explicação está num email da Meta de 07/09 às 8h15: **o anúncio só foi
+aprovado hoje de manhã**; esteve em revisão desde o dia 5. Objectivo fica em TRÁFEGO porque
+"instalações" exigiria o SDK da Meta dentro da app Flutter. Criativo de vídeo pronto e à
+espera: versão paga do reel carregada na Página como publicação **não publicada**, id
+`1034605486304474`. Regras estudadas em `docs/redes/META-REGRAS-2026-09-07.md`.
+⚠️ O Gestor de Anúncios **não estabiliza no PC do Danilo** — abre ao fim de ~1 min na vista de
+campanhas e nunca assenta na de conjuntos. Quem lá for, conte com isso.
 
 **Bora Studio (filme)** — a fábrica não está parada: corre sozinha de 15 em 15 min. A 05/09
 corrigiu-se o portão de fotogramas (ver R62 acima) e mediu-se o verdadeiro estrangulamento:

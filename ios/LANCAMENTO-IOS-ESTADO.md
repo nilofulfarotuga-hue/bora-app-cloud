@@ -425,7 +425,7 @@ Flutter (esconder logótipo de loja não parceira quando ligado, no iOS).
 ### Site legal — publicado e verificado no ar
 Estavam **oito** marcadores por preencher (privacidade **e** termos), não três.
 Todos preenchidos: Danilo Fulfaro da Silva, empresário em nome individual,
-Rua do Torreão 14, 6300-035 Guarda, NIF 322151171 (dígito de controlo validado).
+Rua do Torreão 14, 6300-610 Guarda, NIF 322151171 (dígito de controlo validado).
 Secção nova sobre eliminar a conta. DPO: explicado que não é obrigatório
 (RGPD art. 37.º) em vez de inventar um nome.
 

@@ -47,8 +47,12 @@ FFPROBE = os.environ.get('FFPROBE', 'ffprobe')
 LARGURA, ALTURA = 8, 16              # assinatura: 8x16 pixeis RGB
 TAM = LARGURA * ALTURA * 3
 LIMIAR = 18.0                        # distancia media por canal, 0-255
-SEGUNDOS_POR_ECRA = 8.0
-RECUO = 7.0                          # so entra depois do ecra assentar
+SEGUNDOS_POR_ECRA = 7.0
+# So 1 s de recuo, nao 7. O arnes ja fotografa DEPOIS de o ecra assentar e
+# so o segura ~9 s; com recuo de 7 era preciso um bloco de 15 s para caber o
+# corte, e nenhum bloco tem isso -- o video sairia vazio e o erro so
+# apareceria como 'so N ecras na gravacao'.
+RECUO = 1.0
 ALTURA_SAIDA = 1280
 
 # Uma frase por ecra, na ordem em que `integration_test/demo_real_test.dart` os
@@ -126,7 +130,8 @@ def blocos_por_ecra(video, pngs, tmp):
         # Um PNG sem legenda e' referencia para EXCLUIR, nao para filmar:
         # `ecra-final` (o ecra inicial do iOS no fim da corrida) e `01-entrar`
         # (o ecra de credenciais -- ninguem quer as senhas no filme).
-        if nome in LEGENDAS and nome not in vistos and b - a >= SEGUNDOS_POR_ECRA:
+        if (nome in LEGENDAS and nome not in vistos
+                and b - a >= RECUO + SEGUNDOS_POR_ECRA):
             blocos.append((a, b, nome))
             vistos.add(nome)
     return blocos

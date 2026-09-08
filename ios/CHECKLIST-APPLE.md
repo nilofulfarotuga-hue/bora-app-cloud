@@ -116,10 +116,14 @@ run_id `ios-lancamento-2026-09`, ids **1446–1479**. Antes desta sessão o
 ### Duas frases às Apple que não eram verdade — uma corrigida, outra provada
 
 - [x] *"The demo account has a saved address in Guarda"* — **era falso**.
-      `demo@bora.app` não tinha morada nenhuma e o guarda de morada do
-      `client_home_screen` teria bloqueado o revisor logo na primeira
-      categoria. Criada "Praça Luís de Camões, 6300-725 Guarda" — lugar
-      público de propósito. Prova: id 1516.
+      `demo@bora.app` não tinha morada nenhuma. Criada "Praça Luís de Camões,
+      6300-725 Guarda" — lugar público de propósito. Prova: id 1516.
+      **Correcção à minha própria explicação:** escrevi aqui que sem morada o
+      guarda do `client_home_screen` teria bloqueado o revisor. Fui ler:
+      `_navigateWithAddressGuard` é `=> nav();`, um no-op que não guarda nada.
+      A morada faz falta ao **checkout**, não à navegação — o `AutoAddress`
+      põe a morada guardada em primeiro na cascata e é dela que sai o endereço
+      de entrega. O acto estava certo; a razão não. Prova: id 1527.
 - [x] *"Orders from the demo account are never dispatched to real couriers"*
       — **verdade, e agora provado**: gatilho `BEFORE INSERT`
       `a_trg_pedido_demo_caixa_fechada` em `orders`, ligado, faz as
@@ -137,10 +141,26 @@ run_id `ios-lancamento-2026-09`, ids **1446–1479**. Antes desta sessão o
       `shouldHideStoreLogo`. Prova da contagem: id 1504.
 
 ### Ainda por fazer, e de que dependem
-- [ ] **Firebase iOS** — não existe `GoogleService-Info.plist` nem o segredo
-      `GOOGLE_SERVICE_INFO_PLIST_B64`; as notificações não funcionam no
-      iPhone. Depende da chave APNs, que **só se cria com a conta activa**.
-      Prova da lacuna: id 1462.
+- [x] **Firebase iOS — FEITO, e não dependia da conta Apple.** Esta linha
+      dizia que dependia da chave APNs, "que só se cria com a conta
+      activa". Estava errada: registar a app iOS no Firebase só precisa do
+      **bundle ID**; é a chave APNs (`.p8`) que precisa da conta. App Apple
+      criada a 2026-09-08 no projecto `boraapp-d2bea` — bundle
+      `pt.boraapp.bora`, apelido "Bora iOS", Swift, sem App Store ID.
+      `GoogleService-Info.plist` (873 bytes) validado com `plistlib`:
+      `BUNDLE_ID` certo, `PROJECT_ID=boraapp-d2bea`,
+      `GCM_SENDER_ID=765097014497` (igual ao Android), `GOOGLE_APP_ID` de
+      plataforma **ios**, `IS_GCM_ENABLED=true`. Guardado no cofre local e
+      em `ios/Runner/` (confirmado ignorado pelo git, `.gitignore:119`).
+      Segredo `GOOGLE_SERVICE_INFO_PLIST_B64` criado por API com caixa
+      selada — **HTTP 201**, confirmado na listagem de segredos do repo. O
+      valor nunca passou pelo chat nem pelo repositório. Prova: id 1525.
+- [ ] Chave APNs (`.p8`) e ligação ao Firebase — **esta sim** depende da
+      conta Apple activa. É o que falta para as notificações chegarem ao
+      iPhone.
+- [ ] ⚠️ **Um serviço do projecto Firebase está pausado por tecto de
+      gastos** ("a spend cap was enforced"). Saber qual antes de contar com
+      push. Visto no console a 2026-09-08. Prova: id 1526.
 - [ ] Firebase Test Lab em iPhone real.
 - [ ] Chaves, certificados, perfil e job de release — dependem da conta activa.
 - [ ] Trader status verificado no App Store Connect (a Apple pede código por
@@ -157,17 +177,25 @@ run_id `ios-lancamento-2026-09`, ids **1446–1479**. Antes desta sessão o
       `receita-do-build-ios` (memória).
 - [x] `xcodebuild` compila para o simulador (destino explícito, sem
       `-sdk iphonesimulator`). Prova: passo 15 verde, 7m11s, mesma corrida.
-- [ ] **A app arranca e navega no simulador** — ainda NÃO provado, mas passou a haver quem o prove ou desminta: o `demo_real_test.dart` percorre a app a sério e falha com fotografia do ecrã onde encalhar. Os 7 testes
-      de `integration_test/e2e_test.dart` falharam todos
-      (`'_pendingFrame == null': is not true`) porque esse teste chama
-      `app.main()` completo (Supabase/Firebase/Stripe/timers) e o
-      `pumpAndSettle` nunca assenta. Ver §1-b do estado. **Caminho decidido:**
-      arnês de capturas próprio (main_capturas.dart + teste + driver), que
-      corre o pumpAndSettle sobre ecrãs sem rede e sem temporizadores — prova
-      indirecta de que os widgets desenham sem excepção. Em curso nesta
-      sessão (ver §2). A prova definitiva de que o `app.main()` real arranca
-      num iPhone físico só vem do próprio TestFlight/build de release.
-
+- [x] **A app NÃO arrancava no simulador — encontrado e corrigido.**
+      Esta era a linha mais importante da lista e esteve por provar
+      desde o início. Provado agora, e o resultado foi mau: na
+      corrida `34209823345` a app liga o VMService, imprime
+      `[BoraForegroundService] initialised` e **morre** com
+      `[core/not-initialized] Firebase has not been correctly
+      initialized` (`main.dart:467`), porque no iOS não havia
+      `GoogleService-Info.plist`. Medida: **937 s** de gravação com o
+      ecrã inicial do iOS do princípio ao fim e **zero** capturas —
+      nem a fotografia de falha, porque morreu antes da primeira.
+      Confirmado por amostragem de 6 fotogramas do `demo.mp4`.
+      **Com o plist em falta ou corrompido no IPA, isto era a app a
+      fechar-se na cara do revisor: reprovação 2.1 à primeira.**
+      Corrigido em `lib/main.dart`: o `Firebase.initializeApp()`
+      estava cru dentro de um `Future.wait` e qualquer erro derrubava
+      o `main()`; passa a falhar em silêncio e a app corre sem
+      notificações. Ids 1522 e 1523.
+- [ ] Falta a corrida verde a provar que, além de arrancar, **navega**
+      e deixa capturas no artefacto.
 ## 2. Capturas da loja (6–8, 1320×2868) — da APP REAL, nada de ecrãs desenhados
 
 > Regra da casa desde 2026-09-08: nenhuma captura e nenhum vídeo mostra

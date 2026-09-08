@@ -64,11 +64,17 @@ Açaí, Sabores do Brasil e Barbearia Ouro e Prata. Já existe
 ### Duas frases que dizíamos à Apple e não eram verdade
 
 1. *"The demo account has a saved address in Guarda"* — **era falso**.
-   `demo@bora.app` tinha zero linhas em `client_addresses`, e o
-   `_navigateWithAddressGuard` teria bloqueado o revisor logo na primeira
-   categoria. Criada a morada "Praça Luís de Camões, 6300-725 Guarda"
-   (lugar público de propósito, nunca a casa do Danilo). Agora é verdade.
-   (e2e_log 1516)
+   `demo@bora.app` tinha zero linhas em `client_addresses`. Criada a morada
+   "Praça Luís de Camões, 6300-725 Guarda" — lugar público de propósito,
+   nunca a casa do Danilo. Agora é verdade. (e2e_log 1516)
+
+   **Correcção à minha própria explicação:** escrevi que sem morada o
+   `_navigateWithAddressGuard` teria bloqueado o revisor na primeira
+   categoria. Falso — fui ler e esse método é `=> nav();`, um no-op que não
+   guarda nada. A morada faz falta noutro sítio: o `AutoAddress` põe a
+   morada guardada em **primeiro** lugar na cascata, e é dela que sai o
+   endereço de entrega do carrinho. Sem ela o checkout ficava sem morada.
+   O acto estava certo; a razão que dei não estava. (e2e_log 1527)
 2. *"Orders placed from the demo account are never dispatched to real
    couriers"* — **é verdade, e agora está provado**: gatilho `BEFORE INSERT`
    `a_trg_pedido_demo_caixa_fechada` em `orders`, `tgenabled=O`, força as
@@ -96,6 +102,48 @@ Apple com o comprovativo do banco.
 
 ---
 
+### A APP NÃO ABRIA NO IPHONE — a descoberta desta sessão
+
+Só apareceu porque se passou a correr a app **a sério**. Na corrida
+`34209823345` a app liga o VMService, imprime
+`[BoraForegroundService] initialised` e morre com
+`[core/not-initialized] Firebase has not been correctly initialized`
+(`main.dart:467`), porque no iOS não havia `GoogleService-Info.plist`.
+Medida: **937 s** de gravação com o ecrã inicial do iOS e **zero** capturas.
+
+Com o plist em falta ou corrompido no IPA, isto era a app a fechar-se na
+cara do revisor — **reprovação 2.1 à primeira**. O `Firebase.initializeApp()`
+estava cru dentro de um `Future.wait`, por isso qualquer erro derrubava o
+`main()` inteiro. Agora falha em silêncio e a app corre sem notificações,
+que é o estado de hoje no iPhone. (e2e_log 1522, 1523)
+
+### Firebase iOS — fechado, e não dependia da conta Apple
+
+A lista dizia que dependia da chave APNs. Errado: registar a app iOS no
+Firebase só precisa do **bundle ID**; é a chave `.p8` que precisa da conta.
+App Apple criada no projecto `boraapp-d2bea` (conta
+`nilofulfarotuga@gmail.com` — atenção, é o `/u/1/` do Chrome; o `/u/0/` não
+vê o projecto). `GoogleService-Info.plist` validado, guardado no cofre e o
+segredo `GOOGLE_SERVICE_INFO_PLIST_B64` criado por API (**HTTP 201**). O
+valor nunca passou pelo chat nem pelo repositório. (e2e_log 1525)
+
+⚠️ Dois avisos do console: um serviço do projecto está **pausado por tecto
+de gastos**, e há uma app Android de lixo (`com.example.bora_app`) ao lado
+da boa. Não se mexeu em nenhuma. (e2e_log 1526)
+
+### Marcas — decisão do Danilo, aplicada
+
+O **vídeo** é privado e pode mostrar o supermercado real, porque tem de
+provar uma compra a sério. As **capturas da loja** são publicidade pública e
+não levam nomes nem logótipos em destaque das lojas onde a Bora só compra.
+Aplicado: `ios_hide_nonpartner_logos` passou a **`true`**, e o nome do
+ficheiro diz o que é — `NN-loja-*` público, `NN-video-*` percurso do vídeo,
+`zz-*` diagnóstico. Entram as fichas de marca própria: Goola Açaí (chegada
+pela pesquisa, para não fotografar a lista de restaurantes) e Barbearia Ouro
+e Prata. **Mr Kebab e Sabores de Casa Açaí têm `coming_soon = true`** — só
+podem aparecer com o selo "Em breve". (e2e_log 1524)
+
+---
 ## -1. FIM DA 3.ª SESSÃO — LER PRIMEIRO (desbloqueou a publicação)
 
 **O bloqueio da 2.ª sessão está resolvido — publicar não depende mais de

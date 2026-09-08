@@ -68,7 +68,7 @@ const String _senha =
 
 /// Segundos que cada ecrã fica parado depois de fotografado, só para o gravador
 /// de vídeo apanhar a imagem legível. Não afecta a captura em si.
-const int _pausa = int.fromEnvironment('SEGUNDOS_POR_ECRA', defaultValue: 6);
+const int _pausa = int.fromEnvironment('SEGUNDOS_POR_ECRA', defaultValue: 9);
 
 const bool _fazerEncomenda =
     bool.fromEnvironment('FAZER_ENCOMENDA_REAL', defaultValue: false);

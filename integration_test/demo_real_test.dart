@@ -287,35 +287,58 @@ void main() {
     // ── A partir daqui é matéria do VÍDEO (privado): a compra a sério ─────
     // A primeira loja da lista, seja ela qual for — não se crava nome nenhum,
     // porque o que está à venda hoje é o que manda.
-    // ABRIR A LOJA — com prova de que abriu mesmo.
+    // ABRIR A LOJA — e saber POR QUE nao abre, quando nao abre.
     //
-    // CICATRIZ (corrida 34279643078): tocava-se em `cartao_loja` e seguia-se
-    // em frente sem confirmar nada. O toque nao pegou, o ecra ficou na lista
-    // de supermercados, e so 40 s depois o teste se queixou de nao haver
-    // "adicionar ao carrinho" — a apontar para a loja nao ter produtos, que
-    // era mentira. `warnIfMissed: false` no `_tocar` esconde o toque falhado,
-    // por isso a verificacao tem de ser feita aqui, a olho.
-    debugPrint('[arnes] cartoes de loja na arvore: '
-        '${_id('cartao_loja').evaluate().length}');
-    await _tocar(t, _id('cartao_loja'));
-    await _bombear(t, segundos: 5);
+    // CICATRIZ 1 (corrida 34279643078): tocava-se e seguia-se sem confirmar.
+    // CICATRIZ 2 (corrida 34285079216): ja se confirmava, mas a mensagem
+    // continuava a mentir. Dizia "confirmar que a loja tem produtos" quando o
+    // que se passava era outra coisa: `openRetailBusiness` tem um portao de
+    // horario e faz `return` com um aviso quando `isOpenNow()` e' falso. O CI
+    // corre com relogio UTC, o passo das capturas caiu perto das 23h, e os
+    // supermercados da Guarda fecham as 20h-22h. Nenhum abria, e o teste
+    // acusava a loja de nao ter produtos.
+    //
+    // Agora tenta-se loja a loja, e se nenhuma abrir diz-se a HORA — que e' a
+    // causa provavel, e a unica que se resolve mudando quando a corrida anda.
+    final agora = DateTime.now();
+    final horaDoSimulador =
+        '${agora.hour.toString().padLeft(2, '0')}:'
+        '${agora.minute.toString().padLeft(2, '0')}';
+    final quantasLojas = _id('cartao_loja').evaluate().length;
+    debugPrint('[arnes] $quantasLojas cartoes de loja, sao $horaDoSimulador '
+        'no simulador');
 
-    if (!await _esperar(t, _id('btn_add_carrinho'), segundos: 6)) {
-      // Segunda tentativa: tocar no TEXTO de dentro do primeiro cartao. Nao se
-      // crava nome de loja nenhum — le-se o que o cartao mostra, seja qual for
-      // a loja que o banco devolva primeiro.
-      final textoDoCartao = find.descendant(
-        of: _id('cartao_loja').first,
-        matching: find.byType(Text),
-      );
-      if (textoDoCartao.evaluate().isNotEmpty) {
-        final nome = (textoDoCartao.evaluate().first.widget as Text).data;
-        debugPrint('[arnes] o cartao nao abriu; tento pelo texto "$nome"');
-        await _tocar(t, textoDoCartao.first);
-        await _bombear(t, segundos: 5);
+    bool abriu = false;
+    for (int n = 0; n < quantasLojas && n < 6; n++) {
+      await _tocar(t, _id('cartao_loja').at(n));
+      await _bombear(t, segundos: 4);
+      if (await _esperar(t, _id('btn_add_carrinho'), segundos: 6)) {
+        abriu = true;
+        debugPrint('[arnes] abriu a loja numero $n');
+        break;
+      }
+      await _rolarAteAparecer(t, _id('btn_add_carrinho'), vezes: 3);
+      if (await _esperar(t, _id('btn_add_carrinho'), segundos: 4)) {
+        abriu = true;
+        debugPrint('[arnes] abriu a loja numero $n (depois de rolar)');
+        break;
+      }
+      debugPrint('[arnes] a loja numero $n nao abriu — provavelmente fechada');
+      // Se tiver entrado nalgum ecra, volta para a lista antes de tentar outra.
+      if (_id('cartao_loja').evaluate().isEmpty) {
+        await _tocar(t, find.byTooltip('Back'));
+        await _bombear(t, segundos: 2);
       }
     }
     await _foto(t, '03-video-loja');
+
+    if (!abriu) {
+      await _binding.takeScreenshot('zz-falha-nenhuma-loja-abriu');
+      fail('nenhuma das $quantasLojas lojas abriu, e sao $horaDoSimulador no '
+          'simulador (UTC). `openRetailBusiness` bloqueia a entrada fora do '
+          'horario da loja: os supermercados da Guarda fecham entre as 20h e '
+          'as 22h. Correr o arnes em horario de loja.');
+    }
 
     // A página da loja abre na grelha "Comprar por categoria"; os carrosséis de
     // produtos, que são onde vive o `btn_add_carrinho`, ficam mais abaixo.
@@ -327,14 +350,6 @@ void main() {
     // prova de que nada se tinha mexido: `03-video-loja.png` e
     // `zz-falha-sem-botao-adicionar.png` saíram com o mesmo tamanho exacto.
     final botaoAdicionar = _id('btn_add_carrinho');
-    if (!await _esperar(t, botaoAdicionar, segundos: 15)) {
-      await _rolarAteAparecer(t, botaoAdicionar, vezes: 6);
-    }
-    if (!await _esperar(t, botaoAdicionar, segundos: 10)) {
-      await _binding.takeScreenshot('zz-falha-sem-botao-adicionar');
-      fail('a loja abriu mas não apareceu nenhum "adicionar ao carrinho", nem '
-          'depois de rolar — confirmar que a loja escolhida tem produtos');
-    }
     await _foto(t, '04-video-produtos');
     await _tocar(t, botaoAdicionar);
     await _bombear(t, segundos: 2.5);

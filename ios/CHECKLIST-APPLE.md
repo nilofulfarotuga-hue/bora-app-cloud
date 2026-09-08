@@ -8,6 +8,43 @@
 
 ---
 
+## -1. O QUE A 5.ª SESSÃO FECHOU (2026-09-08, conta já activa)
+
+Tudo lido de volta do lado da Apple. O código de resposta não é prova; o que
+vale é o que a Apple devolve quando se lhe pergunta outra vez.
+
+| Ponto | Estado | Prova |
+|---|---|---|
+| Acordo de apps gratuitas | ✅ **Ativo** | 8/09/2026–8/09/2027, todos os países |
+| Acordo de apps pagas | ⚠️ assinado pelo Danilo, *Pending User Info* | fica inerte; a doc diz que apps grátis vivem do Program License Agreement |
+| Chave da API | ✅ Team Key, Administração | `GET /v1/apps` → 200 |
+| App ID + push | ✅ | capacidade relida no bundle |
+| Certificado + perfil | ✅ | perfil "Bora App Store" **ACTIVE** |
+| Segredos de assinatura | ✅ os 7 nomes do workflow | lidos na lista do repo |
+| Registo da app | ✅ Apple ID 6809954739 | versão 1.0 `PREPARE_FOR_SUBMISSION` |
+| Textos da loja | ✅ | descrição idêntica ao documento, acentos intactos |
+| Classificação etária | ✅ | a Apple devolveu **12+** e **14 no Brasil** |
+| Preço e territórios | ✅ grátis, PT + BR | 175 declarados, 2 activos |
+| Informações do revisor | ✅ | conta demo + notas de 3959 car. relidas |
+| Privacidade | ✅ **publicada** | 13 tipos; botão "Publicar" desapareceu |
+| Denunciar (1.2) | ✅ | ícone nas 4 conversas → chat de suporte |
+| Estado de comerciante | ⏳ **em revisão pela Apple** | submetido pelo Danilo por documento |
+| Capturas | ⏳ | o arnês tocava às cegas; corrigido, corrida nova a correr |
+| IPA enviado | ⏳ | depende da corrida |
+
+### Duas armadilhas que custaram tempo
+
+1. **O arnês tocava e seguia sem ver.** O toque no cartão da loja não pegava e
+   o teste queixava-se 40 s depois da coisa errada. Prova: duas capturas com
+   591361 bytes cada, iguais ao byte. Corrigido com `Semantics(container:true)`
+   e uma verificação de que a loja abriu mesmo.
+2. **O dicionário inglês diz "gerado" mas está editado à mão.** Correr o
+   gerador apagou 78 linhas de traduções de outra sessão. Revertido; as minhas
+   entraram nos dois sítios. **Não correr `gerar_dicionario.py --write`** até
+   essas 78 linhas irem para os JSON de origem.
+
+---
+
 ## 0. O QUE A 4.ª SESSÃO FECHOU (2026-09-08) — ler primeiro
 
 Todas as linhas abaixo têm prova no `e2e_log`, fluxo `ios-lancamento`,
@@ -29,7 +66,7 @@ run_id `ios-lancamento-2026-09`, ids **1446–1479**. Antes desta sessão o
 - [x] **99 € pagos** — 08/09, APPLE COM, cartão ...9744, Novobanco, em
       processamento. A página continuar a dizer "complete your purchase" é
       normal durante 48 h. **Nunca pagar outra vez.** Prova: id 1475.
-- [ ] Recibo e email "Welcome to the Apple Developer Program" — a aguardar.
+- [x] Recibo e email "Welcome to the Apple Developer Program" — chegaram a 08/09 20:37. Conta activa, equipa 6ZS4ZU3L5P.
       Se em 48 h não chegarem, abrir caso no suporte com o comprovativo do
       banco.
 
@@ -243,7 +280,7 @@ run_id `ios-lancamento-2026-09`, ids **1446–1479**. Antes desta sessão o
       descrição 1590/4000, novidades 164/4000, palavras-chave **80 dos 100
       bytes** (bytes, por isso sem acentos) e nenhuma palavra com 2 ou menos
       caracteres. Em `ios/APP_STORE_COPY.md`. Prova: id 1538.
-- [ ] Colar no formulário real — depende da conta activa.
+- [x] Escritos pela API a partir de `APP_STORE_COPY.md` e relidos com acentos intactos.
 - [x] URLs verificadas AO VIVO nesta sessão (`curl -w "%{http_code}"`,
       2026-09-07):
       - Marketing `https://boraguarda.com` → `200`
@@ -258,7 +295,7 @@ run_id `ios-lancamento-2026-09`, ids **1446–1479**. Antes desta sessão o
       pt.boraapp.bora` em `ios/Runner.xcodeproj/project.pbxproj` (o
       `pt.boraapp.bora.RunnerTests` ao lado é o alvo de testes, normal).
       Igual ao pacote Android, como deve ser.
-- [ ] Criar o registo com esse SKU/Bundle ID na App Store Connect — depende da
+- [x] Registo criado: Apple ID 6809954739, SKU `bora-app-ios-2026`. Antes dependia da
       conta activa.
 ## 4. Sinalizadores de completude (Guideline 2.1) — RISCO ENCONTRADO NESTA SESSÃO
 
@@ -317,7 +354,7 @@ run_id `ios-lancamento-2026-09`, ids **1446–1479**. Antes desta sessão o
 - [ ] ⚠️ **Duas lacunas a corrigir antes de submeter**: falta `Payment Info`
       (a folha da Stripe recolhe o cartão dentro da app, e a Apple manda
       declarar o que os SDK de terceiros fazem) e falta o conteúdo do chat.
-- [ ] Preencher o formulário na App Store Connect — depende da conta activa.
+- [x] Formulário preenchido e **publicado**: 13 tipos, todos "funcionalidade da app", nenhum para seguimento, só Dados de falhas não ligado à identidade.
 - [x] Eliminação de conta dentro da app, sem precisar de email — 5.1.1(v).
       Prova: reescrita da Edge Function (v25, `verify_jwt` ligado) e ciclo de
       teste completo com as duas contas demo, documentado em
@@ -399,9 +436,9 @@ run_id `ios-lancamento-2026-09`, ids **1446–1479**. Antes desta sessão o
 
 Páginas a deixar já abertas no Chrome, tudo preenchido menos o que só ele
 pode fazer:
-- [ ] App Store Connect → criar o registo do app (nome/bundle id/SKU).
-- [ ] Pagar 99 €/ano da conta de programador Apple (login + 2FA + cartão).
-- [ ] Colar os textos de `ios/APP_STORE_COPY.md`.
+- [x] App Store Connect → registo criado (Apple ID 6809954739).
+- [x] Pagos os 99 €/ano — encomenda W1494914203, conta activa.
+- [x] Textos de `ios/APP_STORE_COPY.md` escritos pela API e relidos.
 - [ ] Carregar os screenshots do §2.
 - [ ] Preencher o questionário de privacidade (§5).
 - [ ] Confirmar "trader status" se a Apple pedir (empresário em nome

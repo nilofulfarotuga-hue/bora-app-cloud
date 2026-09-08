@@ -8,6 +8,7 @@ import '../../stores/cleaning_chat_store.dart';
 import '../../widgets/bora/bora.dart';
 
 import '../../l10n/tr.dart';
+import '../../widgets/bora_denunciar.dart';
 
 /// Chat bidirecional da LIMPEZA (clone do TvdeChatScreen — padrão E1).
 /// [myRole] = 'client' no lado do cliente, 'cleaner' na profissional.
@@ -104,6 +105,8 @@ class _CleaningChatScreenState extends State<CleaningChatScreen> {
       appBar: BoraScreenAppBar(
         title: widget.title,
         actions: [
+          // Directriz 1.2: poder denunciar o que se le nesta conversa.
+          const BotaoDenunciar(),
           if (widget.otherPhone != null && widget.otherPhone!.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.call),

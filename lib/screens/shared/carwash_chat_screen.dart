@@ -6,6 +6,7 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 
 import '../../l10n/tr.dart';
+import '../../widgets/bora_denunciar.dart';
 
 /// LAVAGEM AUTO — chat cliente ⇄ lavador.
 /// Mesmo desenho do chat da Limpeza: realtime na tabela `carwash_messages`,
@@ -138,6 +139,8 @@ class _CarwashChatScreenState extends State<CarwashChatScreen> {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         actions: [
+          // Directriz 1.2: poder denunciar o que se le nesta conversa.
+          const BotaoDenunciar(),
           if ((widget.otherPhone ?? '').isNotEmpty)
             IconButton(onPressed: _call, icon: const Icon(Icons.phone)),
         ],

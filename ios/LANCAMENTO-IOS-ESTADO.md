@@ -2,8 +2,79 @@
 
 > Missão `ios-lancamento` · run_id `ios-lancamento-2026-09-07`
 > **Este ficheiro diz onde retomar.** Cada linha tem prova.
-> Última actualização: 2026-09-08, 4.ª sessão (bloco -2 é o mais recente).
+> Última actualização: 2026-09-08, 5.ª sessão (bloco **-4** é o mais recente).
 > Modo de trabalho: ver `carta-de-autonomia-ios` na memória do projeto.
+
+## -4. CONTA ACTIVA — A LOJA ESTÁ MONTADA (2026-09-08, 5.ª sessão)
+
+> Este é o bloco mais recente. Tudo aqui foi lido de volta do lado da Apple,
+> não é o código de resposta de quem escreveu.
+
+**Identificadores.** Team `6ZS4ZU3L5P` · App ID interno `96THK64RUB` ·
+**Apple ID da app `6809954739`** · bundle `pt.boraapp.bora` · SKU
+`bora-app-ios-2026` · versão 1.0 em `PREPARE_FOR_SUBMISSION`.
+
+| Passo | Prova |
+|---|---|
+| ToS do App Store Connect | Aceites (V100, 04-06-2018). **Acordo de apps gratuitas ATIVO** 8/09/2026–8/09/2027 |
+| Acordo de apps pagas | Assinado **pelo Danilo**, não por mim. Estado *Pending User Info* = "not in effect". Fica assim, sem banco nem impostos |
+| Chave da API | Team Key "Bora iOS CI", papel Administração. `GET /v1/apps` → 200. `.p8` no cofre e em segredo, nunca no repo |
+| App ID | Criado com `PUSH_NOTIFICATIONS`. Lido de volta com a capacidade lá |
+| Certificado | `Apple Distribution: Danilo Fulfaro da Silva (6ZS4ZU3L5P)`, válido até 2027-09-08. CSR gerado no PC — a chave privada nunca viajou |
+| Perfil | "Bora App Store", `IOS_APP_STORE`, estado **ACTIVE** |
+| Segredos do GitHub | Os 7 nomes que o `build_ios.yml` espera. Os 3 que eu tinha criado com nome errado foram apagados (204) |
+| Textos da loja | Escritos pela API a partir de `APP_STORE_COPY.md` e relidos com acentos intactos. Descrição idêntica ao documento |
+| Classificação etária | Respondida. A Apple devolveu **12+** e **14 no Brasil** |
+| Preço e territórios | Grátis, base PRT. 175 territórios declarados, **2 activos: BRA e PRT** |
+| Informações do revisor | Contacto, conta demo e notas (3585 car.) gravadas e relidas |
+
+### O que aprendi e vale a pena não repetir
+
+- **Um `find` do navegador disse-me que os campos já tinham valores e eu duvidei
+  dele.** Tinha razão: era o preenchimento automático do Chrome, que não aparece
+  em `.value`. O código postal certo era mesmo o que ele mostrava.
+- **O `whatsNew` dá 409 numa primeira versão** — e está certo: "novidades" só
+  existe em actualizações.
+- **A disponibilidade por território exige declarar os 175**, um a um, com
+  `available` verdadeiro ou falso. Não aceita só os que se quer.
+- **Os rótulos de privacidade não têm API** (404 de caminho em todos). Só portal.
+
+### Código postal — corrigido, e uma coisa que NÃO se toca
+
+O certo é **6300-610**. Corrigidos 4 sítios: `privacidade.html` e `termos.html`
+do site (republicados por wrangler, 2 ficheiros enviados de 173, e verificados
+no ar), este ficheiro, e `client_addresses` `b2327d6c`.
+
+**Não corrigidos, de propósito:** 5 `orders` e 1 `cleaning_booking` históricos
+(zona protegida, e são registo do que aconteceu), o email guardado da encomenda
+da Apple (é prova), e `client_addresses` `f734955e`, que é de outra pessoa
+noutra rua.
+
+⚠️ **A inscrição do programa ficou com 6300-035.** Confirmado na API do portal
+(`getTeams`): `streetAddress1` "Rua do Torreão 14", `postalCode` "6300-035".
+**Não alterado** — mudar morada na inscrição obriga a nova verificação. O que
+fica público (estado de comerciante) levou 6300-610.
+
+### ⚠️ Risco por fechar — guideline 1.2
+
+A 1.2 exige, para apps com conteúdo de utilizadores: filtrar, **denunciar**,
+**bloquear** e contacto publicado. A Bora tem chat (cliente↔estafeta, suporte)
+e avaliações com texto. Procurado no código: a moderação existe **só no admin**
+(`admin_ratings_screen.dart`, coluna `flagged_inappropriate`). **Não há forma de
+o utilizador denunciar nem bloquear dentro da app.** E declarei
+`userGeneratedContent=true` na classificação etária, por honestidade — logo o
+revisor vai olhar para aqui.
+
+### O que falta, por ordem
+
+1. **Capturas** — a corrida `34279643078` está no passo 18 a fotografar a app real.
+2. **Rótulos de privacidade** — 13 tipos, a configurar no portal.
+3. **Denunciar/bloquear** (1.2) — decisão e implementação.
+4. **Vídeo do revisor** — cortar e publicar na página não listada.
+5. **Estado de comerciante** — submetido pelo Danilo, **em revisão pela Apple**.
+6. **Enviar o IPA e submeter.**
+
+---
 
 ## -3. O QUE ESPERA A CONTA APPLE (2026-09-08)
 

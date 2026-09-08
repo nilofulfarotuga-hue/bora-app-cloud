@@ -11,6 +11,7 @@ import '../stores/chat_store.dart';
 import '../stores/order_store.dart';
 import '../stores/restaurant_store.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
+import '../widgets/bora_denunciar.dart';
 
 import '../l10n/tr.dart';
 
@@ -224,6 +225,8 @@ class _ChatScreenState extends State<ChatScreen> {
               );
             },
           ),
+          // Directriz 1.2: quem usa a app tem de poder denunciar o que le aqui.
+          BotaoDenunciar(orderId: liveOrder.id),
         ],
       ),
       body: Column(

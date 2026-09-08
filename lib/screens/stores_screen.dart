@@ -452,6 +452,12 @@ class _StoreTile extends StatelessWidget {
     // um `GestureDetector` e não um `InkWell`.
     return Semantics(
       identifier: 'cartao_loja',
+      // `container: true` (2026-09-08): sem isto o identificador podia ser
+      // fundido num no de semantica maior, e o centro desse no cai FORA do
+      // `GestureDetector` — o toque do arnes acertava no vazio e a corrida
+      // 34279643078 ficou parada na lista de supermercados, com
+      // `03-video-loja.png` e `zz-falha-*.png` do mesmo tamanho ao byte.
+      container: true,
       child: GestureDetector(
         onTap: onTap,
         child: Container(

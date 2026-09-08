@@ -8,6 +8,7 @@ import '../../stores/tvde_chat_store.dart';
 import '../../widgets/bora/bora.dart';
 
 import '../../l10n/tr.dart';
+import '../../widgets/bora_denunciar.dart';
 
 /// E — Chat bidirecional TVDE (reusa o padrão do chat do delivery). Scoped por
 /// corrida. [myRole] = 'client' no lado do passageiro, 'driver' no motorista.
@@ -106,6 +107,8 @@ class _TvdeChatScreenState extends State<TvdeChatScreen> {
       appBar: BoraScreenAppBar(
         title: widget.title,
         actions: [
+          // Directriz 1.2: poder denunciar o que se le nesta conversa.
+          const BotaoDenunciar(),
           if (widget.otherPhone != null && widget.otherPhone!.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.call),

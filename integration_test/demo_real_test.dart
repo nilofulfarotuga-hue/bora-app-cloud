@@ -287,8 +287,34 @@ void main() {
     // ── A partir daqui é matéria do VÍDEO (privado): a compra a sério ─────
     // A primeira loja da lista, seja ela qual for — não se crava nome nenhum,
     // porque o que está à venda hoje é o que manda.
+    // ABRIR A LOJA — com prova de que abriu mesmo.
+    //
+    // CICATRIZ (corrida 34279643078): tocava-se em `cartao_loja` e seguia-se
+    // em frente sem confirmar nada. O toque nao pegou, o ecra ficou na lista
+    // de supermercados, e so 40 s depois o teste se queixou de nao haver
+    // "adicionar ao carrinho" — a apontar para a loja nao ter produtos, que
+    // era mentira. `warnIfMissed: false` no `_tocar` esconde o toque falhado,
+    // por isso a verificacao tem de ser feita aqui, a olho.
+    debugPrint('[arnes] cartoes de loja na arvore: '
+        '${_id('cartao_loja').evaluate().length}');
     await _tocar(t, _id('cartao_loja'));
     await _bombear(t, segundos: 5);
+
+    if (!await _esperar(t, _id('btn_add_carrinho'), segundos: 6)) {
+      // Segunda tentativa: tocar no TEXTO de dentro do primeiro cartao. Nao se
+      // crava nome de loja nenhum — le-se o que o cartao mostra, seja qual for
+      // a loja que o banco devolva primeiro.
+      final textoDoCartao = find.descendant(
+        of: _id('cartao_loja').first,
+        matching: find.byType(Text),
+      );
+      if (textoDoCartao.evaluate().isNotEmpty) {
+        final nome = (textoDoCartao.evaluate().first.widget as Text).data;
+        debugPrint('[arnes] o cartao nao abriu; tento pelo texto "$nome"');
+        await _tocar(t, textoDoCartao.first);
+        await _bombear(t, segundos: 5);
+      }
+    }
     await _foto(t, '03-video-loja');
 
     // A página da loja abre na grelha "Comprar por categoria"; os carrosséis de

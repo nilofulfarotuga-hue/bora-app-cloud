@@ -121,6 +121,13 @@ a supermarket shelf does. The app does not encourage consumption and has no
 alcohol-themed content. We sell NO tobacco: we checked the whole catalogue and
 the only nicotine item is a smoking-cessation gum sold by a licensed pharmacy.
 
+REPORTING AND MODERATION (1.2)
+Every conversation has a flag icon in the top bar: "Denunciar" (Report). It
+offers reasons and opens our in-app support conversation with the report
+already written, which our team reads and answers. Chat is one-to-one and tied
+to a single order - it is not a social feed. Ratings with free text are
+moderated from our admin panel and can be hidden.
+
 SIGN IN WITH APPLE (4.8)
 The app offers no third-party or social login. Accounts are email and password
 only, so guideline 4.8 does not apply.
@@ -165,3 +172,90 @@ ecrãs desenhados. Ver `integration_test/demo_real_test.dart`.
 
 - [ ] Endereço do vídeo — por preencher assim que a corrida do CI der capturas boas.
 
+
+## Versao curta (<= 4000 caracteres) — e ESTA que vai para o campo
+
+> O bloco longo acima tem 5720 caracteres e o campo *App Review Notes*
+> do App Store Connect leva 4000. Esta e a versao que foi mesmo escrita
+> na Apple, pela API, a 2026-09-08. Nao ha duas verdades: o que se muda
+> aqui e o que se volta a enviar.
+
+```
+THE APP
+Bora is a local delivery and services marketplace for Guarda, Portugal (pop. ~40,000).
+One app, three profiles: customer, courier, partner store. The app is in Portuguese.
+
+DEMO ACCOUNTS - please use the right one
+  Browsing:  demo@bora.app / BoraDemo2026!          (do NOT delete this one)
+  Deletion:  demo.apagar@bora.app / BoraDemo2026!   (disposable, for the 5.1.1(v) test)
+Deletion is permanent by design, so a second account exists purely for that test.
+It is recreated automatically every hour, so it is always available.
+
+FIRST SCREEN
+A privacy and cookies sheet appears first, with three buttons: "Aceitar tudo"
+(Accept all), "Rejeitar" (Reject), "Gerir preferencias" (Manage). Tap any one -
+the app works fully either way. Nothing depends on consent; only notifications
+and GPS are gated, and neither is needed to browse, order or pay.
+Next screen asks the profile: tap "Sou Cliente" (I am a customer) and sign in.
+
+REVIEWING FROM OUTSIDE PORTUGAL
+The app serves Guarda only. The demo account has a saved Guarda address
+(Praca Luis de Camoes, 6300-725), so stores load without GPS or being in
+Portugal. If the store list looks empty, open the address selector at the top
+of the home screen and pick the saved address. Browsing works without an account (4.0).
+
+PLACING A TEST ORDER
+Choose "Dinheiro" (Cash). Card and MB WAY are live and would charge a real card.
+Demo-account orders are sandboxed and never dispatched to real couriers.
+
+ACCOUNT DELETION (5.1.1(v))
+Perfil > "Apagar conta", inside the app, no email required. Name, contacts,
+address, photos and documents are destroyed and access is permanently revoked.
+Only anonymised invoice records are kept, as Portuguese tax law requires them
+for 10 years. If an order or booking is in progress, the app says what is blocking.
+
+PAYMENTS (3.1.5(a))
+All payments are for physical goods and services consumed outside the app -
+food and grocery delivery, cleaning, rides, bookings. No digital content is
+sold, so no in-app purchase is used.
+
+BACKGROUND LOCATION (courier profile only)
+Used only while a courier is Online and carrying a delivery. A prominent
+disclosure screen is shown BEFORE the system prompt, and the iOS background
+location indicator stays visible. Customers never have background location.
+
+RIDE-HAILING (TVDE)
+The app includes passenger ride-hailing ("Bora Motorista" on the home screen),
+regulated in Portugal by Decree-Law 45/2018. Ride drivers are onboarded
+separately and must hold a valid TVDE certificate and licensed vehicle; we
+check those documents before a driver can go online for rides. Passengers need
+no document. Our screenshots focus on delivery and services, but the feature is
+in the app - we are not hiding it.
+
+ALCOHOL AND TOBACCO
+The supermarket catalogues include alcoholic drinks, like any supermarket shelf.
+The app does not encourage consumption and has no alcohol-themed content. We sell
+NO tobacco: the only nicotine item in the whole catalogue is a smoking-cessation
+gum sold by a licensed pharmacy.
+
+REPORTING AND MODERATION (1.2)
+Every conversation has a flag icon in the top bar: "Denunciar" (Report). It
+offers reasons and opens our in-app support chat with the report already
+written, which our team reads and answers. Chat is one-to-one and tied to a
+single order - it is not a social feed. Ratings with free text are moderated
+from our admin panel and can be hidden.
+
+SIGN IN WITH APPLE (4.8)
+No third-party or social login is offered - email and password only - so 4.8
+does not apply.
+
+BUTTONS
+  Entrar = Sign in | Supermercados = Supermarkets | Restaurantes = Restaurants
+  Farmacia = Pharmacy | Lojas = Shops | Favores = Errands | Limpeza = Cleaning
+  Lavagem Auto = Car wash | Beleza = Barber and beauty | Em breve = Coming soon
+  Adicionar ao carrinho = Add to basket | Finalizar pedido = Checkout
+  Dinheiro = Cash | Confirmar pagamento = Confirm payment | Agora nao = Not now
+
+CONTACT
+boraappbora@gmail.com  ·  +351 937 501 673
+```

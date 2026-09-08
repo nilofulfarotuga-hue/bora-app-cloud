@@ -81,8 +81,7 @@ Future<void> mostrarFolhaDenuncia(
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
               child: Text(
-                'Diga o que se passou. A denúncia vai para o suporte do Bora, '
-                        'que a analisa e responde.'
+                'Diga o que se passou. A denúncia vai para o suporte do Bora, que a analisa e responde.'
                     .tr,
                 style: const TextStyle(
                   fontSize: 13,

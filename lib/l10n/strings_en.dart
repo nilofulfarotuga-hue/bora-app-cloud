@@ -2684,4 +2684,21 @@ const Map<String, String> kStringsEn = <String, String>{
       '🕐  Normal',
   '🛍️ Saco plástico — {0}× €{1}':
       '🛍️ Plastic bag — {0}× €{1}',
+  // Denunciar conteudo (2026-09-08, missao ios-lancamento) — directriz 1.2.
+  'Denunciar':
+      'Report',
+  'Denúncia':
+      'Report',
+  'Diga o que se passou. A denúncia vai para o suporte do Bora, que a analisa e responde.':
+      'Tell us what happened. Your report goes to Bora support, who review it and reply.',
+  'Linguagem ofensiva ou insultos':
+      'Offensive language or insults',
+  'Ameaças ou assédio':
+      'Threats or harassment',
+  'Conteúdo sexual ou impróprio':
+      'Sexual or inappropriate content',
+  'Fraude ou burla':
+      'Fraud or scam',
+  'Outro motivo':
+      'Another reason',
 };

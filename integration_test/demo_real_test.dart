@@ -209,6 +209,24 @@ void main() {
       await _tocar(t, _id('btn_entrar'));
     }
 
+    // ── "Falta o seu contacto", se ainda aparecer ─────────────────────────
+    //
+    // CICATRIZ (corrida 34217347355): entrar correu bem, e logo a seguir a app
+    // pôs à frente o ecrã "Os seus contactos — Falta o seu contacto", a pedir
+    // nome e telemóvel. A conta demo tinha nome mas **não tinha telemóvel**, e
+    // o teste ficou 60 s à espera de "Supermercados" atrás desse ecrã.
+    //
+    // O telemóvel da conta demo já foi preenchido no banco, por isso isto
+    // normalmente não aparece — e é bom que não apareça, porque o revisor da
+    // Apple entrava com a mesma conta e batia no mesmo ecrã. Fica aqui como
+    // rede: se aparecer, carrega-se em "Agora não" e segue-se.
+    final agoraNao = find.text('Agora não');
+    if (await _esperar(t, agoraNao, segundos: 8)) {
+      await _binding.takeScreenshot('zz-falta-contacto');
+      await _tocar(t, agoraNao);
+      await _bombear(t, segundos: 2);
+    }
+
     // ── Início: as categorias reais. Zero marcas de terceiros. ────────────
     await _exigir(t, find.text('Supermercados'), 'ecra-inicial', segundos: 60);
     await _foto(t, '01-loja-categorias');

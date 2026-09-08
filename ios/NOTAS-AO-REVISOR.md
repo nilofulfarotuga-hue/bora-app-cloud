@@ -27,6 +27,20 @@ THE APP
 Bora is a local delivery and services marketplace for the city of Guarda, Portugal
 (population ~40,000). One app, three profiles: customer, courier, and partner store.
 
+FIRST SCREEN — PRIVACY AND COOKIES
+The very first thing the app shows is a privacy and cookies sheet, over the
+profile screen. It has three buttons: "Aceitar tudo" (Accept all), "Rejeitar"
+(Reject) and "Gerir preferências" (Manage preferences). Tap any of the three to
+continue — the app works fully either way. Our own automated walkthrough runs
+with "Rejeitar", so nothing in the app depends on consent being granted:
+notifications and GPS are the only things gated, and neither is needed to
+browse, order or pay.
+
+AFTER THAT — CHOOSE A PROFILE
+The next screen asks which profile you are: "Sou Cliente" (customer), "Sou
+Estafeta" (courier) or "Sou Parceiro" (partner store). For the review, tap
+"Sou Cliente" and sign in with the demo account below.
+
 REVIEWING FROM OUTSIDE PORTUGAL
 The app serves Guarda only. The demo account has a saved address in Guarda
 (Praca Luis de Camoes, 6300-725 Guarda), so

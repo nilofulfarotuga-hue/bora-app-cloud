@@ -100,11 +100,20 @@ BUTTONS YOU WILL SEE (the app is in Portuguese)
   Perfil > Apagar conta                       Profile > Delete account
   Agora não                                   Not now
 
-WHAT IS AND IS NOT IN THIS VERSION
-In: grocery and shop delivery, pharmacy, restaurants, barber and beauty bookings,
-home cleaning, errands, car wash, table reservations.
-Not in: ride-hailing. The app contains no ride-hailing for passengers in this
-version, and none of our screenshots or store text mentions it.
+WHAT THE APP INCLUDES
+Grocery and shop delivery, pharmacy, restaurants, barber and beauty bookings,
+home cleaning, errands, car wash, table reservations, party catering, and
+ride-hailing ("Bora Motorista" on the home screen).
+
+RIDE-HAILING (TVDE)
+The app includes passenger ride-hailing, which in Portugal is regulated by
+Decree-Law 45/2018 (TVDE). Drivers who take passenger rides are onboarded
+separately from couriers and must hold a valid TVDE driver certificate and
+drive a licensed TVDE vehicle; we collect and check those documents before a
+driver can go online for rides. Passengers do not need any document. Our App
+Store screenshots focus on delivery and services and do not feature
+ride-hailing, but the feature is in the app and you will see it on the home
+screen — we are not hiding it from you.
 
 ALCOHOL AND TOBACCO
 The supermarket catalogues we deliver from include alcoholic drinks, the same way

@@ -66,6 +66,11 @@ const String _email =
 const String _senha =
     String.fromEnvironment('DEMO_PASSWORD', defaultValue: 'BoraDemo2026!');
 
+/// Conta demo do estafeta. Confirmada contra o servidor a 2026-09-08:
+/// `grant_type=password` devolve HTTP 200 com `bora_role: driver`.
+const String _emailEstafeta = String.fromEnvironment(
+    'DEMO_EMAIL_ESTAFETA', defaultValue: 'demo-estafeta@bora.app');
+
 /// Segundos que cada ecrã fica parado depois de fotografado, só para o gravador
 /// de vídeo apanhar a imagem legível. Não afecta a captura em si.
 const int _pausa = int.fromEnvironment('SEGUNDOS_POR_ECRA', defaultValue: 9);
@@ -146,6 +151,26 @@ Future<void> _voltarAoInicio(WidgetTester t) async {
   NotificationService.navigatorKey.currentState
       ?.popUntil((rota) => rota.isFirst);
   await _bombear(t, segundos: 3);
+}
+
+/// Sai da conta e volta ao ecrã dos três perfis.
+///
+/// Não há atalho: `logout` deixa o papel escolhido, por isso o
+/// `_RootNavigator` cai no ecrã de entrar do cliente e não no dos perfis. O
+/// caminho é o que uma pessoa faria — Perfil, Terminar sessão, e depois o
+/// "← Voltar à escolha de perfil" que o ecrã de entrar tem no fundo.
+Future<bool> _sairEVoltarAosPerfis(WidgetTester t) async {
+  if (!await _esperar(t, find.text('Perfil'), segundos: 20)) return false;
+  await _tocar(t, find.text('Perfil'));
+  final sair = find.text('Terminar sessão');
+  if (!await _esperar(t, sair, segundos: 25)) return false;
+  await _tocar(t, sair);
+  await _bombear(t, segundos: 3);
+  final voltar = find.textContaining('escolha de perfil');
+  if (!await _esperar(t, voltar, segundos: 25)) return false;
+  await _tocar(t, voltar);
+  await _bombear(t, segundos: 2);
+  return true;
 }
 
 /// Fecha a folha de consentimento que a app abre por cima de tudo.
@@ -320,6 +345,41 @@ void main() {
         await _foto(t, '09-loja-barbearia');
       } else {
         await _binding.takeScreenshot('zz-falha-barbearia');
+      }
+    }
+
+    // ── O lado do estafeta: mapa e localização em segundo plano ───────────
+    //
+    // Fica no FIM de propósito. Tudo o que vem daqui para baixo é prova
+    // extra; se falhar, as capturas da loja já estão gravadas em disco e não
+    // se perde a corrida por causa disto.
+    //
+    // O mapa importa: até 2026-09-07 aparecia vazio no iPhone porque o
+    // `AppDelegate` nunca chamava `GMSServices.provideAPIKey`. Ver esse ecrã
+    // desenhado é a prova de que a correcção pegou no aparelho.
+    await _voltarAoInicio(t);
+    if (await _sairEVoltarAosPerfis(t)) {
+      final portaEstafeta = find.text('Sou Estafeta');
+      if (await _esperar(t, portaEstafeta, segundos: 20)) {
+        await _tocar(t, portaEstafeta);
+        if (await _esperar(t, _id('fld_email'), segundos: 25)) {
+          await t.enterText(_id('fld_email').first, _emailEstafeta);
+          await _bombear(t, segundos: 0.6);
+          await t.enterText(_id('fld_password').first, _senha);
+          await _bombear(t, segundos: 0.6);
+          await _tocar(t, _id('btn_entrar_driver'));
+
+          // O ecrã do estafeta abre com o mapa. Fotografa-se antes de ligar,
+          // para se ver que o mapa desenha mesmo.
+          if (await _esperar(t, _id('btn_toggle_online'), segundos: 60)) {
+            await _foto(t, '10-video-estafeta-mapa');
+            await _tocar(t, _id('btn_toggle_online'));
+            await _bombear(t, segundos: 6);
+            await _foto(t, '11-video-estafeta-online');
+          } else {
+            await _binding.takeScreenshot('zz-falha-estafeta');
+          }
+        }
       }
     }
 

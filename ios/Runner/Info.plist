@@ -104,6 +104,11 @@
 	     Stripe, Google Maps) — não traz criptografia própria nem não-isenta.
 	     Declarar aqui evita a pergunta de conformidade de exportação a CADA
 	     build enviado para o App Store Connect. -->
+	<!-- Chave do Google Maps para iOS. O valor NAO esta aqui: vem da
+	     definicao de build GOOGLE_MAPS_API_KEY, que o CI injecta a partir
+	     de um segredo. O repositorio e publico. -->
+	<key>GoogleMapsApiKey</key>
+	<string>$(GOOGLE_MAPS_API_KEY)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<!-- Recuperação de palavra-passe (2026-07-14) — deep link de volta ao app

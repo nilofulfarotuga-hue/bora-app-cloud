@@ -175,6 +175,7 @@ jobs:
             -destination "platform=iOS Simulator,id=${UDID}" \
             -derivedDataPath build/ios_sim \
             COMPILER_INDEX_STORE_ENABLE=NO \
+            GOOGLE_MAPS_API_KEY="$(grep -m1 '^GOOGLE_MAPS_API_KEY=' .dart_defines | cut -d= -f2-)" \
             build 2>&1 | tail -60
 
       - name: Gravar vídeo do ecrã

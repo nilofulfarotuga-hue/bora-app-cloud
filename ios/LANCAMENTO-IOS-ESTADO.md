@@ -5,6 +5,43 @@
 > Última actualização: 2026-09-08, 4.ª sessão (bloco -2 é o mais recente).
 > Modo de trabalho: ver `carta-de-autonomia-ios` na memória do projeto.
 
+## -3. O QUE ESPERA A CONTA APPLE (2026-09-08)
+
+Está tudo o resto feito. **Só isto espera a conta**, e nada disto se pode
+adiantar sem ela:
+
+| O que falta | Porque só se faz com conta activa |
+|---|---|
+| Team ID | só existe quando há equipa; hoje `getTeams` devolve `teams: []` |
+| Chave da API do App Store Connect (`.p8`) | emitida dentro da conta; vai para segredo, nunca para o repo |
+| Certificado de distribuição + perfil | assinam o IPA; sem eles o job de release não corre |
+| App ID com Push e Background Modes | criado em Identifiers, que a conta ainda não abre |
+| Chave APNs (`.p8`) e ligação ao Firebase | é ela que faz as notificações chegarem ao iPhone |
+| Registo da app na App Store Connect | nome, SKU, bundle ID |
+| Colar textos, capturas e etiqueta de privacidade | os conteúdos estão prontos; falta o formulário |
+| Trader status (DSA) | a Apple pede um código por SMS — **o segundo e último momento do Danilo** |
+| Firebase Test Lab em iPhone real | precisa de build assinado |
+| Submissão | o fim da linha |
+
+**O que NÃO espera a conta e já está pronto:** o arnês que fotografa a app
+real, as ferramentas de capturas e de vídeo, os textos da loja, a
+classificação etária e a etiqueta de privacidade em rascunho, as notas ao
+revisor, a lista da Apple, e o pedido à Apple escrito em
+`ios/PEDIDO-APPLE-INSCRICAO.md` — **por enviar**.
+
+### Estado da inscrição, medido e não suposto
+
+A API do próprio portal (`getTeams`) devolve
+`{enrollmentId: TPBAQ8K3TF, enrollmentStatus: "p", entityType: "i",
+product: "ad19", screeningStatus: "purchase"}` com `teams: []`. O App Store
+Connect abre a sessão mas com `provider: null` e `availableProviders: []`.
+A caixa de correio não tem *order acknowledgement* nenhum, e a documentação
+da Apple diz que esse email sai **quando a compra é submetida**
+(<https://developer.apple.com/support/purchase-activation/>). Ou seja: a
+inscrição está parada no passo da compra. (e2e_log 1529, 1530)
+
+---
+
 ## -2. FIM DA 4.ª SESSÃO — AS CAPTURAS INVENTADAS (2026-09-08)
 
 **A coisa mais importante desta sessão foi apanhar uma mentira nossa antes

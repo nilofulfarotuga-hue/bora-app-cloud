@@ -10,6 +10,7 @@ import '../models/order_model.dart';
 import '../config/business_rules.dart' show BRTokens;
 import '../services/maps_service.dart';
 import '../services/pricing_service.dart';
+import '../services/remote_fees_service.dart';
 import '../services/small_order_fee.dart';
 import 'order_store.dart';
 
@@ -286,21 +287,80 @@ class CartStore extends ChangeNotifier {
     // Ajuste aqui, fora do PricingService (ficheiro protegido); o servidor
     // aplica a mesma isenção (migration festas_money_patch). customerTotal é
     // derivado do bagFee, por isso a cópia corrige o total sozinha.
-    if (!_vendorIsFestas || base.bagFee <= 0) return base;
+    final semSaco = _vendorIsFestas && base.bagFee > 0;
+
+    // Taxa de serviço do NÃO-PARCEIRO (2026-09-08): 2,50 € → 0,99 €.
+    // Mesmo motivo e mesmo caminho do saco das festas: o número novo vive em
+    // `platform_settings`, e `pricing_service.dart` é zona protegida. Ver
+    // `lib/services/remote_fees_service.dart`.
+    final taxaNova = taxaServicoNaoParceiro;
+    final mudaTaxa = taxaNova != null && taxaNova != base.serviceFee;
+
+    if (!semSaco && !mudaTaxa) return base;
+
+    final serviceFee = mudaTaxa ? taxaNova : base.serviceFee;
     return OrderPricingBreakdown(
       distanceKm: base.distanceKm,
       subtotal: base.subtotal,
       deliveryFee: base.deliveryFee,
-      serviceFee: base.serviceFee,
-      platformCommission: base.platformCommission,
+      serviceFee: serviceFee,
+      // No não-parceiro a comissão da plataforma É a taxa de serviço (+ o
+      // bónus de apartamento). Move-se a diferença para a comissão ficar
+      // coerente; o que vale de verdade é sempre o que o servidor devolve.
+      platformCommission:
+          base.platformCommission - base.serviceFee + serviceFee,
+      // driverEarnings NÃO se toca: quem paga o estafeta é o servidor
+      // (`create_order`), e este número aqui nunca é mostrado ao cliente.
       driverEarnings: base.driverEarnings,
       apartmentSurcharge: base.apartmentSurcharge,
       apartmentDelivery: base.apartmentDelivery,
-      bagFee: 0,
+      bagFee: semSaco ? 0 : base.bagFee,
       partnerMarkupHidden: base.partnerMarkupHidden,
       isPartnerSelfDispatch: base.isPartnerSelfDispatch,
     );
   }
+
+  // ── TAXA DE SERVIÇO DO NÃO-PARCEIRO (2026-09-08) ─────────────────────────
+
+  /// Só as categorias que o `PricingService` trata como pedido de
+  /// não-parceiro. Espelho exacto do `isNonPartnerOrder` de lá — mudar uma
+  /// obriga a mudar a outra.
+  bool get _ehPedidoNaoParceiro =>
+      !_isPartnerStore &&
+      (_serviceType == OrderServiceType.storeShopping ||
+          _serviceType == OrderServiceType.restaurant);
+
+  /// A taxa de serviço a MOSTRAR, em euros. `null` quando não se aplica
+  /// (parceiro, favores, encomendas) e o valor do `PricingService` fica.
+  ///
+  /// **O SERVIDOR MANDA.** Com um quote fresco (`quote_order_pricing`, cache
+  /// de 30 s) devolve-se o `service_fee` que ele calculou — é exactamente o
+  /// que vai ser cobrado. Sem quote (no carrinho, antes de haver moradas, a
+  /// RPC nem pode ser chamada) usa-se o valor lido de `platform_settings`.
+  double? get taxaServicoNaoParceiro {
+    if (!_ehPedidoNaoParceiro) return null;
+    final doServidor = (_quoteCache?['service_fee'] as num?)?.toDouble();
+    if (doServidor != null) return doServidor;
+    return RemoteFeesService.taxaServicoNaoParceiroEur;
+  }
+
+  /// O valor antigo a mostrar riscado ao lado da taxa. `null` = sem risco.
+  ///
+  /// Some sozinho quando a chave do risco for 0/nula no servidor, e também
+  /// quando a taxa em vigor já não for menor que ele (uma subida não se
+  /// anuncia como descida).
+  double? get taxaServicoRiscada {
+    final atual = taxaServicoNaoParceiro;
+    if (atual == null) return null;
+    final risco = RemoteFeesService.taxaServicoNaoParceiroRiscadaEur;
+    if (risco == null || risco <= atual) return null;
+    return risco;
+  }
+
+  /// `true` quando a taxa acima veio do quote do servidor, `false` quando é a
+  /// leitura de `platform_settings`. Só serve para diagnóstico/testes.
+  bool get taxaServicoVeioDoServidor =>
+      _ehPedidoNaoParceiro && _quoteCache?['service_fee'] != null;
 
   // BUG F (sessão exec 2026-05-12) — server-authoritative pricing quote.
   // Flutter pricingBreakdown usa distância local que pode diferir do server

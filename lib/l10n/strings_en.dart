@@ -2362,12 +2362,18 @@ const Map<String, String> kStringsEn = <String, String>{
       'Cancellation fee: {0}',
   'Taxa de entrega':
       'Delivery fee',
-  'Taxa de entrega: {0}\nTaxa de serviço: incluída no preço dos produtos\nTaxa de saco: €0,10/saco (cobrada após entrega)':
-      'Delivery fee: {0}\nService fee: included in the product prices\nBag fee: €0,10/bag (charged after delivery)',
+  'Taxa de entrega: {0}':
+      'Delivery fee: {0}',
   'Taxa de pedido pequeno':
       'Small order fee',
+  'Taxa de saco: €0,10/saco (cobrada após entrega)':
+      'Bag fee: €0,10/bag (charged after delivery)',
   'Taxa de serviço':
       'Service fee',
+  'Taxa de serviço: ':
+      'Service fee: ',
+  'Taxa de serviço: incluída no preço dos produtos':
+      'Service fee: included in the product prices',
   'Taxas':
       'Fees',
   'Taxas e informações':

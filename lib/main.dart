@@ -20,6 +20,7 @@ import 'services/foreground_service.dart';
 import 'services/notification_service.dart';
 import 'widgets/atalho_trabalho_em_curso.dart';
 import 'services/push_token_service.dart';
+import 'services/remote_fees_service.dart';
 import 'services/small_order_fee.dart';
 import 'services/tvde_reservation_ready_handler.dart';
 import 'services/offer_presentation_gate.dart';
@@ -340,6 +341,12 @@ Future<void> main() async {
       // logótipos das lojas não-parceiras apareciam na mesma — foi o que se
       // viu na captura `02-loja-mercados.png` da corrida 34220474584.
       unawaited(carregarIosHideNonPartnerLogos(forcar: true));
+
+      // Mesma cicatriz, mesma cura: as taxas também vivem em
+      // `platform_settings` e só se leem autenticado. Sem esta segunda
+      // leitura a app ficava presa aos valores de recurso durante toda a
+      // sessão, e uma mudança feita no painel admin não chegava ao cliente.
+      unawaited(RemoteFeesService.carregar(forcar: true));
     }
   });
 
@@ -523,6 +530,11 @@ Future<void> main() async {
   // Fire-and-forget de proposito — falhar aqui NUNCA pode travar o arranque;
   // sem leitura fica o estado seguro (taxa nenhuma).
   unawaited(SmallOrderFeeService.carregarGlobal());
+
+  // Taxa de serviço do não-parceiro (2026-09-08): 2,50 € → 0,99 €. Mesmo
+  // desenho — fire-and-forget, e sem leitura ficam os valores de recurso, que
+  // são exactamente os que o servidor tem hoje.
+  unawaited(RemoteFeesService.carregar());
 
   // Interruptor 5.2.1 (missão ios-lancamento): esconder logótipo de loja
   // não-parceira só no iOS. Fire-and-forget — sem leitura, mostra-se o

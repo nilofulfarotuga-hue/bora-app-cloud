@@ -20,6 +20,7 @@ import 'services/foreground_service.dart';
 import 'services/notification_service.dart';
 import 'widgets/atalho_trabalho_em_curso.dart';
 import 'services/push_token_service.dart';
+import 'services/remote_fees_service.dart';
 import 'services/small_order_fee.dart';
 import 'services/tvde_reservation_ready_handler.dart';
 import 'services/offer_presentation_gate.dart';
@@ -317,6 +318,14 @@ Future<void> main() async {
         state.event == AuthChangeEvent.initialSession ||
         state.event == AuthChangeEvent.tokenRefreshed) {
       unawaited(PushTokenService.registerCurrentDeviceAutoDetect());
+
+      // Reler as taxas **agora que ha sessao** (2026-09-08).
+      //
+      // `platform_settings` so se le autenticado. A leitura do arranque
+      // acontece antes de entrar e devolve vazio, sem erro. Sem esta segunda
+      // leitura a app ficava presa aos valores de recurso durante toda a
+      // sessao, e uma mudanca feita no painel admin nao chegava ao cliente.
+      unawaited(RemoteFeesService.carregar(forcar: true));
     }
   });
 
@@ -465,6 +474,11 @@ Future<void> main() async {
   // Fire-and-forget de proposito — falhar aqui NUNCA pode travar o arranque;
   // sem leitura fica o estado seguro (taxa nenhuma).
   unawaited(SmallOrderFeeService.carregarGlobal());
+
+  // Taxa de servico do nao-parceiro (2026-09-08): 2,50 EUR -> 0,99 EUR. Mesmo
+  // desenho — fire-and-forget, e sem leitura ficam os valores de recurso, que
+  // sao exactamente os que o servidor tem hoje.
+  unawaited(RemoteFeesService.carregar());
 
   // Recuperação de palavra-passe: rede de segurança do arranque.
   //

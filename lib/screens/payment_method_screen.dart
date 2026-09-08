@@ -23,6 +23,7 @@ import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/card_mandate_notice.dart';
 import '../widgets/customer_note_field.dart';
 import '../widgets/unified_checkout_button.dart';
+import '../widgets/valor_com_risco.dart';
 
 import '../l10n/tr.dart';
 
@@ -402,7 +403,13 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                               label: 'Subtotal'.tr, value: pricing.subtotal),
                         if (!isErrand && pricing.serviceFee > 0)
                           _SummaryRow(
-                              label: 'Taxas'.tr, value: pricing.serviceFee),
+                            label: 'Taxas'.tr,
+                            value: pricing.serviceFee,
+                            // Risco estilo Uber/Glovo: o 2,50 € antigo
+                            // riscado ao lado do 0,99 € actual. Vem de
+                            // platform_settings (ver RemoteFeesService).
+                            riscado: cartStore.taxaServicoRiscada,
+                          ),
                         if (!isErrand)
                           _SummaryRow(
                           label: 'Entrega'.tr,
@@ -1425,6 +1432,7 @@ class _SummaryRow extends StatelessWidget {
     this.isStrong = false,
     this.isDiscount = false,
     this.subtitle,
+    this.riscado,
   });
 
   final String label;
@@ -1432,6 +1440,9 @@ class _SummaryRow extends StatelessWidget {
   final bool isStrong;
   final bool isDiscount;
   final String? subtitle;
+
+  /// Preço antigo a mostrar riscado ao lado (ver [ValorComRisco]).
+  final double? riscado;
 
   @override
   Widget build(BuildContext context) {
@@ -1467,7 +1478,10 @@ class _SummaryRow extends StatelessWidget {
               ],
             ),
           ),
-          Text(valueText, style: textStyle),
+          if (riscado != null && !isDiscount)
+            ValorComRisco(valor: value, riscado: riscado, style: textStyle)
+          else
+            Text(valueText, style: textStyle),
         ],
       ),
     );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../services/remote_fees_service.dart';
 import '../../services/small_order_fee.dart';
 import '../../config/app_colors.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
@@ -296,6 +297,32 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
     }
   }
 
+  /// TAXA DE SERVIÇO DO NÃO-PARCEIRO (2026-09-08) — as duas chaves que a app
+  /// do cliente lê para mostrar "2,50 € riscado · 0,99 €".
+  ///
+  /// * `non_partner_service_fee_cents` — o que se cobra HOJE em toda loja sem
+  ///   contrato (mercados, lojas, farmácias, restaurantes não-parceiros).
+  ///   Mudar aqui muda o que TODO cliente paga e o que o servidor cobra.
+  /// * `non_partner_service_fee_strikethrough_cents` — só apresentação: o
+  ///   valor ANTIGO, mostrado riscado ao lado do atual. **Ninguém é cobrado
+  ///   por este número.** Coloque 0 para tirar o riscado da tela.
+  ///
+  /// Devolve a mensagem de erro (PT-BR) ou `null` quando o valor serve.
+  String? _validaTaxaServicoNaoParceiro(String key, Object valor) {
+    const chaves = {
+      'non_partner_service_fee_cents',
+      'non_partner_service_fee_strikethrough_cents',
+    };
+    if (!chaves.contains(key)) return null;
+    if (valor is! num || valor != valor.roundToDouble()) {
+      return 'Use centavos INTEIROS. Exemplo: 99 = 0,99 € · 250 = 2,50 €.';
+    }
+    if (valor < 0 || valor > 2000) {
+      return 'Fora da faixa permitida (0 a 2000 centavos = 20,00 €).';
+    }
+    return null;
+  }
+
   /// FIM DO SINAL (2026-08-03) — chaves do sinal de €3 que a regra de negócio
   /// já não usa. `client_book_appointment` deixou de as ler e
   /// `compute_provider_weekly_payout` deixou de as somar. Ficam na tabela por
@@ -533,12 +560,26 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
       novo = n;
     }
 
+    // TAXA DE SERVIÇO DO NÃO-PARCEIRO — validação antes de gravar.
+    final erroTaxa = _validaTaxaServicoNaoParceiro(s.key, novo);
+    if (erroTaxa != null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(erroTaxa)));
+      }
+      return;
+    }
+
     try {
       await Supabase.instance.client.rpc('admin_update_money_setting', params: {
         'p_key': s.key,
         'p_value': novo,
         'p_reason': reasonCtrl.text.trim(),
       });
+      // O app do cliente guarda estes valores em memória durante a sessão:
+      // força a releitura para o carrinho não continuar a mostrar o antigo.
+      SmallOrderFeeService.esquecerCache();
+      RemoteFeesService.esquecerCache();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Valor atualizado e auditado')));

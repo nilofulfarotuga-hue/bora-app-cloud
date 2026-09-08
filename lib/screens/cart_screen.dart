@@ -13,6 +13,7 @@ import '../stores/restaurant_store.dart';
 import '../widgets/bora/bora.dart';
 import '../widgets/takeaway/curbside_inputs.dart';
 import '../widgets/tip_selector.dart';
+import '../widgets/valor_com_risco.dart';
 import 'complete_profile_screen.dart' show garantirContactoDoCliente;
 import 'festas_quando_screen.dart';
 import 'orders_screen.dart';
@@ -365,7 +366,13 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                     _SummaryRow(label: 'Subtotal'.tr, value: cartStore.total),
                     if (pricing.serviceFee > 0)
                       _SummaryRow(
-                          label: 'Taxa de serviço'.tr, value: pricing.serviceFee),
+                        label: 'Taxa de serviço'.tr,
+                        value: pricing.serviceFee,
+                        // Risco estilo Uber/Glovo: 2,50 € riscado ao lado do
+                        // 0,99 €. Vem de platform_settings — pôr 0 na chave
+                        // do risco faz desaparecer sem tocar em código.
+                        riscado: cartStore.taxaServicoRiscada,
+                      ),
                     _SummaryRow(
                       label: cartStore.isTakeaway
                           ? 'Entrega (takeaway)'.tr
@@ -653,6 +660,7 @@ class _SummaryRow extends StatelessWidget {
     this.isStrong = false,
     this.accent = false,
     this.subtitle,
+    this.riscado,
   });
 
   final String label;
@@ -660,6 +668,9 @@ class _SummaryRow extends StatelessWidget {
   final bool isStrong;
   final bool accent;
   final String? subtitle;
+
+  /// Preço antigo a mostrar riscado ao lado (ver [ValorComRisco]).
+  final double? riscado;
 
   @override
   Widget build(BuildContext context) {
@@ -694,7 +705,7 @@ class _SummaryRow extends StatelessWidget {
               ],
             ),
           ),
-          Text('€${value.toStringAsFixed(2)}', style: style),
+          ValorComRisco(valor: value, riscado: riscado, style: style),
         ],
       ),
     );

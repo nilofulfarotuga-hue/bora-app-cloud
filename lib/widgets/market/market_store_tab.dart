@@ -7,11 +7,13 @@ import '../../models/partner_product.dart';
 import '../../models/restaurant_model.dart';
 import '../../screens/store_products_screen.dart';
 import '../../services/pricing_service.dart';
+import '../../services/remote_fees_service.dart';
 import '../../stores/cart_store.dart';
 import '../../stores/favorite_store.dart';
 import '../../stores/restaurant_store.dart';
 import 'market_category_chip_large.dart';
 import 'market_product_card.dart';
+import '../valor_com_risco.dart';
 
 import '../../l10n/tr.dart';
 
@@ -262,9 +264,21 @@ class MarketStoreTab extends StatelessWidget {
 
         // ── Rodapé ────────────────────────────────────────────────────────
         SliverToBoxAdapter(
-            child: _Footer(
-                feeLabel:
-                    '€${PricingService.estimatedDeliveryFee(distanceKm: cartStore.distanceKm, isPartner: isPartnerStore).toStringAsFixed(2)}')),
+          child: _Footer(
+            feeLabel:
+                '€${PricingService.estimatedDeliveryFee(distanceKm: cartStore.distanceKm, isPartner: isPartnerStore).toStringAsFixed(2)}',
+            // Loja sem contrato: a taxa de serviço é a parcela fixa que desceu
+            // de 2,50 € para 0,99 € (`platform_settings`, ver
+            // RemoteFeesService). Numa loja parceira continua a ser 5% dentro
+            // do preço — daí ficar `null` e manter-se a frase antiga.
+            taxaServico: isPartnerStore
+                ? null
+                : RemoteFeesService.taxaServicoNaoParceiroEur,
+            taxaRiscada: isPartnerStore
+                ? null
+                : RemoteFeesService.taxaServicoNaoParceiroRiscadaEur,
+          ),
+        ),
         const SliverToBoxAdapter(child: SizedBox(height: 24)),
       ],
     );
@@ -724,10 +738,18 @@ class _HorizontalSection extends StatelessWidget {
 // ─── Footer ───────────────────────────────────────────────────────────────────
 
 class _Footer extends StatelessWidget {
-  const _Footer({required this.feeLabel});
+  const _Footer({required this.feeLabel, this.taxaServico, this.taxaRiscada});
 
   /// Mesma taxa calculada da stats row (fonte: PricingService).
   final String feeLabel;
+
+  /// Taxa de serviço em vigor, em euros (`platform_settings` via
+  /// [RemoteFeesService], ou o quote do servidor). `null` numa loja parceira,
+  /// onde a taxa é uma percentagem e não uma parcela fixa.
+  final double? taxaServico;
+
+  /// Valor antigo a mostrar riscado ao lado. `null` = sem risco.
+  final double? taxaRiscada;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -737,8 +759,29 @@ class _Footer extends StatelessWidget {
             context: context,
             builder: (_) => AlertDialog(
               title: Text('Taxas e informações'.tr),
-              content: Text(
-                'Taxa de entrega: {0}\nTaxa de serviço: incluída no preço dos produtos\nTaxa de saco: €0,10/saco (cobrada após entrega)'.trArgs([feeLabel]),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Taxa de entrega: {0}'.trArgs([feeLabel])),
+                  const SizedBox(height: 4),
+                  if (taxaServico == null)
+                    Text('Taxa de serviço: incluída no preço dos produtos'.tr)
+                  else
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Taxa de serviço: '.tr),
+                        ValorComRisco(
+                          valor: taxaServico!,
+                          riscado: taxaRiscada,
+                        ),
+                      ],
+                    ),
+                  const SizedBox(height: 4),
+                  Text(
+                      'Taxa de saco: €0,10/saco (cobrada após entrega)'.tr),
+                ],
               ),
               actions: [
                 TextButton(

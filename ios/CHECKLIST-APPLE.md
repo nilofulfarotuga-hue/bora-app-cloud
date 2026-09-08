@@ -133,13 +133,15 @@ run_id `ios-lancamento-2026-09`, ids **1446–1479**. Antes desta sessão o
 
 ### 5.2.1 — as lojas reais são quase todas marcas de terceiros
 
-- [ ] Das 14 lojas abertas, **12 são marcas de terceiros** (Continente,
-      Auchan, Intermarché, Pingo Doce, Worten, Leroy Merlin, Kiwoko, Zippy,
-      Wells, Burger King, KFC, McDonald's). Próprias: Goola Açaí, Sabores do
-      Brasil e Barbearia Ouro e Prata. Decidir, antes de escolher as
-      capturas, quais entram — `lib/config/ios_launch_flags.dart` já tem
-      `shouldHideStoreLogo`. Prova da contagem: id 1504.
-
+- [x] **Decidido e aplicado (ordem do Danilo, 2026-09-08).** As capturas da
+      loja são publicidade pública e não levam nomes nem logótipos em
+      destaque das lojas onde a Bora só compra. O interruptor
+      `platform_settings.ios_hide_nonpartner_logos` passou de `false` a
+      **`true`** (lido de volta), por isso a lista de mercados mostra a loja
+      por nome em texto e ícone de categoria. As fichas que entram são de
+      marca própria: Goola Açaí, Sabores do Brasil e Barbearia Ouro e Prata.
+      O **vídeo** é privado e pode mostrar o supermercado real, porque tem de
+      provar uma compra a sério. Prova: id 1524.
 ### Ainda por fazer, e de que dependem
 - [x] **Firebase iOS — FEITO, e não dependia da conta Apple.** Esta linha
       dizia que dependia da chave APNs, "que só se cria com a conta
@@ -227,8 +229,12 @@ run_id `ios-lancamento-2026-09`, ids **1446–1479**. Antes desta sessão o
 - [x] Textos preparados em `ios/APP_STORE_COPY.md` (nome, subtítulo,
       categoria, palavras-chave ≤100 car., texto promocional, descrição,
       release notes, copyright, classificação etária).
-- [ ] Colar os textos no formulário real da App Store Connect (só possível
-      com sessão aberta na conta Apple — acção da sentada de 20 min, §7).
+- [x] **Textos prontos a colar**, com todos os limites CONTADOS por script e
+      não estimados: nome 26/30, subtítulo 26/30, promocional 118/170,
+      descrição 1590/4000, novidades 164/4000, palavras-chave **80 dos 100
+      bytes** (bytes, por isso sem acentos) e nenhuma palavra com 2 ou menos
+      caracteres. Em `ios/APP_STORE_COPY.md`. Prova: id 1538.
+- [ ] Colar no formulário real — depende da conta activa.
 - [x] URLs verificadas AO VIVO nesta sessão (`curl -w "%{http_code}"`,
       2026-09-07):
       - Marketing `https://boraguarda.com` → `200`
@@ -239,10 +245,12 @@ run_id `ios-lancamento-2026-09`, ids **1446–1479**. Antes desta sessão o
 - [ ] Screenshots carregados (depende do §2).
 - [ ] Preço: Grátis. Disponibilidade: Portugal (+ o mercado que a Apple exigir
       para a conta ficar activa — confirmar na sentada).
-- [ ] SKU / Bundle ID no App Store Connect = `pt.boraapp.bora` (confirmar que
-      bate com `PRODUCT_BUNDLE_IDENTIFIER` do `project.pbxproj` — confirmado
-      igual nesta sessão via grep).
-
+- [x] **Bundle ID confirmado no projecto**: `PRODUCT_BUNDLE_IDENTIFIER =
+      pt.boraapp.bora` em `ios/Runner.xcodeproj/project.pbxproj` (o
+      `pt.boraapp.bora.RunnerTests` ao lado é o alvo de testes, normal).
+      Igual ao pacote Android, como deve ser.
+- [ ] Criar o registo com esse SKU/Bundle ID na App Store Connect — depende da
+      conta activa.
 ## 4. Sinalizadores de completude (Guideline 2.1) — RISCO ENCONTRADO NESTA SESSÃO
 
 - [x] Apple Pay desligado no iOS (`lib/config/ios_launch_flags.dart`,
@@ -292,23 +300,29 @@ run_id `ios-lancamento-2026-09`, ids **1446–1479**. Antes desta sessão o
 - [x] Câmara, fotos e localização têm `NSUsageDescription` em português no
       `Info.plist` (verificado por grep nesta sessão — as 3 chaves existem
       com texto).
-- [ ] **App Privacy (nutrition label) da App Store Connect** — preencher o
-      questionário à mão na sentada (dados recolhidos: contacto, localização,
-      identificadores, dados financeiros de pagamento via Stripe/MB Way). Não
-      dá para preencher isto pela API; é campo da conta.
+- [x] **Etiqueta de privacidade respondida em rascunho** — cada resposta com a
+      página da Apple de onde saiu, em `ios/CLASSIFICACAO-E-PRIVACIDADE.md`.
+      Mapeada do `PrivacyInfo.xcprivacy` lido com `plistlib`: 8 tipos, todos
+      com fim *App Functionality*, nenhum para rastreio, só `Crash Data` não
+      ligado à pessoa. Prova: id 1539.
+- [ ] ⚠️ **Duas lacunas a corrigir antes de submeter**: falta `Payment Info`
+      (a folha da Stripe recolhe o cartão dentro da app, e a Apple manda
+      declarar o que os SDK de terceiros fazem) e falta o conteúdo do chat.
+- [ ] Preencher o formulário na App Store Connect — depende da conta activa.
 - [x] Eliminação de conta dentro da app, sem precisar de email — 5.1.1(v).
       Prova: reescrita da Edge Function (v25, `verify_jwt` ligado) e ciclo de
       teste completo com as duas contas demo, documentado em
       `apagar-conta-devolve-html-e-mente` e
       `chaves-estrangeiras-que-mordem-ao-encerrar-conta` (memória) e no
       capítulo 2 de `LANCAMENTO-IOS-ESTADO.md`.
-- [ ] Confirmar se algum SDK (Firebase Analytics/Crashlytics) exige o prompt
-      de App Tracking Transparency — não há `NSUserTrackingUsageDescription`
-      no `Info.plist` (confirmado por grep: zero ocorrências). Se o
-      Firebase estiver configurado só para push/crash e não para atribuição
-      de anúncios entre apps, não é preciso ATT — **mas isto tem de ser
-      confirmado no questionário de privacidade, não assumido aqui.**
-
+- [x] **Nenhum prompt de rastreio (ATT) é preciso — verificado, não assumido.**
+      `pubspec.yaml` não tem `firebase_analytics`, `google_mobile_ads`,
+      `facebook_*`, `appsflyer`, `adjust`, `amplitude`, `mixpanel`,
+      `app_tracking_transparency` nem `branch_io` — nenhum SDK de rastreio ou
+      de publicidade. O `Info.plist` não tem `NSUserTrackingUsageDescription`
+      (0 ocorrências), e o `PrivacyInfo.xcprivacy` declara
+      `NSPrivacyTracking: false` com lista de domínios vazia. As três coisas
+      dizem o mesmo, que é o que se queria confirmar.
 ## 6. Pagamentos (Guideline 3.1.3(a) / 3.1.5(a))
 
 - [x] Nota de revisão já escrita em `ios/NOTAS-AO-REVISOR.md`: todos os
@@ -335,10 +349,12 @@ run_id `ios-lancamento-2026-09`, ids **1446–1479**. Antes desta sessão o
       conta Apple activa, que é acção humana). O job B do workflow já os
       valida e falha alto e claro se faltar algum (`::error::Faltam
       segredos…`), portanto é seguro deixar o workflow como está.
-- [ ] `versionCode`/`CFBundleVersion` do iOS usa `github.run_number` — **não
-      mexer**, é contador independente do Android (confirmado no cabeçalho
-      do próprio `build_ios.yml`).
-
+- [x] **Contadores separados, e a cadeia está provada.**
+      `ios/Runner/Info.plist` tem `CFBundleVersion = $(FLUTTER_BUILD_NUMBER)`,
+      e o job de release passa `--build-number=${{ github.run_number }}`
+      (`build_ios.yml`, passo do `flutter build ipa`). Ou seja
+      `run_number` → `FLUTTER_BUILD_NUMBER` → `CFBundleVersion`. O
+      `versionCode` do Android continua com o contador dele e **não se toca**.
 ## 9. Estado do ramo e publicação
 
 - [x] Trabalho desta sessão feito só em `ios-lancamento`. Nenhum ficheiro de

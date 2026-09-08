@@ -85,6 +85,42 @@ collected from. Partner stores have signed agreements with us.
 NO ACCOUNT REQUIRED TO BROWSE
 The app opens and shows stores without signing in (4.0).
 
+BUTTONS YOU WILL SEE (the app is in Portuguese)
+  Sou Cliente / Sou Estafeta / Sou Parceiro   I am a customer / courier / partner
+  Aceitar tudo / Rejeitar                     Accept all / Reject  (privacy sheet)
+  Entrar                                      Sign in
+  Supermercados / Restaurantes / Farmácia     Supermarkets / Restaurants / Pharmacy
+  Lojas / Favores / Limpeza / Lavagem Auto    Shops / Errands / Cleaning / Car wash
+  Beleza                                      Barber and beauty bookings
+  Adicionar ao carrinho / Ver carrinho        Add to basket / View basket
+  Finalizar pedido                            Checkout
+  Dinheiro / Cartão / MB WAY                  Cash / Card / MB WAY
+  Confirmar pagamento                         Confirm payment
+  Em breve                                    Coming soon (store not open yet)
+  Perfil > Apagar conta                       Profile > Delete account
+  Agora não                                   Not now
+
+WHAT IS AND IS NOT IN THIS VERSION
+In: grocery and shop delivery, pharmacy, restaurants, barber and beauty bookings,
+home cleaning, errands, car wash, table reservations.
+Not in: ride-hailing. The app contains no ride-hailing for passengers in this
+version, and none of our screenshots or store text mentions it.
+
+ALCOHOL AND TOBACCO
+The supermarket catalogues we deliver from include alcoholic drinks, the same way
+a supermarket shelf does. The app does not encourage consumption and has no
+alcohol-themed content. We sell NO tobacco: we checked the whole catalogue and
+the only nicotine item is a smoking-cessation gum sold by a licensed pharmacy.
+
+SIGN IN WITH APPLE (4.8)
+The app offers no third-party or social login. Accounts are email and password
+only, so guideline 4.8 does not apply.
+
+IF THE STORE LIST LOOKS EMPTY
+Stores are shown for a delivery address in Guarda. The demo account already has
+one saved, so this should not happen. If it does, open the address selector at
+the top of the home screen and pick the saved address.
+
 CONTACT
 boraappbora@gmail.com · +351 937 501 673
 ```

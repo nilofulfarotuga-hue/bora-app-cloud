@@ -87,6 +87,16 @@ class MarketStoreTab extends StatelessWidget {
     return '{0}-{1} min'.trArgs([lo, lo + 15]);
   }
 
+  /// O valor antigo a riscar ao lado de [taxaAtual]. `null` quando não há
+  /// risco a mostrar — riscar um valor igual ou menor que o actual não é uma
+  /// descida, é ruído (e num caso seria mentira). Mesma regra do
+  /// `CartStore.taxaServicoRiscada`, aplicada à taxa que este rodapé mostra.
+  double? _riscoAcimaDe(double taxaAtual) {
+    final risco = RemoteFeesService.taxaServicoNaoParceiroRiscadaEur;
+    if (risco == null || risco <= taxaAtual) return null;
+    return risco;
+  }
+
   // ─── Build ────────────────────────────────────────────────────────────────
 
   @override
@@ -94,6 +104,13 @@ class MarketStoreTab extends StatelessWidget {
     final restaurantStore = context.watch<RestaurantStore>();
     final cartStore = context.watch<CartStore>();
     final favoriteStore = context.watch<FavoriteStore>();
+
+    // Taxa de serviço a mostrar no rodapé da loja sem contrato: o quote do
+    // servidor quando já existe um, senão o valor de `platform_settings`.
+    final double? taxaServicoLoja = isPartnerStore
+        ? null
+        : (cartStore.taxaServicoNaoParceiro ??
+            RemoteFeesService.taxaServicoNaoParceiroEur);
 
     final products = restaurantStore.partnerProductsForRestaurant(
       restaurant.id,
@@ -268,15 +285,17 @@ class MarketStoreTab extends StatelessWidget {
             feeLabel:
                 '€${PricingService.estimatedDeliveryFee(distanceKm: cartStore.distanceKm, isPartner: isPartnerStore).toStringAsFixed(2)}',
             // Loja sem contrato: a taxa de serviço é a parcela fixa que desceu
-            // de 2,50 € para 0,99 € (`platform_settings`, ver
-            // RemoteFeesService). Numa loja parceira continua a ser 5% dentro
-            // do preço — daí ficar `null` e manter-se a frase antiga.
-            taxaServico: isPartnerStore
+            // de 2,50 € para 0,99 €. Numa loja parceira continua a ser 5%
+            // dentro do preço — daí ficar `null` e manter-se a frase antiga.
+            //
+            // **O SERVIDOR MANDA.** Primeiro o `service_fee` do quote fresco
+            // (é o CartStore que o guarda); só quando ainda não há quote é
+            // que se usa a leitura de `platform_settings`. A constante do
+            // `PricingService` fica de fora deste número.
+            taxaServico: taxaServicoLoja,
+            taxaRiscada: taxaServicoLoja == null
                 ? null
-                : RemoteFeesService.taxaServicoNaoParceiroEur,
-            taxaRiscada: isPartnerStore
-                ? null
-                : RemoteFeesService.taxaServicoNaoParceiroRiscadaEur,
+                : _riscoAcimaDe(taxaServicoLoja),
           ),
         ),
         const SliverToBoxAdapter(child: SizedBox(height: 24)),

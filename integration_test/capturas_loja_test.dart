@@ -22,6 +22,34 @@ import 'package:integration_test/integration_test.dart';
 import 'package:bora_app/config/app_theme.dart';
 import 'package:bora_app/screens/capturas/captura_screens.dart';
 
+/// Quantos segundos REAIS cada ecrã fica no ar depois da captura.
+///
+/// PORQUE ISTO EXISTE: o `xcrun simctl recordVideo` do workflow grava o ecrã
+/// do simulador durante toda a corrida. Sem esta pausa, o arnês desenha os 7
+/// ecrãs, fotografa e passa à frente num instante — medido na gravação da
+/// corrida 34167538478: **19,5 minutos de filme e a app visível num único
+/// momento de 5 segundos**. Não havia nada para cortar.
+///
+/// Com 10 segundos por ecrã, os 7 ecrãs dão ~70 s de imagem real da app, que
+/// é a matéria-prima do vídeo de 60–120 s das notas ao revisor da Apple.
+/// Custa ~1 minuto a uma corrida que já leva ~20; vale a troca.
+const int _segundosPorEcra =
+    int.fromEnvironment('SEGUNDOS_POR_ECRA', defaultValue: 10);
+
+/// Mantém o ecrã desenhado durante [segundos] de tempo REAL.
+///
+/// `pumpAndSettle` não serve: devolve assim que as animações assentam e o
+/// gravador fica com um piscar. Aqui alterna `pump` (produz frame) com um
+/// `Future.delayed` dentro de `runAsync` (deixa o relógio real andar), para o
+/// vídeo apanhar o ecrã parado e legível.
+Future<void> _segurarEcra(WidgetTester tester, int segundos) async {
+  const passo = Duration(milliseconds: 250);
+  for (int i = 0; i < segundos * 4; i++) {
+    await tester.pump(passo);
+    await tester.runAsync(() => Future<void>.delayed(passo));
+  }
+}
+
 void main() {
   final IntegrationTestWidgetsFlutterBinding binding =
       IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -41,6 +69,9 @@ void main() {
       await tester.pumpAndSettle(const Duration(seconds: 2));
 
       await binding.takeScreenshot(spec.fileName);
+
+      // A captura já está feita; o que se segue é só para o gravador de vídeo.
+      await _segurarEcra(tester, _segundosPorEcra);
     }
   });
 }

@@ -184,8 +184,17 @@ jobs:
           xcrun simctl io "$UDID" recordVideo --codec=h264 --force artefactos/demo.mp4 &
           echo "REC_PID=$!" >> $GITHUB_ENV
 
+      # DESLIGADO de proposito (2026-09-08). Este passo corre integration_test/e2e_test.dart,
+      # que se chama "Bora E2E Web" e chama app.main(): com Supabase, Firebase e os
+      # Timer.periodic a andar, o pumpAndSettle nunca assenta, o binding fica com
+      # frame pendente e o primeiro teste envenena os seguintes (!inTest). Medido na
+      # corrida 34163172748: +0 -7, os sete falharam, e o passo so ficava verde por
+      # ter continue-on-error. Custava 14 minutos por corrida e enchia a gravacao de
+      # ecra inicial do simulador. Volta a ligar-se quando houver testes de fluxo
+      # escritos para iOS.
       - name: Percorrer os fluxos (integration_test)
         continue-on-error: true
+        if: false
         run: |
           flutter test integration_test \
             -d "$UDID" \

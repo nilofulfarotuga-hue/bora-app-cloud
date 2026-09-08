@@ -133,15 +133,24 @@ run_id `ios-lancamento-2026-09`, ids **1446–1479**. Antes desta sessão o
 
 ### 5.2.1 — as lojas reais são quase todas marcas de terceiros
 
-- [x] **Decidido e aplicado (ordem do Danilo, 2026-09-08).** As capturas da
-      loja são publicidade pública e não levam nomes nem logótipos em
-      destaque das lojas onde a Bora só compra. O interruptor
-      `platform_settings.ios_hide_nonpartner_logos` passou de `false` a
-      **`true`** (lido de volta), por isso a lista de mercados mostra a loja
-      por nome em texto e ícone de categoria. As fichas que entram são de
-      marca própria: Goola Açaí, Sabores do Brasil e Barbearia Ouro e Prata.
-      O **vídeo** é privado e pode mostrar o supermercado real, porque tem de
-      provar uma compra a sério. Prova: id 1524.
+- [x] **Decidido (ordem do Danilo, 2026-09-08).** As capturas da loja são
+      publicidade pública e não levam nomes nem logótipos em destaque das lojas
+      onde a Bora só compra. As fichas que entram são de marca própria: Goola
+      Açaí, Sabores do Brasil e Barbearia Ouro e Prata. O **vídeo** é privado e
+      pode mostrar o supermercado real, porque tem de provar uma compra a
+      sério. Prova: id 1524.
+- [x] **O interruptor estava LIGADO e mesmo assim não funcionava — corrigido.**
+      `platform_settings.ios_hide_nonpartner_logos` passou a `true` e ficou
+      lido de volta. Mas a captura `02-loja-mercados.png` da corrida
+      `34220474584` mostrou os logótipos na mesma. A causa: a tabela tem RLS
+      com uma única política de leitura, para **autenticados**, e a app lia o
+      interruptor no `main()`, **antes de entrar**. Medido contra a produção:
+      anónimo devolve `HTTP 200` com `[]`, autenticado devolve
+      `[{"value":true}]`. Como o vazio não é erro, o `catch` nunca disparava; o
+      código lia `[]` como `false`, marcava como carregado e nunca mais tentava.
+      **O interruptor era código morto desde que foi escrito.** Agora linha
+      vazia deixa-o por carregar, e relê-se no `onAuthStateChange` depois de
+      entrar. Falta a corrida a provar que os logótipos desaparecem.
 ### Ainda por fazer, e de que dependem
 - [x] **Firebase iOS — FEITO, e não dependia da conta Apple.** Esta linha
       dizia que dependia da chave APNs, "que só se cria com a conta

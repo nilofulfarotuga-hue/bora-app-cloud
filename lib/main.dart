@@ -331,6 +331,15 @@ Future<void> main() async {
         state.event == AuthChangeEvent.initialSession ||
         state.event == AuthChangeEvent.tokenRefreshed) {
       unawaited(PushTokenService.registerCurrentDeviceAutoDetect());
+
+      // Reler o interruptor 5.2.1 **agora que há sessão** (2026-09-08).
+      //
+      // `platform_settings` só se lê autenticado. A leitura que se faz no
+      // arranque acontece antes de entrar e devolve vazio, sem erro. Sem esta
+      // segunda leitura o interruptor ficava desligado para sempre e os
+      // logótipos das lojas não-parceiras apareciam na mesma — foi o que se
+      // viu na captura `02-loja-mercados.png` da corrida 34220474584.
+      unawaited(carregarIosHideNonPartnerLogos(forcar: true));
     }
   });
 

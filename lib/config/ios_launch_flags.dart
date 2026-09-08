@@ -65,7 +65,31 @@ Future<void> carregarIosHideNonPartnerLogos({bool forcar = false}) async {
         .select('value')
         .eq('key', 'ios_hide_nonpartner_logos')
         .maybeSingle();
-    final v = linha?['value'];
+
+    // LINHA VAZIA NÃO É "FALSO" — É "AINDA NÃO SE PODE LER" (2026-09-08).
+    //
+    // `platform_settings` tem RLS com uma única política de leitura, para
+    // **autenticados**. Esta função é chamada do `main()`, antes de haver
+    // sessão, e nessa altura o pedido devolve `HTTP 200` com `[]` — sem erro
+    // nenhum, por isso o `catch` nunca dispara. O código antigo lia esse vazio
+    // como `false`, marcava como carregado, e nunca mais tentava: o
+    // interruptor 5.2.1 ficava desligado para sempre, mesmo com `true` no
+    // servidor.
+    //
+    // Medido a 2026-09-08 contra a produção:
+    //   anónimo      -> HTTP 200, corpo `[]`
+    //   autenticado  -> HTTP 200, corpo `[{"value":true}]`
+    //
+    // Agora, sem linha, fica por carregar e volta a tentar-se depois de entrar
+    // (ver o `onAuthStateChange` em `main.dart`). O estado seguro entretanto
+    // continua a ser mostrar o logótipo.
+    if (linha == null) {
+      debugPrint('[ios_launch_flags] ios_hide_nonpartner_logos ainda não é '
+          'legível (sem sessão?) — tenta-se outra vez depois de entrar.');
+      return;
+    }
+
+    final v = linha['value'];
     _hideNonPartnerLogos = v is bool ? v : '$v'.toLowerCase() == 'true';
     _hideNonPartnerLogosCarregado = true;
   } catch (e) {

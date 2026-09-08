@@ -71,29 +71,70 @@ run_id `ios-lancamento-2026-09`, ids **1446–1479**. Antes desta sessão o
       ao `xcodebuild` a partir do `.dart_defines`. Commit `c50bf059`.
       Prova: ids 1462 e 1463. **Prova final: a próxima corrida do CI.**
 
-### Capturas — provadas
-- [x] **As 7 capturas existem e estão certas**, todas **1320×2868**, na ordem
-      mandada (`01-mercado` … `07-lavagem`), sem TVDE nem carro. Artefacto
-      `ios-simulador-8` da corrida `34167538478`. Guardadas em
-      `Desktop\Bora\ios\capturas`. Prova: id 1449.
+### Capturas — ERAM INVENTADAS, foram deitadas fora (2026-09-08)
 
-### Vídeo — o que faltava, e porquê
-- [ ] **Não havia filme para cortar.** Medido: a gravação da corrida
-      `34167538478` tem 19,5 min e a app aparece num **único momento de 5 s**
-      (amostrei um frame a cada 5 s, 234 amostras, à procura do verde da marca
-      no topo; só uma deu positivo). O arnês fotografava e passava à frente.
-      **Recusei montar um vídeo de fotos paradas e chamar-lhe demonstração de
-      uso** — a captura prova o ecrã, o vídeo prova o uso. Prova: id 1478.
-- [~] Conserto publicado (`fbded726`): cada ecrã fica **10 s de tempo real**
-      depois de fotografado (`pump` + `Future.delayed` em `runAsync`;
-      `pumpAndSettle` devolve cedo e o gravador apanha um piscar). 7 × 10 s ≈
-      **70 s**, dentro do alvo. Prova: id 1479. **Falta a corrida do CI.**
+> A linha que aqui estava dizia **"As 7 capturas existem e estão certas"**.
+> Estavam certas no *tamanho* e erradas no que é que importa: mostravam
+> lojas, serviços e preços que **não existem na produção**. O Danilo deu
+> por isso ao reparar que não há nenhuma "Lavagem Completa 15 euros".
+
+- [x] **Auditadas uma a uma contra o banco — as sete falharam.** Detalhe
+      ecrã a ecrã em `ios/LANCAMENTO-IOS-ESTADO.md` §-2. Resumo: a "Mercado
+      da Guarda" e a "Barbearia Central" não existem; a Goola Açaí tem 2
+      produtos e não 3; a limpeza é por tipologia e não por hora; a lavagem
+      não tem "+ Cera" e o interior está desligado. Prova: id 1503.
+- [x] **Arnês apagado**: `lib/screens/capturas/captura_screens.dart` (786
+      linhas), `lib/main_capturas.dart`, `integration_test/capturas_loja_test.dart`.
+- [x] PNGs e `demo.mp4` arquivados em `ios/video-INVENTADO-NAO-USAR/` com um
+      `LEIA-ME.txt`. Ficam **só como prova do erro**.
+- [x] **Regra nova, sem excepção:** nenhuma captura e nenhum vídeo mostra
+      loja, serviço, produto ou preço que não exista mesmo no banco.
+- [ ] **Capturas novas, da app real** — `integration_test/demo_real_test.dart`
+      percorre a aplicação a sério ligada ao servidor, com `demo@bora.app`.
+      Escrito e publicado (id 1517); **falta a corrida do CI dar imagens**.
+
+### Vídeo — tem de ser a app viva
+
+- [x] O primeiro vídeo (76,2 s, legendas em inglês, publicado no site) foi
+      **retirado do ar** por sair das capturas inventadas. `boraguarda.com`
+      devolve 404 em `/provas/apple-review/` e no `.mp4`. Ids 1488–1500.
+- [x] **YouTube: não se cria canal.** A conta `boraappbora@gmail.com` não
+      tem canal (provado em `youtube.com/account`) e criar um obriga a
+      aceitar termos e a assumir identidade pública — decisão do Danilo, e
+      ele disse não. O vídeo vai para uma página **não listada** do site do
+      Bora. Prova: id 1501.
 - [x] Desligado o passo dos fluxos web (`e2e_test.dart`): dava sempre `+0 -7`,
       só ficava verde por `continue-on-error`, custava **14 min por corrida** e
       enchia a gravação de ecrã inicial do simulador.
-- [ ] Cortar 60–120 s com legendas em inglês (ffmpeg confirmado disponível).
-- [ ] Publicar **não listado** no canal do Bora e guardar o link aqui e em
-      `ios/NOTAS-AO-REVISOR.md`.
+- [x] `ios/tools/montar_video_revisor.py` corrigido e provado: emparelha cada
+      fotograma com os PNGs de captura (o detector antigo procurava o verde
+      da marca e dava 0 blocos — os 7 PNGs bons pontuavam 0/24 contra ele,
+      porque cada ecrã tem cabeçalho de cor diferente). Ids 1489–1490.
+- [ ] Cortar 60–120 s **da gravação da app real** e publicar na página não
+      listada; guardar o endereço aqui e em `ios/NOTAS-AO-REVISOR.md`.
+
+### Duas frases às Apple que não eram verdade — uma corrigida, outra provada
+
+- [x] *"The demo account has a saved address in Guarda"* — **era falso**.
+      `demo@bora.app` não tinha morada nenhuma e o guarda de morada do
+      `client_home_screen` teria bloqueado o revisor logo na primeira
+      categoria. Criada "Praça Luís de Camões, 6300-725 Guarda" — lugar
+      público de propósito. Prova: id 1516.
+- [x] *"Orders from the demo account are never dispatched to real couriers"*
+      — **verdade, e agora provado**: gatilho `BEFORE INSERT`
+      `a_trg_pedido_demo_caixa_fechada` em `orders`, ligado, faz as
+      encomendas demo nascerem em `driverAccepted` no estafeta demo. Nunca
+      passam por `callingDriver`. Se o gatilho for desligado, a frase deixa
+      de ser verdade. Prova: id 1515.
+
+### 5.2.1 — as lojas reais são quase todas marcas de terceiros
+
+- [ ] Das 14 lojas abertas, **12 são marcas de terceiros** (Continente,
+      Auchan, Intermarché, Pingo Doce, Worten, Leroy Merlin, Kiwoko, Zippy,
+      Wells, Burger King, KFC, McDonald's). Próprias: Goola Açaí, Sabores do
+      Brasil e Barbearia Ouro e Prata. Decidir, antes de escolher as
+      capturas, quais entram — `lib/config/ios_launch_flags.dart` já tem
+      `shouldHideStoreLogo`. Prova da contagem: id 1504.
 
 ### Ainda por fazer, e de que dependem
 - [ ] **Firebase iOS** — não existe `GoogleService-Info.plist` nem o segredo
@@ -116,7 +157,7 @@ run_id `ios-lancamento-2026-09`, ids **1446–1479**. Antes desta sessão o
       `receita-do-build-ios` (memória).
 - [x] `xcodebuild` compila para o simulador (destino explícito, sem
       `-sdk iphonesimulator`). Prova: passo 15 verde, 7m11s, mesma corrida.
-- [ ] **A app arranca e navega no simulador** — ainda NÃO provado. Os 7 testes
+- [ ] **A app arranca e navega no simulador** — ainda NÃO provado, mas passou a haver quem o prove ou desminta: o `demo_real_test.dart` percorre a app a sério e falha com fotografia do ecrã onde encalhar. Os 7 testes
       de `integration_test/e2e_test.dart` falharam todos
       (`'_pendingFrame == null': is not true`) porque esse teste chama
       `app.main()` completo (Supabase/Firebase/Stripe/timers) e o
@@ -127,22 +168,31 @@ run_id `ios-lancamento-2026-09`, ids **1446–1479**. Antes desta sessão o
       sessão (ver §2). A prova definitiva de que o `app.main()` real arranca
       num iPhone físico só vem do próprio TestFlight/build de release.
 
-## 2. Capturas da loja (6–8, 1320×2868)
+## 2. Capturas da loja (6–8, 1320×2868) — da APP REAL, nada de ecrãs desenhados
 
-- [~] Arnês de capturas (`lib/main_capturas.dart`,
-      `integration_test/capturas_loja_test.dart`,
-      `test_driver/capturas_driver.dart`, passo novo em `build_ios.yml`) — em
-      construção nesta sessão. `flutter analyze`/`flutter pub get` locais
-      (Windows, sem simulador) são a única prova possível aqui; a prova real
-      (PNG a sair) só vem da próxima corrida do CI em macOS.
-- [ ] 7 capturas na ordem: `01-mercado`, `02-comida`, `03-barbearia`,
-      `04-acai`, `05-limpeza`, `06-favores`, `07-lavagem`. **Zero** carro ou
-      TVDE em qualquer uma.
-- [ ] Vídeo de 60–120 s com legendas em inglês, cortado a partir de
-      `artefactos/demo.mp4` (ou de uma gravação nova sobre o simulador com o
-      arnês). Publicado **não listado** no canal do YouTube do Bora.
-- [ ] Link do vídeo gravado aqui e em `ios/NOTAS-AO-REVISOR.md` (esse ficheiro
-      já tem um "Por fazer" a apontar para isto).
+> Regra da casa desde 2026-09-08: nenhuma captura e nenhum vídeo mostra
+> loja, serviço, produto ou preço que não exista mesmo no banco de
+> produção. Ver §0 para o que correu mal e como se apanhou.
+
+- [x] Arnês novo: `integration_test/demo_real_test.dart` + o driver que já
+      existia (`test_driver/capturas_driver.dart`) + passo
+      "Percorrer a app real e capturar" no `build_ios.yml`. Abre `app.main()`
+      a sério, entra com `demo@bora.app`, e fotografa início →
+      supermercados → loja → produto → carrinho → pagamento em dinheiro.
+      **Zero `pumpAndSettle`** (era o que dava `+0 -7`): bombeia em passos de
+      200 ms com `runAsync` para o relógio real andar. `flutter analyze`
+      limpo; YAML validado. Prova: id 1517.
+- [x] A encomenda a sério está atrás de `--dart-define=FAZER_ENCOMENDA_REAL`
+      (input `encomenda_real` no `workflow_dispatch`), e a caixa fechada
+      garante que nunca chama estafetas reais. Prova: id 1515.
+- [ ] **Capturas a sair da corrida do CI** — é a prova que falta. Sem PNG no
+      artefacto, isto não está feito.
+- [ ] Escolher 6–8 capturas de entre as que saírem, **decidindo antes** o que
+      fazer com as marcas de terceiros (§0, 5.2.1). **Zero** carro ou TVDE.
+- [ ] Vídeo de 60–120 s com legendas em inglês, cortado da gravação da app
+      real com `ios/tools/montar_video_revisor.py`, publicado numa página
+      **não listada do site do Bora** (o YouTube saiu — §0).
+- [ ] Endereço do vídeo gravado aqui e em `ios/NOTAS-AO-REVISOR.md`.
 
 ## 3. Metadados da App Store Connect
 

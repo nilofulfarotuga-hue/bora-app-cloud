@@ -1,15 +1,21 @@
 """Corta o video de 60-120 s para as notas ao revisor da Apple.
 
 ENTRADA: o `demo.mp4` do artefacto do CI (gravacao do simulador, 1320x2868)
-         e os 7 PNGs de captura que vieram no MESMO artefacto.
+         e os PNGs de captura que vieram no MESMO artefacto -- os que
+         `integration_test/demo_real_test.dart` tirou da app real.
+
+  A app e' real e os dados sao os da producao. Ver a cicatriz de 2026-09-08 em
+  `ios/LANCAMENTO-IOS-ESTADO.md`: o arnes anterior desenhava ecras com lojas e
+  precos INVENTADOS, e as sete capturas falharam a auditoria contra o banco.
+  Regra da casa desde entao: nada entra no video que nao exista na producao.
 SAIDA:   `bora-ios-review-demo.mp4`, com legendas em ingles queimadas.
 
 PORQUE ASSIM: o revisor da Apple le ingles, e o video serve de prova de uso --
 nao de anuncio. Sem musica, sem cortes rapidos, uma frase curta por ecra, a
 dizer o que se esta a ver.
 
-COMO ENCONTRA OS SEGMENTOS: nao se cravam tempos. Cada um dos 7 PNGs de captura
-e reduzido a uma assinatura de 8x16 pixeis, e cada fotograma da gravacao passa
+COMO ENCONTRA OS SEGMENTOS: nao se cravam tempos. Cada PNG de captura e
+reduzido a uma assinatura de 8x16 pixeis, e cada fotograma da gravacao passa
 pelo MESMO caminho de reducao e e emparelhado com o PNG mais parecido. Os
 fotogramas seguidos com o mesmo vencedor formam um bloco. Se a gravacao mudar
 de duracao, de ordem ou de simulador, isto continua a funcionar.
@@ -41,21 +47,27 @@ FFPROBE = os.environ.get('FFPROBE', 'ffprobe')
 LARGURA, ALTURA = 8, 16              # assinatura: 8x16 pixeis RGB
 TAM = LARGURA * ALTURA * 3
 LIMIAR = 18.0                        # distancia media por canal, 0-255
-SEGUNDOS_POR_ECRA = 10.0
+SEGUNDOS_POR_ECRA = 8.0
 RECUO = 7.0                          # so entra depois do ecra assentar
 ALTURA_SAIDA = 1280
 
-# Uma frase por ecra, na ordem dos ficheiros 01..07. Curtas de proposito: a
-# 590 px de largura, mais de ~28 caracteres a 32 pt sai fora do enquadramento
-# (medido: "Groceries from local shops in Guarda" ficou cortado nas duas pontas).
+# Uma frase por ecra, na ordem em que `integration_test/demo_real_test.dart` os
+# fotografa. Curtas de proposito: a 590 px de largura, mais de ~28 caracteres a
+# 32 pt sai fora do enquadramento (medido: "Groceries from local shops in
+# Guarda" ficou cortado nas duas pontas).
+#
+# Estas frases descrevem o PERCURSO na app real -- nao categorias desenhadas. Se
+# o arnes mudar de passos, mudam-se aqui; um PNG sem legenda nao entra no video.
 LEGENDAS = {
-    '01': 'Groceries from local shops',
-    '02': 'Restaurant food, delivered',
-    '03': 'Barber and salon bookings',
-    '04': 'Acai and desserts',
-    '05': 'Home cleaning services',
-    '06': 'Errands - we buy for you',
-    '07': 'Car wash at your door',
+    '00': 'One app: customer, courier, partner',
+    '02': 'Ordering in Guarda, Portugal',
+    '03': 'Real stores, real stock',
+    '04': 'Browse the store',
+    '05': 'Real products and prices',
+    '06': 'Added to the basket',
+    '07': 'Your basket',
+    '08': 'Pay with cash',
+    '09': 'Track your order',
 }
 TITULO = 'Bora - Guarda, Portugal'
 SUBTITULO = 'Demo recorded on iPhone simulator'
@@ -105,8 +117,9 @@ def blocos_por_ecra(video, pngs, tmp):
 
     vistos, blocos = set(), []
     for nome, a, b in corridas:
-        # `ecra-final.png` (o ecra inicial do iOS no fim da corrida) tambem e
-        # uma referencia: serve para o rejeitar, nao para o filmar.
+        # Um PNG sem legenda e' referencia para EXCLUIR, nao para filmar:
+        # `ecra-final` (o ecra inicial do iOS no fim da corrida) e `01-entrar`
+        # (o ecra de credenciais -- ninguem quer as senhas no filme).
         if nome in LEGENDAS and nome not in vistos and b - a >= SEGUNDOS_POR_ECRA:
             blocos.append((a, b, nome))
             vistos.add(nome)
@@ -132,7 +145,7 @@ def main():
         else os.path.join(pasta, 'bora-ios-review-demo.mp4'))
     video = os.path.join(pasta, 'demo.mp4')
     pngs = sorted(glob.glob(os.path.join(pasta, '*.png')))
-    if not os.path.exists(video) or len(pngs) < 7:
+    if not os.path.exists(video) or len(pngs) < 3:
         sys.exit('ERRO: falta demo.mp4 ou os PNGs de captura em %s' % pasta)
 
     tmp = tempfile.mkdtemp()
@@ -145,9 +158,18 @@ def main():
     for a, b, nome in blocos:
         print('  %s  %7.1f -> %7.1f (%5.1fs)  %s'
               % (nome, a, b, b - a, LEGENDAS[nome]))
+    # Faltar um ecra nao e' fatal: `09-acompanhar` so existe se a corrida levou
+    # FAZER_ENCOMENDA_REAL, e um passo pode ter falhado sem derrubar o resto.
+    # Fatal e' nao haver materia que chegue para os 60 s minimos da Apple.
     if len(blocos) < len(LEGENDAS):
-        sys.exit('ERRO: nem todos os ecras aparecem na gravacao. Confirmar '
-                 'SEGUNDOS_POR_ECRA em integration_test/capturas_loja_test.dart.')
+        faltam = sorted(set(LEGENDAS) - {n for _a, _b, n in blocos})
+        print('AVISO: sem imagem para %s' % ', '.join(faltam))
+    minimo = int(60 // SEGUNDOS_POR_ECRA) + 1
+    if len(blocos) < minimo:
+        sys.exit('ERRO: so %d ecras na gravacao, precisam-se de %d para chegar '
+                 'aos 60 s. Confirmar SEGUNDOS_POR_ECRA em '
+                 'integration_test/demo_real_test.dart e ver os falha-*.png '
+                 'do artefacto.' % (len(blocos), minimo))
 
     pedacos = []
     cartao = 'p_titulo.mp4'

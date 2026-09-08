@@ -97,7 +97,19 @@ Future<void> _exigir(WidgetTester t, Finder f, String oQue,
   fail('não apareceu: $oQue');
 }
 
+/// Toca no primeiro [f], arrastando-o para a vista se estiver fora do ecrã.
+///
+/// `tap` num widget fora do ecrã não bate em nada e, com `warnIfMissed: false`,
+/// falha em silêncio — o teste seguiria a fingir que carregou. A página da loja
+/// empilha carrosséis por categoria (o Continente tem dezenas), por isso o
+/// botão de adicionar está quase sempre a meio da lista.
 Future<void> _tocar(WidgetTester t, Finder f) async {
+  try {
+    await t.ensureVisible(f.first);
+    await _bombear(t, segundos: 0.6);
+  } catch (_) {
+    // Não está dentro de nenhum `Scrollable` — segue-se e toca-se na mesma.
+  }
   await t.tap(f.first, warnIfMissed: false);
   await _bombear(t, segundos: 1.5);
 }
@@ -149,7 +161,11 @@ void main() {
 
     // A primeira loja da lista, seja ela qual for — não se crava nome nenhum,
     // porque o que está à venda hoje é o que manda.
-    final primeiraLoja = find.byType(InkWell);
+    //
+    // Pelo identificador, não pelo tipo: o cartão é um `GestureDetector` e não
+    // um `InkWell`, e `find.byType(InkWell).first` apanhava um chip da barra de
+    // ordenação em vez da loja.
+    final primeiraLoja = _porIdentificador('cartao_loja');
     await _exigir(t, primeiraLoja, 'cartao-de-loja');
     await _tocar(t, primeiraLoja);
     await _bombear(t, segundos: 5);
@@ -169,6 +185,12 @@ void main() {
     }
 
     // ── Carrinho → pagamento ──────────────────────────────────────────────
+    // O botão flutuante da loja é "Ver carrinho · €12,34" — o total muda a cada
+    // corrida, por isso procura-se por pedaço de texto e nunca pela frase toda.
+    final verCarrinho = find.textContaining('Ver carrinho');
+    await _exigir(t, verCarrinho, 'botao-ver-carrinho', segundos: 20);
+    await _tocar(t, verCarrinho);
+
     final finalizar = find.text('Finalizar pedido');
     if (await _esperar(t, finalizar, segundos: 20)) {
       await _foto(t, '07-carrinho');

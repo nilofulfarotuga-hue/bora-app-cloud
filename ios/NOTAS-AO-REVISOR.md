@@ -28,7 +28,8 @@ Bora is a local delivery and services marketplace for the city of Guarda, Portug
 (population ~40,000). One app, three profiles: customer, courier, and partner store.
 
 REVIEWING FROM OUTSIDE PORTUGAL
-The app serves Guarda only. The demo account has a saved address in Guarda, so
+The app serves Guarda only. The demo account has a saved address in Guarda
+(Praca Luis de Camoes, 6300-725 Guarda), so
 stores load without needing GPS or being physically in Portugal. You can also browse
 as a guest without an account.
 
@@ -92,7 +93,16 @@ Verificado no ar a 2026-09-07: HTTP 200, sem marcadores por preencher, com o
 responsável identificado (Danilo Fulfaro da Silva, empresário em nome
 individual, NIF 322151171) e com a secção 6 sobre eliminar a conta.
 
-## Por fazer antes de submeter
+## Vídeo demonstrativo — onde vive e o que mostra
 
-- [ ] Link do vídeo demonstrativo no YouTube (não listado) — Bloco 4, por gravar
-      assim que o Job A compilar.
+O YouTube saiu (decisão do Danilo, 2026-09-08): a conta `boraappbora@gmail.com`
+não tem canal, e criar um obriga a aceitar os termos do YouTube e a assumir uma
+identidade pública. Não vale a pena por causa de um vídeo. O vídeo passa a viver
+numa página **não listada** do próprio site do Bora (`noindex, nofollow`, sem
+ligação a partir de nenhum menu), e é esse endereço que vai nas notas.
+
+O vídeo é a **app a correr a sério**, ligada ao servidor, com a conta demo — não
+ecrãs desenhados. Ver `integration_test/demo_real_test.dart`.
+
+- [ ] Endereço do vídeo — por preencher assim que a corrida do CI der capturas boas.
+

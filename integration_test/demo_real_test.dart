@@ -132,6 +132,27 @@ Future<void> _tocar(WidgetTester t, Finder f) async {
   await _bombear(t, segundos: 1.5);
 }
 
+/// Rola a página para baixo até [f] existir na árvore, ou [vezes] tentativas.
+///
+/// Numa lista preguiçosa, o que está fora do ecrã não está construído — e um
+/// `Finder` não encontra o que não existe. Rolar é o que faz o Flutter
+/// construir o pedaço seguinte.
+Future<void> _rolarAteAparecer(WidgetTester t, Finder f,
+    {int vezes = 6}) async {
+  for (int i = 0; i < vezes; i++) {
+    if (f.evaluate().isNotEmpty) return;
+    final rolavel = find.byType(Scrollable);
+    if (rolavel.evaluate().isEmpty) return;
+    try {
+      await t.drag(rolavel.first, const Offset(0, -600),
+          warnIfMissed: false);
+    } catch (_) {
+      return;
+    }
+    await _bombear(t, segundos: 1.2);
+  }
+}
+
 Future<void> _foto(WidgetTester t, String nome) async {
   await _bombear(t, segundos: 1.5);
   await _binding.takeScreenshot(nome);
@@ -270,11 +291,23 @@ void main() {
     await _bombear(t, segundos: 5);
     await _foto(t, '03-video-loja');
 
+    // A página da loja abre na grelha "Comprar por categoria"; os carrosséis de
+    // produtos, que são onde vive o `btn_add_carrinho`, ficam mais abaixo.
+    //
+    // CICATRIZ (corrida 34220474584): sem rolar, o localizador não encontrava
+    // nada e o teste dizia "a loja não tem produtos à venda" — mentira. A lista
+    // é preguiçosa, por isso o que está fora do ecrã **nem sequer está
+    // construído**, e um `Finder` não encontra o que não existe na árvore. A
+    // prova de que nada se tinha mexido: `03-video-loja.png` e
+    // `zz-falha-sem-botao-adicionar.png` saíram com o mesmo tamanho exacto.
     final botaoAdicionar = _id('btn_add_carrinho');
-    if (!await _esperar(t, botaoAdicionar, segundos: 30)) {
+    if (!await _esperar(t, botaoAdicionar, segundos: 15)) {
+      await _rolarAteAparecer(t, botaoAdicionar, vezes: 6);
+    }
+    if (!await _esperar(t, botaoAdicionar, segundos: 10)) {
       await _binding.takeScreenshot('zz-falha-sem-botao-adicionar');
-      fail('a loja abriu mas não há nenhum "adicionar ao carrinho" — '
-          'confirmar que a loja escolhida tem produtos à venda');
+      fail('a loja abriu mas não apareceu nenhum "adicionar ao carrinho", nem '
+          'depois de rolar — confirmar que a loja escolhida tem produtos');
     }
     await _foto(t, '04-video-produtos');
     await _tocar(t, botaoAdicionar);

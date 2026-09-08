@@ -39,6 +39,21 @@ on:
         description: "Correr o job de release e enviar para o App Store Connect (precisa dos segredos de assinatura)"
         type: boolean
         default: false
+      # Ligado, o arnes confirma uma encomenda a SERIO em dinheiro, para o
+      # video mostrar o acompanhamento do pedido.
+      #
+      # Porque isto NAO chama estafetas reais: o gatilho BEFORE INSERT
+      # `a_trg_pedido_demo_caixa_fechada` em `orders` (confirmado ligado a
+      # 2026-09-08) apanha as contas demo@bora.app, demo.cliente@bora.app e
+      # demo.apagar@bora.app e forca is_test_order, dinheiro, e nasce ja em
+      # `driverAccepted` atribuida ao estafeta demo. Nunca passa por
+      # `callingDriver`, logo o dispatch nunca a oferece a ninguem real.
+      # Fica desligado por defeito na mesma: um push nao tem de criar
+      # encomendas, mesmo de brincar.
+      encomenda_real:
+        description: "Confirmar uma encomenda a serio (dinheiro) durante a gravacao"
+        type: boolean
+        default: false
 
 env:
   # Mesma versão que TODOS os outros workflows do repo fixam (build_android,
@@ -201,20 +216,29 @@ jobs:
             --dart-define-from-file=.dart_defines \
             --reporter expanded 2>&1 | tee artefactos/integration.log
 
-      # Capturas de ecrã para a App Store (missão `ios-lancamento`,
-      # 2026-09-07) — ecrãs estáticos e sem rede (ver
-      # `lib/screens/capturas/captura_screens.dart`), por isso NÃO leva
-      # `continue-on-error`: se este falhar é para saber-se a sério. O
-      # simulador escolhido acima já é o maior iPhone disponível ("Pro Max"),
+      # Capturas de ecrã para a App Store E matéria-prima do vídeo do revisor.
+      #
+      # A APP A SÉRIO, LIGADA AO SERVIDOR (2026-09-08). Até aqui este passo
+      # corria `capturas_loja_test.dart`, que desenhava sete ecrãs estáticos com
+      # dados INVENTADOS — "Mercado da Guarda", "Barbearia Central", açaí a
+      # €4,50, "Lavagem + Cera €20". Auditado contra a produção, nenhum dos sete
+      # existia. Isso é reprovação por 2.3.1 (metadados enganosos) e 2.3.3. O
+      # arnês foi apagado; agora fotografa-se a app real com a conta demo.
+      #
+      # NÃO leva `continue-on-error`: se falhar é para saber-se a sério, e o
+      # teste deixa um `falha-*.png` a mostrar onde encalhou.
+      #
+      # O simulador escolhido acima já é o maior iPhone disponível ("Pro Max"),
       # que é o 6,9" (1320×2868) exigido pela Apple nas capturas.
-      - name: Gerar capturas de ecrã (App Store)
+      - name: Percorrer a app real e capturar (App Store)
         run: |
           mkdir -p artefactos/capturas
           flutter drive \
             --driver=test_driver/capturas_driver.dart \
-            --target=integration_test/capturas_loja_test.dart \
+            --target=integration_test/demo_real_test.dart \
             -d "$UDID" \
-            --dart-define-from-file=.dart_defines
+            --dart-define-from-file=.dart_defines \
+            --dart-define=FAZER_ENCOMENDA_REAL=${{ inputs.encomenda_real || 'false' }}
 
       - name: Parar a gravação
         if: always()

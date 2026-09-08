@@ -8,6 +8,105 @@
 
 ---
 
+## 0. O QUE A 4.ª SESSÃO FECHOU (2026-09-08) — ler primeiro
+
+Todas as linhas abaixo têm prova no `e2e_log`, fluxo `ios-lancamento`,
+run_id `ios-lancamento-2026-09`, ids **1446–1479**. Antes desta sessão o
+`e2e_log` tinha **zero** linhas desta missão, em 1438 linhas e 78 fluxos.
+
+### Conta Apple — feita
+- [x] Conta Apple criada em `boraappbora@gmail.com`, Portugal, **dois fatores
+      activos** e telemóvel fidedigno. Prova: id 1451.
+- [x] Nome legal corrigido para **Danilo Fulfaro da Silva**. O preenchimento
+      automático do Chrome tinha posto "DA SILVA"; corrigido em Informação
+      pessoal e confirmado na página da Apple. Era irreversível depois da
+      inscrição. Prova: id 1451.
+- [x] **Apple Developer Agreement assinado** a 2026-09-08. Marketing: Não.
+      Prova: id 1453 + email `Agreement signed` às 06:51.
+- [x] Inscrição individual submetida pela **web** (a Apple empurra para a app
+      do iPhone; usou-se "Continue a inscrição na web"). **ID `TPBAQ8K3TF`**,
+      estado `Pending`. Prova: id 1455.
+- [x] **99 € pagos** — 08/09, APPLE COM, cartão ...9744, Novobanco, em
+      processamento. A página continuar a dizer "complete your purchase" é
+      normal durante 48 h. **Nunca pagar outra vez.** Prova: id 1475.
+- [ ] Recibo e email "Welcome to the Apple Developer Program" — a aguardar.
+      Se em 48 h não chegarem, abrir caso no suporte com o comprovativo do
+      banco.
+
+### Termos — lidos, com uma correcção ao plano
+- [x] Indexados e consultados: Program License Agreement (262 secções),
+      Review Guidelines (15), página do DSA (11). Prova: id 1452.
+- [x] **O "Alternative Terms Addendum for Apps in the EU" já não existe para
+      assinar** — o Attachment 14 (em vigor desde 01/10/2026) substitui-o e
+      revoga-o. A Core Technology Commission só toca marketplaces
+      alternativos, distribuição fora da App Store e **bens digitais**. O Bora
+      vende bens e serviços físicos e só na App Store: **não se aplica**.
+- [x] DSA confirmado: a Apple **publica** morada, telefone e email na página
+      da app na UE, e a declaração de comerciante é obrigatória mesmo sem
+      distribuir na UE.
+
+### Riscos fechados
+- [x] **Supabase no plano `pro`** — verificado por MCP, não só afirmado:
+      organização "Bora app", `plan=pro`, projeto `ACTIVE_HEALTHY`. O risco de
+      a base pausar a meio da revisão está fechado. Prova: id 1476.
+- [x] **Login social não representa risco 2.1**: `SOCIAL_AUTH_ENABLED` não
+      existe no `.dart_defines` nem no workflow (`grep -c` → 0 e 0), logo
+      `bool.fromEnvironment` é `false` e os botões nunca são construídos.
+      Fecha o `[~]` do §4.
+- [x] **Localização do estafeta no iOS já estava correcta** — corrige uma
+      conclusão errada minha (id 1462, corrigida pelo id 1477). Em
+      `driver_home_screen.dart:600` o ramo iOS usa `AppleSettings` com
+      `showBackgroundLocationIndicator: true` (a barra azul que a Apple exige)
+      e `allowBackgroundLocationUpdates: true`; e a declaração em destaque
+      corre **antes** do pedido de permissão (`ensureAccepted` na linha 250,
+      `requestPermission` nas 416 e 553). **Nada a fazer.**
+
+### Bug encontrado e corrigido
+- [x] **O mapa aparecia vazio no iPhone.** O `AppDelegate` não chamava
+      `GMSServices.provideAPIKey`; no iOS o SDK exige a chave antes de o motor
+      Flutter arrancar, e sem ela o mapa fica cinzento — logo no ecrã de
+      acompanhamento, que é o que o revisor abre. Corrigido sem pôr a chave no
+      repositório público: entrada `GoogleMapsApiKey` no `Info.plist` com
+      `$(GOOGLE_MAPS_API_KEY)`, lida pelo `AppDelegate`, e o CI passa a chave
+      ao `xcodebuild` a partir do `.dart_defines`. Commit `c50bf059`.
+      Prova: ids 1462 e 1463. **Prova final: a próxima corrida do CI.**
+
+### Capturas — provadas
+- [x] **As 7 capturas existem e estão certas**, todas **1320×2868**, na ordem
+      mandada (`01-mercado` … `07-lavagem`), sem TVDE nem carro. Artefacto
+      `ios-simulador-8` da corrida `34167538478`. Guardadas em
+      `Desktop\Bora\ios\capturas`. Prova: id 1449.
+
+### Vídeo — o que faltava, e porquê
+- [ ] **Não havia filme para cortar.** Medido: a gravação da corrida
+      `34167538478` tem 19,5 min e a app aparece num **único momento de 5 s**
+      (amostrei um frame a cada 5 s, 234 amostras, à procura do verde da marca
+      no topo; só uma deu positivo). O arnês fotografava e passava à frente.
+      **Recusei montar um vídeo de fotos paradas e chamar-lhe demonstração de
+      uso** — a captura prova o ecrã, o vídeo prova o uso. Prova: id 1478.
+- [~] Conserto publicado (`fbded726`): cada ecrã fica **10 s de tempo real**
+      depois de fotografado (`pump` + `Future.delayed` em `runAsync`;
+      `pumpAndSettle` devolve cedo e o gravador apanha um piscar). 7 × 10 s ≈
+      **70 s**, dentro do alvo. Prova: id 1479. **Falta a corrida do CI.**
+- [x] Desligado o passo dos fluxos web (`e2e_test.dart`): dava sempre `+0 -7`,
+      só ficava verde por `continue-on-error`, custava **14 min por corrida** e
+      enchia a gravação de ecrã inicial do simulador.
+- [ ] Cortar 60–120 s com legendas em inglês (ffmpeg confirmado disponível).
+- [ ] Publicar **não listado** no canal do Bora e guardar o link aqui e em
+      `ios/NOTAS-AO-REVISOR.md`.
+
+### Ainda por fazer, e de que dependem
+- [ ] **Firebase iOS** — não existe `GoogleService-Info.plist` nem o segredo
+      `GOOGLE_SERVICE_INFO_PLIST_B64`; as notificações não funcionam no
+      iPhone. Depende da chave APNs, que **só se cria com a conta activa**.
+      Prova da lacuna: id 1462.
+- [ ] Firebase Test Lab em iPhone real.
+- [ ] Chaves, certificados, perfil e job de release — dependem da conta activa.
+- [ ] Trader status verificado no App Store Connect (a Apple pede código por
+      SMS: é o **segundo e último** momento do Danilo).
+
+---
+
 ## 1. Build compila e corre no simulador
 
 - [x] `flutter analyze` — 0 erros. Prova: passo 10 da corrida `34163172748`.
@@ -72,17 +171,21 @@
       `boraApplePay` devolve `null` no iOS enquanto `APPLE_PAY_ENABLED` não
       estiver definido). Sem isto, o botão apareceria sem Merchant ID válido
       — reprovação certa.
-- [ ] **`register_client_screen.dart` tem botões "Continuar com Apple" e
+- [~] **`register_client_screen.dart` tem botões "Continuar com Apple" e
       "Continuar com Google"** atrás da flag `_socialAuthEnabled =
       bool.fromEnvironment('SOCIAL_AUTH_ENABLED')` (default `false` — os
       botões não aparecem a menos que o build passe
-      `--dart-define=SOCIAL_AUTH_ENABLED=true`). **Confirmar antes de gerar o
-      IPA de release que o `.dart_defines` gerado a partir do segredo
-      `DART_DEFINES_FILE_B64` NÃO contém essa linha** — não dá para ler o
-      segredo a partir daqui. Se algum dia esses botões aparecerem no ar sem
-      as três integrações reais (Apple/Google/Supabase) ligadas, tocar neles
-      só mostra um SnackBar "em configuração" — isso é reprovação 2.1 na
-      certa (app aparenta funcionalidade que não existe).
+      `--dart-define=SOCIAL_AUTH_ENABLED=true`). Confirmado nesta sessão por
+      `grep -rn SOCIAL_AUTH_ENABLED`: **nenhum ficheiro versionado no repo**
+      (nem `build_ios.yml`, nem `.yaml`/`.dart`) define essa flag como
+      `true` — só existe a leitura com default `false`. Falta só confirmar
+      que o segredo `DART_DEFINES_FILE_B64` (fora do repo, não legível
+      daqui) também não a define antes de gerar o IPA de release — isso só
+      dá para ver quando os segredos do §8 existirem. Se algum dia esses
+      botões aparecerem no ar sem as três integrações reais
+      (Apple/Google/Supabase) ligadas, tocar neles só mostra um SnackBar "em
+      configuração" — isso é reprovação 2.1 na certa (app aparenta
+      funcionalidade que não existe).
 - [x] Interruptor 5.2.1 `ios_hide_nonpartner_logos` — lado Flutter construído
       nesta sessão: `lib/config/ios_launch_flags.dart`
       (`shouldHideStoreLogo`/`carregarIosHideNonPartnerLogos`), ligado em
@@ -164,17 +267,23 @@
       `pricing_service`, `dispatch_engine`, `finalizePurchase`,
       `bora_tokens`, RLS de `orders`/`wallets`/`ledger`, webhook Stripe ou
       `pubspec.yaml` (versionCode) foi tocado.
-- [ ] **Bloqueio encontrado nesta sessão:** não há credencial de escrita para
-      o GitHub disponível (`git push`, `git credential fill` e
-      `cmdkey /list` confirmam — ver RESULTADO desta sessão). O script
-      `publicar.py` referido na ordem não existe no repo nem no
-      `.scratch/`. Os commits desta sessão ficam **só localmente**, prontos a
-      publicar assim que houver credencial (token da API do GitHub ou GCM
-      interactivo com a sessão do Danilo). Não é dinheiro nem zona vermelha —
-      é infraestrutura de publicação.
-- [ ] Confirmar, no momento em que a publicação for possível, que
-      `autonomous-night-2026-04-29` (produção) continua exactamente onde
-      estava antes desta missão.
+- [x] **RESOLVIDO na 3.ª sessão (2026-09-07).** O bloqueio nunca foi "falta
+      de credencial" — é que o PC não tem nem nunca teve uma persistida
+      (confirmado outra vez: GCM sem `wincredman`, sem `.netrc`, `cmdkey`
+      vazio). A credencial real é uma chave de deploy SSH na VPS
+      (`/docker/hermes-agent-fvnc/data/.secrets/cortex_deploy_ed25519`),
+      configurada nos clones locais desse host. Publicado via rebase num
+      worktree isolado + bundle + push a partir da VPS (sem `--force`).
+      Receita completa e o "porquê" em `ios/LANCAMENTO-IOS-ESTADO.md` §-1 e
+      na memória [[publicar-ios-pela-vps]].
+- [x] Confirmado: `autonomous-night-2026-04-29` (produção) idêntica antes e
+      depois do push — `1fd3439d83de0ccc08b6f9aa9a9a7b11ea105fe5` nos dois
+      fetches frescos (antes e depois), feitos diretamente na VPS.
+- [x] `172a2734..b8712fd7` aceite pelo GitHub em `ios-lancamento`
+      (commits `cb7e4396`/`b8712fd7`, conteúdo idêntico aos locais
+      `8e8e1d80`/`6852fbf4`, só o hash e o pai mudaram por causa do rebase).
+      CI disparou sozinho: `build-ios` run `34167538478` para este commit —
+      resultado em §1/§2 quando terminar.
 
 ## 10. Sentada de 20 minutos com o Danilo (só quando 1–9 estiverem ✅)
 

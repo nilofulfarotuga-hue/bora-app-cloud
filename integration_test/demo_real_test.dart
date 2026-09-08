@@ -372,6 +372,16 @@ void main() {
         await _bombear(t, segundos: 3);
         if (await _esperar(t, _id('cartao_restaurante'), segundos: 15)) {
           await _tocar(t, _id('cartao_restaurante'));
+
+          // "Carrinho activo": vimos da Auchan com um artigo no cesto, e a app
+          // pergunta se se cancela para começar outro pedido. Medido na corrida
+          // 34229774614, onde a captura `09-loja-acai` saiu a fotografar o
+          // diálogo em vez da loja. Responde-se que sim e segue-se.
+          final novoPedido = find.text('Sim, novo pedido');
+          if (await _esperar(t, novoPedido, segundos: 8)) {
+            await _tocar(t, novoPedido);
+            await _bombear(t, segundos: 4);
+          }
           await _bombear(t, segundos: 5);
           await _foto(t, '09-loja-acai');
         } else {

@@ -311,7 +311,19 @@ void main() {
     }
     await _foto(t, '04-video-produtos');
     await _tocar(t, botaoAdicionar);
-    await _bombear(t, segundos: 2);
+    await _bombear(t, segundos: 2.5);
+
+    // O "+" do cartão não põe o artigo no carrinho: abre a FICHA DO PRODUTO,
+    // com foto, quantidade e o seu próprio botão em baixo — medido na corrida
+    // 34225343416, que encalhou na "Uva Branca sem Grainha Auchan 500 g, €3,65"
+    // à espera de um "Ver carrinho" que nunca podia aparecer, porque o carrinho
+    // continuava vazio. Aqui carrega-se no botão da ficha, se ele estiver lá.
+    final adicionarNaFicha = find.textContaining('Adicionar ao carrinho');
+    if (await _esperar(t, adicionarNaFicha, segundos: 12)) {
+      await _foto(t, '05-loja-produto');
+      await _tocar(t, adicionarNaFicha);
+      await _bombear(t, segundos: 3);
+    }
 
     // ── Carrinho e pagamento: já não há marca de terceiros à vista ────────
     // O botão flutuante da loja é "Ver carrinho · €12,34" — o total muda a cada
@@ -322,7 +334,7 @@ void main() {
 
     final finalizar = find.text('Finalizar pedido');
     await _exigir(t, finalizar, 'ecra-do-carrinho', segundos: 25);
-    await _foto(t, '05-loja-carrinho');
+    await _foto(t, '06-loja-carrinho');
     await _tocar(t, finalizar);
 
     await _exigir(t, find.text('Confirmar pagamento'), 'ecra-de-pagamento',
@@ -331,12 +343,12 @@ void main() {
     if (await _esperar(t, dinheiro, segundos: 10)) {
       await _tocar(t, dinheiro);
     }
-    await _foto(t, '06-loja-pagamento');
+    await _foto(t, '07-loja-pagamento');
 
     if (_fazerEncomenda) {
       await _tocar(t, find.text('Confirmar pagamento'));
       await _bombear(t, segundos: 12);
-      await _foto(t, '07-loja-acompanhar');
+      await _foto(t, '08-loja-acompanhar');
 
       // Arrumação, não segurança — a caixa fechada já garante que ninguém real
       // é chamado. É só para não deixar pedidos de demonstração abertos. Se o
@@ -361,7 +373,7 @@ void main() {
         if (await _esperar(t, _id('cartao_restaurante'), segundos: 15)) {
           await _tocar(t, _id('cartao_restaurante'));
           await _bombear(t, segundos: 5);
-          await _foto(t, '08-loja-acai');
+          await _foto(t, '09-loja-acai');
         } else {
           await _binding.takeScreenshot('zz-falha-goola');
         }
@@ -375,7 +387,7 @@ void main() {
       if (await _esperar(t, _id('cartao_servico'), segundos: 30)) {
         await _tocar(t, _id('cartao_servico'));
         await _bombear(t, segundos: 5);
-        await _foto(t, '09-loja-barbearia');
+        await _foto(t, '10-loja-barbearia');
       } else {
         await _binding.takeScreenshot('zz-falha-barbearia');
       }
@@ -405,10 +417,10 @@ void main() {
           // O ecrã do estafeta abre com o mapa. Fotografa-se antes de ligar,
           // para se ver que o mapa desenha mesmo.
           if (await _esperar(t, _id('btn_toggle_online'), segundos: 60)) {
-            await _foto(t, '10-video-estafeta-mapa');
+            await _foto(t, '11-video-estafeta-mapa');
             await _tocar(t, _id('btn_toggle_online'));
             await _bombear(t, segundos: 6);
-            await _foto(t, '11-video-estafeta-online');
+            await _foto(t, '12-video-estafeta-online');
           } else {
             await _binding.takeScreenshot('zz-falha-estafeta');
           }

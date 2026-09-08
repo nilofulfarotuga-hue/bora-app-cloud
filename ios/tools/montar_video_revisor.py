@@ -73,11 +73,14 @@ LEGENDAS = {
     '02': 'Real stores, real stock',
     '03': 'Browse the store',
     '04': 'Real products and prices',
-    '05': 'Your basket',
-    '06': 'Pay with cash',
-    '07': 'Track your order',
-    '08': 'Partner: Goola Acai',
-    '09': 'Book a barber',
+    '05': 'Real product, real price',
+    '06': 'Your basket',
+    '07': 'Pay with cash',
+    '08': 'Track your order',
+    '09': 'Partner: Goola Acai',
+    '10': 'Book a barber',
+    '11': 'The courier side',
+    '12': 'Courier goes online',
 }
 TITULO = 'Bora - Guarda, Portugal'
 SUBTITULO = 'Demo recorded on iPhone simulator'

@@ -175,6 +175,17 @@ void main() {
 
   testWidgets('percorre a app real e fotografa o que existe mesmo',
       (WidgetTester t) async {
+    // LIGAR A ACESSIBILIDADE ANTES DE TUDO.
+    //
+    // Metade dos passos deste arnês procura por `bySemanticsIdentifier`
+    // (`fld_email`, `btn_entrar`, `cartao_loja`, `btn_add_carrinho`…), e esses
+    // localizadores só encontram alguma coisa se a árvore de semântica estiver
+    // a ser construída. Sem isto o Flutter não a constrói e os localizadores
+    // devolvem vazio — o teste falharia a dizer "não apareceu: campo-email"
+    // com o campo mesmo à frente. É a mesma cicatriz que já tinha mordido nas
+    // provas da web.
+    final SemanticsHandle semantica = t.ensureSemantics();
+
     await app.main();
     await _bombear(t, segundos: 6);
 
@@ -293,5 +304,7 @@ void main() {
         await _binding.takeScreenshot('zz-falha-barbearia');
       }
     }
+
+    semantica.dispose();
   }, timeout: const Timeout(Duration(minutes: 25)));
 }

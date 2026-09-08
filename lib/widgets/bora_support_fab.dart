@@ -22,17 +22,37 @@ class BoraSupportFab extends StatelessWidget {
     super.key,
     this.orderId,
     this.position = FabPosition.bottomRight,
-    this.heroTag = 'bora_support_fab',
+    this.heroTag,
   });
 
   final String? orderId;
   final FabPosition position;
-  final String heroTag;
+
+  /// Etiqueta do herói. **Por omissão é única por instância** — ver o build.
+  final String? heroTag;
 
   @override
   Widget build(BuildContext context) {
+    // ETIQUETA ÚNICA POR INSTÂNCIA (2026-09-08).
+    //
+    // Isto tinha `heroTag = 'bora_support_fab'` fixo, e **26 ecrãs** usam este
+    // botão. Bastava navegar de um para outro para haver dois heróis com a
+    // mesma etiqueta na mesma subárvore, e o Flutter atira:
+    //
+    //   There are multiple heroes that share the same tag within a subtree.
+    //   In this case, multiple heroes had the following tag: bora_support_fab
+    //
+    // Apanhado na corrida 34229774614, ao voltar do percurso do cliente. Em
+    // release as asserções estão desligadas e a app não abaixo, mas a animação
+    // do botão entre ecrãs fica partida à mesma — e em debug rebenta.
+    //
+    // `identityHashCode(context)` dá uma etiqueta estável para o mesmo
+    // elemento e diferente entre ecrãs. Pôr `null` não servia: o
+    // `FloatingActionButton` cai então num `_DefaultHeroTag` que é `const` e
+    // portanto igual em todas as instâncias — o mesmo choque outra vez.
+    final etiqueta = heroTag ?? 'bora_support_fab_${identityHashCode(context)}';
     return FloatingActionButton(
-      heroTag: heroTag,
+      heroTag: etiqueta,
       backgroundColor: AppColors.accent,
       foregroundColor: Colors.white,
       tooltip: 'Suporte Bora'.tr,

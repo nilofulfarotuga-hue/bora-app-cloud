@@ -4,48 +4,60 @@
 // O arnês anterior (`capturas_loja_test.dart` + `lib/screens/capturas/`)
 // desenhava sete ecrãs bonitos com dados **inventados**: uma "Mercado da
 // Guarda" que não existe, uma "Barbearia Central" que não existe, açaí a €4,50
-// quando a Goola Açaí só tem Big Bowl a €11,55 e Goola Bowl a €9,22, limpeza a
-// €25/hora quando o preço real é por tipologia, e uma "Lavagem + Cera €20" que
-// nunca existiu. Auditado contra a produção: as **sete** falharam. Mostrar isso
-// à Apple é reprovação por metadados enganosos (2.3.1) e por o revisor não
-// encontrar na app o que viu nas imagens (2.3.3). O arnês foi apagado.
+// quando a Goola Açaí só tem Big Bowl a €11,55 e Goola Bowl a €9,22, e uma
+// "Lavagem + Cera €20" que nunca existiu. Auditado contra a produção: as
+// **sete** falharam. Mostrar isso à Apple é reprovação por metadados enganosos
+// (2.3.1) e por o revisor não encontrar na app o que viu nas imagens (2.3.3).
 //
 // REGRA, sem excepção: nenhuma captura e nenhum vídeo mostra loja, serviço,
 // produto ou preço que não exista mesmo no banco de produção. Por isso este
 // teste não desenha nada — abre a app a sério, liga-se ao servidor e fotografa
 // o que lá está.
 //
+// DUAS COISAS DIFERENTES, E O NOME DO FICHEIRO DIZ QUAL (decisão do Danilo,
+// 2026-09-08):
+//
+//   `NN-loja-*`   CAPTURAS DA LOJA — são publicidade **pública**. Não podem ter
+//                 em destaque nomes nem logótipos das lojas onde a Bora só
+//                 compra (Continente, Auchan, Pingo Doce, Lidl, Mercadona,
+//                 Intermarché, McDonald's, Burger King, KFC, Pizza Hut, Worten,
+//                 Wells, Leroy Merlin, Kiwoko, Zippy). Para isso o interruptor
+//                 `ios_hide_nonpartner_logos` está LIGADO em `platform_settings`
+//                 desde 2026-09-08: a lista de mercados passa a mostrar a loja
+//                 por nome em texto e ícone de categoria, sem logótipo.
+//
+//   `NN-video-*`  PERCURSO DO VÍDEO DO REVISOR — é **privado**, vai para uma
+//                 página não listada, e pode mostrar tudo, incluindo o
+//                 supermercado real, porque tem de provar uma compra a sério.
+//
+//   `zz-*`        diagnóstico. Nunca entra no vídeo nem na loja (o ecrã de
+//                 credenciais, por exemplo).
+//
+// PARCEIROS QUE PODEM APARECER COMO QUEM JÁ VENDE (confirmado no banco a
+// 2026-09-08): Goola Açaí, Sabores do Brasil - Keli Barbosa, Barbearia Ouro e
+// Prata. O Mr Kebab e a Sabores de Casa Açaí têm `coming_soon = true` — a app
+// desenha-lhes o selo "Em breve" sozinha, e é assim que têm de aparecer.
+//
 // PORQUE NÃO HÁ UM ÚNICO `pumpAndSettle`
 // `app.main()` traz Supabase, Firebase, realtime e `Timer.periodic` a andar.
 // Com isso o `pumpAndSettle` **nunca** assenta: na corrida 34163172748 deu
 // +0 -7, o binding ficava com frame pendente e o primeiro teste envenenava os
 // seguintes. Aqui bombeia-se em passos curtos deixando o relógio real correr
-// (`runAsync`), e espera-se por um `Finder` com prazo. Nunca se espera pelo
-// "fim" de coisa nenhuma, porque não há fim.
-//
-// O QUE ESTE TESTE PRODUZ
-//   · PNGs 1320×2868 em `artefactos/capturas/` (o simulador é o maior iPhone)
-//   · imagem parada e legível para o `xcrun simctl recordVideo` do workflow,
-//     que é a matéria-prima do vídeo de 60–120 s das notas ao revisor.
+// (`runAsync`), e espera-se por um `Finder` com prazo.
 //
 // A ENCOMENDA A SÉRIO ESTÁ ATRÁS DE UM INTERRUPTOR
-// `--dart-define=FAZER_ENCOMENDA_REAL=true`. Desligado, o percurso vai até ao
-// ecrã de pagamento e pára. Ligado, confirma em DINHEIRO.
-//
-// E NÃO CHAMA NINGUÉM REAL: o gatilho BEFORE INSERT
-// `a_trg_pedido_demo_caixa_fechada` em `orders` (confirmado ligado a
-// 2026-09-08) apanha `demo@bora.app`, `demo.cliente@bora.app` e
-// `demo.apagar@bora.app` e força `is_test_order`, dinheiro, e nasce já em
-// `driverAccepted` atribuída ao estafeta demo. Nunca passa por
-// `callingDriver`, por isso o dispatch — que corre de 15 em 15 s — nunca a
-// oferece a um estafeta real. É esta caixa fechada que sustenta a frase das
-// notas ao revisor: "orders placed from the demo account are never dispatched
-// to real couriers". Se o gatilho for desligado, a frase deixa de ser verdade.
+// `--dart-define=FAZER_ENCOMENDA_REAL=true`. E não chama ninguém real: o
+// gatilho BEFORE INSERT `a_trg_pedido_demo_caixa_fechada` em `orders`
+// (confirmado ligado a 2026-09-08) faz as encomendas das contas demo nascerem
+// já em `driverAccepted` no estafeta demo, sem passarem por `callingDriver`.
+// É essa caixa fechada que sustenta a frase das notas ao revisor: "orders
+// placed from the demo account are never dispatched to real couriers".
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'package:bora_app/main.dart' as app;
+import 'package:bora_app/services/notification_service.dart';
 
 /// Credenciais da conta de demonstração. Já são públicas de propósito — estão
 /// em `ios/NOTAS-AO-REVISOR.md`, que é o que se entrega à Apple.
@@ -54,7 +66,7 @@ const String _email =
 const String _senha =
     String.fromEnvironment('DEMO_PASSWORD', defaultValue: 'BoraDemo2026!');
 
-/// Segundos que cada ecrã fica parado depois da fotografia, só para o gravador
+/// Segundos que cada ecrã fica parado depois de fotografado, só para o gravador
 /// de vídeo apanhar a imagem legível. Não afecta a captura em si.
 const int _pausa = int.fromEnvironment('SEGUNDOS_POR_ECRA', defaultValue: 6);
 
@@ -81,7 +93,8 @@ Future<bool> _esperar(WidgetTester t, Finder f, {double segundos = 30}) async {
   for (int i = 0; i < (segundos * 5).round(); i++) {
     if (f.evaluate().isNotEmpty) return true;
     await t.pump(const Duration(milliseconds: 200));
-    await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
+    await t
+        .runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
   }
   return false;
 }
@@ -93,7 +106,7 @@ Future<bool> _esperar(WidgetTester t, Finder f, {double segundos = 30}) async {
 Future<void> _exigir(WidgetTester t, Finder f, String oQue,
     {double segundos = 30}) async {
   if (await _esperar(t, f, segundos: segundos)) return;
-  await _binding.takeScreenshot('falha-$oQue');
+  await _binding.takeScreenshot('zz-falha-$oQue');
   fail('não apareceu: $oQue');
 }
 
@@ -102,7 +115,7 @@ Future<void> _exigir(WidgetTester t, Finder f, String oQue,
 /// `tap` num widget fora do ecrã não bate em nada e, com `warnIfMissed: false`,
 /// falha em silêncio — o teste seguiria a fingir que carregou. A página da loja
 /// empilha carrosséis por categoria (o Continente tem dezenas), por isso o
-/// botão de adicionar está quase sempre a meio da lista.
+/// alvo está quase sempre a meio da lista.
 Future<void> _tocar(WidgetTester t, Finder f) async {
   try {
     await t.ensureVisible(f.first);
@@ -121,7 +134,19 @@ Future<void> _foto(WidgetTester t, String nome) async {
   await _bombear(t, segundos: _pausa.toDouble());
 }
 
-Finder _porIdentificador(String id) => find.bySemanticsIdentifier(id);
+Finder _id(String identificador) =>
+    find.bySemanticsIdentifier(identificador);
+
+/// Fecha tudo o que estiver empilhado e volta ao início.
+///
+/// Usa o `navigatorKey` que a app já expõe em vez de carregar em "voltar" N
+/// vezes: depois de uma encomenda a pilha tem meia dúzia de ecrãs e contar
+/// setas é adivinhar.
+Future<void> _voltarAoInicio(WidgetTester t) async {
+  NotificationService.navigatorKey.currentState
+      ?.popUntil((rota) => rota.isFirst);
+  await _bombear(t, segundos: 3);
+}
 
 void main() {
   _binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -136,55 +161,48 @@ void main() {
     // de papéis não aparece e salta-se o login.
     final portaCliente = find.text('Sou Cliente');
     if (await _esperar(t, portaCliente, segundos: 20)) {
-      await _foto(t, '00-perfis');
+      await _foto(t, '00-video-perfis');
       await _tocar(t, portaCliente);
 
-      await _exigir(t, _porIdentificador('fld_email'), 'campo-email');
-      await t.enterText(_porIdentificador('fld_email').first, _email);
+      await _exigir(t, _id('fld_email'), 'campo-email');
+      await t.enterText(_id('fld_email').first, _email);
       await _bombear(t, segundos: 0.6);
-      await t.enterText(_porIdentificador('fld_password').first, _senha);
+      await t.enterText(_id('fld_password').first, _senha);
       await _bombear(t, segundos: 0.6);
-      await _foto(t, '01-entrar');
-      await _tocar(t, _porIdentificador('btn_entrar'));
+      // `zz-`: o ecrã das credenciais não entra no vídeo nem na loja.
+      await _binding.takeScreenshot('zz-login');
+      await _tocar(t, _id('btn_entrar'));
     }
 
-    // ── Início: as categorias reais ───────────────────────────────────────
+    // ── Início: as categorias reais. Zero marcas de terceiros. ────────────
     await _exigir(t, find.text('Supermercados'), 'ecra-inicial', segundos: 60);
-    await _foto(t, '02-inicio');
+    await _foto(t, '01-loja-categorias');
 
-    // ── Supermercados: lojas reais da Guarda ──────────────────────────────
+    // ── Mercados: nomes em texto, sem logótipo (interruptor 5.2.1 ligado) ──
     await _tocar(t, find.text('Supermercados'));
-    await _exigir(t, find.byType(ListView), 'lista-de-supermercados',
+    await _exigir(t, _id('cartao_loja'), 'lista-de-supermercados',
         segundos: 45);
-    await _bombear(t, segundos: 4);
-    await _foto(t, '03-supermercados');
+    await _bombear(t, segundos: 3);
+    await _foto(t, '02-loja-mercados');
 
+    // ── A partir daqui é matéria do VÍDEO (privado): a compra a sério ─────
     // A primeira loja da lista, seja ela qual for — não se crava nome nenhum,
     // porque o que está à venda hoje é o que manda.
-    //
-    // Pelo identificador, não pelo tipo: o cartão é um `GestureDetector` e não
-    // um `InkWell`, e `find.byType(InkWell).first` apanhava um chip da barra de
-    // ordenação em vez da loja.
-    final primeiraLoja = _porIdentificador('cartao_loja');
-    await _exigir(t, primeiraLoja, 'cartao-de-loja');
-    await _tocar(t, primeiraLoja);
+    await _tocar(t, _id('cartao_loja'));
     await _bombear(t, segundos: 5);
-    await _foto(t, '04-loja');
+    await _foto(t, '03-video-loja');
 
-    // ── Produto real e carrinho ───────────────────────────────────────────
-    final botaoAdicionar = _porIdentificador('btn_add_carrinho');
-    if (await _esperar(t, botaoAdicionar, segundos: 30)) {
-      await _foto(t, '05-produtos');
-      await _tocar(t, botaoAdicionar);
-      await _bombear(t, segundos: 2);
-      await _foto(t, '06-adicionado');
-    } else {
-      await _binding.takeScreenshot('falha-sem-botao-adicionar');
+    final botaoAdicionar = _id('btn_add_carrinho');
+    if (!await _esperar(t, botaoAdicionar, segundos: 30)) {
+      await _binding.takeScreenshot('zz-falha-sem-botao-adicionar');
       fail('a loja abriu mas não há nenhum "adicionar ao carrinho" — '
           'confirmar que a loja escolhida tem produtos à venda');
     }
+    await _foto(t, '04-video-produtos');
+    await _tocar(t, botaoAdicionar);
+    await _bombear(t, segundos: 2);
 
-    // ── Carrinho → pagamento ──────────────────────────────────────────────
+    // ── Carrinho e pagamento: já não há marca de terceiros à vista ────────
     // O botão flutuante da loja é "Ver carrinho · €12,34" — o total muda a cada
     // corrida, por isso procura-se por pedaço de texto e nunca pela frase toda.
     final verCarrinho = find.textContaining('Ver carrinho');
@@ -192,32 +210,63 @@ void main() {
     await _tocar(t, verCarrinho);
 
     final finalizar = find.text('Finalizar pedido');
-    if (await _esperar(t, finalizar, segundos: 20)) {
-      await _foto(t, '07-carrinho');
-      await _tocar(t, finalizar);
+    await _exigir(t, finalizar, 'ecra-do-carrinho', segundos: 25);
+    await _foto(t, '05-loja-carrinho');
+    await _tocar(t, finalizar);
 
-      await _exigir(t, find.text('Confirmar pagamento'), 'ecra-de-pagamento',
-          segundos: 45);
-      final dinheiro = find.text('Dinheiro');
-      if (await _esperar(t, dinheiro, segundos: 10)) {
-        await _tocar(t, dinheiro);
+    await _exigir(t, find.text('Confirmar pagamento'), 'ecra-de-pagamento',
+        segundos: 45);
+    final dinheiro = find.text('Dinheiro');
+    if (await _esperar(t, dinheiro, segundos: 10)) {
+      await _tocar(t, dinheiro);
+    }
+    await _foto(t, '06-loja-pagamento');
+
+    if (_fazerEncomenda) {
+      await _tocar(t, find.text('Confirmar pagamento'));
+      await _bombear(t, segundos: 12);
+      await _foto(t, '07-loja-acompanhar');
+
+      // Arrumação, não segurança — a caixa fechada já garante que ninguém real
+      // é chamado. É só para não deixar pedidos de demonstração abertos. Se o
+      // botão não estiver disponível neste estado, segue-se sem drama.
+      final cancelar = _id('btn_cancelar_pedido');
+      if (await _esperar(t, cancelar, segundos: 20)) {
+        await _tocar(t, cancelar);
+        await _bombear(t, segundos: 4);
       }
-      await _foto(t, '08-pagamento');
+    }
 
-      if (_fazerEncomenda) {
-        await _tocar(t, find.text('Confirmar pagamento'));
-        await _bombear(t, segundos: 12);
-        await _foto(t, '09-acompanhar');
-
-        // Arrumação, não segurança — a caixa fechada já garante que ninguém
-        // real é chamado. É só para não deixar pedidos de demonstração abertos
-        // a encher a lista. Se o botão não estiver disponível neste estado,
-        // segue-se sem drama.
-        final cancelar = _porIdentificador('btn_cancelar_pedido');
-        if (await _esperar(t, cancelar, segundos: 20)) {
-          await _tocar(t, cancelar);
-          await _bombear(t, segundos: 4);
+    // ── Parceiros de marca própria: é o que pode ir para a loja ───────────
+    // A Goola Açaí é parceira, está online e NÃO está `coming_soon` — vende
+    // hoje. Chega-se lá pela pesquisa, para não fotografar a lista de
+    // restaurantes, que é dominada por cadeias de terceiros.
+    await _voltarAoInicio(t);
+    if (await _esperar(t, find.text('Restaurantes'), segundos: 25)) {
+      await _tocar(t, find.text('Restaurantes'));
+      if (await _esperar(t, find.byType(TextField), segundos: 25)) {
+        await t.enterText(find.byType(TextField).first, 'Goola');
+        await _bombear(t, segundos: 3);
+        if (await _esperar(t, _id('cartao_restaurante'), segundos: 15)) {
+          await _tocar(t, _id('cartao_restaurante'));
+          await _bombear(t, segundos: 5);
+          await _foto(t, '08-loja-acai');
+        } else {
+          await _binding.takeScreenshot('zz-falha-goola');
         }
+      }
+    }
+
+    // A Barbearia Ouro e Prata tem 8 serviços activos e não está `coming_soon`.
+    await _voltarAoInicio(t);
+    if (await _esperar(t, find.text('Beleza'), segundos: 25)) {
+      await _tocar(t, find.text('Beleza'));
+      if (await _esperar(t, _id('cartao_servico'), segundos: 30)) {
+        await _tocar(t, _id('cartao_servico'));
+        await _bombear(t, segundos: 5);
+        await _foto(t, '09-loja-barbearia');
+      } else {
+        await _binding.takeScreenshot('zz-falha-barbearia');
       }
     }
   }, timeout: const Timeout(Duration(minutes: 25)));

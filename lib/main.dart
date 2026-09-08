@@ -464,7 +464,31 @@ Future<void> main() async {
     // NOTE: Requires google-services.json (Android) and GoogleService-Info.plist (iOS).
     await Future.wait([
       Stripe.instance.applySettings(),
-      Firebase.initializeApp().then((_) => NotificationService.instance.init()),
+      // FALHAR AQUI NÃO PODE MATAR O ARRANQUE (2026-09-08).
+      //
+      // Estava `Firebase.initializeApp().then(...)` cru dentro do `Future.wait`:
+      // qualquer erro rebentava o `main()` inteiro e a app não abria de todo.
+      // Medido na corrida 34209823345, no simulador iPhone 17 Pro Max: o
+      // arranque morria com `[core/not-initialized] Firebase has not been
+      // correctly initialized` (main.dart:467) porque no iOS ainda não existe
+      // `GoogleService-Info.plist` — está por registar no Firebase, e a chave
+      // APNs depende da conta Apple. 937 segundos de gravação com o ecrã
+      // inicial do iOS e nem uma captura.
+      //
+      // No release seria pior do que um teste falhado: um plist em falta ou
+      // corrompido no IPA dava uma app que fecha ao abrir, ou seja reprovação
+      // certa por 2.1 logo na primeira tentativa do revisor. Sem Firebase a
+      // app corre — só não há notificações, que é exactamente o estado de hoje
+      // no iPhone.
+      () async {
+        try {
+          await Firebase.initializeApp();
+          await NotificationService.instance.init();
+        } catch (e) {
+          debugPrint('[main] Firebase indisponível — a app segue sem '
+              'notificações: $e');
+        }
+      }(),
       // Sessão 2026-05-17 — foreground service config + canal urgente Android.
       _setupForegroundAndUrgentChannel(),
     ]);

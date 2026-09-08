@@ -58,16 +58,22 @@ ALTURA_SAIDA = 1280
 #
 # Estas frases descrevem o PERCURSO na app real -- nao categorias desenhadas. Se
 # o arnes mudar de passos, mudam-se aqui; um PNG sem legenda nao entra no video.
+#
+# O video do revisor e PRIVADO (pagina nao listada) e pode mostrar tudo,
+# incluindo o supermercado real -- tem de provar uma compra a serio. Quem tem
+# regra de marca sao as capturas da loja, que sao publicidade publica; essa
+# separacao esta explicada em `integration_test/demo_real_test.dart`.
 LEGENDAS = {
-    '00': 'One app: customer, courier, partner',
-    '02': 'Ordering in Guarda, Portugal',
-    '03': 'Real stores, real stock',
-    '04': 'Browse the store',
-    '05': 'Real products and prices',
-    '06': 'Added to the basket',
-    '07': 'Your basket',
-    '08': 'Pay with cash',
-    '09': 'Track your order',
+    '00': 'Customer, courier, partner',
+    '01': 'Order in Guarda, Portugal',
+    '02': 'Real stores, real stock',
+    '03': 'Browse the store',
+    '04': 'Real products and prices',
+    '05': 'Your basket',
+    '06': 'Pay with cash',
+    '07': 'Track your order',
+    '08': 'Partner: Goola Acai',
+    '09': 'Book a barber',
 }
 TITULO = 'Bora - Guarda, Portugal'
 SUBTITULO = 'Demo recorded on iPhone simulator'

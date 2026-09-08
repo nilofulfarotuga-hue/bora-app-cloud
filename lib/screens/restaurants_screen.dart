@@ -134,7 +134,8 @@ class _NoResults extends StatelessWidget {
           const SizedBox(height: Spacing.md),
           Text(
             'Sem resultados para essa pesquisa.'.tr,
-            style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+            style:
+                const TextStyle(fontSize: 14, color: AppColors.textSecondary),
           ),
         ],
       ),
@@ -151,146 +152,145 @@ Future<void> openRestaurantBusiness(
   RestaurantModel business, {
   bool reservationsOnly = false,
 }) async {
-    // LOJA FECHADA E VISITAVEL (2026-08-27, pedido do Danilo).
-    //
-    // Antes, fora de horas o toque no cartao so dava um aviso e nao entrava.
-    // Agora entra-se sempre: o cliente ve capa, logo, categorias, produtos,
-    // precos e opcoes — nada bloqueado, nada esbatido. O travao passou para o
-    // momento de METER NO CARRINHO (ver `CartStore.lojaFechada`) e, do lado do
-    // servidor, para o trigger `trg_store_closed_guard_orders` (STORE_CLOSED).
-    //
-    // Isto nao e agendamento: nao se promete "avisar quando abrir" em lado
-    // nenhum, porque isso ainda nao existe.
+  // LOJA FECHADA E VISITAVEL (2026-08-27, pedido do Danilo).
+  //
+  // Antes, fora de horas o toque no cartao so dava um aviso e nao entrava.
+  // Agora entra-se sempre: o cliente ve capa, logo, categorias, produtos,
+  // precos e opcoes — nada bloqueado, nada esbatido. O travao passou para o
+  // momento de METER NO CARRINHO (ver `CartStore.lojaFechada`) e, do lado do
+  // servidor, para o trigger `trg_store_closed_guard_orders` (STORE_CLOSED).
+  //
+  // Isto nao e agendamento: nao se promete "avisar quando abrir" em lado
+  // nenhum, porque isso ainda nao existe.
 
-    // Partner restaurants must have a registered location in the DB.
-    if (business.isPartner && business.location == null) {
-      debugPrint(
-        'RestaurantsScreen: BLOCKED — "${business.name}" has no coordinates.',
-      );
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Restaurante sem localização definida. Contacte o suporte.'.tr,
-          ),
-          duration: const Duration(seconds: 4),
+  // Partner restaurants must have a registered location in the DB.
+  if (business.isPartner && business.location == null) {
+    debugPrint(
+      'RestaurantsScreen: BLOCKED — "${business.name}" has no coordinates.',
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Restaurante sem localização definida. Contacte o suporte.'.tr,
         ),
-      );
+        duration: const Duration(seconds: 4),
+      ),
+    );
+    return;
+  }
+
+  // BUG #6 (2026-05-13) — se há carrinho activo de OUTRA loja, pedir
+  // confirmação antes de descartar.  configureSession() ainda tem o
+  // silent-clear como defesa em profundidade.
+  final cart = context.read<CartStore>();
+  final differentVendor = cart.items.isNotEmpty &&
+      cart.vendorName != null &&
+      cart.vendorName != business.name;
+  if (differentVendor) {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Carrinho activo'.tr),
+        content: Text(
+          'Tens itens no carrinho de {0}. Queres cancelar e começar novo pedido em {1}?'
+              .trArgs([cart.vendorName, business.name]),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Voltar'.tr),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Sim, novo pedido'.tr),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    if (!context.mounted) return;
+    cart.clearCart();
+  }
+
+  // Prefer the restaurant's real coordinates (now present in DB for
+  // non-partners too) so distance_km reflects the actual pickup→dropoff
+  // route. Fallback to the client's delivery location if missing.
+  final pickupLocation = business.location ?? cart.deliveryLocation;
+
+  cart.configureSession(
+    serviceType: OrderServiceType.restaurant,
+    isPartnerStore: business.isPartner,
+    vendorComingSoon: business.comingSoon,
+    vendorIsFestas: business.belongsTo(BusinessCategory.festas),
+    vendorComingSoonText: business.comingSoonLabel,
+    vendorName: business.name,
+    vendorRestaurantId: business.id,
+    // Fora de horario o cliente ve tudo, so nao mete no carrinho.
+    // Festas ficam de fora: vendem por encomenda com aviso previo, o
+    // horario delas e de levantamento (regra de 2026-08-25).
+    vendorFechada:
+        !business.isOpenNow() && !business.belongsTo(BusinessCategory.festas),
+    vendorAvisoFechada: business.avisoLojaFechada,
+    pickupLocation: pickupLocation,
+    pickupStreet: business.address,
+    pickupCity: null,
+    pickupPostalCode: null,
+  );
+
+  final restaurant = BusinessMapper.buildRestaurantMenu(
+    restaurantStore: restaurantStore,
+    business: business,
+  );
+
+  // BUG 3 (2026-05-15) — se cliente veio do fluxo "Reservar Mesa", saltar
+  // o ecrã de opções e ir directamente à reserva.
+  // F5 (2026-08-16, decisão CEO): consolidado na implementação NOVA
+  // (client/reservation/* — slots reais, estados completos). A legacy
+  // ReservationFlowScreen fica ARQUIVADA (ficheiro preservado, sem rota).
+  if (reservationsOnly && business.isPartner && business.reservationsEnabled) {
+    // "Em breve": a reserva cobra — não deixar entrar no fluxo.
+    if (business.comingSoon) {
+      showComingSoonBlockedSnackBar(context);
       return;
     }
-
-    // BUG #6 (2026-05-13) — se há carrinho activo de OUTRA loja, pedir
-    // confirmação antes de descartar.  configureSession() ainda tem o
-    // silent-clear como defesa em profundidade.
-    final cart = context.read<CartStore>();
-    final differentVendor = cart.items.isNotEmpty &&
-        cart.vendorName != null &&
-        cart.vendorName != business.name;
-    if (differentVendor) {
-      final confirm = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text('Carrinho activo'.tr),
-          content: Text(
-            'Tens itens no carrinho de {0}. Queres cancelar e começar novo pedido em {1}?'.trArgs([cart.vendorName, business.name]),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text('Voltar'.tr),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text('Sim, novo pedido'.tr),
-            ),
-          ],
-        ),
-      );
-      if (confirm != true) return;
-      if (!context.mounted) return;
-      cart.clearCart();
-    }
-
-    // Prefer the restaurant's real coordinates (now present in DB for
-    // non-partners too) so distance_km reflects the actual pickup→dropoff
-    // route. Fallback to the client's delivery location if missing.
-    final pickupLocation = business.location ?? cart.deliveryLocation;
-
-    cart.configureSession(
-      serviceType: OrderServiceType.restaurant,
-      isPartnerStore: business.isPartner,
-      vendorComingSoon: business.comingSoon,
-      vendorIsFestas: business.belongsTo(BusinessCategory.festas),
-      vendorComingSoonText: business.comingSoonLabel,
-      vendorName: business.name,
-      vendorRestaurantId: business.id,
-      // Fora de horario o cliente ve tudo, so nao mete no carrinho.
-      // Festas ficam de fora: vendem por encomenda com aviso previo, o
-      // horario delas e de levantamento (regra de 2026-08-25).
-      vendorFechada: !business.isOpenNow() &&
-          !business.belongsTo(BusinessCategory.festas),
-      vendorAvisoFechada: business.avisoLojaFechada,
-      pickupLocation: pickupLocation,
-      pickupStreet: business.address,
-      pickupCity: null,
-      pickupPostalCode: null,
-    );
-
-    final restaurant = BusinessMapper.buildRestaurantMenu(
-      restaurantStore: restaurantStore,
-      business: business,
-    );
-
-    // BUG 3 (2026-05-15) — se cliente veio do fluxo "Reservar Mesa", saltar
-    // o ecrã de opções e ir directamente à reserva.
-    // F5 (2026-08-16, decisão CEO): consolidado na implementação NOVA
-    // (client/reservation/* — slots reais, estados completos). A legacy
-    // ReservationFlowScreen fica ARQUIVADA (ficheiro preservado, sem rota).
-    if (reservationsOnly &&
-        business.isPartner &&
-        business.reservationsEnabled) {
-      // "Em breve": a reserva cobra — não deixar entrar no fluxo.
-      if (business.comingSoon) {
-        showComingSoonBlockedSnackBar(context);
-        return;
-      }
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ReservationAvailabilityScreen(
-            restaurantId: business.id,
-            restaurantName: business.name,
-            restaurantPhotoUrl: business.photoUrl,
-          ),
-        ),
-      );
-      return;
-    }
-
-    // BUG #9+10 (2026-05-13) + D1/D2 (2026-05-14) — mostra ecrã de opções
-    // se houver pelo menos uma opção além do menu directo. Cartões são
-    // condicionais individualmente em RestaurantOptionsScreen.
-    // PARTE C BUG 2 (2026-07-17): antes a condição saltava o ecrã de opções
-    // para parceiros SEM reservas/takeaway → entrada inconsistente (uns viam
-    // Entrega/Ir buscar/Reservar, outros iam direto ao cardápio). Agora TODO
-    // parceiro entra pelo ecrã de opções, que mostra SEMPRE exatamente os
-    // serviços activados (Entrega sempre + Ir buscar/Reservar se ligados).
-    final showOptions = business.isPartner;
-
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => showOptions
-            ? RestaurantOptionsScreen(
-                business: business,
-                restaurant: restaurant,
-                restaurantId: business.id,
-              )
-            : RestaurantMenuScreen(
-                restaurant: restaurant,
-                restaurantId: business.id,
-              ),
+        builder: (_) => ReservationAvailabilityScreen(
+          restaurantId: business.id,
+          restaurantName: business.name,
+          restaurantPhotoUrl: business.photoUrl,
+        ),
       ),
     );
+    return;
+  }
+
+  // BUG #9+10 (2026-05-13) + D1/D2 (2026-05-14) — mostra ecrã de opções
+  // se houver pelo menos uma opção além do menu directo. Cartões são
+  // condicionais individualmente em RestaurantOptionsScreen.
+  // PARTE C BUG 2 (2026-07-17): antes a condição saltava o ecrã de opções
+  // para parceiros SEM reservas/takeaway → entrada inconsistente (uns viam
+  // Entrega/Ir buscar/Reservar, outros iam direto ao cardápio). Agora TODO
+  // parceiro entra pelo ecrã de opções, que mostra SEMPRE exatamente os
+  // serviços activados (Entrega sempre + Ir buscar/Reservar se ligados).
+  final showOptions = business.isPartner;
+
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => showOptions
+          ? RestaurantOptionsScreen(
+              business: business,
+              restaurant: restaurant,
+              restaurantId: business.id,
+            )
+          : RestaurantMenuScreen(
+              restaurant: restaurant,
+              restaurantId: business.id,
+            ),
+    ),
+  );
 }
 
 class _EmptyState extends StatelessWidget {
@@ -347,78 +347,83 @@ class RestaurantTile extends StatelessWidget {
     final favKey = 'restaurant_${business.name}';
     final isFav = favorites.isFavorite(favKey);
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: Spacing.sm),
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(Radii.lg),
-        child: InkWell(
+    // `cartao_restaurante`: e' por aqui que o arnes das capturas da App Store
+    // abre uma ficha de parceiro (`integration_test/demo_real_test.dart`).
+    return Semantics(
+      identifier: 'cartao_restaurante',
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: Spacing.sm),
+        child: Material(
+          color: Colors.white,
           borderRadius: BorderRadius.circular(Radii.lg),
-          onTap: onTap,
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(Radii.lg),
-              boxShadow: AppColors.shadowCard,
-            ),
-            padding: const EdgeInsets.symmetric(
-                horizontal: Spacing.lg, vertical: Spacing.md),
-            child: Row(
-              children: [
-                _RestaurantLogo(
-                  photoUrl: business.photoUrl,
-                  name: business.name,
-                  isPartner: isPartner,
-                ),
-                const SizedBox(width: Spacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        business.name,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: Spacing.xs),
-                      Wrap(
-                        spacing: Spacing.sm,
-                        runSpacing: Spacing.xs,
-                        children: [
-                          _OpenStatusBadge(business: business),
-                          if (business.comingSoon) const ComingSoonChip(),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      _MetaRow(business: business),
-                    ],
+          child: InkWell(
+            borderRadius: BorderRadius.circular(Radii.lg),
+            onTap: onTap,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(Radii.lg),
+                boxShadow: AppColors.shadowCard,
+              ),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: Spacing.lg, vertical: Spacing.md),
+              child: Row(
+                children: [
+                  _RestaurantLogo(
+                    photoUrl: business.photoUrl,
+                    name: business.name,
+                    isPartner: isPartner,
                   ),
-                ),
-                GestureDetector(
-                  onTap: () => favorites.toggle(favKey),
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    transitionBuilder: (child, anim) =>
-                        ScaleTransition(scale: anim, child: child),
-                    child: Icon(
-                      isFav ? Icons.favorite : Icons.favorite_border,
-                      key: ValueKey(isFav),
-                      size: 22,
-                      color: isFav
-                          ? Colors.redAccent
-                          : AppColors.textSecondary.withValues(alpha: 0.5),
+                  const SizedBox(width: Spacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          business.name,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: Spacing.xs),
+                        Wrap(
+                          spacing: Spacing.sm,
+                          runSpacing: Spacing.xs,
+                          children: [
+                            _OpenStatusBadge(business: business),
+                            if (business.comingSoon) const ComingSoonChip(),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        _MetaRow(business: business),
+                      ],
                     ),
                   ),
-                ),
-                const SizedBox(width: Spacing.sm),
-                Icon(
-                  Icons.arrow_forward_ios,
-                  size: 14,
-                  color: AppColors.textSecondary.withValues(alpha: 0.5),
-                ),
-              ],
+                  GestureDetector(
+                    onTap: () => favorites.toggle(favKey),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      transitionBuilder: (child, anim) =>
+                          ScaleTransition(scale: anim, child: child),
+                      child: Icon(
+                        isFav ? Icons.favorite : Icons.favorite_border,
+                        key: ValueKey(isFav),
+                        size: 22,
+                        color: isFav
+                            ? Colors.redAccent
+                            : AppColors.textSecondary.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: Spacing.sm),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    size: 14,
+                    color: AppColors.textSecondary.withValues(alpha: 0.5),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -516,7 +521,6 @@ class _InitialBox extends StatelessWidget {
   }
 }
 
-
 class _OpenStatusBadge extends StatelessWidget {
   const _OpenStatusBadge({required this.business});
 
@@ -556,8 +560,7 @@ class _MetaRow extends StatelessWidget {
     final store = context.watch<RestaurantStore>();
     final client = cart.deliveryLocation;
     final pickup = business.location;
-    final distanceKm =
-        OrderEtaService.distanceKmBetween(client, pickup);
+    final distanceKm = OrderEtaService.distanceKmBetween(client, pickup);
     final window = OrderEtaService.deliveryWindowMinutes(
       clientLocation: client,
       restaurantLocation: pickup,

@@ -339,6 +339,13 @@ run_id `ios-lancamento-2026-09`, ids **1446–1479**. Antes desta sessão o
       de eliminação, reposta pelo cron ao minuto 7 de cada hora), texto em
       inglês pronto a colar, contacto, e nota sobre localização em segundo
       plano do estafeta.
+- [x] **A promessa de que a conta de apagar se repõe sozinha é verdadeira.**
+      As notas dizem à Apple que `demo.apagar@bora.app` é "automatically
+      recreated every hour". Não bastava estar agendado: o `pg_cron` tem o job
+      `repor-demo-apagar` com `schedule = 7 * * * *`, activo, e o histórico de
+      24 h mostra **15 execuções, todas `succeeded`**, a última às 11:07 UTC de
+      2026-09-08, sem uma única falha. (O `mover-pedidos-demo`, de minuto a
+      minuto, leva 830 execuções e também zero falhas.)
 - [ ] Falta só colar o link do vídeo (§2) nesse ficheiro antes de submeter.
 
 ## 8. Assinatura e envio (job "release" do `build_ios.yml`)

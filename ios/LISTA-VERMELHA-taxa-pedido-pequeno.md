@@ -101,9 +101,61 @@ cura"*.
 O `SmallOrderFeeService` ficou para trás com o mesmo defeito. Não é um risco
 hipotético: é a repetição de um erro que já custou uma correcção.
 
-## Nota de rumo
+## ⚠️ SEGUNDO ACHADO, E MAIOR — a taxa do não-parceiro está €1,51 acima
 
-Vale a pena procurar **outros** sítios com o mesmo padrão: qualquer coisa que
-leia `platform_settings` no arranque tem este problema. Já se sabe de dois — o
-interruptor 5.2.1 e esta taxa. Um terceiro passaria despercebido da mesma
-maneira, porque nenhum deles dá erro.
+**Observado, não deduzido.** A captura `07-loja-pagamento.png` da corrida
+`34229774614` mostra, num cesto da Auchan (loja **sem contrato**):
+
+```
+Subtotal            3,65
+Taxas               2,50      <-- aqui
+Entrega             2,50
+Saco para viagem    0,10
+Total a pagar       8,75
+```
+
+O que o servidor diz que se cobra hoje:
+`platform_settings.non_partner_service_fee_cents = **99**` (€0,99), com
+`non_partner_service_fee_strikethrough_cents = 250` a ser apenas o valor
+**antigo, para mostrar riscado**.
+
+O cabeçalho de `lib/services/remote_fees_service.dart` explica porquê, e é o
+próprio ficheiro que o assume: a taxa desceu de €2,50 para €0,99 a 08/09, *"o
+servidor já cobra 0,99 €"*, mas o número que a app usa vive na constante
+`_nonPartnerPurchaseFee = 2.5` dentro de `lib/services/pricing_service.dart`,
+que é **zona protegida — a Trava proíbe editá-la**. O `RemoteFeesService` foi
+o caminho de fuga, mas em `payment_method_screen.dart:404-412` só alimenta o
+**valor riscado**; o valor a sério continua a vir do `PricingService`:
+
+```dart
+_SummaryRow(label: 'Taxas'.tr,
+           value: pricing.serviceFee,          // <- constante velha, 2,50
+           riscado: cartStore.taxaServicoRiscada)
+```
+
+**Porque é que isto é pior do que parecer feio:** o método escolhido é
+**dinheiro**. Em dinheiro, o total do ecrã é o que o estafeta cobra à porta.
+O cliente paga €8,75 quando, pela tabela do servidor, seriam €7,24.
+
+**Não toquei em nada.** `pricing_service.dart` é zona protegida e taxas são
+Lista Vermelha — as duas coisas ao mesmo tempo. A dívida técnica já estava
+assumida por escrito no `remote_fees_service.dart`; o que é novo é a prova de
+que ela chega ao ecrã de pagamento e ao total.
+
+## Haverá um terceiro? Fui ver — não há
+
+Fora dos ecrãs de admin, cinco ficheiros lêem `platform_settings`
+directamente. Só três é que importam, porque só esses correm fora de um ecrã:
+
+| Ficheiro | Quando lê | Estado |
+|---|---|---|
+| `config/ios_launch_flags.dart` | arranque | **corrigido** hoje |
+| `services/remote_fees_service.dart` | arranque | **corrigido** em `5bdc7379` |
+| `services/small_order_fee.dart` | arranque | ⚠️ **é este relatório** |
+| `services/payment_service.dart` | na hora de pagar, com sessão | sem problema |
+| `stores/carwash_store.dart` | ao abrir a lavagem, com sessão | sem problema |
+
+A lista das chamadas do arranque está toda em `lib/main.dart`, nos
+`unawaited(...)` — são cinco, e nenhuma outra toca em `platform_settings`.
+**Não há um terceiro caso escondido.** Com este resolvido, o padrão fica
+fechado.

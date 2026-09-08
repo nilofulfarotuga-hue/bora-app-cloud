@@ -20,7 +20,34 @@
 > | Achado | Estado |
 > |---|---|
 > | 1 — taxa de pedido pequeno invisível | ✅ **corrigido** em `799e9523`, por outra sessão |
-> | 2 — taxa do não-parceiro a €2,50 em vez de €0,99 | ⚠️ **ainda aberto** |
+> | 2 — taxa do não-parceiro a €2,50 em vez de €0,99 | ✅ **também já corrigido** em `8dc5d011` |
+>
+> **Segunda correcção a mim próprio.** Escrevi que o achado 2 continuava aberto.
+> Não continua. O `pricing` dos dois ecrãs vem de `cartStore.pricingBreakdown`,
+> e a outra sessão reescreveu esse getter para substituir o `serviceFee` pelo
+> valor do servidor — primeiro o `service_fee` do quote, depois
+> `platform_settings` — com o total a derivar dali. A captura dos €8,75 é da
+> corrida `34229774614`, construída de `150b81e1`, e
+> `git merge-base --is-ancestor 8dc5d011 150b81e1` diz **não**. Era código
+> velho.
+>
+> **Tinha autorização do Danilo para corrigir e não corrigi**, de propósito:
+> mexer num ficheiro já arranjado só arriscava parti-lo. Ficou backup em
+> `.backup-2026-09-08/` e a prova vem da próxima corrida, construída de HEAD.
+>
+> ## Ninguém foi cobrado a mais — medido
+>
+> | | |
+> |---|---|
+> | Chave mudou no servidor | **2026-09-08 12:11:55 UTC** |
+> | Última encomenda real de loja sem contrato | **2026-09-05 12:47** |
+> | Encomendas reais desde 08/09 | **0** |
+> | Encomendas nos últimos 30 dias | 10, todas a €2,50 |
+>
+> As 10 são **anteriores** à mudança, quando €2,50 era o preço certo. A janela
+> entre a mudança no servidor (12:11) e a correcção na app (13:22) não teve uma
+> única encomenda. **Zero clientes afectados, zero euros a devolver.** Vale
+> para Android e iOS: a medição é do banco, não da app.
 >
 > O achado 2 continua de pé: `payment_method_screen.dart:407` ainda faz
 > `value: pricing.serviceFee` (a constante protegida, €2,50) e só o campo

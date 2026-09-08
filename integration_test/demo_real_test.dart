@@ -148,6 +148,28 @@ Future<void> _voltarAoInicio(WidgetTester t) async {
   await _bombear(t, segundos: 3);
 }
 
+/// Fecha a folha de consentimento que a app abre por cima de tudo.
+///
+/// CICATRIZ (corrida 34214041704): a app abre com a folha "Privacidade e
+/// Cookies" e um véu escuro por trás. O toque em "Sou Cliente" bateu no véu e
+/// não fez nada — e como `tap` leva `warnIfMissed: false`, falhou em silêncio.
+/// Só se percebeu ao comparar as duas capturas: `00-video-perfis.png` e
+/// `zz-falha-campo-email.png` saíram com o **mesmo MD5**, ou seja o ecrã nunca
+/// mudou.
+///
+/// Escolhe-se **"Rejeitar"**, a opção mais contida: nada do que a demonstração
+/// precisa depende de consentimento — as lojas vêm do servidor, a morada vem da
+/// morada guardada e não do GPS, e o pagamento é em dinheiro. Correr assim tem
+/// a vantagem de provar que a app funciona com o consentimento recusado.
+Future<void> _fecharConsentimento(WidgetTester t) async {
+  final rejeitar = find.text('Rejeitar');
+  if (await _esperar(t, rejeitar, segundos: 25)) {
+    await _binding.takeScreenshot('zz-consentimento');
+    await _tocar(t, rejeitar);
+    await _bombear(t, segundos: 2.5);
+  }
+}
+
 void main() {
   _binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -155,6 +177,8 @@ void main() {
       (WidgetTester t) async {
     await app.main();
     await _bombear(t, segundos: 6);
+
+    await _fecharConsentimento(t);
 
     // ── Entrar como cliente ───────────────────────────────────────────────
     // Pode já haver sessão aberta de uma corrida anterior; nesse caso o ecrã

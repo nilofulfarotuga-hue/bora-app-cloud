@@ -1,8 +1,40 @@
-# ⚠️ ISTO MEXE EM DINHEIRO — taxa de pedido pequeno invisível no cliente
+# ⚠️ DINHEIRO — dois achados: um já corrigido, outro ainda aberto
 
-> Encontrado a 2026-09-08 na missão `ios-lancamento`, de caminho, ao investigar
-> porque é que o interruptor 5.2.1 não funcionava. **Nada foi aplicado.**
-> Está tudo pronto; falta o "vai" do Danilo.
+> ## LEIA ISTO PRIMEIRO — correcção de 2026-09-08, 15h
+>
+> Quando escrevi este relatório, disse *"não apliquei nada, está pronto, falta
+> o vai"*. **Metade já não é verdade.** Enquanto eu trabalhava, uma **outra
+> sessão autónoma** estava a mexer no mesmo ramo e no mesmo assunto:
+>
+> - `8dc5d011` (13:22) — *"a taxa de serviço das lojas sem contrato já é 0,99"*
+> - `799e9523` (14:57) — *"a taxa de pedido pequeno já era cobrada pelo
+>   servidor e o cliente não a via"*
+>
+> O `799e9523` aplicou **exactamente** as duas mudanças que eu descrevo aqui em
+> baixo: o `if (lista.isEmpty) … return;` no `small_order_fee.dart` e o
+> `SmallOrderFeeService.carregarGlobal(forcar: true)` no `main.dart` (linha
+> 357). Verificado no código, não no título do commit.
+>
+> **Estado real:**
+>
+> | Achado | Estado |
+> |---|---|
+> | 1 — taxa de pedido pequeno invisível | ✅ **corrigido** em `799e9523`, por outra sessão |
+> | 2 — taxa do não-parceiro a €2,50 em vez de €0,99 | ⚠️ **ainda aberto** |
+>
+> O achado 2 continua de pé: `payment_method_screen.dart:407` ainda faz
+> `value: pricing.serviceFee` (a constante protegida, €2,50) e só o campo
+> `riscado` vem do `RemoteFeesService`. O `8dc5d011` atacou este assunto mas
+> só o risco chegou ao ecrã.
+>
+> A captura `07-loja-pagamento.png` que mostra €8,75 é da corrida
+> `34229774614`, construída de `150b81e1` — **anterior** ao `799e9523`
+> (confirmado com `git merge-base --is-ancestor`). Era verdade para aquele
+> build; para o achado 1, já não é para o de agora.
+
+> Escrito a 2026-09-08 na missão `ios-lancamento`, ao investigar porque é que o
+> interruptor 5.2.1 não funcionava. **Eu não apliquei nada** — o que está
+> aplicado veio da outra sessão.
 
 ## O que está a acontecer
 

@@ -385,20 +385,7 @@ class CartStore extends ChangeNotifier {
 
     if (_pickupLocation == null || _deliveryLocation == null) return null;
 
-    final cartInput = <String, dynamic>{
-      'service_type': _serviceType.name,
-      'is_partner_store': _isPartnerStore,
-      'items': _items.map((i) => i.toJson()).toList(),
-      'distance_km': _distanceKm,
-      'apartment_delivery': _apartmentDelivery,
-      'pickup_lat': _pickupLocation!.latitude,
-      'pickup_lng': _pickupLocation!.longitude,
-      'destination_lat': _deliveryLocation!.latitude,
-      'destination_lng': _deliveryLocation!.longitude,
-      'wallet_applied_cents': walletAppliedCents,
-      'include_debt': true, // BUG #1 frontend (2026-05-12): server inclui dívida wallet em charge_total + retorna debt_settle_cents
-      'payment_method': 'card', // any non-cash, RPC ignora para quote
-    };
+    final cartInput = entradaDoQuote()!;
 
     try {
       final result = await Supabase.instance.client
@@ -412,6 +399,52 @@ class CartStore extends ChangeNotifier {
       debugPrint('[CartStore] quote_order_pricing failed: $e');
     }
     return null;
+  }
+
+  /// O `p_input` que se manda ao `quote_order_pricing`. Fica à parte para se
+  /// poder verificar em teste — o que o servidor recebe é o que decide o que
+  /// o cliente vê no ecrã de pagamento. `null` sem moradas (a RPC não pode
+  /// ser chamada).
+  @visibleForTesting
+  Map<String, dynamic>? entradaDoQuote() {
+    if (_pickupLocation == null || _deliveryLocation == null) return null;
+    return <String, dynamic>{
+      'service_type': _serviceType.name,
+      'is_partner_store': _isPartnerStore,
+      'items': _items.map((i) => i.toJson()).toList(),
+      // SEM ISTO O SERVIDOR CALCULA O SUBTOTAL A ZERO (2026-09-08).
+      // `quote_order_pricing` só soma o carrinho a partir de `product_lines`;
+      // `items` serve-lhe apenas para os extras das opções. Sem esta chave o
+      // quote devolvia `subtotal: 0` e, por arrasto, `small_order_fee: 0` —
+      // e como o `smallOrderFee` daqui prefere o número do servidor, o
+      // cliente deixava de ver a taxa de pedido pequeno no ecrã de pagamento
+      // enquanto o gatilho `orders_aa_small_order_fee` a cobrava na mesma.
+      // Medido em produção: cesto de 2,89 € devolvia 0; com estas linhas
+      // devolve os mesmos 1,39 € que a encomenda leva.
+      //
+      // Formato igual ao que o `order_store` já envia ao criar o pedido —
+      // `unit_price` é o preço PURO de catálogo, porque o servidor aplica o
+      // ×1.15 por cima e mandar `i.price` duplicaria o markup.
+      if (_serviceType == OrderServiceType.restaurant ||
+          _serviceType == OrderServiceType.storeShopping)
+        'product_lines': _items
+            .map((i) => {
+                  'product_id': i.productId,
+                  'quantity': i.quantity,
+                  'unit_price': i.basePrice ?? i.price,
+                  'name': i.name,
+                })
+            .toList(),
+      'distance_km': _distanceKm,
+      'apartment_delivery': _apartmentDelivery,
+      'pickup_lat': _pickupLocation!.latitude,
+      'pickup_lng': _pickupLocation!.longitude,
+      'destination_lat': _deliveryLocation!.latitude,
+      'destination_lng': _deliveryLocation!.longitude,
+      'wallet_applied_cents': walletAppliedCents,
+      'include_debt': true, // BUG #1 frontend (2026-05-12): server inclui dívida wallet em charge_total + retorna debt_settle_cents
+      'payment_method': 'card', // any non-cash, RPC ignora para quote
+    };
   }
 
   // Cache invalidation hook — chamar a partir de setters quando cart muda.

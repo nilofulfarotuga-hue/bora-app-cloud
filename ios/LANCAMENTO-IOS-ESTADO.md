@@ -65,6 +65,26 @@ o utilizador denunciar nem bloquear dentro da app.** E declarei
 `userGeneratedContent=true` na classificação etária, por honestidade — logo o
 revisor vai olhar para aqui.
 
+### Chave APNs — criada, mas ainda não ligada ao Firebase
+
+Criada e **irreversível nas escolhas** (a Apple avisa: *"can't be changed once
+saved"*): nome `Bora APNs`, **Key ID `6L9FNGPJD8`**, ambiente **Sandbox &
+Production**, restrição **Team Scoped (All Topics)**. No cofre e em segredo
+(`APNS_KEY_P8_B64`, `APNS_KEY_ID`) — só se descarrega uma vez.
+
+**Falta ligá-la ao Firebase** (`boraapp-d2bea`, app "Bora iOS"). Atenção: a
+conta certa é `/u/1/`; em `/u/0/` a consola diz que o projecto não existe.
+
+**Porque não consegui:** a consola do Firebase não expõe `input[type=file]` —
+usa o selector de ficheiros do sistema, que não se conduz. Tentei entregar o
+ficheiro por evento de largar sintético (criei um campo meu, a ferramenta pôs
+lá o ficheiro, e passei o `File` à zona de largar) e a consola recusa: só
+aceita evento de confiança. A janela do Chrome está com **largura 0**, o que
+também impede cliques por coordenada.
+
+**Não trava a submissão.** Sem isto a app passa revisão na mesma; o que não
+funciona é o push. Com a janela visível é um trabalho de dois minutos.
+
 ### O que falta, por ordem
 
 1. **Capturas** — a corrida `34279643078` está no passo 18 a fotografar a app real.

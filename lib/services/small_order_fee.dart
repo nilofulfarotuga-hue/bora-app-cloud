@@ -89,9 +89,20 @@ class SmallOrderFeeService {
         'small_order_fee_enabled',
       ]);
 
+      final lista = (linhas as List).cast<Map<String, dynamic>>();
+      if (lista.isEmpty) {
+        // `platform_settings` só se lê autenticado: sem sessão a resposta é
+        // HTTP 200 com `[]` — não é erro, o `catch` nunca dispara. Marcar como
+        // carregado aqui fechava a porta para o resto da sessão e deixava a
+        // taxa invisível ao cliente enquanto o servidor a cobrava. Não se
+        // marca: tenta-se outra vez depois de entrar (ver `main.dart`).
+        debugPrint('[SmallOrderFee] ainda não é legível (sem sessão?) — '
+            'tenta-se outra vez depois de entrar.');
+        return;
+      }
+
       final valores = <String, dynamic>{
-        for (final l in (linhas as List).cast<Map<String, dynamic>>())
-          l['key'] as String: l['value'],
+        for (final l in lista) l['key'] as String: l['value'],
       };
 
       _global = SmallOrderFeeConfig(

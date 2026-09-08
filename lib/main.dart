@@ -326,6 +326,14 @@ Future<void> main() async {
       // leitura a app ficava presa aos valores de recurso durante toda a
       // sessao, e uma mudanca feita no painel admin nao chegava ao cliente.
       unawaited(RemoteFeesService.carregar(forcar: true));
+
+      // Mesma cicatriz, terceira e última vez: a TAXA DE PEDIDO PEQUENO vive
+      // nas mesmas `platform_settings` e a leitura do arranque acontece antes
+      // de haver sessão, logo devolve `[]` sem erro nenhum. O servidor cobra
+      // 1,39 € abaixo de 12 € (gatilho `orders_aa_small_order_fee`, ligado) e
+      // o cliente não a via — o total do ecrã ficava abaixo do que se cobra,
+      // e em dinheiro é o total do ecrã que o estafeta pede à porta.
+      unawaited(SmallOrderFeeService.carregarGlobal(forcar: true));
     }
   });
 

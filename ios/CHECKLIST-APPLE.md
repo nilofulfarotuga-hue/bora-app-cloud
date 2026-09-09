@@ -8,6 +8,15 @@
 
 ---
 
+## -2. SUBMETIDA (2026-09-09, 09:40 UTC)
+
+`WAITING_FOR_REVIEW`. App 6809954739, versão 1.0, build 51, 4 capturas,
+vídeo do revisor em https://boraguarda.com/provas/apple-review/, chave APNs
+ligada ao Firebase. Falta só a Apple responder — e o estado de comerciante,
+que continua em revisão do lado deles.
+
+---
+
 ## -1. O QUE A 5.ª SESSÃO FECHOU (2026-09-08, conta já activa)
 
 Tudo lido de volta do lado da Apple. O código de resposta não é prova; o que

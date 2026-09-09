@@ -2,8 +2,52 @@
 
 > Missão `ios-lancamento` · run_id `ios-lancamento-2026-09-07`
 > **Este ficheiro diz onde retomar.** Cada linha tem prova.
-> Última actualização: 2026-09-09 (bloco **-5** é o mais recente).
+> Última actualização: 2026-09-09 — **SUBMETIDA** (bloco **-6** é o mais recente).
 > Modo de trabalho: ver `carta-de-autonomia-ios` na memória do projeto.
+
+## -6. SUBMETIDA À APPLE (2026-09-09, 09:40 UTC)
+
+**A Bora está submetida.** Estado lido da API da Apple, não do código de resposta:
+
+```
+submissao   a8f2615e-9735-492f-b4df-38f6014167ff
+submittedDate  2026-09-09T09:40:06.598Z
+state          WAITING_FOR_REVIEW
+```
+
+| Peça | Valor |
+|---|---|
+| App | **6809954739** · `pt.boraapp.bora` · pt-PT |
+| Versão | 1.0 · `WAITING_FOR_REVIEW` · lançamento **MANUAL** |
+| Build | `c86a7d92-e2fd-4ee5-b17b-bd3a9df0922f` (número 51), ligado e relido |
+| Capturas | 4 · todas `COMPLETE` |
+| Direitos de conteúdo | `USES_THIRD_PARTY_CONTENT` |
+
+A corrida `34330183636` deu os dois jobs verdes, com prova no log:
+`✓ Built IPA to build/ios/ipa (52.5MB)` e `UPLOAD SUCCEEDED with no errors`.
+
+### O último bloqueio, e era só um
+
+Juntar a versão à submissão dava 409. O erro associado dizia o que faltava:
+**`contentRightsDeclaration`**. Respondido `USES_THIRD_PARTY_CONTENT`, que é a
+verdade — a app mostra fotos e nomes de produtos de supermercados e
+restaurantes.
+
+⚠️ **Armadilha de leitura:** o `PATCH` devolveu **200** e a leitura a seguir
+devolveu **`None`**. O campo não vem no conjunto por omissão; só aparece com
+`?fields[apps]=contentRightsDeclaration`. Quase dei por não-aplicado o que
+estava aplicado — o oposto do falso positivo do costume, e igualmente perigoso.
+
+### O que fica a correr sem mim
+
+- **Revisão da Apple.** O lançamento é **manual**: mesmo aprovada, a app só vai
+  para a loja quando alguém carregar em publicar.
+- **Estado de comerciante** ainda "Em revisão". Tem de ficar verificado antes
+  de a app ficar disponível na UE.
+- **Telegram não passou:** a VPS está inalcançável deste PC (100% de perda no
+  ping a `srv1786862.hstgr.cloud`). O aviso ficou no terminal.
+
+---
 
 ## -5. 9 DE SETEMBRO — CAPTURAS, VÍDEO E APNs FECHADOS
 

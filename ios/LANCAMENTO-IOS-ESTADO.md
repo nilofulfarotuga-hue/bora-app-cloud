@@ -85,6 +85,48 @@ também impede cliques por coordenada.
 **Não trava a submissão.** Sem isto a app passa revisão na mesma; o que não
 funciona é o push. Com a janela visível é um trabalho de dois minutos.
 
+### ⏰ AS CAPTURAS FALHAVAM POR CAUSA DA HORA, não do arnês
+
+Duas corridas seguidas falharam no passo das capturas com *"confirmar que a
+loja escolhida tem produtos"*. **Era mentira.** A causa real:
+
+```dart
+// openRetailBusiness, stores_screen.dart:316
+if (!business.isOpenNow()) { ...aviso...; return; }
+```
+
+O CI corre com **relógio UTC** e as corridas caíram perto das 23h. Horários
+reais, lidos do banco:
+
+| Loja | Abre–fecha | Online |
+|---|---|---|
+| Auchan | 09:00–21:00 | sim |
+| Continente | 08:00–22:00 | sim |
+| Intermarché | 08:30–20:00 | sim |
+| Pingo Doce | 08:00–21:00 | sim |
+| Lidl, Mercadona | — | **não** |
+
+Nenhum abria. Às 23h só abrem Burger King, KFC, McDonald's e Mr Kebab — os três
+primeiros são marcas proibidas nas capturas públicas, o quarto está "em breve".
+
+O que se corrigiu no caminho, e vale por si: `Semantics(container: true)` no
+cartão da loja, e o arnês passou a **provar** que a loja abriu, a tentar loja a
+loja, e a falhar dizendo a **hora do simulador** em vez de acusar a loja de não
+ter produtos. Diagnóstico que já veio da própria corrida:
+`[arnes] 5 cartoes de loja` e `o cartao nao abriu; tento pelo texto "A"` — "A"
+era a letra do avatar, não o nome.
+
+**Está agendado:** tarefa `bora-ios-capturas-e-submissao` para **09/09 às 11:00
+de Lisboa (10:00 UTC)**, com os quatro supermercados abertos. Corre sozinha e
+leva as instruções todas.
+
+**Também endurecido antes da corrida:** o `ExportOptions.plist` dizia
+`signingStyle=manual` sem dizer qual o perfil — o `xcodebuild -exportArchive`
+falharia com *"No profile matching … was found"* ao fim de 40 minutos. Agora
+leva o mapa `pt.boraapp.bora → "Bora App Store"` e `signingCertificate: Apple
+Distribution`. O `altool` continua a ser caminho suportado (página *Upload
+builds* da Apple).
+
 ### O que falta, por ordem
 
 1. **Capturas** — a corrida `34279643078` está no passo 18 a fotografar a app real.

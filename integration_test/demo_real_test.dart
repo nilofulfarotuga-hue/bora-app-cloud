@@ -232,6 +232,17 @@ void main() {
     // provas da web.
     final SemanticsHandle semantica = t.ensureSemantics();
 
+    // GUARDAR O `ErrorWidget.builder` ANTES DE `app.main()`.
+    //
+    // CICATRIZ (corrida 34326104105): o percurso correu inteiro, as sete
+    // capturas sairam, e o teste falhou na ARRUMACAO com "The value of
+    // ErrorWidget.builder was changed by the test". A app define o seu proprio
+    // ecra de erro dentro do `main()`, e o `flutter_test` verifica no fim que
+    // ninguem mexeu nesse construtor. Resultado: job A vermelho por ruido de
+    // arrumacao, e o job do IPA saltado por `needs: simulador` -- 25 minutos de
+    // corrida boa deitados fora por uma linha que nao tem nada a ver com a app.
+    final ErrorWidgetBuilder construtorDeErroOriginal = ErrorWidget.builder;
+
     await app.main();
     await _bombear(t, segundos: 6);
 
@@ -479,6 +490,8 @@ void main() {
       }
     }
 
+    // Repor o que a app mudou, senao o `flutter_test` reprova na arrumacao.
+    ErrorWidget.builder = construtorDeErroOriginal;
     semantica.dispose();
   }, timeout: const Timeout(Duration(minutes: 25)));
 }

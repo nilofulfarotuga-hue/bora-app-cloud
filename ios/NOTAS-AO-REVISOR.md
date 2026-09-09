@@ -181,6 +181,10 @@ ecrãs desenhados. Ver `integration_test/demo_real_test.dart`.
 > aqui e o que se volta a enviar.
 
 ```
+DEMO VIDEO (69 s, English captions)
+https://boraguarda.com/provas/apple-review/
+The real app on our live server, recorded on the iPhone simulator.
+
 THE APP
 Bora is a local delivery and services marketplace for Guarda, Portugal (pop. ~40,000).
 One app, three profiles: customer, courier, partner store. The app is in Portuguese.
@@ -250,11 +254,10 @@ No third-party or social login is offered - email and password only - so 4.8
 does not apply.
 
 BUTTONS
-  Entrar = Sign in | Supermercados = Supermarkets | Restaurantes = Restaurants
-  Farmacia = Pharmacy | Lojas = Shops | Favores = Errands | Limpeza = Cleaning
-  Lavagem Auto = Car wash | Beleza = Barber and beauty | Em breve = Coming soon
-  Adicionar ao carrinho = Add to basket | Finalizar pedido = Checkout
-  Dinheiro = Cash | Confirmar pagamento = Confirm payment | Agora nao = Not now
+  Entrar = Sign in | Supermercados = Supermarkets | Farmacia = Pharmacy
+  Favores = Errands | Limpeza = Cleaning | Beleza = Barber and beauty
+  Em breve = Coming soon | Adicionar ao carrinho = Add to basket
+  Finalizar pedido = Checkout | Dinheiro = Cash | Agora nao = Not now
 
 CONTACT
 boraappbora@gmail.com  ·  +351 937 501 673

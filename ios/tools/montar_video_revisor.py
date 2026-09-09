@@ -82,6 +82,20 @@ LEGENDAS = {
     '11': 'The courier side',
     '12': 'Courier goes online',
 }
+def _para_drawtext(texto):
+    """Escapa o que o parser de filtros do ffmpeg le como sintaxe.
+
+    CICATRIZ (2026-09-09): a legenda "Partner: Goola Acai" rebentou a
+    montagem com "No option name near ' Goola Acai...'". Dentro de um filtro
+    o ":" separa OPCOES, e as aspas simples nao o protegem -- protegem a
+    virgula, mas nao os dois pontos. E a mesma familia da cicatriz do
+    `fontfile` com a letra da unidade, ja anotada no cabecalho.
+    """
+    return (texto.replace('\\', '\\\\')
+                 .replace(':', '\\:')
+                 .replace("'", ''))
+
+
 TITULO = 'Bora - Guarda, Portugal'
 SUBTITULO = 'Demo recorded on iPhone simulator'
 
@@ -193,7 +207,7 @@ def main():
                         'fontsize=44:x=(w-text_w)/2:y=h/2-60,'
                         "drawtext=fontfile=f.ttf:text='%s':fontcolor=white@0.85:"
                         'fontsize=26:x=(w-text_w)/2:y=h/2+10')
-                % (TITULO, SUBTITULO)],
+                % (_para_drawtext(TITULO), _para_drawtext(SUBTITULO))],
                tmp, cartao)
     pedacos.append(cartao)
 
@@ -202,7 +216,8 @@ def main():
         vf = ('scale=-2:%d,' % ALTURA_SAIDA +
               'drawbox=y=ih-200:w=iw:h=200:color=black@0.66:t=fill,' +
               "drawtext=fontfile=f.ttf:text='%s':fontcolor=white:"
-              'fontsize=32:x=(w-text_w)/2:y=h-125' % LEGENDAS[nome])
+              'fontsize=32:x=(w-text_w)/2:y=h-125'
+              % _para_drawtext(LEGENDAS[nome]))
         _codificar(['-ss', '%.2f' % (a + RECUO),
                     '-t', '%.2f' % SEGUNDOS_POR_ECRA,
                     '-i', video, '-vf', vf], tmp, ficheiro)

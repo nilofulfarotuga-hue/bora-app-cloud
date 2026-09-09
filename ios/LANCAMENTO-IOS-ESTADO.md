@@ -2,8 +2,66 @@
 
 > Missão `ios-lancamento` · run_id `ios-lancamento-2026-09-07`
 > **Este ficheiro diz onde retomar.** Cada linha tem prova.
-> Última actualização: 2026-09-08, 5.ª sessão (bloco **-4** é o mais recente).
+> Última actualização: 2026-09-09 (bloco **-5** é o mais recente).
 > Modo de trabalho: ver `carta-de-autonomia-ios` na memória do projeto.
+
+## -5. 9 DE SETEMBRO — CAPTURAS, VÍDEO E APNs FECHADOS
+
+**Bloco mais recente.** Tudo lido de volta do lado de quem recebe.
+
+| Peça | Estado | Prova |
+|---|---|---|
+| Chave APNs → Firebase | ✅ | as **duas** linhas (desenvolvimento e produção) com a chave `6L9FNGPJD8` e equipa `6ZS4ZU3L5P`; já não há "Carregar" |
+| Capturas | ✅ **4 COMPLETE** | 1320×2868 rgb24, alfa removido |
+| Vídeo do revisor | ✅ **68,7 s** | página não listada, HTTP 200, `noindex, nofollow`, mp4 594 484 bytes |
+| Notas ao revisor | ✅ | 3996 car., o vídeo é a **primeira linha**; lidas de volta da Apple |
+| IPA | ⏳ | corrida a andar |
+| Estado de comerciante | ⏳ | "Em revisão" pela Apple |
+
+### As capturas que entram, e as que não entram
+
+| Captura | Entra? | Porquê |
+|---|---|---|
+| `01-loja-categorias` | ✅ | os catorze mosaicos, incluindo Bora Motorista |
+| `07-loja-pagamento` | ✅ | resumo e métodos, **zero marcas de terceiros** |
+| `09-loja-acai` | ✅ | Goola Açaí, parceiro |
+| `10-loja-barbearia` | ✅ | Ouro e Prata, parceiro, 5.0 · 58 avaliações |
+| `05-loja-produto` | ❌ | **logótipo do Continente** grande na embalagem |
+| `06-loja-carrinho` | ❌ | "Lombinhos de Frango **Continente**" é o texto maior |
+| `02-loja-mercados` | ❌ | a lista com Auchan, Continente, Intermarché, Pingo Doce |
+
+A corrida saiu do **Continente** porque às 08:25 UTC o Auchan (abre 09:00) ainda
+estava fechado — e o arnês já sabe dizer isso:
+
+```
+[arnes] 5 cartoes de loja, sao 08:25 no simulador
+[arnes] a loja numero 0 nao abriu — provavelmente fechada
+[arnes] abriu a loja numero 1 (depois de rolar)
+```
+
+**De passagem, uma boa notícia em dinheiro:** a `07-loja-pagamento` mostra as
+duas correcções a chegarem ao cliente — taxa de serviço **2,50 riscado → 0,99**
+e **taxa de pedido pequeno 1,39** visível no resumo.
+
+### Três armadilhas fechadas hoje
+
+1. **O Firebase só aceita clique de confiança.** A consola não expõe
+   `input[type=file]`; usa `showOpenFilePicker`. Substituir essa função **e**
+   dar um clique **real** resolve. Um `.click()` por JS não conta como gesto do
+   utilizador e o Chrome bloqueia o selector em silêncio — foi isso que falhou
+   ontem, não a substituição.
+2. **O `ErrorWidget.builder` reprovava a corrida boa.** O percurso corria
+   inteiro, as capturas saíam, e o teste falhava na arrumação. Job A vermelho e
+   o IPA saltado por `needs: simulador`. Agora guarda-se e repõe-se.
+3. **Os dois pontos partem o `drawtext`.** "Partner: Goola Acai" rebentava a
+   montagem do vídeo. Dentro de um filtro do ffmpeg o `:` separa opções, e as
+   aspas simples protegem a vírgula mas não os dois pontos.
+
+E uma prevenção: o `.p12` levava **zero** certificados de cadeia. Juntou-se o
+intermédio **WWDR G3** (confirmado como emissor do nosso certificado) antes de
+o job de assinatura lá chegar.
+
+---
 
 ## -4. CONTA ACTIVA — A LOJA ESTÁ MONTADA (2026-09-08, 5.ª sessão)
 

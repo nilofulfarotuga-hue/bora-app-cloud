@@ -223,11 +223,19 @@ Future<bool> _sair(WidgetTester t) async {
     }
   }
 
-  // Cliente: separador Perfil e botão no fim da página.
+  // Cliente: separador "Perfil" (texto). Estafeta aprovado: ícone com
+  // tooltip "Perfil" — CICATRIZ (corrida 93): o ícone de sair só existe no
+  // ecrã de estafeta PENDENTE; no ecrã com mapa a saída vive no Perfil.
   final perfil = find.text('Perfil');
-  if (await _esperar(t, perfil, segundos: 10)) {
+  if (await _esperar(t, perfil, segundos: 6)) {
     await _tocar(t, perfil.last);
     await _bombear(t, segundos: 3);
+  } else {
+    final perfilIcone = find.byTooltip('Perfil');
+    if (await _esperar(t, perfilIcone, segundos: 6)) {
+      await _tocar(t, perfilIcone.first);
+      await _bombear(t, segundos: 3);
+    }
   }
   final sair = find.text('Terminar sessão');
   await _rolarAte(t, sair, vezes: 10);

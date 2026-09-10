@@ -2,8 +2,29 @@
 
 > Missão `ios-lancamento` · run_id `ios-lancamento-2026-09-07`
 > **Este ficheiro diz onde retomar.** Cada linha tem prova.
-> Última actualização: 2026-09-10 — **corrida 81 com os portões a correr; depois IPA provado → TestFlight → reenvio** (bloco **-12** é o mais recente).
+> Última actualização: 2026-09-10, noite — **três perfis varridos; Firebase corrigido; corrida final a correr para IPA + vídeo + reenvio** (bloco **-13** é o mais recente).
 > Modo de trabalho: ver `carta-de-autonomia-ios` na memória do projeto.
+
+## -13. A VARREDURA FECHOU OS TRÊS PERFIS — E ACHOU O FIREBASE (2026-09-10, noite)
+
+Corrida **96** (`34522667459`): *"VARREDURA TERMINADA. Falhas: 0. Por varrer: 0."*
+Cliente, estafeta (saída pelo Perfil) e **parceiro** (início 58 textos, Gerir
+produtos, Horários, Ganhos, Extrato, Chamar estafeta) — tudo provado.
+
+O passo falhou na mesma, por uma `FirebaseException` lançada ao **construir**
+o painel do parceiro: `setupBroadcastDeepLink` chama `FirebaseMessaging.instance`
+dentro do `build()` sem guarda. Guardado. E a raiz é maior:
+
+**`GoogleService-Info.plist` nunca esteve referenciado no `project.pbxproj`
+(0 ocorrências).** O CI escrevia-o no disco a partir do segredo, mas o Xcode só
+empacota o que está referenciado — logo o Firebase **nunca inicializou em
+iPhone nenhum** (`[core/no-app]` em todas as corridas) e **não havia push no
+iOS**. Corrigido: referência nos 4 sítios do pbxproj; teste estático exige-a;
+CI falha se o plist não estiver dentro do `Runner.app` depois de compilar.
+
+Ordem em vigor (Danilo, 22h): dorme; não perguntar mais nada; terminar e
+reenviar esta noite com o vídeo do simulador e a resposta honesta (o iPhone
+real serviu para encontrar os crashes; a gravação é do simulador).
 
 ## -12. PORTÕES AUTOMÁTICOS E A CORRIDA 81 (2026-09-10, noite)
 
@@ -43,7 +64,7 @@ e ficou 30–60 min sem uma linha ("Resolving dependencies…" e mais nada), com
 órfãos `xcodebuild`/`SWBBuildService`/`ibtoold` ao cancelar. Cancelada. Correcção
 `237f1be8`: a varredura compila num passo visível com tecto de 25 min e o drive
 corre contra o binário (`--use-application-binary`), tecto 30 min; o arnês de
-gravação tem 35. Corrida nova: **87** (`34511701695`), sobre `c9604436`, lida de volta antes de disparar.
+gravação tem 35. Corrida **87** (`34511701695`): compilação visível em 6 min 08 s, sem encravar; varredura abriu o registo (12 textos) e morreu num `find.byTooltip('Back')` sem guarda — corrigido em `a00369bd` (pop guardado + separador Início). Corrida **91** (`34514498347`): 17 linhas da matriz provadas; apanhou `PermissionRequestInProgressException` por tratar (corrigido em `8eec60ab`) e um falso negativo em Levar Compras (heurística alargada). Corrida seguinte: **93** (`34517491490`), sobre `39578eb5`.
 
 **Se o contexto acabar aqui:** esperar a 81; se verde → `provar_ipa.py 34508432910`
 → `testflight_refazer.py 81` → montar vídeo (`contacto.py` + `montar_video.py`

@@ -126,7 +126,11 @@ Future<void> _voltarAoInicio(WidgetTester t) async {
   await _bombear(t, segundos: 2.5);
 }
 
-/// Quantos textos com conteúdo estão no ecrã. É a medida de "não está vazio".
+/// Quanto CONTEÚDO há no ecrã: textos com letras, ícones, imagens e botões.
+/// É a medida de "não está vazio". CICATRIZ (corrida 91): "Levar Compras"
+/// é um ecrã de apresentação com ilustração e um botão — dois textos — e
+/// contar só textos condenava-o como vazio. Um ecrã mesmo vazio (Scaffold
+/// nu, spinner eterno) continua abaixo de 3.
 int _quantoTexto() {
   var n = 0;
   for (final e in find.byType(Text).evaluate()) {
@@ -134,6 +138,10 @@ int _quantoTexto() {
     final s = (w.data ?? w.textSpan?.toPlainText() ?? '').trim();
     if (s.isNotEmpty) n++;
   }
+  n += find.byType(Icon).evaluate().length;
+  n += find.byType(Image).evaluate().length;
+  n += find.byType(ElevatedButton).evaluate().length;
+  n += find.byType(FilledButton).evaluate().length;
   return n;
 }
 
@@ -144,7 +152,13 @@ Future<void> _exigirEcraVivo(WidgetTester t, String oQue,
     await _binding.takeScreenshot('zz-erro-$oQue');
     fail('ECRÃ DE ERRO em "$oQue" — o Flutter mostrou o ecrã vermelho.');
   }
-  final n = _quantoTexto();
+  // Um ecrã a carregar não é um ecrã vazio: dá-se-lhe até 12 s para chegar
+  // ao mínimo antes de o condenar.
+  var n = _quantoTexto();
+  for (var i = 0; i < 60 && n < minimoDeTextos; i++) {
+    await _bombear(t, segundos: 0.2);
+    n = _quantoTexto();
+  }
   if (n < minimoDeTextos) {
     await _binding.takeScreenshot('zz-vazio-$oQue');
     fail('ECRÃ VAZIO em "$oQue" — só $n textos com conteúdo '
@@ -246,6 +260,7 @@ Future<String?> _abrirEProvar(WidgetTester t, String rotulo,
     await _exigirEcraVivo(t, rotulo, minimoDeTextos: minimoDeTextos);
     return null;
   } on TestFailure catch (e) {
+    _diz('   FALHOU "$rotulo": ${e.message}');
     return '$rotulo: ${e.message}';
   }
 }

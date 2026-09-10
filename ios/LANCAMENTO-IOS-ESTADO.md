@@ -22,7 +22,7 @@ iPhone nenhum** (`[core/no-app]` em todas as corridas) e **não havia push no
 iOS**. Corrigido: referência nos 4 sítios do pbxproj; teste estático exige-a;
 CI falha se o plist não estiver dentro do `Runner.app` depois de compilar.
 
-Corrida final: **100** (`34527955218`), sobre `c3443c90` (plist do Firebase referenciado + guarda no painel do parceiro + teste estático com 7 verdes). Se verde: `pos_verde.py 34527955218 100` → vídeo → `notas_enviar.py ios/notas-novas.txt` → `reenviar.py` → Resolution Center.
+Corrida **100** (`34527955218`): varredura inteira verde; reprovou só na despedida (`ErrorWidget.builder`) — corrigido; plist do Firebase confirmado dentro do `Runner.app`; destapou e corrigiu-se o arranque das notificações locais no iOS (`DarwinInitializationSettings`). Corrida final: **104** (`34532508180`), sobre `bcd09aa4`, com `encomenda_real=true` (o pedido demo expira às 23:32 UTC e o conector do Supabase está caído; o pedido nasce em `driverAccepted` com o estafeta demo, ninguém real é chamado) (plist do Firebase referenciado + guarda no painel do parceiro + teste estático com 7 verdes). Se verde: `pos_verde.py 34527955218 100` → vídeo → `notas_enviar.py ios/notas-novas.txt` → `reenviar.py` → Resolution Center.
 
 Ordem em vigor (Danilo, 22h): dorme; não perguntar mais nada; terminar e
 reenviar esta noite com o vídeo do simulador e a resposta honesta (o iPhone

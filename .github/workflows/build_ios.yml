@@ -192,6 +192,13 @@ jobs:
           echo "SIM_NOME=$NOME" >> $GITHUB_ENV
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
+          # PERMISSOES PRE-CONCEDIDAS (2026-09-11): o teste nao toca em alertas
+          # NATIVOS, e o de notificacoes/localizacao ficava em cima de TODOS os
+          # fotogramas do video para a Apple. `|| true`: um nome de servico que
+          # o Xcode nao conheca nunca pode reprovar a corrida.
+          for s in notifications location location-always; do
+            xcrun simctl privacy "$UDID" grant "$s" pt.boraapp.bora || true
+          done
 
       # PORQUE NÃO É UM `flutter build ios --simulator` E PRONTO
       # Foi o que estava aqui, e falhou (corrida 34161051379) com:
@@ -296,6 +303,14 @@ jobs:
         timeout-minutes: 30
         run: |
           mkdir -p artefactos/varredura
+          xcrun simctl install "$UDID" build/ios/iphonesimulator/Runner.app || true
+          # PERMISSOES PRE-CONCEDIDAS (2026-09-11): o teste nao toca em alertas
+          # NATIVOS, e o de notificacoes/localizacao ficava em cima de TODOS os
+          # fotogramas do video para a Apple. `|| true`: um nome de servico que
+          # o Xcode nao conheca nunca pode reprovar a corrida.
+          for s in notifications location location-always; do
+            xcrun simctl privacy "$UDID" grant "$s" pt.boraapp.bora || true
+          done
           flutter drive             --driver=test_driver/capturas_driver.dart             --target=integration_test/varredura_ecras_test.dart             --use-application-binary=build/ios/iphonesimulator/Runner.app             -d "$UDID"             --dart-define-from-file=.dart_defines 2>&1 | tee artefactos/varredura/log.txt
           test "${PIPESTATUS[0]}" -eq 0
 
@@ -317,6 +332,13 @@ jobs:
         timeout-minutes: 35
         run: |
           mkdir -p artefactos/capturas
+          # PERMISSOES PRE-CONCEDIDAS (2026-09-11): o teste nao toca em alertas
+          # NATIVOS, e o de notificacoes/localizacao ficava em cima de TODOS os
+          # fotogramas do video para a Apple. `|| true`: um nome de servico que
+          # o Xcode nao conheca nunca pode reprovar a corrida.
+          for s in notifications location location-always; do
+            xcrun simctl privacy "$UDID" grant "$s" pt.boraapp.bora || true
+          done
           flutter drive \
             --driver=test_driver/capturas_driver.dart \
             --target=integration_test/demo_real_test.dart \

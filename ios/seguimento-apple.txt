@@ -1,0 +1,38 @@
+Follow-up to our reply of today, with the two things we promised.
+
+1. NEW BUILD
+Build __BUILD__ is attached to version 1.0 and replaces build 51. It adds the
+blocking mechanism that was missing. Blocking is now in all four one-to-one
+conversations in the app: the order chat, and the ride, cleaning and car-wash
+chats. Reporting was already in build 51 and is unchanged.
+
+2. UPDATED RECORDING (same address)
+https://boraguarda.com/provas/apple-review/
+It now begins with launching the app and covers, in order: the privacy sheet,
+profile choice, sign-in, the home screen with every service category, a real
+store with a real product at its real price, the basket with the full fee
+breakdown, checkout paying cash, order tracking, the chat with the courier
+showing the REPORT sheet and BLOCKING the person, and Profile > Delete account.
+
+WHERE TO LOOK, IF YOU PREFER TO TEST IT YOURSELF
+Reporting and blocking: sign in with demo@bora.app / BoraDemo2026!, open the
+Deliveries tab, tap the order, scroll down to the "O teu estafeta" (Your
+courier) card and tap "Chat". The flag icon in the top bar opens the report
+reasons, and at the bottom of that sheet is "Bloquear esta pessoa" (Block this
+person). After blocking, that person's messages disappear and the message box
+is replaced by a bar with an Unblock button.
+
+Account deletion: Perfil > "Apagar conta". Please use demo.apagar@bora.app /
+BoraDemo2026! for a real deletion, so the browsing account stays available to
+you. That account is recreated automatically every hour.
+
+ONE THING WE CANNOT DO, STATED PLAINLY
+You asked for a recording captured on a physical device. We do not have an iOS
+device: this is a one-person company and the app is developed on Windows, with
+iOS builds produced on hosted macOS runners. The recording is therefore a
+screen capture of the iOS Simulator running the real build against our live
+production server, with no mock data and no editing beyond trimming and the
+English captions. If a simulator recording is not acceptable, please tell us
+and we will arrange access to a physical device before submitting again.
+
+boraappbora@gmail.com   +351 937 501 673

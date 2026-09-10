@@ -2,8 +2,102 @@
 
 > Missão `ios-lancamento` · run_id `ios-lancamento-2026-09-07`
 > **Este ficheiro diz onde retomar.** Cada linha tem prova.
-> Última actualização: 2026-09-10 — **RESPONDIDO, a preparar o reenvio** (bloco **-8** é o mais recente).
+> Última actualização: 2026-09-10 — **A GRAVAR o vídeo com denúncia e bloqueio** (bloco **-9** é o mais recente).
 > Modo de trabalho: ver `carta-de-autonomia-ios` na memória do projeto.
+
+## -9. O DIA EM QUE A GRAVAÇÃO FICOU POSSÍVEL (2026-09-10, tarde)
+
+### a) Uma regressão minha, apanhada pelo log do próprio cron
+
+Para filmar a denúncia e o bloqueio é preciso um pedido com estafeta: o
+`order_details_screen.dart` só mostra o cartão do estafeta — e o botão
+**Chat** lá dentro — quando
+
+```dart
+final hasDriver = liveOrder.assignedDriverId != null &&
+    liveOrder.status.index >= OrderStatus.driverAccepted.index;
+```
+
+Os pedidos de demonstração ficavam em `preparing`/`callingDriver`, logo o
+botão nunca existia. Acrescentei o degrau em falta a `mover_pedidos_demo()`
+— e **parti o cron**: o segundo UPDATE passou a empurrar compras em loja
+para `pickedUp` e bateu no gatilho `enforce_storeshopping_finalize_before_pickup`,
+que recusa isso antes de a compra estar finalizada.
+
+O gatilho está certo e **não se contorna**. A função passou a respeitá-lo.
+Prova, lida de `cron.job_run_details` (jobid 81):
+
+```
+12:13  failed     ERROR: finalize_purchase_before_pickup: cannot mark ...
+12:14  succeeded  1 row
+12:15  succeeded  1 row
+12:16  succeeded  1 row
+```
+
+### b) A janela de 2 horas era curta demais
+
+Os pedidos de demonstração eram encerrados 2 h depois de criados. Entre
+preparar, correr o CI (~45 min) e repetir, passavam-se mais de duas horas e
+o pedido morria a meio da gravação — **aconteceu duas vezes no mesmo dia**
+(`14:29:00`, motivo *"Pedido de demonstracao encerrado automaticamente"*).
+Migração `demo_janela_de_seis_horas`: passa a seis horas. Continua a ser
+higiene e cobre também um revisor que faça uma encomenda e volte a ela mais
+tarde.
+
+### c) Bloquear passou a existir nas outras três conversas
+
+A app tem quatro conversas um-para-um. A do **pedido** ganhou denúncia +
+bloqueio a 10/09; as de **TVDE, limpeza e lavagem** tinham só denúncia — um
+buraco na própria coisa que a Apple nomeou. Fechado em `d50ca34c`:
+
+- `BarraBloqueado` (peça única, para não haver três versões da mesma frase);
+- ref do outro = `<vertical>:<marcação>:<meu papel>`, que existe sempre —
+  ao contrário do telefone, que pode vir vazio;
+- sem chaves de tradução novas: as frases já vinham do chat do pedido.
+
+Provas: `flutter analyze lib/` → **0 erros** (208 avisos pré-existentes,
+nenhum nos quatro ficheiros); `l10n_cobertura_test.dart` → **13 verdes**;
+`anti_trapaca.py --base HEAD` → **CLEAN** (4 ficheiros de código, 0 de teste).
+
+### d) A corrida 69 morreu — e não foi o código
+
+`34476983449` (build 69) falhou no passo 18. A app foi **morta durante o
+login**, com o botão a rodar (visto no vídeo, ao segundo 744) e sem nenhuma
+excepção Dart:
+
+```
+DriverError: Failed to fulfill RequestData due to remote error
+Original error: ext.flutter.driver: (112) Service has disappeared
+```
+
+Comparado linha a linha com a corrida verde `34471654586` (build 67), o
+registo é **igual** até ao instante da morte: mesmo login, mesmos
+`orders received=3`, mesmo `RestaurantStore: loaded 16 restaurants`. O que
+mudei entre as duas foram três ecrãs de conversa que nem chegam a ser
+montados no login. Leitura honesta: **morte por fora (simulador)**, não erro
+do código — mas se voltar a morrer no mesmo sítio deixa de ser intermitente e
+tem de ser investigado antes de submeter.
+
+Nota útil: o vídeo é gravado pelo `simctl`, **independente da app** — uma
+morte a meio custa o percurso, não a gravação.
+
+### e) A Apple não voltou a escrever
+
+Lido da página hoje: **`Mensagens (2)`**, Apple *Hoje 1:57* (a recusa 2.1
+original) e Danilo *Hoje 7:11* (a nossa resposta). Nenhum requisito novo.
+Item: `1.0.1 (51)` · *Rejeitado* · `2.1.0 Performance: App Completeness`.
+
+### f) ⚠️ O RISCO QUE FICA, e que só o Danilo pode fechar
+
+A Apple pediu, com todas as letras:
+
+> *"A screen recording captured on a **physical device**, running the latest
+> operating system"*
+
+A nossa gravação é do **simulador**, e isso está dito na resposta sem
+disfarce. Não há iPhone nem Mac nesta operação, por isso é o melhor que
+consigo produzir sozinho. Se aparecer um iPhone emprestado, dois minutos de
+gravação de ecrã fecham este ponto — é o único risco material que sobra.
 
 ## -8. RESPONDIDO À APPLE (2026-09-10, 06:11 UTC)
 

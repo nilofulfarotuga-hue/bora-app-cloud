@@ -244,6 +244,29 @@ jobs:
             --dart-define-from-file=.dart_defines \
             --dart-define=FAZER_ENCOMENDA_REAL=${{ inputs.encomenda_real || 'false' }}
 
+      # PORQUE ISTO EXISTE (2026-09-10): o passo de cima morreu duas vezes
+      # seguidas com "Service has disappeared" -- a app foi MORTA, sem
+      # nenhuma excepcao Dart, logo a seguir ao login. Sem o relatorio de
+      # falha do simulador so' se pode adivinhar a razao, e adivinhar antes
+      # de corrigir e' exactamente o que nao se faz.
+      - name: Porque e' que a app morreu (relatorio do simulador)
+        if: always()
+        run: |
+          mkdir -p artefactos/falha
+          echo "chave do Maps no build: $(grep -c '^GOOGLE_MAPS_API_KEY=..' .dart_defines || echo 0) (1 = presente, 0 = em falta)"
+          find ~/Library/Logs/DiagnosticReports -name 'Runner*' -mmin -60             -exec cp {} artefactos/falha/ \; 2>/dev/null || true
+          echo "--- relatorios encontrados ---"
+          ls -la artefactos/falha/ || true
+          for f in artefactos/falha/Runner*; do
+            [ -f "$f" ] || continue
+            echo "=================== $f ==================="
+            head -c 4000 "$f"
+            echo
+          done
+          echo "--- ultimas linhas do sistema sobre o Runner ---"
+          xcrun simctl spawn "$UDID" log show --last 8m --style compact             --predicate 'process == "Runner" OR eventMessage CONTAINS "Runner"'             2>/dev/null | tail -120 > artefactos/falha/sistema.txt || true
+          tail -60 artefactos/falha/sistema.txt || true
+
       - name: Parar a gravação
         if: always()
         run: |

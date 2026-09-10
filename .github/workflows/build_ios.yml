@@ -72,7 +72,11 @@ jobs:
   simulador:
     name: A · Compila e corre no simulador (sem conta Apple)
     runs-on: macos-26
-    timeout-minutes: 45
+    # 75 e nao 45 (2026-09-10): a corrida 34453634215 foi MORTA aos 46,4 min
+    # com o passo das capturas a meio. Nao falhou -- estourou o tecto. O
+    # percurso cresceu quando a Apple pediu que a gravacao mostrasse tambem a
+    # conversa, a denuncia, o bloqueio e o caminho de apagar conta.
+    timeout-minutes: 75
 
     steps:
       - uses: actions/checkout@v4

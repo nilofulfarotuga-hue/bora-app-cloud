@@ -576,5 +576,5 @@ void main() {
     // Repor o que a app mudou, senao o `flutter_test` reprova na arrumacao.
     ErrorWidget.builder = construtorDeErroOriginal;
     semantica.dispose();
-  }, timeout: const Timeout(Duration(minutes: 25)));
+  }, timeout: const Timeout(Duration(minutes: 45)));
 }

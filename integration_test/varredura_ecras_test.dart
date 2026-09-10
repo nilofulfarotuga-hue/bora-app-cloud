@@ -105,6 +105,21 @@ Future<void> _rolarAte(WidgetTester t, Finder f, {int vezes = 6}) async {
   }
 }
 
+/// Volta UM ecrã atrás sem tocar às cegas. CICATRIZ (corrida 87, e antes
+/// dela a corrida 34440774329 do arnês): `find.byTooltip('Back')` sem guarda
+/// dá "Bad state: No element" e mata o teste inteiro num ecrã que nem
+/// sequer tinha seta.
+Future<void> _voltar(WidgetTester t) async {
+  final nav = NotificationService.navigatorKey.currentState;
+  if (nav != null && nav.canPop()) {
+    nav.pop();
+  } else {
+    final seta = find.byIcon(Icons.arrow_back);
+    if (seta.evaluate().isNotEmpty) await _tocar(t, seta.first);
+  }
+  await _bombear(t, segundos: 2);
+}
+
 Future<void> _voltarAoInicio(WidgetTester t) async {
   NotificationService.navigatorKey.currentState
       ?.popUntil((rota) => rota.isFirst);
@@ -267,16 +282,14 @@ void main() {
       final r = await _abrirEProvar(t, 'registo-do-cliente',
           alvoTexto: 'Criar conta');
       if (r != null) falhados.add(r);
-      await _tocar(t, find.byTooltip('Back'));
-      await _bombear(t, segundos: 2);
+      await _voltar(t);
     }
     final esqueci = find.text('Esqueci-me da palavra-passe');
     if (await _esperar(t, esqueci, segundos: 8)) {
       final r = await _abrirEProvar(t, 'recuperar-palavra-passe',
           alvoTexto: 'Esqueci-me da palavra-passe', minimoDeTextos: 2);
       if (r != null) falhados.add(r);
-      await _tocar(t, find.byTooltip('Back'));
-      await _bombear(t, segundos: 2);
+      await _voltar(t);
     }
 
     await _entrar(t, _emailCliente);
@@ -296,6 +309,8 @@ void main() {
     // ── Todos os mosaicos, um a um ──────────────────────────────────────
     for (final mosaico in _mosaicos) {
       await _voltarAoInicio(t);
+      final inicio = find.text('Início');
+      if (inicio.evaluate().isNotEmpty) await _tocar(t, inicio.last);
       final r = await _abrirEProvar(t, mosaico.replaceAll('\n', ' '),
           alvoTexto: mosaico);
       if (r != null) falhados.add(r);

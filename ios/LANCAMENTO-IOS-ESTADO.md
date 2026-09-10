@@ -2,8 +2,69 @@
 
 > Missão `ios-lancamento` · run_id `ios-lancamento-2026-09-07`
 > **Este ficheiro diz onde retomar.** Cada linha tem prova.
-> Última actualização: 2026-09-10 — **A GRAVAR o vídeo com denúncia e bloqueio** (bloco **-9** é o mais recente).
+> Última actualização: 2026-09-10 — **CORRIGIDO um crash que matava a app com qualquer pedido aceite** (bloco **-10** é o mais recente).
 > Modo de trabalho: ver `carta-de-autonomia-ios` na memória do projeto.
+
+## -10. A APP MORRIA COM QUALQUER PEDIDO ACEITE (2026-09-10, fim de tarde)
+
+Isto foi o achado do dia, e é maior do que o vídeo que o motivou.
+
+### A prova, lida da máquina
+
+Relatório do simulador, corrida `34495605864`, trazido por um passo de
+diagnóstico escrito de propósito para deixar de adivinhar:
+
+```
+*** Terminating app due to uncaught exception 'GMSServicesException',
+    reason: 'Google Maps SDK for iOS must be initialized via ...'
+  3  +[GMSServices checkServicePreconditions]
+  4  +[GMSServices preLaunchServicesWithCompletion:]
+  5  -[FGMGoogleMapFactory sharedMapServices]
+  6  -[FGMGoogleMapFactory createWithFrame:viewIdentifier:arguments:]
+exited due to SIGABRT | sent by Runner[66529], ran for 81320ms
+```
+
+### A cadeia, do princípio ao fim
+
+1. `ios/Runner/Info.plist` pede `$(GOOGLE_MAPS_API_KEY)`.
+2. Essa definição **não existe** no projeto Xcode. Era passada à mão na linha
+   de comando de **um** `xcodebuild` — o do job do simulador, e mais nenhum.
+3. `flutter build ipa` (o que faz o binário que vai para a Apple) e
+   `flutter drive` (o que corre o arnês) **não** a passam.
+   `--dart-define-from-file` define constantes do **Dart**, não definições de
+   build do Xcode.
+4. Com a chave vazia, o `AppDelegate` salta o `provideAPIKey`. Não rebenta no
+   arranque — empurra a morte para o primeiro mapa.
+5. `ClientMainScreen.build` **abre sozinho** o `OrderTrackingScreen` mal exista
+   um pedido em `driverAccepted` ou acima. Esse ecrã tem um `GoogleMap`.
+6. O SDK do Google Maps aborta o processo. Morte 3 a 7 segundos depois do
+   login, sem uma única excepção Dart.
+
+A corrida verde da manhã (67) só escapou porque nesse momento os pedidos
+ainda estavam em `preparing` — não havia mapa para abrir. Foi por eu ter
+posto os pedidos em `driverAccepted`, para poder filmar a conversa, que a
+bomba apareceu.
+
+### Porque isto quase custou a submissão
+
+Os builds **51, 61 e 63** que estão na Apple foram construídos assim. As
+nossas próprias notas ao revisor pedem-lhe para fazer uma encomenda — e uma
+encomenda das contas demo nasce já com estafeta atribuído. O caminho para a
+app morrer nas mãos do revisor estava aberto, e isso é recusa por *crash*,
+bem pior do que a 2.1 que levámos.
+
+### A correcção (`f76c92c8`)
+
+A chave passa a entrar por **xcconfig**, que serve todos os caminhos de build:
+o CI escreve `ios/Flutter/BoraSecrets.xcconfig` (ignorado pelo git — a chave
+nunca entra no repositório público) e os `Debug/Release.xcconfig` incluem-no
+com `#include?`, opcional para o build local continuar a correr. O job de
+release passa a **falhar** se a chave faltar: mais vale não enviar nada do que
+enviar um IPA que rebenta no mapa.
+
+Confirmado que o **Android nunca teve isto**: a chave está literal no
+`AndroidManifest`. Sem incidente em produção. (Fica anotado à parte que essa
+chave está à vista num repositório público e merece confirmação de restrição.)
 
 ## -9. O DIA EM QUE A GRAVAÇÃO FICOU POSSÍVEL (2026-09-10, tarde)
 

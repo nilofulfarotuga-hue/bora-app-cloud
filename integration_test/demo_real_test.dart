@@ -284,6 +284,33 @@ void main() {
       await _bombear(t, segundos: 2);
     }
 
+    // ── O ACOMPANHAMENTO DO PEDIDO, que a app abre sozinha ────────────────
+    //
+    // CICATRIZ (corrida 34499180247): com a chave do Google Maps corrigida, a
+    // app voltou a fazer o que sempre devia -- `ClientMainScreen.build` abre
+    // SOZINHO o `OrderTrackingScreen` assim que ha um pedido com estafeta.
+    // Antes isso nunca chegava a acontecer porque a app MORRIA a criar o
+    // mapa. Agora acontece, e o arnes encalhou com "nao apareceu:
+    // ecra-inicial": as categorias estavam la, escondidas por baixo deste
+    // ecra.
+    //
+    // Fotografa-se de proposito: "order tracking" e' uma das coisas que a
+    // Apple pediu para ver. Depois volta-se atras, senao o resto do percurso
+    // fica debaixo do mapa.
+    final mapaDoPedido = find.byIcon(Icons.my_location);
+    if (await _esperar(t, mapaDoPedido, segundos: 20)) {
+      await _bombear(t, segundos: 5);
+      await _foto(t, '00b-video-acompanhar-pedido');
+      final voltar = find.byIcon(Icons.arrow_back);
+      if (voltar.evaluate().isNotEmpty) {
+        await _tocar(t, voltar.first);
+        await _bombear(t, segundos: 3);
+      } else {
+        debugPrint('[arnes] acompanhamento aberto mas sem botao de voltar');
+        await _binding.takeScreenshot('zz-acompanhamento-sem-voltar');
+      }
+    }
+
     // ── Início: as categorias reais. Zero marcas de terceiros. ────────────
     await _exigir(t, find.text('Supermercados'), 'ecra-inicial', segundos: 60);
     await _foto(t, '01-loja-categorias');

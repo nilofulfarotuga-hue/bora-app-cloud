@@ -54,6 +54,20 @@ on:
         description: "Confirmar uma encomenda a serio (dinheiro) durante a gravacao"
         type: boolean
         default: false
+      # ESCAPE, deliberado e desligado por defeito.
+      #
+      # O que garante a qualidade do IPA e' a analise estatica (0 erros
+      # obrigatorio) e os testes unitarios + goldens, que correm ANTES no job
+      # A. O passo das capturas e' uma GRAVACAO, nao um portao de correccao:
+      # um `find` que nao casa reprova o job e leva o build atras dele, sem
+      # que haja nada de errado com a app.
+      #
+      # Ligar isto so' depois de LER o log e confirmar que a analise e os
+      # testes passaram e que o que falhou foi mesmo o arnes.
+      enviar_mesmo_sem_arnes:
+        description: "Enviar o IPA mesmo que o arnes de gravacao falhe (analise e testes tem de ter passado)"
+        type: boolean
+        default: false
 
 env:
   # Mesma versão que TODOS os outros workflows do repo fixam (build_android,
@@ -307,7 +321,9 @@ jobs:
     name: B · IPA assinado → App Store Connect
     # Só à mão e só com o interruptor ligado — sem isto o CI ficava vermelho
     # todos os dias enquanto a conta Apple não estivesse activa.
-    if: github.event_name == 'workflow_dispatch' && inputs.enviar
+    if: >-
+      always() && github.event_name == 'workflow_dispatch' && inputs.enviar &&
+      (needs.simulador.result == 'success' || inputs.enviar_mesmo_sem_arnes)
     needs: simulador
     runs-on: macos-26
     timeout-minutes: 60

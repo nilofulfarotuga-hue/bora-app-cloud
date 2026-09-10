@@ -6,6 +6,16 @@ blocking mechanism that was missing. Blocking is now in all four one-to-one
 conversations in the app: the order chat, and the ride, cleaning and car-wash
 chats. Reporting was already in build 51 and is unchanged.
 
+It also fixes a crash we found while preparing this recording, and we would
+rather tell you about it than let you find it. Our Google Maps key was not
+reaching the release binary, so the first time a map was created the Maps SDK
+terminated the app with GMSServicesException. The app opens the order-tracking
+map automatically as soon as a courier is assigned, so following our own
+instructions to place a test order would have crashed build 51 for you. The key
+now reaches every build path, and the release job refuses to produce a binary
+without it. We reproduced the crash, read the simulator's crash report, fixed
+the cause and verified the fix before submitting this build.
+
 2. UPDATED RECORDING (same address)
 https://boraguarda.com/provas/apple-review/
 It now begins with launching the app and covers, in order: the privacy sheet,

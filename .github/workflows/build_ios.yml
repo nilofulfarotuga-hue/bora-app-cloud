@@ -272,16 +272,34 @@ jobs:
       # `[varredura]` do log diz em que ecra. O escape
       # `enviar_mesmo_sem_arnes` NAO cobre este passo: e' so' para a gravacao
       # a seguir, que e' filme e nao prova.
+      # CICATRIZ (corridas 78 e 81, 2026-09-10): o `flutter drive` faz a SUA
+      # propria compilacao do Xcode em silencio -- e encravou duas vezes
+      # seguidas (orfaos `xcodebuild`, `SWBBuildService`, `ibtoold`), a comer
+      # a corrida inteira sem uma linha de log. Por isso a compilacao passa a
+      # ser um passo a parte, com saida visivel e tecto de tempo, e o drive
+      # corre contra o binario ja feito. Um encravamento passa a falhar em
+      # minutos, com diagnostico, em vez de morrer pelo tecto da corrida.
+      - name: Compilar a varredura (visivel, com tecto)
+        id: compilar_varredura
+        timeout-minutes: 25
+        run: |
+          flutter build ios --simulator --debug --no-codesign             --target=integration_test/varredura_ecras_test.dart             --dart-define-from-file=.dart_defines 2>&1 | tail -80
+          test "${PIPESTATUS[0]}" -eq 0
+          ls -d build/ios/iphonesimulator/Runner.app
+
       - name: AUTOTESTE — varredura de ecras (portao, sem escape)
         id: varredura
+        timeout-minutes: 30
         run: |
           mkdir -p artefactos/varredura
-          flutter drive             --driver=test_driver/capturas_driver.dart             --target=integration_test/varredura_ecras_test.dart             -d "$UDID"             --dart-define-from-file=.dart_defines 2>&1 | tee artefactos/varredura/log.txt
+          flutter drive             --driver=test_driver/capturas_driver.dart             --target=integration_test/varredura_ecras_test.dart             --use-application-binary=build/ios/iphonesimulator/Runner.app             -d "$UDID"             --dart-define-from-file=.dart_defines 2>&1 | tee artefactos/varredura/log.txt
           test "${PIPESTATUS[0]}" -eq 0
 
       - name: Diagnostico se a varredura morreu
-        if: failure() && steps.varredura.conclusion == 'failure'
+        if: failure() && (steps.varredura.conclusion == 'failure' || steps.compilar_varredura.conclusion == 'failure')
         run: |
+          echo "=== processos de build ainda vivos (encravados?) ==="
+          ps -axo pid,etime,command | grep -E 'xcodebuild|ibtool|SWBBuild|dartvm' | grep -v grep || true
           echo "=== ultimas linhas [varredura] (a ultima nomeia o ecra culpado) ==="
           grep -a '\[varredura\]' artefactos/varredura/log.txt | tail -15 || true
           mkdir -p artefactos/falha
@@ -292,6 +310,7 @@ jobs:
         # Filme, nao prova: a prova e' a varredura acima. Uma captura que
         # falhe nao segura a build -- mas fica vermelha a vista.
         continue-on-error: true
+        timeout-minutes: 35
         run: |
           mkdir -p artefactos/capturas
           flutter drive \

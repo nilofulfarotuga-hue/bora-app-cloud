@@ -64,6 +64,18 @@
 	<string>A Bora usa a câmara para tirares foto de perfil, de encomendas (Enviar Encomenda) e de compras (Levar Compras).</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>A Bora usa a galeria para escolheres foto de perfil, de encomendas ou de compras.</string>
+	<!-- FACE ID / TOUCH ID (2026-09-10).
+	     SEM esta chave o iOS MATA a app: desde o iOS 17 o proprio
+	     canEvaluatePolicy do LocalAuthentication a exige, e a app termina
+	     por violacao de privacidade (TCC). O ecra de entrada pergunta pela
+	     biometria logo no initState, por isso bastava ABRIR o login num
+	     iPhone com Face ID para a app fechar. Foi o que aconteceu ao
+	     Danilo na build 63. O simulador do CI nunca apanhou isto porque nao
+	     tem biometria inscrita e o arnes entra com palavra-passe.
+	     Ver developer.apple.com/documentation/bundleresources/
+	     information-property-list/nsfaceidusagedescription -->
+	<key>NSFaceIDUsageDescription</key>
+	<string>A Bora usa o Face ID para entrares na tua conta e confirmares pagamentos sem escreveres a palavra-passe.</string>
 	<!-- T3.1: Location permissions for driver real-time tracking. -->
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>A Bora usa a tua localização para mostrar pedidos próximos e calcular trajectos de entrega.</string>

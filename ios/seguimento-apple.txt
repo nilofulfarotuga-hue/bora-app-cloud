@@ -6,15 +6,22 @@ blocking mechanism that was missing. Blocking is now in all four one-to-one
 conversations in the app: the order chat, and the ride, cleaning and car-wash
 chats. Reporting was already in build 51 and is unchanged.
 
-It also fixes a crash we found while preparing this recording, and we would
-rather tell you about it than let you find it. Our Google Maps key was not
-reaching the release binary, so the first time a map was created the Maps SDK
-terminated the app with GMSServicesException. The app opens the order-tracking
-map automatically as soon as a courier is assigned, so following our own
-instructions to place a test order would have crashed build 51 for you. The key
-now reaches every build path, and the release job refuses to produce a binary
-without it. We reproduced the crash, read the simulator's crash report, fixed
-the cause and verified the fix before submitting this build.
+It also fixes two crashes we found ourselves on a physical iPhone, and we
+would rather tell you about them than let you find them. (1) Our Google Maps
+key was not reaching the release binary, so the first map created terminated
+the app with GMSServicesException; the app opens the order-tracking map as soon
+as a courier is assigned, so placing a test order would have crashed build 51
+for you. (2) Info.plist lacked NSFaceIDUsageDescription, so signing in with
+Face ID terminated the app. Both are fixed; the release job now refuses to
+produce a binary without the Maps key, and an automated sweep opens every home
+tile and signs in with all three roles before any build is uploaded. We
+reproduced both crashes, read the crash reports, fixed the causes and verified
+the fixes before submitting this build.
+
+ACCOUNTS FOR EACH ROLE (all with password BoraDemo2026!)
+  Customer: demo@bora.app        Courier: demo-estafeta@bora.app
+  Partner:  demo-parceiro@bora.app  (its demo store is hidden from customers)
+  Deletion test only: demo.apagar@bora.app (recreated every hour)
 
 2. UPDATED RECORDING (same address)
 https://boraguarda.com/provas/apple-review/

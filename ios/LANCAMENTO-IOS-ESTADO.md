@@ -2,8 +2,42 @@
 
 > Missão `ios-lancamento` · run_id `ios-lancamento-2026-09-07`
 > **Este ficheiro diz onde retomar.** Cada linha tem prova.
-> Última actualização: 2026-09-10 — **CORRIGIDO um crash que matava a app com qualquer pedido aceite** (bloco **-10** é o mais recente).
+> Última actualização: 2026-09-10 — **AUDITORIA em curso, portões automáticos montados** (bloco **-11** é o mais recente).
 > Modo de trabalho: ver `carta-de-autonomia-ios` na memória do projeto.
+
+## -11. O QUE PASSA PARA O ANDROID (ponto 5 da ordem de 2026-09-10)
+
+Regra do Danilo: **primeiro o iPhone aprovado; depois une-se o ramo à
+produção e o Android recebe tudo de uma vez**, com a mesma auditoria a correr
+no Android antes de publicar. **Não unir agora** — o push ao ramo de produção
+publica na Play.
+
+### Vai para o Android (código Dart partilhado)
+
+| O quê | Commit(s) | Nota |
+|---|---|---|
+| Denunciar conteúdo (folha com motivos → suporte) | `ed9ad901`… | 1.2 |
+| Bloquear / desbloquear no chat do pedido + tabela `blocked_users` (RLS) | `71fb509b`, migração `bloqueio_entre_utilizadores` | a migração já está aplicada — serve os dois |
+| Bloquear nas conversas de TVDE, limpeza e lavagem (`BarraBloqueado`) | `d50ca34c` | |
+| Política UPDATE em `blocked_users` (o upsert precisava) | migração `blocked_users_permite_reescrever_o_seu` | já aplicada |
+| Traduções EN das frases novas | `ea4e8247`, `d50ca34c` | |
+| `mover_pedidos_demo()` respeita o gatilho de compra finalizada; janela 6 h | migrações de 10/09 | já aplicadas; contas demo |
+| Arnês: acompanhamento abre sozinho, conversa no detalhe | `358daf6a` e anteriores | só CI |
+| Varredura de ecrãs + portão estático | `dee5d3a3` | o estático é só iOS; a varredura corre igual no Android (adaptar o comando no `build_android.yml`) |
+| Taxa de pedido pequeno — **só se** tiver entrado neste ramo | ver `ios/LISTA-VERMELHA-taxa-pedido-pequeno.md` | Lista Vermelha: espera o "vai" |
+
+### NÃO vai para o Android (só iOS)
+
+- `ios/Runner/Info.plist`: `NSFaceIDUsageDescription`, `GoogleMapsApiKey`.
+- `ios/Flutter/Debug.xcconfig` e `Release.xcconfig` + `BoraSecrets.xcconfig` escrito pelo CI.
+- `ios/Runner/Runner.entitlements`, assinatura manual no Release, `build_ios.yml`.
+- Interruptor 5.2.1 (`ios_hide_nonpartner_logos`) — é `_isIOS &&`, não muda nada no Android.
+
+### Antes de unir
+
+1. Correr a varredura no Android (emulador do CI) e ficar verde.
+2. Confirmar que `pubspec.yaml` não levou `web: any` (cicatriz do `flutter run` na web).
+3. Medir a divergência com `origin/autonomous-night-2026-04-29` antes de obedecer a qualquer "push" (cicatriz registada).
 
 ## -10. A APP MORRIA COM QUALQUER PEDIDO ACEITE (2026-09-10, fim de tarde)
 

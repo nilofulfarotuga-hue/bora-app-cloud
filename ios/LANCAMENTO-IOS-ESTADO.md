@@ -92,6 +92,10 @@ publica na Play.
 | `mover_pedidos_demo()` respeita o gatilho de compra finalizada; janela 6 h | migrações de 10/09 | já aplicadas; contas demo |
 | Arnês: acompanhamento abre sozinho, conversa no detalhe | `358daf6a` e anteriores | só CI |
 | Varredura de ecrãs + portão estático | `dee5d3a3` | o estático é só iOS; a varredura corre igual no Android (adaptar o comando no `build_android.yml`) |
+| `LocationService.getCurrentLocation` apanha `PermissionRequestInProgressException` (dois pedidos de localização em simultâneo) | `8eec60ab` | apanhado pela varredura (91) |
+| `NotificationService.setupBroadcastDeepLink` sai se o Firebase não estiver inicializado (rebentava o painel do parceiro no `build`) | `167af478` | apanhado pela varredura (96) |
+| `flutter_local_notifications` com `DarwinInitializationSettings` (iOS) — no Android não muda nada | `370dbfb1` | só iOS na prática |
+| Pedido de permissão de notificações deixa de bloquear o arranque (`unawaited`) | commit desta noite | vale para os dois; no Android o alerta já era assíncrono |
 | Taxa de pedido pequeno — **só se** tiver entrado neste ramo | ver `ios/LISTA-VERMELHA-taxa-pedido-pequeno.md` | Lista Vermelha: espera o "vai" |
 
 ### NÃO vai para o Android (só iOS)

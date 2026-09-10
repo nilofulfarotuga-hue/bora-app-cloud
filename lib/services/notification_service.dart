@@ -1598,13 +1598,19 @@ class NotificationService {
     final messaging = FirebaseMessaging.instance;
 
     // Request permission (required on iOS; Android 13+ shows a dialog too).
-    final settings = await messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-    debugPrint(
-        '[NotificationService] permission: ${settings.authorizationStatus}');
+    //
+    // NAO AGUARDAR (2026-09-10, corrida 104): init() e' aguardado no
+    // Future.wait do main() ANTES do runApp. No iOS o pedido abre um alerta
+    // NATIVO e so' devolve quando a pessoa responde -- a app ficava sem
+    // desenhar um unico fotograma ate ai. Nunca se tinha visto porque, ate
+    // hoje, o Firebase nem inicializava no iOS. O resultado so' servia para
+    // um debugPrint; o token continua a chegar pelo onTokenRefresh.
+    unawaited(messaging
+        .requestPermission(alert: true, badge: true, sound: true)
+        .then((settings) => debugPrint(
+            '[NotificationService] permission: ${settings.authorizationStatus}'))
+        .catchError((Object e) =>
+            debugPrint('[NotificationService] permission request failed: $e')));
 
     // [B] FCM resiliente (2026-06-30) — em GMS degradado (telemóveis fracos /
     // Play Services antigo) getToken() lança MISSING_INSTANCEID_SERVICE. Antes

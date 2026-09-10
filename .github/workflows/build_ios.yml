@@ -112,6 +112,22 @@ jobs:
             echo "AVISO: sem DART_DEFINES_FILE_B64 — a compilar sem chaves."
           fi
 
+          # A chave do Google Maps tem de chegar ao XCODE, nao so' ao Dart.
+          # O `Info.plist` pede `$(GOOGLE_MAPS_API_KEY)` e o `--dart-define`
+          # NAO define definicoes de build -- por isso o IPA que foi para a
+          # Apple ficou sem chave, e a app morria ao abrir o mapa do
+          # acompanhamento. Escreve-se aqui o xcconfig que os `Debug.xcconfig`
+          # e `Release.xcconfig` incluem, e assim serve TODOS os caminhos de
+          # build: `flutter build ipa`, `flutter drive` e `xcodebuild`.
+          CHAVE_MAPS="$(grep -m1 '^GOOGLE_MAPS_API_KEY=' .dart_defines | cut -d= -f2-)"
+          if [ -n "$CHAVE_MAPS" ]; then
+            echo "GOOGLE_MAPS_API_KEY=$CHAVE_MAPS" > ios/Flutter/BoraSecrets.xcconfig
+            echo "chave do Google Maps escrita no xcconfig (${#CHAVE_MAPS} caracteres)"
+          else
+            : > ios/Flutter/BoraSecrets.xcconfig
+            echo "AVISO: sem GOOGLE_MAPS_API_KEY — o mapa vai rebentar a app."
+          fi
+
       - name: GoogleService-Info.plist (Firebase iOS)
         env:
           GOOGLE_SERVICE_INFO_PLIST_B64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_B64 }}
@@ -354,6 +370,19 @@ jobs:
         run: |
           echo "$DART_DEFINES_FILE_B64" | base64 --decode > .dart_defines
           echo "$GOOGLE_SERVICE_INFO_PLIST_B64" | base64 --decode > ios/Runner/GoogleService-Info.plist
+
+          # A MESMA cicatriz do job A, e aqui e' que doi a serio: e' este o
+          # binario que vai para a Apple. Sem isto o `Info.plist` fica com a
+          # chave do Maps vazia e a app MORRE ao abrir o acompanhamento do
+          # pedido -- que a app abre sozinha assim que ha estafeta atribuido.
+          CHAVE_MAPS="$(grep -m1 '^GOOGLE_MAPS_API_KEY=' .dart_defines | cut -d= -f2-)"
+          if [ -n "$CHAVE_MAPS" ]; then
+            echo "GOOGLE_MAPS_API_KEY=$CHAVE_MAPS" > ios/Flutter/BoraSecrets.xcconfig
+            echo "chave do Google Maps escrita no xcconfig (${#CHAVE_MAPS} caracteres)"
+          else
+            echo "::error::Sem GOOGLE_MAPS_API_KEY — nao se envia um IPA que rebenta no mapa."
+            exit 1
+          fi
 
       - name: Dependências
         run: flutter pub get

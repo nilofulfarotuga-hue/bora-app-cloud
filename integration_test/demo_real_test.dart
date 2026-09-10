@@ -337,8 +337,15 @@ void main() {
       debugPrint('[arnes] a loja numero $n nao abriu — provavelmente fechada');
       // Se tiver entrado nalgum ecra, volta para a lista antes de tentar outra.
       if (_id('cartao_loja').evaluate().isEmpty) {
-        await _tocar(t, find.byTooltip('Back'));
-        await _bombear(t, segundos: 2);
+        // CICATRIZ (corrida 34440774329): `_tocar` faz `f.first`, e um
+        // `byTooltip('Back')` que nao existe rebenta com "Bad state: No
+        // element" — o teste morria ali em vez de chegar a mensagem util
+        // sobre o horario. Toca-se so se houver mesmo botao.
+        final voltar = find.byTooltip('Back');
+        if (voltar.evaluate().isNotEmpty) {
+          await _tocar(t, voltar);
+          await _bombear(t, segundos: 2);
+        }
       }
     }
     await _foto(t, '03-video-loja');

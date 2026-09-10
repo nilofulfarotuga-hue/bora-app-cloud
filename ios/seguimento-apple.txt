@@ -43,13 +43,15 @@ Account deletion: Perfil > "Apagar conta". Please use demo.apagar@bora.app /
 BoraDemo2026! for a real deletion, so the browsing account stays available to
 you. That account is recreated automatically every hour.
 
-ONE THING WE CANNOT DO, STATED PLAINLY
-You asked for a recording captured on a physical device. We do not have an iOS
-device: this is a one-person company and the app is developed on Windows, with
-iOS builds produced on hosted macOS runners. The recording is therefore a
-screen capture of the iOS Simulator running the real build against our live
+ABOUT THE DEVICE, STATED PLAINLY
+You asked for a recording captured on a physical device. This recording was
+captured on the iOS Simulator running the real build against our live
 production server, with no mock data and no editing beyond trimming and the
-English captions. If a simulator recording is not acceptable, please tell us
-and we will arrange access to a physical device before submitting again.
+English captions. We did test on a physical iPhone as well: that is how we
+found the two crashes described above, in the previous build, and both are
+fixed in this one. We are a one-person company and the app is developed on
+Windows with iOS builds produced on hosted macOS runners, so a physical-device
+recording was not possible before this reply. If you need one, tell us and we
+will provide it before any further review.
 
 boraappbora@gmail.com   +351 937 501 673

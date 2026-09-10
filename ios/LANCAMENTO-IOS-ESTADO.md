@@ -2,8 +2,40 @@
 
 > Missão `ios-lancamento` · run_id `ios-lancamento-2026-09-07`
 > **Este ficheiro diz onde retomar.** Cada linha tem prova.
-> Última actualização: 2026-09-10 — **AUDITORIA em curso, portões automáticos montados** (bloco **-11** é o mais recente).
+> Última actualização: 2026-09-10 — **corrida 81 com os portões a correr; depois IPA provado → TestFlight → reenvio** (bloco **-12** é o mais recente).
 > Modo de trabalho: ver `carta-de-autonomia-ios` na memória do projeto.
+
+## -12. PORTÕES AUTOMÁTICOS E A CORRIDA 81 (2026-09-10, noite)
+
+Ordem definitiva do Danilo: ele não testa mais; quem prova sou eu. Estado:
+
+| Ponto | Estado | Prova |
+|---|---|---|
+| 3 — matriz plugin→chave no CI | ✅ `test/ios_info_plist_test.dart`, 6 verdes, corre no passo 11 antes de haver build | saída do `flutter test` |
+| 4 — varredura como portão | ✅ passo próprio no job A, sem escape; arnês de gravação passou a `continue-on-error`; job B só com A verde | `build_ios.yml` no ramo, lido de volta |
+| 2 — parceiro demo | ✅ `demo-parceiro@bora.app` / `BoraDemo2026!`, loja `demo-parceiro-loja` em categoria `beauty` (nenhum ecrã de cliente lista), offline, "em breve" | login por API entrou com papel `partner`; SQL `invisivel_ao_cliente = true` |
+| 1 — matriz | ⬜ `ios/AUDITORIA-iOS-MATRIZ.md` escrita; as linhas passam a ✅ com o log da corrida 81 | — |
+| 5 — lista Android | ✅ bloco -11 | — |
+| 6 — build/TestFlight/reenvio | ⏳ corrida **81** (`34508432910`) a correr sobre `5a96d962` | `ciclo_completo.py` a vigiar |
+| 7 — Danilo entra uma vez | ⏳ só depois da 81 verde e do IPA provado | — |
+
+Terceiro crash do Danilo (entrar como estafeta na 63) **provado**: `main.dart:1019`
+cai no `DriverHomeScreen`, que constrói `GoogleMap` na linha 1091, com a chave
+vazia lida do IPA da 63. Mesma bomba do mapa, já corrigida.
+
+Recuperação de palavra-passe **funciona**: envio real às 16:49:47 UTC chegou de
+`nao-responder@boraguarda.com`; a tentativa do Danilo não deixou rasto em
+`auth.users.recovery_sent_at` — o endereço que escreveu não tem conta.
+
+Ferramentas prontas no scratchpad: `provar_ipa.py <run>` (lê o Info.plist de
+dentro do IPA), `testflight_refazer.py <build>` (grupo interno com UMA build,
+`hasAccessToAllBuilds=false` desde a criação — não se muda depois, 409),
+`notas_enviar.py ios/notas-novas.txt` (3998/4000), `reenviar.py`.
+
+**Se o contexto acabar aqui:** esperar a 81; se verde → `provar_ipa.py 34508432910`
+→ `testflight_refazer.py 81` → montar vídeo (`contacto.py` + `montar_video.py`
++ `publicar_video_revisor.py`) → `notas_enviar.py` → `reenviar.py` → colar
+`ios/seguimento-apple.txt` no Resolution Center (substituir `__BUILD__`).
 
 ## -11. O QUE PASSA PARA O ANDROID (ponto 5 da ordem de 2026-09-10)
 

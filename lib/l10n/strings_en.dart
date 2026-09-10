@@ -2701,4 +2701,25 @@ const Map<String, String> kStringsEn = <String, String>{
       'Fraud or scam',
   'Outro motivo':
       'Another reason',
+  // Bloquear uma pessoa (2026-09-10) — directriz 1.2.
+  'Denunciar ou bloquear':
+      'Report or block',
+  'Bloquear esta pessoa':
+      'Block this person',
+  'Desbloquear esta pessoa':
+      'Unblock this person',
+  'Desbloquear':
+      'Unblock',
+  'Deixas de ver as mensagens desta pessoa.':
+      'You will stop seeing this person’s messages.',
+  'Voltas a ver as mensagens desta pessoa.':
+      'You will see this person’s messages again.',
+  'Pessoa bloqueada.':
+      'Person blocked.',
+  'Pessoa desbloqueada.':
+      'Person unblocked.',
+  'Não foi possível concluir. Tenta outra vez.':
+      'Could not complete. Please try again.',
+  'Bloqueaste esta pessoa. Não vês as mensagens dela nem lhe podes escrever.':
+      'You blocked this person. You cannot see their messages or write to them.',
 };

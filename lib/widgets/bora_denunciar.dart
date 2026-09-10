@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../config/app_colors.dart';
 import '../l10n/tr.dart';
 import '../screens/support_chat_screen.dart';
+import '../services/bloqueio_service.dart';
 
 /// DENUNCIAR CONTEUDO (2026-09-08, missao `ios-lancamento`).
 ///
@@ -17,7 +18,13 @@ import '../screens/support_chat_screen.dart';
 /// tem visor no painel de admin (`admin_chat_viewer_screen.dart`), por isso a
 /// denuncia cai onde alguem a le, em vez de cair numa tabela que ninguem abre.
 class BotaoDenunciar extends StatelessWidget {
-  const BotaoDenunciar({super.key, this.orderId, this.sobreQuem});
+  const BotaoDenunciar({
+    super.key,
+    this.orderId,
+    this.sobreQuem,
+    this.refDoOutro,
+    this.onMudou,
+  });
 
   /// Pedido a que a conversa pertence, para o suporte saber do que se trata.
   final String? orderId;
@@ -26,15 +33,25 @@ class BotaoDenunciar extends StatelessWidget {
   /// "a loja"). Vai no texto, nao serve para bloquear ninguem.
   final String? sobreQuem;
 
+  /// Identificador da pessoa do outro lado. Quando existe, alem de denunciar
+  /// pode-se BLOQUEAR — que a directriz 1.2 exige e a Apple nomeou ao recusar
+  /// a primeira submissao a 2026-09-10.
+  final String? refDoOutro;
+
+  /// Chamado depois de bloquear ou desbloquear, para o ecra se redesenhar.
+  final VoidCallback? onMudou;
+
   @override
   Widget build(BuildContext context) {
     return IconButton(
       icon: const Icon(Icons.flag_outlined),
-      tooltip: 'Denunciar'.tr,
+      tooltip: 'Denunciar ou bloquear'.tr,
       onPressed: () => mostrarFolhaDenuncia(
         context,
         orderId: orderId,
         sobreQuem: sobreQuem,
+        refDoOutro: refDoOutro,
+        onMudou: onMudou,
       ),
     );
   }
@@ -54,6 +71,8 @@ Future<void> mostrarFolhaDenuncia(
   BuildContext context, {
   String? orderId,
   String? sobreQuem,
+  String? refDoOutro,
+  VoidCallback? onMudou,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -108,6 +127,58 @@ Future<void> mostrarFolhaDenuncia(
                   );
                 },
               ),
+            // BLOQUEAR — a outra metade do que a directriz 1.2 exige.
+            if (refDoOutro != null && refDoOutro.isNotEmpty) ...[
+              const Divider(height: 1),
+              ListTile(
+                leading: Icon(
+                  BloqueioService.estaBloqueado(refDoOutro)
+                      ? Icons.lock_open
+                      : Icons.block,
+                  color: BloqueioService.estaBloqueado(refDoOutro)
+                      ? AppColors.textSecondary
+                      : Colors.red,
+                ),
+                title: Text(
+                  BloqueioService.estaBloqueado(refDoOutro)
+                      ? 'Desbloquear esta pessoa'.tr
+                      : 'Bloquear esta pessoa'.tr,
+                  style: TextStyle(
+                    color: BloqueioService.estaBloqueado(refDoOutro)
+                        ? AppColors.textPrimary
+                        : Colors.red,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: Text(
+                  BloqueioService.estaBloqueado(refDoOutro)
+                      ? 'Voltas a ver as mensagens desta pessoa.'.tr
+                      : 'Deixas de ver as mensagens desta pessoa.'.tr,
+                  style: const TextStyle(fontSize: 12),
+                ),
+                onTap: () async {
+                  final jaEstava = BloqueioService.estaBloqueado(refDoOutro);
+                  final ok = jaEstava
+                      ? await BloqueioService.desbloquear(refDoOutro)
+                      : await BloqueioService.bloquear(refDoOutro,
+                          etiqueta: sobreQuem);
+                  if (folha.mounted) Navigator.of(folha).pop();
+                  onMudou?.call();
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        !ok
+                            ? 'Não foi possível concluir. Tenta outra vez.'.tr
+                            : jaEstava
+                                ? 'Pessoa desbloqueada.'.tr
+                                : 'Pessoa bloqueada.'.tr,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
           ],
         ),
       );

@@ -20,6 +20,7 @@ import 'services/foreground_service.dart';
 import 'services/notification_service.dart';
 import 'widgets/atalho_trabalho_em_curso.dart';
 import 'services/push_token_service.dart';
+import 'services/bloqueio_service.dart';
 import 'services/remote_fees_service.dart';
 import 'services/small_order_fee.dart';
 import 'services/tvde_reservation_ready_handler.dart';
@@ -347,6 +348,11 @@ Future<void> main() async {
       // leitura a app ficava presa aos valores de recurso durante toda a
       // sessão, e uma mudança feita no painel admin não chegava ao cliente.
       unawaited(RemoteFeesService.carregar(forcar: true));
+
+      // A lista de quem esta pessoa bloqueou também vive atrás da RLS: sem
+      // sessão a leitura devolve `[]` sem erro, e o bloqueio ficaria sem
+      // efeito depois de entrar. Mesma cicatriz das duas linhas acima.
+      unawaited(BloqueioService.carregar(forcar: true));
     }
   });
 

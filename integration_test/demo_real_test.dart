@@ -402,6 +402,51 @@ void main() {
       await _bombear(t, segundos: 12);
       await _foto(t, '08-loja-acompanhar');
 
+      // DENUNCIAR E BLOQUEAR — a Apple pediu isto por escrito ao recusar a
+      // primeira submissao (2026-09-10): "Any user-generated content,
+      // including the required content reporting and blocking mechanisms."
+      // Tudo protegido: se algum passo nao aparecer, segue-se sem falhar. As
+      // capturas que interessam ja estao todas feitas antes daqui.
+      try {
+        final bolhaChat = find.byIcon(Icons.chat_bubble);
+        final qualquerChat = bolhaChat.evaluate().isNotEmpty
+            ? bolhaChat
+            : find.byIcon(Icons.chat_bubble_outline);
+        if (qualquerChat.evaluate().isNotEmpty) {
+          await _tocar(t, qualquerChat);
+          await _bombear(t, segundos: 4);
+          final bandeira = find.byIcon(Icons.flag_outlined);
+          if (await _esperar(t, bandeira, segundos: 12)) {
+            await _foto(t, '13-video-conversa');
+            await _tocar(t, bandeira);
+            await _bombear(t, segundos: 3);
+            await _foto(t, '14-video-denunciar-bloquear');
+            final bloquear = find.textContaining('Bloquear esta pessoa');
+            if (bloquear.evaluate().isNotEmpty) {
+              await _tocar(t, bloquear);
+              await _bombear(t, segundos: 4);
+              await _foto(t, '15-video-bloqueada');
+              // Repoe-se, para a conta de demonstracao ficar como estava.
+              final outraVez = find.byIcon(Icons.flag_outlined);
+              if (outraVez.evaluate().isNotEmpty) {
+                await _tocar(t, outraVez);
+                await _bombear(t, segundos: 2);
+                final desbloquear =
+                    find.textContaining('Desbloquear esta pessoa');
+                if (desbloquear.evaluate().isNotEmpty) {
+                  await _tocar(t, desbloquear);
+                  await _bombear(t, segundos: 3);
+                }
+              }
+            }
+          }
+          await _voltarAoInicio(t);
+        }
+      } catch (e) {
+        debugPrint('[arnes] denuncia/bloqueio nao deu: $e');
+        await _binding.takeScreenshot('zz-falha-bloqueio');
+      }
+
       // Arrumação, não segurança — a caixa fechada já garante que ninguém real
       // é chamado. É só para não deixar pedidos de demonstração abertos. Se o
       // botão não estiver disponível neste estado, segue-se sem drama.
@@ -488,6 +533,37 @@ void main() {
           }
         }
       }
+    }
+
+    // APAGAR CONTA — a Apple pediu o fluxo na gravacao (5.1.1(v)). Mostra-se
+    // o caminho e o aviso, e CANCELA-SE: apagar a conta de navegacao a meio
+    // da corrida deixava o revisor sem por onde entrar. Para apagar a serio
+    // existe `demo.apagar@bora.app`, dito nas notas ao revisor.
+    try {
+      final perfil = find.text('Perfil');
+      if (perfil.evaluate().isNotEmpty) {
+        await _tocar(t, perfil);
+        await _bombear(t, segundos: 3);
+        final apagar = find.text('Apagar conta');
+        await _rolarAteAparecer(t, apagar, vezes: 8);
+        if (await _esperar(t, apagar, segundos: 10)) {
+          await _foto(t, '16-video-apagar-conta');
+          await _tocar(t, apagar);
+          await _bombear(t, segundos: 3);
+          await _foto(t, '17-video-apagar-aviso');
+          for (final sair in ['Cancelar', 'Agora não', 'Voltar']) {
+            final b = find.text(sair);
+            if (b.evaluate().isNotEmpty) {
+              await _tocar(t, b);
+              break;
+            }
+          }
+          await _bombear(t, segundos: 2);
+        }
+      }
+    } catch (e) {
+      debugPrint('[arnes] o fluxo de apagar conta nao deu: $e');
+      await _binding.takeScreenshot('zz-falha-apagar-conta');
     }
 
     // Repor o que a app mudou, senao o `flutter_test` reprova na arrumacao.

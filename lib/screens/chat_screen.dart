@@ -11,6 +11,7 @@ import '../stores/chat_store.dart';
 import '../stores/order_store.dart';
 import '../stores/restaurant_store.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
+import '../services/bloqueio_service.dart';
 import '../widgets/bora_denunciar.dart';
 
 import '../l10n/tr.dart';
@@ -180,12 +181,22 @@ class _ChatScreenState extends State<ChatScreen> {
       (o) => o.id == widget.order.id,
       orElse: () => widget.order,
     );
+    // QUEM ESTA DO OUTRO LADO. A tabela `messages` nao guarda quem enviou —
+    // so o papel — por isso a pessoa identifica-se pelo pedido.
+    final refDoOutro = switch (widget.senderType) {
+      ChatSenderType.client => liveOrder.assignedDriverId,
+      ChatSenderType.driver => liveOrder.userId,
+      ChatSenderType.partner => liveOrder.userId,
+    };
+    final bloqueado = BloqueioService.estaBloqueado(refDoOutro);
+
     final messages = chatStore
         .messagesForOrder(widget.order.id)
         .where((m) =>
             widget.conversationType == null ||
             m.conversationType == null ||
             m.conversationType == widget.conversationType)
+        .where((m) => !bloqueado || m.senderRole == _senderRole)
         .toList();
 
     // M11: mensagens novas dos outros enquanto o ecrã está aberto → marcar
@@ -226,7 +237,11 @@ class _ChatScreenState extends State<ChatScreen> {
             },
           ),
           // Directriz 1.2: quem usa a app tem de poder denunciar o que le aqui.
-          BotaoDenunciar(orderId: liveOrder.id),
+          BotaoDenunciar(
+            orderId: liveOrder.id,
+            refDoOutro: refDoOutro,
+            onMudou: () => setState(() {}),
+          ),
         ],
       ),
       body: Column(
@@ -264,7 +279,37 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
           ),
           const Divider(height: 1, color: AppColors.divider),
-          SafeArea(
+          if (bloqueado)
+            SafeArea(
+              top: false,
+              minimum: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  const Icon(Icons.block, size: 18, color: Colors.red),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Bloqueaste esta pessoa. Não vês as mensagens dela nem lhe podes escrever.'
+                          .tr,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      if (refDoOutro == null) return;
+                      await BloqueioService.desbloquear(refDoOutro);
+                      if (context.mounted) setState(() {});
+                    },
+                    child: Text('Desbloquear'.tr),
+                  ),
+                ],
+              ),
+            )
+          else
+            SafeArea(
             top: false,
             minimum: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Row(

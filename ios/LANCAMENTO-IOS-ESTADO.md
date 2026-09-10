@@ -24,6 +24,15 @@ CI falha se o plist não estiver dentro do `Runner.app` depois de compilar.
 
 Corrida **100** (`34527955218`): varredura inteira verde; reprovou só na despedida (`ErrorWidget.builder`) — corrigido; plist do Firebase confirmado dentro do `Runner.app`; destapou e corrigiu-se o arranque das notificações locais no iOS (`DarwinInitializationSettings`). Corrida final: **104** (`34532508180`), sobre `bcd09aa4`, com `encomenda_real=true` (o pedido demo expira às 23:32 UTC e o conector do Supabase está caído; o pedido nasce em `driverAccepted` com o estafeta demo, ninguém real é chamado) (plist do Firebase referenciado + guarda no painel do parceiro + teste estático com 7 verdes). Se verde: `pos_verde.py 34527955218 100` → vídeo → `notas_enviar.py ios/notas-novas.txt` → `reenviar.py` → Resolution Center.
 
+Corridas **104** e **107** (`encomenda_real=true`): a app **não desenhava um
+único fotograma** — a linha `[GATE] main-alive heartbeat started` nunca
+aparecia. Com o Firebase finalmente a arrancar, o `init()` das notificações
+(aguardado no `Future.wait` do `main()` antes do `runApp`) chegava a duas
+chamadas que no iOS só devolvem depois do alerta nativo / do registo no APNs:
+`requestPermission()` (104) e `getInitialMessage()` (107). Ambas passaram a
+`unawaited`. Regra nova: nada que dependa de alerta nativo ou de APNs no
+caminho aguardado do arranque.
+
 Ordem em vigor (Danilo, 22h): dorme; não perguntar mais nada; terminar e
 reenviar esta noite com o vídeo do simulador e a resposta honesta (o iPhone
 real serviu para encontrar os crashes; a gravação é do simulador).
@@ -96,6 +105,7 @@ publica na Play.
 | `NotificationService.setupBroadcastDeepLink` sai se o Firebase não estiver inicializado (rebentava o painel do parceiro no `build`) | `167af478` | apanhado pela varredura (96) |
 | `flutter_local_notifications` com `DarwinInitializationSettings` (iOS) — no Android não muda nada | `370dbfb1` | só iOS na prática |
 | Pedido de permissão de notificações deixa de bloquear o arranque (`unawaited`) | commit desta noite | vale para os dois; no Android o alerta já era assíncrono |
+| `getInitialMessage()` deixa de bloquear o arranque (`unawaited`) | commit desta noite | vale para os dois |
 | Taxa de pedido pequeno — **só se** tiver entrado neste ramo | ver `ios/LISTA-VERMELHA-taxa-pedido-pequeno.md` | Lista Vermelha: espera o "vai" |
 
 ### NÃO vai para o Android (só iOS)

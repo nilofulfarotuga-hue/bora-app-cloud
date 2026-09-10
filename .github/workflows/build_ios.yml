@@ -286,6 +286,10 @@ jobs:
           flutter build ios --simulator --debug --no-codesign             --target=integration_test/varredura_ecras_test.dart             --dart-define-from-file=.dart_defines 2>&1 | tail -80
           test "${PIPESTATUS[0]}" -eq 0
           ls -d build/ios/iphonesimulator/Runner.app
+          # O que o Firebase precisa tem de estar DENTRO da app, nao so' no
+          # disco do runner (cicatriz 2026-09-10: o plist era escrito mas nunca
+          # entrava no .app, e nao havia push em iPhone nenhum).
+          test -f build/ios/iphonesimulator/Runner.app/GoogleService-Info.plist             || { echo "::error::GoogleService-Info.plist NAO esta dentro da app"; exit 1; }
 
       - name: AUTOTESTE — varredura de ecras (portao, sem escape)
         id: varredura

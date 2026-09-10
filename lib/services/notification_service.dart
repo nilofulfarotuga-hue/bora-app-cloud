@@ -1488,6 +1488,12 @@ class NotificationService {
   /// Idempotent — safe to call from build().
   static void setupBroadcastDeepLink(BuildContext context) {
     if (_broadcastDeepLinkWired) return;
+    // CICATRIZ (varredura, corrida 96, 2026-09-10): isto corre dentro do
+    // `build()` do painel do parceiro e `FirebaseMessaging.instance` LANCA
+    // quando o Firebase nao esta inicializado -- o painel rebentava a
+    // construir. Sem Firebase nao ha deep link de push para ligar: sai-se
+    // em silencio e fica por ligar, para tentar outra vez quando houver.
+    if (Firebase.apps.isEmpty) return;
     _broadcastDeepLinkWired = true;
     final navigator = Navigator.of(context);
     void openInbox() => navigator.push(

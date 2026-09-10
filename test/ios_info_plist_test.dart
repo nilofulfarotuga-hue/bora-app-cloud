@@ -168,6 +168,19 @@ void main() {
               '${semDono.join(', ')}');
     });
 
+    test('o Firebase tem o GoogleService-Info.plist DENTRO do projeto Xcode', () {
+      // CICATRIZ (2026-09-10): o CI escrevia ios/Runner/GoogleService-Info.plist
+      // a partir do segredo, mas o ficheiro nunca foi acrescentado ao alvo
+      // Runner no project.pbxproj -- logo nunca ia para dentro do .app, o
+      // Firebase nunca inicializava no iOS e nao havia push em iPhone nenhum.
+      // Escrever o ficheiro nao chega: tem de estar REFERENCIADO no projeto.
+      if (!usa('firebase_messaging') && !usa('firebase_core')) return;
+      final pbx = File('ios/Runner.xcodeproj/project.pbxproj').readAsStringSync();
+      expect(pbx.contains('GoogleService-Info.plist in Resources'), isTrue,
+          reason: 'O plist do Firebase nao esta na fase Resources do alvo '
+              'Runner: o Firebase nunca inicializa no iOS.');
+    });
+
     test('o xcconfig do Release inclui o ficheiro de segredos do CI', () {
       // Sem este include, `flutter build ipa` produz um IPA sem a chave do
       // mapa — que foi exactamente o que aconteceu nas builds 51, 61 e 63.

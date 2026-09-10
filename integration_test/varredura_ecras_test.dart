@@ -448,6 +448,12 @@ void main() {
       falhados.add('não cheguei ao botão "Sou Parceiro"');
     }
 
+    // Repor INLINE, antes de o corpo terminar: o testWidgets verifica o
+    // ErrorWidget.builder logo a seguir ao corpo, ANTES dos addTearDown --
+    // foi por isso que a corrida 110, inteiramente verde, reprovou na
+    // despedida apesar do tearDown (o arnes de gravacao ja o fazia inline).
+    ErrorWidget.builder = builderOriginal;
+
     _diz('VARREDURA TERMINADA. Falhas: ${falhados.length}. '
         'Por varrer: ${porVarrer.length}');
     for (final f in falhados) {

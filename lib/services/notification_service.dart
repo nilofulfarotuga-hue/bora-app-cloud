@@ -1525,8 +1525,20 @@ class NotificationService {
     // e tocar na notificação persistente não abre o ecrã de aceitar/rejeitar.
     final localPlugin = FlutterLocalNotificationsPlugin();
     await localPlugin.initialize(
+      // CICATRIZ (corrida 100, 2026-09-10): sem as definicoes de iOS o
+      // plugin lanca "iOS settings must be set when targeting iOS platform",
+      // o init() inteiro abortava e a app seguia "sem notificacoes" em todos
+      // os iPhones -- so' se viu no dia em que o Firebase passou a
+      // inicializar. As permissoes NAO se pedem aqui (pede-as o
+      // FirebaseMessaging.requestPermission mais abaixo), senao havia dois
+      // pedidos ao sistema.
       const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        iOS: DarwinInitializationSettings(
+          requestAlertPermission: false,
+          requestBadgePermission: false,
+          requestSoundPermission: false,
+        ),
       ),
       onDidReceiveNotificationResponse: _onLocalNotifTap,
       onDidReceiveBackgroundNotificationResponse: onBackgroundNotificationAction,

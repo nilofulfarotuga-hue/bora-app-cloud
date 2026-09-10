@@ -281,6 +281,14 @@ void main() {
     final falhados = <String>[];
     final porVarrer = <String>[];
 
+    // CICATRIZ (corrida 100, e antes dela o arnês de gravação): a app troca o
+    // `ErrorWidget.builder` ao arrancar, e o `testWidgets` reprova no fim com
+    // "The value of ErrorWidget.builder was changed by the test" -- uma
+    // varredura inteiramente verde ficava vermelha na despedida. Guarda-se e
+    // repõe-se.
+    final builderOriginal = ErrorWidget.builder;
+    addTearDown(() => ErrorWidget.builder = builderOriginal);
+
     app.main();
     await _bombear(t, segundos: 12);
 

@@ -17,44 +17,44 @@
 
 | Linha | Como se prova | Estado |
 |---|---|---|
-| Folha de privacidade → Aceitar tudo | varredura | ⬜ |
-| Escolha de perfil (Sou Cliente / Estafeta / Parceiro) | varredura | ⬜ |
-| Entrar por email — cliente `demo@bora.app` | varredura | ⬜ |
-| Entrar por email — estafeta `demo-estafeta@bora.app` | varredura | ⬜ |
+| Folha de privacidade → Aceitar tudo | varredura | ✅ corrida 91 (passou por ela até ao início) |
+| Escolha de perfil (Sou Cliente / Estafeta / Parceiro) | varredura | ✅ corrida 91 (Sou Cliente) — estafeta/parceiro ⬜ |
+| Entrar por email — cliente `demo@bora.app` | varredura | ✅ corrida 91 (início com 28 textos) |
+| Entrar por email — estafeta `demo-estafeta@bora.app` | varredura | ✅ 93 |
 | Entrar por email — parceiro `demo-parceiro@bora.app` | varredura | ⬜ |
 | Entrar com biometria | simulador NÃO cobre; portão estático (`NSFaceIDUsageDescription`) + iPhone real | ⬜ |
-| Criar conta (registo) | varredura abre o ecrã | ⬜ |
-| Recuperar palavra-passe (ecrã) | varredura abre o ecrã | ⬜ |
+| Criar conta (registo) | varredura abre o ecrã | ✅ corrida 91 (12 textos) |
+| Recuperar palavra-passe (ecrã) | varredura abre o ecrã | ✅ corrida 91 (4 textos) |
 | Recuperar palavra-passe (email sai mesmo) | envio real 2026-09-10 16:49:47 → chegou de `nao-responder@boraguarda.com` | ✅ |
-| Apagar conta (caminho + aviso, sem apagar) | varredura | ⬜ |
+| Apagar conta (caminho + aviso, sem apagar) | varredura | ✅ 93 (aviso com 80 textos; cancelado) |
 
 ## Cliente — mosaicos do início
 
 | Mosaico | Abre o quê | Mapa? | Estado |
 |---|---|---|---|
-| Restaurantes | lista de restaurantes | não | ⬜ |
-| Supermercados | lista de mercados | não | ⬜ |
-| Farmácia | lista/loja | não | ⬜ |
-| Lojas | lista de lojas | não | ⬜ |
-| Enviar Encomenda | formulário | não | ⬜ |
-| Levar Compras | formulário | não | ⬜ |
-| Favores | formulário de favor | não | ⬜ |
-| Reservar Mesa | reservas | não | ⬜ |
-| Beleza | prestadores de serviços | não | ⬜ |
-| Limpeza | assistente de limpeza | não | ⬜ |
-| Bora Motorista | pedir boleia | **sim** | ⬜ |
-| Festas | lista | não | ⬜ |
-| Sobremesas | lista | não | ⬜ |
-| Lavagem Auto | serviço (só com categoria aberta) | não | ⬜ |
+| Restaurantes | lista de restaurantes | não | ✅ 91 (37 textos) |
+| Supermercados | lista de mercados | não | ✅ 91 (26) |
+| Farmácia | lista/loja | não | ✅ 91 (10) |
+| Lojas | lista de lojas | não | ✅ 91 (22) |
+| Enviar Encomenda | formulário | não | ✅ 91 (14) |
+| Levar Compras | página de entrada + formulário | não | ✅ vivo, **pobre**: só título e um botão (captura `zz-vazio-Levar Compras.png`, corrida 91) — nota pós-aprovação |
+| Favores | formulário de favor | não | ✅ 91 (16) |
+| Reservar Mesa | reservas | não | ✅ 91 (4) |
+| Beleza | prestadores de serviços | não | ✅ 91 (5) |
+| Limpeza | assistente de limpeza | não | ✅ 91 (4) |
+| Bora Motorista | pedir boleia | **sim** | ✅ 93 (28 textos) — depois de corrigir `PermissionRequestInProgressException` por tratar (91) em `location_service.dart` |
+| Festas | lista | não | ✅ 93 (15) |
+| Sobremesas | lista | não | ✅ 93 (15) |
+| Lavagem Auto | serviço (só com categoria aberta) | não | ⬜ categoria fechada no dia (mosaico ausente) — não é falha |
 
 ## Cliente — separadores e ecrãs de pedido
 
 | Linha | Mapa? | Estado |
 |---|---|---|
-| Entregas (lista de pedidos) | não | ⬜ |
-| Reservas | não | ⬜ |
-| Perfil | não | ⬜ |
-| Acompanhamento do pedido (abre sozinho com estafeta atribuído) | **sim** | ⬜ |
+| Entrega (lista de pedidos) | não | ✅ 93 (25) |
+| Reserva | não | ✅ 93 (15) |
+| Perfil | não | ✅ 93 (76) |
+| Acompanhamento do pedido (abre sozinho com estafeta atribuído) | **sim** | ✅ 91 (25 textos — o mapa cria-se e a app sobrevive) |
 | Detalhe do pedido → cartão "O teu estafeta" → Chat | não | ⬜ |
 | Chat → bandeira → denunciar / bloquear / desbloquear | não | ⬜ |
 
@@ -62,10 +62,10 @@
 
 | Linha | Mapa? | Estado |
 |---|---|---|
-| Início do estafeta | **sim** | ⬜ |
-| Ganhos (tooltip) | não | ⬜ |
-| Perfil (tooltip) | não | ⬜ |
-| Definições | não | ⬜ |
+| Início do estafeta | **sim** | ✅ 93 (13 textos — o mapa cria-se e a app sobrevive) |
+| Ganhos (tooltip) | não | ✅ 93 (46) |
+| Perfil (tooltip) | não | ✅ 93 (52) |
+| Definições | não | ⬜ rótulo não encontrado a partir do início (93) |
 | TVDE motorista: início / oferta / corrida activa | **sim** | ⬜ (exige documentos TVDE aprovados — a conta demo não tem) |
 
 ## Parceiro (`demo-parceiro@bora.app`, loja "Loja Demo Bora")

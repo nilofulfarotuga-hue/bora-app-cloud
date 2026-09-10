@@ -22,6 +22,8 @@ iPhone nenhum** (`[core/no-app]` em todas as corridas) e **não havia push no
 iOS**. Corrigido: referência nos 4 sítios do pbxproj; teste estático exige-a;
 CI falha se o plist não estiver dentro do `Runner.app` depois de compilar.
 
+Corrida final: **100** (`34527955218`), sobre `c3443c90` (plist do Firebase referenciado + guarda no painel do parceiro + teste estático com 7 verdes). Se verde: `pos_verde.py 34527955218 100` → vídeo → `notas_enviar.py ios/notas-novas.txt` → `reenviar.py` → Resolution Center.
+
 Ordem em vigor (Danilo, 22h): dorme; não perguntar mais nada; terminar e
 reenviar esta noite com o vídeo do simulador e a resposta honesta (o iPhone
 real serviu para encontrar os crashes; a gravação é do simulador).

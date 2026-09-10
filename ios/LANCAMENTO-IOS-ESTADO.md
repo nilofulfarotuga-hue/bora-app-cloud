@@ -32,6 +32,12 @@ dentro do IPA), `testflight_refazer.py <build>` (grupo interno com UMA build,
 `hasAccessToAllBuilds=false` desde a criação — não se muda depois, 409),
 `notas_enviar.py ios/notas-novas.txt` (3998/4000), `reenviar.py`.
 
+**IPA da build 78 aberto (primeiro release depois do xcconfig):**
+`GoogleMapsApiKey` = 39 caracteres, `NSFaceIDUsageDescription` presente — a
+correcção chega ao binário que vai para a Apple. A 78 subiu porque a corrida
+cancelada ainda corria o workflow antigo; **não vai ao TestFlight** sem a
+varredura verde (ordem: só build provada).
+
 **Se o contexto acabar aqui:** esperar a 81; se verde → `provar_ipa.py 34508432910`
 → `testflight_refazer.py 81` → montar vídeo (`contacto.py` + `montar_video.py`
 + `publicar_video_revisor.py`) → `notas_enviar.py` → `reenviar.py` → colar

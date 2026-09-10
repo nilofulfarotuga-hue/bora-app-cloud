@@ -183,82 +183,86 @@ ecrãs desenhados. Ver `integration_test/demo_real_test.dart`.
 ```
 DEMO VIDEO (69 s, English captions)
 https://boraguarda.com/provas/apple-review/
-The real app on our live server, recorded on the iPhone simulator.
+Launch, sign-in, all service categories, a real store, a real product at its
+real price, the basket with the fee breakdown, checkout paying cash, and two
+partner businesses. Captured on the iOS Simulator against our live server. An
+updated recording also showing report, block and account deletion replaces it
+with the next build.
 
-THE APP
-Bora is a local delivery and services marketplace for Guarda, Portugal (pop. ~40,000).
-One app, three profiles: customer, courier, partner store. The app is in Portuguese.
+WHAT BORA IS
+A local delivery and services marketplace for Guarda, Portugal (~40,000
+people): groceries, pharmacy, restaurants, barber and beauty bookings, home
+cleaning, errands, car wash, table reservations and ride-hailing. One app,
+three roles: customer, courier, partner store. Audience: adults in and around
+Guarda. National delivery apps concentrate on large cities; Bora serves this
+one.
 
-DEMO ACCOUNTS - please use the right one
-  Browsing:  demo@bora.app / BoraDemo2026!          (do NOT delete this one)
-  Deletion:  demo.apagar@bora.app / BoraDemo2026!   (disposable, for the 5.1.1(v) test)
-Deletion is permanent by design, so a second account exists purely for that test.
-It is recreated automatically every hour, so it is always available.
+DEMO ACCOUNTS
+  Browsing:  demo@bora.app        / BoraDemo2026!  (do NOT delete)
+  Deletion:  demo.apagar@bora.app / BoraDemo2026!  (disposable, recreated hourly)
 
-FIRST SCREEN
-A privacy and cookies sheet appears first, with three buttons: "Aceitar tudo"
-(Accept all), "Rejeitar" (Reject), "Gerir preferencias" (Manage). Tap any one -
-the app works fully either way. Nothing depends on consent; only notifications
-and GPS are gated, and neither is needed to browse, order or pay.
-Next screen asks the profile: tap "Sou Cliente" (I am a customer) and sign in.
+HOW TO GET IN
+1. A privacy sheet appears first: "Aceitar tudo" (Accept all), "Rejeitar"
+   (Reject), "Gerir preferencias" (Manage). Any of the three continues;
+   nothing in the app depends on consent.
+2. Tap "Sou Cliente" (I am a customer) and sign in.
+3. The demo account has a saved Guarda address, so stores load without GPS and
+   from any country. If the list looks empty, open the address selector at the
+   top of the home screen and pick it.
+4. To order, choose "Dinheiro" (cash). Card and MB WAY are live and would
+   charge a real card. Demo orders are sandboxed and never reach a real
+   courier.
 
-REVIEWING FROM OUTSIDE PORTUGAL
-The app serves Guarda only. The demo account has a saved Guarda address
-(Praca Luis de Camoes, 6300-725), so stores load without GPS or being in
-Portugal. If the store list looks empty, open the address selector at the top
-of the home screen and pick the saved address. Browsing works without an account (4.0).
-
-PLACING A TEST ORDER
-Choose "Dinheiro" (Cash). Card and MB WAY are live and would charge a real card.
-Demo-account orders are sandboxed and never dispatched to real couriers.
+REPORTING AND BLOCKING (1.2)
+User-generated content is one-to-one chat tied to a single order, plus star
+ratings with optional text. Every conversation has a flag icon in the top bar:
+it opens report reasons and, at the bottom, "Bloquear esta pessoa" (Block this
+person). Blocking hides that person's messages and prevents writing to them,
+with an Unblock button. Reports open our in-app support chat with the report
+already written. Ratings are moderated from our admin panel.
 
 ACCOUNT DELETION (5.1.1(v))
-Perfil > "Apagar conta", inside the app, no email required. Name, contacts,
-address, photos and documents are destroyed and access is permanently revoked.
-Only anonymised invoice records are kept, as Portuguese tax law requires them
-for 10 years. If an order or booking is in progress, the app says what is blocking.
+Perfil > "Apagar conta", in-app, no email needed. Name, contacts, address,
+photos and documents are erased and access is permanently revoked. Only
+anonymised invoices are kept, as Portuguese law requires them for 10 years.
 
 PAYMENTS (3.1.5(a))
-All payments are for physical goods and services consumed outside the app -
-food and grocery delivery, cleaning, rides, bookings. No digital content is
-sold, so no in-app purchase is used.
+All payments are for physical goods and services consumed outside the app. No
+digital content is sold, so no in-app purchase is used.
 
-BACKGROUND LOCATION (courier profile only)
-Used only while a courier is Online and carrying a delivery. A prominent
-disclosure screen is shown BEFORE the system prompt, and the iOS background
-location indicator stays visible. Customers never have background location.
+EXTERNAL SERVICES
+Supabase (backend, authentication, realtime, storage), Stripe (card and MB
+WAY), Firebase Cloud Messaging (push), Google Maps SDK / Directions / Places.
+No AI services, no ad networks, no third-party analytics.
+
+REGIONS
+Offered in Portugal and Brazil, identical behaviour, no region-gated features.
+Delivery runs only in Guarda: outside it you can browse and sign up but will
+see no stores for your address. Interface in Portuguese with an English toggle.
 
 RIDE-HAILING (TVDE)
-The app includes passenger ride-hailing ("Bora Motorista" on the home screen),
-regulated in Portugal by Decree-Law 45/2018. Ride drivers are onboarded
-separately and must hold a valid TVDE certificate and licensed vehicle; we
-check those documents before a driver can go online for rides. Passengers need
-no document. Our screenshots focus on delivery and services, but the feature is
-in the app - we are not hiding it.
+"Bora Motorista" on the home screen. Regulated in Portugal by Decree-Law
+45/2018. Ride drivers are onboarded separately and must hold a valid TVDE
+certificate and a licensed vehicle; we check the documents before they can go
+online. Passengers need none.
 
 ALCOHOL AND TOBACCO
-The supermarket catalogues include alcoholic drinks, like any supermarket shelf.
-The app does not encourage consumption and has no alcohol-themed content. We sell
-NO tobacco: the only nicotine item in the whole catalogue is a smoking-cessation
-gum sold by a licensed pharmacy.
+Supermarket catalogues include alcoholic drinks, like any shelf. The app does
+not encourage consumption. We sell NO tobacco: the only nicotine item is a
+smoking-cessation gum sold by a licensed pharmacy.
 
-REPORTING AND MODERATION (1.2)
-Every conversation has a flag icon in the top bar: "Denunciar" (Report). It
-offers reasons and opens our in-app support chat with the report already
-written, which our team reads and answers. Chat is one-to-one and tied to a
-single order - it is not a social feed. Ratings with free text are moderated
-from our admin panel and can be hidden.
+BACKGROUND LOCATION (courier only)
+Only while a courier is Online and carrying a delivery, with a prominent
+disclosure before the system prompt. Customers never have it.
 
 SIGN IN WITH APPLE (4.8)
-No third-party or social login is offered - email and password only - so 4.8
-does not apply.
+Email and password only, no third-party or social login, so 4.8 does not apply.
 
 BUTTONS
   Entrar = Sign in | Supermercados = Supermarkets | Farmacia = Pharmacy
   Favores = Errands | Limpeza = Cleaning | Beleza = Barber and beauty
-  Em breve = Coming soon | Adicionar ao carrinho = Add to basket
-  Finalizar pedido = Checkout | Dinheiro = Cash | Agora nao = Not now
+  Dinheiro = Cash | Em breve = Coming soon | Agora nao = Not now
 
 CONTACT
-boraappbora@gmail.com  ·  +351 937 501 673
+boraappbora@gmail.com   +351 937 501 673
 ```

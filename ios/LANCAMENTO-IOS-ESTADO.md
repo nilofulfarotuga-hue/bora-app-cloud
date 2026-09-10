@@ -2,8 +2,44 @@
 
 > Missão `ios-lancamento` · run_id `ios-lancamento-2026-09-07`
 > **Este ficheiro diz onde retomar.** Cada linha tem prova.
-> Última actualização: 2026-09-10 — **RECUSADA, a responder** (bloco **-7** é o mais recente).
+> Última actualização: 2026-09-10 — **RESPONDIDO, a preparar o reenvio** (bloco **-8** é o mais recente).
 > Modo de trabalho: ver `carta-de-autonomia-ios` na memória do projeto.
+
+## -8. RESPONDIDO À APPLE (2026-09-10, 06:11 UTC)
+
+Resposta no Resolution Center, em inglês, aos seis pontos. Prova lida da
+página: **`Mensagens (2)`** — Apple *Hoje 1:57* e **Danilo Fulfaro da Silva
+*Hoje 7:11***.
+
+**O que se corrigiu antes de responder, porque era código e não metadados:**
+o bloqueio de utilizadores, que a directriz 1.2 exige por escrito (*"The
+ability to block abusive users from the service"*) e que a app não tinha.
+Tabela `blocked_users` com RLS, serviço, entrada na folha de denúncia, e no
+chat quem está bloqueado deixa de se ver e não se lhe pode escrever. 487
+testes verdes.
+
+**Duas armadilhas de campo:**
+
+1. **O campo de resposta tem 4000 caracteres.** O meu texto de 9130 fez o
+   contador ir a **−5130** a vermelho e o botão *Responder* ficou desligado.
+   Condensado para 3785 e acendeu (215 restantes). O mesmo limite se aplica ao
+   campo *Notes*, que ficou com 3986.
+2. **O relógio outra vez.** A corrida `34440774329` correu às **05:59 UTC** e
+   as cinco lojas estavam fechadas — o arnês disse-o com todas as letras. Em
+   cima disso, um toque sem guarda num `byTooltip('Back')` inexistente matou o
+   teste com *"Bad state: No element"*, escondendo a mensagem útil. Guarda
+   posta.
+
+**Fica por fazer, e é o que falta para reenviar:**
+- Correr o arnês depois das **08:00 UTC**, com as lojas abertas, para a
+  gravação mostrar denúncia, bloqueio e eliminação de conta.
+- Cortar e publicar o vídeo novo, actualizar o endereço nas notas.
+- Reenviar com a build nova.
+
+Dito à Apple sem rodeios: que o bloqueio não existia na build 51, que foi feito
+hoje, e que a gravação actual é do simulador e ainda não mostra esses ecrãs.
+
+---
 
 ## -7. RECUSADA — Guideline 2.1, Information Needed (2026-09-10, 00:57 UTC)
 

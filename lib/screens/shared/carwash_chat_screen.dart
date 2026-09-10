@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../services/bloqueio_service.dart';
 
 import '../../l10n/tr.dart';
 import '../../widgets/bora_denunciar.dart';
@@ -132,6 +133,12 @@ class _CarwashChatScreenState extends State<CarwashChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Directriz 1.2: quem bloqueia deixa de ver as mensagens do outro lado.
+    final refDoOutro = 'lavagem:${widget.bookingId}:${widget.myRole}';
+    final bloqueado = BloqueioService.estaBloqueado(refDoOutro);
+    final messages = _messages
+        .where((m) => !bloqueado || m['sender_role'] == widget.myRole)
+        .toList();
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -140,7 +147,11 @@ class _CarwashChatScreenState extends State<CarwashChatScreen> {
         foregroundColor: Colors.white,
         actions: [
           // Directriz 1.2: poder denunciar o que se le nesta conversa.
-          const BotaoDenunciar(),
+          BotaoDenunciar(
+            sobreQuem: widget.title,
+            refDoOutro: refDoOutro,
+            onMudou: () => setState(() {}),
+          ),
           if ((widget.otherPhone ?? '').isNotEmpty)
             IconButton(onPressed: _call, icon: const Icon(Icons.phone)),
         ],
@@ -148,7 +159,7 @@ class _CarwashChatScreenState extends State<CarwashChatScreen> {
       body: Column(
         children: [
           Expanded(
-            child: _messages.isEmpty
+            child: messages.isEmpty
                 ? Center(
                     child: Padding(
                       padding: const EdgeInsets.all(Spacing.xxl),
@@ -162,9 +173,9 @@ class _CarwashChatScreenState extends State<CarwashChatScreen> {
                 : ListView.builder(
                     controller: _scroll,
                     padding: const EdgeInsets.all(Spacing.lg),
-                    itemCount: _messages.length,
+                    itemCount: messages.length,
                     itemBuilder: (_, i) {
-                      final m = _messages[i];
+                      final m = messages[i];
                       final mine = m['sender_role'] == widget.myRole;
                       return Align(
                         alignment:
@@ -192,7 +203,13 @@ class _CarwashChatScreenState extends State<CarwashChatScreen> {
                     },
                   ),
           ),
-          SafeArea(
+          if (bloqueado)
+            BarraBloqueado(
+              refDoOutro: refDoOutro,
+              onMudou: () => setState(() {}),
+            )
+          else
+            SafeArea(
             top: false,
             child: Padding(
               padding: const EdgeInsets.all(Spacing.sm),

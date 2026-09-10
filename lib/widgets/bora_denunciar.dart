@@ -185,3 +185,44 @@ Future<void> mostrarFolhaDenuncia(
     },
   );
 }
+
+/// Barra que substitui a caixa de escrita quando se bloqueou a pessoa do outro
+/// lado. E' a mesma peca nas conversas de TVDE, limpeza e lavagem, para nao
+/// haver tres versoes da mesma frase a divergirem com o tempo.
+class BarraBloqueado extends StatelessWidget {
+  const BarraBloqueado({super.key, required this.refDoOutro, this.onMudou});
+
+  final String refDoOutro;
+  final VoidCallback? onMudou;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        children: [
+          const Icon(Icons.block, size: 18, color: Colors.red),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Bloqueaste esta pessoa. Não vês as mensagens dela nem lhe podes escrever.'
+                  .tr,
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              await BloqueioService.desbloquear(refDoOutro);
+              onMudou?.call();
+            },
+            child: Text('Desbloquear'.tr),
+          ),
+        ],
+      ),
+    );
+  }
+}

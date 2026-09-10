@@ -264,7 +264,34 @@ jobs:
       #
       # O simulador escolhido acima já é o maior iPhone disponível ("Pro Max"),
       # que é o 6,9" (1320×2868) exigido pela Apple nas capturas.
+      # PORTAO DO AUTOTESTE (ordem do Danilo, 2026-09-10, definitiva):
+      # "Build com autoteste vermelho nao sai. Sem excecao."
+      #
+      # A varredura abre TODOS os mosaicos do inicio, entra nos TRES perfis
+      # e passa pelos ecras com mapa. Se a app morrer, a ultima linha
+      # `[varredura]` do log diz em que ecra. O escape
+      # `enviar_mesmo_sem_arnes` NAO cobre este passo: e' so' para a gravacao
+      # a seguir, que e' filme e nao prova.
+      - name: AUTOTESTE — varredura de ecras (portao, sem escape)
+        id: varredura
+        run: |
+          mkdir -p artefactos/varredura
+          flutter drive             --driver=test_driver/capturas_driver.dart             --target=integration_test/varredura_ecras_test.dart             -d "$UDID"             --dart-define-from-file=.dart_defines 2>&1 | tee artefactos/varredura/log.txt
+          test "${PIPESTATUS[0]}" -eq 0
+
+      - name: Diagnostico se a varredura morreu
+        if: failure() && steps.varredura.conclusion == 'failure'
+        run: |
+          echo "=== ultimas linhas [varredura] (a ultima nomeia o ecra culpado) ==="
+          grep -a '\[varredura\]' artefactos/varredura/log.txt | tail -15 || true
+          mkdir -p artefactos/falha
+          find ~/Library/Logs/DiagnosticReports -name 'Runner*' -mmin -60 -exec cp {} artefactos/falha/ \; 2>/dev/null || true
+          for f in artefactos/falha/Runner*; do [ -f "$f" ] || continue; echo "=== $f ==="; head -c 3000 "$f"; echo; done
+
       - name: Percorrer a app real e capturar (App Store)
+        # Filme, nao prova: a prova e' a varredura acima. Uma captura que
+        # falhe nao segura a build -- mas fica vermelha a vista.
+        continue-on-error: true
         run: |
           mkdir -p artefactos/capturas
           flutter drive \
@@ -323,7 +350,7 @@ jobs:
     # todos os dias enquanto a conta Apple não estivesse activa.
     if: >-
       always() && github.event_name == 'workflow_dispatch' && inputs.enviar &&
-      (needs.simulador.result == 'success' || inputs.enviar_mesmo_sem_arnes)
+      needs.simulador.result == 'success'
     needs: simulador
     runs-on: macos-26
     timeout-minutes: 60

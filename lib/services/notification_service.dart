@@ -1736,14 +1736,22 @@ class NotificationService {
     });
 
     // Notification tap while app was terminated.
-    final initial = await messaging.getInitialMessage();
-    if (initial != null) {
+    //
+    // NAO AGUARDAR (2026-09-10, corrida 107): no iOS getInitialMessage() so'
+    // devolve depois de o registo no APNs fechar -- no simulador nunca, e num
+    // iPhone so' depois de a pessoa responder ao alerta de permissao. Como
+    // init() e' aguardado no Future.wait do main() ANTES do runApp, a app
+    // ficava sem desenhar um unico fotograma ("main-alive heartbeat" nunca
+    // aparecia no log). A mensagem inicial trata-se quando chegar.
+    unawaited(messaging.getInitialMessage().then((initial) {
+      if (initial == null) return;
       debugPrint(
           '[NotificationService initial] ${initial.notification?.title}');
       if (initial.data['type'] == 'new_tvde_ride_offer') {
         tvdeOfferReload?.call();
       }
-    }
+    }).catchError((Object e) =>
+        debugPrint('[NotificationService] getInitialMessage failed: $e')));
 
     // Sessão 2026-05-21 — overlay system_alert_window: o isolate da overlay
     // envia `{action: accept|reject|expired, orderId: ...}` quando o estafeta

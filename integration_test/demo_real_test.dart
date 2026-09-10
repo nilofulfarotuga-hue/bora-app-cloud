@@ -427,9 +427,17 @@ void main() {
           await _bombear(t, segundos: 6);
           await _foto(t, '13-video-detalhe-pedido');
 
-          final falarEstafeta = find.textContaining('Falar com o Estafeta');
-          if (await _esperar(t, falarEstafeta, segundos: 15)) {
-            await _tocar(t, falarEstafeta);
+          // CICATRIZ (corrida 34463405491): procurava-se "Falar com o
+          // Estafeta", que e' o rotulo do ecra de ACOMPANHAMENTO. Tocar no
+          // cartao abre o ecra de DETALHE, onde o acesso a conversa e' um
+          // botao "Chat" dentro do cartao "O teu estafeta" -- e esse cartao
+          // fica abaixo da dobra, por isso tem de se ROLAR ate la.
+          final cartaoEstafeta = find.text('O teu estafeta');
+          await _rolarAteAparecer(t, cartaoEstafeta, vezes: 8);
+          final botaoChat = find.text('Chat');
+          await _rolarAteAparecer(t, botaoChat, vezes: 4);
+          if (await _esperar(t, botaoChat, segundos: 12)) {
+            await _tocar(t, botaoChat.first);
             await _bombear(t, segundos: 5);
             final bandeira = find.byIcon(Icons.flag_outlined);
             if (await _esperar(t, bandeira, segundos: 15)) {
@@ -460,8 +468,8 @@ void main() {
               await _binding.takeScreenshot('zz-falha-conversa');
             }
           } else {
-            debugPrint('[arnes] sem botao "Falar com o Estafeta" no detalhe');
-            await _binding.takeScreenshot('zz-falha-sem-botao-estafeta');
+            debugPrint('[arnes] sem botao "Chat" no detalhe do pedido');
+            await _binding.takeScreenshot('zz-falha-sem-botao-chat');
           }
         } else {
           debugPrint('[arnes] nao achei o cartao do pedido na lista');

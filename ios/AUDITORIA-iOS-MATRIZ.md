@@ -18,10 +18,10 @@
 | Linha | Como se prova | Estado |
 |---|---|---|
 | Folha de privacidade → Aceitar tudo | varredura | ✅ corrida 91 (passou por ela até ao início) |
-| Escolha de perfil (Sou Cliente / Estafeta / Parceiro) | varredura | ✅ corrida 91 (Sou Cliente) — estafeta/parceiro ⬜ |
+| Escolha de perfil (Sou Cliente / Estafeta / Parceiro) | varredura | ✅ 91/93/96 — os três |
 | Entrar por email — cliente `demo@bora.app` | varredura | ✅ corrida 91 (início com 28 textos) |
 | Entrar por email — estafeta `demo-estafeta@bora.app` | varredura | ✅ 93 |
-| Entrar por email — parceiro `demo-parceiro@bora.app` | varredura | ⬜ |
+| Entrar por email — parceiro `demo-parceiro@bora.app` | varredura | ✅ 96 |
 | Entrar com biometria | simulador NÃO cobre; portão estático (`NSFaceIDUsageDescription`) + iPhone real | ⬜ |
 | Criar conta (registo) | varredura abre o ecrã | ✅ corrida 91 (12 textos) |
 | Recuperar palavra-passe (ecrã) | varredura abre o ecrã | ✅ corrida 91 (4 textos) |
@@ -72,12 +72,12 @@
 
 | Linha | Mapa? | Estado |
 |---|---|---|
-| Painel do parceiro | não | ⬜ |
-| Gerir produtos | não | ⬜ |
-| Horários de funcionamento | não | ⬜ |
-| Ver detalhe de ganhos / Extrato | não | ⬜ |
-| Reservas Pro | não | ⬜ |
-| Chamar estafeta | não (lista) | ⬜ |
+| Painel do parceiro | não | ✅ 96 (58 textos) — mas lançou `FirebaseException` ao construir (Firebase sem inicializar no simulador) → a corrigir com guarda |
+| Gerir produtos | não | ✅ 96 (8) |
+| Horários de funcionamento | não | ✅ 96 (42) |
+| Ver detalhe de ganhos / Extrato | não | ✅ 96 (39 / 18) |
+| Reservas Pro | não | ⬜ rótulo ausente no painel da loja demo (reservas desligadas) |
+| Chamar estafeta | não (lista) | ✅ 96 (31) |
 
 ## O que o simulador não cobre e como fica coberto
 

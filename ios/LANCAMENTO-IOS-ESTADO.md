@@ -43,8 +43,7 @@ e ficou 30–60 min sem uma linha ("Resolving dependencies…" e mais nada), com
 órfãos `xcodebuild`/`SWBBuildService`/`ibtoold` ao cancelar. Cancelada. Correcção
 `237f1be8`: a varredura compila num passo visível com tecto de 25 min e o drive
 corre contra o binário (`--use-application-binary`), tecto 30 min; o arnês de
-gravação tem 35. Corrida nova disparada por `ciclo2.py` (ver o output do
-processo em fundo para o número).
+gravação tem 35. Corrida nova: **87** (`34511701695`), sobre `c9604436`, lida de volta antes de disparar.
 
 **Se o contexto acabar aqui:** esperar a 81; se verde → `provar_ipa.py 34508432910`
 → `testflight_refazer.py 81` → montar vídeo (`contacto.py` + `montar_video.py`

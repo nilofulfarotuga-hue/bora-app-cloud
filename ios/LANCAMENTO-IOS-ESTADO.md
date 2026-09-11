@@ -38,6 +38,15 @@ varredura passou **inteira** outra vez; reprovou só na despedida do `testWidget
 (`ErrorWidget.builder` é verificado ANTES dos `addTearDown`) — reposto inline
 no fim do corpo. Corrida seguinte disparada com `encomenda_real=true`.
 
+**11/09, madrugada.** O vídeo da 110 tinha o alerta nativo de notificações em
+cima de todos os fotogramas (o teste não toca em alertas do sistema). O CI passa a
+pré-conceder `notifications`, `location` e `location-always` por
+`xcrun simctl privacy` (`71c831e9`). Duas corridas em paralelo: **113**
+(`34541511213`, só a despedida corrigida — ensaio) e **115** (`34541834707`,
+com as permissões — candidata a final). Se a 115 ficar verde:
+`pos_verde.py 34541834707 115` → vídeo → notas → `reenviar.py 115` → Resolution
+Center (`ios/seguimento-apple.txt` com `__BUILD__` = 115).
+
 Ordem em vigor (Danilo, 22h): dorme; não perguntar mais nada; terminar e
 reenviar esta noite com o vídeo do simulador e a resposta honesta (o iPhone
 real serviu para encontrar os crashes; a gravação é do simulador).

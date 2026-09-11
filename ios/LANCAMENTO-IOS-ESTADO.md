@@ -2,8 +2,28 @@
 
 > Missão `ios-lancamento` · run_id `ios-lancamento-2026-09-07`
 > **Este ficheiro diz onde retomar.** Cada linha tem prova.
-> Última actualização: 2026-09-11 ~01:00 UTC — **builds 113 e 115 verdes pelos portões; gravação completa agendada 08:05 UTC; depois notas → reenvio** (bloco **-14** é o mais recente).
+> Última actualização: 2026-09-11 ~05:15 UTC — **app provada; reenvio a um clique (UI); vídeo completo às 08:05 UTC** (bloco **-15** é o relatório da manhã).
 > Modo de trabalho: ver `carta-de-autonomia-ios` na memória do projeto.
+
+## -15. RELATÓRIO PARA O DANILO — manhã de 11/09 (as três linhas, e um clique)
+
+1. **A app está provada e verde:** três perfis varridos ecrã a ecrã sem fechar nem
+   ficar vazios (`Falhas: 0`), quatro crashes/bugs de iOS encontrados e corrigidos
+   (chave do mapa, Face ID, Firebase nunca empacotado, arranque preso em alertas),
+   builds 113 e 115 na Apple com as chaves lidas de dentro do IPA; TestFlight só
+   com a 115 no teu iPhone.
+2. **O reenvio ficou a um clique da Apple:** notas ao revisor enviadas e lidas de
+   volta, build 115 ligada à versão; a API da Apple responde *"Version is not
+   ready"* há horas mesmo com tudo completo (preço, classificação, capturas,
+   privacidade) — o botão **"Enviar novamente para a equipa de revisão de apps"**
+   no App Store Connect é o que a API não deixa fazer.
+3. **O vídeo completo grava-se às 08:05 UTC** (lojas abertas), já sem alertas, e
+   entra no mesmo endereço; a resposta no Resolution Center está escrita
+   (`ios/seguimento-apple-115.txt`).
+
+**O único clique teu:** quando o Chrome perguntar qual browser, escolhe o que tem
+o App Store Connect aberto. Depois disso eu carrego no "Enviar novamente" e colo a
+resposta — sem te pedir mais nada.
 
 ## -14. DUAS BUILDS VERDES PELOS PORTÕES — 113 e 115 (2026-09-11, ~01:00 UTC)
 

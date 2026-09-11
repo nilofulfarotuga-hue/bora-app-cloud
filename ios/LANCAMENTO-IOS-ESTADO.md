@@ -2,8 +2,27 @@
 
 > Missão `ios-lancamento` · run_id `ios-lancamento-2026-09-07`
 > **Este ficheiro diz onde retomar.** Cada linha tem prova.
-> Última actualização: 2026-09-10, noite — **três perfis varridos; Firebase corrigido; corrida final a correr para IPA + vídeo + reenvio** (bloco **-13** é o mais recente).
+> Última actualização: 2026-09-11 ~01:00 UTC — **builds 113 e 115 verdes pelos portões; gravação completa agendada 08:05 UTC; depois notas → reenvio** (bloco **-14** é o mais recente).
 > Modo de trabalho: ver `carta-de-autonomia-ios` na memória do projeto.
+
+## -14. DUAS BUILDS VERDES PELOS PORTÕES — 113 e 115 (2026-09-11, ~01:00 UTC)
+
+- **113** (`34541511213`): varredura inteira, IPA enviado. IPA aberto: chave do Maps 39 car., Face ID presente.
+- **115** (`34541834707`): igual em código de app; workflow com permissões pré-concedidas → vídeo da varredura **sem alertas**. IPA enviado.
+- Matriz (ponto 1): **fechada** pelas corridas 91/93/96/100/110/113/115 — três perfis, `Falhas: 0. Por varrer: 0`. Ficam ⬜ com razão escrita: Lavagem Auto (categoria fechada), Definições do estafeta e Reservas Pro (rótulos ausentes), biometria (só iPhone real), TVDE do motorista (documentos).
+- **O que ainda não há:** filme da compra + conversa + denúncia/bloqueio — o arnês corre às 00:xx UTC e as lojas estão fechadas (`zz-falha-nenhuma-loja-abriu`). A gravação limpa está **agendada para as 08:05 UTC** (`agendar_gravacao.py`, em fundo: dispara `enviar=false`, `encomenda_real=true`, espera e descarrega).
+
+### Plano da manhã (por esta ordem, sem perguntar nada)
+1. `pos_verde.py 34541834707 115` → TestFlight só com a 115 (o de 113 já correu; refazer para 115).
+2. Quando a gravação das 08:05 acabar: `contacto.py` → `trechos.json` (modelo em `ios/trechos-modelo.json`) → `montar_video.py` → `publicar_video_revisor.py`.
+3. `notas_enviar.py ios/notas-novas.txt` (3998/4000; descreve o vídeo completo — só enviar depois de o vídeo estar no ar).
+4. `reenviar.py 115` → liga a build 115 e reenvia.
+5. Resolution Center: colar `ios/seguimento-apple.txt` com `__BUILD__` = 115 (Chrome, separador do App Store Connect).
+6. Reportar ao Danilo em três linhas.
+
+Fontes de vídeo guardadas em `C:\Users\danil\Desktop\Bora\ios\video-guardado\`:
+`video-publicado-69s.mp4` (o que está no ar), `varredura-115-limpa.mp4` (mapa do
+pedido, mosaicos, apagar conta, estafeta com mapa, painel do parceiro).
 
 ## -13. A VARREDURA FECHOU OS TRÊS PERFIS — E ACHOU O FIREBASE (2026-09-10, noite)
 

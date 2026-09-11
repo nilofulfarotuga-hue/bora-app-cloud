@@ -33,6 +33,12 @@ later"*; `reenviar_antiga.py` tenta de 3 em 3 min (até 3 h) e apagou a
 submissão vazia criada por engano. Falta ainda: Resolution Center (Chrome pede
 escolha de browser — só com o Danilo acordado) e o vídeo alargado (08:05 UTC).
 
+Tentado também mover a versão para uma submissão nova: a API recusa remover o
+item da antiga (*"Item was already submitted"*) — só a UI do App Store Connect
+("Enviar novamente para a equipa de revisão de apps") faz isso. **Se o reenvio
+por API não entrar até de manhã, o caminho é o botão da UI no Chrome** (pede
+escolha de browser — um clique do Danilo).
+
 ### Plano da manhã (por esta ordem, sem perguntar nada)
 1. `pos_verde.py 34541834707 115` → TestFlight só com a 115 (o de 113 já correu; refazer para 115).
 2. Quando a gravação das 08:05 acabar: `contacto.py` → `trechos.json` (modelo em `ios/trechos-modelo.json`) → `montar_video.py` → `publicar_video_revisor.py`.

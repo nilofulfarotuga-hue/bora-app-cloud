@@ -23,6 +23,16 @@ alerta de notificações.
 ela (`a118baea-…`, lido de volta `['115']`, testador `INSTALLED`). **É a 115 que
 vai à Apple** (`reenviar.py 115`).
 
+**02:3x UTC — reenvio em curso:** notas ao revisor **enviadas e lidas de volta**
+(3993 car., `ios/notas-envio.txt`: descrevem o vídeo que está no ar e prometem
+o alargado no mesmo endereço); build **115 ligada à versão** (lida de volta);
+versão passou de REJECTED a PREPARE_FOR_SUBMISSION. O reenvio da submissão
+antiga (`a8f2615e`, a versão já é item dela — `ITEM_PART_OF_ANOTHER_SUBMISSION`
+noutra) devolve *"Version is not ready to be submitted yet, please try again
+later"*; `reenviar_antiga.py` tenta de 3 em 3 min (até 3 h) e apagou a
+submissão vazia criada por engano. Falta ainda: Resolution Center (Chrome pede
+escolha de browser — só com o Danilo acordado) e o vídeo alargado (08:05 UTC).
+
 ### Plano da manhã (por esta ordem, sem perguntar nada)
 1. `pos_verde.py 34541834707 115` → TestFlight só com a 115 (o de 113 já correu; refazer para 115).
 2. Quando a gravação das 08:05 acabar: `contacto.py` → `trechos.json` (modelo em `ios/trechos-modelo.json`) → `montar_video.py` → `publicar_video_revisor.py`.

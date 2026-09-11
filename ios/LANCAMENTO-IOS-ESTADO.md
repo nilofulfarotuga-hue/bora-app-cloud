@@ -2,8 +2,23 @@
 
 > Missão `ios-lancamento` · run_id `ios-lancamento-2026-09-07`
 > **Este ficheiro diz onde retomar.** Cada linha tem prova.
-> Última actualização: 2026-09-11 ~05:15 UTC — **app provada; reenvio a um clique (UI); vídeo completo às 08:05 UTC** (bloco **-15** é o relatório da manhã).
+> Última actualização: 2026-09-11 05:21 UTC — **REENVIADA À APPLE: `WAITING_FOR_REVIEW`, build 115** (bloco **-16**).
 > Modo de trabalho: ver `carta-de-autonomia-ios` na memória do projeto.
+
+## -16. REENVIADA (2026-09-11, 05:21:19 UTC)
+
+Prova lida da API: submissão `a8f2615e` → **`WAITING_FOR_REVIEW`**, versão
+`WAITING_FOR_REVIEW`, build **115**. Na página: *"A aguardar revisão"*.
+
+O que destrancou: a API nunca saiu de *"Version is not ready"* (mais de 80
+tentativas). Na UI do App Store Connect: apagar o rascunho vazio ("Rascunhos de
+envios (1)" → "Apagar envio"), abrir a versão ("Editar") e carregar em
+**"Atualizar revisão"** — o item passou de *Rejeitado* a *Pronto para revisão* —
+e só então o botão "Enviar novamente para a equipa de revisão de apps" acendeu.
+(Registado em memória: `o-que-a-api-da-apple-faz-e-nao-faz`.)
+
+Falta: colar a resposta no Resolution Center (`ios/seguimento-apple-115.txt`) e
+o vídeo alargado das 08:05 UTC no mesmo endereço.
 
 ## -15. RELATÓRIO PARA O DANILO — manhã de 11/09 (as três linhas, e um clique)
 

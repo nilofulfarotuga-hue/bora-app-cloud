@@ -290,7 +290,7 @@ jobs:
         id: compilar_varredura
         timeout-minutes: 25
         run: |
-          flutter build ios --simulator --debug --no-codesign             --target=integration_test/varredura_ecras_test.dart             --dart-define-from-file=.dart_defines 2>&1 | tail -80
+          flutter build ios --simulator --debug --no-codesign             --target=integration_test/varredura_ecras_test.dart --dart-define=CAPTURA_APP_STORE=true             --dart-define-from-file=.dart_defines 2>&1 | tail -80
           test "${PIPESTATUS[0]}" -eq 0
           ls -d build/ios/iphonesimulator/Runner.app
           # O que o Firebase precisa tem de estar DENTRO da app, nao so' no
@@ -344,7 +344,7 @@ jobs:
             --target=integration_test/demo_real_test.dart \
             -d "$UDID" \
             --dart-define-from-file=.dart_defines \
-            --dart-define=FAZER_ENCOMENDA_REAL=${{ inputs.encomenda_real || 'false' }}
+            --dart-define=FAZER_ENCOMENDA_REAL=${{ inputs.encomenda_real || 'false' }} --dart-define=CAPTURA_APP_STORE=true
 
       # PORQUE ISTO EXISTE (2026-09-10): o passo de cima morreu duas vezes
       # seguidas com "Service has disappeared" -- a app foi MORTA, sem

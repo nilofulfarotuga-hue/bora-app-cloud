@@ -33,6 +33,11 @@ chamadas que no iOS só devolvem depois do alerta nativo / do registo no APNs:
 `unawaited`. Regra nova: nada que dependa de alerta nativo ou de APNs no
 caminho aguardado do arranque.
 
+Corrida **110**: a app arranca (`[GATE] main-alive heartbeat started` presente) e a
+varredura passou **inteira** outra vez; reprovou só na despedida do `testWidgets`
+(`ErrorWidget.builder` é verificado ANTES dos `addTearDown`) — reposto inline
+no fim do corpo. Corrida seguinte disparada com `encomenda_real=true`.
+
 Ordem em vigor (Danilo, 22h): dorme; não perguntar mais nada; terminar e
 reenviar esta noite com o vídeo do simulador e a resposta honesta (o iPhone
 real serviu para encontrar os crashes; a gravação é do simulador).

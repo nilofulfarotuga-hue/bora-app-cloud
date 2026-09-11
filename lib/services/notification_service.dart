@@ -1605,12 +1605,20 @@ class NotificationService {
     // desenhar um unico fotograma ate ai. Nunca se tinha visto porque, ate
     // hoje, o Firebase nem inicializava no iOS. O resultado so' servia para
     // um debugPrint; o token continua a chegar pelo onTokenRefresh.
-    unawaited(messaging
-        .requestPermission(alert: true, badge: true, sound: true)
-        .then((settings) => debugPrint(
-            '[NotificationService] permission: ${settings.authorizationStatus}'))
-        .catchError((Object e) =>
-            debugPrint('[NotificationService] permission request failed: $e')));
+    // CAPTURA PARA A APP STORE (2026-09-11): o simctl nao consegue conceder
+    // a permissao de notificacoes, e o alerta nativo ficava em cima de todos
+    // os fotogramas do video para a Apple. Sob a bandeira de captura (so' o
+    // CI a liga, nunca a app de producao) nao se pede a permissao do sistema.
+    const capturaAppStore =
+        bool.fromEnvironment('CAPTURA_APP_STORE', defaultValue: false);
+    if (!capturaAppStore) {
+      unawaited(messaging
+          .requestPermission(alert: true, badge: true, sound: true)
+          .then((settings) => debugPrint(
+              '[NotificationService] permission: ${settings.authorizationStatus}'))
+          .catchError((Object e) => debugPrint(
+              '[NotificationService] permission request failed: $e')));
+    }
 
     // [B] FCM resiliente (2026-06-30) — em GMS degradado (telemóveis fracos /
     // Play Services antigo) getToken() lança MISSING_INSTANCEID_SERVICE. Antes

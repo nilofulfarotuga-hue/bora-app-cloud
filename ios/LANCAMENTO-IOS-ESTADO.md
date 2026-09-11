@@ -19,6 +19,10 @@ quando a Apple a processar (`esperar_apple.py 115` em fundo). Bandeira
 `CAPTURA_APP_STORE=true` no CI (`1654ce21`): a gravação das 08:05 não terá o
 alerta de notificações.
 
+**01:5x UTC:** a **115 também está VALID**; grupo do TestFlight refeito só com
+ela (`a118baea-…`, lido de volta `['115']`, testador `INSTALLED`). **É a 115 que
+vai à Apple** (`reenviar.py 115`).
+
 ### Plano da manhã (por esta ordem, sem perguntar nada)
 1. `pos_verde.py 34541834707 115` → TestFlight só com a 115 (o de 113 já correu; refazer para 115).
 2. Quando a gravação das 08:05 acabar: `contacto.py` → `trechos.json` (modelo em `ios/trechos-modelo.json`) → `montar_video.py` → `publicar_video_revisor.py`.

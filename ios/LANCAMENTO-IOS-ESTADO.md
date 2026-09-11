@@ -12,6 +12,13 @@
 - Matriz (ponto 1): **fechada** pelas corridas 91/93/96/100/110/113/115 — três perfis, `Falhas: 0. Por varrer: 0`. Ficam ⬜ com razão escrita: Lavagem Auto (categoria fechada), Definições do estafeta e Reservas Pro (rótulos ausentes), biometria (só iPhone real), TVDE do motorista (documentos).
 - **O que ainda não há:** filme da compra + conversa + denúncia/bloqueio — o arnês corre às 00:xx UTC e as lojas estão fechadas (`zz-falha-nenhuma-loja-abriu`). A gravação limpa está **agendada para as 08:05 UTC** (`agendar_gravacao.py`, em fundo: dispara `enviar=false`, `encomenda_real=true`, espera e descarrega).
 
+**01:35 UTC:** a Apple lista a **113 como VALID**; grupo interno do TestFlight
+refeito só com ela (`4c02526f-…`, lido de volta `['113']`); testador
+`boraappbora@gmail.com` em estado `INSTALLED`. A 115 segue a mesma cadeia
+quando a Apple a processar (`esperar_apple.py 115` em fundo). Bandeira
+`CAPTURA_APP_STORE=true` no CI (`1654ce21`): a gravação das 08:05 não terá o
+alerta de notificações.
+
 ### Plano da manhã (por esta ordem, sem perguntar nada)
 1. `pos_verde.py 34541834707 115` → TestFlight só com a 115 (o de 113 já correu; refazer para 115).
 2. Quando a gravação das 08:05 acabar: `contacto.py` → `trechos.json` (modelo em `ios/trechos-modelo.json`) → `montar_video.py` → `publicar_video_revisor.py`.

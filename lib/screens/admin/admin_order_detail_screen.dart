@@ -11,7 +11,7 @@ import 'admin_chat_viewer_screen.dart';
 ///   1. Resumo  — info + status badge + acção Cancelar (se estado activo)
 ///   2. Items   — lista de produtos (read-only)
 ///   3. Pagamento — método, status, refund info
-///   4. Timeline — admin_audit_log filtrado por entity_id desta ordem
+///   4. Timeline — mudanças de estado + ações administrativas
 class AdminOrderDetailScreen extends StatefulWidget {
   const AdminOrderDetailScreen({super.key, required this.orderId});
 
@@ -945,14 +945,57 @@ class _TimelineTabState extends State<_TimelineTab> {
   }
 
   Future<List<Map<String, dynamic>>> _load() async {
-    final res = await Supabase.instance.client
-        .from('admin_audit_log')
-        .select('id, action, admin_email, details, created_at')
-        .eq('entity_type', 'order')
-        .eq('entity_id', widget.orderId)
-        .order('created_at', ascending: false)
-        .limit(100);
-    return List<Map<String, dynamic>>.from(res);
+    final client = Supabase.instance.client;
+    final results = await Future.wait([
+      client
+          .from('admin_audit_log')
+          .select('id, action, admin_email, details, created_at')
+          .eq('entity_type', 'order')
+          .eq('entity_id', widget.orderId)
+          .order('created_at', ascending: false)
+          .limit(100),
+      client
+          .from('order_status_events')
+          .select('id, from_status, to_status, actor_uid, source, occurred_at')
+          .eq('order_id', widget.orderId)
+          .order('occurred_at', ascending: false)
+          .limit(100),
+      client
+          .from('order_lifecycle_errors')
+          .select('id, component, error_message, context, occurred_at')
+          .eq('order_id', widget.orderId)
+          .order('occurred_at', ascending: false)
+          .limit(100),
+    ]);
+    final entries = List<Map<String, dynamic>>.from(results[0]);
+    for (final raw in List<Map<String, dynamic>>.from(results[1])) {
+      entries.add({
+        'id': raw['id'],
+        'action': '${raw['from_status'] ?? '—'} → ${raw['to_status']}',
+        'admin_email': raw['source'] ?? 'database_update',
+        'details': {
+          if (raw['actor_uid'] != null) 'actor_uid': raw['actor_uid'],
+        },
+        'created_at': raw['occurred_at'],
+      });
+    }
+    for (final raw in List<Map<String, dynamic>>.from(results[2])) {
+      final context = raw['context'];
+      entries.add({
+        'id': raw['id'],
+        'action': 'Falha de lifecycle',
+        'admin_email': raw['component'] ?? 'database',
+        'details': {
+          if (context is Map) ...Map<String, dynamic>.from(context),
+          'error_message': raw['error_message'],
+        },
+        'created_at': raw['occurred_at'],
+      });
+    }
+    entries.sort((a, b) => (b['created_at'] ?? '')
+        .toString()
+        .compareTo((a['created_at'] ?? '').toString()));
+    return entries.take(150).toList();
   }
 
   @override
@@ -966,7 +1009,7 @@ class _TimelineTabState extends State<_TimelineTab> {
         if (snap.hasError) return Center(child: Text('Erro: ${snap.error}'));
         final entries = snap.data ?? const [];
         if (entries.isEmpty) {
-          return const Center(child: Text('Sem entradas de audit.'));
+          return const Center(child: Text('Sem eventos registados.'));
         }
         return RefreshIndicator(
           onRefresh: () async => setState(() => _f = _load()),
@@ -1001,6 +1044,8 @@ class _TimelineTabState extends State<_TimelineTab> {
 
   IconData _iconFor(String? action) {
     if (action == null) return Icons.history;
+    if (action.contains(' → ')) return Icons.swap_horiz;
+    if (action == 'Falha de lifecycle') return Icons.error_outline;
     if (action == 'order_cancel' || action == 'order_cancel_complete') return Icons.cancel;
     if (action == 'order_cancel_idempotent') return Icons.repeat;
     if (action.startsWith('order_refund')) return Icons.attach_money;
@@ -1024,6 +1069,8 @@ class _TimelineTabState extends State<_TimelineTab> {
       }
     }
     if (d['attempted_reason_code'] != null) parts.add('attempted=${d['attempted_reason_code']}');
+    if (d['actor_uid'] != null) parts.add('ator=${d['actor_uid']}');
+    if (d['error_message'] != null) parts.add('erro=${d['error_message']}');
     return parts.join(' · ');
   }
 }
@@ -1253,4 +1300,3 @@ String _amount(Map<String, dynamic> order) {
   if (v is num) return v.toStringAsFixed(2);
   return '0.00';
 }
-

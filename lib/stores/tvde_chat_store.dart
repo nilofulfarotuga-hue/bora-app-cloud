@@ -19,7 +19,8 @@ class TvdeMessage {
   final String senderRole; // 'client' | 'driver'
   final String content;
   final DateTime createdAt;
-  final bool read; // [Item I] lida pelo destinatario (coluna tvde_messages.read)
+  final bool
+      read; // [Item I] lida pelo destinatario (coluna tvde_messages.read)
 
   factory TvdeMessage.fromMap(Map<String, dynamic> m) => TvdeMessage(
         id: m['id'] as String,
@@ -32,14 +33,18 @@ class TvdeMessage {
       );
 }
 
-/// Chat bidirecional TVDE — realtime via `.stream()` (mesmo padrão do delivery
-/// [ChatStore]), scoped por `tvde_ride_id`. Push é disparado por trigger no DB.
+/// Chat bidirecional TVDE, scoped por `tvde_ride_id`.
+///
+/// O histórico é carregado por SELECT e as alterações chegam por um canal
+/// Postgres explícito. Não usamos apenas `.stream()`: uma falha de subscrição
+/// não pode deixar uma mensagem já confirmada no servidor invisível no ecrã.
 class TvdeChatStore extends ChangeNotifier {
   final _sb = Supabase.instance.client;
 
   final Map<String, List<TvdeMessage>> _messages = {};
-  final Map<String, StreamSubscription<List<Map<String, dynamic>>>>
-      _subscriptions = {};
+  final Map<String, RealtimeChannel> _channels = {};
+  final Map<String, String> _syncErrors = {};
+  final Map<String, int> _revisions = {};
   // [Item I] refcount por corrida: a tela de corrida (para o badge) e o ecra de
   // chat podem ambos ouvir a MESMA corrida — a subscricao so morre quando ambos
   // saem, senao fechar o chat matava o badge da tela de corrida.
@@ -47,6 +52,8 @@ class TvdeChatStore extends ChangeNotifier {
 
   List<TvdeMessage> messagesForRide(String rideId) =>
       List.unmodifiable(_messages[rideId] ?? const <TvdeMessage>[]);
+
+  String? syncErrorForRide(String rideId) => _syncErrors[rideId];
 
   /// [Item I] Nº de mensagens por ler recebidas do OUTRO lado (as que este papel
   /// ainda nao abriu). Usa a coluna tvde_messages.read.
@@ -63,21 +70,48 @@ class TvdeChatStore extends ChangeNotifier {
   void listen(String rideId) {
     _refCount[rideId] = (_refCount[rideId] ?? 0) + 1;
     // Ja a transmitir esta corrida (outro ouvinte) → reusa a subscricao.
-    if (_subscriptions.containsKey(rideId)) return;
-    final sub = _sb
-        .from('tvde_messages')
-        .stream(primaryKey: ['id'])
-        .eq('tvde_ride_id', rideId)
-        .order('created_at', ascending: true)
-        .listen(
-          (rows) {
-            _messages[rideId] = rows.map(TvdeMessage.fromMap).toList();
-            notifyListeners();
-          },
-          onError: (Object e) =>
-              debugPrint('[TvdeChatStore] stream($rideId) ERROR: $e'),
-        );
-    _subscriptions[rideId] = sub;
+    if (_channels.containsKey(rideId)) return;
+
+    final channel = _sb.channel('tvde_messages_$rideId')
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.insert,
+        schema: 'public',
+        table: 'tvde_messages',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'tvde_ride_id',
+          value: rideId,
+        ),
+        callback: (payload) => _upsertFromRealtime(rideId, payload.newRecord),
+      )
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.update,
+        schema: 'public',
+        table: 'tvde_messages',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'tvde_ride_id',
+          value: rideId,
+        ),
+        callback: (payload) => _upsertFromRealtime(rideId, payload.newRecord),
+      )
+      ..subscribe((status, [error]) {
+        if (status == RealtimeSubscribeStatus.subscribed) {
+          _syncErrors.remove(rideId);
+          _loadHistory(rideId);
+          return;
+        }
+        if (status == RealtimeSubscribeStatus.channelError ||
+            status == RealtimeSubscribeStatus.closed ||
+            status == RealtimeSubscribeStatus.timedOut) {
+          _syncErrors[rideId] = 'A conversa está a tentar voltar a ligar.';
+          debugPrint(
+              '[TvdeChatStore] channel($rideId) status=$status error=$error');
+          notifyListeners();
+        }
+      });
+    _channels[rideId] = channel;
+    _loadHistory(rideId);
   }
 
   Future<void> sendMessage({
@@ -88,11 +122,16 @@ class TvdeChatStore extends ChangeNotifier {
     final trimmed = content.trim();
     if (trimmed.isEmpty) return;
     try {
-      await _sb.from('tvde_messages').insert({
-        'tvde_ride_id': rideId,
-        'sender_role': senderRole,
-        'message': trimmed,
-      });
+      final raw = await _sb
+          .from('tvde_messages')
+          .insert({
+            'tvde_ride_id': rideId,
+            'sender_role': senderRole,
+            'message': trimmed,
+          })
+          .select()
+          .single();
+      _upsert(rideId, TvdeMessage.fromMap(Map<String, dynamic>.from(raw)));
     } catch (e) {
       debugPrint('[TvdeChatStore] sendMessage ERROR: $e');
       rethrow;
@@ -120,17 +159,72 @@ class TvdeChatStore extends ChangeNotifier {
       return;
     }
     _refCount.remove(rideId);
-    _subscriptions.remove(rideId)?.cancel();
+    _channels.remove(rideId)?.unsubscribe();
     _messages.remove(rideId);
+    _syncErrors.remove(rideId);
+    _revisions.remove(rideId);
   }
 
   @override
   void dispose() {
-    for (final s in _subscriptions.values) {
-      s.cancel();
+    for (final channel in _channels.values) {
+      channel.unsubscribe();
     }
-    _subscriptions.clear();
+    _channels.clear();
     _refCount.clear();
+    _syncErrors.clear();
+    _revisions.clear();
     super.dispose();
+  }
+
+  Future<void> _loadHistory(String rideId) async {
+    final revisionBeforeLoad = _revisions[rideId] ?? 0;
+    try {
+      final rows = await _sb
+          .from('tvde_messages')
+          .select()
+          .eq('tvde_ride_id', rideId)
+          .order('created_at', ascending: true);
+      if (!_channels.containsKey(rideId)) return;
+
+      final fetched = (rows as List)
+          .map((row) => TvdeMessage.fromMap(Map<String, dynamic>.from(row)))
+          .toList();
+      if ((_revisions[rideId] ?? 0) == revisionBeforeLoad) {
+        _messages[rideId] = fetched;
+        _revisions[rideId] = revisionBeforeLoad + 1;
+      } else {
+        for (final message in fetched) {
+          _upsert(rideId, message, notify: false);
+        }
+      }
+      _syncErrors.remove(rideId);
+      notifyListeners();
+    } catch (e) {
+      if (!_channels.containsKey(rideId)) return;
+      _syncErrors[rideId] = 'Não foi possível atualizar as mensagens.';
+      debugPrint('[TvdeChatStore] history($rideId) ERROR: $e');
+      notifyListeners();
+    }
+  }
+
+  void _upsertFromRealtime(String rideId, Map<String, dynamic> raw) {
+    if (raw.isEmpty) return;
+    _syncErrors.remove(rideId);
+    _upsert(rideId, TvdeMessage.fromMap(raw));
+  }
+
+  void _upsert(String rideId, TvdeMessage message, {bool notify = true}) {
+    final current = [...(_messages[rideId] ?? const <TvdeMessage>[])];
+    final index = current.indexWhere((item) => item.id == message.id);
+    if (index == -1) {
+      current.add(message);
+    } else {
+      current[index] = message;
+    }
+    current.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    _messages[rideId] = current;
+    _revisions[rideId] = (_revisions[rideId] ?? 0) + 1;
+    if (notify) notifyListeners();
   }
 }

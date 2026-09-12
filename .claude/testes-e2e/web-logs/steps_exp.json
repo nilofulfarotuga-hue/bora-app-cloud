@@ -1,0 +1,13 @@
+[
+  { "log": "boot", "sleep": 13000 },
+  { "shot": "e1_boot" },
+  { "log": "consent", "click": [699, 2081] },
+  { "sleep": 2500 },
+  { "shot": "e2_apos_consent" },
+  { "log": "sou cliente #1", "click": [699, 1675] },
+  { "sleep": 4000 },
+  { "shot": "e3_apos_cliente1" },
+  { "log": "sou cliente #2", "click": [699, 1675] },
+  { "sleep": 4000 },
+  { "shot": "e4_apos_cliente2" }
+]

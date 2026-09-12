@@ -58,7 +58,6 @@ class AddressText extends StatefulWidget {
 
 class _AddressTextState extends State<AddressText> {
   String? _resolvedAddress;
-  bool _loading = false;
 
   @override
   void initState() {
@@ -78,45 +77,27 @@ class _AddressTextState extends State<AddressText> {
   }
 
   Future<void> _maybeResolve() async {
+    // BUG 29: NUNCA fazer reverse geocoding. Google Geocoding API retorna a
+    // rua MAIS PRÓXIMA das coordenadas, que pode não ser a rua correcta da
+    // entrega (ex: "Alexandre Herculano" em vez de "Rua do Torreão"). Cliente
+    // e estafeta preferem morada literal gravada no checkout.
+    //
+    // Comportamento novo:
+    //  - rawAddress não-vazio: mostra rawAddress.
+    //  - rawAddress vazio + coords disponível: mostra coords como fallback.
+    //  - rawAddress vazio + coords null: mostra string vazia.
     final raw = widget.rawAddress?.trim() ?? '';
-
-    // No address string but coords available — resolve directly from coords.
-    if (raw.isEmpty) {
-      if (widget.coords != null) {
-        setState(() => _loading = true);
-        final address = await AddressResolver.resolve(widget.coords!);
-        if (mounted) {
-          setState(() {
-            _resolvedAddress = address;
-            _loading = false;
-          });
-        }
-      }
-      return;
-    }
-
-    // Already a real address — nothing to resolve.
-    if (!AddressResolver.looksLikeCoordinates(raw)) {
+    if (raw.isNotEmpty) {
       setState(() => _resolvedAddress = raw);
       return;
     }
-
-    // No coordinates provided — show raw as-is.
-    if (widget.coords == null) {
-      setState(() => _resolvedAddress = raw);
+    if (widget.coords != null) {
+      final c = widget.coords!;
+      setState(() => _resolvedAddress =
+          '${c.latitude.toStringAsFixed(5)}, ${c.longitude.toStringAsFixed(5)}');
       return;
     }
-
-    setState(() => _loading = true);
-
-    final address = await AddressResolver.resolve(widget.coords!);
-
-    if (mounted) {
-      setState(() {
-        _resolvedAddress = address;
-        _loading = false;
-      });
-    }
+    setState(() => _resolvedAddress = '');
   }
 
   @override
@@ -124,31 +105,6 @@ class _AddressTextState extends State<AddressText> {
     final displayText = _resolvedAddress ?? widget.rawAddress ?? '';
     final fullText =
         widget.prefix != null ? '${widget.prefix}$displayText' : displayText;
-
-    if (_loading) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Flexible(
-            child: Text(
-              fullText,
-              style: widget.style,
-              maxLines: widget.maxLines,
-              overflow: widget.overflow,
-            ),
-          ),
-          const SizedBox(width: 6),
-          SizedBox(
-            width: 12,
-            height: 12,
-            child: CircularProgressIndicator(
-              strokeWidth: 1.5,
-              color: widget.style?.color ?? Colors.grey,
-            ),
-          ),
-        ],
-      );
-    }
 
     return Text(
       fullText,

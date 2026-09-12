@@ -1,7 +1,13 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../config/app_colors.dart';
 import '../../models/partner_product.dart';
+import '../../stores/cart_store.dart';
+import 'coming_soon.dart';
+
+import '../../l10n/tr.dart';
 
 /// Card grande de produto Bora — imagem preenche 62% do card, nome + preço
 /// + botão "+" em baixo. Design consistente para grelhas 2 colunas (aspect 3:4).
@@ -50,10 +56,16 @@ class BoraProductCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasPhoto = product.photoUrl.isNotEmpty;
     final hasPrice = product.price > 0;
+    // Loja em "Em breve" — catálogo navegável, carrinho fechado.
+    final comingSoon = context.watch<CartStore>().vendorBlocksAddToCart;
+    // Loja fechada (fora de horario): o "+" para e diz porque, com a hora a
+    // que abre. Ver e navegar continua livre — so o adicionar e que trava.
+    final fechada = context.watch<CartStore>().lojaFechada;
+    final avisoFechada = context.watch<CartStore>().avisoLojaFechada;
 
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(16),
       elevation: 1,
       shadowColor: Colors.black.withValues(alpha: 0.08),
       clipBehavior: Clip.antiAlias,
@@ -68,10 +80,12 @@ class BoraProductCard extends StatelessWidget {
                 fit: StackFit.expand,
                 children: [
                   if (hasPhoto)
-                    Image.network(
-                      product.photoUrl,
+                    CachedNetworkImage(
+                      imageUrl: product.photoUrl,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const _Placeholder(),
+                      fadeInDuration: const Duration(milliseconds: 120),
+                      placeholder: (_, __) => const _Placeholder(),
+                      errorWidget: (_, __, ___) => const _Placeholder(),
                     )
                   else
                     const _Placeholder(),
@@ -83,10 +97,10 @@ class BoraProductCard extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           if (product.isPopular)
-                            const _MiniBadge(label: 'Top', color: Colors.orange),
+                            _MiniBadge(label: 'Top'.tr, color: Colors.orange),
                           if (product.isOnSale) ...[
                             if (product.isPopular) const SizedBox(width: 4),
-                            const _MiniBadge(label: 'Promo', color: Colors.red),
+                            _MiniBadge(label: 'Promo'.tr, color: Colors.red),
                           ],
                         ],
                       ),
@@ -149,6 +163,9 @@ class BoraProductCard extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w800,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures(),
+                              ],
                               color: hasPrice
                                   ? AppColors.primary
                                   : Colors.grey.shade500,
@@ -158,13 +175,24 @@ class BoraProductCard extends StatelessWidget {
                           ),
                         ),
                         InkWell(
-                          onTap: hasPrice ? onAdd : null,
+                          // Produtos com grupos de opção obrigatórios → "+"
+                          // abre o detalhe (escolher opções) em vez de adicionar
+                          // direto. Mercados/produtos sem opções: adicionar direto.
+                          // Loja em "Em breve": botão cinzento + mensagem.
+                          onTap: fechada
+                              ? () =>
+                                  showLojaFechadaSnackBar(context, avisoFechada)
+                              : comingSoon
+                              ? () => showComingSoonBlockedSnackBar(context)
+                              : (hasPrice
+                                  ? (product.hasRequiredOptions ? onTap : onAdd)
+                                  : null),
                           borderRadius: BorderRadius.circular(10),
                           child: Container(
                             width: 34,
                             height: 34,
                             decoration: BoxDecoration(
-                              color: hasPrice
+                              color: (hasPrice && !comingSoon && !fechada)
                                   ? AppColors.primary
                                   : Colors.grey.shade300,
                               borderRadius: BorderRadius.circular(10),

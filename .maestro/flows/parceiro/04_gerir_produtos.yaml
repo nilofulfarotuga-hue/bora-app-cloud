@@ -1,0 +1,43 @@
+appId: pt.boraapp.bora
+name: Parceiro — Gerir produtos (editar e guardar)
+tags:
+  - parceiro
+  - produtos
+---
+- launchApp:
+    clearState: true
+- runFlow: ../../_shared/login_parceiro.yaml
+
+- scrollUntilVisible:
+    element:
+      text: ".*Gerir produtos.*"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    text: ".*Gerir produtos.*"
+- extendedWaitUntil:
+    visible:
+      text: ".*€.*"
+    timeout: 10000
+
+# Toca no primeiro produto da lista.
+- tapOn:
+    text: "Editar"
+    index: 0
+- extendedWaitUntil:
+    visible: "Nome"
+    timeout: 10000
+
+# Toggle de disponibilidade (não altera nada que afecte produção).
+- runFlow:
+    when:
+      visible: "Disponível"
+    commands:
+      - tapOn: "Disponível"
+      - tapOn: "Disponível"
+
+- tapOn: "Guardar"
+- extendedWaitUntil:
+    visible:
+      text: "Guardado|actualizado|guardado"
+    timeout: 10000

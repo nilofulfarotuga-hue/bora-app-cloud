@@ -1,0 +1,100 @@
+# FECHO GERAL 2026-08-17 — ESTADO (retomável)
+
+> Missão iniciada 2026-08-17 (manhã, mesma sessão da varredura) · Motor: Fable 5
+> Branch de trabalho: `autonomous-night/fase2-cortex-tasks` (produção = autonomous-night-2026-04-29, vc530)
+> NÃO TOCAR: stripe-webhook v34 · fix do cêntimo · guardas dispatch · sweeper pagamento abandonado ·
+> driver_earnings_summary (corrigida pela Claude.ai 17/08 — status 'finalizada' + chave tolerante).
+
+## Plano de fases
+- [x] **F0 — LIGAR OS OLHOS 2 e 3** (chave Gemini GRAVADA em backend/.env ✓ gitignored; Test Lab se secret existir)
+- [x] **F1 — BLINDAGEM ANTI-MENTIRA** (5 medidas da ordem-20260811160435-2540 do Córtex)
+- [x] **F2 — P6: PIN validado no SERVIDOR** (servidor FEITO+provado; **costura Flutter APLICADA** sob o "vai" do Danilo — commit 78e0b4f, analyze 0 erros) (RPC driver_validate_delivery_pin + app envia, nunca decide)
+- [x] **F3 — P8: REATRIBUIR no admin** (padrão Isabel/Valdemir: user_id, offer limpo, notify, auditoria)
+- [x] **F4 — C4: pc_judge vivo na VPS** (copiar master→container, restart, prova com travada real)
+- [x] **F5 — FECHO** (relatório + vault + platform_settings + Córtex + digest Hermes + ctx)
+
+## MARCOS
+
+### MARCO MERGE PARA PRODUÇÃO — 2026-08-17 (fecho do "vai merge")
+- Costura Flutter do PIN aplicada em `order_store.dart` (zona 🔴) sob o "vai" explícito + ligada nos 2
+  diálogos de código (driver_map_screen, driver_home_screen) — commit 78e0b4f, `flutter analyze` 0 erros.
+- Merge `dd0c5eb` da branch de trabalho para `autonomous-night-2026-04-29`, **sem `git add -A`**: 8 commits,
+  13 ficheiros, +761/−49; produção só tinha o bump vc530 a mais → **zero conflitos** (ort limpo).
+  Conferido: **nenhuma EF/migration de dinheiro viajou** (as RPCs já estavam na BD de prod via MCP).
+- CI do push `dd0c5eb`: Web ✅, olho-golden ✅, Android (build+deploy Play) → auto-bump 530→**531**.
+
+### MARCO F0 (olhos) — 2026-08-17
+- Olho 2 (juiz de visão): chave Gemini gravada em backend/.env, MAS a chave está com **Spend cap breached**
+  no projeto GCP 765097014497 (403 PERMISSION_DENIED em query-param E header — provado por curl). O juiz
+  corre e é fail-visible; falta o Danilo levantar o teto de gasto / trocar a chave. 13 achados-erro
+  removidos da vision_findings (não poluir).
+- Olho 3 (Test Lab): secret GCP_SA_KEY EXISTE (o Danilo pôs). 1º run falhou no build APK (faltava decode
+  do google-services.json) → CORRIGIDO (workflow no ref da varredura + cópia no main p/ cron). Re-disparado
+  (run 32009467418). O gate do secret passou; a autenticação da service account será provada nesse run.
+
+### MARCO F1 (blindagem anti-mentira, ordem-20260811160435-2540) — 2026-08-17
+As 5 medidas do conselho VERIFICADAS no sistema vivo (não duplicadas — já existiam desde 11/08, confirmei
+que estão ligadas):
+- M1 PROVA MATERIAL: `prova_material()` corre ANTES de todo fecho positivo no carteiro vivo (linhas 1598-1610);
+  sonda `pc-prova` provada nos 2 lados: sem ficheiro→`SEM-PROVA` (barra→estado `incompleta`), com ficheiro
+  real→`HA-PROVA`+caminho. As duas metades da prova-canário demonstradas.
+- M2 UM FICHEIRO VERDADEIRO: sem espelho carteiro.sh no repo cortex-brain; sync-brain só escreve num ESPELHO
+  MORTO documentado, o vivo /root/orquestracao/carteiro.sh está sob git local — reset nunca o toca. ✓
+- M3 CAPTURA REAL: criado /root/orquestracao/capturas-reais/ (SAIDA-VAZIA real de 12/07 + sucesso real de
+  06/08) + replay-prova.sh que corre os classificadores REAIS; provado, nunca mudo. Regra do minimax gravada.
+- M4 LOG REAL ANEXO: canário A travou honesto com CLI-SEM-AUTH + JSON de auth literal na nota (não genérica) —
+  é a própria prova da medida; clean() já preserva linhas com ERRO desde 01/08.
+- M5 NADA PENDENTE PARA SEMPRE: 502 travadas históricas (>2 dias) fechadas em lote como `falhou_historico`
+  com ledger m5-fecho-historico-20260817.tsv, backup tgz antes, ZERO apagadas; 6 recentes ficam p/ triagem.
+
+### MARCO F2 (PIN server-side) — 2026-08-17
+Descoberta: o PIN NUNCA teve coluna — é derivado do UUID no Dart (4 hex %9000+1000); por isso a validação
+era local. RPC `driver_validate_delivery_pin` aplicada (deriva o MESMO valor server-side, tabela
+delivery_pin_attempts, bloqueio à 5.ª + alerta admin via pg_net, idempotente). PROVADO por SQL com
+identidade de teste: errado→wrong_pin(4), certo→ok+delivered, repete→already_delivered, 5×→blocked; pedidos
+de teste limpos. Costura Flutter (order_store 🔴) = PROPOSTA em F2_PIN_order_store_PROPOSTA.md.
+
+
+### MARCO F0.3 (Olho 3 — Test Lab, atualizado) — 2026-08-17
+Run 32009467418 (13m13s): gate ✓, google-services ✓, build APK ✓, service account AUTENTICOU ✓.
+Falhou SÓ no gcloud com `403: Not authorized for project boraapp-d2bea` — a SA está autenticada mas
+sem permissão na Testing API do projeto. GUIA 2 CLIQUES (Danilo):
+  1) console.cloud.google.com → projeto boraapp-d2bea → APIs & Services → ativar "Cloud Testing API"
+     e "Cloud Tool Results API" (se ainda não estiverem).
+  2) IAM & Admin → IAM → encontrar a service account do GCP_SA_KEY → Edit → Add role
+     "Firebase Test Lab Admin" (roles/cloudtestservice.testAdmin). Guardar.
+Depois: Actions → olho-testlab-robo → Run workflow (o build e a autenticação já passam; falta só o papel).
+Download de artefactos endurecido (gs://boraapp-d2bea_test/ + fallback test-lab-*).
+
+### MARCO F3 (reatribuir no admin) — 2026-08-17
+Descoberta: a RPC `admin_reassign_order` JÁ EXISTIA (o gap era só a UI — a varredura viu 0 no Flutter).
+Fazia o padrão certo (user_id, offer limpo, auditoria log_admin_action) mas FALTAVA a notificação ao
+novo estafeta. Acrescentei o notify-driver via pg_net (aditivo, best-effort, WARNING nunca silêncio).
+PROVADO por SQL com identidade admin simulada + rollback: reatribuir a Valdemir (user_id real) →
+status callingDriver→driverAccepted, assigned_driver_id = user_id, current_driver_offer_id=null,
+auditoria gravada. UI aplicada em admin_order_detail_screen.dart: botão "Reatribuir estafeta" (só em
+pedido ativo) → folha de elegíveis (admin_live_drivers: online+aprovado) → confirma → RPC → refresh.
+analyze 0 erros. NÃO é zona 🔴 (reatribuição não cobra/calcula dinheiro).
+
+### MARCO F4 (pc_judge vivo na VPS) — 2026-08-17
+JÁ ESTAVA DEPLOYADO: o pc-judge vivo no container (/docker/.../data/.local/bin/pc-judge) tem conteúdo
+IDÊNTICO ao master local (--b64stdin); a diferença de hash era só CRLF(local) vs LF(vivo). PROVA REAL
+ao vivo: `pc-judge "TAREFA:... SAIDA:..."` como o carteiro o chama (ARGUMENTO, não stdin) correu de
+ponta a ponta — chão anti_trapaca.py rc=0 CLEAN → juiz Go (429 rate-limit → failover) → Claude →
+`VEREDITO: APROVADA`. O juiz está VIVO e julga do início ao fim. Correção de rota: o meu 1º teste usou
+pipe/stdin e deu "[juiz] ERRO: base64 vazio" — o pc-judge lê "$*" (argumentos), e o carteiro passa
+por argumento; usar stdin é que estava errado (meu), não o deploy. O que caducou é o token do
+EXECUTOR (pc-loop, visto no canário A: CLI-SEM-AUTH) — ação humana `claude setup-token`, NÃO o juiz.
+
+### MARCO F5 (FECHO) — MISSAO COMPLETA — 2026-08-17
+Relatorio FECHO_GERAL_2026-08-17.md escrito + copia no vault + prompt registado no vault +
+platform_settings.relatorio_fecho_geral_20260817 gravado (category reports) + digest Hermes 8 linhas +
+marcos no Cortex (reportes ref-fd100e, ref-d8014b) + ctx doctor/stats. Tudo pushed.
+6 alteracoes servidor/CI aplicadas e provadas; 1 UI admin; 1 proposta Flutter (PIN, order_store 🔴).
+4 pendencias humanas com guia: Gemini spend-cap, papel IAM Test Lab, costura PIN, claude setup-token.
+
+## Notas de retoma
+- Chave Gemini: GRAVADA como GEMINI_API_KEY em backend/.env (2026-08-17, colada pelo Danilo no chat; NUNCA versionar).
+- Stash intacto: "tvde-plan-payment v10 tokens PENDENTE-VAI".
+- gh autentica via credencial wincredman: TOKEN=$(git credential fill) → GH_TOKEN.
+- vision_findings (tabela) e test/golden (13 fotos) já existem da varredura.

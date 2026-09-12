@@ -35,7 +35,11 @@ export const DRIVER_ADDITIONAL_ORDER_TOKENS = 50 as const;
 // FEES
 export const WRONG_ADDRESS_FEE_EUR = 2.00 as const;
 // Client cancel fees (BR §8.3) — aligned with business_rules.md v2 source of truth
-export const CANCEL_FEE_BEFORE_DISPATCH_EUR = 1.00 as const;
+/**
+ * Source of truth: platform_settings.cancel_fee_before_dispatch_cents (= 150).
+ * Última actualização: 2026-05-08 (Sessão 7-TS-AUDIT). Valor anterior: 1.00.
+ */
+export const CANCEL_FEE_BEFORE_DISPATCH_EUR = 1.50 as const;
 export const CANCEL_FEE_AFTER_ACCEPT_EUR = 2.50 as const;
 export const CANCEL_FEE_AFTER_PURCHASE_RATIO = 1.00 as const;
 
@@ -56,5 +60,9 @@ export const NON_PARTNER_MARKUP_RATIO = 0.15 as const;
 /**
  * Maximum order total (EUR) accepted with payment_method = 'cash'.
  * Enforced server-side by the `enforce_cash_payment_limit` DB trigger.
+ *
+ * Source of truth: platform_settings.max_cash_amount_cents (= 4000).
+ * Última actualização: 2026-05-08 (Sessão 7-TS-AUDIT — BUG-7E-B-001 ponta solta).
+ * Valor anterior: 30.00 (€30) — desalinhado com prod.
  */
-export const CASH_MAX_ORDER_VALUE_EUR = 30.00 as const;
+export const CASH_MAX_ORDER_VALUE_EUR = 40.00 as const;

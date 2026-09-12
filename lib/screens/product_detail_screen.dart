@@ -1,17 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config/allergens.dart';
+import '../config/app_colors.dart';
 import '../models/cart_item.dart';
 import '../models/partner_product.dart';
+import '../models/product_option.dart';
 import '../models/product_variant.dart';
+import '../services/pricing_service.dart';
 import '../stores/cart_store.dart';
 import '../stores/restaurant_store.dart';
+import '../utils/cart_feedback.dart';
+import '../widgets/bora/bora_accent_button.dart';
+import '../widgets/bora/bora_primary_button.dart';
+import '../widgets/bora/coming_soon.dart';
 import 'cart_screen.dart';
 
+import '../l10n/tr.dart';
+
 class ProductDetailScreen extends StatefulWidget {
-  const ProductDetailScreen({super.key, required this.product});
+  const ProductDetailScreen({
+    super.key,
+    required this.product,
+    required this.isPartnerStore,
+  });
 
   final PartnerProduct product;
+
+  /// B1 (2026-06-11): obrigatório para a regra de preço exibido = cobrado.
+  /// Não-parceiro: markup 15% runtime via PricingService.applyMarkup.
+  final bool isPartnerStore;
 
   @override
   State<ProductDetailScreen> createState() => _ProductDetailScreenState();
@@ -21,51 +40,142 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   ProductVariant? _selectedVariant;
   int _quantity = 1;
 
-  String _variantKey(ProductVariant v) => '${widget.product.name}__${v.id}';
+  // Option groups (modifiers) — fetched lazily for this product. Empty for
+  // products without modifiers (the vast majority). Selections keyed by group id.
+  List<ProductOptionGroup> _groups = const [];
+  final Map<String, Set<String>> _sel = {};
 
+  @override
+  void initState() {
+    super.initState();
+    _loadGroups();
+  }
+
+  Future<void> _loadGroups() async {
+    try {
+      final res = await Supabase.instance.client
+          .from('product_option_groups')
+          .select(
+              'id,product_id,name,description,is_required,min_choices,max_choices,sort_order,product_option_items(id,name,price_add,is_available,sort_order)')
+          .eq('product_id', widget.product.id)
+          .order('sort_order');
+      final list = (res as List)
+          .map((e) => ProductOptionGroup.fromMap(e as Map<String, dynamic>))
+          .toList()
+        ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+      if (mounted) setState(() => _groups = list);
+    } catch (e) {
+      debugPrint('ProductDetail._loadGroups error: $e');
+    }
+  }
+
+  // ── Option-group helpers ───────────────────────────────────────────────────
+  int _selCount(ProductOptionGroup g) => _sel[g.id]?.length ?? 0;
+  bool get _requiredOk => _groups.every((g) => _selCount(g) >= g.minChoices);
+  double get _optionsPrice {
+    double sum = 0;
+    for (final g in _groups) {
+      final ids = _sel[g.id];
+      if (ids == null) continue;
+      for (final it in g.items) {
+        if (ids.contains(it.id)) sum += it.priceAdd;
+      }
+    }
+    return sum;
+  }
+
+  void _toggleOption(ProductOptionGroup g, ProductOptionItem it) {
+    if (!it.isAvailable) return;
+    final set = _sel.putIfAbsent(g.id, () => <String>{});
+    setState(() {
+      if (g.maxChoices <= 1) {
+        set
+          ..clear()
+          ..add(it.id);
+      } else if (set.contains(it.id)) {
+        set.remove(it.id);
+      } else if (set.length < g.maxChoices) {
+        set.add(it.id);
+      }
+    });
+  }
+
+  String _groupHint(ProductOptionGroup g) {
+    if (g.minChoices > 0 && g.minChoices == g.maxChoices) {
+      return 'Escolhe {0}'.trArgs([g.minChoices]);
+    }
+    if (g.minChoices > 0) return 'Escolhe {0} a {1}'.trArgs([g.minChoices, g.maxChoices]);
+    return 'Escolhe até {0}'.trArgs([g.maxChoices]);
+  }
+
+  // Confirmação compacta e não-bloqueante (padrão Uber Eats / Glovo) — o
+  // mesmo snack verde de uma linha usado no menu e nas lojas. Tocar só
+  // adiciona; a acção "Ver" leva ao carrinho, sem navegar automaticamente.
+  //
+  // 2026-08-25 (defeito apanhado pelo Danilo no telemóvel): adicionar FECHA a
+  // ficha e devolve o cliente ao menu da loja — o aviso fica por cima e a
+  // barra "Ver carrinho" já mostra o total novo. O aviso é mostrado ANTES do
+  // pop de propósito: o ScaffoldMessenger é global, portanto sobrevive à
+  // navegação (e o "Ver" usa o NavigatorState capturado no helper).
+  void _snackEFecha(String msg) {
+    showAddedToCartSnack(context, msg);
+    fecharFichaAposAdicionar(context);
+  }
+
+  // Sessão 4C: ProductVariant.id é UUID válido — usar directamente.
+  // Embeber o nome do produto criava productId que falhava lookup na RPC.
+  String _variantKey(ProductVariant v) => v.id;
+
+  // B1 (2026-06-11): price = exibido/cobrado (markup não-parceiro runtime);
+  // basePrice = puro de catálogo (product_lines.unit_price — fallback server).
   void _addToCart(BuildContext context, ProductVariant v) {
     context.read<CartStore>().addItem(CartItem(
           productId: _variantKey(v),
           name: '${widget.product.name} (${v.brandName})',
-          price: v.price,
+          price: PricingService.applyMarkup(v.price, widget.isPartnerStore),
+          basePrice: v.price,
           quantity: _quantity,
         ));
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text('${v.brandName} × $_quantity adicionado ao carrinho'),
-          duration: const Duration(milliseconds: 1200),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
-          dismissDirection: DismissDirection.horizontal,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
+    _snackEFecha('{0} × {1} adicionado ao carrinho'.trArgs([v.brandName, _quantity]));
   }
 
   void _addNoVariantToCart(BuildContext context) {
     context.read<CartStore>().addItem(CartItem(
           productId: widget.product.id,
           name: widget.product.name,
-          price: widget.product.price,
+          price: PricingService.applyMarkup(
+              widget.product.price, widget.isPartnerStore),
+          basePrice: widget.product.price,
           quantity: _quantity,
         ));
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-              '${widget.product.name} × $_quantity adicionado ao carrinho'),
-          duration: const Duration(milliseconds: 1200),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
-          dismissDirection: DismissDirection.horizontal,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
+    _snackEFecha('{0} × {1} adicionado ao carrinho'.trArgs([widget.product.name, _quantity]));
+  }
+
+  void _addWithOptions(BuildContext context) {
+    final selected = <SelectedOption>[];
+    for (final g in _groups) {
+      final ids = _sel[g.id];
+      if (ids == null || ids.isEmpty) continue;
+      final names =
+          g.items.where((it) => ids.contains(it.id)).map((it) => it.name).toList();
+      if (names.isNotEmpty) {
+        selected.add(SelectedOption(group: g.name, items: names));
+      }
+    }
+    // T1 (2026-06-11): exibido = cobrado. O create_order soma o price_add das
+    // opções ao preço base ANTES do ×1.15 não-parceiro — (base + extras) ×1.15.
+    // O display aplica o mesmo markup a base + extras (parceiro: identidade).
+    final unit = PricingService.applyMarkup(
+        widget.product.price + _optionsPrice, widget.isPartnerStore);
+    context.read<CartStore>().addItem(CartItem(
+          productId: widget.product.id,
+          name: widget.product.name,
+          price: unit,
+          basePrice: widget.product.price,
+          quantity: _quantity,
+          selectedOptions: selected,
+        ));
+    _snackEFecha('{0} × {1} adicionado ao carrinho'.trArgs([widget.product.name, _quantity]));
   }
 
   @override
@@ -83,9 +193,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
     final primaryColor = Theme.of(context).colorScheme.primary;
     final total = variants.length;
+    final hasGroups = variants.isEmpty && _groups.isNotEmpty;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppColors.background,
       body: Column(
         children: [
           Expanded(
@@ -155,12 +266,65 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             ),
                           ),
                         ],
+                        // B6 (2026-06-12): alergénios (Reg. UE 1169/2011) —
+                        // chips quando declarados; disclaimer quando vazio.
+                        const SizedBox(height: 12),
+                        if (widget.product.allergens.isNotEmpty) ...[
+                          Text(
+                            'Alergénios'.tr,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: [
+                              for (final slug in widget.product.allergens)
+                                Chip(
+                                  label: Text(
+                                    kAllergenLabels[slug] ?? slug,
+                                    style: const TextStyle(fontSize: 11),
+                                  ),
+                                  visualDensity: VisualDensity.compact,
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  backgroundColor: Colors.amber.shade50,
+                                  side: BorderSide(
+                                      color: Colors.amber.shade200),
+                                ),
+                            ],
+                          ),
+                        ] else
+                          Text(
+                            'Consulte o estabelecimento para informações sobre alergénios.'.tr,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade500,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
                       ],
                     ),
                   ),
                 ),
 
                 const SliverToBoxAdapter(child: SizedBox(height: 8)),
+
+                // ── Option groups (modifiers) ────────────────────────────────
+                if (hasGroups)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                      child: Column(
+                        children:
+                            _groups.map((g) => _buildGroupCard(g)).toList(),
+                      ),
+                    ),
+                  ),
 
                 // ── Variants section header ──────────────────────────────────
                 if (variants.isNotEmpty)
@@ -169,7 +333,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
                       child: Text(
                         total == 1
-                            ? '1 marca disponível'
+                            ? '1 marca disponível'.tr
                             : '$total marcas disponíveis',
                         style: const TextStyle(
                           fontSize: 13,
@@ -196,6 +360,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           padding: const EdgeInsets.only(bottom: 12),
                           child: _VariantCard(
                             variant: v,
+                            displayPrice: PricingService.applyMarkup(
+                                v.price, widget.isPartnerStore),
                             isSelected: isSelected,
                             isCheapest: isCheapest,
                             isPremium: isPremium,
@@ -249,39 +415,192 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ),
 
           // ── Fixed bottom button ──────────────────────────────────────────
-          if (_selectedVariant != null || variants.isEmpty)
-            SafeArea(
-              top: false,
-              minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _selectedVariant != null
-                      ? () => _addToCart(context, _selectedVariant!)
-                      : widget.product.price > 0
-                          ? () => _addNoVariantToCart(context)
-                          : null,
-                  icon: const Icon(Icons.add_shopping_cart),
-                  label: Text(
-                    _selectedVariant != null
-                        ? 'Adicionar ao carrinho · €${_selectedVariant!.price.toStringAsFixed(2)}'
-                        : widget.product.price > 0
-                            ? 'Adicionar ao carrinho · €${widget.product.price.toStringAsFixed(2)}'
-                            : 'Preço indisponível',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 16),
+          _buildBottomBar(context, variants, hasGroups),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomBar(
+      BuildContext context, List<ProductVariant> variants, bool hasGroups) {
+    // "Em breve": o produto continua visível e navegável, mas o botão de
+    // adicionar fica cinzento (não invisível) e explica porquê ao toque.
+    final comingSoon = context.watch<CartStore>().vendorBlocksAddToCart;
+
+    Widget wrap(Widget child) => SafeArea(
+          top: false,
+          minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: comingSoon
+              ? Tooltip(
+                  message: kComingSoonBlockedMessage,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => showComingSoonBlockedSnackBar(context),
+                    child: AbsorbPointer(child: child),
                   ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFE65100),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
+                )
+              : child,
+        );
+
+    if (comingSoon) {
+      // Botão desactivado (onPressed: null → cinzento pelo tema).
+      return wrap(BoraPrimaryButton(
+        label: 'Adicionar ao carrinho'.tr,
+        icon: Icons.add_shopping_cart,
+        onPressed: null,
+      ));
+    }
+
+    // B1 (2026-06-11): botões exibem o preço COBRADO (markup runtime
+    // não-parceiro via applyMarkup; parceiro = preço puro do menu).
+    if (variants.isNotEmpty) {
+      if (_selectedVariant == null) return const SizedBox.shrink();
+      return wrap(BoraAccentButton(
+        label:
+            'Adicionar ao carrinho · €{0}'.trArgs([PricingService.applyMarkup(_selectedVariant!.price, widget.isPartnerStore).toStringAsFixed(2)]),
+        icon: Icons.add_shopping_cart,
+        onPressed: () => _addToCart(context, _selectedVariant!),
+      ));
+    }
+
+    if (hasGroups) {
+      // T1: mesmo cálculo do _addWithOptions — (base + extras) com markup.
+      // Antes as opções ficavam de fora do markup e o rótulo divergia do
+      // cobrado em não-parceiro com opções.
+      final unit = PricingService.applyMarkup(
+          widget.product.price + _optionsPrice, widget.isPartnerStore);
+      final ok = widget.product.price > 0 && _requiredOk;
+      // Green primary button keeps the single orange element = the required
+      // badge ("1 laranja por ecrã" — badge tem prioridade).
+      return wrap(BoraPrimaryButton(
+        label: ok
+            ? 'Adicionar ao carrinho · €{0}'.trArgs([unit.toStringAsFixed(2)])
+            : 'Completa as escolhas obrigatórias',
+        icon: Icons.add_shopping_cart,
+        onPressed: ok ? () => _addWithOptions(context) : null,
+      ));
+    }
+
+    return wrap(BoraAccentButton(
+      label: widget.product.price > 0
+          ? 'Adicionar ao carrinho · €{0}'.trArgs([PricingService.applyMarkup(widget.product.price, widget.isPartnerStore).toStringAsFixed(2)])
+          : 'Preço indisponível',
+      icon: Icons.add_shopping_cart,
+      onPressed:
+          widget.product.price > 0 ? () => _addNoVariantToCart(context) : null,
+    ));
+  }
+
+  // ── Option-group card ──────────────────────────────────────────────────────
+  Widget _buildGroupCard(ProductOptionGroup g) {
+    final count = _selCount(g);
+    final satisfied = count >= g.minChoices;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: AppColors.shadowCard,
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  g.name,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
                   ),
                 ),
               ),
-            ),
+              if (g.isRequired)
+                _Badge(label: 'Obrigatório'.tr, color: AppColors.accent)
+              else
+                _Badge(
+                    label: 'Opcional'.tr, color: AppColors.textSecondary),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Row(
+            children: [
+              Text(
+                _groupHint(g),
+                style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary),
+              ),
+              const Spacer(),
+              Text(
+                'Escolheste {0} de {1}'.trArgs([count, g.maxChoices]),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: satisfied ? AppColors.primary : AppColors.textSubtle,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          ...g.items.map((it) => _buildOptionRow(g, it)),
         ],
+      ),
+    );
+  }
+
+  Widget _buildOptionRow(ProductOptionGroup g, ProductOptionItem it) {
+    final selected = _sel[g.id]?.contains(it.id) ?? false;
+    final atMax = g.maxChoices > 1 && _selCount(g) >= g.maxChoices;
+    final disabled = !it.isAvailable || (!selected && atMax);
+    final single = g.maxChoices <= 1;
+    final IconData icon = single
+        ? (selected
+            ? Icons.radio_button_checked
+            : Icons.radio_button_unchecked)
+        : (selected ? Icons.check_box : Icons.check_box_outline_blank);
+    return InkWell(
+      onTap: disabled ? null : () => _toggleOption(g, it),
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Icon(icon,
+                size: 22,
+                color: selected
+                    ? AppColors.primary
+                    : (disabled ? AppColors.textSubtle : AppColors.textSecondary)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                it.name,
+                style: TextStyle(
+                  fontSize: 14.5,
+                  color: it.isAvailable
+                      ? AppColors.textPrimary
+                      : AppColors.textSubtle,
+                  decoration: it.isAvailable
+                      ? TextDecoration.none
+                      : TextDecoration.lineThrough,
+                ),
+              ),
+            ),
+            if (it.priceAdd > 0)
+              Text(
+                '+€${it.priceAdd.toStringAsFixed(2)}',
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -325,6 +644,7 @@ class _HeroPlaceholder extends StatelessWidget {
 class _VariantCard extends StatelessWidget {
   const _VariantCard({
     required this.variant,
+    required this.displayPrice,
     required this.isSelected,
     required this.isCheapest,
     required this.isPremium,
@@ -334,6 +654,9 @@ class _VariantCard extends StatelessWidget {
   });
 
   final ProductVariant variant;
+
+  /// B1: preço exibido = cobrado (markup não-parceiro aplicado pelo caller).
+  final double displayPrice;
   final bool isSelected;
   final bool isCheapest;
   final bool isPremium;
@@ -402,12 +725,12 @@ class _VariantCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   if (isCheapest)
-                    _Badge(label: 'Mais barato', color: Colors.green.shade600)
+                    _Badge(label: 'Mais barato'.tr, color: Colors.green.shade600)
                   else if (isPremium)
-                    _Badge(label: 'Premium', color: Colors.blue.shade600),
+                    _Badge(label: 'Premium'.tr, color: Colors.blue.shade600),
                   const SizedBox(height: 6),
                   Text(
-                    '€${variant.price.toStringAsFixed(2)}',
+                    '€${displayPrice.toStringAsFixed(2)}',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,

@@ -1,0 +1,47 @@
+# [2-DEVICES lado estafeta] Aceitar oferta → (finalizar compra se não-parceiro) → recolher →
+# entregar com PIN. PIN vem do runner via env (lido de orders.delivery_code, read-only).
+# Anti-regressão BUG #10 (oferta visível em FG) e BUG #15 (PIN obrigatório antes de delivered).
+appId: pt.boraapp.bora
+env:
+  PIN: "0000"
+---
+- runFlow: login.yaml
+# esperar a oferta (dispatch 40s/rotação; damos folga)
+- extendedWaitUntil:
+    visible: "Aceitar.*"
+    timeout: 120000
+- tapOn: "Aceitar.*"
+# storeShopping não-parceiro: finalizar compra antes de recolher (talão/sacos)
+- runFlow:
+    when:
+      visible: ".*[Ff]inalizar compra.*"
+    commands:
+      - tapOn: ".*[Ff]inalizar compra.*"
+      - extendedWaitUntil:
+          visible: ".*[Cc]onfirmar.*"
+          timeout: 15000
+      - tapOn: ".*[Cc]onfirmar.*"
+# progresso da entrega
+- extendedWaitUntil:
+    visible: "Recolher pedido"
+    timeout: 60000
+- tapOn: "Recolher pedido"
+- extendedWaitUntil:
+    visible: "Iniciar entrega"
+    timeout: 30000
+- tapOn: "Iniciar entrega"
+- extendedWaitUntil:
+    visible: "Concluir entrega"
+    timeout: 30000
+- tapOn: "Concluir entrega"
+# diálogo do código de entrega (PIN 4 dígitos) — check anti-regressão: TEM de aparecer
+- extendedWaitUntil:
+    visible: "Código de entrega"
+    timeout: 15000
+- tapOn: "Código"
+- inputText: ${PIN}
+- tapOn: ".*[Cc]onfirmar.*"
+# resultado esperado: entrega concluída
+- extendedWaitUntil:
+    visible: ".*[Ee]ntreg.*"
+    timeout: 20000

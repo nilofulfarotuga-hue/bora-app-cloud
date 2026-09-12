@@ -1,22 +1,75 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../config/app_colors.dart';
 import '../models/chat_message.dart';
 import '../models/message_model.dart';
 import '../models/order_model.dart';
 import '../stores/chat_store.dart';
 import '../stores/order_store.dart';
+import '../stores/restaurant_store.dart';
+import '../widgets/bora/bora_screen_app_bar.dart';
+
+import '../l10n/tr.dart';
+
+enum ChatTarget { client, driver, partner }
+
+/// Returns the conversation channel for a ChatScreen invocation.
+/// Returns null when channel cannot be determined (legacy / all messages shown).
+/// M11: chatTarget explícito tem prioridade para TODOS os senders — permite os
+/// 2 acessos do padrão Uber Eats (cliente↔parceiro E cliente↔estafeta).
+String? resolveConversationType(
+  ChatSenderType senderType,
+  OrderStatus status,
+  ChatTarget? chatTarget,
+) {
+  return switch (senderType) {
+    ChatSenderType.client => switch (chatTarget) {
+      ChatTarget.partner => 'client_partner',
+      ChatTarget.driver  => 'client_driver',
+      _ => switch (status) {
+        OrderStatus.preparing          => 'client_partner',
+        OrderStatus.pickedUp ||
+        OrderStatus.onTheWay           => 'client_driver',
+        _                              => null,
+      },
+    },
+    ChatSenderType.driver => switch (chatTarget) {
+      ChatTarget.partner => 'driver_partner',
+      ChatTarget.client  => 'client_driver',
+      _ => switch (status) {
+        OrderStatus.driverAccepted     => 'driver_partner',
+        OrderStatus.pickedUp ||
+        OrderStatus.onTheWay           => 'client_driver',
+        _                              => null,
+      },
+    },
+    ChatSenderType.partner => switch (chatTarget) {
+      ChatTarget.client => 'client_partner',
+      ChatTarget.driver => 'driver_partner',
+      _                 => null,
+    },
+  };
+}
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({
     super.key,
     required this.order,
     required this.senderType,
+    this.chatTarget,
+    this.conversationType,
   });
 
   final OrderModel order;
   final ChatSenderType senderType;
+  final ChatTarget? chatTarget;
+
+  /// 'client_partner', 'client_driver', or 'driver_partner'.
+  /// Null = show all messages (legacy / no channel filtering).
+  final String? conversationType;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -26,22 +79,46 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _msgCtrl = TextEditingController();
   final ScrollController _scrollCtrl = ScrollController();
 
-  String get _senderRole =>
-      widget.senderType == ChatSenderType.client ? 'client' : 'driver';
+  String get _senderRole => switch (widget.senderType) {
+    ChatSenderType.client  => 'client',
+    ChatSenderType.driver  => 'driver',
+    ChatSenderType.partner => 'partner',
+  };
 
   String get _senderId {
     final o = widget.order;
-    return widget.senderType == ChatSenderType.client
-        ? (o.clientPhone ?? 'client_${o.id}')
-        : (o.assignedDriverId ?? 'driver_${o.id}');
+    return switch (widget.senderType) {
+      ChatSenderType.client  => o.clientPhone ?? 'client_${o.id}',
+      ChatSenderType.driver  => o.assignedDriverId ?? 'driver_${o.id}',
+      ChatSenderType.partner =>
+          Supabase.instance.client.auth.currentUser?.id ?? 'partner_${o.id}',
+    };
   }
+
+  DateTime _lastMarkRead = DateTime.fromMillisecondsSinceEpoch(0);
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ChatStore>().listen(widget.order.id);
+      _markRead();
     });
+  }
+
+  /// M11: marca as mensagens dos outros como lidas (badge zera). Throttled —
+  /// chamado ao abrir e sempre que chegam mensagens novas com o ecrã aberto.
+  /// Parte C: passa o par (conversation_type) — abrir o chat do estafeta não
+  /// pode zerar o badge do parceiro (threads separadas).
+  void _markRead() {
+    final now = DateTime.now();
+    if (now.difference(_lastMarkRead).inSeconds < 2) return;
+    _lastMarkRead = now;
+    Supabase.instance.client.rpc('chat_mark_read', params: {
+      'p_order_id': widget.order.id,
+      'p_reader_type': _senderRole,
+      'p_conversation_type': widget.conversationType,
+    }).then((_) {}, onError: (_) {});
   }
 
   @override
@@ -49,6 +126,49 @@ class _ChatScreenState extends State<ChatScreen> {
     _msgCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
+  }
+
+  String? _resolveCallPhone(BuildContext context, OrderModel o) {
+    final restaurantPhone = context
+        .read<RestaurantStore>()
+        .restaurantByName(o.vendorName)
+        ?.phone;
+    return switch (widget.senderType) {
+      ChatSenderType.client => switch (o.status) {
+        OrderStatus.preparing            => restaurantPhone,
+        OrderStatus.pickedUp ||
+        OrderStatus.onTheWay             => o.driverPhone,
+        _                                => null,
+      },
+      ChatSenderType.driver => switch (o.status) {
+        OrderStatus.driverAccepted       => restaurantPhone,
+        OrderStatus.pickedUp ||
+        OrderStatus.onTheWay             => o.clientPhone,
+        _                                => null,
+      },
+      ChatSenderType.partner => switch (widget.chatTarget) {
+        ChatTarget.client => o.clientPhone,
+        ChatTarget.driver => o.driverPhone,
+        _                 => null,
+      },
+    };
+  }
+
+  String _appBarTitle(OrderModel o) {
+    final vendor = o.vendorName ?? 'Pedido';
+    return switch (widget.senderType) {
+      ChatSenderType.client  => widget.chatTarget == ChatTarget.partner
+          ? 'Chat c/ Restaurante · {0}'.trArgs([vendor])
+          : 'Chat c/ Estafeta · $vendor',
+      ChatSenderType.driver  => widget.chatTarget == ChatTarget.partner
+          ? 'Chat c/ Restaurante · {0}'.trArgs([vendor])
+          : 'Chat c/ Cliente · $vendor',
+      ChatSenderType.partner => switch (widget.chatTarget) {
+        ChatTarget.client => 'Chat c/ Cliente · {0}'.trArgs([vendor]),
+        ChatTarget.driver => 'Chat c/ Estafeta · {0}'.trArgs([vendor]),
+        _                 => 'Chat · {0}'.trArgs([vendor]),
+      },
+    };
   }
 
   @override
@@ -59,7 +179,19 @@ class _ChatScreenState extends State<ChatScreen> {
       (o) => o.id == widget.order.id,
       orElse: () => widget.order,
     );
-    final messages = chatStore.messagesForOrder(widget.order.id);
+    final messages = chatStore
+        .messagesForOrder(widget.order.id)
+        .where((m) =>
+            widget.conversationType == null ||
+            m.conversationType == null ||
+            m.conversationType == widget.conversationType)
+        .toList();
+
+    // M11: mensagens novas dos outros enquanto o ecrã está aberto → marcar
+    // lidas (throttled em _markRead) para o badge dos outros ecrãs zerar.
+    if (messages.any((m) => m.senderRole != _senderRole && !m.read)) {
+      _markRead();
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollCtrl.hasClients && messages.isNotEmpty) {
@@ -72,21 +204,24 @@ class _ChatScreenState extends State<ChatScreen> {
     });
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Chat · ${liveOrder.vendorName ?? 'Pedido'}'),
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: _appBarTitle(liveOrder),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.phone),
-            tooltip: 'Ligar',
-            onPressed: () async {
-              final phone = widget.senderType == ChatSenderType.driver
-                  ? liveOrder.clientPhone
-                  : liveOrder.driverPhone;
-              if (phone == null || phone.isEmpty) return;
-              final uri = Uri(scheme: 'tel', path: phone);
-              if (await canLaunchUrl(uri)) {
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
-              }
+          Builder(
+            builder: (ctx) {
+              final phone = _resolveCallPhone(ctx, liveOrder);
+              if (phone == null || phone.isEmpty) return const SizedBox.shrink();
+              return IconButton(
+                icon: const Icon(Icons.phone),
+                tooltip: 'Ligar'.tr,
+                onPressed: () async {
+                  final uri = Uri(scheme: 'tel', path: phone);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  }
+                },
+              );
             },
           ),
         ],
@@ -95,10 +230,10 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           Expanded(
             child: messages.isEmpty
-                ? const Center(
+                ? Center(
                     child: Text(
-                      'Sem mensagens. Seja o primeiro a escrever!',
-                      style: TextStyle(color: Colors.grey),
+                      'Sem mensagens. Seja o primeiro a escrever!'.tr,
+                      style: const TextStyle(color: AppColors.textSecondary),
                     ),
                   )
                 : ListView.builder(
@@ -125,7 +260,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     },
                   ),
           ),
-          const Divider(height: 1),
+          const Divider(height: 1, color: AppColors.divider),
           SafeArea(
             top: false,
             minimum: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -134,7 +269,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 if (widget.senderType == ChatSenderType.driver)
                   IconButton(
                     icon: const Icon(Icons.swap_horiz),
-                    tooltip: 'Propor substituição',
+                    tooltip: 'Propor substituição'.tr,
                     onPressed: () => _showSubstitutionDialog(context),
                   ),
                 Expanded(
@@ -142,9 +277,9 @@ class _ChatScreenState extends State<ChatScreen> {
                     controller: _msgCtrl,
                     textInputAction: TextInputAction.send,
                     onSubmitted: (_) => _handleSend(context),
-                    decoration: const InputDecoration(
-                      hintText: 'Escreva uma mensagem...',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      hintText: 'Escreva uma mensagem...'.tr,
+                      border: const OutlineInputBorder(),
                       isDense: true,
                     ),
                   ),
@@ -171,15 +306,16 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       await chatStore.sendMessage(
         orderId: widget.order.id,
-        senderId: _senderId,
+        senderType: _senderId,
         senderRole: _senderRole,
         content: text,
+        conversationType: widget.conversationType,
       );
     } catch (e) {
       debugPrint('ChatScreen._handleSend: $e');
       if (mounted) {
         messenger.showSnackBar(
-          const SnackBar(content: Text('Não foi possível enviar a mensagem.')),
+          SnackBar(content: Text('Não foi possível enviar a mensagem.'.tr)),
         );
       }
     }
@@ -200,7 +336,7 @@ class _ChatScreenState extends State<ChatScreen> {
     );
     if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Erro ao responder substituição')),
+        SnackBar(content: Text('Erro ao responder substituição'.tr)),
       );
     }
   }
@@ -216,16 +352,17 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       await chatStore.sendSubstitution(
         orderId: widget.order.id,
-        senderId: _senderId,
+        senderType: _senderId,
         original: result.original,
         suggestion: result.suggestion,
         price: result.price,
+        conversationType: widget.conversationType,
       );
     } catch (_) {
       if (mounted) {
         messenger.showSnackBar(
-          const SnackBar(
-              content: Text('Não foi possível enviar a substituição.')),
+          SnackBar(
+              content: Text('Não foi possível enviar a substituição.'.tr)),
         );
       }
     }
@@ -250,9 +387,7 @@ class _TextBubble extends StatelessWidget {
         constraints:
             BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
         decoration: BoxDecoration(
-          color: isMine
-              ? Theme.of(context).colorScheme.primary
-              : Colors.grey.shade200,
+          color: isMine ? AppColors.primary : AppColors.surface,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
@@ -268,14 +403,29 @@ class _TextBubble extends StatelessWidget {
             Text(
               message.content,
               style: TextStyle(
-                  color: isMine ? Colors.white : Colors.black87, fontSize: 14),
+                  color: isMine ? Colors.white : AppColors.textPrimary,
+                  fontSize: 14),
             ),
             const SizedBox(height: 4),
-            Text(
-              _fmt(message.createdAt),
-              style: TextStyle(
-                  fontSize: 11,
-                  color: isMine ? Colors.white70 : Colors.black45),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _fmt(message.createdAt),
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: isMine ? Colors.white70 : AppColors.textSecondary),
+                ),
+                // M11: ✓ enviada · ✓✓ lida (só nas bolhas próprias).
+                if (isMine) ...[
+                  const SizedBox(width: 4),
+                  Icon(
+                    message.read ? Icons.done_all : Icons.done,
+                    size: 13,
+                    color: Colors.white70,
+                  ),
+                ],
+              ],
             ),
           ],
         ),
@@ -318,13 +468,10 @@ class _SubstitutionCard extends StatelessWidget {
         constraints:
             BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.88),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.orange.shade200),
-          boxShadow: const [
-            BoxShadow(
-                color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
-          ],
+          boxShadow: AppColors.shadowCard,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -344,7 +491,7 @@ class _SubstitutionCard extends StatelessWidget {
                       size: 18, color: Colors.orange.shade700),
                   const SizedBox(width: 8),
                   Text(
-                    'Substituir produto?',
+                    'Substituir produto?'.tr,
                     style: TextStyle(
                         fontWeight: FontWeight.w700,
                         color: Colors.orange.shade800,
@@ -359,12 +506,12 @@ class _SubstitutionCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _SubRow(label: 'Original', value: sub.original),
+                  _SubRow(label: 'Original'.tr, value: sub.original),
                   const SizedBox(height: 4),
-                  _SubRow(label: 'Sugestão', value: sub.suggestion),
+                  _SubRow(label: 'Sugestão'.tr, value: sub.suggestion),
                   const SizedBox(height: 4),
                   _SubRow(
-                      label: 'Preço',
+                      label: 'Preço'.tr,
                       value: '€${sub.price.toStringAsFixed(2)}'),
                   const SizedBox(height: 12),
                   if (response != null)
@@ -379,7 +526,7 @@ class _SubstitutionCard extends StatelessWidget {
                               foregroundColor: Colors.red,
                               side: const BorderSide(color: Colors.red),
                             ),
-                            child: const Text('Rejeitar'),
+                            child: Text('Rejeitar'.tr),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -390,14 +537,14 @@ class _SubstitutionCard extends StatelessWidget {
                               backgroundColor: Colors.green,
                               foregroundColor: Colors.white,
                             ),
-                            child: const Text('Aprovar'),
+                            child: Text('Aprovar'.tr),
                           ),
                         ),
                       ],
                     )
                   else
                     Text(
-                      'Aguardando resposta do cliente...',
+                      'Aguardando resposta do cliente...'.tr,
                       style:
                           TextStyle(fontSize: 12, color: Colors.grey.shade600),
                     ),
@@ -518,7 +665,7 @@ class _SubstitutionDialogState extends State<_SubstitutionDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Propor substituição'),
+      title: Text('Propor substituição'.tr),
       content: Form(
         key: _formKey,
         child: Column(
@@ -526,27 +673,27 @@ class _SubstitutionDialogState extends State<_SubstitutionDialog> {
           children: [
             TextFormField(
               controller: _originalCtrl,
-              decoration: const InputDecoration(labelText: 'Produto original'),
+              decoration: InputDecoration(labelText: 'Produto original'.tr),
               validator: (v) =>
                   (v?.trim().isEmpty ?? true) ? 'Obrigatório' : null,
             ),
             const SizedBox(height: 8),
             TextFormField(
               controller: _suggestionCtrl,
-              decoration: const InputDecoration(labelText: 'Sugestão'),
+              decoration: InputDecoration(labelText: 'Sugestão'.tr),
               validator: (v) =>
                   (v?.trim().isEmpty ?? true) ? 'Obrigatório' : null,
             ),
             const SizedBox(height: 8),
             TextFormField(
               controller: _priceCtrl,
-              decoration: const InputDecoration(labelText: 'Preço (€)'),
+              decoration: InputDecoration(labelText: 'Preço (€)'.tr),
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
               validator: (v) {
                 if (v == null || v.trim().isEmpty) return 'Obrigatório';
                 if (double.tryParse(v.trim().replaceAll(',', '.')) == null) {
-                  return 'Valor inválido';
+                  return 'Valor inválido'.tr;
                 }
                 return null;
               },
@@ -557,7 +704,7 @@ class _SubstitutionDialogState extends State<_SubstitutionDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
+          child: Text('Cancelar'.tr),
         ),
         ElevatedButton(
           onPressed: () {
@@ -572,7 +719,7 @@ class _SubstitutionDialogState extends State<_SubstitutionDialog> {
               ),
             );
           },
-          child: const Text('Enviar'),
+          child: Text('Enviar'.tr),
         ),
       ],
     );

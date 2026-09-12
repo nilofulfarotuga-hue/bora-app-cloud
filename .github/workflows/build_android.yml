@@ -1,0 +1,236 @@
+name: Build Android & Deploy to Google Play
+
+on:
+  push:
+    branches:
+      - autonomous-night-2026-04-29
+    paths-ignore:
+      - "**.md"
+      - ".claude/**"
+  workflow_dispatch:
+
+# Evita corridas em paralelo da mesma ref (a 2ª espera/cancela a 1ª).
+concurrency:
+  group: build-android-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write  # necessario para o commit/push do versionCode bump
+
+jobs:
+  build:
+    name: Build AAB & upload (Closed Testing — alpha)
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout (persist-credentials=true para permitir o push do bump)
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # 2. Java 17
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # 3. Flutter — PIN 3.41.2 (mesma versao do Codemagic que produziu o build 239
+      #    funcional). Sem pin, 'stable' usava o Flutter mais recente, cujo parser de
+      #    --dart-define-from-file (.env com linha de comentario '#') NAO injetava as
+      #    chaves Supabase -> Supabase.initialize(url:'') -> login "credenciais invalidas"
+      #    instantaneo na build 240. NAO subir esta versao sem re-testar o login.
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.41.2
+          channel: stable
+          cache: true
+
+      # 3b. Cache pub packages (~/.pub-cache) — evita re-download em cada build
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      # 3c. Cache Gradle (~/.gradle) — evita re-compilacao do wrapper em cada build
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      # 3d. NDK 28.2.13676358 — instalar antes do build para evitar que o AGP
+      #     descarregue ~1.5 GB durante o bundleRelease (causava timeout 50-60 min).
+      #     yes| em vez de echo "y"| — sdkmanager aceita múltiplas licenças sem travar.
+      - name: Install Android NDK
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+            --sdk_root="$ANDROID_HOME" "ndk;28.2.13676358"
+
+      # 4. google-services.json a partir do secret base64
+      - name: Decode google-services.json
+        env:
+          GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
+        run: |
+          echo "$GOOGLE_SERVICES_JSON_B64" | base64 --decode > android/app/google-services.json
+
+      # 4b. .dart_defines (Supabase/Maps/Stripe) a partir do secret base64.
+      #     Sem isto, Supabase.initialize()/String.fromEnvironment falham em
+      #     silencio no release e a app fica presa no splash do Flutter.
+      #     Repo root == bora_app, logo o ficheiro vai para a raiz (mesma pasta do build).
+      - name: Decode .dart_defines
+        env:
+          DART_DEFINES_FILE_B64: ${{ secrets.DART_DEFINES_FILE_B64 }}
+        run: |
+          echo "$DART_DEFINES_FILE_B64" | base64 --decode > .dart_defines
+          if [ ! -s .dart_defines ]; then
+            echo "ERRO: .dart_defines vazio apos decode"; exit 1
+          fi
+          echo "OK: .dart_defines criado ($(wc -l < .dart_defines) linhas)"
+
+      # 5. Keystore a partir do secret base64
+      #    storeFile resolve relativo a android/ (rootProject), por isso
+      #    gravamos em android/app/ e em key.properties usamos "app/upload-keystore.jks".
+      - name: Decode keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
+
+      # 6. key.properties (lido por android/app/build.gradle.kts)
+      - name: Create key.properties
+        env:
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+        run: |
+          cat > android/key.properties <<EOF
+          storeFile=app/upload-keystore.jks
+          storePassword=${STORE_PASSWORD}
+          keyAlias=${KEY_ALIAS}
+          keyPassword=${KEY_PASSWORD}
+          EOF
+
+      # 7. Incrementar versionCode (build number depois do "+") no pubspec.yaml
+      #    Le a versao do HEAD remoto mais recente (nao do SHA que disparou esta run) —
+      #    evita colisao de versionCode quando 2 pushes seguidos enfileiram 2 runs e a
+      #    2a ainda esta "presa" no snapshot antigo (causou "Version code X has already
+      #    been used" no Google Play em 2026-07-13, commit 8035d7e).
+      - name: Bump versionCode
+        id: bump
+        run: |
+          git fetch origin autonomous-night-2026-04-29
+          git checkout origin/autonomous-night-2026-04-29 -- pubspec.yaml
+          current=$(grep -E '^version:' pubspec.yaml | head -n1 | sed 's/version:[[:space:]]*//')
+          name="${current%+*}"
+          code="${current#*+}"
+          new_code=$((code + 1))
+          sed -i "s/^version:.*/version: ${name}+${new_code}/" pubspec.yaml
+          echo "Old: ${current}  ->  New: ${name}+${new_code}"
+          echo "new_code=${new_code}" >> "$GITHUB_OUTPUT"
+          echo "version_name=${name}" >> "$GITHUB_OUTPUT"
+
+      # 8. Commit + push do pubspec.yaml com o versionCode incrementado.
+      #    [skip ci] evita disparar uma nova corrida em loop infinito.
+      #    pull --rebase antes do push — evita non-fast-forward se corridas concorrentes
+      #    já tiverem empurrado um bump entretanto.
+      - name: Commit versionCode bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/nilofulfarotuga-hue/bora-app-cloud.git
+          git add pubspec.yaml
+          git commit -m "ci: bump versionCode to ${{ steps.bump.outputs.new_code }} [skip ci]"
+          git pull --rebase origin autonomous-night-2026-04-29
+          git push origin HEAD:autonomous-night-2026-04-29
+
+      # 9. Dependencias
+      - name: Flutter pub get
+        run: flutter pub get
+
+      # 10. Build do AAB assinado (com dart-defines injetados)
+      - name: Build appbundle (release)
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=512m"
+        # Adendo3 (2026-08-16): BORA_VERSION_CODE injetado — o AppUpdateGate
+        # compara o instalado com app_latest_version_code (build local = 0 = silencio).
+        run: flutter build appbundle --release --dart-define-from-file=.dart_defines --dart-define=BORA_VERSION_CODE=${{ steps.bump.outputs.new_code }} --no-tree-shake-icons
+
+      # 11. Upload para Google Play — Teste FECHADO ('alpha') + Teste INTERNO ('internal').
+      #     'alpha' e' o track ligado ao grupo bora-app-testers@googlegroups.com (os 12
+      #     testadores do requisito 12×14 dias).
+      #     'internal' entrega sem passar por revisao — util para ver o build depressa.
+      #     'tracks' (plural, separado por virgula) faz UM upload atribuido aos dois
+      #     tracks; 'track' singular esta deprecated.
+      #     status: completed = rollout 100% (senão os testadores não recebem).
+      #
+      #     changesNotSentForReview: REMOVIDO a 2026-07-31 — era um contorno que
+      #     EXPIROU. Foi posto a 2026-07-28 (commit 0d27ced) porque havia uma
+      #     rejeicao de producao PENDENTE: nesse estado a API descartava a edicao
+      #     inteira ao tentar enviar para revisao. Desde que a app passou a estar
+      #     PUBLICADA em producao, a Google envia sempre para revisao sozinha e a
+      #     API REJEITA o parametro. Erro exato da run 30663180518:
+      #       "Changes are sent for review automatically.
+      #        The query parameter changesNotSentForReview must not be set."
+      #     Ou seja: o que antes era o fix passou a ser a causa. Nao voltar a por
+      #     esta flag sem confirmar primeiro que ha mesmo uma rejeicao pendente.
+      #     PRODUCAO (2026-07-31, decisao explicita do Danilo): a app esta
+      #     aprovada e publicada, e as atualizacoes passam a chegar a TODOS os
+      #     utilizadores reais, nao so aos testadores. 'internal' fica em
+      #     primeiro lugar na lista porque e por ai que o telemovel dele recebe
+      #     o build mais depressa (entrega sem revisao).
+      #
+      #     ROLLOUT FASEADO — NAO aplicado, e a razao e mecanica:
+      #     r0adkll/upload-google-play@v1 aplica UM unico 'status'/'userFraction'
+      #     a TODOS os tracks do mesmo step. Por 'status: inProgress' +
+      #     'userFraction: 0.1' travaria tambem 'internal' e 'alpha' a 10% — ou
+      #     seja, o telemovel do Danilo e os 12 testadores deixariam de receber
+      #     de forma fiavel, que e exatamente o oposto do pedido. Separar em dois
+      #     steps tambem nao serve: o segundo upload do MESMO versionCode e
+      #     rejeitado pela API ("APK/AAB already exists").
+      #     Para ter faseado a serio e preciso um step extra que fale direto com
+      #     a Play Developer API para atribuir o versionCode ja carregado ao
+      #     track de producao com userFraction. Fica registado como proximo passo.
+      #
+      #     status: completed (NUNCA 'draft' — draft fica parado na consola a
+      #     espera de um clique manual do Danilo).
+      - name: Upload to Google Play (internal + alpha + production)
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: pt.boraapp.bora
+          releaseFiles: build/app/outputs/bundle/release/app-release.aab
+          tracks: internal,alpha,production
+          status: completed
+
+      # 12b. Adendo3 (2026-08-16): liga o AVISO DE ATUALIZACAO sozinho — grava
+      #      o versionCode publicado em platform_settings.app_latest_version_code
+      #      via REST do Supabase. Salta em silencio se o secret nao existir
+      #      (Danilo adiciona SUPABASE_SERVICE_ROLE_KEY nos secrets UMA vez).
+      - name: Publicar app_latest_version_code (aviso de atualizacao)
+        env:
+          SRK: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEW_CODE: ${{ steps.bump.outputs.new_code }}
+        run: |
+          if [ -z "$SRK" ]; then
+            echo "SUPABASE_SERVICE_ROLE_KEY ausente — aviso de update fica manual (nao fatal)"
+            exit 0
+          fi
+          curl -sf -X PATCH "https://ojykpzwqrtusfeakzrna.supabase.co/rest/v1/platform_settings?key=eq.app_latest_version_code" \
+            -H "apikey: $SRK" -H "Authorization: Bearer $SRK" \
+            -H "Content-Type: application/json" -H "Prefer: return=minimal" \
+            -d "{\"value\": $NEW_CODE}" \
+            && echo "app_latest_version_code=$NEW_CODE gravado" \
+            || echo "AVISO: falha ao gravar app_latest_version_code (nao fatal)"

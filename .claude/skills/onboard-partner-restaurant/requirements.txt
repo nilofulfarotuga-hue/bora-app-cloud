@@ -1,0 +1,7 @@
+# onboard-partner-restaurant — dependências Python
+# Instalar (NÃO nesta sessão): python -m venv .venv && .venv\Scripts\activate && pip install -r requirements.txt
+pyyaml>=6.0          # parse info.yaml
+Pillow>=10.0         # resize/convert WebP
+rembg[cpu]>=2.0      # remoção de fundo (modelo u2net, ~170MB no 1º uso)
+requests>=2.31       # HTTP: Edge Functions, Google Maps, OpenAI, Supabase REST
+python-dotenv>=1.0   # ler .env do projeto

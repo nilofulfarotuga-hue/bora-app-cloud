@@ -1,0 +1,453 @@
+{
+  "worten": {
+    "slug": "worten-vivaci-guarda-grd",
+    "pairs": [
+      [
+        "124378/350045",
+        417
+      ]
+    ],
+    "store": "124378",
+    "addr": "350045",
+    "body": [
+      {
+        "type": "CAROUSEL",
+        "title": "Promoções",
+        "nP": 20,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Dia da Criança 2026: Tech & Play",
+        "nP": 0,
+        "nC": 5,
+        "collId": "56377050"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Universo Apple",
+        "nP": 0,
+        "nC": 3,
+        "collId": "37410752"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Universo Samsung",
+        "nP": 0,
+        "nC": 6,
+        "collId": "37410381"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Telemóveis e Smartphones",
+        "nP": 0,
+        "nC": 5,
+        "collId": "37409779"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Acessórios Telemóveis",
+        "nP": 0,
+        "nC": 6,
+        "collId": "37410224"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Som Portátil",
+        "nP": 0,
+        "nC": 4,
+        "collId": "37411356"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Smartwatches",
+        "nP": 0,
+        "nC": 4,
+        "collId": "37409769"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Tablets e Acessórios",
+        "nP": 0,
+        "nC": 6,
+        "collId": "37410117"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Portáteis, Desktop e Acessórios",
+        "nP": 0,
+        "nC": 7,
+        "collId": "37410519"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Armazenamento de Dados",
+        "nP": 0,
+        "nC": 3,
+        "collId": "37409809"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Impressoras, Tinteiros e Papel",
+        "nP": 0,
+        "nC": 4,
+        "collId": "37410898"
+      },
+      {
+        "type": "GRID",
+        "title": "Redes e Smart Home",
+        "nP": 0,
+        "nC": 2,
+        "collId": "37410175"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Gaming, Jogos e Consolas",
+        "nP": 0,
+        "nC": 3,
+        "collId": "37411418"
+      },
+      {
+        "type": "GRID",
+        "title": "Acessórios Foto e Vídeo",
+        "nP": 0,
+        "nC": 2,
+        "collId": "37410801"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "TV e Vídeo",
+        "nP": 0,
+        "nC": 5,
+        "collId": "37409773"
+      },
+      {
+        "type": "GRID",
+        "title": "Papelaria e Gifts",
+        "nP": 0,
+        "nC": 1,
+        "collId": "37410509"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Eletrodomésticos Cozinha",
+        "nP": 0,
+        "nC": 5,
+        "collId": "37410817"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Eletrodomésticos Casa",
+        "nP": 0,
+        "nC": 4,
+        "collId": "37411319"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Beleza, Saúde e Cuidado Pessoal",
+        "nP": 0,
+        "nC": 5,
+        "collId": "37410267"
+      },
+      {
+        "type": "GRID",
+        "title": "Desporto, Mobilidade e Outdoor",
+        "nP": 0,
+        "nC": 1,
+        "collId": "37410294"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Bricolage",
+        "nP": 0,
+        "nC": 3,
+        "collId": "37409929"
+      },
+      {
+        "type": "GRID",
+        "title": "Jardim",
+        "nP": 0,
+        "nC": 1,
+        "collId": "37410489"
+      },
+      {
+        "type": "GRID",
+        "title": "Bebé e Mamã",
+        "nP": 0,
+        "nC": 1,
+        "collId": "37409771"
+      },
+      {
+        "type": "GRID",
+        "title": "Mobilidade, Auto e Moto",
+        "nP": 0,
+        "nC": 2,
+        "collId": "37411451"
+      }
+    ]
+  },
+  "leroy-merlin": {
+    "slug": "leroy-merlin-grd",
+    "pairs": [
+      [
+        "539720/874730",
+        591
+      ]
+    ],
+    "store": "539720",
+    "addr": "874730",
+    "body": [
+      {
+        "type": "GRID",
+        "title": "Essenciais Calor",
+        "nP": 0,
+        "nC": 1,
+        "collId": "56468071"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Conforto e Energias Renovaveis",
+        "nP": 0,
+        "nC": 7,
+        "collId": "37661940"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Ferramentas",
+        "nP": 0,
+        "nC": 7,
+        "collId": "37661953"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Ferragens e Arrumação",
+        "nP": 0,
+        "nC": 8,
+        "collId": "37661941"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Pintura e Drogaria",
+        "nP": 0,
+        "nC": 10,
+        "collId": "37661942"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Iluminação",
+        "nP": 0,
+        "nC": 14,
+        "collId": "37661943"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Decoração",
+        "nP": 0,
+        "nC": 6,
+        "collId": "37661944"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Sanitario",
+        "nP": 0,
+        "nC": 6,
+        "collId": "37661945"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Cozinhas e Roupeiros",
+        "nP": 0,
+        "nC": 6,
+        "collId": "37661946"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Electricidade e Canalização",
+        "nP": 0,
+        "nC": 8,
+        "collId": "37661947"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Carpintaria e Madeira",
+        "nP": 0,
+        "nC": 5,
+        "collId": "37661948"
+      },
+      {
+        "type": "GRID",
+        "title": "Ceramica",
+        "nP": 0,
+        "nC": 2,
+        "collId": "37661949"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Jardim",
+        "nP": 0,
+        "nC": 13,
+        "collId": "37661951"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Materiais de Construção",
+        "nP": 0,
+        "nC": 8,
+        "collId": "37661950"
+      }
+    ]
+  },
+  "kiwoko": {
+    "slug": "kiwoko-grd",
+    "pairs": [
+      [
+        "529912/862546",
+        247
+      ]
+    ],
+    "store": "529912",
+    "addr": "862546",
+    "body": [
+      {
+        "type": "GRID",
+        "title": "Cachorro",
+        "nP": 0,
+        "nC": 1,
+        "collId": "38798902"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Cães",
+        "nP": 0,
+        "nC": 8,
+        "collId": "38798985"
+      },
+      {
+        "type": "GRID",
+        "title": "Gatinho",
+        "nP": 0,
+        "nC": 1,
+        "collId": "38798852"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Gatos",
+        "nP": 0,
+        "nC": 9,
+        "collId": "38798842"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Coelhos e Roedores",
+        "nP": 0,
+        "nC": 3,
+        "collId": "38798846"
+      },
+      {
+        "type": "GRID",
+        "title": "Pássaros",
+        "nP": 0,
+        "nC": 2,
+        "collId": "38799042"
+      },
+      {
+        "type": "GRID",
+        "title": "Répteis",
+        "nP": 0,
+        "nC": 2,
+        "collId": "38799066"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Peixes",
+        "nP": 0,
+        "nC": 4,
+        "collId": "38798927"
+      }
+    ]
+  },
+  "zippy": {
+    "slug": "zippy-grd",
+    "pairs": [
+      [
+        "123602/224489",
+        253
+      ]
+    ],
+    "store": "123602",
+    "addr": "224489",
+    "body": [
+      {
+        "type": "CAROUSEL",
+        "title": "Promoções",
+        "nP": 20,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Recém-Nascido 0- 12 meses",
+        "nP": 0,
+        "nC": 3,
+        "collId": "20882406"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Menina 6 meses - 3 anos",
+        "nP": 0,
+        "nC": 10,
+        "collId": "20882416"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Menino 6 meses - 3 anos",
+        "nP": 0,
+        "nC": 9,
+        "collId": "20882497"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Menina 2 - 14 anos",
+        "nP": 0,
+        "nC": 11,
+        "collId": "20882623"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Menino 2 - 14 anos",
+        "nP": 0,
+        "nC": 11,
+        "collId": "20882569"
+      },
+      {
+        "type": "CAROUSEL",
+        "title": "Puericultura",
+        "nP": 0,
+        "nC": 5,
+        "collId": "20882722"
+      },
+      {
+        "type": "GRID",
+        "title": "Mulher",
+        "nP": 0,
+        "nC": 2,
+        "collId": "20882738"
+      },
+      {
+        "type": "GRID",
+        "title": "Embrulhos e Caixas",
+        "nP": 0,
+        "nC": 1,
+        "collId": "35442840"
+      },
+      {
+        "type": "LABEL",
+        "title": "",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      }
+    ]
+  }
+}

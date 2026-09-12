@@ -1,0 +1,22 @@
+# Cloudflare Pages — política de cache (2026-08-31, missão endereco-web).
+# O index.html e o versao.json têm de ser sempre revalidados: são eles que
+# dizem ao browser que há versão nova. Os assets com hash no nome (o resto do
+# build Flutter) podem ficar em cache — mudam de nome quando mudam.
+
+/versao.json
+  Cache-Control: no-store
+
+/index.html
+  Cache-Control: no-cache
+
+/
+  Cache-Control: no-cache
+
+/flutter_bootstrap.js
+  Cache-Control: no-cache
+
+/main.dart.js
+  Cache-Control: no-cache
+
+/flutter_service_worker.js
+  Cache-Control: no-cache

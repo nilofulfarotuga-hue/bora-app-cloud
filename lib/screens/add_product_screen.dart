@@ -1,9 +1,20 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import '../utils/io_compat.dart';
 
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+
+import '../utils/safe_image_picker.dart';
+import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../config/allergens.dart';
 import '../config/app_colors.dart';
 import '../models/restaurant_model.dart';
 import '../stores/partner_product_store.dart';
+
+/// Sentinel do dropdown de categoria — seleciona-lo abre o campo livre para
+/// criar uma categoria nova (BUG 1, 2026-07-17).
+const String _kNewCategorySentinel = '__nova_categoria__';
 
 class AddProductScreen extends StatefulWidget {
   const AddProductScreen({super.key, required this.restaurant});
@@ -19,9 +30,22 @@ class _AddProductScreenState extends State<AddProductScreen> {
   late final TextEditingController _nameController;
   late final TextEditingController _descriptionController;
   late final TextEditingController _priceController;
-  late final TextEditingController _photoUrlController;
+  late final TextEditingController _newCategoryController;
   bool _isAvailable = true;
   bool _isSaving = false;
+
+  // BUG 1 (2026-07-17): categoria do produto — dropdown com as categorias já
+  // usadas por esta loja + opção de criar uma nova.
+  String? _selectedCategoryOption;
+
+  // B6 (2026-06-12): alergénios UE 1169/2011 selecionados pelo parceiro.
+  final Set<String> _selectedAllergens = {};
+  // Parte 5 (rodada 2) — farmácia: produto exige receita médica.
+  bool _requiresPrescription = false;
+
+  File? _selectedImage;
+  String? _existingImageUrl;
+  bool _uploading = false;
 
   @override
   void initState() {
@@ -29,7 +53,31 @@ class _AddProductScreenState extends State<AddProductScreen> {
     _nameController = TextEditingController();
     _descriptionController = TextEditingController();
     _priceController = TextEditingController();
-    _photoUrlController = TextEditingController();
+    _newCategoryController = TextEditingController();
+  }
+
+  /// Categorias distintas já usadas pelos produtos desta loja (ordem alfabética).
+  List<String> get _existingCategories {
+    final products = context
+        .read<PartnerProductStore>()
+        .productsForRestaurant(widget.restaurant.id);
+    final set = <String>{};
+    for (final product in products) {
+      final category = product.category.trim();
+      if (category.isNotEmpty) set.add(category);
+    }
+    final list = set.toList()..sort();
+    return list;
+  }
+
+  /// Categoria final a gravar: a selecionada no dropdown, ou o texto livre
+  /// quando a loja não tem categorias ainda / o parceiro escolheu criar nova.
+  String _resolveCategory(List<String> existingCategories) {
+    if (existingCategories.isEmpty ||
+        _selectedCategoryOption == _kNewCategorySentinel) {
+      return _newCategoryController.text.trim();
+    }
+    return _selectedCategoryOption?.trim() ?? '';
   }
 
   @override
@@ -37,7 +85,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     _nameController.dispose();
     _descriptionController.dispose();
     _priceController.dispose();
-    _photoUrlController.dispose();
+    _newCategoryController.dispose();
     super.dispose();
   }
 
@@ -56,7 +104,22 @@ class _AddProductScreenState extends State<AddProductScreen> {
       return;
     }
 
+    final category = _resolveCategory(_existingCategories);
+    if (category.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Indique a categoria do produto.')),
+      );
+      return;
+    }
+
     setState(() => _isSaving = true);
+
+    final imageUrl = await _uploadImage();
+    if (_selectedImage != null && imageUrl == null) {
+      if (mounted) setState(() => _isSaving = false);
+      return;
+    }
+    if (!mounted) return;
 
     try {
       await context.read<PartnerProductStore>().addProduct(
@@ -64,8 +127,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
             name: _nameController.text,
             description: _descriptionController.text,
             price: parsedPrice,
-            photoUrl: _photoUrlController.text,
+            photoUrl: imageUrl ?? '',
             isAvailable: _isAvailable,
+            category: category,
+            allergens: _selectedAllergens.toList(),
+            requiresPrescription: _requiresPrescription,
           );
     } catch (error) {
       if (mounted) {
@@ -85,6 +151,332 @@ class _AddProductScreenState extends State<AddProductScreen> {
     Navigator.of(context).pop(true);
   }
 
+  Future<void> _takePhoto() async {
+    try {
+      final photo = await SafeImagePicker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1200,
+        imageQuality: 85,
+      );
+      if (photo == null) return;
+      if (!mounted) return;
+      setState(() {
+        _selectedImage = File(photo.path);
+        _existingImageUrl = null;
+      });
+    } catch (e) {
+      debugPrint('[AddProduct] takePhoto: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível abrir a câmara.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _pickFromGallery() async {
+    try {
+      final photo = await SafeImagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1200,
+        imageQuality: 85,
+      );
+      if (photo == null) return;
+      if (!mounted) return;
+      setState(() {
+        _selectedImage = File(photo.path);
+        _existingImageUrl = null;
+      });
+    } catch (e) {
+      debugPrint('[AddProduct] pickFromGallery: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível abrir a galeria.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _showUrlDialog() async {
+    final ctrl = TextEditingController(text: _existingImageUrl ?? '');
+    final url = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Colar URL da imagem'),
+        content: TextField(
+          controller: ctrl,
+          keyboardType: TextInputType.url,
+          decoration: const InputDecoration(
+            hintText: 'https://...',
+            isDense: true,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+            child: const Text('Usar URL'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (url != null && url.isNotEmpty) {
+      setState(() {
+        _existingImageUrl = url;
+        _selectedImage = null;
+      });
+    }
+  }
+
+  Future<String?> _uploadImage() async {
+    if (_selectedImage == null) return _existingImageUrl;
+    if (mounted) setState(() => _uploading = true);
+    try {
+      final ts = DateTime.now().millisecondsSinceEpoch;
+      final ext = _selectedImage!.path.split('.').last.toLowerCase();
+      final fileName = 'products/$ts.$ext';
+      final bytes = await _selectedImage!.readAsBytes();
+
+      await Supabase.instance.client.storage
+          .from('product-images')
+          .uploadBinary(
+            fileName,
+            bytes,
+            fileOptions: FileOptions(
+              contentType: 'image/$ext',
+              upsert: false,
+            ),
+          );
+
+      return Supabase.instance.client.storage
+          .from('product-images')
+          .getPublicUrl(fileName);
+    } catch (e) {
+      debugPrint('[AddProduct] upload error: $e');
+      if (!mounted) return null;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro a enviar foto: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return null;
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
+  /// BUG 1 (2026-07-17): campo de categoria — dropdown com as categorias já
+  /// usadas por esta loja + "Criar nova categoria"; se a loja ainda não tiver
+  /// nenhuma, mostra logo o campo livre. Obrigatório.
+  Widget _buildCategorySection() {
+    final existingCategories = _existingCategories;
+    final showFreeText = existingCategories.isEmpty ||
+        _selectedCategoryOption == _kNewCategorySentinel;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Categoria',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        const SizedBox(height: 8),
+        if (existingCategories.isNotEmpty)
+          DropdownButtonFormField<String>(
+            value: _selectedCategoryOption,
+            decoration: const InputDecoration(
+              labelText: 'Categoria do produto',
+              prefixIcon: Icon(Icons.category_outlined),
+            ),
+            hint: const Text('Selecione a categoria'),
+            items: [
+              for (final category in existingCategories)
+                DropdownMenuItem(value: category, child: Text(category)),
+              const DropdownMenuItem(
+                value: _kNewCategorySentinel,
+                child: Text('+ Criar nova categoria'),
+              ),
+            ],
+            onChanged: (value) =>
+                setState(() => _selectedCategoryOption = value),
+          ),
+        if (showFreeText) ...[
+          if (existingCategories.isNotEmpty) const SizedBox(height: 12),
+          TextFormField(
+            controller: _newCategoryController,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: const InputDecoration(
+              labelText: 'Nome da categoria',
+              hintText: 'Ex.: Pizzas, Sobremesas, Bebidas...',
+              prefixIcon: Icon(Icons.new_label_outlined),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildPhotoSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Foto do produto',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        const SizedBox(height: 8),
+        if (_selectedImage != null)
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image(
+                  image: boraLocalImage(_selectedImage!.path),
+                  height: 180,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    height: 180,
+                    color: Colors.grey[200],
+                    child: const Icon(
+                      Icons.broken_image,
+                      size: 60,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: IconButton(
+                  icon: const CircleAvatar(
+                    backgroundColor: Colors.black54,
+                    child: Icon(Icons.close, color: Colors.white, size: 20),
+                  ),
+                  onPressed: () {
+                    if (mounted) setState(() => _selectedImage = null);
+                  },
+                ),
+              ),
+            ],
+          )
+        else if (_existingImageUrl != null && _existingImageUrl!.isNotEmpty)
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  _existingImageUrl!,
+                  height: 180,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    height: 180,
+                    color: Colors.grey[200],
+                    child: const Icon(
+                      Icons.broken_image,
+                      size: 60,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: IconButton(
+                  icon: const CircleAvatar(
+                    backgroundColor: Colors.black54,
+                    child: Icon(Icons.close, color: Colors.white, size: 20),
+                  ),
+                  onPressed: () {
+                    if (mounted) setState(() => _existingImageUrl = null);
+                  },
+                ),
+              ),
+            ],
+          )
+        else
+          Container(
+            height: 180,
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.image_outlined, size: 60, color: Colors.grey),
+                  SizedBox(height: 8),
+                  Text('Sem foto', style: TextStyle(color: Colors.grey)),
+                ],
+              ),
+            ),
+          ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: _uploading ? null : _takePhoto,
+                icon: const Icon(Icons.camera_alt),
+                label: const Text('Tirar foto'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: _uploading ? null : _pickFromGallery,
+                icon: const Icon(Icons.photo_library),
+                label: const Text('Galeria'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Center(
+          child: TextButton.icon(
+            onPressed: _uploading ? null : _showUrlDialog,
+            icon: const Icon(Icons.link, size: 18),
+            label: const Text('Ou colar URL'),
+          ),
+        ),
+        if (_uploading) ...[
+          const SizedBox(height: 8),
+          const LinearProgressIndicator(),
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.only(top: 4),
+              child: Text(
+                'A enviar imagem...',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -95,7 +487,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
           'Adicionar produto',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
         flexibleSpace: const DecoratedBox(
@@ -168,13 +560,62 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _photoUrlController,
-                    decoration: const InputDecoration(
-                      labelText: 'URL da foto (opcional)',
-                      prefixIcon: Icon(Icons.link_outlined),
+                  _buildCategorySection(),
+                  const SizedBox(height: 16),
+                  // Parte 5 (rodada 2) — alergénios (comida) SÓ para restaurante.
+                  // Uma farmácia/loja não vê declaração de alergénios de comida.
+                  if (widget.restaurant.category ==
+                      BusinessCategory.restaurant) ...[
+                    Text(
+                      'Alergénios',
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(fontWeight: FontWeight.w600),
                     ),
-                  ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Seleciona os alergénios presentes neste produto '
+                      '(Reg. UE 1169/2011).',
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: AppColors.textSubtle),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final entry in kAllergenLabels.entries)
+                          FilterChip(
+                            label: Text(entry.value,
+                                style: const TextStyle(fontSize: 12)),
+                            selected: _selectedAllergens.contains(entry.key),
+                            onSelected: (sel) => setState(() {
+                              if (sel) {
+                                _selectedAllergens.add(entry.key);
+                              } else {
+                                _selectedAllergens.remove(entry.key);
+                              }
+                            }),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  // Parte 5 (rodada 2) — farmácia: marca produtos que exigem
+                  // receita médica (badge no cliente; só OTC devem ser vendidos).
+                  if (widget.restaurant.category ==
+                      BusinessCategory.pharmacy) ...[
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Requer receita médica'),
+                      subtitle: const Text(
+                          'Só medicamentos não sujeitos a receita (OTC) devem ser vendidos aqui.'),
+                      value: _requiresPrescription,
+                      onChanged: (v) =>
+                          setState(() => _requiresPrescription = v),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  _buildPhotoSection(),
                   const SizedBox(height: 16),
                   SwitchListTile.adaptive(
                     title: const Text('Disponível para venda'),

@@ -5,6 +5,15 @@ enum BusinessCategory {
   supermarket,
   store,
   pharmacy,
+  beauty,
+  // Salgados, doces e bolos por encomenda (lançamento 2026-08-25).
+  festas,
+  // Sobremesas (2026-08-27) — açaí, gelados, doces prontos a comer.
+  // Slug na base de dados: `sobremesa` (singular, minúsculas, sem acento).
+  // É só um filtro visual: o fluxo de compra é o de entrega NORMAL, imediato.
+  // Uma loja pode estar aqui E em Restaurantes ao mesmo tempo, via
+  // `extra_categories` — é o caso da Goola Açaí.
+  sobremesa,
 }
 
 extension BusinessCategoryLabel on BusinessCategory {
@@ -18,9 +27,24 @@ extension BusinessCategoryLabel on BusinessCategory {
         return 'Loja';
       case BusinessCategory.pharmacy:
         return 'Farmácia';
+      case BusinessCategory.beauty:
+        return 'Beleza';
+      case BusinessCategory.festas:
+        return 'Festas';
+      case BusinessCategory.sobremesa:
+        return 'Sobremesas';
     }
   }
 }
+
+/// Antecedência mínima das encomendas de festa, em dias (regra do Danilo,
+/// 2026-08-25: UM dia, ponto — a data mais cedo é sempre o dia seguinte).
+const int kFestasAvisoDias = 1;
+
+/// Nome da prateleira de encomenda em `products.category` das lojas de festas.
+/// Um carrinho com QUALQUER item desta prateleira é agendado por inteiro
+/// (carrinho misto → manda a festa); só itens "Na hora" seguem o fluxo normal.
+const String kFestasPrateleiraEncomenda = 'Para festa (encomenda)';
 
 class DayHours {
   const DayHours({
@@ -147,11 +171,21 @@ class RestaurantModel {
     required this.cuisineType,
     required this.isPartner,
     required this.category,
+    this.extraCategories = const <BusinessCategory>{},
     this.isOnline = true,
     this.lat,
     this.lng,
     this.reservationsEnabled = false,
+    this.takeawayEnabled = false,
+    this.curbsideEnabled = false,
+    this.takeawayDefaultPrepMinutes = 15,
     this.businessHours = const BusinessHours(),
+    this.avgRating,
+    this.ratingsCount = 0,
+    this.heroImageUrl,
+    this.comingSoon = false,
+    this.comingSoonText,
+    this.ownerId,
   });
 
   final String id;
@@ -163,6 +197,12 @@ class RestaurantModel {
   final String cuisineType;
   final bool isPartner;
   final BusinessCategory category;
+
+  /// Secções adicionais onde o negócio também aparece (coluna
+  /// `restaurants.extra_categories`). A loja é sempre a MESMA (mesmo id, mesmo
+  /// catálogo) — só passa a ser listada em mais do que uma secção do cliente.
+  final Set<BusinessCategory> extraCategories;
+
   final bool isOnline;
   final double? lat;
   final double? lng;
@@ -171,7 +211,112 @@ class RestaurantModel {
   /// Default false. Partner toggles it from the dashboard.
   final bool reservationsEnabled;
 
+  /// BR §14.9 — restaurante aceita pedidos takeaway (cliente levanta no balcão).
+  /// Default false. Partner toggles no dashboard.
+  final bool takeawayEnabled;
+
+  /// BR §14.9b — restaurante suporta curbside (cliente espera no carro).
+  /// Default false. Só efectivo se takeawayEnabled=true.
+  final bool curbsideEnabled;
+
+  /// BR §14.9c — ETA default em minutos quando parceiro aceita o pedido sem
+  /// escolher manualmente (3/5/10/15/20/30/45/60). Default 15.
+  final int takeawayDefaultPrepMinutes;
+
   final BusinessHours businessHours;
+
+  /// BR §44 — média de avaliações (1.0-5.0) ou null se ainda sem ratings.
+  final double? avgRating;
+
+  /// BR §44 — número de avaliações públicas + não flagged que contam para a média.
+  final int ratingsCount;
+
+  /// URL da imagem hero (banner largo) do mercado/restaurante.
+  /// Gerida via admin → bucket restaurant-assets/hero/<id>.<ext>.
+  /// Null quando ainda não configurada — UI usa fallback em cascata.
+  final String? heroImageUrl;
+
+  /// `restaurants.coming_soon` — a loja aparece no catálogo com selo "Em breve"
+  /// e é totalmente navegável, mas NÃO aceita pedidos. O bloqueio real vive no
+  /// servidor (erro `STORE_COMING_SOON`); isto é só a camada de UI.
+  final bool comingSoon;
+
+  /// `restaurants.coming_soon_text` — texto do banner na ficha da loja.
+  /// Null/vazio → usar [comingSoonLabel].
+  final String? comingSoonText;
+
+  /// Dono da loja — `restaurants.user_id` (com `user_` como segunda hipótese,
+  /// que é a coluna antiga que ainda coexiste).
+  ///
+  /// FONTE DE VERDADE de "esta loja é deste parceiro". Antes a app procurava
+  /// a loja do parceiro comparando `restaurants.email` com o email do login, e
+  /// isso partia sempre que a coluna de email da loja ficava por preencher —
+  /// foi o que aconteceu à Goola Açaí a 2026-08-27, e mandou o dono para o
+  /// wizard de criar conta em vez do painel dele. O email continua a servir de
+  /// recurso para as lojas antigas que ainda não têm dono gravado.
+  final String? ownerId;
+
+  /// Texto a mostrar no banner "Em breve" (com fallback).
+  String get comingSoonLabel {
+    final t = comingSoonText?.trim();
+    return (t == null || t.isEmpty) ? 'Em breve' : t;
+  }
+
+  /// True quando o negócio pertence à secção [section] — pela sua categoria
+  /// principal OU por [extraCategories].
+  bool belongsTo(BusinessCategory section) =>
+      category == section || extraCategories.contains(section);
+
+  /// True quando faz sentido mostrar o selo "Frescura garantida".
+  ///
+  /// Só onde há comida fresca: Restaurantes, Supermercados e Sobremesas. Numa
+  /// farmácia, numa loja de electrónica ou numa loja de festas por encomenda o
+  /// selo é uma promessa falsa.
+  ///
+  /// O selo era mostrado **sem condição nenhuma** em `MarketStoreTab`: a Wells
+  /// (farmácia) e a Worten (electrónica) apareciam a prometer frescura.
+  /// Apanhado a 2026-09-03, nas capturas de ecrã para o filme do Bora.
+  ///
+  /// Usa [belongsTo], por isso lê também `extra_categories`: a Goola Açaí
+  /// (`restaurant` + `sobremesa`) e a Sabores de Casa (`restaurant` +
+  /// `supermarket`) continuam a mostrá-lo.
+  bool get podeAnunciarFrescura =>
+      belongsTo(BusinessCategory.restaurant) ||
+      belongsTo(BusinessCategory.supermarket) ||
+      belongsTo(BusinessCategory.sobremesa);
+
+  /// Hora em PT-PT: "10:00" passa a "10h00".
+  static String _horaBonita(String hhmm) => hhmm.replaceFirst(':', 'h');
+
+  /// Mensagem única mostrada ao cliente quando tenta meter no carrinho com a
+  /// loja fora de horário. Diz o que se passa e a que horas abre — e mais
+  /// nada: não promete agendamento nem aviso de reabertura, porque isso ainda
+  /// não existe.
+  String get avisoLojaFechada {
+    final day = businessHours.dayFor(DateTime.now().weekday);
+    if (day.closed) {
+      return '$name está fechada hoje. Volta noutro dia para fazer o pedido.';
+    }
+    return '$name está fechada agora. Abre às ${_horaBonita(day.open)}.';
+  }
+
+  /// Converte o array `extra_categories` do Supabase em categorias válidas
+  /// (valores desconhecidos são ignorados; a categoria principal nunca duplica).
+  static Set<BusinessCategory> parseExtraCategories(
+    dynamic raw,
+    BusinessCategory mainCategory,
+  ) {
+    if (raw is! List) return const <BusinessCategory>{};
+    final result = <BusinessCategory>{};
+    for (final item in raw) {
+      final name = item?.toString().trim();
+      if (name == null || name.isEmpty) continue;
+      for (final value in BusinessCategory.values) {
+        if (value.name == name && value != mainCategory) result.add(value);
+      }
+    }
+    return result;
+  }
 
   /// Returns a [LatLng] when both coordinates are stored; null otherwise.
   LatLng? get location =>
@@ -197,11 +342,14 @@ class RestaurantModel {
   /// Human-readable label for the client UI.
   String statusLabel([DateTime? nowOverride]) {
     if (!isOnline) return 'Indisponível';
+    // Casas de festa vendem por encomenda com aviso prévio: nunca estão
+    // "fechadas" para encomendar — o horário é de levantamento/entrega.
+    if (belongsTo(BusinessCategory.festas)) return 'Aceita encomendas';
     final now = nowOverride ?? DateTime.now();
     final day = businessHours.dayFor(now.weekday);
-    if (day.closed) return 'Fechado hoje';
+    if (day.closed) return 'Fechada hoje';
     if (isOpenNow(now)) return 'Aberto';
-    return 'Fechado · abre às ${day.open}';
+    return 'Fechada, abre às ${_horaBonita(day.open)}';
   }
 
   static int? _parseMinutes(String hhmm) {
@@ -213,28 +361,55 @@ class RestaurantModel {
     return h * 60 + m;
   }
 
+  /// ⚠️ Campo novo no modelo entra TAMBÉM aqui, senão desaparece em silêncio
+  /// a cada `copyWith`. Já aconteceu com o `ownerId`, que é justamente o que
+  /// liga a loja ao dono — perdê-lo devolve o parceiro ao assistente de criar
+  /// conta. Ver `partner_entry_screen.dart`.
   RestaurantModel copyWith({
+    String? name,
+    String? phone,
+    String? address,
+    BusinessCategory? category,
     bool? isOnline,
     double? lat,
     double? lng,
     bool? reservationsEnabled,
+    bool? takeawayEnabled,
+    bool? curbsideEnabled,
+    int? takeawayDefaultPrepMinutes,
     BusinessHours? businessHours,
+    double? avgRating,
+    int? ratingsCount,
+    String? heroImageUrl,
+    bool? comingSoon,
+    String? comingSoonText,
   }) {
     return RestaurantModel(
       id: id,
-      name: name,
-      phone: phone,
-      address: address,
+      name: name ?? this.name,
+      phone: phone ?? this.phone,
+      address: address ?? this.address,
       email: email,
       photoUrl: photoUrl,
       cuisineType: cuisineType,
       isPartner: isPartner,
-      category: category,
+      category: category ?? this.category,
+      extraCategories: extraCategories,
       isOnline: isOnline ?? this.isOnline,
       lat: lat ?? this.lat,
       lng: lng ?? this.lng,
       reservationsEnabled: reservationsEnabled ?? this.reservationsEnabled,
+      takeawayEnabled: takeawayEnabled ?? this.takeawayEnabled,
+      curbsideEnabled: curbsideEnabled ?? this.curbsideEnabled,
+      takeawayDefaultPrepMinutes:
+          takeawayDefaultPrepMinutes ?? this.takeawayDefaultPrepMinutes,
       businessHours: businessHours ?? this.businessHours,
+      avgRating: avgRating ?? this.avgRating,
+      ratingsCount: ratingsCount ?? this.ratingsCount,
+      heroImageUrl: heroImageUrl ?? this.heroImageUrl,
+      comingSoon: comingSoon ?? this.comingSoon,
+      comingSoonText: comingSoonText ?? this.comingSoonText,
+      ownerId: ownerId,
     );
   }
 }

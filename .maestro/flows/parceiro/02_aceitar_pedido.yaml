@@ -1,0 +1,23 @@
+appId: pt.boraapp.bora
+name: Parceiro — Aceitar pedido pendente
+tags:
+  - parceiro
+  - pedidos
+---
+- launchApp:
+    clearState: true
+- runFlow: ../../_shared/login_parceiro.yaml
+
+# Pre-condição: existe pedido com status=created.
+# Se não houver, flow termina sem falhar (when guard).
+- runFlow:
+    when:
+      visible: "Aceitar"
+    commands:
+      - tapOn:
+          text: "Aceitar"
+          index: 0
+      - extendedWaitUntil:
+          visible:
+            text: "preparando|a preparar"
+          timeout: 15000

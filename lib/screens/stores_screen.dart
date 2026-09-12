@@ -1,32 +1,107 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../config/app_colors.dart';
 import '../models/business_view_models.dart';
 import '../models/order_service_type.dart';
 import '../models/restaurant_model.dart';
 import '../stores/cart_store.dart';
 import '../stores/restaurant_store.dart';
 import '../utils/business_mapper.dart';
+import '../utils/business_opener.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
+import '../widgets/bora/coming_soon.dart';
+import '../widgets/bora_support_fab.dart';
 import 'store_categories_screen.dart';
 import 'store_products_screen.dart';
 
-class StoresScreen extends StatelessWidget {
+import '../l10n/tr.dart';
+
+enum _StoreSort { name, rating }
+
+class StoresScreen extends StatefulWidget {
   const StoresScreen({super.key, this.initialCategory});
 
   final BusinessCategory? initialCategory;
 
+  @override
+  State<StoresScreen> createState() => _StoresScreenState();
+}
+
+class _StoresScreenState extends State<StoresScreen> {
+  final TextEditingController _searchCtrl = TextEditingController();
+  String _query = '';
+  _StoreSort _sort = _StoreSort.name;
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
   String get _title {
-    switch (initialCategory) {
+    switch (widget.initialCategory) {
       case BusinessCategory.supermarket:
         return 'Supermercados';
       case BusinessCategory.store:
-        return 'Lojas';
+        return 'Lojas'.tr;
       case BusinessCategory.pharmacy:
-        return 'Farmácias';
+        return 'Farmácias'.tr;
       default:
-        return 'Lojas e Farmácias';
+        return 'Lojas e Farmácias'.tr;
     }
+  }
+
+  Widget _buildSearchSortBar(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: _searchCtrl,
+          onChanged: (v) => setState(() => _query = v),
+          textInputAction: TextInputAction.search,
+          decoration: InputDecoration(
+            hintText: 'Pesquisar loja...'.tr,
+            prefixIcon: const Icon(Icons.search),
+            suffixIcon: _query.isEmpty
+                ? null
+                : IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () {
+                      _searchCtrl.clear();
+                      setState(() => _query = '');
+                    },
+                  ),
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Text('Ordenar:'.tr, style: const TextStyle(color: Colors.black54)),
+            const SizedBox(width: 8),
+            ChoiceChip(
+              label: Text('Nome'.tr),
+              selected: _sort == _StoreSort.name,
+              onSelected: (_) => setState(() => _sort = _StoreSort.name),
+            ),
+            const SizedBox(width: 8),
+            ChoiceChip(
+              label: Text('Avaliação'.tr),
+              selected: _sort == _StoreSort.rating,
+              onSelected: (_) => setState(() => _sort = _StoreSort.rating),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 
   @override
@@ -34,10 +109,12 @@ class StoresScreen extends StatelessWidget {
     final restaurantStore = context.watch<RestaurantStore>();
     final relevantBusinesses = restaurantStore.restaurants
         .where(
+          // belongsTo = categoria principal OU `extra_categories` — a mesma
+          // loja pode ser listada em mais do que uma secção.
           (business) =>
-              business.category == BusinessCategory.supermarket ||
-              business.category == BusinessCategory.store ||
-              business.category == BusinessCategory.pharmacy,
+              business.belongsTo(BusinessCategory.supermarket) ||
+              business.belongsTo(BusinessCategory.store) ||
+              business.belongsTo(BusinessCategory.pharmacy),
         )
         .toList();
 
@@ -57,19 +134,19 @@ class StoresScreen extends StatelessWidget {
       category: BusinessCategory.pharmacy,
     );
 
-    final showSupermarkets = initialCategory == null ||
-        initialCategory == BusinessCategory.supermarket;
-    final showStores =
-        initialCategory == null || initialCategory == BusinessCategory.store;
-    final showPharmacies =
-        initialCategory == null || initialCategory == BusinessCategory.pharmacy;
+    final showSupermarkets = widget.initialCategory == null ||
+        widget.initialCategory == BusinessCategory.supermarket;
+    final showStores = widget.initialCategory == null ||
+        widget.initialCategory == BusinessCategory.store;
+    final showPharmacies = widget.initialCategory == null ||
+        widget.initialCategory == BusinessCategory.pharmacy;
 
     final sections = <Widget>[];
     if (showSupermarkets) {
       sections.addAll(
         _buildSection(
           context: context,
-          title: 'Supermercados',
+          title: 'Supermercados'.tr,
           entries: supermarketEntries,
         ),
       );
@@ -78,7 +155,7 @@ class StoresScreen extends StatelessWidget {
       sections.addAll(
         _buildSection(
           context: context,
-          title: 'Lojas',
+          title: 'Lojas'.tr,
           entries: storeEntries,
         ),
       );
@@ -87,7 +164,7 @@ class StoresScreen extends StatelessWidget {
       sections.addAll(
         _buildSection(
           context: context,
-          title: 'Farmácias',
+          title: 'Farmácias'.tr,
           entries: pharmacyEntries,
         ),
       );
@@ -95,10 +172,10 @@ class StoresScreen extends StatelessWidget {
 
     if (sections.isEmpty) {
       sections.add(
-        const Padding(
-          padding: EdgeInsets.all(24),
+        Padding(
+          padding: const EdgeInsets.all(24),
           child: Center(
-            child: Text('Nenhuma loja disponível no momento.'),
+            child: Text('Nenhuma loja disponível no momento.'.tr),
           ),
         ),
       );
@@ -106,10 +183,15 @@ class StoresScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
+      floatingActionButton: const BoraSupportFab(),
       appBar: BoraScreenAppBar(title: _title),
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-        children: sections,
+        children: [
+          _buildSearchSortBar(context),
+          const SizedBox(height: 16),
+          ...sections,
+        ],
       ),
     );
   }
@@ -120,7 +202,7 @@ class StoresScreen extends StatelessWidget {
     required List<_StoreEntry> entries,
   }) {
     if (entries.isEmpty) {
-      if (initialCategory != null) {
+      if (widget.initialCategory != null) {
         return [
           Padding(
             padding: const EdgeInsets.only(top: 8, bottom: 4),
@@ -132,9 +214,9 @@ class StoresScreen extends StatelessWidget {
               ),
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Text('Nenhuma loja disponível nesta categoria.'),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text('Nenhuma loja disponível nesta categoria.'.tr),
           ),
         ];
       }
@@ -158,7 +240,11 @@ class StoresScreen extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 12),
           child: _StoreTile(
             entry: entry,
-            onTap: () => _openStore(context, entry),
+            onTap: () => openBusiness(
+              context,
+              context.read<RestaurantStore>(),
+              entry.business,
+            ),
           ),
         ),
       ),
@@ -173,57 +259,141 @@ class StoresScreen extends StatelessWidget {
   }) {
     final entries = <_StoreEntry>[];
     for (final business in businesses) {
-      if (business.category != category) continue;
+      if (!business.belongsTo(category)) continue;
       final retailStore = BusinessMapper.buildRetailStore(
         restaurantStore: restaurantStore,
         business: business,
+        sectionCategory: category,
       );
-      // null means the business is a restaurant (wrong category) — skip it.
+      // null means the section itself is `restaurant` (never here) — skip it.
       // Empty-product stores still appear; StoreProductsScreen shows a message.
       if (retailStore == null) continue;
-      entries.add(_StoreEntry(business: business, store: retailStore));
+      entries.add(_StoreEntry(
+        business: business,
+        store: retailStore,
+        section: category,
+      ));
     }
-    return entries;
+
+    // C2 — filtro de pesquisa por nome + ordenação (só sobre a lista já carregada).
+    final q = _query.trim().toLowerCase();
+    final filtered = q.isEmpty
+        ? entries
+        : entries
+            .where((e) => e.store.name.toLowerCase().contains(q))
+            .toList();
+    filtered.sort((a, b) {
+      switch (_sort) {
+        case _StoreSort.rating:
+          final ra = a.business.avgRating ?? -1;
+          final rb = b.business.avgRating ?? -1;
+          final byRating = rb.compareTo(ra); // maior avaliação primeiro
+          return byRating != 0
+              ? byRating
+              : a.store.name
+                  .toLowerCase()
+                  .compareTo(b.store.name.toLowerCase());
+        case _StoreSort.name:
+          return a.store.name
+              .toLowerCase()
+              .compareTo(b.store.name.toLowerCase());
+      }
+    });
+    return filtered;
   }
+}
 
-  void _openStore(BuildContext context, _StoreEntry entry) {
-    // Prefer the store's real coordinates (now present in DB for non-partners
-    // too) so distance_km reflects the actual pickup→dropoff route. Fallback
-    // to the client's delivery location if missing.
-    final pickupLocation =
-        entry.business.location ?? context.read<CartStore>().deliveryLocation;
-
-    context.read<CartStore>().configureSession(
-          serviceType: OrderServiceType.storeShopping,
-          isPartnerStore: entry.business.isPartner,
-          vendorName: entry.store.name,
-          pickupLocation: pickupLocation,
-          pickupStreet: entry.business.address,
-          pickupCity: null,
-          pickupPostalCode: null,
-        );
-
-    final isLargeStore =
-        entry.business.category == BusinessCategory.supermarket ||
-            entry.business.category == BusinessCategory.store;
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => isLargeStore
-            ? StoreCategoriesScreen(
-                restaurantId: entry.business.id,
-                storeName: entry.store.name,
-                isPartnerStore: entry.business.isPartner,
-              )
-            : StoreProductsScreen(
-                restaurantId: entry.business.id,
-                storeName: entry.store.name,
-                isPartnerStore: entry.business.isPartner,
-              ),
+/// Abre o negócio com o layout de mercado/loja (categorias ou grelha de
+/// produtos). Top-level para ser reutilizada pelo router `openBusiness`, que
+/// atende também as secções onde a loja entra por `extra_categories`.
+Future<void> openRetailBusiness(
+  BuildContext context,
+  RestaurantModel business,
+  RetailStore store,
+) async {
+  // 2026-05-21 — fecho automático fora do horário.
+  // Parceiros com business_hours configurado: bloqueia entrada.
+  // Não-parceiros sem horário: isOpenNow() retorna true (default).
+  if (!business.isOpenNow()) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(business.statusLabel()),
+        duration: const Duration(seconds: 3),
       ),
     );
+    return;
   }
+  // BUG #6 (2026-05-13) — se há carrinho activo de OUTRA loja, pedir
+  // confirmação antes de descartar.  configureSession() ainda tem o
+  // silent-clear como defesa em profundidade.
+  final cart = context.read<CartStore>();
+  final differentVendor = cart.items.isNotEmpty &&
+      cart.vendorName != null &&
+      cart.vendorName != store.name;
+  if (differentVendor) {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Carrinho activo'.tr),
+        content: Text(
+          'Tens itens no carrinho de {0}. Queres cancelar e começar novo pedido em {1}?'.trArgs([cart.vendorName, store.name]),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Voltar'.tr),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Sim, novo pedido'.tr),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    if (!context.mounted) return;
+    cart.clearCart();
+  }
+
+  // Prefer the store's real coordinates (now present in DB for non-partners
+  // too) so distance_km reflects the actual pickup→dropoff route. Fallback
+  // to the client's delivery location if missing.
+  final pickupLocation = business.location ?? cart.deliveryLocation;
+
+  cart.configureSession(
+    serviceType: OrderServiceType.storeShopping,
+    isPartnerStore: business.isPartner,
+    vendorComingSoon: business.comingSoon,
+    vendorComingSoonText: business.comingSoonLabel,
+    vendorName: store.name,
+    vendorRestaurantId: business.id,
+    vendorFechada: !business.isOpenNow(),
+    vendorAvisoFechada: business.avisoLojaFechada,
+    pickupLocation: pickupLocation,
+    pickupStreet: business.address,
+    pickupCity: null,
+    pickupPostalCode: null,
+  );
+
+  final isLargeStore = business.category == BusinessCategory.supermarket ||
+      business.category == BusinessCategory.store;
+
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => isLargeStore
+          ? StoreCategoriesScreen(
+              restaurantId: business.id,
+              storeName: store.name,
+              isPartnerStore: business.isPartner,
+            )
+          : StoreProductsScreen(
+              restaurantId: business.id,
+              storeName: store.name,
+              isPartnerStore: business.isPartner,
+            ),
+    ),
+  );
 }
 
 class _StoreTile extends StatelessWidget {
@@ -237,7 +407,7 @@ class _StoreTile extends StatelessWidget {
       case BusinessCategory.supermarket:
         return const Color(0xFF1A73E8);
       case BusinessCategory.pharmacy:
-        return const Color(0xFF2E7D32);
+        return AppColors.primaryMid;
       case BusinessCategory.store:
         return const Color(0xFF6A1B9A);
       default:
@@ -261,19 +431,19 @@ class _StoreTile extends StatelessWidget {
   String _categoryLabel(BusinessCategory cat) {
     switch (cat) {
       case BusinessCategory.supermarket:
-        return 'Supermercado';
+        return 'Supermercado'.tr;
       case BusinessCategory.pharmacy:
-        return 'Farmácia';
+        return 'Farmácia'.tr;
       case BusinessCategory.store:
-        return 'Loja';
+        return 'Loja'.tr;
       default:
-        return 'Loja';
+        return 'Loja'.tr;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final cat = entry.business.category;
+    final cat = entry.section;
     final bannerColor = _bannerColor(cat);
 
     return GestureDetector(
@@ -356,13 +526,14 @@ class _StoreTile extends StatelessWidget {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    'Estafeta entrega rápida',
+                    'Estafeta entrega rápida'.tr,
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey.shade700,
                     ),
                   ),
                   const Spacer(),
+                  if (entry.business.comingSoon) const ComingSoonChip(),
                 ],
               ),
             ),
@@ -397,13 +568,14 @@ class _StoreLogo extends StatelessWidget {
         child: SizedBox(
           width: 56,
           height: 56,
-          child: Image.network(
-            photoUrl,
+          child: CachedNetworkImage(
+            imageUrl: photoUrl,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => _FallbackLogo(
-              initial: initial,
-              color: bannerColor,
-            ),
+            fadeInDuration: const Duration(milliseconds: 120),
+            placeholder: (_, __) =>
+                _FallbackLogo(initial: initial, color: bannerColor),
+            errorWidget: (_, __, ___) =>
+                _FallbackLogo(initial: initial, color: bannerColor),
           ),
         ),
       );
@@ -445,8 +617,13 @@ class _StoreEntry {
   const _StoreEntry({
     required this.business,
     required this.store,
+    required this.section,
   });
 
   final RestaurantModel business;
   final RetailStore store;
+
+  /// Secção onde esta entrada está a ser mostrada (pode diferir da categoria
+  /// principal do negócio quando vem de `extra_categories`).
+  final BusinessCategory section;
 }

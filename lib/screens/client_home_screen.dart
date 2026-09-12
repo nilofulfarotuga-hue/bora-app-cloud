@@ -1,22 +1,44 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../config/maps_config.dart';
+import '../models/client_address.dart';
+import '../models/order_model.dart';
+import '../models/rating_model.dart';
 import '../models/restaurant_model.dart';
+import '../services/client_address_service.dart';
 import '../services/location_service.dart';
 import '../stores/cart_store.dart';
+import '../stores/carwash_store.dart';
+import '../stores/order_store.dart';
 import '../stores/restaurant_store.dart';
 import '../stores/session_store.dart';
 import '../widgets/address_autocomplete_field.dart';
 import '../widgets/bora/bora.dart';
+import '../widgets/bora_support_fab.dart';
+import '../widgets/language_toggle.dart';
+import '../widgets/notification_bell.dart';
 import 'carry_groceries_screen.dart';
+import 'client/carwash/carwash_service_screen.dart';
+import 'client/cleaning/cleaning_bookings_screen.dart';
+import 'client/services/services_category_screen.dart';
+import 'client_addresses_screen.dart';
+import 'rating_screen.dart';
 import 'restaurants_screen.dart';
 import 'send_package_form_screen.dart';
+import 'errand_form_screen.dart';
 import 'stores_screen.dart';
+import 'client/tvde/tvde_request_ride_screen.dart';
+import 'festas_screen.dart';
+import 'sobremesas_screen.dart';
+
+import '../l10n/tr.dart';
 
 class ClientHomeScreen extends StatefulWidget {
   const ClientHomeScreen({super.key});
@@ -25,24 +47,220 @@ class ClientHomeScreen extends StatefulWidget {
   State<ClientHomeScreen> createState() => _ClientHomeScreenState();
 }
 
-class _ClientHomeScreenState extends State<ClientHomeScreen> {
+class _ClientHomeScreenState extends State<ClientHomeScreen>
+    with WidgetsBindingObserver {
+  // BUG 3 (2026-05-17) — Realtime listener for the unrated rating dialog.
+  // OrderStore exposes `lastDeliveredAt`, updated whenever an order
+  // transitions to delivered via Realtime. When the timestamp moves into
+  // the recent past (≤10s), we re-run _checkUnratedOrders after a small
+  // UX delay so the dialog appears in foreground without an app reopen.
+  OrderStore? _orderStore;
+  // BUG 3 (2026-05-17) — guard against concurrent runs.
+  // _checkUnratedOrders is now triggered from three places (initState,
+  // didChangeAppLifecycleState.resumed, OrderStore listener) so a quick
+  // resume + Realtime delivered could stack two RatingScreen pushes.
+  bool _ratingCheckInFlight = false;
+
   @override
   void initState() {
     super.initState();
+    // BUG #5 (2026-05-12) — observa lifecycle para re-checar pedidos avaliáveis
+    // quando app volta ao foreground (não precisa reabrir manualmente).
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<RestaurantStore>().loadRestaurantsFromSupabase();
+      // Lavagem Auto: saber se a categoria esta aberta antes de
+      // desenhar o ladrilho (ver _buildCategoryGrid).
+      context.read<CarwashStore>().refreshSettings();
       _detectLocation();
+      // Sessão 6 §44 — abre RatingScreen se há pedido entregue ainda não avaliado.
+      _checkUnratedOrders();
+      // BUG 3 (2026-05-17) — attach Realtime listener on OrderStore.
+      _orderStore = context.read<OrderStore>();
+      _orderStore!.addListener(_onOrderStoreChanged);
     });
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _orderStore?.removeListener(_onOrderStoreChanged);
+    super.dispose();
+  }
+
+  // BUG #5 (2026-05-12) — quando a app volta ao foreground (resumed),
+  // re-verifica pedidos delivered não-avaliados. Resolve "modal só aparece
+  // ao reabrir app" sem precisar de fechar/reabrir manualmente.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      _checkUnratedOrders();
+    }
+  }
+
+  void _onOrderStoreChanged() {
+    if (!mounted) return;
+    final stamp = _orderStore?.lastDeliveredAt;
+    if (stamp == null) return;
+    if (DateTime.now().difference(stamp).inSeconds > 10) return;
+    // Small UX delay so the user sees the delivered status before the
+    // rating prompt covers it.
+    Future<void>.delayed(const Duration(seconds: 2), () {
+      if (mounted) _checkUnratedOrders();
+    });
+  }
+
+  /// BR §44.6 — pós-login/abertura, procura pedido `delivered` recente
+  /// (≤ 48h) com avaliação pendente (driver e/ou partner). Abre
+  /// RatingScreen sequencialmente para cada sujeito ainda não avaliado.
+  ///
+  /// Anti-spam (DEFAULT padrão Glovo, 2026-05-11): se o cliente saltar
+  /// o mesmo pedido 2× consecutivas (counter em SharedPreferences), o
+  /// pedido deixa de prompt. Total = 1 mostra automática + 2 skips.
+  ///
+  /// Aplica a TODOS service_type (restaurant, storeShopping,
+  /// carryGroceries, sendPackage). Falhas silenciosas.
+  Future<void> _checkUnratedOrders() async {
+    if (_ratingCheckInFlight) return;
+    _ratingCheckInFlight = true;
+    try {
+      final supabase = Supabase.instance.client;
+      final user = supabase.auth.currentUser;
+      if (user == null) return;
+
+      // 1) Candidatos: pedidos delivered nas últimas 48h.
+      final since = DateTime.now()
+          .toUtc()
+          .subtract(const Duration(hours: 48))
+          .toIso8601String();
+      final List<dynamic> candidateRows = await supabase
+          .from('orders')
+          .select()
+          .eq('user_id', user.id)
+          .eq('status', 'delivered')
+          .gte('delivered_at', since)
+          .order('delivered_at', ascending: false);
+      if (!mounted) return;
+      if (candidateRows.isEmpty) return;
+
+      // 2) Subjects já avaliados por este utilizador para estes pedidos.
+      final orderIds = candidateRows
+          .map((r) => (r as Map)['id'] as String?)
+          .whereType<String>()
+          .toList();
+      if (orderIds.isEmpty) return;
+      final List<dynamic> ratedRows = await supabase
+          .from('ratings')
+          .select('order_id, subject_type')
+          .eq('rater_user_id', user.id)
+          .inFilter('order_id', orderIds);
+      final ratedBySubject = <String, Set<String>>{};
+      for (final r in ratedRows) {
+        final m = (r as Map);
+        final oid = m['order_id'] as String?;
+        final st = m['subject_type'] as String?;
+        if (oid == null || st == null) continue;
+        ratedBySubject.putIfAbsent(oid, () => <String>{}).add(st);
+      }
+
+      // 3) Skip counters (anti-spam).
+      final prefs = await SharedPreferences.getInstance();
+
+      // 4) Procurar primeiro pedido com pelo menos um sujeito pendente.
+      for (final raw in candidateRows) {
+        final row = (raw as Map).cast<String, dynamic>();
+        final orderId = row['id'] as String?;
+        if (orderId == null) continue;
+
+        final skipKey = 'rating_skipped_${orderId}_count';
+        if ((prefs.getInt(skipKey) ?? 0) >= 2) continue;
+
+        final order = OrderModel.fromSupabase(row);
+        final rated = ratedBySubject[orderId] ?? const <String>{};
+        final driverId = order.assignedDriverId;
+        final restaurantId = row['restaurant_id'] as String?;
+        final needsDriver = driverId != null &&
+            driverId.isNotEmpty &&
+            !rated.contains('driver');
+        final needsPartner = order.isPartnerStore &&
+            restaurantId != null &&
+            restaurantId.isNotEmpty &&
+            !rated.contains('partner');
+
+        if (!needsDriver && !needsPartner) continue;
+
+        await Future<void>.delayed(const Duration(milliseconds: 1200));
+        if (!mounted) return;
+
+        var anySkipped = false;
+        if (needsDriver) {
+          final result = await Navigator.of(context).push<bool>(
+            MaterialPageRoute<bool>(
+              builder: (_) => RatingScreen(
+                order: order,
+                subjectType: RatingSubjectType.driver,
+                subjectId: driverId,
+              ),
+            ),
+          );
+          if (result != true) anySkipped = true;
+        }
+        if (!mounted) return;
+        if (needsPartner) {
+          final result = await Navigator.of(context).push<bool>(
+            MaterialPageRoute<bool>(
+              builder: (_) => RatingScreen(
+                order: order,
+                subjectType: RatingSubjectType.partner,
+                subjectId: restaurantId,
+              ),
+            ),
+          );
+          if (result != true) anySkipped = true;
+        }
+
+        if (anySkipped) {
+          await prefs.setInt(
+              skipKey, (prefs.getInt(skipKey) ?? 0) + 1);
+        }
+        break; // only ever ask about one order per app open
+      }
+    } catch (e) {
+      debugPrint('[unrated_orders] $e');
+    } finally {
+      _ratingCheckInFlight = false;
+    }
+  }
+
   /// Pre-fills the CartStore delivery address on startup.
-  /// Priority: 1) existing address from prefs  2) Casa  3) GPS
+  /// Priority: 1) cart já preenchido  2) client_addresses default
+  ///           3) Casa (SessionStore legacy)  4) GPS
   Future<void> _detectLocation() async {
     if (!mounted) return;
     final cartStore = context.read<CartStore>();
 
     if (cartStore.dropoffStreet.isNotEmpty) return;
+
+    // 2) endereço default em client_addresses (padrão Uber/Glovo).
+    try {
+      final list = await ClientAddressService.instance.list();
+      if (!mounted) return;
+      if (cartStore.dropoffStreet.isNotEmpty) return;
+      final defaultAddr = list.where((a) => a.isDefault).cast<ClientAddress?>()
+          .firstWhere((_) => true, orElse: () => null);
+      if (defaultAddr != null) {
+        cartStore.updateDeliveryAddress(
+          street: defaultAddr.address,
+          city: defaultAddr.city ?? '',
+          postalCode: defaultAddr.postalCode ?? '',
+          location: (defaultAddr.lat != null && defaultAddr.lng != null)
+              ? LatLng(defaultAddr.lat!, defaultAddr.lng!)
+              : null,
+        );
+        return;
+      }
+    } catch (_) {/* sem rede ou sem auth — cai para Casa/GPS */}
 
     final sessionStore = context.read<SessionStore>();
     if (sessionStore.hasHomeAddress) {
@@ -76,7 +294,15 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     if (!mounted) return;
     final authStore = context.read<AuthStore>();
     final sessionStore = context.read<SessionStore>();
-    authStore.logout();
+    // TROCA DE MODO NAO E SAIR (2026-08-29). Aqui fazia-se `logout()` antes
+    // de ir ao ecra de escolha — e por isso a escolha seguinte pedia sempre a
+    // palavra-passe outra vez, mesmo a quem so queria mudar de perfil na
+    // mesma conta. A sessao FICA; e o ecra de escolha que decide: com sessao
+    // aberta troca por dentro, sem sessao e que manda entrar.
+    //
+    // `authStore` continua a ser lido acima porque limpamos as contas locais
+    // em memoria — o que sai e a conta ACTIVA, nao a sessao.
+    authStore.clearActiveAccountsKeepingSession();
     await sessionStore.clearRole();
     if (!mounted) return;
     Navigator.of(context).popUntil((route) => route.isFirst);
@@ -89,36 +315,19 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     );
   }
 
-  Future<void> _openWhatsApp() async {
-    final url = Uri.parse(
-        'https://wa.me/351937501673?text=Olá! Preciso de ajuda com o Bora App');
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    }
-  }
-
-  void _navigateWithAddressGuard(VoidCallback nav) {
-    final street = context.read<CartStore>().dropoffStreet;
-    if (street.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Define o teu endereço de entrega para continuar.'),
-          backgroundColor: AppColors.error,
-          duration: Duration(seconds: 3),
-        ),
-      );
-      _openAddressPicker();
-      return;
-    }
-    nav();
-  }
+  // LOCALIZAÇÃO NUNCA TRAVA (2026-08-24): navegar não exige morada.
+  // Sem endereço vê-se tudo na mesma (ordenação padrão, sem distâncias);
+  // a morada só é pedida onde faz falta — no checkout de uma ENTREGA
+  // (CartStore.finishOrder/startCardPaymentDraft; recolha nunca exige).
+  // O nome mantém-se pelos 11 call sites — o "guard" hoje só navega.
+  void _navigateWithAddressGuard(VoidCallback nav) => nav();
 
   @override
   Widget build(BuildContext context) {
     final addressLine = context.select<CartStore, String>((store) {
       final street = store.dropoffStreet.trim();
       final city = store.dropoffCity.trim();
-      if (street.isEmpty && city.isEmpty) return 'Seleccionar endereço';
+      if (street.isEmpty && city.isEmpty) return 'Seleccionar endereço'.tr;
       if (street.isEmpty) return city;
       if (city.isEmpty) return street;
       return '$street, $city';
@@ -131,22 +340,23 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     }();
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
-      floatingActionButton: FloatingActionButton(
-        onPressed: _openWhatsApp,
-        backgroundColor: const Color(0xFF25D366),
-        tooltip: 'Suporte WhatsApp',
-        child: const Icon(Icons.chat_rounded, color: Colors.white, size: 26),
-      ),
+      backgroundColor: AppColors.background,
+      floatingActionButton: const BoraSupportFab(),
       body: Column(
         children: [
           BoraAppBar(
             title: firstName,
-            subtitle: 'O que precisas hoje?',
+            subtitle: 'O que precisas hoje?'.tr,
             actions: [
+              // Alternador de idioma (2026-09-01) — primeiro dos actions para
+              // ficar bem à vista de quem não lê português. Vale para a app
+              // toda, não só para esta tela.
+              const LanguageToggle(),
+              // BUG 4 (Fase 6 / 2026-04-30): NotificationBell agora visível.
+              const NotificationBell(),
               IconButton(
                 icon: const Icon(Icons.swap_horiz, color: Colors.white),
-                tooltip: 'Mudar modo',
+                tooltip: 'Mudar modo'.tr,
                 onPressed: _handleTestMode,
               ),
             ],
@@ -164,13 +374,14 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   BoraAddressBar(
-                    label: 'Entrega em',
+                    label: 'Entrega em'.tr,
                     address: addressLine,
                     onTap: _openAddressPicker,
+                    onHeader: true,
                   ),
                   const SizedBox(height: Spacing.md),
                   BoraSearchField(
-                    hint: 'O que queres pedir hoje?',
+                    hint: 'O que queres pedir hoje?'.tr,
                     readOnly: true,
                     onTap: () {
                       _navigateWithAddressGuard(() {
@@ -187,8 +398,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   _buildCategoryGrid(context),
                   const SizedBox(height: Spacing.xl),
                   BoraPromoBanner(
-                    title: 'Entregas rápidas\ne seguras',
-                    subtitle: 'Tudo o que precisas à distância de um toque',
+                    title: 'Entregas rápidas\ne seguras'.tr,
+                    subtitle: 'Tudo o que precisas à distância de um toque'.tr,
                     trailingIcon: Icons.delivery_dining,
                     onTap: () => _navigateWithAddressGuard(() {
                       Navigator.push(
@@ -199,6 +410,11 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                       );
                     }),
                   ),
+                  // Espaco para o botao redondo de ajuda (BoraSupportFab, canto
+                  // inferior direito) nao ficar por cima do ultimo elemento —
+                  // com a grelha a 4 colunas o ultimo ladrilho passou a chegar
+                  // mais perto do fundo.
+                  const SizedBox(height: 88),
                 ],
               ),
             ),
@@ -213,7 +429,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       _TileData(
         label: 'Restaurantes',
         gradient: AppColors.tileRestaurants,
-        icon: Icons.restaurant_menu,
+        imageAsset: 'assets/categories/cat_restaurantes.png',
         onTap: () => _navigateWithAddressGuard(() {
           Navigator.push(
             context,
@@ -224,7 +440,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       _TileData(
         label: 'Supermercados',
         gradient: AppColors.tileSupermarkets,
-        icon: Icons.shopping_cart,
+        imageAsset: 'assets/categories/cat_supermercados.png',
         onTap: () => _navigateWithAddressGuard(() {
           Navigator.push(
             context,
@@ -238,7 +454,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       _TileData(
         label: 'Farmácia',
         gradient: AppColors.tilePharmacy,
-        icon: Icons.local_pharmacy,
+        imageAsset: 'assets/categories/cat_farmacia.png',
         onTap: () => _navigateWithAddressGuard(() {
           Navigator.push(
             context,
@@ -250,9 +466,23 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
         }),
       ),
       _TileData(
+        label: 'Lojas',
+        gradient: AppColors.tileStores,
+        imageAsset: 'assets/categories/cat_lojas.png',
+        onTap: () => _navigateWithAddressGuard(() {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const StoresScreen(
+                  initialCategory: BusinessCategory.store),
+            ),
+          );
+        }),
+      ),
+      _TileData(
         label: 'Enviar\nEncomenda',
         gradient: AppColors.tileSendPackage,
-        icon: Icons.local_shipping,
+        imageAsset: 'assets/categories/cat_encomenda.png',
         onTap: () => _navigateWithAddressGuard(() {
           Navigator.push(
             context,
@@ -263,7 +493,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       _TileData(
         label: 'Levar\nCompras',
         gradient: AppColors.tileCarryGroceries,
-        icon: Icons.shopping_bag,
+        imageAsset: 'assets/categories/cat_compras.png',
         onTap: () => _navigateWithAddressGuard(() {
           Navigator.push(
             context,
@@ -272,15 +502,26 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
         }),
       ),
       _TileData(
+        label: 'Favores',
+        gradient: AppColors.tileErrand,
+        imageAsset: 'assets/categories/cat_favores.png',
+        onTap: () => _navigateWithAddressGuard(() {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ErrandFormScreen()),
+          );
+        }),
+      ),
+      _TileData(
         label: 'Reservar\nMesa',
         gradient: AppColors.tileReserveTable,
-        icon: Icons.event_seat_outlined,
+        imageAsset: 'assets/categories/cat_reservar_mesa.png',
         onTap: () => _navigateWithAddressGuard(() {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Text(
-                  'Escolhe um restaurante para reservar mesa. (BR §14)'),
-              duration: Duration(seconds: 2),
+                  'Escolhe um restaurante para reservar mesa. (BR §14)'.tr),
+              duration: const Duration(seconds: 2),
             ),
           );
           Navigator.push(
@@ -292,25 +533,143 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
           );
         }),
       ),
+      _TileData(
+        label: 'Beleza',
+        gradient: AppColors.tileServices,
+        imageAsset: 'assets/categories/cat_beleza.png',
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ServicesCategoryScreen()),
+        ),
+      ),
+      _TileData(
+        label: 'Limpeza',
+        gradient: AppColors.tileCleaning,
+        imageAsset: 'assets/categories/cat_limpeza.png',
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const CleaningBookingsScreen()),
+        ),
+      ),
     ];
 
+    // TVDE — categoria aberta a todos os clientes desde 2026-08-01.
+    tiles.add(
+      _TileData(
+        label: 'Bora\nMotorista',
+        gradient: AppColors.tileServices,
+        imageAsset: 'assets/categories/cat_motorista.png',
+        onTap: () => _navigateWithAddressGuard(() {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const TvdeRequestRideScreen()),
+          );
+        }),
+      ),
+    );
+
+    // Festas (2026-08-25) — salgados, doces e bolos por encomenda.
+    tiles.add(
+      _TileData(
+        label: 'Festas',
+        gradient: AppColors.tileFestas,
+        imageAsset: 'assets/categories/cat_festas.png',
+        onTap: () => _navigateWithAddressGuard(() {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const FestasScreen()),
+          );
+        }),
+      ),
+    );
+
+    // Sobremesas (2026-08-27) — acai, gelados e doces. Filtro visual apenas:
+    // o fluxo de compra e o de entrega NORMAL. Uma loja pode estar aqui E em
+    // Restaurantes ao mesmo tempo (extra_categories) — e o caso da Goola Acai.
+    tiles.add(
+      _TileData(
+        label: 'Sobremesas',
+        gradient: AppColors.tileSobremesas,
+        imageAsset: 'assets/categories/cat_sobremesas.png',
+        onTap: () => _navigateWithAddressGuard(() {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const SobremesasScreen()),
+          );
+        }),
+      ),
+    );
+
+    // Lavagem Auto (2026-08-27) — vamos buscar o carro e entregamos lavado.
+    // Sem guarda de morada: a morada pede-se dentro do próprio fluxo e a
+    // localização NUNCA trava o pedido (regra de 24/08).
+    // TODO(catalogo-visual): trocar por assets/categories/cat_lavagem.png quando
+    // o cartoon for gerado (mesmo estilo dos outros ladrilhos). Até lá usa o
+    // fallback de ícone — um asset em falta rebentaria o ecrã em runtime.
+    // Só aparece com a categoria aberta (carwash_enabled). Mostrar o ladrilho
+    // com o serviço fechado só daria erro ao toque.
+    if (context.watch<CarwashStore>().enabled) {
+      tiles.add(
+        _TileData(
+          label: 'Lavagem Auto'.tr,
+          gradient: AppColors.tileCarwash,
+          imageAsset: 'assets/categories/cat_lavagem_auto.png',
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CarwashServiceScreen()),
+          ),
+        ),
+      );
+    }
+
+    // 4 COLUNAS (2026-08-27, pedido do Danilo): com 3 por linha era preciso
+    // rolar muito para ver as categorias todas. Mesmo desenho, so menor —
+    // cores, cantos e sombra ficam como estavam.
+    //
+    // O espacamento encolhe com a coluna extra, senao a celula ficava estreita
+    // demais para o rotulo. O racio sobe para 0.88 (celula mais alta que larga)
+    // para o nome ter as suas duas linhas sem apertar a ilustracao.
     return GridView.count(
-      crossAxisCount: 3,
+      crossAxisCount: 4,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: Spacing.md,
-      mainAxisSpacing: Spacing.md,
-      childAspectRatio: 0.95,
-      children: tiles
-          .map((t) => BoraTileCard(
-                label: t.label,
-                gradient: t.gradient,
-                iconData: t.icon,
-                onTap: t.onTap,
-              ))
-          .toList(),
+      crossAxisSpacing: Spacing.sm,
+      mainAxisSpacing: Spacing.sm,
+      childAspectRatio: 0.88,
+      children: tiles.map((t) {
+        // Semantics identifiers para testes E2E (Maestro): label → resource-id.
+        const semanticsIds = {
+          'Restaurantes': 'tile_restaurantes',
+          'Supermercados': 'tile_supermercados',
+          'Favores': 'tile_favores',
+          'Limpeza': 'tile_limpeza',
+        };
+        final Widget card;
+        if (t.imageAsset != null) {
+          card = BoraTileCard.image(
+            label: t.label.tr,
+            gradient: t.gradient,
+            imageAsset: t.imageAsset!,
+            onTap: t.onTap,
+            compacto: true,
+          );
+        } else {
+          // Fallback legacy (ainda sem PNG da categoria) — ver TODO no tile.
+          // ignore: deprecated_member_use_from_same_package
+          card = BoraTileCard(
+            label: t.label.tr,
+            gradient: t.gradient,
+            iconData: t.iconData,
+            onTap: t.onTap,
+          );
+        }
+        final id = semanticsIds[t.label];
+        if (id == null) return card;
+        return Semantics(identifier: id, child: card);
+      }).toList(),
     );
   }
+
 }
 
 // ─── Internal ──────────────────────────────────────────────────────────────
@@ -319,14 +678,21 @@ class _TileData {
   _TileData({
     required this.label,
     required this.gradient,
-    required this.icon,
     required this.onTap,
-  });
+    this.imageAsset,
+    this.iconData,
+  }) : assert(imageAsset != null || iconData != null,
+            'tile precisa de imageAsset ou iconData');
 
   final String label;
   final Gradient gradient;
-  final IconData icon;
   final VoidCallback onTap;
+
+  /// Asset PNG 3D (preferido). Quando ausente, usa [iconData] no tile legacy.
+  final String? imageAsset;
+
+  /// Fallback enquanto o asset PNG da categoria não existir (ex.: Serviços).
+  final IconData? iconData;
 }
 
 // ─── Address picker screen ─────────────────────────────────────────────────
@@ -341,6 +707,91 @@ class _AddressPickerScreen extends StatefulWidget {
 class _AddressPickerScreenState extends State<_AddressPickerScreen> {
   final _ctrl = TextEditingController();
   bool _loadingGps = false;
+  List<ClientAddress> _savedAddresses = const [];
+  bool _loadingSaved = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedAddresses();
+  }
+
+  Future<void> _loadSavedAddresses() async {
+    try {
+      final list = await ClientAddressService.instance.list();
+      if (mounted) {
+        setState(() {
+          _savedAddresses = list;
+          _loadingSaved = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingSaved = false);
+    }
+  }
+
+  void _useSaved(ClientAddress a) {
+    final LatLng? loc = (a.lat != null && a.lng != null)
+        ? LatLng(a.lat!, a.lng!)
+        : null;
+    context.read<CartStore>().updateDeliveryAddress(
+          street: a.address,
+          city: a.city ?? '',
+          postalCode: a.postalCode ?? '',
+          location: loc,
+        );
+    Navigator.of(context).pop();
+  }
+
+  Future<void> _openManageAddresses() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ClientAddressesScreen()),
+    );
+    // Reload after returning — utilizador pode ter adicionado/editado.
+    await _loadSavedAddresses();
+  }
+
+  Widget _savedAddressTile(ThemeData theme, ClientAddress a) {
+    final icon = switch (a.label.toLowerCase()) {
+      'casa' || 'home' => Icons.home_rounded,
+      'trabalho' || 'work' => Icons.work_rounded,
+      _ => Icons.place_rounded,
+    };
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: ListTile(
+        leading: Icon(icon, color: theme.colorScheme.primary),
+        title: Row(
+          children: [
+            Flexible(
+              child: Text(a.label,
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
+            ),
+            if (a.isDefault) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text('Predefinido'.tr,
+                    style: const TextStyle(fontSize: 10, color: Colors.green)),
+              ),
+            ],
+          ],
+        ),
+        subtitle: Text(
+          a.address,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => _useSaved(a),
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -356,7 +807,7 @@ class _AddressPickerScreenState extends State<_AddressPickerScreen> {
 
     if (location == null) {
       final msg = LocationService.isConsentBlocked
-          ? 'Activa a localização nas definições para fazer pedidos'
+          ? 'Activa a localização nas definições para fazer pedidos'.tr
           : 'Não foi possível obter a localização GPS.';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(msg)),
@@ -404,7 +855,7 @@ class _AddressPickerScreenState extends State<_AddressPickerScreen> {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Guardar como Casa?'),
+        title: Text('Guardar como Casa?'.tr),
         content: Text(address),
         actions: [
           TextButton(
@@ -412,7 +863,7 @@ class _AddressPickerScreenState extends State<_AddressPickerScreen> {
               Navigator.of(ctx).pop();
               Navigator.of(context).pop();
             },
-            child: const Text('Não'),
+            child: Text('Não'.tr),
           ),
           TextButton(
             onPressed: () {
@@ -424,7 +875,7 @@ class _AddressPickerScreenState extends State<_AddressPickerScreen> {
               Navigator.of(ctx).pop();
               Navigator.of(context).pop();
             },
-            child: const Text('Guardar'),
+            child: Text('Guardar'.tr),
           ),
         ],
       ),
@@ -439,11 +890,11 @@ class _AddressPickerScreenState extends State<_AddressPickerScreen> {
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
-        title: const Text(
-          'Endereço de entrega',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          'Endereço de entrega'.tr,
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
         flexibleSpace: const DecoratedBox(
@@ -453,10 +904,56 @@ class _AddressPickerScreenState extends State<_AddressPickerScreen> {
       body: ListView(
         padding: const EdgeInsets.all(Spacing.lg),
         children: [
+          // LOCALIZAÇÃO NUNCA TRAVA: a pesquisa vem PRIMEIRO — escrever a
+          // morada é o caminho principal; o GPS é um atalho mais abaixo.
+          AddressAutocompleteField(
+            controller: _ctrl,
+            labelText: 'Pesquisar endereço'.tr,
+            onSelected: _onAddressSelected,
+          ),
+          const SizedBox(height: Spacing.sm),
+          Text(
+            'Escreve a tua morada para veres as lojas e entregas perto de ti.'.tr,
+            style: theme.textTheme.bodySmall,
+          ),
+          const Divider(height: Spacing.xl),
+          // ── Endereços guardados (client_addresses) ─────────────────────
+          if (_loadingSaved)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            )
+          else if (_savedAddresses.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 4),
+              child: Text(
+                'Os meus endereços'.tr,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            for (final a in _savedAddresses) _savedAddressTile(theme, a),
+            const SizedBox(height: 8),
+          ],
+          ListTile(
+            leading: const Icon(Icons.edit_location_alt_outlined),
+            title: Text('Gerir endereços'.tr),
+            subtitle: Text('Adicionar, editar ou eliminar'.tr),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _openManageAddresses,
+          ),
+          const Divider(height: Spacing.xl),
           ListTile(
             leading: const Icon(Icons.my_location_rounded),
-            title: const Text('Localização actual'),
-            subtitle: const Text('Usar GPS do dispositivo'),
+            title: Text('Localização actual'.tr),
+            subtitle: Text('Usar GPS do dispositivo'.tr),
             trailing: _loadingGps
                 ? const SizedBox(
                     width: 20,
@@ -466,36 +963,29 @@ class _AddressPickerScreenState extends State<_AddressPickerScreen> {
                 : const Icon(Icons.chevron_right),
             onTap: _loadingGps ? null : _useGps,
           ),
-          ListTile(
-            leading: Icon(
-              Icons.home_rounded,
-              color: session.hasHomeAddress ? theme.colorScheme.primary : null,
+          // "Casa" legacy (SessionStore) — escondido se já há endereços
+          // guardados em client_addresses (cliente migrou para o novo).
+          if (_savedAddresses.isEmpty)
+            ListTile(
+              leading: Icon(
+                Icons.home_rounded,
+                color: session.hasHomeAddress ? theme.colorScheme.primary : null,
+              ),
+              title: Text(
+                session.hasHomeAddress ? session.homeStreet! : 'Casa'.tr,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Text(
+                session.hasHomeAddress
+                    ? 'Endereço guardado'.tr
+                    : 'Nenhum endereço guardado',
+              ),
+              trailing: session.hasHomeAddress
+                  ? const Icon(Icons.chevron_right)
+                  : null,
+              onTap: session.hasHomeAddress ? _useHome : null,
             ),
-            title: Text(
-              session.hasHomeAddress ? session.homeStreet! : 'Casa',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(
-              session.hasHomeAddress
-                  ? 'Endereço guardado'
-                  : 'Nenhum endereço guardado',
-            ),
-            trailing:
-                session.hasHomeAddress ? const Icon(Icons.chevron_right) : null,
-            onTap: session.hasHomeAddress ? _useHome : null,
-          ),
-          const Divider(height: Spacing.xxxl),
-          AddressAutocompleteField(
-            controller: _ctrl,
-            labelText: 'Pesquisar endereço',
-            onSelected: _onAddressSelected,
-          ),
-          const SizedBox(height: Spacing.sm),
-          Text(
-            'Começa a escrever e selecciona uma sugestão.',
-            style: theme.textTheme.bodySmall,
-          ),
         ],
       ),
     );

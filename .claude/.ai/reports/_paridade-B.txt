@@ -1,0 +1,3 @@
+total_funcoes=53
+ficheiros_com_verify_jwt=29
+funcoes_sem_verify_jwt_declarado=24

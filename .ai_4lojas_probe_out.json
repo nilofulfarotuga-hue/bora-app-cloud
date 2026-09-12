@@ -1,0 +1,135 @@
+{
+  "worten_content": {
+    "count": 24,
+    "cats": [
+      [
+        "56377050",
+        "Tech Kids e Gadgets"
+      ],
+      [
+        "37410752",
+        "Carregadores e Adaptadores Apple"
+      ],
+      [
+        "37410381",
+        "Mais Acessórios Samsung"
+      ],
+      [
+        "37409779",
+        "Telefones Fixos"
+      ],
+      [
+        "37410224",
+        "Mais Acessórios Telemóvel"
+      ],
+      [
+        "37411356",
+        "Rádio Despertadores"
+      ],
+      [
+        "37409769",
+        "Acessórios Smartwatch"
+      ],
+      [
+        "37410117",
+        "Mais Acessórios Tablet"
+      ],
+      [
+        "37410519",
+        "Outros Acessórios Informática"
+      ],
+      [
+        "37409809",
+        "Pen Drives"
+      ],
+      [
+        "37410898",
+        "Papel"
+      ],
+      [
+        "37410175",
+        "Mais Acessórios de Rede"
+      ],
+      [
+        "37411418",
+        "PC Gaming"
+      ],
+      [
+        "37410801",
+        "Pilhas e Carregadores"
+      ],
+      [
+        "37409773",
+        "Mais TV e Video"
+      ],
+      [
+        "37410509",
+        "Calculadoras"
+      ],
+      [
+        "37410817",
+        "Utensilios de Cozinha"
+      ],
+      [
+        "37411319",
+        "Climatização e Tratamento de Ar"
+      ],
+      [
+        "37410267",
+        "Higiene Oral"
+      ],
+      [
+        "37410294",
+        "Viagem"
+      ],
+      [
+        "37409929",
+        "Eletricidade"
+      ],
+      [
+        "37410489",
+        "Piscinas e Sapas"
+      ],
+      [
+        "37409771",
+        "Proteção, Saúde e Alimentação"
+      ],
+      [
+        "37411451",
+        "Acessórios Carro"
+      ]
+    ]
+  },
+  "worten": {
+    "slug": "worten-vivaci-guarda-grd",
+    "http": 200,
+    "len": 913367,
+    "storeIds": [],
+    "addrIds": [],
+    "scCount": 24
+  },
+  "leroy-merlin": {
+    "slug": "leroy-merlin-grd",
+    "http": 200,
+    "len": 1059089,
+    "storeIds": [],
+    "addrIds": [],
+    "scCount": 14
+  },
+  "kiwoko": {
+    "slug": "kiwoko-grd",
+    "http": 200,
+    "len": 542575,
+    "storeIds": [],
+    "addrIds": [],
+    "scCount": 8
+  },
+  "zippy": {
+    "slug": "zippy-grd",
+    "http": 200,
+    "len": 602640,
+    "storeIds": [],
+    "addrIds": [],
+    "scCount": 8
+  }
+}

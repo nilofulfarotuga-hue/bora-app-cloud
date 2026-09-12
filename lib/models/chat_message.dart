@@ -1,4 +1,4 @@
-enum ChatSenderType { client, driver }
+enum ChatSenderType { client, driver, partner }
 
 class ChatMessage {
   ChatMessage({

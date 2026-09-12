@@ -1,0 +1,26 @@
+@echo off
+setlocal EnableExtensions
+chcp 65001 >NUL
+REM ===========================================================================
+REM  PONTE BORA :: CLAUDE-JUIZ do loop (carteiro -> pc-judge -> aqui)
+REM  Só AVALIA: lê tarefa + saída do executor e devolve UMA linha de veredito.
+REM  Read-only (nunca edita/executa). Teto baixo (haiku, budget 1, 3 turns).
+REM ===========================================================================
+set "CLAUDE_CONFIG_DIR=C:\Users\danil\.claude"
+set "CLAUDE_EXE=C:\Users\danil\AppData\Roaming\npm\node_modules\@anthropic-ai\claude-code\bin\claude.exe"
+set "PROJ=C:\Users\danil\Desktop\projetosflutter\bora_app"
+if not exist "%CLAUDE_EXE%" ( echo [juiz] ERRO: claude.exe nao encontrado & exit /b 4 )
+
+set "MODEL=--model haiku"
+set "GUARD=Es o CLAUDE-JUIZ de qualidade do Bora. NAO edites nem executes nada — so avalias. Le a TAREFA e a SAIDA do executor. Decide se a saida cumpre a tarefa com qualidade (funcional, correto, sem efeitos colaterais, sem tocar zona vermelha). Responde EXATAMENTE UMA linha, comecando por 'VEREDITO: APROVADA' (se cumpre) ou 'VEREDITO: CORRIGIR: <o que corrigir numa frase>' (se falha). Nada mais, sem explicacoes extra."
+
+cd /d "%PROJ%" || ( echo [juiz] ERRO: projeto nao encontrado & exit /b 3 )
+
+if /I "%~1"=="--b64" (
+  set "BORA_B64=%~2"
+  powershell -NoProfile -Command "$b=$env:BORA_B64; $b=$b.PadRight([math]::Ceiling($b.Length/4)*4,'='); [IO.File]::WriteAllText($env:TEMP + '\bora_judge_task.txt', [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b)))" || ( echo [juiz] ERRO base64 & exit /b 5 )
+  "%CLAUDE_EXE%" -p --append-system-prompt "%GUARD%" --output-format text %MODEL% --disallowedTools "Bash Edit Write MultiEdit WebFetch WebSearch Task" --max-turns 3 --max-budget-usd 1 < "%TEMP%\bora_judge_task.txt"
+  exit /b %ERRORLEVEL%
+)
+echo [juiz] ERRO: uso: run-claude-judge.cmd --b64 ^<BASE64^>
+exit /b 2

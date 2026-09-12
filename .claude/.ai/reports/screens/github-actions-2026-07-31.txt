@@ -1,0 +1,24 @@
+# Evidência GitHub — 2026-07-31 (capturado por gh CLI)
+
+## Últimos runs — branch autonomous-night-2026-04-29
+in_progress		fix(ci): remove encaminhamento ResetPasswordScreen.routeName arrastad…	Build Android & Deploy to Google Play	autonomous-night-2026-04-29	push	30669844090	4m4s	2026-07-31T22:24:27Z
+completed	success	fix(ci): remove encaminhamento ResetPasswordScreen.routeName arrastad…	.github/workflows/build_web_deploy.yml	autonomous-night-2026-04-29	push	30669844014	2m37s	2026-07-31T22:24:27Z
+completed	failure	fix(notificacoes): push admin data-only + canais em falta + track de …	.github/workflows/build_web_deploy.yml	autonomous-night-2026-04-29	push	30669277353	1m55s	2026-07-31T22:13:54Z
+completed	failure	fix(notificacoes): push admin data-only + canais em falta + track de …	Build Android & Deploy to Google Play	autonomous-night-2026-04-29	push	30669276911	2m44s	2026-07-31T22:13:53Z
+completed	success	fix(ci): remove changesNotSentForReview — contorno expirado partia o …	Build Android & Deploy to Google Play	autonomous-night-2026-04-29	push	30665071744	8m56s	2026-07-31T21:01:25Z
+completed	success	fix(ci): remove changesNotSentForReview — contorno expirado partia o …	.github/workflows/build_web_deploy.yml	autonomous-night-2026-04-29	push	30665071727	2m59s	2026-07-31T21:01:25Z
+completed	failure	feat(lancamento): selo "Em breve", guarda no servidor, multi-papel e …	Build Android & Deploy to Google Play	autonomous-night-2026-04-29	push	30663180518	9m53s	2026-07-31T20:31:23Z
+completed	success	feat(lancamento): selo "Em breve", guarda no servidor, multi-papel e …	.github/workflows/build_web_deploy.yml	autonomous-night-2026-04-29	push	30663179903	2m40s	2026-07-31T20:31:22Z
+
+## Run 30665071744 (último Android) — jobs
+fix(ci): remove changesNotSentForReview — contorno expirado partia o …
+success
+2026-07-31T21:01:25Z
+JOB: Build AAB & upload (Closed Testing — alpha) => success
+
+## Tracks configurados em build_android.yml
+213:          tracks: internal,alpha,production
+214:          status: completed
+
+## versionCode atual no pubspec
+6:version: 1.0.1+507

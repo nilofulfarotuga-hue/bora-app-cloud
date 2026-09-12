@@ -4,6 +4,15 @@
 // Sends a FCM push to the CLIENT for order lifecycle updates.
 // Status-specific messages mirror Uber Eats tone.
 //
+// PROMPT C (2026-05-14) — takeaway awareness:
+//   • Quando orderId vem no payload, faz SELECT da row em orders para
+//     obter service_type + vendor_name + takeaway_* fields (D5: DB query
+//     no momento do push, não payload params).
+//   • Mensagem é ramificada por service_type: delivery mantém tom Uber Eats;
+//     takeaway tem mensagens próprias (preparing menciona prep_minutes,
+//     readyForPickup inclui pickup_code, delivered = "Levantado").
+//   • Status readyForPickup é takeaway-only.
+//
 // Required Supabase secrets:
 //   FIREBASE_PROJECT_ID
 //   FIREBASE_SERVICE_ACCOUNT
@@ -17,6 +26,15 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+
+type OrderContext = {
+  service_type: string | null
+  vendor_name: string | null
+  takeaway_pickup_code: string | null
+  takeaway_prep_minutes: number | null
+  takeaway_is_curbside: boolean | null
+  takeaway_curbside_info: string | null
 }
 
 Deno.serve(async (req) => {
@@ -51,8 +69,36 @@ Deno.serve(async (req) => {
     return json({ ok: false, error: 'clientId is required' }, 400)
   }
 
+  const supabase = createClient(supabaseUrl, serviceKey)
+
+  // ─── DB query: fetch order context for takeaway-aware messaging (D5) ───
+  let orderCtx: OrderContext | null = null
+  if (orderId) {
+    const { data: orderRow, error: orderErr } = await supabase
+      .from('orders')
+      .select(
+        'service_type, vendor_name, takeaway_pickup_code, ' +
+        'takeaway_prep_minutes, takeaway_is_curbside, takeaway_curbside_info'
+      )
+      .eq('id', orderId)
+      .maybeSingle()
+
+    if (orderErr) {
+      console.error('[notify-client] order fetch error:', JSON.stringify(orderErr))
+      // Não fatal — caímos no fallback de mensagens delivery genéricas.
+    } else if (orderRow) {
+      orderCtx = orderRow as OrderContext
+    }
+  }
+
   if (status && (!title || !body)) {
-    const msg = statusMessage(status, payload.vendorName, payload.driverName, payload.etaMinutes)
+    const msg = statusMessage(
+      status,
+      orderCtx,
+      payload.vendorName as string | undefined,
+      payload.driverName as string | undefined,
+      payload.etaMinutes as number | undefined,
+    )
     if (msg) {
       title = title ?? msg.title
       body  = body  ?? msg.body
@@ -62,8 +108,6 @@ Deno.serve(async (req) => {
   if (!title || !body) {
     return json({ ok: false, error: 'title/body or recognised status required' }, 400)
   }
-
-  const supabase = createClient(supabaseUrl, serviceKey)
 
   const { data: user, error: userErr } = await supabase
     .from('users')
@@ -139,25 +183,62 @@ Deno.serve(async (req) => {
 
 function statusMessage(
   status: string,
-  vendorName?: string,
+  orderCtx: OrderContext | null,
+  vendorNamePayload?: string,
   driverName?: string,
   etaMinutes?: number,
 ): { title: string; body: string } | null {
-  const vendor = (vendorName ?? '').trim()
+  // PROMPT C — usar dados da DB (D5). Payload fields são fallback para
+  // calls antigas (ex.: NotificationService Flutter chama com vendorName).
+  const isTakeaway = orderCtx?.service_type === 'takeaway'
+  const vendor = (orderCtx?.vendor_name ?? vendorNamePayload ?? '').trim()
   const driver = (driverName ?? '').trim()
+  const pickupCode = (orderCtx?.takeaway_pickup_code ?? '').trim()
+  const prepMin = orderCtx?.takeaway_prep_minutes ?? 0
+  const isCurbside = orderCtx?.takeaway_is_curbside === true
+
   switch (status) {
     case 'preparing':
+      if (isTakeaway) {
+        return {
+          title: '📦 Pedido aceite',
+          body: prepMin > 0
+            ? (vendor
+                ? `${vendor} a preparar — pronto em ${prepMin} min`
+                : `Pedido aceite — pronto em ${prepMin} min`)
+            : (vendor
+                ? `${vendor} está a preparar o seu pedido`
+                : 'O parceiro está a preparar o seu pedido'),
+        }
+      }
       return {
         title: 'Pedido aceite',
         body: vendor
           ? `👨‍🍳 ${vendor} está a preparar o seu pedido`
           : '👨‍🍳 O restaurante está a preparar o seu pedido',
       }
+
+    case 'readyForPickup':
+      // Takeaway-only. Sem orderCtx (push antigo / inconsistência),
+      // mensagem genérica.
+      return {
+        title: '🎉 Pedido pronto!',
+        body: pickupCode
+          ? (isCurbside
+              ? `Código ${pickupCode}. Aguarde no carro.`
+              : `Código ${pickupCode}. Apresente no balcão.`)
+          : (isCurbside
+              ? 'O seu pedido está pronto — aguarde no carro.'
+              : 'O seu pedido está pronto — apresente-se no balcão.'),
+      }
+
     case 'callingDriver':
+      // Delivery only — takeaway nunca passa por callingDriver
       return {
         title: 'À procura de estafeta',
         body: '🛵 A procurar o melhor estafeta para o seu pedido…',
       }
+
     case 'driverAccepted':
       return {
         title: 'Estafeta a caminho do restaurante',
@@ -165,11 +246,13 @@ function statusMessage(
           ? `✅ ${driver} aceitou o seu pedido`
           : '✅ Um estafeta aceitou o seu pedido',
       }
+
     case 'pickedUp':
       return {
         title: 'Pedido recolhido',
         body: '📦 O seu pedido foi recolhido e está a caminho',
       }
+
     case 'onTheWay':
       return {
         title: 'A caminho!',
@@ -177,11 +260,21 @@ function statusMessage(
           ? `🛵 A caminho! Chega em ~${etaMinutes} min`
           : '🛵 O seu pedido está a caminho',
       }
+
     case 'delivered':
+      if (isTakeaway) {
+        return {
+          title: 'Obrigado pela visita! ✨',
+          body: vendor
+            ? `Obrigado pela visita a ${vendor}. Avalie o pedido na app.`
+            : 'Obrigado pelo seu pedido. Avalie a sua experiência na app.',
+        }
+      }
       return {
         title: 'Entregue 🎉',
         body: 'Como foi a sua experiência? Avalie o pedido e ajude outros clientes.',
       }
+
     default:
       return null
   }

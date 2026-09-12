@@ -5,7 +5,7 @@ import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../stores/session_store.dart';
-import '../widgets/bora/bora_primary_button.dart';
+import '../widgets/bora/bora_accent_button.dart';
 import 'driver_signup_screen.dart';
 
 class DriverRejectedScreen extends StatelessWidget {
@@ -16,7 +16,7 @@ class DriverRejectedScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: Spacing.xxxl),
@@ -77,9 +77,8 @@ class DriverRejectedScreen extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: Spacing.huge),
-              BoraPrimaryButton(
+              BoraAccentButton(
                 label: 'Submeter novamente',
-                color: AppColors.accent,
                 onPressed: () => Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
@@ -96,9 +95,9 @@ class DriverRejectedScreen extends StatelessWidget {
                     context.read<SessionStore>().clearRole();
                   },
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.accent,
+                    foregroundColor: AppColors.error,
                     side: const BorderSide(
-                        color: AppColors.accent, width: 1.5),
+                        color: AppColors.error, width: 1.5),
                   ),
                   child: const Text('Sair'),
                 ),

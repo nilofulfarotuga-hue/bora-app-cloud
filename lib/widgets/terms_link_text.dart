@@ -2,6 +2,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../l10n/tr.dart';
+
 /// Rich text row used inside the consent checkbox at signup (BR §20.1).
 ///
 /// Renders: "Aceito os [Termos] e a [Política de Privacidade]"
@@ -35,15 +37,15 @@ class TermsLinkText extends StatelessWidget {
       text: TextSpan(
         style: base,
         children: [
-          const TextSpan(text: 'Aceito os '),
+          TextSpan(text: 'Aceito os '.tr),
           TextSpan(
-            text: 'Termos',
+            text: 'Termos'.tr,
             style: linkStyle,
             recognizer: TapGestureRecognizer()..onTap = () => _open(termsUrl),
           ),
-          const TextSpan(text: ' e a '),
+          TextSpan(text: ' e a '.tr),
           TextSpan(
-            text: 'Política de Privacidade',
+            text: 'Política de Privacidade'.tr,
             style: linkStyle,
             recognizer: TapGestureRecognizer()..onTap = () => _open(privacyUrl),
           ),

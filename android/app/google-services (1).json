@@ -9,7 +9,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:765097014497:android:e8d6670257e0e7b84ef3a0",
         "android_client_info": {
-          "package_name": "com.example.bora_app"
+          "package_name": "pt.boraapp.bora"
         }
       },
       "oauth_client": [],

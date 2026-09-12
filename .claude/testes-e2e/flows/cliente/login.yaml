@@ -1,0 +1,56 @@
+# Subflow: login do cliente de teste (reutilizável via runFlow)
+# Conta de TESTE: teste-cliente@bora.app — criada por criar-contas-teste.py; a password real
+# vem do runner via --env (lida de .env). NOTA: cliente@bora.app NÃO existe no Supabase Auth
+# (o login do cliente vai sempre ao Supabase — o "demo in-memory" não cobre este ecrã).
+appId: pt.boraapp.bora
+env:
+  CLIENT_EMAIL: teste-cliente@bora.app
+  CLIENT_PASSWORD: "definida-no-.env"
+---
+- launchApp:
+    clearState: false
+- runFlow:
+    when:
+      visible: "Sou Cliente"
+    commands:
+      - tapOn: "Sou Cliente"
+# conta lembrada pré-preenchida → limpar primeiro (senão o inputText concatena)
+- runFlow:
+    when:
+      visible: "Entrar com outra conta"
+    commands:
+      - tapOn: "Entrar com outra conta"
+# fix 2026-07-10: campos por ID (Semantics) + password em 3 blocos com pausa —
+# obscureText + inputText rápido deixava cair caracteres → invalid_credentials 400.
+- runFlow:
+    when:
+      visible: "Email"
+    commands:
+      - tapOn:
+          id: "fld_email"
+      - eraseText: 80
+      - inputText: ${CLIENT_EMAIL}
+      - tapOn:
+          id: "fld_password"
+      - eraseText: 40
+      - inputText: ${CLIENT_PW_A}
+      - waitForAnimationToEnd
+      - inputText: ${CLIENT_PW_B}
+      - waitForAnimationToEnd
+      - inputText: ${CLIENT_PW_C}
+      - hideKeyboard
+      - tapOn:
+          id: "btn_entrar"
+# 1º login neste device pode perguntar "Entrar com biometria?" → recusar no teste
+- extendedWaitUntil:
+    visible: "Agora não|Início"
+    timeout: 101250
+- runFlow:
+    when:
+      visible: "Agora não"
+    commands:
+      - tapOn: "Agora não"
+# resultado esperado: home do cliente com a bottom nav
+- extendedWaitUntil:
+    visible: "Início"
+    timeout: 101250

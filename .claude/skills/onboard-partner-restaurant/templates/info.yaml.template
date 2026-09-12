@@ -1,0 +1,28 @@
+# info.yaml — restaurante parceiro Bora. Copiar para a pasta de onboarding e preencher.
+# Idioma user-facing: PT-PT. Campos obrigatórios marcados (*).
+restaurant:
+  name: "Belmonte Grill"            # * nome do restaurante
+  cuisine_type: "portuguesa"        #   tipo de cozinha (livre)
+  category: "restaurante"           # * nesta skill: sempre 'restaurante'
+  is_partner: true                  #   restaurante parceiro
+  address: "Rua Direita 12, 6230-001 Guarda"   # * morada completa
+  phone: "+351271123456"            # * telefone PT (+351 + 9 dígitos, começa 2/9)
+  email: "geral@belmontegrill.pt"   # * email (vira o login do parceiro)
+  nif: "509123456"                  #   NIF 9 dígitos (validação mód-11)
+  iban: "PT50000700000012345678901" #   ⚠️ formato real: PT + 21 dígitos (23 chars)
+  lat: null                         #   deixa null → preenchido por geocode.py
+  lng: null
+  business_hours:                   #   opcional; default 09:00-22:00 todos os dias
+    mon: { open: "12:00", close: "23:00", closed: false }
+    tue: { open: "12:00", close: "23:00", closed: false }
+    wed: { open: "12:00", close: "23:00", closed: false }
+    thu: { open: "12:00", close: "23:00", closed: false }
+    fri: { open: "12:00", close: "23:30", closed: false }
+    sat: { open: "12:00", close: "23:30", closed: false }
+    sun: { open: "12:00", close: "15:00", closed: false }
+  takeaway_enabled: true
+  takeaway_default_prep_minutes: 25
+  reservations_enabled: false
+  curbside_enabled: false
+  owner_name: "João Pereira"
+  owner_doc_url: ""                 #   preenchido após upload-restaurant-asset

@@ -1,0 +1,58 @@
+-- SQL SUGERIDO — NÃO EXECUTADO. Gerado pela auditoria 2026-06-23.
+-- Ver relatório completo: ../sessions/2026-06-23-admin-guard-audit.md
+--
+-- CONTEXTO: das 133 funções public.admin_*, 131 já têm guard interno (vários padrões:
+-- _admin_op_guard(), is_admin(), _is_admin(uuid), _reservas_pro_assert_admin(), checks
+-- inline de app_metadata/user_metadata, etc). Só admin_run_select e admin_run_write não
+-- têm guard interno — mas ambas só têm GRANT EXECUTE para postgres+service_role (não
+-- authenticated/anon), e admin_run_select já é gated externamente pela Edge Function
+-- admin-ai-assistant antes de a chamar. Ver tabela de risco no relatório.
+--
+-- ⚠️ NÃO usar PERFORM public._admin_op_guard() aqui — depende de auth.uid()/auth.jwt(),
+-- que são NULL quando a função é chamada com a service_role key sem JWT de utilizador
+-- (é exactamente como admin-ai-assistant chama admin_run_select hoje). Colar o guard
+-- típico parte o único caller real.
+--
+-- Validation Gate do CLAUDE.md: isto toca em auth/permissions — enviar para validação
+-- e aprovação explícita do Danilo antes de aplicar qualquer uma das opções abaixo.
+
+-- ============================================================
+-- OPÇÃO A (baixo risco) — admin_run_select: adicionar audit log
+-- (espelha o que admin_run_write já faz; não muda comportamento nem quebra o caller actual)
+-- ============================================================
+-- Dentro de admin_run_select, depois do EXECUTE bem sucedido, adicionar:
+--
+--   BEGIN
+--     INSERT INTO admin_audit_log (admin_id, action_type, target_table, payload, created_at)
+--     VALUES (NULL, 'admin_ai_select', 'via_chat_ia',
+--             jsonb_build_object('query', left(p_query, 500)), now());
+--   EXCEPTION WHEN OTHERS THEN NULL; END;
+
+-- ============================================================
+-- OPÇÃO B (defesa em profundidade) — admin_run_write: validar p_admin_id
+-- explicitamente em vez de confiar só no GRANT a service_role.
+--
+-- ✅ APLICADA EM PRODUÇÃO em 2026-06-23 — aprovação Danilo ("b" → "sim" após
+-- Validation Gate). Migration: admin_run_write_require_valid_admin_id
+-- (projeto ojykpzwqrtusfeakzrna, via apply_migration). Verificado pós-aplicação
+-- via execute_sql. Ver relatório: ../sessions/2026-06-23-admin-guard-audit.md
+-- ============================================================
+-- Bloco adicionado logo após a declaração das variáveis em admin_run_write:
+--
+--   IF p_admin_id IS NULL OR NOT EXISTS (
+--     SELECT 1 FROM auth.users
+--     WHERE id = p_admin_id
+--       AND COALESCE(raw_app_meta_data->>'role', '') = 'admin'
+--   ) THEN
+--     RAISE EXCEPTION 'admin_run_write: p_admin_id não corresponde a um admin válido'
+--       USING ERRCODE = '42501';
+--   END IF;
+
+-- ============================================================
+-- OPÇÃO C (reduzir superfície) — admin_run_write: revogar EXECUTE se confirmado
+-- sem uso real (busca no repo não encontrou nenhum call-site actual).
+-- Só aplicar se Danilo confirmar que não há plano de uso a curto prazo.
+-- ============================================================
+-- REVOKE EXECUTE ON FUNCTION public.admin_run_write(text, uuid) FROM service_role;
+
+-- Estado: B foi aplicada (ver acima). A e C continuam por executar — decisão futura do Danilo.

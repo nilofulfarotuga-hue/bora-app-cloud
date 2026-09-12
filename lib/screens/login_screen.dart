@@ -8,7 +8,10 @@ import '../stores/driver_store.dart';
 import '../stores/session_store.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import 'driver_signup_screen.dart';
+import 'trabalhar_no_bora_screen.dart';
 import 'register_client_screen.dart';
+
+import '../l10n/tr.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -18,11 +21,15 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  // 2026-05-21 — prefill demo credentials só em debug; release vê campos vazios.
   final _clientEmailController =
-      TextEditingController(text: 'cliente@bora.app');
-  final _clientPasswordController = TextEditingController(text: '123456');
-  final _driverPhoneController = TextEditingController(text: '910000000');
-  final _driverPasswordController = TextEditingController(text: '123456');
+      TextEditingController();
+  final _clientPasswordController =
+      TextEditingController();
+  final _driverPhoneController =
+      TextEditingController();
+  final _driverPasswordController =
+      TextEditingController();
 
   bool _isProcessing = false;
 
@@ -43,27 +50,27 @@ class _LoginScreenState extends State<LoginScreen> {
         backgroundColor: AppColors.surface,
         appBar: AppBar(
           elevation: 0,
-          backgroundColor: Colors.transparent,
+          backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
           flexibleSpace: const DecoratedBox(
             decoration: BoxDecoration(gradient: AppColors.headerGradient),
           ),
-          title: const Text(
-            'BORA APP',
-            style: TextStyle(
+          title: Text(
+            'BORA APP'.tr,
+            style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.3,
             ),
           ),
-          bottom: const TabBar(
+          bottom: TabBar(
             indicatorColor: Colors.white,
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white70,
-            labelStyle: TextStyle(fontWeight: FontWeight.w700),
+            labelStyle: const TextStyle(fontWeight: FontWeight.w700),
             tabs: [
-              Tab(text: 'Cliente'),
-              Tab(text: 'Estafeta'),
+              Tab(text: 'Cliente'.tr),
+              Tab(text: 'Estafeta'.tr),
             ],
           ),
         ),
@@ -84,30 +91,30 @@ class _LoginScreenState extends State<LoginScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Entre como cliente',
+            'Entre como cliente'.tr,
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: Spacing.xxl),
           TextField(
             controller: _clientEmailController,
             keyboardType: TextInputType.emailAddress,
-            decoration: const InputDecoration(
-              labelText: 'Email',
-              prefixIcon: Icon(Icons.email_outlined),
+            decoration: InputDecoration(
+              labelText: 'Email'.tr,
+              prefixIcon: const Icon(Icons.email_outlined),
             ),
           ),
           const SizedBox(height: Spacing.lg),
           TextField(
             controller: _clientPasswordController,
             obscureText: true,
-            decoration: const InputDecoration(
-              labelText: 'Palavra-passe',
-              prefixIcon: Icon(Icons.lock_outline),
+            decoration: InputDecoration(
+              labelText: 'Palavra-passe'.tr,
+              prefixIcon: const Icon(Icons.lock_outline),
             ),
           ),
           const SizedBox(height: Spacing.xxl),
           BoraPrimaryButton(
-            label: 'Entrar',
+            label: 'Entrar'.tr,
             loading: _isProcessing,
             onPressed: () => _handleClientLogin(context),
           ),
@@ -115,9 +122,9 @@ class _LoginScreenState extends State<LoginScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text(
-                'Ainda não tem conta?',
-                style: TextStyle(color: AppColors.textSecondary),
+              Text(
+                'Ainda não tem conta?'.tr,
+                style: const TextStyle(color: AppColors.textSecondary),
               ),
               TextButton(
                 onPressed: () async {
@@ -130,14 +137,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   );
                   if (created == true && mounted) {
                     messenger.showSnackBar(
-                      const SnackBar(
+                      SnackBar(
                         content:
-                            Text('Conta criada com sucesso. Faça login.'),
+                            Text('Conta criada com sucesso. Faça login.'.tr),
                       ),
                     );
                   }
                 },
-                child: const Text('Registar'),
+                child: Text('Registar'.tr),
               ),
             ],
           ),
@@ -153,30 +160,30 @@ class _LoginScreenState extends State<LoginScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Painel do estafeta',
+            'Painel do estafeta'.tr,
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: Spacing.xxl),
           TextField(
             controller: _driverPhoneController,
             keyboardType: TextInputType.phone,
-            decoration: const InputDecoration(
-              labelText: 'Telemóvel',
-              prefixIcon: Icon(Icons.phone_rounded),
+            decoration: InputDecoration(
+              labelText: 'Telemóvel'.tr,
+              prefixIcon: const Icon(Icons.phone_rounded),
             ),
           ),
           const SizedBox(height: Spacing.lg),
           TextField(
             controller: _driverPasswordController,
             obscureText: true,
-            decoration: const InputDecoration(
-              labelText: 'Palavra-passe',
-              prefixIcon: Icon(Icons.lock_outline),
+            decoration: InputDecoration(
+              labelText: 'Palavra-passe'.tr,
+              prefixIcon: const Icon(Icons.lock_outline),
             ),
           ),
           const SizedBox(height: Spacing.xxl),
           BoraPrimaryButton(
-            label: 'Entrar',
+            label: 'Entrar'.tr,
             loading: _isProcessing,
             onPressed: () => _handleDriverLogin(context),
           ),
@@ -184,9 +191,9 @@ class _LoginScreenState extends State<LoginScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text(
-                'Primeira vez como estafeta?',
-                style: TextStyle(color: AppColors.textSecondary),
+              Text(
+                'Primeira vez como estafeta?'.tr,
+                style: const TextStyle(color: AppColors.textSecondary),
               ),
               TextButton(
                 onPressed: () {
@@ -197,9 +204,20 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   );
                 },
-                child: const Text('Candidata-te'),
+                child: Text('Candidata-te'.tr),
               ),
             ],
+          ),
+          // A PORTA (2026-08-29): daqui via-se so a candidatura de estafeta.
+          // Quem queria limpar casas ou lavar carros nao tinha por onde entrar.
+          TextButton.icon(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => const TrabalharNoBoraScreen()),
+            ),
+            icon: const Icon(Icons.badge_outlined, size: 18),
+            label: Text('Ver tudo o que se pode fazer no Bora'.tr),
           ),
         ],
       ),
@@ -222,7 +240,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (!success) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('Credenciais inválidas.')),
+        SnackBar(content: Text('Credenciais inválidas.'.tr)),
       );
       return;
     }
@@ -248,7 +266,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (!success) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('Credenciais inválidas.')),
+        SnackBar(content: Text('Credenciais inválidas.'.tr)),
       );
       return;
     }

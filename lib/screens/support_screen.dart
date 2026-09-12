@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../config/app_theme.dart';
+import '../config/app_colors.dart';
+import '../widgets/bora/bora_screen_app_bar.dart';
+
+import '../l10n/tr.dart';
 
 class SupportScreen extends StatefulWidget {
   const SupportScreen({super.key});
@@ -53,7 +56,7 @@ class _SupportScreenState extends State<SupportScreen> {
   void initState() {
     super.initState();
     _addBot(
-      'Olá! 👋 Sou o assistente de suporte Bora. Como posso ajudar?\n\nEscolhe uma pergunta frequente abaixo ou escreve a tua dúvida.',
+      'Olá! 👋 Sou o assistente de suporte Bora. Como posso ajudar?\n\nEscolhe uma pergunta frequente abaixo ou escreve a tua dúvida.'.tr,
     );
   }
 
@@ -84,19 +87,22 @@ class _SupportScreenState extends State<SupportScreen> {
     // Match FAQ
     final lower = trimmed.toLowerCase();
     final match = _faqs.where((f) {
-      return f.question.toLowerCase().contains(lower) ||
+      // Compara com o texto que a pessoa REALMENTE ve: em PT o .tr e a
+      // identidade, portanto o comportamento em portugues nao muda.
+      final pergunta = f.question.tr.toLowerCase();
+      return pergunta.contains(lower) ||
           lower
               .split(' ')
-              .any((w) => w.length > 3 && f.question.toLowerCase().contains(w));
+              .any((w) => w.length > 3 && pergunta.contains(w));
     }).firstOrNull;
 
     Future.delayed(const Duration(milliseconds: 400), () {
       if (!mounted) return;
       if (match != null) {
-        _addBot(match.answer);
+        _addBot(match.answer.tr);
       } else {
         _addBot(
-          'Não encontrei uma resposta automática para isso. 😔\n\nContacta-nos diretamente:\n📧 boraappbora@gmail.com\n📞 +351 937 501 673',
+          'Não encontrei uma resposta automática para isso. 😔\n\nContacta-nos diretamente:\n📧 boraappbora@gmail.com\n📞 +351 937 501 673'.tr,
         );
       }
     });
@@ -131,21 +137,18 @@ class _SupportScreenState extends State<SupportScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
-      appBar: AppBar(
-        title: const Text('Suporte'),
-        backgroundColor: AppTheme.primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: 'Suporte'.tr,
         actions: [
           IconButton(
             icon: const Icon(Icons.email_outlined),
-            tooltip: 'Enviar email',
+            tooltip: 'Enviar email'.tr,
             onPressed: _launchEmail,
           ),
           IconButton(
             icon: const Icon(Icons.phone_outlined),
-            tooltip: 'Ligar',
+            tooltip: 'Ligar'.tr,
             onPressed: _launchPhone,
           ),
         ],
@@ -156,10 +159,10 @@ class _SupportScreenState extends State<SupportScreen> {
           Container(
             color: Colors.white,
             child: ExpansionTile(
-              leading: const Icon(Icons.quiz_outlined, color: AppTheme.primary),
-              title: const Text(
-                'Perguntas frequentes',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              leading: const Icon(Icons.quiz_outlined, color: AppColors.primary),
+              title: Text(
+                'Perguntas frequentes'.tr,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
               ),
               initiallyExpanded: _faqExpanded,
               onExpansionChanged: (v) => setState(() => _faqExpanded = v),
@@ -167,13 +170,13 @@ class _SupportScreenState extends State<SupportScreen> {
                   .map(
                     (faq) => ListTile(
                       dense: true,
-                      title: Text(faq.question,
+                      title: Text(faq.question.tr,
                           style: const TextStyle(fontSize: 13)),
                       trailing: const Icon(Icons.send,
-                          size: 16, color: AppTheme.primary),
+                          size: 16, color: AppColors.primary),
                       onTap: () {
                         setState(() => _faqExpanded = false);
-                        _sendMessage(faq.question);
+                        _sendMessage(faq.question.tr);
                       },
                     ),
                   )
@@ -204,7 +207,7 @@ class _SupportScreenState extends State<SupportScreen> {
                       controller: _ctrl,
                       textCapitalization: TextCapitalization.sentences,
                       decoration: InputDecoration(
-                        hintText: 'Escreve a tua dúvida...',
+                        hintText: 'Escreve a tua dúvida...'.tr,
                         filled: true,
                         fillColor: const Color(0xFFF0F0F0),
                         contentPadding: const EdgeInsets.symmetric(
@@ -219,7 +222,7 @@ class _SupportScreenState extends State<SupportScreen> {
                   ),
                   const SizedBox(width: 8),
                   CircleAvatar(
-                    backgroundColor: AppTheme.primary,
+                    backgroundColor: AppColors.primary,
                     child: IconButton(
                       icon:
                           const Icon(Icons.send, color: Colors.white, size: 18),
@@ -269,25 +272,19 @@ class _MessageBubble extends StatelessWidget {
         ),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: isUser ? AppTheme.primary : Colors.white,
+          color: isUser ? AppColors.primary : AppColors.surface,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(18),
             topRight: const Radius.circular(18),
             bottomLeft: Radius.circular(isUser ? 18 : 4),
             bottomRight: Radius.circular(isUser ? 4 : 18),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          boxShadow: AppColors.shadowCard,
         ),
         child: Text(
           msg.text,
           style: TextStyle(
-            color: isUser ? Colors.white : Colors.black87,
+            color: isUser ? Colors.white : AppColors.textPrimary,
             fontSize: 14,
             height: 1.4,
           ),

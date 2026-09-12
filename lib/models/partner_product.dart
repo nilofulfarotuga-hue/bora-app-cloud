@@ -15,6 +15,8 @@ class PartnerProduct {
     this.isOnSale = false,
     this.discountPrice,
     this.source = ProductSource.api,
+    this.hasRequiredOptions = false,
+    this.allergens = const [],
   });
 
   final String id;
@@ -31,6 +33,17 @@ class PartnerProduct {
   final double? discountPrice;
   final ProductSource source;
 
+  /// True when this product has at least one required option group
+  /// (is_required + min_choices >= 1). Drives the listing "+" button:
+  /// if true, "+" opens the detail screen (to choose options) instead of
+  /// adding directly. Populated by RestaurantStore from product_option_groups.
+  final bool hasRequiredOptions;
+
+  /// B6 (2026-06-12): slugs dos 14 alergénios UE 1169/2011 declarados pelo
+  /// parceiro (ver kAllergenLabels). Vazio = não preenchido → o detalhe do
+  /// produto mostra o disclaimer "consulte o estabelecimento".
+  final List<String> allergens;
+
   PartnerProduct copyWith({
     String? name,
     String? description,
@@ -43,6 +56,8 @@ class PartnerProduct {
     bool? isOnSale,
     double? discountPrice,
     ProductSource? source,
+    bool? hasRequiredOptions,
+    List<String>? allergens,
   }) {
     return PartnerProduct(
       id: id,
@@ -58,6 +73,8 @@ class PartnerProduct {
       isOnSale: isOnSale ?? this.isOnSale,
       discountPrice: discountPrice ?? this.discountPrice,
       source: source ?? this.source,
+      hasRequiredOptions: hasRequiredOptions ?? this.hasRequiredOptions,
+      allergens: allergens ?? this.allergens,
     );
   }
 }

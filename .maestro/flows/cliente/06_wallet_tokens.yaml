@@ -1,0 +1,26 @@
+appId: pt.boraapp.bora
+name: Cliente — Carteira + Tokens
+tags:
+  - cliente
+  - wallet
+  - tokens
+---
+- launchApp:
+    clearState: true
+- runFlow: ../../_shared/login_cliente.yaml
+
+# Não há mais nav "Carteira" — Saldo Bora + Tokens são cards inline no Perfil,
+# ambos abrem WalletHistoryScreen (saldo + tokens + histórico combinados).
+- tapOn: "Perfil"
+- extendedWaitUntil:
+    visible: ".*Saldo Bora.*"
+    timeout: 20000
+
+- tapOn:
+    text: ".*Saldo Bora.*"
+    index: 0
+- extendedWaitUntil:
+    visible: ".*€.*"
+    timeout: 15000
+- assertVisible:
+    text: ".*[Tt]oken.*"

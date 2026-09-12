@@ -1,0 +1,2 @@
+# Destino dos pending.trigger já consumidos pelo browser-operador (anti-spam camada 2).
+# O operador move pending.trigger -> consumidos/consumido-<ISO>.trigger após enviar no claude.ai.

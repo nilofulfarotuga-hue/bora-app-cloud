@@ -1,0 +1,29 @@
+# .graphifyignore — foco do grafo: CÓDIGO (Dart/SQL/Edge Functions) + docs
+# estruturais. Regra do Danilo: NÃO ingerir imagens/assets sazonais nem media
+# pesada, nem o vault pessoal. Semântica gitignore (last-match-wins).
+
+# Vault Obsidian pessoal (150 notas de negócio — não é código)
+.obsidian-vault/
+
+# Ruído do Cérebro/relatórios/backups descartáveis
+.claude/.ai/backups/
+.claude/.ai/reports/
+.claude/.ai/knowledge/sessao/
+
+# Assets / media (imagens já não geram nós, mas explícito é melhor)
+assets/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.svg
+*.mp4
+*.mov
+*.ttf
+*.otf
+
+# JS minificado / bundles de crawler (símbolos de 1 letra = ruído, não é fonte)
+*.min.js
+*bundle*.js
+static-*.js

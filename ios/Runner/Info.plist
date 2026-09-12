@@ -70,5 +70,47 @@
 	<string>A Bora usa a câmara para tirares foto de perfil, de encomendas (Enviar Encomenda) e de compras (Levar Compras).</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>A Bora usa a galeria para escolheres foto de perfil, de encomendas ou de compras.</string>
+	<!-- T3.1: Location permissions for driver real-time tracking. -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>A Bora usa a tua localização para mostrar pedidos próximos e calcular trajectos de entrega.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Para entregas activas, a Bora precisa actualizar a tua posição em segundo plano para o cliente e o painel ops verem o teu progresso em tempo real. Pode parar a qualquer momento.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Para entregas activas, a Bora precisa actualizar a tua posição em segundo plano para o cliente e o painel ops verem o teu progresso em tempo real.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>fetch</string>
+		<string>remote-notification</string>
+		<string>processing</string>
+	</array>
+	<!-- Sessão 2026-05-17 (foreground service) — BGTaskScheduler IDs do
+	     flutter_foreground_task para iOS. iOS não tem foreground service real;
+	     o background fetch + remote-notification (alta prioridade FCM) faz o
+	     equivalente. Driver/parceiro recebem pedidos via APNs priority 10. -->
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.pravera.flutter_foreground_task</string>
+	</array>
+	<!-- Sessão 7-UI-BUG004: tel: launcher para botão "Ligar agora" do
+	     bottom sheet de cancelamento bloqueado pós-pickedUp. -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>tel</string>
+	</array>
+	<!-- Recuperação de palavra-passe (2026-07-14) — deep link de volta ao app
+	     depois do clique no email de reset do Supabase Auth. Tem de bater
+	     certo com o redirectTo em auth_store.dart. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>pt.boraapp.bora.reset-password</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>pt.boraapp.bora</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

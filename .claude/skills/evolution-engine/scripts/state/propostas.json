@@ -1,0 +1,177 @@
+{
+  "propostas": {
+    "padrao:tokens": {
+      "estado": "rejeitada",
+      "primeira_vez": "2026-07-10",
+      "avaliada_em": "2026-07-16",
+      "nota": "Zona dinheiro (bora_tokens = Lista Vermelha). Diagnostico ja coberto por driver-earnings-validator + audit-ledger-entries. Nova skill nao justificada."
+    },
+    "padrao:autocomplete": {
+      "estado": "rejeitada",
+      "primeira_vez": "2026-07-10",
+      "avaliada_em": "2026-07-16",
+      "nota": "Bug historico pontual (Guarda/APK stale, ver memoria project_autocomplete_guarda_stale_apk) ja resolvido no codigo. Nao e capacidade repetivel."
+    },
+    "padrao:continente": {
+      "estado": "rejeitada",
+      "primeira_vez": "2026-07-10",
+      "avaliada_em": "2026-07-16",
+      "nota": "Duplicado: ja coberto por weekly-market-prices (precos Continente) + market-data-sync/category-mapper-v2/taxonomy-mapper (catalogo)."
+    },
+    "padrao:bugs": {
+      "estado": "rejeitada",
+      "primeira_vez": "2026-07-10",
+      "avaliada_em": "2026-07-16",
+      "nota": "Termo generico demais (reports de bugs variados sem padrao comum); sem capacidade especifica a extrair."
+    },
+    "padrao:campaign": {
+      "estado": "rejeitada",
+      "primeira_vez": "2026-07-10",
+      "avaliada_em": "2026-07-16",
+      "nota": "Duplicado: ja coberto por diretor-criativo + social-publisher + marketing-loop, criados na mesma missao 2026-07-10."
+    },
+    "padrao:plan": {
+      "estado": "rejeitada",
+      "primeira_vez": "2026-07-10",
+      "avaliada_em": "2026-07-16",
+      "nota": "Generico demais (planeamento de missao/relatorio); nao e capacidade operacional distinta."
+    },
+    "padrao:redlist": {
+      "estado": "rejeitada",
+      "primeira_vez": "2026-07-10",
+      "avaliada_em": "2026-07-16",
+      "nota": "Ja coberto pelo proprio gate Lista Vermelha + memoria project_zona_vermelha_gate_pressure_pattern (padrao de pressao adversaria, nao lacuna de skill). Criar skill aqui aumentaria superficie em zona sensivel sem beneficio."
+    },
+    "padrao:bug1": {
+      "estado": "rejeitada",
+      "primeira_vez": "2026-07-10",
+      "avaliada_em": "2026-07-16",
+      "nota": "Bug historico fechado (BUG #1, ver memoria project_bug1_closed). Nao recorrente."
+    },
+    "padrao:investigation": {
+      "estado": "rejeitada",
+      "primeira_vez": "2026-07-10",
+      "avaliada_em": "2026-07-16",
+      "nota": "Generico demais, sem alvo de automacao claro."
+    },
+    "padrao:reservas": {
+      "estado": "rejeitada",
+      "primeira_vez": "2026-07-10",
+      "avaliada_em": "2026-07-16",
+      "nota": "Duplicado: ja coberto por reservation-ops."
+    },
+    "padrao:paragem": {
+      "estado": "rejeitada",
+      "primeira_vez": "2026-07-10",
+      "avaliada_em": "2026-07-16",
+      "nota": "Feature TVDE ja implementada e fechada (TVDE-CAMPO-02, ver memoria project_tvde_campo02_done). Nao e lacuna de skill."
+    },
+    "padrao:verde": {
+      "estado": "rejeitada",
+      "primeira_vez": "2026-07-10",
+      "avaliada_em": "2026-07-16",
+      "nota": "Artefacto da propria nomenclatura do sistema (zona verde/relatorios), nao e capacidade."
+    },
+    "padrao:updater": {
+      "estado": "rejeitada",
+      "primeira_vez": "2026-07-10",
+      "avaliada_em": "2026-07-16",
+      "nota": "Duplicado: ja coberto por 3 skills update-* existentes (update-bora-knowledge, update-design-token, update-platform-setting)."
+    },
+    "padrao:bug4": {
+      "estado": "rejeitada",
+      "primeira_vez": "2026-07-10",
+      "avaliada_em": "2026-07-16",
+      "nota": "Bug historico fechado (#4 sacos bag_count, ver memoria project_prompt3_5bugs_done). Nao recorrente."
+    },
+    "padrao:cliente": {
+      "estado": "rejeitada",
+      "primeira_vez": "2026-07-10",
+      "avaliada_em": "2026-07-16",
+      "nota": "Coberto pelo dominio do agente `cliente`. Termo generico demais para skill dedicada."
+    },
+    "padrao:autonomous": {
+      "estado": "rejeitada",
+      "primeira_vez": "2026-07-10",
+      "avaliada_em": "2026-07-16",
+      "nota": "Coberto pela infraestrutura Central/maestro-autonomia (Fase 5). Nao e skill isolada."
+    },
+    "padrao:tudo": {
+      "estado": "rejeitada",
+      "primeira_vez": "2026-07-10",
+      "avaliada_em": "2026-07-16",
+      "nota": "Artefacto de nomenclatura generica de relatorio ('tudo'), nao e capacidade."
+    },
+    "padrao:phase1": {
+      "estado": "rejeitada",
+      "primeira_vez": "2026-07-10",
+      "avaliada_em": "2026-07-16",
+      "nota": "Artefacto de nomenclatura de missao (fases 0/1 de execucao), nao e capacidade."
+    },
+    "padrao:exec": {
+      "estado": "rejeitada",
+      "primeira_vez": "2026-07-10",
+      "avaliada_em": "2026-07-16",
+      "nota": "Generico demais ('execucao'), sobreposto a varios relatorios de missao sem padrao comum."
+    },
+    "padrao:finalize": {
+      "estado": "rejeitada",
+      "primeira_vez": "2026-07-10",
+      "avaliada_em": "2026-07-16",
+      "nota": "Relacionado a finalizePurchase — zona vermelha (checkout que cobra). Fora do mandato de auto-aplicar; sem proposta concreta de skill nao-financeira a extrair."
+    },
+    "padrao:glovo": {
+      "estado": "rejeitada",
+      "primeira_vez": "2026-07-10",
+      "avaliada_em": "2026-07-16",
+      "nota": "Duplicado: ja coberto por market-data-sync (import Glovo explicito)."
+    },
+    "padrao:3of5": {
+      "estado": "rejeitada",
+      "primeira_vez": "2026-07-10",
+      "avaliada_em": "2026-07-16",
+      "nota": "Artefacto de nomenclatura de progresso de missao (X de 5 passos), nao e capacidade."
+    },
+    "padrao:4of5": {
+      "estado": "rejeitada",
+      "primeira_vez": "2026-07-10",
+      "avaliada_em": "2026-07-16",
+      "nota": "Artefacto de nomenclatura de progresso de missao (X de 5 passos), nao e capacidade."
+    },
+    "padrao:validacao": {
+      "estado": "rejeitada",
+      "primeira_vez": "2026-07-10",
+      "avaliada_em": "2026-07-16",
+      "nota": "Generico demais, sobreposto a skills-doctor/audit-*/prompt-blindado-validator ja existentes."
+    },
+    "padrao:phase0": {
+      "estado": "rejeitada",
+      "primeira_vez": "2026-07-10",
+      "avaliada_em": "2026-07-16",
+      "nota": "Artefacto de nomenclatura de missao (fase 0 de execucao), nao e capacidade."
+    },
+    "padrao:pvpr": {
+      "estado": "rejeitada",
+      "primeira_vez": "2026-07-10",
+      "avaliada_em": "2026-07-16",
+      "nota": "Acronimo sem contexto suficiente nos reports para justificar uma skill. Reavaliar se reaparecer com evidencia mais clara."
+    },
+    "reescrita:diretor-criativo": {
+      "estado": "aprovada",
+      "primeira_vez": "2026-07-10",
+      "nota": "v2 restricoes pre-geracao; Juiz anti-trapaca CLEAN; aplicada 2026-07-10"
+    },
+    "padrao:aprovador": {
+      "estado": "rejeitada",
+      "primeira_vez": "2026-07-18",
+      "avaliada_em": "2026-07-19",
+      "nota": "Falso-positivo: o motor so varre .claude/skills/, mas a capacidade ja existe como AGENTE (aprovador-vermelho, .claude/agents/aprovador-vermelho.md). Os 8 reports que geraram o token sao os proprios relatorios de operacao desse agente. Nao e lacuna de skill (mesmo padrao de padrao:autonomous)."
+    },
+    "padrao:vermelho": {
+      "estado": "rejeitada",
+      "primeira_vez": "2026-07-18",
+      "avaliada_em": "2026-07-19",
+      "nota": "Mesma causa de padrao:aprovador: coberto pelo agente aprovador-vermelho ja existente; sem lacuna de skill a preencher."
+    }
+  }
+}

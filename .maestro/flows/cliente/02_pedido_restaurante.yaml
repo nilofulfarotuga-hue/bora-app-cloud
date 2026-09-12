@@ -1,0 +1,54 @@
+appId: pt.boraapp.bora
+name: Cliente — Pedido restaurante (golden path)
+tags:
+  - cliente
+  - pedidos
+  - restaurante
+---
+- launchApp:
+    clearState: true
+- runFlow: ../../_shared/login_cliente.yaml
+
+# Tile do serviço Restaurantes. Catálogo real (não-seed): Burger King, KFC,
+# McDonald's, Sabores de Casa Açaí, pizza danilo — a lista muda com o tempo,
+# por isso o selector cobre os nomes reais em vez de um único fixo.
+# Nota (2026-07-07): Maestro faz FULL MATCH do texto visível/tocado — cartões
+# de lista mesclam nome+estado+ETA+distância num só nó de acessibilidade, por
+# isso o regex tem de ser envolto em .* dos dois lados (senão nunca bate certo
+# mesmo com o texto claramente visível no ecrã).
+- tapOn: "Restaurantes"
+- extendedWaitUntil:
+    visible:
+      text: ".*(Burger King|KFC|McDonald|Pizza Hut|Sabores de Casa|pizza danilo).*"
+    timeout: 20000
+# Selecciona o primeiro restaurante ABERTO visível (lista ordena abertos primeiro).
+- tapOn:
+    text: ".*(Burger King|KFC|McDonald|Pizza Hut|Sabores de Casa|pizza danilo).*"
+    index: 0
+- waitForAnimationToEnd
+
+# Adicionar primeiro produto disponível.
+- tapOn:
+    text: "Adicionar"
+    index: 0
+- waitForAnimationToEnd
+
+# Ir para o carrinho.
+- tapOn: "Carrinho"
+- extendedWaitUntil:
+    visible: "Finalizar"
+    timeout: 15000
+- tapOn: "Finalizar"
+
+# Checkout — escolher Cash (sem cartão real para teste E2E).
+- runFlow:
+    when:
+      visible: "Dinheiro"
+    commands:
+      - tapOn: "Dinheiro"
+- tapOn:
+    text: "Pagar|Confirmar pedido"
+- extendedWaitUntil:
+    visible:
+      text: "preparando|criado|a preparar"
+    timeout: 30000

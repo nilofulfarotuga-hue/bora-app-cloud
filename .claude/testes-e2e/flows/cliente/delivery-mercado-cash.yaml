@@ -1,0 +1,210 @@
+# [2-DEVICES lado cliente] Pedido de mercado NÃO-parceiro, pagamento DINHEIRO (máx €40).
+# PROVA-MESTRE: abre a loja -> ROLA (vertical DOWN/UP + carrossel horizontal LEFT) ->
+# encontra um produto real -> adiciona ao carrinho -> vai ao carrinho -> finaliza em
+# dinheiro -> confirma. OBJETIVO: criar 1 pedido REAL na tabela `orders` (prova de sucesso).
+#
+# PORQUÊ ESTE DESENHO (verificado no código 2026-07-11):
+#   MarketStoreTab = CustomScrollView vertical. Ordem dos slivers:
+#     hero → identidade → stats → SEARCH BAR → GRELHA "Comprar por categoria"
+#     (até ~38 categorias, 4 col = MUITO alta) → carrosséis HORIZONTAIS de produtos (LAZY).
+#   O bug observado pelo Danilo (loja abre mas nunca se chega a um produto → 0 pedidos)
+#   vinha de tentar `scrollUntilVisible` até ao PREÇO de um card de carrossel: os
+#   carrosséis ficam MUITO abaixo da grelha alta e são lazy, logo o scroll estourava o
+#   timeout e o fluxo abortava ANTES de escolher qualquer produto.
+#   FIX determinístico: escolher o produto pela PESQUISA da loja (StoreProductsScreen),
+#   que resolve sempre ("agua" existe em qualquer supermercado) e não depende de rolar
+#   uma grelha gigante. O scroll continua DEMONSTRADO (DOWN na grelha, UP para recuperar
+#   a barra de pesquisa, LEFT nos chips de categoria = carrossel horizontal).
+#
+# ADDRESS GUARD (verificado 2026-07-11): o pagamento CASH tem pre-flight que EXIGE
+#   endereço de entrega (payment_method_screen.dart) — sem morada, o cash é bloqueado e
+#   NENHUM pedido é criado. A conta de teste ganhou um endereço default "Casa · Guarda"
+#   em client_addresses; a home do cliente (_detectLocation) preenche o dropoff sozinha.
+# Diário: cada milestone escreve em e2e_log (ver ../comum/diario.yaml) p/ o Claude.ai ver ao vivo.
+appId: pt.boraapp.bora
+---
+- runFlow: login.yaml
+
+# ── Início → Supermercados ──────────────────────────────────────────────
+- runFlow:
+    when:
+      visible: "Início"
+    commands:
+      - tapOn: "Início"
+- tapOn:
+    id: "tile_supermercados"
+- runFlow:
+    file: ../comum/diario.yaml
+    env: { DIARIO_FLUXO: "delivery-mercado-cash", DIARIO_PASSO: "abriu Supermercados", DIARIO_ESTADO: "passou" }
+
+# ── Escolher a loja (Continente) ─────────────────────────────────────────
+- extendedWaitUntil:
+    visible: "Continente.*"
+    timeout: 90000
+- tapOn: "Continente.*"
+- runFlow:
+    file: ../comum/diario.yaml
+    env: { DIARIO_FLUXO: "delivery-mercado-cash", DIARIO_PASSO: "abriu loja Continente", DIARIO_ESTADO: "passou" }
+
+# ── Confirmar que ABRIMOS a loja: o título da AppBar ("Continente") é SEMPRE
+#    visível (SliverAppBar pinned). A barra de pesquisa fica logo abaixo. ─
+- extendedWaitUntil:
+    visible: "Continente"
+    timeout: 90000
+
+# ── SCROLL VERTICAL DOWN (demonstração + espera de dados): rolar até a grelha
+#    "Comprar por categoria", que só existe quando os produtos vieram do backend.
+#    scrollUntilVisible é idempotente — para assim que o alvo aparece. ──────
+- scrollUntilVisible:
+    element:
+      text: "Comprar por categoria"
+    direction: DOWN
+    timeout: 90000
+    visibilityPercentage: 40
+- runFlow:
+    file: ../comum/diario.yaml
+    env: { DIARIO_FLUXO: "delivery-mercado-cash", DIARIO_PASSO: "rolou DOWN — loja carregou (grelha de categorias visível)", DIARIO_ESTADO: "passou" }
+
+# ── SCROLL VERTICAL UP: recuperar a barra de pesquisa (ficou acima da grelha).
+#    Demonstra scroll nos dois sentidos e devolve-nos ao ponto de entrada seguro. ─
+- scrollUntilVisible:
+    element:
+      text: "Procurar em.*"
+    direction: UP
+    timeout: 45000
+    visibilityPercentage: 60
+- runFlow:
+    file: ../comum/diario.yaml
+    env: { DIARIO_FLUXO: "delivery-mercado-cash", DIARIO_PASSO: "rolou UP — barra de pesquisa visível", DIARIO_ESTADO: "passou" }
+
+# ── Abrir a lista de produtos da loja (StoreProductsScreen) ──────────────
+#    A "barra" do detalhe ("Procurar em X...") NÃO é um campo de texto: é um
+#    GestureDetector que NAVEGA para a StoreProductsScreen (market_store_tab.dart
+#    :528-538) — sem teclado, sem pesquisa. Tocá-la = abrir a grelha de produtos.
+#    Já rolámos UP acima, logo está pinada e visível.
+- tapOn: "Procurar em.*"
+- runFlow:
+    file: ../comum/diario.yaml
+    env: { DIARIO_FLUXO: "delivery-mercado-cash", DIARIO_PASSO: "abriu lista de produtos da loja", DIARIO_ESTADO: "passou" }
+
+# ── (demonstrativo, NÃO-FATAL) rolar o carrossel de chips de categoria do topo
+#    da StoreProductsScreen — swipe LEFT revela mais categorias. optional: nunca
+#    trava (regra de ouro: se não der, segue para escolher o produto). ────────
+- swipe:
+    direction: LEFT
+    duration: 400
+    optional: true
+- runFlow:
+    file: ../comum/diario.yaml
+    env: { DIARIO_FLUXO: "delivery-mercado-cash", DIARIO_PASSO: "abriu categoria (chips no topo da lista de produtos)", DIARIO_ESTADO: "passou" }
+
+# ── DEPOIS DA CATEGORIA → DIRETO AO PRODUTO (SEM barra de busca). A grelha
+#    de browse da StoreProductsScreen já mostra cards com PREÇO (€X.XX, ponto:
+#    store_products_screen.dart:1184 usa toStringAsFixed(2)). A loja carrega em
+#    background (loadFullStoreProducts) → rolar DOWN até surgir o 1.º preço.
+#    FIX 16:09→2026-07-11: removido o assert-duro "Buscar produtos" que abortava
+#    o fluxo ANTES de escolher (nunca dependemos do campo de pesquisa). Evidência
+#    em screenshot antes do scroll. ───────────────────────────────────────────
+- takeScreenshot: evidencia-grelha-loja
+- scrollUntilVisible:
+    element:
+      text: "€[0-9]+[.][0-9][0-9]"
+    direction: DOWN
+    timeout: 90000
+    visibilityPercentage: 40
+- runFlow:
+    file: ../comum/diario.yaml
+    env: { DIARIO_FLUXO: "delivery-mercado-cash", DIARIO_PASSO: "viu produtos com preço na lista da loja", DIARIO_ESTADO: "passou" }
+
+# ── ADICIONAR AO CARRINHO — REGRA DE OURO: nunca travar. Estratégias em ordem
+#    (dica do Danilo, ao vivo 2026-07-11: o botão de adicionar é um "+" PEQUENO no
+#    canto inferior direito do card, ícone sem texto — o Maestro não o achava).
+#    Cada tentativa é NÃO-FATAL (optional/when) + screenshot; seguimos para a
+#    próxima até o carrinho encher. PROVA de sucesso = o botão fixo "Ver carrinho
+#    · €X" aparecer (só existe com ≥1 item).
+#
+#    (a) tocar o "+" por id — Semantics(identifier:'btn_add_carrinho') no card da
+#        grelha (store_products_screen.dart _QtyButton) — adiciona SEM abrir detalhe.
+- takeScreenshot: antes-de-adicionar-carrinho
+- tapOn:
+    id: "btn_add_carrinho"
+    optional: true
+- runFlow:
+    file: ../comum/diario.yaml
+    env: { DIARIO_FLUXO: "delivery-mercado-cash", DIARIO_PASSO: "tentou adicionar pelo '+' (id btn_add_carrinho)", DIARIO_ESTADO: "passou" }
+# dar tempo ao contador/carrinho de renderizar antes de decidir o fallback
+- extendedWaitUntil:
+    visible: "Ver carrinho.*"
+    timeout: 12000
+    optional: true
+
+#    (b) FALLBACK — se o "+" por id não encheu o carrinho ("Ver carrinho" ainda
+#        não apareceu): abrir o detalhe tocando no PREÇO (card = GestureDetector →
+#        ProductDetailScreen) e usar o botão de TEXTO "Adicionar ao carrinho"
+#        (caminho antigo, comprovado). Screenshots para o Claude.ai ver o ecrã.
+- runFlow:
+    when:
+      notVisible: "Ver carrinho.*"
+    commands:
+      - takeScreenshot: fallback-abrir-detalhe-produto
+      - tapOn:
+          text: "€[0-9]+[.][0-9][0-9]"
+          index: 0
+          optional: true
+      - extendedWaitUntil:
+          visible: "Adicionar ao carrinho.*"
+          timeout: 45000
+          optional: true
+      - tapOn:
+          text: "Adicionar ao carrinho.*"
+          optional: true
+      - runFlow:
+          file: ../comum/diario.yaml
+          env: { DIARIO_FLUXO: "delivery-mercado-cash", DIARIO_PASSO: "adicionou pelo detalhe (fallback texto)", DIARIO_ESTADO: "passou" }
+      # voltar do detalhe → StoreProductsScreen mostra o botão fixo "Ver carrinho · €X"
+      - back:
+          optional: true
+
+# ── PROVA de que o carrinho ENCHEU + screenshot do estado (regra de ouro: o
+#    Claude.ai vê o ecrã aconteça o que acontecer). Se "Ver carrinho" não surgir,
+#    é aqui que a falha fica marcada no vídeo (com foto ao lado). ───────────────
+- takeScreenshot: estado-apos-adicionar
+- extendedWaitUntil:
+    visible: "Ver carrinho.*"
+    timeout: 45000
+- tapOn: "Ver carrinho.*"
+
+# ── Carrinho → Finalizar pedido (botão pinado no fundo) ─────────────────
+- scrollUntilVisible:
+    element:
+      text: "Finalizar pedido"
+    direction: DOWN
+    timeout: 45000
+    visibilityPercentage: 80
+- tapOn: "Finalizar pedido"
+- runFlow:
+    file: ../comum/diario.yaml
+    env: { DIARIO_FLUXO: "delivery-mercado-cash", DIARIO_PASSO: "abriu carrinho e finalizou", DIARIO_ESTADO: "passou" }
+
+# ── Pagamento: escolher Dinheiro e confirmar ────────────────────────────
+- extendedWaitUntil:
+    visible: "Dinheiro"
+    timeout: 90000
+- tapOn: "Dinheiro"
+- scrollUntilVisible:
+    element:
+      text: "Confirmar pagamento"
+    direction: DOWN
+    timeout: 45000
+    visibilityPercentage: 80
+- tapOn: "Confirmar pagamento"
+
+# ── Resultado esperado: pedido criado. Em CASH o carrinho faz popUntil→first
+#    e empurra o OrdersScreen ("Os meus pedidos"); pode surgir um SnackBar de
+#    sucesso. Aceitamos qualquer sinal; a PROVA REAL é a linha em `orders`. ──
+- extendedWaitUntil:
+    visible: "Pedido criado.*|Os meus pedidos.*|A preparar.*|Aguardando confirmação.*|Início"
+    timeout: 180000
+- runFlow:
+    file: ../comum/diario.yaml
+    env: { DIARIO_FLUXO: "delivery-mercado-cash", DIARIO_PASSO: "PEDIDO CRIADO (confirmou pagamento em dinheiro)", DIARIO_ESTADO: "passou" }

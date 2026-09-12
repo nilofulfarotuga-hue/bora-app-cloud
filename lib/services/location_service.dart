@@ -54,8 +54,12 @@ class LocationService {
     }
 
     try {
+      // [4F · 05/09] Forma nova do geolocator 14 — `desiredAccuracy` ficou
+      // deprecado na subida de pacote desta missão. Mesma precisão.
       final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
       ).timeout(const Duration(seconds: 15));
       return LatLng(position.latitude, position.longitude);
     } catch (e) {

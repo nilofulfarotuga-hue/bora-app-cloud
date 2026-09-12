@@ -11,8 +11,11 @@ class SessionStore extends ChangeNotifier {
   static const _homeLatKey = 'bora_app.home_lat';
   static const _homeLngKey = 'bora_app.home_lng';
 
+  static const _driverDraftNameKey = 'bora_app.signup_draft.driver.name';
+
   UserRole? _role;
   bool _isInitialized = false;
+  bool _hasDriverSignupDraft = false;
 
   String? _homeStreet;
   String? _homeCity;
@@ -21,6 +24,7 @@ class SessionStore extends ChangeNotifier {
 
   UserRole? get role => _role;
   bool get isInitialized => _isInitialized;
+  bool get hasDriverSignupDraft => _hasDriverSignupDraft;
 
   String? get homeStreet => _homeStreet;
   String? get homeCity => _homeCity;
@@ -36,6 +40,8 @@ class SessionStore extends ChangeNotifier {
     _homeCity = prefs.getString(_homeCityKey);
     _homeLat = prefs.getDouble(_homeLatKey);
     _homeLng = prefs.getDouble(_homeLngKey);
+    _hasDriverSignupDraft =
+        (prefs.getString(_driverDraftNameKey) ?? '').isNotEmpty;
     _isInitialized = true;
     notifyListeners();
   }
@@ -72,6 +78,11 @@ class SessionStore extends ChangeNotifier {
     _homeCity = null;
     _homeLat = null;
     _homeLng = null;
+    notifyListeners();
+  }
+
+  void clearDriverSignupDraft() {
+    _hasDriverSignupDraft = false;
     notifyListeners();
   }
 

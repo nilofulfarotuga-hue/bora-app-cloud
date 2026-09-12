@@ -1,0 +1,77 @@
+appId: pt.boraapp.bora
+name: Estafeta — Criar conta (candidatura)
+tags:
+  - estafeta
+  - auth
+  - signup
+---
+# Cria uma conta de estafeta de teste via driver_signup_screen.dart (documentos
+# são "Todos opcionais" — não precisa de câmara/galeria). Fica approval_status
+# = pending; precisa de aprovação manual/SQL depois para poder fazer login.
+- launchApp:
+    clearState: true
+
+- runFlow:
+    when:
+      visible: "Privacidade e Cookies"
+    commands:
+      - tapOn: "Aceitar tudo"
+      - extendedWaitUntil:
+          notVisible: "Privacidade e Cookies"
+          timeout: 5000
+
+- tapOn: "Sou Estafeta"
+- extendedWaitUntil:
+    visible: "Criar conta"
+    timeout: 10000
+- tapOn: "Criar conta"
+- extendedWaitUntil:
+    visible: "Candidatura de Estafeta"
+    timeout: 10000
+
+# STEP 1 — Dados Pessoais (nunca bloqueia; nome só por realismo).
+- tapOn: "Nome completo"
+- inputText: "TESTE E2E Estafeta"
+- tapOn: "Continuar"
+
+# STEP 2 — Conta de Acesso.
+- extendedWaitUntil:
+    visible: "Email *"
+    timeout: 10000
+- tapOn: "Email *"
+- inputText: "teste.estafeta.e2e3@bora.app"
+- tapOn: "Palavra-passe *"
+- inputText: "Teste123456"
+- tapOn: "Confirmar palavra-passe *"
+- inputText: "Teste123456"
+# O texto "Aceito os Termos e a Política de Privacidade" é um RichText com
+# hyperlinks embutidos — tocar no texto por regex acerta no link "Termos"
+# (abre bora.app/termos, que nem existe) em vez de marcar a checkbox. Toca
+# nas coordenadas do quadrado da checkbox em vez do texto.
+- hideKeyboard
+- tapOn:
+    point: "21%,54%"
+- tapOn: "Criar Conta"
+- extendedWaitUntil:
+    visible: ".*Conta criada.*"
+    timeout: 20000
+
+# STEP 3 — Documentos & Fotos (todos opcionais, saltar). Botão fica abaixo
+# da selfie/uploads opcionais — precisa de scroll para ficar visível.
+- scrollUntilVisible:
+    element:
+      text: "Continuar"
+    direction: DOWN
+    timeout: 10000
+- tapOn: "Continuar"
+
+# STEP 4 — Veículo & Pagamento.
+- extendedWaitUntil:
+    visible: ".*Veículo & Pagamento.*"
+    timeout: 10000
+- tapOn: ".*Moto.*"
+- tapOn: "Enviar Candidatura"
+- extendedWaitUntil:
+    visible:
+      text: ".*(pendente|análise|aguarda).*"
+    timeout: 20000

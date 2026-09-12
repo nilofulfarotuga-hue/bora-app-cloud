@@ -1,0 +1,10 @@
+[
+  { "log": "boot release", "sleep": 13000 },
+  { "shot": "r01_role_consent" },
+  { "log": "Aceitar tudo", "click": [699, 2081] },
+  { "sleep": 2500 },
+  { "shot": "r02_role_limpo" },
+  { "log": "Sou Cliente", "click": [699, 1675] },
+  { "sleep": 5000 },
+  { "shot": "r03_login" }
+]

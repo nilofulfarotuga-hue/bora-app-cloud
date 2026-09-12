@@ -1,0 +1,11 @@
+# Vocabulário controlado de motivos de rejeição de estafeta.
+# Usado por decide.py: --reason-code <chave> → texto gravado em drivers.rejection_reason.
+# (rejection_reason é TEXT livre; estes códigos são só para consistência.)
+codes:
+  docs_invalidos: "Documentos inválidos ou incompletos."
+  foto_ilegivel: "Foto ilegível (selfie/documento/veículo)."
+  idade_minima: "Não cumpre a idade mínima (18 anos)."
+  ja_existe: "Já existe uma conta de estafeta com estes dados."
+  nif_invalido: "NIF inválido."
+  iban_invalido: "IBAN inválido (formato PT)."
+  outro: "Outro motivo (ver detalhe)."

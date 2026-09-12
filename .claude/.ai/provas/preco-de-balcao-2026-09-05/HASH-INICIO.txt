@@ -1,0 +1,12 @@
+MISSAO preco-de-balcao · 2026-09-05
+Snapshot dos produtos das 3 lojas nao-parceiras ANTES de qualquer recolha.
+
+produtos    : 519
+soma_precos : 3019.87
+hash_inicio : a25d2f4371a9d88280f77ce6b56aaa54
+
+Tabela na base: _snapshot_balcao_20260905
+Formula do hash: md5(string_agg(id||':'||price, '|' ORDER BY id))
+
+REGRA NUMERO UM: products.price NAO muda nesta missao.
+No fim, o hash tem de ser exactamente este.

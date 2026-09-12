@@ -1,0 +1,4 @@
+# ban-or-reactivate-entity — dependências Python (não instalar nesta sessão)
+pyyaml>=6.0
+requests>=2.31
+python-dotenv>=1.0

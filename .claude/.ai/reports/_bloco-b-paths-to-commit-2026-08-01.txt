@@ -1,0 +1,242 @@
+ M .claude/.ai/cortex-mcp/deploy.sh
+ M .claude/.ai/cortex-mcp/server.mjs
+ M .claude/.ai/hermes/heartbeat-browser/state.json
+ D .claude/.ai/hermes/heartbeat-desktop/_test-operador.cmd
+ M .claude/.ai/hermes/orquestrador-carteiro/deploy/_zona_fn_test.sh
+ M .claude/.ai/hermes/orquestrador-carteiro/deploy/carteiro.sh
+ M .claude/.ai/hermes/orquestrador-carteiro/deploy/juiz-mecanico.ps1
+ M .claude/.ai/hermes/orquestrador-carteiro/deploy/run-claude-judge.cmd
+ M .claude/.ai/hermes/orquestrador-carteiro/deploy/run-claude-loop.cmd
+ M .claude/.ai/knowledge/INDEX.md
+ M .claude/.ai/knowledge/inbox/_reports/digest-status.json
+ M .claude/.ai/knowledge/inbox/e2e-resultados-2026-07-12.md
+ M .claude/.ai/knowledge/inbox/loop-teste-noite.md
+ M .claude/.ai/knowledge/permanente/procedural/convencoes.md
+ M .claude/.ai/knowledge/permanente/procedural/estado-atual-consolidado.md
+ M .claude/.ai/knowledge/permanente/procedural/licoes/licao-spam-ordens-autoreferencial.md
+ M .claude/.ai/reports/FECHO-nunca-mais-travar-2026-08-01.md
+ M .claude/.ai/reports/SEGURANCA-edge-functions-sem-verify-jwt-2026-08-01.md
+ M .claude/scripts/hermes-hook-conclusao.sh
+ M .claude/scripts/hermes-sonda-auth.sh
+ M .claude/testes-e2e/flows/registry.json
+ M .claude/testes-e2e/runner.py
+ M CLAUDE.md
+ M relatorio_rejeicao2_20260729.md
+?? .claude/.ai/cortex-mcp/_oauth_state_test.mjs
+?? .claude/.ai/cortex-mcp/_propostas_test.mjs
+?? .claude/.ai/cortex-mcp/instalar-schtask-pc-knowledge-sync.cmd
+?? .claude/.ai/cortex-mcp/pc-knowledge-sync-loop.sh
+?? .claude/.ai/cortex-mcp/pc-knowledge-sync.sh
+?? .claude/.ai/hermes/heartbeat-desktop/_libs/
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260712T074020Z.trigger
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260712T074626Z.trigger
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260712T083638Z.trigger
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260712T084641Z.trigger
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260712T094615Z.trigger
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260712T111613Z.trigger
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260712T174615Z.trigger
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260712T182625Z.trigger
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260712T184614Z.trigger
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260712T190739Z.trigger
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260712T194958Z.trigger
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260712T235157Z.trigger
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260712T235624Z.trigger
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260713T002612Z.trigger
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260713T053615Z.trigger
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260713T221850Z.trigger
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260714T001745Z.trigger
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260714T011718Z.trigger
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260714T021718Z.trigger
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260714T051725Z.trigger
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260714T061716Z.trigger
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260714T091752Z.trigger
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260715T081718Z.trigger
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260715T111719Z.trigger
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260715T121723Z.trigger
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260715T131727Z.trigger
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260715T141720Z.trigger
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260715T161741Z.trigger
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260715T181722Z.trigger
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260715T202126Z.trigger
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260717T032448Z.trigger
+?? .claude/.ai/hermes/heartbeat-desktop/consumidos/consumido-20260717T070405Z.trigger
+?? .claude/.ai/hermes/orquestrador-carteiro/deploy/_diagnostica_juiz_test.ps1
+?? .claude/.ai/hermes/orquestrador-carteiro/deploy/_juiz_mecanico_commit_test.ps1
+?? .claude/.ai/hermes/orquestrador-carteiro/deploy/carteiro.sh.bak_20260716T064529Z
+?? .claude/.ai/hermes/orquestrador-carteiro/deploy/carteiro.sh.bak_20260716T073123Z
+?? .claude/.ai/hermes/orquestrador-carteiro/deploy/carteiro.sh.bak_20260716T220211Z
+?? .claude/.ai/hermes/orquestrador-carteiro/deploy/diagnostica-juiz.ps1
+?? .claude/.ai/hermes/orquestrador-carteiro/deploy/executor-rss-sampler.ps1
+?? .claude/.ai/hermes/orquestrador-carteiro/deploy/juiz-mecanico.ps1.bak-20260716T121112Z
+?? .claude/.ai/hermes/orquestrador-carteiro/deploy/porta-vai.sh
+?? .claude/.ai/hermes/orquestrador-carteiro/deploy/ram-preflight.ps1
+?? .claude/.ai/hermes/orquestrador-carteiro/deploy/run-claude-judge.cmd.bak_20260715T224053
+?? .claude/.ai/hermes/orquestrador-carteiro/deploy/run-claude-loop.cmd.bak_20260716T073123Z
+?? .claude/.ai/hermes/ponte-pc/atualizar-bin-hermes.sh
+?? .claude/.ai/hermes/ponte-pc/hermes-bridge/
+?? .claude/.ai/hermes/ponte-pc/verificar-ponte.ps1
+?? .claude/.ai/knowledge/inbox/_prova-latencia-antes-20260801.md
+?? .claude/.ai/knowledge/inbox/_prova-latencia-depois-20260801.md
+?? .claude/.ai/knowledge/inbox/adb-pos-cabo-2026-07-14.md
+?? .claude/.ai/knowledge/inbox/aprovador-vermelho-2026-07-12-3a-corrida.md
+?? .claude/.ai/knowledge/inbox/aprovador-vermelho-2026-07-12-4a-corrida.md
+?? .claude/.ai/knowledge/inbox/aprovador-vermelho-2026-07-12-5a-corrida.md
+?? .claude/.ai/knowledge/inbox/aprovador-vermelho-2026-07-12-6a-corrida.md
+?? .claude/.ai/knowledge/inbox/aprovador-vermelho-2026-07-13-10a-corrida.md
+?? .claude/.ai/knowledge/inbox/aprovador-vermelho-2026-07-13-11a-corrida.md
+?? .claude/.ai/knowledge/inbox/aprovador-vermelho-2026-07-13-12a-corrida.md
+?? .claude/.ai/knowledge/inbox/aprovador-vermelho-2026-07-13-13a-corrida.md
+?? .claude/.ai/knowledge/inbox/aprovador-vermelho-2026-07-13-14a-corrida.md
+?? .claude/.ai/knowledge/inbox/aprovador-vermelho-2026-07-13-15a-corrida.md
+?? .claude/.ai/knowledge/inbox/aprovador-vermelho-2026-07-13-7a-corrida.md
+?? .claude/.ai/knowledge/inbox/aprovador-vermelho-2026-07-13-8a-corrida.md
+?? .claude/.ai/knowledge/inbox/aprovador-vermelho-2026-07-13-9a-corrida.md
+?? .claude/.ai/knowledge/inbox/auth-recuperar-senha-confirmacao-2026-07-14.md
+?? .claude/.ai/knowledge/inbox/billing-build-2026-07-18.md
+?? .claude/.ai/knowledge/inbox/build-trigger-2026-07-18.md
+?? .claude/.ai/knowledge/inbox/ci-falhou-2026-07-13.md
+?? .claude/.ai/knowledge/inbox/diagnostico-rate-limit-2026-07-13.md
+?? .claude/.ai/knowledge/inbox/disco-2026-07-12.md
+?? .claude/.ai/knowledge/inbox/e2e-parado-2026-07-14.md
+?? .claude/.ai/knowledge/inbox/e2e-render-fix-2026-07-21.md
+?? .claude/.ai/knowledge/inbox/e2e-restaurante-2026-07-13.md
+?? .claude/.ai/knowledge/inbox/e2e-resultados-2026-07-13.md
+?? .claude/.ai/knowledge/inbox/e2e-resultados-2026-07-14.md
+?? .claude/.ai/knowledge/inbox/e2e-web-swarm-2026-07-21.md
+?? .claude/.ai/knowledge/inbox/erro-submissao-cadastro-2026-07-14-v2.md
+?? .claude/.ai/knowledge/inbox/erro-submissao-cadastro-2026-07-14-v3.md
+?? .claude/.ai/knowledge/inbox/erro-submissao-cadastro-2026-07-14-v4.md
+?? .claude/.ai/knowledge/inbox/erro-submissao-cadastro-2026-07-14-v5.md
+?? .claude/.ai/knowledge/inbox/erro-submissao-cadastro-2026-07-14.md
+?? .claude/.ai/knowledge/inbox/espelho-cortex-religado-2026-07-14-v2.md
+?? .claude/.ai/knowledge/inbox/espelho-cortex-religado-2026-07-14.md
+?? .claude/.ai/knowledge/inbox/espelho-observabilidade-2026-07-18.md
+?? .claude/.ai/knowledge/inbox/evolution-report-2026-07-12.md
+?? .claude/.ai/knowledge/inbox/evolution-report-2026-07-13.md
+?? .claude/.ai/knowledge/inbox/f523-verificacao-desbloqueio-2026-07-13.md
+?? .claude/.ai/knowledge/inbox/fila-parada-2026-07-14.md
+?? .claude/.ai/knowledge/inbox/fix-categoria-produto-parceiro-2026-07-17.md
+?? .claude/.ai/knowledge/inbox/fix-distancia-km-2026-07-15.md
+?? .claude/.ai/knowledge/inbox/gate-ram-e-porta-vai-2026-08-01.md
+?? .claude/.ai/knowledge/inbox/git-push-headless-2026-07-14.md
+?? .claude/.ai/knowledge/inbox/hook-conclusao-por-evento-2026-07-12.md
+?? .claude/.ai/knowledge/inbox/hook-simples-2026-07-12.md
+?? .claude/.ai/knowledge/inbox/inventario-vps-2026-07-13.md
+?? .claude/.ai/knowledge/inbox/janela-visibilidade-vps-2026-07-14.md
+?? .claude/.ai/knowledge/inbox/limpeza-matinal-2026-07-15.md
+?? .claude/.ai/knowledge/inbox/login-parceiro-reinicia-wizard-2026-07-14.md
+?? .claude/.ai/knowledge/inbox/pendencia-pc-judge-erro-cmd-2026-07-20.md
+?? .claude/.ai/knowledge/inbox/perfil-parceiro-servicos-galeria-sobre-2026-07-21.md
+?? .claude/.ai/knowledge/inbox/proposta-tvde-bugs-redispatch-2026-07-17.md
+?? .claude/.ai/knowledge/inbox/proposta-tvde-parada-adicional.md
+?? .claude/.ai/knowledge/inbox/prova-c4-ciclo-aprendizado-2026-07-20.md
+?? .claude/.ai/knowledge/inbox/reativacoes-e-ci-2026-07-13.md
+?? .claude/.ai/knowledge/inbox/reengenharia-loop-resiliencia-2026-07-13.md
+?? .claude/.ai/knowledge/inbox/setup-token-tmux-2026-07-14.md
+?? .claude/.ai/knowledge/inbox/setup-token-url-2026-07-14.md
+?? .claude/.ai/knowledge/inbox/teste-vps-cloudflare-2026-07-14.md
+?? .claude/.ai/knowledge/inbox/timeout-3600-confirmado-2026-07-14.md
+?? .claude/.ai/knowledge/inbox/triagem-carteiro-ajuste-2026-07-13.md
+?? .claude/.ai/knowledge/inbox/triagem-deploy-verificacao-2026-07-13.md
+?? .claude/.ai/knowledge/inbox/url-setup-token-2026-07-14.md
+?? .claude/.ai/knowledge/inbox/vigia-e2e-2026-07-14-parado.md
+?? .claude/.ai/knowledge/inbox/vigia-e2e-2026-07-15-repeticao.md
+?? .claude/.ai/knowledge/inbox/vigia-tentativa-zero-2026-07-14-repeticao-2.md
+?? .claude/.ai/knowledge/inbox/vigia-tentativa-zero-2026-07-14-repeticao.md
+?? .claude/.ai/knowledge/inbox/watchdog-age-limpa-2026-07-12.md
+?? .claude/.ai/knowledge/inbox/watchdog-token-vps-2026-07-14.md
+?? .claude/.ai/knowledge/permanente/procedural/aprovador-vermelho-anomalia-backoff-script.md
+?? .claude/.ai/knowledge/permanente/procedural/aprovador-vermelho-historico-corridas-arquivo-2026-07-18-a-19.md
+?? .claude/.ai/knowledge/permanente/procedural/aprovador-vermelho-historico-corridas-arquivo-2026-07-20-a-21.md
+?? .claude/.ai/knowledge/permanente/procedural/aprovador-vermelho-historico-corridas-arquivo-2026-07-ate-16.md
+?? .claude/.ai/knowledge/permanente/procedural/aprovador-vermelho-historico-corridas.md
+?? .claude/.ai/knowledge/permanente/procedural/aprovador-vermelho-triagem.md
+?? .claude/.ai/reports/2026-07-20_mapa-publicacao-e-isolamento-C4.md
+?? .claude/.ai/reports/ROTINA-TELEGRAM-avisos-automaticos-2026-08-01.md
+?? .claude/.ai/reports/ROTINA-TELEGRAM-verificacao-independente-2026-08-01.md
+?? .claude/.ai/reports/_paridade-B.txt
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-12-fallback30min.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-13-12a-corrida.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-13-13a-corrida.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-16-fallback30min.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-18-fallback30min-2.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-18-fallback30min-3.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-18.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-19-corrida-11h32.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-19-corrida-11h52.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-19-fallback30min-10.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-19-fallback30min-2.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-19-fallback30min-3.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-19-fallback30min-4.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-19-fallback30min-5.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-19-fallback30min-6.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-19-fallback30min-7.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-19-fallback30min-8.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-19-fallback30min-9.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-19-fallback30min.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-19-item-novo-2.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-19.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-20-fallback30min-2.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-20-fallback30min-3.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-20-fallback30min-4.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-20-fallback30min-5.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-20-fallback30min-6.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-20-fallback30min-7.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-20-fallback30min-8.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-20-fallback30min-9.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-20-fallback30min.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-21.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-22-fallback30min-2a-corrida.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-22-fallback30min-3a-corrida.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-22-fallback30min.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-22-item-novo.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-22.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-23-fallback30min-2.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-23-fallback30min.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-24-fallback30min-1.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-24-fallback30min-2.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-24-fallback30min-3.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-24-fallback30min-4.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-24-fallback30min.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-27-1707z.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-27-1750z-4a-corrida.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-27-1802z-5a-corrida.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-27-fallback30min-29itens.md
+?? .claude/.ai/reports/aprovador-vermelho-2026-07-27-fallback30min.md
+?? .claude/.ai/reports/relatorio-perfil-parceiro-servicos-2026-07-21.md
+?? .claude/.ai/reports/settings-corrigido-trava-segredos-2026-08-01.txt
+?? .claude/.ai/reports/sistema-redondo-FECHO-2026-08-01.md
+?? .claude/.ai/reports/sistema-redondo-parte1-negacao-2026-08-01.md
+?? .claude/executor-rss.csv
+?? .claude/juiz/prova_processo.py
+?? .claude/scripts/ROTINA-TELEGRAM-SETUP.md
+?? .claude/scripts/hermes-notificar-rotina.sh
+?? .claude/settings.json.bak_preApply_20260708
+?? .claude/settings.json.bak_preGraphify_20260708_194503
+?? .claude/settings.local.json.bak_preGraphify_20260708_194503
+?? .claude/testes-e2e/_adb_usb_stability_monitor.sh
+?? .claude/testes-e2e/_check_e2e_log.py
+?? .claude/testes-e2e/_order_watch_baseline.txt
+?? .claude/testes-e2e/_passo3_login_manual.py
+?? .claude/testes-e2e/_prova_err.txt
+?? .claude/testes-e2e/_run_client_solo.py
+?? .claude/testes-e2e/_run_recomeco.pid
+?? .claude/testes-e2e/_ui.xml
+?? .claude/testes-e2e/flows/cliente/delivery-restaurante-cash.yaml
+?? .claude/testes-e2e/loop-vigia-relanc-20260712-093558.err
+?? .claude/testes-e2e/partner-simulate-accept-ready.py
+?? .claude/testes-e2e/run-todos-live.err
+?? .claude/testes-e2e/run-todos-live.out
+?? .claude/testes-e2e/web-logs/
+?? .claude/testes-e2e/web-tools/
+?? .obsidian-vault/entregas/deploy-ouro-e-prata-2026-07-21.md
+?? assistir-vps.cmd
+?? docs/e2e-web-2026-07-21/
+?? orquestracao/missoes/sistema-redondo-2026-08-01.md
+?? orquestracao_selftest_2.md
+?? orquestracao_selftest_aprovacao.md
+?? relatorio_alpha_nao_chegou_20260730.md
+?? relatorio_envio_revisao_20260730.md
+?? relatorio_testadores_internos_20260730.md
+?? supabase/migrations/20260716220000_tvde_expire_roundtrip_credits_cron.sql
+?? supabase/migrations/20260716230000_reservas_pro_reminders_real_push.sql

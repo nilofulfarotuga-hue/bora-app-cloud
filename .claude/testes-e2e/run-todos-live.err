@@ -1,0 +1,14 @@
+C:\Users\danil\Desktop\projetosflutter\bora_app\.claude\testes-e2e\runner.py:315: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  contexto = {"inicio_iso": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"), "fid": fid}
+Traceback (most recent call last):
+  File "C:\Users\danil\Desktop\projetosflutter\bora_app\.claude\testes-e2e\runner.py", line 495, in <module>
+    main()
+  File "C:\Users\danil\Desktop\projetosflutter\bora_app\.claude\testes-e2e\runner.py", line 474, in main
+    resultados = [corre_fluxo(f, devices, single=single, logout_map=logout_map) for f in fluxos]
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\danil\Desktop\projetosflutter\bora_app\.claude\testes-e2e\runner.py", line 339, in corre_fluxo
+    mp4 = cine.start(serial0, fid)
+          ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\danil\Desktop\projetosflutter\bora_app\.claude\testes-e2e\cinegrafista.py", line 132, in start
+    raise RuntimeError(f"{backend} morreu ao arrancar para {serial} — vê {mp4.with_suffix('.scrcpy.log')}")
+RuntimeError: adb morreu ao arrancar para RZGYB1XQD2P — vê C:\Users\danil\Desktop\projetosflutter\bora_app\.claude\testes-e2e\gravacoes\2026-07-11\RZGYB1XQD2P\login-estafeta-143812.scrcpy.log

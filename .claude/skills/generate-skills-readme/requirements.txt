@@ -1,0 +1,2 @@
+# generate-skills-index-readme — stdlib-only, sem dependências externas.
+# (nada a instalar)

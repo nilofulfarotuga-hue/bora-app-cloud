@@ -34,6 +34,9 @@ Deno.serve(async (req) => {
   const supabaseUrl          = Deno.env.get('SUPABASE_URL')!
   const serviceKey           = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
+  // ── Entry-point log — confirms the function was actually invoked ──────────
+  console.log('[notify-driver] ── INVOKED ── (Firebase configured:', !!firebaseProjectId, ')')
+
   // ── Graceful no-op when Firebase is not configured ────────────────────────
   if (!firebaseProjectId || !firebaseServiceAcct) {
     console.warn('[notify-driver] Firebase env vars not set — skipping push (set FIREBASE_PROJECT_ID + FIREBASE_SERVICE_ACCOUNT)')
@@ -68,9 +71,38 @@ Deno.serve(async (req) => {
     )
   }
 
+  // A pessoa quer receber um pedido de entrega hoje?
+  //
+  // Desde 2026-08-28 as entregas e as corridas sao trabalhos SEPARADOS, cada
+  // um com o seu interruptor na caixa "O que queres aceitar?". Sem esta
+  // pergunta o interruptor era decorativo — ligava e desligava uma coisa que
+  // ninguem consultava. Sem preferencia gravada = sim, comportamento de sempre.
+  {
+    const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+    const { data: quer } = await sb.rpc('aceita_papel', {
+      p_user_id: driverId, p_papel: 'delivery',
+    })
+    if (quer === false) {
+      console.log(`[notify-driver] ${driverId} tem 'delivery' desligado — nao se envia`)
+      // Esta funcao nao tem o ajudante json() das outras; responde a mao.
+      return new Response(
+        JSON.stringify({ ok: false, reason: 'papel_desligado' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+  }
+
+  console.log(`[notify-driver] driverId=${driverId} orderId=${orderId} vendor="${vendorName}" total=${total}`)
+
   const supabase = createClient(supabaseUrl, serviceKey)
 
   // ── Fetch FCM token for the driver ────────────────────────────────────────
+  // Lookup ordem:
+  //   1. drivers.fcm_token (legacy single-device)
+  //   2. driver_push_tokens (5G multi-device) — fallback quando a UPDATE em
+  //      drivers falha silenciosamente por RLS strict em drivers não-aprovados.
+  //      driver_push_tokens.user_id = auth.users.id, e drivers.id == auth.users.id
+  //      desde o signup defensivo (registo estafeta 2026-05-22).
   const { data: driver, error: driverErr } = await supabase
     .from('drivers')
     .select('fcm_token, name')
@@ -85,15 +117,63 @@ Deno.serve(async (req) => {
     )
   }
 
-  if (!driver?.fcm_token) {
-    console.log(`[notify-driver] No FCM token for driver ${driverId} — skipping`)
+  let fcmToken: string | null = driver?.fcm_token ?? null
+  let fallbackTokenId: string | null = null
+
+  if (!fcmToken) {
+    const { data: pushRows, error: pushErr } = await supabase
+      .from('driver_push_tokens')
+      .select('id, fcm_token')
+      .eq('user_id', driverId)
+      .eq('active', true)
+      .order('last_used_at', { ascending: false })
+      .limit(1)
+
+    if (pushErr) {
+      console.warn('[notify-driver] driver_push_tokens lookup error:', JSON.stringify(pushErr))
+    } else if (pushRows && pushRows.length > 0) {
+      fcmToken = pushRows[0].fcm_token as string
+      fallbackTokenId = pushRows[0].id as string
+      console.log(`[notify-driver] Using fallback token from driver_push_tokens for ${driverId}`)
+    }
+  }
+
+  if (!fcmToken) {
+    console.log(`[notify-driver] No FCM token for driver ${driverId} (drivers.fcm_token + driver_push_tokens both empty) — skipping`)
     return new Response(
       JSON.stringify({ ok: false, reason: 'no_fcm_token' }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
   }
 
-  console.log(`[notify-driver] Sending push to driver=${driverId} (${driver.name}) order=${orderId}`)
+  const tokenSource = fallbackTokenId ? 'driver_push_tokens' : 'drivers.fcm_token'
+  console.log(`[notify-driver] Sending push to driver=${driverId} (${driver?.name ?? '?'}) order=${orderId} source=${tokenSource}`)
+
+  // ── Fetch order distance_km + driver_earnings for the offer card ──────────
+  // Sessão 2026-05-20 — sem distância, o estafeta não decide sem abrir o app.
+  // Sessão 2026-05-22 — também buscamos driver_earnings (FLOAT8) porque o
+  // overlay (bridge FCM→FGS→main) precisa mostrar o ganho na decisão rápida
+  // do estafeta. Falback '0.00' se a coluna ainda não foi populada.
+  let distanceKm = '0'
+  let driverEarnings = '0.00'
+  try {
+    const { data: order } = await supabase
+      .from('orders')
+      .select('distance_km, driver_earnings')
+      .eq('id', orderId)
+      .maybeSingle()
+    const km = Number(order?.distance_km ?? 0)
+    if (Number.isFinite(km) && km > 0) {
+      distanceKm = km.toFixed(1)
+    }
+    const earnings = Number(order?.driver_earnings ?? 0)
+    if (Number.isFinite(earnings) && earnings > 0) {
+      driverEarnings = earnings.toFixed(2)
+    }
+  } catch (e) {
+    console.warn('[notify-driver] failed to fetch order metrics:', e)
+    // Mantém fallbacks — não bloqueia o push.
+  }
 
   // ── Obtain Firebase OAuth2 access token ───────────────────────────────────
   let accessToken: string
@@ -111,31 +191,56 @@ Deno.serve(async (req) => {
   // ── Send FCM v1 push notification ─────────────────────────────────────────
   const fcmUrl = `https://fcm.googleapis.com/v1/projects/${firebaseProjectId}/messages:send`
 
+  // Sessão 2026-05-22 — DATA + NOTIFICATION FALLBACK (Android heads-up garantido).
+  // Adicionado bloco `notification` top-level como fallback: quando o Doze
+  // do Android throttle o background handler, o sistema mostra pelo menos
+  // a notificação com som via canal bora_orders_urgent_v3.
+  // O campo `data` continua disponível para o _firebaseMessagingBackgroundHandler
+  // (overlay + som loop + CallKit) quando o handler consegue correr.
+  const headsUpBody = distanceKm !== '0'
+    ? `${vendorName} • €${total.toFixed(2)} • ${distanceKm}km`
+    : `${vendorName} • €${total.toFixed(2)}`
+
   const message = {
     message: {
-      token: driver.fcm_token,
+      token: fcmToken,
       notification: {
-        title: '🔔 Novo pedido!',
-        body: `${vendorName} • €${total.toFixed(2)}`,
+        title: '🛵 Novo pedido!',
+        body: headsUpBody,
       },
       data: {
-        orderId: String(orderId),
-        type: 'new_order_offer',
+        orderId:        String(orderId),
+        type:           'new_order_offer',
+        vendorName:     vendorName,
+        total:          total.toFixed(2),
+        distanceKm:     distanceKm,
+        driverEarnings: driverEarnings,
+        title:          '🔔 Novo pedido!',
+        body:           distanceKm !== '0'
+          ? `${vendorName} • €${total.toFixed(2)} • ${distanceKm}km`
+          : `${vendorName} • €${total.toFixed(2)}`,
       },
       android: {
         priority: 'high',
+        ttl: '60s',
         notification: {
-          channel_id: 'bora_orders',
-          sound: 'bora_alert',
+          channel_id: 'bora_orders_urgent_v3',
+          notification_priority: 'PRIORITY_MAX',
+          default_sound: true,
+          default_vibrate_timings: true,
+          visibility: 'PUBLIC',
         },
       },
       apns: {
-        headers: { 'apns-priority': '10' },
+        headers: {
+          'apns-priority':  '10',
+          'apns-push-type': 'background',
+        },
         payload: {
           aps: {
-            sound: 'bora_alert.wav',
-            badge: 1,
-            'content-available': 1,
+            'content-available':  1,
+            sound:                'bora_alert.wav',
+            'interruption-level': 'time-sensitive',
           },
         },
       },
@@ -156,11 +261,19 @@ Deno.serve(async (req) => {
   if (!fcmRes.ok) {
     console.error(`[notify-driver] FCM error ${fcmRes.status}:`, JSON.stringify(fcmBody))
 
-    // If the token is invalid/stale, clear it from the DB so we don't retry forever.
+    // If the token is invalid/stale, clear it from the right source so we don't retry forever.
     const errorCode = fcmBody?.error?.details?.[0]?.errorCode ?? ''
     if (errorCode === 'UNREGISTERED' || errorCode === 'INVALID_ARGUMENT') {
-      console.log(`[notify-driver] Clearing stale FCM token for driver ${driverId}`)
-      await supabase.from('drivers').update({ fcm_token: null }).eq('id', driverId)
+      if (fallbackTokenId) {
+        console.log(`[notify-driver] Deactivating stale driver_push_tokens row ${fallbackTokenId}`)
+        await supabase
+          .from('driver_push_tokens')
+          .update({ active: false })
+          .eq('id', fallbackTokenId)
+      } else {
+        console.log(`[notify-driver] Clearing stale drivers.fcm_token for driver ${driverId}`)
+        await supabase.from('drivers').update({ fcm_token: null }).eq('id', driverId)
+      }
     }
 
     return new Response(

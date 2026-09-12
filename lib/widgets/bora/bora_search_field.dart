@@ -31,7 +31,7 @@ class BoraSearchField extends StatelessWidget {
       height: 52,
       padding: const EdgeInsets.symmetric(horizontal: Spacing.lg),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface2,
         borderRadius: BorderRadius.circular(Radii.pill),
         border: Border.all(color: AppColors.divider),
       ),
@@ -53,7 +53,7 @@ class BoraSearchField extends StatelessWidget {
               decoration: InputDecoration(
                 hintText: hint,
                 hintStyle: const TextStyle(
-                  color: AppColors.textSecondary,
+                  color: AppColors.textSubtle,
                   fontSize: 15,
                   fontWeight: FontWeight.w400,
                 ),

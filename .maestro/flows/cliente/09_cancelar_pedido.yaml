@@ -1,0 +1,38 @@
+appId: pt.boraapp.bora
+name: Cliente — Cancelar pedido activo
+tags:
+  - cliente
+  - pedidos
+  - cancelar
+---
+- launchApp:
+    clearState: true
+- runFlow: ../../_shared/login_cliente.yaml
+
+# Pre-condição: existe pelo menos um pedido activo. Caso contrário o flow
+# marca-se PENDING_NO_DATA via runFlow when (não falha).
+- tapOn: "Perfil"
+- extendedWaitUntil:
+    visible:
+      text: ".*Pedidos.*"
+    timeout: 20000
+- tapOn:
+    text: ".*Pedidos.*"
+
+- runFlow:
+    when:
+      visible: ".*(preparando|a preparar|driverAccepted).*"
+    commands:
+      - tapOn:
+          text: ".*(preparando|a preparar).*"
+          index: 0
+      - extendedWaitUntil:
+          visible: ".*Cancelar.*"
+          timeout: 10000
+      - tapOn: ".*Cancelar.*"
+      - tapOn:
+          text: ".*Confirmar.*"
+      - extendedWaitUntil:
+          visible:
+            text: ".*(cancelado|rejeitado).*"
+          timeout: 30000

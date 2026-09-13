@@ -103,6 +103,8 @@ class _TvdeChatScreenState extends State<TvdeChatScreen> {
         .messagesForRide(widget.rideId)
         .where((m) => !bloqueado || m.senderRole == widget.myRole)
         .toList();
+    // Codex 12/09: entrega do chat resistente ao atraso do realtime.
+    final syncError = store.syncErrorForRide(widget.rideId);
     // [Item I] com o chat aberto, marca lidas as mensagens recebidas do outro
     // lado (na abertura e as que forem chegando) → o badge zera e mantém-se a 0.
     if (store.unreadFor(widget.rideId, widget.myRole) > 0) {
@@ -130,6 +132,20 @@ class _TvdeChatScreenState extends State<TvdeChatScreen> {
       ),
       body: Column(
         children: [
+          if (syncError != null)
+            Container(
+              width: double.infinity,
+              color: AppColors.warning.withValues(alpha: 0.12),
+              padding: const EdgeInsets.symmetric(
+                horizontal: Spacing.md,
+                vertical: Spacing.xs,
+              ),
+              child: Text(
+                syncError.tr,
+                style: const TextStyle(color: AppColors.textPrimary),
+                textAlign: TextAlign.center,
+              ),
+            ),
           Expanded(
             child: messages.isEmpty
                 ? Center(
@@ -154,9 +170,7 @@ class _TvdeChatScreenState extends State<TvdeChatScreen> {
                               maxWidth:
                                   MediaQuery.of(context).size.width * 0.72),
                           decoration: BoxDecoration(
-                            color: mine
-                                ? AppColors.primary
-                                : AppColors.surface,
+                            color: mine ? AppColors.primary : AppColors.surface,
                             borderRadius: BorderRadius.circular(Radii.md + 2),
                             border: mine
                                 ? null
@@ -199,7 +213,8 @@ class _TvdeChatScreenState extends State<TvdeChatScreen> {
                             horizontal: Spacing.md, vertical: Spacing.sm),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(Radii.lg),
-                          borderSide: const BorderSide(color: AppColors.divider),
+                          borderSide:
+                              const BorderSide(color: AppColors.divider),
                         ),
                       ),
                     ),

@@ -1080,8 +1080,7 @@ class _TimelineTabState extends State<_TimelineTab> {
     if (action == null) return Icons.history;
     if (action.contains(' → ')) return Icons.swap_horiz;
     if (action == 'Falha de lifecycle') return Icons.error_outline;
-    if (action == 'order_cancel' || action == 'order_cancel_complete')
-      return Icons.cancel;
+    if (action == 'order_cancel' || action == 'order_cancel_complete') return Icons.cancel;
     if (action == 'order_cancel_idempotent') return Icons.repeat;
     if (action.startsWith('order_refund')) return Icons.attach_money;
     return Icons.history;
@@ -1104,8 +1103,7 @@ class _TimelineTabState extends State<_TimelineTab> {
         parts.add('notify=$ok/${n.length}');
       }
     }
-    if (d['attempted_reason_code'] != null)
-      parts.add('attempted=${d['attempted_reason_code']}');
+    if (d['attempted_reason_code'] != null) parts.add('attempted=${d['attempted_reason_code']}');
     if (d['actor_uid'] != null) parts.add('ator=${d['actor_uid']}');
     if (d['error_message'] != null) parts.add('erro=${d['error_message']}');
     return parts.join(' · ');

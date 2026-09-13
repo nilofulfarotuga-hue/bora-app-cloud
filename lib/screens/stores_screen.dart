@@ -310,18 +310,17 @@ Future<void> openRetailBusiness(
   RestaurantModel business,
   RetailStore store,
 ) async {
-  // 2026-05-21 — fecho automático fora do horário.
-  // Parceiros com business_hours configurado: bloqueia entrada.
-  // Não-parceiros sem horário: isOpenNow() retorna true (default).
-  if (!business.isOpenNow()) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(business.statusLabel()),
-        duration: const Duration(seconds: 3),
-      ),
-    );
-    return;
-  }
+  // LOJA FECHADA E VISITAVEL (regra do Danilo, 27/08 e 10/09; PADRAO_BORA 1.27).
+  //
+  // Ate 13/09 havia aqui um portao de horario (2026-05-21) que fazia `return`
+  // com um aviso quando `isOpenNow()` era falso — os restaurantes ja entravam
+  // sempre desde 27/08, mas os mercados e as lojas continuavam a bloquear ao
+  // toque. Apanhado pelo autoteste nocturno do CI (run #432, 23:25 UTC: nenhuma
+  // das 5 lojas abria). Agora entra-se sempre: o cliente ve categorias, produtos
+  // e precos; o travao fica onde deve — em `CartStore.lojaFechada` (aviso ao
+  // meter no carrinho, ja configurado abaixo por `vendorFechada`) e no gatilho
+  // `trg_store_closed_guard_orders` do servidor.
+  //
   // BUG #6 (2026-05-13) — se há carrinho activo de OUTRA loja, pedir
   // confirmação antes de descartar.  configureSession() ainda tem o
   // silent-clear como defesa em profundidade.

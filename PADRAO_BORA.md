@@ -444,6 +444,12 @@ nenhum, porque isso não existe.
 > uma loja fechada só dava um aviso e não entrava — o cliente não conseguia sequer ver o
 > que a loja vende. Comentário de código em `lib/screens/restaurants_screen.dart`
 > ("LOJA FECHADA E VISITAVEL"). Registado aqui a 13/09 na auditoria `fable-13-09`.
+> **Cicatriz (13/09, noite):** só os restaurantes cumpriam. Os **mercados e lojas**
+> (`openRetailBusiness`, em `lib/screens/stores_screen.dart`) ainda tinham o portão de
+> horário de 21/05 e faziam `return` com um aviso — apanhado pelo autoteste nocturno do
+> CI (run #432, 23:25 UTC: "nenhuma das 5 lojas abriu"). Portão retirado; o travão fica
+> no carrinho e no servidor. Lição: um teste que corre a horas diferentes das tuas
+> descobre regras que só se cumpriam de dia.
 
 
 ## 2. ONDE CADA COISA VIVE — A REGRA DOS GÉMEOS

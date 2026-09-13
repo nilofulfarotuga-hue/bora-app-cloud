@@ -1238,3 +1238,20 @@ a cada publicação.
 
 Uma corrida nova arrancou com `c2f54047` (coluna `platform`) — ver o resultado
 ao retomar.
+
+---
+
+## 5. PÓS-APROVAÇÃO — o que ficou fixo (2026-09-13, auditoria FABLE)
+
+- **Aprovada pela Apple a 2026-09-12 11:23 UTC**: Apple ID `6809954739`, build **115**,
+  lançamento **automático**. Bundle `pt.boraapp.bora`, territórios PT+BR.
+- **Renovação da conta Apple Developer é MANUAL em 09/2027.** A caixa de renovação
+  automática ficou **desmarcada** de propósito ao pagar. Quem estiver ao leme em
+  Agosto de 2027 tem de pagar à mão, senão a app sai da loja.
+- `ios_hide_nonpartner_logos` voltou a **false** a 13/09 por MCP (os logótipos dos
+  mercados voltam a aparecer no iPhone). O Flutter lê a chave em
+  `lib/config/ios_launch_flags.dart` (`platform_settings.ios_hide_nonpartner_logos`),
+  confirmado a 13/09 — não é preciso build nova para a mudança pegar.
+- A 13/09 à noite a app **ainda não aparecia** na App Store pública nem na
+  `itunes.apple.com/lookup` (id e bundle): ver `.claude/.ai/reports/FABLE-2026-09-13.md`
+  para o estado medido nessa hora e o que a página /baixar faz com isso.

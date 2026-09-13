@@ -102,11 +102,19 @@ jobs:
               adb shell pm grant "$PKG" "$p" || true
             done
             mkdir -p artefactos/capturas
+            # Sem pipe para o tee: um pipe esconde o código de saída do drive e
+            # o portão passaria a verde com o teste vermelho.
+            set +e
             flutter drive \
               --driver=test_driver/capturas_driver.dart \
               --target=integration_test/demo_real_test.dart \
               --use-application-binary="$APK" \
-              -d emulator-5554 2>&1 | tee artefactos/autoteste.log
+              -d emulator-5554 > artefactos/autoteste.log 2>&1
+            rc=$?
+            tail -n 120 artefactos/autoteste.log
+            echo "DRIVE_EXIT=$rc"
+            echo "CAPTURAS=$(ls artefactos/capturas 2>/dev/null | wc -l) FALHAS_SUAVES=$(ls artefactos/capturas 2>/dev/null | grep -c 'falha')"
+            exit $rc
 
       - name: Publicar artefactos do autoteste
         if: always()

@@ -4,10 +4,12 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../services/bloqueio_service.dart';
 import '../../stores/cleaning_chat_store.dart';
 import '../../widgets/bora/bora.dart';
 
 import '../../l10n/tr.dart';
+import '../../widgets/bora_denunciar.dart';
 
 /// Chat bidirecional da LIMPEZA (clone do TvdeChatScreen — padrão E1).
 /// [myRole] = 'client' no lado do cliente, 'cleaner' na profissional.
@@ -92,7 +94,13 @@ class _CleaningChatScreenState extends State<CleaningChatScreen> {
   @override
   Widget build(BuildContext context) {
     final store = context.watch<CleaningChatStore>();
-    final messages = store.messagesForBooking(widget.bookingId);
+    // Directriz 1.2: quem bloqueia deixa de ver as mensagens do outro lado.
+    final refDoOutro = 'limpeza:${widget.bookingId}:${widget.myRole}';
+    final bloqueado = BloqueioService.estaBloqueado(refDoOutro);
+    final messages = store
+        .messagesForBooking(widget.bookingId)
+        .where((m) => !bloqueado || m.senderRole == widget.myRole)
+        .toList();
     // Com o chat aberto, marca lidas as mensagens do outro lado (na abertura
     // e as que forem chegando) → o badge zera e mantém-se a 0.
     if (store.unreadFor(widget.bookingId, widget.myRole) > 0) {
@@ -104,6 +112,12 @@ class _CleaningChatScreenState extends State<CleaningChatScreen> {
       appBar: BoraScreenAppBar(
         title: widget.title,
         actions: [
+          // Directriz 1.2: poder denunciar o que se le nesta conversa.
+          BotaoDenunciar(
+            sobreQuem: widget.title,
+            refDoOutro: refDoOutro,
+            onMudou: () => setState(() {}),
+          ),
           if (widget.otherPhone != null && widget.otherPhone!.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.call),
@@ -156,7 +170,13 @@ class _CleaningChatScreenState extends State<CleaningChatScreen> {
                     },
                   ),
           ),
-          SafeArea(
+          if (bloqueado)
+            BarraBloqueado(
+              refDoOutro: refDoOutro,
+              onMudou: () => setState(() {}),
+            )
+          else
+            SafeArea(
             top: false,
             child: Padding(
               padding: const EdgeInsets.all(Spacing.sm),

@@ -34,6 +34,7 @@ import 'partner_call_driver_screen.dart';
 import 'partner_earnings_screen.dart';
 import 'partner_hours_screen.dart';
 import 'partner_products_screen.dart';
+import 'profile_screen.dart';
 
 class PartnerDashboardScreen extends StatefulWidget {
   const PartnerDashboardScreen({super.key, required this.restaurant});
@@ -781,6 +782,18 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
             onPressed: _handleTestMode,
             tooltip: 'Mudar modo',
             icon: const Icon(Icons.swap_horiz),
+          ),
+          // A conta do parceiro (2026-09-07, missão ios-lancamento).
+          // O parceiro era o único papel sem caminho nenhum para o perfil, e
+          // portanto sem forma de apagar a conta dentro da app — reprovação
+          // certa na App Store (5.1.1(v)) e falha de RGPD. O cliente chega ao
+          // ProfileScreen pelo separador e o estafeta pelo menu; faltava aqui.
+          IconButton(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ProfileScreen()),
+            ),
+            tooltip: 'A minha conta',
+            icon: const Icon(Icons.account_circle_outlined),
           ),
         ],
       ),

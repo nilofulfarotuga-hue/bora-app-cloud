@@ -55,8 +55,7 @@ class _ServicesCategoryScreenState extends State<ServicesCategoryScreen> {
             tooltip: 'As minhas marcações'.tr,
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(
-                  builder: (_) => const MyAppointmentsScreen()),
+              MaterialPageRoute(builder: (_) => const MyAppointmentsScreen()),
             ),
           ),
         ],
@@ -64,12 +63,14 @@ class _ServicesCategoryScreenState extends State<ServicesCategoryScreen> {
       body: SafeArea(
         child: Consumer<ServicesStore>(
           builder: (context, store, _) {
-            debugPrint('[SERVICOS] build providers=${store.providers.length} loading=${store.loadingProviders} err=${store.providersError}');
+            debugPrint(
+                '[SERVICOS] build providers=${store.providers.length} loading=${store.loadingProviders} err=${store.providersError}');
             if (store.loadingProviders && store.providers.isEmpty) {
               return const Center(child: CircularProgressIndicator());
             }
             if (store.providersError != null && store.providers.isEmpty) {
-              return _ErrorState(message: store.providersError!, onRetry: _refresh);
+              return _ErrorState(
+                  message: store.providersError!, onRetry: _refresh);
             }
             return RefreshIndicator(
               onRefresh: _refresh,
@@ -104,7 +105,8 @@ class _ServicesCategoryScreenState extends State<ServicesCategoryScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.content_cut, size: 56, color: AppColors.textSubtle),
+                  const Icon(Icons.content_cut,
+                      size: 56, color: AppColors.textSubtle),
                   const SizedBox(height: Spacing.lg),
                   Text(
                     'Ainda não há serviços disponíveis\nVolta em breve!'.tr,
@@ -131,102 +133,106 @@ class _ProviderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final photo = provider.photoUrl;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(Radii.lg),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(Radii.lg),
-          boxShadow: AppColors.shadowCard,
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Row(
-          // BUGFIX tela branca: CrossAxisAlignment.stretch num Row dentro de um
-          // ListView (eixo vertical ilimitado) esticava o card para a altura do
-          // viewport (~1910px) e empurrava o conteúdo para fora do ecrã —
-          // parecia tela branca. center mantém o card compacto (altura da foto).
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            SizedBox(
-              width: 96,
-              height: 96,
-              child: (photo != null && photo.isNotEmpty)
-                  ? Image.network(
-                      photo,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const _PhotoFallback(),
-                      loadingBuilder: (_, child, prog) =>
-                          prog == null ? child : const _PhotoFallback(),
-                    )
-                  : const _PhotoFallback(),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(Spacing.md),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            provider.name,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (provider.comingSoon) ...[
-                          const SizedBox(width: Spacing.sm),
-                          const ComingSoonChip(dense: true),
-                        ],
-                      ],
-                    ),
-                    if (provider.ratingsCount > 0) ...[
-                      const SizedBox(height: Spacing.xs),
-                      _RatingRow(
-                        avg: provider.avgRating,
-                        count: provider.ratingsCount,
-                      ),
-                    ],
-                    if (provider.address != null &&
-                        provider.address!.isNotEmpty) ...[
-                      const SizedBox(height: Spacing.xs),
+    // `cartao_servico`: porta do arnes das capturas para a ficha da barbearia.
+    return Semantics(
+      identifier: 'cartao_servico',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(Radii.lg),
+            boxShadow: AppColors.shadowCard,
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Row(
+            // BUGFIX tela branca: CrossAxisAlignment.stretch num Row dentro de um
+            // ListView (eixo vertical ilimitado) esticava o card para a altura do
+            // viewport (~1910px) e empurrava o conteúdo para fora do ecrã —
+            // parecia tela branca. center mantém o card compacto (altura da foto).
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 96,
+                height: 96,
+                child: (photo != null && photo.isNotEmpty)
+                    ? Image.network(
+                        photo,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const _PhotoFallback(),
+                        loadingBuilder: (_, child, prog) =>
+                            prog == null ? child : const _PhotoFallback(),
+                      )
+                    : const _PhotoFallback(),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(Spacing.md),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                       Row(
                         children: [
-                          const Icon(Icons.place_outlined,
-                              size: 14, color: AppColors.textSubtle),
-                          const SizedBox(width: Spacing.xs),
                           Expanded(
                             child: Text(
-                              provider.address!,
+                              provider.name,
                               style: const TextStyle(
-                                fontSize: 13,
-                                color: AppColors.textSecondary,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                          if (provider.comingSoon) ...[
+                            const SizedBox(width: Spacing.sm),
+                            const ComingSoonChip(dense: true),
+                          ],
                         ],
                       ),
+                      if (provider.ratingsCount > 0) ...[
+                        const SizedBox(height: Spacing.xs),
+                        _RatingRow(
+                          avg: provider.avgRating,
+                          count: provider.ratingsCount,
+                        ),
+                      ],
+                      if (provider.address != null &&
+                          provider.address!.isNotEmpty) ...[
+                        const SizedBox(height: Spacing.xs),
+                        Row(
+                          children: [
+                            const Icon(Icons.place_outlined,
+                                size: 14, color: AppColors.textSubtle),
+                            const SizedBox(width: Spacing.xs),
+                            Expanded(
+                              child: Text(
+                                provider.address!,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.textSecondary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
-            ),
-            const Padding(
-              padding: EdgeInsets.only(right: Spacing.sm),
-              child: Icon(Icons.chevron_right, color: AppColors.textSubtle),
-            ),
-          ],
+              const Padding(
+                padding: EdgeInsets.only(right: Spacing.sm),
+                child: Icon(Icons.chevron_right, color: AppColors.textSubtle),
+              ),
+            ],
+          ),
         ),
       ),
     );

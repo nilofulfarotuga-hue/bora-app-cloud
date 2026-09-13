@@ -20,6 +20,7 @@ import 'services/foreground_service.dart';
 import 'services/notification_service.dart';
 import 'widgets/atalho_trabalho_em_curso.dart';
 import 'services/push_token_service.dart';
+import 'services/bloqueio_service.dart';
 import 'services/remote_fees_service.dart';
 import 'services/small_order_fee.dart';
 import 'services/tvde_reservation_ready_handler.dart';
@@ -31,6 +32,7 @@ import 'services/offer_presentation_gate.dart';
 // ignore: unused_import
 import 'widgets/driver_order_overlay.dart';
 import 'auth/auth_store.dart';
+import 'config/ios_launch_flags.dart';
 import 'dispatch/dispatch_engine.dart';
 import 'l10n/bora_lang.dart';
 import 'screens/admin/admin_crosstalk_screen.dart';
@@ -88,6 +90,7 @@ import 'providers/support_settings_provider.dart';
 import 'stores/consent_store.dart';
 import 'stores/session_store.dart';
 import 'widgets/consent_banner.dart';
+import 'services/platform_tag_service.dart';
 
 // Injected at build time via --dart-define=SUPABASE_URL=... --dart-define=SUPABASE_ANON_KEY=...
 // or --dart-define-from-file=.dart_defines
@@ -290,6 +293,18 @@ Future<void> main() async {
     ),
   );
 
+  // De onde vem esta conta: android, ios ou web (missão ios-lancamento).
+  // Fire-and-forget de propósito — é telemetria para o painel, nunca deve
+  // atrasar nem partir o arranque. Escreve só em `users.platform`; quem
+  // preenche `orders.platform` é um gatilho na base de dados, para esta
+  // camada nunca poder tocar num pedido.
+  unawaited(PlatformTagService.registar());
+  Supabase.instance.client.auth.onAuthStateChange.listen((estado) {
+    if (estado.event == AuthChangeEvent.signedIn) {
+      unawaited(PlatformTagService.registar());
+    }
+  });
+
   // Recuperação de palavra-passe — o link do email abre o deep link
   // pt.boraapp.bora://reset-password, o Supabase cria uma sessão de
   // recovery e emite AuthChangeEvent.passwordRecovery. AuthStore ignora
@@ -334,6 +349,15 @@ Future<void> main() async {
       // o cliente não a via — o total do ecrã ficava abaixo do que se cobra,
       // e em dinheiro é o total do ecrã que o estafeta pede à porta.
       unawaited(SmallOrderFeeService.carregarGlobal(forcar: true));
+
+      // Reler o interruptor 5.2.1 **agora que há sessão** (2026-09-08, missão
+      // ios-lancamento): sem esta segunda leitura ficava desligado para sempre.
+      unawaited(carregarIosHideNonPartnerLogos(forcar: true));
+
+      // A lista de quem esta pessoa bloqueou também vive atrás da RLS: sem
+      // sessão a leitura devolve `[]` sem erro, e o bloqueio ficaria sem
+      // efeito depois de entrar. Mesma cicatriz das linhas acima.
+      unawaited(BloqueioService.carregar(forcar: true));
     }
   });
 
@@ -450,13 +474,48 @@ Future<void> main() async {
     }
     Stripe.publishableKey = stripePublishableKey;
     Stripe.merchantIdentifier = 'merchant.com.boraapp.app';
+    // 2026-09-07 (missão ios-lancamento) — esquema de retorno do 3DS.
+    //
+    // Nunca esteve definido. No Android o Stripe safariviewcontroller não é
+    // usado e o 3DS volta sozinho, por isso ninguém deu pela falta; no iOS o
+    // banco abre o desafio fora da app e, sem esquema registado, o utilizador
+    // fica preso no Safari e o pagamento nunca confirma.
+    //
+    // TEM de ser exactamente igual ao CFBundleURLSchemes do ios/Runner/
+    // Info.plist, que é `pt.boraapp.bora` (não `bora`). O mesmo esquema já
+    // serve o deep link de recuperação de palavra-passe.
+    Stripe.urlScheme = 'pt.boraapp.bora';
     // 2026-05-14 perf: Stripe.applySettings + Firebase chain correm em paralelo
     // (eram em serie). NotificationService depende do Firebase, por isso fica
     // encadeado dentro da mesma future.
     // NOTE: Requires google-services.json (Android) and GoogleService-Info.plist (iOS).
     await Future.wait([
       Stripe.instance.applySettings(),
-      Firebase.initializeApp().then((_) => NotificationService.instance.init()),
+      // FALHAR AQUI NÃO PODE MATAR O ARRANQUE (2026-09-08).
+      //
+      // Estava `Firebase.initializeApp().then(...)` cru dentro do `Future.wait`:
+      // qualquer erro rebentava o `main()` inteiro e a app não abria de todo.
+      // Medido na corrida 34209823345, no simulador iPhone 17 Pro Max: o
+      // arranque morria com `[core/not-initialized] Firebase has not been
+      // correctly initialized` (main.dart:467) porque no iOS ainda não existe
+      // `GoogleService-Info.plist` — está por registar no Firebase, e a chave
+      // APNs depende da conta Apple. 937 segundos de gravação com o ecrã
+      // inicial do iOS e nem uma captura.
+      //
+      // No release seria pior do que um teste falhado: um plist em falta ou
+      // corrompido no IPA dava uma app que fecha ao abrir, ou seja reprovação
+      // certa por 2.1 logo na primeira tentativa do revisor. Sem Firebase a
+      // app corre — só não há notificações, que é exactamente o estado de hoje
+      // no iPhone.
+      () async {
+        try {
+          await Firebase.initializeApp();
+          await NotificationService.instance.init();
+        } catch (e) {
+          debugPrint('[main] Firebase indisponível — a app segue sem '
+              'notificações: $e');
+        }
+      }(),
       // Sessão 2026-05-17 — foreground service config + canal urgente Android.
       _setupForegroundAndUrgentChannel(),
     ]);
@@ -483,10 +542,15 @@ Future<void> main() async {
   // sem leitura fica o estado seguro (taxa nenhuma).
   unawaited(SmallOrderFeeService.carregarGlobal());
 
-  // Taxa de servico do nao-parceiro (2026-09-08): 2,50 EUR -> 0,99 EUR. Mesmo
+  // Taxa de serviço do não-parceiro (2026-09-08): 2,50 € → 0,99 €. Mesmo
   // desenho — fire-and-forget, e sem leitura ficam os valores de recurso, que
-  // sao exactamente os que o servidor tem hoje.
+  // são exactamente os que o servidor tem hoje.
   unawaited(RemoteFeesService.carregar());
+
+  // Interruptor 5.2.1 (missão ios-lancamento): esconder logótipo de loja
+  // não-parceira só no iOS. Fire-and-forget — sem leitura, mostra-se o
+  // logótipo (estado seguro, igual ao que já acontece hoje).
+  unawaited(carregarIosHideNonPartnerLogos());
 
   // Recuperação de palavra-passe: rede de segurança do arranque.
   //

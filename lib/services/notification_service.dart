@@ -1488,6 +1488,12 @@ class NotificationService {
   /// Idempotent — safe to call from build().
   static void setupBroadcastDeepLink(BuildContext context) {
     if (_broadcastDeepLinkWired) return;
+    // CICATRIZ (varredura, corrida 96, 2026-09-10): isto corre dentro do
+    // `build()` do painel do parceiro e `FirebaseMessaging.instance` LANCA
+    // quando o Firebase nao esta inicializado -- o painel rebentava a
+    // construir. Sem Firebase nao ha deep link de push para ligar: sai-se
+    // em silencio e fica por ligar, para tentar outra vez quando houver.
+    if (Firebase.apps.isEmpty) return;
     _broadcastDeepLinkWired = true;
     final navigator = Navigator.of(context);
     void openInbox() => navigator.push(
@@ -1519,8 +1525,20 @@ class NotificationService {
     // e tocar na notificação persistente não abre o ecrã de aceitar/rejeitar.
     final localPlugin = FlutterLocalNotificationsPlugin();
     await localPlugin.initialize(
+      // CICATRIZ (corrida 100, 2026-09-10): sem as definicoes de iOS o
+      // plugin lanca "iOS settings must be set when targeting iOS platform",
+      // o init() inteiro abortava e a app seguia "sem notificacoes" em todos
+      // os iPhones -- so' se viu no dia em que o Firebase passou a
+      // inicializar. As permissoes NAO se pedem aqui (pede-as o
+      // FirebaseMessaging.requestPermission mais abaixo), senao havia dois
+      // pedidos ao sistema.
       const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        iOS: DarwinInitializationSettings(
+          requestAlertPermission: false,
+          requestBadgePermission: false,
+          requestSoundPermission: false,
+        ),
       ),
       onDidReceiveNotificationResponse: _onLocalNotifTap,
       onDidReceiveBackgroundNotificationResponse: onBackgroundNotificationAction,
@@ -1580,13 +1598,27 @@ class NotificationService {
     final messaging = FirebaseMessaging.instance;
 
     // Request permission (required on iOS; Android 13+ shows a dialog too).
-    final settings = await messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-    debugPrint(
-        '[NotificationService] permission: ${settings.authorizationStatus}');
+    //
+    // NAO AGUARDAR (2026-09-10, corrida 104): init() e' aguardado no
+    // Future.wait do main() ANTES do runApp. No iOS o pedido abre um alerta
+    // NATIVO e so' devolve quando a pessoa responde -- a app ficava sem
+    // desenhar um unico fotograma ate ai. Nunca se tinha visto porque, ate
+    // hoje, o Firebase nem inicializava no iOS. O resultado so' servia para
+    // um debugPrint; o token continua a chegar pelo onTokenRefresh.
+    // CAPTURA PARA A APP STORE (2026-09-11): o simctl nao consegue conceder
+    // a permissao de notificacoes, e o alerta nativo ficava em cima de todos
+    // os fotogramas do video para a Apple. Sob a bandeira de captura (so' o
+    // CI a liga, nunca a app de producao) nao se pede a permissao do sistema.
+    const capturaAppStore =
+        bool.fromEnvironment('CAPTURA_APP_STORE', defaultValue: false);
+    if (!capturaAppStore) {
+      unawaited(messaging
+          .requestPermission(alert: true, badge: true, sound: true)
+          .then((settings) => debugPrint(
+              '[NotificationService] permission: ${settings.authorizationStatus}'))
+          .catchError((Object e) => debugPrint(
+              '[NotificationService] permission request failed: $e')));
+    }
 
     // [B] FCM resiliente (2026-06-30) — em GMS degradado (telemóveis fracos /
     // Play Services antigo) getToken() lança MISSING_INSTANCEID_SERVICE. Antes
@@ -1712,14 +1744,22 @@ class NotificationService {
     });
 
     // Notification tap while app was terminated.
-    final initial = await messaging.getInitialMessage();
-    if (initial != null) {
+    //
+    // NAO AGUARDAR (2026-09-10, corrida 107): no iOS getInitialMessage() so'
+    // devolve depois de o registo no APNs fechar -- no simulador nunca, e num
+    // iPhone so' depois de a pessoa responder ao alerta de permissao. Como
+    // init() e' aguardado no Future.wait do main() ANTES do runApp, a app
+    // ficava sem desenhar um unico fotograma ("main-alive heartbeat" nunca
+    // aparecia no log). A mensagem inicial trata-se quando chegar.
+    unawaited(messaging.getInitialMessage().then((initial) {
+      if (initial == null) return;
       debugPrint(
           '[NotificationService initial] ${initial.notification?.title}');
       if (initial.data['type'] == 'new_tvde_ride_offer') {
         tvdeOfferReload?.call();
       }
-    }
+    }).catchError((Object e) =>
+        debugPrint('[NotificationService] getInitialMessage failed: $e')));
 
     // Sessão 2026-05-21 — overlay system_alert_window: o isolate da overlay
     // envia `{action: accept|reject|expired, orderId: ...}` quando o estafeta

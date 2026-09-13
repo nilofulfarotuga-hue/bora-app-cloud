@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../config/app_colors.dart';
+import '../config/ios_launch_flags.dart';
 import '../models/business_view_models.dart';
 import '../models/order_service_type.dart';
 import '../models/restaurant_model.dart';
@@ -279,9 +280,7 @@ class _StoresScreenState extends State<StoresScreen> {
     final q = _query.trim().toLowerCase();
     final filtered = q.isEmpty
         ? entries
-        : entries
-            .where((e) => e.store.name.toLowerCase().contains(q))
-            .toList();
+        : entries.where((e) => e.store.name.toLowerCase().contains(q)).toList();
     filtered.sort((a, b) {
       switch (_sort) {
         case _StoreSort.rating:
@@ -336,7 +335,8 @@ Future<void> openRetailBusiness(
       builder: (ctx) => AlertDialog(
         title: Text('Carrinho activo'.tr),
         content: Text(
-          'Tens itens no carrinho de {0}. Queres cancelar e começar novo pedido em {1}?'.trArgs([cart.vendorName, store.name]),
+          'Tens itens no carrinho de {0}. Queres cancelar e começar novo pedido em {1}?'
+              .trArgs([cart.vendorName, store.name]),
         ),
         actions: [
           TextButton(
@@ -446,104 +446,123 @@ class _StoreTile extends StatelessWidget {
     final cat = entry.section;
     final bannerColor = _bannerColor(cat);
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.07),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Banner ───────────────────────────────────────────────────
-            Container(
-              height: 80,
-              decoration: BoxDecoration(
-                color: bannerColor.withValues(alpha: 0.12),
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(16)),
+    // `cartao_loja`: é por aqui que o arnês das capturas da App Store abre uma
+    // loja (`integration_test/demo_real_test.dart`). Sem identificador o teste
+    // teria de adivinhar pelo tipo do widget — e adivinhava mal, porque isto é
+    // um `GestureDetector` e não um `InkWell`.
+    return Semantics(
+      identifier: 'cartao_loja',
+      // `container: true` (2026-09-08): sem isto o identificador podia ser
+      // fundido num no de semantica maior, e o centro desse no cai FORA do
+      // `GestureDetector` — o toque do arnes acertava no vazio e a corrida
+      // 34279643078 ficou parada na lista de supermercados, com
+      // `03-video-loja.png` e `zz-falha-*.png` do mesmo tamanho ao byte.
+      container: true,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.07),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
               ),
-              child: Row(
-                children: [
-                  const SizedBox(width: 16),
-                  _StoreLogo(
-                    photoUrl: entry.business.photoUrl,
-                    name: entry.store.name,
-                    bannerColor: bannerColor,
-                    fallbackIcon: _categoryIcon(cat),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          entry.store.name,
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          _categoryLabel(cat),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Banner ───────────────────────────────────────────────────
+              Container(
+                height: 80,
+                decoration: BoxDecoration(
+                  color: bannerColor.withValues(alpha: 0.12),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(16)),
+                ),
+                child: Row(
+                  children: [
+                    const SizedBox(width: 16),
+                    _StoreLogo(
+                      // Interruptor 5.2.1 (ios-lancamento): logótipo de loja
+                      // NÃO-parceira escondido no iOS quando ligado — ver
+                      // config/ios_launch_flags.dart.
+                      photoUrl: shouldHideStoreLogo(
+                              isPartner: entry.business.isPartner)
+                          ? ''
+                          : entry.business.photoUrl,
+                      name: entry.store.name,
+                      bannerColor: bannerColor,
+                      fallbackIcon: _categoryIcon(cat),
                     ),
-                  ),
-                  const Icon(Icons.arrow_forward_ios,
-                      size: 16, color: Colors.grey),
-                  const SizedBox(width: 16),
-                ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            entry.store.name,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _categoryLabel(cat),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.arrow_forward_ios,
+                        size: 16, color: Colors.grey),
+                    const SizedBox(width: 16),
+                  ],
+                ),
               ),
-            ),
 
-            // ── Footer ───────────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.delivery_dining_rounded,
-                    size: 15,
-                    color: Colors.grey.shade600,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Estafeta entrega rápida'.tr,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade700,
+              // ── Footer ───────────────────────────────────────────────────
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.delivery_dining_rounded,
+                      size: 15,
+                      color: Colors.grey.shade600,
                     ),
-                  ),
-                  const Spacer(),
-                  if (entry.business.comingSoon) const ComingSoonChip(),
-                ],
+                    const SizedBox(width: 6),
+                    Text(
+                      'Estafeta entrega rápida'.tr,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                    const Spacer(),
+                    if (entry.business.comingSoon) const ComingSoonChip(),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 }
-
 
 class _StoreLogo extends StatelessWidget {
   const _StoreLogo({

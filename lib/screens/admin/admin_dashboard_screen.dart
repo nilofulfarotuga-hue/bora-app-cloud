@@ -98,6 +98,7 @@ import 'admin_tvde_roundtrips_screen.dart';
 import 'admin_tvde_stuck_payments_screen.dart';
 import 'admin_tvde_driver_debts_screen.dart';
 import 'admin_tvde_plan_requests_screen.dart';
+import 'admin_deleted_accounts_screen.dart';
 
 /// In-app admin dashboard.
 ///
@@ -808,6 +809,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       context,
                       MaterialPageRoute(
                           builder: (_) => const AdminAuditLogScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.person_off_outlined,
+                  title: 'Contas encerradas',
+                  subtitle:
+                      'Quem pediu para apagar a conta, o que foi anonimizado e o que ficou',
+                  color: Colors.brown,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminDeletedAccountsScreen())),
                 ),
                 const SizedBox(height: 10),
                 _NavCard(

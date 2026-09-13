@@ -177,3 +177,6 @@ supabase/functions/stripe-webhook/index.ts.bak
 .credenciais/
 *play-service-account*.json
 boraapp-d2bea-*.json
+
+# Chave do Google Maps escrita pelo CI (ver ios/Flutter/Release.xcconfig)
+ios/Flutter/BoraSecrets.xcconfig

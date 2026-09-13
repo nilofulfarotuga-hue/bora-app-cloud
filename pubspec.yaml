@@ -136,6 +136,12 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: "tool/branding/bora_app_icon.png"
+  # A App Store RECUSA ícones com transparência. O ficheiro de origem é
+  # 1024x1024 RGBA (medido 2026-09-07: colortype 6) porque o ícone adaptativo
+  # do Android PRECISA do alfa. Achatar aqui, só para o iOS, resolve os dois
+  # sem tocar na imagem original. (missão ios-lancamento)
+  remove_alpha_ios: true
+  background_color_ios: "#FFFFFF"
   adaptive_icon_background: "#FFFFFF"
   adaptive_icon_foreground: "tool/branding/bora_app_icon.png"
   min_sdk_android: 21

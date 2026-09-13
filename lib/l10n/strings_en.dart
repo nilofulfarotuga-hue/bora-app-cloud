@@ -270,6 +270,21 @@ const Map<String, String> kStringsEn = <String, String>{
       'Delete',
   'Apagar conta':
       'Delete account',
+  // Encerramento de conta (2026-09-07, missão ios-lancamento).
+  'A conta NÃO foi apagada. O servidor não confirmou a eliminação. Fala connosco pelo suporte.':
+      'Your account was NOT deleted. The server did not confirm the deletion. Please contact support.',
+  'Ainda não dá para apagar':
+      'Not possible to delete yet',
+  'Entendi':
+      'Got it',
+  'Este valor não é devolvido nem transferido. Continuar?':
+      'This amount is not refunded or transferred. Continue?',
+  'O que desaparece: o teu nome, o teu contacto, a tua morada, as tuas fotos e o acesso a esta conta. Não voltas a poder entrar com este email.\n\nO que fica guardado: as faturas dos pedidos que já fizeste. A lei portuguesa obriga a guardá-las 10 anos, mas ficam sem o teu nome.\n\nQueres mesmo apagar?':
+      'What disappears: your name, your contact details, your address, your photos and access to this account. You will not be able to sign in with this email again.\n\nWhat is kept: the invoices for orders you already placed. Portuguese law requires keeping them for 10 years, but they no longer carry your name.\n\nAre you sure you want to delete?',
+  'Perder e apagar':
+      'Forfeit and delete',
+  'Vais perder isto':
+      'You will lose this',
   'Apenas a equipa Bora vê. Não aparece no perfil público.':
       'Only the Bora team sees this. It does not appear on the public profile.',
   'Apenas no horário exacto.':
@@ -2669,4 +2684,42 @@ const Map<String, String> kStringsEn = <String, String>{
       '🕐  Normal',
   '🛍️ Saco plástico — {0}× €{1}':
       '🛍️ Plastic bag — {0}× €{1}',
+  // Denunciar conteudo (2026-09-08, missao ios-lancamento) — directriz 1.2.
+  'Denunciar':
+      'Report',
+  'Denúncia':
+      'Report',
+  'Diga o que se passou. A denúncia vai para o suporte do Bora, que a analisa e responde.':
+      'Tell us what happened. Your report goes to Bora support, who review it and reply.',
+  'Linguagem ofensiva ou insultos':
+      'Offensive language or insults',
+  'Ameaças ou assédio':
+      'Threats or harassment',
+  'Conteúdo sexual ou impróprio':
+      'Sexual or inappropriate content',
+  'Fraude ou burla':
+      'Fraud or scam',
+  'Outro motivo':
+      'Another reason',
+  // Bloquear uma pessoa (2026-09-10) — directriz 1.2.
+  'Denunciar ou bloquear':
+      'Report or block',
+  'Bloquear esta pessoa':
+      'Block this person',
+  'Desbloquear esta pessoa':
+      'Unblock this person',
+  'Desbloquear':
+      'Unblock',
+  'Deixas de ver as mensagens desta pessoa.':
+      'You will stop seeing this person’s messages.',
+  'Voltas a ver as mensagens desta pessoa.':
+      'You will see this person’s messages again.',
+  'Pessoa bloqueada.':
+      'Person blocked.',
+  'Pessoa desbloqueada.':
+      'Person unblocked.',
+  'Não foi possível concluir. Tenta outra vez.':
+      'Could not complete. Please try again.',
+  'Bloqueaste esta pessoa. Não vês as mensagens dela nem lhe podes escrever.':
+      'You blocked this person. You cannot see their messages or write to them.',
 };

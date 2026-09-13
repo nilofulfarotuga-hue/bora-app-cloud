@@ -12,6 +12,7 @@ estado: atual
 
 > Espelho automatico da tabela `public.claude_ai_memoria` (pagina `regras-do-danilo`, origem `claude-ai`, atualizada em 2026-09-13T18:31:26.260558+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
+> Palavras-chave: regras do danilo · memoria claude.ai · claude_ai_memoria
 
 AGENTE DE CLIQUE (28/08, repetiu chateado): ele NÃO faz nada à mão em painéis web. Tem agente de clique no PC e dá permissão total. Painel externo (Cloudflare, Supabase, Stripe, Google, Meta, Apple) = o EXECUTOR entra e faz; se sobrar autorização que só ele pode dar, o executor deixa a página aberta e ele só carrega no botão. Nunca dar caminho de menus. Passo-a-passo de painel para ele fazer = errado, vai no prompt para o executor.
 RESPOSTAS: o mais curtas e diretas possível ("como pra criança de 5 anos"), português claro, sem jargão; corrige firme verbosidade, repetição ou sugestão que lhe exija trabalho manual. Não é de terminal nem de ler diffs. NUNCA dizer quando dormir/parar nem presumir a hora dele. Passos só dele: lista didática, mínimo de cliques. NÃO vale mandá-lo procurar e clicar um ficheiro no PC, nem com caminho exato — os .ps1 abrem no Bloco de Notas. Passo local com administrador: o executor dispara a elevação (Start-Process -Verb RunAs) e ele só carrega em Sim.

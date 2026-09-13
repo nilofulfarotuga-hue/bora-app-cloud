@@ -110,6 +110,16 @@ Antes de deduzir, **verifica**. Ler a base de dados é melhor do que adivinhar p
   token a ninguém — abre a página de login no próprio Chrome do PC (perfil boraappbora), avisa o
   Danilo pelo Telegram numa linha e continua quando a sessão existir. Fica gravada no Chrome e
   serve para sempre. Uma vez por site.
+  **Adendo (13/09, à noite): é o último recurso, não o primeiro.** Nunca sair de uma conta que
+  já está iniciada (o Chrome do perfil boraappbora tem o ChatGPT **Free**). Procurar primeiro a
+  sessão que já existe: `codex login status` e `~/.codex/auth.json` (conta e plano), o
+  **aplicativo do ChatGPT instalado no Windows** (processo `ChatGPT.exe` — é aí que vive a conta
+  **Plus**, e é ela que o Codex usa), os outros perfis do Chrome e o Edge. Modo de programador e
+  conectores (Córtex, Supabase) configuram-se nas Definições da conta Plus, no app pelo agente
+  de clique se só existir lá. OpenCode `/connect openai`: o OAuth abre no navegador predefinido —
+  se esse não tiver a sessão Plus, levar o URL ao navegador/perfil que a tem. Imagens: gerar na
+  sessão Plus, app ou navegador. Só sem nenhum caminho é que se abre `chatgpt.com/auth/login`
+  no Chrome e se pede ao Danilo, pelo Telegram, para entrar uma vez.
 
 ## 5. Lei do pré-voo
 

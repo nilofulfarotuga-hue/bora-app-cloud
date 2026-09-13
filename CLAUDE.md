@@ -67,7 +67,11 @@ Bash/Read/Grep directamente; só uma sessão interactiva (Claude.ai, Claude Code
   não há sessão, ou não conseguires abrir/entrar em alguma janela, não tentes senhas nem peças
   token a ninguém — abre a página de login no próprio Chrome do PC (perfil boraappbora), avisa o
   Danilo pelo Telegram numa linha e continua quando a sessão existir. Fica gravada no Chrome e
-  serve para sempre. Uma vez por site.
+  serve para sempre. Uma vez por site. **Adendo (13/09): é o último recurso, não o primeiro** —
+  nunca sair de uma conta iniciada (o Chrome boraappbora tem o ChatGPT Free); a conta ChatGPT
+  **Plus** vive no aplicativo do ChatGPT instalado no Windows deste PC (é a que o Codex usa);
+  procurar primeiro `codex login status`, o app, os outros perfis do Chrome e o Edge. Detalhe na
+  skill `protocolo-missao-bora` (carta de autonomia).
 
 ## Sistema de Agentes
 

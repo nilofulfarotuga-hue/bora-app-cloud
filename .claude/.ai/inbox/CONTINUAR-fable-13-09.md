@@ -4,6 +4,12 @@
 > (secções 1 e 2) e as linhas do `e2e_log` com `run_id='fable-13-09'` (1688 → 17xx).
 > Digest curto em `claude_ai_memoria`, página `digest-2026-09-13-janela-1`.
 
+## Estado às 00:10 de 14/09 (última actualização desta janela)
+- Produção `autonomous-night-2026-04-29` = `56656928` no remoto (3 pushes: ff596cf9 árvore unida; 156c513c portão do CI numa linha; 56656928 arnês com `convertFlutterSurfaceToImage` no Android). Runs #430 e #431 vermelhas por defeitos do portão/arnês (não da app); **run #432 em curso** — se verde, o `build` sobe o 604 ao Play e `app_latest_version_code` passa a 604.
+- Se o 604 não aparecer: ler a run em `https://github.com/nilofulfarotuga-hue/bora-app-cloud/actions/workflows/build_android.yml` (Chrome do Danilo já tem sessão no GitHub), corrigir, `flutter analyze`, push. O guardrail de git só deixa empurrar `autonomous-night-2026-04-29`; o ramo candidata só o Danilo o empurra à mão.
+- Autoteste local: não corre neste PC (drive não se liga ao emulador); não insistir sem ordem.
+- Fecho pendente desta janela: Anexo A do relatório com o resultado da #432, digest final, e2e `fim`, Telegram, `/ctx doctor`, `/ctx stats`.
+
 ## O que já está feito (não repetir)
 - Blocos 0, 1 (1.1–1.8), 2, 3 e 4.1/4.4/4.5: feitos com prova (ver relatório).
 - 4.2/4.3 (autoteste local + push + CI): o estado final está no **Anexo A** do relatório.

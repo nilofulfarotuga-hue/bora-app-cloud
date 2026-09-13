@@ -3309,47 +3309,48 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                               return;
                             }
 
-                            // Bloco C — dois caminhos, de propósito.
-                            // MERCADO (storeShopping): RPC v2 de sempre.
-                            // RESTAURANTE não-parceiro: talão pela RPC nova +
-                            // o cálculo de dinheiro pelo caminho já validado.
-                            // A RPC v2 cobra saco a €0,10 (supermercado); o
-                            // restaurante são €0,30 fixos — misturá-los mudaria
-                            // o valor cobrado ao cliente.
-                            final String? reason;
-                            if (order.serviceType ==
-                                OrderServiceType.storeShopping) {
-                              reason = await orderStore
-                                  .finalizeStoreShoppingV2WithReceipt(
-                                orderId: order.id,
-                                photoStoragePath: storagePath,
-                                driverTypedTotalCents: totalCents,
-                                items: canonicalItems,
-                                itemsAdded: itemsAdded,
-                                bagCount: _bagCount,
-                              );
-                            } else {
-                              final erroTalao =
-                                  await TalaoNaoParceiroService.registar(
-                                orderId: order.id,
-                                photoStoragePath: storagePath,
-                                driverTypedTotalCents: totalCents,
-                              );
-                              reason = erroTalao ??
-                                  await orderStore.finalizePurchaseWithReason(
-                                    orderId: order.id,
-                                    purchaseValue: totalCents / 100.0,
-                                  );
-                            }
+                            // 2026-09-13 — UMA SÓ função no servidor para TODO
+                            // o não-parceiro (mercado, restaurante, loja,
+                            // farmácia) e todos os meios de pagamento: talão +
+                            // totais + acerto do estafeta + estado onTheWay.
+                            // A app deixou de escrever colunas financeiras —
+                            // era esse PATCH (403 do servidor, engolido) que
+                            // deixava o McDonald's a voltar ao mesmo ecrã.
+                            // O saco do restaurante fica o do checkout (€0,30);
+                            // o do mercado vai por saco, como sempre.
+                            final resultado =
+                                await TalaoNaoParceiroService.finalizar(
+                              orderId: order.id,
+                              photoStoragePath: storagePath,
+                              driverTypedTotalCents: totalCents,
+                              items: canonicalItems,
+                              itemsAdded: itemsAdded,
+                              bagCount: _isRestaurant ? null : _bagCount,
+                            );
                             if (!mounted) return;
-                            if (reason != null) {
-                              messenger.showSnackBar(
-                                  SnackBar(content: Text(reason)));
-                            } else {
-                              nav.pop();
-                              messenger.showSnackBar(const SnackBar(
-                                  content: Text(
-                                      'Compra finalizada — siga para entrega')));
+                            if (!resultado.ok) {
+                              // Erro REAL (texto PT-PT + código), nunca engolido.
+                              await _showTalaoErrorDialog(
+                                context,
+                                resultado.mensagem ??
+                                    'Não foi possível fechar o talão.',
+                              );
+                              return;
+                            }
+                            // Estado local imediato; o realtime confirma a seguir.
+                            order.isPurchaseFinalized = true;
+                            order.cashTotalDue = null;
+                            order.status = OrderStatus.onTheWay;
+                            orderStore.refresh();
+                            nav.pop();
+                            messenger.showSnackBar(const SnackBar(
+                                content: Text(
+                                    'Talão registado — a seguir para a morada do cliente')));
+                            // Regra 2.2 (13/09): direto para a navegação até ao
+                            // cliente, sem ecrã intermédio.
+                            final dest = order.destination;
+                            if (dest != null) {
+                              unawaited(NavigationService.openTurnByTurn(dest));
                             }
                             return;
                           }
@@ -3408,6 +3409,26 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
 }
 
 // ─── BUG 1 — Capture receipt photo + typed total (modal bottom sheet) ──────
+
+/// 2026-09-13 — o erro do fecho do talão aparece INTEIRO (texto PT-PT + código
+/// do servidor), num diálogo que não desaparece sozinho. Um botão que parece
+/// funcionar e não faz nada é pior do que um erro (PADRAO_BORA 1.2).
+Future<void> _showTalaoErrorDialog(BuildContext context, String mensagem) async {
+  await showDialog<void>(
+    context: context,
+    builder: (_) => AlertDialog(
+      icon: const Icon(Icons.error_outline, color: Colors.red, size: 48),
+      title: const Text('Não foi possível fechar o talão'),
+      content: SingleChildScrollView(child: SelectableText(mensagem)),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Fechar'),
+        ),
+      ],
+    ),
+  );
+}
 
 /// BUG C (sessão exec 2026-05-12) — AlertDialog PT-PT quando upload falha.
 /// Substitui SnackBar transient (4s) por dialog modal mais visível.

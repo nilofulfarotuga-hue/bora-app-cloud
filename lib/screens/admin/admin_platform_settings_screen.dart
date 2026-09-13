@@ -69,6 +69,10 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
     if (_isCancelKey(key)) return true; // Bloco 4 — editável com auditoria
     if (key.startsWith('robot_b_')) return true; // kill switches Robot B v4
     if (key.startsWith('dispatch_')) return true;
+    // [fable-13-09] Minutos que o pedido de parceiro espera em 'preparing'
+    // antes de o cron partner-auto-dispatch chamar estafeta sozinho. É tempo
+    // de operação (não é preço nem comissão): editável aqui, como as dispatch_*.
+    if (key == 'partner_auto_dispatch_after_minutes') return true;
     // [botoes-navbar-eta 31/08] As 3 chaves eta_* (velocidade média do
     // fallback + intervalo de compra não-parceiro) são OPERACIONAIS — afinam
     // o tempo MOSTRADO ao cliente, nunca um valor cobrado ou pago. Autoridade

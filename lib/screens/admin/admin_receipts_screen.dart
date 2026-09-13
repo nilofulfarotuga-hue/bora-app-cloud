@@ -584,6 +584,94 @@ class _ReceiptCardState extends State<_ReceiptCard> {
     }
   }
 
+  /// 2026-09-13 — corrigir à mão o valor do talão, com auditoria
+  /// (RPC admin_corrigir_talao: grava em admin_audit_log e na nota do talão).
+  Future<void> _corrigirValor() async {
+    final atualCents = (widget.row['driver_typed_total_cents'] as int?) ?? 0;
+    final valorCtrl =
+        TextEditingController(text: (atualCents / 100).toStringAsFixed(2));
+    final motivoCtrl = TextEditingController();
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Corrigir valor do talão'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: valorCtrl,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Novo valor (€)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: motivoCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Motivo (obrigatório, fica na auditoria)',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 2,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Guardar correção'),
+          ),
+        ],
+      ),
+    );
+    if (confirmado != true) return;
+    final novo = double.tryParse(valorCtrl.text.trim().replaceAll(',', '.'));
+    final motivo = motivoCtrl.text.trim();
+    if (novo == null || novo <= 0 || motivo.length < 3) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Valor inválido ou motivo em falta (mín. 3 letras)')),
+        );
+      }
+      return;
+    }
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await Supabase.instance.client.rpc(
+        'admin_corrigir_talao',
+        params: {
+          'p_receipt_id': widget.row['id'],
+          'p_novo_total_cents': (novo * 100).round(),
+          'p_motivo': motivo,
+        },
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(
+                  'Talão corrigido para €${novo.toStringAsFixed(2)} (auditado)')),
+        );
+        widget.onAfterAction();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _openMbway() async {
     final phone = _driverMbway;
     if (phone == null || phone.isEmpty) return;
@@ -766,6 +854,17 @@ class _ReceiptCardState extends State<_ReceiptCard> {
                     ),
                   ),
                 ],
+              ),
+            ],
+            if (status == 'pending_admin' || status == 'cash_settled') ...[
+              const SizedBox(height: 6),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: _busy ? null : _corrigirValor,
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  label: const Text('Corrigir valor do talão'),
+                ),
               ),
             ],
             if (status != 'pending_admin' &&

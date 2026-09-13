@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - autonomous-night-2026-04-29
+      # Ramo candidato (regra do Danilo, 13/09): corre SÓ o autoteste; o build,
+      # o bump e o Play ficam presos ao ramo de produção (ver `if:` do job build).
+      - candidata-2026-09-13
     paths-ignore:
       - "**.md"
       - ".claude/**"
@@ -92,29 +95,11 @@ jobs:
           profile: pixel_6
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
-          script: |
-            set -e
-            APK=build/app/outputs/flutter-apk/app-debug.apk
-            adb install -r "$APK"
-            PKG=$(adb shell pm list packages | tr -d '\r' | grep -i 'boraapp' | head -1 | cut -d: -f2)
-            echo "PKG=$PKG"
-            for p in android.permission.ACCESS_FINE_LOCATION android.permission.ACCESS_COARSE_LOCATION android.permission.POST_NOTIFICATIONS android.permission.CAMERA; do
-              adb shell pm grant "$PKG" "$p" || true
-            done
-            mkdir -p artefactos/capturas
-            # Sem pipe para o tee: um pipe esconde o código de saída do drive e
-            # o portão passaria a verde com o teste vermelho.
-            set +e
-            flutter drive \
-              --driver=test_driver/capturas_driver.dart \
-              --target=integration_test/demo_real_test.dart \
-              --use-application-binary="$APK" \
-              -d emulator-5554 > artefactos/autoteste.log 2>&1
-            rc=$?
-            tail -n 120 artefactos/autoteste.log
-            echo "DRIVE_EXIT=$rc"
-            echo "CAPTURAS=$(ls artefactos/capturas 2>/dev/null | wc -l) FALHAS_SUAVES=$(ls artefactos/capturas 2>/dev/null | grep -c 'falha')"
-            exit $rc
+          # UMA linha só: este action corre cada linha do script num `sh -c`
+          # separado (run #430, 13/09: a variável $APK chegou vazia ao adb
+          # install). Toda a lógica vive em tool/ci/autoteste_emulador.sh, que
+          # devolve o código de saída do flutter drive (sem pipe para o tee).
+          script: bash tool/ci/autoteste_emulador.sh
 
       - name: Publicar artefactos do autoteste
         if: always()
@@ -127,6 +112,8 @@ jobs:
   build:
     name: Build AAB & upload (Closed Testing — alpha)
     needs: autoteste
+    # Só a produção publica: no ramo candidato o autoteste corre e o build fica de fora.
+    if: github.ref == 'refs/heads/autonomous-night-2026-04-29'
     runs-on: ubuntu-latest
 
     steps:

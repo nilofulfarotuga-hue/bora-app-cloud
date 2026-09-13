@@ -52,6 +52,9 @@
 // já em `driverAccepted` no estafeta demo, sem passarem por `callingDriver`.
 // É essa caixa fechada que sustenta a frase das notas ao revisor: "orders
 // placed from the demo account are never dispatched to real couriers".
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -245,6 +248,16 @@ void main() {
 
     await app.main();
     await _bombear(t, segundos: 6);
+
+    // ANDROID: a primeira fotografia exige converter a superfície do Flutter
+    // numa imagem ("Call convertFlutterSurfaceToImage() before taking a
+    // screenshot"). No simulador iOS não é preciso — foi por isso que a run
+    // #431 de 13/09 (emulador do CI) morreu aos 22 s, na primeira captura,
+    // sem culpa da app. Uma vez só, depois do primeiro frame.
+    if (!kIsWeb && Platform.isAndroid) {
+      await _binding.convertFlutterSurfaceToImage();
+      await t.pumpAndSettle();
+    }
 
     await _fecharConsentimento(t);
 

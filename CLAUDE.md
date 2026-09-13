@@ -63,6 +63,11 @@ Bash/Read/Grep directamente; só uma sessão interactiva (Claude.ai, Claude Code
   `protocolo-missao-bora` (`.claude/skills/protocolo-missao-bora/SKILL.md`) — as três portas
   (Claude Code / OpenCode / navegador), motor + fallback, MCP-first, carta de autonomia, e2e_log,
   digest em `claude_ai_memoria`. Entra pelo CEO-AI; não substitui o `PADRAO_BORA.md`.
+- **LOGIN NO NAVEGADOR (regra do Danilo, 13/09/2026):** quando precisares de um site ou painel onde
+  não há sessão, ou não conseguires abrir/entrar em alguma janela, não tentes senhas nem peças
+  token a ninguém — abre a página de login no próprio Chrome do PC (perfil boraappbora), avisa o
+  Danilo pelo Telegram numa linha e continua quando a sessão existir. Fica gravada no Chrome e
+  serve para sempre. Uma vez por site.
 
 ## Sistema de Agentes
 

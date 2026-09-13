@@ -11,10 +11,10 @@ description: >
   it only analyzes, decides, and produces instructions.
 metadata:
   versao: 1.0
-  execucoes: 4
-  sucessos: 4
+  execucoes: 5
+  sucessos: 5
   falhas: 0
-  ultima_execucao: 2026-08-06
+  ultima_execucao: 2026-09-13
   criada_por: pre-telemetria (rollout 2026-07-10)
 ---
 

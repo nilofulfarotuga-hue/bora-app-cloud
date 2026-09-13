@@ -52,11 +52,18 @@ DRY = "--dry-run" in sys.argv
 SLOT = "16h" if "--slot" in sys.argv and "16h" in sys.argv else "manual"
 
 # --- Teto duro. 12 KB ~ 3.000 tokens. Passar disto e' sufocar o executor. ---
-CAP_TOTAL = 12 * 1024
+CAP_TOTAL = 16 * 1024      # 12 -> 16 KB (portas-13-09): a seccao 0 tem teto proprio de 4 KB
 CAP_ARMADILHAS = 4600
 CAP_LICOES = 3600
 CAP_ABERTOS = 1800
 CAP_REGRAS = 1600
+# --- Memoria da Claude.ai (missao portas-13-09, 2026-09-13): tudo o que o Danilo decide em
+# conversa vive em public.claude_ai_memoria e TODOS os motores (Claude Code, OpenCode, ChatGPT)
+# tem de o ler. Aqui entram so regras-do-danilo + o estado mais recente + os 3 ultimos digests.
+CAP_MEMORIA = 4096
+CAP_MEM_REGRAS = 2000
+CAP_MEM_ESTADO = 1000
+CAP_MEM_DIGEST = 350
 
 INBOX_DIAS = 14          # so o inbox recente conta para "em aberto"
 HOJE = date.today()
@@ -376,6 +383,38 @@ def publica_estado(estado, preview):
         return "falhou (%s)" % type(e).__name__
 
 
+def iter_memoria_claude():
+    """Memoria da Claude.ai (tabela public.claude_ai_memoria): o que o Danilo decidiu em
+    conversa e que todos os motores tem de ler antes de agir. Devolve (paginas, nota).
+    Seleccao: regras-do-danilo + o estado-YYYY-MM-DD mais recente + os 3 digests mais
+    recentes. BEST-EFFORT: sem rede/credencial devolve ([], nota) e o digest segue igual."""
+    cfg = env_de(os.path.join(REPO, "backend", ".env"),
+                 {"SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"})
+    url = os.environ.get("SUPABASE_URL") or cfg.get("SUPABASE_URL")
+    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or cfg.get("SUPABASE_SERVICE_ROLE_KEY")
+    if not url or not key:
+        return [], "sem credenciais locais"
+    alvo = ("%s/rest/v1/claude_ai_memoria?select=pagina,titulo,conteudo,atualizado_em"
+            "&order=atualizado_em.desc" % url.rstrip("/"))
+    req = urllib.request.Request(alvo, headers={
+        "apikey": key, "Authorization": "Bearer " + key, "Accept": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            linhas = json.loads(r.read().decode("utf-8"))
+    except (urllib.error.URLError, ValueError, OSError) as e:
+        return [], "inacessivel (%s)" % type(e).__name__
+    por = {d.get("pagina") or "": d for d in linhas}
+    escolha = []
+    if "regras-do-danilo" in por:
+        escolha.append((por["regras-do-danilo"], CAP_MEM_REGRAS))
+    estados = sorted((p for p in por if p.startswith("estado-")), reverse=True)
+    if estados:
+        escolha.append((por[estados[0]], CAP_MEM_ESTADO))
+    for d in [d for d in linhas if (d.get("pagina") or "").startswith("digest-")][:3]:
+        escolha.append((d, CAP_MEM_DIGEST))
+    return escolha, "ok (%d paginas)" % len(escolha)
+
+
 def le_settings():
     """Le as 2 chaves em platform_settings. RLS: SELECT so para `authenticated`,
     logo usa a service_role do backend/.env (gitignored). Devolve (dict, nota)."""
@@ -435,6 +474,7 @@ def main():
     licoes = iter_licoes()
     abertos = iter_abertos()
     regras = iter_regras()
+    memoria, nota_mem = iter_memoria_claude()
 
     # ---- Bloco 1: armadilhas (a licao que tem regra accionavel) ----
     arm = ["- **%s** — %s _(%s)_" % (l["titulo"], l["regra"], l["id"])
@@ -456,6 +496,13 @@ def main():
     # Etiqueta compacta em vez de `_(business_rules.md)_`: 24 B -> 4 B por linha.
     # Com ~20 regras isso sao ~400 B recuperados DENTRO do mesmo teto.
     rg = ["- [%s] %s" % (r["tag"], r["regra"]) for r in regras]
+    # ---- Bloco 0: memoria da Claude.ai (cada pagina numa linha, achatada e com teto proprio) ----
+    mem = []
+    for d, cap in memoria:
+        corpo = limpa(d.get("conteudo") or "")
+        if len(corpo) > cap:
+            corpo = corpo[:cap - 1].rsplit(" ", 1)[0] + "\u2026"
+        mem.append("- **%s** (%s): %s" % (d.get("pagina"), (d.get("atualizado_em") or "")[:10], corpo))
 
     agora = datetime.now()
     cab = (
@@ -470,12 +517,17 @@ def main():
         "---\n\n"
         "# ESTADO ATUAL CONSOLIDADO — o que ja sabemos\n\n"
         "> **AUTO-GERADO** por `_tools/consolidador.py` em **%s**. Nao editar a mao.\n"
-        "> Fontes: %d licoes vigentes · %d itens em aberto · %d regras. Toggle: %s.\n"
+        "> Fontes: %d licoes vigentes · %d itens em aberto · %d regras · memoria claude.ai: %s. Toggle: %s.\n"
         "> Se esta pagina tiver mais de 24h, trata-a como possivelmente desatualizada.\n\n"
     ) % (HOJE.isoformat(), agora.strftime("%Y-%m-%d %H:%M"),
-         len(licoes), len(abertos), len(regras), nota_set)
+         len(licoes), len(abertos), len(regras), nota_mem, nota_set)
 
     partes = [cab]
+    s0, u0, c0 = secao(
+        "## 0. MEMORIA DA CLAUDE.AI — regras-do-danilo manda em tudo\n"
+        "_Fonte: public.claude_ai_memoria (%s). Antes de decidir, le a tabela inteira via MCP "
+        "(ou cortex_buscar \"regras do danilo\")._\n" % nota_mem,
+        mem, CAP_MEMORIA)
     s1, u1, c1 = secao("## 1. ARMADILHAS — nao repetir estes erros\n", arm, CAP_ARMADILHAS)
     s2, u2, c2 = secao("\n## 2. LICOES VIGENTES POR CATEGORIA\n", lic, CAP_LICOES)
     s3, u3, c3 = secao("\n## 3. EM ABERTO / POR FECHAR\n", ab, CAP_ABERTOS)
@@ -484,7 +536,7 @@ def main():
         "_Ordem: dinheiro-em-movimento > preco-de-catalogo > seguranca > resto._\n"
         "_[CM]=CLAUDE.md · [BR]=business_rules.md_\n",
         rg, CAP_REGRAS)
-    partes += [s1, s2, s3, s4]
+    partes += [s0, s1, s2, s3, s4]
     doc = "".join(partes)
 
     if len(doc.encode("utf-8")) > CAP_TOTAL:          # rede de seguranca final
@@ -502,15 +554,16 @@ def main():
         "gerado_em": agora.isoformat(timespec="seconds"),
         "tamanho_bytes": tam,
         "licoes": len(licoes), "armadilhas": u1, "em_aberto": u3, "regras": u4,
-        "cortadas": c1 + c2 + c3 + c4,
+        "cortadas": c0 + c1 + c2 + c3 + c4,
+        "memoria_claude": u0,
         "toggle": nota_set, "cadencia": cadencia, "slot": SLOT,
         "digest": os.path.relpath(OUT, KNOW).replace("\\", "/"),
     }
     escreve_atomico(STATUS, json.dumps(estado, ensure_ascii=False, indent=2))
     estado["admin"] = publica_estado(estado, doc)      # C3: ponte para o painel
     escreve_atomico(STATUS, json.dumps(estado, ensure_ascii=False, indent=2))
-    print("OK: %s (%d bytes) · %d armadilhas · %d licoes · %d abertos · %d regras · admin=%s"
-          % (estado["digest"], tam, u1, u2, u3, u4, estado["admin"]))
+    print("OK: %s (%d bytes) · %d memoria · %d armadilhas · %d licoes · %d abertos · %d regras · admin=%s"
+          % (estado["digest"], tam, u0, u1, u2, u3, u4, estado["admin"]))
     return 0
 
 

@@ -1,13 +1,14 @@
 {
-  "gerado_em": "2026-08-01T04:00:23",
-  "tamanho_bytes": 8742,
+  "gerado_em": "2026-09-13T22:33:42",
+  "tamanho_bytes": 12968,
   "licoes": 27,
   "armadilhas": 13,
   "em_aberto": 0,
   "regras": 15,
   "cortadas": 11,
+  "memoria_claude": 4,
   "toggle": "ok",
-  "cadencia": "2x",
+  "cadencia": "1x",
   "slot": "manual",
   "digest": "permanente/procedural/estado-atual-consolidado.md",
   "admin": "ok (200)"

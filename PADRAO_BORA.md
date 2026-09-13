@@ -431,6 +431,20 @@ Um `try/catch` com recurso **não chega e engana**: parece coberto.
 **Lei que daqui sai:** procura `await` sobre hardware ou permissões sem
 `.timeout(...)`. Cada um é um ecrã que pode ficar preso.
 
+### 1.27 Loja fechada não bloqueia ao clique — entra-se sempre, o travão é no carrinho
+
+Fora de horas o cartão da loja abre na mesma: o cliente vê capa, logo, categorias,
+produtos, preços e opções — nada bloqueado, nada esbatido. O travão está em **dois**
+sítios, e só nesses: ao **meter no carrinho** (`CartStore.lojaFechada` mostra o aviso da
+loja com o horário) e, do lado do servidor, no gatilho `trg_store_closed_guard_orders`
+(erro `STORE_CLOSED`). Não é agendamento: não se promete "avisar quando abrir" em lado
+nenhum, porque isso não existe.
+
+> **Cicatriz (27/08, pedido do Danilo; regra reafirmada a 10/09):** o toque no cartão de
+> uma loja fechada só dava um aviso e não entrava — o cliente não conseguia sequer ver o
+> que a loja vende. Comentário de código em `lib/screens/restaurants_screen.dart`
+> ("LOJA FECHADA E VISITAVEL"). Registado aqui a 13/09 na auditoria `fable-13-09`.
+
 
 ## 2. ONDE CADA COISA VIVE — A REGRA DOS GÉMEOS
 
@@ -494,6 +508,13 @@ escrito à mão.
 > **Cicatriz (27/08):** a taxa de pedido pequeno era calculada na app. Passou a vir do campo
 > `small_order_fee` que o servidor devolve no orçamento — que é exactamente o mesmo número
 > que entra no total, no valor a cobrar e no que vai para a Stripe.
+> **Cicatriz (12/09):** o orçamento era pedido **sem as linhas do carrinho** e o servidor
+> devolvia subtotal 0 — a taxa de pedido pequeno desaparecia do ecrã enquanto o gatilho a
+> cobrava (commit `f25fc34b`); e o rodapé da loja mostrava a taxa lida de `platform_settings`
+> em vez da do orçamento (commit `210a1182`). **Regra (10/09):** pedido mínimo
+> (`min_order_cents`, 15 € nos mercados desde 09/09) e taxa de pedido pequeno vivem nas
+> definições e chegam ao ecrã **só pelo orçamento do servidor, com as linhas do carrinho** —
+> nunca por um segundo caminho.
 
 ### 2.4 Gémeos que já nos morderam e vale a pena conhecer
 
@@ -669,6 +690,14 @@ entre funcionar e não funcionar:
 Para entrar sem saber a palavra-passe de ninguém, gera-se um link de uma vez
 (`admin/generate_link`) ou cria-se uma conta de prova que se apaga no fim.
 **Nunca se muda a palavra-passe de uma conta real para poder testar.**
+
+**Desde 13/09 a prova de telemóvel também não passa pelo Danilo.** O telemóvel não está
+ligado por USB e ele não testa a app à mão nem pode ser quem descobre um crash: existe o
+**autoteste dos 3 perfis** (`integration_test/demo_real_test.dart` — cliente, estafeta e
+parceiro demo, todos os mosaicos e ecrãs com mapa) que corre no emulador Android com Play
+Store, no CI (job `autoteste` do `build_android.yml`, antes do `build`) e localmente
+(`.claude/.ai/provas/fable-13-09/emulador/autoteste2.sh`). **Sem verde, nada é publicado.**
+Regra fixada pelo Danilo a 10/09 e montada a 13/09.
 
 ### 3.11 Quando o Danilo e eu vemos coisas diferentes no mesmo endereço, o desencontro resolve-se primeiro
 

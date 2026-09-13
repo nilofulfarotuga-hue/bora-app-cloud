@@ -370,6 +370,10 @@ TRIAGE: AGORA / DEPOIS / IGNORAR
 
 - Início: `⚠️ MODO PROTECÇÃO TOTAL ⚠️`
 - Final: `/ctx doctor` + `/ctx stats`
+- **Missões** (redigir ordem, arrancar janela, fechar Bloco F): skill `protocolo-missao-bora`
+  (`.claude/skills/protocolo-missao-bora/SKILL.md`, criada 2026-09-13) — as três portas
+  (Claude Code / OpenCode / navegador), motor + fallback, carta de autonomia, `e2e_log`,
+  digest em `claude_ai_memoria`. Entra por aqui; não substitui o `PADRAO_BORA.md`.
 - Tarefas complexas: lembrar Danilo de mudar para **Opus**
 - CTX: v1.0.89 · em sessões longas sugerir `/ctx stats` e `/ctx doctor`
 

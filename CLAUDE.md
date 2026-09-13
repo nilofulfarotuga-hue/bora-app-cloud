@@ -59,6 +59,10 @@ Bash/Read/Grep directamente; só uma sessão interactiva (Claude.ai, Claude Code
 - When a task matches a skill, EXECUTE the skill immediately
 - Do not ask for clarification if skill context is sufficient
 - Combine skill + short context instead of large explanations
+- **Missões** (redigir uma ordem, arrancar uma janela, fechar o Bloco F): seguir a skill
+  `protocolo-missao-bora` (`.claude/skills/protocolo-missao-bora/SKILL.md`) — as três portas
+  (Claude Code / OpenCode / navegador), motor + fallback, MCP-first, carta de autonomia, e2e_log,
+  digest em `claude_ai_memoria`. Entra pelo CEO-AI; não substitui o `PADRAO_BORA.md`.
 
 ## Sistema de Agentes
 

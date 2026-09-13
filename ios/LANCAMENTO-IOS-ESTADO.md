@@ -2,8 +2,46 @@
 
 > Missão `ios-lancamento` · run_id `ios-lancamento-2026-09-07`
 > **Este ficheiro diz onde retomar.** Cada linha tem prova.
-> Última actualização: 2026-09-11 05:21 UTC — **REENVIADA À APPLE: `WAITING_FOR_REVIEW`, build 115** (bloco **-16**).
+> Última actualização: 2026-09-13 — **APROVADA a 12/09 11:23 UTC; no ar no BR; PT travado por `TRADER_STATUS_NOT_PROVIDED`** (bloco **-17**).
 > Modo de trabalho: ver `carta-de-autonomia-ios` na memória do projeto.
+
+## -17. APROVADA — E O QUE AINDA TRAVA PORTUGAL (2026-09-13, 19:xx UTC)
+
+**A Apple aprovou a Bora a 2026-09-12 às 11:23 UTC** (32 h depois do reenvio).
+Provas lidas de volta:
+
+- Emails: *"Review of your submission has been completed. It is now eligible for
+  distribution."* (11:23) e *"Welcome to the App Store"* (11:25).
+- API: submissão `a8f2615e` → **`COMPLETE`**; versão 1.0 → **`READY_FOR_SALE`** /
+  **`READY_FOR_DISTRIBUTION`**; build **115**.
+- Lookup do iTunes: **BR `resultCount=1`**, lançada `2026-09-12T07:00Z`,
+  `https://apps.apple.com/br/app/bora-entregas-e-servi%C3%A7os/id6809954739`.
+- Lookup do iTunes: **PT `resultCount=0`**; a página `apps.apple.com/pt/app/id6809954739`
+  devolve **404**.
+
+**Porquê PT não está no ar** — lido de `appAvailabilityV2` (API, não dedução):
+
+```
+BRA  available=true  contentStatuses=["AVAILABLE"]
+PRT  available=true  contentStatuses=["TRADER_STATUS_NOT_PROVIDED"]
+```
+
+Ou seja: a app está *disponível* em PT do nosso lado, mas a Apple não a distribui
+na UE enquanto o **estado de comerciante (DSA)** não estiver **verificado** ao
+nível da conta. Foi submetido a 10/09 e a Apple disse que ia verificar. Isto é
+da Apple (e, se pedirem documento/código, do Danilo) — não há API para o
+empurrar.
+
+**Aviso de segurança, lido do Gmail:** a 2026-09-13 às 05:49 UTC entrou um
+pedido *"Confirme o seu endereço de e-mail"* (repor/desbloquear a Conta Apple) e
+às **05:51 UTC "A palavra-passe da sua Conta Apple foi reposta"**. Se não foi o
+Danilo, é para ir já a `iforgot.apple.com`. Esta sessão não fez isso.
+
+Desde a aprovação: **1 pedido real** e **2 contas novas** (SQL, 19:04 UTC).
+
+O vídeo alargado das 08:05 UTC de 11/09 **não saiu**: o PC ficou sem rede
+(`getaddrinfo failed`). Deixou de ser preciso para esta revisão; as notas da
+versão 1.0 já não se editam (está no ar). Para a próxima versão, notas novas.
 
 ## -16. REENVIADA (2026-09-11, 05:21:19 UTC)
 

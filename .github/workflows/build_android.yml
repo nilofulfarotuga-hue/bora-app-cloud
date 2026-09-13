@@ -18,8 +18,107 @@ permissions:
   contents: write  # necessario para o commit/push do versionCode bump
 
 jobs:
+  # ── 0. AUTOTESTE DOS 3 PERFIS (regra do Danilo, 13/09: sem verde, nada é publicado) ──
+  # O mesmo arnês que provou a app no simulador iOS a 10/09
+  # (integration_test/demo_real_test.dart: cliente demo, estafeta demo e parceiro
+  # demo, todos os mosaicos e os ecrãs com mapa), agora num emulador Android COM
+  # Play Store. Se um ecrã rebentar, o teste falha, deixa falha-*.png em
+  # artefactos, e o job de build nem arranca. O APK é construído uma vez e
+  # instalado à mão para se poderem dar as permissões (localização, avisos,
+  # câmara) ANTES de o teste começar — os diálogos do sistema não são Flutter e
+  # o teste não os consegue tocar.
+  autoteste:
+    name: Autoteste 3 perfis (emulador Android + Play Store)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.41.2
+          channel: stable
+          cache: true
+
+      - name: Install Android NDK
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+            --sdk_root="$ANDROID_HOME" "ndk;28.2.13676358"
+
+      - name: Decode google-services.json
+        env:
+          GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
+        run: |
+          echo "$GOOGLE_SERVICES_JSON_B64" | base64 --decode > android/app/google-services.json
+
+      - name: Decode .dart_defines
+        env:
+          DART_DEFINES_FILE_B64: ${{ secrets.DART_DEFINES_FILE_B64 }}
+        run: |
+          echo "$DART_DEFINES_FILE_B64" | base64 --decode > .dart_defines
+          test -s .dart_defines || { echo "ERRO: .dart_defines vazio apos decode"; exit 1; }
+
+      - name: Dependências
+        run: flutter pub get
+
+      - name: APK de teste (entrypoint = o arnês dos 3 perfis)
+        run: |
+          flutter build apk --debug \
+            --target=integration_test/demo_real_test.dart \
+            --dart-define-from-file=.dart_defines \
+            --dart-define=FAZER_ENCOMENDA_REAL=false
+
+      - name: Ligar o KVM (emulador a velocidade real)
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Percorrer os 3 perfis no emulador
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis_playstore
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
+          script: |
+            set -e
+            APK=build/app/outputs/flutter-apk/app-debug.apk
+            adb install -r "$APK"
+            PKG=$(adb shell pm list packages | tr -d '\r' | grep -i 'boraapp' | head -1 | cut -d: -f2)
+            echo "PKG=$PKG"
+            for p in android.permission.ACCESS_FINE_LOCATION android.permission.ACCESS_COARSE_LOCATION android.permission.POST_NOTIFICATIONS android.permission.CAMERA; do
+              adb shell pm grant "$PKG" "$p" || true
+            done
+            mkdir -p artefactos/capturas
+            flutter drive \
+              --driver=test_driver/capturas_driver.dart \
+              --target=integration_test/demo_real_test.dart \
+              --use-application-binary="$APK" \
+              -d emulator-5554 2>&1 | tee artefactos/autoteste.log
+
+      - name: Publicar artefactos do autoteste
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: autoteste-android-${{ github.run_number }}
+          path: artefactos/
+          if-no-files-found: ignore
+
   build:
     name: Build AAB & upload (Closed Testing — alpha)
+    needs: autoteste
     runs-on: ubuntu-latest
 
     steps:

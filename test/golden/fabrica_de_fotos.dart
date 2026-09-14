@@ -105,6 +105,9 @@ Future<void> fotografaTela(
   required Widget tela,
   required (String, Size) tamanho,
   bool teclado = false,
+  // [painel-admin-limpo 14/09] Interagir antes de fotografar (abrir uma
+  // secção, escrever na busca). Nulo = fotografa como nasce.
+  Future<void> Function(WidgetTester tester)? interagir,
 }) async {
   final (slug, size) = tamanho;
   tester.view.physicalSize = size;
@@ -130,6 +133,10 @@ Future<void> fotografaTela(
   );
   // Assenta animações curtas de entrada sem esperar loops infinitos.
   await tester.pump(const Duration(milliseconds: 400));
+  if (interagir != null) {
+    await interagir(tester);
+    await tester.pump(const Duration(milliseconds: 400));
+  }
 
   // REGRA DE OURO — qualquer FlutterError (RenderFlex overflowed incluído)
   // capturado durante o pump falha AQUI, com o nome da tela na mensagem.

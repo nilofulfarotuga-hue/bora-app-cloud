@@ -63,6 +63,7 @@
 | **skills-doctor** | meta | Valida todas as skills (frontmatter, name==pasta, depends_on, py_compile, README/req, dry-run). Read-only [OK]/[!]/[X]; exit=nº erros. |
 | **update-bora-knowledge** | meta | Deteta drift knowledge vs repo (Edge Fns vs 08; pastas vs INDEX). Read-only: propõe em _preview/, NUNCA edita docs (Knowledge Protocol). |
 | **generate-skills-readme** | meta | Gera README.md mestre agrupado por categoria, do frontmatter+corpo. Dry-run → _preview/; --write grava README.md. NÃO toca no INDEX.md curado. |
+| **painel-admin-limpo** | admin | Regras do painel admin que já partiram mais de uma vez: hora de Lisboa nos contadores, demo fora de contas e dinheiro, um hub por assunto, paridade admin em toda a feature, nunca somar verticais. Usar em qualquer ecrã/RPC/cartão do painel. |
 
 ## Notas
 - **Onboarders** (`onboard-partner-*`) dependem de `bora-knowledge` e chamam as Edge Fns

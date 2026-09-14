@@ -204,8 +204,11 @@ void main() {
   group('rotas, toque no aviso e RPC novo (fonte)', () {
     final mainDart = File('lib/main.dart').readAsStringSync();
     final push = File('lib/services/admin_push_service.dart').readAsStringSync();
+    // O ecrã carrega e navega; o desenho vive no conteúdo. Lê-se os dois.
     final dash =
-        File('lib/screens/admin/admin_dashboard_screen.dart').readAsStringSync();
+        File('lib/screens/admin/admin_dashboard_screen.dart').readAsStringSync() +
+            File('lib/screens/admin/admin_dashboard_content.dart')
+                .readAsStringSync();
     final digest =
         File('supabase/functions/weekly-closeout-digest/index.ts').readAsStringSync();
 
@@ -241,7 +244,7 @@ void main() {
 
   group('marcações: a falta deixou de ser automática (fonte)', () {
     final mig = File(
-            'supabase/migrations/20260914011500_marcacoes_por_confirmar_sem_falta_automatica.sql')
+            'supabase/migrations/20260913235830_marcacoes_por_confirmar_sem_falta_automatica.sql')
         .readAsStringSync();
     final agenda =
         File('lib/screens/partner/services/partner_agenda_screen.dart')

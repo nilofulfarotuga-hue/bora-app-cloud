@@ -9,17 +9,36 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/allergens.dart';
 import '../config/app_colors.dart';
+import '../models/partner_product.dart';
 import '../models/restaurant_model.dart';
+import '../services/partner_price_rules.dart';
 import '../stores/partner_product_store.dart';
 
 /// Sentinel do dropdown de categoria — seleciona-lo abre o campo livre para
 /// criar uma categoria nova (BUG 1, 2026-07-17).
 const String _kNewCategorySentinel = '__nova_categoria__';
 
+/// Criar OU editar um produto do parceiro.
+///
+/// 2026-09-14 (missão parceiro-edita-preco): o dono da Sabores de Casa não
+/// tinha onde mudar preço, nome ou descrição de um produto já criado. O mesmo
+/// ecrã passa a abrir em modo de edição quando recebe [product] — reaproveita
+/// a foto (câmara/galeria/URL), a categoria e os alergénios.
+///
+/// Regra de preço (lojas parceiras): o parceiro escreve o preço de balcão —
+/// "Preço que recebes" — e a app soma a comissão por cima, sozinha, através de
+/// [PartnerPriceRules]. Gravam-se as duas colunas: `partner_shelf_price` (o
+/// que ele escreveu) e `price` (o que o cliente vê). Antes gravava-se o número
+/// escrito directamente em `price`, e o parceiro recebia menos 14 % sem saber.
 class AddProductScreen extends StatefulWidget {
-  const AddProductScreen({super.key, required this.restaurant});
+  const AddProductScreen({super.key, required this.restaurant, this.product});
 
   final RestaurantModel restaurant;
+
+  /// Produto a editar; null = criar novo.
+  final PartnerProduct? product;
+
+  bool get isEditing => product != null;
 
   @override
   State<AddProductScreen> createState() => _AddProductScreenState();
@@ -47,13 +66,68 @@ class _AddProductScreenState extends State<AddProductScreen> {
   String? _existingImageUrl;
   bool _uploading = false;
 
+  // Regra de preço da plataforma (lida do servidor ao abrir o ecrã, para
+  // acompanhar sempre a percentagem em vigor). Só interessa a lojas parceiras.
+  PartnerPriceRules? _rules;
+  bool _rulesLoading = false;
+
+  bool get _isPartnerStore => widget.restaurant.isPartner;
+
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController();
-    _descriptionController = TextEditingController();
-    _priceController = TextEditingController();
+    final product = widget.product;
+    _nameController = TextEditingController(text: product?.name ?? '');
+    _descriptionController =
+        TextEditingController(text: product?.description ?? '');
+    _priceController = TextEditingController(
+      text: product == null ? '' : _initialPriceText(product),
+    );
     _newCategoryController = TextEditingController();
+    if (product != null) {
+      _isAvailable = product.isAvailable;
+      _selectedAllergens.addAll(product.allergens);
+      if (product.photoUrl.trim().isNotEmpty) {
+        _existingImageUrl = product.photoUrl;
+      }
+      _preselectCategory(product.category.trim());
+    }
+    if (_isPartnerStore) _loadRules();
+  }
+
+  /// Campo do preço pré-preenchido com o balcão; se o produto antigo ainda não
+  /// tiver balcão gravado, cai para o preço actual (numa loja parceira isso
+  /// é o preço que o cliente vê — o parceiro confirma-o ao guardar).
+  String _initialPriceText(PartnerProduct product) {
+    final value = _isPartnerStore
+        ? (product.partnerShelfPrice ?? product.price)
+        : product.price;
+    return value.toStringAsFixed(2).replaceAll('.', ',');
+  }
+
+  /// Em edição, a categoria actual do produto aparece já escolhida no
+  /// dropdown; se por acaso não estiver entre as da loja, vai para o campo livre.
+  void _preselectCategory(String category) {
+    if (category.isEmpty) return;
+    final existing = _existingCategories;
+    if (existing.contains(category)) {
+      _selectedCategoryOption = category;
+    } else {
+      _selectedCategoryOption = _kNewCategorySentinel;
+      _newCategoryController.text = category;
+    }
+  }
+
+  Future<void> _loadRules() async {
+    setState(() => _rulesLoading = true);
+    final rules = await PartnerPriceRules.load(
+      appMarkupPct: widget.restaurant.appMarkupPct,
+    );
+    if (!mounted) return;
+    setState(() {
+      _rules = rules;
+      _rulesLoading = false;
+    });
   }
 
   /// Categorias distintas já usadas pelos produtos desta loja (ordem alfabética).
@@ -104,6 +178,27 @@ class _AddProductScreenState extends State<AddProductScreen> {
       return;
     }
 
+    // Loja parceira: o número escrito é o balcão; o preço do cliente vem da
+    // regra da plataforma. Sem a regra lida do servidor não se grava — antes
+    // recusar do que gravar um preço que engana o parceiro.
+    double priceToSave = parsedPrice;
+    double? shelfToSave;
+    if (_isPartnerStore) {
+      final rules = _rules;
+      if (rules == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Não foi possível ler as percentagens da '
+                'plataforma. Verifica a ligação e tenta outra vez.'),
+          ),
+        );
+        if (!_rulesLoading) _loadRules();
+        return;
+      }
+      shelfToSave = parsedPrice;
+      priceToSave = rules.appPriceFromShelf(parsedPrice);
+    }
+
     final category = _resolveCategory(_existingCategories);
     if (category.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -121,18 +216,40 @@ class _AddProductScreenState extends State<AddProductScreen> {
     }
     if (!mounted) return;
 
+    final store = context.read<PartnerProductStore>();
+    final editing = widget.product;
     try {
-      await context.read<PartnerProductStore>().addProduct(
-            restaurantId: widget.restaurant.id,
-            name: _nameController.text,
-            description: _descriptionController.text,
-            price: parsedPrice,
-            photoUrl: imageUrl ?? '',
-            isAvailable: _isAvailable,
-            category: category,
-            allergens: _selectedAllergens.toList(),
-            requiresPrescription: _requiresPrescription,
-          );
+      if (editing != null) {
+        final ok = await store.updateProduct(
+          restaurantId: widget.restaurant.id,
+          productId: editing.id,
+          name: _nameController.text,
+          description: _descriptionController.text,
+          price: priceToSave,
+          partnerShelfPrice: shelfToSave,
+          // Vazio = mantém a foto actual (o store trata assim).
+          photoUrl: imageUrl,
+          isAvailable: _isAvailable,
+          category: category,
+          allergens: _selectedAllergens.toList(),
+        );
+        if (!ok) {
+          throw StateError('o servidor não aceitou a alteração');
+        }
+      } else {
+        await store.addProduct(
+          restaurantId: widget.restaurant.id,
+          name: _nameController.text,
+          description: _descriptionController.text,
+          price: priceToSave,
+          partnerShelfPrice: shelfToSave,
+          photoUrl: imageUrl ?? '',
+          isAvailable: _isAvailable,
+          category: category,
+          allergens: _selectedAllergens.toList(),
+          requiresPrescription: _requiresPrescription,
+        );
+      }
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -272,6 +389,65 @@ class _AddProductScreenState extends State<AddProductScreen> {
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
+  }
+
+  /// Duas linhas por baixo do preço, actualizadas a cada tecla:
+  ///   Recebes: 8,00 €   O cliente vê: 9,33 €
+  /// Sem jargão — o parceiro nunca faz contas nem vê percentagens.
+  Widget _buildPricePreview(ThemeData theme) {
+    final subtle = theme.textTheme.bodySmall?.color;
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: _priceController,
+      builder: (context, value, _) {
+        final rules = _rules;
+        if (rules == null) {
+          if (_rulesLoading) {
+            return Text('A preparar o preço para o cliente…',
+                style: theme.textTheme.bodySmall?.copyWith(color: subtle));
+          }
+          return Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Não foi possível ler as percentagens da plataforma.',
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: AppColors.error),
+                ),
+              ),
+              TextButton(
+                onPressed: _rulesLoading ? null : _loadRules,
+                child: const Text('Tentar outra vez'),
+              ),
+            ],
+          );
+        }
+        final shelf = _parsePrice(value.text);
+        if (shelf == null || shelf < 0) {
+          return Text('Escreve o preço de balcão para veres o que o cliente paga.',
+              style: theme.textTheme.bodySmall?.copyWith(color: subtle));
+        }
+        final clientPrice = rules.appPriceFromShelf(shelf);
+        final strong = theme.textTheme.bodyMedium
+            ?.copyWith(fontWeight: FontWeight.w600);
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Recebes: ${formatEurPt(shelf)}', style: strong),
+              const SizedBox(height: 2),
+              Text('O cliente vê: ${formatEurPt(clientPrice)}',
+                  style: strong),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   /// BUG 1 (2026-07-17): campo de categoria — dropdown com as categorias já
@@ -483,9 +659,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
-        title: const Text(
-          'Adicionar produto',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          widget.isEditing ? 'Editar produto' : 'Adicionar produto',
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
@@ -505,7 +681,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Novo produto para ${widget.restaurant.name}',
+                    widget.isEditing
+                        ? 'Editar ${widget.product!.name}'
+                        : 'Novo produto para ${widget.restaurant.name}',
                     style: theme.textTheme.titleMedium,
                   ),
                   const SizedBox(height: 16),
@@ -545,20 +723,31 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     controller: _priceController,
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(
-                      labelText: 'Preço',
-                      prefixIcon: Icon(Icons.euro),
+                    decoration: InputDecoration(
+                      labelText:
+                          _isPartnerStore ? 'Preço que recebes' : 'Preço',
+                      helperText: _isPartnerStore
+                          ? 'O preço de balcão da tua loja. A app soma a '
+                              'comissão por cima, sozinha.'
+                          : null,
+                      helperMaxLines: 2,
+                      prefixIcon: const Icon(Icons.euro),
                     ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
                         return 'Indique o preço';
                       }
-                      if (_parsePrice(value) == null) {
+                      final parsed = _parsePrice(value);
+                      if (parsed == null || parsed < 0) {
                         return 'Preço inválido';
                       }
                       return null;
                     },
                   ),
+                  if (_isPartnerStore) ...[
+                    const SizedBox(height: 8),
+                    _buildPricePreview(theme),
+                  ],
                   const SizedBox(height: 16),
                   _buildCategorySection(),
                   const SizedBox(height: 16),
@@ -602,8 +791,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   ],
                   // Parte 5 (rodada 2) — farmácia: marca produtos que exigem
                   // receita médica (badge no cliente; só OTC devem ser vendidos).
-                  if (widget.restaurant.category ==
-                      BusinessCategory.pharmacy) ...[
+                  // Só ao criar: o modelo em memória não carrega esta coluna,
+                  // por isso em edição não se mostra um interruptor a mentir.
+                  if (!widget.isEditing &&
+                      widget.restaurant.category ==
+                          BusinessCategory.pharmacy) ...[
                     SwitchListTile.adaptive(
                       contentPadding: EdgeInsets.zero,
                       title: const Text('Requer receita médica'),
@@ -634,8 +826,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.save_outlined),
-                      label:
-                          Text(_isSaving ? 'A guardar...' : 'Guardar produto'),
+                      label: Text(_isSaving
+                          ? 'A guardar...'
+                          : widget.isEditing
+                              ? 'Guardar alterações'
+                              : 'Guardar produto'),
                     ),
                   ),
                 ],

@@ -59,6 +59,7 @@ class PartnerProductStore extends ChangeNotifier {
     required String photoUrl,
     required bool isAvailable,
     required String category,
+    double? partnerShelfPrice,
     List<String> allergens = const [],
     bool requiresPrescription = false,
   }) async {
@@ -72,6 +73,7 @@ class PartnerProductStore extends ChangeNotifier {
       name: name,
       description: description,
       price: price,
+      partnerShelfPrice: partnerShelfPrice,
       photoUrl: photoUrl,
       isAvailable: isAvailable,
       category: category,
@@ -90,9 +92,11 @@ class PartnerProductStore extends ChangeNotifier {
     String? name,
     String? description,
     double? price,
+    double? partnerShelfPrice,
     String? photoUrl,
     bool? isAvailable,
     String? category,
+    List<String>? allergens,
   }) async {
     final store = _restaurantStore;
     if (store == null) return false;
@@ -102,9 +106,11 @@ class PartnerProductStore extends ChangeNotifier {
       name: name,
       description: description,
       price: price,
+      partnerShelfPrice: partnerShelfPrice,
       photoUrl: photoUrl,
       isAvailable: isAvailable,
       category: category,
+      allergens: allergens,
     );
     if (updated) notifyListeners();
     return updated;

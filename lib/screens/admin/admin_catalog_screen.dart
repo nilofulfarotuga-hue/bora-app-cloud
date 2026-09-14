@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import 'admin_product_prices_dialog.dart';
 
 class AdminCatalogScreen extends StatefulWidget {
   const AdminCatalogScreen({super.key});
@@ -154,7 +155,9 @@ class _AdminCatalogProductsScreenState extends State<_AdminCatalogProductsScreen
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final res = await Supabase.instance.client.rpc('admin_list_products_by_partner', params: {
+      // 2026-09-14: v2 traz também partner_shelf_price, is_partner e
+      // app_markup_pct (migration 20260914170000_admin_precos_parceiro_balcao_e_app).
+      final res = await Supabase.instance.client.rpc('admin_list_products_by_partner_v2', params: {
         'p_restaurant_id': widget.restaurantId,
         'p_search': _search.text.isEmpty ? null : _search.text.trim(),
         'p_only_inactive': _onlyInactive,
@@ -201,6 +204,20 @@ class _AdminCatalogProductsScreenState extends State<_AdminCatalogProductsScreen
   }
 
   Future<void> _editPrice(Map<String, dynamic> p) async {
+    // Loja parceira: as DUAS colunas (balcão + app), coerentes entre si, pela
+    // RPC admin_update_product_prices. Loja não-parceira: o preço puro, como antes.
+    if (p['is_partner'] == true) {
+      final saved = await showAdminProductPricesDialog(
+        context,
+        productId: p['id'] as String,
+        productName: (p['name'] as String?) ?? '—',
+        currentPrice: _num(p['price']) ?? 0,
+        currentShelfPrice: _num(p['partner_shelf_price']),
+        appMarkupPct: _num(p['app_markup_pct']),
+      );
+      if (saved) _load();
+      return;
+    }
     final priceCtrl = TextEditingController(text: p['price'].toString());
     final reasonCtrl = TextEditingController();
     final ok = await showDialog<bool>(
@@ -263,6 +280,20 @@ class _AdminCatalogProductsScreenState extends State<_AdminCatalogProductsScreen
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
     }
+  }
+
+  static double? _num(dynamic raw) =>
+      raw == null ? null : double.tryParse(raw.toString());
+
+  /// "Balcão €8,00 → App €9,33" na loja parceira; só o preço nas outras.
+  String _priceLabel(Map<String, dynamic> p) {
+    final price = _num(p['price']) ?? 0;
+    final shelf = _num(p['partner_shelf_price']);
+    if (p['is_partner'] == true) {
+      final balcao = shelf == null ? 'sem balcão' : '€${shelf.toStringAsFixed(2)}';
+      return 'Balcão $balcao → App €${price.toStringAsFixed(2)}';
+    }
+    return '€${price.toStringAsFixed(2)}';
   }
 
   Widget _buildProductImage(Map<String, dynamic> product) {
@@ -328,7 +359,7 @@ class _AdminCatalogProductsScreenState extends State<_AdminCatalogProductsScreen
                                 color: available ? null : Colors.grey,
                                 decoration: available ? null : TextDecoration.lineThrough)),
                         subtitle: Text(
-                            '€${p['price']} · ${p['taxonomy_section'] ?? p['category_root'] ?? "—"}'),
+                            '${_priceLabel(p)} · ${p['taxonomy_section'] ?? p['category_root'] ?? p['category'] ?? "—"}'),
                         trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                           IconButton(
                             icon: Icon(available ? Icons.toggle_on : Icons.toggle_off,

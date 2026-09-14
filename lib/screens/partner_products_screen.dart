@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../config/app_colors.dart';
 import '../models/partner_product.dart';
 import '../models/restaurant_model.dart';
+import '../services/partner_price_rules.dart';
 import '../stores/partner_product_store.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
@@ -62,49 +63,61 @@ class _PartnerProductsScreenState extends State<PartnerProductsScreen> {
     }
   }
 
-  /// BUG 1 (2026-07-17): permite corrigir a categoria de um produto já
-  /// criado (antes do formulário ter este campo, ficavam todos sem categoria).
-  Future<void> _editCategory(PartnerProduct product) async {
-    final controller = TextEditingController(text: product.category);
-    final newCategory = await showDialog<String>(
+  /// 2026-09-14 (missão parceiro-edita-preco): edição completa — nome,
+  /// descrição, preço que recebes, categoria e foto — no mesmo ecrã de criar.
+  /// Substitui o diálogo solto de categoria (BUG 1, 2026-07-17), que era o
+  /// único "Editar" que existia e não deixava mudar o preço.
+  Future<void> _openEditProduct(PartnerProduct product) async {
+    final updated = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => AddProductScreen(
+          restaurant: widget.restaurant,
+          product: product,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (updated == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Produto atualizado.')),
+      );
+    }
+  }
+
+  /// Apagar com confirmação. O Danilo já disse ao dono da Sabores de Casa que
+  /// ia poder limpar o que não vende — tem de haver botão.
+  Future<void> _deleteProduct(PartnerProduct product) async {
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Editar categoria'),
-        content: TextField(
-          controller: controller,
-          textCapitalization: TextCapitalization.sentences,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Categoria',
-            hintText: 'Ex.: Pizzas, Sobremesas, Bebidas...',
-          ),
-        ),
+        title: Text('Apagar ${product.name}?'),
+        content: const Text('Esta ação não pode ser desfeita.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Cancelar'),
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: const Text('Guardar'),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Apagar'),
           ),
         ],
       ),
     );
-    if (newCategory == null || newCategory.isEmpty || !mounted) return;
+    if (confirmed != true || !mounted) return;
 
     final store = context.read<PartnerProductStore>();
-    final success = await store.updateProduct(
+    final success = await store.deleteProduct(
       restaurantId: widget.restaurant.id,
       productId: product.id,
-      category: newCategory,
     );
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(success
-            ? 'Categoria atualizada.'
-            : 'Não foi possível atualizar a categoria.'),
+            ? 'Produto apagado.'
+            : 'Não foi possível apagar o produto.'),
       ),
     );
   }
@@ -136,9 +149,11 @@ class _PartnerProductsScreenState extends State<PartnerProductsScreen> {
                       final product = products[index];
                       return _ProductTile(
                         product: product,
+                        isPartnerStore: widget.restaurant.isPartner,
                         onToggleAvailability: (value) =>
                             _toggleAvailability(product, value),
-                        onEditCategory: () => _editCategory(product),
+                        onEdit: () => _openEditProduct(product),
+                        onDelete: () => _deleteProduct(product),
                       );
                     },
                   ),
@@ -162,17 +177,26 @@ class _PartnerProductsScreenState extends State<PartnerProductsScreen> {
 class _ProductTile extends StatelessWidget {
   const _ProductTile({
     required this.product,
+    required this.isPartnerStore,
     required this.onToggleAvailability,
-    required this.onEditCategory,
+    required this.onEdit,
+    required this.onDelete,
   });
 
   final PartnerProduct product;
+  final bool isPartnerStore;
   final ValueChanged<bool> onToggleAvailability;
-  final VoidCallback onEditCategory;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final shelf = product.partnerShelfPrice;
+    // Loja parceira com balcão gravado: mostra o que ele recebe e o que o
+    // cliente vê. Sem balcão (produto antigo) mostra só o preço do cliente —
+    // o balcão fica gravado na primeira edição.
+    final showBothPrices = isPartnerStore && shelf != null;
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
@@ -210,13 +234,32 @@ class _ProductTile extends StatelessWidget {
             const SizedBox(height: 12),
             Row(
               children: [
-                Text(
-                  '€${product.price.toStringAsFixed(2)}',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                Expanded(
+                  child: showBothPrices
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Recebes ${formatEurPt(shelf)}',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'O cliente vê ${formatEurPt(product.price)}',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.textTheme.bodySmall?.color,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Text(
+                          formatEurPt(product.price),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
-                const Spacer(),
                 Row(
                   children: [
                     Text(
@@ -233,39 +276,43 @@ class _ProductTile extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 4),
-            Row(
+            Text(
+              product.category.trim().isEmpty
+                  ? 'Sem categoria'
+                  : 'Categoria: ${product.category}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.textTheme.bodySmall?.color,
+                fontStyle: product.category.trim().isEmpty
+                    ? FontStyle.italic
+                    : FontStyle.normal,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 4,
               children: [
-                Expanded(
-                  child: Text(
-                    product.category.trim().isEmpty
-                        ? 'Sem categoria'
-                        : 'Categoria: ${product.category}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.textTheme.bodySmall?.color,
-                      fontStyle: product.category.trim().isEmpty
-                          ? FontStyle.italic
-                          : FontStyle.normal,
+                TextButton.icon(
+                  onPressed: onEdit,
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  label: const Text('Editar produto'),
+                ),
+                TextButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          ProductOptionsManageScreen(product: product),
                     ),
                   ),
+                  icon: const Icon(Icons.tune, size: 18),
+                  label: const Text('Gerir opções'),
                 ),
-                TextButton(
-                  onPressed: onEditCategory,
-                  child: const Text('Editar'),
+                TextButton.icon(
+                  onPressed: onDelete,
+                  style: TextButton.styleFrom(foregroundColor: AppColors.error),
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  label: const Text('Apagar'),
                 ),
               ],
-            ),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        ProductOptionsManageScreen(product: product),
-                  ),
-                ),
-                icon: const Icon(Icons.tune, size: 18),
-                label: const Text('Gerir opções'),
-              ),
             ),
           ],
         ),

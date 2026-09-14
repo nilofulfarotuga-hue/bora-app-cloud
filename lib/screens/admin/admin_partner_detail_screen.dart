@@ -20,6 +20,7 @@ import '../../widgets/admin/admin_user_roles_sheet.dart';
 import '../../widgets/bora/bora_primary_button.dart';
 import '../../widgets/private_bucket_image.dart';
 import '_admin_partner_edit_dialog.dart';
+import 'admin_product_prices_dialog.dart';
 
 class AdminPartnerDetailScreen extends StatefulWidget {
   const AdminPartnerDetailScreen({
@@ -2028,8 +2029,10 @@ class _PartnerCatalogTabState extends State<_PartnerCatalogTab> {
       _error = null;
     });
     try {
+      // 2026-09-14: v2 traz partner_shelf_price, is_partner, app_markup_pct
+      // (e category/is_popular, que esta aba já lia sem lhe chegarem).
       final res = await Supabase.instance.client.rpc(
-        'admin_list_products_by_partner',
+        'admin_list_products_by_partner_v2',
         params: {
           'p_restaurant_id': widget.partnerId,
           'p_limit': 200,
@@ -2090,7 +2093,23 @@ class _PartnerCatalogTabState extends State<_PartnerCatalogTab> {
     }
   }
 
-  Future<void> _editPrice(String productId, double current) async {
+  Future<void> _editPrice(Map<String, dynamic> p) async {
+    final productId = p['id'] as String;
+    final current = ((p['price'] as num?) ?? 0).toDouble();
+    // Loja parceira: balcão + preço no app, coerentes, pela RPC
+    // admin_update_product_prices (2026-09-14). Não-parceira: preço puro.
+    if (p['is_partner'] == true) {
+      final saved = await showAdminProductPricesDialog(
+        context,
+        productId: productId,
+        productName: (p['name'] as String?) ?? '—',
+        currentPrice: current,
+        currentShelfPrice: double.tryParse('${p['partner_shelf_price'] ?? ''}'),
+        appMarkupPct: double.tryParse('${p['app_markup_pct'] ?? ''}'),
+      );
+      if (saved) await _load();
+      return;
+    }
     final controller =
         TextEditingController(text: current.toStringAsFixed(2));
     final newPrice = await showDialog<double>(
@@ -2121,10 +2140,12 @@ class _PartnerCatalogTabState extends State<_PartnerCatalogTab> {
     );
     if (newPrice == null) return;
     try {
+      // A RPC exige motivo (>= 3 chars); sem ele esta chamada falhava sempre.
       await Supabase.instance.client.rpc('admin_update_product_price',
           params: {
             'p_product_id': productId,
             'p_new_price': newPrice,
+            'p_reason': 'Painel admin — ficha do parceiro',
           });
       await _load();
     } catch (e) {
@@ -2239,10 +2260,13 @@ class _PartnerCatalogTabState extends State<_PartnerCatalogTab> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 TextButton(
-                                  onPressed: () =>
-                                      _editPrice(id, price),
+                                  onPressed: () => _editPrice(p),
                                   child: Text(
-                                      '€${price.toStringAsFixed(2)}'),
+                                    p['is_partner'] == true &&
+                                            p['partner_shelf_price'] != null
+                                        ? 'Balcão €${double.tryParse('${p['partner_shelf_price']}')?.toStringAsFixed(2)} → €${price.toStringAsFixed(2)}'
+                                        : '€${price.toStringAsFixed(2)}',
+                                  ),
                                 ),
                                 Switch(
                                   value: available,

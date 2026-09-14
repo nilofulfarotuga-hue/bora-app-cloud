@@ -186,6 +186,7 @@ class RestaurantModel {
     this.comingSoon = false,
     this.comingSoonText,
     this.ownerId,
+    this.appMarkupPct,
   });
 
   final String id;
@@ -255,6 +256,12 @@ class RestaurantModel {
   /// wizard de criar conta em vez do painel dele. O email continua a servir de
   /// recurso para as lojas antigas que ainda não têm dono gravado.
   final String? ownerId;
+
+  /// `restaurants.app_markup_pct` — percentagem que o app soma ao preço de
+  /// balcão SÓ desta loja (0,10 = +10 %, modelo "comissão paga pelo cliente",
+  /// ex.: Leonidas). Null = a fórmula da plataforma. Lido por
+  /// `PartnerPriceRules`; espelha `partner_store_share(price, restaurant_id)`.
+  final double? appMarkupPct;
 
   /// Texto a mostrar no banner "Em breve" (com fallback).
   String get comingSoonLabel {
@@ -410,6 +417,7 @@ class RestaurantModel {
       comingSoon: comingSoon ?? this.comingSoon,
       comingSoonText: comingSoonText ?? this.comingSoonText,
       ownerId: ownerId,
+      appMarkupPct: appMarkupPct,
     );
   }
 }

@@ -174,8 +174,8 @@ class RestaurantStore extends ChangeNotifier {
   // 2026-05-14 perf: projecção explícita evita transferir colunas grandes
   // não usadas (search_normalized, taxonomy_*, needs_review, ...).
   static const String _productProjection =
-      'id,restaurant_id,name,description,price,price_low,photo_url,'
-      'is_available,category,category_root,is_popular,is_on_sale,'
+      'id,restaurant_id,name,description,price,price_low,partner_shelf_price,'
+      'photo_url,is_available,category,category_root,is_popular,is_on_sale,'
       'discount_price,allergens';
 
   /// B5 (2026-06-12): parse partilhado row→PartnerProduct (arranque +
@@ -206,6 +206,7 @@ class RestaurantStore extends ChangeNotifier {
       name: data['name'] ?? '',
       description: (data['description'] ?? '').toString(),
       price: price,
+      partnerShelfPrice: _shelfPriceFromRow(data),
       photoUrl: imagemParaMostrar(data['photo_url'] as String?),
       isAvailable: (data['is_available'] as bool?) ?? true,
       category: (data['category'] ?? '').toString(),
@@ -217,6 +218,15 @@ class RestaurantStore extends ChangeNotifier {
       hasRequiredOptions: _requiredOptionProductIds.contains(productId),
       allergens: allergens,
     );
+  }
+
+  /// `products.partner_shelf_price` (numeric → double), null quando o produto
+  /// ainda não tem balcão gravado. Partilhado pelo arranque e pelo realtime
+  /// para o parceiro nunca ver o campo "Preço que recebes" vazio por engano.
+  static double? _shelfPriceFromRow(Map<String, dynamic> data) {
+    final raw = data['partner_shelf_price'];
+    if (raw == null) return null;
+    return double.tryParse(raw.toString());
   }
 
   List<ProductVariant> variantsForProduct(String productId) =>
@@ -573,6 +583,7 @@ class RestaurantStore extends ChangeNotifier {
             name: data['name'] ?? '',
             description: (data['description'] ?? '').toString(),
             price: (data['price'] as num? ?? 0).toDouble(),
+            partnerShelfPrice: _shelfPriceFromRow(data),
             photoUrl: imagemParaMostrar(data['photo_url'] as String?),
             isAvailable: data['is_available'] ?? true,
             category: (data['category'] ?? '').toString(),
@@ -613,6 +624,7 @@ class RestaurantStore extends ChangeNotifier {
             name: data['name'] ?? '',
             description: data['description'] ?? '',
             price: (data['price'] as num? ?? 0).toDouble(),
+            partnerShelfPrice: _shelfPriceFromRow(data),
             photoUrl: imagemParaMostrar(data['photo_url'] as String?),
             isAvailable: data['is_available'] ?? true,
             category: (data['category'] ?? list[index].category).toString(),
@@ -740,6 +752,7 @@ class RestaurantStore extends ChangeNotifier {
     required double price,
     required String photoUrl,
     required bool isAvailable,
+    double? partnerShelfPrice,
     String category = '',
     List<String> allergens = const [],
     bool requiresPrescription = false,
@@ -756,6 +769,7 @@ class RestaurantStore extends ChangeNotifier {
       name: trimmedName,
       description: trimmedDescription,
       price: price,
+      partnerShelfPrice: partnerShelfPrice,
       photoUrl: normalizedPhoto,
       isAvailable: isAvailable,
       category: category.trim(),
@@ -776,6 +790,11 @@ class RestaurantStore extends ChangeNotifier {
         'name': product.name,
         'description': product.description,
         'price': product.price,
+        // 2026-09-14: o parceiro escreve o balcão (o que recebe) e a app soma
+        // a comissão por cima — as duas colunas gravam-se juntas. Null só
+        // quando a loja não é parceira (aí `price` é o preço puro, como antes).
+        if (product.partnerShelfPrice != null)
+          'partner_shelf_price': product.partnerShelfPrice,
         'photo_url': product.photoUrl,
         'is_available': product.isAvailable,
         // BUG 1 (2026-07-17): categoria declarada pelo parceiro no formulário
@@ -805,6 +824,7 @@ class RestaurantStore extends ChangeNotifier {
     String? name,
     String? description,
     double? price,
+    double? partnerShelfPrice,
     String? photoUrl,
     bool? isAvailable,
     String? category,
@@ -825,6 +845,7 @@ class RestaurantStore extends ChangeNotifier {
           ? current.description
           : description?.trim(),
       price: price,
+      partnerShelfPrice: partnerShelfPrice,
       photoUrl: photoUrl?.trim().isEmpty == true
           ? current.photoUrl
           : photoUrl?.trim(),
@@ -846,6 +867,10 @@ class RestaurantStore extends ChangeNotifier {
             'name': updated.name,
             'description': updated.description,
             'price': updated.price,
+            // 2026-09-14: o balcão só viaja quando quem chama o mandou. Um
+            // toggle de disponibilidade nunca pode apagar o balcão na DB.
+            if (partnerShelfPrice != null)
+              'partner_shelf_price': partnerShelfPrice,
             'photo_url': updated.photoUrl,
             'is_available': updated.isAvailable,
             'category': updated.category,
@@ -1277,6 +1302,7 @@ class RestaurantStore extends ChangeNotifier {
       heroImageUrl: imagemParaMostrarOpcional(data['hero_image_url'] as String?),
       comingSoon: data['coming_soon'] as bool? ?? false,
       comingSoonText: data['coming_soon_text'] as String?,
+      appMarkupPct: double.tryParse(data['app_markup_pct']?.toString() ?? ''),
     );
   }
 

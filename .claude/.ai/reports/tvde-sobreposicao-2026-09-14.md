@@ -59,3 +59,6 @@ Não. Nenhuma alteração toca em preço, comissão, tokens, Stripe ou carteira.
 ## PARA O DANILO
 - Nada que só tu possas fazer. O incidente do Valdemir está explicado acima e já te foi dito pelo Telegram; se ele perguntar, foi um pedido de teste meu cancelado 37 segundos depois.
 - Decisão que fica contigo (não bloqueia): `tvde_backtoback_max_queue` está a 1 (uma corrida em fila, como a Uber). Sobe no painel se quiseres mais.
+
+## Publicação
+- Commit `977e5f08` no ramo `autonomous-night-2026-04-29`, push `34968251..977e5f08` (só este commit viajou; o ramo estava 2 atrás — bump 605 e espelho do Córtex — e foi fast-forward antes). O CI (`build_android.yml`) corre o autoteste dos 3 perfis, faz o bump (esperado 606) e sobe ao Play; a web sai no mesmo push. Prova do build: `app_latest_version_code` em `platform_settings` a subir para 606 — ainda não confirmado à hora deste relatório.

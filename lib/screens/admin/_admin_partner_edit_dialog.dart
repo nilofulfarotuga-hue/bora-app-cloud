@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../stores/restaurant_store.dart';
 
@@ -13,6 +14,7 @@ class AdminPartnerEditDialog extends StatefulWidget {
     required this.initialAddress,
     required this.initialCategory,
     required this.initialPhone,
+    this.initialExtraCategories = const <String>[],
   });
 
   final String restaurantId;
@@ -20,6 +22,10 @@ class AdminPartnerEditDialog extends StatefulWidget {
   final String initialAddress;
   final String initialCategory;
   final String initialPhone;
+
+  /// `restaurants.extra_categories` — seções EXTRA onde a loja também aparece
+  /// (ex.: Goola Açaí e Leonidas em Restaurantes E em Sobremesas).
+  final List<String> initialExtraCategories;
 
   @override
   State<AdminPartnerEditDialog> createState() => _AdminPartnerEditDialogState();
@@ -30,6 +36,7 @@ class _AdminPartnerEditDialogState extends State<AdminPartnerEditDialog> {
   late final TextEditingController _address;
   late final TextEditingController _phone;
   late String _category;
+  late Set<String> _extra;
   bool _saving = false;
 
   static const _categories = [
@@ -51,6 +58,13 @@ class _AdminPartnerEditDialogState extends State<AdminPartnerEditDialog> {
     _address = TextEditingController(text: widget.initialAddress);
     _phone = TextEditingController(text: widget.initialPhone);
     _category = widget.initialCategory;
+    _extra = widget.initialExtraCategories.toSet();
+  }
+
+  bool get _extraChanged {
+    final a = _extra.toList()..sort();
+    final b = widget.initialExtraCategories.toList()..sort();
+    return a.join(',') != b.join(',');
   }
 
   @override
@@ -72,6 +86,18 @@ class _AdminPartnerEditDialogState extends State<AdminPartnerEditDialog> {
         category: _category != widget.initialCategory ? _category : null,
         phone: _phone.text.trim() != widget.initialPhone ? _phone.text.trim() : null,
       );
+      if (_extraChanged) {
+        // Mesmo padrão já em produção para partner_commission_billing
+        // (admin_partner_detail_screen): update direto pela sessão admin.
+        // A categoria principal nunca entra nas extras.
+        final extras = (_extra..remove(_category)).toList()..sort();
+        await Supabase.instance.client
+            .from('restaurants')
+            .update({'extra_categories': extras})
+            .eq('id', widget.restaurantId);
+        res['success'] = true;
+        res['no_changes'] = false;
+      }
       if (mounted) {
         Navigator.pop(context, res);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -109,6 +135,32 @@ class _AdminPartnerEditDialogState extends State<AdminPartnerEditDialog> {
               controller: _phone,
               keyboardType: TextInputType.phone,
               decoration: const InputDecoration(labelText: 'Telefone'),
+            ),
+            const SizedBox(height: 12),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Também aparece em',
+                  style: TextStyle(fontSize: 12, color: Colors.grey)),
+            ),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                for (final c in _categories)
+                  if (c != _category)
+                    FilterChip(
+                      label: Text(_categoryLabels[c]!),
+                      selected: _extra.contains(c),
+                      onSelected: (v) => setState(() {
+                        if (v) {
+                          _extra.add(c);
+                        } else {
+                          _extra.remove(c);
+                        }
+                      }),
+                    ),
+              ],
             ),
           ],
         ),

@@ -572,6 +572,36 @@ Não basta existir e estar ligado. Tem de estar no caminho por onde ela passa.
 > conta. Dois botões com o mesmo ícone e significados diferentes são um botão só,
 > aos olhos de quem usa.
 
+### 2.7 O acordo de comissão do parceiro vive num rótulo que o dinheiro não lê
+
+`restaurants.partner_commission_billing` ('partner' | 'client') é editável no painel
+admin e diz "a loja recebe o balcão inteiro; os 10 % estão embutidos no preço". Mas
+**nenhuma função de dinheiro o consulta**: `partner_store_share` devolve sempre
+`subtotal × 0,90 / 1,05` (= 85,71 %), leia-se o rótulo como se leia. A Goola só recebe
+o balcão exacto porque os preços dela foram gravados a `balcão × 1,05 / 0,90` (+16,67 %),
+não a +10 %.
+
+Regra: uma loja com "comissão paga pelo cliente" **não** se grava a `balcão + 10 %` sem
+antes decidir com o Danilo qual das duas coisas cede — o +10 % prometido ao cliente ou o
+balcão exacto no acerto. As duas juntas não cabem na fórmula de hoje. A proposta que as
+faz caber está em `supabase/migrations/20260914120000_PROPOSTA_repasse_parceiro_comissao_paga_pelo_cliente.sql`.
+
+> **Cicatriz (14/09, Leonidas):** o modelo prometido por escrito era "+10 % ao cliente, balcão
+> à loja". Gravou-se +10 % (o prometido) e mediu-se: a loja receberia 94,29 % do balcão —
+> 0,85 € a menos num ballotin de 14,95 €. Ficou em `coming_soon` até o Danilo decidir.
+
+### 2.8 Os "dados já apurados" de uma ordem confirmam-se antes de entrarem na base
+
+Um dado que chega na ordem como certo pode estar errado. Abre-se o handle, liga-se o
+número, lê-se a ficha — e regista-se o que se encontrou, não o que veio escrito.
+
+> **Cicatriz (14/09, Leonidas):** a ordem trazia o Instagram `@leonidaschocolatesguarda`
+> ("não voltes a procurar isto"). Não existe. O real é `@leonidasguarda`, com 2 037
+> seguidores. E a ficha da loja no site da marca (de 2023) diz outra morada, outro
+> telefone, outro e-mail e domingo aberto — tudo diferente da ordem. Ficou na base o que
+> a ordem mandou e a lista de dúvidas foi para a dona; mas sem abrir o handle o site
+> teria saído com um link para uma conta que não existe.
+
 
 ## 3. REGRAS DE PROVA — isto é lei, não é conselho
 
@@ -748,6 +778,17 @@ segundos, o ecrã fecha na mesma e o trabalho fica guardado para seguir depois.
 > botão morto ali é a oferta a expirar sozinha nas mãos dele. E a mesma cicatriz
 > já tinha sido paga uma vez no `tvde_offer_screen`, com comentário e tudo: a
 > lição existia, mas não se tinha espalhado. É por isso que está aqui.
+
+### 3.14 O Chrome headless não desce de 504 px — a prova de telemóvel faz-se por moldura
+
+`chrome --headless=new --window-size=390,844 --screenshot` **mente**: o viewport fica em
+504×692 (mínimo da janela) e a captura é recortada a 390 px. O site parece transbordar
+à direita quando não transborda. Prova-se com uma página de moldura que mete o site num
+`<iframe style="width:390px">` e recorta-se a captura — ou com o navegador do próprio
+Claude Code em emulação de telemóvel, que mede `scrollWidth` a sério.
+
+> **Cicatriz (14/09, Leonidas):** três capturas "com overflow" que não existiam;
+> `document.documentElement.scrollWidth` em emulação real dava 375 = `innerWidth`.
 
 
 ## 4. PUBLICAÇÃO E SEGREDOS

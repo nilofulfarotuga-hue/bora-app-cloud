@@ -117,7 +117,7 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
               'id, name, category, address, phone, email, is_partner, is_online, is_active_admin, business_hours, '
               'takeaway_enabled, reservations_enabled, curbside_enabled, takeaway_default_prep_minutes, hero_image_url, photo_url, '
               'owner_doc_url, activity_doc_url, lat, lng, partner_commission_billing, user_id, '
-              'whatsapp, social_facebook, social_instagram, about_text, '
+              'whatsapp, social_facebook, social_instagram, about_text, extra_categories, '
               'min_order_cents_override, small_order_fee_cents_override')
           .eq('id', widget.restaurantId)
           .single();
@@ -722,6 +722,8 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
                   initialAddress: r['address'] as String? ?? '',
                   initialCategory: r['category'] as String? ?? 'restaurant',
                   initialPhone: r['phone'] as String? ?? '',
+                  initialExtraCategories: List<String>.from(
+                      (r['extra_categories'] as List?) ?? const []),
                 ),
               );
               if (res != null && res['success'] == true) _loadAll();

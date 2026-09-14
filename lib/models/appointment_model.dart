@@ -7,6 +7,10 @@
 class AppointmentStatus {
   static const String pendingPayment = 'pending_payment';
   static const String confirmed = 'confirmed';
+
+  /// 2026-09-14 — o serviço acabou e o parceiro ainda não disse se foi feito.
+  /// Substitui a falta automática: nada é retido enquanto estiver aqui.
+  static const String awaitingConfirmation = 'awaiting_confirmation';
   static const String completed = 'completed';
   static const String noShow = 'no_show';
   static const String cancelled = 'cancelled';
@@ -247,7 +251,14 @@ class AppointmentModel {
 
   // ─── Helpers de estado (consumidos por screens cliente) ───────────────────
 
-  bool get isConfirmed => status == AppointmentStatus.confirmed;
+  /// "Por confirmar" conta como confirmada para o cliente: o serviço foi
+  /// marcado e pago; só falta o parceiro dizer se foi feito.
+  bool get isConfirmed =>
+      status == AppointmentStatus.confirmed ||
+      status == AppointmentStatus.awaitingConfirmation;
+
+  bool get isAwaitingConfirmation =>
+      status == AppointmentStatus.awaitingConfirmation;
 
   bool get isCompleted => status == AppointmentStatus.completed;
 

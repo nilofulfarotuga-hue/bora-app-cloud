@@ -6,6 +6,18 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_colors.dart';
 import '../../services/admin_export_service.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import 'admin_acerto_unificado_screen.dart';
+import 'admin_appointments_payouts_screen.dart';
+import 'admin_cleaner_settlements_screen.dart';
+import 'admin_connect_payments_screen.dart';
+import 'admin_driver_payments_screen.dart';
+import 'admin_ganho_do_dia_screen.dart';
+import 'admin_orphan_payments_screen.dart';
+import 'admin_partner_payouts_screen.dart';
+import 'admin_partner_settlements_screen.dart';
+import 'admin_payments_cards_screen.dart';
+import 'admin_receipts_screen.dart';
+import 'admin_settlements_screen.dart';
 
 /// Painel admin "Acertos da semana" (PT-BR, só o Danilo).
 ///
@@ -23,10 +35,20 @@ import '../../widgets/bora/bora_screen_app_bar.dart';
 ///  · Três totais em cima: o Danilo quer saber quanto sai e quanto entra sem
 ///    somar linhas de cabeça.
 class AdminAcertosSemanaScreen extends StatefulWidget {
-  const AdminAcertosSemanaScreen({super.key, this.semanaInicial});
+  const AdminAcertosSemanaScreen({
+    super.key,
+    this.semanaInicial,
+    this.filtroInicial,
+  });
 
   /// Semana a abrir (AAAA-MM-DD). Vem do aviso; nulo = a mais recente.
   final String? semanaInicial;
+
+  /// 2026-09-14 — este ecrã passou a ser o HUB "Dinheiro e acertos": os sete
+  /// ecrãs antigos de pagamentos/repasses/fechamentos chegam aqui com o
+  /// separador certo já escolhido ('driver' | 'partner' | 'provider' |
+  /// 'cleaner' | 'washer'). Nulo = todos.
+  final String? filtroInicial;
 
   @override
   State<AdminAcertosSemanaScreen> createState() =>
@@ -46,14 +68,22 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
   bool _busy = false;
   final Set<String> _abertos = {};
 
+  /// Separador activo do hub (nulo = todos os tipos).
+  String? _filtro;
+
   final _client = Supabase.instance.client;
 
   @override
   void initState() {
     super.initState();
     _week = widget.semanaInicial;
+    _filtro = widget.filtroInicial;
     _load();
   }
+
+  /// Linhas do tipo escolhido no separador (ou todas).
+  List<Map<String, dynamic>> _doFiltro(List<Map<String, dynamic>> rows) =>
+      _filtro == null ? rows : rows.where((r) => r['type'] == _filtro).toList();
 
   Future<void> _load() async {
     setState(() {
@@ -274,14 +304,18 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final aPagar = _items.where((r) => r['direction'] == 'bora_pays').toList();
-    final aReceber = _items.where((r) => r['direction'] == 'owes_bora').toList();
-    final semMovimento = _items.where((r) => r['direction'] == 'zero').toList();
+    final visiveis = _doFiltro(_items);
+    final aPagar =
+        visiveis.where((r) => r['direction'] == 'bora_pays').toList();
+    final aReceber =
+        visiveis.where((r) => r['direction'] == 'owes_bora').toList();
+    final semMovimento =
+        visiveis.where((r) => r['direction'] == 'zero').toList();
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: BoraScreenAppBar(
-        title: 'Acertos da semana',
+        title: 'Dinheiro e acertos',
         actions: [
           IconButton(
             tooltip: 'Exportar para a contabilista (CSV)',
@@ -305,7 +339,9 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
                     padding: const EdgeInsets.all(16),
                     children: [
                       _cabecalho(),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 10),
+                      _separadores(),
+                      const SizedBox(height: 10),
                       if (aPagar.isNotEmpty) ...[
                         _secTitle('A PAGAR — a Bora paga', AppColors.warning,
                             aPagar.length),
@@ -320,18 +356,115 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
                       ],
                       if (semMovimento.isNotEmpty)
                         _semMovimentoCard(semMovimento.length),
-                      if (_items.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 48),
+                      if (visiveis.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 32, bottom: 8),
                           child: Center(
-                              child: Text('Sem acertos nesta semana.')),
+                              child: Text(_filtro == null
+                                  ? 'Sem acertos nesta semana.'
+                                  : 'Sem acertos de ${_tipoLabelPlural(_filtro)} nesta semana.')),
                         ),
+                      const SizedBox(height: 18),
+                      _maisFerramentas(),
                       const SizedBox(height: 24),
                     ],
                   ),
                 ),
     );
   }
+
+  /// Separadores por tipo — um hub, não sete ecrãs. O total lá em cima é
+  /// sempre o da semana inteira; o separador só filtra as linhas.
+  Widget _separadores() {
+    const tipos = <String?, String>{
+      null: 'Todos',
+      'driver': 'Estafetas',
+      'partner': 'Parceiros',
+      'provider': 'Barbearias',
+      'cleaner': 'Limpeza',
+      'washer': 'Lavagem',
+    };
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: tipos.entries.map((e) {
+          final n = e.key == null
+              ? _items.length
+              : _items.where((r) => r['type'] == e.key).length;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: Text(n > 0 ? '${e.value} ($n)' : e.value),
+              selected: _filtro == e.key,
+              onSelected: (_) => setState(() => _filtro = e.key),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  /// Ferramentas de dinheiro que continuam a existir como ecrãs próprios
+  /// (detalhe, saques, Connect, cartões). Não se apagaram; deixaram de estar
+  /// espalhadas pelo menu principal.
+  Widget _maisFerramentas() {
+    final itens = <(String, IconData, Widget Function())>[
+      ('Saques dos estafetas', Icons.savings_outlined,
+          () => const AdminDriverPaymentsScreen()),
+      ('Acerto por pessoa', Icons.person_search_outlined,
+          () => const AdminAcertoUnificadoScreen()),
+      ('Ganho do dia', Icons.today_outlined, () => const AdminGanhoDoDiaScreen()),
+      ('Repasses a parceiros (detalhe)', Icons.storefront_outlined,
+          () => const AdminPartnerPayoutsScreen()),
+      ('Reservas de mesa', Icons.table_restaurant_outlined,
+          () => const AdminPartnerSettlementsScreen()),
+      ('Barbearias (detalhe)', Icons.content_cut,
+          () => const AdminAppointmentsPayoutsScreen()),
+      ('Limpeza (detalhe)', Icons.cleaning_services_outlined,
+          () => const AdminCleanerSettlementsScreen()),
+      ('Pagamentos Connect', Icons.account_balance_outlined,
+          () => const AdminConnectPaymentsScreen()),
+      ('Fechamento antigo — estafetas', Icons.history,
+          () => const AdminSettlementsScreen()),
+      ('Cartões e cobranças', Icons.credit_card_outlined,
+          () => const AdminPaymentsCardsScreen()),
+      ('Pagamentos órfãos', Icons.help_outline,
+          () => const AdminOrphanPaymentsScreen()),
+      ('Reembolsos a estafetas (talões)', Icons.receipt_long_outlined,
+          () => const AdminReceiptsScreen()),
+    ];
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('Mais ferramentas de dinheiro',
+          style: TextStyle(fontWeight: FontWeight.w700)),
+      const SizedBox(height: 4),
+      const Text(
+        'Os ecrãs de detalhe continuam a existir. Marcar pago ou recebido faz-se aqui em cima, num toque.',
+        style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+      ),
+      const SizedBox(height: 8),
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: itens
+            .map((it) => ActionChip(
+                  avatar: Icon(it.$2, size: 16),
+                  label: Text(it.$1),
+                  onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => it.$3())),
+                ))
+            .toList(),
+      ),
+    ]);
+  }
+
+  String _tipoLabelPlural(String? t) => switch (t) {
+        'driver' => 'estafetas',
+        'partner' => 'parceiros',
+        'provider' => 'barbearias',
+        'cleaner' => 'limpeza',
+        'washer' => 'lavagem',
+        _ => 'todos',
+      };
 
   Widget _erroCard() => Center(
         child: Padding(

@@ -23,6 +23,11 @@
 // sem ninguem dar por isso. A cicatriz que a originou (06/09: sete de quinze
 // envios devolvidos, um endereco na lista negra da Resend) nao desapareceu por
 // o codigo ter desaparecido — por isso volta, junto com tudo o que a v6 traz.
+// v8 (2026-09-14, painel-admin-limpo): DEMO FORA DO FECHO. O servidor ja nao cria
+// acerto nem linha de digest a contas de demonstracao (triggers); aqui, antes de
+// enviar, confirma-se por RPC is_demo_email e lista-se no aviso ao Danilo quem
+// ficou de fora e porque (RPC weekly_closeout_excluidos). Publicada a 14/09 a
+// partir do repo, que ja tinha a v7 por publicar (producao estava na v6).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -36,6 +41,8 @@ const ADMIN_EMAIL = 'boraappbora@gmail.com'
 const EMAIL_FROM = 'Bora App <fecho@boraguarda.com>'
 const META = '<meta charset="utf-8">'
 const GREEN = '#16A34A'
+// v8: quebra de linha sem barra invertida no codigo — o deploy por MCP nao a mastiga.
+const NL = String.fromCharCode(10)
 
 function eur(cents) {
   return '€' + (Math.abs(cents ?? 0) / 100).toFixed(2).replace('.', ',')
@@ -145,6 +152,14 @@ Deno.serve(async (req) => {
     .select('*').gte('week_start_at', ws + 'T00:00:00Z').lte('week_start_at', ws + 'T23:59:59Z')
   const weekRows = weekRowsRaw ?? []
 
+  // v8: quem ficou de fora do fecho por ser demo (o servidor ja nao lhes cria
+  // acerto nem linha de digest; aqui so se diz ao Danilo quem e porque).
+  let excluidos = []
+  try {
+    const { data: ex } = await supabase.rpc('weekly_closeout_excluidos', { p_week_start: ws })
+    if (Array.isArray(ex)) excluidos = ex
+  } catch (e) { console.error('[weekly-closeout] excluidos falhou:', e) }
+
   let sent = 0, queued = 0, skipped = 0, jaEnviados = 0
   // v4: quem ficou de fora, e porque. Vai no aviso ao Danilo la em baixo, em
   // vez de ficar so uma palavra na tabela que ninguem le.
@@ -156,11 +171,26 @@ Deno.serve(async (req) => {
     const emailBruto = r.subject_email ? String(r.subject_email) : ''
     // Um endereco que nao recebe e pior do que nenhum: manda-se, volta para
     // tras, e a devolucao fica no registo do dominio.
-    const to = emailBruto.includes('@') && !enderecoMorto(emailBruto) ? emailBruto : null
+    let to = emailBruto.includes('@') && !enderecoMorto(emailBruto) ? emailBruto : null
+    // v8: endereco de conta de demonstracao NUNCA recebe recibo — o servidor
+    // (is_demo_email, platform_settings.admin_demo_email_patterns) e quem
+    // decide o que e demo; a lista nao vive aqui.
+    let motivoDemo = null
+    if (to) {
+      try {
+        const { data: demo } = await supabase.rpc('is_demo_email', { p_email: to })
+        if (demo === true) { motivoDemo = 'conta de demonstracao (' + to + ') — sem recibo'; to = null }
+      } catch (e) { console.error('[weekly-closeout] is_demo_email falhou:', e) }
+    }
     const html = buildReceiptHtml(r, boraMbway)
     let status = r.email_status
     let erro = null
-    if (!to) {
+    if (motivoDemo) {
+      status = 'skipped'; skipped++
+      erro = motivoDemo
+      excluidos.push({ name: r.subject_name, type: r.subject_type, motivo: erro,
+                       amount_cents: r.net_cents, n: null })
+    } else if (!to) {
       status = 'skipped'; skipped++
       erro = emailBruto.includes('@')
         ? 'endereco que nao recebe correio (' + emailBruto + ') — nao enviei para nao gastar a reputacao do dominio'
@@ -196,15 +226,18 @@ Deno.serve(async (req) => {
   const per = ddmm(ws) + '-' + ddmm(summary.week_end ?? ws)
 
   const linhas = (arr) => arr.map((x) =>
-    '• ' + x.name + ' ' + eur(x.amount_cents) + (x.mbway ? ' (MB Way: ' + x.mbway + ')' : '')).join('\n')
+    '• ' + x.name + ' ' + eur(x.amount_cents) + (x.mbway ? ' (MB Way: ' + x.mbway + ')' : '')).join(NL)
   const linhasProb = problemas.map((x) =>
     '• ' + x.name + ' ' + eur(x.amount_cents) + ' — ' + x.motivo +
-    (x.mbway ? ' (tel: ' + x.mbway + ')' : '')).join('\n')
+    (x.mbway ? ' (tel: ' + x.mbway + ')' : '')).join(NL)
+  const linhasExcl = excluidos.map((x) =>
+    '• ' + x.name + ' ' + eur(x.amount_cents) + ' — ' + x.motivo).join(NL)
   const pushBody =
-    'A PAGAR (Bora paga): ' + (toPay.length ? '\n' + linhas(toPay) : 'ninguem') + '\n\n' +
-    'A RECEBER (devem a Bora): ' + (toReceive.length ? '\n' + linhas(toReceive) : 'ninguem') + '\n\n' +
+    'A PAGAR (Bora paga): ' + (toPay.length ? NL + linhas(toPay) : 'ninguem') + NL + NL +
+    'A RECEBER (devem a Bora): ' + (toReceive.length ? NL + linhas(toReceive) : 'ninguem') + NL + NL +
     'Zerados: ' + zeroCount +
-    (problemas.length ? '\n\nNAO RECEBERAM O EMAIL (' + problemas.length + '):\n' + linhasProb : '')
+    (problemas.length ? NL + NL + 'NAO RECEBERAM O EMAIL (' + problemas.length + '):' + NL + linhasProb : '') +
+    (excluidos.length ? NL + NL + 'FORA DO FECHO POR SEREM DEMO (' + excluidos.length + '):' + NL + linhasExcl : '')
 
   let adminPush = false
   try {
@@ -227,7 +260,7 @@ Deno.serve(async (req) => {
   if (resendKey) {
     const res = await sendResend(resendKey, ADMIN_EMAIL,
       'Fecho da semana ' + per + ' - acertos',
-      buildAdminSummaryHtml(per, toPay, toReceive, zeroCount, boraMbway, problemas))
+      buildAdminSummaryHtml(per, toPay, toReceive, zeroCount, boraMbway, problemas, excluidos))
     adminEmail = res.ok
   }
 
@@ -235,7 +268,7 @@ Deno.serve(async (req) => {
     ok: true, week_start: ws, week_end: summary.week_end,
     subjects: weekRows.length, emails_sent: sent, emails_ja_enviados_antes: jaEnviados,
     emails_aguarda_dominio: queued, emails_skipped: skipped, force,
-    problemas,
+    problemas, excluidos,
     admin_push: adminPush, admin_email: adminEmail,
     to_pay: toPay.length, to_receive: toReceive.length, zero: zeroCount,
     emails_enabled: emailsEnabled, resend_key_present: !!resendKey, resend_key_origem: resendKeyOrigem,
@@ -303,7 +336,12 @@ function buildReceiptHtml(r, boraMbway) {
     '<p style="font-size:11px;color:#999;margin-top:20px">Bora App · fecho semanal automático</p></div></div>'
 }
 
-function buildAdminSummaryHtml(per, toPay, toReceive, zero, boraMbway, problemas) {
+function buildAdminSummaryHtml(per, toPay, toReceive, zero, boraMbway, problemas, excluidos) {
+  // v8: quem ficou de fora do fecho por ser demo, com o motivo.
+  const excl = (excluidos && excluidos.length)
+    ? '<h3 style="color:#6B7280;margin-bottom:4px">FORA DO FECHO POR SEREM DEMO (' + excluidos.length + ')</h3><ul>' +
+      excluidos.map((x) => '<li><b>' + escapeHtml(x.name) + '</b> - ' + eur(x.amount_cents) + ' — ' + escapeHtml(x.motivo) + '</li>').join('') + '</ul>'
+    : ''
   const li = (arr) => arr.length
     ? arr.map((x) => '<li><b>' + escapeHtml(x.name) + '</b> - ' + eur(x.amount_cents) + (x.mbway ? ' · MB Way ' + escapeHtml(x.mbway) : '') + ' <span style="color:#999">(' + x.type + ')</span></li>').join('')
     : '<li style="color:#999">ninguem</li>'
@@ -316,7 +354,7 @@ function buildAdminSummaryHtml(per, toPay, toReceive, zero, boraMbway, problemas
     '<h2 style="color:' + GREEN + '">Fecho da semana ' + per + '</h2>' +
     '<h3 style="color:#166534;margin-bottom:4px">A PAGAR (Bora paga)</h3><ul>' + li(toPay) + '</ul>' +
     '<h3 style="color:#9A3412;margin-bottom:4px">A RECEBER (devem à Bora)</h3><ul>' + li(toReceive) + '</ul>' +
-    probs +
+    probs + excl +
     '<p style="color:#555">Zerados: <b>' + zero + '</b></p>' +
     (boraMbway ? '<p style="font-size:12px;color:#777">MB Way da Bora para cobranças: <b>' + escapeHtml(boraMbway) + '</b></p>' : '<p style="font-size:12px;color:#B45309">Falta definir o MB Way da Bora (Acertos da semana -> configurar).</p>') +
     '<p style="font-size:11px;color:#999;margin-top:20px">Bora App · fecho semanal · lembre-se de marcar os pagos no painel</p></div>'

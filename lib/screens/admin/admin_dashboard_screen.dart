@@ -1,119 +1,44 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-
-import 'admin_errand_catalog_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../main.dart' show routeObserver;
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../main.dart' show routeObserver;
 import '../../services/admin_push_service.dart';
 import '../../services/auth_admin_service.dart';
-import '../../widgets/admin_realtime_metrics_card.dart';
-import '../../widgets/bora/bora_screen_app_bar.dart';
-import '../../widgets/bora/bora_primary_button.dart';
-import 'admin_advanced_kpis_screen.dart';
-import 'admin_appointments_metrics_screen.dart';
-import 'admin_appointments_payouts_screen.dart';
-import 'admin_appointments_screen.dart';
-import 'admin_service_providers_screen.dart';
-import 'admin_audit_log_screen.dart';
-import 'admin_cancellation_requests_screen.dart';
-import 'admin_discovery_filters_screen.dart';
-import 'admin_gdpr_screen.dart';
-import 'admin_reservations_config_screen.dart';
-import 'admin_tvde_docs_review_screen.dart';
-import 'admin_web_health_screen.dart';
-import 'admin_businesses_screen.dart';
-import 'admin_catalog_screen.dart';
-import 'admin_clients_screen.dart';
-import 'admin_complaints_screen.dart';
-import 'admin_connect_payments_screen.dart';
-import 'admin_continente_prices_screen.dart';
-import 'admin_crosstalk_screen.dart';
-import 'admin_driver_approval_screen.dart';
-import 'admin_driver_payments_screen.dart';
-import 'admin_cashbacks_screen.dart';
-import 'admin_category_mapping_screen.dart';
-import 'admin_drivers_screen.dart';
-import 'admin_edge_functions_screen.dart';
-import 'admin_live_orders_map_screen.dart';
-import 'admin_orders_screen.dart';
-import 'admin_cancellations_screen.dart';
-import 'admin_global_search_screen.dart';
-import 'admin_notifications_inbox_screen.dart';
-import 'admin_notification_failures_screen.dart';
-import 'admin_stuck_reservations_screen.dart';
-import 'admin_partner_payouts_screen.dart';
-import 'admin_partner_settlements_screen.dart';
-import 'admin_referrals_screen.dart';
-import 'admin_search_kpi_screen.dart';
-import 'admin_send_notification_screen.dart';
-import 'admin_acerto_unificado_screen.dart';
-import 'admin_ganho_do_dia_screen.dart';
-import 'admin_acertos_semana_screen.dart';
-import 'admin_ofertas_log_screen.dart';
-import 'admin_papeis_screen.dart';
-import 'admin_settlements_screen.dart';
-import 'admin_support_stats_screen.dart';
-import 'admin_ai_models_screen.dart';
-import 'admin_knowledge_screen.dart';
-import 'admin_pending_actions_screen.dart';
-import 'admin_skill_suggestions_screen.dart';
-import 'admin_robot_suggestions_screen.dart';
-import 'admin_support_tickets_screen.dart';
-import 'admin_whatsapp_screen.dart';
-import 'admin_motores_screen.dart';
-import 'admin_orphan_payments_screen.dart';
-import 'admin_payments_cards_screen.dart';
-import 'admin_correcoes_preco_screen.dart';
-import 'admin_receipts_screen.dart';
-import 'admin_ai_assistant_screen.dart';
 import '../../widgets/admin_closed_partners_card.dart';
-import '../../widgets/admin_reservations_today_card.dart';
-import 'admin_partners_pending_screen.dart';
-import 'admin_partners_screen.dart';
-import 'admin_dispatch_settings_screen.dart';
-import 'admin_platform_settings_screen.dart';
-import 'admin_promo_codes_screen.dart';
-import 'admin_ratings_screen.dart';
-import 'admin_reservations_metrics_screen.dart';
-import 'admin_reservations_screen.dart';
-import 'admin_tokens_screen.dart';
-import 'admin_wallets_screen.dart';
-import 'admin_cleaning_bookings_screen.dart';
+import '../../widgets/admin_realtime_metrics_card.dart';
+import '../../widgets/bora/bora_primary_button.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
+import 'admin_acertos_semana_screen.dart';
+import 'admin_appointments_screen.dart';
 import 'admin_carwash_screen.dart';
-import 'admin_cleaning_cleaners_screen.dart';
-import 'admin_cleaner_settlements_screen.dart';
-// categoria TVDE aberta a todos desde 2026-08-01 — reactivar se voltar ao modo por aprovação
-// ignore: unused_import
-import 'admin_tvde_access_requests_screen.dart';
-import 'admin_tvde_noshows_screen.dart';
-import 'admin_tvde_reservas_screen.dart';
+import 'admin_cleaning_bookings_screen.dart';
+import 'admin_global_search_screen.dart';
+import 'admin_marcacoes_confirmacao_screen.dart';
+import 'admin_menu_accordion.dart';
+import 'admin_menu_registry.dart';
+import 'admin_notification_failures_screen.dart';
+import 'admin_notifications_inbox_screen.dart';
+import 'admin_orders_screen.dart';
+import 'admin_reservations_screen.dart';
 import 'admin_tvde_rides_screen.dart';
-import 'admin_tvde_cancellations_screen.dart';
-import 'admin_tvde_drivers_screen.dart';
-import 'admin_tvde_subscriptions_screen.dart';
-import 'admin_tvde_roundtrips_screen.dart';
-import 'admin_tvde_stuck_payments_screen.dart';
-import 'admin_tvde_driver_debts_screen.dart';
-import 'admin_tvde_plan_requests_screen.dart';
-import 'admin_deleted_accounts_screen.dart';
 
-/// In-app admin dashboard.
+/// Painel Admin (PT-BR, só o Danilo usa) — o que ele vê ao abrir.
 ///
-/// Reads aggregated metrics from `admin_dashboard_metrics()` (server-side
-/// SECURITY DEFINER RPC). The function only ever returns aggregates — never
-/// row-level data — so even if this screen is reached by a non-admin the
-/// blast radius is limited to four totals.
-///
-/// Access gating (Phase-2-B): `app_metadata.role == 'admin'` (canonical)
-/// with fallback to `user_metadata.bora_role == 'admin'` and finally a
-/// deprecated email allow-list. See [AuthAdminService.isAdmin].
-/// Server-side `_admin_op_guard()` enforces strictly on
-/// `app_metadata.role` — the Dart fallback chain exists only to keep
-/// the UI usable across legacy sessions; any *action* still has to
-/// pass the strict server gate.
+/// 2026-09-14 (missão painel-admin-limpo). O que mudou e porquê:
+///  · Os números de cima vêm do RPC `admin_dashboard_metrics_v2`: hora de
+///    Lisboa em tudo (às 00:18 o painel mostrava "Pedidos hoje 1" — era um
+///    pedido de demonstração e ainda era "ontem" em UTC), nada de demo nas
+///    contas (interruptor `admin_show_demo_data` para quando ele quer testar),
+///    uma linha por vertical (entregas, Bora Motorista, serviços, limpeza,
+///    lavagem, reservas — zero é zero e aparece), dinheiro em três cartões
+///    lidos das tabelas de acerto, e alertas que abrem o ecrã certo.
+///  · O menu deixou de ser uma lista de 90 cartões: vive em
+///    `admin_menu_registry.dart`, por secções fechadas, com busca, favoritos
+///    e "Arquivado" no fim. Este ficheiro passou de 1745 para ~600 linhas.
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
 
@@ -123,10 +48,20 @@ class AdminDashboardScreen extends StatefulWidget {
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     with RouteAware {
+  static const _kFavoritos = 'bora_admin.favoritos';
+
+  /// Favoritos com que o painel nasce; ele muda pelo alfinete de cada linha.
+  static const _favoritosIniciais = [
+    'dinheiro_dinheiro_e_acertos',
+    'operacao_pedidos_ao_vivo',
+    'servicos_marcacoes_por_confirmar_e_faltas',
+  ];
+
   late Future<Map<String, dynamic>> _metricsFuture;
   int _pendingSuggestionsCount = 0;
   int _unreadNotificationsCount = 0;
-  int _pendingSettlementsCount = 0;
+  List<String> _favoritos = const [];
+  bool _demoBusy = false;
 
   @override
   void initState() {
@@ -134,8 +69,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     _metricsFuture = _loadMetrics();
     _loadPendingSuggestionsCount();
     _loadUnreadNotificationsCount();
-    _loadPendingSettlementsCount();
-    // 5F-β — registar FCM token admin + ouvir taps em pushes crosstalk_critical.
+    _loadFavoritos();
+    // 5F-β — registar FCM token admin + ouvir taps em pushes.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       AdminPushService.registerForAdmin();
@@ -158,17 +93,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     super.dispose();
   }
 
-  // 5G — refresh do badge sempre que admin volta para o dashboard.
+  // Refresh sempre que o admin volta para o dashboard.
   @override
   void didPopNext() {
-    _loadPendingSuggestionsCount();
-    _loadUnreadNotificationsCount();
-    _loadPendingSettlementsCount();
+    _refresh();
   }
 
   Future<Map<String, dynamic>> _loadMetrics() async {
     final response =
-        await Supabase.instance.client.rpc('admin_dashboard_metrics');
+        await Supabase.instance.client.rpc('admin_dashboard_metrics_v2');
     if (response is Map<String, dynamic>) return response;
     if (response is Map) return Map<String, dynamic>.from(response);
     throw StateError('Unexpected RPC response type: ${response.runtimeType}');
@@ -203,64 +136,73 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     } catch (_) {/* silent */}
   }
 
+  Future<void> _loadFavoritos() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final v = prefs.getStringList(_kFavoritos);
+      if (!mounted) return;
+      setState(() => _favoritos = v ?? List.of(_favoritosIniciais));
+    } catch (_) {
+      if (mounted) setState(() => _favoritos = List.of(_favoritosIniciais));
+    }
+  }
+
+  Future<void> _toggleFavorito(String id) async {
+    final next = List.of(_favoritos);
+    if (next.contains(id)) {
+      next.remove(id);
+    } else {
+      next.add(id);
+    }
+    setState(() => _favoritos = next);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_kFavoritos, next);
+    } catch (_) {/* fica só em memória */}
+  }
+
   Future<void> _refresh() async {
     setState(() {
       _metricsFuture = _loadMetrics();
     });
-    await _metricsFuture;
+    try {
+      await _metricsFuture;
+    } catch (_) {/* o FutureBuilder mostra o erro */}
     await _loadPendingSuggestionsCount();
     await _loadUnreadNotificationsCount();
-    await _loadPendingSettlementsCount();
   }
 
-  /// Fechos Semanais (2026-06-12) — badge com nº de fechos PENDENTES
-  /// (estafetas + parceiros) da semana atual + anterior. As tabelas de
-  /// settlements só têm RLS own-read, por isso o count vem das RPCs admin
-  /// (idempotentes; recomputam a semana pedida). Falha → badge 0, silencioso.
-  Future<void> _loadPendingSettlementsCount() async {
+  /// Interruptor "mostrar dados de demonstração" (platform_settings
+  /// `admin_show_demo_data`). Por defeito desligado: demo fora das contas.
+  Future<void> _setDemoVisivel(bool v) async {
+    if (_demoBusy) return;
+    setState(() => _demoBusy = true);
     try {
-      final now = DateTime.now();
-      final monday = DateTime(now.year, now.month, now.day)
-          .subtract(Duration(days: now.weekday - 1));
-      final weeks = [
-        monday.add(const Duration(hours: 12)),
-        monday.subtract(const Duration(days: 7)).add(const Duration(hours: 12)),
-      ];
-      var pending = 0;
-      for (final w in weeks) {
-        final params = {'p_week_start': w.toUtc().toIso8601String()};
-        final results = await Future.wait([
-          Supabase.instance.client
-              .rpc('admin_list_settlements_for_week', params: params),
-          Supabase.instance.client
-              .rpc('admin_list_partner_settlements_for_week', params: params),
-        ]);
-        for (final res in results) {
-          final rows = (res is Map ? res['settlements'] : null);
-          if (rows is List) {
-            pending += rows
-                .where((r) =>
-                    r is Map &&
-                    r['status'] == 'pending' &&
-                    r['direction'] != 'zero')
-                .length;
-          }
-        }
+      await Supabase.instance.client.rpc('admin_update_setting',
+          params: {'p_key': 'admin_show_demo_data', 'p_value': v});
+      await _refresh();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Não deu: $e')));
       }
-      if (!mounted) return;
-      setState(() => _pendingSettlementsCount = pending);
-    } catch (_) {/* silent */}
+    } finally {
+      if (mounted) setState(() => _demoBusy = false);
+    }
   }
 
   bool get _isAuthorized => AuthAdminService.isAdmin();
 
+  void _abrir(Widget screen) =>
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+
   @override
   Widget build(BuildContext context) {
     if (!_isAuthorized) {
-      return Scaffold(
+      return const Scaffold(
         backgroundColor: AppColors.background,
-        appBar: const BoraScreenAppBar(title: 'Painel Admin'),
-        body: const Center(
+        appBar: BoraScreenAppBar(title: 'Painel Admin'),
+        body: Center(
           child: Padding(
             padding: EdgeInsets.all(24),
             child: Text(
@@ -277,17 +219,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       appBar: BoraScreenAppBar(
         title: 'Painel Admin',
         actions: [
-          // BLOCO C (2026-05-18) — Pesquisa global cross-entity.
           IconButton(
             icon: const Icon(Icons.search),
             tooltip: 'Buscar (clientes, entregadores, parceiros, pedidos)',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const AdminGlobalSearchScreen(),
-              ),
-            ),
+            onPressed: () => _abrir(const AdminGlobalSearchScreen()),
           ),
-          // BLOCO A (2026-05-18) — Inbox de notificações admin + badge não-lidos.
           Badge(
             isLabelVisible: _unreadNotificationsCount > 0,
             label: Text(_unreadNotificationsCount > 9
@@ -297,11 +233,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             child: IconButton(
               icon: const Icon(Icons.notifications_outlined),
               tooltip: 'Notificações ($_unreadNotificationsCount não lidas)',
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const AdminNotificationsInboxScreen(),
-                ),
-              ),
+              onPressed: () => _abrir(const AdminNotificationsInboxScreen()),
             ),
           ),
           IconButton(
@@ -324,7 +256,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 padding: const EdgeInsets.all(16),
                 children: [
                   const SizedBox(height: 80),
-                  const Icon(Icons.error_outline, size: 48, color: AppColors.error),
+                  const Icon(Icons.error_outline,
+                      size: 48, color: AppColors.error),
                   const SizedBox(height: 12),
                   Text(
                     'Erro ao carregar métricas:\n${snapshot.error}',
@@ -339,1135 +272,46 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       expanded: false,
                     ),
                   ),
+                  const SizedBox(height: 24),
+                  _menu(),
                 ],
               );
             }
 
             final m = snapshot.data ?? const <String, dynamic>{};
-            final platformRevenue = _toDouble(m['platform_revenue']);
-            final platformRevenueWeek = _toDouble(m['platform_revenue_week']);
-            final ordersToday = _toInt(m['orders_today']);
-            // Saldo líquido, com sinal: positivo = a Bora tem a entregar;
-            // negativo = tem a receber. Antes o servidor somava só as linhas
-            // positivas do livro e o cartão dizia "A pagar 80,46" quando na
-            // verdade os drivers deviam 12,97 à Bora. O rótulo segue o sinal.
-            final driversBalance = _toDouble(m['drivers_payable']);
-            final restaurantsBalance = _toDouble(m['restaurants_payable']);
+            final alertas = _map(m['alertas']);
+            final dinheiro = _map(m['dinheiro']);
+            final acerto = _map(dinheiro['acerto_semana_fechada']);
+            final demoVisivel = m['demo_visivel'] == true;
+            final hojeLabel = _map(m['hoje'])['label']?.toString() ?? '';
+            final semanaLabel = _map(m['semana'])['label']?.toString() ?? '';
             final generatedAt = m['generated_at']?.toString() ?? '—';
             final dailyOrders = _parseDailyOrders(m['daily_orders']);
 
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                if (demoVisivel) _avisoDemo(),
+                _alertas(alertas, acerto),
                 const AdminRealtimeMetricsCard(),
                 const AdminClosedPartnersCard(),
-                const AdminReservationsTodayCard(),
                 const SizedBox(height: 8),
-                _buildChart(dailyOrders),
-                _MetricCard(
-                  icon: Icons.account_balance_wallet,
-                  iconColor: AppColors.primary,
-                  title: 'Receita da plataforma (desde sempre)',
-                  value: '€${platformRevenue.toStringAsFixed(2)}',
-                ),
-                _MetricCard(
-                  icon: Icons.date_range,
-                  iconColor: AppColors.primary,
-                  title: 'Receita da plataforma (semana atual)',
-                  value: '€${platformRevenueWeek.toStringAsFixed(2)}',
-                ),
-                _MetricCard(
-                  icon: Icons.receipt_long,
-                  iconColor: AppColors.accent,
-                  title: 'Pedidos hoje',
-                  value: ordersToday.toString(),
-                ),
-                _MetricCard(
-                  icon: Icons.local_shipping,
-                  iconColor: Colors.blue,
-                  title: _tituloSaldo('drivers', driversBalance),
-                  value: '€${driversBalance.abs().toStringAsFixed(2)}',
-                ),
-                _MetricCard(
-                  icon: Icons.restaurant,
-                  iconColor: Colors.purple,
-                  title: _tituloSaldo('restaurantes', restaurantsBalance),
-                  value: '€${restaurantsBalance.abs().toStringAsFixed(2)}',
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'Gestão',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
+                _cabecalhoDia(hojeLabel, semanaLabel),
+                const SizedBox(height: 8),
+                _verticais(m),
                 const SizedBox(height: 12),
-                _NavCard(
-                  icon: Icons.receipt_long,
-                  title: 'Pedidos',
-                  subtitle: 'Ver, filtrar e cancelar pedidos',
-                  color: AppColors.accent,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminOrdersScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.cancel_schedule_send_outlined,
-                  title: 'Cancelamentos',
-                  subtitle:
-                      'Histórico, estágios, taxas e reembolsos (reprocessar falhados)',
-                  color: AppColors.error,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminCancellationsScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.storefront,
-                  title: 'Comércios da Guarda',
-                  subtitle:
-                      'Lojas/comércios dos Favores — importar, editar, esconder',
-                  color: const Color(0xFF14B8A6),
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminBusinessesScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.task_alt_outlined,
-                  title: 'Catálogo de Favores',
-                  subtitle: 'Aprovar produtos extraídos de talões (OCR)',
-                  color: const Color(0xFF14B8A6),
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminErrandCatalogScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.price_change,
-                  title: 'Preços Continente (PVPR)',
-                  subtitle: 'Revisar e aplicar preços oficiais do continente.pt',
-                  color: Colors.green,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminContinentePricesScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.delivery_dining,
-                  title: 'Entregadores',
-                  subtitle: 'Lista e estado de todos os entregadores',
-                  color: Colors.blue,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminDriversScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.how_to_reg,
-                  title: 'Aprovações',
-                  subtitle: 'Candidaturas pendentes, aprovadas e rejeitadas',
-                  color: Colors.teal,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminDriverApprovalScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.payments,
-                  title: 'Pagamentos',
-                  subtitle: 'Saques e ganhos semanais dos entregadores',
-                  color: AppColors.primary,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminDriverPaymentsScreen())),
-                ),
-                const SizedBox(height: 10),
-                // ACERTO UNIFICADO (2026-08-29): cada pessoa UMA vez so, com
-                // entregas + corridas + limpeza + lavagem somadas, a divida
-                // abatida e um numero final. A tela "Acertos da semana"
-                // abaixo continua a existir porque tambem cobre parceiros e
-                // profissionais de marcacoes, que nao sao pessoas com papeis.
-                _NavCard(
-                  icon: Icons.groups_2,
-                  title: 'Acerto semanal por pessoa',
-                  subtitle:
-                      'Tudo o que cada um fez, somado · divida abatida · pagar · CSV',
-                  color: AppColors.primary,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminAcertoUnificadoScreen())),
-                ),
-                const SizedBox(height: 10),
-                // 2026-09-05: a tela acima responde pela SEMANA. Faltava
-                // conseguir olhar para UM DIA e ver quanto cada pessoa fez
-                // nele, somando todos os papeis dela.
-                _NavCard(
-                  icon: Icons.today,
-                  title: 'Ganho do dia por pessoa',
-                  subtitle:
-                      'Quanto cada um fez num dia · todos os papeis · filtrar dia · CSV',
-                  color: AppColors.primary,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminGanhoDoDiaScreen())),
-                ),
-                const SizedBox(height: 10),
-                // OFERTAS (2026-08-29): a rodada oferecia a quem nao tinha
-                // aparelho e o trabalho ficava parado a toa, sem lugar nenhum
-                // onde se visse isso.
-                _NavCard(
-                  icon: Icons.record_voice_over,
-                  title: 'Ofertas de prestadores',
-                  subtitle:
-                      'Para quem foi, se tinha aparelho, e como acabou · CSV',
-                  color: Colors.teal,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminOfertasLogScreen())),
-                ),
-                const SizedBox(height: 10),
-                // PAPEIS (2026-08-29): nao existia painel de papeis para
-                // categoria nenhuma.
-                _NavCard(
-                  icon: Icons.badge,
-                  title: 'Papeis e candidaturas',
-                  subtitle:
-                      'Quem tem que papel · acrescentar e tirar · aprovar e recusar',
-                  color: Colors.deepPurple,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminPapeisScreen())),
-                ),
-                const SizedBox(height: 10),
-                // Entrada ÚNICA do fecho semanal (2026-09-07). Antes havia dois
-                // cartões — este e "Fechos Semanais" — a abrir ecrãs diferentes
-                // sobre o mesmo dinheiro, e abria-se o velho (PADRÃO 2.5). O
-                // contador de pendentes veio para aqui com o cartão que saiu.
-                _NavCard(
-                  icon: Icons.calendar_month,
-                  title: 'Acertos da semana',
-                  subtitle:
-                      'Quem a Bora paga e quem deve · marcar pago/recebido',
-                  color: AppColors.primary,
-                  badgeCount: _pendingSettlementsCount,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminAcertosSemanaScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.account_balance,
-                  title: 'Fechamento Semanal — Estafetas',
-                  subtitle: 'Fecho semanal + processar MBWay',
-                  color: Colors.indigo,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminSettlementsScreen())),
-                ),
-                const SizedBox(height: 10),
-                // Stripe Connect Fase 1 (2026-08-06).
-                _NavCard(
-                  icon: Icons.account_balance_wallet,
-                  title: 'Pagamentos Connect',
-                  subtitle:
-                      'Contas Stripe Connect de parceiros, estafetas e limpeza',
-                  color: Colors.deepPurple,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminConnectPaymentsScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.event_seat,
-                  title: 'Acerto reservas parceiros',
-                  subtitle:
-                      'Créditos €2 usados pelos clientes — pagar ao restaurante',
-                  color: Colors.teal,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminPartnerSettlementsScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  // Q1 (2026-05-17) — Repasses a parceiros (admin_partner_payouts trio).
-                  icon: Icons.payments_outlined,
-                  title: 'Repasses a Parceiros',
-                  subtitle:
-                      'Só parceiros · marcar pagos · vendas − comissão · CSV',
-                  color: Colors.indigo,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminPartnerPayoutsScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.storefront,
-                  title: 'Parceiros',
-                  subtitle: 'Activar e desactivar restaurantes/lojas',
-                  color: Colors.purple,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminPartnersScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.how_to_reg,
-                  title: 'Aprovação de parceiros',
-                  subtitle: 'Pendentes, aprovados, rejeitados',
-                  color: Colors.deepPurple,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminPartnersPendingScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.event_seat,
-                  title: 'Reservas',
-                  subtitle: 'Reservas de mesa em todos os restaurantes',
-                  color: Colors.teal,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminReservationsScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.bar_chart,
-                  title: 'Métricas Reservas Pro',
-                  subtitle: 'KPIs de reservas (7/30/90 dias)',
-                  color: Colors.deepPurple,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminReservationsMetricsScreen())),
-                ),
-                const SizedBox(height: 10),
-                // BLOCO D5 (2026-09-04) — reservas presas em pending/pending_payment,
-                // com botão "Libertar" que nunca mexe em dinheiro (ver migration
-                // 20260904230000_admin_notif_failures_and_stuck_reservations.sql).
-                _NavCard(
-                  icon: Icons.lock_clock,
-                  title: 'Marcações presas',
-                  subtitle:
-                      'Reservas travadas em pendente · libertar sem mexer em dinheiro',
-                  color: AppColors.error,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminStuckReservationsScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.star_outline,
-                  title: 'Avaliações',
-                  subtitle: 'Casos problemáticos e denúncias',
-                  color: Colors.amber,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminRatingsScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.people_outline,
-                  title: 'Clientes',
-                  subtitle: 'Listar, banir, suspender, ver histórico',
-                  color: Colors.indigo,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminClientsScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.account_balance_wallet,
-                  title: 'Tokens',
-                  subtitle: 'Saldo, atribuir, revogar (clientes + entregadores)',
-                  color: Colors.deepPurple,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminTokensScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.inventory_2_outlined,
-                  title: 'Catálogo',
-                  subtitle: 'Produtos por parceiro: activar/desactivar, preço',
-                  color: Colors.brown,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminCatalogScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.report_problem_outlined,
-                  title: 'Reclamações',
-                  subtitle: 'Inbox de reclamações e suporte',
-                  color: Colors.redAccent,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminComplaintsScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.insights,
-                  title: 'KPIs Avançado',
-                  subtitle: 'Zonas quentes, ticket médio, conversão',
-                  color: Colors.cyan,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminAdvancedKpisScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.wallet,
-                  title: 'Wallets',
-                  subtitle: 'Saldos livres + tokens dos clientes',
-                  color: Colors.green,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminWalletsScreen())),
-                ),
-                const SizedBox(height: 10),
-                // "Fechos Semanais" saiu daqui a 2026-09-07: dizia o mesmo que
-                // "Acertos da semana" mas só via estafetas e parceiros (nem
-                // limpeza, nem serviços, nem lavagem). O contador de pendentes
-                // passou para lá.
-
-                _NavCard(
-                  icon: Icons.map,
-                  title: 'Pedidos ao Vivo',
-                  subtitle: 'Mapa em tempo real · pickups, dropoffs, drivers',
-                  color: Colors.teal,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminLiveOrdersMapScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.cancel_schedule_send,
-                  title: 'Pedidos de Cancelamento',
-                  subtitle: 'Aprovar / rejeitar pedidos driver/parceiro',
-                  color: Colors.deepOrange,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminCancellationRequestsScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.local_offer,
-                  title: 'Promo Codes',
-                  subtitle: 'Criar e desactivar códigos promocionais',
-                  color: Colors.pinkAccent,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminPromoCodesScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.history,
-                  title: 'Histórico de Acções',
-                  subtitle: 'Audit log de todas as acções admin',
-                  color: Colors.blueGrey,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminAuditLogScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.person_off_outlined,
-                  title: 'Contas encerradas',
-                  subtitle:
-                      'Quem pediu para apagar a conta, o que foi anonimizado e o que ficou',
-                  color: Colors.brown,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminDeletedAccountsScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.badge_outlined,
-                  title: 'Documentos TVDE',
-                  subtitle: 'Rever e aprovar docs IMT dos motoristas TVDE',
-                  color: const Color(0xFF6366F1),
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminTvdeDocsReviewScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.privacy_tip_outlined,
-                  title: 'Privacidade (RGPD)',
-                  subtitle: 'Exportar ou anonimizar dados de um cliente',
-                  color: const Color(0xFF0EA5E9),
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminGdprScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.tune,
-                  title: 'Filtros de Descoberta',
-                  subtitle: 'Config dos filtros do cliente (aberto agora, dieta)',
-                  color: const Color(0xFF8B5CF6),
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminDiscoveryFiltersScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.event_seat_outlined,
-                  title: 'Reservas Pro — Config',
-                  subtitle: 'Pacing, regras por restaurante e fila de espera',
-                  color: const Color(0xFF10B981),
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminReservationsConfigScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.settings,
-                  title: 'Configurações',
-                  subtitle: 'Pricing, fees, wallet split, cashback %',
-                  color: Colors.grey,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminPlatformSettingsScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.local_shipping_outlined,
-                  title: 'Configurações de Despacho',
-                  subtitle:
-                      'Timeouts, retry, limite parceiro (REGRAS 2-5)',
-                  color: Colors.orange,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminDispatchSettingsScreen())),
-                ),
-                const SizedBox(height: 10),
-                // T5.1
-                _NavCard(
-                  icon: Icons.card_giftcard,
-                  title: 'Referrals',
-                  subtitle: 'Convites, conversão, top referrers',
-                  color: Colors.purple,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminReferralsScreen())),
-                ),
-                const SizedBox(height: 10),
-                // T5.2
-                _NavCard(
-                  icon: Icons.celebration,
-                  title: 'Cashbacks',
-                  subtitle: 'Histórico cashback + total mês',
-                  color: Colors.green,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminCashbacksScreen())),
-                ),
-                const SizedBox(height: 10),
-                // T2.2
-                _NavCard(
-                  icon: Icons.search,
-                  title: 'Personalização',
-                  subtitle: 'Top buscas + parceiros mais favoritados',
-                  color: Colors.indigo,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminSearchKpiScreen())),
-                ),
-                const SizedBox(height: 10),
-                // T2.3
-                _NavCard(
-                  icon: Icons.campaign,
-                  title: 'Enviar notificação',
-                  subtitle: 'Manual a 1 cliente ou broadcast',
-                  color: Colors.amber,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminSendNotificationScreen())),
-                ),
-                const SizedBox(height: 10),
-                // BLOCO D5 (2026-09-04) — quadro dos avisos push que falharam
-                // (lê notification_failures; ver relatório para cobertura actual).
-                _NavCard(
-                  icon: Icons.notifications_off_outlined,
-                  title: 'Avisos que falharam',
-                  subtitle: 'Push que não chegou nas últimas 24h · motivo',
-                  color: AppColors.error,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminNotificationFailuresScreen())),
-                ),
-                const SizedBox(height: 10),
-                // T5.5
-                _NavCard(
-                  icon: Icons.cloud_outlined,
-                  title: 'Edge Functions',
-                  subtitle: 'Lista + erros recentes (mbway, geral)',
-                  color: Colors.cyan,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminEdgeFunctionsScreen())),
-                ),
-                const SizedBox(height: 10),
-                // Missão endereco-web-2026-08-31 — falhas do autocomplete web
-                _NavCard(
-                  icon: Icons.travel_explore_outlined,
-                  title: 'Saúde da Web',
-                  subtitle: 'Falhas do campo de endereço no navegador',
-                  color: Colors.teal,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminWebHealthScreen())),
-                ),
-                const SizedBox(height: 10),
-                // Sessão 6 B3 — Estatísticas robô IA
-                _NavCard(
-                  icon: Icons.smart_toy_outlined,
-                  title: 'Estatísticas Suporte IA',
-                  subtitle: 'Sessões, resolução, tokens, custo Gemini',
-                  color: Colors.deepPurple,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminSupportStatsScreen())),
-                ),
-                const SizedBox(height: 10),
-                // Missão cadeia-gratis-2026-08-19 — trocar o modelo dos robôs
-                _NavCard(
-                  icon: Icons.memory_outlined,
-                  title: 'Modelos de IA',
-                  subtitle: 'Qual Gemini o Robot B e o suporte usam',
-                  color: Colors.deepPurple,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminAiModelsScreen())),
-                ),
-                const SizedBox(height: 10),
-                // Sessão 5C-α — Knowledge Base (RAG)
-                _NavCard(
-                  icon: Icons.menu_book_outlined,
-                  title: 'Knowledge Base',
-                  subtitle: 'RAG embeddings · Obsidian + knowledge + rules',
-                  color: Colors.indigo,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminKnowledgeScreen())),
-                ),
-                const SizedBox(height: 10),
-                // Sessão 5B-α — Propostas IA (write_shadow)
-                _NavCard(
-                  icon: Icons.fact_check_outlined,
-                  title: 'Propostas IA',
-                  subtitle: 'Aprovar/rejeitar acções WRITE do robô',
-                  color: AppColors.accent,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminPendingActionsScreen())),
-                ),
-                const SizedBox(height: 10),
-                // Sessão 5D — Sugestões de skills novas (auto-suggest)
-                // 5G — badge contador propostas pendentes
-                _NavCard(
-                  icon: Icons.auto_awesome,
-                  title: 'Sugestões Skills IA',
-                  subtitle: 'Skills novas propostas pelo cron semanal',
-                  color: const Color(0xFFFF8F00),
-                  badgeCount: _pendingSuggestionsCount,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminSkillSuggestionsScreen())),
-                ),
-                const SizedBox(height: 10),
-                // FASE 5 — Central de Autonomia (superfície ÚNICA: sugestões do Robot B v4
-                // + cabeçalho de progresso da paridade admin + kill switch + dial)
-                _NavCard(
-                  icon: Icons.hub_outlined,
-                  title: '🎛️ Central de Autonomia',
-                  subtitle: 'Aprovar/rejeitar + placar de paridade, kill switch e dial',
-                  color: AppColors.primary,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminRobotSuggestionsScreen())),
-                ),
-                const SizedBox(height: 10),
-                // Sessão 5F — Comunicação Robô A ↔ Robô B (crosstalk)
-                _NavCard(
-                  icon: Icons.forum_outlined,
-                  title: 'Comunicação A↔B',
-                  subtitle: 'Perguntas do robô A ao robô B + respostas RAG',
-                  color: AppColors.primary,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminCrosstalkScreen())),
-                ),
-                const SizedBox(height: 10),
-                // T1: Category mapping
-                _NavCard(
-                  icon: Icons.account_tree,
-                  title: 'Mapeamento de categorias',
-                  subtitle: '281 roots → 23 secções · revisão admin',
-                  color: Colors.brown,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminCategoryMappingScreen())),
-                ),
-                const SizedBox(height: 18),
-                // ── Serviços / Barbearias (vertical de marcações) ──
-                Padding(
-                  padding: const EdgeInsets.only(left: 4, bottom: 8, top: 4),
-                  child: Text(
-                    'Serviços / Barbearias & Beleza',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
-                  ),
-                ),
-                _NavCard(
-                  icon: Icons.content_cut,
-                  title: 'Barbearias & Beleza',
-                  subtitle: 'Aprovar, rejeitar, activar/desactivar prestadores',
-                  color: Colors.indigo,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminServiceProvidersScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.event_available,
-                  title: 'Agenda de marcações',
-                  subtitle: 'Marcações em todas as barbearias · cancelar em nome',
-                  color: Colors.teal,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminAppointmentsScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.payments_outlined,
-                  title: 'Fechamento Semanal — Barbearias',
-                  subtitle: 'Repasses · marcar pagos · receita Bora',
-                  color: Colors.indigo,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminAppointmentsPayoutsScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.bar_chart,
-                  title: 'Métricas Barbearias',
-                  subtitle: 'KPIs marcações · no-show % · walk-ins',
-                  color: Colors.deepPurple,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminAppointmentsMetricsScreen())),
-                ),
-                const SizedBox(height: 18),
-                // ── Bora Motorista (TVDE — transporte de passageiros) ──
-                Padding(
-                  padding: const EdgeInsets.only(left: 4, bottom: 8, top: 4),
-                  child: Text(
-                    'Bora Motorista (Transporte de passageiros)',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
-                  ),
-                ),
-                // categoria TVDE aberta a todos desde 2026-08-01 — reactivar
-                // se voltar ao modo por aprovação
-                // _NavCard(
-                //   icon: Icons.how_to_reg,
-                //   title: 'Pedidos de acesso',
-                //   subtitle:
-                //       'Perfil completo do cliente · aprovar/recusar/revogar',
-                //   color: const Color(0xFF0EA5E9),
-                //   onTap: () => Navigator.push(
-                //       context,
-                //       MaterialPageRoute(
-                //           builder: (_) =>
-                //               const AdminTvdeAccessRequestsScreen())),
-                // ),
-                // const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.person_off,
-                  title: 'No-shows TVDE',
-                  subtitle: 'Ver/reverter',
-                  color: const Color(0xFF0EA5E9),
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminTvdeNoShowsScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.local_taxi,
-                  title: 'Corridas',
-                  subtitle:
-                      'Ao vivo · histórico · financeiro motorista/Bora · CSV',
-                  color: Colors.teal,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminTvdeRidesScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.cancel_schedule_send,
-                  title: 'Cancelamentos',
-                  subtitle:
-                      'Corridas canceladas · cliente/motorista/no-show · taxa',
-                  color: Colors.redAccent,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminTvdeCancellationsScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.directions_car,
-                  title: 'Motoristas de passageiros',
-                  subtitle: 'Gerir e banir · saldo · avaliações',
-                  color: Colors.indigo,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminTvdeDriversScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.card_membership,
-                  title: 'Assinaturas',
-                  subtitle: 'Conceder assinatura a um cliente · ver ativas',
-                  color: Colors.deepPurple,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminTvdeSubscriptionsScreen())),
-                ),
-                const SizedBox(height: 10),
-                // [Reserva agendada 2026-08-19] Corridas marcadas para depois.
-                _NavCard(
-                  icon: Icons.event,
-                  title: 'Reservas (corridas agendadas)',
-                  subtitle:
-                      'Ver todas · criar · cancelar · trocar motorista · forçar chamada',
-                  color: Colors.indigo,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminTvdeReservasScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.sync_alt,
-                  title: 'Ida e volta',
-                  subtitle: 'Pacotes ida + volta · vale por usar / usado / expirado',
-                  color: Colors.teal,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminTvdeRoundtripsScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.hourglass_bottom,
-                  title: 'Corridas presas no pagamento',
-                  subtitle:
-                      'Pagou e ninguém foi chamado · reconferir / cancelar / reembolsar',
-                  color: Colors.redAccent,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminTvdeStuckPaymentsScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.account_balance_wallet,
-                  title: 'Dívidas em dinheiro',
-                  subtitle:
-                      'Quanto cada motorista deve à Bora das corridas em dinheiro',
-                  color: Colors.brown,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminTvdeDriverDebtsScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.assignment_turned_in,
-                  title: 'Pedidos de plano',
-                  subtitle: 'Aprovar/ativar adesões pedidas pelos clientes',
-                  color: Colors.purple,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminTvdePlanRequestsScreen())),
-                ),
-                const SizedBox(height: 18),
-                // ── Limpeza doméstica (vertical LIMPEZA — Helpling/Oscar) ──
-                Padding(
-                  padding: const EdgeInsets.only(left: 4, bottom: 8, top: 4),
-                  child: Text(
-                    'Limpeza doméstica',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
-                  ),
-                ),
-                _NavCard(
-                  icon: Icons.cleaning_services,
-                  title: 'Limpezas',
-                  subtitle:
-                      'Reservas · filtros por estado · reagendar/cancelar',
-                  color: const Color(0xFF0284C7),
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminCleaningBookingsScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.badge,
-                  title: 'Profissionais de limpeza',
-                  subtitle:
-                      'Candidaturas · aprovar/suspender · acerto do caixa',
-                  color: const Color(0xFF38BDF8),
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminCleaningCleanersScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.payments_outlined,
-                  title: 'Fechamento Semanal — Limpeza',
-                  subtitle: 'Repasses por profissional · marcar pagos · recalcular',
-                  color: const Color(0xFF0EA5E9),
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminCleanerSettlementsScreen())),
-                ),
-                const SizedBox(height: 18),
-                // -- Lavagem Auto (vertical CARWASH -- Spiffy/Washos) --
-                Padding(
-                  padding: const EdgeInsets.only(left: 4, bottom: 8, top: 4),
-                  child: Text(
-                    'Lavagem Auto',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
-                  ),
-                ),
-                _NavCard(
-                  icon: Icons.local_car_wash,
-                  title: 'Lavagem Auto',
-                  subtitle:
-                      'Pedidos - lavadores - agrupar idas - acertos - precos',
-                  color: const Color(0xFF0891B2),
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminCarwashScreen())),
-                ),
-                const SizedBox(height: 18),
-                // -- Ferramentas (ecras anteriormente orfaos) --
-                Padding(
-                  padding: const EdgeInsets.only(left: 4, bottom: 8, top: 4),
-                  child: Text(
-                    'Ferramentas',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
-                  ),
-                ),
-                _NavCard(
-                  icon: Icons.auto_awesome,
-                  title: 'Assistente IA — Admin',
-                  subtitle: 'Chat IA: consultar dados, configs, acções',
-                  color: const Color(0xFF7E57C2),
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminAiAssistantScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.support_agent,
-                  title: 'Suporte — Tickets',
-                  subtitle: 'Tickets de suporte abertos e histórico',
-                  color: Colors.indigo,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminSupportTicketsScreen())),
-                ),
-                const SizedBox(height: 10),
-                // Missão 02/09/2026 — WhatsApp da loja (bot que resolve)
-                _NavCard(
-                  icon: Icons.chat_bubble_outline,
-                  title: 'WhatsApp da loja',
-                  subtitle: 'Conversas do bot · pausar/assumir · leads · lista de espera · log',
-                  color: Colors.green,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminWhatsappScreen())),
-                ),
-                const SizedBox(height: 10),
-                // Missão 02/09/2026 (noite) — Motores: o roteador grátis partilhado (WhatsApp, Hermes, Conselho)
-                _NavCard(
-                  icon: Icons.bolt,
-                  title: 'Motores e Agentes',
-                  subtitle: 'Fornecedores grátis · quota · latência · castigados · e ligar/desligar cada bot',
-                  color: Colors.deepOrange,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminMotoresScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.credit_card,
-                  title: 'Pagamentos/Cartões',
-                  subtitle: 'Cobranças de todas as verticais · estorno · cartões',
-                  color: const Color(0xFF1565C0),
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminPaymentsCardsScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.warning_amber_rounded,
-                  title: 'Pagamentos órfãos',
-                  subtitle: 'Stripe pago sem ordem associada',
-                  color: const Color(0xFFD32F2F),
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminOrphanPaymentsScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.receipt,
-                  title: 'Reembolsos estafetas',
-                  subtitle: 'StoreShopping V2 · talões + reembolso MBWay',
-                  color: AppColors.accent,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminReceiptsScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.price_change_outlined,
-                  title: 'Preços por talão',
-                  subtitle:
-                      'Correções do OCR (aprovar/rejeitar/reverter) · estado das imagens',
-                  color: AppColors.primary,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminCorrecoesPrecoScreen())),
-                ),
+                _dinheiro(dinheiro, acerto, hojeLabel, semanaLabel),
+                const SizedBox(height: 12),
+                _buildChart(dailyOrders),
+                _menu(acertosPendentes: _toInt(alertas['acertos_pendentes'])),
+                const SizedBox(height: 12),
+                _ferramentasDoPainel(demoVisivel),
                 const SizedBox(height: 16),
                 Center(
                   child: Text(
-                    'Atualizado: $generatedAt',
+                    'Atualizado: $generatedAt · hora de Lisboa · '
+                    '${demoVisivel ? 'COM dados de demonstração' : 'sem dados de demonstração'}',
+                    textAlign: TextAlign.center,
                     style: Theme.of(context)
                         .textTheme
                         .bodySmall
@@ -1482,6 +326,311 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     );
   }
 
+  // ---------------------------------------------------------------- alertas
+  Widget _avisoDemo() => Card(
+        color: AppColors.warning.withValues(alpha: 0.12),
+        margin: const EdgeInsets.only(bottom: 10),
+        child: const ListTile(
+          leading: Icon(Icons.science_outlined, color: AppColors.warning),
+          title: Text('Dados de demonstração LIGADOS',
+              style: TextStyle(fontWeight: FontWeight.w700)),
+          subtitle: Text(
+              'Os números abaixo incluem contas e pedidos de teste. Desligue lá em baixo quando acabar de testar.'),
+        ),
+      );
+
+  Widget _alertas(Map<String, dynamic> a, Map<String, dynamic> acerto) {
+    final chips = <Widget>[];
+    void add(String key, String label, IconData icon, Color cor, Widget screen,
+        {String? sufixo}) {
+      final n = _toInt(a[key]);
+      if (n <= 0) return;
+      chips.add(ActionChip(
+        avatar: Icon(icon, size: 16, color: cor),
+        label: Text('$n $label${sufixo ?? ''}',
+            style: TextStyle(color: cor, fontWeight: FontWeight.w600)),
+        side: BorderSide(color: cor.withValues(alpha: 0.5)),
+        onPressed: () => _abrir(screen),
+      ));
+    }
+
+    add('pedidos_presos_sem_estafeta', 'pedidos presos sem estafeta',
+        Icons.warning_amber_rounded, AppColors.error,
+        const AdminOrdersScreen());
+    add('pedidos_atrasados', 'pedidos atrasados', Icons.timer_off_outlined,
+        AppColors.warning, const AdminOrdersScreen());
+    add('tvde_sem_motorista_hoje', 'corridas sem motorista hoje',
+        Icons.local_taxi, AppColors.warning, const AdminTvdeRidesScreen());
+    add('marcacoes_por_confirmar', 'marcações por confirmar', Icons.rule,
+        AppColors.warning, const AdminMarcacoesConfirmacaoScreen());
+    add('marcacoes_por_concluir', 'marcações por concluir',
+        Icons.hourglass_bottom, AppColors.info,
+        const AdminMarcacoesConfirmacaoScreen());
+    final retidoN = _toInt(a['dinheiro_retido_falta_n']);
+    if (retidoN > 0) {
+      chips.add(ActionChip(
+        avatar: const Icon(Icons.money_off, size: 16, color: AppColors.error),
+        label: Text(
+            '${_eur(_toInt(a['dinheiro_retido_falta_cents']))} retidos por falta ($retidoN)',
+            style: const TextStyle(
+                color: AppColors.error, fontWeight: FontWeight.w600)),
+        side: BorderSide(color: AppColors.error.withValues(alpha: 0.5)),
+        onPressed: () =>
+            _abrir(const AdminMarcacoesConfirmacaoScreen(abaInicial: 1)),
+      ));
+    }
+    add('limpezas_por_atribuir', 'limpezas sem profissional',
+        Icons.cleaning_services_outlined, AppColors.warning,
+        const AdminCleaningBookingsScreen());
+    add('lavagens_por_atribuir', 'lavagens sem lavador',
+        Icons.local_car_wash_outlined, AppColors.warning,
+        const AdminCarwashScreen());
+    add('reservas_por_confirmar', 'reservas por confirmar',
+        Icons.table_restaurant_outlined, AppColors.info,
+        const AdminReservationsScreen());
+    add('avisos_falhados_24h', 'avisos que falharam (24h)',
+        Icons.notifications_off_outlined, AppColors.error,
+        const AdminNotificationFailuresScreen());
+    final pend = _toInt(a['acertos_pendentes']);
+    if (pend > 0) {
+      chips.add(ActionChip(
+        avatar: const Icon(Icons.account_balance_wallet_outlined,
+            size: 16, color: AppColors.primary),
+        label: Text('$pend acertos por pagar/receber',
+            style: const TextStyle(
+                color: AppColors.primary, fontWeight: FontWeight.w600)),
+        side: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
+        onPressed: () => _abrir(AdminAcertosSemanaScreen(
+            semanaInicial: acerto['week_param']?.toString())),
+      ));
+    }
+
+    if (chips.isEmpty) {
+      return Card(
+        margin: const EdgeInsets.only(bottom: 10),
+        color: AppColors.success.withValues(alpha: 0.08),
+        child: const ListTile(
+          dense: true,
+          leading: Icon(Icons.check_circle_outline, color: AppColors.success),
+          title: Text('Nada preso, nada por confirmar, nada retido.'),
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Wrap(spacing: 8, runSpacing: 8, children: chips),
+    );
+  }
+
+  // --------------------------------------------------------------- cabeçalho
+  Widget _cabecalhoDia(String hoje, String semana) => Row(children: [
+        const Icon(Icons.today, size: 16, color: AppColors.textSecondary),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            'Hoje $hoje · semana $semana (hora de Lisboa; a semana reinicia à segunda)',
+            style: const TextStyle(
+                fontSize: 12, color: AppColors.textSecondary),
+          ),
+        ),
+      ]);
+
+  // --------------------------------------------------------------- verticais
+  Widget _verticais(Map<String, dynamic> m) {
+    final e = _map(m['entregas']);
+    final t = _map(m['tvde']);
+    final s = _map(m['servicos']);
+    final l = _map(m['limpeza']);
+    final w = _map(m['lavagem']);
+    final r = _map(m['reservas']);
+
+    Widget linha(String nome, IconData icon, Color cor, List<(String, int)> nums,
+        Widget screen) {
+      return InkWell(
+        onTap: () => _abrir(screen),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(children: [
+            Icon(icon, size: 20, color: cor),
+            const SizedBox(width: 10),
+            SizedBox(
+              width: 112,
+              child: Text(nome,
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
+            ),
+            Expanded(
+              child: Wrap(
+                spacing: 12,
+                runSpacing: 2,
+                children: nums
+                    .map((n) => RichText(
+                          text: TextSpan(
+                            style: DefaultTextStyle.of(context).style,
+                            children: [
+                              TextSpan(
+                                  text: '${n.$2}',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      color: n.$2 > 0
+                                          ? AppColors.textPrimary
+                                          : AppColors.textSubtle)),
+                              TextSpan(
+                                  text: ' ${n.$1}',
+                                  style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.textSecondary)),
+                            ],
+                          ),
+                        ))
+                    .toList(),
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: AppColors.textSubtle),
+          ]),
+        ),
+      );
+    }
+
+    return Card(
+      elevation: 2,
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(Radii.lg)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Por área — hoje',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          linha('Entregas', Icons.delivery_dining, Colors.blue, [
+            ('pedidos hoje', _toInt(e['hoje'])),
+            ('em curso', _toInt(e['em_curso'])),
+            ('atrasados', _toInt(e['atrasados'])),
+            ('entregues', _toInt(e['entregues_hoje'])),
+          ], const AdminOrdersScreen()),
+          const Divider(height: 1),
+          linha('Bora Motorista', Icons.local_taxi, const Color(0xFF0EA5E9), [
+            ('corridas hoje', _toInt(t['hoje'])),
+            ('em curso', _toInt(t['em_curso'])),
+            ('agendadas', _toInt(t['agendadas'])),
+          ], const AdminTvdeRidesScreen()),
+          const Divider(height: 1),
+          linha('Barbearias', Icons.content_cut, const Color(0xFF8B5CF6), [
+            ('marcações hoje', _toInt(s['hoje'])),
+            ('por concluir', _toInt(s['por_concluir'])),
+            ('por confirmar', _toInt(s['por_confirmar'])),
+          ], const AdminAppointmentsScreen()),
+          const Divider(height: 1),
+          linha('Limpeza', Icons.cleaning_services_outlined,
+              const Color(0xFF14B8A6), [
+            ('hoje', _toInt(l['hoje'])),
+            ('em curso', _toInt(l['em_curso'])),
+            ('sem profissional', _toInt(l['por_atribuir'])),
+          ], const AdminCleaningBookingsScreen()),
+          const Divider(height: 1),
+          linha('Lavagem', Icons.local_car_wash_outlined, Colors.cyan, [
+            ('hoje', _toInt(w['hoje'])),
+            ('em curso', _toInt(w['em_curso'])),
+            ('sem lavador', _toInt(w['por_atribuir'])),
+          ], const AdminCarwashScreen()),
+          const Divider(height: 1),
+          linha('Reservas', Icons.table_restaurant_outlined, Colors.deepOrange,
+              [
+                ('mesas hoje', _toInt(r['hoje'])),
+                ('por confirmar', _toInt(r['por_confirmar'])),
+              ],
+              const AdminReservationsScreen()),
+        ]),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------- dinheiro
+  Widget _dinheiro(Map<String, dynamic> d, Map<String, dynamic> acerto,
+      String hoje, String semana) {
+    final rh = _map(d['receita_hoje']);
+    final rs = _map(d['receita_semana']);
+    String detalhe(Map<String, dynamic> r) {
+      final partes = <String>[];
+      void p(String k, String nome) {
+        final c = _toInt(r[k]);
+        if (c > 0) partes.add('$nome ${_eur(c)}');
+      }
+
+      p('entregas_cents', 'entregas');
+      p('tvde_cents', 'Bora Motorista');
+      p('servicos_cents', 'barbearias');
+      p('limpeza_cents', 'limpeza');
+      p('lavagem_cents', 'lavagem');
+      p('reservas_cents', 'reservas');
+      return partes.isEmpty ? 'nada ainda' : partes.join(' · ');
+    }
+
+    final aPagar = _toInt(acerto['a_pagar_cents']);
+    final aReceber = _toInt(acerto['a_receber_cents']);
+    final aPagarPend = _toInt(acerto['a_pagar_pendente_cents']);
+    final aReceberPend = _toInt(acerto['a_receber_pendente_cents']);
+    final label = acerto['label']?.toString() ?? '';
+
+    return Column(children: [
+      _MetricCard(
+        icon: Icons.today,
+        iconColor: AppColors.primary,
+        title: 'Receita da Bora hoje ($hoje)',
+        value: _eur(_toInt(rh['total_cents'])),
+        nota: detalhe(rh),
+      ),
+      _MetricCard(
+        icon: Icons.date_range,
+        iconColor: AppColors.primary,
+        title: 'Receita da semana em curso ($semana)',
+        value: _eur(_toInt(rs['total_cents'])),
+        nota: '${detalhe(rs)} · a semana reinicia à segunda-feira, 00:00 de Lisboa',
+      ),
+      _MetricCard(
+        icon: Icons.account_balance_wallet,
+        iconColor: AppColors.accent,
+        title: 'Acerto da semana fechada ($label)',
+        value: 'a pagar ${_eur(aPagar)} · a receber ${_eur(aReceber)}',
+        nota: aPagarPend == 0 && aReceberPend == 0
+            ? 'tudo marcado como pago/recebido'
+            : 'ainda por pagar ${_eur(aPagarPend)} · ainda por receber ${_eur(aReceberPend)} · toque para abrir',
+        onTap: () => _abrir(AdminAcertosSemanaScreen(
+            semanaInicial: acerto['week_param']?.toString())),
+      ),
+    ]);
+  }
+
+  // -------------------------------------------------------------------- menu
+  Widget _menu({int acertosPendentes = 0}) =>
+      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Gestão', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 10),
+        AdminMenuAccordion(
+          sections: adminMenuSections(),
+          favoritos: _favoritos,
+          onToggleFavorito: _toggleFavorito,
+          badges: {
+            'skills': _pendingSuggestionsCount,
+            'acertos': acertosPendentes,
+          },
+        ),
+      ]);
+
+  Widget _ferramentasDoPainel(bool demoVisivel) => Card(
+        child: SwitchListTile(
+          secondary: const Icon(Icons.science_outlined),
+          title: const Text('Mostrar dados de demonstração'),
+          subtitle: const Text(
+              'Contas e pedidos de teste entram nos números só enquanto isto estiver ligado.'),
+          value: demoVisivel,
+          onChanged: _demoBusy ? null : _setDemoVisivel,
+        ),
+      );
+
+  // ------------------------------------------------------------------ gráfico
   static List<_DayCount> _parseDailyOrders(dynamic raw) {
     if (raw is! List) return const [];
     final result = <_DayCount>[];
@@ -1506,14 +655,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     return Card(
       elevation: 2,
       margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Radii.lg)),
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(Radii.lg)),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Pedidos por dia',
+              'Pedidos de entrega por dia (7 dias, sem demo)',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -1555,7 +705,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                             return const SizedBox();
                           }
                           final d = data[i].date;
-                          // Format: dd/MM from yyyy-MM-dd
                           String label;
                           if (d.length >= 10) {
                             label =
@@ -1594,17 +743,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     );
   }
 
-  /// Rótulo honesto para um saldo com sinal. Um valor negativo debaixo de
-  /// "A pagar" mente tão bem como o número errado que havia antes.
-  static String _tituloSaldo(String quem, double saldo) =>
-      saldo < 0 ? 'A receber de $quem' : 'A pagar — $quem';
+  // ----------------------------------------------------------------- helpers
+  static Map<String, dynamic> _map(dynamic v) =>
+      v is Map ? Map<String, dynamic>.from(v) : const <String, dynamic>{};
 
-  static double _toDouble(dynamic v) {
-    if (v == null) return 0;
-    if (v is num) return v.toDouble();
-    return double.tryParse(v.toString()) ?? 0;
-  }
+  static String _eur(int cents) =>
+      '${(cents / 100).toStringAsFixed(2).replaceAll('.', ',')} €';
 
+  /// O servidor devolve alguns contadores como texto (vêm de `->>`); aqui
+  /// aceita-se número ou texto, e nulo é zero.
   static int _toInt(dynamic v) {
     if (v == null) return 0;
     if (v is int) return v;
@@ -1619,50 +766,70 @@ class _MetricCard extends StatelessWidget {
     required this.iconColor,
     required this.title,
     required this.value,
+    this.nota,
+    this.onTap,
   });
 
   final IconData icon;
   final Color iconColor;
   final String title;
   final String value;
+  final String? nota;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return Card(
       elevation: 2,
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Radii.lg)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 24,
-              backgroundColor: iconColor.withValues(alpha: 0.15),
-              child: Icon(icon, color: iconColor, size: 28),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    value,
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                  ),
-                ],
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(Radii.lg)),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(Radii.md),
+                ),
+                child: Icon(icon, color: iconColor, size: 28),
               ),
-            ),
-          ],
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      value,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                    if (nota != null) ...[
+                      const SizedBox(height: 4),
+                      Text(nota!,
+                          style: const TextStyle(
+                              fontSize: 11, color: AppColors.textSubtle)),
+                    ],
+                  ],
+                ),
+              ),
+              if (onTap != null)
+                const Icon(Icons.chevron_right, color: AppColors.textSubtle),
+            ],
+          ),
         ),
       ),
     );
@@ -1673,72 +840,4 @@ class _DayCount {
   const _DayCount(this.date, this.count);
   final String date;
   final int count;
-}
-
-class _NavCard extends StatelessWidget {
-  const _NavCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.color,
-    required this.onTap,
-    this.badgeCount = 0,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Color color;
-  final VoidCallback onTap;
-  final int badgeCount;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Radii.lg)),
-      child: ListTile(
-        onTap: onTap,
-        leading: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            CircleAvatar(
-              backgroundColor: color.withValues(alpha: 0.12),
-              child: Icon(icon, color: color),
-            ),
-            if (badgeCount > 0)
-              Positioned(
-                right: -6,
-                top: -6,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColors.error,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.white, width: 1.5),
-                  ),
-                  constraints:
-                      const BoxConstraints(minWidth: 20, minHeight: 20),
-                  child: Text(
-                    badgeCount > 99 ? '99+' : badgeCount.toString(),
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ),
-          ],
-        ),
-        title: Text(title,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-        subtitle: Text(subtitle,
-            style:
-                const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-        trailing: Icon(Icons.chevron_right, color: color),
-      ),
-    );
-  }
 }

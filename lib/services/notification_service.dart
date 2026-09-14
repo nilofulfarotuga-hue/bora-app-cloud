@@ -559,6 +559,10 @@ void _onLocalNotifTap(NotificationResponse response) {
       'appointment_new',
       'appointment_cancelled',
       'appointment_rescheduled',
+      // [Marcações 2026-09-14] "foi feita ou faltou?" e "falta revertida":
+      // tocar abre a agenda, onde estão os dois botões.
+      'appointment_confirm_needed',
+      'appointment_no_show_reverted',
     };
     if (apptTypes.contains(data['type'])) {
       NotificationService.instance.openPartnerAgendaFromNotification();
@@ -973,6 +977,9 @@ const Set<String> _kPersistentCategoryTypes = <String>{
   // Android (some sozinho) ou no beep silencioso em foreground.
   'appointment_cancelled',
   'appointment_rescheduled',
+  // [Marcações 2026-09-14] pergunta ao parceiro e falta revertida.
+  'appointment_confirm_needed',
+  'appointment_no_show_reverted',
   'low_rating',
   'purchase_finalized',
   // Backend emite `admin_reimbursement`; `reimbursement` fica como alias
@@ -1213,6 +1220,8 @@ Future<void> _showPersistentCategoryNotification(RemoteMessage message) async {
     case 'appointment_new':
     case 'appointment_cancelled':
     case 'appointment_rescheduled':
+    case 'appointment_confirm_needed':
+    case 'appointment_no_show_reverted':
       // [Serviços 2026-07-28] notify-service-provider v3 passou a DATA-ONLY
       // (foi essa a causa raiz do parceiro não receber nada: com bloco
       // `notification`, o Android desenhava a notif efémera e o handler
@@ -1229,6 +1238,8 @@ Future<void> _showPersistentCategoryNotification(RemoteMessage message) async {
             switch (type) {
               'appointment_new' => '🔔 Nova marcação',
               'appointment_rescheduled' => '🔄 Marcação reagendada',
+              'appointment_confirm_needed' => '❓ A marcação foi feita?',
+              'appointment_no_show_reverted' => '✅ Falta revertida',
               _ => '❌ Marcação cancelada',
             },
         body: data['body']?.toString() ?? notif?.body ?? '',
@@ -1569,7 +1580,9 @@ class NotificationService {
         // tap na notif persistente → abre a agenda do parceiro.
         if (data['type'] == 'appointment_new' ||
             data['type'] == 'appointment_cancelled' ||
-            data['type'] == 'appointment_rescheduled') {
+            data['type'] == 'appointment_rescheduled' ||
+            data['type'] == 'appointment_confirm_needed' ||
+            data['type'] == 'appointment_no_show_reverted') {
           debugPrint('[NotificationService] cold start de notif de marcação → '
               'abrir agenda do parceiro');
           openPartnerAgendaFromNotification();

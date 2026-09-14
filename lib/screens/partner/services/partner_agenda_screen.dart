@@ -297,7 +297,12 @@ class _AppointmentCard extends StatelessWidget {
     final isCancelled = a.status == AppointmentStatus.cancelled;
     final isCompleted = a.status == AppointmentStatus.completed;
     final isNoShow = a.status == AppointmentStatus.noShow;
-    final isConfirmed = a.status == AppointmentStatus.confirmed;
+    // 2026-09-14 — a falta deixou de ser automática. Passado o fim do
+    // serviço sem resposta, a marcação fica "por confirmar" e o parceiro vê
+    // aqui os mesmos botões (feito / faltou) até responder.
+    final isAwaiting = a.status == AppointmentStatus.awaitingConfirmation;
+    final isConfirmed =
+        a.status == AppointmentStatus.confirmed || isAwaiting;
 
     // Cor do estado.
     final Color statusColor;
@@ -314,6 +319,9 @@ class _AppointmentCard extends StatelessWidget {
     } else if (isNoShow) {
       statusColor = AppColors.error;
       statusLabel = 'Faltou';
+    } else if (isAwaiting) {
+      statusColor = AppColors.warning;
+      statusLabel = 'Foi feita? Diz-nos';
     } else if (isConfirmed) {
       statusColor = AppColors.success;
       statusLabel = 'Confirmada';

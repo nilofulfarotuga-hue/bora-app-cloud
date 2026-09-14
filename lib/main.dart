@@ -50,6 +50,7 @@ import 'screens/admin/admin_cleaning_cleaners_screen.dart';
 import 'screens/admin/admin_ratings_screen.dart';
 import 'screens/admin/admin_skill_suggestions_metrics_screen.dart';
 import 'screens/admin/admin_acertos_semana_screen.dart';
+import 'screens/admin/admin_marcacoes_confirmacao_screen.dart';
 import 'screens/restaurant_ratings_list_screen.dart';
 import 'screens/cleaner/cleaner_home_screen.dart';
 import 'screens/washer/washer_home_screen.dart';
@@ -806,6 +807,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           // de versões já instaladas ainda aponta para cá; reencaminha para os
           // Acertos da semana em vez de mostrar duas verdades (PADRÃO 2.5).
           '/admin/settlements': (_) => const AdminAcertosSemanaScreen(),
+          // Marcações (2026-09-14, painel-admin-limpo) — a falta deixou de ser
+          // automática; o cron e o parceiro mandam avisos para estas duas
+          // rotas, que abrem o mesmo ecrã no separador certo.
+          '/admin/marcacoes-por-confirmar': (_) =>
+              const AdminMarcacoesConfirmacaoScreen(),
+          '/admin/dinheiro-retido-falta': (_) =>
+              const AdminMarcacoesConfirmacaoScreen(abaInicial: 1),
           // PARTE A (2026-07-17) — deep links dos 5 pushes admin persistentes
           '/admin/robot': (_) => const AdminRobotSuggestionsScreen(),
           '/admin/drivers/approval': (_) => const AdminDriverApprovalScreen(),

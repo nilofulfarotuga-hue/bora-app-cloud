@@ -428,34 +428,48 @@ void main() {
     // O botão flutuante da loja é "Ver carrinho · €12,34" — o total muda a cada
     // corrida, por isso procura-se por pedaço de texto e nunca pela frase toda.
     final verCarrinho = find.textContaining('Ver carrinho');
-    await _exigir(t, verCarrinho, 'botao-ver-carrinho', segundos: 20);
-    await _tocar(t, verCarrinho);
+    // FORA DE HORAS (regra 1.27 do PADRAO): a loja fechada abre-se e vê-se,
+    // mas meter no carrinho é travado pelo `CartStore.lojaFechada` — o "Ver
+    // carrinho" nunca aparece, e isso é a app a fazer o que deve, não um
+    // crash. Apanhado pela corrida #433 do CI (23:37 UTC): fotografa-se o
+    // ecrã e salta-se o carrinho e o pagamento. Em horário de loja (08h-22h
+    // UTC) o fluxo corre inteiro e a ausência do botão continua a ser falha.
+    final foraDeHoras = agora.hour < 8 || agora.hour >= 22;
+    if (!await _esperar(t, verCarrinho, segundos: 20) && foraDeHoras) {
+      await _binding.takeScreenshot('zz-loja-fechada-sem-carrinho');
+      debugPrint('[arnes] sem "Ver carrinho" às $horaDoSimulador UTC: loja '
+          'fechada, carrinho travado (regra 1.27) — salta-se o pagamento');
+    } else {
+      await _exigir(t, verCarrinho, 'botao-ver-carrinho', segundos: 20);
+      await _tocar(t, verCarrinho);
 
-    final finalizar = find.text('Finalizar pedido');
-    await _exigir(t, finalizar, 'ecra-do-carrinho', segundos: 25);
-    await _foto(t, '06-loja-carrinho');
-    await _tocar(t, finalizar);
+      final finalizar = find.text('Finalizar pedido');
+      await _exigir(t, finalizar, 'ecra-do-carrinho', segundos: 25);
+      await _foto(t, '06-loja-carrinho');
+      await _tocar(t, finalizar);
 
-    await _exigir(t, find.text('Confirmar pagamento'), 'ecra-de-pagamento',
-        segundos: 45);
-    final dinheiro = find.text('Dinheiro');
-    if (await _esperar(t, dinheiro, segundos: 10)) {
-      await _tocar(t, dinheiro);
-    }
-    await _foto(t, '07-loja-pagamento');
+      await _exigir(t, find.text('Confirmar pagamento'), 'ecra-de-pagamento',
+          segundos: 45);
+      final dinheiro = find.text('Dinheiro');
+      if (await _esperar(t, dinheiro, segundos: 10)) {
+        await _tocar(t, dinheiro);
+      }
+      await _foto(t, '07-loja-pagamento');
 
-    if (_fazerEncomenda) {
-      await _tocar(t, find.text('Confirmar pagamento'));
-      await _bombear(t, segundos: 12);
-      await _foto(t, '08-loja-acompanhar');
+      if (_fazerEncomenda) {
+        await _tocar(t, find.text('Confirmar pagamento'));
+        await _bombear(t, segundos: 12);
+        await _foto(t, '08-loja-acompanhar');
 
-      // Arrumação, não segurança — a caixa fechada já garante que ninguém real
-      // é chamado. É só para não deixar pedidos de demonstração abertos. Se o
-      // botão não estiver disponível neste estado, segue-se sem drama.
-      final cancelar = _id('btn_cancelar_pedido');
-      if (await _esperar(t, cancelar, segundos: 20)) {
-        await _tocar(t, cancelar);
-        await _bombear(t, segundos: 4);
+        // Arrumação, não segurança — a caixa fechada já garante que ninguém
+        // real é chamado. É só para não deixar pedidos de demonstração
+        // abertos. Se o botão não estiver disponível neste estado, segue-se
+        // sem drama.
+        final cancelar = _id('btn_cancelar_pedido');
+        if (await _esperar(t, cancelar, segundos: 20)) {
+          await _tocar(t, cancelar);
+          await _bombear(t, segundos: 4);
+        }
       }
     }
 

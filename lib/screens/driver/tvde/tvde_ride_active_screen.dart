@@ -596,6 +596,64 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     return true;
   }
 
+  /// [Sobreposição 14/09 · item 7] Linhas da corrida EM FILA, em tom mais
+  /// claro e tracejadas, para se distinguirem da rota grossa da corrida
+  /// actual: destino actual → recolha da próxima (o troço vazio) e recolha →
+  /// destino da próxima. São linhas a direito, sem pedir rota à Google: são
+  /// orientação de relance, não navegação — a navegação é da corrida actual.
+  Set<Polyline> _queuedPolylines(TvdeRide current, TvdeRide queued) {
+    final claro = AppColors.primary.withValues(alpha: 0.45);
+    return {
+      Polyline(
+        polylineId: const PolylineId('tvde_queued_link'),
+        points: [
+          LatLng(current.destLat, current.destLng),
+          LatLng(queued.originLat, queued.originLng),
+        ],
+        color: claro,
+        width: 6,
+        patterns: [PatternItem.dash(20), PatternItem.gap(12)],
+        startCap: Cap.roundCap,
+        endCap: Cap.roundCap,
+      ),
+      Polyline(
+        polylineId: const PolylineId('tvde_queued_leg'),
+        points: [
+          LatLng(queued.originLat, queued.originLng),
+          LatLng(queued.destLat, queued.destLng),
+        ],
+        color: claro,
+        width: 6,
+        startCap: Cap.roundCap,
+        endCap: Cap.roundCap,
+        jointType: JointType.round,
+      ),
+    };
+  }
+
+  /// Pinos da corrida em fila (recolha e destino da PRÓXIMA), em azul para
+  /// não se confundirem com o laranja do alvo actual nem com a seta verde.
+  Set<Marker> _queuedMarkers(TvdeRide queued) => {
+        Marker(
+          markerId: const MarkerId('queued_origin'),
+          position: LatLng(queued.originLat, queued.originLng),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+          alpha: 0.85,
+          infoWindow: InfoWindow(
+              title: 'Próxima recolha',
+              snippet: queued.originLabel ?? 'Recolha da próxima corrida'),
+        ),
+        Marker(
+          markerId: const MarkerId('queued_dest'),
+          position: LatLng(queued.destLat, queued.destLng),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+          alpha: 0.6,
+          infoWindow: InfoWindow(
+              title: 'Próximo destino',
+              snippet: queued.destLabel ?? 'Destino da próxima corrida'),
+        ),
+      };
+
   /// B2 — a linha grossa da rota (sempre com o mesmo id, o mapa só troca os
   /// pontos). Recebe já o troço recortado à frente do carro.
   Polyline _polylineDaRota(List<ll.LatLng> pontos) => Polyline(
@@ -1430,6 +1488,37 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     }
   }
 
+  /// [Sobreposição 14/09 · item 9] Larga SÓ a corrida em fila. A que ele leva
+  /// não é tocada; a da fila volta à roda do despacho.
+  Future<void> _releaseQueued(TvdeRide queued) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Largar a próxima corrida?'),
+        content: Text(
+            'A corrida ${queued.originLabel ?? 'em fila'} volta para outros motoristas. '
+            'A corrida que estás a fazer continua igual.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Voltar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Largar')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await context.read<TvdeDriverStore>().releaseQueuedRide(queued.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Próxima corrida largada — voltou para a roda.')));
+    } catch (e) {
+      await _falhouAcao(e, rideId: queued.id);
+    }
+  }
+
   /// [Fix botão preso 2026-08-20] Antes isto era um snackbar com o erro cru
   /// (`Não foi possível: PostgrestException(...)`) e mais nada: o ecrã ficava
   /// exactamente como estava, a mostrar um estado que já não era verdade. E se
@@ -1570,6 +1659,10 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
       (ride.originLat + ride.destLat) / 2,
       (ride.originLng + ride.destLng) / 2,
     );
+    // [Sobreposição 14/09 · item 7] A corrida em fila entra no mapa em tom
+    // mais claro (o "azul claro" da Uber): destino actual → recolha da próxima
+    // → destino da próxima, por cima da rota grossa da corrida actual.
+    final queued = store.queuedRide;
 
     return Scaffold(
       appBar: BoraScreenAppBar(
@@ -1602,8 +1695,12 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
           RepaintBoundary(
             child: GoogleMap(
             initialCameraPosition: CameraPosition(target: center, zoom: 13),
-            markers: _markers(ride, driverPos),
-            polylines: _routePolys, // B2 — rota real grossa
+            markers: queued == null
+                ? _markers(ride, driverPos)
+                : {..._markers(ride, driverPos), ..._queuedMarkers(queued)},
+            polylines: queued == null
+                ? _routePolys // B2 — rota real grossa
+                : {..._routePolys, ..._queuedPolylines(ride, queued)},
             myLocationEnabled: _driverArrowIcon == null, // [Item N] seta ou bolinha
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
@@ -1643,13 +1740,18 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
               child: const Icon(Icons.my_location),
             ),
           ),
-          // Back-to-back: oferta compacta DURANTE a viagem (nunca modal
-          // full-screen com passageiro a bordo — segurança). Som vem do push.
-          if (store.offeredRide != null && ride.isInProgress)
+          // Back-to-back: oferta compacta POR CIMA da corrida actual, em
+          // qualquer fase (a caminho, chegou, em viagem) — nunca modal
+          // full-screen com passageiro a bordo (segurança). Som vem do push.
+          // [Sobreposição 14/09 · item 5] Antes só aparecia em 'em_andamento'
+          // — o motorista a caminho do passageiro não via a oferta que o
+          // servidor lhe fazia. Quem decide se ele pode receber é o servidor.
+          if (store.offeredRide != null)
             Align(
               alignment: Alignment.topCenter,
               child: SafeArea(
-                child: _QueuedOfferBanner(offer: store.offeredRide!),
+                child: _QueuedOfferBanner(
+                    offer: store.offeredRide!, current: ride),
               ),
             ),
           // [Item N] Card arrastável (bottom sheet), igual ao delivery: puxar
@@ -1959,31 +2061,24 @@ class _ActionPanel extends StatelessWidget {
               unlocked: actions._noShowUnlocked(ride),
             ),
           ],
-          // Back-to-back — indicador de corrida em fila.
-          if (context.select<TvdeDriverStore, bool>(
-              (s) => s.queuedRide != null)) ...[
-            const SizedBox(height: Spacing.sm),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: Spacing.md, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(999),
+          // Back-to-back — cartão "Próxima corrida" (a que está em fila).
+          // [Sobreposição 14/09 · itens 7 e 9] Era só um chip "na fila"; passa a
+          // dizer o que ele ganha, de onde para onde, a que distância do
+          // destino actual, e deixa largar SÓ a da fila sem tocar na que leva.
+          Builder(builder: (context) {
+            final queued = context
+                .select<TvdeDriverStore, TvdeRide?>((s) => s.queuedRide);
+            if (queued == null) return const SizedBox.shrink();
+            return Padding(
+              padding: const EdgeInsets.only(top: Spacing.sm),
+              child: _QueuedRideCard(
+                queued: queued,
+                current: ride,
+                busy: busy,
+                onRelease: () => actions._releaseQueued(queued),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: const [
-                  Icon(Icons.queue, size: 15, color: AppColors.primary),
-                  SizedBox(width: 6),
-                  Text('Próxima corrida na fila',
-                      style: TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w700)),
-                ],
-              ),
-            ),
-          ],
+            );
+          }),
           ],
           ),
         ),
@@ -2224,9 +2319,97 @@ class _WaitChip extends StatelessWidget {
 /// Back-to-back — oferta COMPACTA durante a viagem (banner no topo): valor,
 /// recolha e countdown, com aceitar/recusar. Nunca modal full-screen com
 /// passageiro a bordo. O som vem do push (notify-tvde-driver, intacto).
+/// [Sobreposição 14/09 · item 7] Cartão "Próxima corrida": a corrida que
+/// ficou em fila atrás da actual. Regra de ouro do motorista: o número grande
+/// é o que ele GANHA. Diz de onde para onde, a que distância do destino
+/// actual fica a próxima recolha, e deixa largar SÓ esta (item 9).
+class _QueuedRideCard extends StatelessWidget {
+  const _QueuedRideCard({
+    required this.queued,
+    required this.current,
+    required this.busy,
+    required this.onRelease,
+  });
+
+  final TvdeRide queued;
+  final TvdeRide current;
+  final bool busy;
+  final VoidCallback onRelease;
+
+  @override
+  Widget build(BuildContext context) {
+    final net = ((queued.driverEarnCents ?? 0) / 100).toStringAsFixed(2);
+    final ligacaoKm = Geolocator.distanceBetween(current.destLat,
+            current.destLng, queued.originLat, queued.originLng) /
+        1000;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(Spacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(Radii.md),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.queue, size: 16, color: AppColors.primary),
+              const SizedBox(width: 6),
+              const Expanded(
+                child: Text('Próxima corrida — depois desta',
+                    style: TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800)),
+              ),
+              Text('€$net',
+                  style: const TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${queued.originLabel ?? 'Recolha'} → ${queued.destLabel ?? 'Destino'}',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 13,
+                fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Recolha a ${ligacaoKm.toStringAsFixed(1)} km do destino desta corrida '
+            '· ${queued.estDistanceKm.toStringAsFixed(1)} km de viagem. '
+            'Abre sozinha quando terminares.',
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              // [PADRAO_BORA 3.13] trava-se pelo pedido deste ecrã, não por
+              // um busy global.
+              onPressed: busy ? null : onRelease,
+              child: const Text('Largar a próxima'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _QueuedOfferBanner extends StatefulWidget {
-  const _QueuedOfferBanner({required this.offer});
+  const _QueuedOfferBanner({required this.offer, required this.current});
   final TvdeRide offer;
+
+  /// A corrida que o motorista está a fazer — dá a distância "onde vou
+  /// largar → onde vou buscar".
+  final TvdeRide current;
 
   @override
   State<_QueuedOfferBanner> createState() => _QueuedOfferBannerState();
@@ -2279,11 +2462,16 @@ class _QueuedOfferBannerState extends State<_QueuedOfferBanner> {
     setState(() => _respondendo = true);
     final store = context.read<TvdeDriverStore>();
     try {
-      await store.acceptOffer(widget.offer.id);
+      final r = await store.acceptOffer(widget.offer.id);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content:
-              Text('Corrida em fila — inicia ao terminares esta viagem.')));
+      // [Sobreposição 14/09 · item 6] Aceitar não tira o motorista da corrida
+      // actual: este ecrã continua a mostrar o passageiro que ele leva; a nova
+      // fica no cartão "Próxima corrida". (Se, entretanto, a actual acabou e a
+      // aceite entrou como activa, o próprio ecrã já a está a mostrar.)
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(r.isQueued
+              ? 'Corrida em fila — abre sozinha quando terminares esta.'
+              : 'Corrida aceite.')));
     } catch (_) {
       store.clearOffer();
       if (!mounted) return;
@@ -2308,6 +2496,13 @@ class _QueuedOfferBannerState extends State<_QueuedOfferBanner> {
     final offer = widget.offer;
     // [Item C] líquido do motorista (não o total do cliente) na oferta em fila.
     final net = ((offer.driverEarnCents ?? 0) / 100).toStringAsFixed(2);
+    // [Sobreposição 14/09 · item 5] "onde vou largar → onde vou buscar".
+    final ligacaoKm = Geolocator.distanceBetween(
+            widget.current.destLat,
+            widget.current.destLng,
+            offer.originLat,
+            offer.originLng) /
+        1000;
     // Expirada (sweep roda ao próximo) — o realtime limpa; não renderiza lixo.
     if (_secondsLeft <= 0) return const SizedBox.shrink();
     return Container(
@@ -2330,7 +2525,7 @@ class _QueuedOfferBannerState extends State<_QueuedOfferBanner> {
               const Icon(Icons.queue, color: Colors.white, size: 18),
               const SizedBox(width: 6),
               const Expanded(
-                child: Text('Próxima corrida perto do teu destino',
+                child: Text('Nova corrida — depois desta corrida',
                     style: TextStyle(
                         color: Colors.white,
                         fontSize: 13.5,
@@ -2343,10 +2538,35 @@ class _QueuedOfferBannerState extends State<_QueuedOfferBanner> {
                       fontWeight: FontWeight.w700)),
             ],
           ),
+          const SizedBox(height: 4),
+          // Regra de ouro do motorista: o número grande é o que ele GANHA.
+          // O total do cliente só aparece (pequeno) no badge, e só em dinheiro.
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text('€$net',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 30,
+                      height: 1.0,
+                      fontWeight: FontWeight.w800)),
+              const SizedBox(width: Spacing.sm),
+              Expanded(
+                child: Text(
+                  'o teu ganho · ${offer.estDistanceKm.toStringAsFixed(1)} km',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white70, fontSize: 12.5),
+                ),
+              ),
+              TvdePayBadge(ride: offer, dense: true),
+            ],
+          ),
           const SizedBox(height: 6),
           Text(
-            '€$net · ${offer.originLabel ?? 'Recolha próxima do destino'}',
-            maxLines: 1,
+            'Recolha a ${ligacaoKm.toStringAsFixed(1)} km de onde vais largar '
+            '· ${offer.originLabel ?? 'Recolha'}',
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(color: Colors.white, fontSize: 13),
           ),

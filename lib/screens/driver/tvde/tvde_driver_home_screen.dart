@@ -225,11 +225,11 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
       final driverStore = context.read<DriverStore>();
       if (driverStore.currentDriver?.isOnline != true) return;
       final tvde = context.read<TvdeDriverStore>();
-      // Elegível para oferta: livre, OU em viagem 'em_andamento' sem fila
-      // (back-to-back — o tier 2 do matching só oferece nesse estado).
-      final canReceive = tvde.offeredRide == null &&
-          (tvde.activeRide == null ||
-              (tvde.activeRide!.isInProgress && tvde.queuedRide == null));
+      // Elegível para oferta: sem oferta pendente e sem corrida em fila. Quem
+      // decide se um motorista OCUPADO pode receber (sobreposição, à Uber) é
+      // o servidor — tvde_offer_to_next, desde 14/09 — em qualquer fase da
+      // corrida actual; aqui só não se vai buscar quando já há fila.
+      final canReceive = tvde.offeredRide == null && tvde.queuedRide == null;
       if (!canReceive) return;
       tvde.loadCurrent().then((_) {
         if (mounted) _syncNav();

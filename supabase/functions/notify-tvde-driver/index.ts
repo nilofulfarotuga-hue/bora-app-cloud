@@ -5,6 +5,9 @@
 // v5: alem da OFERTA de corrida (caminho original, intacto), trata
 // kind='stop_added' — aviso de parada adicionada pelo cliente, com o total
 // a cobrar atualizado (decisao Danilo 2026-07-20).
+// v16 (2026-09-14): kinds 'queued_added' / 'ride_assigned' / 'ride_reassigned_away'
+// — sobreposição (back-to-back): admin_tvde_reassign_ride. Ramo proprio; nada
+// dos kinds anteriores mudou.
 // v9 (2026-08-20): kind 'reservation_assigned' — o ADMIN atribuiu a reserva a
 // este motorista a mao (RPC admin_tvde_reservation_set_driver). NAO e oferta:
 // nao ha aceitar/recusar, o texto e afirmativo. Continua data-only.
@@ -20,7 +23,7 @@
 // Chamado por:
 //  - trigger fn_notify_tvde_driver_on_offer (oferta; sem kind)
 //  - RPC tvde_add_stop (kind='stop_added', stopPaidOnline bool)
-//  - RPC tvde_reservation_push (kind='reservation_*')
+//  - RPC tvde_reservation_push (kind='reservation_*' | 'queued_added' | 'ride_assigned' | 'ride_reassigned_away')
 //
 // Retorna 200 sempre (fire-and-forget).
 
@@ -255,6 +258,97 @@ Deno.serve(async (req) => {
     console.log(`[notify-tvde-driver] ride_cancelled push sent to driver ${driverId} ride ${rideId}`)
     await logPushEvent(supabase, rideId, true, { kind, driver_id: driverId })
     return json({ ok: true })
+  }
+
+  // ============ v16 (2026-09-14) — SOBREPOSIÇÃO (back-to-back) ============
+  // kinds NOVOS, num ramo próprio: os kinds antigos (offer/stop_added/
+  // ride_cancelled/reservation_*) ficam exactamente como estavam.
+  //   queued_added        — o admin meteu uma corrida na FILA deste motorista
+  //                         (RPC admin_tvde_reassign_ride, motorista ocupado)
+  //   ride_assigned       — o admin atribuiu-lhe directamente uma corrida
+  //                         (motorista livre) — não é oferta, não há aceitar
+  //   ride_reassigned_away— a corrida que ele tinha foi passada a outro
+  // DATA-ONLY (licao 28/07 + 31/07): é o handler do Flutter que posta a
+  // notificação persistente (type 'tvde_queue_update') e relê o estado.
+  // Regra de ouro do motorista: o número que aparece é o que ele GANHA.
+  if (kind === 'queued_added' || kind === 'ride_assigned' || kind === 'ride_reassigned_away') {
+    let originLabel = 'Recolha', destLabel = 'Destino', earnEur = '0.00', fareEur = '0.00'
+    let mostraCobranca = false
+    try {
+      const { data: ride } = await supabase
+        .from('tvde_rides')
+        .select('origin_label, dest_label, est_fare_cents, driver_earn_cents, payment_method')
+        .eq('id', rideId).maybeSingle()
+      if (ride) {
+        originLabel = ride.origin_label ?? originLabel
+        destLabel   = ride.dest_label ?? destLabel
+        const earnCents = Number(ride.driver_earn_cents ?? 0)
+        if (Number.isFinite(earnCents) && earnCents > 0) earnEur = (earnCents / 100).toFixed(2)
+        const cents = Number(ride.est_fare_cents ?? 0)
+        if (Number.isFinite(cents) && cents > 0) fareEur = (cents / 100).toFixed(2)
+        mostraCobranca = (ride.payment_method ?? 'cash') === 'cash' && cents > 0
+      }
+    } catch (_e) { /* mantem fallbacks */ }
+
+    const rota = `${originLabel} -> ${destLabel}`
+    const ganhaFrase = `Ganhas €${earnEur}` + (mostraCobranca ? ` · cobras €${fareEur} ao cliente` : '')
+    let title: string, body: string
+    switch (kind) {
+      case 'queued_added':
+        title = '🚗 Corrida em fila — depois desta'
+        body  = `${rota} • ${ganhaFrase}. Fica em fila e abre sozinha quando terminares a corrida actual.`
+        break
+      case 'ride_assigned':
+        title = '🚗 Ficaste com uma corrida'
+        body  = `${rota} • ${ganhaFrase}. Segue já para a recolha.`
+        break
+      default:
+        title = 'Corrida passada a outro motorista'
+        body  = `A corrida ${rota} foi passada a outro motorista. Não precisas de ir.`
+    }
+
+    const message = {
+      message: {
+        token: fcmToken,
+        data: {
+          rideId: String(rideId),
+          type: 'tvde_queue_update',
+          kind,
+          originLabel, destLabel,
+          title, body,
+          driverEarn: earnEur,
+          collectCash: mostraCobranca ? fareEur : '',
+        },
+        android: { priority: 'high', ttl: '600s' },
+        apns: {
+          headers: { 'apns-priority': '10', 'apns-push-type': 'background' },
+          payload: { aps: { 'content-available': 1, sound: 'bora_alert.wav', 'interruption-level': 'time-sensitive' } },
+        },
+      },
+    }
+
+    const fcmRes = await fetch(fcmUrl, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(message),
+    })
+    const fcmBody = await fcmRes.json().catch(() => ({}))
+    if (!fcmRes.ok) {
+      console.error(`[notify-tvde-driver] ${kind} FCM error ${fcmRes.status}:`, JSON.stringify(fcmBody))
+      const errorCode = fcmBody?.error?.details?.[0]?.errorCode ?? ''
+      if (errorCode === 'UNREGISTERED' || errorCode === 'INVALID_ARGUMENT') {
+        if (fallbackTokenId) {
+          await supabase.from('driver_push_tokens').update({ active: false }).eq('id', fallbackTokenId)
+        } else {
+          await supabase.from('drivers').update({ fcm_token: null }).eq('user_id', driverId)
+        }
+      }
+      await logPushEvent(supabase, rideId, false, { kind, fcm_status: fcmRes.status, error_code: errorCode })
+      return json({ ok: false, reason: 'fcm_error' }, 200)
+    }
+    console.log(`[notify-tvde-driver] ${kind} push sent to driver ${driverId} ride ${rideId}`)
+    await logPushEvent(supabase, rideId, true, { kind, driver_id: driverId })
+    return json({ ok: true }, 200)
   }
 
   if (kind.startsWith('reservation_')) {

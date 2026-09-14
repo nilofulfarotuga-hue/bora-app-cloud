@@ -201,6 +201,25 @@ class _RidesListState extends State<_RidesList>
     );
   }
 
+  /// [Sobreposição 14/09 · Bloco D · item 13] Reatribuir corrida viva a outro
+  /// motorista pela RPC `admin_tvde_reassign_ride`: livre → recebe direto;
+  /// ocupado → entra na fila dele. É o que hoje (14/09, 15:26) teve de ser
+  /// feito à mão por SQL.
+  Future<void> _reassign(Map<String, dynamic> ride) async {
+    final res = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (_) => _ReassignDialog(ride: ride),
+    );
+    if (!mounted || res == null) return;
+    final queued = res['queued'] == true;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(queued
+          ? 'Corrida colocada na fila do motorista (entra quando ele terminar a atual).'
+          : 'Corrida atribuída diretamente ao motorista.'),
+    ));
+    await _load();
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -246,7 +265,14 @@ class _RidesListState extends State<_RidesList>
               ),
             )
           else
-            ..._rows.map((r) => _RideCard(data: r, live: _isLive)),
+            ..._rows.map((r) => _RideCard(
+                  data: r,
+                  live: _isLive,
+                  // [Sobreposição 14/09 · Bloco D] quem está em fila atrás de
+                  // quê, e o botão de reatribuir.
+                  byId: {for (final x in _rows) x['id']?.toString() ?? '': x},
+                  onReassign: _isLive ? () => _reassign(r) : null,
+                )),
         ],
       ),
     );
@@ -360,9 +386,35 @@ class _FinanceHeader extends StatelessWidget {
 }
 
 class _RideCard extends StatelessWidget {
-  const _RideCard({required this.data, required this.live});
+  const _RideCard({
+    required this.data,
+    required this.live,
+    this.byId = const {},
+    this.onReassign,
+  });
   final Map<String, dynamic> data;
   final bool live;
+
+  /// Linhas carregadas, por id — para escrever "atrás de quê" com nome e rota.
+  final Map<String, Map<String, dynamic>> byId;
+  final VoidCallback? onReassign;
+
+  static const _reassignable = {
+    'solicitada',
+    'sem_motorista',
+    'motorista_atribuido',
+    'motorista_a_caminho',
+    'motorista_chegou',
+  };
+
+  String _resumo(String? id) {
+    if (id == null || id.isEmpty) return '—';
+    final r = byId[id];
+    if (r == null) return id.substring(0, 8);
+    final cliente = (r['client_name'] as String?)?.trim();
+    return '${(cliente == null || cliente.isEmpty) ? 'cliente' : cliente} · '
+        '${r['origin_label'] ?? '?'} → ${r['dest_label'] ?? '?'}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -380,6 +432,8 @@ class _RideCard extends StatelessWidget {
     final locUpdated = data['driver_loc_updated_at'];
     // Back-to-back: corrida aceita em fila enquanto o motorista termina outra.
     final isQueued = data['is_queued'] == true;
+    final behindId = data['queued_behind_ride_id']?.toString();
+    final nextId = data['queue_next_ride_id']?.toString();
     // Paradas adicionais (CAMPO-02). Lê direto do mapa da RPC; se a RPC ainda
     // não trouxer estas colunas, ficam 0 e o bloco não aparece (sem crash).
     final extraStopsCount = (data['extra_stops_count'] as num?)?.toInt() ?? 0;
@@ -456,6 +510,25 @@ class _RideCard extends StatelessWidget {
             if (live && locUpdated != null)
               _kv(Icons.my_location, 'Posição',
                   'atualizada ${_fmtDateTime(locUpdated)} (via driver_locations)'),
+            // [Sobreposição 14/09 · item 12] fila: atrás de quê / leva atrás.
+            if (live && isQueued)
+              _kv(Icons.queue, 'Em fila atrás de', _resumo(behindId)),
+            if (live && nextId != null && nextId.isNotEmpty)
+              _kv(Icons.playlist_add_check, 'Leva atrás (fila)', _resumo(nextId)),
+            if (live && onReassign != null && _reassignable.contains(status))
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton.icon(
+                    onPressed: onReassign,
+                    icon: const Icon(Icons.swap_horiz, size: 16),
+                    label: const Text('Reatribuir corrida'),
+                    style: OutlinedButton.styleFrom(
+                        visualDensity: VisualDensity.compact),
+                  ),
+                ),
+              ),
             if (extraStopsCount > 0)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
@@ -557,6 +630,206 @@ class _RideCard extends StatelessWidget {
         Text(_eur(cents ?? 0),
             style: TextStyle(
                 fontWeight: FontWeight.w700, fontSize: 15, color: color)),
+      ],
+    );
+  }
+}
+
+/// [Sobreposição 14/09 · Bloco D · item 13] Escolher o motorista para uma
+/// corrida viva. Lista `admin_tvde_drivers_list` e diz, por motorista, se está
+/// livre (recebe direto) ou ocupado (a corrida entra na fila dele). Chama
+/// `admin_tvde_reassign_ride` (aceita drivers.id ou user_id; grava user_id).
+class _ReassignDialog extends StatefulWidget {
+  const _ReassignDialog({required this.ride});
+  final Map<String, dynamic> ride;
+
+  @override
+  State<_ReassignDialog> createState() => _ReassignDialogState();
+}
+
+class _ReassignDialogState extends State<_ReassignDialog> {
+  List<Map<String, dynamic>> _drivers = const [];
+  bool _loading = true;
+  bool _sending = false;
+  String? _error;
+  String? _selectedUserId;
+  final _motivo = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDrivers();
+  }
+
+  @override
+  void dispose() {
+    _motivo.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadDrivers() async {
+    try {
+      final res =
+          await Supabase.instance.client.rpc('admin_tvde_drivers_list');
+      final list = ((res as List?) ?? const [])
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .where((d) =>
+              d['approval_status'] == 'approved' &&
+              d['is_banned'] != true &&
+              d['user_id'] != null &&
+              d['user_id'] != widget.ride['driver_id'])
+          .toList()
+        ..sort((a, b) {
+          // online e livres primeiro, depois online ocupados, depois offline
+          int peso(Map<String, dynamic> d) {
+            final online = d['is_online'] == true;
+            final ativas = (d['active_rides'] as num?)?.toInt() ?? 0;
+            if (!online) return 2;
+            return ativas == 0 ? 0 : 1;
+          }
+          final c = peso(a).compareTo(peso(b));
+          return c != 0
+              ? c
+              : (a['name'] as String? ?? '').compareTo(b['name'] as String? ?? '');
+        });
+      if (!mounted) return;
+      setState(() {
+        _drivers = list;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = '$e';
+        _loading = false;
+      });
+    }
+  }
+
+  String _estado(Map<String, dynamic> d) {
+    final online = d['is_online'] == true;
+    final ativas = (d['active_rides'] as num?)?.toInt() ?? 0;
+    final fila = (d['queued_rides'] as num?)?.toInt() ?? 0;
+    final entrega = d['has_active_delivery'] == true;
+    if (!online) return 'Offline — vai receber na mesma, mas pode não ver';
+    if (ativas == 0 && !entrega) return 'Livre — recebe a corrida direto';
+    final partes = <String>[
+      if (ativas > 0) '$ativas corrida${ativas == 1 ? '' : 's'} em curso',
+      if (fila > 0) '$fila em fila',
+      if (entrega) 'entrega em curso',
+    ];
+    return 'Ocupado (${partes.join(', ')}) — entra na fila dele';
+  }
+
+  Future<void> _confirm() async {
+    final uid = _selectedUserId;
+    if (uid == null || _sending) return;
+    setState(() => _sending = true);
+    try {
+      final res = await Supabase.instance.client
+          .rpc('admin_tvde_reassign_ride', params: {
+        'p_ride_id': widget.ride['id'],
+        'p_driver_id': uid,
+        'p_motivo': _motivo.text.trim().isEmpty
+            ? 'reatribuída pelo admin no painel'
+            : _motivo.text.trim(),
+      });
+      if (!mounted) return;
+      Navigator.of(context)
+          .pop(res is Map ? Map<String, dynamic>.from(res) : {'ok': true});
+    } catch (e) {
+      if (!mounted) return;
+      final msg = '$e';
+      setState(() {
+        _sending = false;
+        _error = msg.contains('queue_full')
+            ? 'A fila desse motorista já está cheia.'
+            : msg.contains('ride_not_reassignable')
+                ? 'Esta corrida já não pode ser reatribuída (passageiro a bordo ou terminada).'
+                : msg.contains('same_driver')
+                    ? 'Esse já é o motorista da corrida.'
+                    : 'Não deu: $msg';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final r = widget.ride;
+    return AlertDialog(
+      title: const Text('Reatribuir corrida'),
+      content: SizedBox(
+        width: 460,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${r['origin_label'] ?? '?'} → ${r['dest_label'] ?? '?'}',
+                style: const TextStyle(fontSize: 12.5)),
+            Text(
+              'Motorista atual: ${(r['driver_name'] as String?)?.trim().isNotEmpty == true ? r['driver_name'] : 'nenhum'}',
+              style: const TextStyle(
+                  fontSize: 12, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 10),
+            if (_loading)
+              const Center(
+                  child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: CircularProgressIndicator()))
+            else if (_drivers.isEmpty)
+              const Text('Nenhum motorista de passageiros aprovado.')
+            else
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 320),
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (final d in _drivers)
+                      RadioListTile<String>(
+                        dense: true,
+                        value: d['user_id'].toString(),
+                        groupValue: _selectedUserId,
+                        onChanged: _sending
+                            ? null
+                            : (v) => setState(() => _selectedUserId = v),
+                        title: Text(
+                            '${d['name'] ?? '—'}${d['is_online'] == true ? '' : ' (offline)'}',
+                            style: const TextStyle(fontSize: 13.5)),
+                        subtitle: Text(_estado(d),
+                            style: const TextStyle(fontSize: 11.5)),
+                      ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _motivo,
+              decoration: const InputDecoration(
+                labelText: 'Motivo (fica no histórico da corrida)',
+                isDense: true,
+                border: OutlineInputBorder(),
+              ),
+            ),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(_error!,
+                    style: const TextStyle(
+                        color: AppColors.error, fontSize: 12)),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+            onPressed: _sending ? null : () => Navigator.of(context).pop(),
+            child: const Text('Cancelar')),
+        FilledButton(
+          onPressed: (_selectedUserId == null || _sending) ? null : _confirm,
+          child: Text(_sending ? 'A reatribuir…' : 'Reatribuir'),
+        ),
       ],
     );
   }

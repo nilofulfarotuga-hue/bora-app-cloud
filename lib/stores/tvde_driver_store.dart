@@ -225,21 +225,31 @@ class TvdeDriverStore extends ChangeNotifier {
 
       _activeRide = ativas.isEmpty ? null : ativas.first;
       _standByRide = ativas.length > 1 ? ativas[1] : null;
+      // [Sobreposição 14/09 · item 10] Duas activas não-fila é um estado que o
+      // servidor já não deixa nascer (guarda em tvde_accept_ride). Se mesmo
+      // assim aparecer, o ecrã fica com a mais comprometida (acima) e
+      // reporta-se — nunca se mostram duas.
+      if (ativas.length > 1) _reportarDuasActivas(ativas);
 
-      // Corrida em fila (back-to-back), se existir.
+      // Corrida em fila (back-to-back), se existir — a mais antiga primeiro
+      // (é a que o servidor promove quando a actual termina).
       final queued = await _sb
           .from('tvde_rides')
           .select()
           .eq('driver_id', uid)
           .eq('is_queued', true)
           .eq('status', 'motorista_atribuido')
+          .order('created_at', ascending: true)
           .limit(1);
       _queuedRide = queued.isEmpty ? null : TvdeRide.fromMap(queued.first);
 
-      // Oferta: quando livre, OU em viagem 'em_andamento' sem fila (o backend
-      // só oferece nesse estado — tier 2 do tvde_offer_to_next).
-      final canReceiveOffer = _activeRide == null ||
-          (_activeRide!.isInProgress && _queuedRide == null);
+      // Oferta: quem decide se este motorista pode receber é o SERVIDOR
+      // (tvde_offer_to_next: livre, ou ocupado elegível para sobreposição —
+      // a caminho, chegou ou em viagem). Aqui só se esconde a oferta quando já
+      // há uma corrida em fila: essa nunca leva outra por cima.
+      // [Sobreposição 14/09] Antes exigia 'em_andamento' e o motorista a
+      // caminho do passageiro nunca via a oferta que o servidor lhe fazia.
+      final canReceiveOffer = _queuedRide == null;
       if (canReceiveOffer) {
         final offer = await _sb
             .from('tvde_rides')
@@ -656,15 +666,17 @@ class TvdeDriverStore extends ChangeNotifier {
         'p_tokens_to_apply': 0,
       }).timeout(kAcaoTimeout);
       final finished = TvdeRide.fromMap(_asMap(res));
-      // [Fix 2026-09-05] Também recarrega quando havia uma reserva em stand by:
-      // acabada esta corrida, é ela que passa a mandar no ecrã.
-      if (_queuedRide != null || _standByRide != null) {
-        _activeRide = null;
-        _limparOferta();
-        await loadCurrent(); // apanha a corrida ativada ('motorista_a_caminho')
-      } else {
-        _activeRide = finished;
-      }
+      // [Sobreposição 14/09 · item 8] Relê SEMPRE do servidor. Antes só relia
+      // se ainda houvesse `_queuedRide` em memória — mas o realtime pode
+      // entregar a promoção da fila ANTES de a RPC responder: nesse instante
+      // `_queuedRide` já era null e o ramo antigo escrevia a corrida
+      // finalizada por cima da promovida. O ecrã ia para a avaliação e a
+      // corrida seguinte só abria quando alguma coisa voltasse a chamar
+      // loadCurrent(). Agora: se o servidor promoveu alguém (fila ou reserva
+      // em stand by), é essa que manda no ecrã; senão fica a finalizada, para
+      // o resumo do ganho e a avaliação.
+      _limparOferta();
+      await _reloadActiveAfterTerminal(finished);
       notifyListeners();
       return finished;
     } finally {
@@ -687,11 +699,12 @@ class TvdeDriverStore extends ChangeNotifier {
         'p_reason': reason,
       }).timeout(kAcaoTimeout);
       final ride = TvdeRide.fromMap(_asMap(res));
-      if (_queuedRide != null && _activeRide?.id == rideId) {
-        // back-to-back: a ativa caiu → o backend ativou a corrida em fila.
-        _activeRide = null;
+      if (_activeRide?.id == rideId) {
+        // A activa caiu. Se havia fila, o backend promoveu-a — relê SEMPRE do
+        // servidor (mesma corrida com o realtime do finishRide: decidir pelo
+        // `_queuedRide` em memória falhava quando o evento chegava primeiro).
         _limparOferta();
-        await loadCurrent();
+        await _reloadActiveAfterTerminal(ride);
       } else {
         _activeRide = ride;
         _limparOferta();
@@ -701,6 +714,95 @@ class TvdeDriverStore extends ChangeNotifier {
     } finally {
       _setBusy(false);
     }
+  }
+
+  /// Depois de a corrida activa terminar (finalizada ou cancelada): relê do
+  /// servidor a activa não-fila — a que o servidor promoveu da fila, ou uma
+  /// reserva em stand by — e a fila. Sem nada promovido fica [fallback] (a
+  /// corrida terminada, para o resumo do ganho e a avaliação).
+  ///
+  /// NUNCA deixa `_activeRide` a null pelo caminho: o ecrã da corrida faz
+  /// `maybePop()` assim que vê a corrida a null, e um null momentâneo (com o
+  /// realtime a notificar a meio) fechava o ecrã e perdia a transição
+  /// automática para a corrida seguinte.
+  Future<void> _reloadActiveAfterTerminal(TvdeRide fallback) async {
+    final uid = _uid;
+    if (uid == null) {
+      _activeRide = fallback;
+      return;
+    }
+    try {
+      final active = await _sb
+          .from('tvde_rides')
+          .select()
+          .eq('driver_id', uid)
+          .eq('is_queued', false)
+          .inFilter('status', _activeStatuses)
+          .order('updated_at', ascending: false);
+      final ativas = active
+          .map((m) => TvdeRide.fromMap(Map<String, dynamic>.from(m)))
+          .toList()
+        ..sort((a, b) =>
+            _grauCompromisso(b.status).compareTo(_grauCompromisso(a.status)));
+      final queued = await _sb
+          .from('tvde_rides')
+          .select()
+          .eq('driver_id', uid)
+          .eq('is_queued', true)
+          .eq('status', 'motorista_atribuido')
+          .order('created_at', ascending: true)
+          .limit(1);
+      _standByRide = ativas.length > 1 ? ativas[1] : null;
+      _queuedRide = queued.isEmpty ? null : TvdeRide.fromMap(queued.first);
+      _activeRide = ativas.isEmpty ? fallback : ativas.first;
+    } catch (e) {
+      debugPrint('TvdeDriverStore._reloadActiveAfterTerminal error => $e');
+      // Sem servidor: se o realtime já trouxe a promovida fica ela; senão a
+      // terminada.
+      if (_activeRide == null || _activeRide!.id == fallback.id) {
+        _activeRide = fallback;
+      }
+    }
+  }
+
+  /// [Sobreposição 14/09 · item 9] Larga SÓ a corrida em fila, sem tocar na
+  /// que ele leva. O servidor (`tvde_cancel_ride`, actor motorista, com a
+  /// corrida em `motorista_atribuido`) devolve-a à roda — `status='solicitada'`
+  /// — e, desde a guarda de 14/09, não promove mais nada por cima da viagem em
+  /// curso. A activa fica exactamente como está.
+  Future<void> releaseQueuedRide(String rideId, {String? reason}) async {
+    _setBusy(true);
+    unawaited(cancelTvdeRideNotification(rideId));
+    try {
+      await _sb.rpc('tvde_cancel_ride', params: {
+        'p_ride_id': rideId,
+        'p_actor': 'motorista',
+        'p_reason': reason ?? 'o motorista largou a corrida em fila',
+      }).timeout(kAcaoTimeout);
+      if (_queuedRide?.id == rideId) _queuedRide = null;
+      await loadCurrent();
+      notifyListeners();
+    } finally {
+      _setBusy(false);
+    }
+  }
+
+  /// [Sobreposição 14/09 · item 10] Duas corridas activas não-fila no mesmo
+  /// motorista: o ecrã já escolheu a mais comprometida; aqui fica o rasto para
+  /// se perceber por onde entrou. Best-effort, nunca lança.
+  void _reportarDuasActivas(List<TvdeRide> ativas) {
+    final ids = ativas.map((r) => '${r.id.substring(0, 8)}:${r.status}').join(', ');
+    debugPrint('[TVDE-MOTORISTA] DUAS ACTIVAS não-fila: $ids');
+    unawaited(_sb.from('e2e_log').insert({
+      'fluxo': 'tvde-duas-activas',
+      'passo': 'app-motorista-loadCurrent',
+      'estado': 'aviso',
+      'detalhe': 'motorista $_uid com ${ativas.length} activas não-fila: $ids',
+      'device': 'app-motorista',
+      'run_id': 'tvde-duas-activas',
+    }).then((_) {}, onError: (Object e) {
+      debugPrint('[TVDE-MOTORISTA] e2e_log falhou: $e');
+    }));
   }
 
   /// Avalia o passageiro (tvde_rate deteta o sujeito por quem chama:

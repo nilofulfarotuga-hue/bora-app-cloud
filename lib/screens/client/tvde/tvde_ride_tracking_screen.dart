@@ -123,6 +123,12 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
   /// por isso não dispara o aviso do 2C.
   bool _etaIsRough = false;
 
+  /// [Sobreposição 14/09 · Bloco C] Em fila (back-to-back): o ETA vem do
+  /// servidor (`tvde_ride_queue_info`) e SOMA o que falta da corrida que o
+  /// motorista leva + o caminho do destino dela até à recolha desta. Real
+  /// (sem desconto); o desconto de apresentação entra em `_etaShownMinutes`.
+  int? _queueEtaMinutes;
+
   /// Regra do Danilo: o número MOSTRADO é menor que o real. Fallbacks aqui,
   /// verdade em `platform_settings` (categoria `eta`).
   int _etaDiscountPct = kTvdeEtaClientDiscountPct;
@@ -747,6 +753,13 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
   /// Recalculado a cada poll de posição (5 s) — nunca congela no valor
   /// inicial. Null quando não há posição do motorista.
   int? _etaMinutes(TvdeRide ride) {
+    // [Sobreposição 14/09] Em fila o carro vai primeiro a outro sítio: a conta
+    // "posição → minha recolha" seria mentira. Usa-se o ETA somado do
+    // servidor (rough por natureza — é a média das settings).
+    if (ride.isQueued) {
+      _etaIsRough = true;
+      return _queueEtaMinutes;
+    }
     final pos = _driverPos;
     if (pos == null) return null;
     final double tLat;
@@ -947,10 +960,36 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
       });
       // 2C — "está quase a chegar" (usa o ETA REAL, nunca o com desconto).
       _maybeAvisarQuaseAChegar(ride);
+      // [Sobreposição 14/09 · Bloco C] Em fila: ETA somado, do servidor.
+      await _pollQueueEta(ride);
     } catch (e) {
       // Nunca mais em silêncio: um catch mudo escondeu este bug durante
       // semanas, com passageiros reais a olhar para um mapa vazio.
       _notaFalhaCartao(e.toString());
+    }
+  }
+
+  /// [Sobreposição 14/09 · Bloco C] Lê `tvde_ride_queue_info` enquanto a
+  /// corrida está em fila atrás de outra: o servidor soma o que falta da
+  /// corrida em curso (posição → recolha dela, se ainda não embarcou →
+  /// paradas → destino) com o caminho destino → minha recolha, à velocidade
+  /// média `eta_avg_speed_kmh`. Fora da fila limpa o valor. Best-effort.
+  Future<void> _pollQueueEta(TvdeRide ride) async {
+    if (!ride.isQueued) {
+      if (_queueEtaMinutes != null && mounted) {
+        setState(() => _queueEtaMinutes = null);
+      }
+      return;
+    }
+    try {
+      final res = await Supabase.instance.client
+          .rpc('tvde_ride_queue_info', params: {'p_ride_id': ride.id});
+      final m = res is Map ? Map<String, dynamic>.from(res) : null;
+      final eta = (m?['eta_minutes'] as num?)?.toInt();
+      if (!mounted) return;
+      if (eta != _queueEtaMinutes) setState(() => _queueEtaMinutes = eta);
+    } catch (e) {
+      debugPrint('[TVDE-CLIENTE] tvde_ride_queue_info falhou: $e');
     }
   }
 
@@ -980,8 +1019,11 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
   /// [Bloco 5, 30/08] Rota do motorista até ao alvo da fase atual — como o
   /// Uber: o cliente vê o caminho que o carro vai fazer, não só o pontinho.
   Future<void> _maybeFetchDriverRoute(TvdeRide ride, LatLng pos) async {
-    final phase =
-        ride.isInProgress ? 'dest' : (ride.isAssigned ? 'pickup' : '');
+    // [Sobreposição 14/09] Em fila o motorista ainda vai a outro sítio: uma
+    // linha dele até à minha recolha seria falsa. Fica só o carro a mexer-se.
+    final phase = ride.isQueued
+        ? ''
+        : (ride.isInProgress ? 'dest' : (ride.isAssigned ? 'pickup' : ''));
     if (phase.isEmpty) {
       if (_driverRoutePolys.isNotEmpty && mounted) {
         setState(() {
@@ -1691,6 +1733,19 @@ class _CompactStrip extends StatelessWidget {
     if (driverArrived) {
       return quem != null ? '{0} chegou'.trArgs([quem]) : 'O motorista chegou'.tr;
     }
+    if (ride.isQueued) {
+      // [Sobreposição 14/09] em fila: a terminar outra corrida aqui perto.
+      if (etaMinutes == null) {
+        return quem != null
+            ? '{0} está a terminar uma corrida aqui perto'.trArgs([quem])
+            : 'O teu motorista está a terminar uma corrida aqui perto'.tr;
+      }
+      return quem != null
+          ? '{0} está a terminar uma corrida aqui perto · chega em ~{1} min'
+              .trArgs([quem, etaMinutes])
+          : 'O teu motorista está a terminar uma corrida aqui perto · chega em ~{0} min'
+              .trArgs([etaMinutes]);
+    }
     if (etaMinutes == null) {
       return quem != null
           ? '{0} está a caminho'.trArgs([quem])
@@ -1844,6 +1899,15 @@ class _StatusPanel extends StatelessWidget {
       return 'Chegas ao destino em ~{0} min'.trArgs([minutos]);
     }
     final quem = _primeiroNome(driverName);
+    // [Sobreposição 14/09 · Bloco C] Em fila: o ETA já soma a corrida que ele
+    // está a terminar — diz-se isso para o número fazer sentido.
+    if (ride.isQueued) {
+      return quem != null
+          ? '{0} está a terminar uma corrida aqui perto · chega em ~{1} min'
+              .trArgs([quem, minutos])
+          : 'O teu motorista está a terminar uma corrida aqui perto · chega em ~{0} min'
+              .trArgs([minutos]);
+    }
     return quem != null
         ? '{0} chega em ~{1} min'.trArgs([quem, minutos])
         : 'O motorista chega em ~{0} min'.trArgs([minutos]);
@@ -1855,6 +1919,7 @@ class _StatusPanel extends StatelessWidget {
     if (quem == null) return 'Motorista'.tr;
     if (ride.isInProgress) return quem;
     if (driverArrived) return '{0} chegou'.trArgs([quem]);
+    if (ride.isQueued) return '{0} está a terminar uma corrida'.trArgs([quem]);
     return '{0} está a caminho'.trArgs([quem]);
   }
 
@@ -2034,7 +2099,7 @@ class _StatusPanel extends StatelessWidget {
                   ),
                 ],
               ),
-            ] else if (etaMinutes != null && !ride.isQueued) ...[
+            ] else if (etaMinutes != null) ...[
               const SizedBox(height: Spacing.sm),
               Row(
                 children: [
@@ -2044,7 +2109,10 @@ class _StatusPanel extends StatelessWidget {
                   Expanded(
                     child: Text(
                       _etaTexto(etaMinutes!),
-                      maxLines: 1,
+                      // [Sobreposição 14/09] em fila a frase é mais longa
+                      // ("… a terminar uma corrida aqui perto · chega em ~9
+                      // min"); a uma linha o número ficava cortado.
+                      maxLines: ride.isQueued ? 2 : 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                           color: AppColors.primary,
@@ -2200,10 +2268,12 @@ class _StatusPanel extends StatelessWidget {
             ],
           ],
           // Back-to-back — passageiro em fila: contexto claro, sem spinner.
+          // [Sobreposição 14/09] A frase é a da Uber: o motorista está a
+          // terminar uma corrida aqui perto; fora isso o ecrã é o de sempre.
           if (ride.isQueued && ride.isAssigned) ...[
             const SizedBox(height: Spacing.sm),
             Text(
-              'Serás o próximo: o motorista está a terminar uma viagem perto de ti e segue logo para a tua recolha.'.tr,
+              'O teu motorista está a terminar uma corrida aqui perto e segue logo para a tua recolha. És o próximo.'.tr,
               style: const TextStyle(color: AppColors.textSubtle, fontSize: 12),
             ),
           ],

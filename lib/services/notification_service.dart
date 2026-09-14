@@ -528,6 +528,12 @@ void _onLocalNotifTap(NotificationResponse response) {
       NotificationService.tvdeOfferReload?.call();
       return;
     }
+    // [Sobreposição 14/09] Tocar no aviso da fila abre a app já com a
+    // corrida (a activa ou a da fila) no sítio certo.
+    if (data['type'] == 'tvde_queue_update') {
+      NotificationService.tvdeOfferReload?.call();
+      return;
+    }
     // [Reserva agendada 2026-08-19] "A caminho" no lembrete dos 10 minutos.
     // O botão e o corpo da notificação levam ao mesmo sítio: a app abre, a
     // RPC `tvde_reservation_ready` é chamada e a navegação para a recolha
@@ -960,6 +966,11 @@ Future<void> postWakeActivityNotification({
 
 const Set<String> _kPersistentCategoryTypes = <String>{
   'tvde_ride_status',
+  // [Sobreposição 14/09] O admin meteu uma corrida na fila do motorista, deu-lhe
+  // uma directamente, ou tirou-lhe a que tinha (notify-tvde-driver v16, kinds
+  // queued_added / ride_assigned / ride_reassigned_away). Data-only: é aqui
+  // que a persistente nasce e o store é mandado reler.
+  'tvde_queue_update',
   'cleaning_offer',
   'cleaning_status',
   // [2026-08-28] A lavagem de carros é nova e faltava por inteiro aqui: os
@@ -1121,6 +1132,23 @@ Future<void> _showPersistentCategoryNotification(RemoteMessage message) async {
         body: data['body']?.toString() ?? notif?.body ?? '',
         notificationId: rideId.isNotEmpty ? rideId.hashCode : type.hashCode,
         payload: {'rideId': rideId},
+      );
+      return;
+    case 'tvde_queue_update':
+      final rideId = data['rideId']?.toString() ?? '';
+      final kind = data['kind']?.toString() ?? '';
+      if (kind == 'ride_reassigned_away') {
+        // A corrida deixou de ser dele: a persistente da oferta/corrida morre.
+        await cancelTvdeRideNotification(rideId);
+      }
+      await _showPersistentStatusNotification(
+        type: type,
+        title: data['title']?.toString() ?? '🚗 Corrida',
+        body: data['body']?.toString() ?? '',
+        // id próprio (≠ do da oferta) para não apagar nem ser apagada por ela.
+        notificationId: rideId.isNotEmpty ? (rideId + kind).hashCode : type.hashCode,
+        payload: {'rideId': rideId, 'kind': kind},
+        urgent: kind != 'ride_reassigned_away',
       );
       return;
     case 'cleaning_offer':
@@ -1737,6 +1765,14 @@ class NotificationService {
       if (_kTvdeReservationTypes.contains(type)) {
         unawaited(showTvdeReservationNotification(Map<String, dynamic>.from(msg.data)));
         tvdeReservationReload?.call();
+        return;
+      }
+      // [Sobreposição 14/09] Fila mexida pelo admin com a app aberta: posta
+      // a persistente E manda o store reler — o realtime normalmente já
+      // trouxe a corrida, mas o push é a rede de segurança.
+      if (type == 'tvde_queue_update') {
+        unawaited(_showPersistentCategoryNotification(msg));
+        tvdeOfferReload?.call();
         return;
       }
       // [Fix notificações persistentes 2026-07-19] Sem isto, estas categorias

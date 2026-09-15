@@ -8,26 +8,45 @@ import 'package:google_maps_flutter/google_maps_flutter.dart' hide LatLng;
 import 'package:vibration/vibration.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
 
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
+import '../widgets/background_location_disclosure.dart';
+import '../widgets/bora_support_fab.dart';
+import '../widgets/cancel_blocked_pickup_sheet.dart';
+import '../widgets/payments/collect_badge.dart';
+import '../widgets/errand_execution_sheet_compat.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../utils/constants.dart';
 import '../utils/map_utils.dart';
+import 'support_chat_screen.dart';
 
+import '../models/falha_de_acao.dart';
 import '../models/chat_message.dart';
 import '../models/driver_model.dart';
 import '../models/order_model.dart';
+import '../services/driver_location_ping_service.dart';
 import '../services/navigation_service.dart';
+import '../services/heartbeat_service.dart';
+import '../services/notification_service.dart';
+import '../services/permission_gate_service.dart';
+import '../services/push_token_service.dart';
 import '../services/sound_service.dart';
+import '../widgets/notification_bell.dart';
 import '../stores/driver_store.dart';
 import '../stores/order_store.dart';
 import '../stores/session_store.dart';
+import '../widgets/chat_bubble_button.dart';
 import 'chat_screen.dart';
-import 'driver_earnings_screen.dart';
+import 'ganhos_screen.dart';
+import '../widgets/ganho_de_hoje_card.dart';
+import '../widgets/trocar_de_papel.dart';
+import '../services/role_switch_helper.dart';
 import 'driver_map_screen.dart';
 import 'driver_order_action_helper.dart';
+import 'profile_screen.dart';
 
 class DriverHomeScreen extends StatefulWidget {
   const DriverHomeScreen({super.key});
@@ -39,6 +58,15 @@ class DriverHomeScreen extends StatefulWidget {
 class _DriverHomeScreenState extends State<DriverHomeScreen>
     with WidgetsBindingObserver {
   Set<String> _knownOrderIds = {};
+  // BUG 36: dedupe — cobre race entre realtime e refresh manual que dispara
+  // _handleNewOrders 2× em <100ms para o mesmo order.id. Limpa ao sair de
+  // callingDriver (aceite, rejeitado, expirado).
+  final Set<String> _alreadyAlertedOrderIds = <String>{};
+  // BUG H6 — Pedidos descartados localmente por chegarem com offer já vencida.
+  // NÃO chamar onReject() (dispatch re-atribuiria → loop infinito). Apenas
+  // remove do destaque/som local até backend re-atribuir a outro driver ou
+  // limpar o offer. Limpa quando o pedido sai de callingDriver.
+  final Set<String> _dismissedExpiredOrderIds = <String>{};
   bool _isShowingDialog = false;
   // ID of the offer currently visible in _showNewOrderDialog (null when none).
   // Used to discard duplicate stream re-emissions for the same offer and to
@@ -48,6 +76,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
   String? _currentShowingOrderId;
   String? _highlightedOrderId;
   final SoundService _soundService = SoundService();
+  final HeartbeatService _heartbeatService = HeartbeatService();
   final Set<String> _processingOrderIds = {};
   StreamSubscription<Position>? _positionSubscription;
   OrderStore? _orderStore; // held so we can remove the listener in dispose
@@ -77,6 +106,68 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       // driver is already configured, configurePrimaryDriver just updates.
       _ensureDriverConfigured();
 
+      // BUG E (sessão exec 2026-05-12) — defensive register driver_push_tokens.
+      // Garante registo mesmo se driver_login_screen.saveTokenForDriver falhou
+      // por timing (FCM token ainda não obtido) ou se app abriu já logged-in
+      // (skip login flow). Idempotente via _lastRegisteredToken cache.
+      Future.microtask(() {
+        if (!mounted) return;
+        PushTokenService.registerForRole('driver');
+      });
+
+      // [A] 2026-06-30 — overlay 100% opcional + gate ÚNICO partilhado com o
+      // TVDE. Oferece a permissão NO MÁXIMO uma vez na vida (escolha
+      // persistida); nunca abre as Definições sozinho e nunca bloqueia. Em
+      // telemóveis fracos (onde a definição surge "Recurso não disponível")
+      // deixa de haver nag — os pedidos chegam pela notificação persistente.
+      Future<void>.delayed(const Duration(seconds: 2), () async {
+        if (!mounted) return;
+        await OverlayPermissionGate.maybeOfferOnce(context);
+      });
+
+      // Sessão 2026-05-22 — se driver já está Online (re-abertura da app)
+      // verificar silenciosamente as 3 permissões críticas. Se utilizador
+      // revogou alguma nas Definições enquanto a app esteve fechada, mostrar
+      // banner accionável a abrir o gate completo.
+      Future<void>.delayed(const Duration(seconds: 3), () async {
+        if (!mounted) return;
+        final driver = context.read<DriverStore>().currentDriver;
+        if (driver?.isOnline != true) return;
+        final ok = await PermissionGateService.areAllGranted();
+        if (ok || !mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            duration: const Duration(seconds: 8),
+            backgroundColor: Colors.orange.shade800,
+            content: const Text(
+              '⚠️ Faltam permissões para receber pedidos em background.',
+            ),
+            action: SnackBarAction(
+              label: 'CORRIGIR',
+              textColor: Colors.white,
+              onPressed: () async {
+                if (!mounted) return;
+                await PermissionGateService.ensureDriverOnlinePermissions(
+                    context);
+              },
+            ),
+          ),
+        );
+      });
+
+      // FASE 1: arranca heartbeat + overlay standby se driver já está online
+      // (re-abertura do app, restore session). Toggle handlers tratam transições.
+      Future<void>.delayed(const Duration(milliseconds: 500), () {
+        if (!mounted) return;
+        final driver = context.read<DriverStore>().currentDriver;
+        if (driver?.isOnline == true) {
+          unawaited(_heartbeatService.start());
+          // Pre-inicializar overlay em foreground — o driver pode sair da app
+          // imediatamente após abrir e receber ofertas em background.
+          NotificationService.instance.initDriverStandbyOverlay().ignore();
+        }
+      });
+
       // Safety net: if admin has banned/suspended/removed this driver while
       // the session was alive, force a clean exit on next app foreground.
       // Edge Function admin-force-driver-logout already handles the active
@@ -105,7 +196,105 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.resumed && mounted) {
       _enforceEffectiveStatus();
+      // Safety net: garante heartbeat ligado no resume (idempotente).
+      final driver = context.read<DriverStore>().currentDriver;
+      if (driver?.isOnline == true) {
+        unawaited(_heartbeatService.start());
+      }
     }
+    // 2026-05-20 — NÃO parar heartbeat em paused/detached enquanto driver
+    // está Online. O BoraForegroundService detém WAKE_LOCK + mantém o processo
+    // vivo, o Timer.periodic(30s) continua a disparar e os pings continuam
+    // a chegar ao Supabase. Parar aqui causava mark-stale-drivers-offline
+    // (>90s sem ping) → estafeta ficava offline em background e perdia ofertas.
+    // Stop legítimo só via toggle Offline, logout ou dispose() do screen.
+  }
+
+  /// Sessão 2026-05-22 — Gate Uber/Glovo: força concessão das 3 permissões
+  /// críticas (notif + overlay + battery) ANTES de deixar o estafeta ficar
+  /// Online. Sem isto, o overlay de novo pedido nunca aparece em background
+  /// e o utilizador perde pedidos sem perceber porquê.
+  ///
+  /// Going OFFLINE: sem gate (mantém comportamento simples + snackbar para
+  /// activeAssignments). Going ONLINE: gate primeiro; se algo falhar,
+  /// snackbar e mantém Switch em offline.
+  Future<void> _handleOnlineToggle(bool value) async {
+    final orderStore = context.read<OrderStore>();
+    // Going OFFLINE: comportamento legacy (sem gate de permissões).
+    if (!value) {
+      final success = orderStore.toggleDriverAvailability(false);
+      if (!mounted) return;
+      if (!success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Tens pedidos activos. Conclui-os antes de ficar offline.',
+            ),
+            duration: Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+      unawaited(_heartbeatService.stop());
+      // Stop idle GPS — no location drain when offline.
+      await _positionSubscription?.cancel();
+      _positionSubscription = null;
+      // Fechar overlay de standby — driver já não vai receber pedidos.
+      unawaited(NotificationService.instance.closeOverlayIfActive());
+      return;
+    }
+    // Declaração em destaque (Google Play) de LOCALIZAÇÃO EM SEGUNDO PLANO —
+    // obrigatória ANTES de qualquer acesso à localização em background (o stream
+    // de GPS continua enquanto Online + app minimizada). Recusar = não fica
+    // Online; o switch reflecte o estado da store (currentDriver.isOnline).
+    if (!await BackgroundLocationDisclosure.ensureAccepted(context)) return;
+    if (!mounted) return;
+    // Going ONLINE: gate MÍNIMO estilo Uber/Glovo — NUNCA bloqueia em
+    // telemóveis fracos / Android antigo. Só garante notificações (best-effort
+    // para a notificação persistente do FGS); overlay / ecrã-inteiro / bateria
+    // passam a melhorias opcionais oferecidas depois, sem impedir a entrada.
+    // O streaming de localização corre via foreground service (while-in-use);
+    // o background "o tempo todo" nunca é exigido.
+    await PermissionGateService.ensureMinimumOnlinePermissions(context);
+    if (!mounted) return;
+    final success = orderStore.toggleDriverAvailability(true);
+    if (!success || !mounted) return;
+    unawaited(_heartbeatService.start());
+    // Start idle GPS now that driver is online.
+    unawaited(_startIdleLocationTracking());
+    // Pre-inicializar overlay em foreground (standby/click-through).
+    // Quando chegar oferta, shareData() basta — sem showOverlay() em background.
+    NotificationService.instance.initDriverStandbyOverlay().ignore();
+    // Melhoria opcional (NÃO bloqueante): se faltarem permissões de
+    // fiabilidade (overlay/ecrã-inteiro/bateria), oferecer corrigir — sem
+    // impedir o estafeta de já estar online a receber pedidos.
+    unawaited(_offerReliabilityEnhancements());
+  }
+
+  /// Oferta NÃO bloqueante das permissões de fiabilidade (overlay / ecrã-
+  /// inteiro / bateria) depois de o estafeta já estar online. Estilo Uber:
+  /// online primeiro, melhorias depois. Recusar não impede receber pedidos —
+  /// o foreground service continua a transmitir localização e o FCM heads-up
+  /// continua a chegar.
+  Future<void> _offerReliabilityEnhancements() async {
+    final ok = await PermissionGateService.areAllGranted();
+    if (ok || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 6),
+        content: const Text(
+          'Estás online. Para receberes pedidos de forma mais fiável '
+          '(ecrã bloqueado ou noutra app), podes activar permissões extra.',
+        ),
+        action: SnackBarAction(
+          label: 'MELHORAR',
+          onPressed: () async {
+            if (!mounted) return;
+            await PermissionGateService.ensureDriverOnlinePermissions(context);
+          },
+        ),
+      ),
+    );
   }
 
   /// Calls `driver_effective_status(auth.uid())` and, if the driver is no
@@ -199,40 +388,86 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
 
   /// One-shot position request so the idle map opens centred on the driver's
   /// real GPS coordinates. Runs in parallel with the stream subscription.
+  ///
+  /// NENHUM ECRA FICA PRESO (2026-08-29). Isto tinha `try/catch` e um recurso
+  /// que centrava na Guarda — parecia coberto. Nao estava: no browser, e num
+  /// telemovel onde a pessoa nao responde ao pedido de permissao,
+  /// `getCurrentPosition` **nao devolve e nao rebenta**. Fica pendurado, o
+  /// `catch` nunca corre, `_initialGpsCenter` nunca deixa de ser nulo, e o
+  /// ecra do estafeta roda um carregador para sempre, sem uma palavra a dizer
+  /// porque. Quem instala, recusa o GPS e ve isto, desinstala.
+  ///
+  /// Agora ha limite de tempo em cada espera, e a recusa e tratada como
+  /// recusa — com explicacao — em vez de silencio.
   Future<void> _fetchInitialGpsCenter() async {
     try {
-      // Quick service + permission check before issuing a hardware request.
-      if (!await Geolocator.isLocationServiceEnabled()) {
-        _resolveGpsFallback();
+      final ligado = await Geolocator.isLocationServiceEnabled()
+          .timeout(const Duration(seconds: 5), onTimeout: () => false);
+      if (!ligado) {
+        _resolveGpsFallback(recusado: true);
         return;
       }
-      var permission = await Geolocator.checkPermission();
+      var permission = await Geolocator.checkPermission()
+          .timeout(const Duration(seconds: 5),
+              onTimeout: () => LocationPermission.denied);
       if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
+        // O pedido de permissao espera pela pessoa. Se ela nao responder, nao
+        // se fica aqui: segue-se sem posicao e ela pode tentar depois.
+        permission = await Geolocator.requestPermission()
+            .timeout(const Duration(seconds: 30),
+                onTimeout: () => LocationPermission.denied);
       }
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        _resolveGpsFallback();
+        _resolveGpsFallback(recusado: true);
         return;
       }
 
+      // [4F · 05/09] `desiredAccuracy` saiu com o geolocator 14 (era só
+      // deprecação, mas a subida foi minha — arruma-se já). Mesmo nível de
+      // precisão, forma nova.
       final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      ).timeout(const Duration(seconds: 15));
       if (!mounted) return;
       final gps = LatLng(pos.latitude, pos.longitude);
-      setState(() => _initialGpsCenter = gps);
+      setState(() {
+        _initialGpsCenter = gps;
+        _gpsRecusado = false;
+      });
       // Propagate to DriverStore so the idle-map marker is also correct.
       final driverStore = context.read<DriverStore>();
       driverStore.updateDriverLocation(driverStore.currentDriverId, gps);
-    } catch (_) {
-      // Hardware unavailable — resolve with DriverStore fallback.
+    } catch (e) {
+      // Sem sinal ou demorou de mais: nao e recusa, e o mapa abre no centro
+      // da Guarda. Nao se prende a pessoa por causa disto.
+      debugPrint('[DriverHome] GPS inicial falhou => $e');
       _resolveGpsFallback();
     }
   }
 
-  void _resolveGpsFallback() {
+  /// A pessoa recusou a localizacao (ou tem o servico desligado)?
+  bool _gpsRecusado = false;
+
+  /// Tentar outra vez, do botao do ecra de explicacao.
+  Future<void> _tentarGpsOutraVez() async {
+    setState(() {
+      _gpsRecusado = false;
+      _initialGpsCenter = null;
+    });
+    await _fetchInitialGpsCenter();
+  }
+
+  void _resolveGpsFallback({bool recusado = false}) {
     if (!mounted) return;
+    if (recusado) {
+      // Recusa e outra coisa de "sem sinal": merece explicacao, nao um mapa
+      // no sitio errado sem dizer porque.
+      setState(() => _gpsRecusado = true);
+      return;
+    }
     final driverStore = context.read<DriverStore>();
     final fallback = driverStore.currentDriver?.location;
     if (fallback != null) {
@@ -277,13 +512,21 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     _orderStore?.removeListener(_onOrderStoreChanged);
     _positionSubscription?.cancel();
     _soundService.dispose();
+    _heartbeatService.stop();
     super.dispose();
   }
 
   /// Keeps driver location in DriverStore fresh while on the home screen.
-  /// Low frequency (10 m filter) — the active-delivery map uses 5 m.
-  /// Includes GPS service + permission checks with user-facing guidance.
+  /// Only runs when driver is ONLINE (offline = no GPS drain).
+  /// Active delivery pauses this stream — DriverMapScreen takes over.
   Future<void> _startIdleLocationTracking() async {
+    // Gate: no GPS when offline. ONLINE toggle calls this explicitly.
+    final isOnline =
+        context.read<DriverStore>().currentDriver?.isOnline ?? false;
+    if (!isOnline) return;
+    // Cancel any stale subscription before opening a new one.
+    await _positionSubscription?.cancel();
+    _positionSubscription = null;
     // GPS service check.
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
@@ -331,18 +574,41 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       return;
     }
 
-    // Platform-specific settings (no foreground notification on idle screen).
+    // T3.1: Background-capable location settings.
+    // Android: ForegroundNotificationConfig keeps the GPS stream alive when
+    //   the app is minimised. The notification is required by Android 14+
+    //   (FOREGROUND_SERVICE_LOCATION).
+    // iOS: showBackgroundLocationIndicator + pauseLocationUpdatesAutomatically
+    //   ensure the OS doesn't suspend updates during deliveries.
     final LocationSettings locationSettings;
+    // Idle (online, no active delivery): medium accuracy, 50 m filter, 20 s
+    // interval. No persistent wakelock — FGS type "location" keeps process
+    // alive. High accuracy resumes in DriverMapScreen during active delivery.
     if (defaultTargetPlatform == TargetPlatform.android) {
       locationSettings = AndroidSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 10,
-        intervalDuration: const Duration(seconds: 5),
+        accuracy: LocationAccuracy.medium,
+        distanceFilter: 50,
+        intervalDuration: const Duration(seconds: 20),
+        foregroundNotificationConfig: const ForegroundNotificationConfig(
+          notificationTitle: 'Bora — Online',
+          notificationText: 'À espera de pedidos.',
+          enableWakeLock: false,
+          notificationIcon: AndroidResource(name: 'ic_launcher', defType: 'mipmap'),
+        ),
+      );
+    } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+      locationSettings = AppleSettings(
+        accuracy: LocationAccuracy.medium,
+        distanceFilter: 50,
+        pauseLocationUpdatesAutomatically: true,
+        showBackgroundLocationIndicator: true,
+        activityType: ActivityType.other,
+        allowBackgroundLocationUpdates: true,
       );
     } else {
       locationSettings = const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 10,
+        accuracy: LocationAccuracy.medium,
+        distanceFilter: 50,
       );
     }
 
@@ -355,6 +621,32 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
         driverStore.currentDriverId,
         LatLng(position.latitude, position.longitude),
       );
+      // Feed the admin live ops map (B1). Throttled to 10s internally.
+      DriverLocationPingService.instance.ping(
+        latitude: position.latitude,
+        longitude: position.longitude,
+        heading: position.heading.isFinite ? position.heading : null,
+        speedKmh: position.speed.isFinite ? position.speed * 3.6 : null,
+        isOnline: driverStore.currentDriver?.isOnline ?? true,
+      );
+    }, onError: (Object e) {
+      // GPS desligado a meio do stream emite LocationServiceDisabledException.
+      // Sem este handler, o erro fica por tratar e rebenta o app.
+      if (!mounted) return;
+      if (e is LocationServiceDisabledException) {
+        _resolveGpsFallback();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'GPS desativado. Ative a localização para ver a sua posição.'),
+            duration: Duration(seconds: 8),
+            action: SnackBarAction(
+              label: 'Ativar',
+              onPressed: Geolocator.openLocationSettings,
+            ),
+          ),
+        );
+      }
     });
   }
 
@@ -377,7 +669,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
   Future<void> _handleTestMode() async {
     final authStore = context.read<AuthStore>();
     final sessionStore = context.read<SessionStore>();
-    authStore.logout();
+    // TROCA DE MODO NAO E SAIR (2026-08-29). Aqui fazia-se `logout()` antes
+    // de ir ao ecra de escolha — e por isso a escolha seguinte pedia sempre a
+    // palavra-passe outra vez, mesmo a quem so queria mudar de perfil na
+    // mesma conta. A sessao FICA; e o ecra de escolha que decide: com sessao
+    // aberta troca por dentro, sem sessao e que manda entrar.
+    //
+    // `authStore` continua a ser lido acima porque limpamos as contas locais
+    // em memoria — o que sai e a conta ACTIVA, nao a sessao.
+    authStore.clearActiveAccountsKeepingSession();
     await sessionStore.clearRole();
     if (!mounted) return;
     Navigator.of(context).popUntil((route) => route.isFirst);
@@ -433,10 +733,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       );
     }
 
+    NotificationService.setupBroadcastDeepLink(context);
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.background,
+      floatingActionButton: const BoraSupportFab(),
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
         flexibleSpace: const DecoratedBox(
@@ -472,14 +774,13 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
           ),
         ),
         actions: [
-          TextButton.icon(
+          const NotificationBell(),
+          // Troca de papel (cliente/estafeta/parceiro) — mesmo padrão do home
+          // do cliente. Era "Teste" com ícone de bug — confuso em produção.
+          IconButton(
             onPressed: _handleTestMode,
-            style: TextButton.styleFrom(
-              foregroundColor: switchModeColor,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-            ),
-            icon: Icon(Icons.bug_report_outlined, color: switchModeColor),
-            label: const Text('Teste'),
+            tooltip: 'Mudar modo',
+            icon: Icon(Icons.swap_horiz, color: switchModeColor),
           ),
           Row(
             children: [
@@ -487,11 +788,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                 isAvailable ? "Online" : "Offline",
                 style: const TextStyle(fontSize: 12),
               ),
-              Switch(
-                value: isAvailable,
-                onChanged: (value) {
-                  orderStore.toggleDriverAvailability(value);
-                },
+              Semantics(
+                identifier: 'btn_toggle_online',
+                child: Switch(
+                  key: const Key('driver_online_toggle'),
+                  value: isAvailable,
+                  // Sessão 2026-05-22 — gate Uber/Glovo (3 perms) antes de
+                  // ficar Online; legacy snackbar + heartbeat stop no offline.
+                  onChanged: (value) => _handleOnlineToggle(value),
+                ),
               ),
             ],
           ),
@@ -504,7 +809,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => const DriverEarningsScreen(),
+                  builder: (_) => const GanhosScreen(),
                 ),
               );
             },
@@ -569,6 +874,22 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                         },
                         onReject: () =>
                             _handleRejectOrder(highlightedOrder, orderStore),
+                        onDismissExpired: () {
+                          // BUG H6 — dismiss silencioso quando o offer chega
+                          // já vencido. NÃO chama _handleRejectOrder (evita
+                          // loop dispatch). Apenas remove do destaque local;
+                          // o backend já vai re-atribuir a outro driver.
+                          if (mounted) {
+                            setState(() {
+                              _dismissedExpiredOrderIds
+                                  .add(highlightedOrder.id);
+                              if (_highlightedOrderId == highlightedOrder.id) {
+                                _highlightedOrderId = null;
+                              }
+                            });
+                            unawaited(_soundService.stop());
+                          }
+                        },
                       ),
                       const SizedBox(height: 16),
                     ],
@@ -633,6 +954,13 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       appBar: AppBar(
         title: const Text('BORA — Estafeta'),
         actions: [
+          // SALTAR ENTRE PAPEIS (2026-08-29): sem isto, quem acumula tinha de
+          // sair da app e voltar a entrar para passar de estafeta a lavador.
+          IconButton(
+            icon: const Icon(Icons.work_outline),
+            tooltip: 'Trabalhar noutra coisa',
+            onPressed: () => abrirTrocaDePapel(context),
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Terminar sessão',
@@ -672,6 +1000,38 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                     .bodyMedium
                     ?.copyWith(color: Colors.grey.shade600),
               ),
+              const SizedBox(height: 28),
+              // PEDIDO PENDENTE NAO BLOQUEIA (2026-08-29). Este ecra e so do
+              // perfil de estafeta; a app e a mesma. Enquanto a candidatura e
+              // revista, a pessoa continua a poder pedir como cliente — e ate
+              // aqui so tinha 'Terminar sessao', que a mandava embora da app
+              // inteira por causa de um perfil so.
+              Text(
+                'Entretanto podes usar a app normalmente para fazer os teus '
+                'pedidos. A análise continua na mesma.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 14)),
+                onPressed: () async {
+                  final ok = await activateRole(context, UserRole.client);
+                  if (!ok && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text('Não foi possível abrir o teu perfil '
+                            'de cliente. Tenta de novo.')));
+                  }
+                },
+                icon: const Icon(Icons.shopping_bag_outlined),
+                label: const Text('Usar a app como cliente'),
+              ),
             ],
           ),
         ),
@@ -688,8 +1048,28 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     bool isAvailable,
     int tokenBalance,
   ) {
+    // A localizacao foi recusada, ou o servico esta desligado: diz-se porque
+    // e da-se caminho. Antes de 2026-08-29 isto era um carregador para sempre.
+    if (_gpsRecusado) {
+      return _SemLocalizacao(
+        onTentarOutraVez: _tentarGpsOutraVez,
+        onAbrirDefinicoes: () async {
+          // Em Android abre as definicoes de localizacao do sistema; se o que
+          // esta recusado e a permissao da app, as da app.
+          try {
+            await Geolocator.openLocationSettings();
+          } catch (_) {
+            try {
+              await Geolocator.openAppSettings();
+            } catch (_) {}
+          }
+        },
+      );
+    }
+
     // Block rendering until the one-shot GPS fetch completes so the map
-    // never opens at the default fallback coordinates.
+    // never opens at the default fallback coordinates. Ja nao fica preso: o
+    // pedido de posicao tem limite de tempo e cai sempre para algum lado.
     if (_initialGpsCenter == null) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -775,6 +1155,18 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   // Token balance chip — uses scoped selector value.
                   _TokenChip(balance: tokenBalance),
                   const SizedBox(width: 8),
+                  // Profile shortcut — between Token and Earnings
+                  // (matches Uber/Glovo: profile next to wallet/balance).
+                  _FloatingIconButton(
+                    icon: Icons.person_outline,
+                    tooltip: 'Perfil',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ProfileScreen()),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   // Earnings shortcut
                   _FloatingIconButton(
                     icon: Icons.bar_chart,
@@ -782,14 +1174,30 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (_) => const DriverEarningsScreen()),
+                          builder: (_) => const GanhosScreen()),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  // Test / switch mode
+                  // TRABALHAR NOUTRA COISA (2026-08-29). Estava so na AppBar
+                  // do outro scaffold — o que aparece quando ha pedidos. Ou
+                  // seja: invisivel no dia-a-dia, porque o ecra normal do
+                  // estafeta e ESTE, o mapa ocioso. Apanhado ao provar pela
+                  // web, que foi a primeira vez que alguem abriu o ecra.
+                  //
+                  // Icone diferente do 'Mudar modo' de proposito: dois botoes
+                  // com a mesma seta dupla, um para trocar de papel na app e
+                  // outro para ir trabalhar noutra coisa, leem-se como o
+                  // mesmo botao.
                   _FloatingIconButton(
-                    icon: Icons.bug_report_outlined,
-                    tooltip: 'Teste',
+                    icon: Icons.work_outline,
+                    tooltip: 'Trabalhar noutra coisa',
+                    onTap: () => abrirTrocaDePapel(context),
+                  ),
+                  const SizedBox(width: 8),
+                  // Troca de papel (mesmo padrão do home do cliente).
+                  _FloatingIconButton(
+                    icon: Icons.swap_horiz,
+                    tooltip: 'Mudar modo',
                     onTap: _handleTestMode,
                   ),
                 ],
@@ -797,11 +1205,30 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
             ),
           ),
 
-          // ── Bottom status card ────────────────────────────────────────
+          // ── Ganhos de hoje ────────────────────────────────────────────
+          // O mesmo cartão, com o mesmo número, dos outros ecrãs de casa
+          // (TVDE, limpeza, lavagem). Total do dia de tudo o que ele faz.
           Positioned(
             left: 16,
             right: 16,
-            bottom: MediaQuery.of(context).padding.bottom + 16,
+            top: MediaQuery.of(context).padding.top + 60,
+            child: Material(
+              color: Colors.white,
+              elevation: 2,
+              borderRadius: BorderRadius.circular(12),
+              clipBehavior: Clip.antiAlias,
+              child: GanhoDeHojeCard(recarregarQuando: orderStore),
+            ),
+          ),
+
+          // ── Bottom status card ────────────────────────────────────────
+          // [botoes-navbar-eta 31/08] viewPadding em vez de padding: o
+          // padding pode chegar consumido por um SafeArea acima e o cartão
+          // colava na navbar de 3 botões.
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: MediaQuery.of(context).viewPadding.bottom + 16,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               decoration: BoxDecoration(
@@ -846,7 +1273,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   ),
                   Switch(
                     value: isAvailable,
-                    onChanged: (v) => orderStore.toggleDriverAvailability(v),
+                    // Sessão 2026-05-22 — idem ao callsite no app bar.
+                    onChanged: (v) => _handleOnlineToggle(v),
                     activeColor: Colors.green.shade600,
                     activeTrackColor: Colors.green.shade200,
                   ),
@@ -869,14 +1297,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.divider),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: AppColors.shadowCard,
       ),
       child: Center(
         child: Text(
@@ -1016,19 +1437,36 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   child: const Text('Cancelar'),
                 ),
                 ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     final entered = controller.text.trim();
                     if (entered.length != 4) {
                       setDialogState(() => errorText = 'Digite os 4 dígitos.');
                       return;
                     }
-                    if (entered != order.deliveryCode) {
-                      setDialogState(() =>
-                          errorText = 'Código incorreto. Tente novamente.');
+                    // P6 (2026-08-17) — o SERVIDOR valida o PIN e fecha a
+                    // entrega. A app envia; nunca decide localmente.
+                    final r = await context
+                        .read<OrderStore>()
+                        .finishOrderWithPin(order, entered);
+                    if (r.ok) {
+                      if (dialogContext.mounted) {
+                        Navigator.of(dialogContext).pop(true);
+                      }
+                    } else if (r.error == 'wrong_pin') {
+                      setDialogState(() => errorText =
+                          'Código incorreto. Tentativas restantes: '
+                          '${r.attemptsLeft ?? '-'}.');
                       controller.clear();
-                      return;
+                    } else if (r.error == 'blocked') {
+                      setDialogState(() => errorText =
+                          'Bloqueado após 5 tentativas. O suporte foi avisado.');
+                    } else if (r.error == 'network') {
+                      setDialogState(() => errorText =
+                          'Sem ligação ao servidor. Tenta de novo.');
+                    } else {
+                      setDialogState(() => errorText =
+                          'Não foi possível concluir (${r.error ?? 'erro'}).');
                     }
-                    Navigator.of(dialogContext).pop(true);
                   },
                   child: const Text('Confirmar'),
                 ),
@@ -1039,6 +1477,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       },
     );
 
+    // true = servidor validou o PIN e fechou a entrega (finishOrderWithPin).
     return confirmed == true;
   }
 
@@ -1107,31 +1546,26 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                     ),
                   ],
                 ),
-                if (order.paymentMethod == PaymentMethod.cash) ...[
-                  const SizedBox(height: 10),
-                  Container(
-                    width: double.infinity,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.orange.shade400),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.warning_amber_rounded,
-                            color: Colors.orange.shade800, size: 20),
-                        const SizedBox(width: 8),
-                        Text(
-                          'COBRAR EM DINHEIRO',
-                          style: TextStyle(
-                            color: Colors.orange.shade900,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
+                const SizedBox(height: 10),
+                CollectBadge(
+                  state: order.paymentMethod == PaymentMethod.cash
+                      ? CollectState.collectCash
+                      : CollectState.paidOnline,
+                  amountCents: (order.totalToCollectCash * 100).round(),
+                ),
+                // BUG #1 frontend (§54) — linha extra se inclui dívida prévia
+                if (order.paymentMethod == PaymentMethod.cash &&
+                    order.hasCashDebt) ...[
+                  const SizedBox(height: 4),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 28),
+                    child: Text(
+                      '↳ inclui €${(order.debtCollectedCents / 100).toStringAsFixed(2)} de dívida anterior',
+                      style: const TextStyle(
+                        color: AppColors.accent,
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                      ),
                     ),
                   ),
                 ],
@@ -1280,24 +1714,60 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                                 final codeOk =
                                     await _showDeliveryCodeDialog(order);
                                 if (!codeOk) return;
+                                // P6: o servidor JÁ fechou a entrega dentro do
+                                // diálogo (finishOrderWithPin). NÃO chamar
+                                // nextAction.execute() — duplicaria a transição.
+                                if (mounted) {
+                                  messenger.showSnackBar(SnackBar(
+                                    content: Text(nextAction.successMessage),
+                                    duration: const Duration(seconds: 4),
+                                  ));
+                                }
+                                return;
                               }
                             }
+                            // [Fix botão preso 2026-08-20] Antes: `add`,
+                            // `await execute()`, `remove` — SEM try/finally e
+                            // SEM tecto de tempo. Se o execute rebentasse, o
+                            // `remove` nunca corria e o botão ficava morto até
+                            // sair do ecrã; se pendurasse, ficava a girar para
+                            // sempre. E a mensagem de falha era
+                            // "Erro: desconhecido", que não diz nada a ninguém.
                             setState(() => _processingOrderIds.add(order.id));
-                            final success = await nextAction.execute();
-                            if (mounted) {
-                              setState(
-                                  () => _processingOrderIds.remove(order.id));
+                            var success = false;
+                            Object? falha;
+                            try {
+                              success = await nextAction
+                                  .execute()
+                                  .timeout(kAcaoTimeout);
+                            } catch (e) {
+                              falha = e;
+                            } finally {
+                              if (mounted) {
+                                setState(() =>
+                                    _processingOrderIds.remove(order.id));
+                              }
                             }
+                            if (!mounted) return;
                             messenger.showSnackBar(
                               SnackBar(
                                 content: Text(
                                   success
                                       ? nextAction.successMessage
-                                      : 'Erro: ${orderStore.lastUpdateError ?? "desconhecido"}',
+                                      : mensagemDeFalhaDeAcao(
+                                          falha ??
+                                              orderStore.lastUpdateError ??
+                                              '',
+                                          trabalho: TrabalhoEmCurso.pedido),
                                 ),
                                 duration: Duration(seconds: success ? 4 : 6),
                               ),
                             );
+                            // A verdade está no servidor: uma acção pode
+                            // ter-se aplicado e só a resposta ter-se perdido.
+                            if (!success) {
+                              unawaited(orderStore.loadOrders());
+                            }
                           },
                     child: _processingOrderIds.contains(order.id)
                         ? const SizedBox(
@@ -1306,6 +1776,21 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : Text(nextAction.label),
+                  ),
+                ],
+                // Row 2.5: FAVORES — abrir execution sheet (recolha/compra/entrega)
+                if (order.serviceType == OrderServiceType.errand &&
+                    order.status != OrderStatus.delivered &&
+                    order.status != OrderStatus.cancelled) ...[
+                  const SizedBox(height: 8),
+                  ElevatedButton.icon(
+                    onPressed: () => ErrandExecutionSheet.show(context, order),
+                    icon: const Icon(Icons.task_alt),
+                    label: const Text('Tratar do favor'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF14B8A6),
+                      foregroundColor: Colors.white,
+                    ),
                   ),
                 ],
                 // Row 3: cancel delivery — only while order is driverAccepted
@@ -1360,6 +1845,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
             ),
             const SizedBox(height: 12),
             Text(
+              'Pedido #${order.id.length >= 6 ? order.id.substring(0, 6).toUpperCase() : order.id.toUpperCase()}',
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
               'Telefone do cliente: '
               '${(order.clientPhone ?? '').isNotEmpty ? order.clientPhone! : 'Não disponível'}',
             ),
@@ -1377,24 +1870,27 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ChatScreen(
-                            order: order,
-                            senderType: ChatSenderType.driver,
-                          ),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.chat_bubble_outline),
-                    label: const Text('Chat'),
+                  // M11: botão de chat com badge de não-lidas (ChatBubbleButton).
+                  // Seletor de destinatário: Cliente sempre; Restaurante só em
+                  // pedido parceiro (loja não-parceira não tem interlocutor).
+                  child: ChatBubbleButton(
+                    order: order,
+                    senderType: ChatSenderType.driver,
+                    chatTarget: ChatTarget.client,
+                    label: 'Chat · Cliente',
                   ),
                 ),
               ],
             ),
+            if (order.isPartnerStore) ...[
+              const SizedBox(height: 4),
+              ChatBubbleButton(
+                order: order,
+                senderType: ChatSenderType.driver,
+                chatTarget: ChatTarget.partner,
+                label: 'Chat · Restaurante',
+              ),
+            ],
           ],
         ),
       ),
@@ -1441,14 +1937,47 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
 
   Future<void> _handleCancelDelivery(
       OrderModel order, OrderStore orderStore) async {
-    final success = await orderStore.driverCancelAcceptedOrder(order);
+    final result = await orderStore.driverCancelAcceptedOrder(order);
     if (!mounted) return;
+
+    // Sessão 7-UI-BUG004: pós-pickedUp o backend recusa com
+    // `support_required:true`. Abrir bottom sheet de redirecção
+    // ao suporte em vez do SnackBar genérico.
+    if (result['support_required'] == true) {
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (_) => CancelBlockedPickupSheet(
+          orderId: order.id,
+          onContactSupport: () => _openSupportChatForBlockedCancel(order.id),
+        ),
+      );
+      return;
+    }
+
+    final success = result['ok'] == true;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
           success
               ? 'Entrega cancelada. Pedido devolvido ao sistema.'
               : 'Não foi possível cancelar a entrega.',
+        ),
+      ),
+    );
+  }
+
+  void _openSupportChatForBlockedCancel(String orderId) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => SupportChatScreen(
+          orderId: orderId,
+          initialMessage:
+              'Preciso cancelar o pedido #$orderId (já recolhido). Motivo: ',
         ),
       ),
     );
@@ -1537,7 +2066,24 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
   }
 
   void _handleNewOrders(List<OrderModel> orders, OrderStore store) {
-    final currentIds = orders.map((o) => o.id).toSet();
+    // BUG H6 — Guard defensivo: filtra ofertas que chegam já vencidas do
+    // backend (stale snapshot, lag >40s, cron 2-min ainda não limpou). Não
+    // disparam som, não destacam, não criam card de countdown. Dispatch
+    // backend re-atribui a outro driver; este device descarta localmente.
+    final now = DateTime.now();
+    final visibleOrders = orders.where((o) {
+      if (_dismissedExpiredOrderIds.contains(o.id)) return false;
+      final exp = o.driverOfferExpiresAt;
+      if (exp != null &&
+          o.status == OrderStatus.callingDriver &&
+          exp.isBefore(now)) {
+        _dismissedExpiredOrderIds.add(o.id);
+        return false;
+      }
+      return true;
+    }).toList();
+
+    final currentIds = visibleOrders.map((o) => o.id).toSet();
     final newIds = currentIds.difference(_knownOrderIds);
 
     String? highlightCandidate = _highlightedOrderId;
@@ -1546,10 +2092,18 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       highlightCandidate = null;
     }
 
+    // Exec6.4 (2026-05-25) — debug markers para identificar bug "laranja não aparece em FG".
+    // ignore: avoid_print
+    print('[BORA-OFFER-HOME] tick visibleOrders=${visibleOrders.length} '
+        'callingDriver_count=${visibleOrders.where((o) => o.status == OrderStatus.callingDriver).length} '
+        'processingOrderIds=${_processingOrderIds.length} '
+        'lastOfferedOrderId=$_lastOfferedOrderId currentShowingOrderId=$_currentShowingOrderId '
+        'isShowingDialog=$_isShowingDialog');
+
     // FIFO candidate selection — oldest eligible offer is shown first.
     // Excludes in-flight and duplicate dialogs so only ONE offer is surfaced
     // at any time.
-    final candidates = orders
+    final candidates = visibleOrders
         .where((o) =>
             o.status == OrderStatus.callingDriver &&
             !_processingOrderIds.contains(o.id) &&
@@ -1558,22 +2112,42 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
         .toList()
       ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
+    // ignore: avoid_print
+    print('[BORA-OFFER-HOME] candidates=${candidates.length} '
+        'ids=${candidates.map((o) => o.id).take(3).toList()}');
+
     if (candidates.isNotEmpty) {
       final next = candidates.first;
       highlightCandidate = next.id;
+      // ignore: avoid_print
+      print('[BORA-OFFER-HOME] next=${next.id} '
+          'isNew=${newIds.contains(next.id)} '
+          'alreadyAlerted=${_alreadyAlertedOrderIds.contains(next.id)} '
+          'isShowingDialog=$_isShowingDialog currentShowing=$_currentShowingOrderId');
 
-      if (newIds.contains(next.id)) {
+      if (newIds.contains(next.id) &&
+          !_alreadyAlertedOrderIds.contains(next.id)) {
+        _alreadyAlertedOrderIds.add(next.id);
         unawaited(_triggerNewOrderFeedback(next));
-        unawaited(_soundService.playLoop());
+        // Exec6.9 (2026-05-25) — som da laranja SÓ se a bonita full-screen
+        // NÃO está activa para este orderId (gate marca SP em BG-unlocked).
+        // Evita som DUPLICADO (bonita + in-app) reportado pelo dono.
+        unawaited(_playSoundIfNotFullScreen(next.id));
       }
 
       if (!_isShowingDialog && _currentShowingOrderId == null) {
+        // ignore: avoid_print
+        print('[BORA-OFFER-HOME] → schedule _showNewOrderDialog(${next.id}) via postFrameCallback');
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _showNewOrderDialog(next, store);
         });
+      } else {
+        // ignore: avoid_print
+        print('[BORA-OFFER-HOME] GUARD BLOCK — dialog NOT scheduled '
+            '(isShowingDialog=$_isShowingDialog currentShowing=$_currentShowingOrderId)');
       }
-    } else if (highlightCandidate == null && orders.isNotEmpty) {
-      highlightCandidate = orders.first.id;
+    } else if (highlightCandidate == null && visibleOrders.isNotEmpty) {
+      highlightCandidate = visibleOrders.first.id;
     }
 
     if (highlightCandidate != _highlightedOrderId && mounted) {
@@ -1583,16 +2157,43 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     }
 
     _knownOrderIds = currentIds;
+    // Order saiu de callingDriver (aceite/rejeitado/expirado) → liberta o
+    // guard para que possa voltar a alertar caso reapareça (improvável, mas
+    // mantém Set bounded).
+    final callingIds = visibleOrders
+        .where((o) => o.status == OrderStatus.callingDriver)
+        .map((o) => o.id)
+        .toSet();
+    _alreadyAlertedOrderIds.removeWhere((id) => !callingIds.contains(id));
+    // BUG H6 — mantém o set bounded: limpa entries cujos pedidos já saíram
+    // de callingDriver (backend re-atribuiu ou cancelou).
+    _dismissedExpiredOrderIds
+        .removeWhere((id) => !callingIds.contains(id));
 
     // Stop sound as soon as there are no more available orders for this driver
     // (covers: order accepted, order expired, driver rejected last order).
-    if (orders.isEmpty) {
+    if (visibleOrders.isEmpty) {
       unawaited(_soundService.stop());
-    } else if (!_soundService.isPlaying) {
-      // Orders present but sound not playing — audio was interrupted externally
-      // (phone call, background, audio focus lost). Restart the alert.
-      unawaited(_soundService.playLoop());
     }
+    // Exec3 PIVOT (2026-05-24) — removido restart de playLoop. Canal notif
+    // bora_orders_urgent_v3 + FLAG_INSISTENT cuida de manter o alerta audível
+    // enquanto há oferta. Evita duplicação com canal notif.
+  }
+
+  /// Exec6.9 (2026-05-25) — toca o som in-app SÓ se a bonita full-screen
+  /// NÃO está activa para este orderId. Evita som duplicado (laranja +
+  /// bonita ao mesmo tempo quando ambas aparecem brevemente em transição
+  /// BG→FG).
+  Future<void> _playSoundIfNotFullScreen(String orderId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final fullScreenOrderId = prefs.getString('gate_fullscreen_orderid');
+      if (fullScreenOrderId == orderId) {
+        debugPrint('[BORA-OFFER] in-app sound SKIP — bonita full-screen activa p/ order=$orderId');
+        return;
+      }
+    } catch (_) {}
+    unawaited(_soundService.playLoop());
   }
 
   Future<void> _triggerNewOrderFeedback(OrderModel order) async {
@@ -1626,6 +2227,22 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       return;
     }
 
+    // BUG-STACKING-OFFER (2026-05-16): the DB trigger
+    // `recalc_driver_earnings_on_stack` only fires AFTER assignment
+    // (assigned_driver_id NULL → driver_id), so at offer time
+    // `order.driverEarnings` still holds the single-order value (eg €4.00 /
+    // €5.35) instead of the canonical stacked bonus. Replicate the formula
+    // here so the driver sees the correct value BEFORE accepting.
+    // Source: business_rules.md §2.2 + §6.4. Mirrors pricing_calculate()
+    // partner branch + recalc_driver_earnings_on_stack RPC.
+    //   Partner stacked:     €3.00 + apt_driver_share
+    //   Non-partner stacked: €3.00 + 0.30 × platform_commission + apt_driver_share
+    //   apt_driver_share:    €1.00 when order.apartmentDelivery else €0.00
+    final apartmentDriverShare = order.apartmentDelivery ? 1.00 : 0.0;
+    final stackedEarnings = order.isPartnerStore
+        ? 3.00 + apartmentDriverShare
+        : 3.00 + (0.30 * order.platformCommission) + apartmentDriverShare;
+
     // Double guard: multiple post-frame callbacks can queue before the first
     // flips _isShowingDialog. Re-check on entry so only ONE offer dialog is
     // ever visible. Second offer is DISCARDED (not queued) — the offers
@@ -1654,7 +2271,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       return;
     }
 
-    final description = order.vendorName ?? order.serviceType.label;
+    // FAVORES (errand) — descrição própria do favor + badges FAVOR/EXPRESSO
+    final isErrand = order.serviceType == OrderServiceType.errand;
+    final isExpress = isErrand && (order.errandSpeed == 'express');
+    final description = isErrand
+        ? (order.errandDescription?.trim().isNotEmpty == true
+            ? order.errandDescription!
+            : 'Favor — ${order.errandLocation ?? "ver mapa"}')
+        : (order.vendorName ?? order.serviceType.label);
     final dropoffText = order.dropoffAddress ?? order.dropoffStreet ?? '';
     final paymentLabel = order.paymentMethod.label;
     final isCash = order.paymentMethod == PaymentMethod.cash;
@@ -1683,6 +2307,51 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (isErrand)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Wrap(spacing: 6, children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF14B8A6),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text('FAVOR',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800)),
+                      ),
+                      if (isExpress)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFD97706),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text('EXPRESSO',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800)),
+                        ),
+                      if (order.errandHomeStop)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade400),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text('PARAR EM CASA',
+                              style: TextStyle(
+                                  fontSize: 11, fontWeight: FontWeight.w700)),
+                        ),
+                    ]),
+                  ),
                 Text(
                   description,
                   style: const TextStyle(fontWeight: FontWeight.bold),
@@ -1712,7 +2381,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                           color: Colors.orange.shade900, size: 20),
                       const SizedBox(width: 8),
                       Text(
-                        '+€${order.driverEarnings.toStringAsFixed(2)}',
+                        '+€${stackedEarnings.toStringAsFixed(2)}',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
@@ -1735,33 +2404,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                     ),
                   ],
                 ),
-                if (isCash) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.orange.shade400),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.warning_amber_rounded,
-                            color: Colors.orange.shade800, size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'COBRAR EM DINHEIRO',
-                            style: TextStyle(
-                              color: Colors.orange.shade900,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                const SizedBox(height: 8),
+                CollectBadge(
+                  state: isCash
+                      ? CollectState.collectCash
+                      : CollectState.paidOnline,
+                  amountCents: (order.totalToCollectCash * 100).round(),
+                  approx: true,
+                  dense: true,
+                ),
                 if (hasActiveOrders) ...[
                   const SizedBox(height: 12),
                   Container(
@@ -1805,7 +2456,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                 onPressed: () =>
                     Navigator.of(dialogCtx, rootNavigator: true).pop('accept'),
                 child: Text(
-                    'Aceitar · +€${order.driverEarnings.toStringAsFixed(2)}'),
+                    'Aceitar · +€${stackedEarnings.toStringAsFixed(2)}'),
               ),
             ],
           ),
@@ -1988,6 +2639,7 @@ class _DriverOrderAlertCard extends StatefulWidget {
     required this.isEnabled,
     required this.onAccept,
     required this.onReject,
+    this.onDismissExpired,
     this.driverLocation,
   });
 
@@ -1995,6 +2647,9 @@ class _DriverOrderAlertCard extends StatefulWidget {
   final bool isEnabled;
   final Future<void> Function() onAccept;
   final VoidCallback onReject;
+  // BUG H6 — Disparado quando o offer chega vencido. NÃO chama onReject
+  // (evita loop dispatch). Caller deve remover o pedido do destaque local.
+  final VoidCallback? onDismissExpired;
   final LatLng? driverLocation;
 
   @override
@@ -2007,6 +2662,10 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
   bool _isLoading = false;
   Timer? _countdownTimer;
   int _secondsLeft = 40;
+  // BUG H6 — true se a oferta já chega com driver_offer_expires_at < NOW
+  // (stale subscription snapshot, lag de rede >40s, ou cron 2-min ainda
+  // não limpou). Renderiza versão minimal e dispara onDismissExpired após 2s.
+  bool _isExpiredOnArrival = false;
 
   @override
   void initState() {
@@ -2020,6 +2679,19 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
 
   void _startCountdown() {
     final expiry = widget.order.driverOfferExpiresAt;
+
+    // BUG H6 — Guard: oferta chega já vencida do backend. NÃO chamar
+    // widget.onReject() (causaria loop dispatch→re-atribui→novo card vencido).
+    // Mostra "Oferta expirada" 2s e dismiss silenciosamente via callback.
+    if (expiry != null && expiry.isBefore(DateTime.now())) {
+      _isExpiredOnArrival = true;
+      _secondsLeft = 0;
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) widget.onDismissExpired?.call();
+      });
+      return; // NÃO inicia Timer.periodic — não há countdown a correr
+    }
+
     if (expiry != null) {
       _secondsLeft = expiry.difference(DateTime.now()).inSeconds.clamp(0, 40);
     }
@@ -2032,6 +2704,7 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
       setState(() => _secondsLeft = secs);
       if (_secondsLeft <= 0) {
         _countdownTimer?.cancel();
+        // Timeout natural durante os 40s legítimos — comportamento original.
         widget.onReject();
       }
     });
@@ -2048,6 +2721,33 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final order = widget.order;
+
+    // BUG H6 — Render minimal cinzento para oferta vencida-ao-chegar.
+    // Mantém o card visível 2s para o estafeta perceber, depois o caller
+    // remove via onDismissExpired. Sem som, sem botões, sem countdown.
+    if (_isExpiredOnArrival) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade400, width: 1),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.schedule, color: Colors.grey.shade600),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Oferta expirada — a procurar outro pedido…',
+                style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final baseColor = Colors.orange.shade50;
     final highlightColor = Colors.orange.shade200.withValues(alpha: 0.9);
 
@@ -2090,24 +2790,27 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
                           Icons.notifications_active,
                           color: Colors.orange.shade800,
                         ),
                         const SizedBox(width: 8),
-                        Text(
-                          "Novo pedido disponível",
-                          style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.orange.shade900,
-                              ) ??
-                              TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.orange.shade900,
-                              ),
+                        Flexible(
+                          child: Text(
+                            "Novo pedido disponível",
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.orange.shade900,
+                                ) ??
+                                TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.orange.shade900,
+                                ),
+                          ),
                         ),
                       ],
                     ),
@@ -2171,41 +2874,24 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
                         Icon(Icons.account_balance_wallet,
                             size: 16, color: Colors.orange.shade800),
                         const SizedBox(width: 6),
-                        Text(
-                          'Pagamento: ${order.paymentMethod.label}',
-                          style: theme.textTheme.bodyMedium
-                              ?.copyWith(fontWeight: FontWeight.w600),
+                        Flexible(
+                          child: Text(
+                            'Pagamento: ${order.paymentMethod.label}',
+                            style: theme.textTheme.bodyMedium
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ],
                     ),
-                    if (order.paymentMethod == PaymentMethod.cash) ...[
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.red.shade400),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.warning_amber_rounded,
-                                color: Colors.red.shade700, size: 18),
-                            const SizedBox(width: 6),
-                            Text(
-                              'COBRAR EM DINHEIRO',
-                              style: TextStyle(
-                                color: Colors.red.shade800,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                    const SizedBox(height: 8),
+                    CollectBadge(
+                      state: order.paymentMethod == PaymentMethod.cash
+                          ? CollectState.collectCash
+                          : CollectState.paidOnline,
+                      amountCents: (order.totalToCollectCash * 100).round(),
+                    ),
                     if (order.apartmentDelivery) ...[
                       const SizedBox(height: 12),
                       const _ApartmentDeliveryBanner(),
@@ -2214,34 +2900,44 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
                 ),
               ),
               const SizedBox(width: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    "+€${order.driverEarnings.toStringAsFixed(2)}",
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.orange.shade900,
-                        ) ??
-                        TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.orange.shade900,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
+              // Exec6.5 (2026-05-25) — Flexible evita overflow "RIGHT
+              // OVERFLOWED BY xx PIXELS" quando legs+earnings juntos
+              // ultrapassam o espaço lateral.
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        "+€${order.driverEarnings.toStringAsFixed(2)}",
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange.shade900,
+                            ) ??
+                            TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange.shade900,
+                            ),
+                      ),
                     ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      borderRadius: BorderRadius.circular(12),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: _offerLegsRow(order, widget.driverLocation),
                     ),
-                    child: _offerLegsRow(order, widget.driverLocation),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),
@@ -2389,34 +3085,16 @@ class _AvailableOrderCardState extends State<_AvailableOrderCard> {
                 ),
               ],
             ),
-            if (order.paymentMethod == PaymentMethod.cash) ...[
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.shade400),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.warning_amber_rounded,
-                        color: Colors.orange.shade800, size: 18),
-                    const SizedBox(width: 6),
-                    Text(
-                      'COBRAR EM DINHEIRO',
-                      style: TextStyle(
-                        color: Colors.orange.shade900,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: CollectBadge(
+                state: order.paymentMethod == PaymentMethod.cash
+                    ? CollectState.collectCash
+                    : CollectState.paidOnline,
+                amountCents: (order.totalToCollectCash * 100).round(),
               ),
-            ],
+            ),
             if (order.pickupAddress != null &&
                 order.pickupAddress!.isNotEmpty) ...[
               const SizedBox(height: 8),
@@ -2566,7 +3244,7 @@ class _ApartmentDeliveryBanner extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              "Apartment delivery requested — +€1 bonus",
+              "Entrega em apartamento — bónus +€1",
               style: textStyle,
             ),
           ),
@@ -2605,6 +3283,79 @@ class _InfoChip extends StatelessWidget {
             style: const TextStyle(fontSize: 12),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// O ecrã que aparece quando a localização está recusada ou desligada.
+///
+/// Existe porque o que estava lá era um carregador a rodar, sem erro, sem
+/// explicação e sem fim. Quem instalasse a app, recusasse o GPS e visse isto,
+/// desinstalava — e com razão.
+class _SemLocalizacao extends StatelessWidget {
+  const _SemLocalizacao({
+    required this.onTentarOutraVez,
+    required this.onAbrirDefinicoes,
+  });
+
+  final Future<void> Function() onTentarOutraVez;
+  final Future<void> Function() onAbrirDefinicoes;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Icon(Icons.location_off_outlined,
+                  size: 64, color: AppColors.textSecondary),
+              const SizedBox(height: 20),
+              const Text(
+                'Precisamos de saber onde estás',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'O mapa dos pedidos mostra o que está perto de ti, e sem a '
+                'localização não conseguimos saber o que te fica à mão.\n\n'
+                'Podes ligar a localização nas definições do telemóvel e '
+                'voltar aqui.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 15,
+                    height: 1.5,
+                    color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 28),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 14)),
+                onPressed: onTentarOutraVez,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Tentar outra vez'),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14)),
+                onPressed: onAbrirDefinicoes,
+                icon: const Icon(Icons.settings_outlined),
+                label: const Text('Abrir as definições'),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

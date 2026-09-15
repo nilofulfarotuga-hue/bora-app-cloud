@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/tr.dart';
+
 /// Reusable tip selector used at checkout (BR §4.5) and at the rating screen.
 ///
 /// Presets: 1€, 2€, 3€, 5€, plus a free-text field.
@@ -65,14 +67,9 @@ class _TipSelectorState extends State<TipSelector> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Gorjeta (opcional)',
-          style: TextStyle(fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 4),
-        const Text(
-          '80% vai para o estafeta.',
-          style: TextStyle(fontSize: 12, color: Colors.black54),
+        Text(
+          'Gorjeta (opcional)'.tr,
+          style: const TextStyle(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 8),
         Wrap(
@@ -87,7 +84,7 @@ class _TipSelectorState extends State<TipSelector> {
                     widget.enabled ? (_) => _pickPreset(cents) : null,
               ),
             ChoiceChip(
-              label: const Text('Nenhuma'),
+              label: Text('Nenhuma'.tr),
               selected: _selectedCents == 0,
               onSelected: widget.enabled ? (_) => _pickPreset(0) : null,
             ),
@@ -101,9 +98,9 @@ class _TipSelectorState extends State<TipSelector> {
           inputFormatters: [
             FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
           ],
-          decoration: const InputDecoration(
-            labelText: 'Outro valor (€)',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            labelText: 'Outro valor (€)'.tr,
+            border: const OutlineInputBorder(),
           ),
           onChanged: _onCustomChanged,
         ),

@@ -1,0 +1,2 @@
+2026-08-01T18:21:41Z
+canary cura-20260801-2 tentativa=4 (Juiz reabriu 18:16:38Z) - hook DESLIGADO neste push, so cron deve apanhar

@@ -18,8 +18,14 @@ class BusinessMapper {
       onlyAvailable: true,
     );
 
+    // Bug-B fix 2026-04-30: propagate product.id so cart writes a real UUID
+    // (not the product name) into create_order's product_lines.
     final menu = partnerProducts
-        .map((product) => MenuItem(name: product.name, price: product.price))
+        .map((product) => MenuItem(
+              productId: product.id,
+              name: product.name,
+              price: product.price,
+            ))
         .toList();
 
     return Restaurant(
@@ -30,18 +36,30 @@ class BusinessMapper {
   }
 
   /// Builds a [RetailStore] view-model (metadata only — no products).
-  /// Returns null only for [BusinessCategory.restaurant] entries.
+  /// [sectionCategory] é a secção onde o negócio está a ser listado — pode
+  /// diferir da categoria principal quando vem de `extra_categories`.
+  /// Returns null only for [BusinessCategory.restaurant] sections.
   /// Products are loaded on-demand by [StoreProductsScreen] via [RestaurantStore].
   static RetailStore? buildRetailStore({
     required RestaurantStore restaurantStore,
     required RestaurantModel business,
+    BusinessCategory? sectionCategory,
   }) {
-    if (business.category == BusinessCategory.restaurant) return null;
+    final effective = sectionCategory ?? business.category;
+    // Festas usa o fluxo de restaurante (cardápio por secções + opções de
+    // entrega/recolha) — é onde vive o agendamento da encomenda.
+    // Sobremesas idem, mas SEM nada de agendamento: é o fluxo de entrega
+    // normal, imediato — a categoria é só um filtro visual (2026-08-27).
+    if (effective == BusinessCategory.restaurant ||
+        effective == BusinessCategory.festas ||
+        effective == BusinessCategory.sobremesa) {
+      return null;
+    }
 
     return RetailStore(
       name: business.name,
       isPartner: business.isPartner,
-      category: _mapStoreCategory(business.category),
+      category: _mapStoreCategory(effective),
     );
   }
 
@@ -52,6 +70,9 @@ class BusinessMapper {
       case BusinessCategory.restaurant:
       case BusinessCategory.supermarket:
       case BusinessCategory.store:
+      case BusinessCategory.beauty:
+      case BusinessCategory.festas:
+      case BusinessCategory.sobremesa:
         return StoreCategory.market;
     }
   }

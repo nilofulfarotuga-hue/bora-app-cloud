@@ -6,11 +6,23 @@ import 'package:uuid/uuid.dart';
 import 'cart_item.dart';
 import 'order_service_type.dart';
 
-const double _platformCommissionRate = 0.20;
+// 10% = comissão VISÍVEL paga pelo parceiro (alinhado com
+// platform_settings.partner_visible_commission_pct). Usado APENAS como
+// fallback defensivo quando orders.platform_commission ainda não foi
+// populado pela RPC. NÃO é os 20% totais (10 visível + 5 hidden markup +
+// 5 service fee) — esses 20% misturam 3 camadas que não devem aparecer
+// como um único valor no settlement do parceiro.
+const double _partnerVisibleCommissionFallbackRate = 0.10;
 
 enum OrderStatus {
   created,
   preparing,
+  // BR §14.11 — takeaway only. Status do parceiro depois de marcar pronto;
+  // cliente apresenta takeaway_pickup_code no balcão. Inserido entre
+  // preparing e callingDriver para preservar semântica de comparações
+  // `.index <= callingDriver.index` (mantém pedido takeaway como activo
+  // até cliente levantar).
+  readyForPickup,
   callingDriver,
   driverAccepted,
   pickedUp,
@@ -23,6 +35,14 @@ enum OrderStatus {
 enum OrderType {
   partnerRestaurant,
   nonPartnerPurchase,
+  // BUG 7 (2026-05-15) — adicionados para cobrir todos os service_types.
+  // .name é o que é gravado em orders.order_type (sem CHECK constraint em DB).
+  takeaway,
+  sendPackage,
+  carryGroceries,
+  // FAVORES (2026-06-15) — gravado como 'errand' em orders.order_type (matches
+  // branch errand de create_order, que escreve order_type='errand').
+  errand,
 }
 
 enum PaymentMethod {
@@ -55,6 +75,12 @@ class OrderModel {
   final LatLng? pickupLocation;
   final LatLng? destination;
   final String? vendorName;
+  /// orders.restaurant_id — UUID/text do parceiro (restaurant/supermarket).
+  /// Use este campo (não vendorName) como subject_id em ratings partner.
+  final String? restaurantId;
+  /// orders.purchase_flow_version — 1=legacy v1, 2=novo fluxo storeShopping v2.
+  /// UI client decide se mostra badges/breakdown novos com base neste campo.
+  final int purchaseFlowVersion;
   final String? pickupAddress;
   final String? pickupStreet;
   final String? pickupCity;
@@ -65,6 +91,11 @@ class OrderModel {
   final String? dropoffPostalCode;
   final String? customerNotes;
   final bool isPartnerStore;
+
+  /// True quando o pedido foi marcado como teste (admin/QA).
+  /// Filtrado por defeito do painel admin para nao poluir metricas reais.
+  /// Coluna DB: orders.is_test_order (BOOLEAN DEFAULT false).
+  final bool isTestOrder;
   final bool apartmentDelivery;
   final bool isDistanceEstimated;
   final bool requiresCar;
@@ -95,8 +126,42 @@ class OrderModel {
   /// Positive amount to refund when [finalTotal] < [paymentBufferTotal].
   double? refundAmount;
 
+  /// Refund destination chosen by the cliente at cancellation:
+  ///   - 'wallet' → instant credit into client_wallets (free balance + tokens)
+  ///   - 'stripe' → async refund via Stripe (5–10 business days)
+  /// NULL when no cancellation has happened yet.
+  String? refundMethod;
+
+  /// Cents paid from the cliente's saldo Bora (free_balance_cents) at
+  /// create_order. Stripe/MBWay charge = price*100 - walletAppliedCents.
+  int walletAppliedCents;
+
+  /// §18 v2: cents from a restaurant_menu_credits applied at create_order
+  /// (cliente arrived at a previous reservation). Stripe charge subtracts it.
+  int menuCreditAppliedCents;
+
+  /// BUG #1 frontend (§54 / 2026-05-12) — cents da dívida prévia da wallet
+  /// do cliente que é cobrada via este pedido. Populado pela RPC create_order
+  /// quando v_wallet_balance_pre<0. Default 0. Driver UI em CASH cobra:
+  /// totalToCollectCash = (cashTotalDue ?? finalTotal ?? total) + debtCollectedCents/100.
+  final int debtCollectedCents;
+
   /// Positive extra charge when [finalTotal] > [paymentBufferTotal].
   double? extraChargeAmount;
+
+  /// Total a cobrar em dinheiro ao cliente (cash + extras como sacos mercado).
+  /// NULL = usar [finalTotal] como fallback. Preenchido apenas pela RPC
+  /// `finalize_storeshopping_purchase` quando `payment_method=cash` e há extra
+  /// (ex.: sacos mercado a €0.10/saco).
+  double? cashTotalDue;
+
+  /// Items added by the driver during storeShopping (caso A: cliente
+  /// pediu via chat; caso B: substituição de produto faltando). Each entry:
+  /// `{name, price_base_cents, price_final_cents, qty, reason, added_at,
+  /// added_by}`. `price_final_cents` already includes the +15%
+  /// `non_partner_markup_pct`. Populated server-side by RPC
+  /// `finalize_storeshopping_purchase`.
+  List<Map<String, dynamic>> itemsAdded;
 
   final String? customerName;
   final String? userId;
@@ -105,9 +170,79 @@ class OrderModel {
   /// Client gratuity in EUR cents (BR §4.5). Split 80/20 is handled downstream.
   int tipCents;
 
-  /// Whether the client chose takeaway (BR §14.9). Partner restaurants only.
-  /// When true, dispatch is bypassed — the client picks up directly.
-  bool isTakeaway;
+  /// BR §14.11 — código alfanumérico 6 chars gerado pelo servidor ao criar
+  /// pedido takeaway. Cliente apresenta no balcão. NULL para delivery.
+  final String? takeawayPickupCode;
+
+  /// Timestamp quando partner_takeaway_accept foi chamado, dando ETA ao cliente.
+  /// = createdAt + takeawayPrepMinutes. NULL para delivery.
+  final DateTime? takeawayReadyAt;
+
+  /// Timestamp quando parceiro marcou levantado (status → delivered).
+  /// NULL até levantamento.
+  final DateTime? takeawayPickedUpAt;
+
+  /// Minutos de preparação anunciados pelo parceiro ao aceitar (3/5/10/15/20/30/45/60).
+  /// Default vem de restaurants.takeaway_default_prep_minutes. NULL para delivery.
+  final int? takeawayPrepMinutes;
+
+  /// True se cliente vai esperar no carro (curbside). Default false.
+  /// Imutável pós payment_status='paid' (D6, UI-only guard).
+  final bool takeawayIsCurbside;
+
+  /// Texto livre cliente preencheu para curbside (matrícula/cor/modelo).
+  /// Imutável pós payment_status='paid' (D6, UI-only guard).
+  final String? takeawayCurbsideInfo;
+
+  /// Festas (2026-08-25): data/hora agendada da encomenda. NULL = imediato.
+  /// Escrito server-side (create_order/festas_set_schedule) — nunca pelo app.
+  final DateTime? scheduledFor;
+
+  /// Festas: minutos anunciados pela loja no aceite ("fica pronto em X min").
+  /// Escrito server-side por festas_accept. NULL até aceitar.
+  final int? prepTimeMinutes;
+
+  /// FAVORES (errand) — campos do pedido de favor. Todos NULL/default para
+  /// service_types diferentes de errand. Backend valida no branch errand de
+  /// create_order. Ver business_rules §55.
+  final String? errandDescription;
+  final String? errandLocation;
+  final double? errandLocationLat;
+  final double? errandLocationLng;
+  final bool errandHomeStop;
+  /// 'receita' | 'cartao' | 'dinheiro' | 'outro'
+  final String? errandHomeStopReason;
+  /// Dinheiro recebido do cliente na paragem em casa (modo dinheiro). Estafeta
+  /// regista na recolha. Em cents. NULL se não aplicável.
+  final int? errandHomeStopCashCents;
+  /// Parte 8 — morada + coords da paragem em casa (antes eram geocodificadas no
+  /// form e DESCARTADAS: o estafeta ia para o sítio errado). Primeira paragem.
+  final String? errandHomeStopAddress;
+  final double? errandHomeStopLat;
+  final double? errandHomeStopLng;
+  /// Se o favor implica voltar a casa no fim (devolver troco/comprovativo).
+  final bool errandReturnLeg;
+  final DateTime? errandReturnDoneAt;
+  /// Perna atual: 0=por-iniciar, 1=em-casa, 2=no-favor, 3=de-volta.
+  final int errandLeg;
+  /// 'normal' | 'express'
+  final String? errandSpeed;
+  final bool errandHasPurchase;
+  /// Estimativa do cliente em cents. 0 quando errandHasPurchase=false.
+  final int errandEstimatedPurchaseCents;
+
+  /// 8.1 — foto opcional "do que comprar" enviada pelo cliente. O estafeta vê-a
+  /// no execution sheet. Persiste via RPC client_set_errand_request_photo
+  /// (create_order NÃO é tocado). NULL quando não há foto.
+  final String? errandRequestPhotoUrl;
+
+  /// 8.2 — estado do pedido de aumento de orçamento (errand com compra):
+  /// null|'pending'|'approved'|'rejected'|'disputed'. Escrito no backend
+  /// (finalize_errand_purchase + RPCs errand_request/client_respond).
+  final String? errandBudgetStatus;
+
+  /// 8.2 — total de compra (cents) que o estafeta pediu para o cliente autorizar.
+  final int? errandBudgetRequestedCents;
 
   String? assignedDriverId;
   String? currentDriverOfferId;
@@ -118,6 +253,12 @@ class OrderModel {
 
   /// Total bag fee charged (restaurant: fixed €0.30; market: bagCount × €0.10).
   double bagFee;
+
+  /// Taxa de pedido pequeno cobrada ao cliente (2026-08-27). Quem a calcula e
+  /// a cobra e o SERVIDOR (`small_order_fee_calc`); aqui so se le, para o
+  /// detalhe do pedido a poder mostrar em linha propria. Receita da
+  /// plataforma: nao entra no repasse do parceiro nem no ganho do estafeta.
+  double smallOrderFee;
 
   /// DEPRECATED — single source of truth is now
   /// `DriverStore.currentDriver.location`, synced through the `drivers` table
@@ -151,6 +292,8 @@ class OrderModel {
     this.pickupLocation,
     this.destination,
     this.vendorName,
+    this.restaurantId,
+    this.purchaseFlowVersion = 1,
     this.pickupAddress,
     this.pickupStreet,
     this.pickupCity,
@@ -161,6 +304,7 @@ class OrderModel {
     this.dropoffPostalCode,
     this.customerNotes,
     this.isPartnerStore = false,
+    this.isTestOrder = false,
     this.apartmentDelivery = false,
     this.isDistanceEstimated = false,
     this.requiresCar = false,
@@ -180,6 +324,7 @@ class OrderModel {
     this.driverPhone,
     this.bagCount = 0,
     this.bagFee = 0,
+    this.smallOrderFee = 0,
     List<String>? driverOfferHistory,
     List<String>? triedDriverIds,
     this.pickupWarningIssued = false,
@@ -192,18 +337,63 @@ class OrderModel {
     this.isPurchaseFinalized = false,
     double? paymentBufferTotal,
     this.refundAmount,
+    this.refundMethod,
+    this.walletAppliedCents = 0,
+    this.menuCreditAppliedCents = 0,
+    this.debtCollectedCents = 0,
     this.extraChargeAmount,
+    this.cashTotalDue,
+    List<Map<String, dynamic>>? itemsAdded,
     this.tipCents = 0,
-    this.isTakeaway = false,
+    this.takeawayPickupCode,
+    this.takeawayReadyAt,
+    this.takeawayPickedUpAt,
+    this.takeawayPrepMinutes,
+    this.takeawayIsCurbside = false,
+    this.takeawayCurbsideInfo,
+    this.scheduledFor,
+    this.prepTimeMinutes,
+    // FAVORES (errand) — defaults seguros para outros service_types
+    this.errandDescription,
+    this.errandLocation,
+    this.errandLocationLat,
+    this.errandLocationLng,
+    this.errandHomeStop = false,
+    this.errandHomeStopReason,
+    this.errandHomeStopCashCents,
+    this.errandHomeStopAddress,
+    this.errandHomeStopLat,
+    this.errandHomeStopLng,
+    this.errandReturnLeg = false,
+    this.errandReturnDoneAt,
+    this.errandLeg = 0,
+    this.errandSpeed,
+    this.errandHasPurchase = false,
+    this.errandEstimatedPurchaseCents = 0,
+    this.errandRequestPhotoUrl,
+    this.errandBudgetStatus,
+    this.errandBudgetRequestedCents,
     Map<String, bool>? substitutionResponses,
   })  : estimatedTotal = estimatedTotal ?? total,
         paymentBufferTotal = paymentBufferTotal ?? total,
+        itemsAdded = itemsAdded ?? <Map<String, dynamic>>[],
         substitutionResponses = substitutionResponses ?? <String, bool>{},
         items = List<CartItem>.unmodifiable(items ?? const <CartItem>[]),
         id = id ?? const Uuid().v4(),
         createdAt = createdAt ?? DateTime.now(),
         driverOfferHistory = driverOfferHistory ?? <String>[],
         triedDriverIds = triedDriverIds ?? <String>[];
+
+  // BUG #1 frontend (§54 / 2026-05-12) — Driver UI helpers em CASH
+  /// Total a cobrar do cliente em dinheiro: pedido + dívida prévia (se houver).
+  /// Hierarquia: cashTotalDue (set pelo finalize_storeshopping_purchase para sacos)
+  /// → finalTotal (set pelo finalize quando há reconcile) → total (price original).
+  /// + dívida em cents convertida a EUR.
+  double get totalToCollectCash =>
+      (cashTotalDue ?? finalTotal ?? total) + debtCollectedCents / 100.0;
+
+  /// True se este pedido inclui cobrança de dívida prévia da wallet do cliente.
+  bool get hasCashDebt => debtCollectedCents > 0;
 
   // ─────────────────────────────────────────────────────────────────────────
   // FIX (CRITICAL): Previously fromSupabase hardcoded
@@ -258,6 +448,18 @@ class OrderModel {
       pickupLocation =
           LatLng((pickupLat as num).toDouble(), (pickupLng as num).toDouble());
     }
+    // FAVORES (errand): para o estafeta, a "recolha" é o LOCAL DO FAVOR. O
+    // create_order grava-o em errand_location_*; quando pickup_* vem vazio,
+    // usamos o local do favor para que markers, rota e cartões de morada
+    // (que leem pickupLocation) funcionem — paridade com storeShopping.
+    if (pickupLocation == null && serviceType == OrderServiceType.errand) {
+      final eLat = data['errand_location_lat'];
+      final eLng = data['errand_location_lng'];
+      if (eLat != null && eLng != null) {
+        pickupLocation =
+            LatLng((eLat as num).toDouble(), (eLng as num).toDouble());
+      }
+    }
 
     LatLng? destination;
     final dropLat = data['dropoff_lat'];
@@ -280,6 +482,12 @@ class OrderModel {
         ?.map((e) => CartItem.fromJson(Map<String, dynamic>.from(e as Map)))
         .toList();
 
+    final rawItemsAdded = data['items_added'] as List?;
+    final parsedItemsAdded = rawItemsAdded
+            ?.map((e) => Map<String, dynamic>.from(e as Map))
+            .toList() ??
+        <Map<String, dynamic>>[];
+
     return OrderModel(
       id: data['id'] as String,
       total: (data['price'] as num? ?? 0).toDouble(),
@@ -295,11 +503,17 @@ class OrderModel {
       orderType: orderType,
       paymentMethod: paymentMethod,
       isPartnerStore: data['is_partner_store'] as bool? ?? false,
+      isTestOrder: data['is_test_order'] as bool? ?? false,
       apartmentDelivery: data['apartment_delivery'] as bool? ?? false,
       isDistanceEstimated: data['is_distance_estimated'] as bool? ?? false,
       requiresCar: data['requires_car'] as bool? ?? false,
       vendorName: data['vendor_name'] as String?,
-      pickupAddress: data['pickup_address'] as String?,
+      restaurantId: data['restaurant_id'] as String?,
+      purchaseFlowVersion: (data['purchase_flow_version'] as num?)?.toInt() ?? 1,
+      pickupAddress: data['pickup_address'] as String? ??
+          (serviceType == OrderServiceType.errand
+              ? data['errand_location'] as String?
+              : null),
       pickupStreet: data['pickup_street'] as String?,
       pickupCity: data['pickup_city'] as String?,
       pickupPostalCode: data['pickup_postal_code'] as String?,
@@ -316,6 +530,7 @@ class OrderModel {
       driverPhone: data['driver_phone'] as String?,
       bagCount: data['bag_count'] as int? ?? 0,
       bagFee: (data['bag_fee'] as num? ?? 0).toDouble(),
+      smallOrderFee: (data['small_order_fee'] as num? ?? 0).toDouble(),
       pickupLocation: pickupLocation,
       destination: destination,
       createdAt: data['created_at'] != null
@@ -332,9 +547,54 @@ class OrderModel {
       isPurchaseFinalized: data['is_purchase_finalized'] as bool? ?? false,
       paymentBufferTotal: (data['payment_buffer_total'] as num?)?.toDouble(),
       refundAmount: (data['refund_amount'] as num?)?.toDouble(),
+      refundMethod: data['refund_method'] as String?,
+      walletAppliedCents: (data['wallet_applied_cents'] as num?)?.toInt() ?? 0,
+      menuCreditAppliedCents:
+          (data['menu_credit_applied_cents'] as num?)?.toInt() ?? 0,
+      debtCollectedCents:
+          (data['debt_collected_cents'] as num?)?.toInt() ?? 0,
       extraChargeAmount: (data['extra_charge_amount'] as num?)?.toDouble(),
+      cashTotalDue: (data['cash_total_due'] as num?)?.toDouble(),
+      itemsAdded: parsedItemsAdded,
       tipCents: (data['tip_amount_cents'] as num?)?.toInt() ?? 0,
-      isTakeaway: data['is_takeaway'] as bool? ?? false,
+      takeawayPickupCode: data['takeaway_pickup_code'] as String?,
+      takeawayReadyAt: data['takeaway_ready_at'] != null
+          ? DateTime.tryParse(data['takeaway_ready_at'].toString())
+          : null,
+      takeawayPickedUpAt: data['takeaway_picked_up_at'] != null
+          ? DateTime.tryParse(data['takeaway_picked_up_at'].toString())
+          : null,
+      takeawayPrepMinutes: (data['takeaway_prep_minutes'] as num?)?.toInt(),
+      takeawayIsCurbside: data['takeaway_is_curbside'] as bool? ?? false,
+      takeawayCurbsideInfo: data['takeaway_curbside_info'] as String?,
+      scheduledFor: data['scheduled_for'] != null
+          ? DateTime.tryParse(data['scheduled_for'].toString())?.toLocal()
+          : null,
+      prepTimeMinutes: (data['prep_time_minutes'] as num?)?.toInt(),
+      errandDescription: data['errand_description'] as String?,
+      errandLocation: data['errand_location'] as String?,
+      errandLocationLat: (data['errand_location_lat'] as num?)?.toDouble(),
+      errandLocationLng: (data['errand_location_lng'] as num?)?.toDouble(),
+      errandHomeStop: data['errand_home_stop'] as bool? ?? false,
+      errandHomeStopReason: data['errand_home_stop_reason'] as String?,
+      errandHomeStopCashCents:
+          (data['errand_home_stop_cash_cents'] as num?)?.toInt(),
+      errandHomeStopAddress: data['errand_home_stop_address'] as String?,
+      errandHomeStopLat: (data['errand_home_stop_lat'] as num?)?.toDouble(),
+      errandHomeStopLng: (data['errand_home_stop_lng'] as num?)?.toDouble(),
+      errandReturnLeg: data['errand_return_leg'] as bool? ?? false,
+      errandReturnDoneAt: data['errand_return_done_at'] != null
+          ? DateTime.tryParse(data['errand_return_done_at'].toString())
+          : null,
+      errandLeg: (data['errand_leg'] as num?)?.toInt() ?? 0,
+      errandSpeed: data['errand_speed'] as String?,
+      errandHasPurchase: data['errand_has_purchase'] as bool? ?? false,
+      errandEstimatedPurchaseCents:
+          (data['errand_estimated_purchase_cents'] as num?)?.toInt() ?? 0,
+      errandRequestPhotoUrl: data['errand_request_photo_url'] as String?,
+      errandBudgetStatus: data['errand_budget_status'] as String?,
+      errandBudgetRequestedCents:
+          (data['errand_budget_requested_cents'] as num?)?.toInt(),
       // driver_lat / driver_lng intentionally NOT read — single source of
       // truth is DriverStore.currentDriver.location (drivers table realtime).
       items: parsedItems,
@@ -362,10 +622,13 @@ class OrderModel {
       'distance_km': distanceKm,
       'delivery_price': deliveryPrice,
       'is_partner_store': isPartnerStore,
+      // Apenas serializa quando true (rows existentes assumem default false).
+      if (isTestOrder) 'is_test_order': isTestOrder,
       'apartment_delivery': apartmentDelivery,
       'is_distance_estimated': isDistanceEstimated,
       'requires_car': requiresCar,
       'vendor_name': vendorName,
+      if (restaurantId != null) 'restaurant_id': restaurantId,
       'pickup_address': pickupAddress,
       'pickup_street': pickupStreet,
       'pickup_city': pickupCity,
@@ -388,12 +651,48 @@ class OrderModel {
       'payment_buffer_total': paymentBufferTotal,
       'is_purchase_finalized': isPurchaseFinalized,
       if (refundAmount != null) 'refund_amount': refundAmount,
+      if (refundMethod != null) 'refund_method': refundMethod,
+      if (walletAppliedCents > 0) 'wallet_applied_cents': walletAppliedCents,
+      if (menuCreditAppliedCents > 0)
+        'menu_credit_applied_cents': menuCreditAppliedCents,
+      if (debtCollectedCents > 0) 'debt_collected_cents': debtCollectedCents,
       if (extraChargeAmount != null) 'extra_charge_amount': extraChargeAmount,
+      if (cashTotalDue != null) 'cash_total_due': cashTotalDue,
+      if (itemsAdded.isNotEmpty) 'items_added': itemsAdded,
       // BR §4.5 — canonical tip column is `tip_amount_cents` (not `tip_cents`).
       // rating_screen.dart also writes to this column + sets tip_added_at.
       'tip_amount_cents': tipCents,
       if (tipCents > 0) 'tip_added_at': DateTime.now().toUtc().toIso8601String(),
-      if (isTakeaway) 'is_takeaway': true,
+      // Coluna `is_takeaway` foi APAGADA do servidor (2026-05-13).
+      // Fonte de verdade: service_type='takeaway'. Curbside é cliente-input
+      // gravado pelo RPC create_order — UPSERT directo aqui inclui apenas
+      // estes 2 campos.
+      if (takeawayIsCurbside) 'takeaway_is_curbside': true,
+      if (takeawayCurbsideInfo != null && takeawayCurbsideInfo!.isNotEmpty)
+        'takeaway_curbside_info': takeawayCurbsideInfo,
+      // FAVORES — só serializar quando aplicável (defaults seguros para outros tipos)
+      if (serviceType == OrderServiceType.errand) ...{
+        if (errandDescription != null) 'errand_description': errandDescription,
+        if (errandLocation != null) 'errand_location': errandLocation,
+        if (errandLocationLat != null) 'errand_location_lat': errandLocationLat,
+        if (errandLocationLng != null) 'errand_location_lng': errandLocationLng,
+        'errand_home_stop': errandHomeStop,
+        if (errandHomeStopReason != null) 'errand_home_stop_reason': errandHomeStopReason,
+        if (errandHomeStopCashCents != null)
+          'errand_home_stop_cash_cents': errandHomeStopCashCents,
+        if (errandHomeStopAddress != null)
+          'errand_home_stop_address': errandHomeStopAddress,
+        if (errandHomeStopLat != null) 'errand_home_stop_lat': errandHomeStopLat,
+        if (errandHomeStopLng != null) 'errand_home_stop_lng': errandHomeStopLng,
+        'errand_return_leg': errandReturnLeg,
+        if (errandReturnDoneAt != null)
+          'errand_return_done_at': errandReturnDoneAt!.toIso8601String(),
+        'errand_leg': errandLeg,
+        if (errandSpeed != null) 'errand_speed': errandSpeed,
+        'errand_has_purchase': errandHasPurchase,
+        if (errandEstimatedPurchaseCents > 0)
+          'errand_estimated_purchase_cents': errandEstimatedPurchaseCents,
+      },
       if (paymentIntentId != null) 'payment_intent_id': paymentIntentId,
       if (finalPurchaseValue != null)
         'final_purchase_value': finalPurchaseValue,
@@ -416,6 +715,10 @@ class OrderModel {
 extension OrderModelX on OrderModel {
   bool get isPartnerOrder => orderType == OrderType.partnerRestaurant;
 
+  /// BR §14.11 — getter compatível com call sites antigos. Substitui o
+  /// campo bool `isTakeaway` removido. Fonte de verdade: serviceType.
+  bool get isTakeaway => serviceType == OrderServiceType.takeaway;
+
   /// Human-readable order reference derived from the order UUID (e.g. `#A1B2C3`).
   /// Deterministic — no DB column needed.
   String get orderCode =>
@@ -431,14 +734,34 @@ extension OrderModelX on OrderModel {
 }
 
 extension OrderFinancials on OrderModel {
+  /// Valor da comissão VISÍVEL paga pelo parceiro à Bora.
+  /// Prioriza o valor calculado server-side (orders.platform_commission).
+  /// Fallback defensivo: 10% do subtotal (não do total). Antes era 20% do total,
+  /// que inflava o cálculo porque misturava as 3 camadas (10% visível + 5%
+  /// markup escondido + 5% taxa serviço) num só valor — só os 10% são pagos
+  /// pelo parceiro.
   double get platformCommissionAmount {
     if (platformCommission > 0) {
       return platformCommission;
     }
-    return total * _platformCommissionRate;
+    final base = subtotal > 0 ? subtotal : total;
+    return base * _partnerVisibleCommissionFallbackRate;
   }
 
   double get restaurantEarningsAmount => total - platformCommissionAmount;
+
+  /// True quando o pedido foi criado pelo fluxo "parceiro chama estafeta por
+  /// conta própria" (botão "chamar estafeta" no painel do parceiro). Cliente
+  /// comprou direto com o parceiro (telefone/WhatsApp) — não há userId real
+  /// porque não passou pela app cliente. Comissão = 15% (10% visível + 5%
+  /// taxa serviço, sem markup escondido). Cliente paga TUDO em dinheiro ao
+  /// estafeta. Ver business_rules.md §2.4.1.
+  bool get isPartnerSelfDispatch {
+    if (!isPartnerStore) return false;
+    if (orderType != OrderType.partnerRestaurant) return false;
+    final uid = userId;
+    return uid == null || uid.isEmpty;
+  }
 }
 
 extension OrderStatusLabel on OrderStatus {
@@ -448,6 +771,8 @@ extension OrderStatusLabel on OrderStatus {
         return 'Pedido criado';
       case OrderStatus.preparing:
         return 'Restaurante preparando';
+      case OrderStatus.readyForPickup:
+        return 'Pronto para levantar';
       case OrderStatus.callingDriver:
         return 'Aguardando estafeta';
       case OrderStatus.driverAccepted:

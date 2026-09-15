@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Notificacoes push (2026-09-08, missao ios-lancamento).
+	     A capacidade PUSH_NOTIFICATIONS esta ligada no App ID pt.boraapp.bora,
+	     mas sem esta chave o binario nao regista em APNs: a capacidade no
+	     portal e' a permissao, o entitlement e' o pedido.
+	     "production" porque este ficheiro so entra na configuracao Release,
+	     que e' a que vai para a App Store. O Debug/Profile ficam sem
+	     entitlements de proposito, para nao pedir perfil ao build do
+	     simulador (job A do build_ios.yml, que corre sem conta Apple). -->
+	<key>aps-environment</key>
+	<string>production</string>
+</dict>
+</plist>

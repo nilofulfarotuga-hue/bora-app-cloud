@@ -1,0 +1,17 @@
+-- F4B: join de presenca TOLERANTE no despacho TVDE (transicao da chave).
+-- UNICA mudanca vs versao anterior: o JOIN de driver_locations no 1o bloco
+-- passa a LATERAL (linha mais fresca de user_id OU id).
+-- APLICADA em producao a 2026-08-16
+-- (tvde_offer_to_next_join_tolerante_f4b_2026_08_16). O corpo completo vive
+-- em producao; este ficheiro regista o diff essencial:
+--
+--   antes:  JOIN public.driver_locations dl ON dl.driver_id = d.user_id
+--   depois: JOIN LATERAL (
+--             SELECT * FROM public.driver_locations l
+--             WHERE l.driver_id IN (d.user_id, d.id)
+--             ORDER BY l.last_updated DESC NULLS LAST
+--             LIMIT 1
+--           ) dl ON true
+--
+-- NOTA: nao re-aplicar cegamente por cima de versoes futuras da funcao -
+-- producao e a verdade (ler via MCP antes de editar).

@@ -1,18 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../auth/auth_store.dart';
 import '../models/order_model.dart';
+import '../services/destino_pendente.dart';
 import '../stores/order_store.dart';
+import '../utils/contact_validators.dart';
 import '../widgets/bora/bora.dart';
+import 'complete_profile_screen.dart';
+import 'client_reservations_screen.dart';
 import 'client_home_screen.dart';
+import 'deep_link_store_screen.dart';
 import 'order_tracking_screen.dart';
 import 'orders_screen.dart';
 import 'profile_screen.dart';
 
-/// Host dos 3 tabs do cliente: Início · Pedidos · Perfil.
+/// Host dos 4 tabs do cliente: Início · Entrega · Reserva · Perfil.
 ///
 /// Cada tab tem a sua própria `BoraAppBar` — este widget só gere o
-/// `IndexedStack` e a `BoraBottomNav`. Eventos globais (e.g. pedido aceite
+/// `IndexedStack` e a `BoraBottomNavV2`. Eventos globais (e.g. pedido aceite
 /// por estafeta → push tracking) são observados aqui porque sobrevivem às
 /// trocas de tab.
 class ClientMainScreen extends StatefulWidget {
@@ -23,7 +29,53 @@ class ClientMainScreen extends StatefulWidget {
 }
 
 class _ClientMainScreenState extends State<ClientMainScreen> {
-  int _selectedIndex = 0;
+  BoraNavTab _currentTab = BoraNavTab.home;
+
+  @override
+  void initState() {
+    super.initState();
+    // Quem chegou de fora a uma ficha (site, QR, WhatsApp) e teve de se
+    // registar para marcar: o registo termina com popUntil(isFirst), portanto
+    // a ficha desapareceu da pilha. Volta-se a ela aqui, mal a home aparece —
+    // senão a pessoa acabava na home genérica, que é o beco que se quer evitar.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _abrirDestinoPendente());
+    // Contacto em falta: pede-se UMA vez por arranque, e com saída ("Agora
+    // não"). O bloqueio a sério é no checkout — ver garantirContactoDoCliente.
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _pedirContactoUmaVez());
+  }
+
+  /// Só pergunta uma vez por arranque da app: um aviso que reaparece a cada
+  /// separador deixa de ser aviso e passa a ser praga.
+  static bool _contactoJaPerguntadoNesteArranque = false;
+
+  Future<void> _pedirContactoUmaVez() async {
+    if (_contactoJaPerguntadoNesteArranque || !mounted) return;
+    final client = context.read<AuthStore>().currentClient;
+    if (client == null) return;
+    if (contactoDoClienteCompleto(
+        nome: client.name, telemovel: client.phone)) {
+      return;
+    }
+    _contactoJaPerguntadoNesteArranque = true;
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        fullscreenDialog: true,
+        builder: (_) => const CompleteProfileScreen(),
+      ),
+    );
+  }
+
+  Future<void> _abrirDestinoPendente() async {
+    final destino = await DestinoPendente.consumir();
+    if (destino == null || !mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            DeepLinkStoreScreen(tipo: destino.tipo, id: destino.id),
+      ),
+    );
+  }
 
   /// Orders we have already pushed a tracking screen for.
   /// Prevents re-navigation on every rebuild after the user presses back.
@@ -32,14 +84,18 @@ class _ClientMainScreenState extends State<ClientMainScreen> {
   final List<Widget> _screens = const [
     ClientHomeScreen(),
     OrdersScreen(),
+    ClientReservationsScreen(),
     ProfileScreen(),
   ];
 
   OrderModel? _findActiveOrder(List<OrderModel> orders) {
     for (final o in orders) {
+      // BUG 6 — incluir cancelled na exclusão (cliente não deve abrir
+      // detail de pedido cancelado automaticamente).
       if (o.status.index >= OrderStatus.driverAccepted.index &&
           o.status != OrderStatus.delivered &&
-          o.status != OrderStatus.rejected) {
+          o.status != OrderStatus.rejected &&
+          o.status != OrderStatus.cancelled) {
         return o;
       }
     }
@@ -65,10 +121,10 @@ class _ClientMainScreenState extends State<ClientMainScreen> {
     }
 
     return Scaffold(
-      body: IndexedStack(index: _selectedIndex, children: _screens),
-      bottomNavigationBar: BoraBottomNav(
-        currentIndex: _selectedIndex,
-        onTap: (index) => setState(() => _selectedIndex = index),
+      body: IndexedStack(index: _currentTab.index, children: _screens),
+      bottomNavigationBar: BoraBottomNavV2(
+        current: _currentTab,
+        onTabChanged: (tab) => setState(() => _currentTab = tab),
       ),
     );
   }

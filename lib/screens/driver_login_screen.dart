@@ -1,16 +1,21 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
+import '../services/biometric_auth_service.dart';
+import '../services/login_prefs.dart';
 import '../services/notification_service.dart';
 import '../stores/driver_store.dart';
 import '../stores/session_store.dart';
+import '../widgets/biometric_enrollment_dialog.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import 'driver_pending_screen.dart';
+import 'forgot_password_screen.dart';
 import 'driver_rejected_screen.dart';
 import 'driver_signup_screen.dart';
 
@@ -24,13 +29,130 @@ class DriverLoginScreen extends StatefulWidget {
 class _DriverLoginScreenState extends State<DriverLoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController(
-    text: kDebugMode ? 'driver@bora.app' : '',
+    text: '',
   );
   final _passwordController = TextEditingController(
-    text: kDebugMode ? '123456' : '',
+    text: '',
   );
   bool _isProcessing = false;
   bool _obscurePassword = true;
+  bool _hasPendingDraft = false;
+  // L1 — true quando o email foi pré-preenchido com o último login.
+  bool _prefilledFromMemory = false;
+
+  static const _kDraftKey = 'bora_app.signup_draft.driver';
+
+  // L3 — true quando o aparelho tem biometria E há sessão guardada.
+  bool _biometricAvailable = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkPendingDraft();
+    _prefillLastEmail();
+    _checkBiometric();
+  }
+
+  /// L3 — mostra o botão "Entrar com biometria" se o aparelho suporta e o
+  /// login biométrico foi ativado neste papel.
+  Future<void> _checkBiometric() async {
+    final bio = BiometricAuthService.instance;
+    final available =
+        await bio.isDeviceCapable && await bio.isEnabledFor('driver');
+    if (mounted && available) {
+      setState(() => _biometricAvailable = true);
+    }
+  }
+
+  /// L3 — digital/rosto → restaura a sessão Supabase guardada → entra.
+  /// Fallback sempre disponível: os campos de palavra-passe continuam ali.
+  Future<void> _biometricLogin() async {
+    FocusScope.of(context).unfocus();
+    setState(() => _isProcessing = true);
+
+    final bio = BiometricAuthService.instance;
+    final authStore = context.read<AuthStore>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    final ok =
+        await bio.authenticate('Entra na Bora com a tua digital ou rosto');
+    if (!mounted) return;
+    if (!ok) {
+      setState(() => _isProcessing = false);
+      return;
+    }
+
+    final token = await bio.readRefreshToken('driver');
+    if (token == null || token.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _biometricAvailable = false;
+        _isProcessing = false;
+      });
+      return;
+    }
+
+    final error = await authStore.restoreSessionWithRefreshToken(
+      token,
+      expectedRole: 'driver',
+    );
+    if (!mounted) return;
+
+    if (error != null) {
+      if (error == 'invalid') {
+        await bio.disableFor('driver');
+      }
+      if (!mounted) return;
+      setState(() {
+        if (error == 'invalid') _biometricAvailable = false;
+        _isProcessing = false;
+      });
+      messenger.showSnackBar(SnackBar(
+        content: Text(error == 'invalid'
+            ? 'Sessão biométrica expirada. Entra com a palavra-passe.'
+            : 'Sem ligação. Tenta novamente.'),
+      ));
+      return;
+    }
+
+    final authUser = Supabase.instance.client.auth.currentUser;
+    if (authUser == null) {
+      setState(() => _isProcessing = false);
+      return;
+    }
+
+    debugPrint('[DriverLogin] biometric restore OK uid=${authUser.id}');
+    await _finishDriverLogin(authUser);
+  }
+
+  /// L1 — pré-preenche o campo de email com o último login bem-sucedido.
+  Future<void> _prefillLastEmail() async {
+    final remembered = await LoginPrefs.lastEmail('driver');
+    if (remembered == null || !mounted) return;
+    setState(() {
+      _emailController.text = remembered;
+      _prefilledFromMemory = true;
+    });
+  }
+
+  /// L1 — "Entrar com outra conta": limpa campos + esquece o email guardado.
+  Future<void> _useAnotherAccount() async {
+    await LoginPrefs.clearLastEmail('driver');
+    if (!mounted) return;
+    setState(() {
+      _prefilledFromMemory = false;
+      _emailController.clear();
+      _passwordController.clear();
+    });
+  }
+
+  Future<void> _checkPendingDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    final name = prefs.getString('$_kDraftKey.name') ?? '';
+    if (name.isNotEmpty && mounted) {
+      setState(() => _hasPendingDraft = true);
+    }
+  }
 
   @override
   void dispose() {
@@ -51,9 +173,43 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
           ),
           child: Form(
             key: _formKey,
-            child: Column(
+            // L2 (2026-06-12) — AutofillGroup liga os campos ao gestor de
+            // senhas do Android (Google Password Manager / Samsung Pass).
+            child: AutofillGroup(
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (_hasPendingDraft)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Material(
+                      color: AppColors.accent.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: _goToSignup,
+                        child: const Padding(
+                          padding: EdgeInsets.all(14),
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit_note, color: AppColors.accent),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'Tens uma candidatura em progresso. Continuar?',
+                                  style: TextStyle(
+                                    color: AppColors.accent,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.accent),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 const SizedBox(height: 32),
 
                 // ── Logo ──────────────────────────────────────────────
@@ -123,58 +279,96 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
                 const SizedBox(height: 28),
 
                 // ── Email ─────────────────────────────────────────────
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  autocorrect: false,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: Icon(Icons.email_outlined),
+                Semantics(
+                  identifier: 'fld_email',
+                  child: TextFormField(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    autocorrect: false,
+                    autofillHints: const [AutofillHints.email],
+                    decoration: const InputDecoration(
+                      labelText: 'Email',
+                      prefixIcon: Icon(Icons.email_outlined),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Informe o email.';
+                      }
+                      if (!value.contains('@')) return 'Email inválido.';
+                      return null;
+                    },
                   ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Informe o email.';
-                    }
-                    if (!value.contains('@')) return 'Email inválido.';
-                    return null;
-                  },
                 ),
+                if (_prefilledFromMemory)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed:
+                          _isProcessing ? null : _useAnotherAccount,
+                      child: const Text('Entrar com outra conta'),
+                    ),
+                  ),
                 const SizedBox(height: 16),
 
                 // ── Password ──────────────────────────────────────────
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    labelText: 'Palavra-passe',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
+                Semantics(
+                  identifier: 'fld_password',
+                  child: TextFormField(
+                    controller: _passwordController,
+                    obscureText: _obscurePassword,
+                    autofillHints: const [AutofillHints.password],
+                    decoration: InputDecoration(
+                      labelText: 'Palavra-passe',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                        ),
+                        onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword),
                       ),
-                      onPressed: () =>
-                          setState(() => _obscurePassword = !_obscurePassword),
                     ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Informe a palavra-passe.';
+                      }
+                      return null;
+                    },
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Informe a palavra-passe.';
-                    }
-                    return null;
-                  },
                 ),
 
                 const SizedBox(height: 28),
 
                 // ── Login button ──────────────────────────────────────
-                BoraPrimaryButton(
-                  label: 'Entrar',
-                  loading: _isProcessing,
-                  color: AppColors.accent,
-                  onPressed: _submit,
+                Semantics(
+                  identifier: 'btn_entrar_driver',
+                  child: BoraPrimaryButton(
+                    label: 'Entrar',
+                    loading: _isProcessing,
+                    color: AppColors.accent,
+                    onPressed: _submit,
+                  ),
                 ),
+                // ── L3 — biometria ────────────────────────────────────
+                if (_biometricAvailable) ...[
+                  const SizedBox(height: Spacing.md),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: OutlinedButton.icon(
+                      onPressed: _isProcessing ? null : _biometricLogin,
+                      icon: const Icon(Icons.fingerprint),
+                      label: const Text('Entrar com biometria'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.accent,
+                        side: const BorderSide(
+                            color: AppColors.accent, width: 1.5),
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: Spacing.md),
 
                 // ── Create account ────────────────────────────────────
@@ -196,7 +390,7 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
                 Center(
                   child: TextButton(
                     onPressed: _isProcessing ? null : _forgotPassword,
-                    child: const Text('Esqueci a palavra-passe'),
+                    child: const Text('Esqueci-me da palavra-passe'),
                   ),
                 ),
                 Center(
@@ -206,6 +400,7 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
                   ),
                 ),
               ],
+              ),
             ),
           ),
         ),
@@ -224,8 +419,6 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
     setState(() => _isProcessing = true);
 
     final authStore = context.read<AuthStore>();
-    final driverStore = context.read<DriverStore>();
-    final sessionStore = context.read<SessionStore>();
 
     final success = await authStore.loginDriverAsync(
       _emailController.text,
@@ -241,6 +434,13 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
       );
       return;
     }
+
+    // L2 — sinaliza ao Android que o login terminou: dispara o prompt
+    // "Guardar palavra-passe?" do gestor de senhas.
+    TextInput.finishAutofillContext();
+
+    // L1 — lembra o email para pré-preencher no próximo login.
+    LoginPrefs.saveLastEmail('driver', _emailController.text).ignore();
 
     // Guard: confirm that Supabase session is the real driver, not a guest
     // fallback. loginDriverAsync always calls signInWithPassword, but this
@@ -265,6 +465,16 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
 
     debugPrint('[DriverLogin] auth.currentUser.id=${authUser.id}');
 
+    await _finishDriverLogin(authUser);
+  }
+
+  /// Pós-login partilhado (palavra-passe + biometria): approval gate →
+  /// configura DriverStore → FCM → opt-in biometria → setRole.
+  Future<void> _finishDriverLogin(User authUser) async {
+    final authStore = context.read<AuthStore>();
+    final driverStore = context.read<DriverStore>();
+    final sessionStore = context.read<SessionStore>();
+
     // ── Verificar approval_status ────────────────────────────────────────
     Map<String, dynamic>? driverRow;
     try {
@@ -281,7 +491,8 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
         driverRow?['approval_status'] as String? ?? 'approved';
 
     if (approvalStatus == 'pending') {
-      authStore.logout();
+      // L3 — bounce de aprovação, não "Sair": preserva biometria.
+      authStore.logout(wipeBiometrics: false);
       setState(() => _isProcessing = false);
       Navigator.push(
         context,
@@ -292,7 +503,8 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
 
     if (approvalStatus == 'rejected') {
       final reason = driverRow?['rejection_reason'] as String? ?? '';
-      authStore.logout();
+      // L3 — bounce de aprovação, não "Sair": preserva biometria.
+      authStore.logout(wipeBiometrics: false);
       setState(() => _isProcessing = false);
       Navigator.push(
         context,
@@ -301,6 +513,13 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
       return;
     }
     // ─────────────────────────────────────────────────────────────────────
+
+    // L3 — o restauro biométrico não passa por loginDriverAsync, por isso
+    // _currentDriverStatus ficaria no default 'pending' e o driver_home
+    // mostrava o ecrã de análise a um estafeta aprovado. Idempotente no
+    // caminho com palavra-passe.
+    await authStore.refreshApprovalStatus();
+    if (!mounted) return;
 
     final account = authStore.currentDriver;
     if (account != null) {
@@ -317,6 +536,11 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
     // Fire-and-forget: non-critical, must not block navigation.
     NotificationService.instance.saveTokenForDriver(authUser.id);
 
+    // L3 — oferece login biométrico (pergunta uma vez; antes do setRole
+    // porque o _RootNavigator troca o ecrã assim que o papel muda).
+    await maybeOfferBiometricEnrollment(context, 'driver');
+    if (!mounted) return;
+
     await sessionStore.setRole(UserRole.driver);
     if (!mounted) return;
     setState(() => _isProcessing = false);
@@ -329,27 +553,11 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
     );
   }
 
-  Future<void> _forgotPassword() async {
-    final email = _emailController.text.trim();
-    if (email.isEmpty || !email.contains('@')) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content:
-              Text('Introduza o seu email no campo acima antes de continuar.'),
-        ),
-      );
-      return;
-    }
-
-    setState(() => _isProcessing = true);
-    await context.read<AuthStore>().resetDriverPassword(email);
-    if (!mounted) return;
-    setState(() => _isProcessing = false);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-            'Se existir uma conta com $email, receberá um email para redefinir a palavra-passe.'),
+  void _forgotPassword() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            ForgotPasswordScreen(initialEmail: _emailController.text.trim()),
       ),
     );
   }

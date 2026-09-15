@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
 import '../../services/admin/admin_driver_service.dart';
+import '../../widgets/private_bucket_image.dart';
+import '_admin_password_reset_dialog.dart';
+import 'admin_papeis_screen.dart';
 
 /// Full-screen admin detail for an approved driver. Pushed from
 /// `admin_drivers_screen` and from the "Aprovados" tab of
@@ -57,6 +61,17 @@ class _AdminDriverDetailScreenState extends State<AdminDriverDetailScreen>
     super.dispose();
   }
 
+  static const _baseDriverCols =
+      'id, name, phone, email, vehicle_type, license_plate, iban, nif, '
+      'photo_url, is_online, is_banned, banned_at, banned_by, banned_until, '
+      'ban_reason, ban_reason_code, deleted_at, deleted_by, deletion_reason, '
+      'last_forced_logout_at, last_forced_logout_by, approval_status, created_at';
+
+  static const _extendedDriverCols = '$_baseDriverCols, '
+      'document_type, document_number, document_photo_url, vehicle_photo_url, '
+      'vehicle_doc_url, registration_selfie_url, address, submitted_at, reviewed_at, '
+      'mbway_phone, rejection_reason, last_heartbeat_at, rating, total_deliveries';
+
   Future<void> _refresh() async {
     setState(() {
       _loading = true;
@@ -65,21 +80,27 @@ class _AdminDriverDetailScreenState extends State<AdminDriverDetailScreen>
     try {
       final client = Supabase.instance.client;
 
-      final driver = await client
-          .from('drivers')
-          .select(
-              'id, name, phone, email, vehicle_type, license_plate, iban, nif, '
-              'photo_url, is_online, is_banned, banned_at, banned_by, banned_until, '
-              'ban_reason, ban_reason_code, deleted_at, deleted_by, deletion_reason, '
-              'last_forced_logout_at, last_forced_logout_by, approval_status, created_at')
-          .eq('id', widget.driverId)
-          .maybeSingle();
+      Map<String, dynamic>? driver;
+      try {
+        driver = await client
+            .from('drivers')
+            .select(_extendedDriverCols)
+            .eq('id', widget.driverId)
+            .maybeSingle();
+      } catch (_) {
+        // Fallback if any extended column does not exist yet.
+        driver = await client
+            .from('drivers')
+            .select(_baseDriverCols)
+            .eq('id', widget.driverId)
+            .maybeSingle();
+      }
 
       if (driver == null) {
         if (mounted) {
           setState(() {
             _loading = false;
-            _error = 'Estafeta não encontrado.';
+            _error = 'Entregador não encontrado.';
           });
         }
         return;
@@ -105,7 +126,7 @@ class _AdminDriverDetailScreenState extends State<AdminDriverDetailScreen>
 
       if (!mounted) return;
       setState(() {
-        _driver = Map<String, dynamic>.from(driver);
+        _driver = Map<String, dynamic>.from(driver!);
         _effectiveStatus = (status as String?) ?? 'active';
         _balance = balance == null ? null : Map<String, dynamic>.from(balance);
         _lastAction = lastAction == null ? null : Map<String, dynamic>.from(lastAction);
@@ -135,9 +156,35 @@ class _AdminDriverDetailScreenState extends State<AdminDriverDetailScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(_driver?['name'] as String? ?? 'Estafeta'),
+        backgroundColor: AppColors.primary,
+        elevation: 0,
+        foregroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.white),
+        flexibleSpace: const DecoratedBox(
+          decoration: BoxDecoration(gradient: AppColors.headerGradient),
+        ),
+        title: Text(_driver?['name'] as String? ?? 'Entregador',
+            style: const TextStyle(color: Colors.white)),
         actions: [
+          // OS PAPEIS DESTA PESSOA (2026-08-29). Uma conta tem varios perfis;
+          // a ficha dela tem de deixar ver e mexer em todos, nao so no de
+          // estafeta.
+          IconButton(
+            icon: const Icon(Icons.badge_outlined),
+            tooltip: 'Papéis desta pessoa',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => AdminPapeisScreen(
+                  buscaInicial: (_driver?['email'] as String?)?.trim().isNotEmpty == true
+                      ? _driver!['email'] as String
+                      : _driver?['name'] as String?,
+                ),
+              ),
+            ),
+          ),
           IconButton(icon: const Icon(Icons.refresh), onPressed: _refresh),
         ],
         bottom: TabBar(
@@ -221,6 +268,12 @@ class _OverviewTab extends StatelessWidget {
           ],
           const SizedBox(height: 16),
           _InfoCard(driver: driver),
+          const SizedBox(height: 16),
+          _DocumentsCard(driver: driver),
+          const SizedBox(height: 16),
+          _PerformanceCard(driver: driver, walletBalance: balance),
+          const SizedBox(height: 16),
+          _StatusDetailsCard(driver: driver, effectiveStatus: effectiveStatus),
           const SizedBox(height: 24),
           Text('Acções', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
@@ -249,6 +302,19 @@ class _OverviewTab extends StatelessWidget {
             color: AppColors.warning,
             onTap: () => onAction(_runForceLogout),
           ),
+          // drivers.id É o auth.users.id (confirmado em prod) — dá para pedir
+          // o reset direto, sem lookup extra.
+          if ((driver['email'] as String?)?.isNotEmpty ?? false)
+            _ActionButton(
+              icon: Icons.lock_reset,
+              label: 'Enviar link de redefinição de senha',
+              onTap: () => showAdminPasswordResetDialog(
+                context,
+                userId: driver['id'].toString(),
+                email: driver['email'].toString(),
+                displayName: (driver['name'] ?? '').toString(),
+              ),
+            ),
           _ActionButton(
             icon: Icons.delete_forever,
             label: 'Remover (soft delete)',
@@ -286,6 +352,8 @@ class _OverviewTab extends StatelessWidget {
         licensePlate: result.licensePlate,
         iban: result.iban,
         nif: result.nif,
+        vehicleColor: result.vehicleColor,
+        vehicleMakeModel: result.vehicleMakeModel,
       );
       final changed = (r['fields_changed'] as List?)?.join(', ') ?? '';
       toast('Actualizado: $changed');
@@ -314,8 +382,8 @@ class _OverviewTab extends StatelessWidget {
         bannedUntil: result.bannedUntil,
       );
       toast(result.bannedUntil == null
-          ? 'Estafeta banido permanentemente.'
-          : 'Estafeta suspenso até ${_fmtDate(result.bannedUntil!)}.');
+          ? 'Entregador banido permanentemente.'
+          : 'Entregador suspenso até ${_fmtDate(result.bannedUntil!)}.');
     } on AdminDriverException catch (e) {
       toast(e.message, isError: true);
     }
@@ -331,7 +399,7 @@ class _OverviewTab extends StatelessWidget {
     final ok = await showDialog<bool>(
       context: ctx,
       builder: (_) => AlertDialog(
-        title: const Text('Reactivar estafeta?'),
+        title: const Text('Reactivar entregador?'),
         content: Text(
             'Vai limpar ban, suspensão e/ou soft-delete de "${driver['name']}".'),
         actions: [
@@ -364,7 +432,7 @@ class _OverviewTab extends StatelessWidget {
       context: ctx,
       builder: (_) => const _ReasonDialog(
         title: 'Forçar logout?',
-        body: 'Vai revogar TODAS as sessões activas deste estafeta. '
+        body: 'Vai revogar TODAS as sessões activas deste entregador. '
             'O driver perderá a app no próximo refresh.',
         confirmLabel: 'Forçar logout',
       ),
@@ -401,7 +469,7 @@ class _OverviewTab extends StatelessWidget {
         driverId: driver['id'] as String,
         reason: result,
       );
-      toast('Estafeta removido (soft delete).');
+      toast('Entregador removido (soft delete).');
     } on AdminDriverException catch (e) {
       toast(e.message, isError: true);
     }
@@ -427,7 +495,12 @@ class _Header extends StatelessWidget {
     _AdminDriverDetailScreenContext.set(context);
     final photo = driver['photo_url'] as String?;
     final isOnline = driver['is_online'] == true;
-    return Card(
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        boxShadow: AppColors.shadowCard,
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -480,7 +553,7 @@ class _StatusBadge extends StatelessWidget {
       'active'    => ('Activo', AppColors.success),
       'suspended' => ('Suspenso', AppColors.warning),
       'banned'    => ('Banido', AppColors.error),
-      'deleted'   => ('Removido', Colors.black54),
+      'deleted'   => ('Removido', AppColors.textSecondary),
       'pending'   => ('Pendente', AppColors.info),
       'rejected'  => ('Rejeitado', AppColors.error),
       _           => (status, AppColors.textSecondary),
@@ -542,7 +615,12 @@ class _InfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        boxShadow: AppColors.shadowCard,
+      ),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(children: [
@@ -551,11 +629,24 @@ class _InfoCard extends StatelessWidget {
           _row(Icons.two_wheeler, 'Veículo',
               '${driver['vehicle_type'] ?? '—'}'
               '${driver['license_plate'] != null && (driver['license_plate'] as String).isNotEmpty ? " · ${driver['license_plate']}" : ""}'),
+          _row(Icons.location_on_outlined, 'Morada', driver['address'] ?? '—'),
           _row(Icons.account_balance, 'IBAN', driver['iban'] ?? '—'),
+          _row(Icons.phone_android, 'MBWay', driver['mbway_phone'] ?? '—'),
           _row(Icons.badge_outlined, 'NIF', driver['nif'] ?? '—'),
+          if (driver['submitted_at'] != null)
+            _row(Icons.send, 'Submetido', _formatTs(driver['submitted_at'])),
+          if (driver['reviewed_at'] != null)
+            _row(Icons.check_circle_outline, 'Revisto', _formatTs(driver['reviewed_at'])),
         ]),
       ),
     );
+  }
+
+  String _formatTs(dynamic ts) {
+    if (ts == null) return '—';
+    final dt = DateTime.tryParse(ts.toString());
+    if (dt == null) return ts.toString();
+    return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 
   Widget _row(IconData icon, String label, dynamic value) {
@@ -567,6 +658,321 @@ class _InfoCard extends StatelessWidget {
         SizedBox(width: 80, child: Text(label, style: const TextStyle(color: AppColors.textSecondary))),
         Expanded(child: Text(value?.toString() ?? '—')),
       ]),
+    );
+  }
+}
+
+// ── Documents card (FASE 5 — extended detail) ───────────────────────────────
+//
+// Shows document type/number and the two photos (document + vehicle) with
+// click-to-zoom. Falls back gracefully when columns/photos are missing.
+class _DocumentsCard extends StatelessWidget {
+  const _DocumentsCard({required this.driver});
+  final Map<String, dynamic> driver;
+
+  @override
+  Widget build(BuildContext context) {
+    final docType = driver['document_type'] as String?;
+    final docNumber = driver['document_number'] as String?;
+    final docPhoto = driver['document_photo_url'] as String?;
+    final vehicleDocPhoto = driver['vehicle_doc_url'] as String?;
+    final vehiclePhoto = driver['vehicle_photo_url'] as String?;
+    final selfiePhoto = driver['registration_selfie_url'] as String?;
+
+    final hasAny = (docType != null && docType.isNotEmpty) ||
+        (docNumber != null && docNumber.isNotEmpty) ||
+        (docPhoto != null && docPhoto.isNotEmpty) ||
+        (vehicleDocPhoto != null && vehicleDocPhoto.isNotEmpty) ||
+        (vehiclePhoto != null && vehiclePhoto.isNotEmpty) ||
+        (selfiePhoto != null && selfiePhoto.isNotEmpty);
+    if (!hasAny) return const SizedBox.shrink();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        boxShadow: AppColors.shadowCard,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Documentos',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            const SizedBox(height: 8),
+            if (docType != null && docType.isNotEmpty)
+              _kv('Tipo', docType),
+            if (docNumber != null && docNumber.isNotEmpty)
+              _kv('Nº', docNumber),
+            if (docPhoto != null && docPhoto.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              const Text('Foto do documento',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary,
+                      fontSize: 12)),
+              const SizedBox(height: 6),
+              _ZoomableImage(url: docPhoto),
+            ],
+            if (vehicleDocPhoto != null && vehicleDocPhoto.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Text('Documento do veículo',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary,
+                      fontSize: 12)),
+              const SizedBox(height: 6),
+              _ZoomableImage(url: vehicleDocPhoto),
+            ],
+            if (vehiclePhoto != null && vehiclePhoto.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Text('Foto do veículo',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary,
+                      fontSize: 12)),
+              const SizedBox(height: 6),
+              _ZoomableImage(url: vehiclePhoto),
+            ],
+            if (selfiePhoto != null && selfiePhoto.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Text('Selfie de verificação',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary,
+                      fontSize: 12)),
+              const SizedBox(height: 6),
+              _ZoomableImage(url: selfiePhoto),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _kv(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(children: [
+        SizedBox(
+          width: 80,
+          child: Text(label,
+              style: const TextStyle(
+                  color: AppColors.textSecondary, fontSize: 13)),
+        ),
+        Expanded(child: Text(value)),
+      ]),
+    );
+  }
+}
+
+class _ZoomableImage extends StatelessWidget {
+  const _ZoomableImage({required this.url});
+  final String url;
+
+  Future<void> _openFullscreen(BuildContext context) async {
+    final resolved = await resolveSignedUrlIfPrivate(url) ?? url;
+    if (!context.mounted) return;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(backgroundColor: Colors.black),
+        body: Center(
+          child: InteractiveViewer(
+            child: Image.network(resolved,
+                errorBuilder: (_, __, ___) => const Icon(
+                    Icons.broken_image,
+                    color: Colors.white54,
+                    size: 64)),
+          ),
+        ),
+      ),
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => _openFullscreen(context),
+      child: PrivateBucketImage(
+        urlOrPath: url,
+        height: 160,
+        width: double.infinity,
+        borderRadius: BorderRadius.circular(10),
+      ),
+    );
+  }
+}
+
+// ── Performance card ────────────────────────────────────────────────────────
+//
+// Rating, deliveries, wallet balance and last heartbeat. All fields are
+// optional; the card renders only the rows it has data for.
+class _PerformanceCard extends StatelessWidget {
+  const _PerformanceCard({required this.driver, required this.walletBalance});
+  final Map<String, dynamic> driver;
+  final double walletBalance;
+
+  @override
+  Widget build(BuildContext context) {
+    final rating = (driver['rating'] as num?)?.toDouble();
+    final deliveries = (driver['total_deliveries'] as num?)?.toInt();
+    final isOnline = driver['is_online'] == true;
+    final heartbeatRaw = driver['last_heartbeat_at'] as String?;
+    final heartbeat =
+        heartbeatRaw == null ? null : DateTime.tryParse(heartbeatRaw);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        boxShadow: AppColors.shadowCard,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Desempenho',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            const SizedBox(height: 8),
+            _row(
+              Icons.star_outline,
+              'Avaliação',
+              rating == null
+                  ? '—'
+                  : '${rating.toStringAsFixed(2)}'
+                      '${deliveries == null ? '' : ' · $deliveries entregas'}',
+            ),
+            _row(Icons.account_balance_wallet_outlined, 'Saldo',
+                '€${walletBalance.toStringAsFixed(2)}'),
+            _row(
+              isOnline ? Icons.circle : Icons.circle_outlined,
+              'Estado',
+              isOnline ? 'Online' : 'Offline',
+              color: isOnline ? AppColors.success : AppColors.textSecondary,
+            ),
+            _row(
+              Icons.favorite_border,
+              'Heartbeat',
+              heartbeat == null ? '—' : _ago(heartbeat),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _row(IconData icon, String label, String value, {Color? color}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(children: [
+        Icon(icon, size: 18, color: color ?? AppColors.primary),
+        const SizedBox(width: 12),
+        SizedBox(
+          width: 80,
+          child: Text(label,
+              style: const TextStyle(color: AppColors.textSecondary)),
+        ),
+        Expanded(child: Text(value)),
+      ]),
+    );
+  }
+}
+
+// ── Status details card ─────────────────────────────────────────────────────
+//
+// Surfaces rejection_reason (rejected) and ban_reason (banned/suspended).
+// Hidden when none apply, so the card never shows empty.
+class _StatusDetailsCard extends StatelessWidget {
+  const _StatusDetailsCard(
+      {required this.driver, required this.effectiveStatus});
+  final Map<String, dynamic> driver;
+  final String effectiveStatus;
+
+  @override
+  Widget build(BuildContext context) {
+    final approvalStatus =
+        (driver['approval_status'] as String?) ?? 'pending';
+    final rejectionReason = driver['rejection_reason'] as String?;
+    final banReason = driver['ban_reason'] as String?;
+    final banReasonCode = driver['ban_reason_code'] as String?;
+    final bannedUntilRaw = driver['banned_until'] as String?;
+    final bannedUntil =
+        bannedUntilRaw == null ? null : DateTime.tryParse(bannedUntilRaw);
+
+    final isRejected = approvalStatus == 'rejected';
+    final isBanned = effectiveStatus == 'banned' ||
+        effectiveStatus == 'suspended';
+
+    if (!isRejected && !isBanned) return const SizedBox.shrink();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.error.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(Radii.lg),
+        boxShadow: AppColors.shadowCard,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Estado',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            const SizedBox(height: 8),
+            if (isRejected && rejectionReason != null && rejectionReason.isNotEmpty)
+              _block(
+                icon: Icons.cancel_outlined,
+                label: 'Motivo de rejeição',
+                value: rejectionReason,
+              ),
+            if (isBanned) ...[
+              _block(
+                icon: Icons.block,
+                label: 'Motivo do banimento',
+                value: [
+                  if (banReasonCode != null && banReasonCode.isNotEmpty)
+                    '[$banReasonCode]',
+                  if (banReason != null && banReason.isNotEmpty) banReason,
+                ].join(' '),
+              ),
+              if (bannedUntil != null)
+                _block(
+                  icon: Icons.event_busy,
+                  label: 'Suspenso até',
+                  value: _fmtDate(bannedUntil),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _block({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    if (value.trim().isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: AppColors.error),
+          const SizedBox(width: 12),
+          SizedBox(
+            width: 110,
+            child: Text(label,
+                style: const TextStyle(
+                    color: AppColors.textSecondary, fontSize: 13)),
+          ),
+          Expanded(child: Text(value)),
+        ],
+      ),
     );
   }
 }
@@ -591,10 +997,10 @@ class _ActionButton extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: ListTile(
-        leading: Icon(icon, color: enabled ? (color ?? AppColors.primary) : Colors.black26),
+        leading: Icon(icon, color: enabled ? (color ?? AppColors.primary) : AppColors.textSubtle),
         title: Text(label,
             style: TextStyle(
-                color: enabled ? AppColors.textPrimary : Colors.black38,
+                color: enabled ? AppColors.textPrimary : AppColors.textSubtle,
                 fontWeight: FontWeight.w600)),
         onTap: enabled ? onTap : null,
         shape: RoundedRectangleBorder(
@@ -617,9 +1023,13 @@ class _EditResult {
     this.licensePlate,
     this.iban,
     this.nif,
+    this.vehicleColor,
+    this.vehicleMakeModel,
   });
   final String reason;
   final String? name, phone, vehicleType, licensePlate, iban, nif;
+  // TVDE — cor + marca/modelo do carro.
+  final String? vehicleColor, vehicleMakeModel;
 }
 
 class _EditDriverSheet extends StatefulWidget {
@@ -633,6 +1043,8 @@ class _EditDriverSheetState extends State<_EditDriverSheet> {
   late final TextEditingController _name;
   late final TextEditingController _phone;
   late final TextEditingController _plate;
+  late final TextEditingController _color;
+  late final TextEditingController _makeModel;
   late final TextEditingController _iban;
   late final TextEditingController _nif;
   late final TextEditingController _reason;
@@ -645,6 +1057,8 @@ class _EditDriverSheetState extends State<_EditDriverSheet> {
     _name  = TextEditingController(text: widget.driver['name'] as String? ?? '');
     _phone = TextEditingController(text: widget.driver['phone'] as String? ?? '');
     _plate = TextEditingController(text: widget.driver['license_plate'] as String? ?? '');
+    _color = TextEditingController(text: widget.driver['vehicle_color'] as String? ?? '');
+    _makeModel = TextEditingController(text: widget.driver['vehicle_make_model'] as String? ?? '');
     _iban  = TextEditingController(text: widget.driver['iban'] as String? ?? '');
     _nif   = TextEditingController(text: widget.driver['nif'] as String? ?? '');
     _reason = TextEditingController();
@@ -653,7 +1067,7 @@ class _EditDriverSheetState extends State<_EditDriverSheet> {
 
   @override
   void dispose() {
-    for (final c in [_name, _phone, _plate, _iban, _nif, _reason]) {
+    for (final c in [_name, _phone, _plate, _color, _makeModel, _iban, _nif, _reason]) {
       c.dispose();
     }
     super.dispose();
@@ -716,6 +1130,9 @@ class _EditDriverSheetState extends State<_EditDriverSheet> {
               onChanged: (v) => setState(() => _vt = v ?? 'motorcycle'),
             ),
             TextField(controller: _plate, decoration: const InputDecoration(labelText: 'Matrícula')),
+            // TVDE — carro visível ao passageiro no cartão.
+            TextField(controller: _makeModel, decoration: const InputDecoration(labelText: 'Marca e modelo (TVDE)')),
+            TextField(controller: _color, decoration: const InputDecoration(labelText: 'Cor do carro (TVDE)')),
             const SizedBox(height: 12),
             const Text('Dados sensíveis (audit redact)', style: TextStyle(color: AppColors.warning, fontSize: 12)),
             // BUG 1 fix: onChanged trigger setState para que sensitiveChanged
@@ -786,11 +1203,13 @@ class _EditDriverSheetState extends State<_EditDriverSheet> {
                           phone:        _diff(_phone, widget.driver['phone'] as String?),
                           vehicleType:  _vt != (widget.driver['vehicle_type'] as String?) ? _vt : null,
                           licensePlate: _diff(_plate, widget.driver['license_plate'] as String?),
+                          vehicleColor: _diff(_color, widget.driver['vehicle_color'] as String?),
+                          vehicleMakeModel: _diff(_makeModel, widget.driver['vehicle_make_model'] as String?),
                           iban:         _diff(_iban, widget.driver['iban'] as String?),
                           nif:          _diff(_nif, widget.driver['nif'] as String?),
                         ));
                       },
-                child: const Text('Guardar'),
+                child: const Text('Salvar'),
               )),
             ]),
             const SizedBox(height: 16),
@@ -850,7 +1269,7 @@ class _BanDialogState extends State<_BanDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Banir / suspender estafeta'),
+      title: const Text('Banir / suspender entregador'),
       content: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -977,11 +1396,11 @@ class _SoftDeleteDialogState extends State<_SoftDeleteDialog> {
     final nameOk = _name.text.trim() == widget.expectedName.trim();
     final reasonOk = _reason.text.trim().length >= 3;
     return AlertDialog(
-      title: const Text('Remover estafeta'),
+      title: const Text('Remover entregador'),
       content: Column(mainAxisSize: MainAxisSize.min, children: [
         const Text(
           'Soft delete: o registo é preservado para integridade de pedidos/transacções/audit, '
-          'mas o estafeta deixa de operar.',
+          'mas o entregador deixa de operar.',
           style: TextStyle(fontSize: 13),
         ),
         const SizedBox(height: 12),
@@ -989,7 +1408,7 @@ class _SoftDeleteDialogState extends State<_SoftDeleteDialog> {
             style: const TextStyle(fontSize: 12, color: AppColors.error)),
         TextField(
           controller: _name,
-          decoration: const InputDecoration(labelText: 'Nome do estafeta'),
+          decoration: const InputDecoration(labelText: 'Nome do entregador'),
           onChanged: (_) => setState(() {}),
         ),
         TextField(
@@ -1025,7 +1444,8 @@ class _OrdersTabState extends State<_OrdersTab> {
   Future<List<Map<String, dynamic>>> _load() async {
     final res = await Supabase.instance.client
         .from('orders')
-        .select('id, status, payment_method, final_total, created_at, restaurant_name')
+        .select('id, status, payment_method, final_total, created_at, '
+            'restaurant_id, restaurants(id, name)')
         .eq('assigned_driver_id', widget.driverId)
         .order('created_at', ascending: false)
         .limit(50);
@@ -1050,12 +1470,14 @@ class _OrdersTabState extends State<_OrdersTab> {
           child: ListView.separated(
             padding: const EdgeInsets.all(12),
             itemCount: orders.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
+            separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.divider),
             itemBuilder: (_, i) {
               final o = orders[i];
               final at = DateTime.tryParse((o['created_at'] as String?) ?? '');
+              final restaurantName =
+                  (o['restaurants'] as Map?)?['name'] as String?;
               return ListTile(
-                title: Text((o['restaurant_name'] as String?) ?? 'Sem origem'),
+                title: Text(restaurantName ?? 'Sem origem'),
                 subtitle: Text('${o['status']} · ${o['payment_method'] ?? '—'} · '
                     '€${((o['final_total'] as num?) ?? 0).toStringAsFixed(2)}'),
                 trailing: Text(at == null ? '—' : _fmtDate(at),
@@ -1108,8 +1530,12 @@ class _TransactionsTabState extends State<_TransactionsTab> {
           child: ListView(
             padding: const EdgeInsets.all(12),
             children: [
-              Card(
-                color: AppColors.info.withValues(alpha: 0.05),
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.info.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(Radii.lg),
+                  boxShadow: AppColors.shadowCard,
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Row(children: [
@@ -1130,7 +1556,13 @@ class _TransactionsTabState extends State<_TransactionsTab> {
                 ...txs.map((t) {
                   final at = DateTime.tryParse((t['created_at'] as String?) ?? '');
                   final amount = ((t['amount'] as num?) ?? 0).toDouble();
-                  return Card(
+                  return Container(
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(Radii.lg),
+                      boxShadow: AppColors.shadowCard,
+                    ),
                     child: ListTile(
                       title: Text('€${amount.toStringAsFixed(2)} · ${t['type']}'),
                       subtitle: Text('${t['status']}'
@@ -1189,7 +1621,7 @@ class _AuditTabState extends State<_AuditTab> {
           child: ListView.separated(
             padding: const EdgeInsets.all(12),
             itemCount: entries.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
+            separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.divider),
             itemBuilder: (_, i) {
               final e = entries[i];
               final at = DateTime.tryParse((e['created_at'] as String?) ?? '');

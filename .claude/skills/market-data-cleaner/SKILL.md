@@ -15,6 +15,13 @@ description: >
     - "traduzir produtos Mercadona"
     - "remover electrónicos do Pingo Doce"
     - "auditoria global de qualidade de produtos"
+metadata:
+  versao: 1.0
+  execucoes: 0
+  sucessos: 0
+  falhas: 0
+  ultima_execucao: null
+  criada_por: pre-telemetria (rollout 2026-07-10)
 ---
 
 # Market Data Cleaner — Bora App
@@ -110,3 +117,10 @@ Se se decidir usar placeholders em vez de apagar:
 - Cor de fundo: #F5F5F5 (cinza claro neutro)
 - Ícone: genérico da secção taxonómica (ex: garrafa para Bebidas)
 - NUNCA usar logo Bora (#2E7D32 + #E65100) num placeholder de produto
+
+## 📊 Telemetria (obrigatório no fim de cada execução)
+
+No fim de cada execução desta skill:
+1. Atualiza o frontmatter deste ficheiro: incrementa `execucoes` e `sucessos` OU `falhas`; atualiza `ultima_execucao` (YYYY-MM-DD).
+2. Acrescenta UMA linha à tabela de `.claude/.ai/knowledge/wiki/skills-metrics.md` (Skill | Data | Contexto | Volume | Resultado).
+O evolution-engine lê essa tabela: falhas/execucoes > 30% → candidata a reescrita; 90 dias sem uso → candidata a arquivo.

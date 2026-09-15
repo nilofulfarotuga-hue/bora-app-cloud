@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pagamento — Bora</title>
+<script src="https://js.stripe.com/v3/"></script>
+<style>
+  :root { --verde:#16A34A; --texto:#111827; --cinza:#6B7280; --borda:#E5E7EB; }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; padding:24px 20px 32px;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    color:var(--texto); background:#fff;
+    display:flex; flex-direction:column; min-height:100vh;
+  }
+  header { display:flex; align-items:center; gap:10px; margin-bottom:4px; }
+  .marca { font-size:20px; font-weight:800; color:var(--verde); letter-spacing:-.5px; }
+  h1 { font-size:16px; font-weight:600; margin:14px 0 2px; }
+  .sub { font-size:13px; color:var(--cinza); margin:0 0 20px; }
+  #elemento-pagamento { margin-bottom:20px; }
+  button {
+    width:100%; padding:15px; font-size:16px; font-weight:600;
+    color:#fff; background:var(--verde); border:0; border-radius:12px;
+    cursor:pointer; font-family:inherit;
+  }
+  button:disabled { opacity:.6; cursor:default; }
+  #erro {
+    display:none; margin-top:14px; padding:12px 14px; border-radius:10px;
+    background:#FEF2F2; color:#B91C1C; font-size:13.5px; line-height:1.45;
+  }
+  #estado { text-align:center; padding:48px 0; color:var(--cinza); font-size:14px; }
+  .seguro { margin-top:18px; text-align:center; font-size:12px; color:var(--cinza); }
+  .spin {
+    width:26px; height:26px; margin:0 auto 14px; border-radius:50%;
+    border:3px solid var(--borda); border-top-color:var(--verde);
+    animation:g .8s linear infinite;
+  }
+  @keyframes g { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header><span class="marca">Bora</span></header>
+
+<div id="estado"><div class="spin"></div>A preparar o pagamento…</div>
+
+<form id="formulario" style="display:none; flex:1; display:none; flex-direction:column;">
+  <h1 id="titulo">Pagamento</h1>
+  <p class="sub">O valor foi calculado pelo Bora e não pode ser alterado aqui.</p>
+  <div id="elemento-pagamento"></div>
+  <button id="botao" type="submit">Pagar</button>
+  <div id="erro"></div>
+  <p class="seguro">Pagamento processado pela Stripe. O Bora nunca vê os dados do teu cartão.</p>
+</form>
+
+<script>
+(function () {
+  'use strict';
+
+  var ORIGEM = window.location.origin;
+
+  function avisarApp(estado, erro) {
+    var msg = { bora: 'pagamento', estado: estado, erro: erro || null };
+    try {
+      if (window.opener && !window.opener.closed) {
+        window.opener.postMessage(msg, ORIGEM);
+      }
+    } catch (e) { /* opener já fechado */ }
+  }
+
+  function mostrarEstado(texto, comSpinner) {
+    var el = document.getElementById('estado');
+    el.style.display = 'block';
+    el.innerHTML = (comSpinner ? '<div class="spin"></div>' : '') + texto;
+    document.getElementById('formulario').style.display = 'none';
+  }
+
+  function fecharDaqui(ms) {
+    setTimeout(function () {
+      if (window.opener && !window.opener.closed) { window.close(); }
+      else { window.location.href = ORIGEM + '/'; }
+    }, ms);
+  }
+
+  function terminar(estado, textoEcra, erro) {
+    avisarApp(estado, erro);
+    mostrarEstado(textoEcra, false);
+    fecharDaqui(estado === 'pago' ? 900 : 2600);
+  }
+
+  // ── Parâmetros ────────────────────────────────────────────────────────────
+  // Na 1.ª entrada vêm no fragmento (#), que nunca chega ao servidor.
+  // No regresso de um 3-D Secure o Stripe devolve o client_secret na query.
+  function lerFragmento() {
+    var f = {};
+    (window.location.hash || '').replace(/^#/, '').split('&').forEach(function (p) {
+      if (!p) return;
+      var i = p.indexOf('=');
+      f[decodeURIComponent(p.slice(0, i))] = decodeURIComponent(p.slice(i + 1));
+    });
+    return f;
+  }
+
+  var frag = lerFragmento();
+  var query = new URLSearchParams(window.location.search);
+  var regresso = query.get('payment_intent_client_secret');
+
+  var clientSecret = regresso || frag.cs;
+  var pk = frag.pk || sessionStorage.getItem('bora_pk') || '';
+  var label = frag.label || sessionStorage.getItem('bora_label') || 'Pagamento';
+
+  if (!clientSecret || !pk) {
+    terminar('erro', 'Não foi possível abrir o pagamento.<br>Volta ao Bora e tenta outra vez.',
+             'parametros em falta');
+    return;
+  }
+
+  // Guardado para sobreviver ao redirect do 3-D Secure (o fragmento perde-se).
+  sessionStorage.setItem('bora_pk', pk);
+  sessionStorage.setItem('bora_label', label);
+
+  // Limpa o client_secret da barra de endereço.
+  history.replaceState(null, '', window.location.pathname);
+
+  var stripe = Stripe(pk, { locale: 'pt' });
+
+  // ── Regresso do 3-D Secure ────────────────────────────────────────────────
+  if (regresso) {
+    mostrarEstado('A confirmar o pagamento…', true);
+    stripe.retrievePaymentIntent(clientSecret).then(function (res) {
+      var pi = res.paymentIntent;
+      if (pi && (pi.status === 'succeeded' || pi.status === 'processing')) {
+        terminar('pago', 'Pagamento concluído ✓', null);
+      } else if (pi && pi.status === 'requires_payment_method') {
+        terminar('erro', 'O pagamento não foi aceite.<br>Volta ao Bora e tenta com outro método.',
+                 'requires_payment_method');
+      } else {
+        terminar('erro', 'O pagamento não foi concluído.', pi ? pi.status : 'desconhecido');
+      }
+    });
+    return;
+  }
+
+  // ── Primeira entrada: montar o Payment Element ────────────────────────────
+  var elements = stripe.elements({
+    clientSecret: clientSecret,
+    locale: 'pt',
+    appearance: {
+      theme: 'stripe',
+      variables: {
+        colorPrimary: '#16A34A',
+        colorText: '#111827',
+        borderRadius: '10px',
+        fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif'
+      }
+    }
+  });
+
+  var pagamento = elements.create('payment', { layout: 'tabs' });
+  pagamento.mount('#elemento-pagamento');
+
+  pagamento.on('ready', function () {
+    document.getElementById('estado').style.display = 'none';
+    var f = document.getElementById('formulario');
+    f.style.display = 'flex';
+    document.getElementById('titulo').textContent = label;
+  });
+
+  pagamento.on('loaderror', function (ev) {
+    terminar('erro', 'Não foi possível carregar o pagamento.',
+             ev && ev.error ? ev.error.message : 'loaderror');
+  });
+
+  var botao = document.getElementById('botao');
+  var erro = document.getElementById('erro');
+
+  document.getElementById('formulario').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    botao.disabled = true;
+    botao.textContent = 'A processar…';
+    erro.style.display = 'none';
+
+    stripe.confirmPayment({
+      elements: elements,
+      // 'if_required' evita sair da página no cartão simples; só o 3-D Secure
+      // redireciona mesmo (e volta a este pay.html).
+      redirect: 'if_required',
+      confirmParams: { return_url: ORIGEM + '/pay.html' }
+    }).then(function (res) {
+      if (res.error) {
+        erro.textContent = res.error.message || 'O pagamento não foi aceite.';
+        erro.style.display = 'block';
+        botao.disabled = false;
+        botao.textContent = 'Pagar';
+        return;
+      }
+      var pi = res.paymentIntent;
+      if (pi && (pi.status === 'succeeded' || pi.status === 'processing')) {
+        terminar('pago', 'Pagamento concluído ✓', null);
+      } else {
+        erro.textContent = 'O pagamento não foi concluído.';
+        erro.style.display = 'block';
+        botao.disabled = false;
+        botao.textContent = 'Pagar';
+      }
+    });
+  });
+
+  // Fechar a janela no X conta como cancelamento (a app tem watchdog próprio,
+  // mas isto torna o cancelamento imediato).
+  window.addEventListener('beforeunload', function () {
+    if (!botao.disabled) { avisarApp('cancelado', null); }
+  });
+})();
+</script>
+</body>
+</html>

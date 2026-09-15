@@ -1,5 +1,5 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -7,10 +7,19 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
+import '../services/biometric_auth_service.dart';
+import '../services/login_prefs.dart';
 import '../services/notification_service.dart';
+import '../services/role_switch_helper.dart';
 import '../stores/session_store.dart';
+import '../widgets/biometric_enrollment_dialog.dart';
+import '../widgets/bora/bora_mascot.dart';
 import '../widgets/bora/bora_primary_button.dart';
+import 'forgot_password_screen.dart';
 import 'register_client_screen.dart';
+import 'role_choice_screen.dart';
+
+import '../l10n/tr.dart';
 
 class ClientLoginScreen extends StatefulWidget {
   const ClientLoginScreen({super.key});
@@ -22,13 +31,123 @@ class ClientLoginScreen extends StatefulWidget {
 class _ClientLoginScreenState extends State<ClientLoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController(
-    text: kDebugMode ? 'cliente@bora.app' : '',
+    text: '',
   );
   final _passwordController = TextEditingController(
-    text: kDebugMode ? '123456' : '',
+    text: '',
   );
   bool _isProcessing = false;
   bool _obscurePassword = true;
+  // L1 — true quando o email foi pré-preenchido com o último login.
+  bool _prefilledFromMemory = false;
+  // L3 — true quando o aparelho tem biometria E há sessão guardada.
+  bool _biometricAvailable = false;
+  // MULTI-PAPEL (2026-08-06) — quando `my_roles()` devolve 2+ papéis, o
+  // ecrã de escolha é renderizado INLINE (não via Navigator.push): esta
+  // tela é devolvida directamente por `_RootNavigator` (sem Navigator
+  // próprio), então um `pushReplacement` removeria o `_RootNavigator` da
+  // árvore e travava a app depois de escolher o papel (ver CLAUDE.md,
+  // "Navigation: _RootNavigator").
+  List<Map<String, dynamic>>? _roleChoices;
+
+  @override
+  void initState() {
+    super.initState();
+    _prefillLastEmail();
+    _checkBiometric();
+  }
+
+  /// L3 — mostra o botão "Entrar com biometria" se o aparelho suporta e o
+  /// login biométrico foi ativado neste papel.
+  Future<void> _checkBiometric() async {
+    final bio = BiometricAuthService.instance;
+    final available =
+        await bio.isDeviceCapable && await bio.isEnabledFor('client');
+    if (mounted && available) {
+      setState(() => _biometricAvailable = true);
+    }
+  }
+
+  /// L3 — digital/rosto → restaura a sessão Supabase guardada → entra.
+  /// Fallback sempre disponível: os campos de palavra-passe continuam ali.
+  Future<void> _biometricLogin() async {
+    FocusScope.of(context).unfocus();
+    setState(() => _isProcessing = true);
+
+    final bio = BiometricAuthService.instance;
+    final authStore = context.read<AuthStore>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    final ok =
+        await bio.authenticate('Entra na Bora com a tua digital ou rosto'.tr);
+    if (!mounted) return;
+    if (!ok) {
+      setState(() => _isProcessing = false);
+      return;
+    }
+
+    final token = await bio.readRefreshToken('client');
+    if (token == null || token.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _biometricAvailable = false;
+        _isProcessing = false;
+      });
+      return;
+    }
+
+    final error = await authStore.restoreSessionWithRefreshToken(
+      token,
+      expectedRole: 'client',
+    );
+    if (!mounted) return;
+
+    if (error != null) {
+      if (error == 'invalid') {
+        await bio.disableFor('client');
+      }
+      if (!mounted) return;
+      setState(() {
+        if (error == 'invalid') _biometricAvailable = false;
+        _isProcessing = false;
+      });
+      messenger.showSnackBar(SnackBar(
+        content: Text(error == 'invalid'
+            ? 'Sessão biométrica expirada. Entra com a palavra-passe.'.tr
+            : 'Sem ligação. Tenta novamente.'),
+      ));
+      return;
+    }
+
+    // Mesmos passos pós-login do caminho com palavra-passe.
+    final authUser = Supabase.instance.client.auth.currentUser;
+    if (authUser != null) {
+      NotificationService.instance.saveTokenForClient(authUser.id).ignore();
+    }
+
+    await _finishClientLogin();
+  }
+
+  /// L1 — pré-preenche o campo de email com o último login bem-sucedido.
+  Future<void> _prefillLastEmail() async {
+    final remembered = await LoginPrefs.lastEmail('client');
+    if (remembered == null || !mounted) return;
+    setState(() {
+      _emailController.text = remembered;
+      _prefilledFromMemory = true;
+    });
+  }
+
+  /// L1 — "Entrar com outra conta": limpa campos + esquece o email guardado.
+  Future<void> _useAnotherAccount() async {
+    await LoginPrefs.clearLastEmail('client');
+    if (!mounted) return;
+    setState(() {
+      _prefilledFromMemory = false;
+      _emailController.clear();
+      _passwordController.clear();
+    });
+  }
 
   @override
   void dispose() {
@@ -39,6 +158,10 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final roleChoices = _roleChoices;
+    if (roleChoices != null) {
+      return RoleChoiceScreen(roles: roleChoices);
+    }
     return Scaffold(
       backgroundColor: AppColors.surface,
       body: SafeArea(
@@ -49,43 +172,27 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
           ),
           child: Form(
             key: _formKey,
-            child: Column(
+            // L2 (2026-06-12) — AutofillGroup liga os campos ao gestor de
+            // senhas do Android (Google Password Manager / Samsung Pass).
+            child: AutofillGroup(
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: Spacing.xxxl),
+                const SizedBox(height: 56),
 
                 // ── Logo ──────────────────────────────────────────────
-                Center(
-                  child: RichText(
-                    text: const TextSpan(
-                      children: [
-                        TextSpan(
-                          text: 'BO',
-                          style: TextStyle(
-                            fontSize: 44,
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.primary,
-                            letterSpacing: 2,
-                          ),
-                        ),
-                        TextSpan(
-                          text: 'RA',
-                          style: TextStyle(
-                            fontSize: 44,
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.accent,
-                            letterSpacing: 2,
-                          ),
-                        ),
-                      ],
-                    ),
+                const Center(
+                  child: BoraMascot(
+                    variant: BoraMascotVariant.logo,
+                    size: 72,
+                    semanticLabel: 'BORA',
                   ),
                 ),
                 const SizedBox(height: Spacing.sm),
-                const Center(
+                Center(
                   child: Text(
-                    'Área do Cliente',
-                    style: TextStyle(
+                    'Área do Cliente'.tr,
+                    style: const TextStyle(
                       fontSize: 14,
                       color: AppColors.textSecondary,
                       fontWeight: FontWeight.w500,
@@ -96,80 +203,113 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                 const SizedBox(height: Spacing.huge - 8),
 
                 // ── Title ─────────────────────────────────────────────
-                const Text(
-                  'Iniciar sessão',
-                  style: TextStyle(
+                Text(
+                  'Iniciar sessão'.tr,
+                  style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: Spacing.xs + 2),
-                const Text(
-                  'Entre com a sua conta de cliente',
-                  style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                Text(
+                  'Entre com a sua conta de cliente'.tr,
+                  style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
                 ),
 
                 const SizedBox(height: Spacing.xxl + 4),
 
                 // ── Email ─────────────────────────────────────────────
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: Icon(Icons.email_outlined),
+                Semantics(
+                  identifier: 'fld_email',
+                  child: TextFormField(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    autofillHints: const [AutofillHints.email],
+                    decoration: InputDecoration(
+                      labelText: 'Email'.tr,
+                      prefixIcon: const Icon(Icons.email_outlined),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Informe o seu email.'.tr;
+                      }
+                      if (!value.contains('@')) return 'Email inválido.'.tr;
+                      return null;
+                    },
                   ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Informe o seu email.';
-                    }
-                    if (!value.contains('@')) return 'Email inválido.';
-                    return null;
-                  },
                 ),
+                if (_prefilledFromMemory)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed:
+                          _isProcessing ? null : _useAnotherAccount,
+                      child: Text('Entrar com outra conta'.tr),
+                    ),
+                  ),
                 const SizedBox(height: Spacing.lg),
 
                 // ── Password ──────────────────────────────────────────
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    labelText: 'Palavra-passe',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
+                Semantics(
+                  identifier: 'fld_password',
+                  child: TextFormField(
+                    controller: _passwordController,
+                    obscureText: _obscurePassword,
+                    autofillHints: const [AutofillHints.password],
+                    decoration: InputDecoration(
+                      labelText: 'Palavra-passe'.tr,
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                        ),
+                        onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword),
                       ),
-                      onPressed: () =>
-                          setState(() => _obscurePassword = !_obscurePassword),
                     ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Informe a palavra-passe.'.tr;
+                      }
+                      return null;
+                    },
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Informe a palavra-passe.';
-                    }
-                    return null;
-                  },
                 ),
 
                 const SizedBox(height: Spacing.xxl + 4),
 
                 // ── Login button ──────────────────────────────────────
-                BoraPrimaryButton(
-                  label: 'Entrar',
-                  loading: _isProcessing,
-                  onPressed: _submit,
+                Semantics(
+                  identifier: 'btn_entrar',
+                  child: BoraPrimaryButton(
+                    label: 'Entrar'.tr,
+                    loading: _isProcessing,
+                    onPressed: _submit,
+                  ),
                 ),
+                // ── L3 — biometria ────────────────────────────────────
+                if (_biometricAvailable) ...[
+                  const SizedBox(height: Spacing.sm),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: OutlinedButton.icon(
+                      onPressed: _isProcessing ? null : _biometricLogin,
+                      icon: const Icon(Icons.fingerprint),
+                      label: Text('Entrar com biometria'.tr),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: Spacing.xs),
 
                 // ── Forgot password ───────────────────────────────────
                 Center(
                   child: TextButton(
                     onPressed: _isProcessing ? null : _forgotPassword,
-                    child: const Text('Esqueceu a palavra-passe?'),
+                    child: Text('Esqueci-me da palavra-passe'.tr),
                   ),
                 ),
                 const SizedBox(height: Spacing.xs),
@@ -186,7 +326,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                                 builder: (_) => const RegisterClientScreen(),
                               ),
                             ),
-                    child: const Text('Criar conta'),
+                    child: Text('Criar conta'.tr),
                   ),
                 ),
 
@@ -194,10 +334,11 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                 Center(
                   child: TextButton(
                     onPressed: _isProcessing ? null : _backToRoles,
-                    child: const Text('← Voltar à escolha de perfil'),
+                    child: Text('← Voltar à escolha de perfil'.tr),
                   ),
                 ),
               ],
+              ),
             ),
           ),
         ),
@@ -210,26 +351,11 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
     sessionStore.clearRole();
   }
 
-  Future<void> _forgotPassword() async {
-    final email = _emailController.text.trim();
-    if (email.isEmpty || !email.contains('@')) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Introduza o seu email no campo acima antes de continuar.'),
-        ),
-      );
-      return;
-    }
-
-    setState(() => _isProcessing = true);
-    await context.read<AuthStore>().resetDriverPassword(email);
-    if (!mounted) return;
-    setState(() => _isProcessing = false);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-            'Se existir uma conta com $email, receberá um email para redefinir a palavra-passe.'),
+  void _forgotPassword() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            ForgotPasswordScreen(initialEmail: _emailController.text.trim()),
       ),
     );
   }
@@ -240,7 +366,6 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
     setState(() => _isProcessing = true);
 
     final authStore = context.read<AuthStore>();
-    final sessionStore = context.read<SessionStore>();
 
     final success = await authStore.loginClientAsync(
       _emailController.text,
@@ -252,15 +377,48 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
     if (!success) {
       setState(() => _isProcessing = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Credenciais inválidas.')),
+        SnackBar(content: Text('Credenciais inválidas.'.tr)),
       );
       return;
     }
+
+    // L2 — sinaliza ao Android que o login terminou: dispara o prompt
+    // "Guardar palavra-passe?" do gestor de senhas.
+    TextInput.finishAutofillContext();
+
+    // L1 — lembra o email para pré-preencher no próximo login.
+    LoginPrefs.saveLastEmail('client', _emailController.text).ignore();
 
     // Persist FCM token for this client device so push notifications work.
     final authUser = Supabase.instance.client.auth.currentUser;
     if (authUser != null) {
       NotificationService.instance.saveTokenForClient(authUser.id).ignore();
+    }
+
+    // L3 — oferece login biométrico (pergunta uma vez; antes do setRole
+    // porque o _RootNavigator troca o ecrã assim que o papel muda).
+    await maybeOfferBiometricEnrollment(context, 'client');
+    if (!mounted) return;
+
+    await _finishClientLogin();
+  }
+
+  /// Pós-login partilhado (palavra-passe + biometria). MULTI-PAPEL
+  /// (2026-08-05): se `my_roles()` devolver mais do que um papel utilizável
+  /// (ex.: mr.kebab@bora.app é parceiro E cliente), mostra o ecrã de escolha
+  /// em vez de entrar direto como cliente.
+  Future<void> _finishClientLogin() async {
+    final sessionStore = context.read<SessionStore>();
+
+    final roles = await fetchUiRoles();
+    if (!mounted) return;
+
+    if (roles.length >= 2) {
+      setState(() {
+        _isProcessing = false;
+        _roleChoices = roles;
+      });
+      return;
     }
 
     await sessionStore.setRole(UserRole.client);

@@ -1,8 +1,9 @@
 /// Subject of a rating (BR §13.1).
-enum RatingSubjectType { driver, client, restaurant }
+/// T2.1: 'partner' added to support cliente avaliando o parceiro (vendor).
+enum RatingSubjectType { driver, client, restaurant, partner }
 
 extension RatingSubjectTypeName on RatingSubjectType {
-  String get dbName => name; // driver | client | restaurant
+  String get dbName => name; // driver | client | restaurant | partner
 }
 
 /// A rating record (BR §13).

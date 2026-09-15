@@ -13,6 +13,17 @@
 //
 // Called by:
 //   • Flutter NotificationService.notifyPartnerNewOrder() — fire-and-forget after createOrder
+//   • DB helper _reservas_pro_notify_partner_push() — fire-and-forget for reservations/waitlist
+//
+// Body fields:
+//   orderId      (required) — order id OR reservation/waitlist id (used in data payload)
+//   restaurantId (required) — used to look up restaurants.fcm_token
+//   items        (optional) — order items summary, used only when customBody is absent
+//   total        (optional) — order total in EUR, used only when customBody is absent
+//   customTitle  (optional) — overrides hardcoded "🔔 Novo pedido!"
+//   customBody   (optional) — overrides items+total composition
+//   kind         (optional) — Android channel_id and data.type override
+//                             ("bora_orders"/"new_order" if absent)
 //
 // Returns 200 in all cases (including when Firebase is not configured or
 // the restaurant has no FCM token) so the caller never needs to retry.
@@ -48,6 +59,9 @@ Deno.serve(async (req) => {
   let restaurantId: string
   let items: string
   let total: number
+  let customTitle: string | undefined
+  let customBody: string | undefined
+  let kind: string | undefined
 
   try {
     const body  = await req.json()
@@ -55,6 +69,12 @@ Deno.serve(async (req) => {
     restaurantId = body.restaurantId
     items        = body.items ?? ''
     total        = Number(body.total ?? 0)
+    customTitle  = typeof body.customTitle === 'string' && body.customTitle.length > 0
+      ? body.customTitle : undefined
+    customBody   = typeof body.customBody === 'string' && body.customBody.length > 0
+      ? body.customBody : undefined
+    kind         = typeof body.kind === 'string' && body.kind.length > 0
+      ? body.kind : undefined
   } catch (e) {
     return new Response(
       JSON.stringify({ ok: false, error: 'Invalid JSON body' }),
@@ -72,6 +92,11 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, serviceKey)
 
   // ── Fetch FCM token for the restaurant ───────────────────────────────────
+  // Lookup ordem:
+  //   1. restaurants.fcm_token (legacy single-device)
+  //   2. partner_push_tokens (multi-device) via RPC
+  //      get_partner_fcm_tokens_for_restaurant — resolve restaurantId →
+  //      auth.users.email match → tokens activos. Service_role bypass.
   const { data: restaurant, error: restaurantErr } = await supabase
     .from('restaurants')
     .select('fcm_token, name')
@@ -86,21 +111,47 @@ Deno.serve(async (req) => {
     )
   }
 
-  if (!restaurant?.fcm_token) {
-    console.log(`[notify-partner] No FCM token for restaurant ${restaurantId} — skipping`)
+  let fcmToken: string | null = restaurant?.fcm_token ?? null
+  let fallbackTokenId: string | null = null
+
+  if (!fcmToken) {
+    const { data: pushRows, error: pushErr } = await supabase
+      .rpc('get_partner_fcm_tokens_for_restaurant', { p_restaurant_id: restaurantId })
+
+    if (pushErr) {
+      console.warn('[notify-partner] partner_push_tokens RPC error:', JSON.stringify(pushErr))
+    } else if (pushRows && pushRows.length > 0) {
+      fcmToken = pushRows[0].fcm_token as string
+      fallbackTokenId = pushRows[0].token_id as string
+      console.log(`[notify-partner] Using fallback token from partner_push_tokens for ${restaurantId}`)
+    }
+  }
+
+  if (!fcmToken) {
+    console.log(`[notify-partner] No FCM token for restaurant ${restaurantId} (restaurants.fcm_token + partner_push_tokens both empty) — skipping`)
     return new Response(
       JSON.stringify({ ok: false, reason: 'no_fcm_token' }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
   }
 
-  console.log(`[notify-partner] Sending push to restaurant=${restaurantId} (${restaurant.name}) order=${orderId}`)
+  const tokenSource = fallbackTokenId ? 'partner_push_tokens' : 'restaurants.fcm_token'
+  console.log(`[notify-partner] Sending push to restaurant=${restaurantId} (${restaurant?.name ?? '?'}) order=${orderId} kind=${kind ?? 'new_order'} source=${tokenSource}`)
 
-  // ── Build notification body ───────────────────────────────────────────────
-  // e.g. "2x Sushi, 1x Ramen • €24.50"
-  const bodyText = items
+  // ── Build notification title + body ───────────────────────────────────────
+  // customTitle/customBody override, else fall back to legacy "novo pedido" composition.
+  const title = customTitle ?? '🔔 Novo pedido!'
+  const bodyText = customBody ?? (items
     ? `${items} • €${total.toFixed(2)}`
-    : `Novo pedido • €${total.toFixed(2)}`
+    : `Novo pedido • €${total.toFixed(2)}`)
+
+  // Channel + data.type — `kind` overrides both. Sessão 2026-05-17:
+  // pedidos novos vão para o canal urgente registado no Flutter
+  // (main.dart::_setupForegroundAndUrgentChannel); outros tipos (reservas,
+  // waitlist, etc) continuam no canal `bora_orders` para backward compat.
+  const isUrgent  = kind == null || kind === 'new_order'
+  const channelId = isUrgent ? 'bora_orders_urgent_v2' : kind
+  const dataType  = kind ?? 'new_order'
 
   // ── Obtain Firebase OAuth2 access token ──────────────────────────────────
   let accessToken: string
@@ -120,21 +171,27 @@ Deno.serve(async (req) => {
 
   const message = {
     message: {
-      token: restaurant.fcm_token,
+      token: fcmToken,
       notification: {
-        title: '🔔 Novo pedido!',
+        title,
         body: bodyText,
       },
       data: {
         orderId:      String(orderId),
         restaurantId: String(restaurantId),
-        type:         'new_order',
+        type:         dataType,
       },
       android: {
         priority: 'high',
         notification: {
-          channel_id: 'bora_orders',
+          channel_id: channelId,
           sound:      'bora_alert',
+          ...(isUrgent ? {
+            notification_priority:   'PRIORITY_MAX',
+            default_vibrate_timings: true,
+            default_light_settings:  true,
+            visibility:              'PUBLIC',
+          } : {}),
         },
       },
       apns: {
@@ -144,6 +201,7 @@ Deno.serve(async (req) => {
             sound:               'bora_alert.wav',
             badge:               1,
             'content-available': 1,
+            ...(isUrgent ? { 'interruption-level': 'time-sensitive' } : {}),
           },
         },
       },
@@ -164,11 +222,19 @@ Deno.serve(async (req) => {
   if (!fcmRes.ok) {
     console.error(`[notify-partner] FCM error ${fcmRes.status}:`, JSON.stringify(fcmBody))
 
-    // Clear stale token so we don't retry forever.
+    // Clear stale token from the right source so we don't retry forever.
     const errorCode = fcmBody?.error?.details?.[0]?.errorCode ?? ''
     if (errorCode === 'UNREGISTERED' || errorCode === 'INVALID_ARGUMENT') {
-      console.log(`[notify-partner] Clearing stale FCM token for restaurant ${restaurantId}`)
-      await supabase.from('restaurants').update({ fcm_token: null }).eq('id', restaurantId)
+      if (fallbackTokenId) {
+        console.log(`[notify-partner] Deactivating stale partner_push_tokens row ${fallbackTokenId}`)
+        await supabase
+          .from('partner_push_tokens')
+          .update({ active: false })
+          .eq('id', fallbackTokenId)
+      } else {
+        console.log(`[notify-partner] Clearing stale restaurants.fcm_token for ${restaurantId}`)
+        await supabase.from('restaurants').update({ fcm_token: null }).eq('id', restaurantId)
+      }
     }
 
     return new Response(

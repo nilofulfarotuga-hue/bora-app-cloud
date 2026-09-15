@@ -1,0 +1,86 @@
+AS 49 CHAVES QUE NAO APARECIAM NO TEU PAINEL
+Data: 5 de setembro de 2026. Base de dados de producao.
+
+O QUE SE PASSAVA
+  O painel de definicoes agrupa por categoria. Uma chave sem categoria nao entra
+  em grupo nenhum, e por isso nao aparece la de todo. Havia 49 nessa situacao,
+  de 247. Nao era so nao poderes mexer: nem sabias que existiam.
+
+O QUE FOI FEITO
+  Todas as 49 ganharam categoria e um rotulo em portugues que explica o que
+  fazem. Contagem depois: ZERO chaves sem categoria, de 247.
+
+  As 36 operacionais ficam visiveis E editaveis. A maior parte ja era apanhada
+  pelas regras que existiam (dispatch_, reservation_, appointment_reschedule_,
+  robot_b_). Faltavam treze que nao batiam em prefixo nenhum, e essas foram
+  acrescentadas a' mao a' lista de editaveis:
+    carwash_retry_lead_hours, carwash_retry_window_hours, carwash_stuck_after_hours,
+    delivery_max_distance_km, discovery_filters, oferta_sem_aparelho_min,
+    robot_consumer_cutoff_at, tvde_reservation_eta_kmh,
+    tvde_reservation_lock_margin_minutes, tvde_reservation_lock_max_minutes,
+    tvde_reservation_lock_min_minutes, tvde_reservation_position_max_age_min,
+    tvde_reservation_road_factor_x100
+
+  As 13 de dinheiro ganharam categoria para as poderes VER e auditar, mas nao
+  foram postas na lista de editaveis. Aparecem com um cadeado. O rotulo delas
+  comeca por "DINHEIRO." de proposito, para saltar a' vista.
+
+AS TREZE DE DINHEIRO, UMA A UMA, E O QUE CADA UMA MANDA
+  Taxas de cancelamento (grupo "fees"):
+   1. cancel_fee_before_dispatch_cents - hoje 0,00 EUR.
+      Quanto custa cancelar ANTES de se comecar a procurar estafeta.
+   2. cancel_fee_after_accept_cents - hoje 2,50 EUR.
+      Quanto o cliente paga se cancelar DEPOIS de o estafeta aceitar.
+   3. cancel_fee_after_accept_driver_cents - hoje 1,50 EUR.
+      Quanto desses 2,50 vai para o estafeta que ja tinha aceitado.
+   4. cancel_fee_after_pickup_ratio - hoje 1.00, ou seja cem por cento.
+      Que fatia do pedido fica retida se o cliente cancelar depois de o estafeta
+      ja ter feito a recolha. Em 1.00 nao ha reembolso nenhum, porque a essa
+      altura o estafeta ja comprou os produtos do proprio bolso.
+   5. max_extra_charge_cents - hoje 10,00 EUR.
+      Tecto do acerto que se pode cobrar a mais depois da entrega, por pedido.
+
+  Bora Tokens (grupo "tokens"):
+   6. token_payment_max_pct - hoje 50.
+      Percentagem maxima do valor de um pedido que se pode pagar com tokens.
+   7. token_withdrawal_max_pct_weekly - hoje 50.
+      Percentagem maxima do saldo de tokens que o estafeta pode levantar por semana.
+
+  Carteira do cliente (grupo "wallet"):
+   8. wallet_negative_enabled - hoje ligado.
+      O interruptor geral do saldo negativo. Desligado, volta ao comportamento
+      antigo (pedir o valor em falta em vez de deixar o saldo ir a negativo).
+   9. wallet_hard_floor_cents - hoje -20,00 EUR.
+      O fundo do poco da carteira. Espelha a trava que ja existe na propria base.
+  10. wallet_max_negative_balance_cents - hoje -40,00 EUR.
+      A partir deste saldo o cliente deixa de poder fazer pedidos novos.
+  11. wallet_cancel_hard_floor_cents - hoje -40,00 EUR.
+      O mesmo fundo do poco, mas so para o que vem de cancelamentos.
+  12. wallet_negative_alert_days - hoje 90 dias.
+      Ao fim de quantos dias com saldo negativo parado o admin e' avisado.
+  13. wallet_negative_action_days - hoje 180 dias.
+      Ao fim de quantos dias com saldo negativo parado se exige accao.
+
+DUAS COISAS QUE TENS DE SABER, PORQUE MUDAM O QUADRO
+  Primeira: cinco destas treze JA ESTAVAM editaveis no painel antes de hoje, por
+  decisao tua anterior escrita no proprio codigo. Sao as quatro taxas de
+  cancelamento (que estao numa lista propria, "editavel com auditoria") e o
+  token_payment_max_pct (que foi aberto de proposito, com a nota de que o painel
+  admin e' onde o dono mexe no preco do proprio produto).
+  Nao lhes toquei. A ordem de hoje dizia para NAO as METER na lista - nao dizia
+  para tirar as que la estavam por decisao tua. Tirar-tas em silencio seria eu a
+  desfazer uma escolha tua sem tu saberes. Ficam como estavam, e fica escrito
+  aqui para poderes decidir. Se quiseres que fechem, e' uma linha.
+  As outras oito (as seis da carteira e o token_withdrawal_max_pct_weekly, mais
+  o max_extra_charge_cents) estao com cadeado, como pediste.
+
+  Segunda: das 36 operacionais, cinco sao do motor de despacho
+  (dispatch_offer_timeout_seconds e as outras quatro dispatch_*). Nao sao
+  dinheiro, e por isso entram na regra que deste. Mas tem dentes: mexer no tempo
+  de oferta muda o comportamento do motor que distribui corridas em producao.
+  Ja eram editaveis antes de hoje; so passaram a estar visiveis. Digo-o para
+  saberes o que ganhaste o poder de ver.
+
+O QUE NAO MUDOU
+  Nenhum VALOR. A migration so escreve nas colunas de categoria e de rotulo.
+  Todas as treze chaves de dinheiro continuam exactamente com o valor que tinham.

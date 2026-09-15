@@ -43,6 +43,7 @@ class BoraPrimaryButton extends StatelessWidget {
           padding:
               const EdgeInsets.symmetric(horizontal: Spacing.xxl),
           textStyle: const TextStyle(
+            fontFamily: 'Inter',
             fontSize: 16,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.3,

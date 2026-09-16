@@ -374,6 +374,11 @@ TRIAGE: AGORA / DEPOIS / IGNORAR
   (`.claude/skills/protocolo-missao-bora/SKILL.md`, criada 2026-09-13) — as três portas
   (Claude Code / OpenCode / navegador), motor + fallback, carta de autonomia, `e2e_log`,
   digest em `claude_ai_memoria`. Entra por aqui; não substitui o `PADRAO_BORA.md`.
+- **Conta Apple / App Store / DSA / disponibilidade por país / submissão iOS:** skill
+  `apple-conta-e-loja` (`.claude/skills/apple-conta-e-loja/SKILL.md`, criada 2026-09-16) —
+  ler o email da Apple por inteiro antes de dizer o estado, lookup por país e
+  `contentStatuses`, ciclo do estatuto de comerciante, quando reenviar e quando não, repo
+  público e dados pessoais. Cicatriz: o estado da Apple foi dado por meia leitura duas vezes.
 - Tarefas complexas: lembrar Danilo de mudar para **Opus**
 - CTX: v1.0.89 · em sessões longas sugerir `/ctx stats` e `/ctx doctor`
 

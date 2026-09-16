@@ -2,8 +2,53 @@
 
 > Missão `ios-lancamento` · run_id `ios-lancamento-2026-09-07`
 > **Este ficheiro diz onde retomar.** Cada linha tem prova.
-> Última actualização: 2026-09-13 — **APROVADA a 12/09 11:23 UTC; no ar no BR; PT travado por `TRADER_STATUS_NOT_PROVIDED`** (bloco **-17**).
+> Última actualização: 2026-09-16 — **PT travado por `TRADER_STATUS_VERIFICATION_FAILED`: a verificação de comerciante foi REPROVADA a 13/09; causa provada, documento certo emitido, caso escrito na Apple (102965371739), vigia na VPS** (bloco **-18**).
 > Modo de trabalho: ver `carta-de-autonomia-ios` na memória do projeto.
+
+## -18. PORQUE PORTUGAL CONTINUA FECHADO — a verificação de comerciante falhou (2026-09-16)
+
+Missão `ios-portugal-2026-09-16` (Opus, Claude Code + Chrome). Provas no `e2e_log`,
+fluxo `ios-portugal-2026-09-16`, ids 1829–1866+. Sem dados pessoais aqui; documentos e
+capturas só em `C:\Users\danil\_PRIVADO\apple-dsa-2026-09-16\`. Regras cruzadas em
+`ios/REGRAS-APPLE-PORTUGAL.md`; o que fazer a seguir em
+`.claude/.ai/inbox/CONTINUAR-ios-portugal-2026-09-16.md`; lições na skill `apple-conta-e-loja`.
+
+**O que mudou desde o bloco -17.** O email da Apple de **13/09 22:12 UTC** não foi
+confirmação: foi **reprovação** ("we weren't able to verify your trader contact
+information… resubmit"). O reenvio de 13/09 22:33 ficou "Em revisão" (trancado, sem botão),
+e a API passou de `TRADER_STATUS_NOT_PROVIDED` para **`TRADER_STATUS_VERIFICATION_FAILED`**
+em Portugal e nos outros 26 da UE (medido 16/09; BR `AVAILABLE`; lookup PT 0 / BR 1; página
+PT 404).
+
+**Causa, provada por três registos independentes** (ficheiros, registo de diálogos de ficheiro
+do Windows, emails): a 08/09 a prova de nome+morada foi um **extracto bancário** em que o
+banco escreve o nome **sem o "da"** e o formulário não tinha o **andar**; o título de
+residência (enviado como identificação, para a verificação **manual** do telefone) tem o nome
+certo e a morada completa. O reenvio de 13/09 acrescentou "1 andar" ao formulário mas **não
+levou documento novo** (nenhum diálogo de ficheiro neste PC depois de 08/09). Ficam ainda: o
+telefone por verificação manual (o número recebe SMS), **sem conta bancária nem formulário
+fiscal** (a página da Apple exige a todos os comerciantes; art. 30(1)(c) do DSA) e a inscrição
+com o código postal **6300-035** (o certo é 6300-610). O "141 andar" do email era a colagem de
+"14" + "1 andar" — o número não estava errado.
+
+**O que ficou feito.** Certidão de Domicílio Fiscal emitida hoje no Portal das Finanças
+(bilingue PT/EN, nome completo e morada iguais ao formulário, código de validação) — na pasta
+privada. **Caso escrito aberto na Apple Developer Support: Case ID 102965371739** (16/09
+16:47 UTC; email automático 16:48 UTC), a pedir o motivo exacto, o link seguro para o
+documento, o telefone por SMS, a correcção do código postal da inscrição e se os dados de
+pagamento são obrigatórios. **Vigia na VPS** (`/opt/data/scripts/vigia-apple-pt.sh`, cron
+`7 * * * *`) grita no Telegram quando o lookup de PT der 1 e desliga-se sozinho; teste lido de
+volta às 17:56. Contas demo provadas (login 200 ×3; pedido em rollback como cliente demo).
+Segurança: a reposição da palavra-passe de 13/09 05:51 UTC saiu **deste PC** (perfil Bora do
+Chrome: falha de login 05:44, logout, código por email, de volta às 05:54) — não é intrusão.
+
+**Pendente do Danilo** (uma sentada): clicar **Guardar** no questionário de impostos dos EUA
+(Não/Não já marcado) e colar o IBAN na conta bancária. O formulário de comerciante não tem
+botão — nada a clicar lá.
+
+**Para a próxima actualização (não mexido):** `ios_hide_nonpartner_logos` está a `false`
+desde 13/09 (logos de terceiros no iPhone — risco 5.2); perguntas novas de classificação
+etária (redes sociais) obrigatórias desde setembro de 2026; só existe localização pt-PT.
 
 ## -17. APROVADA — E O QUE AINDA TRAVA PORTUGAL (2026-09-13, 19:xx UTC)
 
@@ -1192,7 +1237,7 @@ Flutter (esconder logótipo de loja não parceira quando ligado, no iOS).
 ### Site legal — publicado e verificado no ar
 Estavam **oito** marcadores por preencher (privacidade **e** termos), não três.
 Todos preenchidos: Danilo Fulfaro da Silva, empresário em nome individual,
-Rua do Torreão 14, 6300-610 Guarda, NIF 322151171 (dígito de controlo validado).
+Rua do Torreão 14, 6300-610 Guarda, NIF nas páginas legais do site (número retirado do repo a 16/09).
 Secção nova sobre eliminar a conta. DPO: explicado que não é obrigatório
 (RGPD art. 37.º) em vez de inventar um nome.
 

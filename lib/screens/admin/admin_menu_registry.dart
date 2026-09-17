@@ -41,6 +41,7 @@ import 'admin_motores_screen.dart';
 import 'admin_notification_failures_screen.dart';
 import 'admin_ofertas_log_screen.dart';
 import 'admin_orders_screen.dart';
+import 'admin_stuck_orders_screen.dart';
 import 'admin_orphan_payments_screen.dart';
 import 'admin_papeis_screen.dart';
 import 'admin_partners_pending_screen.dart';
@@ -177,6 +178,15 @@ List<AdminMenuSection> adminMenuSections() => [
       color: AppColors.accent,
       builder: () => const AdminOrdersScreen(),
       keywords: const ['cancelar', 'entrega', 'filtrar', 'pedidos'],
+    ),
+    AdminMenuItem(
+      id: 'operacao_pedidos_parados',
+      title: 'Pedidos parados',
+      subtitle: 'A chamar entregador há mais de 3 min (mesmo com entregador atribuído): escolher estafeta ou mandar para todos',
+      icon: Icons.hourglass_bottom,
+      color: Colors.red,
+      builder: () => const AdminStuckOrdersScreen(),
+      keywords: const ['parados', 'presos', 'chamar', 'entregador', 'escolher', 'estafeta', 'atribuir', 'reatribuir', 'mandar', 'todos'],
     ),
     AdminMenuItem(
       id: 'operacao_pedidos_de_cancelamento',

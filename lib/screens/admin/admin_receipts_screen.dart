@@ -488,10 +488,13 @@ class _ReceiptCardState extends State<_ReceiptCard> {
           .maybeSingle();
       final driverId = ord?['assigned_driver_id'] as String?;
       if (driverId != null && driverId.isNotEmpty) {
+        // IDENTIDADE (16/09): assigned_driver_id é o user_id (id ≠ user_id
+        // nas contas registadas pela app) — por `id` o nome vinha vazio.
         final d = await Supabase.instance.client
             .from('drivers')
             .select('name, mbway_phone')
-            .eq('id', driverId)
+            .or('user_id.eq.$driverId,id.eq.$driverId')
+            .limit(1)
             .maybeSingle();
         if (mounted) {
           setState(() {

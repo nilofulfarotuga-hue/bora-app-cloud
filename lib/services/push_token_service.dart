@@ -23,6 +23,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'notification_service.dart';
+import 'web_presence.dart';
 
 class PushTokenService {
   PushTokenService._();
@@ -123,7 +124,11 @@ class PushTokenService {
       var attempt = 0;
       while ((token == null || token.isEmpty) && attempt < delays.length) {
         try {
-          token = await FirebaseMessaging.instance.getToken();
+          token = await FirebaseMessaging.instance.getToken(
+            // Web (PWA do estafeta, 16/09): sem a chave VAPID o FCM não dá
+            // token nenhum. Lida de web/firebase-config.js.
+            vapidKey: kIsWeb ? WebPresence.instance.firebaseVapidKey : null,
+          );
           if (token != null && token.isNotEmpty) break;
         } catch (e) {
           _log('getToken() attempt ${attempt + 1} failed: $e');
@@ -251,7 +256,9 @@ class PushTokenService {
   }
 
   static String? _deviceLabel() {
-    if (kIsWeb) return 'web';
+    // [Web 16/09] web_ios / web_android / web_desktop — o painel admin mostra
+    // "como usa a Bora" e a Edge notify-driver-assigned distingue tokens web.
+    if (kIsWeb) return WebPresence.instance.plataforma;
     try {
       return '${Platform.operatingSystem} ${Platform.operatingSystemVersion}';
     } catch (_) {
@@ -260,6 +267,8 @@ class PushTokenService {
   }
 
   static String? _platform() {
+    // A coluna `platform` tem CHECK ('android','ios','web'); o detalhe
+    // (web_ios/web_android/web_desktop) vai no device_label e no heartbeat.
     if (kIsWeb) return 'web';
     try {
       if (Platform.isAndroid) return 'android';

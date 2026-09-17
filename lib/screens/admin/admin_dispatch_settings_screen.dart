@@ -81,6 +81,19 @@ class _AdminDispatchSettingsScreenState
       icon: Icons.add_circle_outline,
     ),
     _DispatchSettingSpec(
+      key: 'dispatch_preassign_release_seconds',
+      label: 'Libertar entregador que não aceita',
+      unit: 'segundos',
+      description:
+          'Rede de segurança (16/09): um pedido pronto com entregador atribuído '
+          'ou reservado que não aceita neste tempo é libertado sozinho e volta '
+          'ao dispatch normal, com aviso a você (Telegram + push). 180s = 3 minutos.',
+      minValue: 60,
+      maxValue: 900,
+      defaultValue: 180,
+      icon: Icons.lock_open_outlined,
+    ),
+    _DispatchSettingSpec(
       key: 'dispatch_auto_cancel_safety_seconds',
       label: 'Safety auto-cancel',
       unit: 'segundos',

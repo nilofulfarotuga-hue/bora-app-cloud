@@ -143,7 +143,8 @@ class AuthStore extends ChangeNotifier {
   /// Auth — comparação por identidade (==) permite ao caller distinguir este
   /// caso de outros erros sem re-parsear texto.
   static const String duplicatePartnerEmailMessage =
-      'Este email já tem uma conta. Faz login em vez de criar uma nova conta.';
+      'Este email já tem uma conta. Entra com a palavra-passe ou usa '
+      '"Esqueci a palavra-passe" — não cries outra conta.';
 
   /// FONTE DE VERDADE DO PAPEL, e é só esta.
   ///
@@ -760,6 +761,14 @@ class AuthStore extends ChangeNotifier {
       _persistClient(account);
       return null;
     } on AuthException catch (e) {
+      // [Varredura web 16/09] 422 user_already_exists chegava em inglês
+      // ("User already registered") e a pessoa ficava presa a tentar criar
+      // conta com um email que já tem conta (7× no mesmo estafeta, 4× em
+      // clientes no iPhone/Android nas últimas 24 h). Diz-se em PT-PT o que
+      // fazer: entrar, ou recuperar a palavra-passe.
+      if (e.code == 'user_already_exists') {
+        return duplicatePartnerEmailMessage;
+      }
       return e.message;
     } catch (e) {
       return 'Erro ao criar conta. Tente novamente.';
@@ -951,6 +960,10 @@ class AuthStore extends ChangeNotifier {
       _persistDriver(account);
       return null;
     } on AuthException catch (e) {
+      // [Varredura web 16/09] idem ao cliente: email já com conta → PT-PT.
+      if (e.code == 'user_already_exists') {
+        return duplicatePartnerEmailMessage;
+      }
       return e.message;
     } catch (e) {
       return 'Erro ao criar conta. Tente novamente.';
@@ -1054,9 +1067,24 @@ class AuthStore extends ChangeNotifier {
       return true;
     } catch (e) {
       debugPrint('[AuthStore] loginDriverAsync → FAILED: $e');
+      // [Estafeta web 16/09] Palavra-passe errada tem de ser dita como tal —
+      // o ecrã mostra "Palavra-passe incorrecta" + "Esqueci a palavra-passe",
+      // em vez de deixar a pessoa cair no registo (7 × 400 seguidos de um
+      // signup 422 no mesmo estafeta, a 16/09).
+      if (e is AuthApiException &&
+          (e.code == 'invalid_credentials' ||
+              e.message.toLowerCase().contains('invalid login'))) {
+        lastDriverLoginError = 'invalid_credentials';
+      } else {
+        lastDriverLoginError = 'other';
+      }
       return false;
     }
   }
+
+  /// Motivo da última falha de login do estafeta: 'invalid_credentials' |
+  /// 'other' | null. Só para o ecrã escolher a mensagem certa.
+  String? lastDriverLoginError;
 
   /// Página para onde o Supabase reencaminha depois do clique no email de
   /// recuperação. Fonte única em `lib/config/auth_links.dart` — tem de estar

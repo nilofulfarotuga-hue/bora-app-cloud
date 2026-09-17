@@ -553,6 +553,14 @@ void _onLocalNotifTap(NotificationResponse response) {
     // vinha para a frente na home — o Danilo tinha de procurar o ecrã à mão.
     // O gancho vive no main.dart, ao nível da app (cicatriz de 2026-08-20:
     // preso ao initState de um ecrã, ficava a null com outro ecrã por cima).
+    // [Estafeta web 2026-09-16] Tocar no aviso de pedido atribuído/reservado/
+    // retirado (ou "ficaste desligado") abre a app e manda o ecrã do estafeta
+    // reler os pedidos — o pedido novo aparece sem esperar pelo polling.
+    if (_kDriverAssignmentTypes.contains(data['type'])) {
+      NotificationService.driverOrdersReload
+          ?.call(data['orderId']?.toString() ?? '');
+      return;
+    }
     if (data['type'] == 'admin_generic' || data['type'] == 'crosstalk_critical') {
       final rota = data['route']?.toString() ?? '/admin';
       final ref = data['ref']?.toString() ?? '';
@@ -997,6 +1005,23 @@ const Set<String> _kPersistentCategoryTypes = <String>{
   // defensivo caso alguma Edge Function envie o nome curto.
   'admin_reimbursement',
   'reimbursement',
+  // [Estafeta web 2026-09-16] Edge notify-driver-assigned (data-only): o
+  // suporte/agente passou-lhe um pedido, reservou-lho para quando ficar
+  // pronto, tirou-lho, ou o sistema pô-lo desligado por falta de sinal.
+  // Antes disto o estafeta não era avisado de nada (notify-driver respondia
+  // stale_offer) — foi assim que um pedido ficou 10 min preso a 16/09.
+  'order_reassigned',
+  'order_preassigned',
+  'order_unassigned',
+  'driver_offline',
+};
+
+/// Tipos que a Edge `notify-driver-assigned` emite (bloco 4, 16/09).
+const Set<String> _kDriverAssignmentTypes = <String>{
+  'order_reassigned',
+  'order_preassigned',
+  'order_unassigned',
+  'driver_offline',
 };
 
 // ══ RESERVA AGENDADA (2026-08-19) ═══════════════════════════════════════════
@@ -1284,6 +1309,30 @@ Future<void> _showPersistentCategoryNotification(RemoteMessage message) async {
         urgent: isNew,
       );
       return;
+    case 'order_reassigned':
+    case 'order_preassigned':
+    case 'order_unassigned':
+    case 'driver_offline':
+      // [Estafeta web 2026-09-16] Data-only (título e corpo em `data`).
+      // Atribuição e reserva usam o canal urgente v3 (é trabalho a chegar);
+      // "retirado" e "ficaste desligado" são informação — canal normal.
+      final orderId = data['orderId']?.toString() ?? '';
+      final urgente = type == 'order_reassigned' || type == 'order_preassigned';
+      await _showPersistentStatusNotification(
+        type: type,
+        title: data['title']?.toString() ??
+            notif?.title ??
+            (type == 'driver_offline' ? 'Ficaste desligado' : 'Pedido'),
+        body: data['body']?.toString() ?? notif?.body ?? '',
+        notificationId: orderId.isNotEmpty ? '$type$orderId'.hashCode : type.hashCode,
+        payload: {
+          'type': type,
+          'orderId': orderId,
+          'route': data['route']?.toString() ?? '/driver',
+        },
+        urgent: urgente,
+      );
+      return;
     case 'low_rating':
       final ratingId = data['rating_id']?.toString() ?? '';
       await _showPersistentStatusNotification(
@@ -1447,6 +1496,12 @@ class NotificationService {
   /// Registado no `main.dart`, ao nível da app — nunca dentro de um ecrã.
   static void Function(String rota, String ref)? abrirAdmin;
 
+  /// [Estafeta web 2026-09-16] O ecrã do estafeta liga aqui um "relê os
+  /// pedidos" — chamado quando chega (ou é tocado) um aviso da Edge
+  /// notify-driver-assigned: pedido atribuído, reservado, retirado ou
+  /// "ficaste desligado". Se ninguém estiver ligado, o polling apanha.
+  static void Function(String orderId)? driverOrdersReload;
+
   final _sound = SoundService();
   bool _initialized = false;
   bool _consentGranted = true;
@@ -1550,6 +1605,55 @@ class NotificationService {
   }
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
+
+  bool _webInitialized = false;
+
+  /// [Estafeta web 2026-09-16] Arranque de push NA WEB (PWA). O `init()`
+  /// normal sai logo na web (canais Android, FGS, overlay — nada disso existe
+  /// no navegador). Aqui só o que a web tem: mensagens em foreground.
+  /// Em segundo plano é o service worker `web/firebase-messaging-sw.js` que
+  /// desenha a notificação. A permissão NÃO se pede aqui — o navegador só a
+  /// concede a partir de um toque (botão "Ativar notificações" do ecrã do
+  /// estafeta → DriverStore.registarPushAposToque).
+  Future<void> initWeb() async {
+    if (!kIsWeb || _webInitialized) return;
+    _webInitialized = true;
+    try {
+      FirebaseMessaging.onMessage.listen((RemoteMessage msg) {
+        final type = msg.data['type']?.toString() ?? '';
+        debugPrint('[NotificationService WEB FG] type=$type data=${msg.data}');
+        if (type == 'new_order_offer') {
+          // O ecrã do estafeta já faz polling à oferta e abre o cartão com
+          // contagem e som; aqui só se garante que nunca chega em silêncio.
+          _sound.playOnce();
+          driverOrdersReload?.call(msg.data['orderId']?.toString() ?? '');
+          return;
+        }
+        if (_kDriverAssignmentTypes.contains(type)) {
+          _sound.playOnce();
+          driverOrdersReload?.call(msg.data['orderId']?.toString() ?? '');
+          final ctx = navigatorKey.currentContext;
+          if (ctx != null) {
+            final title = msg.data['title']?.toString() ?? 'Bora';
+            final body = msg.data['body']?.toString() ?? '';
+            ScaffoldMessenger.maybeOf(ctx)?.showSnackBar(SnackBar(
+              content: Text(body.isEmpty ? title : '$title — $body'),
+              duration: const Duration(seconds: 8),
+            ));
+          }
+          return;
+        }
+      });
+      FirebaseMessaging.instance.onTokenRefresh.listen((token) {
+        _fcmToken = token;
+        _fcmHealth = 'ok';
+        final id = _boundId;
+        if (_boundRole == 'driver' && id != null) saveTokenForDriver(id);
+      });
+    } catch (e) {
+      debugPrint('[NotificationService] initWeb: $e');
+    }
+  }
 
   Future<void> init() async {
     if (_initialized) return;
@@ -1773,6 +1877,13 @@ class NotificationService {
       if (type == 'tvde_queue_update') {
         unawaited(_showPersistentCategoryNotification(msg));
         tvdeOfferReload?.call();
+        return;
+      }
+      // [Estafeta web 2026-09-16] Pedido passado/reservado/retirado com a app
+      // aberta: posta a persistente E manda o ecrã do estafeta reler já.
+      if (_kDriverAssignmentTypes.contains(type)) {
+        unawaited(_showPersistentCategoryNotification(msg));
+        driverOrdersReload?.call(msg.data['orderId']?.toString() ?? '');
         return;
       }
       // [Fix notificações persistentes 2026-07-19] Sem isto, estas categorias
@@ -2179,9 +2290,12 @@ class NotificationService {
     }
 
     try {
+      // IDENTIDADE DO ESTAFETA (16/08, 16/09): `driverId` é o auth uid =
+      // drivers.user_id. Por `id` dava 0 linhas em quem tem id ≠ user_id
+      // (Ney, Erika, Valdemir…) e a RLS drivers_update_own é por user_id.
       await Supabase.instance.client
           .from('drivers')
-          .update({'fcm_token': token}).eq('id', driverId);
+          .update({'fcm_token': token}).eq('user_id', driverId);
       debugPrint('[NotificationService] FCM token saved for driver $driverId');
     } catch (e) {
       debugPrint('[NotificationService] saveTokenForDriver error: $e');
@@ -2280,7 +2394,8 @@ class NotificationService {
           await client.from('users').update({'fcm_token': null}).eq('id', id);
           break;
         case 'driver':
-          await client.from('drivers').update({'fcm_token': null}).eq('id', id);
+          // user_id manda (id ≠ user_id em contas registadas pela app).
+          await client.from('drivers').update({'fcm_token': null}).eq('user_id', id);
           break;
         case 'partner':
           await client

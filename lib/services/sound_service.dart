@@ -64,6 +64,22 @@ class SoundService {
     }
   }
 
+  /// [Web 16/09] O iOS (e o Chrome) só deixam tocar som depois de um gesto do
+  /// utilizador. Chama-se no toque de "Ficar online": toca o alerta em
+  /// silêncio (volume 0) e pára — a partir daí a oferta pode tocar sozinha.
+  Future<void> desbloquearAudioAposToque() async {
+    try {
+      await _player.stop();
+      await _player.setReleaseMode(ReleaseMode.release);
+      await _player.play(AssetSource('sounds/bora_alert.wav'), volume: 0.0);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      await _player.stop();
+      debugPrint('SoundService: áudio desbloqueado após toque');
+    } catch (e) {
+      debugPrint('SoundService: desbloquear áudio => $e');
+    }
+  }
+
   Future<void> stop() async {
     _isPlaying = false;
     debugPrint('SoundService: stopping');

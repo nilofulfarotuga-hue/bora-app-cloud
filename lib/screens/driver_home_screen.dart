@@ -34,6 +34,8 @@ import '../services/notification_service.dart';
 import '../services/permission_gate_service.dart';
 import '../services/push_token_service.dart';
 import '../services/sound_service.dart';
+import '../services/web_presence.dart';
+import '../widgets/driver_web_cards.dart';
 import '../widgets/notification_bell.dart';
 import '../stores/driver_store.dart';
 import '../stores/order_store.dart';
@@ -183,9 +185,119 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       _orderStore!.loadOrders();
       // Seed with current state in case orders already exist.
       _onOrderStoreChanged();
+
+      // [Estafeta web 2026-09-16] Aviso da Edge notify-driver-assigned
+      // (pedido atribuído/reservado/retirado) → relê os pedidos já.
+      NotificationService.driverOrdersReload = (_) {
+        if (mounted) _orderStore?.loadOrders();
+      };
     });
+    // [Estafeta web 2026-09-16] O servidor pôs-nos offline enquanto a página
+    // esteve escondida (iPhone bloqueado): pergunta em vez de religar.
+    _heartbeatService.serverMarkedOffline.addListener(_onServerMarkedOffline);
     _startIdleLocationTracking();
     _fetchInitialGpsCenter();
+  }
+
+  bool _aPerguntarVoltarOnline = false;
+
+  Future<void> _onServerMarkedOffline() async {
+    if (!_heartbeatService.serverMarkedOffline.value) return;
+    if (!mounted || _aPerguntarVoltarOnline) return;
+    _aPerguntarVoltarOnline = true;
+    try {
+      final voltar = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Ficaste desligado'),
+          content: const Text(
+            'Enquanto a Bora esteve fechada, o sistema pôs-te offline e '
+            'deixaste de receber pedidos.\n\nQueres voltar a ficar online?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Ficar offline'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Voltar a ficar online'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted) return;
+      if (voltar == true) {
+        await _heartbeatService.resumeAfterUserConfirmed();
+      } else {
+        context.read<OrderStore>().toggleDriverAvailability(false);
+        unawaited(_heartbeatService.stop());
+        await _positionSubscription?.cancel();
+        _positionSubscription = null;
+      }
+    } finally {
+      _aPerguntarVoltarOnline = false;
+    }
+  }
+
+  /// [Estafeta web 2026-09-16] No navegador, sem localização não se fica
+  /// online: o dispatch escolhe pela distância à loja. Mensagem clara em
+  /// PT-PT e o botão fica como estava.
+  Future<bool> _garantirLocalizacaoWeb() async {
+    try {
+      var perm = await Geolocator.checkPermission()
+          .timeout(const Duration(seconds: 5), onTimeout: () => LocationPermission.denied);
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission()
+            .timeout(const Duration(seconds: 60), onTimeout: () => LocationPermission.denied);
+      }
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+              'Sem localização não podes ficar online. Permite a localização '
+              'no navegador (cadeado ao lado do endereço) e tenta de novo.',
+            ),
+            duration: Duration(seconds: 8),
+          ));
+        }
+        return false;
+      }
+      return true;
+    } catch (e) {
+      debugPrint('[DriverHome] localização web: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Não foi possível obter a localização. Tenta de novo.'),
+        ));
+      }
+      return false;
+    }
+  }
+
+  /// [Estafeta web 2026-09-16] Botão "Ativar notificações" (só web): pede a
+  /// permissão do navegador a partir de um toque e regista o token web.
+  Future<void> _ativarNotificacoesWeb() async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await context.read<DriverStore>().registarPushAposToque();
+      await PushTokenService.registerForRole('driver');
+      final perm = WebPresence.instance.notificationPermission;
+      if (!mounted) return;
+      setState(() {});
+      messenger.showSnackBar(SnackBar(
+        content: Text(perm == 'granted'
+            ? 'Notificações ativadas neste aparelho.'
+            : 'As notificações não ficaram ativas. Verifica a permissão do navegador.'),
+      ));
+    } catch (e) {
+      debugPrint('[DriverHome] ativar notificações web: $e');
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Não foi possível ativar as notificações. Tenta de novo.'),
+      ));
+    }
   }
 
   /// BUG 3: re-run safety net + approval refresh when app comes to
@@ -241,6 +353,20 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       _positionSubscription = null;
       // Fechar overlay de standby — driver já não vai receber pedidos.
       unawaited(NotificationService.instance.closeOverlayIfActive());
+      return;
+    }
+    // [Estafeta web 2026-09-16] Navegador: sem foreground service nem
+    // declaração da Play. Localização obrigatória (mensagem clara), áudio
+    // desbloqueado no toque (exigência do iOS para a oferta tocar), e o
+    // HeartbeatService trata do wake lock + sinal a cada 30 s.
+    if (kIsWeb) {
+      if (!await _garantirLocalizacaoWeb()) return;
+      if (!mounted) return;
+      unawaited(_soundService.desbloquearAudioAposToque());
+      final okWeb = orderStore.toggleDriverAvailability(true);
+      if (!okWeb || !mounted) return;
+      unawaited(_heartbeatService.start());
+      unawaited(_startIdleLocationTracking());
       return;
     }
     // Declaração em destaque (Google Play) de LOCALIZAÇÃO EM SEGUNDO PLANO —
@@ -328,10 +454,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
 
       // For 'suspended' we also fetch the until-date for the message.
       if (status == 'suspended') {
+        // IDENTIDADE (16/09): user_id manda (id ≠ user_id em contas da app).
         final row = await Supabase.instance.client
             .from('drivers')
             .select('banned_until')
-            .eq('id', uid)
+            .eq('user_id', uid)
             .maybeSingle();
         final raw = row?['banned_until'] as String?;
         if (raw != null) bannedUntil = DateTime.tryParse(raw);
@@ -510,6 +637,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this); // BUG 3 lifecycle observer
     _orderStore?.removeListener(_onOrderStoreChanged);
+    _heartbeatService.serverMarkedOffline.removeListener(_onServerMarkedOffline);
+    NotificationService.driverOrdersReload = null;
     _positionSubscription?.cancel();
     _soundService.dispose();
     _heartbeatService.stop();
@@ -1229,7 +1358,18 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
             left: 16,
             right: 16,
             bottom: MediaQuery.of(context).viewPadding.bottom + 16,
-            child: Container(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+            // [Estafeta web 2026-09-16] Só no navegador: aviso do iPhone,
+            // "instalar no ecrã principal" e "ativar notificações".
+            if (kIsWeb)
+              DriverWebCards(
+                isOnline: isAvailable,
+                onAtivarNotificacoes: _ativarNotificacoesWeb,
+              ),
+            Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -1280,6 +1420,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   ),
                 ],
               ),
+            ),
+              ],
             ),
           ),
         ],

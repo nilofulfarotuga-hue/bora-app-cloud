@@ -4,6 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../services/admin/admin_driver_service.dart';
+import '../../widgets/admin/escolher_estafeta_sheet.dart'
+    show plataformaLabel, haQuantoTempo;
 import '../../widgets/private_bucket_image.dart';
 import '_admin_password_reset_dialog.dart';
 import 'admin_papeis_screen.dart';
@@ -62,7 +64,7 @@ class _AdminDriverDetailScreenState extends State<AdminDriverDetailScreen>
   }
 
   static const _baseDriverCols =
-      'id, name, phone, email, vehicle_type, license_plate, iban, nif, '
+      'id, user_id, name, phone, email, vehicle_type, license_plate, iban, nif, '
       'photo_url, is_online, is_banned, banned_at, banned_by, banned_until, '
       'ban_reason, ban_reason_code, deleted_at, deleted_by, deletion_reason, '
       'last_forced_logout_at, last_forced_logout_by, approval_status, created_at';
@@ -266,6 +268,11 @@ class _OverviewTab extends StatelessWidget {
             const SizedBox(height: 12),
             _LastActionStrip(entry: lastAction!),
           ],
+          const SizedBox(height: 16),
+          // [Escolher estafeta 16/09] Ligado? sinal? notificações? como usa a
+          // Bora? + quem lhe passou pedidos (painel ou qual agente).
+          _PresencaEHistoricoCard(
+              driverId: (driver['user_id'] ?? driver['id']).toString()),
           const SizedBox(height: 16),
           _InfoCard(driver: driver),
           const SizedBox(height: 16),
@@ -885,6 +892,176 @@ class _PerformanceCard extends StatelessWidget {
 //
 // Surfaces rejection_reason (rejected) and ban_reason (banned/suspended).
 // Hidden when none apply, so the card never shows empty.
+/// [Escolher estafeta 16/09] Estado de presença (ligado agora, último sinal,
+/// notificações, como usa a Bora, pedidos em curso) + histórico de quem lhe
+/// passou pedidos. Lê as RPCs admin_driver_presence e
+/// admin_driver_assignment_history; nunca escreve.
+class _PresencaEHistoricoCard extends StatefulWidget {
+  const _PresencaEHistoricoCard({required this.driverId});
+  final String driverId;
+
+  @override
+  State<_PresencaEHistoricoCard> createState() => _PresencaEHistoricoCardState();
+}
+
+class _PresencaEHistoricoCardState extends State<_PresencaEHistoricoCard> {
+  Map<String, dynamic>? _p;
+  List<Map<String, dynamic>> _hist = const [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final client = Supabase.instance.client;
+      final p = await client.rpc('admin_driver_presence', params: {'p_driver': widget.driverId});
+      final h = await client.rpc('admin_driver_assignment_history',
+          params: {'p_driver': widget.driverId, 'p_limit': 20});
+      if (!mounted) return;
+      setState(() {
+        _p = (p is List && p.isNotEmpty && p.first is Map)
+            ? Map<String, dynamic>.from(p.first as Map)
+            : (p is Map ? Map<String, dynamic>.from(p) : null);
+        _hist = (h is List)
+            ? h.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList()
+            : const [];
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('[AdminDriverDetail] presença: $e');
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  String _acao(String a) {
+    switch (a) {
+      case 'order_reassigned':
+        return 'Pedido atribuído (painel)';
+      case 'order_preassigned':
+        return 'Pedido reservado (painel)';
+      case 'order_reassigned_by_agent':
+        return 'Pedido passado por agente';
+      case 'order_driver_released':
+        return 'Pedido devolvido a todos (painel)';
+      case 'order_driver_released_by_agent':
+        return 'Pedido devolvido a todos (agente)';
+      case 'preassign_released':
+        return 'Reserva libertada pelo sistema';
+      default:
+        return a;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = _p;
+    final ligadoAgora = p?['online_agora'] == true;
+    final hb = DateTime.tryParse(p?['last_heartbeat_at']?.toString() ?? '');
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        boxShadow: AppColors.shadowCard,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: Text('Presença agora',
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                ),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  onPressed: _load,
+                  icon: const Icon(Icons.refresh, size: 18),
+                ),
+              ],
+            ),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: LinearProgressIndicator(),
+              )
+            else if (p == null)
+              const Text('Sem dados de presença.',
+                  style: TextStyle(color: AppColors.textSecondary))
+            else ...[
+              _row(
+                ligadoAgora ? Icons.check_circle : Icons.cancel,
+                'Ligado agora',
+                ligadoAgora
+                    ? 'Sim'
+                    : (p['is_online'] == true ? 'Marcado ligado, mas sem sinal' : 'Não'),
+              ),
+              _row(Icons.wifi_tethering, 'Último sinal',
+                  hb == null ? 'nunca' : '${haQuantoTempo(hb)} (${hb.toLocal().toString().substring(0, 16)})'),
+              _row(
+                p['tem_notificacoes'] == true ? Icons.notifications_active : Icons.notifications_off,
+                'Notificações',
+                p['tem_notificacoes'] == true
+                    ? 'Sim (${p['tokens_ativos'] ?? 1} aparelho(s))'
+                    : 'NÃO — não vai receber pedidos',
+              ),
+              _row(Icons.devices, 'Como usa a Bora', plataformaLabel(p['last_platform']?.toString())),
+              _row(Icons.delivery_dining, 'Pedidos em curso', '${p['pedidos_em_curso'] ?? 0}'),
+            ],
+            const SizedBox(height: 10),
+            const Text('Quem lhe passou pedidos',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            const SizedBox(height: 6),
+            if (!_loading && _hist.isEmpty)
+              const Text('Nenhum registro.', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+            for (final h in _hist)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.history, size: 14, color: AppColors.textSecondary),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        '${(h['created_at'] ?? '').toString().substring(0, 16).replaceFirst('T', ' ')} · '
+                        '${_acao((h['action'] ?? '').toString())} · '
+                        'por ${h['quem'] ?? 'sistema'} · pedido '
+                        '${(h['order_id'] ?? '').toString().replaceAll('-', '').substring(0, 6).toUpperCase()}'
+                        '${(h['details'] is Map && (h['details'] as Map)['motivo'] != null) ? ' · ${(h['details'] as Map)['motivo']}' : ''}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _row(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: AppColors.textSecondary),
+          const SizedBox(width: 8),
+          Text('$label: ', style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+        ],
+      ),
+    );
+  }
+}
+
 class _StatusDetailsCard extends StatelessWidget {
   const _StatusDetailsCard(
       {required this.driver, required this.effectiveStatus});

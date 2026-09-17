@@ -429,8 +429,20 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
 
     if (!success) {
       setState(() => _isProcessing = false);
+      // [Estafeta web 16/09] Palavra-passe errada NUNCA cai em registo: diz-se
+      // "Palavra-passe incorrecta" com a ligação "Esqueci a palavra-passe".
+      final senhaErrada = authStore.lastDriverLoginError == 'invalid_credentials';
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email ou palavra-passe incorretos.')),
+        SnackBar(
+          content: Text(senhaErrada
+              ? 'Palavra-passe incorrecta. Se já tens conta, não cries outra.'
+              : 'Email ou palavra-passe incorretos.'),
+          duration: const Duration(seconds: 8),
+          action: SnackBarAction(
+            label: 'Esqueci a palavra-passe',
+            onPressed: _forgotPassword,
+          ),
+        ),
       );
       return;
     }
@@ -446,15 +458,13 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
     // fallback. loginDriverAsync always calls signInWithPassword, but this
     // double-check prevents any race where the session was overwritten.
     final authUser = Supabase.instance.client.auth.currentUser;
-    final authMeta = authUser?.userMetadata ?? {};
-    final isRealDriver = authUser != null && authMeta['bora_role'] == 'driver';
-
-    if (!isRealDriver) {
-      debugPrint(
-          '[DriverLogin] auth.currentUser is not a real driver — aborting. uid=${authUser?.id}');
-      try {
-        await Supabase.instance.client.auth.signOut();
-      } catch (_) {}
+    // UMA CONTA, TODOS OS PERFIS (PADRAO §1.25; corrigido 16/09): o que decide
+    // é ter linha em `drivers` (lida em _finishDriverLogin por user_id), não
+    // o `bora_role` — que é só o modo em que a app ficou da última vez. Quem
+    // usou a app como cliente ontem levava aqui um signOut + "Erro de
+    // autenticação" com a palavra-passe certa.
+    if (authUser == null) {
+      debugPrint('[DriverLogin] sem sessão depois do login — aborta');
       if (!mounted) return;
       setState(() => _isProcessing = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -477,15 +487,33 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
 
     // ── Verificar approval_status ────────────────────────────────────────
     Map<String, dynamic>? driverRow;
+    var consultaFalhou = false;
     try {
+      // IDENTIDADE (16/09): user_id manda — por `id` a linha não vinha em
+      // contas com id ≠ user_id e o gate assumia "approved" às cegas.
       driverRow = await Supabase.instance.client
           .from('drivers')
           .select('approval_status, rejection_reason')
-          .eq('id', authUser.id)
+          .eq('user_id', authUser.id)
           .maybeSingle();
-    } catch (_) {}
+    } catch (_) {
+      // Rede/RLS a falhar não é "não é estafeta": segue como antes.
+      consultaFalhou = true;
+    }
 
     if (!mounted) return;
+
+    // Sem linha em `drivers` esta conta ainda não é estafeta: diz-se isso e
+    // mantém-se a sessão (nunca se expulsa por causa do perfil).
+    if (driverRow == null && !consultaFalhou) {
+      setState(() => _isProcessing = false);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+            'Esta conta ainda não tem perfil de estafeta. Toca em "Criar conta" para te candidatares.'),
+        duration: Duration(seconds: 8),
+      ));
+      return;
+    }
 
     final approvalStatus =
         driverRow?['approval_status'] as String? ?? 'approved';

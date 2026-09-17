@@ -20,3 +20,13 @@
 
 /flutter_service_worker.js
   Cache-Control: no-cache
+
+# [Estafeta web 2026-09-16] O service worker de push e a config Firebase
+# também têm de ser sempre revalidados — um SW em cache velha continuava a
+# correr código antigo durante dias.
+/firebase-messaging-sw.js
+  Cache-Control: no-cache
+  Service-Worker-Allowed: /
+
+/firebase-config.js
+  Cache-Control: no-cache

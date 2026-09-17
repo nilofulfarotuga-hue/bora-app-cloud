@@ -88,10 +88,13 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     if (_fetchedFor == driverId) return;
     _fetchedFor = driverId;
     try {
+      // IDENTIDADE (16/09): assigned_driver_id é o user_id; por `id` não
+      // vinha nada para quem tem id ≠ user_id (conta registada pela app).
       final row = await Supabase.instance.client
           .from('drivers')
           .select('name, vehicle_type, license_plate, avg_rating')
-          .eq('id', driverId)
+          .or('user_id.eq.$driverId,id.eq.$driverId')
+          .limit(1)
           .maybeSingle();
       if (row == null || !mounted) return;
       setState(() {

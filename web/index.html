@@ -22,6 +22,11 @@
   <title>Bora</title>
   <link rel="manifest" href="manifest.json">
 
+  <!-- Firebase (push na web / PWA do estafeta). Única fonte da config,
+       partilhada com o service worker firebase-messaging-sw.js. Enquanto os
+       valores forem placeholders a app corre sem push web, sem rebentar. -->
+  <script src="firebase-config.js"></script>
+
   <!-- Pré-ligação aos dois servidores de que o primeiro ecrã depende:
        poupa o handshake TLS quando o campo de morada e a sessão arrancam. -->
   <link rel="preconnect" href="https://ojykpzwqrtusfeakzrna.supabase.co" crossorigin>

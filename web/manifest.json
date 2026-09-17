@@ -1,8 +1,11 @@
 {
+    "id": "/",
     "name": "Bora",
     "short_name": "Bora",
-    "start_url": ".",
+    "start_url": "/",
+    "scope": "/",
     "display": "standalone",
+    "display_override": ["standalone", "minimal-ui"],
     "background_color": "#ffffff",
     "theme_color": "#16A34A",
     "description": "Entregas, mercados, boleias, limpeza, reservas e marcações na Guarda. Pede pelo site, sem instalar nada.",

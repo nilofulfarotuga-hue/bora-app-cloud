@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../widgets/admin/escolher_estafeta_sheet.dart';
 import '_admin_cancel_order_dialog.dart';
 import 'admin_chat_viewer_screen.dart';
 
@@ -53,7 +54,8 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
           .select(
               'id, status, payment_method, payment_status, payment_intent_id, '
               'price, total, final_total, cash_total_due, vendor_name, restaurant_id, user_id, '
-              'assigned_driver_id, items, items_added, '
+              'assigned_driver_id, preassigned_driver_id, preassigned_by, '
+              'driver_assigned_at, service_type, items, items_added, '
               'dropoff_address, pickup_address, '
               'cancel_reason, cancelled_at, '
               'cancelled_by, cancellation_initiator, cancellation_reason_code, '
@@ -264,6 +266,11 @@ class _SummaryTab extends StatelessWidget {
                 _row(Icons.person_outline, 'Cliente', order['user_id']),
                 _row(Icons.two_wheeler, 'Entregador',
                     order['assigned_driver_id'] ?? '—'),
+                // [Escolher estafeta 16/09] Reserva antes de o pedido estar
+                // pronto: vira oferta ao entregador quando a loja marcar pronto.
+                if (order['preassigned_driver_id'] != null)
+                  _row(Icons.bookmark_added_outlined, 'Reservado para',
+                      '${order['preassigned_driver_id']} (${order['preassigned_by'] ?? 'painel'})'),
                 _row(Icons.store, 'Restaurante (FK)',
                     order['restaurant_id'] ?? '—'),
                 _row(Icons.location_on, 'Entrega',
@@ -369,6 +376,16 @@ class _SummaryTab extends StatelessWidget {
             const SizedBox(height: 8),
             _ReassignButton(
               orderId: order['id'] as String,
+              status: order['status'] as String? ?? '',
+              onDone: onReassigned,
+            ),
+          ],
+          // [Escolher estafeta 16/09] "Mandar para todos": tira o entregador
+          // (ou a reserva) e devolve o pedido ao dispatch normal, com registro.
+          if (_canRelease) ...[
+            const SizedBox(height: 8),
+            _ReleaseButton(
+              orderId: order['id'] as String,
               onDone: onReassigned,
             ),
           ],
@@ -377,16 +394,29 @@ class _SummaryTab extends StatelessWidget {
     );
   }
 
-  /// Reatribuir só faz sentido enquanto há entrega por concluir (do momento em
-  /// que se chama estafeta até estar a caminho).
+  /// [Escolher estafeta 16/09] Também ANTES de o pedido estar pronto
+  /// (pré-atribuição: vira oferta quando a loja marcar pronto). Só não em
+  /// pedidos terminais nem em takeaway (não leva entregador).
   bool get _canReassign {
     final status = order['status'] as String? ?? '';
+    if ((order['service_type'] as String? ?? '') == 'takeaway') return false;
     return const [
+      'created',
+      'preparing',
       'callingDriver',
       'driverAccepted',
       'pickedUp',
       'onTheWay',
     ].contains(status);
+  }
+
+  bool get _canRelease {
+    final status = order['status'] as String? ?? '';
+    final temAlguem = order['assigned_driver_id'] != null ||
+        order['preassigned_driver_id'] != null;
+    return temAlguem &&
+        const ['created', 'preparing', 'callingDriver', 'driverAccepted']
+            .contains(status);
   }
 
   // FESTAS — formatação e edição do agendamento (RPC admin, com auditoria).
@@ -1180,13 +1210,22 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
-/// P8 (2026-08-17) — botão + fluxo de "Reatribuir estafeta" no admin (PT-BR).
-/// Lista os estafetas elegíveis (RPC admin_live_drivers: online + aprovado),
-/// pede confirmação e chama admin_reassign_order. A RPC faz o padrão provado:
-/// assigned_driver_id = user_id do novo, offer limpo, notifica, auditoria.
+/// P8 (2026-08-17) — botão de "Reatribuir estafeta" no admin (PT-BR).
+/// [Escolher estafeta 16/09] Passou a "Escolher estafeta": o fluxo completo
+/// (todos os aprovados, disponíveis primeiro por distância, foto/telefone/
+/// sinal/notificações/plataforma, aviso vermelho + "Atribuir mesmo assim",
+/// pré-atribuição antes de pronto) vive em
+/// widgets/admin/escolher_estafeta_sheet.dart e é partilhado com a lista de
+/// pedidos parados. Continua a atribuir só pelo caminho oficial
+/// admin_reassign_order.
 class _ReassignButton extends StatefulWidget {
-  const _ReassignButton({required this.orderId, required this.onDone});
+  const _ReassignButton({
+    required this.orderId,
+    required this.status,
+    required this.onDone,
+  });
   final String orderId;
+  final String status;
   final VoidCallback onDone;
 
   @override
@@ -1198,70 +1237,23 @@ class _ReassignButtonState extends State<_ReassignButton> {
 
   Future<void> _abrir() async {
     setState(() => _busy = true);
-    List<Map<String, dynamic>> elegiveis = const [];
     try {
-      final res = await Supabase.instance.client.rpc('admin_live_drivers');
-      if (res is List) {
-        elegiveis = res
-            .whereType<Map>()
-            .map((e) => Map<String, dynamic>.from(e))
-            .toList();
-      }
-    } catch (_) {/* lista vazia — o diálogo mostra o aviso */}
-    if (!mounted) return;
-    setState(() => _busy = false);
-
-    final escolhido = await showModalBottomSheet<Map<String, dynamic>>(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => _ReassignSheet(drivers: elegiveis),
-    );
-    if (escolhido == null || !mounted) return;
-
-    final novoId =
-        (escolhido['user_id'] ?? escolhido['driver_id'] ?? escolhido['id'])
-            ?.toString();
-    if (novoId == null || novoId.isEmpty) return;
-
-    setState(() => _busy = true);
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      final res = await Supabase.instance.client.rpc(
-        'admin_reassign_order',
-        params: {
-          'p_order_id': widget.orderId,
-          'p_new_driver': novoId,
-          'p_motivo': 'reatribuído pelo admin no painel',
-        },
+      final feito = await escolherEstafetaParaPedido(
+        context,
+        orderId: widget.orderId,
+        status: widget.status,
       );
-      final data = res is Map ? Map<String, dynamic>.from(res) : const {};
-      if (!mounted) return;
-      setState(() => _busy = false);
-      if (data['ok'] == true) {
-        messenger.showSnackBar(SnackBar(
-            content: Text(
-                'Pedido reatribuído a ${data['estafeta'] ?? 'estafeta'}. Notificação enviada.')));
-        widget.onDone();
-      } else {
-        messenger.showSnackBar(SnackBar(
-            content: Text(
-                'Não foi possível reatribuir: ${data['error'] ?? 'erro'}')));
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _busy = false);
-      messenger.showSnackBar(SnackBar(content: Text('Erro ao reatribuir: $e')));
+      if (feito) widget.onDone();
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return _ActionButton(
-      icon: _busy ? Icons.hourglass_top : Icons.published_with_changes,
-      label: _busy ? 'A reatribuir…' : 'Reatribuir estafeta',
+      icon: _busy ? Icons.hourglass_top : Icons.person_search,
+      label: _busy ? 'A atribuir…' : 'Escolher estafeta',
       color: AppColors.primary,
       enabled: !_busy,
       onTap: _abrir,
@@ -1269,59 +1261,37 @@ class _ReassignButtonState extends State<_ReassignButton> {
   }
 }
 
-/// Folha de seleção do novo estafeta (elegíveis = online + aprovado).
-class _ReassignSheet extends StatelessWidget {
-  const _ReassignSheet({required this.drivers});
-  final List<Map<String, dynamic>> drivers;
+/// [Escolher estafeta 16/09] "Mandar para todos" — admin_release_order_driver.
+class _ReleaseButton extends StatefulWidget {
+  const _ReleaseButton({required this.orderId, required this.onDone});
+  final String orderId;
+  final VoidCallback onDone;
+
+  @override
+  State<_ReleaseButton> createState() => _ReleaseButtonState();
+}
+
+class _ReleaseButtonState extends State<_ReleaseButton> {
+  bool _busy = false;
+
+  Future<void> _abrir() async {
+    setState(() => _busy = true);
+    try {
+      final feito = await mandarPedidoParaTodos(context, orderId: widget.orderId);
+      if (feito) widget.onDone();
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('Reatribuir a…',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 4),
-            const Text('Estafetas online e aprovados.',
-                style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-            const SizedBox(height: 12),
-            if (drivers.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
-                child: Text('Nenhum estafeta online no momento.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: AppColors.textSecondary)),
-              )
-            else
-              Flexible(
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: drivers.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (_, i) {
-                    final d = drivers[i];
-                    final nome = (d['driver_name'] ?? d['name'] ?? 'Estafeta')
-                        .toString();
-                    final tel =
-                        (d['driver_phone'] ?? d['phone'] ?? '').toString();
-                    return ListTile(
-                      leading: const Icon(Icons.two_wheeler,
-                          color: AppColors.primary),
-                      title: Text(nome),
-                      subtitle: tel.isNotEmpty ? Text(tel) : null,
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => Navigator.pop(context, d),
-                    );
-                  },
-                ),
-              ),
-          ],
-        ),
-      ),
+    return _ActionButton(
+      icon: _busy ? Icons.hourglass_top : Icons.campaign_outlined,
+      label: _busy ? 'A devolver…' : 'Mandar para todos',
+      color: Colors.orange.shade800,
+      enabled: !_busy,
+      onTap: _abrir,
     );
   }
 }

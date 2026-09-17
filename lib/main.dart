@@ -18,6 +18,7 @@ import 'services/app_update_service.dart';
 import 'services/floating_bubble_service.dart';
 import 'services/foreground_service.dart';
 import 'services/notification_service.dart';
+import 'services/web_presence.dart';
 import 'widgets/atalho_trabalho_em_curso.dart';
 import 'services/push_token_service.dart';
 import 'services/bloqueio_service.dart';
@@ -151,6 +152,37 @@ Future<void> _loadDeviceDiagnostics() async {
 /// Sessão 2026-05-17 — Foreground service: regista os canais Android de alta
 /// prioridade para que FCM consiga acordar a app com som + vibração mesmo
 /// quando minimizada/fechada. Também inicializa o flutter_foreground_task.
+/// [Estafeta web 2026-09-16] Firebase no navegador. As opções não vêm de
+/// google-services.json: vêm de web/firebase-config.js (única fonte,
+/// partilhada com o service worker firebase-messaging-sw.js) e são lidas em
+/// runtime pela WebPresence. Sem config preenchida a web segue sem push —
+/// exactamente o estado anterior a esta missão — e nunca rebenta.
+Future<void> _initFirebaseWeb() async {
+  if (!kIsWeb) return;
+  try {
+    final cfg = WebPresence.instance.firebaseConfig;
+    if (cfg == null) {
+      debugPrint('[main] Firebase web sem config — sem push web');
+      return;
+    }
+    await Firebase.initializeApp(
+      options: FirebaseOptions(
+        apiKey: cfg['apiKey']!,
+        appId: cfg['appId']!,
+        messagingSenderId: cfg['messagingSenderId']!,
+        projectId: cfg['projectId'] ?? 'boraapp-d2bea',
+        authDomain: cfg['authDomain'],
+        storageBucket: cfg['storageBucket'],
+        measurementId: cfg['measurementId'],
+      ),
+    );
+    await NotificationService.instance.initWeb();
+    debugPrint('[main] Firebase web pronto (appId ${cfg['appId']})');
+  } catch (e) {
+    debugPrint('[main] Firebase web indisponível — a app segue sem push: $e');
+  }
+}
+
 Future<void> _setupForegroundAndUrgentChannel() async {
   if (kIsWeb) return;
   try {
@@ -525,6 +557,13 @@ Future<void> main() async {
     // (escreve bora_main_alive_ts a cada 3s). FGS task isolate lê para saber
     // se main está vivo. Stale > 5s → FGS dispara postWakeActivityNotification.
     OfferPresentationGate.bootstrapMainAlive();
+  } else {
+    // [Estafeta web 2026-09-16] Push na WEB (PWA do estafeta). Até hoje o
+    // Firebase só arrancava dentro do `if (!kIsWeb)` acima — no navegador
+    // nunca existiu, e por isso nenhum estafeta na web tinha token de push.
+    // Fire-and-forget: carrega o SDK da Google pela rede e não pode atrasar
+    // o primeiro fotograma nem, falhando, travar o arranque.
+    unawaited(_initFirebaseWeb());
   }
 
   // 2026-05-14 perf: SessionStore.load + ConsentStore.load em paralelo.

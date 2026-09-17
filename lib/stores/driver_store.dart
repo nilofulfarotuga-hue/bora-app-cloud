@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,6 +14,7 @@ import '../services/floating_bubble_service.dart';
 import '../services/foreground_service.dart';
 import '../services/offer_presentation_gate.dart';
 import '../services/push_token_service.dart';
+import '../services/web_presence.dart';
 import '../utils/constants.dart';
 
 class DriverStore extends ChangeNotifier {
@@ -92,6 +94,11 @@ class DriverStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// [Web 16/09] O botão "Ativar notificações" da PWA chama isto DEPOIS de
+  /// um toque do estafeta — o navegador só pede permissão a partir de um
+  /// gesto do utilizador, nunca no arranque.
+  Future<void> registarPushAposToque() => _saveFcmToken();
+
   Future<void> _saveFcmToken() async {
     final driverId = _primaryDriverId;
     if (driverId.isEmpty || driverId == 'driver-main') return;
@@ -104,11 +111,18 @@ class DriverStore extends ChangeNotifier {
       // em drivers.fcm_token falhe por RLS (driver não aprovado).
       PushTokenService.registerForRole('driver').ignore();
 
-      final token = await messaging.getToken();
+      final token = await messaging.getToken(
+        // Web: o FCM só dá token com a chave VAPID do projecto Firebase
+        // (lida de web/firebase-config.js, a mesma fonte do service worker).
+        vapidKey: kIsWeb ? WebPresence.instance.firebaseVapidKey : null,
+      );
       if (token != null) {
+        // IDENTIDADE DO ESTAFETA (16/08, 16/09): driverId é o auth uid =
+        // drivers.user_id. Por `id` dava 0 linhas em quem tem id ≠ user_id
+        // (foi assim que o Ney ficou sem token e sem online a 16/09).
         await _client
             .from('drivers')
-            .update({'fcm_token': token}).eq('id', driverId);
+            .update({'fcm_token': token}).eq('user_id', driverId);
         debugPrint('[DriverStore] FCM token saved for driver=$driverId: ${token.substring(0, 20)}...');
       }
 
@@ -118,7 +132,7 @@ class DriverStore extends ChangeNotifier {
         PushTokenService.registerForRole('driver').ignore();
         await _client
             .from('drivers')
-            .update({'fcm_token': newToken}).eq('id', _primaryDriverId);
+            .update({'fcm_token': newToken}).eq('user_id', _primaryDriverId);
         debugPrint(
             '[DriverStore] FCM token refreshed for driver=$_primaryDriverId');
       });
@@ -479,7 +493,11 @@ class DriverStore extends ChangeNotifier {
           'lng': kGuardaLng,
           'user_id': uid,
         },
-        onConflict: 'id',
+        // IDENTIDADE (16/09): o conflito é por user_id (UNIQUE), não por id.
+        // Com o conflito por id, quem tem id ≠ user_id (conta registada pela
+        // app) levava um INSERT novo que batia no UNIQUE(user_id) → 409 a
+        // cada arranque (8× no Ney em 24 h).
+        onConflict: 'user_id',
         ignoreDuplicates:
             true, // ON CONFLICT DO NOTHING — never overwrite is_online
       );
@@ -491,9 +509,11 @@ class DriverStore extends ChangeNotifier {
 
   Future<void> updateDriverOnlineStatus(String driverId, bool isOnline) async {
     try {
+      // IDENTIDADE (16/09): user_id manda. Por `id` o PATCH devolvia 200 com
+      // 0 linhas e o estafeta nunca ficava online no servidor.
       await _client
           .from('drivers')
-          .update({'is_online': isOnline}).eq('id', driverId);
+          .update({'is_online': isOnline}).eq('user_id', driverId);
 
       // Trigger dispatch imediato para pedidos pendentes sem driver
       if (isOnline) {

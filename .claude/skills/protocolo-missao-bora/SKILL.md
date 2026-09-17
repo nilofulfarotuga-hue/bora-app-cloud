@@ -94,6 +94,18 @@ Antes de deduzir, **verifica**. Ler a base de dados é melhor do que adivinhar p
   explícita nessa missão e com teste real** (prova em rollback com o JWT da pessoa + pedido de
   teste real). O relatório leva sempre a frase **"⚠️ ISTO MEXE EM PAGAMENTO/DINHEIRO"** com a
   lista fechada do que foi aplicado e como se reverte.
+- **Caminhos oficiais, nunca UPDATE directo (16/09/2026).** Nenhum agente — Claude Code, Claude.ai,
+  ChatGPT, OpenCode, Hermes — muda pedidos, estafetas ou dinheiro por `UPDATE`/`INSERT`/`DELETE`
+  directo em `orders`, `drivers`, `tvde_rides`, `appointments`, `wallets`, `ledger_entries`,
+  `bora_tokens`, `driver_balances`, `payouts` ou `platform_settings` financeiros. Usa-se
+  `public.ops_reassign_order` (passar/reservar pedido a estafeta), `public.ops_release_order_driver`
+  (devolver a todos) e as funções `admin_*`. Toda mudança de `assigned_driver_id`/`driver_id` por
+  ligação SQL directa fica em `order_driver_assignment_audit` e avisa o Danilo; com a barreira
+  ligada é recusada. Regras completas: `docs/agentes/REGRAS-OPERACAO-AGENTES.md` (espelho da
+  página `regras-operacao-agentes` em `claude_ai_memoria`). Identidade: `user_id` manda;
+  `drivers.id` só para `tried_driver_ids` (skill `identidade-estafeta`, verificador obrigatório
+  antes de commit que toque em tabelas de papéis). *Cicatriz: 16/09, pedido da Goola preso 10 min
+  no nome de um estafeta desligado, posto lá por UPDATE directo do ChatGPT.*
 - **Os hooks da Trava mandam; não se contornam.** O que a Trava bloquear no repo resolve-se por
   MCP Supabase (`apply_migration`) e regista-se. Reformular o texto (a Trava lê comentários como
   código) é legítimo; desligar a Trava não é.

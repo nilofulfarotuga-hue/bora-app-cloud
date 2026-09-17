@@ -2,7 +2,8 @@
 name: protocolo-missao-bora
 description: >
   Protocolo para escrever, arrancar e fechar uma missão do Bora: formato do prompt de missão,
-  escolha da porta (Claude Code / OpenCode / navegador) e do motor, MCP-first, autonomia total
+  uma porta só (Claude Code; os outros motores são trabalhadores chamados por dentro pela skill
+  distribuir-trabalho; sites pelo perfil certo com a skill contas-e-navegadores), MCP-first, autonomia total
   com carta, lei do pré-voo, observabilidade no e2e_log, paridade do painel admin, digest para
   os outros motores em claude_ai_memoria, idiomas e regras de CI/build. Usar sempre que se vai
   redigir uma ordem de missão, arrancar uma janela nova, ou fechar uma missão (Bloco F).
@@ -20,30 +21,34 @@ metadata:
 > `PADRAO_BORA.md`. Entra pelo CEO-AI como todas as skills: **não substitui** o `PADRAO_BORA.md`
 > (lei da casa) nem a Lista Vermelha do `ceo-ai` (§1.6). Se isto e o PADRAO discordarem, manda o PADRAO.
 
-## 1. As três portas (13/09/2026) e a escolha do motor
+## 1. Uma porta só (17/09/2026) e a escolha do motor
 
-Facto que manda (página `sistema-motores-e-portas` em `claude_ai_memoria`): pelos termos da
-Anthropic a assinatura Claude só funciona **dentro** do Claude Code e da Claude.ai — nenhuma
-ferramenta de terceiros a pode usar. Por isso há no mínimo duas portas, e na prática três:
+Facto que manda (página `sistema-motores-e-portas` em `claude_ai_memoria`, reescrita a 17/09):
+pelos termos da Anthropic a assinatura Claude só funciona **dentro** do Claude Code e da Claude.ai.
+Por isso o chefe é o Claude Code e **o Danilo abre só o Claude Code** (ou fala com a Claude.ai).
+As "3 portas" de 13/09 acabaram: os outros motores **não são portas, são trabalhadores chamados
+por dentro** da sessão pelo Claude, através da skill global `distribuir-trabalho`
+(`~/.claude/motores/delegar.ps1`, cascatas em `~/.claude/motores/MOTORES.json`). Nenhum prompt manda
+o Danilo abrir OpenCode, ChatGPT, Codex ou Gemini, nem copiar e colar entre ferramentas.
 
-| Porta | O que corre lá | Para quê | O que NÃO faz |
+| Quem | O que corre lá | Para quê | O que NÃO faz |
 |---|---|---|---|
-| **1 · Claude Code** (app/CLI no PC do Danilo) | só motores Claude: Opus, Sonnet; Fable só enquanto o Max durar | executar: repo, MCP Supabase, migrações, builds, provas, publicação; **o loop automático (cortex_nova_ordem → carteiro → executor) corre SEMPRE aqui** | — é a porta de execução por defeito |
-| **2 · OpenCode** (mesma pasta, colagem manual do Danilo) | ChatGPT Plus por `/connect openai` (gpt-5.x/codex); plano Go (glm-5.2, qwen3.8-max, qwen3.7-max, minimax-m3); Zen grátis; Ollama local — troca-se com `/models` na mesma janela | código médio, refactors, testes, Edge Functions, scripts, volume, telas, traduções, segunda opinião | não tem os hooks da Trava do Claude Code → só zona 🟢; nunca dinheiro, dispatch, wallet, RLS ou publicação em produção |
-| **3 · Navegador** (Chrome do PC com sessões pagas) | Gemini web (Veo, Nano Banana), ChatGPT web, Claude.ai | imagem/vídeo (pago primeiro, grátis só em último), leitura de documentos longos, juiz de visão, conversa/decisão/prompts | não executa no repo; não vê a base de dados senão por MCP da Claude.ai |
+| **Claude Code — a ÚNICA porta** (app/CLI no PC do Danilo; chefe) | Opus, Sonnet; Fable só enquanto o Max durar | executar: repo, MCP Supabase, migrações, builds, provas, publicação; **o loop automático (cortex_nova_ordem → carteiro → executor) corre SEMPRE aqui**; verificação final com contexto limpo | — |
+| **Trabalhadores por dentro** (`delegar.ps1`) | ChatGPT Plus (`opencode run -m openai/…`, `codex exec`, conta nilofulfaro@gmail.com), GLM/Qwen (plano Go), Gemini CLI, Zen grátis, Sonnet headless | código médio, refactors, testes, Edge Functions, scripts, volume, telas, traduções, documentos longos, segunda opinião | correm numa **worktree/cópia**, nunca na árvore principal; não têm a Trava → só zona 🟢; nunca dinheiro, dispatch, wallet, RLS, git, publicação; teste anti-mentira em cada chamada |
+| **Agente de clique** (Chrome do PC, pelo Claude) | Gemini AI Plus (perfil Bora), ChatGPT Plus (perfil Danilo), painéis (Ads, GSC, Play, Meta, Apple…) | imagem/vídeo (pago primeiro, grátis só em último), juiz de visão, painéis web | perfil escolhido **sempre** pela skill global `contas-e-navegadores` (`~/.claude/contas/abrir-site.ps1`); nunca ao calhas; nunca sair de contas |
 
-**Divisão por motor (decidida 13/09):** FABLE = só o crítico (dinheiro, dispatch, wallet,
-publicação em produção) · OPUS = zonas protegidas, multi-ficheiro difícil, agente de clique/Chrome,
-loop do carteiro · CHATGPT = código médio, refactors, testes, Edge Functions, scripts, imagens da
-propaganda · GLM/QWEN = volume, bugs simples, telas, traduções, rascunhos · GEMINI = imagem/vídeo,
-documentos longos, juiz de visão, reserva grátis.
+**Divisão por motor (13/09, mantida a 17/09):** FABLE = só o crítico (dinheiro, dispatch, wallet,
+publicação em produção) · OPUS = chefe das missões, zonas protegidas, multi-ficheiro difícil, agente
+de clique/Chrome, loop do carteiro · CHATGPT = código médio, refactors, testes, Edge Functions,
+scripts, imagens da propaganda · GLM/QWEN = volume, bugs simples, telas, traduções, rascunhos ·
+GEMINI = imagem/vídeo, documentos longos, juiz de visão, reserva grátis. Quem faz não verifica.
 
 **Motor:** o mais barato que aguente a tarefa com segurança (`~/.claude/CLAUDE.md` §2); Claude só
 quando nenhum dos outros serve. Sobe para Opus ou acima **sempre** que toque em dinheiro real,
-pagamentos, preços, comissões, carteira, dispatch ou zona protegida. Toda a ordem diz no topo
-**MOTOR + PORTA** e o fallback na mesma janela (ex.: "Fable → Opus 4.7"), e diz em letras claras
-"abre SESSÃO NOVA no Claude Code na pasta X" (uma missão = uma sessão nova; missão grande nunca
-corre pelo loop).
+pagamentos, preços, comissões, carteira, dispatch ou zona protegida. Toda a ordem diz no topo o
+**MOTOR do chefe** e o fallback na mesma janela (ex.: "Fable → Opus"); a porta é sempre o Claude
+Code, e a ordem diz em letras claras "abre SESSÃO NOVA no Claude Code na pasta X" (uma missão = uma
+sessão nova; missão grande nunca corre pelo loop).
 
 **Os motores falam entre si pela tabela `public.claude_ai_memoria`** (`pagina`, `titulo`,
 `conteudo`, `origem`, `atualizado_em`): cada janela lê as páginas no arranque e deixa o seu
@@ -56,7 +61,7 @@ Um prompt de missão não deixa nada "a combinar depois". Esqueleto:
 ```
 ⚠️ MODO PROTECÇÃO TOTAL ⚠️
 run_id: <slug-data>   fluxo e2e_log: <mesmo slug>   data: <dd/mm/aaaa>
-Porta: <Claude Code | OpenCode | navegador>   Motor: <X → fallback Y na mesma janela>
+Porta: Claude Code (a única; os outros motores são trabalhadores por dentro)   Motor: <X → fallback Y na mesma janela>
 Invoca o CEO-AI primeiro. Lê PADRAO_BORA.md e business_rules.md antes de planear.
 
 BLOCO 0 — reconhecimento: ambiente, claude_ai_memoria, últimas 200 linhas do e2e_log,
@@ -119,11 +124,14 @@ Antes de deduzir, **verifica**. Ler a base de dados é melhor do que adivinhar p
 - **Toda a feature tem correspondência no painel admin** (gatilho de paridade: convocar `admin`).
 - **LOGIN NO NAVEGADOR (regra do Danilo, 13/09/2026):** quando precisares de um site ou painel onde
   não há sessão, ou não conseguires abrir/entrar em alguma janela, não tentes senhas nem peças
-  token a ninguém — abre a página de login no próprio Chrome do PC (perfil boraappbora), avisa o
-  Danilo pelo Telegram numa linha e continua quando a sessão existir. Fica gravada no Chrome e
-  serve para sempre. Uma vez por site.
+  token a ninguém — abre a página de login no próprio Chrome do PC **no perfil CERTO para esse
+  site** (skill global `contas-e-navegadores` → `~/.claude/contas/abrir-site.ps1 <site>`; ChatGPT
+  Plus = perfil Danilo/`Default`, conta nilofulfaro@gmail.com; Gemini AI Plus = perfil Bora/`Profile 1`),
+  avisa o Danilo pelo Telegram numa linha e continua quando a sessão existir. Fica gravada no
+  Chrome e serve para sempre. Uma vez por site. *(Corrigido 17/09: o texto antigo dizia "perfil
+  boraappbora, o das sessões pagas" e levou a logins no perfil errado a 14/09 e 17/09.)*
   **Adendo (13/09, à noite): é o último recurso, não o primeiro.** Nunca sair de uma conta que
-  já está iniciada (o Chrome do perfil boraappbora tem o ChatGPT **Free**). Procurar primeiro a
+  já está iniciada (o Chrome do perfil Bora tem o ChatGPT **Free**). Procurar primeiro a
   sessão que já existe: `codex login status` e `~/.codex/auth.json` (conta e plano), o
   **aplicativo do ChatGPT instalado no Windows** (processo `ChatGPT.exe` — é aí que vive a conta
   **Plus**, e é ela que o Codex usa), os outros perfis do Chrome e o Edge. Modo de programador e

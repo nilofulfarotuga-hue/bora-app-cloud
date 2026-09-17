@@ -1,0 +1,17 @@
+---
+id: memoria-claude-ai-digest-2026-09-17-jai-fim
+tipo: conceito
+origem: [claude-ai, public.claude_ai_memoria]
+ultima_confirmacao: 2026-09-17
+zona: verde
+confianca: alta
+estado: atual
+---
+
+# Digest 17/09/2026 — missão jai-fim-17-09 (Ads, Search Console, Wikidata do Jai)
+
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `digest-2026-09-17-jai-fim`, origem `claude-code`, atualizada em 2026-09-17T08:05:27.067194+00:00).
+> Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
+> Palavras-chave: digest 2026 09 17 jai fim · memoria claude.ai · claude_ai_memoria
+
+Missão jai-fim-17-09 (Claude Code, Opus, proteção total, manhã de 17/09/2026). O que funciona agora: (1) Wikidata: conta nova DaniloFulfaroDaSilva (criada pelo Danilo às 06:21Z, email boraappbora confirmado por mim), página de utilizador com a declaração de edição paga antes de qualquer edição, a notícia da Khel Now de 15/09 como referência em P108 do Jai (Q141244256) e em P169/P127 do Guarda FC (Q135451017), e P69 corrigido de Queen's University para Brunel University London (Q932411) — revisões 2546919133, 2546919389, 2546919410, 2546919413, 2546919431, verificadas pela API pública. A conta antiga DaniloFulfaro ficou abandonada (senha perdida). Edita-se pela API dentro do próprio Chrome (perfil Bora), sem captcha; a VPS continua bloqueada no Wikidata. (2) Google Ads 144-763-8091: a causa dos 0 impressões não era faturação, verificação (é opcional, sem prazo), lance (Maximize clicks sem limite de CPC) nem horário; era geografia — a campanha só cobria Portugal e 14 das 22 palavras estão em "Low search volume"; na Índia o diagnóstico dizia "no keywords in your account matched your query". Aplicado às 08:21-08:33 (histórico de alterações): idiomas EN+ES+PT; localizações Portugal+Espanha+Reino Unido+Índia por presença; +4 palavras exata/frase (jai agarwala, jai agarwal guarda) = 26, nenhuma apagada; 6 negativas gyan/dairy/kachori/robotics/hichki/agra. Orçamento fica 0,65 €/dia. Diagnóstico depois, em PT e na Índia: "matched 1 keyword [Jai Agarwal] — Your ad is probably being shown at times, but was not shown for this particular diagnosis" — ainda não aparece; impressões só se medem nos próximos dias. Ad blocker: não existe (McAfee WebAdvisor está desativada; só a extensão Claude); o aviso de ontem foi falso positivo. (3) Search Console: 8 de 8 páginas não indexadas pedidas (gallery nas 4 línguas, es/quien-es-jai-agarwal, 3 episódios do podcast), todas com "Indexing requested — URL was added to a priority crawl queue", sem quota; a validação do noindex de 06/09 (/podcast/) está "Passed, 0 pages". Como se usa: quando o Danilo está a usar o Chrome, a extensão cria os separadores numa janela fantasma e as apps da Google não renderizam — o caminho certo é o navegador embutido da app Claude com a conta nilofulfarotuga (dona do Ads e do GSC, sem authuser); o Enter chega com keyCode 0 e a Google ignora-o (no GSC disparar KeyboardEvent com keyCode 13; no Ads clicar na sugestão). O llama-server do Ollama volta de 4 em 4 minutos por causa do keep-warm do whatsapp-loja/servidor_cerebro.py (PC antigo) — parei o Ollama durante a sentada e voltei a ligá-lo. O que falta: email ao O Interior — [ESTADO A ATUALIZAR NO FECHO]; verificação de anunciante e "funding source" no Ads são opcionais e ficam para o Danilo; as 4 palavras novas estão "Under review". Provas em jai-site/provas/jai-fim-2026-09-17/ e e2e_log fluxo jai-fim-17-09.

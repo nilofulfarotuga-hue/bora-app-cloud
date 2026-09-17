@@ -730,7 +730,14 @@ def main():
         print("PORTA_%d_OCUPADA — ja ha um cerebro a correr, saio." % PORT, flush=True)
         return
     registar({"evento": "arranque", "porta": PORT, "versao": VERSAO, "envio_desligado": envio_desligado()})
-    threading.Thread(target=aquecedor, daemon=True).start()
+    # 17/09/2026 (ordem do Danilo, continuacao uma-porta): o aquecedor fica DESLIGADO por defeito. Mantinha o
+    # qwen2.5:7b quente (4,3 GB) o tempo todo num PC com pouca RAM, e o Ollama e so o 5.o nivel da cadeia com o
+    # envio pausado. Agora o modelo carrega quando for chamado e sai da memoria quando parado (keep_alive das
+    # chamadas reais). Para voltar a aquecer: variavel de ambiente CEREBRO_AQUECEDOR=1 na tarefa agendada.
+    if os.environ.get("CEREBRO_AQUECEDOR", "0") == "1":
+        threading.Thread(target=aquecedor, daemon=True).start()
+    else:
+        registar({"evento": "aquecedor-desligado", "motivo": "ordem do Danilo 17/09: modelo so carrega quando chamado"})
     threading.Thread(target=_cron, daemon=True).start()
     tarefas.Vigia(emitir_e_registar, avisar, registar).start()
     print("CEREBRO_ONLINE v2 http://127.0.0.1:%d" % PORT, flush=True)

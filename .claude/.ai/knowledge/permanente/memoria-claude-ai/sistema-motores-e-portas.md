@@ -10,7 +10,7 @@ estado: atual
 
 # Quem faz o quê — uma porta só (atualizado 17/09/2026)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `sistema-motores-e-portas`, origem `claude-ai`, atualizada em 2026-09-17T13:29:01.834178+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `sistema-motores-e-portas`, origem `claude-ai`, atualizada em 2026-09-17T16:45:00.780767+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: sistema motores e portas · memoria claude.ai · claude_ai_memoria
 
@@ -29,3 +29,5 @@ FORMATO DOS PROMPTS: no topo escreve-se o MOTOR do chefe; a porta é sempre o Cl
 MISSÃO QUE TRANSFORMA ISTO EM SKILLS: PROMPT_uma_porta_habilidades_2026-09-17.md (skills globais contas-e-navegadores e distribuir-trabalho + vigia de habilidades). Executada 17/09 de manhã (sessão uma-porta-17-09, fecho e2e_log 1964): skills globais contas-e-navegadores e distribuir-trabalho ativas, delegar.ps1 e MOTORES.json no PC, vigia às 23:30. Nesse dia os motores pagos de fora estavam parados: ChatGPT Plus com a cota do Codex gasta até 19/09 09:08 e plano Go sem saldo; a cascata desceu para Sonnet e Zen grátis.
 
 SINCRONIA: tudo o que o Danilo fala com a Claude.ai chega a esta tabela e ao Córtex; o ChatGPT lê por conector do Modo de programador e o OpenCode por MCP. Sem exceção.
+
+ESTADO 17/09 17:45: plano Go de volta (saldo carregado pelo Danilo; é por saldo, acaba). ChatGPT Plus sem cota do Codex até 19/09 09:08. Gemini CLI só pela chave da API (a Google recusa o login da conta pessoal no CLI); o Google AI Plus continua a servir no navegador, perfil Bora, para imagem e vídeo. Os modelos grátis do Zen nunca recebem dados de clientes (varredura no delegar.ps1).

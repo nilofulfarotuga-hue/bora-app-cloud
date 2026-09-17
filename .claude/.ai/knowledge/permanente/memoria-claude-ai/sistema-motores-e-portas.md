@@ -2,16 +2,30 @@
 id: memoria-claude-ai-sistema-motores-e-portas
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-09-13
+ultima_confirmacao: 2026-09-17
 zona: verde
 confianca: alta
 estado: atual
 ---
 
-# Quem faz o quê — motores e portas (decidido 13/09/2026)
+# Quem faz o quê — uma porta só (atualizado 17/09/2026)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `sistema-motores-e-portas`, origem `claude-ai`, atualizada em 2026-09-13T18:30:27.600849+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `sistema-motores-e-portas`, origem `claude-ai`, atualizada em 2026-09-17T08:27:59.945945+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: sistema motores e portas · memoria claude.ai · claude_ai_memoria
 
-PLANOS a partir de 13/09: Claude Pro 20 $ (Claude Code + Claude.ai; o Max grande vai ser cancelado) + ChatGPT Plus 20 $ + OpenCode Go 10 $ + Google AI Plus. FACTO QUE MANDA: pelos termos da Anthropic (ToS 19/02/2026, bloqueio total 04/04/2026) a assinatura Claude só funciona DENTRO do Claude Code e da Claude.ai — nenhuma ferramenta de terceiros (OpenCode, Codex, Hermes) pode usá-la. Logo "um só lugar com todos os motores" é IMPOSSÍVEL por regra, não por técnica. Mínimo são DUAS PORTAS: PORTA 1 = Claude Code (só motores Claude: Opus, Sonnet; Fable só enquanto o Max durar). PORTA 2 = OpenCode (tudo o resto: conta ChatGPT Plus por /connect openai — nativo desde OpenCode v1.15.7, modelos gpt-5.x/codex; plano Go com glm-5.2, qwen3.8-max, qwen3.7-max, minimax-m3; Zen grátis; Ollama local) — troca-se o motor com /models na MESMA janela. PORTA 3 = navegador (Chrome do PC com sessões pagas): Gemini web (Veo, Nano Banana) e ChatGPT web para imagem/vídeo; pago primeiro, grátis só em último. Claude.ai = conversa, decisão, MCP direto (Supabase/Stripe), prompts; quando o limite acabar continua a conversar e manda o trabalho ao ChatGPT/OpenCode. DIVISÃO DE TAREFAS: FABLE (Claude Code) = só o crítico: dinheiro, dispatch, wallet, publicação em produção. OPUS (Claude Code, Pro) = zonas protegidas, multi-ficheiro difícil, tudo o que precisa do agente de clique/Chrome, o loop do carteiro. CHATGPT (gpt-5.x/codex, pelo OpenCode ou pela app) = código médio, refactors, testes, Edge Functions, scripts, e as imagens da propaganda/Instagram (gerar no ChatGPT e no Gemini, ficar com a melhor). GLM/QWEN (plano Go, no OpenCode) = volume, bugs simples, telas, traduções, rascunhos, conselho de modelos. GEMINI (AI Plus no navegador + API grátis + Gemini CLI) = imagem/vídeo, leitura de documentos longos, juiz de visão, reserva grátis. Escolher sempre o mais barato que dê conta com segurança; Claude só quando nenhum dos outros serve. Todo prompt marca no topo MOTOR + PORTA. O loop automático (cortex_nova_ordem → carteiro → executor no PC) corre SEMPRE no Claude Code; OpenCode é só colagem manual do Danilo. TUDO O QUE O DANILO FALA COM A CLAUDE.AI CHEGA AQUI (esta tabela) e ao Córtex: ChatGPT lê por Developer Mode > conector MCP (Supabase + Córtex), OpenCode lê por MCP remoto. Sem exceção.
+QUEM FAZ O QUÊ — atualizado 17/09/2026 pela Claude.ai (substitui a regra das 3 portas de 13/09).
+
+REGRA DO DANILO (17/09, repetida e chateado): ele não quer comandar várias ferramentas nem copiar e colar entre elas. Abre SÓ o Claude Code (ou fala com a Claude.ai). O Claude Code é o CHEFE e reparte sozinho o trabalho pelos outros motores, por dentro da mesma sessão. Nenhum prompt manda o Danilo abrir o OpenCode, o ChatGPT ou o Gemini; só se ele próprio pedir.
+
+COMO SE REPARTE: ChatGPT (conta Plus) e GLM/Qwen (plano Go) pelo comando opencode run -m <modelo> (provado a 13/09; o OpenCode usa a sessão OAuth do Codex); Codex CLI (codex exec) como reserva do ChatGPT; Gemini pela sessão paga no navegador (perfil Bora) para imagem e vídeo e pelo Gemini CLI para ler documentos longos; tudo o que precisa de clique vai pelo agente de clique no perfil certo do Chrome (skill contas-e-navegadores). Os trabalhadores fazem numa cópia ou worktree e devolvem o resultado; o Claude relê com contexto limpo, testa e é o ÚNICO que mexe em git, produção e zonas vermelhas.
+
+FACTO QUE CONTINUA A MANDAR: pelos termos da Anthropic (ToS 19/02/2026, bloqueio 04/04/2026) a assinatura Claude só funciona dentro do Claude Code e da Claude.ai. Por isso o chefe tem de ser o Claude Code e os outros são chamados por ele — nunca o contrário.
+
+DIVISÃO DE TAREFAS: FABLE = só o crítico (dinheiro, dispatch, wallet, publicação), enquanto houver. OPUS = chefe das missões, zonas protegidas, multi-ficheiro difícil, Chrome e clique, loop do carteiro. CHATGPT = código médio, refactors, testes, Edge Functions, scripts, imagens de propaganda (gerar também no Gemini e ficar com a melhor). GLM/QWEN = volume, bugs simples, telas, traduções, rascunhos, conselho. GEMINI = imagem e vídeo (pago primeiro), documentos longos, juiz de visão, reserva grátis. Dinheiro, dispatch, wallet, RLS, git push e publicação NUNCA se delegam. Escolher sempre o mais barato que dê conta com segurança; quem faz não verifica.
+
+FORMATO DOS PROMPTS: no topo escreve-se o MOTOR do chefe; a porta é sempre o Claude Code. O loop automático corre no Claude Code e reparte da mesma maneira.
+
+MISSÃO QUE TRANSFORMA ISTO EM SKILLS: PROMPT_uma_porta_habilidades_2026-09-17.md (skills globais contas-e-navegadores e distribuir-trabalho + vigia de habilidades). Entregue 17/09, a aguardar execução.
+
+SINCRONIA: tudo o que o Danilo fala com a Claude.ai chega a esta tabela e ao Córtex; o ChatGPT lê por conector do Modo de programador e o OpenCode por MCP. Sem exceção.

@@ -1,0 +1,17 @@
+---
+id: memoria-claude-ai-digest-2026-09-17-estafeta-web
+tipo: conceito
+origem: [claude-ai, public.claude_ai_memoria]
+ultima_confirmacao: 2026-09-17
+zona: verde
+confianca: alta
+estado: atual
+---
+
+# Claude Code Opus 16-17/09 — estafeta no navegador e pedido preso: resultado
+
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `digest-2026-09-17-estafeta-web`, origem `claude-code`, atualizada em 2026-09-17T09:11:50.277207+00:00).
+> Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
+> Palavras-chave: digest 2026 09 17 estafeta web · memoria claude.ai · claude_ai_memoria
+
+Missão estafeta-web-2026-09-16 (Opus, PC, worktree própria), commit 52ba6154 em autonomous-night-2026-04-29, CI verde (autoteste + AAB alpha versionCode 607, web no ar em bora-app-web.pages.dev run 134). O QUE FUNCIONA AGORA: (1) estafeta escolhido antes de o pedido estar pronto (orders.preassigned_driver_id, ou o caminho antigo de deixar assigned_driver_id posto) vira OFERTA normal quando a loja marca pronto; desligado/sem sinal/sem push → liberta e avisa o admin (Telegram + push); rede de segurança no bora_dispatch_maintenance liberta qualquer callingDriver com estafeta atribuído sem aceitar há mais de dispatch_preassign_release_seconds (180, editável no painel). (2) Toda mudança de assigned_driver_id/driver_id fica em order_driver_assignment_audit; por ligação SQL directa avisa o Danilo; a RECUSA (platform_settings.orders_driver_direct_update_block) está pronta e DESLIGADA — liga-se com uma linha quando o Danilo disser. (3) Agentes usam SÓ public.ops_reassign_order (aceita pré-atribuição a estafeta ligado) e public.ops_release_order_driver (devolver a todos); regras copiadas para AGENTS.md/CLAUDE.md do repo (docs/agentes/REGRAS-OPERACAO-AGENTES.md), globais do PC, SOUL.md e CONTEXT-BORA.md do Hermes na VPS e instruções personalizadas do ChatGPT Plus. (4) Web do estafeta: identidade por user_id (o 409 e o PATCH a 0 linhas do Ney acabaram), heartbeat + posição a cada 30 s (o serviço nunca batia na web), plataforma registada (drivers.last_platform: web_ios/web_android/android_app…), wake lock, "voltar a ficar online?", PWA (cartão de instalar unificado com o banner HTML), push web (Firebase web app criada, VAPID, firebase-config.js + firebase-messaging-sw.js; main.dart nunca inicializava Firebase na web), notify-driver v40 manda ofertas a todos os aparelhos, Edge nova notify-driver-assigned para atribuído/reservado/retirado/desligado. (5) Painel: "Escolher estafeta" (todos os aprovados, disponíveis primeiro por distância, aviso vermelho + "Atribuir mesmo assim"), "Mandar para todos", "Pedidos parados", ficha com presença e histórico. (6) Skill identidade-estafeta com verificador; protocolo-missao-bora com a regra dos caminhos oficiais. PROVADO no PC com a conta demo em Chrome (Android) e WebKit (iPhone): login, online no SELECT, oferta no ecrã, aceitar, viagem até ao PIN e entregue, ganhos, push web a chegar. NÃO PROVADO: iPhone real (ecrã bloqueado, PWA instalada, câmara). O QUE FALTA / PARA O DANILO: dizer "liga a barreira"; mandar ao Ney a mensagem do relatório; 2 linhas bora_tokens do pedido de teste à espera do "vai"; portar 52ba6154 para o ramo iOS quando a sessão iOS fechar (ff-merge). Bugs fora do scope no relatório (cortex_list_approved_pids 401 em loop; app_latest_version_code preso em 606; app esconde a razão dos 400; estados avançados por UPDATE directo; cliente não lê drivers por RLS). Relatório: Desktop\Bora\RELATORIO_estafeta_web_pedido_preso_2026-09-16.md.

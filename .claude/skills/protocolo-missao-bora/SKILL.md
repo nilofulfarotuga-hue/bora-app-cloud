@@ -8,10 +8,10 @@ description: >
   redigir uma ordem de missão, arrancar uma janela nova, ou fechar uma missão (Bloco F).
 metadata:
   versao: 1.0
-  execucoes: 2
-  sucessos: 2
+  execucoes: 3
+  sucessos: 3
   falhas: 0
-  ultima_execucao: 2026-09-16
+  ultima_execucao: 2026-09-17
   criada_por: missão fable-13-09 (2026-09-13)
 ---
 

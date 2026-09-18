@@ -50,6 +50,17 @@ pagamentos, preços, comissões, carteira, dispatch ou zona protegida. Toda a or
 Code, e a ordem diz em letras claras "abre SESSÃO NOVA no Claude Code na pasta X" (uma missão = uma
 sessão nova; missão grande nunca corre pelo loop).
 
+**Uma pasta de trabalho por missão (18/09/2026, proposta prop-ac00597d executada na missão
+`sistema-redondo-2026-09-18`):** duas sessões nunca trabalham na **mesma pasta + mesmo ramo** ao
+mesmo tempo. Antes de abrir uma missão que mexa em código, olha-se para o que está vivo (`git
+status`, o `e2e_log` das últimas horas, as sessões abertas no Claude Code); se já houver outra
+sessão nesse repo/ramo, a missão nova arranca num **worktree próprio** (`git worktree add
+../bora_app-<missao> <ramo>`) ou espera. Commits são sempre por caminhos explícitos (nunca
+`git add -A`) e o push lista antes o que viaja. **Cicatriz:** o mesmo prompt em duas janelas
+custou meia sessão; a missão de 19/08 apareceu com 106 ficheiros alterados por processos que
+não eram dela; a 13/09 um merge partiu da produção antiga e regrediu 5 ficheiros com analyze e
+testes verdes. Isto já aconteceu três vezes, não é hipótese.
+
 **Os motores falam entre si pela tabela `public.claude_ai_memoria`** (`pagina`, `titulo`,
 `conteudo`, `origem`, `atualizado_em`): cada janela lê as páginas no arranque e deixa o seu
 digest no fim (§7). É a única memória partilhada entre Claude, ChatGPT e OpenCode.

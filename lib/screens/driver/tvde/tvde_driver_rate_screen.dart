@@ -7,6 +7,7 @@ import '../../../models/tvde_ride.dart';
 import '../../../services/pending_rating_queue.dart';
 import '../../../stores/tvde_driver_store.dart';
 import '../../../widgets/bora/bora.dart';
+import '../../../widgets/tvde/tvde_counter_ride_badge.dart';
 
 /// TVDE — Avaliação do passageiro pelo motorista no fim da corrida
 /// (tvde_rate → subject_type='tvde_passenger'). Mostra o ganho do motorista.
@@ -107,7 +108,8 @@ class _TvdeDriverRateScreenState extends State<TvdeDriverRateScreen> {
   @override
   Widget build(BuildContext context) {
     final ride = widget.ride;
-    final earn = (ride.driverEarnCents ?? 0) / 100;
+    // [Balcão] o valor combinado manda quando existe — nunca recalculado aqui.
+    final earn = ride.netDriverEarnCents / 100;
 
     // Sair por QUALQUER porta — "Agora não", envio, seta do header ou botão
     // físico do Android — deixa o estado igual: a corrida ativa é limpa.
@@ -135,6 +137,10 @@ class _TvdeDriverRateScreenState extends State<TvdeDriverRateScreen> {
               Text('Ganhaste €${earn.toStringAsFixed(2)} nesta corrida.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: AppColors.textSecondary)),
+              if (ride.isCounterRide) ...[
+                const SizedBox(height: Spacing.sm),
+                const Center(child: TvdeCounterRideBadge()),
+              ],
               const SizedBox(height: Spacing.xl),
               Text('Como foi o passageiro?',
                   textAlign: TextAlign.center,

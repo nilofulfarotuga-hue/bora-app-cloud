@@ -13,6 +13,7 @@ import '../../../services/sound_service.dart';
 import '../../../stores/driver_store.dart';
 import '../../../stores/tvde_driver_store.dart';
 import '../../../widgets/bora/bora.dart';
+import '../../../widgets/tvde/tvde_counter_ride_badge.dart';
 import '../../../widgets/tvde/tvde_pay_badge.dart';
 import '../../../widgets/tvde/tvde_roundtrip_driver_notice.dart';
 
@@ -129,7 +130,8 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
     final countdownLabel = secs > 0 ? '$secs s' : 'A reatribuir…';
 
     // [Item C] o motorista vê o SEU líquido (ganho), não o total do cliente.
-    final net = ((ride.driverEarnCents ?? 0) / 100).toStringAsFixed(2);
+    // [Balcão] o valor combinado manda quando existe — nunca recalculado aqui.
+    final net = (ride.netDriverEarnCents / 100).toStringAsFixed(2);
     final km = ride.estDistanceKm.toStringAsFixed(1);
 
     // M6 — distância do motorista até à recolha (estilo Uber Driver).
@@ -200,6 +202,11 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
                       // PART2 — método de pagamento visível já na oferta.
                       const SizedBox(height: Spacing.sm),
                       Center(child: TvdePayBadge(ride: ride)),
+                      // [Balcão] cliente sem app — selo visível desde a oferta.
+                      if (ride.isCounterRide) ...[
+                        const SizedBox(height: Spacing.xs),
+                        const Center(child: TvdeCounterRideBadge()),
+                      ],
                       // [Fase B] Pacote €8: o motorista tem de saber, ANTES de
                       // aceitar, que os €8 do cliente não são o ganho dele.
                       if (ride.isRoundtripLeg) ...[

@@ -65,6 +65,8 @@ import 'admin_stuck_reservations_screen.dart';
 import 'admin_support_stats_screen.dart';
 import 'admin_support_tickets_screen.dart';
 import 'admin_tokens_screen.dart';
+import 'admin_tvde_balcao_agenda_screen.dart';
+import 'admin_tvde_balcao_screen.dart';
 import 'admin_tvde_cancellations_screen.dart';
 import 'admin_tvde_docs_review_screen.dart';
 import 'admin_tvde_driver_debts_screen.dart';
@@ -386,6 +388,24 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.teal,
       builder: () => const AdminTvdeRidesScreen(),
       keywords: const ['canceladas', 'corridas', 'curso', 'feitas', 'todas'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_corridas_de_balcao',
+      title: 'Corridas de Balcão',
+      subtitle: 'Criar corrida por telefone para cliente sem app',
+      icon: Icons.phone_in_talk,
+      color: const Color(0xFF2563EB),
+      builder: () => const AdminTvdeBalcaoScreen(),
+      keywords: const ['balcao', 'cliente', 'ligou', 'sem app', 'telefone'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_agenda_de_clientes_de_balcao',
+      title: 'Agenda de Clientes de Balcão',
+      subtitle: 'Clientes sem app e as moradas guardadas deles',
+      icon: Icons.contacts,
+      color: const Color(0xFF2563EB),
+      builder: () => const AdminTvdeBalcaoAgendaScreen(),
+      keywords: const ['agenda', 'balcao', 'clientes', 'contactos', 'moradas'],
     ),
     AdminMenuItem(
       id: 'tvde_cancelamentos_de_corridas',

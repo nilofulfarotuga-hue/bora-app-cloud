@@ -170,6 +170,15 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
       'small_order_fee_enabled',
     };
     if (smallOrderFeeKeys.contains(key)) return true;
+    // CORRIDA DE BALCÃO (2026-09-18) — só o interruptor de fila justa é
+    // OPERACIONAL (decide QUEM se chama primeiro, não quanto se cobra/paga).
+    // `tvde_balcao_default_fare_cents`/`_driver_cents` ficam de fora por
+    // enquanto: mexem no preço combinado por omissão de um produto novo — a
+    // mesma categoria de `appointment_booking_fee_cents`/
+    // `tvde_roundtrip_discount_pct`, mas essas só foram desbloqueadas com uma
+    // decisão explícita do Danilo já registada aqui perto; esta ainda não
+    // tem. Continuam visíveis (a lista mostra tudo), só não têm o lápis.
+    if (key == 'tvde_fila_justa_balcao_enabled') return true;
     // BLOCO 4E (2026-09-05) — mapa/navegação do TVDE. Corrigimos o cliente
     // sem ver o carro no mapa e o mapa do motorista a travar; todo o
     // comportamento novo ficou afinável por platform_settings para o Danilo

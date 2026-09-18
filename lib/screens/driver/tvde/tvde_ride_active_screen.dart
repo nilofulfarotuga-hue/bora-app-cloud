@@ -31,6 +31,7 @@ import '../../../utils/tvde_stops_route.dart';
 import '../../../widgets/bora/bora.dart';
 import '../../../widgets/payments/collect_badge.dart';
 import '../../../widgets/payments/collect_reminder_dialog.dart';
+import '../../../widgets/tvde/tvde_counter_ride_badge.dart';
 import '../../../widgets/tvde/tvde_pay_badge.dart';
 import '../../../widgets/tvde/tvde_roundtrip_driver_notice.dart';
 import '../../shared/tvde_chat_screen.dart';
@@ -1404,8 +1405,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
       // para ela (mesma tela) — mostra o ganho num aviso e NÃO vai à avaliação.
       final next = store.activeRide;
       if (next != null && next.id != ride.id && next.isLive) {
-        final earn =
-            ((finished.driverEarnCents ?? 0) / 100).toStringAsFixed(2);
+        final earn = (finished.netDriverEarnCents / 100).toStringAsFixed(2);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(
                 'Corrida finalizada — ganhaste €$earn. Próxima corrida ativada.')));
@@ -1436,7 +1436,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
                 ? CollectState.coveredByPlan
                 : CollectState.paidOnline),
         amountCents: fare.driverCollectCents,
-        earnedCents: finished.driverEarnCents ?? 0,
+        earnedCents: finished.netDriverEarnCents,
       );
     } catch (_) {/* o lembrete nunca pode impedir o fecho da corrida */}
     if (mounted) setState(() => _collectReminderPending = false);
@@ -1825,7 +1825,8 @@ class _ActionPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // [Item C] o motorista vê o SEU líquido (ganho), não o total do cliente.
-    final net = ((ride.driverEarnCents ?? 0) / 100).toStringAsFixed(2);
+    // [Balcão] o valor combinado manda quando existe — nunca recalculado aqui.
+    final net = (ride.netDriverEarnCents / 100).toStringAsFixed(2);
     // [Item I] badge de mensagens por ler (lado do motorista).
     final unread = context.watch<TvdeChatStore>().unreadFor(ride.id, 'driver');
 
@@ -1955,6 +1956,11 @@ class _ActionPanel extends StatelessWidget {
           // com o estafeta do delivery). Hoje as corridas são todas em dinheiro.
           const SizedBox(height: Spacing.sm),
           TvdePayBadge(ride: ride),
+          // [Balcão] cliente sem app — selo visível durante toda a corrida.
+          if (ride.isCounterRide) ...[
+            const SizedBox(height: Spacing.xs),
+            const TvdeCounterRideBadge(),
+          ],
           // [Fase B] Pacote €8: separar o que ele GANHA do que o cliente PAGA.
           if (ride.isRoundtripLeg) ...[
             const SizedBox(height: Spacing.xs),
@@ -2338,7 +2344,7 @@ class _QueuedRideCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final net = ((queued.driverEarnCents ?? 0) / 100).toStringAsFixed(2);
+    final net = (queued.netDriverEarnCents / 100).toStringAsFixed(2);
     final ligacaoKm = Geolocator.distanceBetween(current.destLat,
             current.destLng, queued.originLat, queued.originLng) /
         1000;
@@ -2495,7 +2501,7 @@ class _QueuedOfferBannerState extends State<_QueuedOfferBanner> {
   Widget build(BuildContext context) {
     final offer = widget.offer;
     // [Item C] líquido do motorista (não o total do cliente) na oferta em fila.
-    final net = ((offer.driverEarnCents ?? 0) / 100).toStringAsFixed(2);
+    final net = (offer.netDriverEarnCents / 100).toStringAsFixed(2);
     // [Sobreposição 14/09 · item 5] "onde vou largar → onde vou buscar".
     final ligacaoKm = Geolocator.distanceBetween(
             widget.current.destLat,
@@ -2562,6 +2568,12 @@ class _QueuedOfferBannerState extends State<_QueuedOfferBanner> {
               TvdePayBadge(ride: offer, dense: true),
             ],
           ),
+          if (offer.isCounterRide) ...[
+            const SizedBox(height: 4),
+            const Align(
+                alignment: Alignment.centerLeft,
+                child: TvdeCounterRideBadge(dense: true)),
+          ],
           const SizedBox(height: 6),
           Text(
             'Recolha a ${ligacaoKm.toStringAsFixed(1)} km de onde vais largar '

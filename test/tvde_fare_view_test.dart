@@ -21,6 +21,9 @@ TvdeRide _ride({
   int stopsFeeCents = 0,
   int stopsCount = 0,
   bool usedPlan = false,
+  String? source,
+  int? agreedFareCents,
+  int? agreedDriverEarnCents,
 }) =>
     TvdeRide.fromMap({
       'id': 'r1',
@@ -39,6 +42,10 @@ TvdeRide _ride({
       'used_subscription_ride': usedPlan,
       if (creditId != null) 'roundtrip_credit_id': creditId,
       'is_return_leg': isReturn,
+      if (source != null) 'source': source,
+      if (agreedFareCents != null) 'agreed_fare_cents': agreedFareCents,
+      if (agreedDriverEarnCents != null)
+        'agreed_driver_earn_cents': agreedDriverEarnCents,
     });
 
 TvdeFareView _view(TvdeRide r) => TvdeFareView.of(r, packageCents: _pkg);
@@ -158,6 +165,49 @@ void main() {
       final f = _view(_ride(usedPlan: true, stopsCount: 1, stopsFeeCents: 200));
       expect(f.clientTotalCents, 200);
       expect(f.driverCollectCents, 200);
+    });
+  });
+
+  group('corrida de balcão (missão central-corridas-balcao-2026-09-18)', () {
+    test('valor combinado manda — nunca recalcula por cima dele', () {
+      final f = _view(_ride(
+        source: 'balcao',
+        agreedFareCents: 500,
+        // estFareCents/finalFareCents diferentes do combinado: se a UI
+        // recalculasse, o teste apanhava.
+        estFareCents: 999,
+        finalFareCents: 1234,
+      ));
+      expect(f.clientTotalCents, 500);
+      expect(f.driverCollectCents, 500);
+      expect(f.approx, isFalse,
+          reason: 'valor combinado nunca é estimativa');
+    });
+
+    test('valor combinado ganha mesmo com paradas registadas', () {
+      // Corrida de balcão não usa paradas hoje, mas se um dia tiver, o
+      // combinado continua a mandar — nunca se soma por cima.
+      final f = _view(_ride(
+        source: 'balcao',
+        agreedFareCents: 500,
+        stopsCount: 1,
+        stopsFeeCents: 200,
+      ));
+      expect(f.clientTotalCents, 500);
+    });
+
+    test('pago em dinheiro (regra do balcão) ⇒ motorista recolhe o combinado',
+        () {
+      final f = _view(_ride(
+          source: 'balcao',
+          agreedFareCents: 700,
+          paymentMethod: 'cash'));
+      expect(f.driverCollectCents, 700);
+    });
+
+    test('corrida normal (sem agreed_fare_cents) não é afetada', () {
+      final f = _view(_ride(estFareCents: 500));
+      expect(f.clientTotalCents, 500);
     });
   });
 }

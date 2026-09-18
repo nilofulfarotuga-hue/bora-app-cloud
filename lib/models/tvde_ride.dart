@@ -39,6 +39,9 @@ class TvdeRide {
     this.reservationOfferDriverId,
     this.reservationOfferExpiresAt,
     this.reservationDriverReadyAt,
+    this.source = 'app',
+    this.agreedFareCents,
+    this.agreedDriverEarnCents,
   });
 
   final String id;
@@ -130,6 +133,26 @@ class TvdeRide {
   /// Nulo perto da hora = o servidor vai passar a reserva a outro.
   final DateTime? reservationDriverReadyAt;
 
+  // ── [Corrida de balcão 2026-09-18] ──────────────────────────────────────
+  /// `'app'` (padrão) ou `'balcao'` — corrida criada pelo admin para cliente
+  /// sem aplicação (telefonou ao Danilo). Espelha `tvde_rides.source`.
+  final String source;
+
+  /// Valor combinado com o cliente (cêntimos) — quando não-nulo, é o que se
+  /// mostra SEMPRE, nunca recalculado no telemóvel. Vem só em corridas de
+  /// balcão (`admin_tvde_create_counter_ride` grava-o na criação).
+  final int? agreedFareCents;
+
+  /// Ganho combinado do motorista (cêntimos) — mesma regra do [agreedFareCents].
+  final int? agreedDriverEarnCents;
+
+  /// Corrida de balcão: cliente sem app, avisado por telefone.
+  bool get isCounterRide => source == 'balcao';
+
+  /// Ganho do motorista a mostrar — o combinado manda quando existe, nunca
+  /// se recalcula por cima dele.
+  int get netDriverEarnCents => agreedDriverEarnCents ?? driverEarnCents ?? 0;
+
   /// É uma reserva (corrida marcada para depois), não um pedido imediato.
   bool get isReservation => status == 'agendada' || scheduledAt != null;
 
@@ -191,6 +214,9 @@ class TvdeRide {
       reservationDriverReadyAt: m['reservation_driver_ready_at'] == null
           ? null
           : DateTime.tryParse(m['reservation_driver_ready_at'].toString()),
+      source: m['source'] as String? ?? 'app',
+      agreedFareCents: (m['agreed_fare_cents'] as num?)?.toInt(),
+      agreedDriverEarnCents: (m['agreed_driver_earn_cents'] as num?)?.toInt(),
     );
   }
 

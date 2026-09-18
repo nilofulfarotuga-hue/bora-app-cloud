@@ -54,6 +54,21 @@ class TvdeFareView {
     final stopsCents = ride.extraStopsFeeCents;
     final paidOnline = ride.isPaidOnline;
 
+    // Corrida de balcão: valor combinado com o cliente na criação — manda
+    // sempre que existe, nunca se recalcula por cima dele (nem paradas, nem
+    // pacote: uma corrida de balcão não passa por nenhum dos dois hoje).
+    if (ride.agreedFareCents != null) {
+      final total = ride.agreedFareCents!;
+      return TvdeFareView(
+        clientTotalCents: total,
+        driverCollectCents: paidOnline ? 0 : total,
+        clientLabel: _eur(total),
+        approx: false,
+        coveredByPlan: false,
+        isPaidOnline: paidOnline,
+      );
+    }
+
     // Perna do pacote: a tarifa desta corrida NUNCA se cobra — está prepaga.
     // As paradas vêm SEMPRE do acumulado `extra_stops_fee_cents`, nunca de
     // `final_fare_cents` (contrato já quebrado uma vez — ver doc da classe).

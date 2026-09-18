@@ -15,6 +15,7 @@ import '../utils/cart_feedback.dart';
 import '../widgets/bora/bora_accent_button.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/bora/coming_soon.dart';
+import '../widgets/bora/weight_price_text.dart';
 import 'cart_screen.dart';
 
 import '../l10n/tr.dart';
@@ -255,6 +256,22 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             color: Colors.black87,
                           ),
                         ),
+                        // Venda ao peso: "desde €1,14" e o preço ao cliente
+                        // por quilo; a porção escolhe-se no grupo abaixo.
+                        if (widget.product.soldByWeight &&
+                            widget.product.price > 0) ...[
+                          const SizedBox(height: 6),
+                          WeightPriceText(
+                            displayPrice: PricingService.applyMarkup(
+                                widget.product.price, widget.isPartnerStore),
+                            soldByWeight: true,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
                         if (widget.product.description.isNotEmpty) ...[
                           const SizedBox(height: 8),
                           Text(

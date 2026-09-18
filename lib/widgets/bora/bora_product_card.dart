@@ -6,6 +6,7 @@ import '../../config/app_colors.dart';
 import '../../models/partner_product.dart';
 import '../../stores/cart_store.dart';
 import 'coming_soon.dart';
+import 'weight_price_text.dart';
 
 import '../../l10n/tr.dart';
 
@@ -156,10 +157,13 @@ class BoraProductCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Flexible(
-                          child: Text(
-                            hasPrice
-                                ? '€${(displayPrice ?? product.price).toStringAsFixed(2)}'
-                                : 'Indisponível',
+                          // Ao peso: "desde €1,14" + "€5,70/kg" em pequeno.
+                          child: WeightPriceText(
+                            displayPrice: hasPrice
+                                ? (displayPrice ?? product.price)
+                                : 0,
+                            soldByWeight: product.soldByWeight,
+                            unavailableLabel: 'Indisponível',
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w800,
@@ -170,8 +174,6 @@ class BoraProductCard extends StatelessWidget {
                                   ? AppColors.primary
                                   : Colors.grey.shade500,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         InkWell(

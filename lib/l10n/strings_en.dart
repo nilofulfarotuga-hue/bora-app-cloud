@@ -2636,6 +2636,8 @@ const Map<String, String> kStringsEn = <String, String>{
       '{0} min',
   '{0} no carrinho':
       '{0} in the cart',
+  'desde {0}':
+      'from {0}',
   '{0} pago':
       '{0} paid',
   '{0} pendente':

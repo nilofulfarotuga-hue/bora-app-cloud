@@ -21,6 +21,7 @@ import '../stores/favorite_store.dart';
 import '../stores/restaurant_store.dart';
 import '../utils/cart_feedback.dart';
 import '../widgets/bora/bora.dart';
+import '../widgets/bora/weight_price_text.dart';
 import '../widgets/bora_support_fab.dart';
 import 'cart_screen.dart';
 import 'client/reservation/reservation_availability_screen.dart';
@@ -488,7 +489,10 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
                                       fontSize: 14)),
                               subtitle: Text(
                                   // B1: exibido = cobrado (markup runtime).
-                                  '€${PricingService.applyMarkup(p.price, widget.restaurant.isPartner).toStringAsFixed(2)}',
+                                  // Ao peso: "desde €X · €Y/kg".
+                                  p.soldByWeight
+                                      ? '${WeightPriceText.priceLabel(PricingService.applyMarkup(p.price, widget.restaurant.isPartner), true)} · ${WeightPriceText.perKgLabel(PricingService.applyMarkup(p.price, widget.restaurant.isPartner))}'
+                                      : '€${PricingService.applyMarkup(p.price, widget.restaurant.isPartner).toStringAsFixed(2)}',
                                   style: const TextStyle(fontSize: 13)),
                               onTap: () => Navigator.push(
                                 context,
@@ -1077,10 +1081,11 @@ class _GlovoProductCard extends StatelessWidget {
                           Row(
                             children: [
                               Expanded(
-                                child: Text(
-                                  product.price > 0
-                                      ? '€${displayPrice.toStringAsFixed(2)}'
-                                      : 'Sem preço',
+                                child: WeightPriceText(
+                                  displayPrice:
+                                      product.price > 0 ? displayPrice : 0,
+                                  soldByWeight: product.soldByWeight,
+                                  unavailableLabel: 'Sem preço',
                                   style: TextStyle(
                                     fontSize: 13.5,
                                     fontWeight: FontWeight.w700,
@@ -1316,11 +1321,14 @@ class _SectionProductCard extends StatelessWidget {
                         ),
                       ],
                       const SizedBox(height: 4),
-                      Text(
-                        product.price > 0
-                            // B1: fonte única applyMarkup (exibido = cobrado).
-                            ? '€${PricingService.applyMarkup(product.price, isPartnerStore).toStringAsFixed(2)}'
-                            : 'Preço indisponível',
+                      // B1: fonte única applyMarkup (exibido = cobrado).
+                      WeightPriceText(
+                        displayPrice: product.price > 0
+                            ? PricingService.applyMarkup(
+                                product.price, isPartnerStore)
+                            : 0,
+                        soldByWeight: product.soldByWeight,
+                        unavailableLabel: 'Preço indisponível',
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 14,

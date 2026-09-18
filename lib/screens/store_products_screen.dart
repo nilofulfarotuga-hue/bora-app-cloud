@@ -13,6 +13,7 @@ import '../stores/favorite_store.dart';
 import '../stores/restaurant_store.dart';
 import '../utils/cart_feedback.dart';
 import '../widgets/bora/bora_product_card.dart';
+import '../widgets/bora/weight_price_text.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora/coming_soon.dart';
 import '../widgets/bora_support_fab.dart';
@@ -1069,17 +1070,23 @@ class _ProductCardState extends State<_ProductCard>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        widget.product.price > 0
-                            // B1: exibido = cobrado (markup runtime não-parceiro).
-                            ? '€${PricingService.applyMarkup(widget.product.price, widget.isPartnerStore).toStringAsFixed(2)}'
-                            : 'Preço indisponível',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                          color: widget.product.price > 0
-                              ? primaryColor
-                              : Colors.grey.shade500,
+                      Expanded(
+                        // B1: exibido = cobrado (markup runtime não-parceiro).
+                        // Ao peso: "desde €X" + "€Y/kg".
+                        child: WeightPriceText(
+                          displayPrice: widget.product.price > 0
+                              ? PricingService.applyMarkup(
+                                  widget.product.price, widget.isPartnerStore)
+                              : 0,
+                          soldByWeight: widget.product.soldByWeight,
+                          unavailableLabel: 'Preço indisponível',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: widget.product.price > 0
+                                ? primaryColor
+                                : Colors.grey.shade500,
+                          ),
                         ),
                       ),
                       _QtyButton(
@@ -1088,6 +1095,20 @@ class _ProductCardState extends State<_ProductCard>
                         semanticId: 'btn_add_carrinho',
                         onTap: () {
                           if (widget.product.price <= 0) return;
+                          // 2026-09-18: escolha obrigatória (ex.: ao peso)
+                          // → abre o detalhe em vez de adicionar directo.
+                          if (widget.product.hasRequiredOptions) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ProductDetailScreen(
+                                  product: widget.product,
+                                  isPartnerStore: widget.isPartnerStore,
+                                ),
+                              ),
+                            );
+                            return;
+                          }
                           context.read<CartStore>().addItem(CartItem(
                                 productId: widget.product.id,
                                 name: widget.product.name,

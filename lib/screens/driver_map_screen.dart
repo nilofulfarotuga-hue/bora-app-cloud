@@ -9,6 +9,7 @@ import '../utils/safe_image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/receipt_upload_service.dart';
+import '../services/weight_portions.dart';
 
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
@@ -2832,7 +2833,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        '${item.name} × ${item.quantity}',
+                                        '${WeightPortions.displayName(item)} × ${item.quantity}',
                                         style: TextStyle(
                                           fontSize: 14,
                                           fontWeight: FontWeight.w500,

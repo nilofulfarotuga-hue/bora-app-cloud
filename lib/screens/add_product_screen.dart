@@ -12,7 +12,9 @@ import '../config/app_colors.dart';
 import '../models/partner_product.dart';
 import '../models/restaurant_model.dart';
 import '../services/partner_price_rules.dart';
+import '../services/weight_portions.dart';
 import '../stores/partner_product_store.dart';
+import '../stores/restaurant_store.dart';
 
 /// Sentinel do dropdown de categoria — seleciona-lo abre o campo livre para
 /// criar uma categoria nova (BUG 1, 2026-07-17).
@@ -53,6 +55,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
   bool _isAvailable = true;
   bool _isSaving = false;
 
+  // Venda ao peso (2026-09-18): ligado, o campo do preço passa a ser o preço
+  // por quilo que o parceiro recebe; a app monta as porções sozinha
+  // (WeightPortions + set_product_weight_pricing no servidor).
+  bool _soldByWeight = false;
+
   // BUG 1 (2026-07-17): categoria do produto — dropdown com as categorias já
   // usadas por esta loja + opção de criar uma nova.
   String? _selectedCategoryOption;
@@ -86,6 +93,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     _newCategoryController = TextEditingController();
     if (product != null) {
       _isAvailable = product.isAvailable;
+      _soldByWeight = product.soldByWeight;
       _selectedAllergens.addAll(product.allergens);
       if (product.photoUrl.trim().isNotEmpty) {
         _existingImageUrl = product.photoUrl;
@@ -99,6 +107,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
   /// tiver balcão gravado, cai para o preço actual (numa loja parceira isso
   /// é o preço que o cliente vê — o parceiro confirma-o ao guardar).
   String _initialPriceText(PartnerProduct product) {
+    // Ao peso, o campo é o preço por quilo (o que o parceiro recebe).
+    if (product.soldByWeight && product.shelfPricePerKg != null) {
+      return product.shelfPricePerKg!.toStringAsFixed(2).replaceAll('.', ',');
+    }
     final value = _isPartnerStore
         ? (product.partnerShelfPrice ?? product.price)
         : product.price;
@@ -199,6 +211,25 @@ class _AddProductScreenState extends State<AddProductScreen> {
       priceToSave = rules.appPriceFromShelf(parsedPrice);
     }
 
+    // Ao peso: o número escrito é o preço por quilo. O produto grava-se com a
+    // porção base (200 g) e logo a seguir o servidor monta as porções e fixa
+    // o preço final — set_product_weight_pricing é a única verdade.
+    if (_soldByWeight) {
+      if (parsedPrice <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Indique o preço por quilo.')),
+        );
+        return;
+      }
+      final rules = _isPartnerStore ? _rules : null;
+      priceToSave = WeightPortions.clientPriceFor(
+          parsedPrice, WeightPortions.kBaseGrams, rules);
+      shelfToSave = _isPartnerStore
+          ? ((parsedPrice * WeightPortions.kBaseGrams / 1000 * 100).round() /
+              100)
+          : null;
+    }
+
     final category = _resolveCategory(_existingCategories);
     if (category.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -217,8 +248,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
     if (!mounted) return;
 
     final store = context.read<PartnerProductStore>();
+    final restaurantStore = context.read<RestaurantStore>();
     final editing = widget.product;
     try {
+      String savedProductId;
       if (editing != null) {
         final ok = await store.updateProduct(
           restaurantId: widget.restaurant.id,
@@ -236,8 +269,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
         if (!ok) {
           throw StateError('o servidor não aceitou a alteração');
         }
+        savedProductId = editing.id;
       } else {
-        await store.addProduct(
+        final created = await store.addProduct(
           restaurantId: widget.restaurant.id,
           name: _nameController.text,
           description: _descriptionController.text,
@@ -248,6 +282,30 @@ class _AddProductScreenState extends State<AddProductScreen> {
           category: category,
           allergens: _selectedAllergens.toList(),
           requiresPrescription: _requiresPrescription,
+        );
+        savedProductId = created.id;
+      }
+
+      // Venda ao peso: liga/desliga no servidor (colunas + grupo das porções).
+      // Só se chama quando há algo a mudar: ligado agora, ou estava ligado e
+      // desligou-se — um produto normal a ser editado não passa por aqui.
+      final wasByWeight = editing?.soldByWeight ?? false;
+      if (_soldByWeight || wasByWeight) {
+        final res = await WeightPortions.apply(
+          productId: savedProductId,
+          soldByWeight: _soldByWeight,
+          shelfPricePerKg: _soldByWeight ? parsedPrice : null,
+        );
+        if (res['success'] != true) {
+          throw StateError('o servidor não montou as porções');
+        }
+        restaurantStore.applyWeightPricingLocally(
+          restaurantId: widget.restaurant.id,
+          productId: savedProductId,
+          soldByWeight: _soldByWeight,
+          shelfPricePerKg: _soldByWeight ? parsedPrice : null,
+          price: (res['price'] as num?)?.toDouble(),
+          partnerShelfPrice: (res['partner_shelf_price'] as num?)?.toDouble(),
         );
       }
     } catch (error) {
@@ -443,6 +501,70 @@ class _AddProductScreenState extends State<AddProductScreen> {
               const SizedBox(height: 2),
               Text('O cliente vê: ${formatEurPt(clientPrice)}',
                   style: strong),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// Venda ao peso: "Recebes X por kg / o cliente vê Y por kg" e as cinco
+  /// porções com o preço que o cliente paga em cada uma. Loja parceira usa
+  /// as percentagens da plataforma ([_rules]); loja não parceira mostra o
+  /// preço puro (o markup de mercado é aplicado em runtime, como sempre).
+  Widget _buildWeightPreview(ThemeData theme) {
+    final subtle = theme.textTheme.bodySmall?.color;
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: _priceController,
+      builder: (context, value, _) {
+        if (_isPartnerStore && _rules == null) {
+          if (_rulesLoading) {
+            return Text('A preparar o preço para o cliente…',
+                style: theme.textTheme.bodySmall?.copyWith(color: subtle));
+          }
+          return Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Não foi possível ler as percentagens da plataforma.',
+                  style: theme.textTheme.bodySmall?.copyWith(color: subtle),
+                ),
+              ),
+              TextButton(
+                onPressed: _rulesLoading ? null : _loadRules,
+                child: const Text('Tentar outra vez'),
+              ),
+            ],
+          );
+        }
+        final perKg = _parsePrice(value.text);
+        if (perKg == null || perKg <= 0) {
+          return Text('Escreve o preço do quilo para veres as porções.',
+              style: theme.textTheme.bodySmall?.copyWith(color: subtle));
+        }
+        final rules = _isPartnerStore ? _rules : null;
+        final clientPerKg = WeightPortions.clientPriceFor(perKg, 1000, rules);
+        final portions = WeightPortions.preview(perKg, rules);
+        final strong = theme.textTheme.bodyMedium
+            ?.copyWith(fontWeight: FontWeight.w600);
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Recebes: ${formatEurPt(perKg)} por kg', style: strong),
+              const SizedBox(height: 2),
+              Text('O cliente vê: ${formatEurPt(clientPerKg)} por kg',
+                  style: strong),
+              const SizedBox(height: 6),
+              for (final p in portions)
+                Text('${p.label} — ${formatEurPt(p.price)}',
+                    style: theme.textTheme.bodySmall?.copyWith(color: subtle)),
             ],
           ),
         );
@@ -719,17 +841,35 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
+                  // Venda ao peso: fruta, legumes, carne, queijo… O parceiro
+                  // escreve o preço do quilo e a app faz as porções sozinha.
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Vendido ao peso'),
+                    subtitle: const Text(
+                        'Escreves o preço do quilo; o cliente escolhe 200 g, '
+                        '300 g, 400 g, meio quilo ou 1 kg.'),
+                    value: _soldByWeight,
+                    onChanged: (v) => setState(() => _soldByWeight = v),
+                  ),
+                  const SizedBox(height: 8),
                   TextFormField(
                     controller: _priceController,
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
                     decoration: InputDecoration(
-                      labelText:
-                          _isPartnerStore ? 'Preço que recebes' : 'Preço',
-                      helperText: _isPartnerStore
-                          ? 'O preço de balcão da tua loja. A app soma a '
-                              'comissão por cima, sozinha.'
-                          : null,
+                      labelText: _soldByWeight
+                          ? (_isPartnerStore
+                              ? 'Preço por kg que recebes'
+                              : 'Preço por kg')
+                          : (_isPartnerStore ? 'Preço que recebes' : 'Preço'),
+                      helperText: _soldByWeight
+                          ? 'O preço do quilo. As porções e o preço para o '
+                              'cliente são calculados sozinhos.'
+                          : (_isPartnerStore
+                              ? 'O preço de balcão da tua loja. A app soma a '
+                                  'comissão por cima, sozinha.'
+                              : null),
                       helperMaxLines: 2,
                       prefixIcon: const Icon(Icons.euro),
                     ),
@@ -741,10 +881,16 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       if (parsed == null || parsed < 0) {
                         return 'Preço inválido';
                       }
+                      if (_soldByWeight && parsed <= 0) {
+                        return 'Indique o preço por quilo';
+                      }
                       return null;
                     },
                   ),
-                  if (_isPartnerStore) ...[
+                  if (_soldByWeight) ...[
+                    const SizedBox(height: 8),
+                    _buildWeightPreview(theme),
+                  ] else if (_isPartnerStore) ...[
                     const SizedBox(height: 8),
                     _buildPricePreview(theme),
                   ],

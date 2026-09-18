@@ -176,7 +176,7 @@ class RestaurantStore extends ChangeNotifier {
   static const String _productProjection =
       'id,restaurant_id,name,description,price,price_low,partner_shelf_price,'
       'photo_url,is_available,category,category_root,is_popular,is_on_sale,'
-      'discount_price,allergens';
+      'discount_price,allergens,sold_by_weight,shelf_price_per_kg';
 
   /// B5 (2026-06-12): parse partilhado row→PartnerProduct (arranque +
   /// páginas lazy). Devolve null para rows sem restaurant_id.
@@ -217,7 +217,16 @@ class RestaurantStore extends ChangeNotifier {
       source: ProductSource.api,
       hasRequiredOptions: _requiredOptionProductIds.contains(productId),
       allergens: allergens,
+      soldByWeight: (data['sold_by_weight'] as bool?) ?? false,
+      shelfPricePerKg: _numFromRow(data, 'shelf_price_per_kg'),
     );
+  }
+
+  /// numeric → double, null quando a coluna vem vazia.
+  static double? _numFromRow(Map<String, dynamic> data, String key) {
+    final raw = data[key];
+    if (raw == null) return null;
+    return double.tryParse(raw.toString());
   }
 
   /// `products.partner_shelf_price` (numeric → double), null quando o produto
@@ -594,6 +603,11 @@ class RestaurantStore extends ChangeNotifier {
                 ? double.tryParse(data['discount_price'].toString())
                 : null,
             source: ProductSource.api,
+            // Um produto ao peso nasce já com o grupo obrigatório das porções
+            // (set_product_weight_pricing) — o "+" tem de abrir o detalhe.
+            hasRequiredOptions: (data['sold_by_weight'] as bool?) ?? false,
+            soldByWeight: (data['sold_by_weight'] as bool?) ?? false,
+            shelfPricePerKg: _numFromRow(data, 'shelf_price_per_kg'),
           );
           final list = _productsByRestaurant.putIfAbsent(
               restaurantId, () => <PartnerProduct>[]);
@@ -631,7 +645,13 @@ class RestaurantStore extends ChangeNotifier {
             categoryRoot:
                 (data['category_root'] ?? list[index].categoryRoot).toString(),
             source: list[index].source, // preserve original source on update
-            hasRequiredOptions: list[index].hasRequiredOptions,
+            hasRequiredOptions: list[index].hasRequiredOptions ||
+                ((data['sold_by_weight'] as bool?) ?? false),
+            allergens: list[index].allergens,
+            soldByWeight: (data['sold_by_weight'] as bool?) ??
+                list[index].soldByWeight,
+            shelfPricePerKg: _numFromRow(data, 'shelf_price_per_kg') ??
+                list[index].shelfPricePerKg,
           );
           notifyListeners();
         },
@@ -887,6 +907,47 @@ class RestaurantStore extends ChangeNotifier {
     }
 
     return true;
+  }
+
+  /// Venda ao peso (2026-09-18): espelha localmente o que
+  /// `set_product_weight_pricing` acabou de gravar no servidor (a função é
+  /// quem manda no preço e no grupo das porções; aqui só se actualiza a
+  /// lista para o parceiro ver logo "desde X" sem esperar pelo realtime).
+  void applyWeightPricingLocally({
+    required String restaurantId,
+    required String productId,
+    required bool soldByWeight,
+    double? shelfPricePerKg,
+    double? price,
+    double? partnerShelfPrice,
+  }) {
+    final list = _productsByRestaurant[restaurantId];
+    if (list == null) return;
+    final index = list.indexWhere((item) => item.id == productId);
+    if (index == -1) return;
+    final current = list[index];
+    list[index] = PartnerProduct(
+      id: current.id,
+      restaurantId: current.restaurantId,
+      name: current.name,
+      description: current.description,
+      price: price ?? current.price,
+      partnerShelfPrice: partnerShelfPrice ?? current.partnerShelfPrice,
+      photoUrl: current.photoUrl,
+      isAvailable: current.isAvailable,
+      category: current.category,
+      categoryRoot: current.categoryRoot,
+      isPopular: current.isPopular,
+      isOnSale: current.isOnSale,
+      discountPrice: current.discountPrice,
+      source: current.source,
+      hasRequiredOptions: soldByWeight || current.hasRequiredOptions,
+      allergens: current.allergens,
+      soldByWeight: soldByWeight,
+      shelfPricePerKg: soldByWeight ? shelfPricePerKg : null,
+    );
+    if (soldByWeight) _requiredOptionProductIds.add(productId);
+    notifyListeners();
   }
 
   Future<bool> deletePartnerProduct({

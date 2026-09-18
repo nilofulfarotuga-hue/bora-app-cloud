@@ -11,6 +11,7 @@ import '../../stores/cart_store.dart';
 import '../../stores/restaurant_store.dart';
 import '../../utils/cart_feedback.dart';
 import '../bora/coming_soon.dart';
+import '../bora/weight_price_text.dart';
 
 import '../../l10n/tr.dart';
 
@@ -40,7 +41,10 @@ class MarketProductCard extends StatelessWidget {
   void _handleAdd(BuildContext context) {
     final variants =
         context.read<RestaurantStore>().variantsForProduct(product.id);
-    if (variants.isNotEmpty) {
+    // 2026-09-18: produto com grupo obrigatório (ex.: ao peso, "Escolhe a
+    // quantidade") nunca entra directo — senão o cliente levava 1 kg ao
+    // preço de 200 g sem escolher nada.
+    if (variants.isNotEmpty || product.hasRequiredOptions) {
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -111,12 +115,16 @@ class MarketProductCard extends StatelessWidget {
                     // na cobrança — exibir o desconto riscado cobrando o
                     // preço cheio era enganoso (14 produtos Lidl afetados;
                     // decisão sobre honrar promoções reportada ao Danilo).
-                    Text(
-                      '€${PricingService.applyMarkup(product.price, isPartnerStore).toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                    Expanded(
+                      child: WeightPriceText(
+                        displayPrice: PricingService.applyMarkup(
+                            product.price, isPartnerStore),
+                        soldByWeight: product.soldByWeight,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
                     ),
                     _AddButton(onTap: () => _handleAdd(context)),

@@ -8,6 +8,7 @@ import '../config/app_spacing.dart';
 import '../models/order_service_type.dart';
 import '../models/restaurant_model.dart' show kFestasPrateleiraEncomenda;
 import '../services/wallet_service.dart';
+import '../services/weight_portions.dart';
 import '../stores/cart_store.dart';
 import '../stores/restaurant_store.dart';
 import '../widgets/bora/bora.dart';
@@ -67,12 +68,13 @@ class CartScreen extends StatelessWidget {
                     itemBuilder: (context, index) {
                       final item = cartStore.items[index];
                       return _CartItemTile(
-                        name: item.name,
+                        // Ao peso: "Abóbora Cabotiá — 500 g (meio quilo)".
+                        name: WeightPortions.displayName(item),
                         price: item.price,
                         quantity: item.quantity,
                         // T1 (2026-06-11): cliente vê as opções escolhidas
                         // (toppings) — o preço da linha já as inclui.
-                        options: item.selectedOptions
+                        options: WeightPortions.optionsWithoutWeight(item)
                             .map((o) => '${o.group}: ${o.items.join(', ')}')
                             .toList(),
                         onDecrease: () => cartStore.decreaseQuantity(item),

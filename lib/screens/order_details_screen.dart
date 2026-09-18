@@ -9,6 +9,7 @@ import '../config/app_theme.dart';
 import '../models/chat_message.dart';
 import '../models/order_model.dart';
 import '../services/wallet_service.dart';
+import '../services/weight_portions.dart';
 import '../stores/driver_store.dart';
 import '../stores/order_store.dart';
 import '../widgets/bora_support_fab.dart';
@@ -1003,7 +1004,7 @@ class _ItemsCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${item.quantity}× ${item.name}',
+                          '${item.quantity}× ${WeightPortions.displayName(item)}',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,

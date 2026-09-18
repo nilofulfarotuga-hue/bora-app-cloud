@@ -18,6 +18,8 @@ class PartnerProduct {
     this.source = ProductSource.api,
     this.hasRequiredOptions = false,
     this.allergens = const [],
+    this.soldByWeight = false,
+    this.shelfPricePerKg,
   });
 
   final String id;
@@ -26,6 +28,7 @@ class PartnerProduct {
   final String description;
 
   /// `products.price` — o preço que o cliente vê (já com a comissão por cima).
+  /// Num produto ao peso é o preço da porção base de 200 g.
   final double price;
 
   /// `products.partner_shelf_price` — o preço de balcão, o que o parceiro
@@ -52,6 +55,15 @@ class PartnerProduct {
   /// produto mostra o disclaimer "consulte o estabelecimento".
   final List<String> allergens;
 
+  /// `products.sold_by_weight` (2026-09-18): o preço da linha é a porção de
+  /// 200 g e o grupo obrigatório "Escolhe a quantidade" traz 300/400/500 g e
+  /// 1 kg. Ver `WeightPortions` e `set_product_weight_pricing` no servidor.
+  final bool soldByWeight;
+
+  /// `products.shelf_price_per_kg` — o preço por quilo que o parceiro recebe.
+  /// Só faz sentido com [soldByWeight].
+  final double? shelfPricePerKg;
+
   PartnerProduct copyWith({
     String? name,
     String? description,
@@ -67,6 +79,8 @@ class PartnerProduct {
     ProductSource? source,
     bool? hasRequiredOptions,
     List<String>? allergens,
+    bool? soldByWeight,
+    double? shelfPricePerKg,
   }) {
     return PartnerProduct(
       id: id,
@@ -85,6 +99,8 @@ class PartnerProduct {
       source: source ?? this.source,
       hasRequiredOptions: hasRequiredOptions ?? this.hasRequiredOptions,
       allergens: allergens ?? this.allergens,
+      soldByWeight: soldByWeight ?? this.soldByWeight,
+      shelfPricePerKg: shelfPricePerKg ?? this.shelfPricePerKg,
     );
   }
 }

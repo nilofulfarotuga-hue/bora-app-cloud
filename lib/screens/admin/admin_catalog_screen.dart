@@ -8,6 +8,7 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import 'admin_product_prices_dialog.dart';
+import 'admin_product_weight_dialog.dart';
 
 class AdminCatalogScreen extends StatefulWidget {
   const AdminCatalogScreen({super.key});
@@ -137,6 +138,8 @@ class _AdminCatalogProductsScreen extends StatefulWidget {
 class _AdminCatalogProductsScreenState extends State<_AdminCatalogProductsScreen> {
   final _search = TextEditingController();
   bool _onlyInactive = false;
+  // Venda ao peso (2026-09-18): filtro "vendidos ao peso".
+  bool _onlyByWeight = false;
   bool _loading = true;
   List<Map<String, dynamic>> _products = [];
 
@@ -157,10 +160,13 @@ class _AdminCatalogProductsScreenState extends State<_AdminCatalogProductsScreen
     try {
       // 2026-09-14: v2 traz também partner_shelf_price, is_partner e
       // app_markup_pct (migration 20260914170000_admin_precos_parceiro_balcao_e_app).
-      final res = await Supabase.instance.client.rpc('admin_list_products_by_partner_v2', params: {
+      // 2026-09-18: v3 = v2 + sold_by_weight/shelf_price_per_kg + filtro ao peso
+      // (migration 20260918211000_admin_list_products_by_partner_v3).
+      final res = await Supabase.instance.client.rpc('admin_list_products_by_partner_v3', params: {
         'p_restaurant_id': widget.restaurantId,
         'p_search': _search.text.isEmpty ? null : _search.text.trim(),
         'p_only_inactive': _onlyInactive,
+        'p_only_by_weight': _onlyByWeight,
         'p_limit': 200, 'p_offset': 0,
       });
       if (mounted) setState(() {
@@ -289,11 +295,33 @@ class _AdminCatalogProductsScreenState extends State<_AdminCatalogProductsScreen
   String _priceLabel(Map<String, dynamic> p) {
     final price = _num(p['price']) ?? 0;
     final shelf = _num(p['partner_shelf_price']);
+    // Ao peso: o preço da linha é a porção de 200 g; mostra-se o kg de balcão.
+    if (p['sold_by_weight'] == true) {
+      final kg = _num(p['shelf_price_per_kg']);
+      final kgLabel = kg == null ? '?' : '€${kg.toStringAsFixed(2)}';
+      return 'Ao peso · balcão $kgLabel/kg → App desde €${price.toStringAsFixed(2)} (200 g)';
+    }
     if (p['is_partner'] == true) {
       final balcao = shelf == null ? 'sem balcão' : '€${shelf.toStringAsFixed(2)}';
       return 'Balcão $balcao → App €${price.toStringAsFixed(2)}';
     }
     return '€${price.toStringAsFixed(2)}';
+  }
+
+  /// Venda ao peso (2026-09-18): liga/desliga e edita o preço por kg de balcão.
+  /// Grava pela função set_product_weight_pricing (a mesma que a app do
+  /// parceiro usa), que recalcula o preço da porção base e as porções.
+  Future<void> _editWeight(Map<String, dynamic> p) async {
+    final saved = await showAdminProductWeightDialog(
+      context,
+      productId: p['id'] as String,
+      productName: (p['name'] as String?) ?? '—',
+      soldByWeight: p['sold_by_weight'] == true,
+      shelfPricePerKg: _num(p['shelf_price_per_kg']),
+      isPartner: p['is_partner'] == true,
+      appMarkupPct: _num(p['app_markup_pct']),
+    );
+    if (saved) _load();
   }
 
   Widget _buildProductImage(Map<String, dynamic> product) {
@@ -335,6 +363,16 @@ class _AdminCatalogProductsScreenState extends State<_AdminCatalogProductsScreen
                 _load();
               },
             ),
+            const SizedBox(width: 8),
+            FilterChip(
+              label: const Text('Ao peso'),
+              tooltip: 'Só produtos vendidos ao peso',
+              selected: _onlyByWeight,
+              onSelected: (v) {
+                setState(() => _onlyByWeight = v);
+                _load();
+              },
+            ),
           ]),
         ),
         Expanded(
@@ -369,6 +407,14 @@ class _AdminCatalogProductsScreenState extends State<_AdminCatalogProductsScreen
                           IconButton(
                             icon: const Icon(Icons.edit),
                             onPressed: () => _editPrice(p),
+                          ),
+                          IconButton(
+                            tooltip: 'Venda ao peso (preço por kg)',
+                            icon: Icon(Icons.scale_outlined,
+                                color: p['sold_by_weight'] == true
+                                    ? AppColors.primary
+                                    : AppColors.textSubtle),
+                            onPressed: () => _editWeight(p),
                           ),
                           IconButton(
                             tooltip: 'Resetar foto',

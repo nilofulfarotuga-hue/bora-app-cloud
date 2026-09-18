@@ -4092,3 +4092,43 @@ Confundir as duas é erro. São produtos diferentes, com dinheiro diferente:
 
 **Não existe** nenhuma chave de sinal de €3 para marcações. O sinal de €3 é só das
 reservas de mesa, e continua vivo e intacto (ver §18.1).
+
+## §57 — VENDA AO PESO (hortifrúti, carne, queijo…) — 2026-09-18
+
+**Regra (palavras do Danilo):** "tudo que tá lá por quilo tem que dividir por porção de
+200 gramas; eu ponho o preço do quilo e a pessoa clica em 200 g, 300 g, meio quilo, e vai
+pro carrinho."
+
+1. **Porção base = 200 g.** `products.price` de um produto ao peso é o preço ao cliente da
+   porção de 200 g. `products.sold_by_weight = true` e `products.shelf_price_per_kg` = o
+   preço por quilo que o parceiro recebe (balcão). `products.unit = 'porção'`.
+2. **As outras porções são múltiplos exactos da base:** 300 g = 1,5×, 400 g = 2×,
+   500 g (meio quilo) = 2,5×, 1 kg = 5×. Vivem no grupo obrigatório
+   **"Escolhe a quantidade"** (`product_option_groups`, `is_required`, min 1, max 1) com o
+   `price_add` de cada porção. Assim o "€/kg" do cartão (5 × base) é sempre o preço do 1 kg.
+3. **Fórmula da base (loja parceira):** balcão × 0,2 × (1 + `partner_hidden_markup_pct`)
+   ÷ (1 − `partner_visible_commission_pct`), arredondada a 2 casas — percentagens SEMPRE de
+   `platform_settings`, nunca cravadas; loja com `app_markup_pct` usa balcão × (1 + pct).
+   Loja não parceira: base = balcão × 0,2 (preço puro; o markup de mercado é aplicado em
+   runtime como em qualquer produto). Prova: preço_cliente × 0,9 ÷ 1,05 devolve o balcão/kg
+   ao cêntimo (Abóbora 4,89 €/kg → 1,14 / 1,71 / 2,28 / 2,85 / 5,70).
+4. **Uma verdade só:** quem grava é `public.set_product_weight_pricing(product_id,
+   sold_by_weight, shelf_price_per_kg, reason)` (admin ou dono da loja). O ecrã do parceiro
+   ("Vendido ao peso" em Adicionar/Editar produto) e o painel admin (ícone da balança no
+   catálogo, filtro "Ao peso") chamam a mesma função; o Flutter só pré-visualiza
+   (`WeightPortions`).
+5. **Cliente:** cartão e detalhe mostram "desde 1,14 €" e a linha pequena "5,70 €/kg" (preço
+   ao cliente, não o balcão). O "+" de um produto com escolha obrigatória abre SEMPRE o
+   detalhe — nunca adiciona directo (senão levava 1 kg ao preço de 200 g). No carrinho, na
+   lista de compras do estafeta e no detalhe do pedido a linha diz a porção por extenso:
+   "Abóbora Cabotiá — 500 g (meio quilo)".
+6. **Balança diferente do pedido:** segue a regra que já existe para produto em falta /
+   preço do talão (§ storeShopping v2) — não há regra nova para o peso.
+7. **Loja nova com hortifrúti entra já assim:** todo o produto vendido a peso é criado com o
+   interruptor "Vendido ao peso" ligado e o preço por quilo; nunca se cria "1 kg" como
+   produto solto nem se pede ao parceiro para fazer contas.
+
+*Cicatriz (18/09):* os dois primeiros produtos ao peso (Sabores de Casa: Abóbora Cabotiá e
+Jiló) foram montados à mão por SQL; os cartões de mercado (`MarketProductCard`) e o cartão do
+ecrã de loja (`_ProductCard`) tinham um "+" que ignorava os grupos obrigatórios. Fechado na
+missão `sistema-redondo-2026-09-18` (teste `venda_ao_peso_mais_abre_detalhe_test.dart`).

@@ -2,7 +2,7 @@
 id: memoria-claude-ai-mapa-sessoes-contas
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-09-17
+ultima_confirmacao: 2026-09-18
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Mapa de sessões e contas — que conta está em que sítio (provado no ecrã a 17/09/2026)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `mapa-sessoes-contas`, origem `claude-code`, atualizada em 2026-09-17T11:12:44.932987+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `mapa-sessoes-contas`, origem `claude-code`, atualizada em 2026-09-18T13:42:14.53873+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: mapa sessoes contas · memoria claude.ai · claude_ai_memoria
 
@@ -31,3 +31,5 @@ TELEGRAM do Danilo: chat 6731890157; envia-se pela VPS (/opt/data/voz/voz.py par
 ARMADILHAS PROVADAS: o separador que a extensão cria nasce numa janela em segundo plano — as apps da Google não renderizam e a captura falha com "0 width" enquanto o Danilo usa outro separador (esperar, não roubar o foco); se ele mexer nos separadores o grupo da extensão desaparece (recriar com tabs_context_mcp createIfEmpty); o javascript_tool da extensão é bloqueado em ads.google.com, business.facebook.com, opencode.ai e App Store Connect (usar find/read_page/captura); o Enter chega com keyCode 0 nas apps da Google; o save_to_disk das capturas não devolveu caminho — guardar as saídas literais como prova.
 
 COMO SE ATUALIZA: sessão nova confirmada no ecrã → editar MAPA-CONTAS.json (campo confirmado com a data), o MAPA-CONTAS.md e esta página, com a data. Nunca escrever senhas, tokens ou chaves.
+
+ACTUALIZAÇÃO 18/09/2026 13:20 UTC (missão ios-portugal-2026-09-18): Apple App Store Connect e developer.apple.com com sessão VIVA no perfil Bora (Negócios abriu sem login; abrir-site.ps1 exit 0). O Gmail u/0 boraappbora nesse perfil serve para anexar ficheiros a casos da Apple (file_upload no input Filedata). O separador criado pela extensão ficou visível desta vez; a captura em branco do developer.apple.com era só o SPA a carregar (esperar e ler o texto). MAPA-CONTAS.json: entrada apple confirmado 2026-09-18 13:20.

@@ -1,0 +1,555 @@
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
+import '../../services/admin/admin_driver_service.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
+
+/// Bora Motorista (TVDE) — Motoristas de passageiros (gerir / banir).
+///
+/// Lista os motoristas com `vehicle_type = 'carro_passageiros'` via
+/// `admin_tvde_drivers_list()` (RPC admin read-only, aditivo) e usa o
+/// mecanismo de gestão de motoristas que JÁ existe (`AdminDriverService`:
+/// `admin_ban_driver` / `admin_reactivate_driver`) — sem reinventar.
+/// Idioma: PT-BR.
+class AdminTvdeDriversScreen extends StatefulWidget {
+  const AdminTvdeDriversScreen({super.key});
+
+  @override
+  State<AdminTvdeDriversScreen> createState() => _AdminTvdeDriversScreenState();
+}
+
+class _AdminTvdeDriversScreenState extends State<AdminTvdeDriversScreen> {
+  final _svc = AdminDriverService();
+  late Future<List<Map<String, dynamic>>> _future;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+  }
+
+  Future<List<Map<String, dynamic>>> _load() async {
+    final res = await Supabase.instance.client.rpc('admin_tvde_drivers_list');
+    final list = (res as List?) ?? const [];
+    return list
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+  }
+
+  Future<void> _refresh() async {
+    setState(() => _future = _load());
+    await _future;
+  }
+
+  Future<void> _ban(Map<String, dynamic> d) async {
+    final controller = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Banir ${d['name'] ?? 'motorista'}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Banir tira o motorista de circulação (deixa de receber corridas). '
+              'Escreve o motivo (fica no histórico):',
+              style: TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              minLines: 1,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                hintText: 'Motivo (mínimo 3 caracteres)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Banir'),
+          ),
+        ],
+      ),
+    );
+    if (reason == null) return;
+    if (reason.length < 3) {
+      _toast('Motivo tem de ter pelo menos 3 caracteres.', AppColors.warning);
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      await _svc.banDriver(
+        driverId: d['id'].toString(),
+        reasonCode: 'other',
+        reason: reason,
+      );
+      if (!mounted) return;
+      _toast('Motorista banido.', AppColors.primary);
+      await _refresh();
+    } on AdminDriverException catch (e) {
+      if (!mounted) return;
+      _toast(e.message, AppColors.error);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _reactivate(Map<String, dynamic> d) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Reativar ${d['name'] ?? 'motorista'}'),
+        content: const Text(
+            'Vai limpar o banimento (o motorista volta a poder receber corridas).'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Reativar'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    setState(() => _busy = true);
+    try {
+      await _svc.reactivateDriver(
+        driverId: d['id'].toString(),
+        note: 'Reativado pelo painel Bora Motorista',
+      );
+      if (!mounted) return;
+      _toast('Motorista reativado.', AppColors.primary);
+      await _refresh();
+    } on AdminDriverException catch (e) {
+      if (!mounted) return;
+      _toast(e.message, AppColors.error);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// A8 — vê/edita a preferência de trabalho do motorista (só corridas vs tudo).
+  Future<void> _setWorkMode(Map<String, dynamic> d) async {
+    final current = (d['work_mode'] as String?) ?? 'everything';
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text('Preferência de ${d['name'] ?? 'motorista'}'),
+        children: [
+          RadioListTile<String>(
+            value: 'rides_only',
+            groupValue: current,
+            title: const Text('Só corridas de passageiros'),
+            onChanged: (v) => Navigator.pop(ctx, v),
+          ),
+          RadioListTile<String>(
+            value: 'everything',
+            groupValue: current,
+            title: const Text('Tudo (corridas + entregas)'),
+            onChanged: (v) => Navigator.pop(ctx, v),
+          ),
+        ],
+      ),
+    );
+    if (choice == null || choice == current) return;
+    setState(() => _busy = true);
+    try {
+      await Supabase.instance.client.rpc('admin_set_driver_work_mode',
+          params: {'p_driver_id': d['id'], 'p_mode': choice});
+      if (!mounted) return;
+      _toast('Preferência atualizada.', AppColors.primary);
+      await _refresh();
+    } catch (e) {
+      if (!mounted) return;
+      _toast('Erro: $e', AppColors.error);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  void _toast(String msg, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: color),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: 'Motoristas — Passageiros',
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Atualizar',
+            onPressed: _refresh,
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          if (_busy) const LinearProgressIndicator(minHeight: 2),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _refresh,
+              child: FutureBuilder<List<Map<String, dynamic>>>(
+                future: _future,
+                builder: (context, snap) {
+                  if (snap.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snap.hasError) {
+                    return ListView(
+                      padding: const EdgeInsets.all(24),
+                      children: [
+                        const SizedBox(height: 60),
+                        const Icon(Icons.error_outline,
+                            size: 44, color: AppColors.error),
+                        const SizedBox(height: 12),
+                        Text('Erro:\n${snap.error}',
+                            textAlign: TextAlign.center),
+                      ],
+                    );
+                  }
+                  final rows = snap.data ?? const [];
+                  if (rows.isEmpty) {
+                    return ListView(
+                      children: const [
+                        SizedBox(height: 120),
+                        Center(
+                          child: Text(
+                            'Nenhum motorista de passageiros ainda.\n'
+                            '(São os estafetas com veículo "Carro — Passageiros".)',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: AppColors.textSecondary),
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+                  return ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: rows.length,
+                    itemBuilder: (_, i) => _DriverCard(
+                      data: rows[i],
+                      busy: _busy,
+                      onBan: _ban,
+                      onReactivate: _reactivate,
+                      onSetWorkMode: _setWorkMode,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DriverCard extends StatelessWidget {
+  const _DriverCard({
+    required this.data,
+    required this.busy,
+    required this.onBan,
+    required this.onReactivate,
+    required this.onSetWorkMode,
+  });
+
+  final Map<String, dynamic> data;
+  final bool busy;
+  final Future<void> Function(Map<String, dynamic>) onBan;
+  final Future<void> Function(Map<String, dynamic>) onReactivate;
+  final Future<void> Function(Map<String, dynamic>) onSetWorkMode;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = (data['name'] as String?)?.trim();
+    final phone = (data['phone'] as String?)?.trim();
+    final online = data['is_online'] == true;
+    final banned = data['is_banned'] == true;
+    final approval = (data['approval_status'] as String?) ?? 'pending';
+    final rating = (data['rating'] as num?)?.toDouble();
+    final ratingsCount = (data['ratings_count'] as num?)?.toInt() ?? 0;
+    final balance = (data['tvde_balance'] as num?)?.toDouble() ?? 0;
+    final active = (data['active_rides'] as num?)?.toInt() ?? 0;
+    final total = (data['total_rides'] as num?)?.toInt() ?? 0;
+    // Estado dual (dual-driver): corrida TVDE vs entrega de delivery + fila.
+    final queued = (data['queued_rides'] as num?)?.toInt() ?? 0;
+    final hasDelivery = data['has_active_delivery'] == true;
+    final banReason = (data['ban_reason'] as String?)?.trim();
+    final ridesOnly = data['work_mode'] == 'rides_only';
+    // G — cartão do carro (visível no admin).
+    final photoUrl = (data['photo_url'] as String?)?.trim();
+    final carMakeModel = (data['vehicle_make_model'] as String?)?.trim();
+    final carColor = (data['vehicle_color'] as String?)?.trim();
+    final plate = (data['license_plate'] as String?)?.trim();
+    final carLine = [
+      if (carMakeModel != null && carMakeModel.isNotEmpty) carMakeModel,
+      if (carColor != null && carColor.isNotEmpty) carColor,
+      if (plate != null && plate.isNotEmpty) plate,
+    ].join(' · ');
+    // [TVDE P0 2026-07-02] telemetria de elegibilidade — diagnóstico rápido
+    // de "cliente não acha motorista" sem abrir o banco.
+    final heartbeatAt = DateTime.tryParse(
+        (data['last_heartbeat_at'] as String?) ?? '');
+    final locationAt = DateTime.tryParse(
+        (data['location_updated_at'] as String?) ?? '');
+    final hasToken = data['has_fcm_token'] == true;
+
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(Radii.lg)),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                // G — foto do motorista (KYC/identificação no admin).
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                  backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
+                      ? NetworkImage(photoUrl)
+                      : null,
+                  child: (photoUrl == null || photoUrl.isEmpty)
+                      ? const Icon(Icons.person, color: AppColors.primary)
+                      : null,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    (name != null && name.isNotEmpty) ? name : '(sem nome)',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 16),
+                  ),
+                ),
+                if (banned)
+                  const _Tag(label: 'Banido', color: AppColors.error)
+                else
+                  _ApprovalTag(status: approval),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (phone != null && phone.isNotEmpty)
+              _line(Icons.phone_outlined, phone),
+            // G — carro visível no admin (marca/modelo · cor · matrícula).
+            if (carLine.isNotEmpty) _line(Icons.directions_car_outlined, carLine),
+            _line(Icons.circle, online ? 'Online agora' : 'Offline',
+                color: online ? AppColors.primary : AppColors.textSubtle),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                _Pill(
+                    icon: Icons.star,
+                    label: rating == null
+                        ? 'Sem avaliação'
+                        : '${rating.toStringAsFixed(1)} ($ratingsCount)'),
+                _Pill(icon: Icons.local_taxi, label: '$active em curso'),
+                if (queued > 0)
+                  _Pill(icon: Icons.queue, label: '$queued na fila'),
+                if (hasDelivery)
+                  _Pill(
+                      icon: Icons.delivery_dining, label: 'Entrega em curso'),
+                _Pill(icon: Icons.done_all, label: '$total concluídas'),
+                // Saldo com sinal (liquidação por método): positivo = motorista
+                // deve ao Bora (dinheiro); negativo = Bora deve ao motorista
+                // (cartão/MB Way, a Bora recebeu online). Zero = quitado.
+                _Pill(
+                  icon: Icons.account_balance_wallet,
+                  label: balance > 0
+                      ? 'Deve ao Bora: €${balance.toStringAsFixed(2)}'
+                      : balance < 0
+                          ? 'Bora deve: €${(-balance).toStringAsFixed(2)}'
+                          : 'Saldo quitado',
+                  color: balance > 0
+                      ? AppColors.accent
+                      : (balance < 0 ? AppColors.info : AppColors.primary),
+                ),
+                _Pill(
+                  icon: Icons.favorite,
+                  label: 'Heartbeat: ${_ago(heartbeatAt)}',
+                  color: _freshColor(heartbeatAt),
+                ),
+                _Pill(
+                  icon: Icons.gps_fixed,
+                  label: 'GPS: ${_ago(locationAt)}',
+                  color: _freshColor(locationAt),
+                ),
+                _Pill(
+                  icon: hasToken
+                      ? Icons.notifications_active
+                      : Icons.notifications_off,
+                  label: hasToken ? 'Push OK' : 'Sem token push',
+                  color: hasToken ? AppColors.primary : AppColors.error,
+                ),
+                _Pill(
+                  icon: Icons.tune,
+                  label: ridesOnly ? 'Só corridas' : 'Aceita tudo',
+                  color: ridesOnly ? AppColors.accent : AppColors.primary,
+                ),
+              ],
+            ),
+            if (banned && banReason != null && banReason.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text('Motivo do banimento: $banReason',
+                    style: const TextStyle(
+                        fontSize: 12, color: AppColors.error)),
+              ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton.icon(
+                  onPressed: busy ? null : () => onSetWorkMode(data),
+                  icon: const Icon(Icons.tune, size: 18),
+                  label: const Text('Preferência'),
+                ),
+                const SizedBox(width: 8),
+                if (banned)
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary),
+                    onPressed: busy ? null : () => onReactivate(data),
+                    icon: const Icon(Icons.lock_open, size: 18),
+                    label: const Text('Reativar'),
+                  )
+                else
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.error),
+                    onPressed: busy ? null : () => onBan(data),
+                    icon: const Icon(Icons.block, size: 18),
+                    label: const Text('Banir'),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// "agora" / "há Xmin" / "há Xh" / '—' quando nunca houve sinal.
+  static String _ago(DateTime? t) {
+    if (t == null) return '—';
+    final diff = DateTime.now().toUtc().difference(t.toUtc());
+    if (diff.inSeconds < 60) return 'agora';
+    if (diff.inMinutes < 60) return 'há ${diff.inMinutes}min';
+    if (diff.inHours < 48) return 'há ${diff.inHours}h';
+    return 'há ${diff.inDays}d';
+  }
+
+  /// Verde = fresco (elegível), laranja = a envelhecer, vermelho = morto.
+  static Color _freshColor(DateTime? t) {
+    if (t == null) return AppColors.error;
+    final diff = DateTime.now().toUtc().difference(t.toUtc());
+    if (diff.inSeconds <= 90) return AppColors.primary;
+    if (diff.inMinutes <= 10) return AppColors.warning;
+    return AppColors.error;
+  }
+
+  Widget _line(IconData icon, String text, {Color? color}) {
+    final c = color ?? AppColors.textSubtle;
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Row(
+        children: [
+          Icon(icon, size: 13, color: c),
+          const SizedBox(width: 5),
+          Text(text,
+              style: const TextStyle(
+                  fontSize: 12.5, color: AppColors.textSecondary)),
+        ],
+      ),
+    );
+  }
+}
+
+class _ApprovalTag extends StatelessWidget {
+  const _ApprovalTag({required this.status});
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, color) = switch (status) {
+      'approved' => ('Aprovado', AppColors.primary),
+      'rejected' => ('Rejeitado', AppColors.error),
+      _ => ('Pendente', AppColors.warning),
+    };
+    return _Tag(label: label, color: color);
+  }
+}
+
+class _Tag extends StatelessWidget {
+  const _Tag({required this.label, required this.color});
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(label,
+          style: TextStyle(
+              color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+    );
+  }
+}
+
+class _Pill extends StatelessWidget {
+  const _Pill({required this.icon, required this.label, this.color});
+  final IconData icon;
+  final String label;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = color ?? AppColors.textSecondary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: c.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: c),
+          const SizedBox(width: 5),
+          Text(label, style: TextStyle(fontSize: 12, color: c)),
+        ],
+      ),
+    );
+  }
+}

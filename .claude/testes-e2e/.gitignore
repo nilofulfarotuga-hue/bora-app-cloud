@@ -1,0 +1,14 @@
+.env
+gravacoes/
+frames/
+resultados-*.json
+loop-noturno-*.json
+.cinegrafista-state.json
+*.log
+*.log.err
+*.log.out
+*.png
+_diag_*.png
+_tail_debug.txt
+PARAR
+__pycache__/

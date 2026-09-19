@@ -1,0 +1,41 @@
+00:50 +495: C:/BoraLocal/projetosflutter/bora_app/test/tvde_payment_selector_test.dart: switch OFF → só Dinheiro (card/mbway escondidos)
+00:50 +496: C:/BoraLocal/projetosflutter/bora_app/test/tvde_payment_selector_test.dart: switch OFF → só Dinheiro (card/mbway escondidos)
+00:50 +497: C:/BoraLocal/projetosflutter/bora_app/test/tvde_payment_selector_test.dart: switch OFF → só Dinheiro (card/mbway escondidos)
+00:50 +498: C:/BoraLocal/projetosflutter/bora_app/test/tvde_payment_selector_test.dart: switch ON → Dinheiro + Cartão + MB Way
+00:50 +499: C:/BoraLocal/projetosflutter/bora_app/test/tvde_sinal_motorista_test.dart: os três estados do sinal posição de há 10 segundos está fresca — o carro anima
+00:50 +500: C:/BoraLocal/projetosflutter/bora_app/test/tvde_payment_selector_test.dart: tocar num método chama onChanged com o valor certo
+00:50 +501: C:/BoraLocal/projetosflutter/bora_app/test/tvde_payment_selector_test.dart: tocar num método chama onChanged com o valor certo
+00:50 +502: C:/BoraLocal/projetosflutter/bora_app/test/tvde_payment_selector_test.dart: tocar num método chama onChanged com o valor certo
+00:50 +503: C:/BoraLocal/projetosflutter/bora_app/test/tvde_payment_selector_test.dart: tocar num método chama onChanged com o valor certo
+00:50 +504: C:/BoraLocal/projetosflutter/bora_app/test/tvde_payment_selector_test.dart: tocar num método chama onChanged com o valor certo
+00:50 +505: C:/BoraLocal/projetosflutter/bora_app/test/tvde_payment_selector_test.dart: tocar num método chama onChanged com o valor certo
+00:50 +506: C:/BoraLocal/projetosflutter/bora_app/test/tvde_payment_selector_test.dart: tocar num método chama onChanged com o valor certo
+00:50 +507: C:/BoraLocal/projetosflutter/bora_app/test/tvde_payment_selector_test.dart: tocar num método chama onChanged com o valor certo
+00:50 +508: C:/BoraLocal/projetosflutter/bora_app/test/tvde_payment_selector_test.dart: tocar num método chama onChanged com o valor certo
+00:50 +509: C:/BoraLocal/projetosflutter/bora_app/test/tvde_payment_selector_test.dart: tocar num método chama onChanged com o valor certo
+00:50 +510: C:/BoraLocal/projetosflutter/bora_app/test/tvde_payment_selector_test.dart: tocar num método chama onChanged com o valor certo
+00:50 +511: C:/BoraLocal/projetosflutter/bora_app/test/tvde_payment_selector_test.dart: tocar num método chama onChanged com o valor certo
+00:50 +512: C:/BoraLocal/projetosflutter/bora_app/test/tvde_payment_selector_test.dart: tocar num método chama onChanged com o valor certo
+00:50 +513: C:/BoraLocal/projetosflutter/bora_app/test/tvde_payment_selector_test.dart: tocar num método chama onChanged com o valor certo
+00:50 +514: C:/BoraLocal/projetosflutter/bora_app/test/tvde_payment_selector_test.dart: MB Way escolhido → mostra o campo do número
+00:50 +515: C:/BoraLocal/projetosflutter/bora_app/test/tvde_payment_selector_test.dart: MB Way escolhido → mostra o campo do número
+00:50 +516: C:/BoraLocal/projetosflutter/bora_app/test/tvde_payment_selector_test.dart: MB Way escolhido → mostra o campo do número
+00:50 +517: C:/BoraLocal/projetosflutter/bora_app/test/tvde_payment_selector_test.dart: MB Way escolhido → mostra o campo do número
+00:50 +518: C:/BoraLocal/projetosflutter/bora_app/test/tvde_payment_selector_test.dart: MB Way escolhido → mostra o campo do número
+00:50 +519: C:/BoraLocal/projetosflutter/bora_app/test/tvde_payment_selector_test.dart: MB Way escolhido → mostra o campo do número
+00:50 +520: C:/BoraLocal/projetosflutter/bora_app/test/tvde_payment_selector_test.dart: MB Way escolhido → mostra o campo do número
+00:51 +521: C:/BoraLocal/projetosflutter/bora_app/test/unified_checkout_button_test.dart: UnifiedCheckoutButton mostra o cartão padrão que vai ser cobrado
+00:51 +522: C:/BoraLocal/projetosflutter/bora_app/test/unified_checkout_button_test.dart: UnifiedCheckoutButton mostra o cartão padrão que vai ser cobrado
+00:51 +522: C:/BoraLocal/projetosflutter/bora_app/test/tvde_payment_selector_test.dart: Cartão escolhido → sem campo de número
+[PaymentService] fetchSavedCards error: 'package:supabase_flutter/src/supabase.dart': Failed assertion: line 45 pos 7: '_instance._isInitialized': You must initialize the supabase instance before calling Supabase.instance
+00:51 +523: C:/BoraLocal/projetosflutter/bora_app/test/unified_checkout_button_test.dart: UnifiedCheckoutButton mostra o cartão padrão que vai ser cobrado
+00:51 +524: C:/BoraLocal/projetosflutter/bora_app/test/unified_checkout_button_test.dart: UnifiedCheckoutButton mostra o cartão padrão que vai ser cobrado
+00:51 +525: C:/BoraLocal/projetosflutter/bora_app/test/unified_checkout_button_test.dart: UnifiedCheckoutButton mostra o cartão padrão que vai ser cobrado
+00:51 +526: C:/BoraLocal/projetosflutter/bora_app/test/unified_checkout_button_test.dart: UnifiedCheckoutButton mostra o cartão padrão que vai ser cobrado
+00:51 +527: C:/BoraLocal/projetosflutter/bora_app/test/unified_checkout_button_test.dart: UnifiedCheckoutButton biometria aceite → cobra com o saved_pm_id
+00:52 +528: C:/BoraLocal/projetosflutter/bora_app/test/unified_checkout_button_test.dart: UnifiedCheckoutButton biometria recusada → NÃO cobra e avisa o cliente
+00:52 +529: C:/BoraLocal/projetosflutter/bora_app/test/unified_checkout_button_test.dart: UnifiedCheckoutButton sem cartão guardado → cobra com null e não pede biometria
+00:52 +530: C:/BoraLocal/projetosflutter/bora_app/test/unified_checkout_button_test.dart: UnifiedCheckoutButton useOverride: a escolha do ecrã manda sobre o padrão
+00:52 +531: C:/BoraLocal/projetosflutter/bora_app/test/unified_checkout_button_test.dart: UnifiedCheckoutButton useOverride com null (cartão novo) não pede biometria
+00:52 +532: All tests passed!
+exit=0

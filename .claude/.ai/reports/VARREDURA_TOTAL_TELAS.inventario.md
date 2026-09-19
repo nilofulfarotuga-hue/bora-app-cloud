@@ -1,0 +1,653 @@
+# Inventário auto-gerado F0 — 2026-08-16
+
+Total ficheiros dart em lib/: 414
+
+## Ficheiro :: linhas :: pushes :: classes :: → navega/invoca
+
+- `lib/auth/auth_store.dart` :: 1851L :: push×0 :: ClientAccount,DriverAccount,PartnerAccount,AuthStore :: → -
+- `lib/config/allergens.dart` :: 21L :: push×0 :: - :: → -
+- `lib/config/app_colors.dart` :: 122L :: push×0 :: AppColors :: → -
+- `lib/config/app_spacing.dart` :: 30L :: push×0 :: Spacing,Radii :: → -
+- `lib/config/app_theme.dart` :: 191L :: push×0 :: AppTheme :: → -
+- `lib/config/auth_links.dart` :: 30L :: push×0 :: - :: → -
+- `lib/config/business_rules.dart` :: 113L :: push×0 :: - :: → -
+- `lib/config/maps_config.dart` :: 23L :: push×0 :: - :: → -
+- `lib/data/postal_coordinates.dart` :: 32L :: push×0 :: PostalCoordinateHelper :: → -
+- `lib/dispatch/dispatch_engine.dart` :: 55L :: push×0 :: DispatchEngine :: → -
+- `lib/dispatch/dispatch_service.dart` :: 277L :: push×0 :: DispatchResult,DispatchService :: → -
+- `lib/dispatch/driver_assignment_service.dart` :: 150L :: push×0 :: DriverAssignmentService :: → -
+- `lib/dispatch/driver_capacity_service.dart` :: 47L :: push×0 :: DriverCapacityService :: → -
+- `lib/main.dart` :: 703L :: push×0 :: MyApp :: → ResetPasswordScreen,RoleScreen,LoginScreen,AdminDashboardScreen,AdminCrosstalkScreen,AdminSkillSuggestionsMetricsScreen,AdminRatingsScreen,AdminWeeklySettlementsScreen,AdminRobotSuggestionsScreen,AdminDriverApprovalScreen,AdminPartnersPendingScreen,AdminTvdeAccessRequestsScreen,AdminTvdeNoShowsScreen,AdminCleaningCleanersScreen,QrClientSignupScreen,RestaurantRatingsListScreen,DriverRatingsListScreen,ClientMainScreen,ClientLoginScreen,DriverSignupScreen,TvdeDriverHomeScreen,DriverHomeScreen,DriverLoginScreen,PartnerEntryScreen
+- `lib/models/appointment_model.dart` :: 272L :: push×0 :: AppointmentStatus,AppointmentModel :: → -
+- `lib/models/business_view_models.dart` :: 75L :: push×0 :: MenuItem,Restaurant,MarketProduct,RetailStore :: → -
+- `lib/models/cart_item.dart` :: 153L :: push×0 :: CartItem :: → -
+- `lib/models/chat_message.dart` :: 18L :: push×0 :: ChatMessage :: → -
+- `lib/models/cleaning_models.dart` :: 359L :: push×0 :: CleaningLabels,CleaningBooking,CleaningQuote,AvailableCleaner,CleanerProfile,CleanerSlot :: → -
+- `lib/models/client_address.dart` :: 84L :: push×0 :: ClientAddress :: → -
+- `lib/models/client_restaurant_profile.dart` :: 72L :: push×0 :: ClientRestaurantProfile :: → -
+- `lib/models/driver_model.dart` :: 158L :: push×0 :: DriverModel,DriverAssignmentInfo :: → -
+- `lib/models/floor_plan.dart` :: 41L :: push×0 :: FloorPlan :: → -
+- `lib/models/message_model.dart` :: 164L :: push×0 :: SubstitutionContent,MessageModel :: → -
+- `lib/models/notify_entry.dart` :: 73L :: push×0 :: NotifyEntry :: → -
+- `lib/models/order_model.dart` :: 784L :: push×0 :: OrderModel :: → -
+- `lib/models/order_service_type.dart` :: 45L :: push×0 :: - :: → -
+- `lib/models/partner_product.dart` :: 81L :: push×0 :: PartnerProduct :: → -
+- `lib/models/product_option.dart` :: 96L :: push×0 :: ProductOptionItem,ProductOptionGroup,SelectedOption :: → -
+- `lib/models/product_variant.dart` :: 22L :: push×0 :: ProductVariant :: → -
+- `lib/models/provider_service_model.dart` :: 66L :: push×0 :: ProviderServiceModel :: → -
+- `lib/models/rating_model.dart` :: 74L :: push×0 :: RatingModel,RatingTags :: → -
+- `lib/models/reservation_model.dart` :: 237L :: push×0 :: ReservationStatus,ReservationModel :: → -
+- `lib/models/restaurant_model.dart` :: 338L :: push×0 :: DayHours,BusinessHours,RestaurantModel :: → -
+- `lib/models/restaurant_table.dart` :: 80L :: push×0 :: RestaurantTable :: → -
+- `lib/models/saved_card.dart` :: 50L :: push×0 :: SavedCard :: → -
+- `lib/models/service_provider_model.dart` :: 154L :: push×0 :: ServiceProviderModel :: → -
+- `lib/models/staff_member_model.dart` :: 53L :: push×0 :: StaffMemberModel :: → -
+- `lib/models/tvde_fare_view.dart` :: 103L :: push×0 :: TvdeFareView :: → -
+- `lib/models/tvde_ride.dart` :: 299L :: push×0 :: TvdeRide,TvdeRideStop :: → -
+- `lib/models/tvde_subscription.dart` :: 51L :: push×0 :: TvdeSubscription :: → -
+- `lib/models/waitlist_entry.dart` :: 78L :: push×0 :: WaitlistEntry :: → -
+- `lib/models/weekly_hours.dart` :: 173L :: push×0 :: DayHours :: → -
+- `lib/providers/support_settings_provider.dart` :: 67L :: push×0 :: SupportSettingsProvider :: → -
+- `lib/screens/add_product_screen.dart` :: 658L :: push×0 :: AddProductScreen :: → -
+- `lib/screens/admin/_admin_cancel_order_dialog.dart` :: 177L :: push×0 :: AdminCancelOrderDialog :: → -
+- `lib/screens/admin/_admin_partner_edit_dialog.dart` :: 125L :: push×0 :: AdminPartnerEditDialog :: → -
+- `lib/screens/admin/_admin_password_reset_dialog.dart` :: 200L :: push×0 :: - :: → -
+- `lib/screens/admin/_admin_rpc_errors.dart` :: 39L :: push×0 :: - :: → -
+- `lib/screens/admin/admin_advanced_kpis_screen.dart` :: 177L :: push×0 :: AdminAdvancedKpisScreen :: → -
+- `lib/screens/admin/admin_ai_assistant_screen.dart` :: 245L :: push×0 :: AdminAiAssistantScreen :: → -
+- `lib/screens/admin/admin_appointments_metrics_screen.dart` :: 300L :: push×0 :: AdminAppointmentsMetricsScreen :: → -
+- `lib/screens/admin/admin_appointments_payouts_screen.dart` :: 839L :: push×0 :: AdminAppointmentsPayoutsScreen :: → -
+- `lib/screens/admin/admin_appointments_screen.dart` :: 673L :: push×0 :: AdminAppointmentsScreen :: → -
+- `lib/screens/admin/admin_audit_log_screen.dart` :: 244L :: push×0 :: AdminAuditLogScreen,JsonEncoder :: → -
+- `lib/screens/admin/admin_broadcasts_history_screen.dart` :: 240L :: push×0 :: AdminBroadcastsHistoryScreen :: → -
+- `lib/screens/admin/admin_businesses_screen.dart` :: 402L :: push×0 :: AdminBusinessesScreen :: → -
+- `lib/screens/admin/admin_cancellation_requests_screen.dart` :: 202L :: push×0 :: AdminCancellationRequestsScreen :: → -
+- `lib/screens/admin/admin_cancellations_screen.dart` :: 231L :: push×0 :: AdminCancellationsScreen :: → -
+- `lib/screens/admin/admin_cashbacks_screen.dart` :: 183L :: push×1 :: AdminCashbacksScreen :: → AdminPlatformSettingsScreen
+- `lib/screens/admin/admin_catalog_screen.dart` :: 358L :: push×1 :: AdminCatalogScreen :: → -
+- `lib/screens/admin/admin_category_mapping_screen.dart` :: 296L :: push×0 :: AdminCategoryMappingScreen :: → -
+- `lib/screens/admin/admin_chat_viewer_screen.dart` :: 115L :: push×0 :: AdminChatViewerScreen :: → -
+- `lib/screens/admin/admin_cleaner_settlements_screen.dart` :: 686L :: push×0 :: AdminCleanerSettlementsScreen :: → -
+- `lib/screens/admin/admin_cleaning_bookings_screen.dart` :: 505L :: push×0 :: AdminCleaningBookingsScreen :: → -
+- `lib/screens/admin/admin_cleaning_cleaners_screen.dart` :: 677L :: push×0 :: AdminCleaningCleanersScreen :: → -
+- `lib/screens/admin/admin_clients_screen.dart` :: 767L :: push×0 :: AdminClientsScreen :: → -
+- `lib/screens/admin/admin_complaints_screen.dart` :: 176L :: push×0 :: AdminComplaintsScreen :: → -
+- `lib/screens/admin/admin_connect_payments_screen.dart` :: 679L :: push×0 :: AdminConnectPaymentsScreen :: → -
+- `lib/screens/admin/admin_continente_prices_screen.dart` :: 393L :: push×0 :: AdminContinentePricesScreen :: → -
+- `lib/screens/admin/admin_crosstalk_screen.dart` :: 842L :: push×0 :: AdminCrosstalkScreen,JsonEncoder :: → -
+- `lib/screens/admin/admin_dashboard_screen.dart` :: 1506L :: push×68 :: AdminDashboardScreen :: → AdminGlobalSearchScreen,AdminNotificationsInboxScreen,AdminOrdersScreen,AdminCancellationsScreen,AdminBusinessesScreen,AdminErrandCatalogScreen,AdminContinentePricesScreen,AdminDriversScreen,AdminDriverApprovalScreen,AdminDriverPaymentsScreen,AdminSettlementsScreen,AdminConnectPaymentsScreen,AdminPartnerSettlementsScreen,AdminPartnerPayoutsScreen,AdminPartnersScreen,AdminPartnersPendingScreen,AdminReservationsScreen,AdminReservationsMetricsScreen,AdminRatingsScreen,AdminClientsScreen,AdminTokensScreen,AdminCatalogScreen,AdminComplaintsScreen,AdminAdvancedKpisScreen,AdminWalletsScreen,AdminWeeklySettlementsScreen,AdminLiveOrdersMapScreen,AdminCancellationRequestsScreen,AdminPromoCodesScreen,AdminAuditLogScreen,AdminTvdeDocsReviewScreen,AdminGdprScreen,AdminDiscoveryFiltersScreen,AdminReservationsConfigScreen,AdminPlatformSettingsScreen,AdminDispatchSettingsScreen,AdminReferralsScreen,AdminCashbacksScreen,AdminSearchKpiScreen,AdminSendNotificationScreen,AdminEdgeFunctionsScreen,AdminSupportStatsScreen,AdminKnowledgeScreen,AdminPendingActionsScreen,AdminSkillSuggestionsScreen,AdminRobotSuggestionsScreen,AdminCrosstalkScreen,AdminCategoryMappingScreen,AdminServiceProvidersScreen,AdminAppointmentsScreen,AdminAppointmentsPayoutsScreen,AdminAppointmentsMetricsScreen,AdminTvdeAccessRequestsScreen,AdminTvdeNoShowsScreen,AdminTvdeRidesScreen,AdminTvdeCancellationsScreen,AdminTvdeDriversScreen,AdminTvdeSubscriptionsScreen,AdminTvdeRoundtripsScreen,AdminTvdeStuckPaymentsScreen,AdminTvdeDriverDebtsScreen,AdminTvdePlanRequestsScreen,AdminCleaningBookingsScreen,AdminCleaningCleanersScreen,AdminCleanerSettlementsScreen,AdminAiAssistantScreen,AdminSupportTicketsScreen,AdminPaymentsCardsScreen,AdminOrphanPaymentsScreen,AdminReceiptsScreen
+- `lib/screens/admin/admin_discovery_filters_screen.dart` :: 205L :: push×0 :: AdminDiscoveryFiltersScreen :: → -
+- `lib/screens/admin/admin_dispatch_settings_screen.dart` :: 428L :: push×0 :: AdminDispatchSettingsScreen :: → -
+- `lib/screens/admin/admin_driver_approval_screen.dart` :: 1003L :: push×1 :: AdminDriverApprovalScreen :: → AdminDriverDetailScreen
+- `lib/screens/admin/admin_driver_detail_screen.dart` :: 1674L :: push×0 :: AdminDriverDetailScreen :: → -
+- `lib/screens/admin/admin_driver_payments_screen.dart` :: 304L :: push×0 :: AdminDriverPaymentsScreen :: → -
+- `lib/screens/admin/admin_drivers_screen.dart` :: 350L :: push×0 :: AdminDriversScreen :: → AdminDriverDetailScreen
+- `lib/screens/admin/admin_edge_functions_screen.dart` :: 176L :: push×0 :: AdminEdgeFunctionsScreen :: → -
+- `lib/screens/admin/admin_errand_catalog_screen.dart` :: 279L :: push×0 :: AdminErrandCatalogScreen :: → -
+- `lib/screens/admin/admin_gdpr_screen.dart` :: 269L :: push×0 :: AdminGdprScreen :: → -
+- `lib/screens/admin/admin_global_search_screen.dart` :: 513L :: push×0 :: AdminGlobalSearchScreen :: → AdminClientsScreen,AdminDriverDetailScreen,AdminPartnerDetailScreen,AdminOrderDetailScreen
+- `lib/screens/admin/admin_knowledge_screen.dart` :: 589L :: push×0 :: AdminKnowledgeScreen :: → -
+- `lib/screens/admin/admin_live_orders_map_screen.dart` :: 529L :: push×0 :: AdminLiveOrdersMapScreen :: → AdminCancelOrderDialog
+- `lib/screens/admin/admin_notifications_inbox_screen.dart` :: 451L :: push×0 :: AdminNotificationsInboxScreen :: → -
+- `lib/screens/admin/admin_order_detail_screen.dart` :: 982L :: push×1 :: AdminOrderDetailScreen :: → AdminCancelOrderDialog,AdminChatViewerScreen
+- `lib/screens/admin/admin_orders_screen.dart` :: 717L :: push×0 :: AdminOrdersScreen :: → AdminCancelOrderDialog,AdminOrderDetailScreen
+- `lib/screens/admin/admin_orphan_payments_screen.dart` :: 192L :: push×0 :: AdminOrphanPaymentsScreen :: → -
+- `lib/screens/admin/admin_partner_detail_screen.dart` :: 2308L :: push×0 :: AdminPartnerDetailScreen :: → AdminPartnerEditDialog
+- `lib/screens/admin/admin_partner_payouts_screen.dart` :: 1004L :: push×0 :: AdminPartnerPayoutsScreen :: → -
+- `lib/screens/admin/admin_partner_settlements_screen.dart` :: 387L :: push×0 :: AdminPartnerSettlementsScreen :: → -
+- `lib/screens/admin/admin_partners_pending_screen.dart` :: 550L :: push×0 :: AdminPartnersPendingScreen :: → -
+- `lib/screens/admin/admin_partners_screen.dart` :: 288L :: push×1 :: AdminPartnersScreen :: → AdminPartnerDetailScreen
+- `lib/screens/admin/admin_payments_cards_screen.dart` :: 536L :: push×0 :: AdminPaymentsCardsScreen :: → -
+- `lib/screens/admin/admin_pending_actions_screen.dart` :: 734L :: push×0 :: AdminPendingActionsScreen :: → -
+- `lib/screens/admin/admin_platform_settings_screen.dart` :: 417L :: push×0 :: AdminPlatformSettingsScreen :: → -
+- `lib/screens/admin/admin_promo_codes_screen.dart` :: 205L :: push×0 :: AdminPromoCodesScreen :: → -
+- `lib/screens/admin/admin_ratings_screen.dart` :: 671L :: push×0 :: AdminRatingsScreen :: → -
+- `lib/screens/admin/admin_receipts_screen.dart` :: 906L :: push×0 :: AdminReceiptsScreen :: → -
+- `lib/screens/admin/admin_referrals_screen.dart` :: 324L :: push×0 :: AdminReferralsScreen :: → -
+- `lib/screens/admin/admin_reservations_config_screen.dart` :: 216L :: push×0 :: AdminReservationsConfigScreen :: → -
+- `lib/screens/admin/admin_reservations_metrics_screen.dart` :: 525L :: push×0 :: AdminReservationsMetricsScreen :: → -
+- `lib/screens/admin/admin_reservations_screen.dart` :: 775L :: push×0 :: AdminReservationsScreen :: → -
+- `lib/screens/admin/admin_robot_suggestions_screen.dart` :: 1264L :: push×0 :: AdminRobotSuggestionsScreen :: → -
+- `lib/screens/admin/admin_search_kpi_screen.dart` :: 159L :: push×0 :: AdminSearchKpiScreen :: → -
+- `lib/screens/admin/admin_send_notification_screen.dart` :: 288L :: push×0 :: AdminSendNotificationScreen :: → AdminBroadcastsHistoryScreen
+- `lib/screens/admin/admin_service_provider_detail_screen.dart` :: 2422L :: push×0 :: AdminServiceProviderDetailScreen :: → -
+- `lib/screens/admin/admin_service_providers_screen.dart` :: 487L :: push×0 :: AdminServiceProvidersScreen :: → AdminServiceProviderDetailScreen
+- `lib/screens/admin/admin_settlements_screen.dart` :: 810L :: push×0 :: AdminSettlementsScreen :: → -
+- `lib/screens/admin/admin_skill_suggestions_metrics_screen.dart` :: 451L :: push×0 :: AdminSkillSuggestionsMetricsScreen :: → -
+- `lib/screens/admin/admin_skill_suggestions_screen.dart` :: 1771L :: push×1 :: AdminSkillSuggestionsScreen :: → -
+- `lib/screens/admin/admin_support_stats_screen.dart` :: 368L :: push×0 :: AdminSupportStatsScreen :: → -
+- `lib/screens/admin/admin_support_tickets_screen.dart` :: 257L :: push×0 :: AdminSupportTicketsScreen :: → -
+- `lib/screens/admin/admin_tokens_screen.dart` :: 405L :: push×0 :: AdminTokensScreen :: → -
+- `lib/screens/admin/admin_tvde_access_requests_screen.dart` :: 481L :: push×0 :: AdminTvdeAccessRequestsScreen :: → -
+- `lib/screens/admin/admin_tvde_cancellations_screen.dart` :: 314L :: push×0 :: AdminTvdeCancellationsScreen :: → -
+- `lib/screens/admin/admin_tvde_docs_review_screen.dart` :: 315L :: push×0 :: AdminTvdeDocsReviewScreen :: → -
+- `lib/screens/admin/admin_tvde_driver_debts_screen.dart` :: 304L :: push×0 :: AdminTvdeDriverDebtsScreen :: → -
+- `lib/screens/admin/admin_tvde_drivers_screen.dart` :: 556L :: push×0 :: AdminTvdeDriversScreen :: → -
+- `lib/screens/admin/admin_tvde_noshows_screen.dart` :: 346L :: push×0 :: AdminTvdeNoShowsScreen :: → -
+- `lib/screens/admin/admin_tvde_plan_requests_screen.dart` :: 310L :: push×0 :: AdminTvdePlanRequestsScreen :: → -
+- `lib/screens/admin/admin_tvde_rides_screen.dart` :: 843L :: push×0 :: AdminTvdeRidesScreen :: → -
+- `lib/screens/admin/admin_tvde_roundtrips_screen.dart` :: 201L :: push×0 :: AdminTvdeRoundtripsScreen :: → -
+- `lib/screens/admin/admin_tvde_stuck_payments_screen.dart` :: 398L :: push×0 :: AdminTvdeStuckPaymentsScreen :: → -
+- `lib/screens/admin/admin_tvde_subscriptions_screen.dart` :: 395L :: push×0 :: AdminTvdeSubscriptionsScreen :: → -
+- `lib/screens/admin/admin_wallets_screen.dart` :: 564L :: push×0 :: AdminWalletsScreen :: → -
+- `lib/screens/admin/admin_weekly_settlements_screen.dart` :: 892L :: push×0 :: AdminWeeklySettlementsScreen :: → -
+- `lib/screens/carry_groceries_form_screen.dart` :: 183L :: push×1 :: CarryGroceriesFormScreen :: → PaymentMethodScreen
+- `lib/screens/carry_groceries_screen.dart` :: 29L :: push×1 :: CarryGroceriesScreen :: → CarryGroceriesFormScreen
+- `lib/screens/cart_screen.dart` :: 653L :: push×1 :: CartScreen :: → PaymentMethodScreen,OrdersScreen
+- `lib/screens/chat_screen.dart` :: 726L :: push×0 :: ChatScreen :: → -
+- `lib/screens/cleaner/cleaner_apply_screen.dart` :: 497L :: push×0 :: CleanerApplyScreen :: → -
+- `lib/screens/cleaner/cleaner_availability_screen.dart` :: 236L :: push×0 :: CleanerAvailabilityScreen :: → -
+- `lib/screens/cleaner/cleaner_earnings_screen.dart` :: 164L :: push×0 :: CleanerEarningsScreen :: → -
+- `lib/screens/cleaner/cleaner_history_screen.dart` :: 139L :: push×0 :: CleanerHistoryScreen :: → -
+- `lib/screens/cleaner/cleaner_home_screen.dart` :: 987L :: push×6 :: CleanerHomeScreen :: → CleanerApplyScreen,DriverRoleApplyScreen,CleanerAvailabilityScreen,CleanerEarningsScreen,CleanerHistoryScreen,BoraSupportSheet
+- `lib/screens/client/cleaning/cleaning_bookings_screen.dart` :: 250L :: push×2 :: CleaningBookingsScreen :: → CleaningWizardScreen,CleaningTrackingScreen
+- `lib/screens/client/cleaning/cleaning_payment_flow.dart` :: 259L :: push×0 :: CleaningPaymentFlow :: → -
+- `lib/screens/client/cleaning/cleaning_tracking_screen.dart` :: 697L :: push×0 :: CleaningTrackingScreen :: → CleaningPaymentFlow
+- `lib/screens/client/cleaning/cleaning_wizard_screen.dart` :: 940L :: push×1 :: CleaningWizardScreen :: → CleaningPaymentFlow,CleaningTrackingScreen
+- `lib/screens/client/reservation/my_reservation_lists_screen.dart` :: 652L :: push×0 :: MyReservationListsScreen :: → -
+- `lib/screens/client/reservation/reservation_availability_screen.dart` :: 532L :: push×3 :: ReservationAvailabilityScreen :: → ReservationCheckoutScreen,ReservationWaitlistJoinScreen,ReservationNotifyJoinScreen
+- `lib/screens/client/reservation/reservation_checkout_screen.dart` :: 591L :: push×0 :: ReservationCheckoutScreen :: → ReservationPaymentMethodSheet,ReservationMBWayWaitingDialog
+- `lib/screens/client/reservation/reservation_details_screen.dart` :: 606L :: push×0 :: ReservationDetailsScreen :: → -
+- `lib/screens/client/reservation/reservation_mbway_waiting_dialog.dart` :: 106L :: push×0 :: ReservationMBWayWaitingDialog :: → -
+- `lib/screens/client/reservation/reservation_notify_join_screen.dart` :: 402L :: push×0 :: ReservationNotifyJoinScreen :: → -
+- `lib/screens/client/reservation/reservation_payment_method_sheet.dart` :: 281L :: push×0 :: ReservationPaymentChoice,ReservationPaymentMethodSheet :: → -
+- `lib/screens/client/reservation/reservation_waitlist_join_screen.dart` :: 460L :: push×0 :: ReservationWaitlistJoinScreen :: → -
+- `lib/screens/client/services/appointment_mbway_waiting_dialog.dart` :: 110L :: push×0 :: AppointmentMBWayWaitingDialog :: → -
+- `lib/screens/client/services/booking_flow_screen.dart` :: 1341L :: push×0 :: BookingFlowScreen :: → ReservationPaymentMethodSheet,BookingSuccessScreen,AppointmentMBWayWaitingDialog
+- `lib/screens/client/services/booking_success_screen.dart` :: 119L :: push×1 :: BookingSuccessScreen :: → MyAppointmentsScreen
+- `lib/screens/client/services/gallery_viewer_screen.dart` :: 87L :: push×0 :: GalleryViewerScreen :: → -
+- `lib/screens/client/services/my_appointments_screen.dart` :: 840L :: push×0 :: MyAppointmentsScreen :: → ClientReservationsScreen,BookingFlowScreen
+- `lib/screens/client/services/provider_detail_screen.dart` :: 593L :: push×2 :: ProviderDetailScreen :: → BookingFlowScreen,GalleryViewerScreen
+- `lib/screens/client/services/services_category_screen.dart` :: 304L :: push×2 :: ServicesCategoryScreen :: → ProviderDetailScreen,MyAppointmentsScreen
+- `lib/screens/client/tvde/plan_mbway_waiting_dialog.dart` :: 103L :: push×0 :: PlanMbwayWaitingDialog :: → -
+- `lib/screens/client/tvde/ride_mbway_waiting_dialog.dart` :: 207L :: push×0 :: TvdeRideMbwayWaitingDialog :: → -
+- `lib/screens/client/tvde/tvde_plans_screen.dart` :: 382L :: push×0 :: TvdePlansScreen :: → ReservationPaymentMethodSheet,PlanMbwayWaitingDialog
+- `lib/screens/client/tvde/tvde_rate_screen.dart` :: 138L :: push×0 :: TvdeRateScreen :: → -
+- `lib/screens/client/tvde/tvde_request_ride_screen.dart` :: 1800L :: push×4 :: TvdeRequestRideScreen :: → TvdeRideMbwayWaitingDialog,TvdeRideTrackingScreen,TvdePlansScreen,TvdeRidesHistoryScreen
+- `lib/screens/client/tvde/tvde_ride_tracking_screen.dart` :: 1615L :: push×2 :: TvdeRideTrackingScreen :: → TvdeRideMbwayWaitingDialog,TvdeRateScreen,TvdeChatScreen
+- `lib/screens/client/tvde/tvde_rides_history_screen.dart` :: 143L :: push×0 :: TvdeRidesHistoryScreen :: → -
+- `lib/screens/client_addresses_screen.dart` :: 463L :: push×0 :: ClientAddressesScreen :: → -
+- `lib/screens/client_favorites_screen.dart` :: 119L :: push×0 :: ClientFavoritesScreen :: → -
+- `lib/screens/client_home_screen.dart` :: 913L :: push×14 :: ClientHomeScreen :: → RatingScreen,RestaurantsScreen,StoresScreen,SendPackageFormScreen,CarryGroceriesScreen,ErrandFormScreen,ServicesCategoryScreen,CleaningBookingsScreen,TvdeRequestRideScreen,ClientAddressesScreen
+- `lib/screens/client_login_screen.dart` :: 428L :: push×1 :: ClientLoginScreen :: → RoleChoiceScreen,RegisterClientScreen,ForgotPasswordScreen
+- `lib/screens/client_main_screen.dart` :: 81L :: push×1 :: ClientMainScreen :: → ClientHomeScreen,OrdersScreen,ClientReservationsScreen,ProfileScreen,OrderTrackingScreen
+- `lib/screens/client_promo_code_screen.dart` :: 207L :: push×0 :: ClientPromoCodeScreen :: → -
+- `lib/screens/client_reservations_screen.dart` :: 303L :: push×1 :: ClientReservationsScreen :: → ReservationDetailsScreen
+- `lib/screens/connect/connect_payments_screen.dart` :: 303L :: push×0 :: ConnectPaymentsScreen :: → -
+- `lib/screens/connect/connect_statement_screen.dart` :: 304L :: push×0 :: ConnectStatementScreen :: → -
+- `lib/screens/driver/driver_role_apply_screen.dart` :: 307L :: push×0 :: DriverRoleApplyScreen :: → -
+- `lib/screens/driver/tvde/tvde_driver_earnings_screen.dart` :: 243L :: push×0 :: TvdeDriverEarningsScreen :: → -
+- `lib/screens/driver/tvde/tvde_driver_home_screen.dart` :: 969L :: push×1 :: TvdeDriverHomeScreen :: → TvdeRideActiveScreen,TvdeOfferScreen,DriverHomeScreen,TvdeDriverEarningsScreen,BoraSupportSheet
+- `lib/screens/driver/tvde/tvde_driver_rate_screen.dart` :: 114L :: push×0 :: TvdeDriverRateScreen :: → -
+- `lib/screens/driver/tvde/tvde_offer_screen.dart` :: 296L :: push×0 :: TvdeOfferScreen :: → -
+- `lib/screens/driver/tvde/tvde_ride_active_screen.dart` :: 1460L :: push×1 :: TvdeRideActiveScreen :: → TvdeChatScreen,TvdeDriverRateScreen
+- `lib/screens/driver_earnings_screen.dart` :: 539L :: push×0 :: DriverEarningsScreen :: → -
+- `lib/screens/driver_home_screen.dart` :: 3087L :: push×4 :: DriverHomeScreen :: → DriverMapScreen,DriverEarningsScreen,ProfileScreen,ErrandExecutionSheet,CancelBlockedPickupSheet,SupportChatScreen
+- `lib/screens/driver_login_screen.dart` :: 565L :: push×2 :: DriverLoginScreen :: → DriverPendingScreen,DriverRejectedScreen,DriverSignupScreen,ForgotPasswordScreen
+- `lib/screens/driver_map_screen.dart` :: 3575L :: push×0 :: DriverMapScreen :: → -
+- `lib/screens/driver_order_action_helper.dart` :: 53L :: push×0 :: DriverOrderAction :: → -
+- `lib/screens/driver_pending_screen.dart` :: 72L :: push×0 :: DriverPendingScreen :: → -
+- `lib/screens/driver_permissions_screen.dart` :: 237L :: push×0 :: DriverPermissionsScreen :: → -
+- `lib/screens/driver_rejected_screen.dart` :: 112L :: push×1 :: DriverRejectedScreen :: → DriverSignupScreen
+- `lib/screens/driver_signup_screen.dart` :: 998L :: push×1 :: DriverSignupScreen :: → DriverPendingScreen
+- `lib/screens/errand_form_screen.dart` :: 1209L :: push×1 :: ErrandPrefill,ErrandFormScreen :: → PaymentMethodScreen
+- `lib/screens/forgot_password_screen.dart` :: 205L :: push×0 :: ForgotPasswordScreen :: → -
+- `lib/screens/login_screen.dart` :: 274L :: push×2 :: LoginScreen :: → RegisterClientScreen,DriverSignupScreen
+- `lib/screens/map_screen.dart` :: 988L :: push×0 :: MapScreen :: → -
+- `lib/screens/market/market_store_screen.dart` :: 151L :: push×1 :: MarketStoreScreen :: → CartScreen
+- `lib/screens/my_cards_screen.dart` :: 266L :: push×0 :: MyCardsScreen :: → -
+- `lib/screens/notifications_screen.dart` :: 141L :: push×0 :: NotificationsScreen :: → -
+- `lib/screens/order_details_screen.dart` :: 1579L :: push×2 :: OrderDetailsScreen :: → ChatScreen,WalletHistoryScreen
+- `lib/screens/order_tracking_screen.dart` :: 1415L :: push×0 :: OrderTrackingScreen :: → RatingScreen
+- `lib/screens/orders_screen.dart` :: 470L :: push×4 :: OrdersScreen :: → OrderDetailsScreen,ErrandFormScreen,RestaurantsScreen,WalletHistoryScreen
+- `lib/screens/partner/reservations/partner_client_profiles_screen.dart` :: 519L :: push×0 :: PartnerClientProfilesScreen :: → -
+- `lib/screens/partner/reservations/partner_floor_plan_editor_screen.dart` :: 446L :: push×2 :: PartnerFloorPlanEditorScreen :: → PartnerTableFormScreen
+- `lib/screens/partner/reservations/partner_pacing_rules_screen.dart` :: 563L :: push×0 :: PartnerPacingRulesScreen :: → -
+- `lib/screens/partner/reservations/partner_reservations_home_screen.dart` :: 156L :: push×1 :: PartnerReservationsHomeScreen :: → PartnerReservationsScreen,PartnerWalkInScreen,PartnerFloorPlanEditorScreen,PartnerPacingRulesScreen,PartnerClientProfilesScreen,PartnerReservationsStatsScreen
+- `lib/screens/partner/reservations/partner_reservations_screen.dart` :: 910L :: push×0 :: PartnerReservationsScreen :: → -
+- `lib/screens/partner/reservations/partner_reservations_stats_screen.dart` :: 336L :: push×0 :: PartnerReservationsStatsScreen :: → -
+- `lib/screens/partner/reservations/partner_table_form_screen.dart` :: 284L :: push×0 :: PartnerTableFormScreen :: → -
+- `lib/screens/partner/reservations/partner_walk_in_screen.dart` :: 350L :: push×0 :: PartnerWalkInScreen :: → -
+- `lib/screens/partner/services/partner_add_walk_in_screen.dart` :: 412L :: push×0 :: PartnerAddWalkInScreen :: → -
+- `lib/screens/partner/services/partner_agenda_screen.dart` :: 523L :: push×0 :: PartnerAgendaScreen :: → -
+- `lib/screens/partner/services/partner_appointments_finance_screen.dart` :: 430L :: push×0 :: PartnerAppointmentsFinanceScreen :: → -
+- `lib/screens/partner/services/partner_block_slot_screen.dart` :: 337L :: push×0 :: PartnerBlockSlotScreen :: → -
+- `lib/screens/partner/services/partner_manage_services_screen.dart` :: 409L :: push×0 :: PartnerManageServicesScreen :: → -
+- `lib/screens/partner/services/partner_manage_staff_screen.dart` :: 1353L :: push×1 :: PartnerManageStaffScreen :: → -
+- `lib/screens/partner/services/partner_service_hours_screen.dart` :: 304L :: push×0 :: PartnerServiceHoursScreen :: → -
+- `lib/screens/partner/services/partner_services_hub_screen.dart` :: 300L :: push×1 :: PartnerServicesHubScreen :: → PartnerAgendaScreen,PartnerAddWalkInScreen,PartnerServiceHoursScreen,PartnerBlockSlotScreen,PartnerManageServicesScreen,PartnerManageStaffScreen,PartnerAppointmentsFinanceScreen,ConnectPaymentsScreen,ConnectStatementScreen
+- `lib/screens/partner_call_driver_screen.dart` :: 579L :: push×0 :: PartnerCallDriverScreen :: → -
+- `lib/screens/partner_dashboard_screen.dart` :: 2647L :: push×0 :: PartnerDashboardScreen :: → PartnerReservationsHomeScreen,PartnerEarningsScreen,ConnectPaymentsScreen,ConnectStatementScreen,PartnerHoursScreen,PartnerProductsScreen,PartnerCallDriverScreen,PartnerServicesHubScreen
+- `lib/screens/partner_earnings_screen.dart` :: 1118L :: push×0 :: PartnerEarningsScreen :: → -
+- `lib/screens/partner_entry_screen.dart` :: 145L :: push×0 :: PartnerEntryScreen :: → PartnerDashboardScreen,PartnerLoginScreen,PartnerServicesHubScreen,PendingApprovalScreen,RegisterPartnerScreen
+- `lib/screens/partner_hours_screen.dart` :: 259L :: push×0 :: PartnerHoursScreen :: → -
+- `lib/screens/partner_login_screen.dart` :: 409L :: push×2 :: PartnerLoginScreen :: → RoleChoiceScreen,RegisterPartnerScreen,ForgotPasswordScreen
+- `lib/screens/partner_products_screen.dart` :: 360L :: push×0 :: PartnerProductsScreen :: → AddProductScreen,ProductOptionsManageScreen
+- `lib/screens/partner_reservations_screen.dart` :: 280L :: push×0 :: PartnerReservationsScreen :: → PartnerReservationsScreen
+- `lib/screens/payment_method_screen.dart` :: 1458L :: push×0 :: PaymentMethodScreen :: → -
+- `lib/screens/pending_approval_screen.dart` :: 228L :: push×0 :: PendingApprovalScreen :: → PartnerLoginScreen
+- `lib/screens/product_detail_screen.dart` :: 871L :: push×2 :: ProductDetailScreen :: → CartScreen
+- `lib/screens/product_options_manage_screen.dart` :: 512L :: push×0 :: ProductOptionsManageScreen :: → -
+- `lib/screens/profile_screen.dart` :: 1441L :: push×17 :: ProfileScreen :: → DriverPermissionsScreen,CleanerHomeScreen,ConnectPaymentsScreen,ConnectStatementScreen,OrdersScreen,ClientReservationsScreen,MyAppointmentsScreen,MyReservationListsScreen,WalletHistoryScreen,MyCardsScreen,ClientAddressesScreen,ClientPromoCodeScreen,ReferralScreen,SupportScreen
+- `lib/screens/qr_client_signup_screen.dart` :: 61L :: push×0 :: QrClientSignupScreen :: → RegisterClientScreen
+- `lib/screens/rating_screen.dart` :: 232L :: push×0 :: RatingScreen :: → -
+- `lib/screens/referral_screen.dart` :: 308L :: push×0 :: ReferralScreen :: → -
+- `lib/screens/register_client_screen.dart` :: 470L :: push×0 :: RegisterClientScreen :: → WelcomeAddressScreen,ClientLoginScreen
+- `lib/screens/register_partner_screen.dart` :: 1097L :: push×0 :: RegisterPartnerScreen :: → PendingApprovalScreen
+- `lib/screens/reservation_flow_screen.dart` :: 483L :: push×0 :: ReservationFlowScreen :: → ReservationPaymentMethodSheet,ReservationMBWayWaitingDialog
+- `lib/screens/reset_password_screen.dart` :: 408L :: push×0 :: ResetPasswordScreen :: → ForgotPasswordScreen
+- `lib/screens/restaurant_dashboard_screen.dart` :: 823L :: push×2 :: RestaurantDashboardScreen :: → RegisterPartnerScreen,PartnerCallDriverScreen,PartnerProductsScreen
+- `lib/screens/restaurant_menu_screen.dart` :: 1542L :: push×11 :: RestaurantMenuScreen :: → CartScreen,ProductDetailScreen,ReservationAvailabilityScreen
+- `lib/screens/restaurant_options_screen.dart` :: 176L :: push×2 :: RestaurantOptionsScreen :: → RestaurantMenuScreen,ReservationAvailabilityScreen
+- `lib/screens/restaurant_ratings_list_screen.dart` :: 410L :: push×0 :: RestaurantRatingsListScreen,DriverRatingsListScreen :: → -
+- `lib/screens/restaurants_screen.dart` :: 546L :: push×2 :: RestaurantsScreen :: → ReservationFlowScreen,RestaurantOptionsScreen,RestaurantMenuScreen
+- `lib/screens/role_choice_screen.dart` :: 132L :: push×0 :: RoleChoiceScreen :: → -
+- `lib/screens/role_screen.dart` :: 111L :: push×0 :: RoleScreen :: → -
+- `lib/screens/send_package_form_screen.dart` :: 239L :: push×1 :: SendPackageFormScreen :: → PaymentMethodScreen
+- `lib/screens/send_package_screen.dart` :: 29L :: push×1 :: SendPackageScreen :: → SendPackageFormScreen
+- `lib/screens/shared/cleaning_chat_screen.dart` :: 200L :: push×0 :: CleaningChatScreen :: → -
+- `lib/screens/shared/tvde_chat_screen.dart` :: 201L :: push×0 :: TvdeChatScreen :: → -
+- `lib/screens/store_categories_screen.dart` :: 28L :: push×0 :: StoreCategoriesScreen :: → MarketStoreScreen
+- `lib/screens/store_products_screen.dart` :: 1651L :: push×6 :: StoreProductsScreen :: → ProductDetailScreen,CartScreen
+- `lib/screens/stores_screen.dart` :: 626L :: push×1 :: StoresScreen :: → StoreCategoriesScreen,StoreProductsScreen
+- `lib/screens/support_chat_screen.dart` :: 523L :: push×0 :: SupportChatScreen :: → BoraSupportSheet
+- `lib/screens/support_email_form_screen.dart` :: 151L :: push×0 :: SupportEmailFormScreen :: → -
+- `lib/screens/support_screen.dart` :: 291L :: push×0 :: SupportScreen :: → -
+- `lib/screens/wallet_history_screen.dart` :: 249L :: push×0 :: WalletHistoryScreen :: → -
+- `lib/screens/welcome_address_screen.dart` :: 150L :: push×0 :: WelcomeAddressScreen :: → -
+- `lib/services/admin/admin_driver_service.dart` :: 312L :: push×0 :: AdminDriverException,AdminDriverService :: → -
+- `lib/services/admin/admin_order_service.dart` :: 226L :: push×0 :: AdminOrderException,AdminCancelOrderResult,AdminOrderService :: → -
+- `lib/services/admin/admin_payments_service.dart` :: 223L :: push×0 :: AdminPaymentRow,AdminStuckIntent,AdminPaymentsException,AdminPaymentsService :: → -
+- `lib/services/admin_audit_service.dart` :: 67L :: push×0 :: AdminAuditService :: → -
+- `lib/services/admin_export_service.dart` :: 120L :: push×0 :: AdminExportService :: → -
+- `lib/services/admin_push_service.dart` :: 139L :: push×0 :: AdminPushService :: → AdminDashboardScreen
+- `lib/services/auth_admin_service.dart` :: 54L :: push×0 :: AuthAdminService :: → -
+- `lib/services/auth_service.dart` :: 27L :: push×0 :: AuthService :: → -
+- `lib/services/biometric_auth_service.dart` :: 155L :: push×0 :: BiometricAuthService :: → -
+- `lib/services/card_wallet_service.dart` :: 161L :: push×0 :: CardWalletException,CardWalletService :: → -
+- `lib/services/cleaner_upload_service.dart` :: 71L :: push×0 :: CleanerUploadService :: → -
+- `lib/services/client_address_service.dart` :: 117L :: push×0 :: ClientAddressService :: → -
+- `lib/services/client_personalization_service.dart` :: 66L :: push×0 :: ClientPersonalizationService :: → -
+- `lib/services/directions_service.dart` :: 79L :: push×0 :: DirectionsRoute,DirectionsService :: → -
+- `lib/services/directions_service_io.dart` :: 116L :: push×0 :: - :: → -
+- `lib/services/directions_service_stub.dart` :: 8L :: push×0 :: - :: → -
+- `lib/services/directions_service_web.dart` :: 202L :: push×0 :: - :: → -
+- `lib/services/distance_service.dart` :: 34L :: push×0 :: DistanceService :: → -
+- `lib/services/driver_assignment_service.dart` :: 4L :: push×0 :: - :: → -
+- `lib/services/driver_location_ping_service.dart` :: 71L :: push×0 :: DriverLocationPingService :: → -
+- `lib/services/driver_location_service.dart` :: 42L :: push×0 :: DriverLocationService :: → -
+- `lib/services/floating_bubble_service.dart` :: 132L :: push×0 :: BoraBubbleService :: → -
+- `lib/services/foreground_service.dart` :: 435L :: push×0 :: BoraForegroundService :: → -
+- `lib/services/google_places_service.dart` :: 44L :: push×0 :: GooglePlacesService :: → -
+- `lib/services/heartbeat_service.dart` :: 61L :: push×0 :: HeartbeatService :: → -
+- `lib/services/in_app_notifications_service.dart` :: 43L :: push×0 :: InAppNotificationsService :: → -
+- `lib/services/incoming_job_alert.dart` :: 117L :: push×0 :: IncomingJobAlert :: → -
+- `lib/services/location_service.dart` :: 106L :: push×0 :: LocationService :: → -
+- `lib/services/login_prefs.dart` :: 34L :: push×0 :: LoginPrefs :: → -
+- `lib/services/maps_service.dart` :: 46L :: push×0 :: MapsService :: → -
+- `lib/services/multi_role_signup.dart` :: 174L :: push×0 :: - :: → -
+- `lib/services/navigation_service.dart` :: 58L :: push×0 :: NavigationService :: → -
+- `lib/services/notification_service.dart` :: 2315L :: push×0 :: NotificationService :: → NotificationsScreen,PartnerAgendaScreen,ChatScreen
+- `lib/services/offer_presentation_gate.dart` :: 291L :: push×0 :: OfferPresentationGate :: → -
+- `lib/services/offline_status_queue.dart` :: 79L :: push×0 :: OfflineStatusQueue :: → -
+- `lib/services/order_eta_service.dart` :: 119L :: push×0 :: OrderEtaService :: → -
+- `lib/services/order_photo_upload_service.dart` :: 90L :: push×0 :: OrderPhotoUploadService :: → -
+- `lib/services/payment_biometric_gate.dart` :: 55L :: push×0 :: PaymentBiometricGate :: → -
+- `lib/services/payment_service.dart` :: 385L :: push×0 :: PaymentService :: → -
+- `lib/services/permission_gate_service.dart` :: 411L :: push×0 :: PermissionGateService,OverlayPermissionGate,DriverPermissionsSnapshot :: → -
+- `lib/services/place_autocomplete_service.dart` :: 44L :: push×0 :: PlacePrediction,PlaceAutocompleteService :: → -
+- `lib/services/place_autocomplete_service_io.dart` :: 299L :: push×0 :: - :: → -
+- `lib/services/place_autocomplete_service_stub.dart` :: 31L :: push×0 :: - :: → -
+- `lib/services/place_autocomplete_service_web.dart` :: 317L :: push×0 :: - :: → -
+- `lib/services/pricing_service.dart` :: 296L :: push×0 :: OrderPricingBreakdown,PricingService :: → -
+- `lib/services/push_token_service.dart` :: 197L :: push×0 :: PushTokenService :: → -
+- `lib/services/receipt_upload_service.dart` :: 99L :: push×0 :: ReceiptUploadService :: → -
+- `lib/services/reorder_service.dart` :: 100L :: push×0 :: ReorderService :: → -
+- `lib/services/role_switch_helper.dart` :: 76L :: push×0 :: - :: → -
+- `lib/services/roles_service.dart` :: 81L :: push×0 :: RolesSummary,RolesService :: → -
+- `lib/services/route_optimizer.dart` :: 136L :: push×0 :: RouteStop,OptimizedRoute,RouteOptimizer :: → -
+- `lib/services/saved_card_checkout.dart` :: 67L :: push×0 :: SavedCardAuthorization,SavedCardCheckout :: → -
+- `lib/services/secure_credentials_store.dart` :: 50L :: push×0 :: SecureCredentialsStore :: → -
+- `lib/services/sound_service.dart` :: 81L :: push×0 :: SoundService :: → -
+- `lib/services/wallet_service.dart` :: 274L :: push×0 :: WalletService,WalletConstants,WalletBalance,WalletTx,AdminWalletRow :: → -
+- `lib/services/web_checkout.dart` :: 21L :: push×0 :: - :: → -
+- `lib/services/web_checkout_stub.dart` :: 18L :: push×0 :: - :: → -
+- `lib/services/web_checkout_web.dart` :: 123L :: push×0 :: WebCheckoutCancelled,WebCheckoutFailed :: → -
+- `lib/stores/cart_store.dart` :: 870L :: push×0 :: CartStore,ErrandSession :: → RestaurantOptionsScreen
+- `lib/stores/chat_store.dart` :: 184L :: push×0 :: ChatStore :: → -
+- `lib/stores/cleaner_store.dart` :: 432L :: push×0 :: CleanerStore :: → -
+- `lib/stores/cleaning_chat_store.dart` :: 141L :: push×0 :: CleaningMessage,CleaningChatStore :: → -
+- `lib/stores/cleaning_store.dart` :: 421L :: push×0 :: CleaningStore :: → -
+- `lib/stores/consent_store.dart` :: 129L :: push×0 :: ConsentStore :: → -
+- `lib/stores/driver_store.dart` :: 861L :: push×0 :: DriverStore :: → -
+- `lib/stores/favorite_store.dart` :: 46L :: push×0 :: FavoriteStore :: → -
+- `lib/stores/order_store.dart` :: 3026L :: push×0 :: PartnerOrderLine,OrderStore,ClientCancelResult :: → -
+- `lib/stores/partner_appointments_store.dart` :: 705L :: push×0 :: PartnerAppointmentsStore :: → -
+- `lib/stores/partner_product_store.dart` :: 142L :: push×0 :: PartnerProductStore :: → -
+- `lib/stores/partner_reservas_store.dart` :: 547L :: push×0 :: PartnerReservasStore :: → -
+- `lib/stores/reservation_store.dart` :: 551L :: push×0 :: ReservationStore :: → -
+- `lib/stores/restaurant_store.dart` :: 1308L :: push×0 :: RestaurantStore :: → -
+- `lib/stores/services_store.dart` :: 729L :: push×0 :: RescheduleOnlyException,BookingResult,ServicesStore :: → AppointmentMBWayWaitingDialog
+- `lib/stores/session_store.dart` :: 113L :: push×0 :: SessionStore :: → -
+- `lib/stores/tvde_chat_store.dart` :: 137L :: push×0 :: TvdeMessage,TvdeChatStore :: → -
+- `lib/stores/tvde_driver_store.dart` :: 453L :: push×0 :: TvdeDriverStore :: → -
+- `lib/stores/tvde_store.dart` :: 1088L :: push×0 :: TvdeStore :: → -
+- `lib/utils/address_resolver.dart` :: 78L :: push×0 :: AddressResolver :: → -
+- `lib/utils/business_mapper.dart` :: 70L :: push×0 :: BusinessMapper :: → -
+- `lib/utils/business_opener.dart` :: 38L :: push×0 :: - :: → -
+- `lib/utils/cart_feedback.dart` :: 53L :: push×0 :: - :: → -
+- `lib/utils/constants.dart` :: 16L :: push×0 :: - :: → -
+- `lib/utils/io_compat.dart` :: 26L :: push×0 :: - :: → -
+- `lib/utils/io_compat_io.dart` :: 24L :: push×0 :: - :: → -
+- `lib/utils/io_compat_web.dart` :: 104L :: push×0 :: File,Directory,SocketException,FileSystemException :: → -
+- `lib/utils/map_marker_helper.dart` :: 129L :: push×0 :: MapMarkerHelper :: → -
+- `lib/utils/map_utils.dart` :: 74L :: push×0 :: - :: → -
+- `lib/utils/relative_time.dart` :: 27L :: push×0 :: - :: → -
+- `lib/utils/safe_image_picker.dart` :: 52L :: push×0 :: SafeImagePicker :: → -
+- `lib/utils/staff_terminology.dart` :: 15L :: push×0 :: StaffTerminology :: → -
+- `lib/widgets/address_autocomplete_field.dart` :: 345L :: push×0 :: AddressAutocompleteField :: → -
+- `lib/widgets/address_text.dart` :: 117L :: push×0 :: AddressText :: → -
+- `lib/widgets/admin/admin_coming_soon.dart` :: 205L :: push×0 :: AdminComingSoonBadge,AdminComingSoonFilterBar :: → -
+- `lib/widgets/admin/admin_user_roles_sheet.dart` :: 192L :: push×0 :: - :: → -
+- `lib/widgets/admin/test_order_badge.dart` :: 55L :: push×0 :: TestOrderBadge :: → -
+- `lib/widgets/admin_closed_partners_card.dart` :: 104L :: push×1 :: AdminClosedPartnersCard :: → AdminPartnerDetailScreen
+- `lib/widgets/admin_other_role_badge.dart` :: 105L :: push×0 :: AdminOtherRoleBadge :: → -
+- `lib/widgets/admin_realtime_metrics_card.dart` :: 124L :: push×0 :: AdminRealtimeMetricsCard :: → -
+- `lib/widgets/admin_reservations_today_card.dart` :: 118L :: push×1 :: AdminReservationsTodayCard :: → AdminReservationsScreen
+- `lib/widgets/background_location_disclosure.dart` :: 143L :: push×0 :: BackgroundLocationDisclosure :: → -
+- `lib/widgets/biometric_enrollment_dialog.dart` :: 64L :: push×0 :: - :: → -
+- `lib/widgets/biometric_login_tile.dart` :: 96L :: push×0 :: BiometricLoginTile :: → -
+- `lib/widgets/bora/bora.dart` :: 20L :: push×0 :: - :: → -
+- `lib/widgets/bora/bora_accent_button.dart` :: 89L :: push×0 :: BoraAccentButton :: → -
+- `lib/widgets/bora/bora_address_bar.dart` :: 112L :: push×0 :: BoraAddressBar :: → -
+- `lib/widgets/bora/bora_app_bar.dart` :: 164L :: push×0 :: BoraAppBar :: → -
+- `lib/widgets/bora/bora_bottom_nav_v2.dart` :: 159L :: push×0 :: BoraBottomNavV2 :: → -
+- `lib/widgets/bora/bora_empty_placeholder.dart` :: 59L :: push×0 :: BoraEmptyPlaceholder :: → -
+- `lib/widgets/bora/bora_mascot.dart` :: 83L :: push×0 :: BoraMascot :: → -
+- `lib/widgets/bora/bora_primary_button.dart` :: 82L :: push×0 :: BoraPrimaryButton :: → -
+- `lib/widgets/bora/bora_product_card.dart` :: 254L :: push×0 :: BoraProductCard :: → -
+- `lib/widgets/bora/bora_promo_banner.dart` :: 93L :: push×0 :: BoraPromoBanner :: → -
+- `lib/widgets/bora/bora_screen_app_bar.dart` :: 63L :: push×0 :: BoraScreenAppBar :: → -
+- `lib/widgets/bora/bora_search_field.dart` :: 75L :: push×0 :: BoraSearchField :: → -
+- `lib/widgets/bora/bora_tile_card.dart` :: 199L :: push×0 :: BoraTileCard :: → -
+- `lib/widgets/bora/coming_soon.dart` :: 100L :: push×0 :: ComingSoonChip,ComingSoonBanner :: → -
+- `lib/widgets/bora/reservation_card.dart` :: 299L :: push×0 :: ReservationCard :: → -
+- `lib/widgets/bora_scaffold.dart` :: 85L :: push×0 :: BoraScaffold :: → -
+- `lib/widgets/bora_support_fab.dart` :: 60L :: push×1 :: BoraSupportFab :: → BoraSupportSheet,SupportChatScreen
+- `lib/widgets/bora_support_sheet.dart` :: 180L :: push×0 :: BoraSupportSheet :: → SupportChatScreen,SupportEmailFormScreen
+- `lib/widgets/business_autocomplete_field.dart` :: 506L :: push×0 :: BusinessPrediction,BusinessAutocompleteField :: → -
+- `lib/widgets/cancel_blocked_pickup_sheet.dart` :: 126L :: push×0 :: CancelBlockedPickupSheet :: → -
+- `lib/widgets/card_mandate_notice.dart` :: 87L :: push×0 :: CardMandateNotice :: → -
+- `lib/widgets/chat_bubble_button.dart` :: 182L :: push×1 :: ChatBubbleButton :: → ChatScreen
+- `lib/widgets/cleaning_chat_button.dart` :: 150L :: push×1 :: CleaningChatButton :: → CleaningChatScreen
+- `lib/widgets/consent_banner.dart` :: 219L :: push×0 :: ConsentBanner :: → -
+- `lib/widgets/customer_note_field.dart` :: 58L :: push×0 :: CustomerNoteField :: → -
+- `lib/widgets/driver_chat_fab.dart` :: 223L :: push×1 :: DriverChatFab,UnreadBadge :: → ChatScreen
+- `lib/widgets/driver_order_overlay.dart` :: 419L :: push×0 :: - :: → -
+- `lib/widgets/errand_budget_banner.dart` :: 126L :: push×0 :: ErrandBudgetBanner :: → -
+- `lib/widgets/errand_execution_sheet.dart` :: 676L :: push×0 :: ErrandExecutionSheet :: → -
+- `lib/widgets/errand_execution_sheet_compat.dart` :: 20L :: push×0 :: - :: → -
+- `lib/widgets/errand_execution_sheet_web.dart` :: 68L :: push×0 :: ErrandExecutionSheet :: → ErrandExecutionSheet
+- `lib/widgets/mandatory_photo_picker.dart` :: 165L :: push×0 :: MandatoryPhotoPicker :: → -
+- `lib/widgets/market/market_bottom_nav.dart` :: 47L :: push×0 :: MarketBottomNav :: → -
+- `lib/widgets/market/market_categories_tab.dart` :: 236L :: push×1 :: MarketCategoriesTab :: → StoreProductsScreen
+- `lib/widgets/market/market_category_chip_large.dart` :: 100L :: push×0 :: MarketCategoryChipLarge :: → -
+- `lib/widgets/market/market_product_card.dart` :: 217L :: push×3 :: MarketProductCard :: → ProductDetailScreen
+- `lib/widgets/market/market_reorder_tab.dart` :: 193L :: push×0 :: MarketReorderTab :: → CartScreen
+- `lib/widgets/market/market_store_tab.dart` :: 754L :: push×3 :: MarketStoreTab :: → StoreProductsScreen
+- `lib/widgets/multirole_switch_card.dart` :: 108L :: push×0 :: MultiRoleSwitchCard :: → -
+- `lib/widgets/notification_bell.dart` :: 79L :: push×1 :: NotificationBell :: → NotificationsScreen
+- `lib/widgets/partner_weekly_closeout_card.dart` :: 402L :: push×0 :: PartnerWeeklyCloseoutCard,ProviderWeeklyPayoutCard :: → -
+- `lib/widgets/pay_debt_modal.dart` :: 218L :: push×0 :: PayDebtModal :: → -
+- `lib/widgets/payments/collect_badge.dart` :: 92L :: push×0 :: CollectBadge :: → -
+- `lib/widgets/payments/collect_reminder_dialog.dart` :: 105L :: push×0 :: - :: → -
+- `lib/widgets/private_bucket_image.dart` :: 276L :: push×0 :: PrivateBucketImage,PrivateBucketCircleAvatar :: → -
+- `lib/widgets/profile_switcher_button.dart` :: 108L :: push×0 :: ProfileSwitcherButton :: → -
+- `lib/widgets/quote_price_footer.dart` :: 221L :: push×0 :: QuotePriceFooter :: → -
+- `lib/widgets/rating_stars_badge.dart` :: 46L :: push×0 :: RatingStarsBadge :: → -
+- `lib/widgets/refund_choice_dialog.dart` :: 210L :: push×0 :: RefundChoiceResult :: → -
+- `lib/widgets/services/staff_avatar.dart` :: 111L :: push×0 :: StaffAvatar :: → -
+- `lib/widgets/services/weekly_hours_editor.dart` :: 261L :: push×0 :: WeeklyHoursEditor :: → -
+- `lib/widgets/takeaway/curbside_inputs.dart` :: 101L :: push×0 :: CurbsideInputs :: → -
+- `lib/widgets/takeaway/pickup_code_card.dart` :: 112L :: push×0 :: PickupCodeCard :: → -
+- `lib/widgets/takeaway/preparing_countdown_banner.dart` :: 107L :: push×0 :: PreparingCountdownBanner :: → -
+- `lib/widgets/terms_link_text.dart` :: 56L :: push×0 :: TermsLinkText :: → -
+- `lib/widgets/tip_selector.dart` :: 109L :: push×0 :: TipSelector :: → -
+- `lib/widgets/tvde/tvde_pay_badge.dart` :: 65L :: push×0 :: TvdePayBadge :: → -
+- `lib/widgets/tvde/tvde_payment_selector.dart` :: 102L :: push×0 :: TvdePaymentSelector :: → -
+- `lib/widgets/tvde/tvde_roundtrip_driver_notice.dart` :: 117L :: push×0 :: TvdeRoundtripPrice,TvdeRoundtripDriverNotice :: → -
+- `lib/widgets/unified_checkout_button.dart` :: 168L :: push×0 :: UnifiedCheckoutButton :: → -
+- `lib/widgets/weekly_settlement_card.dart` :: 368L :: push×0 :: WeeklySettlementCard :: → -
+
+
+## Árvore de alcançabilidade (BFS por papel — caminho mais curto de invocação)
+
+### CLIENTE (raiz: ClientMainScreen) — 63 ecrãs alcançáveis
+
+- **BookingFlowScreen** `lib/screens/client/services/booking_flow_screen.dart` ← ClientMainScreen → ProfileScreen → MyAppointmentsScreen → BookingFlowScreen
+- **BookingSuccessScreen** `lib/screens/client/services/booking_success_screen.dart` ← ClientMainScreen → ProfileScreen → MyAppointmentsScreen → BookingFlowScreen → BookingSuccessScreen
+- **CarryGroceriesFormScreen** `lib/screens/carry_groceries_form_screen.dart` ← ClientMainScreen → ClientHomeScreen → CarryGroceriesScreen → CarryGroceriesFormScreen
+- **CarryGroceriesScreen** `lib/screens/carry_groceries_screen.dart` ← ClientMainScreen → ClientHomeScreen → CarryGroceriesScreen
+- **CartScreen** `lib/screens/cart_screen.dart` ← ClientMainScreen → ClientHomeScreen → RestaurantsScreen → RestaurantMenuScreen → CartScreen
+- **ChatScreen** `lib/screens/chat_screen.dart` ← ClientMainScreen → OrdersScreen → OrderDetailsScreen → ChatScreen
+- **CleanerApplyScreen** `lib/screens/cleaner/cleaner_apply_screen.dart` ← ClientMainScreen → ProfileScreen → CleanerHomeScreen → CleanerApplyScreen
+- **CleanerAvailabilityScreen** `lib/screens/cleaner/cleaner_availability_screen.dart` ← ClientMainScreen → ProfileScreen → CleanerHomeScreen → CleanerAvailabilityScreen
+- **CleanerEarningsScreen** `lib/screens/cleaner/cleaner_earnings_screen.dart` ← ClientMainScreen → ProfileScreen → CleanerHomeScreen → CleanerEarningsScreen
+- **CleanerHistoryScreen** `lib/screens/cleaner/cleaner_history_screen.dart` ← ClientMainScreen → ProfileScreen → CleanerHomeScreen → CleanerHistoryScreen
+- **CleanerHomeScreen** `lib/screens/cleaner/cleaner_home_screen.dart` ← ClientMainScreen → ProfileScreen → CleanerHomeScreen
+- **CleaningBookingsScreen** `lib/screens/client/cleaning/cleaning_bookings_screen.dart` ← ClientMainScreen → ClientHomeScreen → CleaningBookingsScreen
+- **CleaningPaymentFlow** `lib/screens/client/cleaning/cleaning_payment_flow.dart` ← ClientMainScreen → ClientHomeScreen → CleaningBookingsScreen → CleaningWizardScreen → CleaningPaymentFlow
+- **CleaningTrackingScreen** `lib/screens/client/cleaning/cleaning_tracking_screen.dart` ← ClientMainScreen → ClientHomeScreen → CleaningBookingsScreen → CleaningTrackingScreen
+- **CleaningWizardScreen** `lib/screens/client/cleaning/cleaning_wizard_screen.dart` ← ClientMainScreen → ClientHomeScreen → CleaningBookingsScreen → CleaningWizardScreen
+- **ClientAddressesScreen** `lib/screens/client_addresses_screen.dart` ← ClientMainScreen → ClientHomeScreen → ClientAddressesScreen
+- **ClientHomeScreen** `lib/screens/client_home_screen.dart` ← ClientMainScreen → ClientHomeScreen
+- **ClientMainScreen** `lib/screens/client_main_screen.dart` ← ClientMainScreen
+- **ClientPromoCodeScreen** `lib/screens/client_promo_code_screen.dart` ← ClientMainScreen → ProfileScreen → ClientPromoCodeScreen
+- **ClientReservationsScreen** `lib/screens/client_reservations_screen.dart` ← ClientMainScreen → ClientReservationsScreen
+- **ConnectPaymentsScreen** `lib/screens/connect/connect_payments_screen.dart` ← ClientMainScreen → ProfileScreen → ConnectPaymentsScreen
+- **ConnectStatementScreen** `lib/screens/connect/connect_statement_screen.dart` ← ClientMainScreen → ProfileScreen → ConnectStatementScreen
+- **DriverPermissionsScreen** `lib/screens/driver_permissions_screen.dart` ← ClientMainScreen → ProfileScreen → DriverPermissionsScreen
+- **DriverRoleApplyScreen** `lib/screens/driver/driver_role_apply_screen.dart` ← ClientMainScreen → ProfileScreen → CleanerHomeScreen → DriverRoleApplyScreen
+- **ErrandFormScreen** `lib/screens/errand_form_screen.dart` ← ClientMainScreen → ClientHomeScreen → ErrandFormScreen
+- **GalleryViewerScreen** `lib/screens/client/services/gallery_viewer_screen.dart` ← ClientMainScreen → ClientHomeScreen → ServicesCategoryScreen → ProviderDetailScreen → GalleryViewerScreen
+- **MarketStoreScreen** `lib/screens/market/market_store_screen.dart` ← ClientMainScreen → ClientHomeScreen → StoresScreen → StoreCategoriesScreen → MarketStoreScreen
+- **MyAppointmentsScreen** `lib/screens/client/services/my_appointments_screen.dart` ← ClientMainScreen → ProfileScreen → MyAppointmentsScreen
+- **MyCardsScreen** `lib/screens/my_cards_screen.dart` ← ClientMainScreen → ProfileScreen → MyCardsScreen
+- **MyReservationListsScreen** `lib/screens/client/reservation/my_reservation_lists_screen.dart` ← ClientMainScreen → ProfileScreen → MyReservationListsScreen
+- **OrderDetailsScreen** `lib/screens/order_details_screen.dart` ← ClientMainScreen → OrdersScreen → OrderDetailsScreen
+- **OrderTrackingScreen** `lib/screens/order_tracking_screen.dart` ← ClientMainScreen → OrderTrackingScreen
+- **OrdersScreen** `lib/screens/orders_screen.dart` ← ClientMainScreen → OrdersScreen
+- **PaymentMethodScreen** `lib/screens/payment_method_screen.dart` ← ClientMainScreen → ClientHomeScreen → SendPackageFormScreen → PaymentMethodScreen
+- **ProductDetailScreen** `lib/screens/product_detail_screen.dart` ← ClientMainScreen → ClientHomeScreen → RestaurantsScreen → RestaurantMenuScreen → ProductDetailScreen
+- **ProfileScreen** `lib/screens/profile_screen.dart` ← ClientMainScreen → ProfileScreen
+- **ProviderDetailScreen** `lib/screens/client/services/provider_detail_screen.dart` ← ClientMainScreen → ClientHomeScreen → ServicesCategoryScreen → ProviderDetailScreen
+- **RatingScreen** `lib/screens/rating_screen.dart` ← ClientMainScreen → ClientHomeScreen → RatingScreen
+- **ReferralScreen** `lib/screens/referral_screen.dart` ← ClientMainScreen → ProfileScreen → ReferralScreen
+- **ReservationAvailabilityScreen** `lib/screens/client/reservation/reservation_availability_screen.dart` ← ClientMainScreen → ClientHomeScreen → RestaurantsScreen → RestaurantOptionsScreen → ReservationAvailabilityScreen
+- **ReservationCheckoutScreen** `lib/screens/client/reservation/reservation_checkout_screen.dart` ← ClientMainScreen → ClientHomeScreen → RestaurantsScreen → RestaurantOptionsScreen → ReservationAvailabilityScreen → ReservationCheckoutScreen
+- **ReservationDetailsScreen** `lib/screens/client/reservation/reservation_details_screen.dart` ← ClientMainScreen → ClientReservationsScreen → ReservationDetailsScreen
+- **ReservationFlowScreen** `lib/screens/reservation_flow_screen.dart` ← ClientMainScreen → ClientHomeScreen → RestaurantsScreen → ReservationFlowScreen
+- **ReservationNotifyJoinScreen** `lib/screens/client/reservation/reservation_notify_join_screen.dart` ← ClientMainScreen → ClientHomeScreen → RestaurantsScreen → RestaurantOptionsScreen → ReservationAvailabilityScreen → ReservationNotifyJoinScreen
+- **ReservationWaitlistJoinScreen** `lib/screens/client/reservation/reservation_waitlist_join_screen.dart` ← ClientMainScreen → ClientHomeScreen → RestaurantsScreen → RestaurantOptionsScreen → ReservationAvailabilityScreen → ReservationWaitlistJoinScreen
+- **RestaurantMenuScreen** `lib/screens/restaurant_menu_screen.dart` ← ClientMainScreen → ClientHomeScreen → RestaurantsScreen → RestaurantMenuScreen
+- **RestaurantOptionsScreen** `lib/screens/restaurant_options_screen.dart` ← ClientMainScreen → ClientHomeScreen → RestaurantsScreen → RestaurantOptionsScreen
+- **RestaurantsScreen** `lib/screens/restaurants_screen.dart` ← ClientMainScreen → ClientHomeScreen → RestaurantsScreen
+- **SendPackageFormScreen** `lib/screens/send_package_form_screen.dart` ← ClientMainScreen → ClientHomeScreen → SendPackageFormScreen
+- **ServicesCategoryScreen** `lib/screens/client/services/services_category_screen.dart` ← ClientMainScreen → ClientHomeScreen → ServicesCategoryScreen
+- **StoreCategoriesScreen** `lib/screens/store_categories_screen.dart` ← ClientMainScreen → ClientHomeScreen → StoresScreen → StoreCategoriesScreen
+- **StoreProductsScreen** `lib/screens/store_products_screen.dart` ← ClientMainScreen → ClientHomeScreen → StoresScreen → StoreProductsScreen
+- **StoresScreen** `lib/screens/stores_screen.dart` ← ClientMainScreen → ClientHomeScreen → StoresScreen
+- **SupportChatScreen** `lib/screens/support_chat_screen.dart` ← ClientMainScreen → ProfileScreen → CleanerHomeScreen → BoraSupportSheet → SupportChatScreen
+- **SupportEmailFormScreen** `lib/screens/support_email_form_screen.dart` ← ClientMainScreen → ProfileScreen → CleanerHomeScreen → BoraSupportSheet → SupportEmailFormScreen
+- **SupportScreen** `lib/screens/support_screen.dart` ← ClientMainScreen → ProfileScreen → SupportScreen
+- **TvdeChatScreen** `lib/screens/shared/tvde_chat_screen.dart` ← ClientMainScreen → ClientHomeScreen → TvdeRequestRideScreen → TvdeRideTrackingScreen → TvdeChatScreen
+- **TvdePlansScreen** `lib/screens/client/tvde/tvde_plans_screen.dart` ← ClientMainScreen → ClientHomeScreen → TvdeRequestRideScreen → TvdePlansScreen
+- **TvdeRateScreen** `lib/screens/client/tvde/tvde_rate_screen.dart` ← ClientMainScreen → ClientHomeScreen → TvdeRequestRideScreen → TvdeRideTrackingScreen → TvdeRateScreen
+- **TvdeRequestRideScreen** `lib/screens/client/tvde/tvde_request_ride_screen.dart` ← ClientMainScreen → ClientHomeScreen → TvdeRequestRideScreen
+- **TvdeRideTrackingScreen** `lib/screens/client/tvde/tvde_ride_tracking_screen.dart` ← ClientMainScreen → ClientHomeScreen → TvdeRequestRideScreen → TvdeRideTrackingScreen
+- **TvdeRidesHistoryScreen** `lib/screens/client/tvde/tvde_rides_history_screen.dart` ← ClientMainScreen → ClientHomeScreen → TvdeRequestRideScreen → TvdeRidesHistoryScreen
+- **WalletHistoryScreen** `lib/screens/wallet_history_screen.dart` ← ClientMainScreen → OrdersScreen → WalletHistoryScreen
+
+### MOTORISTA-TVDE (raiz: TvdeDriverHomeScreen) — 48 ecrãs alcançáveis
+
+- **BookingFlowScreen** `lib/screens/client/services/booking_flow_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → MyAppointmentsScreen → BookingFlowScreen
+- **BookingSuccessScreen** `lib/screens/client/services/booking_success_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → MyAppointmentsScreen → BookingFlowScreen → BookingSuccessScreen
+- **CartScreen** `lib/screens/cart_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → OrdersScreen → RestaurantsScreen → RestaurantMenuScreen → CartScreen
+- **ChatScreen** `lib/screens/chat_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → OrdersScreen → OrderDetailsScreen → ChatScreen
+- **CleanerApplyScreen** `lib/screens/cleaner/cleaner_apply_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → CleanerHomeScreen → CleanerApplyScreen
+- **CleanerAvailabilityScreen** `lib/screens/cleaner/cleaner_availability_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → CleanerHomeScreen → CleanerAvailabilityScreen
+- **CleanerEarningsScreen** `lib/screens/cleaner/cleaner_earnings_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → CleanerHomeScreen → CleanerEarningsScreen
+- **CleanerHistoryScreen** `lib/screens/cleaner/cleaner_history_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → CleanerHomeScreen → CleanerHistoryScreen
+- **CleanerHomeScreen** `lib/screens/cleaner/cleaner_home_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → CleanerHomeScreen
+- **ClientAddressesScreen** `lib/screens/client_addresses_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → ClientAddressesScreen
+- **ClientPromoCodeScreen** `lib/screens/client_promo_code_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → ClientPromoCodeScreen
+- **ClientReservationsScreen** `lib/screens/client_reservations_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → ClientReservationsScreen
+- **ConnectPaymentsScreen** `lib/screens/connect/connect_payments_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → ConnectPaymentsScreen
+- **ConnectStatementScreen** `lib/screens/connect/connect_statement_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → ConnectStatementScreen
+- **DriverEarningsScreen** `lib/screens/driver_earnings_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → DriverEarningsScreen
+- **DriverHomeScreen** `lib/screens/driver_home_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen
+- **DriverMapScreen** `lib/screens/driver_map_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → DriverMapScreen
+- **DriverPermissionsScreen** `lib/screens/driver_permissions_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → DriverPermissionsScreen
+- **DriverRoleApplyScreen** `lib/screens/driver/driver_role_apply_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → CleanerHomeScreen → DriverRoleApplyScreen
+- **ErrandFormScreen** `lib/screens/errand_form_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → OrdersScreen → ErrandFormScreen
+- **MyAppointmentsScreen** `lib/screens/client/services/my_appointments_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → MyAppointmentsScreen
+- **MyCardsScreen** `lib/screens/my_cards_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → MyCardsScreen
+- **MyReservationListsScreen** `lib/screens/client/reservation/my_reservation_lists_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → MyReservationListsScreen
+- **OrderDetailsScreen** `lib/screens/order_details_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → OrdersScreen → OrderDetailsScreen
+- **OrdersScreen** `lib/screens/orders_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → OrdersScreen
+- **PaymentMethodScreen** `lib/screens/payment_method_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → OrdersScreen → ErrandFormScreen → PaymentMethodScreen
+- **ProductDetailScreen** `lib/screens/product_detail_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → OrdersScreen → RestaurantsScreen → RestaurantMenuScreen → ProductDetailScreen
+- **ProfileScreen** `lib/screens/profile_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen
+- **ReferralScreen** `lib/screens/referral_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → ReferralScreen
+- **ReservationAvailabilityScreen** `lib/screens/client/reservation/reservation_availability_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → OrdersScreen → RestaurantsScreen → RestaurantOptionsScreen → ReservationAvailabilityScreen
+- **ReservationCheckoutScreen** `lib/screens/client/reservation/reservation_checkout_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → OrdersScreen → RestaurantsScreen → RestaurantOptionsScreen → ReservationAvailabilityScreen → ReservationCheckoutScreen
+- **ReservationDetailsScreen** `lib/screens/client/reservation/reservation_details_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → ClientReservationsScreen → ReservationDetailsScreen
+- **ReservationFlowScreen** `lib/screens/reservation_flow_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → OrdersScreen → RestaurantsScreen → ReservationFlowScreen
+- **ReservationNotifyJoinScreen** `lib/screens/client/reservation/reservation_notify_join_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → OrdersScreen → RestaurantsScreen → RestaurantOptionsScreen → ReservationAvailabilityScreen → ReservationNotifyJoinScreen
+- **ReservationWaitlistJoinScreen** `lib/screens/client/reservation/reservation_waitlist_join_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → OrdersScreen → RestaurantsScreen → RestaurantOptionsScreen → ReservationAvailabilityScreen → ReservationWaitlistJoinScreen
+- **RestaurantMenuScreen** `lib/screens/restaurant_menu_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → OrdersScreen → RestaurantsScreen → RestaurantMenuScreen
+- **RestaurantOptionsScreen** `lib/screens/restaurant_options_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → OrdersScreen → RestaurantsScreen → RestaurantOptionsScreen
+- **RestaurantsScreen** `lib/screens/restaurants_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → OrdersScreen → RestaurantsScreen
+- **SupportChatScreen** `lib/screens/support_chat_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → SupportChatScreen
+- **SupportEmailFormScreen** `lib/screens/support_email_form_screen.dart` ← TvdeDriverHomeScreen → BoraSupportSheet → SupportEmailFormScreen
+- **SupportScreen** `lib/screens/support_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → SupportScreen
+- **TvdeChatScreen** `lib/screens/shared/tvde_chat_screen.dart` ← TvdeDriverHomeScreen → TvdeRideActiveScreen → TvdeChatScreen
+- **TvdeDriverEarningsScreen** `lib/screens/driver/tvde/tvde_driver_earnings_screen.dart` ← TvdeDriverHomeScreen → TvdeDriverEarningsScreen
+- **TvdeDriverHomeScreen** `lib/screens/driver/tvde/tvde_driver_home_screen.dart` ← TvdeDriverHomeScreen
+- **TvdeDriverRateScreen** `lib/screens/driver/tvde/tvde_driver_rate_screen.dart` ← TvdeDriverHomeScreen → TvdeRideActiveScreen → TvdeDriverRateScreen
+- **TvdeOfferScreen** `lib/screens/driver/tvde/tvde_offer_screen.dart` ← TvdeDriverHomeScreen → TvdeOfferScreen
+- **TvdeRideActiveScreen** `lib/screens/driver/tvde/tvde_ride_active_screen.dart` ← TvdeDriverHomeScreen → TvdeRideActiveScreen
+- **WalletHistoryScreen** `lib/screens/wallet_history_screen.dart` ← TvdeDriverHomeScreen → DriverHomeScreen → ProfileScreen → WalletHistoryScreen
+
+### ESTAFETA-DELIVERY (raiz: DriverHomeScreen) — 42 ecrãs alcançáveis
+
+- **BookingFlowScreen** `lib/screens/client/services/booking_flow_screen.dart` ← DriverHomeScreen → ProfileScreen → MyAppointmentsScreen → BookingFlowScreen
+- **BookingSuccessScreen** `lib/screens/client/services/booking_success_screen.dart` ← DriverHomeScreen → ProfileScreen → MyAppointmentsScreen → BookingFlowScreen → BookingSuccessScreen
+- **CartScreen** `lib/screens/cart_screen.dart` ← DriverHomeScreen → ProfileScreen → OrdersScreen → RestaurantsScreen → RestaurantMenuScreen → CartScreen
+- **ChatScreen** `lib/screens/chat_screen.dart` ← DriverHomeScreen → ProfileScreen → OrdersScreen → OrderDetailsScreen → ChatScreen
+- **CleanerApplyScreen** `lib/screens/cleaner/cleaner_apply_screen.dart` ← DriverHomeScreen → ProfileScreen → CleanerHomeScreen → CleanerApplyScreen
+- **CleanerAvailabilityScreen** `lib/screens/cleaner/cleaner_availability_screen.dart` ← DriverHomeScreen → ProfileScreen → CleanerHomeScreen → CleanerAvailabilityScreen
+- **CleanerEarningsScreen** `lib/screens/cleaner/cleaner_earnings_screen.dart` ← DriverHomeScreen → ProfileScreen → CleanerHomeScreen → CleanerEarningsScreen
+- **CleanerHistoryScreen** `lib/screens/cleaner/cleaner_history_screen.dart` ← DriverHomeScreen → ProfileScreen → CleanerHomeScreen → CleanerHistoryScreen
+- **CleanerHomeScreen** `lib/screens/cleaner/cleaner_home_screen.dart` ← DriverHomeScreen → ProfileScreen → CleanerHomeScreen
+- **ClientAddressesScreen** `lib/screens/client_addresses_screen.dart` ← DriverHomeScreen → ProfileScreen → ClientAddressesScreen
+- **ClientPromoCodeScreen** `lib/screens/client_promo_code_screen.dart` ← DriverHomeScreen → ProfileScreen → ClientPromoCodeScreen
+- **ClientReservationsScreen** `lib/screens/client_reservations_screen.dart` ← DriverHomeScreen → ProfileScreen → ClientReservationsScreen
+- **ConnectPaymentsScreen** `lib/screens/connect/connect_payments_screen.dart` ← DriverHomeScreen → ProfileScreen → ConnectPaymentsScreen
+- **ConnectStatementScreen** `lib/screens/connect/connect_statement_screen.dart` ← DriverHomeScreen → ProfileScreen → ConnectStatementScreen
+- **DriverEarningsScreen** `lib/screens/driver_earnings_screen.dart` ← DriverHomeScreen → DriverEarningsScreen
+- **DriverHomeScreen** `lib/screens/driver_home_screen.dart` ← DriverHomeScreen
+- **DriverMapScreen** `lib/screens/driver_map_screen.dart` ← DriverHomeScreen → DriverMapScreen
+- **DriverPermissionsScreen** `lib/screens/driver_permissions_screen.dart` ← DriverHomeScreen → ProfileScreen → DriverPermissionsScreen
+- **DriverRoleApplyScreen** `lib/screens/driver/driver_role_apply_screen.dart` ← DriverHomeScreen → ProfileScreen → CleanerHomeScreen → DriverRoleApplyScreen
+- **ErrandFormScreen** `lib/screens/errand_form_screen.dart` ← DriverHomeScreen → ProfileScreen → OrdersScreen → ErrandFormScreen
+- **MyAppointmentsScreen** `lib/screens/client/services/my_appointments_screen.dart` ← DriverHomeScreen → ProfileScreen → MyAppointmentsScreen
+- **MyCardsScreen** `lib/screens/my_cards_screen.dart` ← DriverHomeScreen → ProfileScreen → MyCardsScreen
+- **MyReservationListsScreen** `lib/screens/client/reservation/my_reservation_lists_screen.dart` ← DriverHomeScreen → ProfileScreen → MyReservationListsScreen
+- **OrderDetailsScreen** `lib/screens/order_details_screen.dart` ← DriverHomeScreen → ProfileScreen → OrdersScreen → OrderDetailsScreen
+- **OrdersScreen** `lib/screens/orders_screen.dart` ← DriverHomeScreen → ProfileScreen → OrdersScreen
+- **PaymentMethodScreen** `lib/screens/payment_method_screen.dart` ← DriverHomeScreen → ProfileScreen → OrdersScreen → ErrandFormScreen → PaymentMethodScreen
+- **ProductDetailScreen** `lib/screens/product_detail_screen.dart` ← DriverHomeScreen → ProfileScreen → OrdersScreen → RestaurantsScreen → RestaurantMenuScreen → ProductDetailScreen
+- **ProfileScreen** `lib/screens/profile_screen.dart` ← DriverHomeScreen → ProfileScreen
+- **ReferralScreen** `lib/screens/referral_screen.dart` ← DriverHomeScreen → ProfileScreen → ReferralScreen
+- **ReservationAvailabilityScreen** `lib/screens/client/reservation/reservation_availability_screen.dart` ← DriverHomeScreen → ProfileScreen → OrdersScreen → RestaurantsScreen → RestaurantOptionsScreen → ReservationAvailabilityScreen
+- **ReservationCheckoutScreen** `lib/screens/client/reservation/reservation_checkout_screen.dart` ← DriverHomeScreen → ProfileScreen → OrdersScreen → RestaurantsScreen → RestaurantOptionsScreen → ReservationAvailabilityScreen → ReservationCheckoutScreen
+- **ReservationDetailsScreen** `lib/screens/client/reservation/reservation_details_screen.dart` ← DriverHomeScreen → ProfileScreen → ClientReservationsScreen → ReservationDetailsScreen
+- **ReservationFlowScreen** `lib/screens/reservation_flow_screen.dart` ← DriverHomeScreen → ProfileScreen → OrdersScreen → RestaurantsScreen → ReservationFlowScreen
+- **ReservationNotifyJoinScreen** `lib/screens/client/reservation/reservation_notify_join_screen.dart` ← DriverHomeScreen → ProfileScreen → OrdersScreen → RestaurantsScreen → RestaurantOptionsScreen → ReservationAvailabilityScreen → ReservationNotifyJoinScreen
+- **ReservationWaitlistJoinScreen** `lib/screens/client/reservation/reservation_waitlist_join_screen.dart` ← DriverHomeScreen → ProfileScreen → OrdersScreen → RestaurantsScreen → RestaurantOptionsScreen → ReservationAvailabilityScreen → ReservationWaitlistJoinScreen
+- **RestaurantMenuScreen** `lib/screens/restaurant_menu_screen.dart` ← DriverHomeScreen → ProfileScreen → OrdersScreen → RestaurantsScreen → RestaurantMenuScreen
+- **RestaurantOptionsScreen** `lib/screens/restaurant_options_screen.dart` ← DriverHomeScreen → ProfileScreen → OrdersScreen → RestaurantsScreen → RestaurantOptionsScreen
+- **RestaurantsScreen** `lib/screens/restaurants_screen.dart` ← DriverHomeScreen → ProfileScreen → OrdersScreen → RestaurantsScreen
+- **SupportChatScreen** `lib/screens/support_chat_screen.dart` ← DriverHomeScreen → SupportChatScreen
+- **SupportEmailFormScreen** `lib/screens/support_email_form_screen.dart` ← DriverHomeScreen → SupportChatScreen → BoraSupportSheet → SupportEmailFormScreen
+- **SupportScreen** `lib/screens/support_screen.dart` ← DriverHomeScreen → ProfileScreen → SupportScreen
+- **WalletHistoryScreen** `lib/screens/wallet_history_screen.dart` ← DriverHomeScreen → ProfileScreen → WalletHistoryScreen
+
+### PARCEIRO (raiz: PartnerEntryScreen) — 31 ecrãs alcançáveis
+
+- **AddProductScreen** `lib/screens/add_product_screen.dart` ← PartnerEntryScreen → PartnerDashboardScreen → PartnerProductsScreen → AddProductScreen
+- **ConnectPaymentsScreen** `lib/screens/connect/connect_payments_screen.dart` ← PartnerEntryScreen → PartnerDashboardScreen → ConnectPaymentsScreen
+- **ConnectStatementScreen** `lib/screens/connect/connect_statement_screen.dart` ← PartnerEntryScreen → PartnerDashboardScreen → ConnectStatementScreen
+- **ForgotPasswordScreen** `lib/screens/forgot_password_screen.dart` ← PartnerEntryScreen → PartnerLoginScreen → ForgotPasswordScreen
+- **PartnerAddWalkInScreen** `lib/screens/partner/services/partner_add_walk_in_screen.dart` ← PartnerEntryScreen → PartnerServicesHubScreen → PartnerAddWalkInScreen
+- **PartnerAgendaScreen** `lib/screens/partner/services/partner_agenda_screen.dart` ← PartnerEntryScreen → PartnerServicesHubScreen → PartnerAgendaScreen
+- **PartnerAppointmentsFinanceScreen** `lib/screens/partner/services/partner_appointments_finance_screen.dart` ← PartnerEntryScreen → PartnerServicesHubScreen → PartnerAppointmentsFinanceScreen
+- **PartnerBlockSlotScreen** `lib/screens/partner/services/partner_block_slot_screen.dart` ← PartnerEntryScreen → PartnerServicesHubScreen → PartnerBlockSlotScreen
+- **PartnerCallDriverScreen** `lib/screens/partner_call_driver_screen.dart` ← PartnerEntryScreen → PartnerDashboardScreen → PartnerCallDriverScreen
+- **PartnerClientProfilesScreen** `lib/screens/partner/reservations/partner_client_profiles_screen.dart` ← PartnerEntryScreen → PartnerDashboardScreen → PartnerReservationsHomeScreen → PartnerClientProfilesScreen
+- **PartnerDashboardScreen** `lib/screens/partner_dashboard_screen.dart` ← PartnerEntryScreen → PartnerDashboardScreen
+- **PartnerEarningsScreen** `lib/screens/partner_earnings_screen.dart` ← PartnerEntryScreen → PartnerDashboardScreen → PartnerEarningsScreen
+- **PartnerEntryScreen** `lib/screens/partner_entry_screen.dart` ← PartnerEntryScreen
+- **PartnerFloorPlanEditorScreen** `lib/screens/partner/reservations/partner_floor_plan_editor_screen.dart` ← PartnerEntryScreen → PartnerDashboardScreen → PartnerReservationsHomeScreen → PartnerFloorPlanEditorScreen
+- **PartnerHoursScreen** `lib/screens/partner_hours_screen.dart` ← PartnerEntryScreen → PartnerDashboardScreen → PartnerHoursScreen
+- **PartnerLoginScreen** `lib/screens/partner_login_screen.dart` ← PartnerEntryScreen → PartnerLoginScreen
+- **PartnerManageServicesScreen** `lib/screens/partner/services/partner_manage_services_screen.dart` ← PartnerEntryScreen → PartnerServicesHubScreen → PartnerManageServicesScreen
+- **PartnerManageStaffScreen** `lib/screens/partner/services/partner_manage_staff_screen.dart` ← PartnerEntryScreen → PartnerServicesHubScreen → PartnerManageStaffScreen
+- **PartnerPacingRulesScreen** `lib/screens/partner/reservations/partner_pacing_rules_screen.dart` ← PartnerEntryScreen → PartnerDashboardScreen → PartnerReservationsHomeScreen → PartnerPacingRulesScreen
+- **PartnerProductsScreen** `lib/screens/partner_products_screen.dart` ← PartnerEntryScreen → PartnerDashboardScreen → PartnerProductsScreen
+- **PartnerReservationsHomeScreen** `lib/screens/partner/reservations/partner_reservations_home_screen.dart` ← PartnerEntryScreen → PartnerDashboardScreen → PartnerReservationsHomeScreen
+- **PartnerReservationsScreen** `lib/screens/partner/reservations/partner_reservations_screen.dart` ← PartnerEntryScreen → PartnerDashboardScreen → PartnerReservationsHomeScreen → PartnerReservationsScreen
+- **PartnerReservationsStatsScreen** `lib/screens/partner/reservations/partner_reservations_stats_screen.dart` ← PartnerEntryScreen → PartnerDashboardScreen → PartnerReservationsHomeScreen → PartnerReservationsStatsScreen
+- **PartnerServiceHoursScreen** `lib/screens/partner/services/partner_service_hours_screen.dart` ← PartnerEntryScreen → PartnerServicesHubScreen → PartnerServiceHoursScreen
+- **PartnerServicesHubScreen** `lib/screens/partner/services/partner_services_hub_screen.dart` ← PartnerEntryScreen → PartnerServicesHubScreen
+- **PartnerTableFormScreen** `lib/screens/partner/reservations/partner_table_form_screen.dart` ← PartnerEntryScreen → PartnerDashboardScreen → PartnerReservationsHomeScreen → PartnerFloorPlanEditorScreen → PartnerTableFormScreen
+- **PartnerWalkInScreen** `lib/screens/partner/reservations/partner_walk_in_screen.dart` ← PartnerEntryScreen → PartnerDashboardScreen → PartnerReservationsHomeScreen → PartnerWalkInScreen
+- **PendingApprovalScreen** `lib/screens/pending_approval_screen.dart` ← PartnerEntryScreen → PendingApprovalScreen
+- **ProductOptionsManageScreen** `lib/screens/product_options_manage_screen.dart` ← PartnerEntryScreen → PartnerDashboardScreen → PartnerProductsScreen → ProductOptionsManageScreen
+- **RegisterPartnerScreen** `lib/screens/register_partner_screen.dart` ← PartnerEntryScreen → RegisterPartnerScreen
+- **RoleChoiceScreen** `lib/screens/role_choice_screen.dart` ← PartnerEntryScreen → PartnerLoginScreen → RoleChoiceScreen
+
+### AUTH/ROLE (raiz: RoleScreen) — 1 ecrãs alcançáveis
+
+- **RoleScreen** `lib/screens/role_screen.dart` ← RoleScreen
+
+### ADMIN — pontos de entrada (classes fora de screens/admin que invocam ecrãs admin)
+
+- **MyApp** (`lib/main.dart`) → 11 ecrãs admin: AdminDashboardScreen, AdminCrosstalkScreen, AdminSkillSuggestionsMetricsScreen, AdminRatingsScreen, AdminWeeklySettlementsScreen, AdminRobotSuggestionsScreen, AdminDriverApprovalScreen, AdminPartnersPendingScreen…
+- **AdminPushService** (`lib/services/admin_push_service.dart`) → 1 ecrãs admin: AdminDashboardScreen
+- **AdminClosedPartnersCard** (`lib/widgets/admin_closed_partners_card.dart`) → 1 ecrãs admin: AdminPartnerDetailScreen
+- **AdminReservationsTodayCard** (`lib/widgets/admin_reservations_today_card.dart`) → 1 ecrãs admin: AdminReservationsScreen
+
+Total ecrãs admin: 78
+
+## ⚠️ Ecrãs possivelmente ÓRFÃOS (não alcançados por nenhuma raiz — verificar rotas nomeadas/dinâmicas)
+
+- ClientFavoritesScreen `lib/screens/client_favorites_screen.dart`
+- ClientLoginScreen `lib/screens/client_login_screen.dart`
+- DriverLoginScreen `lib/screens/driver_login_screen.dart`
+- DriverPendingScreen `lib/screens/driver_pending_screen.dart`
+- DriverRejectedScreen `lib/screens/driver_rejected_screen.dart`
+- DriverSignupScreen `lib/screens/driver_signup_screen.dart`
+- LoginScreen `lib/screens/login_screen.dart`
+- MapScreen `lib/screens/map_screen.dart`
+- NotificationsScreen `lib/screens/notifications_screen.dart`
+- QrClientSignupScreen `lib/screens/qr_client_signup_screen.dart`
+- RegisterClientScreen `lib/screens/register_client_screen.dart`
+- ResetPasswordScreen `lib/screens/reset_password_screen.dart`
+- RestaurantDashboardScreen `lib/screens/restaurant_dashboard_screen.dart`
+- RestaurantRatingsListScreen `lib/screens/restaurant_ratings_list_screen.dart`
+- DriverRatingsListScreen `lib/screens/restaurant_ratings_list_screen.dart`
+- SendPackageScreen `lib/screens/send_package_screen.dart`
+- CleaningChatScreen `lib/screens/shared/cleaning_chat_screen.dart`
+- WelcomeAddressScreen `lib/screens/welcome_address_screen.dart`

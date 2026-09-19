@@ -1,0 +1,24 @@
+appId: pt.boraapp.bora
+name: Cliente — Histórico de pedidos
+tags:
+  - cliente
+  - historico
+---
+- launchApp:
+    clearState: true
+- runFlow: ../../_shared/login_cliente.yaml
+
+- tapOn: "Perfil"
+- extendedWaitUntil:
+    visible:
+      text: ".*(Histórico|Pedidos).*"
+    timeout: 20000
+
+- tapOn:
+    text: ".*Histórico.*"
+
+# Lista carregada (mesmo vazia mostra estado).
+- extendedWaitUntil:
+    visible:
+      text: ".*(Sem pedidos|€|Pedido).*"
+    timeout: 20000

@@ -1,0 +1,33 @@
+appId: pt.boraapp.bora
+name: Parceiro — Ganhos (Hoje/Semana/Mês + secção Reservas)
+tags:
+  - parceiro
+  - ganhos
+  - reservas
+---
+- launchApp:
+    clearState: true
+- runFlow: ../../_shared/login_parceiro.yaml
+
+- tapOn: "Ver detalhe de ganhos"
+- extendedWaitUntil:
+    visible:
+      text: ".*(Hoje|Semana|Mês).*"
+    timeout: 10000
+
+# Cycling pelos 3 períodos.
+- tapOn: "Hoje"
+- waitForAnimationToEnd
+- tapOn:
+    text: ".*(Semana|7 dias).*"
+- waitForAnimationToEnd
+- tapOn:
+    text: ".*(Mês|30 dias).*"
+- waitForAnimationToEnd
+
+# Secção Reservas (commit cd041b2) deve estar visível em todos os períodos.
+- assertVisible: ".*Reservas.*"
+- assertVisible:
+    text: ".*Créditos usados.*"
+- assertVisible:
+    text: ".*Créditos pendentes.*"

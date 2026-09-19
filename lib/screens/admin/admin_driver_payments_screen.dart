@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
 import '../../config/business_rules.dart' show BRTokens;
+import '../../widgets/bora/bora_screen_app_bar.dart';
 
 class AdminDriverPaymentsScreen extends StatefulWidget {
   const AdminDriverPaymentsScreen({super.key});
@@ -69,8 +71,9 @@ class _AdminDriverPaymentsScreenState extends State<AdminDriverPaymentsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Pagamentos de Estafetas'),
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: 'Pagamentos — Estafetas',
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
         ],
@@ -111,7 +114,12 @@ class _AdminDriverPaymentsScreenState extends State<AdminDriverPaymentsScreen> {
     );
   }
 
-  Widget _emptyCard(String msg) => Card(
+  Widget _emptyCard(String msg) => Container(
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(Radii.lg),
+          boxShadow: AppColors.shadowCard,
+        ),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child:
@@ -186,8 +194,13 @@ class _WeeklyCard extends StatelessWidget {
     final tokensConverted = (conversionsEur / BRTokens.TOKEN_VALUE_EUR).round();
     final totalToPay = earnings + conversionsEur;
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        boxShadow: AppColors.shadowCard,
+      ),
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(

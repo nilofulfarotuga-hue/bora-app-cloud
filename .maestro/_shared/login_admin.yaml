@@ -1,0 +1,44 @@
+appId: pt.boraapp.bora
+---
+# Sub-flow: login como admin. Admin = utilizadores com email em
+# allowlist hardcoded em profile_screen.dart (nilofulfarotuga@gmail.com,
+# nilofulfarotuga-tuga@gmail.com). Login = role Cliente + acesso painel.
+
+# Dismiss GDPR consent dialog (aparece no primeiro launch após clearState).
+- runFlow:
+    when:
+      visible: "Privacidade e Cookies"
+    commands:
+      - tapOn: "Aceitar tudo"
+      - extendedWaitUntil:
+          notVisible: "Privacidade e Cookies"
+          timeout: 5000
+
+- evalScript: ${output.email = MAESTRO_ADMIN_EMAIL ?? "nilofulfarotuga@gmail.com"}
+- evalScript: ${output.pwd = MAESTRO_ADMIN_PASSWORD ?? "Bora1234"}
+
+- runFlow:
+    when:
+      visible: "Sou Cliente"
+    commands:
+      - tapOn: "Sou Cliente"
+      - extendedWaitUntil:
+          visible: "Email"
+          timeout: 10000
+      - tapOn: "Email"
+      - inputText: ${output.email}
+      - tapOn: "Palavra-passe"
+      - inputText: ${output.pwd}
+      - tapOn: "Entrar"
+      - extendedWaitUntil:
+          notVisible: "Entrar"
+          timeout: 15000
+
+# Aceder ao painel admin via Perfil → Admin
+- tapOn: "Perfil"
+- scrollUntilVisible:
+    element:
+      text: ".*Admin.*"
+    direction: DOWN
+    timeout: 10000
+- tapOn: ".*Admin.*"

@@ -1,0 +1,44 @@
+01:05:03 [console:warning] WebGL: non-portable extension enabled: WEBGL_polygon_mode
+01:05:03 [console:debug] Initializing Firebase firebase_core
+01:05:03 [console:debug] Initializing Firebase firebase_messaging
+01:05:03 [console:log] [main] Firebase web pronto (appId 1:765097014497:web:f80ae480cd6802d14ef3a0)
+01:05:03 [console:warning] WebGL: non-portable extension enabled: WEBGL_polygon_mode
+01:05:03 [console:warning] WebGL: non-portable extension enabled: WEBGL_polygon_mode
+01:05:04 [console:error] Failed to load resource: the server responded with a status of 400 ()
+01:05:04 [console:error] Failed to load resource: the server responded with a status of 422 ()
+01:05:18 aberto http://localhost:8765/
+01:05:18 pronto: a aceitar comandos em C:\BoraLocal\projetosflutter\bora_app\.claude\.ai\provas\estafeta-web-2026-09-16\comandos-webkit.txt
+01:05:38 [console:log] [NotificationService] clearTokenForCurrentUser: no bound user
+01:05:39 clique 215 626 ok
+01:05:45 esperou 6
+01:05:47 escrever em (215,286) input_activo=True
+01:05:48 escrever em (200,353) input_activo=True
+01:05:48 [console:log] [DriverStore] configurePrimaryDriver: new driver id=dede0000-0000-4000-8000-000000000001 — upserting DB row
+01:05:48 [console:log] DriverHomeScreen: ensureDriverConfigured — id=dede0000-0000-4000-8000-000000000001, name=Estafeta Demo, authUid=dede0000-0000-4000-8000-000000000001
+01:05:48 [console:log] [DriverStore] _upsertDriverRow: OK uid=dede0000-0000-4000-8000-000000000001
+01:05:49 [console:warning] WebGL: non-portable extension enabled: WEBGL_polygon_mode
+01:05:49 clique 215 433 ok
+01:06:19 esperou 30
+01:06:19 foto C:\BoraLocal\projetosflutter\bora_app\.claude\.ai\provas\estafeta-web-2026-09-16\webkit\40-iphone-home.png
+01:07:45 js => banner html escondido
+01:07:47 esperou 2
+01:07:47 foto C:\BoraLocal\projetosflutter\bora_app\.claude\.ai\provas\estafeta-web-2026-09-16\webkit\41-iphone-home-2.png
+01:08:04 [console:log] [DriverStore] foreground notif perm denied — service não iniciado
+01:08:04 [console:log] [WebPresence] wake lock indisponível: NotAllowedError: Permission was denied
+01:08:05 clique 366 830 ok
+01:08:14 [console:log] [HeartbeatService] posição web: TimeoutException after 0:00:10.000000: Future not completed
+01:08:44 [console:log] [HeartbeatService] posição web: TimeoutException after 0:00:10.000000: Future not completed
+01:08:45 esperou 40
+01:08:45 foto C:\BoraLocal\projetosflutter\bora_app\.claude\.ai\provas\estafeta-web-2026-09-16\webkit\42-iphone-online.png
+01:09:21 [console:log] [HeartbeatService] posição web: TimeoutException after 0:00:10.000000: Future not completed
+01:09:21 js => visibilitychange disparado, state=visible
+01:09:21 [console:log] [WebPresence] wake lock indisponível: NotAllowedError: Permission was denied
+01:09:27 esperou 6
+01:09:27 foto C:\BoraLocal\projetosflutter\bora_app\.claude\.ai\provas\estafeta-web-2026-09-16\webkit\43-iphone-voltar-online.png
+01:09:47 clique 300 532 ok
+01:09:52 esperou 5
+01:09:52 foto C:\BoraLocal\projetosflutter\bora_app\.claude\.ai\provas\estafeta-web-2026-09-16\webkit\44-iphone-online-de-novo.png
+01:10:24 a fechar
+01:10:24 [console:log] [HeartbeatService] posição web: TimeoutException after 0:00:10.000000: Future not completed
+01:10:24 [console:log] [HeartbeatService] posição web: TimeoutException after 0:00:10.000000: Future not completed
+01:10:26 FECHADO

@@ -1,0 +1,75 @@
+# Ordem dos motores (cerebro/cadeia.txt) — decisão de 02/09/2026
+Medido na 2.ª volta das provas: o qwen2.5:7b local demorou >150 s a avaliar o prompt do agente
+(~3 mil tokens) a frio neste CPU, em todas as provas; o gemini-3.6-flash respondeu com ferramentas
+reais em 4–20 s. Um cliente não espera dois minutos. Ordem: gemini-3.6-flash → ollama (45 s de
+espera; útil quando o Gemini estiver esgotado) → gemini-3-flash-preview. Custo: quota grátis do
+Gemini; quando cair (429), o cérebro marca-o esgotado 10 min e desce sozinho. Voltar a pôr o
+Ollama primeiro = editar `cadeia.txt` (o servidor lê ao arrancar) — nada de código.
+
+## Revisão 09:10 (02/09) — depois de os dois Gemini esgotarem a quota do dia (429)
+Medido: qwen2.5:7b com o prompt compacto e reordenado (partes fixas primeiro) = 182 s a frio, 15 s
+quente; qwen2.5:3b = 75 s a frio, 2,4 s quente, mas copia o exemplo do prompt e ignora a pergunta;
+OpenCode Zen `nemotron-3-ultra-free` responde COM ferramentas (41 s) desde que o pedido se
+identifique como browser (senão Cloudflare 403/1010); `hy3-free` já não existe ("not supported").
+Ordem: **ollama (7b, mantido quente pelo aquecedor) → zen:nemotron-3-ultra-free → gemini-3.6-flash
+→ gemini-3-flash-preview**. Custo zero em todos; o Gemini serve ~20 chamadas/dia por modelo.
+
+## Ordem FINAL (09:45, 02/09) — por qualidade, com o custo zero em todos
+`gemini-3.6-flash → gemini-3-flash-preview → zen:nemotron-3-ultra-free → ollama (qwen2.5:7b)`.
+O 7b local responde depressa quando quente mas escreve pior: prometeu "vou verificar" com os dados
+já na mão e colou um título do manual na resposta. Ficou de reserva, atrás de tudo o que é bom e
+grátis; e as guardas em código (factos fixos, pedidos em resumo determinístico, títulos limpos,
+número sem ferramenta = invenção) apanham o que ele escrever mal. Quando o Gemini está em 429 fica
+marcado 10 min e a cadeia desce sozinha.
+
+## Revisão 10:20–11:20 (02/09) — o Danilo mediu no banco: 57 s e 90 s por resposta
+O Gemini 3.6 esgotou a quota do dia e a cadeia caiu no nemotron do Zen, que responde com ferramentas
+mas leva 40–90 s por volta; com 2–3 voltas de ferramentas eram minutos. Ordem: **groq:llama-3.3-70b-versatile
+(activa-se sozinho quando houver `GROQ_API_KEY` no `cerebro/.env`; sem chave salta em 0 ms) →
+gemini-3.1-flash-lite (0,9 s medido, quota separada) → gemini-3-flash-preview → ollama (7b quente) →
+zen:nemotron-3-ultra-free**. Tempos: 12 s Gemini/Groq, 25 s Ollama, 60 s Zen — quem não responde dá a vez.
+E o agente passou a UMA chamada sem ferramentas (`agente._rapido`): o que precisa de dados verifica-se
+antes, em código. Medido: 10 de 10 respostas em menos de 10 s (máx. 7,6 s). `CEREBRO_RAPIDO=0` volta ao
+ciclo com ferramentas. Na VPS a cadeia vive em `Environment=CEREBRO_CADEIA` no serviço, não no ficheiro.
+
+## Revisão 12:45 (02/09) — Groq ligado, com a chave criada na conta do Danilo
+Chave `bora-whatsapp-cerebro` (sem expiração) criada no console do Groq pelo agente de browser; a única
+parte humana foi o "Confirme que é humano" da Cloudflare. Vive em `cerebro/.env` (PC) e em
+`/opt/whatsapp-bora/.env` (VPS); nunca se imprime. O `llama-3.3-70b-versatile` já não existe no Groq
+(404 model_not_found); a lista da conta tem `openai/gpt-oss-120b`, `openai/gpt-oss-20b`,
+`qwen/qwen3.8-27b`, `qwen/qwen3.6-27b` (este escreve `<think>` — cortado no pós-processamento),
+`groq/compound*` e `whisper-large-v3(-turbo)`. Medido com o prompt real: gpt-oss-120b 0,7–1,0 s e o
+melhor português; qwen3.8-27b 0,3–0,4 s; gpt-oss-20b devolveu uma resposta vazia.
+Ordem: **groq:openai/gpt-oss-120b → groq:qwen/qwen3.8-27b → gemini-3.1-flash-lite → gemini-3-flash-preview
+→ ollama → zen:nemotron**. Limite do plano grátis: 8 000 tokens/min por modelo (429 → desce para o
+qwen; cooldown curto, 65 s, não os 600 s do 429 diário do Gemini). Transcrição: `groq:whisper-large-v3-turbo`
+passou a 1.º nível (2,1 s, palavra por palavra no áudio de prova), depois whisper local, depois Gemini.
+
+## Revisão 02/09 (noite) — a cadeia deixou de viver aqui: nasceu o MOTOR BORA
+O cérebro passa a pedir ao roteador local (`http://127.0.0.1:8792`, pacote `ferramentas/motor-bora`) por
+PERFIL — `perfil:chat-rapido` para o WhatsApp ao vivo, `perfil:raciocinio` para a sombra do Danilo, a revisão
+diária e o Hermes, `perfil:volume` para lotes. O roteador roda chaves, salta fornecedores castigados (429/5xx
+com o tempo do cabeçalho, senão 65 s), conta a quota localmente por fornecedor E por modelo (Groq/Gemini/
+OpenRouter), descobre os modelos vivos (/models) e às 05:30 reordena os perfis pelo auto-teste (3 perguntas
+reais). O que está aqui em `cadeia.txt` é agora só a **rede de segurança**: se o roteador estiver em baixo
+(ligação recusada), o cérebro usa esta cadeia directa durante 60 s e volta a tentar o roteador.
+`CEREBRO_MOTOR=0` desliga o roteador; `MOTOR_BORA_URL` muda o endereço. Estado e ordem em `MOTORES.md`.
+Hermes (`/opt/data/.env` HERMES_BASE_URL) e Conselho (`CONSELHO_BASE`) apontam para o mesmo roteador na VPS
+(172.16.1.1:8792): uma chave nova entra num `.env` e todos ganham.
+
+## Revisão 04/09 — Kilo sem chave, rodízio por perfil, vigia de modelos mortos, custo simulado
+Quatro mudanças no roteador, todas medidas no próprio dia (provas em
+`provas/whatsapp-2026-09-02/06-motor-bora-e-iphone-04-09.md`):
+1. **Kilo Gateway** (`https://api.kilo.ai/api/gateway`) entrou **sem chave e sem conta** — o único
+   fornecedor que não depende de cliques. Só os modelos `:free` (os pagos devolvem
+   PAID_MODEL_AUTH_REQUIRED); tecto assumido 12/min, 180/hora por IP. Pedem-se-lhes ≥500 tokens
+   porque "pensam" antes de escrever e com tecto curto devolvem 200 com texto vazio.
+2. **Rodízio por perfil**: `chat-rapido` e `volume` rodam entre os 4 melhores a cada pedido;
+   `raciocínio` fica em cadeia. A prova 4 passou de p95 19,5 s para 6,0 s, máximo 19,6 → 6,9 s.
+3. **Vigia de modelo morto**: 404/410 ou "não existe/descontinuado" duas vezes → sai da lista de
+   todos os perfis, fica em `retirados` e vai para o MOTORES.md com aviso ao Danilo. Caso real: o
+   GitHub Models devolve 410 "retirement brownout" — está a ser desligado pela GitHub.
+4. **Custo simulado** por fornecedor (`PRECO_POR_MILHAO`): não se paga nada, mostra o que isto
+   custaria se fosse pago. No `/motores`, no MOTORES.md e no ecrã admin.
+Mais: `ollama-cloud` no catálogo; a chave Gemini do WhatsApp saiu do projeto do juiz (a quota grátis
+é por PROJETO) e o timeout por fornecedor passou a respeitar o orçamento que resta ao perfil.

@@ -6,6 +6,10 @@ enum VehicleType {
   motorcycle,
   car,
   bicycle,
+  // TVDE — Bora Motorista (transporte de passageiros). Valor canónico na DB:
+  // 'carro_passageiros' (ver VehicleTypeDb). O matching de corridas filtra
+  // SEMPRE pela coluna vehicle_type da DB, nunca por este enum.
+  carPassengers,
 }
 
 enum DriverStatus { pending, approved, rejected }
@@ -32,7 +36,33 @@ extension VehicleTypeLabel on VehicleType {
         return 'Carro';
       case VehicleType.bicycle:
         return 'Bicicleta';
+      case VehicleType.carPassengers:
+        return 'Carro — Passageiros';
     }
+  }
+}
+
+/// Mapeamento explícito enum ↔ coluna `drivers.vehicle_type` (TEXT).
+/// Os 3 tipos de delivery usam `.name`; `carPassengers` mapeia para o valor
+/// canónico 'carro_passageiros'. NÃO altera o fallback global (motorcycle)
+/// para não partir motoristas atuais — só garante reconhecimento nos 2 sentidos.
+extension VehicleTypeDb on VehicleType {
+  /// Valor a gravar na coluna `vehicle_type`.
+  String get dbValue =>
+      this == VehicleType.carPassengers ? 'carro_passageiros' : name;
+
+  /// Lê o valor da coluna `vehicle_type` para o enum.
+  /// Aceita também a grafia legada 'carPassengers' (metadata/prefs antigos
+  /// gravavam `.name`) — sem isto o TVDE caía no fallback motorcycle e a
+  /// aba de passageiros desaparecia (P0 2026-07-02).
+  static VehicleType fromDb(String? raw) {
+    if (raw == 'carro_passageiros' || raw == 'carPassengers') {
+      return VehicleType.carPassengers;
+    }
+    return VehicleType.values.firstWhere(
+      (v) => v != VehicleType.carPassengers && v.name == (raw ?? ''),
+      orElse: () => VehicleType.motorcycle,
+    );
   }
 }
 
@@ -46,6 +76,9 @@ class DriverModel {
     this.licensePlate,
     this.isOnline = false,
     this.status = DriverStatus.approved,
+    this.avgRating,
+    this.ratingsCount = 0,
+    this.workMode = 'everything',
     List<DriverAssignmentInfo>? activeAssignments,
   }) : activeAssignments = activeAssignments ?? <DriverAssignmentInfo>[];
 
@@ -57,11 +90,34 @@ class DriverModel {
   String? licensePlate;
   bool isOnline;
   DriverStatus status;
+
+  /// BR §44 — média de avaliações (1.0-5.0) ou null se ainda sem ratings.
+  double? avgRating;
+
+  /// BR §44 — número de avaliações públicas + não flagged.
+  int ratingsCount;
+
+  /// Dual-driver: espelho de drivers.work_mode ('everything' | 'rides_only').
+  /// A fonte de verdade do matching é o backend (dispatch-engine v58); isto
+  /// gateia só a apresentação local de ofertas de entrega.
+  String workMode;
+
   final List<DriverAssignmentInfo> activeAssignments;
 
   bool supportsService(OrderServiceType serviceType,
       {bool requiresCar = false}) {
+    // TVDE dual-driver: carro de passageiros faz entregas quando work_mode
+    // = 'everything' (comporta-se como carro); 'rides_only' fica fora.
+    if (vehicleType == VehicleType.carPassengers) {
+      return workMode == 'everything';
+    }
+
     if (vehicleType == VehicleType.car) return true;
+
+    // carryGroceries (levar compras JÁ feitas) e caixas grandes exigem carro:
+    // o volume/peso não cabe de forma fiável em mota ou bicicleta. Carro já
+    // retornou true acima, por isso aqui só restam mota/bicicleta → false.
+    if (serviceType == OrderServiceType.carryGroceries) return false;
 
     if (vehicleType == VehicleType.bicycle) {
       return serviceType == OrderServiceType.restaurant ||
@@ -75,7 +131,9 @@ class DriverModel {
 
     return serviceType == OrderServiceType.restaurant ||
         serviceType == OrderServiceType.storeShopping ||
-        serviceType == OrderServiceType.sendPackage;
+        serviceType == OrderServiceType.sendPackage ||
+        // FAVORES — mota aceita errand (entregas/recolhas/compras leves).
+        serviceType == OrderServiceType.errand;
   }
 }
 

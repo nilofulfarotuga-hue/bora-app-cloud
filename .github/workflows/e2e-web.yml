@@ -1,0 +1,65 @@
+name: E2E Web Build Foundation
+
+# Fundação do plano "cabines de browser" (pedido Danilo 2026-07-15).
+# SÓ mede se o build web corre em CI — Playwright/cabines entram numa ordem futura.
+# workflow_dispatch APENAS: nunca correr em cada push (gastaria minutos à toa).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-web:
+    name: Build Flutter Web (release) — baseline
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout — mesmo mecanismo do build_android.yml
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2. Flutter — mesma acção/versão pinada do build_android.yml (subosito/flutter-action@v2, 3.41.2 stable)
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.41.2
+          channel: stable
+          cache: true
+
+      # 3. .dart_defines — mesmo mecanismo do build_android.yml (secret base64 → ficheiro)
+      - name: Decode .dart_defines
+        env:
+          DART_DEFINES_FILE_B64: ${{ secrets.DART_DEFINES_FILE_B64 }}
+        run: |
+          echo "$DART_DEFINES_FILE_B64" | base64 --decode > .dart_defines
+          if [ ! -s .dart_defines ]; then
+            echo "ERRO: .dart_defines vazio apos decode"; exit 1
+          fi
+          echo "OK: .dart_defines criado ($(wc -l < .dart_defines) linhas)"
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      # 4. Build web release + medir duração
+      - name: Build web (release)
+        id: buildweb
+        run: |
+          START=$(date +%s)
+          flutter build web --release --dart-define-from-file=.dart_defines
+          END=$(date +%s)
+          echo "duration_seconds=$((END-START))" >> "$GITHUB_OUTPUT"
+
+      # 5. Medir tamanho da pasta build/web
+      - name: Medir tamanho do build/web
+        id: sizeweb
+        run: |
+          SIZE=$(du -sh build/web | cut -f1)
+          echo "size=$SIZE" >> "$GITHUB_OUTPUT"
+          echo "Tamanho build/web: $SIZE"
+
+      - name: Resumo
+        run: |
+          echo "### E2E Web — Build Foundation" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Duração: ${{ steps.buildweb.outputs.duration_seconds }}s" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Tamanho build/web: ${{ steps.sizeweb.outputs.size }}" >> "$GITHUB_STEP_SUMMARY"

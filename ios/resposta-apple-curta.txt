@@ -1,0 +1,67 @@
+Hello, and thank you for the review.
+
+All six items are answered below, and the same information is now in the Notes
+field of App Review Information.
+
+FIRST, THE HONEST PART. You asked for "the required content reporting and
+blocking mechanisms". Reporting existed in build 51. Blocking did NOT. You were
+right to ask. It is implemented, committed and tested today, and it will be in
+the next build together with an updated recording that shows it.
+
+1. SCREEN RECORDING
+https://boraguarda.com/provas/apple-review/
+69 s, English captions, the app running against our live server: launch,
+privacy sheet, profile choice, sign-in, all service categories, opening a
+supermarket, a real product at its real price, the basket with the fee
+breakdown, checkout paying cash, and two partner businesses. Two limits we
+state plainly: it was captured on the iOS Simulator, and it does not yet show
+report/block or account deletion, because blocking landed today. The updated
+recording adds order tracking, the chat with REPORT and BLOCK, and
+Profile > Delete account.
+- Login: email and password only, no social login, so 4.8 does not apply.
+- Account deletion: Perfil > "Apagar conta", in-app, no email needed. You can
+  test it now with demo.apagar@bora.app. Data is erased and access permanently
+  revoked; only anonymised invoices remain, as Portuguese law requires for 10
+  years.
+- User content: one-to-one chat tied to one order, plus star ratings. A flag
+  icon in every conversation opens report reasons and "Bloquear esta pessoa"
+  (Block this person). Blocking hides that person and stops writing to them.
+- No digital content and no in-app purchase. Please pay with "Dinheiro" (cash);
+  card and MB WAY are live and would charge a real card.
+
+2. PURPOSE AND AUDIENCE
+Bora is a local delivery and services marketplace for Guarda, Portugal (about
+40,000 people): groceries, pharmacy, restaurants, barber and beauty bookings,
+home cleaning, errands, car wash, reservations and ride-hailing. National apps
+concentrate on large cities; here, ordering still means phone calls. Audience:
+adults in and around Guarda. One app, three roles: customer, courier, partner.
+
+3. ACCESS
+Browsing works without an account.
+  demo@bora.app        / BoraDemo2026!  (browse and order; please do not delete)
+  demo.apagar@bora.app / BoraDemo2026!  (deletion test; recreated hourly)
+A privacy sheet appears first; any of its three buttons continues. Tap "Sou
+Cliente" and sign in. The demo account has a saved Guarda address, so stores
+load from any country. Demo orders are sandboxed and never reach a real courier.
+
+4. EXTERNAL SERVICES
+Supabase (database, authentication, realtime, storage, server functions),
+Stripe (card and MB WAY), Firebase Cloud Messaging (push), Google Maps SDK,
+Directions and Places. No AI services, no ad networks, no third-party analytics.
+
+5. REGIONS
+Offered in Portugal and Brazil, identical behaviour, nothing region-gated.
+Delivery runs only in Guarda: outside it you can browse and sign up but will
+see no stores. Portuguese interface with an English toggle inside the app.
+
+6. REGULATED ACTIVITIES AND THIRD-PARTY MATERIAL
+Ride-hailing is regulated in Portugal by Decree-Law 45/2018. Ride drivers are
+onboarded separately and must hold a valid TVDE certificate and a licensed
+vehicle; we check those documents before they can go online. Passengers need
+none, and we can provide operator documentation on request. Pharmacy: over-the-
+counter products from a licensed pharmacy, no prescription medicines and no
+medical advice. Alcohol appears in supermarket catalogues as on any shelf; we
+sell no tobacco. Product names and photos come from the stores an order is
+collected from, which is why we declared "uses third-party content".
+
+boraappbora@gmail.com   +351 937 501 673

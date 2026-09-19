@@ -40,10 +40,23 @@ class LocationService {
       }
     }
 
-    LocationPermission permission = await Geolocator.checkPermission();
-
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
+    // CICATRIZ (varredura, corrida 91, 2026-09-10): a promessa deste metodo
+    // e' "nunca lanca", mas o pedido de permissao estava fora do try. Quando
+    // dois ecras pedem localizacao ao mesmo tempo -- o acompanhamento do
+    // pedido abre sozinho e, logo a seguir, o pedido de boleia detecta a
+    // recolha -- o geolocator lanca PermissionRequestInProgressException e
+    // ninguem a apanhava: erro assincrono por tratar, e a recolha ficava por
+    // detectar em silencio. Aqui e' "sem localizacao agora", como qualquer
+    // outra falha deste metodo.
+    LocationPermission permission;
+    try {
+      permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+    } catch (e) {
+      debugPrint('LocationService: permission request failed => $e');
+      return null;
     }
 
     if (permission == LocationPermission.denied ||
@@ -54,8 +67,12 @@ class LocationService {
     }
 
     try {
+      // [4F · 05/09] Forma nova do geolocator 14 — `desiredAccuracy` ficou
+      // deprecado na subida de pacote desta missão. Mesma precisão.
       final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
       ).timeout(const Duration(seconds: 15));
       return LatLng(position.latitude, position.longitude);
     } catch (e) {

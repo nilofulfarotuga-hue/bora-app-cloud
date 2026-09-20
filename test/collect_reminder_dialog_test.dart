@@ -85,11 +85,19 @@ void main() {
         earnedCents: 2200);
 
     expect(find.byKey(const Key('collect_reminder_earned')), findsOneWidget);
-    expect(find.text('Nesta corrida ganhaste €22,00'.replaceAll(',', '.')),
-        findsOneWidget);
-    // O que ele COBRA continua a ser o número grande — não se troca um pelo
-    // outro.
+    // Contas claras (20/09/2026): os três números com nome. O que fica para
+    // ele é o MAIOR (regra do Danilo: o número grande é sempre o que o
+    // prestador recebe); o que cobra continua grande, como lembrete; e o que
+    // entrega à Bora está escrito, para nunca mais pensar que o total é dele.
+    expect(find.text('Fica para ti'), findsOneWidget);
+    expect(find.text('€22.00'), findsOneWidget);
+    expect(find.text('Recebes do passageiro'), findsOneWidget);
     expect(find.text('€25.00'), findsOneWidget);
+    expect(find.byKey(const Key('collect_reminder_bora')), findsOneWidget);
+    expect(find.text('Entregas à Bora no acerto: €3.00'), findsOneWidget);
+    final ganho = t.widget<Text>(find.byKey(const Key('collect_reminder_earned')));
+    final cobra = t.widget<Text>(find.byKey(const Key('collect_reminder_amount')));
+    expect(ganho.style!.fontSize, greaterThan(cobra.style!.fontSize!));
   });
 
   testWidgets('sem ganho passado, o diálogo fica IGUAL ao que era', (t) async {

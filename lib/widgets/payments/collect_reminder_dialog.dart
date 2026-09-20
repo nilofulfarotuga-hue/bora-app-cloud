@@ -72,12 +72,26 @@ Future<void> showCollectReminderDialog(
             ),
             if (collect) ...[
               const SizedBox(height: Spacing.xs),
+              // Contas claras (20/09/2026): o caso real de 19/09 — corrida de
+              // balcão, €10 ao passageiro, €4 para o motorista, €6 para a Bora —
+              // e ele ficou a pensar que os €10 eram dele, porque este era o
+              // único número grande. Agora os TRÊS números estão aqui, com nome:
+              // o que recebe do passageiro, o que fica para ele (o maior), e o
+              // que entrega à Bora no acerto. Os dois primeiros vêm do servidor;
+              // o terceiro é a diferença deles (= settle_cents da corrida).
+              if (earnedCents > 0)
+                const Text('Recebes do passageiro',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        color: AppColors.textSecondary, fontSize: 12.5)),
               Text(
                 eur,
                 key: const Key('collect_reminder_amount'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                    color: color, fontSize: 40, fontWeight: FontWeight.w800),
+                    color: color,
+                    fontSize: earnedCents > 0 ? 30 : 40,
+                    fontWeight: FontWeight.w800),
               ),
             ],
             const SizedBox(height: Spacing.sm),
@@ -88,16 +102,30 @@ Future<void> showCollectReminderDialog(
                   color: AppColors.textSecondary, fontSize: 13.5),
             ),
             if (earnedCents > 0) ...[
-              const SizedBox(height: Spacing.xs),
+              const SizedBox(height: Spacing.sm),
+              const Text('Fica para ti',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: AppColors.textSecondary, fontSize: 12.5)),
               Text(
-                'Nesta corrida ganhaste $ganhoEur',
+                ganhoEur,
                 key: const Key('collect_reminder_earned'),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w600),
+                    color: AppColors.success,
+                    fontSize: 40,
+                    fontWeight: FontWeight.w900),
               ),
+              if (collect && amountCents >= earnedCents)
+                Text(
+                  'Entregas à Bora no acerto: €${((amountCents - earnedCents) / 100).toStringAsFixed(2)}',
+                  key: const Key('collect_reminder_bora'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: color,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700),
+                ),
             ],
           ],
         ),

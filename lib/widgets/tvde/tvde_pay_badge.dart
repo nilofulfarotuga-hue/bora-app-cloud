@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../models/tvde_fare_view.dart';
 import '../../models/tvde_ride.dart';
 import '../../stores/tvde_store.dart';
+import '../../config/app_colors.dart';
 import '../payments/collect_badge.dart';
 import 'tvde_roundtrip_driver_notice.dart';
 
@@ -54,11 +55,34 @@ class _TvdePayBadgeState extends State<TvdePayBadge> {
         dense: dense,
       );
     }
-    return CollectBadge(
+    final badge = CollectBadge(
       state: CollectState.collectCash,
       amountCents: fare.driverCollectCents,
       approx: fare.approx,
       dense: dense,
+    );
+    // Contas claras (20/09/2026): numa corrida a dinheiro tem de ficar claro,
+    // ANTES de terminar, que o valor em mão não é todo dele. O ganho vem do
+    // servidor (agreed_driver_earn_cents / driver_earn_cents); o resto é a
+    // diferença — o que entrega à Bora no acerto.
+    final earn = ride.netDriverEarnCents;
+    if (dense || earn <= 0 || earn > fare.driverCollectCents) return badge;
+    final teu = (earn / 100).toStringAsFixed(2);
+    final bora = ((fare.driverCollectCents - earn) / 100).toStringAsFixed(2);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        badge,
+        const SizedBox(height: 4),
+        Text(
+          '${fare.approx ? '~' : ''}€$teu são teus · €$bora para a Bora',
+          key: const Key('tvde_pay_badge_split'),
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+              fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.success),
+        ),
+      ],
     );
   }
 }

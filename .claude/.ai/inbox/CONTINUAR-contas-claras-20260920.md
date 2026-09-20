@@ -39,7 +39,13 @@
    (Goola 2, Danilo-estafeta 1); Sabores do Brasil 10,29; linha de fecho da Isabel (−3,09, só com "vai");
    Stripe Connect da Goola desligado; a linha paga da semana em curso do Danilo (estafeta) não recebe as
    15 corridas — só se voltar a pendente.
-5. Achado lateral (não tocado): `get_driver_current_week_summary` lê `drivers WHERE id = auth.uid()`
+5. **Adendo (20/09 22h–23h, blocos 7–10 feitos):** causa das corridas sem tarifa provada (pacotes/planos gravam
+   só paragens; o pacote vive em tvde_roundtrip_credits.paid_cents); `tvde_rides.cash_in_hand_cents` + `fare_deduced`
+   gravados por gatilho diferido (backfill 64/64); extrato lê a coluna; diálogo e badge do motorista com os três
+   números. **Por aplicar pela Claude.ai (Trava):** `staged_contas_claras_20260920_b8` — o acerto semanal passa a
+   ler cash_in_hand_cents em vez de deduzir ganho+corte (a regra actual dá +68,00 a mais ao Danilo em 13 corridas).
+   Espelho da versão deduzida da Claude.ai em 20260920210500_*. Prova em provas/bloco7-10-prova.sql.
+6. Achado lateral (não tocado): `get_driver_current_week_summary` lê `drivers WHERE id = auth.uid()`
    (identidade id≠user_id) — o `mbway_phone` vem vazio; e `v_driver_weekly_earnings` junta
    `driver_balances` por `drivers.id`. Ambos a corrigir por `user_id` (skill `identidade-estafeta`).
 

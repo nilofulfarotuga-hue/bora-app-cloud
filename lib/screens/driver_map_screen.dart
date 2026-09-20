@@ -37,6 +37,7 @@ import '../utils/map_marker_helper.dart';
 import '../utils/map_utils.dart';
 import '../widgets/address_text.dart';
 import '../widgets/driver_chat_fab.dart';
+import '../widgets/driver_item_options.dart';
 import 'driver_order_action_helper.dart';
 
 // BUG 29: Google sobrepunha o nome da rua mais próxima (ex: "Alexandre
@@ -1232,16 +1233,11 @@ class _BottomPanelState extends State<_BottomPanel> {
     final items = order.items;
     if (items.isEmpty) return;
 
-    final editableItems = items
-        .map((i) => CartItem(
-              productId: i.productId,
-              name: i.name,
-              price: i.price,
-              quantity: i.quantity,
-              purchaseStatus: i.purchaseStatus,
-              actualPrice: i.actualPrice,
-            ))
-        .toList();
+    // BUG-OPCOES-ESTAFETA (2026-09-20, pedido real 9cba3644 — McDonald's):
+    // este map reconstruía o CartItem sem selected_options /
+    // selected_options_priced / basePrice — o estafeta nunca via as escolhas
+    // do cliente. A cópia completa vive testada em driver_item_options.dart.
+    final editableItems = copyOrderItemsForDriverSheet(items);
 
     showModalBottomSheet(
       context: context,
@@ -2867,22 +2863,13 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                       // precisa de as ver para pedir certo.
                                       // T1: displayOptions inclui o preço
                                       // cobrado por extra quando gravado.
-                                      if (item.displayOptions.isNotEmpty)
-                                        Padding(
-                                          padding:
-                                              const EdgeInsets.only(top: 2),
-                                          child: Text(
-                                            item.displayOptions
-                                                .map((o) =>
-                                                    '${o.group}: ${o.items.join(', ')}')
-                                                .join('\n'),
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              height: 1.3,
-                                              color: Colors.grey.shade600,
-                                            ),
-                                          ),
-                                        ),
+                                      // BUG-OPCOES-ESTAFETA (2026-09-20):
+                                      // extraído para DriverItemOptions — a
+                                      // versão inline nunca chegava a mostrar
+                                      // nada porque a cópia da sheet (ver
+                                      // copyOrderItemsForDriverSheet) descartava
+                                      // as opções.
+                                      DriverItemOptions(item: item),
                                     ],
                                   ),
                                 ),

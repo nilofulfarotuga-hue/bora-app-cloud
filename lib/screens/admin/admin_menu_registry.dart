@@ -32,6 +32,9 @@ import 'admin_driver_approval_screen.dart';
 import 'admin_drivers_screen.dart';
 import 'admin_edge_functions_screen.dart';
 import 'admin_errand_catalog_screen.dart';
+import 'admin_extrato_dono_screen.dart';
+import 'admin_extratos_pessoas_screen.dart';
+import 'admin_vigia_dinheiro_screen.dart';
 import 'admin_ganho_do_dia_screen.dart';
 import 'admin_gdpr_screen.dart';
 import 'admin_knowledge_screen.dart';
@@ -244,6 +247,34 @@ List<AdminMenuSection> adminMenuSections() => [
       builder: () => const AdminAcertosSemanaScreen(),
       keywords: const ['acertos', 'bora', 'deve', 'dinheiro', 'lugar', 'marcar', 'paga', 'pago', 'quem', 'recibos', 'toque'],
       badge: 'acertos',
+    ),
+    AdminMenuItem(
+      id: 'dinheiro_contas_claras',
+      title: 'Contas claras (a folha do dono)',
+      subtitle: 'Quanto entrou e por que meio, quanto saiu, retido, a quem a Bora deve e quem deve à Bora — com botão de marcar pago',
+      icon: Icons.fact_check_outlined,
+      color: AppColors.primary,
+      builder: () => const AdminExtratoDonoScreen(),
+      keywords: const ['contas', 'claras', 'dono', 'entrou', 'saiu', 'retido', 'deve', 'extrato', 'folha', 'vigia'],
+      badge: 'novo',
+    ),
+    AdminMenuItem(
+      id: 'dinheiro_extratos_pessoas',
+      title: 'Extratos por pessoa',
+      subtitle: 'O extrato que cada estafeta, motorista e parceiro vê — aberto pelo admin, com CSV',
+      icon: Icons.person_search_outlined,
+      color: AppColors.primary,
+      builder: () => const AdminExtratosPessoasScreen(),
+      keywords: const ['extrato', 'estafeta', 'motorista', 'parceiro', 'pessoa', 'csv', 'ganhos'],
+    ),
+    AdminMenuItem(
+      id: 'dinheiro_vigia',
+      title: 'Vigia do dinheiro',
+      subtitle: 'Achados diários: onde o histórico e o saldo não batem, com quem e quanto; só aponta, você decide',
+      icon: Icons.shield_outlined,
+      color: AppColors.warning,
+      builder: () => const AdminVigiaDinheiroScreen(),
+      keywords: const ['vigia', 'achados', 'desacerto', 'saldo', 'historico', 'arcas', 'telegram'],
     ),
     AdminMenuItem(
       id: 'dinheiro_pagamentos_cartoes',

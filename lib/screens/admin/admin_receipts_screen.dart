@@ -113,6 +113,9 @@ class _ReceiptsListState extends State<_ReceiptsList> {
               'ocr_extracted_total_cents, ocr_diff_cents, ocr_flagged, '
               'ocr_ran_at, reimbursement_status, reimbursement_amount_cents, '
               'reimbursement_admin_notes, created_at, '
+              // Contas claras (20/09) — como e quando o reembolso foi pago
+              'reimbursement_method, reimbursement_external_paid_at, '
+              'reimbursement_external_reference, reimbursement_processed_at, '
               // Fase 6 — campos OCR estruturados (gemini-2.5-flash)
               'receipt_parsed, receipt_parsed_total_cents, receipt_parsed_store, receipt_match');
       switch (widget.filter) {
@@ -252,6 +255,9 @@ class _HistoricoTabState extends State<_HistoricoTab> {
               'ocr_extracted_total_cents, ocr_diff_cents, ocr_flagged, '
               'ocr_ran_at, reimbursement_status, reimbursement_amount_cents, '
               'reimbursement_admin_notes, created_at, '
+              // Contas claras (20/09) — como e quando o reembolso foi pago
+              'reimbursement_method, reimbursement_external_paid_at, '
+              'reimbursement_external_reference, reimbursement_processed_at, '
               // Fase 6 — campos OCR estruturados (gemini-2.5-flash)
               'receipt_parsed, receipt_parsed_total_cents, receipt_parsed_store, receipt_match');
 
@@ -506,20 +512,155 @@ class _ReceiptCardState extends State<_ReceiptCard> {
     } catch (_) {/* silent */}
   }
 
+  /// Caminho A — "Pagar na carteira do estafeta": credita a carteira
+  /// (RPC admin_mark_receipt_paid; o saldo acompanha o histórico no servidor).
   Future<void> _markPaid() async {
     if (_busy) return;
+    final eur = (((widget.row['driver_typed_total_cents'] as int?) ?? 0) / 100)
+        .toStringAsFixed(2);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Pagar na carteira do estafeta'),
+        content: Text(
+            'Vai creditar €$eur na carteira Bora do estafeta. Ele vê a linha '
+            '"reembolso creditado na carteira" no extrato.\n\n'
+            'Se já pagaste por MB Way ou em dinheiro, usa o outro botão.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Creditar na carteira')),
+        ],
+      ),
+    );
+    if (ok != true) return;
     setState(() => _busy = true);
     try {
       await Supabase.instance.client.rpc(
         'admin_mark_receipt_paid',
         params: {
           'p_receipt_id': widget.row['id'],
-          'p_admin_notes': 'Pago via MBWay (painel admin)',
+          'p_admin_notes': 'Creditado na carteira do estafeta (painel admin)',
         },
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Marcado como pago ✅')),
+          const SnackBar(content: Text('Creditado na carteira ✅')),
+        );
+        widget.onAfterAction();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Caminho B — "Já paguei por fora": marca pago com a forma e a data,
+  /// SEM creditar a carteira (RPC admin_mark_receipt_paid_external).
+  Future<void> _markPaidExternal() async {
+    if (_busy) return;
+    final eur = (((widget.row['driver_typed_total_cents'] as int?) ?? 0) / 100)
+        .toStringAsFixed(2);
+    String metodo = 'mbway';
+    DateTime data = DateTime.now();
+    final refCtrl = TextEditingController();
+    final notasCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: const Text('Já paguei por fora'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Reembolso de €$eur pago fora da app. '
+                    'Não credita a carteira — só regista como e quando.'),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: metodo,
+                  decoration: const InputDecoration(
+                      labelText: 'Como pagaste', border: OutlineInputBorder()),
+                  items: const [
+                    DropdownMenuItem(value: 'mbway', child: Text('MB Way')),
+                    DropdownMenuItem(value: 'cash', child: Text('Dinheiro')),
+                    DropdownMenuItem(
+                        value: 'transfer', child: Text('Transferência')),
+                  ],
+                  onChanged: (v) => setLocal(() => metodo = v ?? 'mbway'),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final d = await showDatePicker(
+                      context: ctx,
+                      initialDate: data,
+                      firstDate: DateTime(2026, 1, 1),
+                      lastDate: DateTime.now().add(const Duration(days: 1)),
+                    );
+                    if (d != null) setLocal(() => data = d);
+                  },
+                  icon: const Icon(Icons.event, size: 18),
+                  label: Text('Data do pagamento: '
+                      '${data.day.toString().padLeft(2, '0')}/'
+                      '${data.month.toString().padLeft(2, '0')}/${data.year}'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: refCtrl,
+                  decoration: const InputDecoration(
+                      labelText: 'Referência (opcional)',
+                      border: OutlineInputBorder()),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: notasCtrl,
+                  decoration: const InputDecoration(
+                      labelText: 'Nota (opcional)',
+                      border: OutlineInputBorder()),
+                  maxLines: 2,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancelar')),
+            ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Marcar como pago por fora')),
+          ],
+        ),
+      ),
+    );
+    if (ok != true) return;
+    setState(() => _busy = true);
+    try {
+      await Supabase.instance.client.rpc(
+        'admin_mark_receipt_paid_external',
+        params: {
+          'p_receipt_id': widget.row['id'],
+          'p_method': metodo,
+          'p_paid_at': DateTime(data.year, data.month, data.day, 12)
+              .toUtc()
+              .toIso8601String(),
+          'p_reference': refCtrl.text.trim().isEmpty ? null : refCtrl.text.trim(),
+          'p_notes': notasCtrl.text.trim().isEmpty ? null : notasCtrl.text.trim(),
+        },
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Marcado como pago por fora ✅')),
         );
         widget.onAfterAction();
       }
@@ -833,13 +974,14 @@ class _ReceiptCardState extends State<_ReceiptCard> {
             ],
             if (status == 'pending_admin') ...[
               const Divider(),
+              // Contas claras (20/09): dois caminhos com nome — nunca um "Marcar pago" ambíguo.
               Row(
                 children: [
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: _busy ? null : _markPaid,
-                      icon: const Icon(Icons.check),
-                      label: const Text('Marcar pago'),
+                      icon: const Icon(Icons.account_balance_wallet_outlined),
+                      label: const Text('Pagar na carteira do estafeta'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.success,
                         foregroundColor: Colors.white,
@@ -847,17 +989,33 @@ class _ReceiptCardState extends State<_ReceiptCard> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  OutlinedButton.icon(
-                    onPressed: _busy ? null : _reject,
-                    icon: const Icon(Icons.close),
-                    label: const Text('Rejeitar'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.error,
-                      side: BorderSide(color: AppColors.error),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _busy ? null : _markPaidExternal,
+                      icon: const Icon(Icons.payments_outlined),
+                      label: const Text('Já paguei por fora (MB Way / dinheiro)'),
                     ),
                   ),
                 ],
               ),
+              const SizedBox(height: 6),
+              Align(
+                alignment: Alignment.centerRight,
+                child: OutlinedButton.icon(
+                  onPressed: _busy ? null : _reject,
+                  icon: const Icon(Icons.close),
+                  label: const Text('Rejeitar'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.error,
+                    side: BorderSide(color: AppColors.error),
+                  ),
+                ),
+              ),
+            ],
+            if (status == 'admin_paid') ...[
+              const SizedBox(height: 6),
+              Text(_pagoPorTexto(row),
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
             ],
             if (status == 'pending_admin' || status == 'cash_settled') ...[
               const SizedBox(height: 6),
@@ -882,6 +1040,32 @@ class _ReceiptCardState extends State<_ReceiptCard> {
         ),
       ),
     );
+  }
+
+  /// "Pago por: carteira em 19/09" / "Pago por: MB Way em 19/09 (ref)".
+  /// O texto vem só do que está gravado; sem forma gravada diz "—".
+  static String _pagoPorTexto(Map<String, dynamic> row) {
+    final metodo = row['reimbursement_method'] as String?;
+    if (metodo == null) return 'Pago por: — (forma não registada)';
+    const nomes = {
+      'wallet': 'carteira do estafeta',
+      'mbway': 'MB Way',
+      'cash': 'dinheiro',
+      'transfer': 'transferência',
+    };
+    final quando = row['reimbursement_external_paid_at'] as String? ??
+        row['reimbursement_processed_at'] as String?;
+    String data = '';
+    if (quando != null) {
+      final dt = DateTime.tryParse(quando)?.toLocal();
+      if (dt != null) {
+        data = ' em ${dt.day.toString().padLeft(2, '0')}/'
+            '${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+      }
+    }
+    final ref = row['reimbursement_external_reference'] as String?;
+    return 'Pago por: ${nomes[metodo] ?? metodo}$data'
+        '${ref != null && ref.isNotEmpty ? ' ($ref)' : ''}';
   }
 
   Widget _statusChip(String status) {

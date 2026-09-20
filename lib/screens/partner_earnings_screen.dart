@@ -36,6 +36,14 @@ class _PartnerEarningsScreenState extends State<PartnerEarningsScreen> {
   Map<String, dynamic>? _weeklyCloseout;
   bool _closeoutLoading = false;
 
+  // Contas claras (20/09/2026): TODOS os números de dinheiro deste ecrã vêm
+  // da RPC extrato_parceiro (order_financials = livro-razão = fecho). O Dart
+  // deixou de calcular "subtotal − comissão" — dava 11,45 € onde a loja
+  // recebe 10,90 €.
+  Map<String, dynamic>? _extrato;
+  bool _extratoLoading = false;
+  String? _extratoErro;
+
   @override
   void initState() {
     super.initState();
@@ -43,8 +51,64 @@ class _PartnerEarningsScreenState extends State<PartnerEarningsScreen> {
       if (mounted) {
         _loadReservationCredits();
         _loadWeeklyCloseout();
+        _loadExtrato();
       }
     });
+  }
+
+  int _diasDoPeriodo() {
+    switch (_period) {
+      case _Period.today:
+        return 1;
+      case _Period.week:
+        return 7;
+      case _Period.month:
+        return 30;
+    }
+  }
+
+  Future<void> _loadExtrato() async {
+    if (!mounted) return;
+    setState(() {
+      _extratoLoading = true;
+      _extratoErro = null;
+    });
+    try {
+      final r = await Supabase.instance.client.rpc(
+        'extrato_parceiro',
+        params: {
+          'p_restaurant_id': widget.restaurant.id,
+          'p_dias': _diasDoPeriodo(),
+        },
+      );
+      final m = Map<String, dynamic>.from(r as Map);
+      if (m['ok'] != true) throw Exception(m['error'] ?? 'extrato indisponível');
+      if (!mounted) return;
+      setState(() {
+        _extrato = m;
+        _extratoLoading = false;
+      });
+    } catch (e) {
+      debugPrint('[PartnerEarnings] extrato_parceiro: $e');
+      if (mounted) {
+        setState(() {
+          _extratoLoading = false;
+          _extratoErro = e.toString();
+        });
+      }
+    }
+  }
+
+  /// Valor por pedido vindo da RPC (fica para o parceiro), por id do pedido.
+  Map<String, double> get _ficaPorPedido {
+    final out = <String, double>{};
+    for (final p in (_extrato?['pedidos'] as List? ?? const [])) {
+      final m = p as Map;
+      final c = (m['fica_para_o_parceiro_cents'] as num?)?.toDouble();
+      final id = m['pedido_id'] as String?;
+      if (id != null && c != null) out[id] = c / 100.0;
+    }
+    return out;
   }
 
   Future<void> _loadWeeklyCloseout() async {
@@ -69,6 +133,7 @@ class _PartnerEarningsScreenState extends State<PartnerEarningsScreen> {
   void _onPeriodChanged(_Period p) {
     setState(() => _period = p);
     _loadReservationCredits();
+    _loadExtrato();
   }
 
   Future<void> _loadReservationCredits() async {
@@ -108,14 +173,10 @@ class _PartnerEarningsScreenState extends State<PartnerEarningsScreen> {
     }
   }
 
-  double _partnerRevenue(OrderModel order) {
-    final commission = order.platformCommissionAmount;
-    final itemsValue = order.subtotal > 0
-        ? order.subtotal
-        : (order.total - order.deliveryFee - order.serviceFee);
-    final revenue = itemsValue - commission;
-    return revenue > 0 ? revenue : 0;
-  }
+  /// Contas claras: o que fica para a loja em cada pedido vem do servidor
+  /// (order_financials). Sem linha da RPC → 0 só para o gráfico; nunca se
+  /// calcula aqui.
+  double _partnerRevenue(OrderModel order) => _ficaPorPedido[order.id] ?? 0;
 
   DateTime _startOfPeriod(DateTime now) {
     switch (_period) {
@@ -157,16 +218,22 @@ class _PartnerEarningsScreenState extends State<PartnerEarningsScreen> {
         .toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-    final totalEarnings = periodOrders.fold<double>(
-      0,
-      (sum, o) => sum + _partnerRevenue(o),
-    );
-    final totalCommission = periodOrders.fold<double>(
-      0,
-      (sum, o) => sum + o.platformCommissionAmount,
-    );
-    final avgTicket =
-        periodOrders.isEmpty ? 0.0 : totalEarnings / periodOrders.length;
+    // Totais do período: só da RPC (servidor soma). Sem RPC → "—" no ecrã.
+    final totais = _extrato?['totais'] as Map?;
+    final double? totalEarnings = totais == null
+        ? null
+        : ((totais['fica_para_o_parceiro_cents'] as num?)?.toDouble() ?? 0) /
+            100.0;
+    final double? totalCommission = totais == null
+        ? null
+        : ((totais['parte_bora_cents'] as num?)?.toDouble() ?? 0) / 100.0;
+    final double? avgTicket =
+        totais == null || totais['media_por_pedido_cents'] == null
+            ? null
+            : ((totais['media_por_pedido_cents'] as num).toDouble()) / 100.0;
+    final pedidosRpc = (_extrato?['pedidos'] as List? ?? const [])
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -182,14 +249,23 @@ class _PartnerEarningsScreenState extends State<PartnerEarningsScreen> {
             ),
             const SizedBox(height: Spacing.lg),
             _HeroCard(
-              amount: totalEarnings + _reservationUsedCents / 100.0,
+              amount: totalEarnings == null
+                  ? null
+                  : totalEarnings + _reservationUsedCents / 100.0,
               periodLabel: _periodLabel(_period),
+              nota: _extratoErro != null
+                  ? 'Sem ligação ao servidor: $_extratoErro'
+                  : (_extratoLoading ? 'A carregar…' : null),
             ),
             const SizedBox(height: Spacing.lg),
             _KpiRow(
-              ordersCount: periodOrders.length,
+              ordersCount:
+                  totais == null ? null : (totais['pedidos'] as num?)?.toInt(),
               avgTicket: avgTicket,
               commission: totalCommission,
+              commissionSobre: totais == null
+                  ? null
+                  : 'sobre ${_eurPt(((totais['produtos_cents'] as num?)?.toDouble() ?? 0) / 100.0)} de produtos',
             ),
             const SizedBox(height: Spacing.lg),
             _ReservationsSection(
@@ -205,6 +281,7 @@ class _PartnerEarningsScreenState extends State<PartnerEarningsScreen> {
             _WeeklyCloseoutSection(
               loading: _closeoutLoading,
               data: _weeklyCloseout,
+              extrato: _extrato,
             ),
             const SizedBox(height: Spacing.xl),
             if (_period != _Period.today) ...[
@@ -227,7 +304,7 @@ class _PartnerEarningsScreenState extends State<PartnerEarningsScreen> {
                     size: 20, color: AppColors.textPrimary),
                 const SizedBox(width: 8),
                 Text(
-                  'Pedidos entregues (${periodOrders.length})',
+                  'Pedidos entregues (${totais == null ? '—' : pedidosRpc.length})',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
@@ -237,7 +314,19 @@ class _PartnerEarningsScreenState extends State<PartnerEarningsScreen> {
               ],
             ),
             const SizedBox(height: Spacing.sm),
-            if (periodOrders.isEmpty)
+            if (_extrato == null)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 32),
+                child: Center(
+                  child: Text(
+                    _extratoLoading
+                        ? 'A carregar…'
+                        : 'Sem ligação ao servidor — os pedidos aparecem assim que voltar.',
+                    style: const TextStyle(color: AppColors.textSecondary),
+                  ),
+                ),
+              )
+            else if (pedidosRpc.isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 32),
                 child: Center(
@@ -248,17 +337,15 @@ class _PartnerEarningsScreenState extends State<PartnerEarningsScreen> {
                 ),
               )
             else
-              ...periodOrders.map(
-                (o) => _OrderTile(
-                  order: o,
-                  revenue: _partnerRevenue(o),
-                ),
-              ),
+              ...pedidosRpc.map((p) => _PedidoExtratoTile(pedido: p)),
           ],
         ),
       ),
     );
   }
+
+  static String _eurPt(double v) =>
+      '${v.toStringAsFixed(2).replaceAll('.', ',')} €';
 
   String _periodLabel(_Period p) {
     switch (p) {
@@ -320,10 +407,13 @@ class _PeriodSelector extends StatelessWidget {
 }
 
 class _HeroCard extends StatelessWidget {
-  const _HeroCard({required this.amount, required this.periodLabel});
+  const _HeroCard(
+      {required this.amount, required this.periodLabel, this.nota});
 
-  final double amount;
+  /// null = o servidor ainda não respondeu → mostra "—", nunca 0.
+  final double? amount;
   final String periodLabel;
+  final String? nota;
 
   @override
   Widget build(BuildContext context) {
@@ -348,7 +438,9 @@ class _HeroCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            '€${amount.toStringAsFixed(2)}',
+            amount == null
+                ? '—'
+                : '${amount!.toStringAsFixed(2).replaceAll('.', ',')} €',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 42,
@@ -356,9 +448,10 @@ class _HeroCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
-            'Ganho líquido (já descontada a comissão da plataforma)',
-            style: TextStyle(color: Colors.white70, fontSize: 12),
+          Text(
+            nota ??
+                'Fica para ti (já sem a parte da Bora) — números do servidor',
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
           ),
         ],
       ),
@@ -371,11 +464,17 @@ class _KpiRow extends StatelessWidget {
     required this.ordersCount,
     required this.avgTicket,
     required this.commission,
+    this.commissionSobre,
   });
 
-  final int ordersCount;
-  final double avgTicket;
-  final double commission;
+  final int? ordersCount;
+  final double? avgTicket;
+  final double? commission;
+  /// "sobre 61,26 € de produtos" — nunca "comissão" sem dizer sobre o quê.
+  final String? commissionSobre;
+
+  static String _eur(double? v) =>
+      v == null ? '—' : '${v.toStringAsFixed(2).replaceAll('.', ',')} €';
 
   @override
   Widget build(BuildContext context) {
@@ -385,23 +484,25 @@ class _KpiRow extends StatelessWidget {
           child: _kpi(
             icon: Icons.shopping_bag_outlined,
             label: 'Pedidos',
-            value: '$ordersCount',
+            value: ordersCount == null ? '—' : '$ordersCount',
           ),
         ),
         const SizedBox(width: 10),
         Expanded(
           child: _kpi(
             icon: Icons.trending_up,
-            label: 'Ticket médio',
-            value: '€${avgTicket.toStringAsFixed(2)}',
+            label: 'Média por pedido',
+            value: _eur(avgTicket),
           ),
         ),
         const SizedBox(width: 10),
         Expanded(
           child: _kpi(
             icon: Icons.percent,
-            label: 'Comissão',
-            value: '€${commission.toStringAsFixed(2)}',
+            label: commissionSobre == null
+                ? 'Parte da Bora'
+                : 'Parte da Bora\n$commissionSobre',
+            value: _eur(commission),
           ),
         ),
       ],
@@ -538,89 +639,102 @@ class _EarningsChart extends StatelessWidget {
   }
 }
 
-class _OrderTile extends StatelessWidget {
-  const _OrderTile({required this.order, required this.revenue});
+/// Contas claras (20/09/2026): um pedido do extrato do parceiro, com os
+/// quatro números que interessam e a parte da Bora "sobre o quê".
+class _PedidoExtratoTile extends StatelessWidget {
+  const _PedidoExtratoTile({required this.pedido});
 
-  final OrderModel order;
-  final double revenue;
+  final Map<String, dynamic> pedido;
+
+  static String _eur(dynamic cents) {
+    if (cents == null) return '—';
+    final n = (cents as num).toInt();
+    final abs = n.abs();
+    return '${n < 0 ? '-' : ''}${abs ~/ 100},${(abs % 100).toString().padLeft(2, '0')} €';
+  }
+
+  static String _pagamento(String? p) => switch (p) {
+        'cash' => 'dinheiro',
+        'mbway' => 'MB Way',
+        'card' => 'cartão',
+        _ => p ?? '',
+      };
 
   @override
   Widget build(BuildContext context) {
-    final when = order.createdAt;
-    final hh = when.hour.toString().padLeft(2, '0');
-    final mm = when.minute.toString().padLeft(2, '0');
-    final customer = (order.customerName?.trim().isNotEmpty ?? false)
-        ? order.customerName!
+    final cliente = (pedido['cliente'] as String?)?.trim().isNotEmpty ?? false
+        ? pedido['cliente'] as String
         : 'Cliente';
-    final itemsCount = order.items.length;
-
+    final hora = (pedido['quando_txt'] as String? ?? '');
+    final pct = pedido['parte_bora_pct'];
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.divider),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(Icons.receipt, color: AppColors.primary),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  customer,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${when.day}/${when.month} · $hh:$mm · $itemsCount ${itemsCount == 1 ? "item" : "itens"}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          Row(
             children: [
-              Text(
-                '+€${revenue.toStringAsFixed(2)}',
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.primary,
+              Expanded(
+                child: Text(
+                  '$hora · $cliente'
+                  '${pedido['takeaway'] == true ? ' · levantamento' : ''}'
+                  ' · ${_pagamento(pedido['pagamento'] as String?)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.textSecondary),
                 ),
               ),
               Text(
-                'Total €${order.total.toStringAsFixed(2)}',
+                _eur(pedido['fica_para_o_parceiro_cents']),
                 style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                ),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primary),
               ),
             ],
           ),
+          const SizedBox(height: 6),
+          _linha('O cliente pagou', _eur(pedido['cliente_pagou_cents'])),
+          _linha('Produtos', _eur(pedido['produtos_cents'])),
+          _linha('Entrega e taxas (cobradas pela Bora ao cliente)',
+              _eur(pedido['entrega_e_taxas_cents'])),
+          _linha(
+              'Parte da Bora ${pedido['sobre_txt'] ?? ''}'
+              '${pct == null ? '' : ' (${pct.toString().replaceAll('.', ',')} %)'}',
+              _eur(pedido['parte_bora_cents'])),
+          _linha('Fica para ti', _eur(pedido['fica_para_o_parceiro_cents']),
+              bold: true),
+          if (((pedido['recebido_pelo_parceiro_cents'] as num?) ?? 0) > 0)
+            _linha('Recebeste em dinheiro (abate no fecho)',
+                _eur(pedido['recebido_pelo_parceiro_cents'])),
         ],
       ),
     );
   }
+
+  Widget _linha(String k, String v, {bool bold = false}) => Padding(
+        padding: const EdgeInsets.only(top: 2),
+        child: Row(children: [
+          Expanded(
+              child: Text(k,
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
+                      color: AppColors.textPrimary))),
+          Text(v,
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: bold ? FontWeight.w800 : FontWeight.w500,
+                  color: AppColors.textPrimary)),
+        ]),
+      );
 }
 
 class _ReservationsSection extends StatelessWidget {
@@ -975,10 +1089,26 @@ class _PeakHoursSection extends StatelessWidget {
 // "Esta semana: X pedidos, €Y brutos, €Z a receber da Bora" + últimas semanas
 // com o estado marcado pelo admin (Aberto/Fechado/Pago). Transparência total.
 class _WeeklyCloseoutSection extends StatelessWidget {
-  const _WeeklyCloseoutSection({required this.loading, required this.data});
+  const _WeeklyCloseoutSection(
+      {required this.loading, required this.data, this.extrato});
 
   final bool loading;
   final Map<String, dynamic>? data;
+  /// Contas claras: transferido / por transferir com datas (RPC extrato_parceiro).
+  final Map<String, dynamic>? extrato;
+
+  static String _eurC(dynamic cents) {
+    if (cents == null) return '—';
+    final n = (cents as num).toInt().abs();
+    return '${n ~/ 100},${(n % 100).toString().padLeft(2, '0')} €';
+  }
+
+  static String _dataPt(String? iso) {
+    final d = DateTime.tryParse(iso ?? '')?.toLocal();
+    if (d == null) return '—';
+    String pad(int n) => n.toString().padLeft(2, '0');
+    return '${pad(d.day)}/${pad(d.month)}/${d.year}';
+  }
 
   String _eur(num? v) => '€${(v ?? 0).toDouble().abs().toStringAsFixed(2)}';
 
@@ -1044,7 +1174,9 @@ class _WeeklyCloseoutSection extends StatelessWidget {
             ),
             const SizedBox(height: 2),
             Text(
-              'Comissão Bora: ${_eur(current['commission_total'] as num?)}',
+              'Parte da Bora: ${_eur(current['commission_total'] as num?)} '
+              'sobre ${_eur(current['gross_sales'] as num?)} de vendas · '
+              'fica para ti ${_eur(current['partner_share'] as num?)}',
               style: const TextStyle(
                   fontSize: 12, color: AppColors.textSecondary),
             ),
@@ -1067,6 +1199,52 @@ class _WeeklyCloseoutSection extends StatelessWidget {
               style:
                   TextStyle(fontSize: 11, color: AppColors.textSecondary),
             ),
+            if (extrato != null) ...[
+              const Divider(height: 20, color: AppColors.divider),
+              Row(children: [
+                const Expanded(
+                    child: Text('Já transferido',
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w700))),
+                Text(
+                  '${_eurC((extrato!['transferido'] as Map?)?['total_cents'])}'
+                  '${(extrato!['transferido'] as Map?)?['ultimo_em'] != null ? ' · último a ${_dataPt((extrato!['transferido'] as Map)['ultimo_em'] as String?)}' : ''}',
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ]),
+              const SizedBox(height: 2),
+              Row(children: [
+                const Expanded(
+                    child: Text('Por transferir',
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w700))),
+                Text(
+                  '${_eurC((extrato!['por_transferir'] as Map?)?['total_cents'])}'
+                  ' (${(extrato!['por_transferir'] as Map?)?['semanas'] ?? 0} semana(s))',
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ]),
+              if ((((extrato!['por_transferir'] as Map?)?['a_entregar_a_bora_cents'] as num?) ?? 0) > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Row(children: [
+                    const Expanded(
+                        child: Text('A entregar à Bora',
+                            style: TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.w700))),
+                    Text(_eurC((extrato!['por_transferir'] as Map)['a_entregar_a_bora_cents']),
+                        style: const TextStyle(fontSize: 12)),
+                  ]),
+                ),
+              if ((extrato!['stripe'] as Map?)?['transferencias_activas'] == false)
+                const Padding(
+                  padding: EdgeInsets.only(top: 4),
+                  child: Text(
+                    'Transferências automáticas (Stripe) desligadas — os pagamentos saem por MB Way / transferência, marcados pela Bora.',
+                    style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                  ),
+                ),
+            ],
             if (history.isNotEmpty) ...[
               const Divider(height: 20, color: AppColors.divider),
               const Text(

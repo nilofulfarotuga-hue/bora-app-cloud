@@ -5,7 +5,7 @@ import '../config/app_colors.dart';
 import '../config/business_rules.dart' show BRTokens;
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
-import '../widgets/weekly_settlement_card.dart';
+import '../widgets/extrato_prestador_section.dart';
 
 /// GANHOS — um ecra so, para quem trabalha no que for.
 ///
@@ -759,22 +759,13 @@ class _GanhosScreenState extends State<GanhosScreen> {
                         _resumoUnificado(),
                         const SizedBox(height: 20),
                       ],
-                      // O cartao semanal do ESTAFETA. Deixou de ser "a fonte
-                      // unica de saldo" — o numero final agora e o do acerto
-                      // unificado, la em cima. Este fica pelo detalhe por
-                      // pedido e pelo MB Way, e so aparece a quem entrega, com
-                      // titulo que diz de que e. Dois numeros sem dono ao lado
-                      // um do outro leem-se como contradicao.
+                      // Contas claras (20/09/2026): o EXTRATO do estafeta e do
+                      // motorista — uma RPC só (extrato_prestador). Substitui o
+                      // antigo WeeklySettlementCard: contas com a Bora (linha a
+                      // linha), trabalhos um a um com as parcelas, dinheiro em
+                      // mão, acerto semanal com comprovativo, talões pelo nome.
                       if (_souEstafeta) ...[
-                        Padding(
-                          padding: const EdgeInsets.only(left: 4, bottom: 6),
-                          child: Text('Detalhe das entregas e corridas',
-                              style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.grey.shade700)),
-                        ),
-                        const WeeklySettlementCard(),
+                        const ExtratoPrestadorSection(),
                         const SizedBox(height: 20),
                       ],
                       _TokenSection(

@@ -140,6 +140,14 @@ class _PartnerWeeklyCloseoutCardState extends State<PartnerWeeklyCloseoutCard> {
                   style: const TextStyle(
                       fontSize: 12, color: AppColors.textSecondary),
                 ),
+                // Contas claras (20/09/2026): a parte da Bora diz sobre o quê.
+                Text(
+                  'Parte da Bora ${_euros(_num(current['commission_total']))} '
+                  'sobre ${_euros(gross)} de vendas · fica para ti '
+                  '${_euros(_num(current['partner_share']))}',
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.textSecondary),
+                ),
                 const SizedBox(height: Spacing.xxs),
                 Text(netText,
                     style: TextStyle(

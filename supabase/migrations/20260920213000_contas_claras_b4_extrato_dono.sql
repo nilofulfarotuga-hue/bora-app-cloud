@@ -109,7 +109,8 @@ BEGIN
   -- A QUEM A BORA DEVE (hoje, independentemente do período) — com o botão certo
   FOR v_r IN
     SELECT 'acerto_estafeta' AS tipo, s.driver_id::text AS quem_id, d.name AS quem, ROUND(s.net_balance * 100)::int AS cents,
-           'Acerto da semana ' || to_char(s.week_start_at AT TIME ZONE 'Europe/Lisbon', 'DD/MM') AS motivo, s.id::text AS ref,
+           'Acerto da semana ' || to_char(s.week_start_at AT TIME ZONE 'Europe/Lisbon', 'DD/MM')
+             || CASE WHEN s.week_end_at > now() THEN ' (semana em curso — valor provisório até ao fecho de segunda)' ELSE '' END AS motivo, s.id::text AS ref,
            jsonb_build_object('rpc', 'admin_marcar_acerto_pago', 'p_user_id', s.driver_id, 'p_semana', (s.week_start_at AT TIME ZONE 'Europe/Lisbon')::date) AS accao
       FROM public.driver_weekly_settlements s LEFT JOIN public.drivers d ON d.user_id = s.driver_id
      WHERE s.status NOT IN ('paid','received') AND s.direction = 'bora_pays_driver' AND s.net_balance > 0
@@ -120,10 +121,21 @@ BEGIN
       FROM public.partner_weekly_settlements s LEFT JOIN public.restaurants r ON r.id = s.partner_id
      WHERE s.status NOT IN ('paid','received') AND s.direction = 'bora_pays_partner' AND s.net_balance > 0
     UNION ALL
-    SELECT 'tvde', b.driver_id::text, d.name, -ROUND(b.balance * 100)::int,
-           'Corridas TVDE pagas na app (fora do acerto semanal)', NULL, NULL
-      FROM public.tvde_driver_balances b LEFT JOIN public.drivers d ON d.user_id = b.driver_id OR d.id = b.driver_id
-     WHERE b.balance < 0
+    -- corridas de semanas passadas que nenhum acerto contou (o TVDE só entra no acerto desde 20/09/2026)
+    SELECT 'tvde', f.uid::text, d.name, f.fora,
+           'Corridas TVDE anteriores a 20/09 que nenhum acerto contou', NULL, NULL
+      FROM (SELECT COALESCE(dd.user_id, r.driver_id) AS uid, -SUM((e.meta->>'settle_cents')::int) AS fora
+              FROM public.tvde_ride_events e
+              JOIN public.tvde_rides r ON r.id = e.ride_id
+              LEFT JOIN public.drivers dd ON dd.id = r.driver_id
+             WHERE e.status = 'finalizada'
+               AND r.created_at < date_trunc('week', now() AT TIME ZONE 'Europe/Lisbon') AT TIME ZONE 'Europe/Lisbon'
+               AND NOT EXISTS (SELECT 1 FROM public.driver_weekly_settlements s
+                                WHERE s.driver_id = COALESCE(dd.user_id, r.driver_id) AND COALESCE(s.tvde_rides_count, 0) > 0
+                                  AND r.created_at >= s.week_start_at AND r.created_at <= s.week_end_at)
+             GROUP BY 1) f
+      LEFT JOIN public.drivers d ON d.user_id = f.uid
+     WHERE f.fora > 0
     UNION ALL
     SELECT 'talao', o.assigned_driver_id, d.name, rc.driver_typed_total_cents,
            'Talão por reembolsar (pedido ' || left(rc.order_id, 8) || ')', rc.id::text,
@@ -154,10 +166,20 @@ BEGIN
       FROM public.partner_weekly_settlements s LEFT JOIN public.restaurants r ON r.id = s.partner_id
      WHERE s.status NOT IN ('paid','received') AND s.direction = 'partner_pays_bora' AND s.net_balance < 0
     UNION ALL
-    SELECT 'tvde', b.driver_id::text, d.name, ROUND(b.balance * 100)::int,
-           'Parte da Bora nas corridas a dinheiro (fora do acerto semanal)', NULL, NULL
-      FROM public.tvde_driver_balances b LEFT JOIN public.drivers d ON d.user_id = b.driver_id OR d.id = b.driver_id
-     WHERE b.balance > 0
+    SELECT 'tvde', f.uid::text, d.name, -f.fora,
+           'Parte da Bora nas corridas a dinheiro anteriores a 20/09 que nenhum acerto contou', NULL, NULL
+      FROM (SELECT COALESCE(dd.user_id, r.driver_id) AS uid, -SUM((e.meta->>'settle_cents')::int) AS fora
+              FROM public.tvde_ride_events e
+              JOIN public.tvde_rides r ON r.id = e.ride_id
+              LEFT JOIN public.drivers dd ON dd.id = r.driver_id
+             WHERE e.status = 'finalizada'
+               AND r.created_at < date_trunc('week', now() AT TIME ZONE 'Europe/Lisbon') AT TIME ZONE 'Europe/Lisbon'
+               AND NOT EXISTS (SELECT 1 FROM public.driver_weekly_settlements s
+                                WHERE s.driver_id = COALESCE(dd.user_id, r.driver_id) AND COALESCE(s.tvde_rides_count, 0) > 0
+                                  AND r.created_at >= s.week_start_at AND r.created_at <= s.week_end_at)
+             GROUP BY 1) f
+      LEFT JOIN public.drivers d ON d.user_id = f.uid
+     WHERE f.fora < 0
     UNION ALL
     SELECT 'carteira_cliente', w.user_id::text, COALESCE(u.email, w.user_id::text), -w.free_balance_cents,
            'Carteira em negativo (taxa de cancelamento por pagar)', NULL,

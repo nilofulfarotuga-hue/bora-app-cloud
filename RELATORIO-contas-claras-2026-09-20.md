@@ -36,7 +36,7 @@ Bloco seis, painel e fecho. Cada coisa criada tem correspondência no painel: os
 
 Cada um destes está no vigia como caso aberto. Nenhum foi tocado.
 
-Um. A Bora deve trinta e um euros e cinquenta ao Valdemir de corridas TVDE pagas na app, e setenta e nove e dez a ti próprio, e quatro à Erika, e ninguém os paga porque o TVDE não entra em nenhum acerto semanal. A proposta é o acerto semanal passar a ler a conta-corrente das corridas. É dinheiro real: preparo quando disseres.
+Um. Corridas TVDE anteriores a esta semana que nenhum acerto contou: dezanove euros e cinquenta ao Valdemir e dezoito e trinta a ti. Desde as vinte e cinquenta e dois de hoje o TVDE entra no acerto, mas o fecho só apanha a semana que acaba; o que ficou para trás precisa de um acerto extraordinário ou de um pagamento por fora marcado à mão. Dinheiro real: preparo quando disseres.
 
 Dois. Três compensações de cancelamento de um euro e cinquenta, uma delas do Valdemir, estão no livro-razão e no ecrã mas nunca entraram no acerto. A proposta é o acerto contar as compensações. Também dinheiro real.
 
@@ -50,9 +50,9 @@ Seis. A Isabel: quando quiseres fechar o caso nos registos sem lhe dar nada, é 
 
 Sete. A conta Stripe Connect da Goola está desligada, transferências inactivas. Se a ideia é pagar por Stripe, precisa de ser activada; se é MB Way, está tudo certo e o extrato já diz isso.
 
-## Para a Claude.ai aplicar por MCP
+## Adenda das vinte e duas horas: o TVDE já entra no acerto
 
-A chave `staged_contas_claras_20260920_b2` em `platform_settings` tem cinco linhas de SQL, o invólucro `_prestador_semana_em_curso`, que deixa o admin ver a previsão da semana em curso de qualquer estafeta. A Trava recusa daqui porque o texto chama a função do acerto. Só leitura, sem persistir nada.
+Depois do fecho, a Claude.ai aplicou por MCP quatro migrations que confirmei em `supabase_migrations.schema_migrations`: o invólucro da semana em curso que eu tinha deixado em staged, e três que põem as corridas TVDE dentro do acerto semanal, com três colunas novas e o fecho de segunda a percorrer também quem só fez corridas. Espelhei as quatro no repo. Voltei ao extrato e à tua folha para não contar o TVDE a dobrar: a semana em curso passa a usar a previsão viva, e a linha de TVDE passou a ser só a das semanas anteriores que nenhum acerto contou. Conferido com o Valdemir: dezassete euros da semana em curso mais dezanove e cinquenta de corridas antigas, os mesmos trinta e seis e cinquenta de antes, sem duplicar. O achado número um da lista abaixo passa a ser só a parte antiga: dezanove e cinquenta ao Valdemir e dezoito e trinta a ti, de corridas anteriores a esta semana, que o fecho de segunda não vai apanhar porque só olha para a semana passada. Fica à espera do teu "vai" para as pagar por fora ou criar um acerto extraordinário.
 
 ## Publicação
 

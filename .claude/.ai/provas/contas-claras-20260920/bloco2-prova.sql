@@ -24,3 +24,9 @@ select a.s->'dia'->>'total_cents', b.e->'resumo'->'hoje'->>'ganho_cents', a.s->'
 -- SAÍDA: semana_em_curso {net_balance 5, direction bora_pays_driver, persisted false, total_deliveries 1}; driver_weekly_settlements do Valdemir: 4 antes, 4 depois
 
 -- flutter analyze (PC, Flutter 3.47): 0 errors (250 infos/warnings pré-existentes no repo)
+
+-- RETOQUE 20/09 22h05 (depois de a Claude.ai pôr o TVDE no acerto semanal às 20:52; migrations 20260920204444/205140/205210/205306 confirmadas em supabase_migrations.schema_migrations):
+-- extrato_prestador: a semana em curso usa a previsão viva; a linha de TVDE passa a ser só das semanas anteriores sem acerto que as tenha contado.
+-- SAÍDA Valdemir: deve_lhe = [Esta semana (ainda por fechar) 1700, Corridas TVDE de semanas anteriores a 20/09 1950] = 3650 (igual ao total anterior, sem dobrar);
+--   conferência: settle das corridas antes desta semana = 1950; desta semana = 1200 (dentro dos 1700 da previsão: 500 entrega + 1200 corridas).
+-- admin_extrato_dono: Bora deve 60,36 (Valdemir 5,00 semana em curso provisório + 19,50 TVDE antigo; Goola 10,90; Danilo 18,30 TVDE antigo; carteiras 1,00 + 5,66); devem 5,43.

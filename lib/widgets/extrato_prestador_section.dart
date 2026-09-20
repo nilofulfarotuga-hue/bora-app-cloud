@@ -267,8 +267,8 @@ class _ExtratoPrestadorSectionState extends State<ExtratoPrestadorSection> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Os acertos fecham à segunda-feira. O TVDE ainda não entra no acerto: '
-              'fica aqui, na conta-corrente das corridas.',
+              'Os acertos fecham à segunda-feira. Desde 20/09 as corridas TVDE entram '
+              'no acerto; as de semanas anteriores ficam aqui, à parte, até serem pagas.',
               style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 8),
@@ -557,9 +557,19 @@ class _ExtratoPrestadorSectionState extends State<ExtratoPrestadorSection> {
               const Text('Esta semana (previsão, fecha na segunda-feira)',
                   style: TextStyle(fontWeight: FontWeight.w700)),
               _linha('Entregas', '${semanaMap['total_deliveries'] ?? '—'}'),
-              _linha('Ganhos', _eurFromEuros(semanaMap['total_earnings'])),
+              // Desde 20/09/2026 as corridas TVDE entram no acerto semanal.
+              if (semanaMap['tvde_rides_count'] != null)
+                _linha('Corridas TVDE', '${semanaMap['tvde_rides_count']}'),
+              _linha('Ganhos (entregas + corridas)',
+                  _eurFromEuros(semanaMap['total_earnings'])),
+              if (semanaMap['tvde_earnings'] != null)
+                _linha('  dos quais em corridas',
+                    _eurFromEuros(semanaMap['tvde_earnings'])),
               _linha('Dinheiro recebido em mão',
                   _eurFromEuros(semanaMap['total_cash_received'])),
+              if (semanaMap['tvde_cash_received'] != null)
+                _linha('  do qual em corridas',
+                    _eurFromEuros(semanaMap['tvde_cash_received'])),
               _linha('Talões que adiantaste',
                   _eurFromEuros(semanaMap['total_reimbursements'])),
               _linha('Tokens convertidos',

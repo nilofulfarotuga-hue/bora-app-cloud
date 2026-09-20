@@ -189,6 +189,7 @@ DECLARE
   v_linhas_dev jsonb := '[]'::jsonb;
   v_db         numeric;   -- driver_balances (euros)
   v_tvde       numeric;   -- tvde_driver_balances (euros; positivo = deve à Bora)
+  v_tvde_fora  integer := 0;  -- corridas de semanas passadas que nenhum acerto contou (cêntimos; positivo = a Bora deve)
   v_wallet     integer;
   v_r          record;
   v_semana_ja_tem_linha boolean := false;
@@ -273,7 +274,22 @@ BEGIN
      AND (r.driver_id = v_uid OR r.driver_id IN (SELECT d.id FROM public.drivers d WHERE d.user_id = v_uid));
   v_corridas := v_corridas || jsonb_build_object(
     'bate', (v_corridas->>'saldo_arca_cents') IS NOT DISTINCT FROM (v_corridas->>'saldo_historico_cents'),
-    'nota', 'Positivo = a Bora deve-lhe (corridas pagas na app); negativo = deve à Bora (parte da Bora nas corridas a dinheiro). O TVDE ainda não entra no acerto semanal.');
+    'nota', 'Positivo = a Bora deve-lhe (corridas pagas na app); negativo = deve à Bora (parte da Bora nas corridas a dinheiro). Desde 20/09/2026 o TVDE entra no acerto semanal; as corridas de semanas anteriores que nenhum acerto contou ficam aqui como "fora do acerto".');
+
+  -- Corridas de semanas PASSADAS que nenhum acerto contou (acertos fechados antes de 20/09/2026
+  -- não tinham TVDE): positivo = a Bora deve. A semana em curso vem pela previsão oficial.
+  SELECT COALESCE(-SUM((e.meta->>'settle_cents')::int), 0)
+    INTO v_tvde_fora
+    FROM public.tvde_ride_events e
+    JOIN public.tvde_rides r ON r.id = e.ride_id
+   WHERE e.status = 'finalizada'
+     AND (r.driver_id = v_uid OR r.driver_id IN (SELECT d.id FROM public.drivers d WHERE d.user_id = v_uid))
+     AND r.created_at < v_sem_ini
+     AND NOT EXISTS (
+       SELECT 1 FROM public.driver_weekly_settlements s
+        WHERE s.driver_id = v_uid
+          AND COALESCE(s.tvde_rides_count, 0) > 0
+          AND r.created_at >= s.week_start_at AND r.created_at <= s.week_end_at);
 
   -- carteira (reembolsos de talão creditados, saldo livre)
   SELECT w.free_balance_cents INTO v_wallet FROM public.client_wallets w WHERE w.user_id = v_uid;
@@ -363,6 +379,8 @@ BEGIN
   FOR v_r IN SELECT s.* FROM public.driver_weekly_settlements s
             WHERE s.driver_id = v_uid AND s.status NOT IN ('paid','received') AND s.net_balance <> 0
             ORDER BY s.week_start_at LOOP
+    -- a linha pendente da semana em curso é provisória: se a previsão viva existir, é ela que conta
+    IF v_r.week_start_at >= v_sem_ini AND (v_semana ? 'net_balance') THEN CONTINUE; END IF;
     IF v_r.week_start_at >= v_sem_ini THEN v_semana_ja_tem_linha := true; END IF;
     IF v_r.net_balance > 0 THEN
       v_linhas_lhe := v_linhas_lhe || jsonb_build_object('nome',
@@ -384,11 +402,11 @@ BEGIN
       v_linhas_dev := v_linhas_dev || jsonb_build_object('nome', 'Esta semana (ainda por fechar)', 'valor_cents', -ROUND((v_semana->>'net_balance')::numeric * 100)::int, 'origem', 'semana_em_curso');
     END IF;
   END IF;
-  IF v_tvde IS NOT NULL AND v_tvde <> 0 THEN
-    IF v_tvde < 0 THEN
-      v_linhas_lhe := v_linhas_lhe || jsonb_build_object('nome', 'Corridas TVDE pagas na app (fora do acerto)', 'valor_cents', -ROUND(v_tvde * 100)::int, 'origem', 'tvde');
+  IF v_tvde_fora <> 0 THEN
+    IF v_tvde_fora > 0 THEN
+      v_linhas_lhe := v_linhas_lhe || jsonb_build_object('nome', 'Corridas TVDE de semanas anteriores a 20/09 (nenhum acerto as contou)', 'valor_cents', v_tvde_fora, 'origem', 'tvde_fora_do_acerto');
     ELSE
-      v_linhas_dev := v_linhas_dev || jsonb_build_object('nome', 'Parte da Bora nas corridas a dinheiro (fora do acerto)', 'valor_cents', ROUND(v_tvde * 100)::int, 'origem', 'tvde');
+      v_linhas_dev := v_linhas_dev || jsonb_build_object('nome', 'Parte da Bora nas corridas a dinheiro anteriores a 20/09 (nenhum acerto as contou)', 'valor_cents', -v_tvde_fora, 'origem', 'tvde_fora_do_acerto');
     END IF;
   END IF;
   FOR v_r IN SELECT rc.id, rc.driver_typed_total_cents, rc.order_id FROM public.order_receipts_v2 rc JOIN public.orders o ON o.id = rc.order_id

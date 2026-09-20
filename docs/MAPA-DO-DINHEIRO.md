@@ -179,8 +179,10 @@
 - **Quem lê:** `driver_earnings_summary` (o último acerto), `v_acerto_semanal_unificado`,
   `weekly_closeout_*`, o painel admin.
 - **O que se mediu:** 10 linhas.
-- **Onde se separa:** **o acerto não inclui o TVDE** (nenhuma função de acerto lê
-  `tvde_rides`), não inclui as compensações de cancelamento (1.5), e a fórmula
+- **Onde se separa:** **o acerto não incluía o TVDE** até 20/09/2026 às 20:52 (a Claude.ai pôs
+  as corridas na fórmula: colunas `tvde_rides_count`, `tvde_earnings`, `tvde_cash_received`; as
+  semanas fechadas antes disso ficam sem TVDE para sempre — é o "TVDE fora do acerto" do extrato),
+  não inclui as compensações de cancelamento (1.5), e a fórmula
   `ganhos − cash + talões + tokens` é recalculada a partir de `orders` de cada vez, sem
   deixar as linhas que a compõem — a pessoa vê um número, não as parcelas.
 

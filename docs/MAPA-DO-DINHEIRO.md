@@ -279,6 +279,18 @@
   histórico × saldo em arca nenhuma.** O Bloco 5 desta missão escreve aqui, no mesmo formato,
   em vez de criar uma segunda tabela de achados.
 
+### 1.15 `order_financials` + `order_financial_transactions` — a repartição do pedido do parceiro (euros)
+
+- **Guarda:** por pedido de parceiro entregue e pago: `base_amount` (produtos), `total_paid`,
+  `restaurant_amount` (= `partner_store_share(base)`), `platform_amount`.
+- **Quem escreve:** `apply_order_financial_split` (trigger ao entregar pago). **Quem lê:** o
+  `extrato_parceiro` (Bloco 3) e o vigia (par `vigia_parceiro_arcas`).
+- **O que se mediu (Goola, 4 pedidos):** `restaurant_amount` = ledger `restaurant/earning` =
+  `partner_store_share`, ao cêntimo (10,90 € em 12,72 €). **Descoberto no Bloco 3:** o ecrã do
+  parceiro calculava em Dart `subtotal − partner_commission_visible` (11,45 €) — a coluna
+  `partner_commission_visible` (1,27 €) **não é** a parte da Bora (1,82 €). É um gémeo de rótulo
+  (PADRAO §2.7) que já não é lido pelo ecrã.
+
 ---
 
 ## 2. O que cada arca diz hoje, por ponta, e onde discordam

@@ -129,13 +129,21 @@ class PushTokenService {
       // [iPhone 2026-09-21] O refresh liga-se ANTES da primeira tentativa e
       // regista todos os papéis pedidos: se o token só nascer depois das
       // tentativas (iOS à espera do APNs), ainda assim fica guardado.
-      _refreshSub ??= FirebaseMessaging.instance.onTokenRefresh.listen(
-        (newToken) async {
-          for (final papel in {..._papeisPedidos, ..._papeisRegistados}) {
-            await _registerRpc(role: papel, token: newToken);
-          }
-        },
-      );
+      // Em try/catch: sem Firebase inicializado (o main() engole essa falha e
+      // "a app segue sem notificações") o `instance` lança [core/no-app], e
+      // isto não pode rebentar quem chamou — antes o getToken já era engolido.
+      try {
+        _refreshSub ??= FirebaseMessaging.instance.onTokenRefresh.listen(
+          (newToken) async {
+            for (final papel in {..._papeisPedidos, ..._papeisRegistados}) {
+              await _registerRpc(role: papel, token: newToken);
+            }
+          },
+        );
+      } catch (e) {
+        _log('onTokenRefresh indisponível (Firebase por inicializar?): $e');
+        return;
+      }
 
       // BUG E — retry getToken com backoff 1s/3s/9s.
       String? token = NotificationService.instance.fcmToken;

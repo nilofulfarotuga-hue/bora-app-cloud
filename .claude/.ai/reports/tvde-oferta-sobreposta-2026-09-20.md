@@ -68,4 +68,4 @@ Não. Nenhuma alteração toca em preço, comissão, tokens, Stripe, carteira ou
 - Decisão que fica contigo (não bloqueia): os botões da notificação foram montados como a ordem pediu — Recusar **sem abrir a app**. Se preferires que ambos abram a app (como nas entregas, decisão de 10/06), é uma linha.
 
 ## Publicação
-- Commit e push no ramo `autonomous-night-2026-04-29` — ver o fecho da sessão. O CI corre o autoteste e faz o bump do `versionCode`; a web sai no mesmo push.
+- Commit `46ecc1a8` (rebased para `7f7f5e92`) no ramo `autonomous-night-2026-04-29`, push `19002cfc..7f7f5e92` às 01:37. **Viajaram junto** os 4 commits que a missão paralela `contas-claras` tinha deixado por empurrar no mesmo ramo (`73ce4549` contas claras, `acc1b348` mapa, `d46103dd` TVDE no acerto, `033cb36e` dinheiro em mão gravado na corrida) — estavam commitados, não os alterei, e o `skills-metrics.md` foi commitado só com a minha linha (as deles ficaram na árvore como estavam). O CI corre o autoteste dos 3 perfis, faz o bump (esperado 611) e sobe ao Play; a web sai no mesmo push. Prova do build: o commit `ci: bump versionCode to 611` no ramo — ainda não confirmado à hora deste relatório.

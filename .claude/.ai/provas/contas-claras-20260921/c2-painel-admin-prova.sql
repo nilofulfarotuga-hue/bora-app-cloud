@@ -1,5 +1,5 @@
 -- Bloco C2 (21/09, 09h00–09h15 UTC) — painel admin dos acertos. Migration aplicada:
--- contas_claras_c2_admin_acertos_reabrir_avisos_2026_09_21 (repo: 20260921094000_...sql).
+-- contas_claras_c2_admin_acertos_reabrir_avisos_2026_09_21 (repo: 20260921090657_..._2026_09_21.sql).
 -- JWT de admin simulado com set_config (uid c9fccf85 = nilofulfarotuga@gmail.com, role admin).
 
 -- C2.1 a lista traz o acerto vivo (colunas novas) — semana 14–20/09 (week_start_at::date = 2026-09-13)

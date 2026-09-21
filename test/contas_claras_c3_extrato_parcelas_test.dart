@@ -20,7 +20,7 @@ void main() {
   final widget =
       File('lib/widgets/extrato_prestador_section.dart').readAsStringSync();
   final mig = File(
-          'supabase/migrations/20260921100000_contas_claras_c3_parcelas_do_acerto.sql')
+          'supabase/migrations/20260921092110_contas_claras_c3_parcelas_do_acerto_2026_09_21.sql')
       .readAsStringSync();
 
   group('a app só formata as parcelas do servidor', () {

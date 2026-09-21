@@ -1,5 +1,5 @@
 -- Bloco C3 (21/09, 09h25–09h45 UTC) — o extrato da app mostra as MESMAS parcelas do recibo.
--- Migration aplicada: contas_claras_c3_parcelas_do_acerto_2026_09_21 (repo 20260921100000_...sql):
+-- Migration aplicada: contas_claras_c3_parcelas_do_acerto_2026_09_21 (repo 20260921092110_..._2026_09_21.sql):
 --   NOVA driver_settlement_parcelas(...) · weekly_closeout_compile chama-a · extrato_prestador devolve 'parcelas'.
 
 -- 1) o recibo compilado pela função nova é IGUAL ao breakdown já gravado (ROLLBACK: pus as 3 linhas de

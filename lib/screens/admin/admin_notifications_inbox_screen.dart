@@ -202,6 +202,8 @@ class _AdminNotificationsInboxScreenState
         return Icons.two_wheeler;
       case 'stripe_failures':
         return Icons.credit_card_off;
+      case 'pedido_no_vermelho':
+        return Icons.trending_down;
       default:
         return Icons.notifications;
     }
@@ -229,6 +231,8 @@ class _AdminNotificationsInboxScreenState
         return 'Entregador fantasma';
       case 'stripe_failures':
         return '3+ falhas Stripe';
+      case 'pedido_no_vermelho':
+        return 'Pedido no vermelho';
       default:
         return eventType;
     }

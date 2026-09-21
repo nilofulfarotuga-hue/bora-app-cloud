@@ -53,6 +53,7 @@ import 'screens/admin/admin_cleaning_cleaners_screen.dart';
 import 'screens/admin/admin_ratings_screen.dart';
 import 'screens/admin/admin_skill_suggestions_metrics_screen.dart';
 import 'screens/admin/admin_acertos_semana_screen.dart';
+import 'screens/admin/admin_order_detail_screen.dart';
 import 'screens/admin/admin_marcacoes_confirmacao_screen.dart';
 import 'screens/restaurant_ratings_list_screen.dart';
 import 'screens/cleaner/cleaner_home_screen.dart';
@@ -936,6 +937,19 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               builder: (_) => const ResetPasswordScreen(),
               settings: settings,
             );
+          }
+          // 2026-09-21 (contas claras C2): o aviso "pedido no vermelho"
+          // (admin_notifications.deep_link) aponta para /admin/orders/{id};
+          // sem isto, tocar no aviso rebentava com rota desconhecida.
+          if (name.startsWith('/admin/orders/')) {
+            final id = Uri.decodeComponent(
+                name.substring('/admin/orders/'.length).split(RegExp(r'[?#]')).first);
+            if (id.isNotEmpty) {
+              return MaterialPageRoute<void>(
+                builder: (_) => AdminOrderDetailScreen(orderId: id),
+                settings: settings,
+              );
+            }
           }
           // §44 — deep link da push low_rating: /partner/ratings precisa
           // restaurant_id + restaurant_name nos arguments.

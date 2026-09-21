@@ -12,6 +12,7 @@ import 'admin_cleaner_settlements_screen.dart';
 import 'admin_connect_payments_screen.dart';
 import 'admin_driver_payments_screen.dart';
 import 'admin_ganho_do_dia_screen.dart';
+import 'admin_order_detail_screen.dart';
 import 'admin_orphan_payments_screen.dart';
 import 'admin_partner_payouts_screen.dart';
 import 'admin_partner_settlements_screen.dart';
@@ -34,6 +35,17 @@ import 'admin_settlements_screen.dart';
 ///    trocá-los faz o histórico mentir sobre quem devia a quem.
 ///  · Três totais em cima: o Danilo quer saber quanto sai e quanto entra sem
 ///    somar linhas de cabeça.
+///
+/// 2026-09-21 (contas claras, bloco C2):
+///  · Cada estafeta mostra o ACERTO VIVO (`acerto`, lido de
+///    driver_weekly_settlements): corridas TVDE, ganhos das corridas, dinheiro
+///    em mão das corridas e compras adiantadas (total_reimbursements). O valor
+///    do recibo enviado é um retrato; quando os dois diferem, avisa-se.
+///  · "Desfazer" passou a "Reabrir": pede motivo por escrito, que fica na
+///    linha (`notes`) e em admin_audit_log; só a semana em curso ou a última
+///    fechada — mais antigo está travado. No estafeta, recalcula a seguir.
+///  · Avisos do fecho no topo: linha travada com valor diferente (o fecho
+///    não reescreve linhas pagas) e pedidos que fecharam no vermelho.
 class AdminAcertosSemanaScreen extends StatefulWidget {
   const AdminAcertosSemanaScreen({
     super.key,
@@ -67,6 +79,11 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
   bool _emailsEnabled = false;
   bool _busy = false;
   final Set<String> _abertos = {};
+
+  /// Avisos do fecho (admin_avisos_fecho): linhas travadas com valor diferente
+  /// e pedidos no vermelho. Vazio = nada a rever.
+  List<Map<String, dynamic>> _fechoTravado = const [];
+  List<Map<String, dynamic>> _pedidosVermelho = const [];
 
   /// Separador activo do hub (nulo = todos os tipos).
   String? _filtro;
@@ -107,6 +124,7 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
         _emailsEnabled = m['emails_enabled'] == true;
         _loading = false;
       });
+      await _loadAvisos();
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -117,8 +135,35 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
     }
   }
 
+  /// Os avisos vêm à parte: se falharem, a lista continua a aparecer.
+  Future<void> _loadAvisos() async {
+    try {
+      final res =
+          await _client.rpc('admin_avisos_fecho', params: {'p_week_start': _week});
+      final m = (res as Map).cast<String, dynamic>();
+      if (!mounted) return;
+      setState(() {
+        _fechoTravado = ((m['fecho_travado'] as List?) ?? [])
+            .map((e) => (e as Map).cast<String, dynamic>())
+            .toList();
+        _pedidosVermelho = ((m['pedidos_no_vermelho'] as List?) ?? [])
+            .map((e) => (e as Map).cast<String, dynamic>())
+            .toList();
+      });
+    } catch (_) {
+      // Sem avisos não se trava o ecrã dos acertos.
+    }
+  }
+
   String _eur(num cents) =>
       '€${(cents.abs() / 100).toStringAsFixed(2).replaceAll('.', ',')}';
+
+  /// Valor em euros vindo como texto/número ("17.00", 17, null) → "€17,00".
+  String _eurTxt(dynamic v) {
+    final n = v == null ? null : num.tryParse(v.toString());
+    if (n == null) return '—';
+    return '${n < 0 ? '−' : ''}€${n.abs().toStringAsFixed(2).replaceAll('.', ',')}';
+  }
 
   String _chaveDe(Map<String, dynamic> r) => '${r['type']}:${r['subject_id']}';
 
@@ -178,31 +223,101 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
     }
   }
 
-  Future<void> _desfazer(Map<String, dynamic> r) async {
+  /// Reabrir um acerto já marcado pago/recebido. Motivo obrigatório: fica na
+  /// linha (`notes`) e em admin_audit_log, para o histórico dizer porquê.
+  /// O servidor só deixa reabrir a semana em curso ou a última fechada.
+  /// Para estafetas, pede-se a seguir o recálculo ao servidor
+  /// (compute_driver_settlement, que já aceita o admin) — a app não soma nada.
+  Future<void> _reabrir(Map<String, dynamic> r) async {
     if (_busy) return;
+    final ctrl = TextEditingController();
+    final motivo = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Reabrir o acerto de ${r['name']}'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text(
+            'Volta a pendente e, no estafeta, é recalculado com o que está hoje '
+            'na base. O motivo fica gravado na linha e na auditoria.',
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: ctrl,
+            autofocus: true,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              labelText: 'Motivo (obrigatório)',
+              hintText: 'Ex.: marquei pago por engano; faltava uma corrida…',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ]),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+              child: const Text('Reabrir')),
+        ],
+      ),
+    );
+    if (motivo == null) return;
+    if (motivo.length < 5) {
+      _aviso('Escreve o motivo (mínimo 5 letras).', erro: true);
+      return;
+    }
     setState(() => _busy = true);
     try {
-      await _client.rpc('admin_unmark_settlement', params: {
+      final res = await _client.rpc('admin_reabrir_acerto', params: {
         'p_subject_type': r['type'],
         'p_subject_id': r['subject_id'],
         'p_week_start': _week,
+        'p_motivo': motivo,
       });
-      _aviso('${r['name']}: voltou a pendente.');
+      final m = (res as Map).cast<String, dynamic>();
+      String texto = '${r['name']}: reaberto, voltou a pendente.';
+      if (m['recalcular'] == true && m['week_start_at'] != null) {
+        // Recálculo no servidor, com a mesma semana da linha (timestamp exacto,
+        // não a data em UTC — senão cai na semana anterior).
+        final calc = await _client.rpc('compute_driver_settlement', params: {
+          'p_driver_id': r['subject_id'],
+          'p_week_start': m['week_start_at'],
+          'p_persist': true,
+        });
+        final c = (calc as Map).cast<String, dynamic>();
+        final novo = num.tryParse('${c['net_balance']}');
+        if (novo != null) {
+          texto = '${r['name']}: reaberto e recalculado — ${_eurTxt(novo)} '
+              '(antes ${_eurTxt(m['valor_anterior'])}).';
+        }
+      }
+      _aviso(texto);
       await _load();
     } catch (e) {
-      _aviso('Erro: $e', erro: true);
+      _aviso(_erroLegivel(e), erro: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// As excepções do servidor chegam como "semana_travada: …" — mostra-se a
+  /// frase sem a casca técnica.
+  String _erroLegivel(Object e) {
+    final s = e.toString();
+    final m = RegExp(r'message:\s*(.+?)(,\s*code:|$)').firstMatch(s);
+    return m?.group(1)?.trim() ?? s;
   }
 
   Future<void> _resend() async {
     if (_busy) return;
     setState(() => _busy = true);
     try {
+      // O servidor manda force:true: reenvia a TODOS desta semana, mesmo aos
+      // que já receberam. Linhas reabertas vão recompiladas com o valor novo.
       await _client
           .rpc('admin_resend_weekly_digest', params: {'p_week_start': _week});
-      _aviso('Recibos reenviados para a semana $_week.');
+      _aviso('Recibos da semana ${_dm(_week)} a reenviar a todos (força o reenvio).');
     } catch (e) {
       _aviso('Erro: $e', erro: true);
     } finally {
@@ -340,6 +455,11 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
                     children: [
                       _cabecalho(),
                       const SizedBox(height: 10),
+                      if (_fechoTravado.isNotEmpty ||
+                          _pedidosVermelho.isNotEmpty) ...[
+                        _avisosCard(),
+                        const SizedBox(height: 10),
+                      ],
                       _separadores(),
                       const SizedBox(height: 10),
                       if (aPagar.isNotEmpty) ...[
@@ -576,6 +696,105 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
     return '${iso.substring(8, 10)}/${iso.substring(5, 7)}';
   }
 
+  String _dmHm(String? iso) {
+    if (iso == null || iso.length < 16) return _dm(iso);
+    return '${_dm(iso)} ${iso.substring(11, 16)}';
+  }
+
+  /// Avisos do fecho — os dois casos que o servidor passou a gritar a 21/09:
+  ///  · linha travada: já estava paga/recebida, o valor recalculado é outro e
+  ///    o fecho NÃO a reescreveu (o recibo saiu com o valor antigo);
+  ///  · pedido no vermelho: pedido de loja não-parceira entregue sem sobrar
+  ///    nada para a Bora (cliente − mercadoria do talão − estafeta ≤ 0).
+  Widget _avisosCard() {
+    return Card(
+      color: AppColors.warning.withValues(alpha: 0.08),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const Icon(Icons.warning_amber_rounded,
+                size: 18, color: AppColors.warning),
+            const SizedBox(width: 8),
+            Text(
+              'Avisos do fecho (${_fechoTravado.length + _pedidosVermelho.length})',
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ]),
+          if (_fechoTravado.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            const Text(
+              'Linha travada com valor diferente — o fecho não mexe em linhas já '
+              'pagas; o recibo saiu com o valor antigo. Confere se pagaste mesmo; '
+              'se não, reabre a linha (pede motivo) e ela recalcula.',
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+            ..._fechoTravado.map((a) {
+              final falhou = a['action'] == 'fecho_aviso_linha_travada_falhou';
+              return Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('• '),
+                  Expanded(
+                    child: Text(
+                      falhou
+                          ? 'O aviso do fecho não conseguiu sair (${a['erro'] ?? 'erro desconhecido'}) — ${_dmHm(a['quando'] as String?)}'
+                          : '${a['nome'] ?? a['driver_id']}: na linha ${_eurTxt(a['valor_na_linha'])} '
+                              '(${a['estado_da_linha'] == 'received' ? 'recebido' : 'pago'}), '
+                              'recalculado ${_eurTxt(a['valor_recalculado'])} · '
+                              'diferença ${_eurTxt(a['diferenca'])} · ${_dmHm(a['quando'] as String?)}',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+                ]),
+              );
+            }),
+          ],
+          if (_pedidosVermelho.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            const Text(
+              'Pedidos no vermelho — loja não-parceira entregue sem sobrar nada '
+              'para a Bora (o que o cliente pagou − a mercadoria do talão − o '
+              'estafeta). Quase sempre é preço de catálogo desatualizado. Toca '
+              'para abrir o pedido.',
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+            ..._pedidosVermelho.map((p) {
+              final orderId = (p['order_id'] as String?) ?? '';
+              return InkWell(
+                onTap: orderId.isEmpty
+                    ? null
+                    : () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) =>
+                            AdminOrderDetailScreen(orderId: orderId))),
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Text('• '),
+                    Expanded(
+                      child: Text(
+                        '${p['vendor_name'] ?? 'loja'}: cliente pagou ${_eurTxt(p['cliente_pagou'])}, '
+                        'mercadoria ${_eurTxt(p['mercadoria'])}, estafeta ${_eurTxt(p['estafeta'])} → '
+                        'sobrou ${_eurTxt(p['sobrou_para_a_bora'])} · ${_dmHm(p['quando'] as String?)}'
+                        '${orderId.isEmpty ? '' : ' · pedido ${orderId.length > 8 ? orderId.substring(0, 8) : orderId}'}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          decoration: orderId.isEmpty
+                              ? null
+                              : TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ]),
+                ),
+              );
+            }),
+          ],
+        ]),
+      ),
+    );
+  }
+
   Widget _kpi(String label, String v, Color c) => Column(children: [
         Text(v,
             style:
@@ -612,6 +831,13 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
     final chave = _chaveDe(r);
     final aberto = _abertos.contains(chave);
     final breakdown = (r['breakdown'] as List?) ?? const [];
+    // Acerto vivo (só estafetas): o recibo é o retrato enviado; isto é a linha
+    // de hoje. Diferença → o recibo está velho, reenviar.
+    final acerto = (r['acerto'] as Map?)?.cast<String, dynamic>();
+    final acertoNet = (acerto?['net_cents'] as num?);
+    final recalculado = acertoNet != null && acertoNet != net;
+    final notas = (acerto?['notes'] as String?) ?? '';
+    final reabrirPermitido = r['reabrir_permitido'] == true;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -651,6 +877,40 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
               padding: const EdgeInsets.only(top: 6),
               child: Text('Email: ${r['email_error']}',
                   style: const TextStyle(fontSize: 11, color: AppColors.error)),
+            ),
+          if (acerto != null) ...[
+            const SizedBox(height: 6),
+            Wrap(spacing: 6, runSpacing: 4, children: [
+              _chip('Entregas ×${acerto['entregas_n'] ?? 0} '
+                  '${_eur((acerto['entregas_cents'] as num?) ?? 0)}'),
+              _chip('Corridas TVDE ×${acerto['corridas_n'] ?? 0} '
+                  '${_eur((acerto['corridas_cents'] as num?) ?? 0)}'),
+              _chip('Em mão nas corridas '
+                  '${_eur((acerto['corridas_em_mao_cents'] as num?) ?? 0)}'),
+              _chip('Compras adiantadas (talões) '
+                  '${_eur((acerto['reembolsos_cents'] as num?) ?? 0)}'),
+            ]),
+          ],
+          if (recalculado)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                'Recalculado: ${_eur(acertoNet)} — o recibo enviado dizia ${_eur(net)}. '
+                'Carrega em "Reenviar recibos" para mandar o valor novo.',
+                style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.warning,
+                    fontWeight: FontWeight.w600),
+              ),
+            ),
+          if (notas.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                'Nota: ${notas.split('\n').last}',
+                style: const TextStyle(
+                    fontSize: 11, color: AppColors.textSecondary),
+              ),
             ),
           if (aberto && breakdown.isNotEmpty) ...[
             const Divider(height: 18),
@@ -708,9 +968,14 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
                 child: Text(owes ? 'Marcar recebido' : 'Marcar pago'),
               ),
             if (tratado)
-              TextButton(
-                onPressed: _busy ? null : () => _desfazer(r),
-                child: const Text('Desfazer'),
+              Tooltip(
+                message: reabrirPermitido
+                    ? 'Volta a pendente, com motivo, e recalcula'
+                    : 'Semana travada: só se reabre a semana em curso ou a última fechada',
+                child: TextButton(
+                  onPressed: (_busy || !reabrirPermitido) ? null : () => _reabrir(r),
+                  child: Text(reabrirPermitido ? 'Reabrir' : 'Travado'),
+                ),
               ),
           ]),
         ]),

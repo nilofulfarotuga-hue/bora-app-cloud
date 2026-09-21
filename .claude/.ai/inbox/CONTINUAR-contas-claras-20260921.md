@@ -16,8 +16,11 @@
 
 1. Reenviar os recibos da semana 14–20/09 (Valdemir e Erika têm o HTML sem "Corridas"): no painel,
    semana 13/09 → "Reenviar recibos" (manda a todos, Goola incluída).
-2. `create_order` somar a taxa de pedido pequeno ao total (hoje mostra 1,39 e não cobra; 6,95 € em 5
-   pedidos; parceiros nunca cobram) — zona vermelha; proposta no relatório.
+2. ~~create_order somar a taxa~~ **"vai" dado a 21/09 e C7 feito no gatilho** (fn_small_order_fee já cobra; parceiro
+   provado 13,87 = quote). FALTA a Claude.ai aplicar a PROPOSTA da função que cria o pedido
+   (`platform_settings.staged_contas_claras_20260921_c7`, ficheiro `20260921112223_PROPOSTA_..._c7_...sql`) e correr a
+   prova escrita no cabeçalho dela; depois marcar a chave como `aplicada_pela_claude_ai` e mover o ficheiro para o nome
+   com a version real.
 3. Rejeitar a candidatura de estafeta acidental da conta do painel (drivers user_id c9fccf85, pending,
    criada 20/09 15:31 UTC) pela função de admin; preencher `public.users.email` = nilofulfarotuga@gmail.com.
 4. Vigia do vermelho para parceiros: trocar o `RETURN` dos parceiros em `_trg_alerta_pedido_no_vermelho_fn`

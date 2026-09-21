@@ -61,7 +61,7 @@ Mr Kebab & Restaurant: continua em breve, não mexi. Tem logo, capa, morada, tel
 
 ## Provas, publicação e fecho (Bloco E6)
 
-O autoteste dos três perfis corre no CI antes de qualquer publicação, por desenho do build_android.yml: sem verde, o build não sai. Neste PC o arnês não se liga ao emulador, é uma armadilha conhecida, por isso a prova é a do CI. O push da produção leva só os ficheiros desta missão, caminho a caminho: o Info.plist, o documento de estado, este relatório e as provas. As alterações de outras sessões que estão por commitar na árvore ficaram onde estavam. O resultado do CI fica na linha do e2e_log do E6 e no digest.
+O autoteste dos três perfis corre no CI antes de qualquer publicação, por desenho do build_android.yml: sem verde, o build não sai. Neste PC o arnês não se liga ao emulador, é uma armadilha conhecida, por isso a prova é a do CI. O push da produção leva só os ficheiros desta missão, caminho a caminho: o Info.plist, o documento de estado, este relatório e as provas. As alterações de outras sessões que estão por commitar na árvore ficaram onde estavam. O CI correu verde de ponta a ponta: o autoteste dos três perfis passou (das 16:24 às 16:53), o build Android subiu para a Play em alpha e o CI empurrou o versionCode 614; o web também ficou verde. Linhas 2143 e 2144 do e2e_log.
 
 Cópia deste relatório em `C:\Users\danil\Desktop\Bora\Projetos`. Digest em `claude_ai_memoria`. O Córtex não estava autorizado nesta sessão (o conector pede autorização nova), por isso o digest foi para a tabela e a ordem de continuação foi para a caixa de entrada do repo.
 

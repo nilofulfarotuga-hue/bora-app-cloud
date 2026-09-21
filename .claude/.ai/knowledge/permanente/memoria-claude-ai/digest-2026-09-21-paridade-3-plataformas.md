@@ -1,0 +1,19 @@
+---
+id: memoria-claude-ai-digest-2026-09-21-paridade-3-plataformas
+tipo: conceito
+origem: [claude-ai, public.claude_ai_memoria]
+ultima_confirmacao: 2026-09-21
+zona: verde
+confianca: alta
+estado: atual
+---
+
+# Claude Code Opus 21/09 — paridade 3 plataformas: o push do iPhone estava morto de raiz; crash log e gate de versão por plataforma; bugs vivos
+
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `digest-2026-09-21-paridade-3-plataformas`, origem `claude-code`, atualizada em 2026-09-21T18:44:40.73611+00:00).
+> Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
+> Palavras-chave: digest 2026 09 21 paridade 3 plataformas · memoria claude.ai · claude_ai_memoria
+
+O QUE FUNCIONA AGORA (push 317db0c7 às 18:00Z, Android 448 verde -> versionCode 615 no Play internal+alpha+production, app_latest_version_code=615 lido por SELECT; web 143 verde e no ar com o commit 317db0c7). CAUSA RAIZ DO PUSH iOS, provada no código do motor Flutter 3.41.2 e do plugin: o firebase_messaging 15.x só pede o token APNs num observador de didFinishLaunching que, com UIScene (o Info.plist do Bora tem), chega tarde e nunca dispara — a app nunca regista em APNs, getToken() falha para sempre e é por isso que em 450 aparelhos registados havia 0 iPhone. O FlutterFire corrigiu no 16.7.0 (14/09, #18620/#18650). Subido para firebase_core 4.15 / firebase_messaging 16.7 (o autoteste Android dos 3 perfis passou com o Gradle novo), helper FcmTokenHelper (iOS: permissão -> esperar APNs -> getToken), onTokenRefresh regista papéis pedidos, bora_alert.wav no bundle iOS, service worker web no JS SDK 12.19.0. A chave APNs no Firebase ESTÁ lá (dev+prod, 6L9FNGPJD8, vista no ecrã) — não era a causa. SEGUNDO PROBLEMA: 6 Edge Functions (notify-driver, -driver-assigned, -chat-message, -admin-urgent, -tvde-driver, -washer) mandavam apns-push-type background com som e texto = push silencioso na Apple; passaram a alert no repo (deno check OK) mas NÃO FORAM DEPLOYADAS (PAT da Supabase morto 401, CLI sem login, transcrever 90 KB à mão por MCP não compensava com 0 tokens iOS). Gate de versão: AppUpdateService agora por plataforma (web sai; iPhone lê app_latest_version_code_ios/_min_ios, ambas a 0, e abre a App Store); build_ios.yml injecta BORA_VERSION_CODE=run_number; build_android.yml ignora docs/** como o web. Crash log: kIsWeb antes de ios (toda a web ia como ios), iOS com versão+modelo pelo AppDelegate, web com commit+browser; ecrã admin novo "Erros da app (crashes)" + policy só-admin. Play Console (visto no ecrã, perfil Bora): pt.boraapp.bora Registada desde 20/05/2026, política sem problemas na conta e na app. Bugs: TvdeChatStore notify no dispose, Null check em 3 sítios + 6 rotas admin que faltavam + onUnknownRoute, SoundService onError -38, retrieveLostData só Android. Fotos do catálogo: 0/60 mortas numa amostra aleatória, proposta de varredura semanal sem executar.
+COMO SE USA: painel admin -> Operação -> Erros da app (crashes) (filtro Android/iPhone/Web); Definições -> APP_UPDATE tem as 5 chaves editáveis; deep links dos avisos abrem o ecrã certo.
+O QUE FALTA (depende do vai do Danilo): 1) disparar build_ios.yml com enviar=true a partir do ramo de produção (0 EUR, repo público, ~75 min), 2) deployar as 6 Edge do apns por MCP com verify_jwt por função (notify-driver false, as outras true) e provar com POST inválido -> 400, 3) testar num iPhone real: primeiro driver_push_tokens com platform=ios + oferta de teste, 4) quando a Apple aprovar a 1.0.1, pôr o número do build em app_latest_version_code_ios. Fora do scope reportado: web publica sem autoteste; 9 notificações locais sem DarwinNotificationDetails; parceiro na web não desbloqueia áudio; ListTile assert de debug em 11 sítios. Relatório: .claude/.ai/reports/OPUS-2026-09-21-paridade-3-plataformas.md; e2e_log 2148-2155.

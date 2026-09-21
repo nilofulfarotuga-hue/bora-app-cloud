@@ -224,11 +224,11 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     final title = data['title']?.toString() ?? '🚗 Nova corrida!';
     final origin = data['originLabel']?.toString() ?? 'Recolha';
     final dest = data['destLabel']?.toString() ?? 'Destino';
-    final fare = data['fare']?.toString() ?? '0.00';
-    final distanceKm = data['distanceKm']?.toString() ?? '0';
-    final body = data['body']?.toString() ??
-        '$origin → $dest • €$fare${distanceKm != '0' ? ' • ${distanceKm}km' : ''}';
-    debugPrint('[BORA-TVDE] FCM BG RECEIVED new_tvde_ride_offer ride=$rideId');
+    // [Oferta sobreposta 20/09] corpo com o GANHO (regra de ouro), botões
+    // Aceitar/Recusar e prazo da própria oferta.
+    final body = tvdeOfferNotificationBody(Map<String, dynamic>.from(data));
+    debugPrint('[BORA-TVDE] FCM BG RECEIVED new_tvde_ride_offer ride=$rideId '
+        'origin=$origin dest=$dest');
     try {
       final plugin = FlutterLocalNotificationsPlugin();
       final androidImpl = plugin.resolvePlatformSpecificImplementation<
@@ -268,8 +268,10 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         // Como o delivery: som em loop (FLAG_INSISTENT) para não perder a
         // corrida; timeoutAfter limpa a notif ~ao fim do TTL se for ignorada.
         additionalFlags: Int32List.fromList(<int>[4]),
-        timeoutAfter: 45000,
+        timeoutAfter:
+            tvdeOfferNotificationTimeoutMs(Map<String, dynamic>.from(data)),
         styleInformation: BigTextStyleInformation(body, contentTitle: title),
+        actions: tvdeOfferNotificationActions(reserva: false),
       );
       await plugin.show(
         rideId.isNotEmpty ? rideId.hashCode : title.hashCode,
@@ -522,8 +524,22 @@ void _onLocalNotifTap(NotificationResponse response) {
     final payload = response.payload;
     if (payload == null || payload.isEmpty) return;
     final data = jsonDecode(payload) as Map<String, dynamic>;
-    // [TVDE P0] Tocar na oferta de corrida → recarrega o store → _syncNav abre
-    // o cartão de oferta (aceitar/recusar + countdown).
+    // [Oferta sobreposta 20/09 · Bloco 3] Botões Aceitar/Recusar da oferta
+    // TVDE (imediata ou de reserva): a decisão é tratada ao nível da app.
+    const accoesTvde = {
+      kTvdeOfferAcceptAction,
+      kTvdeOfferRejectAction,
+      kTvdeReservationAcceptAction,
+      kTvdeReservationRejectAction,
+    };
+    final accao = response.actionId;
+    if (accao != null && accoesTvde.contains(accao)) {
+      NotificationService.tvdeOfferAction
+          ?.call(data['rideId']?.toString() ?? '', accao);
+      return;
+    }
+    // [TVDE P0] Tocar na oferta de corrida → recarrega o store → o cartão
+    // global (ou a tela de oferta, na home) aparece com aceitar/recusar.
     if (data['type'] == 'new_tvde_ride_offer') {
       NotificationService.tvdeOfferReload?.call();
       return;
@@ -677,6 +693,27 @@ Future<void> onBackgroundNotificationAction(NotificationResponse response) async
       );
       // ignore: avoid_print
       print('[BORA-RESERVA] a_caminho headless ride=$rideId ok=$ok');
+      return;
+    }
+
+    // [Oferta sobreposta 20/09 · Bloco 3] RECUSAR sem abrir a app: a RPC de
+    // sempre por HTTP cru; o servidor roda para o motorista seguinte. A
+    // notificação já morreu (cancelNotification: true) — cancela-se outra vez
+    // por garantia, para o som em ciclo não ficar preso. O isolate principal,
+    // se estiver vivo, relê a oferta ao voltar ao primeiro plano.
+    if (actionId == kTvdeOfferRejectAction ||
+        actionId == kTvdeReservationRejectAction) {
+      final rideId = data['rideId']?.toString() ?? '';
+      if (rideId.isEmpty) return;
+      final rpc = actionId == kTvdeOfferRejectAction
+          ? 'tvde_reject_ride'
+          : 'tvde_reservation_reject';
+      final ok = await _rpcHeadless(rpc, {'p_ride_id': rideId});
+      try {
+        await FlutterLocalNotificationsPlugin().cancel(rideId.hashCode);
+      } catch (_) {}
+      // ignore: avoid_print
+      print('[BORA-TVDE] recusar headless $rpc ride=$rideId ok=$ok');
       return;
     }
 
@@ -1030,6 +1067,74 @@ const Set<String> _kDriverAssignmentTypes = <String>{
 // e posta a notificação — foi essa a lição de 28/07 e 31/07.
 const String kTvdeReservationReadyAction = 'tvde_reservation_ready';
 
+// ══ OFERTA SOBREPOSTA (2026-09-20 · Bloco 3) ═══════════════════════════════
+// Botões na própria notificação de oferta TVDE (imediata e de reserva). Com o
+// Waze/Maps por cima a app não desenha nada — a notificação é a única coisa
+// accionável e até aqui só dizia "toca para abrir".
+//  - Aceitar ABRE a app (showsUserInterface: true) → `_onLocalNotifTap` →
+//    `NotificationService.tvdeOfferAction` (registado no main.dart) → aceita
+//    pelo store e leva ao ecrã certo. A notificação morre quando o store
+//    consome a oferta (cancelTvdeRideNotification), não antes.
+//  - Recusar NÃO abre a app (showsUserInterface: false) → isolate de segundo
+//    plano (`onBackgroundNotificationAction`) → RPC por HTTP cru → o servidor
+//    roda para o seguinte. `cancelNotification: true` cala o telemóvel já.
+const String kTvdeOfferAcceptAction = 'tvde_accept_ride';
+const String kTvdeOfferRejectAction = 'tvde_reject_ride';
+const String kTvdeReservationAcceptAction = 'tvde_reservation_accept';
+const String kTvdeReservationRejectAction = 'tvde_reservation_reject';
+
+/// As duas acções da notificação de oferta. Pura (sem plugin) para se poder
+/// testar: [reserva] escolhe os ids da reserva agendada.
+List<AndroidNotificationAction> tvdeOfferNotificationActions(
+    {required bool reserva}) {
+  return <AndroidNotificationAction>[
+    AndroidNotificationAction(
+      reserva ? kTvdeReservationAcceptAction : kTvdeOfferAcceptAction,
+      '✅ Aceitar',
+      showsUserInterface: true,
+      cancelNotification: false,
+    ),
+    AndroidNotificationAction(
+      reserva ? kTvdeReservationRejectAction : kTvdeOfferRejectAction,
+      '❌ Recusar',
+      showsUserInterface: false,
+      cancelNotification: true,
+    ),
+  ];
+}
+
+/// Corpo da notificação de oferta imediata. Regra de ouro do motorista: o
+/// número que aparece é o que ele GANHA; o total do cliente só como lembrete
+/// de cobrança, e só em dinheiro. Cai no `body` da Edge quando ela ainda não
+/// manda `driverEarn` (Edge antiga) — nunca fica vazio.
+String tvdeOfferNotificationBody(Map<String, dynamic> data) {
+  final origin = data['originLabel']?.toString() ?? 'Recolha';
+  final dest = data['destLabel']?.toString() ?? 'Destino';
+  final km = data['distanceKm']?.toString() ?? '0';
+  final earn = data['driverEarn']?.toString() ?? '';
+  final cobra = data['collectCash']?.toString() ?? '';
+  if (earn.isEmpty || earn == '0.00') {
+    final fare = data['fare']?.toString() ?? '0.00';
+    final kmTxt = km != '0' ? ' • ${km}km' : '';
+    return data['body']?.toString() ?? '$origin → $dest • €$fare$kmTxt';
+  }
+  final b = StringBuffer('Ganhas €$earn · $origin → $dest');
+  if (km != '0') b.write(' · ${km}km');
+  if (cobra.isNotEmpty) b.write(' · cobras €$cobra ao cliente');
+  return b.toString();
+}
+
+/// Quanto tempo a notificação de oferta vive sozinha (ms). Com o prazo da
+/// oferta no push usa-se o prazo; senão os 45 s de sempre.
+int tvdeOfferNotificationTimeoutMs(Map<String, dynamic> data,
+    {DateTime? agora}) {
+  final raw = data['offerExpiresAt']?.toString() ?? '';
+  final exp = raw.isEmpty ? null : DateTime.tryParse(raw);
+  if (exp == null) return 45000;
+  final ms = exp.difference(agora ?? DateTime.now()).inMilliseconds;
+  return ms < 5000 ? 5000 : ms;
+}
+
 const Set<String> _kTvdeReservationTypes = <String>{
   'tvde_reservation_offer',
   // [2026-08-20] O admin atribuiu a reserva a este motorista à mão. NÃO é
@@ -1122,7 +1227,10 @@ Future<void> showTvdeReservationNotification(Map<String, dynamic> data) async {
                 cancelNotification: true,
               ),
             ]
-          : null,
+          // [Oferta sobreposta 20/09] A oferta de reserva ganha Aceitar e
+          // Recusar na própria notificação — é o caso que falhou a 20/09,
+          // com o motorista a meio de outra corrida e o Maps por cima.
+          : (ehOferta ? tvdeOfferNotificationActions(reserva: true) : null),
     );
 
     await plugin.show(
@@ -1466,21 +1574,30 @@ class NotificationService {
 
   static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-  /// [TVDE P0 2026-07-02] Hook registado pela TvdeDriverHomeScreen. Chamado
-  /// sempre que chega/toca uma oferta de corrida (`new_tvde_ride_offer`) para
-  /// forçar `TvdeDriverStore.loadCurrent()` — a tela de oferta aparece mesmo que
-  /// o realtime tenha caído. Belt-and-suspenders por cima do canal realtime.
+  /// [TVDE P0 2026-07-02] Chamado sempre que chega/toca uma oferta de corrida
+  /// (`new_tvde_ride_offer`) para forçar `TvdeDriverStore.loadCurrent()` — a
+  /// oferta aparece mesmo que o realtime tenha caído. Belt-and-suspenders por
+  /// cima do canal realtime.
+  /// [20/09] Registado no `main.dart`, ao nível da app — já NÃO pela
+  /// TvdeDriverHomeScreen (preso ao initState de um ecrã só funcionava por
+  /// acidente, porque a home sobrevive por baixo; cicatriz de 20/08).
   static VoidCallback? tvdeOfferReload;
 
-  /// [Reserva agendada 2026-08-19] Registado pela TvdeDriverHomeScreen. Força
-  /// `TvdeDriverStore.loadAgenda()` quando chega push de reserva — mesma
-  /// lógica belt-and-suspenders do `tvdeOfferReload`.
+  /// [Reserva agendada 2026-08-19] Força `TvdeDriverStore.loadAgenda()` quando
+  /// chega push de reserva — mesma lógica belt-and-suspenders do
+  /// `tvdeOfferReload`. [20/09] Também global, no `main.dart`.
   static VoidCallback? tvdeReservationReload;
 
   /// Chamado quando o motorista carrega "A caminho" na notificação dos 10 min.
   /// A HomeScreen do motorista liga-se aqui para: confirmar via RPC
   /// (`tvde_reservation_ready`) e abrir a navegação para a recolha.
   static void Function(String rideId)? tvdeReservationReadyTap;
+
+  /// [Oferta sobreposta 20/09 · Bloco 3] Botão Aceitar/Recusar carregado na
+  /// notificação de oferta TVDE (imediata ou de reserva). `actionId` é um
+  /// dos `kTvdeOffer*Action`/`kTvdeReservation*Action`. Registado no
+  /// `main.dart` (`tvdeResponderOfertaGlobal`), nunca dentro de um ecrã.
+  static void Function(String rideId, String actionId)? tvdeOfferAction;
 
   /// Tocar num aviso de LIMPEZA ou de LAVAGEM abre o ecrã dessa categoria.
   ///
@@ -2594,8 +2711,8 @@ class NotificationService {
     final data = message.data;
     final rideId = data['rideId']?.toString() ?? '';
     final title = data['title']?.toString() ?? '🚗 Nova corrida!';
-    final body = data['body']?.toString() ??
-        '${data['originLabel'] ?? 'Recolha'} → ${data['destLabel'] ?? 'Destino'}';
+    // [Oferta sobreposta 20/09] ganho em vez do total do cliente + botões.
+    final body = tvdeOfferNotificationBody(Map<String, dynamic>.from(data));
     try {
       final plugin = FlutterLocalNotificationsPlugin();
       final androidImpl = plugin.resolvePlatformSpecificImplementation<
@@ -2634,8 +2751,10 @@ class NotificationService {
         // [Fix 2026-08-21] Rede de seguranca: se a app nao estiver viva para
         // cancelar, o Android limpa a notif ao fim do TTL da oferta. Sem
         // isto, uma app morta deixava o som em loop preso no telemovel.
-        timeoutAfter: 45000,
+        timeoutAfter:
+            tvdeOfferNotificationTimeoutMs(Map<String, dynamic>.from(data)),
         styleInformation: BigTextStyleInformation(body, contentTitle: title),
+        actions: tvdeOfferNotificationActions(reserva: false),
       );
       await plugin.show(
         rideId.isNotEmpty ? rideId.hashCode : title.hashCode,

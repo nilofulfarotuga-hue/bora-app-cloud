@@ -14,6 +14,7 @@ import '../../../stores/driver_store.dart';
 import '../../../stores/tvde_driver_store.dart';
 import '../../../widgets/bora/bora.dart';
 import '../../../widgets/tvde/tvde_counter_ride_badge.dart';
+import '../../../widgets/tvde/tvde_offer_overlay_host.dart';
 import '../../../widgets/tvde/tvde_pay_badge.dart';
 import '../../../widgets/tvde/tvde_roundtrip_driver_notice.dart';
 
@@ -46,6 +47,9 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
   @override
   void initState() {
     super.initState();
+    // [Oferta sobreposta 20/09] Enquanto este ecrã mostra a oferta em ecrã
+    // inteiro, o cartão global (TvdeOfferOverlayHost) não a duplica por cima.
+    _marcarEcraInteiro(widget.ride.id);
     // A1 — arranca o som contínuo até aceitar/recusar/expirar.
     _sound.playLoop();
     // A contagem é recalculada a cada segundo a partir da oferta VIVA (store)
@@ -57,10 +61,21 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
 
   @override
   void dispose() {
+    if (TvdeOfferPresentation.fullScreenRideId.value == _marcada) {
+      TvdeOfferPresentation.fullScreenRideId.value = null;
+    }
     _ticker?.cancel();
     _sound.stop();
     _sound.dispose();
     super.dispose();
+  }
+
+  /// A corrida que este ecrã está a anunciar ao cartão global. Num re-offer
+  /// (outra corrida a entrar com este ecrã aberto) acompanha a nova.
+  String? _marcada;
+  void _marcarEcraInteiro(String rideId) {
+    _marcada = rideId;
+    TvdeOfferPresentation.fullScreenRideId.value = rideId;
   }
 
   void _autoClose() {
@@ -112,6 +127,13 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
     // Oferta VIVA: a store atualiza-a no re-offer, por isso o ecrã reflete
     // sempre a oferta atual — a contagem e os dados RENOVAM no re-offer.
     final ride = store.offeredRide ?? widget.ride;
+    if (!_closing && _marcada != ride.id) {
+      // Fora do build (mexer no notifier aqui rebentava o host a meio do
+      // frame): no fim do frame o cartão global fica a saber da nova.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_closing) _marcarEcraInteiro(ride.id);
+      });
+    }
     final exp = ride.offerExpiresAt;
     final secs = exp == null ? 0 : exp.difference(DateTime.now()).inSeconds;
     // [Item E/M] Fecha AUTOMATICAMENTE quando: (a) o realtime tira a oferta, OU

@@ -25,6 +25,8 @@ import 'services/bloqueio_service.dart';
 import 'services/remote_fees_service.dart';
 import 'services/small_order_fee.dart';
 import 'services/tvde_reservation_ready_handler.dart';
+import 'services/tvde_offer_action_handler.dart';
+import 'widgets/tvde/tvde_offer_overlay_host.dart';
 import 'services/offer_presentation_gate.dart';
 // Sessão 2026-05-21 — overlay system_alert_window. O import garante que o
 // `@pragma('vm:entry-point') void overlayMain()` ali declarado fica vivo no
@@ -399,6 +401,28 @@ Future<void> main() async {
   // TvdeDriverHomeScreen, e com o ecrã de corrida por cima o gancho ficava a
   // null: a RPC corria pelo caminho headless mas a navegação nunca abria.
   NotificationService.tvdeReservationReadyTap = tvdeConfirmarACaminhoGlobal;
+
+  // [Oferta sobreposta 20/09 · C6] Os ganchos de RELER a oferta (imediata e
+  // de reserva) também vivem aqui, ao nível da app. Estavam no initState/
+  // dispose da TvdeDriverHomeScreen — o mesmo padrão que já tinha queimado o
+  // "A caminho" acima — e só funcionavam por acidente, porque a home sobrevive
+  // por baixo dos outros ecrãs. O push chega, o store relê, e o cartão global
+  // (`TvdeOfferOverlayHost`, no builder do MaterialApp) desenha a oferta por
+  // cima do que quer que esteja aberto.
+  void relerOfertasTvde() {
+    final ctx = NotificationService.navigatorKey.currentContext;
+    if (ctx == null || !ctx.mounted) return;
+    unawaited(ctx.read<TvdeDriverStore>().reloadOffers());
+  }
+
+  NotificationService.tvdeOfferReload = relerOfertasTvde;
+  NotificationService.tvdeReservationReload = relerOfertasTvde;
+
+  // [Oferta sobreposta 20/09 · Bloco 3] Aceitar/Recusar carregados na própria
+  // notificação de oferta. Mesmo sítio, mesma razão: ao nível da app.
+  NotificationService.tvdeOfferAction = (rideId, actionId) {
+    unawaited(tvdeResponderOfertaGlobal(rideId, actionId));
+  };
 
   // Tocar num aviso de limpeza ou de lavagem abre o ecrã dessa categoria.
   //
@@ -813,9 +837,16 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         // raiz. Sem isto, um ecrã que já esteja empilhado guarda o texto antigo:
         // o Flutter reaproveita a página construída e não volta a chamar o
         // build dela só porque um antecessor foi redesenhado.
+        // [Oferta sobreposta 20/09] `TvdeOfferOverlayHost` envolve o Navigator
+        // inteiro: a oferta TVDE (imediata ou de reserva) desenha-se por cima
+        // de QUALQUER ecrã — corrida activa, chat, agenda, ganhos, entregas,
+        // outro papel. Foi a falta disto que deixou o Danilo sem cartão a
+        // 20/09, com a oferta da reserva a tocar e o ecrã da corrida por cima.
         builder: (context, child) => KeyedSubtree(
           key: ValueKey<AppLang>(BoraLang.current),
-          child: child ?? const SizedBox.shrink(),
+          child: TvdeOfferOverlayHost(
+            child: child ?? const SizedBox.shrink(),
+          ),
         ),
         navigatorObservers: [routeObserver, crashRouteObserver],
         routes: {

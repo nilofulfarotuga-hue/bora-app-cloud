@@ -890,6 +890,11 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
         !(ride.isAssigned || ride.isInProgress)) {
       return;
     }
+    // [Oferta sobreposta 20/09 · Bloco 4] Em fila, o ETA somado do servidor
+    // relê-se em CADA poll, antes e independentemente do cartão do motorista:
+    // se o cartão falhar (posição em falta, resposta vazia) o número não pode
+    // congelar. É o que faz o "chega em ~X min" mexer.
+    await _pollQueueEta(ride);
     try {
       // [1A · 05/09] Cartão PÚBLICO do motorista. A RPC recebe o id da
       // CORRIDA (não o do motorista) e é ela que decide se quem pergunta é
@@ -960,8 +965,6 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
       });
       // 2C — "está quase a chegar" (usa o ETA REAL, nunca o com desconto).
       _maybeAvisarQuaseAChegar(ride);
-      // [Sobreposição 14/09 · Bloco C] Em fila: ETA somado, do servidor.
-      await _pollQueueEta(ride);
     } catch (e) {
       // Nunca mais em silêncio: um catch mudo escondeu este bug durante
       // semanas, com passageiros reais a olhar para um mapa vazio.
@@ -1535,7 +1538,12 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     const stripSize = 0.14;
     // [2A] Chegou = o estado do servidor OU o carro já ali (o realtime pode
     // demorar, e quem vê o carro à porta não pode ler "chega em ~1 min").
-    final chegou = ride.hasArrived || _motoristaNoPonto(ride);
+    // [Oferta sobreposta 20/09 · Bloco 4] Em FILA o motorista ainda está a
+    // terminar outra viagem: estar perto da recolha (o destino da viagem
+    // anterior é muitas vezes à porta) não é "chegou". A prova na web mostrou
+    // "Estafeta chegou" numa corrida em fila com o carro a 0 m da recolha.
+    final chegou =
+        ride.hasArrived || (!ride.isQueued && _motoristaNoPonto(ride));
     final panel = _StatusPanel(
       ride: ride,
       busy: _accaoEmCurso,
@@ -1734,16 +1742,20 @@ class _CompactStrip extends StatelessWidget {
       return quem != null ? '{0} chegou'.trArgs([quem]) : 'O motorista chegou'.tr;
     }
     if (ride.isQueued) {
-      // [Sobreposição 14/09] em fila: a terminar outra corrida aqui perto.
+      // [Sobreposição 14/09 → 20/09] em fila: as TRÊS coisas na mesma frase
+      // (pedido do Danilo): aceitou · está a terminar outra viagem · chega em
+      // ~X min. Sem ETA do servidor, a frase degrada sem o número — nunca
+      // "~null min", nunca some.
       if (etaMinutes == null) {
         return quem != null
-            ? '{0} está a terminar uma corrida aqui perto'.trArgs([quem])
-            : 'O teu motorista está a terminar uma corrida aqui perto'.tr;
+            ? '{0} aceitou a tua corrida · está a terminar outra viagem'
+                .trArgs([quem])
+            : 'O teu motorista aceitou · está a terminar outra viagem'.tr;
       }
       return quem != null
-          ? '{0} está a terminar uma corrida aqui perto · chega em ~{1} min'
+          ? '{0} aceitou a tua corrida · está a terminar outra viagem · chega em ~{1} min'
               .trArgs([quem, etaMinutes])
-          : 'O teu motorista está a terminar uma corrida aqui perto · chega em ~{0} min'
+          : 'O teu motorista aceitou · está a terminar outra viagem · chega em ~{0} min'
               .trArgs([etaMinutes]);
     }
     if (etaMinutes == null) {
@@ -1772,7 +1784,11 @@ class _CompactStrip extends StatelessWidget {
           Expanded(
             child: Text(
               _texto,
-              maxLines: 1,
+              // [Oferta sobreposta 20/09 · Bloco 4] Em fila a frase leva as
+              // três coisas (aceitou · a terminar outra viagem · chega em
+              // ~X min) e numa linha só ficava "está a t…" com o painel
+              // recolhido (prova na web, 21/09). Duas linhas para ela.
+              maxLines: ride.isQueued ? 2 : 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                   fontSize: 15,
@@ -1903,9 +1919,9 @@ class _StatusPanel extends StatelessWidget {
     // está a terminar — diz-se isso para o número fazer sentido.
     if (ride.isQueued) {
       return quem != null
-          ? '{0} está a terminar uma corrida aqui perto · chega em ~{1} min'
+          ? '{0} aceitou a tua corrida · está a terminar outra viagem · chega em ~{1} min'
               .trArgs([quem, minutos])
-          : 'O teu motorista está a terminar uma corrida aqui perto · chega em ~{0} min'
+          : 'O teu motorista aceitou · está a terminar outra viagem · chega em ~{0} min'
               .trArgs([minutos]);
     }
     return quem != null
@@ -1919,7 +1935,7 @@ class _StatusPanel extends StatelessWidget {
     if (quem == null) return 'Motorista'.tr;
     if (ride.isInProgress) return quem;
     if (driverArrived) return '{0} chegou'.trArgs([quem]);
-    if (ride.isQueued) return '{0} está a terminar uma corrida'.trArgs([quem]);
+    if (ride.isQueued) return '{0} aceitou a tua corrida'.trArgs([quem]);
     return '{0} está a caminho'.trArgs([quem]);
   }
 
@@ -2273,7 +2289,7 @@ class _StatusPanel extends StatelessWidget {
           if (ride.isQueued && ride.isAssigned) ...[
             const SizedBox(height: Spacing.sm),
             Text(
-              'O teu motorista está a terminar uma corrida aqui perto e segue logo para a tua recolha. És o próximo.'.tr,
+              'O teu motorista aceitou a tua corrida e está a terminar outra viagem aqui perto. Segue logo para a tua recolha — és o próximo.'.tr,
               style: const TextStyle(color: AppColors.textSubtle, fontSize: 12),
             ),
           ],

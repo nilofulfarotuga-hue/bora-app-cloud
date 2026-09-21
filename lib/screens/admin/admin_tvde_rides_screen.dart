@@ -220,6 +220,79 @@ class _RidesListState extends State<_RidesList>
     await _load();
   }
 
+  /// [Oferta sobreposta 20/09 · Bloco 5] "Forçar nova roda": a corrida ainda
+  /// à procura (`solicitada`) volta ao início da roda — a oferta em curso, os
+  /// motoristas já tentados e a pausa são limpos e o despacho de sempre
+  /// (`tvde_offer_to_next`, intacto) escolhe a quem tocar. Serve quando a
+  /// oferta ficou presa num motorista que não vai responder.
+  Future<void> _forcarNovaRoda(Map<String, dynamic> ride) async {
+    final ctrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Forçar nova roda?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'A oferta que está a tocar agora é cancelada, a lista de '
+              'motoristas já tentados é limpa e o despacho (a "roda") '
+              'recomeça do início, pelo motorista mais perto. Ninguém é '
+              'atribuído à força — cada um continua a poder aceitar ou '
+              'recusar.',
+              style: TextStyle(fontSize: 13.5),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: ctrl,
+              decoration: const InputDecoration(
+                labelText: 'Motivo (fica no registro de auditoria)',
+                hintText: 'ex.: oferta presa num motorista sem resposta',
+              ),
+              maxLines: 2,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Forçar nova roda')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      final res = await Supabase.instance.client
+          .rpc('admin_tvde_force_redispatch', params: {
+        'p_ride_id': ride['id']?.toString(),
+        'p_motivo': ctrl.text.trim().isEmpty ? null : ctrl.text.trim(),
+      });
+      final m = res is Map ? Map<String, dynamic>.from(res) : const {};
+      if (!mounted) return;
+      _toast(
+        m['offered'] == true
+            ? 'Nova roda iniciada — já está a tocar a outro motorista.'
+            : 'Nova roda iniciada, mas não há motorista disponível agora. '
+                'O despacho continua a tentar sozinho.',
+        m['offered'] == true ? AppColors.success : AppColors.accent,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      final txt = '$e';
+      _toast(
+        txt.contains('ride_not_redispatchable')
+            ? 'Esta corrida já não está à procura de motorista.'
+            : 'Não consegui forçar a nova roda: $txt',
+        AppColors.error,
+      );
+    }
+    await _load();
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -272,6 +345,8 @@ class _RidesListState extends State<_RidesList>
                   // quê, e o botão de reatribuir.
                   byId: {for (final x in _rows) x['id']?.toString() ?? '': x},
                   onReassign: _isLive ? () => _reassign(r) : null,
+                  onForceRedispatch:
+                      _isLive ? () => _forcarNovaRoda(r) : null,
                 )),
         ],
       ),
@@ -391,6 +466,7 @@ class _RideCard extends StatelessWidget {
     required this.live,
     this.byId = const {},
     this.onReassign,
+    this.onForceRedispatch,
   });
   final Map<String, dynamic> data;
   final bool live;
@@ -398,6 +474,9 @@ class _RideCard extends StatelessWidget {
   /// Linhas carregadas, por id — para escrever "atrás de quê" com nome e rota.
   final Map<String, Map<String, dynamic>> byId;
   final VoidCallback? onReassign;
+
+  /// [20/09] Só faz sentido em `solicitada` (ainda à procura).
+  final VoidCallback? onForceRedispatch;
 
   static const _reassignable = {
     'solicitada',
@@ -434,6 +513,13 @@ class _RideCard extends StatelessWidget {
     final isQueued = data['is_queued'] == true;
     final behindId = data['queued_behind_ride_id']?.toString();
     final nextId = data['queue_next_ride_id']?.toString();
+    // [Oferta sobreposta 20/09 · Bloco 5] oferta EM VOO: a quem está a tocar
+    // agora e quanto falta para expirar (vem da RPC, calculado no servidor).
+    final offerName = (data['offer_driver_name'] as String?)?.trim();
+    final offerSecs = (data['offer_seconds_left'] as num?)?.toInt();
+    final triedCount = (data['tried_count'] as num?)?.toInt() ?? 0;
+    final noDriverSince = data['no_driver_since'];
+    final procurando = live && status == 'solicitada';
     // Paradas adicionais (CAMPO-02). Lê direto do mapa da RPC; se a RPC ainda
     // não trouxer estas colunas, ficam 0 e o bloco não aparece (sem crash).
     final extraStopsCount = (data['extra_stops_count'] as num?)?.toInt() ?? 0;
@@ -510,6 +596,30 @@ class _RideCard extends StatelessWidget {
             if (live && locUpdated != null)
               _kv(Icons.my_location, 'Posição',
                   'atualizada ${_fmtDateTime(locUpdated)} (via driver_locations)'),
+            // [Oferta sobreposta 20/09 · Bloco 5] quem está a receber a oferta
+            // neste momento, com o tempo que falta — e, quando ninguém está a
+            // receber, porquê (quantos já tentados, desde quando está em pausa).
+            if (procurando && offerName != null && offerName.isNotEmpty)
+              _kv(
+                Icons.notifications_active,
+                'Oferta a tocar a',
+                offerName,
+                extra: offerSecs == null
+                    ? null
+                    : 'expira em ${offerSecs}s'
+                        '${triedCount > 0 ? ' · $triedCount já tentado(s)' : ''}',
+              ),
+            if (procurando && (offerName == null || offerName.isEmpty))
+              _kv(
+                Icons.notifications_off_outlined,
+                'Oferta',
+                'ninguém a receber agora',
+                extra: [
+                  if (triedCount > 0) '$triedCount já tentado(s)',
+                  if (noDriverSince != null)
+                    'sem motorista desde ${_fmtDateTime(noDriverSince)}',
+                ].join(' · '),
+              ),
             // [Sobreposição 14/09 · item 12] fila: atrás de quê / leva atrás.
             if (live && isQueued)
               _kv(Icons.queue, 'Em fila atrás de', _resumo(behindId)),
@@ -518,15 +628,28 @@ class _RideCard extends StatelessWidget {
             if (live && onReassign != null && _reassignable.contains(status))
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: OutlinedButton.icon(
-                    onPressed: onReassign,
-                    icon: const Icon(Icons.swap_horiz, size: 16),
-                    label: const Text('Reatribuir corrida'),
-                    style: OutlinedButton.styleFrom(
-                        visualDensity: VisualDensity.compact),
-                  ),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: onReassign,
+                      icon: const Icon(Icons.swap_horiz, size: 16),
+                      label: const Text('Reatribuir corrida'),
+                      style: OutlinedButton.styleFrom(
+                          visualDensity: VisualDensity.compact),
+                    ),
+                    // [20/09] Só enquanto ainda está à procura: recomeça a
+                    // roda do despacho (não atribui ninguém à força).
+                    if (procurando && onForceRedispatch != null)
+                      OutlinedButton.icon(
+                        onPressed: onForceRedispatch,
+                        icon: const Icon(Icons.replay, size: 16),
+                        label: const Text('Forçar nova roda'),
+                        style: OutlinedButton.styleFrom(
+                            visualDensity: VisualDensity.compact),
+                      ),
+                  ],
                 ),
               ),
             if (extraStopsCount > 0)

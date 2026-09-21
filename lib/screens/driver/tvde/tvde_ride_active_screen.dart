@@ -57,11 +57,17 @@ final ValueNotifier<bool> tvdeCorridaControlaGps = ValueNotifier<bool>(false);
 class TvdeRideActiveScreen extends StatefulWidget {
   const TvdeRideActiveScreen({super.key});
 
+  /// [Oferta sobreposta 20/09] Está algum ecrã de corrida activa montado?
+  /// Quem aceita uma corrida fora da home (cartão global, botão da
+  /// notificação) usa isto para não abrir um segundo por cima do primeiro.
+  static bool get estaAberto => _TvdeRideActiveScreenState._montados > 0;
+
   @override
   State<TvdeRideActiveScreen> createState() => _TvdeRideActiveScreenState();
 }
 
 class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
+  static int _montados = 0;
   bool _navigatedToRate = false;
 
   /// [Ronda 2] Enquanto true, a corrida já está 'finalizada' mas o ecrã NÃO
@@ -246,6 +252,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   @override
   void initState() {
     super.initState();
+    _montados++;
     _loadDriverArrowIcon();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -386,6 +393,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
 
   @override
   void dispose() {
+    _montados--;
     _waitTicker?.cancel();
     _stopsTicker?.cancel();
     _etaTicker?.cancel();
@@ -1740,20 +1748,11 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
               child: const Icon(Icons.my_location),
             ),
           ),
-          // Back-to-back: oferta compacta POR CIMA da corrida actual, em
-          // qualquer fase (a caminho, chegou, em viagem) — nunca modal
-          // full-screen com passageiro a bordo (segurança). Som vem do push.
-          // [Sobreposição 14/09 · item 5] Antes só aparecia em 'em_andamento'
-          // — o motorista a caminho do passageiro não via a oferta que o
-          // servidor lhe fazia. Quem decide se ele pode receber é o servidor.
-          if (store.offeredRide != null)
-            Align(
-              alignment: Alignment.topCenter,
-              child: SafeArea(
-                child: _QueuedOfferBanner(
-                    offer: store.offeredRide!, current: ride),
-              ),
-            ),
+          // [Oferta sobreposta 20/09] A faixa de oferta que vivia AQUI
+          // (`_QueuedOfferBanner`, 14/09) saiu deste ecrã: a oferta — imediata
+          // ou de reserva — desenha-se agora por cima de QUALQUER ecrã, no
+          // `TvdeOfferOverlayHost` (main.dart). Um único caminho; este ecrã
+          // deixou de ser ponto único de falha.
           // [Item N] Card arrastável (bottom sheet), igual ao delivery: puxar
           // para baixo encolhe (mostra só o essencial e liberta o mapa), puxar
           // para cima expande. O mapa (com a rota) ocupa o resto.
@@ -2402,212 +2401,6 @@ class _QueuedRideCard extends StatelessWidget {
               onPressed: busy ? null : onRelease,
               child: const Text('Largar a próxima'),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _QueuedOfferBanner extends StatefulWidget {
-  const _QueuedOfferBanner({required this.offer, required this.current});
-  final TvdeRide offer;
-
-  /// A corrida que o motorista está a fazer — dá a distância "onde vou
-  /// largar → onde vou buscar".
-  final TvdeRide current;
-
-  @override
-  State<_QueuedOfferBanner> createState() => _QueuedOfferBannerState();
-}
-
-class _QueuedOfferBannerState extends State<_QueuedOfferBanner> {
-  Timer? _ticker;
-  int _secondsLeft = 25;
-
-  @override
-  void initState() {
-    super.initState();
-    _syncCountdown();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      setState(() => _secondsLeft -= 1);
-    });
-  }
-
-  @override
-  void didUpdateWidget(covariant _QueuedOfferBanner old) {
-    super.didUpdateWidget(old);
-    if (old.offer.id != widget.offer.id) _syncCountdown();
-  }
-
-  void _syncCountdown() {
-    final exp = widget.offer.offerExpiresAt;
-    _secondsLeft =
-        exp == null ? 25 : exp.difference(DateTime.now()).inSeconds;
-    if (_secondsLeft <= 0) _secondsLeft = 0;
-  }
-
-  @override
-  void dispose() {
-    _ticker?.cancel();
-    super.dispose();
-  }
-
-  /// [Bloco 3C · 05/09] Guarda LOCAL desta oferta. Antes, os dois botões
-  /// dependiam do `busy` GLOBAL do store: bastava outra operação a meio — um
-  /// refresh, o ETA, um poll — para "Recusar" e "Aceitar" nascerem mortos.
-  /// E esta oferta tem contagem decrescente: um botão morto durante alguns
-  /// segundos é a oferta a expirar sozinha nas mãos do motorista. É a mesma
-  /// cicatriz que prendeu um passageiro no ecrã de avaliação a 05/09/2026, e
-  /// a mesma que já tinha sido paga uma vez no `tvde_offer_screen`.
-  bool _respondendo = false;
-
-  Future<void> _accept() async {
-    if (_respondendo) return;
-    setState(() => _respondendo = true);
-    final store = context.read<TvdeDriverStore>();
-    try {
-      final r = await store.acceptOffer(widget.offer.id);
-      if (!mounted) return;
-      // [Sobreposição 14/09 · item 6] Aceitar não tira o motorista da corrida
-      // actual: este ecrã continua a mostrar o passageiro que ele leva; a nova
-      // fica no cartão "Próxima corrida". (Se, entretanto, a actual acabou e a
-      // aceite entrou como activa, o próprio ecrã já a está a mostrar.)
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(r.isQueued
-              ? 'Corrida em fila — abre sozinha quando terminares esta.'
-              : 'Corrida aceite.')));
-    } catch (_) {
-      store.clearOffer();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Esta corrida já não está disponível.')));
-    }
-    if (mounted) setState(() => _respondendo = false);
-  }
-
-  Future<void> _reject() async {
-    if (_respondendo) return;
-    setState(() => _respondendo = true);
-    final store = context.read<TvdeDriverStore>();
-    try {
-      await store.rejectOffer(widget.offer.id);
-    } catch (_) {/* best-effort */}
-    if (mounted) setState(() => _respondendo = false);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final offer = widget.offer;
-    // [Item C] líquido do motorista (não o total do cliente) na oferta em fila.
-    final net = (offer.netDriverEarnCents / 100).toStringAsFixed(2);
-    // [Sobreposição 14/09 · item 5] "onde vou largar → onde vou buscar".
-    final ligacaoKm = Geolocator.distanceBetween(
-            widget.current.destLat,
-            widget.current.destLng,
-            offer.originLat,
-            offer.originLng) /
-        1000;
-    // Expirada (sweep roda ao próximo) — o realtime limpa; não renderiza lixo.
-    if (_secondsLeft <= 0) return const SizedBox.shrink();
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.all(Spacing.md),
-      padding: const EdgeInsets.all(Spacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.primaryDeep,
-        borderRadius: BorderRadius.circular(Radii.lg),
-        boxShadow: const [
-          BoxShadow(color: Color(0x33000000), blurRadius: 12),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.queue, color: Colors.white, size: 18),
-              const SizedBox(width: 6),
-              const Expanded(
-                child: Text('Nova corrida — depois desta corrida',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w800)),
-              ),
-              Text('${_secondsLeft}s',
-                  style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700)),
-            ],
-          ),
-          const SizedBox(height: 4),
-          // Regra de ouro do motorista: o número grande é o que ele GANHA.
-          // O total do cliente só aparece (pequeno) no badge, e só em dinheiro.
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text('€$net',
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 30,
-                      height: 1.0,
-                      fontWeight: FontWeight.w800)),
-              const SizedBox(width: Spacing.sm),
-              Expanded(
-                child: Text(
-                  'o teu ganho · ${offer.estDistanceKm.toStringAsFixed(1)} km',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white70, fontSize: 12.5),
-                ),
-              ),
-              TvdePayBadge(ride: offer, dense: true),
-            ],
-          ),
-          if (offer.isCounterRide) ...[
-            const SizedBox(height: 4),
-            const Align(
-                alignment: Alignment.centerLeft,
-                child: TvdeCounterRideBadge(dense: true)),
-          ],
-          const SizedBox(height: 6),
-          Text(
-            'Recolha a ${ligacaoKm.toStringAsFixed(1)} km de onde vais largar '
-            '· ${offer.originLabel ?? 'Recolha'}',
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: Colors.white, fontSize: 13),
-          ),
-          const SizedBox(height: Spacing.sm),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: _respondendo ? null : _reject,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white54),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  child: const Text('Recusar'),
-                ),
-              ),
-              const SizedBox(width: Spacing.sm),
-              Expanded(
-                child: FilledButton(
-                  onPressed: _respondendo ? null : _accept,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.accent,
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  child: const Text('Aceitar'),
-                ),
-              ),
-            ],
           ),
         ],
       ),

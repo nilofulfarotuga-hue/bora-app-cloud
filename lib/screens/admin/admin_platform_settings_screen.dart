@@ -205,6 +205,19 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
       'tvde_driver_lost_seconds',
     };
     if (tvdeNavOperational.contains(key)) return true;
+    // SOBREPOSIÇÃO DE CORRIDAS (14/09 → 20/09) — o interruptor e os limites
+    // do back-to-back (chamar um motorista ocupado para a corrida seguinte).
+    // Criadas na migration 20260914150204 com categoria e descrição, mas
+    // nunca tinham entrado nesta lista: apareciam com cadeado. São
+    // OPERACIONAIS — ligar/desligar, quantas em fila, a partir de que fase,
+    // raio em km — nenhuma altera um valor cobrado ou pago.
+    const tvdeBackToBackOperational = {
+      'tvde_backtoback_enabled',
+      'tvde_backtoback_max_queue',
+      'tvde_backtoback_min_stage',
+      'tvde_queue_pickup_radius_km',
+    };
+    if (tvdeBackToBackOperational.contains(key)) return true;
     // BLOCO 4E (2026-09-05) — ETA do TVDE mostrado ao cliente. Mesma regra
     // do `eta_*` genérico (linha ~75): afinam só o TEMPO MOSTRADO no ecrã,
     // nunca um valor cobrado ou pago. Usam o prefixo `tvde_eta_`, não

@@ -2292,18 +2292,17 @@ const Map<String, String> kStringsEn = <String, String>{
       'Services',
   'Serás o próximo: o motorista está a terminar uma viagem perto de ti e segue logo para a tua recolha.':
       'You are next: the driver is finishing a trip near you and will head straight to your pickup.',
-  'O teu motorista está a terminar uma corrida aqui perto e segue logo para a tua recolha. És o próximo.':
-      'Your driver is finishing a ride nearby and will head straight to your pickup. You are next.',
-  '{0} está a terminar uma corrida aqui perto · chega em ~{1} min':
-      '{0} is finishing a ride nearby · arrives in ~{1} min',
-  'O teu motorista está a terminar uma corrida aqui perto · chega em ~{0} min':
-      'Your driver is finishing a ride nearby · arrives in ~{0} min',
-  '{0} está a terminar uma corrida aqui perto':
-      '{0} is finishing a ride nearby',
-  'O teu motorista está a terminar uma corrida aqui perto':
-      'Your driver is finishing a ride nearby',
-  '{0} está a terminar uma corrida':
-      '{0} is finishing a ride',
+  'O teu motorista aceitou a tua corrida e está a terminar outra viagem aqui perto. Segue logo para a tua recolha — és o próximo.':
+      'Your driver accepted your ride and is finishing another trip nearby. They will head to your pickup right after — you are next.',
+  '{0} aceitou a tua corrida · está a terminar outra viagem · chega em ~{1} min':
+      '{0} accepted your ride · finishing another trip · arriving in ~{1} min',
+  'O teu motorista aceitou · está a terminar outra viagem · chega em ~{0} min':
+      'Your driver accepted · finishing another trip · arriving in ~{0} min',
+  '{0} aceitou a tua corrida · está a terminar outra viagem':
+      '{0} accepted your ride · finishing another trip',
+  'O teu motorista aceitou · está a terminar outra viagem':
+      'Your driver accepted · finishing another trip',
+  '{0} aceitou a tua corrida': '{0} accepted your ride',
   'Sessão biométrica expirada. Entra com a palavra-passe.':
       'Biometric session expired. Sign in with your password.',
   'Sessão expirou.':

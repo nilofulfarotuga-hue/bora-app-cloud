@@ -16,7 +16,6 @@ import '../../../config/app_spacing.dart';
 import '../../../models/driver_model.dart';
 import '../../../services/driver_location_ping_service.dart';
 import '../../../services/heartbeat_service.dart';
-import '../../../services/notification_service.dart';
 import '../../../services/papeis_de_trabalho.dart';
 import '../../../widgets/caixa_de_papeis.dart';
 import '../../../widgets/ganho_de_hoje_card.dart';
@@ -29,7 +28,6 @@ import '../../../stores/order_store.dart';
 import '../../../stores/tvde_driver_store.dart';
 import '../../../widgets/background_location_disclosure.dart';
 import '../../../widgets/bora_support_sheet.dart';
-import '../../../widgets/tvde/tvde_reservation_offer_card.dart';
 import '../../driver_home_screen.dart';
 import '../../ganhos_screen.dart';
 import '../../../widgets/trocar_de_papel.dart';
@@ -88,15 +86,13 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     // GPS próprio a dar posições, a stream desta home fica suspensa. Ver
     // `_onCorridaGpsChanged`.
     tvdeCorridaControlaGps.addListener(_onCorridaGpsChanged);
-    // [TVDE P0] Push de oferta força reload do store → a tela de oferta aparece
-    // mesmo que o realtime tenha caído (fallback triplo: push → realtime → poll).
-    NotificationService.tvdeOfferReload = _reloadOffer;
-    // [Reserva agendada 2026-08-19] Push de reserva força reload da agenda, e
-    // o botão "A caminho" da notificação dos 10 min cai aqui.
-    NotificationService.tvdeReservationReload = _reloadAgenda;
-    // [Fix 2026-08-20] O gancho do "A caminho" NAO se regista aqui. Estava
-    // preso a este ecra (initState/dispose) e com o ecra de corrida por cima
-    // ficava a null — a navegacao nunca abria. Agora e global, no main.dart.
+    // [Oferta sobreposta 20/09 · C6] Os ganchos `tvdeOfferReload` e
+    // `tvdeReservationReload` JÁ NÃO se registam aqui. Viviam neste
+    // initState/dispose — a mesma cicatriz de 20/08 do "A caminho": presos ao
+    // ciclo de vida de um ecrã, só funcionavam por acidente, porque a home
+    // sobrevive por baixo. Agora são globais, no main.dart, junto do
+    // `tvdeReservationReadyTap`. Este ecrã continua a reagir ao store (build
+    // → _syncNav) e por isso a tela de oferta/corrida abre na mesma.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       // Reflete admin approve/reject pós-login sem relogin (espelha o
@@ -149,12 +145,6 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    if (NotificationService.tvdeOfferReload == _reloadOffer) {
-      NotificationService.tvdeOfferReload = null;
-    }
-    if (NotificationService.tvdeReservationReload == _reloadAgenda) {
-      NotificationService.tvdeReservationReload = null;
-    }
     tvdeCorridaControlaGps.removeListener(_onCorridaGpsChanged);
     _heartbeat.serverAck.removeListener(_onServerAckChanged);
     _heartbeat.stop();
@@ -166,21 +156,7 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     super.dispose();
   }
 
-  /// Recarrega a oferta/corrida do servidor e reavalia a navegação. Ligado ao
-  /// push `new_tvde_ride_offer` (chegada + tap) via NotificationService.
-  void _reloadOffer() {
-    if (!mounted) return;
-    context.read<TvdeDriverStore>().loadCurrent().then((_) {
-      if (mounted) _syncNav();
-    });
-  }
-
   // ══ RESERVA AGENDADA (2026-08-19) ═══════════════════════════════════════
-
-  void _reloadAgenda() {
-    if (!mounted) return;
-    context.read<TvdeDriverStore>().loadAgenda();
-  }
 
   void _openAgenda() {
     if (!mounted) return;
@@ -188,31 +164,6 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
       context,
       MaterialPageRoute(builder: (_) => const TvdeDriverAgendaScreen()),
     );
-  }
-
-  Future<void> _aceitarReserva(String rideId) async {
-    final store = context.read<TvdeDriverStore>();
-    try {
-      await store.acceptReservation(rideId);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Reserva aceite. Fica na tua agenda — avisamos-te '
-            'perto da hora.'),
-      ));
-    } catch (e) {
-      if (!mounted) return;
-      final msg = e.toString().contains('offer_no_longer_valid')
-          ? 'Essa reserva já não está disponível.'
-          : 'Não consegui aceitar a reserva. Tenta outra vez.';
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(msg)));
-    }
-  }
-
-  Future<void> _recusarReserva(String rideId) async {
-    try {
-      await context.read<TvdeDriverStore>().rejectReservation(rideId);
-    } catch (_) {/* a rotação do servidor segue de qualquer forma */}
   }
 
   /// Rede de segurança: enquanto online e sem oferta/corrida, relê a cada 10s.
@@ -299,7 +250,13 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     if (!mounted) return;
     final store = context.read<TvdeDriverStore>();
     final active = store.activeRide;
-    if (active != null && active.isLive && !_activeOpen) {
+    // [Oferta sobreposta 20/09] `TvdeRideActiveScreen.estaAberto`: o cartão
+    // global (ou o botão da notificação) pode ter aberto o ecrã da corrida
+    // antes desta home — nunca se empilha um segundo por cima.
+    if (active != null &&
+        active.isLive &&
+        !_activeOpen &&
+        !TvdeRideActiveScreen.estaAberto) {
       _activeOpen = true;
       Navigator.of(context)
           .push(MaterialPageRoute<void>(
@@ -686,9 +643,6 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     // com Navigator.push. Continuar a animar a câmara de um mapa invisível é
     // trabalho puro no platform channel e roubava frames ao mapa que está à
     // frente. Só segue a câmara quando esta rota é a de cima.
-    // [Reserva agendada] Oferta antecipada pendente para este motorista.
-    final reservationOffer =
-        context.watch<TvdeDriverStore>().reservationOffer;
     final isTopRoute = ModalRoute.of(context)?.isCurrent ?? true;
     if (mePos != null && isTopRoute) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _followCamera(mePos));
@@ -808,25 +762,11 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
                   },
           ),
           if (mePos == null) const _LocatingBanner(),
-          // [Reserva agendada 2026-08-19] Oferta ANTECIPADA de reserva, sobre
-          // o mapa. Não rouba o ecrã como a oferta imediata (que é a corrida
-          // a começar já) — aqui há tempo, o prazo vem do servidor.
-          if (reservationOffer != null)
-            Positioned(
-              left: 16,
-              right: 16,
-              top: 12,
-              child: TvdeReservationOfferCard(
-                // [PADRAO_BORA 3.13 · 05/09] Já não se passa o `busy` GLOBAL
-                // do store: o cartão trava-se sozinho no próprio toque. Este
-                // é o caso mais grave do padrão — a oferta tem contagem
-                // decrescente, e um botão morto uns segundos é a reserva a
-                // expirar sozinha nas mãos do motorista.
-                ride: reservationOffer,
-                onAccept: () => _aceitarReserva(reservationOffer.id),
-                onReject: () => _recusarReserva(reservationOffer.id),
-              ),
-            ),
+          // [Oferta sobreposta 20/09] O cartão da oferta ANTECIPADA de reserva
+          // saiu daqui. Vivia só neste mapa e a 20/09 ficou tapado pelo ecrã
+          // da corrida activa — o Danilo ouviu o toque e não teve onde
+          // aceitar. Agora desenha-se por cima de qualquer ecrã, no
+          // `TvdeOfferOverlayHost` (main.dart), com o mesmo cartão.
           // [Item G] Botão centralizar (paridade com o estafeta) — recentra na
           // posição do motorista e volta ao zoom de navegação.
           if (mePos != null)

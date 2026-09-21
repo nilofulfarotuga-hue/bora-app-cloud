@@ -329,6 +329,12 @@ class _AdminTvdeReservasScreenState extends State<AdminTvdeReservasScreen> {
         ((r['est_fare_cents'] as num?)?.toInt() ?? 0) / 100;
     final motorista = r['driver_name']?.toString();
     final ofertaPara = r['offer_driver_name']?.toString();
+    // [Oferta sobreposta 20/09 · Bloco 5] quanto falta para a oferta em voo
+    // expirar (o servidor devolve `reservation_offer_expires_at`).
+    final expira = DateTime.tryParse(
+        r['reservation_offer_expires_at']?.toString() ?? '');
+    final faltaSeg =
+        expira == null ? null : expira.difference(DateTime.now()).inSeconds;
     final viva = estado != 'cancelada';
     final tentados = (r['reservation_tried_driver_ids'] as List?)?.length ?? 0;
 
@@ -361,7 +367,8 @@ class _AdminTvdeReservasScreenState extends State<AdminTvdeReservasScreen> {
           _kv('Cliente', r['client_name']?.toString() ?? '—'),
           _kv('Motorista',
               motorista ?? (ofertaPara != null
-                  ? 'oferta enviada para $ofertaPara'
+                  ? 'oferta a tocar a $ofertaPara'
+                      '${faltaSeg == null ? '' : faltaSeg > 0 ? ' · expira em ${faltaSeg}s' : ' · expirada, a rodar'}'
                   : '— (nenhum ainda)')),
           _kv('Trajeto',
               '${r['origin_label'] ?? '?'} → ${r['dest_label'] ?? '?'}'),

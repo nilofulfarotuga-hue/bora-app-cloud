@@ -5,6 +5,16 @@
 // v5: alem da OFERTA de corrida (caminho original, intacto), trata
 // kind='stop_added' — aviso de parada adicionada pelo cliente, com o total
 // a cobrar atualizado (decisao Danilo 2026-07-20).
+// v17 (2026-09-20): OFERTA com botoes. A oferta imediata (sem kind) e a
+// 'reservation_offer' passam a levar em `data`: `actions: 'accept,reject'`
+// (o app monta Aceitar/Recusar na propria notificacao), `driverEarn` +
+// `collectCash` (regra de ouro: o numero que o motorista le e o que GANHA;
+// o total do cliente so como lembrete de cobranca, e so em dinheiro) e
+// `offerExpiresAt` (a notificacao vive ate ao prazo). O corpo da oferta
+// imediata deixa de mostrar o total do cliente. Caso real: 20/09, o Danilo a
+// meio de uma corrida, com o Maps por cima, recebeu a oferta da reserva da
+// meia-noite e nao tinha onde aceitar. Nada mais mudou: kinds, ordem, TTL,
+// re-ancoragem do offer_expires_at — tudo como na v16.
 // v16 (2026-09-14): kinds 'queued_added' / 'ride_assigned' / 'ride_reassigned_away'
 // — sobreposição (back-to-back): admin_tvde_reassign_ride. Ramo proprio; nada
 // dos kinds anteriores mudou.
@@ -446,6 +456,8 @@ Deno.serve(async (req) => {
           // A especificacao pede o VALOR a cobrar (ou vazio), nao um
           // booleano — assim o app pode mostrar "cobras EURx" sem contas.
           collectCash: mostraCobranca ? fareEur : '',
+          // v17: a oferta de reserva leva Aceitar/Recusar na notificacao.
+          actions: kind === 'reservation_offer' ? 'accept,reject' : '',
         },
         android: { priority: 'high', ttl },
         apns: {
@@ -479,26 +491,39 @@ Deno.serve(async (req) => {
     return json({ ok: true }, 200)
   }
 
-  // ============ caminho original: OFERTA de corrida (intacto) ============
+  // ============ caminho original: OFERTA de corrida ============
   // Detalhes da corrida para o cartao de oferta.
+  // v17: + ganho do motorista (agreed_driver_earn_cents manda quando existe —
+  // corrida de balcao — senao driver_earn_cents), forma de pagamento e prazo.
   let originLabel = 'Recolha', destLabel = 'Destino', fareEur = '0.00', distanceKm = '0'
+  let earnEur = '0.00', mostraCobranca = false, offerExpiresAt: string | null = null
   try {
     const { data: ride } = await supabase
       .from('tvde_rides')
-      .select('origin_label, dest_label, est_fare_cents, est_distance_km')
+      .select('origin_label, dest_label, est_fare_cents, est_distance_km, driver_earn_cents, agreed_driver_earn_cents, agreed_fare_cents, payment_method, offer_expires_at')
       .eq('id', rideId).maybeSingle()
     if (ride) {
       originLabel = ride.origin_label ?? originLabel
       destLabel   = ride.dest_label ?? destLabel
-      const cents = Number(ride.est_fare_cents ?? 0)
+      const cents = Number(ride.agreed_fare_cents ?? ride.est_fare_cents ?? 0)
       if (Number.isFinite(cents) && cents > 0) fareEur = (cents / 100).toFixed(2)
       const km = Number(ride.est_distance_km ?? 0)
       if (Number.isFinite(km) && km > 0) distanceKm = km.toFixed(1)
+      const earnCents = Number(ride.agreed_driver_earn_cents ?? ride.driver_earn_cents ?? 0)
+      if (Number.isFinite(earnCents) && earnCents > 0) earnEur = (earnCents / 100).toFixed(2)
+      mostraCobranca = (ride.payment_method ?? 'cash') === 'cash' && Number.isFinite(cents) && cents > 0
+      offerExpiresAt = ride.offer_expires_at ?? null
     }
   } catch (_e) { /* mantem fallbacks */ }
 
-  const headsUpBody = `${originLabel} -> ${destLabel} • €${fareEur}` +
-    (distanceKm !== '0' ? ` • ${distanceKm}km` : '')
+  // Regra de ouro do motorista: o numero que ele le e o que GANHA. Sem ganho
+  // conhecido (0) mantem-se a frase antiga, com o total do cliente.
+  const headsUpBody = earnEur !== '0.00'
+    ? `Ganhas €${earnEur} · ${originLabel} -> ${destLabel}` +
+      (distanceKm !== '0' ? ` · ${distanceKm}km` : '') +
+      (mostraCobranca ? ` · cobras €${fareEur} ao cliente` : '')
+    : `${originLabel} -> ${destLabel} • €${fareEur}` +
+      (distanceKm !== '0' ? ` • ${distanceKm}km` : '')
 
   // A1 FIX (turno noite 2026-07-04): DATA-ONLY, identico a notify-driver.
   const message = {
@@ -512,6 +537,11 @@ Deno.serve(async (req) => {
         distanceKm,
         title:      '🚗 Nova corrida!',
         body:       headsUpBody,
+        // v17: botoes na notificacao + o que ele ganha + prazo.
+        actions:        'accept,reject',
+        driverEarn:     earnEur,
+        collectCash:    mostraCobranca ? fareEur : '',
+        offerExpiresAt: offerExpiresAt ?? '',
       },
       android: { priority: 'high', ttl: '60s' },
       apns: {

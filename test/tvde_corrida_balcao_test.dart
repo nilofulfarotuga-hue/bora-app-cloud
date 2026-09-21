@@ -108,11 +108,19 @@ void main() {
       }
     }
 
-    test('tvde_ride_active_screen.dart: também corrige a fila (queued/offer)',
-        () {
+    test('tvde_ride_active_screen.dart: também corrige a fila (queued)', () {
       final fonte = File('lib/screens/driver/tvde/tvde_ride_active_screen.dart')
           .readAsStringSync();
       expect(fonte, contains('queued.netDriverEarnCents'));
+    });
+
+    // [Oferta sobreposta 20/09] A faixa da oferta saiu do ecrã da corrida e
+    // passou a ser o cartão global (por cima de qualquer ecrã). A regra é a
+    // mesma — o valor combinado, nunca recalculado — só mudou de casa.
+    test('tvde_offer_overlay_host.dart: a oferta sobreposta usa o combinado',
+        () {
+      final fonte = File('lib/widgets/tvde/tvde_offer_overlay_host.dart')
+          .readAsStringSync();
       expect(fonte, contains('offer.netDriverEarnCents'));
     });
   });

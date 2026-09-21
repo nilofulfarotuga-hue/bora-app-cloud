@@ -1,10 +1,10 @@
 # Relatório — contas claras, fecho de 21/09/2026
 
 > Missão `contas-claras-20260921` · Claude Code, Opus (a sessão continuou na mesma janela; não há
-> como abrir uma janela nova a partir daqui — o motor FABLE não foi verificável) · 08h40–10h30 UTC.
+> como abrir uma janela nova a partir daqui — o motor FABLE não foi verificável) · 08h40–10h40 UTC.
 > Regra do Danilo aplicada em tudo: **digo o que mexi e porquê; o que encontrei fora do scope está
 > reportado, não corrigido.** Provas em `.claude/.ai/provas/contas-claras-20260921/` e linhas
-> `e2e_log` 2117–2125 (run `contas-claras-20260921`).
+> `e2e_log` 2117–2127 (run `contas-claras-20260921`).
 
 ## Em duas frases
 
@@ -12,8 +12,8 @@ O painel do Danilo passou a mostrar o acerto de cada estafeta com as corridas TV
 reabrir um acerto só com motivo escrito (semanas antigas travadas) e mostra os avisos novos do fecho;
 o extrato da app do estafeta mostra agora **as mesmas parcelas do recibo por email, com os mesmos
 nomes e pela mesma ordem**, vindas de uma função só — provado com o Valdemir ao cêntimo (17,00 = 17,00).
-O repo ficou igual ao servidor (26 funções comparadas corpo a corpo) e a publicação seguiu pelo CI,
-que só constrói depois do autoteste dos 3 perfis ficar verde.
+O repo ficou igual ao servidor (26 funções comparadas corpo a corpo) e a publicação passou pelo CI
+com o autoteste dos 3 perfis verde: **versionCode 612** no Play (alpha) e web.
 
 ## Bloco a bloco — o que ficou feito, a prova, o que falhou
 

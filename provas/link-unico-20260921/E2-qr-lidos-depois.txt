@@ -1,0 +1,33 @@
+Leitura dos QR das pecas a 2026-09-21 DEPOIS de refazer (bora_qr.ler_qr, OpenCV).
+
+autocolantes-bora\A4-clara-montra-faixa.jpg                https://boraguarda.com/baixar?de=qr-flyer
+autocolantes-bora\A4-clara-montra-faixa.png                https://boraguarda.com/baixar?de=qr-flyer
+autocolantes-bora\A4-clara-redondos.jpg                    https://boraguarda.com/baixar?de=qr-flyer
+autocolantes-bora\A4-clara-redondos.png                    https://boraguarda.com/baixar?de=qr-flyer
+autocolantes-bora\A4-escura-montra-faixa.jpg               https://boraguarda.com/baixar?de=qr-flyer
+autocolantes-bora\A4-escura-montra-faixa.png               https://boraguarda.com/baixar?de=qr-flyer
+autocolantes-bora\A4-escura-redondos.jpg                   https://boraguarda.com/baixar?de=qr-flyer
+autocolantes-bora\A4-escura-redondos.png                   https://boraguarda.com/baixar?de=qr-flyer
+autocolantes-bora\autocolantes-as-duas-familias.jpg        https://play.google.com/store/apps/details?id=pt.boraapp.bora   <<< VELHO
+autocolantes-bora\clara\bora-05cm-copo.png                 https://boraguarda.com/baixar?de=qr-flyer
+autocolantes-bora\clara\bora-08cm-balcao.png               https://boraguarda.com/baixar?de=qr-flyer
+autocolantes-bora\clara\bora-10x15cm-montra.png            https://boraguarda.com/baixar?de=qr-flyer
+autocolantes-bora\clara\bora-12cm-porta.png                https://boraguarda.com/baixar?de=qr-flyer
+autocolantes-bora\clara\bora-20x5cm-faixa.png              https://boraguarda.com/baixar?de=qr-flyer
+autocolantes-bora\escura\bora-05cm-copo.png                https://boraguarda.com/baixar?de=qr-flyer
+autocolantes-bora\escura\bora-08cm-balcao.png              https://boraguarda.com/baixar?de=qr-flyer
+autocolantes-bora\escura\bora-10x15cm-montra.png           https://boraguarda.com/baixar?de=qr-flyer
+autocolantes-bora\escura\bora-12cm-porta.png               https://boraguarda.com/baixar?de=qr-flyer
+autocolantes-bora\escura\bora-20x5cm-faixa.png             https://boraguarda.com/baixar?de=qr-flyer
+cartaz-bora\cartaz-bora-A3-grafica.png                     https://boraguarda.com/baixar?de=qr-flyer
+cartaz-bora\cartaz-bora-whatsapp.jpg                       https://boraguarda.com/baixar?de=qr-flyer
+cartaz-bora\lado-a-lado-com-o-goola.jpg                    (sem QR lido nesta reducao)
+goola-material\cartaz-goola-horizontal-whatsapp.jpg        https://boraguarda.com/baixar?de=qr-flyer
+goola-material\cartaz-goola-horizontal.png                 https://boraguarda.com/baixar?de=qr-flyer
+goola-material\cartaz-goola-vertical-whatsapp.jpg          https://boraguarda.com/baixar?de=qr-flyer
+goola-material\cartaz-goola-vertical.png                   https://boraguarda.com/baixar?de=qr-flyer
+C:\Users\danil\Downloads\flyer-bora-app-A4-grafica.png     https://boraguarda.com/baixar?de=qr-flyer
+C:\Users\danil\Downloads\flyer-bora-app-whatsapp.jpg       https://boraguarda.com/baixar?de=qr-flyer
+
+---
+ficheiros: 28 · com QR velho: 1

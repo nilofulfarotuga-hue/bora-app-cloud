@@ -95,9 +95,9 @@ jobs:
     # cada compilacao passou a demorar o DOBRO (config 7,5 vs 2,8 min; simulador
     # 13,3 vs 6,1; varredura 14,9 vs 7,1). A varredura PASSOU aos 59 min, e o tecto
     # de 75 matou a corrida a meio da gravacao (que e filme, continue-on-error, tecto
-    # proprio de 35). Pior caso agora: ~61 + 35 = 96 < 120. Minutos macOS = 0 EUR
+    # proprio de 35). Pior caso: ~61 + 55 (2 tentativas) + 35 = 151 -> 150. Minutos macOS = 0 EUR
     # (repo publico).
-    timeout-minutes: 120
+    timeout-minutes: 150
 
     steps:
       - uses: actions/checkout@v4
@@ -311,7 +311,7 @@ jobs:
 
       - name: AUTOTESTE — varredura de ecras (portao, sem escape)
         id: varredura
-        timeout-minutes: 30
+        timeout-minutes: 55
         run: |
           mkdir -p artefactos/varredura
           xcrun simctl install "$UDID" build/ios/iphonesimulator/Runner.app || true
@@ -322,8 +322,30 @@ jobs:
           for s in notifications location location-always; do
             xcrun simctl privacy "$UDID" grant "$s" pt.boraapp.bora || true
           done
-          flutter drive             --driver=test_driver/capturas_driver.dart             --target=integration_test/varredura_ecras_test.dart             --use-application-binary=build/ios/iphonesimulator/Runner.app             -d "$UDID"             --dart-define-from-file=.dart_defines 2>&1 | tee artefactos/varredura/log.txt
-          test "${PIPESTATUS[0]}" -eq 0
+          # DUAS TENTATIVAS com tecto de 25 min cada (2026-09-21, corrida 130 /
+          # 35651657496): o `flutter drive` instalou e lancou a app, mas nunca
+          # imprimiu "Connecting to Flutter application" -- ficou mudo 30 min sem
+          # uma unica linha [varredura], com a app viva no simulador (telemetria do
+          # Firebase a correr). Na 129, mesmo codigo, o mesmo passo passou em 17 min.
+          # E' um encravamento aleatorio do arranque do driver, nao do teste. So' se
+          # repete quando o teste NEM CHEGOU A CORRER (sem linhas [varredura]); se
+          # correu e reprovou, e' falha real e fica. `perl alarm` mata a tentativa
+          # encravada aos 25 min (o `timeout` do GNU nao existe de certeza no macOS).
+          rc=1
+          for tentativa in 1 2; do
+            echo "[varredura] tentativa $tentativa/2 ($(date -u +%H:%M:%SZ))"
+            xcrun simctl terminate "$UDID" pt.boraapp.bora 2>/dev/null || true
+            perl -e 'alarm 1500; exec @ARGV' flutter drive --driver=test_driver/capturas_driver.dart --target=integration_test/varredura_ecras_test.dart --use-application-binary=build/ios/iphonesimulator/Runner.app -d "$UDID" --dart-define-from-file=.dart_defines 2>&1 | tee -a artefactos/varredura/log.txt
+            rc=${PIPESTATUS[0]}
+            [ "$rc" -eq 0 ] && break
+            echo "[varredura] tentativa $tentativa terminou com rc=$rc"
+            if grep -aq 'flutter: \[varredura\]' artefactos/varredura/log.txt; then
+              echo "[varredura] o teste chegou a correr e reprovou -- falha real, nao se repete"
+              break
+            fi
+            pkill -f flutter_tools.snapshot 2>/dev/null || true
+          done
+          test "$rc" -eq 0
 
       - name: Diagnostico se a varredura morreu
         if: failure() && (steps.varredura.conclusion == 'failure' || steps.compilar_varredura.conclusion == 'failure')

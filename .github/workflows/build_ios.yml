@@ -90,7 +90,14 @@ jobs:
     # com o passo das capturas a meio. Nao falhou -- estourou o tecto. O
     # percurso cresceu quando a Apple pediu que a gravacao mostrasse tambem a
     # conversa, a denuncia, o bloqueio e o caminho de apagar conta.
-    timeout-minutes: 75
+    # 120 e nao 75 (2026-09-21, corrida 129 / 35643301436): com o Firebase iOS 12
+    # (firebase_core 4.15 / firebase_messaging 16.7 -- o conserto do push no iPhone)
+    # cada compilacao passou a demorar o DOBRO (config 7,5 vs 2,8 min; simulador
+    # 13,3 vs 6,1; varredura 14,9 vs 7,1). A varredura PASSOU aos 59 min, e o tecto
+    # de 75 matou a corrida a meio da gravacao (que e filme, continue-on-error, tecto
+    # proprio de 35). Pior caso agora: ~61 + 35 = 96 < 120. Minutos macOS = 0 EUR
+    # (repo publico).
+    timeout-minutes: 120
 
     steps:
       - uses: actions/checkout@v4

@@ -1,5 +1,11 @@
 // @ts-nocheck
 // supabase/functions/notify-driver/index.ts
+// v41 2026-09-21 — APNs: 'apns-push-type' passa de 'background' para 'alert'.
+//     'background' e' push SILENCIOSO para a Apple (sem banner, sem som, e exige
+//     prioridade 5) — mesmo com token, o iPhone nunca tocava com a oferta.
+//     Publicado pela Claude.ai por MCP a partir do commit 277c65e8 do repo
+//     publico (a chave Supabase do PC estava expirada). Nada mais mudou face
+//     ao v40: android, webpush, data, guardas e limpeza de tokens ficam iguais.
 // v40 2026-09-17 (missão estafeta-web-2026-09-16 · BLOCO 3.4) — a OFERTA vai a
 //     TODOS os aparelhos do estafeta (app Android/iPhone + navegador/PWA), não só
 //     ao token mais recente. Com um token WEB novo, o v39 deixava de tocar na app.
@@ -8,11 +14,6 @@
 //     outros. Tudo o resto (guarda de oferta stale/expirada, identidade legada
 //     id≠user_id, papel `delivery`) é o v39 tal e qual.
 // v39 2026-09-12 — stale-offer guard + legacy driver identity fix.
-//
-// ATENÇÃO: o repo esteve ATRÁS do ar (o ficheiro aqui era anterior ao v39). A
-// base deste v40 é o v39 lido do Supabase a 17/09 (get_edge_function), não o
-// que estava no repo. Cópia literal do v39 em
-// .claude/.ai/provas/estafeta-web-2026-09-16/backups/notify-driver.v39.deployed.ts
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
@@ -31,7 +32,7 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
-  console.log('[notify-driver v40] INVOKED firebase=', !!firebaseProjectId)
+  console.log('[notify-driver v41] INVOKED firebase=', !!firebaseProjectId)
   if (!firebaseProjectId || !firebaseServiceAcct) return json({ ok:false, reason:'firebase_not_configured' })
 
   let driverId = '', orderId = '', vendorName = 'Pedido', total = 0
@@ -57,12 +58,12 @@ Deno.serve(async (req) => {
     .maybeSingle()
   if (orderErr) return json({ ok:false, reason:'order_lookup_error' })
   if (!order || order.status !== 'callingDriver' || String(order.current_driver_offer_id ?? '') !== driverId) {
-    console.log(`[notify-driver v40] stale offer skipped order=${orderId} driver=${driverId}`)
+    console.log(`[notify-driver v41] stale offer skipped order=${orderId} driver=${driverId}`)
     return json({ ok:false, reason:'stale_offer' })
   }
   const expiresAtMs = order.driver_offer_expires_at ? Date.parse(order.driver_offer_expires_at) : 0
   if (!expiresAtMs || expiresAtMs <= Date.now()) {
-    console.log(`[notify-driver v40] expired offer skipped order=${orderId} driver=${driverId}`)
+    console.log(`[notify-driver v41] expired offer skipped order=${orderId} driver=${driverId}`)
     return json({ ok:false, reason:'expired_offer' })
   }
 
@@ -159,7 +160,7 @@ Deno.serve(async (req) => {
     const body = await res.json().catch(() => ({}))
     if (!res.ok) {
       const errorCode = body?.error?.details?.[0]?.errorCode ?? body?.error?.status ?? ''
-      console.error(`[notify-driver v40] FCM ${res.status} ${t.source}${isWeb ? ' (web)' : ''}: ${JSON.stringify(body).slice(0,300)}`)
+      console.error(`[notify-driver v41] FCM ${res.status} ${t.source}${isWeb ? ' (web)' : ''}: ${JSON.stringify(body).slice(0,300)}`)
       let cleaned = false
       if (errorCode === 'UNREGISTERED' || errorCode === 'INVALID_ARGUMENT') {
         if (t.source === 'driver_push_tokens' && t.rowId) {
@@ -177,7 +178,7 @@ Deno.serve(async (req) => {
 
   const flat = results.map((r) => r.status === 'fulfilled' ? r.value : { ok:false, error:String(r.reason) })
   const sent = flat.filter((r) => r.ok).length
-  console.log(`[notify-driver v40] order=${orderId} driver=${driverId} tokens=${flat.length} sent=${sent} expires=${order.driver_offer_expires_at}`)
+  console.log(`[notify-driver v41] order=${orderId} driver=${driverId} tokens=${flat.length} sent=${sent} expires=${order.driver_offer_expires_at}`)
   if (sent === 0) return json({ ok:false, reason:'fcm_error', detail:flat })
   return json({ ok:true, tokens:flat.length, sent, detail:flat })
 })

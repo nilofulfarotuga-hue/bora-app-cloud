@@ -247,9 +247,12 @@ Deno.serve(async (req) => {
           body:  `A corrida ${originLabel} -> ${destLabel} foi cancelada. Nao precisas de ir.`,
         },
         android: { priority: 'high', ttl: '600s' },
+        // [iPhone 2026-09-21] 'alert' + som + texto: 'background' e' push SILENCIOSO
+        // para a Apple (sem banner, sem som; prioridade obrigatoria 5) — com token,
+        // o iPhone nunca tocava. content-available fica para acordar a app tambem.
         apns: {
-          headers: { 'apns-priority': '10', 'apns-push-type': 'background' },
-          payload: { aps: { 'content-available': 1, 'interruption-level': 'time-sensitive' } },
+          headers: { 'apns-priority': '10', 'apns-push-type': 'alert' },
+          payload: { aps: { alert: { title: 'Corrida cancelada', body: `A corrida ${originLabel} -> ${destLabel} foi cancelada. Nao precisas de ir.` }, sound: 'default', 'content-available': 1, 'interruption-level': 'time-sensitive' } },
         },
       },
     }
@@ -330,9 +333,12 @@ Deno.serve(async (req) => {
           collectCash: mostraCobranca ? fareEur : '',
         },
         android: { priority: 'high', ttl: '600s' },
+        // [iPhone 2026-09-21] 'alert' + som + texto: 'background' e' push SILENCIOSO
+        // para a Apple (sem banner, sem som; prioridade obrigatoria 5) — com token,
+        // o iPhone nunca tocava. content-available fica para acordar a app tambem.
         apns: {
-          headers: { 'apns-priority': '10', 'apns-push-type': 'background' },
-          payload: { aps: { 'content-available': 1, sound: 'bora_alert.wav', 'interruption-level': 'time-sensitive' } },
+          headers: { 'apns-priority': '10', 'apns-push-type': 'alert' },
+          payload: { aps: { alert: { title, body }, 'content-available': 1, sound: 'bora_alert.wav', 'interruption-level': 'time-sensitive' } },
         },
       },
     }
@@ -460,9 +466,12 @@ Deno.serve(async (req) => {
           actions: kind === 'reservation_offer' ? 'accept,reject' : '',
         },
         android: { priority: 'high', ttl },
+        // [iPhone 2026-09-21] 'alert' + som + texto: 'background' e' push SILENCIOSO
+        // para a Apple (sem banner, sem som; prioridade obrigatoria 5) — com token,
+        // o iPhone nunca tocava. content-available fica para acordar a app tambem.
         apns: {
-          headers: { 'apns-priority': '10', 'apns-push-type': 'background' },
-          payload: { aps: { 'content-available': 1, sound: 'bora_alert.wav', 'interruption-level': 'time-sensitive' } },
+          headers: { 'apns-priority': '10', 'apns-push-type': 'alert' },
+          payload: { aps: { alert: { title, body }, 'content-available': 1, sound: 'bora_alert.wav', 'interruption-level': 'time-sensitive' } },
         },
       },
     }
@@ -544,9 +553,12 @@ Deno.serve(async (req) => {
         offerExpiresAt: offerExpiresAt ?? '',
       },
       android: { priority: 'high', ttl: '60s' },
+      // [iPhone 2026-09-21] 'alert' + som + texto: 'background' e' push SILENCIOSO
+      // para a Apple (sem banner, sem som; prioridade obrigatoria 5) — com token,
+      // o iPhone nunca tocava. content-available fica para acordar a app tambem.
       apns: {
-        headers: { 'apns-priority': '10', 'apns-push-type': 'background' },
-        payload: { aps: { 'content-available': 1, sound: 'bora_alert.wav', 'interruption-level': 'time-sensitive' } },
+        headers: { 'apns-priority': '10', 'apns-push-type': 'alert' },
+        payload: { aps: { alert: { title: '🚗 Nova corrida!', body: headsUpBody }, 'content-available': 1, sound: 'bora_alert.wav', 'interruption-level': 'time-sensitive' } },
       },
     },
   }

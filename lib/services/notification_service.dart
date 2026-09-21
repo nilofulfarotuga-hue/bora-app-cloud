@@ -24,6 +24,7 @@ import '../models/order_model.dart';
 import '../screens/chat_screen.dart';
 import '../screens/notifications_screen.dart';
 import '../screens/partner/services/partner_agenda_screen.dart';
+import 'fcm_token_helper.dart';
 import 'offer_presentation_gate.dart';
 import 'push_token_service.dart';
 import 'sound_service.dart';
@@ -1652,7 +1653,15 @@ class NotificationService {
     ];
     for (var attempt = 0; attempt <= delays.length; attempt++) {
       try {
-        final token = await messaging.getToken();
+        // [iPhone 2026-09-21] No iOS espera primeiro pelo token APNs (60 s na
+        // 1.ª tentativa, 10 s nas seguintes); antes disso getToken() lança
+        // apns-token-not-set e nunca havia token. Android: getToken() igual.
+        final token = await FcmTokenHelper.getToken(
+          messaging,
+          maxEsperaApns: attempt == 0
+              ? const Duration(seconds: 60)
+              : const Duration(seconds: 10),
+        );
         if (token != null && token.isNotEmpty) {
           _fcmHealth = 'ok';
           return token;

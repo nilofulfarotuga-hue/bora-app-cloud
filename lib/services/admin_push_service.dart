@@ -23,6 +23,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'auth_admin_service.dart';
+import 'fcm_token_helper.dart';
 import 'notification_service.dart';
 
 class AdminPushService {
@@ -46,7 +47,15 @@ class AdminPushService {
       // Reuse the token already obtained by NotificationService in main()
       // when possible — avoids a second permission prompt / network round-trip.
       String? token = NotificationService.instance.fcmToken;
-      token ??= await messaging.getToken();
+      // [iPhone 2026-09-21] Era daqui que saíam os 3 crashes
+      // `apns-token-not-set` (rota /admin, iPhone, 20/09): getToken() sem
+      // esperar pelo APNs e sem try/catch. O helper espera no iOS; o
+      // try/catch garante que um aparelho sem push nunca derruba o painel.
+      try {
+        token ??= await FcmTokenHelper.getToken(messaging);
+      } catch (e) {
+        debugPrint('[AdminPushService] getToken falhou: $e');
+      }
       if (token == null || token.isEmpty) {
         debugPrint('[AdminPushService] no FCM token available — skipping');
         return;

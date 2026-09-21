@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Mensagem de chat TVDE (tabela dedicada `tvde_messages`, scoping por corrida).
@@ -104,10 +105,18 @@ class TvdeChatStore extends ChangeNotifier {
         if (status == RealtimeSubscribeStatus.channelError ||
             status == RealtimeSubscribeStatus.closed ||
             status == RealtimeSubscribeStatus.timedOut) {
+          // [Paridade 2026-09-21] Fecho pedido por nós (unlisten/dispose):
+          // o canal já saiu de _channels e ninguém ouve esta corrida —
+          // não há erro a mostrar nem ninguém a avisar. Era este `closed`,
+          // disparado de forma SÍNCRONA pelo unsubscribe() dentro do
+          // dispose() de um widget, que chamava notifyListeners a meio do
+          // build ("setState() or markNeedsBuild() called during build",
+          // 5× no build 609, último 20/09).
+          if (!_channels.containsKey(rideId)) return;
           _syncErrors[rideId] = 'A conversa está a tentar voltar a ligar.';
           debugPrint(
               '[TvdeChatStore] channel($rideId) status=$status error=$error');
-          notifyListeners();
+          _notifySafe();
         }
       });
     _channels[rideId] = channel;
@@ -152,6 +161,23 @@ class TvdeChatStore extends ChangeNotifier {
     }
   }
 
+  /// notifyListeners que nunca cai a meio de um build: se o framework está
+  /// a construir (ex.: chamados a partir de um dispose()), adia para depois
+  /// do frame. Fora disso é o notifyListeners de sempre.
+  void _notifySafe() {
+    final fase = SchedulerBinding.instance.schedulerPhase;
+    if (fase == SchedulerPhase.idle ||
+        fase == SchedulerPhase.postFrameCallbacks) {
+      notifyListeners();
+      return;
+    }
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (!_disposed) notifyListeners();
+    });
+  }
+
+  bool _disposed = false;
+
   void unlisten(String rideId) {
     final n = (_refCount[rideId] ?? 1) - 1;
     if (n > 0) {
@@ -167,10 +193,14 @@ class TvdeChatStore extends ChangeNotifier {
 
   @override
   void dispose() {
-    for (final channel in _channels.values) {
+    _disposed = true;
+    // Esvazia PRIMEIRO: o unsubscribe() dispara `closed` de forma síncrona e
+    // o callback de estado só avisa quem ainda estiver em _channels.
+    final canais = _channels.values.toList();
+    _channels.clear();
+    for (final channel in canais) {
       channel.unsubscribe();
     }
-    _channels.clear();
     _refCount.clear();
     _syncErrors.clear();
     _revisions.clear();

@@ -10,6 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../dispatch/driver_capacity_service.dart';
 import '../models/driver_model.dart';
 import '../models/order_model.dart';
+import '../services/fcm_token_helper.dart';
 import '../services/floating_bubble_service.dart';
 import '../services/foreground_service.dart';
 import '../services/offer_presentation_gate.dart';
@@ -111,7 +112,10 @@ class DriverStore extends ChangeNotifier {
       // em drivers.fcm_token falhe por RLS (driver não aprovado).
       PushTokenService.registerForRole('driver').ignore();
 
-      final token = await messaging.getToken(
+      // [iPhone 2026-09-21] No iOS o helper espera pelo token APNs antes de
+      // pedir o FCM (senão lança apns-token-not-set). Android/web: igual.
+      final token = await FcmTokenHelper.getToken(
+        messaging,
         // Web: o FCM só dá token com a chave VAPID do projecto Firebase
         // (lida de web/firebase-config.js, a mesma fonte do service worker).
         vapidKey: kIsWeb ? WebPresence.instance.firebaseVapidKey : null,

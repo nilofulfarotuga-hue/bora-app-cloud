@@ -215,6 +215,10 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       try {
         addr = await LocationService.reverseGeocode(loc, googleApiKey);
       } catch (_) {}
+      // [Paridade 2026-09-21] Segundo `await` sem `mounted`: quem saía do
+      // ecrã enquanto o geocoding respondia apanhava "Null check operator"
+      // no setState (build 608, 20/09; já tinha acontecido na 496).
+      if (!mounted) return;
       setState(() {
         _pickup = loc;
         _pickupLabel = addr ?? 'Localização atual';

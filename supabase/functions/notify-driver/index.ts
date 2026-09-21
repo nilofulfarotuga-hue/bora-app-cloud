@@ -131,8 +131,11 @@ Deno.serve(async (req) => {
             default_sound:true, default_vibrate_timings:true, visibility:'PUBLIC',
           },
         },
+        // [iPhone 2026-09-21] 'alert' + som + texto: 'background' e' push SILENCIOSO
+        // para a Apple (sem banner, sem som; prioridade obrigatoria 5) — com token,
+        // o iPhone nunca tocava. content-available fica para acordar a app tambem.
         apns: {
-          headers: { 'apns-priority':'10', 'apns-push-type':'background', 'apns-expiration': String(Math.floor(Date.now()/1000)+25) },
+          headers: { 'apns-priority':'10', 'apns-push-type':'alert', 'apns-expiration': String(Math.floor(Date.now()/1000)+25) },
           payload: { aps: { 'content-available':1, sound:'bora_alert.wav', 'interruption-level':'time-sensitive' } },
         },
         // v40 — navegador/PWA: o SDK web desenha a notificação com estes campos e

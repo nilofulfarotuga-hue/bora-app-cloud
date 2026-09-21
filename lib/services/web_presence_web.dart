@@ -119,6 +119,27 @@ class _BrowserPresence implements WebPresence {
   }
 
   @override
+  String? get userAgent {
+    try {
+      final ua = html.window.navigator.userAgent.trim();
+      return ua.isEmpty ? null : ua;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  String? get buildCommit {
+    try {
+      final v = js.context['boraBuildCommit'];
+      if (v is! String || v.isEmpty || v.startsWith('__BORA')) return null;
+      return v;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
   String? get firebaseVapidKey => firebaseConfig?['vapidKey'];
 
   @override

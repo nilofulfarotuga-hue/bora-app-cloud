@@ -188,5 +188,35 @@ void main() {
       expect(release.contains('BoraSecrets.xcconfig'), isTrue,
           reason: 'O IPA de release fica sem as chaves que o Info.plist pede.');
     });
+
+    test('o som dos avisos (bora_alert.wav) vai DENTRO da app iOS', () {
+      // Paridade 3 plataformas (2026-09-21): as Edge Functions mandam
+      // aps.sound = 'bora_alert.wav'. O iOS so' toca um som proprio se o
+      // ficheiro estiver na raiz do bundle; caso contrario cai no som por
+      // defeito e o iPhone deixa de tocar "como o Android". A mesma regra do
+      // GoogleService-Info.plist: existir no disco nao chega, tem de estar
+      // referenciado na fase Resources do alvo Runner.
+      expect(File('ios/Runner/bora_alert.wav').existsSync(), isTrue,
+          reason: 'ios/Runner/bora_alert.wav nao existe.');
+      final pbx = File('ios/Runner.xcodeproj/project.pbxproj').readAsStringSync();
+      expect(pbx.contains('bora_alert.wav in Resources'), isTrue,
+          reason: 'bora_alert.wav nao esta na fase Resources do alvo Runner.');
+    });
+
+    test('o iOS responde ao canal nativo de diagnostico do logger de crash', () {
+      // Paridade 3 plataformas (2026-09-21): main.dart pede
+      // getDeviceDiagnostics por `pt.boraapp.bora/native` para preencher
+      // app_version/device_model em debug_crash_logs. A MainActivity.kt
+      // responde no Android; no iOS e' o AppDelegate.swift. Sem isto, 223
+      // crashes de iPhone chegaram a base sem versao nem modelo.
+      final appDelegate = File('ios/Runner/AppDelegate.swift').readAsStringSync();
+      expect(appDelegate.contains('pt.boraapp.bora/native'), isTrue,
+          reason: 'AppDelegate.swift nao abre o canal pt.boraapp.bora/native.');
+      expect(appDelegate.contains('getDeviceDiagnostics'), isTrue,
+          reason: 'AppDelegate.swift nao responde a getDeviceDiagnostics.');
+      final main = File('lib/main.dart').readAsStringSync();
+      expect(main.contains("Platform.isAndroid ? 'android' : 'ios'"), isFalse,
+          reason: 'O logger de crash voltou a classificar a web como ios.');
+    });
   });
 }

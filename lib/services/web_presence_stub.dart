@@ -49,4 +49,8 @@ class _NativePresence implements WebPresence {
   bool get iosBannerDismissed => false;
   @override
   void hideNativeIosBanner({bool remember = false}) {}
+  @override
+  String? get userAgent => null;
+  @override
+  String? get buildCommit => null;
 }

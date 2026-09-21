@@ -1122,6 +1122,13 @@ class _BottomPanelState extends State<_BottomPanel> {
     final controller = TextEditingController();
     final formKey = GlobalKey<FormState>();
     String? errorText;
+    // [Paridade 2026-09-21] O OrderStore lê-se AQUI, antes de o diálogo
+    // abrir. Dentro do botão "Confirmar" usava-se `context.read` — o
+    // `context` deste State — e, quando o painel era reconstruído/desmontado
+    // com o diálogo aberto (o Realtime muda o pedido debaixo dos pés),
+    // `State.context` lançava "Null check operator used on a null value"
+    // (15× em debug_crash_logs, build 602, último 11/09).
+    final orderStore = context.read<OrderStore>();
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -1178,9 +1185,8 @@ class _BottomPanelState extends State<_BottomPanel> {
                     }
                     // P6 (2026-08-17) — o SERVIDOR valida o PIN e fecha a
                     // entrega. A app envia; nunca decide localmente.
-                    final r = await context
-                        .read<OrderStore>()
-                        .finishOrderWithPin(order, entered);
+                    final r =
+                        await orderStore.finishOrderWithPin(order, entered);
                     if (r.ok) {
                       if (dialogContext.mounted) {
                         Navigator.of(dialogContext).pop(true);

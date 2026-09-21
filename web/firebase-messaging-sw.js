@@ -8,8 +8,11 @@
 // exige mesmo que cada push mostre uma notificação, senão retira a permissão.
 //
 // A config vem de firebase-config.js (única fonte, partilhada com a app).
-importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js');
+// [Paridade 2026-09-21] 12.19.0 = a versão do JS SDK que o firebase_core_web
+// 3.12.0 (par do firebase_core 4.15 / firebase_messaging 16.7) carrega na
+// app. O service worker e a app têm de correr o MESMO SDK.
+importScripts('https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/12.19.0/firebase-messaging-compat.js');
 importScripts('firebase-config.js');
 
 var cfg = self.boraFirebaseConfig || {};

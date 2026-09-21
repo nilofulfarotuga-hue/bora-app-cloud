@@ -138,9 +138,12 @@ Deno.serve(async (req) => {
           conversation_type: String(conversationType),
         },
         android: { priority: 'high', ttl: '60s' },
+        // [iPhone 2026-09-21] 'alert' + som + texto: 'background' e' push SILENCIOSO
+        // para a Apple (sem banner, sem som; prioridade obrigatoria 5) — com token,
+        // o iPhone nunca tocava. content-available fica para acordar a app tambem.
         apns: {
-          headers: { 'apns-priority': '10', 'apns-push-type': 'background' },
-          payload: { aps: { 'content-available': 1, sound: 'bora_alert.wav', 'interruption-level': 'time-sensitive' } },
+          headers: { 'apns-priority': '10', 'apns-push-type': 'alert' },
+          payload: { aps: { alert: { title: String(senderName), body: String(body) }, 'content-available': 1, sound: 'bora_alert.wav', 'interruption-level': 'time-sensitive' } },
         },
       },
     }

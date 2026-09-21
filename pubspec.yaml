@@ -47,8 +47,8 @@ dependencies:
   fl_chart: ^0.69.0
   # google_maps: ^8.2.0  # removed — web-only (depends on package:web), breaks Android kernel snapshot
   # js: ^0.6.7            # removed — discontinued, web-only, breaks Android kernel snapshot
-  firebase_core: ^3.0.0
-  firebase_messaging: ^15.0.0
+  firebase_core: ^4.15.0
+  firebase_messaging: ^16.7.0
   image_picker: ^1.1.2
   image: ^4.5.4
   # 2026-05-14 perf: cache de imagens em disco (Image.network re-download a cada

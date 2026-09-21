@@ -10,6 +10,11 @@ on:
     paths-ignore:
       - "**.md"
       - ".claude/**"
+      # Paridade 3 plataformas (2026-09-21): a MESMA lista do build_web_deploy.yml.
+      # Antes o web ignorava docs/** e o Android nao — um push so' de docs/
+      # gastava um versionCode e uma release no Play sem o site acompanhar.
+      # docs/ nao entra na app (nao esta em assets nem e' lido pelo codigo).
+      - "docs/**"
   workflow_dispatch:
 
 # Evita corridas em paralelo da mesma ref (a 2ª espera/cancela a 1ª).

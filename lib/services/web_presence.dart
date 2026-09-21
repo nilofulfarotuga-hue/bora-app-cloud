@@ -66,4 +66,14 @@ abstract class WebPresence {
   bool get iosBannerDismissed;
 
   void hideNativeIosBanner({bool remember = false});
+
+  /// [Paridade 2026-09-21] Para o logger de crash: `navigator.userAgent`
+  /// (browser + sistema) ou null fora do navegador.
+  String? get userAgent;
+
+  /// [Paridade 2026-09-21] O commit que o CI carimbou no index.html
+  /// (`__BORA_COMMIT__` → `window.boraBuildCommit`). Null num build local
+  /// sem carimbo e fora do navegador. É a "versão" da web — a única que
+  /// existe: a web não tem versionCode.
+  String? get buildCommit;
 }

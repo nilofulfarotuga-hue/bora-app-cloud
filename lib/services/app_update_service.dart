@@ -11,9 +11,23 @@
 // Regras: atrasado → diálogo simpático dispensável ("Agora não" = volta no
 // próximo arranque); abaixo do mínimo → ecrã de bloqueio suave (só atualizar);
 // última versão → nunca incomoda; erro de rede → silêncio absoluto.
+//
+// [Paridade 3 plataformas, 2026-09-21] O gate passou a saber em que
+// plataforma está:
+//   • Android — as chaves de sempre (app_latest_version_code / _min_...),
+//     e o botão abre a Play Store. Nada mudou aqui.
+//   • iPhone — o contador do iOS é OUTRO (CFBundleVersion = número da corrida
+//     do build_ios.yml; ia em 115 quando o Android ia em 614). Por isso lê as
+//     chaves `app_latest_version_code_ios` / `app_min_supported_version_code_ios`
+//     e o botão abre a App Store. Antes disto o gate comparava o número do
+//     iPhone com o do Android e o botão mandava o iPhone para a Play Store —
+//     estava inerte só porque o CI do iOS não injectava BORA_VERSION_CODE.
+//   • Web — sai logo: a web actualiza-se sozinha (versao.json + recarga no
+//     index.html) e não tem loja nenhuma para abrir.
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -22,8 +36,20 @@ class AppUpdateService {
   AppUpdateService._();
 
   /// versionCode do build instalado — o CI injeta; local fica 0 (dev).
+  /// No iOS é o CFBundleVersion (número da corrida do build_ios.yml).
   static const int installedVersionCode =
       int.fromEnvironment('BORA_VERSION_CODE');
+
+  /// iPhone/iPad com a app nativa. Na web `defaultTargetPlatform` devolve o
+  /// sistema do browser, por isso `kIsWeb` vem primeiro.
+  static bool get isIos =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+
+  /// Sufixo das chaves em platform_settings: '' no Android, '_ios' no iPhone.
+  static String get chaveSufixo => isIos ? '_ios' : '';
+
+  /// Ficha da Bora na App Store (id6809954739, ver digest link-unico 21/09).
+  static const String appStoreId = '6809954739';
 
   /// Só um aviso dispensável por sessão (volta no próximo arranque).
   static bool _softPromptShown = false;
@@ -45,10 +71,15 @@ class AppUpdateService {
   }
 
   static Future<void> _openStore() async {
-    const market = 'market://details?id=pt.boraapp.bora';
-    const web = 'https://play.google.com/store/apps/details?id=pt.boraapp.bora';
+    // iPhone: a app da App Store directamente; se não abrir, a página web.
+    final nativo = isIos
+        ? 'itms-apps://itunes.apple.com/app/id$appStoreId'
+        : 'market://details?id=pt.boraapp.bora';
+    final web = isIos
+        ? 'https://apps.apple.com/app/id$appStoreId'
+        : 'https://play.google.com/store/apps/details?id=pt.boraapp.bora';
     try {
-      final ok = await launchUrl(Uri.parse(market),
+      final ok = await launchUrl(Uri.parse(nativo),
           mode: LaunchMode.externalApplication);
       if (ok) return;
     } catch (_) {/* cai para o fallback web */}
@@ -60,14 +91,17 @@ class AppUpdateService {
   /// Verifica e mostra o aviso/bloqueio quando aplicável. Silêncio total em
   /// qualquer falha — NUNCA bloquear por erro de rede.
   static Future<void> checkAndPrompt(BuildContext context) async {
+    if (kIsWeb) return; // a web actualiza-se sozinha (versao.json no index.html)
     if (installedVersionCode <= 0) return; // build local/dev
     if (_checking) return;
     _checking = true;
     try {
-      final latest = await _settingInt('app_latest_version_code') ?? 0;
+      final sufixo = chaveSufixo;
+      final latest =
+          await _settingInt('app_latest_version_code$sufixo') ?? 0;
       if (latest <= 0 || installedVersionCode >= latest) return;
       final minSupported =
-          await _settingInt('app_min_supported_version_code') ?? 0;
+          await _settingInt('app_min_supported_version_code$sufixo') ?? 0;
       final notes = await _settingText('app_update_notes_pt') ??
           'Correções e melhorias para uma app mais rápida e estável.';
       if (!context.mounted) return;

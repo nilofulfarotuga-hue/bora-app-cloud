@@ -98,6 +98,10 @@
   <script>
     (function () {
       var COMMIT = '__BORA_COMMIT__';
+      // [Paridade 2026-09-21] A app Flutter lê isto (WebPresence.buildCommit)
+      // para carimbar app_version nos crashes da web — a web não tem outro
+      // número de versão.
+      window.boraBuildCommit = COMMIT;
       if (COMMIT.indexOf('__BORA') === 0) return; // build local, sem carimbo
       var escondidoDesde = 0;
 

@@ -1,7 +1,5 @@
 import 'dart:async' show unawaited;
 
-import 'utils/io_compat.dart';
-
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -55,6 +53,11 @@ import 'screens/admin/admin_skill_suggestions_metrics_screen.dart';
 import 'screens/admin/admin_acertos_semana_screen.dart';
 import 'screens/admin/admin_order_detail_screen.dart';
 import 'screens/admin/admin_marcacoes_confirmacao_screen.dart';
+import 'screens/admin/admin_clients_screen.dart';
+import 'screens/admin/admin_cleaning_bookings_screen.dart';
+import 'screens/admin/admin_extrato_dono_screen.dart';
+import 'screens/admin/admin_orders_screen.dart';
+import 'screens/admin/admin_tvde_rides_screen.dart';
 import 'screens/restaurant_ratings_list_screen.dart';
 import 'screens/cleaner/cleaner_home_screen.dart';
 import 'screens/washer/washer_home_screen.dart';
@@ -139,7 +142,13 @@ class _CrashRouteObserver extends NavigatorObserver {
 const MethodChannel _diagBridge = MethodChannel('pt.boraapp.bora/native');
 Map<String, String> _deviceDiag = const <String, String>{};
 Future<void> _loadDeviceDiagnostics() async {
-  if (kIsWeb) return;
+  if (kIsWeb) {
+    // [Paridade 2026-09-21] A web não tem bridge nativa: a "versão" é o
+    // commit carimbado pelo CI e o "modelo" é o browser. Antes ficava tudo
+    // null e, pior, o crash ia marcado como `ios` (ver _logCrashToSupabase).
+    _deviceDiag = _diagnosticoWeb();
+    return;
+  }
   try {
     final res = await _diagBridge
         .invokeMethod<Map<dynamic, dynamic>>('getDeviceDiagnostics');
@@ -282,6 +291,43 @@ bool _isConnectivityError(Object error) {
       msg.contains('Connection refused');
 }
 
+/// [Paridade 2026-09-21] Diagnóstico da web para debug_crash_logs, no mesmo
+/// formato do Android/iOS: app_version = commit do build (12 caracteres),
+/// device_model = browser + versão, android_version = sistema (web_ios /
+/// web_android / web_desktop + o que o user agent disser).
+Map<String, String> _diagnosticoWeb() {
+  final wp = WebPresence.instance;
+  final ua = wp.userAgent ?? '';
+  final commit = wp.buildCommit;
+  String browser = 'browser';
+  for (final par in const [
+    ['Edg/', 'Edge'],
+    ['OPR/', 'Opera'],
+    ['SamsungBrowser/', 'Samsung'],
+    ['CriOS/', 'Chrome iOS'],
+    ['FxiOS/', 'Firefox iOS'],
+    ['Chrome/', 'Chrome'],
+    ['Firefox/', 'Firefox'],
+    ['Version/', 'Safari'],
+  ]) {
+    final i = ua.indexOf(par[0]);
+    if (i >= 0) {
+      final resto = ua.substring(i + par[0].length);
+      final versao = RegExp(r'^[\d.]+').stringMatch(resto) ?? '';
+      browser = versao.isEmpty ? par[1] : '${par[1]} $versao';
+      break;
+    }
+  }
+  final so = RegExp(r'\((.*?)\)').firstMatch(ua)?.group(1) ?? '';
+  return <String, String>{
+    'app_version': commit == null
+        ? 'web (sem carimbo)'
+        : 'web ${commit.length > 12 ? commit.substring(0, 12) : commit}',
+    'device_model': browser,
+    'android_version': '${wp.plataforma}${so.isEmpty ? '' : ' · $so'}',
+  };
+}
+
 // TODO: remover após diagnóstico — grava crash na tabela debug_crash_logs.
 void _logCrashToSupabase(Object error, StackTrace stack, {String? screen}) {
   if (_isConnectivityError(error)) return;
@@ -296,7 +342,11 @@ void _logCrashToSupabase(Object error, StackTrace stack, {String? screen}) {
       'p_route': _currentRouteName,
       'p_error_message': error.toString(),
       'p_stack_trace': stack.toString(),
-      'p_platform': Platform.isAndroid ? 'android' : 'ios',
+      // [Paridade 2026-09-21] kIsWeb PRIMEIRO. `Platform.isAndroid` é falso
+      // no browser (stub de io_compat_web), e a web inteira — não só o
+      // Safari — ia parar à base marcada como `ios` (82 das 223 linhas
+      // "ios" tinham stack de dart2js). A mesma fonte que users.platform.
+      'p_platform': PlatformTagService.plataformaActual,
       // [F] contexto real (antes: tudo null em debug_crash_logs).
       'p_app_version': _deviceDiag['app_version'],
       'p_device_model': _deviceDiag['device_model'],
@@ -897,6 +947,17 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           // tvde_schedule_ride e tvde_reservation_redispatch).
           '/admin/tvde/reservas': (_) => const AdminTvdeReservasScreen(),
           '/admin/cleaning/cleaners': (_) => const AdminCleaningCleanersScreen(),
+          // [Paridade 2026-09-21] Os deep_link mais usados pela caixa de
+          // avisos do admin (admin_notifications) NÃO tinham rota: tocar no
+          // aviso rebentava com "Null check operator" em _onUnknownRoute
+          // (4× no build 608, 19/09). Contados na base: /admin/users 122,
+          // /admin/tvde 62, /admin/orders 31, /admin/robot-suggestions 29,
+          // /admin/ledger 4, /admin/limpeza/{id} 3.
+          '/admin/users': (_) => const AdminClientsScreen(),
+          '/admin/tvde': (_) => const AdminTvdeRidesScreen(),
+          '/admin/orders': (_) => const AdminOrdersScreen(),
+          '/admin/robot-suggestions': (_) => const AdminRobotSuggestionsScreen(),
+          '/admin/ledger': (_) => const AdminExtratoDonoScreen(),
           // BLOCO D (2026-07-28) — QR codes impressos apontam para
           // https://bora-app-web.pages.dev/#/registo-cliente. URL CANÓNICA:
           // não renomear. Cai directo no registo de cliente (quem lê o cartaz
@@ -951,6 +1012,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               );
             }
           }
+          // [Paridade 2026-09-21] avisos de limpeza apontam para
+          // /admin/limpeza/{id}; cai na lista de reservas de limpeza.
+          if (name.startsWith('/admin/limpeza/')) {
+            return MaterialPageRoute<void>(
+              builder: (_) => const AdminCleaningBookingsScreen(),
+              settings: settings,
+            );
+          }
           // §44 — deep link da push low_rating: /partner/ratings precisa
           // restaurant_id + restaurant_name nos arguments.
           if (settings.name == '/partner/ratings' ||
@@ -986,6 +1055,38 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           }
           return null;
         },
+        // [Paridade 2026-09-21] Rede de segurança: uma rota que ninguém
+        // conhece (um deep_link novo num aviso, um link velho) abre uma
+        // página simples com "Voltar" em vez de rebentar a app inteira com
+        // "Null check operator used on a null value" dentro do Flutter
+        // (_WidgetsAppState._onUnknownRoute exige este callback).
+        onUnknownRoute: (settings) => MaterialPageRoute<void>(
+          settings: settings,
+          builder: (ctx) => Scaffold(
+            appBar: AppBar(title: const Text('Página não encontrada')),
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.link_off, size: 44),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Este atalho já não existe (${settings.name ?? ''}).',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      onPressed: () => Navigator.of(ctx).maybePop(),
+                      child: const Text('Voltar'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
         // Adendo3 (2026-08-16): AppUpdateGate — aviso/bloqueio de atualização
         // (padrão Glovo/Uber) no arranque e ao voltar ao foreground.
         home: const AppUpdateGate(

@@ -41,6 +41,7 @@ import 'admin_knowledge_screen.dart';
 import 'admin_live_orders_map_screen.dart';
 import 'admin_marcacoes_confirmacao_screen.dart';
 import 'admin_motores_screen.dart';
+import 'admin_crash_logs_screen.dart';
 import 'admin_notification_failures_screen.dart';
 import 'admin_ofertas_log_screen.dart';
 import 'admin_orders_screen.dart';
@@ -228,6 +229,15 @@ List<AdminMenuSection> adminMenuSections() => [
       color: AppColors.error,
       builder: () => const AdminNotificationFailuresScreen(),
       keywords: const ['avisos', 'chegaram', 'falharam', 'motivo', 'telemovel', 'ultimas'],
+    ),
+    AdminMenuItem(
+      id: 'operacao_erros_da_app',
+      title: 'Erros da app (crashes)',
+      subtitle: 'Erros que a app registrou, por plataforma (Android, iPhone, Web), com versão e aparelho',
+      icon: Icons.bug_report_outlined,
+      color: Colors.red.shade700,
+      builder: () => const AdminCrashLogsScreen(),
+      keywords: const ['crash', 'crashes', 'erros', 'android', 'iphone', 'ios', 'web', 'versao', 'aparelho', 'modelo'],
     ),
     ],
   ),

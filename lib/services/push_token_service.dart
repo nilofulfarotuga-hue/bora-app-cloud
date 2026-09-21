@@ -22,6 +22,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'fcm_token_helper.dart';
 import 'notification_service.dart';
 import 'web_presence.dart';
 
@@ -64,6 +65,12 @@ class PushTokenService {
   /// motorista e faxineiro ficava mudo num deles a partir da primeira
   /// renovação — e uma renovação não avisa ninguém.
   static final Set<String> _papeisRegistados = <String>{};
+
+  /// [iPhone 2026-09-21] Papéis PEDIDOS nesta sessão, mesmo que o registo
+  /// ainda não tenha conseguido token. No iOS o token FCM pode chegar
+  /// depois de todas as tentativas (só nasce quando a Apple entrega o APNs);
+  /// o `onTokenRefresh` apanha-o — mas só regista quem estiver aqui.
+  static final Set<String> _papeisPedidos = <String>{};
 
   /// [Serviços 2026-07-28] BUG: o dedup de sessão era só (token, role). Num
   /// device partilhado — logout do parceiro A, login do parceiro B — o token
@@ -117,17 +124,37 @@ class PushTokenService {
     }
 
     _registering = true;
+    _papeisPedidos.add(role);
     try {
+      // [iPhone 2026-09-21] O refresh liga-se ANTES da primeira tentativa e
+      // regista todos os papéis pedidos: se o token só nascer depois das
+      // tentativas (iOS à espera do APNs), ainda assim fica guardado.
+      _refreshSub ??= FirebaseMessaging.instance.onTokenRefresh.listen(
+        (newToken) async {
+          for (final papel in {..._papeisPedidos, ..._papeisRegistados}) {
+            await _registerRpc(role: papel, token: newToken);
+          }
+        },
+      );
+
       // BUG E — retry getToken com backoff 1s/3s/9s.
       String? token = NotificationService.instance.fcmToken;
       const delays = [Duration(seconds: 1), Duration(seconds: 3), Duration(seconds: 9)];
       var attempt = 0;
       while ((token == null || token.isEmpty) && attempt < delays.length) {
         try {
-          token = await FirebaseMessaging.instance.getToken(
+          // [iPhone 2026-09-21] No iOS o helper espera primeiro pelo token
+          // APNs (60 s na 1.ª tentativa, 10 s nas seguintes) — chamar
+          // getToken() antes disso lança apns-token-not-set e nunca há
+          // token. Android/web: é o getToken() de sempre.
+          token = await FcmTokenHelper.getToken(
+            FirebaseMessaging.instance,
             // Web (PWA do estafeta, 16/09): sem a chave VAPID o FCM não dá
             // token nenhum. Lida de web/firebase-config.js.
             vapidKey: kIsWeb ? WebPresence.instance.firebaseVapidKey : null,
+            maxEsperaApns: attempt == 0
+                ? const Duration(seconds: 60)
+                : const Duration(seconds: 10),
           );
           if (token != null && token.isNotEmpty) break;
         } catch (e) {
@@ -138,20 +165,12 @@ class PushTokenService {
         attempt++;
       }
       if (token == null || token.isEmpty) {
-        _log('no FCM token after 3 retries — skipping');
+        _log('no FCM token after 3 retries — skipping '
+            '(o onTokenRefresh regista se chegar mais tarde)');
         return;
       }
 
       await _registerRpc(role: role, token: token);
-
-      // Wire token-refresh exactly once per session, keyed by role.
-      _refreshSub ??= FirebaseMessaging.instance.onTokenRefresh.listen(
-        (newToken) async {
-          for (final papel in _papeisRegistados.toList()) {
-            await _registerRpc(role: papel, token: newToken);
-          }
-        },
-      );
     } finally {
       _registering = false;
     }
@@ -253,6 +272,7 @@ class PushTokenService {
     _lastRegisteredRole = null;
     _lastRegisteredUserId = null;
     _papeisRegistados.clear();
+    _papeisPedidos.clear();
   }
 
   static String? _deviceLabel() {

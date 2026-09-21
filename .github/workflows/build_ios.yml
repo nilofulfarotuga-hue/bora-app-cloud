@@ -297,6 +297,10 @@ jobs:
           # disco do runner (cicatriz 2026-09-10: o plist era escrito mas nunca
           # entrava no .app, e nao havia push em iPhone nenhum).
           test -f build/ios/iphonesimulator/Runner.app/GoogleService-Info.plist             || { echo "::error::GoogleService-Info.plist NAO esta dentro da app"; exit 1; }
+          # O som dos avisos (aps.sound = bora_alert.wav) tambem tem de estar
+          # DENTRO da app (paridade 3 plataformas, 2026-09-21); sem ele o
+          # iPhone toca o som por defeito em vez do da Bora.
+          test -f build/ios/iphonesimulator/Runner.app/bora_alert.wav             || { echo "::error::bora_alert.wav NAO esta dentro da app"; exit 1; }
 
       - name: AUTOTESTE — varredura de ecras (portao, sem escape)
         id: varredura
@@ -513,10 +517,16 @@ jobs:
           PLIST
           plutil -lint ios/ExportOptions.plist
 
+      # BORA_VERSION_CODE (paridade 3 plataformas, 2026-09-21): o mesmo numero
+      # que vai em --build-number (CFBundleVersion). E' o que o AppUpdateGate
+      # compara com platform_settings.app_latest_version_code_ios — chaves
+      # PROPRIAS do iPhone (0 = desligado). Sem isto o gate ficava mudo no iOS;
+      # com a chave partilhada com o Android ficava ERRADO (115 vs 614).
       - name: Construir o IPA
         run: |
           flutter build ipa --release \
             --dart-define-from-file=.dart_defines \
+            --dart-define=BORA_VERSION_CODE=${{ github.run_number }} \
             --build-number=${{ github.run_number }} \
             --export-options-plist=ios/ExportOptions.plist
 

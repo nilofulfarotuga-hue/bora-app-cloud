@@ -353,15 +353,19 @@ async function sendFcmV1(
         priority: 'high',
         // Sem `notification` aqui: é o Dart que desenha, com persistência real.
       },
+      // [iPhone 2026-09-21] 'alert' + som + texto: 'background' e' push SILENCIOSO
+      // para a Apple (sem banner, sem som; prioridade obrigatoria 5) — com token,
+      // o iPhone nunca tocava. content-available fica para acordar a app tambem.
       apns: {
         headers: {
           'apns-priority':  '10',
-          'apns-push-type': 'background',
+          'apns-push-type': 'alert',
         },
         payload: {
           aps: {
-            // data-only no iOS: acorda a app; o alerta visível é desenhado
-            // pelo lado Dart, igual ao Android.
+            alert: { title: title, body: bodyText },
+            sound: 'bora_alert.wav',
+            'interruption-level': 'time-sensitive',
             'content-available': 1,
           },
         },

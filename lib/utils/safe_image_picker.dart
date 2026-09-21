@@ -1,4 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
+
+import 'io_compat.dart' show Platform;
 
 /// Guarda global contra o erro `already_active` do `image_picker`.
 ///
@@ -46,6 +49,16 @@ class SafeImagePicker {
 
   /// Passthrough para [ImagePicker.retrieveLostData] (Android pode matar a
   /// activity durante a câmara e devolver o resultado só depois).
-  static Future<LostDataResponse> retrieveLostData() =>
-      _picker.retrieveLostData();
+  ///
+  /// [Paridade 2026-09-21] SÓ existe no Android: no iPhone e na web o plugin
+  /// lança `UnimplementedError: getLostData() has not been implemented`
+  /// (4× em debug_crash_logs, último 11/09) — e dois dos chamadores
+  /// (driver_signup_screen, register_partner_screen) chamam isto no initState
+  /// sem try/catch. Fora do Android devolve "nada perdido" e pronto.
+  static Future<LostDataResponse> retrieveLostData() {
+    if (kIsWeb || !Platform.isAndroid) {
+      return Future.value(LostDataResponse.empty());
+    }
+    return _picker.retrieveLostData();
+  }
 }

@@ -73,7 +73,6 @@ BEGIN
          reimbursement_method       = 'wallet'
    WHERE id = p_receipt_id;
 
-  -- Crédito na carteira do estafeta (o saldo acompanha o histórico pelo gatilho diferido)
   INSERT INTO public.wallet_transactions (
     user_id, amount_cents, kind, reason, related_order_id, related_admin_id, idempotency_key
   ) VALUES (
@@ -152,8 +151,6 @@ BEGIN
          reimbursement_external_paid_at = p_paid_at,
          reimbursement_external_reference = NULLIF(trim(coalesce(p_reference, '')), '')
    WHERE id = p_receipt_id;
-
-  -- Sem crédito na carteira: o dinheiro já saiu por fora. Nada em wallet_transactions.
 
   INSERT INTO public.admin_audit_log (admin_id, action, entity_type, entity_id_text, details)
   VALUES (

@@ -1,14 +1,23 @@
--- 2026-09-20 — CONTAS CLARAS · Bloco 8 · PROPOSTA (zona vermelha: a Trava do PC recusa DDL na função do acerto).
--- O acerto semanal passa a ler o dinheiro em mão da corrida (tvde_rides.cash_in_hand_cents, Bloco 8)
--- em vez de deduzir a tarifa por ganho + corte. Mesmo corpo que está no ar, só o bloco das corridas muda.
--- PROVA (20/09 22h35, com a base como está): com a regra actual o Danilo aparece com 155,80 € recebidos
--- em mão nas corridas; a verdade é 87,80 € (13 corridas erradas: 11 voltas de pacote/plano e 2 idas de
--- pacote a dinheiro). O Valdemir tem 2 corridas erradas que se anulam (68,00 € nas duas regras).
--- COMO APLICAR: a Claude.ai por MCP depois do "vai". Texto também em platform_settings.staged_contas_claras_20260920_b8.
--- Prova sugerida em rollback: compute para o Danilo na semana de 31/08 (cash com a regra nova = 8,00 na ida
--- 466bb4bc, 0 na volta 999e1b87) e para o Valdemir nesta semana (net_balance mantém 17,00).
+-- APLICADA EM PRODUÇÃO pela Claude.ai (MCP) — version 20260921064507 · contas_claras_b9_acerto_guarda_reembolsos_2026_09_21.
+-- Espelho exacto de supabase_migrations.schema_migrations, puxado por REST a 21/09/2026 (Claude Code, missão contas-claras-20260921).
+-- CONTAS CLARAS B9 (21/09/2026)
+-- O acerto ja calculava os reembolsos das compras adiantadas pelo estafeta
+-- (v_total_reimbursements) e entrava-os na conta final, mas DEITAVA O NUMERO
+-- FORA: nao havia coluna para ele. Resultado: o recibo semanal mostrava linhas
+-- que nunca somavam ao total, porque faltava sempre esta parcela (no Danilo,
+-- 14,73 EUR de 43,52 EUR). Passa a ficar gravado, para o recibo poder mostrar
+-- o que compoe o saldo, sem ninguem ter de o deduzir por subtraccao.
 
-CREATE OR REPLACE FUNCTION public.compute_driver_settlement(p_driver_id uuid, p_week_start timestamp with time zone DEFAULT NULL::timestamp with time zone, p_persist boolean DEFAULT false)
+ALTER TABLE public.driver_weekly_settlements
+  ADD COLUMN IF NOT EXISTS total_reimbursements numeric NOT NULL DEFAULT 0;
+
+COMMENT ON COLUMN public.driver_weekly_settlements.total_reimbursements IS
+  'O que o estafeta adiantou do bolso nas compras e a Bora lhe devolve. Entra no net_balance com sinal positivo.';
+
+CREATE OR REPLACE FUNCTION public.compute_driver_settlement(
+  p_driver_id uuid,
+  p_week_start timestamp with time zone DEFAULT NULL::timestamp with time zone,
+  p_persist boolean DEFAULT false)
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
@@ -65,26 +74,22 @@ BEGIN
     AND delivered_at >= v_bounds.week_start
     AND delivered_at <= v_bounds.week_end;
 
-  -- CONTAS CLARAS 2026-09-20: as corridas TVDE entram no acerto semanal.
-  -- Corrida paga online: a Bora recebeu, deve o ganho ao motorista.
-  -- Corrida paga a dinheiro: o motorista recebeu do passageiro, devolve a parte da Bora.
+  -- CONTAS CLARAS: as corridas TVDE entram no acerto semanal.
   --
-  -- BLOCO 8 (20/09 23h): o dinheiro em mão vem da CORRIDA (tvde_rides.cash_in_hand_cents,
-  -- gravado pelo gatilho ao ficar finalizada pela regra do servidor: pacote pago a dinheiro
-  -- conta na ida, 0 na volta, 0 no plano, tarifa na corrida normal, só extras nas pagas na
-  -- app). A regra anterior "tarifa em falta = ganho + corte" cobrava 3,50 € por cada volta de
-  -- pacote (dinheiro que nunca existiu) e 4,50 € em vez de 8,00 € nas idas a dinheiro.
-  -- tvde_sem_tarifa_gravada passa a contar as corridas realmente deduzidas (fare_deduced).
+  -- CORRECAO 21/09 (substitui a regra "tarifa em falta = ganho + corte" que a Claude.ai
+  -- aplicou a 20/09 e que estava ERRADA): tarifa a zero nem sempre e dado em falta.
+  -- Nas VOLTAS de pacote e nas corridas de plano o zero e o valor certo — o passageiro
+  -- ja pagou na ida ou no plano e na volta o motorista nao recebe nada. Deduzir ganho +
+  -- corte cobrava dinheiro que nunca existiu (13 corridas erradas, 68,00 EUR a mais ao
+  -- Danilo). O dinheiro em mao passa a vir de tvde_rides.cash_in_hand_cents, gravado por
+  -- gatilho pela regra unica tvde_ride_cash_in_hand, que e a mesma regra do saldo.
   SELECT
     COUNT(*),
     COALESCE(SUM(COALESCE(driver_earn_cents, 0)), 0) / 100.0,
-    COALESCE(SUM(COALESCE(cash_in_hand_cents,
-                          (SELECT h.cash_in_hand_cents FROM public.tvde_ride_cash_in_hand(id) h), 0)), 0) / 100.0,
+    COALESCE(SUM(COALESCE(cash_in_hand_cents, 0)), 0) / 100.0,
     COALESCE(SUM(CASE WHEN payment_method IN ('card','mbway')
-                  THEN COALESCE(NULLIF(COALESCE(final_fare_cents, est_fare_cents, 0), 0),
-                                COALESCE(driver_earn_cents, 0) + COALESCE(bora_cut_cents, 0))
-                  ELSE 0 END), 0) / 100.0,
-    COUNT(*) FILTER (WHERE fare_deduced)
+                  THEN COALESCE(final_fare_cents, est_fare_cents, 0) ELSE 0 END), 0) / 100.0,
+    COUNT(*) FILTER (WHERE cash_in_hand_cents IS NULL)
   INTO v_tvde_rides, v_tvde_earnings, v_tvde_cash, v_tvde_online, v_tvde_sem_tarifa
   FROM public.tvde_rides
   WHERE driver_id = p_driver_id
@@ -118,13 +123,15 @@ BEGIN
     INSERT INTO public.driver_weekly_settlements (
       driver_id, week_start_at, week_end_at,
       total_deliveries, total_earnings, total_cash_received,
-      total_card_orders, cash_adjustments_due, tokens_converted_value,
+      total_card_orders, cash_adjustments_due, total_reimbursements,
+      tokens_converted_value,
       tvde_rides_count, tvde_earnings, tvde_cash_received,
       net_balance, direction, status
     ) VALUES (
       p_driver_id, v_bounds.week_start, v_bounds.week_end,
       v_total_deliveries, v_total_earnings, v_total_cash_received,
-      v_total_card_orders, v_cash_adjustments_due, v_tokens_converted_value,
+      v_total_card_orders, v_cash_adjustments_due, v_total_reimbursements,
+      v_tokens_converted_value,
       v_tvde_rides, v_tvde_earnings, v_tvde_cash,
       v_net_balance, v_direction, 'pending'
     )
@@ -134,6 +141,7 @@ BEGIN
       total_cash_received    = EXCLUDED.total_cash_received,
       total_card_orders      = EXCLUDED.total_card_orders,
       cash_adjustments_due   = EXCLUDED.cash_adjustments_due,
+      total_reimbursements   = EXCLUDED.total_reimbursements,
       tokens_converted_value = EXCLUDED.tokens_converted_value,
       tvde_rides_count       = EXCLUDED.tvde_rides_count,
       tvde_earnings          = EXCLUDED.tvde_earnings,
@@ -158,7 +166,7 @@ BEGIN
     'tvde_rides_count', v_tvde_rides,
     'tvde_earnings', v_tvde_earnings,
     'tvde_cash_received', v_tvde_cash,
-    'tvde_sem_tarifa_gravada', v_tvde_sem_tarifa,
+    'tvde_sem_dinheiro_em_mao_gravado', v_tvde_sem_tarifa,
     'net_balance', v_net_balance,
     'direction', v_direction,
     'settlement_id', v_settlement_id,

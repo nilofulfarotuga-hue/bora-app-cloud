@@ -44,7 +44,6 @@ BEGIN
   v_de := (date_trunc('day', now() AT TIME ZONE 'Europe/Lisbon') AT TIME ZONE 'Europe/Lisbon') - make_interval(days => p_dias - 1);
   SELECT r.name INTO v_nome FROM public.restaurants r WHERE r.id = p_restaurant_id;
 
-  -- pedidos do período, um a um
   WITH p AS (
     SELECT o.id,
            COALESCE(o.delivered_at, o.status_updated_at, o.created_at) AS quando,
@@ -95,7 +94,6 @@ BEGIN
     INTO v_pedidos, v_totais, v_por_dia
     FROM p;
 
-  -- semanas fechadas (acertos), com "sobre o quê", comprovativo e datas
   SELECT COALESCE(jsonb_agg(jsonb_build_object(
            'id', s.id,
            'semana', to_char(s.week_start_at AT TIME ZONE 'Europe/Lisbon', 'DD/MM') || '–' || to_char(s.week_end_at AT TIME ZONE 'Europe/Lisbon', 'DD/MM'),
@@ -127,14 +125,12 @@ BEGIN
     INTO v_semanas, v_transf, v_por_tr
     FROM (SELECT * FROM public.partner_weekly_settlements WHERE partner_id = p_restaurant_id ORDER BY week_start_at DESC LIMIT 12) s;
 
-  -- semana em curso pela fórmula oficial do fecho (função já existente, sem persistir)
   BEGIN
     v_semana := (public.partner_my_weekly_closeout(p_restaurant_id))->'current_week';
   EXCEPTION WHEN OTHERS THEN
     v_semana := jsonb_build_object('erro', 'previsao_indisponivel', 'detalhe', SQLERRM);
   END;
 
-  -- conta Stripe Connect (por onde as transferências saem)
   SELECT jsonb_build_object(
            'conta', r.stripe_account_id IS NOT NULL,
            'estado', r.stripe_account_status,
@@ -148,7 +144,6 @@ BEGIN
     INTO v_stripe
     FROM public.restaurants r WHERE r.id = p_restaurant_id;
 
-  -- as três arcas do parceiro têm de dizer o mesmo (vitalício)
   SELECT jsonb_build_object(
            'ledger_ganhos_cents', COALESCE((SELECT ROUND(SUM(l.amount) * 100)::int FROM public.ledger_entries l
                                              WHERE l.user_type = 'restaurant' AND l.type = 'earning' AND l.user_id = p_restaurant_id), 0),

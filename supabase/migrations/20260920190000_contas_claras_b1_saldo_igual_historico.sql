@@ -80,7 +80,6 @@ AS $$
 DECLARE
   v_prev integer;
 BEGIN
-  -- garante a linha da carteira e tranca-a: duas escritas na mesma pessoa ficam em fila
   INSERT INTO public.client_wallets (user_id, free_balance_cents, updated_at)
   VALUES (NEW.user_id, 0, now())
   ON CONFLICT (user_id) DO NOTHING;
@@ -116,7 +115,6 @@ RETURNS trigger
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  -- válvula de manutenção, só para o servidor: SET LOCAL bora.wallet_tx_manutencao = 'on'
   IF COALESCE(current_setting('bora.wallet_tx_manutencao', true), '') = 'on' THEN
     RETURN COALESCE(NEW, OLD);
   END IF;

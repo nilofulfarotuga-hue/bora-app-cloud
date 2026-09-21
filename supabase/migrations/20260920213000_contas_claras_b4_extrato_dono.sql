@@ -31,7 +31,6 @@ BEGIN
   v_de  := (COALESCE(p_de,  (now() AT TIME ZONE 'Europe/Lisbon')::date)::timestamp) AT TIME ZONE 'Europe/Lisbon';
   v_ate := ((COALESCE(p_ate, (now() AT TIME ZONE 'Europe/Lisbon')::date) + 1)::timestamp) AT TIME ZONE 'Europe/Lisbon';
 
-  -- ENTRADAS por meio: pedidos entregues, corridas terminadas, limpezas e lavagens concluídas
   WITH e AS (
     SELECT 'pedido' AS origem, o.payment_method AS meio, ROUND(COALESCE(o.final_total, o.price, 0) * 100)::int AS cents,
            ROUND(COALESCE(o.platform_commission, 0) * 100)::int AS parte_bora_cents
@@ -64,7 +63,6 @@ BEGIN
     INTO v_entradas
     FROM e;
 
-  -- SAÍDAS no período: acertos pagos pela Bora, reembolsos, talões pagos, créditos dados
   WITH s AS (
     SELECT 'acerto_estafeta' AS tipo, d.name AS quem, ROUND(s.net_balance * 100)::int AS cents, s.paid_at AS quando, s.payment_method AS meio, s.payment_reference AS ref
       FROM public.driver_weekly_settlements s LEFT JOIN public.drivers d ON d.user_id = s.driver_id
@@ -106,7 +104,6 @@ BEGIN
     INTO v_saidas
     FROM s;
 
-  -- A QUEM A BORA DEVE (hoje, independentemente do período) — com o botão certo
   FOR v_r IN
     SELECT 'acerto_estafeta' AS tipo, s.driver_id::text AS quem_id, d.name AS quem, ROUND(s.net_balance * 100)::int AS cents,
            'Acerto da semana ' || to_char(s.week_start_at AT TIME ZONE 'Europe/Lisbon', 'DD/MM')
@@ -121,7 +118,6 @@ BEGIN
       FROM public.partner_weekly_settlements s LEFT JOIN public.restaurants r ON r.id = s.partner_id
      WHERE s.status NOT IN ('paid','received') AND s.direction = 'bora_pays_partner' AND s.net_balance > 0
     UNION ALL
-    -- corridas de semanas passadas que nenhum acerto contou (o TVDE só entra no acerto desde 20/09/2026)
     SELECT 'tvde', f.uid::text, d.name, f.fora,
            'Corridas TVDE anteriores a 20/09 que nenhum acerto contou', NULL, NULL
       FROM (SELECT COALESCE(dd.user_id, r.driver_id) AS uid, -SUM((e.meta->>'settle_cents')::int) AS fora
@@ -152,7 +148,6 @@ BEGIN
                                            'motivo', v_r.motivo, 'ref', v_r.ref, 'accao', v_r.accao);
   END LOOP;
 
-  -- QUEM DEVE À BORA (hoje)
   FOR v_r IN
     SELECT 'acerto_estafeta' AS tipo, s.driver_id::text AS quem_id, d.name AS quem, -ROUND(s.net_balance * 100)::int AS cents,
            'Acerto da semana ' || to_char(s.week_start_at AT TIME ZONE 'Europe/Lisbon', 'DD/MM') || ' (ficou com dinheiro da Bora)' AS motivo, s.id::text AS ref,
@@ -196,7 +191,6 @@ BEGIN
            'devem_a_bora_cents', COALESCE((SELECT SUM((x->>'cents')::int) FROM jsonb_array_elements(v_devem) x), 0))
     INTO v_retido;
 
-  -- as arcas, hoje (para o dono ver se batem)
   SELECT jsonb_build_object(
            'carteiras_saldo_cents', (SELECT COALESCE(SUM(free_balance_cents), 0) FROM public.client_wallets),
            'carteiras_historico_cents', (SELECT COALESCE(SUM(amount_cents), 0) FROM public.wallet_transactions WHERE kind <> ALL (public.wallet_kinds_fora_do_saldo())),

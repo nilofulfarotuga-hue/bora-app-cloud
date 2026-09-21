@@ -65,7 +65,6 @@ BEGIN
     SELECT c.paid_cents, (c.payment_intent_id IS NULL) AS pago_a_dinheiro INTO v_credit
       FROM public.tvde_roundtrip_credits c WHERE c.id = r.roundtrip_credit_id;
     IF COALESCE(r.is_return_leg, false) THEN
-      -- volta do pacote: o passageiro já pagou na ida; só extras/paragens podem ser em dinheiro
       RETURN QUERY SELECT (CASE WHEN v_pm = 'cash' THEN v_stops + v_extra ELSE v_stops END), false, 'pacote_volta';
     ELSE
       RETURN QUERY SELECT (CASE WHEN COALESCE(v_credit.pago_a_dinheiro, v_pm = 'cash') THEN COALESCE(v_credit.paid_cents, 0) ELSE 0 END) + v_stops, false, 'pacote_ida';
@@ -82,13 +81,11 @@ BEGIN
     IF COALESCE(r.final_fare_cents, 0) > 0 THEN
       RETURN QUERY SELECT r.final_fare_cents, false, 'normal_dinheiro';
     ELSE
-      -- corrida normal a dinheiro sem tarifa: não há como saber; deduz-se e grita-se
       RETURN QUERY SELECT COALESCE(r.driver_earn_cents, 0) + COALESCE(r.bora_cut_cents, 0), true, 'normal_dinheiro_sem_tarifa_deduzida';
     END IF;
     RETURN;
   END IF;
 
-  -- paga na app: só o que foi acrescentado em dinheiro (paragens extra)
   RETURN QUERY SELECT v_stops, false, 'paga_na_app';
 END;
 $$;
@@ -114,7 +111,6 @@ BEGIN
    WHERE id = NEW.id
      AND (cash_in_hand_cents IS DISTINCT FROM v.cash_in_hand_cents OR fare_deduced IS DISTINCT FROM v.deduced);
   IF v.deduced THEN
-    -- achado para o vigia + aviso imediato no Telegram (uma vez por corrida; a 2.ª chamada cai no ON CONFLICT)
     INSERT INTO public.payment_reconciliation_findings (kind, severity, entity_type, entity_id, pi_id, amount_cents, details)
     VALUES ('vigia_corrida_tarifa_deduzida', 'warning', 'tvde_ride', NEW.id::text, 'tvde_ride:' || NEW.id::text,
             v.cash_in_hand_cents,
@@ -247,7 +243,6 @@ AS $$
 
   UNION ALL
 
-  -- CORRIDAS TVDE — o dinheiro em mão vem da corrida (cash_in_hand_cents), não da tarifa
   SELECT 'corrida'::text,
          r.id::text,
          r.updated_at,

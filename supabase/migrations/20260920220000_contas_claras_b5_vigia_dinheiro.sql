@@ -38,9 +38,7 @@ DECLARE
   v_n         int;
   v_gritou    boolean := false;
 BEGIN
-  -- 1) recolher todos os desacertos de hoje -------------------------------------------
   FOR v_c IN
-    -- carteira
     SELECT 'saldo_vs_historico' AS kind, 'warning' AS severity, 'wallet' AS entity_type, w.user_id::text AS entity_id,
            'wallet:' || w.user_id::text AS pi_id,
            (COALESCE(h.s, 0) - w.free_balance_cents) AS amount_cents,
@@ -51,7 +49,6 @@ BEGIN
                           WHERE t.user_id = w.user_id AND t.kind <> ALL (public.wallet_kinds_fora_do_saldo())) h ON true
      WHERE w.free_balance_cents <> COALESCE(h.s, 0)
     UNION ALL
-    -- histórico sem linha de saldo
     SELECT 'saldo_vs_historico', 'warning', 'wallet', t.user_id::text, 'wallet:' || t.user_id::text,
            SUM(t.amount_cents) FILTER (WHERE t.kind <> ALL (public.wallet_kinds_fora_do_saldo())),
            jsonb_build_object('quem', t.user_id::text, 'historico_cents', SUM(t.amount_cents) FILTER (WHERE t.kind <> ALL (public.wallet_kinds_fora_do_saldo())), 'saldo_cents', NULL, 'nota', 'sem linha em client_wallets')
@@ -60,7 +57,6 @@ BEGIN
      GROUP BY t.user_id
     HAVING COALESCE(SUM(t.amount_cents) FILTER (WHERE t.kind <> ALL (public.wallet_kinds_fora_do_saldo())), 0) <> 0
     UNION ALL
-    -- estafeta (entregas)
     SELECT 'vigia_entregas_saldo', 'critical', 'driver', b.driver_id::text, 'driver:' || b.driver_id::text,
            (COALESCE(h.s, 0) - ROUND(b.balance * 100)::int),
            jsonb_build_object('quem', d.name, 'historico_cents', COALESCE(h.s, 0), 'saldo_cents', ROUND(b.balance * 100)::int,
@@ -72,7 +68,6 @@ BEGIN
                            FROM public.driver_transactions t WHERE t.driver_id = b.driver_id AND t.status = 'completed') h ON true
      WHERE ROUND(b.balance * 100)::int <> COALESCE(h.s, 0)
     UNION ALL
-    -- motorista (TVDE)
     SELECT 'vigia_tvde_saldo', 'critical', 'driver', b.driver_id::text, 'tvde:' || b.driver_id::text,
            (COALESCE(h.s, 0) - ROUND(b.balance * 100)::int),
            jsonb_build_object('quem', d.name, 'eventos_cents', COALESCE(h.s, 0), 'saldo_cents', ROUND(b.balance * 100)::int,
@@ -84,7 +79,6 @@ BEGIN
                           WHERE e.status = 'finalizada' AND (r.driver_id = b.driver_id OR r.driver_id IN (SELECT dd.id FROM public.drivers dd WHERE dd.user_id = b.driver_id))) h ON true
      WHERE ROUND(b.balance * 100)::int <> COALESCE(h.s, 0)
     UNION ALL
-    -- livro-razão × snapshot
     SELECT 'vigia_ledger_snapshot', 'warning', s.user_type, s.user_id, 'ledger:' || s.user_type || ':' || s.user_id,
            (COALESCE(h.s, 0) - ROUND(s.balance * 100)::int),
            jsonb_build_object('quem', s.user_id, 'ledger_cents', COALESCE(h.s, 0), 'snapshot_cents', ROUND(s.balance * 100)::int)
@@ -92,7 +86,6 @@ BEGIN
       LEFT JOIN LATERAL (SELECT ROUND(SUM(l.amount) * 100)::int AS s FROM public.ledger_entries l WHERE l.user_id = s.user_id AND l.user_type = s.user_type) h ON true
      WHERE ROUND(s.balance * 100)::int <> COALESCE(h.s, 0)
     UNION ALL
-    -- parceiro: ledger × order_financials
     SELECT 'vigia_parceiro_arcas', 'critical', 'restaurant', x.rid, 'partner:' || x.rid,
            (x.ledger - x.fin),
            jsonb_build_object('quem', x.nome, 'ledger_cents', x.ledger, 'order_financials_cents', x.fin)
@@ -102,7 +95,6 @@ BEGIN
               FROM public.restaurants r WHERE COALESCE(r.is_partner, false)) x
      WHERE x.ledger <> x.fin
     UNION ALL
-    -- duplicados na carteira (últimos 2 dias)
     SELECT 'vigia_duplicado_carteira', 'critical', 'wallet', t.user_id::text, 'dup:' || COALESCE(t.related_order_id, '-') || ':' || t.kind || ':' || t.amount_cents::text,
            t.amount_cents * (COUNT(*) - 1),
            jsonb_build_object('quem', t.user_id::text, 'pedido', t.related_order_id, 'kind', t.kind, 'valor_cents', t.amount_cents, 'vezes', COUNT(*),
@@ -112,7 +104,6 @@ BEGIN
      GROUP BY t.user_id, t.related_order_id, t.kind, t.amount_cents
     HAVING COUNT(*) > 1 AND MAX(t.created_at) - MIN(t.created_at) < interval '10 minutes'
     UNION ALL
-    -- payouts parados
     SELECT 'vigia_payout_parado', 'warning', 'payout', p.id::text, 'payout:' || p.id::text,
            ROUND(p.amount * 100)::int,
            jsonb_build_object('quem', p.user_id, 'user_type', p.user_type, 'criado', p.created_at,
@@ -122,7 +113,6 @@ BEGIN
        AND ((p.user_type = 'restaurant' AND EXISTS (SELECT 1 FROM public.partner_weekly_settlements s WHERE s.partner_id = p.user_id AND s.status IN ('paid','received')))
          OR (p.user_type = 'driver' AND EXISTS (SELECT 1 FROM public.driver_weekly_settlements s WHERE s.driver_id::text = p.user_id AND s.status IN ('paid','received'))))
     UNION ALL
-    -- compensações fora do acerto
     SELECT 'vigia_compensacao_fora_do_acerto', 'warning', 'order', l.order_id::text, 'comp:' || l.order_id::text,
            ROUND(l.amount * 100)::int,
            jsonb_build_object('quem', COALESCE(d.name, l.user_id), 'pedido', l.order_id, 'estado_pedido', o.status,
@@ -140,7 +130,6 @@ BEGIN
     RETURN jsonb_build_object('ok', true, 'dry', true, 'casos', jsonb_array_length(v_casos), 'lista', v_casos);
   END IF;
 
-  -- 2) escrever: novo grita; aberto cala; resolvido que voltou reabre e grita ----------
   FOR v_c IN SELECT * FROM jsonb_to_recordset(v_casos)
              AS z(kind text, severity text, entity_type text, entity_id text, pi_id text, amount_cents int, details jsonb) LOOP
     SELECT * INTO v_existente FROM public.payment_reconciliation_findings f
@@ -164,7 +153,6 @@ BEGIN
     END IF;
   END LOOP;
 
-  -- 3) gritar só se houver coisa nova ---------------------------------------------------
   v_n := jsonb_array_length(v_novos);
   IF v_n > 0 AND p_gritar THEN
     SELECT string_agg(
@@ -181,14 +169,11 @@ BEGIN
                   ELSE x->>'kind' END
              || CASE WHEN x->>'pedido' IS NOT NULL THEN ' (' || left(x->>'pedido', 8) || ')' ELSE '' END
              || CASE WHEN COALESCE((x->>'reaberto')::boolean, false) THEN ' [voltou]' ELSE '' END,
-             E'
-' ORDER BY (x->>'amount_cents')::int DESC)
+             E'\n' ORDER BY (x->>'amount_cents')::int DESC)
       INTO v_linhas FROM jsonb_array_elements(v_novos) x;
     v_msg := '🔎 VIGIA DO DINHEIRO — ' || v_n || ' novo' || CASE WHEN v_n = 1 THEN '' ELSE 's' END
-             || E' (só aponto, não corrijo):
-' || COALESCE(v_linhas, '')
-             || E'
-Painel admin › Contas claras › escudo.';
+             || E' (só aponto, não corrijo):\n' || COALESCE(v_linhas, '')
+             || E'\nPainel admin › Contas claras › escudo.';
     BEGIN
       PERFORM public._telegram_admin(v_msg);
       v_gritou := true;

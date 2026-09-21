@@ -21,3 +21,5 @@ IGUAL     admin_vigia_resolver                     <- 20260920220000_contas_clar
 IGUAL     admin_vigia_correr_agora                 <- 20260920220000_contas_claras_b5_vigia_dinheiro.sql
 IGUAL     _tvde_ride_zz_dinheiro_em_mao            <- 20260920230000_contas_claras_b8_dinheiro_em_mao_corrida.sql
 diferentes: []
+
+-- Reconfirmado às 09h45 UTC depois do C2 e do C3: 26/26 IGUAL (incl. driver_settlement_parcelas, admin_weekly_closeout_list, admin_reabrir_acerto, admin_avisos_fecho, weekly_closeout_compile, extrato_prestador). diferentes: []

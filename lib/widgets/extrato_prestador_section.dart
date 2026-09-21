@@ -556,24 +556,11 @@ class _ExtratoPrestadorSectionState extends State<ExtratoPrestadorSection> {
             if (semanaMap != null && semanaMap['erro'] == null) ...[
               const Text('Esta semana (previsão, fecha na segunda-feira)',
                   style: TextStyle(fontWeight: FontWeight.w700)),
-              _linha('Entregas', '${semanaMap['total_deliveries'] ?? '—'}'),
-              // Desde 20/09/2026 as corridas TVDE entram no acerto semanal.
-              if (semanaMap['tvde_rides_count'] != null)
-                _linha('Corridas TVDE', '${semanaMap['tvde_rides_count']}'),
-              _linha('Ganhos (entregas + corridas)',
-                  _eurFromEuros(semanaMap['total_earnings'])),
-              if (semanaMap['tvde_earnings'] != null)
-                _linha('  dos quais em corridas',
-                    _eurFromEuros(semanaMap['tvde_earnings'])),
-              _linha('Dinheiro recebido em mão',
-                  _eurFromEuros(semanaMap['total_cash_received'])),
-              if (semanaMap['tvde_cash_received'] != null)
-                _linha('  do qual em corridas',
-                    _eurFromEuros(semanaMap['tvde_cash_received'])),
-              _linha('Talões que adiantaste',
-                  _eurFromEuros(semanaMap['total_reimbursements'])),
-              _linha('Tokens convertidos',
-                  _eurFromEuros(semanaMap['tokens_converted_value'])),
+              // 21/09/2026 (contas claras C3): as parcelas vêm do servidor
+              // (driver_settlement_parcelas) — as MESMAS do recibo semanal por
+              // email, com os mesmos nomes e pela mesma ordem. Nada se soma aqui.
+              ..._parcelasLinhas(semanaMap['parcelas'],
+                  vazio: 'Ainda sem trabalhos esta semana.'),
               Padding(
                 padding: const EdgeInsets.only(top: 6),
                 child: Row(children: [
@@ -608,6 +595,36 @@ class _ExtratoPrestadorSectionState extends State<ExtratoPrestadorSection> {
         ),
       ),
     );
+  }
+
+  /// As parcelas do acerto, tal como o servidor as manda (label, qty?,
+  /// value_cents) — iguais ao recibo por email. Negativo = sai (ex.: dinheiro
+  /// em mão que se devolve à Bora).
+  List<Widget> _parcelasLinhas(dynamic parcelas, {required String vazio}) {
+    final lista = (parcelas as List? ?? const [])
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+    if (lista.isEmpty) {
+      return [
+        Text(vazio,
+            style: const TextStyle(
+                fontSize: 12, color: AppColors.textSecondary)),
+      ];
+    }
+    return [
+      for (final p in lista)
+        _linha(
+          p['qty'] == null ? '${p['label']}' : '${p['label']} ×${p['qty']}',
+          _eurSinal(p['value_cents']),
+        ),
+    ];
+  }
+
+  /// Cêntimos com sinal: −€40,00 quando sai, €5,00 quando entra.
+  static String _eurSinal(dynamic cents) {
+    if (cents == null) return '—';
+    final n = (cents as num).toInt();
+    return '${n < 0 ? '−' : ''}${eur(n.abs())}';
   }
 
   /// O servidor devolve o acerto (fórmula oficial) em euros — só se formata.
@@ -655,19 +672,36 @@ class _ExtratoPrestadorSectionState extends State<ExtratoPrestadorSection> {
             ].join(' · '),
             style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
           ),
-          if (destaque)
+          // As parcelas do recibo (mesmos nomes, mesma ordem, vindas do
+          // servidor). O último acerto mostra-as sempre; os anteriores ao toque.
+          if (destaque || _acertosAbertos.contains('${a['id']}'))
             Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                '${a['entregas'] ?? 0} entregas · ganhos ${eur(a['ganhos_cents'])} · '
-                'em mão ${eur(a['cash_recebido_cents'])} · tokens ${eur(a['tokens_cents'])}',
-                style: const TextStyle(fontSize: 11),
+              padding: const EdgeInsets.only(top: 4, left: 8),
+              child: Column(
+                children: _parcelasLinhas(a['parcelas'],
+                    vazio: 'Sem parcelas nesta semana.'),
+              ),
+            )
+          else
+            InkWell(
+              onTap: () =>
+                  setState(() => _acertosAbertos.add('${a['id']}')),
+              child: Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: const Text('ver parcelas',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.primary,
+                        decoration: TextDecoration.underline)),
               ),
             ),
         ],
       ),
     );
   }
+
+  /// Acertos antigos cujas parcelas o utilizador abriu.
+  final Set<String> _acertosAbertos = {};
 
   // 5) talões
   Widget _taloesCard(List taloes) {

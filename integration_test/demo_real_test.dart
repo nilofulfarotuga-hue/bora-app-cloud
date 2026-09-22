@@ -61,6 +61,7 @@ import 'package:integration_test/integration_test.dart';
 
 import 'package:bora_app/main.dart' as app;
 import 'package:bora_app/services/notification_service.dart';
+import 'package:bora_app/utils/hora_lisboa.dart';
 
 /// Credenciais da conta de demonstração. Já são públicas de propósito — estão
 /// em `ios/NOTAS-AO-REVISOR.md`, que é o que se entrega à Apple.
@@ -408,9 +409,13 @@ void main() {
     // prova de que nada se tinha mexido: `03-video-loja.png` e
     // `zz-falha-sem-botao-adicionar.png` saíram com o mesmo tamanho exacto.
     final botaoAdicionar = _id('btn_add_carrinho');
+    // Aviso que a app mostra ao tentar meter no carrinho com a loja fechada
+    // (`RestaurantModel.avisoLojaFechada`): "<loja> está fechada agora…".
+    final avisoLojaFechada = find.textContaining('está fechada');
     await _foto(t, '04-video-produtos');
     await _tocar(t, botaoAdicionar);
     await _bombear(t, segundos: 2.5);
+    bool lojaFechadaVista = avisoLojaFechada.evaluate().isNotEmpty;
 
     // O "+" do cartão não põe o artigo no carrinho: abre a FICHA DO PRODUTO,
     // com foto, quantidade e o seu próprio botão em baixo — medido na corrida
@@ -422,6 +427,8 @@ void main() {
       await _foto(t, '05-loja-produto');
       await _tocar(t, adicionarNaFicha);
       await _bombear(t, segundos: 3);
+      lojaFechadaVista =
+          lojaFechadaVista || avisoLojaFechada.evaluate().isNotEmpty;
     }
 
     // ── Carrinho e pagamento: já não há marca de terceiros à vista ────────
@@ -433,8 +440,17 @@ void main() {
     // carrinho" nunca aparece, e isso é a app a fazer o que deve, não um
     // crash. Apanhado pela corrida #433 do CI (23:37 UTC): fotografa-se o
     // ecrã e salta-se o carrinho e o pagamento. Em horário de loja (08h-22h
-    // UTC) o fluxo corre inteiro e a ausência do botão continua a ser falha.
-    final foraDeHoras = agora.hour < 8 || agora.hour >= 22;
+    // de LISBOA) o fluxo corre inteiro e a ausência do botão continua a ser falha.
+    //
+    // CICATRIZ (corrida 35781854914, 22/09 21:05 UTC = 22:05 em Lisboa): a
+    // janela era medida em UTC e os supermercados da Guarda fecham às 22h de
+    // Lisboa — no verão, 21h UTC. Entre as 21h e as 22h UTC a loja estava
+    // fechada, o carrinho travado (bem), e o teste acusava falha. Agora conta
+    // a hora de Lisboa, e conta sobretudo a prova directa: a própria app ter
+    // dito "está fechada" ao tentar adicionar.
+    final lisboa = horaLisboa(agora);
+    final foraDeHoras =
+        lojaFechadaVista || lisboa.hour < 8 || lisboa.hour >= 22;
     if (!await _esperar(t, verCarrinho, segundos: 20) && foraDeHoras) {
       await _binding.takeScreenshot('zz-loja-fechada-sem-carrinho');
       debugPrint('[arnes] sem "Ver carrinho" às $horaDoSimulador UTC: loja '

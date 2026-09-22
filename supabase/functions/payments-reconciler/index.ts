@@ -1,4 +1,4 @@
-// supabase/functions/payments-reconciler/index.ts — v2 (F8 MISSAO TOTAL 2026-08-16)
+// supabase/functions/payments-reconciler/index.ts — v3 (v2 F8 MISSAO TOTAL 2026-08-16; v3 order_edit 2026-09-22)
 //
 // RECONCILIADOR DE PAGAMENTOS — a "luz dos dados" pedida pelo Danilo.
 // Cruza Stripe <-> banco e grava divergencias em payment_reconciliation_findings
@@ -102,6 +102,16 @@ async function entityConfirmed(pi: any, out: Finding[]): Promise<void> {
     const { data } = await admin.from('reservations').select('status').eq('id', rid).maybeSingle();
     const ok = data && String(data.status) !== 'pending_payment';
     if (!ok) add('pi_sem_entidade', 'critical', 'reservation', rid, { status: data?.status ?? 'nao_encontrada' });
+    return;
+  }
+  if (purpose === 'order_edit') {
+    // v3 (2026-09-22): diferenca cobrada quando o cliente aceitou a loja parceira
+    // acrescentar produtos (Edge order-edit-settle). Tem de estar aplicada em
+    // order_edits com ESTE PI — outro PI pago para o mesmo grupo = cobranca a dobrar.
+    const g = String(md.order_edit_group ?? '');
+    const { data } = await admin.from('order_edits').select('estado, liquidacao').eq('grupo_id', g).limit(1).maybeSingle();
+    const ok = data && data.estado === 'aplicado' && String(data.liquidacao?.payment_intent_id ?? '') === pi.id;
+    if (!ok) add('pi_sem_entidade', 'critical', 'order_edit', g || null, { estado: data?.estado ?? 'edicao_nao_encontrada', order_id: md.edit_order_id ?? null });
     return;
   }
   if (md.standalone_debt_settle === 'true') return; // settle idempotente no webhook

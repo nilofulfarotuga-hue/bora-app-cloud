@@ -1,10 +1,10 @@
 // supabase/functions/order-edit-settle/index.ts
 //
-// ⚠️ PROPOSTA — NÃO DEPLOYADA. MEXE EM DINHEIRO REAL (Stripe LIVE). Espera o "vai".
+// MEXE EM DINHEIRO REAL (Stripe LIVE). Publicada com o "vai" do Danilo (22/09/2026).
 // run: parceiro-edita-pedido-2026-09-22
 //
 // Liquida as alterações que o dono de uma loja PARCEIRA faz a um pedido já pago
-// (tabela order_edits; regras em 20260922200100_PROPOSTA_parceiro_edita_pedido_dinheiro.sql).
+// (tabela order_edits; regras em 20260922200100_parceiro_edita_pedido_dinheiro.sql).
 //
 //   action 'refund'  {grupo_id}  — produto em falta num pedido pago com CARTÃO:
 //        reembolso parcial no MESMO PaymentIntent do pedido, só o que falta.

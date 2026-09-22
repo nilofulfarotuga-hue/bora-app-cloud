@@ -1,5 +1,5 @@
 -- ============================================================================
--- ⚠️ PROPOSTA — NÃO APLICADA. MEXE EM PAGAMENTO/DINHEIRO. Espera o "vai" do Danilo.
+-- MEXE EM PAGAMENTO/DINHEIRO — aplicada com o "vai" do Danilo (22/09/2026).
 -- Parceiro edita pedido — parte do dinheiro        run: parceiro-edita-pedido-2026-09-22
 -- ----------------------------------------------------------------------------
 -- Depende de 20260922200000_parceiro_edita_pedido_base.sql (já aplicada).
@@ -808,7 +808,8 @@ END $$;
 REVOKE ALL ON FUNCTION public.admin_force_refund_order_edit(uuid, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.admin_force_refund_order_edit(uuid, text) TO authenticated;
 
--- ── 13. Ligar o interruptor (é o "vai" propriamente dito) ──────────────────
-UPDATE public.platform_settings SET value = 'true'::jsonb, updated_at = now() WHERE key = 'order_edit_enabled';
+-- ── 13. O interruptor order_edit_enabled NÃO se liga aqui ─────────────────
+-- Liga-se à parte, só depois da prova real passar e do build Android com
+-- esta versão estar no Play (ordem do Danilo, 22/09/2026).
 
 COMMIT;

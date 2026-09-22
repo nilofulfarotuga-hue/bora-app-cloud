@@ -51,3 +51,32 @@ Na especificação, a segurança dizia "o parceiro insere as da loja dele". Opte
 ## PARA O DANILO
 
 Só uma coisa: responder "vai" para eu aplicar a parte do dinheiro e ligar o interruptor. Depois disso faço a prova real em dinheiro na Sabores de Casa e mando as fotografias.
+
+## Atualização — "vai" do Danilo, 22/09 ~21:00 (hora de Lisboa ~22:00)
+
+Aplicada a migração do dinheiro, agora com o nome `supabase/migrations/20260922200100_parceiro_edita_pedido_dinheiro.sql`. A única diferença para a proposta é que deixou de ligar o interruptor. Antes de aplicar, o ficheiro final passou outra vez as 13 provas na cópia local. Depois da aplicação confirmei o resultado:
+- a função da carteira tem a chave nova e o corpo antigo ficou guardado em `bkp_fn_wallet_credit_refund_split_20260922`;
+- as nove funções novas existem;
+- só o servidor as pode chamar onde deve;
+- o interruptor continua desligado.
+
+Publicada a Edge Function `order-edit-settle` (versão 1, com verificação de sessão). Um teste inofensivo com uma proposta que não existe devolveu 404, como devia, sem tocar na Stripe. O reconciliador de pagamentos passou à v3 e passa a reconhecer as cobranças das edições: confere que a proposta foi aplicada com esse mesmo pagamento, e uma segunda cobrança paga para a mesma proposta aparece como crítica. Corri-o uma vez: 0 achados, 0 erros.
+
+Prova real em dinheiro na Sabores de Casa, com um pedido de teste da conta de demonstração do cliente (dinheiro, marcado como teste, Estafeta Demo). O pedido tinha 3 Paçocas, 2 Filtros e 1 Água, com o total de 9,67:
+- O dono marcou 1 Paçoca em falta. O total desceu para 8,44 e ficou registado "pagas menos 1,23 € na entrega".
+- O dono propôs acrescentar um Copo Mega com Mel (+15,75). A proposta ficou à espera do cliente.
+- O cliente aceitou e o total subiu para 24,19.
+- No fim, subtotal 20,37 mais serviço 1,02, entrega 2,50 e saco 0,30 dá exatamente 24,19.
+- A loja recebe 17,46. Loja mais markup mais comissão bate com o subtotal.
+- Os valores são os mesmos que a regra dá a um pedido acabado de fazer.
+- O cliente recebeu os dois avisos na app. O push do cliente respondeu "sem aparelho", porque a conta de demonstração não tem nenhum registado.
+
+**A prova apanhou uma falha, que ficou corrigida.** O aviso ao estafeta não chegava. A função `notify-driver-assigned` que está no ar recusava o tipo `order_updated` com erro 400, e o aviso dentro da app ia para o `drivers.id` em vez do `user_id`. A correção está na migração `20260922210000_order_edit_aviso_estafeta.sql`:
+- o aviso passa a ir com o tipo `order_reassigned`, que a app do estafeta já mostra com o título e o texto enviados;
+- o aviso dentro da app passa a ir para o `user_id` do estafeta.
+
+Provado depois da correção: push enviado aos 2 aparelhos do Estafeta Demo (2 de 2) e aviso dentro da app no `user_id` certo.
+
+O pedido de teste foi fechado com `admin_cancel_order`: dinheiro, taxa 0, reembolso não aplicável, e zero linhas no livro e na carteira. A criação do pedido de teste disparou o aviso normal de "pedido novo" ao admin (Telegram e push). Foi esse aviso, não um erro.
+
+**Interruptor `order_edit_enabled`:** continua desligado. Só se liga depois de o build Android desta versão (850b812) estar no Play, como pediste.

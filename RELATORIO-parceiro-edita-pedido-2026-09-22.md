@@ -79,4 +79,9 @@ Provado depois da correção: push enviado aos 2 aparelhos do Estafeta Demo (2 d
 
 O pedido de teste foi fechado com `admin_cancel_order`: dinheiro, taxa 0, reembolso não aplicável, e zero linhas no livro e na carteira. A criação do pedido de teste disparou o aviso normal de "pedido novo" ao admin (Telegram e push). Foi esse aviso, não um erro.
 
-**Interruptor `order_edit_enabled`:** continua desligado. Só se liga depois de o build Android desta versão (850b812) estar no Play, como pediste.
+**Interruptor `order_edit_enabled`: LIGADO a 22/09 às 22:56 (Lisboa).**
+- A primeira corrida do build (850b812) falhou no autoteste. O arnês media a janela de loja fechada em UTC e não em hora de Lisboa, e às 22h de Lisboa os supermercados fecham. O teste foi corrigido no commit d0f499e.
+- A corrida 35784854572 (d0f499e) passou o autoteste nos 3 perfis e o envio ao Google Play: build 617, versão 1.0.2+617.
+- Só depois disso: `UPDATE platform_settings` com valor `true`, mais uma linha em `admin_audit_log` (`platform_setting_changed`). Confirmado por SELECT: `order_edit_enabled = true`.
+- Telegram enviado (resposta 200).
+- Para desligar: `order_edit_enabled=false`. A app deixa de mostrar os botões em até 2 minutos (cache do `ativo()`), e o servidor recusa logo com `EDICAO_DESLIGADA`.

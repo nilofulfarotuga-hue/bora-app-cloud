@@ -12,6 +12,7 @@ import '../models/chat_message.dart';
 import '../models/driver_model.dart';
 import '../models/order_model.dart';
 import '../models/rating_model.dart';
+import '../widgets/order_edit/client_order_edit_banner.dart';
 import '../widgets/address_text.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/errand_budget_banner.dart';
@@ -590,6 +591,8 @@ class _BottomCardState extends State<_BottomCard> {
               children: [
                 // ── 8.2 Banner de autorização de orçamento (errand) ──────
                 ErrandBudgetBanner(order: order),
+                // ── Loja parceira mudou o pedido (acrescentar/em falta) ──
+                ClientOrderEditBanner(order: order),
                 // ── Order code + status ──────────────────────────────────
                 Row(
                   children: [
@@ -1007,6 +1010,10 @@ class _BottomCardState extends State<_BottomCard> {
                         _SummaryRow(
                             label: 'Taxa de serviço'.tr,
                             value: order.serviceFee),
+                      // 2026-09-22: o saco entra no total — sem esta linha a
+                      // soma do resumo não batia com o total (0,30 € a menos).
+                      if (order.bagFee > 0)
+                        _SummaryRow(label: 'Saco'.tr, value: order.bagFee),
                       if (order.tipCents > 0)
                         _SummaryRow(
                             label: 'Gorjeta'.tr,

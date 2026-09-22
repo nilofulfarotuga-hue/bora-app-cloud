@@ -8,6 +8,7 @@ import 'package:vibration/vibration.dart';
 
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
+import '../widgets/order_edit/partner_order_edit_section.dart';
 import '../widgets/bora_support_fab.dart';
 import '../models/chat_message.dart';
 import '../models/order_model.dart';
@@ -1631,6 +1632,10 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
             ),
           ),
         ],
+        // 2026-09-22 (parceiro-edita-pedido): acrescentar / marcar em falta,
+        // com o estado de cada proposta. Esconde-se sozinho com o interruptor
+        // order_edit_enabled desligado.
+        PartnerOrderEditSection(order: order),
         const SizedBox(height: 16),
         Row(
           children: [

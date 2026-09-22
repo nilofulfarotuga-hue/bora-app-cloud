@@ -26,6 +26,7 @@ import '../models/cart_item.dart';
 import '../models/order_model.dart';
 import '../services/directions_service.dart';
 import '../services/navigation_service.dart';
+import '../widgets/order_edit/driver_order_edit_notice.dart';
 import '../widgets/bora_support_fab.dart';
 import '../services/route_optimizer.dart';
 import '../stores/driver_store.dart';
@@ -1478,6 +1479,8 @@ class _BottomPanelState extends State<_BottomPanel> {
                   _CashCollectBanner(order: focusOrder),
                   const SizedBox(height: 16),
                 ],
+                // 2026-09-22: a loja parceira acrescentou/tirou produtos.
+                DriverOrderEditNotice(order: focusOrder),
 
                 // "Ver compras" button — pickup phase only, if order has items
                 if (focusOrder.items.isNotEmpty &&

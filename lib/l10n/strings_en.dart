@@ -2761,4 +2761,41 @@ const Map<String, String> kStringsEn = <String, String>{
       'You did not approve the payment in time in your bank app. The ride was not requested and you were not charged.',
   'Voltaste de um pagamento. Vê o estado do teu pedido no ecrã dele.':
       'You are back from a payment. Check your order status on its screen.',
+  // parceiro-edita-pedido (2026-09-22)
+  'Pagas menos {0} na entrega.':
+      'You pay {0} less on delivery.',
+  'Foram devolvidos {0} ao teu cartão.':
+      '{0} was refunded to your card.',
+  'Foram devolvidos {0} à tua carteira Bora.':
+      '{0} was refunded to your Bora wallet.',
+  'Produto em falta':
+      'Item unavailable',
+  'Falta pagar o que acrescentaste':
+      'Pay for what you added',
+  'A loja quer acrescentar ao teu pedido':
+      'The store wants to add to your order',
+  'Total novo: {0}':
+      'New total: {0}',
+  'Pagar diferença':
+      'Pay the difference',
+  'Aceitar':
+      'Accept',
+  'O pedido já saiu da loja — ficou como estava.':
+      'The order has already left the store — it stays as it was.',
+  'Esta proposta já foi respondida.':
+      'This proposal has already been answered.',
+  'Recusado. O pedido fica como estava.':
+      'Declined. Your order stays as it was.',
+  'Aceite. A loja vai juntar ao teu pedido.':
+      'Accepted. The store will add it to your order.',
+  'Não foi possível cobrar. Tenta outra vez.':
+      'We could not charge you. Please try again.',
+  'Pago. A loja vai juntar ao teu pedido.':
+      'Paid. The store will add it to your order.',
+  'Confirma o pagamento na app MB WAY.':
+      'Confirm the payment in the MB WAY app.',
+  'O MB WAY não foi confirmado. Podes tentar outra vez.':
+      'MB WAY was not confirmed. You can try again.',
+  'O pagamento ainda não ficou confirmado.':
+      'The payment is not confirmed yet.',
 };

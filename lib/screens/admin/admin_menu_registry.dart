@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../config/app_colors.dart';
 
+import 'admin_order_edits_screen.dart';
 import 'admin_acerto_unificado_screen.dart';
 import 'admin_acertos_semana_screen.dart';
 import 'admin_advanced_kpis_screen.dart';
@@ -194,6 +195,15 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.red,
       builder: () => const AdminStuckOrdersScreen(),
       keywords: const ['parados', 'presos', 'chamar', 'entregador', 'escolher', 'estafeta', 'atribuir', 'reatribuir', 'mandar', 'todos'],
+    ),
+    AdminMenuItem(
+      id: 'operacao_edicoes_pedidos',
+      title: 'Edições de pedidos (parceiros)',
+      subtitle: 'Produtos acrescentados ou em falta pelas lojas parceiras: antes/depois, dinheiro devolvido ou cobrado, aprovar, cancelar, forçar estorno e exportar',
+      icon: Icons.edit_note,
+      color: Colors.teal,
+      builder: () => const AdminOrderEditsScreen(),
+      keywords: const ['editar', 'edicao', 'acrescentar', 'falta', 'em falta', 'produto', 'parceiro', 'loja', 'estorno', 'reembolso', 'diferenca'],
     ),
     AdminMenuItem(
       id: 'operacao_pedidos_de_cancelamento',

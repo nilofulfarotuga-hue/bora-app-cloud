@@ -12,6 +12,7 @@ import '../services/wallet_service.dart';
 import '../services/weight_portions.dart';
 import '../stores/driver_store.dart';
 import '../stores/order_store.dart';
+import '../widgets/order_edit/client_order_edit_banner.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/errand_budget_banner.dart';
 import '../widgets/private_bucket_image.dart';
@@ -57,6 +58,9 @@ class OrderDetailsScreen extends StatelessWidget {
 
           // ── 8.2 Banner de autorização de orçamento (errand pending) ───
           ErrandBudgetBanner(order: liveOrder),
+
+          // ── Loja parceira mudou o pedido (acrescentar/em falta) ───────
+          ClientOrderEditBanner(order: liveOrder),
 
           // ── Refund banner (F2 — clareza método de reembolso) ─────────
           if (liveOrder.status == OrderStatus.cancelled)

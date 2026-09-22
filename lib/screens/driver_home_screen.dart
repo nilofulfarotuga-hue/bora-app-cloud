@@ -13,6 +13,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
 
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
+import '../widgets/order_edit/driver_order_edit_notice.dart';
 import '../widgets/background_location_disclosure.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/cancel_blocked_pickup_sheet.dart';
@@ -1695,6 +1696,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                       : CollectState.paidOnline,
                   amountCents: (order.totalToCollectCash * 100).round(),
                 ),
+                // 2026-09-22: a loja parceira acrescentou/tirou produtos.
+                DriverOrderEditNotice(order: order),
                 // BUG #1 frontend (§54) — linha extra se inclui dívida prévia
                 if (order.paymentMethod == PaymentMethod.cash &&
                     order.hasCashDebt) ...[

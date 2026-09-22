@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import 'admin_order_edits_screen.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/admin/escolher_estafeta_sheet.dart';
 import '_admin_cancel_order_dialog.dart';
@@ -33,7 +34,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 4, vsync: this);
+    _tab = TabController(length: 5, vsync: this);
     _refresh();
   }
 
@@ -152,6 +153,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
             Tab(text: 'Items'),
             Tab(text: 'Pagamento'),
             Tab(text: 'Timeline'),
+            Tab(text: 'Edições'),
           ],
         ),
       ),
@@ -172,6 +174,8 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
                     _ItemsTab(order: _order!),
                     _PaymentTab(order: _order!),
                     _TimelineTab(orderId: widget.orderId),
+                    // 2026-09-22: acrescentar/em falta feitos pela loja parceira.
+                    AdminOrderEditsPanel(orderId: widget.orderId),
                   ],
                 ),
     );

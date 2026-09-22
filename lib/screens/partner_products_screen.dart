@@ -6,6 +6,7 @@ import '../models/partner_product.dart';
 import '../models/restaurant_model.dart';
 import '../services/partner_price_rules.dart';
 import '../stores/partner_product_store.dart';
+import '../utils/search_text.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
 import 'add_product_screen.dart';
@@ -21,6 +22,16 @@ class PartnerProductsScreen extends StatefulWidget {
 }
 
 class _PartnerProductsScreenState extends State<PartnerProductsScreen> {
+  /// Pesquisa por nome/categoria, sem acentos, a filtrar enquanto escreve
+  /// (lojas como a Sabores de Casa passam dos 100 produtos).
+  final _pesquisa = TextEditingController();
+
+  @override
+  void dispose() {
+    _pesquisa.dispose();
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -125,7 +136,11 @@ class _PartnerProductsScreenState extends State<PartnerProductsScreen> {
   @override
   Widget build(BuildContext context) {
     final productStore = context.watch<PartnerProductStore>();
-    final products = productStore.productsForRestaurant(widget.restaurant.id);
+    final todos = productStore.productsForRestaurant(widget.restaurant.id);
+    final products = todos
+        .where((p) => correspondePesquisa(
+            '${p.name} ${p.category} ${p.description}', _pesquisa.text))
+        .toList();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -139,23 +154,59 @@ class _PartnerProductsScreenState extends State<PartnerProductsScreen> {
       body: Stack(
         children: [
           SafeArea(
-            child: products.isEmpty
+            child: todos.isEmpty
                 ? _EmptyProducts(restaurantName: widget.restaurant.name)
-                : ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: products.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final product = products[index];
-                      return _ProductTile(
-                        product: product,
-                        isPartnerStore: widget.restaurant.isPartner,
-                        onToggleAvailability: (value) =>
-                            _toggleAvailability(product, value),
-                        onEdit: () => _openEditProduct(product),
-                        onDelete: () => _deleteProduct(product),
-                      );
-                    },
+                : Column(
+                    children: [
+                      Padding(
+                        // à direita fica o botão de ajuda (topRight)
+                        padding: const EdgeInsets.fromLTRB(16, 16, 72, 0),
+                        child: TextField(
+                          key: const Key('pesquisa_catalogo_parceiro'),
+                          controller: _pesquisa,
+                          onChanged: (_) => setState(() {}),
+                          decoration: InputDecoration(
+                            hintText: 'Pesquisar produto…',
+                            prefixIcon: const Icon(Icons.search),
+                            suffixIcon: _pesquisa.text.isEmpty
+                                ? null
+                                : IconButton(
+                                    icon: const Icon(Icons.clear),
+                                    onPressed: () =>
+                                        setState(_pesquisa.clear),
+                                  ),
+                            filled: true,
+                            fillColor: Colors.white,
+                            isDense: true,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: products.isEmpty
+                            ? const Center(
+                                child: Text('Nenhum produto encontrado.'))
+                            : ListView.separated(
+                                padding: const EdgeInsets.all(16),
+                                itemCount: products.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(height: 12),
+                                itemBuilder: (context, index) {
+                                  final product = products[index];
+                                  return _ProductTile(
+                                    product: product,
+                                    isPartnerStore: widget.restaurant.isPartner,
+                                    onToggleAvailability: (value) =>
+                                        _toggleAvailability(product, value),
+                                    onEdit: () => _openEditProduct(product),
+                                    onDelete: () => _deleteProduct(product),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
                   ),
           ),
           const Positioned(

@@ -351,3 +351,78 @@ off); inofensivo, reportado.
 Um segundo commit (`[skip ci]`) leva este relatório, uma guarda extra no `PushTokenService` (o
 `onTokenRefresh` em try/catch para uma app sem Firebase inicializado — o main() engole essa falha e a
 app "segue sem notificações"; validado por analyze + 7 testes) e a telemetria do CEO-AI.
+
+
+---
+
+# CONTINUAÇÃO (21/09 20:00 → 22/09 01:00 Lisboa) — H1 a H5
+
+## O que ficou feito, com prova
+
+- **H1 — chave Supabase.** Página `supabase.com/dashboard/account/tokens` aberta no Chrome perfil Danilo
+  já com nome `bora-deploy-2026-09-21` e 7 dias; o Danilo gerou e colou o `sbp_…`; guardado em
+  `.supabase-token.env` (gitignored, confirmado por `git check-ignore`); Management API → HTTP 200.
+  **Expira a 28/09.**
+- **H2 — as 5 Edge Functions publicadas do disco, byte a byte.** CLI oficial 2.117 (`npx supabase functions
+  deploy <slug> --project-ref … --use-api --yes`, pasta temporária com cópia `cmp`-igual do repo), `verify_jwt`
+  true nas cinco. Leitura de volta pela Management API com `Accept: multipart/form-data` (devolve os ficheiros
+  fonte; sem esse header devolve o eszip binário, que não serve para comparar) → **IGUAL AO REPO: True** nas 5:
+  `notify-driver-assigned` v3, `notify-chat-message` v15, `notify-admin-urgent` v18, `notify-tvde-driver` v18
+  (4 `alert`), `notify-washer` v6; `'apns-push-type': 'background'` = 0 em todas. `notify-driver` v41 já pela
+  Claude.ai (lido de volta: `alert`, `verify_jwt=false`); repo alinhado ao cabeçalho/etiquetas v41.
+  Prova de que os 6 módulos carregam: OPTIONS 200 em todos (sai do código da função); POST sem JWT dá o 401
+  do portão nas 5 com `verify_jwt` e o 400 de sempre na `notify-driver`.
+- **H3 — build do iPhone: corrida 132 = build 132, comboio 1.0.2, no App Store Connect.** Foram precisas
+  quatro corridas, cada uma com causa própria e correcção própria (todas por `workflow_dispatch`, sem push de
+  release; os 3 commits intermédios são `[skip ci]` e o GitHub não disparou Android/web/golden — confirmado
+  na lista de corridas):
+  1. **129** — cancelada pelo tecto de 75 min do job A: com o Firebase iOS 12 cada compilação demorou o
+     dobro (config 7,5 vs 2,8 min; simulador 13,3 vs 6,1; varredura 14,9 vs 7,1); a varredura passou aos
+     59 min e o tecto matou a gravação a meio. → tecto 120 (`b08fe8b9`).
+  2. **130** — varredura: o `flutter drive` lançou a app mas nunca apanhou o VM service (30 min mudo,
+     nenhuma linha `[varredura]`, app viva no simulador). Flake do arranque do driver. → 2 tentativas × 25 min
+     (`perl alarm`), só repete se o teste nem chegou a correr; tecto 150 (`6f6fdaf2`).
+  3. **131** — job A verde (varredura 1.ª tentativa), IPA construído e assinado (52,9 MB), mas o `altool`
+     recusou: **90062/90186 — comboio 1.0.1 fechado**. O build 115 aprovado já levava
+     `CFBundleShortVersionString=1.0.1` (do pubspec) embora a ficha diga "1.0". A ficha "1.0.1" criada ontem
+     nunca poderia receber build. → versão ASC renomeada 1.0.1 → **1.0.2** pela API (PATCH 200, lida de
+     volta, textos preservados); `pubspec.yaml` `1.0.1+615 → 1.0.2+615` (só o nome; o código é do CI)
+     (`bc1dea7f`). As três plataformas passam a 1.0.2.
+  4. **132** — job A verde (varredura 14 min), job B verde: `UPLOAD SUCCEEDED`, Delivery UUID
+     `0653d9cc-f821-4d7b-82b4-0c4551d495e0`; Apple: build 132 **VALID** às 00:41Z, comboio 1.0.2,
+     `usesNonExemptEncryption=false`. O IPA leva `BORA_VERSION_CODE=132`.
+- **H4 — submissão pronta, sem submeter.** Build 132 juntado ao grupo interno do TestFlight `a118baea`
+  (renomeado "Bora — build 132 (push iPhone)"; o grupo externo "Motoristas Guarda" ficou intacto — a receita
+  antiga apagava todos os grupos, não a repeti): `internalBuildState=IN_BETA_TESTING`, testador
+  `boraappbora@gmail.com` `INSTALLED`. Build ligado à versão 1.0.2 (`PATCH relationships/build` 204, lido de
+  volta `132 VALID`). Ficha aberta no Chrome perfil Bora: "App para iOS Versão 1.0.2 — Preparar para envio",
+  Compilação 132 / 1.0.2; **"Adicionar para revisão" não foi carregado** (é do Danilo).
+  Script: `provas/link-unico-20260921/ligar_build_101.py` (nunca chama `appStoreVersionSubmissions`).
+- **H5 — prova do push:** pendente do Danilo (3 passos, um de cada vez, abaixo). Depois: SELECT em
+  `driver_push_tokens` por `platform='ios'` e push de teste por `public._notify_driver_assigned_http(uid,
+  null, 'driver_offline', título, texto)` — chega a todos os aparelhos do estafeta, sem inventar pedido.
+
+## O que falta o Danilo fazer (passos numerados, um de cada vez)
+
+1. No iPhone, abrir o **TestFlight** e instalar a **Bora (1.0.2, build 132)** — o TestFlight já a mostra.
+2. Abrir a Bora, entrar como **estafeta** (a conta de sempre) e, quando o iPhone perguntar, **Permitir**
+   notificações. Ficar online.
+3. Mandar-me a foto do ecrã. Eu confirmo por SELECT o primeiro aparelho `ios` e mando o push de teste.
+4. (Depois) Na aba do App Store Connect que ficou aberta, carregar em **"Adicionar para revisão"** e
+   submeter a 1.0.2.
+
+## FORA DO SCOPE — ENCONTREI MAS NÃO MEXI (continuação)
+
+1. **O comboio da Apple vs. a ficha da loja:** o build 115 foi aprovado com `CFBundleShortVersionString`
+   1.0.1 dentro de uma ficha chamada "1.0" — o `pubspec` mandava 1.0.1 desde antes. Ficou documentado; daqui
+   para a frente cada release iOS precisa de um nome de versão **superior** ao último aprovado (agora 1.0.2).
+2. **`flutter drive` no simulador é um flake conhecido** — a 2.ª tentativa está no workflow; se voltar a
+   acontecer com frequência, o próximo passo é `--no-dds`/`--vm-service-port` fixo.
+3. **Os tempos de compilação do iOS dobraram com o Firebase 12** (pods sem cache entre corridas): vale a pena
+   cachear o `DerivedData`/`build/ios_sim` ou pré-compilar os pods.
+4. **O PAT da Supabase expira a 28/09** — a partir daí volta a ser preciso gerar outro (mesma página, mesmo
+   nome); a receita fica na memória do PC.
+5. **`pos_verde.py` antigo apaga TODOS os grupos do TestFlight** (incluindo o externo "Motoristas Guarda") —
+   não usar como está.
+6. **`ios/LANCAMENTO-IOS-ESTADO.md` está modificado por outra sessão** (não commitado) — não lhe toquei; o
+   estado desta continuação vive neste relatório e no `e2e_log` (ids 2156–2165).

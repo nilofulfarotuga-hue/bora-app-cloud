@@ -149,7 +149,7 @@ o aviso "dinheiro de verdade" e a entrada do menu.
 |---|---|---|
 | **Web** (Cloudflare) | ✅ verde às 14:02 | `/versao.json` com `8e7c91e3`, run 144 |
 | **Android** (Play) | ✅ verde às 14:38 (~40 min) | o CI empurrou `58885cea ci: bump versionCode to 616`, e `platform_settings.app_latest_version_code` passou de **615 → 616** |
-| **iOS** (App Store Connect) | ⏳ a correr | disparado à mão (`workflow_dispatch`, `enviar=true`) no mesmo commit |
+| **iOS** (App Store Connect) | ✅ verde às 15:25 (1h24) | build **133** enviada; todos os passos do job B `success`, incluindo *"Enviar para o App Store Connect"* |
 
 O **portão do Danilo de 10/09 foi respeitado**: no run do Android o job
 *"Autoteste 3 perfis (emulador Android + Play)"* ficou `success` **antes** de o job
@@ -227,9 +227,19 @@ poll. Foi decisão consciente: o TVDE era o bug provado.
 
 ## O iPhone
 
-A build nova foi **disparada** (`build_ios.yml`, `workflow_dispatch` com `enviar=true`)
-no commit `8e7c91e3`, na branch de produção. O job B (IPA assinado → App Store Connect)
-só corre se o job A ficar verde, e o job A já passou análise estática, testes e goldens.
+A build **133** (`CFBundleVersion` = `github.run_number`) está no App Store Connect,
+feita do commit `8e7c91e3`. Run `35737371903`, 14:01 → 15:25 (**1h24**). A anterior no
+ASC era a 132.
+
+O portão foi respeitado: o job A (*"Compila e corre no simulador"*) ficou `success` —
+análise estática, testes unitários, goldens e a **varredura de ecrãs (portão, sem
+escape)** — e só então correu o job B, cujos passos passaram todos, incluindo
+*"Conferir que os segredos de assinatura existem"*, *"Construir o IPA"* e **"Enviar para
+o App Store Connect"**.
+
+> **Limite desta prova:** o que está provado é que o **CI enviou**. A chegada da build
+> ao TestFlight depende do processamento da Apple (10–30 min) e não pude confirmá-la
+> daqui — a chave `.p8` vive nos segredos do GitHub, não neste PC.
 
 **Decisão que tomei e porquê:** não fiz avançar `origin/ios-lancamento`. Está **153
 commits atrás** da produção e **0 à frente** (um fast-forward bastava), parado desde
@@ -238,10 +248,10 @@ publicação, e há uma ordem em fila — `iphone-automatico-2026-09-22` — que
 precisamente para tratar deste pipeline. Disparar o build na branch de produção entrega
 a build ao App Store Connect sem tocar nesse ramo nem submeter nada a revisão.
 
-**O que fica à espera da Apple:** a build sobe ao ASC e fica lá parada. Para chegar ao
+**O que fica à espera da Apple:** a build está no ASC e fica lá parada. Para chegar ao
 iPhone do Danilo falta atribuí-la ao grupo de testadores internos do TestFlight; para
-chegar aos clientes falta submetê-la a revisão. Nenhuma das duas acontece sozinha hoje
-— é exactamente o que a ordem em fila vai resolver.
+chegar aos clientes falta submetê-la a revisão. **Nenhuma das duas acontece sozinha
+hoje** — é exactamente o que a ordem em fila vai resolver.
 
 ---
 

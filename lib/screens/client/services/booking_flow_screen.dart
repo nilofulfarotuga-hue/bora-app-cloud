@@ -350,7 +350,8 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
       // Carteira Unica (2026-07-21): cartao padrao + digital/rosto antes de
       // criar a marcacao e o PaymentIntent. Recusar nao cobra nada.
       final auth =
-          await SavedCardCheckout.instance.authorize(amountEur: _amountDueEur);
+          await SavedCardCheckout.instance
+              .authorize(context: context, amountEur: _amountDueEur);
       if (!mounted) return;
       if (auth.cancelled) {
         messenger.showSnackBar(SnackBar(

@@ -6,6 +6,7 @@ import '../../../config/app_spacing.dart';
 import '../../../models/tvde_fare_view.dart';
 import '../../../models/tvde_ride.dart';
 import '../../../stores/tvde_store.dart';
+import '../../../widgets/tvde/recibo_pago.dart';
 import '../../../widgets/bora/bora.dart';
 import '../../../widgets/tvde/tvde_roundtrip_driver_notice.dart';
 
@@ -112,6 +113,12 @@ class _RideTileState extends State<_RideTile> {
                 Text('$date · ${ride.statusLabel}',
                     style: const TextStyle(
                         fontSize: 12, color: AppColors.textSubtle)),
+                // [22/09] A marca de pago fica no histórico: quem paga tem de
+                // poder voltar atrás e ver que pagou, e em quê.
+                if (ReciboPago.vale(ride)) ...[
+                  const SizedBox(height: 4),
+                  ReciboPago(ride: ride, compacto: true),
+                ],
               ],
             ),
           ),

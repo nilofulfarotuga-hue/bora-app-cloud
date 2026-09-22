@@ -4,6 +4,34 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pagamento — Bora</title>
+
+<!--
+  SINAL DE VIDA — tem de ser o PRIMEIRO script da página.
+
+  Cicatriz de 22/09/2026 (cliente Priscila Prates, iPhone): o Safari bloqueava
+  a janela e a app ficava à espera para sempre. Agora a app só assume que a
+  janela existe depois de receber este `pronto`, e dá-lhe 1,5 s. Por isso este
+  aviso NÃO pode ficar atrás do `js.stripe.com` — se esperasse pelo Stripe.js,
+  uma rede lenta fazia a app concluir (com razão) que a janela nasceu morta.
+-->
+<script>
+(function () {
+  window.boraAvisar = function (estado, erro) {
+    try {
+      if (window.opener && !window.opener.closed) {
+        window.opener.postMessage(
+          { bora: 'pagamento', estado: estado, erro: erro || null },
+          window.location.origin
+        );
+      }
+    } catch (e) { /* sem opener (mesmo separador) ou já fechado */ }
+  };
+  window.boraAvisar('pronto');
+  // Batimento: enquanto isto chegar, a app sabe que a página está viva.
+  setInterval(function () { window.boraAvisar('vivo'); }, 10000);
+})();
+</script>
+
 <script src="https://js.stripe.com/v3/"></script>
 <style>
   :root { --verde:#16A34A; --texto:#111827; --cinza:#6B7280; --borda:#E5E7EB; }
@@ -37,6 +65,9 @@
     animation:g .8s linear infinite;
   }
   @keyframes g { to { transform:rotate(360deg); } }
+  .saidas { margin-top:20px; display:flex; flex-direction:column; gap:10px; }
+  .saidas button { background:var(--verde); }
+  .saidas .secundario { background:#fff; color:var(--texto); border:1px solid var(--borda); }
 </style>
 </head>
 <body>
@@ -60,33 +91,19 @@
 
   var ORIGEM = window.location.origin;
 
-  function avisarApp(estado, erro) {
-    var msg = { bora: 'pagamento', estado: estado, erro: erro || null };
-    try {
-      if (window.opener && !window.opener.closed) {
-        window.opener.postMessage(msg, ORIGEM);
-      }
-    } catch (e) { /* opener já fechado */ }
-  }
+  // Quando não há `opener` estamos no mesmo separador (telemóvel, ou janela
+  // bloqueada). Aí a app não está viva para ouvir: quem retoma é o arranque
+  // seguinte, a partir do `localStorage`.
+  var temOpener = false;
+  try { temOpener = !!(window.opener && !window.opener.closed); } catch (e) {}
+
+  function avisarApp(estado, erro) { window.boraAvisar(estado, erro); }
 
   function mostrarEstado(texto, comSpinner) {
     var el = document.getElementById('estado');
     el.style.display = 'block';
     el.innerHTML = (comSpinner ? '<div class="spin"></div>' : '') + texto;
     document.getElementById('formulario').style.display = 'none';
-  }
-
-  function fecharDaqui(ms) {
-    setTimeout(function () {
-      if (window.opener && !window.opener.closed) { window.close(); }
-      else { window.location.href = ORIGEM + '/'; }
-    }, ms);
-  }
-
-  function terminar(estado, textoEcra, erro) {
-    avisarApp(estado, erro);
-    mostrarEstado(textoEcra, false);
-    fecharDaqui(estado === 'pago' ? 900 : 2600);
   }
 
   // ── Parâmetros ────────────────────────────────────────────────────────────
@@ -109,19 +126,57 @@
   var clientSecret = regresso || frag.cs;
   var pk = frag.pk || sessionStorage.getItem('bora_pk') || '';
   var label = frag.label || sessionStorage.getItem('bora_label') || 'Pagamento';
+  // Para onde voltar no caminho do mesmo separador. NUNCA a raiz do site: o
+  // cliente tem de aterrar no ecrã de onde saiu.
+  var volta = frag.volta || sessionStorage.getItem('bora_volta') || (ORIGEM + '/');
+
+  function voltarAoBora(ms) {
+    setTimeout(function () {
+      if (temOpener) { window.close(); }
+      else { window.location.href = volta; }
+    }, ms);
+  }
+
+  function terminar(estado, textoEcra, erro) {
+    avisarApp(estado, erro);
+    mostrarEstado(textoEcra, false);
+    voltarAoBora(estado === 'pago' ? 900 : 2600);
+  }
+
+  // Mesmo separador: não há app a ouvir, por isso o cliente precisa de um
+  // botão. Sem isto ficava preso numa página morta.
+  function terminarComSaida(textoEcra, textoBotao) {
+    avisarApp('erro', textoEcra);
+    var el = document.getElementById('estado');
+    el.style.display = 'block';
+    el.innerHTML = textoEcra +
+      '<div class="saidas"><button type="button" id="voltar">' +
+      (textoBotao || 'Voltar ao Bora') + '</button></div>';
+    document.getElementById('formulario').style.display = 'none';
+    document.getElementById('voltar').addEventListener('click', function () {
+      if (temOpener) { window.close(); } else { window.location.href = volta; }
+    });
+  }
 
   if (!clientSecret || !pk) {
-    terminar('erro', 'Não foi possível abrir o pagamento.<br>Volta ao Bora e tenta outra vez.',
-             'parametros em falta');
+    terminarComSaida('Não foi possível abrir o pagamento.<br>Volta ao Bora e tenta outra vez.');
     return;
   }
 
   // Guardado para sobreviver ao redirect do 3-D Secure (o fragmento perde-se).
   sessionStorage.setItem('bora_pk', pk);
   sessionStorage.setItem('bora_label', label);
+  sessionStorage.setItem('bora_volta', volta);
 
   // Limpa o client_secret da barra de endereço.
   history.replaceState(null, '', window.location.pathname);
+
+  if (typeof Stripe !== 'function') {
+    // O Stripe.js não carregou (rede, bloqueador). Dizer, em vez de deixar o
+    // spinner a rodar para sempre.
+    terminarComSaida('Não foi possível carregar o pagamento seguro.<br>Verifica a ligação e tenta outra vez.');
+    return;
+  }
 
   var stripe = Stripe(pk, { locale: 'pt' });
 
@@ -133,16 +188,28 @@
       if (pi && (pi.status === 'succeeded' || pi.status === 'processing')) {
         terminar('pago', 'Pagamento concluído ✓', null);
       } else if (pi && pi.status === 'requires_payment_method') {
-        terminar('erro', 'O pagamento não foi aceite.<br>Volta ao Bora e tenta com outro método.',
-                 'requires_payment_method');
+        terminarComSaida('O pagamento não foi aceite.<br>Volta ao Bora e tenta com outro método.');
       } else {
-        terminar('erro', 'O pagamento não foi concluído.', pi ? pi.status : 'desconhecido');
+        terminarComSaida('O pagamento não foi concluído.<br>Volta ao Bora para ver o estado.');
       }
+    }).catch(function () {
+      terminarComSaida('Não conseguimos confirmar o pagamento.<br>Volta ao Bora para ver o estado.');
     });
     return;
   }
 
   // ── Primeira entrada: montar o Payment Element ────────────────────────────
+  var montou = false;
+
+  // Tecto do "A preparar o pagamento…". O `loaderror` do Stripe apanha a maior
+  // parte das falhas, mas não todas (rede que pendura sem erro, CSP a cortar o
+  // iframe). Sem este tecto a página ficava no spinner sem fim — que é
+  // exactamente o que a cliente viu a 22/09.
+  var tectoDeMontagem = setTimeout(function () {
+    if (montou) return;
+    terminarComSaida('O formulário de pagamento não abriu.<br>Volta ao Bora e tenta outra vez, ou escolhe MB Way.');
+  }, 20000);
+
   var elements = stripe.elements({
     clientSecret: clientSecret,
     locale: 'pt',
@@ -161,6 +228,8 @@
   pagamento.mount('#elemento-pagamento');
 
   pagamento.on('ready', function () {
+    montou = true;
+    clearTimeout(tectoDeMontagem);
     document.getElementById('estado').style.display = 'none';
     var f = document.getElementById('formulario');
     f.style.display = 'flex';
@@ -168,18 +237,25 @@
   });
 
   pagamento.on('loaderror', function (ev) {
-    terminar('erro', 'Não foi possível carregar o pagamento.',
-             ev && ev.error ? ev.error.message : 'loaderror');
+    clearTimeout(tectoDeMontagem);
+    terminarComSaida('Não foi possível carregar o pagamento.<br>Volta ao Bora e tenta outra vez, ou escolhe MB Way.');
+    if (ev && ev.error) { console.warn('[pay] loaderror:', ev.error.message); }
   });
 
   var botao = document.getElementById('botao');
   var erro = document.getElementById('erro');
+  var aPagar = false;
 
   document.getElementById('formulario').addEventListener('submit', function (ev) {
     ev.preventDefault();
     botao.disabled = true;
     botao.textContent = 'A processar…';
     erro.style.display = 'none';
+    // A app precisa de saber que o cliente já carregou em Pagar: a partir
+    // daqui pode estar no banco a aprovar o 3-D Secure, e o tecto de espera
+    // dela passa de 90 s para 10 min.
+    aPagar = true;
+    avisarApp('a-pagar');
 
     stripe.confirmPayment({
       elements: elements,
@@ -189,6 +265,7 @@
       confirmParams: { return_url: ORIGEM + '/pay.html' }
     }).then(function (res) {
       if (res.error) {
+        aPagar = false;
         erro.textContent = res.error.message || 'O pagamento não foi aceite.';
         erro.style.display = 'block';
         botao.disabled = false;
@@ -199,6 +276,7 @@
       if (pi && (pi.status === 'succeeded' || pi.status === 'processing')) {
         terminar('pago', 'Pagamento concluído ✓', null);
       } else {
+        aPagar = false;
         erro.textContent = 'O pagamento não foi concluído.';
         erro.style.display = 'block';
         botao.disabled = false;
@@ -207,10 +285,11 @@
     });
   });
 
-  // Fechar a janela no X conta como cancelamento (a app tem watchdog próprio,
-  // mas isto torna o cancelamento imediato).
+  // Fechar a janela no X conta como cancelamento (a app tem vigia própria,
+  // mas isto torna o cancelamento imediato). Se já carregou em Pagar, NÃO se
+  // avisa cancelamento: o 3-D Secure sai mesmo da página e isso não é desistir.
   window.addEventListener('beforeunload', function () {
-    if (!botao.disabled) { avisarApp('cancelado', null); }
+    if (!aPagar) { avisarApp('cancelado', null); }
   });
 })();
 </script>

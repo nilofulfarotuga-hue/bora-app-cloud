@@ -16,6 +16,7 @@ import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../models/tvde_fare_view.dart';
 import '../../../models/tvde_ride.dart';
+import '../../../widgets/tvde/recibo_pago.dart';
 import '../../../services/directions_service.dart';
 import '../../../services/payment_service.dart';
 import '../../../services/tvde_arriving_notice.dart';
@@ -1961,6 +1962,9 @@ class _StatusPanel extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // [22/09] Recibo. Cobrar sem folha E sem recibo foi o que fez o
+          // Danilo julgar que a corrida dele tinha sido de graça.
+          ReciboPago(ride: ride),
           // [1C · 05/09] O cartão vive também EM VIAGEM: antes só aparecia com
           // `isAssigned`, e a linha do ETA ao destino aqui dentro nunca chegava
           // a ser desenhada. Quem já embarcou continua a precisar do contacto.

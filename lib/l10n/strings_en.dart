@@ -2735,4 +2735,30 @@ const Map<String, String> kStringsEn = <String, String>{
       'Could not complete. Please try again.',
   'Bloqueaste esta pessoa. Não vês as mensagens dela nem lhe podes escrever.':
       'You blocked this person. You cannot see their messages or write to them.',
+
+  // ── Pagamento com cartão (missão pagamento-cartao-2026-09-22) ─────────────
+  'Pago':
+      'Paid',
+  'cartão':
+      'card',
+  'Trocar de cartão':
+      'Use another card',
+  'Outro método':
+      'Another payment method',
+  'Escolher outro método':
+      'Choose another payment method',
+  'Tentar outra vez':
+      'Try again',
+  'O pagamento não foi concluído':
+      'The payment was not completed',
+  'O teu banco não confirmou':
+      'Your bank did not confirm',
+  'A confirmação de segurança do banco não chegou ao fim. A corrida não foi pedida e não foste cobrado.':
+      'The security check from your bank was not completed. The ride was not requested and you were not charged.',
+  'O MB Way não foi aprovado':
+      'MB Way was not approved',
+  'Não aprovaste o pagamento a tempo na app do teu banco. A corrida não foi pedida e não foste cobrado.':
+      'You did not approve the payment in time in your bank app. The ride was not requested and you were not charged.',
+  'Voltaste de um pagamento. Vê o estado do teu pedido no ecrã dele.':
+      'You are back from a payment. Check your order status on its screen.',
 };

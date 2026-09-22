@@ -75,8 +75,18 @@ class PaymentService {
   /// Presents the Stripe payment sheet for [clientSecret] and awaits the user.
   ///
   /// Throws [StripeException] if the user cancels or the card is declined.
-  /// Throws [StateError] on web (unsupported).
-  Future<void> processPayment(String clientSecret) async {
+  ///
+  /// [vertical] e [referenciaId] só servem à web: quando o pagamento tem de
+  /// sair pelo mesmo separador (telemóvel, ou janela bloqueada), é com eles que
+  /// a app sabe, no arranque seguinte, a quem perguntar se ficou pago. São
+  /// opcionais de propósito — sem eles a retoma continua a funcionar, apenas
+  /// sem conseguir libertar a corrida/pedido sozinha.
+  Future<void> processPayment(
+    String clientSecret, {
+    String vertical = 'desconhecida',
+    String? referenciaId,
+    String? paymentIntentId,
+  }) async {
     // Web (2026-07-20) — o PaymentSheet nativo não é fiável no browser, por
     // isso a web usa o Payment Element do Stripe.js em `web/pay.html`. Mesmo
     // clientSecret, mesmo PaymentIntent, mesmo webhook.
@@ -95,6 +105,9 @@ class PaymentService {
         clientSecret: clientSecret,
         publishableKey: _webPublishableKey,
         label: 'Pagamento Bora',
+        vertical: vertical,
+        referenciaId: referenciaId,
+        paymentIntentId: paymentIntentId,
       );
       debugPrint('[PaymentService] pagamento web concluído');
       return;

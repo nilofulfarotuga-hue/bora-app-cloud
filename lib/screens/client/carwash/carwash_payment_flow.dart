@@ -55,8 +55,8 @@ class CarwashPaymentFlow {
 
     // Carteira Única: cartão guardado + digital/rosto ANTES de criar o
     // PaymentIntent. Recusar aqui não cobra nada.
-    final auth = await SavedCardCheckout.instance
-        .authorize(amountEur: booking.totalCents / 100.0);
+    final auth = await SavedCardCheckout.instance.authorize(
+        context: context, amountEur: booking.totalCents / 100.0);
     if (!context.mounted) return false;
     if (auth.cancelled) {
       _snack(context, 'Pagamento cancelado. Não foi cobrado nada.'.tr);

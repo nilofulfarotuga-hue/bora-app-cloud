@@ -22,6 +22,7 @@ import 'services/push_token_service.dart';
 import 'services/bloqueio_service.dart';
 import 'services/remote_fees_service.dart';
 import 'services/small_order_fee.dart';
+import 'services/retoma_pagamento_web.dart';
 import 'services/tvde_reservation_ready_handler.dart';
 import 'services/tvde_offer_action_handler.dart';
 import 'widgets/tvde/tvde_offer_overlay_host.dart';
@@ -58,6 +59,7 @@ import 'screens/admin/admin_cleaning_bookings_screen.dart';
 import 'screens/admin/admin_extrato_dono_screen.dart';
 import 'screens/admin/admin_orders_screen.dart';
 import 'screens/admin/admin_tvde_rides_screen.dart';
+import 'screens/admin/admin_tvde_pagamentos_screen.dart';
 import 'screens/restaurant_ratings_list_screen.dart';
 import 'screens/cleaner/cleaner_home_screen.dart';
 import 'screens/washer/washer_home_screen.dart';
@@ -693,6 +695,19 @@ Future<void> main() async {
     });
   }
 
+  // Pagamento que saiu da app pelo mesmo separador (Safari do iPhone bloqueia
+  // a janela nova). A app morreu a meio; ao voltar tem de perguntar ao servidor
+  // se ficou pago e dizer ao cliente o que aconteceu. Ver
+  // `services/retoma_pagamento_web.dart` — cicatriz de 22/09/2026.
+  //
+  // Fire-and-forget: não há pendente na esmagadora maioria dos arranques, e
+  // falhar aqui nunca pode travar a app.
+  if (kIsWeb) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(retomarPagamentoWebPendente());
+    });
+  }
+
   runApp(MyApp(
     sessionStore: sessionStore,
     consentStore: consentStore,
@@ -955,6 +970,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           // /admin/ledger 4, /admin/limpeza/{id} 3.
           '/admin/users': (_) => const AdminClientsScreen(),
           '/admin/tvde': (_) => const AdminTvdeRidesScreen(),
+          '/admin/tvde/pagamentos': (_) =>
+              const AdminTvdePagamentosScreen(),
           '/admin/orders': (_) => const AdminOrdersScreen(),
           '/admin/robot-suggestions': (_) => const AdminRobotSuggestionsScreen(),
           '/admin/ledger': (_) => const AdminExtratoDonoScreen(),

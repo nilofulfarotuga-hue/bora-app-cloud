@@ -79,6 +79,7 @@ import 'admin_tvde_noshows_screen.dart';
 import 'admin_tvde_plan_requests_screen.dart';
 import 'admin_tvde_reservas_screen.dart';
 import 'admin_tvde_rides_screen.dart';
+import 'admin_tvde_pagamentos_screen.dart';
 import 'admin_tvde_roundtrips_screen.dart';
 import 'admin_tvde_stuck_payments_screen.dart';
 import 'admin_tvde_subscriptions_screen.dart';
@@ -429,6 +430,18 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.teal,
       builder: () => const AdminTvdeRidesScreen(),
       keywords: const ['canceladas', 'corridas', 'curso', 'feitas', 'todas'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_pagamentos',
+      title: 'Pagamentos das corridas',
+      subtitle: 'Quem pagou, quem não conseguiu pagar, e estorno',
+      icon: Icons.payments,
+      color: const Color(0xFF0EA5E9),
+      builder: () => const AdminTvdePagamentosScreen(),
+      keywords: const [
+        'cartao', 'cobranca', 'estorno', 'falhou', 'mbway', 'pagamento',
+        'pagou', 'reembolso', 'stripe',
+      ],
     ),
     AdminMenuItem(
       id: 'tvde_corridas_de_balcao',

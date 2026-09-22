@@ -126,9 +126,8 @@ class _ReservationFlowScreenState extends State<ReservationFlowScreen> {
     try {
       // Carteira Unica (2026-07-21): cartao padrao + digital/rosto antes de
       // criar o PaymentIntent. Recusar a biometria nao cobra nada.
-      final auth =
-          await SavedCardCheckout.instance
-              .authorize(amountEur: _kReservationPrepaymentEur);
+      final auth = await SavedCardCheckout.instance.authorize(
+          context: context, amountEur: _kReservationPrepaymentEur);
       if (auth.cancelled) {
         if (!mounted) return;
         messenger.showSnackBar(const SnackBar(

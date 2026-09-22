@@ -135,8 +135,8 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
       // Carteira Unica (2026-07-21): resolve o cartao padrao e pede
       // digital/rosto ANTES de criar o PaymentIntent — nada e cobrado se o
       // cliente recusar.
-      final auth = await SavedCardCheckout.instance
-          .authorize(amountEur: _kReservationPrepaymentEur);
+      final auth = await SavedCardCheckout.instance.authorize(
+          context: context, amountEur: _kReservationPrepaymentEur);
       if (auth.cancelled) {
         if (!mounted) return;
         messenger.showSnackBar(SnackBar(

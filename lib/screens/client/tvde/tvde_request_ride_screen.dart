@@ -530,7 +530,8 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       // Cartão / MB Way — mesmo caminho da corrida normal.
       String? savedPmId;
       if (method == 'card') {
-        final auth = await SavedCardCheckout.instance.authorize();
+        final auth = await SavedCardCheckout.instance.authorize(
+            context: context, amountEur: _payableCents / 100);
         if (!mounted) return;
         if (auth.cancelled) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -554,8 +555,10 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         mbwayPhone: mbwayPhone,
         note: note,
         savedPmId: savedPmId,
-        confirmCard: (clientSecret) =>
-            PaymentService().processPayment(clientSecret),
+        confirmCard: (clientSecret) => PaymentService().processPayment(
+          clientSecret,
+          vertical: 'tvde-reserva',
+        ),
       );
       if (!mounted) return;
 
@@ -628,7 +631,8 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       // biometria. MB Way confirma-se na app do banco e dinheiro nao cobra.
       String? savedPmId;
       if (method == 'card') {
-        final auth = await SavedCardCheckout.instance.authorize();
+        final auth = await SavedCardCheckout.instance.authorize(
+            context: context, amountEur: _payableCents / 100);
         if (!mounted) return;
         if (auth.cancelled) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -655,8 +659,15 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
           tokensUsed: tokensUsed,
           savedPmId: savedPmId,
           onRideCreated: (r) => criada = r,
-          confirmCard: (clientSecret) =>
-              PaymentService().processPayment(clientSecret),
+          // `criada` já está preenchida aqui: o store entrega a corrida ao
+          // ecrã ANTES de confirmar o cartão. É esse id que deixa a app, ao
+          // voltar de um pagamento no mesmo separador, perguntar ao servidor
+          // se esta corrida ficou paga (ver `retoma_pagamento_web.dart`).
+          confirmCard: (clientSecret) => PaymentService().processPayment(
+            clientSecret,
+            vertical: 'tvde',
+            referenciaId: criada?.id,
+          ),
         );
         if (!mounted) return;
         // Corrida estacionada → só segue para o tracking depois de o SERVIDOR
@@ -694,7 +705,14 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       // 2026-08-16): a corrida existe mas NUNCA foi cobrada. Em vez de a
       // cancelar em silêncio, mostrar o estado real com escolha explícita —
       // "Pagar de novo" (mesmo PaymentIntent) ou "Cancelar corrida".
-      if (orfa != null && orfa.isAwaitingPayment && foiDesistencia && mounted) {
+      //
+      // [22/09] Deixou de exigir `foiDesistencia`. O Ricardo (960386302) perdeu
+      // a corrida f423e98e a 21/09 com o PaymentIntent parado em
+      // `requires_action`: a confirmação do banco não se completou, a excepção
+      // não trazia a palavra "cancel", e a corrida morreu em silêncio. Nada foi
+      // cobrado em nenhum destes casos — por isso quem decide é o cliente,
+      // qualquer que tenha sido a falha.
+      if (orfa != null && orfa.isAwaitingPayment && mounted) {
         final secret = store.cardClientSecretFor(orfa.id);
         if (secret != null) {
           await _pagamentoAbandonado(store, orfa, secret);
@@ -733,62 +751,106 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     }
   }
 
-  /// PaymentSheet abandonada com a corrida estacionada em `aguarda pagamento`.
-  /// NUNCA seguir para "à procura de motorista": ficar no checkout, dizer o
-  /// estado real e dar as duas saídas. Repete enquanto o cliente reabrir a
-  /// sheet e voltar a desistir.
+  /// Pagamento que não se concluiu, com a corrida estacionada em
+  /// `aguarda_pagamento`. NUNCA seguir para "à procura de motorista", e nunca
+  /// matar a corrida em silêncio: dizer o estado real e dar as saídas.
+  ///
+  /// [22/09] Pergunta-se **primeiro ao servidor**, por duas razões. A excepção
+  /// pode ter rebentado depois de o pagamento passar (e aí a corrida é boa), e
+  /// é o estado verdadeiro do PaymentIntent que diz ao cliente o que aconteceu
+  /// — `requires_action` é o banco que não confirmou, não uma recusa.
   Future<void> _pagamentoAbandonado(
       TvdeStore store, TvdeRide orfa, String secret) async {
     while (mounted) {
-      final pagarDeNovo = await showDialog<bool>(
+      final res = await store.confirmRidePayment(orfa.id);
+      if (!mounted) return;
+      final estado = res?['payment_status'] as String?;
+
+      // Pago à mesma → segue, sem perguntar nada.
+      if ((res != null && res['succeeded'] == true) || estado == 'processing') {
+        _openTracking();
+        return;
+      }
+
+      final porBanco = estado == 'requires_action';
+      final titulo = porBanco
+          ? 'O teu banco não confirmou'.tr
+          : 'Pagamento não concluído'.tr;
+      final explicacao = porBanco
+          ? 'A confirmação de segurança do banco não chegou ao fim. A corrida não foi pedida e não foste cobrado.'
+              .tr
+          : 'A corrida ainda não foi pedida e não foste cobrado. Queres tentar pagar outra vez?'
+              .tr;
+
+      final saida = await showDialog<_SaidaDoPagamento>(
         context: context,
         barrierDismissible: false,
         builder: (ctx) => AlertDialog(
-          title: Text('Pagamento não concluído'.tr),
-          content: Text(
-              'A corrida ainda não foi pedida e não foste cobrado. Queres tentar pagar outra vez?'.tr),
+          title: Text(titulo),
+          content: Text(explicacao),
+          actionsOverflowButtonSpacing: 4,
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
+                onPressed: () =>
+                    Navigator.pop(ctx, _SaidaDoPagamento.cancelar),
                 child: Text('Cancelar corrida'.tr)),
+            TextButton(
+                onPressed: () =>
+                    Navigator.pop(ctx, _SaidaDoPagamento.outroMetodo),
+                child: Text('Escolher outro método'.tr)),
             FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
+                onPressed: () =>
+                    Navigator.pop(ctx, _SaidaDoPagamento.pagarDeNovo),
                 child: Text('Pagar de novo'.tr)),
           ],
         ),
       );
       if (!mounted) return;
-      if (pagarDeNovo != true) {
-        // [30/08] Mesmo aqui: confirmar no servidor que o PI NÃO passou antes
-        // de cancelar (a sheet pode ter sido abandonada já depois de pagar).
-        final res = await store.confirmRidePayment(orfa.id);
-        if (!mounted) return;
-        final st = res?['payment_status'] as String?;
-        if ((res != null && res['succeeded'] == true) || st == 'processing') {
-          _openTracking();
-          return;
-        }
+
+      // "Pagar de novo" reusa o MESMO PaymentIntent — não nasce cobrança nova.
+      if (saida == _SaidaDoPagamento.pagarDeNovo) {
         try {
-          await store.cancelRide(orfa.id,
-              reason: 'payment_failed', skipRefund: true);
-        } catch (_) {/* o cron limpa (payment_timeout) */}
-        store.clearActiveRide();
+          await PaymentService().processPayment(
+            secret,
+            vertical: 'tvde',
+            referenciaId: orfa.id,
+          );
+        } catch (_) {
+          continue; // voltou a falhar → mesma escolha outra vez
+        }
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Corrida cancelada. Não foste cobrado.'.tr)));
+        final libertada = await _aguardarPagamentoOnline(store, orfa, 'card');
+        if (!mounted) return;
+        if (libertada) _openTracking();
         return;
       }
-      try {
-        await PaymentService().processPayment(secret);
-      } catch (_) {
-        continue; // voltou a desistir → mesma escolha outra vez
+
+      // Cancelar e "outro método" cancelam os dois — a diferença é que o
+      // segundo reabre a folha de pagamento em vez de deixar o cliente parado.
+      await _largarCorridaNaoPaga(store, orfa.id);
+      if (!mounted) return;
+
+      if (saida == _SaidaDoPagamento.outroMetodo) {
+        // Já estamos dentro de `_comTrava`; chamar directamente evita a trava
+        // dupla (que devolveria sem abrir nada).
+        await _pedirCorrida();
+        return;
       }
-      if (!mounted) return;
-      final libertada = await _aguardarPagamentoOnline(store, orfa, 'card');
-      if (!mounted) return;
-      if (libertada) _openTracking();
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Corrida cancelada. Não foste cobrado.'.tr)));
       return;
     }
+  }
+
+  /// Larga uma corrida que o servidor já disse que não está paga. Sem refund
+  /// porque não houve cobrança nenhuma.
+  Future<void> _largarCorridaNaoPaga(TvdeStore store, String rideId) async {
+    try {
+      await store.cancelRide(rideId,
+          reason: 'payment_failed', skipRefund: true);
+    } catch (_) {/* o cron limpa (payment_timeout) */}
+    store.clearActiveRide();
   }
 
   /// Espera que o SERVIDOR liberte a corrida (`aguarda_pagamento` →
@@ -834,10 +896,34 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
             content: Text('Ainda estamos a confirmar o pagamento. Vê o estado no ecrã da corrida — se o MB Way passou, ela segue sozinha.'.tr)));
         return true;
       }
+      // [22/09] Dizer a VERDADE: o MB Way só passa se a pessoa aprovar na app
+      // do banco, e quem não aprovou precisa de saber isso — não de um aviso
+      // técnico. E precisa de uma saída, não de um beco.
       await cancelar();
       if (!mounted) return false;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Não recebemos a confirmação MBWay. A corrida foi cancelada e não foste cobrado.'.tr)));
+      final tentarOutra = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          title: Text('O MB Way não foi aprovado'.tr),
+          content: Text(
+              'Não aprovaste o pagamento a tempo na app do teu banco. A corrida não foi pedida e não foste cobrado.'
+                  .tr),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text('Agora não'.tr)),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text('Tentar outra vez'.tr)),
+          ],
+        ),
+      );
+      if (!mounted) return false;
+      if (tentarOutra == true) {
+        // Reabre a folha: pode repetir o MB Way ou trocar para dinheiro/cartão.
+        await _pedirCorrida();
+      }
       return false;
     }
 
@@ -1041,8 +1127,11 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         return;
       }
       try {
-        await PaymentService()
-            .processPayment(created['clientSecret'] as String);
+        await PaymentService().processPayment(
+          created['clientSecret'] as String,
+          vertical: 'tvde-roundtrip',
+          paymentIntentId: paymentIntentId,
+        );
       } catch (_) {
         // Sheet abandonada: um PI de cartão nunca passa sem esta confirmação,
         // por isso o par pendente morre aqui.
@@ -1748,6 +1837,18 @@ class _EstimateCard extends StatelessWidget {
 /// Dinheiro sempre; Cartão/MB Way só se [allowOnline] (switch on + tarifa normal).
 /// Resultado da folha de pagamento TVDE: método escolhido + nota opcional +
 /// tokens usados + número MB Way (só preenchido quando o método é 'mbway').
+/// Saídas de um pagamento que não se concluiu. Nada foi cobrado em nenhuma.
+enum _SaidaDoPagamento {
+  /// Reabrir o MESMO PaymentIntent — não nasce cobrança nova.
+  pagarDeNovo,
+
+  /// Largar esta corrida e voltar à folha de pagamento (MB Way, dinheiro…).
+  outroMetodo,
+
+  /// Largar e ficar por aqui.
+  cancelar,
+}
+
 class _TvdePayResult {
   const _TvdePayResult(this.method, this.note, this.tokensUsed,
       {this.mbwayPhone});

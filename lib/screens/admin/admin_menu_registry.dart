@@ -41,6 +41,7 @@ import 'admin_gdpr_screen.dart';
 import 'admin_knowledge_screen.dart';
 import 'admin_live_orders_map_screen.dart';
 import 'admin_marcacoes_confirmacao_screen.dart';
+import 'admin_decisoes_screen.dart';
 import 'admin_motores_screen.dart';
 import 'admin_crash_logs_screen.dart';
 import 'admin_notification_failures_screen.dart';
@@ -941,6 +942,15 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.deepOrange,
       builder: () => const AdminMotoresScreen(),
       keywords: const ['agentes', 'cada', 'desligar', 'ligar', 'motores', 'quota', 'robo', 'velocidade'],
+    ),
+    AdminMenuItem(
+      id: 'robos_decisoes_jev',
+      title: 'Decisões (Jev)',
+      subtitle: 'O decisor rápido: o que decidiu, com que certeza, quanto custou hoje, sombra ou ativo',
+      icon: Icons.rule,
+      color: AppColors.primary,
+      builder: () => const AdminDecisoesScreen(),
+      keywords: const ['decisoes', 'decisor', 'jev', 'typesafe', 'sombra', 'custo', 'noshow', 'suporte', 'despacho'],
     ),
     AdminMenuItem(
       id: 'robos_assistente_ia_admin',

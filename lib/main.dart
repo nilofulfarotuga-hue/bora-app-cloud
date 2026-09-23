@@ -39,6 +39,7 @@ import 'dispatch/dispatch_engine.dart';
 import 'l10n/bora_lang.dart';
 import 'screens/admin/admin_crosstalk_screen.dart';
 import 'screens/admin/admin_whatsapp_screen.dart';
+import 'screens/admin/admin_decisoes_screen.dart';
 import 'screens/admin/admin_motores_screen.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
 // PARTE A (2026-07-17) — deep links dos pushes admin persistentes
@@ -935,6 +936,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           '/admin/whatsapp': (_) => const AdminWhatsappScreen(),
           // Missão 02/09/2026 (noite) — Motores: o roteador Motor Bora (quota, latência, pausar)
           '/admin/motores': (_) => const AdminMotoresScreen(),
+          // Missão jev-decisor-2026-09-23 — Decisor (Jev/Gemini): lista, custo do dia, sombra/ativo.
+          '/admin/decisoes': (_) => const AdminDecisoesScreen(),
           // 5G — métricas detalhadas das propostas IA
           '/admin/suggestions/metrics': (_) =>
               const AdminSkillSuggestionsMetricsScreen(),

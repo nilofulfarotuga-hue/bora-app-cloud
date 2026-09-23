@@ -65,3 +65,7 @@ Cinco. Há corridas finalizadas em que o ganho do motorista mais a parte da Bora
 ## Para o Danilo
 
 Só uma coisa, e é no PC: publicar o bora-site com `bash deploy-cloudflare.sh` depois de juntar o pedido 1. O loop do PC pode fazê-lo sozinho; deixei a ordem no Córtex. E quando a empresa tiver NIF e licença de operador de plataforma, escreve-os no ecrã "Documentos dos motoristas" e o "em processo" desaparece de todo o lado.
+
+## Adenda das 21h00 UTC: o QR estava a abrir a página errada
+
+O PC publicou o site às 19h01. Mas, ao verificar pelo servidor, o endereço no formato que o QR usava, `boraguarda.com/verificar/<código>`, devolvia a página "não encontrada": a regra de reencaminhamento do Cloudflare não pegou. A ordem do loop que devia provar isto ficou marcada como concluída sem ter aberto a página (zero consultas ao código verdadeiro e nenhuma linha no registo). Corrigi sem precisar de versão nova da app: o endereço do QR vem do servidor, e passou para `boraguarda.com/verificar/?t=<código>`, que está provado a servir a página certa. A mudança ficou na auditoria do painel e na migração `20260923210121`. O link do PDF de teste das 18h40 usava o formato antigo; os próximos já saem certos.

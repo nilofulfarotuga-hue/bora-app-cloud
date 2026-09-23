@@ -9,12 +9,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../config/maps_config.dart';
+import '../../services/legal_fields_service.dart';
 import '../../services/provider_upload_service.dart';
 import '../../services/place_autocomplete_service.dart';
 import '../../stores/cleaner_store.dart';
 import '../../utils/safe_image_picker.dart';
 import '../../widgets/address_autocomplete_field.dart';
 import '../../widgets/bora/bora.dart';
+import '../../widgets/legal_fields_section.dart';
 
 /// LIMPEZA — candidatura a profissional de limpeza (cleaner_apply).
 /// A aprovação é feita pelo admin no painel (paridade F5).
@@ -40,6 +42,15 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
   final _addressCtrl = TextEditingController();
   double _radiusKm = 10;
   ll.LatLng? _baseCoords; // geocoding da zona base (matching por distância)
+
+  // D3 (DSA art. 30 + DAC7) — reutiliza o NIF; a morada da secção é a morada
+  // pessoal completa (a "zona base" acima fica como está).
+  late final LegalFieldsController _legal = LegalFieldsController(
+    nif: _nifCtrl,
+  );
+  // Candidatura já registada mas dados legais por gravar: o próximo "Enviar"
+  // só repete a gravação (a RPC de candidatura recusaria a repetição).
+  bool _legalPending = false;
 
   XFile? _photo;
   XFile? _idDoc;
@@ -86,10 +97,14 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
       if ((p['nif'] as String?)?.isNotEmpty == true) _nifCtrl.text = p['nif'];
       _prefillPhotoUrl = (p['photo_url'] as String?) ?? '';
     }
+    // Nome legal por defeito = o nome que já temos; a pessoa corrige se o do
+    // documento for outro.
+    _legal.legalName.text = _nameCtrl.text;
   }
 
   @override
   void dispose() {
+    _legal.dispose();
     _nameCtrl.dispose();
     _phoneCtrl.dispose();
     _emailCtrl.dispose();
@@ -144,6 +159,15 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
     // Guarda de reentrada LOCAL (PADRAO_BORA.md 3.13) — nunca `store.busy`.
     if (_uploading) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    // D3 — PADRAO_BORA §1.2: rola até ao campo em falta e diz o que falta.
+    final falta = await _legal.validateAndReveal();
+    if (!mounted) return;
+    if (falta != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Falta: $falta')));
+      return;
+    }
     if (_photo == null && _prefillPhotoUrl.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Adiciona uma foto de perfil — os clientes escolhem '
@@ -167,40 +191,65 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
     // mensagem específica e para o log de diagnóstico.
     var stage = 'coords';
     try {
-      final coords = await _resolveBaseCoords();
-      if (!mounted) return;
-      stage = 'uploads';
-      // Uploads primeiro (foto pública + doc privado), depois a candidatura.
-      // MULTI-PAPEL: se não escolheu nova foto, reutiliza a do papel de estafeta.
-      final photoUrl = _photo != null
-          ? await ProviderUploadService.uploadAvatar(_photo!)
-          : _prefillPhotoUrl;
-      final idPath = await ProviderUploadService.uploadDocument(_idDoc!, 'id_doc');
-      if (!mounted) return;
-      stage = 'apply';
-      await store.apply(
-        name: _nameCtrl.text.trim(),
-        phone: _phoneCtrl.text.trim(),
-        email: _emailCtrl.text.trim(),
-        nif: _nifCtrl.text.trim(),
-        bio: _bioCtrl.text.trim(),
-        baseAddress: _addressCtrl.text.trim(),
-        baseLat: coords?.latitude,
-        baseLng: coords?.longitude,
-        serviceRadiusKm: _radiusKm,
-        photoUrl: photoUrl ?? '',
-        docs: {
-          if (idPath != null) 'id_doc': idPath,
-          'materials_ok': true,
-          'materials_list': _requiredMaterials,
-        },
-      );
+      // Candidatura já registada numa tentativa anterior (só falhou a
+      // gravação dos dados legais): salta direto para essa gravação.
+      if (!_legalPending) {
+        final coords = await _resolveBaseCoords();
+        if (!mounted) return;
+        stage = 'uploads';
+        // Uploads primeiro (foto pública + doc privado), depois a candidatura.
+        // MULTI-PAPEL: se não escolheu nova foto, reutiliza a do papel de estafeta.
+        final photoUrl = _photo != null
+            ? await ProviderUploadService.uploadAvatar(_photo!)
+            : _prefillPhotoUrl;
+        final idPath = await ProviderUploadService.uploadDocument(
+          _idDoc!,
+          'id_doc',
+        );
+        if (!mounted) return;
+        stage = 'apply';
+        await store.apply(
+          name: _nameCtrl.text.trim(),
+          phone: _phoneCtrl.text.trim(),
+          email: _emailCtrl.text.trim(),
+          nif: _nifCtrl.text.trim(),
+          bio: _bioCtrl.text.trim(),
+          baseAddress: _addressCtrl.text.trim(),
+          baseLat: coords?.latitude,
+          baseLng: coords?.longitude,
+          serviceRadiusKm: _radiusKm,
+          photoUrl: photoUrl ?? '',
+          docs: {
+            if (idPath != null) 'id_doc': idPath,
+            'materials_ok': true,
+            'materials_list': _requiredMaterials,
+          },
+        );
+        if (!mounted) return;
+      }
+      stage = 'legal';
+      // D3 — só há sucesso depois de os dados legais ficarem gravados
+      // (DSA art. 30 + DAC7; o admin não consegue aprovar sem eles).
+      _legalPending = true;
+      await _legal.save('cleaner');
+      _legalPending = false;
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Candidatura enviada! Vamos rever em breve. 💚')),
       );
       Navigator.pop(context);
+    } on LegalFieldsException catch (e) {
+      if (!mounted) return;
+      debugPrint('CleanerApply legal FAILED code=${e.code} msg=${e.message}');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${e.message} A candidatura já ficou registada — toca '
+            'em "Enviar candidatura" para gravar os dados fiscais.',
+          ),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       final msg = e.toString();
@@ -341,16 +390,12 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
                   labelText: 'Email',
                   prefixIcon: Icon(Icons.email_outlined)),
             ),
-            const SizedBox(height: Spacing.md),
-            TextFormField(
-              controller: _nifCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                  labelText: 'NIF',
-                  prefixIcon: Icon(Icons.badge_outlined),
-                  helperText: 'Necessário para os recibos.'),
-            ),
-            const SizedBox(height: Spacing.md),
+            const SizedBox(height: Spacing.lg),
+            // D3 — nome legal, NIF, morada pessoal, IBAN, data de nascimento
+            // e autocertificação (DSA art. 30 + DAC7). A "zona base" abaixo
+            // continua a ser só para o matching por distância.
+            LegalFieldsSection(controller: _legal, enabled: !_uploading),
+            const SizedBox(height: Spacing.lg),
             AddressAutocompleteField(
               controller: _addressCtrl,
               labelText: 'Zona base (morada ou localidade)',

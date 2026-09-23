@@ -42,6 +42,17 @@ import 'tvde_reservation_offer_card.dart';
 /// O ecrã de oferta em ecrã inteiro (`TvdeOfferScreen`, motorista livre na
 /// home) continua a existir: enquanto ele está aberto para essa corrida, este
 /// cartão esconde-se — ver [TvdeOfferPresentation].
+///
+/// **[A11 · 22/09] Por cima, mas sem tapar a corrida.** A correcção de 21/09
+/// pôs o cartão global no topo de TODOS os ecrãs — e no ecrã da corrida
+/// activa isso tapava a AppBar (o menu "Cancelar corrida / Passageiro não
+/// compareceu") e o topo do mapa durante os 5 minutos da oferta de reserva,
+/// sem botão para fechar. Regra que fica: com a corrida activa aberta
+/// ([TvdeOfferPresentation.corridaActivaAberta]) o cartão desce para BAIXO
+/// da AppBar; a oferta imediata continua inteira (Aceitar/Recusar com
+/// contagem — é urgente) e a de reserva entra COMPACTA (uma faixa com "Ver"
+/// e "Recusar"; "Ver" abre o cartão inteiro, que se volta a minimizar). Em
+/// qualquer outro ecrã nada mudou: cartão inteiro, no topo.
 class TvdeOfferOverlayHost extends StatefulWidget {
   const TvdeOfferOverlayHost({super.key, required this.child});
 
@@ -59,6 +70,26 @@ class TvdeOfferPresentation {
   /// for a mesma da oferta, o cartão global não a duplica.
   static final ValueNotifier<String?> fullScreenRideId =
       ValueNotifier<String?>(null);
+
+  /// [A11 · 22/09] SÓ PARA TESTES. `TvdeRideActiveScreen.estaAberto` conta
+  /// ecrãs montados e não se finge num teste de widget sem montar o ecrã real
+  /// (mapa, GPS, Supabase). Quando isto NÃO é null substitui essa leitura:
+  /// `true` = "o ecrã da corrida activa está aberto", `false` = "não está".
+  /// A outra metade da decisão (`store.activeRide?.isLive`) continua a valer
+  /// — finge-se com `TvdeDriverStore.debugInjectar(activa: …)`. Nunca
+  /// escrever aqui em código de produção; o teste repõe a null no fim.
+  static final ValueNotifier<bool?> activeRideOpenOverride =
+      ValueNotifier<bool?>(null);
+
+  /// A corrida activa manda no ecrã? Sim quando o ecrã dela está montado OU
+  /// há uma corrida viva no store (a home abre o ecrã por causa dela). Nesse
+  /// caso a oferta desenha-se ABAIXO da AppBar e a reserva em modo compacto
+  /// — ver [TvdeOfferOverlayHost].
+  static bool corridaActivaAberta(TvdeDriverStore store) {
+    final ecraAberto =
+        activeRideOpenOverride.value ?? TvdeRideActiveScreen.estaAberto;
+    return ecraAberto || (store.activeRide?.isLive == true);
+  }
 }
 
 class _TvdeOfferOverlayHostState extends State<TvdeOfferOverlayHost>
@@ -67,18 +98,22 @@ class _TvdeOfferOverlayHostState extends State<TvdeOfferOverlayHost>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    TvdeOfferPresentation.fullScreenRideId.addListener(_onFullScreenChanged);
+    TvdeOfferPresentation.fullScreenRideId.addListener(_onPresentationChanged);
+    TvdeOfferPresentation.activeRideOpenOverride
+        .addListener(_onPresentationChanged);
   }
 
   @override
   void dispose() {
     TvdeOfferPresentation.fullScreenRideId
-        .removeListener(_onFullScreenChanged);
+        .removeListener(_onPresentationChanged);
+    TvdeOfferPresentation.activeRideOpenOverride
+        .removeListener(_onPresentationChanged);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
-  void _onFullScreenChanged() {
+  void _onPresentationChanged() {
     if (mounted) setState(() {});
   }
 
@@ -152,6 +187,7 @@ class _TvdeOfferOverlayHostState extends State<TvdeOfferOverlayHost>
     final offer = store.offeredRide;
     final reserva = store.reservationOffer;
     final emEcraInteiro = TvdeOfferPresentation.fullScreenRideId.value;
+    final corridaActiva = TvdeOfferPresentation.corridaActivaAberta(store);
 
     Widget? cartao;
     if (offer != null && offer.id != emEcraInteiro) {
@@ -175,8 +211,21 @@ class _TvdeOfferOverlayHostState extends State<TvdeOfferOverlayHost>
         onReject: () => _recusarReserva(store, reserva),
         onExpired: () => unawaited(cancelTvdeRideNotification(reserva.id)),
         onExpiredDismiss: store.clearReservationOffer,
+        // [A11] Com a corrida activa aberta a reserva vive 5 min — entra
+        // como faixa de uma linha para não tapar os comandos da corrida.
+        compacto: corridaActiva,
       );
     }
+
+    // [A11 · 22/09] Com a corrida activa aberta, o cartão desce para baixo da
+    // AppBar dela (barra de estado + kToolbarHeight): o menu "Cancelar
+    // corrida / Passageiro não compareceu" e o topo do mapa ficam livres.
+    // Nos outros ecrãs fica como a 21/09: por cima da barra de estado e da
+    // AppBar do ecrã que estiver aberto — é para ser visto, não para ser
+    // bonito.
+    final topo = MediaQuery.paddingOf(context).top +
+        8 +
+        (corridaActiva ? kToolbarHeight : 0);
 
     return Stack(
       fit: StackFit.expand,
@@ -184,9 +233,7 @@ class _TvdeOfferOverlayHostState extends State<TvdeOfferOverlayHost>
         widget.child,
         if (cartao != null)
           Positioned(
-            // Por cima da barra de estado e da AppBar do ecrã que estiver
-            // aberto — é para ser visto, não para ser bonito.
-            top: MediaQuery.paddingOf(context).top + 8,
+            top: topo,
             left: 12,
             right: 12,
             child: Material(
@@ -519,6 +566,12 @@ class _TvdeOfferOverlayCardState extends State<TvdeOfferOverlayCard> {
 /// A oferta de RESERVA por cima de qualquer ecrã. Reusa o cartão já provado
 /// (`TvdeReservationOfferCard`) enquanto a oferta vive; passado o prazo,
 /// diz que a reserva já foi para outro motorista e fecha-se sozinha.
+///
+/// [A11 · 22/09] Com [compacto] a true (corrida activa aberta) começa como
+/// uma faixa de UMA linha — "Reserva para aceitar · hora · ganho · contagem"
+/// com "Ver" e "Recusar" — para não tapar os comandos da corrida durante os
+/// 5 minutos da oferta. "Ver" abre o cartão inteiro (Aceitar reserva), que
+/// se volta a minimizar. A expiração comporta-se igual nos dois modos.
 class TvdeReservationOverlayCard extends StatefulWidget {
   const TvdeReservationOverlayCard({
     super.key,
@@ -529,6 +582,7 @@ class TvdeReservationOverlayCard extends StatefulWidget {
     this.onExpired,
     this.agora,
     this.tempoAteFechar = const Duration(seconds: 5),
+    this.compacto = false,
   });
 
   final TvdeRide ride;
@@ -538,6 +592,9 @@ class TvdeReservationOverlayCard extends StatefulWidget {
   final VoidCallback? onExpired;
   final DateTime Function()? agora;
   final Duration tempoAteFechar;
+
+  /// Começa minimizada (faixa de uma linha) em vez do cartão inteiro.
+  final bool compacto;
 
   @override
   State<TvdeReservationOverlayCard> createState() =>
@@ -549,6 +606,15 @@ class _TvdeReservationOverlayCardState
   Timer? _ticker;
   Timer? _fecho;
   bool _expirouAvisado = false;
+
+  /// [A11] Só conta em modo compacto: o motorista carregou em "Ver".
+  bool _expandido = false;
+
+  /// Guarda LOCAL do "Recusar" da faixa compacta (PADRAO_BORA 3.13): nunca o
+  /// `busy` global do store. Destrava-se sozinha ao fim de uns segundos —
+  /// `onReject` é fire-and-forget, não há Future para esperar.
+  bool _recusando = false;
+  Timer? _timeoutRecusa;
 
   DateTime get _now => (widget.agora ?? DateTime.now)();
 
@@ -566,6 +632,9 @@ class _TvdeReservationOverlayCardState
     if (old.ride.id != widget.ride.id) {
       _fecho?.cancel();
       _expirouAvisado = false;
+      _expandido = false;
+      _timeoutRecusa?.cancel();
+      _recusando = false;
     }
   }
 
@@ -573,12 +642,31 @@ class _TvdeReservationOverlayCardState
   void dispose() {
     _ticker?.cancel();
     _fecho?.cancel();
+    _timeoutRecusa?.cancel();
     super.dispose();
   }
 
   bool get _expirada {
     final fim = widget.ride.reservationOfferExpiresAt;
     return fim != null && !fim.isAfter(_now);
+  }
+
+  /// Segundos que faltam para a oferta expirar (0 se já passou).
+  int get _segundosRestantes {
+    final fim = widget.ride.reservationOfferExpiresAt;
+    if (fim == null) return 0;
+    final s = fim.difference(_now).inSeconds;
+    return s > 0 ? s : 0;
+  }
+
+  void _recusarCompacto() {
+    if (_recusando) return;
+    setState(() => _recusando = true);
+    _timeoutRecusa?.cancel();
+    _timeoutRecusa = Timer(const Duration(seconds: 6), () {
+      if (mounted) setState(() => _recusando = false);
+    });
+    widget.onReject();
   }
 
   @override
@@ -595,11 +683,136 @@ class _TvdeReservationOverlayCardState
         texto: 'Esta reserva já foi para outro motorista.',
       );
     }
+    if (widget.compacto && !_expandido) {
+      return _ReservaCompacta(
+        ride: widget.ride,
+        segundosRestantes: _segundosRestantes,
+        recusando: _recusando,
+        onVer: () => setState(() => _expandido = true),
+        onRecusar: _recusarCompacto,
+      );
+    }
     return TvdeReservationOfferCard(
       key: const Key('tvde_reserva_sobreposta'),
       ride: widget.ride,
       onAccept: widget.onAccept,
       onReject: widget.onReject,
+      onMinimize:
+          widget.compacto ? () => setState(() => _expandido = false) : null,
+    );
+  }
+}
+
+/// [A11 · 22/09] A reserva em UMA faixa (≈56 px), para não tapar a corrida
+/// activa: ícone · "Reserva para aceitar" / "hora · ganho · contagem" ·
+/// "Ver" · "Recusar". A contagem vem do prazo em cada rebuild, como no
+/// cartão inteiro; o ganho é o do MOTORISTA (regra de ouro).
+class _ReservaCompacta extends StatelessWidget {
+  const _ReservaCompacta({
+    required this.ride,
+    required this.segundosRestantes,
+    required this.recusando,
+    required this.onVer,
+    required this.onRecusar,
+  });
+
+  final TvdeRide ride;
+  final int segundosRestantes;
+  final bool recusando;
+  final VoidCallback onVer;
+  final VoidCallback onRecusar;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = ride.scheduledAt?.toLocal();
+    final hora = d == null
+        ? 'hora a confirmar'
+        : '${d.hour.toString().padLeft(2, '0')}:'
+            '${d.minute.toString().padLeft(2, '0')}';
+    final ganho = ((ride.driverEarnCents ?? 0) / 100).toStringAsFixed(2);
+    final mm = (segundosRestantes ~/ 60).toString().padLeft(2, '0');
+    final ss = (segundosRestantes % 60).toString().padLeft(2, '0');
+
+    return Container(
+      key: const Key('tvde_reserva_compacta'),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.primary, width: 1.5),
+        boxShadow: const [
+          BoxShadow(
+              color: Colors.black26, blurRadius: 10, offset: Offset(0, 3)),
+        ],
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.event_available, color: AppColors.primary, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Reserva para aceitar',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                      color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: 1),
+                Text.rich(
+                  TextSpan(children: [
+                    TextSpan(text: '$hora · €$ganho · '),
+                    TextSpan(
+                      text: '$mm:$ss',
+                      style: const TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w700),
+                    ),
+                  ]),
+                  key: const Key('tvde_reserva_compacta_detalhe'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 12.5, color: AppColors.textSecondary),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          FilledButton(
+            key: const Key('tvde_reserva_ver'),
+            onPressed: onVer,
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(0, 32),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
+            ),
+            child: const Text('Ver'),
+          ),
+          const SizedBox(width: 2),
+          TextButton(
+            key: const Key('tvde_reserva_recusar_compacto'),
+            onPressed: recusando ? null : onRecusar,
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.textSecondary,
+              minimumSize: const Size(0, 32),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
+            ),
+            child: const Text('Recusar'),
+          ),
+        ],
+      ),
     );
   }
 }

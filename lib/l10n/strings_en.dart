@@ -2798,4 +2798,16 @@ const Map<String, String> kStringsEn = <String, String>{
       'MB WAY was not confirmed. You can try again.',
   'O pagamento ainda não ficou confirmado.':
       'The payment is not confirmed yet.',
+
+  // D2 (ronda-fecho 2026-09-23): DL 24/2014 no checkout — obrigação de pagar + livre resolução.
+  'Encomenda com obrigação de pagar': 'Order with obligation to pay',
+  'Pagar {0} em dinheiro': 'Pay {0} in cash',
+  'Ao confirmar, fazes uma encomenda com obrigação de pagar. Tens 14 dias de livre resolução, exceto para alimentos, bebidas e outros bens perecíveis entregues, produtos abertos ou personalizados e serviços já prestados (DL 24/2014).':
+      'By confirming, you place an order with an obligation to pay. You have 14 days to withdraw, except for food, drinks and other perishable goods already delivered, opened or personalised products and services already performed (Decree-Law 24/2014).',
+  'Ao confirmar, fazes um pedido de serviço com obrigação de pagar. Tens 14 dias de livre resolução até o serviço começar; depois de iniciado com o teu acordo, não há direito de resolução (DL 24/2014).':
+      'By confirming, you place a service request with an obligation to pay. You have 14 days to withdraw until the service starts; once it has started with your agreement, there is no right of withdrawal (Decree-Law 24/2014).',
+  'Ao confirmar, fazes uma marcação com obrigação de pagar para uma data certa. Não há direito de livre resolução em serviços com data marcada; aplicam-se as regras de cancelamento indicadas acima (DL 24/2014, art. 17.º).':
+      'By confirming, you make a booking with an obligation to pay for a specific date. There is no right of withdrawal for services on a set date; the cancellation rules shown above apply (Decree-Law 24/2014, art. 17).',
+  'Ao confirmar, pedes uma corrida com obrigação de pagar. O serviço começa de imediato com o teu acordo, pelo que não há direito de livre resolução (DL 24/2014).':
+      'By confirming, you request a ride with an obligation to pay. The service starts immediately with your agreement, so there is no right of withdrawal (Decree-Law 24/2014).',
 };

@@ -3,8 +3,16 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../utils/gps_parado.dart';
+import '../../widgets/admin/escolher_estafeta_sheet.dart' show haQuantoTempo;
 import 'admin_driver_detail_screen.dart';
 
+/// Gestão de Entregadores (PT-BR). Aba "Todos" lê a tabela `drivers`; a aba
+/// "Online" [A10 23/09] lê a RPC `admin_drivers_for_assignment` (a mesma do
+/// "Escolher entregador") para mostrar, por entregador ligado, o último sinal e
+/// o GPS — "GPS ok" ou, em vermelho, "GPS parado há X min" (`gps_fresco`
+/// falso, limite `dispatch_gps_fresh_seconds` no servidor). É o caso Euliney:
+/// heartbeat vivo, app morta, 19 h sem posição, e o painel dizia "online".
 class AdminDriversScreen extends StatefulWidget {
   const AdminDriversScreen({super.key});
 
@@ -15,6 +23,11 @@ class AdminDriversScreen extends StatefulWidget {
 class _AdminDriversScreenState extends State<AdminDriversScreen>
     with SingleTickerProviderStateMixin {
   List<Map<String, dynamic>> _drivers = [];
+
+  /// Linhas da RPC admin_drivers_for_assignment por `drivers.id` (heartbeat,
+  /// `gps_age_s`, `gps_fresco`). null = a RPC falhou → a aba "Online" cai no
+  /// `is_online` da tabela, sem a linha de presença.
+  Map<String, Map<String, dynamic>>? _presenca;
   bool _loading = true;
   String? _error;
   late TabController _tab;
@@ -42,38 +55,61 @@ class _AdminDriversScreenState extends State<AdminDriversScreen>
       _error = null;
     });
     try {
-      final data = await Supabase.instance.client
-          .from('drivers')
-          .select(
-              'id, name, phone, vehicle_type, is_online, approval_status, rating, total_deliveries')
-          .order('name');
-      if (mounted) {
-        setState(() {
-          _drivers = List<Map<String, dynamic>>.from(data);
-          _loading = false;
-        });
-      }
-    } catch (e) {
-      // Fallback se as colunas rating/total_deliveries não existirem.
+      List<Map<String, dynamic>> lista;
       try {
+        final data = await Supabase.instance.client
+            .from('drivers')
+            .select(
+              'id, name, phone, vehicle_type, is_online, approval_status, rating, total_deliveries',
+            )
+            .order('name');
+        lista = List<Map<String, dynamic>>.from(data);
+      } catch (_) {
+        // Fallback se as colunas rating/total_deliveries não existirem.
         final data = await Supabase.instance.client
             .from('drivers')
             .select('id, name, phone, vehicle_type, is_online, approval_status')
             .order('name');
-        if (mounted) {
-          setState(() {
-            _drivers = List<Map<String, dynamic>>.from(data);
-            _loading = false;
-          });
-        }
-      } catch (e2) {
-        if (mounted) {
-          setState(() {
-            _error = e2.toString();
-            _loading = false;
-          });
-        }
+        lista = List<Map<String, dynamic>>.from(data);
       }
+      final presenca = await _carregarPresenca();
+      if (mounted) {
+        setState(() {
+          _drivers = lista;
+          _presenca = presenca;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  /// [A10] Presença de cada entregador aprovado (heartbeat + GPS), pela RPC do
+  /// "Escolher entregador" sem pedido nem pesquisa. Nunca deita a aba abaixo:
+  /// em erro devolve null e a aba "Online" usa só o `is_online` da tabela.
+  Future<Map<String, Map<String, dynamic>>?> _carregarPresenca() async {
+    try {
+      final res = await Supabase.instance.client.rpc(
+        'admin_drivers_for_assignment',
+        params: {'p_order_id': null, 'p_search': null},
+      );
+      if (res is! List) return null;
+      final out = <String, Map<String, dynamic>>{};
+      for (final r in res.whereType<Map>()) {
+        final m = Map<String, dynamic>.from(r);
+        final id = m['driver_id']?.toString();
+        if (id != null && id.isNotEmpty) out[id] = m;
+      }
+      return out;
+    } catch (e) {
+      debugPrint('[AdminDrivers] presença (admin_drivers_for_assignment): $e');
+      return null;
     }
   }
 
@@ -110,8 +146,43 @@ class _AdminDriversScreenState extends State<AdminDriversScreen>
   }
 
   List<Map<String, dynamic>> _filtered({required bool onlyOnline}) {
-    return _drivers.where((d) {
-      if (onlyOnline && !((d['is_online'] as bool?) ?? false)) return false;
+    return _aplicarFiltros(
+      _drivers.where(
+        (d) => !onlyOnline || ((d['is_online'] as bool?) ?? false),
+      ),
+    );
+  }
+
+  /// Aba "Online" [A10]: as linhas da RPC com `is_online` (já ordenadas pelo
+  /// servidor: ligados agora primeiro, depois pelo último sinal), no formato da
+  /// lista, com rating/pedidos da tabela quando existem e a presença em
+  /// `_presenca`. Sem RPC cai no `is_online` da tabela.
+  List<Map<String, dynamic>> _online() {
+    final presenca = _presenca;
+    if (presenca == null) return _filtered(onlyOnline: true);
+    final porId = {for (final d in _drivers) d['id']?.toString(): d};
+    return _aplicarFiltros(
+      presenca.values.where((p) => p['is_online'] == true).map((p) {
+        final id = p['driver_id']?.toString();
+        final base = porId[id] ?? const <String, dynamic>{};
+        return <String, dynamic>{
+          ...base,
+          'id': id,
+          'name': p['name'],
+          'phone': p['phone'],
+          'vehicle_type': p['vehicle_type'],
+          'is_online': true,
+          'approval_status': base['approval_status'] ?? 'approved',
+          '_presenca': p,
+        };
+      }),
+    );
+  }
+
+  List<Map<String, dynamic>> _aplicarFiltros(
+    Iterable<Map<String, dynamic>> src,
+  ) {
+    return src.where((d) {
       if (_statusFilter != 'all' &&
           (d['approval_status'] as String? ?? 'pending') != _statusFilter) {
         return false;
@@ -193,6 +264,10 @@ class _AdminDriversScreenState extends State<AdminDriversScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(d['phone'] as String? ?? ''),
+                  if (d['_presenca'] is Map)
+                    _linhaPresenca(
+                      Map<String, dynamic>.from(d['_presenca'] as Map),
+                    ),
                   if (rating != null || totalDeliveries != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
@@ -235,6 +310,45 @@ class _AdminDriversScreenState extends State<AdminDriversScreen>
             ),
           );
         },
+      ),
+    );
+  }
+
+  /// [A10] "sinal há 3 s · GPS ok" ou, em vermelho, "GPS parado há 19 min".
+  Widget _linhaPresenca(Map<String, dynamic> p) {
+    final hb = DateTime.tryParse(p['last_heartbeat_at']?.toString() ?? '');
+    final gpsFresco = p['gps_fresco'] != false;
+    final gpsAge = (p['gps_age_s'] as num?)?.toInt();
+    final corGps = gpsFresco ? AppColors.success : AppColors.error;
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Row(
+        children: [
+          const Icon(Icons.wifi_tethering, size: 13, color: Colors.black54),
+          const SizedBox(width: 3),
+          Text(
+            'sinal ${haQuantoTempo(hb)}',
+            style: const TextStyle(fontSize: 12, color: Colors.black54),
+          ),
+          const SizedBox(width: 8),
+          Icon(
+            gpsFresco ? Icons.gps_fixed : Icons.gps_off,
+            size: 13,
+            color: corGps,
+          ),
+          const SizedBox(width: 3),
+          Expanded(
+            child: Text(
+              gpsFresco ? 'GPS ok' : gpsParadoTexto(gpsAge),
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                color: corGps,
+                fontWeight: gpsFresco ? null : FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -300,7 +414,7 @@ class _AdminDriversScreenState extends State<AdminDriversScreen>
   @override
   Widget build(BuildContext context) {
     final allFiltered = _filtered(onlyOnline: false);
-    final onlineFiltered = _filtered(onlyOnline: true);
+    final onlineFiltered = _online();
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(

@@ -12,6 +12,7 @@ import '../../../services/payment_service.dart';
 import '../../../stores/tvde_store.dart';
 import '../../../widgets/bora/bora.dart';
 import '../reservation/reservation_payment_method_sheet.dart';
+import '../../../widgets/checkout_legal_notice.dart';
 import 'plan_mbway_waiting_dialog.dart';
 
 import '../../../l10n/tr.dart';
@@ -133,8 +134,11 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
     final choice = await showModalBottomSheet<ReservationPaymentChoice>(
       context: context,
       isScrollControlled: true,
-      builder: (_) =>
-          ReservationPaymentMethodSheet(amountEur: priceEur, title: label),
+      builder: (_) => ReservationPaymentMethodSheet(
+        amountEur: priceEur,
+        title: label,
+        legalKind: CheckoutLegalKind.servico,
+      ),
     );
     if (choice == null || !mounted) return;
 

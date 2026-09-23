@@ -13,6 +13,7 @@ import '../../../widgets/bora/bora_accent_button.dart';
 import '../../../widgets/bora/bora_primary_button.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
 import '../../../widgets/bora/coming_soon.dart';
+import '../../../widgets/checkout_legal_notice.dart';
 import '../../../widgets/services/staff_avatar.dart';
 import '../reservation/reservation_payment_method_sheet.dart';
 import 'appointment_mbway_waiting_dialog.dart';
@@ -929,13 +930,33 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
         SafeArea(
           top: false,
           minimum: const EdgeInsets.fromLTRB(
-              Spacing.lg, Spacing.sm, Spacing.lg, Spacing.lg),
-          child: BoraAccentButton(
-            label: _isReschedule ? 'Confirmar Reagendamento' : 'Confirmar e Pagar',
-            icon: _isReschedule ? Icons.event_repeat : Icons.lock,
-            loading: _booking,
-            onPressed:
-                _booking ? null : (_isReschedule ? _confirmReschedule : _confirmAndPay),
+            Spacing.lg,
+            Spacing.sm,
+            Spacing.lg,
+            Spacing.lg,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // DL 24/2014 (ronda-fecho 2026-09-22): marcação com data certa
+              // (art. 17.º) — aviso acima do botão e botão com "obrigação de
+              // pagar". O reagendamento não cobra nada: fica como estava.
+              if (!_isReschedule) ...[
+                const CheckoutLegalNotice(kind: CheckoutLegalKind.marcacao),
+                const SizedBox(height: Spacing.sm),
+              ],
+              BoraAccentButton(
+                label: _isReschedule
+                    ? 'Confirmar Reagendamento'
+                    : 'Encomenda com obrigação de pagar'.tr,
+                icon: _isReschedule ? Icons.event_repeat : Icons.lock,
+                loading: _booking,
+                onPressed: _booking
+                    ? null
+                    : (_isReschedule ? _confirmReschedule : _confirmAndPay),
+              ),
+            ],
           ),
         ),
       ],

@@ -4,6 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../services/admin/admin_driver_service.dart';
+import '../../utils/gps_parado.dart';
+import '../../utils/tvde_sinal_motorista.dart' show segundosDesdeFix;
 import '../../widgets/bora/bora_screen_app_bar.dart';
 
 /// Bora Motorista (TVDE) — Motoristas de passageiros (gerir / banir).
@@ -25,6 +27,11 @@ class _AdminTvdeDriversScreenState extends State<AdminTvdeDriversScreen> {
   late Future<List<Map<String, dynamic>>> _future;
   bool _busy = false;
 
+  /// [A10 23/09] Limite de GPS fresco (`dispatch_gps_fresh_seconds`, 180 s):
+  /// acima disto o motorista não recebe oferta e a pastilha diz, em vermelho,
+  /// "GPS parado há X min". Lido uma vez (cache em memória) em cada carga.
+  int _limiteGpsS = kGpsFrescoSegundosPadrao;
+
   @override
   void initState() {
     super.initState();
@@ -32,6 +39,7 @@ class _AdminTvdeDriversScreenState extends State<AdminTvdeDriversScreen> {
   }
 
   Future<List<Map<String, dynamic>>> _load() async {
+    _limiteGpsS = await carregarLimiteGpsFresco();
     final res = await Supabase.instance.client.rpc('admin_tvde_drivers_list');
     final list = (res as List?) ?? const [];
     return list
@@ -251,6 +259,7 @@ class _AdminTvdeDriversScreenState extends State<AdminTvdeDriversScreen> {
                     itemBuilder: (_, i) => _DriverCard(
                       data: rows[i],
                       busy: _busy,
+                      limiteGpsS: _limiteGpsS,
                       onBan: _ban,
                       onReactivate: _reactivate,
                       onSetWorkMode: _setWorkMode,
@@ -273,10 +282,14 @@ class _DriverCard extends StatelessWidget {
     required this.onBan,
     required this.onReactivate,
     required this.onSetWorkMode,
+    this.limiteGpsS = kGpsFrescoSegundosPadrao,
   });
 
   final Map<String, dynamic> data;
   final bool busy;
+
+  /// Segundos a partir dos quais a posição conta como "GPS parado".
+  final int limiteGpsS;
   final Future<void> Function(Map<String, dynamic>) onBan;
   final Future<void> Function(Map<String, dynamic>) onReactivate;
   final Future<void> Function(Map<String, dynamic>) onSetWorkMode;
@@ -313,7 +326,11 @@ class _DriverCard extends StatelessWidget {
     final heartbeatAt = DateTime.tryParse(
         (data['last_heartbeat_at'] as String?) ?? '');
     final locationAt = DateTime.tryParse(
-        (data['location_updated_at'] as String?) ?? '');
+      (data['location_updated_at'] as String?) ?? '',
+    );
+    // [A10] posição mais velha do que o limite = não recebe oferta.
+    final gpsAgeS = segundosDesdeFix(locationAt);
+    final gpsParou = locationAt != null && gpsParado(gpsAgeS, limiteGpsS);
     final hasToken = data['has_fcm_token'] == true;
 
     return Card(
@@ -397,9 +414,11 @@ class _DriverCard extends StatelessWidget {
                   color: _freshColor(heartbeatAt),
                 ),
                 _Pill(
-                  icon: Icons.gps_fixed,
-                  label: 'GPS: ${_ago(locationAt)}',
-                  color: _freshColor(locationAt),
+                  icon: gpsParou ? Icons.gps_off : Icons.gps_fixed,
+                  label: gpsParou
+                      ? gpsParadoTexto(gpsAgeS)
+                      : 'GPS: ${_ago(locationAt)}',
+                  color: gpsParou ? AppColors.error : _freshColor(locationAt),
                 ),
                 _Pill(
                   icon: hasToken

@@ -9,19 +9,25 @@
 //      telefone, ligado/desligado, último sinal, notificações sim/não, como
 //      usa a Bora (app Android / app iPhone / navegador…) e pedidos em curso;
 //      pesquisa por nome ou telefone;
-//   2. toque → confirmação. Se ele NÃO vai receber (desligado, sem sinal ou
-//      sem notificações) aparece o aviso vermelho e o botão "Atribuir mesmo
-//      assim" — a escolha fica registada no motivo da auditoria;
+//   2. toque → confirmação. Se ele NÃO vai receber (desligado, sem sinal, GPS
+//      parado ou sem notificações) aparece o aviso vermelho e o botão "Atribuir
+//      mesmo assim" — a escolha fica registada no motivo da auditoria;
 //   3. atribui pelo caminho oficial admin_reassign_order (que pré-atribui se o
 //      pedido ainda não estiver pronto e avisa o entregador pela Edge
 //      notify-driver-assigned). Nunca UPDATE direto.
 //
 // "Mandar para todos" (admin_release_order_driver) tira o entregador e devolve
 // o pedido ao dispatch normal, com registro.
+//
+// [ronda-fecho 23/09 · A10] "Ligado agora" passou a exigir também GPS fresco
+// (servidor: `online_agora` = heartbeat < 90 s E `gps_fresco`). A RPC devolve
+// `gps_age_s`/`gps_fresco`; quem tem o GPS parado leva o chip vermelho
+// "GPS parado há X min" e, no aviso da confirmação, é esse o motivo que se lê.
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../utils/gps_parado.dart';
 
 /// Rótulo humano da plataforma registada pelo heartbeat.
 String plataformaLabel(String? p) {
@@ -64,7 +70,11 @@ class EstafetaParaAtribuir {
         temNotificacoes = r['tem_notificacoes'] == true,
         plataforma = r['last_platform']?.toString(),
         pedidosEmCurso = (r['pedidos_em_curso'] as num?)?.toInt() ?? 0,
-        distanciaKm = (r['distancia_km'] as num?)?.toDouble();
+      distanciaKm = (r['distancia_km'] as num?)?.toDouble(),
+      gpsAgeS = (r['gps_age_s'] as num?)?.toInt(),
+      // Só é "parado" quando o servidor o diz; sem a coluna (RPC antiga)
+      // não se inventa alarme.
+      gpsFresco = r['gps_fresco'] != false;
 
   final String userId;
   final String driverId;
@@ -80,12 +90,37 @@ class EstafetaParaAtribuir {
   final int pedidosEmCurso;
   final double? distanciaKm;
 
-  /// Vai receber o pedido? (ligado agora com sinal + notificações registadas)
+  /// Segundos desde a última posição GPS (null = nunca mandou posição).
+  final int? gpsAgeS;
+
+  /// Posição GPS dentro de `dispatch_gps_fresh_seconds` (180 s). Sem isto o
+  /// servidor não o considera ligado agora, mesmo com heartbeat vivo.
+  final bool gpsFresco;
+
+  /// Vai receber o pedido? (ligado agora — heartbeat vivo E GPS fresco, já
+  /// decidido no servidor — e notificações registadas)
   bool get vaiReceber => ligadoAgora && temNotificacoes;
 
+  /// Heartbeat recebido nos últimos 90 s (o mesmo limite do servidor).
+  bool get sinalFresco =>
+      ultimoSinal != null &&
+      DateTime.now().toUtc().difference(ultimoSinal!.toUtc()).inSeconds <= 90;
+
+  /// Porque é que NÃO vai receber, em palavras simples (vai para o aviso
+  /// vermelho e para o motivo da auditoria). Heartbeat vivo mas GPS parado é
+  /// o caso da app morta com o serviço em segundo plano a bater: aí a causa
+  /// é o GPS e diz-se "GPS parado há X min".
   String get motivoNaoRecebe {
     final m = <String>[];
-    if (!ligadoAgora) m.add(ligado ? 'sem sinal há mais de 90 s' : 'desligado');
+    if (!ligadoAgora) {
+      if (!ligado) {
+        m.add('desligado');
+      } else if (sinalFresco && !gpsFresco) {
+        m.add(gpsParadoTexto(gpsAgeS));
+      } else {
+        m.add('sem sinal há mais de 90 s');
+      }
+    }
     if (!temNotificacoes) m.add('sem notificações neste aparelho');
     return m.join(' e ');
   }
@@ -140,6 +175,7 @@ Future<bool> escolherEstafetaParaPedido(
                   Expanded(
                     child: Text(
                       'Este entregador NÃO vai receber o aviso: ${escolhido.motivoNaoRecebe}. '
+                      '${escolhido.motivoNaoRecebe.contains('GPS parado') ? 'A app dele deixou de mandar a posição (fechou ou perdeu o GPS) — peça-lhe para abrir a Bora. ' : ''}'
                       'Se atribuir mesmo assim, o pedido pode ficar parado — a rede de segurança '
                       'liberta-o em 3 minutos e avisa você.',
                       style: const TextStyle(color: Color(0xFF7F1D1D), fontSize: 13),
@@ -420,6 +456,14 @@ class _EstafetaTile extends StatelessWidget {
               icon: Icons.wifi_tethering,
               text: 'sinal ${haQuantoTempo(d.ultimoSinal)}',
             ),
+            if (!d.gpsFresco)
+              _Chip(
+                icon: Icons.gps_off,
+                iconColor: const Color(0xFFB91C1C),
+                corTexto: const Color(0xFF7F1D1D),
+                text: gpsParadoTexto(d.gpsAgeS),
+                cor: const Color(0xFFFEE2E2),
+              ),
             _Chip(
               icon: d.temNotificacoes ? Icons.notifications_active : Icons.notifications_off,
               text: d.temNotificacoes ? 'notificações: sim' : 'notificações: NÃO',
@@ -438,11 +482,18 @@ class _EstafetaTile extends StatelessWidget {
 }
 
 class _Chip extends StatelessWidget {
-  const _Chip({required this.icon, required this.text, this.cor, this.iconColor});
+  const _Chip({
+    required this.icon,
+    required this.text,
+    this.cor,
+    this.iconColor,
+    this.corTexto,
+  });
   final IconData icon;
   final String text;
   final Color? cor;
   final Color? iconColor;
+  final Color? corTexto;
 
   @override
   Widget build(BuildContext context) {
@@ -457,7 +508,14 @@ class _Chip extends StatelessWidget {
         children: [
           Icon(icon, size: 11, color: iconColor ?? Colors.grey.shade700),
           const SizedBox(width: 3),
-          Text(text, style: const TextStyle(fontSize: 11)),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 11,
+              color: corTexto,
+              fontWeight: corTexto == null ? null : FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );

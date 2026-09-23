@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../config/app_colors.dart';
 import '../config/app_theme.dart';
+import '../config/legal_identity.dart';
 import '../models/chat_message.dart';
 import '../models/order_model.dart';
 import '../services/wallet_service.dart';
@@ -96,6 +97,10 @@ class OrderDetailsScreen extends StatelessWidget {
 
           // ── Order info card ───────────────────────────────────────────
           _OrderInfoCard(order: liveOrder),
+
+          // ── D3 — Vendedor + intermediário no recibo (DSA art. 30) ─────
+          const SizedBox(height: 16),
+          _SellerCard(order: liveOrder),
 
           // ── 8.3 Talão do favor (errand com compra) ───────────────────
           if (liveOrder.serviceType == OrderServiceType.errand &&
@@ -779,6 +784,101 @@ class _OrderInfoCard extends StatelessWidget {
               value: order.paymentMethod.name.toUpperCase()),
           if (order.vendorName != null)
             _Row(label: 'Estabelecimento'.tr, value: order.vendorName!),
+        ],
+      ),
+    );
+  }
+}
+
+// ── D3 — Vendedor no recibo (DSA art. 30: identidade do comerciante) ─────────
+//
+// Nos pedidos de loja parceira o vendedor é a loja: nome, NIF e morada vêm de
+// `restaurants` (a RLS deixa ler lojas aprovadas). Em TODOS os pedidos aparece
+// a linha do intermediário (a Bora), lida de `LegalIdentity` — regra dos
+// gémeos: o NIF e a morada da Bora só se escrevem num sítio. A leitura nunca
+// bloqueia o ecrã: sem resposta ou com erro, fica o nome da loja que o pedido
+// já traz e a linha da Bora.
+const String _kBoraIntermediaryLine =
+    'Intermediário: ${LegalIdentity.appName} — ${LegalIdentity.nome}, '
+    '${LegalIdentity.qualidade}, NIF ${LegalIdentity.nif}, '
+    '${LegalIdentity.morada}';
+
+class _SellerCard extends StatefulWidget {
+  const _SellerCard({required this.order});
+
+  final OrderModel order;
+
+  @override
+  State<_SellerCard> createState() => _SellerCardState();
+}
+
+class _SellerCardState extends State<_SellerCard> {
+  Map<String, dynamic>? _seller;
+
+  bool get _isPartner =>
+      widget.order.isPartnerStore || widget.order.isPartnerOrder;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final id = widget.order.restaurantId;
+    if (!_isPartner || id == null || id.isEmpty) return;
+    try {
+      final row = await Supabase.instance.client
+          .from('restaurants')
+          .select('name, legal_name, nif, address')
+          .eq('id', id)
+          .maybeSingle()
+          .timeout(const Duration(seconds: 8));
+      if (!mounted || row == null) return;
+      setState(() => _seller = Map<String, dynamic>.from(row));
+    } catch (e) {
+      debugPrint('OrderDetails _SellerCard: sem dados do vendedor => $e');
+    }
+  }
+
+  String _campo(String key) => (_seller?[key] as String?)?.trim() ?? '';
+
+  @override
+  Widget build(BuildContext context) {
+    final nomeLoja = _campo('name').isNotEmpty
+        ? _campo('name')
+        : (widget.order.vendorName ?? '').trim();
+    final nomeLegal = _campo('legal_name');
+    final nif = _campo('nif');
+    final morada = _campo('address');
+    final mostraLoja = _isPartner && nomeLoja.isNotEmpty;
+    const linha = TextStyle(fontSize: 13, height: 1.4);
+    return _Card(
+      title: 'Vendedor',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (mostraLoja) ...[
+            Text(
+              nomeLoja,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+            ),
+            if (nomeLegal.isNotEmpty && nomeLegal != nomeLoja)
+              Text(nomeLegal, style: linha),
+            if (nif.isNotEmpty) Text('NIF $nif', style: linha),
+            if (morada.isNotEmpty) Text(morada, style: linha),
+            const SizedBox(height: 8),
+            Divider(height: 1, color: Colors.grey.shade200),
+            const SizedBox(height: 8),
+          ],
+          Text(
+            _kBoraIntermediaryLine,
+            style: TextStyle(
+              fontSize: 12,
+              height: 1.4,
+              color: Colors.grey.shade600,
+            ),
+          ),
         ],
       ),
     );

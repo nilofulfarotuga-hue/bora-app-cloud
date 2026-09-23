@@ -16,6 +16,7 @@ import '../../../stores/carwash_store.dart';
 import '../../../stores/session_store.dart';
 import '../../../utils/safe_image_picker.dart';
 import '../../../widgets/address_autocomplete_field.dart';
+import '../../../widgets/checkout_legal_notice.dart';
 import 'carwash_payment_flow.dart';
 import 'carwash_tracking_screen.dart';
 
@@ -343,22 +344,58 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
       // toque ≥56 (SafeArea(minimum) dava max(sistema,16) e colava na navbar).
       bottomNavigationBar: BoraBottomActionBar(
         children: [
-          FilledButton(
-            onPressed: _submitting ? null : _submit,
-            style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-            child: _submitting
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white))
-                : Text(
-                    q == null
-                        ? 'Pedir lavagem'.tr
-                        : 'Pedir lavagem · ${q.totalEur.toStringAsFixed(2)} €',
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w700),
+          // DL 24/2014 (ronda-fecho 2026-09-22): total numa linha, aviso de
+          // livre resolução por baixo, e o botão diz "obrigação de pagar"
+          // (art. 5.º, n.º 2). Tudo num só filho da barra para ela não
+          // esticar cada linha a 56 px; o botão mantém o mínimo de 56.
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (q != null) ...[
+                Text(
+                  'Total: {0}'.trArgs(['${q.totalEur.toStringAsFixed(2)} €']),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
                   ),
+                ),
+                const SizedBox(height: Spacing.sm),
+              ],
+              const CheckoutLegalNotice(kind: CheckoutLegalKind.servico),
+              const SizedBox(height: Spacing.sm),
+              ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 56),
+                child: FilledButton(
+                  onPressed: _submitting ? null : _submit,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                  ),
+                  child: _submitting
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      // Duas linhas centradas se não couber a 360 px — nunca
+                      // encolher a letra.
+                      : Text(
+                          'Encomenda com obrigação de pagar'.tr,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

@@ -57,6 +57,35 @@ class AdminExportService {
     );
   }
 
+  /// Igual ao [exportCsv], mas recebe o CSV já construído — separador,
+  /// aspas e formatação dos números ficam a cargo de quem chama. Nasceu com a
+  /// exportação DAC7 (D4, 2026-09-23), que usa ';' e vírgula decimal, e o
+  /// conversor de [exportCsv] fixa ','. Mesmos dois caminhos: descarrega na
+  /// web, partilha no telemóvel.
+  Future<void> exportCsvText({
+    required String filename,
+    required String csv,
+    String? subject,
+  }) async {
+    final safeName = filename.replaceAll(RegExp(r'[^\w.\-]'), '_');
+    if (kIsWeb) {
+      final ok = await descarregarBytes(
+          utf8.encode(csv), safeName, 'text/csv;charset=utf-8');
+      if (!ok) {
+        debugPrint('[AdminExportService] CSV web download falhou: $filename');
+      }
+      return;
+    }
+
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/$safeName');
+    await file.writeAsString(csv);
+    await Share.shareXFiles(
+      [XFile(file.path, mimeType: 'text/csv')],
+      subject: subject ?? filename,
+    );
+  }
+
   /// Build a simple A4 PDF with a title + table from headers + rows.
   Future<void> exportPdfTable({
     required String title,

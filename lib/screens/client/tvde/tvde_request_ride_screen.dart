@@ -20,6 +20,7 @@ import '../../../stores/tvde_store.dart';
 import '../../../utils/map_utils.dart';
 import '../../../widgets/address_autocomplete_field.dart';
 import '../../../widgets/bora/bora.dart';
+import '../../../widgets/checkout_legal_notice.dart';
 import '../../../widgets/customer_note_field.dart';
 import '../../../widgets/tvde/tvde_payment_selector.dart';
 import 'ride_mbway_waiting_dialog.dart';
@@ -487,6 +488,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         amountCents: _payableCents,
         message: _payMessage,
         allowOnline: allowOnline,
+        scheduled: true,
       ),
     );
     if (pag == null || !mounted) return;
@@ -1864,10 +1866,15 @@ class _TvdePaymentSheet extends StatefulWidget {
     required this.message,
     required this.allowOnline,
     this.allowTokens = true,
+    this.scheduled = false,
   });
   final int amountCents;
   final String? message;
   final bool allowOnline;
+
+  /// DL 24/2014 (ronda-fecho 2026-09-22): corrida marcada para uma data certa
+  /// (art. 17.º) ou corrida imediata — muda só a frase legal acima do botão.
+  final bool scheduled;
 
   /// [Fase B] Desconto em Bora Tokens. **false no pacote ida-e-volta**: o preço
   /// é server-side (RPC `tvde_quote_roundtrip`) e as RPCs do vale não recebem
@@ -2140,10 +2147,29 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
           ],
 
           const SizedBox(height: Spacing.lg),
-          BoraAccentButton(
-            label: _method == 'cash'
-                ? 'Confirmar · pagar em dinheiro'.tr
+          // DL 24/2014 (ronda-fecho 2026-09-22): valor e método numa linha,
+          // aviso de livre resolução por baixo, e o botão diz "obrigação de
+          // pagar" (art. 5.º, n.º 2). Corrida marcada = art. 17.º.
+          Text(
+            _method == 'cash'
+                ? 'Pagar {0} em dinheiro'.trArgs([eur])
                 : 'Pagar $eur',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: Spacing.sm),
+          CheckoutLegalNotice(
+            kind: widget.scheduled
+                ? CheckoutLegalKind.marcacao
+                : CheckoutLegalKind.entrega,
+          ),
+          const SizedBox(height: Spacing.sm),
+          BoraAccentButton(
+            label: 'Encomenda com obrigação de pagar'.tr,
             icon: Icons.check,
             onPressed: () {
               // MB Way exige o número (9 dígitos PT) — mesma validação do

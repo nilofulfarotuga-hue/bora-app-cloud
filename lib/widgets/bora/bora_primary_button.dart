@@ -70,7 +70,8 @@ class BoraPrimaryButton extends StatelessWidget {
                     child: Text(
                       label,
                       overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
+                      maxLines: 2,
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 ],

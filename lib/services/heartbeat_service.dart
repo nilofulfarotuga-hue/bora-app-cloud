@@ -5,6 +5,7 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'driver_location_ping_service.dart';
 import 'web_presence.dart';
 
 /// Mantém `drivers.last_heartbeat_at` actualizado a cada 30s enquanto o
@@ -37,6 +38,15 @@ import 'web_presence.dart';
 ///     offline entretanto e, se sim, avisa a UI (`serverMarkedOffline`) para
 ///     perguntar "queres voltar a ficar online?" em vez de o religar às
 ///     escondidas.
+///
+/// [ronda-fecho A10, 23/09/2026] Online = heartbeat E GPS fresco. O servidor
+/// deixa de oferecer a quem tem `driver_locations.last_updated` com mais de
+/// `dispatch_gps_fresh_seconds` (180 s) e põe offline acima de
+/// `dispatch_gps_offline_seconds`. Na app nativa a posição só era escrita
+/// pelo stream de GPS (distanceFilter 50 m): um estafeta PARADO à espera
+/// ficava sem sinal e, sem se mexer, sem pedidos. Agora cada tick (30 s)
+/// manda também uma posição — mesmo com o FGS a correr, porque o FGS só bate
+/// o heartbeat (`driver_heartbeat_by_id`), não a posição.
 class HeartbeatService {
   HeartbeatService({Duration interval = const Duration(seconds: 30)})
       : _interval = interval;
@@ -129,6 +139,9 @@ class HeartbeatService {
 
   Future<void> _tick() async {
     if (_pausedAwaitingUser) return;
+    // [ronda-fecho A10, 23/09/2026] Posição em TODOS os ticks na app nativa,
+    // antes do salto do FGS: online = heartbeat E GPS fresco (ver cabeçalho).
+    if (!kIsWeb) unawaited(_pingLocationNative());
     try {
       // Sessão 2026-05-24 (Fix #1) — se o FGS task isolate está vivo, é ele
       // que bate (com auth.uid()=NULL ⇒ usa driver_heartbeat_by_id). Evita
@@ -161,6 +174,62 @@ class HeartbeatService {
   }
 
   bool _locationInFlight = false;
+
+  /// A última posição conhecida ainda serve se tiver menos de 5 min. Idade
+  /// negativa (relógio do telemóvel adiantado) conta como recente.
+  @visibleForTesting
+  static bool posicaoRecente(DateTime timestamp, {DateTime? agora}) =>
+      (agora ?? DateTime.now()).difference(timestamp).abs() <
+      const Duration(minutes: 5);
+
+  /// [ronda-fecho A10, 23/09/2026] Nativo: a cada tick manda a posição para
+  /// `driver_locations` (via `DriverLocationPingService`, que já limita a
+  /// 1 ping/45 s — logo no máximo ~1 por minuto). Usa a última posição
+  /// conhecida se tiver menos de 5 min; senão pede uma nova, com limite de
+  /// tempo. Sem permissão, sem posição ou sem tempo → não faz nada: nada
+  /// pergunta, nada lança, nada bloqueia (PADRAO §1.26). O tick seguinte
+  /// tenta outra vez.
+  Future<void> _pingLocationNative() async {
+    if (_locationInFlight) return;
+    _locationInFlight = true;
+    try {
+      // Só lê a permissão, nunca a pede daqui (o toggle Online já a pediu; e
+      // no iOS um getCurrentPosition sem permissão abriria o diálogo).
+      final perm = await Geolocator.checkPermission().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => LocationPermission.denied,
+      );
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) {
+        return;
+      }
+      Position? pos;
+      try {
+        pos = await Geolocator.getLastKnownPosition().timeout(
+          const Duration(seconds: 5),
+        );
+      } catch (e) {
+        debugPrint('[HeartbeatService] última posição: $e');
+      }
+      if (pos == null || !posicaoRecente(pos.timestamp)) {
+        pos = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.medium,
+          ),
+        ).timeout(const Duration(seconds: 10));
+      }
+      await DriverLocationPingService.instance.ping(
+        latitude: pos.latitude,
+        longitude: pos.longitude,
+        heading: pos.heading.isFinite ? pos.heading : null,
+        speedKmh: pos.speed.isFinite ? pos.speed * 3.6 : null,
+      );
+    } catch (e) {
+      debugPrint('[HeartbeatService] posição nativa: $e');
+    } finally {
+      _locationInFlight = false;
+    }
+  }
 
   Future<void> _pingLocationWeb(SupabaseClient client) async {
     if (_locationInFlight) return;

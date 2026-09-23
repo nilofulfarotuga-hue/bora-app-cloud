@@ -17,11 +17,17 @@ class TvdeReservationOfferCard extends StatefulWidget {
     required this.ride,
     required this.onAccept,
     required this.onReject,
+    this.onMinimize,
   });
 
   final TvdeRide ride;
   final VoidCallback onAccept;
   final VoidCallback onReject;
+
+  /// [A11 · 22/09] Quando não é null, o cabeçalho ganha o botão "Minimizar"
+  /// (volta à faixa compacta do cartão global por cima da corrida activa).
+  /// Null = cartão como sempre foi, sem botão.
+  final VoidCallback? onMinimize;
 
   @override
   State<TvdeReservationOfferCard> createState() =>
@@ -182,6 +188,23 @@ class _TvdeReservationOfferCardState extends State<TvdeReservationOfferCard> {
                       ),
                     ),
                   ),
+                if (widget.onMinimize != null) ...[
+                  const SizedBox(width: 4),
+                  IconButton(
+                    key: const Key('tvde_reserva_minimizar'),
+                    // Sem `tooltip`: o cartão global vive ACIMA do Navigator
+                    // (builder do MaterialApp), sem Overlay por cima — um
+                    // Tooltip aqui rebenta ("No Overlay widget found").
+                    onPressed: widget.onMinimize,
+                    icon: const Icon(Icons.expand_less,
+                        semanticLabel: 'Minimizar'),
+                    color: AppColors.textSecondary,
+                    padding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact,
+                    constraints:
+                        const BoxConstraints.tightFor(width: 32, height: 32),
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: 10),

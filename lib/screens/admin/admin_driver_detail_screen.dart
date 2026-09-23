@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../services/admin/admin_driver_service.dart';
+import '../../utils/gps_parado.dart';
 import '../../widgets/admin/escolher_estafeta_sheet.dart'
     show plataformaLabel, haQuantoTempo;
 import '../../widgets/private_bucket_image.dart';
@@ -893,9 +894,14 @@ class _PerformanceCard extends StatelessWidget {
 // Surfaces rejection_reason (rejected) and ban_reason (banned/suspended).
 // Hidden when none apply, so the card never shows empty.
 /// [Escolher estafeta 16/09] Estado de presença (ligado agora, último sinal,
-/// notificações, como usa a Bora, pedidos em curso) + histórico de quem lhe
-/// passou pedidos. Lê as RPCs admin_driver_presence e
+/// GPS, notificações, como usa a Bora, pedidos em curso) + histórico de quem
+/// lhe passou pedidos. Lê as RPCs admin_driver_presence e
 /// admin_driver_assignment_history; nunca escreve.
+///
+/// [A10 23/09] `online_agora` exige heartbeat vivo E GPS fresco
+/// (`dispatch_gps_fresh_seconds`, 180 s). A linha "GPS" mostra a idade da
+/// última posição (`gps_age_s`) e fica vermelha "parado há X min" quando
+/// `gps_fresco` é falso — o caso da app morta com o heartbeat a bater.
 class _PresencaEHistoricoCard extends StatefulWidget {
   const _PresencaEHistoricoCard({required this.driverId});
   final String driverId;
@@ -961,6 +967,12 @@ class _PresencaEHistoricoCardState extends State<_PresencaEHistoricoCard> {
     final p = _p;
     final ligadoAgora = p?['online_agora'] == true;
     final hb = DateTime.tryParse(p?['last_heartbeat_at']?.toString() ?? '');
+    final hbFresco =
+        hb != null &&
+        DateTime.now().toUtc().difference(hb.toUtc()).inSeconds <= 90;
+    final gpsAge = (p?['gps_age_s'] as num?)?.toInt();
+    // Sem a coluna (RPC antiga) não se inventa alarme.
+    final gpsFresco = p?['gps_fresco'] != false;
     return Container(
       decoration: BoxDecoration(
         color: AppColors.card,
@@ -999,12 +1011,31 @@ class _PresencaEHistoricoCardState extends State<_PresencaEHistoricoCard> {
                 'Ligado agora',
                 ligadoAgora
                     ? 'Sim'
-                    : (p['is_online'] == true ? 'Marcado ligado, mas sem sinal' : 'Não'),
+                    : (p['is_online'] == true
+                          ? (hbFresco && !gpsFresco
+                                ? 'Marcado ligado, mas GPS parado'
+                                : 'Marcado ligado, mas sem sinal')
+                          : 'Não'),
               ),
-              _row(Icons.wifi_tethering, 'Último sinal',
-                  hb == null ? 'nunca' : '${haQuantoTempo(hb)} (${hb.toLocal().toString().substring(0, 16)})'),
               _row(
-                p['tem_notificacoes'] == true ? Icons.notifications_active : Icons.notifications_off,
+                Icons.wifi_tethering,
+                'Último sinal',
+                hb == null
+                    ? 'nunca'
+                    : '${haQuantoTempo(hb)} (${hb.toLocal().toString().substring(0, 16)})',
+              ),
+              _row(
+                gpsFresco ? Icons.gps_fixed : Icons.gps_off,
+                'GPS',
+                gpsFresco
+                    ? gpsIdadeTexto(gpsAge)
+                    : '${gpsParadoHaTexto(gpsAge)} — não recebe pedidos',
+                cor: gpsFresco ? null : const Color(0xFFB91C1C),
+              ),
+              _row(
+                p['tem_notificacoes'] == true
+                    ? Icons.notifications_active
+                    : Icons.notifications_off,
                 'Notificações',
                 p['tem_notificacoes'] == true
                     ? 'Sim (${p['tokens_ativos'] ?? 1} aparelho(s))'
@@ -1046,16 +1077,31 @@ class _PresencaEHistoricoCardState extends State<_PresencaEHistoricoCard> {
     );
   }
 
-  Widget _row(IconData icon, String label, String value) {
+  Widget _row(IconData icon, String label, String value, {Color? cor}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: AppColors.textSecondary),
+          Icon(icon, size: 16, color: cor ?? AppColors.textSecondary),
           const SizedBox(width: 8),
-          Text('$label: ', style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+          Text(
+            '$label: ',
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: cor,
+              ),
+            ),
+          ),
         ],
       ),
     );

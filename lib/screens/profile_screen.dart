@@ -38,6 +38,7 @@ import 'client_promo_code_screen.dart';
 import 'connect/connect_payments_screen.dart';
 import 'connect/connect_statement_screen.dart';
 import 'driver_permissions_screen.dart';
+import 'legal_info_screen.dart';
 import 'my_cards_screen.dart';
 import 'referral_screen.dart';
 import 'support_screen.dart';
@@ -60,6 +61,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isDeletingAccount = false;
   bool _driverSyncing = false;
 
+  // D3 (2026-09-22): opt-in de marketing (RGPD). Lê `users.marketing_opt_in`
+  // e grava pela RPC `set_marketing_opt_in`. Se a coluna ou a função ainda
+  // não existirem, o interruptor fica em `false` e nada rebenta.
+  bool _marketingOptIn = false;
+  bool _marketingSaving = false;
+
   // MULTI-PAPEL: saber se o utilizador já é profissional de limpeza para
   // adaptar a entrada de Limpeza (convite vs "a minha limpeza").
   RolesSummary _roles = RolesSummary.empty();
@@ -71,11 +78,64 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _validateSession();
     _ensureDriverLoaded();
     _loadRoles();
+    _loadMarketingOptIn();
   }
 
   Future<void> _loadRoles() async {
     final r = await RolesService.mySummary();
     if (mounted) setState(() => _roles = r);
+  }
+
+  Future<void> _loadMarketingOptIn() async {
+    try {
+      final uid = Supabase.instance.client.auth.currentUser?.id;
+      if (uid == null || uid.isEmpty) return;
+      final row = await Supabase.instance.client
+          .from('users')
+          .select('marketing_opt_in')
+          .eq('id', uid)
+          .maybeSingle();
+      final valor = row?['marketing_opt_in'];
+      if (mounted && valor is bool) setState(() => _marketingOptIn = valor);
+    } catch (e) {
+      // Coluna por criar, conta sem sessão Supabase (demo) ou sem rede:
+      // fica em false, sem barulho.
+      debugPrint('[profile_screen] marketing_opt_in não lido: $e');
+    }
+  }
+
+  Future<void> _setMarketingOptIn(bool valor) async {
+    final anterior = _marketingOptIn;
+    setState(() {
+      _marketingOptIn = valor;
+      _marketingSaving = true;
+    });
+    try {
+      final res = await Supabase.instance.client.rpc(
+        'set_marketing_opt_in',
+        params: {'p_opt_in': valor},
+      );
+      if (res is! Map || res['ok'] != true) {
+        throw StateError('resposta inesperada: $res');
+      }
+      final gravado = res['marketing_opt_in'];
+      if (mounted && gravado is bool) {
+        setState(() => _marketingOptIn = gravado);
+      }
+    } catch (e) {
+      debugPrint('[profile_screen] set_marketing_opt_in falhou: $e');
+      if (!mounted) return;
+      setState(() => _marketingOptIn = anterior);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Não foi possível guardar a preferência. Tenta outra vez.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _marketingSaving = false);
+    }
   }
 
   Future<void> _ensureDriverLoaded() async {
@@ -874,6 +934,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ],
               ),
+
+            // ── Comunicações + Sobre (todos os papéis) ─────────────────────
+            // D3: opt-in de marketing (RGPD) · D1: informação legal do
+            // operador (Lei n.º 144/2015, Livro de Reclamações).
+            _SectionCard(
+              children: [
+                SwitchListTile(
+                  secondary: const Icon(
+                    Icons.campaign_outlined,
+                    color: AppColors.primary,
+                  ),
+                  title: const Text('Novidades e promoções'),
+                  subtitle: const Text(
+                    'Receber notificações com promoções e novidades da Bora. '
+                    'Os avisos dos teus pedidos continuam sempre.',
+                  ),
+                  value: _marketingOptIn,
+                  onChanged: _marketingSaving ? null : _setMarketingOptIn,
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.info_outline,
+                    color: AppColors.primary,
+                  ),
+                  title: const Text('Sobre / Informação legal'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LegalInfoScreen()),
+                  ),
+                ),
+              ],
+            ),
 
             // ── Admin panel ────────────────────────────────────────────────
             // Phase-2-B: gate now reads `app_metadata.role='admin'` via

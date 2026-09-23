@@ -11,6 +11,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 ///
 /// Foreground only. A real background service requires Android Foreground
 /// Service + iOS Background Modes — documented as Grupo E E1.
+///
+/// [ronda-fecho A10, 23/09/2026] Também chamado pelo `HeartbeatService` a
+/// cada tick (30 s) na app nativa, para um estafeta PARADO manter a posição
+/// fresca (`dispatch_gps_fresh_seconds` = 180 s). O limite de 45 s abaixo é o
+/// que evita o duplo ping quando o stream de GPS também escreveu.
 class DriverLocationPingService {
   DriverLocationPingService._();
   static final instance = DriverLocationPingService._();

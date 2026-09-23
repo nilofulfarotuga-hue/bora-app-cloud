@@ -8,6 +8,7 @@ import '../../../models/cleaning_models.dart';
 import '../../../stores/cart_store.dart';
 import '../../../stores/cleaning_store.dart';
 import '../../../widgets/bora/bora.dart';
+import '../../../widgets/checkout_legal_notice.dart';
 import 'cleaning_payment_flow.dart';
 import 'cleaning_tracking_screen.dart';
 
@@ -300,32 +301,65 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
-            Spacing.lg, Spacing.sm, Spacing.lg, Spacing.md),
-        child: Row(
-          children: [
-            // A saída está SEMPRE viva. Estava presa ao `busy` global do
-            // store — bastava outra operação a meio para o "Cancelar" morrer
-            // e o utilizador ficar fechado no assistente (mesma cicatriz do
-            // ecrã de avaliação do TVDE, corrida real 05/09/2026). `_goBack`
-            // não cria nada: no passo 0 fecha, nos outros recua um passo.
-            TextButton(
-              onPressed: _goBack,
-              child: Text(_step == 0 ? 'Cancelar' : 'Voltar',
-                  style: const TextStyle(color: AppColors.textSecondary)),
-            ),
-            const SizedBox(width: Spacing.md),
-            Expanded(
-              child: BoraPrimaryButton(
-                label: isLast
-                    ? 'Confirmar reserva'.tr
-                    : 'Continuar',
-                icon: isLast ? Icons.check_circle : Icons.arrow_forward,
-                loading: _avancando,
-                onPressed: _goNext,
-              ),
-            ),
-          ],
+          Spacing.lg,
+          Spacing.sm,
+          Spacing.lg,
+          Spacing.md,
         ),
+        child: isLast
+            // DL 24/2014 (ronda-fecho 2026-09-22): no último passo o aviso de
+            // livre resolução vai imediatamente acima do botão que fecha o
+            // pedido, e esse botão diz "obrigação de pagar" (art. 5.º, n.º 2).
+            // O rótulo é comprido: fica sozinho, à largura toda, para caber em
+            // duas linhas a 360 px (ao lado do "Voltar" sobravam 131 px). O
+            // "Voltar" desce para baixo e continua SEMPRE vivo — ver a nota
+            // no ramo do `Row`.
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const CheckoutLegalNotice(kind: CheckoutLegalKind.servico),
+                  const SizedBox(height: Spacing.sm),
+                  BoraPrimaryButton(
+                    label: 'Encomenda com obrigação de pagar'.tr,
+                    loading: _avancando,
+                    onPressed: _goNext,
+                  ),
+                  TextButton(
+                    onPressed: _goBack,
+                    child: const Text(
+                      'Voltar',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
+                  ),
+                ],
+              )
+            : Row(
+                children: [
+                  // A saída está SEMPRE viva. Estava presa ao `busy` global do
+                  // store — bastava outra operação a meio para o "Cancelar"
+                  // morrer e o utilizador ficar fechado no assistente (mesma
+                  // cicatriz do ecrã de avaliação do TVDE, corrida real
+                  // 05/09/2026). `_goBack` não cria nada: no passo 0 fecha,
+                  // nos outros recua um passo.
+                  TextButton(
+                    onPressed: _goBack,
+                    child: Text(
+                      _step == 0 ? 'Cancelar' : 'Voltar',
+                      style: const TextStyle(color: AppColors.textSecondary),
+                    ),
+                  ),
+                  const SizedBox(width: Spacing.md),
+                  Expanded(
+                    child: BoraPrimaryButton(
+                      label: 'Continuar',
+                      icon: Icons.arrow_forward,
+                      loading: _avancando,
+                      onPressed: _goNext,
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }

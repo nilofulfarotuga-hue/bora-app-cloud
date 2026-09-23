@@ -8,7 +8,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../services/legal_fields_service.dart';
 import '../../widgets/bora/bora.dart';
+import '../../widgets/legal_fields_section.dart';
 
 /// MULTI-PAPEL — candidatura a estafeta/motorista para um utilizador JÁ
 /// autenticado (tipicamente uma profissional de limpeza a adicionar o 2.º
@@ -30,6 +32,11 @@ class _DriverRoleApplyScreenState extends State<DriverRoleApplyScreen> {
   final _plateCtrl = TextEditingController();
   final _ibanCtrl = TextEditingController();
 
+  // D3 (DSA art. 30 + DAC7) — reutiliza o IBAN; NIF/nome vêm do prefill.
+  late final LegalFieldsController _legal = LegalFieldsController(
+    iban: _ibanCtrl,
+  );
+
   // Valores aceites por drivers.vehicle_type.
   static const _vehicles = {
     'motorcycle': 'Mota / Scooter',
@@ -49,11 +56,14 @@ class _DriverRoleApplyScreenState extends State<DriverRoleApplyScreen> {
     if (p != null) {
       _nameCtrl.text = (p['name'] as String?) ?? '';
       _phoneCtrl.text = (p['phone'] as String?) ?? '';
+      _legal.legalName.text = (p['name'] as String?) ?? '';
+      _legal.nif.text = (p['nif'] as String?) ?? '';
     }
   }
 
   @override
   void dispose() {
+    _legal.dispose();
     _nameCtrl.dispose();
     _phoneCtrl.dispose();
     _plateCtrl.dispose();
@@ -90,6 +100,15 @@ class _DriverRoleApplyScreenState extends State<DriverRoleApplyScreen> {
 
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    // D3 — PADRAO_BORA §1.2: rola até ao campo em falta e diz o que falta.
+    final falta = await _legal.validateAndReveal();
+    if (!mounted) return;
+    if (falta != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Falta: $falta')));
+      return;
+    }
     if (_idDoc == null || _selfie == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Anexa o documento de identificação e uma selfie.')));
@@ -109,8 +128,9 @@ class _DriverRoleApplyScreenState extends State<DriverRoleApplyScreen> {
           'p_document_type': 'Cartão Cidadão',
           'p_document_photo_url': docPath,
           'p_registration_selfie_url': selfiePath,
-          'p_iban': _ibanCtrl.text.trim().isEmpty ? null : _ibanCtrl.text.trim(),
-          'p_nif': (widget.prefill?['nif'] as String?),
+          'p_iban': LegalFieldsValidators.normalizeIban(_ibanCtrl.text),
+          'p_nif': LegalFieldsValidators.normalizeNif(_legal.nif.text),
+          'p_address': _legal.address.text.trim(),
         },
       );
       final ok = res is Map && res['success'] == true;
@@ -119,10 +139,24 @@ class _DriverRoleApplyScreenState extends State<DriverRoleApplyScreen> {
         final reason = res is Map ? res['reason'] : null;
         throw Exception(reason ?? 'erro');
       }
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Candidatura a estafeta enviada! Vamos rever em '
-              'breve. 💚')));
+      // D3 — só há sucesso depois de os dados legais ficarem gravados
+      // (DSA art. 30 + DAC7; o admin não consegue aprovar sem eles).
+      await _legal.save('driver');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Candidatura a estafeta enviada! Vamos rever em '
+            'breve. 💚',
+          ),
+        ),
+      );
       Navigator.pop(context, true);
+    } on LegalFieldsException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -210,13 +244,11 @@ class _DriverRoleApplyScreenState extends State<DriverRoleApplyScreen> {
               validator: (v) =>
                   (v ?? '').trim().length < 4 ? 'Indica a matrícula.' : null,
             ),
-            const SizedBox(height: Spacing.md),
-            TextFormField(
-              controller: _ibanCtrl,
-              decoration: const InputDecoration(
-                  labelText: 'IBAN (para pagamentos)',
-                  prefixIcon: Icon(Icons.account_balance_outlined)),
-            ),
+            const SizedBox(height: Spacing.lg),
+            // D3 — nome legal, NIF, morada, IBAN, data de nascimento e
+            // autocertificação: obrigatórios antes de ativar (DSA art. 30 +
+            // DAC7).
+            LegalFieldsSection(controller: _legal, enabled: !_busy),
             const SizedBox(height: Spacing.lg),
             _DocPicker(
               label: 'Documento de identificação (CC) *',

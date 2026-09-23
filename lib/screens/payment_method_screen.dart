@@ -21,6 +21,7 @@ import '../services/card_wallet_service.dart';
 import '../services/payment_service.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/card_mandate_notice.dart';
+import '../widgets/checkout_legal_notice.dart';
 import '../widgets/customer_note_field.dart';
 import '../widgets/unified_checkout_button.dart';
 import '../widgets/valor_com_risco.dart';
@@ -30,6 +31,16 @@ import '../l10n/tr.dart';
 /// Mensagem única do bloqueio de "Em breve" no pagamento (PT-PT).
 const String _kComingSoonPaymentMessage =
     'Esta loja ainda está a ser preparada. Em breve poderá finalizar o seu pedido.';
+
+/// DL 24/2014 (ronda-fecho 2026-09-22): a frase de livre resolução depende do
+/// que se compra — comida/bens perecíveis (restaurante, loja, mercado,
+/// farmácia, takeaway) ou um serviço a pedido (favor, leva compras, envio).
+CheckoutLegalKind _checkoutLegalKind(OrderServiceType st) => switch (st) {
+  OrderServiceType.sendPackage ||
+  OrderServiceType.carryGroceries ||
+  OrderServiceType.errand => CheckoutLegalKind.servico,
+  _ => CheckoutLegalKind.comida,
+};
 
 /// Substitui o botão de pagar quando a loja está em "Em breve".
 ///
@@ -825,20 +836,33 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                         duration: Duration(seconds: 4),
                       )),
                   )
-                : UnifiedCheckoutButton(
-                    label: 'Confirmar pagamento'.tr,
-                    amount: finalPrice,
-                    busy: _isProcessing,
-                    showSavedCard: false,
-                    useOverride: true,
-                    savedPmIdOverride: _selectedMethod == PaymentMethod.card
-                        ? _selectedSavedPmId
-                        : null,
-                    onPay: (_) => _confirmPayment(
-                      context,
-                      finalPrice,
-                      tokensUsed: tokensChosen,
-                    ),
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // DL 24/2014 (ronda-fecho 2026-09-22): aviso de livre
+                      // resolução imediatamente acima do botão, e o botão diz
+                      // "encomenda com obrigação de pagar" (art. 5.º, n.º 2).
+                      CheckoutLegalNotice(
+                        kind: _checkoutLegalKind(cartStore.serviceType),
+                      ),
+                      const SizedBox(height: Spacing.sm),
+                      UnifiedCheckoutButton(
+                        label: 'Encomenda com obrigação de pagar'.tr,
+                        amount: finalPrice,
+                        busy: _isProcessing,
+                        showSavedCard: false,
+                        useOverride: true,
+                        savedPmIdOverride: _selectedMethod == PaymentMethod.card
+                            ? _selectedSavedPmId
+                            : null,
+                        onPay: (_) => _confirmPayment(
+                          context,
+                          finalPrice,
+                          tokensUsed: tokensChosen,
+                        ),
+                      ),
+                    ],
                   ),
           ),
         ],

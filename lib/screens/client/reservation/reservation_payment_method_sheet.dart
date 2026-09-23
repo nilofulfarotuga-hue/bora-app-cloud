@@ -6,6 +6,7 @@ import '../../../config/app_colors.dart';
 import '../../../models/saved_card.dart';
 import '../../../services/card_wallet_service.dart';
 import '../../../widgets/card_mandate_notice.dart';
+import '../../../widgets/checkout_legal_notice.dart';
 
 import '../../../l10n/tr.dart';
 
@@ -52,6 +53,7 @@ class ReservationPaymentMethodSheet extends StatefulWidget {
     super.key,
     required this.amountEur,
     this.title = 'Reserva',
+    this.legalKind = CheckoutLegalKind.marcacao,
   });
 
   final double amountEur;
@@ -59,6 +61,12 @@ class ReservationPaymentMethodSheet extends StatefulWidget {
   /// Título do sheet — default mantém o texto das reservas; o fluxo de
   /// marcações (M7) passa 'Sinal da marcação'.
   final String title;
+
+  /// DL 24/2014 (ronda-fecho 2026-09-22): frase de livre resolução acima do
+  /// botão. O padrão serve reservas e marcações com data certa (art. 17.º);
+  /// quem cobra um serviço sem data marcada (ex.: planos TVDE) passa
+  /// `CheckoutLegalKind.servico`.
+  final CheckoutLegalKind legalKind;
 
   @override
   State<ReservationPaymentMethodSheet> createState() =>
@@ -210,6 +218,20 @@ class _ReservationPaymentMethodSheetState
                 ),
               ],
               const SizedBox(height: 16),
+              // DL 24/2014 (ronda-fecho 2026-09-22): valor numa linha, aviso
+              // legal por baixo, e o botão diz "obrigação de pagar".
+              Text(
+                'Pagar €{0}'.trArgs([widget.amountEur.toStringAsFixed(2)]),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              CheckoutLegalNotice(kind: widget.legalKind),
+              const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
@@ -220,8 +242,12 @@ class _ReservationPaymentMethodSheetState
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   icon: const Icon(Icons.lock),
+                  // Duas linhas centradas se não couber a 360 px — nunca
+                  // encolher a letra.
                   label: Text(
-                    'Pagar €{0}'.trArgs([widget.amountEur.toStringAsFixed(2)]),
+                    'Encomenda com obrigação de pagar'.tr,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,

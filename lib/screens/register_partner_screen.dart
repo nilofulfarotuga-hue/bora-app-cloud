@@ -14,13 +14,11 @@ import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../models/restaurant_model.dart';
+import '../services/legal_fields_service.dart';
 import '../services/multi_role_signup.dart';
-import '../stores/partner_product_store.dart';
-import '../stores/restaurant_store.dart';
 import '../widgets/address_autocomplete_field.dart';
-import '../widgets/bora/bora_primary_button.dart';
+import '../widgets/legal_fields_section.dart';
 import '../widgets/terms_link_text.dart';
-import 'partner_login_screen.dart';
 import 'pending_approval_screen.dart';
 
 class RegisterPartnerScreen extends StatefulWidget {
@@ -41,9 +39,20 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
   BusinessCategory _selectedCategory = BusinessCategory.restaurant;
   ll.LatLng? _pickupCoords;
 
-  // Step 2: Documentos (OPCIONAIS)
+  // Step 2: Dados do responsável (D3 — DSA art. 30 + DAC7, obrigatórios) +
+  // documentos (opcionais). NIF/IBAN partilham os controladores do rascunho
+  // e do resumo; a morada legal é a do estabelecimento (passo 1) — é essa
+  // que o servidor grava em restaurants.address, por isso não há 2.º campo.
   final _nifController = TextEditingController();
   final _ibanController = TextEditingController();
+  late final LegalFieldsController _legal = LegalFieldsController(
+    nif: _nifController,
+    iban: _ibanController,
+    address: _addressController,
+  );
+  // Registo já feito mas dados legais por gravar (falha de rede a meio):
+  // o próximo "Continuar" só repete a gravação — nunca o registo.
+  String? _legalRolePending;
   XFile? _ownerDocFile;
   XFile? _activityDocFile;
 
@@ -106,6 +115,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
 
   @override
   void dispose() {
+    _legal.dispose();
     _nameController.dispose();
     _addressController.dispose();
     _phoneController.dispose();
@@ -128,6 +138,8 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
       prefs.setString('$_kDraftKey.category', _selectedCategory.name);
       prefs.setString('$_kDraftKey.nif', _nifController.text);
       prefs.setString('$_kDraftKey.iban', _ibanController.text);
+      prefs.setString('$_kDraftKey.legalName', _legal.legalName.text);
+      prefs.setString('$_kDraftKey.birthDate', _legal.birthDateIso ?? '');
     });
   }
 
@@ -160,6 +172,12 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
       if (nif.isNotEmpty) _nifController.text = nif;
       final iban = prefs.getString('$_kDraftKey.iban') ?? '';
       if (iban.isNotEmpty) _ibanController.text = iban;
+      final legalName = prefs.getString('$_kDraftKey.legalName') ?? '';
+      if (legalName.isNotEmpty) _legal.legalName.text = legalName;
+      final birth = DateTime.tryParse(
+        prefs.getString('$_kDraftKey.birthDate') ?? '',
+      );
+      if (birth != null) _legal.birthDate.value = birth;
     });
   }
 
@@ -173,7 +191,9 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
         'cuisine',
         'category',
         'nif',
-        'iban'
+        'iban',
+        'legalName',
+        'birthDate',
       ]) {
         prefs.remove('$_kDraftKey.$key');
       }
@@ -357,8 +377,28 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
   Future<void> _submit() async {
     if (_isSubmitting) return;
     if (!(_formKey.currentState?.validate() ?? true)) return;
+    // D3 — defesa em profundidade: o passo 2 já validou, mas o resumo é o
+    // último sítio onde se pode carregar sem os dados legais.
+    final falta = _legal.firstMissingLabel();
+    if (falta != null) {
+      setState(() => _currentStep = 1);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Falta: $falta')));
+      return;
+    }
 
     setState(() => _isSubmitting = true);
+
+    // Registo já feito numa tentativa anterior: só falta gravar os dados
+    // legais — não se volta a criar conta nem estabelecimento.
+    if (_legalRolePending != null) {
+      if (!await _guardarDadosLegais(_legalRolePending!)) return;
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      _irParaPendente();
+      return;
+    }
 
     final authStore = context.read<AuthStore>();
 
@@ -486,8 +526,8 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
               category: _selectedCategory.name,
               lat: _pickupCoords?.latitude,
               lng: _pickupCoords?.longitude,
-              nif: _nifController.text.isEmpty ? null : _nifController.text,
-              iban: _ibanController.text.isEmpty ? null : _ibanController.text,
+              nif: LegalFieldsValidators.normalizeNif(_nifController.text),
+              iban: LegalFieldsValidators.normalizeIban(_ibanController.text),
               ownerDocUrl: ownerDocUrl,
               activityDocUrl: activityDocUrl,
               photoUrl: logoUrl,
@@ -505,8 +545,8 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
               category: _selectedCategory.name,
               lat: _pickupCoords?.latitude,
               lng: _pickupCoords?.longitude,
-              nif: _nifController.text.isEmpty ? null : _nifController.text,
-              iban: _ibanController.text.isEmpty ? null : _ibanController.text,
+              nif: LegalFieldsValidators.normalizeNif(_nifController.text),
+              iban: LegalFieldsValidators.normalizeIban(_ibanController.text),
               ownerDocUrl: ownerDocUrl,
               activityDocUrl: activityDocUrl,
               photoUrl: logoUrl,
@@ -586,22 +626,76 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
       }
 
       if (!mounted) return;
+
+      // D3 — só há sucesso depois de os dados legais ficarem gravados
+      // (restaurants → 'partner'; service_providers → 'provider').
+      final role = result['provider_id'] != null ? 'provider' : 'partner';
+      if (!await _guardarDadosLegais(role)) return;
+      if (!mounted) return;
       setState(() => _isSubmitting = false);
 
-      // Navega para PendingApprovalScreen (não muda role aqui — PendingApprovalScreen
-      // oferece opção de "Gerir a Minha Loja" que chama setRole quando necessário)
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) =>
-              PendingApprovalScreen(categoryName: _selectedCategory.name),
-        ),
-      );
+      _irParaPendente();
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erro: $e')));
+    }
+  }
+
+  /// Grava os dados legais do responsável. Em falha mostra a causa, guarda o
+  /// papel em [_legalRolePending] e devolve false — o ecrã fica como está.
+  Future<bool> _guardarDadosLegais(String role) async {
+    try {
+      await _legal.save(role);
+      _legalRolePending = null;
+      return true;
+    } on LegalFieldsException catch (e) {
+      _legalRolePending = role;
+      if (!mounted) return false;
+      setState(() => _isSubmitting = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro: $e')),
+        SnackBar(
+          content: Text(
+            '${e.message} O estabelecimento já ficou registado — '
+            'toca em "Continuar" para gravar os dados fiscais.',
+          ),
+        ),
       );
+      return false;
+    }
+  }
+
+  // Navega para PendingApprovalScreen (não muda role aqui — PendingApprovalScreen
+  // oferece opção de "Gerir a Minha Loja" que chama setRole quando necessário)
+  void _irParaPendente() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) =>
+            PendingApprovalScreen(categoryName: _selectedCategory.name),
+      ),
+    );
+  }
+
+  Future<void> _continue() async {
+    if (_currentStep == 0 && !_validateStep1()) return;
+    if (_currentStep == 1) {
+      // D3 — PADRAO_BORA §1.2: rola até ao campo em falta e diz o que falta.
+      final falta = await _legal.validateAndReveal();
+      if (!mounted) return;
+      if (falta != null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Falta: $falta')));
+        return;
+      }
+    }
+    if (_currentStep == 2 && !_validateStep3()) return;
+    if (_currentStep < 3) {
+      setState(() => _currentStep++);
+    } else {
+      _submit();
     }
   }
 
@@ -633,15 +727,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
             // externo e a tela fica presa (não desce até ao botão de submeter).
             physics: const NeverScrollableScrollPhysics(),
             currentStep: _currentStep,
-            onStepContinue: () {
-            if (_currentStep == 0 && !_validateStep1()) return;
-            if (_currentStep == 2 && !_validateStep3()) return;
-            if (_currentStep < 3) {
-              setState(() => _currentStep++);
-            } else {
-              _submit();
-            }
-          },
+              onStepContinue: _continue,
           onStepCancel: _currentStep > 0
               ? () => setState(() => _currentStep--)
               : null,
@@ -719,33 +805,30 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
               ),
             ),
 
-            // Step 2: Documentos (OPCIONAIS)
+                // Step 2: Responsável (D3 — obrigatório) + Documentos (opcionais)
             Step(
-              title: const Text('Documentos (Opcionais)'),
+                  title: const Text('Responsável & Documentos'),
               isActive: _currentStep >= 1,
               state: _currentStep > 1 ? StepState.complete : StepState.indexed,
               content: Column(
                 children: [
-                  TextFormField(
-                    controller: _nifController,
-                    onChanged: (_) => _saveDraft(),
-                    decoration: const InputDecoration(
-                      labelText: 'NIF (opcional)',
-                      hintText: '9 dígitos',
-                      prefixIcon: Icon(Icons.badge_outlined),
+                      LegalFieldsSection(
+                        controller: _legal,
+                        legalNameLabel:
+                            'Nome completo do responsável (como no documento)',
+                        showAddress: false,
+                        enabled: !_isSubmitting,
+                        onChanged: _saveDraft,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Documentos (opcionais) — ajudam a aprovar mais depressa.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _ibanController,
-                    onChanged: (_) => _saveDraft(),
-                    decoration: const InputDecoration(
-                      labelText: 'IBAN (opcional)',
-                      hintText: 'PT + 23 dígitos',
-                      prefixIcon: Icon(Icons.account_balance),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
+                      const SizedBox(height: 8),
                   GestureDetector(
                     onTap: () => _pickDocument(true),
                     child: Container(
@@ -1061,6 +1144,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                           Text('Resumo:', style: theme.textTheme.titleSmall),
                           const SizedBox(height: 12),
                           Text('Nome: ${_nameController.text}'),
+                              Text('Responsável: ${_legal.legalName.text}'),
                           Text('Email: ${_emailController.text}'),
                           if (_nifController.text.isNotEmpty)
                             Text('NIF: ${_nifController.text}'),

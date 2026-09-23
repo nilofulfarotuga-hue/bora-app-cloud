@@ -37,6 +37,7 @@ import '../services/push_token_service.dart';
 import '../services/sound_service.dart';
 import '../services/web_presence.dart';
 import '../widgets/driver_web_cards.dart';
+import '../widgets/driver_push_warning_card.dart';
 import '../widgets/notification_bell.dart';
 import '../stores/driver_store.dart';
 import '../stores/order_store.dart';
@@ -951,6 +952,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // [ronda-fecho A8 23/09] Online sem aparelho para notificações →
+            // aviso + "Ativar notificações". Nos DOIS desenhos (PADRAO 2.6).
+            DriverPushWarningCard(isOnline: isAvailable),
             Card(
               margin: const EdgeInsets.only(bottom: 16),
               child: ListTile(
@@ -1363,6 +1367,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // [ronda-fecho A8 23/09] Online sem aparelho para notificações →
+                // aviso + "Ativar notificações". Nos DOIS desenhos (PADRAO 2.6).
+                DriverPushWarningCard(isOnline: isAvailable),
             // [Estafeta web 2026-09-16] Só no navegador: aviso do iPhone,
             // "instalar no ecrã principal" e "ativar notificações".
             if (kIsWeb)

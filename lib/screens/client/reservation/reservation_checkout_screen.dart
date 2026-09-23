@@ -10,6 +10,7 @@ import '../../../services/payment_service.dart';
 import '../../../services/saved_card_checkout.dart';
 import '../../../stores/reservation_store.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
+import '../../../widgets/checkout_legal_notice.dart';
 import 'reservation_mbway_waiting_dialog.dart';
 import 'reservation_payment_method_sheet.dart';
 
@@ -346,33 +347,55 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
             SafeArea(
               top: false,
               minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: _processing ? null : _onConfirmAndPay,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  icon: _processing
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.lock),
-                  label: Text(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // DL 24/2014 (ronda-fecho 2026-09-22): valor numa linha,
+                  // aviso legal por baixo (reserva = data certa, art. 17.º) e
+                  // o botão diz "obrigação de pagar" (art. 5.º, n.º 2).
+                  Text(
                     'Pagar €3 e reservar'.tr,
+                    textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
                     ),
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  const CheckoutLegalNotice(kind: CheckoutLegalKind.marcacao),
+                  const SizedBox(height: 8),
+                  FilledButton.icon(
+                    onPressed: _processing ? null : _onConfirmAndPay,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    icon: _processing
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.lock),
+                    // Duas linhas centradas se não couber a 360 px — nunca
+                    // encolher a letra.
+                    label: Text(
+                      'Encomenda com obrigação de pagar'.tr,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

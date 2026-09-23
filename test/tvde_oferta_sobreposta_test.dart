@@ -20,7 +20,11 @@ import 'package:provider/provider.dart';
 ///     `SizedBox.shrink()` em silêncio);
 ///  5. o contador vem do prazo em cada rebuild, não de um número guardado;
 ///  6. o cartão desenha-se POR CIMA de qualquer rota (host no builder do
-///     MaterialApp) e esconde-se quando o ecrã inteiro já mostra a mesma.
+///     MaterialApp) e esconde-se quando o ecrã inteiro já mostra a mesma;
+///  7. [A11 · 22/09] por cima da corrida activa sem a TAPAR: desce para
+///     baixo da AppBar, e a reserva (5 min de oferta) entra como faixa
+///     compacta com "Ver" / "Recusar" — "Ver" abre o cartão inteiro, que se
+///     volta a minimizar. Noutro ecrã qualquer, nada mudou.
 /// Mais os guardas de código: ganchos globais (nunca num ecrã), botões na
 /// notificação, filtro de oferta morta no store, chaves no painel.
 TvdeRide _ride({
@@ -55,6 +59,16 @@ TvdeRide _ride({
 
 Widget _app(Widget child) => MaterialApp(
       home: Scaffold(body: Center(child: child)),
+    );
+
+/// O host global como vive no `main.dart`: envolve o Navigator inteiro.
+Widget _host(TvdeDriverStore store) => ChangeNotifierProvider.value(
+      value: store,
+      child: MaterialApp(
+        builder: (context, child) =>
+            TvdeOfferOverlayHost(child: child ?? const SizedBox.shrink()),
+        home: const _Pagina('HOME'),
+      ),
     );
 
 void main() {
@@ -235,20 +249,11 @@ void main() {
   });
 
   group('host global (por cima de qualquer ecrã)', () {
-    Widget host(TvdeDriverStore store) => ChangeNotifierProvider.value(
-          value: store,
-          child: MaterialApp(
-            builder: (context, child) =>
-                TvdeOfferOverlayHost(child: child ?? const SizedBox.shrink()),
-            home: const _Pagina('HOME'),
-          ),
-        );
-
     testWidgets(
         'a oferta imediata aparece por cima de uma rota empilhada e a de '
         'reserva também', (tester) async {
       final store = TvdeDriverStore();
-      await tester.pumpWidget(host(store));
+      await tester.pumpWidget(_host(store));
       expect(find.byKey(const Key('tvde_oferta_sobreposta')), findsNothing);
 
       // Empilha um ecrã por cima da home (o "ecrã da corrida activa").
@@ -285,7 +290,7 @@ void main() {
     testWidgets('esconde-se enquanto o ecrã inteiro mostra a mesma oferta',
         (tester) async {
       final store = TvdeDriverStore();
-      await tester.pumpWidget(host(store));
+      await tester.pumpWidget(_host(store));
       store.debugInjectar(
           oferta: _ride(
               id: 'x', expira: DateTime.now().add(const Duration(seconds: 30))));
@@ -299,6 +304,244 @@ void main() {
       TvdeOfferPresentation.fullScreenRideId.value = null;
       await tester.pump();
       expect(find.byKey(const Key('tvde_oferta_sobreposta')), findsOneWidget);
+    });
+  });
+
+  group('por cima da corrida activa sem a tapar (A11, 20/09)', () {
+    tearDown(() => TvdeOfferPresentation.activeRideOpenOverride.value = null);
+
+    TvdeRide reserva() => _ride(
+          id: 'res',
+          status: 'agendada',
+          marcada: DateTime(2026, 9, 21, 0, 0),
+          reservaExpira: DateTime.now().add(const Duration(minutes: 4)),
+        );
+
+    testWidgets(
+        'reserva com corrida viva no store: faixa compacta abaixo da AppBar, '
+        'com Ver e Recusar, sem Aceitar', (tester) async {
+      final store = TvdeDriverStore();
+      await tester.pumpWidget(_host(store));
+      await tester.tap(find.text('empilhar'));
+      await tester.pumpAndSettle();
+
+      store.debugInjectar(
+          activa: _ride(id: 'activa', status: 'em_andamento'),
+          reserva: reserva());
+      await tester.pump();
+
+      final faixa = find.byKey(const Key('tvde_reserva_compacta'));
+      expect(faixa, findsOneWidget);
+      expect(find.byKey(const Key('tvde_reserva_sobreposta')), findsNothing);
+      expect(find.text('Reserva para aceitar'), findsOneWidget);
+      expect(find.text('Ver'), findsOneWidget);
+      expect(find.text('Recusar'), findsOneWidget);
+      expect(find.text('Aceitar reserva'), findsNothing);
+      // hora marcada · ganho do motorista · contagem, numa linha só
+      expect(find.textContaining('00:00 · €4.00 · 0'), findsOneWidget);
+      // Abaixo da AppBar (barra de estado = 0 no teste): o menu "Cancelar
+      // corrida" e o topo do mapa ficam livres; uma faixa, não um cartão.
+      expect(tester.getTopLeft(faixa).dy, kToolbarHeight + 8);
+      expect(tester.getSize(faixa).height, lessThanOrEqualTo(64));
+      expect(find.text('POR CIMA'), findsOneWidget);
+    });
+
+    testWidgets(
+        '"Ver" abre o cartão inteiro (Aceitar reserva) no mesmo sítio; '
+        '"Minimizar" volta à faixa', (tester) async {
+      final store = TvdeDriverStore();
+      await tester.pumpWidget(_host(store));
+      await tester.tap(find.text('empilhar'));
+      await tester.pumpAndSettle();
+      store.debugInjectar(
+          activa: _ride(id: 'activa', status: 'motorista_a_caminho'),
+          reserva: reserva());
+      await tester.pump();
+
+      await tester.tap(find.byKey(const Key('tvde_reserva_ver')));
+      await tester.pump();
+      final cartao = find.byKey(const Key('tvde_reserva_sobreposta'));
+      expect(cartao, findsOneWidget);
+      expect(find.text('Aceitar reserva'), findsOneWidget);
+      expect(find.text('Recusar'), findsOneWidget);
+      expect(find.byKey(const Key('tvde_reserva_compacta')), findsNothing);
+      expect(tester.getTopLeft(cartao).dy, kToolbarHeight + 8);
+
+      await tester.tap(find.byKey(const Key('tvde_reserva_minimizar')));
+      await tester.pump();
+      expect(find.byKey(const Key('tvde_reserva_compacta')), findsOneWidget);
+      expect(find.text('Aceitar reserva'), findsNothing);
+      expect(find.text('Ver'), findsOneWidget);
+    });
+
+    testWidgets(
+        'ecrã da corrida montado (estaAberto) sem corrida no store: a mesma '
+        'regra; fechado, volta ao cartão inteiro no topo', (tester) async {
+      final store = TvdeDriverStore();
+      await tester.pumpWidget(_host(store));
+      store.debugInjectar(reserva: reserva());
+      await tester.pump();
+      final cartao = find.byKey(const Key('tvde_reserva_sobreposta'));
+      expect(cartao, findsOneWidget);
+      expect(tester.getTopLeft(cartao).dy, 8);
+
+      TvdeOfferPresentation.activeRideOpenOverride.value = true;
+      await tester.pump();
+      final faixa = find.byKey(const Key('tvde_reserva_compacta'));
+      expect(faixa, findsOneWidget);
+      expect(cartao, findsNothing);
+      expect(tester.getTopLeft(faixa).dy, kToolbarHeight + 8);
+
+      TvdeOfferPresentation.activeRideOpenOverride.value = false;
+      await tester.pump();
+      expect(faixa, findsNothing);
+      expect(cartao, findsOneWidget);
+      expect(find.text('Aceitar reserva'), findsOneWidget);
+      expect(tester.getTopLeft(cartao).dy, 8);
+    });
+
+    testWidgets(
+        'oferta imediata com a corrida activa aberta: inteira (Aceitar e '
+        'Recusar com contagem), mas abaixo da AppBar', (tester) async {
+      final store = TvdeDriverStore();
+      await tester.pumpWidget(_host(store));
+      await tester.tap(find.text('empilhar'));
+      await tester.pumpAndSettle();
+      store.debugInjectar(
+          activa: _ride(id: 'activa', status: 'em_andamento'),
+          oferta: _ride(
+              expira: DateTime.now().add(const Duration(seconds: 30))));
+      await tester.pump();
+
+      final cartao = find.byKey(const Key('tvde_oferta_sobreposta'));
+      expect(cartao, findsOneWidget);
+      expect(find.text('Nova corrida — depois desta corrida'), findsOneWidget);
+      expect(find.text('Aceitar'), findsOneWidget);
+      expect(find.text('Recusar'), findsOneWidget);
+      expect(find.byKey(const Key('tvde_oferta_contagem')), findsOneWidget);
+      expect(find.text('Ver'), findsNothing);
+      expect(tester.getTopLeft(cartao).dy, kToolbarHeight + 8);
+      expect(find.text('POR CIMA'), findsOneWidget);
+    });
+
+    testWidgets(
+        'sem corrida activa nada muda: cartões inteiros no topo, sem "Ver"',
+        (tester) async {
+      final store = TvdeDriverStore();
+      await tester.pumpWidget(_host(store));
+      await tester.tap(find.text('empilhar'));
+      await tester.pumpAndSettle();
+      store.debugInjectar(reserva: reserva());
+      await tester.pump();
+
+      final cartao = find.byKey(const Key('tvde_reserva_sobreposta'));
+      expect(cartao, findsOneWidget);
+      expect(find.byKey(const Key('tvde_reserva_compacta')), findsNothing);
+      expect(find.text('Ver'), findsNothing);
+      expect(find.byKey(const Key('tvde_reserva_minimizar')), findsNothing);
+      expect(find.text('Aceitar reserva'), findsOneWidget);
+      expect(tester.getTopLeft(cartao).dy, 8);
+
+      store.debugInjectar(
+          oferta: _ride(
+              expira: DateTime.now().add(const Duration(seconds: 30))));
+      await tester.pump();
+      expect(
+          tester
+              .getTopLeft(find.byKey(const Key('tvde_oferta_sobreposta')))
+              .dy,
+          8);
+    });
+
+    testWidgets(
+        'faixa compacta: Recusar chama o recusar (uma vez) e a contagem vem '
+        'do prazo em cada rebuild', (tester) async {
+      var aceitou = 0;
+      var recusou = 0;
+      var agora = DateTime(2026, 9, 20, 22, 0, 0);
+      await tester.pumpWidget(_app(TvdeReservationOverlayCard(
+        compacto: true,
+        ride: _ride(
+          marcada: DateTime(2026, 9, 21, 0, 0),
+          reservaExpira: agora.add(const Duration(minutes: 4, seconds: 56)),
+        ),
+        agora: () => agora,
+        onAccept: () => aceitou++,
+        onReject: () => recusou++,
+        onExpiredDismiss: () {},
+      )));
+      expect(find.text('00:00 · €4.00 · 04:56'), findsOneWidget);
+      // O relógio salta 61 s: o número vem do prazo, não de "56 − 1".
+      agora = agora.add(const Duration(seconds: 61));
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('00:00 · €4.00 · 03:55'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('tvde_reserva_recusar_compacto')));
+      await tester.pump();
+      expect(recusou, 1);
+      expect(aceitou, 0);
+      // Travado pelo SEU pedido (PADRAO 3.13): um segundo toque não repete.
+      await tester.tap(find.byKey(const Key('tvde_reserva_recusar_compacto')),
+          warnIfMissed: false);
+      await tester.pump();
+      expect(recusou, 1);
+    });
+
+    testWidgets('faixa compacta → Ver → "Aceitar reserva" chama o aceitar',
+        (tester) async {
+      var aceitou = 0;
+      var recusou = 0;
+      final agora = DateTime(2026, 9, 20, 22, 0, 0);
+      await tester.pumpWidget(_app(TvdeReservationOverlayCard(
+        compacto: true,
+        ride: _ride(
+          marcada: DateTime(2026, 9, 21, 0, 0),
+          reservaExpira: agora.add(const Duration(minutes: 4)),
+        ),
+        agora: () => agora,
+        onAccept: () => aceitou++,
+        onReject: () => recusou++,
+        onExpiredDismiss: () {},
+      )));
+      expect(find.text('Aceitar reserva'), findsNothing);
+      await tester.tap(find.byKey(const Key('tvde_reserva_ver')));
+      await tester.pump();
+      await tester.tap(find.text('Aceitar reserva'));
+      await tester.pump();
+      expect(aceitou, 1);
+      expect(recusou, 0);
+    });
+
+    testWidgets(
+        'compacta expirada nas mãos dele: frase honesta e fecha-se sozinha',
+        (tester) async {
+      var fechou = 0;
+      var expirou = 0;
+      var agora = DateTime(2026, 9, 20, 22, 0, 0);
+      await tester.pumpWidget(_app(TvdeReservationOverlayCard(
+        compacto: true,
+        ride: _ride(
+          marcada: DateTime(2026, 9, 21, 0, 0),
+          reservaExpira: agora.add(const Duration(seconds: 2)),
+        ),
+        agora: () => agora,
+        tempoAteFechar: const Duration(seconds: 3),
+        onAccept: () {},
+        onReject: () {},
+        onExpired: () => expirou++,
+        onExpiredDismiss: () => fechou++,
+      )));
+      expect(find.byKey(const Key('tvde_reserva_compacta')), findsOneWidget);
+      agora = agora.add(const Duration(seconds: 3));
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('Esta reserva já foi para outro motorista.'),
+          findsOneWidget);
+      expect(find.byKey(const Key('tvde_reserva_compacta')), findsNothing);
+      expect(find.text('Ver'), findsNothing);
+      expect(expirou, 1);
+      expect(fechou, 0);
+      await tester.pump(const Duration(seconds: 4));
+      expect(fechou, 1);
     });
   });
 

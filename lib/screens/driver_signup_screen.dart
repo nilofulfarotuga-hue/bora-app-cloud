@@ -12,11 +12,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../models/driver_model.dart';
+import '../services/legal_fields_service.dart';
 import '../services/multi_role_signup.dart';
 import '../stores/session_store.dart';
-import '../widgets/address_autocomplete_field.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
+import '../widgets/legal_fields_section.dart';
 import '../widgets/terms_link_text.dart';
 import 'driver_pending_screen.dart';
 
@@ -62,6 +63,15 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
   final _ibanController = TextEditingController();
   final _mbwayPhoneController = TextEditingController();
 
+  // D3 (DSA art. 30 + DAC7) — nome legal, NIF, morada, IBAN, data de
+  // nascimento e autocertificação, obrigatórios antes de ativar. Reutiliza os
+  // controladores de NIF/morada/IBAN (rascunho + RPC) — uma verdade só.
+  late final LegalFieldsController _legal = LegalFieldsController(
+    nif: _nifController,
+    address: _addressController,
+    iban: _ibanController,
+  );
+
   bool _isProcessing = false;
   int _currentStep = 0;
 
@@ -76,6 +86,7 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
 
   @override
   void dispose() {
+    _legal.dispose();
     _nameController.dispose();
     _phoneController.dispose();
     _addressController.dispose();
@@ -125,6 +136,8 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
       prefs.setString('$_kDraftKey.vMakeModel', _vehicleMakeModelController.text);
       prefs.setString('$_kDraftKey.iban', _ibanController.text);
       prefs.setString('$_kDraftKey.mbway', _mbwayPhoneController.text);
+      prefs.setString('$_kDraftKey.legalName', _legal.legalName.text);
+      prefs.setString('$_kDraftKey.birthDate', _legal.birthDateIso ?? '');
       prefs.setString('$_kDraftKey.step', _currentStep.toString());
       prefs.setBool('$_kDraftKey.accountCreated', _accountCreated);
     });
@@ -167,6 +180,12 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
       if (iban.isNotEmpty) _ibanController.text = iban;
       final mbway = prefs.getString('$_kDraftKey.mbway') ?? '';
       if (mbway.isNotEmpty) _mbwayPhoneController.text = mbway;
+      final legalName = prefs.getString('$_kDraftKey.legalName') ?? '';
+      if (legalName.isNotEmpty) _legal.legalName.text = legalName;
+      final birth = DateTime.tryParse(
+        prefs.getString('$_kDraftKey.birthDate') ?? '',
+      );
+      if (birth != null) _legal.birthDate.value = birth;
       _accountCreated = prefs.getBool('$_kDraftKey.accountCreated') ?? false;
       final step = int.tryParse(prefs.getString('$_kDraftKey.step') ?? '');
       if (step != null && step >= 0 && step <= 3) _currentStep = step;
@@ -176,9 +195,21 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
   void _clearDraft() {
     SharedPreferences.getInstance().then((prefs) {
       for (final key in [
-        'name', 'email', 'phone', 'address', 'nif',
-        'docType', 'docNumber', 'vehicleType', 'plate', 'iban', 'mbway',
-        'step', 'accountCreated',
+        'name',
+        'email',
+        'phone',
+        'address',
+        'nif',
+        'docType',
+        'docNumber',
+        'vehicleType',
+        'plate',
+        'iban',
+        'mbway',
+        'legalName',
+        'birthDate',
+        'step',
+        'accountCreated',
       ]) {
         prefs.remove('$_kDraftKey.$key');
       }
@@ -378,6 +409,16 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
   // ── Step 4: Final submit ───────────────────────────────────────────────────
 
   Future<void> _submitFinal() async {
+    // D3 — PADRAO_BORA §1.2: nunca falhar calado. Rola até ao campo em falta
+    // e diz o que falta antes de qualquer chamada à rede.
+    final falta = await _legal.validateAndReveal();
+    if (!mounted) return;
+    if (falta != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Falta: $falta')));
+      return;
+    }
     setState(() => _isProcessing = true);
     FocusScope.of(context).unfocus();
 
@@ -465,6 +506,21 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
         return;
       }
 
+      if (!mounted) return;
+
+      // D3 — grava os dados legais ANTES do logout (a RPC usa auth.uid()).
+      // Se falhar, fica-se no ecrã com a causa; a RPC de cima é idempotente,
+      // por isso voltar a carregar em "Enviar" repete tudo sem estragos.
+      try {
+        await _legal.save('driver');
+      } on LegalFieldsException catch (e) {
+        if (!mounted) return;
+        setState(() => _isProcessing = false);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+        return;
+      }
       if (!mounted) return;
 
       // Clear draft + logout → DriverPendingScreen (limpa a stack do signup
@@ -603,26 +659,6 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
                       labelText: 'Telefone (opcional)',
                       prefixIcon: Icon(Icons.phone_outlined),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _nifController,
-                    onChanged: (_) => _saveDraft(),
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'NIF (opcional)',
-                      prefixIcon: Icon(Icons.badge_outlined),
-                      helperText: '9 dígitos sem espaços',
-                    ),
-                    // Aviso visual apenas (helperText) — nunca bloqueia o avanço.
-                  ),
-                  const SizedBox(height: 12),
-                  AddressAutocompleteField(
-                    controller: _addressController,
-                    onSelected: (_, __) => _saveDraft(),
-                    onChanged: (_) => _saveDraft(),
-                    labelText: 'Morada (opcional)',
-                    prefixIcon: const Icon(Icons.location_on_outlined),
                   ),
                 ],
               ),
@@ -838,7 +874,7 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
 
             // ── STEP 4: Veículo + Pagamento + Submeter ──────────────
             Step(
-              title: const Text('Veículo & Pagamento'),
+              title: const Text('Veículo, Pagamento & Dados fiscais'),
               isActive: _currentStep >= 3,
               content: Column(
                 children: [
@@ -911,20 +947,6 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
                   ],
                   const SizedBox(height: 12),
                   TextFormField(
-                    controller: _ibanController,
-                    onChanged: (_) => _saveDraft(),
-                    autocorrect: false,
-                    textCapitalization: TextCapitalization.characters,
-                    decoration: const InputDecoration(
-                      labelText: 'IBAN (opcional)',
-                      prefixIcon: Icon(Icons.account_balance_outlined),
-                      hintText: 'PT50...',
-                      helperText: 'IBAN português para receber pagamentos',
-                    ),
-                    // Sem validator bloqueante — Danilo confirma o IBAN depois.
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
                     controller: _mbwayPhoneController,
                     onChanged: (_) => _saveDraft(),
                     keyboardType: TextInputType.phone,
@@ -934,6 +956,15 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
                       hintText: '+351 9XX XXX XXX',
                     ),
                     // Sem validator bloqueante — cadastro nunca trava.
+                  ),
+                  const SizedBox(height: 20),
+                  // D3 — obrigatório por lei antes de ativar (DSA art. 30 +
+                  // DAC7). O servidor recusa o "aprovar" enquanto faltar algo;
+                  // o botão "Enviar Candidatura" valida isto primeiro.
+                  LegalFieldsSection(
+                    controller: _legal,
+                    enabled: !_isProcessing,
+                    onChanged: _saveDraft,
                   ),
                 ],
               ),

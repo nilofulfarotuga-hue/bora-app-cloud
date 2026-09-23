@@ -325,4 +325,154 @@ void main() {
     expect(find.textContaining('Extras: Sem sal'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  // ── A6 ronda-fecho (2026-09-23): grátis E pagas, juntas ─────────────────
+
+  test('optionsForDriver junta as escolhas grátis com os extras pagos: um '
+      'grupo que está nas duas listas entra UMA vez (na versão com preço), '
+      'os só-grátis entram a seguir, a porção ao peso sai', () {
+    final item = CartItem(
+      productId: '5a4f2567-c7ce-40a6-b720-67cd19317894',
+      name: 'McMenu Big Mac',
+      price: 12.90,
+      selectedOptions: const [
+        SelectedOption(group: 'Molho', items: ['Sem molho']),
+        SelectedOption(group: 'Complemento', items: ['Chicken McNuggets 4']),
+        SelectedOption(
+          group: 'Sem Big Mac',
+          items: ['Sem pickles', 'Sem cebola'],
+        ),
+      ],
+      selectedOptionsPriced: const [
+        SelectedOption(
+          group: 'Complemento',
+          items: ['Chicken McNuggets 4 (+€2.30)'],
+        ),
+      ],
+    );
+
+    final opts = optionsForDriver(item);
+    expect(opts.map((o) => o.group), ['Complemento', 'Molho', 'Sem Big Mac']);
+    expect(opts[0].items, ['Chicken McNuggets 4 (+€2.30)']); // com preço
+    expect(opts[1].items, ['Sem molho']);
+    expect(opts[2].items, ['Sem pickles', 'Sem cebola']);
+
+    // O que o getter partilhado faz (e por isso não serve ao estafeta):
+    // só a lista com preço → 1 grupo, "Sem cebola" escondido.
+    expect(item.displayOptions, hasLength(1));
+
+    // Porção ao peso nas duas listas: sai das duas (já vai no nome).
+    final aoPeso = CartItem(
+      productId: '7c6144bc-421b-44d3-8edb-17bdd5c842d1',
+      name: 'Abóbora Cabotiá (ao peso)',
+      price: 2.85,
+      selectedOptions: const [
+        SelectedOption(
+          group: WeightPortions.kGroupName,
+          items: ['500 g (meio quilo)'],
+        ),
+      ],
+      selectedOptionsPriced: const [
+        SelectedOption(
+          group: WeightPortions.kGroupName,
+          items: ['500 g (meio quilo) (+€1.43)'],
+        ),
+      ],
+    );
+    expect(optionsForDriver(aoPeso), isEmpty);
+    expect(
+      WeightPortions.displayName(aoPeso),
+      'Abóbora Cabotiá (ao peso) — 500 g (meio quilo) (+€1.43)',
+    );
+  });
+
+  testWidgets(
+    'REGRESSÃO: escolhas grátis SÓ em selected_options + extra pago SÓ em '
+    'selected_options_priced → o estafeta vê as duas, cada grupo uma vez',
+    (tester) async {
+      final row = _mcOrderRow();
+      final rawItem = (row['items'] as List).single as Map<String, dynamic>;
+      // Servidor a gravar com preço SÓ o grupo pago. CartItem.displayOptions
+      // (que o histórico do cliente e o painel do parceiro usam) devolve só
+      // isto — e escondia ao estafeta "Sem cebola", "Sem molho", a bebida...
+      rawItem['selected_options_priced'] = [
+        {
+          'group': 'Complemento',
+          'items': [
+            {'name': 'Chicken McNuggets 4', 'price_add': 2.30},
+          ],
+        },
+      ];
+      final order = OrderModel.fromSupabase(row);
+      final sheetItem = copyOrderItemsForDriverSheet(order.items).single;
+      expect(sheetItem.displayOptions, hasLength(1)); // o porquê do bug
+      expect(sheetItem.selectedOptions, hasLength(7)); // o que estava gravado
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${WeightPortions.displayName(sheetItem)} × ${sheetItem.quantity}',
+                  ),
+                  DriverItemOptions(item: sheetItem),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // O extra pago, com o preço cobrado.
+      expect(
+        find.textContaining('Complemento: Chicken McNuggets 4 (+€2.30)'),
+        findsOneWidget,
+      );
+      // As escolhas grátis que displayOptions escondia.
+      expect(find.textContaining('Tamanho: Médio'), findsOneWidget);
+      expect(find.textContaining('Bebida: Coca-Cola Média'), findsOneWidget);
+      expect(find.textContaining('Acompanhamento: Batata'), findsOneWidget);
+      expect(find.textContaining('Molho: Sem molho'), findsOneWidget);
+      expect(find.textContaining('Ketchup: Sem ketchup'), findsOneWidget);
+      expect(
+        find.textContaining('Sem Big Mac: Sem pickles, Sem cebola'),
+        findsOneWidget,
+      );
+
+      // Cada grupo UMA vez — o "Complemento" que está nas duas listas não se
+      // repete, e o nome puro (sem preço) não aparece uma 2.ª vez.
+      final dados = tester
+          .widget<Text>(
+            find.descendant(
+              of: find.byType(DriverItemOptions),
+              matching: find.byType(Text),
+            ),
+          )
+          .data!;
+      for (final grupo in [
+        'Tamanho:',
+        'Bebida:',
+        'Acompanhamento:',
+        'Molho:',
+        'Complemento:',
+        'Ketchup:',
+        'Sem Big Mac:',
+      ]) {
+        expect(
+          dados.split(grupo).length - 1,
+          1,
+          reason: '"$grupo" devia aparecer exatamente 1 vez em:\n$dados',
+        );
+      }
+      expect(
+        dados.split('Chicken McNuggets 4').length - 1,
+        1,
+        reason: 'o complemento pago não pode repetir-se sem preço:\n$dados',
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

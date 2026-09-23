@@ -603,10 +603,15 @@ jobs:
           BUILD_NUMBER: ${{ github.run_number }}
           SUBMETER_REVISAO: "1"
         run: |
-          python3 -m pip install --quiet --disable-pip-version-check pyjwt cryptography requests
+          # [ronda-fecho 2026-09-23] O Python do runner macOS e' "externally managed"
+          # (PEP 668): o pip recusa instalar fora de um venv e a corrida 136 caiu
+          # aqui logo a seguir a um upload bem-sucedido. Um venv no RUNNER_TEMP
+          # resolve sem tocar no Python do sistema.
+          python3 -m venv "$RUNNER_TEMP/asc-venv"
+          "$RUNNER_TEMP/asc-venv/bin/python" -m pip install --quiet --disable-pip-version-check pyjwt cryptography requests
           # A mesma chave que o altool acabou de usar, ja no disco do runner.
           export ASC_P8=~/private_keys/AuthKey_${ASC_KEY_ID}.p8
-          python3 .github/scripts/ios_publicar.py
+          "$RUNNER_TEMP/asc-venv/bin/python" .github/scripts/ios_publicar.py
 
       - name: Publicar o IPA
         if: always()

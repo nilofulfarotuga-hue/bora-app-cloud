@@ -2,7 +2,7 @@
 
 ## Acessos
 
-Base de dados de produção Supabase ojykpzwqrtusfeakzrna. Conta TypeSafe: nenhuma criada (ver abaixo). Conta alvo para a criar: boraappbora@gmail.com com "Continue with Google". Criado nesta sessão: a Edge Function decidir (versão 4), a tabela decisoes, sete definições decisor_ em platform_settings, cinco funções na base (decisor_chave_typesafe, decisor_modo, decisor_itens_pendentes, decisor_preencher_resultados, admin_decisor_resumo, admin_decisor_set_modo) e a tarefa agendada decisor-varrer, de 30 em 30 segundos. Nenhuma chave nova foi criada e nenhuma chave ficou no repositório.
+Base de dados de produção Supabase ojykpzwqrtusfeakzrna. Conta TypeSafe: nenhuma criada (ver abaixo). Conta alvo para a criar: boraappbora@gmail.com com "Continue with Google". Criado nesta sessão: a Edge Function decidir (versão 4), a tabela decisoes, sete definições decisor_ em platform_settings, seis funções na base (decisor_chave_typesafe, decisor_modo, decisor_itens_pendentes, decisor_preencher_resultados, admin_decisor_resumo, admin_decisor_set_modo) e a tarefa agendada decisor-varrer, de 30 em 30 segundos. Nenhuma chave nova foi criada e nenhuma chave ficou no repositório.
 
 ## O que NÃO foi feito
 

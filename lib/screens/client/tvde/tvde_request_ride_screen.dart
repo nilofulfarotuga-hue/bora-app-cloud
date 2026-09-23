@@ -29,6 +29,7 @@ import 'tvde_plans_screen.dart';
 import 'tvde_rides_history_screen.dart';
 import 'tvde_ride_tracking_screen.dart';
 import 'tvde_schedule_ride_sheet.dart';
+import 'tvde_volta_sheet.dart';
 
 import '../../../l10n/tr.dart';
 
@@ -111,6 +112,11 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
   // nunca crava valores: se o servidor disser que as reservas estão desligadas,
   // o botão "Marcar para depois" nem aparece.
   bool _reservasLigadas = false;
+
+  /// [Ida-e-volta marcada · 23/09] "Marcar para depois" também no pacote.
+  /// Interruptor `tvde_roundtrip_reservation_enabled` — só liga quando o
+  /// servidor (tvde_schedule_roundtrip) e a Edge Function estão no ar.
+  bool _rtReservaLigada = false;
   int _minAntecedenciaMin = 30;
   int _maxAntecedenciaDias = 30;
 
@@ -192,6 +198,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     final extraRide = await store.getSettingInt('tvde_extra_ride_cents', 450);
     // [Reserva agendada] kill switch + limites da marcação.
     final reservasOn = await store.reservationsEnabled();
+    final rtReservaOn = await store.roundtripReservationsEnabled();
     final limites = await store.loadReservationLimits();
     if (mounted) {
       setState(() {
@@ -201,6 +208,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         _baseKm = baseKm;
         _extraRideCents = extraRide;
         _reservasLigadas = reservasOn;
+        _rtReservaLigada = rtReservaOn;
         _minAntecedenciaMin = limites['minAdvanceMinutes'] ?? 30;
         _maxAntecedenciaDias = limites['maxAdvanceDays'] ?? 30;
       });
@@ -604,6 +612,171 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       if (!mounted) return false;
     }
     return false;
+  }
+
+  // ══ IDA-E-VOLTA MARCADA (2026-09-23) ════════════════════════════════════
+
+  /// "Marcar para depois" no pacote: hora da IDA → como é a VOLTA → como paga.
+  Future<void> _onScheduleRoundtripPressed() =>
+      _comTrava(_marcarIdaEVoltaParaDepois);
+
+  Future<void> _marcarIdaEVoltaParaDepois() async {
+    final km = _effectiveKm;
+    if (_pickup == null || _dest == null || km == null) return;
+    if (_roundtripPriceCents <= 0) return;
+
+    // 1. Dia e hora da IDA — a mesma folha da reserva normal.
+    final ida = await showModalBottomSheet<DateTime>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => TvdeScheduleRideSheet(
+        minAdvanceMinutes: _minAntecedenciaMin,
+        maxAdvanceDays: _maxAntecedenciaDias,
+        priceCents: _roundtripPriceCents,
+        km: km,
+      ),
+    );
+    if (ida == null || !mounted) return;
+
+    // 2. A VOLTA: "Chamo quando terminar" (predefinida) ou hora marcada.
+    final volta = await showModalBottomSheet<TvdeEscolhaVolta>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => TvdeVoltaSheet(ida: ida),
+    );
+    if (volta == null || !mounted) return;
+
+    // 3. Como paga o pacote — a mesma folha, sem tokens (preço do servidor).
+    final pag = await showModalBottomSheet<_TvdePayResult>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _TvdePaymentSheet(
+        amountCents: _roundtripPriceCents,
+        message: 'Pacote ida e volta marcado. Pagas o pacote todo agora; se a ida for cancelada ou ficar sem motorista, devolvemos tudo.'.tr,
+        allowOnline: _cardEnabled,
+        allowTokens: false,
+      ),
+    );
+    if (pag == null || !mounted) return;
+
+    await _marcarPacote(
+      ida: ida,
+      voltaAs: volta.hora,
+      method: pag.method,
+      note: pag.note,
+      mbwayPhone: pag.mbwayPhone,
+    );
+  }
+
+  Future<void> _marcarPacote({
+    required DateTime ida,
+    required DateTime? voltaAs,
+    required String method,
+    String? note,
+    String? mbwayPhone,
+  }) async {
+    final store = context.read<TvdeStore>();
+    final km = _effectiveKm;
+    if (_pickup == null || _dest == null || km == null) return;
+    final fraseVolta = voltaAs == null
+        ? 'Quando terminares, carrega em "Chamar a volta".'.tr
+        : 'A volta também ficou marcada.'.tr;
+    try {
+      if (method == 'cash') {
+        await store.scheduleRoundtripCash(
+          originLat: _pickup!.latitude,
+          originLng: _pickup!.longitude,
+          originLabel: _pickupLabel,
+          destLat: _dest!.latitude,
+          destLng: _dest!.longitude,
+          destLabel: _destLabel,
+          distanceKm: km,
+          outboundAt: ida,
+          returnAt: voltaAs,
+          note: note,
+        );
+        if (!mounted) return;
+        _reservaMarcada('${'Ida e volta marcadas. Pagas o pacote em dinheiro ao motorista da ida.'.tr} $fraseVolta');
+        return;
+      }
+
+      String? savedPmId;
+      if (method == 'card') {
+        final auth = await SavedCardCheckout.instance.authorize(
+            context: context, amountEur: _roundtripPriceCents / 100);
+        if (!mounted) return;
+        if (auth.cancelled) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(
+                  'Pagamento cancelado. A reserva não ficou marcada.'.tr)));
+          return;
+        }
+        savedPmId = auth.savedPmId;
+      }
+
+      final res = await store.scheduleRoundtripPaid(
+        originLat: _pickup!.latitude,
+        originLng: _pickup!.longitude,
+        originLabel: _pickupLabel,
+        destLat: _dest!.latitude,
+        destLng: _dest!.longitude,
+        destLabel: _destLabel,
+        distanceKm: km,
+        outboundAt: ida,
+        returnAt: voltaAs,
+        method: method,
+        mbwayPhone: mbwayPhone,
+        note: note,
+        savedPmId: savedPmId,
+        confirmCard: (clientSecret) => PaymentService().processPayment(
+          clientSecret,
+          vertical: 'tvde-reserva',
+        ),
+      );
+      if (!mounted) return;
+      final piId = res.paymentIntentId;
+      if (piId == null) {
+        _reservaMarcada('Ida e volta marcadas.'.tr);
+        return;
+      }
+      // Só depois de o SERVIDOR confirmar o pagamento é que as reservas
+      // procuram motorista — nunca dizer "à procura" antes disso.
+      final tentativas = method == 'mbway' ? 40 : 8;
+      var pago = false;
+      for (var i = 0; i < tentativas && !pago; i++) {
+        pago = await store.confirmRoundtripReservationPayment(piId);
+        if (!mounted) return;
+        if (!pago) await Future.delayed(const Duration(seconds: 3));
+        if (!mounted) return;
+      }
+      if (pago) {
+        _reservaMarcada('${'Ida e volta marcadas e pagas. Já estamos à procura de motorista.'.tr} $fraseVolta');
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Ainda não recebemos a confirmação do pagamento. Vê o estado em "As minhas reservas" — se não concluíres em 15 minutos, cancelamos sozinhos e não és cobrado.'.tr),
+        ));
+        _abrirReservas();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(traduzErroReserva(e))));
+    }
   }
 
   void _reservaMarcada(String msg) {
@@ -1573,12 +1746,21 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
             // [Reserva agendada 2026-08-19] "Marcar para depois", ao lado do
             // pedir agora. Botão SECUNDÁRIO de propósito: o laranja do ecrã já
             // é do CTA principal (regra "1 laranja por ecrã").
-            if (_reservasLigadas && !_roundtrip) ...[
+            // [Ida-e-volta marcada · 23/09] No pacote também aparece — marca a
+            // IDA e escolhe a VOLTA ("chamo quando terminar" ou hora marcada).
+            if (_reservasLigadas &&
+                (!_roundtrip || _rtReservaLigada) &&
+                _activeCredit == null) ...[
               const SizedBox(height: Spacing.md),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: canRequest ? _onSchedulePressed : null,
+                  key: const Key('tvde_marcar_para_depois'),
+                  onPressed: canRequest
+                      ? (_roundtrip
+                          ? _onScheduleRoundtripPressed
+                          : _onSchedulePressed)
+                      : null,
                   icon: const Icon(Icons.schedule),
                   label: Text('Marcar para depois'.tr),
                   style: OutlinedButton.styleFrom(

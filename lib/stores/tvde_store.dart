@@ -52,6 +52,43 @@ Map<String, dynamic> buildTvdeChargeBody({
 /// NAO vai no corpo — quem o fecha e o servidor (`est_fare_cents` da reserva
 /// criada por `tvde_schedule_ride`). Mandar preco daqui seria deixar o cliente
 /// escolher quanto paga.
+/// [Ida-e-volta marcada · 23/09] Corpo do `charge_roundtrip_reservation` da
+/// Edge Function `tvde-payment`: marca a IDA (e a VOLTA, se [returnAt]) e cobra
+/// o PACOTE inteiro, preço do servidor. `returnAt == null` = "chamo quando
+/// terminar" (fica o vale da volta, como hoje).
+Map<String, dynamic> buildTvdeRoundtripReservationChargeBody({
+  required double originLat,
+  required double originLng,
+  String? originLabel,
+  required double destLat,
+  required double destLng,
+  String? destLabel,
+  required double distanceKm,
+  required DateTime outboundAt,
+  DateTime? returnAt,
+  required String method,
+  String? mbwayPhone,
+  String? note,
+  String? savedPmId,
+}) {
+  return {
+    'action': 'charge_roundtrip_reservation',
+    'origin_lat': originLat,
+    'origin_lng': originLng,
+    'origin_label': originLabel,
+    'dest_lat': destLat,
+    'dest_lng': destLng,
+    'dest_label': destLabel,
+    'distance_km': distanceKm,
+    'outbound_at': outboundAt.toUtc().toIso8601String(),
+    if (returnAt != null) 'return_at': returnAt.toUtc().toIso8601String(),
+    'method': method,
+    if (mbwayPhone != null) 'phone': mbwayPhone,
+    if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+    if (method == 'card' && savedPmId != null) 'saved_pm_id': savedPmId,
+  };
+}
+
 Map<String, dynamic> buildTvdeReservationChargeBody({
   required double originLat,
   required double originLng,
@@ -97,6 +134,17 @@ String traduzErroReserva(Object erro) {
   final txt = erro.toString();
   bool tem(String code) => txt.contains(code);
 
+  // [Ida-e-volta marcada · 23/09] antes dos genéricos: 'return_too_soon'
+  // contém 'too_soon' e diria a coisa errada.
+  if (tem('return_too_soon')) {
+    return 'A volta tem de ser pelo menos 30 minutos depois da ida.';
+  }
+  if (tem('return_too_far')) {
+    return 'A volta tem de ser no máximo 12 horas depois da ida.';
+  }
+  if (tem('roundtrip_reservations_disabled')) {
+    return 'Marcar o ida-e-volta ainda não está disponível. Podes marcar só a ida ou pedir o pacote agora.';
+  }
   if (tem('reservations_disabled')) {
     return 'As reservas estão desligadas de momento. Podes pedir uma corrida para agora.';
   }
@@ -620,6 +668,150 @@ class TvdeStore extends ChangeNotifier {
       return data['succeeded'] == true;
     } catch (e) {
       debugPrint('TvdeStore.confirmReservationPayment error => $e');
+      return false;
+    }
+  }
+
+  // ══ IDA-E-VOLTA MARCADA (2026-09-23) ════════════════════════════════════
+
+  /// "Marcar para depois" também no ida-e-volta? Interruptor
+  /// `tvde_roundtrip_reservation_enabled` — só fica `true` quando o servidor
+  /// (RPC `tvde_schedule_roundtrip`) e a Edge Function estão no ar. Sem a
+  /// chave = desligado: o botão nem aparece, nada parte.
+  Future<bool> roundtripReservationsEnabled() =>
+      getSettingBool('tvde_roundtrip_reservation_enabled', false);
+
+  /// Pacote ida-e-volta marcado, pago EM DINHEIRO (o cliente paga o pacote ao
+  /// motorista da ida, como no pacote de hoje). RPC direta; as reservas nascem
+  /// logo `a_procurar`.
+  Future<Map<String, dynamic>?> scheduleRoundtripCash({
+    required double originLat,
+    required double originLng,
+    String? originLabel,
+    required double destLat,
+    required double destLng,
+    String? destLabel,
+    required double distanceKm,
+    required DateTime outboundAt,
+    DateTime? returnAt,
+    String? note,
+  }) async {
+    _setBusy(true);
+    try {
+      final res = await criarComTectoSeguro(
+          () => _sb.rpc('tvde_schedule_roundtrip', params: {
+                'p_origin_lat': originLat,
+                'p_origin_lng': originLng,
+                'p_origin_label': originLabel,
+                'p_dest_lat': destLat,
+                'p_dest_lng': destLng,
+                'p_dest_label': destLabel,
+                'p_est_distance_km': distanceKm,
+                'p_outbound_at': outboundAt.toUtc().toIso8601String(),
+                'p_return_at': returnAt?.toUtc().toIso8601String(),
+                'p_payment_method': 'cash',
+                'p_note': note,
+              }),
+          trabalho: TrabalhoEmCurso.reserva);
+      await loadMyReservations();
+      return res is Map ? Map<String, dynamic>.from(res) : null;
+    } catch (e) {
+      debugPrint('TvdeStore.scheduleRoundtripCash error => $e');
+      rethrow;
+    } finally {
+      _setBusy(false);
+    }
+  }
+
+  /// Pacote ida-e-volta marcado, pago ONLINE (cartão / MB Way) — cobra o
+  /// pacote todo na marcação. As reservas só procuram motorista depois de
+  /// [confirmRoundtripReservationPayment] devolver `true`.
+  Future<({TvdeRide? ride, String? paymentIntentId})> scheduleRoundtripPaid({
+    required double originLat,
+    required double originLng,
+    String? originLabel,
+    required double destLat,
+    required double destLng,
+    String? destLabel,
+    required double distanceKm,
+    required DateTime outboundAt,
+    DateTime? returnAt,
+    required String method,
+    String? mbwayPhone,
+    String? note,
+    String? savedPmId,
+    Future<void> Function(String clientSecret)? confirmCard,
+  }) async {
+    _setBusy(true);
+    try {
+      final res = await _sb.functions.invoke(
+        'tvde-payment',
+        body: buildTvdeRoundtripReservationChargeBody(
+          originLat: originLat,
+          originLng: originLng,
+          originLabel: originLabel,
+          destLat: destLat,
+          destLng: destLng,
+          destLabel: destLabel,
+          distanceKm: distanceKm,
+          outboundAt: outboundAt,
+          returnAt: returnAt,
+          method: method,
+          mbwayPhone: mbwayPhone,
+          note: note,
+          savedPmId: savedPmId,
+        ),
+      );
+      final data = (res.data is Map)
+          ? Map<String, dynamic>.from(res.data as Map)
+          : <String, dynamic>{};
+      if (data['error'] != null) throw Exception(data['error'].toString());
+
+      TvdeRide? ride;
+      final rideMap = data['ride'];
+      if (rideMap is Map) {
+        ride = TvdeRide.fromMap(Map<String, dynamic>.from(rideMap));
+      }
+      final piId = data['paymentIntentId'] as String?;
+      final clientSecret = data['clientSecret'] as String?;
+      if (method == 'card' && clientSecret != null) {
+        if (savedPmId != null) {
+          final ok = await PaymentService().confirmSavedCardPayment(
+            clientSecret: clientSecret,
+            requiresAction: (data['requiresAction'] as bool?) ?? false,
+          );
+          if (!ok) throw Exception('saved_card_payment_cancelled');
+        } else if (confirmCard != null) {
+          await confirmCard(clientSecret);
+        }
+      }
+      await loadMyReservations();
+      return (ride: ride, paymentIntentId: piId);
+    } catch (e) {
+      debugPrint('TvdeStore.scheduleRoundtripPaid error => $e');
+      rethrow;
+    } finally {
+      _setBusy(false);
+    }
+  }
+
+  /// O pagamento do pacote marcado já entrou? Idempotente (polling).
+  Future<bool> confirmRoundtripReservationPayment(
+      String paymentIntentId) async {
+    try {
+      final res = await _sb.functions.invoke(
+        'tvde-payment',
+        body: {
+          'action': 'confirm_roundtrip_reservation_payment',
+          'payment_intent_id': paymentIntentId,
+        },
+      );
+      final data = (res.data is Map)
+          ? Map<String, dynamic>.from(res.data as Map)
+          : <String, dynamic>{};
+      return data['succeeded'] == true;
+    } catch (e) {
+      debugPrint('TvdeStore.confirmRoundtripReservationPayment error => $e');
       return false;
     }
   }

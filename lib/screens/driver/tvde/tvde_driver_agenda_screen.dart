@@ -156,7 +156,13 @@ class _TvdeDriverAgendaScreenState extends State<TvdeDriverAgendaScreen> {
     // O total do cliente passa a aparecer so em pequeno, e so em dinheiro.
     final ganho = ((r.driverEarnCents ?? 0) / 100).toStringAsFixed(2);
     final cobra = (r.estFareCents / 100).toStringAsFixed(2);
-    final mostraCobranca = r.paymentMethod == 'cash' && r.estFareCents > 0;
+    // [Ida-e-volta marcada · 23/09] perna de um pacote: a IDA e a VOLTA vêm
+    // marcadas no cartão. No pacote a dinheiro o cliente paga o PACOTE ao
+    // motorista da ida (não a tarifa desta perna) — o valor certo aparece no
+    // ecrã da corrida; aqui não se mostra um número que estaria errado.
+    final perna = tvdePernaDoPacote(r);
+    final mostraCobranca =
+        perna == null && r.paymentMethod == 'cash' && r.estFareCents > 0;
     final confirmou = r.reservationDriverReadyAt != null;
     final minutos =
         r.scheduledAt?.toLocal().difference(DateTime.now()).inMinutes ?? 9999;
@@ -194,6 +200,23 @@ class _TvdeDriverAgendaScreenState extends State<TvdeDriverAgendaScreen> {
                       color: AppColors.primary)),
             ],
           ),
+          if (perna != null) ...[
+            const SizedBox(height: Spacing.xs),
+            Container(
+              key: const Key('agenda_perna_pacote'),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: Spacing.sm, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(perna,
+                  style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary)),
+            ),
+          ],
           const SizedBox(height: Spacing.xs),
           Text(_faltam(r.scheduledAt),
               style: const TextStyle(
@@ -282,4 +305,13 @@ class _TvdeDriverAgendaScreenState extends State<TvdeDriverAgendaScreen> {
           ),
         ],
       );
+}
+
+/// Rótulo da perna de um pacote ida-e-volta, ou `null` se a reserva não é
+/// de um pacote. "Ida" = corrida com vale e sem ser volta; "Volta" = a perna
+/// de regresso (`is_return_leg`).
+String? tvdePernaDoPacote(TvdeRide r) {
+  if (r.isReturnLeg) return 'Volta · pacote ida-e-volta';
+  if (r.roundtripCreditId != null) return 'Ida · pacote ida-e-volta';
+  return null;
 }

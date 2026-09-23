@@ -94,3 +94,37 @@ a 10 min → `return_too_soon`. · T9 `mark_paid` só service_role.
   vale). Cancelar/Trocar motorista por perna = os botões de cada cartão.
 - Settings editáveis: `tvde_heartbeat_window_seconds`, `tvde_roundtrip_reservation_enabled`,
   `tvde_roundtrip_return_min_gap_minutes` (as de preço/ganho continuam blindadas).
+
+## Adenda 23/09 (tarde) — "vai" do Danilo: aplicado, provado, REVERTIDO
+
+1. Fotografia antes: preço do pacote 800/800/1440/3040 cêntimos (2/4,8/10/20 km),
+   €3,75 ida e volta, md5 de 13 funções de dinheiro guardados.
+2. tvde-payment publicada como v11: face à v10 **0 linhas removidas ou alteradas**
+   (a `auto_refund_reservation` ficou byte-a-byte igual; o reembolso do pacote passou
+   para uma acção NOVA, `auto_refund_roundtrip_reservation`).
+3. Migração aplicada. Prova em transação revertida — tudo verde:
+   dinheiro (ida e volta `a_procurar`, €8,00, ganho 375 cada; a 10 km €14,40 e 695 cada
+   = 375+4×80), cartão (`aguarda_pagamento` → pago → as duas `a_procurar`), MB Way só
+   pelo webhook (o trigger activa as duas), ida cancelada → vale `anulado`, volta
+   cancelada, pedido de reembolso com a acção nova; sem motorista → idem; reserva
+   normal continua na acção de sempre; md5 das 11 funções de dinheiro iguais aos de antes.
+4. **Prova no ar falhou:** chamar o reembolso com a chave do cofre da base
+   (`vault.service_role_key`, JWT service_role válido) dá `403 not_service_role` — nas
+   DUAS acções, a nova e a ANTIGA. A Edge compara a chave letra a letra com a
+   `SUPABASE_SERVICE_ROLE_KEY` do seu ambiente, e não é a mesma. Nunca houve um pedido
+   de reembolso automático de reserva até hoje (0 eventos `reserva_reembolso_pedido`),
+   por isso ninguém foi afectado — mas o reembolso automático das reservas pagas
+   **nunca funcionaria**.
+5. Revertido (migração `20260923181500_reverter_...`): funções e triggers novos fora,
+   `tvde_reservation_auto_refund` e `tvde_expire_roundtrip_credits` com o md5 de antes,
+   botão desligado; tvde-payment reposta com o conteúdo exacto da v10 (md5 igual).
+   Ficam, vazias e inofensivas: 4 colunas novas no vale, 2 estados novos no CHECK,
+   a setting `tvde_roundtrip_return_min_gap_minutes`.
+
+**Para voltar a ligar:** corrigir a verificação da chave. Proposta pronta em
+`.claude/.ai/reports/propostas/tvde-payment-v11-PROPOSTA.ts`: com `verify_jwt=true` a
+porta já validou a assinatura, por isso a acção aceita um JWT cujo papel seja
+`service_role`. A mesma correcção deve ir para a `auto_refund_reservation` antiga
+(hoje partida para TODAS as reservas pagas online) — isso muda uma acção antiga, por
+isso precisa de "vai" próprio. Depois: reaplicar `20260923180000` e repetir a prova no
+ar com uma corrida inexistente (tem de dar `ride_not_found`, não `403`).

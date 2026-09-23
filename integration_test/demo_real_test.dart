@@ -464,8 +464,11 @@ void main() {
       await _foto(t, '06-loja-carrinho');
       await _tocar(t, finalizar);
 
-      await _exigir(t, find.text('Confirmar pagamento'), 'ecra-de-pagamento',
-          segundos: 45);
+      // [ronda-fecho 2026-09-23, D2] o botão final passou a dizer "Encomenda
+      // com obrigação de pagar" (DL 24/2014). A corrida 452/453 do CI caiu aqui
+      // com o rótulo antigo.
+      final confirmar = find.text('Encomenda com obrigação de pagar');
+      await _exigir(t, confirmar, 'ecra-de-pagamento', segundos: 45);
       final dinheiro = find.text('Dinheiro');
       if (await _esperar(t, dinheiro, segundos: 10)) {
         await _tocar(t, dinheiro);
@@ -473,7 +476,7 @@ void main() {
       await _foto(t, '07-loja-pagamento');
 
       if (_fazerEncomenda) {
-        await _tocar(t, find.text('Confirmar pagamento'));
+        await _tocar(t, confirmar);
         await _bombear(t, segundos: 12);
         await _foto(t, '08-loja-acompanhar');
 

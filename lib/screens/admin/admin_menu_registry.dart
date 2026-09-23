@@ -87,6 +87,8 @@ import 'admin_tvde_subscriptions_screen.dart';
 import 'admin_wallets_screen.dart';
 import 'admin_web_health_screen.dart';
 import 'admin_whatsapp_screen.dart';
+import 'admin_pendencias_operacao_screen.dart';
+import 'admin_conformidade_legal_screen.dart';
 
 /// Registo ÚNICO do menu do painel admin (PT-BR).
 ///
@@ -195,6 +197,15 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.red,
       builder: () => const AdminStuckOrdersScreen(),
       keywords: const ['parados', 'presos', 'chamar', 'entregador', 'escolher', 'estafeta', 'atribuir', 'reatribuir', 'mandar', 'todos'],
+    ),
+    AdminMenuItem(
+      id: 'operacao_pendencias',
+      title: 'Pendências de operação',
+      subtitle: 'Tudo o que precisa de mão humana hoje: talões por reembolsar, pagamentos falhados, voltas retidas, reservas falhadas, GPS parado e estafetas sem push',
+      icon: Icons.pending_actions,
+      color: Colors.red,
+      builder: () => const AdminPendenciasOperacaoScreen(),
+      keywords: const ['pendencias', 'pendências', 'talao', 'taloes', 'reembolso', 'pagamento', 'falhado', 'volta', 'retida', 'vale', 'reserva', 'gps', 'push', 'notificacoes', 'sem sinal'],
     ),
     AdminMenuItem(
       id: 'operacao_edicoes_pedidos',
@@ -848,6 +859,15 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.grey,
       builder: () => const AdminPlatformSettingsScreen(),
       keywords: const ['carteira', 'configuracoes', 'demo', 'plataforma', 'precos', 'regras', 'taxas'],
+    ),
+    AdminMenuItem(
+      id: 'sistema_conformidade_legal',
+      title: 'Conformidade legal',
+      subtitle: 'Dados legais dos prestadores (DSA art. 30), opt-in de marketing, lojas sem NIF ou morada e exportação DAC7 anual em CSV para a AT',
+      icon: Icons.gavel,
+      color: Colors.blueGrey,
+      builder: () => const AdminConformidadeLegalScreen(),
+      keywords: const ['conformidade', 'legal', 'dac7', 'dsa', 'nif', 'iban', 'morada', 'autocertificacao', 'opt-in', 'marketing', 'csv', 'financas', 'at'],
     ),
     AdminMenuItem(
       id: 'sistema_historico_de_accoes',

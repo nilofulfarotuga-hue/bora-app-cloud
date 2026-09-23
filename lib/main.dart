@@ -60,6 +60,16 @@ import 'screens/admin/admin_extrato_dono_screen.dart';
 import 'screens/admin/admin_orders_screen.dart';
 import 'screens/admin/admin_tvde_rides_screen.dart';
 import 'screens/admin/admin_tvde_pagamentos_screen.dart';
+import 'screens/admin/admin_pendencias_operacao_screen.dart';
+import 'screens/admin/admin_conformidade_legal_screen.dart';
+import 'screens/admin/admin_receipts_screen.dart';
+import 'screens/admin/admin_tvde_roundtrips_screen.dart';
+import 'screens/admin/admin_drivers_screen.dart';
+import 'screens/admin/admin_tvde_cancellations_screen.dart';
+import 'screens/admin/admin_stuck_reservations_screen.dart';
+import 'screens/admin/admin_platform_settings_screen.dart';
+import 'screens/admin/admin_partners_screen.dart';
+import 'screens/admin/admin_send_notification_screen.dart';
 import 'screens/restaurant_ratings_list_screen.dart';
 import 'screens/cleaner/cleaner_home_screen.dart';
 import 'screens/washer/washer_home_screen.dart';
@@ -972,6 +982,20 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           '/admin/tvde': (_) => const AdminTvdeRidesScreen(),
           '/admin/tvde/pagamentos': (_) =>
               const AdminTvdePagamentosScreen(),
+          // [ronda-fecho 2026-09-23] E/D4: Pendências de operação e Conformidade
+          // legal, mais as rotas que os RPCs devolvem em accao.rota / itens.rota
+          // e que nunca tinham sido registadas (os ecrãs já existiam).
+          '/admin/pendencias': (_) => const AdminPendenciasOperacaoScreen(),
+          '/admin/conformidade': (_) => const AdminConformidadeLegalScreen(),
+          '/admin/reembolsos': (_) => const AdminReceiptsScreen(),
+          '/admin/tvde/ida-e-volta': (_) => const AdminTvdeRoundtripsScreen(),
+          '/admin/drivers': (_) => const AdminDriversScreen(),
+          '/admin/tvde/cancelamentos': (_) =>
+              const AdminTvdeCancellationsScreen(),
+          '/admin/reservas/presas': (_) => const AdminStuckReservationsScreen(),
+          '/admin/configuracoes': (_) => const AdminPlatformSettingsScreen(),
+          '/admin/parceiros': (_) => const AdminPartnersScreen(),
+          '/admin/notificacoes': (_) => const AdminSendNotificationScreen(),
           '/admin/orders': (_) => const AdminOrdersScreen(),
           '/admin/robot-suggestions': (_) => const AdminRobotSuggestionsScreen(),
           '/admin/ledger': (_) => const AdminExtratoDonoScreen(),

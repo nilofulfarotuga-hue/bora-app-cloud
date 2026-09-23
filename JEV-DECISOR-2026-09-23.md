@@ -12,7 +12,7 @@ Segundo, a comparação lado a lado entre o Jev e o Gemini não aconteceu. Fiz a
 
 Terceiro, o modo ativo só existe para o Robot B. Para a escolha do estafeta, ligar o decisor ao motor de despacho é zona protegida, por isso fica só a observar. Para o risco de falta nas marcações e para o suporte, ainda não há uma ação definida, e por isso também só observam.
 
-Quarto, não mandei mensagem pelo Telegram nem copiei o relatório para a pasta do Ambiente de Trabalho. Esta sessão não tem a ponte do Telegram nem acesso ao PC. O relatório está na raiz do repositório.
+Quarto, não copiei o relatório para a pasta do Ambiente de Trabalho, porque esta sessão não tem acesso ao PC. O relatório está na raiz do repositório. O resumo em duas frases foi pelo Telegram, pelo bot da Bora, e chegou (mensagem 8317).
 
 ## O que ficou a funcionar
 

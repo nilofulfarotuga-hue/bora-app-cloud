@@ -21,9 +21,8 @@ PASSO 3 — As 20 provas lado a lado: corre `repetir_b5.sql` com :ronda='prova-b
 (:motor='jev' e :motor='gemini'; o Gemini só se a quota da GEMINI_API_KEY tiver voltado) e lê com a
 consulta de `provas_b5.md`. Escreve acerto e tempo de cada motor no relatório.
 
-PASSO 4 — Telegram (ponte `orquestracao/ponte-telegram.sh`): resumo da missão original em voz,
-duas frases — o que o decisor já decide e o que está em sombra. Copia o relatório para
-C:\Users\danil\Desktop\Bora\Projetos\.
+PASSO 4 — Copia o relatório para C:\Users\danil\Desktop\Bora\Projetos\ (o Telegram da
+missão original já foi, mensagem 8317; manda só o resultado das provas lado a lado).
 
 Fora do âmbito, só reportar: a GEMINI_API_KEY do Supabase está a dar 503/429 ao robot-b
 (6 de 8 execuções a 23/09).

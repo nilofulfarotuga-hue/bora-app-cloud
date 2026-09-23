@@ -9,10 +9,10 @@ description: >
 metadata:
   versao: 1.0
   criada: 2026-09-16
-  execucoes: 1
-  sucessos: 1
+  execucoes: 4
+  sucessos: 4
   falhas: 0
-  ultima_execucao: 2026-09-16
+  ultima_execucao: 2026-09-23
   zona: verde
 ---
 
@@ -95,6 +95,32 @@ metadata:
   agente do Chrome em segundo plano, remendar `document.visibilityState`/`requestAnimationFrame`
   ou trazer a aba à frente. Capturas de ecrã falham nessa condição; o texto da página não.
 
+## 6b. Aprovada não é publicada — `releaseType` manda (23/09)
+- A Apple aprovou a 1.0.2 a 22/09 às 22:44 UTC e a App Store **serviu a 1.0 o dia inteiro**.
+  Não houve avaria: a versão tinha `releaseType: MANUAL` e ficou em
+  `PENDING_DEVELOPER_RELEASE` à espera de um clique. **"Review complete" no email não quer
+  dizer publicada** — a prova é `appStoreState`.
+- Lançar sem navegador: `POST /v1/appStoreVersionReleaseRequests` com a relação
+  `appStoreVersion`. Devolve 201; o 201 não prova nada — reler `appStoreState` até
+  `READY_FOR_SALE`. Depois disso o `itunes lookup` ainda serve a versão antiga por uns
+  minutos: medido a 23/09, release request às 10:54:57Z e lookup já com 1.0.2 às 11:08 —
+  **~14 min**, não as 2 h que se temiam. Não é falha; espera-se e relê-se.
+- **O lookup sem anti-cache mente muito depois de a propagação acabar.** Às 11:35Z, com a
+  loja já a servir a 1.0.2, um `curl` simples ao lookup devolveu HTTP 200 com `version=1.0`
+  e `currentVersionReleaseDate` de 12/09 — o retrato antigo inteiro, credível e errado.
+  Juntar sempre `&t=<epoch>` ao URL (e `Cache-Control: no-cache`); sem isso lê-se o CDN, não
+  a loja, e parece uma regressão que não existe. Usar o script, nunca um `curl` à mão:
+  `provas/ios-lancar-102-20260923/lookup_no_ar.py` (sai 0 se a loja serve a versão esperada).
+- Para não repetir: criar a versão já com `releaseType: AFTER_APPROVAL` (lançamento
+  automático após aprovação). É o que o CI passou a fazer sozinho em
+  `.github/scripts/ios_publicar.py`, chamado pelo `build_ios.yml` a seguir ao `altool`.
+- Submeter pela API é `reviewSubmissions` (abrir) + `reviewSubmissionItems` (pôr a versão
+  lá dentro) + `PATCH submitted:true`; `appStoreVersionSubmissions` é a via velha.
+- Nome de versão: a Apple recusa repetir ou descer — a seguinte é sempre superior à maior
+  que já existe (ver [[comboio-da-apple-fecha-com-a-versao-aprovada]]).
+- O "O que há de novo" só se escreve nos idiomas que a **ficha** tem. A 23/09 a ficha só
+  tinha `pt-PT` — não existe `en-US`, e escrever nele daria erro.
+
 ## 7. Repo público e dados pessoais
 - `bora-app-cloud` é **público**; `.claude/.ai/provas/` e `reports/` vão para o GitHub.
   Documentos, IBAN, NIF, data de nascimento, números de documentos e capturas das páginas de
@@ -108,6 +134,28 @@ metadata:
 - "Palavra-passe reposta" com código enviado ao próprio Gmail e concluída em 85 s = alguém
   com o Gmail aberto. Cruzar com o histórico do Chrome do PC (perfil, hora, `authResult=FAILED`
   → logout → login) antes de gritar "intrusão". A 13/09 foi o perfil Bora deste PC.
+
+## 9. Morada da inscrição, anexos por email e o W-8BEN (18/09)
+- **A morada da inscrição corrige-se por pedido escrito, não pela Apple sozinha:**
+  `developer.apple.com/account` → Membership details → "Update your information" → modal
+  "Change contact details" → "Provide updates" → formulário
+  `developer.apple.com/contact/request/update-individual-information/` (Região, tipo
+  Nome/Endereço/Ambos, novo endereço, informações adicionais; **sem campo de ficheiro**). Abre
+  um caso próprio (18/09: 102967621679) e a Apple pede documentação depois. O campo "New
+  address in Roman character" **apaga acentos, vírgulas e "º"** no `keyup`/`blur` (só letras,
+  dígitos, espaço, `.`, `-`, `#`, `&`): escreve-se em ASCII e a grafia exacta vai nas
+  informações adicionais (que aceitam acentos). Fonte: ajuda "Updating your account
+  information" ("go to the membership details section … to submit a request").
+- **Responder a um caso com anexo:** o suporte responde de `emea_appsen_support@apple.com`
+  (Genesys; o `[caseId]` no assunto liga a resposta ao caso). O `reply`/`create_draft` do Gmail
+  MCP só levam anexos em base64 — 170 KB escritos à mão corrompem o PDF. Receita segura:
+  rascunho pelo MCP (`create_draft` com `replyToMessageId`) → Gmail web no Chrome perfil Bora
+  → `find` "file input Filedata" → `file_upload` (ficheiro copiado para o scratchpad; apagar
+  depois) → chip com nome e tamanho → Send → `get_message` do SENT mostra `attachments`.
+- **"Informações fiscais em falta" nas duas linhas de impostos** = questionário guardado,
+  W-8BEN por preencher. O W-8BEN é do Danilo (juramento; data de nascimento, NIF, tratado,
+  certificação; Enviar é irreversível): o agente deixa a aba aberta e escreve o mapa dos
+  campos no CONTINUAR. "A processar" na conta bancária = IBAN colado, 24 h para processar.
 
 ## 📊 Telemetria (obrigatório no fim de cada execução)
 1. Actualizar o frontmatter: `execucoes`, `sucessos` ou `falhas`, `ultima_execucao`.

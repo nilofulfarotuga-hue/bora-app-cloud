@@ -4,6 +4,14 @@
 // PADRAO UNICO (= delivery): cobra NA HORA e faz refund estilo
 // `client-cancel-order` (capado ao pago, menos a taxa). SEM authorize/capture.
 //
+// v11 (2026-09-23) — IDA-E-VOLTA COM RESERVA + autorizacao do servidor:
+//   charge_roundtrip_reservation / confirm_roundtrip_reservation_payment /
+//   auto_refund_roundtrip_reservation (novas). Nas duas accoes de reembolso
+//   chamadas pela base a autorizacao passa a aceitar tambem o JWT service_role
+//   do cofre (vault.service_role_key), validado pela porta (verify_jwt=true):
+//   a comparacao letra a letra com SUPABASE_SERVICE_ROLE_KEY recusava-o sempre
+//   (403). Na auto_refund_reservation so mudou essa linha.
+//
 // v10 (2026-08-19) — RESERVA AGENDADA em CARTAO e MB WAY:
 //   charge_reservation -> cria a reserva (tvde_schedule_ride) e cobra o preco
 //     fechado pelo servidor (est_fare_cents). A reserva nasce em
@@ -107,6 +115,30 @@ async function callerIsAdmin(
   return data === true;
 }
 
+// v11 — Autorizacao das chamadas do SERVIDOR (base -> Edge).
+// A funcao corre com verify_jwt=true: a porta da Supabase so deixa passar
+// pedidos com um JWT de assinatura valida — um JWT forjado nunca chega aqui.
+// Aqui confirma-se o PAPEL desse JWT ja verificado: tem de ser 'service_role'
+// (a chave anon tem 'anon'; um cliente com sessao tem 'authenticated').
+// NUNCA se aceita por cabecalho proprio, por campo do corpo, ou so por o
+// token existir. So vale enquanto verify_jwt=true — se alguem o desligar,
+// esta funcao deixa de ser segura (ver aviso no deploy).
+function jwtServiceRoleVerificadoPelaPorta(token: string): boolean {
+  try {
+    const partes = token.split('.');
+    if (partes.length !== 3) return false;
+    const b64 = partes[1].replace(/-/g, '+').replace(/_/g, '/');
+    const payload = JSON.parse(atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4)));
+    if (payload?.role !== 'service_role') return false;
+    if (payload?.iss !== undefined && payload.iss !== 'supabase') return false;
+    const agora = Math.floor(Date.now() / 1000);
+    if (typeof payload?.exp === 'number' && payload.exp <= agora) return false;
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
@@ -121,7 +153,7 @@ Deno.serve(async (req) => {
     // Fica ANTES do kill switch de proposito: devolver dinheiro tem de funcionar
     // mesmo com os pagamentos online desligados.
     if (action === 'auto_refund_reservation') {
-      if (!SERVICE_KEY || token !== SERVICE_KEY) {
+      if (!(SERVICE_KEY && token === SERVICE_KEY) && !jwtServiceRoleVerificadoPelaPorta(token)) {
         return json({ error: 'not_service_role' }, 403);
       }
       const rideId = String(body.ride_id ?? '');
@@ -155,6 +187,70 @@ Deno.serve(async (req) => {
       console.log('[tvde-payment auto_refund_reservation]', ride.id,
         'paid:', paidCents, 'fee:', feeCents, 'refunded:', refundCents,
         'motivo:', String(body.motivo ?? ''), '->', newStatus);
+      return json({ ok: true, refundCents, feeCents, paymentStatus: newStatus });
+    }
+
+    // -- v11: AUTO_REFUND_ROUNDTRIP_RESERVATION — chamada do SERVIDOR ----------
+    // Ida de um pacote ida-e-volta MARCADO cancelada / sem motorista: o
+    // PaymentIntent pagou o PACOTE inteiro (tvde_roundtrip_credits.paid_cents),
+    // nao a tarifa de uma perna. Accao PROPRIA para a auto_refund_reservation de
+    // sempre ficar intacta. Chamada por tvde_reservation_auto_refund so quando a
+    // corrida tem vale com return_mode (pacote marcado). Antes do kill switch,
+    // como a de sempre: devolver dinheiro funciona com os pagamentos desligados.
+    if (action === 'auto_refund_roundtrip_reservation') {
+      // 23/09: a base chama com a chave do cofre (JWT service_role valido),
+      // que NAO e igual, letra a letra, a SUPABASE_SERVICE_ROLE_KEY do ambiente
+      // da Edge — a comparacao de texto recusava sempre (403 not_service_role).
+      // Com verify_jwt=true a porta ja validou a assinatura; aqui basta ler o
+      // papel do JWT.
+      if (!(SERVICE_KEY && token === SERVICE_KEY) && !jwtServiceRoleVerificadoPelaPorta(token)) {
+        return json({ error: 'not_service_role' }, 403);
+      }
+      const rideId = String(body.ride_id ?? '');
+      if (!rideId) return json({ error: 'missing_ride_id' }, 400);
+      const { data: ride } = await admin
+        .from('tvde_rides')
+        .select('id, payment_intent_id, payment_status, cancel_fee_cents, roundtrip_credit_id, is_return_leg')
+        .eq('id', rideId)
+        .maybeSingle();
+      if (!ride) return json({ error: 'ride_not_found' }, 404);
+      if (!ride.payment_intent_id) return json({ ok: true, noop: true });
+      if (ride.payment_status === 'refunded' ||
+          ride.payment_status === 'partial_refund' ||
+          ride.payment_status === 'kept_cancel_fee') {
+        return json({ ok: true, already: true });
+      }
+      if (!ride.roundtrip_credit_id || ride.is_return_leg) {
+        return json({ error: 'not_roundtrip_outbound' }, 400);
+      }
+      const { data: credit } = await admin
+        .from('tvde_roundtrip_credits')
+        .select('paid_cents, payment_intent_id')
+        .eq('id', ride.roundtrip_credit_id)
+        .maybeSingle();
+      if (!credit || credit.payment_intent_id !== ride.payment_intent_id) {
+        return json({ error: 'credit_pi_mismatch' }, 409);
+      }
+      // O que a Stripe cobrou mesmo manda; o vale e so o esperado.
+      const pi = await stripe.paymentIntents.retrieve(ride.payment_intent_id);
+      const received = Number(pi.amount_received ?? 0);
+      const paidCents = Math.min(Number(credit.paid_cents ?? 0), received);
+      const feeCents = Math.max(0, Number(ride.cancel_fee_cents ?? 0));
+      const refundCents = Math.max(0, Math.min(paidCents - feeCents, paidCents));
+      if (refundCents >= 1) {
+        await stripe.refunds.create(
+          { payment_intent: ride.payment_intent_id, amount: refundCents },
+          { idempotencyKey: `rt-resv-refund-${ride.payment_intent_id}-${refundCents}` },
+        );
+      }
+      const newStatus = refundCents <= 0
+        ? 'kept_cancel_fee'
+        : (feeCents > 0 ? 'partial_refund' : 'refunded');
+      await admin.from('tvde_rides')
+        .update({ payment_status: newStatus }).eq('id', ride.id);
+      console.log('[tvde-payment auto_refund_roundtrip_reservation]', ride.id,
+        'pacote:', credit.paid_cents, 'recebido:', received, 'fee:', feeCents,
+        'refunded:', refundCents, 'motivo:', String(body.motivo ?? ''), '->', newStatus);
       return json({ ok: true, refundCents, feeCents, paymentStatus: newStatus });
     }
 
@@ -790,6 +886,151 @@ Deno.serve(async (req) => {
         status: pi.status, amountCents,
         requiresAction: pi.status === 'requires_action',
       });
+    }
+
+    // -- v11: IDA-E-VOLTA COM RESERVA ------------------------------------------
+    if (action === 'charge_roundtrip_reservation') {
+      const method = String(body.method ?? '');
+      if (method !== 'card' && method !== 'mbway') return json({ error: 'invalid_method' }, 400);
+      const distanceKm = Number(body.distance_km ?? 0);
+      if (!(distanceKm > 0)) return json({ error: 'invalid_distance' }, 400);
+      const outboundAt = String(body.outbound_at ?? '');
+      if (!outboundAt) return json({ error: 'missing_outbound_at' }, 400);
+      const returnAt = body.return_at ? String(body.return_at) : null;
+
+      const { data: pack, error: packErr } = await userClient.rpc('tvde_schedule_roundtrip', {
+        p_origin_lat: Number(body.origin_lat),
+        p_origin_lng: Number(body.origin_lng),
+        p_origin_label: body.origin_label ?? null,
+        p_dest_lat: Number(body.dest_lat),
+        p_dest_lng: Number(body.dest_lng),
+        p_dest_label: body.dest_label ?? null,
+        p_est_distance_km: distanceKm,
+        p_outbound_at: outboundAt,
+        p_return_at: returnAt,
+        p_payment_method: method,
+        p_note: body.note ?? null,
+      });
+      if (packErr || !pack) {
+        return json({ error: String(packErr?.message ?? 'reservation_create_failed') }, 400);
+      }
+      const ride = pack.ida;
+      const amountCents = Number(pack.price_cents ?? 0);
+
+      // Cancelar a IDA leva a volta atras (trigger do ciclo do vale).
+      const dropReservation = async () => {
+        try {
+          await userClient.rpc('tvde_cancel_reservation', {
+            p_ride_id: ride.id, p_reason: 'payment_failed',
+          });
+        } catch (_) {/* best effort */}
+      };
+      if (amountCents < 50) { await dropReservation(); return json({ error: 'below_minimum' }, 400); }
+
+      let pi: Stripe.PaymentIntent;
+      const meta = {
+        kind: 'tvde_roundtrip_reservation', method, ride_id: ride.id, user_id: user.id,
+        outbound_at: outboundAt, return_at: returnAt ?? '',
+        credit_id: String(pack.credit?.id ?? ''),
+      };
+      try {
+        if (method === 'card') {
+          const customerId = await getOrCreateCustomer(user.id);
+          const savedPmId = typeof body.saved_pm_id === 'string' ? body.saved_pm_id : null;
+          if (savedPmId && customerId) {
+            pi = await stripe.paymentIntents.create({
+              amount: amountCents, currency: 'eur', customer: customerId,
+              payment_method: savedPmId, confirm: true, off_session: true,
+              automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
+              metadata: meta,
+            });
+          } else {
+            pi = await stripe.paymentIntents.create({
+              amount: amountCents, currency: 'eur',
+              ...(customerId ? { customer: customerId, setup_future_usage: 'off_session' as const } : {}),
+              automatic_payment_methods: { enabled: true },
+              metadata: meta,
+            });
+          }
+        } else {
+          const phone = String(body.phone ?? '');
+          const e164 = phone.startsWith('+')
+            ? phone
+            : `+351${phone.replace(/\D/g, '').replace(/^0/, '')}`;
+          pi = await stripe.paymentIntents.create(
+            {
+              amount: amountCents, currency: 'eur',
+              payment_method_types: ['mb_way'],
+              payment_method_data: { type: 'mb_way', billing_details: { phone: e164 } },
+              confirm: true, metadata: meta,
+            },
+            { idempotencyKey: `tvde_roundtrip_reservation_${ride.id}` },
+          );
+        }
+      } catch (err) {
+        // deno-lint-ignore no-explicit-any
+        const anyErr = err as any;
+        const authPi = anyErr?.raw?.payment_intent ?? anyErr?.payment_intent;
+        if (authPi?.id) {
+          await admin.from('tvde_rides')
+            .update({ payment_intent_id: authPi.id, payment_status: authPi.status })
+            .eq('id', ride.id);
+          return json({
+            ride: { ...ride, payment_intent_id: authPi.id, payment_status: authPi.status },
+            volta: pack.volta ?? null,
+            paymentIntentId: authPi.id, clientSecret: authPi.client_secret,
+            status: authPi.status, amountCents, requiresAction: true,
+          });
+        }
+        await dropReservation();
+        const message = err instanceof Error ? err.message : String(err);
+        return json({ error: message }, 400);
+      }
+
+      await admin.from('tvde_rides')
+        .update({ payment_intent_id: pi.id, payment_status: pi.status })
+        .eq('id', ride.id);
+
+      return json({
+        ride: { ...ride, payment_intent_id: pi.id, payment_status: pi.status },
+        volta: pack.volta ?? null,
+        paymentIntentId: pi.id,
+        clientSecret: method === 'card' ? pi.client_secret : null,
+        status: pi.status, amountCents,
+        requiresAction: pi.status === 'requires_action',
+      });
+    }
+
+    if (action === 'confirm_roundtrip_reservation_payment') {
+      const piId = String(body.payment_intent_id ?? '');
+      if (!piId) return json({ error: 'missing_payment_intent_id' }, 400);
+      let pi: Stripe.PaymentIntent;
+      try {
+        pi = await stripe.paymentIntents.retrieve(piId);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return json({ error: message }, 400);
+      }
+      if (pi.metadata?.kind !== 'tvde_roundtrip_reservation') {
+        return json({ error: 'not_a_roundtrip_reservation_pi' }, 400);
+      }
+      if (pi.metadata?.user_id !== user.id) return json({ error: 'not_pi_owner' }, 403);
+      const rideId = String(pi.metadata?.ride_id ?? '');
+
+      await admin.from('tvde_rides').update({ payment_status: pi.status }).eq('id', rideId);
+      if (pi.status !== 'succeeded') {
+        return json({ succeeded: false, ride_id: rideId, status: pi.status });
+      }
+      const { error: paidErr } = await admin.rpc('tvde_roundtrip_reservation_mark_paid', {
+        p_ride_id: rideId, p_payment_intent_id: pi.id, p_amount_cents: pi.amount,
+      });
+      if (paidErr) {
+        console.error('[tvde-payment] roundtrip_reservation_mark_paid failed:', paidErr.message, pi.id);
+        return json({ succeeded: true, activated: false, ride_id: rideId,
+                      error: String(paidErr.message) }, 500);
+      }
+      return json({ succeeded: true, activated: true, ride_id: rideId,
+                    status: 'succeeded', amountCents: pi.amount });
     }
 
     if (action === 'confirm_reservation_payment') {

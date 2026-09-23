@@ -128,3 +128,28 @@ porta já validou a assinatura, por isso a acção aceita um JWT cujo papel seja
 (hoje partida para TODAS as reservas pagas online) — isso muda uma acção antiga, por
 isso precisa de "vai" próprio. Depois: reaplicar `20260923180000` e repetir a prova no
 ar com uma corrida inexistente (tem de dar `ride_not_found`, não `403`).
+
+## Adenda 2 — autorização corrigida e ida-e-volta REAPLICADO (23/09, fim da tarde)
+
+- **tvde-payment v13** no ar (verify_jwt=true, igual ao repo byte a byte). Face à v10
+  só mudou UMA linha antiga — a autorização da `auto_refund_reservation`; o resto é
+  acrescento (função `jwtServiceRoleVerificadoPelaPorta` + 3 acções novas). Aceita a
+  chave do ambiente OU um JWT já validado pela porta cujo papel é `service_role`.
+- Provas no ar: sem cabeçalho → 401 (porta); JWT forjado com role service_role → 401
+  (porta, "Invalid JWT"); chave anon → 403 nas duas acções; cliente autenticado real
+  (Cliente E2E, role `authenticated`) → 403 nas duas; chave do cofre → 404
+  `ride_not_found` nas duas (já não 403); corrida já reembolsada chamada 2× → `already`
+  nas 2 chamadas das duas acções, sem Stripe. Linhas com link/sessão de teste apagadas
+  de `net._http_response`.
+- Migração reaplicada (`20260923190000_..._reaplicada`, igual à 180000). Provas repetidas
+  em transação revertida — todas verdes: dinheiro €8,00 com 375/375 (10 km: €14,40 com
+  695/695), cartão e MB Way (pelo webhook) activam as duas pernas, ida cancelada e ida
+  sem motorista → vale anulado + volta cancelada + reembolso pedido à acção nova com a
+  chave do cofre; reserva normal segue a acção antiga; md5 das 11 funções de dinheiro e
+  preços iguais aos de antes. Zero lixo.
+- `tvde_roundtrip_reservation_enabled = true`: o botão aparece na app ≥ build 618 e no web.
+- **Achado:** reservas normais pagas online e canceladas sem reembolso até hoje = **0
+  (€0)**. A única reserva online cancelada (12d63341, MB Way, 21/09) nunca foi paga
+  (`requires_payment_method`).
+- Não provado com dinheiro real: o reembolso Stripe em si e a cobrança do pacote (exigem
+  um pagamento a sério). Primeiro caso real deve ser acompanhado no painel.

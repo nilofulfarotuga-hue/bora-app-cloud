@@ -39,6 +39,15 @@ on:
         description: "Correr o job de release e enviar para o App Store Connect (precisa dos segredos de assinatura)"
         type: boolean
         default: false
+      # Valvula de seguranca (missao `ios-lancar-102-2026-09-23`). Ligado (o
+      # normal), depois do upload o CI cria a versao seguinte com lancamento
+      # AUTOMATICO apos aprovacao, liga a build, escreve as notas e submete --
+      # igual ao Android, sem ninguem carregar em nada. Desligado, o IPA sobe
+      # so para o TestFlight e a loja fica na versao anterior.
+      submeter_revisao:
+        description: "Depois do upload, criar a versao seguinte (lancamento automatico) e submeter para revisao"
+        type: boolean
+        default: true
       # Ligado, o arnes confirma uma encomenda a SERIO em dinheiro, para o
       # video mostrar o acompanhamento do pedido.
       #
@@ -570,6 +579,34 @@ jobs:
           IPA=$(ls build/ios/ipa/*.ipa | head -1)
           xcrun altool --upload-app -f "$IPA" -t ios \
             --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+
+      # ── O iPhone passa a publicar-se sozinho (2026-09-23) ────────────────
+      #
+      # A CICATRIZ: a 22/09 a Apple APROVOU a 1.0.2 as 22:44 UTC e a App Store
+      # continuou a servir a 1.0 o dia inteiro. Nao foi avaria nenhuma -- a
+      # versao tinha sido criada com lancamento MANUAL, e ficou em
+      # PENDING_DEVELOPER_RELEASE a espera de um clique que ninguem deu. O
+      # Android ja se publicava sozinho; o iPhone nao.
+      #
+      # A partir daqui: upload -> versao seguinte com releaseType
+      # AFTER_APPROVAL -> build ligada -> notas escritas -> submetida. A unica
+      # espera que sobra e' a analise da Apple; quando ela aprovar, a loja
+      # serve a versao sozinha.
+      #
+      # O script le TUDO de volta e rebenta o job se a Apple nao ficar como
+      # pedimos (um 201 nao prova nada) -- ver .github/scripts/ios_publicar.py.
+      - name: Versão seguinte com lançamento automático + submeter
+        if: inputs.submeter_revisao
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          BUILD_NUMBER: ${{ github.run_number }}
+          SUBMETER_REVISAO: "1"
+        run: |
+          python3 -m pip install --quiet --disable-pip-version-check pyjwt cryptography requests
+          # A mesma chave que o altool acabou de usar, ja no disco do runner.
+          export ASC_P8=~/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          python3 .github/scripts/ios_publicar.py
 
       - name: Publicar o IPA
         if: always()

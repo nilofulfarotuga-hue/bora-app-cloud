@@ -2843,4 +2843,37 @@ const Map<String, String> kStringsEn = <String, String>{
       'The return must be at least 30 minutes after the outbound ride.',
   'A volta tem de ser no máximo 12 horas depois da ida.':
       'The return must be at most 12 hours after the outbound ride.',
+  // [Ficha legal · 23/09] Recibo da viagem TVDE (taxa de intermediação).
+  'O recibo fica disponível quando a viagem terminar.':
+      'The receipt is available once the ride ends.',
+  'Não foi possível abrir o recibo. Tenta de novo.':
+      'Couldn\'t open the receipt. Please try again.',
+  'Recibo enviado para o teu e-mail.':
+      'Receipt sent to your email.',
+  'Não foi possível enviar o recibo.':
+      'Couldn\'t send the receipt.',
+  'Recibo da viagem':
+      'Ride receipt',
+  'N.º':
+      'No.',
+  'Serviço de transporte (motorista)':
+      'Transport service (driver)',
+  'Taxa de intermediação Bora':
+      'Bora intermediation fee',
+  'Valor da viagem':
+      'Ride amount',
+  'Descontos (tokens / crédito)':
+      'Discounts (tokens / credit)',
+  'Total pago':
+      'Total paid',
+  'Recibo de viagem. Não substitui fatura: a fatura é emitida por software certificado.':
+      'Ride receipt. Not an invoice: the invoice is issued by certified software.',
+  'Enviar por e-mail':
+      'Send by email',
+  'Recibo':
+      'Receipt',
+  'Viagem incluída num pacote ou assinatura já pago.':
+      'Ride included in a package or subscription already paid.',
+  'Viagem com ajuste de pacote ida-e-volta: a divisão entre motorista e Bora está no teu extrato de pacote.':
+      'Round-trip package ride: the split between driver and Bora is in your package statement.',
 };

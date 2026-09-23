@@ -7,6 +7,7 @@ import '../../../models/tvde_fare_view.dart';
 import '../../../models/tvde_ride.dart';
 import '../../../stores/tvde_store.dart';
 import '../../../widgets/tvde/recibo_pago.dart';
+import '../../../widgets/tvde/recibo_viagem_sheet.dart';
 import '../../../widgets/bora/bora.dart';
 import '../../../widgets/tvde/tvde_roundtrip_driver_notice.dart';
 
@@ -119,6 +120,24 @@ class _RideTileState extends State<_RideTile> {
                   const SizedBox(height: 4),
                   ReciboPago(ride: ride, compacto: true),
                 ],
+                // [Ficha legal · 23/09] Recibo com a taxa de intermediação.
+                if (ride.isFinished)
+                  InkWell(
+                    onTap: () => abrirReciboViagem(context, ride.id),
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        const Icon(Icons.receipt_long_outlined,
+                            size: 14, color: AppColors.primary),
+                        const SizedBox(width: 4),
+                        Text('Recibo'.tr,
+                            style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary)),
+                      ]),
+                    ),
+                  ),
               ],
             ),
           ),

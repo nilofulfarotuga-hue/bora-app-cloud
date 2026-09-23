@@ -2810,4 +2810,37 @@ const Map<String, String> kStringsEn = <String, String>{
       'By confirming, you make a booking with an obligation to pay for a specific date. There is no right of withdrawal for services on a set date; the cancellation rules shown above apply (Decree-Law 24/2014, art. 17).',
   'Ao confirmar, pedes uma corrida com obrigação de pagar. O serviço começa de imediato com o teu acordo, pelo que não há direito de livre resolução (DL 24/2014).':
       'By confirming, you request a ride with an obligation to pay. The service starts immediately with your agreement, so there is no right of withdrawal (Decree-Law 24/2014).',
+  // [Ida-e-volta marcada · 23/09]
+  'A volta também ficou marcada.':
+      'Your return ride is booked too.',
+  'Chamo quando terminar':
+      'I\'ll call when I\'m done',
+  'E a volta?':
+      'And the return?',
+  'Fica a volta garantida. Quando acabares, carregas em "Chamar a volta".':
+      'Your return is guaranteed. When you\'re done, tap "Call the return".',
+  'Hora da volta':
+      'Return time',
+  'Ida e volta marcadas e pagas. Já estamos à procura de motorista.':
+      'Round trip booked and paid. We\'re already looking for a driver.',
+  'Ida e volta marcadas.':
+      'Round trip booked.',
+  'Ida e volta marcadas. Pagas o pacote em dinheiro ao motorista da ida.':
+      'Round trip booked. You pay the package in cash to the outbound driver.',
+  'Ida às {0}.':
+      'Outbound at {0}.',
+  'Marcar hora da volta':
+      'Book a return time',
+  'Pacote ida e volta marcado. Pagas o pacote todo agora; se a ida for cancelada ou ficar sem motorista, devolvemos tudo.':
+      'Booked round-trip package. You pay the whole package now; if the outbound ride is cancelled or gets no driver, we refund everything.',
+  'Quando terminares, carrega em "Chamar a volta".':
+      'When you\'re done, tap "Call the return".',
+  'Um motorista vem buscar-te a essa hora.':
+      'A driver will pick you up at that time.',
+  'Volta às {0}':
+      'Return at {0}',
+  'A volta tem de ser pelo menos 30 minutos depois da ida.':
+      'The return must be at least 30 minutes after the outbound ride.',
+  'A volta tem de ser no máximo 12 horas depois da ida.':
+      'The return must be at most 12 hours after the outbound ride.',
 };

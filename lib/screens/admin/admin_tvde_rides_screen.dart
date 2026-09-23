@@ -519,6 +519,10 @@ class _RideCard extends StatelessWidget {
     final offerSecs = (data['offer_seconds_left'] as num?)?.toInt();
     final triedCount = (data['tried_count'] as num?)?.toInt() ?? 0;
     final noDriverSince = data['no_driver_since'];
+    // [Oferta na hora · 23/09] atraso do pedido até à 1.ª oferta (e da oferta
+    // ao push). Corrida real 1e13a6ea: 33 s + 8 s, o cliente cancelou aos 37.
+    final offerDelay = (data['offer_delay_s'] as num?)?.toInt();
+    final pushDelay = (data['push_delay_s'] as num?)?.toInt();
     final procurando = live && status == 'solicitada';
     // Paradas adicionais (CAMPO-02). Lê direto do mapa da RPC; se a RPC ainda
     // não trouxer estas colunas, ficam 0 e o bloco não aparece (sem crash).
@@ -593,6 +597,15 @@ class _RideCard extends StatelessWidget {
                 (driver != null && driver.isNotEmpty)
                     ? driver
                     : (live ? 'À procura de motorista…' : '—')),
+            if (offerDelay != null)
+              _AtrasoOferta(
+                ofertaS: offerDelay,
+                pushS: pushDelay,
+                // Cartão/MB Way: o despacho só arranca com o pagamento pago —
+                // o atraso inclui o tempo do cliente na app do banco.
+                incluiPagamento: data['payment_method'] == 'card' ||
+                    data['payment_method'] == 'mbway',
+              ),
             if (live && locUpdated != null)
               _kv(Icons.my_location, 'Posição',
                   'atualizada ${_fmtDateTime(locUpdated)} (via driver_locations)'),
@@ -1235,4 +1248,48 @@ String _fmtDateTime(dynamic iso) {
   final l = d.toLocal();
   String two(int n) => n.toString().padLeft(2, '0');
   return '${two(l.day)}/${two(l.month)} ${two(l.hour)}:${two(l.minute)}';
+}
+
+/// [Oferta na hora · 23/09] "Atraso da oferta (s)": do pedido do cliente até
+/// à 1.ª oferta a um motorista, e da oferta até o push sair. Acima de 10 s
+/// fica a vermelho — é o sinal de motorista fora do matching (GPS/batimento
+/// velho) ou de push lento. Vem calculado da RPC `admin_tvde_rides_list`.
+class _AtrasoOferta extends StatelessWidget {
+  const _AtrasoOferta(
+      {required this.ofertaS, this.pushS, this.incluiPagamento = false});
+
+  final int ofertaS;
+  final int? pushS;
+  final bool incluiPagamento;
+
+  static const int limiteS = 10;
+
+  @override
+  Widget build(BuildContext context) {
+    final lento =
+        (!incluiPagamento && ofertaS > limiteS) || (pushS ?? 0) > limiteS;
+    final cor = lento ? AppColors.error : AppColors.textSubtle;
+    return Padding(
+      key: const Key('admin_tvde_atraso_oferta'),
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Icon(Icons.timer_outlined, size: 16, color: cor),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              'Atraso da oferta: ${ofertaS}s'
+              '${incluiPagamento ? ' (inclui o pagamento online)' : ''}'
+              '${pushS == null ? '' : ' · push +${pushS}s'}'
+              '${lento ? ' (lento)' : ''}',
+              style: TextStyle(
+                  fontSize: 13,
+                  color: cor,
+                  fontWeight: lento ? FontWeight.w700 : FontWeight.w400),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

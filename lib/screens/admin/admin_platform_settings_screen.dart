@@ -155,6 +155,19 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
       'tvde_reservation_payment_timeout_minutes',
     };
     if (reservationOperational.contains(key)) return true;
+    // OFERTA NA HORA + IDA-E-VOLTA MARCADA (2026-09-23) — OPERACIONAIS:
+    //   - `tvde_heartbeat_window_seconds`: quanto tempo sem batimento o
+    //     motorista continua elegível para a oferta (subiu 90→600 a 23/09).
+    //   - `tvde_roundtrip_reservation_enabled`: interruptor do "Marcar para
+    //     depois" no ida-e-volta (desligar = kill switch; o preço e o ganho
+    //     do pacote NÃO passam por aqui, continuam blindados).
+    //   - `tvde_roundtrip_return_min_gap_minutes`: folga mínima ida→volta.
+    const tvdeOfertaNaHoraOperational = {
+      'tvde_heartbeat_window_seconds',
+      'tvde_roundtrip_reservation_enabled',
+      'tvde_roundtrip_return_min_gap_minutes',
+    };
+    if (tvdeOfertaNaHoraOperational.contains(key)) return true;
     // TAXA DE PEDIDO PEQUENO (2026-08-27). Mesma regra do
     // `appointment_booking_fee_cents` e do `tvde_roundtrip_discount_pct`: e o
     // preco do PROPRIO produto da Bora (a taxa fica toda para a plataforma,

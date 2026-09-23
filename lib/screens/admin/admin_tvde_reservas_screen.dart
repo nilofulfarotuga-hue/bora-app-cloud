@@ -375,6 +375,10 @@ class _AdminTvdeReservasScreenState extends State<AdminTvdeReservasScreen> {
           _kv('Pagamento',
               '${r['payment_method'] ?? 'cash'}'
               '${r['payment_status'] != null ? ' · ${r['payment_status']}' : ''}'),
+          // [Ida-e-volta marcada · 23/09] pacote: que perna é, a outra perna,
+          // "volta marcada" ou "cliente chama", estado do vale. Cada perna é
+          // um cartão próprio com Trocar motorista / Cancelar.
+          for (final l in pacoteLinhasPtBr(r, _quando)) _kv(l.$1, l.$2),
           if (tentados > 0) _kv('Já tentados', '$tentados motorista(s)'),
           // [Bloco 4.6 — 2026-09-05] Travão por rota. Desde o caso do Valdemir
           // (03→04/09) o travão deixou de ser fixo em 20 min e passa a ser o
@@ -602,4 +606,59 @@ class _CriarReservaDialogState extends State<_CriarReservaDialog> {
               labelText: label, isDense: true, border: const OutlineInputBorder()),
         ),
       );
+}
+
+/// [Ida-e-volta marcada · 23/09] Linhas (rótulo, valor) do pacote ida-e-volta
+/// de uma reserva, em PT-BR. Vazio quando a reserva não é de um pacote.
+/// [quando] formata datas (o mesmo formatador do cartão).
+List<(String, String)> pacoteLinhasPtBr(
+    Map<String, dynamic> r, String Function(String?) quando) {
+  final pacote = r['pacote'];
+  if (pacote is! Map) return const [];
+  final ehVolta = r['is_return_leg'] == true;
+  final perna = r['perna_ligada'] is Map
+      ? Map<String, dynamic>.from(r['perna_ligada'] as Map)
+      : null;
+  final pago = ((pacote['paid_cents'] as num?)?.toInt() ?? 0) / 100;
+  final linhas = <(String, String)>[
+    ('Pacote',
+        'ida-e-volta · esta é a ${ehVolta ? 'VOLTA' : 'IDA'} · '
+            '€${pago.toStringAsFixed(2)} ${pacote['pago_online'] == true ? 'pago online' : 'em dinheiro'}'),
+  ];
+  String estadoPerna(Map<String, dynamic> p) {
+    final motorista = p['driver_name']?.toString();
+    return '${p['status']}'
+        '${p['reservation_status'] != null ? ' / ${p['reservation_status']}' : ''}'
+        '${motorista != null ? ' · $motorista' : ''}';
+  }
+
+  if (ehVolta) {
+    linhas.add(('Ida ligada', perna == null ? '—' : estadoPerna(perna)));
+  } else {
+    final modo = pacote['return_mode']?.toString();
+    if (modo == 'marcada') {
+      linhas.add((
+        'Volta',
+        'marcada para ${quando(pacote['return_scheduled_at']?.toString())}'
+            '${perna != null ? ' · ${estadoPerna(perna)}' : ''}'
+      ));
+    } else if (modo == 'cliente_chama') {
+      linhas.add(('Volta', 'cliente chama quando terminar (vale)'));
+    } else {
+      linhas.add((
+        'Volta',
+        perna == null ? 'vale do pacote' : 'pedida · ${estadoPerna(perna)}'
+      ));
+    }
+  }
+  const estados = {
+    'reservado': 'reservado (ida ainda por fazer)',
+    'ativo': 'ativo (cliente pode pedir a volta)',
+    'usado': 'usado (volta pedida ou marcada)',
+    'expirado': 'expirado',
+    'anulado': 'anulado (ida cancelada — reembolso do pacote)',
+  };
+  final st = pacote['status']?.toString();
+  linhas.add(('Vale da volta', estados[st] ?? (st ?? '—')));
+  return linhas;
 }

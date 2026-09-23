@@ -14,7 +14,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 ///
 /// [ronda-fecho A10, 23/09/2026] Também chamado pelo `HeartbeatService` a
 /// cada tick (30 s) na app nativa, para um estafeta PARADO manter a posição
-/// fresca (`dispatch_gps_fresh_seconds` = 180 s). O limite de 45 s abaixo é o
+/// fresca (`dispatch_gps_fresh_seconds`). O limite de 14 s abaixo (era 45 s) é o
 /// que evita o duplo ping quando o stream de GPS também escreveu.
 class DriverLocationPingService {
   DriverLocationPingService._();

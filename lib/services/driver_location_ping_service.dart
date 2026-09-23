@@ -22,8 +22,10 @@ class DriverLocationPingService {
 
   DateTime? _lastPing;
   bool _inFlight = false;
-  // 45s idle (was 10s): admin map freshness window is ~5min; 10s was 30× too eager.
-  static const int minIntervalSeconds = 45;
+  // 14 s (23/09; era 45 s): a posição em driver_locations é o que o matching
+  // TVDE/entregas lê no instante do pedido — com 45 s + GPS em fundo parado o
+  // motorista saía do matching. ~15 s = compasso do LocalizacaoOnline.
+  static const int minIntervalSeconds = 14;
 
   /// Best-effort ping. Safe to call on every GPS tick — internally throttled.
   /// Set [isOnline] to false on logout / go-offline so the driver disappears

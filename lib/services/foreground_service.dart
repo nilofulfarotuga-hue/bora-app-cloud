@@ -1,10 +1,13 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_overlay_window/flutter_overlay_window.dart' as fow;
+import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'notification_service.dart' show postWakeActivityNotification;
 
@@ -67,7 +70,9 @@ class BoraForegroundService {
         // Rede de segurança quando realtime WebSocket morre em BG longo.
         // Camada 2 (moveTaskToBack) mantém main isolate vivo para casos
         // rápidos; este polling cobre Doze mode + swipe-away.
-        eventAction: ForegroundTaskEventAction.repeat(10000),
+        // [Oferta na hora · 23/09] 7,5 s: o batimento sai a cada 2 ticks
+        // (~15 s) e a pesquisa de oferta fica mais rápida do que era.
+        eventAction: ForegroundTaskEventAction.repeat(7500),
         autoRunOnBoot: true,
         autoRunOnMyPackageReplaced: true,
         allowWakeLock: true,
@@ -108,19 +113,51 @@ class BoraForegroundService {
   /// Persiste o driverId para o FGS task poder fazer polling.
   static Future<void> saveDriverId(String driverId) async {
     await FlutterForegroundTask.saveData(key: 'driverId', value: driverId);
+    await _ligarTokenDeSessao();
   }
 
   /// Limpa o driverId quando driver fica offline (polling pára).
   static Future<void> clearDriverId() async {
     await FlutterForegroundTask.removeData(key: 'driverId');
+    await FlutterForegroundTask.removeData(key: _kTokenSessao);
   }
 
-  /// Inicia o serviço com a notificação "🟢 Bora — Online".
+  static const String _kTokenSessao = 'fgs_access_token';
+  static StreamSubscription<AuthState>? _authSub;
+
+  /// [Oferta na hora · 23/09] O serviço guarda o token de sessão do motorista
+  /// (e cada renovação) para, se a app principal morrer (fechada de lado),
+  /// continuar a mandar a posição pela RPC autenticada `driver_update_location`
+  /// — a mesma de sempre, sem RPC anónima nova que deixasse falsificar a
+  /// posição de um motorista. Enquanto a app principal está viva é ela que
+  /// manda a posição e o serviço não duplica.
+  static Future<void> _ligarTokenDeSessao() async {
+    try {
+      final auth = Supabase.instance.client.auth;
+      final atual = auth.currentSession?.accessToken;
+      if (atual != null && atual.isNotEmpty) {
+        await FlutterForegroundTask.saveData(key: _kTokenSessao, value: atual);
+      }
+      _authSub ??= auth.onAuthStateChange.listen((estado) {
+        final t = estado.session?.accessToken;
+        if (t != null && t.isNotEmpty) {
+          unawaited(
+              FlutterForegroundTask.saveData(key: _kTokenSessao, value: t));
+        } else if (estado.event == AuthChangeEvent.signedOut) {
+          unawaited(FlutterForegroundTask.removeData(key: _kTokenSessao));
+        }
+      });
+    } catch (e) {
+      debugPrint('[BoraForegroundService] token de sessão: $e');
+    }
+  }
+
+  /// Inicia o serviço com a notificação fixa "Bora — estás online".
   /// Idempotente — se já estiver a correr, devolve `true` sem reiniciar.
   static Future<bool> startDriver() async {
     return _start(
-      title: '🟢 Bora — Online',
-      text: 'À espera de pedidos...',
+      title: '🟢 Bora — estás online',
+      text: 'Recebes as corridas e os pedidos na hora.',
     );
   }
 
@@ -200,8 +237,9 @@ class _BoraTaskHandler extends TaskHandler {
 
   bool _isPolling = false;
   String? _lastOfferedOrderId;
-  // Heartbeat fires every 3rd tick (10s × 3 = 30s). FGS tick stays at 10s
-  // so offer detection remains fast; only the DB heartbeat POST is throttled.
+  // [Oferta na hora · 23/09] Heartbeat a cada 2.º tick (7,5 s × 2 = 15 s; era
+  // 30 s). O matching TVDE/entregas lê last_heartbeat_at e a posição no
+  // instante do pedido — quanto mais fresco, mais certo entra o motorista.
   int _heartbeatTickCount = 0;
 
   @override
@@ -263,9 +301,10 @@ class _BoraTaskHandler extends TaskHandler {
       }
 
       // ── HEARTBEAT (Sessão 2026-05-24, Fix #1 · 2026-06-26 throttle #1) ────
-      // Fires every 3rd FGS tick (10s × 3 = 30s). Cron marks stale after 90s
-      // → 30s gives 3× margin. FGS tick stays at 10s for fast offer detection.
-      if (_heartbeatTickCount % 3 == 0) {
+      // [23/09] a cada 2.º tick (~15 s). + posição de reserva se a app
+      // principal estiver morta (ver _posicaoDeReserva).
+      if (_heartbeatTickCount % 2 == 0) {
+        unawaited(_posicaoDeReserva(url, apiKey));
         try {
           final hbUri = Uri.parse('$url/rest/v1/rpc/driver_heartbeat_by_id');
           await http.post(
@@ -330,6 +369,56 @@ class _BoraTaskHandler extends TaskHandler {
       await _wakeActivityIfMainDead(payload);
     } catch (e) {
       debugPrint('[BoraTaskHandler] poll error: $e');
+    }
+  }
+
+  bool _posicaoEmVoo = false;
+
+  /// [Oferta na hora · 23/09] GPS de RESERVA. Com a app principal viva, é o
+  /// stream dela (serviço de localização do geolocator) que manda a posição —
+  /// aqui não se faz nada. Se a app principal morreu (fechada de lado, Android
+  /// matou a Activity), o GPS dela morreu com ela: sem isto o motorista
+  /// continuava "online" com a posição a envelhecer até sair do matching.
+  /// Precisa da localização "Permitir sempre" (pedida uma vez ao ficar
+  /// online); sem ela o Android não dá posição e isto sai calado.
+  Future<void> _posicaoDeReserva(String url, String apiKey) async {
+    if (_posicaoEmVoo) return;
+    _posicaoEmVoo = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      final vivo = prefs.getInt('bora_main_alive_ts') ?? 0;
+      final idade = DateTime.now().millisecondsSinceEpoch - vivo;
+      if (idade <= 20000) return; // app principal viva: ela manda a posição
+      final token =
+          await FlutterForegroundTask.getData<String>(key: 'fgs_access_token');
+      if (token == null || token.isEmpty) return;
+      final perm = await Geolocator.checkPermission();
+      if (perm != LocationPermission.always) return;
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings:
+            const LocationSettings(accuracy: LocationAccuracy.medium),
+      ).timeout(const Duration(seconds: 6));
+      final res = await http.post(
+        Uri.parse('$url/rest/v1/rpc/driver_update_location'),
+        headers: {
+          'apikey': apiKey,
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'p_latitude': pos.latitude,
+          'p_longitude': pos.longitude,
+          if (pos.heading.isFinite) 'p_heading': pos.heading,
+          if (pos.speed.isFinite) 'p_speed_kmh': pos.speed * 3.6,
+          'p_is_online': true,
+        }),
+      ).timeout(const Duration(seconds: 5));
+      debugPrint('[FGS_POLL] posição de reserva → ${res.statusCode}');
+    } catch (e) {
+      debugPrint('[FGS_POLL] posição de reserva falhou: $e');
+    } finally {
+      _posicaoEmVoo = false;
     }
   }
 

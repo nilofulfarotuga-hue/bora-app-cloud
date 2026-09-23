@@ -16,6 +16,7 @@ import '../../../config/app_spacing.dart';
 import '../../../models/driver_model.dart';
 import '../../../services/driver_location_ping_service.dart';
 import '../../../services/heartbeat_service.dart';
+import '../../../services/localizacao_online.dart';
 import '../../../services/papeis_de_trabalho.dart';
 import '../../../widgets/caixa_de_papeis.dart';
 import '../../../widgets/ganho_de_hoje_card.dart';
@@ -396,6 +397,9 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
       await PermissionGateService.ensureMinimumOnlinePermissions(context);
       if (!mounted) return;
       unawaited(OverlayPermissionGate.maybeOfferOnce(context));
+      // [Oferta na hora · 23/09] uma vez: localização "sempre" + bateria.
+      await LocalizacaoOnline.pedirUmaVez(context);
+      if (!mounted) return;
       unawaited(_heartbeat.start());
       // F4B (2026-08-16): registar/renovar o token FCM SEMPRE ao ficar online
       // (regra do Danilo). Idempotente — o PushTokenService deduplica.
@@ -484,11 +488,17 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     } catch (_) {/* o stream cobre o ping seguinte */}
 
     await _gps?.cancel();
+    // [Oferta na hora · 23/09] Serviço em primeiro plano de localização +
+    // posição a cada ~15 s mesmo parado. Antes: sem serviço (estrangulado em
+    // fundo) e distanceFilter 50 m (parado = zero posições) — o motorista
+    // saía do matching a conduzir com a app em fundo. Ver LocalizacaoOnline.
+    final definicoes = await LocalizacaoOnline.definicoes(
+      titulo: 'Bora — estás online',
+      texto: 'Recebes as corridas na hora, mesmo com a app em fundo.',
+    );
+    if (!mounted || tvdeCorridaControlaGps.value) return;
     _gps = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.medium,
-        distanceFilter: 50,
-      ),
+      locationSettings: definicoes,
     ).listen((pos) {
       if (!mounted) return;
       // [Item G] bearing (direção de marcha) a partir do delta de posição —

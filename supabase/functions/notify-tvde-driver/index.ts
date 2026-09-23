@@ -5,6 +5,13 @@
 // v5: alem da OFERTA de corrida (caminho original, intacto), trata
 // kind='stop_added' — aviso de parada adicionada pelo cliente, com o total
 // a cobrar atualizado (decisao Danilo 2026-07-20).
+// v19 (2026-09-23): OFERTA mais rapida. Corrida real 1e13a6ea: oferta as
+// 14:54:55, push_enviado as 14:55:03 (8 s). O caminho fazia tudo em fila:
+// aceita_papel -> token do motorista -> troca do token Google (assinatura RSA +
+// ida a oauth2.googleapis.com, em TODAS as chamadas) -> detalhes da corrida ->
+// FCM. Agora: token Google guardado em memoria enquanto e valido (a instancia
+// quente reaproveita-o) e as tres leituras a base de dados saem em paralelo.
+// Nada no conteudo das mensagens mudou.
 // v17 (2026-09-20): OFERTA com botoes. A oferta imediata (sem kind) e a
 // 'reservation_offer' passam a levar em `data`: `actions: 'accept,reject'`
 // (o app monta Aceitar/Recusar na propria notificacao), `driverEarn` +
@@ -79,6 +86,24 @@ Deno.serve(async (req) => {
     return json({ ok: false, error: 'driverId and rideId are required' }, 400)
   }
 
+  const supabase = createClient(supabaseUrl, serviceKey)
+
+  // v19: tudo o que e independente sai AO MESMO TEMPO (antes era em fila).
+  //  - aceita_papel (interruptor "O que queres aceitar?")
+  //  - token FCM do motorista
+  //  - token Google (em cache enquanto valido)
+  //  - detalhes da corrida, so para a OFERTA (o caminho mais sensivel ao tempo)
+  const papelP = supabase.rpc('aceita_papel', { p_user_id: driverId, p_papel: 'driver' })
+  const driverP = supabase
+    .from('drivers').select('fcm_token, name').eq('user_id', driverId).maybeSingle()
+  const accessP = (async () => getFirebaseAccessToken(JSON.parse(firebaseServiceAcct)))()
+  accessP.catch(() => { /* tratado abaixo */ })
+  const lerCorridaOferta = () => supabase
+    .from('tvde_rides')
+    .select('origin_label, dest_label, est_fare_cents, est_distance_km, driver_earn_cents, agreed_driver_earn_cents, agreed_fare_cents, payment_method, offer_expires_at')
+    .eq('id', rideId).maybeSingle()
+  const offerRideP = kind === 'offer' ? lerCorridaOferta() : null
+
   // A pessoa quer receber uma corrida de passageiros hoje?
   //
   // Desde 2026-08-28 as entregas e as corridas sao trabalhos SEPARADOS, cada
@@ -86,21 +111,15 @@ Deno.serve(async (req) => {
   // pergunta o interruptor era decorativo — ligava e desligava uma coisa que
   // ninguem consultava. Sem preferencia gravada = sim, comportamento de sempre.
   {
-    const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
-    const { data: quer } = await sb.rpc('aceita_papel', {
-      p_user_id: driverId, p_papel: 'driver',
-    })
+    const { data: quer } = await papelP
     if (quer === false) {
       console.log(`[notify-tvde-driver] ${driverId} tem 'driver' desligado — nao se envia`)
       return json({ ok: false, reason: 'papel_desligado' })
     }
   }
 
-  const supabase = createClient(supabaseUrl, serviceKey)
-
   // FCM token (drivers.fcm_token -> driver_push_tokens fallback).
-  const { data: driver } = await supabase
-    .from('drivers').select('fcm_token, name').eq('user_id', driverId).maybeSingle()
+  const { data: driver } = await driverP
 
   let fcmToken: string | null = driver?.fcm_token ?? null
   let fallbackTokenId: string | null = null
@@ -123,7 +142,7 @@ Deno.serve(async (req) => {
   // Firebase OAuth2 access token.
   let accessToken: string
   try {
-    accessToken = await getFirebaseAccessToken(JSON.parse(firebaseServiceAcct))
+    accessToken = await accessP
   } catch (e) {
     console.error('[notify-tvde-driver] Firebase auth error:', e)
     await logPushEvent(supabase, rideId, false, { reason: 'firebase_auth_error', kind })
@@ -507,10 +526,7 @@ Deno.serve(async (req) => {
   let originLabel = 'Recolha', destLabel = 'Destino', fareEur = '0.00', distanceKm = '0'
   let earnEur = '0.00', mostraCobranca = false, offerExpiresAt: string | null = null
   try {
-    const { data: ride } = await supabase
-      .from('tvde_rides')
-      .select('origin_label, dest_label, est_fare_cents, est_distance_km, driver_earn_cents, agreed_driver_earn_cents, agreed_fare_cents, payment_method, offer_expires_at')
-      .eq('id', rideId).maybeSingle()
+    const { data: ride } = await (offerRideP ?? lerCorridaOferta())
     if (ride) {
       originLabel = ride.origin_label ?? originLabel
       destLabel   = ride.dest_label ?? destLabel
@@ -659,8 +675,15 @@ function json(obj: unknown, status: number): Response {
   })
 }
 
+// v19: token Google em memoria da instancia. Vale 3600 s; renova-se com 5 min
+// de folga. Instancia fria faz a troca uma vez; as quentes saltam-na.
+let cachedGoogleToken: { token: string; exp: number } | null = null
+
 async function getFirebaseAccessToken(serviceAccount: any): Promise<string> {
   const now = Math.floor(Date.now() / 1000)
+  if (cachedGoogleToken && cachedGoogleToken.exp - 300 > now) {
+    return cachedGoogleToken.token
+  }
   const header  = { alg: 'RS256', typ: 'JWT' }
   const payload = {
     iss: serviceAccount.client_email,
@@ -685,6 +708,8 @@ async function getFirebaseAccessToken(serviceAccount: any): Promise<string> {
   })
   const tokenData = await tokenRes.json()
   if (!tokenData.access_token) throw new Error(`Google token exchange failed: ${JSON.stringify(tokenData)}`)
+  const expiresIn = Number(tokenData.expires_in ?? 3600)
+  cachedGoogleToken = { token: tokenData.access_token, exp: now + (Number.isFinite(expiresIn) ? expiresIn : 3600) }
   return tokenData.access_token
 }
 function b64url(str: string): string {

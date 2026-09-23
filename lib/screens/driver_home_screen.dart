@@ -31,6 +31,7 @@ import '../models/order_model.dart';
 import '../services/driver_location_ping_service.dart';
 import '../services/navigation_service.dart';
 import '../services/heartbeat_service.dart';
+import '../services/localizacao_online.dart';
 import '../services/notification_service.dart';
 import '../services/permission_gate_service.dart';
 import '../services/push_token_service.dart';
@@ -387,6 +388,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     if (!mounted) return;
     final success = orderStore.toggleDriverAvailability(true);
     if (!success || !mounted) return;
+    // [Oferta na hora · 23/09] uma vez: localização "sempre" + bateria.
+    await LocalizacaoOnline.pedirUmaVez(context);
+    if (!mounted) return;
     unawaited(_heartbeatService.start());
     // Start idle GPS now that driver is online.
     unawaited(_startIdleLocationTracking());
@@ -706,42 +710,16 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     }
 
     // T3.1: Background-capable location settings.
-    // Android: ForegroundNotificationConfig keeps the GPS stream alive when
-    //   the app is minimised. The notification is required by Android 14+
-    //   (FOREGROUND_SERVICE_LOCATION).
-    // iOS: showBackgroundLocationIndicator + pauseLocationUpdatesAutomatically
-    //   ensure the OS doesn't suspend updates during deliveries.
-    final LocationSettings locationSettings;
-    // Idle (online, no active delivery): medium accuracy, 50 m filter, 20 s
-    // interval. No persistent wakelock — FGS type "location" keeps process
-    // alive. High accuracy resumes in DriverMapScreen during active delivery.
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      locationSettings = AndroidSettings(
-        accuracy: LocationAccuracy.medium,
-        distanceFilter: 50,
-        intervalDuration: const Duration(seconds: 20),
-        foregroundNotificationConfig: const ForegroundNotificationConfig(
-          notificationTitle: 'Bora — Online',
-          notificationText: 'À espera de pedidos.',
-          enableWakeLock: false,
-          notificationIcon: AndroidResource(name: 'ic_launcher', defType: 'mipmap'),
-        ),
-      );
-    } else if (defaultTargetPlatform == TargetPlatform.iOS) {
-      locationSettings = AppleSettings(
-        accuracy: LocationAccuracy.medium,
-        distanceFilter: 50,
-        pauseLocationUpdatesAutomatically: true,
-        showBackgroundLocationIndicator: true,
-        activityType: ActivityType.other,
-        allowBackgroundLocationUpdates: true,
-      );
-    } else {
-      locationSettings = const LocationSettings(
-        accuracy: LocationAccuracy.medium,
-        distanceFilter: 50,
-      );
-    }
+    // [Oferta na hora · 23/09] Mesmo caminho do TVDE (LocalizacaoOnline):
+    // serviço em primeiro plano de localização + uma posição a cada ~15 s
+    // MESMO PARADO. Antes era distanceFilter 50 m — estafeta parado à porta
+    // do restaurante não mandava posição nenhuma e o GPS ficava velho.
+    final LocationSettings locationSettings = await LocalizacaoOnline.definicoes(
+      titulo: 'Bora — estás online',
+      texto: 'Recebes os pedidos na hora, mesmo com a app em fundo.',
+    );
+    if (!mounted) return;
+    await _positionSubscription?.cancel();
 
     _positionSubscription = Geolocator.getPositionStream(
       locationSettings: locationSettings,

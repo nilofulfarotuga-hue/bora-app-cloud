@@ -42,6 +42,7 @@ import 'admin_knowledge_screen.dart';
 import 'admin_live_orders_map_screen.dart';
 import 'admin_marcacoes_confirmacao_screen.dart';
 import 'admin_decisoes_screen.dart';
+import 'admin_radar_videos_screen.dart';
 import 'admin_motores_screen.dart';
 import 'admin_crash_logs_screen.dart';
 import 'admin_notification_failures_screen.dart';
@@ -965,6 +966,16 @@ List<AdminMenuSection> adminMenuSections() => [
       color: AppColors.primary,
       builder: () => const AdminDecisoesScreen(),
       keywords: const ['decisoes', 'decisor', 'jev', 'typesafe', 'sombra', 'custo', 'noshow', 'suporte', 'despacho'],
+    ),
+    // [Radar de vídeos · 24/09] o que o PC recolhe do YouTube todos os dias + o playbook das redes.
+    AdminMenuItem(
+      id: 'robos_radar_videos',
+      title: 'Radar de vídeos',
+      subtitle: 'Os ~20 vídeos do dia sobre crescer nas redes e ganhar dinheiro online, com resumo, ideias e nota; e o playbook que os robôs seguem',
+      icon: Icons.ondemand_video_rounded,
+      color: const Color(0xFFDC2626),
+      builder: () => const AdminRadarVideosScreen(),
+      keywords: const ['radar', 'videos', 'youtube', 'playbook', 'redes', 'reels', 'instagram', 'tiktok', 'crescer', 'viral'],
     ),
     AdminMenuItem(
       id: 'robos_assistente_ia_admin',

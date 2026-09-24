@@ -1,10 +1,4 @@
-// ============================================================================
-// reprocess-refund — Bloco 4 (recuperação de reembolso falhado) · 2026-06-29
-// Admin-only. Idempotente: claim refund_status 'failed'→'processing' (uma execução
-// ganha); cartão reusa a MESMA idempotency key do refund original (Stripe nunca
-// duplica); wallet 'failed' = RPC fez rollback, logo re-creditar é seguro.
-// Audita em admin_audit_log (action='reprocess_refund').
-// ============================================================================
+// reprocess-refund — Bloco 4 (recuperacao de reembolso falhado). Admin-only, idempotente.
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
@@ -41,7 +35,6 @@ Deno.serve(async (req: Request) => {
 
   const admin = createClient(url, svc);
 
-  // CLAIM idempotente — só avança quem estiver realmente 'failed'.
   const { data: claimed, error: cErr } = await admin
     .from('orders')
     .update({ refund_status: 'processing' })
@@ -66,7 +59,7 @@ Deno.serve(async (req: Request) => {
       newStatus = 'completed'; outcome = 'wallet';
     } else {
       if (!o.payment_intent_id) throw new Error('no_payment_intent');
-      const idem = `refund-${o.payment_intent_id}-${refundCents}`; // MESMA key do original
+      const idem = `refund-${o.payment_intent_id}-${refundCents}`;
       const r = await stripe.refunds.create({ payment_intent: o.payment_intent_id, amount: refundCents }, { idempotencyKey: idem });
       newStatus = 'pending'; outcome = 'stripe:' + r.id;
     }

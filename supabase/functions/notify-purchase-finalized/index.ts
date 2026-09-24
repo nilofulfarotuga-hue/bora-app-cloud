@@ -2,7 +2,11 @@
 // supabase/functions/notify-purchase-finalized/index.ts
 //
 // 5G — Push ao cliente quando estafeta finaliza compra storeShopping v2.
-// Multi-device via client_push_tokens (Decisão A). Decisão I: corre sempre.
+// Multi-device via client_push_tokens (Deciso A). Decisao I: corre sempre.
+//
+// FIX 2026-09-09 (caso Cristina/Continente): em pagamento a DINHEIRO o item em
+// falta e descontado do valor a pagar na porta, nao creditado na carteira.
+// A mensagem tem de dizer isso, senao o cliente pensa que paga o total cheio.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -24,7 +28,7 @@ Deno.serve(async (req) => {
     return json({ ok: false, reason: 'firebase_not_configured' })
   }
 
-  let orderId: string, unavailableCents: number
+  let orderId, unavailableCents
   try {
     const body = await req.json()
     orderId = String(body.order_id ?? '')
@@ -38,17 +42,19 @@ Deno.serve(async (req) => {
 
   const { data: order } = await supabase
     .from('orders')
-    .select('id, user_id, vendor_name')
+    .select('id, user_id, vendor_name, payment_method')
     .eq('id', orderId)
     .maybeSingle()
   if (!order || !order.user_id) return json({ ok: false, reason: 'no_recipient' })
+
+  const isCash = order.payment_method === 'cash'
 
   const { data: items } = await supabase
     .from('order_purchase_items_v2')
     .select('status')
     .eq('order_id', orderId)
 
-  const counts: Record<string, number> = { purchased: 0, unavailable: 0, replaced: 0, added: 0 }
+  const counts = { purchased: 0, unavailable: 0, replaced: 0, added: 0 }
   for (const i of items ?? []) {
     if (counts[i.status] != null) counts[i.status]++
   }
@@ -56,8 +62,11 @@ Deno.serve(async (req) => {
   const vendorPart = order.vendor_name ? ` em ${order.vendor_name}` : ''
   let bodyText = `🛍 Compra concluída${vendorPart}. Estafeta a caminho!`
   if (counts.unavailable > 0) {
-    const credit = (unavailableCents / 100).toFixed(2)
-    bodyText = `🛍 ${counts.unavailable} item indisponível — €${credit} creditados. Estafeta a caminho!`
+    const valor = (unavailableCents / 100).toFixed(2)
+    const plural = counts.unavailable === 1 ? 'item indisponível' : 'itens indisponíveis'
+    bodyText = isCash
+      ? `🛍 ${counts.unavailable} ${plural} — €${valor} já descontados do total a pagar. Estafeta a caminho!`
+      : `🛍 ${counts.unavailable} ${plural} — €${valor} creditados na carteira. Estafeta a caminho!`
   }
 
   const { data: tokens } = await supabase
@@ -69,16 +78,16 @@ Deno.serve(async (req) => {
   const tokenList = tokens ?? []
   if (tokenList.length === 0) return json({ ok: true, sent: 0, reason: 'no_tokens' })
 
-  let accessToken: string
+  let accessToken
   try {
     accessToken = await getFirebaseAccessToken(JSON.parse(firebaseServiceAcct))
-  } catch (_e) {
+  } catch (e) {
     return json({ ok: false, reason: 'firebase_auth_error' })
   }
 
   const fcmUrl = `https://fcm.googleapis.com/v1/projects/${firebaseProjectId}/messages:send`
   let sent = 0, cleaned = 0
-  const results = await Promise.allSettled(tokenList.map(async (t: any) => {
+  const results = await Promise.allSettled(tokenList.map(async (t) => {
     const payload = {
       message: {
         token: t.fcm_token,
@@ -89,28 +98,23 @@ Deno.serve(async (req) => {
       },
     }
     const r = await fetch(fcmUrl, { method: 'POST', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-    return { token: t.fcm_token, status: r.status, body: await r.json().catch(() => ({})) }
+    return { token: t.fcm_token, status: r.status, body: await r.json().catch(()=>({})) }
   }))
   for (const r of results) {
     if (r.status !== 'fulfilled') continue
-    const { token, status, body: resp } = r.value as any
+    const { token, status, body: resp } = r.value
     if (status >= 200 && status < 300) { sent++; continue }
     const errCode = resp?.error?.details?.[0]?.errorCode ?? resp?.error?.status ?? ''
     if (['UNREGISTERED','INVALID_ARGUMENT','NOT_FOUND'].includes(errCode)) {
-      try {
-        await supabase.rpc('mark_token_failed', { p_table: 'client_push_tokens', p_token: token, p_reason: `fcm_${String(errCode).toLowerCase()}` })
-        cleaned++
-      } catch (_e) {}
+      try { await supabase.rpc('mark_token_failed', { p_table: 'client_push_tokens', p_token: token, p_reason: `fcm_${String(errCode).toLowerCase()}` }); cleaned++ } catch (_e) {}
     }
   }
   return json({ ok: true, sent, total: tokenList.length, cleaned })
 })
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-}
+function json(body, status = 200) { return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }) }
 
-async function getFirebaseAccessToken(sa: any): Promise<string> {
+async function getFirebaseAccessToken(sa) {
   const now = Math.floor(Date.now() / 1000)
   const header  = { alg: 'RS256', typ: 'JWT' }
   const payload = { iss: sa.client_email, scope: 'https://www.googleapis.com/auth/firebase.messaging', aud: 'https://oauth2.googleapis.com/token', exp: now + 3600, iat: now }
@@ -126,5 +130,5 @@ async function getFirebaseAccessToken(sa: any): Promise<string> {
   const r = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: jwt }) })
   const d = await r.json(); if (!d.access_token) throw new Error('token_failed'); return d.access_token
 }
-function b64url(s: string): string { return btoa(unescape(encodeURIComponent(s))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'') }
-function b64urlBytes(b: Uint8Array): string { return btoa(String.fromCharCode(...b)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'') }
+function b64url(s) { return btoa(unescape(encodeURIComponent(s))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'') }
+function b64urlBytes(b) { return btoa(String.fromCharCode(...b)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'') }

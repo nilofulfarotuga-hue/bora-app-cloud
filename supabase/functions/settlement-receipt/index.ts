@@ -10,6 +10,17 @@
 //   (sem mode) → despacha a fila `settlement_receipts` (comprovativos).
 //   mode=reminders → lembra quem ficou a dever a Bora e avisa o Danilo.
 //
+// v2 (2026-09-07, pedido do Danilo): a cobranca deixa de ser uma mensagem so,
+// sempre igual. Passa a SUBIR DE TOM conforme os dias que passam, e a falar
+// diferente a um ESTAFETA e a um PARCEIRO, porque o que cada um deve e o risco
+// que corre nao sao a mesma coisa:
+//   nivel 1 (ate 10 dias)  — lembrete simpatico, so a dizer que falta.
+//   nivel 2 (11 a 20 dias) — firme, ja diz que a conta pode ser limitada.
+//   nivel 3 (21+ dias)     — ultimo aviso, conta em risco de suspensao.
+// A cobranca repete-se sozinha nos dias marcados (hoje quarta e sexta) ate a
+// pessoa pagar; assim que paga, o comprovativo sai e ela sai desta lista.
+// Quem deve menos do que o piso settlement_reminder_min_cents nunca entra aqui.
+//
 // Esta funcao NAO calcula dinheiro: le valores ja fechados e comunica-os.
 //
 // Chave do Resend: env primeiro, vault depois (mesmo padrao da v5 do
@@ -67,9 +78,11 @@ Deno.serve(async (req) => {
   }
 
   let modo = 'receipts'
+  let ensaio = false
   try {
     const b = await req.json()
     if (b?.mode === 'reminders') modo = 'reminders'
+    if (b?.ensaio === true || b?.dry_run === true) ensaio = true
   } catch (_e) {}
 
   const supabase = createClient(supabaseUrl, serviceKey)
@@ -93,10 +106,10 @@ Deno.serve(async (req) => {
     .select('value').eq('key', 'bora_mbway_phone').maybeSingle()
   const boraMbway = (typeof mbwayRow?.value === 'string' ? mbwayRow.value : '') || ''
 
-  const fcm = await prepararFcm(supabase)
+  const fcm = ensaio ? null : await prepararFcm(supabase)
 
   if (modo === 'reminders') {
-    return await correrLembretes(supabase, supabaseUrl, authHeader, resendKey, resendKeyOrigem, boraMbway, fcm)
+    return await correrLembretes(supabase, supabaseUrl, authHeader, resendKey, resendKeyOrigem, boraMbway, fcm, ensaio)
   }
   return await despacharFila(supabase, resendKey, resendKeyOrigem, boraMbway, fcm, supabaseUrl, authHeader)
 })
@@ -213,7 +226,68 @@ function comprovativoHtml(r, boraMbway) {
 
 // ---------------------------------------------------------------- cobranca
 
-async function correrLembretes(supabase, supabaseUrl, authHeader, resendKey, resendKeyOrigem, boraMbway, fcm) {
+// Um parceiro e uma loja; os outros papeis todos andam na rua. O que devem, e
+// o que arriscam, sao coisas diferentes — e por isso a mensagem tambem e.
+function ehParceiro(tipo) { return tipo === 'partner' }
+
+function nivelDe(dias) {
+  if (dias >= 21) return 3
+  if (dias >= 11) return 2
+  return 1
+}
+
+function textoLembrete(d) {
+  const nivel = nivelDe(d.dias ?? 0)
+  const loja = ehParceiro(d.subject_type)
+  const valor = eur(d.cents)
+  const semana = ddmm(d.week_start_at)
+
+  // De onde vem o dinheiro, na lingua de cada um.
+  const origem = loja
+    ? 'Este valor é dos pedidos que os clientes pagaram em dinheiro e ficaram na caixa da loja.'
+    : 'Este valor é do dinheiro que recebeu dos clientes em mão e ainda não entregou.'
+
+  if (nivel === 1) {
+    return {
+      assunto: 'Falta acertar ' + valor + ' da semana de ' + semana + ' · Bora',
+      faixa: 'Acerto por regularizar',
+      cor: { fundo: '#FFF7ED', borda: '#FED7AA', texto: '#9A3412', escuro: '#7C2D12' },
+      abertura: 'o acerto da semana de ' + semana + ' ainda está por regularizar.',
+      destaque: 'Falta pagar ' + valor,
+      corpo: origem + ' Quando puder, é só enviar e fica tudo certo.',
+      push: 'Faltam ' + valor + ' da semana de ' + semana + '.',
+    }
+  }
+  if (nivel === 2) {
+    return {
+      assunto: '2.º aviso — ' + valor + ' por regularizar · Bora',
+      faixa: '2.º aviso de acerto',
+      cor: { fundo: '#FFF7ED', borda: '#FDBA74', texto: '#9A3412', escuro: '#7C2D12' },
+      abertura: 'já passaram ' + d.dias + ' dias e o acerto da semana de ' + semana + ' continua por pagar.',
+      destaque: 'Em falta: ' + valor,
+      corpo: origem + (loja
+        ? ' Enquanto não for acertado, a loja pode deixar de receber pedidos novos no Bora.'
+        : ' Enquanto não for acertado, pode deixar de receber pedidos no Bora.') +
+        ' Se houver alguma coisa errada nas contas, responda a este email que resolvemos.',
+      push: '2.º aviso: ' + valor + ' por acertar há ' + d.dias + ' dias.',
+    }
+  }
+  return {
+    assunto: 'Último aviso — conta em risco · Bora',
+    faixa: 'Último aviso',
+    cor: { fundo: '#FEF2F2', borda: '#FECACA', texto: '#991B1B', escuro: '#7F1D1D' },
+    abertura: 'este é o último aviso sobre o acerto da semana de ' + semana +
+      ', que está por pagar há ' + d.dias + ' dias.',
+    destaque: 'Em falta: ' + valor,
+    corpo: origem + (loja
+      ? ' Se não for acertado nos próximos dias, a loja fica suspensa no Bora e deixa de aparecer aos clientes.'
+      : ' Se não for acertado nos próximos dias, a conta fica suspensa e deixa de receber pedidos.') +
+      ' Se não conseguir pagar tudo de uma vez, responda a este email e combinamos.',
+    push: 'Último aviso: ' + valor + ' por acertar. A conta está em risco.',
+  }
+}
+
+async function correrLembretes(supabase, supabaseUrl, authHeader, resendKey, resendKeyOrigem, boraMbway, fcm, ensaio) {
   const { data: devedores, error } = await supabase.rpc('settlement_debtors', { p_max_weeks: null })
   if (error) {
     return new Response(JSON.stringify({ ok: false, error: 'debtors_failed', detail: error.message }),
@@ -222,60 +296,66 @@ async function correrLembretes(supabase, supabaseUrl, authHeader, resendKey, res
 
   let enviados = 0, semEmail = 0
   const linhasDanilo = []
+  const detalhe = []
 
   for (const d of devedores ?? []) {
+    const t = textoLembrete(d)
     const valor = eur(d.cents)
     const periodo = ddmm(d.week_start_at)
-    linhasDanilo.push('• ' + d.subject_name + ' ' + valor + ' — ' + d.dias + ' dias' +
+    const nivel = nivelDe(d.dias ?? 0)
+
+    linhasDanilo.push('• ' + d.subject_name + ' ' + valor + ' — ' + d.dias + ' dias, ' +
+      (nivel === 3 ? 'ULTIMO AVISO' : nivel === 2 ? '2.º aviso' : '1.º aviso') +
       (d.subject_phone ? ' (tel: ' + d.subject_phone + ')' : ''))
+    detalhe.push({ nome: d.subject_name, tipo: d.subject_type, cents: d.cents, dias: d.dias, nivel, assunto: t.assunto })
+
+    if (ensaio) continue
 
     const to = d.subject_email && String(d.subject_email).includes('@') ? String(d.subject_email) : null
     if (!to) { semEmail++ } else {
-      const res = await sendResend(resendKey, to,
-        'Ainda falta o acerto de ' + valor + ' · Bora', lembreteHtml(d, boraMbway))
+      const res = await sendResend(resendKey, to, t.assunto, lembreteHtml(d, t, boraMbway))
       if (res.ok) enviados++
     }
 
     try {
       await empurrarParaPessoa(supabase, fcm, d.subject_type, d.subject_id, {
         type: 'settlement_reminder',
-        title: 'Acerto por regularizar',
-        body: 'Faltam ' + valor + ' da semana de ' + periodo +
-              (boraMbway ? '. MB Way ' + boraMbway : '') + '.',
+        title: nivel === 3 ? 'Conta em risco' : 'Acerto por regularizar',
+        body: t.push + (boraMbway ? ' MB Way ' + boraMbway + '.' : ''),
         week_start: String(d.week_start_at).slice(0, 10),
+        nivel: String(nivel),
       })
     } catch (e) { console.error('[settlement-receipt] push do lembrete falhou:', e) }
   }
 
   let avisoDanilo = false
-  if ((devedores ?? []).length > 0) {
+  if (!ensaio && (devedores ?? []).length > 0) {
     avisoDanilo = await avisarDanilo(supabaseUrl, authHeader,
       'Acertos por receber (' + devedores.length + ')', linhasDanilo.join('\n'))
   }
 
   return new Response(JSON.stringify({
-    ok: true, modo: 'reminders', devedores: (devedores ?? []).length,
-    emails_enviados: enviados, sem_email: semEmail, aviso_danilo: avisoDanilo,
+    ok: true, modo: 'reminders', ensaio, devedores: (devedores ?? []).length,
+    emails_enviados: enviados, sem_email: semEmail, aviso_danilo: avisoDanilo, detalhe,
     resend_key_present: !!resendKey, resend_key_origem: resendKeyOrigem,
   }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 }
 
-function lembreteHtml(d, boraMbway) {
-  const valor = eur(d.cents)
+function lembreteHtml(d, t, boraMbway) {
   return META + '<div style="font-family:system-ui,Arial,sans-serif;max-width:560px;margin:auto">' +
     '<div style="background:' + GREEN + ';color:#fff;padding:18px 20px;border-radius:12px 12px 0 0">' +
     '<div style="font-size:20px;font-weight:800">Bora</div>' +
-    '<div style="opacity:.9">Acerto por regularizar</div></div>' +
+    '<div style="opacity:.9">' + escapeHtml(t.faixa) + '</div></div>' +
     '<div style="border:1px solid #eee;border-top:0;border-radius:0 0 12px 12px;padding:20px">' +
-    '<p style="margin:0 0 12px">Olá <b>' + escapeHtml(d.subject_name || '') + '</b>, o acerto da semana de ' +
-    ddmm(d.week_start_at) + ' continua por regularizar.</p>' +
-    '<div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;padding:14px">' +
-    '<div style="font-weight:700;color:#9A3412;font-size:18px">Falta pagar ' + valor + '</div>' +
+    '<p style="margin:0 0 12px">Olá <b>' + escapeHtml(d.subject_name || '') + '</b>, ' + escapeHtml(t.abertura) + '</p>' +
+    '<div style="background:' + t.cor.fundo + ';border:1px solid ' + t.cor.borda + ';border-radius:10px;padding:14px">' +
+    '<div style="font-weight:700;color:' + t.cor.texto + ';font-size:18px">' + escapeHtml(t.destaque) + '</div>' +
     (boraMbway
-      ? '<div style="margin-top:8px;color:#7C2D12">Pague por <b>MB Way</b> para <b>' + escapeHtml(boraMbway) + '</b>.</div>'
-      : '<div style="margin-top:8px;color:#7C2D12">Entraremos em contacto para combinar o acerto.</div>') +
-    '<div style="margin-top:6px;color:#7C2D12;font-size:13px">Referência: fecho ' + ddmm(d.week_start_at) + '</div>' +
+      ? '<div style="margin-top:8px;color:' + t.cor.escuro + '">Pague por <b>MB Way</b> para <b>' + escapeHtml(boraMbway) + '</b>.</div>'
+      : '<div style="margin-top:8px;color:' + t.cor.escuro + '">Entraremos em contacto para combinar o acerto.</div>') +
+    '<div style="margin-top:6px;color:' + t.cor.escuro + ';font-size:13px">Referência: fecho ' + ddmm(d.week_start_at) + '</div>' +
     '</div>' +
+    '<p style="margin-top:16px;color:#444;font-size:14px">' + escapeHtml(t.corpo) + '</p>' +
     '<p style="font-size:12px;color:#777;margin-top:16px">Assim que pagar, recebe o comprovativo por email. Se já pagou, ignore esta mensagem.</p>' +
     '<p style="font-size:11px;color:#999;margin-top:14px">Bora App · fecho semanal automático</p></div></div>'
 }

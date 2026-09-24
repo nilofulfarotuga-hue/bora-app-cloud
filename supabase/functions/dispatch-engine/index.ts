@@ -1,4 +1,12 @@
 // @ts-nocheck
+// dispatch-engine v59 (2026-08-16) — FIX identidade do estafeta (drivers.id vs drivers.user_id).
+//   PROBLEMA PROVADO: a app do estafeta consulta ofertas/pedidos por auth.uid()
+//   (= drivers.user_id), mas o engine gravava drivers.id em current_driver_offer_id.
+//   Para estafetas em que id <> user_id (ex: Valdemir) a oferta NUNCA aparecia no
+//   ecra e driver_accept_offer (que exige current_driver_offer_id = auth.uid())
+//   rejeitava sempre. So funcionava para as contas em que id == user_id.
+//   v59: current_driver_offer_id passa a levar drivers.user_id (fallback id);
+//   toda a exclusao/contagem passa a aceitar OS DOIS formatos (legado incluido).
 // dispatch-engine v58 — work_mode + dual-driver (AUTORIZADO Danilo 2026-07-02):
 //   • filtro work_mode: 'rides_only' fica fora do matching de entregas
 //     (padrão defensivo work_mode IS NULL OR <> 'rides_only'; default 'everything');
@@ -42,6 +50,18 @@ const DISTANCE_WEIGHT = 5.0
 const COST_WEIGHT = 1.0
 const COST_PER_KM = 1.0
 const AVG_SPEED_KMH = 30.0
+
+// v59: um estafeta pode ser referido por drivers.id OU drivers.user_id.
+function driverKeys(d: any): string[] {
+  const ks: string[] = []
+  if (d?.id) ks.push(String(d.id))
+  if (d?.user_id && String(d.user_id) !== String(d.id)) ks.push(String(d.user_id))
+  return ks
+}
+function offerKeyFor(d: any): string {
+  // A app do estafeta filtra por auth.uid() = drivers.user_id.
+  return String(d?.user_id ?? d?.id)
+}
 
 type DispatchSettings = {
   offerTimeoutS: number
@@ -93,7 +113,7 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, serviceKey)
   let orderId: string | null = null
   try { const b = await req.json(); orderId = b?.orderId ?? null } catch (_) {}
-  console.log(`[dispatch-engine] v58 INVOKED orderId=${orderId ?? 'ALL'}`)
+  console.log(`[dispatch-engine] v59 INVOKED orderId=${orderId ?? 'ALL'}`)
   const settings = await loadDispatchSettings(supabase)
   console.log(`[dispatch-engine] settings: offerTimeout=${settings.offerTimeoutS}s retryNoDriver=${settings.retryNoDriverS}s maxTotal=${settings.maxTotalS}s safety=${settings.safetyS}s`)
   let redispatchPromise: Promise<void> | null = null
@@ -216,11 +236,12 @@ async function dispatchOrder(supabase: any, order: any, settings: DispatchSettin
   }
   if (triedIds.length > 0) {
     const reqCar = order.requires_car === true || CAR_REQUIRED_SERVICES.includes(order.service_type)
-    let q = supabase.from('drivers').select('id').eq('is_online', true)
+    // v59: precisa de user_id para reconhecer quem já foi tentado em qualquer dos formatos
+    let q = supabase.from('drivers').select('id,user_id').eq('is_online', true)
       .or('work_mode.is.null,work_mode.neq.rides_only')
     if (reqCar) q = q.in('vehicle_type', ['car', 'carro_passageiros'])
     const { data: online } = await q
-    if (online?.length > 0 && online.every((d: any) => triedIds.includes(d.id))) {
+    if (online?.length > 0 && online.every((d: any) => driverKeys(d).some(k => triedIds.includes(k)))) {
       console.log(`[dispatch] All ${online.length} drivers tried — cycle reset`)
       triedIds.length = 0
     }
@@ -231,20 +252,22 @@ async function dispatchOrder(supabase: any, order: any, settings: DispatchSettin
     await supabase.from('orders').update({ current_driver_offer_id: null, driver_offer_expires_at: null }).eq('id', order.id)
     return false
   }
+  // tried_driver_ids guarda drivers.id (chave estável do matching)
   if (!triedIds.includes(driver.id)) triedIds.push(driver.id)
-  const assigned = await assignDriver(supabase, order.id, driver.id, triedIds, settings.offerTimeoutS)
+  const assigned = await assignDriver(supabase, order.id, driver, triedIds, settings.offerTimeoutS)
   if (!assigned) { console.log(`[dispatch] LOST RACE order=${order.id}`); return false }
   return true
 }
 
 async function findNextDriver(supabase: any, order: any, excludeIds: string[]) {
   // work_mode: 'rides_only' nunca recebe entregas (default 'everything' — zero regressão)
-  let q = supabase.from('drivers').select('id,user_id,lat,lng,vehicle_type').eq('is_online', true)
+  const q = supabase.from('drivers').select('id,user_id,lat,lng,vehicle_type').eq('is_online', true)
     .or('work_mode.is.null,work_mode.neq.rides_only')
-  if (excludeIds.length > 0) q = q.not('id', 'in', `(${excludeIds.join(',')})`)
-  const { data: drivers } = await q
-  console.log(`[dispatch] ${drivers?.length ?? 0} online drivers (excl ${excludeIds.length})`)
-  if (!drivers?.length) return null
+  const { data: driversRaw } = await q
+  // v59: exclusão em JS porque excludeIds pode conter drivers.id OU drivers.user_id (legado)
+  const drivers = (driversRaw ?? []).filter((d: any) => !driverKeys(d).some(k => excludeIds.includes(k)))
+  console.log(`[dispatch] ${drivers.length} online drivers (excl ${excludeIds.length})`)
+  if (!drivers.length) return null
   const reqCar = order.requires_car === true || CAR_REQUIRED_SERVICES.includes(order.service_type)
   // dual-driver: carro de passageiros conta como carro
   let elig = reqCar ? drivers.filter((d: any) => d.vehicle_type === 'car' || d.vehicle_type === 'carro_passageiros') : drivers
@@ -259,7 +282,8 @@ async function findNextDriver(supabase: any, order: any, excludeIds: string[]) {
   const { data: active } = await supabase.from('orders').select('assigned_driver_id').in('status', ['driverAccepted','pickedUp','onTheWay']).not('assigned_driver_id','is',null)
   const cnt: Record<string,number> = {}
   for (const r of active ?? []) { cnt[r.assigned_driver_id] = (cnt[r.assigned_driver_id] ?? 0) + 1 }
-  elig = elig.filter((d: any) => (cnt[d.id] ?? 0) < 3)
+  // v59: assigned_driver_id pode estar em qualquer dos formatos — somar os dois
+  elig = elig.filter((d: any) => driverKeys(d).reduce((s, k) => s + (cnt[k] ?? 0), 0) < 3)
   if (!elig.length) return null
   if (!order.pickup_lat || !order.pickup_lng) return elig[0]
   const withCoords = elig.filter((d: any) => d.lat && d.lng)
@@ -271,12 +295,15 @@ async function findNextDriver(supabase: any, order: any, excludeIds: string[]) {
   return best
 }
 
-async function assignDriver(supabase: any, orderId: string, driverId: string, triedIds: string[], offerTimeoutS: number): Promise<boolean> {
+async function assignDriver(supabase: any, orderId: string, driver: any, triedIds: string[], offerTimeoutS: number): Promise<boolean> {
   const now = new Date()
   const expiresAt = new Date(now.getTime() + offerTimeoutS * 1000)
-  console.log(`[dispatch] assigning order=${orderId} driver=${driverId} — notify-driver via DB trigger`)
+  // v59: a oferta vai com drivers.user_id — é o que a app do estafeta e
+  // driver_accept_offer (auth.uid()) esperam encontrar.
+  const offerId = offerKeyFor(driver)
+  console.log(`[dispatch] assigning order=${orderId} driver=${driver.id} offerKey=${offerId} — notify-driver via DB trigger`)
   const { data, error } = await supabase.from('orders').update({
-    current_driver_offer_id: driverId,
+    current_driver_offer_id: offerId,
     driver_offer_expires_at: expiresAt.toISOString(),
     tried_driver_ids: triedIds,
   }).eq('id', orderId).is('assigned_driver_id', null)
@@ -284,7 +311,7 @@ async function assignDriver(supabase: any, orderId: string, driverId: string, tr
     .select()
   if (error) { console.error('[dispatch] assignDriver error:', JSON.stringify(error)); throw error }
   if (!data?.length) { console.log(`[dispatch] LOST RACE order=${orderId}`); return false }
-  console.log(`[dispatch] SUCCESS order=${orderId} → driver=${driverId} (notify-driver via DB trigger)`)
+  console.log(`[dispatch] SUCCESS order=${orderId} → driver=${driver.id} (notify-driver via DB trigger)`)
   return true
 }
 

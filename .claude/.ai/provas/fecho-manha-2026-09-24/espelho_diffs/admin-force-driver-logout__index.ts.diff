@@ -1,0 +1,63 @@
+--- repo/admin-force-driver-logout/index.ts
++++ prod/admin-force-driver-logout/index.ts
+@@ -1,9 +1,6 @@
+ // supabase/functions/admin-force-driver-logout/index.ts
+ //
+ // FASE 3 · BUG 2 · M3 — Admin force-logout for drivers.
+-//
+-// Called by:
+-//   • Flutter admin → AdminDriverDetailScreen "Forçar logout" action.
+ //
+ // Behaviour:
+ //   1. Authenticates the caller via their JWT (anon client).
+@@ -19,11 +16,6 @@
+ //      `auth.uid()` from the JWT, but this function operates with the service
+ //      role (no JWT), so admin_id would arrive NULL. We supply admin_id /
+ //      admin_email explicitly from the caller JWT we validated in step 2.
+-//
+-// Environment:
+-//   - SUPABASE_URL
+-//   - SUPABASE_ANON_KEY                (for caller JWT verification)
+-//   - SUPABASE_SERVICE_ROLE_KEY        (for admin SDK calls)
+ //
+ // Pattern reference: supabase/functions/delete-account/index.ts
+ 
+@@ -84,8 +76,8 @@
+     return jsonResponse({ error: 'unauthorized' }, 401);
+   }
+ 
+-  // app_metadata.role is the canonical admin gate (migration 20260428215258_admin_gate_app_metadata).
+-  // Cannot be self-set by the user — only the service role / migrations can write to it.
++  // app_metadata.role is the canonical admin gate (migration 20260428215258).
++  // Cannot be self-set by the user — only the service role / migrations write it.
+   const callerRole = (caller.app_metadata as Record<string, unknown> | null)?.role;
+   if (callerRole !== 'admin') {
+     return jsonResponse({ error: 'admin_required' }, 403);
+@@ -112,8 +104,7 @@
+     return jsonResponse({ error: 'driver_not_found' }, 404);
+   }
+ 
+-  // user_id is the Supabase Auth UUID (added by migration 20260415060317).
+-  // Falls back to drivers.id for legacy rows where user_id is still NULL.
++  // user_id = Supabase Auth UUID. Falls back to drivers.id for legacy rows.
+   const driverUserId = (driver.user_id ?? driver.id) as string;
+ 
+   // ── 2. Revoke all auth sessions (global scope) ───────────────────────────
+@@ -129,7 +120,7 @@
+     console.error('[force-logout] signOut threw:', e);
+   }
+ 
+-  // ── 3. Update drivers row (FCM clear + audit columns + offline) ──────────
++  // ── 3. Update drivers row ────────────────────────────────────────────────
+   const { error: updErr } = await admin
+     .from('drivers')
+     .update({
+@@ -146,8 +137,6 @@
+   }
+ 
+   // ── 4. Audit log (direct INSERT — service role bypasses RLS) ─────────────
+-  // We pass admin_id/admin_email explicitly because log_admin_action() reads
+-  // auth.uid()/auth.jwt() which are NULL under the service role.
+   const { error: auditErr } = await admin
+     .from('admin_audit_log')
+     .insert({

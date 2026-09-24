@@ -1,13 +1,14 @@
-// supabase/functions/notify-service-provider/index.ts — v1 (M8)
+// supabase/functions/notify-service-provider/index.ts — v3 (2026-07-28)
 //
-// Push FCM para o DONO de um service_provider (barbearia/salão) — ex.: nova
-// marcação confirmada. O notify-partner é restaurant-centric (restaurants.fcm_token
-// + get_partner_fcm_tokens_for_restaurant) e não serve providers só-serviços.
-// Tokens: partner_push_tokens WHERE partner_id = service_providers.user_id
-// (multi-device, Promise.allSettled) + cleanup de tokens UNREGISTERED.
-//
-// Auth: verify_jwt=false + match exato do Bearer com SERVICE_ROLE_KEY
-// (padrão notify-admin-urgent) — chamada apenas por funções SQL via vault.
+// v3: DATA-ONLY (removido o bloco `notification`). Causa raiz do bug "parceiro de
+// Serviços não recebe notificação": com bloco `notification` presente, o Android
+// desenha a notificação nativa sozinho, o handler FCM em background do Flutter
+// (_firebaseMessagingBackgroundHandler) NÃO corre, e por isso nunca se criava a
+// notificação PERSISTENTE (ongoing:true + autoCancel:false) — igual ao delivery.
+// Também corrigido o channel_id morto `bora_orders_urgent_v2` (o app usa
+// `bora_orders_urgent_v3` / `bora_orders`); em data-only o canal é escolhido pelo app.
+// Padrão copiado de notify-partner v21 (delivery), que funciona.
+// v2: auth alinhada a notify-admin-urgent — verify_jwt=true + role service_role.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -27,8 +28,19 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+
   const authHeader = req.headers.get('Authorization') ?? ''
-  if (authHeader !== `Bearer ${serviceKey}`) {
+  if (!authHeader.startsWith('Bearer ')) {
+    return json({ ok: false, error: 'forbidden' }, 403)
+  }
+  try {
+    const token = authHeader.substring(7)
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    if (payload.role !== 'service_role') {
+      console.warn('[notify-service-provider] forbidden — role mismatch:', payload.role)
+      return json({ ok: false, error: 'forbidden' }, 403)
+    }
+  } catch (_e) {
     return json({ ok: false, error: 'forbidden' }, 403)
   }
 
@@ -46,7 +58,7 @@ Deno.serve(async (req) => {
   let body: any = {}
   try { body = await req.json() } catch (_) { return json({ ok: false, error: 'bad json' }, 400) }
   const providerId = body.providerId as string | undefined
-  const title = (body.title as string | undefined) ?? '🔔 Nova marcação'
+  const title = (body.title as string | undefined) ?? 'Nova marcacao'
   const msgBody = (body.body as string | undefined) ?? ''
   const kind = (body.kind as string | undefined) ?? 'appointment_new'
   const appointmentId = (body.appointmentId as string | undefined) ?? ''
@@ -82,28 +94,21 @@ Deno.serve(async (req) => {
 
   const fcmUrl = `https://fcm.googleapis.com/v1/projects/${firebaseProjectId}/messages:send`
   const results = await Promise.allSettled(tokens.map(async (t) => {
+    // DATA-ONLY: acorda o handler do Flutter, que desenha a notificacao persistente.
     const message = {
       message: {
         token: t.fcm_token,
-        notification: { title, body: msgBody },
         data: {
+          type: kind,
           providerId: String(providerId),
           appointmentId: String(appointmentId),
-          type: kind,
+          title: String(title),
+          body: String(msgBody),
         },
-        android: {
-          priority: 'high',
-          notification: {
-            channel_id: 'bora_orders_urgent_v2',
-            sound: 'bora_alert',
-            notification_priority: 'PRIORITY_MAX',
-            default_vibrate_timings: true,
-            visibility: 'PUBLIC',
-          },
-        },
+        android: { priority: 'high', ttl: '300s' },
         apns: {
-          headers: { 'apns-priority': '10' },
-          payload: { aps: { sound: 'bora_alert.wav', badge: 1 } },
+          headers: { 'apns-priority': '10', 'apns-push-type': 'background' },
+          payload: { aps: { 'content-available': 1, sound: 'bora_alert.wav', 'interruption-level': 'time-sensitive' } },
         },
       },
     }
@@ -115,6 +120,7 @@ Deno.serve(async (req) => {
     if (!res.ok) {
       const errBody = await res.json().catch(() => ({}))
       const errorCode = errBody?.error?.details?.[0]?.errorCode ?? ''
+      console.error('[notify-service-provider] fcm error:', JSON.stringify(errBody))
       if (errorCode === 'UNREGISTERED' || errorCode === 'INVALID_ARGUMENT') {
         await supabase.from('partner_push_tokens').update({ active: false }).eq('id', t.id)
         console.log(`[notify-service-provider] deactivated stale token ${t.id}`)
@@ -125,11 +131,9 @@ Deno.serve(async (req) => {
   }))
 
   const sent = results.filter((r) => r.status === 'fulfilled').length
-  console.log(`[notify-service-provider] provider=${providerId} sent=${sent}/${tokens.length}`)
+  console.log(`[notify-service-provider] v3 provider=${providerId} kind=${kind} sent=${sent}/${tokens.length}`)
   return json({ ok: true, sent, total: tokens.length })
 })
-
-// ── Firebase OAuth2 helpers (idênticos a notify-partner/notify-driver) ──────
 
 async function getFirebaseAccessToken(serviceAccount: any): Promise<string> {
   const now = Math.floor(Date.now() / 1000)

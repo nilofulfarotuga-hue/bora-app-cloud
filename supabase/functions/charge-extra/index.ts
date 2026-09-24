@@ -6,7 +6,7 @@ const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   httpClient: Stripe.createFetchHttpClient(),
 });
 
-// Authenticated users: verify_jwt = true in config.toml handles auth.
+// Authenticated users: verify_jwt = true handles auth.
 // Supabase rejects anonymous calls before this function runs.
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {

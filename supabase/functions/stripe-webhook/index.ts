@@ -1,16 +1,5 @@
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import {
-  CANCEL_FEE_BEFORE_DISPATCH_EUR,
-  CANCEL_FEE_AFTER_ACCEPT_EUR,
-  CANCEL_FEE_AFTER_PURCHASE_RATIO,
-} from '../_shared/business_rules.ts';
-
-// Suppress unused-import warnings — these constants are referenced in comments
-// and will be used by the refund logic when cancel flow is implemented.
-void CANCEL_FEE_BEFORE_DISPATCH_EUR;
-void CANCEL_FEE_AFTER_ACCEPT_EUR;
-void CANCEL_FEE_AFTER_PURCHASE_RATIO;
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   apiVersion: '2023-10-16',
@@ -81,11 +70,30 @@ async function tvdeHandleSucceeded(intent: Stripe.PaymentIntent, kind: string) {
     return;
   }
 
-  // `tvde_roundtrip` (pacote ida-e-volta) NAO leva ride_id na metadata: paga um
-  // VALE, e a ligacao a corrida de ida so acontece em `activate_roundtrip`
-  // (tvde-plan-payment), chamado pelo cliente. Sem ride_id nao ha nada a marcar
-  // aqui — fica o log explicito para nao parecer silencio.
+  // F3d (2026-08-16): pacote comprado via tvde-plan-payment (sem ride_id) —
+  // o webhook agora CRIA o vale (antes: "nada a marcar"). RPC idempotente
+  // por payment_intent_id; activate_roundtrip do cliente fica como acelerador.
   if (!rideId) {
+    if (kind === 'tvde_roundtrip') {
+      const buyerId = intent.metadata?.user_id ?? '';
+      if (!buyerId) {
+        console.error('[stripe-webhook] tvde_roundtrip sem user_id — vale nao criado:', intent.id);
+        return;
+      }
+      const { error: creditErr } = await supabase.rpc('tvde_create_roundtrip_credit', {
+        p_client_id: buyerId,
+        p_outbound_ride_id: null,
+        p_paid_cents: Number(intent.amount_received ?? intent.amount ?? 0),
+        p_payment_intent_id: intent.id,
+      });
+      if (creditErr) {
+        console.error('[stripe-webhook] roundtrip credit (sem ride) failed:',
+          creditErr.message, intent.id);
+      } else {
+        console.log('[stripe-webhook] roundtrip credit garantido (sem ride):', intent.id);
+      }
+      return;
+    }
     console.warn('[stripe-webhook] tvde PI succeeded sem metadata.ride_id — nada a marcar:',
       intent.id, 'kind:', kind);
     return;
@@ -118,6 +126,34 @@ async function tvdeHandleSucceeded(intent: Stripe.PaymentIntent, kind: string) {
     console.warn('[stripe-webhook] tvde late payment on terminal ride:', rideId,
       'status:', ride.status, 'paid:', paidCents, 'fee:', feeCents,
       'refunded:', refundCents, '->', newStatus);
+    return;
+  }
+
+  // F3d (2026-08-16): pacote COM corrida de ida (tvde-payment charge_roundtrip)
+  // — o webhook GARANTE o vale; confirm_roundtrip_payment fica como acelerador.
+  // A RPC é idempotente por PI e ela própria marca a ida como paga + liga o
+  // crédito (dispara o despacho via tr_tvde_dispatch_on_paid) — termina aqui.
+  // Corre DEPOIS do bloco terminal acima: corrida morta → refund, nunca vale.
+  if (kind === 'tvde_roundtrip') {
+    const buyerId = intent.metadata?.user_id ?? '';
+    if (!buyerId) {
+      console.error('[stripe-webhook] tvde_roundtrip sem user_id — vale nao criado:',
+        intent.id, rideId);
+      return;
+    }
+    const { error: creditErr } = await supabase.rpc('tvde_create_roundtrip_credit', {
+      p_client_id: buyerId,
+      p_outbound_ride_id: rideId,
+      p_paid_cents: Number(intent.amount_received ?? intent.amount ?? 0),
+      p_payment_intent_id: intent.id,
+    });
+    if (creditErr) {
+      console.error('[stripe-webhook] roundtrip credit failed:',
+        creditErr.message, intent.id, rideId);
+      return;
+    }
+    console.log('[stripe-webhook] roundtrip credit garantido + ida paga:',
+      intent.id, 'ride:', rideId);
     return;
   }
 
@@ -257,6 +293,85 @@ Deno.serve(async (req: Request) => {
         } else {
           console.error('[stripe-webhook] reservation_prepayment missing reservation_id:',
             intent.id);
+        }
+        break;
+      }
+
+      // ⭐ F3a (2026-08-16) — MARCAÇÕES (appointments). O webhook passa a ser a
+      // GARANTIA do pagamento; o poll do cliente (confirm-mbway-appointment-payment
+      // → RPC client_confirm_appointment_payment) fica como ACELERADOR.
+      // Router: kind='appointment' (PIs novos) OU purpose='appointment_deposit'
+      // (PIs em voo criados antes desta versão). RPC idempotente + valida PI.
+      if (intent.metadata?.kind === 'appointment' ||
+          intent.metadata?.purpose === 'appointment_deposit') {
+        const appointmentId = intent.metadata?.appointment_id;
+        if (appointmentId) {
+          const { data, error } = await supabase.rpc(
+            'confirm_appointment_payment_webhook',
+            { p_appointment_id: appointmentId, p_payment_intent_id: intent.id },
+          );
+          if (error) {
+            console.error('[stripe-webhook] appointment confirm failed:',
+              error.message, intent.id);
+          } else {
+            console.log('[stripe-webhook] appointment confirmed:', data, intent.id);
+          }
+        } else {
+          console.error('[stripe-webhook] appointment PI missing appointment_id:',
+            intent.id);
+        }
+        break;
+      }
+
+      // ⭐ F3b (2026-08-16) — LIMPEZA (cleaning). O webhook GARANTE o 'held';
+      // o mark_held do cliente (cleaning-checkout) fica como acelerador.
+      // RPC idempotente + valida o valor contra total_cents.
+      if (intent.metadata?.kind === 'cleaning') {
+        const bookingId = intent.metadata?.booking_id;
+        if (bookingId) {
+          const { data, error } = await supabase.rpc(
+            'confirm_cleaning_payment_webhook',
+            {
+              p_booking_id: bookingId,
+              p_payment_intent_id: intent.id,
+              p_amount_cents: Number(intent.amount_received ?? intent.amount ?? 0),
+            },
+          );
+          if (error) {
+            console.error('[stripe-webhook] cleaning held failed:', error.message, intent.id);
+          } else {
+            console.log('[stripe-webhook] cleaning held:', data, intent.id);
+          }
+        } else {
+          console.error('[stripe-webhook] cleaning PI missing booking_id:', intent.id);
+        }
+        break;
+      }
+
+      // ⭐ F3c (2026-08-16) — PLANO TVDE (kind='tvde_plan'). O webhook GARANTE a
+      // ativação da subscrição; o poll 'activate' do cliente (tvde-plan-payment)
+      // fica como acelerador. RPC idempotente por payment_intent_id e valida
+      // pago >= preço do plano. Tem de vir ANTES do ramo genérico tvde_*
+      // (senão cai no aviso "sem ride_id, nada a marcar").
+      if (intent.metadata?.kind === 'tvde_plan') {
+        const planUserId = intent.metadata?.user_id;
+        const plan = intent.metadata?.plan;
+        if (planUserId && plan) {
+          const { data, error } = await supabase.rpc('tvde_activate_paid_subscription', {
+            p_client_id: planUserId,
+            p_plan: plan,
+            p_payment_intent_id: intent.id,
+            p_paid_cents: Number(intent.amount_received ?? intent.amount ?? 0),
+          });
+          if (error) {
+            console.error('[stripe-webhook] tvde plan activation failed:',
+              error.message, intent.id);
+          } else {
+            console.log('[stripe-webhook] tvde plan activated:',
+              (data as { id?: string })?.id ?? data, intent.id);
+          }
+        } else {
+          console.error('[stripe-webhook] tvde_plan PI missing user_id/plan:', intent.id);
         }
         break;
       }
@@ -431,6 +546,26 @@ Deno.serve(async (req: Request) => {
         break;
       }
 
+      // ⭐ F3a (2026-08-16) — MARCAÇÕES: pagamento falhou/cancelado. A marcação
+      // fica pending_payment DE PROPÓSITO — o cliente pode tentar outro método
+      // (MB Way falhado é retentável por cartão e vice-versa). Só log.
+      if (intent.metadata?.kind === 'appointment' ||
+          intent.metadata?.purpose === 'appointment_deposit') {
+        console.warn('[stripe-webhook] appointment PI', event.type,
+          '— marcação fica pending_payment (retry possível):',
+          intent.metadata?.appointment_id ?? '?', intent.id);
+        break;
+      }
+
+      // ⭐ F3b (2026-08-16) — LIMPEZA: PI falhou/cancelado. Booking fica
+      // 'unpaid' DE PROPÓSITO (o cliente pode tentar outro método). Só log.
+      if (intent.metadata?.kind === 'cleaning') {
+        console.warn('[stripe-webhook] cleaning PI', event.type,
+          '— booking fica unpaid (retry possível):',
+          intent.metadata?.booking_id ?? '?', intent.id);
+        break;
+      }
+
       // ⭐ NOVO v24 (2026-05-15 BUG 1+2 reservas) — reservation orphan cleanup
       // Apaga reserva pending_payment quando o utilizador cancela o
       // PaymentSheet ou a cobrança falha. Idempotente (DELETE).
@@ -493,10 +628,6 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── Charge refunded (partial or full) ────────────────────────────────────
-    // Triggered by cancel flows:
-    //   - before dispatch   → 1.50 EUR retained  (CANCEL_FEE_BEFORE_DISPATCH_EUR)
-    //   - after acceptance  → 50% retained        (CANCEL_FEE_AFTER_ACCEPT_RATIO)
-    //   - after purchase    → 100% retained       (CANCEL_FEE_AFTER_PURCHASE_RATIO)
     case 'charge.refunded': {
       const charge = event.data.object as Stripe.Charge;
       console.log('[stripe-webhook] charge refunded:', charge.id, `amount_refunded=${charge.amount_refunded}`);

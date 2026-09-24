@@ -38,6 +38,33 @@ Deno.serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
+    // v28 (2026-09-21) — INTERRUPTOR MB WAY (platform_settings.mbway_enabled).
+    // Ordem do Danilo: MB Way temporariamente indisponível (limite atingido).
+    // Enquanto a chave estiver false o servidor recusa criar o pagamento, mesmo
+    // que a app instalada ainda mostre o botão. Religar = pôr a chave a true.
+    const { data: mbwayFlag } = await supabase
+      .from('platform_settings')
+      .select('value')
+      .eq('key', 'mbway_enabled')
+      .maybeSingle();
+
+    if (mbwayFlag && mbwayFlag.value === false) {
+      const { data: msgRow } = await supabase
+        .from('platform_settings')
+        .select('value')
+        .eq('key', 'mbway_disabled_message')
+        .maybeSingle();
+      const msg = (typeof msgRow?.value === 'string' && msgRow.value.length > 0)
+        ? msgRow.value
+        : 'MB Way temporariamente indisponível. Paga em dinheiro ou com cartão.';
+      console.log('[create-mbway-payment-intent] bloqueado: mbway_enabled=false',
+        `order=${order_id}`);
+      return new Response(
+        JSON.stringify({ error: 'mbway_disabled', message: msg }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
     const { data: order, error: dbErr } = await supabase
       .from('orders')
       .select('payment_buffer_total, payment_method, payment_status')

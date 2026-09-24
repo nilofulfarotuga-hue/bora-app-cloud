@@ -32,6 +32,9 @@ import '../../../widgets/bora_support_sheet.dart';
 import '../../driver_home_screen.dart';
 import '../../ganhos_screen.dart';
 import '../../../widgets/trocar_de_papel.dart';
+import '../../../services/ficha_legal_service.dart';
+import 'fiscalizacao_screen.dart';
+import 'ficha_legal_form_screen.dart';
 import 'tvde_driver_agenda_screen.dart';
 import 'tvde_offer_screen.dart';
 import 'tvde_ride_active_screen.dart';
@@ -380,6 +383,17 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     if (value && !await BackgroundLocationDisclosure.ensureAccepted(context)) {
       return; // Recusou — não fica Online.
     }
+    // [Ficha legal · 23/09] Documento expirado = não fica online (Lei
+    // 45/2018 rev. 59/2026). O travão verdadeiro é o gatilho no servidor;
+    // perguntar antes evita o "verdinho" local com o servidor a recusar.
+    if (value) {
+      final expirados = await FichaLegalService.documentosExpirados();
+      if (!mounted) return;
+      if (expirados.isNotEmpty) {
+        await _avisarDocumentoExpirado(expirados);
+        return;
+      }
+    }
     if (!mounted) return;
     final ok = driverStore.toggleAvailability(id, value);
     if (!ok) {
@@ -588,6 +602,34 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     }
   }
 
+  Future<void> _avisarDocumentoExpirado(List<String> expirados) async {
+    final atualizar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Documento expirado'),
+        content: Text(
+            'Não podes ficar online com ${expirados.length == 1 ? 'este documento expirado' : 'estes documentos expirados'}: ${expirados.join(', ')}.\n\nAtualiza a validade na tua ficha legal.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Agora não')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Atualizar ficha')),
+        ],
+      ),
+    );
+    if (atualizar == true && mounted) {
+      await Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const FichaLegalFormScreen()));
+    }
+  }
+
+  void _abrirFiscalizacao() {
+    Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const FiscalizacaoScreen()));
+  }
+
   void _logout() {
     _heartbeat.stop();
     _gps?.cancel();
@@ -711,6 +753,11 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
             }),
           ),
           IconButton(
+            tooltip: 'Mostrar à autoridade',
+            onPressed: _abrirFiscalizacao,
+            icon: const Icon(Icons.local_police_outlined),
+          ),
+          IconButton(
             tooltip: 'Ganhos',
             onPressed: _openEarnings,
             icon: const Icon(Icons.bar_chart),
@@ -779,6 +826,20 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
           // `TvdeOfferOverlayHost` (main.dart), com o mesmo cartão.
           // [Item G] Botão centralizar (paridade com o estafeta) — recentra na
           // posição do motorista e volta ao zoom de navegação.
+          // [Ficha legal · 23/09] Sempre à vista no mapa (é aqui que o
+          // motorista está quando o mandam parar), não escondido num menu.
+          Positioned(
+            left: 16,
+            top: MediaQuery.of(context).size.height * 0.55,
+            child: FloatingActionButton.extended(
+              heroTag: 'tvde_fiscalizacao',
+              backgroundColor: Colors.white,
+              foregroundColor: AppColors.textPrimary,
+              onPressed: _abrirFiscalizacao,
+              icon: const Icon(Icons.local_police_outlined),
+              label: const Text('Mostrar à autoridade'),
+            ),
+          ),
           if (mePos != null)
             Positioned(
               right: 16,
@@ -1051,6 +1112,15 @@ class _GateScreen extends StatelessWidget {
                 style: TextStyle(color: AppColors.textSecondary),
               ),
               const SizedBox(height: Spacing.xl),
+              // [Ficha legal · 23/09] Adiantar a ficha enquanto espera: é o
+              // que vai mostrar à autoridade no primeiro dia de trabalho.
+              if (!rejected)
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const FichaLegalFormScreen())),
+                  icon: const Icon(Icons.badge_outlined),
+                  label: const Text('Preencher a ficha legal (IMT, seguro, inspeção)'),
+                ),
               TextButton(onPressed: onLogout, child: const Text('Sair')),
             ],
           ),

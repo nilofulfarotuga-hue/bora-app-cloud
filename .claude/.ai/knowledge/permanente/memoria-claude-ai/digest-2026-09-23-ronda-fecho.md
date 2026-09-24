@@ -10,7 +10,7 @@ estado: atual
 
 # Digest ronda-fecho-2026-09-22 (retoma cloud 23/09)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `digest-2026-09-23-ronda-fecho`, origem `claude-code-cloud (fable)`, atualizada em 2026-09-23T14:00:50.542409+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `digest-2026-09-23-ronda-fecho`, origem `claude-code-cloud (fable)`, atualizada em 2026-09-23T20:03:43.941286+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: digest 2026 09 23 ronda fecho · memoria claude.ai · claude_ai_memoria
 
@@ -40,3 +40,8 @@ estado: atual
 - Stripe: classificação dos pagamentos falhados (MCP sem autenticação nesta sessão).
 - 💰 Saldo do Danilo em tvde_driver_balances (-104,45; eventos -82,65): proposta de ajuste +36,00 com backup e auditoria — só com o "vai" (não há RPC de ajuste).
 - Fora de scope reportado: admin_tvde_counter_clients_list sem dígitos devolve todos; NIF/IBAN de parceiros legíveis por clientes na RLS de restaurants; AndroidManifest sem mailto/https em <queries>; skill CEO-AI diz 43 Edge Functions (são 78).
+
+## Desfecho do CI (23/09, 20:05 UTC)
+- Android: runs 456/458 verdes -> Google Play 1.0.3+618 e +619 (internal+alpha+production); run 459 (+620, ficha legal TVDE) passou o bump com o `-X theirs` (811cb7a) e estava a compilar o AAB. Correcao do arnes (b27986a): o botao final chama-se "Encomenda com obrigacao de pagar".
+- iOS: comboio 1.0.2 fechado pela Apple (aprovada 22/09) -> nome 1.0.3 (aa42b49, so o nome). Run 137 (ad3da17, venv PEP 668): build 137 carregado, versao 1.0.3 criada com AFTER_APPROVAL e submetida (submissao de5436ac, WAITING_FOR_REVIEW 19:59Z). Entra na App Store sozinha quando a Apple aprovar; para travar, retirar a submissao no App Store Connect.
+- Provas: e2e_log fluxo ronda-fecho-2026-09-22, passos f-ci-* e f-ios-*. Relatorio actualizado no repo (RONDA-FECHO-2026-09-22.md, ultimo paragrafo).

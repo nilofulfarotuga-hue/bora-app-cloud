@@ -4,15 +4,13 @@
 // PADRAO UNICO (= delivery): cobra NA HORA e faz refund estilo
 // `client-cancel-order` (capado ao pago, menos a taxa). SEM authorize/capture.
 //
-// v11 (2026-09-23) — IDA-E-VOLTA COM RESERVA (PROPOSTA — so se publica com o
-//   "vai" do Danilo, junto com PROPOSTA_20260923_tvde_ida_e_volta_com_reserva.sql):
-//   charge_roundtrip_reservation -> tvde_schedule_roundtrip (ida marcada + volta
-//     marcada ou "chamo quando terminar") e cobra o PACOTE inteiro, preco do
-//     servidor (tvde_roundtrip_price_for_km). Sem taxa de reserva.
-//   confirm_roundtrip_reservation_payment -> PI succeeded? chama
-//     tvde_roundtrip_reservation_mark_paid (as duas pernas a procurar motorista).
-//   auto_refund_reservation -> perna com vale devolve o PACOTE (paid_cents do
-//     vale), nao a tarifa de uma perna.
+// v11 (2026-09-23) — IDA-E-VOLTA COM RESERVA + autorizacao do servidor:
+//   charge_roundtrip_reservation / confirm_roundtrip_reservation_payment /
+//   auto_refund_roundtrip_reservation (novas). Nas duas accoes de reembolso
+//   chamadas pela base a autorizacao passa a aceitar tambem o JWT service_role
+//   do cofre (vault.service_role_key), validado pela porta (verify_jwt=true):
+//   a comparacao letra a letra com SUPABASE_SERVICE_ROLE_KEY recusava-o sempre
+//   (403). Na auto_refund_reservation so mudou essa linha.
 //
 // v10 (2026-08-19) — RESERVA AGENDADA em CARTAO e MB WAY:
 //   charge_reservation -> cria a reserva (tvde_schedule_ride) e cobra o preco
@@ -117,6 +115,30 @@ async function callerIsAdmin(
   return data === true;
 }
 
+// v11 — Autorizacao das chamadas do SERVIDOR (base -> Edge).
+// A funcao corre com verify_jwt=true: a porta da Supabase so deixa passar
+// pedidos com um JWT de assinatura valida — um JWT forjado nunca chega aqui.
+// Aqui confirma-se o PAPEL desse JWT ja verificado: tem de ser 'service_role'
+// (a chave anon tem 'anon'; um cliente com sessao tem 'authenticated').
+// NUNCA se aceita por cabecalho proprio, por campo do corpo, ou so por o
+// token existir. So vale enquanto verify_jwt=true — se alguem o desligar,
+// esta funcao deixa de ser segura (ver aviso no deploy).
+function jwtServiceRoleVerificadoPelaPorta(token: string): boolean {
+  try {
+    const partes = token.split('.');
+    if (partes.length !== 3) return false;
+    const b64 = partes[1].replace(/-/g, '+').replace(/_/g, '/');
+    const payload = JSON.parse(atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4)));
+    if (payload?.role !== 'service_role') return false;
+    if (payload?.iss !== undefined && payload.iss !== 'supabase') return false;
+    const agora = Math.floor(Date.now() / 1000);
+    if (typeof payload?.exp === 'number' && payload.exp <= agora) return false;
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
@@ -131,14 +153,14 @@ Deno.serve(async (req) => {
     // Fica ANTES do kill switch de proposito: devolver dinheiro tem de funcionar
     // mesmo com os pagamentos online desligados.
     if (action === 'auto_refund_reservation') {
-      if (!SERVICE_KEY || token !== SERVICE_KEY) {
+      if (!(SERVICE_KEY && token === SERVICE_KEY) && !jwtServiceRoleVerificadoPelaPorta(token)) {
         return json({ error: 'not_service_role' }, 403);
       }
       const rideId = String(body.ride_id ?? '');
       if (!rideId) return json({ error: 'missing_ride_id' }, 400);
       const { data: ride } = await admin
         .from('tvde_rides')
-        .select('id, payment_intent_id, payment_status, est_fare_cents, final_fare_cents, cancel_fee_cents, scheduled_at, roundtrip_credit_id, is_return_leg')
+        .select('id, payment_intent_id, payment_status, est_fare_cents, final_fare_cents, cancel_fee_cents, scheduled_at')
         .eq('id', rideId)
         .maybeSingle();
       if (!ride) return json({ error: 'ride_not_found' }, 404);
@@ -149,18 +171,7 @@ Deno.serve(async (req) => {
         return json({ ok: true, already: true });
       }
       const feeCents = Math.max(0, Number(ride.cancel_fee_cents ?? 0));
-      let paidCents = Number(ride.final_fare_cents ?? ride.est_fare_cents ?? 0);
-      // v11: ida de um pacote MARCADO — o PaymentIntent pagou o pacote inteiro.
-      if (ride.roundtrip_credit_id && !ride.is_return_leg) {
-        const { data: credit } = await admin
-          .from('tvde_roundtrip_credits')
-          .select('paid_cents, payment_intent_id')
-          .eq('id', ride.roundtrip_credit_id)
-          .maybeSingle();
-        if (credit && credit.payment_intent_id === ride.payment_intent_id) {
-          paidCents = Number(credit.paid_cents ?? paidCents);
-        }
-      }
+      const paidCents = Number(ride.final_fare_cents ?? ride.est_fare_cents ?? 0);
       const refundCents = Math.max(0, Math.min(paidCents - feeCents, paidCents));
       if (refundCents >= 1) {
         await stripe.refunds.create(
@@ -176,6 +187,70 @@ Deno.serve(async (req) => {
       console.log('[tvde-payment auto_refund_reservation]', ride.id,
         'paid:', paidCents, 'fee:', feeCents, 'refunded:', refundCents,
         'motivo:', String(body.motivo ?? ''), '->', newStatus);
+      return json({ ok: true, refundCents, feeCents, paymentStatus: newStatus });
+    }
+
+    // -- v11: AUTO_REFUND_ROUNDTRIP_RESERVATION — chamada do SERVIDOR ----------
+    // Ida de um pacote ida-e-volta MARCADO cancelada / sem motorista: o
+    // PaymentIntent pagou o PACOTE inteiro (tvde_roundtrip_credits.paid_cents),
+    // nao a tarifa de uma perna. Accao PROPRIA para a auto_refund_reservation de
+    // sempre ficar intacta. Chamada por tvde_reservation_auto_refund so quando a
+    // corrida tem vale com return_mode (pacote marcado). Antes do kill switch,
+    // como a de sempre: devolver dinheiro funciona com os pagamentos desligados.
+    if (action === 'auto_refund_roundtrip_reservation') {
+      // 23/09: a base chama com a chave do cofre (JWT service_role valido),
+      // que NAO e igual, letra a letra, a SUPABASE_SERVICE_ROLE_KEY do ambiente
+      // da Edge — a comparacao de texto recusava sempre (403 not_service_role).
+      // Com verify_jwt=true a porta ja validou a assinatura; aqui basta ler o
+      // papel do JWT.
+      if (!(SERVICE_KEY && token === SERVICE_KEY) && !jwtServiceRoleVerificadoPelaPorta(token)) {
+        return json({ error: 'not_service_role' }, 403);
+      }
+      const rideId = String(body.ride_id ?? '');
+      if (!rideId) return json({ error: 'missing_ride_id' }, 400);
+      const { data: ride } = await admin
+        .from('tvde_rides')
+        .select('id, payment_intent_id, payment_status, cancel_fee_cents, roundtrip_credit_id, is_return_leg')
+        .eq('id', rideId)
+        .maybeSingle();
+      if (!ride) return json({ error: 'ride_not_found' }, 404);
+      if (!ride.payment_intent_id) return json({ ok: true, noop: true });
+      if (ride.payment_status === 'refunded' ||
+          ride.payment_status === 'partial_refund' ||
+          ride.payment_status === 'kept_cancel_fee') {
+        return json({ ok: true, already: true });
+      }
+      if (!ride.roundtrip_credit_id || ride.is_return_leg) {
+        return json({ error: 'not_roundtrip_outbound' }, 400);
+      }
+      const { data: credit } = await admin
+        .from('tvde_roundtrip_credits')
+        .select('paid_cents, payment_intent_id')
+        .eq('id', ride.roundtrip_credit_id)
+        .maybeSingle();
+      if (!credit || credit.payment_intent_id !== ride.payment_intent_id) {
+        return json({ error: 'credit_pi_mismatch' }, 409);
+      }
+      // O que a Stripe cobrou mesmo manda; o vale e so o esperado.
+      const pi = await stripe.paymentIntents.retrieve(ride.payment_intent_id);
+      const received = Number(pi.amount_received ?? 0);
+      const paidCents = Math.min(Number(credit.paid_cents ?? 0), received);
+      const feeCents = Math.max(0, Number(ride.cancel_fee_cents ?? 0));
+      const refundCents = Math.max(0, Math.min(paidCents - feeCents, paidCents));
+      if (refundCents >= 1) {
+        await stripe.refunds.create(
+          { payment_intent: ride.payment_intent_id, amount: refundCents },
+          { idempotencyKey: `rt-resv-refund-${ride.payment_intent_id}-${refundCents}` },
+        );
+      }
+      const newStatus = refundCents <= 0
+        ? 'kept_cancel_fee'
+        : (feeCents > 0 ? 'partial_refund' : 'refunded');
+      await admin.from('tvde_rides')
+        .update({ payment_status: newStatus }).eq('id', ride.id);
+      console.log('[tvde-payment auto_refund_roundtrip_reservation]', ride.id,
+        'pacote:', credit.paid_cents, 'recebido:', received, 'fee:', feeCents,
+        'refunded:', refundCents, 'motivo:', String(body.motivo ?? ''), '->', newStatus);
       return json({ ok: true, refundCents, feeCents, paymentStatus: newStatus });
     }
 

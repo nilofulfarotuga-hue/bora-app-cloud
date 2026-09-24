@@ -94,3 +94,62 @@ a 10 min → `return_too_soon`. · T9 `mark_paid` só service_role.
   vale). Cancelar/Trocar motorista por perna = os botões de cada cartão.
 - Settings editáveis: `tvde_heartbeat_window_seconds`, `tvde_roundtrip_reservation_enabled`,
   `tvde_roundtrip_return_min_gap_minutes` (as de preço/ganho continuam blindadas).
+
+## Adenda 23/09 (tarde) — "vai" do Danilo: aplicado, provado, REVERTIDO
+
+1. Fotografia antes: preço do pacote 800/800/1440/3040 cêntimos (2/4,8/10/20 km),
+   €3,75 ida e volta, md5 de 13 funções de dinheiro guardados.
+2. tvde-payment publicada como v11: face à v10 **0 linhas removidas ou alteradas**
+   (a `auto_refund_reservation` ficou byte-a-byte igual; o reembolso do pacote passou
+   para uma acção NOVA, `auto_refund_roundtrip_reservation`).
+3. Migração aplicada. Prova em transação revertida — tudo verde:
+   dinheiro (ida e volta `a_procurar`, €8,00, ganho 375 cada; a 10 km €14,40 e 695 cada
+   = 375+4×80), cartão (`aguarda_pagamento` → pago → as duas `a_procurar`), MB Way só
+   pelo webhook (o trigger activa as duas), ida cancelada → vale `anulado`, volta
+   cancelada, pedido de reembolso com a acção nova; sem motorista → idem; reserva
+   normal continua na acção de sempre; md5 das 11 funções de dinheiro iguais aos de antes.
+4. **Prova no ar falhou:** chamar o reembolso com a chave do cofre da base
+   (`vault.service_role_key`, JWT service_role válido) dá `403 not_service_role` — nas
+   DUAS acções, a nova e a ANTIGA. A Edge compara a chave letra a letra com a
+   `SUPABASE_SERVICE_ROLE_KEY` do seu ambiente, e não é a mesma. Nunca houve um pedido
+   de reembolso automático de reserva até hoje (0 eventos `reserva_reembolso_pedido`),
+   por isso ninguém foi afectado — mas o reembolso automático das reservas pagas
+   **nunca funcionaria**.
+5. Revertido (migração `20260923181500_reverter_...`): funções e triggers novos fora,
+   `tvde_reservation_auto_refund` e `tvde_expire_roundtrip_credits` com o md5 de antes,
+   botão desligado; tvde-payment reposta com o conteúdo exacto da v10 (md5 igual).
+   Ficam, vazias e inofensivas: 4 colunas novas no vale, 2 estados novos no CHECK,
+   a setting `tvde_roundtrip_return_min_gap_minutes`.
+
+**Para voltar a ligar:** corrigir a verificação da chave. Proposta pronta em
+`.claude/.ai/reports/propostas/tvde-payment-v11-PROPOSTA.ts`: com `verify_jwt=true` a
+porta já validou a assinatura, por isso a acção aceita um JWT cujo papel seja
+`service_role`. A mesma correcção deve ir para a `auto_refund_reservation` antiga
+(hoje partida para TODAS as reservas pagas online) — isso muda uma acção antiga, por
+isso precisa de "vai" próprio. Depois: reaplicar `20260923180000` e repetir a prova no
+ar com uma corrida inexistente (tem de dar `ride_not_found`, não `403`).
+
+## Adenda 2 — autorização corrigida e ida-e-volta REAPLICADO (23/09, fim da tarde)
+
+- **tvde-payment v13** no ar (verify_jwt=true, igual ao repo byte a byte). Face à v10
+  só mudou UMA linha antiga — a autorização da `auto_refund_reservation`; o resto é
+  acrescento (função `jwtServiceRoleVerificadoPelaPorta` + 3 acções novas). Aceita a
+  chave do ambiente OU um JWT já validado pela porta cujo papel é `service_role`.
+- Provas no ar: sem cabeçalho → 401 (porta); JWT forjado com role service_role → 401
+  (porta, "Invalid JWT"); chave anon → 403 nas duas acções; cliente autenticado real
+  (Cliente E2E, role `authenticated`) → 403 nas duas; chave do cofre → 404
+  `ride_not_found` nas duas (já não 403); corrida já reembolsada chamada 2× → `already`
+  nas 2 chamadas das duas acções, sem Stripe. Linhas com link/sessão de teste apagadas
+  de `net._http_response`.
+- Migração reaplicada (`20260923190000_..._reaplicada`, igual à 180000). Provas repetidas
+  em transação revertida — todas verdes: dinheiro €8,00 com 375/375 (10 km: €14,40 com
+  695/695), cartão e MB Way (pelo webhook) activam as duas pernas, ida cancelada e ida
+  sem motorista → vale anulado + volta cancelada + reembolso pedido à acção nova com a
+  chave do cofre; reserva normal segue a acção antiga; md5 das 11 funções de dinheiro e
+  preços iguais aos de antes. Zero lixo.
+- `tvde_roundtrip_reservation_enabled = true`: o botão aparece na app ≥ build 618 e no web.
+- **Achado:** reservas normais pagas online e canceladas sem reembolso até hoje = **0
+  (€0)**. A única reserva online cancelada (12d63341, MB Way, 21/09) nunca foi paga
+  (`requires_payment_method`).
+- Não provado com dinheiro real: o reembolso Stripe em si e a cobrança do pacote (exigem
+  um pagamento a sério). Primeiro caso real deve ser acompanhado no painel.

@@ -17,6 +17,7 @@ import '../../../config/app_spacing.dart';
 import '../../../models/tvde_fare_view.dart';
 import '../../../models/tvde_ride.dart';
 import '../../../widgets/tvde/recibo_pago.dart';
+import '../../../widgets/tvde/recibo_viagem_sheet.dart';
 import '../../../services/directions_service.dart';
 import '../../../services/payment_service.dart';
 import '../../../services/tvde_arriving_notice.dart';
@@ -1965,6 +1966,17 @@ class _StatusPanel extends StatelessWidget {
           // [22/09] Recibo. Cobrar sem folha E sem recibo foi o que fez o
           // Danilo julgar que a corrida dele tinha sido de graça.
           ReciboPago(ride: ride),
+          // [Ficha legal · 23/09] Recibo por viagem com a taxa de
+          // intermediação discriminada (Lei 59/2026) — também vai por email.
+          if (ride.isFinished)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => abrirReciboViagem(context, ride.id),
+                icon: const Icon(Icons.receipt_long_outlined, size: 18),
+                label: Text('Recibo'.tr),
+              ),
+            ),
           // [1C · 05/09] O cartão vive também EM VIAGEM: antes só aparecia com
           // `isAssigned`, e a linha do ETA ao destino aqui dentro nunca chegava
           // a ser desenhada. Quem já embarcou continua a precisar do contacto.

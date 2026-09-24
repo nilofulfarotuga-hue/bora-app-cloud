@@ -1,11 +1,13 @@
+-- 2026-09-23 · REAPLICADA (igual a 20260923180000) depois de corrigida a autorização
+-- das acções de reembolso da tvde-payment (v13). Ver relatório tvde-oferta-na-hora.
 -- ════════════════════════════════════════════════════════════════════════════
--- PROPOSTA — NÃO APLICADA. Ida-e-volta com reserva (TVDE) · 2026-09-23
+-- Ida-e-volta com reserva (TVDE) · 2026-09-23 · APLICADA com o "vai" do Danilo
 -- ════════════════════════════════════════════════════════════════════════════
--- ⚠️ ISTO MEXE EM PAGAMENTO/DINHEIRO (pacote pago por cartão/MB Way na marcação,
--- reembolso do pacote, ganho do motorista em cada perna). Fica no repo como
--- proposta; aplica-se só depois do "vai" do Danilo, JUNTO com o deploy da
--- tvde-payment v-roundtrip-reserva (actions charge_roundtrip_reservation /
--- confirm_roundtrip_reservation_payment + reembolso do pacote inteiro).
+-- ⚠️ Mexe em pagamento (pacote pago por cartão/MB Way na marcação, reembolso do
+-- pacote, ganho do motorista em cada perna). Aplicada a 23/09 depois do "vai" do
+-- Danilo, junto com a tvde-payment v11 (charge_roundtrip_reservation,
+-- confirm_roundtrip_reservation_payment, auto_refund_roundtrip_reservation).
+-- Nenhum valor muda: preço do pacote e €3,75 por perna lidos das chaves de hoje.
 --
 -- Provado em transação REVERTIDA a 2026-09-23 (ver relatório da missão).
 --
@@ -39,7 +41,6 @@
 --      é o que faz aparecer o "Marcar para depois" no ida-e-volta da app.
 -- ════════════════════════════════════════════════════════════════════════════
 
-BEGIN;
 
 -- 1. Colunas + estados novos do vale ------------------------------------------
 ALTER TABLE public.tvde_roundtrip_credits
@@ -370,6 +371,48 @@ BEGIN
 END;
 $function$;
 
+-- 8. Reembolso automático da IDA de um pacote marcado --------------------------
+-- Igual à de sempre, mais UMA escolha: se a corrida é a ida de um pacote
+-- MARCADO (vale com return_mode), a Edge Fn recebe a acção nova
+-- auto_refund_roundtrip_reservation, que devolve o PACOTE inteiro. Tudo o resto
+-- (reservas normais) segue exactamente pela auto_refund_reservation de sempre.
+CREATE OR REPLACE FUNCTION public.tvde_reservation_auto_refund(p_ride_id uuid, p_motivo text)
+ RETURNS boolean
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'vault', 'net', 'extensions'
+AS $function$
+DECLARE v_key text; v_url text; v_ride public.tvde_rides;
+        v_action text := 'auto_refund_reservation';
+BEGIN
+  SELECT * INTO v_ride FROM public.tvde_rides WHERE id = p_ride_id;
+  IF NOT FOUND THEN RETURN false; END IF;
+  IF v_ride.payment_intent_id IS NULL THEN RETURN false; END IF;
+  IF v_ride.payment_status IN ('refunded','partial_refund','kept_cancel_fee') THEN RETURN true; END IF;
+
+  IF v_ride.roundtrip_credit_id IS NOT NULL
+     AND NOT COALESCE(v_ride.is_return_leg, false)
+     AND EXISTS (SELECT 1 FROM public.tvde_roundtrip_credits c
+                  WHERE c.id = v_ride.roundtrip_credit_id AND c.return_mode IS NOT NULL) THEN
+    v_action := 'auto_refund_roundtrip_reservation';
+  END IF;
+
+  SELECT decrypted_secret INTO v_key FROM vault.decrypted_secrets WHERE name='service_role_key';
+  SELECT decrypted_secret INTO v_url FROM vault.decrypted_secrets WHERE name='project_url';
+  IF v_key IS NULL THEN RETURN false; END IF;
+  v_url := COALESCE(v_url,'https://ojykpzwqrtusfeakzrna.supabase.co');
+
+  PERFORM net.http_post(
+    url := v_url || '/functions/v1/tvde-payment',
+    headers := jsonb_build_object('Content-Type','application/json','Authorization','Bearer '||v_key),
+    body := jsonb_build_object('action', v_action,'ride_id', p_ride_id::text, 'motivo', p_motivo));
+
+  INSERT INTO public.tvde_ride_events (ride_id,status,actor,meta)
+    VALUES (p_ride_id,'reserva_reembolso_pedido','system',
+            jsonb_build_object('motivo', p_motivo, 'accao', v_action));
+  RETURN true;
+END; $function$;
+
 -- 7. Reserva paga com a app FECHADA (achado 23/09) --------------------------------
 -- Hoje só o polling do cliente (confirm_reservation_payment) activa uma reserva
 -- paga. O stripe-webhook marca payment_status='succeeded' mas deixa a reserva em
@@ -414,4 +457,3 @@ VALUES ('tvde_roundtrip_reservation_enabled', 'true'::jsonb,
         'tvde')
 ON CONFLICT (key) DO UPDATE SET value = 'true'::jsonb;
 
-COMMIT;

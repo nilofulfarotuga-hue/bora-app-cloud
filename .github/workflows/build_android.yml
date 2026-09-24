@@ -252,7 +252,12 @@ jobs:
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/nilofulfarotuga-hue/bora-app-cloud.git
           git add pubspec.yaml
           git commit -m "ci: bump versionCode to ${{ steps.bump.outputs.new_code }} [skip ci]"
-          git pull --rebase origin autonomous-night-2026-04-29
+          # [ronda-fecho 2026-09-23] Duas corridas em fila (455 e 457) caíram aqui com
+          # CONFLICT em pubspec.yaml: o checkout é do commit antigo (ex.: +617), o
+          # bump lê o head remoto (+618) e escreve +619, e o rebase vê a linha mudada
+          # nos dois lados. "-X theirs" (no rebase = o commit do bump) fica com o
+          # número já calculado a partir do remoto, que é sempre o maior.
+          git pull --rebase -X theirs origin autonomous-night-2026-04-29
           git push origin HEAD:autonomous-night-2026-04-29
 
       # 9. Dependencias

@@ -75,6 +75,7 @@ import 'admin_tvde_balcao_agenda_screen.dart';
 import 'admin_tvde_balcao_screen.dart';
 import 'admin_tvde_cancellations_screen.dart';
 import 'admin_tvde_docs_review_screen.dart';
+import 'admin_motoristas_documentos_screen.dart';
 import 'admin_tvde_driver_debts_screen.dart';
 import 'admin_tvde_drivers_screen.dart';
 import 'admin_tvde_noshows_screen.dart';
@@ -501,14 +502,16 @@ List<AdminMenuSection> adminMenuSections() => [
       builder: () => const AdminTvdeDriversScreen(),
       keywords: const ['avaliacoes', 'banir', 'gerir', 'motoristas', 'passageiros', 'saldo'],
     ),
+    // [Ficha legal · 23/09] O id fica o mesmo (é o que os favoritos
+    // guardam): quem tinha "Documentos TVDE" nos favoritos cai no hub novo.
     AdminMenuItem(
       id: 'tvde_documentos_tvde',
-      title: 'Documentos TVDE',
-      subtitle: 'Rever e aprovar os documentos dos motoristas (IMT, seguro, carta)',
+      title: 'Documentos dos motoristas',
+      subtitle: 'Semáforo de validade (certificado IMT, carta, seguro, inspeção, dístico), editar ficha, bloqueio online',
       icon: Icons.badge_outlined,
       color: const Color(0xFF6366F1),
-      builder: () => const AdminTvdeDocsReviewScreen(),
-      keywords: const ['aprovar', 'carta', 'documentos', 'motoristas', 'rever', 'seguro', 'tvde'],
+      builder: () => const AdminMotoristasDocumentosScreen(),
+      keywords: const ['aprovar', 'carta', 'distico', 'documentos', 'fiscalizacao', 'imt', 'inspecao', 'motoristas', 'seguro', 'tvde', 'validade'],
     ),
     AdminMenuItem(
       id: 'tvde_assinaturas',
@@ -998,6 +1001,16 @@ List<AdminMenuSection> adminMenuSections() => [
     color: Colors.grey,
     archived: true,
     items: [
+    AdminMenuItem(
+      id: 'arquivado_documentos_tvde_ficheiros',
+      title: 'Documentos TVDE (ficheiros)',
+      subtitle: 'Fila antiga de aprovação de ficheiros — nenhum ecrã da app envia ficheiros para cá',
+      icon: Icons.badge_outlined,
+      color: const Color(0xFF6366F1),
+      builder: () => const AdminTvdeDocsReviewScreen(),
+      keywords: const ['aprovar', 'ficheiros', 'documentos', 'tvde'],
+      archivedReason: 'sem dados (0 linhas em tvde_driver_documents); o hub é Documentos dos motoristas',
+    ),
     AdminMenuItem(
       id: 'arquivado_pagamentos',
       title: 'Pagamentos',

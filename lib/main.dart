@@ -62,6 +62,7 @@ import 'screens/admin/admin_orders_screen.dart';
 import 'screens/admin/admin_tvde_rides_screen.dart';
 import 'screens/admin/admin_tvde_pagamentos_screen.dart';
 import 'screens/admin/admin_pendencias_operacao_screen.dart';
+import 'screens/admin/admin_motoristas_documentos_screen.dart';
 import 'screens/admin/admin_conformidade_legal_screen.dart';
 import 'screens/admin/admin_receipts_screen.dart';
 import 'screens/admin/admin_tvde_roundtrips_screen.dart';
@@ -989,6 +990,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           // legal, mais as rotas que os RPCs devolvem em accao.rota / itens.rota
           // e que nunca tinham sido registadas (os ecrãs já existiam).
           '/admin/pendencias': (_) => const AdminPendenciasOperacaoScreen(),
+          // [Ficha legal · 23/09] deep link do aviso diário de documentos.
+          '/admin/motoristas-documentos': (_) =>
+              const AdminMotoristasDocumentosScreen(),
           '/admin/conformidade': (_) => const AdminConformidadeLegalScreen(),
           '/admin/reembolsos': (_) => const AdminReceiptsScreen(),
           '/admin/tvde/ida-e-volta': (_) => const AdminTvdeRoundtripsScreen(),

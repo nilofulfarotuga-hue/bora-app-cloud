@@ -75,6 +75,7 @@ import 'admin_tvde_balcao_agenda_screen.dart';
 import 'admin_tvde_balcao_screen.dart';
 import 'admin_tvde_cancellations_screen.dart';
 import 'admin_tvde_docs_review_screen.dart';
+import 'admin_tvde_recibos_screen.dart';
 import 'admin_motoristas_documentos_screen.dart';
 import 'admin_tvde_driver_debts_screen.dart';
 import 'admin_tvde_drivers_screen.dart';
@@ -512,6 +513,16 @@ List<AdminMenuSection> adminMenuSections() => [
       color: const Color(0xFF6366F1),
       builder: () => const AdminMotoristasDocumentosScreen(),
       keywords: const ['aprovar', 'carta', 'distico', 'documentos', 'fiscalizacao', 'imt', 'inspecao', 'motoristas', 'seguro', 'tvde', 'validade'],
+    ),
+    // [Recibos · 24/09] paridade admin do recibo automático por viagem (23/09).
+    AdminMenuItem(
+      id: 'tvde_recibos_viagem',
+      title: 'Recibos por viagem',
+      subtitle: 'O recibo que o passageiro recebe por email no fim da viagem: ver, reenviar, ligar/desligar o automático',
+      icon: Icons.receipt_long_outlined,
+      color: const Color(0xFF0EA5E9),
+      builder: () => const AdminTvdeRecibosScreen(),
+      keywords: const ['recibo', 'recibos', 'email', 'passageiro', 'viagem', 'reenviar', 'taxa', 'intermediacao', 'tvde'],
     ),
     AdminMenuItem(
       id: 'tvde_assinaturas',

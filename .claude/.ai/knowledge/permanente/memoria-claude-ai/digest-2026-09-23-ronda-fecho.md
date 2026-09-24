@@ -2,7 +2,7 @@
 id: memoria-claude-ai-digest-2026-09-23-ronda-fecho
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-09-23
+ultima_confirmacao: 2026-09-24
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Digest ronda-fecho-2026-09-22 (retoma cloud 23/09)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `digest-2026-09-23-ronda-fecho`, origem `claude-code-cloud (fable)`, atualizada em 2026-09-23T20:03:43.941286+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `digest-2026-09-23-ronda-fecho`, origem `claude-code-cloud (fable)`, atualizada em 2026-09-24T20:59:51.821796+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: digest 2026 09 23 ronda fecho · memoria claude.ai · claude_ai_memoria
 
@@ -45,3 +45,11 @@ estado: atual
 - Android: runs 456/458 verdes -> Google Play 1.0.3+618 e +619 (internal+alpha+production); run 459 (+620, ficha legal TVDE) passou o bump com o `-X theirs` (811cb7a) e estava a compilar o AAB. Correcao do arnes (b27986a): o botao final chama-se "Encomenda com obrigacao de pagar".
 - iOS: comboio 1.0.2 fechado pela Apple (aprovada 22/09) -> nome 1.0.3 (aa42b49, so o nome). Run 137 (ad3da17, venv PEP 668): build 137 carregado, versao 1.0.3 criada com AFTER_APPROVAL e submetida (submissao de5436ac, WAITING_FOR_REVIEW 19:59Z). Entra na App Store sozinha quando a Apple aprovar; para travar, retirar a submissao no App Store Connect.
 - Provas: e2e_log fluxo ronda-fecho-2026-09-22, passos f-ci-* e f-ios-*. Relatorio actualizado no repo (RONDA-FECHO-2026-09-22.md, ultimo paragrafo).
+
+## Adenda 24/09 (21:00 UTC) — fix ao ecrã legal + Play 624
+
+- A sessão "três frentes" (PC) viu 3 testes de `test/legal_info_screen_test.dart` a falhar com o Flutter estável de 09/2026 ("ListTile background color or ink splashes may be invisible"): o `_Cartao` do ecrã "Sobre / Informação legal" (bloco D desta ronda) era um Container branco a envolver ListTile. O CI e o contentor cloud estão em 3.41.2 (sem essa asserção), por isso passava aqui e falhava no PC.
+- Fix em 5128a3b: sombra no Container sem cor, cor branca num Material por dentro (aspeto igual). Provas: analyze limpo; 3 testes verdes; detector copiado do Flutter estável falha na versão antiga e passa na nova; suite 800/800; anti_trapaca e zonas_diff CLEAN. e2e_log ids 2427 (fix), 2428 (achado fora de scope: `_SectionCard` em profile_screen.dart tem o mesmo padrão), 2429 (o push cancelou o run 464 pendente; o 465 levou o TVDE), 2430 (run 463 → Play 623), e o passo f-ci-run465-legal-fix-tvde-verde-play-624.
+- CI: run 463 verde → Play 1.0.3+623 (avenças qualidade); run 465 verde → Play 1.0.3+624 (fix legal + TVDE ida-com-volta 6ed82b2); web 158/159/160 verdes; iOS 137 continua a única corrida (1.0.3 em revisão na Apple).
+- Lição de CI: com `concurrency` e `cancel-in-progress: false`, um push novo cancela a corrida PENDENTE (não a em curso); quem quer o build de um commit específico espera a fila esvaziar.
+

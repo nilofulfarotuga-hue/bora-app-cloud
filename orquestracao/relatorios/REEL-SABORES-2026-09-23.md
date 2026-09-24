@@ -65,4 +65,7 @@ A campanha. Na janela do Gestor de Anúncios que ficou aberta:
 4. **Publicar** — é o teu clique, é dinheiro.
 
 ## Story
-(preenchido no fim da sessão, ver linha abaixo)
+
+Publicado às 01:52 (Lisboa) com o corte de 16 s: Instagram story `18111781208146068` (https://www.instagram.com/stories/boraappbora/3992902968399930154, confirmado na lista `/stories` da API como VIDEO das 00:52 UTC) e Facebook story `video_id 3934765353326657` (carregado, `copyright_check` sem matches, a processar no momento da leitura).
+
+Nota honesta: a versão que subiu para os stories tinha duas legendas a sobrepor-se durante cerca de um segundo em dois momentos ("Açaí cremoso" a entrar no plano da mota e "Chega na sua porta" a entrar no ecrã da app) porque no corte curto os planos são mais pequenos do que no reel. Corrigi o montador (a legenda nunca passa para o plano seguinte), voltei a renderizar, e o ficheiro corrigido (`reel-sabores-de-casa-15s.mp4`, 16,0 s) é o que está no PC, em `reels/` na VPS para os grupos e no link público do email. Os stories já publicados não se editam pela API e expiram em 24 h; não os apaguei para não deixar as redes sem story esta noite. O reel de 30 s e o feed não têm este problema.

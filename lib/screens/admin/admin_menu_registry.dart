@@ -43,6 +43,7 @@ import 'admin_live_orders_map_screen.dart';
 import 'admin_marcacoes_confirmacao_screen.dart';
 import 'admin_decisoes_screen.dart';
 import 'admin_radar_videos_screen.dart';
+import 'admin_avencas_screen.dart';
 import 'admin_motores_screen.dart';
 import 'admin_crash_logs_screen.dart';
 import 'admin_notification_failures_screen.dart';
@@ -976,6 +977,16 @@ List<AdminMenuSection> adminMenuSections() => [
       color: const Color(0xFFDC2626),
       builder: () => const AdminRadarVideosScreen(),
       keywords: const ['radar', 'videos', 'youtube', 'playbook', 'redes', 'reels', 'instagram', 'tiktok', 'crescer', 'viral'],
+    ),
+    // [Avencas 24/09] Presenca Digital Bora: vender aos negocios da Guarda o que os robos ja fazem.
+    AdminMenuItem(
+      id: 'robos_avencas',
+      title: 'Avenças',
+      subtitle: 'Negócios da Guarda com presença digital fraca, as amostras que já se fizeram e os rascunhos das propostas (nada é enviado daqui)',
+      icon: Icons.handshake_rounded,
+      color: const Color(0xFF7C3AED),
+      builder: () => const AdminAvencasScreen(),
+      keywords: const ['avenca', 'avencas', 'presenca', 'digital', 'negocios', 'prospect', 'proposta', 'amostra', 'guarda', 'clientes'],
     ),
     AdminMenuItem(
       id: 'robos_assistente_ia_admin',

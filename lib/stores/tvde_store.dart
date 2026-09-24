@@ -1734,6 +1734,34 @@ class TvdeStore extends ChangeNotifier {
     }
   }
 
+  /// Marca a HORA da volta num vale que já existe (ida pedida na hora).
+  ///
+  /// A cicatriz (24/09/2026): uma cliente quis ir às 16h36 e voltar às 21h40. O pacote
+  /// pedido na hora só oferecia «chamo quando terminar», e a reserva não deixava escolher
+  /// as 17h00 por causa da antecedência mínima. Ficou com a ida marcada para as 21h40 e
+  /// volta nenhuma. A RPC `tvde_roundtrip_schedule_return` cria a perna da volta igual à do
+  /// pacote marcado; aqui só se lhe chama.
+  ///
+  /// Devolve o mapa com `volta` e `credit`, ou `null` se o servidor recusou — e nesse caso
+  /// o vale fica como estava, para o cliente poder chamar a volta à mão.
+  Future<Map<String, dynamic>?> scheduleRoundtripReturn(
+      String creditId, DateTime returnAt) async {
+    try {
+      final res = await _sb.rpc('tvde_roundtrip_schedule_return', params: {
+        'p_credit_id': creditId,
+        'p_return_at': returnAt.toUtc().toIso8601String(),
+      }).timeout(kAcaoTimeout);
+      if (res is Map) {
+        final m = Map<String, dynamic>.from(res);
+        return m['volta'] != null ? m : null;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('TvdeStore.scheduleRoundtripReturn error => $e');
+      return null;
+    }
+  }
+
   /// Dispara a corrida de VOLTA usando o vale (desacoplada — corrida separada).
   Future<TvdeRide?> requestReturnRide({
     required String creditId,

@@ -23,7 +23,17 @@ class TvdeScheduleRideSheet extends StatefulWidget {
     required this.maxAdvanceDays,
     required this.priceCents,
     this.km,
+    this.aoPedirJa,
   });
+
+  /// Saída para quem escolhe uma hora demasiado em cima (24/09/2026).
+  ///
+  /// A cicatriz: às 16h36 uma cliente quis ir às 17h00 e a antecedência mínima eram 30
+  /// minutos. A folha só dizia «essa hora está demasiado em cima» e ela acabou por marcar
+  /// a IDA para as 21h40, que era a hora da VOLTA. Agora, quando a hora não dá para marcar,
+  /// diz-se o que dá: pedir já. Se quem abriu a folha souber fazer isso, passa este
+  /// callback e aparece o botão «Pedir já»; se não passar, fica só o aviso de antes.
+  final VoidCallback? aoPedirJa;
 
   /// Antecedência mínima (`tvde_reservation_min_advance_minutes`).
   final int minAdvanceMinutes;
@@ -107,8 +117,21 @@ class _TvdeScheduleRideSheetState extends State<TvdeScheduleRideSheet> {
     // Validação local só para dar resposta imediata — quem manda é o servidor,
     // que volta a validar e devolve `too_soon` / `too_far`.
     if (juntos.isBefore(_minimo)) {
+      final acaoPedirJa = widget.aoPedirJa;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Essa hora está demasiado em cima. Marca com pelo menos {0} minutos de antecedência.'.trArgs([widget.minAdvanceMinutes])),
+        content: Text(acaoPedirJa == null
+            ? 'Essa hora está demasiado em cima. Marca com pelo menos {0} minutos de antecedência.'.trArgs([widget.minAdvanceMinutes])
+            : 'Para esta hora pede já — e marcas a volta logo a seguir.'.tr),
+        duration: const Duration(seconds: 7),
+        action: acaoPedirJa == null
+            ? null
+            : SnackBarAction(
+                label: 'Pedir já'.tr,
+                onPressed: () {
+                  Navigator.of(context).maybePop();
+                  acaoPedirJa();
+                },
+              ),
       ));
       return;
     }

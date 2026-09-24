@@ -2843,6 +2843,24 @@ const Map<String, String> kStringsEn = <String, String>{
       'The return must be at least 30 minutes after the outbound ride.',
   'A volta tem de ser no máximo 12 horas depois da ida.':
       'The return must be at most 12 hours after the outbound ride.',
+  // [Volta marcada depois da compra · 24/09] A cliente que queria ir às 16h36 e voltar
+  // às 21h40 não tinha onde o dizer no pedido feito na hora.
+  'Para esta hora pede já — e marcas a volta logo a seguir.':
+      'For this time, request it now — and book the return right after.',
+  'Pedir já':
+      'Request now',
+  'Não deu para marcar a volta a essa hora. A tua volta está garantida à mesma — chama-a quando quiseres.':
+      'We couldn\'t book the return for that time. Your return is guaranteed anyway — call it whenever you want.',
+  'Volta marcada para as {0}. Vamos procurar motorista a tempo.':
+      'Return booked for {0}. We\'ll find a driver in time.',
+  'Ida do pacote':
+      'Package outbound',
+  'Ida do pacote · a volta ainda não está marcada':
+      'Package outbound · the return isn\'t booked yet',
+  'Volta do pacote':
+      'Package return',
+  'Volta do pacote (a ida já passou)':
+      'Package return (the outbound ride is done)',
   // [Ficha legal · 23/09] Recibo da viagem TVDE (taxa de intermediação).
   'O recibo fica disponível quando a viagem terminar.':
       'The receipt is available once the ride ends.',

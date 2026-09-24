@@ -70,6 +70,148 @@ class _AdminTvdeReservasScreenState extends State<AdminTvdeReservasScreen> {
     }
   }
 
+  /// Histórico da reserva (PT-BR): quem devolveu, com que motivo, e de quem para quem foi
+  /// trocada. [24/09/2026] Antes, uma reserva que mudava de mãos não deixava rasto visível
+  /// no painel — a única forma de saber era ir ao banco.
+  Future<void> _historico(Map<String, dynamic> r) async {
+    final rideId = r['id']?.toString() ?? r['ride_id']?.toString();
+    if (rideId == null) return;
+    List<Map<String, dynamic>> eventos = const [];
+    Map<String, String> nomes = const {};
+    try {
+      final res = await Supabase.instance.client
+          .from('tvde_ride_events')
+          .select('created_at, status, actor, meta')
+          .eq('ride_id', rideId)
+          .order('created_at', ascending: false)
+          .limit(60);
+      eventos = (res as List)
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+      // Nomes dos motoristas que aparecem nos eventos, para não mostrar só uuid.
+      final ids = <String>{};
+      for (final e in eventos) {
+        final m = e['meta'];
+        if (m is Map) {
+          for (final k in const ['driver_id', 'de', 'para']) {
+            final v = m[k]?.toString();
+            if (v != null && v.isNotEmpty) ids.add(v);
+          }
+        }
+      }
+      if (ids.isNotEmpty) {
+        final ds = await Supabase.instance.client
+            .from('drivers')
+            .select('user_id, name')
+            .inFilter('user_id', ids.toList());
+        nomes = {
+          for (final d in (ds as List).whereType<Map>())
+            d['user_id'].toString(): (d['name'] ?? '').toString(),
+        };
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(humanizeAdminRpcError(e))));
+      return;
+    }
+    if (!mounted) return;
+
+    String quem(Object? id) {
+      final s = id?.toString();
+      if (s == null || s.isEmpty) return '—';
+      final n = nomes[s];
+      return (n != null && n.isNotEmpty) ? n : '${s.substring(0, 8)}…';
+    }
+
+    String descrever(Map<String, dynamic> e) {
+      final meta = e['meta'] is Map
+          ? Map<String, dynamic>.from(e['meta'] as Map)
+          : <String, dynamic>{};
+      switch (e['status']?.toString()) {
+        case 'reserva_devolvida':
+          return 'Devolvida por ${quem(meta['driver_id'])}'
+              '${meta['motivo'] != null ? ' · motivo: ${meta['motivo']}' : ''}'
+              '${meta['estava'] != null ? ' (estava ${meta['estava']})' : ''}';
+        case 'reserva_motorista_trocado':
+          return 'Motorista trocado: ${quem(meta['de'])} → ${quem(meta['para'])}';
+        case 'volta_marcada':
+          return 'Volta do pacote marcada para ${_quando(meta['return_at']?.toString())}';
+        default:
+          return '${e['status']} · ${e['actor'] ?? '—'}';
+      }
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.7,
+        builder: (_, controle) => ListView(
+          controller: controle,
+          padding: const EdgeInsets.all(Spacing.lg),
+          children: [
+            const Text('Histórico da reserva',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            const SizedBox(height: Spacing.sm),
+            if (eventos.isEmpty) const Text('Sem eventos registrados.'),
+            for (final e in eventos)
+              Padding(
+                padding: const EdgeInsets.only(bottom: Spacing.sm),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(_quando(e['created_at']?.toString()),
+                        style: const TextStyle(
+                            fontSize: 11, color: AppColors.textSubtle)),
+                    Text(descrever(e), style: const TextStyle(fontSize: 13)),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Marca (ou muda) a hora da volta do pacote, pelo painel.
+  ///
+  /// [24/09/2026] A cliente quis ida às 16h36 e volta às 21h40 e a app não deixava; ficou
+  /// com a ida marcada para a hora da volta e foi preciso arranjar à mão na base. Agora o
+  /// Danilo faz isto daqui: escolhe o dia e a hora, e o servidor trata do resto (cancela a
+  /// marcação anterior sem taxa, cria a nova perna e procura motorista).
+  Future<void> _marcarVolta(Map<String, dynamic> r) async {
+    final creditId = r['roundtrip_credit_id']?.toString();
+    if (creditId == null) return;
+    final ida = DateTime.tryParse(r['scheduled_at']?.toString() ?? '')?.toLocal() ??
+        DateTime.now();
+    final sugestao = ida.add(const Duration(hours: 2));
+
+    final dia = await showDatePicker(
+      context: context,
+      initialDate: sugestao,
+      firstDate: ida,
+      lastDate: ida.add(const Duration(hours: 12)),
+      helpText: 'Dia da volta',
+    );
+    if (dia == null || !mounted) return;
+    final hora = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(sugestao),
+      helpText: 'Hora da volta',
+    );
+    if (hora == null || !mounted) return;
+
+    final quando = DateTime(dia.year, dia.month, dia.day, hora.hour, hora.minute);
+    await _acao(
+      'admin_tvde_roundtrip_set_return',
+      {'p_credit_id': creditId, 'p_return_at': quando.toUtc().toIso8601String()},
+      'Volta marcada para ${_quando(quando.toUtc().toIso8601String())}.',
+    );
+  }
+
   Future<void> _cancelar(Map<String, dynamic> r) async {
     final ok = await _confirmar(
       'Cancelar esta reserva?',
@@ -348,6 +490,37 @@ class _AdminTvdeReservasScreenState extends State<AdminTvdeReservasScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // [24/09] Diz-se qual das duas pernas do pacote é esta, e a que vale pertence —
+          // duas reservas soltas na lista não deixavam ver que eram a mesma viagem.
+          if (r['roundtrip_credit_id'] != null) ...[
+            Row(
+              children: [
+                Icon(r['is_return_leg'] == true
+                        ? Icons.u_turn_left
+                        : Icons.arrow_forward,
+                    size: 14, color: AppColors.primaryDark),
+                const SizedBox(width: 6),
+                Text(
+                  r['is_return_leg'] == true
+                      ? 'Volta do pacote'
+                      : 'Ida do pacote',
+                  style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primaryDark),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'vale ${r['roundtrip_credit_id'].toString().substring(0, 8)}',
+                    style: const TextStyle(
+                        fontSize: 11, color: AppColors.textSubtle),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: Spacing.sm),
+          ],
           Row(
             children: [
               const Icon(Icons.event, size: 18, color: AppColors.primary),
@@ -442,6 +615,21 @@ class _AdminTvdeReservasScreenState extends State<AdminTvdeReservasScreen> {
                   label: const Text('Cancelar'),
                   style: TextButton.styleFrom(
                       foregroundColor: AppColors.error),
+                ),
+                // [24/09] Pacote ida-e-volta: marcar ou mudar a hora da volta a partir
+                // daqui. Só aparece na perna da IDA, que é quem manda no vale.
+                if (r['roundtrip_credit_id'] != null && r['is_return_leg'] != true)
+                  TextButton.icon(
+                    onPressed: () => _marcarVolta(r),
+                    icon: const Icon(Icons.u_turn_left, size: 18),
+                    label: Text(r['return_scheduled_at'] == null
+                        ? 'Marcar volta'
+                        : 'Alterar hora da volta'),
+                  ),
+                TextButton.icon(
+                  onPressed: () => _historico(r),
+                  icon: const Icon(Icons.history, size: 18),
+                  label: const Text('Histórico'),
                 ),
               ],
             ),

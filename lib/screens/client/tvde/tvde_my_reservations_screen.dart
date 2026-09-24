@@ -161,16 +161,34 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
                       itemCount: reservas.length,
                       separatorBuilder: (_, __) =>
                           const SizedBox(height: Spacing.md),
-                      itemBuilder: (_, i) => _cartao(reservas[i]),
+                      itemBuilder: (_, i) => _cartao(reservas[i], reservas),
                     ),
             ),
     );
   }
 
-  Widget _cartao(TvdeRide r) {
+  /// Etiqueta do pacote ida-e-volta, quando esta reserva é uma das duas pernas.
+  ///
+  /// [24/09/2026] Antes, as duas pernas apareciam como duas reservas soltas e ninguém
+  /// percebia que eram a mesma viagem — e quando a volta não chegava a ser criada, o
+  /// cliente via UMA reserva e pensava que estava tudo bem. Agora diz-se qual é qual, e
+  /// diz-se também quando falta a outra metade.
+  String? _etiquetaPacote(TvdeRide r, List<TvdeRide> todas) {
+    if (r.roundtripCreditId == null) return null;
+    final irmas = todas.where((o) =>
+        o.roundtripCreditId == r.roundtripCreditId && o.id != r.id);
+    final temIrma = irmas.isNotEmpty;
+    if (r.isReturnLeg) {
+      return temIrma ? 'Volta do pacote' : 'Volta do pacote (a ida já passou)';
+    }
+    return temIrma ? 'Ida do pacote' : 'Ida do pacote · a volta ainda não está marcada';
+  }
+
+  Widget _cartao(TvdeRide r, List<TvdeRide> todas) {
     final estado = estadoReservaPt(r);
     final preco = (r.estFareCents / 100).toStringAsFixed(2);
     final podeCancelar = r.reservationStatus != 'cancelada';
+    final etiqueta = _etiquetaPacote(r, todas);
 
     return Container(
       padding: const EdgeInsets.all(Spacing.lg),
@@ -182,6 +200,29 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (etiqueta != null) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.primaryWash,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(r.isReturnLeg ? Icons.u_turn_left : Icons.arrow_forward,
+                      size: 14, color: AppColors.primaryDark),
+                  const SizedBox(width: 6),
+                  Text(etiqueta.tr,
+                      style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primaryDark)),
+                ],
+              ),
+            ),
+            const SizedBox(height: Spacing.sm),
+          ],
           Row(
             children: [
               const Icon(Icons.event, size: 18, color: AppColors.primary),

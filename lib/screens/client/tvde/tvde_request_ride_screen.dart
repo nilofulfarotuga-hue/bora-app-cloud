@@ -639,6 +639,9 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         maxAdvanceDays: _maxAntecedenciaDias,
         priceCents: _roundtripPriceCents,
         km: km,
+        // Hora demasiado em cima para marcar? Então pede-se já, e a volta marca-se
+        // logo a seguir — que era exactamente o que a cliente de 24/09 queria.
+        aoPedirJa: () => unawaited(_solicitarRoundtrip()),
       ),
     );
     if (ida == null || !mounted) return;
@@ -1138,6 +1141,48 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
   /// cobraria a tarifa por cima dos €8 — o "€13" que não pode acontecer.
   Future<void> _solicitarRoundtrip() => _comTrava(_comprarIdaEVolta);
 
+  /// «E a volta?» — logo depois de comprar o pacote NA HORA (24/09/2026).
+  ///
+  /// Até aqui, quem pedia o pacote na hora só tinha «chamo quando terminar». Uma cliente
+  /// quis ir às 16h36 e voltar às 21h40 e não teve onde o dizer: a reserva não aceitava as
+  /// 17h00 por causa da antecedência mínima, e acabou com a IDA marcada para as 21h40.
+  /// Agora, comprado o pacote, abre-se a mesma folha do pacote marcado com a ida = agora.
+  ///
+  /// Se o cliente escolher hora, marca-se já. Se não escolher, fica tudo como estava — o
+  /// vale continua a dar para chamar a volta quando ele quiser. E se o servidor recusar a
+  /// hora, diz-se em palavras e o vale fica intacto: nunca se perde a volta por causa disto.
+  Future<void> _perguntarVoltaDepoisDaCompra(String creditId) async {
+    if (!mounted) return;
+    final store = context.read<TvdeStore>();
+    final messenger = ScaffoldMessenger.of(context);
+    final agora = DateTime.now();
+
+    final escolha = await showModalBottomSheet<TvdeEscolhaVolta>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => TvdeVoltaSheet(ida: agora),
+    );
+    if (escolha?.hora == null || !mounted) return;
+
+    final feito = await store.scheduleRoundtripReturn(creditId, escolha!.hora!);
+    if (!mounted) return;
+    if (feito == null) {
+      messenger.showSnackBar(SnackBar(
+          content: Text('Não deu para marcar a volta a essa hora. A tua volta está garantida à mesma — chama-a quando quiseres.'.tr)));
+      return;
+    }
+    final h = escolha.hora!;
+    messenger.showSnackBar(SnackBar(
+        content: Text('Volta marcada para as {0}. Vamos procurar motorista a tempo.'.trArgs([
+      '${h.hour.toString().padLeft(2, '0')}:${h.minute.toString().padLeft(2, '0')}'
+    ]))));
+  }
+
   Future<void> _comprarIdaEVolta() async {
     final km = _effectiveKm;
     if (_pickup == null || _dest == null || km == null) return;
@@ -1252,6 +1297,10 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
 
     final trimmed = note?.trim() ?? '';
     if (trimmed.isNotEmpty) await store.setRideNote(ida.id, trimmed);
+    if (!mounted) return;
+    // Pacote comprado em dinheiro: perguntar já a hora da volta (24/09/2026).
+    final idVale = vale['id']?.toString();
+    if (idVale != null) await _perguntarVoltaDepoisDaCompra(idVale);
     if (!mounted) return;
     _openTracking();
   }
@@ -1439,6 +1488,14 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
 
     final trimmed = note?.trim() ?? '';
     if (trimmed.isNotEmpty) await store.setRideNote(ida.id, trimmed);
+    if (!mounted) return;
+    // Pacote pago por cartão ou MB Way: a mesma pergunta da volta (24/09/2026). O id do vale
+    // não vem do `activate_roundtrip`, por isso pergunta-se ao servidor qual é o vale ativo
+    // deste cliente — que neste ponto é, por força, o que acabou de nascer.
+    final vale = await store.activeRoundtripCredit();
+    if (!mounted) return;
+    final idVale = vale?['id']?.toString();
+    if (idVale != null) await _perguntarVoltaDepoisDaCompra(idVale);
     if (!mounted) return;
     _openTracking();
   }

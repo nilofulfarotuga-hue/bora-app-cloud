@@ -102,6 +102,78 @@ class _TvdeDriverAgendaScreenState extends State<TvdeDriverAgendaScreen> {
     }
   }
 
+  /// Devolver a reserva à Bora, a partir da AGENDA.
+  ///
+  /// A cicatriz (24/09/2026): o Danilo tinha uma reserva atribuída a ele para as 21h40 e
+  /// não havia botão nenhum para a devolver — a reserva teve de passar ao Valdemir à mão,
+  /// por SQL. O botão existia, mas só no ecrã da corrida a decorrer; uma reserva para daí a
+  /// horas vive AQUI, na agenda, e aqui não havia saída.
+  ///
+  /// Sem penalizações inventadas: devolver cedo é bom para toda a gente, porque dá tempo à
+  /// Bora de encontrar outro motorista. O servidor (`tvde_reservation_release`) é que trata
+  /// de pôr a reserva outra vez à procura e de avisar o admin.
+  Future<void> _devolver(TvdeRide r) async {
+    final motivo = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(Spacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Devolver esta reserva?',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+              const SizedBox(height: Spacing.xs),
+              const Text(
+                'Vamos procurar outro motorista para o cliente. Não és penalizado — '
+                'avisar cedo é o que ajuda.',
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: Spacing.md),
+              for (final m in const [
+                'Imprevisto',
+                'Estou longe',
+                'Carro com problema',
+                'Outro',
+              ])
+                ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.undo, size: 18),
+                  title: Text(m),
+                  onTap: () => Navigator.of(ctx).pop(m),
+                ),
+              const SizedBox(height: Spacing.xs),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('Afinal fico com ela'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (motivo == null || !mounted) return;
+
+    final store = context.read<TvdeDriverStore>();
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await store.releaseReservation(r.id, motivo: motivo);
+    if (!mounted) return;
+    messenger.showSnackBar(SnackBar(
+      content: Text(ok
+          ? 'Reserva devolvida. Já estamos a procurar outro motorista.'
+          : 'Já não dá para devolver esta reserva — fala com a Bora.'),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     final store = context.watch<TvdeDriverStore>();
@@ -284,6 +356,25 @@ class _TvdeDriverAgendaScreenState extends State<TvdeDriverAgendaScreen> {
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: Spacing.md),
+                ),
+              ),
+            ),
+          ],
+          // [24/09] Saída honesta para quem já sabe que não vai conseguir. Aparece enquanto
+          // a reserva está atribuída a ele e ainda não começou.
+          if (r.reservationStatus == 'atribuida' ||
+              r.reservationStatus == 'ativada') ...[
+            const SizedBox(height: Spacing.xs),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _devolver(r),
+                icon: const Icon(Icons.undo, size: 18),
+                label: const Text('Devolver reserva'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.warning,
+                  side: const BorderSide(color: AppColors.warning),
+                  padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
                 ),
               ),
             ),

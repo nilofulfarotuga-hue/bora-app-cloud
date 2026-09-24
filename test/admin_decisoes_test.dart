@@ -129,6 +129,26 @@ void main() {
       expect(filtrarDecisoes(todas, usadoPor: 'noshow').map((d) => d.id), ['d3']);
       expect(filtrarDecisoes(todas).length, 3);
     });
+
+    // (f) fallback (fecho-manha-2026-09-24): os dois motores falharam e valeu a regra
+    // determinística — conta-se à parte, filtra-se à parte e a resposta aparece (não é "sem decisão").
+    test('(f) fallback conta-se e filtra-se à parte; a resposta da regra aparece', () {
+      final todas = [
+        ..._linhas(),
+        {
+          'id': 'd4', 'quando': DateTime.now().toIso8601String(), 'tipo': 'choice',
+          'pergunta': 'Which courier should get this job?', 'resposta': 'estafeta_1',
+          'motor': 'fallback', 'modelo': 'regra-deterministica', 'latencia_ms': 0,
+          'usado_por': 'despacho', 'modo': 'sombra', 'erro': 'jev_sem_chave | gemini http 429',
+          'probabilidades': {'estafeta_1': 1, 'estafeta_2': 0},
+        },
+      ].map(Decisao.fromMap).toList();
+      expect(contarFallbacks(todas), 1);
+      expect(contarFallbacks(_linhas().map(Decisao.fromMap).toList()), 0);
+      expect(filtrarDecisoes(todas, motor: 'fallback').map((d) => d.id), ['d4']);
+      expect(filtrarDecisoes(todas, motor: 'fallback').single.respostaLegivel, 'estafeta_1');
+      expect(filtrarDecisoes(todas).length, 4);
+    });
   });
 
   group('ecrã', () {

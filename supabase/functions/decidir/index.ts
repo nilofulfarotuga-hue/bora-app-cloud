@@ -15,6 +15,7 @@
 //                         falta decidir (decisor_itens_pendentes) e decide em SOMBRA.
 //   { pergunta_tipo, pergunta, estado, opcoes|escala, usado_por, contexto_id,
 //     motor?: "auto"|"jev"|"gemini", gravar?: bool, modo?: "teste",
+//     chave_gemini_teste?: string (só com modo "teste": prova o fallback com chave inválida),
 //     modelos_gemini?: string[] (diagnóstico: troca a cadeia de reserva) } — uma decisão avulsa.
 //
 // Nenhuma decisão aqui mexe em preços, taxas, tokens ou no despacho. A única ação em modo
@@ -73,7 +74,7 @@ interface Resultado {
   resposta: string;
   confianca: number;
   probabilidades: Record<string, number>;
-  motor: 'jev' | 'gemini' | 'nenhum';
+  motor: 'jev' | 'gemini' | 'fallback' | 'nenhum';
   modelo: string | null;
   latencia_ms: number;
   tokens_entrada: number | null;
@@ -130,6 +131,35 @@ function fechar(p: Pedido, probs: Record<string, number>): { resposta: string; p
   return { resposta: sim >= 0.5 ? 'sim' : 'nao', probabilidades: pr, confianca: confiancaDe([sim, 1 - sim]) };
 }
 
+// ── Motor 0: a regra determinística de hoje (rede de segurança) ─────────────
+// Quando o Jev não tem chave E a Gemini falha (429/503 a 23/09 23:07, chave inválida,
+// timeout), o despacho NÃO pode ficar sem resposta: devolve-se o que o sistema faz hoje
+// sem decisor e grava-se com motor='fallback' para o painel e o e2e contarem.
+//   despacho → estafeta_1 (o candidato mais perto: é o que o dispatch-engine já escolhe)
+//   noshow   → nível 0 (assume que o cliente aparece: hoje não há previsão de falta)
+//   robotb   → 'sim' (a sugestão fica para o Danilo ver, nunca se arquiva às cegas)
+//   suporte  → 'nao' (o chatbot continua; não escala a humano por falta de motor)
+function regraDeterministica(p: Pedido, usadoPor: string, erro: string): Resultado {
+  let resposta: string;
+  let chaves: string[];
+  if (p.tipo === 'choice') {
+    chaves = Object.keys(opcoesMapa(p));
+    resposta = chaves.includes('estafeta_1') ? 'estafeta_1' : (chaves[0] ?? '');
+  } else if (p.tipo === 'score') {
+    chaves = (p.escala ?? []).map((_, i) => String(i));
+    resposta = '0';
+  } else {
+    chaves = ['sim', 'nao'];
+    resposta = usadoPor === 'robotb' ? 'sim' : 'nao';
+  }
+  const probabilidades: Record<string, number> = {};
+  for (const k of chaves) probabilidades[k] = k === resposta ? 1 : 0;
+  return {
+    resposta, confianca: 0, probabilidades, motor: 'fallback', modelo: 'regra-deterministica',
+    latencia_ms: 0, tokens_entrada: null, tokens_saida: null, erro,
+  };
+}
+
 // ── Motor 1: Jev ────────────────────────────────────────────────────────────
 async function chaveJev(admin: any): Promise<string | null> {
   const env = Deno.env.get('TYPESAFE_API_KEY');
@@ -176,13 +206,13 @@ const SISTEMA_GEMINI =
   'Read the STATE and the QUESTION and return ONLY a JSON object with the probability of each ' +
   'allowed answer. Probabilities must be honest and calibrated (they sum to 1). No explanations.';
 
-async function viaGemini(p: Pedido, modelos: string[] = GEMINI_MODELOS): Promise<Resultado> {
-  if (!GEMINI_API_KEY) throw new Error('gemini_key_missing');
+async function viaGemini(p: Pedido, modelos: string[] = GEMINI_MODELOS, chave: string | undefined = GEMINI_API_KEY): Promise<Resultado> {
+  if (!chave) throw new Error('gemini_key_missing');
   const erros: string[] = [];
   for (const modelo of modelos) {
     for (let tentativa = 0; tentativa < 2; tentativa++) {
       try {
-        return await viaGeminiModelo(p, modelo);
+        return await viaGeminiModelo(p, modelo, chave);
       } catch (e) {
         const msg = (e as Error).message;
         erros.push(`${modelo}: ${msg.slice(0, 80)}`);
@@ -195,7 +225,7 @@ async function viaGemini(p: Pedido, modelos: string[] = GEMINI_MODELOS): Promise
   throw new Error(erros.join(' | '));
 }
 
-async function viaGeminiModelo(p: Pedido, modelo: string): Promise<Resultado> {
+async function viaGeminiModelo(p: Pedido, modelo: string, chave: string): Promise<Resultado> {
   let formato: string;
   if (p.tipo === 'choice') {
     const m = opcoesMapa(p);
@@ -216,7 +246,7 @@ async function viaGeminiModelo(p: Pedido, modelo: string): Promise<Resultado> {
   // aceitar o campo (400), repete-se uma vez sem ele.
   const pedir = (comThinking: boolean) => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': chave },
     body: JSON.stringify({
       system_instruction: { parts: [{ text: SISTEMA_GEMINI }] },
       contents: [{ role: 'user', parts: [{ text: texto }] }],
@@ -250,9 +280,11 @@ async function viaGeminiModelo(p: Pedido, modelo: string): Promise<Resultado> {
   };
 }
 
-// ── Orquestração: Jev primeiro, Gemini de reserva ───────────────────────────
+// ── Orquestração: Jev primeiro, Gemini de reserva, regra determinística no fim ──
+// chaveGemini: só em modo teste (body.chave_gemini_teste) — para provar o fallback com
+// uma chave inválida de propósito sem tocar no segredo do projeto.
 async function decidir(admin: any, p: Pedido, motor: 'auto' | 'jev' | 'gemini' = 'auto',
-    modelosGemini?: string[]): Promise<Resultado> {
+    modelosGemini?: string[], usadoPor = '', chaveGemini?: string): Promise<Resultado> {
   let erroJev: string | null = null;
   if (motor !== 'gemini') {
     const chave = await chaveJev(admin);
@@ -272,12 +304,17 @@ async function decidir(admin: any, p: Pedido, motor: 'auto' | 'jev' | 'gemini' =
     }
   }
   try {
-    const r = await viaGemini(p, modelosGemini?.length ? modelosGemini : GEMINI_MODELOS);
+    const r = await viaGemini(p, modelosGemini?.length ? modelosGemini : GEMINI_MODELOS, chaveGemini ?? GEMINI_API_KEY);
     return { ...r, erro: erroJev };
   } catch (e) {
     const erro = [erroJev, (e as Error).message].filter(Boolean).join(' | ');
-    return { resposta: '', confianca: 0, probabilidades: {}, motor: 'nenhum', modelo: null, latencia_ms: 0,
-      tokens_entrada: null, tokens_saida: null, erro };
+    if (motor === 'gemini' && !chaveGemini) {
+      // diagnóstico de um motor só: fica 'nenhum' para se ver que aquele motor falhou
+      return { resposta: '', confianca: 0, probabilidades: {}, motor: 'nenhum', modelo: null, latencia_ms: 0,
+        tokens_entrada: null, tokens_saida: null, erro };
+    }
+    console.log('gemini falhou, regra deterministica (fallback):', erro.slice(0, 200));
+    return regraDeterministica(p, usadoPor, erro);
   }
 }
 
@@ -300,7 +337,7 @@ async function gravar(admin: any, p: Pedido, r: Resultado, meta: {
   const estadoTxt = typeof p.estado === 'string' ? p.estado : JSON.stringify(p.estado);
   const { data, error } = await admin.from('decisoes').insert({
     tipo: p.tipo, pergunta: p.pergunta, estado_resumo: estadoTxt.slice(0, 1500),
-    resposta: r.resposta || null, confianca: r.motor === 'nenhum' ? null : r.confianca,
+    resposta: r.resposta || null, confianca: (r.motor === 'nenhum' || r.motor === 'fallback') ? null : r.confianca,
     probabilidades: r.probabilidades, motor: r.motor, modelo: r.modelo, latencia_ms: r.latencia_ms,
     tokens_entrada: r.tokens_entrada, tokens_saida: r.tokens_saida, custo_usd: custo(r, pr),
     usado_por: meta.usado_por, contexto_id: meta.contexto_id, modo: meta.modo,
@@ -334,10 +371,11 @@ async function varrer(admin: any) {
     if (it.tipo === 'choice') p.opcoes = it.opcoes;
     if (it.tipo === 'score') p.escala = it.opcoes;
     if (it.tipo === 'noul' && it.opcoes) p.criterios_noul = it.opcoes;
-    const r = await decidir(admin, p);
+    const r = await decidir(admin, p, 'auto', undefined, it.usado_por);
     let acao: string | null = null;
     // Única ação real: Robot B em modo ativo arquiva a sugestão nova que não vale a pena.
-    if (it.usado_por === 'robotb' && it.modo === 'ativo' && r.motor !== 'nenhum' && r.probabilidades.sim < limiar) {
+    // Só um motor a sério arquiva; o fallback nunca age (é a regra de hoje, não uma decisão).
+    if (it.usado_por === 'robotb' && it.modo === 'ativo' && (r.motor === 'jev' || r.motor === 'gemini') && r.probabilidades.sim < limiar) {
       const { data: upd, error: eUpd } = await admin.from('robot_suggestions')
         .update({ status: 'rejeitada', motivo_rejeicao: `Decisor: não vale a pena abrir (sim=${r.probabilidades.sim}, limiar=${limiar})`, reviewed_at: new Date().toISOString() })
         .eq('id', it.contexto_id).eq('status', 'nova').select('id');
@@ -403,7 +441,9 @@ Deno.serve(async (req: Request) => {
   const modelos = Array.isArray(body.modelos_gemini)
     ? body.modelos_gemini.map(String).filter((m: string) => /^gemini-[a-z0-9.\-]+$/.test(m)).slice(0, 4)
     : undefined;
-  const r = await decidir(admin, p, motor, modelos);
+  const chaveTeste = body.modo === 'teste' && typeof body.chave_gemini_teste === 'string' && body.chave_gemini_teste
+    ? String(body.chave_gemini_teste) : undefined;
+  const r = await decidir(admin, p, motor, modelos, String(body.usado_por), chaveTeste);
   let decisao_id: string | null = null;
   if (body.gravar !== false) {
     decisao_id = await gravar(admin, p, r, {

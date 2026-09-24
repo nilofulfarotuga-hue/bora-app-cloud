@@ -277,13 +277,22 @@ class _AdminDecisoesScreenState extends State<AdminDecisoesScreen> {
       );
     }
 
+    final fallbacks = contarFallbacks(_decisoes);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (fallbacks > 0)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text(
+              'Fallbacks (regra determinística porque os dois motores falharam): $fallbacks nesta lista',
+              style: const TextStyle(fontSize: 12, color: AppColors.warning, fontWeight: FontWeight.w600),
+            ),
+          ),
         grupo('Tipo:', [null, 'choice', 'score', 'noul'], _filtroTipo, (v) => _filtroTipo = v,
             (v) => v == null ? 'todos' : {'choice': 'escolha', 'score': 'nota', 'noul': 'sim/não'}[v]!),
-        grupo('Motor:', [null, 'jev', 'gemini', 'nenhum'], _filtroMotor, (v) => _filtroMotor = v,
-            (v) => v ?? 'todos'),
+        grupo('Motor:', [null, 'jev', 'gemini', 'fallback', 'nenhum'], _filtroMotor, (v) => _filtroMotor = v,
+            (v) => v == null ? 'todos' : (v == 'fallback' ? 'fallback (regra de hoje)' : v)),
         grupo('Regra:', [null, ...kRegrasDecisor], _filtroRegra, (v) => _filtroRegra = v,
             (v) => v == null ? 'todas' : rotuloRegraDecisor(v)),
       ],
@@ -305,9 +314,13 @@ class _AdminDecisoesScreenState extends State<AdminDecisoesScreen> {
 
   Widget _linhaDecisao(Decisao d) {
     final acertou = d.acertou;
+    // fallback = os dois motores falharam (Gemini 429/503, Jev sem chave) e valeu a regra
+    // determinística de hoje; fica a laranja para se ver que não foi uma decisão de motor.
     final cor = d.motor == 'nenhum'
         ? AppColors.error
-        : (acertou == null ? AppColors.textSubtle : (acertou ? AppColors.success : AppColors.warning));
+        : d.motor == 'fallback'
+            ? AppColors.warning
+            : (acertou == null ? AppColors.textSubtle : (acertou ? AppColors.success : AppColors.warning));
     final quando = '${d.quando.day.toString().padLeft(2, '0')}/${d.quando.month.toString().padLeft(2, '0')} '
         '${d.quando.hour.toString().padLeft(2, '0')}:${d.quando.minute.toString().padLeft(2, '0')}';
     final conf = d.confianca == null ? '—' : '${(d.confianca! * 100).round()}%';
@@ -317,13 +330,18 @@ class _AdminDecisoesScreenState extends State<AdminDecisoesScreen> {
     return Card(
       child: ExpansionTile(
         leading: Icon(
-          d.motor == 'nenhum' ? Icons.error_outline : Icons.bolt,
+          d.motor == 'nenhum'
+              ? Icons.error_outline
+              : d.motor == 'fallback'
+                  ? Icons.shield_outlined
+                  : Icons.bolt,
           color: cor,
         ),
         title: Text('${rotuloRegraDecisor(d.usadoPor)} · ${d.respostaLegivel}',
             style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(
-          '$quando · ${d.motor}${d.modelo != null ? ' (${d.modelo})' : ''} · confiança $conf · '
+          '$quando · ${d.motor == 'fallback' ? 'fallback (regra determinística: os motores falharam)' : d.motor}'
+          '${d.modelo != null && d.motor != 'fallback' ? ' (${d.modelo})' : ''} · confiança $conf · '
           '${d.latenciaMs ?? 0} ms · ${d.modo}\n$real',
           style: const TextStyle(fontSize: 12),
         ),

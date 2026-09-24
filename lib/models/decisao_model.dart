@@ -33,7 +33,7 @@ class Decisao {
   final String? resposta;
   final double? confianca;
   final Map<String, double> probabilidades;
-  final String motor; // jev | gemini | nenhum
+  final String motor; // jev | gemini | fallback (regra determinística) | nenhum
   final String? modelo;
   final int? latenciaMs;
   final int? tokensEntrada;
@@ -155,3 +155,8 @@ List<Decisao> filtrarDecisoes(List<Decisao> todas, {String? tipo, String? motor,
           (usadoPor == null || d.usadoPor == usadoPor))
       .toList();
 }
+
+/// Quantas linhas ficaram pela regra determinística (motor 'fallback': os dois motores
+/// falharam — Gemini 429/503, Jev sem chave). O painel mostra este número por cima dos
+/// filtros para o Danilo ver quando o decisor andou "às escuras". (fecho-manha-2026-09-24)
+int contarFallbacks(List<Decisao> todas) => todas.where((d) => d.motor == 'fallback').length;

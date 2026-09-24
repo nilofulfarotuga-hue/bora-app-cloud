@@ -9,8 +9,8 @@
 Todos os dias às 19:00 o PC do Danilo procura no YouTube vídeos novos sobre **crescer no
 Instagram, Facebook, Reels e TikTok** e sobre **ganhar dinheiro online / marketing de apps
 e pequenos negócios**. De cada vídeo tira a **transcrição real** (as legendas automáticas só
-saem do IP de casa; a VPS está bloqueada pelo YouTube), manda a um **modelo barato** (GLM da
-opencode, senão Gemini, senão Ollama local) e guarda: resumo, **3 ideias práticas** e uma
+saem do IP de casa; a VPS está bloqueada pelo YouTube), manda a um **modelo barato** (Gemini
+primeiro, GLM em reserva, Ollama local como último recurso) e guarda: resumo, **3 ideias práticas** e uma
 **nota de utilidade de 0 a 10** para o Bora e o Em Dia.
 
 Uma vez por semana (domingo) destila o **playbook**: só entra uma regra que apareça em **3 ou
@@ -91,3 +91,75 @@ vez**, como o Danilo pediu depois da VPS ter caído a 24/09.
 
 O Telegram saiu da corrida das 19:00 para tarefa própria porque a recolha pode levar quase
 uma hora e a mensagem tem hora certa.
+
+---
+
+## Provas da primeira corrida real (24/09, tarde)
+
+| O quê | Número |
+|---|---|
+| Vídeos na base `radar_videos` | 22 |
+| Com transcrição automática real | 21 |
+| Com resumo e 3 ideias | 20 |
+| Regras no playbook v20260924 | 2 |
+| Mensagem no Telegram | `message_id` 8385 (robô) e 8386 (tarefa das 20:00) |
+
+Motores que responderam: `gemini-3.1-flash-lite`, `gemini-3.5-flash-lite`,
+`gemini-3-flash-preview` e `ollama-qwen2.5:3b-instruct`. O modelo local entrou sozinho
+quando o Gemini devolveu 503, que é exactamente o que se queria da cascata.
+
+### O painel, provado sem abrir o painel
+
+Com o teu login de admin simulado na base, `admin_radar_videos(30, null)` devolveu **8**
+vídeos no momento do teste, o filtro `crescer_redes` devolveu **7**, e um utilizador que não
+é admin devolveu **0**. A prova correu dentro de um `DO … RAISE EXCEPTION`, portanto nada
+ficou escrito.
+
+### O fiscal, provado com regras falsas
+
+Antes de existir playbook a sério, corri o fiscal com um ficheiro de teste de 5 regras numa
+pasta temporária: leu as 4 de categoria válida, ignorou a de categoria fora da lista, deu
+`2.5/4` com notas `pb1=1.0, pb2=0.5, pb3=0.0, pb4=1.0`, disse *"a IA não respondeu"* quando o
+modelo se cala e *"sem valores válidos"* quando responde lixo. A produção não foi tocada e o
+ficheiro de teste foi apagado.
+
+### As tarefas, provadas pelo log
+
+Não pelo `Last Result 0`. A tarefa das 20:00 escreveu no `run_diario.log`:
+`START telegram 20:00` seguido de `telegram rc=0 ENVIADO "message_id":8386`. A das 19:00
+escreveu `START run_diario` e arrancou uma recolha verdadeira (`conhecidos=21`).
+
+### Mais duas avarias caladas, no Telegram
+
+1. O `bash` do Git também não está no PATH quando a tarefa arranca pelo PowerShell: a
+   mensagem morria com `WinError 2`.
+2. Resolvido isso, os acentos passavam pela página de códigos da consola do Windows e a API
+   respondia `400 Bad Request: strings must be encoded in UTF-8`.
+
+A mensagem passou a sair **direto do Python** por `urllib`, em UTF-8 do princípio ao fim, com
+a **mesma credencial** (`C:\Users\danil\.bora\aviso.conf`, fora do repositório) e a mesma
+regra de prova: lê-se o `"ok":true` no corpo da resposta, nunca o código HTTP, porque já
+ficou registado que o `curl` devolve 0 num 401 e o alarme mente.
+
+## Portão
+
+- `flutter analyze`: **0 erros**, 6 avisos e 242 informações — todos já existiam no
+  repositório e **nenhum** nos ficheiros novos.
+- `flutter test test/painel_admin_limpo_test.dart`: **17 testes verdes** (inclui o que proíbe
+  ids e títulos repetidos no menu).
+- Commit `53281009`, merge `a093b9e8`, empurrados para `autonomous-night-2026-04-29`.
+
+## O que ficou por fechar
+
+**A página `playbook-redes` no Córtex ficou em proposta** (`prop-01932840`). O conector do
+Córtex só actualiza páginas que já existem; criar uma nova passa pela Central de aprovação.
+O conteúdo está escrito e à espera de um clique. O mesmo conteúdo já está no repositório
+(`docs/marketing/PLAYBOOK-REDES.md`) e no painel admin, portanto nada fica dependente disso.
+
+## Para o Danilo
+
+O playbook v1 tem só **duas** regras. Não é falta de material: é o corte dos **3 vídeos** a
+fazer o trabalho dele. Só entra o que apareceu em três vídeos diferentes, e com 20 vídeos
+apenas dois padrões chegaram lá. Cresce sozinho todas as semanas, à medida que a base
+engorda. Se quiseres um playbook mais cheio mais depressa, a única alavanca honesta é
+recolher mais vídeos por dia — não baixar o corte.

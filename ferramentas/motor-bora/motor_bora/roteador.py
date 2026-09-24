@@ -81,6 +81,28 @@ class Roteador:
             u = u.replace("{CLOUDFLARE_ACCOUNT_ID}", self.env.get("CLOUDFLARE_ACCOUNT_ID", ""))
         return u
 
+    # ------------------------------------------------------------ Jev (TypeSafe) — preparado, desligado
+    # Missao fecho-manha-2026-09-24: o roteador sabe chamar o Jev para decisoes TIPADAS
+    # (choice/score/noul) quando MOTOR_JEV_ATIVO=1 e houver TYPESAFE_API_KEY (env ou Vault via
+    # decisor_chave_typesafe). Por defeito a flag esta desligada e estes metodos devolvem None/False:
+    # quem chama segue com a regra que ja tinha. Nunca levantam excepcao.
+    def jev_disponivel(self):
+        from . import jev as _jev
+        return bool(_jev.ativo(self.env) and _jev.chave(self.env, self.supa))
+
+    def decidir_jev(self, tipo, pergunta, estado, opcoes=None, escala=None, criterios_noul=None, http=None):
+        from . import jev as _jev
+        t0 = time.time()
+        out = _jev.decidir(self.env, tipo, pergunta, estado, opcoes=opcoes, escala=escala,
+                           criterios_noul=criterios_noul, supa=self.supa, http=http)
+        if _jev.ativo(self.env):
+            try:
+                self.registar({"evento": "jev", "tipo": tipo, "ok": out is not None,
+                               "ms": int((time.time() - t0) * 1000), "resposta": (out or {}).get("resposta")})
+            except Exception:  # noqa: BLE001
+                pass
+        return out
+
     # ------------------------------------------------------------ disjuntor
     def castigar(self, forn, modelo, segundos, motivo):
         with self.lock:

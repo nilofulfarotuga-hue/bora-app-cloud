@@ -72,6 +72,13 @@ Bash/Read/Grep directamente; só uma sessão interactiva (Claude.ai, Claude Code
   **Plus** vive no aplicativo do ChatGPT instalado no Windows deste PC (é a que o Codex usa);
   procurar primeiro `codex login status`, o app, os outros perfis do Chrome e o Edge. Detalhe na
   skill `protocolo-missao-bora` (carta de autonomia).
+- **NAVEGADOR: escolher o perfil pelo `deviceId`, nunca pelo nome** — skill
+  `navegadores-e-contas` (`.claude/skills/navegadores-e-contas/SKILL.md`), escrita 24/09/2026.
+  Os nomes "Browser 1/2" trocam entre sessões; o `deviceId` não. Perfil **Bora**
+  `d9e862e0-a5ea-486f-b054-f333ef51b46a` (Apple, Meta/Instagram, Play, Cloudflare, Supabase,
+  Resend, Search Console, Gemini Plus); perfil **pessoal** `5b260cdd-9d4f-49d6-842b-ebfbfea69c75`
+  (claude.ai/code, GitHub, ChatGPT, Gemini pessoal, Firebase). Lê-a **antes** de abrir qualquer
+  site, painel ou login — inclusive antes de aplicar a regra do LOGIN NO NAVEGADOR acima.
 
 ## Sistema de Agentes
 

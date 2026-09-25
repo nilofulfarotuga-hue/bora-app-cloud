@@ -44,10 +44,17 @@ Deno.serve(async (req) => {
 
   let rideId: string
   let statusOverride: string | undefined
+  // 2026-09-25: mensagem PROPRIA, para avisos que trazem um numero que muda — o primeiro
+  // caso e o reembolso ("devolvemos X euros"), que nao cabe numa frase fixa por estado.
+  // Aditivo: quem nao mandar titulo/corpo continua a receber a frase do estado, como sempre.
+  let tituloProprio: string | undefined
+  let corpoProprio: string | undefined
   try {
     const b = await req.json()
     rideId = b.rideId
     statusOverride = b.status
+    tituloProprio = typeof b.titulo === 'string' && b.titulo.trim() ? b.titulo.trim() : undefined
+    corpoProprio = typeof b.corpo === 'string' && b.corpo.trim() ? b.corpo.trim() : undefined
   } catch (_e) {
     return json({ ok: false, error: 'Invalid JSON body' }, 400)
   }
@@ -72,7 +79,9 @@ Deno.serve(async (req) => {
     driverName = (drv?.name ?? '').trim()
   }
 
-  const msg = statusMessage(status, driverName)
+  const msg = (tituloProprio && corpoProprio)
+    ? { title: tituloProprio, body: corpoProprio }
+    : statusMessage(status, driverName)
   if (!msg) return json({ ok: false, reason: 'status_not_notifiable' }, 200)
 
   // ── FCM token do passageiro (users.fcm_token) ───────────────────────────────

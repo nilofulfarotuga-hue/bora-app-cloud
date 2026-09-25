@@ -254,6 +254,158 @@ Deno.serve(async (req) => {
       return json({ ok: true, refundCents, feeCents, paymentStatus: newStatus });
     }
 
+    // -- v14: AUTO_REFUND_RIDE — corrida IMEDIATA cancelada e paga -------------
+    // A CICATRIZ (25/09/2026): a Izilda pagou 8 EUR por MB Way pelo pacote
+    // ida-e-volta, o motorista aceitou e desistiu, ela cancelou sem motorista
+    // atribuido (taxa 0) — e NINGUEM devolveu o dinheiro. A `tvde_cancel_ride`
+    // nao tinha passo nenhum de reembolso: so as RESERVAS devolviam. E mesmo que
+    // tivesse, nao encontrava o pagamento, porque no pacote o PaymentIntent fica
+    // no VALE e nao na corrida.
+    //
+    // Esta accao cobre as corridas imediatas. Fica ANTES do kill switch de
+    // proposito, como as outras duas: devolver dinheiro tem de funcionar mesmo
+    // com os pagamentos online desligados.
+    if (action === 'auto_refund_ride') {
+      if (!(SERVICE_KEY && token === SERVICE_KEY) && !jwtServiceRoleVerificadoPelaPorta(token)) {
+        return json({ error: 'not_service_role' }, 403);
+      }
+      const rideId = String(body.ride_id ?? '');
+      if (!rideId) return json({ error: 'missing_ride_id' }, 400);
+      const motivo = String(body.motivo ?? 'cancelamento');
+      // Reembolso parcial pedido a mao pelo admin (em centimos). Sem isto, devolve-se o
+      // que a regra manda.
+      const pedidoAdmin = Number(body.valor_cents ?? 0);
+
+      const { data: ride } = await admin
+        .from('tvde_rides')
+        .select('id, client_id, payment_intent_id, payment_status, payment_method, est_fare_cents, final_fare_cents, cancel_fee_cents, roundtrip_credit_id, is_return_leg, status')
+        .eq('id', rideId)
+        .maybeSingle();
+      if (!ride) return json({ error: 'ride_not_found' }, 404);
+      if (ride.payment_status === 'refunded' ||
+          ride.payment_status === 'partial_refund' ||
+          ride.payment_status === 'kept_cancel_fee') {
+        return json({ ok: true, already: true, paymentStatus: ride.payment_status });
+      }
+
+      // O pagamento pode estar na CORRIDA ou no VALE (pacote ida-e-volta).
+      let pi = ride.payment_intent_id as string | null;
+      let credit: { id?: string; paid_cents?: number; payment_intent_id?: string; status?: string } | null = null;
+      if (ride.roundtrip_credit_id) {
+        const { data: c } = await admin
+          .from('tvde_roundtrip_credits')
+          .select('id, paid_cents, payment_intent_id, status')
+          .eq('id', ride.roundtrip_credit_id)
+          .maybeSingle();
+        credit = c ?? null;
+        if (!pi) pi = (credit?.payment_intent_id as string) ?? null;
+      }
+      if (!pi) return json({ ok: true, noop: true, porque: 'sem pagamento online' });
+
+      // IDEMPOTENCIA A SERIO: pergunta-se a Stripe se aquele pagamento ja levou
+      // reembolso. O estado na nossa base pode ter ficado para tras (foi o que
+      // aconteceu no caso da Izilda) e devolver duas vezes e dinheiro perdido.
+      const jaFeitos = await stripe.refunds.list({ payment_intent: pi, limit: 10 });
+      const jaDevolvido = (jaFeitos?.data ?? [])
+        .filter((r: any) => r.status !== 'failed' && r.status !== 'canceled')
+        .reduce((t: number, r: any) => t + Number(r.amount ?? 0), 0);
+
+      const piObj = await stripe.paymentIntents.retrieve(pi);
+      const recebido = Number(piObj.amount_received ?? 0);
+
+      // QUANTO SE DEVOLVE:
+      //  · pacote ida-e-volta, perna de IDA -> o pacote inteiro (foi o que ela pagou);
+      //  · pacote, perna de VOLTA (a ida ja foi feita) -> metade do pacote;
+      //  · corrida normal -> a tarifa cobrada.
+      // Nunca mais do que a Stripe recebeu, nunca menos que zero.
+      let pagoCents: number;
+      if (credit && Number(credit.paid_cents ?? 0) > 0 && credit.payment_intent_id === pi) {
+        pagoCents = ride.is_return_leg
+          ? Math.floor(Number(credit.paid_cents) / 2)
+          : Number(credit.paid_cents);
+      } else {
+        pagoCents = Number(ride.final_fare_cents ?? ride.est_fare_cents ?? 0);
+      }
+      pagoCents = Math.min(pagoCents, recebido);
+
+      const feeCents = Math.max(0, Number(ride.cancel_fee_cents ?? 0));
+      let refundCents = Math.max(0, Math.min(pagoCents - feeCents, pagoCents));
+      if (pedidoAdmin > 0) refundCents = Math.min(pedidoAdmin, Math.max(0, recebido - jaDevolvido));
+      refundCents = Math.max(0, Math.min(refundCents, Math.max(0, recebido - jaDevolvido)));
+
+      let erro: string | null = null;
+      if (refundCents >= 1) {
+        try {
+          await stripe.refunds.create(
+            { payment_intent: pi, amount: refundCents },
+            { idempotencyKey: `ride-refund-${pi}-${refundCents}` },
+          );
+        } catch (e) {
+          erro = String((e as Error).message ?? e).slice(0, 300);
+        }
+      }
+
+      if (erro) {
+        await admin.from('tvde_ride_events').insert({
+          ride_id: ride.id, status: 'reembolso_falhou', actor: 'system',
+          meta: { motivo, erro, payment_intent: pi, valor_cents: refundCents },
+        });
+        // O Danilo tem de saber NA HORA: fica dinheiro do cliente retido.
+        try {
+          const { data: cli } = await admin.from('users').select('name, phone')
+            .eq('id', ride.client_id).maybeSingle();
+          await admin.rpc('notify_admin_urgent_push', {
+            p_event_type: 'tvde_reembolso_falhou',
+            p_summary: `Reembolso FALHOU\n${cli?.name ?? 'cliente'} — ${(refundCents / 100).toFixed(2)} EUR nao devolvidos. Pagamento ${pi}. Abrir na Stripe e devolver a mao.`,
+            p_entity_type: 'tvde_ride', p_entity_id: ride.id,
+            p_payload: { ride_id: ride.id, payment_intent: pi, valor_cents: refundCents,
+                         erro, stripe: `https://dashboard.stripe.com/payments/${pi}` },
+            p_deep_link: '/admin/tvde/corridas',
+          });
+        } catch (_) { /* o aviso e best-effort; o evento ja ficou gravado */ }
+        return json({ ok: false, erro, refundCents }, 200);
+      }
+
+      const novoEstado = refundCents <= 0
+        ? (feeCents > 0 ? 'kept_cancel_fee' : (jaDevolvido > 0 ? 'refunded' : 'succeeded'))
+        : (feeCents > 0 ? 'partial_refund' : 'refunded');
+      await admin.from('tvde_rides').update({ payment_status: novoEstado }).eq('id', ride.id);
+
+      // O VALE do pacote nao pode ficar 'ativo' depois de devolvido: senao a cliente
+      // fica com uma volta gratis por uma viagem que nao aconteceu e que lhe foi paga.
+      // 'anulado' e o que o check constraint da tabela aceita.
+      if (credit?.id && !ride.is_return_leg && refundCents >= 1) {
+        await admin.from('tvde_roundtrip_credits')
+          .update({ status: 'anulado' }).eq('id', credit.id);
+      }
+
+      await admin.from('tvde_ride_events').insert({
+        ride_id: ride.id, status: 'reembolso_feito', actor: 'system',
+        meta: { motivo, payment_intent: pi, pago_cents: pagoCents, taxa_cents: feeCents,
+                devolvido_cents: refundCents, ja_devolvido_antes_cents: jaDevolvido,
+                vale: credit?.id ?? null, estado_pagamento: novoEstado },
+      });
+
+      if (refundCents >= 1) {
+        try {
+          await fetch(`${SUPABASE_URL}/functions/v1/notify-tvde-client`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${SERVICE_KEY}` },
+            body: JSON.stringify({
+              rideId: ride.id, status: 'reembolso_feito',
+              titulo: 'Dinheiro devolvido',
+              corpo: `Cancelaste a viagem. Devolvemos ${(refundCents / 100).toFixed(2)} € ao teu ${ride.payment_method === 'mbway' ? 'MB Way' : 'cartão'}. Pode demorar alguns dias a aparecer.`,
+            }),
+          });
+        } catch (_) { /* o push e best-effort; o dinheiro ja foi devolvido */ }
+      }
+
+      console.log('[tvde-payment auto_refund_ride]', ride.id, 'pi:', pi,
+        'pago:', pagoCents, 'taxa:', feeCents, 'devolvido:', refundCents,
+        'ja_devolvido:', jaDevolvido, 'motivo:', motivo, '->', novoEstado);
+      return json({ ok: true, refundCents, feeCents, pagoCents, jaDevolvido, paymentStatus: novoEstado });
+    }
+
     // Gate #1 (server-side): kill switch. Falha fechada.
     if (!(await getSettingBool('tvde_card_payments_enabled'))) {
       return json({ error: 'card_payments_not_enabled' }, 403);

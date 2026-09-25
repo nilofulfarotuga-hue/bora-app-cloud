@@ -28,8 +28,11 @@ class AdminTvdeRidesScreen extends StatefulWidget {
 class _AdminTvdeRidesScreenState extends State<AdminTvdeRidesScreen> {
   @override
   Widget build(BuildContext context) {
+    // [25/09] Terceiro separador: "Por devolver". Depois do caso da Izilda — 8 EUR pagos
+    // por MB Way que ninguem devolveu — tem de haver UM sitio onde o dinheiro esquecido
+    // aparece sozinho, sem ninguem se lembrar de ir la ver.
     return const DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         backgroundColor: AppColors.background,
         appBar: BoraScreenAppBar(title: 'Corridas — Bora Motorista'),
@@ -44,6 +47,7 @@ class _AdminTvdeRidesScreenState extends State<AdminTvdeRidesScreen> {
                 tabs: [
                   Tab(text: 'Ao Vivo'),
                   Tab(text: 'Histórico'),
+                  Tab(text: 'Por devolver'),
                 ],
               ),
             ),
@@ -52,6 +56,7 @@ class _AdminTvdeRidesScreenState extends State<AdminTvdeRidesScreen> {
                 children: [
                   _RidesList(scope: 'live'),
                   _RidesList(scope: 'history'),
+                  _RidesList(scope: 'sem_reembolso'),
                 ],
               ),
             ),
@@ -100,7 +105,9 @@ class _RidesListState extends State<_RidesList>
   Future<void> _load() async {
     try {
       final res = await Supabase.instance.client.rpc(
-        'admin_tvde_rides_list',
+        // v2: a mesma lista de sempre, mais o estado do reembolso por corrida. A v1 fica
+        // intacta por baixo — se esta falhar, nao leva a outra atras.
+        'admin_tvde_rides_list_v2',
         params: {'p_scope': widget.scope, 'p_limit': _isLive ? 200 : 500},
       );
       final list = (res as List?) ?? const [];
@@ -293,6 +300,78 @@ class _RidesListState extends State<_RidesList>
     await _load();
   }
 
+  /// Reembolsar agora, a mao, pelo painel.
+  ///
+  /// [25/09] Existe por causa do caso da Izilda: 8 EUR pagos por MB Way numa corrida
+  /// cancelada que ninguem devolveu. O automatico passa a tratar disto sozinho, mas tem de
+  /// haver forma de resolver um caso a mao sem abrir a Stripe. Usa a MESMA porta do
+  /// automatico, por isso herda a protecao contra devolver duas vezes: quem decide quanto
+  /// falta devolver e a Stripe, nao este ecra.
+  Future<void> _reembolsar(Map<String, dynamic> r) async {
+    final devolvido = (r['reembolso_cents'] as num?)?.toInt();
+    final jaTratado = const ['devolvido', 'parcial', 'so_taxa']
+        .contains(r['reembolso_estado']?.toString());
+    final controlo = TextEditingController();
+    final total = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reembolsar esta corrida?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(jaTratado
+                ? 'Esta corrida ja aparece como ${r['reembolso_estado']}'
+                    '${devolvido != null ? ' (EUR ${(devolvido / 100).toStringAsFixed(2)})' : ''}. '
+                    'A Stripe nao devolve duas vezes: se ja foi tudo, nao sai nada.'
+                : 'Devolve o que foi pago menos a taxa de cancelamento, se houver.'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controlo,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Valor parcial em euros (vazio = total)',
+                hintText: 'ex.: 4,50',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Nao')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controlo.text.trim()),
+            child: const Text('Reembolsar'),
+          ),
+        ],
+      ),
+    );
+    if (total == null || !mounted) return;
+
+    int? cents;
+    if (total.isNotEmpty) {
+      final v = double.tryParse(total.replaceAll(',', '.'));
+      if (v == null || v <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Valor invalido. Use por exemplo 4,50.')));
+        return;
+      }
+      cents = (v * 100).round();
+    }
+    try {
+      await Supabase.instance.client.rpc('admin_tvde_refund_ride', params: {
+        'p_ride_id': r['id'],
+        'p_valor_cents': cents,
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Reembolso pedido. Atualize daqui a alguns segundos para ver o estado.')));
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      _toast('Nao consegui pedir o reembolso: $e', AppColors.error);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -347,6 +426,7 @@ class _RidesListState extends State<_RidesList>
                   onReassign: _isLive ? () => _reassign(r) : null,
                   onForceRedispatch:
                       _isLive ? () => _forcarNovaRoda(r) : null,
+                  onRefund: () => _reembolsar(r),
                 )),
         ],
       ),
@@ -464,12 +544,16 @@ class _RideCard extends StatelessWidget {
   const _RideCard({
     required this.data,
     required this.live,
+    this.onRefund,
     this.byId = const {},
     this.onReassign,
     this.onForceRedispatch,
   });
   final Map<String, dynamic> data;
   final bool live;
+
+  /// Pedido de reembolso a mao (so aparece quando ha dinheiro online por devolver).
+  final VoidCallback? onRefund;
 
   /// Linhas carregadas, por id — para escrever "atrás de quê" com nome e rota.
   final Map<String, Map<String, dynamic>> byId;
@@ -638,6 +722,80 @@ class _RideCard extends StatelessWidget {
               _kv(Icons.queue, 'Em fila atrás de', _resumo(behindId)),
             if (live && nextId != null && nextId.isNotEmpty)
               _kv(Icons.playlist_add_check, 'Leva atrás (fila)', _resumo(nextId)),
+            // [25/09] ESTADO DO REEMBOLSO. So aparece quando ha dinheiro online em jogo.
+            // Nasceu do caso da Izilda: 8 EUR pagos por MB Way numa corrida cancelada que
+            // ninguem devolveu, e nada no painel dizia que faltava devolver.
+            if (data['reembolso_estado'] != null) ...[
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(
+                  children: [
+                    Icon(
+                      data['reembolso_estado'] == 'pendente'
+                          ? Icons.error_outline
+                          : data['reembolso_estado'] == 'falhou'
+                              ? Icons.report_gmailerrorred
+                              : Icons.assignment_turned_in_outlined,
+                      size: 16,
+                      color: data['reembolso_estado'] == 'pendente' ||
+                              data['reembolso_estado'] == 'falhou'
+                          ? AppColors.error
+                          : AppColors.success,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        {
+                              'devolvido': 'Reembolso: devolvido',
+                              'parcial': 'Reembolso: parcial (ficou a taxa)',
+                              'so_taxa': 'Reembolso: ficou so a taxa',
+                              'falhou': 'Reembolso: FALHOU — resolver na Stripe',
+                              'pendente': 'Reembolso: POR DEVOLVER',
+                            }[data['reembolso_estado']?.toString()] ??
+                            'Reembolso: ${data['reembolso_estado']}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: data['reembolso_estado'] == 'pendente' ||
+                                  data['reembolso_estado'] == 'falhou'
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: data['reembolso_estado'] == 'pendente' ||
+                                  data['reembolso_estado'] == 'falhou'
+                              ? AppColors.error
+                              : AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                    if ((data['reembolso_cents'] as num?) != null)
+                      Text(
+                        'EUR ${(((data['reembolso_cents'] as num).toInt()) / 100).toStringAsFixed(2)}',
+                        style: const TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w700),
+                      ),
+                  ],
+                ),
+              ),
+              if (onRefund != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: onRefund,
+                      icon: const Icon(Icons.undo, size: 16),
+                      label: const Text('Reembolsar agora'),
+                      style: OutlinedButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        foregroundColor:
+                            data['reembolso_estado'] == 'pendente' ||
+                                    data['reembolso_estado'] == 'falhou'
+                                ? AppColors.error
+                                : AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
             if (live && onReassign != null && _reassignable.contains(status))
               Padding(
                 padding: const EdgeInsets.only(top: 8),

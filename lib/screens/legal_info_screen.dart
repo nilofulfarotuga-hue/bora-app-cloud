@@ -300,33 +300,42 @@ class _Cartao extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Sombra por fora (Container sem cor) e cor por dentro (Material): o
+    // Flutter estável de 09/2026 rebenta em depuração quando há um Container
+    // com cor entre um ListTile e o seu Material ("ListTile background color
+    // or ink splashes may be invisible"). Assim o Material branco é o fundo
+    // do cartão e a superfície onde as linhas pintam o toque.
     return Padding(
       padding: const EdgeInsets.only(bottom: Spacing.md),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
           borderRadius: BorderRadius.circular(Radii.lg),
           boxShadow: AppColors.shadowCard,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (titulo != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(Spacing.lg,
-                    Spacing.lg - Spacing.xxs, Spacing.lg, Spacing.xs),
-                child: Text(
-                  titulo!,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black54,
-                    letterSpacing: 0.4,
+        child: Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(Radii.lg),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (titulo != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(Spacing.lg,
+                      Spacing.lg - Spacing.xxs, Spacing.lg, Spacing.xs),
+                  child: Text(
+                    titulo!,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black54,
+                      letterSpacing: 0.4,
+                    ),
                   ),
                 ),
-              ),
-            ...children,
-          ],
+              ...children,
+            ],
+          ),
         ),
       ),
     );

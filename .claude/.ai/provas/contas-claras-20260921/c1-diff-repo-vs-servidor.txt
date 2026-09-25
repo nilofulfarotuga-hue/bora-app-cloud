@@ -1,0 +1,25 @@
+IGUAL     compute_driver_settlement                <- 20260921064507_contas_claras_b9_acerto_guarda_reembolsos_2026_09_21.sql
+IGUAL     close_previous_week_settlements          <- 20260921064931_contas_claras_b9_fecho_grita_linha_travada_2026_09_21.sql
+IGUAL     weekly_closeout_compile                  <- 20260921064817_contas_claras_b9_recibo_acentos_ptpt_2026_09_21.sql
+IGUAL     finalize_storeshopping_purchase          <- 20260921071222_contas_claras_b10_taxa_pedido_pequeno_nao_desaparece_2026_09_21.sql
+IGUAL     _trg_alerta_pedido_no_vermelho_fn        <- 20260921071507_contas_claras_b11_vigia_pedido_no_vermelho_2026_09_21.sql
+IGUAL     tvde_ride_cash_in_hand                   <- 20260920230000_contas_claras_b8_dinheiro_em_mao_corrida.sql
+IGUAL     extrato_prestador                        <- 20260920203500_contas_claras_b2_extrato_prestador.sql
+IGUAL     _prestador_trabalhos                     <- 20260920230000_contas_claras_b8_dinheiro_em_mao_corrida.sql
+IGUAL     admin_extrato_dono                       <- 20260920213000_contas_claras_b4_extrato_dono.sql
+IGUAL     vigia_dinheiro_diario                    <- 20260920220000_contas_claras_b5_vigia_dinheiro.sql
+IGUAL     admin_mark_receipt_paid                  <- 20260920190500_contas_claras_b1_talao_dois_caminhos.sql
+IGUAL     admin_mark_receipt_paid_external         <- 20260920190500_contas_claras_b1_talao_dois_caminhos.sql
+IGUAL     _prestador_semana_em_curso               <- 20260920204444_contas_claras_b2_prestador_semana_em_curso.sql
+IGUAL     wallet_recompute_balance                 <- 20260920190000_contas_claras_b1_saldo_igual_historico.sql
+IGUAL     _wallet_tx_before_insert                 <- 20260920190000_contas_claras_b1_saldo_igual_historico.sql
+IGUAL     _wallet_tx_sync_balance                  <- 20260920190000_contas_claras_b1_saldo_igual_historico.sql
+IGUAL     _wallet_tx_append_only                   <- 20260920190000_contas_claras_b1_saldo_igual_historico.sql
+IGUAL     extrato_parceiro                         <- 20260920210000_contas_claras_b3_extrato_parceiro.sql
+IGUAL     admin_vigia_achados                      <- 20260920220000_contas_claras_b5_vigia_dinheiro.sql
+IGUAL     admin_vigia_resolver                     <- 20260920220000_contas_claras_b5_vigia_dinheiro.sql
+IGUAL     admin_vigia_correr_agora                 <- 20260920220000_contas_claras_b5_vigia_dinheiro.sql
+IGUAL     _tvde_ride_zz_dinheiro_em_mao            <- 20260920230000_contas_claras_b8_dinheiro_em_mao_corrida.sql
+diferentes: []
+
+-- Reconfirmado às 09h45 UTC depois do C2 e do C3: 26/26 IGUAL (incl. driver_settlement_parcelas, admin_weekly_closeout_list, admin_reabrir_acerto, admin_avisos_fecho, weekly_closeout_compile, extrato_prestador). diferentes: []

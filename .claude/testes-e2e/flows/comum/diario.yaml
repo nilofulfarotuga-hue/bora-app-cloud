@@ -1,0 +1,9 @@
+# Sub-flow reutilizável: escreve UM milestone no diário e2e_log (via diario-log.js).
+# Uso a partir de outro flow:
+#   - runFlow:
+#       file: ../comum/diario.yaml
+#       env: { DIARIO_FLUXO: "delivery-mercado-cash", DIARIO_PASSO: "abriu loja", DIARIO_ESTADO: "passou" }
+# As credenciais (SUPABASE_URL/SUPABASE_KEY/E2E_RUN_ID) vêm do runner via --env (não estão no repo).
+appId: pt.boraapp.bora
+---
+- runScript: diario-log.js

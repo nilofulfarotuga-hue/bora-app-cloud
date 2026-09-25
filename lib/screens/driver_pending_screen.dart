@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
+import '../services/role_switch_helper.dart';
 import '../stores/session_store.dart';
+import '../widgets/bora/bora_mascot.dart';
 
 class DriverPendingScreen extends StatelessWidget {
   const DriverPendingScreen({super.key});
@@ -12,24 +14,17 @@ class DriverPendingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: Spacing.xxxl),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                padding: const EdgeInsets.all(Spacing.xxl),
-                decoration: BoxDecoration(
-                  color: AppColors.warning.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.hourglass_empty_rounded,
-                  size: 72,
-                  color: AppColors.warning,
-                ),
+              const BoraMascot(
+                variant: BoraMascotVariant.icon,
+                size: 96,
+                semanticLabel: 'BORA',
               ),
               const SizedBox(height: Spacing.xxxl),
               const Text(
@@ -51,7 +46,45 @@ class DriverPendingScreen extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: Spacing.huge),
+              const SizedBox(height: Spacing.lg),
+              // PEDIDO PENDENTE NAO BLOQUEIA (2026-08-29). Este ecra so fala
+              // do perfil de estafeta. Enquanto a candidatura e revista, a
+              // pessoa continua a poder usar a app como cliente — e antes
+              // daqui so tinha o botao "Sair", o que a mandava embora da app
+              // inteira por causa de um perfil so.
+              const Text(
+                'Entretanto podes usar a app normalmente para fazer os teus '
+                'pedidos. A analise continua na mesma.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: Spacing.lg),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primary),
+                  onPressed: () async {
+                    // Sem palavra-passe outra vez: a sessao ja e a mesma para
+                    // todos os perfis.
+                    final ok = await activateRole(context, UserRole.client);
+                    if (!ok && context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text(
+                              'Nao foi possivel abrir o teu perfil de cliente. '
+                              'Tenta de novo.')));
+                    }
+                  },
+                  icon: const Icon(Icons.shopping_bag_outlined),
+                  label: const Text('Usar a app como cliente'),
+                ),
+              ),
+              const SizedBox(height: Spacing.md),
               SizedBox(
                 width: double.infinity,
                 height: 52,

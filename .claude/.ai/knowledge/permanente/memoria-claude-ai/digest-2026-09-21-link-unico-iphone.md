@@ -1,0 +1,19 @@
+---
+id: memoria-claude-ai-digest-2026-09-21-link-unico-iphone
+tipo: conceito
+origem: [claude-ai, public.claude_ai_memoria]
+ultima_confirmacao: 2026-09-21
+zona: verde
+confianca: alta
+estado: atual
+---
+
+# Claude Code Opus 21/09 — link único para o iPhone (baixar, QR único, ficha Apple, propaganda)
+
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `digest-2026-09-21-link-unico-iphone`, origem `claude-code`, atualizada em 2026-09-21T16:06:32.362556+00:00).
+> Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
+> Palavras-chave: digest 2026 09 21 link unico iphone · memoria claude.ai · claude_ai_memoria
+
+O que funciona agora. A página boraguarda.com/baixar é a única morada da propaganda e encaminha sozinha: iPhone/iPad só vê o botão da App Store (link real bora-entregas-e-servicos/id6809954739), Android só a Google Play (com referrer da origem), computador vê os dois lado a lado e um QR grande único (qr-baixar.png, /baixar?de=site); "pedir pelo site" é uma linha pequena. Os dois botões nascem visíveis no HTML (uma leitura sem JavaScript já não engana — foi assim que o prompt desta missão concluiu mal que o iPhone ia para o site; desde 13/09 já ia à App Store com JS). Provado com Playwright nos três aparelhos no endereço público (provas/link-unico-20260921/E1-publico). A página principal do site deixou de dizer "iOS brevemente". Toda a arte impressa foi refeita com UM QR só para /baixar?de=qr-flyer (gerador bora-site/tools/qr/bora_qr.py): flyer A4/WhatsApp (Downloads + Desktop/Bora/Projetos/flyer-bora-app-2026-09-21), autocolantes genéricos (Desktop/Bora/autocolantes-bora, 10 peças + A4 + PDFs), cartaz A3 (painel único, linha "Em breve" reescrita), cartazes do Goola (moldura esquerda = QR único, direita = ícone real da app + as duas lojas); verificadores actualizados exigem o QR único; leitura OpenCV: 26/28 apontam a /baixar, 0 QR velhos. Robô das redes (VPS) diz as duas lojas em tudo (carrossel deixou de mandar iPhone para app.boraguarda.com; reel, extra, story, grelha, texto_loja, cartaz_cinema com rodapé "App Store · Google Play · boraguarda.com/baixar"); defeito corrigido: desde 05/09 o cartão do QR tapava o logo do parceiro nas peças de loja do dia. Sabores de Casa Açaí: fotos reais + logo em /opt/data/social/parceiros/sabores-de-casa/, cena de cinema própria (Gemini pago, perfil Bora), linha na rotacao.md para 24/09 12:00, ensaio SOCIAL_DRY_RUN completo aprovado; fiscal pela sessão paga do Gemini 92/100 lado a lado com o cartaz do Goola. Ficha da Apple: idioma principal já era pt-PT; o "Inglês" vem do binário -> CFBundleLocalizations [pt-PT,en] no Info.plist (commit 1221baf9 na produção), só entra na próxima build iOS; categoria não é editável na versão viva (409 INVALID_STATE) -> versão iOS 1.0.1 criada (02c335b3, manual) com Estilo de vida / Gastronomia nas fichas pendentes e whatsNew escrito. Cliente da API da Apple em provas/link-unico-20260921/asc_api.py (chave CL4QYYYP6A no cofre ~/.bora-cofre/apple).
+Como se usa: QR de papel = bora_qr.py com origem qr-flyer; peças novas das redes saem já com as duas lojas; o ensaio de uma loja do dia faz-se com SOCIAL_DRY_RUN=1 SOCIAL_FORCE=1 no contentor (sai antes de publicar).
+O que falta: (1) build iOS da 1.0.1 (ramo ios-lancamento é antepassado da produção, ff limpo; release só por workflow_dispatch enviar=true) + ligar build + submeter — depois do autoteste; (2) Mr Kebab continua coming_soon (decisão do Danilo): dono nunca entrou na app de parceiro (0 aparelhos push), 22/47 produtos sem foto; (3) mini-sites de parceiros e viagens.html ainda com botões Play + registo web; (4) fiscal_arte da VPS sem sessão viva há 13 dias e API grátis a 429; (5) versões Mac/TV/Vision criadas a 15/09 no ASC em rascunho; (6) CI do push 1221baf9: autoteste 3 perfis VERDE, build Android VERDE (versionCode 614, bump 8abbc037), web VERDE — e2e_log 2143/2144.

@@ -1,0 +1,17 @@
+{
+  "onde": "Supabase ojykpzwqrtusfeakzrna (produção), numa só transacção que acaba em RAISE → ROLLBACK. Nada ficou gravado (confirmado depois: função da carteira com a assinatura antiga, sem tabela bkp_, interruptor false, 0 pedidos TESTE, 0 order_edits).",
+  "quando": "2026-09-22 ~20:00 UTC",
+  "nota_pg_net": "pg_net=0 no caso B é o contador do teste: net.http_request_queue.body é bytea e o LIKE sobre texto não o apanha. Os segredos project_url e service_role_key existem no vault (2/2).",
+  "resultado": [
+    {"caso": "A tirar/dinheiro", "ok": true, "antes": {"subtotal": 6.54, "service_fee": 0.33, "markup": 0.28, "comissao": 0.65, "total": 9.67}, "depois": {"subtotal": 4.20, "service_fee": 0.21, "markup": 0.18, "comissao": 0.42, "total": 7.21}, "loja_recebe": 3.60, "soma_bate": true, "split_bate": true, "igual_a_pedido_nascido_assim": true},
+    {"caso": "B tirar/cartão", "ok": true, "total_antes": 9.67, "total_depois": 8.44, "reembolso_cents": 123, "liquidacao": "cartao / feito / re_TESTE_B"},
+    {"caso": "C1 acrescentar fica pendente", "ok": true, "diferenca": 33.60, "pedido_nao_mudou": true},
+    {"caso": "C2 cliente aceita (cartão)", "ok": true, "precisa_pagamento": true, "cobrar_cents": 3360},
+    {"caso": "C3 pago e aplicado", "ok": true, "total_antes": 9.67, "total_depois": 43.27, "cobrado_cents": 3360, "igual_a_pedido_nascido_assim": true, "soma_bate": true, "split_bate": true},
+    {"caso": "D recusado", "ok": true, "pedido_intacto": true},
+    {"caso": "E MB Way, loja com 15 % (Mr Kebab), tirar 2 vezes", "ok": true, "total_antes": 28.88, "total_depois": 15.84, "carteira_cents": 1304, "movimentos": [{"k": "refund_credit_free", "c": 77}, {"k": "refund_credit_tokens", "c": 19}, {"k": "refund_credit_free", "c": 966}, {"k": "refund_credit_tokens", "c": 242}], "loja_recebe": 10.80, "igual_a_pedido_nascido_assim": true},
+    {"caso": "F1 outra conta", "ok": true, "erro": "NAO_E_A_TUA_LOJA"},
+    {"caso": "F2 limite dinheiro", "ok": true, "erro": "LIMITE_DINHEIRO: pagamento em dinheiro só até 40.00 €"},
+    {"caso": "F4 fora de tempo", "ok": true, "erro": "JA_RECOLHIDO: o pedido já saiu da loja"}
+  ]
+}

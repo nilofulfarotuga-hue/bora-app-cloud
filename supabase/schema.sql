@@ -26,7 +26,8 @@ ALTER TABLE public.restaurants
   ADD COLUMN IF NOT EXISTS lat        FLOAT8,
   ADD COLUMN IF NOT EXISTS lng        FLOAT8,
   ADD COLUMN IF NOT EXISTS is_online  BOOLEAN NOT NULL DEFAULT TRUE,
-  ADD COLUMN IF NOT EXISTS category   TEXT    NOT NULL DEFAULT 'restaurant';
+  ADD COLUMN IF NOT EXISTS category   TEXT    NOT NULL DEFAULT 'restaurant',
+  ADD COLUMN IF NOT EXISTS cover_url  TEXT;
 
 -- ---------------------------------------------------------------------------
 -- 2. PRODUCTS

@@ -1,0 +1,28 @@
+{
+  "_README_1": "REFERÊNCIA — NÃO é carregado pelo Claude Code. Mostra o hook OPCIONAL do Graphify.",
+  "_README_2": "A Trava do banco vive em settings.json e NÃO é tocada. Estes hooks do Graphify são ADITIVOS: apenas injectam um 'nudge' (additionalContext) a sugerir `graphify query` antes de grep/read. NÃO bloqueiam nada. A Trava (protege-banco.sh / protege-dinheiro.sh) continua a correr na mesma, ANTES.",
+  "_README_3": "Para ligar (ato humano — só o Danilo pode escrever settings.local.json, a Trava bloqueia edição automática): copiar os DOIS objectos de hooks.PreToolUse abaixo para o array hooks.PreToolUse do .claude/settings.local.json (mantendo os que já lá estão). Depois reiniciar a sessão do Claude Code.",
+  "_README_4": "Alternativa oficial: `graphify claude install` faz este merge sozinho, MAS reescreve settings.json (o ficheiro protegido) e também mexe no CLAUDE.md — por isso NÃO foi corrido. Este ficheiro é a versão segura, opt-in.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"C:/Users/danil/.local/bin/graphify.exe\" hook-guard search"
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"C:/Users/danil/.local/bin/graphify.exe\" hook-guard read"
+          }
+        ]
+      }
+    ]
+  }
+}

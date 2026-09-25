@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
 import '../../services/admin/admin_order_service.dart';
 
 /// Modal para o admin cancelar um pedido. Recolhe `reason_code` (dropdown
@@ -30,11 +31,11 @@ class _AdminCancelOrderDialogState extends State<AdminCancelOrderDialog> {
   static const List<(String, String)> _reasonCodes = [
     ('client_request',     'Pedido do cliente'),
     ('partner_unable',     'Parceiro indisponível'),
-    ('driver_unavailable', 'Estafeta indisponível'),
+    ('driver_unavailable', 'Entregador indisponível'),
     ('payment_failed',     'Pagamento falhou'),
     ('fraud_suspected',    'Suspeita de fraude'),
     ('system_error',       'Erro técnico'),
-    ('address_invalid',    'Morada inválida'),
+    ('address_invalid',    'Endereço inválida'),
     ('food_quality_issue', 'Problema de qualidade'),
     ('other',              'Outro'),
   ];
@@ -101,7 +102,8 @@ class _AdminCancelOrderDialogState extends State<AdminCancelOrderDialog> {
     final reasonOk = _reason.text.trim().length >= _kReasonMinChars;
 
     return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Radii.lg)),
       title: const Text('Cancelar pedido'),
       content: SingleChildScrollView(
         child: Column(

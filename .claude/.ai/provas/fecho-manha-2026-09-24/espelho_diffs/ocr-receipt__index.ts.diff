@@ -1,0 +1,216 @@
+--- repo/ocr-receipt/index.ts
++++ prod/ocr-receipt/index.ts
+@@ -1,20 +1,24 @@
+ // @ts-nocheck
+ // supabase/functions/ocr-receipt/index.ts
+ //
+-// Fase 6 (Bloco 3) — Upgrade Gemini 2.5-flash. Extrai talão estruturado:
++// v11 (2026-08-16 — CORRECOES 1o DIA + adendo 4): tres upgrades apos o caso
++// real do Valdemir (2 talaos "nao conseguiu ler" e uma foto do SACO aceite):
++//   1. RETRY com modelo mais forte (gemini-3.1-flash) quando o lite devolve
++//      tudo vazio — o lite (downgrade de 2026-08-12) e fraco para talao.
++//   2. `looks_like_receipt` na resposta: total+linhas+loja todos vazios =
++//      isto nao parece um talao — a app avisa e pede outra foto ANTES de aceitar.
++//   3. Gancho do PRECO VIVO: linhas parseadas -> RPC
++//      catalog_price_update_from_receipt (nao-parceiros, guardas, auditoria).
++//
++// Fase 6 (Bloco 3) — Extrai talao estruturado:
+ //   { store, total_cents, lines[{name,qty,unit_price_cents}], datetime }
+ // e grava em order_receipts_v2.receipt_parsed* + receipt_match.
+-//
+-// Mantém o shadow legacy de storeShopping (ocr_extracted_total_cents/diff/flagged)
+-// para retrocompat — o valor digitado pelo estafeta continua a ser a fonte de verdade.
+ //
+ // Settings (platform_settings):
+ //   receipt_ocr_enabled            — kill-switch (default true)
+ //   receipt_divergence_alert_cents — threshold |digitado-parsed| (default 100)
+ //
+-// Armadilha gemini-2.5-flash: thinkingBudget=0 obrigatório (memória do projecto),
+-// senão maxOutputTokens é consumido em "thinking" e o output JSON sai truncado.
+-//
++// Armadilha gemini flash: thinkingBudget=0 obrigatorio (memoria do projecto).
+ // Secrets: GEMINI_API_KEY (se em falta → no-op gracioso).
+ 
+ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+@@ -87,87 +91,82 @@
+     return json({ ok: false, reason: 'storage_download_error' })
+   }
+ 
+-  // Call Gemini 2.5 Flash vision — JSON estruturado
++  // Chamada Gemini — v11: lite primeiro; vazio -> retry 1x com o flash forte.
++  const b64 = base64Encode(photoBytes)
+   let parsed: ParsedReceipt | null = null
+   let rawResponse: unknown = null
+-  try {
+-    const b64 = base64Encode(photoBytes)
+-    // 2026-08-12: era gemini-2.5-flash — retirado para projectos novos (404) depois de
+-    // a GEMINI_API_KEY passar para um projecto sem faturação. thinkingBudget=0 continua válido.
+-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${geminiKey}`
+-    const prompt =
+-      'Lê este talão de compra e devolve JSON ESTRITO (sem markdown, sem prosa). ' +
+-      'Schema: {"store": string|null, "total_cents": integer|null, ' +
+-      '"lines": [{"name": string, "qty": number, "unit_price_cents": integer}], ' +
+-      '"datetime": "YYYY-MM-DDTHH:MM" or null}. ' +
+-      'Regras: total_cents é o total final em cêntimos de euro (€12.34 → 1234). ' +
+-      'lines pode ser [] se não conseguires distinguir produtos. ' +
+-      'store é o nome da loja/farmácia/supermercado (sem morada). ' +
+-      'datetime usa hora local do talão se visível. ' +
+-      'Se não conseguires ler o talão, devolve {"store":null,"total_cents":null,"lines":[],"datetime":null}.'
+-    const payload = {
+-      contents: [{
+-        parts: [
+-          { text: prompt },
+-          { inline_data: { mime_type: 'image/jpeg', data: b64 } },
+-        ],
+-      }],
+-      generationConfig: {
+-        temperature: 0,
+-        response_mime_type: 'application/json',
+-        maxOutputTokens: 2048,
+-        // ARMADILHA gemini-2.5-flash: thinkingBudget=0 obrigatório.
+-        thinkingConfig: { thinkingBudget: 0 },
+-      },
+-    }
+-    const r = await fetch(url, {
+-      method: 'POST',
+-      headers: { 'Content-Type': 'application/json' },
+-      body: JSON.stringify(payload),
+-    })
+-    rawResponse = await r.json().catch(() => ({}))
+-    if (!r.ok) {
+-      await markFailed(supabase, receipt.id, `gemini_${r.status}`)
+-      return json({ ok: false, reason: 'gemini_error', detail: rawResponse })
+-    }
+-    const text = (rawResponse as any)?.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}'
+-    parsed = sanitizeParsed(JSON.parse(text))
++  let modelUsed = 'gemini-3.1-flash-lite'
++  try {
++    const first = await callGemini(geminiKey, 'gemini-3.1-flash-lite', b64)
++    parsed = first.parsed
++    rawResponse = first.raw
++    if (first.httpError) {
++      await markFailed(supabase, receipt.id, `gemini_${first.httpError}`)
++      return json({ ok: false, reason: 'gemini_error', detail: first.raw })
++    }
++    if (isEmptyParse(parsed)) {
++      console.log('[ocr-receipt] lite devolveu vazio — retry com gemini-3.1-flash')
++      const second = await callGemini(geminiKey, 'gemini-3.1-flash', b64)
++      if (!second.httpError && !isEmptyParse(second.parsed)) {
++        parsed = second.parsed
++        rawResponse = second.raw
++        modelUsed = 'gemini-3.1-flash'
++      }
++    }
+   } catch (e) {
+     console.error('[ocr-receipt] gemini call error:', e)
+     await markFailed(supabase, receipt.id, 'gemini_exception')
+     return json({ ok: false, reason: 'gemini_exception' })
+   }
+ 
+-  // Divergência (Fase 6): |digitado - parsed| > receipt_divergence_alert_cents → match=false
++  // v11: nada extraido = provavelmente NAO e um talao (caso real: foto do saco).
++  const looksLikeReceipt = !isEmptyParse(parsed)
++
++  // Divergencia (Fase 6): |digitado - parsed| > receipt_divergence_alert_cents → match=false
+   const parsedTotal = parsed?.total_cents ?? null
+   const typedTotal = receipt.driver_typed_total_cents
+   const divergenceLimit = settings.divergenceCents ?? DEFAULT_DIVERGENCE_CENTS
+   const diffCents = parsedTotal != null ? typedTotal - parsedTotal : null
+   const match = parsedTotal == null ? null : Math.abs(diffCents!) <= divergenceLimit
+-  // Legacy ocr_flagged mantém threshold legacy 50 cents para retrocompat
+   const legacyFlagged = diffCents != null && Math.abs(diffCents) > DEFAULT_LEGACY_FLAG_CENTS
+ 
+   await supabase.from('order_receipts_v2').update({
+-    // Campos novos (Fase 1 schema)
+     receipt_parsed: parsed,
+     receipt_parsed_total_cents: parsedTotal,
+     receipt_parsed_store: parsed?.store ?? null,
+     receipt_match: match,
+-    // Campos legacy (retrocompat shadow)
+     ocr_extracted_total_cents: parsedTotal,
+     ocr_diff_cents: diffCents,
+-    ocr_flagged: legacyFlagged,
++    ocr_flagged: legacyFlagged || !looksLikeReceipt,
+     ocr_raw_response: rawResponse,
+     ocr_ran_at: new Date().toISOString(),
+   }).eq('id', receipt.id)
+ 
++  // v11 — PRECO VIVO: linhas parseadas -> motor de atualizacao de catalogo
++  // (so nao-parceiros; guardas ±30%; auditoria; kill switch proprio na RPC).
++  let priceLive: unknown = null
++  if (parsed && Array.isArray(parsed.lines) && parsed.lines.length > 0) {
++    try {
++      const { data: plData, error: plErr } = await supabase.rpc(
++        'catalog_price_update_from_receipt', { p_receipt_id: receipt.id })
++      priceLive = plErr ? { error: plErr.message } : plData
++      console.log('[ocr-receipt] preco-vivo:', JSON.stringify(priceLive))
++    } catch (e) {
++      console.error('[ocr-receipt] preco-vivo exception:', e)
++    }
++  }
++
+   return json({
+     ok: true,
++    looks_like_receipt: looksLikeReceipt,
++    model_used: modelUsed,
+     parsed_total_cents: parsedTotal,
+     parsed_store: parsed?.store ?? null,
++    parsed_lines_count: parsed?.lines?.length ?? 0,
+     diff_cents: diffCents,
+     match,
+     divergence_limit: divergenceLimit,
++    price_live: priceLive,
+   })
+ })
+ 
+@@ -179,6 +178,50 @@
+   total_cents: number | null
+   lines: ParsedLine[]
+   datetime: string | null
++}
++
++function isEmptyParse(p: ParsedReceipt | null): boolean {
++  return !p || (p.total_cents == null && (!p.lines || p.lines.length === 0) && !p.store)
++}
++
++async function callGemini(key: string, model: string, b64: string):
++  Promise<{ parsed: ParsedReceipt | null; raw: unknown; httpError: number | null }> {
++  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`
++  const prompt =
++    'Lê este talão de compra e devolve JSON ESTRITO (sem markdown, sem prosa). ' +
++    'Schema: {"store": string|null, "total_cents": integer|null, ' +
++    '"lines": [{"name": string, "qty": number, "unit_price_cents": integer}], ' +
++    '"datetime": "YYYY-MM-DDTHH:MM" or null}. ' +
++    'Regras: total_cents é o total final em cêntimos de euro (€12.34 → 1234). ' +
++    'lines pode ser [] se não conseguires distinguir produtos. ' +
++    'store é o nome da loja/farmácia/supermercado (sem morada). ' +
++    'datetime usa hora local do talão se visível. ' +
++    'Se não conseguires ler o talão, devolve {"store":null,"total_cents":null,"lines":[],"datetime":null}.'
++  const payload = {
++    contents: [{
++      parts: [
++        { text: prompt },
++        { inline_data: { mime_type: 'image/jpeg', data: b64 } },
++      ],
++    }],
++    generationConfig: {
++      temperature: 0,
++      response_mime_type: 'application/json',
++      maxOutputTokens: 2048,
++      thinkingConfig: { thinkingBudget: 0 },
++    },
++  }
++  const r = await fetch(url, {
++    method: 'POST',
++    headers: { 'Content-Type': 'application/json' },
++    body: JSON.stringify(payload),
++  })
++  const raw = await r.json().catch(() => ({}))
++  if (!r.ok) return { parsed: null, raw, httpError: r.status }
++  const text = (raw as any)?.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}'
++  let parsed: ParsedReceipt | null = null
++  try { parsed = sanitizeParsed(JSON.parse(text)) } catch { parsed = null }
++  return { parsed, raw, httpError: null }
+ }
+ 
+ function sanitizeParsed(raw: any): ParsedReceipt {

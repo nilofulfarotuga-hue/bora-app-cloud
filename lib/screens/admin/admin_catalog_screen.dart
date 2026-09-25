@@ -1,0 +1,434 @@
+// T7 — Admin catalog management.
+// Two levels: list partners with counts → tap → list products with toggle/edit.
+
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
+import 'admin_product_prices_dialog.dart';
+import 'admin_product_weight_dialog.dart';
+
+class AdminCatalogScreen extends StatefulWidget {
+  const AdminCatalogScreen({super.key});
+
+  @override
+  State<AdminCatalogScreen> createState() => _AdminCatalogScreenState();
+}
+
+class _AdminCatalogScreenState extends State<AdminCatalogScreen> {
+  final _search = TextEditingController();
+  bool _loading = true;
+  String? _error;
+  List<Map<String, dynamic>> _partners = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final res = await Supabase.instance.client.rpc('admin_partners_with_counts', params: {
+        'p_search': _search.text.isEmpty ? null : _search.text.trim(),
+        'p_limit': 200, 'p_offset': 0,
+      });
+      if (mounted) {
+        setState(() {
+          _partners = List<Map<String, dynamic>>.from(res as List);
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: 'Catálogo',
+        actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: _load)],
+      ),
+      body: Column(children: [
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: TextField(
+            controller: _search,
+            decoration: const InputDecoration(
+                hintText: 'Buscar parceiro', prefixIcon: Icon(Icons.search), isDense: true),
+            onSubmitted: (_) => _load(),
+          ),
+        ),
+        if (_error != null) Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(_error!, style: const TextStyle(color: AppColors.error)),
+        ),
+        Expanded(
+          child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  child: ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      itemCount: _partners.length,
+                  itemBuilder: (ctx, i) {
+                    final p = _partners[i];
+                    return Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.card,
+                        borderRadius: BorderRadius.circular(Radii.lg),
+                        boxShadow: AppColors.shadowCard,
+                      ),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: AppColors.primary,
+                          child: Text((p['name'] as String).substring(0, 1).toUpperCase()),
+                        ),
+                        title: Text(p['name'] ?? '—'),
+                        subtitle: Text('${p['category']} · ${p['active_products']}/${p['total_products']} activos'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => _AdminCatalogProductsScreen(
+                              restaurantId: p['id'] as String,
+                              restaurantName: p['name'] as String,
+                            ),
+                          ),
+                        ).then((_) => _load()),
+                      ),
+                    );
+                  },
+                ),
+                ),
+        ),
+      ]),
+    );
+  }
+}
+
+class _AdminCatalogProductsScreen extends StatefulWidget {
+  const _AdminCatalogProductsScreen({required this.restaurantId, required this.restaurantName});
+  final String restaurantId;
+  final String restaurantName;
+
+  @override
+  State<_AdminCatalogProductsScreen> createState() => _AdminCatalogProductsScreenState();
+}
+
+class _AdminCatalogProductsScreenState extends State<_AdminCatalogProductsScreen> {
+  final _search = TextEditingController();
+  bool _onlyInactive = false;
+  // Venda ao peso (2026-09-18): filtro "vendidos ao peso".
+  bool _onlyByWeight = false;
+  bool _loading = true;
+  List<Map<String, dynamic>> _products = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      // 2026-09-14: v2 traz também partner_shelf_price, is_partner e
+      // app_markup_pct (migration 20260914170000_admin_precos_parceiro_balcao_e_app).
+      // 2026-09-18: v3 = v2 + sold_by_weight/shelf_price_per_kg + filtro ao peso
+      // (migration 20260918211000_admin_list_products_by_partner_v3).
+      final res = await Supabase.instance.client.rpc('admin_list_products_by_partner_v3', params: {
+        'p_restaurant_id': widget.restaurantId,
+        'p_search': _search.text.isEmpty ? null : _search.text.trim(),
+        'p_only_inactive': _onlyInactive,
+        'p_only_by_weight': _onlyByWeight,
+        'p_limit': 200, 'p_offset': 0,
+      });
+      if (mounted) setState(() {
+        _products = List<Map<String, dynamic>>.from(res as List);
+        _loading = false;
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+      }
+    }
+  }
+
+  Future<void> _toggleAvailability(Map<String, dynamic> p) async {
+    final reasonCtrl = TextEditingController();
+    final newAvail = !(p['is_available'] as bool);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(newAvail ? 'Activar' : 'Desactivar'),
+        content: TextField(controller: reasonCtrl, maxLines: 2,
+            decoration: const InputDecoration(labelText: 'Motivo (mín 3)')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('OK')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted || reasonCtrl.text.trim().length < 3) return;
+    try {
+      await Supabase.instance.client.rpc('admin_set_product_availability', params: {
+        'p_product_id': p['id'],
+        'p_available': newAvail,
+        'p_reason': reasonCtrl.text.trim(),
+      });
+      _load();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+    }
+  }
+
+  Future<void> _editPrice(Map<String, dynamic> p) async {
+    // Loja parceira: as DUAS colunas (balcão + app), coerentes entre si, pela
+    // RPC admin_update_product_prices. Loja não-parceira: o preço puro, como antes.
+    if (p['is_partner'] == true) {
+      final saved = await showAdminProductPricesDialog(
+        context,
+        productId: p['id'] as String,
+        productName: (p['name'] as String?) ?? '—',
+        currentPrice: _num(p['price']) ?? 0,
+        currentShelfPrice: _num(p['partner_shelf_price']),
+        appMarkupPct: _num(p['app_markup_pct']),
+      );
+      if (saved) _load();
+      return;
+    }
+    final priceCtrl = TextEditingController(text: p['price'].toString());
+    final reasonCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Editar preço — ${p['name']}'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: priceCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(labelText: 'Novo preço (€)')),
+          TextField(controller: reasonCtrl, maxLines: 2,
+              decoration: const InputDecoration(labelText: 'Motivo (mín 3)')),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Salvar')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted || reasonCtrl.text.trim().length < 3) return;
+    try {
+      await Supabase.instance.client.rpc('admin_update_product_price', params: {
+        'p_product_id': p['id'],
+        'p_new_price': double.tryParse(priceCtrl.text) ?? 0.0,
+        'p_reason': reasonCtrl.text.trim(),
+      });
+      _load();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+    }
+  }
+
+  Future<void> _resetPhoto(Map<String, dynamic> p) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Resetar foto do produto'),
+        content: Text(
+            'A foto de "${p['name']}" será removida e o produto marcado como needs_photo. Confirmar?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.warning),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Resetar'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await Supabase.instance.client.rpc(
+        'admin_reset_product_photo',
+        params: {'p_product_id': p['id']},
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Foto de "${p['name']}" resetada.')),
+      );
+      _load();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+    }
+  }
+
+  static double? _num(dynamic raw) =>
+      raw == null ? null : double.tryParse(raw.toString());
+
+  /// "Balcão €8,00 → App €9,33" na loja parceira; só o preço nas outras.
+  String _priceLabel(Map<String, dynamic> p) {
+    final price = _num(p['price']) ?? 0;
+    final shelf = _num(p['partner_shelf_price']);
+    // Ao peso: o preço da linha é a porção de 200 g; mostra-se o kg de balcão.
+    if (p['sold_by_weight'] == true) {
+      final kg = _num(p['shelf_price_per_kg']);
+      final kgLabel = kg == null ? '?' : '€${kg.toStringAsFixed(2)}';
+      return 'Ao peso · balcão $kgLabel/kg → App desde €${price.toStringAsFixed(2)} (200 g)';
+    }
+    if (p['is_partner'] == true) {
+      final balcao = shelf == null ? 'sem balcão' : '€${shelf.toStringAsFixed(2)}';
+      return 'Balcão $balcao → App €${price.toStringAsFixed(2)}';
+    }
+    return '€${price.toStringAsFixed(2)}';
+  }
+
+  /// Venda ao peso (2026-09-18): liga/desliga e edita o preço por kg de balcão.
+  /// Grava pela função set_product_weight_pricing (a mesma que a app do
+  /// parceiro usa), que recalcula o preço da porção base e as porções.
+  Future<void> _editWeight(Map<String, dynamic> p) async {
+    final saved = await showAdminProductWeightDialog(
+      context,
+      productId: p['id'] as String,
+      productName: (p['name'] as String?) ?? '—',
+      soldByWeight: p['sold_by_weight'] == true,
+      shelfPricePerKg: _num(p['shelf_price_per_kg']),
+      isPartner: p['is_partner'] == true,
+      appMarkupPct: _num(p['app_markup_pct']),
+    );
+    if (saved) _load();
+  }
+
+  Widget _buildProductImage(Map<String, dynamic> product) {
+    final photoUrl = product['photo_url'] as String?;
+    if (photoUrl == null || photoUrl.isEmpty) {
+      return CircleAvatar(
+        backgroundColor: Colors.grey[300],
+        child: const Icon(Icons.image_outlined, color: Colors.grey),
+      );
+    }
+    return CircleAvatar(
+      backgroundImage: NetworkImage(photoUrl),
+      onBackgroundImageError: (_, __) {},
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: widget.restaurantName,
+      ),
+      body: Column(children: [
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(children: [
+            Expanded(child: TextField(
+              controller: _search,
+              decoration: const InputDecoration(hintText: 'Buscar', prefixIcon: Icon(Icons.search), isDense: true),
+              onSubmitted: (_) => _load(),
+            )),
+            const SizedBox(width: 8),
+            FilterChip(
+              label: const Text('Inactivos'),
+              selected: _onlyInactive,
+              onSelected: (v) {
+                setState(() => _onlyInactive = v);
+                _load();
+              },
+            ),
+            const SizedBox(width: 8),
+            FilterChip(
+              label: const Text('Ao peso'),
+              tooltip: 'Só produtos vendidos ao peso',
+              selected: _onlyByWeight,
+              onSelected: (v) {
+                setState(() => _onlyByWeight = v);
+                _load();
+              },
+            ),
+          ]),
+        ),
+        Expanded(
+          child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : ListView.builder(
+                  itemCount: _products.length,
+                  itemBuilder: (ctx, i) {
+                    final p = _products[i];
+                    final available = p['is_available'] == true;
+                    return Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.card,
+                        borderRadius: BorderRadius.circular(Radii.lg),
+                        boxShadow: AppColors.shadowCard,
+                      ),
+                      child: ListTile(
+                        leading: _buildProductImage(p),
+                        title: Text(p['name'] ?? '—',
+                            style: TextStyle(
+                                color: available ? null : Colors.grey,
+                                decoration: available ? null : TextDecoration.lineThrough)),
+                        subtitle: Text(
+                            '${_priceLabel(p)} · ${p['taxonomy_section'] ?? p['category_root'] ?? p['category'] ?? "—"}'),
+                        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                          IconButton(
+                            icon: Icon(available ? Icons.toggle_on : Icons.toggle_off,
+                                color: available ? AppColors.success : AppColors.textSubtle),
+                            onPressed: () => _toggleAvailability(p),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.edit),
+                            onPressed: () => _editPrice(p),
+                          ),
+                          IconButton(
+                            tooltip: 'Venda ao peso (preço por kg)',
+                            icon: Icon(Icons.scale_outlined,
+                                color: p['sold_by_weight'] == true
+                                    ? AppColors.primary
+                                    : AppColors.textSubtle),
+                            onPressed: () => _editWeight(p),
+                          ),
+                          IconButton(
+                            tooltip: 'Resetar foto',
+                            icon: const Icon(Icons.image_not_supported_outlined),
+                            color: AppColors.warning,
+                            onPressed: () => _resetPhoto(p),
+                          ),
+                        ]),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ]),
+    );
+  }
+}

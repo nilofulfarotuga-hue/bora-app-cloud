@@ -1,0 +1,1 @@
+marker cura-20260801-3 latencia-antes (hook desligado, so cron cortex-mirror-sync-evento 1x/min)

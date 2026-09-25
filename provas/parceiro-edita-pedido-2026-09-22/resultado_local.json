@@ -1,0 +1,416 @@
+[
+    {
+        "ok": true,
+        "det": {
+            "rpc": {
+                "ok": true,
+                "estado": "aplicado",
+                "grupo_id": "02b06faf-4afc-44f5-9853-78c27ea685ff",
+                "diferenca": -2.46,
+                "liquidacao": {
+                    "nota": "total a cobrar na entrega desceu",
+                    "estado": "feito",
+                    "metodo": "dinheiro",
+                    "devolvido_cents": 246
+                },
+                "delta_total": -2.46,
+                "total_antes": 9.67,
+                "total_depois": 7.21
+            },
+            "bate": {
+                "loja": 3.6,
+                "total": 7.21,
+                "pedacos": 7.21,
+                "soma_bate": true,
+                "split_bate": true,
+                "tudo_ao_centimo": true
+            },
+            "antes": {
+                "bag": 0.3,
+                "psf": 0.33,
+                "plat": 0.65,
+                "price": 9.67,
+                "small": 0,
+                "total": 9.67,
+                "buffer": 9.67,
+                "driver": 4.26,
+                "markup": 0.28,
+                "comm_vis": 0.65,
+                "delivery": 2.5,
+                "subtotal": 6.54,
+                "final_total": 9.67,
+                "service_fee": 0.33,
+                "customer_total": 9.67
+            },
+            "edits": [
+                {
+                    "nome": "Pa\u00e7oca Moreninha do Rio",
+                    "tipo": "remove",
+                    "estado": "aplicado",
+                    "motivo": null,
+                    "opcoes": [],
+                    "criado_em": "2026-09-22T20:00:17.368544+00:00",
+                    "linha_idx": 0,
+                    "liquidacao": {
+                        "nota": "total a cobrar na entrega desceu",
+                        "estado": "feito",
+                        "metodo": "dinheiro",
+                        "devolvido_cents": 246
+                    },
+                    "product_id": "94f425c1-3765-404c-98e0-4e4e195c725f",
+                    "quantidade": 2,
+                    "aplicado_em": "2026-09-22T20:00:17.368544+00:00",
+                    "editado_por": "033e0fef-1a93-4c1b-b738-18572a936285",
+                    "total_antes": 9.67,
+                    "total_depois": 7.21,
+                    "respondido_em": null,
+                    "restaurant_id": "12aa2cbb-01bd-443b-a17e-633c169d4864",
+                    "preco_unitario": 1.17,
+                    "subtotal_antes": 6.54,
+                    "subtotal_depois": 4.2
+                }
+            ],
+            "depois": {
+                "bag": 0.3,
+                "psf": 0.21,
+                "plat": 0.42,
+                "price": 7.21,
+                "small": 0,
+                "total": 7.21,
+                "buffer": 7.21,
+                "driver": 4.26,
+                "markup": 0.18,
+                "comm_vis": 0.42,
+                "delivery": 2.5,
+                "subtotal": 4.2,
+                "final_total": 7.21,
+                "service_fee": 0.21,
+                "customer_total": 7.21
+            },
+            "referencia": {
+                "bag": 0.3,
+                "psf": 0.21,
+                "plat": 0.42,
+                "price": 7.21,
+                "small": 0,
+                "total": 7.21,
+                "buffer": 7.21,
+                "driver": 4.26,
+                "markup": 0.18,
+                "comm_vis": 0.42,
+                "delivery": 2.5,
+                "subtotal": 4.2,
+                "final_total": 7.21,
+                "service_fee": 0.21,
+                "customer_total": 7.21
+            }
+        },
+        "caso": "A tirar/dinheiro: igual a pedido nascido assim"
+    },
+    {
+        "ok": true,
+        "det": {
+            "bate": {
+                "loja": 4.6,
+                "total": 8.44,
+                "pedacos": 8.44,
+                "soma_bate": true,
+                "split_bate": true,
+                "tudo_ao_centimo": true
+            },
+            "liquidacao": {
+                "estado": "feito",
+                "metodo": "cartao",
+                "carteira": null,
+                "feito_em": "2026-09-22T20:00:17.368544+00:00",
+                "refund_id": "re_TESTE_B",
+                "devolver_cents": 123,
+                "payment_intent_id": "pi_TESTE_B",
+                "devolvido_cartao_cents": 123,
+                "devolvido_carteira_cents": 0
+            },
+            "total_antes": 9.67,
+            "total_depois": 8.44,
+            "pg_net_pedido": 1
+        },
+        "caso": "B tirar/cart\u00e3o: reembolso = total antes \u2212 total depois"
+    },
+    {
+        "ok": true,
+        "det": {
+            "ok": true,
+            "estado": "pendente_cliente",
+            "grupo_id": "77ec4093-5064-42a5-a8ae-87382c423357",
+            "diferenca": 33.6,
+            "total_antes": 9.67,
+            "total_depois": 43.27
+        },
+        "caso": "C1 acrescentar: fica \u00e0 espera do cliente e o pedido n\u00e3o muda"
+    },
+    {
+        "ok": true,
+        "det": {
+            "ok": true,
+            "estado": "aceite",
+            "metodo": "card",
+            "cobrar_cents": 3360,
+            "precisa_pagamento": true
+        },
+        "caso": "C2 cliente aceita (cart\u00e3o): pede cobran\u00e7a da diferen\u00e7a, ainda n\u00e3o aplica"
+    },
+    {
+        "ok": true,
+        "det": {
+            "antes": {
+                "bag": 0.3,
+                "psf": 0.33,
+                "plat": 0.65,
+                "price": 9.67,
+                "small": 0,
+                "total": 9.67,
+                "buffer": 9.67,
+                "driver": 4.26,
+                "markup": 0.28,
+                "comm_vis": 0.65,
+                "delivery": 2.5,
+                "subtotal": 6.54,
+                "final_total": 9.67,
+                "service_fee": 0.33,
+                "customer_total": 9.67
+            },
+            "itens": [
+                {
+                    "name": "Pa\u00e7oca Moreninha do Rio",
+                    "price": 1.17,
+                    "quantity": 3,
+                    "basePrice": 1.17,
+                    "productId": "94f425c1-3765-404c-98e0-4e4e195c725f",
+                    "purchaseStatus": "pending"
+                },
+                {
+                    "name": "Filtro para Bomba de Chimarr\u00e3o (2 un)",
+                    "price": 0.93,
+                    "quantity": 2,
+                    "basePrice": 0.93,
+                    "productId": "49b857ce-112b-4e73-88c7-034be24b2ce8",
+                    "purchaseStatus": "pending"
+                },
+                {
+                    "name": "\u00c1gua",
+                    "price": 1.17,
+                    "quantity": 1,
+                    "basePrice": 1.17,
+                    "productId": "06deb41d-7570-47bb-a69d-a4a7f4284465",
+                    "purchaseStatus": "pending"
+                },
+                {
+                    "name": "Copo Mega 500ml",
+                    "price": 16.0,
+                    "quantity": 2,
+                    "basePrice": 14.0,
+                    "productId": "8e3e4fc8-d382-46ec-8e14-bf7c3106b24a",
+                    "purchaseStatus": "pending",
+                    "added_by_partner": true,
+                    "order_edit_group": "77ec4093-5064-42a5-a8ae-87382c423357",
+                    "selected_options": [
+                        {
+                            "group": "Deseja Extras?",
+                            "items": [
+                                "Mel",
+                                "Kiwi"
+                            ]
+                        }
+                    ],
+                    "selected_options_priced": [
+                        {
+                            "group": "Deseja Extras?",
+                            "items": [
+                                {
+                                    "name": "Kiwi",
+                                    "price_add": 1
+                                },
+                                {
+                                    "name": "Mel",
+                                    "price_add": 1
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "depois": {
+                "bag": 0.3,
+                "psf": 1.93,
+                "plat": 3.86,
+                "price": 43.27,
+                "small": 0,
+                "total": 43.27,
+                "buffer": 43.27,
+                "driver": 4.26,
+                "markup": 1.65,
+                "comm_vis": 3.86,
+                "delivery": 2.5,
+                "subtotal": 38.54,
+                "final_total": 43.27,
+                "service_fee": 1.93,
+                "customer_total": 43.27
+            },
+            "mark_paid": {
+                "ok": true,
+                "grupo_id": "77ec4093-5064-42a5-a8ae-87382c423357",
+                "liquidacao": {
+                    "estado": "pago",
+                    "metodo": "cartao",
+                    "pago_em": "2026-09-22T20:00:17.368544+00:00",
+                    "cobrar_cents": 3360,
+                    "cobrado_cents": 3360,
+                    "payment_intent_id": "pi_TESTE_C_extra"
+                },
+                "delta_total": 33.6,
+                "total_depois": 43.27
+            },
+            "referencia": {
+                "bag": 0.3,
+                "psf": 1.93,
+                "plat": 3.86,
+                "price": 43.27,
+                "small": 0,
+                "total": 43.27,
+                "buffer": 43.27,
+                "driver": 4.26,
+                "markup": 1.65,
+                "comm_vis": 3.86,
+                "delivery": 2.5,
+                "subtotal": 38.54,
+                "final_total": 43.27,
+                "service_fee": 1.93,
+                "customer_total": 43.27
+            }
+        },
+        "caso": "C3 pago \u2192 aplicado; igual a pedido nascido com o produto; cobrado = diferen\u00e7a"
+    },
+    {
+        "ok": true,
+        "det": {
+            "proposta": {
+                "ok": true,
+                "estado": "pendente_cliente",
+                "grupo_id": "76e03337-6929-434c-8053-1f0be38c7348",
+                "diferenca": 0.97,
+                "total_antes": 9.67,
+                "total_depois": 10.64
+            },
+            "resposta": {
+                "ok": true,
+                "estado": "recusado"
+            }
+        },
+        "caso": "D acrescentar recusado: pedido intacto"
+    },
+    {
+        "ok": true,
+        "det": {
+            "bate": {
+                "loja": 10.8,
+                "total": 15.84,
+                "pedacos": 15.84,
+                "soma_bate": true,
+                "split_bate": true,
+                "tudo_ao_centimo": true
+            },
+            "depois": {
+                "bag": 0.3,
+                "psf": 0.62,
+                "plat": 1.08,
+                "price": 15.84,
+                "small": 0,
+                "total": 15.84,
+                "buffer": 15.84,
+                "driver": 4.26,
+                "markup": 0.54,
+                "comm_vis": 1.08,
+                "delivery": 2.5,
+                "subtotal": 12.42,
+                "final_total": 15.84,
+                "service_fee": 0.62,
+                "customer_total": 15.84
+            },
+            "movimentos": [
+                {
+                    "key": "refund_split_free_edit_51653803-10ae-4d47-9252-0d08c842ea7b",
+                    "kind": "refund_credit_free",
+                    "cents": 77
+                },
+                {
+                    "key": "refund_split_tokens_edit_51653803-10ae-4d47-9252-0d08c842ea7b",
+                    "kind": "refund_credit_tokens",
+                    "cents": 19
+                },
+                {
+                    "key": "refund_split_free_edit_fd7d28f7-59b6-4e17-9de0-5df0ede9c010",
+                    "kind": "refund_credit_free",
+                    "cents": 966
+                },
+                {
+                    "key": "refund_split_tokens_edit_fd7d28f7-59b6-4e17-9de0-5df0ede9c010",
+                    "kind": "refund_credit_tokens",
+                    "cents": 242
+                }
+            ],
+            "referencia": {
+                "bag": 0.3,
+                "psf": 0.62,
+                "plat": 1.08,
+                "price": 15.84,
+                "small": 0,
+                "total": 15.84,
+                "buffer": 15.84,
+                "driver": 4.26,
+                "markup": 0.54,
+                "comm_vis": 1.08,
+                "delivery": 2.5,
+                "subtotal": 12.42,
+                "final_total": 15.84,
+                "service_fee": 0.62,
+                "customer_total": 15.84
+            },
+            "total_antes": 28.88,
+            "total_depois": 15.84,
+            "carteira_cents": 1304
+        },
+        "caso": "E tirar 2\u00d7/MB Way/loja 15 %: carteira recebe as 2 diferen\u00e7as; igual a pedido nascido assim"
+    },
+    {
+        "ok": true,
+        "det": "NAO_E_A_TUA_LOJA",
+        "caso": "F1 outra conta n\u00e3o mexe na loja"
+    },
+    {
+        "ok": true,
+        "det": "LIMITE_DINHEIRO: pagamento em dinheiro s\u00f3 at\u00e9 40.00 \u20ac",
+        "caso": "F2 dinheiro acima do limite recusado"
+    },
+    {
+        "ok": true,
+        "det": "PEDIDO_FICA_VAZIO: para tirar tudo, cancela o pedido",
+        "caso": "F3 n\u00e3o deixa esvaziar o pedido"
+    },
+    {
+        "ok": true,
+        "det": "JA_RECOLHIDO: o pedido j\u00e1 saiu da loja",
+        "caso": "F4 depois de recolhido j\u00e1 n\u00e3o se mexe"
+    },
+    {
+        "ok": true,
+        "det": "PRODUTO_NAO_E_DA_LOJA",
+        "caso": "F5 produto de outra loja recusado"
+    },
+    {
+        "ok": true,
+        "det": {
+            "ok": true,
+            "ja_aplicado": true
+        },
+        "caso": "F6 aplicar 2\u00d7 o mesmo grupo n\u00e3o duplica"
+    }
+]

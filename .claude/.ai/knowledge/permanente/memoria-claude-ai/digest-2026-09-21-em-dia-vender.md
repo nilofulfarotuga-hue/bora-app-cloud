@@ -1,0 +1,17 @@
+---
+id: memoria-claude-ai-digest-2026-09-21-em-dia-vender
+tipo: conceito
+origem: [claude-ai, public.claude_ai_memoria]
+ultima_confirmacao: 2026-09-21
+zona: verde
+confianca: alta
+estado: atual
+---
+
+# Em Dia 21/09 — missão pronto a vender (em-dia-vender-2026-09-18)
+
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `digest-2026-09-21-em-dia-vender`, origem `claude-code`, atualizada em 2026-09-21T02:18:49.741789+00:00).
+> Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
+> Palavras-chave: digest 2026 09 21 em dia vender · memoria claude.ai · claude_ai_memoria
+
+A missão em-dia-vender-2026-09-18 correu de 18 a 21 de setembro de 2026 para deixar a app Em Dia pronta a vender pela Google Play, sem tocar em produção paga antes do contrato de pagamentos. O maestro foi o Claude Code Opus 5 e o trabalho pesado passou para o ChatGPT Plus gpt-5.5 (opencode run -m openai/gpt-5.5, via delegar.ps1 com anti-mentira) porque o GLM do plano Go ficou sem quota semanal a 20/09 18:21 UTC; as delegações passaram a ser lançadas soltas (Start-Process) porque as sessões do Claude caíam a meio. O estado real da Play ficou registado: Em Dia em rascunho, testes internos (versionCode 39), sem produção, sem perfil de pagamentos e sem subscrições criadas. Os papéis públicos estão no ar em emdia.boraguarda.com/termos, /reclamacoes, /apagar-conta, /privacidade e /precos (verificador 61/61); fontes literais em provas/em-dia-vender-2026-09-18/fontes-b4 (DL 24/2014 da PGDL, Diretivas 2011/83 e 2013/11 e RGPD do EUR-Lex, ajuda da Play); a plataforma ODR encerrada não é citada; a RAL indicada é o CNIACC. A página /precos lê os quatro preços de regras_legais por REST anónimo e manda a compra para a Google Play. O painel admin tem a secção Funil (RPC admin_funil só-admin: contas criadas, onboarding, abriram, em trial, pagam, consentiram, eventos por semana). A app tem o interruptor estatísticas de utilização nas Definições, desligado por defeito, e só grava 6 eventos (eventos_uso, RLS por consentimento) quando a pessoa o liga. A app ganhou aviso não fiscal em 5 ecrãs, ligações aos papéis na Ajuda e no Plano (14 dias), prazo de resposta de 2 dias úteis e e-mail humano emdia@boraguarda.com, reembolso nos 14 dias explicado. O fecho de mês automático (Edge Function fecho-mensal v1 + cron dia 1 06:10 UTC + bucket privado fecho-mensal + tabela fechos_mensais) está no ar e provado: enquanto faltar o segredo play_relatorios_bucket grava sem extrato, sem inventar números. As respostas da Play Console estão em docs/PLAY-FICHA-RESPOSTAS.md e o kit de divulgação em docs/KIT-DIVULGACAO.md (nada publicado). Portão B9: 182 testes de regras, 78 ecrãs no percurso de ponta a ponta, 141 fotos, juiz de visão 7 verdes e 0 vermelhos, revisão cruzada pelo ChatGPT com contexto limpo. Só uma coisa é do Danilo: aceitar o contrato de pagamentos da Google no perfil de pagamentos. A próxima sessão com Chrome deve guardar o id do bucket financeiro da Play e a conta de serviço no Vault, dar permissão financeira, colar as 6 respostas na consola, atualizar Data Safety, e só depois criar os 4 produtos e a prova de compra; o B1 de marca (logo, capturas com moldura, vídeo, INPI) não foi feito porque precisava do Gemini no Chrome. Relatório em RELATORIO-em-dia-vender-2026-09-18.md (repo e Desktop/Bora/Projetos); provas em provas/em-dia-vender-2026-09-18/.

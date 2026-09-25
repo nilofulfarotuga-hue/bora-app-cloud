@@ -1,0 +1,21 @@
+# Config isolada — gera SÓ os ícones web (PWA), a partir do logo real do repo.
+#
+# Existe separada de propósito: a config do pubspec.yaml tem android:true /
+# ios:true, e correr essa aqui regeneraria os ícones da app Android. Esta toca
+# apenas em web/icons/.
+#
+# Correr com:
+#   dart run flutter_launcher_icons -f flutter_launcher_icons_web.yaml
+flutter_launcher_icons:
+  android: false
+  ios: false
+  image_path: "assets/branding/bora_app_icon.png"
+  web:
+    generate: true
+    image_path: "assets/branding/bora_app_icon.png"
+    background_color: "#ffffff"
+    theme_color: "#16A34A"
+  windows:
+    generate: false
+  macos:
+    generate: false

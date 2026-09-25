@@ -3,6 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_colors.dart';
 import '../models/reservation_model.dart';
+import '../widgets/bora/bora_screen_app_bar.dart';
+import '../widgets/bora_support_fab.dart';
 
 /// Partner dashboard — reservations section (BR §14.7).
 class PartnerReservationsScreen extends StatefulWidget {
@@ -38,34 +40,50 @@ class _PartnerReservationsScreenState
         .toList();
   }
 
-  Future<void> _setStatus(ReservationModel r, ReservationStatus status,
-      {DateTime? arrivedAt}) async {
+  /// T2.F (BR §18): use server RPCs that enforce ownership + payment status
+  /// + create menu credit + auto-refund on rejection.
+  Future<void> _decide(ReservationModel r, bool accept,
+      {String? reason}) async {
     final client = Supabase.instance.client;
-    await client.from('reservations').update({
-      'status': status.dbName,
-      'decided_at': DateTime.now().toUtc().toIso8601String(),
-      if (arrivedAt != null)
-        'arrived_at': arrivedAt.toUtc().toIso8601String(),
-    }).eq('id', r.id);
-    setState(() => _future = _load());
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await client.rpc('partner_decide_reservation', params: {
+        'p_reservation_id': r.id,
+        'p_accept': accept,
+        'p_reason': reason,
+      });
+      messenger.showSnackBar(SnackBar(
+        content: Text(accept
+            ? 'Reserva aprovada.'
+            : 'Reserva rejeitada — reembolso automático.'),
+      ));
+      setState(() => _future = _load());
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Erro: $e')));
+    }
+  }
+
+  Future<void> _markArrived(ReservationModel r) async {
+    final client = Supabase.instance.client;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await client.rpc('partner_mark_arrival',
+          params: {'p_reservation_id': r.id});
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Cliente marcado como chegou. Crédito €3 atribuído.'),
+      ));
+      setState(() => _future = _load());
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Erro: $e')));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(
-        title: const Text(
-          'Reservas',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        flexibleSpace: const DecoratedBox(
-          decoration: BoxDecoration(gradient: AppColors.headerGradient),
-        ),
-      ),
+      backgroundColor: AppColors.background,
+      floatingActionButton: const BoraSupportFab(),
+      appBar: const BoraScreenAppBar(title: 'Reservas'),
       body: FutureBuilder<List<ReservationModel>>(
         future: _future,
         builder: (context, snap) {
@@ -87,11 +105,9 @@ class _PartnerReservationsScreenState
               separatorBuilder: (_, __) => const SizedBox(height: 10),
               itemBuilder: (context, i) => _ReservationCard(
                 reservation: list[i],
-                onAccept: () => _setStatus(list[i], ReservationStatus.accepted),
-                onReject: () => _setStatus(list[i], ReservationStatus.rejected),
-                onArrived: () => _setStatus(
-                    list[i], ReservationStatus.customerArrived,
-                    arrivedAt: DateTime.now()),
+                onAccept: () => _decide(list[i], true),
+                onReject: () => _decide(list[i], false),
+                onArrived: () => _markArrived(list[i]),
               ),
             ),
           );
@@ -119,30 +135,49 @@ class _ReservationCard extends StatelessWidget {
       case ReservationStatus.pending:
         return 'Pendente';
       case ReservationStatus.accepted:
+      case ReservationStatus.approved:
         return 'Aceite';
       case ReservationStatus.suggestedOtherTime:
         return 'Sugerida outra hora';
       case ReservationStatus.rejected:
+      case ReservationStatus.rejectedRefunded:
         return 'Recusada';
       case ReservationStatus.customerArrived:
+      case ReservationStatus.arrived:
         return 'Cliente chegou';
       case ReservationStatus.cancelled:
+      case ReservationStatus.cancelledRefunded:
+      case ReservationStatus.cancelledNoRefund:
         return 'Cancelada';
+      case ReservationStatus.noShow:
+        return 'Não compareceu';
+      default:
+        return reservation.status;
     }
   }
 
   Color get _statusColor {
     switch (reservation.status) {
       case ReservationStatus.pending:
+      case ReservationStatus.pendingPayment:
         return Colors.orange;
       case ReservationStatus.accepted:
+      case ReservationStatus.approved:
+      case ReservationStatus.confirmed:
       case ReservationStatus.customerArrived:
+      case ReservationStatus.arrived:
         return Colors.green;
       case ReservationStatus.suggestedOtherTime:
         return Colors.blue;
       case ReservationStatus.rejected:
+      case ReservationStatus.rejectedRefunded:
       case ReservationStatus.cancelled:
+      case ReservationStatus.cancelledRefunded:
+      case ReservationStatus.cancelledNoRefund:
+      case ReservationStatus.noShow:
         return Colors.red;
+      default:
+        return Colors.grey;
     }
   }
 
@@ -211,15 +246,31 @@ class _ReservationCard extends StatelessWidget {
                   ),
                 ],
               )
-            else if (reservation.status == ReservationStatus.accepted)
+            else if (reservation.status == ReservationStatus.accepted) ...[
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  border: Border.all(color: Colors.amber.shade200),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text(
+                  'Quando o cliente chegar:\n'
+                  '· Desconta €2 da conta dele\n'
+                  '· Bora paga-te €2 no próximo settlement semanal',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ),
+              const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: onArrived,
                   icon: const Icon(Icons.chair_alt_outlined),
-                  label: const Text('Marcar sentado'),
+                  label: const Text('Marcar sentado (€2 crédito)'),
                 ),
               ),
+            ],
           ],
         ),
       ),

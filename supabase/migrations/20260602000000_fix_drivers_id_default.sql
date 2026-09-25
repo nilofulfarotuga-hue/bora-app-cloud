@@ -1,0 +1,16 @@
+-- 20260602000000_fix_drivers_id_default.sql
+-- Sessão noturna 2026-06-02 — bug bloqueador de lançamento encontrado em teste ADB.
+--
+-- SINTOMA: cadastro de estafeta na app criava a conta auth (bora_role=driver) mas
+-- NUNCA criava a linha em `drivers` → o estafeta nunca aparecia ao admin para aprovar.
+--
+-- CAUSA-RAIZ: a RPC `driver_register_or_update` faz INSERT em drivers indicando
+-- `user_id` mas NÃO `id`, contando com um DEFAULT na coluna. A coluna `drivers.id`
+-- (uuid, NOT NULL, PK) NÃO tinha default → INSERT falhava com
+-- "null value in column \"id\" of relation \"drivers\" violates not-null constraint".
+-- A RPC apanha o erro e devolve {success:false}, mas a app não verifica o retorno
+-- e mostra "Conta criada!" (falso positivo).
+--
+-- FIX (cirúrgico, lado servidor — a app build 244 beneficia logo, sem rebuild):
+-- dar à PK um default para o INSERT auto-gerar o id. Não altera linhas existentes.
+ALTER TABLE public.drivers ALTER COLUMN id SET DEFAULT gen_random_uuid();

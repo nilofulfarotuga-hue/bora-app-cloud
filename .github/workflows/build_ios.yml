@@ -1,0 +1,623 @@
+# Build iOS — missão `ios-lancamento` (2026-09-07).
+#
+# Porque existem DOIS jobs separados:
+#
+#   • JOB A "simulador" — NÃO precisa de conta Apple nenhuma. Corre desde o
+#     primeiro dia e é onde se apanham os erros reais de compilação iOS (pods,
+#     Swift, plugins Android-only) antes de haver conta paga. É o job que tem
+#     de ficar verde primeiro.
+#
+#   • JOB B "release" — precisa de certificado + perfil + chave da API do App
+#     Store Connect. Só corre à mão (`workflow_dispatch` com `enviar=true`)
+#     para nunca pintar o CI de vermelho enquanto os segredos não existirem.
+#
+# NOTA versionCode: o Android tem o seu contador auto-incrementado pelo CI e
+# NÃO se toca. O iOS usa `github.run_number` como CFBundleVersion — contadores
+# independentes, como a Apple e a Google esperam.
+
+name: build-ios
+
+on:
+  push:
+    branches:
+      - ios-lancamento
+    paths:
+      - "lib/**"
+      - "ios/**"
+      - "integration_test/**"
+      - "pubspec.yaml"
+      - ".github/workflows/build_ios.yml"
+  pull_request:
+    branches: [autonomous-night-2026-04-29]
+    paths:
+      - "lib/**"
+      - "ios/**"
+      - "pubspec.yaml"
+  workflow_dispatch:
+    inputs:
+      enviar:
+        description: "Correr o job de release e enviar para o App Store Connect (precisa dos segredos de assinatura)"
+        type: boolean
+        default: false
+      # Valvula de seguranca (missao `ios-lancar-102-2026-09-23`). Ligado (o
+      # normal), depois do upload o CI cria a versao seguinte com lancamento
+      # AUTOMATICO apos aprovacao, liga a build, escreve as notas e submete --
+      # igual ao Android, sem ninguem carregar em nada. Desligado, o IPA sobe
+      # so para o TestFlight e a loja fica na versao anterior.
+      submeter_revisao:
+        description: "Depois do upload, criar a versao seguinte (lancamento automatico) e submeter para revisao"
+        type: boolean
+        default: true
+      # Ligado, o arnes confirma uma encomenda a SERIO em dinheiro, para o
+      # video mostrar o acompanhamento do pedido.
+      #
+      # Porque isto NAO chama estafetas reais: o gatilho BEFORE INSERT
+      # `a_trg_pedido_demo_caixa_fechada` em `orders` (confirmado ligado a
+      # 2026-09-08) apanha as contas demo@bora.app, demo.cliente@bora.app e
+      # demo.apagar@bora.app e forca is_test_order, dinheiro, e nasce ja em
+      # `driverAccepted` atribuida ao estafeta demo. Nunca passa por
+      # `callingDriver`, logo o dispatch nunca a oferece a ninguem real.
+      # Fica desligado por defeito na mesma: um push nao tem de criar
+      # encomendas, mesmo de brincar.
+      encomenda_real:
+        description: "Confirmar uma encomenda a serio (dinheiro) durante a gravacao"
+        type: boolean
+        default: false
+      # ESCAPE, deliberado e desligado por defeito.
+      #
+      # O que garante a qualidade do IPA e' a analise estatica (0 erros
+      # obrigatorio) e os testes unitarios + goldens, que correm ANTES no job
+      # A. O passo das capturas e' uma GRAVACAO, nao um portao de correccao:
+      # um `find` que nao casa reprova o job e leva o build atras dele, sem
+      # que haja nada de errado com a app.
+      #
+      # Ligar isto so' depois de LER o log e confirmar que a analise e os
+      # testes passaram e que o que falhou foi mesmo o arnes.
+      enviar_mesmo_sem_arnes:
+        description: "Enviar o IPA mesmo que o arnes de gravacao falhe (analise e testes tem de ter passado)"
+        type: boolean
+        default: false
+
+env:
+  # Mesma versão que TODOS os outros workflows do repo fixam (build_android,
+  # build_web_deploy, dart, e2e-web, olho_golden, testlab_robo).
+  FLUTTER_VERSION: "3.41.2"
+  # NAO se crava a versao exacta. Forcar "26.0" deu SDKROOT=iphonesimulator26.0
+  # enquanto a imagem so tem runtimes 26.2/26.4/26.5 -- o simulador arrancava e
+  # o destino ficava "ineligible" (corrida 34162271844). latest-stable numa
+  # imagem macos-26 da na mesma um Xcode 26, que e o que a Apple exige.
+  XCODE_VERSION: "latest-stable"
+  # Nao ha nome de simulador cravado: a imagem do runner muda e um nome fixo
+  # parte o build sem avisar. O passo "Escolher e arrancar" decide na hora.
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────
+  simulador:
+    name: A · Compila e corre no simulador (sem conta Apple)
+    runs-on: macos-26
+    # 75 e nao 45 (2026-09-10): a corrida 34453634215 foi MORTA aos 46,4 min
+    # com o passo das capturas a meio. Nao falhou -- estourou o tecto. O
+    # percurso cresceu quando a Apple pediu que a gravacao mostrasse tambem a
+    # conversa, a denuncia, o bloqueio e o caminho de apagar conta.
+    # 120 e nao 75 (2026-09-21, corrida 129 / 35643301436): com o Firebase iOS 12
+    # (firebase_core 4.15 / firebase_messaging 16.7 -- o conserto do push no iPhone)
+    # cada compilacao passou a demorar o DOBRO (config 7,5 vs 2,8 min; simulador
+    # 13,3 vs 6,1; varredura 14,9 vs 7,1). A varredura PASSOU aos 59 min, e o tecto
+    # de 75 matou a corrida a meio da gravacao (que e filme, continue-on-error, tecto
+    # proprio de 35). Pior caso: ~61 + 55 (2 tentativas) + 35 = 151 -> 150. Minutos macOS = 0 EUR
+    # (repo publico).
+    timeout-minutes: 150
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fixar Xcode ${{ env.XCODE_VERSION }}
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
+
+      - name: Versões do que está instalado (prova)
+        run: |
+          xcodebuild -version
+          swift --version
+          xcrun simctl list runtimes | grep -i ios || true
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Segredos de build (dart-defines)
+        env:
+          DART_DEFINES_FILE_B64: ${{ secrets.DART_DEFINES_FILE_B64 }}
+        run: |
+          if [ -n "$DART_DEFINES_FILE_B64" ]; then
+            echo "$DART_DEFINES_FILE_B64" | base64 --decode > .dart_defines
+            echo "dart-defines injetados ($(wc -l < .dart_defines) linhas)"
+          else
+            # Sem o segredo o build tem de continuar: as chaves só são lidas em
+            # runtime. Serve para o job correr num fork ou antes dos segredos.
+            : > .dart_defines
+            echo "AVISO: sem DART_DEFINES_FILE_B64 — a compilar sem chaves."
+          fi
+
+          # A chave do Google Maps tem de chegar ao XCODE, nao so' ao Dart.
+          # O `Info.plist` pede `$(GOOGLE_MAPS_API_KEY)` e o `--dart-define`
+          # NAO define definicoes de build -- por isso o IPA que foi para a
+          # Apple ficou sem chave, e a app morria ao abrir o mapa do
+          # acompanhamento. Escreve-se aqui o xcconfig que os `Debug.xcconfig`
+          # e `Release.xcconfig` incluem, e assim serve TODOS os caminhos de
+          # build: `flutter build ipa`, `flutter drive` e `xcodebuild`.
+          CHAVE_MAPS="$(grep -m1 '^GOOGLE_MAPS_API_KEY=' .dart_defines | cut -d= -f2-)"
+          if [ -n "$CHAVE_MAPS" ]; then
+            echo "GOOGLE_MAPS_API_KEY=$CHAVE_MAPS" > ios/Flutter/BoraSecrets.xcconfig
+            echo "chave do Google Maps escrita no xcconfig (${#CHAVE_MAPS} caracteres)"
+          else
+            : > ios/Flutter/BoraSecrets.xcconfig
+            echo "AVISO: sem GOOGLE_MAPS_API_KEY — o mapa vai rebentar a app."
+          fi
+
+      - name: GoogleService-Info.plist (Firebase iOS)
+        env:
+          GOOGLE_SERVICE_INFO_PLIST_B64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_B64 }}
+        run: |
+          if [ -n "$GOOGLE_SERVICE_INFO_PLIST_B64" ]; then
+            echo "$GOOGLE_SERVICE_INFO_PLIST_B64" | base64 --decode > ios/Runner/GoogleService-Info.plist
+            echo "GoogleService-Info.plist colocado."
+          else
+            echo "AVISO: app iOS ainda não registada no Firebase — push não funciona neste build."
+          fi
+
+      - name: Dependências
+        run: flutter pub get
+
+      - name: Cache dos pods
+        uses: actions/cache@v4
+        with:
+          path: ios/Pods
+          key: pods-${{ runner.os }}-${{ hashFiles('ios/Podfile') }}-${{ hashFiles('pubspec.yaml') }}
+          restore-keys: pods-${{ runner.os }}-
+
+      - name: Análise estática (0 erros obrigatório)
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Testes unitários + goldens
+        run: flutter test
+
+      # O simulador arranca ANTES de compilar, porque a compilação precisa de um
+      # destino concreto (ver o passo seguinte).
+      # O nome do aparelho NÃO se crava: a imagem do runner muda de mês para mês
+      # e um nome fixo parte o build sem avisar (foi o que aconteceu na corrida
+      # 34161752681 com "iPhone 16 Pro Max"). Escolhe-se por preferência, com
+      # alternativas, e imprime-se o que existe e o que foi escolhido.
+      - name: Escolher e arrancar um simulador
+        run: |
+          set -euo pipefail
+          echo "--- aparelhos disponíveis ---"
+          xcrun simctl list devices available | grep -E '^\s+iPhone' || true
+
+          # Sem heredoc de propósito: dentro de um bloco YAML a indentação do
+          # terminador parte o heredoc. Uma linha só, com o peso pelo tamanho de
+          # ecrã — 6,9" primeiro, que é o que a App Store exige nas capturas.
+          ESCOLHA=$(xcrun simctl list devices available -j | python3 -c "import sys,json;d=json.load(sys.stdin)['devices'];i=[x for r in d for x in d[r] if x['name'].startswith('iPhone')];sys.exit('sem simuladores de iPhone neste runner') if not i else None;w=lambda n:0 if 'Pro Max' in n else 1 if 'Plus' in n else 2 if 'Pro' in n else 3;e=sorted(i,key=lambda x:(w(x['name']),x['name']))[0];print(e['udid']+'|'+e['name'])")
+          UDID=${ESCOLHA%%|*}
+          NOME=${ESCOLHA##*|}
+          echo "escolhido: $NOME ($UDID)"
+          echo "UDID=$UDID" >> $GITHUB_ENV
+          echo "SIM_NOME=$NOME" >> $GITHUB_ENV
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          # PERMISSOES PRE-CONCEDIDAS (2026-09-11): o teste nao toca em alertas
+          # NATIVOS, e o de notificacoes/localizacao ficava em cima de TODOS os
+          # fotogramas do video para a Apple. `|| true`: um nome de servico que
+          # o Xcode nao conheca nunca pode reprovar a corrida.
+          for s in notifications location location-always; do
+            xcrun simctl privacy "$UDID" grant "$s" pt.boraapp.bora || true
+          done
+
+      # PORQUE NÃO É UM `flutter build ios --simulator` E PRONTO
+      # Foi o que estava aqui, e falhou (corrida 34161051379) com:
+      #   "Unable to find a destination matching the provided destination
+      #    specifier: { platform:iOS, name:Any iOS Device,
+      #    error:iOS 26.0 is not installed }"
+      # O `pod install` tinha corrido bem (166 s) — o problema é só de destino:
+      # o Flutter resolveu o destino genérico de DISPOSITIVO, e o runner tem os
+      # runtimes de simulador mas não a plataforma de dispositivo iOS 26.
+      #
+      # `--config-only` gera o Generated.xcconfig com os dart-defines sem tocar
+      # em destinos nenhuns; a compilação a sério vai depois pelo xcodebuild,
+      # apontada ao simulador que acabou de arrancar. É aqui que os erros de
+      # iOS do código aparecem pela primeira vez na vida do projeto.
+      - name: Preparar a configuração do Xcode
+        run: flutter build ios --config-only --simulator --debug --dart-define-from-file=.dart_defines
+
+      - name: Destinos elegiveis para o Runner (diagnostico)
+        run: |
+          xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner \
+            -showdestinations 2>&1 | head -30 || true
+
+      - name: Compilar para o simulador (destino explícito)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Debug \
+            -destination "platform=iOS Simulator,id=${UDID}" \
+            -derivedDataPath build/ios_sim \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            GOOGLE_MAPS_API_KEY="$(grep -m1 '^GOOGLE_MAPS_API_KEY=' .dart_defines | cut -d= -f2-)" \
+            build 2>&1 | tail -60
+
+      - name: Gravar vídeo do ecrã
+        run: |
+          mkdir -p artefactos
+          xcrun simctl io "$UDID" recordVideo --codec=h264 --force artefactos/demo.mp4 &
+          echo "REC_PID=$!" >> $GITHUB_ENV
+
+      # DESLIGADO de proposito (2026-09-08). Este passo corre integration_test/e2e_test.dart,
+      # que se chama "Bora E2E Web" e chama app.main(): com Supabase, Firebase e os
+      # Timer.periodic a andar, o pumpAndSettle nunca assenta, o binding fica com
+      # frame pendente e o primeiro teste envenena os seguintes (!inTest). Medido na
+      # corrida 34163172748: +0 -7, os sete falharam, e o passo so ficava verde por
+      # ter continue-on-error. Custava 14 minutos por corrida e enchia a gravacao de
+      # ecra inicial do simulador. Volta a ligar-se quando houver testes de fluxo
+      # escritos para iOS.
+      - name: Percorrer os fluxos (integration_test)
+        continue-on-error: true
+        if: false
+        run: |
+          flutter test integration_test \
+            -d "$UDID" \
+            --dart-define-from-file=.dart_defines \
+            --reporter expanded 2>&1 | tee artefactos/integration.log
+
+      # Capturas de ecrã para a App Store E matéria-prima do vídeo do revisor.
+      #
+      # A APP A SÉRIO, LIGADA AO SERVIDOR (2026-09-08). Até aqui este passo
+      # corria `capturas_loja_test.dart`, que desenhava sete ecrãs estáticos com
+      # dados INVENTADOS — "Mercado da Guarda", "Barbearia Central", açaí a
+      # €4,50, "Lavagem + Cera €20". Auditado contra a produção, nenhum dos sete
+      # existia. Isso é reprovação por 2.3.1 (metadados enganosos) e 2.3.3. O
+      # arnês foi apagado; agora fotografa-se a app real com a conta demo.
+      #
+      # NÃO leva `continue-on-error`: se falhar é para saber-se a sério, e o
+      # teste deixa um `falha-*.png` a mostrar onde encalhou.
+      #
+      # O simulador escolhido acima já é o maior iPhone disponível ("Pro Max"),
+      # que é o 6,9" (1320×2868) exigido pela Apple nas capturas.
+      # PORTAO DO AUTOTESTE (ordem do Danilo, 2026-09-10, definitiva):
+      # "Build com autoteste vermelho nao sai. Sem excecao."
+      #
+      # A varredura abre TODOS os mosaicos do inicio, entra nos TRES perfis
+      # e passa pelos ecras com mapa. Se a app morrer, a ultima linha
+      # `[varredura]` do log diz em que ecra. O escape
+      # `enviar_mesmo_sem_arnes` NAO cobre este passo: e' so' para a gravacao
+      # a seguir, que e' filme e nao prova.
+      # CICATRIZ (corridas 78 e 81, 2026-09-10): o `flutter drive` faz a SUA
+      # propria compilacao do Xcode em silencio -- e encravou duas vezes
+      # seguidas (orfaos `xcodebuild`, `SWBBuildService`, `ibtoold`), a comer
+      # a corrida inteira sem uma linha de log. Por isso a compilacao passa a
+      # ser um passo a parte, com saida visivel e tecto de tempo, e o drive
+      # corre contra o binario ja feito. Um encravamento passa a falhar em
+      # minutos, com diagnostico, em vez de morrer pelo tecto da corrida.
+      - name: Compilar a varredura (visivel, com tecto)
+        id: compilar_varredura
+        timeout-minutes: 25
+        run: |
+          flutter build ios --simulator --debug --no-codesign             --target=integration_test/varredura_ecras_test.dart --dart-define=CAPTURA_APP_STORE=true             --dart-define-from-file=.dart_defines 2>&1 | tail -80
+          test "${PIPESTATUS[0]}" -eq 0
+          ls -d build/ios/iphonesimulator/Runner.app
+          # O que o Firebase precisa tem de estar DENTRO da app, nao so' no
+          # disco do runner (cicatriz 2026-09-10: o plist era escrito mas nunca
+          # entrava no .app, e nao havia push em iPhone nenhum).
+          test -f build/ios/iphonesimulator/Runner.app/GoogleService-Info.plist             || { echo "::error::GoogleService-Info.plist NAO esta dentro da app"; exit 1; }
+          # O som dos avisos (aps.sound = bora_alert.wav) tambem tem de estar
+          # DENTRO da app (paridade 3 plataformas, 2026-09-21); sem ele o
+          # iPhone toca o som por defeito em vez do da Bora.
+          test -f build/ios/iphonesimulator/Runner.app/bora_alert.wav             || { echo "::error::bora_alert.wav NAO esta dentro da app"; exit 1; }
+
+      - name: AUTOTESTE — varredura de ecras (portao, sem escape)
+        id: varredura
+        timeout-minutes: 55
+        run: |
+          mkdir -p artefactos/varredura
+          xcrun simctl install "$UDID" build/ios/iphonesimulator/Runner.app || true
+          # PERMISSOES PRE-CONCEDIDAS (2026-09-11): o teste nao toca em alertas
+          # NATIVOS, e o de notificacoes/localizacao ficava em cima de TODOS os
+          # fotogramas do video para a Apple. `|| true`: um nome de servico que
+          # o Xcode nao conheca nunca pode reprovar a corrida.
+          for s in notifications location location-always; do
+            xcrun simctl privacy "$UDID" grant "$s" pt.boraapp.bora || true
+          done
+          # DUAS TENTATIVAS com tecto de 25 min cada (2026-09-21, corrida 130 /
+          # 35651657496): o `flutter drive` instalou e lancou a app, mas nunca
+          # imprimiu "Connecting to Flutter application" -- ficou mudo 30 min sem
+          # uma unica linha [varredura], com a app viva no simulador (telemetria do
+          # Firebase a correr). Na 129, mesmo codigo, o mesmo passo passou em 17 min.
+          # E' um encravamento aleatorio do arranque do driver, nao do teste. So' se
+          # repete quando o teste NEM CHEGOU A CORRER (sem linhas [varredura]); se
+          # correu e reprovou, e' falha real e fica. `perl alarm` mata a tentativa
+          # encravada aos 25 min (o `timeout` do GNU nao existe de certeza no macOS).
+          rc=1
+          for tentativa in 1 2; do
+            echo "[varredura] tentativa $tentativa/2 ($(date -u +%H:%M:%SZ))"
+            xcrun simctl terminate "$UDID" pt.boraapp.bora 2>/dev/null || true
+            perl -e 'alarm 1500; exec @ARGV' flutter drive --driver=test_driver/capturas_driver.dart --target=integration_test/varredura_ecras_test.dart --use-application-binary=build/ios/iphonesimulator/Runner.app -d "$UDID" --dart-define-from-file=.dart_defines 2>&1 | tee -a artefactos/varredura/log.txt
+            rc=${PIPESTATUS[0]}
+            [ "$rc" -eq 0 ] && break
+            echo "[varredura] tentativa $tentativa terminou com rc=$rc"
+            if grep -aq 'flutter: \[varredura\]' artefactos/varredura/log.txt; then
+              echo "[varredura] o teste chegou a correr e reprovou -- falha real, nao se repete"
+              break
+            fi
+            pkill -f flutter_tools.snapshot 2>/dev/null || true
+          done
+          test "$rc" -eq 0
+
+      - name: Diagnostico se a varredura morreu
+        if: failure() && (steps.varredura.conclusion == 'failure' || steps.compilar_varredura.conclusion == 'failure')
+        run: |
+          echo "=== processos de build ainda vivos (encravados?) ==="
+          ps -axo pid,etime,command | grep -E 'xcodebuild|ibtool|SWBBuild|dartvm' | grep -v grep || true
+          echo "=== ultimas linhas [varredura] (a ultima nomeia o ecra culpado) ==="
+          grep -a '\[varredura\]' artefactos/varredura/log.txt | tail -15 || true
+          mkdir -p artefactos/falha
+          find ~/Library/Logs/DiagnosticReports -name 'Runner*' -mmin -60 -exec cp {} artefactos/falha/ \; 2>/dev/null || true
+          for f in artefactos/falha/Runner*; do [ -f "$f" ] || continue; echo "=== $f ==="; head -c 3000 "$f"; echo; done
+
+      - name: Percorrer a app real e capturar (App Store)
+        # Filme, nao prova: a prova e' a varredura acima. Uma captura que
+        # falhe nao segura a build -- mas fica vermelha a vista.
+        continue-on-error: true
+        timeout-minutes: 35
+        run: |
+          mkdir -p artefactos/capturas
+          # PERMISSOES PRE-CONCEDIDAS (2026-09-11): o teste nao toca em alertas
+          # NATIVOS, e o de notificacoes/localizacao ficava em cima de TODOS os
+          # fotogramas do video para a Apple. `|| true`: um nome de servico que
+          # o Xcode nao conheca nunca pode reprovar a corrida.
+          for s in notifications location location-always; do
+            xcrun simctl privacy "$UDID" grant "$s" pt.boraapp.bora || true
+          done
+          flutter drive \
+            --driver=test_driver/capturas_driver.dart \
+            --target=integration_test/demo_real_test.dart \
+            -d "$UDID" \
+            --dart-define-from-file=.dart_defines \
+            --dart-define=FAZER_ENCOMENDA_REAL=${{ inputs.encomenda_real || 'false' }} --dart-define=CAPTURA_APP_STORE=true
+
+      # PORQUE ISTO EXISTE (2026-09-10): o passo de cima morreu duas vezes
+      # seguidas com "Service has disappeared" -- a app foi MORTA, sem
+      # nenhuma excepcao Dart, logo a seguir ao login. Sem o relatorio de
+      # falha do simulador so' se pode adivinhar a razao, e adivinhar antes
+      # de corrigir e' exactamente o que nao se faz.
+      - name: Porque e' que a app morreu (relatorio do simulador)
+        if: always()
+        run: |
+          mkdir -p artefactos/falha
+          echo "chave do Maps no build: $(grep -c '^GOOGLE_MAPS_API_KEY=..' .dart_defines || echo 0) (1 = presente, 0 = em falta)"
+          find ~/Library/Logs/DiagnosticReports -name 'Runner*' -mmin -60             -exec cp {} artefactos/falha/ \; 2>/dev/null || true
+          echo "--- relatorios encontrados ---"
+          ls -la artefactos/falha/ || true
+          for f in artefactos/falha/Runner*; do
+            [ -f "$f" ] || continue
+            echo "=================== $f ==================="
+            head -c 4000 "$f"
+            echo
+          done
+          echo "--- ultimas linhas do sistema sobre o Runner ---"
+          xcrun simctl spawn "$UDID" log show --last 8m --style compact             --predicate 'process == "Runner" OR eventMessage CONTAINS "Runner"'             2>/dev/null | tail -120 > artefactos/falha/sistema.txt || true
+          tail -60 artefactos/falha/sistema.txt || true
+
+      - name: Parar a gravação
+        if: always()
+        run: |
+          kill -INT "${REC_PID}" 2>/dev/null || true
+          sleep 3
+
+      - name: Captura final do ecrã
+        if: always()
+        run: xcrun simctl io "$UDID" screenshot artefactos/ecra-final.png || true
+
+      - name: Publicar artefactos (vídeo, capturas, log)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulador-${{ github.run_number }}
+          path: artefactos/
+          if-no-files-found: warn
+          retention-days: 14
+
+  # ─────────────────────────────────────────────────────────────────────────
+  release:
+    name: B · IPA assinado → App Store Connect
+    # Só à mão e só com o interruptor ligado — sem isto o CI ficava vermelho
+    # todos os dias enquanto a conta Apple não estivesse activa.
+    if: >-
+      always() && github.event_name == 'workflow_dispatch' && inputs.enviar &&
+      needs.simulador.result == 'success'
+    needs: simulador
+    runs-on: macos-26
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fixar Xcode ${{ env.XCODE_VERSION }}
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Conferir que os segredos de assinatura existem
+        env:
+          CERT: ${{ secrets.IOS_DIST_CERT_P12_B64 }}
+          PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE_B64 }}
+          ASC_KEY: ${{ secrets.ASC_KEY_P8_B64 }}
+        run: |
+          faltam=""
+          [ -z "$CERT" ]    && faltam="$faltam IOS_DIST_CERT_P12_B64"
+          [ -z "$PROFILE" ] && faltam="$faltam IOS_PROVISIONING_PROFILE_B64"
+          [ -z "$ASC_KEY" ] && faltam="$faltam ASC_KEY_P8_B64"
+          if [ -n "$faltam" ]; then
+            echo "::error::Faltam segredos:$faltam — a conta Apple ainda não está pronta."
+            exit 1
+          fi
+
+      - name: Instalar certificado e perfil
+        env:
+          CERT_B64: ${{ secrets.IOS_DIST_CERT_P12_B64 }}
+          CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+          PROFILE_B64: ${{ secrets.IOS_PROVISIONING_PROFILE_B64 }}
+        run: |
+          KEYCHAIN=$RUNNER_TEMP/bora.keychain-db
+          KEYCHAIN_PASS=$(uuidgen)
+          security create-keychain -p "$KEYCHAIN_PASS" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASS" "$KEYCHAIN"
+
+          echo "$CERT_B64" | base64 --decode > $RUNNER_TEMP/cert.p12
+          security import $RUNNER_TEMP/cert.p12 -P "$CERT_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security list-keychain -d user -s "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASS" "$KEYCHAIN"
+
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$PROFILE_B64" | base64 --decode > \
+            ~/Library/MobileDevice/Provisioning\ Profiles/bora.mobileprovision
+
+      - name: Segredos de build
+        env:
+          DART_DEFINES_FILE_B64: ${{ secrets.DART_DEFINES_FILE_B64 }}
+          GOOGLE_SERVICE_INFO_PLIST_B64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_B64 }}
+        run: |
+          echo "$DART_DEFINES_FILE_B64" | base64 --decode > .dart_defines
+          echo "$GOOGLE_SERVICE_INFO_PLIST_B64" | base64 --decode > ios/Runner/GoogleService-Info.plist
+
+          # A MESMA cicatriz do job A, e aqui e' que doi a serio: e' este o
+          # binario que vai para a Apple. Sem isto o `Info.plist` fica com a
+          # chave do Maps vazia e a app MORRE ao abrir o acompanhamento do
+          # pedido -- que a app abre sozinha assim que ha estafeta atribuido.
+          CHAVE_MAPS="$(grep -m1 '^GOOGLE_MAPS_API_KEY=' .dart_defines | cut -d= -f2-)"
+          if [ -n "$CHAVE_MAPS" ]; then
+            echo "GOOGLE_MAPS_API_KEY=$CHAVE_MAPS" > ios/Flutter/BoraSecrets.xcconfig
+            echo "chave do Google Maps escrita no xcconfig (${#CHAVE_MAPS} caracteres)"
+          else
+            echo "::error::Sem GOOGLE_MAPS_API_KEY — nao se envia um IPA que rebenta no mapa."
+            exit 1
+          fi
+
+      - name: Dependências
+        run: flutter pub get
+
+      # O ExportOptions.plist NÃO está no repo de propósito: leva o Team ID, que
+      # só existe depois de a conta Apple estar activa. Gera-se aqui a partir do
+      # segredo, para não haver um ficheiro com um valor falso a enganar.
+      - name: Gerar ExportOptions.plist
+        env:
+          ASC_TEAM_ID: ${{ secrets.ASC_TEAM_ID }}
+        run: |
+          cat > ios/ExportOptions.plist <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store-connect</string>
+            <key>teamID</key>
+            <string>${ASC_TEAM_ID}</string>
+            <key>uploadSymbols</key>
+            <true/>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <!-- Com assinatura manual, o export precisa de saber QUAL perfil
+                 usar para cada bundle. Sem este mapa o xcodebuild falha com
+                 "No profile matching ... was found". O nome tem de ser igual
+                 ao do perfil criado no portal: "Bora App Store". -->
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>pt.boraapp.bora</key>
+              <string>Bora App Store</string>
+            </dict>
+            <key>signingCertificate</key>
+            <string>Apple Distribution</string>
+            <key>destination</key>
+            <string>export</string>
+          </dict>
+          </plist>
+          PLIST
+          plutil -lint ios/ExportOptions.plist
+
+      # BORA_VERSION_CODE (paridade 3 plataformas, 2026-09-21): o mesmo numero
+      # que vai em --build-number (CFBundleVersion). E' o que o AppUpdateGate
+      # compara com platform_settings.app_latest_version_code_ios — chaves
+      # PROPRIAS do iPhone (0 = desligado). Sem isto o gate ficava mudo no iOS;
+      # com a chave partilhada com o Android ficava ERRADO (115 vs 614).
+      - name: Construir o IPA
+        run: |
+          flutter build ipa --release \
+            --dart-define-from-file=.dart_defines \
+            --dart-define=BORA_VERSION_CODE=${{ github.run_number }} \
+            --build-number=${{ github.run_number }} \
+            --export-options-plist=ios/ExportOptions.plist
+
+      - name: Enviar para o App Store Connect
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_B64: ${{ secrets.ASC_KEY_P8_B64 }}
+        run: |
+          mkdir -p ~/private_keys
+          echo "$ASC_KEY_P8_B64" | base64 --decode > ~/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          IPA=$(ls build/ios/ipa/*.ipa | head -1)
+          xcrun altool --upload-app -f "$IPA" -t ios \
+            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+
+      # ── O iPhone passa a publicar-se sozinho (2026-09-23) ────────────────
+      #
+      # A CICATRIZ: a 22/09 a Apple APROVOU a 1.0.2 as 22:44 UTC e a App Store
+      # continuou a servir a 1.0 o dia inteiro. Nao foi avaria nenhuma -- a
+      # versao tinha sido criada com lancamento MANUAL, e ficou em
+      # PENDING_DEVELOPER_RELEASE a espera de um clique que ninguem deu. O
+      # Android ja se publicava sozinho; o iPhone nao.
+      #
+      # A partir daqui: upload -> versao seguinte com releaseType
+      # AFTER_APPROVAL -> build ligada -> notas escritas -> submetida. A unica
+      # espera que sobra e' a analise da Apple; quando ela aprovar, a loja
+      # serve a versao sozinha.
+      #
+      # O script le TUDO de volta e rebenta o job se a Apple nao ficar como
+      # pedimos (um 201 nao prova nada) -- ver .github/scripts/ios_publicar.py.
+      - name: Versão seguinte com lançamento automático + submeter
+        if: inputs.submeter_revisao
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          BUILD_NUMBER: ${{ github.run_number }}
+          SUBMETER_REVISAO: "1"
+        run: |
+          # [ronda-fecho 2026-09-23] O Python do runner macOS e' "externally managed"
+          # (PEP 668): o pip recusa instalar fora de um venv e a corrida 136 caiu
+          # aqui logo a seguir a um upload bem-sucedido. Um venv no RUNNER_TEMP
+          # resolve sem tocar no Python do sistema.
+          python3 -m venv "$RUNNER_TEMP/asc-venv"
+          "$RUNNER_TEMP/asc-venv/bin/python" -m pip install --quiet --disable-pip-version-check pyjwt cryptography requests
+          # A mesma chave que o altool acabou de usar, ja no disco do runner.
+          export ASC_P8=~/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          "$RUNNER_TEMP/asc-venv/bin/python" .github/scripts/ios_publicar.py
+
+      - name: Publicar o IPA
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa-${{ github.run_number }}
+          path: build/ios/ipa/*.ipa
+          if-no-files-found: warn
+          retention-days: 14

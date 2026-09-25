@@ -1,0 +1,190 @@
+[
+ {
+  "nome": "LuMiar",
+  "token": "f5c7ed78555979",
+  "link": "https://boraguarda.com/avenca/f5c7ed78555979/",
+  "pasta": "C:\\BoraLocal\\projetosflutter\\bora-site\\avenca\\f5c7ed78555979",
+  "fotos": 2,
+  "prospect_id": 23,
+  "nota": 58,
+  "estado": "chumbada",
+  "modelo": "gemini-3-flash-preview",
+  "pessoas": true,
+  "motivos": [
+   "Presença de um rosto humano claramente identificável em primeiro plano na primeira imagem.",
+   "Qualidade fotográfica fraca, com imagens escuras, desordenadas e ligeiramente desfocadas.",
+   "Composição amadora, incluindo elementos estranhos como uma mala de senhora em destaque na segunda foto.",
+   "O design geral parece um template automático e não o trabalho cuidado de uma agência."
+  ]
+ },
+ {
+  "nome": "Café Dorna",
+  "token": "57c9fea20c2b26",
+  "link": "https://boraguarda.com/avenca/57c9fea20c2b26/",
+  "pasta": "C:\\BoraLocal\\projetosflutter\\bora-site\\avenca\\57c9fea20c2b26",
+  "fotos": 2,
+  "prospect_id": 31,
+  "nota": 93,
+  "estado": "pronta",
+  "modelo": "gemini-3-flash-preview",
+  "pessoas": false,
+  "motivos": [
+   "Fotografias autênticas e nítidas que mostram bem o ambiente.",
+   "Texto com excelente legibilidade graças ao contorno preto sobre o branco.",
+   "Informação honesta e verificável, incluindo a classificação real do Google.",
+   "Privacidade respeitada; a única pessoa visível está de costas e com rosto desfocado.",
+   "O enquadramento da segunda foto é um pouco amador ao incluir o caixote do lixo e o carrinho de bebé."
+  ]
+ },
+ {
+  "nome": "Arcada",
+  "token": "2c32255b28c072",
+  "link": "https://boraguarda.com/avenca/2c32255b28c072/",
+  "pasta": "C:\\BoraLocal\\projetosflutter\\bora-site\\avenca\\2c32255b28c072",
+  "fotos": 3,
+  "prospect_id": 44,
+  "nota": 100,
+  "estado": "pronta",
+  "modelo": "gemini-3-flash-preview",
+  "pessoas": false,
+  "motivos": [
+   "Fotografias de excelente qualidade, nítidas e com boa composição.",
+   "O texto é perfeitamente legível devido ao contorno preto e ao gradiente escuro no fundo.",
+   "Informação honesta e factual sobre o nome, tipo de negócio e localização exata.",
+   "As pessoas na segunda imagem estão distantes e não são o foco, preservando a privacidade.",
+   "Design limpo e profissional, adequado para apresentação ao cliente."
+  ]
+ },
+ {
+  "nome": "Café o Redondo",
+  "token": "2a235bb2fd18c2",
+  "link": "https://boraguarda.com/avenca/2a235bb2fd18c2/",
+  "pasta": "C:\\BoraLocal\\projetosflutter\\bora-site\\avenca\\2a235bb2fd18c2",
+  "fotos": 1,
+  "prospect_id": 21,
+  "nota": 96,
+  "estado": "pronta",
+  "modelo": "gemini-3-flash-preview",
+  "pessoas": false,
+  "motivos": [
+   "A fotografia identifica claramente o estabelecimento e a sua localização real.",
+   "O texto é perfeitamente legível graças ao uso de sombras e contraste adequado.",
+   "As informações de classificação e localização são honestas e verificáveis.",
+   "Não existem pessoas identificáveis ou em primeiro plano que comprometam a privacidade.",
+   "O aspeto geral é profissional e bem estruturado para uma agência."
+  ]
+ },
+ {
+  "nome": "Lanidor",
+  "token": "7cf640925dba93",
+  "link": "https://boraguarda.com/avenca/7cf640925dba93/",
+  "pasta": "C:\\BoraLocal\\projetosflutter\\bora-site\\avenca\\7cf640925dba93",
+  "fotos": 3,
+  "prospect_id": 109,
+  "nota": 100,
+  "estado": "pronta",
+  "modelo": "gemini-3-flash-preview",
+  "pessoas": false,
+  "motivos": [
+   "Fotografias reais, nítidas e com bom enquadramento da loja e da rua.",
+   "Texto perfeitamente legível graças ao uso de contornos e sombras.",
+   "Informação honesta e verificável, incluindo o nome e a morada exata.",
+   "Ausência de pessoas identificáveis em primeiro plano.",
+   "Aspeto profissional e limpo, adequado para apresentação ao cliente."
+  ]
+ },
+ {
+  "nome": "Dias dos Santos",
+  "token": "3f26fbef4a4be6",
+  "link": "https://boraguarda.com/avenca/3f26fbef4a4be6/",
+  "pasta": "C:\\BoraLocal\\projetosflutter\\bora-site\\avenca\\3f26fbef4a4be6",
+  "fotos": 3,
+  "prospect_id": 110,
+  "nota": 63,
+  "estado": "chumbada",
+  "modelo": "gemini-3-flash-preview",
+  "pessoas": true,
+  "motivos": [
+   "A primeira imagem apresenta uma pessoa identificável em primeiro plano, o que retira pontos na privacidade/critério de pessoas.",
+   "O botão 'Bora' é demasiado informal e desadequado para o setor da saúde.",
+   "A segunda imagem tem sobreposição de texto (clínica na guarda) sobre o logótipo e texto de fundo, criando confusão visual.",
+   "Falta uma fotografia clara da fachada ou do interior da clínica para melhor identificação do local."
+  ]
+ },
+ {
+  "nome": "O Jamie",
+  "token": "2e6d56e54c016c",
+  "link": "https://boraguarda.com/avenca/2e6d56e54c016c/",
+  "pasta": "C:\\BoraLocal\\projetosflutter\\bora-site\\avenca\\2e6d56e54c016c",
+  "fotos": 3,
+  "prospect_id": 114,
+  "nota": 100,
+  "estado": "pronta",
+  "modelo": "gemini-3.5-flash-lite",
+  "pessoas": false,
+  "motivos": [
+   "As imagens mostram o interior real do restaurante e pratos servidos",
+   "O texto e os logótipos informativos são perfeitamente legíveis",
+   "A informação textualmente apresentada é honesta e verificável",
+   "Não existem rostos identificáveis em primeiro plano",
+   "A apresentação visual é limpa e profissional para um negócio local"
+  ]
+ },
+ {
+  "nome": "CLGF",
+  "token": "dd352716f03356",
+  "link": "https://boraguarda.com/avenca/dd352716f03356/",
+  "pasta": "C:\\BoraLocal\\projetosflutter\\bora-site\\avenca\\dd352716f03356",
+  "fotos": 3,
+  "prospect_id": 70,
+  "nota": 80,
+  "estado": "chumbada",
+  "modelo": "gemini-3-flash-preview",
+  "pessoas": false,
+  "motivos": [
+   "As fotografias são reais e mostram o produto, mas a composição é puramente amadora.",
+   "A presença de objetos pessoais na mesa (canivete e óculos de sol) retira qualquer ar profissional à imagem.",
+   "O texto é perfeitamente legível e as informações apresentadas são honestas e verificáveis.",
+   "Não existem pessoas identificáveis nas imagens.",
+   "O aspeto geral parece um post rápido de redes sociais e não um trabalho de agência séria."
+  ]
+ },
+ {
+  "nome": "Café Pissarra",
+  "token": "6ab89d1b0185e2",
+  "link": "https://boraguarda.com/avenca/6ab89d1b0185e2/",
+  "pasta": "C:\\BoraLocal\\projetosflutter\\bora-site\\avenca\\6ab89d1b0185e2",
+  "fotos": 3,
+  "prospect_id": 2,
+  "nota": 100,
+  "estado": "pronta",
+  "modelo": "gemini-3-flash-preview",
+  "pessoas": false,
+  "motivos": [
+   "Fotografias reais, nítidas e com boa iluminação do estabelecimento.",
+   "Texto perfeitamente legível com contorno preto sobre fundo com gradiente.",
+   "Informação honesta e verificável (nome, localização e avaliação Google).",
+   "Ausência de pessoas, garantindo a privacidade e foco no ambiente.",
+   "Design limpo, moderno e com aspeto profissional."
+  ]
+ },
+ {
+  "nome": "Curt'ó Cheio Café",
+  "token": "1de4e6b8c8c238",
+  "link": "https://boraguarda.com/avenca/1de4e6b8c8c238/",
+  "pasta": "C:\\BoraLocal\\projetosflutter\\bora-site\\avenca\\1de4e6b8c8c238",
+  "fotos": 3,
+  "prospect_id": 5,
+  "nota": 97,
+  "estado": "pronta",
+  "modelo": "gemini-3-flash-preview",
+  "pessoas": false,
+  "motivos": [
+   "As fotografias são nítidas, bem enquadradas e mostram o produto num contexto real e apelativo.",
+   "O texto é perfeitamente legível em ambas as imagens devido ao uso de contornos pretos.",
+   "As informações são honestas, apresentando o nome, localização e métricas reais do Google.",
+   "Não existem pessoas identificáveis, respeitando a privacidade e mantendo o foco no produto.",
+   "O design é limpo e profissional, adequado para uma agência séria apresentar ao cliente."
+  ]
+ }
+]

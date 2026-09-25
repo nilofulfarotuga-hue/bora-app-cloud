@@ -1,0 +1,8 @@
+{
+  "_leia": "Textos do 'O que ha de novo' da App Store, usados pelo .github/scripts/ios_publicar.py em cada envio automatico. A chave e' o codigo do idioma da ficha (hoje so existe pt-PT; se um dia se abrir a ficha em ingles, acrescenta-se 'en-US' aqui e o script apanha sozinho). 'padrao' e' a rede: 'pt' serve qualquer idioma pt-*, 'en' serve todos os outros. {versao} e' trocado pelo numero da versao. App = PT-PT (regra da casa), maximo 4000 caracteres.",
+
+  "padrao": {
+    "pt": "Melhorias de estabilidade e correcoes em toda a app.\n\nA Bora continua a juntar num so sitio as entregas de restaurantes, mercados e farmacias, as boleias, a limpeza, as reservas e os favores na Guarda.\n\nObrigado por usar a Bora. Se algo nao estiver bem, fale connosco pelo apoio dentro da app.",
+    "en": "Stability improvements and fixes across the app.\n\nBora brings together food, grocery and pharmacy delivery, rides, cleaning, bookings and errands in Guarda.\n\nThank you for using Bora. If something is not right, reach us through in-app support."
+  }
+}

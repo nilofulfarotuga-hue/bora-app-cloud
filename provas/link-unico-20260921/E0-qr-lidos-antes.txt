@@ -1,0 +1,36 @@
+Leitura dos QR das peças em C:\BoraLocal\Bora (= Desktop\Bora) a 2026-09-21, ANTES de refazer.
+Ferramenta: bora-site/tools/qr/bora_qr.py :: ler_qr (OpenCV QRCodeDetector, várias larguras).
+
+autocolantes-bora\A4-clara-montra-faixa.jpg                  https://play.google.com/store/apps/details?id=pt.boraapp.bora
+autocolantes-bora\A4-clara-montra-faixa.png                  https://app.boraguarda.com/#/registo-cliente | https://play.google.com/store/apps/details?id=pt.boraapp.bora
+autocolantes-bora\A4-clara-redondos.jpg                      https://app.boraguarda.com/#/registo-cliente | https://play.google.com/store/apps/details?id=pt.boraapp.bora
+autocolantes-bora\A4-clara-redondos.png                      https://app.boraguarda.com/#/registo-cliente | https://play.google.com/store/apps/details?id=pt.boraapp.bora
+autocolantes-bora\A4-escura-montra-faixa.jpg                 https://play.google.com/store/apps/details?id=pt.boraapp.bora
+autocolantes-bora\A4-escura-montra-faixa.png                 https://app.boraguarda.com/#/registo-cliente | https://play.google.com/store/apps/details?id=pt.boraapp.bora
+autocolantes-bora\A4-escura-redondos.jpg                     https://app.boraguarda.com/#/registo-cliente | https://play.google.com/store/apps/details?id=pt.boraapp.bora
+autocolantes-bora\A4-escura-redondos.png                     https://app.boraguarda.com/#/registo-cliente | https://play.google.com/store/apps/details?id=pt.boraapp.bora
+autocolantes-bora\autocolantes-as-duas-familias.jpg          https://play.google.com/store/apps/details?id=pt.boraapp.bora
+autocolantes-bora\clara\bora-05cm-copo.png                   https://play.google.com/store/apps/details?id=pt.boraapp.bora
+autocolantes-bora\clara\bora-08cm-balcao.png                 https://app.boraguarda.com/#/registo-cliente | https://play.google.com/store/apps/details?id=pt.boraapp.bora
+autocolantes-bora\clara\bora-10x15cm-montra.png              https://app.boraguarda.com/#/registo-cliente | https://play.google.com/store/apps/details?id=pt.boraapp.bora
+autocolantes-bora\clara\bora-12cm-porta.png                  https://app.boraguarda.com/#/registo-cliente | https://play.google.com/store/apps/details?id=pt.boraapp.bora
+autocolantes-bora\clara\bora-20x5cm-faixa.png                https://play.google.com/store/apps/details?id=pt.boraapp.bora
+autocolantes-bora\escura\bora-05cm-copo.png                  https://play.google.com/store/apps/details?id=pt.boraapp.bora
+autocolantes-bora\escura\bora-08cm-balcao.png                https://app.boraguarda.com/#/registo-cliente | https://play.google.com/store/apps/details?id=pt.boraapp.bora
+autocolantes-bora\escura\bora-10x15cm-montra.png             https://app.boraguarda.com/#/registo-cliente | https://play.google.com/store/apps/details?id=pt.boraapp.bora
+autocolantes-bora\escura\bora-12cm-porta.png                 https://app.boraguarda.com/#/registo-cliente | https://play.google.com/store/apps/details?id=pt.boraapp.bora
+autocolantes-bora\escura\bora-20x5cm-faixa.png               https://play.google.com/store/apps/details?id=pt.boraapp.bora
+cartaz-bora\cartaz-bora-A3-grafica.png                       https://app.boraguarda.com/#/registo-cliente | https://play.google.com/store/apps/details?id=pt.boraapp.bora
+cartaz-bora\cartaz-bora-whatsapp.jpg                         (sem QR lido nesta redução)
+cartaz-bora\lado-a-lado-com-o-goola.jpg                      (sem QR lido nesta redução)
+goola-material\autocolantes\bora-05cm-copo.png               https://play.google.com/store/apps/details?id=pt.boraapp.bora
+goola-material\autocolantes\bora-08cm-balcao.png             (sem QR lido nesta redução)
+goola-material\autocolantes\bora-10x15cm-montra.png          https://app.boraguarda.com/#/registo-cliente | https://play.google.com/store/apps/details?id=pt.boraapp.bora
+goola-material\autocolantes\bora-12cm-porta.png              (sem QR lido nesta redução)
+goola-material\autocolantes\bora-20x5cm-faixa.png            https://play.google.com/store/apps/details?id=pt.boraapp.bora
+goola-material\cartaz-goola-horizontal-whatsapp.jpg          https://app.boraguarda.com/#/registo-cliente | https://play.google.com/store/apps/details?id=pt.boraapp.bora
+goola-material\cartaz-goola-horizontal.png                   https://app.boraguarda.com/#/registo-cliente | https://play.google.com/store/apps/details?id=pt.boraapp.bora
+goola-material\cartaz-goola-vertical-whatsapp.jpg            https://app.boraguarda.com/#/registo-cliente | https://play.google.com/store/apps/details?id=pt.boraapp.bora
+goola-material\cartaz-goola-vertical.png                     https://app.boraguarda.com/#/registo-cliente | https://play.google.com/store/apps/details?id=pt.boraapp.bora
+
+Nenhuma peça aponta para boraguarda.com/baixar.

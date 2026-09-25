@@ -1,0 +1,1 @@
+marker cura-20260801-3 latencia-depois (hook religado, reference-transaction dispara sync na hora)

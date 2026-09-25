@@ -1,0 +1,12 @@
+-- SUPERADA a 20/09/2026 (missão contas-claras) — NÃO APLICAR.
+--
+-- Esta tentativa (OpenCode, 20/09 17h32) nunca chegou a produção: a 20/09 às 19h a
+-- coluna reimbursement_method não existia e admin_mark_receipt_paid_external não estava
+-- em pg_proc. Foi substituída por:
+--   supabase/migrations/20260920190500_contas_claras_b1_talao_dois_caminhos.sql
+-- que define os DOIS caminhos do talão (carteira × pago por fora) com a mesma porta
+-- (is_admin), auditoria, e as colunas reimbursement_method / reimbursement_external_paid_at /
+-- reimbursement_external_reference. O talão b89e66d2 do Valdemir ficou regularizado lá.
+--
+-- Ficheiro mantido vazio de propósito para a ordem das migrations não mudar.
+SELECT 1;

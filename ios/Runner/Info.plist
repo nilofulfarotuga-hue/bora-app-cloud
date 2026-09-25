@@ -14,6 +14,15 @@
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
+	<!-- 2026-09-21 (missão link-unico-iphone): a ficha da App Store dizia "Idiomas: Inglês"
+	     porque a loja lê os idiomas do BINÁRIO (esta chave), não dos textos da ficha, que já
+	     estão em pt-PT desde 08/09. A app fala PT-PT com alternador para EN. Só entra em vigor
+	     numa build nova (versão 1.0.1 já criada no App Store Connect). -->
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>pt-PT</string>
+		<string>en</string>
+	</array>
 	<key>CFBundleName</key>
 	<string>bora_app</string>
 	<key>CFBundlePackageType</key>
@@ -53,22 +62,89 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+	<!-- Missão ios-lancamento (2026-09-07): SÓ retrato. A app nunca foi desenhada
+	     para paisagem (nenhum ecrã tem layout horizontal) e a Apple reprova
+	     ecrãs partidos ao rodar. Combina com TARGETED_DEVICE_FAMILY = "1". -->
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-	<key>UISupportedInterfaceOrientations~ipad</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>A Bora usa a câmara para tirares foto de perfil, de encomendas (Enviar Encomenda) e de compras (Levar Compras).</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>A Bora usa a galeria para escolheres foto de perfil, de encomendas ou de compras.</string>
+	<!-- FACE ID / TOUCH ID (2026-09-10).
+	     SEM esta chave o iOS MATA a app: desde o iOS 17 o proprio
+	     canEvaluatePolicy do LocalAuthentication a exige, e a app termina
+	     por violacao de privacidade (TCC). O ecra de entrada pergunta pela
+	     biometria logo no initState, por isso bastava ABRIR o login num
+	     iPhone com Face ID para a app fechar. Foi o que aconteceu ao
+	     Danilo na build 63. O simulador do CI nunca apanhou isto porque nao
+	     tem biometria inscrita e o arnes entra com palavra-passe.
+	     Ver developer.apple.com/documentation/bundleresources/
+	     information-property-list/nsfaceidusagedescription -->
+	<key>NSFaceIDUsageDescription</key>
+	<string>A Bora usa o Face ID para entrares na tua conta e confirmares pagamentos sem escreveres a palavra-passe.</string>
+	<!-- T3.1: Location permissions for driver real-time tracking. -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>A Bora usa a tua localização para mostrar pedidos próximos e calcular trajectos de entrega.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Para entregas activas, a Bora precisa actualizar a tua posição em segundo plano para o cliente e o painel ops verem o teu progresso em tempo real. Pode parar a qualquer momento.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Para entregas activas, a Bora precisa actualizar a tua posição em segundo plano para o cliente e o painel ops verem o teu progresso em tempo real.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>fetch</string>
+		<string>remote-notification</string>
+		<string>processing</string>
+	</array>
+	<!-- Sessão 2026-05-17 (foreground service) — BGTaskScheduler IDs do
+	     flutter_foreground_task para iOS. iOS não tem foreground service real;
+	     o background fetch + remote-notification (alta prioridade FCM) faz o
+	     equivalente. Driver/parceiro recebem pedidos via APNs priority 10. -->
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.pravera.flutter_foreground_task</string>
+	</array>
+	<!-- Sessão 7-UI-BUG004: tel: launcher para botão "Ligar agora" do
+	     bottom sheet de cancelamento bloqueado pós-pickedUp.
+	     Missão ios-lancamento (2026-09-07): juntos os esquemas que o
+	     `url_launcher` abre a partir da app — sem eles o `canLaunchUrl`
+	     devolve false no iOS e o botão parece partido ao revisor. -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>tel</string>
+		<string>whatsapp</string>
+		<string>maps</string>
+		<string>comgooglemaps</string>
+		<string>mailto</string>
+	</array>
+
+	<!-- Missão ios-lancamento (2026-09-07): a app só fala HTTPS (Supabase,
+	     Stripe, Google Maps) — não traz criptografia própria nem não-isenta.
+	     Declarar aqui evita a pergunta de conformidade de exportação a CADA
+	     build enviado para o App Store Connect. -->
+	<!-- Chave do Google Maps para iOS. O valor NAO esta aqui: vem da
+	     definicao de build GOOGLE_MAPS_API_KEY, que o CI injecta a partir
+	     de um segredo. O repositorio e publico. -->
+	<key>GoogleMapsApiKey</key>
+	<string>$(GOOGLE_MAPS_API_KEY)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<!-- Recuperação de palavra-passe (2026-07-14) — deep link de volta ao app
+	     depois do clique no email de reset do Supabase Auth. Tem de bater
+	     certo com o redirectTo em auth_store.dart. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>pt.boraapp.bora.reset-password</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>pt.boraapp.bora</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

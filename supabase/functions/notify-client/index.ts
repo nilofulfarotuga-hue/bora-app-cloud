@@ -1,15 +1,24 @@
 // @ts-nocheck
-// supabase/functions/notify-client/index.ts
+// supabase/functions/notify-client/index.ts  v21
 //
-// Sends a FCM push to the CLIENT for order lifecycle updates.
-// Status-specific messages mirror Uber Eats tone.
+// Sends a FCM push to the CLIENT.
+// Supports order lifecycle, reservation status AND appointment status.
 //
-// Required Supabase secrets:
-//   FIREBASE_PROJECT_ID
-//   FIREBASE_SERVICE_ACCOUNT
+// v21 (2026-09-08): BUG DE FAMILIA CONHECIDA. A funcao lia o telemovel do cliente
+//   SO em users.fcm_token. Medido na producao a 08/09: apenas 4 de 79 clientes tem
+//   esse campo preenchido, enquanto 23 tem telemovel activo em client_push_tokens
+//   — ou seja 19 clientes com a app instalada nunca recebiam "pedido aceite",
+//   "a caminho" ou "entregue": a funcao devolvia no_fcm_token em silencio.
+//   E exactamente o mesmo bug ja corrigido no notify-driver a 16/08 (drivers.id vs
+//   drivers.user_id / driver_push_tokens).
+//   CORRECCAO ADITIVA: users.fcm_token continua a ser lido primeiro (retrocompat
+//   total); client_push_tokens entra como fonte adicional. Envia para todos os
+//   aparelhos activos do cliente. Token morto (UNREGISTERED/INVALID_ARGUMENT) e
+//   desligado na origem certa. Nada mais foi tocado.
+// v18 (2026-07-28): pass-through de data.type.
+// v15: reservationId/reservation_status.
 //
-// Called by Flutter NotificationService.notifyClientOrderStatus()
-// and can also be called from DB triggers / dispatch engine.
+// Required Supabase secrets: FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -17,6 +26,15 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+
+type OrderContext = {
+  service_type: string | null
+  vendor_name: string | null
+  takeaway_pickup_code: string | null
+  takeaway_prep_minutes: number | null
+  takeaway_is_curbside: boolean | null
+  takeaway_curbside_info: string | null
 }
 
 Deno.serve(async (req) => {
@@ -41,18 +59,51 @@ Deno.serve(async (req) => {
     return json({ ok: false, error: 'Invalid JSON body' }, 400)
   }
 
-  const clientId = payload.clientId as string | undefined
-  const orderId  = payload.orderId  as string | undefined
-  const status   = payload.status   as string | undefined
-  let title      = payload.title    as string | undefined
-  let body       = payload.body     as string | undefined
+  const clientId       = payload.clientId      as string | undefined
+  const orderId        = payload.orderId       as string | undefined
+  const reservationId  = payload.reservationId as string | undefined
+  const appointmentId  = payload.appointmentId as string | undefined
+  const status         = payload.status        as string | undefined
+  const kind           = payload.kind          as string | undefined
+  const notifType      = payload.type          as string | undefined
+  let title            = payload.title         as string | undefined
+  let body             = payload.body          as string | undefined
 
   if (!clientId) {
     return json({ ok: false, error: 'clientId is required' }, 400)
   }
 
-  if (status && (!title || !body)) {
-    const msg = statusMessage(status, payload.vendorName, payload.driverName, payload.etaMinutes)
+  const supabase = createClient(supabaseUrl, serviceKey)
+
+  // DB query só para pushes de order (takeaway-aware). Skip para reserva/marcação.
+  const isOrderPush = !notifType || notifType === 'order_status'
+  let orderCtx: OrderContext | null = null
+  if (orderId && isOrderPush) {
+    const { data: orderRow, error: orderErr } = await supabase
+      .from('orders')
+      .select(
+        'service_type, vendor_name, takeaway_pickup_code, ' +
+        'takeaway_prep_minutes, takeaway_is_curbside, takeaway_curbside_info'
+      )
+      .eq('id', orderId)
+      .maybeSingle()
+
+    if (orderErr) {
+      console.error('[notify-client] order fetch error:', JSON.stringify(orderErr))
+    } else if (orderRow) {
+      orderCtx = orderRow as OrderContext
+    }
+  }
+
+  // Mensagem automática via status — só para o fluxo de order (o delivery de sempre).
+  if (isOrderPush && status && (!title || !body)) {
+    const msg = statusMessage(
+      status,
+      orderCtx,
+      payload.vendorName as string | undefined,
+      payload.driverName as string | undefined,
+      payload.etaMinutes as number | undefined,
+    )
     if (msg) {
       title = title ?? msg.title
       body  = body  ?? msg.body
@@ -63,8 +114,7 @@ Deno.serve(async (req) => {
     return json({ ok: false, error: 'title/body or recognised status required' }, 400)
   }
 
-  const supabase = createClient(supabaseUrl, serviceKey)
-
+  // ---- v21: duas fontes de token, users.fcm_token primeiro (retrocompat) ----
   const { data: user, error: userErr } = await supabase
     .from('users')
     .select('fcm_token, name')
@@ -76,8 +126,25 @@ Deno.serve(async (req) => {
     return json({ ok: false, reason: 'db_error' })
   }
 
-  if (!user?.fcm_token) {
-    console.log(`[notify-client] No FCM token for client ${clientId} — skipping`)
+  const alvos: { token: string; origem: 'users' | 'client_push_tokens' }[] = []
+  if (user?.fcm_token) alvos.push({ token: user.fcm_token, origem: 'users' })
+
+  const { data: extras, error: extrasErr } = await supabase
+    .from('client_push_tokens')
+    .select('fcm_token')
+    .eq('user_id', clientId)
+    .eq('active', true)
+  if (extrasErr) {
+    console.error('[notify-client] client_push_tokens error:', JSON.stringify(extrasErr))
+  }
+  for (const e of extras ?? []) {
+    if (e.fcm_token && !alvos.some((a) => a.token === e.fcm_token)) {
+      alvos.push({ token: e.fcm_token, origem: 'client_push_tokens' })
+    }
+  }
+
+  if (alvos.length === 0) {
+    console.log(`[notify-client] No FCM token for client ${clientId} (users + client_push_tokens) — skipping`)
     return json({ ok: false, reason: 'no_fcm_token' })
   }
 
@@ -92,96 +159,130 @@ Deno.serve(async (req) => {
 
   const fcmUrl = `https://fcm.googleapis.com/v1/projects/${firebaseProjectId}/messages:send`
 
-  const message = {
-    message: {
-      token: user.fcm_token,
-      notification: { title, body },
-      data: {
-        ...(orderId ? { orderId: String(orderId) } : {}),
-        ...(status  ? { status:  String(status) }  : {}),
-        type: 'order_status',
-      },
-      android: {
-        priority: 'high',
-        notification: { channel_id: 'bora_orders', sound: 'default' },
-      },
-      apns: {
-        headers: { 'apns-priority': '10' },
-        payload: { aps: { sound: 'default', badge: 1, 'content-available': 1 } },
-      },
-    },
+  // Pass-through do type: appointment_status/reservation_status/order_status/custom.
+  const dataPayload: Record<string, string> = {
+    type: notifType ?? 'order_status',
+    ...(orderId       ? { orderId:       String(orderId) }       : {}),
+    ...(reservationId ? { reservationId: String(reservationId) } : {}),
+    ...(appointmentId ? { appointmentId: String(appointmentId) } : {}),
+    ...(status        ? { status:        String(status) }        : {}),
+    ...(kind          ? { kind:          String(kind) }          : {}),
   }
 
-  const fcmRes  = await fetch(fcmUrl, {
-    method:  'POST',
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type':  'application/json',
-    },
-    body: JSON.stringify(message),
-  })
+  let enviados = 0
+  let falhados = 0
+  let ultimoErro: unknown = null
 
-  const fcmBody = await fcmRes.json().catch(() => ({}))
-
-  if (!fcmRes.ok) {
-    console.error(`[notify-client] FCM error ${fcmRes.status}:`, JSON.stringify(fcmBody))
-    const errorCode = fcmBody?.error?.details?.[0]?.errorCode ?? ''
-    if (errorCode === 'UNREGISTERED' || errorCode === 'INVALID_ARGUMENT') {
-      console.log(`[notify-client] Clearing stale FCM token for client ${clientId}`)
-      await supabase.from('users').update({ fcm_token: null }).eq('id', clientId)
+  for (const alvo of alvos) {
+    const message = {
+      message: {
+        token: alvo.token,
+        notification: { title, body },
+        data: dataPayload,
+        android: {
+          priority: 'high',
+          notification: { channel_id: 'bora_orders', sound: 'default' },
+        },
+        apns: {
+          headers: { 'apns-priority': '10' },
+          payload: { aps: { sound: 'default', badge: 1, 'content-available': 1 } },
+        },
+      },
     }
-    return json({ ok: false, reason: 'fcm_error', detail: fcmBody })
+
+    const fcmRes = await fetch(fcmUrl, {
+      method:  'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type':  'application/json',
+      },
+      body: JSON.stringify(message),
+    })
+
+    const fcmBody = await fcmRes.json().catch(() => ({}))
+
+    if (fcmRes.ok) {
+      enviados++
+      continue
+    }
+
+    falhados++
+    ultimoErro = fcmBody
+    console.error(`[notify-client] FCM error ${fcmRes.status} (${alvo.origem}):`, JSON.stringify(fcmBody))
+    const errorCode = fcmBody?.error?.details?.[0]?.errorCode ?? fcmBody?.error?.message ?? ''
+    if (errorCode === 'UNREGISTERED' || errorCode === 'INVALID_ARGUMENT' || errorCode === 'NotRegistered') {
+      // limpa o token morto na fonte certa
+      if (alvo.origem === 'users') {
+        console.log(`[notify-client] Clearing stale users.fcm_token for client ${clientId}`)
+        await supabase.from('users').update({ fcm_token: null }).eq('id', clientId)
+      } else {
+        console.log(`[notify-client] Deactivating stale client_push_tokens row for client ${clientId}`)
+        await supabase.from('client_push_tokens')
+          .update({ active: false, last_fail_at: new Date().toISOString() })
+          .eq('user_id', clientId).eq('fcm_token', alvo.token)
+      }
+    }
   }
 
-  console.log(`[notify-client] ✓ Push sent to client ${clientId} (status=${status})`)
-  return json({ ok: true })
+  const logCtx = notifType === 'reservation_status' ? `reservation=${reservationId}`
+              : notifType === 'appointment_status'  ? `appointment=${appointmentId}`
+              : `status=${status}`
+  console.log(`[notify-client v21] type=${dataPayload.type} client=${clientId} (${logCtx}) aparelhos=${alvos.length} enviados=${enviados} falhados=${falhados}`)
+
+  if (enviados === 0) {
+    return json({ ok: false, reason: 'fcm_error', detail: ultimoErro })
+  }
+  return json({ ok: true, enviados, falhados })
 })
 
 function statusMessage(
   status: string,
-  vendorName?: string,
+  orderCtx: OrderContext | null,
+  vendorNamePayload?: string,
   driverName?: string,
   etaMinutes?: number,
 ): { title: string; body: string } | null {
-  const vendor = (vendorName ?? '').trim()
+  const isTakeaway = orderCtx?.service_type === 'takeaway'
+  const vendor = (orderCtx?.vendor_name ?? vendorNamePayload ?? '').trim()
   const driver = (driverName ?? '').trim()
+  const pickupCode = (orderCtx?.takeaway_pickup_code ?? '').trim()
+  const prepMin = orderCtx?.takeaway_prep_minutes ?? 0
+  const isCurbside = orderCtx?.takeaway_is_curbside === true
+
   switch (status) {
     case 'preparing':
+      if (isTakeaway) {
+        return {
+          title: '📦 Pedido aceite',
+          body: prepMin > 0
+            ? (vendor ? `${vendor} a preparar — pronto em ${prepMin} min` : `Pedido aceite — pronto em ${prepMin} min`)
+            : (vendor ? `${vendor} está a preparar o seu pedido` : 'O parceiro está a preparar o seu pedido'),
+        }
+      }
       return {
         title: 'Pedido aceite',
-        body: vendor
-          ? `👨‍🍳 ${vendor} está a preparar o seu pedido`
-          : '👨‍🍳 O restaurante está a preparar o seu pedido',
+        body: vendor ? `👨‍🍳 ${vendor} está a preparar o seu pedido` : '👨‍🍳 O restaurante está a preparar o seu pedido',
+      }
+    case 'readyForPickup':
+      return {
+        title: '🎉 Pedido pronto!',
+        body: pickupCode
+          ? (isCurbside ? `Código ${pickupCode}. Aguarde no carro.` : `Código ${pickupCode}. Apresente no balcão.`)
+          : (isCurbside ? 'O seu pedido está pronto — aguarde no carro.' : 'O seu pedido está pronto — apresente-se no balcão.'),
       }
     case 'callingDriver':
-      return {
-        title: 'À procura de estafeta',
-        body: '🛵 A procurar o melhor estafeta para o seu pedido…',
-      }
+      return { title: 'À procura de estafeta', body: '🛵 A procurar o melhor estafeta para o seu pedido…' }
     case 'driverAccepted':
-      return {
-        title: 'Estafeta a caminho do restaurante',
-        body: driver
-          ? `✅ ${driver} aceitou o seu pedido`
-          : '✅ Um estafeta aceitou o seu pedido',
-      }
+      return { title: 'Estafeta a caminho do restaurante', body: driver ? `✅ ${driver} aceitou o seu pedido` : '✅ Um estafeta aceitou o seu pedido' }
     case 'pickedUp':
-      return {
-        title: 'Pedido recolhido',
-        body: '📦 O seu pedido foi recolhido e está a caminho',
-      }
+      return { title: 'Pedido recolhido', body: '📦 O seu pedido foi recolhido e está a caminho' }
     case 'onTheWay':
-      return {
-        title: 'A caminho!',
-        body: etaMinutes && etaMinutes > 0
-          ? `🛵 A caminho! Chega em ~${etaMinutes} min`
-          : '🛵 O seu pedido está a caminho',
-      }
+      return { title: 'A caminho!', body: etaMinutes && etaMinutes > 0 ? `🛵 A caminho! Chega em ~${etaMinutes} min` : '🛵 O seu pedido está a caminho' }
     case 'delivered':
-      return {
-        title: 'Entregue 🎉',
-        body: 'Como foi a sua experiência? Avalie o pedido e ajude outros clientes.',
+      if (isTakeaway) {
+        return { title: 'Obrigado pela visita! ✨', body: vendor ? `Obrigado pela visita a ${vendor}. Avalie o pedido na app.` : 'Obrigado pelo seu pedido. Avalie a sua experiência na app.' }
       }
+      return { title: 'Entregue 🎉', body: 'Como foi a sua experiência? Avalie o pedido e ajude outros clientes.' }
     default:
       return null
   }
@@ -196,7 +297,7 @@ function json(obj: any, status = 200): Response {
 
 async function getFirebaseAccessToken(serviceAccount: any): Promise<string> {
   const now = Math.floor(Date.now() / 1000)
-  const header  = { alg: 'RS256', typ: 'JWT' }
+  const header     = { alg: 'RS256', typ: 'JWT' }
   const payloadJwt = {
     iss:   serviceAccount.client_email,
     scope: 'https://www.googleapis.com/auth/firebase.messaging',
@@ -221,8 +322,8 @@ async function getFirebaseAccessToken(serviceAccount: any): Promise<string> {
     'RSASSA-PKCS1-v1_5', cryptoKey, new TextEncoder().encode(signingInput),
   )
   const signature = b64urlBytes(new Uint8Array(sigBuffer))
-  const jwt       = `${signingInput}.${signature}`
-  const tokenRes  = await fetch('https://oauth2.googleapis.com/token', {
+  const jwt = `${signingInput}.${signature}`
+  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
     method:  'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({

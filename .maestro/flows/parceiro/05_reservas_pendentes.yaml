@@ -1,0 +1,47 @@
+appId: pt.boraapp.bora
+name: Parceiro — Badge laranja → Pendentes → aceitar reserva
+tags:
+  - parceiro
+  - reservas
+  - badge
+---
+- launchApp:
+    clearState: true
+- runFlow: ../../_shared/login_parceiro.yaml
+
+# Verifica badge laranja se há pendentes (BUG 1).
+- runFlow:
+    when:
+      visible: "reservas pendentes"
+    commands:
+      - tapOn:
+          text: "reservas pendentes"
+
+# Caso o badge não esteja visível, abre Reservas Pro pelo botão directo.
+- runFlow:
+    when:
+      notVisible: ".*Pendentes.*"
+    commands:
+      - scrollUntilVisible:
+          element:
+            text: ".*Reservas Pro.*"
+          direction: DOWN
+          timeout: 10000
+      - tapOn: ".*Reservas Pro.*"
+
+- extendedWaitUntil:
+    visible: ".*Pendentes.*"
+    timeout: 10000
+- tapOn: ".*Pendentes.*"
+
+- runFlow:
+    when:
+      visible: "Aceitar"
+    commands:
+      - tapOn:
+          text: "Aceitar"
+          index: 0
+      - extendedWaitUntil:
+          notVisible:
+            text: "Aceitar"
+          timeout: 15000

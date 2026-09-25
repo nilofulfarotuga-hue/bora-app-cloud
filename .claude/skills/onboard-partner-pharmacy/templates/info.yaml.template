@@ -1,0 +1,20 @@
+# info.yaml — farmácia parceira Bora. Copiar para a pasta de onboarding e preencher.
+# Idioma user-facing: PT-PT. Campos obrigatórios marcados (*).
+pharmacy:
+  name: "Wells Guarda"              # * nome da farmácia/parafarmácia
+  cuisine_type: ""                  #   não aplicável
+  category: "farmacia"              # * nesta skill: sempre 'farmacia'
+  is_partner: true
+  address: "C.C. La Vie, Guarda"    # * morada completa
+  phone: "+351271100000"            # * telefone PT
+  email: "guarda@wells.pt"          # * email (login do parceiro)
+  nif: "503453887"                  #   NIF 9 dígitos (mód-11)
+  iban: "PT50000700000012345678901" #   ⚠️ formato real: PT + 21 dígitos
+  licenca_infarmed: "INFARMED-12345" # * licença INFARMED (obrigatória)
+  lat: null                         #   geocode.py preenche
+  lng: null
+  takeaway_enabled: false
+  reservations_enabled: false
+  curbside_enabled: false
+  owner_name: "Diretor Técnico"
+  owner_doc_url: ""

@@ -1,14 +1,20 @@
 class MenuItem {
+  /// Source product id (`products.id`). Required for create_order RPC
+  /// (server-side DB lookup uses this). NEVER use the name as fallback —
+  /// see Bug-B fix 2026-04-30.
+  final String? productId;
   final String name;
   final double price;
 
   MenuItem({
+    this.productId,
     required this.name,
     required this.price,
   });
 
-  MenuItem copyWith({String? name, double? price}) {
+  MenuItem copyWith({String? productId, String? name, double? price}) {
     return MenuItem(
+      productId: productId ?? this.productId,
       name: name ?? this.name,
       price: price ?? this.price,
     );
@@ -16,6 +22,7 @@ class MenuItem {
 
   Map<String, dynamic> toMap() {
     return {
+      if (productId != null) 'productId': productId,
       'name': name,
       'price': price,
     };
@@ -23,6 +30,7 @@ class MenuItem {
 
   factory MenuItem.fromMap(Map<String, dynamic> map) {
     return MenuItem(
+      productId: map['productId'] as String?,
       name: map['name'] as String? ?? '',
       price: (map['price'] as num?)?.toDouble() ?? 0,
     );

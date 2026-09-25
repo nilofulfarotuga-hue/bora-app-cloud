@@ -41,7 +41,10 @@ const corsHeaders = {
 }
 
 const ADMIN_EMAIL = 'boraappbora@gmail.com'
-const EMAIL_FROM  = 'Bora App <noreply@boraapp.com>'
+// 2026-09-25: era 'noreply@boraapp.com', um dominio que NAO esta verificado na Resend —
+// mesmo com chave boa o envio morria. O dominio verificado e o boraguarda.com, o mesmo
+// de onde saem os recibos e a ficha de fiscalizacao.
+const EMAIL_FROM  = 'Bora <avisos@boraguarda.com>'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -191,7 +194,19 @@ Deno.serve(async (req) => {
   }
 
   // ─── Email Resend (optional — só crosstalk) ───────────────────────────────
-  const resendKey = Deno.env.get('RESEND_API_KEY')
+  // A chave vive no VAULT (resend_api_key), nao no ambiente desta funcao. Sem esta
+  // segunda tentativa, o log dizia 'RESEND_API_KEY missing — email skipped' em TODAS as
+  // corridas (13 vezes nas 24 h ate 2026-09-25 03:32) e o aviso critico nunca saia por
+  // email. As funcoes irmas ja liam o Vault assim.
+  let resendKey = Deno.env.get('RESEND_API_KEY') ?? null
+  if (!resendKey) {
+    try {
+      const { data: k } = await supabase.rpc('get_resend_key')
+      if (k && String(k).trim()) resendKey = String(k).trim()
+    } catch (e) {
+      console.error('[notify-admin-urgent] get_resend_key falhou:', e)
+    }
+  }
   let emailSent = false
   if (resendKey && kind === 'crosstalk') {
     try {
@@ -237,7 +252,7 @@ Deno.serve(async (req) => {
       console.error('[notify-admin-urgent] resend exception:', e)
     }
   } else if (!resendKey) {
-    console.log('[notify-admin-urgent] RESEND_API_KEY missing — email skipped')
+    console.log('[notify-admin-urgent] sem chave da Resend (nem no ambiente nem no Vault) — email saltado')
   }
 
   // ─── Telegram (v13, 2026-07-31) — best-effort ─────────────────────────────

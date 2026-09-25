@@ -38,7 +38,7 @@ const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
 // Bora usa (motor_chamadas, 20–23/09); gemini-3.5-flash-lite: o do support-chatbot
 // (support_settings.gemini_model). A 23/09 o 3.1-flash-lite deu 503 "alta procura" em 6 das
 // 8 horas do robot-b, por isso não vai à frente.
-const GEMINI_MODELOS = (Deno.env.get('DECISOR_GEMINI_MODELS') ?? 'gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-3-flash-preview')
+const GEMINI_MODELOS = (Deno.env.get('DECISOR_GEMINI_MODELS') ?? 'gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite')
   .split(',').map((m) => m.trim()).filter(Boolean);
 const JEV_URL = 'https://api.typesafe.ai/v1/systemone';
 const JEV_MODEL = 'jev-latest';
@@ -209,17 +209,16 @@ const SISTEMA_GEMINI =
 async function viaGemini(p: Pedido, modelos: string[] = GEMINI_MODELOS, chave: string | undefined = GEMINI_API_KEY): Promise<Resultado> {
   if (!chave) throw new Error('gemini_key_missing');
   const erros: string[] = [];
+  // UMA tentativa por modelo, e passa-se ao seguinte. Antes repetia-se o MESMO modelo duas
+  // vezes com pausa quando o Google devolvia 429 ou 503 — e e' precisamente quando o Google
+  // esta cheio que repetir nao serve de nada: serve rodar. A 23/09, 19 das 20 provas
+  // acabaram com motor=nenhum porque a cadeia ficava presa no primeiro modelo esgotado.
+  // 429 (cheio), 503 (indisponivel) e 404 (modelo que ja nao existe) passam todos a frente.
   for (const modelo of modelos) {
-    for (let tentativa = 0; tentativa < 2; tentativa++) {
-      try {
-        return await viaGeminiModelo(p, modelo, chave);
-      } catch (e) {
-        const msg = (e as Error).message;
-        erros.push(`${modelo}: ${msg.slice(0, 80)}`);
-        // Só vale repetir quando o Google diz que está cheio; resto passa ao próximo modelo.
-        if (!/http (429|503)/.test(msg)) break;
-        await new Promise((r) => setTimeout(r, 600 * (tentativa + 1)));
-      }
+    try {
+      return await viaGeminiModelo(p, modelo, chave);
+    } catch (e) {
+      erros.push(`${modelo}: ${(e as Error).message.slice(0, 80)}`);
     }
   }
   throw new Error(erros.join(' | '));
@@ -256,7 +255,9 @@ async function viaGeminiModelo(p: Pedido, modelo: string, chave: string): Promis
         ...(comThinking ? { thinkingConfig: { thinkingLevel: 'minimal' } } : {}),
       },
     }),
-    signal: AbortSignal.timeout(20000),
+    // 8 s por modelo (era 20). Com tres modelos na cadeia, 20 s cada dava ate um minuto
+    // por pergunta — e a 23/09 19 das 20 provas ficaram com motor=nenhum por isso.
+    signal: AbortSignal.timeout(8000),
   });
   const t0 = Date.now();
   let resp = await pedir(true);

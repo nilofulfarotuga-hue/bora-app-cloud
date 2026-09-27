@@ -44,9 +44,29 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
   /// própria (AudioPlayer isolado, ver doc do SoundService).
   final SoundService _sound = SoundService();
 
+  // [Recusa fantasma · 25/09] Mesmas guardas do cartão sobreposto: o Recusar
+  // não faz nada no primeiro segundo e pede um segundo toque.
+  bool _podeRecusar = false;
+  bool _confirmarRecusa = false;
+  Timer? _guardaAparecer;
+  Timer? _janelaRecusa;
+  String? _guardaDe;
+
+  void _armarGuardaRecusa(String rideId) {
+    _guardaDe = rideId;
+    _podeRecusar = false;
+    _confirmarRecusa = false;
+    _janelaRecusa?.cancel();
+    _guardaAparecer?.cancel();
+    _guardaAparecer = Timer(kTvdeRecusaGuardaAoAparecer, () {
+      if (mounted) setState(() => _podeRecusar = true);
+    });
+  }
+
   @override
   void initState() {
     super.initState();
+    _armarGuardaRecusa(widget.ride.id);
     // [Oferta sobreposta 20/09] Enquanto este ecrã mostra a oferta em ecrã
     // inteiro, o cartão global (TvdeOfferOverlayHost) não a duplica por cima.
     _marcarEcraInteiro(widget.ride.id);
@@ -65,6 +85,8 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
       TvdeOfferPresentation.fullScreenRideId.value = null;
     }
     _ticker?.cancel();
+    _guardaAparecer?.cancel();
+    _janelaRecusa?.cancel();
     _sound.stop();
     _sound.dispose();
     super.dispose();
@@ -111,7 +133,16 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
   }
 
   Future<void> _reject() async {
-    if (_acting) return;
+    if (_acting || !_podeRecusar) return;
+    if (!_confirmarRecusa) {
+      setState(() => _confirmarRecusa = true);
+      _janelaRecusa?.cancel();
+      _janelaRecusa = Timer(kTvdeRecusaJanelaConfirmar, () {
+        if (mounted) setState(() => _confirmarRecusa = false);
+      });
+      return;
+    }
+    _janelaRecusa?.cancel();
     _acting = true;
     _sound.stop();
     final store = context.read<TvdeDriverStore>();
@@ -131,7 +162,11 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
       // Fora do build (mexer no notifier aqui rebentava o host a meio do
       // frame): no fim do frame o cartão global fica a saber da nova.
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && !_closing) _marcarEcraInteiro(ride.id);
+        if (mounted && !_closing) {
+          _marcarEcraInteiro(ride.id);
+          // Re-offer: a oferta nova ganha as mesmas guardas do Recusar.
+          if (_guardaDe != ride.id) setState(() => _armarGuardaRecusa(ride.id));
+        }
       });
     }
     final exp = ride.offerExpiresAt;
@@ -280,9 +315,17 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
                 // "morto" por partilhar o `store.busy` do Aceitar). Agora só o
                 // guard local `_acting` o protege contra duplo-toque.
                 TextButton(
+                  key: const Key('tvde_ecra_oferta_recusar'),
                   onPressed: _acting ? null : _reject,
-                  child: const Text('Recusar',
-                      style: TextStyle(color: Colors.white)),
+                  child: Text(
+                      _confirmarRecusa
+                          ? 'Toca outra vez para recusar'
+                          : 'Recusar',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: _confirmarRecusa
+                              ? FontWeight.w800
+                              : FontWeight.w400)),
                 ),
               ],
             ),

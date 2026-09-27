@@ -1631,6 +1631,33 @@ class TvdeStore extends ChangeNotifier {
     }
   }
 
+  /// A corrida de IDA deste cliente paga com o [paymentIntentId] do pacote.
+  /// Null quando não há (a ida ainda não nasceu) — aí o servidor procura.
+  Future<String?> _idaDoPagamento(String paymentIntentId) async {
+    final uid = _sb.auth.currentUser?.id;
+    if (uid == null) return null;
+    try {
+      final row = await _sb
+          .from('tvde_rides')
+          .select('id')
+          .eq('client_id', uid)
+          .eq('payment_intent_id', paymentIntentId)
+          .or('is_return_leg.is.null,is_return_leg.eq.false')
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+      final id = row?['id']?.toString();
+      if (id != null && id.isNotEmpty) {
+        await savePendingRoundtrip(
+            paymentIntentId: paymentIntentId, outboundRideId: id);
+        return id;
+      }
+    } catch (e) {
+      debugPrint('TvdeStore._idaDoPagamento error => $e');
+    }
+    return null;
+  }
+
   /// Retoma o poll do `activate_roundtrip` (idempotente) se houver um par
   /// pendente guardado — mesmo sem o diálogo de espera vivo. Corre em fundo
   /// (~2 min a cada 3 s); se não fechar, volta a tentar na próxima abertura.
@@ -1647,6 +1674,11 @@ class TvdeStore extends ChangeNotifier {
     }
     if (pi == null) return;
     _resumingRoundtrip = true;
+    // [Redondo 26/09 · B7c] A ida-e-volta leva SEMPRE o outbound_ride_id.
+    // O par pode ter sido guardado antes de a ida nascer (só o PI); nesse
+    // caso acha-se a ida pelo próprio pagamento, em vez de deixar o servidor
+    // adivinhar qual é a corrida do cliente.
+    rideId ??= await _idaDoPagamento(pi);
     debugPrint('TvdeStore: a retomar ativação do pacote (pi=$pi ride=$rideId)');
     try {
       for (var i = 0; i < 40; i++) {

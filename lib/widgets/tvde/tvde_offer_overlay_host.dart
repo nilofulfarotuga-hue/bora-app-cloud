@@ -62,6 +62,13 @@ class TvdeOfferOverlayHost extends StatefulWidget {
   State<TvdeOfferOverlayHost> createState() => _TvdeOfferOverlayHostState();
 }
 
+/// [Recusa fantasma · 25/09] Guardas do Recusar da oferta imediata, iguais no
+/// cartão sobreposto e no `TvdeOfferScreen`: o primeiro segundo depois de a
+/// oferta aparecer não recusa (o toque era para o ecrã de baixo) e recusar
+/// pede um segundo toque dentro desta janela.
+const Duration kTvdeRecusaGuardaAoAparecer = Duration(seconds: 1);
+const Duration kTvdeRecusaJanelaConfirmar = Duration(seconds: 3);
+
 /// Coordenação entre o cartão global e o `TvdeOfferScreen` (ecrã inteiro).
 class TvdeOfferPresentation {
   TvdeOfferPresentation._();
@@ -332,6 +339,20 @@ class _TvdeOfferOverlayCardState extends State<TvdeOfferOverlayCard> {
   bool _respondendo = false;
   bool _expirouAvisado = false;
 
+  // [Recusa fantasma · 25/09 · corrida 258233c3] A app recusou 14 s depois
+  // de a oferta entrar, logo a seguir a uma corrida cancelada pelo cliente,
+  // sem o motorista querer recusar. O registo do servidor mostra que foi o
+  // botão do cartão (cliente supabase-flutter, não o botão da notificação):
+  // o cartão nasce POR CIMA do ecrã em que ele estava a mexer e o toque
+  // dirigido a esse ecrã caía no Recusar. Duas guardas, só no Recusar:
+  //  1. no primeiro segundo depois de a oferta aparecer não faz nada;
+  //  2. pede um segundo toque ("Confirmar recusa", 3 s para o dar).
+  // Aceitar continua a um toque. Expirar nunca chama o recusar.
+  bool _podeRecusar = false;
+  bool _confirmarRecusa = false;
+  Timer? _guardaAparecer;
+  Timer? _janelaRecusa;
+
   DateTime get _now => (widget.agora ?? DateTime.now)();
 
   @override
@@ -340,6 +361,7 @@ class _TvdeOfferOverlayCardState extends State<TvdeOfferOverlayCard> {
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });
+    _armarGuardaRecusa();
   }
 
   @override
@@ -350,6 +372,7 @@ class _TvdeOfferOverlayCardState extends State<TvdeOfferOverlayCard> {
       _respondendo = false;
       _fecho?.cancel();
       _expirouAvisado = false;
+      _armarGuardaRecusa();
     }
   }
 
@@ -358,7 +381,19 @@ class _TvdeOfferOverlayCardState extends State<TvdeOfferOverlayCard> {
     _ticker?.cancel();
     _fecho?.cancel();
     _timeoutResposta?.cancel();
+    _guardaAparecer?.cancel();
+    _janelaRecusa?.cancel();
     super.dispose();
+  }
+
+  void _armarGuardaRecusa() {
+    _podeRecusar = false;
+    _confirmarRecusa = false;
+    _janelaRecusa?.cancel();
+    _guardaAparecer?.cancel();
+    _guardaAparecer = Timer(kTvdeRecusaGuardaAoAparecer, () {
+      if (mounted) setState(() => _podeRecusar = true);
+    });
   }
 
   int get _segundosRestantes {
@@ -389,7 +424,17 @@ class _TvdeOfferOverlayCardState extends State<TvdeOfferOverlayCard> {
   }
 
   Future<void> _tapRecusar() async {
-    if (_respondendo) return;
+    if (_respondendo || !_podeRecusar) return;
+    if (!_confirmarRecusa) {
+      setState(() => _confirmarRecusa = true);
+      _janelaRecusa?.cancel();
+      _janelaRecusa = Timer(kTvdeRecusaJanelaConfirmar, () {
+        if (mounted) setState(() => _confirmarRecusa = false);
+      });
+      return;
+    }
+    _janelaRecusa?.cancel();
+    _confirmarRecusa = false;
     _travar();
     try {
       await widget.onReject();
@@ -530,10 +575,17 @@ class _TvdeOfferOverlayCardState extends State<TvdeOfferOverlayCard> {
                   onPressed: _respondendo ? null : _tapRecusar,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white54),
+                    side: BorderSide(
+                        color: _confirmarRecusa
+                            ? Colors.white
+                            : Colors.white54,
+                        width: _confirmarRecusa ? 2 : 1),
                     visualDensity: VisualDensity.compact,
                   ),
-                  child: const Text('Recusar'),
+                  child: Text(
+                      _confirmarRecusa ? 'Confirmar recusa' : 'Recusar',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
                 ),
               ),
               const SizedBox(width: Spacing.sm),

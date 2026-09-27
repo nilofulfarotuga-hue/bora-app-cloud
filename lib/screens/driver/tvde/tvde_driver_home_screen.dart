@@ -113,11 +113,13 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
       // Se o motorista já estava Online (re-abertura), retoma heartbeat+GPS.
       final isOnline =
           context.read<DriverStore>().currentDriver?.isOnline ?? false;
+      // [Redondo 26/09 · B7b] O token de push regista-se SEMPRE que a app
+      // abre, online ou não. Antes só ao retomar online: o Ney (iPhone,
+      // navegador) ficou online dois dias sem token nenhum e ninguém o podia
+      // chamar. Idempotente — o PushTokenService deduplica.
+      unawaited(PushTokenService.registerForRole('driver'));
       if (isOnline) {
         unawaited(_heartbeat.start());
-        // F4B (2026-08-16): renovar o token FCM sempre que se retoma online —
-        // motorista aprovado online sem token era invisível ao push.
-        unawaited(PushTokenService.registerForRole('driver'));
         unawaited(_startGps());
         _startOfferPoll();
         _startOnlineClock();

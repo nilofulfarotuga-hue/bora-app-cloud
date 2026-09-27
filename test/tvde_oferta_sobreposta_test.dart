@@ -129,10 +129,75 @@ void main() {
         onReject: () async => recusou++,
         onExpiredDismiss: () {},
       )));
+      // [Recusa fantasma 25/09] passado o primeiro segundo, recusar leva dois
+      // toques: o primeiro só pede confirmação.
+      await tester.pump(kTvdeRecusaGuardaAoAparecer);
+      await tester.tap(find.byKey(const Key('tvde_oferta_recusar')));
+      await tester.pump();
+      expect(recusou, 0);
+      expect(find.text('Confirmar recusa'), findsOneWidget);
       await tester.tap(find.byKey(const Key('tvde_oferta_recusar')));
       await tester.pump();
       expect(recusou, 1);
       expect(aceitou, 0);
+    });
+
+    testWidgets(
+        'recusa fantasma (corrida 258233c3, 25/09): o cartão que aparece '
+        'debaixo do dedo não recusa', (tester) async {
+      var recusou = 0;
+      final agora = DateTime(2026, 9, 25, 18, 8, 58);
+      await tester.pumpWidget(_app(TvdeOfferOverlayCard(
+        offer: _ride(expira: agora.add(const Duration(seconds: 40))),
+        current: null,
+        agora: () => agora,
+        onAccept: () async {},
+        onReject: () async => recusou++,
+        onExpiredDismiss: () {},
+      )));
+      // Dois toques seguidos logo ao aparecer (o toque era para o ecrã de
+      // baixo): nenhum conta.
+      await tester.tap(find.byKey(const Key('tvde_oferta_recusar')));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.tap(find.byKey(const Key('tvde_oferta_recusar')));
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(recusou, 0);
+      expect(find.text('Recusar'), findsOneWidget);
+
+      // Um toque só, depois do primeiro segundo, também não recusa: arma e
+      // desarma sozinho passados 3 s sem o segundo toque.
+      await tester.pump(kTvdeRecusaGuardaAoAparecer);
+      await tester.tap(find.byKey(const Key('tvde_oferta_recusar')));
+      await tester.pump();
+      expect(find.text('Confirmar recusa'), findsOneWidget);
+      await tester.pump(kTvdeRecusaJanelaConfirmar);
+      expect(find.text('Recusar'), findsOneWidget);
+      expect(recusou, 0);
+    });
+
+    testWidgets('oferta nova no mesmo cartão volta a armar a guarda',
+        (tester) async {
+      var recusou = 0;
+      final agora = DateTime(2026, 9, 25, 18, 8, 58);
+      Widget cartao(String id) => _app(TvdeOfferOverlayCard(
+            offer: _ride(id: id, expira: agora.add(const Duration(seconds: 40))),
+            current: null,
+            agora: () => agora,
+            onAccept: () async {},
+            onReject: () async => recusou++,
+            onExpiredDismiss: () {},
+          ));
+      await tester.pumpWidget(cartao('r1'));
+      await tester.pump(kTvdeRecusaGuardaAoAparecer);
+      await tester.tap(find.byKey(const Key('tvde_oferta_recusar')));
+      await tester.pump();
+      expect(find.text('Confirmar recusa'), findsOneWidget);
+      // Entra outra oferta: o "Confirmar" da anterior não passa para ela.
+      await tester.pumpWidget(cartao('r2'));
+      await tester.tap(find.byKey(const Key('tvde_oferta_recusar')));
+      await tester.pump();
+      expect(recusou, 0);
+      expect(find.text('Recusar'), findsOneWidget);
     });
 
     testWidgets('o contador ressincroniza do prazo em cada rebuild',

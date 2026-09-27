@@ -2894,4 +2894,13 @@ const Map<String, String> kStringsEn = <String, String>{
       'Ride included in a package or subscription already paid.',
   'Viagem com ajuste de pacote ida-e-volta: a divisão entre motorista e Bora está no teu extrato de pacote.':
       'Round-trip package ride: the split between driver and Bora is in your package statement.',
+  // Favores: pergunta de compra no pedido (f194d7de, 27/09).
+  'O estafeta tem de comprar alguma coisa?':
+      'Does the courier need to buy anything?',
+  'Sim, há compra':
+      'Yes, there is a purchase',
+  'Não, só um recado':
+      'No, just an errand',
+  'Ex.: comprar algo na loja — o estafeta adianta e tu pagas o talão.':
+      'E.g. buying something at a shop — the courier pays upfront and you pay the receipt.',
 };

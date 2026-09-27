@@ -296,7 +296,7 @@ async function decidir(admin: any, p: Pedido, motor: 'auto' | 'jev' | 'gemini' =
         erroJev = (e as Error).message;
         console.log('jev falhou, reserva gemini:', erroJev);
       }
-    } else {
+    } else if (motor === 'jev') {
       erroJev = 'jev_sem_chave';
     }
     if (motor === 'jev') {
@@ -306,7 +306,8 @@ async function decidir(admin: any, p: Pedido, motor: 'auto' | 'jev' | 'gemini' =
   }
   try {
     const r = await viaGemini(p, modelosGemini?.length ? modelosGemini : GEMINI_MODELOS, chaveGemini ?? GEMINI_API_KEY);
-    return { ...r, erro: erroJev };
+    // O erro de um motor anterior não invalida a resposta do motor de reserva.
+    return { ...r, erro: null };
   } catch (e) {
     const erro = [erroJev, (e as Error).message].filter(Boolean).join(' | ');
     if (motor === 'gemini' && !chaveGemini) {

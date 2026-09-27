@@ -11,6 +11,7 @@
   - Telegram ao Danilo so quando 3 fornecedores seguidos falham (uma vez por 10 min), nunca por cada 429
 """
 import collections
+import copy
 import hashlib
 import datetime
 import json
@@ -55,6 +56,9 @@ class Roteador:
         self.retirados = {}       # "forn:modelo" -> {quando, status, motivo}  (modelos que o fornecedor matou)
         self.mortes = {}          # contador antes de retirar (um 404 pontual nao chega)
         self.rr_perfil = {}       # rodizio: proximo indice por perfil
+        # O cliente OpenAI do Hermes omite esta extensao do Gemini ao reenviar
+        # tool_calls. Guardamos apenas na memoria para repor no mesmo turno.
+        self.assinaturas_gemini = collections.OrderedDict()
         self._carregar_estado()
 
     # ------------------------------------------------------------ chaves e urls
@@ -81,11 +85,7 @@ class Roteador:
             u = u.replace("{CLOUDFLARE_ACCOUNT_ID}", self.env.get("CLOUDFLARE_ACCOUNT_ID", ""))
         return u
 
-    # ------------------------------------------------------------ Jev (TypeSafe) — preparado, desligado
-    # Missao fecho-manha-2026-09-24: o roteador sabe chamar o Jev para decisoes TIPADAS
-    # (choice/score/noul) quando MOTOR_JEV_ATIVO=1 e houver TYPESAFE_API_KEY (env ou Vault via
-    # decisor_chave_typesafe). Por defeito a flag esta desligada e estes metodos devolvem None/False:
-    # quem chama segue com a regra que ja tinha. Nunca levantam excepcao.
+    # Jev continua desligado por defeito; este caminho tipado exige flag e chave.
     def jev_disponivel(self):
         from . import jev as _jev
         return bool(_jev.ativo(self.env) and _jev.chave(self.env, self.supa))
@@ -149,7 +149,10 @@ class Roteador:
             return False, "rpm %d/min" % lim["rpm"]
         if lim.get("rph") and len(u["hora"]) >= lim["rph"]:
             return False, "rph %d/hora" % lim["rph"]
-        if lim.get("rpd") and u["rpd"] >= lim["rpd"]:
+        # Gemini aplica o teto diário por modelo. O contador do fornecedor inteiro
+        # serve ao painel, mas não pode bloquear outro modelo que ainda tem quota.
+        diario = b if forn == "gemini" else u
+        if lim.get("rpd") and diario["rpd"] >= lim["rpd"]:
             return False, "rpd %d/dia" % lim["rpd"]
         if lim.get("tpm") and sum(t for _t, t in b["min"]) + tokens_est > lim["tpm"]:
             return False, "tpm %d/min" % lim["tpm"]
@@ -209,6 +212,9 @@ class Roteador:
         if forn == "openrouter":
             h["HTTP-Referer"] = "https://boraguarda.com"
             h["X-Title"] = "Bora Guarda"
+        # 18/09: cabecalhos fixos por fornecedor (o Go exige x-opencode-session).
+        for k, v in ((C.FORNECEDORES.get(forn) or {}).get("cabecalhos") or {}).items():
+            h[k] = v
         dados = json.dumps(corpo, ensure_ascii=False).encode("utf-8") if corpo is not None else None
         req = urllib.request.Request(self.url(forn) + caminho, data=dados, headers=h, method="POST" if corpo is not None else "GET")
         try:
@@ -280,25 +286,75 @@ class Roteador:
                     return (forn, m)
         return None
 
+    def _mensagens_gemini(self, mensagens):
+        """Repoe thought_signature nos tool_calls sem alterar o historico do cliente."""
+        preparadas = copy.deepcopy(mensagens)
+        with self.lock:
+            for mensagem in preparadas:
+                for chamada in mensagem.get("tool_calls") or []:
+                    google = (chamada.get("extra_content") or {}).get("google") or {}
+                    if google.get("thought_signature"):
+                        continue
+                    identificador = chamada.get("id")
+                    guardada = self.assinaturas_gemini.get(identificador)
+                    if not guardada:
+                        return None
+                    assinatura, criada = guardada
+                    if time.time() - criada > 3600:
+                        return None
+                    chamada.setdefault("extra_content", {}).setdefault("google", {})["thought_signature"] = assinatura
+        return preparadas
+
+    def _guardar_assinaturas_gemini(self, mensagem):
+        agora = time.time()
+        with self.lock:
+            for chamada in mensagem.get("tool_calls") or []:
+                identificador = chamada.get("id")
+                assinatura = ((chamada.get("extra_content") or {}).get("google") or {}).get("thought_signature")
+                if identificador and assinatura:
+                    self.assinaturas_gemini[identificador] = (assinatura, agora)
+                    self.assinaturas_gemini.move_to_end(identificador)
+            while len(self.assinaturas_gemini) > 2048:
+                self.assinaturas_gemini.popitem(last=False)
+
     # ------------------------------------------------------------ escolha e chamada
     def candidatos(self, perfil, so_sensivel_ok=True):
-        out = []
+        """Alem da lista, guarda em self.descartes PORQUE cada candidato caiu.
+
+        Ate 2026-09-08 isto descartava em silencio e a mensagem de erro dizia
+        "todos os fornecedores falharam" listando so os que chegou a TENTAR. Quem
+        lesse concluia que o perfil tinha 2 candidatos quando tinha 6. Foi
+        exactamente o que aconteceu com o perfil visao: 4 caiam calados por o
+        fornecedor ja nao servir o modelo, e o diagnostico saiu errado.
+        """
+        out, fora = [], []
         for forn, modelo in self.ordem.get(perfil, []):
             spec = C.FORNECEDORES.get(forn)
-            if not spec or forn in self.pausados:
+            if not spec:
+                fora.append({"fornecedor": forn, "modelo": modelo, "porque": "fornecedor desconhecido"})
+                continue
+            if forn in self.pausados:
+                fora.append({"fornecedor": forn, "modelo": modelo, "porque": "pausado a mao"})
                 continue
             if so_sensivel_ok and not spec.get("sensivel_ok", True):
+                fora.append({"fornecedor": forn, "modelo": modelo, "porque": "nao serve dados sensiveis"})
                 continue
             if not self.chaves(forn):
+                fora.append({"fornecedor": forn, "modelo": modelo, "porque": "sem chave"})
                 continue
             if (forn + ":" + modelo) in self.retirados:
+                fora.append({"fornecedor": forn, "modelo": modelo, "porque": "modelo retirado"})
                 continue
             vivos = self.modelos_vivos.get(forn)
             if vivos and modelo not in vivos:
+                fora.append({"fornecedor": forn, "modelo": modelo,
+                             "porque": "o fornecedor ja nao serve este modelo"})
                 continue
             if self.castigado(forn, modelo):
+                fora.append({"fornecedor": forn, "modelo": modelo, "porque": "de castigo"})
                 continue
             out.append((forn, modelo))
+        self.descartes = fora
         return out
 
     def _rodar(self, perfil, lista, p):
@@ -307,6 +363,26 @@ class Roteador:
         esgotar o tecto por minuto de um so. Fora do topo a ordem mantem-se (o resto continua cadeia)."""
         if p.get("modo") != "rodizio" or len(lista) < 2:
             return lista
+        # TECTO DE LATENCIA (04/09): o rodizio espalhava a carga pelos 6 melhores, e nesse lote
+        # entravam o kilo (mediana 5 821 ms) e o zen (25 361 ms). Medido: 5 chamadas ao perfil
+        # chat-rapido deram 8 762, 8 754, 4 004, 850 e 469 ms -- o WhatsApp ao vivo precisa de
+        # menos de 3 s. Quem nao respeita o tecto sai do RODIZIO (continua na cadeia, mais abaixo).
+        tecto = p.get("rodizio_max_ms")
+        if tecto:
+            est = self.estado()
+            def cabe(m):
+                lat = (est.get(m[0]) or {}).get("latencia_mediana_ms")
+                # DESCONHECIDO NAO ENTRA (04/09, 2.a volta): a mediana e' da memoria do processo e
+                # nasce vazia a cada reinicio; ao deixar passar o desconhecido, o kilo voltou ao
+                # rodizio e devolveu 11 856 ms. Sem medicao provada, fica so' na cadeia -- onde
+                # continua a ser usado quando os rapidos falham, e ai ganha medicao.
+                return lat is not None and lat <= tecto
+            rapidos = [m for m in lista if cabe(m)]
+            if len(rapidos) >= 2:
+                lentos = [m for m in lista if not cabe(m)]
+                lista = rapidos + lentos
+            else:
+                return lista        # nao ha rapidos que cheguem: cadeia pura, o melhor primeiro
         n = min(int(p.get("rodizio_topo") or 3), len(lista))
         with self.lock:
             i = self.rr_perfil.get(perfil, 0)
@@ -354,7 +430,14 @@ class Roteador:
             if lim_tpm and tokens_est > lim_tpm and not alvo:
                 tentativas.append({"fornecedor": forn, "modelo": modelo, "saltado": "pedido de ~%d tokens > tpm %d" % (tokens_est, lim_tpm)})
                 continue
-            corpo = {"model": modelo, "messages": mensagens, "max_tokens": int(max_tokens or p.get("max_tokens") or 300), "temperature": temperatura}
+            mensagens_envio = mensagens
+            if forn == "gemini" and modelo.startswith("gemini-3") and tools:
+                mensagens_envio = self._mensagens_gemini(mensagens)
+                if mensagens_envio is None:
+                    tentativas.append({"fornecedor": forn, "modelo": modelo,
+                                       "saltado": "thought_signature indisponivel no historico"})
+                    continue
+            corpo = {"model": modelo, "messages": mensagens_envio, "max_tokens": int(max_tokens or p.get("max_tokens") or 300), "temperature": temperatura}
             if "gpt-oss" in modelo or "deepseek-r1" in modelo or "qwen3" in modelo.lower():
                 # modelos "pensantes": o raciocinio gasta o max_tokens e vem uma resposta vazia (visto 02/09, max_tokens=80)
                 corpo["max_tokens"] = max(corpo["max_tokens"], 320)
@@ -386,6 +469,8 @@ class Roteador:
                     texto = re.sub(r"<think>.*$", "", texto, flags=re.S).strip()
                     msg["content"] = texto
                     d["choices"][0]["message"] = msg
+                    if forn == "gemini" and modelo.startswith("gemini-3"):
+                        self._guardar_assinaturas_gemini(msg)
                     if not texto and not msg.get("tool_calls"):
                         self.contar(forn, tokens_est, ms, False, modelo)
                         self.castigar(forn, modelo, 120, "resposta vazia")
@@ -421,13 +506,25 @@ class Roteador:
                         self.maquina, perfil or mp, "; ".join("%s: %s" % (t.get("fornecedor"), (t.get("erro") or t.get("saltado") or "")[:60]) for t in tentativas[-3:])))
                 except Exception:
                     pass
-        return {"error": {"message": "todos os fornecedores falharam para %s" % mp, "type": "motor_bora", "tentativas": tentativas}, "tentativas": tentativas}
+        descartes = list(getattr(self, "descartes", []))
+        msg = "todos os fornecedores falharam para %s" % mp
+        if descartes:
+            # Dizer quantos nem foram tentados e porque: sem isto, "todos falharam"
+            # com 2 linhas parece uma cadeia de 2 e esconde os que cairam calados.
+            msg += " (mais %d que nem foram tentados: %s)" % (
+                len(descartes),
+                "; ".join("%s/%s %s" % (d["fornecedor"], d["modelo"], d["porque"]) for d in descartes[:6]))
+        return {"error": {"message": msg, "type": "motor_bora", "tentativas": tentativas,
+                          "descartados": descartes}, "tentativas": tentativas}
 
     # ------------------------------------------------------------ registo e estado
     def _registar_chamada(self, perfil, forn, modelo, ok, ms, tokens, erro, origem):
         with self.lock:
             self.chamadas.append({"maquina": self.maquina, "perfil": perfil, "fornecedor": forn, "modelo": modelo, "ok": ok,
                                   "latencia_ms": ms, "tokens": tokens, "erro": (erro or "")[:200] or None,
+                                  # 18/09: custo (estimado, tabela PRECO_POR_MILHAO) por chamada, para o
+                                  # agentes_corridas poder somar tokens e custo_eur por corrida.
+                                  "custo_eur": round((int(tokens or 0) / 1_000_000.0) * C.PRECO_POR_MILHAO.get(forn, 0.0), 6),
                                   "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")})
             del self.chamadas[:-500]
         self.registar({"evento": "chamada", "origem": origem, "perfil": perfil, "fornecedor": forn, "modelo": modelo, "ok": ok, "ms": ms, "erro": erro})
@@ -514,8 +611,17 @@ class Roteador:
             return
         est = self.estado()
         try:
-            linhas = [{"fornecedor": f, "dados": dict(e, maquina=self.maquina), "pausado": f in self.pausados} for f, e in est.items()]
-            self.supa.upsert_muitos("motor_estado", linhas, "fornecedor")
+            # `updated_at` tem de ir explicito: sem ele a linha e' reescrita mas fica com a data velha,
+            # e o painel parece parado mesmo estando fresco (foi o que confundiu a leitura de hoje).
+            agora_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            linhas = [{"fornecedor": f, "dados": dict(e, maquina=self.maquina), "pausado": f in self.pausados,
+                       "updated_at": agora_iso} for f, e in est.items()]
+            # ARMADILHA (apanhada 04/09): `upsert_muitos` tem ignorar_duplicados=True por omissao,
+            # o que manda `Prefer: resolution=ignore-duplicates` -- o PostgREST IGNORA em silencio
+            # toda a linha cujo fornecedor ja exista. A tabela ficou congelada no dia em que as
+            # linhas nasceram (02/09 23:15) e o painel mostrava dados de anteontem sem se queixar.
+            # So `kilo` e `ollama-cloud` apareciam frescos porque eram fornecedores NOVOS.
+            self.supa.upsert_muitos("motor_estado", linhas, "fornecedor", ignorar_duplicados=False)
         except Exception as e:  # noqa: BLE001
             self.registar({"evento": "sync-estado-erro", "erro": str(e)[:160]})
         try:
@@ -533,6 +639,15 @@ class Roteador:
                 self.supa.insert("motor_chamadas", lote, devolve=False)
             except Exception as e:  # noqa: BLE001
                 self.registar({"evento": "sync-chamadas-erro", "erro": str(e)[:160], "n": len(lote)})
+        # de 5 em 5 minutos, poe no motor_estado a contagem e a mediana REAIS do dia, lidas de
+        # motor_chamadas. O contador `hoje` e' da memoria deste processo e zera a cada reinicio.
+        agora = time.time()
+        if agora - getattr(self, "_ultimo_dia", 0) > 300:
+            self._ultimo_dia = agora
+            try:
+                self.supa.rpc("motor_estado_refrescar_dia")
+            except Exception as e:  # noqa: BLE001
+                self.registar({"evento": "sync-dia-erro", "erro": str(e)[:160]})
 
     # ------------------------------------------------------------ auto-teste nocturno
     def autoteste(self, sistema=None, perfis=("chat-rapido", "raciocinio")):
@@ -560,7 +675,9 @@ class Roteador:
                 resultados.append((forn, modelo, (sum(lat) // len(lat)) if lat else None, pontos if lat else None, erro))
             vivos = [r for r in resultados if r[3] is not None]
             mortos = [r for r in resultados if r[3] is None]
-            vivos.sort(key=lambda r: (-r[3], r[2]))
+            # 18/09: gratis primeiro, pago depois — senao o Go (rapido e bom) subia ao topo e
+            # gastava a assinatura com volume que os gratis servem.
+            vivos.sort(key=lambda r: (bool((C.FORNECEDORES.get(r[0]) or {}).get("pago")), -r[3], r[2]))
             self.ordem[perfil] = [(r[0], r[1]) for r in vivos] + [(r[0], r[1]) for r in mortos]
             relatorio[perfil] = [{"fornecedor": r[0], "modelo": r[1], "latencia_ms": r[2], "pontos": r[3], "erro": r[4]} for r in vivos + mortos]
         self.autoteste_ultimo = datetime.datetime.now().isoformat(timespec="seconds")

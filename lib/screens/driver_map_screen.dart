@@ -40,6 +40,7 @@ import '../widgets/address_text.dart';
 import '../widgets/driver_chat_fab.dart';
 import '../widgets/driver_item_options.dart';
 import 'driver_order_action_helper.dart';
+import '../widgets/errand_execution_sheet_compat.dart';
 
 // BUG 29: Google sobrepunha o nome da rua mais próxima (ex: "Alexandre
 // Herculano") perto do marker do dropoff, fazendo crer ao estafeta que a
@@ -1429,7 +1430,10 @@ class _BottomPanelState extends State<_BottomPanel> {
                     _InfoItem(
                       icon: Icons.receipt_long_outlined,
                       label: 'Pedido',
-                      value: '€${focusOrder.total.toStringAsFixed(2)}',
+                      // FAVOR-ESTAFETA (27/09): depois do talão o valor do pedido é o
+                      // total a cobrar (compra + taxa), não só a taxa (price).
+                      value:
+                          '€${(focusOrder.cashTotalDue ?? focusOrder.finalTotal ?? focusOrder.total).toStringAsFixed(2)}',
                     ),
                     _InfoItem(
                       icon: Icons.payments_outlined,
@@ -1678,6 +1682,71 @@ class _BottomPanelState extends State<_BottomPanel> {
                       ),
                     ],
                   ],
+                ),
+              ],
+
+              // FAVOR-ESTAFETA (27/09): o mapa tratava o favor como pedido de
+              // loja — sem o texto do que fazer nem o botão da folha do favor
+              // (compra → talão → entrega). Caso real: pedido 33243355.
+              if (focusOrder != null &&
+                  focusOrder.serviceType == OrderServiceType.errand &&
+                  focusOrder.status != OrderStatus.delivered &&
+                  focusOrder.status != OrderStatus.cancelled) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0FDFA),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF99F6E4)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        focusOrder.errandSpeed == 'express'
+                            ? 'FAVOR EXPRESSO'
+                            : 'FAVOR',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F766E),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        focusOrder.errandDescription?.trim().isNotEmpty == true
+                            ? focusOrder.errandDescription!.trim()
+                            : 'Favor — ${focusOrder.errandLocation ?? "ver mapa"}',
+                        style: const TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.w600),
+                      ),
+                      if (focusOrder.errandLocation?.trim().isNotEmpty ==
+                          true) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'Onde: ${focusOrder.errandLocation!.trim()}',
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.grey.shade700),
+                        ),
+                      ],
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () =>
+                              ErrandExecutionSheet.show(context, focusOrder),
+                          icon: const Icon(Icons.task_alt),
+                          label: const Text('Tratar do favor'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF14B8A6),
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
 

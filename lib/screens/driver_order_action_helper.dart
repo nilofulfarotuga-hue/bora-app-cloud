@@ -29,6 +29,13 @@ DriverOrderAction? resolveDriverOrderAction(
       if (needsPurchaseFinalize && !order.isPurchaseFinalized) {
         return null;
       }
+      // FAVOR-ESTAFETA (27/09): favor com compra — primeiro "Tratar do favor"
+      // (compra + talão); só depois aparece "Recolher pedido".
+      if (order.serviceType == OrderServiceType.errand &&
+          order.errandHasPurchase &&
+          !order.isPurchaseFinalized) {
+        return null;
+      }
       return DriverOrderAction(
         label: "Recolher pedido",
         successMessage: "Pedido recolhido",

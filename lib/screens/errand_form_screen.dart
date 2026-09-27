@@ -79,6 +79,10 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
   final _homeCtrl = TextEditingController();
 
   bool _hasPurchase = false;
+  // FAVOR-ESTAFETA (27/09): a cliente tem de responder Sim/Não à compra —
+  // antes o interruptor vinha desligado e o favor "pega pellets" saiu sem
+  // compra (estafeta adiantou o dinheiro sem o app saber).
+  bool _purchaseAnswered = false;
   bool _homeStop = false;
   String _homeStopReason = 'cartao'; // receita | cartao | dinheiro | outro
   String _speed = 'normal'; // normal | express
@@ -115,6 +119,7 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
       _descCtrl.text = p.description;
       _errandLocationCtrl.text = p.location;
       _hasPurchase = p.hasPurchase;
+      _purchaseAnswered = true;
       if (p.estimatedCents > 0) {
         _estimateCtrl.text = (p.estimatedCents / 100).toStringAsFixed(2);
       }
@@ -421,6 +426,7 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
     switch (_step) {
       case _ErrandStep.what:
         return _descCtrl.text.trim().isNotEmpty &&
+            _purchaseAnswered &&
             (!_hasPurchase || _estimatedCents > 0) &&
             !_uploadingPhoto;
       case _ErrandStep.where:
@@ -557,6 +563,7 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
           descFocus: _descFocus,
           estimateCtrl: _estimateCtrl,
           hasPurchase: _hasPurchase,
+          purchaseAnswered: _purchaseAnswered,
           requestPhotoFile: _requestPhotoFile,
           uploadingPhoto: _uploadingPhoto,
           onShortcut: (text) {
@@ -570,7 +577,10 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
           onPickPhoto: _pickRequestPhoto,
           onRemovePhoto: _removeRequestPhoto,
           onHasPurchaseChanged: (v) {
-            setState(() => _hasPurchase = v);
+            setState(() {
+              _hasPurchase = v;
+              _purchaseAnswered = true;
+            });
             _onWhatChanged();
           },
           onChanged: _onWhatChanged,
@@ -632,6 +642,7 @@ class _StepWhat extends StatelessWidget {
     required this.descFocus,
     required this.estimateCtrl,
     required this.hasPurchase,
+    required this.purchaseAnswered,
     required this.requestPhotoFile,
     required this.uploadingPhoto,
     required this.onShortcut,
@@ -645,6 +656,7 @@ class _StepWhat extends StatelessWidget {
   final FocusNode descFocus;
   final TextEditingController estimateCtrl;
   final bool hasPurchase;
+  final bool purchaseAnswered;
   final File? requestPhotoFile;
   final bool uploadingPhoto;
   final ValueChanged<String> onShortcut;
@@ -725,12 +737,30 @@ class _StepWhat extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 20),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text('Este favor inclui uma compra?'.tr),
-          subtitle: Text('Ex.: comprar algo na loja'.tr),
-          value: hasPurchase,
-          onChanged: onHasPurchaseChanged,
+        Text(
+          'O estafeta tem de comprar alguma coisa?'.tr,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Ex.: comprar algo na loja — o estafeta adianta e tu pagas o talão.'.tr,
+          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          children: [
+            ChoiceChip(
+              label: Text('Sim, há compra'.tr),
+              selected: purchaseAnswered && hasPurchase,
+              onSelected: (_) => onHasPurchaseChanged(true),
+            ),
+            ChoiceChip(
+              label: Text('Não, só um recado'.tr),
+              selected: purchaseAnswered && !hasPurchase,
+              onSelected: (_) => onHasPurchaseChanged(false),
+            ),
+          ],
         ),
         if (hasPurchase) ...[
           const SizedBox(height: 8),

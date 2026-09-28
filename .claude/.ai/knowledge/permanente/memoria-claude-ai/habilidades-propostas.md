@@ -14,6 +14,51 @@ estado: atual
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: habilidades propostas · memoria claude.ai · claude_ai_memoria
 
+PROPOSTAS DO VIGIA 2026-09-28 23:30 (nao ativadas: tocam dinheiro, dispatch, wallet, RLS ou publicacao; quem decide e a Claude.ai)
+
+### criar emdia-planos-a-venda-nao — Em Dia com planos_a_venda='nao': proibido linguagem de período grátis/teste e proibido aplicar limites
+Falas: 2026-09-28: Antes de submeter: o aviso "Mês grátis até 18/10" pode levar a Apple a recusar (guideline 3.1 — fala de período grátis sem compra na app). Com planos_a_venda='nao', nenhum ecrã (painel, modo exemplo, onboarding, perfil) pode falar de "mês grátis", "teste", "até dd/mm" nem de planos: troca por "Grátis" ou esconde o cartão. Lê o valor de regras_legais, não cravas. | 2026-09-28: vai 1 e 2. Nos 7 reels que recriares, troca também a legenda "Experimenta grátis, sem cartão" por "Grátis, sem cartão", para não parecer período de teste.
+Descricao proposta: OBRIGATÓRIA sempre que mexeres em ecrã, captura de loja, reel, legenda ou post do Em Dia (ou outro app com planos) que fale de preço, plano, "grátis" ou "teste". Regra do Danilo (28/09): enquanto planos_a_venda='nao', proibido qualquer linguagem de período experimental — troca por "Grátis" ou esconde o cartão; a Apple já recusou build por isto (guideline 3.1). Lê sempre regras_legais e platform_settings.planos_a_venda antes de escrever o texto, nunca assumas.
+Corpo proposto:
+# Em Dia — planos_a_venda='nao': sem linguagem de período grátis
+
+Regra do Danilo (28/09/2026, sessões 507f2351 e 4d212910 — a mesma correção repetida no mesmo dia em dois contextos diferentes: build iOS e reels do Instagram).
+
+## Gatilho
+Vais mexer em qualquer ecrã, captura de loja (App Store/Play), reel, legenda, post agendado ou texto do Em Dia (ou outro app com planos pagos) que mencione preço, plano, "grátis", "teste" ou uma data-limite.
+
+## Regra
+Enquanto `platform_settings.planos_a_venda = 'nao'`:
+- PROIBIDO qualquer texto com "mês grátis", "teste", "experimenta grátis", "até dd/mm" ou menção a planos, em qualquer ecrã (painel, modo exemplo, onboarding, perfil), captura de loja, ou legenda de reel/post.
+- Troca sempre por "Grátis" ou "Grátis, sem cartão" — ou esconde o cartão/bloco todo.
+- NINGUÉM fica com limites nem cadeados depois dos 30 dias enquanto este valor for 'nao': o servidor trata todos como conta aberta, sem apagar a lógica dos planos (ela volta sozinha quando planos_a_venda mudar para 'sim').
+
+## Porque existe
+A Apple recusa builds com este texto pela guideline 3.1 (fala de período grátis sem compra dentro da app). Já foi preciso corrigir a ficha da loja (6 capturas de 6,5") e 7 reels agendados no Business Suite que diziam "Mês grátis até 23/10" / "Experimenta grátis, sem cartão".
+
+## Como aplicar
+1. Antes de escrever qualquer texto de preço/plano, lê o valor real de regras_legais e de platform_settings.planos_a_venda — nunca assumas ou cravas o texto de memória.
+2. Se planos_a_venda='nao': aplica a substituição acima em TODO o material novo (capturas, reels, posts, ecrãs) antes de submeter/publicar.
+3. Se encontrares material antigo com a linguagem proibida ainda por trocar (ex.: posts já agendados no Business Suite/Meta), sinaliza para troca antes da publicação — não publiques sem confirmar.
+4. Quando planos_a_venda mudar para 'sim', esta regra deixa de se aplicar automaticamente — não é preciso reverter nada à mão.
+
+## Falas de origem
+- 28/09/2026: "Antes de submeter: o aviso 'Mês grátis até 18/10' pode levar a Apple a recusar (guideline 3.1...). Com planos_a_venda='nao', nenhum ecrã... pode falar de 'mês grátis', 'teste', 'até dd/mm' nem de planos: troca por 'Grátis' ou esconde o cartão."
+- 28/09/2026: "troca também a legenda 'Experimenta grátis, sem cartão' por 'Grátis, sem cartão', para não parecer período de teste."
+
+### reforcar git-guardrails-claude-code — Guardrail de git bloqueia push repetidamente sem o executor mudar de abordagem
+Falas: 2026-09 (3x/2 sessões/2 dias distintos): PreToolUse:Bash hook error: BLOQUEADO pelo guardrail de git: push para '
+Descricao proposta: Reforço 28/09: bloqueio de push repetido 3x em 2 sessões/2 dias sem o executor mudar de abordagem — dispara sempre que 'BLOQUEADO pelo guardrail de git: push' aparecer; nunca reenviar o mesmo push, confirmar branch e motivo primeiro.
+Corpo proposto:
+## REFORÇO 28/09/2026 — não reenviar push bloqueado às cegas
+Visto 3x em 2 sessões/2 dias distintos (2026-09): o hook bloqueia com "BLOQUEADO pelo guardrail de git: push para ..." e o push é reenviado sem mudar nada, repetindo o bloqueio. Antes de reenviar:
+1. Confirma a branch atual (`git branch --show-current`) contra a branch de trabalho esperada da missão.
+2. Lê a razão exacta na mensagem do hook (branch errada, `--force`, `reset --hard`, etc.) — não adivinhes.
+3. Só repetes depois de corrigir o motivo. Nunca reenviar o comando idêntico à espera que o guardrail mude de ideia sozinho — ele não muda.
+4. Se a branch estiver mesmo certa e o bloqueio parecer errado, para e reporta ao Danilo em vez de insistir — pode ser configuração desatualizada do hook.
+
+
+---- anteriores ----
 PROPOSTAS DO VIGIA 2026-09-17 11:41 (nao ativadas: tocam dinheiro, dispatch, wallet, RLS ou publicacao; quem decide e a Claude.ai)
 
 ### criar ganho-motorista-numero-grande — Regra de ouro do motorista (número grande = SEMPRE o que ele ganha) repetida sem nunca ficar corrigida

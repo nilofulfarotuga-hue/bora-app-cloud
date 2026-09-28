@@ -1,0 +1,45 @@
+# Ficha da App Store do EM DIA (nao do Bora) - missao emdia-redes-2026-09-28, E0, ordem do Danilo 28/09.
+# Vive aqui porque as chaves da API da Apple (mesma equipa) estao neste repo, como o build-ios-emdia.
+# De 6 em 6 h: quando a Apple aprovar a 1.0.0 do Em Dia (apple_id 6814807320) troca o Texto
+# promocional; numa versao nova em preparacao tira da Descricao a frase "Quando as assinaturas
+# abrirem...". O script vem do repo em-dia-app (.github/scripts/ios_ficha.py). Idempotente.
+# Nao compila, nao submete, nao toca na ficha do Bora.
+
+name: ios-ficha-emdia
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      modo:
+        description: "ler = so mostrar o estado, sem escrever"
+        type: choice
+        options: [escrever, ler]
+        default: ler
+
+jobs:
+  ficha:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: nilofulfarotuga-hue/em-dia-app
+          ref: main
+          sparse-checkout: .github/scripts
+      - name: Verificar e acertar a ficha do Em Dia
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_B64: ${{ secrets.ASC_KEY_P8_B64 }}
+          ASC_APP_ID: "6814807320"
+          MODO: ${{ github.event_name == 'workflow_dispatch' && inputs.modo || 'escrever' }}
+        run: |
+          set -euo pipefail
+          if [ -z "$ASC_KEY_ID" ] || [ -z "$ASC_ISSUER_ID" ] || [ -z "$ASC_KEY_P8_B64" ]; then
+            echo "::error::faltam os segredos ASC_* neste repo"; exit 1
+          fi
+          python3 -m pip install --quiet --disable-pip-version-check --upgrade pyjwt cryptography requests
+          echo "$ASC_KEY_P8_B64" | base64 --decode > "$RUNNER_TEMP/k.p8"
+          ASC_P8="$RUNNER_TEMP/k.p8" python3 .github/scripts/ios_ficha.py | tee -a "$GITHUB_STEP_SUMMARY"

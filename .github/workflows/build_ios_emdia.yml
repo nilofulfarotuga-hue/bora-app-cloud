@@ -66,6 +66,12 @@ jobs:
           path: bora
           sparse-checkout: .github/scripts
 
+      # O python3 do macos-26 e' do Homebrew e recusa `pip install`
+      # (externally-managed-environment, corrida 36397933947).
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Fixar Xcode ${{ env.XCODE_VERSION }}
         uses: maxim-lobanov/setup-xcode@v1
         with:
@@ -201,6 +207,9 @@ jobs:
         with:
           repository: nilofulfarotuga-hue/em-dia-app
           ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - name: Submeter a build ${{ inputs.build_number }}
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}

@@ -15,6 +15,10 @@ on:
       # gastava um versionCode e uma release no Play sem o site acompanhar.
       # docs/ nao entra na app (nao esta em assets nem e' lido pelo codigo).
       - "docs/**"
+      # Build iOS do Em Dia (outra app) vive neste repo so pelas chaves da Apple;
+      # mexer nele nao muda nada no Bora (2026-09-28).
+      - ".github/workflows/build_ios_emdia.yml"
+      - ".github/scripts/emdia_*"
   workflow_dispatch:
 
 # Evita corridas em paralelo da mesma ref (a 2ª espera/cancela a 1ª).

@@ -15,6 +15,9 @@ on:
       - '**.md'
       - '.claude/**'
       - 'docs/**'
+      # Build iOS do Em Dia (outra app): nao muda nada no Bora (2026-09-28).
+      - '.github/workflows/build_ios_emdia.yml'
+      - '.github/scripts/emdia_*'
   workflow_dispatch:
 
 # Nunca dois deploys ao mesmo tempo; se chegar um push novo a meio, o antigo

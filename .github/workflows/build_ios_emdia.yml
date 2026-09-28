@@ -1,0 +1,215 @@
+# Build iOS do EM DIA a partir deste repo — missão pc-fecho-2026-09-28 (bloco P1).
+#
+# Porque vive aqui e não no em-dia-app: as chaves da Apple (certificado de
+# distribuição, chave da API do App Store Connect, Team ID) só existem como
+# segredos DESTE repo, e o GitHub não deixa copiá-las para outro. O código do
+# Em Dia é público (nilofulfarotuga-hue/em-dia-app) e é descarregado para a raiz;
+# este repo entra só em `bora/` para dar o script do perfil.
+#
+#   acao=enviar   → perfil App Store novo pela API (emdia_perfil.py) → IPA assinado
+#                   → altool → versão AFTER_APPROVAL com a build ligada e as notas,
+#                   SEM submeter (a ficha acaba-se no portal antes).
+#   acao=submeter → só submete para revisão a build `build_number` já enviada.
+#
+# Segredos: os da Apple do Bora + EMDIA_DART_DEFINES_FILE_B64 (Supabase/Turnstile
+# do Em Dia). CFBundleVersion = 500 + run_number, para nunca colidir com os
+# números do próprio em-dia-app (pubspec +44).
+#
+# O `push` só existe para o GitHub registar o workflow no ramo; não compila nada.
+
+name: build-ios-emdia
+
+on:
+  push:
+    branches: [autonomous-night-2026-04-29]
+    paths: [".github/workflows/build_ios_emdia.yml"]
+  workflow_dispatch:
+    inputs:
+      acao:
+        description: "enviar (build nova) ou submeter (a build indicada)"
+        type: choice
+        options: [enviar, submeter]
+        default: enviar
+      build_number:
+        description: "Só para acao=submeter: CFBundleVersion da build já enviada"
+        type: string
+        default: ""
+
+env:
+  FLUTTER_VERSION: "3.47.2"
+  XCODE_VERSION: "latest-stable"
+  BUNDLE_ID: "com.boraguarda.emdia"
+  ASC_APP_ID: "6814807320"
+
+jobs:
+  registo:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "build-ios-emdia registado; corre por workflow_dispatch."
+
+  enviar:
+    name: Em Dia · IPA assinado → App Store Connect
+    if: github.event_name == 'workflow_dispatch' && inputs.acao == 'enviar'
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - name: Código do Em Dia (público)
+        uses: actions/checkout@v4
+        with:
+          repository: nilofulfarotuga-hue/em-dia-app
+          ref: main
+
+      - name: Scripts deste repo
+        uses: actions/checkout@v4
+        with:
+          path: bora
+          sparse-checkout: .github/scripts
+
+      - name: Fixar Xcode ${{ env.XCODE_VERSION }}
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Conferir segredos
+        env:
+          CERT: ${{ secrets.IOS_DIST_CERT_P12_B64 }}
+          ASC_KEY: ${{ secrets.ASC_KEY_P8_B64 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_TEAM_ID: ${{ secrets.ASC_TEAM_ID }}
+          DEFINES: ${{ secrets.EMDIA_DART_DEFINES_FILE_B64 }}
+        run: |
+          faltam=""
+          [ -z "$CERT" ]          && faltam="$faltam IOS_DIST_CERT_P12_B64"
+          [ -z "$ASC_KEY" ]       && faltam="$faltam ASC_KEY_P8_B64"
+          [ -z "$ASC_KEY_ID" ]    && faltam="$faltam ASC_KEY_ID"
+          [ -z "$ASC_ISSUER_ID" ] && faltam="$faltam ASC_ISSUER_ID"
+          [ -z "$ASC_TEAM_ID" ]   && faltam="$faltam ASC_TEAM_ID"
+          [ -z "$DEFINES" ]       && faltam="$faltam EMDIA_DART_DEFINES_FILE_B64"
+          [ -n "$faltam" ] && { echo "::error::Faltam segredos:$faltam"; exit 1; }
+          echo "segredos presentes"
+
+      - name: Chave da API e certificado
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_KEY_P8_B64: ${{ secrets.ASC_KEY_P8_B64 }}
+          CERT_B64: ${{ secrets.IOS_DIST_CERT_P12_B64 }}
+          CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+        run: |
+          mkdir -p ~/private_keys
+          echo "$ASC_KEY_P8_B64" | base64 --decode > ~/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          echo "$CERT_B64" | base64 --decode > $RUNNER_TEMP/cert.p12
+          KEYCHAIN=$RUNNER_TEMP/emdia.keychain-db
+          KEYCHAIN_PASS=$(uuidgen)
+          security create-keychain -p "$KEYCHAIN_PASS" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASS" "$KEYCHAIN"
+          security import $RUNNER_TEMP/cert.p12 -P "$CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security list-keychain -d user -s "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASS" "$KEYCHAIN"
+
+      - name: Perfil App Store do Em Dia (API da Apple)
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+        run: |
+          python3 -m pip install --quiet --disable-pip-version-check pyjwt cryptography requests
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          PERFIL=~/Library/MobileDevice/Provisioning\ Profiles/emdia.mobileprovision
+          ASC_P8=~/private_keys/AuthKey_${ASC_KEY_ID}.p8 CERT_P12=$RUNNER_TEMP/cert.p12 \
+            PERFIL_SAIDA="$PERFIL" python3 bora/.github/scripts/emdia_perfil.py
+          security cms -D -i "$PERFIL" > $RUNNER_TEMP/perfil.plist
+          NOME=$(plutil -extract Name raw $RUNNER_TEMP/perfil.plist)
+          APPID=$(plutil -extract Entitlements.application-identifier raw $RUNNER_TEMP/perfil.plist)
+          echo "perfil: «$NOME» → $APPID"
+          case "$APPID" in *".${BUNDLE_ID}") ;; *) echo "::error::perfil de $APPID"; exit 1 ;; esac
+          echo "PERFIL_NOME=$NOME" >> $GITHUB_ENV
+
+      - name: Segredos de build + assinatura manual
+        env:
+          DEFINES: ${{ secrets.EMDIA_DART_DEFINES_FILE_B64 }}
+          ASC_TEAM_ID: ${{ secrets.ASC_TEAM_ID }}
+        run: |
+          echo "$DEFINES" | base64 --decode > .dart_defines
+          awk -F= '/^(TURNSTILE_SITE_KEY|SUPABASE_URL|GOOGLE_WEB_CLIENT_ID|EMAIL_REVISOR)=/ { print $1 "=" $2 }' .dart_defines > ios/Flutter/Secrets.xcconfig
+          {
+            echo "CODE_SIGN_STYLE=Manual"
+            echo "DEVELOPMENT_TEAM=${ASC_TEAM_ID}"
+            echo "CODE_SIGN_IDENTITY=Apple Distribution"
+            echo "CODE_SIGN_IDENTITY[sdk=iphoneos*]=Apple Distribution"
+            echo "PROVISIONING_PROFILE_SPECIFIER=${PERFIL_NOME}"
+          } >> ios/Flutter/Secrets.xcconfig
+          cat > ios/ExportOptions.plist <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>teamID</key><string>${ASC_TEAM_ID}</string>
+            <key>uploadSymbols</key><true/>
+            <key>signingStyle</key><string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict><key>${BUNDLE_ID}</key><string>${PERFIL_NOME}</string></dict>
+            <key>signingCertificate</key><string>Apple Distribution</string>
+            <key>destination</key><string>export</string>
+          </dict>
+          </plist>
+          PLIST
+          plutil -lint ios/ExportOptions.plist
+          echo "BUILD_NUMBER=$((500 + ${{ github.run_number }}))" >> $GITHUB_ENV
+
+      - name: Construir o IPA
+        run: |
+          flutter pub get
+          flutter build ipa --release \
+            --dart-define-from-file=.dart_defines \
+            --build-number=$BUILD_NUMBER \
+            --export-options-plist=ios/ExportOptions.plist
+
+      - name: Enviar para o App Store Connect
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          IPA=$(ls build/ios/ipa/*.ipa | head -1)
+          xcrun altool --upload-app -f "$IPA" -t ios --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+          echo "::notice::build $BUILD_NUMBER enviada"
+
+      - name: Versão com lançamento automático + build ligada (sem submeter)
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          SUBMETER_REVISAO: "0"
+        run: |
+          export ASC_P8=~/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          python3 .github/scripts/ios_publicar.py
+
+  submeter:
+    name: Em Dia · submeter para revisão
+    if: github.event_name == 'workflow_dispatch' && inputs.acao == 'submeter'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: nilofulfarotuga-hue/em-dia-app
+          ref: main
+      - name: Submeter a build ${{ inputs.build_number }}
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_B64: ${{ secrets.ASC_KEY_P8_B64 }}
+          BUILD_NUMBER: ${{ inputs.build_number }}
+          SUBMETER_REVISAO: "1"
+        run: |
+          [ -n "$BUILD_NUMBER" ] || { echo "::error::falta build_number"; exit 1; }
+          python3 -m pip install --quiet --disable-pip-version-check pyjwt cryptography requests
+          echo "$ASC_KEY_P8_B64" | base64 --decode > $RUNNER_TEMP/k.p8
+          ASC_P8=$RUNNER_TEMP/k.p8 python3 .github/scripts/ios_publicar.py

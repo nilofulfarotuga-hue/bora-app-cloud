@@ -56,6 +56,11 @@ Juiz anti-trapaça: em modo "conserto" com base HEAD dá **REJEITA [PHANTOM_FIX]
 commit). No âmbito da funcionalidade inteira (`--base 136fff32~1 --task feature`: código + adaptação do
 teste) dá **CLEAN, exit 0**. Fica escrito para o Danilo decidir se aceita esta leitura.
 
+Segundo push (`3f765ee2`, 22:11 UTC): **web verde; Android verde** — "Autoteste 3 perfis" success e
+"Build AAB & upload (Closed Testing — alpha)" success (execução 36638072098, fim 22:54 UTC).
+Nota: `platform_settings.app_latest_version_code` continua 629 com data de 16/08 — este build não a
+actualizou, por isso não serve de prova aqui (fica como observação fora do âmbito).
+
 Também corrigido a seguir: as contas demo (`is_demo_email`) ficam isentas do bloqueio fiscal do estafeta,
 senão a partir de 15/10 o autoteste e a revisão da Apple ficavam com o estafeta demo impedido de ficar online.
 

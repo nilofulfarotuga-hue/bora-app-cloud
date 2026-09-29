@@ -10,6 +10,7 @@ import '../models/restaurant_model.dart';
 import '../stores/order_store.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
+import '../widgets/partner_monthly_statement_card.dart';
 
 enum _Period { today, week, month }
 
@@ -283,6 +284,9 @@ class _PartnerEarningsScreenState extends State<PartnerEarningsScreen> {
               data: _weeklyCloseout,
               extrato: _extrato,
             ),
+            const SizedBox(height: Spacing.lg),
+            // Fecho mensal (2026-09-29) — "Este mês": extrato do mês + PDF.
+            PartnerMonthlyStatementCard(restaurantId: widget.restaurant.id),
             const SizedBox(height: Spacing.xl),
             if (_period != _Period.today) ...[
               _EarningsChart(

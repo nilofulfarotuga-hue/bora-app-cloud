@@ -94,6 +94,7 @@ import 'admin_web_health_screen.dart';
 import 'admin_whatsapp_screen.dart';
 import 'admin_pendencias_operacao_screen.dart';
 import 'admin_conformidade_legal_screen.dart';
+import 'admin_fecho_mensal_screen.dart';
 
 /// Registo ÚNICO do menu do painel admin (PT-BR).
 ///
@@ -294,6 +295,15 @@ List<AdminMenuSection> adminMenuSections() => [
       builder: () => const AdminExtratoDonoScreen(),
       keywords: const ['contas', 'claras', 'dono', 'entrou', 'saiu', 'retido', 'deve', 'extrato', 'folha', 'vigia'],
       badge: 'novo',
+    ),
+    AdminMenuItem(
+      id: 'dinheiro_fecho_mensal',
+      title: 'Fecho do mês',
+      subtitle: 'Receita da Bora, parceiros, estafetas, pedidos no prejuízo, faturas e parte para as Finanças — CSV e PDF',
+      icon: Icons.calendar_month_outlined,
+      color: AppColors.primary,
+      builder: () => const AdminFechoMensalScreen(),
+      keywords: const ['fecho', 'mensal', 'mes', 'financas', 'recibo', 'verde', 'fatura', 'dac7', 'extrato', 'prejuizo'],
     ),
     AdminMenuItem(
       id: 'dinheiro_extratos_pessoas',

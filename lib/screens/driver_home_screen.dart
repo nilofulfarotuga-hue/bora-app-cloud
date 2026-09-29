@@ -48,6 +48,7 @@ import 'chat_screen.dart';
 import 'ganhos_screen.dart';
 import '../widgets/ganho_de_hoje_card.dart';
 import '../widgets/trocar_de_papel.dart';
+import '../widgets/driver_fiscal_card.dart';
 import '../services/role_switch_helper.dart';
 import 'driver_map_screen.dart';
 import 'driver_order_action_helper.dart';
@@ -358,6 +359,21 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       unawaited(NotificationService.instance.closeOverlayIfActive());
       return;
     }
+    // Fecho mensal (2026-09-29): passado o prazo, sem NIF + atividade aberta
+    // nas Finanças o estafeta não fica online (o servidor decide o prazo).
+    if (await DriverFiscalGate.bloqueado()) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Confirme o seu NIF e a atividade aberta nas Finanças (cartão no topo) para voltar a aceitar entregas.',
+          ),
+          duration: Duration(seconds: 5),
+        ),
+      );
+      return;
+    }
+    if (!mounted) return;
     // [Estafeta web 2026-09-16] Navegador: sem foreground service nem
     // declaração da Play. Localização obrigatória (mensagem clara), áudio
     // desbloqueado no toque (exigência do iOS para a oferta tocar), e o
@@ -959,6 +975,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                 ),
               ),
             ] else ...[
+              // Fecho mensal (2026-09-29): NIF/atividade + recibo verde do mês.
+              const DriverFiscalCard(),
               const Text(
                 "Pedidos disponíveis",
                 style: TextStyle(

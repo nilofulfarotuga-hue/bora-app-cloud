@@ -53,6 +53,7 @@ import 'screens/admin/admin_cleaning_cleaners_screen.dart';
 import 'screens/admin/admin_ratings_screen.dart';
 import 'screens/admin/admin_skill_suggestions_metrics_screen.dart';
 import 'screens/admin/admin_acertos_semana_screen.dart';
+import 'screens/admin/admin_fecho_mensal_screen.dart';
 import 'screens/admin/admin_order_detail_screen.dart';
 import 'screens/admin/admin_marcacoes_confirmacao_screen.dart';
 import 'screens/admin/admin_clients_screen.dart';
@@ -112,6 +113,7 @@ import 'providers/support_settings_provider.dart';
 import 'stores/consent_store.dart';
 import 'stores/session_store.dart';
 import 'widgets/consent_banner.dart';
+import 'widgets/terms_gate.dart';
 import 'services/platform_tag_service.dart';
 
 // Injected at build time via --dart-define=SUPABASE_URL=... --dart-define=SUPABASE_ANON_KEY=...
@@ -957,6 +959,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           // de versões já instaladas ainda aponta para cá; reencaminha para os
           // Acertos da semana em vez de mostrar duas verdades (PADRÃO 2.5).
           '/admin/settlements': (_) => const AdminAcertosSemanaScreen(),
+          // Fecho mensal (2026-09-29) — o email do dia 1 e o aviso dos recibos
+          // verdes (dia 10) apontam para aqui. Argumento opcional: 'YYYY-MM'.
+          '/admin/fecho-mensal': (ctx) => AdminFechoMensalScreen(
+                mesInicial: ModalRoute.of(ctx)?.settings.arguments as String?,
+              ),
           // Marcações (2026-09-14, painel-admin-limpo) — a falta deixou de ser
           // automática; o cron e o parceiro mandam avisos para estas duas
           // rotas, que abrem o mesmo ecrã no separador certo.
@@ -1251,7 +1258,10 @@ class _RootNavigator extends StatelessWidget {
 
     switch (role) {
       case UserRole.client:
-        if (client != null) return const ClientMainScreen();
+        // Termos de 01/10/2026 (fecho-mensal): aceitação obrigatória no arranque.
+        if (client != null) {
+          return const TermsGate(audience: 'cliente', child: ClientMainScreen());
+        }
         return const ClientLoginScreen();
 
       case UserRole.driver:
@@ -1262,7 +1272,7 @@ class _RootNavigator extends StatelessWidget {
           if (driver.vehicleType == VehicleType.carPassengers) {
             return const TvdeDriverHomeScreen();
           }
-          return const DriverHomeScreen();
+          return const TermsGate(audience: 'estafeta', child: DriverHomeScreen());
         }
         return const DriverLoginScreen();
 

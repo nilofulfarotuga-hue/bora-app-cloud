@@ -151,6 +151,8 @@ BEGIN
     FROM public.driver_fiscal_status f WHERE f.user_id = v_uid;
   IF v_nif IS NULL THEN SELECT d.nif INTO v_nif FROM public.drivers d WHERE d.user_id = v_uid; END IF;
   v_ok := coalesce(v_ok, false) AND public._nif_valido(v_nif);
+  -- Contas de demonstração (autoteste, revisão da Apple) nunca ficam bloqueadas.
+  IF coalesce(public.is_demo_email((SELECT email FROM auth.users WHERE id = v_uid)), false) THEN v_ok := true; END IF;
   RETURN jsonb_build_object(
     'nif', v_nif, 'atividade_aberta', v_ok, 'confirmado_em', v_em,
     'em_vigor_desde', v_desde, 'prazo', v_prazo,
@@ -488,6 +490,7 @@ create or replace function public._estafeta_fiscal_bloqueado(p_uid uuid)
 returns boolean language sql stable security definer set search_path to 'public'
 as $$
   select (now() at time zone 'Europe/Lisbon')::date >= coalesce((select (value #>> '{}')::date from public.platform_settings where key='estafeta_fiscal_prazo'), date '2026-10-15')
+     and not coalesce(public.is_demo_email((select email from auth.users where id = p_uid)), false)
      and not exists (select 1 from public.driver_fiscal_status f
                       where f.user_id = p_uid and f.atividade_aberta and public._nif_valido(f.nif));
 $$;

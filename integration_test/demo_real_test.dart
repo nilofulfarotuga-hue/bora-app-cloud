@@ -220,6 +220,24 @@ Future<void> _fecharConsentimento(WidgetTester t) async {
   }
 }
 
+/// Aceita os Termos e Condições novos, se aparecerem.
+///
+/// CICATRIZ (corrida 36634813357, 29/09/2026): os termos de 01/10/2026 abrem
+/// por cima do ecrã principal logo a seguir a entrar (`TermsGate`). As
+/// categorias continuavam na árvore por baixo, por isso "Supermercados" era
+/// encontrado, mas o toque batia na folha dos termos e o ecrã nunca mudava
+/// (`01-loja-categorias` e `zz-falha-lista-de-supermercados` com o mesmo
+/// tamanho). Faz-se o que uma pessoa faz: ler e tocar em "Aceito". Depois da
+/// primeira aceitação da conta demo a folha deixa de aparecer.
+Future<void> _aceitarTermos(WidgetTester t) async {
+  final aceito = find.text('Aceito');
+  if (await _esperar(t, aceito, segundos: 15)) {
+    await _binding.takeScreenshot('zz-termos');
+    await _tocar(t, aceito);
+    await _bombear(t, segundos: 3);
+  }
+}
+
 void main() {
   _binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -298,6 +316,8 @@ void main() {
       await _bombear(t, segundos: 2);
     }
 
+    await _aceitarTermos(t);
+
     // ── O ACOMPANHAMENTO DO PEDIDO, que a app abre sozinha ────────────────
     //
     // CICATRIZ (corrida 34499180247): com a chave do Google Maps corrigida, a
@@ -324,6 +344,10 @@ void main() {
         await _binding.takeScreenshot('zz-acompanhamento-sem-voltar');
       }
     }
+
+    // Se o acompanhamento abriu por cima dos termos, o toque anterior bateu no
+    // mapa e a folha continua lá: tenta-se outra vez com o caminho livre.
+    await _aceitarTermos(t);
 
     // ── Início: as categorias reais. Zero marcas de terceiros. ────────────
     await _exigir(t, find.text('Supermercados'), 'ecra-inicial', segundos: 60);
@@ -663,6 +687,7 @@ void main() {
           await t.enterText(_id('fld_password').first, _senha);
           await _bombear(t, segundos: 0.6);
           await _tocar(t, _id('btn_entrar_driver'));
+          await _aceitarTermos(t);
 
           // O ecrã do estafeta abre com o mapa. Fotografa-se antes de ligar,
           // para se ver que o mapa desenha mesmo.

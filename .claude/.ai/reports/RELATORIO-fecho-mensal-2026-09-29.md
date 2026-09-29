@@ -39,6 +39,26 @@ As quatro faturas-recibo de setembro saem iguais às declaradas.
 | B6C DAC7 | `admin_dac7_report(ano)`: reaproveita o `admin_dac7_export` de 23/09 e junta o que faltava (prestadores de serviços) e o NIF confirmado pelo estafeta; lista quem não tem morada e quem não tem NIF. Só prepara, não envia | 2026: 8 linhas, 2 sem morada, 4 sem NIF |
 | Publicação | Commit `136fff32` (só os 12 ficheiros da missão, caminhos explícitos), push `c4bf71be..136fff32`. CI arrancou: Android, Web e olho-golden | ver secção CI |
 
+## CI — o que aconteceu (e a regressão que eu causei)
+
+Primeiro push (`136fff32`): **web publicado com sucesso**, olho-golden verde, **Android FALHOU** no
+autoteste dos 3 perfis no emulador (execução 36634813357) → o AAB **não** foi para a Play.
+Causa real (lida no log): `não apareceu: lista-de-supermercados`. O ecrã dos termos novos (`TermsGate`)
+abre por cima do ecrã principal depois de entrar com a conta demo; as categorias continuam na árvore por
+baixo, por isso o teste encontrava "Supermercados", mas o toque batia na folha dos termos
+(`01-loja-categorias.png` e `zz-falha-lista-de-supermercados.png` com os mesmos 327 703 bytes).
+As três execuções anteriores estavam verdes: **fui eu que parti**.
+
+Correcção: o arnês (`integration_test/demo_real_test.dart`) passou a fazer o que uma pessoa faz —
+se aparecer "Aceito", toca (depois de entrar como cliente, de novo depois do acompanhamento, e depois
+de entrar como estafeta). Nenhuma verificação foi tirada.
+Juiz anti-trapaça: em modo "conserto" com base HEAD dá **REJEITA [PHANTOM_FIX]** (só o teste mudou nesse
+commit). No âmbito da funcionalidade inteira (`--base 136fff32~1 --task feature`: código + adaptação do
+teste) dá **CLEAN, exit 0**. Fica escrito para o Danilo decidir se aceita esta leitura.
+
+Também corrigido a seguir: as contas demo (`is_demo_email`) ficam isentas do bloqueio fiscal do estafeta,
+senão a partir de 15/10 o autoteste e a revisão da Apple ficavam com o estafeta demo impedido de ficar online.
+
 ## O que ficou em `staged_` (zona protegida — não aplicado)
 
 `platform_settings.staged_fecho_mensal_20260929`:
@@ -81,7 +101,8 @@ Hoje o bloqueio é só na app (não deixa ficar online). Um estafeta com app ant
 
 1. **Capturas no emulador Android: não feitas.** O emulador precisa de ~3 GB de RAM e o PC tinha ~1 GB livre;
    ia pendurar a sessão (lição já registada). A captura da app do parceiro exige entrar na conta da loja, e
-   eu não entro com palavras-passe de contas reais. Ver secção CI para o que se conseguiu no navegador.
+   eu não entro com palavras-passe de contas reais. As capturas que existem desta noite são as do
+   autoteste do CI (artefacto `capturas` da execução Android).
 2. **Autoteste completo** (`flutter test` inteiro): corri só os testes que tocam nos ecrãs mexidos, não a suite toda (RAM).
 3. **NIF do cliente no checkout (B6B)**: não existe campo e acrescentá-lo mexe no checkout (zona que cobra).
    As faturas saem todas a consumidor final até haver campo.

@@ -271,7 +271,8 @@ BEGIN
        'taxa_pedido_pequeno', coalesce(sum(small_order_fee),0),
        'comissao_lojas_parceiras', coalesce(sum(comissao_margem) FILTER (WHERE is_partner),0),
        'margem_nao_parceiros', coalesce(sum(comissao_margem) FILTER (WHERE NOT is_partner),0),
-       'entrega_menos_ganho_estafeta', coalesce(sum(delivery_fee - estafeta),0)),
+       'entrega_menos_ganho_estafeta', coalesce(sum(delivery_fee - estafeta),0),
+       'ajustes_descontos', coalesce((v_rub->>'ajustes_descontos')::numeric,0)),
     'cobrado_por_conta_de_terceiros', jsonb_build_object(
        'estafetas', coalesce(sum(estafeta),0),
        'lojas_parceiras', coalesce(sum(custo) FILTER (WHERE is_partner),0),

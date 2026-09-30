@@ -42,6 +42,10 @@ class TvdeRide {
     this.source = 'app',
     this.agreedFareCents,
     this.agreedDriverEarnCents,
+    this.destChangeCount = 0,
+    this.destChangeFeeCents = 0,
+    this.destChangeDriverCents = 0,
+    this.destChangeCashCents = 0,
   });
 
   final String id;
@@ -146,6 +150,23 @@ class TvdeRide {
   /// Ganho combinado do motorista (cêntimos) — mesma regra do [agreedFareCents].
   final int? agreedDriverEarnCents;
 
+  // ── [Mudar destino 2026-09-30] ──────────────────────────────────────────
+  /// Quantas vezes o destino mudou a meio da corrida.
+  final int destChangeCount;
+
+  /// Soma do que o cliente aceitou pagar a mais por mudar o destino (cêntimos).
+  /// Numa corrida normal já está dentro do `est_fare_cents`; nas pernas do
+  /// pacote e nas corridas do plano soma-se à parte (ver [TvdeFareView]).
+  final int destChangeFeeCents;
+
+  /// Soma do que o motorista ganha a mais pelas mudanças (cêntimos).
+  final int destChangeDriverCents;
+
+  /// Parte de [destChangeFeeCents] paga em dinheiro (o motorista recolhe).
+  final int destChangeCashCents;
+
+  bool get hasDestChange => destChangeCount > 0;
+
   /// Corrida de balcão: cliente sem app, avisado por telefone.
   bool get isCounterRide => source == 'balcao';
 
@@ -217,6 +238,11 @@ class TvdeRide {
       source: m['source'] as String? ?? 'app',
       agreedFareCents: (m['agreed_fare_cents'] as num?)?.toInt(),
       agreedDriverEarnCents: (m['agreed_driver_earn_cents'] as num?)?.toInt(),
+      destChangeCount: (m['dest_change_count'] as num?)?.toInt() ?? 0,
+      destChangeFeeCents: (m['dest_change_fee_cents'] as num?)?.toInt() ?? 0,
+      destChangeDriverCents:
+          (m['dest_change_driver_cents'] as num?)?.toInt() ?? 0,
+      destChangeCashCents: (m['dest_change_cash_cents'] as num?)?.toInt() ?? 0,
     );
   }
 

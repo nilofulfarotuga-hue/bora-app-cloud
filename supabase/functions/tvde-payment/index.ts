@@ -4,6 +4,15 @@
 // PADRAO UNICO (= delivery): cobra NA HORA e faz refund estilo
 // `client-cancel-order` (capado ao pago, menos a taxa). SEM authorize/capture.
 //
+// v12 (2026-09-30) — MUDAR DESTINO a meio da corrida (missão tvde-mudar-destino):
+//   charge_dest_change / confirm_dest_change_payment (novas), no padrão das
+//   paragens. O valor é o da proposta gravada pelo servidor; o destino só muda
+//   com o PI pago; pago mas não aplicável -> reembolso. Nada mais mudou.
+//   kind 'bora_dest_change' (não 'tvde_*': o stripe-webhook cancelava a corrida
+//   num MB Way da mudança falhado). sweep_dest_changes (servidor, cron 2 min):
+//   aplica pagamentos tardios e devolve o que não se pôde aplicar ou cuja
+//   corrida foi cancelada.
+//
 // v11 (2026-09-23) — IDA-E-VOLTA COM RESERVA + autorizacao do servidor:
 //   charge_roundtrip_reservation / confirm_roundtrip_reservation_payment /
 //   auto_refund_roundtrip_reservation (novas). Nas duas accoes de reembolso
@@ -66,6 +75,36 @@ const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 
 const admin = createClient(SUPABASE_URL, SERVICE_KEY);
+
+// v12 — MUDAR DESTINO. O `kind` NÃO começa por `tvde_` DE PROPÓSITO: o
+// stripe-webhook trata qualquer `tvde_*` falhado/cancelado como falha da
+// CORRIDA e cancela-a (`tvde_cancel_ride`). Um MB Way da mudança a expirar
+// cancelava a viagem a meio. Com este nome o webhook ignora-o; quem fecha
+// estes pagamentos é o confirm + o varrimento `sweep_dest_changes`.
+const DEST_KIND = 'bora_dest_change';
+
+/// Devolve à cliente o que a Stripe recebeu de um PI de mudança de destino
+/// (menos o que já foi devolvido) e marca a mudança como reembolsada.
+async function refundDestChange(changeId: string, piId: string, motivo: string): Promise<number> {
+  const pi = await stripe.paymentIntents.retrieve(piId);
+  const recebido = Number(pi.amount_received ?? 0);
+  const feitos = await stripe.refunds.list({ payment_intent: piId, limit: 10 });
+  // deno-lint-ignore no-explicit-any
+  const jaDevolvido = (feitos?.data ?? []).filter((r: any) => r.status !== 'failed' && r.status !== 'canceled')
+    // deno-lint-ignore no-explicit-any
+    .reduce((t: number, r: any) => t + Number(r.amount ?? 0), 0);
+  const falta = Math.max(0, recebido - jaDevolvido);
+  if (falta >= 1) {
+    await stripe.refunds.create(
+      { payment_intent: piId, amount: falta },
+      { idempotencyKey: `dest-refund-${piId}-${falta}` },
+    );
+  }
+  await admin.rpc('tvde_dest_change_mark_refunded', {
+    p_change_id: changeId, p_cents: jaDevolvido + falta, p_motivo: motivo,
+  });
+  return falta;
+}
 
 async function getOrCreateCustomer(userId: string): Promise<string | null> {
   try {
@@ -404,6 +443,79 @@ Deno.serve(async (req) => {
         'pago:', pagoCents, 'taxa:', feeCents, 'devolvido:', refundCents,
         'ja_devolvido:', jaDevolvido, 'motivo:', motivo, '->', novoEstado);
       return json({ ok: true, refundCents, feeCents, pagoCents, jaDevolvido, paymentStatus: novoEstado });
+    }
+
+    // -- v12: SWEEP_DEST_CHANGES — chamada do SERVIDOR (cron de 2 em 2 min) ---
+    // Nenhum dinheiro de mudança de destino fica preso:
+    //  · proposta com PI pago (confirmação perdida, MB Way aprovado tarde) →
+    //    aplica; se já não der (corrida mudou/acabou) → devolve;
+    //  · proposta com PI falhado/cancelado → fica falhada (destino não muda);
+    //  · recusada/falhada com dinheiro recebido → devolve;
+    //  · aplicada numa corrida CANCELADA → devolve a diferença (a viagem não se fez).
+    // Antes do kill switch: devolver dinheiro funciona com os pagamentos desligados.
+    if (action === 'sweep_dest_changes') {
+      if (!(SERVICE_KEY && token === SERVICE_KEY) && !jwtServiceRoleVerificadoPelaPorta(token)) {
+        return json({ error: 'not_service_role' }, 403);
+      }
+      const { data: pend, error: pendErr } = await admin.rpc('tvde_dest_change_pendentes');
+      if (pendErr) return json({ ok: false, error: pendErr.message }, 500);
+      const out: Array<Record<string, unknown>> = [];
+      // deno-lint-ignore no-explicit-any
+      for (const p of (pend ?? []) as any[]) {
+        const changeId = String(p.change_id), piId = String(p.payment_intent_id);
+        try {
+          const pi = await stripe.paymentIntents.retrieve(piId);
+          if (pi.metadata?.kind !== DEST_KIND || pi.metadata?.change_id !== changeId) {
+            out.push({ changeId, skip: 'pi_nao_corresponde' });
+            continue;
+          }
+          if (p.estado === 'proposta') {
+            if (pi.status === 'succeeded') {
+              const { data: ap, error: apErr } = await admin.rpc('tvde_dest_change_confirm_paid', {
+                p_change_id: changeId, p_payment_intent_id: piId, p_amount_cents: pi.amount,
+              });
+              if (!apErr && (ap as Record<string, unknown>)?.estado === 'aplicada') {
+                out.push({ changeId, aplicada: true });
+              } else {
+                out.push({ changeId, devolvido: await refundDestChange(changeId, piId, 'pago_tarde_nao_aplicavel') });
+              }
+            } else if (pi.status === 'canceled' || pi.status === 'requires_payment_method') {
+              // Cartão acabado de criar também está em requires_payment_method:
+              // espera 15 min (o cliente pode estar a pôr o cartão) e depois
+              // CANCELA o PI na Stripe antes de fechar — senão ficava pagável.
+              const idadeMin = (Date.now() - Date.parse(String(p.created_at))) / 60000;
+              if (pi.status === 'requires_payment_method' && idadeMin < 15) {
+                out.push({ changeId, aguarda: 'cliente_a_pagar' });
+                continue;
+              }
+              if (pi.status !== 'canceled') await stripe.paymentIntents.cancel(piId);
+              await admin.rpc('tvde_dest_change_fail', { p_change_id: changeId, p_motivo: `pagamento_${pi.status}` });
+              out.push({ changeId, falhada: pi.status });
+            } else {
+              out.push({ changeId, aguarda: pi.status });
+            }
+          } else if (p.estado === 'aplicada') {
+            // Só chega aqui com a corrida cancelada (ver tvde_dest_change_pendentes).
+            out.push({ changeId, devolvido: await refundDestChange(changeId, piId, `corrida_${p.ride_status}`) });
+          } else if (pi.status === 'succeeded' || Number(pi.amount_received ?? 0) > 0) {
+            out.push({ changeId, devolvido: await refundDestChange(changeId, piId, `mudanca_${p.estado}`) });
+          } else if (pi.status === 'canceled' || pi.status === 'requires_payment_method') {
+            // Nunca entrou dinheiro: CANCELA o PI na Stripe (deixa de ser
+            // pagável) e só então fecha o registo. Se o cancelamento falhar
+            // (ex.: foi pago entretanto), o catch deixa-o na lista e o próximo
+            // varrimento devolve.
+            if (pi.status !== 'canceled') await stripe.paymentIntents.cancel(piId);
+            await admin.rpc('tvde_dest_change_mark_refunded', { p_change_id: changeId, p_cents: 0, p_motivo: 'sem_dinheiro' });
+            out.push({ changeId, fechado: pi.status });
+          } else {
+            out.push({ changeId, aguarda: pi.status });
+          }
+        } catch (e) {
+          out.push({ changeId, erro: String((e as Error).message ?? e).slice(0, 200) });
+        }
+      }
+      console.log('[tvde-payment sweep_dest_changes]', JSON.stringify(out));
+      return json({ ok: true, n: out.length, out });
     }
 
     // Gate #1 (server-side): kill switch. Falha fechada.
@@ -930,6 +1042,134 @@ Deno.serve(async (req) => {
       } catch (_) {/* best effort */}
 
       return json({ succeeded: true, ride_id: rideId, stop: stopRes, status: 'succeeded' });
+    }
+
+    // -- CHARGE_DEST_CHANGE (v12) — cobra a diferença da MUDANÇA DE DESTINO ----
+    // O valor vem SEMPRE da proposta gravada pelo servidor
+    // (tvde_dest_change_request -> tvde_destination_changes.client_diff_cents),
+    // nunca do corpo do pedido. O destino só muda no confirm, com o PI pago.
+    if (action === 'charge_dest_change') {
+      const changeId = String(body.change_id ?? '');
+      const method = String(body.method ?? '');
+      if (!changeId) return json({ error: 'missing_change_id' }, 400);
+      if (method !== 'card' && method !== 'mbway') {
+        return json({ error: 'invalid_method' }, 400);
+      }
+      const { data: ch } = await admin
+        .from('tvde_destination_changes')
+        .select('id, ride_id, client_id, estado, method, client_diff_cents, payment_intent_id')
+        .eq('id', changeId)
+        .maybeSingle();
+      if (!ch) return json({ error: 'dest_change_not_found' }, 404);
+      if (ch.client_id !== user.id) return json({ error: 'not_ride_owner' }, 403);
+      if (ch.estado !== 'proposta') return json({ error: `dest_change_not_pending: ${ch.estado}` }, 400);
+      if (ch.method !== method) return json({ error: 'method_mismatch' }, 400);
+      if (ch.payment_intent_id) return json({ error: 'dest_change_already_charging' }, 400);
+      const amountCents = Number(ch.client_diff_cents ?? 0);
+      if (!(amountCents >= 50)) return json({ error: 'below_minimum' }, 400);
+
+      let pi: Stripe.PaymentIntent;
+      try {
+        const meta = {
+          kind: DEST_KIND, change_id: changeId, ride_id: String(ch.ride_id),
+          user_id: user.id, applied: '0',
+        };
+        if (method === 'card') {
+          pi = await stripe.paymentIntents.create({
+            amount: amountCents,
+            currency: 'eur',
+            automatic_payment_methods: { enabled: true },
+            metadata: meta,
+          }, { idempotencyKey: `tvde_dest_${changeId}` });
+        } else {
+          const phone = String(body.phone ?? '');
+          const e164 = phone.startsWith('+')
+            ? phone
+            : `+351${phone.replace(/\D/g, '').replace(/^0/, '')}`;
+          pi = await stripe.paymentIntents.create({
+            amount: amountCents,
+            currency: 'eur',
+            payment_method_types: ['mb_way'],
+            payment_method_data: { type: 'mb_way', billing_details: { phone: e164 } },
+            confirm: true,
+            metadata: meta,
+          }, { idempotencyKey: `tvde_dest_${changeId}` });
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        await admin.rpc('tvde_dest_change_fail', { p_change_id: changeId, p_motivo: `stripe: ${message}` });
+        return json({ error: message }, 400);
+      }
+
+      const { error: setErr } = await admin.rpc('tvde_dest_change_set_pi', {
+        p_change_id: changeId, p_payment_intent_id: pi.id,
+      });
+      if (setErr) {
+        try { await stripe.paymentIntents.cancel(pi.id); } catch (_) {/* best effort */}
+        return json({ error: String(setErr.message ?? 'dest_change_set_pi_failed') }, 400);
+      }
+
+      return json({
+        changeId,
+        paymentIntentId: pi.id,
+        clientSecret: method === 'card' ? pi.client_secret : null,
+        status: pi.status,
+        amountCents,
+      });
+    }
+
+    // -- CONFIRM_DEST_CHANGE_PAYMENT (v12) — pago? aplica o destino novo -------
+    // Pago mas não aplicável (corrida acabou, outra mudança entrou) -> reembolso.
+    if (action === 'confirm_dest_change_payment') {
+      const piId = String(body.payment_intent_id ?? '');
+      if (!piId) return json({ error: 'missing_payment_intent_id' }, 400);
+
+      let pi: Stripe.PaymentIntent;
+      try {
+        pi = await stripe.paymentIntents.retrieve(piId);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return json({ error: message }, 400);
+      }
+      if (pi.metadata?.kind !== DEST_KIND) return json({ error: 'not_a_dest_change_pi' }, 400);
+      if (pi.metadata?.user_id !== user.id) return json({ error: 'not_pi_owner' }, 403);
+      const changeId = String(pi.metadata?.change_id ?? '');
+      const rideId = String(pi.metadata?.ride_id ?? '');
+
+      if (pi.status === 'canceled' || pi.status === 'requires_payment_method') {
+        await admin.rpc('tvde_dest_change_fail', { p_change_id: changeId, p_motivo: `pagamento_${pi.status}` });
+        return json({ succeeded: false, failed: true, ride_id: rideId, change_id: changeId, status: pi.status });
+      }
+      if (pi.status !== 'succeeded') {
+        return json({ succeeded: false, ride_id: rideId, change_id: changeId, status: pi.status });
+      }
+
+      const { data: applyRes, error: applyErr } = await admin.rpc('tvde_dest_change_confirm_paid', {
+        p_change_id: changeId, p_payment_intent_id: pi.id, p_amount_cents: pi.amount,
+      });
+      const applied = !applyErr && applyRes && (applyRes as Record<string, unknown>).estado === 'aplicada';
+      if (!applied) {
+        // Se o reembolso falhar aqui, a mudança fica sem refunded_at e o
+        // varrimento `sweep_dest_changes` tenta outra vez (nunca fica preso).
+        try {
+          await refundDestChange(changeId, pi.id, 'pago_mas_nao_aplicado');
+        } catch (e) {
+          console.error('[tvde-payment] dest refund falhou (o varrimento repete):', pi.id, e);
+        }
+        return json({
+          succeeded: false,
+          refunded: true,
+          ride_id: rideId,
+          change_id: changeId,
+          error: String(applyErr?.message ?? (applyRes as Record<string, unknown>)?.motivo ?? 'dest_change_not_applied'),
+        });
+      }
+
+      try {
+        await stripe.paymentIntents.update(pi.id, { metadata: { ...pi.metadata, applied: '1' } });
+      } catch (_) {/* best effort */}
+
+      return json({ succeeded: true, ride_id: rideId, change_id: changeId, change: applyRes, status: 'succeeded' });
     }
 
     // == v10 (2026-08-19) — RESERVA AGENDADA em CARTAO e MB WAY ==============

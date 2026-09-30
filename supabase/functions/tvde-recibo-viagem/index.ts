@@ -1,5 +1,6 @@
 // @ts-nocheck
-// supabase/functions/tvde-recibo-viagem/index.ts  v3  2026-09-30 (Resumo da viagem, cálculo, código, duração)
+// supabase/functions/tvde-recibo-viagem/index.ts  v4  2026-09-30 (+ linha "Mudança de destino" com o cálculo)
+// v3  2026-09-30 (Resumo da viagem, cálculo, código, duração)
 //
 // Recibo da viagem TVDE ao passageiro, por email (Lei 45/2018 revista pela
 // Lei 59/2026: recibo eletrónico por viagem com a taxa de intermediação
@@ -122,6 +123,11 @@ function dataPt(iso: string): string {
   } catch (_e) { return iso }
 }
 
+function km(v: any): string {
+  const n = Number(v)
+  return Number.isFinite(n) ? n.toFixed(1).replace('.', ',') : '—'
+}
+
 function esc(s: any): string {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
@@ -148,6 +154,16 @@ function htmlRecibo(r: any): string {
   if (r.iva_cents != null) linhas.push(linha(`IVA incluído (${esc(r.iva_pct)} %)`, euro(r.iva_cents)))
   linhas.push(linha('Valor da viagem', euro(r.valor_viagem_cents), !r.descontos_cents))
   if (r.paragens_cents) linhas.push(linha('das quais paragens extra', euro(r.paragens_cents)))
+  // v4 2026-09-30: mudança de destino a meio (o que o cliente aceitou pagar a mais).
+  if (r.mudanca_destino_cents) linhas.push(linha('Mudança de destino', '+' + euro(r.mudanca_destino_cents)))
+  const mudancas = Array.isArray(r.mudancas_destino) ? r.mudancas_destino : []
+  const mudancasHtml = mudancas.length ? mudancas.map((m: any) =>
+    `<p style="color:#374151;font-size:13px;margin:8px 0 0">Mudança de destino: ${esc(m.de ?? '—')} → ${esc(m.para ?? '—')}. `
+    + `${km(m.km_feitos)} km feitos + ${km(m.km_resto)} km = ${km(m.km_novos)} km (combinados ${km(m.km_antes)} km). `
+    + (Number(m.pagou_cents) > 0
+      ? `Preço para ${km(m.km_novos)} km ${euro(m.preco_tabela_cents)}; combinado ${euro(m.preco_antes_cents)}; pagaste +${euro(m.pagou_cents)}${m.minimo ? ' (mínimo por mudança)' : ''}.`
+      : 'Mais perto: o preço combinado ficou igual.')
+    + '</p>').join('') : ''
   if (r.descontos_cents) {
     linhas.push(linha('Descontos (tokens / crédito)', '− ' + euro(r.descontos_cents)))
     linhas.push(linha('Total pago', euro(r.total_pago_cents), true))
@@ -164,6 +180,7 @@ function htmlRecibo(r: any): string {
 <table style="width:100%;border-collapse:collapse;border-top:1px solid #e5e7eb">${linhas.join('')}</table>
 <p style="margin:12px 0 0">Pagamento: <b>${esc(MEIOS[r.pagamento] ?? r.pagamento ?? '—')}</b></p>
 ${calculo}
+${mudancasHtml}
 ${razao}
 <p style="color:#6b7280;font-size:12px;margin-top:20px">${esc(r.plataforma)} — operador de plataforma TVDE${nif}.<br>${esc(r.aviso_legal)}</p>
 </div></body></html>`

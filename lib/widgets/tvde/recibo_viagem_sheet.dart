@@ -100,6 +100,25 @@ class _ReciboViagemSheetState extends State<_ReciboViagemSheet> {
       ? v.toInt().toString()
       : v.toStringAsFixed(1).replaceAll('.', ',');
 
+  /// [Mudar destino 30/09] Uma linha por mudança: de → para, km e diferença.
+  static String _mudancaTexto(Map<String, dynamic> m) {
+    String km(dynamic v) => v is num
+        ? v.toStringAsFixed(1).replaceAll('.', ',')
+        : (double.tryParse('${v ?? ''}')?.toStringAsFixed(1).replaceAll('.', ',') ?? '—');
+    int? c(String k) => m[k] is num ? (m[k] as num).toInt() : null;
+    final pagou = c('pagou_cents') ?? 0;
+    final base = '{0} → {1}: {2} km feitos + {3} km = {4} km (combinados {5} km).'
+        .trArgs([m['de'] ?? '—', m['para'] ?? '—', km(m['km_feitos']), km(m['km_resto']),
+          km(m['km_novos']), km(m['km_antes'])]);
+    if (pagou <= 0) return '$base ${'Mais perto: o preço combinado ficou igual.'.tr}';
+    return '$base ${'Preço para {0} km: {1}; combinado: {2}; diferença +{3}.'.trArgs([
+      km(m['km_novos']),
+      FichaTexto.euro(c('preco_tabela_cents')),
+      FichaTexto.euro(c('preco_antes_cents')),
+      FichaTexto.euro(pagou),
+    ])}${m['minimo'] == true ? ' ${'(mínimo por mudança)'.tr}' : ''}';
+  }
+
   /// Demonstração do cálculo (art. 15.º n.º 8) — só com `calculo` do servidor
   /// (não vem em pacote, assinatura nem preço combinado).
   List<Widget> _calculo(Map<String, dynamic> c) {
@@ -204,6 +223,19 @@ class _ReciboViagemSheetState extends State<_ReciboViagemSheet> {
                     _linha('Valor da viagem'.tr,
                         FichaTexto.euro(_c('valor_viagem_cents')),
                         forte: _c('descontos_cents') == null),
+                    // [Mudar destino 30/09] o que se pagou a mais, com o cálculo.
+                    if (_c('mudanca_destino_cents') != null)
+                      _linha('Mudança de destino'.tr,
+                          '+${FichaTexto.euro(_c('mudanca_destino_cents'))}'),
+                    if (r['mudancas_destino'] is List)
+                      for (final m in (r['mudancas_destino'] as List).whereType<Map>())
+                        Padding(
+                          key: const Key('tvde_resumo_mudanca_destino'),
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text(_mudancaTexto(Map<String, dynamic>.from(m)),
+                              style: const TextStyle(
+                                  fontSize: 12.5, color: AppColors.textSecondary)),
+                        ),
                     if (_c('descontos_cents') != null) ...[
                       _linha('Descontos (tokens / crédito)'.tr,
                           '− ${FichaTexto.euro(_c('descontos_cents'))}'),

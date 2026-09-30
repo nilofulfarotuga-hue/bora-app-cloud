@@ -14,6 +14,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
+import '../../../models/tvde_dest_change.dart';
 import '../../../models/tvde_fare_view.dart';
 import '../../../models/tvde_ride.dart';
 import '../../../widgets/tvde/recibo_pago.dart';
@@ -35,6 +36,7 @@ import '../../../widgets/tvde/tvde_roundtrip_driver_notice.dart';
 import '../../../widgets/tvde/tvde_sos_button.dart';
 import '../../shared/tvde_chat_screen.dart';
 import 'ride_mbway_waiting_dialog.dart';
+import 'tvde_dest_change_sheet.dart';
 import 'tvde_queixas_screen.dart';
 import 'tvde_rate_screen.dart';
 
@@ -223,6 +225,10 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
   int _stopsTick = 0;
   bool _addingStop = false;
 
+  // ── [Mudar destino 30/09] ─────────────────────────────────────────────────
+  bool _destChangeEnabled = false; // platform_settings.tvde_dest_change_enabled
+  bool _changingDest = false;
+
   @override
   void initState() {
     super.initState();
@@ -287,6 +293,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
   Future<void> _loadStopSettings() async {
     final store = context.read<TvdeStore>();
     final max = await store.getSettingInt('tvde_max_stops', 2);
+    final destOn = await store.getSettingBool('tvde_dest_change_enabled', false);
     final fee = await store.getSettingInt('tvde_stop_fee_cents', 200);
     final timer = await store.getSettingInt('tvde_stop_timer_seconds', 120);
     final grace = await store.getSettingInt('cancel_grace_seconds', 180);
@@ -315,6 +322,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
       final pollMudou = pollS > 0 && pollS != _driverPollSeconds;
       setState(() {
         _maxStops = max;
+        _destChangeEnabled = destOn;
         _stopFeeCents = fee;
         _stopTimerSeconds = timer;
         _cancelGraceSeconds = grace;
@@ -521,6 +529,160 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     }
   }
 
+  /// [Mudar destino 30/09] Escolhe a morada → pede a cotação ao servidor →
+  /// mostra destino, km, preço novo e a diferença → só com "Aceitar" pede a
+  /// mudança. Cartão/MB Way: cobra primeiro (Edge `tvde-payment`), e o destino
+  /// só muda com o pagamento confirmado. Dinheiro: muda já e o motorista cobra
+  /// a diferença no fim.
+  Future<void> _changeDest(TvdeRide ride) async {
+    if (_changingDest) return;
+    final picked = await showModalBottomSheet<_PickedStop>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _AddStopSheet(
+        title: 'Mudar destino'.tr,
+        subtitle: 'Escolhe o destino novo. Vês o preço antes de confirmar.'.tr,
+        fieldLabel: 'Destino novo'.tr,
+        icon: Icons.edit_location_alt_outlined,
+      ),
+    );
+    if (picked == null || !mounted) return;
+
+    setState(() => _changingDest = true);
+    final messenger = ScaffoldMessenger.of(context);
+    final store = context.read<TvdeStore>();
+    try {
+      // Regra 1: os km (feitos desde a recolha + rota do carro ao destino
+      // novo) são calculados no SERVIDOR (Edge tvde-dest-change, Google).
+      final quote = await store.quoteDestChange(ride.id,
+          lat: picked.lat, lng: picked.lng, label: picked.label);
+      if (!mounted) return;
+
+      final method = ride.paymentMethod;
+      final decision = await showModalBottomSheet<TvdeDestChangeDecision>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: AppColors.surface,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (_) => TvdeDestChangeSheet(
+          quote: quote,
+          destLabel: picked.label,
+          method: method,
+          initialPhone: Supabase.instance.client.auth.currentUser?.phone ?? '',
+        ),
+      );
+      // Sem "Aceitar", nada muda (Lei 45/2018 art. 15.º n.º 4).
+      if (decision == null || !mounted) return;
+
+      final res = await store.requestDestChange(ride.id,
+          quote: quote, lat: picked.lat, lng: picked.lng, label: picked.label);
+
+      var mudou = res['estado'] == 'aplicada';
+      Map<String, dynamic>? outcome;
+      if (res['needs_payment'] == true) {
+        final changeId = res['change_id']?.toString() ?? '';
+        final pmethod = method == 'mbway' ? 'mbway' : 'card';
+        try {
+          final charge = await store.chargeDestChange(changeId,
+              method: pmethod,
+              mbwayPhone: pmethod == 'mbway' ? decision.phone : null);
+          final piId = charge['paymentIntentId'] as String?;
+          if (piId == null) throw Exception('sem_payment_intent');
+          final amountEur = ((charge['amountCents'] as num?)?.toInt() ??
+                  quote.clientDiffCents) /
+              100;
+          if (pmethod == 'card') {
+            final clientSecret = charge['clientSecret'] as String?;
+            if (clientSecret == null) throw Exception('sem_client_secret');
+            await PaymentService().processPayment(clientSecret);
+            outcome = await store.confirmDestChangePayment(piId);
+            mudou = outcome?['succeeded'] == true;
+          } else {
+            if (!mounted) return;
+            final ok = await showDialog<bool>(
+              context: context,
+              barrierDismissible: false,
+              builder: (_) => TvdeRideMbwayWaitingDialog.forDestChange(
+                paymentIntentId: piId,
+                amountEur: amountEur,
+                onResponse: (r) => outcome = r,
+              ),
+            );
+            mudou = ok == true;
+          }
+        } catch (e) {
+          debugPrint('TvdeRideTracking._changeDest pagamento => $e');
+          mudou = false;
+        }
+        // Sem pagamento o destino não muda: a proposta fica recusada.
+        if (!mudou && changeId.isNotEmpty) {
+          await store.cancelDestChange(changeId);
+        }
+      }
+
+      if (!mounted) return;
+      if (mudou) {
+        messenger.showSnackBar(SnackBar(
+          content: Text(quote.isFree
+              ? 'Destino mudado. O preço fica igual.'.tr
+              : 'Destino mudado. Pagas mais {0}.'
+                  .trArgs([TvdeDestChangeQuote.eur(quote.clientDiffCents)])),
+        ));
+      } else if (outcome?['refunded'] == true) {
+        messenger.showSnackBar(SnackBar(
+          content: Text('Pagamento devolvido — o destino não mudou.'.tr),
+        ));
+      } else {
+        messenger.showSnackBar(SnackBar(
+          content: Text(
+              'Não recebemos a confirmação do pagamento. O destino não mudou.'.tr),
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+            SnackBar(content: Text(_destChangeErrorPt(e.toString()))));
+      }
+    } finally {
+      if (mounted) setState(() => _changingDest = false);
+    }
+  }
+
+  /// Códigos de erro do servidor → PT-PT.
+  String _destChangeErrorPt(String raw) {
+    if (raw.contains('dest_change_price_changed')) {
+      return 'O preço mudou entretanto. Abre outra vez para veres o preço novo.'.tr;
+    }
+    if (raw.contains('invalid_ride_state_for_dest_change')) {
+      return 'A corrida já não permite mudar o destino.'.tr;
+    }
+    if (raw.contains('dest_change_disabled')) {
+      return 'Mudar destino não está disponível de momento.'.tr;
+    }
+    if (raw.contains('driver_position_stale')) {
+      return 'Ainda não temos a posição do carro. Tenta daqui a um minuto.'.tr;
+    }
+    if (raw.contains('route_failed') || raw.contains('route_not_computed')) {
+      return 'Não conseguimos calcular a rota até esse destino. Tenta outra vez.'.tr;
+    }
+    if (raw.contains('dest_too_far')) {
+      return 'Esse destino fica demasiado longe.'.tr;
+    }
+    if (raw.contains('card_payments_not_enabled')) {
+      return 'Os pagamentos no cartão estão desativados de momento.'.tr;
+    }
+    return 'Não foi possível mudar o destino.'.tr;
+  }
+
+
   /// Traduz os códigos de erro da Edge Function para PT-PT.
   String _stopErrorPt(String? raw) {
     final e = raw ?? '';
@@ -558,8 +720,9 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     // entra ou sai uma parada. Sem isto, o cliente pagava €2 por uma paragem e
     // a linha grossa continuava a ir a direito ao destino, a contradizer a
     // linha do motorista — que desde hoje passa lá.
-    final chave = chaveFaseComStops(ride.id,
-        emViagem: true, stops: _stops, maxStops: _maxStops);
+    // [Mudar destino 30/09] o destino entra na chave: mudou → linha nova.
+    final chave = '${chaveFaseComStops(ride.id, emViagem: true, stops: _stops, maxStops: _maxStops)}'
+        '|${ride.destLat},${ride.destLng}';
     if (_routeKey == chave) return;
     _routeKey = chave;
     try {
@@ -1068,8 +1231,9 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
         : const <ll.LatLng>[];
     // A chave inclui as paradas: acrescentar uma conta como fase nova e a
     // linha refaz-se já, em vez de esperar pelos 120 m de deslocação.
-    final chave = chaveFaseComStops(ride.id,
-        emViagem: emViagem, stops: _stops, maxStops: _maxStops);
+    // [Mudar destino 30/09] o destino entra na chave: mudou → linha nova.
+    final chave = '${chaveFaseComStops(ride.id, emViagem: emViagem, stops: _stops, maxStops: _maxStops)}'
+        '|${ride.destLat},${ride.destLng}';
     final from = _driverRouteFrom;
     final moved = from == null
         ? double.infinity
@@ -1602,6 +1766,9 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
       packageCents: _packageCents,
       addingStop: _addingStop,
       onAddStop: () => _addStop(ride),
+      destChangeEnabled: _destChangeEnabled,
+      changingDest: _changingDest,
+      onChangeDest: () => _changeDest(ride),
       onRemoveStop: (stop) => _removeStop(ride, stop),
       onChat: () => _openChat(ride),
       onCall: _call,
@@ -1908,6 +2075,9 @@ class _StatusPanel extends StatelessWidget {
     required this.packageCents,
     required this.addingStop,
     required this.onAddStop,
+    this.destChangeEnabled = false,
+    this.changingDest = false,
+    this.onChangeDest,
     required this.onRemoveStop,
     required this.onChat,
     required this.onCall,
@@ -1980,6 +2150,11 @@ class _StatusPanel extends StatelessWidget {
   final bool addingStop;
   final VoidCallback onAddStop;
   final void Function(TvdeRideStop) onRemoveStop;
+
+  /// [Mudar destino 30/09] interruptor do servidor + estado do botão.
+  final bool destChangeEnabled;
+  final bool changingDest;
+  final VoidCallback? onChangeDest;
 
   final VoidCallback onChat;
   final VoidCallback onCall;
@@ -2447,6 +2622,7 @@ class _StatusPanel extends StatelessWidget {
             ),
           ],
           _buildStops(context),
+          _buildDestChange(),
           const SizedBox(height: Spacing.lg),
           if (ride.isNoDriver) ...[
             Text(
@@ -2482,6 +2658,62 @@ class _StatusPanel extends StatelessWidget {
     if (ride.isOnTheWay) return Icons.directions_car;
     if (ride.isInProgress) return Icons.navigation;
     return Icons.local_taxi;
+  }
+
+  /// [Mudar destino 30/09] Botão "Mudar destino" (motorista a caminho, chegou
+  /// ou em viagem) + a linha do que já se pagou a mais. Nunca em corrida de
+  /// balcão: aí só o admin muda, com valor combinado.
+  Widget _buildDestChange() {
+    final canManage = ride.isOnTheWay || ride.hasArrived || ride.isInProgress;
+    final pode = destChangeEnabled &&
+        canManage &&
+        !ride.isCounterRide &&
+        ride.agreedFareCents == null &&
+        onChangeDest != null;
+    final mostraTotal = ride.hasDestChange && ride.destChangeFeeCents > 0;
+    if (!pode && !mostraTotal) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: Spacing.sm),
+        if (mostraTotal)
+          Row(
+            children: [
+              Expanded(
+                child: Text('Mudança de destino'.tr,
+                    style: const TextStyle(
+                        color: AppColors.textSecondary, fontSize: 13)),
+              ),
+              Text('+€${(ride.destChangeFeeCents / 100).toStringAsFixed(2)}',
+                  key: const Key('tvde_dest_change_total'),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                      fontSize: 13)),
+            ],
+          ),
+        if (pode) ...[
+          const SizedBox(height: Spacing.xs),
+          OutlinedButton.icon(
+            key: const Key('tvde_dest_change_button'),
+            onPressed: changingDest ? null : onChangeDest,
+            icon: changingDest
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.edit_location_alt_outlined, size: 18),
+            label: Text(changingDest ? 'A calcular…'.tr : 'Mudar destino'.tr),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primary),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(Radii.md)),
+            ),
+          ),
+        ],
+      ],
+    );
   }
 
   /// [Feature 1] Secção de paradas adicionais — só enquanto o motorista já vem
@@ -2843,7 +3075,13 @@ class _PickedStop {
 /// [Feature 1] Folha para o cliente escolher a morada da nova parada (reusa o
 /// mesmo AddressAutocompleteField do ecrã de pedido).
 class _AddStopSheet extends StatefulWidget {
-  const _AddStopSheet();
+  const _AddStopSheet({this.title, this.subtitle, this.fieldLabel, this.icon});
+
+  /// [Mudar destino 30/09] a mesma folha serve para o destino novo.
+  final String? title;
+  final String? subtitle;
+  final String? fieldLabel;
+  final IconData? icon;
 
   @override
   State<_AddStopSheet> createState() => _AddStopSheetState();
@@ -2885,11 +3123,11 @@ class _AddStopSheetState extends State<_AddStopSheet> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.add_location_alt_outlined,
+                  Icon(widget.icon ?? Icons.add_location_alt_outlined,
                       color: AppColors.primary),
                   const SizedBox(width: Spacing.sm),
                   Expanded(
-                    child: Text('Adicionar parada'.tr,
+                    child: Text(widget.title ?? 'Adicionar parada'.tr,
                         style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
@@ -2903,13 +3141,14 @@ class _AddStopSheetState extends State<_AddStopSheet> {
               ),
               const SizedBox(height: Spacing.xs),
               Text(
-                  'Escolhe onde o motorista deve passar a caminho do destino.'.tr,
+                  widget.subtitle ??
+                      'Escolhe onde o motorista deve passar a caminho do destino.'.tr,
                   style:
                       const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
               const SizedBox(height: Spacing.md),
               AddressAutocompleteField(
                 controller: _controller,
-                labelText: 'Morada da parada'.tr,
+                labelText: widget.fieldLabel ?? 'Morada da parada'.tr,
                 onSelected: (address, coords) {
                   if (coords == null) return;
                   Navigator.pop(

@@ -2903,4 +2903,83 @@ const Map<String, String> kStringsEn = <String, String>{
       'No, just an errand',
   'Ex.: comprar algo na loja — o estafeta adianta e tu pagas o talão.':
       'E.g. buying something at a shop — the courier pays upfront and you pay the receipt.',
+  // [Mudar destino 30/09]
+  '(mínimo por mudança)':
+      '(minimum per change)',
+  'A calcular…':
+      'Calculating…',
+  'A corrida já não permite mudar o destino.':
+      'This ride can no longer change its destination.',
+  'Abre o MBWay e confirma para mudar o destino.':
+      'Open MB WAY and confirm to change the destination.',
+  'Cobramos {0} no cartão agora. O destino só muda depois de o pagamento passar.':
+      'We charge {0} to your card now. The destination only changes once the payment goes through.',
+  'Cobramos {0} por MB Way agora. O destino só muda depois de confirmares no MB Way.':
+      'We charge {0} via MB WAY now. The destination only changes after you confirm in MB WAY.',
+  'Cobras {0} da mudança de destino, em dinheiro, no fim.':
+      'Collect {0} for the destination change, in cash, at the end.',
+  'Como se calcula: {0} até {1} km + {2} por km a mais. As paragens pagam-se à parte.':
+      'How it is calculated: {0} up to {1} km + {2} per extra km. Stops are paid separately.',
+  'Destino mudado. O preço fica igual.':
+      'Destination changed. The price stays the same.',
+  'Destino mudado. Pagas mais {0}.':
+      'Destination changed. You pay {0} more.',
+  'Destino novo':
+      'New destination',
+  'Escolhe o destino novo. Vês o preço antes de confirmar.':
+      'Choose the new destination. You see the price before confirming.',
+  'Esse destino fica demasiado longe.':
+      'That destination is too far away.',
+  'Já está no total a cobrar: {0} de mudança de destino.':
+      'Already included in the total to collect: {0} for the destination change.',
+  'Mais perto: o preço combinado ficou igual.':
+      'Closer: the agreed price stayed the same.',
+  'Mudança de destino':
+      'Destination change',
+  'Mudar destino':
+      'Change destination',
+  'Mudar destino não está disponível de momento.':
+      'Changing the destination is not available right now.',
+  'Novo destino: {0}':
+      'New destination: {0}',
+  'Novo destino: {0} · ganhas mais {1}':
+      'New destination: {0} · you earn {1} more',
+  'Novo destino: {0} · o teu ganho fica igual':
+      'New destination: {0} · your earnings stay the same',
+  'Não foi possível mudar o destino.':
+      'Could not change the destination.',
+  'Não há nada a pagar.':
+      'There is nothing to pay.',
+  'Não pagas mais nada':
+      'You pay nothing more',
+  'Não recebemos a confirmação do pagamento. O destino não mudou.':
+      'We did not receive the payment confirmation. The destination did not change.',
+  'O destino novo fica mais perto ({0} km no total, combinados {1} km).':
+      'The new destination is closer ({0} km in total, {1} km agreed).',
+  'O preço fica igual e não há devolução.':
+      'The price stays the same and there is no refund.',
+  'O preço mudou entretanto. Abre outra vez para veres o preço novo.':
+      'The price changed in the meantime. Open it again to see the new price.',
+  'Pagamento devolvido — o destino não mudou.':
+      'Payment refunded — the destination did not change.',
+  'Pagas mais {0}':
+      'You pay {0} more',
+  'Pagas {0} a mais ao motorista, em dinheiro, no fim da viagem.':
+      'You pay the driver {0} more, in cash, at the end of the trip.',
+  'Pela tabela a diferença seria {0}; cada mudança para mais longe tem o mínimo de {1}.':
+      'By the fare table the difference would be {0}; each change to somewhere farther has a minimum of {1}.',
+  'Preço combinado':
+      'Agreed price',
+  'Preço novo':
+      'New price',
+  'Preço para {0} km: {1}; combinado: {2}; diferença +{3}.':
+      'Price for {0} km: {1}; agreed: {2}; difference +{3}.',
+  '{0} km já feitos + {1} km até ao destino novo = {2} km':
+      '{0} km already driven + {1} km to the new destination = {2} km',
+  '{0} → {1}: {2} km feitos + {3} km = {4} km (combinados {5} km).':
+      '{0} → {1}: {2} km driven + {3} km = {4} km ({5} km agreed).',
+  'Não conseguimos calcular a rota até esse destino. Tenta outra vez.':
+      'We could not calculate the route to that destination. Please try again.',
+  'Ainda não temos a posição do carro. Tenta daqui a um minuto.':
+      'We do not have the position of the car yet. Try again in a minute.',
 };

@@ -5,6 +5,8 @@
 // v5: alem da OFERTA de corrida (caminho original, intacto), trata
 // kind='stop_added' — aviso de parada adicionada pelo cliente, com o total
 // a cobrar atualizado (decisao Danilo 2026-07-20).
+// v20 (2026-09-30): kind 'dest_changed' — o cliente mudou o destino a meio
+// (tvde_dest_change_*). Ramo proprio; nada dos kinds anteriores mudou.
 // v19 (2026-09-23): OFERTA mais rapida. Corrida real 1e13a6ea: oferta as
 // 14:54:55, push_enviado as 14:55:03 (8 s). O caminho fazia tudo em fila:
 // aceita_papel -> token do motorista -> troca do token Google (assinatura RSA +
@@ -73,8 +75,10 @@ Deno.serve(async (req) => {
   let rideId: string
   let kind: string
   let stopPaidOnline = false
+  let reqBody: Record<string, unknown> = {}
   try {
     const body = await req.json()
+    reqBody = body ?? {}
     driverId = body.driverId
     rideId   = body.rideId
     kind     = String(body.kind ?? 'offer')
@@ -225,6 +229,72 @@ Deno.serve(async (req) => {
       return json({ ok: false, reason: 'fcm_error' }, 200)
     }
     console.log(`[notify-tvde-driver] stop_added push sent to driver ${driverId} ride ${rideId}`)
+    await logPushEvent(supabase, rideId, true, { kind, driver_id: driverId })
+    return json({ ok: true }, 200)
+  }
+
+  // ============ v20 (2026-09-30) — kind = dest_changed: MUDOU O DESTINO ============
+  // Chamado por _tvde_dest_change_apply / admin_tvde_dest_change_counter depois de
+  // o cliente aceitar (e pagar, se for cartão/MB Way). Regra de ouro: o número
+  // grande é o que o motorista GANHA a mais; o total do cliente só como lembrete
+  // de cobrança, e só em dinheiro. Com bloco `notification` (como stop_added):
+  // é um aviso a ler já, não há nada para decidir.
+  if (kind === 'dest_changed') {
+    let destLabel = String(reqBody.destLabel ?? 'novo destino')
+    const driverDiffCents = Number(reqBody.driverDiffCents ?? 0) || 0
+    const paidOnline = reqBody.paidOnline === true
+
+    let collect = ''
+    try {
+      const { data: ride } = await supabase
+        .from('tvde_rides')
+        .select('payment_method, est_fare_cents, extra_stops_fee_cents, dest_label, roundtrip_credit_id, used_subscription_ride, agreed_fare_cents, dest_change_fee_cents')
+        .eq('id', rideId).maybeSingle()
+      if (ride) {
+        destLabel = ride.dest_label ?? destLabel
+        const cash = (ride.payment_method ?? 'cash') === 'cash' && !paidOnline
+        if (cash && !ride.roundtrip_credit_id && !ride.used_subscription_ride) {
+          const total = Number(ride.agreed_fare_cents ?? ride.est_fare_cents ?? 0) + Number(ride.extra_stops_fee_cents ?? 0)
+          if (total > 0) collect = ` Cobras €${eur(total)} no fim.`
+        } else if (cash && Number(ride.dest_change_fee_cents ?? 0) > 0) {
+          collect = ` Cobras €${eur(Number(ride.dest_change_fee_cents))} da mudança em dinheiro.`
+        }
+      }
+    } catch (_e) { /* mantem fallback */ }
+
+    const title = '📍 Novo destino'
+    const body = (driverDiffCents > 0
+      ? `Ganhas mais €${eur(driverDiffCents)} · ${destLabel}.`
+      : `${destLabel}. O teu ganho fica igual.`) + collect
+
+    const message = {
+      message: {
+        token: fcmToken,
+        notification: { title, body },
+        data: {
+          rideId: String(rideId), type: 'tvde_dest_changed', kind, title, body,
+          destLabel, driverDiff: eur(driverDiffCents),
+        },
+        android: { priority: 'high' },
+        apns: {
+          headers: { 'apns-priority': '10' },
+          payload: { aps: { sound: 'default', 'interruption-level': 'time-sensitive' } },
+        },
+      },
+    }
+
+    const fcmRes = await fetch(fcmUrl, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(message),
+    })
+    const fcmBody = await fcmRes.json().catch(() => ({}))
+    if (!fcmRes.ok) {
+      console.error(`[notify-tvde-driver] dest_changed FCM error ${fcmRes.status}:`, JSON.stringify(fcmBody))
+      await logPushEvent(supabase, rideId, false, { kind, fcm_status: fcmRes.status })
+      return json({ ok: false, reason: 'fcm_error' }, 200)
+    }
+    console.log(`[notify-tvde-driver] dest_changed push sent to driver ${driverId} ride ${rideId}`)
     await logPushEvent(supabase, rideId, true, { kind, driver_id: driverId })
     return json({ ok: true }, 200)
   }

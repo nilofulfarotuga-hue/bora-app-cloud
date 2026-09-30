@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/falha_de_acao.dart';
+import '../models/tvde_dest_change.dart';
 import '../models/tvde_ride.dart';
 import '../models/tvde_subscription.dart';
 import '../services/payment_service.dart';
@@ -1167,6 +1168,133 @@ class TvdeStore extends ChangeNotifier {
     } catch (e) {
       debugPrint('TvdeStore.confirmStopPayment error => $e');
       return null;
+    }
+  }
+
+  // ===== MUDAR DESTINO (2026-09-30, missão tvde-mudar-destino) =====
+  // O preço e os km são SEMPRE do servidor: a Edge `tvde-dest-change` pede a
+  // rota ao Google (km feitos desde a recolha + rota do carro ao destino novo)
+  // e só depois chama a RPC. A app só manda o destino escolhido.
+
+  Future<Map<String, dynamic>> _invokeDestChange(Map<String, dynamic> body) async {
+    try {
+      final res = await _sb.functions
+          .invoke('tvde-dest-change', body: body)
+          .timeout(const Duration(seconds: 25));
+      final data = (res.data is Map)
+          ? Map<String, dynamic>.from(res.data as Map)
+          : <String, dynamic>{};
+      if (data['error'] != null) throw Exception(data['error'].toString());
+      return data;
+    } on FunctionException catch (e) {
+      final d = e.details;
+      final msg = d is Map && d['error'] != null ? d['error'].toString() : '$d';
+      throw Exception(msg);
+    }
+  }
+
+  /// Cotação: destino novo, km, preço novo e a diferença. Não grava a corrida.
+  Future<TvdeDestChangeQuote> quoteDestChange(
+    String rideId, {
+    required double lat,
+    required double lng,
+    String? label,
+  }) async {
+    final res = await _invokeDestChange({
+      'action': 'quote',
+      'ride_id': rideId,
+      'dest_lat': lat,
+      'dest_lng': lng,
+      'dest_label': label,
+    });
+    return TvdeDestChangeQuote.fromMap(res);
+  }
+
+  /// O cliente carregou "Aceitar". Dinheiro ou diferença 0 → o destino muda
+  /// já. Cartão/MB Way com diferença → devolve `needs_payment:true` e o
+  /// `change_id`; o destino só muda no [confirmDestChangePayment].
+  /// Lança `dest_change_price_changed` se o preço já não for o que ele viu.
+  Future<Map<String, dynamic>> requestDestChange(
+    String rideId, {
+    required TvdeDestChangeQuote quote,
+    required double lat,
+    required double lng,
+    String? label,
+  }) async {
+    _setBusy(true);
+    try {
+      return await _invokeDestChange({
+        'action': 'request',
+        'ride_id': rideId,
+        'dest_lat': lat,
+        'dest_lng': lng,
+        'dest_label': label,
+        'expected_client_diff_cents': quote.clientDiffCents,
+      });
+    } catch (e) {
+      debugPrint('TvdeStore.requestDestChange error => $e');
+      rethrow;
+    } finally {
+      _setBusy(false);
+    }
+  }
+
+  /// Cobra a diferença da mudança (cartão/MB Way) — mesmo caminho das paragens.
+  /// O valor é o da proposta gravada no servidor, nunca o da app.
+  Future<Map<String, dynamic>> chargeDestChange(
+    String changeId, {
+    required String method, // 'card' | 'mbway'
+    String? mbwayPhone,
+  }) async {
+    _setBusy(true);
+    try {
+      final res = await _sb.functions.invoke('tvde-payment', body: {
+        'action': 'charge_dest_change',
+        'change_id': changeId,
+        'method': method,
+        if (mbwayPhone != null) 'phone': mbwayPhone,
+      });
+      final data = (res.data is Map)
+          ? Map<String, dynamic>.from(res.data as Map)
+          : <String, dynamic>{};
+      if (data['error'] != null) throw Exception(data['error'].toString());
+      return data;
+    } catch (e) {
+      debugPrint('TvdeStore.chargeDestChange error => $e');
+      rethrow;
+    } finally {
+      _setBusy(false);
+    }
+  }
+
+  /// Pagamento da mudança passou? `succeeded:true` = o destino JÁ mudou.
+  /// `refunded:true` = pagou mas não se pôde aplicar; o dinheiro foi devolvido.
+  /// `failed:true` = pagamento recusado/cancelado; o destino não muda.
+  /// **null** = sem resposta do servidor (o poll do MB Way continua).
+  Future<Map<String, dynamic>?> confirmDestChangePayment(
+      String paymentIntentId) async {
+    try {
+      final res = await _sb.functions.invoke('tvde-payment', body: {
+        'action': 'confirm_dest_change_payment',
+        'payment_intent_id': paymentIntentId,
+      });
+      if (res.data is Map) {
+        return Map<String, dynamic>.from(res.data as Map);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('TvdeStore.confirmDestChangePayment error => $e');
+      return null;
+    }
+  }
+
+  /// O cliente desistiu enquanto pagava — a proposta fica recusada.
+  Future<void> cancelDestChange(String changeId) async {
+    try {
+      await _sb.rpc('tvde_dest_change_cancel', params: {'p_change_id': changeId})
+          .timeout(kAcaoTimeout);
+    } catch (e) {
+      debugPrint('TvdeStore.cancelDestChange error => $e');
     }
   }
 

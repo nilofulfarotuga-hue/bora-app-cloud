@@ -32,6 +32,7 @@ import '../../../widgets/bora/bora.dart';
 import '../../../widgets/payments/collect_badge.dart';
 import '../../../widgets/payments/collect_reminder_dialog.dart';
 import '../../../widgets/tvde/tvde_counter_ride_badge.dart';
+import '../../../widgets/tvde/tvde_dest_change_driver_notice.dart';
 import '../../../widgets/tvde/tvde_pay_badge.dart';
 import '../../../widgets/tvde/tvde_roundtrip_driver_notice.dart';
 import '../../../widgets/tvde/tvde_sos_button.dart';
@@ -102,6 +103,11 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   /// Assinatura (id + nº de paradas) da última lista carregada — evita refetch
   /// a cada rebuild; muda quando o cliente adiciona/remove parada (realtime).
   String? _stopsKey;
+
+  /// [Mudar destino 30/09] última mudança já avisada ('<ride>|<n.º>') e o
+  /// ganho a mais que já estava contado — para o aviso dizer só o desta.
+  String? _destAvisoKey;
+  int _destGanhoVisto = 0;
 
   /// Assinatura do último desacordo lista-vs-linha já reparado. Impede que uma
   /// discordância persistente (servidor mesmo assim diferente) vire um ciclo de
@@ -715,12 +721,12 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     // motorista acabou de arrancar da parada e precisa da linha nova agora, não
     // daqui a 15 segundos. Vale nos dois sentidos: o cliente que ACRESCENTA uma
     // paragem a meio vê a linha mudar no mesmo instante.
-    final key = chaveFaseComStops(
+    final key = '${chaveFaseComStops(
       ride.id,
       emViagem: emViagem,
       stops: _stops,
       maxStops: _maxStops,
-    );
+    )}|${ride.destLat},${ride.destLng}'; // [Mudar destino 30/09] destino novo = fase nova
     final faseNova = key != _routeAttemptKey;
     final temLinha = _routePoints.length >= 2 && key == _routeKey;
     final agora = DateTime.now();
@@ -1103,6 +1109,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   /// Recarrega as paradas quando muda a corrida ou o nº de paradas (o cliente
   /// adicionou/removeu — chega pelo realtime da corrida, mesmo gancho do build).
   void _maybeReloadStops(TvdeRide ride) {
+    _maybeAvisarNovoDestino(ride);
     // [Ronda 2] Carrega SEMPRE a lista à primeira vez que se vê a corrida, mesmo
     // com `extraStopsCount == 0`. Antes saía-se já aqui — e era exactamente no
     // caso em que a linha estava velha (a dizer 0 paradas) que mais fazia falta
@@ -1111,6 +1118,27 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     if (key == _stopsKey) return;
     _stopsKey = key;
     _loadStops(ride);
+  }
+
+  /// [Mudar destino 30/09] O cliente mudou o destino (chega pelo realtime da
+  /// corrida). Aviso imediato com o que ELE ganha a mais; a rota refaz-se
+  /// sozinha porque o destino entra na chave da fase.
+  void _maybeAvisarNovoDestino(TvdeRide ride) {
+    final key = '${ride.id}|${ride.destChangeCount}';
+    if (key == _destAvisoKey) return;
+    final primeiraVez =
+        _destAvisoKey == null || !_destAvisoKey!.startsWith('${ride.id}|');
+    _destAvisoKey = key;
+    final ganhoNovo = ride.destChangeDriverCents - _destGanhoVisto;
+    _destGanhoVisto = ride.destChangeDriverCents;
+    if (primeiraVez || ride.destChangeCount == 0) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        duration: const Duration(seconds: 6),
+        content: Text(TvdeDestChangeDriverNotice.snackFor(ride, ganhoNovo)),
+      ));
+    });
   }
 
   Future<void> _loadStops(TvdeRide ride) async {
@@ -1992,6 +2020,11 @@ class _ActionPanel extends StatelessWidget {
           if (ride.isRoundtripLeg) ...[
             const SizedBox(height: Spacing.xs),
             TvdeRoundtripDriverNotice(ride: ride),
+          ],
+          // [Mudar destino 30/09] destino novo + o que ganha a mais.
+          if (ride.hasDestChange) ...[
+            const SizedBox(height: Spacing.xs),
+            TvdeDestChangeDriverNotice(ride: ride),
           ],
           // [CAMPO-02 · F1] ganho extra por paradas (some ao líquido do motorista).
           if (ride.extraStopsDriverCents > 0) ...[

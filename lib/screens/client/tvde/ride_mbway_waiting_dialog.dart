@@ -117,6 +117,30 @@ class TvdeRideMbwayWaitingDialog extends StatefulWidget {
     );
   }
 
+  /// Espera a confirmação MB Way da diferença de uma **mudança de destino**
+  /// (30/09). O confirmador é `confirm_dest_change_payment`: com o PI
+  /// `succeeded` é o backend que muda o destino. Sem pagamento, nada muda.
+  factory TvdeRideMbwayWaitingDialog.forDestChange({
+    Key? key,
+    required String paymentIntentId,
+    required double amountEur,
+    void Function(Map<String, dynamic> res)? onResponse,
+  }) {
+    return TvdeRideMbwayWaitingDialog(
+      key: key,
+      amountEur: amountEur,
+      message: 'Abre o MBWay e confirma para mudar o destino.'.tr,
+      checkPaid: (store) async {
+        final res = await store.confirmDestChangePayment(paymentIntentId);
+        if (res == null) return false;
+        onResponse?.call(res);
+        if (res['succeeded'] == true) return true;
+        if (res['refunded'] == true || res['failed'] == true) return null;
+        return false;
+      },
+    );
+  }
+
   final double amountEur;
 
   /// Segunda linha do texto — o que acontece quando o cliente confirmar.

@@ -168,6 +168,12 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
       'tvde_roundtrip_return_min_gap_minutes',
     };
     if (tvdeOfertaNaHoraOperational.contains(key)) return true;
+    // MUDAR DESTINO (2026-09-30): o interruptor é OPERACIONAL (liga/desliga o
+    // botão e o servidor recusa com ele desligado). Os dois mínimos
+    // `tvde_dest_change_min_cents` / `tvde_dest_change_min_driver_cents` são
+    // cêntimos: já caem no caminho auditado de dinheiro (_isMoneyKey), com
+    // motivo obrigatório — é o dono a mexer no preço do seu produto.
+    if (key == 'tvde_dest_change_enabled') return true;
     // TAXA DE PEDIDO PEQUENO (2026-08-27). Mesma regra do
     // `appointment_booking_fee_cents` e do `tvde_roundtrip_discount_pct`: e o
     // preco do PROPRIO produto da Bora (a taxa fica toda para a plataforma,

@@ -7,6 +7,7 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../services/admin_export_service.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import 'admin_tvde_dest_change_dialog.dart';
 
 /// Bora Motorista (TVDE) — Corridas: ao vivo + histórico + financeiro.
 ///
@@ -831,6 +832,18 @@ class _RideCard extends StatelessWidget {
                   feeCents: extraStopsFee,
                   driverCents: extraStopsDriver,
                   rideId: data['id']?.toString(),
+                ),
+              ),
+            // [Mudar destino 30/09] histórico + mudança na corrida de balcão.
+            if (data['id'] != null)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => AdminTvdeDestChangeDialog.open(
+                      context, data['id'].toString()),
+                  icon: const Icon(Icons.edit_location_alt_outlined, size: 16),
+                  label: const Text('Destino / mudanças'),
+                  style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
                 ),
               ),
             if (!live && status == 'finalizada') ...[

@@ -73,15 +73,17 @@ class TvdeFareView {
     // As paradas vêm SEMPRE do acumulado `extra_stops_fee_cents`, nunca de
     // `final_fare_cents` (contrato já quebrado uma vez — ver doc da classe).
     if (ride.isRoundtripLeg) {
-      final stops = stopsCents;
+      // Mudança de destino (30/09): o pacote só cobre a rota combinada; a
+      // diferença aceite soma-se como as paradas (vem do acumulado da corrida).
+      final stops = stopsCents + ride.destChangeFeeCents;
       final base = ride.isReturnLeg ? 0 : packageCents;
       final total = base + stops;
       final label = ride.isReturnLeg
           ? (stops > 0
-              ? '${_eur(stops)} — volta incluída no pacote, só as paradas'
+              ? '${_eur(stops)} — volta incluída no pacote, só os extras'
               : '€0,00 — incluída no pacote')
           : (stops > 0
-              ? '${_eur(total)} (ida + volta + paradas)'
+              ? '${_eur(total)} (ida + volta + extras)'
               : '${_eur(base)} (ida + volta)');
       return TvdeFareView(
         clientTotalCents: total,
@@ -97,12 +99,13 @@ class TvdeFareView {
 
     // Coberta pelo plano: a corrida não se cobra, as paradas sim.
     if (ride.usedSubscriptionRide) {
-      final stops = finalCents ?? stopsCents;
+      // Mudança de destino (30/09): o plano só cobre a rota combinada.
+      final stops = finalCents ?? (stopsCents + ride.destChangeFeeCents);
       return TvdeFareView(
         clientTotalCents: stops,
         driverCollectCents: paidOnline ? 0 : stops,
         clientLabel: stops > 0
-            ? '${_eur(stops)} — só as paradas (corrida coberta pelo plano)'
+            ? '${_eur(stops)} — só os extras (corrida coberta pelo plano)'
             : '€0,00 — coberta pelo plano',
         approx: false,
         coveredByPlan: true,

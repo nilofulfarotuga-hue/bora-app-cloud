@@ -1,0 +1,32 @@
+Prova A — saída literal do MCP execute_sql (30/09/2026), bloco prova_A_rollback_exemplos.sql.
+Tudo revertido pelo RAISE final (nenhuma corrida, mudança, saldo ou push ficou).
+Tabela de hoje: 500 até 6 km + 100/km; motorista 400 + 80/km. Cartão/MB Way = stub pi_TESTE_* (sem Stripe).
+
+ERROR:  P0001: RESULT [
+{"bora": 180, "caso": "ex1_dinheiro", "est_km": 10.00, "destino": "Destino B", "preco_antes": "500", "preco_depois": "900", "final_cliente": 900, "final_motorista": 720, "acerto_motorista_eur": 1.80, "cotacao_cliente_paga": "400", "cotacao_motorista_ganha": "320"},
+{"bora": 200, "caso": "ex2_dinheiro", "est_km": 5.00, "destino": "Destino B", "preco_antes": "500", "preco_depois": "700", "final_cliente": 700, "final_motorista": 500, "acerto_motorista_eur": 2.00, "cotacao_cliente_paga": "200", "cotacao_motorista_ganha": "100"},
+{"bora": 140, "caso": "ex3_dinheiro", "est_km": 8.00, "destino": "Destino B", "preco_antes": "700", "preco_depois": "700", "final_cliente": 700, "final_motorista": 560, "acerto_motorista_eur": 1.40, "cotacao_cliente_paga": "0", "cotacao_motorista_ganha": "0"},
+{"bora": 240, "caso": "ex4_dinheiro", "est_km": 8.40, "destino": "Destino B", "preco_antes": "700", "preco_depois": "900", "final_cliente": 900, "final_motorista": 660, "acerto_motorista_eur": 2.40, "cotacao_cliente_paga": "200", "cotacao_motorista_ganha": "100"},
+{"bora": 180, "caso": "ex1_cartao", "est_km": 10.00, "destino": "Destino B", "preco_antes": "500", "preco_depois": "900", "final_cliente": 900, "final_motorista": 720, "acerto_motorista_eur": -7.20, "cotacao_cliente_paga": "400", "cotacao_motorista_ganha": "320"},
+{"bora": 200, "caso": "ex2_cartao", "est_km": 5.00, "destino": "Destino B", "preco_antes": "500", "preco_depois": "700", "final_cliente": 700, "final_motorista": 500, "acerto_motorista_eur": -5.00, "cotacao_cliente_paga": "200", "cotacao_motorista_ganha": "100"},
+{"bora": 140, "caso": "ex3_cartao", "est_km": 8.00, "destino": "Destino B", "preco_antes": "700", "preco_depois": "700", "final_cliente": 700, "final_motorista": 560, "acerto_motorista_eur": -5.60, "cotacao_cliente_paga": "0", "cotacao_motorista_ganha": "0"},
+{"bora": 240, "caso": "ex4_mbway", "est_km": 8.40, "destino": "Destino B", "preco_antes": "700", "preco_depois": "900", "final_cliente": 900, "final_motorista": 660, "acerto_motorista_eur": -6.60, "cotacao_cliente_paga": "200", "cotacao_motorista_ganha": "100"},
+{"bora": 180, "caso": "duas_mudancas_4_5_10", "final_cliente": 900, "mudanca1_paga": "200", "mudanca2_paga": "200", "final_motorista": 720, "mudanca1_motorista": "100", "mudanca2_motorista": "220", "acerto_motorista_eur": 1.80, "mudanca2_preco_antes": "700"},
+{"caso": "antes_da_recolha_app_manda_3_feitos", "paga": "200", "km_total": "7.00", "km_feitos_contados": "0.00"},
+{"caso": "regressao_sem_mudanca_1", "nova": [500, 400, 100, 1.00], "igual": true, "antiga": [500, 400, 100, 1.00], "paragem": false, "pagamento": "cash"},
+{"caso": "regressao_sem_mudanca_2", "nova": [1000, 740, 260, 2.60], "igual": true, "antiga": [1000, 740, 260, 2.60], "paragem": true, "pagamento": "cash"},
+{"caso": "regressao_sem_mudanca_3", "nova": [500, 400, 100, -4.00], "igual": true, "antiga": [500, 400, 100, -4.00], "paragem": false, "pagamento": "card"},
+{"caso": "regressao_sem_mudanca_4", "nova": [1000, 740, 260, -5.40], "igual": true, "antiga": [1000, 740, 260, -5.40], "paragem": true, "pagamento": "card"}]
+CONTEXT:  PL/pgSQL function inline_code_block line 112 at RAISE
+
+Leitura:
+- Exemplo 1 (4 km -> 10 km): paga +4,00; motorista +3,20; final 9,00 / 7,20 / Bora 1,80.  CERTO.
+- Exemplo 2 (4 km -> 5 km):  tabela igual -> mínimo +2,00; motorista mínimo +1,00; final 7,00.  CERTO.
+- Exemplo 3 (8 km -> 5 km):  +0,00; preço fica 7,00 (est_km fica 8); motorista fica 5,60.  CERTO.
+- Exemplo 4 (8 km -> 8,4 km): tabela dava +1,00 -> mínimo +2,00; motorista +1,00 (tabela 0,80); final 9,00.  CERTO.
+- Dinheiro: o motorista fica a dever à Bora o corte (1,80/2,00/1,40/2,40) — a diferença cobrada em mão entra no acerto.
+- Cartão/MB Way: a Bora deve ao motorista o ganho todo (7,20/5,00/5,60/6,60) — a diferença foi cobrada online.
+- Antes de pagar (cartão/MB Way) o destino NÃO muda (o bloco rebentava com 'mudou antes de pagar').
+- Duas mudanças 4 -> 5 -> 10: 1.ª +2,00; 2.ª contra o preço ATUAL 7,00 -> +2,00; final 9,00. Motorista +1,00 e +2,20 = 7,20.
+- Antes da recolha a app mandou "3 km feitos"; o servidor contou 0.
+- Regressão SEM mudança: nova == antiga (backup) em dinheiro/cartão, com e sem paragem, incluindo o acerto.

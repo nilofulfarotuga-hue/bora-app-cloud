@@ -1,0 +1,16 @@
+Prova B — permissões com o papel real do cliente (SET LOCAL ROLE authenticated), 30/09/2026.
+Bloco DO revertido (RAISE no fim; nada ficou).
+
+1) Quem pode executar (has_function_privilege, saída literal resumida):
+   _tvde_dest_change_apply / _calc / _check / _dest_price / _finish_km_part / _table_*: anon=false authenticated=false service_role=true
+   tvde_dest_change_confirm_paid / set_pi / fail:                                    anon=false authenticated=false service_role=true
+   tvde_dest_change_quote / request / cancel, admin_tvde_dest_changes / admin_tvde_dest_change_counter: anon=false authenticated=true
+   (as admin_* recusam quem não é admin por is_admin() dentro da função)
+
+2) Corrida em cartão, cliente demo, 4 km -> 10 km:
+ERROR:  P0001: RESULT {"pedido_estado": "proposta", "precisa_pagar": "true", "destino_depois": "A",
+ "cliente_cotacao_paga": "400", "outro_utilizador_cota": "recusado: not_ride_client",
+ "cliente_aplica_sozinho": "recusado (permission denied)", "cliente_confirma_sozinho": "recusado (permission denied)"}
+
+Leitura: o cliente vê +€4, a mudança fica "proposta" à espera do pagamento, o destino continua "A";
+o cliente NÃO consegue marcar como pago nem aplicar sozinho; outra pessoa não consegue cotar a corrida.

@@ -182,6 +182,22 @@ Future<void> _fecharAcompanhamentoSeAberto(WidgetTester t) async {
   }
 }
 
+/// Aceita os Termos e Condições novos (01/10/2026), se aparecerem.
+///
+/// Mesma cicatriz do `demo_real_test.dart` (corrida 36634813357): o
+/// `TermsGate` abre por cima do ecrã logo a seguir a entrar; o que está por
+/// baixo continua na árvore, por isso os `find` acertam mas os toques batem
+/// na folha dos termos. Faz-se o que uma pessoa faz: tocar em "Aceito".
+/// Corridas build-ios 36664904606/36679796084/963d6a0 (30/09) caíram aqui.
+Future<void> _aceitarTermos(WidgetTester t) async {
+  final aceito = find.text('Aceito');
+  if (await _esperar(t, aceito, segundos: 15)) {
+    _diz('termos novos apareceram — a tocar em "Aceito"');
+    await _tocar(t, aceito);
+    await _bombear(t, segundos: 3);
+  }
+}
+
 Future<void> _entrar(WidgetTester t, String email) async {
   _diz('a entrar com $email');
   final campos = find.byType(TextField);
@@ -192,6 +208,7 @@ Future<void> _entrar(WidgetTester t, String email) async {
   await _bombear(t, segundos: 0.5);
   await _tocar(t, find.text('Entrar'));
   await _bombear(t, segundos: 8);
+  await _aceitarTermos(t);
 }
 
 /// Sai da conta corrente. Cada perfil tem a sua porta de saída:
@@ -332,6 +349,9 @@ void main() {
     }
 
     await _fecharAcompanhamentoSeAberto(t);
+    // Se o acompanhamento abriu por cima dos termos, o primeiro toque bateu no
+    // mapa: tenta-se outra vez com o caminho livre.
+    await _aceitarTermos(t);
 
     expect(await _esperar(t, find.text('Supermercados'), segundos: 60), isTrue,
         reason: 'o ecrã inicial do cliente nunca apareceu');

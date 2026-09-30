@@ -373,6 +373,9 @@ jobs:
           ps -axo pid,etime,command | grep -E 'xcodebuild|ibtool|SWBBuild|dartvm' | grep -v grep || true
           echo "=== ultimas linhas [varredura] (a ultima nomeia o ecra culpado) ==="
           grep -a '\[varredura\]' artefactos/varredura/log.txt | tail -15 || true
+          # (30/09) As mesmas linhas como anotacoes: o log nao abre de fora, as
+          # anotacoes leem-se pela API do GitHub.
+          { grep -a '\[varredura\]' artefactos/varredura/log.txt | tail -12; grep -aE 'FALHOU|falhados|TestFailure|Exception|Expected|Bad state' artefactos/varredura/log.txt | tail -12; } 2>/dev/null | while IFS= read -r l; do echo "::error::$(echo "$l" | cut -c1-400)"; done || true
           mkdir -p artefactos/falha
           find ~/Library/Logs/DiagnosticReports -name 'Runner*' -mmin -60 -exec cp {} artefactos/falha/ \; 2>/dev/null || true
           for f in artefactos/falha/Runner*; do [ -f "$f" ] || continue; echo "=== $f ==="; head -c 3000 "$f"; echo; done

@@ -44,6 +44,9 @@ NOTAS = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 # Estados em que a versao ainda se pode editar/submeter.
 EDITAVEL = {"PREPARE_FOR_SUBMISSION", "DEVELOPER_REJECTED", "REJECTED",
             "METADATA_REJECTED", "INVALID_BINARY"}
+# Estados em que ja ha uma versao entregue a Apple e nao se pode submeter outra.
+EM_ANALISE = {"WAITING_FOR_REVIEW", "IN_REVIEW", "PENDING_DEVELOPER_RELEASE",
+              "PROCESSING_FOR_APP_STORE", "PENDING_APPLE_RELEASE"}
 
 
 def _token():
@@ -138,6 +141,17 @@ def versao_alvo():
     for d in todas:
         print("versao existente:", d["attributes"].get("versionString"),
               d["attributes"].get("appStoreState"), d["attributes"].get("releaseType"))
+
+    # 30/09: ja ha uma versao na fila ou em analise da Apple? A Apple so deixa
+    # uma de cada vez. Nao se cancela (voltava ao fim da fila): o IPA fica no
+    # TestFlight e o proximo push depois da aprovacao leva tudo junto.
+    for d in todas:
+        if d["attributes"].get("appStoreState") in EM_ANALISE:
+            print("::notice::versao %s esta %s na Apple - build %s fica no TestFlight; "
+                  "o proximo push depois da aprovacao submete tudo junto."
+                  % (d["attributes"].get("versionString"),
+                     d["attributes"].get("appStoreState"), BUILD_NUMBER))
+            return None, None
 
     # Ja ha uma versao editavel? Reaproveita-se - criar outra dava 409.
     for d in todas:
@@ -277,6 +291,8 @@ def main():
     bid = esperar_build()
     print("build VALID:", bid)
     vid, nome = versao_alvo()
+    if vid is None:
+        return 0
     por_automatica(vid)
     ligar_build(vid, bid)
     escrever_notas(vid, nome)

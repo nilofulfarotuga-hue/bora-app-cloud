@@ -17,10 +17,19 @@
 
 name: build-ios
 
+# Um envio de cada vez a Apple: dois pushes seguidos nao podem submeter em
+# paralelo (a Apple so aceita uma versao em revisao).
+concurrency:
+  group: build-ios-${{ github.ref }}
+  cancel-in-progress: false
+
 on:
   push:
     branches:
       - ios-lancamento
+      # 30/09 (regra do Danilo, 21/09 e 22/09): cada publicacao vai para as TRES
+      # plataformas sozinha. Push no ramo de producao = Android + web + iPhone.
+      - autonomous-night-2026-04-29
     paths:
       - "lib/**"
       - "ios/**"
@@ -435,9 +444,13 @@ jobs:
     name: B · IPA assinado → App Store Connect
     # Só à mão e só com o interruptor ligado — sem isto o CI ficava vermelho
     # todos os dias enquanto a conta Apple não estivesse activa.
+    # 30/09: tambem sozinho em cada push no ramo de producao (paridade com o
+    # Android, que publica em cada push). A mao continua possivel.
     if: >-
-      always() && github.event_name == 'workflow_dispatch' && inputs.enviar &&
-      needs.simulador.result == 'success'
+      always() && needs.simulador.result == 'success' && (
+        (github.event_name == 'workflow_dispatch' && inputs.enviar) ||
+        (github.event_name == 'push' && github.ref == 'refs/heads/autonomous-night-2026-04-29')
+      )
     needs: simulador
     runs-on: macos-26
     timeout-minutes: 60
@@ -596,7 +609,8 @@ jobs:
       # O script le TUDO de volta e rebenta o job se a Apple nao ficar como
       # pedimos (um 201 nao prova nada) -- ver .github/scripts/ios_publicar.py.
       - name: Versão seguinte com lançamento automático + submeter
-        if: inputs.submeter_revisao
+        # Num push os inputs vem vazios: submete sempre (o normal).
+        if: github.event_name == 'push' || inputs.submeter_revisao
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}

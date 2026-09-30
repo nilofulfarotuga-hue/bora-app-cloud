@@ -99,7 +99,7 @@ class _PartnerMonthlyStatementCardState
       margin: const pw.EdgeInsets.all(28),
       build: (ctx) => [
         pw.Text('Bora — Extrato de ${per['nome']} de ${per['ano']}',
-            style: const pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+            style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
         pw.SizedBox(height: 4),
         pw.Text('${p['nome']}${p['nif'] != null ? ' · NIF ${p['nif']}' : ''}',
             style: const pw.TextStyle(fontSize: 11, color: PdfColors.grey700)),
@@ -115,13 +115,13 @@ class _PartnerMonthlyStatementCardState
             ['Saldo', _eur(x['saldo'])],
           ],
           headerDecoration: const pw.BoxDecoration(color: PdfColors.green700),
-          headerStyle: const pw.TextStyle(
+          headerStyle: pw.TextStyle(
               color: PdfColors.white, fontWeight: pw.FontWeight.bold),
           cellStyle: const pw.TextStyle(fontSize: 10),
         ),
         pw.SizedBox(height: 14),
         pw.Text('Pedidos do mês',
-            style: const pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+            style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
         pw.SizedBox(height: 6),
         pw.TableHelper.fromTextArray(
           headers: ['Data', 'N.º', 'Subtotal', 'Comissão', 'Recebe'],
@@ -136,13 +136,13 @@ class _PartnerMonthlyStatementCardState
               ],
           ],
           headerDecoration: const pw.BoxDecoration(color: PdfColors.green700),
-          headerStyle: const pw.TextStyle(
+          headerStyle: pw.TextStyle(
               color: PdfColors.white, fontWeight: pw.FontWeight.bold),
           cellStyle: const pw.TextStyle(fontSize: 9),
         ),
         pw.SizedBox(height: 14),
         pw.Text('Acertos semanais',
-            style: const pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+            style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
         pw.SizedBox(height: 6),
         pw.TableHelper.fromTextArray(
           headers: ['Semana', 'Valor', 'Estado', 'Pago em'],
@@ -156,7 +156,7 @@ class _PartnerMonthlyStatementCardState
               ],
           ],
           headerDecoration: const pw.BoxDecoration(color: PdfColors.green700),
-          headerStyle: const pw.TextStyle(
+          headerStyle: pw.TextStyle(
               color: PdfColors.white, fontWeight: pw.FontWeight.bold),
           cellStyle: const pw.TextStyle(fontSize: 9),
         ),

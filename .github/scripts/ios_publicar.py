@@ -36,7 +36,7 @@ KEY_ID = os.environ["ASC_KEY_ID"]
 ISSUER = os.environ["ASC_ISSUER_ID"]
 P8 = os.environ["ASC_P8"]
 APP = os.environ.get("ASC_APP_ID", "6809954739")
-BUILD_NUMBER = os.environ["BUILD_NUMBER"]
+BUILD_NUMBER = os.environ.get("BUILD_NUMBER", "")
 SUBMETER = os.environ.get("SUBMETER_REVISAO", "1") != "0"
 NOTAS = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                      "..", "..", "ios", "notas_de_versao.json")
@@ -287,7 +287,27 @@ def submeter(vid):
         morre("a submissao ficou em %s - NAO foi submetida." % estado.get("state"))
 
 
+def nome_para_a_build():
+    """(30/09) O nome (CFBundleShortVersionString) com que o IPA tem de ser
+    construido, pela MESMA regra de versao_alvo(): a versao editavel se houver;
+    senao, maior versao existente + 1. Sem isto o IPA saia com o nome do pubspec
+    (1.0.4) quando a 1.0.4 ja estava na Apple, e o altool recusava (comboio
+    fechado, corrida build-ios 145 / 36718861056)."""
+    c, j = get("/v1/apps/%s/appStoreVersions" % APP,
+               **{"fields[appStoreVersions]": "versionString,appStoreState", "limit": "50"})
+    if c != 200:
+        morre("nao consegui listar as versoes (%s): %s" % (c, erro_apple(j)))
+    todas = j.get("data", [])
+    for d in todas:
+        if d["attributes"].get("appStoreState") in EDITAVEL:
+            return d["attributes"]["versionString"]
+    return proximo_nome([d["attributes"]["versionString"] for d in todas])
+
+
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "--nome":
+        print(nome_para_a_build())
+        return 0
     bid = esperar_build()
     print("build VALID:", bid)
     vid, nome = versao_alvo()

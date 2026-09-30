@@ -577,9 +577,31 @@ jobs:
       # compara com platform_settings.app_latest_version_code_ios — chaves
       # PROPRIAS do iPhone (0 = desligado). Sem isto o gate ficava mudo no iOS;
       # com a chave partilhada com o Android ficava ERRADO (115 vs 614).
+      # (30/09) O nome da versao vem da Apple, nao do pubspec: a versao editavel
+      # se houver, senao a maior que existe + 1. E' a mesma regra do
+      # ios_publicar.py, por isso o IPA e a versao da loja batem sempre certo.
+      # A corrida 145 caiu no altool por o IPA sair como 1.0.4 com a 1.0.4 ja
+      # entregue a Apple.
+      - name: Escolher o nome da versao (pela Apple)
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_B64: ${{ secrets.ASC_KEY_P8_B64 }}
+        run: |
+          mkdir -p ~/private_keys
+          echo "$ASC_KEY_P8_B64" | base64 --decode > ~/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          python3 -m venv "$RUNNER_TEMP/asc-venv"
+          "$RUNNER_TEMP/asc-venv/bin/python" -m pip install --quiet --disable-pip-version-check pyjwt cryptography requests
+          export ASC_P8=~/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          NOME=$("$RUNNER_TEMP/asc-venv/bin/python" .github/scripts/ios_publicar.py --nome | tail -1)
+          echo "$NOME" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "::error::nome de versao invalido: $NOME"; exit 1; }
+          echo "versao do IPA: $NOME"
+          echo "IOS_BUILD_NAME=$NOME" >> $GITHUB_ENV
+
       - name: Construir o IPA
         run: |
           flutter build ipa --release \
+            --build-name="$IOS_BUILD_NAME" \
             --dart-define-from-file=.dart_defines \
             --dart-define=BORA_VERSION_CODE=${{ github.run_number }} \
             --build-number=${{ github.run_number }} \

@@ -7,6 +7,7 @@ on:
       # Ramo candidato (regra do Danilo, 13/09): corre SÓ o autoteste; o build,
       # o bump e o Play ficam presos ao ramo de produção (ver `if:` do job build).
       - candidata-2026-09-13
+      - diag-autoteste-2026-09-30
     paths-ignore:
       - "**.md"
       - ".claude/**"

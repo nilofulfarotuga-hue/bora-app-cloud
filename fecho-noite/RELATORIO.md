@@ -21,6 +21,24 @@ de clicar num site ficou sem fazer; tudo o que dava para fazer pela API, pelo se
 | 5.3 · Skill navegadores-e-contas | Já existia no repositório (commit `3dee71f3`), com os dois `deviceId` e a regra "nunca pelo nome". | git |
 | 5.4 · Código | Bora: só este relatório (nada de código, sem build). Em Dia: 3 commits prontos (Convida e ganha, Redes, /baixar) — **a publicação está travada pelo guardrail do git**, que só deixa o ramo do Bora; a Trava não deixa alterar o guardrail. Fica um comando para o Danilo. | e2e_log |
 
+## Continuação 22:38 — /baixar do Bora volta a contar visitas
+
+- **Causa:** a 23/09 às 18:59 o site foi publicado a partir de uma cópia filtrada que **não tinha a página /baixar** (no
+  servidor de páginas dá 404 desde aí; a página nunca esteve no GitHub, só num deploy de 21/09). Alguém pôs uma **regra
+  de redireccionamento na Cloudflare** (só no endereço sem www) a mandar iPhone → App Store e o resto → Play, sem contar
+  nada. Última visita contada: 23/09 17:41.
+- **Reposto:** função na base (`registar_visita_baixar`, ignora robôs; migration `20260930_registar_visita_baixar.sql`,
+  aplicada) + função no site (`functions/baixar.js`) que **conta no servidor** e redirecciona igual (iPhone → App Store,
+  Android → Play com origem no Install Referrer, computador → página com as duas lojas e o QR). Deploy `d54406d5`.
+- **Prova:** `?de=teste-3009` em `www.boraguarda.com/baixar` e no pages.dev → 6 linhas em `link_clicks` (2 iOS, 2 Android,
+  2 outro) e 6 em `site_visits`.
+- **Limite (só o Danilo):** nenhuma chave do PC lê ou apaga regras da Cloudflare. **`boraguarda.com/baixar` (sem www, o dos
+  QR) continua a redireccionar sem contar até apagar a regra** em Cloudflare → boraguarda.com → Rules → Redirect Rules.
+  Depois disso conta ali também, sem mais nada a mudar. Fazer antes de qualquer anúncio pago.
+- Código: bora-site commits `0aa58ed` e `e934162` (locais; o site já está publicado directo). Bora: migration em commit
+  `95a4117b`, **não enviada** — um `.sql` dispara build Android/web e não há razão para um build esta noite; segue no
+  próximo envio. (Há também um commit `d37b7661` de outra sessão nesta árvore, só documentos.)
+
 ## O que NÃO ficou feito e porquê
 
 1. **Em Dia — bio, destaque "Instalar", comentário fixado, autocolante de link nos stories, 3 stories/dia**: precisam do Instagram aberto no navegador (a API não fixa comentários nem põe autocolantes) e a sessão não tinha Chrome. O comentário com o link já vai automático em cada reel novo.

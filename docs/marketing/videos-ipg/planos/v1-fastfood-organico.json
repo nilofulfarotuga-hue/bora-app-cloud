@@ -1,0 +1,197 @@
+{
+ "voz": "pt-PT-DuarteNeural",
+ "rate": "+8%",
+ "musica": "../_material/musica/Funkorama.mp3",
+ "musica_ss": 10,
+ "musica_vol": 0.2,
+ "segmentos": [
+  {
+   "tipo": "clip",
+   "src": "../_material/novos/s1-estudante-fome.mp4",
+   "ss": 2.6,
+   "dur": 2.2,
+   "zoom": [
+    1.05,
+    1.16
+   ],
+   "textos": [
+    {
+     "linhas": [
+      "Fome entre",
+      "aulas?"
+     ],
+     "destaque": "Fome",
+     "onde": "cima",
+     "tam": 120
+    }
+   ],
+   "voz": "Fome entre aulas?"
+  },
+  {
+   "tipo": "phone",
+   "dur": 2.8,
+   "fundo": "../_material/novos/s1-estudante-fome.mp4",
+   "fundo_ss": 4,
+   "ecras": [
+    [
+     "../_material/app/bk-passo1.png",
+     0
+    ]
+   ],
+   "toques": [
+    [
+     1.5,
+     195,
+     805
+    ]
+   ],
+   "textos": [
+    {
+     "linhas": [
+      "Pedes na app Bora"
+     ],
+     "destaque": "Bora",
+     "onde": 110,
+     "tam": 84
+    }
+   ],
+   "voz": "Pedes na app Bora, em dois toques."
+  },
+  {
+   "tipo": "still",
+   "src": "../_material/colados/balcao-bk.png",
+   "dur": 1.8,
+   "zoom": [
+    1.0,
+    1.15
+   ],
+   "rodape": "Serviço de entrega independente, sem ligação às marcas.",
+   "textos": [
+    {
+     "linhas": [
+      "McDonald's, Burger King",
+      "e KFC no Bora"
+     ],
+     "destaque": "Bora",
+     "onde": "cima",
+     "tam": 84
+    }
+   ],
+   "voz": "McDonald's, Burger King e KFC no Bora."
+  },
+  {
+   "tipo": "clip",
+   "src": "../_material/veo/planos/plano-02-comida.mp4",
+   "ss": 2.5,
+   "dur": 1.7,
+   "zoom": [
+    1.0,
+    1.14
+   ],
+   "textos": [
+    {
+     "linhas": [
+      "Hambúrguer"
+     ],
+     "destaque": "Hambúrguer",
+     "onde": "cima",
+     "tam": 120
+    }
+   ],
+   "voz": "Hambúrguer,"
+  },
+  {
+   "tipo": "still",
+   "src": "../_material/colados/frango-bora.png",
+   "dur": 1.5,
+   "zoom": [
+    1.0,
+    1.12
+   ],
+   "dy": 0,
+   "textos": [
+    {
+     "linhas": [
+      "frango frito"
+     ],
+     "destaque": "frango frito",
+     "onde": "cima",
+     "tam": 120
+    }
+   ],
+   "voz": "frango frito",
+   "ay": 0.62
+  },
+  {
+   "tipo": "still",
+   "src": "../_material/colados/caixa-bora.png",
+   "dur": 1.5,
+   "zoom": [
+    1.25,
+    1.05
+   ],
+   "textos": [
+    {
+     "linhas": [
+      "e batatas"
+     ],
+     "destaque": "batatas",
+     "onde": "cima",
+     "tam": 120
+    }
+   ],
+   "voz": "e batatas"
+  },
+  {
+   "tipo": "still",
+   "src": "../_material/fotogramas/torre-6.25.png",
+   "dur": 1.4,
+   "zoom": [
+    1.0,
+    1.14
+   ],
+   "dx": 0.04,
+   "textos": [
+    {
+     "linhas": [
+      "a caminho"
+     ],
+     "destaque": "caminho",
+     "onde": "cima",
+     "tam": 112
+    }
+   ],
+   "voz": "a caminho, pela Guarda,"
+  },
+  {
+   "tipo": "still",
+   "src": "../_material/colados/porta-mcd.png",
+   "dur": 1.6,
+   "zoom": [
+    1.0,
+    1.18
+   ],
+   "dy": 0.05,
+   "textos": [
+    {
+     "linhas": [
+      "à tua",
+      "residência"
+     ],
+     "destaque": "residência",
+     "onde": "cima",
+     "tam": 112
+    }
+   ],
+   "voz": "até à tua residência.",
+   "rodape": "Serviço de entrega independente, sem ligação às marcas."
+  },
+  {
+   "tipo": "fim",
+   "dur": 3.6,
+   "origem": "ipg-fastfood",
+   "voz": "Descarrega a Bora. Código BEMVINDO: cinco euros de oferta.",
+   "rodape": "Serviço de entrega independente, sem ligação às marcas."
+  }
+ ]
+}

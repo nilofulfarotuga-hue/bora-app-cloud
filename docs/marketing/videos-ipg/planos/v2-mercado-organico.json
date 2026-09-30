@@ -1,0 +1,164 @@
+{
+ "voz": "pt-PT-RaquelNeural",
+ "rate": "+8%",
+ "musica": "../_material/musica/Pixelland.mp3",
+ "musica_ss": 6,
+ "musica_vol": 0.2,
+ "segmentos": [
+  {
+   "tipo": "clip",
+   "src": "../_material/novos/s4-frigorifico.mp4",
+   "ss": 1.4,
+   "dur": 1.6,
+   "zoom": [
+    1.0,
+    1.1
+   ],
+   "textos": [
+    {
+     "linhas": [
+      "Frigorífico",
+      "vazio?"
+     ],
+     "destaque": "vazio?",
+     "onde": "cima",
+     "tam": 120
+    }
+   ],
+   "voz": "Frigorífico da residência vazio?"
+  },
+  {
+   "tipo": "clip",
+   "src": "../_material/novos/s4-frigorifico.mp4",
+   "ss": 4.2,
+   "dur": 1.4,
+   "zoom": [
+    1.0,
+    1.12
+   ]
+  },
+  {
+   "tipo": "phone",
+   "dur": 2.8,
+   "fundo": "../_material/novos/s4-frigorifico.mp4",
+   "fundo_ss": 2,
+   "ecras": [
+    [
+     "../_material/app/ct-passo1.png",
+     0
+    ]
+   ],
+   "toques": [
+    [
+     1.5,
+     195,
+     805
+    ]
+   ],
+   "textos": [
+    {
+     "linhas": [
+      "Fazes as compras",
+      "na app"
+     ],
+     "destaque": "compras",
+     "onde": 110,
+     "tam": 80
+    }
+   ],
+   "voz": "Fazes as compras do supermercado na app Bora,"
+  },
+  {
+   "tipo": "still",
+   "src": "../_material/colados/compras-bora.png",
+   "dur": 1.9,
+   "zoom": [
+    1.0,
+    1.18
+   ],
+   "dy": 0.03,
+   "textos": [
+    {
+     "linhas": [
+      "e chegam a ti"
+     ],
+     "destaque": "a ti",
+     "onde": "cima",
+     "tam": 120
+    }
+   ],
+   "voz": "e elas chegam a ti."
+  },
+  {
+   "tipo": "still",
+   "src": "../_material/colados/compras-continente.png",
+   "dur": 1.9,
+   "zoom": [
+    1.15,
+    1.0
+   ],
+   "rodape": "Serviço de entrega independente, sem ligação às marcas.",
+   "textos": [
+    {
+     "linhas": [
+      "Continente, Pingo Doce,",
+      "Intermarché e Auchan"
+     ],
+     "destaque": "",
+     "onde": "cima",
+     "tam": 78
+    }
+   ],
+   "voz": "Continente, Pingo Doce, Intermarché e Auchan."
+  },
+  {
+   "tipo": "still",
+   "src": "../_material/fotogramas/torre-6.25.png",
+   "dur": 2.2,
+   "zoom": [
+    1.0,
+    1.2
+   ],
+   "dx": 0.04,
+   "textos": [
+    {
+     "linhas": [
+      "na Guarda"
+     ],
+     "destaque": "Guarda",
+     "onde": "cima",
+     "tam": 112
+    }
+   ]
+  },
+  {
+   "tipo": "clip",
+   "src": "../_material/veo/planos/plano-01-mercado.mp4",
+   "ss": 5.0,
+   "dur": 2.2,
+   "zoom": [
+    1.0,
+    1.12
+   ],
+   "textos": [
+    {
+     "linhas": [
+      "à porta da",
+      "residência"
+     ],
+     "destaque": "residência",
+     "onde": "cima",
+     "tam": 110
+    }
+   ],
+   "voz": "À porta da residência."
+  },
+  {
+   "tipo": "fim",
+   "dur": 3.0,
+   "origem": "ipg-mercado",
+   "voz": "Descarrega a Bora. Código BEMVINDO: cinco euros de oferta.",
+   "rodape": "Serviço de entrega independente, sem ligação às marcas."
+  }
+ ]
+}

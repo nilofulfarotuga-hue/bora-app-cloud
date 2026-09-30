@@ -23,11 +23,17 @@ class TvdePaymentSelector extends StatelessWidget {
     required this.onChanged,
     this.phoneController,
     this.phoneError,
+    this.cashEnabled = true,
   });
 
   /// 'cash' | 'card' | 'mbway'
   final String current;
   final bool cardEnabled;
+
+  /// Conformidade TVDE (Lei 59/2026): com o interruptor
+  /// `tvde_electronic_payment_only` ligado o pai passa `false` e o chip
+  /// **Dinheiro** desaparece. Por defeito `true` — quem não o passa fica igual.
+  final bool cashEnabled;
   final ValueChanged<String> onChanged;
 
   /// Controller do número MB Way (só usado quando [current] == 'mbway').
@@ -64,8 +70,9 @@ class TvdePaymentSelector extends StatelessWidget {
         Wrap(
           spacing: Spacing.sm,
           children: [
-            _chip('cash', 'Dinheiro'.tr, Icons.payments_outlined,
-                const Key('tvde_pay_cash')),
+            if (cashEnabled)
+              _chip('cash', 'Dinheiro'.tr, Icons.payments_outlined,
+                  const Key('tvde_pay_cash')),
             if (cardEnabled) ...[
               _chip('card', 'Cartão', Icons.credit_card,
                   const Key('tvde_pay_card')),
@@ -74,6 +81,19 @@ class TvdePaymentSelector extends StatelessWidget {
             ],
           ],
         ),
+        if (!cashEnabled)
+          Padding(
+            padding: const EdgeInsets.only(top: Spacing.xs),
+            child: Text(
+              cardEnabled
+                  ? 'No TVDE só se aceita pagamento por cartão ou MB Way.'
+                  : 'No TVDE só se aceita pagamento por cartão ou MB Way, '
+                      'que neste momento não estão disponíveis.',
+              key: const Key('tvde_pay_so_eletronico'),
+              style: const TextStyle(
+                  fontSize: 12, color: AppColors.textSecondary),
+            ),
+          ),
         // Mandato PSD2 — só no cartão e só até o 1.º ficar guardado.
         if (cardEnabled && current == 'card') const CardMandateNotice(),
         if (cardEnabled && current == 'mbway' && phoneController != null) ...[

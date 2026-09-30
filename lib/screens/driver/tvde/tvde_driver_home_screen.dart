@@ -33,8 +33,11 @@ import '../../driver_home_screen.dart';
 import '../../ganhos_screen.dart';
 import '../../../widgets/trocar_de_papel.dart';
 import '../../../services/ficha_legal_service.dart';
+import '../../../services/tvde_conformidade_service.dart';
+import '../../../widgets/tvde/tvde_horas_servico_card.dart';
 import 'fiscalizacao_screen.dart';
 import 'ficha_legal_form_screen.dart';
+import 'tvde_conformidade_screen.dart';
 import 'tvde_driver_agenda_screen.dart';
 import 'tvde_offer_screen.dart';
 import 'tvde_ride_active_screen.dart';
@@ -67,6 +70,13 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
   // online, para ao ficar offline. (Agregação diária real = backend, follow-up.)
   DateTime? _onlineSince;
   Timer? _onlineTicker;
+
+  // [Conformidade TVDE · Lei 59/2026] Estado lido de `tvde_minha_conformidade`
+  // (horas nas últimas 24 h, impedimentos, documentos a caducar). Só
+  // informação: com os interruptores desligados nada muda no fluxo.
+  // Refresca ao abrir e a cada 5 min enquanto online.
+  Map<String, dynamic>? _conformidade;
+  Timer? _conformidadeTicker;
 
   gmaps.GoogleMapController? _mapController;
   gmaps.LatLng? _lastCameraTarget;
@@ -118,6 +128,7 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
       // navegador) ficou online dois dias sem token nenhum e ninguém o podia
       // chamar. Idempotente — o PushTokenService deduplica.
       unawaited(PushTokenService.registerForRole('driver'));
+      unawaited(_carregarConformidade());
       if (isOnline) {
         unawaited(_heartbeat.start());
         unawaited(_startGps());
@@ -158,6 +169,7 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     _gps = null;
     _offerPoll?.cancel();
     _onlineTicker?.cancel();
+    _conformidadeTicker?.cancel();
     _mapController?.dispose();
     super.dispose();
   }
@@ -359,12 +371,109 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     _onlineTicker ??= Timer.periodic(const Duration(seconds: 30), (_) {
       if (mounted) setState(() {});
     });
+    // Contador de horas TVDE: refresca a cada 5 min enquanto online.
+    _conformidadeTicker ??= Timer.periodic(const Duration(minutes: 5), (_) {
+      unawaited(_carregarConformidade());
+    });
   }
 
   void _stopOnlineClock() {
     _onlineTicker?.cancel();
     _onlineTicker = null;
     _onlineSince = null;
+    _conformidadeTicker?.cancel();
+    _conformidadeTicker = null;
+  }
+
+  /// Lê `tvde_minha_conformidade`. Em erro (rede, conta sem linha de
+  /// motorista) mantém o que havia: é só informação, nunca trava nada.
+  Future<void> _carregarConformidade() async {
+    try {
+      final c = await TvdeConformidadeService.instance.minhaConformidade();
+      if (mounted) setState(() => _conformidade = c);
+    } catch (e) {
+      debugPrint('[TvdeDriverHome] conformidade falhou: $e');
+    }
+  }
+
+  Future<void> _abrirConformidade() async {
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => const TvdeConformidadeScreen()));
+    if (mounted) unawaited(_carregarConformidade());
+  }
+
+  /// Motivos que o servidor devolveu na pré-verificação — mesmo desenho do
+  /// aviso de documento expirado.
+  Future<void> _avisarImpedimentos(List<String> motivos) async {
+    final abrir = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Não podes ficar online'),
+        content: Text(motivos.isEmpty
+            ? 'A tua conformidade TVDE tem impedimentos.'
+            : motivos.map((m) => '• $m').join('\n')),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Agora não')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Ver conformidade')),
+        ],
+      ),
+    );
+    if (abrir == true && mounted) await _abrirConformidade();
+  }
+
+  /// Cartão de impedimentos (vermelho) ou documentos a caducar em ≤30 dias
+  /// (amarelo). Null quando não há nada a dizer.
+  Widget? _cartaoAvisosConformidade() {
+    final c = _conformidade;
+    if (c == null) return null;
+    final motivos = (c['motivos'] as List? ?? const []).whereType<Map>().toList();
+    final avisos = (c['avisos'] as List? ?? const [])
+        .whereType<Map>()
+        .where((a) => a['dias'] is num && (a['dias'] as num) <= 30)
+        .toList();
+    if (motivos.isEmpty && avisos.isEmpty) return null;
+    final vermelho = motivos.isNotEmpty;
+    final cor = vermelho ? AppColors.error : const Color(0xFFD97706);
+    final texto = vermelho
+        ? (motivos.length == 1
+            ? 'Conformidade TVDE: ${motivos.first['rotulo'] ?? '1 impedimento'}'
+            : 'Conformidade TVDE: ${motivos.length} impedimentos')
+        : (avisos.length == 1
+            ? '${avisos.first['rotulo'] ?? 'Documento'} caduca em ${(avisos.first['dias'] as num).round()} dias'
+            : '${avisos.length} documentos a caducar nos próximos 30 dias');
+    return Material(
+      color: cor.withValues(alpha: 0.10),
+      borderRadius: BorderRadius.circular(Radii.md),
+      child: InkWell(
+        key: const Key('tvde_conformidade_aviso'),
+        borderRadius: BorderRadius.circular(Radii.md),
+        onTap: _abrirConformidade,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: Row(
+            children: [
+              Icon(vermelho ? Icons.error_outline : Icons.warning_amber_rounded,
+                  size: 18, color: cor),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(texto,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 12.5,
+                        color: cor,
+                        fontWeight: FontWeight.w700)),
+              ),
+              Icon(Icons.chevron_right, size: 18, color: cor),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   String? _onlineElapsedLabel() {
@@ -395,6 +504,24 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
         await _avisarDocumentoExpirado(expirados);
         return;
       }
+      // [Conformidade TVDE · Lei 59/2026] Pré-verificação no servidor. Com os
+      // interruptores desligados devolve sempre ok=true (e em erro de rede
+      // também): só pára aqui quando o SERVIDOR diz que não. O
+      // toggleAvailability do DriverStore grava em segundo plano e engole o
+      // erro do gatilho — por isso pergunta-se antes, para não haver
+      // "verdinho" local com o servidor a recusar.
+      final pode = await TvdeConformidadeService.instance.podeFicarOnline();
+      if (!mounted) return;
+      if (pode['ok'] == false) {
+        final motivos = (pode['motivos'] as List? ?? const [])
+            .map((m) => m is Map
+                ? (m['rotulo'] ?? m['codigo'] ?? '').toString()
+                : m.toString())
+            .where((s) => s.isNotEmpty)
+            .toList();
+        await _avisarImpedimentos(motivos);
+        return;
+      }
     }
     if (!mounted) return;
     final ok = driverStore.toggleAvailability(id, value);
@@ -423,6 +550,7 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
       await _startGps();
       _startOfferPoll();
       _startOnlineClock();
+      unawaited(_carregarConformidade());
     } else {
       unawaited(_heartbeat.stop());
       await _gps?.cancel();
@@ -760,6 +888,12 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
             icon: const Icon(Icons.local_police_outlined),
           ),
           IconButton(
+            key: const Key('tvde_conformidade_entrada'),
+            tooltip: 'Conformidade TVDE',
+            onPressed: _abrirConformidade,
+            icon: const Icon(Icons.verified_user_outlined),
+          ),
+          IconButton(
             tooltip: 'Ganhos',
             onPressed: _openEarnings,
             icon: const Icon(Icons.bar_chart),
@@ -873,6 +1007,10 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
                     (d) => d.currentDriver?.ratingsCount ?? 0),
                 onlineLabel: isOnline ? _onlineElapsedLabel() : null,
                 onChanged: _toggleOnline,
+                avisoConformidade: _cartaoAvisosConformidade(),
+                horasServico: _conformidade == null
+                    ? null
+                    : TvdeHorasServicoCard.fromConformidade(_conformidade!),
               ),
             ),
           ),
@@ -945,6 +1083,8 @@ class _OnlinePanel extends StatelessWidget {
     required this.ratingsCount,
     required this.onlineLabel,
     required this.onChanged,
+    this.avisoConformidade,
+    this.horasServico,
   });
   final bool isOnline;
   final int todayEarnCents;
@@ -952,6 +1092,12 @@ class _OnlinePanel extends StatelessWidget {
   final int ratingsCount;
   final String? onlineLabel;
   final ValueChanged<bool> onChanged;
+
+  /// [Conformidade TVDE] Cartão de impedimentos / documentos a caducar.
+  final Widget? avisoConformidade;
+
+  /// [Conformidade TVDE] Contador de horas nas últimas 24 h (informativo).
+  final Widget? horasServico;
 
   @override
   Widget build(BuildContext context) {
@@ -1002,6 +1148,14 @@ class _OnlinePanel extends StatelessWidget {
               ],
             ],
           ),
+          if (horasServico != null) ...[
+            const SizedBox(height: Spacing.sm),
+            horasServico!,
+          ],
+          if (avisoConformidade != null) ...[
+            const SizedBox(height: Spacing.sm),
+            avisoConformidade!,
+          ],
           const SizedBox(height: Spacing.md),
           Row(
             children: [

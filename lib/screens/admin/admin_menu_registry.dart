@@ -76,6 +76,7 @@ import 'admin_tokens_screen.dart';
 import 'admin_tvde_balcao_agenda_screen.dart';
 import 'admin_tvde_balcao_screen.dart';
 import 'admin_tvde_cancellations_screen.dart';
+import 'admin_tvde_conformidade_screen.dart';
 import 'admin_tvde_docs_review_screen.dart';
 import 'admin_tvde_recibos_screen.dart';
 import 'admin_motoristas_documentos_screen.dart';
@@ -598,6 +599,16 @@ List<AdminMenuSection> adminMenuSections() => [
       color: const Color(0xFF0EA5E9),
       builder: () => const AdminTvdeNoShowsScreen(),
       keywords: const ['clientes', 'corridas', 'faltas', 'reverter', 'shows', 'tvde'],
+    ),
+    // [tvde-conformidade-lei-59-2026 · 30/09] Lei 45/2018 revista pela Lei 59/2026.
+    AdminMenuItem(
+      id: 'tvde_conformidade_imt_amt',
+      title: 'Conformidade TVDE (IMT/AMT)',
+      subtitle: 'Interruptor mestre das regras novas, operadores e veículos licenciados, impedimentos dos motoristas, documentos a caducar, horas, queixas, acesso da fiscalização, relatório AMT, teto de 25% e checklist para o licenciamento',
+      icon: Icons.verified_user_outlined,
+      color: const Color(0xFF0EA5E9),
+      builder: () => const AdminTvdeConformidadeScreen(),
+      keywords: const ['conformidade', 'tvde', 'imt', 'amt', 'lei', 'licenca', 'licenciamento', 'operador', 'veiculo', 'cmtvde', 'fiscalizacao', 'queixas', 'reclamacoes', 'horas', 'teto', 'intermediacao', 'checklist', 'distico', 'seguro'],
     ),
     ],
   ),

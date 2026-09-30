@@ -34,6 +34,8 @@ import '../../../widgets/payments/collect_reminder_dialog.dart';
 import '../../../widgets/tvde/tvde_counter_ride_badge.dart';
 import '../../../widgets/tvde/tvde_pay_badge.dart';
 import '../../../widgets/tvde/tvde_roundtrip_driver_notice.dart';
+import '../../../widgets/tvde/tvde_sos_button.dart';
+import '../../../services/tvde_conformidade_service.dart';
 import '../../shared/tvde_chat_screen.dart';
 import 'tvde_driver_rate_screen.dart';
 
@@ -1587,9 +1589,20 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     }
   }
 
-  void _goToRate(TvdeRide ride) {
+  Future<void> _goToRate(TvdeRide ride) async {
     if (_navigatedToRate) return;
     _navigatedToRate = true;
+    // [Conformidade TVDE · Lei 59/2026] Com o interruptor
+    // `avaliar_passageiro_desativado` ligado não se abre a avaliação: segue
+    // como se o motorista tivesse carregado "Agora não" (clearActive + sair).
+    // A saída é a do próprio build: sem corrida activa → maybePop (um só pop).
+    // Desligado (ou sem rede → config desligada), é igual a antes.
+    final cfg = await TvdeConformidadeService.instance.config();
+    if (!mounted) return;
+    if (cfg.avaliarPassageiroDesativado) {
+      context.read<TvdeDriverStore>().clearActive();
+      return;
+    }
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(builder: (_) => TvdeDriverRateScreen(ride: ride)),
     );
@@ -1748,6 +1761,21 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
               child: const Icon(Icons.my_location),
             ),
           ),
+          // [Conformidade TVDE · Lei 59/2026] SOS do motorista durante a
+          // corrida: à esquerda, à mesma altura da mira — fora do painel dos
+          // botões principais e da própria mira.
+          if (!ride.isFinished && !ride.isCancelled)
+            Positioned(
+              left: Spacing.md,
+              bottom: MediaQuery.of(context).size.height * _sheetExtent +
+                  Spacing.md,
+              child: Material(
+                color: AppColors.surface,
+                shape: const CircleBorder(),
+                elevation: 3,
+                child: TvdeSosButton(rideId: ride.id, compacto: true),
+              ),
+            ),
           // [Oferta sobreposta 20/09] A faixa de oferta que vivia AQUI
           // (`_QueuedOfferBanner`, 14/09) saiu deste ecrã: a oferta — imediata
           // ou de reserva — desenha-se agora por cima de QUALQUER ecrã, no

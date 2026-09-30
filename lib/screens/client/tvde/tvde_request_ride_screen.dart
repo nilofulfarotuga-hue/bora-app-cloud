@@ -16,16 +16,21 @@ import '../../../services/directions_service.dart';
 import '../../../services/location_service.dart';
 import '../../../services/payment_service.dart';
 import '../../../services/saved_card_checkout.dart';
+import '../../../services/tvde_conformidade_service.dart';
 import '../../../stores/tvde_store.dart';
 import '../../../utils/map_utils.dart';
 import '../../../widgets/address_autocomplete_field.dart';
 import '../../../widgets/bora/bora.dart';
 import '../../../widgets/checkout_legal_notice.dart';
 import '../../../widgets/customer_note_field.dart';
+import '../../../widgets/tvde/tvde_opcoes_acessibilidade.dart';
 import '../../../widgets/tvde/tvde_payment_selector.dart';
+import '../../../widgets/tvde/tvde_preco_discriminado.dart';
 import 'ride_mbway_waiting_dialog.dart';
 import 'tvde_my_reservations_screen.dart';
+import 'tvde_operador_plataforma_screen.dart';
 import 'tvde_plans_screen.dart';
+import 'tvde_queixas_screen.dart';
 import 'tvde_rides_history_screen.dart';
 import 'tvde_ride_tracking_screen.dart';
 import 'tvde_schedule_ride_sheet.dart';
@@ -121,6 +126,18 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
   int _maxAntecedenciaDias = 30;
 
   bool _cardEnabled = false;
+
+  /// Conformidade TVDE (Lei 59/2026). Começa DESLIGADA e em erro de rede fica
+  /// desligada — assim o ecrã é exatamente o de sempre enquanto os
+  /// interruptores estiverem desligados em `platform_settings`.
+  TvdeConformidadeConfig _conf = TvdeConformidadeConfig.desligado;
+
+  /// Preço discriminado (art. 15.º) da estimativa atual. `null` = não mostra
+  /// (sem destino, ou a RPC falhou — nunca bloqueia o pedido).
+  Map<String, dynamic>? _discriminado;
+
+  /// Só pagamento eletrónico → a folha de pagamento não oferece Dinheiro.
+  bool get _cashEnabled => !_conf.soPagamentoEletronico;
   int _perKmCents = 50;
   int _baseKm = 6;
   int _extraRideCents = 450;
@@ -200,8 +217,11 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     final reservasOn = await store.reservationsEnabled();
     final rtReservaOn = await store.roundtripReservationsEnabled();
     final limites = await store.loadReservationLimits();
+    // Conformidade TVDE — em erro devolve tudo desligado (nunca bloqueia).
+    final conf = await TvdeConformidadeService.instance.config();
     if (mounted) {
       setState(() {
+        _conf = conf;
         _activeCredit = credit;
         _cardEnabled = cardEnabled;
         _perKmCents = perKm;
@@ -315,6 +335,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         _payMessage = null;
         _roundtripPriceCents = 0;
         _roundtripSavingCents = 0;
+        _discriminado = null;
       });
       return;
     }
@@ -395,6 +416,21 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       _estimating = false;
     });
     _fetchRoundtripQuote(km);
+    _fetchDiscriminado(km);
+  }
+
+  /// Preço discriminado (Lei 45/2018, art. 15.º) para a distância estimada.
+  /// Só informação: falha de rede → o bloco simplesmente não aparece.
+  Future<void> _fetchDiscriminado(double km) async {
+    Map<String, dynamic>? res;
+    try {
+      res = await TvdeConformidadeService.instance.precoDiscriminado(km);
+    } catch (e) {
+      debugPrint('[TvdeRequest] preço discriminado indisponível: $e');
+    }
+    // Resposta atrasada de um destino que já mudou → ignora.
+    if (!mounted || _effectiveKm != km) return;
+    setState(() => _discriminado = res);
   }
 
   Future<void> _fetchRoundtripQuote(double km) async {
@@ -444,6 +480,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         amountCents: _payableCents,
         message: _payMessage,
         allowOnline: allowOnline,
+        cashEnabled: _cashEnabled,
       ),
     );
     if (result == null || !mounted) return;
@@ -478,6 +515,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         maxAdvanceDays: _maxAntecedenciaDias,
         priceCents: _payableCents,
         km: km,
+        cashEnabled: _cashEnabled,
       ),
     );
     if (quando == null || !mounted) return;
@@ -497,6 +535,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         message: _payMessage,
         allowOnline: allowOnline,
         scheduled: true,
+        cashEnabled: _cashEnabled,
       ),
     );
     if (pag == null || !mounted) return;
@@ -593,9 +632,16 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(traduzErroReserva(e))));
+          .showSnackBar(SnackBar(content: Text(_erroReserva(e))));
     }
   }
+
+  /// Recusa de "só pagamento eletrónico" tem texto próprio; o resto segue o
+  /// tradutor de sempre das reservas.
+  String _erroReserva(Object e) =>
+      e.toString().contains('PAGAMENTO_ELETRONICO_OBRIGATORIO')
+          ? mensagemErroConformidade(e)
+          : traduzErroReserva(e);
 
   /// Polling de 3 em 3 segundos até o pagamento da reserva fechar.
   /// O servidor cancela sozinho aos 15 minutos (`payment_timeout`), por isso
@@ -642,6 +688,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         // Hora demasiado em cima para marcar? Então pede-se já, e a volta marca-se
         // logo a seguir — que era exactamente o que a cliente de 24/09 queria.
         aoPedirJa: () => unawaited(_solicitarRoundtrip()),
+        cashEnabled: _cashEnabled,
       ),
     );
     if (ida == null || !mounted) return;
@@ -673,6 +720,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         message: 'Pacote ida e volta marcado. Pagas o pacote todo agora; se a ida for cancelada ou ficar sem motorista, devolvemos tudo.'.tr,
         allowOnline: _cardEnabled,
         allowTokens: false,
+        cashEnabled: _cashEnabled,
       ),
     );
     if (pag == null || !mounted) return;
@@ -778,7 +826,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(traduzErroReserva(e))));
+          .showSnackBar(SnackBar(content: Text(_erroReserva(e))));
     }
   }
 
@@ -917,7 +965,9 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         store.clearActiveRide();
       }
       if (!mounted) return;
-      final msg = s.contains('ride_in_progress')
+      final msg = s.contains('PAGAMENTO_ELETRONICO_OBRIGATORIO')
+          ? mensagemErroConformidade(e)
+          : s.contains('ride_in_progress')
           ? 'Já tens uma corrida em curso.'.tr
           : s.contains('card_payments_not_enabled')
               ? 'Pagamento por cartão ainda não está disponível.'.tr
@@ -1223,6 +1273,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         // Passar a `true` assim que a `20260804000000_PROPOSTA_tvde_roundtrip_tokens.sql`
         // estiver aplicada e a `tvde-plan-payment` deployada.
         allowTokens: false,
+        cashEnabled: _cashEnabled,
       ),
     );
     if (result == null || !mounted) return;
@@ -1248,6 +1299,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     final messenger = ScaffoldMessenger.of(context);
 
     TvdeRide? ida;
+    Object? erroIda;
     try {
       ida = await store.requestRide(
         originLat: _pickup!.latitude,
@@ -1260,12 +1312,17 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         paymentMethod: 'cash',
       );
     } catch (e) {
+      erroIda = e;
       debugPrint('_solicitarRoundtripCash requestRide error => $e');
     }
     if (!mounted) return;
     if (ida == null) {
+      final soEletronico = erroIda != null &&
+          erroIda.toString().contains('PAGAMENTO_ELETRONICO_OBRIGATORIO');
       messenger.showSnackBar(SnackBar(
-          content: Text('Não foi possível pedir a corrida.'.tr)));
+          content: Text(soEletronico
+              ? mensagemErroConformidade(erroIda)
+              : 'Não foi possível pedir a corrida.'.tr)));
       return;
     }
 
@@ -1647,6 +1704,15 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
             onPressed: () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const TvdeRidesHistoryScreen())),
           ),
+          // Conformidade TVDE (Lei 45/2018, art. 19.º n.º 3): queixas sempre
+          // à vista na página principal do TVDE.
+          IconButton(
+            key: const Key('tvde_abrir_queixas'),
+            icon: const Icon(Icons.feedback_outlined),
+            tooltip: 'Queixas',
+            onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const TvdeQueixasScreen())),
+          ),
         ],
       ),
       body: SingleChildScrollView(
@@ -1737,6 +1803,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
                     _payableCents = 0;
                     _roundtripPriceCents = 0;
                     _roundtripSavingCents = 0;
+                    _discriminado = null;
                   });
                 }
               },
@@ -1756,6 +1823,23 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
                   ? 'Grátis — volta incluída no pacote'.tr
                   : _payMessage,
             ),
+            // Conformidade TVDE (art. 15.º): como se calcula o preço, antes de
+            // pedir. Só na tarifa normal — com plano/vale o valor a pagar é
+            // outro e a tabela confundiria. Falha de rede → não aparece.
+            if (_discriminado != null &&
+                _effectiveKm != null &&
+                _payCase == _PayCase.normal &&
+                _activeCredit == null &&
+                !_roundtrip) ...[
+              const SizedBox(height: Spacing.sm),
+              TvdePrecoDiscriminado(dados: _discriminado!),
+            ],
+            // Motorista que fala português / mobilidade reduzida — só com o
+            // interruptor `tvde_client_options_enabled` ligado.
+            if (_conf.opcoesCliente && _activeCredit == null) ...[
+              const SizedBox(height: Spacing.md),
+              const TvdeOpcoesAcessibilidade(),
+            ],
             const SizedBox(height: Spacing.md),
             // [F3] "Garantir a volta" — pacote ida+volta pago adiantado.
             // Escondido com vale ativo: comprar o pacote outra vez com uma
@@ -1861,6 +1945,32 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
             _PlansTeaser(
               onTap: () => Navigator.push(context,
                   MaterialPageRoute(builder: (_) => const TvdePlansScreen())),
+            ),
+            // Conformidade TVDE: queixas e identificação do operador da
+            // plataforma, em linha discreta no fim da página.
+            const SizedBox(height: Spacing.sm),
+            Wrap(
+              alignment: WrapAlignment.center,
+              children: [
+                TextButton.icon(
+                  onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const TvdeQueixasScreen())),
+                  icon: const Icon(Icons.feedback_outlined, size: 18),
+                  label: const Text('Queixas e reclamações'),
+                ),
+                TextButton.icon(
+                  key: const Key('tvde_abrir_operador'),
+                  onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const TvdeOperadorPlataformaScreen())),
+                  icon: const Icon(Icons.info_outline, size: 18),
+                  label: const Text('Sobre o operador da plataforma'),
+                ),
+              ],
             ),
           ],
         ),
@@ -2106,10 +2216,16 @@ class _TvdePaymentSheet extends StatefulWidget {
     required this.allowOnline,
     this.allowTokens = true,
     this.scheduled = false,
+    this.cashEnabled = true,
   });
   final int amountCents;
   final String? message;
   final bool allowOnline;
+
+  /// Conformidade TVDE (Lei 59/2026, art. 15.º n.º 7): `false` com o
+  /// interruptor `tvde_electronic_payment_only` ligado — sem Dinheiro e com
+  /// o cartão como método por defeito. Por defeito `true` (igual a hoje).
+  final bool cashEnabled;
 
   /// DL 24/2014 (ronda-fecho 2026-09-22): corrida marcada para uma data certa
   /// (art. 17.º) ou corrida imediata — muda só a frase legal acima do botão.
@@ -2146,6 +2262,8 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
   @override
   void initState() {
     super.initState();
+    // Só pagamento eletrónico: o método por defeito deixa de ser dinheiro.
+    if (!widget.cashEnabled) _method = widget.allowOnline ? 'card' : '';
     if (widget.allowTokens) _loadTokens();
     final profilePhone = context.read<AuthStore>().currentClient?.phone;
     if (profilePhone != null && profilePhone.isNotEmpty) {
@@ -2370,6 +2488,7 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
             }),
             phoneController: _phoneController,
             phoneError: _phoneError,
+            cashEnabled: widget.cashEnabled,
           ),
           const SizedBox(height: Spacing.md),
           // Nota opcional para o MOTORISTA — mesmo widget/limite do delivery.
@@ -2410,7 +2529,11 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
           BoraAccentButton(
             label: 'Encomenda com obrigação de pagar'.tr,
             icon: Icons.check,
-            onPressed: () {
+            // Só pagamento eletrónico sem cartão/MB Way ligados: não há
+            // método válido — o botão fica desligado (o "X" continua vivo).
+            onPressed: _method.isEmpty
+                ? null
+                : () {
               // MB Way exige o número (9 dígitos PT) — mesma validação do
               // picker das Reservas. Sem ele a Stripe recusa o PaymentIntent.
               String? phone;

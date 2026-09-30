@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/app_colors.dart';
 import '../../l10n/tr.dart';
+import '../../screens/client/tvde/tvde_queixas_screen.dart';
 import '../../services/ficha_legal_service.dart';
 
 /// Recibo da viagem TVDE (Lei 45/2018 rev. Lei 59/2026): valor da viagem com
@@ -93,6 +95,55 @@ class _ReciboViagemSheetState extends State<_ReciboViagemSheet> {
 
   int? _c(String k) => _r?[k] is num ? (_r![k] as num).toInt() : null;
 
+  /// 10 → "10", 12.5 → "12,5".
+  static String _pct(num v) => v == v.roundToDouble()
+      ? v.toInt().toString()
+      : v.toStringAsFixed(1).replaceAll('.', ',');
+
+  /// Demonstração do cálculo (art. 15.º n.º 8) — só com `calculo` do servidor
+  /// (não vem em pacote, assinatura nem preço combinado).
+  List<Widget> _calculo(Map<String, dynamic> c) {
+    int? n(String k) => c[k] is num ? (c[k] as num).toInt() : null;
+    final kmExtra = n('km_extra') ?? 0;
+    final precoKm = n('preco_km_extra_cents') ?? 0;
+    final fator = (c['fator_dinamico'] as num?) ?? 1;
+    const st = TextStyle(fontSize: 13, color: AppColors.textSecondary);
+    Widget l(String a, String b) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Row(children: [
+            Expanded(child: Text(a, style: st)),
+            Text(b, style: st),
+          ]),
+        );
+    return [
+      const Padding(
+        padding: EdgeInsets.only(top: 10, bottom: 2),
+        child: Text('Como foi calculado',
+            style: TextStyle(
+                fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+      ),
+      l(
+          n('km_incluidos') != null
+              ? 'Tarifa base (até ${n('km_incluidos')} km)'
+              : 'Tarifa base',
+          FichaTexto.euro(n('tarifa_base_cents'))),
+      l('Km extra: $kmExtra × ${FichaTexto.euro(precoKm)}/km',
+          FichaTexto.euro(kmExtra * precoKm)),
+      l('Preço por tempo (o preço não depende do tempo)',
+          FichaTexto.euro(n('preco_por_minuto_cents') ?? 0)),
+      l('Tarifa dinâmica',
+          fator == 1 ? 'sem tarifa dinâmica' : '× $fator'),
+    ];
+  }
+
+  Future<void> _abrirFatura(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
     final r = _r;
@@ -110,7 +161,13 @@ class _ReciboViagemSheetState extends State<_ReciboViagemSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text('Recibo da viagem'.tr,
+                    // Conformidade (art. 15.º n.º 8): é um RESUMO da viagem,
+                    // nunca se apresenta como fatura.
+                    Text(
+                        (r['titulo'] as String?)?.trim().isNotEmpty == true
+                            ? (r['titulo'] as String).trim()
+                            : 'Resumo da viagem',
+                        key: const Key('tvde_resumo_titulo'),
                         style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
@@ -118,6 +175,17 @@ class _ReciboViagemSheetState extends State<_ReciboViagemSheet> {
                     Text(
                         '${'N.º'.tr} ${r['numero']} · ${FichaTexto.dataHora(r['data']?.toString())}',
                         style: const TextStyle(color: AppColors.textSubtle)),
+                    if (r['codigo_viagem'] != null)
+                      SelectableText(
+                          'Código da viagem: ${r['codigo_viagem']}',
+                          key: const Key('tvde_resumo_codigo'),
+                          style: const TextStyle(
+                              fontSize: 12, color: AppColors.textSubtle)),
+                    if (_c('duracao_min') != null)
+                      Text('Duração: ${_c('duracao_min')} min',
+                          key: const Key('tvde_resumo_duracao'),
+                          style: const TextStyle(
+                              fontSize: 12, color: AppColors.textSubtle)),
                     const SizedBox(height: 10),
                     Text('${r['origem'] ?? ''} → ${r['destino'] ?? ''}'),
                     if (r['motorista'] != null)
@@ -127,7 +195,10 @@ class _ReciboViagemSheetState extends State<_ReciboViagemSheet> {
                     if (r['discriminado'] == true) ...[
                       _linha('Serviço de transporte (motorista)'.tr,
                           FichaTexto.euro(_c('transporte_cents'))),
-                      _linha('Taxa de intermediação Bora'.tr,
+                      _linha(
+                          r['taxa_intermediacao_pct'] is num
+                              ? '${'Taxa de intermediação Bora'.tr} (${_pct(r['taxa_intermediacao_pct'] as num)} %)'
+                              : 'Taxa de intermediação Bora'.tr,
                           FichaTexto.euro(_c('taxa_intermediacao_cents'))),
                     ],
                     _linha('Valor da viagem'.tr,
@@ -140,6 +211,11 @@ class _ReciboViagemSheetState extends State<_ReciboViagemSheet> {
                           FichaTexto.euro(_c('total_pago_cents')),
                           forte: true),
                     ],
+                    // IVA só quando o servidor o discrimina.
+                    if (r['iva_pct'] is num)
+                      _linha(
+                          'IVA incluído (${_pct(r['iva_pct'] as num)} %)',
+                          FichaTexto.euro(_c('iva_cents'))),
                     _linha('Pagamento'.tr,
                         FichaTexto.meio(r['pagamento']?.toString()).tr),
                     if (r['razao'] != null)
@@ -149,10 +225,43 @@ class _ReciboViagemSheetState extends State<_ReciboViagemSheet> {
                             style: const TextStyle(
                                 fontSize: 13, color: AppColors.textSubtle)),
                       ),
+                    if (r['calculo'] is Map)
+                      ..._calculo(
+                          Map<String, dynamic>.from(r['calculo'] as Map)),
+                    // Documento fiscal próprio, quando já foi emitido.
+                    if (r['fatura'] is Map) ...[
+                      const SizedBox(height: 10),
+                      Builder(builder: (_) {
+                        final f = Map<String, dynamic>.from(r['fatura'] as Map);
+                        final atcud = f['atcud']?.toString();
+                        final url = f['url']?.toString();
+                        final texto = 'Fatura n.º ${f['numero'] ?? ''}'
+                            '${atcud != null && atcud.isNotEmpty ? ' (ATCUD $atcud)' : ''}';
+                        return url != null && url.isNotEmpty
+                            ? Align(
+                                alignment: Alignment.centerLeft,
+                                child: TextButton.icon(
+                                  key: const Key('tvde_resumo_fatura'),
+                                  onPressed: () => _abrirFatura(url),
+                                  icon: const Icon(Icons.description_outlined,
+                                      size: 18),
+                                  label: Text(texto),
+                                ),
+                              )
+                            : Text(texto,
+                                key: const Key('tvde_resumo_fatura'),
+                                style: const TextStyle(
+                                    fontSize: 13,
+                                    color: AppColors.textSecondary));
+                      }),
+                    ],
                     const SizedBox(height: 10),
                     Text(
-                        'Recibo de viagem. Não substitui fatura: a fatura é emitida por software certificado.'
-                            .tr,
+                        (r['aviso_legal'] as String?)?.trim().isNotEmpty == true
+                            ? (r['aviso_legal'] as String).trim()
+                            : 'Recibo de viagem. Não substitui fatura: a fatura é emitida por software certificado.'
+                                .tr,
+                        key: const Key('tvde_resumo_aviso_legal'),
                         style: const TextStyle(
                             fontSize: 12, color: AppColors.textSubtle)),
                     const SizedBox(height: 14),
@@ -160,6 +269,16 @@ class _ReciboViagemSheetState extends State<_ReciboViagemSheet> {
                       onPressed: _aEnviar ? null : _enviar,
                       icon: const Icon(Icons.email_outlined),
                       label: Text('Enviar por e-mail'.tr),
+                    ),
+                    // Conformidade (art. 19.º n.º 3): queixa sobre ESTA viagem.
+                    TextButton.icon(
+                      key: const Key('tvde_resumo_queixa'),
+                      onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) =>
+                                  TvdeQueixasScreen(rideId: widget.rideId))),
+                      icon: const Icon(Icons.feedback_outlined, size: 18),
+                      label: const Text('Fazer uma queixa sobre esta viagem'),
                     ),
                   ],
                 ),

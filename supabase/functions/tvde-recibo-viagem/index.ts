@@ -1,5 +1,5 @@
 // @ts-nocheck
-// supabase/functions/tvde-recibo-viagem/index.ts  v2  2026-09-23
+// supabase/functions/tvde-recibo-viagem/index.ts  v3  2026-09-30 (Resumo da viagem, cálculo, código, duração)
 //
 // Recibo da viagem TVDE ao passageiro, por email (Lei 45/2018 revista pela
 // Lei 59/2026: recibo eletrónico por viagem com a taxa de intermediação
@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
     headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       from: EMAIL_FROM, to: [destino],
-      subject: `Recibo da tua viagem Bora · ${dataPt(recibo.data)}`,
+      subject: `Resumo da tua viagem Bora · ${dataPt(recibo.data)}`,
       html: htmlRecibo(recibo),
     }),
   })
@@ -137,8 +137,15 @@ function htmlRecibo(r: any): string {
   const linhas: string[] = []
   if (r.discriminado) {
     linhas.push(linha('Serviço de transporte (motorista)', euro(r.transporte_cents)))
-    linhas.push(linha('Taxa de intermediação Bora', euro(r.taxa_intermediacao_cents)))
+    const pct = r.taxa_intermediacao_pct != null ? ` (${String(r.taxa_intermediacao_pct).replace('.', ',')} %)` : ''
+    linhas.push(linha('Taxa de intermediação Bora' + pct, euro(r.taxa_intermediacao_cents)))
   }
+  // 2026-09-30 conformidade (Lei 59/2026, art. 15.º n.º 8): demonstração do cálculo.
+  const c = r.calculo
+  const calculo = c ? `<p style="color:#374151;font-size:13px;margin:12px 0 0">Como foi calculado: tarifa base ${euro(c.tarifa_base_cents)} até ${esc(c.km_incluidos)} km`
+    + (c.km_extra ? ` + ${esc(c.km_extra)} km × ${euro(c.preco_km_extra_cents)}` : '')
+    + ` · sem preço por tempo · sem tarifa dinâmica.</p>` : ''
+  if (r.iva_cents != null) linhas.push(linha(`IVA incluído (${esc(r.iva_pct)} %)`, euro(r.iva_cents)))
   linhas.push(linha('Valor da viagem', euro(r.valor_viagem_cents), !r.descontos_cents))
   if (r.paragens_cents) linhas.push(linha('das quais paragens extra', euro(r.paragens_cents)))
   if (r.descontos_cents) {
@@ -149,13 +156,14 @@ function htmlRecibo(r: any): string {
   const nif = r.plataforma_nif ? ` · NIF ${esc(r.plataforma_nif)}` : ' · NIF em processo de registo'
   return `<!doctype html><html><body style="font-family:Inter,Arial,sans-serif;background:#f9fafb;padding:24px">
 <div style="max-width:520px;margin:auto;background:#fff;border-radius:12px;padding:24px;border:1px solid #e5e7eb">
-<h2 style="color:#16A34A;margin:0 0 4px">Recibo da viagem</h2>
-<p style="margin:0 0 16px;color:#6b7280">N.º ${esc(r.numero)} · ${esc(dataPt(r.data))}</p>
+<h2 style="color:#16A34A;margin:0 0 4px">${esc(r.titulo ?? 'Resumo da viagem')}</h2>
+<p style="margin:0 0 16px;color:#6b7280">N.º ${esc(r.numero)} · ${esc(dataPt(r.data))}${r.codigo_viagem ? `<br>Código da viagem: ${esc(r.codigo_viagem)}` : ''}${r.duracao_min != null ? ` · ${esc(r.duracao_min)} min` : ''}</p>
 <p style="margin:0"><b>De:</b> ${esc(r.origem)}</p>
 <p style="margin:4px 0"><b>Para:</b> ${esc(r.destino)}</p>
 <p style="margin:4px 0 16px;color:#374151">Início ${esc(dataPt(r.inicio))}${r.distancia_km ? ` · ${String(r.distancia_km).replace('.', ',')} km` : ''}<br>Motorista: ${esc(r.motorista ?? '—')}</p>
 <table style="width:100%;border-collapse:collapse;border-top:1px solid #e5e7eb">${linhas.join('')}</table>
 <p style="margin:12px 0 0">Pagamento: <b>${esc(MEIOS[r.pagamento] ?? r.pagamento ?? '—')}</b></p>
+${calculo}
 ${razao}
 <p style="color:#6b7280;font-size:12px;margin-top:20px">${esc(r.plataforma)} — operador de plataforma TVDE${nif}.<br>${esc(r.aviso_legal)}</p>
 </div></body></html>`

@@ -30,9 +30,12 @@ import '../../../utils/tvde_sinal_motorista.dart';
 import '../../../utils/tvde_stops_route.dart';
 import '../../../widgets/address_autocomplete_field.dart';
 import '../../../widgets/bora/bora.dart';
+import '../../../widgets/private_bucket_image.dart';
 import '../../../widgets/tvde/tvde_roundtrip_driver_notice.dart';
+import '../../../widgets/tvde/tvde_sos_button.dart';
 import '../../shared/tvde_chat_screen.dart';
 import 'ride_mbway_waiting_dialog.dart';
+import 'tvde_queixas_screen.dart';
 import 'tvde_rate_screen.dart';
 
 import '../../../l10n/tr.dart';
@@ -60,6 +63,16 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
   String? _driverPlate;
   String? _driverPhone; // E — botão ligar
   int? _driverRatingsCount; // nº de avaliações (vem da RPC do cartão)
+
+  // [Conformidade TVDE · 30/09] Identificação legal no cartão (Lei 45/2018,
+  // art. 19.º, versão da Lei 59/2026) — colunas novas de
+  // `tvde_ride_driver_card`. Só informação: null → a linha não aparece.
+  String? _driverCmtvde; // n.º do certificado de motorista TVDE
+  String? _driverVehiclePhoto; // URL http ou caminho no bucket driver-documents
+  int? _driverSeats;
+  int? _driverYear;
+  String? _driverOperador;
+  bool _driverFalaPortugues = false;
   Timer? _driverPoll;
   Timer? _animTimer;
   bool _navigatedToRate = false;
@@ -954,6 +967,14 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
         _driverCarColor = (row['vehicle_color'] as String?)?.trim();
         _driverPlate = (row['license_plate'] as String?)?.trim();
         _driverPhone = (row['phone'] as String?)?.trim();
+        // Conformidade TVDE — colunas novas (a RPC antiga não as tem: ficam
+        // null e o cartão fica igual ao de sempre).
+        _driverCmtvde = (row['cmtvde_numero'] as String?)?.trim();
+        _driverVehiclePhoto = (row['vehicle_photo_path'] as String?)?.trim();
+        _driverSeats = (row['vehicle_seats'] as num?)?.toInt();
+        _driverYear = (row['vehicle_year'] as num?)?.toInt();
+        _driverOperador = (row['operador'] as String?)?.trim();
+        _driverFalaPortugues = row['fala_portugues'] == true;
         // 1B — para onde o carrinho aponta: heading do dispositivo enquanto
         // anda; parado (ou sem heading) usa a direção entre as duas últimas
         // posições; sem nem isso, mantém a última — parado não gira à toa.
@@ -1556,6 +1577,12 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
       driverCar: _driverCar,
       driverCarColor: _driverCarColor,
       driverPlate: _driverPlate,
+      driverCmtvde: _driverCmtvde,
+      driverVehiclePhoto: _driverVehiclePhoto,
+      driverSeats: _driverSeats,
+      driverYear: _driverYear,
+      driverOperador: _driverOperador,
+      driverFalaPortugues: _driverFalaPortugues,
       hasPhone: _driverPhone != null && _driverPhone!.isNotEmpty,
       driverArrived: chegou,
       // [2C · 05/09] Posição PERDIDA (>tvde_driver_lost_seconds) diz o mesmo
@@ -1598,8 +1625,25 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
       },
     );
 
+    // [Conformidade TVDE · 30/09] SOS visível enquanto há motorista atribuído,
+    // a caminho, chegou ou em viagem (Lei 45/2018, art. 17.º-A n.º 2 e)).
+    final mostraSos = ride.isAssigned || ride.hasArrived || ride.isInProgress;
+
     return Scaffold(
-      appBar: BoraScreenAppBar(title: 'A tua corrida'.tr),
+      appBar: BoraScreenAppBar(
+        title: 'A tua corrida'.tr,
+        actions: [
+          IconButton(
+            key: const Key('tvde_tracking_queixas'),
+            icon: const Icon(Icons.feedback_outlined),
+            tooltip: 'Queixas',
+            onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => TvdeQueixasScreen(rideId: ride.id))),
+          ),
+        ],
+      ),
       body: Stack(
         children: [
           GoogleMap(
@@ -1634,6 +1678,26 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
               child: const Icon(Icons.my_location),
             ),
           ),
+          // SOS por cima do mapa, no canto de cima — nunca tapado pela
+          // fitinha/painel do fundo.
+          if (mostraSos)
+            Positioned(
+              left: Spacing.md,
+              top: Spacing.md,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(999),
+                  boxShadow: const [
+                    BoxShadow(
+                        color: Color(0x29000000),
+                        blurRadius: 8,
+                        offset: Offset(0, 2)),
+                  ],
+                ),
+                child: TvdeSosButton(rideId: ride.id),
+              ),
+            ),
           if (!compact)
             Align(alignment: Alignment.bottomCenter, child: panel)
           else
@@ -1825,6 +1889,12 @@ class _StatusPanel extends StatelessWidget {
     required this.driverCar,
     required this.driverCarColor,
     required this.driverPlate,
+    this.driverCmtvde,
+    this.driverVehiclePhoto,
+    this.driverSeats,
+    this.driverYear,
+    this.driverOperador,
+    this.driverFalaPortugues = false,
     required this.hasPhone,
     required this.driverArrived,
     required this.driverCardDegraded,
@@ -1859,7 +1929,26 @@ class _StatusPanel extends StatelessWidget {
   final String? driverCar;
   final String? driverCarColor;
   final String? driverPlate;
+
+  /// [Conformidade TVDE · 30/09] Identificação legal (art. 19.º).
+  final String? driverCmtvde;
+  final String? driverVehiclePhoto;
+  final int? driverSeats;
+  final int? driverYear;
+  final String? driverOperador;
+  final bool driverFalaPortugues;
   final bool hasPhone;
+
+  /// Linha "5 lugares · 2021 · Operador X" — só o que existir.
+  String? _linhaLegal() {
+    final parts = <String>[
+      if (driverSeats != null && driverSeats! > 0) '$driverSeats lugares',
+      if (driverYear != null && driverYear! > 0) '$driverYear',
+      if (driverOperador != null && driverOperador!.isNotEmpty)
+        'Operador: $driverOperador',
+    ];
+    return parts.isEmpty ? null : parts.join(' · ');
+  }
 
   /// [2A] Chegou (estado do servidor ou carro já no ponto).
   final bool driverArrived;
@@ -1974,7 +2063,8 @@ class _StatusPanel extends StatelessWidget {
               child: TextButton.icon(
                 onPressed: () => abrirReciboViagem(context, ride.id),
                 icon: const Icon(Icons.receipt_long_outlined, size: 18),
-                label: Text('Recibo'.tr),
+                // Conformidade (art. 15.º n.º 8): é um resumo, não uma fatura.
+                label: const Text('Resumo da viagem'),
               ),
             ),
           // [1C · 05/09] O cartão vive também EM VIAGEM: antes só aparecia com
@@ -2016,6 +2106,38 @@ class _StatusPanel extends StatelessWidget {
                             style: const TextStyle(
                                 fontSize: 12.5,
                                 color: AppColors.textSecondary)),
+                      // [Conformidade TVDE · 30/09] lugares · ano · operador.
+                      if (_linhaLegal() != null)
+                        Text(_linhaLegal()!,
+                            key: const Key('tvde_cartao_linha_legal'),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary)),
+                      if (driverCmtvde != null && driverCmtvde!.isNotEmpty)
+                        Text('Certificado TVDE n.º $driverCmtvde',
+                            key: const Key('tvde_cartao_cmtvde'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary)),
+                      if (driverFalaPortugues)
+                        const Row(
+                          key: Key('tvde_cartao_fala_portugues'),
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.translate,
+                                size: 13, color: AppColors.primary),
+                            SizedBox(width: 3),
+                            Text('Fala português',
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.primary)),
+                          ],
+                        ),
                     ],
                   ),
                 ),
@@ -2071,6 +2193,21 @@ class _StatusPanel extends StatelessWidget {
                     ),
                   ],
                 ),
+              ),
+            ],
+            // [Conformidade TVDE · 30/09] Foto do carro (art. 19.º). URL http
+            // direto; caminho do bucket privado `driver-documents` → URL
+            // assinado (a RLS deixa o passageiro da corrida lê-lo).
+            if (driverVehiclePhoto != null &&
+                driverVehiclePhoto!.isNotEmpty) ...[
+              const SizedBox(height: Spacing.sm),
+              PrivateBucketImage(
+                key: const Key('tvde_cartao_foto_carro'),
+                urlOrPath: withPrivateBucketPrefix(
+                    'driver-documents', driverVehiclePhoto!),
+                height: 120,
+                width: double.infinity,
+                borderRadius: BorderRadius.circular(Radii.md),
               ),
             ],
             // E — falar com o motorista (chat + ligar).

@@ -41,6 +41,7 @@ import 'screens/admin/admin_crosstalk_screen.dart';
 import 'screens/admin/admin_whatsapp_screen.dart';
 import 'screens/admin/admin_decisoes_screen.dart';
 import 'screens/admin/admin_motores_screen.dart';
+import 'screens/admin/admin_tvde_conformidade_screen.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
 // PARTE A (2026-07-17) — deep links dos pushes admin persistentes
 import 'screens/admin/admin_robot_suggestions_screen.dart';
@@ -941,6 +942,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           '/admin/motores': (_) => const AdminMotoresScreen(),
           // Missão jev-decisor-2026-09-23 — Decisor (Jev/Gemini): lista, custo do dia, sombra/ativo.
           '/admin/decisoes': (_) => const AdminDecisoesScreen(),
+          // Missão tvde-conformidade-lei-59-2026 — avisos de conformidade/queixas/SOS apontam para aqui.
+          '/admin/tvde-conformidade': (_) => const AdminTvdeConformidadeScreen(),
           // 5G — métricas detalhadas das propostas IA
           '/admin/suggestions/metrics': (_) =>
               const AdminSkillSuggestionsMetricsScreen(),

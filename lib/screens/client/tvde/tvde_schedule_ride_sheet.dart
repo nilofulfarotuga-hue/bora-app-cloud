@@ -24,7 +24,12 @@ class TvdeScheduleRideSheet extends StatefulWidget {
     required this.priceCents,
     this.km,
     this.aoPedirJa,
+    this.cashEnabled = true,
   });
+
+  /// Conformidade TVDE (Lei 59/2026): `false` quando só se aceita pagamento
+  /// eletrónico — a frase deixa de prometer dinheiro. Por defeito igual a hoje.
+  final bool cashEnabled;
 
   /// Saída para quem escolhe uma hora demasiado em cima (24/09/2026).
   ///
@@ -256,7 +261,9 @@ class _TvdeScheduleRideSheetState extends State<TvdeScheduleRideSheet> {
           ),
           const SizedBox(height: Spacing.md),
           Text(
-            'A seguir escolhes como pagas: dinheiro ao motorista, cartão ou MB Way.'.tr,
+            widget.cashEnabled
+                ? 'A seguir escolhes como pagas: dinheiro ao motorista, cartão ou MB Way.'.tr
+                : 'A seguir escolhes como pagas: cartão ou MB Way.',
             style: const TextStyle(color: AppColors.textSubtle, fontSize: 12),
           ),
           const SizedBox(height: Spacing.xl),

@@ -4,6 +4,11 @@
 // parceira, por email, no dia 1 às 09:00 de Lisboa. Não calcula dinheiro: lê
 // a RPC partner_monthly_statement (B2) e, para o admin, admin_monthly_closeout (B1).
 //
+// v2 (30/09/2026, pedido do Danilo): também manda a CADA ESTAFETA o resumo do
+// recibo verde do mês (RPC driver_monthly_invoice_summary). Só a partir do mês
+// de outubro de 2026 (o modelo novo começa a 01/10; setembro não tem recibo).
+// Idempotente em driver_monthly_statement_log (user_id, ano, mes).
+//
 // Mesmo caminho do weekly-closeout-digest: service_role obrigatório, chave da
 // Resend no env ou no vault (get_resend_key), remetente fecho@boraguarda.com,
 // endereços mortos e contas demo nunca recebem.
@@ -14,9 +19,10 @@
 //
 // Corpo aceite:
 //   { year, month }        mês a enviar (por defeito: o mês anterior, em Lisboa)
-//   { partner_id }         só esta loja
+//   { partner_id }         só esta loja (não manda aos estafetas)
+//   { driver_user_id }     só este estafeta (não manda às lojas)
 //   { force: true }        reenvia mesmo já enviado
-//   { admin_summary }      manda também o resumo B1 ao admin (por defeito: true se não houver partner_id)
+//   { admin_summary }      manda também o resumo B1 ao admin (por defeito: true se não houver partner_id nem driver_user_id)
 //   { cron: true }         só corre se em Lisboa for dia 1 às 09h (o pg_cron dispara às 08 e 09 UTC)
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -31,6 +37,8 @@ const ADMIN_EMAIL = 'boraappbora@gmail.com'
 const EMAIL_FROM = 'Bora App <fecho@boraguarda.com>'
 const META = '<meta charset="utf-8">'
 const GREEN = '#16A34A'
+// Primeiro mês em que o estafeta passa recibo (modelo novo a 01/10/2026).
+const ESTAFETA_DESDE = 2026 * 12 + 10
 
 const TERMINACOES_MORTAS = ['.test', '.invalid', '.example', '.localhost', '.local',
   'example.com', 'example.org', 'example.net']
@@ -97,8 +105,11 @@ Deno.serve(async (req) => {
     mes = agora.mes === 1 ? 12 : agora.mes - 1
   }
   const partnerId = b?.partner_id ? String(b.partner_id) : null
+  const driverId = b?.driver_user_id ? String(b.driver_user_id) : null
   const force = b?.force === true
-  const adminSummary = b?.admin_summary !== undefined ? b.admin_summary === true : !partnerId
+  const adminSummary = b?.admin_summary !== undefined ? b.admin_summary === true : (!partnerId && !driverId)
+  const fazerLojas = !driverId
+  const fazerEstafetas = !partnerId && (ano * 12 + mes) >= ESTAFETA_DESDE
 
   const supabase = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'))
 
@@ -114,56 +125,99 @@ Deno.serve(async (req) => {
     .select('value').eq('key', 'weekly_digest_emails_enabled').maybeSingle()
   const emailsEnabled = gateRow?.value === true || gateRow?.value === 'true'
 
-  const { data: destinatarios, error: recErr } = await supabase
-    .rpc('monthly_statement_recipients', { p_year: ano, p_month: mes })
-  if (recErr) return json({ ok: false, error: 'recipients_failed', detail: recErr.message }, 500)
-
-  const lista = (destinatarios ?? []).filter((d) => !partnerId || d.partner_id === partnerId)
-  const resultados = []
-
-  for (const d of lista) {
-    const { data: logRow } = await supabase.from('monthly_statement_log').select('*')
-      .eq('partner_id', d.partner_id).eq('ano', ano).eq('mes', mes).maybeSingle()
-    if (logRow?.email_status === 'sent' && !force) {
-      resultados.push({ partner_id: d.partner_id, nome: d.nome, estado: 'ja_enviado' })
-      continue
+  async function destinoValido(email) {
+    let to = email && !enderecoMorto(email) ? String(email).trim() : null
+    if (!to) return { to: null, estado: 'skipped', erro: email ? 'endereço que não recebe correio (' + email + ')' : 'sem email' }
+    try {
+      const { data: isDemo } = await supabase.rpc('is_demo_email', { p_email: to })
+      if (isDemo === true) return { to: null, estado: 'skipped', erro: 'conta de demonstração — sem extrato' }
+    } catch (e) { console.error('[monthly-statement] is_demo_email:', e) }
+    if (!emailsEnabled && to.toLowerCase() !== ADMIN_EMAIL) {
+      return { to, estado: 'aguarda_dominio', erro: 'envio de emails desligado em platform_settings' }
     }
+    return { to, estado: null, erro: null }
+  }
 
-    const { data: ext, error: extErr } = await supabase.rpc('partner_monthly_statement',
-      { p_partner_id: d.partner_id, p_year: ano, p_month: mes })
-    let estado = 'failed'
-    let erro = null
-    let to = d.email && !enderecoMorto(d.email) ? String(d.email).trim() : null
+  const resultados = []
+  if (fazerLojas) {
+    const { data: destinatarios, error: recErr } = await supabase
+      .rpc('monthly_statement_recipients', { p_year: ano, p_month: mes })
+    if (recErr) return json({ ok: false, error: 'recipients_failed', detail: recErr.message }, 500)
 
-    if (extErr) {
-      erro = 'extrato falhou: ' + extErr.message
-    } else if (!to) {
-      estado = 'skipped'
-      erro = d.email ? 'endereço que não recebe correio (' + d.email + ')' : 'sem email'
-    } else {
-      let demo = false
-      try {
-        const { data: isDemo } = await supabase.rpc('is_demo_email', { p_email: to })
-        demo = isDemo === true
-      } catch (e) { console.error('[monthly-statement] is_demo_email:', e) }
-      if (demo) {
-        estado = 'skipped'; erro = 'conta de demonstração — sem extrato'; to = null
-      } else if (!emailsEnabled && to.toLowerCase() !== ADMIN_EMAIL) {
-        estado = 'aguarda_dominio'; erro = 'envio de emails desligado em platform_settings'
+    const lista = (destinatarios ?? []).filter((d) => !partnerId || d.partner_id === partnerId)
+    for (const d of lista) {
+      const { data: logRow } = await supabase.from('monthly_statement_log').select('*')
+        .eq('partner_id', d.partner_id).eq('ano', ano).eq('mes', mes).maybeSingle()
+      if (logRow?.email_status === 'sent' && !force) {
+        resultados.push({ partner_id: d.partner_id, nome: d.nome, estado: 'ja_enviado' })
+        continue
+      }
+
+      const { data: ext, error: extErr } = await supabase.rpc('partner_monthly_statement',
+        { p_partner_id: d.partner_id, p_year: ano, p_month: mes })
+      let estado = 'failed'
+      let erro = null
+      let to = null
+
+      if (extErr) {
+        erro = 'extrato falhou: ' + extErr.message
       } else {
-        const res = await sendResend(resendKey, to,
-          'O seu extrato de ' + ext.periodo.nome + ' de ' + ano + ' · Bora', htmlParceiro(ext))
-        estado = res.ok ? 'sent' : 'failed'
-        erro = res.ok ? null : res.error
+        const v = await destinoValido(d.email)
+        to = v.to
+        if (v.estado) { estado = v.estado; erro = v.erro } else {
+          const res = await sendResend(resendKey, to,
+            'O seu extrato de ' + ext.periodo.nome + ' de ' + ano + ' · Bora', htmlParceiro(ext))
+          estado = res.ok ? 'sent' : 'failed'
+          erro = res.ok ? null : res.error
+        }
+      }
+
+      await supabase.from('monthly_statement_log').upsert({
+        partner_id: d.partner_id, ano, mes, email_to: to, email_status: estado, email_error: erro,
+        sent_at: estado === 'sent' ? new Date().toISOString() : (logRow?.sent_at ?? null),
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'partner_id,ano,mes' })
+      resultados.push({ partner_id: d.partner_id, nome: d.nome, email: to, estado, erro })
+    }
+  }
+
+  // ── Estafetas: resumo do recibo verde do mês ───────────────────────────
+  const estafetas = []
+  if (fazerEstafetas) {
+    const { data: resumo, error: rErr } = await supabase
+      .rpc('driver_monthly_invoice_summary', { p_year: ano, p_month: mes })
+    if (rErr) {
+      estafetas.push({ erro: 'resumo falhou: ' + rErr.message })
+    } else {
+      const lista = (resumo?.estafetas ?? []).filter((e) => !driverId || String(e.user_id) === driverId)
+      for (const e of lista) {
+        const uid = String(e.user_id)
+        const { data: logRow } = await supabase.from('driver_monthly_statement_log').select('*')
+          .eq('user_id', uid).eq('ano', ano).eq('mes', mes).maybeSingle()
+        if (logRow?.email_status === 'sent' && !force) {
+          estafetas.push({ user_id: uid, nome: e.nome, estado: 'ja_enviado' })
+          continue
+        }
+        let estado = 'failed'
+        let erro = null
+        const { data: email } = await supabase.rpc('driver_monthly_statement_email', { p_user_id: uid })
+        const v = await destinoValido(email)
+        const to = v.to
+        if (v.estado) { estado = v.estado; erro = v.erro } else {
+          const res = await sendResend(resendKey, to,
+            'O seu recibo verde de ' + resumo.nome_mes + ' de ' + ano + ' · Bora',
+            htmlEstafeta(e, resumo.nome_mes))
+          estado = res.ok ? 'sent' : 'failed'
+          erro = res.ok ? null : res.error
+        }
+        await supabase.from('driver_monthly_statement_log').upsert({
+          user_id: uid, ano, mes, email_to: to, email_status: estado, email_error: erro,
+          sent_at: estado === 'sent' ? new Date().toISOString() : (logRow?.sent_at ?? null),
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id,ano,mes' })
+        estafetas.push({ user_id: uid, nome: e.nome, email: to, estado, erro })
       }
     }
-
-    await supabase.from('monthly_statement_log').upsert({
-      partner_id: d.partner_id, ano, mes, email_to: to, email_status: estado, email_error: erro,
-      sent_at: estado === 'sent' ? new Date().toISOString() : (logRow?.sent_at ?? null),
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'partner_id,ano,mes' })
-    resultados.push({ partner_id: d.partner_id, nome: d.nome, email: to, estado, erro })
   }
 
   let admin = null
@@ -175,14 +229,15 @@ Deno.serve(async (req) => {
     } else {
       const res = await sendResend(resendKey, ADMIN_EMAIL,
         'Fecho de ' + fecho.periodo.nome + ' ' + ano + ' — resumo e parte para as Finanças',
-        htmlAdmin(fecho, resultados))
+        htmlAdmin(fecho, resultados, estafetas))
       admin = res
     }
   }
 
   return json({
-    ok: true, ano, mes, partner_id: partnerId, force, emails_enabled: emailsEnabled,
-    resend_key_present: !!resendKey, extratos: resultados, admin_summary: admin,
+    ok: true, ano, mes, partner_id: partnerId, driver_user_id: driverId, force,
+    emails_enabled: emailsEnabled, resend_key_present: !!resendKey,
+    extratos: resultados, estafetas, estafetas_ativo: fazerEstafetas, admin_summary: admin,
   })
 })
 
@@ -210,6 +265,32 @@ function estadoAcerto(s) {
   if (s === 'paid') return 'pago'
   if (s === 'pending') return 'por pagar'
   return s ?? ''
+}
+
+function htmlEstafeta(e, nomeMes) {
+  const linha = (a, b, forte) => '<tr><td style="padding:6px 0">' + a + '</td><td style="padding:6px 0;text-align:right' +
+    (forte ? ';font-weight:800;color:' + GREEN : '') + '">' + b + '</td></tr>'
+  const aviso = (!e.nif || !e.atividade_aberta)
+    ? '<p style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:10px;font-size:13px">' +
+      'Falta confirmar na app o seu NIF e que tem atividade aberta nas Finanças. Sem isso não pode continuar a fazer entregas.</p>'
+    : ''
+  return META + '<div style="font-family:system-ui,Arial,sans-serif;max-width:620px;margin:auto">' +
+    '<div style="background:' + GREEN + ';color:#fff;padding:18px 20px;border-radius:12px 12px 0 0">' +
+    '<div style="font-size:20px;font-weight:800">Bora</div>' +
+    '<div style="opacity:.9">O seu recibo verde de ' + esc(nomeMes) + ' de ' + e.ano + '</div></div>' +
+    '<div style="border:1px solid #eee;border-top:0;border-radius:0 0 12px 12px;padding:20px">' +
+    '<p style="margin:0 0 12px">Olá <b>' + esc(e.nome) + '</b>, este é o recibo verde que tem de passar no Portal das Finanças pelas suas entregas deste mês.</p>' +
+    '<table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:12px">' +
+    linha('Entregas', String(e.entregas ?? 0)) +
+    linha('Valor do recibo', eur(e.total_a_faturar), true) +
+    linha('Cliente', esc(e.cliente || 'Consumidor final')) +
+    linha('IVA', esc(e.iva)) +
+    '</table>' +
+    '<p style="font-size:13px;color:#555;margin:0 0 4px">Descrição para copiar:</p>' +
+    '<p style="background:#F3F4F6;border-radius:8px;padding:10px;font-size:14px;margin:0 0 14px">' + esc(e.texto_recibo) + '</p>' +
+    aviso +
+    '<p style="font-size:13px">Passe o recibo até dia 10 e depois carregue em <b>"Já passei o recibo"</b> na app, em Ganhos.</p>' +
+    '<p style="font-size:11px;color:#999;margin-top:12px">Bora App · resumo mensal automático</p></div></div>'
 }
 
 function htmlParceiro(x) {
@@ -248,7 +329,7 @@ function htmlParceiro(x) {
     '<p style="font-size:11px;color:#999;margin-top:12px">Bora App · extrato mensal automático</p></div></div>'
 }
 
-function htmlAdmin(f, resultados) {
+function htmlAdmin(f, resultados, estafetas) {
   const t = f.totais ?? {}
   const fin = f.para_as_financas ?? {}
   const fat = (fin.faturas_recibo ?? []).map((x) =>
@@ -257,6 +338,8 @@ function htmlAdmin(f, resultados) {
   const prej = (f.pedidos_no_prejuizo ?? []).map((p) =>
     '<li>' + esc(p.data) + ' ' + esc(p.loja) + ': ' + eur(p.resultado) + ' — ' + esc(p.motivo) + '</li>').join('')
   const ext = (resultados ?? []).map((r) =>
+    '<li>' + esc(r.nome) + ': ' + esc(r.estado) + (r.erro ? ' — ' + esc(r.erro) : '') + '</li>').join('')
+  const est = (estafetas ?? []).map((r) =>
     '<li>' + esc(r.nome) + ': ' + esc(r.estado) + (r.erro ? ' — ' + esc(r.erro) : '') + '</li>').join('')
   return META + '<div style="font-family:system-ui,Arial,sans-serif;max-width:640px;margin:auto">' +
     '<h2 style="color:' + GREEN + '">Fecho de ' + esc(f.periodo.nome) + ' ' + f.periodo.ano + '</h2>' +
@@ -269,5 +352,6 @@ function htmlAdmin(f, resultados) {
     '<h3>Faturas-recibo a emitir</h3><ul>' + fat + '</ul>' +
     (prej ? '<h3 style="color:#B45309">Pedidos no prejuízo</h3><ul>' + prej + '</ul>' : '') +
     (ext ? '<h3>Extratos às lojas</h3><ul>' + ext + '</ul>' : '') +
+    (est ? '<h3>Recibos verdes aos estafetas</h3><ul>' + est + '</ul>' : '') +
     '<p style="font-size:11px;color:#999">Bora App · fecho mensal · detalhe em /admin/fecho-mensal</p></div>'
 }

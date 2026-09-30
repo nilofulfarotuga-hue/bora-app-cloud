@@ -36,4 +36,11 @@ rc=$?
 tail -n 120 "$LOG"
 echo "DRIVE_EXIT=$rc"
 echo "CAPTURAS=$(ls artefactos/capturas 2>/dev/null | wc -l) FALHAS_SUAVES=$(ls artefactos/capturas 2>/dev/null | grep -c 'falha')"
+# 30/09: em falha, as linhas do erro sobem como anotacoes do GitHub, que se leem
+# pela API sem abrir o log (o log nao se consegue abrir de fora).
+if [ "$rc" != "0" ]; then
+  grep -nE "FAIL|Exception|Error|Expected|Actual|falhou|fail\(|Test failed|No element|Bad state" "$LOG" | head -40 | while IFS= read -r l; do
+    echo "::error::$(echo "$l" | cut -c1-400)"
+  done
+fi
 exit $rc

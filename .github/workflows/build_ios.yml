@@ -17,6 +17,7 @@
 
 name: build-ios
 
+# (30/09) Se falhar, ver as anotacoes do job pela API: o log nao abre de fora.
 # Um envio de cada vez a Apple: dois pushes seguidos nao podem submeter em
 # paralelo (a Apple so aceita uma versao em revisao).
 concurrency:

@@ -1,0 +1,25 @@
+# Temporario (30/09): mostra os erros do flutter analyze como anotacoes, porque
+# o log do build-ios nao se consegue ler de fora. Apagar depois.
+name: diag-analyze
+on:
+  push:
+    branches: [diag-analyze-2026-09-30]
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.41.2"
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: analyze
+        run: |
+          flutter analyze --no-fatal-infos --no-fatal-warnings > out.txt 2>&1 || true
+          grep -E "^\s*error " out.txt | head -40 | while IFS= read -r l; do
+            p=$(echo "$l" | awk -F' • ' '{print $3}'); f=${p%%:*}; r=${p#*:}; ln=${r%%:*}
+            echo "::error file=$f,line=$ln::$(echo "$l" | awk -F' • ' '{print $2" ["$4"]"}')"
+          done
+          tail -3 out.txt

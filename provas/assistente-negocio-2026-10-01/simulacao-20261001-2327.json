@@ -1,0 +1,622 @@
+{
+ "quando": "2026-10-01T23:23:29.811510+01:00",
+ "cenarios": {
+  "01-preco": [
+   {
+    "de": "351931992662",
+    "texto": "Boa noite, quanto custa um corte?",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [],
+    "modelos": [
+     "gemini2:gemini-3-flash-preview"
+    ],
+    "erro_motor": null,
+    "segundos": 5.7,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "Boa noite. O corte custa 13 € e já inclui o degradê, se desejar. Gostaria de marcar para algum dia?",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   }
+  ],
+  "02-horario": [
+   {
+    "de": "351931992662",
+    "texto": "A que horas abrem ao sábado?",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [],
+    "modelos": [
+     "gemini2:gemini-3-flash-preview"
+    ],
+    "erro_motor": null,
+    "segundos": 4.4,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "Abrimos às 09:00 ao sábado. Deseja marcar algum serviço para esse dia?",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   }
+  ],
+  "03-morada": [
+   {
+    "de": "351931992662",
+    "texto": "Onde é que ficam?",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [],
+    "modelos": [
+     "gemini2:gemini-3-flash-preview"
+    ],
+    "erro_motor": null,
+    "segundos": 5.8,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "A Barbearia Mister Navalha fica na R. António Sérgio 20, bloco F, 6300-665 Guarda. Deseja fazer alguma marcação?",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   }
+  ],
+  "04-fim-da-tarde": [
+   {
+    "de": "351931992662",
+    "texto": "tem horário amanhã ao fim da tarde para corte e barba?",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "horarios_livres"
+    ],
+    "modelos": [
+     "gemini2:gemini-3-flash-preview",
+     "gemini2:gemini-3-flash-preview"
+    ],
+    "erro_motor": null,
+    "segundos": 5.9,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "Para amanhã, sexta-feira, tenho vagas para Corte + Barba às 17:20, 18:10 e 19:00. Alguma destas horas lhe convém?",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   }
+  ],
+  "05-marcacao": [
+   {
+    "de": "351931992662",
+    "texto": "Queria marcar um corte para sexta às 10h. Chamo-me Danilo.",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "guardar_nome",
+     "horarios_livres"
+    ],
+    "modelos": [
+     "gemini2:gemini-3-flash-preview",
+     "gemini:gemini-3.1-flash-lite"
+    ],
+    "erro_motor": null,
+    "segundos": 7.2,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "Olá, Danilo. Confirmo que tenho vaga para o corte na sexta-feira, dia 2, às 10:00. Quer que marque para essa hora?",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   },
+   {
+    "de": "351931992662",
+    "texto": "Sim, pode marcar",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "marcar",
+     "guardar_nome",
+     "guardar_fio"
+    ],
+    "modelos": [
+     "gemini:gemini-3.1-flash-lite",
+     "gemini:gemini-3.1-flash-lite"
+    ],
+    "erro_motor": null,
+    "segundos": 4.1,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "Está marcado, Danilo. O seu corte ficou para sexta-feira, dia 2, às 10:00. O valor é 13 € e o pagamento é feito na barbearia no final do serviço. Até lá!",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     },
+     {
+      "numero": "351931992662",
+      "texto": "Da próxima vez também pode marcar pela app Bora, escolhe a hora e fica logo marcado: https://misternavalha.boraguarda.com",
+      "motivo": "apos_marcacao:fdada0af-2c76-44a0-b456-46dede5c2f59",
+      "entrega_estado": "simulado"
+     }
+    ]
+   },
+   {
+    "de": "351931992662",
+    "texto": "Obrigado!",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "guardar_nome",
+     "marcar",
+     "guardar_fio"
+    ],
+    "modelos": [
+     "gemini:gemini-3.1-flash-lite",
+     "gemini:gemini-3.1-flash-lite"
+    ],
+    "erro_motor": null,
+    "segundos": 5.7,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "Peço desculpa, Danilo, mas houve um erro no sistema e afinal a vaga das 10:00 já não está disponível. Tenho livre às 09:00, 09:30 ou 10:30 na sexta-feira. Alguma destas horas dá jeito para si?",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   }
+  ],
+  "06-hora-ocupada": [
+   {
+    "de": "351937472634",
+    "texto": "Olá, sou o Ernando. Dava para um corte sexta às 10h?",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "guardar_nome",
+     "horarios_livres"
+    ],
+    "modelos": [
+     "gemini:gemini-3.1-flash-lite",
+     "gemini:gemini-3.1-flash-lite"
+    ],
+    "erro_motor": null,
+    "segundos": 8.2,
+    "saidas": [
+     {
+      "numero": "351937472634",
+      "texto": "Olá, Ernando. Para sexta-feira, às 10:00, já não tenho vaga. Tenho disponível às 09:30 ou às 10:30, prefere algum destes horários?",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   },
+   {
+    "de": "351937472634",
+    "texto": "Pode ser a mais próxima depois, marque essa",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "guardar_nome",
+     "marcar"
+    ],
+    "modelos": [
+     "gemini:gemini-3.1-flash-lite",
+     "gemini:gemini-3.1-flash-lite"
+    ],
+    "erro_motor": null,
+    "segundos": 5.3,
+    "saidas": [
+     {
+      "numero": "351937472634",
+      "texto": "Ficou marcado: Corte para sexta-feira, dia 2, às 10:30. O serviço custa 13 € e o pagamento é feito na barbearia, no final. Até lá!",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     },
+     {
+      "numero": "351937472634",
+      "texto": "Da próxima vez também pode marcar pela app Bora, escolhe a hora e fica logo marcado: https://misternavalha.boraguarda.com",
+      "motivo": "apos_marcacao:296cf2d7-eeea-419e-b110-a9f5fc66979d",
+      "entrega_estado": "simulado"
+     }
+    ]
+   }
+  ],
+  "07-domingo": [
+   {
+    "de": "351931992662",
+    "texto": "E no domingo, posso ir cortar o cabelo?",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [],
+    "modelos": [
+     "gemini:gemini-3.1-flash-lite"
+    ],
+    "erro_motor": null,
+    "segundos": 3.5,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "Infelizmente, aos domingos estamos fechados. O nosso horário é de segunda a sábado, das 09:00 às 20:00.",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   }
+  ],
+  "08-desmarcar": [
+   {
+    "de": "351931992662",
+    "texto": "Afinal não vou conseguir ir, quero desmarcar a minha marcação",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "minhas_marcacoes",
+     "desmarcar"
+    ],
+    "modelos": [
+     "gemini:gemini-3.1-flash-lite",
+     "gemini:gemini-3.1-flash-lite",
+     "gemini:gemini-3.1-flash-lite"
+    ],
+    "erro_motor": null,
+    "segundos": 11.9,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "Está desmarcado, Danilo. Se precisar de marcar novamente, disponha.",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   },
+   {
+    "de": "351931992662",
+    "texto": "sim, desmarque",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "minhas_marcacoes"
+    ],
+    "modelos": [
+     "gemini:gemini-3.1-flash-lite",
+     "gemini:gemini-3.1-flash-lite"
+    ],
+    "erro_motor": null,
+    "segundos": 6.7,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "Não encontrei nenhuma marcação ativa no seu nome, Danilo. Se precisar de algo mais, diga.",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   }
+  ],
+  "09-remarcar": [
+   {
+    "de": "351937472634",
+    "texto": "Consegue passar a minha marcação de sexta para as 16h?",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "minhas_marcacoes",
+     "horarios_livres",
+     "remarcar"
+    ],
+    "modelos": [
+     "gemini:gemini-3.1-flash-lite",
+     "gemini:gemini-3.1-flash-lite",
+     "gemini:gemini-3.1-flash-lite",
+     "gemini:gemini-3.1-flash-lite"
+    ],
+    "erro_motor": null,
+    "segundos": 13.0,
+    "saidas": [
+     {
+      "numero": "351937472634",
+      "texto": "Está confirmado. A sua marcação de Corte para sexta-feira, dia 2, foi alterada para as 16:00.",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   },
+   {
+    "de": "351937472634",
+    "texto": "sim",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "minhas_marcacoes"
+    ],
+    "modelos": [
+     "gemini:gemini-3.1-flash-lite",
+     "gemini:gemini-3.1-flash-lite"
+    ],
+    "erro_motor": null,
+    "segundos": 6.1,
+    "saidas": [
+     {
+      "numero": "351937472634",
+      "texto": "Está tudo certo, a sua marcação para sexta-feira, dia 2, às 16:00, está confirmada. Até lá!",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   }
+  ],
+  "10-crianca": [
+   {
+    "de": "351931992662",
+    "texto": "Fazem cortes a crianças? O meu filho tem 6 anos",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [],
+    "modelos": [
+     "gemini:gemini-3.1-flash-lite"
+    ],
+    "erro_motor": null,
+    "segundos": 5.1,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "Sim, fazemos. O corte infantil custa 13 € e demora cerca de 30 minutos. Quer marcar para algum dia em específico?",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   }
+  ],
+  "11-degrade": [
+   {
+    "de": "351931992662",
+    "texto": "Quanto fica um degradê?",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [],
+    "modelos": [
+     "gemini:gemini-3.1-flash-lite"
+    ],
+    "erro_motor": null,
+    "segundos": 5.3,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "O degradê está incluído no serviço de Corte, que custa 13 €. Quer marcar um corte?",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   }
+  ],
+  "12-freestyle": [
+   {
+    "de": "351931992662",
+    "texto": "Fazem freestyle? Queria um desenho de lado",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "passar_ao_dono"
+    ],
+    "modelos": [
+     "gemini:gemini-3.1-flash-lite",
+     "gemini:gemini-3.1-flash-lite"
+    ],
+    "erro_motor": null,
+    "segundos": 7.9,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "📲 Barbearia Mister Navalha — um cliente precisa de ti: Pedido de freestyle/desenho.\nCliente: Danilo (+351931992662).\nFala tu diretamente com ele.",
+      "motivo": "passar_dono",
+      "entrega_estado": "simulado"
+     },
+     {
+      "numero": "351931992662",
+      "texto": "Isso é um serviço que o Ernando decide diretamente. Já lhe passei o seu pedido e ele entrará em contacto consigo para confirmar se é possível.",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   }
+  ],
+  "13-pergunta-ao-dono": [
+   {
+    "de": "351937472634",
+    "texto": "Aceitam pagamento por MB Way?",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "perguntar_ao_dono"
+    ],
+    "modelos": [
+     "gemini:gemini-3.1-flash-lite",
+     "gemini:gemini-3.1-flash-lite"
+    ],
+    "erro_motor": null,
+    "segundos": 6.0,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "❓ Barbearia Mister Navalha — pergunta de um cliente (P479)\n\n«Aceitam pagamento por MB Way?»\n\nCliente: Ernando.\nResponde a citar esta mensagem, ou escreve: P479 e a resposta.",
+      "motivo": "pergunta_dono:34736832-3906-46e4-bc05-b0b1eb63bcd8",
+      "entrega_estado": "simulado"
+     },
+     {
+      "numero": "351937472634",
+      "texto": "Vou confirmar essa questão com o Ernando e volto a falar consigo assim que tiver uma resposta.",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   },
+   {
+    "de": "351931992662",
+    "texto": "P479 Sim, aceitamos MB Way e dinheiro. Cartão ainda não.",
+    "acao": "resposta-do-dono-entregue",
+    "tratado": true,
+    "ferramentas": null,
+    "modelos": null,
+    "erro_motor": null,
+    "segundos": 2.7,
+    "saidas": [
+     {
+      "numero": "351912345678",
+      "texto": "isto nao pode sair",
+      "motivo": "prova_real",
+      "entrega_estado": "bloqueado"
+     },
+     {
+      "numero": "351937472634",
+      "texto": "Já falei com o Ernando: sim, aceitamos MB Way e dinheiro, mas de momento ainda não temos multibanco.",
+      "motivo": "resposta_dono",
+      "entrega_estado": "simulado"
+     },
+     {
+      "numero": "351931992662",
+      "texto": "✅ P479: entregue ao cliente e guardado para a próxima vez.",
+      "motivo": "dono_ack",
+      "entrega_estado": "simulado"
+     }
+    ]
+   },
+   {
+    "de": "351931992662",
+    "texto": "Posso pagar com MB Way?",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [],
+    "modelos": [
+     "gemini:gemini-3.1-flash-lite"
+    ],
+    "erro_motor": null,
+    "segundos": 6.2,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "Sim, aceitamos MB Way e dinheiro. Cartão ainda não aceitamos.",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   }
+  ],
+  "14-pessoal": [
+   {
+    "de": "351931992662",
+    "texto": "Mano logo vens jantar cá a casa? A mãe fez bacalhau",
+    "acao": "silencio-pessoal",
+    "tratado": true,
+    "ferramentas": null,
+    "modelos": null,
+    "erro_motor": null,
+    "segundos": 2.8,
+    "saidas": []
+   }
+  ],
+  "15-grupo": [
+   {
+    "de": "351931992662",
+    "texto": "Quanto é a barba?",
+    "acao": "ignorar-grupo",
+    "tratado": false,
+    "ferramentas": null,
+    "modelos": null,
+    "erro_motor": null,
+    "segundos": 0.1,
+    "saidas": []
+   }
+  ],
+  "16-fora-da-allowlist": [
+   {
+    "de": "351912345678",
+    "texto": "Quanto custa um corte?",
+    "acao": "nao-e-do-assistente",
+    "tratado": false,
+    "ferramentas": null,
+    "modelos": null,
+    "erro_motor": null,
+    "segundos": 0.1,
+    "saidas": []
+   }
+  ],
+  "17-dono-escreveu": [
+   {
+    "de": "351931992662",
+    "texto": "Olá, têm vaga hoje?",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "horarios_livres"
+    ],
+    "modelos": [
+     "gemini:gemini-3.1-flash-lite",
+     "gemini:gemini-3.1-flash-lite"
+    ],
+    "erro_motor": null,
+    "segundos": 8.7,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "Hoje já estamos encerrados. Para amanhã, sexta-feira, tenho vagas às 09:00, 09:30, 10:00 e 10:30. Que serviço pretende marcar?",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   },
+   {
+    "de": "PORTA",
+    "acao": "dono-falou",
+    "resultado": {
+     "ok": true,
+     "silenciado_ate": "2026-10-02T11:27:30.592503+01:00"
+    }
+   },
+   {
+    "de": "351931992662",
+    "texto": "Então até já!",
+    "acao": "silencio-dono-assumiu",
+    "tratado": true,
+    "ferramentas": null,
+    "modelos": null,
+    "erro_motor": null,
+    "segundos": 0.4,
+    "saidas": []
+   }
+  ],
+  "18-blocklist": [
+   {
+    "de": "ADMIN",
+    "acao": "bloquear",
+    "blocklist": [
+     "351937472634"
+    ]
+   },
+   {
+    "de": "351937472634",
+    "texto": "Quanto custa a barba?",
+    "acao": "silencio-blocklist",
+    "tratado": true,
+    "ferramentas": null,
+    "modelos": null,
+    "erro_motor": null,
+    "segundos": 0.2,
+    "saidas": []
+   },
+   {
+    "de": "ADMIN",
+    "acao": "desbloquear",
+    "blocklist": []
+   }
+  ]
+ }
+}

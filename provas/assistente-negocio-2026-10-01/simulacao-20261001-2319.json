@@ -1,0 +1,555 @@
+{
+ "quando": "2026-10-01T23:15:47.691897+01:00",
+ "cenarios": {
+  "01-preco": [
+   {
+    "de": "351931992662",
+    "texto": "Boa noite, quanto custa um corte?",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "ver_servicos"
+    ],
+    "modelos": [
+     "gemini:gemini-3-flash-preview",
+     "gemini:gemini-3-flash-preview"
+    ],
+    "erro_motor": null,
+    "segundos": 6.9,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "Boa noite! O corte custa 13 € e o degradê já está incluído. Gostaria de agendar para algum dia em especial?",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   }
+  ],
+  "02-horario": [
+   {
+    "de": "351931992662",
+    "texto": "A que horas abrem ao sábado?",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "ver_horario"
+    ],
+    "modelos": [
+     "gemini:gemini-3-flash-preview",
+     "gemini:gemini-3-flash-preview"
+    ],
+    "erro_motor": null,
+    "segundos": 5.9,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "Ao sábado abrimos às 09:00 e estamos a trabalhar até às 20:00. Gostaria de marcar algum serviço para esse dia?",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   }
+  ],
+  "03-morada": [
+   {
+    "de": "351931992662",
+    "texto": "Onde é que ficam?",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [],
+    "modelos": [
+     "gemini:gemini-3-flash-preview"
+    ],
+    "erro_motor": null,
+    "segundos": 7.2,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "A Barbearia Mister Navalha fica na Rua António Sérgio 20, bloco F, na Guarda. Gostaria de marcar algum serviço?",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   }
+  ],
+  "04-fim-da-tarde": [
+   {
+    "de": "351931992662",
+    "texto": "tem horário amanhã ao fim da tarde para corte e barba?",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "horarios_livres"
+    ],
+    "modelos": [
+     "gemini:gemini-3-flash-preview",
+     "gemini:gemini-3-flash-preview"
+    ],
+    "erro_motor": null,
+    "segundos": 5.8,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "Para amanhã, sexta-feira, tenho vagas para Corte + Barba às 17:20, 18:10 e 19:00. Alguma destas horas lhe agrada?",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   }
+  ],
+  "05-marcacao": [
+   {
+    "de": "351931992662",
+    "texto": "Queria marcar um corte para sexta às 10h. Chamo-me Danilo.",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "horarios_livres"
+    ],
+    "modelos": [
+     "groq:openai/gpt-oss-120b",
+     "groq:openai/gpt-oss-120b"
+    ],
+    "erro_motor": null,
+    "segundos": 8.3,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "Olá Danilo, a vaga das 10:00 de sexta está livre. Confirmamos o corte para 2026‑10‑02 às 10:00?",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   },
+   {
+    "de": "351931992662",
+    "texto": "Sim, pode marcar",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "guardar_nome",
+     "marcar"
+    ],
+    "modelos": [
+     "gemini:gemini-3-flash-preview",
+     "gemini:gemini-3-flash-preview"
+    ],
+    "erro_motor": null,
+    "segundos": 8.7,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "Está marcado, Danilo! Corte para sexta, dia 2 de outubro, às 10:00. O preço é 13 € e o pagamento é feito na barbearia.",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     },
+     {
+      "numero": "351931992662",
+      "texto": "Da próxima vez também pode marcar pela app Bora, escolhe a hora e fica logo marcado: https://misternavalha.boraguarda.com",
+      "motivo": "apos_marcacao:b27a7884-9576-4da6-a808-ade8fbfc4392",
+      "entrega_estado": "simulado"
+     }
+    ]
+   },
+   {
+    "de": "351931992662",
+    "texto": "Obrigado!",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [],
+    "modelos": [
+     "gemini:gemini-3-flash-preview"
+    ],
+    "erro_motor": null,
+    "segundos": 4.5,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "De nada, Danilo! Ficamos à tua espera. Até sexta!",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   }
+  ],
+  "06-hora-ocupada": [
+   {
+    "de": "351937472634",
+    "texto": "Olá, sou o Ernando. Dava para um corte sexta às 10h?",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "guardar_nome",
+     "horarios_livres"
+    ],
+    "modelos": [
+     "gemini:gemini-3-flash-preview",
+     "gemini:gemini-3-flash-preview"
+    ],
+    "erro_motor": null,
+    "segundos": 5.8,
+    "saidas": [
+     {
+      "numero": "351937472634",
+      "texto": "Olá, Ernando. Para sexta-feira às 10:00 já não tenho vaga, mas consigo marcar para as 09:30 ou para as 10:30. Qual prefere?",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   },
+   {
+    "de": "351937472634",
+    "texto": "Pode ser a mais próxima depois, marque essa",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "marcar"
+    ],
+    "modelos": [
+     "gemini:gemini-3-flash-preview",
+     "groq:openai/gpt-oss-120b"
+    ],
+    "erro_motor": null,
+    "segundos": 5.7,
+    "saidas": [
+     {
+      "numero": "351937472634",
+      "texto": "Marcação confirmada: Corte, sexta‑feira 2 de outubro, às 10:30. São 13 €, paga na barbearia. Até lá!",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     },
+     {
+      "numero": "351937472634",
+      "texto": "Da próxima vez também pode marcar pela app Bora, escolhe a hora e fica logo marcado: https://misternavalha.boraguarda.com",
+      "motivo": "apos_marcacao:8c29342b-42ba-4d14-bfe9-183b50665f0e",
+      "entrega_estado": "simulado"
+     }
+    ]
+   }
+  ],
+  "07-domingo": [
+   {
+    "de": "351931992662",
+    "texto": "E no domingo, posso ir cortar o cabelo?",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "horarios_livres"
+    ],
+    "modelos": [
+     "groq:openai/gpt-oss-120b",
+     "groq:openai/gpt-oss-120b"
+    ],
+    "erro_motor": null,
+    "segundos": 8.3,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "O domingo estamos fechados. Podemos marcar para segunda às 09:00, 09:30, 10:00, 10:30, 11:00 ou 11:30. Está bem?",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   }
+  ],
+  "08-desmarcar": [
+   {
+    "de": "351931992662",
+    "texto": "Afinal não vou conseguir ir, quero desmarcar a minha marcação",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "minhas_marcacoes",
+     "desmarcar"
+    ],
+    "modelos": [
+     "gemini:gemini-3-flash-preview",
+     "gemini:gemini-3-flash-preview",
+     "groq:openai/gpt-oss-120b"
+    ],
+    "erro_motor": null,
+    "segundos": 5.9,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "A sua marcação para o Corte na sexta‑feira, 02/10, às 10:00 foi desmarcada. Qualquer coisa, avise!",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   },
+   {
+    "de": "351931992662",
+    "texto": "sim, desmarque",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "minhas_marcacoes"
+    ],
+    "modelos": [
+     "gemini:gemini-3.1-flash-lite",
+     "groq:openai/gpt-oss-120b"
+    ],
+    "erro_motor": null,
+    "segundos": 7.9,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "Não encontrei nenhuma marcação sua para cancelar. Se precisar de marcar um novo horário, é só dizer!",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   }
+  ],
+  "09-remarcar": [
+   {
+    "de": "351937472634",
+    "texto": "Consegue passar a minha marcação de sexta para as 16h?",
+    "acao": "falha-motor-passou-ao-dono",
+    "tratado": true,
+    "ferramentas": [
+     "minhas_marcacoes",
+     "horarios_livres"
+    ],
+    "modelos": [
+     "groq:openai/gpt-oss-120b",
+     "groq:openai/gpt-oss-120b"
+    ],
+    "erro_motor": "todos os motores falharam: gemini-pago:gemini-3-flash-preview: HTTP 403 [{\n  \"error\": {\n    \"code\": 403,\n    \"message\": \"Spend cap breached for project: projects/765097014497 for service: generativelanguage.googleapis.com.  | gemini:gemini-3-flash-preview: HTTP 400 [{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"Function call is missing a thought_signature in functionCall parts. This is required for tools to work | groq:openai/gpt-oss-120b: HTTP 429 {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kw42bmdpfrjrxhzt0dzyzp7w` service tier `on_demand` on to | gemini:gemini-3.1-flash-lite: HTTP 400 [{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"Function call is missing a thought_signature in functionCall parts. This is required for tools to work",
+    "segundos": 5.8,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "❓ Barbearia Mister Navalha — pergunta de um cliente (P257)\n\n«(o assistente não conseguiu responder) Consegue passar a minha marcação de sexta para as 16h?»\n\nCliente: Ernando.\nResponde a citar esta mensagem, ou escreve: P257 e a resposta.",
+      "motivo": "pergunta_dono:3dec8573-c1d8-48f8-911b-3a6376004bf9",
+      "entrega_estado": "simulado"
+     },
+     {
+      "numero": "351937472634",
+      "texto": "Recebi a sua mensagem. Vou confirmar com o Ernando e volto a falar consigo assim que tiver resposta.",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   },
+   {
+    "de": "351937472634",
+    "texto": "sim",
+    "acao": "falha-motor-passou-ao-dono",
+    "tratado": true,
+    "ferramentas": [
+     "minhas_marcacoes"
+    ],
+    "modelos": [
+     "groq:openai/gpt-oss-120b"
+    ],
+    "erro_motor": "todos os motores falharam: gemini-pago:gemini-3-flash-preview: HTTP 403 [{\n  \"error\": {\n    \"code\": 403,\n    \"message\": \"Spend cap breached for project: projects/765097014497 for service: generativelanguage.googleapis.com.  | gemini:gemini-3-flash-preview: HTTP 429 [{\n  \"error\": {\n    \"code\": 429,\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on t | groq:openai/gpt-oss-120b: HTTP 429 {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kw42bmdpfrjrxhzt0dzyzp7w` service tier `on_demand` on to | gemini:gemini-3.1-flash-lite: HTTP 400 [{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"Function call is missing a thought_signature in functionCall parts. This is required for tools to work",
+    "segundos": 5.2,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "❓ Barbearia Mister Navalha — pergunta de um cliente (P392)\n\n«(o assistente não conseguiu responder) sim»\n\nCliente: Ernando.\nResponde a citar esta mensagem, ou escreve: P392 e a resposta.",
+      "motivo": "pergunta_dono:920d3a27-f0d0-4498-9868-682b297befcf",
+      "entrega_estado": "simulado"
+     },
+     {
+      "numero": "351937472634",
+      "texto": "Recebi a sua mensagem. Vou confirmar com o Ernando e volto a falar consigo assim que tiver resposta.",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   }
+  ],
+  "10-crianca": [
+   {
+    "de": "351931992662",
+    "texto": "Fazem cortes a crianças? O meu filho tem 6 anos",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [],
+    "modelos": [
+     "groq:openai/gpt-oss-120b"
+    ],
+    "erro_motor": null,
+    "segundos": 4.0,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "Sim, fazemos cortes a crianças e o preço é o mesmo que o do corte adulto. 🙂",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   }
+  ],
+  "11-degrade": [
+   {
+    "de": "351931992662",
+    "texto": "Quanto fica um degradê?",
+    "acao": "falha-motor-passou-ao-dono",
+    "tratado": true,
+    "ferramentas": [
+     "passar_ao_dono"
+    ],
+    "modelos": [
+     "groq:openai/gpt-oss-120b"
+    ],
+    "erro_motor": "todos os motores falharam: gemini-pago:gemini-3-flash-preview: HTTP 403 [{\n  \"error\": {\n    \"code\": 403,\n    \"message\": \"Spend cap breached for project: projects/765097014497 for service: generativelanguage.googleapis.com.  | gemini:gemini-3-flash-preview: HTTP 429 [{\n  \"error\": {\n    \"code\": 429,\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on t | groq:openai/gpt-oss-120b: HTTP 429 {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kw42bmdpfrjrxhzt0dzyzp7w` service tier `on_demand` on to | gemini:gemini-3.1-flash-lite: HTTP 400 [{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"Function call is missing a thought_signature in functionCall parts. This is required for tools to work",
+    "segundos": 5.3,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "📲 Barbearia Mister Navalha — um cliente precisa de ti: Pergunta sobre preço do degradê\nCliente: Danilo (+351931992662).\nFala tu diretamente com ele.",
+      "motivo": "passar_dono",
+      "entrega_estado": "simulado"
+     },
+     {
+      "numero": "351931992662",
+      "texto": "Recebi a sua mensagem. Vou confirmar com o Ernando e volto a falar consigo assim que tiver resposta.",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   }
+  ],
+  "12-freestyle": [
+   {
+    "de": "351931992662",
+    "texto": "Fazem freestyle? Queria um desenho de lado",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "passar_ao_dono"
+    ],
+    "modelos": [
+     "gemini:gemini-3.1-flash-lite",
+     "groq:openai/gpt-oss-120b"
+    ],
+    "erro_motor": null,
+    "segundos": 7.7,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "📲 Barbearia Mister Navalha — um cliente precisa de ti: Pedido de freestyle/desenho de lado.\nCliente: Danilo (+351931992662).\nFala tu diretamente com ele.",
+      "motivo": "passar_dono",
+      "entrega_estado": "simulado"
+     },
+     {
+      "numero": "351931992662",
+      "texto": "O freestyle é decidido pelo Ernando. Já lhe passei o recado e ele entra em contacto consigo.",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   }
+  ],
+  "13-pergunta-ao-dono": [
+   {
+    "de": "351937472634",
+    "texto": "Aceitam pagamento por MB Way?",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [],
+    "modelos": [
+     "groq:openai/gpt-oss-120b"
+    ],
+    "erro_motor": null,
+    "segundos": 3.6,
+    "saidas": [
+     {
+      "numero": "351937472634",
+      "texto": "O pagamento é feito na barbearia, no fim do serviço. Não aceitamos MB Way.",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   },
+   {
+    "de": "351931992662",
+    "texto": "P392 Sim, aceitamos MB Way e dinheiro. Cartão ainda não.",
+    "acao": "resposta-do-dono-entregue",
+    "tratado": true,
+    "ferramentas": null,
+    "modelos": null,
+    "erro_motor": null,
+    "segundos": 1.3,
+    "saidas": [
+     {
+      "numero": "351937472634",
+      "texto": "Já falei com o Ernando: sim, aceitamos MB Way e dinheiro; ainda não recebemos pagamentos por cartão.",
+      "motivo": "resposta_dono",
+      "entrega_estado": "simulado"
+     },
+     {
+      "numero": "351931992662",
+      "texto": "✅ P392: entregue ao cliente e guardado para a próxima vez.",
+      "motivo": "dono_ack",
+      "entrega_estado": "simulado"
+     }
+    ]
+   },
+   {
+    "de": "351931992662",
+    "texto": "Posso pagar com MB Way?",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [],
+    "modelos": [
+     "groq:openai/gpt-oss-120b"
+    ],
+    "erro_motor": null,
+    "segundos": 5.0,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "Sim, aceitamos MB Way e dinheiro. Paga‑se na barbearia, no fim do serviço.",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   }
+  ],
+  "14-pessoal": [
+   {
+    "de": "351931992662",
+    "texto": "Mano logo vens jantar cá a casa? A mãe fez bacalhau",
+    "acao": "silencio-pessoal",
+    "tratado": true,
+    "ferramentas": null,
+    "modelos": null,
+    "erro_motor": null,
+    "segundos": 3.2,
+    "saidas": []
+   }
+  ],
+  "15-grupo": [
+   {
+    "de": "351931992662",
+    "texto": "Quanto é a barba?",
+    "acao": "ignorar-grupo",
+    "tratado": false,
+    "ferramentas": null,
+    "modelos": null,
+    "erro_motor": null,
+    "segundos": 0.1,
+    "saidas": []
+   }
+  ],
+  "16-fora-da-allowlist": [
+   {
+    "de": "351912345678",
+    "texto": "Quanto custa um corte?",
+    "acao": "nao-e-do-assistente",
+    "tratado": false,
+    "ferramentas": null,
+    "modelos": null,
+    "erro_motor": null,
+    "segundos": 0.1,
+    "saidas": []
+   }
+  ]
+ }
+}

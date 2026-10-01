@@ -1,0 +1,205 @@
+{
+ "quando": "2026-10-01T23:28:04.446053+01:00",
+ "cenarios": {
+  "05-marcacao": [
+   {
+    "de": "351931992662",
+    "texto": "Queria marcar um corte para sexta às 10h. Chamo-me Danilo.",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "guardar_nome",
+     "horarios_livres"
+    ],
+    "modelos": [
+     "gemini2:gemini-3-flash-preview",
+     "gemini2:gemini-3-flash-preview"
+    ],
+    "erro_motor": null,
+    "segundos": 6.7,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "Olá, Danilo. Tenho vaga para o corte na sexta, dia 2, às 10:00. Posso confirmar a sua marcação?",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   },
+   {
+    "de": "351931992662",
+    "texto": "Sim, pode marcar",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "marcar"
+    ],
+    "modelos": [
+     "gemini2:gemini-3-flash-preview",
+     "gemini2:gemini-3-flash-preview"
+    ],
+    "erro_motor": null,
+    "segundos": 4.1,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "Está marcado, Danilo! Corte para sexta, dia 2, às 10:00. O valor é 13 € e o pagamento é feito na barbearia. Até lá!",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     },
+     {
+      "numero": "351931992662",
+      "texto": "Da próxima vez também pode marcar pela app Bora, escolhe a hora e fica logo marcado: https://misternavalha.boraguarda.com",
+      "motivo": "apos_marcacao:07d60432-1a49-44b2-884e-f9c3bf0954d4",
+      "entrega_estado": "simulado"
+     }
+    ]
+   },
+   {
+    "de": "351931992662",
+    "texto": "Obrigado!",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [],
+    "modelos": [
+     "gemini2:gemini-3-flash-preview"
+    ],
+    "erro_motor": null,
+    "segundos": 2.0,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "De nada, Danilo! Ficamos à sua espera. Até sexta!",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   }
+  ],
+  "08-desmarcar": [
+   {
+    "de": "351931992662",
+    "texto": "Afinal não vou conseguir ir, quero desmarcar a minha marcação",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "minhas_marcacoes",
+     "desmarcar"
+    ],
+    "modelos": [
+     "gemini2:gemini-3-flash-preview",
+     "gemini2:gemini-3-flash-preview",
+     "gemini2:gemini-3-flash-preview"
+    ],
+    "erro_motor": null,
+    "segundos": 8.0,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "Com certeza, Danilo. A sua marcação de Corte para amanhã, sexta-feira às 10:00, foi desmarcada com sucesso. Quando quiser voltar, é só dizer.",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   },
+   {
+    "de": "351931992662",
+    "texto": "sim, desmarque",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "minhas_marcacoes"
+    ],
+    "modelos": [
+     "gemini2:gemini-3-flash-preview",
+     "gemini2:gemini-3-flash-preview"
+    ],
+    "erro_motor": null,
+    "segundos": 3.3,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "Com certeza, Danilo. Já verifiquei e não tem nenhuma marcação ativa para os próximos dias. Se precisar de agendar uma nova data, estou aqui para ajudar.",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   }
+  ],
+  "13-pergunta-ao-dono": [
+   {
+    "de": "351937472634",
+    "texto": "Aceitam pagamento por MB Way?",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "perguntar_ao_dono"
+    ],
+    "modelos": [
+     "gemini2:gemini-3-flash-preview",
+     "gemini2:gemini-3-flash-preview"
+    ],
+    "erro_motor": null,
+    "segundos": 5.2,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "❓ Barbearia Mister Navalha — pergunta de um cliente (P331)\n\n«Aceitam pagamento por MB Way?»\n\nCliente: +351937472634.\nResponde a citar esta mensagem, ou escreve: P331 e a resposta.",
+      "motivo": "pergunta_dono:f71d5d67-2076-4ddc-bfb9-d14d35c44d09",
+      "entrega_estado": "simulado"
+     },
+     {
+      "numero": "351937472634",
+      "texto": "Vou confirmar essa informação com o Ernando e volto a falar consigo assim que tiver uma resposta. Posso ajudar em mais alguma coisa?",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   },
+   {
+    "de": "351931992662",
+    "texto": "P331 Sim, aceitamos MB Way e dinheiro. Cartão ainda não.",
+    "acao": "resposta-do-dono-entregue",
+    "tratado": true,
+    "ferramentas": null,
+    "modelos": null,
+    "erro_motor": null,
+    "segundos": 3.3,
+    "saidas": [
+     {
+      "numero": "351937472634",
+      "texto": "Já falei com o Ernando: aceitamos MB Way e dinheiro, mas cartão ainda não.",
+      "motivo": "resposta_dono",
+      "entrega_estado": "simulado"
+     },
+     {
+      "numero": "351931992662",
+      "texto": "✅ P331: entregue ao cliente e guardado para a próxima vez.",
+      "motivo": "dono_ack",
+      "entrega_estado": "simulado"
+     }
+    ]
+   },
+   {
+    "de": "351931992662",
+    "texto": "Posso pagar com MB Way?",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [],
+    "modelos": [
+     "gemini:gemini-3.1-flash-lite"
+    ],
+    "erro_motor": null,
+    "segundos": 6.2,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "Sim, aceitamos MB Way e dinheiro. Cartão ainda não aceitamos.",
+      "motivo": "resposta",
+      "entrega_estado": "simulado"
+     }
+    ]
+   }
+  ]
+ }
+}

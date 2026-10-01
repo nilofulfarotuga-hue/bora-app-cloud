@@ -286,6 +286,12 @@ class _AppointmentCard extends StatelessWidget {
   /// FIM DO SINAL (2026-08-03) — o cliente paga SEMPRE o valor cheio na app.
   /// Nada é cobrado à chegada; o acerto com a Bora é semanal.
   String _paymentLabel(AppointmentModel a) {
+    // Marcação sem pagamento na app (ao balcão ou pelo assistente do WhatsApp): paga-se no local.
+    if (a.isWalkIn && a.depositStatus == 'waived') {
+      final viaWhatsApp = (a.clientNotes ?? '').contains('WhatsApp');
+      return '${a.servicePriceLabel} · Paga no local'
+          '${viaWhatsApp ? ' · marcado pelo WhatsApp' : ''}';
+    }
     final paid = '€${(a.depositCents / 100).toStringAsFixed(2)}';
     return '${a.servicePriceLabel} · Pago pela app: $paid (valor total)';
   }

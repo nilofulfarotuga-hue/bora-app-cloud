@@ -1,0 +1,21 @@
+[Unit]
+Description=Assistente de Negocio no WhatsApp (funcionario digital) - cerebro + rotinas, 127.0.0.1:8795
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=/opt/assistente-negocio
+Environment=ASSISTENTE_ENV=/opt/assistente-negocio/.env
+Environment=ASSISTENTE_SESSAO=vps-baileys:351937501673
+Environment=ASSISTENTE_PORT=8795
+Environment=ASSISTENTE_LOG=/opt/assistente-negocio/assistente.log
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 /opt/assistente-negocio/servidor.py
+Restart=always
+RestartSec=5
+MemoryMax=200M
+CPUQuota=35%
+Nice=10
+
+[Install]
+WantedBy=multi-user.target

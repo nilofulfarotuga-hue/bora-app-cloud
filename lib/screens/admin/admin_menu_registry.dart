@@ -44,6 +44,7 @@ import 'admin_marcacoes_confirmacao_screen.dart';
 import 'admin_decisoes_screen.dart';
 import 'admin_radar_videos_screen.dart';
 import 'admin_avencas_screen.dart';
+import 'admin_assistentes_screen.dart';
 import 'admin_motores_screen.dart';
 import 'admin_crash_logs_screen.dart';
 import 'admin_notification_failures_screen.dart';
@@ -1008,6 +1009,16 @@ List<AdminMenuSection> adminMenuSections() => [
       color: const Color(0xFF7C3AED),
       builder: () => const AdminAvencasScreen(),
       keywords: const ['avenca', 'avencas', 'presenca', 'digital', 'negocios', 'prospect', 'proposta', 'amostra', 'guarda', 'clientes'],
+    ),
+    // [Assistentes · 01/10] o funcionário digital de WhatsApp dos negócios (assistant_tenants).
+    AdminMenuItem(
+      id: 'robos_assistentes_funcionario_digital',
+      title: 'Assistentes (funcionário digital)',
+      subtitle: 'O assistente de WhatsApp de cada negócio: modo, números, ficha, conversas e custo do mês',
+      icon: Icons.support_agent_rounded,
+      color: AppColors.primary,
+      builder: () => const AdminAssistentesScreen(),
+      keywords: const ['assistente', 'assistentes', 'funcionario', 'digital', 'whatsapp', 'barbearia', 'ficha', 'conversas', 'allowlist', 'marcacoes'],
     ),
     AdminMenuItem(
       id: 'robos_assistente_ia_admin',

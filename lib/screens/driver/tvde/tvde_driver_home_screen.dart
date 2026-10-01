@@ -271,9 +271,14 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     // [Oferta sobreposta 20/09] `TvdeRideActiveScreen.estaAberto`: o cartão
     // global (ou o botão da notificação) pode ter aberto o ecrã da corrida
     // antes desta home — nunca se empilha um segundo por cima.
+    // [Oferta fantasma 01/10] Com o ecrã da oferta aberto NÃO se abre o da
+    // corrida por cima dele: era assim que a oferta ficava presa por baixo e
+    // reaparecia no fim da viagem. A oferta fecha-se sozinha quando a corrida
+    // passa a ser dele e, ao fechar, volta-se aqui (ver o `.then` em baixo).
     if (active != null &&
         active.isLive &&
         !_activeOpen &&
+        !_offerOpen &&
         !TvdeRideActiveScreen.estaAberto) {
       _activeOpen = true;
       Navigator.of(context)
@@ -292,7 +297,10 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
       Navigator.of(context)
           .push(MaterialPageRoute<void>(
               builder: (_) => TvdeOfferScreen(ride: offer)))
-          .then((_) => _offerOpen = false);
+          .then((_) {
+        _offerOpen = false;
+        _syncNav(); // aceitou → abre já a corrida, sem esperar outro rebuild
+      });
     }
   }
 

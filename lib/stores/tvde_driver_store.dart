@@ -6,6 +6,16 @@ import '../models/falha_de_acao.dart';
 import '../services/notification_service.dart';
 import '../models/tvde_ride.dart';
 
+/// O que o servidor respondeu a uma leitura do estado do motorista: as
+/// corridas activas (a mais comprometida primeiro), a que está em fila e a
+/// oferta pendente.
+class TvdeLeituraActual {
+  const TvdeLeituraActual({required this.ativas, this.fila, this.oferta});
+  final List<TvdeRide> ativas;
+  final TvdeRide? fila;
+  final TvdeRide? oferta;
+}
+
 /// TVDE — Bora Motorista. Store reativo do MOTORISTA (modo passageiros).
 /// 100% isolado do delivery (OrderStore/DispatchEngine intocados). Todas as
 /// transições passam por RPC no backend (Fase 1+2); aqui só lemos e chamamos.
@@ -200,85 +210,159 @@ class TvdeDriverStore extends ChangeNotifier {
     }
   }
 
+  /// [Oferta fantasma · 01/10] Sequência das leituras do `loadCurrent`.
+  ///
+  /// O push, o arranque do canal, o regresso ao primeiro plano e a rede de
+  /// segurança dos 10 s chamam todos o `loadCurrent`, e ele faz três
+  /// perguntas ao servidor. Uma leitura que saiu ANTES de o motorista aceitar
+  /// podia chegar DEPOIS e escrever a oferta de volta (ou pôr a corrida
+  /// activa a null) — a oferta ressuscitada da corrida 03874579.
+  ///  - [_loadGen]: só a leitura mais recente escreve; as anteriores largam.
+  ///  - [_versao]: sobe sempre que o estado muda por outro caminho (realtime,
+  ///    aceitar, recusar, terminar…). Uma leitura que apanhou uma mudança a
+  ///    meio não escreve o que leu: repete.
+  int _loadGen = 0;
+  int _versao = 0;
+
+  /// Uma corrida só pode ser OFERTA se não for já deste motorista (activa,
+  /// em fila ou em stand by) nem tiver sido respondida nesta roda.
+  bool _podeSerOferta(TvdeRide r) =>
+      r.id != _activeRide?.id &&
+      r.id != _queuedRide?.id &&
+      r.id != _standByRide?.id &&
+      !ofertaTvdeJaTratada(r.id, prazo: r.offerExpiresAt);
+
+  /// O que o cartão global pergunta antes de desenhar a oferta: continua a
+  /// ser uma oferta viva, para este motorista? (Não olha à marca de "já
+  /// respondida": essa trava a ENTRADA no store; aqui, com o aceite a
+  /// decorrer, o cartão tem de ficar à vista com o indicador de espera.)
+  bool ofertaApresentavel(TvdeRide r) {
+    if (r.status != 'solicitada' ||
+        r.id == _activeRide?.id ||
+        r.id == _queuedRide?.id ||
+        r.id == _standByRide?.id) {
+      return false;
+    }
+    final para = r.currentOfferDriverId;
+    if (para == null) return true;
+    String? eu;
+    try {
+      eu = _uid;
+    } catch (_) {/* sem sessão montada (testes): não se filtra por dono */}
+    return eu == null || para == eu;
+  }
+
   /// Re-lê do servidor a oferta pendente e a corrida ativa deste motorista.
   /// Chamar no toggle Online, no resume e ao tocar na notificação (deep-link).
   Future<void> loadCurrent() async {
-    final uid = _uid;
-    if (uid == null) return;
+    final leitor = debugLeitor;
+    final uid = leitor == null ? _uid : null;
+    if (leitor == null && uid == null) return;
+    final gen = ++_loadGen;
     try {
-      // [Fix 2026-09-05] Trazer TODAS as activas, não só a de `updated_at` mais
-      // recente: quando o relógio activa uma reserva a meio de uma viagem ficam
-      // duas. Manda a mais comprometida; a outra vai para stand by.
-      final active = await _sb
-          .from('tvde_rides')
-          .select()
-          .eq('driver_id', uid)
-          .eq('is_queued', false)
-          .inFilter('status', _activeStatuses)
-          .order('updated_at', ascending: false);
+      for (var tentativa = 0; tentativa < 3; tentativa++) {
+        final versao = _versao;
+        final lido =
+            leitor != null ? await leitor() : await _lerDoServidor(uid!);
+        // Entretanto saiu uma leitura mais nova: é ela que escreve.
+        if (gen != _loadGen) return;
+        // O estado mudou enquanto se lia (realtime, aceite, recusa): o que
+        // se leu pode já ser passado. Não se escreve — lê-se outra vez.
+        if (versao != _versao) continue;
 
-      final ativas = active
-          .map((m) => TvdeRide.fromMap(Map<String, dynamic>.from(m)))
-          .toList()
-        ..sort((a, b) =>
-            _grauCompromisso(b.status).compareTo(_grauCompromisso(a.status)));
+        final ativas = lido.ativas;
+        final fila = lido.fila;
+        var nova = lido.oferta;
 
-      _activeRide = ativas.isEmpty ? null : ativas.first;
-      _standByRide = ativas.length > 1 ? ativas[1] : null;
-      // [Sobreposição 14/09 · item 10] Duas activas não-fila é um estado que o
-      // servidor já não deixa nascer (guarda em tvde_accept_ride). Se mesmo
-      // assim aparecer, o ecrã fica com a mais comprometida (acima) e
-      // reporta-se — nunca se mostram duas.
-      if (ativas.length > 1) _reportarDuasActivas(ativas);
+        _activeRide = ativas.isEmpty ? null : ativas.first;
+        _standByRide = ativas.length > 1 ? ativas[1] : null;
+        // [Sobreposição 14/09 · item 10] Duas activas não-fila é um estado
+        // que o servidor já não deixa nascer (guarda em tvde_accept_ride). Se
+        // mesmo assim aparecer, o ecrã fica com a mais comprometida (acima) e
+        // reporta-se — nunca se mostram duas.
+        if (ativas.length > 1) _reportarDuasActivas(ativas);
+        _queuedRide = fila;
 
-      // Corrida em fila (back-to-back), se existir — a mais antiga primeiro
-      // (é a que o servidor promove quando a actual termina).
-      final queued = await _sb
-          .from('tvde_rides')
-          .select()
-          .eq('driver_id', uid)
-          .eq('is_queued', true)
-          .eq('status', 'motorista_atribuido')
-          .order('created_at', ascending: true)
-          .limit(1);
-      _queuedRide = queued.isEmpty ? null : TvdeRide.fromMap(queued.first);
-
-      // Oferta: quem decide se este motorista pode receber é o SERVIDOR
-      // (tvde_offer_to_next: livre, ou ocupado elegível para sobreposição —
-      // a caminho, chegou ou em viagem). Aqui só se esconde a oferta quando já
-      // há uma corrida em fila: essa nunca leva outra por cima.
-      // [Sobreposição 14/09] Antes exigia 'em_andamento' e o motorista a
-      // caminho do passageiro nunca via a oferta que o servidor lhe fazia.
-      final canReceiveOffer = _queuedRide == null;
-      if (canReceiveOffer) {
-        // [Oferta sobreposta 20/09 · C2] Uma oferta MORTA nunca chega à UI.
-        // O motorista tocava na notificação 20 s depois de a oferta ter
-        // expirado, isto carregava-a na mesma, e o cartão devolvia um
-        // `SizedBox.shrink()` — ecrã sem nada, sem explicação. O sweep só
-        // roda ao próximo de 15 em 15 s, por isso a linha ainda está lá com
-        // o prazo passado. Sem prazo (null) deixa-se passar: é o servidor a
-        // dizer "sem limite conhecido", não "expirada".
-        final agora = DateTime.now().toUtc().toIso8601String();
-        final offer = await _sb
-            .from('tvde_rides')
-            .select()
-            .eq('current_offer_driver_id', uid)
-            .eq('status', 'solicitada')
-            .or('offer_expires_at.is.null,offer_expires_at.gt.$agora')
-            .order('offer_expires_at', ascending: false)
-            .limit(1);
-        final nova = offer.isEmpty ? null : TvdeRide.fromMap(offer.first);
+        // [Oferta fantasma 01/10] Nunca entra como oferta uma corrida que já
+        // é dele ou que ele já respondeu.
+        if (nova != null && !_podeSerOferta(nova)) nova = null;
         // Se a oferta que estava em memória já não vem do servidor (expirou
         // ou foi para outro), a notificação persistente morre com ela.
         if (nova == null || nova.id != _offeredRide?.id) _limparOferta();
         _offeredRide = nova;
-      } else {
-        _limparOferta();
+        notifyListeners();
+        return;
       }
-      notifyListeners();
     } catch (e) {
       debugPrint('TvdeDriverStore.loadCurrent error => $e');
     }
+  }
+
+  /// Só para testes: substitui as três perguntas ao servidor do
+  /// [loadCurrent], para se poder provar a ordem das respostas. Nunca
+  /// escrever aqui em código de produção.
+  @visibleForTesting
+  Future<TvdeLeituraActual> Function()? debugLeitor;
+
+  /// As três perguntas do [loadCurrent]: activas, fila e oferta. Só lê.
+  Future<TvdeLeituraActual> _lerDoServidor(String uid) async {
+    // [Fix 2026-09-05] Trazer TODAS as activas, não só a de `updated_at` mais
+    // recente: quando o relógio activa uma reserva a meio de uma viagem ficam
+    // duas. Manda a mais comprometida; a outra vai para stand by.
+    final active = await _sb
+        .from('tvde_rides')
+        .select()
+        .eq('driver_id', uid)
+        .eq('is_queued', false)
+        .inFilter('status', _activeStatuses)
+        .order('updated_at', ascending: false);
+
+    final ativas = active
+        .map((m) => TvdeRide.fromMap(Map<String, dynamic>.from(m)))
+        .toList()
+      ..sort((a, b) =>
+          _grauCompromisso(b.status).compareTo(_grauCompromisso(a.status)));
+
+    // Corrida em fila (back-to-back), se existir — a mais antiga primeiro
+    // (é a que o servidor promove quando a actual termina).
+    final queued = await _sb
+        .from('tvde_rides')
+        .select()
+        .eq('driver_id', uid)
+        .eq('is_queued', true)
+        .eq('status', 'motorista_atribuido')
+        .order('created_at', ascending: true)
+        .limit(1);
+    final fila = queued.isEmpty ? null : TvdeRide.fromMap(queued.first);
+
+    // Oferta: quem decide se este motorista pode receber é o SERVIDOR
+    // (tvde_offer_to_next: livre, ou ocupado elegível para sobreposição —
+    // a caminho, chegou ou em viagem). Aqui só se esconde a oferta quando já
+    // há uma corrida em fila: essa nunca leva outra por cima.
+    // [Sobreposição 14/09] Antes exigia 'em_andamento' e o motorista a
+    // caminho do passageiro nunca via a oferta que o servidor lhe fazia.
+    if (fila != null) return TvdeLeituraActual(ativas: ativas, fila: fila);
+
+    // [Oferta sobreposta 20/09 · C2] Uma oferta MORTA nunca chega à UI.
+    // O motorista tocava na notificação 20 s depois de a oferta ter
+    // expirado, isto carregava-a na mesma, e o cartão devolvia um
+    // `SizedBox.shrink()` — ecrã sem nada, sem explicação. O sweep só
+    // roda ao próximo de 15 em 15 s, por isso a linha ainda está lá com
+    // o prazo passado. Sem prazo (null) deixa-se passar: é o servidor a
+    // dizer "sem limite conhecido", não "expirada".
+    final agora = DateTime.now().toUtc().toIso8601String();
+    final offer = await _sb
+        .from('tvde_rides')
+        .select()
+        .eq('current_offer_driver_id', uid)
+        .eq('status', 'solicitada')
+        .or('offer_expires_at.is.null,offer_expires_at.gt.$agora')
+        .order('offer_expires_at', ascending: false)
+        .limit(1);
+    return TvdeLeituraActual(
+      ativas: ativas,
+      oferta: offer.isEmpty ? null : TvdeRide.fromMap(offer.first),
+    );
   }
 
   void _subscribe() {
@@ -321,6 +405,8 @@ class TvdeDriverStore extends ChangeNotifier {
       _applyReservationChange(ride, uid);
       return;
     }
+
+    _versao++; // uma leitura do servidor a meio já não vale (ver _loadGen)
 
     // Corrida ativa minha → atualiza/limpa.
     if (ride.driverId == uid) {
@@ -371,6 +457,8 @@ class TvdeDriverStore extends ChangeNotifier {
 
     // Oferta para mim (ainda por aceitar).
     if (ride.currentOfferDriverId == uid && ride.status == 'solicitada') {
+      // [Oferta fantasma 01/10] Já é dele ou já a respondeu: não volta.
+      if (!_podeSerOferta(ride)) return;
       _offeredRide = ride;
       notifyListeners();
     } else if (_offeredRide?.id == ride.id) {
@@ -388,6 +476,7 @@ class TvdeDriverStore extends ChangeNotifier {
     if (oldRecord == null || oldRecord.isEmpty) return;
     final deletedId = oldRecord['id'] as String?;
     if (deletedId == null) return;
+    _versao++;
     var changed = false;
     if (_offeredRide?.id == deletedId) {
       _limparOferta();
@@ -440,11 +529,21 @@ class TvdeDriverStore extends ChangeNotifier {
 
   Future<TvdeRide> acceptOffer(String rideId) async {
     _setBusy(true);
+    // [Oferta fantasma 01/10] A notificação morre SEMPRE pelo id da corrida,
+    // haja ou não oferta em memória (antes só morria via `_limparOferta`, e
+    // com `_offeredRide` a null ficava presa). E a oferta fica marcada como
+    // respondida ANTES da RPC: um aviso que ainda esteja a nascer, ou uma
+    // leitura atrasada, já não a trazem de volta.
+    final prazo =
+        _offeredRide?.id == rideId ? _offeredRide?.offerExpiresAt : null;
+    unawaited(marcarOfertaTvdeTratada(rideId, prazo: prazo));
+    unawaited(cancelTvdeRideNotification(rideId));
     try {
       final res = await _sb
           .rpc('tvde_accept_ride', params: {'p_ride_id': rideId})
           .timeout(kAcaoTimeout);
       final ride = TvdeRide.fromMap(_asMap(res));
+      _versao++;
       if (ride.isQueued) {
         // back-to-back: fica em fila; a viagem atual continua ativa.
         _queuedRide = ride;
@@ -454,6 +553,11 @@ class TvdeDriverStore extends ChangeNotifier {
       _limparOferta();
       notifyListeners();
       return ride;
+    } catch (_) {
+      // Falhou (rede, ou já foi levada): deixa de contar como respondida,
+      // para a rede de segurança a poder trazer de volta se ainda for dele.
+      desmarcarOfertaTvdeTratada(rideId);
+      rethrow;
     } finally {
       _setBusy(false);
     }
@@ -691,12 +795,23 @@ class TvdeDriverStore extends ChangeNotifier {
 
   Future<void> rejectOffer(String rideId) async {
     _setBusy(true);
+    // [Oferta fantasma 01/10] Como no aceitar: mata a notificação pelo id e
+    // marca a oferta como respondida, haja ou não oferta em memória.
+    final prazo =
+        _offeredRide?.id == rideId ? _offeredRide?.offerExpiresAt : null;
+    unawaited(marcarOfertaTvdeTratada(rideId, prazo: prazo));
+    unawaited(cancelTvdeRideNotification(rideId));
     try {
       await _sb
           .rpc('tvde_reject_ride', params: {'p_ride_id': rideId})
           .timeout(kAcaoTimeout);
+      _versao++;
       _limparOferta();
       notifyListeners();
+    } catch (_) {
+      // Não chegou ao servidor: continua a ser uma oferta por responder.
+      desmarcarOfertaTvdeTratada(rideId);
+      rethrow;
     } finally {
       _setBusy(false);
     }
@@ -741,8 +856,10 @@ class TvdeDriverStore extends ChangeNotifier {
       // [Oferta sobreposta 20/09 · C3] Terminar a corrida NÃO apaga uma
       // oferta que esteja a contar: no servidor ela continua a ser dele e,
       // agora livre, aceitá-la dá-lhe a corrida directamente.
+      _versao++;
       _limparOfertaSe(rideId);
       await _reloadActiveAfterTerminal(finished);
+      _versao++;
       notifyListeners();
       return finished;
     } finally {
@@ -765,6 +882,7 @@ class TvdeDriverStore extends ChangeNotifier {
         'p_reason': reason,
       }).timeout(kAcaoTimeout);
       final ride = TvdeRide.fromMap(_asMap(res));
+      _versao++;
       if (_activeRide?.id == rideId) {
         // A activa caiu. Se havia fila, o backend promoveu-a — relê SEMPRE do
         // servidor (mesma corrida com o realtime do finishRide: decidir pelo
@@ -772,6 +890,7 @@ class TvdeDriverStore extends ChangeNotifier {
         // [20/09 · C3] Uma oferta a contar sobrevive ao cancelamento da activa.
         _limparOfertaSe(rideId);
         await _reloadActiveAfterTerminal(ride);
+        _versao++;
       } else {
         _activeRide = ride;
         _limparOfertaSe(rideId);
@@ -892,6 +1011,7 @@ class TvdeDriverStore extends ChangeNotifier {
     try {
       final res = await _sb.rpc(rpc, params: params).timeout(kAcaoTimeout);
       final ride = TvdeRide.fromMap(_asMap(res));
+      _versao++;
       _activeRide = ride;
       notifyListeners();
       return ride;
@@ -902,6 +1022,7 @@ class TvdeDriverStore extends ChangeNotifier {
 
   // ── limpeza de estado ─────────────────────────────────────────────────────
   void clearOffer() {
+    _versao++;
     _limparOferta();
     notifyListeners();
   }
@@ -910,6 +1031,7 @@ class TvdeDriverStore extends ChangeNotifier {
   /// Nunca chamar em código de produção.
   @visibleForTesting
   void debugInjectar({TvdeRide? oferta, TvdeRide? reserva, TvdeRide? activa}) {
+    _versao++;
     _offeredRide = oferta;
     _reservationOffer = reserva;
     _activeRide = activa;
@@ -917,6 +1039,7 @@ class TvdeDriverStore extends ChangeNotifier {
   }
 
   void clearActive() {
+    _versao++;
     _activeRide = null;
     notifyListeners();
   }

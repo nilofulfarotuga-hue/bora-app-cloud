@@ -246,6 +246,13 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
           showBadge: true,
         ),
       );
+      // [Oferta fantasma 01/10] Respondida entretanto (noutro isolate ou
+      // pelo botão da notificação)? Não se mostra.
+      final prazo = DateTime.tryParse(data['offerExpiresAt']?.toString() ?? '');
+      if (await ofertaTvdeJaTratadaPersistida(rideId, prazo: prazo)) {
+        debugPrint('[BORA-TVDE] BG oferta já tratada, sem aviso ride=$rideId');
+        return;
+      }
       final androidDetails = AndroidNotificationDetails(
         'bora_orders_urgent_v3',
         'Bora — Novos pedidos',
@@ -709,6 +716,9 @@ Future<void> onBackgroundNotificationAction(NotificationResponse response) async
       final rpc = actionId == kTvdeOfferRejectAction
           ? 'tvde_reject_ride'
           : 'tvde_reservation_reject';
+      // [Oferta fantasma 01/10] Fica marcada para a app (outro isolate) não
+      // voltar a mostrar o aviso desta roda.
+      await marcarOfertaTvdeTratada(rideId);
       final ok = await _rpcHeadless(rpc, {'p_ride_id': rideId});
       try {
         await FlutterLocalNotificationsPlugin().cancel(rideId.hashCode);
@@ -892,6 +902,130 @@ Future<void> cancelTvdeRideNotification(String rideId) async {
     if (active) await fow.FlutterOverlayWindow.closeOverlay();
   } catch (_) {/* silent */}
 }
+
+// ── [Oferta fantasma · 01/10/2026] Ofertas TVDE já tratadas ────────────────
+// O Danilo aceitou uma oferta 1 s depois do push e, com a corrida já a
+// decorrer, ficou-lhe um aviso "Nova corrida" preso em cima. A notificação
+// local espera a criação do canal antes do `show`; se o aceite cancela nesse
+// intervalo, o cancelar não encontra nada e o aviso nasce DEPOIS, sem ninguém
+// para o matar. Este registo diz "esta oferta já foi respondida": quem a
+// aceita ou recusa marca-a aqui, e quem vai mostrar o aviso pergunta primeiro
+// (e outra vez logo a seguir ao `show`).
+//
+// Uma corrida recusada pode voltar a ser oferecida ao mesmo motorista numa
+// roda nova, e essa oferta é legítima. Por isso a marca vale só para a MESMA
+// roda:
+//  - uma janela curta a seguir à resposta. Tem de ser MENOR do que a pausa
+//    do servidor antes de voltar a oferecer (`tvde_reoffer_pause_seconds`,
+//    35 s): dentro dela nenhuma roda nova pode ter nascido. Cobre também o
+//    prazo que a Edge do push re-ancora para mais tarde na mesma roda;
+//  - passada a janela, só o que tiver prazo igual ou anterior ao da oferta
+//    tratada (uma leitura muito atrasada). Compara-se ao milissegundo, que é
+//    o que fica gravado para o outro isolate.
+const Duration kTvdeOfertaTratadaJanela = Duration(seconds: 25);
+const String _kTvdeTratadasPrefs = 'bora_tvde.ofertas_tratadas';
+
+class _OfertaTratada {
+  const _OfertaTratada(this.quando, this.prazo);
+  final DateTime quando;
+  final DateTime? prazo;
+
+  bool cobre(DateTime? prazoDaOferta, DateTime agora) {
+    if (agora.difference(quando) < kTvdeOfertaTratadaJanela) return true;
+    final meu = prazo;
+    return prazoDaOferta != null &&
+        meu != null &&
+        prazoDaOferta.millisecondsSinceEpoch <= meu.millisecondsSinceEpoch;
+  }
+}
+
+final Map<String, _OfertaTratada> _tvdeOfertasTratadas =
+    <String, _OfertaTratada>{};
+
+/// Marca a oferta [rideId] como respondida (aceite ou recusada). A memória
+/// fica marcada JÁ (síncrono); a gravação em SharedPreferences serve o
+/// isolate de segundo plano, que não partilha memória com a app.
+Future<void> marcarOfertaTvdeTratada(String rideId,
+    {DateTime? prazo, @visibleForTesting DateTime? quando}) async {
+  if (rideId.isEmpty) return;
+  final agora = quando ?? DateTime.now();
+  _tvdeOfertasTratadas[rideId] = _OfertaTratada(agora, prazo);
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.reload(); // o outro isolate pode ter gravado marcas suas
+    final corte = agora.subtract(const Duration(minutes: 10));
+    final linhas = <String>[
+      for (final l in prefs.getStringList(_kTvdeTratadasPrefs) ?? const [])
+        if (!l.startsWith('$rideId|') &&
+            (_lerTratada(l)?.value.quando.isAfter(corte) ?? false))
+          l,
+      '$rideId|${agora.millisecondsSinceEpoch}|'
+          '${prazo?.millisecondsSinceEpoch ?? ''}',
+    ];
+    await prefs.setStringList(_kTvdeTratadasPrefs, linhas);
+  } catch (e) {
+    debugPrint('[BORA-TVDE] oferta tratada não gravada: $e');
+  }
+}
+
+/// O aceite falhou por uma razão que não mata a oferta (rede): deixa de
+/// contar como respondida, para a rede de segurança a poder trazer de volta.
+void desmarcarOfertaTvdeTratada(String rideId) {
+  _tvdeOfertasTratadas.remove(rideId);
+  unawaited(() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      final linhas = (prefs.getStringList(_kTvdeTratadasPrefs) ?? const [])
+          .where((l) => !l.startsWith('$rideId|'))
+          .toList();
+      await prefs.setStringList(_kTvdeTratadasPrefs, linhas);
+    } catch (_) {/* best-effort */}
+  }());
+}
+
+/// Esta oferta já foi respondida nesta roda? Só memória — síncrono.
+bool ofertaTvdeJaTratada(String rideId, {DateTime? prazo, DateTime? agora}) {
+  final t = _tvdeOfertasTratadas[rideId];
+  return t != null && t.cobre(prazo, agora ?? DateTime.now());
+}
+
+/// O mesmo, mas lê também o que o outro isolate gravou.
+Future<bool> ofertaTvdeJaTratadaPersistida(String rideId,
+    {DateTime? prazo}) async {
+  if (rideId.isEmpty) return false;
+  if (ofertaTvdeJaTratada(rideId, prazo: prazo)) return true;
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
+    for (final l in prefs.getStringList(_kTvdeTratadasPrefs) ?? const []) {
+      final e = _lerTratada(l);
+      if (e != null && e.key == rideId) {
+        return e.value.cobre(prazo, DateTime.now());
+      }
+    }
+  } catch (_) {/* sem prefs: decide a memória */}
+  return false;
+}
+
+MapEntry<String, _OfertaTratada>? _lerTratada(String linha) {
+  final p = linha.split('|');
+  if (p.length != 3) return null;
+  final quando = int.tryParse(p[1]);
+  if (quando == null) return null;
+  final prazo = int.tryParse(p[2]);
+  return MapEntry(
+    p[0],
+    _OfertaTratada(
+      DateTime.fromMillisecondsSinceEpoch(quando),
+      prazo == null ? null : DateTime.fromMillisecondsSinceEpoch(prazo),
+    ),
+  );
+}
+
+/// Só para testes: esquece todas as marcas em memória.
+@visibleForTesting
+void debugLimparOfertasTvdeTratadas() => _tvdeOfertasTratadas.clear();
 
 Future<void> cancelDriverOfferNotification(String orderId) async {
   if (orderId.isEmpty) return;
@@ -2738,6 +2872,13 @@ class NotificationService {
           showBadge: true,
         ),
       );
+      // [Oferta fantasma 01/10] O `await` de cima dá tempo ao motorista de
+      // aceitar (1 s depois do push, a 01/10). Se já respondeu, não se mostra.
+      final prazo = DateTime.tryParse(data['offerExpiresAt']?.toString() ?? '');
+      if (ofertaTvdeJaTratada(rideId, prazo: prazo)) {
+        debugPrint('[NotificationService FG] oferta já tratada ride=$rideId');
+        return;
+      }
       final androidDetails = AndroidNotificationDetails(
         'bora_orders_urgent_v3',
         'Bora — Novos pedidos',
@@ -2773,6 +2914,11 @@ class NotificationService {
         payload: jsonEncode({'type': 'new_tvde_ride_offer', 'rideId': rideId}),
       );
       debugPrint('[NotificationService FG] TVDE offer notif posted ride=$rideId');
+      // Respondeu durante o próprio `show`: o cancelar dele correu antes de
+      // o aviso existir. Mata-se agora.
+      if (ofertaTvdeJaTratada(rideId, prazo: prazo)) {
+        await cancelTvdeRideNotification(rideId);
+      }
     } catch (e) {
       debugPrint('[NotificationService FG] TVDE offer notif error: $e');
       _sound.playOnce();

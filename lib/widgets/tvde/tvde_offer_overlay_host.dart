@@ -191,7 +191,13 @@ class _TvdeOfferOverlayHostState extends State<TvdeOfferOverlayHost>
   @override
   Widget build(BuildContext context) {
     final store = context.watch<TvdeDriverStore>();
-    final offer = store.offeredRide;
+    // [Oferta fantasma 01/10] Só se desenha uma oferta que ainda o é: não é
+    // a corrida que ele já leva (activa/fila), continua à procura de
+    // motorista, é para ele e ainda não lhe respondeu.
+    final emMemoria = store.offeredRide;
+    final offer = emMemoria != null && store.ofertaApresentavel(emMemoria)
+        ? emMemoria
+        : null;
     final reserva = store.reservationOffer;
     final emEcraInteiro = TvdeOfferPresentation.fullScreenRideId.value;
     final corridaActiva = TvdeOfferPresentation.corridaActivaAberta(store);
@@ -355,9 +361,15 @@ class _TvdeOfferOverlayCardState extends State<TvdeOfferOverlayCard> {
 
   DateTime get _now => (widget.agora ?? DateTime.now)();
 
+  /// [Oferta fantasma 01/10] Prazo LOCAL para a oferta que chega sem
+  /// `offer_expires_at`: 25 s a contar de quando o cartão a mostrou. Antes o
+  /// cartão ficava congelado em "25s" para sempre, sem nunca se fechar.
+  late DateTime _prazoLocal;
+
   @override
   void initState() {
     super.initState();
+    _prazoLocal = _now.add(const Duration(seconds: 25));
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });
@@ -368,6 +380,7 @@ class _TvdeOfferOverlayCardState extends State<TvdeOfferOverlayCard> {
   void didUpdateWidget(covariant TvdeOfferOverlayCard old) {
     super.didUpdateWidget(old);
     if (old.offer.id != widget.offer.id) {
+      _prazoLocal = _now.add(const Duration(seconds: 25));
       _timeoutResposta?.cancel();
       _respondendo = false;
       _fecho?.cancel();
@@ -397,13 +410,12 @@ class _TvdeOfferOverlayCardState extends State<TvdeOfferOverlayCard> {
   }
 
   int get _segundosRestantes {
-    final exp = widget.offer.offerExpiresAt;
-    if (exp == null) return 25; // sem prazo conhecido: o servidor decide
+    final exp = widget.offer.offerExpiresAt ?? _prazoLocal;
     final s = exp.difference(_now).inSeconds;
     return s > 0 ? s : 0;
   }
 
-  bool get _expirada => widget.offer.offerExpiresAt != null && _segundosRestantes <= 0;
+  bool get _expirada => _segundosRestantes <= 0;
 
   void _travar() {
     setState(() => _respondendo = true);

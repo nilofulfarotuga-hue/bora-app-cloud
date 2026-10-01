@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 import 'package:latlong2/latlong.dart';
@@ -26,6 +26,13 @@ class TvdeOfferScreen extends StatefulWidget {
   const TvdeOfferScreen({super.key, required this.ride});
   final TvdeRide ride;
 
+  /// SÓ PARA TESTES. O som (AudioPlayer) e o mini-mapa (vista nativa) não
+  /// existem num teste de widget; com isto a true o ecrã monta-se sem eles e
+  /// todo o resto — fechar, aceitar, recusar — é o código real. Nunca
+  /// escrever aqui em código de produção.
+  @visibleForTesting
+  static bool debugSemPlataforma = false;
+
   @override
   State<TvdeOfferScreen> createState() => _TvdeOfferScreenState();
 }
@@ -42,7 +49,8 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
   /// Som CONTÍNUO da oferta (padrão Uber/estafeta) — mesmo `SoundService` +
   /// `bora_alert.wav` que o fluxo de entrega usa em `playLoop`. Instância
   /// própria (AudioPlayer isolado, ver doc do SoundService).
-  final SoundService _sound = SoundService();
+  final SoundService? _sound =
+      TvdeOfferScreen.debugSemPlataforma ? null : SoundService();
 
   // [Recusa fantasma · 25/09] Mesmas guardas do cartão sobreposto: o Recusar
   // não faz nada no primeiro segundo e pede um segundo toque.
@@ -71,7 +79,7 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
     // inteiro, o cartão global (TvdeOfferOverlayHost) não a duplica por cima.
     _marcarEcraInteiro(widget.ride.id);
     // A1 — arranca o som contínuo até aceitar/recusar/expirar.
-    _sound.playLoop();
+    _sound?.playLoop();
     // A contagem é recalculada a cada segundo a partir da oferta VIVA (store)
     // no build — assim um re-offer renova o tempo em vez de ficar preso em "0 s".
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -87,8 +95,8 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
     _ticker?.cancel();
     _guardaAparecer?.cancel();
     _janelaRecusa?.cancel();
-    _sound.stop();
-    _sound.dispose();
+    _sound?.stop();
+    _sound?.dispose();
     super.dispose();
   }
 
@@ -100,15 +108,47 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
     TvdeOfferPresentation.fullScreenRideId.value = rideId;
   }
 
+  /// A rota DESTE ecrã, guardada para se poder fechar a si próprio mesmo
+  /// quando já não é o ecrã de cima.
+  ModalRoute<dynamic>? _rota;
+  bool _fechada = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _rota = ModalRoute.of(context);
+  }
+
+  /// [Oferta fantasma · 01/10 · corrida 03874579] Fecha ESTE ecrã — nunca
+  /// "o ecrã de cima".
+  ///
+  /// O Danilo aceitou 1 s depois do push. O realtime chegou antes da resposta
+  /// do aceite, a home abriu o ecrã da corrida POR CIMA deste, e o
+  /// `Navigator.pop()` que vinha a seguir fechou a corrida em vez da oferta.
+  /// A oferta ficou por baixo, já sem som nem contagem e com os botões
+  /// mortos; ao terminar a viagem reapareceu, e o `PopScope` não o deixava
+  /// sair. Por isso: se este ecrã está em cima, `pop` (explícito — o
+  /// `maybePop` é travado pelo `canPop: false`); se está por baixo de outro,
+  /// tira-se a rota do meio sem tocar na de cima.
+  void _fecharEstaRota([Object? resultado]) {
+    if (_fechada || !mounted) return;
+    final rota = _rota;
+    if (rota == null || !rota.isActive) return;
+    _fechada = true;
+    final nav = Navigator.of(context);
+    if (rota.isCurrent) {
+      nav.pop(resultado);
+    } else {
+      nav.removeRoute(rota);
+    }
+  }
+
   void _autoClose() {
     if (_closing) return;
     _closing = true;
     _ticker?.cancel();
-    _sound.stop();
-    // pop() explícito (NÃO maybePop): o PopScope canPop:false BLOQUEIA o
-    // maybePop → era exatamente isto que prendia o ecrã em "0 s" e matava o
-    // Recusar. O pop() explícito não consulta o canPop e fecha mesmo.
-    if (mounted && Navigator.of(context).canPop()) Navigator.of(context).pop();
+    _sound?.stop();
+    _fecharEstaRota();
   }
 
   Future<void> _accept() async {
@@ -117,18 +157,17 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
     final store = context.read<TvdeDriverStore>();
     _closing = true; // guarda contra duplo-pop durante o rebuild reativo
     _ticker?.cancel();
-    _sound.stop();
+    _sound?.stop();
     try {
       await store.acceptOffer(widget.ride.id);
-      if (!mounted) return;
-      Navigator.of(context).pop(true); // home roteia para o ecrã ativo
+      _fecharEstaRota(true); // home roteia para o ecrã ativo
     } catch (_) {
       store.clearOffer();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Esta corrida já não está disponível.')),
       );
-      if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+      _fecharEstaRota();
     }
   }
 
@@ -144,7 +183,7 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
     }
     _janelaRecusa?.cancel();
     _acting = true;
-    _sound.stop();
+    _sound?.stop();
     final store = context.read<TvdeDriverStore>();
     try {
       await store.rejectOffer(widget.ride.id);
@@ -182,6 +221,21 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (expiredLocally) store.clearOffer();
         _autoClose();
+      });
+    }
+    // [Oferta fantasma 01/10] Rede de segurança: a corrida deste ecrã já é
+    // dele (activa ou em fila), ou deixou de estar à procura de motorista.
+    // Este ecrã não tem mais nada a mostrar — sai, mesmo com `_closing` a
+    // true (o aceite ainda à espera da resposta) e mesmo por baixo de outro.
+    final jaNaoEOferta = store.activeRide?.id == widget.ride.id ||
+        store.queuedRide?.id == widget.ride.id ||
+        ride.status != 'solicitada';
+    if (jaNaoEOferta && !_fechada) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _closing = true;
+        _ticker?.cancel();
+        _sound?.stop();
+        _fecharEstaRota();
       });
     }
     final countdownLabel = secs > 0 ? '$secs s' : 'A reatribuir…';
@@ -283,7 +337,8 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
                       // Mini-mapa recolha→destino (padrão Uber/Bolt/99): o
                       // motorista vê ONDE é a corrida antes de aceitar.
                       const SizedBox(height: Spacing.md),
-                      _OfferMiniMap(ride: ride),
+                      if (!TvdeOfferScreen.debugSemPlataforma)
+                        _OfferMiniMap(ride: ride),
                       const SizedBox(height: Spacing.md),
                       _PointRow(
                         icon: Icons.my_location,

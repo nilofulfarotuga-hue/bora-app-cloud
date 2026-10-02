@@ -79,6 +79,7 @@ Bash/Read/Grep directamente; só uma sessão interactiva (Claude.ai, Claude Code
   Cloudflare, Supabase, Resend, 99Freelas, Codester, Search Console, Gemini Plus); perfil **pessoal** `5b260cdd-9d4f-49d6-842b-ebfbfea69c75`
   (claude.ai/code, GitHub, ChatGPT, Gemini pessoal, Firebase). Lê-a **antes** de abrir qualquer
   site, painel ou login — inclusive antes de aplicar a regra do LOGIN NO NAVEGADOR acima.
+- **MODS (02/10/2026):** o plugin `bora-mods` (tranca · vigia · contador · ci · contexto) corre em todas as sessões do PC; se a tranca negar um comando, não contornes — skill `mods-bora`. Só mods nossos, nunca de terceiros.
 
 ## Sistema de Agentes
 

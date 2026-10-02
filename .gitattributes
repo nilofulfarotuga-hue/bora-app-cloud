@@ -3,3 +3,7 @@
 *.sh text eol=lf
 .claude/hooks/*.sh text eol=lf
 .claude/githooks/* text eol=lf
+# Mods do Claude Code (bora-mods): TypeScript em LF.
+.claude/plugins/**/*.ts text eol=lf
+.claude/plugins/**/*.tsx text eol=lf
+.claude/plugins/**/*.json text eol=lf

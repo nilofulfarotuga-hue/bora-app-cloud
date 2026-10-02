@@ -35,6 +35,8 @@ perfil **pessoal** `5b260cdd-9d4f-49d6-842b-ebfbfea69c75` (claude.ai/code, GitHu
 Firebase). Sessão sem conector do Chrome: regista-se `bloqueado` no `e2e_log` e avisa-se o
 Danilo numa linha — não se inventa que foi feito.
 
+**Mods (02/10/2026):** a tranca `bora-mods` proíbe as zonas vermelhas por código em todas as sessões; comando negado = reporta, não contornes (skill `mods-bora`).
+
 ## 0. PASSO ZERO — `PADRAO_BORA.md` (obrigatório, antes de qualquer plano)
 
 **Antes de decidir seja o que for**, lê `PADRAO_BORA.md` na raiz do repositório. Não é

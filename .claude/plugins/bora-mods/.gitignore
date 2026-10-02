@@ -1,0 +1,3 @@
+# Tipos que o Claude Code escreve sozinho ao carregar o plugin (regeneram-se).
+.claude-plugin/types/
+tsconfig.json

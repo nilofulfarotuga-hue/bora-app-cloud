@@ -1,0 +1,33 @@
+{
+  "_leia": "Lista lida pela tranca (bora-tranca) em cada sessao. Fonte: CEO-AI (Lista Vermelha) + .claude/hooks/protege-dinheiro.sh. O .sh continua com a lista dele (cinto e suspensorios). 'padrao' e uma expressao regular sobre o caminho normalizado (barras '/', sem diferenca de maiusculas). Para acrescentar uma zona: nova linha aqui, com motivo em portugues.",
+  "ficheiros": [
+    { "padrao": "(^|/)lib/services/pricing_service\\.dart$", "motivo": "pricing_service.dart (calculo de precos)" },
+    { "padrao": "(^|/)lib/stores/order_store\\.dart$", "motivo": "order_store.dart (finalizePurchase)" },
+    { "padrao": "(^|/)lib/widgets/errand_execution_sheet\\.dart$", "motivo": "errand_execution_sheet.dart (_finalizePurchase)" },
+    { "padrao": "(^|/)lib/dispatch/dispatch_engine[^/]*\\.dart$", "motivo": "dispatch_engine (motor de despacho)" },
+    { "padrao": "(^|/)supabase/functions/dispatch-engine/", "motivo": "edge function dispatch-engine" },
+    { "padrao": "(^|/)supabase/functions/stripe-webhook/", "motivo": "edge function stripe-webhook" },
+    { "padrao": "(^|/)supabase/functions/finalize-order-from-intent/", "motivo": "edge function finalize-order-from-intent" },
+    { "padrao": "(^|/)supabase/functions/create-payment-intent/", "motivo": "edge function create-payment-intent" },
+    { "padrao": "(^|/)supabase/functions/create-mbway-payment-intent/", "motivo": "edge function create-mbway-payment-intent" },
+    { "padrao": "(^|/)supabase/functions/client-cancel-order/", "motivo": "edge function client-cancel-order (estorno)" },
+    { "padrao": "(^|/)supabase/functions/refund/", "motivo": "edge function refund" },
+    { "padrao": "(^|/)supabase/functions/reprocess-refund/", "motivo": "edge function reprocess-refund" },
+    { "padrao": "(^|/)supabase/functions/charge-extra/", "motivo": "edge function charge-extra" },
+    { "padrao": "(^|/)\\.claude/hooks/", "motivo": ".claude/hooks/** (a propria Trava)" },
+    { "padrao": "(^|/)\\.claude/settings(\\.local)?\\.json$", "motivo": "settings.json (config da Trava e dos mods)" },
+    { "padrao": "(^|/)\\.claude/plugins/bora-mods/", "motivo": "bora-mods (a propria tranca; so o Danilo desinstala)" },
+    { "padrao": "(^|/)\\.claude/agents/(critic|consensus)\\.md$", "motivo": "guardiao multiagente" },
+    { "padrao": "(^|/)\\.claude/\\.ai/cortex-mcp/router\\.mjs$", "motivo": "router multiagente" },
+    { "padrao": "(^|/)\\.github/workflows/", "motivo": ".github/workflows (cada push e um lancamento na Play Store)" }
+  ],
+  "migracoes": {
+    "padrao_caminho": "(^|/)supabase/migrations/",
+    "padrao_conteudo": "\\b(bora_tokens|wallets?|client_wallets|wallet_[a-z_]+|ledger(_entries)?|payouts?|driver_balances|stripe|payment_intent|refund|commission|pricing|post_order_to_ledger|apply_order_financial_split|partner_store_share)\\b",
+    "motivo": "migration que toca tokens/wallet/pagamentos/ledger"
+  },
+  "segredos_caminho": "(^|/)(\\.env[^/]*|[^/]*\\.jks|[^/]*\\.keystore|\\.dart_defines[^/]*|[^/]*\\.pem|key\\.properties)$",
+  "funcoes_sql_extra": ["post_order_to_ledger", "apply_order_financial_split", "partner_store_share"],
+  "tabelas_dinheiro_extra": ["client_wallets", "ledger_entries", "driver_balances", "payouts", "tvde_[a-z_]+"],
+  "tabelas_sem_dml_direto": ["orders", "tvde_rides", "appointments", "drivers", "client_wallets", "wallets", "ledger_entries", "bora_tokens", "driver_balances", "payouts"]
+}

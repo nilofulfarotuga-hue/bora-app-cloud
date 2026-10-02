@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:bora_app/services/roles_service.dart';
@@ -23,6 +25,17 @@ RolesSummary resumo({String? driver, String? cleaner, String? washer}) =>
     );
 
 void main() {
+  group('GUARDA: a ficha de estafeta só nasce da candidatura', () {
+    test('o DriverStore não cria linhas em drivers por conta própria', () {
+      // Criava (`_upsertDriverRow`): bastava uma profissional de limpeza
+      // abrir o ecrã do estafeta para ganhar uma candidatura pendente sem
+      // veículo nem documentos — provado em produção a 02/10/2026.
+      final fonte = File('lib/stores/driver_store.dart').readAsStringSync();
+      expect(fonte.contains(".from('drivers').upsert("), isFalse);
+      expect(fonte.contains(".from('drivers').insert("), isFalse);
+    });
+  });
+
   group('um papel pendente nunca bloqueia outro já aprovado', () {
     test('o caso da Mayra: limpeza aprovada + estafeta pendente → limpeza', () {
       expect(

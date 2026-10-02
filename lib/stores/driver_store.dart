@@ -213,12 +213,14 @@ class DriverStore extends ChangeNotifier {
         debugPrint(
             '[DriverStore] syncDriverWithAuth: loaded "$uid" from DB (is_online=${driver.isOnline})');
       } else {
-        // No drivers row exists — this happens when the drivers table was reset
-        // but auth.users was not (common in dev), OR registration created the
-        // auth user but failed to insert the drivers row.
-        // UPSERT so the dispatch engine can find this driver immediately.
+        // Sem linha em `drivers`: fica só o modelo em memória. NÃO se cria a
+        // linha aqui (02/10/2026) — criava-se, e bastava alguém sem ficha de
+        // estafeta abrir este ecrã (p.ex. uma profissional de limpeza a ver
+        // "em análise") para ganhar uma candidatura de estafeta pendente, sem
+        // veículo nem documentos. Quem cria a linha é a candidatura
+        // (`driver_register_or_update`), e só ela.
         debugPrint(
-            '[DriverStore] syncDriverWithAuth: no row for "$uid" — upserting drivers row');
+            '[DriverStore] syncDriverWithAuth: no row for "$uid" — sem ficha de estafeta');
         _drivers.add(DriverModel(
           id: uid,
           name: uid,
@@ -226,7 +228,6 @@ class DriverStore extends ChangeNotifier {
           vehicleType: VehicleType.motorcycle,
           isOnline: false,
         ));
-        unawaited(_upsertDriverRow(uid));
       }
     } catch (e) {
       debugPrint('DriverStore.syncDriverWithAuth: error => $e');
@@ -273,8 +274,7 @@ class DriverStore extends ChangeNotifier {
       );
       _drivers.add(driver);
       debugPrint(
-          '[DriverStore] configurePrimaryDriver: new driver id=$_primaryDriverId — upserting DB row');
-      unawaited(_upsertDriverRow(_primaryDriverId));
+          '[DriverStore] configurePrimaryDriver: new driver id=$_primaryDriverId');
     } else {
       driver
         ..name = name
@@ -473,41 +473,6 @@ class DriverStore extends ChangeNotifier {
       debugPrint('[DriverStore] _unsubscribeDriverOfferChannel error: $e');
     } finally {
       _driverOfferChannel = null;
-    }
-  }
-
-  /// INSERT a drivers row for [uid] only if one does not already exist.
-  /// Uses INSERT ... ON CONFLICT DO NOTHING so an existing row — including
-  /// its current is_online value — is never overwritten.  Calling this with
-  /// unawaited is safe because a conflict is silently ignored.
-  Future<void> _upsertDriverRow(String uid) async {
-    if (uid.isEmpty || uid == 'driver-main') return;
-    final existing = getDriverById(uid);
-    try {
-      await _client.from('drivers').upsert(
-        {
-          'id': uid,
-          'name': existing?.name ?? '',
-          'phone': existing?.phone ?? '',
-          'email': '',
-          'vehicle_type': existing?.vehicleType.dbValue ?? 'motorcycle',
-          'license_plate': '',
-          'is_online': false,
-          'lat': kGuardaLat,
-          'lng': kGuardaLng,
-          'user_id': uid,
-        },
-        // IDENTIDADE (16/09): o conflito é por user_id (UNIQUE), não por id.
-        // Com o conflito por id, quem tem id ≠ user_id (conta registada pela
-        // app) levava um INSERT novo que batia no UNIQUE(user_id) → 409 a
-        // cada arranque (8× no Ney em 24 h).
-        onConflict: 'user_id',
-        ignoreDuplicates:
-            true, // ON CONFLICT DO NOTHING — never overwrite is_online
-      );
-      debugPrint('[DriverStore] _upsertDriverRow: OK uid=$uid');
-    } catch (e) {
-      debugPrint('[DriverStore] _upsertDriverRow: error uid=$uid => $e');
     }
   }
 

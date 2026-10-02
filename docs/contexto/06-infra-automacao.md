@@ -32,6 +32,13 @@
 - O digest local NÃO é legível via Córtex MCP enquanto não sincronizado — pra revisar, pedir cat ao Claude Code. `business_rules.md` vive no vault Obsidian, fora deste Córtex.
 - Trabalho do motor vive na branch isolada `motor-conhecimento-2026-07-20` (worktree P1); só FASE 1.10 e C4 deployados na VPS.
 
+## Mods do Claude Code (02/10/2026)
+
+- Plugin `bora-mods` em `.claude/plugins/bora-mods/` (Claude Code 2.1.287+), carregado em todas as sessões do PC pela variável de ambiente do utilizador Windows `CLAUDE_CODE_PLUGIN_DIRS` (o bloco `env` do `~/.claude/settings.json` não foi usado: a Trava antiga bloqueia editar qualquer `.claude/settings.json`).
+- Cinco mods, por ordem: **tranca** (proíbe zonas vermelhas, push forçado, `git add -A`, SQL destrutivo e DML direto em tabelas de dinheiro, deploy protegido; pergunta antes de push/migration/deploy; aprova sem caixa só leitura), **vigia** (15 min parado → aviso + `e2e_log`), **contador** (contexto/plano na roda e na banda), **ci** (painel dos builds), **contexto** (ramo/commit/WIP no prompt de missão).
+- Os `.sh` da Trava continuam a correr depois (cinto e suspensórios). Logs em `.claude/.ai/mods/`. Comandos `/tranca`, `/tranca-off N`, `/vigia`, `/custo`, `/ci`, `/bora`. Detalhe: skill `mods-bora` e `README.md` do plugin.
+- Em `claude -p` a pergunta do push é sempre "Recusar": um loop que precise de empurrar fica negado de propósito.
+
 ## E2E autônomo
 
 - `e2e_log` no Supabase = prova real (SELECT lá, nunca a palavra do executor).

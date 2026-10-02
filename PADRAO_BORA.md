@@ -22,6 +22,7 @@
 
 O documento não substitui o Cérebro (`.claude/.ai/knowledge/`) nem o `CLAUDE.md`.
 O `CLAUDE.md` diz **como é a casa**; isto diz **onde é que já nos magoámos**.
+Desde 02/10/2026 as zonas da secção 6 também estão trancadas por código no plugin `bora-mods` (skill `mods-bora`); uma zona nova entra no `zonas-vermelhas.json` dele.
 
 ---
 

@@ -1,0 +1,6 @@
+{
+  "name": "bora-mods",
+  "version": "0.1.0",
+  "author": { "name": "Danilo (Bora)" },
+  "description": "Mods do Bora: tranca (zonas vermelhas por código), vigia (missão parada), contador (gasto), painel do CI e contexto de missão."
+}

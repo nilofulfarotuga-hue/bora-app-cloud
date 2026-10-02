@@ -20,7 +20,8 @@ Provas: `.claude/.ai/provas/limpeza-so-limpeza-2026-10-02/` · rasto: `e2e_log` 
    Falta repetir o job quando a API estiver boa. **A web já está publicada com a correção**; o Android
    e o iOS ainda não.
 2. **Incidente em produção a decorrer no fecho deste relatório:** desde as 14:05 UTC (15:05 de Lisboa)
-   a API do Supabase devolve 504/522 a quase tudo. Causa por apurar. Ver secção própria.
+   a API do Supabase devolve 504/522 a quase tudo. A causa NÃO é esta missão: é a app Android a ler
+   o catálogo inteiro ao arrancar, que já falhava desde as 12:04 UTC. Ver secção própria.
 3. **Painel admin por papel: escrito e analisado, mas NÃO visto no ecrã.** Não tenho sessão de admin
    para abrir o painel. O que está provado é a função que o botão chama (`admin_review_cleaner`).
 4. **Prova no emulador Android: não feita.** O PC tinha 189 MB livres (o Ollama a servir a VPS ocupa
@@ -124,12 +125,28 @@ matrícula, 2 minutos de diferença). Os outros dois são contas do Danilo, esta
   das 14:10 às 14:15, 100 % 504. A ligação direta à base também passou a dar timeout.
 - Página de estado do Supabase: "Partially Degraded Service — API Gateway degraded_performance".
 - Não houve pico de pedidos antes (1068, 636 e 841 pedidos nos três blocos de 5 min anteriores).
-- As últimas escritas desta missão na base foram antes das 14:00 (arrumação das contas de prova e
-  `e2e_log`). **Não tenho prova de que a missão causou a falha, nem prova de que não causou.**
-- Danilo avisado por Telegram (texto e voz) às 15:19 de Lisboa. Vigia a correr.
+- A região eu-west-1 está "operational"; o incidente público do Supabase é nos EUA. É a nossa instância.
+- **A degradação começou às 12:04 UTC, antes de esta sessão existir (12:51 UTC) e antes do primeiro
+  deploy (13:37 UTC).** `postgres_logs`: "canceling statement due to statement timeout" numa leitura de
+  `products` às 12:04, 12:35, 12:41, 13:01, 13:20, 13:21, 13:32 e 13:33. `edge_logs`: são pedidos
+  `GET /rest/v1/products?select=…&restaurant_id=in.(…)` com `supabase-flutter 2.18.0; platform=Android`
+  — a app Android a pedir os produtos de todas as lojas de uma vez ao arrancar, a devolver 500.
+- Por hora, nos registos do Postgres: consultas lentas 0 até às 11h, 2 às 12h, 5 às 13h, 36 às 14h;
+  timeouts 0 / 3 / 8 / 87. Às 14:08 houve uma consulta de 132 s e às 14:22 acabou uma de 876 s.
+  Depois das 14:05 até `select now()` demora 10 a 60 s.
+- Deadlocks em `drivers` / `driver_locations` são crónicos (20 a 50 por hora sempre que há estafetas
+  ligados, desde ontem): dois caminhos a atualizar a posição do mesmo estafeta ao mesmo tempo.
+- A corrida 1 do autoteste falhou pela mesma causa: a página da loja não chegou a ter produtos.
+- **Conclusão: a causa é a leitura pesada do catálogo pela app Android, não esta missão.** O que a
+  missão acrescentou foi carga pequena (duas contas de prova, duas reservas de teste).
+- Danilo avisado por Telegram (texto e voz) às 15:19, 15:25 e 15:35 de Lisboa, com a página
+  "Restart project" aberta no Chrome do PC. Não tenho forma de reiniciar daqui.
 
 ## PARA O DANILO
 
+0. **Agora:** "Restart project" no painel do Supabase (página já aberta no Chrome do PC). A seguir,
+   missão própria e urgente: a app Android não pode pedir o catálogo inteiro ao arrancar — é isso que
+   está a asfixiar a base, e vai repetir-se a cada dia com mais gente.
 1. Quando a API voltar: mandar repetir o build Android (ou dizer-me "repete o build").
 2. Depois de a Mayra atualizar a app: recusar a ficha de **estafeta** dela no painel (Papéis → Pessoas).
 3. Decidir se quem tem limpeza pendente deve ver um ecrã próprio em vez do do estafeta.

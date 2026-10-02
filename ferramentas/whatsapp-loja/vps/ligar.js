@@ -166,10 +166,20 @@ async function tratar(m) {
   if (!ev.texto && !ev.audio_b64 && !ev.imagem_b64) return
   const ctx = (c.extendedTextMessage && c.extendedTextMessage.contextInfo) || null
   if (ctx && ctx.stanzaId) ev.quoted_id = ctx.stanzaId
+  // 1.o "e teu?" (rapido, sem motor). Se for, a mensagem e SO do assistente: mesmo que ele demore ou
+  // falhe, nunca cai tambem no cerebro da Bora (senao, com a Bora ligada, haveria duas respostas).
+  let meu = false
   try {
-    const ra = await postJson('/evento', Object.assign({ sessao: 'vps-baileys:' + OWN }, ev), 90000, ASSISTENTE)
-    if (ra && ra.tratado) { log('assistente', numero, ev.tipo, '->', ra.acao); return }
-  } catch (e) { log('assistente nao respondeu (segue o caminho antigo):', e.message) }
+    const q = await getJson('/quem?numero=' + numero + '&sessao=vps-baileys:' + OWN, 5000, ASSISTENTE)
+    meu = !!(q && q.meu)
+  } catch (e) { log('assistente /quem falhou (segue o caminho antigo):', e.message) }
+  if (meu) {
+    try {
+      const ra = await postJson('/evento', Object.assign({ sessao: 'vps-baileys:' + OWN }, ev), 170000, ASSISTENTE)
+      log('assistente', numero, ev.tipo, '->', ra && ra.acao)
+    } catch (e) { log('assistente /evento falhou (sem resposta da Bora a este numero):', e.message) }
+    return
+  }
   try { const r = await postJson('/evento', ev, 90000); log('evento', numero, ev.tipo, '->', r && r.acao) }
   catch (e) { log('cerebro nao respondeu', e.message) }
 }
@@ -222,9 +232,13 @@ async function enviarFila(base) {
       const numero = String(item.numero).replace(/\D/g, '')
       const jid = jidsPorNumero[numero] || (numero + '@s.whatsapp.net')
       try {
-        await sock.sendPresenceUpdate('composing', jid)
+        // nota de voz do assistente (ogg/opus, PTT): "a gravar audio..." e depois o audio
+        const voz = item.audio_path && base ? fs.readFileSync(item.audio_path) : null
+        await sock.sendPresenceUpdate(voz ? 'recording' : 'composing', jid)
         await new Promise(res => setTimeout(res, Math.min(4000, 1000 + item.texto.length * 25)))
-        const res = await sock.sendMessage(jid, { text: item.texto })
+        const res = voz
+          ? await sock.sendMessage(jid, { audio: voz, mimetype: 'audio/ogg; codecs=opus', ptt: true })
+          : await sock.sendMessage(jid, { text: item.texto })
         await sock.sendPresenceUpdate('paused', jid)
         const idWa = res && res.key && res.key.id
         if (!idWa) throw new Error('o WhatsApp nao devolveu id da mensagem')

@@ -13,7 +13,7 @@ Environment=PYTHONUNBUFFERED=1
 ExecStart=/usr/bin/python3 /opt/assistente-negocio/servidor.py
 Restart=always
 RestartSec=5
-MemoryMax=200M
+MemoryMax=700M
 CPUQuota=35%
 Nice=10
 

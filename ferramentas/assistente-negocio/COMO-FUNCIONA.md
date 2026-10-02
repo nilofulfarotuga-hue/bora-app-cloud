@@ -32,6 +32,22 @@ Missão de 2026-10-01. Primeiro cliente: **Barbearia Mister Navalha** (modo test
 - Dono escreveu à mão na conversa (do telemóvel do negócio) → assistente calado 12 h nessa conversa.
 - Depois de cada marcação confirmada, segunda mensagem curta com `knowledge.ficha.apos_marcacao` (uma vez por marcação; `motivo = apos_marcacao:<id>`).
 
+## Áudios (adendo 2, 02/10)
+
+- Nota de voz do cliente → `voz.ouvir()`: Groq `whisper-large-v3-turbo` (grátis) → reserva `faster-whisper` base local
+  (`/opt/assistente-negocio/.venv-whisper`; o ffmpeg descodifica para PCM porque o `av` rebentava). O texto segue pelo
+  MESMO `atender()`; a entrada fica registada como `🎤 <transcrição>` com `motivo=audio:<motor>`.
+- Se o cliente falou por áudio, a resposta vai em **texto (sempre — horas e detalhes ficam escritos)** e numa **nota de voz**
+  curta: edge-tts `pt-PT-RaquelNeural` → ogg/opus mono 48 kHz → `assistant_messages.media_path`; a porta envia como PTT.
+- Áudio pessoal → silêncio (o filtro corre sobre a transcrição). Áudio que não se percebe → pede para repetir ou escrever.
+- **Chamadas de voz: NÃO.** O Baileys não as atende. Passo futuro, com a API oficial do WhatsApp (Cloud API).
+
+## Motores (decisão do Danilo, 02/10)
+
+Principal: OpenCode Go (`go:glm-5.2`, assinatura paga já existente). O tecto da chave Google com faturação NÃO se sobe.
+Enquanto o Go devolver o limite mensal (429 `GoUsageLimitError`, medido 01–02/10), fica de castigo 1 h e respondem os
+grátis: Gemini 3 Flash (dois projetos) → Flash-Lite → Groq.
+
 ## Rotinas (minuto a minuto, idempotentes pela base)
 
 Lembrete na véspera às 18:00 (ou 2 h antes se marcada depois disso) · pedido de avaliação 1 h depois do fim · reativação aos 35 dias · lista de espera (vaga oferecida quando alguém desmarca/remarca) · resumo ao dono ao domingo 20:00 · aviso de orçamento.

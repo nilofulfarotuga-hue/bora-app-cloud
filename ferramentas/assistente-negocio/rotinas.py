@@ -172,9 +172,23 @@ def orcamento(t, agora):
             db.atualizar("assistant_tenants", f"id=eq.{t['id']}", {"aviso_orcamento_mes": mes})
 
 
+def limpar_vozes(dias=7):
+    """Notas de voz geradas (.ogg) com mais de N dias: ja foram entregues; a transcricao/texto fica na base."""
+    import glob
+    import time as _t
+    for f in glob.glob(os.path.join(A.voz.PASTA_VOZ, "*.ogg")):
+        if _t.time() - os.path.getmtime(f) > dias * 86400:
+            os.unlink(f)
+
+
 def ciclo():
     agora = A.agora()
     feitos = {}
+    if agora.minute == 0:
+        try:
+            limpar_vozes()
+        except Exception as e:
+            feitos["limpar_vozes_erro"] = str(e)[:200]
     for t in db.ler("assistant_tenants", "mode=neq.desligado"):
         for f in (lembretes, avaliacoes, reativacao, vigia_perguntas, resumo_semanal, orcamento):
             try:

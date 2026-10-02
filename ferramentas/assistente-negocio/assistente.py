@@ -19,6 +19,7 @@ import unicodedata
 
 import db
 import motores
+import voz
 
 try:
     from zoneinfo import ZoneInfo
@@ -43,7 +44,8 @@ def sem_acentos(s):
 
 
 def so_digitos(n):
-    return re.sub(r"\D", "", str(n or ""))
+    d = re.sub(r"\D", "", str(n or ""))
+    return "351" + d if len(d) == 9 and d[0] in "923" else d  # 912345678 == 351912345678
 
 
 def euros(cents):
@@ -68,10 +70,10 @@ def tenant_para(sessao, numero):
     """Devolve (tenant, motivo). tenant=None => a mensagem NAO e deste assistente (segue a porta normal)."""
     numero = so_digitos(numero)
     for t in tenants_da_sessao(sessao):
-        if numero in (t.get("blocklist") or []):
+        if numero in {so_digitos(x) for x in (t.get("blocklist") or [])}:
             return t, "blocklist"
         if t["mode"] == "teste":
-            if numero in (t.get("allowlist") or []):
+            if numero in {so_digitos(x) for x in (t.get("allowlist") or [])}:
                 return t, "allowlist"
         elif t["mode"] == "ligado":
             return t, "ligado"
@@ -86,10 +88,10 @@ def tenant_por_id(tid):
 def pode_escrever_a(t, numero):
     """Rede de seguranca de SAIDA: em teste so a allowlist e o dono; desligado: ninguem."""
     numero = so_digitos(numero)
-    if t["mode"] == "desligado" or numero in (t.get("blocklist") or []):
+    if t["mode"] == "desligado" or numero in {so_digitos(x) for x in (t.get("blocklist") or [])}:
         return False
     if t["mode"] == "teste":
-        return numero in (t.get("allowlist") or []) or numero == so_digitos(t.get("dono_destino"))
+        return numero in {so_digitos(x) for x in (t.get("allowlist") or [])} or numero == so_digitos(t.get("dono_destino"))
     return True
 
 
@@ -149,13 +151,14 @@ def registar(t, numero, direcao, texto, **extra):
     return db.inserir("assistant_messages", linha)
 
 
-def enfileirar(t, numero, texto, motivo, simulado=False):
-    """Poe uma mensagem na fila de saida. A porta vem buscar; aqui nunca se envia nada directamente."""
+def enfileirar(t, numero, texto, motivo, simulado=False, media_path=None):
+    """Poe uma mensagem na fila de saida. A porta vem buscar; aqui nunca se envia nada directamente.
+    media_path = nota de voz (.ogg opus) que a porta envia como audio PTT."""
     if not pode_escrever_a(t, numero):
         registar(t, numero, "saida", texto, motivo=motivo, decisao="bloqueado-fora-da-allowlist",
-                 entrega_estado="bloqueado", simulado=simulado)
+                 entrega_estado="bloqueado", simulado=simulado, media_path=media_path)
         return None
-    return registar(t, numero, "saida", texto, motivo=motivo, simulado=simulado,
+    return registar(t, numero, "saida", texto, motivo=motivo, simulado=simulado, media_path=media_path,
                     entrega_estado="simulado" if simulado else "pendente")
 
 
@@ -292,7 +295,7 @@ class Turno:
                 return {"ok": True, "ja_estava_marcado": True, "servico": svc["name"], "dia": dia,
                         "dia_semana": DIAS[inicio.weekday()], "hora": inicio.strftime("%H:%M"),
                         "instrucao": "Já estava marcado — não digas que houve erro; só confirma se o cliente perguntar."}
-        r = db.rpc("assistente_marcar", {"p_tenant": self.t["id"], "p_servico_id": svc["id"], "p_inicio": iso(inicio),
+        r = db.rpc("assistente_marcar_v2", {"p_notificar": not self.simular, "p_tenant": self.t["id"], "p_servico_id": svc["id"], "p_inicio": iso(inicio),
                                          "p_nome": nome, "p_telefone": "+" + self.numero, "p_teste": self.t["mode"] == "teste"})
         if not r.get("ok"):
             return {"ok": False, "erro": "hora_ocupada_ou_fora_do_horario", "pedido": f"{dia} {hora}",
@@ -321,7 +324,7 @@ class Turno:
         aid, err = self._uma(appointment_id)
         if err:
             return err
-        r = db.rpc("assistente_desmarcar", {"p_tenant": self.t["id"], "p_appointment_id": aid, "p_telefone": self.numero})
+        r = db.rpc("assistente_desmarcar_v2", {"p_notificar": not self.simular, "p_tenant": self.t["id"], "p_appointment_id": aid, "p_telefone": self.numero})
         if r.get("ok"):
             self._oferecer_vaga(r)
             q = hora_local(r["inicio"])
@@ -333,7 +336,7 @@ class Turno:
         if err:
             return err
         inicio = self._inicio(dia, hora)
-        r = db.rpc("assistente_remarcar", {"p_tenant": self.t["id"], "p_appointment_id": aid, "p_telefone": self.numero,
+        r = db.rpc("assistente_remarcar_v2", {"p_notificar": not self.simular, "p_tenant": self.t["id"], "p_appointment_id": aid, "p_telefone": self.numero,
                                            "p_novo_inicio": iso(inicio)})
         if r.get("ok"):
             self._oferecer_vaga({"service_id": r["service_id"], "inicio": r["de"], "servico": r["servico"]})
@@ -543,10 +546,20 @@ def atender(ev, simular=False):
         return {"tratado": False, "acao": "nao-e-do-assistente"}
     texto = (ev.get("texto") or "").strip()
     if porque == "blocklist":
-        registar(t, numero, "entrada", texto, decisao="silencio-blocklist", msg_id_wa=ev.get("msg_id"), simulado=simular)
+        registar(t, numero, "entrada", texto or "[audio]", decisao="silencio-blocklist", msg_id_wa=ev.get("msg_id"), simulado=simular)
         return {"tratado": True, "acao": "silencio-blocklist", "respostas": []}
+    foi_audio, motor_ouvir = False, None
+    if not texto and ev.get("audio_b64"):
+        foi_audio = True
+        texto, motor_ouvir, erros_ouvir = voz.ouvir(ev["audio_b64"], ev.get("mime"))
+        if not texto:
+            registar(t, numero, "entrada", "[audio que não se percebeu]", motivo="audio", decisao="audio-nao-percebido",
+                     msg_id_wa=ev.get("msg_id"), simulado=simular, ferramentas={"erros": erros_ouvir})
+            enfileirar(t, numero, "Desculpe, não consegui ouvir bem o áudio. Pode repetir ou escrever?", "audio_nao_percebido", simular)
+            return {"tratado": True, "acao": "audio-nao-percebido", "respostas": [], "erros_ouvir": erros_ouvir}
     if not texto:
         return {"tratado": True, "acao": "sem-texto", "respostas": []}
+    ev = dict(ev, texto=texto)  # o resto do caminho (resposta do dono incluida) ve o texto transcrito
 
     # o dono (ou quem o substitui em teste) a responder a uma pergunta pendente
     if numero == so_digitos(t.get("dono_destino")):
@@ -558,7 +571,9 @@ def atender(ev, simular=False):
             return r
 
     ct = contacto(t, numero)
-    entrada = registar(t, numero, "entrada", texto, msg_id_wa=ev.get("msg_id"), quoted_id=ev.get("quoted_id"), simulado=simular)
+    entrada = registar(t, numero, "entrada", ("🎤 " + texto) if foi_audio else texto, msg_id_wa=ev.get("msg_id"),
+                       quoted_id=ev.get("quoted_id"), simulado=simular,
+                       motivo=("audio:" + motor_ouvir) if foi_audio else None)
     gravar_contacto(t, numero, {"ultima_msg_em": iso(agora())})
 
     sil = ct.get("silenciado_ate")
@@ -579,6 +594,7 @@ def atender(ev, simular=False):
         return {"tratado": True, "acao": "silencio-pessoal", "respostas": []}
 
     turno = Turno(t, numero, ct, simular)
+    turno.foi_audio = foi_audio
     hist = ct.get("historico") or []
     msgs = [{"role": "system", "content": prompt_sistema(t, ct)}]
     for h in hist[-HIST_MAX:]:
@@ -643,6 +659,14 @@ def _fechar(t, numero, texto, entrada, turno, resposta, acao, erro, hist, simula
         acao = "promessa-convertida-em-tarefa"
 
     saida = enfileirar(t, numero, resposta, "resposta", simular)
+    nota = None
+    if getattr(turno, "foi_audio", False) and saida:
+        # o cliente falou por audio: vai o texto (sempre — horas e detalhes ficam escritos) E uma nota de voz curta
+        try:
+            ogg = voz.falar(resposta)
+            nota = enfileirar(t, numero, "[nota de voz] " + voz.para_falar(resposta), "voz", simular, media_path=ogg)
+        except Exception as e:
+            acao += " (nota de voz falhou: " + str(e)[:80] + ")"
     extra = apos_marcacao(t, numero, turno, simular)
     db.atualizar("assistant_messages", f"id=eq.{entrada['id']}", {"decisao": acao})
     if saida:
@@ -655,7 +679,8 @@ def _fechar(t, numero, texto, entrada, turno, resposta, acao, erro, hist, simula
     hist = (hist + [{"r": "user", "t": texto, "ts": iso(agora())},
                     {"r": "assistant", "t": resposta, "ts": iso(agora()), **({"feito": feito} if feito else {})}])[-HIST_MAX:]
     gravar_contacto(t, numero, {"historico": hist, "pessoal": False})
-    return {"tratado": True, "acao": acao, "respostas": [resposta] + extra, "ferramentas": [u["ferramenta"] for u in turno.usadas],
+    return {"tratado": True, "acao": acao, "respostas": [resposta] + extra, "voz": nota and nota.get("media_path"),
+            "ouvido": texto if getattr(turno, "foi_audio", False) else None, "ferramentas": [u["ferramenta"] for u in turno.usadas],
             "modelos": turno.modelos, "custo_eur": round(turno.custo, 6), "erro_motor": erro}
 
 

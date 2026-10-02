@@ -9,7 +9,6 @@
   GET  /saude
 
 As rotinas correm numa thread, de minuto a minuto."""
-import base64
 import json
 import os
 import sys
@@ -60,32 +59,10 @@ def tranca_de(numero):
         return _trancas.setdefault(numero, threading.Lock())
 
 
-def transcrever(b64, mime):
-    """Nota de voz -> texto (Groq whisper). Sem chave ou erro: devolve ''."""
-    import urllib.request
-    chave = os.environ.get("GROQ_API_KEY", "")
-    if not chave:
-        return ""
-    fronteira = "----assistente" + str(int(time.time() * 1000))
-    corpo = (f"--{fronteira}\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-large-v3-turbo\r\n"
-             f"--{fronteira}\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\npt\r\n"
-             f"--{fronteira}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"voz.ogg\"\r\nContent-Type: {mime or 'audio/ogg'}\r\n\r\n").encode()
-    corpo += base64.b64decode(b64) + f"\r\n--{fronteira}--\r\n".encode()
-    req = urllib.request.Request("https://api.groq.com/openai/v1/audio/transcriptions", corpo,
-                                 {"Authorization": "Bearer " + chave, "Content-Type": "multipart/form-data; boundary=" + fronteira,
-                                  "User-Agent": "Mozilla/5.0"})
-    try:
-        with urllib.request.urlopen(req, timeout=60) as r:
-            return (json.load(r).get("text") or "").strip()
-    except Exception as e:
-        log("transcricao falhou", e)
-        return ""
-
-
 def pendentes():
     t_cache = {}
     linhas = db.ler("assistant_messages", "direcao=eq.saida&entrega_estado=eq.pendente&order=created_at.asc&limit=5",
-                    "id,tenant_id,numero,texto,motivo,created_at")
+                    "id,tenant_id,numero,texto,motivo,created_at,media_path")
     saida = []
     for m in linhas:
         t = t_cache.get(m["tenant_id"]) or A.tenant_por_id(m["tenant_id"])
@@ -97,7 +74,13 @@ def pendentes():
             db.atualizar("assistant_messages", f"id=eq.{m['id']}", {"entrega_estado": "falhou", "entrega_erro": "ficou mais de 30 min na fila"})
             continue
         db.atualizar("assistant_messages", f"id=eq.{m['id']}", {"entrega_estado": "a-enviar"})
-        saida.append({"id": "an-" + str(m["id"]), "numero": m["numero"], "texto": m["texto"], "motivo": m.get("motivo")})
+        item = {"id": "an-" + str(m["id"]), "numero": m["numero"], "texto": m["texto"], "motivo": m.get("motivo")}
+        if m.get("media_path"):
+            if not os.path.exists(m["media_path"]):
+                db.atualizar("assistant_messages", f"id=eq.{m['id']}", {"entrega_estado": "falhou", "entrega_erro": "ficheiro de voz desapareceu"})
+                continue
+            item["audio_path"] = m["media_path"]
+        saida.append(item)
     return saida
 
 
@@ -131,6 +114,12 @@ class H(BaseHTTPRequestHandler):
         try:
             if self.path.startswith("/pendentes"):
                 return self._json(200, {"mensagens": pendentes()})
+            if self.path.startswith("/quem"):
+                # pergunta rapida da porta (sem motor): este numero e de algum assistente?
+                from urllib.parse import parse_qs, urlparse
+                q = parse_qs(urlparse(self.path).query)
+                t, porque = A.tenant_para((q.get("sessao") or [SESSAO])[0], (q.get("numero") or [""])[0])
+                return self._json(200, {"meu": bool(t), "porque": porque})
             if self.path.startswith("/saude"):
                 return self._json(200, {"ok": True, "sessao": SESSAO, "tenants": [
                     {"nome": t["nome"], "mode": t["mode"]} for t in db.ler("assistant_tenants", "", "nome,mode")]})
@@ -148,11 +137,10 @@ class H(BaseHTTPRequestHandler):
                 t, _ = A.tenant_para(d["sessao"], d.get("numero"))
                 if not t:
                     return self._json(200, {"tratado": False, "acao": "nao-e-do-assistente"})
-                if not d.get("texto") and d.get("audio_b64"):
-                    d["texto"] = transcrever(d["audio_b64"], d.get("mime"))
                 with tranca_de(A.so_digitos(d.get("numero"))):
-                    r = A.atender(d)
-                log("evento", d.get("numero"), r.get("acao"), r.get("ferramentas"), r.get("modelos"), r.get("erro_motor") or "")
+                    r = A.atender(d)  # audio: atender() transcreve (voz.ouvir) e responde tambem com nota de voz
+                log("evento", d.get("numero"), d.get("tipo") or "texto", r.get("acao"), r.get("ferramentas"), r.get("modelos"),
+                    ("voz=" + r["voz"]) if r.get("voz") else "", r.get("erro_motor") or "")
                 return self._json(200, r)
             if self.path.startswith("/enviado"):
                 return self._json(200, enviado(d))

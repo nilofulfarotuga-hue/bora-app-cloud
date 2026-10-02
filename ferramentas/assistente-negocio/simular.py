@@ -19,6 +19,7 @@ from servidor import carregar_env  # noqa: E402
 carregar_env(os.environ.get("ASSISTENTE_ENV", os.path.join(AQUI, ".env")))
 import assistente as A  # noqa: E402
 import db  # noqa: E402
+import voz  # noqa: E402
 
 DANILO, ERNANDO, ESTRANHO = "351931992662", "351937472634", "351912345678"
 SESSAO = "vps-baileys:351937501673"
@@ -46,7 +47,26 @@ CENARIOS = {
     "16-fora-da-allowlist": [(ESTRANHO, "Quanto custa um corte?")],
     "17-dono-escreveu": [(DANILO, "Olá, têm vaga hoje?"), ("DONO_ESCREVEU", DANILO), (DANILO, "Então até já!")],
     "18-blocklist": [("BLOQUEAR", ERNANDO), (ERNANDO, "Quanto custa a barba?"), ("DESBLOQUEAR", ERNANDO)],
+    # ADENDO 2 — audios: o texto e DITO pelo edge-tts (voz pt-PT do cliente) e vai como audio_b64;
+    # o atender() transcreve-o de verdade (Groq / faster-whisper) e responde com texto + nota de voz.
+    "A1-audio-preco": [(DANILO, "AUDIO:Boa tarde, quanto é que custa um corte e barba?")],
+    "A2-audio-marcacao": [(DANILO, f"AUDIO:Olá, queria marcar uma barba para {D_AMANHA} às onze da manhã. O meu nome é Danilo."),
+                          (DANILO, "AUDIO:Sim, pode marcar.")],
+    "A3-audio-pessoal": [(DANILO, "AUDIO:Ó mano, logo à noite vens jantar cá a casa? A mãe fez bacalhau.")],
 }
+
+
+def audio_cliente(frase):
+    """Voz do 'cliente' para os testes: edge-tts pt-PT-DuarteNeural -> ogg/opus, como uma nota de voz real."""
+    import base64
+    import subprocess
+    import tempfile
+    d = tempfile.mkdtemp()
+    subprocess.run([voz.EDGE_TTS, "--voice", "pt-PT-DuarteNeural", "--text", frase, "--write-media", d + "/c.mp3"],
+                   check=True, capture_output=True, timeout=60)
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", d + "/c.mp3", "-ac", "1", "-ar", "48000", "-c:a", "libopus",
+                    d + "/c.ogg"], check=True, timeout=60)
+    return base64.b64encode(open(d + "/c.ogg", "rb").read()).decode()
 
 
 def limpar_memoria(numero):
@@ -89,10 +109,19 @@ def correr(nome, passos):
         id0 = antes[0]["id"] if antes else 0
         ev = {"sessao": SESSAO, "numero": numero, "texto": texto, "msg_id": f"sim_{nome}_{time.time()}"}
         ev.update(extra)
+        if texto and texto.startswith("AUDIO:"):
+            texto = texto[6:]
+            ev.update({"texto": "", "tipo": "audio", "mime": "audio/ogg; codecs=opus", "audio_b64": audio_cliente(texto)})
         t0 = time.time()
         r = A.atender(ev, simular=True)
-        saidas = db.ler("assistant_messages", f"id=gt.{id0}&direcao=eq.saida&order=id.asc", "numero,texto,motivo,entrega_estado")
-        out.append({"de": numero, "texto": texto, "acao": r.get("acao"), "tratado": r.get("tratado"),
+        saidas = db.ler("assistant_messages", f"id=gt.{id0}&direcao=eq.saida&order=id.asc", "numero,texto,motivo,entrega_estado,media_path")
+        for s in saidas:
+            if s.get("media_path"):
+                s["ficheiro_voz"] = voz.duracao(s["media_path"])
+        if ev.get("audio_b64"):
+            print(f"   (audio do cliente; o assistente ouviu: {r.get('ouvido')!r})")
+        out.append({"de": numero, "texto": texto, "audio": bool(ev.get("audio_b64")), "ouvido": r.get("ouvido"),
+                    "acao": r.get("acao"), "tratado": r.get("tratado"),
                     "ferramentas": r.get("ferramentas"), "modelos": r.get("modelos"), "erro_motor": r.get("erro_motor"),
                     "segundos": round(time.time() - t0, 1), "saidas": saidas})
         print(f"[{nome}] {numero} > {texto}\n   acao={r.get('acao')} ferr={r.get('ferramentas')} mod={r.get('modelos')} {round(time.time() - t0, 1)}s")
@@ -102,19 +131,47 @@ def correr(nome, passos):
     return out
 
 
+def reconstruir_memoria(t, numero):
+    """As simulacoes usam numeros reais da allowlist: no fim, a memoria volta a ser so a das conversas REAIS."""
+    reais = db.ler("assistant_messages", f"tenant_id=eq.{t['id']}&numero=eq.{numero}&simulado=eq.false"
+                                         f"&motivo=is.null&direcao=eq.entrada&order=id.desc&limit=5", "id,texto,created_at")
+    hist = []
+    for e in reversed(reais):
+        hist.append({"r": "user", "t": e["texto"], "ts": e["created_at"]})
+        s = db.ler("assistant_messages", f"tenant_id=eq.{t['id']}&numero=eq.{numero}&simulado=eq.false&direcao=eq.saida"
+                                         f"&motivo=eq.resposta&id=gt.{e['id']}&order=id.asc&limit=1", "texto,created_at")
+        if s:
+            hist.append({"r": "assistant", "t": s[0]["texto"], "ts": s[0]["created_at"]})
+    A.contacto(t, numero)
+    campos = {"historico": hist, "a_espera_de": None, "silenciado_ate": None, "pessoal": False}
+    if not reais:
+        campos.update({"nome": None, "ultimo_servico": None})
+    A.gravar_contacto(t, numero, campos)
+
+
 def limpar():
     """Fim dos testes: cancela as marcacoes de teste (nunca apaga), esquece as respostas do dono que vieram
     de simulacao (eram do script, nao do Ernando) e limpa a memoria dos numeros de teste."""
     t = db.ler("assistant_tenants", "slug=eq.mister-navalha")[0]
-    r = db.rpc("admin_assistente_limpar_testes", {"p_tenant": t["id"]})
+    # SO as marcacoes criadas por simulacoes (a 02/10 a limpeza geral cancelou a marcacao real de teste
+    # que o Danilo tinha feito do telemovel). Identifica-as pelo apos_marcacao:<id> das saidas simuladas.
+    ids = {m["motivo"].split(":", 1)[1] for m in db.ler("assistant_messages",
+           f"tenant_id=eq.{t['id']}&simulado=eq.true&motivo=like.apos_marcacao:*", "motivo")}
+    canceladas = 0
+    for a in db.ler("appointments", f"id=in.({','.join(ids) or '00000000-0000-0000-0000-000000000000'})&status=eq.confirmed",
+                    "id,client_phone"):
+        if db.rpc("assistente_desmarcar_v2", {"p_tenant": t["id"], "p_appointment_id": a["id"],
+                                              "p_telefone": a["client_phone"], "p_notificar": False}).get("ok"):
+            canceladas += 1
+    db.atualizar("assistant_tasks", f"tenant_id=eq.{t['id']}&simulado=eq.true&estado=eq.aberta", {"estado": "cancelada"})
+    r = {"marcacoes_simuladas_canceladas": canceladas}
     sim = {k["pergunta"] for k in db.ler("assistant_tasks", f"tenant_id=eq.{t['id']}&tipo=eq.pergunta_dono&simulado=eq.true", "pergunta")}
     k = t.get("knowledge") or {}
     antes = len(k.get("perguntas_aprendidas") or [])
     k["perguntas_aprendidas"] = [p for p in (k.get("perguntas_aprendidas") or []) if p.get("pergunta") not in sim]
     db.atualizar("assistant_tenants", f"id=eq.{t['id']}", {"knowledge": k})
     for n in (DANILO, ERNANDO):
-        limpar_memoria(n)
-        A.gravar_contacto(t, n, {"nome": None, "ultimo_servico": None})
+        reconstruir_memoria(t, n)
     print("LIMPEZA", r, f"aprendidas {antes} -> {len(k['perguntas_aprendidas'])}")
 
 

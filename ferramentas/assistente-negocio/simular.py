@@ -57,12 +57,12 @@ CENARIOS = {
 
 
 def audio_cliente(frase):
-    """Voz do 'cliente' para os testes: edge-tts pt-PT-DuarteNeural -> ogg/opus, como uma nota de voz real."""
+    """Voz do 'cliente' para os testes: edge-tts pt-PT-RaquelNeural (feminina, para nao se confundir com a voz da barbearia) -> ogg/opus."""
     import base64
     import subprocess
     import tempfile
     d = tempfile.mkdtemp()
-    subprocess.run([voz.EDGE_TTS, "--voice", "pt-PT-DuarteNeural", "--text", frase, "--write-media", d + "/c.mp3"],
+    subprocess.run([voz.EDGE_TTS, "--voice", "pt-PT-RaquelNeural", "--text", frase, "--write-media", d + "/c.mp3"],
                    check=True, capture_output=True, timeout=60)
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", d + "/c.mp3", "-ac", "1", "-ar", "48000", "-c:a", "libopus",
                     d + "/c.ogg"], check=True, timeout=60)

@@ -555,7 +555,9 @@ def atender(ev, simular=False):
         if not texto:
             registar(t, numero, "entrada", "[audio que não se percebeu]", motivo="audio", decisao="audio-nao-percebido",
                      msg_id_wa=ev.get("msg_id"), simulado=simular, ferramentas={"erros": erros_ouvir})
-            enfileirar(t, numero, "Desculpe, não consegui ouvir bem o áudio. Pode repetir ou escrever?", "audio_nao_percebido", simular)
+            aviso = "Desculpe, não consegui ouvir bem o áudio. Pode repetir, por favor?"
+            responder_em_voz(t, numero, aviso, "audio_nao_percebido", simular) or \
+                enfileirar(t, numero, aviso, "audio_nao_percebido", simular)
             return {"tratado": True, "acao": "audio-nao-percebido", "respostas": [], "erros_ouvir": erros_ouvir}
     if not texto:
         return {"tratado": True, "acao": "sem-texto", "respostas": []}
@@ -658,15 +660,15 @@ def _fechar(t, numero, texto, entrada, turno, resposta, acao, erro, hist, simula
         turno.perguntar_ao_dono(texto)
         acao = "promessa-convertida-em-tarefa"
 
-    saida = enfileirar(t, numero, resposta, "resposta", simular)
-    nota = None
-    if getattr(turno, "foi_audio", False) and saida:
-        # o cliente falou por audio: vai o texto (sempre — horas e detalhes ficam escritos) E uma nota de voz curta
-        try:
-            ogg = voz.falar(resposta)
-            nota = enfileirar(t, numero, "[nota de voz] " + voz.para_falar(resposta), "voz", simular, media_path=ogg)
-        except Exception as e:
-            acao += " (nota de voz falhou: " + str(e)[:80] + ")"
+    # Adendo 3 (02/10): cliente falou por audio -> resposta SO em audio (sem texto antes nem depois);
+    # cliente escreveu -> so texto. Se a voz falhar, vai o texto (nunca deixar o cliente sem resposta).
+    saida = nota = None
+    if getattr(turno, "foi_audio", False):
+        saida = nota = responder_em_voz(t, numero, resposta, "voz", simular)
+        if not nota:
+            acao += " (voz falhou: foi em texto)"
+    if not saida:
+        saida = enfileirar(t, numero, resposta, "resposta", simular)
     extra = apos_marcacao(t, numero, turno, simular)
     db.atualizar("assistant_messages", f"id=eq.{entrada['id']}", {"decisao": acao})
     if saida:
@@ -709,6 +711,15 @@ def texto_apos_marcacao(t):
     return (m.group(1) if m else str(v)).strip()
 
 
+def responder_em_voz(t, numero, texto, motivo, simular):
+    """Nota de voz (pt-PT masculina) para a fila; devolve a linha ou None se a voz falhar."""
+    try:
+        ogg = voz.falar(texto)
+        return enfileirar(t, numero, "[nota de voz] " + voz.para_falar(texto), motivo, simular, media_path=ogg)
+    except Exception:
+        return None
+
+
 def apos_marcacao(t, numero, turno, simular):
     """Segunda mensagem curta, por codigo e nao pelo modelo: so se `marcar` devolveu ok neste turno,
     depois da confirmacao, e uma unica vez por marcacao (motivo = apos_marcacao:<id da marcacao>)."""
@@ -723,7 +734,10 @@ def apos_marcacao(t, numero, turno, simular):
         motivo = f"apos_marcacao:{r['appointment_id']}"
         if db.ler("assistant_messages", f"tenant_id=eq.{t['id']}&motivo=eq.{db.q(motivo)}", "id"):
             continue
-        if enfileirar(t, numero, txt, motivo, simular):
+        if getattr(turno, "foi_audio", False):  # conversa de audio: a mensagem da app vai em voz curta
+            if responder_em_voz(t, numero, txt, motivo, simular) or enfileirar(t, numero, txt, motivo, simular):
+                enviadas.append(txt)
+        elif enfileirar(t, numero, txt, motivo, simular):
             enviadas.append(txt)
     return enviadas
 

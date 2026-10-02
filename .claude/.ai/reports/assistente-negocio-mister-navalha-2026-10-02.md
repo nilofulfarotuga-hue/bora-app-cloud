@@ -20,6 +20,18 @@ Como funciona: `ferramentas/assistente-negocio/COMO-FUNCIONA.md`.
 | Dinheiro | nenhuma cobrança: marcações `is_walk_in`, `deposit_status=waived`; RPCs só service_role; tabelas RLS só admin |
 | Verificador adversarial | chão anti-trapaça CLEAN; verificador de contexto limpo: A/C/E resistem; 6 pontos tratados abaixo |
 
+## Adendo 3 — correcção dos áudios (02/10, depois de o Danilo testar)
+
+| pedido | feito | prova |
+|---|---|---|
+| Voz masculina de Portugal | `pt-PT-DuarteNeural` (defeito em `voz.py`; o serviço não o sobrepõe) | `grep DuarteNeural voz.py` → 1; serviço sem `ASSISTENTE_VOZ` |
+| Cliente manda áudio → resposta SÓ em áudio | sem texto antes nem depois; horas lidas por extenso ("dez e meia", "meio-dia") | simulação A2 (`provas/.../adendo3-voz-masculina-so-audio/simulacao-20261002-1613.json`): 3 saídas, as 3 `motivo=voz`/`apos_marcacao` com nota de voz, **0 de texto** |
+| Mensagem da app depois da marcação, em conversa de áudio | vai em voz: "…misternavalha ponto boraguarda ponto com" | linha `apos_marcacao:3342eea7…` = `[nota de voz] … misternavalha ponto boraguarda ponto com` |
+| Cliente escreve → só texto | inalterado | cenário 01-preco: 1 saída, `motivo=resposta`, texto |
+| Se a voz falhar | vai em texto (o cliente nunca fica sem resposta) | `responder_em_voz()` devolve None → `enfileirar` texto |
+
+Notas de voz geradas: opus, mono, 7–11 s. Serviço reiniciado (`active`); `voz.py`, `assistente.py`, `simular.py` iguais na VPS e no repo (md5 `30ab9bfa`, `831dd2df`, `c976789e`).
+
 ## O que falhou pelo caminho (e foi corrigido)
 
 1. Remarcar rebentava quando um motor caía a meio (o Gemini recusa chamadas feitas por outro motor) → histórico de ferramentas passa a texto na troca de motor + castigo para motores fechados.

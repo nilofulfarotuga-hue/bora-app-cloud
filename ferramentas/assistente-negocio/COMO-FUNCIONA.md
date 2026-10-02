@@ -37,8 +37,10 @@ Missão de 2026-10-01. Primeiro cliente: **Barbearia Mister Navalha** (modo test
 - Nota de voz do cliente → `voz.ouvir()`: Groq `whisper-large-v3-turbo` (grátis) → reserva `faster-whisper` base local
   (`/opt/assistente-negocio/.venv-whisper`; o ffmpeg descodifica para PCM porque o `av` rebentava). O texto segue pelo
   MESMO `atender()`; a entrada fica registada como `🎤 <transcrição>` com `motivo=audio:<motor>`.
-- Se o cliente falou por áudio, a resposta vai em **texto (sempre — horas e detalhes ficam escritos)** e numa **nota de voz**
-  curta: edge-tts `pt-PT-RaquelNeural` → ogg/opus mono 48 kHz → `assistant_messages.media_path`; a porta envia como PTT.
+- **Adendo 3 (02/10):** cliente mandou áudio → resposta **SÓ em áudio** (nada de texto; as horas lêem-se por extenso; a
+  mensagem da app diz "misternavalha ponto boraguarda ponto com"). Cliente escreveu → só texto. Voz **masculina**
+  `pt-PT-DuarteNeural` → ogg/opus mono 48 kHz → `assistant_messages.media_path`; a porta envia como PTT. Se a voz falhar,
+  vai em texto.
 - Áudio pessoal → silêncio (o filtro corre sobre a transcrição). Áudio que não se percebe → pede para repetir ou escrever.
 - **Chamadas de voz: NÃO.** O Baileys não as atende. Passo futuro, com a API oficial do WhatsApp (Cloud API).
 

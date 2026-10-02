@@ -18,7 +18,7 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 PASTA_VOZ = os.environ.get("ASSISTENTE_VOZ_DIR", os.path.join(AQUI, "voz"))
 EDGE_TTS = os.environ.get("EDGE_TTS_BIN", "/opt/data/voz/.venv/bin/edge-tts")
 WHISPER_PY = os.environ.get("WHISPER_PY", os.path.join(AQUI, ".venv-whisper", "bin", "python"))
-VOZ_PT = os.environ.get("ASSISTENTE_VOZ", "pt-PT-RaquelNeural")
+VOZ_PT = os.environ.get("ASSISTENTE_VOZ", "pt-PT-DuarteNeural")  # masculina: e uma barbearia (Danilo, 02/10)
 
 
 def _groq(caminho, mime):
@@ -83,15 +83,32 @@ def ouvir(b64, mime=None, so_local=False):
         os.unlink(caminho)
 
 
+def _endereco_falado(m):
+    """https://misternavalha.boraguarda.com -> 'misternavalha ponto boraguarda ponto com'"""
+    url = re.sub(r"^https?://(www\.)?", "", m.group(0)).rstrip("/.,")
+    return url.replace(".", " ponto ").replace("/", " barra ")
+
+
 def para_falar(texto):
-    """Nota de voz curta: sem links nem listas longas. As horas e os detalhes vao sempre tambem por escrito."""
-    t = re.sub(r"https?://\S+", "", texto)
+    """Texto para a nota de voz. Conversa por audio = resposta SO em audio (adendo 3, 02/10): le-se TUDO,
+    horas incluidas, e os enderecos dizem-se por palavras."""
+    t = re.sub(r"https?://\S+", _endereco_falado, texto)
     t = re.sub(r"[*_#\[\]]", "", t).strip()
-    if len(t) > 260:
-        frases = re.split(r"(?<=[.!?])\s+", t)
-        t = frases[0] + (" " + frases[1] if len(frases) > 1 and len(frases[0]) < 120 else "")
-        t = t.strip() + " Deixei-lhe os detalhes por escrito."
+    t = re.sub(r"\b([01]?\d|2[0-3])[:h]([0-5]\d)\b", _hora_falada, t)
     return re.sub(r"\s*€", " euros", t)
+
+
+def _hora_falada(m):
+    """10:30 -> 'dez e meia' (o edge-tts lia '10:30' de forma estranha)."""
+    nomes = ["zero", "uma", "duas", "três", "quatro", "cinco", "seis", "sete", "oito", "nove", "dez", "onze", "meio-dia",
+             "uma", "duas", "três", "quatro", "cinco", "seis", "sete", "oito", "nove", "dez", "onze"]
+    h, mi = int(m.group(1)), int(m.group(2))
+    base = nomes[h] if h != 12 else "meio-dia"
+    if mi == 0:
+        return base if h in (12,) else base + (" hora" if base == "uma" else " horas")
+    if mi == 30:
+        return base + " e meia"
+    return f"{base} e {mi}"
 
 
 def falar(texto):

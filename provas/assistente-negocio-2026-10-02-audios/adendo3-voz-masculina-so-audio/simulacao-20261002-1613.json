@@ -1,0 +1,106 @@
+{
+ "quando": "2026-10-02T16:12:48.834987+01:00",
+ "cenarios": {
+  "A2-audio-marcacao": [
+   {
+    "de": "351931992662",
+    "texto": "Olá, queria marcar uma barba para sábado às onze da manhã. O meu nome é Danilo.",
+    "audio": true,
+    "ouvido": "Olá, queria marcar uma barba para sábado às 11 da manhã. O meu nome é Danilo.",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "guardar_nome",
+     "horarios_livres"
+    ],
+    "modelos": [
+     "gemini:gemini-3-flash-preview",
+     "gemini:gemini-3-flash-preview"
+    ],
+    "erro_motor": null,
+    "segundos": 12.1,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "[nota de voz] Olá, Danilo. Tenho vaga para a barba às onze horas deste sábado, dia 3. Posso confirmar a marcação?",
+      "motivo": "voz",
+      "entrega_estado": "simulado",
+      "media_path": "/opt/assistente-negocio/voz/20261002-151304-a729e5c9.ogg",
+      "ficheiro_voz": {
+       "programs": [],
+       "streams": [
+        {
+         "codec_name": "opus",
+         "sample_rate": "48000",
+         "channels": 1
+        }
+       ],
+       "format": {
+        "duration": "8.094500"
+       }
+      }
+     }
+    ]
+   },
+   {
+    "de": "351931992662",
+    "texto": "Sim, pode marcar.",
+    "audio": true,
+    "ouvido": "Sim, pode marcar.",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "marcar"
+    ],
+    "modelos": [
+     "gemini2:gemini-3-flash-preview",
+     "gemini2:gemini-3-flash-preview"
+    ],
+    "erro_motor": null,
+    "segundos": 14.1,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "[nota de voz] Está marcado, Danilo! Barba para este sábado, dia 3, às onze horas. O valor é 6 euros e o pagamento é feito na barbearia. Até lá!",
+      "motivo": "voz",
+      "entrega_estado": "simulado",
+      "media_path": "/opt/assistente-negocio/voz/20261002-151316-7586fad8.ogg",
+      "ficheiro_voz": {
+       "programs": [],
+       "streams": [
+        {
+         "codec_name": "opus",
+         "sample_rate": "48000",
+         "channels": 1
+        }
+       ],
+       "format": {
+        "duration": "11.046500"
+       }
+      }
+     },
+     {
+      "numero": "351931992662",
+      "texto": "[nota de voz] Da próxima vez também pode marcar pela app Bora, escolhe a hora e fica logo marcado: misternavalha ponto boraguarda ponto com",
+      "motivo": "apos_marcacao:3342eea7-ce61-4a64-b701-81b77eef33e8",
+      "entrega_estado": "simulado",
+      "media_path": "/opt/assistente-negocio/voz/20261002-151323-757f159a.ogg",
+      "ficheiro_voz": {
+       "programs": [],
+       "streams": [
+        {
+         "codec_name": "opus",
+         "sample_rate": "48000",
+         "channels": 1
+        }
+       ],
+       "format": {
+        "duration": "6.966500"
+       }
+      }
+     }
+    ]
+   }
+  ]
+ }
+}

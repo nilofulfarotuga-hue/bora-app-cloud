@@ -11,7 +11,14 @@ Provas: `.claude/.ai/provas/limpeza-so-limpeza-2026-10-02/` · rasto: `e2e_log` 
 
 ## O que NÃO ficou feito (ler primeiro)
 
-1. **A versão Android NÃO foi para o Play.** O autoteste dos 3 perfis falhou nas duas corridas, e o
+> **Atualização 16:53 de Lisboa:** a base voltou sozinha às 16:03 (uma hora em baixo, sem reinício do
+> Postgres). Repetido o build Android (run `37014873730`, tentativa 2): autoteste dos 3 perfis
+> **success**, AAB enviado para o Play (alpha), `ci: bump versionCode to 638` no ramo. O ponto 1 abaixo
+> ficou resolvido; o iOS foi reenviado e estava a correr. Digest gravado em `claude_ai_memoria`
+> (`digest-2026-10-02-limpeza-so-limpeza`).
+
+1. ~~A versão Android NÃO foi para o Play.~~ **Resolvido à segunda tentativa (ver atualização).** O
+   autoteste dos 3 perfis falhou nas duas primeiras corridas, e o
    build ficou saltado nas duas. Nenhuma das falhas é do código desta missão:
    - corrida 1 (`37013815828`): parou no perfil CLIENTE, na página do Auchan, à procura do botão de
      adicionar ao carrinho (`demo_real_test.dart:440`, "Bad state: No element");

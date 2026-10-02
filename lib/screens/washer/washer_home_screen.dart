@@ -9,6 +9,7 @@ import '../../config/app_spacing.dart';
 import '../../models/carwash_models.dart';
 import '../../widgets/botao_rota.dart';
 import '../../widgets/ganho_de_hoje_card.dart';
+import '../../widgets/portao_do_prestador.dart';
 import '../../services/carwash_upload_service.dart';
 import '../../stores/washer_store.dart';
 import '../../utils/safe_image_picker.dart';
@@ -18,7 +19,11 @@ import 'washer_pickup_photos_screen.dart';
 /// LAVAGEM AUTO — ecrã do lavador.
 /// Ofertas rotativas com prazo + trabalho em curso com os botões de estado.
 class WasherHomeScreen extends StatefulWidget {
-  const WasherHomeScreen({super.key});
+  const WasherHomeScreen({super.key, this.comoEntrada = false});
+
+  /// true quando este ecrã é a entrada da pessoa na app (só faz lavagens, ou
+  /// o perfil de estafeta ainda não foi aprovado) — ver `PortaoDoPrestador`.
+  final bool comoEntrada;
 
   @override
   State<WasherHomeScreen> createState() => _WasherHomeScreenState();
@@ -186,6 +191,8 @@ class _WasherHomeScreenState extends State<WasherHomeScreen> {
         title: const Text('Lavagem Auto'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
+        actions:
+            widget.comoEntrada ? acoesDaEntradaDoPrestador(context) : null,
       ),
       body: RefreshIndicator(
         onRefresh: store.refreshAll,

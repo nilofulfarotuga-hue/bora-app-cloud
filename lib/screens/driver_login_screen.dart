@@ -10,6 +10,7 @@ import '../config/app_spacing.dart';
 import '../services/biometric_auth_service.dart';
 import '../services/login_prefs.dart';
 import '../services/notification_service.dart';
+import '../services/roles_service.dart';
 import '../stores/driver_store.dart';
 import '../stores/session_store.dart';
 import '../widgets/biometric_enrollment_dialog.dart';
@@ -18,6 +19,7 @@ import 'driver_pending_screen.dart';
 import 'forgot_password_screen.dart';
 import 'driver_rejected_screen.dart';
 import 'driver_signup_screen.dart';
+import 'trabalhar_no_bora_screen.dart';
 
 class DriverLoginScreen extends StatefulWidget {
   const DriverLoginScreen({super.key});
@@ -187,7 +189,7 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
                       borderRadius: BorderRadius.circular(12),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(12),
-                        onTap: _goToSignup,
+                        onTap: _continuarCandidatura,
                         child: const Padding(
                           padding: EdgeInsets.all(14),
                           child: Row(
@@ -503,20 +505,55 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
 
     if (!mounted) return;
 
+    final approvalStatus =
+        driverRow?['approval_status'] as String? ?? 'approved';
+
+    // PORTÃO POR PAPEL (02/10/2026): entra quem tiver QUALQUER papel
+    // aprovado. Perfil de estafeta em falta, pendente ou recusado não prende
+    // quem já tem a limpeza ou a lavagem aprovada — o `_RootNavigator` abre o
+    // ecrã de trabalho do papel aprovado (ver `PortaoDoPrestador`).
+    final estafetaPorAprovar = !consultaFalhou &&
+        (driverRow == null || approvalStatus != 'approved');
+    if (estafetaPorAprovar) {
+      final papeis = await RolesService.mySummary();
+      if (!mounted) return;
+      if (papeis.cleanerApproved || papeis.washerApproved) {
+        // Põe o estado do estafeta no valor real (sem linha conta como
+        // pendente) para o `_RootNavigator` passar pelo portão.
+        await authStore.refreshApprovalStatus();
+        if (!mounted) return;
+        // Sem oferta de biometria aqui: o restauro biométrico desta porta
+        // exige o papel de estafeta, que esta pessoa pode não ter.
+        await sessionStore.setRole(UserRole.driver);
+        if (!mounted) return;
+        setState(() => _isProcessing = false);
+        return;
+      }
+      // Sem linha em `drivers` e com outra candidatura em análise: diz-se
+      // qual, em vez de mandar a pessoa candidatar-se a estafeta.
+      if (driverRow == null && (papeis.cleanerPending || papeis.washerPending)) {
+        setState(() => _isProcessing = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(papeis.cleanerPending
+              ? 'A tua candidatura à limpeza está em análise. Avisamos-te assim que estiver decidida.'
+              : 'A tua candidatura à lavagem de carros está em análise. Avisamos-te assim que estiver decidida.'),
+          duration: const Duration(seconds: 8),
+        ));
+        return;
+      }
+    }
+
     // Sem linha em `drivers` esta conta ainda não é estafeta: diz-se isso e
     // mantém-se a sessão (nunca se expulsa por causa do perfil).
     if (driverRow == null && !consultaFalhou) {
       setState(() => _isProcessing = false);
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text(
-            'Esta conta ainda não tem perfil de estafeta. Toca em "Criar conta" para te candidatares.'),
+            'Esta conta ainda não tem perfil de trabalho. Toca em "Criar conta" para te candidatares.'),
         duration: Duration(seconds: 8),
       ));
       return;
     }
-
-    final approvalStatus =
-        driverRow?['approval_status'] as String? ?? 'approved';
 
     if (approvalStatus == 'pending') {
       // L3 — bounce de aprovação, não "Sair": preserva biometria.
@@ -575,9 +612,20 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
     // No Navigator call — RootNavigator reacts automatically.
   }
 
-  void _goToSignup() {
+  /// A candidatura de estafeta que ficou a meio retoma-se onde estava.
+  void _continuarCandidatura() {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const DriverSignupScreen()),
+    );
+  }
+
+  void _goToSignup() {
+    // Esta porta serve entregas, corridas, limpeza e lavagem. Ia directa ao
+    // registo de estafeta, que cria logo a linha em `drivers` — e quem só
+    // queria limpar casas ficava com uma ficha de estafeta pendente, sem
+    // carta nem veículo (02/10/2026). Agora escolhe-se primeiro a actividade.
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const TrabalharNoBoraScreen()),
     );
   }
 

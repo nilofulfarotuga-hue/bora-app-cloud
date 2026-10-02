@@ -111,6 +111,29 @@ CrossRoleCardState crossRoleStateFor(String? otherStatus) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+// O PORTÃO DE ENTRADA DE QUEM TRABALHA — POR PAPEL
+// ════════════════════════════════════════════════════════════════════════════
+
+/// Em que ecrã de trabalho a pessoa entra pela porta "Sou Estafeta".
+enum EntradaDoPrestador { estafeta, limpeza, lavagem, nenhuma }
+
+/// Entra quem tiver QUALQUER papel aprovado; um papel pendente nunca bloqueia
+/// outro já aprovado. Função pura → testável sem Supabase.
+///
+/// Cicatriz (02/10/2026): a primeira profissional de limpeza real ficou com
+/// `cleaners` aprovado e presa em "em análise", porque o portão só olhava
+/// para `drivers` — onde ela tinha uma linha pendente criada por arrasto.
+///
+/// O estafeta aprovado vem primeiro porque o ecrã dele já tem o botão para
+/// saltar para a limpeza e a lavagem; o contrário não é verdade.
+EntradaDoPrestador entradaDoPrestador(RolesSummary r) {
+  if (r.driverApproved) return EntradaDoPrestador.estafeta;
+  if (r.cleanerApproved) return EntradaDoPrestador.limpeza;
+  if (r.washerApproved) return EntradaDoPrestador.lavagem;
+  return EntradaDoPrestador.nenhuma;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 // A PORTA "QUERO TRABALHAR NO BORA"
 // ════════════════════════════════════════════════════════════════════════════
 

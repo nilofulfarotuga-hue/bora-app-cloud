@@ -107,13 +107,14 @@ import 'stores/washer_store.dart';
 import 'stores/tvde_store.dart';
 import 'stores/tvde_driver_store.dart';
 import 'stores/tvde_chat_store.dart';
-import 'models/driver_model.dart' show VehicleType;
+import 'models/driver_model.dart' show DriverStatus, VehicleType;
 import 'stores/favorite_store.dart';
 import 'config/app_theme.dart';
 import 'providers/support_settings_provider.dart';
 import 'stores/consent_store.dart';
 import 'stores/session_store.dart';
 import 'widgets/consent_banner.dart';
+import 'widgets/portao_do_prestador.dart';
 import 'widgets/terms_gate.dart';
 import 'services/platform_tag_service.dart';
 
@@ -1269,13 +1270,23 @@ class _RootNavigator extends StatelessWidget {
 
       case UserRole.driver:
         if (driver != null) {
-          if (session.hasDriverSignupDraft) return const DriverSignupScreen();
-          // TVDE — motorista de passageiros entra no modo passageiros (Plano §4).
-          // O próprio ecrã gateia pending/rejected, igual ao DriverHomeScreen.
-          if (driver.vehicleType == VehicleType.carPassengers) {
-            return const TvdeDriverHomeScreen();
+          final Widget estafeta;
+          if (session.hasDriverSignupDraft) {
+            estafeta = const DriverSignupScreen();
+          } else if (driver.vehicleType == VehicleType.carPassengers) {
+            // TVDE — motorista de passageiros entra no modo passageiros (Plano §4).
+            // O próprio ecrã gateia pending/rejected, igual ao DriverHomeScreen.
+            estafeta = const TvdeDriverHomeScreen();
+          } else {
+            estafeta =
+                const TermsGate(audience: 'estafeta', child: DriverHomeScreen());
           }
-          return const TermsGate(audience: 'estafeta', child: DriverHomeScreen());
+          // PORTÃO POR PAPEL (02/10/2026): perfil de estafeta por aprovar não
+          // prende quem já tem a limpeza ou a lavagem aprovada.
+          if (auth.currentDriverStatus != DriverStatus.approved) {
+            return PortaoDoPrestador(semOutroPapel: estafeta);
+          }
+          return estafeta;
         }
         return const DriverLoginScreen();
 

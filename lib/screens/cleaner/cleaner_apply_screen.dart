@@ -11,6 +11,7 @@ import '../../config/app_spacing.dart';
 import '../../config/maps_config.dart';
 import '../../services/legal_fields_service.dart';
 import '../../services/provider_upload_service.dart';
+import '../../services/push_token_service.dart';
 import '../../services/place_autocomplete_service.dart';
 import '../../stores/cleaner_store.dart';
 import '../../utils/safe_image_picker.dart';
@@ -225,6 +226,11 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
             'materials_list': _requiredMaterials,
           },
         );
+        // O aparelho fica registado para a limpeza logo na candidatura. Até
+        // 02/10/2026 só se registava ao abrir o painel da limpeza: quem era
+        // aprovada sem lá ter entrado recebia a primeira oferta sem aviso
+        // nenhum, e a oferta expirava sem ela a ver.
+        PushTokenService.registerForRole('cleaner').ignore();
         if (!mounted) return;
       }
       stage = 'legal';

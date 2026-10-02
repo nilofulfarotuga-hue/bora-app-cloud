@@ -35,6 +35,9 @@ class _AdminPapeisScreenState extends State<AdminPapeisScreen>
   List<Map<String, dynamic>> _pessoas = const [];
   List<String> _papeisPossiveis = const [];
   List<Map<String, dynamic>> _candidaturas = const [];
+
+  /// 'tipo|user_id' → candidatura (qualquer estado).
+  Map<String, Map<String, dynamic>> _candidaturaDe = const {};
   String _estadoFiltro = 'pending';
   final _buscaCtrl = TextEditingController();
 
@@ -67,10 +70,21 @@ class _AdminPapeisScreenState extends State<AdminPapeisScreen>
       final cands = await _sb.rpc('admin_candidaturas_listar', params: {
         'p_estado': _estadoFiltro,
       });
+      // Todas as candidaturas, em qualquer estado: é de onde vem o id que as
+      // funções de aprovar e recusar pedem, para decidir por papel na aba
+      // "Pessoas".
+      final todas = await _sb.rpc('admin_candidaturas_listar', params: {
+        'p_estado': null,
+      });
       if (!mounted) return;
       final mp = (pessoas as Map).cast<String, dynamic>();
       final mc = (cands as Map).cast<String, dynamic>();
+      final mt = (todas as Map).cast<String, dynamic>();
       setState(() {
+        _candidaturaDe = {
+          for (final e in ((mt['itens'] as List?) ?? []))
+            '${(e as Map)['tipo']}|${e['user_id']}': e.cast<String, dynamic>(),
+        };
         _pessoas = ((mp['itens'] as List?) ?? [])
             .map((e) => (e as Map).cast<String, dynamic>())
             .toList();
@@ -107,7 +121,10 @@ class _AdminPapeisScreenState extends State<AdminPapeisScreen>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(msg.contains('tem_trabalho_em_curso')
             ? 'Essa pessoa tem trabalho em andamento. Feche ou reatribua antes.'
-            : 'Falhou: $msg'),
+            : msg.contains('missing_docs')
+                ? 'Faltam documentos do entregador. Para aprovar mesmo assim, '
+                    'use a tela "Aprovações".'
+                : 'Falhou: $msg'),
       ));
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -209,8 +226,15 @@ class _AdminPapeisScreenState extends State<AdminPapeisScreen>
       case 'driver':
         await _chamar(
             aprovar ? 'admin_approve_driver' : 'admin_reject_driver',
+            // Há duas `admin_approve_driver` no banco; só com `p_driver_id` o
+            // servidor não sabe qual escolher e recusa. Com os três
+            // parâmetros vai sempre para a que confere os documentos.
             aprovar
-                ? {'p_driver_id': c['id']}
+                ? {
+                    'p_driver_id': c['id'],
+                    'p_force': false,
+                    'p_justification': null,
+                  }
                 : {'p_driver_id': c['id'], 'p_reason': motivo},
             aprovar ? 'Estafeta aprovado.' : 'Estafeta recusado.');
       case 'cleaner':
@@ -370,22 +394,15 @@ class _AdminPapeisScreenState extends State<AdminPapeisScreen>
                                     deleteIcon: const Icon(Icons.close, size: 14),
                                     backgroundColor: AppColors.primaryWash,
                                   ),
-                                for (final e in {
-                                  'driver': p['estado_driver'],
-                                  'cleaner': p['estado_cleaner'],
-                                  'washer': p['estado_washer'],
-                                }.entries)
-                                  if (e.value != null && e.value != 'approved')
-                                    Chip(
-                                      label: Text(
-                                        '${_rotulo(e.key)}: ${e.value}',
-                                        style: const TextStyle(fontSize: 11),
-                                      ),
-                                      backgroundColor:
-                                          AppColors.warning.withValues(alpha: .15),
-                                    ),
                               ],
                             ),
+                            const SizedBox(height: Spacing.xs),
+                            // Cada papel de trabalho com o seu estado e a
+                            // sua decisão. Um papel pendente não trava outro
+                            // já aprovado: aprovar a Limpeza basta para a
+                            // pessoa entrar e trabalhar na limpeza.
+                            for (final tipo in _tiposDeCandidatura)
+                              _linhaDoPapel(p, tipo),
                           ],
                         ),
                       );
@@ -394,6 +411,52 @@ class _AdminPapeisScreenState extends State<AdminPapeisScreen>
           ),
         ],
       );
+
+  static const _tiposDeCandidatura = ['driver', 'cleaner', 'washer'];
+
+  static String _rotuloDaCandidatura(String tipo) => switch (tipo) {
+        'driver' => 'Estafeta',
+        'cleaner' => 'Limpeza',
+        'washer' => 'Lavagem de carros',
+        _ => tipo,
+      };
+
+  Widget _linhaDoPapel(Map<String, dynamic> p, String tipo) {
+    final estado = p['estado_$tipo'] as String?;
+    final cand = _candidaturaDe['$tipo|${p['user_id']}'];
+    final (texto, cor) = switch (estado) {
+      'approved' => ('aprovada', AppColors.primary),
+      'pending' => ('pendente', AppColors.warning),
+      'rejected' => ('recusada', AppColors.error),
+      'suspended' => ('suspensa', AppColors.error),
+      null => ('não inscrito', AppColors.textSubtle),
+      _ => (estado, AppColors.textSubtle),
+    };
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            '${_rotuloDaCandidatura(tipo)}: $texto',
+            style: TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w600, color: cor),
+          ),
+        ),
+        if (cand != null && estado == 'pending')
+          TextButton(
+            onPressed: _busy ? null : () => _decidir(cand, false),
+            child: const Text('Recusar',
+                style: TextStyle(color: AppColors.error)),
+          ),
+        // Só as pendentes se decidem aqui com um toque. Reativar quem foi
+        // suspenso ou recusado faz-se na tela do próprio papel, com contexto.
+        if (cand != null && estado == 'pending')
+          TextButton(
+            onPressed: _busy ? null : () => _decidir(cand, true),
+            child: const Text('Aprovar'),
+          ),
+      ],
+    );
+  }
 
   Widget _abaCandidaturas() => Column(
         children: [

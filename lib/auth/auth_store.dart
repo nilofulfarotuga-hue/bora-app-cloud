@@ -10,6 +10,7 @@ import '../models/driver_model.dart';
 import '../models/restaurant_model.dart';
 import '../services/biometric_auth_service.dart';
 import '../services/notification_service.dart';
+import '../services/roles_service.dart';
 import '../services/secure_credentials_store.dart';
 import '../utils/constants.dart';
 
@@ -1037,7 +1038,12 @@ class AuthStore extends ChangeNotifier {
             // para o modo passageiros.
             .eq('user_id', user.id)
             .maybeSingle();
-        final statusStr = row?['approval_status'] as String? ?? 'approved';
+        // Sem linha em `drivers` (quem só faz limpeza ou lavagem) o estafeta
+        // está "por aprovar", igual ao que `refreshApprovalStatus` conclui.
+        // Dava 'approved' e o ecrã do estafeta abria por instantes a quem
+        // não o é. Só a consulta a FALHAR é que segue como aprovado.
+        final statusStr = row?['approval_status'] as String? ??
+            (row == null ? 'pending' : 'approved');
         vtDb = row?['vehicle_type'] as String?;
         driverStatus = DriverStatus.values.firstWhere(
           (s) => s.name == statusStr,
@@ -1681,10 +1687,20 @@ class AuthStore extends ChangeNotifier {
         // veículo) vai buscá-los à base em vez de recusar a troca. Recusar
         // obrigava a pessoa a sair e a escrever a palavra-passe outra vez —
         // que é exactamente o que esta troca existe para evitar.
-        final account =
+        //
+        // PORTÃO POR PAPEL (02/10/2026): quem só faz limpeza ou lavagem não
+        // tem linha em `drivers` — e não precisa. Com um desses papéis
+        // aprovado entra pela mesma porta; o `PortaoDoPrestador` abre o ecrã
+        // de trabalho certo.
+        final estafeta =
             _driversByEmail[email] ?? await _carregarEstafetaDaBase(email);
+        final account =
+            estafeta ?? await _contaDePrestadorSemEstafeta(email, meta);
         if (account == null) return false;
-        _driversByEmail[email] = account;
+        // Só a conta de estafeta a sério fica em memória para as próximas
+        // trocas: a de quem só faz limpeza é montada sem veículo real, e se a
+        // pessoa passar a estafeta tem de se ler outra vez da base.
+        if (estafeta != null) _driversByEmail[email] = account;
         _currentDriver = account;
         _currentClient = null;
         _currentPartner = null;
@@ -1722,6 +1738,27 @@ class AuthStore extends ChangeNotifier {
       debugPrint('AuthStore: _carregarEstafetaDaBase => $e');
       return null;
     }
+  }
+
+  /// Conta de trabalho para quem tem a limpeza ou a lavagem aprovada e não
+  /// tem perfil de estafeta. Devolve null a quem não tem nenhuma aprovada.
+  Future<DriverAccount?> _contaDePrestadorSemEstafeta(
+    String email,
+    Map<String, dynamic> meta,
+  ) async {
+    final papeis = await RolesService.mySummary();
+    if (!papeis.cleanerApproved && !papeis.washerApproved) return null;
+    // Sem linha em `drivers` o estado do estafeta é "por aprovar" — é isso
+    // que faz o `_RootNavigator` passar pelo portão por papel.
+    _currentDriverStatus = DriverStatus.pending;
+    return DriverAccount(
+      name: meta[_kName] as String? ?? '',
+      phone: meta[_kPhone] as String? ?? '',
+      email: email,
+      password: '',
+      vehicleType: VehicleType.motorcycle,
+      licensePlate: '',
+    );
   }
 
   // ─── Logout ───────────────────────────────────────────────────────────────

@@ -14,6 +14,7 @@ import '../../widgets/bora_support_sheet.dart';
 import '../../widgets/payments/collect_badge.dart';
 import '../../widgets/cleaning_chat_button.dart';
 import '../../widgets/multirole_switch_card.dart';
+import '../../widgets/portao_do_prestador.dart';
 import '../driver/driver_role_apply_screen.dart';
 import 'cleaner_apply_screen.dart';
 import 'cleaner_availability_screen.dart';
@@ -26,7 +27,11 @@ import 'cleaner_history_screen.dart';
 /// sem registo → convite; pending → em análise; rejected → recandidatar;
 /// suspended → aviso; approved → painel (ofertas + agenda + atalhos).
 class CleanerHomeScreen extends StatefulWidget {
-  const CleanerHomeScreen({super.key});
+  const CleanerHomeScreen({super.key, this.comoEntrada = false});
+
+  /// true quando este ecrã é a entrada da pessoa na app (só faz limpeza, ou
+  /// o perfil de estafeta ainda não foi aprovado) — ver `PortaoDoPrestador`.
+  final bool comoEntrada;
 
   @override
   State<CleanerHomeScreen> createState() => _CleanerHomeScreenState();
@@ -60,7 +65,11 @@ class _CleanerHomeScreenState extends State<CleanerHomeScreen> {
     final profile = store.profile;
 
     return Scaffold(
-      appBar: const BoraScreenAppBar(title: 'Limpezas — Profissional'),
+      appBar: BoraScreenAppBar(
+        title: 'Limpezas — Profissional',
+        actions:
+            widget.comoEntrada ? acoesDaEntradaDoPrestador(context) : null,
+      ),
       body: !store.profileLoaded
           ? const Center(child: CircularProgressIndicator())
           : profile == null

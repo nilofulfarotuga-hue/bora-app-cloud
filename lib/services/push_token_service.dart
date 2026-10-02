@@ -72,6 +72,9 @@ class PushTokenService {
   /// o `onTokenRefresh` apanha-o — mas só regista quem estiver aqui.
   static final Set<String> _papeisPedidos = <String>{};
 
+  /// Papéis cujo registo foi pedido enquanto outro estava a decorrer.
+  static final Set<String> _papeisEmEspera = <String>{};
+
   /// [Serviços 2026-07-28] BUG: o dedup de sessão era só (token, role). Num
   /// device partilhado — logout do parceiro A, login do parceiro B — o token
   /// FCM e o role são os mesmos, o UPSERT era saltado, e o parceiro B nunca
@@ -111,9 +114,16 @@ class PushTokenService {
   ///   • Role fora de [papeisComPush]
   ///   • No FCM token available após 3 retries
   static Future<void> registerForRole(String role) async {
-    if (_registering) return;
     if (!papeisComPush.contains(role)) {
       _log('skip — invalid role: $role');
+      return;
+    }
+    // [02/10/2026] Um pedido que chega com outro registo a meio NÃO se deita
+    // fora: fica à espera e corre a seguir. Antes saía aqui em silêncio, e
+    // quem acumula papéis podia ficar sem aparelho num deles — bastava o
+    // registo do estafeta estar a decorrer quando chegava a vez da limpeza.
+    if (_registering) {
+      _papeisEmEspera.add(role);
       return;
     }
 
@@ -181,6 +191,11 @@ class PushTokenService {
       await _registerRpc(role: role, token: token);
     } finally {
       _registering = false;
+      if (_papeisEmEspera.isNotEmpty) {
+        final seguinte = _papeisEmEspera.first;
+        _papeisEmEspera.remove(seguinte);
+        unawaited(registerForRole(seguinte));
+      }
     }
   }
 
@@ -281,6 +296,7 @@ class PushTokenService {
     _lastRegisteredUserId = null;
     _papeisRegistados.clear();
     _papeisPedidos.clear();
+    _papeisEmEspera.clear();
   }
 
   static String? _deviceLabel() {

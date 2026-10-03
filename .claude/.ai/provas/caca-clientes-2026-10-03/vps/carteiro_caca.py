@@ -384,6 +384,15 @@ def teste():
     print(json.dumps(r))
 
 
+def teste_responder():
+    """Responde na mesma conversa, da propria conta, para o leitor ter uma resposta para ler."""
+    r = json.load(open(TESTE_FICH))
+    d = gmail("GET", "threads/%s?format=metadata&metadataHeaders=Subject" % r["thread_id"])
+    assunto = cabecalho(d["messages"][0], "Subject")
+    x = enviar_email(CONTA, "Re: " + assunto, "Resposta de teste: recebido, o ciclo fecha.", thread_id=r["thread_id"], em_resposta_a=r["rfc_message_id"])
+    print(json.dumps({"resposta_enviada": x["message_id"], "thread_id": x["thread_id"]}))
+
+
 def teste_ler():
     r = json.load(open(TESTE_FICH))
     d = gmail("GET", "threads/%s?format=full" % r["thread_id"])
@@ -394,7 +403,7 @@ def teste_ler():
 if __name__ == "__main__":
     modo = sys.argv[1] if len(sys.argv) > 1 else ""
     try:
-        {"redigir": redigir, "enviar": enviar, "ler": ler, "resumo": resumo, "teste": teste, "teste-ler": teste_ler}[modo]()
+        {"redigir": redigir, "enviar": enviar, "ler": ler, "resumo": resumo, "teste": teste, "teste-responder": teste_responder, "teste-ler": teste_ler}[modo]()
     except KeyError:
         print(__doc__)
         sys.exit(2)

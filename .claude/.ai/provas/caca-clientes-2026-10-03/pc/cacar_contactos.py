@@ -44,7 +44,6 @@ LIXO = ("sentry", "wixpress", "example.", "exemplo", "godaddy", "domain.com", "e
         "livroreclamacoes", "cnpd.pt", "wordpress", "user@", "nome@", "name@", "u003e", "protected")
 PAGINAS = ("contacto", "contactos", "contact", "contacts", "contato", "fale-connosco", "sobre", "about",
            "privacidade", "politica-de-privacidade", "privacy", "termos", "termos-e-condicoes", "legal", "rgpd")
-SITE_TIPO = ("alojamento", "clinica", "ginasio", "cabeleireiro")
 
 
 def ambiente():
@@ -241,10 +240,31 @@ def pesquisa_aberta(nome, concelho):
     return r
 
 
+DINHEIRO = ("alojamento", "imobiliaria", "clinica", "advogado", "ginasio", "oficina")
+
+
 def tipo_cliente(p, tem_site_proprio):
-    if p.get("categoria") in SITE_TIPO:
-        return "site"
-    return "parceiro-bora" if tem_site_proprio else "os-dois"
+    """Decisao do Danilo (03/10): comida, cafes e lojas de bairro vao como parceiro da app Bora;
+    os nichos que pagam sites vao como site."""
+    return "site" if p.get("categoria") in DINHEIRO else "parceiro-bora"
+
+
+def pontuar(p, proprio, site, tem_instagram):
+    """Regra da ordem: sem site 30, site fraco 20, sem livro de reclamacoes 10, categoria com
+    dinheiro 15, Instagram 10. As avaliacoes do Google (15) ficam de fora: e a Places paga."""
+    n = 0
+    if not proprio:
+        n += 30
+    elif site is not None:
+        if (not site["vivo"]) or (not site["https"]) or site["mobile"] is False:
+            n += 20
+        if site["vivo"] and not site["livro"]:
+            n += 10
+    if p.get("categoria") in DINHEIRO:
+        n += 15
+    if tem_instagram:
+        n += 10
+    return n
 
 
 def main():
@@ -269,6 +289,7 @@ def main():
         gancho = []
         if web and "facebook.com" in web.lower():
             linha["facebook"] = web
+        s = None
         if proprio and not cadeia:
             s = varrer_site(web, nome)
             if not s["vivo"]:
@@ -319,6 +340,7 @@ def main():
                 n_canal += 1
         if gancho:
             linha["gancho"] = "; ".join(gancho)
+        linha["pontuacao"] = str(pontuar(p, proprio, s, bool(linha.get("instagram") or p.get("instagram"))))
         log("  %-4s %-34s email=%s (%s) canal=%s gancho=%s" % (
             p["id"], nome[:34], linha.get("email", "-"), linha.get("email_fonte", "-"),
             linha.get("canal_preferido", "-"), (linha.get("gancho") or "-")[:70]))

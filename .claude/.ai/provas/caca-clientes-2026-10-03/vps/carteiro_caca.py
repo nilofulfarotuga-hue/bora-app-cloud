@@ -204,37 +204,86 @@ def validar(assunto, texto, link):
     return erros
 
 
+FRASES = [
+    ("nao tem site proprio", "ainda não têm um site próprio"),
+    ("nao abre", None),  # so se confirma na hora, daqui (ver observacao())
+    ("nao tem ligacao segura", "o vosso site não tem ligação segura (falta o https)"),
+    ("nao esta preparado para telemovel", "o vosso site não está preparado para telemóvel"),
+    ("livro de reclamacoes", "falta no vosso site a ligação ao livro de reclamações eletrónico, que a lei exige"),
+]
+
+
+def site_abre(url):
+    for u in (url, url.replace("http://", "https://")):
+        try:
+            req = urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=20) as r:
+                if r.status < 400:
+                    return True
+        except Exception:
+            pass
+    return False
+
+
+def observacao(p):
+    """O gancho do cacador, em portugues escrito como deve ser. So entra o que foi medido;
+    'o site nao abre' e confirmado outra vez daqui antes de se escrever a alguem."""
+    gancho = p.get("gancho") or ""
+    if any(c in gancho for c in "áéíóúãõç"):  # gancho escrito a mao (maquetes premium)
+        return gancho.split(";")[0].strip().rstrip(".")
+    partes = []
+    for chave, frase in FRASES:
+        if chave not in gancho:
+            continue
+        if frase is None:
+            if p.get("website") and not site_abre(p["website"]):
+                partes.append("o vosso site não está a abrir")
+            continue
+        partes.append(frase)
+    partes = partes[:2]
+    if not partes:
+        return "há espaço para a vossa presença online trabalhar mais por vocês"
+    return " e ".join(partes)
+
+
+def escrever(p):
+    """Email por molde fixo. O motor gratis escrevia frases que nao se mandam a ninguem
+    (elogios inventados, "Mira Serra precisa de ajuda"): 03/10, 10 em 10 reprovados a olho."""
+    nome, link = p.get("nome") or "", p.get("link") or ""
+    curto = nome.split("(")[0].strip()
+    assunto = "Uma página para %s" % curto
+    if len(assunto.split()) > 7:
+        assunto = "Preparámos uma página para vocês"
+    if p.get("cliente_tipo") == "parceiro-bora":
+        if len(("%s na app Bora?" % curto).split()) <= 7:
+            assunto = "%s na app Bora?" % curto
+        texto = ("Bom dia,<P>Somos a Bora, a aplicação de entregas e serviços da Guarda. Está em fase de arranque: "
+                 "a app está construída e a ser testada com alguns comerciantes da Guarda.<P>"
+                 "Gostávamos de ter %s connosco. O primeiro mês é grátis, não há mensalidade e a Bora só ganha quando a loja vende; "
+                 "as entregas são feitas por estafetas da Guarda e o cliente paga por MB Way ou cartão.<P>"
+                 "Preparámos uma página a mostrar como a vossa casa apareceria na app:<L>%s<P>"
+                 "Querem ser parceiros? Passamos aí e explicamos em dez minutos.") % (curto, link)
+    else:
+        texto = ("Bom dia,<P>Somos a Bora, da Guarda: fazemos sites e tratamos da presença online de negócios da região.<P>"
+                 "Ao ver %s na internet reparámos numa coisa: %s.<P>"
+                 "Em vez de pedir uma reunião, preparámos primeiro uma página só para vocês, com o que vimos e o que faríamos:<L>%s<P>"
+                 "Faz sentido conversarmos uns minutos esta semana?") % (curto, observacao(p), link)
+    return assunto, texto.replace("<P>", chr(10) + chr(10)).replace("<L>", chr(10))
+
+
 def redigir():
     fila = rpc("redator_fila", {}) or []
     log("redator: %d por escrever" % len(fila))
     feitos = 0
-    for p in fila[:10]:
-        link = p.get("link") or ""
-        dados = "NEGÓCIO: %s (%s, %s)\nGANCHO: %s\nLINK: %s" % (
-            p.get("nome"), p.get("categoria") or "negócio", p.get("concelho") or "Guarda", p.get("gancho") or "sem observação — elogia com sobriedade", link)
-        sistema = SISTEMA_PARCEIRO if p.get("cliente_tipo") == "parceiro-bora" else SISTEMA_REDATOR
-        ok = False
-        for tentativa in range(3):
-            try:
-                bruto = motor(sistema, dados)
-                m = re.search(r"\{.*\}", bruto, flags=re.S)
-                j = json.loads(m.group(0))
-                assunto, texto = j["assunto"].strip(), j["texto"].strip()
-            except Exception as ex:
-                log("  %s: resposta do motor ilegivel (%s)" % (p.get("nome"), type(ex).__name__))
-                continue
-            erros = validar(assunto, texto, link)
-            if erros:
-                log("  %s: reprovado (%s)" % (p.get("nome"), "; ".join(erros)))
-                dados += "\nA versão anterior foi reprovada por: " + "; ".join(erros)
-                continue
-            v = rpc("prospect_proposta_registar", {"p_prospect": p["id"], "p_linha": {"canal": "email", "assunto": assunto, "texto": texto, "estado": "pronta"}})
-            log("  %s: proposta %s pronta" % (p.get("nome"), v))
-            feitos += 1
-            ok = True
-            break
-        if not ok:
-            log("  %s: ficou por escrever" % p.get("nome"))
+    for p in fila:
+        assunto, texto = escrever(p)
+        erros = validar(assunto, texto, p.get("link") or "")
+        if erros:
+            log("  %s: reprovado (%s)" % (p.get("nome"), "; ".join(erros)))
+            continue
+        v = rpc("prospect_proposta_registar", {"p_prospect": p["id"], "p_linha": {"canal": "email", "assunto": assunto, "texto": texto, "estado": "pronta"}})
+        log("  %s: proposta %s pronta" % (p.get("nome"), v))
+        feitos += 1
     e2e("b3-redator", "ok", "%d de %d escritos" % (feitos, len(fila)))
 
 

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Informação legal · Bora</title>
+<meta name="description" content="Quem opera a Bora, contactos, resolução alternativa de litígios e Livro de Reclamações Eletrónico.">
+<!--
+  Página para o site institucional (repo público bora-site → boraguarda.com / bora-site.pages.dev).
+  Escrita na missão ronda-fecho-2026-09-22 (bloco D1) a partir de lib/config/legal_identity.dart
+  da app (fonte única — regra dos gémeos: o NIF e a morada só existem lá e em ios/NOTAS-AO-REVISOR.md).
+  Publicar: copiar para o repo bora-site como /informacao-legal.html (ou /legal/index.html),
+  ligar no rodapé ("Informação legal") e fazer deploy com o wrangler do PC.
+  Logótipo oficial do Livro de Reclamações Eletrónico: descarregar o kit para operadores
+  económicos em https://www.livroreclamacoes.pt (secção do logótipo) e guardar em
+  assets/livro-reclamacoes-eletronico.png — sem o ficheiro, a página mostra o selo em CSS.
+-->
+<style>
+  :root { --verde:#16A34A; --laranja:#F97316; --texto:#111827; --cinza:#6B7280; --fundo:#F9FAFB; --linha:#E5E7EB; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color:var(--texto); background:var(--fundo); line-height:1.5; }
+  header { background:var(--verde); color:#fff; padding:20px 16px; }
+  header a { color:#fff; text-decoration:none; font-weight:700; }
+  main { max-width: 760px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 1.6rem; margin: 8px 0 16px; }
+  h2 { font-size: 1.1rem; margin: 0 0 8px; color:var(--verde); }
+  section { background:#fff; border:1px solid var(--linha); border-radius:14px; padding:16px; margin-bottom:14px; }
+  dl { margin:0; display:grid; grid-template-columns: 1fr; gap:6px 12px; }
+  dt { color:var(--cinza); font-size:.9rem; }
+  dd { margin:0 0 6px; }
+  a { color:var(--verde); }
+  ul { padding-left: 18px; margin: 6px 0; }
+  .aviso { color:var(--cinza); font-size:.95rem; }
+  .selo { display:inline-block; margin-top:10px; }
+  .selo img { max-width: 260px; height:auto; display:block; }
+  .selo-css { display:inline-block; background:#FFD400; border:2px solid #000; border-radius:8px; padding:10px 14px; color:#000; text-decoration:none; font-weight:900; letter-spacing:.02em; }
+  .selo-css small { display:block; font-weight:500; }
+  footer { text-align:center; color:var(--cinza); font-size:.85rem; padding: 20px 16px 40px; }
+  @media (min-width:600px){ dl { grid-template-columns: 200px 1fr; } dd { margin:0; } }
+</style>
+</head>
+<body>
+<header><a href="/">← Bora</a></header>
+<main>
+  <h1>Informação legal</h1>
+
+  <section>
+    <h2>Quem opera a Bora</h2>
+    <p>A Bora (app e site) é operada por <strong>Danilo Fulfaro da Silva</strong>, empresário em nome individual, com sede na Guarda, Portugal.</p>
+    <dl>
+      <dt>Nome</dt><dd>Danilo Fulfaro da Silva</dd>
+      <dt>Qualidade</dt><dd>Empresário em nome individual</dd>
+      <dt>NIF</dt><dd>322151171</dd>
+      <dt>Morada</dt><dd>Rua do Torreão 14, 6300-610 Guarda, Portugal</dd>
+      <dt>E-mail</dt><dd><a href="mailto:boraappbora@gmail.com">boraappbora@gmail.com</a></dd>
+      <dt>Telefone</dt><dd><a href="tel:+351937501673">+351 937 501 673</a></dd>
+    </dl>
+    <p class="aviso">A Bora é uma plataforma intermediária: nas encomendas a lojas e restaurantes parceiros, o vendedor é a loja identificada no recibo (nome, NIF e morada); nas entregas, corridas, limpezas e serviços, o prestador é o profissional identificado na app.</p>
+  </section>
+
+  <section>
+    <h2>Resolução alternativa de litígios (Lei n.º 144/2015)</h2>
+    <p>Em caso de litígio, o consumidor pode recorrer a uma entidade de resolução alternativa de litígios de consumo (Lei n.º 144/2015):</p>
+    <ul>
+      <li><a href="https://www.cniacc.pt" target="_blank" rel="noopener">CNIACC — Centro Nacional de Informação e Arbitragem de Conflitos de Consumo</a></li>
+      <li><a href="https://www.centrodearbitragemdecoimbra.com" target="_blank" rel="noopener">CACCDC — Centro de Arbitragem de Conflitos de Consumo do Distrito de Coimbra</a> (competente para o distrito da Guarda)</li>
+      <li><a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener">Plataforma ODR da União Europeia</a> (resolução de litígios em linha)</li>
+    </ul>
+    <p class="aviso">Mais informações no Portal do Consumidor: <a href="https://www.consumidor.gov.pt" target="_blank" rel="noopener">consumidor.gov.pt</a>.</p>
+  </section>
+
+  <section>
+    <h2>Livro de Reclamações</h2>
+    <p>Pode apresentar reclamação no <strong>Livro de Reclamações Eletrónico</strong>:</p>
+    <a class="selo" href="https://www.livroreclamacoes.pt/Inicio/" target="_blank" rel="noopener" aria-label="Livro de Reclamações Eletrónico">
+      <img src="assets/livro-reclamacoes-eletronico.png" alt="Livro de Reclamações Eletrónico"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block'">
+      <span class="selo-css" style="display:none">LIVRO DE RECLAMAÇÕES<small>Eletrónico · livroreclamacoes.pt</small></span>
+    </a>
+  </section>
+
+  <section>
+    <h2>Direito de livre resolução (DL 24/2014)</h2>
+    <p class="aviso">Nas compras à distância tem 14 dias de livre resolução, exceto para alimentos, bebidas e outros bens perecíveis entregues, produtos abertos ou personalizados e serviços já prestados ou com data marcada. As condições completas estão nos <a href="/termos">Termos e condições</a>.</p>
+  </section>
+
+  <section>
+    <h2>Documentos</h2>
+    <ul>
+      <li><a href="/termos">Termos e condições</a></li>
+      <li><a href="/privacidade">Política de privacidade</a></li>
+    </ul>
+  </section>
+</main>
+<footer>Bora · Guarda, Portugal</footer>
+</body>
+</html>

@@ -1,0 +1,246 @@
+--- repo/analyze-conversations/index.ts
++++ prod/analyze-conversations/index.ts
+@@ -1,11 +1,12 @@
+-// Sessao 5E B3 - Edge Fn analyze-conversations v2
++// Sessao 5E B3 - Edge Fn analyze-conversations v4
++// v4 fix: auth via decode JWT (role claim) em vez de string match.
++//        Resolve falha 401 quando vault.service_role_key != env.SUPABASE_SERVICE_ROLE_KEY.
++// v3 fix: verify_jwt agora false (autenticacao feita internamente).
++//
+ // Analisa support_chatbot_messages 7 dias e propoe 3 tipos via Gemini:
+-//   1. new_skill        (5D mantido)
+-//   2. playbook_update  (NOVO 5E — actualizar playbook skill existente)
+-//   3. settings_update  (NOVO 5E — actualizar support_settings SAFE)
+-// POST { scheduled?: boolean, days_back?: int, dry_run?: boolean }
+-// verify_jwt: true. Admin-only via app_metadata.role='admin' OR
+-// service_role JWT (cron use).
++//   1. new_skill
++//   2. playbook_update
++//   3. settings_update
+ 
+ // @ts-nocheck
+ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+@@ -21,7 +22,6 @@
+ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+ const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+ 
+-// SAFE settings whitelist (mirror RPC admin_approve_skill_suggestion)
+ const SAFE_SETTING_KEYS = [
+   'chatbot_welcome_text',
+   'sla_hours',
+@@ -33,7 +33,6 @@
+   'skill_analysis_min_messages',
+ ];
+ 
+-// CRITICAL skills (mirror RPC). OTP_RESEND defensivo: nao existe ainda.
+ const CRITICAL_SKILLS = [
+   'CANCEL_PRE_PURCHASE','CANCEL_DURING_PURCHASE',
+   'RESERVATION_CANCEL','PASSWORD_RESET','ACCOUNT_UPDATE',
+@@ -68,6 +67,20 @@
+   return o !== null && typeof o === 'object' && !Array.isArray(o);
+ }
+ 
++// v4: decode JWT payload sem validar assinatura (basta role claim)
++function decodeJwtRole(token: string): string | null {
++  try {
++    const parts = token.split('.');
++    if (parts.length !== 3) return null;
++    const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
++    const padded = payload + '==='.slice(0, (4 - payload.length % 4) % 4);
++    const decoded = JSON.parse(atob(padded));
++    return decoded.role ?? null;
++  } catch {
++    return null;
++  }
++}
++
+ Deno.serve(async (req: Request) => {
+   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+   if (req.method !== 'POST')   return jsonResponse({ error: 'method_not_allowed' }, 405);
+@@ -78,7 +91,10 @@
+ 
+   const authHeader = req.headers.get('Authorization') ?? '';
+   const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+-  if (!token) return jsonResponse({ error: 'missing_token' }, 401);
++  if (!token) {
++    console.warn('[analyze v4] missing_token');
++    return jsonResponse({ error: 'missing_token' }, 401);
++  }
+ 
+   let body: { scheduled?: boolean; days_back?: number; dry_run?: boolean } = {};
+   try { body = await req.json(); } catch { /* default empty */ }
+@@ -86,26 +102,30 @@
+   const daysBack  = Math.max(1, Math.min(30, Number(body.days_back ?? 7) | 0));
+   const dryRun    = body.dry_run === true;
+ 
+-  const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+-    global: { headers: { Authorization: `Bearer ${token}` } },
+-  });
+-  const { data: userData, error: authErr } = await userClient.auth.getUser();
+-
+   let isService = false;
+   let isAdmin = false;
+-  if (authErr || !userData?.user) {
+-    if (token === SUPABASE_SERVICE_ROLE_KEY) {
+-      isService = true;
+-    } else {
+-      return jsonResponse({ error: 'unauthorized' }, 401);
+-    }
++
++  // v4: tentar service_role via decode JWT primeiro (cron usa este caminho)
++  const jwtRole = decodeJwtRole(token);
++  if (jwtRole === 'service_role') {
++    isService = true;
+   } else {
++    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
++      global: { headers: { Authorization: `Bearer ${token}` } },
++    });
++    const { data: userData, error: authErr } = await userClient.auth.getUser();
++    if (authErr || !userData?.user) {
++      console.warn('[analyze v4] invalid_token scheduled=' + scheduled + ' jwt_role=' + jwtRole);
++      return jsonResponse({ error: 'unauthorized', jwt_role: jwtRole }, 401);
++    }
+     isAdmin = userData.user.app_metadata?.role === 'admin';
+   }
+ 
+   if (!isService && !isAdmin) {
+     return jsonResponse({ error: 'admin_required' }, 403);
+   }
++
++  console.log(`[analyze v4] auth=${isService ? 'service' : 'admin'} scheduled=${scheduled} days_back=${daysBack}`);
+ 
+   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+ 
+@@ -157,7 +177,7 @@
+     .limit(200);
+ 
+   if (msgErr) {
+-    console.error('[analyze] msg fetch err:', msgErr.message);
++    console.error('[analyze v4] msg fetch err:', msgErr.message);
+     return jsonResponse({ error: 'msg_fetch_failed', detail: msgErr.message }, 500);
+   }
+ 
+@@ -184,7 +204,6 @@
+     });
+   }
+ 
+-  // 5E: fetch skills with id+playbook_md (para lookup playbook_update)
+   const { data: skillsRows } = await admin
+     .from('support_skills')
+     .select('id, skill_name, mode, playbook_md')
+@@ -195,7 +214,6 @@
+   const skillNames = skillsList.map((s) => s.skill_name);
+   const skillByName = new Map(skillsList.map((s) => [s.skill_name, s]));
+ 
+-  // 5E: build SAFE settings snapshot for prompt
+   const safeSettingsSnapshot: Record<string, unknown> = {};
+   if (settingsRow) {
+     for (const k of SAFE_SETTING_KEYS) {
+@@ -207,16 +225,14 @@
+     .from('skill_suggestions').select('pattern_summary').eq('status', 'pending');
+   const pendingSummaries = (pendingRows ?? []).map((r: any) => r.pattern_summary as string);
+ 
+-  // 2026-08-12: fallback era gemini-1.5-flash (retirado). Só usado se a BD não responder.
+-  const geminiModel = (settingsRow?.gemini_model as string) ?? 'gemini-3.1-flash-lite';
+-
+-  // 5E system prompt: 3 tipos
++  const geminiModel = (settingsRow?.gemini_model as string) ?? 'gemini-2.5-flash';
++
+   const systemPrompt =
+     'Es um analista de suporte da Bora App. Identifica padroes em mensagens de clientes.\n' +
+     '\n' +
+     'Podes propor 3 tipos de melhoria. Retorna APENAS um JSON array (sem markdown, sem ```json fences).\n' +
+     '\n' +
+-    'TIPO 1 — new_skill: criar skill nova quando padrao nao esta coberto.\n' +
++    'TIPO 1 - new_skill: criar skill nova quando padrao nao esta coberto.\n' +
+     '  Schema: { "proposal_type":"new_skill", "pattern_summary": string<=200, ' +
+     '"message_count": number, "sample_messages": string[3..5], ' +
+     '"suggested_skill_name": string (UPPER_SNAKE_CASE), "suggested_category": string, ' +
+@@ -224,14 +240,14 @@
+     '"suggested_playbook_md": string (markdown ## seccoes), ' +
+     '"suggested_allowed_tools": string[], "zone_type":"safe" }\n' +
+     '\n' +
+-    'TIPO 2 — playbook_update: actualizar playbook de skill existente quando ela responde mal.\n' +
++    'TIPO 2 - playbook_update: actualizar playbook de skill existente quando ela responde mal.\n' +
+     '  Schema: { "proposal_type":"playbook_update", "target_skill_name": string (EXACTO de skills existentes), ' +
+     '"zone_type": "safe"|"critical", "suggested_playbook_md": string (NOVO playbook completo, markdown), ' +
+     '"pattern_summary": string<=200 }\n' +
+     '  Skills CRITICAL (sempre zone_type="critical"): ' + JSON.stringify(CRITICAL_SKILLS) + '\n' +
+     '  Para outras skills, zone_type="safe".\n' +
+     '\n' +
+-    'TIPO 3 — settings_update: actualizar configuracao quando precisa ajuste.\n' +
++    'TIPO 3 - settings_update: actualizar configuracao quando precisa ajuste.\n' +
+     '  Schema: { "proposal_type":"settings_update", ' +
+     '"target_setting_key": string (apenas SAFE keys), ' +
+     '"target_setting_value": string, "zone_type":"safe", ' +
+@@ -261,7 +277,6 @@
+       body: JSON.stringify({
+         system_instruction: { parts: [{ text: systemPrompt }] },
+         contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+-        // 5E: 4096 -> 8192 (playbook_update payloads sao maiores)
+         generationConfig: { maxOutputTokens: 8192, temperature: 0.3 },
+       }),
+     });
+@@ -291,7 +306,7 @@
+     .eq('id', 1);
+ 
+   if (geminiError) {
+-    console.error('[analyze]', geminiError);
++    console.error('[analyze v4]', geminiError);
+     return jsonResponse({
+       analyzed_messages: messages.length,
+       suggestions_created: 0,
+@@ -320,7 +335,6 @@
+       : [];
+     const msgCount = Number(s.message_count ?? sampleMsgs.length) | 0;
+ 
+-    // ─── Tipo 1: new_skill ───
+     if (proposalType === 'new_skill') {
+       const skillName = String(s.suggested_skill_name ?? '').trim().toUpperCase();
+       if (!skillName || skillNameSet.has(skillName)) { skipped++; continue; }
+@@ -355,14 +369,10 @@
+       continue;
+     }
+ 
+-    // ─── Tipo 2: playbook_update ───
+     if (proposalType === 'playbook_update') {
+       const targetName = String(s.target_skill_name ?? '').trim();
+       const target = skillByName.get(targetName);
+-      if (!target) {
+-        console.warn('[analyze] playbook_update target not found:', targetName);
+-        skipped++; continue;
+-      }
++      if (!target) { skipped++; continue; }
+       const zoneType = CRITICAL_SKILLS.includes(targetName) ? 'critical' : 'safe';
+ 
+       const { error: insErr } = await admin.from('skill_suggestions').insert({
+@@ -385,19 +395,12 @@
+       continue;
+     }
+ 
+-    // ─── Tipo 3: settings_update ───
+     if (proposalType === 'settings_update') {
+       const key = String(s.target_setting_key ?? '').trim();
+       const val = String(s.target_setting_value ?? '').trim();
+ 
+-      if (!/^[a-z_]+$/.test(key)) {
+-        console.warn('[analyze] settings_update invalid key format:', key);
+-        skipped++; continue;
+-      }
+-      if (!SAFE_SETTING_KEYS.includes(key)) {
+-        console.warn('[analyze] settings_update key not in whitelist:', key);
+-        skipped++; continue;
+-      }
++      if (!/^[a-z_]+$/.test(key)) { skipped++; continue; }
++      if (!SAFE_SETTING_KEYS.includes(key)) { skipped++; continue; }
+       if (!val) { skipped++; continue; }
+ 
+       const previousValue = key in safeSettingsSnapshot
+@@ -424,7 +427,6 @@
+       continue;
+     }
+ 
+-    // Unknown type
+     skipped++;
+   }
+ 

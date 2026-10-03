@@ -1,0 +1,66 @@
+[2026-09-24 13:57:18] START recolher alvo=20 pesquisas=['como crescer no instagram 2026', 'reels viral estratégia 2026', 'algoritmo instagram 2026 como funciona', 'facebook orgânico alcance 2026', 'tiktok como viralizar 2026', 'hook primeiros 3 segundos vídeo'] conhecidos=0
+[2026-09-24 13:57:41] candidatos novos: 70
+[2026-09-24 13:57:59] resumir_glm rebentou: [WinError 2] O sistema não conseguiu localizar o ficheiro especificado
+[2026-09-24 13:58:02] 1/20 Cwf-7WBhgao | crescer_redes | A NOVA forma de crescer no Instagram do zero: descubra sua b | nota=7 motor=gemini-3.1-flash-lite
+[2026-09-24 14:02:43] resumir_glm rebentou: [WinError 2] O sistema não conseguiu localizar o ficheiro especificado
+[2026-09-24 14:02:46] 2/20 O0MlJ3GMfgY | ganhar_dinheiro | Revelei os MELHORES nichos do TikTok para VIRALIZAR em 2026! | nota=2 motor=gemini-3.1-flash-lite
+[2026-09-24 14:04:06] FIM recolher: 2 videos (2 com legenda, 0 so descricao) em 408 s
+[2026-09-24 14:05:28] START recolher alvo=20 pesquisas=['como crescer no instagram 2026', 'reels viral estratégia 2026', 'algoritmo instagram 2026 como funciona', 'facebook orgânico alcance 2026', 'tiktok como viralizar 2026', 'hook primeiros 3 segundos vídeo'] conhecidos=2
+[2026-09-24 14:05:51] candidatos novos: 69
+[2026-09-24 14:06:36] gemini gemini-3.1-flash-lite falhou: HTTP Error 503: Service Unavailable
+[2026-09-24 14:06:51] 1/20 sfh4dxYpQf8 | crescer_redes | 5 estratégias para CRESCER NO INSTAGRAM EM 2026 que 99% dos  | nota=6 motor=gemini-3.5-flash-lite
+[2026-09-24 14:08:12] gemini gemini-3.1-flash-lite falhou: HTTP Error 503: Service Unavailable
+[2026-09-24 14:08:14] 2/20 p7BHcPHxtFA | crescer_redes | The Trial Reels Formula That Actually Works | nota=4 motor=gemini-3.5-flash-lite
+[2026-09-24 14:08:49] gemini gemini-3.1-flash-lite falhou: HTTP Error 503: Service Unavailable
+[2026-09-24 14:09:05] 3/20 ijGh9LtBJ7U | crescer_redes | I posted 75 Instagram Trial Reels in 15 days | Here’s everyt | nota=4 motor=gemini-3.5-flash-lite
+[2026-09-24 14:09:38] gemini gemini-3.1-flash-lite falhou: HTTP Error 503: Service Unavailable
+[2026-09-24 14:09:50] 4/20 L57xdzeoZ8U | crescer_redes | Eu fiz 30 REELS por dia: A nova estratégia é postar 100 Reel | nota=3 motor=gemini-3.5-flash-lite
+[2026-09-24 14:10:34] gemini gemini-3.1-flash-lite falhou: HTTP Error 503: Service Unavailable
+[2026-09-24 14:10:36] 5/20 ijZpv4RvKUc | crescer_redes | COMO FAZER REELS VIRAIS PARA VENDER NO INSTAGRAM [2026] | nota=3 motor=gemini-3.5-flash-lite
+[2026-09-24 14:11:13] 6/20 yl3yPvyEZmo | crescer_redes | The NEW Way Trial Reels are Blowing Up Instagram Accounts in | nota=6 motor=gemini-3.1-flash-lite
+[2026-09-24 14:11:41] gemini gemini-3.1-flash-lite falhou: HTTP Error 503: Service Unavailable
+[2026-09-24 14:13:11] gemini gemini-3.5-flash-lite falhou: The read operation timed out
+[2026-09-24 14:13:11] gemini gemini-3-flash-preview falhou: HTTP Error 503: Service Unavailable
+[2026-09-24 14:13:11] ollama falhou: HTTP Error 404: Not Found
+[2026-09-24 14:13:11] 7/20 77bcE3jrJR4 | crescer_redes | Copy This Strategy To Go Viral on Instagram Reels Every Time | nota=None motor=nenhum
+[2026-09-24 14:17:12] PARADO A MAO: GLM levava ~4 min por video; motor reordenado (gemini -> glm -> ollama) e recolha relancada
+[2026-09-24 14:17:20] START recolher alvo=20 pesquisas=['como crescer no instagram 2026', 'reels viral estratégia 2026', 'algoritmo instagram 2026 como funciona', 'facebook orgânico alcance 2026', 'tiktok como viralizar 2026', 'hook primeiros 3 segundos vídeo'] conhecidos=9
+[2026-09-24 14:17:44] candidatos novos: 59
+[2026-09-24 14:18:30] gemini gemini-3.1-flash-lite falhou: HTTP Error 503: Service Unavailable
+[2026-09-24 14:18:49] 1/20 emjkumgWEEg | crescer_redes | How Artists Can ACTUALLY Grow On Instagram in 2026 | nota=3 motor=gemini-3.5-flash-lite
+[2026-09-24 14:19:54] gemini gemini-3.1-flash-lite falhou: HTTP Error 503: Service Unavailable
+[2026-09-24 14:20:15] 2/20 qivy_uKItCU | crescer_redes | O ALGORITMO DO INSTAGRAM MUDOU (E QUASE NINGUÉM PERCEBEU ISS | nota=3 motor=gemini-3.5-flash-lite
+[2026-09-24 14:20:36] gemini gemini-3.1-flash-lite falhou: HTTP Error 503: Service Unavailable
+[2026-09-24 14:22:06] gemini gemini-3.5-flash-lite falhou: The read operation timed out
+[2026-09-24 14:22:07] gemini gemini-3-flash-preview falhou: HTTP Error 503: Service Unavailable
+[2026-09-24 14:23:10] 3/20 PPSUtuPS7-0 | crescer_redes | O INSTAGRAM JÁ DISSE O QUE PESA NO ALGORITMO E QUASE NINGUÉM | nota=9 motor=ollama-qwen2.5:3b-instruct
+[2026-09-24 14:23:31] gemini gemini-3.1-flash-lite falhou: HTTP Error 503: Service Unavailable
+[2026-09-24 14:23:54] 4/20 szRQyA5JFdk | crescer_redes | Cómo funciona el NUEVO Algoritmo de INSTAGRAM en 2026 | nota=2 motor=gemini-3.5-flash-lite
+[2026-09-24 14:24:22] gemini gemini-3.1-flash-lite falhou: HTTP Error 503: Service Unavailable
+[2026-09-24 14:24:51] 5/20 pSzZcNPwS1M | crescer_redes | COMO O ALGORITMO DO INSTAGRAM FUNCIONA EM 2026 | CAFÉ ESTRAT | nota=6 motor=gemini-3.5-flash-lite
+[2026-09-24 14:26:18] gemini gemini-3.1-flash-lite falhou: HTTP Error 503: Service Unavailable
+[2026-09-24 14:26:34] 6/20 So01Sd51LAQ | crescer_redes | novo método para viralizar rápido no tiktok ou instagram em  | nota=3 motor=gemini-3.5-flash-lite
+[2026-09-24 14:27:10] gemini gemini-3.1-flash-lite falhou: HTTP Error 503: Service Unavailable
+[2026-09-24 14:27:29] 7/20 9DEqxCJetKg | crescer_redes | TENTEI VIRALIZAR NO TIKTOK EM 5 DIAS | nota=2 motor=gemini-3.5-flash-lite
+[2026-09-24 14:27:56] gemini gemini-3.1-flash-lite falhou: HTTP Error 503: Service Unavailable
+[2026-09-24 14:28:18] 8/20 -qGEnAdBLyI | crescer_redes | Como VIRALIZAR NO TIKTOK com MENOS DE 50 minutos POR DIA 🌟 | nota=4 motor=gemini-3.5-flash-lite
+[2026-09-24 14:28:51] gemini gemini-3.1-flash-lite falhou: HTTP Error 503: Service Unavailable
+[2026-09-24 14:29:13] 9/20 kxzTCZwisz0 | ganhar_dinheiro | COMO VIRALIZAR VÍDEOS NO TIKTOK SHOP | nota=2 motor=gemini-3.5-flash-lite
+[2026-09-24 14:29:40] 10/20 SPRHffhVoxw | crescer_redes | 🔥NICHO HOT - COMO VIRALIZAR E VENDER NO TIKTOK EM 2026 DE MA | nota=3 motor=gemini-3.1-flash-lite
+[2026-09-24 14:30:17] gemini gemini-3.1-flash-lite falhou: HTTP Error 503: Service Unavailable
+[2026-09-24 14:31:47] gemini gemini-3.5-flash-lite falhou: The read operation timed out
+[2026-09-24 14:31:48] gemini gemini-3-flash-preview falhou: HTTP Error 503: Service Unavailable
+[2026-09-24 14:32:47] 11/20 MDG0VE76DUw | marketing_apps | HOOK não é os 3 primeiros segundos: a verdade sobre gancho | nota=8 motor=ollama-qwen2.5:3b-instruct
+[2026-09-24 14:33:23] gemini gemini-3.1-flash-lite falhou: HTTP Error 503: Service Unavailable
+[2026-09-24 14:33:44] 12/20 R4DdNZNRq8E | crescer_redes | How to Create a Winning Hook in Meta Ads That Prints 🤑 | nota=6 motor=gemini-3.5-flash-lite
+[2026-09-24 14:34:02] FIM recolher: 12 videos (11 com legenda, 1 so descricao) em 1001 s
+[2026-09-24 14:34:31] gemini gemini-3.1-flash-lite falhou: HTTP Error 503: Service Unavailable
+[2026-09-24 14:34:56] playbook v20260924: 2 regras validas (de 2 propostas), supabase=2, motor=gemini-3.5-flash-lite
+[2026-09-24 14:34:57] playbook -> VPS: OK
+[2026-09-24 14:39:06] telegram rc=1 FALHOU: {"ok":false,"error_code":400,"description":"Bad Request: strings must be encoded in UTF-8"} 
+[2026-09-24 14:39:42] telegram rc=1 FALHOU: {"ok":false,"error_code":400,"description":"Bad Request: strings must be encoded in UTF-8"} 
+[2026-09-24 14:40:44] telegram rc=3 SEM-CONF C:\Users\danil\.bora\aviso.conf (name 'io' is not defined)
+[2026-09-24 14:40:57] telegram rc=0 ENVIADO "message_id":8385
+[2026-09-24 14:41:22] telegram rc=0 ENVIADO "message_id":8386
+[2026-09-24 14:42:20] START recolher alvo=20 pesquisas=['como crescer no instagram 2026', 'reels viral estratégia 2026', 'algoritmo instagram 2026 como funciona', 'facebook orgânico alcance 2026', 'tiktok como viralizar 2026', 'hook primeiros 3 segundos vídeo'] conhecidos=21
+[2026-09-24 14:42:50] candidatos novos: 51

@@ -1,0 +1,1244 @@
+{
+ "fonte": "https://glovoapp.com/pt/pt/guarda/stores/burger-king-grd",
+ "recolhido_em": "2026-09-24",
+ "aviso": "Precos do GLOVO. NAO servem de preco base: o preco base tem de ser o de BALCAO (bloco C).",
+ "falta": "As escolhas (product_option_groups/items) nao vem nesta pagina — vivem no modal de cada produto.",
+ "produtos": [
+  {
+   "nome": "2 Burger À Escolha + 2 Batatas + 5 Nuggets",
+   "preco_glovo_cents": 2880,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/6a9278ccfece55ad750dfeeb9a2480c0b6b27f526800af755d3797522e77e7c8",
+   "descricao": "Dois (2) hambúrgueres à escolha entre Whopper®, Long Chicken e CBK + Duas (2) Batatas Grandes + 5 King Nuggets."
+  },
+  {
+   "nome": "2 Hambúrgueres + Acompanhamento À Escolha + 2 Porções De Batatas Fritas",
+   "preco_glovo_cents": 1560,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/ae33e04979cf4def1e90fbc69e2022926d095d887aa91872fe3fa0f576018c35",
+   "descricao": "2 Hambúrgueres + Acompanhamento à escolha + 2 Porções de Batatas Fritas"
+  },
+  {
+   "nome": "2 Whopper + 2 Batatas + 5 Nuggets",
+   "preco_glovo_cents": 2780,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/6a9278ccfece55ad750dfeeb9a2480c0b6b27f526800af755d3797522e77e7c8",
+   "descricao": "Dois (2) Whopper® + Duas (2) Batatas Grandes + 5 King Nuggets."
+  },
+  {
+   "nome": "Ananás",
+   "preco_glovo_cents": 160,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/5f2524b1297065e18fa7a86641be2ebf7fdf7a95b21aa5968747cf0260c8b673",
+   "descricao": "Ananás fresco e naturalmente doce."
+  },
+  {
+   "nome": "Aros De Cebola X10",
+   "preco_glovo_cents": 390,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/1125e1f82349c30214946feb50ff8829198521f5a423ed49259674e997830c45",
+   "descricao": "O Olimpo para os amantes de cebola. Os King aros de cebola podem ser pedidos como entrada ou acompanhamento, para partilhar ou só para si. São perfeitos para todos, redondos, saborosos, crocantes e dourados, sozinhos ou a acompanhar com um dos teus molhos preferidos."
+  },
+  {
+   "nome": "Asas De Frango X3",
+   "preco_glovo_cents": 420,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/eb6ac66c9e7abf89b0bea8ccf93f2016b697670d4278b9da5b5250efcab10fe3",
+   "descricao": "Prova as nossas novas asas de frango, maiores e mais saborosas, perfeitas para os amantes de frango esfomeados. Se vais ganhar asas, que sejam destas."
+  },
+  {
+   "nome": "Asas De Frango X6",
+   "preco_glovo_cents": 620,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/b70979a29629fd3aa6785cad59982b5cb5e569b16e24fe4d47540f15204630bf",
+   "descricao": "Prova as nossas novas asas de frango, maiores e mais saborosas, perfeitas para os amantes de frango esfomeados. Se vais ganhar asas, que sejam destas."
+  },
+  {
+   "nome": "Barbecue 25G",
+   "preco_glovo_cents": 115,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/caa35100f38a6b627f86073732d2d1cf8c6047bbdd09433a85643a76c1c2dd38",
+   "descricao": "Barbecue, BBQ ou barbaquiu. Chamem-lhe o que quiserem, que vai ficar igualmente bom com as tuas asas de frango, aros de cebola, batatas fritas ou outros snacks e hambúrgueres."
+  },
+  {
+   "nome": "Batata Grande",
+   "preco_glovo_cents": 390,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/d2eb79662faab4fe795dfa7373ca9dfab1df040e4124edb3455f13ca7a46c5c3",
+   "descricao": "As famosas batatas fritas de que tanto ouviste falar, são estas sim, as melhores, as mais estaladiças, as mais saborosas. Se as provares, vais perceber porque são tão famosas. Disponível em vários tamanhos."
+  },
+  {
+   "nome": "Batata Grande + King Mix Pringles",
+   "preco_glovo_cents": 460,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/e6aa3c1389446ee6e2b4920db0f6d6fc45138b3940df97b185836257df1a3742",
+   "descricao": "As nossas batatas de sempre, agora com King Mix Sour Cream &amp; Onion. Peça-as para uma experiência de sabor excecional."
+  },
+  {
+   "nome": "Batata Pequena",
+   "preco_glovo_cents": 230,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/01e248add34f59e1919bd978629f51f7c0e35b59f081acfbcef77f58365457a7",
+   "descricao": "Batata Pequena"
+  },
+  {
+   "nome": "Batata Supreme Grande",
+   "preco_glovo_cents": 390,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/94fb7444cbc4e6ab40f7da30787b0c978c04d610c20af2699a190b8a846d3af8",
+   "descricao": "Agora podes acompanhar os teus menus com as deliciosas Batatas Supreme."
+  },
+  {
+   "nome": "Batata Supreme Grande + King Mix Pringles",
+   "preco_glovo_cents": 460,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/cb42fc33ccd43a849bc2cd5b30f8c62db6ca0085ecf8c5964410c10f45b7f152",
+   "descricao": "Deliciosas Batatas Supreme acompanhadas por um sabor excecional com o King Mix Sour Cream &amp; Onion."
+  },
+  {
+   "nome": "Ben &amp; Jerrys Cheescake 100Ml",
+   "preco_glovo_cents": 395,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/4ae2f71b14a594d384aa02b32ba7291390980ec0badf1cea5262264ac084f4ea",
+   "descricao": "Gelado de cheesecake de morango (100 ml)."
+  },
+  {
+   "nome": "Ben &amp; Jerrys Cheesecake De Morango",
+   "preco_glovo_cents": 840,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/3a6b60ec957dc3c0c0288874bf4e632423e85e63c604e27bf7eaa5a1a1b370c9",
+   "descricao": "Gelado de cheesecake de morango (465 ml)."
+  },
+  {
+   "nome": "Ben &amp; Jerrys Chocolate Fudge Brownie",
+   "preco_glovo_cents": 840,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/75f133194da6c45e870a23a0a2043c773b16a6fcb29af5aeafe6165caa3a036a",
+   "descricao": "Gelado de chocolate com pedaços de brownie (465 ml)."
+  },
+  {
+   "nome": "Ben &amp; Jerrys Cookie Brownie 100Ml",
+   "preco_glovo_cents": 395,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/6c2a27b9b18759923d944f6dba56f96b1f1b2c02085b3c4bf6026f400d3b6251",
+   "descricao": "Gelado de chocolate com pedaços de brownie (100 ml)."
+  },
+  {
+   "nome": "Ben &amp; Jerrys Cookie Dough",
+   "preco_glovo_cents": 840,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/3c6dfd6682a773515edceb66871674fe13919d1bb9eaab30e85473683d55fd79",
+   "descricao": "Gelado Cookie Dough com pedaços de massa de biscoito e pepitas de chocolate (465 ml)."
+  },
+  {
+   "nome": "Ben &amp; Jerrys Cookie Dough 100Ml",
+   "preco_glovo_cents": 395,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/74567e124ab9a86c78c7e153c6c3fa0d4bb334345df7e31a02ad1472fda35258",
+   "descricao": "Gelado Cookie Dough com pedaços de massa de biscoito e pepitas de chocolate (100 ml)"
+  },
+  {
+   "nome": "Big King® Frango",
+   "preco_glovo_cents": 695,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/105335f96c97d366309afbc846c504feb70b8877e86c7066632b7dec78e0251e",
+   "descricao": "Gostam tanto do nosso Big King® que decidimos criar uma versão de frango. E parece que se vai tornar um novo ícone do BK."
+  },
+  {
+   "nome": "Big King® Xxl",
+   "preco_glovo_cents": 1165,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/d311b2be931ffe4c0bc9b7228541a7174f4acdc7cad7a0c7917a663f9b901b5d",
+   "descricao": "Porque nunca é demais pedir, acreditamos que isto te vai deixar satisfeito. Um hambúrguer à altura... XXL. Imagina 2 hambúrgueres grelhados com 4 fatias de queijo derretido por cima, cebola fatiada, alface, pickles e molho Big King®. Não é recomendável a pessoas impressionáveis."
+  },
+  {
+   "nome": "Brownie",
+   "preco_glovo_cents": 355,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/62cb699e5c0768faacde7eb12b747e59450a361fd9fc4743cd075ad169940516",
+   "descricao": "Finaliza qualquer refeição com um delicioso brownie. Aquece por 20 segundos no micro-ondas e desfruta de um doce de outro mundo!"
+  },
+  {
+   "nome": "Brutal Bacon",
+   "preco_glovo_cents": 1015,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/fb70fa9e7b8aa47f8fa2142f756d1f3c49bf5cea2958cae5e4a3dfe6c6c5001f",
+   "descricao": "Rende-te ao regresso mais Brutal: pão de bacon, carne Whopper® grelhada, bacon, bacon bits, queijo cheddar, tomate fresco e molho sweet bacon. De amantes de bacon para amantes de bacon."
+  },
+  {
+   "nome": "Brutal Bacon Crispy",
+   "preco_glovo_cents": 1015,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/c66f24c064679bacffc178ee1a8a08d5a6f1d1643ad28c75991ae9b4633ede0d",
+   "descricao": "O Brutal também se faz crocante: pão de bacon, o nosso frango crocante, bacon, bacon bits, queijo cheddar, tomate fresco e molho sweet bacon. De amantes de bacon para amantes de bacon."
+  },
+  {
+   "nome": "Brutal Bacon Double Crispy",
+   "preco_glovo_cents": 1265,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/a49cd0340e7c260b93f2b5fcabf42087a0394d11838b3d16be1c403b7a9adae4",
+   "descricao": "Crocante a dobrar, bacon em modo Brutal: pão de bacon, o dobro do nosso frango mais crocante, bacon, bacon bits, queijo cheddar, tomate fresco e molho sweet bacon. Para quem nunca acha que bacon é demais."
+  },
+  {
+   "nome": "Bucket 12 Asas De Frango",
+   "preco_glovo_cents": 995,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/a659d54c2e2d36e04cdf53752fa8a87980a8dbccca838375925f27140820e6e7",
+   "descricao": "Bucket 12 Asas de Frango"
+  },
+  {
+   "nome": "Bucket 6 Aros De Cebola + 6 Nuggets + 4 Asas De Frango",
+   "preco_glovo_cents": 860,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/38256a244c54557e58c9720c55fd733ed7b0467e75d83a5ea498042e9076aa18",
+   "descricao": "Um pouco de tudo para todos. Porque num dia apetece-te uma coisa e no outro outra, trazemos-te o Bucket perfeito para partilhar: 6 Chicken Nuggets, 4 Asas de Frango e 6 King Aros de Cebola. E agora com 3 molhos à escolha: Barbecue, Mostarda e Mel ou Sour Cream. Pede e molha!"
+  },
+  {
+   "nome": "Bucket 6 Chili Bites + 6 Nuggets + 4 Asas De Frango",
+   "preco_glovo_cents": 860,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/ab3291eb762056b56b78daa16fa31008c515878394ed7597d22e1e34e9caef2b",
+   "descricao": "A suavidade do molho cheddar com o picante dos jalapeños, agora em formato gigante. Não vais conseguir parar! Bucket 6 Chili Bites + 6 Nuggets + 4 Asas de Frango."
+  },
+  {
+   "nome": "Bucket 8 Asas De Frango + 10 Nuggets",
+   "preco_glovo_cents": 1050,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/d3a19f6eed2c9d70ba92708c87898a57267cf1a03bf379dc0b145e621d6a1f1c",
+   "descricao": "O bucket perfeito para os amantes de frango! Desfruta de 8 das nossas novas, maiores e mais saborosas asas de frango, e 10 Nuggets com os teus três molhos preferidos: Barbecue, Mostarda e Mel ou Sour Cream, totalmente grátis. Pede e desfruta!"
+  },
+  {
+   "nome": "Bucket Batata",
+   "preco_glovo_cents": 490,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/126a5a13800acfd8e5230521bbd865b5bc42254e978d53d33e80acd4156dc594",
+   "descricao": "Batatas sabem sempre bem. Mas um balde cheio de batatas é outra história. &#x27;Bora, acompanha o teu Bucket de Batatas Clássico com 3 dos nossos melhores molhos e volta a apaixonar-te pelo seu sabor."
+  },
+  {
+   "nome": "Bucket Batata Supreme",
+   "preco_glovo_cents": 490,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/201194da842eb9a004a23a9ddb4eae63abcf6c383f66dee6f6d66a230adf523c",
+   "descricao": "As batatas Supreme são sempre um sucesso, por isso ainda são melhores em formato de Bucket! Leva para casa o teu Bucket de Batatas Supreme com 3 dos nossos melhores molhos e comprova o seu sucesso sem precedentes."
+  },
+  {
+   "nome": "Bucket Chicken Fries X24",
+   "preco_glovo_cents": 1095,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/5cfbf8c3bc62ea520bee9136d4bb136690aa5a7427be9d848a0168b580e88435",
+   "descricao": "Qualquer altura é uma boa altura para umas Chicken Fries. Voltaram as nossas tiras de frango cocantes e temperadas com as melhores especiarias. Mistura-as com um dos nossos molhos para saborear o paraíso na terra. 24 unidades para partilhar... ou não."
+  },
+  {
+   "nome": "Bucket Nuggets Vegetal X24",
+   "preco_glovo_cents": 1050,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/09b26d8e1c95ffa1932861173c19f4004214c66151ae47edaaedc1545c1db02a",
+   "descricao": "Um bucket do tamanho da tua fome e 100% vegetal. Partilha este balde de 24 pedaços à base de plantas. Além disso, podes adicionar os teus três molhos preferidos. Escolhe entre barbecue, mostarda mel e maionese e desfruta. Tão fácil como pedir, é molhar e comer!"
+  },
+  {
+   "nome": "Bucket Nuggets X24",
+   "preco_glovo_cents": 1050,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/2075592daaed9e6ad33f064034e73b18deca8b3452dbe3923714084a347cf830",
+   "descricao": "Não querias Nuggets? Então toma um balde inteiro! Trazemos-te 24 pedaços do melhor frango, perfeito para partilhar e mergulhar nos nossos deliciosos molhos. Escolhe 3 grátis entre Barbecue, Mostarda e Mel ou Sour Cream. Pede e molha!"
+  },
+  {
+   "nome": "Burger",
+   "preco_glovo_cents": 250,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/7c54d0bd4419738ae3fa0dec8c16a1e95e40e804102ef5fc954f017bc70f93b7",
+   "descricao": "A nossa carne grelhada com pickle, ketchup e mostarda. Bom e simples, duas vezes melhor."
+  },
+  {
+   "nome": "Burger Sem Glúten",
+   "preco_glovo_cents": 250,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/2e0dbb91d5a589dbcb70d8a1f92f94add706be7c95993840f1b3cca0ea7715f4",
+   "descricao": "Finalmente chegou o hambúrguer sem glúten! Desfruta do nosso saboroso pão sem glúten, com deliciosa carne grelhada."
+  },
+  {
+   "nome": "Cbk",
+   "preco_glovo_cents": 516,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/5d21a551d66529459d981a84231b25a752e30524d6d18bb4f7688a51e6eabc28",
+   "descricao": "Se o novo CBK te soa familiar, é por causa do krunch. C de Chicken, B de bacon e K de krocante. Com o nosso frango crocante, muito bacon e cebolas estaladiças, é normal que estale. Acompanhado de molho CBK, queijo e alface fresca entre pão brioche de bacon, o K vai pegar!"
+  },
+  {
+   "nome": "Cbk Double",
+   "preco_glovo_cents": 1115,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/6fe8c02e8d5560778a76568f74837ca75b4191a1c96092904d028c638bfcea87",
+   "descricao": "Dêem-me um C! Dêem-me um B! Dêem-me um K! CBK! CBK! Ou, por outras palavras, dêem-me frango, bacon e cebola crocante. E tudo isto acompanhado pelo dobro do nosso frango mais crocante, bacon e cebola estaladiça. Como é possível não ser crispy? E como se isso não bastasse, molho CBK, queijo e alface fresca entre pão brioche de bacon."
+  },
+  {
+   "nome": "Cerveja Lata - 33Cl",
+   "preco_glovo_cents": 260,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/c94dbba372b400b5fd45b0bfa6d7928965e9104b84ac5019f0104f76e4a775a2",
+   "descricao": "Acompanha o teu pedido com uma cerveja em lata 33cl bem fresca."
+  },
+  {
+   "nome": "Cerveja Sem Álcool Lata - 33Cl",
+   "preco_glovo_cents": 260,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/aaaaf785e51e71e4fb259d7bad30ac2e5a4e41bb600fd6456900957550bf4db2",
+   "descricao": "Acompanha o teu pedido com uma cerveja sem álcool em lata 33cl bem fresca."
+  },
+  {
+   "nome": "Cheeseburger",
+   "preco_glovo_cents": 290,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/7ef687d5c638e945f800474a4d8481d12f4b31612e67b67620c8d82b47ce5e00",
+   "descricao": "Suculenta carne grelhada com queijo cheddar derretido acompanhada de pickles, ketchup e mostarda. Se uma coisa funciona, porquê mudá-la?"
+  },
+  {
+   "nome": "Cheeseburger Sem Glúten",
+   "preco_glovo_cents": 290,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/5534b405aa4d41b4505a3e4fc2c3b97ac93cb6f8fe869174617959f9317f2298",
+   "descricao": "Finalmente chegou o Cheeseburger sem glúten! Desfruta do nosso saboroso pão sem glúten, com carne grelhada e 2 fatias de queijo americano."
+  },
+  {
+   "nome": "Chicken Burger",
+   "preco_glovo_cents": 250,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/30caf987a53fcd00cc736ce051aa4d510d07d60e8b6b5ddc6af342e6236fd059",
+   "descricao": "Hambúrguer de frango suculento com alface fresca. Simples e delicioso para saborear a qualquer momento!"
+  },
+  {
+   "nome": "Chicken Fries X6 + King Mix Pringles",
+   "preco_glovo_cents": 425,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/477fc0a589dd9440e3b02dfcfbf8812fc40926c0304b84395c3f0b0c784d217f",
+   "descricao": "As nossas crocantes Chicken Fries acompanhadas pelo King Mix Sour Cream &amp; Onion. Pede-as se te atreves."
+  },
+  {
+   "nome": "Chicken Fries X9",
+   "preco_glovo_cents": 415,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/fc9f74f5c9edd2908d25d80cb02fb0f76202a6c4a4b9802b8bed19f618822172",
+   "descricao": "Qualquer altura é uma boa altura para umas Chicken Fries. Voltaram as nossas tiras de frango cocantes e temperadas com as melhores especiarias. Mistura-as com um dos nossos molhos para saborear o paraíso na terra. 6, 9 ou 24 unidades para partilhar... ou não."
+  },
+  {
+   "nome": "Chicken Fries X9 + King Mix Pringles",
+   "preco_glovo_cents": 495,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/b8c89a14a8d4bb1e9ebee61d47f58cb4824d06da021bfbe806e657146d0a6736",
+   "descricao": "As nossas crocantes Chicken Fries acompanhadas pelo King Mix Sour Cream &amp; Onion. Pede-as se te atreves."
+  },
+  {
+   "nome": "Chicken Krispper®",
+   "preco_glovo_cents": 865,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/60bfad21bf5fafffccad77da9ffe8b247b9394e658cdfd31e7fb235cb9439277",
+   "descricao": "Descobre o novo Chicken KRISPER®: crocante por fora e com sabor assado por dentro. Num fofo pão brioche, com molho KRISPPER®, alface, queijo e o nosso irresistível Chicken KRISPPER® com delicioso sabor assado. Só vais conseguir dizer: MMHHH"
+  },
+  {
+   "nome": "Chili Cheese Bites X6",
+   "preco_glovo_cents": 440,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/7ae22d125f98f2574091cc2682dd22e740537c8ccc4e7e65c92c8ef86f958447",
+   "descricao": "Novos Chili Cheese Bites com molho cheddar e jalapeños."
+  },
+  {
+   "nome": "Chili Cheese Bites X9",
+   "preco_glovo_cents": 540,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/139fdcb131f89998a817cbe725491cd39bcb3c75d7f89b80bbc973bdd9288bd9",
+   "descricao": "Novos Chili Cheese Bites com molho cheddar e jalapeños."
+  },
+  {
+   "nome": "Coca-Cola - Pet",
+   "preco_glovo_cents": 285,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/6c512dc5d8caeef02526a83119941355c1a7a2abb33ffeee73b722f70b6533e5",
+   "descricao": "O complemento perfeito para todas as refeições. Desfruta do sabor autêntico de Coca-Cola®."
+  },
+  {
+   "nome": "Coca-Cola Zero - Pet",
+   "preco_glovo_cents": 285,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/07a05375c14d269482f72810234b531af36f8d092a9c40020e186083a693dcf1",
+   "descricao": "O acompanhamento perfeito para qualquer refeição. Desfruta-a com uma Coca-Cola® Zero. A Coca-Cola® com menos calorias do mercado."
+  },
+  {
+   "nome": "Compal Laranja Do Algarve 30Cl",
+   "preco_glovo_cents": 235,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/9fd5fc7f0ef8feeab08658c5d4fdb8cbe6581223e90659374ae8b4b675ef9363",
+   "descricao": "Compal Laranja do Algarve"
+  },
+  {
+   "nome": "Compal Pêssego 30Cl",
+   "preco_glovo_cents": 235,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/73ab102adf3f84b2039e1f473dbad064b21b83e342623f7a21380d310637ca6d",
+   "descricao": null
+  },
+  {
+   "nome": "Compal Tutti-Frutti 30Cl",
+   "preco_glovo_cents": 235,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/1dcb7599f93e691820688c7a49cb039e1552b89d5a9bf818f11b5e8585c36d3a",
+   "descricao": null
+  },
+  {
+   "nome": "Cowboy King Fries",
+   "preco_glovo_cents": 450,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/cd806a0cd2be56dcd0eba0442cb418e276487c8c3cab8632e548ef29e4235974",
+   "descricao": "Às nossas King Fries juntamos o clássico molho cheddar, o novo molho Ranch e bacon bits. Imperdível sabor do faroeste,"
+  },
+  {
+   "nome": "Cowboy King Fries Supreme",
+   "preco_glovo_cents": 450,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/bca6549e4aa1b67fb2574b4a4db69a4aaf84fa9ea8e6488855d46d3a8314e93e",
+   "descricao": "King Fries Supreme com molho cheddar, bacon bits e o toque do faroeste com o cremoso molho Ranch. Mais indulgência, mais sabor. Vais ficar fã!"
+  },
+  {
+   "nome": "Creme De Legumes 300Ml",
+   "preco_glovo_cents": 299,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/86c3438e51adf7309ff9e7335e72f84f68dc950c6960e60bb1399f7632b54591",
+   "descricao": null
+  },
+  {
+   "nome": "Crispy Chicken",
+   "preco_glovo_cents": 650,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/8d9a11e32d4ed8e3e02a3520b80b29ecffe1f3d64e4fb4a093c5936f4441177f",
+   "descricao": "Crispy Chicken"
+  },
+  {
+   "nome": "Dip Xxl Bacon",
+   "preco_glovo_cents": 249,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/387bc24df354fc0dd3ed9451244e4ba287f015079b5e78a31db44cee9880874d",
+   "descricao": "Dá um toque extra aos teus favoritos com o DIP XXL Bacon, o molho para os verdadeiros bacon lovers."
+  },
+  {
+   "nome": "Dip Xxl Cheddar",
+   "preco_glovo_cents": 229,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/057e8e9c9fd557c12206a5eb2e2c14bae3d9c7b9cceb4a99962aac423f85d50b",
+   "descricao": "O melhor molho de queijo do mundo... agora em versão XXL. Porque cheddar nunca é demais!"
+  },
+  {
+   "nome": "Double Brutal Bacon",
+   "preco_glovo_cents": 1265,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/b876242422f8cb42c6501c6164496cecddea6b858d54830934bbb8954ace179d",
+   "descricao": "O dobro da carne para um regresso ainda mais Brutal: pão de bacon, duas carnes Whopper®, bacon, bacon bits, queijo cheddar, tomate fresco e molho sweet bacon. Para verdadeiros amantes de bacon."
+  },
+  {
+   "nome": "Double Cheese",
+   "preco_glovo_cents": 790,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/054b5fde3060ca07d95fd2d8ed802566865207a9a70b1c6e807b7bab3a524529",
+   "descricao": "Arranja espaço para o Double Cheeseburger, porque está a chegar em força. Duas carnes grelhadas, queijo americano derretido por cima e o que não pode faltar: pickles, mostarda e ketchup."
+  },
+  {
+   "nome": "Double Cheese Bacon Xxl",
+   "preco_glovo_cents": 1165,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/882af54fb2d2ea67b853e5f204b22105d86efbea2744ba7e5dbf0c90cf4026a1",
+   "descricao": "Duplica o teu hambúrguer de queijo, junta bacon e vê como fica maior... nós sabemos, é impressionante. Carne grelhada como gostamos no BURGER KING, pickles, ketchup e mostarda partilham o palco para te mostrar esta obra de arte."
+  },
+  {
+   "nome": "Double Chicken Krispper®",
+   "preco_glovo_cents": 1165,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/e7d7fb18488097b8f88923539449d3738cec29c7d431ca2509fe8c617381f5dd",
+   "descricao": "Descobre o novo Chicken KRISPER®: crocante por fora e com sabor assado por dentro. Num fofo pão brioche, com molho KRISPPER®, alface, queijo e o dobro do nosso irresistível Chicken KRISPPER® com delicioso sabor assado. Só vais conseguir dizer: MMHHH."
+  },
+  {
+   "nome": "Double Crispy Chicken",
+   "preco_glovo_cents": 900,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/8528f6e4dabf90f804101ad14c62c6665a403833cc69ae99046622dd335c1b85",
+   "descricao": "Duplamente crocante por fora, duplamente tenro por dentro. O melhor frango com um panado estaladiço e ligeiramente picante, tomate acabado de cortar, alface fresca e maionese em pão de sementes acabado de torrar. Uma verdadeira obra-prima."
+  },
+  {
+   "nome": "Double Duo Bacon Cheddar",
+   "preco_glovo_cents": 1215,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/7665093f89682dc521b10405f0dbdc1cd268988cd86cac0072be304d3b613e49",
+   "descricao": "As segundas partes não são boas... são melhores! Porque o teu Duo preferido tem agora pão brioche com sementes. E volta com tudo: delicioso molho de queijo cheddar, a estrela do show, acompanhado de duas fatias de bacon, duas fatias de queijo cheddar, cebola frita e tomate. Ainda tens dúvidas?"
+  },
+  {
+   "nome": "Double Duo Bacon Cheddar Crispy Chicken",
+   "preco_glovo_cents": 1215,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/f301f694a19afea64b53c8fd95dd91dc70ac00c6bc474a932269f303e6d450a9",
+   "descricao": "Double Duo Bacon Cheddar Crisp"
+  },
+  {
+   "nome": "Double King Ovo",
+   "preco_glovo_cents": 1245,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/424784a40a8e65b7b4614c0625df1e86a9488f6288da209918eca18fd139b374",
+   "descricao": "Coroámos o novo hambúrguer com ovo. Desfruta do incrível The KING OVO, na sua versão dupla, com carne grelhada, maionese, tomate, bacon, cebola crocante, ketchup e queijo americano. Tudo coroado com um delicioso ovo estrelado. Viva o KING!"
+  },
+  {
+   "nome": "Double Spicy Krispper®",
+   "preco_glovo_cents": 1165,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/f376a7e6c768bd624231b7fa5eaf112a0d0b54efcad783ffd8591f39aec8f50c",
+   "descricao": "Descobre o Double Spicy Krispper® na sua versão mais picante. Pão brioche com sementes, alface, queijo e duplo frango Krispper® crocante por fora e deliciosamente assado por dentro, tudo acompanhado com molho Sriracha."
+  },
+  {
+   "nome": "Double Steakhouse",
+   "preco_glovo_cents": 1170,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/6d4c55e7a899f83984b8ee34ab7d7bfc79d78d521cbedfe9781dc5150b51a8a9",
+   "descricao": "O Double Steakhouse é composto por uma deliciosa carne a dobrar 100% grelhada na chama, com tomate fresco, queijo derretido, cebola, alface, maionese e um molho BBQ num pão quente."
+  },
+  {
+   "nome": "Double Western Xxl",
+   "preco_glovo_cents": 1215,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/596af8181015a0c37480352bf7fb44dc4393e2a580473e6d521940e7bfe21df1",
+   "descricao": "O dobro da carne grelhada, bacon, queijo cheddar e, para completar, aros de cebola super estaladiços. O Western XXL é um hambúrguer extra suculento carregado com o sabor inconfundível do molho barbecue. É para provares e te ficares a perguntar que maravilha é esta."
+  },
+  {
+   "nome": "Double Whopper®",
+   "preco_glovo_cents": 1095,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/dce57197ba80a9ad151cc07593c617e9b30bd5660ab26b10b305218bb53a21e2",
+   "descricao": "A pensar nos que querem repetir mas não se atrevem, nasce o DOUBLE WHOPPER®. O tomate, a alface e a cebola fresca são imprescindíveis, os pickles um componente essencial, a maionese e o ketchup os acompanhamentos perfeitos e o dobro da carne grelhada, a razão de ser do DOUBLE WHOPPER®."
+  },
+  {
+   "nome": "Double Whopper® Spicy",
+   "preco_glovo_cents": 1095,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/a76918b761b3340e9aa75656eeb1c40295731a0ec3719abb0f0f4bf45468ff7e",
+   "descricao": "O dobro do Whopper®, numa versão picante. Suculenta carne grelhada, tomate, alface, cebola e pickles, tudo servido com molho Sriracha."
+  },
+  {
+   "nome": "Duo Bacon Cheddar",
+   "preco_glovo_cents": 965,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/59a479ef55b05f7192a5b3d3aab6212c6b3ffa0e50482b1bfe35d217c1020b51",
+   "descricao": "Uma tentação na qual vais voltar a cair... agora com um incrível pão brioche com sementes. E volta com tudo: delicioso molho de queijo cheddar, a estrela do show, acompanhada de duas fatias de bacon, cebola frita e tomate. Não tentes resistir, vale a pena."
+  },
+  {
+   "nome": "Duo Bacon Cheddar Crispy Chicken",
+   "preco_glovo_cents": 965,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/ff19bc785d0bc8f61b4a4b4fe4f57098c79f7845246363d0a741ab047e399424",
+   "descricao": "Está de volta! E nem vais acreditar... agora tem pão brioche com sementes. O Duo Bacon Cheddar de que tanto sentias saudades está de volta. E com o que mais gostas: duas fatias de bacon, duas fatias de queijo cheddar, cebola frita e tomate. Sim, um sonho."
+  },
+  {
+   "nome": "Extra Ketchup",
+   "preco_glovo_cents": 10,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/62fa0b07c593a5559d54e4bec4ccc0077872a428747fe3fbb8cf6023e64fbf73",
+   "descricao": "Extra Ketchup"
+  },
+  {
+   "nome": "Fanta Guaraná Zero - 33Cl",
+   "preco_glovo_cents": 285,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/8ba0fcb987a564b7904022cefa40fd57f954bfd2e9e2b6fb15fe3c5e6dc05a91",
+   "descricao": "As bolhas e a sensação refrescante da Fanta de sempre, agora com o toque exótico de Guaraná. Baixa em calorias e com embalagem 100% reciclável."
+  },
+  {
+   "nome": "Fanta Laranja",
+   "preco_glovo_cents": 285,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/971872a4bcf1fa579e2bc0afc972d7538cc75f502ff85070116465b18ff67e2b",
+   "descricao": "Fanta, a bebida refrescante com sumo de laranja. Especificamente, com 8% de sumo."
+  },
+  {
+   "nome": "Fuze Tea Pêssego/Hibisco Pet Hd Volta",
+   "preco_glovo_cents": 285,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/58cba0df176c1309734f24e15b1d1f93d36dc0a58da45202e6d9c5363c1d9829",
+   "descricao": "Bebida de chá refrescante sabor pêssego e hibisco, pronta para beber fria."
+  },
+  {
+   "nome": "Hambúrguer + Acompanhamento À Escolha",
+   "preco_glovo_cents": 1280,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/0ffa316f5dc8d1d3a01497ef2ec9f34e5c8f3ad5336eb8ea3e59b0c23041bc51",
+   "descricao": "Hambúrguer + Acompanhamento à escolha"
+  },
+  {
+   "nome": "King Fries",
+   "preco_glovo_cents": 450,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/4162b474111c6b1da5efec15b91bf7a53cd08d832d687799ee7ceeeade5a299b",
+   "descricao": "Superámo-nos com as King Fries. Era difícil, mas conseguimos. À nossa batata, adicionámos o nosso cremoso molho de queijo cheddar, cebola crispy e bacon, muito bacon. Para acompanhar o teu menu ou levares individualmente, porque um dia és uma batata e no outro o acompanhamento perfeito."
+  },
+  {
+   "nome": "King Fries Supreme",
+   "preco_glovo_cents": 450,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/ef8b5b6837f4a45437dc45a0698df8bce0e1019aa6cd987705394031508118b6",
+   "descricao": "Superámo-nos com as King Fries Supreme. Era difícil, mas conseguimos. À nossa batata rústica, adicionámos o nosso cremoso molho de queijo cheddar, cebola crispy e bacon, muito bacon. Para acompanhar o teu menu ou levares individualmente, porque um dia és uma batata e no outro o acompanhamento perfeito."
+  },
+  {
+   "nome": "King Fusion™ Kit Kat®",
+   "preco_glovo_cents": 335,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/b9af5c986c534bb155052cdaddceed6b78ddacff0a90762352520e9d818944e6",
+   "descricao": "Cremoso gelado de baunilha coberto com os novos Pop Choc Kit Kat®, pedaços crocantes e irresistível topping líquido sabor Kit Kat®. Uma loucura!"
+  },
+  {
+   "nome": "King Fusion™ Milka®",
+   "preco_glovo_cents": 335,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/81553a2fc1fe665329452ffe3c11babe064c3053d8a64290cd6a12378a2e31ec",
+   "descricao": "Cremoso gelado de baunilha com topping de chocolate Milka®."
+  },
+  {
+   "nome": "King Fusion™ Milka® Oreo®",
+   "preco_glovo_cents": 335,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/897e53252e3ee8e6b5623926edf6e70bda70bdeb3cd8c3b174a9e09906dd3192",
+   "descricao": "Gelado de baunilha com bolacha Oreo® triturada e topping de chocolate Milka®."
+  },
+  {
+   "nome": "King Fusion™ Oreo®",
+   "preco_glovo_cents": 335,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/1e40660cceeafe159ef9614189d8b8164b686fa24d9850869efac7a3bc01b065",
+   "descricao": "Gelado de baunilha com bolacha Oreo® triturada e topping de chocolate."
+  },
+  {
+   "nome": "King Fusion™ Twix®",
+   "preco_glovo_cents": 335,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/a5371a624d1f5ffd1d5d18300373fd670e20faf3c4e6fddc19c324c7d39f6978",
+   "descricao": "Dá um TWIX ao verão com o novo King Fusion™ TWIX®! Cremoso gelado de baunilha repleto de toppings de TWIX® e topping líquido à escolha."
+  },
+  {
+   "nome": "King Jr.® Burger",
+   "preco_glovo_cents": 580,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/c14437784c2d4bc1520f1d532f39ea628699ffd544dbfc2b3c4e10b1f2b44a40",
+   "descricao": "Descobre o brinquedo com o teu King Jr®. Cada menu inclui um burger, batatas pequenas, bebida e a sobremesa é opcional. Adicionalmente podes escolher pedir coroa e brinquedo ou apenas brinquedo."
+  },
+  {
+   "nome": "King Jr.® Cheeseburger",
+   "preco_glovo_cents": 580,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/d23e47d65ef3bf69e6ea2f46a7f64e8ed07b0c9ed5116c5119ca98b8b4db6ad4",
+   "descricao": "Descobre o brinquedo com o teu King Jr®. Cada menu inclui um cheeseburger, batatas pequenas, bebida e a sobremesa é opcional. Adicionalmente podes escolher pedir coroa e brinquedo ou apenas brinquedo."
+  },
+  {
+   "nome": "King Jr.® Chicken Burger",
+   "preco_glovo_cents": 580,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/01849597a6b8fc9380d6e76b3cd919de69d1746637ebdc8046069ac570e16bdb",
+   "descricao": "Descobre o brinquedo com o teu King Jr®. Cada menu inclui um chicken burger, batatas pequenas, bebida e a sobremesa é opcional. Adicionalmente podes escolher pedir coroa e brinquedo ou apenas brinquedo."
+  },
+  {
+   "nome": "King Jr.® Nuggets",
+   "preco_glovo_cents": 580,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/6a8d26280369813182868b6705c32002e5951ec8499364efa1db096f0ad9da79",
+   "descricao": "Descobre o brinquedo com o teu King Jr®. Cada menu inclui nuggets x4, batatas pequenas, bebida e a sobremesa é opcional. Adicionalmente podes escolher pedir coroa e brinquedo ou apenas brinquedo."
+  },
+  {
+   "nome": "King Jr.® Nuggets Vegetal",
+   "preco_glovo_cents": 580,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/86584f1fedceecb22231580b564bec60306b42154012c33418a2213cabc1dbae",
+   "descricao": "Descobre o brinquedo com o teu King Jr®. Cada menu inclui nuggets x4 vegetal, batatas pequenas, bebida e a sobremesa é opcional. Adicionalmente podes escolher pedir coroa e brinquedo ou apenas brinquedo."
+  },
+  {
+   "nome": "King Mix Pringles",
+   "preco_glovo_cents": 80,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/d1cfa119f4dd2584f226444946f2906c53054daf5056cdac2a93ddde92d0302f",
+   "descricao": "King Mix Sour Cream &amp; Onion"
+  },
+  {
+   "nome": "King Nuggets Vegetal X9",
+   "preco_glovo_cents": 495,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/33c2b53aa52b2c48fd44f7055e9737c70470d7d23d8d31bc06e22ce09624a161",
+   "descricao": "Nuggets Vegetal X9"
+  },
+  {
+   "nome": "King Nuggets X6",
+   "preco_glovo_cents": 420,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/834e6475751654f238b9460213d099e66494e901ee1bb09420c5642083448ce8",
+   "descricao": "Nuggets x6"
+  },
+  {
+   "nome": "King Nuggets X9",
+   "preco_glovo_cents": 495,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/50eac7805ce94f3e51fb5053acaaafc135514966eae7b5c227c1ce3f1b0ef96b",
+   "descricao": "Crocantes e suculentos... molha-os no seu molho saboroso."
+  },
+  {
+   "nome": "King Ovo",
+   "preco_glovo_cents": 995,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/58c2328e67febc1e922f78d6ff40c08a180d1680499fcba298c7ebdc3bd84871",
+   "descricao": "O KING chegou! Desfruta do incrível King Ovo, com carne grelhada, maionese, tomate, bacon, cebola crocante, ketchup e queijo americano. Tudo coroado com um delicioso ovo estrelado. Viva o KING!"
+  },
+  {
+   "nome": "King Sandy™ Baunilha",
+   "preco_glovo_cents": 250,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/db0ee40af0c730d506dd5deefaec8993da19e1e0e2c0989fd8c397e9d92fb7a9",
+   "descricao": "Cremoso gelado de baunilha, ideal para quem ama a simplicidade! Peça já e desfrute!"
+  },
+  {
+   "nome": "King Sandy™ Caramelo",
+   "preco_glovo_cents": 250,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/be59c7da84a71af92a44509fb3ab2ea9f4a700944e6e277b47f4eb73fcb85487",
+   "descricao": "Cremoso gelado de baunilha com topping de caramelo. Uma combinação tão doce que te vai conquistar em cada colherada!"
+  },
+  {
+   "nome": "King Sandy™ Chocolate",
+   "preco_glovo_cents": 250,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/4241c1b6665dab0b575dfcf58a331c8c8a25243130315ee5837845ab08467e84",
+   "descricao": "Cremoso gelado de baunilha com topping de chocolate. O clássico que nunca desilude."
+  },
+  {
+   "nome": "King Sandy™ Chocolate Branco",
+   "preco_glovo_cents": 250,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/2ccb6c07299701e30e247bb67673305ed5c6181c4d86e90c1327f45434f7ba2f",
+   "descricao": "Cremoso gelado de baunilha com topping de chocolate branco. Um duo simplesmente irresistível!"
+  },
+  {
+   "nome": "King Sandy™ Morango",
+   "preco_glovo_cents": 250,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/96ff9a1624685aab5d8f5af6550db7010631a27bda78274c4d21688cc09ff2b6",
+   "descricao": "Cremoso gelado de baunilha com topping de morango. Uma combinação clássica e intemporal que conquista sempre!"
+  },
+  {
+   "nome": "King Shake Kit Kat®",
+   "preco_glovo_cents": 455,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/8aabf2e131c8fc1de47cbbc4ce227306a520685ae2d5d1d929a31004022344fc",
+   "descricao": "Shake de baunilha com Kit Kat®."
+  },
+  {
+   "nome": "King Shake Oreo®",
+   "preco_glovo_cents": 455,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/53175bcff14b5656921a4b7b3f071e0581a72a230bb89bb8b96dc68459c92935",
+   "descricao": "Shake de baunilha com Oreo®."
+  },
+  {
+   "nome": "Long Chicken®",
+   "preco_glovo_cents": 845,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/0928342ce4fd040211293c39e47ccb72a2387ea5e535732dee165d575da30afb",
+   "descricao": "Um dos mais pedidos nos nossos restaurantes. Porquê? Um pão de sementes alongado com frango panado crocante ligeiramente condimentado, alface e maionese. Todo um clássico!"
+  },
+  {
+   "nome": "Long Chicken® Spicy",
+   "preco_glovo_cents": 845,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/2cfbb63f585f2a39c24ea0e197c30ba84e0495210268136fe143fad79ee5c3a1",
+   "descricao": "O dos favoritos, agora na sua versão picante: pão de sementes com frango crocante panado ligeiramente condimentado, acompanhado de alface, maionese e um delicioso molho sriracha."
+  },
+  {
+   "nome": "Long Spicy Vegetal",
+   "preco_glovo_cents": 845,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/b47ec848abb40e2f3156e4dadd08221cf7d2fa8c28e34c6442103887d5b137ec",
+   "descricao": "Vegetal e com 100% de sabor a Long Chicken: pão de sementes com panado 100% vegetal, crocante e ligeiramente condimentado, acompanhado de alface, maionese e um delicioso molho sriracha."
+  },
+  {
+   "nome": "Long Vegetal",
+   "preco_glovo_cents": 845,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/3b4457204a8a28acb3478cdedaeed3277f0366c47272e7bc5e7f36af7fe2315b",
+   "descricao": "Vegetal e com 100% de sabor a Long Chicken. Se gostas de Long Chicken, vais adorar esta versão vegetariana. Com o mesmo pão longo de sementes de sempre e a alface e maionese de que tanto gostas. Não vais notar a diferença!"
+  },
+  {
+   "nome": "Maionese 25G",
+   "preco_glovo_cents": 115,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/25978f5171fcecd18cb9b8ce922fc5b3f3410717aaea85868340cf4d7cdd204f",
+   "descricao": "É um clássico. Cai sempre bem, é sempre saboroso, está sempre ali para os teus snacks. Se não queres complicar, este é o molho ideal para ti."
+  },
+  {
+   "nome": "Maionese Com Alho 25G",
+   "preco_glovo_cents": 115,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/be03469048ec853753a374365f54ba7302ca556d0f355d1f2917473d963d54b7",
+   "descricao": "A maionese vai bem com tudo, e o alho também. E é por isso que a nossa maionese de alho pode ser o complemento perfeito para o que quiseres. Usa-a para molhar as batatas, os aros de cebola ou até mesmo o teu hambúrguer."
+  },
+  {
+   "nome": "Menu Big King Xxl Vegetal Grande",
+   "preco_glovo_cents": 1295,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/57f8ea6de7cc4e56c90441e17feb05e1b6d433d1bfa073eede5a07312cee1980",
+   "descricao": "Menu Big King XXl Vegetal Grande"
+  },
+  {
+   "nome": "Menu Big King® Frango Grande",
+   "preco_glovo_cents": 795,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/95b8095a41ce537479828cfaceb4cddb818c1a2feffa466368cb042f10d8f9ff",
+   "descricao": "Gostam tanto do nosso Big King® que decidimos criar uma versão de frango. E parece que se vai tornar um novo ícone do BK."
+  },
+  {
+   "nome": "Menu Big King® Grande",
+   "preco_glovo_cents": 795,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/5e97ee00888d4160a494d4d5116dd5191b30434442a4258d754086d39f505409",
+   "descricao": "Duplo contraste e duplo sabor, queijo derretido sobre dupla carne suculenta grelhada, alface, pickles e cebola, com delicioso molho Big King® entre dois pães de sésamo estaladiços. Que mais se pode pedir?"
+  },
+  {
+   "nome": "Menu Big King® Xxl Grande",
+   "preco_glovo_cents": 1295,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/c0357146ee1d6f280d149220757e486e79752f506f2a674f3cf368d729ea5dfc",
+   "descricao": "Porque nunca é demais pedir, acreditamos que isto te vai deixar satisfeito. Um hambúrguer à altura... XXL. Imagina 2 hambúrgueres grelhados com 4 fatias de queijo derretido por cima, cebola fatiada, alface, pickles e molho Big King®. Não é recomendável a pessoas impressionáveis."
+  },
+  {
+   "nome": "Menu Brutal Bacon Crispy Grande",
+   "preco_glovo_cents": 1145,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/6ffc38f8e876971b1a437efc532d79bd604c80ec9c396e8eb6f8d82bce6f0683",
+   "descricao": "Frango crocante com bacon, bacon bits, cheddar, tomate fresco, molho sweet bacon e pão de bacon. Crocante, intenso e cheio de sabor, com bebida e acompanhamento à escolha."
+  },
+  {
+   "nome": "Menu Brutal Bacon Crispy Super Saiyan Grande Com Figura",
+   "preco_glovo_cents": 1355,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/408dfaf1cc28bd6d070138ac9f84a0b48d9863e5240cc2f7bcd7215661189a6f",
+   "descricao": "Menu Brutal Bacon Crispy Super Saiyan com figura exclusiva. Completa a tua equipa de guerreiros com um menu em modo brutal: pão brioche de bacon, crispy chicken, bacon, bacon bits, tomate, fatias de queijo cheddar, molho bacon mayo jam e o toque sweet bacon. Tudo com acompanhamento à escolha e bebida."
+  },
+  {
+   "nome": "Menu Brutal Bacon Crispy Super Saiyan Grande Com T-Shirt",
+   "preco_glovo_cents": 1745,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/0a6bbb5cbe81cba812ef4ea769723fb212c53a2b9862c25cccc3daeda8ec61aa",
+   "descricao": "Menu Brutal Bacon Crispy Super Saiyan com T-shirt exclusiva. Pão brioche de bacon, crispy chicken, bacon, bacon bits, tomate, fatias de queijo cheddar, molho bacon mayo jam e o toque sweet bacon. Tudo com acompanhamento à escolha e bebida."
+  },
+  {
+   "nome": "Menu Brutal Bacon Double Crispy Grande",
+   "preco_glovo_cents": 1395,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/18c5b29ed0dd5f2f59d735813183cf38088ee52c3109144c1310c2e6e649c38e",
+   "descricao": "Dois Crispy Chicken® com bacon, bacon bits, cheddar, tomate fresco, molho sweet bacon e pão de bacon. Mais crocante, mais bacon, mais Brutal, com bebida e acompanhamento à escolha."
+  },
+  {
+   "nome": "Menu Brutal Bacon Grande",
+   "preco_glovo_cents": 1145,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/c54af20581e17fe02387674ea9f3b5cd4e5a7512db6df7d42f3637f4708a59a0",
+   "descricao": "Carne Whopper® grelhada com bacon, bacon bits, cheddar, tomate fresco, molho sweet bacon e pão de bacon. Muito bacon, muito sabor, com bebida e acompanhamento à escolha."
+  },
+  {
+   "nome": "Menu Brutal Bacon Super Saiyan Grande Com Figura",
+   "preco_glovo_cents": 1355,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/8f851fd0a57ec45dceba388a61fd0a339989f3da24521345b3e1a38dd6f1a7d0",
+   "descricao": "Menu Brutal Bacon Super Saiyan com figura exclusiva. Junta um novo guerreiro à tua coleção e rende-te ao regresso mais brutal: pão de bacon, fatias de bacon, bits de bacon e molho sweet bacon com tomate, cheddar e carne Whopper na grelha. Tudo com acompanhamento à escolha e bebida."
+  },
+  {
+   "nome": "Menu Brutal Bacon Super Saiyan Grande Com T-Shirt",
+   "preco_glovo_cents": 1745,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/bbbe093857c67084f81a602f0d8aaef513d1e939e0420dbc485ba434c16e24bc",
+   "descricao": "Menu Brutal Bacon Super Saiyan com t-shirt exclusiva. Um regresso digno de um verdadeiro bacon lover: pão de bacon, fatias de bacon, bits de bacon e molho sweet bacon com tomate, cheddar e carne Whopper na grelha. Tudo com acompanhamento à escolha e bebida. Prepara-te para um nível brutal de sabor!"
+  },
+  {
+   "nome": "Menu Cbk Double Grande",
+   "preco_glovo_cents": 1245,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/07ed4a90d00bef7c53c02150bc2e4df3f311244d2bb878bbdb117a241b0ff3d5",
+   "descricao": "Dêem-me um C! Dêem-me um B! Dêem-me um K! CBK! CBK! Ou, por outras palavras, dêem-me frango, bacon e cebola crocante. E tudo isto acompanhado pelo dobro do nosso frango mais crocante, bacon e cebola estaladiça. Como é possível não ser crispy? E como se isso não bastasse, molho CBK, queijo e alface fresca entre pão brioche de bacon."
+  },
+  {
+   "nome": "Menu Cbk Grande",
+   "preco_glovo_cents": 995,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/cd5591e05c982bc3bd606eb2e5b06793756177fe3639f2af3690c881b9a0f339",
+   "descricao": "Se o novo CBK te soa familiar, é por causa do krunch. C de Chicken, B de bacon e K de krocante. Com o nosso frango crocante, muito bacon e cebolas estaladiças, é normal que estale. Acompanhado de molho CBK, queijo e alface fresca entre pão brioche de bacon, o K vai pegar!"
+  },
+  {
+   "nome": "Menu Cbk Super Saiyan Grande Com Figura",
+   "preco_glovo_cents": 1155,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/0edf0eeb4f2a091c696e846093eb1c07acd7179e583f11b03081f93c1a5cfabd",
+   "descricao": "Menu CBK Super Saiyan com figura exclusiva. Com o nosso frango crocante, muito bacon e cebola crispy, acompanhados de molho CBK, queijo e alface fresca entre pão brioche de bacon. Tudo com acompanhamento à escolha e bebida."
+  },
+  {
+   "nome": "Menu Cbk Super Saiyan Grande Com T-Shirt",
+   "preco_glovo_cents": 1595,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/c22c9a3c7635ff73870bfdf04c15e315c576476d8aba18a9ceab1c1d526504c7",
+   "descricao": "Menu CBK Super Saiyan com t-shirt exclusiva. Com o nosso frango crocante, muito bacon e cebola crispy, acompanhados de molho CBK, queijo e alface fresca entre pão brioche de bacon. Tudo com acompanhamento à escolha e bebida."
+  },
+  {
+   "nome": "Menu Chicken Krispper® Grande",
+   "preco_glovo_cents": 995,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/c9398d1771abc02d579ef80022500867004a249faf009b604f873f0aed2cfe61",
+   "descricao": "O novo Chicken KRISPPER®: crocante por fora e com sabor assado por dentro. Num fofo pão brioche com sementes, molho KRISPPER®, alface, queijo e o nosso irresistível Chicken KRISPPER® com um delicioso sabor assado.Só vais conseguir dizer MMHHH. Adiciona a bebida e o acompanhamento."
+  },
+  {
+   "nome": "Menu Chicken Krispper® Super Saiyan Grande Com Figura",
+   "preco_glovo_cents": 1155,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/1ec3751a9c92608a125c3612a0a8ed183143950c0d85b79d7508947aa9fe7e52",
+   "descricao": "Menu Chicken Krispper® Super Saiyan com figura. Chicken Krispper®, crocante por fora e com sabor assado por dentro. Junta a bebida e o acompanhamento que escolheres para completares o menu e aproveitares todo o sabor. Com este menu… vais fazer todos os níveis estalar!"
+  },
+  {
+   "nome": "Menu Chicken Krispper® Super Saiyan Grande Com T-Shirt",
+   "preco_glovo_cents": 1595,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/d832d0a09cd957b3d67b74ec1ccb6a0e6ab9ca7f4fc118876a84da454917e8ba",
+   "descricao": "Menu Chicken Krispper® Super Saiyan com t-shirt exclusiva. Chicken Krispper®, crocante por fora e com sabor assado por dentro. Junta a bebida e o acompanhamento que escolheres para completares o menu e aproveitares todo o sabor. Com este menu… vais fazer todos os níveis estalar!"
+  },
+  {
+   "nome": "Menu Crispy Chicken Grande",
+   "preco_glovo_cents": 780,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/3d6e233a135cdb89c96b5fe400b00e4e4ed240238f5c8149f6c419d7521d9f34",
+   "descricao": "Crocante por fora, tenro por dentro. O melhor frango com um panado estaladiço e ligeiramente picante, tomate acabado de cortar, alface fresca e maionese em pão de sementes acabado de torrar. Uma verdadeira obra-prima."
+  },
+  {
+   "nome": "Menu Double Brutal Bacon Grande",
+   "preco_glovo_cents": 1395,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/480d9145ffd0220596b4bab0fd19b04668dd3a1df6dd3d411433acd0643e256f",
+   "descricao": "Duas carnes Whopper® grelhadas com bacon, bacon bits, cheddar, tomate fresco, molho sweet bacon e pão de bacon. Mais carne, mais bacon, mais Brutal, com bebida e acompanhamento à escolha."
+  },
+  {
+   "nome": "Menu Double Cheese Bacon Xxl Grande",
+   "preco_glovo_cents": 1295,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/483cd5a2dc7d13b0aa8163ed8ba67a045e9a4464fe7a3286c7f04ae6e4114588",
+   "descricao": "Duplica o teu hambúrguer de queijo e vê como fica maior... nós sabemos, é impressionante. Carne grelhada como gostamos no BURGER KING, bacon, pickles, ketchup e mostarda partilham o palco para te mostrar esta obra de arte."
+  },
+  {
+   "nome": "Menu Double Cheese Grande",
+   "preco_glovo_cents": 780,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/0bcd884fba2093b8c6dc68340d17f80d420b85e9a80b0bcb0c1ba1b4f52edade",
+   "descricao": "Arranja espaço para o Double Cheeseburger, porque está a chegar em força. Duas carnes grelhadas, queijo americano derretido por cima e o que não pode faltar: pickles, mostarda e ketchup."
+  },
+  {
+   "nome": "Menu Double Chicken Krispper® Grande",
+   "preco_glovo_cents": 1295,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/a83f60d8ca221abf14cdccd3d75a0775651ed1668d216301fa24d59eb1d4068f",
+   "descricao": "O novo Chicken KRISPPER®, crocante por fora e com sabor assado por dentro. Num fofo pão brioche com sementes, molho KRISPPER®, alface, queijo e o dobro do nosso irresistível Chicken KRISPPER® com um delicioso sabor assado. Só vais conseguir dizer MMHHH. Adiciona a bebida e o acompanhamento."
+  },
+  {
+   "nome": "Menu Double Crispy Chicken Grande",
+   "preco_glovo_cents": 1030,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/254a2e8a654f093871209dccd0d0c8267f180c7f46f26895e7e07682b67b5a8a",
+   "descricao": "Duplamente crocante por fora, duplamente tenro por dentro. O melhor frango com um panado estaladiço e ligeiramente picante, tomate acabado de cortar, alface fresca e maionese em pão de sementes acabado de torrar. Uma verdadeira obra-prima."
+  },
+  {
+   "nome": "Menu Double Duo Bacon Cheddar Crispy Chicken Grande",
+   "preco_glovo_cents": 1345,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/2191fe36cf4e446fa979ffcef9b4e2207ae60b1c9644ea443e6b49646f9eb673",
+   "descricao": "Está de volta! E nem vais acreditar... agora tem pão brioche com sementes. O Double Duo Bacon Cheddar de que tanto sentias saudades está de volta. E com o que mais gostas: dois pedaços de Crispy Chicken, duas fatias de bacon, duas fatias de queijo cheddar, cebola frita e tomate. Sim, um sonho."
+  },
+  {
+   "nome": "Menu Double Duo Bacon Cheddar Grande",
+   "preco_glovo_cents": 1345,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/6eda3b04b0a59a25ddaa545e5df4361ca288d8f32533cc8e93c8d00c84f2eb7c",
+   "descricao": "As segundas partes não são boas... são melhores! Porque o teu Duo preferido tem agora pão brioche com sementes. E volta com tudo: delicioso molho de queijo cheddar, a estrela do show, acompanhado de duas fatias de bacon, duas fatias de queijo cheddar, cebola frita e tomate. Ainda tens dúvidas?"
+  },
+  {
+   "nome": "Menu Double Pringles Sour Creamy Grande",
+   "preco_glovo_cents": 1395,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/7c28fa53a164b1da6e7bc5fce0579f605e08109750f22407b8a652cda85b027a",
+   "descricao": "Pão brioche, duas carnes Whopper® grelhadas, dose dupla de molho Pringles Sour Creamy, cebola fresca, bacon e queijo cheddar, acompanhados da tua bebida e acompanhamento favoritos. Uma combinação que vai fazer-te render ao bigode…"
+  },
+  {
+   "nome": "Menu Double Spicy Krispper® Grande",
+   "preco_glovo_cents": 1295,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/6640f922076f3029ba5c8708ede4acb3021fb7f07f2e19d026bcfa4b14d25031",
+   "descricao": "O novo Chicken KRISPPER®, crocante por fora e com sabor assado por dentro. Num fofo pão brioche com sementes, molho KRISPPER®, alface, queijo e o dobro do nosso irresistível Chicken KRISPPER® com um delicioso sabor assado. Só vais conseguir dizer MMHHH. Adiciona a bebida e o acompanhamento."
+  },
+  {
+   "nome": "Menu Double Steakhouse Grande",
+   "preco_glovo_cents": 1300,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/fd5c44c957eeab54ca4634b6af31383990c50becb9e62cbd62407e8ec4f0f030",
+   "descricao": "O Double Steakhouse, é composto por uma deliciosa carne a dobrar 100% grelhada na chama, com bacon, tomate fresco, queijo derretido, cebola, alface, maionese e um molho BBQ num pão quente."
+  },
+  {
+   "nome": "Menu Double Western Xxl Grande",
+   "preco_glovo_cents": 1345,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/1c82a0bf5a0c7455515c87e1e3611e7e025893a2535c2f83625b78d667afa75c",
+   "descricao": "O dobro da carne grelhada, bacon, queijo cheddar e, para completar, aros de cebola super estaladiços. O Western XXL é um hambúrguer extra suculento carregado com o sabor inconfundível do molho barbecue. É para provares e te ficares a perguntar que maravilha é esta."
+  },
+  {
+   "nome": "Menu Double Whopper Vegetal Grande",
+   "preco_glovo_cents": 1225,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/b1a5dfdbdbc4fa74c7b667f0fc6d7610e94eb728f9646ed4289b2e1997dcd9aa",
+   "descricao": "Menu Double Whopper Vegetal Grande"
+  },
+  {
+   "nome": "Menu Double Whopper® Grande",
+   "preco_glovo_cents": 1225,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/b532857e154e9e87d8e273c3d96d2b5ad8f0c769d81debd594a4fff51301a9be",
+   "descricao": "A pensar nos que querem repetir mas não se atrevem, nasce o DOUBLE WHOPPER®. O tomate, a alface e a cebola fresca são imprescindíveis, os pickles um componente essencial, a maionese e o ketchup os acompanhamentos perfeitos e o dobro da carne grelhada, a razão de ser do DOUBLE WHOPPER®."
+  },
+  {
+   "nome": "Menu Double Whopper® Spicy Grande",
+   "preco_glovo_cents": 1225,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/9e94e507034c5e5102fac7477a0efbffc92e1bdd89789c336cb7455b45b87420",
+   "descricao": "O dobro do Whopper®, numa versão picante. Suculenta carne grelhada, tomate, alface, cebola e pickles, tudo acompanhado de molho Sriracha e as tuas batatas e bebida preferidas."
+  },
+  {
+   "nome": "Menu Duo Bacon Cheddar Crispy Chicken Grande",
+   "preco_glovo_cents": 1095,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/0be053ebdf8310b5343b9467c7e2204583c15f2c5d1e1a1911d3604a251f0147",
+   "descricao": "Está de volta! E nem vais acreditar... agora tem pão brioche com sementes. O Duo Bacon Cheddar de que tanto sentias saudades está de volta. E com o que mais gostas: duas fatias de bacon, duas fatias de queijo cheddar, cebola frita e tomate. Sim, um sonho."
+  },
+  {
+   "nome": "Menu Duo Bacon Cheddar Crispy Super Saiyan Grande Com Figura",
+   "preco_glovo_cents": 1255,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/dee5aa0b64637854283611d28c56877c262d0e1952467dfb2e9fcf3356c82d67",
+   "descricao": "Menu Duo Bacon Cheddar Crispy Super Saiyan com figura exclusiva. O teu duo favorito: frango, bacon crocante e molho de queijo cheddar entre pão brioche. Tudo com acompanhamento à escolha e bebida. Este duo sim, faz-te subir de nível!"
+  },
+  {
+   "nome": "Menu Duo Bacon Cheddar Crispy Super Saiyan Grande Com T-Shirt",
+   "preco_glovo_cents": 1695,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/bfbeb106399c82aca0a00e8b3589573ce16fe0731348886c4141e8e22d2aee14",
+   "descricao": "Menu Duo Bacon Cheddar Crispy Super Saiyan com t-shirt exclusiva. O teu duo favorito: frango, bacon crocante e molho de queijo cheddar entre pão brioche. Tudo com acompanhamento à escolha e bebida. Este duo sim, faz-te subir de nível!"
+  },
+  {
+   "nome": "Menu Duo Bacon Cheddar Grande",
+   "preco_glovo_cents": 1095,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/0bb0132542bddf58efc74111cf25da45fed3bafc65ba5d0aad8df477084e1126",
+   "descricao": "Uma tentação na qual vais voltar a cair... agora com um incrível pão brioche com sementes. E volta com tudo: delicioso molho de queijo cheddar, a estrela do show, acompanhada de duas fatias de bacon, cebola frita e tomate. Não tentes resistir, vale a pena."
+  },
+  {
+   "nome": "Menu Duo Bacon Cheddar Super Saiyan Grande Com Figura",
+   "preco_glovo_cents": 1255,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/6953fba6020aa7eca2a3be8310602ab1b1edc2fbbaf4315081bea97a2b203580",
+   "descricao": "Menu Duo Bacon Cheddar Super Saiyan com figura exclusiva. O teu duo favorito: carne Whopper grelhada, bacon crocante e molho de queijo cheddar entre pão brioche. Tudo com acompanhamento à escolha e bebida. Este duo sim, faz-te subir de nível!"
+  },
+  {
+   "nome": "Menu Duo Bacon Cheddar Super Saiyan Grande Com T-Shirt",
+   "preco_glovo_cents": 1695,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/ca0a764041845bddb33e5c6f893f56cf2fc465e337a6eb9dc610ccd190e4f733",
+   "descricao": "Menu Duo Bacon Cheddar Super Saiyan com t-shirt exclusiva. O teu duo favorito: carne Whopper grelhada, bacon crocante e molho de queijo cheddar entre pão brioche. Tudo com acompanhamento à escolha e bebida. Este duo sim, faz-te subir de nível!"
+  },
+  {
+   "nome": "Menu King Ovo Double Grande",
+   "preco_glovo_cents": 1375,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/f75aa3b206202082616b577c549fefdf4aebce4b55f559fb64887105dc164d2d",
+   "descricao": "Coroámos o nosso hambúrguer. Desfruta do incrível The King Ovo, na sua versão dupla, com carne grelhada, maionese, tomate, bacon, ovo, cebola crocante, ketchup e queijo americano. Viva o KING!"
+  },
+  {
+   "nome": "Menu King Ovo Grande",
+   "preco_glovo_cents": 1125,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/8a7b8ceabc55f786cd76cad2303c4e4fcc9a8a9acd0d8321b57bdf77d9852603",
+   "descricao": "O KING chegou! Desfruta do incrível The King, com carne grelhada, maionese, tomate, bacon, ovo, cebola crocante, ketchup e queijo americano. Viva o KING!"
+  },
+  {
+   "nome": "Menu Long Chicken® Grande",
+   "preco_glovo_cents": 975,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/02c6a92d8fccf25e058ca66f523ee285abaa203c6a15ae39e2c5ac93c2b89a18",
+   "descricao": "Um dos mais pedidos nos nossos restaurantes. Porquê? Um pão de sementes alongado com frangopanado crocante ligeiramente condimentado, alface e maionese. Todo um clássico!"
+  },
+  {
+   "nome": "Menu Long Chicken® Spicy Grande",
+   "preco_glovo_cents": 975,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/9fabfe65f8a6b3450c4cbc008cea02a05d9b32e20f4a553d4d22ba6fca5f9901",
+   "descricao": "Um dos favoritos, agora na sua versão picante: pão de sementes com frango crocante panado ligeiramente condimentado, acompanhado de alface, maionese e um delicioso molho sriracha."
+  },
+  {
+   "nome": "Menu Long Chicken® Super Saiyan Grande Com Figura",
+   "preco_glovo_cents": 1110,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/3dd8988185236a0e9243742f5d729fb9385d0de0196bf537b49f13678b856efe",
+   "descricao": "Menu Long Chicken Super Saiyan com figura exclusiva. Pão alongado com sementes, frango crocante panado e ligeiramente condimentado, alface e maionese. Tudo isto com acompanhamento à escolha e bebida. Também disponível em opção vegetal ou Spicy. Prepara-te para passar de nível!"
+  },
+  {
+   "nome": "Menu Long Chicken® Super Saiyan Grande Com T-Shirt",
+   "preco_glovo_cents": 1575,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/d813526127585e8565b2d261247de228e9f555d4cfabd506f74cdab9e1986935",
+   "descricao": "Menu Long Chicken® Super Saiyan com t-shirt exclusiva. Leva o teu poder ao próximo nível! Pão alongado com sementes, frango crocante panado e ligeiramente especiado, alface e maionese. Tudo isto com acompanhamento à escolha e bebida. Também disponível em opção vegetal ou Spicy."
+  },
+  {
+   "nome": "Menu Long Spicy Vegetal Grande",
+   "preco_glovo_cents": 975,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/899751d9b98a14893d5a770dc82418b4cc4bb82fa2538335cbfc54e27d31769b",
+   "descricao": "Vegetal e com 100% de sabor a Long Chicken: pão de sementes com panado 100% vegetal, crocante e ligeiramente condimentado, acompanhado de alface, maionese e um delicioso molho sriracha."
+  },
+  {
+   "nome": "Menu Long Vegetal Grande",
+   "preco_glovo_cents": 975,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/9b08011759d468a429cfd0691d9c8b1d91b6a90321dc314ffec7827ec20e1572",
+   "descricao": "Um dos mais pedidos nos nossos restaurantes. Porquê? Um pão de sementes alongado com long vegetal panado crocante ligeiramente condimentado, alface e maionese. Todo um clássico!"
+  },
+  {
+   "nome": "Menu Nuggets Vegetal X6 Grande",
+   "preco_glovo_cents": 715,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/2a46b1b731a7c768497a4606fba946017ecc5f76d1ea9ebef06afb8a8ce1e046",
+   "descricao": "Crocantes, saborosos e suculentos. É preciso dizer mais? Pede o teu menu de 6 nuggets vegetais com um molho grátis (exceto molho de queijo e sour cream) para os tornar ainda mais deliciosos."
+  },
+  {
+   "nome": "Menu Nuggets Vegetal X9 Grande",
+   "preco_glovo_cents": 795,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/95fde82a63e8ca728d1c0c806c4f12e56acfeff73a665223e2c73f9d4c112397",
+   "descricao": "Menu Nuggets Vegetal x9 Grande"
+  },
+  {
+   "nome": "Menu Pringles Sour Creamy Crispy Grande",
+   "preco_glovo_cents": 1145,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/49ad9fa31f65ff445cbf1fc95a3385cf63371d3b6f1941c0821b488c72f2902e",
+   "descricao": "Pão brioche, frango crispy, dose dupla de molho Pringles Sour Creamy, cebola fresca, bacon e queijo cheddar, acompanhados da tua bebida e acompanhamento favoritos. Uma combinação que vai fazer-te render ao bigode…"
+  },
+  {
+   "nome": "Menu Pringles Sour Creamy Double Crispy Grande",
+   "preco_glovo_cents": 1395,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/a6824106ac747662bd0ad7ab794c7eeff51197835d4904aa46f726ccf8f5c899",
+   "descricao": "Pão brioche, em versão crocante e a dobrar: dois Crispy Chicken®, dose dupla de molho Pringles Sour Creamy, cebola fresca, bacon e queijo cheddar, acompanhados da tua bebida e acompanhamento favoritos. Uma combinação que vai fazer-te render ao bigode…"
+  },
+  {
+   "nome": "Menu Pringles Sour Creamy Grande",
+   "preco_glovo_cents": 1145,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/204c8def14ec0a356267f72d4df9ba072d86bd86338af2bd7410bf5f95506205",
+   "descricao": "Pão brioche, carne Whopper® grelhada, dose dupla de molho Pringles Sour Creamy, cebola fresca, bacon e queijo cheddar, acompanhados da tua bebida e acompanhamento favoritos. Uma combinação que vai fazer-te render ao bigode…"
+  },
+  {
+   "nome": "Menu Spicy Krispper® Grande",
+   "preco_glovo_cents": 995,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/b9a141c105bb40990d7240569d5f6e1f644d1380defadc0fd7fd261379a2b895",
+   "descricao": "O novo Chicken KRISPPER®: crocante por fora e com sabor assado por dentro. Num fofo pão brioche com sementes, molho KRISPPER®, alface, queijo e o nosso irresistível Chicken KRISPPER® com um delicioso sabor assado.Só vais conseguir dizer MMHHH. Adiciona a bebida e o acompanhamento."
+  },
+  {
+   "nome": "Menu Steakhouse Grande",
+   "preco_glovo_cents": 1050,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/68fd7415cc2f9ee3740d1a2863d4fd6559814630d29286150ee72bc90fd399a5",
+   "descricao": "O Steakhouse, é composto por uma deliciosa carne 100% grelhada na chama, com bacon, tomate fresco, queijo derretido, cebola, alface, maionese e um molho BBQ num pão quente."
+  },
+  {
+   "nome": "Menu Steakhouse Super Saiyan Grande Com Figura",
+   "preco_glovo_cents": 1210,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/191a6604d75684612bada61e71f70f617a91b887cb012f7d2e04e3ab5e794a06",
+   "descricao": "Menu Steakhouse Super Saiyan com figura exclusiva para juntares um novo guerreiro à tua coleção. Pão brioche, maionese, cebola crispy, alface, tomate, molho BBQ, bacon, queijo cheddar e carne 100% grelhada na chama, com acompanhamento à escolha e bebida."
+  },
+  {
+   "nome": "Menu Steakhouse Super Saiyan Grande Com T-Shirt",
+   "preco_glovo_cents": 1650,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/7e0bddb20617443616ab2e8c8990b35db192494bdd8ecdc21c74ff8601836444",
+   "descricao": "Menu Steakhouse Super Saiyan com t-shirt exclusiva digna de um verdadeiro Super Saiyan. Pão brioche, maionese, cebola crispy, alface, tomate, molho BBQ, bacon, queijo cheddar e carne 100% na grelha, com acompanhamento à escolha e bebida."
+  },
+  {
+   "nome": "Menu Triple Western Xxl Grande",
+   "preco_glovo_cents": 1545,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/ba5e028e1445f05f05a72a1b1e805d0b3b23997be3136e73d7d6ec8935bbef1e",
+   "descricao": "O triplo da carne grelhada, com bacon, queijo cheddar e, para finalizar, aros de cebola super estaladiços. O Western XXL vai transportar-te para o Oeste americano graças ao seu inconfundível sabor a molho barbecue e carne tripla extra suculenta."
+  },
+  {
+   "nome": "Menu Triple Whopper Vegetal Grande",
+   "preco_glovo_cents": 1495,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/109b6e7513723a0a4f5135649c6f50843aff52a82a05411fe59cbf6668efa9e2",
+   "descricao": "Menu Triple Whopper Vegetal Grande"
+  },
+  {
+   "nome": "Menu Triple Whopper® Grande",
+   "preco_glovo_cents": 1495,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/77fecac39dd14285e5585582b2d6fd99905cf262ae05abd9f88db2590d8cc56b",
+   "descricao": "Se estás tão louco que o Double Whopper® te parece pouco, experimenta o Triple Whopper®, o nosso Whopper® de sempre, mas com três carnes. Só para os mais ousados."
+  },
+  {
+   "nome": "Menu Triple Whopper® Spicy Grande",
+   "preco_glovo_cents": 1495,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/0bd4ff786fd0abfddcfcf3c4a49ced3d6056be9c43dbe1257460ba5aa9e0eacb",
+   "descricao": "O triplo do Whopper®, o triplo do sabor. Carne suculenta grelhada, tomate, alface, cebola e pickles, tudo acompanhado com molho o Sriracha."
+  },
+  {
+   "nome": "Menu Western Xxl Grande",
+   "preco_glovo_cents": 1095,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/3754d89152167ef8a0a1b956c1ea8aad09a93313f65b5766a8e99dbbaf18c005",
+   "descricao": "Fã de aros de cebola, que tal experimentá-los dentro de um hambúrguer XXL? Com a melhor carne grelhada, bacon e queijo cheddar. E, claro, um molho barbecue que parece ter sido criado para finalizar este hambúrguer. Uma combinação simplesmente perfeita."
+  },
+  {
+   "nome": "Menu Western Xxl Super Saiyan Grande Com Figura",
+   "preco_glovo_cents": 1255,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/bb1b9eeeed31b235d6df913f3d60be5212b5aeecca058fd7f9be00c7972c9b21",
+   "descricao": "Menu Western XXL Super Saiyan com figura exclusiva. Junta um novo guerreiro à tua coleção e prova uma combinação XXL: carne grelhada, bacon, queijo cheddar, aros de cebola e molho barbecue. Tudo com acompanhamento à escolha e bebida. Um menu feito para passar de nível."
+  },
+  {
+   "nome": "Menu Western Xxl Super Saiyan Grande Com T-Shirt",
+   "preco_glovo_cents": 1695,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/b7b814c66eee8c7663fb9dad07c6cd1c30f72c28be683ec8b33a3966afaddacc",
+   "descricao": "Menu Western XXL Super Saiyan com t-shirt exclusiva. Para fãs de aros de cebola em modo XXL: carne grelhada na chama, bacon, queijo cheddar, aros de cebola e molho barbecue, numa combinação simplesmente perfeita. Tudo com acompanhamento à escolha e bebida. Prepara-te para subir de nível!"
+  },
+  {
+   "nome": "Menu Whopper Sem Glúten Grande",
+   "preco_glovo_cents": 975,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/6c2334c6b169837ffb616b42485240a00dc935a392c0d94d90fc13906c5600c1",
+   "descricao": "Finalmente chegou o nosso Whopper sem glúten! Desfruta do nosso saboroso pão sem glúten com a deliciosa carne Whopper."
+  },
+  {
+   "nome": "Menu Whopper® Grande",
+   "preco_glovo_cents": 975,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/4ee2419a7a35185af964aac75da4c91063605dd9d173c92be34a5717ffd8db27",
+   "descricao": "O Whopper® será sempre o nosso número um. Suculenta carne de vaca grelhada de excelente qualidade, tomate e alface frescos da horta, cebola macia e saborosos pickles com maionese e ketchup. Não te esqueças do pão fofo com sementes, que juntos formam um hambúrguer com um sabor único que reconhecerias de olhos fechados. Opção normal ou vegetal."
+  },
+  {
+   "nome": "Menu Whopper® Spicy Grande",
+   "preco_glovo_cents": 975,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/295560056639b61f4a687f0cc6980ed25b1a1fae3a1fd7304f0a1305364d267b",
+   "descricao": "O clássico Whopper®, numa versão picante. Suculenta carne grelhada, tomate, alface, cebola e pickles, tudo acompanhado de molho Sriracha e as tuas batatas e bebida preferidas."
+  },
+  {
+   "nome": "Menu Whopper® Super Saiyan Grande Com Figura",
+   "preco_glovo_cents": 1110,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/62242d9202de8589d987f12aca5234aae3b4f514e2e493a428a11955c22c1225",
+   "descricao": "Menu Whopper Super Saiyan com figura exclusiva. Completa a tua equipa de guerreiros! Desfruta de uma suculenta carne de vaca na grelha, tomate, alface fresca, cebola e pickles saborosos, acompanhados de maionese e ketchup. Tudo isto com acompanhamento à escolha e bebida. Também disponível em opção vegetal ou Spicy."
+  },
+  {
+   "nome": "Menu Whopper® Super Saiyan Grande Com T-Shirt",
+   "preco_glovo_cents": 1575,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/6038007e8a8296ba5d592b3e1a7b1ad97a4ae8d336d6193e043022720916264d",
+   "descricao": "Menu Whopper Super Saiyan com t-shirt exclusiva. Desfruta de uma suculenta carne de vaca na grelha, tomate, alface fresca, cebola e pickles saborosos, acompanhados de maionese e ketchup. Tudo isto com acompanhamento à escolha e bebida. Também disponível em opção vegetal ou Spicy. Prepara-te para subir de nível!"
+  },
+  {
+   "nome": "Menu Whopper® Vegetal Grande",
+   "preco_glovo_cents": 975,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/63705b4526ace98b771d47a6b333d5690ddcdef66134e0acba2e40d880249a2e",
+   "descricao": "O WHOPPER® VEGETAL será sempre o nosso número um. Suculenta patty vegetal grelhada de excelente qualidade, tomate e alface frescos da horta, cebola macia e saborosos pickles com maionese e ketchup. Não te esqueças do pão fofo com sementes, que juntos formam um hambúrguer com um sabor único que reconhecerias de olhos fechados."
+  },
+  {
+   "nome": "Molho De Queijo 35G",
+   "preco_glovo_cents": 115,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/8d89b6cfb46cfd979324cad7e2e11955c72196c0ddd53b0c7889e6ec0b386216",
+   "descricao": "O melhor molho do mundo. Não há outra definição possível. Batatas com queijo? Perfeito. Chili Cheese Bites com queijo? Perfeito. Cheeseburger? Perfeito. Tudo fica melhor com molho de queijo."
+  },
+  {
+   "nome": "Monster Energy",
+   "preco_glovo_cents": 385,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/cbac8e41993160245af48629d09406938bacafdd9d433f722ec8c891b96f73e0",
+   "descricao": "Monster Energy, para dar uma dose extra de energia ao teu pedido!"
+  },
+  {
+   "nome": "Monster Mango Loco",
+   "preco_glovo_cents": 385,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/0ff13a75511daeb463bd4a83139544d794c266a4601773729ba80e44af66ec67",
+   "descricao": "Monster Mango Loco é uma mistura divina de sumos exóticos que atrai até os espíritos mais cépticos. Garanta o máximo de frescura com esta explosão de manga na lata Monster Energy Mango Loco 500ml. 15% de sumo."
+  },
+  {
+   "nome": "Monster Ultra White",
+   "preco_glovo_cents": 385,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/44780577c0ffedab7982fb5fe4821bc006a3f219008cf6e898d21e6f8209f3ef",
+   "descricao": "Monster Ultra White, para dar uma dose extra de energia ao teu pedido!"
+  },
+  {
+   "nome": "Mostarda E Mel 25G",
+   "preco_glovo_cents": 115,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/a6c8f1edc6bd61755a21d8ea8fe05f20b4b31414eb74afc4a83359e9a14487eb",
+   "descricao": "Mel e mostarda, mostarda e mel. A combinação não engana: a doçura e o sabor da mostarda misturam-se bem entre si e combinam ainda melhor com qualquer snack."
+  },
+  {
+   "nome": "Nuggets Vegetais X6",
+   "preco_glovo_cents": 420,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/f0339e740825de7842664ce3d1102c9cd67c8dc61bb26368ba3ef19b5a79d7dc",
+   "descricao": "Nuggets Vegetal x6"
+  },
+  {
+   "nome": "Nuggets X4",
+   "preco_glovo_cents": 300,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/dfbbecac6ebc15fa7d724016b5227fb9b95121d3ec104ca6b3a6189062944561",
+   "descricao": "Deliciosos, crocantes, dourados... molha-os no seu molho favorito e desfruta. Na versão de frango ou vegetal."
+  },
+  {
+   "nome": "Nuggets X6 + King Mix Pringles",
+   "preco_glovo_cents": 500,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/8572353a96d0b808714d675a0e4251385b189b20345f34648e1e2d0b178d846d",
+   "descricao": "Os nossos King Nuggets® acompanhados pelo King Mix Sour Cream &amp; Onion, o toque que transforma um clássico numa novidade."
+  },
+  {
+   "nome": "Nuggets X9 + King Mix Pringles",
+   "preco_glovo_cents": 575,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/8a72b9bfef783eee0964d6d1d9aaa568fd738992be0bdf8c43c9e6d5e6cfbf6a",
+   "descricao": "Os nossos King Nuggets® acompanhados pelo tempero King Mix Sour Cream &amp; Onion, o toque que transforma um clássico numa novidade."
+  },
+  {
+   "nome": "Pringles Sour Cream Double Crispy",
+   "preco_glovo_cents": 1265,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/f9b327098723fc6712e50eaf7fcaf9c0c127ca2056f8f7e3c15534d92e77c7ef",
+   "descricao": "Pão brioche, frango crocante a dobrar, molho Pringles Sour Creamy a dobrar, cebola fresca, bacon e queijo cheddar."
+  },
+  {
+   "nome": "Pringles Sour Creamy",
+   "preco_glovo_cents": 1015,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/9ed641da83ce799cfdd69d5b478f02b0693b5aade7033fce3bb56766393fe836",
+   "descricao": "Pão brioche, carne 100% grelhada, molho Pringles Sour Creamy a dobrar, cebola fresca, bacon e queijo cheddar."
+  },
+  {
+   "nome": "Pringles Sour Creamy Crispy",
+   "preco_glovo_cents": 1015,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/3e69b5636bd414062b2dcfe2292431955457d1ac2f88696dcb05e9d96b4c64ed",
+   "descricao": "Pão brioche, frango crocante, molho Pringles Sour Creamy a dobrar, cebola fresca, bacon e queijo cheddar."
+  },
+  {
+   "nome": "Pringles Sour Creamy Double",
+   "preco_glovo_cents": 1265,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/0b3fd674b5cff1ea87c7c31cb4ec16b7902a0b6f84b32b7eb1f466c1c649b2b2",
+   "descricao": "Pão brioche, duas carnes 100% grelhadas, molho Pringles Sour Creamy a dobrar, cebola fresca, bacon e queijo cheddar."
+  },
+  {
+   "nome": "Spicy Krispper®",
+   "preco_glovo_cents": 865,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/1ee5ffd720ab813ecca67422ae37a799a61fae645ef12d206a97eaac7aef100c",
+   "descricao": "Descobre o Spicy Krispper® na sua versão mais picante. Pão brioche com sementes, alface, queijo e o nosso frango Krispper® crocante por fora e com um delicioso sabor assado por dentro, tudo acompanhado com molho Sriracha."
+  },
+  {
+   "nome": "Sprite Limão Delivery - Pet",
+   "preco_glovo_cents": 285,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/e1f58561f807ba83514ef70d141c1a5d3ebd716317ccd725660a730a7bf0bbb1",
+   "descricao": "Sprite Limão PET, garrafa. 50cl. Fresco, burbujeante, con cero calorías pero tooodo ese sabor que recuerdas."
+  },
+  {
+   "nome": "Steakhouse",
+   "preco_glovo_cents": 920,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/071647542da58392480c8434a5b65269008bd2fa44700916d604de536db7b8ca",
+   "descricao": "O Steakhouse, é composto por uma deliciosa carne 100% grelhada na chama, com tomate fresco, queijo derretido, cebola, alface, maionese e um molho BBQ num pão quente."
+  },
+  {
+   "nome": "Triple Western Xxl",
+   "preco_glovo_cents": 1415,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/2ac6609d14f371befb007b3ecdf0be28a727f2711840846f9f6e5674a1f12552",
+   "descricao": "O triplo da carne grelhada, bacon, queijo cheddar e, para finalizar, aros de cebola super estaladiços. O Western XXL vai transportar-te para o Oeste americano graças ao seu inconfundível sabor a molho barbecue e carne tripla extra suculenta."
+  },
+  {
+   "nome": "Triple Whopper®",
+   "preco_glovo_cents": 1365,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/7c1dc487ec02ba5e7b19db975efd9b8e19159a1b696ac47979e4a9b581a99187",
+   "descricao": "Se estás tão louco que o Double Whopper® te parece pouco, experimenta o Triple Whopper®, o nosso Whopper® de sempre, mas com três carnes. Só para os mais ousados."
+  },
+  {
+   "nome": "Triple Whopper® Spicy",
+   "preco_glovo_cents": 1365,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/77dda5e9f925954ab088fd4668e2e4a5ee05cd0e5e9f84a9baf786d05e926d0e",
+   "descricao": "O triplo do Whopper®, o triplo do sabor. Carne suculenta grelhada, tomate, alface, cebola e pickles, tudo acompanhado com molho o Sriracha."
+  },
+  {
+   "nome": "Western Xxl",
+   "preco_glovo_cents": 965,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/4c99004b0770af03264e9bd8716c4410b712bad5d8ae37b52670e467a3fa3abf",
+   "descricao": "Fã de aros de cebola, que tal experimentá-los dentro de um hambúrguer XXL? Com a melhor carne grelhada, bacon e queijo cheddar. E, claro, um molho barbecue que parece ter sido criado para finalizar este hambúrguer. Uma combinação simplesmente perfeita."
+  },
+  {
+   "nome": "Whopper Sem Gluten",
+   "preco_glovo_cents": 845,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/fea57d49e4afdacd252a5d7fcd08ef25df4bebe732847ca703e8864bebc361fa",
+   "descricao": "Finalmente chegou o nosso Whopper sem glúten! Desfruta do nosso saboroso pão sem glúten com a deliciosa carne Whopper."
+  },
+  {
+   "nome": "Whopper®",
+   "preco_glovo_cents": 845,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/6f16f3f87d0c6d6deb2967f93f66d145bce70005f4e2278dc7c4fa62eabd41fc",
+   "descricao": "O Whopper® será sempre o nosso número um. Suculenta carne de vaca grelhada de excelente qualidade, tomate e alface frescos da horta, cebola macia e saborosos pickles com maionese e ketchup. Não te esqueças do pão fofo com sementes, que juntos formam um hambúrguer com um sabor único que reconhecerias de olhos fechados."
+  },
+  {
+   "nome": "Whopper® Spicy",
+   "preco_glovo_cents": 845,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/39262d5d3020134737b3f0607c9f664ff5f7067e8864599617b68796749653a4",
+   "descricao": "O tradicional Whopper® numa versão picante. Suculenta carne grelhada, tomate, alface, cebola e pickles, tudo servido com molho Sriracha."
+  },
+  {
+   "nome": "Whopper® Vegetal",
+   "preco_glovo_cents": 845,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/7c47a1bdd543d8b6e4f32828aa203beaffac97ead9f88689c4bb546245b3fe32",
+   "descricao": "O WHOPPER® VEGETAL será sempre o nosso número um. Suculenta patty vegetal grelhada de excelente qualidade, tomate e alface frescos da horta, cebola macia e saborosos pickles com maionese e ketchup. Não te esqueças do pão fofo com sementes, que juntos formam um hambúrguer com um sabor único que reconhecerias de olhos fechados."
+  },
+  {
+   "nome": "X4 Cheddar Bombs",
+   "preco_glovo_cents": 345,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/7b92635f064a93deeaab0182df1fa8eaaab14ebfc2c20556d92500356fc93cda",
+   "descricao": "Uma explosão de cheddar em cada dentada. Atreves-te a prová-los?"
+  },
+  {
+   "nome": "X8 Cheddar Bombs",
+   "preco_glovo_cents": 495,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/9dc0edf9308d9d72674018bc1771c9799cf198acd5ecccc5009bac60c21ea7bc",
+   "descricao": "Uma explosão de cheddar em cada dentada. Atreves-te a prová-los?"
+  },
+  {
+   "nome": "Água Mineral - 50Cl",
+   "preco_glovo_cents": 200,
+   "foto": "https://glovo.dhmedia.io/image/menus-glovo/products/b5eea648911b48ba3127165979d23eb3e8e27b483c6766c479e9cafb9066eeb9",
+   "descricao": "Água Mineral com pH equilibrado, indicada para a preparação de alimentos para lactentes. Por ser baixa em sódio, é adequada para dietas pobres em sódio."
+  }
+ ]
+}

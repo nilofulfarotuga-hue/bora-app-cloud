@@ -1,0 +1,19 @@
+# Evidência GitHub — mensagens por ler (2026-07-31)
+
+## Total de notificações não lidas
+44
+
+## Agrupadas por motivo
+[{"motivo":"ci_activity","n":44}]
+
+## Assuntos distintos
+.github/workflows/build_web_deploy.yml workflow run failed for autonomous-night-2026-04-29 branch
+Build & Deploy Web (Cloudflare Pages) workflow run failed for autonomous-night-2026-04-29 branch
+Build Android & Deploy to Google Play workflow run failed for autonomous-night-2026-04-29 branch
+Build Android & Deploy to Google Play workflow run, Attempt #2 failed for autonomous-night-2026-04-29 branch
+
+## Issues abertas
+## PRs abertos
+## Dependabot
+{"message":"Dependabot alerts are disabled for this repository.","documentation_url":"https://docs.github.com/rest/dependabot/alerts#list-dependabot-alerts-for-a-repository","status":"403"}gh: Dependabot alerts are disabled for this repository. (HTTP 403)
+gh: This API operation needs the "admin:repo_hook" scope. To request it, run:  gh auth refresh -h github.com -s admin:repo_hook

@@ -1,0 +1,256 @@
+{
+ "quando": "2026-10-02T11:56:54.665262+01:00",
+ "cenarios": {
+  "A1-audio-preco": [
+   {
+    "de": "351931992662",
+    "texto": "Boa tarde, quanto é que custa um corte e barba?",
+    "audio": true,
+    "ouvido": "Boa tarde, quanto é que custa um corte e barba?",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [],
+    "modelos": [
+     "gemini:gemini-3-flash-preview"
+    ],
+    "erro_motor": null,
+    "segundos": 9.7,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "Boa tarde! O serviço de Corte + Barba fica por 16 € e tem uma duração de cerca de 50 minutos. Gostaria de agendar para algum dia em especial?",
+      "motivo": "resposta",
+      "entrega_estado": "simulado",
+      "media_path": null
+     },
+     {
+      "numero": "351931992662",
+      "texto": "[nota de voz] Boa tarde! O serviço de Corte + Barba fica por 16  euros e tem uma duração de cerca de 50 minutos. Gostaria de agendar para algum dia em especial?",
+      "motivo": "voz",
+      "entrega_estado": "simulado",
+      "media_path": "/opt/assistente-negocio/voz/20261002-105700-09cc6a6d.ogg",
+      "ficheiro_voz": {
+       "programs": [],
+       "streams": [
+        {
+         "codec_name": "opus",
+         "sample_rate": "48000",
+         "channels": 1
+        }
+       ],
+       "format": {
+        "duration": "12.462500"
+       }
+      }
+     }
+    ]
+   }
+  ],
+  "A2-audio-marcacao": [
+   {
+    "de": "351931992662",
+    "texto": "Olá, queria marcar uma barba para sábado às onze da manhã. O meu nome é Danilo.",
+    "audio": true,
+    "ouvido": "Olá, queria marcar uma barba para sábado às 11 da manhã. O meu nome é Danilo.",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "guardar_nome",
+     "horarios_livres"
+    ],
+    "modelos": [
+     "gemini:gemini-3-flash-preview",
+     "gemini:gemini-3-flash-preview"
+    ],
+    "erro_motor": null,
+    "segundos": 9.7,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "Olá, Danilo. Tenho vaga para barba este sábado, dia 3, às 11:00. Posso confirmar a sua marcação?",
+      "motivo": "resposta",
+      "entrega_estado": "simulado",
+      "media_path": null
+     },
+     {
+      "numero": "351931992662",
+      "texto": "[nota de voz] Olá, Danilo. Tenho vaga para barba este sábado, dia 3, às 11:00. Posso confirmar a sua marcação?",
+      "motivo": "voz",
+      "entrega_estado": "simulado",
+      "media_path": "/opt/assistente-negocio/voz/20261002-105717-7a85a80d.ogg",
+      "ficheiro_voz": {
+       "programs": [],
+       "streams": [
+        {
+         "codec_name": "opus",
+         "sample_rate": "48000",
+         "channels": 1
+        }
+       ],
+       "format": {
+        "duration": "9.846500"
+       }
+      }
+     }
+    ]
+   },
+   {
+    "de": "351931992662",
+    "texto": "Sim, pode marcar.",
+    "audio": true,
+    "ouvido": "Sim, pode marcar.",
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "marcar",
+     "guardar_nome",
+     "guardar_fio"
+    ],
+    "modelos": [
+     "gemini:gemini-3-flash-preview",
+     "gemini:gemini-3-flash-preview"
+    ],
+    "erro_motor": null,
+    "segundos": 11.4,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "Está marcado, Danilo! Barba para este sábado, dia 3, às 11:00. O valor é 6 € e o pagamento é feito na barbearia. Até lá!",
+      "motivo": "resposta",
+      "entrega_estado": "simulado",
+      "media_path": null
+     },
+     {
+      "numero": "351931992662",
+      "texto": "[nota de voz] Está marcado, Danilo! Barba para este sábado, dia 3, às 11:00. O valor é 6  euros e o pagamento é feito na barbearia. Até lá!",
+      "motivo": "voz",
+      "entrega_estado": "simulado",
+      "media_path": "/opt/assistente-negocio/voz/20261002-105730-44607b0d.ogg",
+      "ficheiro_voz": {
+       "programs": [],
+       "streams": [
+        {
+         "codec_name": "opus",
+         "sample_rate": "48000",
+         "channels": 1
+        }
+       ],
+       "format": {
+        "duration": "13.422500"
+       }
+      }
+     },
+     {
+      "numero": "351931992662",
+      "texto": "Da próxima vez também pode marcar pela app Bora, escolhe a hora e fica logo marcado: https://misternavalha.boraguarda.com",
+      "motivo": "apos_marcacao:16aace26-57c6-42ce-89bf-04d546cb30d2",
+      "entrega_estado": "simulado",
+      "media_path": null
+     }
+    ]
+   }
+  ],
+  "A3-audio-pessoal": [
+   {
+    "de": "351931992662",
+    "texto": "Ó mano, logo à noite vens jantar cá a casa? A mãe fez bacalhau.",
+    "audio": true,
+    "ouvido": null,
+    "acao": "silencio-pessoal",
+    "tratado": true,
+    "ferramentas": null,
+    "modelos": null,
+    "erro_motor": null,
+    "segundos": 4.2,
+    "saidas": []
+   }
+  ],
+  "05-marcacao": [
+   {
+    "de": "351931992662",
+    "texto": "Queria marcar um corte para sábado às 10h. Chamo-me Danilo.",
+    "audio": false,
+    "ouvido": null,
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "guardar_nome",
+     "horarios_livres"
+    ],
+    "modelos": [
+     "gemini:gemini-3-flash-preview",
+     "gemini:gemini-3-flash-preview"
+    ],
+    "erro_motor": null,
+    "segundos": 4.2,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "Muito prazer, Danilo. Tenho vaga para o Corte no sábado, dia 3, às 10:00. Posso confirmar a sua marcação?",
+      "motivo": "resposta",
+      "entrega_estado": "simulado",
+      "media_path": null
+     }
+    ]
+   },
+   {
+    "de": "351931992662",
+    "texto": "Sim, pode marcar",
+    "audio": false,
+    "ouvido": null,
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [
+     "marcar",
+     "guardar_nome",
+     "guardar_fio"
+    ],
+    "modelos": [
+     "gemini:gemini-3-flash-preview",
+     "gemini:gemini-3-flash-preview"
+    ],
+    "erro_motor": null,
+    "segundos": 4.3,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "Está marcado, Danilo! Corte para sábado, dia 3, às 10:00. O valor é 13 € e o pagamento é feito na barbearia. Até lá!",
+      "motivo": "resposta",
+      "entrega_estado": "simulado",
+      "media_path": null
+     },
+     {
+      "numero": "351931992662",
+      "texto": "Da próxima vez também pode marcar pela app Bora, escolhe a hora e fica logo marcado: https://misternavalha.boraguarda.com",
+      "motivo": "apos_marcacao:0b46ede4-9180-4ea0-ba03-cbb4c890ca63",
+      "entrega_estado": "simulado",
+      "media_path": null
+     }
+    ]
+   },
+   {
+    "de": "351931992662",
+    "texto": "Obrigado!",
+    "audio": false,
+    "ouvido": null,
+    "acao": "respondeu",
+    "tratado": true,
+    "ferramentas": [],
+    "modelos": [
+     "gemini:gemini-3-flash-preview"
+    ],
+    "erro_motor": null,
+    "segundos": 2.1,
+    "saidas": [
+     {
+      "numero": "351931992662",
+      "texto": "De nada, Danilo! Ficamos à sua espera. Até sábado!",
+      "motivo": "resposta",
+      "entrega_estado": "simulado",
+      "media_path": null
+     }
+    ]
+   }
+  ]
+ }
+}

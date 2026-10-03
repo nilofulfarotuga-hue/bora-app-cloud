@@ -1,0 +1,11 @@
+[pt] HTTP 200 | version=1.0.2 (esperada 1.0.2) OK
+      lancada em : 2026-09-23T10:54:57Z
+      nome       : Bora — entregas e serviços
+      categorias : Estilo de vida, Gastronomia e bebidas
+      notas      : A app passa a declarar o português de Portugal na loja e muda de categoria para Estilo de vida, porque a Bora 
+[br] HTTP 200 | version=1.0.2 (esperada 1.0.2) OK
+      lancada em : 2026-09-23T10:54:57Z
+      nome       : Bora — entregas e serviços
+      categorias : Estilo de vida, Gastronomia e bebidas
+      notas      : A app passa a declarar o português de Portugal na loja e muda de categoria para Estilo de vida, porque a Bora 
+lido em 2026-09-23T11:11:16.045416+00:00

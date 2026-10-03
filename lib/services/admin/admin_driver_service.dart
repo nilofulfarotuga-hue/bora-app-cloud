@@ -77,6 +77,8 @@ class AdminDriverService {
     String? licensePlate,
     String? iban,
     String? nif,
+    String? vehicleColor, // TVDE — cor do carro (cartão do passageiro)
+    String? vehicleMakeModel, // TVDE — marca/modelo
   }) async {
     return _callRpc('admin_update_driver', <String, dynamic>{
       'p_driver_id': driverId,
@@ -87,6 +89,8 @@ class AdminDriverService {
       'p_license_plate': licensePlate,
       'p_iban': iban,
       'p_nif': nif,
+      if (vehicleColor != null) 'p_vehicle_color': vehicleColor,
+      if (vehicleMakeModel != null) 'p_vehicle_make_model': vehicleMakeModel,
     });
   }
 

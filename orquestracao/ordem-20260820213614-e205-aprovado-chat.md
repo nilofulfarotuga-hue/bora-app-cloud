@@ -1,0 +1,17 @@
+--- ordem ---
+id: ordem-20260820213614-e205-aprovado-chat
+estado: aberta
+autor: cortex-mcp-chat (claude.ai)
+criada: 2026-08-20T21:36:25.059Z
+zona: verde
+tentativa: 0
+teto_tentativas: 5
+aprovada_via: chat
+pid_original: prop-fb3698ca
+tarefa: REGRA DE OURO DO DANILO — no lado do MOTORISTA o numero grande e SEMPRE o que ELE ganha; o total do cliente aparece so em pequeno, como lembrete de quanto cobrar, e so quando e em dinheiro. Quatro sitios a alinhar com essa regra. (1) lib/screens/driver/tvde/tvde_driver_agenda_screen.dart ~linha 153: a variavel chama-se `ganho` mas le `r.estFareCents` — passar a `r.driverEarnCents ?? 0` e acrescentar por baixo, em texto pequeno e discreto, "cobras EUR X ao cliente" com estFareCents, so quando paymentMethod for cash. (2) lib/widgets/tvde/tvde_reservation_offer_card.dart ~linha 86: exactamente o mesmo erro e a mesma correccao. (3) lib/widgets/payments/collect_reminder_dialog.dart: o dialogo de fim de servico ja mostra "COBRAR EM DINHEIRO" com o valor grande — acrescentar um parametro NOVO e OPCIONAL `earnedCents` (default 0) e, quando vier preenchido, desenhar por baixo do subtitulo uma linha em PT-PT do genero "Nesta corrida ganhaste EUR 22,00", com Key propria para teste. Parametro opcional de proposito: os outros chamadores (entregas, limpeza) ficam byte-a-byte iguais. Ligar o parametro em lib/screens/driver/tvde/tvde_ride_active_screen.dart no `_showCollectReminder`, passando `finished.driverEarnCents ?? 0`. (4) supabase/functions/notify-tvde-driver/index.ts: no bloco `if (kind.startsWith('reservation_'))` o texto dos avisos usa so `est_fare_cents`. Acrescentar `driver_earn_cents, payment_method` ao `.select(...)`, calcular `earnEur` e `isCash`, montar uma frase unica reutilizada `Ganhas EUR X` mais `· cobras EUR Y ao cliente` quando for dinheiro, e usa-la nos kinds reservation_offer, reservation_assigned, reservation_reminder_early e reservation_start_now (este ultimo e o aviso persistente dos 10 minutos, o que mais interessa ao Danilo). Acrescentar tambem `driverEarn` e `collectCash` ao objecto `data`. NAO tocar no caminho da oferta de corrida normal, no kind stop_added, nem em nenhuma outra funcao. Deploy desta funcao pela CLI a partir do ficheiro em disco (`supabase functions deploy notify-tvde-driver`, verify_jwt fica true) — NUNCA reescrever a funcao a mao. Guardar o sha256 do ficheiro e do que ficou no ar no relatorio, e provar por logs que os dois ramos continuam a tocar. Textos em PT-PT. `dart analyze` por lotes nos ficheiros tocados (o analyze completo rebenta por RAM no PC de 4GB) e testes TVDE. Commit e push na branch de trabalho. CONTEXTO: ha uma reserva REAL amanha 21/08 as 06:50 com a motorista Erika (ride d18cfbfa-d752-4ed7-b7b6-72a5c4526acb, 25,00 EUR ao cliente, 22,00 EUR para ela) — o aviso das 06:40 tem de continuar a tocar, por isso qualquer duvida no deploy e para parar e reportar em vez de arriscar.
+--- fim ---
+nota: encaminhada pelo Danilo via chat (cortex_aprovar_proposta) em 2026-08-20T21:36:25.059Z, pid original prop-fb3698ca.
+Alargada em 2026-08-20T21:5x pela Claude.ai a pedido do Danilo: passou a cobrir tambem o dialogo de fim de corrida e o texto do aviso persistente dos 10 minutos.
+Nasce DE PROPOSITO sem trilho de autorizacao de admin — o carteiro RE-AVALIA zona_vermelha() sobre
+o texto no pickup. Se o conteudo tocar dinheiro real, volta a esperar o "vai" humano no Telegram.
+(Esta nota nao nomeia os campos do trilho para nao dar falso-positivo a quem faca grep no ficheiro.)

@@ -1,0 +1,2 @@
+[functions.notify-partner]
+verify_jwt = false

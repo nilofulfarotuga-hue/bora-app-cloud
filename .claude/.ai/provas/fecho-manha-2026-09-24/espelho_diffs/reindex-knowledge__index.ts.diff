@@ -1,0 +1,48 @@
+--- repo/reindex-knowledge/index.ts
++++ prod/reindex-knowledge/index.ts
+@@ -82,7 +82,6 @@
+     return jsonResponse({ error: "GEMINI_API_KEY missing" }, 503);
+   }
+ 
+-  // 1. Auth — verify_jwt=true ensures token is valid; we additionally check is_admin
+   const authHeader = req.headers.get("Authorization");
+   if (!authHeader?.startsWith("Bearer ")) return jsonResponse({ error: "no jwt" }, 401);
+   const userJwt = authHeader.replace("Bearer ", "");
+@@ -94,13 +93,11 @@
+   const { data: userData, error: userErr } = await userClient.auth.getUser();
+   if (userErr || !userData?.user) return jsonResponse({ error: "invalid jwt" }, 401);
+ 
+-  // is_admin() check via user-scoped RPC (uses auth.jwt() inside)
+   const { data: isAdmin, error: adminErr } = await userClient.rpc("is_admin");
+   if (adminErr || isAdmin !== true) {
+     return jsonResponse({ error: "NOT_ADMIN" }, 403);
+   }
+ 
+-  // 2. Parse body
+   let body: { mode?: string; max_chunks?: number };
+   try {
+     body = await req.json();
+@@ -113,7 +110,6 @@
+     500,
+   );
+ 
+-  // 3. Fetch chunks
+   const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+   let query = adminClient
+     .from("support_knowledge_chunks")
+@@ -128,7 +124,6 @@
+     return jsonResponse({ reindexed: 0, errors: 0, mode, message: "no chunks to reindex" });
+   }
+ 
+-  // 4. Embed + UPDATE (rate-limited 1 req/s)
+   let reindexed = 0;
+   let errors = 0;
+   const errorIds: string[] = [];
+@@ -143,7 +138,6 @@
+       continue;
+     }
+ 
+-    // pgvector accepts bracketed-array literal as text
+     const embLit = `[${emb.join(",")}]`;
+     const { error: updErr } = await adminClient
+       .from("support_knowledge_chunks")

@@ -1,0 +1,72 @@
+00:54:42 [console:debug] Initializing Firebase firebase_core
+00:54:42 [console:debug] Initializing Firebase firebase_messaging
+00:54:42 [console:log] [main] Firebase web pronto (appId 1:765097014497:web:f80ae480cd6802d14ef3a0)
+00:54:43 [console:error] Failed to load resource: the server responded with a status of 400 ()
+00:54:43 [console:error] Failed to load resource: the server responded with a status of 422 ()
+00:54:57 aberto http://localhost:8765/
+00:54:57 pronto: a aceitar comandos em C:\BoraLocal\projetosflutter\bora_app\.claude\.ai\provas\estafeta-web-2026-09-16\comandos-chromium.txt
+00:55:25 [console:log] [NotificationService] clearTokenForCurrentUser: no bound user
+00:55:27 clique 215 626 ok
+00:55:33 esperou 6
+00:55:34 escrever em (215,286) input_activo=True
+00:55:35 escrever em (200,353) input_activo=True
+00:55:35 [console:log] [DriverStore] configurePrimaryDriver: new driver id=dede0000-0000-4000-8000-000000000001 — upserting DB row
+00:55:35 [console:log] DriverHomeScreen: ensureDriverConfigured — id=dede0000-0000-4000-8000-000000000001, name=Estafeta Demo, authUid=dede0000-0000-4000-8000-000000000001
+00:55:36 [console:log] [DriverStore] _upsertDriverRow: OK uid=dede0000-0000-4000-8000-000000000001
+00:55:37 clique 215 433 ok
+00:56:07 esperou 30
+00:56:07 foto C:\BoraLocal\projetosflutter\bora_app\.claude\.ai\provas\estafeta-web-2026-09-16\chromium\20-apos-login.png
+00:57:02 foto C:\BoraLocal\projetosflutter\bora_app\.claude\.ai\provas\estafeta-web-2026-09-16\chromium\21-home.png
+00:57:28 [console:log] [DriverStore] foreground notif perm denied — service não iniciado
+00:57:28 [console:log] [WebPresence] wake lock indisponível: NotAllowedError: Wake Lock permission request denied
+00:57:29 clique 301 28 ok
+00:57:35 esperou 6
+00:57:35 foto C:\BoraLocal\projetosflutter\bora_app\.claude\.ai\provas\estafeta-web-2026-09-16\chromium\22-online.png
+00:57:37 clique 300 820 ok
+00:57:38 [console:log] [HeartbeatService] posição web: TimeoutException after 0:00:10.000000: Future not completed
+00:57:43 esperou 6
+00:57:43 foto C:\BoraLocal\projetosflutter\bora_app\.claude\.ai\provas\estafeta-web-2026-09-16\chromium\23-chat.png
+00:58:08 [console:log] [HeartbeatService] posição web: TimeoutException after 0:00:10.000000: Future not completed
+00:58:09 escrever em (190,846) input_activo=True
+00:58:09 [console:error] Failed to load resource: the server responded with a status of 403 ()
+00:58:11 clique 373 846 ok
+00:58:15 esperou 4
+00:58:15 foto C:\BoraLocal\projetosflutter\bora_app\.claude\.ai\provas\estafeta-web-2026-09-16\chromium\24-chat-enviado.png
+00:58:16 clique 27 28 ok
+00:58:20 esperou 4
+00:58:22 clique 215 712 ok
+00:58:27 esperou 5
+00:58:27 foto C:\BoraLocal\projetosflutter\bora_app\.claude\.ai\provas\estafeta-web-2026-09-16\chromium\25-concluir-pin.png
+00:58:54 [console:log] [HeartbeatService] posição web: TimeoutException after 0:00:10.000000: Future not completed
+00:58:55 escrever em (215,454) input_activo=True
+00:58:56 [console:error] Failed to load resource: the server responded with a status of 400 ()
+00:58:57 clique 325 537 ok
+00:59:05 esperou 8
+00:59:05 foto C:\BoraLocal\projetosflutter\bora_app\.claude\.ai\provas\estafeta-web-2026-09-16\chromium\26-entregue.png
+01:01:01 [console:log] [HeartbeatService] posição web: TimeoutException after 0:00:10.000000: Future not completed
+01:01:01 [console:log] [HeartbeatService] posição web: TimeoutException after 0:00:10.000000: Future not completed
+01:01:01 [console:log] [HeartbeatService] posição web: TimeoutException after 0:00:10.000000: Future not completed
+01:01:01 [console:log] [HeartbeatService] posição web: TimeoutException after 0:00:10.000000: Future not completed
+01:01:02 clique 325 549 ok
+01:01:08 [console:log] [HeartbeatService] posição web: TimeoutException after 0:00:10.000000: Future not completed
+01:01:10 esperou 8
+01:01:11 foto C:\BoraLocal\projetosflutter\bora_app\.claude\.ai\provas\estafeta-web-2026-09-16\chromium\27-entregue.png
+01:01:42 [console:log] [HeartbeatService] posição web: TimeoutException after 0:00:10.000000: Future not completed
+01:01:43 clique 298 28 ok
+01:01:51 esperou 8
+01:01:51 foto C:\BoraLocal\projetosflutter\bora_app\.claude\.ai\provas\estafeta-web-2026-09-16\chromium\28-ganhos.png
+01:01:52 rolar_em ok
+01:01:54 esperou 2
+01:01:54 foto C:\BoraLocal\projetosflutter\bora_app\.claude\.ai\provas\estafeta-web-2026-09-16\chromium\29-ganhos-2.png
+01:02:27 [console:log] [HeartbeatService] posição web: TimeoutException after 0:00:10.000000: Future not completed
+01:02:27 [console:log] [NotificationService WEB FG] type=driver_offline data={orderId: , vendorName: , title: Teste push web (missão estafeta-web), channel: bora_orders_urgent_v3, url: https://bora-app-web.pages.dev/#/driver, type: driver_offline, sentAt: 2026-09-17T00:02:19.684Z, body: Se estás a ver isto no navegador, o
+01:02:28 clique 27 28 ok
+01:02:36 esperou 8
+01:02:36 foto C:\BoraLocal\projetosflutter\bora_app\.claude\.ai\provas\estafeta-web-2026-09-16\chromium\30-push-web.png
+01:04:46 a fechar
+01:04:46 [console:log] [HeartbeatService] posição web: TimeoutException after 0:00:10.000000: Future not completed
+01:04:46 [console:log] [HeartbeatService] posição web: TimeoutException after 0:00:10.000000: Future not completed
+01:04:46 [console:log] [HeartbeatService] posição web: TimeoutException after 0:00:10.000000: Future not completed
+01:04:46 [console:log] [HeartbeatService] posição web: TimeoutException after 0:00:10.000000: Future not completed
+01:04:46 [console:log] [HeartbeatService] posição web: TimeoutException after 0:00:10.000000: Future not completed
+01:04:49 FECHADO

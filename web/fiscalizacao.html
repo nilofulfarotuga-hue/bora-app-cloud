@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Bora · Consulta de fiscalização TVDE</title>
+<!--
+  Consulta das entidades fiscalizadoras (Lei 45/2018 na versão da Lei 59/2026,
+  art. 20.º-A). Só leitura. O admin gera um código temporário no painel
+  (Conformidade TVDE → Fiscalização); cada abertura desta página fica
+  registada em tvde_compliance_events. A chave abaixo é a chave PUBLICÁVEL
+  do Supabase (a mesma que vai dentro da app web) — não dá acesso a nada
+  sem o código.
+-->
+<style>
+  :root { --verde:#16A34A; --texto:#111827; --cinza:#6B7280; --borda:#E5E7EB; --fundo:#F9FAFB; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+         color:var(--texto); background:var(--fundo); }
+  header { background:var(--verde); color:#fff; padding:16px; }
+  header h1 { margin:0; font-size:20px; }
+  header p { margin:4px 0 0; opacity:.9; font-size:14px; }
+  main { max-width:1100px; margin:0 auto; padding:16px; }
+  .cartao { background:#fff; border:1px solid var(--borda); border-radius:12px; padding:16px; margin-bottom:16px; }
+  .erro { border-color:#FCA5A5; background:#FEF2F2; }
+  h2 { font-size:17px; margin:0 0 8px; display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
+  .meta { color:var(--cinza); font-size:13px; }
+  .tabela { overflow-x:auto; }
+  table { border-collapse:collapse; width:100%; font-size:13px; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--borda); white-space:nowrap; }
+  th { background:var(--fundo); }
+  button { background:#fff; border:1px solid var(--verde); color:var(--verde); border-radius:8px;
+           padding:6px 10px; font-weight:600; cursor:pointer; }
+  button.cheio { background:var(--verde); color:#fff; }
+  .vazio { color:var(--cinza); font-style:italic; }
+  @media print { header, button { display:none; } body { background:#fff; } .cartao { border:none; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Bora · Consulta de fiscalização TVDE</h1>
+  <p>Acesso só de leitura para entidades fiscalizadoras (Lei n.º 45/2018, art. 20.º-A).</p>
+</header>
+<main id="conteudo"><div class="cartao">A carregar…</div></main>
+<script>
+(function () {
+  var URL_SB = 'https://ojykpzwqrtusfeakzrna.supabase.co';
+  var CHAVE = 'sb_publishable_ylfhSuS2D_JoKmtFY-x6-A_DlOgHhVP';
+  var el = document.getElementById('conteudo');
+  var codigo = new URLSearchParams(location.search).get('c') || '';
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function data(v) { if (!v) return ''; var d = new Date(v); return isNaN(d) ? v :
+    d.toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon' }); }
+  function euros(c) { return c == null ? '' : (c / 100).toFixed(2).replace('.', ',') + ' €'; }
+  function erro(t) { el.innerHTML = '<div class="cartao erro"><strong>' + esc(t) + '</strong></div>'; }
+
+  var MOTIVOS = { codigo_invalido: 'Código inválido.', codigo_expirado: 'Este código já expirou.',
+                  codigo_revogado: 'Este código foi revogado pela plataforma.' };
+
+  var BLOCOS = [
+    { chave: 'viagens', titulo: 'Viagens', cols: [['codigo','Código'],['pedida_em','Pedida em',data],['inicio','Início',data],
+      ['fim','Fim',data],['estado','Estado'],['origem','Origem'],['destino','Destino'],['distancia_km','Km'],
+      ['valor_cents','Valor',euros],['intermediacao_cents','Intermediação',euros],['pagamento','Pagamento'],
+      ['motorista','Motorista'],['matricula','Matrícula']] },
+    { chave: 'tempos_trabalho', titulo: 'Tempos de trabalho', cols: [['motorista','Motorista'],['inicio','Início',data],
+      ['fim','Fim',data],['horas','Horas'],['fecho','Fecho']] },
+    { chave: 'documentos', titulo: 'Documentos', cols: [['motorista','Motorista'],['cmtvde_numero','CMTVDE n.º'],
+      ['cmtvde_validade','CMTVDE validade'],['carta_validade','Carta validade'],['carta_b_desde','Carta B desde'],
+      ['operador','Operador', function (o) { return o ? o.denominacao + ' (NIPC ' + o.nipc + ', licença ' + (o.licenca || '—') + ')' : ''; }],
+      ['veiculos','Veículos', function (v) { return (v || []).map(function (x) { return x.matricula + ' ' + (x.marca || '') + ' ' + (x.modelo || '') +
+        ' · registo ' + (x.registo_imt || '—') + ' até ' + (x.registo_validade || '—') + ' · seguro até ' + (x.seguro_validade || '—'); }).join(' | '); }]] },
+    { chave: 'queixas', titulo: 'Queixas', cols: [['numero','N.º'],['data','Data',data],['canal','Canal'],['categoria','Categoria'],
+      ['estado','Estado'],['motorista','Motorista'],['descricao','Descrição'],['resolucao','Resolução'],['resolvida_em','Resolvida em',data]] },
+    { chave: 'bloqueios', titulo: 'Bloqueios e desbloqueios', cols: [['data','Data',data],['tipo','Tipo'],['motorista','Motorista'],
+      ['motivo','Motivo'],['ator','Por']] }
+  ];
+
+  function valor(linha, col) { var v = linha[col[0]]; return col[2] ? col[2](v) : v; }
+
+  function csv(bloco, linhas) {
+    var sep = ';';
+    var head = bloco.cols.map(function (c) { return c[1]; }).join(sep);
+    var corpo = linhas.map(function (l) { return bloco.cols.map(function (c) {
+      var v = valor(l, c); v = v == null ? '' : String(v); return '"' + v.replace(/"/g, '""') + '"'; }).join(sep); });
+    var blob = new Blob(['﻿' + [head].concat(corpo).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'bora-fiscalizacao-' + bloco.chave + '.csv'; a.click();
+  }
+
+  function render(d) {
+    var p = d.plataforma || {};
+    var html = '<div class="cartao"><h2>Pedido<button class="cheio" onclick="window.print()">Imprimir / PDF</button></h2>' +
+      '<div class="meta">Entidade: <strong>' + esc(d.entidade) + '</strong> · Finalidade: ' + esc(d.finalidade) +
+      '<br>Período: ' + esc(data(d.periodo && d.periodo.de)) + ' a ' + esc(data(d.periodo && d.periodo.ate)) +
+      ' · Acesso válido até ' + esc(data(d.expira_em)) +
+      '<br>Plataforma: ' + esc(p.marca) + ' · ' + esc(p.denominacao || 'em constituição') + ' · NIF ' + esc(p.nif || '—') +
+      ' · Licença IMT ' + esc(p.licenca_imt || '—') + '<br>Gerado em ' + esc(data(d.gerado_em)) + '</div></div>';
+    BLOCOS.forEach(function (b) {
+      var linhas = d[b.chave] || [];
+      html += '<div class="cartao"><h2>' + esc(b.titulo) + ' (' + linhas.length + ')' +
+        (linhas.length ? '<button data-csv="' + b.chave + '">Descarregar CSV</button>' : '') + '</h2>';
+      if (!linhas.length) { html += '<div class="vazio">Sem registos no período.</div></div>'; return; }
+      html += '<div class="tabela"><table><thead><tr>' + b.cols.map(function (c) { return '<th>' + esc(c[1]) + '</th>'; }).join('') +
+        '</tr></thead><tbody>' + linhas.map(function (l) { return '<tr>' + b.cols.map(function (c) {
+          return '<td>' + esc(valor(l, c)) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div></div>';
+    });
+    el.innerHTML = html;
+    Array.prototype.forEach.call(document.querySelectorAll('button[data-csv]'), function (btn) {
+      btn.addEventListener('click', function () {
+        var b = BLOCOS.filter(function (x) { return x.chave === btn.getAttribute('data-csv'); })[0];
+        csv(b, d[b.chave] || []);
+      });
+    });
+  }
+
+  if (!codigo) { erro('Falta o código de acesso no endereço (…/fiscalizacao.html?c=CÓDIGO).'); return; }
+  fetch(URL_SB + '/rest/v1/rpc/tvde_fiscal_consulta', {
+    method: 'POST',
+    headers: { 'apikey': CHAVE, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ p_codigo: codigo })
+  }).then(function (r) { return r.json(); }).then(function (d) {
+    if (!d || d.ok !== true) { erro(MOTIVOS[d && d.motivo] || 'Não foi possível abrir a consulta.'); return; }
+    render(d);
+  }).catch(function () { erro('Sem ligação. Tente novamente.'); });
+})();
+</script>
+</body>
+</html>

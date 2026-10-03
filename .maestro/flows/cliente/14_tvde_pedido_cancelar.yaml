@@ -1,0 +1,63 @@
+appId: pt.boraapp.bora
+name: Cliente — TVDE pedir corrida + cancelar grátis (≤3min)
+tags:
+  - cliente
+  - tvde
+---
+# Tile "Bora\nMotorista" só aparece com tvde_access aprovado (o cliente de
+# teste nilofulfarotuga@gmail.com tem, confirmado em tvde_access_requests).
+# Pede corrida, espera o estado de procura, cancela dentro da janela grátis
+# (BR: cancelamento grátis ≤3min) — sem motorista TVDE ligado, sem dinheiro.
+- launchApp:
+    clearState: true
+- runFlow: ../../_shared/login_cliente.yaml
+
+# Tile "Bora\nMotorista" fica na 4ª fila, abaixo da dobra — scroll + centrar
+# (o FAB de suporte cobre o canto inferior direito).
+- scrollUntilVisible:
+    element:
+      text: ".*Motorista.*"
+    direction: DOWN
+    timeout: 10000
+    centerElement: true
+- tapOn: ".*Motorista.*"
+- extendedWaitUntil:
+    visible: ".*(Para onde vais|Destino|Escolhe o destino).*"
+    timeout: 20000
+
+# Escolher destino (ASCII no inputText). NOTA (3ª tentativa): digitar no
+# campo NÃO mostra sugestões Places (só a barra do teclado IME) — tentar
+# submeter com Enter para geocodificar; se o botão continuar desativado é
+# um achado de UX (destino digitado não resolve).
+- tapOn: ".*(Para onde vais|Escolhe o destino).*"
+- inputText: "Catedral da Guarda"
+- pressKey: Enter
+- hideKeyboard
+
+# Estimativa com valor € aparece → solicitar (pagamento em dinheiro ao
+# motorista — sem cartão, seguro para E2E).
+- extendedWaitUntil:
+    visible: ".*Valor estimado.*€.*"
+    timeout: 20000
+- tapOn: ".*Solicitar corrida.*"
+
+# Tracking: corrida criada, à procura de motorista.
+- extendedWaitUntil:
+    visible: ".*(A tua corrida|Recolha|Cancelar corrida).*"
+    timeout: 30000
+
+# Cancelar dentro da janela grátis.
+- scrollUntilVisible:
+    element:
+      text: ".*Cancelar corrida.*"
+    direction: DOWN
+    timeout: 10000
+- tapOn: ".*Cancelar corrida.*"
+- extendedWaitUntil:
+    visible: ".*(Cancelamento grátis|Sim, cancelar).*"
+    timeout: 10000
+- assertVisible: ".*Cancelamento grátis.*"
+- tapOn: ".*Sim, cancelar.*"
+- extendedWaitUntil:
+    visible: ".*(Sem corrida ativa|cancelad|Para onde vais|Motorista).*"
+    timeout: 20000

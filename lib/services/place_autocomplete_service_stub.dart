@@ -6,7 +6,9 @@ PlaceAutocompleteService createPlaceAutocompleteServiceImpl(String apiKey) {
   return _NoopPlaceAutocompleteService();
 }
 
-class _NoopPlaceAutocompleteService implements PlaceAutocompleteService {
+// `extends` (não `implements`) para herdar o fetchPredictionsWithStatus
+// por omissão do contrato.
+class _NoopPlaceAutocompleteService extends PlaceAutocompleteService {
   @override
   void dispose() {}
 

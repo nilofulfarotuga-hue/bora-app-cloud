@@ -1,0 +1,19 @@
+-- CORRECOES 1o DIA (16/08, adendo 2) — FUROS DO EURO. APLICADAS em producao:
+-- furos_do_euro_ledger_e_divida_cash_2026_08_16 +
+-- furos_do_euro_divida_cash_v2_sem_colisao_2026_08_16.
+--
+-- (1b) post_order_to_ledger: cash_adjustment passa de -(total - talao) para
+--      -(total - ganhos - talao) — alinhado com apply_driver_cash_settlement
+--      (o FIX 2026-08-03 so tinha chegado a UM dos gemeos; 4db5882d saiu
+--      -6,03 em vez de -0,80 e levou linha compensatoria a mao).
+-- (1a) fn_apply_client_debt_settlement_on_cash_delivery: divida do cliente
+--      cobrada em DINHEIRO entra automaticamente no acerto do estafeta nas
+--      DUAS contabilidades. Em driver_transactions a linha vai com
+--      order_id NULL (o indice unico (order_id,type) pertence ao acerto
+--      normal do gemeo — a v1 colidia e engolia o debito de 0,80);
+--      idempotencia pelas notes.
+--
+-- PROVA (simulacao em transacao, rollback): ledger [cash_adjustment=-0.80]
+-- [debt_cash_collected=-1.00] [earning=5.23] [commission=2.50]; 2 linhas no
+-- acerto; saldo driver 3,43->6,86 (= +5,23-0,80-1,00 exato); wallet 0.
+-- Corpo completo das funcoes: producao e a verdade (ler via MCP).

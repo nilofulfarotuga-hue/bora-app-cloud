@@ -1,0 +1,18 @@
+PROVA EM ROLLBACK — Bloco 5 (painel admin) · 21/09/2026 00:0x UTC · MCP Supabase execute_sql
+Corrida sintética 22222222-0000-4000-8000-000000000001 (cliente demo) criada e revertida dentro do
+mesmo DO $$ … RAISE EXCEPTION 'RESULT …' $$ (nada ficou na base; a fila do pg_net foi revertida com ela).
+JWT simulado por set_config: sub=4f61dd31… (Danilo, app_metadata.role=admin), role=authenticated.
+
+Saída literal (P2 + P3 + P4):
+ERROR:  P0001: RESULT OK | anon_exec=f auth_exec=t | nova_roda={"ok": true, "status": "solicitada", "offered": true,
+"offer_expires_at": "2026-09-20T23:04:11.229182+00:00", "current_offer_driver_id": "4f61dd31-5e9e-4a7c-a557-7d53d2ceded7"}
+evento_admin=1 audit=1 | depois: tentados=0 oferta=4f61dd31-5e9e-4a7c-a557-7d53d2ceded7 status=solicitada | P4 nao-admin bloqueado
+
+Leitura:
+- P2 (execução anterior do mesmo bloco): admin_tvde_rides_list('live') devolve, para a corrida com oferta ao demo,
+  offer_driver_name='Estafeta Demo', offer_seconds_left=30, tried_count=1.
+- P3: admin_tvde_force_redispatch limpou a oferta e os tentados (tentados=0), chamou tvde_offer_to_next (intacta),
+  que ofereceu ao motorista livre mais perto (o Danilo, online nessa altura — em rollback, sem push a sair),
+  gravou o evento 'nova_roda' com actor 'admin' (1) e a linha em admin_audit_log (1).
+- P4: com JWT de não-admin a função levanta insufficient_privilege (bloqueado).
+- anon não tem EXECUTE; authenticated tem (a guarda de admin fica dentro da função).

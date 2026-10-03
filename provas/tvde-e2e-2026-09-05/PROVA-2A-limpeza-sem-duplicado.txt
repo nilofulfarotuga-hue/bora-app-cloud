@@ -1,0 +1,35 @@
+PROVA 2A - A RESERVA DE LIMPEZA JA NAO NASCE A DOBRAR
+Data: 5 de setembro de 2026. Base de dados: producao (ojykpzwqrtusfeakzrna).
+Agendadas para 8 de setembro. Pagamento em DINHEIRO, como manda a regra da casa.
+
+O QUE SE TESTOU
+  Fizeram-se CINCO chamadas a marcar limpeza. Se a guarda nao existisse,
+  ficavam cinco reservas na base. Ficaram tres, que sao as tres marcacoes
+  legitimas. As duas repeticoes devolveram a reserva que ja existia.
+
+A) A MESMA CHAVE, DUAS CHAMADAS
+   E' exactamente o que o app faz quando um pedido demora demais: repete uma vez.
+   1a chamada: HTTP 200  reserva e3ed9222-913c-499e-a58e-175978a30ce4  total 45,00 EUR
+   2a chamada: HTTP 200  reserva e3ed9222-913c-499e-a58e-175978a30ce4  total 45,00 EUR
+   PASSA - a mesma reserva as duas vezes.
+
+B) SEM CHAVE NENHUMA (versao antiga do app), CONTEUDO IGUAL
+   1a chamada: HTTP 200  reserva fc3c3fdd-abc7-4785-b43e-3b529ae9345e  total 45,00 EUR
+   2a chamada: HTTP 200  reserva fc3c3fdd-abc7-4785-b43e-3b529ae9345e  total 45,00 EUR
+   PASSA - o servidor reconheceu pelo conteudo e devolveu a mesma.
+   Isto importa: um telemovel que nao actualize a app continua protegido.
+
+C) MARCACAO LEGITIMA NOVA (chave e morada diferentes)
+   HTTP 200  reserva 09ea1bb8-e9bf-4e09-8d68-d6a2a629e382  total 45,00 EUR
+   PASSA - criou reserva nova. A guarda trava o duplicado, nao trava o negocio.
+   Este caso e' o que impede a correccao de ser demasiado apertada.
+
+CONTAGEM NA BASE
+  5 chamadas -> 3 reservas. Confirmado por consulta directa:
+    e3ed9222...  chave e7ab6fd6-...   Rua do Teste A 1   45,00 EUR   15:00:15
+    fc3c3fdd...  (sem chave)          Rua do Teste B 2   45,00 EUR   15:00:15
+    09ea1bb8...  chave 998c6cb6-...   Rua do Teste C 3   45,00 EUR   15:00:16
+
+O QUE NAO MUDOU
+  Nenhum preco, taxa, comissao ou valor cobrado. O orcamento continua a sair de
+  cleaning_quote, igual ao que sempre saiu: 45,00 EUR para um T2 standard.

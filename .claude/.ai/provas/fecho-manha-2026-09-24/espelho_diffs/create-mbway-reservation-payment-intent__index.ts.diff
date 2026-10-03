@@ -1,0 +1,91 @@
+--- repo/create-mbway-reservation-payment-intent/index.ts
++++ prod/create-mbway-reservation-payment-intent/index.ts
+@@ -1,25 +1,12 @@
+-// supabase/functions/create-mbway-reservation-payment-intent/index.ts — v1
++// supabase/functions/create-mbway-reservation-payment-intent/index.ts — v6
+ //
+ // MBWay payment intent para PRÉ-PAGAMENTO de RESERVA (€3 default).
+-// Espelha o padrão server-confirm de `create-mbway-payment-intent` v21
+-// (orders), adaptado para a tabela `reservations`.
+-//
+-// Fluxo:
+-//   1. INSERT reserva (status='pending_payment', prepayment_cents).
+-//   2. PaymentIntents.create({ payment_method_types:['mb_way'],
+-//      payment_method_data.billing_details.phone, confirm:true }).
+-//      → Stripe envia push para a app MBWay imediatamente.
+-//   3. UPDATE reservations.prepayment_pi.
+-//   4. Return { reservation_id, paymentIntentId, status }.
+-//
+-// Webhook (stripe-webhook v25) trata payment_intent.succeeded /
+-// payment_intent.canceled via metadata.purpose='reservation_prepayment'
+-// → confirm_reservation_payment_webhook RPC ou cancel_orphan_reservation RPC.
++// Server-confirm com billing_details.phone (mesmo padrão que orders v21).
+ //
+ // v6 (2026-07-31): guarda "Em breve" (STORE_COMING_SOON) antes do Stripe e
+ // antes de inserir a reserva. Nenhum valor cobrado foi alterado.
+ //
+-// verify_jwt = true (deploy) — mantém paridade com create-reservation-payment-intent.
++// verify_jwt = true — mantém paridade com create-reservation-payment-intent.
+ 
+ import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
+ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+@@ -35,7 +22,6 @@
+   'Access-Control-Allow-Methods': 'POST, OPTIONS',
+ };
+ 
+-// Stripe mode toggle alinhado com create-mbway-payment-intent.
+ const STRIPE_MODE = (Deno.env.get('BORA_STRIPE_MODE') ?? 'live').toLowerCase();
+ const stripeSecretKey = STRIPE_MODE === 'test'
+   ? (Deno.env.get('STRIPE_TEST_SECRET_KEY') ?? '')
+@@ -74,7 +60,7 @@
+       client_name?: string;
+       client_phone?: string;
+       notes?: string;
+-      phone?: string;            // MBWay phone (PT 9 dígitos OU já em E.164)
++      phone?: string;
+       idempotency_key?: string;
+     };
+ 
+@@ -82,7 +68,7 @@
+       return json({ error: 'missing fields (restaurant_id, people, reserved_for, phone)' }, 400);
+     }
+ 
+-    // Normaliza phone PT → E.164 (+351XXXXXXXXX). Idêntico a create-mbway-payment-intent.
++    // Normaliza phone PT → E.164 (+351XXXXXXXXX).
+     const e164 = body.phone.startsWith('+')
+       ? body.phone
+       : `+351${body.phone.replace(/^0/, '')}`;
+@@ -128,7 +114,6 @@
+ 
+     const idempotencyKey = body.idempotency_key ?? `mbway_rsv_${rsv.id}`;
+ 
+-    // Server-side confirm com billing_details.phone (mesmo padrão que orders v21).
+     let intent: Stripe.PaymentIntent;
+     try {
+       intent = await stripe.paymentIntents.create({
+@@ -147,9 +132,6 @@
+         },
+       }, { idempotencyKey });
+     } catch (stripeErr) {
+-      // Stripe falhou — limpar a reserva órfã para não deixar lixo.
+-      // RLS do user permite delete da própria reserva pending_payment, mas
+-      // usamos service-role (já no client) por garantia.
+       await supabase.from('reservations').delete().eq('id', rsv.id);
+       const msg = stripeErr instanceof Error ? stripeErr.message : String(stripeErr);
+       console.error('[create-mbway-reservation-payment-intent] stripe failed:', msg);
+@@ -160,7 +142,6 @@
+       intent.id, `reservation=${rsv.id}`, `phone=${e164}`,
+       `status=${intent.status}`, `mode=${STRIPE_MODE}`);
+ 
+-    // UPDATE prepayment_pi para auditoria/reconciliação.
+     const { error: piUpdateErr } = await supabase
+       .from('reservations')
+       .update({ prepayment_pi: intent.id })
+@@ -169,7 +150,6 @@
+     if (piUpdateErr) {
+       console.error('[create-mbway-reservation-payment-intent] save prepayment_pi failed:',
+         piUpdateErr.message, intent.id);
+-      // Não bloquear — webhook ainda resolve via metadata.reservation_id.
+     }
+ 
+     return json({

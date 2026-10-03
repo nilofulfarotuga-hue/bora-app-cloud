@@ -53,7 +53,7 @@ bora_app/
 │   │   ├── create-payment-intent/
 │   │   ├── stripe-webhook/
 │   │   ├── confirm-mbway-payment/
-│   │   └── _shared/           # business_rules.ts, cors.ts
+│   │   └── _shared/           # business_rules.ts (fallback), cors.ts, platform_settings.ts (cancel fees @runtime)
 │   └── migrations/            # 10+ migrations SQL
 └── pubspec.yaml
 ```
@@ -111,7 +111,7 @@ Não existem ficheiros `SKILL.md` no projeto. O conceito de "orquestrador" aplic
 | Logistics rate per km | €0.50/km |
 | Surcharge apartamento total | €1.50 (driver €1.00 + platform €0.50) |
 | Plataform commission rate | 20% |
-| Limite cash por pedido | €30 (server-enforced via trigger) |
+| Limite cash por pedido | €40 (server-enforced via trigger; source: `platform_settings.max_cash_amount_cents`) |
 
 #### Batching (DriverCapacityService)
 | Tipo de serviço | Regra |
@@ -135,7 +135,7 @@ Não existem ficheiros `SKILL.md` no projeto. O conceito de "orquestrador" aplic
 | `20260404000000_bora_tokens.sql` | Sistema de tokens/loyalty |
 | `20260404000001_bora_tokens_type_fix.sql` | Fix de tipo UUID |
 | `20260404000002_consume_tokens.sql` | Função FIFO consume_tokens() |
-| `20260409000000_driver_balance_cash_system.sql` | Saldo cash drivers + cap €30 |
+| `20260409000000_driver_balance_cash_system.sql` | Saldo cash drivers + cap (actualmente €40 via `platform_settings`) |
 | `20260409000001_order_financial_split.sql` | Campos financeiros por pedido |
 | `20260409000002_financial_ledger.sql` | Ledger financeiro |
 | `20260409000003_admin_dashboard_metrics.sql` | Métricas para dashboard admin |
@@ -312,7 +312,7 @@ Toda a navegação é gerida pelo `_RootNavigator` em `main.dart` — **widget-r
 |---|---|---|
 | **Stripe** | Funcional | Mobile-only (kIsWeb guard). Usa Supabase SDK diretamente (sem BACKEND_BASE_URL). Edge Function `create-payment-intent` ativa. Webhook ativo. Erro de cartão exibe mensagem visível ao utilizador. |
 | **MBWay** | Simulado | Edge Function `confirm-mbway-payment` — sem integração real com banco |
-| **Cash** | Funcional | Server-side cap €30. Settlement automático via trigger. |
+| **Cash** | Funcional | Server-side cap €40 (`platform_settings.max_cash_amount_cents`). Settlement automático via trigger. |
 | **Google Maps** | Funcional | `google_maps_flutter` para widget + `latlong2` para cálculos. API key em `maps_config.dart` |
 | **Google Places Autocomplete** | Funcional | Conditional imports (web/mobile/stub) |
 | **Supabase Realtime** | Funcional | orders_channel (INSERT/UPDATE/DELETE) + public:drivers. Retry 5s. Fallback timer 3s. `_driverOfferNotifyChannel` + `_driverActiveNotifyChannel` — capturam transições NULL→driverId que `.stream().eq()` perde. |
@@ -342,7 +342,7 @@ Toda a navegação é gerida pelo `_RootNavigator` em `main.dart` — **widget-r
 #### ✅ PRONTO para produção
 - **Order lifecycle completo** — criação, status flow, entrega, confirmação por código
 - **Dispatch Engine server-side** — Edge Function robusta com retry, timeout, anti-duplicação
-- **Sistema financeiro** — ledger, driver balances, cash cap €30, settlement automático
+- **Sistema financeiro** — ledger, driver balances, cash cap €40, settlement automático
 - **Tokens/Loyalty** — atribuição automática, FIFO consumption, token discount no checkout
 - **Pricing engine** — todos os tipos de serviço com fee breakdown completo
 - **Auth dual-layer** — in-memory + Supabase, demo accounts offline, SharedPreferences
@@ -417,3 +417,27 @@ Toda a navegação é gerida pelo `_RootNavigator` em `main.dart` — **widget-r
 - `lib/stores/order_store.dart` — método público `updateBagCount(orderId, count)`
 - `lib/screens/driver_home_screen.dart` — `_showBagCountDialog` para pedidos storeShopping
 - `supabase/migrations/add_bag_count_to_orders` — `bag_count INTEGER DEFAULT 0` em orders
+
+---
+
+### 13. Reservas PRO
+
+Sistema de reservas mesa BEST-IN-CLASS aplicado 2026-05-08/09.
+
+**Estado:** F1 SCHEMA + F2 BACKEND CORE aplicados. F3 UI CLIENTE pendente.
+
+**F1 SCHEMA (2026-05-08):** 8 tabelas + 10 cols `reservations` + 13 settings novos.
+
+**Tabelas:** `restaurant_floor_plans`, `restaurant_tables`, `restaurant_pacing_rules`, `restaurant_turn_times`, `reservation_table_assignments`, `reservation_waitlist`, `reservation_notify_list`, `client_restaurant_profiles`.
+
+**F2 BACKEND CORE (2026-05-09):**
+- 4 RPCs cliente (`client_search_availability`, `client_join_waitlist`, `client_join_notify`, `client_arrived`)
+- 6 RPCs parceiro (`partner_create_floor_plan`, `partner_add_table`, `partner_combine_tables`, `partner_seat_walk_in`, `partner_mark_seated`, `partner_mark_finished`)
+- 5 triggers (4 reservations + 1 waitlist)
+- 5 CRON jobs pg_cron (reminders 24h/2h, pending alert, morning summary, expire lists)
+- 9 notificações parceiro + 7 cliente automáticas
+- Auto-logic: auto-VIP após 5 visits, auto-block após 3 no-shows / 5 late cancels
+
+**Detalhes:** ver `.claude/.ai/business_rules.md` §50 (schema) + §51 (backend).
+
+**Roadmap:** F3 UI CLIENTE → F4 UI PARCEIRO + ADMIN.

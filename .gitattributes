@@ -1,0 +1,9 @@
+# Hook scripts da TRAVA (e qualquer .sh) TÊM de ficar em LF.
+# CRLF quebra a execução em bash (erro '\r'). Ver .claude/HOOKS.md.
+*.sh text eol=lf
+.claude/hooks/*.sh text eol=lf
+.claude/githooks/* text eol=lf
+# Mods do Claude Code (bora-mods): TypeScript em LF.
+.claude/plugins/**/*.ts text eol=lf
+.claude/plugins/**/*.tsx text eol=lf
+.claude/plugins/**/*.json text eol=lf

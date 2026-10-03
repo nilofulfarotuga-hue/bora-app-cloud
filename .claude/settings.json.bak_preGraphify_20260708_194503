@@ -1,0 +1,129 @@
+{
+  "permissions": {
+    "deny": [
+      "Edit(./lib/services/pricing_service.dart)",
+      "Write(./lib/services/pricing_service.dart)",
+      "MultiEdit(./lib/services/pricing_service.dart)",
+      "Edit(./lib/stores/order_store.dart)",
+      "Write(./lib/stores/order_store.dart)",
+      "MultiEdit(./lib/stores/order_store.dart)",
+      "Edit(./lib/widgets/errand_execution_sheet.dart)",
+      "Write(./lib/widgets/errand_execution_sheet.dart)",
+      "MultiEdit(./lib/widgets/errand_execution_sheet.dart)",
+      "Edit(./supabase/functions/dispatch-engine/**)",
+      "Write(./supabase/functions/dispatch-engine/**)",
+      "MultiEdit(./supabase/functions/dispatch-engine/**)",
+      "Edit(./supabase/functions/stripe-webhook/**)",
+      "Write(./supabase/functions/stripe-webhook/**)",
+      "MultiEdit(./supabase/functions/stripe-webhook/**)",
+      "Edit(./supabase/functions/finalize-order-from-intent/**)",
+      "Write(./supabase/functions/finalize-order-from-intent/**)",
+      "MultiEdit(./supabase/functions/finalize-order-from-intent/**)",
+      "Edit(./supabase/functions/create-payment-intent/**)",
+      "Write(./supabase/functions/create-payment-intent/**)",
+      "MultiEdit(./supabase/functions/create-payment-intent/**)",
+      "Edit(./supabase/functions/create-mbway-payment-intent/**)",
+      "Write(./supabase/functions/create-mbway-payment-intent/**)",
+      "MultiEdit(./supabase/functions/create-mbway-payment-intent/**)",
+      "Edit(./supabase/functions/refund/**)",
+      "Write(./supabase/functions/refund/**)",
+      "MultiEdit(./supabase/functions/refund/**)",
+      "Edit(./supabase/functions/reprocess-refund/**)",
+      "Write(./supabase/functions/reprocess-refund/**)",
+      "MultiEdit(./supabase/functions/reprocess-refund/**)",
+      "Edit(./supabase/functions/charge-extra/**)",
+      "Write(./supabase/functions/charge-extra/**)",
+      "MultiEdit(./supabase/functions/charge-extra/**)",
+      "Edit(./.claude/hooks/**)",
+      "Write(./.claude/hooks/**)",
+      "MultiEdit(./.claude/hooks/**)",
+      "Edit(./.claude/settings.json)",
+      "Write(./.claude/settings.json)",
+      "MultiEdit(./.claude/settings.json)",
+      "Edit(./.claude/settings.local.json)",
+      "Write(./.claude/settings.local.json)",
+      "MultiEdit(./.claude/settings.local.json)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git push --force-with-lease:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(supabase db reset:*)"
+    ],
+    "allow": [
+      "WebSearch",
+      "Bash(claude plugin:*)",
+      "Read(//c/Users/danil/.claude/plugins/**)",
+      "Read(//c/Users/danil/.claude/plugins/marketplaces/**)",
+      "Read(//c/Users/danil/**)",
+      "Bash(npx --version)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('plugins', {}\\), indent=2\\)\\)\")",
+      "mcp__plugin_context-mode_context-mode__ctx_batch_execute",
+      "mcp__plugin_context-mode_context-mode__ctx_execute_file",
+      "mcp__plugin_context-mode_context-mode__ctx_index",
+      "mcp__plugin_context-mode_context-mode__ctx_search",
+      "mcp__plugin_context-mode_context-mode__ctx_execute",
+      "mcp__claude_ai_Supabase__list_projects",
+      "mcp__claude_ai_Supabase__execute_sql",
+      "mcp__claude_ai_Supabase__apply_migration",
+      "mcp__claude_ai_Supabase__list_tables",
+      "mcp__claude_ai_Supabase__list_edge_functions",
+      "mcp__claude_ai_Supabase__list_migrations",
+      "mcp__claude_ai_Supabase__deploy_edge_function",
+      "mcp__claude_ai_Supabase__get_logs",
+      "mcp__claude_ai_Supabase__get_edge_function",
+      "mcp__claude_ai_Supabase__get_project_url",
+      "mcp__claude_ai_Supabase__get_publishable_keys",
+      "Bash(npm install:*)",
+      "Bash(npx playwright:*)",
+      "Bash(node scrape.js)",
+      "mcp__plugin_context-mode_context-mode__ctx_doctor",
+      "mcp__plugin_context-mode_context-mode__ctx_upgrade",
+      "Bash(node:*)",
+      "Bash(python .claude/.ai/scripts/phase0_test_one.py)",
+      "Bash(python *)",
+      "Bash(claude mcp *)",
+      "Bash(rm -rf /c/Users/danil/AppData/Local/Temp/*)",
+      "Bash(rm -rf /c/Windows/Temp/*)",
+      "Bash(git checkout *)",
+      "Bash(git push *)",
+      "Bash(awk '/^[[:space:]]+\\(error|warning|info\\) -/ {print $1}')",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git commit *)",
+      "PowerShell(Invoke-WebRequest:*github.com/mobile-dev-inc*)",
+      "PowerShell(Expand-Archive:*)",
+      "Bash(maestro:*)",
+      "PowerShell(*maestro*)",
+      "PowerShell(*mobile.dev*)",
+      "Bash(supabase secrets set:*)",
+      "Bash(supabase secrets list:*)",
+      "Bash(curl:*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /c/Users/danil/Desktop/projetosflutter/bora_app/.claude/hooks/protege-dinheiro.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|mcp__.*[Ss]upabase.*|mcp__.*__(execute_sql|apply_migration|deploy_edge_function)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /c/Users/danil/Desktop/projetosflutter/bora_app/.claude/hooks/protege-banco.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "context-mode"
+  ]
+}

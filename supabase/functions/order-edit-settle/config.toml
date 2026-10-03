@@ -1,0 +1,2 @@
+[functions.order-edit-settle]
+verify_jwt = true

@@ -1,0 +1,53 @@
+[2026-09-24 16:14:24] START prospeccao raio=20 km, 28 tipos de negocio
+[2026-09-24 16:14:32] overpass falhou (1/3): HTTP Error 504: Gateway Timeout
+[2026-09-24 16:15:00] overpass falhou (2/3): HTTP Error 504: Gateway Timeout
+[2026-09-24 16:15:25] o OpenStreetMap devolveu 157 fichas
+[2026-09-24 16:15:25] ficaram 126 negocios com nome dentro do raio (116 sem site, 11 com telefone)
+[2026-09-24 16:15:25]    80  Restaurante Belo Horizonte         restaurante  sem site
+[2026-09-24 16:15:25]    80  Café Pissarra                      cafe         sem site
+[2026-09-24 16:15:25]    75  Soadro do Zêzere                   restaurante  sem site
+[2026-09-24 16:15:25]    65  Vallecula                          restaurante  sem site
+[2026-09-24 16:15:25]    60  Curt'ó Cheio Café                  cafe         sem site
+[2026-09-24 16:15:25]    60  Quinta dos Avelanais               alojamento   sem site
+[2026-09-24 16:15:25]    60  Sai de Gatas                       cafe         sem site
+[2026-09-24 16:15:25]    60  Du Pepe                            cafe         sem site
+[2026-09-24 16:15:25]    60  Grelhadu's Take Away               restaurante  sem site
+[2026-09-24 16:15:25]    60  Hotel Pombeira                     alojamento   sem site
+[2026-09-24 16:15:25]    60  A Petisqueira                      restaurante  sem site
+[2026-09-24 16:15:25]    60  Tasquinha Santa Cruz               cafe         sem site
+[2026-09-24 16:15:25]    60  Zé Manel                           cafe         sem site
+[2026-09-24 16:15:25]    60  JS                                 cafe         sem site
+[2026-09-24 16:15:25]    60  Cortelha da Burra                  restaurante  sem site
+[2026-09-24 16:15:40] START prospeccao raio=20 km, 28 tipos de negocio
+[2026-09-24 16:15:43] o OpenStreetMap devolveu 157 fichas
+[2026-09-24 16:15:43] ficaram 126 negocios com nome dentro do raio (116 sem site, 11 com telefone)
+[2026-09-24 16:15:58] FIM: 126 de 126 gravados no Supabase
+[2026-09-24 16:18:25] ENRIQUECER: 45 negocios ao Google (1 chamada cada, ~1.44 EUR de Places)
+[2026-09-24 16:18:36]   ... 10/45
+[2026-09-24 16:18:48]   ... 20/45
+[2026-09-24 16:19:00]   ... 30/45
+[2026-09-24 16:19:11]   ... 40/45
+[2026-09-24 16:19:17] FIM: 45 conferidos, 45 mudaram de pontuacao, 0 sem ficha no Google, 12 com ficha completa
+[2026-09-24 16:19:17] TOP 10 depois da conferencia:
+[2026-09-24 16:19:17]    86  JS                             cafe        incompleta | falta: A ficha não tem site. O botão «Website» está vazio.; A ficha não tem horário. O Google não
+[2026-09-24 16:19:17]    70  Grelhadu's Take Away           restaurante incompleta | falta: A ficha não tem site. O botão «Website» está vazio.; A ficha não tem telefone. Ninguém lig
+[2026-09-24 16:19:17]    70  Flexas Bar                     cafe        incompleta | falta: A ficha não tem site. O botão «Website» está vazio.; A ficha não tem telefone. Ninguém lig
+[2026-09-24 16:19:17]    68  Café o Redondo                 cafe        incompleta | falta: A ficha não tem site. O botão «Website» está vazio.; Só 1 foto(s) na ficha. Abaixo de cinc
+[2026-09-24 16:19:17]    68  LuMiar                         cafe        incompleta | falta: A ficha não tem site. O botão «Website» está vazio.; Só 2 foto(s) na ficha. Abaixo de cinc
+[2026-09-24 16:19:17]    68  Café Dorna                     cafe        incompleta | falta: A ficha não tem site. O botão «Website» está vazio.; Só 2 foto(s) na ficha. Abaixo de cinc
+[2026-09-24 16:19:17]    68  Arcada                         cafe        incompleta | falta: A ficha não tem site. O botão «Website» está vazio.; Só 9 avaliação(ões). Poucas avaliaçõe
+[2026-09-24 16:19:17]    67  Quinta dos Avelanais           alojamento  incompleta | falta: A ficha não tem horário. O Google não diz se estão abertos.; Só 2 foto(s) na ficha. Abaixo
+[2026-09-24 16:19:17]    61  Bemequer                       ginasio     incompleta | falta: A ficha não tem site. O botão «Website» está vazio.; A ficha não tem telefone. Ninguém lig
+[2026-09-24 16:19:17]    61  Moreira                        restaurante incompleta | falta: A ficha não tem site. O botão «Website» está vazio.; A ficha não tem telefone. Ninguém lig
+[2026-09-24 16:21:07] AMOSTRAS: 10 negocios
+[2026-09-24 16:21:08]   ok JS                           https://boraguarda.com/avenca/0c1a3843bc7826/
+[2026-09-24 16:21:08]   ok Grelhadu's Take Away         https://boraguarda.com/avenca/707281235925d2/
+[2026-09-24 16:21:09]   ok Flexas Bar                   https://boraguarda.com/avenca/c7613564a96220/
+[2026-09-24 16:21:09]   ok Café o Redondo               https://boraguarda.com/avenca/2a235bb2fd18c2/
+[2026-09-24 16:21:09]   ok LuMiar                       https://boraguarda.com/avenca/f5c7ed78555979/
+[2026-09-24 16:21:10]   ok Café Dorna                   https://boraguarda.com/avenca/57c9fea20c2b26/
+[2026-09-24 16:21:10]   ok Arcada                       https://boraguarda.com/avenca/2c32255b28c072/
+[2026-09-24 16:21:10]   ok Quinta dos Avelanais         https://boraguarda.com/avenca/38062f96ef3504/
+[2026-09-24 16:21:10]   ok Bemequer                     https://boraguarda.com/avenca/6295a98b267b69/
+[2026-09-24 16:21:11]   ok Moreira                      https://boraguarda.com/avenca/eb4dfcb2294f83/
+[2026-09-24 16:21:11] FIM amostras: 10 paginas + 10 rascunhos de proposta (nada enviado)

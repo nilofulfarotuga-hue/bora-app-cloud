@@ -1,31 +1,35 @@
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../main.dart' show routeObserver;
+import '../../services/admin_push_service.dart';
 import '../../services/auth_admin_service.dart';
-import 'admin_driver_approval_screen.dart';
-import 'admin_driver_payments_screen.dart';
-import 'admin_drivers_screen.dart';
-import 'admin_orders_screen.dart';
-import 'admin_ratings_screen.dart';
-import 'admin_reservations_screen.dart';
-import 'admin_partners_screen.dart';
+import '../../widgets/admin_closed_partners_card.dart';
+import '../../widgets/admin_realtime_metrics_card.dart';
+import '../../widgets/bora/bora_primary_button.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
+import 'admin_dashboard_content.dart';
+import 'admin_global_search_screen.dart';
+import 'admin_menu_accordion.dart';
+import 'admin_menu_registry.dart';
+import 'admin_notifications_inbox_screen.dart';
 
-/// In-app admin dashboard.
+/// Painel Admin (PT-BR, só o Danilo usa) — o que ele vê ao abrir.
 ///
-/// Reads aggregated metrics from `admin_dashboard_metrics()` (server-side
-/// SECURITY DEFINER RPC). The function only ever returns aggregates — never
-/// row-level data — so even if this screen is reached by a non-admin the
-/// blast radius is limited to four totals.
-///
-/// Access gating (Phase-2-B): `app_metadata.role == 'admin'` (canonical)
-/// with fallback to `user_metadata.bora_role == 'admin'` and finally a
-/// deprecated email allow-list. See [AuthAdminService.isAdmin].
-/// Server-side `_admin_op_guard()` enforces strictly on
-/// `app_metadata.role` — the Dart fallback chain exists only to keep
-/// the UI usable across legacy sessions; any *action* still has to
-/// pass the strict server gate.
+/// 2026-09-14 (missão painel-admin-limpo). O que mudou e porquê:
+///  · Os números de cima vêm do RPC `admin_dashboard_metrics_v2`: hora de
+///    Lisboa em tudo (às 00:18 o painel mostrava "Pedidos hoje 1" — era um
+///    pedido de demonstração e ainda era "ontem" em UTC), nada de demo nas
+///    contas (interruptor `admin_show_demo_data` para quando ele quer testar),
+///    uma linha por vertical (entregas, Bora Motorista, serviços, limpeza,
+///    lavagem, reservas — zero é zero e aparece), dinheiro em três cartões
+///    lidos das tabelas de acerto, e alertas que abrem o ecrã certo.
+///  · O menu deixou de ser uma lista de 90 cartões: vive em
+///    `admin_menu_registry.dart`, por secções fechadas, com busca, favoritos
+///    e "Arquivado" no fim. O desenho vive em `admin_dashboard_content.dart`
+///    (widget puro, fotografável em teste); este ficheiro só carrega e navega.
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
 
@@ -33,38 +37,163 @@ class AdminDashboardScreen extends StatefulWidget {
   State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
 }
 
-class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
+class _AdminDashboardScreenState extends State<AdminDashboardScreen>
+    with RouteAware {
+  static const _kFavoritos = 'bora_admin.favoritos';
+
+  /// Favoritos com que o painel nasce; ele muda pelo alfinete de cada linha.
+  static const _favoritosIniciais = [
+    'dinheiro_dinheiro_e_acertos',
+    'operacao_pedidos_ao_vivo',
+    'servicos_marcacoes_por_confirmar_e_faltas',
+  ];
+
   late Future<Map<String, dynamic>> _metricsFuture;
+  int _pendingSuggestionsCount = 0;
+  int _unreadNotificationsCount = 0;
+  List<String> _favoritos = const [];
+  bool _demoBusy = false;
 
   @override
   void initState() {
     super.initState();
     _metricsFuture = _loadMetrics();
+    _loadPendingSuggestionsCount();
+    _loadUnreadNotificationsCount();
+    _loadFavoritos();
+    // 5F-β — registar FCM token admin + ouvir taps em pushes.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      AdminPushService.registerForAdmin();
+      AdminPushService.setupDeepLinks(context);
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  // Refresh sempre que o admin volta para o dashboard.
+  @override
+  void didPopNext() {
+    _refresh();
   }
 
   Future<Map<String, dynamic>> _loadMetrics() async {
     final response =
-        await Supabase.instance.client.rpc('admin_dashboard_metrics');
+        await Supabase.instance.client.rpc('admin_dashboard_metrics_v2');
     if (response is Map<String, dynamic>) return response;
     if (response is Map) return Map<String, dynamic>.from(response);
     throw StateError('Unexpected RPC response type: ${response.runtimeType}');
+  }
+
+  Future<void> _loadPendingSuggestionsCount() async {
+    try {
+      final response = await Supabase.instance.client
+          .rpc('admin_skill_suggestions_stats');
+      if (!mounted) return;
+      final stats = response is Map
+          ? Map<String, dynamic>.from(response)
+          : <String, dynamic>{};
+      setState(() {
+        _pendingSuggestionsCount = (stats['pending'] as num?)?.toInt() ?? 0;
+      });
+    } catch (_) {/* silent */}
+  }
+
+  Future<void> _loadUnreadNotificationsCount() async {
+    try {
+      final rows = await Supabase.instance.client
+          .from('admin_notifications')
+          .select('id')
+          .isFilter('read_at', null)
+          .isFilter('archived_at', null)
+          .limit(100);
+      if (!mounted) return;
+      setState(() {
+        _unreadNotificationsCount = (rows as List).length;
+      });
+    } catch (_) {/* silent */}
+  }
+
+  Future<void> _loadFavoritos() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final v = prefs.getStringList(_kFavoritos);
+      if (!mounted) return;
+      setState(() => _favoritos = v ?? List.of(_favoritosIniciais));
+    } catch (_) {
+      if (mounted) setState(() => _favoritos = List.of(_favoritosIniciais));
+    }
+  }
+
+  Future<void> _toggleFavorito(String id) async {
+    final next = List.of(_favoritos);
+    if (next.contains(id)) {
+      next.remove(id);
+    } else {
+      next.add(id);
+    }
+    setState(() => _favoritos = next);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_kFavoritos, next);
+    } catch (_) {/* fica só em memória */}
   }
 
   Future<void> _refresh() async {
     setState(() {
       _metricsFuture = _loadMetrics();
     });
-    await _metricsFuture;
+    try {
+      await _metricsFuture;
+    } catch (_) {/* o FutureBuilder mostra o erro */}
+    await _loadPendingSuggestionsCount();
+    await _loadUnreadNotificationsCount();
+  }
+
+  /// Interruptor "mostrar dados de demonstração" (platform_settings
+  /// `admin_show_demo_data`). Por defeito desligado: demo fora das contas.
+  Future<void> _setDemoVisivel(bool v) async {
+    if (_demoBusy) return;
+    setState(() => _demoBusy = true);
+    try {
+      await Supabase.instance.client.rpc('admin_update_setting',
+          params: {'p_key': 'admin_show_demo_data', 'p_value': v});
+      await _refresh();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Não deu: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _demoBusy = false);
+    }
   }
 
   bool get _isAuthorized => AuthAdminService.isAdmin();
 
+  void _abrir(Widget screen) =>
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+
   @override
   Widget build(BuildContext context) {
     if (!_isAuthorized) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Painel Admin')),
-        body: const Center(
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: BoraScreenAppBar(title: 'Painel Admin'),
+        body: Center(
           child: Padding(
             padding: EdgeInsets.all(24),
             child: Text(
@@ -77,9 +206,27 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Painel Admin'),
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: 'Painel Admin',
         actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: 'Buscar (clientes, entregadores, parceiros, pedidos)',
+            onPressed: () => _abrir(const AdminGlobalSearchScreen()),
+          ),
+          Badge(
+            isLabelVisible: _unreadNotificationsCount > 0,
+            label: Text(_unreadNotificationsCount > 9
+                ? '9+'
+                : '$_unreadNotificationsCount'),
+            backgroundColor: AppColors.error,
+            child: IconButton(
+              icon: const Icon(Icons.notifications_outlined),
+              tooltip: 'Notificações ($_unreadNotificationsCount não lidas)',
+              onPressed: () => _abrir(const AdminNotificationsInboxScreen()),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _refresh,
@@ -96,11 +243,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               return const Center(child: CircularProgressIndicator());
             }
             if (snapshot.hasError) {
+              // Sem números não se fica sem menu: o painel continua a servir
+              // para chegar a qualquer ecrã.
               return ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  const SizedBox(height: 80),
-                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                  const SizedBox(height: 40),
+                  const Icon(Icons.error_outline,
+                      size: 48, color: AppColors.error),
                   const SizedBox(height: 12),
                   Text(
                     'Erro ao carregar métricas:\n${snapshot.error}',
@@ -108,373 +258,46 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   ),
                   const SizedBox(height: 16),
                   Center(
-                    child: ElevatedButton.icon(
+                    child: BoraPrimaryButton(
                       onPressed: _refresh,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Tentar de novo'),
+                      icon: Icons.refresh,
+                      label: 'Tentar de novo',
+                      expanded: false,
                     ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text('Gestão',
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 10),
+                  AdminMenuAccordion(
+                    sections: adminMenuSections(),
+                    favoritos: _favoritos,
+                    onToggleFavorito: _toggleFavorito,
+                    badges: {'skills': _pendingSuggestionsCount},
                   ),
                 ],
               );
             }
 
-            final m = snapshot.data ?? const <String, dynamic>{};
-            final platformRevenue = _toDouble(m['platform_revenue']);
-            final ordersToday = _toInt(m['orders_today']);
-            final driversPayable = _toDouble(m['drivers_payable']);
-            final restaurantsPayable = _toDouble(m['restaurants_payable']);
-            final generatedAt = m['generated_at']?.toString() ?? '—';
-            final dailyOrders = _parseDailyOrders(m['daily_orders']);
-
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                _buildChart(dailyOrders),
-                _MetricCard(
-                  icon: Icons.account_balance_wallet,
-                  iconColor: AppColors.primary,
-                  title: 'Faturamento total (plataforma)',
-                  value: '€${platformRevenue.toStringAsFixed(2)}',
-                ),
-                _MetricCard(
-                  icon: Icons.receipt_long,
-                  iconColor: AppColors.accent,
-                  title: 'Pedidos hoje',
-                  value: ordersToday.toString(),
-                ),
-                _MetricCard(
-                  icon: Icons.local_shipping,
-                  iconColor: Colors.blue,
-                  title: 'A pagar — drivers',
-                  value: '€${driversPayable.toStringAsFixed(2)}',
-                ),
-                _MetricCard(
-                  icon: Icons.restaurant,
-                  iconColor: Colors.purple,
-                  title: 'A pagar — restaurantes',
-                  value: '€${restaurantsPayable.toStringAsFixed(2)}',
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'Gestão',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 12),
-                _NavCard(
-                  icon: Icons.receipt_long,
-                  title: 'Pedidos',
-                  subtitle: 'Ver, filtrar e cancelar pedidos',
-                  color: AppColors.accent,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminOrdersScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.delivery_dining,
-                  title: 'Estafetas',
-                  subtitle: 'Lista e estado de todos os estafetas',
-                  color: Colors.blue,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminDriversScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.how_to_reg,
-                  title: 'Aprovações',
-                  subtitle: 'Candidaturas pendentes, aprovadas e rejeitadas',
-                  color: Colors.teal,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminDriverApprovalScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.payments,
-                  title: 'Pagamentos',
-                  subtitle: 'Saques e ganhos semanais dos estafetas',
-                  color: AppColors.primary,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminDriverPaymentsScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.storefront,
-                  title: 'Parceiros',
-                  subtitle: 'Activar e desactivar restaurantes/lojas',
-                  color: Colors.purple,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminPartnersScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.event_seat,
-                  title: 'Reservas',
-                  subtitle: 'Reservas de mesa em todos os restaurantes',
-                  color: Colors.teal,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminReservationsScreen())),
-                ),
-                const SizedBox(height: 10),
-                _NavCard(
-                  icon: Icons.star_outline,
-                  title: 'Avaliações',
-                  subtitle: 'Casos problemáticos e denúncias',
-                  color: Colors.amber,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AdminRatingsScreen())),
-                ),
-                const SizedBox(height: 16),
-                Center(
-                  child: Text(
-                    'Atualizado: $generatedAt',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(color: Colors.grey),
-                  ),
+                const AdminRealtimeMetricsCard(),
+                const AdminClosedPartnersCard(),
+                const SizedBox(height: 8),
+                AdminDashboardContent(
+                  metrics: snapshot.data ?? const <String, dynamic>{},
+                  favoritos: _favoritos,
+                  onToggleFavorito: _toggleFavorito,
+                  onOpen: _abrir,
+                  pendingSuggestionsCount: _pendingSuggestionsCount,
+                  demoBusy: _demoBusy,
+                  onSetDemoVisivel: _setDemoVisivel,
                 ),
               ],
             );
           },
         ),
-      ),
-    );
-  }
-
-  static List<_DayCount> _parseDailyOrders(dynamic raw) {
-    if (raw is! List) return const [];
-    final result = <_DayCount>[];
-    for (final item in raw) {
-      if (item is! Map) continue;
-      final date = item['date']?.toString() ?? '';
-      final count = _toInt(item['count']);
-      if (date.isNotEmpty) result.add(_DayCount(date, count));
-    }
-    result.sort((a, b) => a.date.compareTo(b.date));
-    return result;
-  }
-
-  Widget _buildChart(List<_DayCount> data) {
-    if (data.isEmpty) return const SizedBox();
-    final maxY =
-        data.map((d) => d.count).reduce((a, b) => a > b ? a : b).toDouble();
-    final spots = List.generate(
-      data.length,
-      (i) => FlSpot(i.toDouble(), data[i].count.toDouble()),
-    );
-    return Card(
-      elevation: 2,
-      margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Pedidos por dia',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 130,
-              child: LineChart(
-                LineChartData(
-                  minY: 0,
-                  maxY: maxY == 0 ? 1 : maxY * 1.2,
-                  gridData: const FlGridData(show: false),
-                  borderData: FlBorderData(show: false),
-                  lineTouchData: LineTouchData(
-                    touchTooltipData: LineTouchTooltipData(
-                      getTooltipItems: (spots) => spots
-                          .map((s) => LineTooltipItem(
-                                '${s.y.toInt()} pedidos',
-                                const TextStyle(
-                                    color: Colors.white, fontSize: 11),
-                              ))
-                          .toList(),
-                    ),
-                  ),
-                  titlesData: FlTitlesData(
-                    leftTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false)),
-                    rightTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false)),
-                    topTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false)),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 22,
-                        getTitlesWidget: (value, meta) {
-                          final i = value.toInt();
-                          if (i < 0 || i >= data.length) {
-                            return const SizedBox();
-                          }
-                          final d = data[i].date;
-                          // Format: dd/MM from yyyy-MM-dd
-                          String label;
-                          if (d.length >= 10) {
-                            label =
-                                '${d.substring(8, 10)}/${d.substring(5, 7)}';
-                          } else {
-                            label = d;
-                          }
-                          return Text(label,
-                              style: const TextStyle(
-                                  fontSize: 9, color: Colors.grey));
-                        },
-                      ),
-                    ),
-                  ),
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: spots,
-                      isCurved: true,
-                      curveSmoothness: 0.4,
-                      preventCurveOverShooting: true,
-                      color: AppColors.primary,
-                      barWidth: 2.5,
-                      dotData: const FlDotData(show: true),
-                      belowBarData: BarAreaData(
-                        show: true,
-                        color: AppColors.primary.withValues(alpha: 0.12),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  static double _toDouble(dynamic v) {
-    if (v == null) return 0;
-    if (v is num) return v.toDouble();
-    return double.tryParse(v.toString()) ?? 0;
-  }
-
-  static int _toInt(dynamic v) {
-    if (v == null) return 0;
-    if (v is int) return v;
-    if (v is num) return v.toInt();
-    return int.tryParse(v.toString()) ?? 0;
-  }
-}
-
-class _MetricCard extends StatelessWidget {
-  const _MetricCard({
-    required this.icon,
-    required this.iconColor,
-    required this.title,
-    required this.value,
-  });
-
-  final IconData icon;
-  final Color iconColor;
-  final String title;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 24,
-              backgroundColor: iconColor.withValues(alpha: 0.15),
-              child: Icon(icon, color: iconColor, size: 28),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.grey.shade700,
-                        ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    value,
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DayCount {
-  const _DayCount(this.date, this.count);
-  final String date;
-  final int count;
-}
-
-class _NavCard extends StatelessWidget {
-  const _NavCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.color,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      child: ListTile(
-        onTap: onTap,
-        leading: CircleAvatar(
-          backgroundColor: color.withValues(alpha: 0.12),
-          child: Icon(icon, color: color),
-        ),
-        title: Text(title,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-        subtitle: Text(subtitle,
-            style:
-                const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-        trailing: Icon(Icons.chevron_right, color: color),
       ),
     );
   }

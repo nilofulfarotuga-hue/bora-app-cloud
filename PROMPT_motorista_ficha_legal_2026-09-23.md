@@ -1,0 +1,17 @@
+⚠️ MODO PROTECÇÃO TOTAL ⚠️
+MOTOR: OPUS · repo bora-app-cloud, ramo autonomous-night-2026-04-29 · sessão nova.
+Invoca primeiro o orquestrador CEO-AI em .claude/skills/ceo-ai/ e lê PADRAO_BORA.md, business_rules.md e a skill protocolo-missao-bora. Idiomas: app PT-PT, painel admin PT-BR. run_id `motorista-ficha-legal-2026-09-23`, fluxo e2e_log com o mesmo nome, uma linha por bloco com prova. Outro erro pelo caminho: reporta com passo `fora-de-scope`, não corrige. Nada de preços.
+
+O QUE ESTÁS A MEXER E PORQUÊ (pedido do Danilo 23/09): quando a PSP/GNR manda parar um motorista do Bora, a app tem de mostrar num só ecrã tudo o que a Uber e a Bolt mostram numa fiscalização — hoje a app do motorista não tem isso. Lei 45/2018 revista pela Lei 59/2026 (em vigor desde 1/09/2026): identificação do motorista, do veículo, do operador, da plataforma, seguro, inspeção, dístico, e a viagem em curso com origem/destino/preço.
+
+BLOCO 1 — dados no banco. Confirma que `drivers`/`driver_documents`/`vehicles` (ou as tabelas que existirem) guardam: nome completo, foto, n.º do certificado TVDE do IMT e validade, carta de condução e validade, NIF; veículo: marca, modelo, matrícula, cor, ano, n.º do dístico IMT, validade da inspeção, seguro (seguradora, apólice, validade, cobertura de passageiros); operador TVDE (nome, NIF, n.º de licença IMT) quando o motorista trabalha por uma frota; plataforma: nome da Bora, NIF e n.º de licença de operador de plataforma (campo vazio com aviso "em processo" enquanto a empresa não existir). O que faltar, cria (migração) e mete no formulário de registo/perfil do motorista e no painel admin.
+
+BLOCO 2 — ecrã "Fiscalização" na app do motorista (PT-PT): botão visível no ecrã principal e no menu, "Mostrar à autoridade"; abre em modo ecrã inteiro, letras grandes, fundo claro: foto e nome do motorista, certificado TVDE e validade, carta e validade; veículo com matrícula grande, marca/modelo/cor, dístico, inspeção, seguro; operador e plataforma; viagem em curso (ou a última): hora de início, origem, destino, preço estimado/cobrado, forma de pagamento, nome do passageiro só com inicial; QR que abre a página pública de verificação (bloco 3). Funciona offline com os dados em cache. Botão "Enviar cópia por e-mail" que manda um PDF ao próprio motorista.
+
+BLOCO 3 — página pública de verificação no bora-site: /verificar/<token-curto> mostra os mesmos dados sem PII sensível (sem NIF, sem morada), com hora de geração, para a autoridade confirmar que o ecrã é verdadeiro. Token expira em 24 h. RLS/RPC só de leitura.
+
+BLOCO 4 — recibo da viagem ao passageiro por e-mail e na app (Lei 59/2026 exige fatura/recibo eletrónico por viagem com a taxa de intermediação discriminada): confirma o que já existe em contas-claras e acrescenta o que faltar (taxa de intermediação da Bora em linha própria). Nada de faturas fiscais geradas pela app — só recibo; a fatura fica para o software certificado.
+
+BLOCO 5 — painel admin (PT-BR): ecrã "Documentos dos motoristas" com semáforo por motorista (certificado, carta, seguro, inspeção, dístico: válido / a expirar em 30 dias / expirado), alerta automático 30 dias antes ao motorista e ao admin, e bloqueio de ficar online com documento expirado (com interruptor em platform_settings, ligado por defeito).
+
+BLOCO 6 — fecho: testes, `flutter analyze` 0 erros, push (o CI sobe o versionCode), relatório `MOTORISTA-FICHA-LEGAL-2026-09-23.md`, linha final no e2e_log. Termina com /ctx doctor e /ctx stats.

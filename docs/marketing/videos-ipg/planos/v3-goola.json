@@ -1,0 +1,189 @@
+{
+ "voz": "pt-PT-RaquelNeural",
+ "rate": "+6%",
+ "musica": "../_material/musica/Life_of_Riley.mp3",
+ "musica_ss": 4,
+ "musica_vol": 0.2,
+ "segmentos": [
+  {
+   "tipo": "clip",
+   "src": "../_material/novos/s1-estudante-fome.mp4",
+   "ss": 0.3,
+   "dur": 1.8,
+   "zoom": [
+    1.02,
+    1.12
+   ],
+   "textos": [
+    {
+     "linhas": [
+      "Apetece-te",
+      "um açaí?"
+     ],
+     "destaque": "açaí?",
+     "onde": "cima",
+     "tam": 118
+    }
+   ],
+   "voz": "Apetece-te um açaí da Goola?"
+  },
+  {
+   "tipo": "clip",
+   "src": "../_material/veo/planos/plano-03-acai.mp4",
+   "ss": 0.4,
+   "dur": 1.7,
+   "zoom": [
+    1.0,
+    1.1
+   ],
+   "textos": [
+    {
+     "linhas": [
+      "Goola",
+      "no Bora"
+     ],
+     "destaque": "Bora",
+     "onde": "cima",
+     "tam": 112
+    }
+   ]
+  },
+  {
+   "tipo": "phone",
+   "dur": 3.9,
+   "fundo": "../_material/veo/planos/plano-03-acai.mp4",
+   "fundo_ss": 2,
+   "ecras": [
+    [
+     "../_material/app/b_goola.png",
+     0
+    ],
+    [
+     "../_material/app/g-passo1.png",
+     0.95
+    ],
+    [
+     "../_material/app/g-passo2.png",
+     2.35
+    ],
+    [
+     "../_material/app/g-passo3.png",
+     3.2
+    ]
+   ],
+   "toques": [
+    [
+     0.6,
+     95,
+     700
+    ],
+    [
+     1.55,
+     42,
+     625
+    ],
+    [
+     1.8,
+     42,
+     663
+    ],
+    [
+     2.05,
+     42,
+     739
+    ],
+    [
+     2.85,
+     195,
+     802
+    ]
+   ],
+   "textos": [
+    {
+     "linhas": [
+      "Escolhes na app Bora"
+     ],
+     "destaque": "Bora",
+     "onde": 110,
+     "tam": 80
+    }
+   ],
+   "voz": "Escolhes o bowl e os toppings na app Bora."
+  },
+  {
+   "tipo": "still",
+   "src": "../_material/parceiros/goola/goola-02-recorte.jpg",
+   "dur": 1.4,
+   "zoom": [
+    1.05,
+    1.16
+   ],
+   "textos": [
+    {
+     "linhas": [
+      "Goola Açaí"
+     ],
+     "onde": "cima",
+     "tam": 112
+    },
+    {
+     "linhas": [
+      "@goolaacai.pt"
+     ],
+     "onde": "baixo",
+     "tam": 52
+    }
+   ],
+   "voz": "Açaí a sério, da Goola,"
+  },
+  {
+   "tipo": "still",
+   "src": "../_material/fotogramas/torre-6.25.png",
+   "dur": 1.4,
+   "zoom": [
+    1.0,
+    1.14
+   ],
+   "dx": 0.04,
+   "textos": [
+    {
+     "linhas": [
+      "a caminho"
+     ],
+     "destaque": "caminho",
+     "onde": "cima",
+     "tam": 112
+    }
+   ],
+   "voz": "A caminho, pela Guarda,"
+  },
+  {
+   "tipo": "still",
+   "src": "../_material/colados/porta-goola.png",
+   "dur": 1.7,
+   "zoom": [
+    1.0,
+    1.16
+   ],
+   "dy": 0.05,
+   "textos": [
+    {
+     "linhas": [
+      "à porta da",
+      "residência"
+     ],
+     "destaque": "residência",
+     "onde": "cima",
+     "tam": 110
+    }
+   ],
+   "voz": "até à porta da residência."
+  },
+  {
+   "tipo": "fim",
+   "dur": 3.6,
+   "origem": "ipg-goola",
+   "voz": "Descarrega a Bora. Código BEMVINDO: cinco euros de oferta."
+  }
+ ]
+}

@@ -1,0 +1,7 @@
+#!/bin/sh
+# pre-push (Tarefa 2, 2026-07-10) — dispara o pull do espelho do Córtex na VPS ~15s após
+# o push (fire-and-forget; não atrasa nem bloqueia o push; falha de rede = silêncio,
+# o cron das 06h30 é o fallback). Instalar: copiar para .git/hooks/pre-push (chmod +x).
+( sleep 15 && ssh -i ~/.ssh/id_ed25519_vps -o ConnectTimeout=8 -o BatchMode=yes \
+    root@srv1786862.hstgr.cloud 'bash /usr/local/bin/espelho-pull.sh' >/dev/null 2>&1 & ) &
+exit 0

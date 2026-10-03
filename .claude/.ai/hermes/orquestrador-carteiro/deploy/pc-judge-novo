@@ -1,0 +1,52 @@
+#!/bin/sh
+# pc-judge-novo — ponte do CLAUDE-JUIZ do loop (container -> tailscale -> PC).
+#
+# 2026-09-05 (sessao fila-ganho-05-09) — O PROMPT DEIXA DE IR PELO STDIN.
+# ----------------------------------------------------------------------
+# CAUSA REAL DOS "JUIZ-SEM-VEREDITO" EM ORDENS GRANDES, medida por bisseccao:
+#
+#   prompt   977 B (base64 ~1,3 KB) -> VEREDITO em   6 s
+#   prompt  2249 B (base64 ~3,0 KB) -> emperra, morre aos ~211 s
+#   prompt  2704 B / 3158 B / 3886 B -> emperra sempre
+#
+# Acima de cerca de 2 KB de base64 o pipe entre o ssh e o cmd.exe enche, ninguem
+# drena, e a ligacao morre com "Timeout, server ... not responding" — o .cmd nem
+# chega a escrever o ficheiro da tarefa (o mtime do ficheiro provava-o: ficava no
+# da corrida anterior). O tecto de tempo do carteiro NUNCA chegava a disparar,
+# porque o ssh desiste primeiro, aos ~180 s (ServerAliveInterval 30 x Count 6).
+# Foi por isso que subir o tecto de 400 para 1200 s nao mudou nada.
+#
+# Entregar por powershell directo em vez do cmd.exe subia o tecto mas nao o
+# tirava: 2925 B passava em 2 s, 11496 B continuava a emperrar. O que resolve e
+# tirar o prompt do stdin de vez. `scp` do mesmo ficheiro: 57 KB em 1 segundo.
+#
+# Ordem das coisas agora: (1) escreve o prompt num ficheiro; (2) scp para o
+# %TEMP% do PC; (3) corre o .cmd SEM stdin, com --jaentregue.
+#
+# Se a entrega falhar, NAO se corre o juiz: correr com o ficheiro da corrida
+# anterior seria julgar a ordem errada e dar um veredito que parece bom.
+set -u
+
+PC=danil@100.75.79.116
+DESTINO='AppData/Local/Temp/bora_judge_task.txt'
+CMDPC='C:\BoraLocal\Desktop-PC-antigo\produtividade-ia\hermes-bridge\run-claude-judge-novopc.cmd'
+
+TMP=$(mktemp /tmp/orq_judge_entrega.XXXXXX) || { echo "[juiz] ERRO: sem sitio para o ficheiro de entrega"; exit 5; }
+printf '%s' "$*" > "$TMP"
+
+if ! scp -q -o ProxyCommand="tailscale nc %h %p" \
+         -o StrictHostKeyChecking=accept-new \
+         -o ConnectTimeout=25 \
+         "$TMP" "$PC:$DESTINO" 2>/dev/null; then
+  rm -f "$TMP"
+  echo "[juiz] ERRO: entrega do prompt por scp falhou — nao corro o juiz para nao julgar a tarefa da corrida anterior"
+  exit 5
+fi
+rm -f "$TMP"
+
+ssh -o ProxyCommand="tailscale nc %h %p" \
+    -o StrictHostKeyChecking=accept-new \
+    -o ConnectTimeout=25 \
+    -o ServerAliveInterval=30 \
+    -o ServerAliveCountMax=6 \
+    "$PC" "$CMDPC --jaentregue" < /dev/null

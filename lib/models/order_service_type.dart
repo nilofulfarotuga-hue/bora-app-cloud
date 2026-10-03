@@ -3,6 +3,8 @@ enum OrderServiceType {
   storeShopping,
   carryGroceries,
   sendPackage,
+  takeaway,
+  errand,
 }
 
 extension OrderServiceTypeLabel on OrderServiceType {
@@ -16,6 +18,10 @@ extension OrderServiceTypeLabel on OrderServiceType {
         return "Levar Compras";
       case OrderServiceType.sendPackage:
         return "Enviar pacote";
+      case OrderServiceType.takeaway:
+        return "Para levantar";
+      case OrderServiceType.errand:
+        return "Favores";
     }
   }
 
@@ -29,6 +35,10 @@ extension OrderServiceTypeLabel on OrderServiceType {
         return "Já fez as compras? Um estafeta com carro vai buscar e leva até si.";
       case OrderServiceType.sendPackage:
         return "Envio de encomenda";
+      case OrderServiceType.takeaway:
+        return "Cliente levanta no restaurante parceiro (sem entrega).";
+      case OrderServiceType.errand:
+        return "Pede um favor a um estafeta (compras, recolhas, entregas).";
     }
   }
 }

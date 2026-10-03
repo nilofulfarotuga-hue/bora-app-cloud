@@ -1,0 +1,36 @@
+appId: pt.boraapp.bora
+name: Cliente — Limpeza (wizard de agendamento até data/hora)
+tags:
+  - cliente
+  - limpeza
+---
+# cleaning_bookings_screen → cleaning_wizard_screen. "Dinheiro (no local)"
+# existe, mas o picker de data/hora nativo é frágil em automação — o flow
+# valida o wizard (morada → tamanho/preço → data) e PARA antes de confirmar.
+- launchApp:
+    clearState: true
+- runFlow: ../../_shared/login_cliente.yaml
+
+- scrollUntilVisible:
+    element:
+      text: "Limpeza"
+    direction: DOWN
+    timeout: 10000
+- tapOn: "Limpeza"
+- extendedWaitUntil:
+    visible: ".*(Agendar limpeza|A tua casa a brilhar).*"
+    timeout: 15000
+- tapOn: ".*Agendar limpeza.*"
+
+# Wizard — passo 1 "Serviço": modelo de preço fixo por tamanho (BR: T0/T1…T4+),
+# tipo Standard/Profunda/Pós-obras, produtos, recorrência, preço ao vivo (€45
+# para T2 Standard). PARA aqui: continuar até ao fim CRIA uma reserva real
+# (cash) — o fim-a-fim já está evidenciado pela reserva real de 16/07 na DB
+# (total 4500 → cleaner 3825 / bora 675 = split 85/15 confirmado).
+- extendedWaitUntil:
+    visible: ".*Por tamanho.*"
+    timeout: 15000
+- assertVisible: ".*T4\\+.*"
+- assertVisible: ".*(Standard|Profunda).*"
+- assertVisible: ".*€.*"
+- assertVisible: ".*(Única|Semanal|Quinzenal).*"

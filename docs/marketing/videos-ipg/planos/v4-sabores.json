@@ -1,0 +1,203 @@
+{
+ "voz": "pt-BR-FranciscaNeural",
+ "rate": "+6%",
+ "musica": "../_material/musica/Hep_Cats.mp3",
+ "musica_ss": 3,
+ "musica_vol": 0.18,
+ "segmentos": [
+  {
+   "tipo": "clip",
+   "src": "../_material/novos/s1-estudante-fome.mp4",
+   "ss": 2.8,
+   "dur": 1.8,
+   "zoom": [
+    1.08,
+    1.2
+   ],
+   "textos": [
+    {
+     "linhas": [
+      "Saudade de",
+      "casa?"
+     ],
+     "destaque": "casa?",
+     "onde": "cima",
+     "tam": 120
+    }
+   ],
+   "voz": "Saudade de casa?"
+  },
+  {
+   "tipo": "still",
+   "src": "../_material/parceiros/sabores-de-casa/sabores-de-casa-04-cena-gemini.jpg",
+   "dur": 1.6,
+   "zoom": [
+    1.0,
+    1.14
+   ],
+   "textos": []
+  },
+  {
+   "tipo": "phone",
+   "dur": 3.7,
+   "fundo": "../_material/parceiros/sabores-de-casa/sabores-de-casa-04-cena-gemini.jpg",
+   "ecras": [
+    [
+     "../_material/app/sc1-passo1.png",
+     0
+    ],
+    [
+     "../_material/app/sc-passo1.png",
+     1.0
+    ],
+    [
+     "../_material/app/sc-passo2.png",
+     2.5
+    ],
+    [
+     "../_material/app/sc-passo3.png",
+     3.2
+    ]
+   ],
+   "toques": [
+    [
+     0.7,
+     60,
+     530
+    ],
+    [
+     1.6,
+     42,
+     622
+    ],
+    [
+     1.75,
+     42,
+     660
+    ],
+    [
+     1.9,
+     42,
+     699
+    ],
+    [
+     2.05,
+     42,
+     736
+    ],
+    [
+     2.2,
+     42,
+     761
+    ],
+    [
+     2.95,
+     195,
+     802
+    ]
+   ],
+   "textos": [
+    {
+     "linhas": [
+      "Sabores de Casa",
+      "na app"
+     ],
+     "destaque": "Sabores de Casa",
+     "onde": 70,
+     "tam": 80
+    }
+   ],
+   "voz": "O açaí do Sabores de Casa agora está no Bora."
+  },
+  {
+   "tipo": "still",
+   "src": "../_material/parceiros/sabores-de-casa/sabores-de-casa-01.jpg",
+   "dur": 1.6,
+   "zoom": [
+    1.0,
+    1.07
+   ],
+   "textos": [
+    {
+     "linhas": [
+      "Copo da Felicidade"
+     ],
+     "destaque": "Felicidade",
+     "onde": "cima",
+     "tam": 100
+    }
+   ],
+   "voz": "o Copo da Felicidade,",
+   "cartao": true
+  },
+  {
+   "tipo": "still",
+   "src": "../_material/colados/compras-sabores.png",
+   "dur": 1.9,
+   "zoom": [
+    1.0,
+    1.16
+   ],
+   "textos": [
+    {
+     "linhas": [
+      "e produtos",
+      "brasileiros"
+     ],
+     "destaque": "brasileiros",
+     "onde": "cima",
+     "tam": 110
+    }
+   ],
+   "voz": "e produtos brasileiros,"
+  },
+  {
+   "tipo": "still",
+   "src": "../_material/fotogramas/torre-6.25.png",
+   "dur": 2.2,
+   "zoom": [
+    1.0,
+    1.2
+   ],
+   "dx": 0.04,
+   "textos": [
+    {
+     "linhas": [
+      "na Guarda"
+     ],
+     "destaque": "Guarda",
+     "onde": "cima",
+     "tam": 112
+    }
+   ]
+  },
+  {
+   "tipo": "still",
+   "src": "../_material/colados/porta-sabores.png",
+   "dur": 2.0,
+   "zoom": [
+    1.0,
+    1.18
+   ],
+   "dy": 0.05,
+   "textos": [
+    {
+     "linhas": [
+      "na tua",
+      "residência"
+     ],
+     "destaque": "residência",
+     "onde": "cima",
+     "tam": 110
+    }
+   ],
+   "voz": "entregue na sua residência."
+  },
+  {
+   "tipo": "fim",
+   "dur": 3.0,
+   "origem": "ipg-sabores",
+   "voz": "Baixe a Bora. Código BEMVINDO: cinco euros de oferta."
+  }
+ ]
+}

@@ -1,0 +1,54 @@
+appId: pt.boraapp.bora
+name: Cliente — Marcação Barbearia Nobre (até ao pagamento)
+tags:
+  - cliente
+  - servicos
+  - barbearia
+---
+# services_category_screen → provider_detail → booking_flow. O sinal da
+# marcação é MBWay REAL (Stripe LIVE) — testa ATÉ ao ecrã de pagamento e
+# PARA (regra da corrida: nunca completar cobrança real).
+- launchApp:
+    clearState: true
+- runFlow: ../../_shared/login_cliente.yaml
+
+# O FAB laranja de suporte sobrepõe o tile Beleza (canto inferior direito) —
+# centrar o tile antes de tocar, senão o tap abre "Como podemos ajudar?".
+- scrollUntilVisible:
+    element:
+      text: "Beleza"
+    direction: DOWN
+    timeout: 10000
+    centerElement: true
+- tapOn: "Beleza"
+- extendedWaitUntil:
+    visible: ".*Barbearia Nobre.*"
+    timeout: 20000
+- tapOn: ".*Barbearia Nobre.*"
+
+# Detalhe do prestador — catálogo de serviços vindo da DB.
+- extendedWaitUntil:
+    visible: ".*(Corte de Cabelo|Barba|Degrad).*"
+    timeout: 15000
+- tapOn:
+    text: ".*Corte de Cabelo.*"
+- runFlow:
+    when:
+      visible: ".*Marcar.*"
+    commands:
+      - tapOn: ".*Marcar.*"
+
+# Booking flow, passo 1 "Escolher serviço" (lista com preços da DB) —
+# escolher o serviço avança para profissional/dia.
+- extendedWaitUntil:
+    visible: ".*Escolher serviço.*"
+    timeout: 15000
+- assertVisible: ".*€12\\.00.*"
+- tapOn:
+    text: ".*Corte de Cabelo.*"
+    index: 0
+
+# Próximo passo do booking alcançado. PARA aqui (sinal MBWay = dinheiro real).
+- extendedWaitUntil:
+    visible: ".*(Escolher profissional|Qualquer disponível|Escolher dia|Escolher hora).*"
+    timeout: 15000

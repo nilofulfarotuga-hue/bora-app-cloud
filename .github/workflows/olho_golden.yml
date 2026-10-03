@@ -1,0 +1,40 @@
+# F-OLHO · Camada 1 no CI — a fábrica de fotos corre A CADA PUSH que toque
+# em código. Overflow/estouro em qualquer tela da suíte = CI vermelho.
+# As fotos ficam como artifact (o juiz de visão pode consumi-las depois).
+name: olho-golden
+
+on:
+  push:
+    paths:
+      - "lib/**"
+      - "test/**"
+      - "pubspec.yaml"
+  workflow_dispatch:
+
+jobs:
+  fotos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.41.2"
+          channel: stable
+          cache: true
+
+      - name: Dependências
+        run: flutter pub get
+
+      - name: Fábrica de fotos (3 tamanhos + teclado) — estouro = falha
+        run: flutter test test/golden -r expanded
+
+      - name: Publicar fotos das telas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fotos-telas
+          path: test/golden/_fotos/
+          if-no-files-found: warn
+          retention-days: 14

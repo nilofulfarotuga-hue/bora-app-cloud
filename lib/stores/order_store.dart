@@ -17,6 +17,8 @@ import '../models/restaurant_model.dart';
 import '../services/distance_service.dart';
 import '../services/maps_service.dart';
 import '../services/notification_service.dart';
+import '../services/offer_presentation_gate.dart';
+import '../services/offline_status_queue.dart';
 import '../services/payment_service.dart';
 import '../services/pricing_service.dart';
 import 'driver_store.dart';
@@ -32,6 +34,38 @@ class PartnerOrderLine {
   final int quantity;
 
   double get lineTotal => product.price * quantity;
+}
+
+/// Sessão 4C: validação de productId enviado para create_order RPC / Edge Fn.
+/// Não usa regex de prefixo — produção tem 9+ formatos válidos
+/// (pd, cnt, auc, merc, glv, cm, lidl, prod, UUIDs hex puros, sentinelas
+/// `extra_<timestamp>`). Critério: não vazio + sem espaço + 3-200 chars.
+bool isValidProductId(String id) {
+  if (id.isEmpty) return false;
+  if (id.contains(' ')) return false;
+  if (id.length < 3 || id.length > 200) return false;
+  return true;
+}
+
+/// Sessão 4C: bloqueia ordens órfãs de entrarem no servidor.
+/// Percorre `product_lines` no payload e valida cada `product_id`.
+/// Lança [FormatException] se algum productId inválido — caller apanha
+/// e mostra erro UI sem chegar à RPC. Defesa em profundidade adicional
+/// à mitigação SQL 4B5 (unit_price fallback server-side).
+void validateOrderPayload(Map<String, dynamic> payload) {
+  final lines = payload['product_lines'] as List?;
+  if (lines == null || lines.isEmpty) return; // logistics: sem product_lines.
+  for (final raw in lines) {
+    final line = raw as Map<String, dynamic>;
+    final pid = (line['product_id'] ?? '').toString();
+    if (!isValidProductId(pid)) {
+      final itemName = line['name']?.toString() ?? '<sem nome>';
+      debugPrint(
+          '[FLOW] validateOrderPayload INVALID_PRODUCT_ID pid="$pid" item="$itemName"');
+      throw FormatException(
+          'Invalid productId no payload: "$pid" (item: $itemName)');
+    }
+  }
 }
 
 class OrderStore extends ChangeNotifier {
@@ -120,8 +154,15 @@ class OrderStore extends ChangeNotifier {
 
   void _bootstrap() {
     _subscribeToOrders();
+    // BUG #2 (sessão exec post-test 2026-05-12) — defensive fix:
+    // reduzir notifyListeners de 3s para 30s. Em produção apareciam
+    // 3-4 GET /rest/v1/orders por segundo (centenas em 60s) — hipótese
+    // é cascade de rebuilds disparados por este timer. Timer só existe
+    // como fallback se Realtime stream stalar; 30s ainda é seguro.
+    // TODO: sessão dedicada com flutter run --verbose para identificar
+    // origem real do loop (pode ser realtime emit em vez do timer).
     _fallbackRefreshTimer = Timer.periodic(
-      const Duration(seconds: 3),
+      const Duration(seconds: 30),
       (_) => notifyListeners(),
     );
   }
@@ -165,6 +206,17 @@ class OrderStore extends ChangeNotifier {
   final PaymentService _paymentService = PaymentService();
   final DriverLocationService _driverLocationService = DriverLocationService();
 
+  // FIX 4 (2026-05-15) — orderId do pedido mais recentemente criado por
+  // createOrder(). Robusto contra reordenações de _orders por realtime
+  // (ao contrário de orders.first.id).
+  String? _lastCreatedOrderId;
+  String? get lastCreatedOrderId => _lastCreatedOrderId;
+
+  /// B1 (2026-06-12): último erro devolvido pela RPC create_order — permite
+  /// ao checkout mapear códigos conhecidos (ex. delivery_distance_exceeded)
+  /// para mensagens PT-PT em vez do fallback genérico.
+  String? lastCreateOrderError;
+
   String? _pendingClientSecret;
   String? consumePendingClientSecret() {
     final cs = _pendingClientSecret;
@@ -180,8 +232,50 @@ class OrderStore extends ChangeNotifier {
   Timer? _fallbackRefreshTimer;
   final Map<String, DateTime> _lastDispatchCall = {};
 
+  // BUG 3 (2026-05-17) — Rating dialog Realtime trigger.
+  // ClientHomeScreen reads `lastDeliveredAt` and fires _checkUnratedOrders
+  // whenever a new order transitions to delivered, so the rating dialog
+  // appears within seconds of the actual delivery — no app reopen needed.
+  //
+  // Detection runs inside notifyListeners() so it covers every code path
+  // that mutates _orders (main client stream, fallback channel, driver
+  // streams, _advanceStatus). The first notify only seeds the seen-set
+  // with delivered orders that already exist on startup, so historical
+  // orders never trigger the dialog.
+  final Set<String> _seenDeliveredOrderIds = <String>{};
+  DateTime? _lastDeliveredAt;
+  bool _deliveredTrackingInitialised = false;
+  DateTime? get lastDeliveredAt => _lastDeliveredAt;
+
   /// Order IDs locally dismissed by this driver (reject or cancel).
   final Set<String> _dismissedOrderIds = {};
+
+  // BUG 3 (2026-05-17) — Run delivered-transition detection on every notify.
+  // Seeds the seen-set on the first call (so historical delivered orders
+  // are ignored); subsequent calls mark `_lastDeliveredAt` when a NEW
+  // delivered orderId appears, signalling ClientHomeScreen to re-check
+  // unrated orders without waiting for app resume.
+  //
+  // APK-FIX-DUPLICATE-DEF (2026-05-18) — merge com override anterior que
+  // sincronizava partner orders ao restaurant store. Em release mode dart
+  // compile aborta com duplicate_definition. Comportamento idêntico ao
+  // anterior, apenas consolidado num único override.
+  @override
+  void notifyListeners() {
+    _trackDeliveredTransitions();
+    super.notifyListeners();
+    _restaurantStore?.syncPartnerOrders(_orders);
+  }
+
+  void _trackDeliveredTransitions() {
+    for (final o in _orders) {
+      if (o.status != OrderStatus.delivered) continue;
+      if (_seenDeliveredOrderIds.add(o.id) && _deliveredTrackingInitialised) {
+        _lastDeliveredAt = DateTime.now();
+      }
+    }
+    _deliveredTrackingInitialised = true;
+  }
 
   List<OrderModel> get orders => List.unmodifiable(_orders);
 
@@ -354,16 +448,266 @@ class OrderStore extends ChangeNotifier {
   // ignore: avoid_unused_parameters
   void updateDispatchEngine(DispatchEngine dispatchEngine) {}
 
-  @override
-  void notifyListeners() {
-    super.notifyListeners();
-    _restaurantStore?.syncPartnerOrders(_orders);
-  }
+  // APK-FIX-DUPLICATE-DEF (2026-05-18) — override `notifyListeners` foi
+  // consolidado em L256 (acima) com `_trackDeliveredTransitions` + sync
+  // do partner restaurant store. Esta duplicação aqui causava erro fatal
+  // em dart compile release (duplicate_definition).
 
-  void toggleDriverAvailability(bool value) {
+  // BUG #5 (2026-05-13) — retornar bool para a UI poder mostrar snackbar
+  // quando o toggle é rejeitado (pedidos activos genuinamente em curso).
+  bool toggleDriverAvailability(bool value) {
     final success = _driverStore.toggleAvailability(_currentDriverId, value);
     if (success) {
       notifyListeners();
+    }
+    return success;
+  }
+
+  /// BUG 1 / Fase 2 (2026-04-30) — Card payment-first flow.
+  ///
+  /// Builds the `cart_input` payload (same shape as the create_order RPC)
+  /// and invokes the `create-payment-intent` Edge Function in NEW mode.
+  /// **Does NOT create an order** — order is created server-side by
+  /// `finalize-order-from-intent` after the Stripe webhook fires
+  /// `payment_intent.succeeded`.
+  ///
+  /// Returns `{clientSecret, paymentIntentId, draftId, amountCents}` on
+  /// success, or `null` on validation/network error.
+  Future<Map<String, dynamic>?> startCardPaymentDraft({
+    required OrderServiceType serviceType,
+    required double itemsSubtotal,
+    required LatLng destination,
+    List<CartItem>? items,
+    LatLng? pickupLocation,
+    double? distanceKm,
+    bool isPartnerStore = false,
+    bool apartmentDelivery = false,
+    bool requiresCar = false,
+    String? vendorName,
+    String? pickupAddress,
+    String? pickupStreet,
+    String? pickupCity,
+    String? pickupPostalCode,
+    String? dropoffAddress,
+    String? dropoffStreet,
+    String? dropoffCity,
+    String? dropoffPostalCode,
+    String? customerNotes,
+    String? clientPhone,
+    String? customerName,
+    int walletAppliedCents = 0,
+    String? savedPmId,
+    // FAVORES (errand) — campos do favor (null/default para outros tipos).
+    String? errandDescription,
+    String? errandLocation,
+    double? errandLocationLat,
+    double? errandLocationLng,
+    bool errandHomeStop = false,
+    String? errandHomeStopReason,
+    String? errandSpeed,
+    bool errandHasPurchase = false,
+    int errandEstimatedPurchaseCents = 0,
+    String? errandRequestPhotoUrl,
+  }) async {
+    final liveUserId = supabase.auth.currentUser?.id;
+    if (liveUserId == null ||
+        (_authStore?.isGuestSession ?? true) ||
+        _authStore?.currentClient == null) {
+      debugPrint(
+          '[FLOW] startCardPaymentDraft BLOCKED — no authenticated client session');
+      return null;
+    }
+
+    // FAVORES — distância multi-segmento já resolvida no wizard (ver createOrder).
+    double? googleDistance;
+    if (pickupLocation != null && serviceType != OrderServiceType.errand) {
+      try {
+        googleDistance =
+            await MapsService.getDistanceKm(pickupLocation, destination);
+      } catch (e) {
+        debugPrint('startCardPaymentDraft: MapsService error => $e');
+      }
+    }
+    final resolvedDistance = _resolveDistance(
+      pickup: pickupLocation,
+      destination: destination,
+      providedDistance: googleDistance ?? distanceKm,
+    );
+
+    final clonedItems = items
+        ?.map(
+          (item) => CartItem(
+            productId: item.productId,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            basePrice: item.basePrice,
+            selectedOptions: item.selectedOptions,
+          ),
+        )
+        .toList();
+
+    if (isPartnerStore && serviceType == OrderServiceType.restaurant) {
+      final restaurant = _restaurantStore?.restaurantByName(vendorName);
+      if (restaurant != null && !restaurant.isOpenNow()) return null;
+    }
+
+    final cartInput = <String, dynamic>{
+      'service_type': serviceType.name,
+      if (vendorName != null) 'vendor_name': vendorName,
+      'is_partner_store': isPartnerStore,
+      'distance_km': resolvedDistance,
+      'payment_method': 'card',
+      'subtotal': itemsSubtotal,
+      'apartment_delivery': apartmentDelivery,
+      'order_type': _resolveOrderType(
+        serviceType: serviceType,
+        isPartnerStore: isPartnerStore,
+      ).name,
+      // BUG #3 (2026-05-12) — bag_count dinâmico por service_type.
+      // Server (pricing_calculate) aplica:
+      //   restaurant → bag_fee_restaurant_cents=30 fixo se bag_count>=1
+      //   storeShopping → bag_fee_supermarket_per_bag_cents=10 × bag_count
+      //   carry/sendPackage → 0
+      'bag_count': _resolveBagCount(serviceType, 1),
+      'requires_car': requiresCar,
+      'wallet_applied_cents': walletAppliedCents,
+      if (pickupLocation != null) 'pickup_lat': pickupLocation.latitude,
+      if (pickupLocation != null) 'pickup_lng': pickupLocation.longitude,
+      'dropoff_lat': destination.latitude,
+      'dropoff_lng': destination.longitude,
+      if (pickupAddress != null) 'pickup_address': pickupAddress,
+      if (pickupStreet != null) 'pickup_street': pickupStreet,
+      if (pickupCity != null) 'pickup_city': pickupCity,
+      if (pickupPostalCode != null) 'pickup_postal_code': pickupPostalCode,
+      if (dropoffAddress != null) 'dropoff_address': dropoffAddress,
+      if (dropoffStreet != null) 'dropoff_street': dropoffStreet,
+      if (dropoffCity != null) 'dropoff_city': dropoffCity,
+      if (dropoffPostalCode != null) 'dropoff_postal_code': dropoffPostalCode,
+      // FAVORES (errand) — branch errand de create_order exige estes campos.
+      if (serviceType == OrderServiceType.errand) ...{
+        'errand_description': errandDescription,
+        'errand_location': errandLocation,
+        'errand_location_lat': errandLocationLat,
+        'errand_location_lng': errandLocationLng,
+        'errand_speed': errandSpeed,
+        'errand_home_stop': errandHomeStop,
+        if (errandHomeStopReason != null)
+          'errand_home_stop_reason': errandHomeStopReason,
+        'errand_has_purchase': errandHasPurchase,
+        'errand_estimated_purchase_cents': errandEstimatedPurchaseCents,
+        if (errandRequestPhotoUrl != null)
+          'errand_request_photo_url': errandRequestPhotoUrl,
+      },
+      if (customerNotes != null) 'customer_notes': customerNotes,
+      if (customerName != null) 'customer_name': customerName,
+      if (clientPhone != null) 'client_phone': clientPhone,
+      'items': clonedItems?.map((i) => i.toJson()).toList() ?? [],
+      if ((serviceType == OrderServiceType.restaurant ||
+              serviceType == OrderServiceType.storeShopping) &&
+          clonedItems != null)
+        'product_lines': clonedItems
+            .map((i) => {
+                  'product_id': i.productId,
+                  'quantity': i.quantity,
+                  // B1 (2026-06-11): unit_price = preço PURO (fallback do
+                  // quote_order_pricing quando o id não existe em products;
+                  // o servidor aplica ×1.15 por cima — ver create_order).
+                  'unit_price': i.basePrice ?? i.price,
+                  'name': i.name,
+                })
+            .toList(),
+      // 2026-05-14 — cartao guardado (Edge Fn v28 lê + remove do payload draft).
+      if (savedPmId != null) 'saved_pm_id': savedPmId,
+    };
+
+    // Sessão 4C: defesa pré-RPC contra productId inválido.
+    // Bloqueia chegada de "nome" como product_id ao Edge Fn / RPC.
+    try {
+      validateOrderPayload(cartInput);
+    } on FormatException catch (e) {
+      debugPrint('[FLOW] startCardPaymentDraft BLOCKED — $e');
+      return null;
+    }
+
+    debugPrint(
+        '[FLOW] startCardPaymentDraft → invoking create-payment-intent (new mode)');
+    try {
+      final response = await supabase.functions.invoke(
+        'create-payment-intent',
+        body: {'cart_input': cartInput},
+      );
+      final body = response.data as Map<String, dynamic>?;
+      if (body == null ||
+          body['clientSecret'] == null ||
+          body['paymentIntentId'] == null ||
+          body['draftId'] == null) {
+        debugPrint('[FLOW] startCardPaymentDraft: incomplete response: $body');
+        return null;
+      }
+      debugPrint('[FLOW] startCardPaymentDraft OK — draft=${body['draftId']} '
+          'pi=${body['paymentIntentId']} status=${body['status']} '
+          'requiresAction=${body['requiresAction']}');
+      return body;
+    } catch (e) {
+      debugPrint('[FLOW] startCardPaymentDraft FAILED: $e');
+      return null;
+    }
+  }
+
+  /// Polls `payment_drafts` for `used_at NOT NULL` after Stripe charge
+  /// confirmed. Returns the new `order_id` once webhook+finalize created
+  /// the order, or `null` on timeout (default 30s).
+  Future<String?> waitForOrderFromDraft(
+    String draftId, {
+    Duration timeout = const Duration(seconds: 30),
+    Duration pollInterval = const Duration(seconds: 2),
+  }) async {
+    final deadline = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(deadline)) {
+      try {
+        final row = await supabase
+            .from('payment_drafts')
+            .select('order_id, used_at')
+            .eq('id', draftId)
+            .maybeSingle();
+        if (row != null && row['used_at'] != null && row['order_id'] != null) {
+          final orderId = row['order_id'] as String;
+          debugPrint('[FLOW] waitForOrderFromDraft: order created → $orderId');
+          return orderId;
+        }
+      } catch (e) {
+        debugPrint('[FLOW] waitForOrderFromDraft poll error (continuing): $e');
+      }
+      await Future.delayed(pollInterval);
+    }
+    debugPrint('[FLOW] waitForOrderFromDraft TIMEOUT for draft=$draftId');
+    return null;
+  }
+
+  /// BUG #3 (2026-05-12) — resolve bag_count baseado em service_type.
+  /// Server (pricing_calculate) usa este valor para calcular bag_fee via settings:
+  ///   restaurant: bag_fee_restaurant_cents=30 (fixo se bag_count>=1)
+  ///   storeShopping: bag_fee_supermarket_per_bag_cents=10 × bag_count
+  ///   carry/sendPackage: sem bag_fee.
+  /// Default requestedBagCount=1 (cliente normal). Pode ser refinado em futura
+  /// versão para receber input "Quantos sacos?" no checkout storeShopping.
+  int _resolveBagCount(OrderServiceType serviceType, int requestedBagCount) {
+    switch (serviceType) {
+      case OrderServiceType.restaurant:
+        return 1; // server aplica €0.30 fixo
+      case OrderServiceType.storeShopping:
+        return requestedBagCount.clamp(1, 99); // server aplica €0.10 × N
+      case OrderServiceType.carryGroceries:
+      case OrderServiceType.sendPackage:
+        return 0;
+      case OrderServiceType.takeaway:
+        // Confirmado via MCP: create_order RPC zera todas as fees para
+        // takeaway (delivery=0, service=0, bag=0). Cliente só paga subtotal.
+        return 0;
+      case OrderServiceType.errand:
+        // FAVORES — sem sacos. Backend branch errand grava bag_count=0.
+        return 0;
     }
   }
 
@@ -395,8 +739,24 @@ class OrderStore extends ChangeNotifier {
     double tokenDiscountEur = 0.0,
     String? packagePhotoUrl,
     String? groceriesPhotoUrl,
-    bool isTakeaway = false,
+    // D4 — `isTakeaway` removido. Caller deve passar
+    // `serviceType: OrderServiceType.takeaway` via OrderModel (cart_store
+    // já o faz através de _serviceType).
+    bool takeawayIsCurbside = false,
+    String? takeawayCurbsideInfo,
     int tipCents = 0,
+    int walletAppliedCents = 0,
+    // FAVORES (errand) — campos do favor (null/default para outros tipos).
+    String? errandDescription,
+    String? errandLocation,
+    double? errandLocationLat,
+    double? errandLocationLng,
+    bool errandHomeStop = false,
+    String? errandHomeStopReason,
+    String? errandSpeed,
+    bool errandHasPurchase = false,
+    int errandEstimatedPurchaseCents = 0,
+    String? errandRequestPhotoUrl,
   }) async {
     // ── Authenticated-user guard ────────────────────────────────────────────
     // Read the user id directly from the live Supabase session (not from any
@@ -411,15 +771,17 @@ class OrderStore extends ChangeNotifier {
     if (liveUserId == null ||
         (_authStore?.isGuestSession ?? true) ||
         _authStore?.currentClient == null) {
-      debugPrint(
-          '[FLOW] createOrder BLOCKED — no authenticated client session '
+      debugPrint('[FLOW] createOrder BLOCKED — no authenticated client session '
           '(liveUserId=$liveUserId isGuest=${_authStore?.isGuestSession} '
           'hasClient=${_authStore?.currentClient != null})');
       return false;
     }
 
+    // FAVORES — a distância do favor é multi-segmento (casa→favor→entrega) e já
+    // vem resolvida do wizard; um recompute de 2 pontos (pickup→dropoff) perderia
+    // a perna do favor e poderia falhar o gate server `distance>=haversine×0.8`.
     double? googleDistance;
-    if (pickupLocation != null) {
+    if (pickupLocation != null && serviceType != OrderServiceType.errand) {
       try {
         googleDistance =
             await MapsService.getDistanceKm(pickupLocation, destination);
@@ -457,9 +819,16 @@ class OrderStore extends ChangeNotifier {
     final clonedItems = items
         ?.map(
           (item) => CartItem(
+            productId:
+                item.productId, // T16: preserve UUID/id for server lookup
             name: item.name,
             price: item.price,
             quantity: item.quantity,
+            // B1 (2026-06-11): preservar basePrice (unit_price puro nas
+            // product_lines) e selectedOptions (antes eram descartadas neste
+            // clone — orders.items do fluxo cash/MBWay perdia as opções).
+            basePrice: item.basePrice,
+            selectedOptions: item.selectedOptions,
           ),
         )
         .toList();
@@ -495,8 +864,19 @@ class OrderStore extends ChangeNotifier {
       'payment_method': paymentMethod.name,
       'subtotal': itemsSubtotal,
       'apartment_delivery': apartmentDelivery,
-      'bag_count': 0,
+      'order_type': orderType.name,
+      // BUG #3 (2026-05-12) — bag_count dinâmico por service_type.
+      'bag_count': _resolveBagCount(serviceType, 1),
       'requires_car': requiresCar,
+      // S1.4: Wallet debit happens atomically inside create_order RPC.
+      // Pre-validates balance with FOR UPDATE lock; throws on insufficient.
+      'wallet_applied_cents': walletAppliedCents,
+      // B3a (2026-06-12): desconto em tokens enviado para validação
+      // server-side do cap (token_payment_max_pct, 50%). O servidor valida e
+      // regista em tokens_applied_value_cents — NÃO altera charge/buffer:
+      // o desconto continua aplicado localmente no paymentBufferTotal.
+      if (tokenDiscountEur > 0)
+        'token_discount_cents': (tokenDiscountEur * 100).round(),
       if (pickupLocation != null) 'pickup_lat': pickupLocation.latitude,
       if (pickupLocation != null) 'pickup_lng': pickupLocation.longitude,
       'dropoff_lat': destination.latitude,
@@ -509,28 +889,60 @@ class OrderStore extends ChangeNotifier {
       if (dropoffStreet != null) 'dropoff_street': dropoffStreet,
       if (dropoffCity != null) 'dropoff_city': dropoffCity,
       if (dropoffPostalCode != null) 'dropoff_postal_code': dropoffPostalCode,
+      // FAVORES (errand) — branch errand de create_order exige estes campos.
+      if (serviceType == OrderServiceType.errand) ...{
+        'errand_description': errandDescription,
+        'errand_location': errandLocation,
+        'errand_location_lat': errandLocationLat,
+        'errand_location_lng': errandLocationLng,
+        'errand_speed': errandSpeed,
+        'errand_home_stop': errandHomeStop,
+        if (errandHomeStopReason != null)
+          'errand_home_stop_reason': errandHomeStopReason,
+        'errand_has_purchase': errandHasPurchase,
+        'errand_estimated_purchase_cents': errandEstimatedPurchaseCents,
+        if (errandRequestPhotoUrl != null)
+          'errand_request_photo_url': errandRequestPhotoUrl,
+      },
       if (customerNotes != null) 'customer_notes': customerNotes,
       if (customerName != null) 'customer_name': customerName,
-      if (clientPhone != null) 'customer_phone': clientPhone,
+      if (clientPhone != null) 'client_phone': clientPhone,
       if (paymentIntentId != null) 'payment_intent_id': paymentIntentId,
       'items': clonedItems?.map((i) => i.toJson()).toList() ?? [],
       // restaurant / storeShopping: pass product_lines so RPC recalculates
       // subtotal from DB prices (server-trusted subtotal — Opção B).
       // carryGroceries / sendPackage: no product_lines → RPC trusts client subtotal.
+      // T16: include product_id (UUID when available) so create_order can do
+      //      DB lookup first; falls back to unit_price if not found.
       if ((serviceType == OrderServiceType.restaurant ||
               serviceType == OrderServiceType.storeShopping) &&
           clonedItems != null)
         'product_lines': clonedItems
             .map((i) => {
+                  'product_id': i.productId,
                   'quantity': i.quantity,
-                  'unit_price': i.price,
+                  // B1 (2026-06-11): unit_price = preço PURO de catálogo.
+                  // O servidor só o usa como fallback quando o product_id não
+                  // existe em `products` (ex. variantes) e aplica ×1.15 por
+                  // cima — enviar i.price (já com markup) duplicaria o markup.
+                  'unit_price': i.basePrice ?? i.price,
                   'name': i.name,
                 })
             .toList(),
     };
 
+    // Sessão 4C: defesa pré-RPC contra productId inválido.
+    // Bloqueia chegada de "nome" como product_id à RPC create_order.
+    try {
+      validateOrderPayload(rpcInput);
+    } on FormatException catch (e) {
+      debugPrint('[FLOW] createOrder BLOCKED — $e');
+      return false;
+    }
+
     debugPrint(
         '[FLOW] createOrder START → RPC create_order type=${serviceType.name}');
+    lastCreateOrderError = null;
 
     // serverOrder declared outside try so the catch block can roll back if
     // anything after the RPC (photos, push, simulate) throws.
@@ -589,27 +1001,43 @@ class OrderStore extends ChangeNotifier {
             (rpcData['payment_buffer_total'] as num).toDouble() -
                 tokenDiscountEur,
         tipCents: tipCents,
-        isTakeaway: isTakeaway,
+        // D4 — takeaway agora vem implícito via serviceType. Curbside é
+        // gravado pelo servidor via create_order RPC (server-trusted) e
+        // espelhado abaixo no UPDATE side-effect.
+        takeawayIsCurbside: takeawayIsCurbside,
+        takeawayCurbsideInfo: takeawayCurbsideInfo,
+        walletAppliedCents:
+            (rpcData['wallet_applied_cents'] as num?)?.toInt() ?? 0,
+        menuCreditAppliedCents:
+            (rpcData['menu_credit_applied_cents'] as num?)?.toInt() ?? 0,
       );
 
       final order = serverOrder;
       _orders.insert(0, order);
+      _lastCreatedOrderId = order.id;
       notifyListeners();
 
       debugPrint('[FLOW] createOrder: RPC + local state OK');
 
-      // Persist mandatory photos for sendPackage / carryGroceries (BR §7.5/7.6).
-      // Side-effect update after insert — keeps createOrder additive to _saveOrderToDatabase.
-      if (packagePhotoUrl != null || groceriesPhotoUrl != null || isTakeaway) {
+      // Persist mandatory photos for sendPackage / carryGroceries (BR §7.5/7.6)
+      // + curbside info (D6). Side-effect update after insert.
+      // Coluna `is_takeaway` foi APAGADA do servidor — NÃO gravar.
+      final hasCurbsideData = takeawayIsCurbside ||
+          (takeawayCurbsideInfo != null && takeawayCurbsideInfo.isNotEmpty);
+      if (packagePhotoUrl != null ||
+          groceriesPhotoUrl != null ||
+          hasCurbsideData) {
         try {
           await supabase.from('orders').update({
             if (packagePhotoUrl != null) 'package_photo_url': packagePhotoUrl,
             if (groceriesPhotoUrl != null)
               'groceries_photo_url': groceriesPhotoUrl,
-            if (isTakeaway) 'is_takeaway': true,
+            if (takeawayIsCurbside) 'takeaway_is_curbside': true,
+            if (takeawayCurbsideInfo != null && takeawayCurbsideInfo.isNotEmpty)
+              'takeaway_curbside_info': takeawayCurbsideInfo,
           }).eq('id', order.id);
         } catch (e) {
-          debugPrint('[FLOW] createOrder: photo/takeaway update failed => $e');
+          debugPrint('[FLOW] createOrder: photo/curbside update failed => $e');
         }
       }
 
@@ -619,10 +1047,22 @@ class OrderStore extends ChangeNotifier {
         notifyListeners();
       }
 
+      // S1.4: Wallet debit no longer post-RPC — done atomically inside
+      // create_order. The RPC return now exposes wallet_applied_cents and
+      // fully_paid_by_wallet so callers can branch on payment flow.
+      if (walletAppliedCents > 0) {
+        debugPrint(
+            '[FLOW] createOrder: wallet applied ${rpcData['wallet_applied_cents']} cents '
+            '(charge=${rpcData['charge_total']}, fully_paid=${rpcData['fully_paid_by_wallet']})');
+      }
+
       // Notify partner restaurant of new order via FCM push (fire-and-forget).
       // Only for partner restaurant orders — supermarket/logistics flows are handled differently.
+      // MBWay: notificação feita pelo stripe-webhook após payment_intent.succeeded
+      // para não notificar o parceiro antes do pagamento estar confirmado.
       if (order.isPartnerStore &&
-          order.serviceType == OrderServiceType.restaurant) {
+          order.serviceType == OrderServiceType.restaurant &&
+          order.paymentMethod != PaymentMethod.mbway) {
         final restaurant = _restaurantStore?.restaurantByName(order.vendorName);
         if (restaurant != null) {
           final itemsSummary = order.items
@@ -642,24 +1082,25 @@ class OrderStore extends ChangeNotifier {
         }
       }
 
-      // NOTE: MBWay confirmation is server-only. The client does NOT trigger
-      // confirm-mbway-payment from here — that would make the "server-trusted"
-      // path trivially forgeable. A real MBWay provider webhook (or a manual
-      // operator call) is the only authorised way to flip payment_status.
-      // Until that integration exists, MBWay orders block at the payment gate
-      // by design (safe default).
+      // NOTE: MBWay confirmation is server-only via stripe-webhook (Stripe
+      // PaymentIntent succeeded → flips payment_status to 'paid'). The client
+      // does NOT trigger confirmation directly — that would make the
+      // "server-trusted" path trivially forgeable.
 
       // Fire-and-forget: status simulation is a best-effort side-effect.
       // createOrder returns true as soon as the order is committed to the server.
       _simulateRestaurantFlow(order).ignore();
-      debugPrint('[FLOW] createOrder DONE id=${order.id} — RPC committed, simulate async');
+      debugPrint(
+          '[FLOW] createOrder DONE id=${order.id} — RPC committed, simulate async');
       return true;
     } catch (e) {
       debugPrint('[FLOW] createOrder FAILED: $e');
+      lastCreateOrderError = e.toString();
       if (serverOrder != null) {
         // RPC committed the order to the server — do NOT roll back local state.
         // Ensure the order is visible in the UI and return success.
-        final committed = serverOrder; // non-nullable capture for closure safety
+        final committed =
+            serverOrder; // non-nullable capture for closure safety
         if (!_orders.any((o) => o.id == committed.id)) {
           _orders.insert(0, committed);
         }
@@ -711,7 +1152,8 @@ class OrderStore extends ChangeNotifier {
     await Future.delayed(delay);
 
     if (!_orders.any((o) => o.id == order.id)) {
-      debugPrint('[FLOW] _simulateFlow: order gone after delay — re-inserting');
+        debugPrint(
+            '[FLOW] _simulateFlow: order gone after delay — re-inserting');
       _orders.insert(0, order);
       notifyListeners();
     }
@@ -739,7 +1181,8 @@ class OrderStore extends ChangeNotifier {
           '[FLOW] ERROR: failed to reach callingDriver — dispatch will NOT run');
     }
     } catch (e, st) {
-      debugPrint('[FLOW] _simulateFlow ERROR (background, order safe on server): $e\n$st');
+      debugPrint(
+          '[FLOW] _simulateFlow ERROR (background, order safe on server): $e\n$st');
     }
   }
 
@@ -761,6 +1204,17 @@ class OrderStore extends ChangeNotifier {
       OrderModel order, OrderStatus targetStatus) async {
     debugPrint(
         '[FLOW] _advanceStatus: ${order.status.name} → ${targetStatus.name} id=${order.id}');
+
+    // D8 — takeaway: cliente Flutter NÃO avança status. Servidor (RPCs
+    // partner_takeaway_*) é authoritative. Apenas cancelamento/rejeição
+    // são permitidos por este caminho.
+    if (order.serviceType == OrderServiceType.takeaway &&
+        targetStatus != OrderStatus.cancelled &&
+        targetStatus != OrderStatus.rejected) {
+      debugPrint(
+          '[FLOW] _advanceStatus: BLOCKED — takeaway only mutated server-side (id=${order.id})');
+      return false;
+    }
 
     final inList = _orders.any((o) => o.id == order.id);
     if (!inList) {
@@ -792,8 +1246,17 @@ class OrderStore extends ChangeNotifier {
 
     if (!success) {
       debugPrint('[FLOW] _advanceStatus: DB UPDATE FAILED');
+      // 2026-05-21 — A8: enfileira transição do estafeta para retry quando
+      // rede voltar. OfflineStatusQueue filtra apenas pickedUp/onTheWay/delivered.
+      unawaited(OfflineStatusQueue.enqueue(
+        orderId: order.id,
+        targetStatusName: targetStatus.name,
+      ));
       return false;
     }
+
+    // 2026-05-21 — A8: rede voltou → drena fila pendente sem aguardar.
+    unawaited(_drainOfflineStatusQueue());
 
     order.status = targetStatus;
     notifyListeners();
@@ -816,6 +1279,59 @@ class OrderStore extends ChangeNotifier {
     return true;
   }
 
+  // 2026-05-21 — A8: drena fila offline de transições do estafeta.
+  // Chamado após uma transição bem-sucedida (indicador de rede OK).
+  Future<void> _drainOfflineStatusQueue() async {
+    try {
+      final pending = await OfflineStatusQueue.peek();
+      if (pending.isEmpty) return;
+      debugPrint('[OfflineQueue] draining ${pending.length} pending');
+      for (final entry in pending) {
+        OrderModel? order;
+        for (final o in _orders) {
+          if (o.id == entry.orderId) {
+            order = o;
+            break;
+          }
+        }
+        if (order == null) {
+          // Ordem já não está em memória — descarta (não bloqueia fila).
+          await OfflineStatusQueue.remove(
+            orderId: entry.orderId,
+            targetStatusName: entry.targetStatusName,
+          );
+          continue;
+        }
+        final target = OrderStatus.values.firstWhere(
+          (s) => s.name == entry.targetStatusName,
+          orElse: () => OrderStatus.created,
+        );
+        if (target == order.status) {
+          // Já foi para esse estado (provavelmente via realtime) — limpa.
+          await OfflineStatusQueue.remove(
+            orderId: entry.orderId,
+            targetStatusName: entry.targetStatusName,
+          );
+          continue;
+        }
+        final ok = await _updateOrderStatusInDatabase(order, target);
+        if (ok) {
+          order.status = target;
+          notifyListeners();
+          await OfflineStatusQueue.remove(
+            orderId: entry.orderId,
+            targetStatusName: entry.targetStatusName,
+          );
+        } else {
+          // Ainda offline — pára aqui, mantém fila.
+          break;
+        }
+      }
+    } catch (e) {
+      debugPrint('[OfflineQueue] drain error: $e');
+    }
+  }
+
   /// Fire-and-forget: sends a status-specific push to the client.
   /// Skips statuses that don't warrant a client notification (created, rejected).
   void _notifyClientForStatus(OrderModel order, OrderStatus status) {
@@ -833,8 +1349,8 @@ class OrderStore extends ChangeNotifier {
     if (clientId == null || clientId.isEmpty) return;
 
     // Look up vendor + driver names for richer copy (best-effort).
-    final vendor = _restaurantStore?.restaurantByName(order.vendorName)?.name
-        ?? order.vendorName;
+    final vendor = _restaurantStore?.restaurantByName(order.vendorName)?.name ??
+        order.vendorName;
     final driver = order.assignedDriverId == null
         ? null
         : _driverStore.getDriverById(order.assignedDriverId!)?.name;
@@ -866,6 +1382,9 @@ class OrderStore extends ChangeNotifier {
   bool rejectAvailableOrder(OrderModel order) {
     if (order.status != OrderStatus.callingDriver) return false;
     _dismissedOrderIds.add(order.id);
+    // Exec6.5 — marca handled no gate para impedir re-trigger noutra UI
+    // (laranja rejeitada → bonita NÃO pode aparecer para o mesmo pedido).
+    OfferPresentationGate.markActionCompleted(order.id);
     notifyListeners();
     // Notify backend immediately so the next driver is dispatched without
     // waiting for the 40-second offer timeout to expire.
@@ -878,22 +1397,23 @@ class OrderStore extends ChangeNotifier {
     if (driverId.isEmpty) return;
     if (order.assignedDriverId != null) return;
     try {
-      // Clear the offer atomically — only acts if this driver still holds it.
-      await supabase
-          .from('orders')
-          .update({
-            'current_driver_offer_id': null,
-            'driver_offer_expires_at': null,
-          })
-          .eq('id', order.id)
-          .eq('current_driver_offer_id', driverId);
-
-      // Immediately wake the dispatch engine to assign the next driver.
-      await _invokeDispatch(order.id);
+      // Sessão 2026-05-22 — usar RPC driver_reject_offer (SECURITY DEFINER) que:
+      //   1) limpa current_driver_offer_id + expires_at atomicamente
+      //   2) ADICIONA o driver a tried_driver_ids (sem isto, dispatch-engine
+      //      cycle-reset não dispara e o pedido fica preso no estafeta antigo
+      //      por 40s até timeout)
+      //   3) invoca dispatch-engine via invoke_dispatch_engine RPC
+      // CallKit reject (main.dart) também usa esta RPC.
+      final res = await supabase.rpc(
+        'driver_reject_offer',
+        params: {'p_order_id': order.id},
+      );
       debugPrint(
-          '[OrderStore] _rejectOrderInBackend: offer cleared, dispatch invoked for order=${order.id}');
+          '[OrderStore] _rejectOrderInBackend: RPC result=$res for order=${order.id}');
+      // Cancelar notificação persistente de oferta após rejeitar.
+      unawaited(cancelDriverOfferNotification(order.id));
     } catch (e) {
-      debugPrint('[OrderStore] _rejectOrderInBackend error: $e');
+      debugPrint('[OrderStore] _rejectOrderInBackend RPC error: $e');
     }
   }
 
@@ -901,18 +1421,34 @@ class OrderStore extends ChangeNotifier {
   /// `driver_cancel_order`. The RPC handles the DB-side transition back to
   /// `callingDriver` and re-triggers dispatch. Flutter only needs to remove
   /// the row from local state so the driver UI updates immediately.
-  Future<bool> driverCancelAcceptedOrder(OrderModel order) async {
+  ///
+  /// Sessão 7-UI-BUG004: a RPC devolve um JSON com `ok`, `error`,
+  /// `support_required` e `message`. Pós status `pickedUp` o backend
+  /// recusa com `support_required:true` (BUG-7E-B-004 fix em 7-FIX,
+  /// migration 20260507223338). Devolvemos o Map para a UI poder
+  /// abrir o bottom sheet de redirecção ao suporte.
+  Future<Map<String, dynamic>> driverCancelAcceptedOrder(
+      OrderModel order) async {
     try {
-      await supabase.rpc(
+      final response = await supabase.rpc(
         'driver_cancel_order',
         params: {'p_order_id': order.id},
       );
-      _orders.removeWhere((o) => o.id == order.id);
-      notifyListeners();
-      return true;
+      final result = (response is Map)
+          ? Map<String, dynamic>.from(response)
+          : <String, dynamic>{'ok': false, 'error': 'invalid_response'};
+      if (result['ok'] == true) {
+        _orders.removeWhere((o) => o.id == order.id);
+        notifyListeners();
+      }
+      return result;
     } catch (e) {
       debugPrint('[OrderStore] driverCancelAcceptedOrder: $e');
-      return false;
+      return <String, dynamic>{
+        'ok': false,
+        'error': 'rpc_exception',
+        'message': e.toString(),
+      };
     }
   }
 
@@ -995,12 +1531,14 @@ class OrderStore extends ChangeNotifier {
   Future<ClientCancelResult> clientCancelOrder(
     OrderModel order, {
     String? reason,
+    String refundTarget = 'card', // Bloco 4 Q1: 'card' | 'wallet'
   }) async {
     try {
       final response = await supabase.functions.invoke(
         'client-cancel-order',
         body: {
           'order_id': order.id,
+          'refund_target': refundTarget,
           if (reason != null && reason.trim().isNotEmpty)
             'reason': reason.trim(),
         },
@@ -1040,6 +1578,11 @@ class OrderStore extends ChangeNotifier {
       driverPhone: driver?.phone,
     );
     if (!success) return false;
+    // Cancelar notificação persistente de oferta após aceitar com sucesso.
+    unawaited(cancelDriverOfferNotification(order.id));
+    // Exec6.5 — marca handled no gate (impede CallKit/dialog de reaparecer
+    // para o mesmo orderId depois de aceite).
+    OfferPresentationGate.markActionCompleted(order.id);
 
     order.status = OrderStatus.driverAccepted;
     order.assignedDriverId = _currentDriverId;
@@ -1047,6 +1590,7 @@ class OrderStore extends ChangeNotifier {
     order.driverPhone = driver?.phone;
     notifyListeners();
     _handlePartnerPreparationFlow(order);
+    _notifyClientForStatus(order, OrderStatus.driverAccepted);
 
     final registered =
         _driverStore.registerOrderForDriver(_currentDriverId, order);
@@ -1060,10 +1604,16 @@ class OrderStore extends ChangeNotifier {
 
   Future<void> acceptOrderById(String orderId, String driverId) async {
     try {
-      await supabase.from('orders').update({
-        'assigned_driver_id': driverId,
-        'status': OrderStatus.driverAccepted.name,
-      }).eq('id', orderId);
+      final response = await supabase.rpc(
+        'driver_accept_offer',
+        params: {'p_order_id': orderId},
+      );
+      final result = response is Map
+          ? Map<String, dynamic>.from(response)
+          : <String, dynamic>{};
+      if (result['ok'] != true) {
+        throw StateError((result['error'] ?? 'accept_failed').toString());
+      }
       debugPrint(
           'OrderStore.acceptOrderById: OK order=$orderId driver=$driverId');
       await loadOrders();
@@ -1073,7 +1623,7 @@ class OrderStore extends ChangeNotifier {
   }
 
   Future<bool> pickUpOrder(OrderModel order) async {
-    final advanced = await _advanceStatus(order, OrderStatus.pickedUp);
+    final advanced = await _advanceDriverStatus(order, OrderStatus.pickedUp);
     if (advanced) {
       order.pickupWarningIssued = false;
       _driverStore.updateTrackingTarget(order);
@@ -1086,7 +1636,7 @@ class OrderStore extends ChangeNotifier {
   }
 
   Future<bool> startDelivery(OrderModel order) async {
-    final advanced = await _advanceStatus(order, OrderStatus.onTheWay);
+    final advanced = await _advanceDriverStatus(order, OrderStatus.onTheWay);
     if (advanced) {
       _driverStore.updateTrackingTarget(order);
     }
@@ -1094,7 +1644,12 @@ class OrderStore extends ChangeNotifier {
   }
 
   Future<bool> finishOrder(OrderModel order) async {
-    final advanced = await _advanceStatus(order, OrderStatus.delivered);
+    if (order.paymentMethod != PaymentMethod.cash) return false;
+    final advanced = await _runDriverTransitionRpc(
+      order,
+      rpcName: 'driver_finish_cash_order',
+      targetStatus: OrderStatus.delivered,
+    );
     if (advanced && order.assignedDriverId != null) {
       _driverStore.releaseOrderForDriver(order.assignedDriverId!, order.id);
       _driverStore.stopTracking(order.id);
@@ -1104,27 +1659,105 @@ class OrderStore extends ChangeNotifier {
     return advanced;
   }
 
-  Future<bool> finalizePurchase({
+  /// P6 (2026-08-17, "vai costura do PIN" do Danilo) — Conclui a entrega
+  /// VALIDANDO O PIN NO SERVIDOR. A app envia o codigo; a RPC
+  /// `driver_validate_delivery_pin` decide (deriva o mesmo PIN do UUID, regista
+  /// tentativas, bloqueia a 5.a e so ela muda para delivered). O cliente NUNCA
+  /// decide localmente. `order` e o pedido DESTA entrega (stacking: o certo).
+  Future<DeliveryPinResult> finishOrderWithPin(
+      OrderModel order, String pin) async {
+    Map<String, dynamic> data;
+    try {
+      final res = await supabase.rpc('driver_validate_delivery_pin',
+          params: {'p_order_id': order.id, 'p_pin': pin});
+      data = res is Map ? Map<String, dynamic>.from(res) : <String, dynamic>{};
+    } catch (e) {
+      // Falha de rede/servidor: NAO fechar localmente. Tenta de novo.
+      return const DeliveryPinResult(ok: false, error: 'network');
+    }
+    if (data['ok'] == true) {
+      // Servidor ja pos delivered. Espelha o estado local (mesmo efeito do
+      // finishOrder, mas sem re-emitir a transicao -- o servidor mandou).
+      final idx = _orders.indexWhere((o) => o.id == order.id);
+      if (idx != -1) {
+        _orders[idx] = OrderModel.fromSupabase({
+          ..._orders[idx].toSupabase(),
+          'status': 'delivered',
+          'delivered_at': DateTime.now().toUtc().toIso8601String(),
+        });
+      }
+      if (order.assignedDriverId != null) {
+        _driverStore.releaseOrderForDriver(order.assignedDriverId!, order.id);
+        _driverStore.stopTracking(order.id);
+        _driverLocationService.stopTracking();
+        order.pickupWarningIssued = false;
+      }
+      _lastDeliveredAt = DateTime.now();
+      notifyListeners();
+      return const DeliveryPinResult(ok: true);
+    }
+    return DeliveryPinResult(
+      ok: false,
+      error: data['error'] as String?,
+      attemptsLeft: (data['attempts_left'] as num?)?.toInt(),
+    );
+  }
+
+  /// BUG 6 (Fase 3 / 2026-04-30) — Alarga guard p/ aceitar `driverAccepted`.
+  ///
+  /// O UI (`driver_map_screen.dart` _FinalizePurchaseButton) já mostra o botão
+  /// em `driverAccepted` por design (estafeta finaliza compra ANTES de marcar
+  /// pickup). A guarda anterior só aceitava `pickedUp/onTheWay`, causando
+  /// rejeição silenciosa e estafeta preso (Order 6746d61f preso 36h).
+  ///
+  /// Retorna `null` em sucesso, ou um `String` com a razão da falha — caller
+  /// deve mostrar a mensagem ao utilizador em vez do snackbar genérico.
+  Future<String?> finalizePurchaseWithReason({
     required String orderId,
     required double purchaseValue,
   }) async {
-    if (purchaseValue <= 0) return false;
+    if (purchaseValue <= 0) return 'Valor inválido (deve ser > 0).';
 
     final index = _orders.indexWhere((o) => o.id == orderId);
-    if (index == -1) return false;
+    if (index == -1) return 'Pedido não encontrado localmente.';
 
     final order = _orders[index];
 
     final isEligible = order.serviceType == OrderServiceType.storeShopping ||
         !order.isPartnerStore;
-    if (!isEligible) return false;
-
-    if (order.status != OrderStatus.pickedUp &&
-        order.status != OrderStatus.onTheWay) {
-      return false;
+    if (!isEligible) {
+      return 'Confirmar compra não disponível para parceiros.';
     }
 
-    if (order.isPurchaseFinalized) return false;
+    // BUG 6 fix: aceitar driverAccepted (estafeta finaliza ANTES de pickup).
+    if (order.status != OrderStatus.driverAccepted &&
+        order.status != OrderStatus.pickedUp &&
+        order.status != OrderStatus.onTheWay) {
+      return 'Estado do pedido (${order.status.name}) não permite finalizar compra.';
+    }
+
+    if (order.isPurchaseFinalized) {
+      return 'Compra já foi finalizada.';
+    }
+    return await _finalizePurchaseUnchecked(order, purchaseValue);
+  }
+
+  /// Wrapper bool legado — mantém retrocompatibilidade com chamadores antigos.
+  Future<bool> finalizePurchase({
+    required String orderId,
+    required double purchaseValue,
+  }) async {
+    final reason = await finalizePurchaseWithReason(
+      orderId: orderId,
+      purchaseValue: purchaseValue,
+    );
+    return reason == null;
+  }
+
+  /// Lógica interna sem guards — só chamada após validação em finalizePurchaseWithReason.
+  Future<String?> _finalizePurchaseUnchecked(
+      OrderModel order, double purchaseValue) async {
+    final orderId = order.id;
 
     final breakdown = PricingService.calculateBreakdown(
       serviceType: order.serviceType,
@@ -1136,7 +1769,9 @@ class OrderStore extends ChangeNotifier {
     // For storeShopping: add bag_fee (count × €0.10, set by updateBagCount).
     // For restaurant non-partner: bag_fee €0.30 already included in breakdown.customerTotal.
     final computedFinalTotal = breakdown.customerTotal +
-        (order.serviceType == OrderServiceType.storeShopping ? order.bagFee : 0.0);
+        (order.serviceType == OrderServiceType.storeShopping
+            ? order.bagFee
+            : 0.0);
 
     final diff = double.parse(
         (computedFinalTotal - order.paymentBufferTotal).toStringAsFixed(2));
@@ -1165,7 +1800,7 @@ class OrderStore extends ChangeNotifier {
       await supabase.from('orders').update(update).eq('id', orderId);
     } catch (e) {
       debugPrint('OrderStore: finalizePurchase DB error => $e');
-      return false;
+      return 'Erro a gravar na base de dados: $e';
     }
 
     order.finalPurchaseValue = purchaseValue;
@@ -1186,11 +1821,205 @@ class OrderStore extends ChangeNotifier {
       }
     }
 
-    return true;
+    return null;
   }
 
   bool hasPaymentAdjustment(OrderModel order) {
     return (order.refundAmount ?? 0) > 0 || (order.extraChargeAmount ?? 0) > 0;
+  }
+
+  /// New finalize for storeShopping non-partner — calls the SECURITY DEFINER
+  /// RPC `finalize_storeshopping_purchase`. The RPC bypasses the
+  /// `enforce_financial_immutability` trigger via a session GUC and computes
+  /// final_total / refund / extra_charge server-side from items_status +
+  /// items_added. Returns null on success, or a String reason on failure.
+  ///
+  /// Replaces the old "Valor da nota fiscal" flow which UPDATEd financial
+  /// columns directly and was blocked by the trigger (BUG 16).
+  Future<String?> finalizePurchaseV2({
+    required String orderId,
+    required List<CartItem> items,
+    List<Map<String, dynamic>> itemsAdded = const [],
+    int? bagCount,
+  }) async {
+    final index = _orders.indexWhere((o) => o.id == orderId);
+    if (index == -1) return 'Pedido não encontrado localmente.';
+    final order = _orders[index];
+
+    if (order.serviceType != OrderServiceType.storeShopping &&
+        order.serviceType != OrderServiceType.restaurant) {
+      return 'Confirmar compra só está disponível para storeShopping ou restaurant.';
+    }
+    if (order.status != OrderStatus.driverAccepted &&
+        order.status != OrderStatus.pickedUp &&
+        order.status != OrderStatus.onTheWay) {
+      return 'Estado do pedido (${order.status.name}) não permite finalizar compra.';
+    }
+    if (order.isPurchaseFinalized) {
+      return 'Compra já foi finalizada.';
+    }
+
+    try {
+      final response = await supabase.rpc(
+        'finalize_storeshopping_purchase',
+        params: <String, dynamic>{
+          'p_order_id': orderId,
+          'p_items_status': items.map((i) => i.toJson()).toList(),
+          'p_items_added': itemsAdded,
+          if (bagCount != null) 'p_bag_count': bagCount,
+        },
+      );
+
+      // Apply server-computed totals to local state (realtime UPDATE will
+      // overwrite shortly with the same values).
+      if (response is Map) {
+        final finalCents =
+            (response['final_total_cents'] as num?)?.toInt() ?? 0;
+        final refundCents = (response['refund_cents'] as num?)?.toInt() ?? 0;
+        final extraCents =
+            (response['extra_charge_cents'] as num?)?.toInt() ?? 0;
+        final newPaymentStatusName = response['payment_status'] as String?;
+
+        order.finalTotal = finalCents / 100.0;
+        // RPC corrigida (2026-05-22): cash_total_due passa a espelhar final_total.
+        // Limpar localmente força o getter totalToCollectCash a cair em finalTotal
+        // (autoritativo da RPC), evitando que um cashTotalDue antigo herdado de
+        // fromSupabase (pré-fix RPC) sobreviva e mostre "RECEBER €X" errado ao estafeta.
+        order.cashTotalDue = null;
+        order.refundAmount = refundCents > 0 ? refundCents / 100.0 : null;
+        order.extraChargeAmount = extraCents > 0 ? extraCents / 100.0 : null;
+        order.isPurchaseFinalized = true;
+        order.items = List<CartItem>.unmodifiable(items);
+        final bagFeeCents = (response['bag_fee_cents'] as num?)?.toInt();
+        if (bagFeeCents != null) order.bagFee = bagFeeCents / 100.0;
+        final bagCountResp = (response['bag_count'] as num?)?.toInt();
+        if (bagCountResp != null) order.bagCount = bagCountResp;
+        final rawAdded = response['items_added'];
+        if (rawAdded is List) {
+          order.itemsAdded =
+              rawAdded.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        }
+        if (newPaymentStatusName != null) {
+          order.paymentStatus = PaymentStatus.values.firstWhere(
+            (e) => e.name == newPaymentStatusName,
+            orElse: () => order.paymentStatus,
+          );
+        }
+        notifyListeners();
+
+        // Card/wallet: trigger automatic charge/refund via Edge Functions.
+        if (order.paymentMethod == PaymentMethod.card ||
+            order.paymentMethod == PaymentMethod.mbway) {
+          if (refundCents > 0) {
+            unawaited(processRefund(order));
+          } else if (extraCents > 0) {
+            unawaited(processExtraCharge(order));
+          }
+        }
+        // Cash: driver collects diff at delivery (handled in driver UI).
+
+        final warning = response['warning'] as String?;
+        if (warning != null && warning.isNotEmpty) {
+          debugPrint('[OrderStore] finalizePurchaseV2 warning: $warning');
+        }
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint('OrderStore: finalizePurchaseV2 RPC error => $e');
+      return 'Erro ao finalizar compra: $e';
+    }
+  }
+
+  /// BUG 1 — Finaliza compra storeShopping V2 não-parceiro com foto talão +
+  /// valor digitado pelo estafeta. Decisão NOVA 2026-05-11: foto+valor
+  /// obrigatórios em TODOS payment_methods (cash + card + mbway) para
+  /// auditoria. Chama RPC finalize_storeshopping_purchase_v2 (paralelo
+  /// a v1). Returns null on success, String reason on failure.
+  ///
+  /// [photoStoragePath] — path no bucket 'receipts', e.g. 'receipts/<order_id>.jpg'
+  /// [driverTypedTotalCents] — valor que o estafeta digitou do talão
+  /// [items] — items canónicos do pedido com purchaseStatus decidido
+  /// [itemsAdded] — items adicionados pelo estafeta
+  Future<String?> finalizeStoreShoppingV2WithReceipt({
+    required String orderId,
+    required String photoStoragePath,
+    required int driverTypedTotalCents,
+    required List<CartItem> items,
+    List<Map<String, dynamic>> itemsAdded = const [],
+    int bagCount = 1,
+  }) async {
+    final index = _orders.indexWhere((o) => o.id == orderId);
+    if (index == -1) return 'Pedido não encontrado localmente.';
+    final order = _orders[index];
+
+    if (order.serviceType != OrderServiceType.storeShopping ||
+        order.isPartnerStore) {
+      return 'V2 só aplica a storeShopping não-parceiro.';
+    }
+
+    // Build p_items payload aligned com order_purchase_items_v2 schema v2.
+    final payload = <Map<String, dynamic>>[];
+    for (final it in items) {
+      final statusV2 = it.purchaseStatus == 'bought'
+          ? 'purchased'
+          : it.purchaseStatus == 'unavailable'
+              ? 'unavailable'
+              : 'purchased'; // pending shouldn't happen (allDecided gate)
+      payload.add({
+        'original_item_id': it.productId,
+        'original_name': it.name,
+        'original_price_cents': (it.price * 100).round(),
+        'original_qty': it.quantity,
+        'status': statusV2,
+      });
+    }
+    for (final added in itemsAdded) {
+      payload.add({
+        'original_name': (added['name'] as String?) ?? '',
+        'original_price_cents': 0,
+        'original_qty': (added['qty'] as int?) ?? 1,
+        'status': 'added',
+        'actual_name': (added['name'] as String?) ?? '',
+        'actual_price_cents': (added['price_base_cents'] as int?) ?? 0,
+        'actual_qty': (added['qty'] as int?) ?? 1,
+      });
+    }
+
+    try {
+      final response = await supabase.rpc(
+        'finalize_storeshopping_purchase_v2',
+        params: <String, dynamic>{
+          'p_order_id': orderId,
+          'p_driver_typed_total_cents': driverTypedTotalCents,
+          'p_receipt_photo_url': photoStoragePath,
+          'p_items': payload,
+          'p_bag_count': bagCount,
+        },
+      );
+
+      debugPrint(
+          '[OrderStore] finalize_storeshopping_purchase_v2 OK: $response');
+
+      // Local state: o realtime UPDATE eventualmente refletirá. Update
+      // mínimo aqui para UX imediata (status onTheWay + purchase_finalized).
+      order.isPurchaseFinalized = true;
+      order.bagCount = bagCount;
+      order.bagFee = bagCount * 0.10;
+      // RPC v2 corrigida (2026-05-22): cash_total_due = final_total. Limpar
+      // localmente força totalToCollectCash a usar finalTotal autoritativo
+      // que chega via realtime, evitando que cashTotalDue antigo de
+      // fromSupabase mostre "RECEBER €X" errado ao estafeta.
+      order.cashTotalDue = null;
+      // status onTheWay vem via realtime; não força aqui.
+      notifyListeners();
+
+      return null;
+    } catch (e) {
+      debugPrint(
+          'OrderStore: finalize_storeshopping_purchase_v2 RPC error => $e');
+      return 'Erro ao finalizar compra (v2): $e';
+    }
   }
 
   Future<bool> respondToSubstitution({
@@ -1276,14 +2105,32 @@ class OrderStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  // BUG 7 (2026-05-15) — mapeamento completo por service_type. Antes
+  // retornava sempre partnerRestaurant ou nonPartnerPurchase, perdendo
+  // takeaway/sendPackage/carryGroceries (que eram gravados como
+  // nonPartnerPurchase). Sem CHECK constraint em DB; nomes do enum vão
+  // directamente para orders.order_type via .name.
   OrderType _resolveOrderType({
     required OrderServiceType serviceType,
     required bool isPartnerStore,
   }) {
-    if (serviceType == OrderServiceType.restaurant && isPartnerStore) {
-      return OrderType.partnerRestaurant;
+    switch (serviceType) {
+      case OrderServiceType.takeaway:
+        return OrderType.takeaway;
+      case OrderServiceType.sendPackage:
+        return OrderType.sendPackage;
+      case OrderServiceType.carryGroceries:
+        return OrderType.carryGroceries;
+      case OrderServiceType.restaurant:
+        return isPartnerStore
+            ? OrderType.partnerRestaurant
+            : OrderType.nonPartnerPurchase;
+      case OrderServiceType.storeShopping:
+        return OrderType.nonPartnerPurchase;
+      case OrderServiceType.errand:
+        // FAVORES — order_type='errand' (matches branch de create_order).
+        return OrderType.errand;
     }
-    return OrderType.nonPartnerPurchase;
   }
 
   Future<bool> restaurantAcceptOrder(OrderModel order) async {
@@ -1291,8 +2138,42 @@ class OrderStore extends ChangeNotifier {
         order.serviceType != OrderServiceType.restaurant) {
       return false;
     }
-    if (order.status != OrderStatus.created) return false;
-    return _advanceStatus(order, OrderStatus.preparing);
+    if (order.status != OrderStatus.created &&
+        order.status != OrderStatus.preparing) {
+      return false;
+    }
+    return _runPartnerTransitionRpc(
+      order,
+      rpcName: 'partner_accept_order',
+      expectedStatus: OrderStatus.preparing,
+    );
+  }
+
+  /// FAVORES — driverAccepted → pickedUp (estafeta saiu do local do favor
+  /// após recolha/compra). Mapeia semanticamente para "estafeta a tratar do
+  /// teu favor" no tracking do cliente.
+  Future<bool> markErrandArrivedAtErrand(OrderModel order) async {
+    if (order.serviceType != OrderServiceType.errand) return false;
+    if (order.status != OrderStatus.driverAccepted) return false;
+    return _advanceStatus(order, OrderStatus.pickedUp);
+  }
+
+  /// FAVORES — pickedUp → onTheWay (a caminho da entrega).
+  Future<bool> markErrandOnTheWay(OrderModel order) async {
+    if (order.serviceType != OrderServiceType.errand) return false;
+    if (order.status == OrderStatus.driverAccepted) {
+      // Atalho: sem compra+sem paragem-casa salta directo para onTheWay.
+      await _advanceStatus(order, OrderStatus.pickedUp);
+    }
+    if (order.status != OrderStatus.pickedUp) return false;
+    return _advanceStatus(order, OrderStatus.onTheWay);
+  }
+
+  /// FAVORES — onTheWay → delivered (entregue).
+  Future<bool> markErrandDelivered(OrderModel order) async {
+    if (order.serviceType != OrderServiceType.errand) return false;
+    if (order.status != OrderStatus.onTheWay) return false;
+    return _advanceStatus(order, OrderStatus.delivered);
   }
 
   Future<bool> restaurantRejectOrder(OrderModel order) async {
@@ -1300,8 +2181,15 @@ class OrderStore extends ChangeNotifier {
         order.serviceType != OrderServiceType.restaurant) {
       return false;
     }
-    if (order.status != OrderStatus.created) return false;
-    return _advanceStatus(order, OrderStatus.rejected);
+    if (order.status != OrderStatus.created &&
+        order.status != OrderStatus.rejected) {
+      return false;
+    }
+    return _runPartnerTransitionRpc(
+      order,
+      rpcName: 'partner_reject_order',
+      expectedStatus: OrderStatus.rejected,
+    );
   }
 
   Future<bool> restaurantMarkReady(OrderModel order) async {
@@ -1309,7 +2197,7 @@ class OrderStore extends ChangeNotifier {
         order.serviceType != OrderServiceType.restaurant) {
       return false;
     }
-    if (order.status != OrderStatus.preparing) return false;
+    if (order.status.index < OrderStatus.preparing.index) return false;
     // BR §14.9 — takeaway: cliente vai buscar, sem estafeta. Não chamar dispatch.
     // Pedido fica em `preparing`; notificação externa ao cliente por parte do
     // parceiro. Transição final (→ delivered) será feita quando o cliente
@@ -1319,7 +2207,109 @@ class OrderStore extends ChangeNotifier {
           '[FLOW] restaurantMarkReady: takeaway — dispatch skipped (BR §14.9)');
       return true;
     }
-    return _advanceStatus(order, OrderStatus.callingDriver);
+    return _runPartnerTransitionRpc(
+      order,
+      rpcName: 'partner_mark_ready',
+      expectedStatus: OrderStatus.callingDriver,
+    );
+  }
+
+  OrderStatus? _statusNamed(String name) {
+    for (final status in OrderStatus.values) {
+      if (status.name == name) return status;
+    }
+    return null;
+  }
+
+  Future<bool> _runPartnerTransitionRpc(
+    OrderModel order, {
+    required String rpcName,
+    required OrderStatus expectedStatus,
+  }) async {
+    _lastUpdateError = null;
+    try {
+      final response = await supabase.rpc(
+        rpcName,
+        params: {'p_order_id': order.id},
+      );
+      final result = response is Map
+          ? Map<String, dynamic>.from(response)
+          : <String, dynamic>{};
+      if (result['ok'] != true) {
+        _lastUpdateError =
+            (result['error'] ?? 'invalid_server_response').toString();
+        return false;
+      }
+      final serverStatusName =
+          (result['status'] ?? expectedStatus.name).toString();
+      final serverStatus = _statusNamed(serverStatusName);
+      if (serverStatus == null) {
+        _lastUpdateError = 'unknown_server_status:$serverStatusName';
+        return false;
+      }
+      order.status = serverStatus;
+      notifyListeners();
+      _handlePartnerPreparationFlow(order);
+      _notifyClientForStatus(order, serverStatus);
+      if (serverStatus == OrderStatus.callingDriver) {
+        unawaited(_invokeDispatch(order.id));
+      }
+      return true;
+    } catch (e) {
+      _lastUpdateError = e.toString();
+      debugPrint('[OrderStore] $rpcName error: $e');
+      return false;
+    }
+  }
+
+  Future<bool> _advanceDriverStatus(
+    OrderModel order,
+    OrderStatus targetStatus,
+  ) {
+    return _runDriverTransitionRpc(
+      order,
+      rpcName: 'driver_advance_order',
+      targetStatus: targetStatus,
+      extraParams: {'p_target_status': targetStatus.name},
+    );
+  }
+
+  Future<bool> _runDriverTransitionRpc(
+    OrderModel order, {
+    required String rpcName,
+    required OrderStatus targetStatus,
+    Map<String, dynamic> extraParams = const {},
+  }) async {
+    _lastUpdateError = null;
+    try {
+      final response = await supabase.rpc(
+        rpcName,
+        params: {'p_order_id': order.id, ...extraParams},
+      );
+      final result = response is Map
+          ? Map<String, dynamic>.from(response)
+          : <String, dynamic>{};
+      if (result['ok'] != true) {
+        _lastUpdateError =
+            (result['error'] ?? 'invalid_server_response').toString();
+        return false;
+      }
+      final serverStatusName =
+          (result['status'] ?? targetStatus.name).toString();
+      final serverStatus = _statusNamed(serverStatusName);
+      if (serverStatus == null) {
+        _lastUpdateError = 'unknown_server_status:$serverStatusName';
+        return false;
+      }
+      order.status = serverStatus;
+      notifyListeners();
+      _notifyClientForStatus(order, serverStatus);
+      return true;
+    } catch (e) {
+      _lastUpdateError = e.toString();
+      debugPrint('[OrderStore] $rpcName error: $e');
+      return false;
+    }
   }
 
   List<OrderModel> partnerOrdersForRestaurant(String restaurantName) {
@@ -1327,7 +2317,14 @@ class OrderStore extends ChangeNotifier {
     return _orders.where((order) {
       final vendor = order.vendorName;
       if (vendor == null) return false;
-      if (order.serviceType != OrderServiceType.restaurant) return false;
+      // 2026-05-14 fix: takeaway tambem e' um pedido de partner-restaurant.
+      // Antes este filtro excluia silenciosamente service_type='takeaway',
+      // pelo que o parceiro nao via os pedidos takeaway no dashboard
+      // (apesar do som/realtime estarem OK). Aceitar ambos os tipos.
+      if (order.serviceType != OrderServiceType.restaurant &&
+          order.serviceType != OrderServiceType.takeaway) {
+        return false;
+      }
       if (!order.isPartnerStore &&
           order.orderType != OrderType.partnerRestaurant) {
         return false;
@@ -1386,6 +2383,10 @@ class OrderStore extends ChangeNotifier {
       distanceKm: resolvedDistanceKm,
       isPartnerStore: true,
       apartmentDelivery: false,
+      // Parceiro chama estafeta por conta própria (cliente comprou direto).
+      // Comissão 15% (sem markup escondido) + cliente paga o pacote completo
+      // em dinheiro ao estafeta. Ver business_rules.md §2.4.1.
+      isPartnerSelfDispatch: true,
     );
 
     final orderNotes = _composePartnerOrderNotes(items: items, notes: notes);
@@ -1416,6 +2417,7 @@ class OrderStore extends ChangeNotifier {
       items: items
           .map(
             (line) => CartItem(
+              productId: line.product.id,
               name: line.product.name,
               price: line.product.price,
               quantity: line.quantity,
@@ -1531,7 +2533,8 @@ class OrderStore extends ChangeNotifier {
   /// `_ordersSubscription = null` (after cancelling) before calling.
   void _subscribeToOrders() {
     if (_ordersSubscription != null) {
-      debugPrint('[OrderStore] cancelling previous general subscription before re-subscribe');
+      debugPrint(
+          '[OrderStore] cancelling previous general subscription before re-subscribe');
       _ordersSubscription?.cancel();
       _ordersSubscription = null;
     }
@@ -1548,6 +2551,8 @@ class OrderStore extends ChangeNotifier {
     }
     debugPrint(
         '[OrderStore] general subscription started (isClient=$isClient uid=${uid ?? "n/a"})');
+    // 2026-05-21 — A8: ao (re)subscrever stream a rede está OK → drena fila offline.
+    unawaited(_drainOfflineStatusQueue());
     _ordersSubscription = (isClient
             ? supabase
                 .from('orders')
@@ -1682,8 +2687,9 @@ class OrderStore extends ChangeNotifier {
     // time. This channel has NO server-side filter — it receives every UPDATE
     // on orders and checks client-side, guaranteeing delivery.
     _driverOfferNotifyChannel?.unsubscribe();
-    _driverOfferNotifyChannel =
-        supabase.channel('driver_offer_notify_$driverId').onPostgresChanges(
+    _driverOfferNotifyChannel = supabase
+        .channel('driver_offer_notify_$driverId')
+        .onPostgresChanges(
               event: PostgresChangeEvent.update,
               schema: 'public',
               table: 'orders',
@@ -1697,12 +2703,38 @@ class OrderStore extends ChangeNotifier {
                   debugPrint(
                       '[OrderStore] onPostgresChanges: offer→$driverId order=$orderId');
                   _mergeDriverRows([rec], _driverOfferIds);
+                  // Exec3 PIVOT (2026-05-24): full-screen dialog em vez de overlay
+                  // system_alert (bloqueado por Android 14+/16 em bg). FGS mantém
+                  // o Flutter engine activo; navigatorKey empurra o dialog em <500ms.
+              debugPrint(
+                  '[BORA-OFFER] order_store realtime UPDATE → gate.present order=$orderId');
+                  if (!_dismissedOrderIds.contains(orderId)) {
+                    // Exec6 GATE (2026-05-25) — gate central decide qual UI.
+                    OfferPresentationGate.present(
+                      orderId: orderId,
+                  vendorName:
+                      (rec['restaurant_name'] as String?) ?? 'Pedido novo',
+                      total: (rec['total'] as num?)?.toStringAsFixed(2) ?? '0.00',
+                  distanceKm:
+                      (rec['distance_km'] as num?)?.toStringAsFixed(1) ?? '0',
+                  driverEarnings:
+                      (rec['driver_earnings'] as num?)?.toStringAsFixed(2) ??
+                          '0.00',
+                      dropoffAddress: (rec['dropoff_address'] as String?) ?? '',
+                    ).ignore();
+                  }
                 } else if (_driverOfferIds.contains(orderId)) {
                   // Offer revoked — remove only this order, not all pending offers.
                   debugPrint(
                       '[OrderStore] onPostgresChanges: offer revoked order=$orderId');
                   _driverOfferIds.remove(orderId);
                   _orders.removeWhere((o) => o.id == orderId);
+                  // 2026-05-20 — cancela a notificação persistente estilo chamada
+                  // (FLAG_INSISTENT em loop) assim que a oferta expira/é revogada.
+                  unawaited(cancelDriverOfferNotification(orderId));
+                  // Exec6.5 — marca handled no gate para impedir re-trigger
+                  // (ex: novo evento realtime do mesmo orderId que ressuscite UI).
+                  OfferPresentationGate.markActionCompleted(orderId);
                   notifyListeners();
                 }
               },
@@ -1756,11 +2788,30 @@ class OrderStore extends ChangeNotifier {
                   debugPrint(
                       '[OrderStore] active notify: assigned→$driverId order=$orderId');
                   _mergeDriverRows([rec], _driverActiveIds);
+
+                  // BUG #5 (2026-05-13) — quando pedido chega a estado
+                  // terminal via Realtime (delivered/cancelled/rejected),
+                  // libertar activeAssignments local. Sem isto,
+                  // driver_store.toggleAvailability bloqueia o toggle
+                  // offline porque activeAssignments fica stale.
+                  // finishOrder local já trata o caso síncrono — este
+                  // path cobre updates externos (admin, trigger, outro
+                  // device).
+                  final status = rec['status'] as String?;
+                  const terminal = {'delivered', 'cancelled', 'rejected'};
+                  if (status != null && terminal.contains(status)) {
+                    _driverStore.releaseOrderForDriver(driverId, orderId);
+                    _driverStore.stopTracking(orderId);
+                  }
                 } else if (_driverActiveIds.contains(orderId)) {
                   debugPrint(
                       '[OrderStore] active notify: assignment removed order=$orderId');
                   _driverActiveIds.remove(orderId);
                   _orders.removeWhere((o) => o.id == orderId);
+                  // BUG #5 (2026-05-13) — assignment_driver_id foi anulado
+                  // server-side; libertar a assignment local também.
+                  _driverStore.releaseOrderForDriver(driverId, orderId);
+                  _driverStore.stopTracking(orderId);
                   notifyListeners();
                 }
               },
@@ -1941,7 +2992,7 @@ class OrderStore extends ChangeNotifier {
     // Re-fetch the order row from the DB (never trust local state, cache or
     // client flags). Dispatch is only allowed when ONE of the following is
     // true, read live from Postgres:
-    //   1. payment_status == 'paid'   (Stripe webhook OR confirm-mbway-payment)
+    //   1. payment_status == 'paid'   (stripe-webhook handles card + MBWay)
     //   2. payment_method == 'cash'   (COD partner orders — no server confirmation path)
     // Any other combination blocks the Edge Function invocation entirely.
     try {
@@ -1991,32 +3042,44 @@ class OrderStore extends ChangeNotifier {
   }
 
   /// Records how many carrier bags the driver used for a market order.
-  /// Persists bag_count + bag_fee (count × €0.10) to DB and updates local state.
+  /// Calls the SECURITY DEFINER RPC `update_bag_count_bypass` which bypasses
+  /// the `enforce_financial_immutability` trigger via a session GUC and
+  /// computes bag_fee server-side from platform_settings.
   /// Sends a push to the client when count > 0 (fire-and-forget).
+  ///
+  /// Replaces the old direct UPDATE which failed silently against the
+  /// financial immutability trigger (BUG 27).
   Future<void> updateBagCount(String orderId, int count) async {
     try {
-      final bagFee = _roundCurrency(count * 0.10);
-      await supabase.from('orders').update({
-        'bag_count': count,
-        'bag_fee': bagFee,
-      }).eq('id', orderId);
+      final response = await supabase.rpc(
+        'update_bag_count_bypass',
+        params: {'p_order_id': orderId, 'p_count': count},
+      );
+      int finalCount = count;
+      double finalFee = _roundCurrency(count * 0.10);
+      if (response is Map) {
+        final respCount = (response['bag_count'] as num?)?.toInt();
+        if (respCount != null) finalCount = respCount;
+        final cents = (response['bag_fee_cents'] as num?)?.toInt();
+        if (cents != null) finalFee = cents / 100.0;
+      }
       final idx = _orders.indexWhere((o) => o.id == orderId);
+      String? clientId;
       if (idx != -1) {
-        _orders[idx].bagCount = count;
-        _orders[idx].bagFee = bagFee;
+        _orders[idx].bagCount = finalCount;
+        _orders[idx].bagFee = finalFee;
+        clientId = _orders[idx].userId;
         notifyListeners();
       }
-      // Notify client: "Sacos adicionados: X saco(s) × €0.10 = €X.XX"
-      if (count > 0) {
-        final clientId = idx != -1 ? _orders[idx].userId : null;
-        if (clientId != null && clientId.isNotEmpty) {
-          NotificationService.instance.notifyClientBagCount(
-            clientId: clientId,
-            orderId: orderId,
-            bagCount: count,
-            bagFee: bagFee,
-          ).ignore();
-        }
+      if (finalCount > 0 && clientId != null && clientId.isNotEmpty) {
+        NotificationService.instance
+            .notifyClientBagCount(
+          clientId: clientId,
+          orderId: orderId,
+          bagCount: finalCount,
+          bagFee: finalFee,
+            )
+            .ignore();
       }
     } catch (e) {
       debugPrint('OrderStore.updateBagCount error: $e');
@@ -2076,7 +3139,16 @@ class OrderStore extends ChangeNotifier {
     debugPrint('[FLOW] _updateStatusDB: id=${order.id} payload=$payload');
     _lastUpdateError = null;
     try {
-      await supabase.from('orders').update(payload).eq('id', order.id);
+      final updated = await supabase
+          .from('orders')
+          .update(payload)
+          .eq('id', order.id)
+          .select('id');
+      if (updated.isEmpty) {
+        _lastUpdateError = 'no_rows_updated';
+        debugPrint('[FLOW] _updateStatusDB: ZERO ROWS');
+        return false;
+      }
       debugPrint('[FLOW] _updateStatusDB: OK');
       return true;
     } catch (e) {
@@ -2086,9 +3158,15 @@ class OrderStore extends ChangeNotifier {
       if (driverOfferExpiresAt != null) {
         debugPrint('[FLOW] _updateStatusDB: retrying status-only');
         try {
-          await supabase
+          final retried = await supabase
               .from('orders')
-              .update({'status': newStatus.name}).eq('id', order.id);
+              .update({'status': newStatus.name})
+              .eq('id', order.id)
+              .select('id');
+          if (retried.isEmpty) {
+            _lastUpdateError = 'no_rows_updated';
+            return false;
+          }
           debugPrint('[FLOW] _updateStatusDB: retry OK');
           return true;
         } catch (e2) {
@@ -2106,22 +3184,14 @@ class OrderStore extends ChangeNotifier {
     String? driverPhone,
   }) async {
     try {
-      // Optimistic lock: only succeed if this driver currently holds the offer.
-      // Clears current_driver_offer_id to prevent duplicate dispatch.
-      final result = await supabase
-          .from('orders')
-          .update({
-            'status': OrderStatus.driverAccepted.name,
-            'assigned_driver_id': driverId,
-            'current_driver_offer_id': null,
-            'driver_offer_expires_at': null,
-            'driver_phone': driverPhone,
-          })
-          .eq('id', order.id)
-          .eq('current_driver_offer_id', driverId)
-          .select();
-
-      if (result.isEmpty) {
+      final response = await supabase.rpc(
+        'driver_accept_offer',
+        params: {'p_order_id': order.id},
+      );
+      final result = response is Map
+          ? Map<String, dynamic>.from(response)
+          : <String, dynamic>{};
+      if (result['ok'] != true) {
         debugPrint(
             'OrderStore: _acceptOrderInDatabase — offer no longer valid (lost race) order=${order.id}');
         return false;
@@ -2151,4 +3221,12 @@ class ClientCancelResult {
   final bool success;
   final double? feeEur;
   final String? error;
+}
+
+/// Resultado da validacao do PIN de entrega server-side (P6, 2026-08-17).
+class DeliveryPinResult {
+  const DeliveryPinResult({required this.ok, this.error, this.attemptsLeft});
+  final bool ok;
+  final String? error;     // wrong_pin | blocked | invalid_status | network | ...
+  final int? attemptsLeft; // preenchido em wrong_pin
 }

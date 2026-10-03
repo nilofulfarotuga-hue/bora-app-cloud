@@ -12,6 +12,13 @@ description: >
   "sincronizar produtos do Continente Guarda", "importar Glovo Continente",
   "buscar preços do Pingo Doce", "sync Uber Eats Mercadona",
   "actualizar catálogo da loja X", "market-data-sync".
+metadata:
+  versao: 1.0
+  execucoes: 0
+  sucessos: 0
+  falhas: 0
+  ultima_execucao: null
+  criada_por: pre-telemetria (rollout 2026-07-10)
 ---
 
 # Market Data Sync — Skill Universal
@@ -152,3 +159,10 @@ Para cada produto extraído:
 - "actualizar catálogo da <loja>"
 - "market-data-sync"
 - "sync de produtos"
+
+## 📊 Telemetria (obrigatório no fim de cada execução)
+
+No fim de cada execução desta skill:
+1. Atualiza o frontmatter deste ficheiro: incrementa `execucoes` e `sucessos` OU `falhas`; atualiza `ultima_execucao` (YYYY-MM-DD).
+2. Acrescenta UMA linha à tabela de `.claude/.ai/knowledge/wiki/skills-metrics.md` (Skill | Data | Contexto | Volume | Resultado).
+O evolution-engine lê essa tabela: falhas/execucoes > 30% → candidata a reescrita; 90 dias sem uso → candidata a arquivo.

@@ -1,0 +1,31 @@
+Prova C — correções da revisão adversarial (30/09/2026). Bloco DO revertido (RAISE no fim).
+Dentro do teste o interruptor foi posto a true (no ar continua FALSE — revertido com o resto).
+
+ERROR:  P0001: RESULT {"paga": "300", "sem_rota": "route_not_computed", "km_usados": "12.50", "motorista": "240",
+ "ida_base_km": 5.00, "ida_motorista": 615, "volta_motorista": 615, "ida_paga_mudanca": "300",
+ "ida_final_cliente": 300, "volta_9km_cliente_paga": 300}
+
+Leitura:
+1) Sem rota calculada pelo SERVIDOR (tabela tvde_dest_change_routes, só service_role escreve) a
+   cotação é recusada: route_not_computed. A app deixou de poder escolher os km.
+2) O caso do revisor (a app manda 0 km; rota do servidor 2,5 + 10 = 12,5 km, combinados 10 km):
+   o servidor usa 12,5 km → cliente +€3,00, motorista +€2,40. Antes, manipulado, dava €0.
+3) Pacote ida-e-volta €8, ida combinada 5 km mudada para 9 km (cliente paga +€3 em dinheiro):
+   a volta de 9 km já NÃO sai grátis — paga os 3 km acima da ida combinada (+€3,00).
+   Contas: recebido 800 + 300 + 300 = 1400; motoristas 615 + 615 = 1230; Bora +170 (antes −130).
+
+Outras correções no ar (Edge tvde-payment v16, igual ao repo md5 1f0a5ecec30db9aab7b458cf6aca6f4e):
+- kind do PaymentIntent da mudança = 'bora_dest_change' → o stripe-webhook (v34, que só trata 'tvde_*')
+  ignora-o: um MB Way da mudança a falhar já não cancela a corrida (achado CRÍTICO 1).
+- sweep_dest_changes + cron 'tvde-dest-change-sweep' (*/2 min, só chama a Edge se houver pendentes):
+  pagamento tardio → aplica ou devolve; corrida cancelada com mudança paga → devolve a diferença (ALTO 3 e 4).
+
+Regressão depois de TODAS as correções (tvde_finish_ride md5 88d9324831ba56c7ca2826cb48783471),
+SEM mudança de destino: finish NOVA vs definição ORIGINAL de hoje (backup 'antes da mudanca de destino'):
+ERROR:  P0001: RESULT [{"caso": 1, "nova": [500, 400, 100, 1.00], "igual": true, "antiga": [500, 400, 100, 1.00]},
+ {"caso": 2, "nova": [1000, 740, 260, 2.60], "igual": true, "antiga": [1000, 740, 260, 2.60]},
+ {"caso": 3, "nova": [500, 400, 100, -4.00], "igual": true, "antiga": [500, 400, 100, -4.00]},
+ {"caso": 4, "nova": [1000, 740, 260, -5.40], "igual": true, "antiga": [1000, 740, 260, -5.40]}]
+(1 = dinheiro 4 km; 2 = dinheiro 8,3 km + paragem; 3 = cartão 4 km; 4 = cartão 8,3 km + paragem em dinheiro)
+
+Cron: tvde-dest-change-sweep */2 * * * * ativo=true · pendentes agora 0 · interruptor tvde_dest_change_enabled = false.

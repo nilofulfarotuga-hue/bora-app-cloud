@@ -1,0 +1,30 @@
+appId: pt.boraapp.bora
+name: Cliente — Centro de notificações
+tags:
+  - cliente
+  - notificacoes
+---
+- launchApp:
+    clearState: true
+- runFlow: ../../_shared/login_cliente.yaml
+
+# Sino de notificações (NotificationBell widget) no header.
+- tapOn:
+    id: "notification_bell"
+    optional: true
+- runFlow:
+    when:
+      notVisible: "Notificações"
+    commands:
+      - tapOn: "Notificações"
+
+- extendedWaitUntil:
+    visible:
+      text: ".*(Notificações|Sem notificações).*"
+    timeout: 10000
+
+- runFlow:
+    when:
+      visible: ".*Marcar todas.*"
+    commands:
+      - tapOn: ".*Marcar todas.*"

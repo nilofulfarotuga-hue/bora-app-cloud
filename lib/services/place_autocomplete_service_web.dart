@@ -5,15 +5,22 @@ import 'dart:html' as html;
 import 'dart:js' as js;
 
 import 'package:latlong2/latlong.dart' as ll;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config/maps_config.dart';
 import 'place_autocomplete_service.dart';
+import 'web_health_log.dart';
 
 PlaceAutocompleteService createPlaceAutocompleteServiceImpl(String apiKey) =>
     _WebPlaceAutocompleteService(apiKey);
 
-/// Web implementation that delegates entirely to the Google Maps JavaScript SDK
-/// already loaded in index.html — no HTTP calls, no CORS issues.
-class _WebPlaceAutocompleteService implements PlaceAutocompleteService {
+/// Web implementation. Caminho normal: Google Maps JavaScript SDK carregado no
+/// index.html (sem HTTP, sem CORS). Plano B (2026-08-31): quando o SDK não
+/// carrega — script bloqueado por extensão, rede fraca, timeout — delega na
+/// Edge Function `places-proxy`, que fala com a Google do lado do servidor.
+/// Assim o campo de morada NUNCA morre em silêncio (regra "LOCALIZAÇÃO NUNCA
+/// TRAVA", 24/08).
+class _WebPlaceAutocompleteService extends PlaceAutocompleteService {
   _WebPlaceAutocompleteService(this._apiKey);
 
   // apiKey is carried in case callers inspect it; the JS SDK uses its own key.
@@ -25,6 +32,33 @@ class _WebPlaceAutocompleteService implements PlaceAutocompleteService {
 
   String? _lastQuery;
   List<PlacePrediction> _cachedPredictions = const <PlacePrediction>[];
+
+  /// Estado do carregamento do SDK, mantido pelo index.html.
+  /// 'a-carregar' | 'pronto' | 'indisponivel' (null = index antigo em cache).
+  String get _mapsEstado {
+    try {
+      return js.context['boraMapsEstado']?.toString() ?? 'desconhecido';
+    } catch (_) {
+      return 'desconhecido';
+    }
+  }
+
+  String get _mapsMotivo {
+    try {
+      return js.context['boraMapsMotivo']?.toString() ?? 'desconhecido';
+    } catch (_) {
+      return 'desconhecido';
+    }
+  }
+
+  /// Pede ao index.html para tentar carregar o SDK outra vez (o JS aplica um
+  /// intervalo mínimo de 10 s entre tentativas — chamar à vontade).
+  void _tentarRecarregarSdk() {
+    try {
+      final fn = js.context['boraCarregarMaps'];
+      if (fn is js.JsFunction) fn.apply(const []);
+    } catch (_) {}
+  }
 
   /// Lazily creates the two JS service objects.
   /// Returns false if google.maps.places is not yet available.
@@ -59,29 +93,163 @@ class _WebPlaceAutocompleteService implements PlaceAutocompleteService {
     }
   }
 
+  /// Espera curta pelo SDK quando ele ainda está a carregar: evita mandar o
+  /// utilizador para o plano B por causa de meio segundo.
+  Future<bool> _initComEspera() async {
+    if (_init()) return true;
+    if (_mapsEstado == 'indisponivel') return false;
+    for (var i = 0; i < 6; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      if (_init()) return true;
+      if (_mapsEstado == 'indisponivel') return false;
+    }
+    return false;
+  }
+
+  /// Constrói um `google.maps.LatLng` para o viés da Guarda. Devolve null se
+  /// o SDK ainda não estiver pronto (o autocomplete funciona na mesma, sem viés).
+  js.JsObject? _guardaLatLng() {
+    try {
+      final googleRaw = js.context['google'];
+      if (googleRaw is! js.JsObject) return null;
+      final mapsRaw = googleRaw['maps'];
+      if (mapsRaw is! js.JsObject) return null;
+      final latLngCtor = mapsRaw['LatLng'];
+      if (latLngCtor is! js.JsFunction) return null;
+      return js.JsObject(latLngCtor, [kGuardaBiasLat, kGuardaBiasLng]);
+    } catch (_) {
+      return null;
+    }
+  }
+
   // ─── fetchPredictions ──────────────────────────────────────────────────────
+
+  /// Reordena as predições para que as da Guarda apareçam primeiro (ordenação
+  /// estável). O viés location+radius do Google é fraco; para a cidade única de
+  /// operação queremos garantia de que o resultado local ganha o topo.
+  List<PlacePrediction> _rankGuardaFirst(List<PlacePrediction> predictions) {
+    if (predictions.length < 2) return predictions;
+    final guarda = predictions.where(_isGuarda).toList();
+    if (guarda.isEmpty) return predictions;
+    final outros = predictions.where((p) => !_isGuarda(p)).toList();
+    return <PlacePrediction>[...guarda, ...outros];
+  }
+
+  bool _isGuarda(PlacePrediction p) =>
+      '${p.description} ${p.secondaryText ?? ''}'
+          .toLowerCase()
+          .contains('guarda');
+
+  List<PlacePrediction> _mergeDedupe(
+    List<PlacePrediction> prioritarias,
+    List<PlacePrediction> resto,
+  ) {
+    final vistos = <String>{};
+    final out = <PlacePrediction>[];
+    for (final p in <PlacePrediction>[...prioritarias, ...resto]) {
+      if (vistos.add(p.placeId)) out.add(p);
+    }
+    return out;
+  }
+
+  /// Dupla pesquisa com viés Guarda (espelha o io.dart v2), sobre uma função
+  /// de pesquisa qualquer — SDK ou proxy.
+  Future<List<PlacePrediction>> _pesquisaComViesGuarda(
+    String query,
+    Future<List<PlacePrediction>> Function(String q) pesquisar,
+  ) async {
+    var predictions = await pesquisar(query);
+    // O viés do Google é fraco e o gate "só quando não há Guarda" era frágil.
+    // Dispara SEMPRE a pesquisa explícita "<query> Guarda" e põe-na à frente.
+    if (!query.toLowerCase().contains('guarda')) {
+      final locais = await pesquisar('$query Guarda');
+      predictions = _mergeDedupe(locais, predictions);
+    }
+    return _rankGuardaFirst(predictions);
+  }
 
   @override
   Future<List<PlacePrediction>> fetchPredictions(String input) async {
-    final query = input.trim();
-    if (query.isEmpty) return const <PlacePrediction>[];
+    final r = await fetchPredictionsWithStatus(input);
+    return r.predictions;
+  }
 
-    if (_lastQuery == query && _cachedPredictions.isNotEmpty) {
-      return _cachedPredictions;
+  @override
+  Future<PredictionsResult> fetchPredictionsWithStatus(String input) async {
+    final query = input.trim();
+    if (query.isEmpty) {
+      return const PredictionsResult(
+          PlaceServiceStatus.ready, <PlacePrediction>[]);
     }
 
-    if (!_init()) return const <PlacePrediction>[];
+    if (_lastQuery == query && _cachedPredictions.isNotEmpty) {
+      return PredictionsResult(PlaceServiceStatus.ready, _cachedPredictions);
+    }
 
+    // Caminho normal: SDK do browser (com pequena espera se estiver a chegar).
+    if (await _initComEspera()) {
+      final predictions =
+          await _pesquisaComViesGuarda(query, _requestPredictions);
+      _lastQuery = query;
+      _cachedPredictions = predictions;
+      return PredictionsResult(PlaceServiceStatus.ready, predictions);
+    }
+
+    // SDK indisponível ou lento demais: pede nova tentativa de carregamento
+    // (para a tecla seguinte já ter SDK, se ele entretanto chegar)...
+    _tentarRecarregarSdk();
+
+    // ...e usa já o plano B do servidor, para o cliente não ficar à espera.
+    try {
+      final predictions =
+          await _pesquisaComViesGuarda(query, _proxyPredictions);
+      _lastQuery = query;
+      _cachedPredictions = predictions;
+      return PredictionsResult(PlaceServiceStatus.ready, predictions);
+    } catch (e) {
+      final estado = _mapsEstado;
+      if (estado == 'indisponivel') {
+        WebHealthLog.log(
+          motivo: _mapsMotivo == 'script-bloqueado'
+              ? 'script_bloqueado'
+              : 'timeout_sdk',
+          ecra: 'autocomplete',
+          detalhe:
+              'proxy também falhou: $e | ${html.window.navigator.userAgent}',
+        );
+        return const PredictionsResult(
+            PlaceServiceStatus.unavailable, <PlacePrediction>[]);
+      }
+      // Ainda a carregar: diz isso ao widget; a tecla seguinte volta a tentar.
+      return const PredictionsResult(
+          PlaceServiceStatus.loading, <PlacePrediction>[]);
+    }
+  }
+
+  Future<List<PlacePrediction>> _requestPredictions(String query) async {
     final completer = Completer<List<PlacePrediction>>();
+
+    // Sem 'types': devolve moradas E comércios/POIs (ex.: "KFC", "Lavie
+    // Shopping"), como a pesquisa do Google Maps. Antes estava preso a
+    // 'geocode' (só ruas).
+    final request = <String, dynamic>{
+      'input': query,
+      'componentRestrictions': {'country': 'pt'},
+      'language': 'pt-PT',
+    };
+    // Viés FORTE para a Guarda (location + radius + strictbounds → restringe
+    // ao raio de serviço, elimina lojas homónimas de outras cidades). Só
+    // aplica se o construtor LatLng existir.
+    final biasLocation = _guardaLatLng();
+    if (biasLocation != null) {
+      request['location'] = biasLocation;
+      request['radius'] = kGuardaBiasRadiusMeters;
+      if (kGuardaStrictBounds) request['strictbounds'] = true;
+    }
 
     // dart:js.JsObject.callMethod wraps Dart functions automatically.
     _autocompleteSvc!.callMethod('getPlacePredictions', [
-      js.JsObject.jsify({
-        'input': query,
-        'componentRestrictions': {'country': 'pt'},
-        'language': 'pt-PT',
-        'types': ['geocode'],
-      }),
+      js.JsObject.jsify(request),
       (dynamic predictions, dynamic status) {
         if (completer.isCompleted) return;
 
@@ -98,11 +266,15 @@ class _WebPlaceAutocompleteService implements PlaceAutocompleteService {
             final placeId = p['place_id'] as String? ?? '';
             if (placeId.isEmpty) continue;
             final sf = p['structured_formatting'] as js.JsObject?;
+            final types = p['types'];
+            final isEstablishment = types is js.JsArray &&
+                types.any((t) => t?.toString() == 'establishment');
             list.add(PlacePrediction(
               placeId: placeId,
               description: p['description'] as String? ?? '',
               primaryText: sf?['main_text'] as String?,
               secondaryText: sf?['secondary_text'] as String?,
+              isEstablishment: isEstablishment,
             ));
           }
           completer.complete(list);
@@ -113,13 +285,55 @@ class _WebPlaceAutocompleteService implements PlaceAutocompleteService {
     ]);
 
     try {
-      final result =
-          await completer.future.timeout(const Duration(seconds: 10));
-      _lastQuery = query;
-      _cachedPredictions = result;
-      return result;
+      return await completer.future.timeout(const Duration(seconds: 10));
     } catch (_) {
       return const <PlacePrediction>[];
+    }
+  }
+
+  // ─── Plano B: Edge Function places-proxy ───────────────────────────────────
+
+  Future<Map<String, dynamic>> _proxy(Map<String, dynamic> body) async {
+    final res = await Supabase.instance.client.functions
+        .invoke('places-proxy', body: body)
+        .timeout(const Duration(seconds: 8));
+    final data = res.data;
+    if (data is Map<String, dynamic>) return data;
+    if (data is Map) return Map<String, dynamic>.from(data);
+    throw StateError('places-proxy: resposta inesperada');
+  }
+
+  Future<List<PlacePrediction>> _proxyPredictions(String query) async {
+    final data = await _proxy({'acao': 'autocomplete', 'input': query});
+    final raw = data['predictions'];
+    if (raw is! List) return const <PlacePrediction>[];
+    final list = <PlacePrediction>[];
+    for (final item in raw) {
+      if (item is! Map) continue;
+      final placeId = item['place_id']?.toString() ?? '';
+      if (placeId.isEmpty) continue;
+      list.add(PlacePrediction(
+        placeId: placeId,
+        description: item['description']?.toString() ?? '',
+        primaryText: item['main_text']?.toString(),
+        secondaryText: item['secondary_text']?.toString(),
+        isEstablishment: item['establishment'] == true,
+      ));
+    }
+    return list;
+  }
+
+  Future<ll.LatLng?> _proxyLatLng(Map<String, dynamic> body) async {
+    try {
+      final data = await _proxy(body);
+      final lat = data['lat'];
+      final lng = data['lng'];
+      if (lat is num && lng is num) {
+        return ll.LatLng(lat.toDouble(), lng.toDouble());
+      }
+      return null;
+    } catch (_) {
+      return null;
     }
   }
 
@@ -128,7 +342,13 @@ class _WebPlaceAutocompleteService implements PlaceAutocompleteService {
   @override
   Future<ll.LatLng?> resolvePlaceLocation(String placeId) async {
     if (placeId.isEmpty) return null;
-    if (!_init()) return null;
+    if (!_init()) {
+      // SDK fora: resolve no servidor (os place_ids são os mesmos).
+      final coords =
+          await _proxyLatLng({'acao': 'detalhes', 'place_id': placeId});
+      resetSession();
+      return coords;
+    }
 
     final completer = Completer<ll.LatLng?>();
 
@@ -178,11 +398,18 @@ class _WebPlaceAutocompleteService implements PlaceAutocompleteService {
     if (address.isEmpty) return null;
 
     final googleRaw = js.context['google'];
-    if (googleRaw == null || googleRaw is! js.JsObject) return null;
+    if (googleRaw == null || googleRaw is! js.JsObject) {
+      // SDK fora: geocodifica no servidor (plano B da morada escrita à mão).
+      return _proxyLatLng({'acao': 'geocode', 'morada': address});
+    }
     final mapsRaw = googleRaw['maps'];
-    if (mapsRaw == null || mapsRaw is! js.JsObject) return null;
+    if (mapsRaw == null || mapsRaw is! js.JsObject) {
+      return _proxyLatLng({'acao': 'geocode', 'morada': address});
+    }
     final geocoderCtor = mapsRaw['Geocoder'];
-    if (geocoderCtor == null || geocoderCtor is! js.JsFunction) return null;
+    if (geocoderCtor == null || geocoderCtor is! js.JsFunction) {
+      return _proxyLatLng({'acao': 'geocode', 'morada': address});
+    }
 
     final geocoder = js.JsObject(geocoderCtor);
     final completer = Completer<ll.LatLng?>();
@@ -218,9 +445,13 @@ class _WebPlaceAutocompleteService implements PlaceAutocompleteService {
     ]);
 
     try {
-      return await completer.future.timeout(const Duration(seconds: 10));
+      final coords =
+          await completer.future.timeout(const Duration(seconds: 10));
+      // SDK respondeu vazio (ex.: quota do browser): última tentativa no
+      // servidor antes de desistir da morada.
+      return coords ?? await _proxyLatLng({'acao': 'geocode', 'morada': address});
     } catch (_) {
-      return null;
+      return _proxyLatLng({'acao': 'geocode', 'morada': address});
     }
   }
 

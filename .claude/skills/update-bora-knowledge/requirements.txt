@@ -1,0 +1,2 @@
+# update-bora-knowledge — stdlib-only, sem dependências externas.
+# (nada a instalar)

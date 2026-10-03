@@ -123,8 +123,47 @@ const SFCC_HEADERS = {
 };
 
 const decodeEntities = (s: string) =>
-  s.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
-   .replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+  s
+    // XML/HTML core
+    .replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    // Portuguese / Latin-1 named entities
+    .replace(/&aacute;/g, 'á').replace(/&Aacute;/g, 'Á')
+    .replace(/&agrave;/g, 'à').replace(/&Agrave;/g, 'À')
+    .replace(/&atilde;/g, 'ã').replace(/&Atilde;/g, 'Ã')
+    .replace(/&acirc;/g, 'â').replace(/&Acirc;/g, 'Â')
+    .replace(/&auml;/g, 'ä').replace(/&Auml;/g, 'Ä')
+    .replace(/&aring;/g, 'å').replace(/&Aring;/g, 'Å')
+    .replace(/&eacute;/g, 'é').replace(/&Eacute;/g, 'É')
+    .replace(/&egrave;/g, 'è').replace(/&Egrave;/g, 'È')
+    .replace(/&ecirc;/g, 'ê').replace(/&Ecirc;/g, 'Ê')
+    .replace(/&euml;/g, 'ë').replace(/&Euml;/g, 'Ë')
+    .replace(/&iacute;/g, 'í').replace(/&Iacute;/g, 'Í')
+    .replace(/&igrave;/g, 'ì').replace(/&Igrave;/g, 'Ì')
+    .replace(/&icirc;/g, 'î').replace(/&Icirc;/g, 'Î')
+    .replace(/&iuml;/g, 'ï').replace(/&Iuml;/g, 'Ï')
+    .replace(/&oacute;/g, 'ó').replace(/&Oacute;/g, 'Ó')
+    .replace(/&ograve;/g, 'ò').replace(/&Ograve;/g, 'Ò')
+    .replace(/&otilde;/g, 'õ').replace(/&Otilde;/g, 'Õ')
+    .replace(/&ocirc;/g, 'ô').replace(/&Ocirc;/g, 'Ô')
+    .replace(/&ouml;/g, 'ö').replace(/&Ouml;/g, 'Ö')
+    .replace(/&uacute;/g, 'ú').replace(/&Uacute;/g, 'Ú')
+    .replace(/&ugrave;/g, 'ù').replace(/&Ugrave;/g, 'Ù')
+    .replace(/&ucirc;/g, 'û').replace(/&Ucirc;/g, 'Û')
+    .replace(/&uuml;/g, 'ü').replace(/&Uuml;/g, 'Ü')
+    .replace(/&ccedil;/g, 'ç').replace(/&Ccedil;/g, 'Ç')
+    .replace(/&ntilde;/g, 'ñ').replace(/&Ntilde;/g, 'Ñ')
+    .replace(/&szlig;/g, 'ß')
+    .replace(/&ordf;/g, 'ª').replace(/&ordm;/g, 'º').replace(/&acute;/g, '´')
+    .replace(/&hellip;/g, '…')
+    .replace(/&euro;/g, '€').replace(/&pound;/g, '£')
+    .replace(/&nbsp;/g, ' ').replace(/&shy;/g, '')
+    .replace(/&reg;/g, '®').replace(/&copy;/g, '©').replace(/&trade;/g, '™')
+    .replace(/&ndash;/g, '–').replace(/&mdash;/g, '—')
+    // Numeric decimal entities &#NNN;
+    .replace(/&#(\d+);/g, (_: string, n: string) => String.fromCharCode(parseInt(n, 10)))
+    // Numeric hex entities &#xHHH;
+    .replace(/&#x([0-9a-fA-F]+);/g, (_: string, h: string) => String.fromCharCode(parseInt(h, 16)));
 
 function titleCase(s: string): string {
   return s.toLowerCase().split(/\s+/)
@@ -167,13 +206,16 @@ function parseImpression(html: string, cfg: SfccConfig): ParsedRow[] {
       if (/\/badges\//i.test(img)) continue;
       if (!cfg.catalogMarker.test(img)) continue;
       const pid = String(json.id ?? json.sku ?? '').trim();
-      const name = String(json.name ?? '').trim();
+      // O atributo data-product-tile-impression vem DUPLAMENTE codificado
+      // (`&amp;ccedil;`): o decodeEntities acima resolve o nível do atributo,
+      // mas a entidade interna (`&ccedil;`) sobra dentro do JSON. 2.º passe.
+      const name = decodeEntities(String(json.name ?? '').trim());
       const price = Number(json.price ?? 0);
       if (!pid || !name || !(price > 0)) continue;
       rows.push({
         pid, name, price,
-        brand: json.brand ? String(json.brand) : null,
-        category: json.category ? String(json.category) : null,
+        brand: json.brand ? decodeEntities(String(json.brand)) : null,
+        category: json.category ? decodeEntities(String(json.category)) : null,
         photo_url: img,
       });
     } catch { /* skip */ }
@@ -192,16 +234,18 @@ function parseGtm(html: string, cfg: SfccConfig): ParsedRow[] {
       if (/\/badges\//i.test(img)) continue;
       if (!cfg.catalogMarker.test(img)) continue;
       const pid = String(json.id ?? json.item_id ?? '').trim();
-      const nameRaw = String(json.name ?? json.item_name ?? '').trim();
+      // 2.º passe de decode: o valor do atributo GTM também traz entidades
+      // internas duplamente codificadas (`&amp;atilde;` → `&atilde;`).
+      const nameRaw = decodeEntities(String(json.name ?? json.item_name ?? '').trim());
       const price = Number(json.price ?? 0);
       if (!pid || !nameRaw || !(price > 0)) continue;
       rows.push({
         pid,
         name: titleCase(nameRaw),
         price,
-        brand: json.brand ? titleCase(String(json.brand)) : null,
-        category: json.category ? normCategory(String(json.category))
-          : json.item_category ? normCategory(String(json.item_category)) : null,
+        brand: json.brand ? titleCase(decodeEntities(String(json.brand))) : null,
+        category: json.category ? normCategory(decodeEntities(String(json.category)))
+          : json.item_category ? normCategory(decodeEntities(String(json.item_category))) : null,
         photo_url: img,
       });
     } catch { /* skip */ }
@@ -344,13 +388,26 @@ async function updateCrossMatch(market: string): Promise<{ message: string }> {
   if (error) throw error;
   if (!products?.length) return { message: `No products without photos for ${market}` };
 
+  // T11: pre-fetch mercadona restaurant ids by NAME (not by id-prefix), so the
+  // refactor restaurants.id TEXT->UUID (decisions/2026-04-29-restaurants-id-uuid-refactor.md)
+  // does not break this code. Lookup is constant per call (~5 rows).
+  const { data: mercRestaurants } = await supabase
+    .from('restaurants')
+    .select('id')
+    .ilike('name', 'Mercadona%');
+  const mercIds: string[] = (mercRestaurants ?? []).map((r: { id: string }) => r.id);
+
+  if (mercIds.length === 0) {
+    return { message: `No Mercadona restaurants found — cannot enrich photos for ${market}` };
+  }
+
   let matched = 0;
 
   for (const product of products) {
     const { data: mercProducts } = await supabase
       .from('products')
       .select('id, name, photo_url, price')
-      .ilike('restaurant_id', 'mercadona-%')
+      .in('restaurant_id', mercIds)
       .ilike('name', `%${product.name.split(' ')[0]}%`)
       .limit(1);
 

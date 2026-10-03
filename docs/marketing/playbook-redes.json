@@ -1,0 +1,56 @@
+{
+ "versao": 20260924,
+ "gerado_em": "2026-09-24T14:34:56",
+ "motor": "gemini-3.5-flash-lite",
+ "regras": [
+  {
+   "regra": "Criar ganchos diferentes para testar o desempenho do vídeo antes da publicação oficial",
+   "categoria": "gancho",
+   "provas": [
+    {
+     "youtube_id": "MDG0VE76DUw",
+     "link": "https://www.youtube.com/watch?v=MDG0VE76DUw",
+     "titulo": "HOOK não é os 3 primeiros segundos: a verdade sobre gancho"
+    },
+    {
+     "youtube_id": "yl3yPvyEZmo",
+     "link": "https://www.youtube.com/watch?v=yl3yPvyEZmo",
+     "titulo": "The NEW Way Trial Reels are Blowing Up Instagram Accounts in 2026"
+    },
+    {
+     "youtube_id": "ijGh9LtBJ7U",
+     "link": "https://www.youtube.com/watch?v=ijGh9LtBJ7U",
+     "titulo": "I posted 75 Instagram Trial Reels in 15 days | Here’s everything you need to kno"
+    },
+    {
+     "youtube_id": "p7BHcPHxtFA",
+     "link": "https://www.youtube.com/watch?v=p7BHcPHxtFA",
+     "titulo": "The Trial Reels Formula That Actually Works"
+    }
+   ],
+   "n_videos": 4
+  },
+  {
+   "regra": "Testar diferentes formatos e tamanhos de vídeos para analisar o que funciona melhor",
+   "categoria": "formato",
+   "provas": [
+    {
+     "youtube_id": "-qGEnAdBLyI",
+     "link": "https://www.youtube.com/watch?v=-qGEnAdBLyI",
+     "titulo": "Como VIRALIZAR NO TIKTOK com MENOS DE 50 minutos POR DIA 🌟"
+    },
+    {
+     "youtube_id": "PPSUtuPS7-0",
+     "link": "https://www.youtube.com/watch?v=PPSUtuPS7-0",
+     "titulo": "O INSTAGRAM JÁ DISSE O QUE PESA NO ALGORITMO E QUASE NINGUÉM APLICA!"
+    },
+    {
+     "youtube_id": "Cwf-7WBhgao",
+     "link": "https://www.youtube.com/watch?v=Cwf-7WBhgao",
+     "titulo": "A NOVA forma de crescer no Instagram do zero: descubra sua bolha"
+    }
+   ],
+   "n_videos": 3
+  }
+ ]
+}

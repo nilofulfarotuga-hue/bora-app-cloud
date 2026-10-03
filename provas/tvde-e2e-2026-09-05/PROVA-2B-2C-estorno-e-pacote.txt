@@ -1,0 +1,58 @@
+PROVA 2B / 2C - ESTORNO DA LIMPEZA E PACOTE IDA-E-VOLTA
+Data: 5 de setembro de 2026. Codigo publicado em PRODUCAO.
+
+AS FUNCOES ESTAO NO AR E A CORRER O CODIGO NOVO
+  cleaning-checkout   versao 6   verify_jwt = true
+  tvde-plan-payment   versao 8   verify_jwt = true
+  Sondas devolveram erros de NEGOCIO (invalid_plan, booking_not_found) e nao
+  erros de servidor. Um 200 do deploy nao provava nada; isto prova que corre.
+
+O CAMINHO DO ESTORNO, CHAMADO DUAS VEZES
+  reserva e3ed9222-913c-499e-a58e-175978a30ce4
+  estado: cancelada pelo cliente. Pagamento em DINHEIRO, sem Stripe pelo meio.
+  1a chamada: HTTP 200  {"ok": true, "note": "nothing_to_reverse"}
+  2a chamada: HTTP 200  {"ok": true, "note": "nothing_to_reverse"}
+  -> PASSA: a segunda chamada deu exactamente o mesmo e nao fez nada de novo
+O QUE MUDOU NO ESTORNO (2B)
+  Antes: chamar 'reverse' duas vezes estornava duas vezes. Nada perguntava a'
+  Stripe se ja tinha estornado. So a ordem das chamadas no app e' que impedia
+  isso na pratica - protec,cao por acidente, nao por desenho.
+  Agora ha duas travas:
+    1. pergunta-se a' Stripe se aquele pagamento ja tem estorno; se tiver,
+       devolve-se o que existe e nao se cria nada;
+    2. o pedido leva uma chave fixa por reserva, por isso duas chamadas ao mesmo
+       tempo devolvem o MESMO estorno em vez de dois.
+  A trava 1 apanha repeticoes tardias; a trava 2 apanha a corrida de rede.
+
+O QUE MUDOU NO PACOTE IDA-E-VOLTA (2C)
+  O pedido a' Stripe passa a levar chave de idempotencia, no cartao e no MB Way.
+  Uma repeticao de rede devolve o MESMO PaymentIntent em vez de criar um segundo,
+  que era uma segunda cobranca. No MB Way isto era pior: dois pedidos eram dois
+  toques na aplicacao do banco.
+  O app manda uma chave nova por compra. Se nao mandar (telemovel com versao
+  antiga), o servidor deriva a chave de utilizador + valor + janela de 10 minutos,
+  o que apanha a repeticao sem travar uma compra legitima feita mais tarde.
+
+AVISO SOBRE A VERSAO NO AR - o que se verificou antes de tocar
+  A ordem avisava que a funcao do pacote podia estar a' frente no ar. Fui ver.
+    tvde-plan-payment : o numero 7 era a contagem de publicacoes do Supabase; o
+      "v5" era o comentario no topo do ficheiro. Sao duas numeracoes diferentes.
+      Comparei o texto do ar com o do repositorio linha a linha: eram iguais. O
+      espelho ar->repo ja tinha sido feito a 30 de agosto. Nao havia nada atras.
+    cleaning-checkout : AQUI SIM o repositorio estava atrasado, duas geracoes.
+      O ar tinha a v3 (Carteira Unica: guardar e reusar cartao) e o repositorio
+      ainda tinha a v2. Publicar o repositorio como estava teria DESLIGADO o
+      cartao guardado em producao. Espelhei primeiro o ar para o repositorio,
+      confirmei que todas as marcas da v3 estavam la, e so depois acrescentei a
+      trava nova por cima.
+
+O QUE NAO FOI PROVADO, E DIGO-O DE FRENTE
+  A trava do estorno NAO foi provada com um estorno a serio, porque isso exigia
+  uma cobranca verdadeira: a Stripe esta em modo real e o cartao cobra mesmo.
+  A regra da casa e' testar sempre em dinheiro, e cumpri-a.
+  O que esta provado: que a funcao nova esta no ar, que corre, e que chamar o
+  caminho do estorno duas vezes devolve o mesmo e nao faz nada de novo.
+  O que fica por provar ao vivo: o comportamento com um pagamento Stripe real.
+  Se quiseres essa prova, o caminho seguro e' uma limpeza de valor minimo paga
+  por MB Way, cancelada, e o estorno chamado duas vezes - mas isso mexe em
+  dinheiro teu e nao o fiz por minha conta.

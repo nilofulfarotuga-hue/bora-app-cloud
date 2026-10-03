@@ -1,0 +1,83 @@
+# Subflow: login do estafeta de teste
+# Credenciais via env: DRIVER_EMAIL / DRIVER_PASSWORD (default: conta de teste)
+appId: pt.boraapp.bora
+env:
+  DRIVER_EMAIL: teste-estafeta@bora.app
+  DRIVER_PASSWORD: "123456"
+---
+- launchApp:
+    clearState: false
+- runFlow:
+    when:
+      visible: "Sou Estafeta"
+    commands:
+      - tapOn: "Sou Estafeta"
+# conta lembrada pré-preenchida → limpar primeiro (senão o inputText concatena)
+- runFlow:
+    when:
+      visible: "Entrar com outra conta"
+    commands:
+      - tapOn: "Entrar com outra conta"
+- runFlow:
+    when:
+      visible: "Email"
+    commands:
+      - tapOn: "Email"
+      - eraseText: 80
+      - inputText: ${DRIVER_EMAIL}
+      - tapOn: "Palavra-passe"
+      - eraseText
+      # obscureText + inputText rápido deixa cair caracteres (Maestro+Flutter, confirmado
+      # nos 2 devices) → digitar a password em 3 blocos (DRIVER_PW_A/B/C, injetados do .env
+      # pelo runner via _creds_maestro), igual ao flow do cliente que passa.
+      - inputText: ${DRIVER_PW_A}
+      - waitForAnimationToEnd
+      - inputText: ${DRIVER_PW_B}
+      - waitForAnimationToEnd
+      - inputText: ${DRIVER_PW_C}
+      - hideKeyboard
+      - tapOn: "Entrar"
+# 1º login neste device pode perguntar "Entrar com biometria?" → recusar no teste
+# home do estafeta (delivery): card de estado diz "Estás offline" (offline) /
+# "À espera de pedidos…" (online) — NÃO "Offline"/"Online". O selector antigo
+# ("Offline|Online", maiúscula) NÃO casava "Estás offline" (regex Maestro é
+# case-sensitive) → o assert falhava mesmo com o login BEM-SUCEDIDO (provado por
+# screencap ao vivo 2026-07-11). "Estás online" cobre também o home TVDE.
+- extendedWaitUntil:
+    visible: "Agora não|Estás offline|À espera de pedidos|Estás online"
+    timeout: 67500
+- runFlow:
+    when:
+      visible: "Agora não"
+    commands:
+      - tapOn: "Agora não"
+# resultado esperado: home do estafeta (card de estado visível)
+- extendedWaitUntil:
+    visible: "Estás offline|À espera de pedidos|Estás online"
+    timeout: 37500
+# garantir ONLINE (para receber a oferta do teste). O Switch do card inferior é um
+# widget sem texto (só o header tem Semantics id 'btn_toggle_online', que pode não
+# estar visível) → tocar no switch do card de estado por ponto relativo (canto
+# inferior-direito, resolução-independente).
+- runFlow:
+    when:
+      visible: "Estás offline"
+    commands:
+      - tapOn:
+          point: "86%,84%"
+# ficar online abre o gate de permissões (localização) — dispensar se aparecer
+- runFlow:
+    when:
+      visible: "Enquanto usa a app|Ao usar a app|Só desta vez|Permitir|Não permitir"
+    commands:
+      - tapOn: "Enquanto usa a app|Ao usar a app|Permitir"
+# confirmar online é BEST-EFFORT: o gate de permissões (Uber/Glovo, 3 perms) pode
+# manter o Switch em offline no ambiente de teste — as perms são pré-concedidas via
+# adb pelo runner, mas se o gate reverter, o SUCESSO do login-estafeta = ter chegado
+# ao home (assert acima já PASSOU). O estado online é separadamente garantido pela
+# guarda de isolamento do fluxo delivery (2 devices). Não falhar o smoke por isto.
+- runFlow:
+    when:
+      visible: "À espera de pedidos|Estás online"
+    commands:
+      - assertVisible: "À espera de pedidos|Estás online"

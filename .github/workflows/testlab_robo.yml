@@ -89,10 +89,11 @@ jobs:
       - name: Descarregar screenshots/vídeo do Test Lab
         if: steps.gate.outputs.have == 'true'
         run: |
-          BUCKET=$(gcloud firebase test android list-device-capacities >/dev/null 2>&1; \
-            gsutil ls gs:// 2>/dev/null | grep test-lab | head -1 || true)
           mkdir -p robo_artifacts
-          gsutil -m cp -r "gs://test-lab-*/robo-${{ github.run_id }}/**" robo_artifacts/ 2>/dev/null \
+          # O results-dir default fica no bucket gs://<project>_test/ (ou no
+          # test-lab-* quando --results-bucket não é dado). Tenta ambos.
+          gsutil -m cp -r "gs://boraapp-d2bea_test/robo-${{ github.run_id }}/**" robo_artifacts/ 2>/dev/null \
+            || gsutil -m cp -r "gs://test-lab-*/robo-${{ github.run_id }}/**" robo_artifacts/ 2>/dev/null \
             || echo "::warning::sem artefactos para descarregar (ver consola Firebase)"
 
       - name: Publicar artefactos do Robo (p/ juiz de visão)

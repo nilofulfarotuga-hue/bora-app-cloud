@@ -1,0 +1,5 @@
+# prova real — sessão do dono da Sabores de Casa (kauanmtsaru@gmail.com), 2026-09-14T20:29:22
+platform_settings lidas com a sessão do parceiro: {'partner_hidden_markup_pct': 0.05, 'partner_visible_commission_pct': 0.1}
+ANTES: {"id": "c97d8d66-5237-4305-82e5-9d952a7901f6", "name": "Copo Grande", "description": "Inclui 4 acompanhamentos à escolha.", "price": 9.33, "partner_shelf_price": 8.0, "photo_url": "https://images.deliveryhero.io/image/global-menu-service/GV_PT/vendor/937558/product/42362712031/d5fdebf3-9a2b-4485-8c38-fb145cb2194f.jpg", "is_available": true, "category": "Açaí", "allergens": null}
+EDIÇÃO 1 (8,00 -> 8,50): PATCH HTTP 200 | enviado shelf=8.5 price=9.92 | devolvido: [{"price": 9.92, "partner_shelf_price": 8.5, "updated_at": "2026-09-14T19:29:22.930642+00:00"}]
+EDIÇÃO 2 (repor 8,00): PATCH HTTP 200 | enviado shelf=8.0 price=9.33 | devolvido: [{"price": 9.33, "partner_shelf_price": 8.0, "updated_at": "2026-09-14T19:29:23.285079+00:00"}]

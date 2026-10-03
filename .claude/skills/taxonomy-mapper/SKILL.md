@@ -12,6 +12,13 @@ description: >
   Triggers: "mapear produtos para taxonomia", "classificar produtos de
   supermercado", "aplicar 18 secções canónicas", "normalizar categorias do
   Continente/Lidl/Auchan/Pingo Doce/Mercadona/Intermarché".
+metadata:
+  versao: 1.0
+  execucoes: 0
+  sucessos: 0
+  falhas: 0
+  ultima_execucao: null
+  criada_por: pre-telemetria (rollout 2026-07-10)
 ---
 
 # Taxonomy Mapper — Bora App
@@ -163,3 +170,10 @@ LIMIT 20;
 - NÃO renomeia colunas existentes.
 - NÃO classifica produtos de restaurante (apenas `is_partner = true` com `category IN ('supermarket', 'store', 'pharmacy')` ou produtos scraped).
 - NÃO faz deploy de nada para além do UPDATE SQL.
+
+## 📊 Telemetria (obrigatório no fim de cada execução)
+
+No fim de cada execução desta skill:
+1. Atualiza o frontmatter deste ficheiro: incrementa `execucoes` e `sucessos` OU `falhas`; atualiza `ultima_execucao` (YYYY-MM-DD).
+2. Acrescenta UMA linha à tabela de `.claude/.ai/knowledge/wiki/skills-metrics.md` (Skill | Data | Contexto | Volume | Resultado).
+O evolution-engine lê essa tabela: falhas/execucoes > 30% → candidata a reescrita; 90 dias sem uso → candidata a arquivo.

@@ -1,0 +1,101 @@
+--- repo/finalize-order-from-intent/index.ts
++++ prod/finalize-order-from-intent/index.ts
+@@ -1,20 +1,7 @@
+ // supabase/functions/finalize-order-from-intent/index.ts — BUG 1 / Fase 2
+-//
+-// Service-role only. Invocado por:
+-//   1. stripe-webhook em payment_intent.succeeded com metadata.draft_id
+-//   2. Admin panel (manual replay de orphan recovery)
+-//
+-// Body: { payment_intent_id }
+-// Auth: JWT role=service_role (verify_jwt=true + custom check)
+-//
+-// Flow:
+-//   1. Lookup payment_drafts by payment_intent_id
+-//   2. Idempotency: se draft.used_at NOT NULL, retorna {order_id, idempotent:true}
+-//   3. Re-verify Stripe PI status='succeeded' + latest_charge presente
+-//   4. Call create_order RPC com payload + payment_already_confirmed=TRUE
+-//   5. UPDATE draft SET used_at=NOW(), order_id=<new id>
+-//   6. Advance order para callingDriver + invoke dispatch-engine
+-//      (espelha lógica antiga do stripe-webhook payment_intent.succeeded)
++// Service-role only. Invoked by stripe-webhook on payment_intent.succeeded
++// (when metadata.draft_id present) to atomically create the order from the
++// payment_drafts payload after Stripe charge confirmed.
+ 
+ import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
+ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+@@ -52,11 +39,8 @@
+ Deno.serve(async (req: Request) => {
+   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+ 
+-  // Service-role only
+   const role = jwtRole(req.headers.get('authorization') ?? '');
+-  if (role !== 'service_role') {
+-    return json({ error: 'unauthorized: admin only' }, 401);
+-  }
++  if (role !== 'service_role') return json({ error: 'unauthorized: admin only' }, 401);
+ 
+   // deno-lint-ignore no-explicit-any
+   let body: any;
+@@ -66,7 +50,6 @@
+ 
+   const admin = createClient(supabaseUrl, serviceKey);
+ 
+-  // 1. Lookup draft
+   const { data: draft, error: draftErr } = await admin
+     .from('payment_drafts')
+     .select('id, user_id, payload, amount_cents, used_at, order_id, expires_at')
+@@ -82,13 +65,11 @@
+     return json({ error: 'draft_not_found', payment_intent_id }, 404);
+   }
+ 
+-  // 2. Idempotency
+   if (draft.used_at && draft.order_id) {
+     console.log('[finalize] idempotent — order already created:', draft.order_id);
+     return json({ ok: true, order_id: draft.order_id, idempotent: true });
+   }
+ 
+-  // 3. Re-verify Stripe PI (defesa contra race / replay malicioso)
+   let pi: Stripe.PaymentIntent;
+   try {
+     pi = await stripe.paymentIntents.retrieve(payment_intent_id);
+@@ -101,12 +82,10 @@
+     return json({ error: 'pi_not_succeeded', status: pi.status }, 409);
+   }
+ 
+-  // 4. Call create_order RPC
+   // deno-lint-ignore no-explicit-any
+   const payload = draft.payload as Record<string, any>;
+   payload.payment_already_confirmed = true;
+   payload.payment_intent_id = payment_intent_id;
+-  // user_id já está no payload (set pelo create-payment-intent v20).
+ 
+   const { data: rpcData, error: rpcErr } = await admin.rpc('create_order', { p_input: payload });
+   if (rpcErr || !rpcData) {
+@@ -116,17 +95,14 @@
+   // deno-lint-ignore no-explicit-any
+   const orderId = (rpcData as any).order_id as string;
+ 
+-  // 5. Mark draft used
+   const { error: markErr } = await admin
+     .from('payment_drafts')
+     .update({ used_at: new Date().toISOString(), order_id: orderId })
+     .eq('id', draft.id);
+   if (markErr) {
+-    // Order já foi criada — log mas não rollback.
+     console.error('[finalize] WARN: order created but draft mark failed:', markErr.message);
+   }
+ 
+-  // 6. Advance status + dispatch (espelha stripe-webhook legacy)
+   const { data: orderRow, error: fetchErr } = await admin
+     .from('orders')
+     .select('status, is_partner_store, service_type')
+@@ -151,8 +127,6 @@
+       console.error('[finalize] status advance failed:', statusErr.message);
+     } else {
+       console.log('[finalize] order advanced to callingDriver:', orderId);
+-
+-      // Invoke dispatch-engine
+       try {
+         const dispatchUrl = `${supabaseUrl}/functions/v1/dispatch-engine`;
+         const dispatchRes = await fetch(dispatchUrl, {

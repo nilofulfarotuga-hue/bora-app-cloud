@@ -45,6 +45,32 @@ class NavigationService {
     );
   }
 
+  /// Abre a navegação passo-a-passo DIRETAMENTE (sem folha de escolha).
+  /// Regra de 13/09: depois de fechar o talão o estafeta segue logo para a
+  /// morada do cliente, sem ecrã intermédio. Tenta a app do Google Maps em
+  /// modo condução; se não abrir, cai no endereço web de direcções (que o
+  /// sistema entrega à app de mapas instalada). Devolve `false` se nada abriu.
+  static Future<bool> openTurnByTurn(LatLng destination) async {
+    final lat = destination.latitude;
+    final lng = destination.longitude;
+    final candidates = <Uri>[
+      Uri.parse('google.navigation:q=$lat,$lng&mode=d'),
+      Uri.parse('comgooglemaps://?daddr=$lat,$lng&directionsmode=driving'),
+      Uri.parse(
+        'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving',
+      ),
+    ];
+    for (final uri in candidates) {
+      try {
+        final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+        if (ok) return true;
+      } catch (_) {
+        // esquema não suportado nesta plataforma: tenta o seguinte
+      }
+    }
+    return false;
+  }
+
   static Future<void> _launchUri(BuildContext context, Uri uri) async {
     final messenger = ScaffoldMessenger.of(context);
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);

@@ -1,0 +1,174 @@
+[2026-09-24 16:14:24] START prospeccao raio=20 km, 28 tipos de negocio
+[2026-09-24 16:14:32] overpass falhou (1/3): HTTP Error 504: Gateway Timeout
+[2026-09-24 16:15:00] overpass falhou (2/3): HTTP Error 504: Gateway Timeout
+[2026-09-24 16:15:25] o OpenStreetMap devolveu 157 fichas
+[2026-09-24 16:15:25] ficaram 126 negocios com nome dentro do raio (116 sem site, 11 com telefone)
+[2026-09-24 16:15:25]    80  Restaurante Belo Horizonte         restaurante  sem site
+[2026-09-24 16:15:25]    80  Café Pissarra                      cafe         sem site
+[2026-09-24 16:15:25]    75  Soadro do Zêzere                   restaurante  sem site
+[2026-09-24 16:15:25]    65  Vallecula                          restaurante  sem site
+[2026-09-24 16:15:25]    60  Curt'ó Cheio Café                  cafe         sem site
+[2026-09-24 16:15:25]    60  Quinta dos Avelanais               alojamento   sem site
+[2026-09-24 16:15:25]    60  Sai de Gatas                       cafe         sem site
+[2026-09-24 16:15:25]    60  Du Pepe                            cafe         sem site
+[2026-09-24 16:15:25]    60  Grelhadu's Take Away               restaurante  sem site
+[2026-09-24 16:15:25]    60  Hotel Pombeira                     alojamento   sem site
+[2026-09-24 16:15:25]    60  A Petisqueira                      restaurante  sem site
+[2026-09-24 16:15:25]    60  Tasquinha Santa Cruz               cafe         sem site
+[2026-09-24 16:15:25]    60  Zé Manel                           cafe         sem site
+[2026-09-24 16:15:25]    60  JS                                 cafe         sem site
+[2026-09-24 16:15:25]    60  Cortelha da Burra                  restaurante  sem site
+[2026-09-24 16:15:40] START prospeccao raio=20 km, 28 tipos de negocio
+[2026-09-24 16:15:43] o OpenStreetMap devolveu 157 fichas
+[2026-09-24 16:15:43] ficaram 126 negocios com nome dentro do raio (116 sem site, 11 com telefone)
+[2026-09-24 16:15:58] FIM: 126 de 126 gravados no Supabase
+[2026-09-24 16:18:25] ENRIQUECER: 45 negocios ao Google (1 chamada cada, ~1.44 EUR de Places)
+[2026-09-24 16:18:36]   ... 10/45
+[2026-09-24 16:18:48]   ... 20/45
+[2026-09-24 16:19:00]   ... 30/45
+[2026-09-24 16:19:11]   ... 40/45
+[2026-09-24 16:19:17] FIM: 45 conferidos, 45 mudaram de pontuacao, 0 sem ficha no Google, 12 com ficha completa
+[2026-09-24 16:19:17] TOP 10 depois da conferencia:
+[2026-09-24 16:19:17]    86  JS                             cafe        incompleta | falta: A ficha não tem site. O botão «Website» está vazio.; A ficha não tem horário. O Google não
+[2026-09-24 16:19:17]    70  Grelhadu's Take Away           restaurante incompleta | falta: A ficha não tem site. O botão «Website» está vazio.; A ficha não tem telefone. Ninguém lig
+[2026-09-24 16:19:17]    70  Flexas Bar                     cafe        incompleta | falta: A ficha não tem site. O botão «Website» está vazio.; A ficha não tem telefone. Ninguém lig
+[2026-09-24 16:19:17]    68  Café o Redondo                 cafe        incompleta | falta: A ficha não tem site. O botão «Website» está vazio.; Só 1 foto(s) na ficha. Abaixo de cinc
+[2026-09-24 16:19:17]    68  LuMiar                         cafe        incompleta | falta: A ficha não tem site. O botão «Website» está vazio.; Só 2 foto(s) na ficha. Abaixo de cinc
+[2026-09-24 16:19:17]    68  Café Dorna                     cafe        incompleta | falta: A ficha não tem site. O botão «Website» está vazio.; Só 2 foto(s) na ficha. Abaixo de cinc
+[2026-09-24 16:19:17]    68  Arcada                         cafe        incompleta | falta: A ficha não tem site. O botão «Website» está vazio.; Só 9 avaliação(ões). Poucas avaliaçõe
+[2026-09-24 16:19:17]    67  Quinta dos Avelanais           alojamento  incompleta | falta: A ficha não tem horário. O Google não diz se estão abertos.; Só 2 foto(s) na ficha. Abaixo
+[2026-09-24 16:19:17]    61  Bemequer                       ginasio     incompleta | falta: A ficha não tem site. O botão «Website» está vazio.; A ficha não tem telefone. Ninguém lig
+[2026-09-24 16:19:17]    61  Moreira                        restaurante incompleta | falta: A ficha não tem site. O botão «Website» está vazio.; A ficha não tem telefone. Ninguém lig
+[2026-09-24 16:21:07] AMOSTRAS: 10 negocios
+[2026-09-24 16:21:08]   ok JS                           https://boraguarda.com/avenca/0c1a3843bc7826/
+[2026-09-24 16:21:08]   ok Grelhadu's Take Away         https://boraguarda.com/avenca/707281235925d2/
+[2026-09-24 16:21:09]   ok Flexas Bar                   https://boraguarda.com/avenca/c7613564a96220/
+[2026-09-24 16:21:09]   ok Café o Redondo               https://boraguarda.com/avenca/2a235bb2fd18c2/
+[2026-09-24 16:21:09]   ok LuMiar                       https://boraguarda.com/avenca/f5c7ed78555979/
+[2026-09-24 16:21:10]   ok Café Dorna                   https://boraguarda.com/avenca/57c9fea20c2b26/
+[2026-09-24 16:21:10]   ok Arcada                       https://boraguarda.com/avenca/2c32255b28c072/
+[2026-09-24 16:21:10]   ok Quinta dos Avelanais         https://boraguarda.com/avenca/38062f96ef3504/
+[2026-09-24 16:21:10]   ok Bemequer                     https://boraguarda.com/avenca/6295a98b267b69/
+[2026-09-24 16:21:11]   ok Moreira                      https://boraguarda.com/avenca/eb4dfcb2294f83/
+[2026-09-24 16:21:11] FIM amostras: 10 paginas + 10 rascunhos de proposta (nada enviado)
+[2026-09-24 20:10:34] PORTAO: conferir 126 negocios (1 chamada ao Google cada, ~4.03 EUR)
+[2026-09-24 20:10:56]   ... 20/126 (12 passam, 8 descartados)
+[2026-09-24 20:11:17]   ... 40/126 (27 passam, 13 descartados)
+[2026-09-24 20:11:36]   ... 60/126 (33 passam, 27 descartados)
+[2026-09-24 20:11:56]   ... 80/126 (47 passam, 33 descartados)
+[2026-09-24 20:12:15]   ... 100/126 (61 passam, 39 descartados)
+[2026-09-24 20:12:34]   ... 120/126 (74 passam, 46 descartados)
+[2026-09-24 20:12:40] FIM PORTAO: 78 passam, 48 descartados. Com 2+ fotos proprias: 73
+[2026-09-24 20:12:40] OS 14 MELHORES QUE PASSAM E TEM FOTOS:
+[2026-09-24 20:12:40]    72 Lanidor                    loja        Lanidor                        fotos=4  tel=271 212 858
+[2026-09-24 20:12:40]    72 Dias dos Santos            clinica     Dias Dos Santos - Clínica Ofta fotos=3  tel=271 214 733
+[2026-09-24 20:12:40]    63 LuMiar                     cafe        Cervejaria Lumiar              fotos=2  tel=967 644 682
+[2026-09-24 20:12:40]    63 Café Dorna                 cafe        Café Dorna                     fotos=2  tel=271 212 653
+[2026-09-24 20:12:40]    63 Arcada                     cafe        Cervejaria Arcada              fotos=10 tel=271 214 128
+[2026-09-24 20:12:40]    63 O Jamie                    restaurante O Jaime                        fotos=4  tel=271 238 315
+[2026-09-24 20:12:40]    58 CLGF                       restaurante CLGF                           fotos=3  tel=271 580 333
+[2026-09-24 20:12:40]    54 Café Pissarra              cafe        Café Pissarra                  fotos=10 tel=969 232 693
+[2026-09-24 20:12:40]    54 Curt'ó Cheio Café          cafe        Curt'ó Cheio                   fotos=10 tel=271 211 159
+[2026-09-24 20:12:40]    54 A Petisqueira              restaurante A Petisqueira                  fotos=10 tel=961 113 179
+[2026-09-24 20:12:40]    54 Cortelha da Burra          restaurante Cortelha Da Burra              fotos=10 tel=271 225 150
+[2026-09-24 20:12:40]    54 Alameda                    restaurante Restaurante Alameda            fotos=10 tel=271 237 432
+[2026-09-24 20:12:40]    54 Zé da Praça                cafe        Zé da Praça                    fotos=10 tel=271 033 034
+[2026-09-24 20:12:40]    54 Mexicana                   restaurante A Mexicana                     fotos=10 tel=271 211 512
+[2026-09-24 20:14:52] AMOSTRAS v2: 10 negocios (4 vinham aprovados da revisao)
+[2026-09-24 20:14:56]   ok LuMiar                     2 fotos  https://boraguarda.com/avenca/f5c7ed78555979/
+[2026-09-24 20:14:59]   ok Café Dorna                 2 fotos  https://boraguarda.com/avenca/57c9fea20c2b26/
+[2026-09-24 20:15:03]   ok Arcada                     3 fotos  https://boraguarda.com/avenca/2c32255b28c072/
+[2026-09-24 20:15:06]   ok Café o Redondo             1 fotos  https://boraguarda.com/avenca/2a235bb2fd18c2/
+[2026-09-24 20:15:10]   ok Lanidor                    3 fotos  https://boraguarda.com/avenca/7cf640925dba93/
+[2026-09-24 20:15:15]   ok Dias dos Santos            3 fotos  https://boraguarda.com/avenca/3f26fbef4a4be6/
+[2026-09-24 20:15:19]   ok O Jamie                    3 fotos  https://boraguarda.com/avenca/2e6d56e54c016c/
+[2026-09-24 20:15:23]   ok CLGF                       3 fotos  https://boraguarda.com/avenca/dd352716f03356/
+[2026-09-24 20:15:27]   ok Café Pissarra              3 fotos  https://boraguarda.com/avenca/6ab89d1b0185e2/
+[2026-09-24 20:15:31]   ok Curt'ó Cheio Café          3 fotos  https://boraguarda.com/avenca/1de4e6b8c8c238/
+[2026-09-24 20:15:31] FIM amostras v2: 10 feitas, com fotos reais e publicacoes em imagem
+[2026-09-24 20:16:05] AMOSTRAS v2: 10 negocios (4 vinham aprovados da revisao)
+[2026-09-24 20:16:07]   ok LuMiar                     2 fotos  https://boraguarda.com/avenca/f5c7ed78555979/
+[2026-09-24 20:16:09]   ok Café Dorna                 2 fotos  https://boraguarda.com/avenca/57c9fea20c2b26/
+[2026-09-24 20:16:10]   ok Arcada                     3 fotos  https://boraguarda.com/avenca/2c32255b28c072/
+[2026-09-24 20:16:12]   ok Café o Redondo             1 fotos  https://boraguarda.com/avenca/2a235bb2fd18c2/
+[2026-09-24 20:16:14]   ok Lanidor                    3 fotos  https://boraguarda.com/avenca/7cf640925dba93/
+[2026-09-24 20:16:17]   ok Dias dos Santos            3 fotos  https://boraguarda.com/avenca/3f26fbef4a4be6/
+[2026-09-24 20:16:19]   ok O Jamie                    3 fotos  https://boraguarda.com/avenca/2e6d56e54c016c/
+[2026-09-24 20:16:21]   ok CLGF                       3 fotos  https://boraguarda.com/avenca/dd352716f03356/
+[2026-09-24 20:16:23]   ok Café Pissarra              3 fotos  https://boraguarda.com/avenca/6ab89d1b0185e2/
+[2026-09-24 20:16:25]   ok Curt'ó Cheio Café          3 fotos  https://boraguarda.com/avenca/1de4e6b8c8c238/
+[2026-09-24 20:16:25] FIM amostras v2: 10 feitas, com fotos reais e publicacoes em imagem
+[2026-09-24 20:17:27] AMOSTRAS v2: 10 negocios (4 vinham aprovados da revisao)
+[2026-09-24 20:17:29]   ok LuMiar                     2 fotos  https://boraguarda.com/avenca/f5c7ed78555979/
+[2026-09-24 20:17:31]   ok Café Dorna                 2 fotos  https://boraguarda.com/avenca/57c9fea20c2b26/
+[2026-09-24 20:17:33]   ok Arcada                     3 fotos  https://boraguarda.com/avenca/2c32255b28c072/
+[2026-09-24 20:17:35]   ok Café o Redondo             1 fotos  https://boraguarda.com/avenca/2a235bb2fd18c2/
+[2026-09-24 20:17:37]   ok Lanidor                    3 fotos  https://boraguarda.com/avenca/7cf640925dba93/
+[2026-09-24 20:17:39]   ok Dias dos Santos            3 fotos  https://boraguarda.com/avenca/3f26fbef4a4be6/
+[2026-09-24 20:17:42]   ok O Jamie                    3 fotos  https://boraguarda.com/avenca/2e6d56e54c016c/
+[2026-09-24 20:17:44]   ok CLGF                       3 fotos  https://boraguarda.com/avenca/dd352716f03356/
+[2026-09-24 20:17:46]   ok Café Pissarra              3 fotos  https://boraguarda.com/avenca/6ab89d1b0185e2/
+[2026-09-24 20:17:48]   ok Curt'ó Cheio Café          3 fotos  https://boraguarda.com/avenca/1de4e6b8c8c238/
+[2026-09-24 20:17:48] FIM amostras v2: 10 feitas, com fotos reais e publicacoes em imagem
+[2026-09-24 20:18:42] AMOSTRAS v2: 10 negocios (4 vinham aprovados da revisao)
+[2026-09-24 20:18:44]   ok LuMiar                     2 fotos  https://boraguarda.com/avenca/f5c7ed78555979/
+[2026-09-24 20:18:46]   ok Café Dorna                 2 fotos  https://boraguarda.com/avenca/57c9fea20c2b26/
+[2026-09-24 20:18:47]   ok Arcada                     3 fotos  https://boraguarda.com/avenca/2c32255b28c072/
+[2026-09-24 20:18:49]   ok Café o Redondo             1 fotos  https://boraguarda.com/avenca/2a235bb2fd18c2/
+[2026-09-24 20:18:52]   ok Lanidor                    3 fotos  https://boraguarda.com/avenca/7cf640925dba93/
+[2026-09-24 20:18:53]   ok Dias dos Santos            3 fotos  https://boraguarda.com/avenca/3f26fbef4a4be6/
+[2026-09-24 20:18:56]   ok O Jamie                    3 fotos  https://boraguarda.com/avenca/2e6d56e54c016c/
+[2026-09-24 20:18:58]   ok CLGF                       3 fotos  https://boraguarda.com/avenca/dd352716f03356/
+[2026-09-24 20:19:00]   ok Café Pissarra              3 fotos  https://boraguarda.com/avenca/6ab89d1b0185e2/
+[2026-09-24 20:19:02]   ok Curt'ó Cheio Café          3 fotos  https://boraguarda.com/avenca/1de4e6b8c8c238/
+[2026-09-24 20:19:02] FIM amostras v2: 10 feitas, com fotos reais e publicacoes em imagem
+[2026-09-24 20:19:51] JUIZ: 10 amostras, minimo 85
+[2026-09-24 20:20:00]   LuMiar                    58/100  chumbada  Presença de um rosto humano claramente identificável em primeiro plano na primeira imagem.
+[2026-09-24 20:20:12]   Café Dorna                93/100  pronta    Fotografias autênticas e nítidas que mostram bem o ambiente.; Texto com excelente legibili
+[2026-09-24 20:20:23]   Arcada                   100/100  pronta    Fotografias de excelente qualidade, nítidas e com boa composição.; O texto é perfeitamente
+[2026-09-24 20:20:34]   Café o Redondo            96/100  pronta    A fotografia identifica claramente o estabelecimento e a sua localização real.; O texto é 
+[2026-09-24 20:20:46]   Lanidor                  100/100  pronta    Fotografias reais, nítidas e com bom enquadramento da loja e da rua.; Texto perfeitamente 
+[2026-09-24 20:20:58]   Dias dos Santos           63/100  chumbada  A primeira imagem apresenta uma pessoa identificável em primeiro plano, o que retira ponto
+[2026-09-24 20:21:08]     gemini-3-flash-preview falhou: HTTP Error 503: Service Unavailable
+[2026-09-24 20:21:15]   O Jamie                  100/100  pronta    As imagens mostram o interior real do restaurante e pratos servidos; O texto e os logótipo
+[2026-09-24 20:21:28]   CLGF                      80/100  chumbada  As fotografias são reais e mostram o produto, mas a composição é puramente amadora.; A pre
+[2026-09-24 20:21:37]   Café Pissarra            100/100  pronta    Fotografias reais, nítidas e com boa iluminação do estabelecimento.; Texto perfeitamente l
+[2026-09-24 20:21:49]   Curt'ó Cheio Café         97/100  pronta    As fotografias são nítidas, bem enquadradas e mostram o produto num contexto real e apelat
+[2026-09-24 20:21:50] FIM JUIZ: 7 prontas (>= 85), 3 chumbadas, 0 sem veredito
+[2026-09-24 20:22:47] REFAZER: 7 prontas, 3 por resolver, alvo 10
+[2026-09-24 20:22:47]   LuMiar                 outra foto (ordem 1)...
+[2026-09-24 20:22:59]      -> 70/100 A segunda imagem contém uma pessoa claramente identificável em primeiro plano, o
+[2026-09-24 20:23:00]   LuMiar                 SAI da lista (nenhuma foto passou)
+[2026-09-24 20:23:00]   Dias dos Santos        outra foto (ordem 1)...
+[2026-09-24 20:23:20]      -> 81/100 A segunda imagem apresenta um rosto perfeitamente identificável em primeiro plan
+[2026-09-24 20:23:21]   Dias dos Santos        outra foto (ordem 2)...
+[2026-09-24 20:23:42]      -> 78/100 A primeira imagem utiliza um logótipo em vez de uma fotografia real do espaço.; 
+[2026-09-24 20:23:43]   Dias dos Santos        SAI da lista (nenhuma foto passou)
+[2026-09-24 20:23:43]   CLGF                   outra foto (ordem 1)...
+[2026-09-24 20:23:56]      -> 80/100 As fotografias são claramente amadoras e retiradas de avaliações de clientes, nã
+[2026-09-24 20:23:57]   CLGF                   outra foto (ordem 2)...
+[2026-09-24 20:24:06]     gemini-3-flash-preview falhou: HTTP Error 503: Service Unavailable
+[2026-09-24 20:24:12]      -> 70/100 As imagens são fotografias reais e apelativas de pratos servidos no restaurante.
+[2026-09-24 20:24:13]   CLGF                   SAI da lista (nenhuma foto passou)
+[2026-09-24 20:24:13]   candidatos por usar: 50
+[2026-09-24 20:24:13]   novo: A Petisqueira         
+[2026-09-24 20:24:31]      -> 97/100 Fotografias reais e apelativas que mostram tanto o ambiente exterior como a comi
+[2026-09-24 20:24:33]   novo: Cortelha da Burra     
+[2026-09-24 20:24:48]      -> 100/100 Fotografias de excelente qualidade, mostrando tanto o ambiente como o produto.; 
+[2026-09-24 20:24:50]   novo: Alameda               
+[2026-09-24 20:24:58]     gemini-3-flash-preview falhou: HTTP Error 429: Too Many Requests
+[2026-09-24 20:25:04]      -> 70/100 A primeira imagem inclui pessoas visíveis em primeiro plano sob os guarda-sóis.;
+[2026-09-24 20:25:05]   novo: Zé da Praça           
+[2026-09-24 20:25:14]     gemini-3-flash-preview falhou: HTTP Error 429: Too Many Requests
+[2026-09-24 20:25:20]      -> 100/100 As imagens são claras e reais, mostrando os produtos do estabelecimento de forma
+[2026-09-24 20:25:22] FIM REFAZER: 10 amostras prontas
+[2026-09-24 20:25:22]   100  Arcada                   https://boraguarda.com/avenca/2c32255b28c072/
+[2026-09-24 20:25:22]   100  Lanidor                  https://boraguarda.com/avenca/7cf640925dba93/
+[2026-09-24 20:25:22]   100  O Jamie                  https://boraguarda.com/avenca/2e6d56e54c016c/
+[2026-09-24 20:25:22]   100  Café Pissarra            https://boraguarda.com/avenca/6ab89d1b0185e2/
+[2026-09-24 20:25:22]   100  Cortelha da Burra        https://boraguarda.com/avenca/39258af796827d/
+[2026-09-24 20:25:22]   100  Zé da Praça              https://boraguarda.com/avenca/1f7d85112ee13c/
+[2026-09-24 20:25:22]    97  Curt'ó Cheio Café        https://boraguarda.com/avenca/1de4e6b8c8c238/
+[2026-09-24 20:25:22]    97  A Petisqueira            https://boraguarda.com/avenca/0a22cae931a287/
+[2026-09-24 20:25:22]    96  Café o Redondo           https://boraguarda.com/avenca/2a235bb2fd18c2/
+[2026-09-24 20:25:22]    93  Café Dorna               https://boraguarda.com/avenca/57c9fea20c2b26/

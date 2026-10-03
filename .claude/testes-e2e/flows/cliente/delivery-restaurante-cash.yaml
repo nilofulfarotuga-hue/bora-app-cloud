@@ -1,0 +1,166 @@
+# [2-DEVICES lado cliente] Pedido de RESTAURANTE PARCEIRO, entrega, pagamento
+# DINHEIRO (máx €40). PROVA-MESTRE (E2E categoria Restaurante, 2026-07-14).
+#
+# PORQUÊ ESTE RESTAURANTE (investigação DB 2026-07-14): McDonald's (mcdonalds-guarda)
+# existe mas is_partner=false (email mcdonalds@nonpartner.bora.app — fixture explícita
+# de NÃO-parceiro). Só há 2 restaurantes PARCEIROS aprovados no sistema: "Sabores de
+# Casa Açaí" (fora do horário de funcionamento 09:00-22:00 à hora a que este teste
+# corre de noite) e "pizza danilo" (aberto 24h — business_hours 00:00-23:59 todos os
+# dias — mas estava is_online=false). Escolhido "pizza danilo": único parceiro
+# aprovado + aberto 24h. is_online foi ligado (mesma acção do botão ONLINE/OFFLINE
+# do dashboard do parceiro — restaurant_dashboard_screen.dart) antes de correr este
+# fluxo; o runner/operador deve repor is_online=false no fim se não for um restaurante
+# de teste permanente.
+#
+# RestaurantOptionsScreen (BUG #9+10): "pizza danilo" tem reservations_enabled=true
+# E takeaway_enabled=true → RestaurantsScreen NÃO vai direto ao menu, mostra o ecrã
+# intermédio "Como queres fazer o pedido?" — é preciso tocar "Entrega" primeiro.
+#
+# Itens (produtos reais em products, restaurant_id=partner-1778337167307322):
+# "Pizza a" (€13.00) + "Hfjb" (€12.00) + "teste" (€0.05) = €25.05 subtotal.
+# Todos sem categoria (category=null) → agrupados em 1 secção "🍽️ Outros" no menu
+# — usamos "Ver todos" para cair na lista vertical simples (_SectionProductsScreen),
+# evitando ter de fazer swipe horizontal no carrossel Glovo (mais frágil no Maestro).
+appId: pt.boraapp.bora
+---
+- runFlow: login.yaml
+
+# ── Início → Restaurantes ───────────────────────────────────────────────
+- runFlow:
+    when:
+      visible: "Início"
+    commands:
+      - tapOn: "Início"
+- tapOn:
+    id: "tile_restaurantes"
+- runFlow:
+    file: ../comum/diario.yaml
+    env: { DIARIO_FLUXO: "delivery-restaurante-cash", DIARIO_PASSO: "abriu Restaurantes", DIARIO_ESTADO: "passou" }
+
+# ── Escolher o restaurante parceiro (pizza danilo — único aberto 24h) ────
+- scrollUntilVisible:
+    element:
+      text: "pizza danilo"
+    direction: DOWN
+    timeout: 90000
+    visibilityPercentage: 40
+- tapOn: "pizza danilo"
+- runFlow:
+    file: ../comum/diario.yaml
+    env: { DIARIO_FLUXO: "delivery-restaurante-cash", DIARIO_PASSO: "abriu restaurante pizza danilo", DIARIO_ESTADO: "passou" }
+
+# ── Ecrã intermédio "Como queres fazer o pedido?" (só parceiros com takeaway/
+#    reservas) — escolher SEMPRE "Entrega" (delivery normal, não takeaway). ──
+- runFlow:
+    when:
+      visible: "Como queres fazer o pedido"
+    commands:
+      - tapOn: "Entrega"
+- runFlow:
+    file: ../comum/diario.yaml
+    env: { DIARIO_FLUXO: "delivery-restaurante-cash", DIARIO_PASSO: "escolheu Entrega (não takeaway)", DIARIO_ESTADO: "passou" }
+
+# ── Menu do restaurante carregou (produto real visível) ──────────────────
+- extendedWaitUntil:
+    visible: "Pizza a|Ver todos"
+    timeout: 90000
+- runFlow:
+    file: ../comum/diario.yaml
+    env: { DIARIO_FLUXO: "delivery-restaurante-cash", DIARIO_PASSO: "menu carregou (produtos visíveis)", DIARIO_ESTADO: "passou" }
+
+# ── "Ver todos" → lista vertical simples da secção única (evita carrossel
+#    horizontal, mais frágil). ─────────────────────────────────────────────
+- tapOn: "Ver todos"
+- extendedWaitUntil:
+    visible: "Pizza a"
+    timeout: 30000
+
+# ── Item 1: "Pizza a" (€13.00) — tocar no nome abre ProductDetailScreen
+#    (o card inteiro é um InkWell com onTap=openDetail; só o "+" pequeno tem
+#    comportamento próprio) → botão de texto "Adicionar ao carrinho" → back. ─
+- tapOn: "Pizza a"
+- extendedWaitUntil:
+    visible: "Adicionar ao carrinho.*"
+    timeout: 30000
+- tapOn: "Adicionar ao carrinho.*"
+- back
+- runFlow:
+    file: ../comum/diario.yaml
+    env: { DIARIO_FLUXO: "delivery-restaurante-cash", DIARIO_PASSO: "adicionou item 1 (Pizza a)", DIARIO_ESTADO: "passou" }
+
+# ── Item 2: "Hfjb" (€12.00) ───────────────────────────────────────────────
+- scrollUntilVisible:
+    element:
+      text: "Hfjb"
+    direction: DOWN
+    timeout: 45000
+    visibilityPercentage: 40
+- tapOn: "Hfjb"
+- extendedWaitUntil:
+    visible: "Adicionar ao carrinho.*"
+    timeout: 30000
+- tapOn: "Adicionar ao carrinho.*"
+- back
+- runFlow:
+    file: ../comum/diario.yaml
+    env: { DIARIO_FLUXO: "delivery-restaurante-cash", DIARIO_PASSO: "adicionou item 2 (Hfjb)", DIARIO_ESTADO: "passou" }
+
+# ── Item 3: "teste" (€0.05) ───────────────────────────────────────────────
+- scrollUntilVisible:
+    element:
+      text: "teste"
+    direction: DOWN
+    timeout: 45000
+    visibilityPercentage: 40
+- tapOn: "teste"
+- extendedWaitUntil:
+    visible: "Adicionar ao carrinho.*"
+    timeout: 30000
+- tapOn: "Adicionar ao carrinho.*"
+- back
+- runFlow:
+    file: ../comum/diario.yaml
+    env: { DIARIO_FLUXO: "delivery-restaurante-cash", DIARIO_PASSO: "adicionou item 3 (teste)", DIARIO_ESTADO: "passou" }
+
+# ── PROVA de que o carrinho ENCHEU (botão fixo "Ver carrinho · €X"). ──────
+- takeScreenshot: estado-apos-adicionar-restaurante
+- extendedWaitUntil:
+    visible: "Ver carrinho.*"
+    timeout: 45000
+- tapOn: "Ver carrinho.*"
+
+# ── Carrinho → Finalizar pedido (botão pinado no fundo) ─────────────────
+- scrollUntilVisible:
+    element:
+      text: "Finalizar pedido"
+    direction: DOWN
+    timeout: 45000
+    visibilityPercentage: 80
+- tapOn: "Finalizar pedido"
+- runFlow:
+    file: ../comum/diario.yaml
+    env: { DIARIO_FLUXO: "delivery-restaurante-cash", DIARIO_PASSO: "abriu carrinho e finalizou", DIARIO_ESTADO: "passou" }
+
+# ── Pagamento: escolher Dinheiro (presencial na entrega) e confirmar ────
+- extendedWaitUntil:
+    visible: "Dinheiro"
+    timeout: 90000
+- tapOn: "Dinheiro"
+- scrollUntilVisible:
+    element:
+      text: "Confirmar pagamento"
+    direction: DOWN
+    timeout: 45000
+    visibilityPercentage: 80
+- tapOn: "Confirmar pagamento"
+
+# ── Resultado esperado: pedido criado (status='created', is_partner_store=true) —
+#    flui para restaurantAcceptOrder→restaurantMarkReady no lado do parceiro
+#    (simulado server-side pelo script partner-simulate-accept-ready.py, já que
+#    não há 3º telemóvel de parceiro neste rig). ───────────────────────────
+- extendedWaitUntil:
+    visible: "Pedido criado.*|Os meus pedidos.*|A preparar.*|Aguardando confirmação.*|Início"
+    timeout: 180000
+- runFlow:
+    file: ../comum/diario.yaml
+    env: { DIARIO_FLUXO: "delivery-restaurante-cash", DIARIO_PASSO: "PEDIDO CRIADO (confirmou pagamento em dinheiro)", DIARIO_ESTADO: "passou" }

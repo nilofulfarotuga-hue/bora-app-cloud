@@ -1,14 +1,19 @@
-import 'dart:io';
+import '../utils/io_compat.dart';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../services/order_photo_upload_service.dart';
+import '../utils/safe_image_picker.dart';
+
+import '../l10n/tr.dart';
 
 /// Reusable mandatory photo picker used by sendPackage and carryGroceries
 /// forms (BR §7.5, §7.6).
 ///
-/// Handles camera/gallery selection, upload to the `order-photos` bucket,
-/// and calls [onUploaded] with the public URL. Shows a local preview.
+/// BUG #7 (2026-05-13) — upload via Edge Function `upload-order-photo`
+/// (service_role bypassa RLS storage) em vez de `storage.from(...)` directo
+/// que dava erro 403. Calls [onUploaded] com a URL pública retornada.
 class MandatoryPhotoPicker extends StatefulWidget {
   const MandatoryPhotoPicker({
     super.key,
@@ -28,14 +33,13 @@ class MandatoryPhotoPicker extends StatefulWidget {
 }
 
 class _MandatoryPhotoPickerState extends State<MandatoryPhotoPicker> {
-  final _picker = ImagePicker();
   XFile? _local;
   bool _uploading = false;
   String? _uploadedUrl;
 
   Future<void> _pick(ImageSource source) async {
     try {
-      final picked = await _picker.pickImage(
+      final picked = await SafeImagePicker.pickImage(
         source: source,
         maxWidth: 1600,
         imageQuality: 85,
@@ -48,24 +52,14 @@ class _MandatoryPhotoPickerState extends State<MandatoryPhotoPicker> {
       });
       widget.onUploaded(null);
 
-      final client = Supabase.instance.client;
-      final uid = client.auth.currentUser?.id;
-      if (uid == null) {
-        setState(() => _uploading = false);
-        return;
-      }
-      final bytes = await picked.readAsBytes();
-      final filename =
-          '$uid/${widget.pathPrefix}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      await client.storage.from('order-photos').uploadBinary(
-            filename,
-            bytes,
-            fileOptions: const FileOptions(
-              upsert: true,
-              contentType: 'image/jpeg',
-            ),
-          );
-      final url = client.storage.from('order-photos').getPublicUrl(filename);
+      // BUG #7 (2026-05-13) — upload via Edge Function (service_role).
+      // OrderPhotoUploadService faz base64 + invoke('upload-order-photo')
+      // e devolve a URL pública. Auth + size validados server-side.
+      final tmpFile = File(picked.path);
+      final url = await OrderPhotoUploadService.uploadOrderPhoto(
+        photoFile: tmpFile,
+        pathPrefix: widget.pathPrefix,
+      );
       if (!mounted) return;
       setState(() {
         _uploading = false;
@@ -77,7 +71,7 @@ class _MandatoryPhotoPickerState extends State<MandatoryPhotoPicker> {
       setState(() => _uploading = false);
       widget.onUploaded(null);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro a enviar foto: $e')),
+        SnackBar(content: Text('Erro a enviar foto: {0}'.trArgs([e]))),
       );
     }
   }
@@ -91,7 +85,7 @@ class _MandatoryPhotoPickerState extends State<MandatoryPhotoPicker> {
           children: [
             ListTile(
               leading: const Icon(Icons.camera_alt),
-              title: const Text('Tirar foto'),
+              title: Text('Tirar foto'.tr),
               onTap: () {
                 Navigator.pop(context);
                 _pick(ImageSource.camera);
@@ -99,7 +93,7 @@ class _MandatoryPhotoPickerState extends State<MandatoryPhotoPicker> {
             ),
             ListTile(
               leading: const Icon(Icons.photo_library),
-              title: const Text('Escolher da galeria'),
+              title: Text('Escolher da galeria'.tr),
               onTap: () {
                 Navigator.pop(context);
                 _pick(ImageSource.gallery);
@@ -134,7 +128,7 @@ class _MandatoryPhotoPickerState extends State<MandatoryPhotoPicker> {
               border: Border.all(color: Colors.grey.shade300),
               image: hasLocal
                   ? DecorationImage(
-                      image: FileImage(File(_local!.path)),
+                      image: boraLocalImage(_local!.path),
                       fit: BoxFit.cover,
                     )
                   : null,
@@ -159,7 +153,7 @@ class _MandatoryPhotoPickerState extends State<MandatoryPhotoPicker> {
                           Icon(Icons.add_a_photo_outlined,
                               color: Colors.grey.shade600),
                           const SizedBox(height: 6),
-                          Text('Tocar para adicionar foto',
+                          Text('Tocar para adicionar foto'.tr,
                               style:
                                   TextStyle(color: Colors.grey.shade700)),
                         ],

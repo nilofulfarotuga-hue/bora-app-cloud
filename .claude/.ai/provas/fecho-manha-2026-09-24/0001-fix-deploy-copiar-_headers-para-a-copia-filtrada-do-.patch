@@ -1,0 +1,31 @@
+From ee1056bf2a5c43e81e0180024b8b6cb010de6f90 Mon Sep 17 00:00:00 2001
+From: "Danilo (Claude Code)" <nilofulfarotuga@gmail.com>
+Date: Thu, 24 Sep 2026 09:26:30 +0100
+Subject: [PATCH] fix(deploy): copiar _headers para a copia filtrada do
+ Cloudflare Pages
+
+A copia filtrada em deploy-cloudflare.sh copiava _redirects mas nao _headers,
+por isso as regras de Cache-Control (/provas) nunca chegavam ao ar.
+Missao fecho-manha-2026-09-24 (PR #1: /verificar). So o repo; sem deploy.
+---
+ deploy-cloudflare.sh | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/deploy-cloudflare.sh b/deploy-cloudflare.sh
+index e9102d7..3db39f6 100644
+--- a/deploy-cloudflare.sh
++++ b/deploy-cloudflare.sh
+@@ -45,6 +45,10 @@ done
+ # manda qualquer token para ela.
+ [ -d verificar ] && cp -r verificar "$STAGE"/verificar
+ [ -f _redirects ] && cp _redirects "$STAGE"/_redirects
++# _headers (Cache-Control das /provas, 2026-09-05): sem esta linha a copia
++# filtrada publicava o site SEM as regras de cache — o Danilo via a versao de
++# ontem depois de um deploy novo. (fecho-manha-2026-09-24)
++[ -f _headers ] && cp _headers "$STAGE"/_headers
+ [ -d loja ]  && cp -r loja  "$STAGE"/loja
+ [ -d dados ] && cp -r dados "$STAGE"/dados
+ # provas/ — capturas do trabalho para a Claude.ai ver (noindex na meta,
+-- 
+2.55.0.windows.5
+

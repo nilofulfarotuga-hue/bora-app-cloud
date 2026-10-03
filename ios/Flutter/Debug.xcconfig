@@ -1,1 +1,17 @@
 #include "Generated.xcconfig"
+
+// CHAVE DO GOOGLE MAPS (2026-09-10, missao `ios-lancamento`).
+//
+// CICATRIZ: o `Info.plist` pede `$(GOOGLE_MAPS_API_KEY)`, e essa definicao so
+// era passada na linha de comando de UM `xcodebuild` do CI. O `flutter build
+// ipa` do job de release e o `flutter drive` do arnes nunca a passavam, por
+// isso o binario que a Apple recebeu -- e o que corria os testes -- ficava com
+// a chave VAZIA. O `AppDelegate` salta entao o `provideAPIKey`, e o SDK do
+// Google Maps MATA o processo assim que um mapa e' criado. Como a app abre
+// sozinha o acompanhamento quando ha pedido com estafeta, a app morria 3 a 7
+// segundos depois do login (corridas 69 e 70).
+//
+// Ficheiro escrito pelo CI a partir do segredo, e ignorado pelo git: a chave
+// nunca entra num repositorio publico. O `#include?` e' opcional de proposito
+// -- sem o ficheiro, o build local continua a correr, so' sem mapa.
+#include? "BoraSecrets.xcconfig"

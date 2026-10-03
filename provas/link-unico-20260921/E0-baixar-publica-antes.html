@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Descarrega o Bora — código BEMVINDO com 5 € para o primeiro pedido</title>
+<meta name="description" content="Instala o Bora na Guarda e usa o código BEMVINDO no primeiro pedido: 1000 tokens, que valem 5 euros. Restaurantes, supermercados, farmácias, limpeza e favores.">
+<link rel="canonical" href="https://boraguarda.com/baixar">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Bora App">
+<meta property="og:title" content="Descarrega o Bora — 5 € no primeiro pedido">
+<meta property="og:description" content="Código BEMVINDO: 1000 tokens, que valem 5 euros no teu primeiro pedido na Guarda.">
+<meta property="og:image" content="https://boraguarda.com/assets/img/og-image.png">
+<meta property="og:url" content="https://boraguarda.com/baixar">
+<meta property="og:locale" content="pt_PT">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://boraguarda.com/assets/img/og-image.png">
+
+<link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/img/apple-touch-icon.png">
+<meta name="theme-color" content="#16A34A">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<!--
+  Página de destino de TODOS os QR e de todos os anúncios. 2026-09-05.
+
+  Sem Tailwind e sem GSAP de propósito: quem chega aqui vem de um cartaz ou de
+  um anúncio pago, muitas vezes com rede fraca na rua. Cada segundo a carregar
+  é gente que desiste antes de instalar. O CSS vai inteiro aqui dentro.
+
+  Os valores do BEMVINDO não foram escritos de cabeça — saíram da tabela
+  promo_codes a 2026-09-05: type=tokens_grant, value_cents=1000,
+  max_uses_per_user=1, is_active=true. Se a promoção mudar, muda aqui também.
+-->
+<style>
+  *,*::before,*::after{box-sizing:border-box}
+  :root{
+    --verde:#16A34A; --verde-escuro:#15803D; --laranja:#F97316;
+    --tinta:#0F172A; --cinza:#475569; --linha:#E2E8F0; --fundo:#F8FAFC;
+  }
+  html,body{margin:0;padding:0}
+  body{
+    font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;
+    color:var(--tinta); background:var(--fundo);
+    -webkit-font-smoothing:antialiased; line-height:1.5;
+  }
+  .env{max-width:560px;margin:0 auto;padding:24px 20px 56px}
+  header{text-align:center;padding:8px 0 4px}
+  header img{height:56px;width:auto}
+  h1{font-size:clamp(28px,7vw,38px);line-height:1.15;font-weight:800;margin:20px 0 10px;letter-spacing:-.02em}
+  .sub{color:var(--cinza);font-size:17px;margin:0 0 24px}
+
+  /* o cartão do código — é o que a pessoa veio buscar, por isso vem primeiro */
+  .oferta{
+    background:#fff;border:2px solid var(--laranja);border-radius:20px;
+    padding:22px 20px;text-align:center;margin-bottom:26px;
+    box-shadow:0 6px 24px rgba(249,115,22,.13);
+  }
+  .oferta .etiqueta{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--laranja);margin:0 0 8px}
+  .codigo{
+    display:inline-block;font-size:clamp(30px,9vw,40px);font-weight:800;letter-spacing:.06em;
+    background:var(--laranja);color:#431407;border-radius:14px;padding:10px 22px;margin:2px 0 12px;
+    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  .oferta p{margin:0;font-size:16px;color:var(--tinta)}
+  .oferta .letra{display:block;margin-top:10px;font-size:14px;color:var(--cinza)}
+
+  .btn{
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    width:100%;min-height:58px;border-radius:999px;text-decoration:none;
+    font-weight:700;font-size:17px;padding:14px 20px;margin-bottom:12px;
+    border:2px solid transparent;transition:transform .12s ease,box-shadow .12s ease;
+  }
+  .btn:active{transform:scale(.985)}
+  .btn-play{background:var(--verde);color:#fff;box-shadow:0 4px 16px rgba(22,163,74,.28)}
+  .btn-web{background:#fff;color:var(--verde-escuro);border-color:var(--verde)}
+  .btn small{display:block;font-weight:500;font-size:13px;opacity:.85;margin-top:2px}
+
+  .ou{display:flex;align-items:center;gap:12px;color:var(--cinza);font-size:14px;margin:20px 0 16px}
+  .ou::before,.ou::after{content:"";flex:1;height:1px;background:var(--linha)}
+
+  .qr{display:none;background:#fff;border:1px solid var(--linha);border-radius:18px;padding:20px;text-align:center;margin-bottom:24px}
+  .qr img{width:180px;height:180px;display:block;margin:0 auto 10px}
+  .qr p{margin:0;font-size:14px;color:var(--cinza)}
+
+  .passos{background:#fff;border:1px solid var(--linha);border-radius:18px;padding:20px 22px;margin-bottom:24px}
+  .passos h2{font-size:16px;margin:0 0 14px;font-weight:700}
+  .passos ol{margin:0;padding-left:22px}
+  .passos li{margin-bottom:9px;font-size:15px;color:var(--cinza)}
+  .passos li strong{color:var(--tinta)}
+
+  .servicos{font-size:15px;color:var(--cinza);text-align:center;margin-bottom:26px;line-height:1.7}
+  .servicos b{color:var(--tinta);font-weight:600}
+
+  footer{text-align:center;font-size:13px;color:var(--cinza);border-top:1px solid var(--linha);padding-top:20px}
+  footer a{color:var(--verde-escuro)}
+
+  @media (min-width:640px){ .qr{display:block} }
+  .qr-duplo{display:flex;justify-content:center;gap:28px;flex-wrap:wrap;margin-bottom:10px}
+  .qr-duplo figure{margin:0}
+  .qr-duplo img{width:150px;height:150px;margin:0 auto 6px}
+  .qr-duplo figcaption{font-size:13px;color:var(--cinza)}
+</style>
+</head>
+<body>
+<div class="env">
+
+  <header>
+    <img src="assets/img/bora_logo.png" alt="Bora"
+         onerror="this.onerror=null;this.src='assets/img/apple-touch-icon.png'">
+  </header>
+
+  <h1>A Guarda inteira,<br>à distância de um toque.</h1>
+  <p class="sub">Comida, supermercado, farmácia, limpeza e favores — entregues em casa.</p>
+
+  <div class="oferta">
+    <p class="etiqueta">Primeiro pedido</p>
+    <span class="codigo">BEMVINDO</span>
+    <p><strong>1000 tokens, que valem 5 €</strong> no teu primeiro pedido.</p>
+    <span class="letra">Escreve o código no carrinho. Uma vez por pessoa.</span>
+  </div>
+
+  <a id="btn-play" class="btn btn-play"
+     href="https://play.google.com/store/apps/details?id=pt.boraapp.bora">
+    <span>Instalar no Android<small>Grátis · recebe os avisos do pedido</small></span>
+  </a>
+
+  <!-- 2026-09-13: a app de iPhone foi aprovada pela Apple a 12/09 (id 6809954739).
+       O botão fica escondido até o JS ler o aparelho: no iPhone passa a primeiro. -->
+  <a id="btn-appstore" class="btn btn-web" hidden
+     href="https://apps.apple.com/pt/app/id6809954739">
+    <span>Instalar no iPhone<small>App Store · grátis · recebe os avisos do pedido</small></span>
+  </a>
+
+  <a id="btn-web" class="btn btn-web" href="https://app.boraguarda.com">
+    <span>Pedir pelo site<small>iPhone ou computador · sem instalar nada</small></span>
+  </a>
+
+  <div class="qr">
+    <div class="qr-duplo">
+      <figure>
+        <img src="assets/img/qr-playstore.png" alt="Código QR da app Bora na Google Play" width="150" height="150">
+        <figcaption>Android · Google Play</figcaption>
+      </figure>
+      <figure>
+        <img src="assets/img/qr-appstore.png" alt="Código QR da app Bora na App Store" width="150" height="150">
+        <figcaption>iPhone · App Store</figcaption>
+      </figure>
+    </div>
+    <p>Aponta a câmara do telemóvel para instalar. Código <b>BEMVINDO</b> no primeiro pedido.</p>
+  </div>
+
+  <div class="ou">como funciona</div>
+
+  <div class="passos">
+    <h2>Três passos</h2>
+    <ol>
+      <li><strong>Instala e cria a conta</strong> — leva menos de um minuto.</li>
+      <li><strong>Escolhe o que precisas</strong> — o preço aparece antes de confirmares, sem surpresas no fim.</li>
+      <li><strong>Escreve BEMVINDO no carrinho</strong> e recebe em casa.</li>
+    </ol>
+  </div>
+
+  <p class="servicos">
+    <b>Restaurantes</b> · <b>Supermercados</b> · <b>Farmácias</b> · <b>Lojas</b><br>
+    <b>Limpeza</b> · <b>Lavagem auto</b> · <b>Reservas</b> · <b>Favores</b>
+  </p>
+
+  <footer>
+    Bora — Guarda, Portugal<br>
+    <a href="/">Página principal</a> ·
+    <a href="/faq.html">Perguntas frequentes</a> ·
+    <a href="/termos.html">Termos</a> ·
+    <a href="/privacidade.html">Privacidade</a>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  // De onde veio esta pessoa. O QR e os anúncios trazem ?de=qr-story, ?de=pago...
+  // Sem isto não se sabe que peça é que traz instalações, e uma campanha paga
+  // às cegas é dinheiro deitado fora.
+  var PERMITIDAS = ['qr-feed','qr-story','qr-reel','qr-carrossel','qr-extra',
+                    'qr-grupo','qr-flyer','pago','bio','site'];
+  // A marcação por grupo vem como qr-grupo-<slug> — um slug por grupo do
+  // Facebook, para se saber QUE grupo trouxe gente. Não cabe numa lista fixa,
+  // por isso vai por forma. A 2026-09-06 faltavam aqui o qr-extra, o site e
+  // esta forma: tudo isso caía em 'directo' e a origem perdia-se em silêncio,
+  // porque o pedido lá em baixo tem o catch vazio e nunca se queixa.
+  var GRUPO = /^qr-grupo-[a-z0-9-]{2,39}$/;
+  var p = new URLSearchParams(location.search);
+  var de = p.get('de') || '';
+  if (PERMITIDAS.indexOf(de) === -1 && !GRUPO.test(de)) { de = 'directo'; }
+
+  var PLAY = 'https://play.google.com/store/apps/details?id=pt.boraapp.bora';
+  var WEB  = 'https://app.boraguarda.com';
+
+  // O Install Referrer da Play Store: é assim que a origem sobrevive à
+  // instalação e aparece na Play Console. Tem de ir codificado uma vez.
+  var ref = encodeURIComponent(
+    'utm_source=' + de + '&utm_medium=bora-redes&utm_campaign=guarda-2026-09');
+
+  var bPlay = document.getElementById('btn-play');
+  var bWeb  = document.getElementById('btn-web');
+  bPlay.href = PLAY + '&referrer=' + ref;
+  bWeb.href  = WEB + '?de=' + encodeURIComponent(de);
+
+  // Em Android o botão da Google Play vem primeiro; no iPhone vem o da App
+  // Store (aprovada a 2026-09-12); no computador aparecem as duas lojas e o
+  // site. O site continua sempre visível: é o caminho que funciona em todo o
+  // lado sem instalar nada.
+  var APPSTORE = 'https://apps.apple.com/pt/app/id6809954739';
+  var bApp = document.getElementById('btn-appstore');
+  bApp.href = APPSTORE;
+  var ua = navigator.userAgent || '';
+  var android = /Android/i.test(ua);
+  var ios = /iPhone|iPad|iPod/i.test(ua);
+  if (!android && ios) {
+    bApp.hidden = false;
+    bApp.className = 'btn btn-play';
+    bApp.parentNode.insertBefore(bApp, bPlay);
+    bPlay.hidden = true;
+    bWeb.querySelector('small').textContent =
+      'Se a App Store disser que ainda não está disponível no teu país, pede por aqui';
+  } else if (!android) {
+    bApp.hidden = false;
+  }
+
+  // Contagem de visitas por origem. Desde 2026-09-07 passa pela função
+  // /api/visita em vez de ir direto à base, por uma razão medida nesse dia: o
+  // contador antigo guardava só a origem e o dia, e por isso contava como
+  // visita tudo o que abrisse a página — incluindo o renderizador de
+  // pré-visualização das redes, que chega em rajadas de três e quatro no MESMO
+  // segundo a seguir a cada publicação. Sem o agente não há como separar gente
+  // de robô, e um número inflacionado leva a decidir mal.
+  //
+  // O agente e o referrer o navegador manda-os sozinho nos cabeçalhos; o IP só
+  // o servidor o vê, e a função trunca-o antes de o gravar (IPv4 perde o último
+  // octeto). Nunca se guarda cookie nem nada que identifique a pessoa.
+  try {
+    fetch('/api/visita', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        de: de,
+        page: '/baixar',
+        plataforma: android ? 'android' : (ios ? 'ios' : 'outro')
+      }),
+      keepalive: true
+    }).catch(function () {});
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>

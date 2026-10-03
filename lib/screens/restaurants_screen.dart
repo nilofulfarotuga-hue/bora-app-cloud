@@ -1,8 +1,10 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
+import '../config/ios_launch_flags.dart';
 import '../models/order_service_type.dart';
 import '../models/restaurant_model.dart';
 import '../services/order_eta_service.dart';
@@ -11,20 +13,48 @@ import '../stores/cart_store.dart';
 import '../stores/favorite_store.dart';
 import '../stores/restaurant_store.dart';
 import '../utils/business_mapper.dart';
+import '../utils/business_opener.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
+import '../widgets/bora/bora_search_field.dart';
+import '../widgets/bora/coming_soon.dart';
+import '../widgets/bora_support_fab.dart';
+import 'client/reservation/reservation_availability_screen.dart';
 import 'restaurant_menu_screen.dart';
+import 'restaurant_options_screen.dart';
 
-class RestaurantsScreen extends StatelessWidget {
+import '../l10n/tr.dart';
+
+class RestaurantsScreen extends StatefulWidget {
   const RestaurantsScreen({super.key, this.reservationsOnly = false});
 
   final bool reservationsOnly;
+
+  @override
+  State<RestaurantsScreen> createState() => _RestaurantsScreenState();
+}
+
+class _RestaurantsScreenState extends State<RestaurantsScreen> {
+  /// Pesquisa local por nome. A barra de pesquisa da home encaminha para este
+  /// ecrã — sem um campo aqui o cliente aterrava numa lista sem pesquisa.
+  final TextEditingController _search = TextEditingController();
+  String _query = '';
+
+  bool get reservationsOnly => widget.reservationsOnly;
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final restaurantStore = context.watch<RestaurantStore>();
     final restaurants = restaurantStore.restaurants
         .where((business) =>
-            business.category == BusinessCategory.restaurant &&
+            // Inclui também os negócios cuja `extra_categories` contém
+            // `restaurant` (mesma loja listada em mais do que uma secção).
+            business.belongsTo(BusinessCategory.restaurant) &&
             (!reservationsOnly ||
                 (business.isPartner && business.reservationsEnabled)))
         .toList()
@@ -36,92 +66,231 @@ class RestaurantsScreen extends StatelessWidget {
         return a.name.compareTo(b.name);
       });
 
+    final query = _query.trim().toLowerCase();
+    final visible = query.isEmpty
+        ? restaurants
+        : restaurants
+            .where((b) => b.name.toLowerCase().contains(query))
+            .toList();
+
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.background,
+      floatingActionButton: const BoraSupportFab(),
       appBar: BoraScreenAppBar(
         title: reservationsOnly ? 'Reservar Mesa' : 'Restaurantes',
       ),
-      body: restaurants.isEmpty
-          ? const _EmptyState()
-          : ListView.builder(
-              padding: const EdgeInsets.fromLTRB(
-                Spacing.lg, Spacing.md, Spacing.lg, Spacing.xxl),
-              itemCount: restaurants.length,
-              itemBuilder: (context, index) {
-                final business = restaurants[index];
-                return _RestaurantTile(
-                  business: business,
-                  onTap: () =>
-                      _openRestaurant(context, restaurantStore, business),
-                );
-              },
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+                Spacing.lg, Spacing.md, Spacing.lg, 0),
+            child: BoraSearchField(
+              controller: _search,
+              hint: 'Pesquisar restaurantes'.tr,
+              onChanged: (v) => setState(() => _query = v),
             ),
-    );
-  }
-
-  void _openRestaurant(
-    BuildContext context,
-    RestaurantStore restaurantStore,
-    RestaurantModel business,
-  ) {
-    // Closed restaurants cannot receive orders.
-    if (!business.isOpenNow() && !reservationsOnly) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(business.statusLabel()),
-          duration: const Duration(seconds: 3),
-        ),
-      );
-      return;
-    }
-
-    // Partner restaurants must have a registered location in the DB.
-    if (business.isPartner && business.location == null) {
-      debugPrint(
-        'RestaurantsScreen: BLOCKED — "${business.name}" has no coordinates.',
-      );
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Restaurante sem localização definida. Contacte o suporte.',
           ),
-          duration: Duration(seconds: 4),
-        ),
-      );
-      return;
-    }
-
-    // Prefer the restaurant's real coordinates (now present in DB for
-    // non-partners too) so distance_km reflects the actual pickup→dropoff
-    // route. Fallback to the client's delivery location if missing.
-    final pickupLocation =
-        business.location ?? context.read<CartStore>().deliveryLocation;
-
-    context.read<CartStore>().configureSession(
-          serviceType: OrderServiceType.restaurant,
-          isPartnerStore: business.isPartner,
-          vendorName: business.name,
-          pickupLocation: pickupLocation,
-          pickupStreet: business.address,
-          pickupCity: null,
-          pickupPostalCode: null,
-        );
-
-    final restaurant = BusinessMapper.buildRestaurantMenu(
-      restaurantStore: restaurantStore,
-      business: business,
-    );
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => RestaurantMenuScreen(
-          restaurant: restaurant,
-          restaurantId: business.id,
-        ),
+          Expanded(
+            child: restaurants.isEmpty
+                ? const _EmptyState()
+                : visible.isEmpty
+                    ? const _NoResults()
+                    : ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(
+                            Spacing.lg, Spacing.md, Spacing.lg, Spacing.xxl),
+                        itemCount: visible.length,
+                        itemBuilder: (context, index) {
+                          final business = visible[index];
+                          return RestaurantTile(
+                            business: business,
+                            onTap: () => openBusiness(
+                              context,
+                              restaurantStore,
+                              business,
+                              reservationsOnly: reservationsOnly,
+                            ),
+                          );
+                        },
+                      ),
+          ),
+        ],
       ),
     );
   }
+}
+
+/// Pesquisa sem resultados (diferente de "não há restaurantes").
+class _NoResults extends StatelessWidget {
+  const _NoResults();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.search_off,
+              size: 56, color: AppColors.textSecondary.withValues(alpha: 0.4)),
+          const SizedBox(height: Spacing.md),
+          Text(
+            'Sem resultados para essa pesquisa.'.tr,
+            style:
+                const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Abre o negócio com o layout de restaurante (cardápio / ecrã de opções).
+/// Top-level para poder ser reutilizada pelo router `openBusiness`, que atende
+/// também as secções onde a loja entra por `extra_categories`.
+Future<void> openRestaurantBusiness(
+  BuildContext context,
+  RestaurantStore restaurantStore,
+  RestaurantModel business, {
+  bool reservationsOnly = false,
+}) async {
+  // LOJA FECHADA E VISITAVEL (2026-08-27, pedido do Danilo).
+  //
+  // Antes, fora de horas o toque no cartao so dava um aviso e nao entrava.
+  // Agora entra-se sempre: o cliente ve capa, logo, categorias, produtos,
+  // precos e opcoes — nada bloqueado, nada esbatido. O travao passou para o
+  // momento de METER NO CARRINHO (ver `CartStore.lojaFechada`) e, do lado do
+  // servidor, para o trigger `trg_store_closed_guard_orders` (STORE_CLOSED).
+  //
+  // Isto nao e agendamento: nao se promete "avisar quando abrir" em lado
+  // nenhum, porque isso ainda nao existe.
+
+  // Partner restaurants must have a registered location in the DB.
+  if (business.isPartner && business.location == null) {
+    debugPrint(
+      'RestaurantsScreen: BLOCKED — "${business.name}" has no coordinates.',
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Restaurante sem localização definida. Contacte o suporte.'.tr,
+        ),
+        duration: const Duration(seconds: 4),
+      ),
+    );
+    return;
+  }
+
+  // BUG #6 (2026-05-13) — se há carrinho activo de OUTRA loja, pedir
+  // confirmação antes de descartar.  configureSession() ainda tem o
+  // silent-clear como defesa em profundidade.
+  final cart = context.read<CartStore>();
+  final differentVendor = cart.items.isNotEmpty &&
+      cart.vendorName != null &&
+      cart.vendorName != business.name;
+  if (differentVendor) {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Carrinho activo'.tr),
+        content: Text(
+          'Tens itens no carrinho de {0}. Queres cancelar e começar novo pedido em {1}?'
+              .trArgs([cart.vendorName, business.name]),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Voltar'.tr),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Sim, novo pedido'.tr),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    if (!context.mounted) return;
+    cart.clearCart();
+  }
+
+  // Prefer the restaurant's real coordinates (now present in DB for
+  // non-partners too) so distance_km reflects the actual pickup→dropoff
+  // route. Fallback to the client's delivery location if missing.
+  final pickupLocation = business.location ?? cart.deliveryLocation;
+
+  cart.configureSession(
+    serviceType: OrderServiceType.restaurant,
+    isPartnerStore: business.isPartner,
+    vendorComingSoon: business.comingSoon,
+    vendorIsFestas: business.belongsTo(BusinessCategory.festas),
+    vendorComingSoonText: business.comingSoonLabel,
+    vendorName: business.name,
+    vendorRestaurantId: business.id,
+    // Fora de horario o cliente ve tudo, so nao mete no carrinho.
+    // Festas ficam de fora: vendem por encomenda com aviso previo, o
+    // horario delas e de levantamento (regra de 2026-08-25).
+    vendorFechada:
+        !business.isOpenNow() && !business.belongsTo(BusinessCategory.festas),
+    vendorAvisoFechada: business.avisoLojaFechada,
+    pickupLocation: pickupLocation,
+    pickupStreet: business.address,
+    pickupCity: null,
+    pickupPostalCode: null,
+  );
+
+  final restaurant = BusinessMapper.buildRestaurantMenu(
+    restaurantStore: restaurantStore,
+    business: business,
+  );
+
+  // BUG 3 (2026-05-15) — se cliente veio do fluxo "Reservar Mesa", saltar
+  // o ecrã de opções e ir directamente à reserva.
+  // F5 (2026-08-16, decisão CEO): consolidado na implementação NOVA
+  // (client/reservation/* — slots reais, estados completos). A legacy
+  // ReservationFlowScreen fica ARQUIVADA (ficheiro preservado, sem rota).
+  if (reservationsOnly && business.isPartner && business.reservationsEnabled) {
+    // "Em breve": a reserva cobra — não deixar entrar no fluxo.
+    if (business.comingSoon) {
+      showComingSoonBlockedSnackBar(context);
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ReservationAvailabilityScreen(
+          restaurantId: business.id,
+          restaurantName: business.name,
+          restaurantPhotoUrl: business.photoUrl,
+        ),
+      ),
+    );
+    return;
+  }
+
+  // BUG #9+10 (2026-05-13) + D1/D2 (2026-05-14) — mostra ecrã de opções
+  // se houver pelo menos uma opção além do menu directo. Cartões são
+  // condicionais individualmente em RestaurantOptionsScreen.
+  // PARTE C BUG 2 (2026-07-17): antes a condição saltava o ecrã de opções
+  // para parceiros SEM reservas/takeaway → entrada inconsistente (uns viam
+  // Entrega/Ir buscar/Reservar, outros iam direto ao cardápio). Agora TODO
+  // parceiro entra pelo ecrã de opções, que mostra SEMPRE exatamente os
+  // serviços activados (Entrega sempre + Ir buscar/Reservar se ligados).
+  final showOptions = business.isPartner;
+
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => showOptions
+          ? RestaurantOptionsScreen(
+              business: business,
+              restaurant: restaurant,
+              restaurantId: business.id,
+            )
+          : RestaurantMenuScreen(
+              restaurant: restaurant,
+              restaurantId: business.id,
+            ),
+    ),
+  );
 }
 
 class _EmptyState extends StatelessWidget {
@@ -141,19 +310,19 @@ class _EmptyState extends StatelessWidget {
               color: AppColors.textSecondary.withValues(alpha: 0.4),
             ),
             const SizedBox(height: Spacing.lg),
-            const Text(
-              'Nenhum restaurante disponível',
-              style: TextStyle(
+            Text(
+              'Nenhum restaurante disponível'.tr,
+              style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
               ),
             ),
             const SizedBox(height: Spacing.sm),
-            const Text(
-              'Volta mais tarde para ver os restaurantes da tua área.',
+            Text(
+              'Volta mais tarde para ver os restaurantes da tua área.'.tr,
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 13,
                 color: AppColors.textSecondary,
               ),
@@ -165,8 +334,8 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-class _RestaurantTile extends StatelessWidget {
-  const _RestaurantTile({required this.business, required this.onTap});
+class RestaurantTile extends StatelessWidget {
+  const RestaurantTile({required this.business, required this.onTap});
 
   final RestaurantModel business;
   final VoidCallback onTap;
@@ -178,81 +347,83 @@ class _RestaurantTile extends StatelessWidget {
     final favKey = 'restaurant_${business.name}';
     final isFav = favorites.isFavorite(favKey);
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: Spacing.sm),
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(Radii.lg),
-        child: InkWell(
+    // `cartao_restaurante`: e' por aqui que o arnes das capturas da App Store
+    // abre uma ficha de parceiro (`integration_test/demo_real_test.dart`).
+    return Semantics(
+      identifier: 'cartao_restaurante',
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: Spacing.sm),
+        child: Material(
+          color: Colors.white,
           borderRadius: BorderRadius.circular(Radii.lg),
-          onTap: onTap,
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(Radii.lg),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            padding: const EdgeInsets.symmetric(
-                horizontal: Spacing.lg, vertical: Spacing.md),
-            child: Row(
-              children: [
-                _RestaurantLogo(
-                  photoUrl: business.photoUrl,
-                  name: business.name,
-                  isPartner: isPartner,
-                ),
-                const SizedBox(width: Spacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        business.name,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: Spacing.xs),
-                      Row(
-                        children: [
-                          _OpenStatusBadge(business: business),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      _MetaRow(business: business),
-                    ],
+          child: InkWell(
+            borderRadius: BorderRadius.circular(Radii.lg),
+            onTap: onTap,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(Radii.lg),
+                boxShadow: AppColors.shadowCard,
+              ),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: Spacing.lg, vertical: Spacing.md),
+              child: Row(
+                children: [
+                  _RestaurantLogo(
+                    photoUrl: business.photoUrl,
+                    name: business.name,
+                    isPartner: isPartner,
                   ),
-                ),
-                GestureDetector(
-                  onTap: () => favorites.toggle(favKey),
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    transitionBuilder: (child, anim) =>
-                        ScaleTransition(scale: anim, child: child),
-                    child: Icon(
-                      isFav ? Icons.favorite : Icons.favorite_border,
-                      key: ValueKey(isFav),
-                      size: 22,
-                      color: isFav
-                          ? Colors.redAccent
-                          : AppColors.textSecondary.withValues(alpha: 0.5),
+                  const SizedBox(width: Spacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          business.name,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: Spacing.xs),
+                        Wrap(
+                          spacing: Spacing.sm,
+                          runSpacing: Spacing.xs,
+                          children: [
+                            _OpenStatusBadge(business: business),
+                            if (business.comingSoon) const ComingSoonChip(),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        _MetaRow(business: business),
+                      ],
                     ),
                   ),
-                ),
-                const SizedBox(width: Spacing.sm),
-                Icon(
-                  Icons.arrow_forward_ios,
-                  size: 14,
-                  color: AppColors.textSecondary.withValues(alpha: 0.5),
-                ),
-              ],
+                  GestureDetector(
+                    onTap: () => favorites.toggle(favKey),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      transitionBuilder: (child, anim) =>
+                          ScaleTransition(scale: anim, child: child),
+                      child: Icon(
+                        isFav ? Icons.favorite : Icons.favorite_border,
+                        key: ValueKey(isFav),
+                        size: 22,
+                        color: isFav
+                            ? Colors.redAccent
+                            : AppColors.textSecondary.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: Spacing.sm),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    size: 14,
+                    color: AppColors.textSecondary.withValues(alpha: 0.5),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -280,16 +451,26 @@ class _RestaurantLogo extends StatelessWidget {
     final textColor = isPartner ? AppColors.primary : AppColors.accent;
     final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
 
-    if (photoUrl.isNotEmpty) {
+    // Interruptor 5.2.1 (ios-lancamento): logótipo de loja NÃO-parceira
+    // escondido no iOS quando ligado — ver config/ios_launch_flags.dart.
+    final esconder = shouldHideStoreLogo(isPartner: isPartner);
+
+    if (photoUrl.isNotEmpty && !esconder) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(Radii.md),
         child: SizedBox(
           width: 48,
           height: 48,
-          child: Image.network(
-            photoUrl,
+          child: CachedNetworkImage(
+            imageUrl: photoUrl,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => _InitialBox(
+            fadeInDuration: const Duration(milliseconds: 120),
+            placeholder: (_, __) => _InitialBox(
+              initial: initial,
+              bgColor: bgColor,
+              textColor: textColor,
+            ),
+            errorWidget: (_, __, ___) => _InitialBox(
               initial: initial,
               bgColor: bgColor,
               textColor: textColor,
@@ -340,7 +521,6 @@ class _InitialBox extends StatelessWidget {
   }
 }
 
-
 class _OpenStatusBadge extends StatelessWidget {
   const _OpenStatusBadge({required this.business});
 
@@ -380,8 +560,7 @@ class _MetaRow extends StatelessWidget {
     final store = context.watch<RestaurantStore>();
     final client = cart.deliveryLocation;
     final pickup = business.location;
-    final distanceKm =
-        OrderEtaService.distanceKmBetween(client, pickup);
+    final distanceKm = OrderEtaService.distanceKmBetween(client, pickup);
     final window = OrderEtaService.deliveryWindowMinutes(
       clientLocation: client,
       restaurantLocation: pickup,
@@ -398,7 +577,7 @@ class _MetaRow extends StatelessWidget {
     if (window != null) {
       chips.add(_metaChip(
         icon: Icons.schedule,
-        label: '${window.$1}-${window.$2} min',
+        label: '{0}-{1} min'.trArgs([window.$1, window.$2]),
       ));
     }
     if (distanceKm != null) {

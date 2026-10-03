@@ -37,16 +37,22 @@ class MessageModel {
   MessageModel({
     required this.id,
     required this.orderId,
-    required this.senderId,
+    required this.senderType,
     required this.senderRole,
     required this.type,
     required this.content,
     required this.createdAt,
+    this.conversationType,
+    this.read = false,
   });
 
   final String id;
   final String orderId;
-  final String senderId;
+
+  /// Sender identity. Backed by the `sender_type` column in DB
+  /// (legacy field name was `senderId` but never held a real id — only the
+  /// sender's type string, since the table has no sender_id column).
+  final String senderType;
 
   /// 'client' or 'driver'
   final String senderRole;
@@ -56,6 +62,14 @@ class MessageModel {
   /// for [MessageType.substitution].
   final String content;
   final DateTime createdAt;
+
+  /// Chat channel: 'client_partner', 'client_driver', or 'driver_partner'.
+  /// Null for legacy messages — displayed in all channels.
+  final String? conversationType;
+
+  /// True quando o destinatário já abriu o chat (coluna `read` — M11).
+  /// Alimenta o badge de não-lidas e o ✓✓ nas bolhas próprias.
+  final bool read;
 
   /// Parsed substitution data. Returns null for text messages or on
   /// malformed JSON.
@@ -73,27 +87,30 @@ class MessageModel {
 
   factory MessageModel.text({
     required String orderId,
-    required String senderId,
+    required String senderType,
     required String senderRole,
     required String content,
+    String? conversationType,
   }) {
     return MessageModel(
       id: const Uuid().v4(),
       orderId: orderId,
-      senderId: senderId,
+      senderType: senderType,
       senderRole: senderRole,
       type: MessageType.text,
       content: content,
       createdAt: DateTime.now(),
+      conversationType: conversationType,
     );
   }
 
   factory MessageModel.substitution({
     required String orderId,
-    required String senderId,
+    required String senderType,
     required String original,
     required String suggestion,
     required double price,
+    String? conversationType,
   }) {
     final payload = SubstitutionContent(
       original: original,
@@ -103,11 +120,12 @@ class MessageModel {
     return MessageModel(
       id: const Uuid().v4(),
       orderId: orderId,
-      senderId: senderId,
+      senderType: senderType,
       senderRole: 'driver',
       type: MessageType.substitution,
       content: jsonEncode(payload.toJson()),
       createdAt: DateTime.now(),
+      conversationType: conversationType,
     );
   }
 
@@ -122,13 +140,15 @@ class MessageModel {
     return MessageModel(
       id: data['id'] as String,
       orderId: data['order_id'] as String,
-      senderId: data['sender_type'] as String? ?? '',
+      senderType: data['sender_type'] as String? ?? '',
       senderRole: data['sender_type'] as String? ?? 'client',
       type: type,
       content: data['message'] as String? ?? '',
       createdAt: data['created_at'] != null
           ? DateTime.tryParse(data['created_at'].toString()) ?? DateTime.now()
           : DateTime.now(),
+      conversationType: data['conversation_type'] as String?,
+      read: data['read'] == true,
     );
   }
 
@@ -138,5 +158,6 @@ class MessageModel {
         'sender_type': senderRole,
         'message': content,
         'created_at': createdAt.toIso8601String(),
+        if (conversationType != null) 'conversation_type': conversationType,
       };
 }

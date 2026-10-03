@@ -30,14 +30,8 @@ class BoraPromoBanner extends StatelessWidget {
       height: height,
       decoration: BoxDecoration(
         gradient: AppColors.promoGradient,
-        borderRadius: BorderRadius.circular(Radii.xl),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(Radii.lg),
+        boxShadow: AppColors.shadowCard,
       ),
       padding: const EdgeInsets.symmetric(
         horizontal: Spacing.xl,
@@ -91,7 +85,7 @@ class BoraPromoBanner extends StatelessWidget {
     if (onTap == null) return content;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(Radii.xl),
+      borderRadius: BorderRadius.circular(Radii.lg),
       child: content,
     );
   }

@@ -84,15 +84,17 @@ class ChatStore extends ChangeNotifier {
   /// authoritative DB row on its next emission (same ID, no visible change).
   Future<void> sendMessage({
     required String orderId,
-    required String senderId,
+    required String senderType,
     required String senderRole,
     required String content,
+    String? conversationType,
   }) async {
     final msg = MessageModel.text(
       orderId: orderId,
-      senderId: senderId,
+      senderType: senderType,
       senderRole: senderRole,
       content: content,
+      conversationType: conversationType,
     );
 
     // Optimistic insert — shows the message instantly in the UI.
@@ -122,17 +124,19 @@ class ChatStore extends ChangeNotifier {
   /// Throws on network / Supabase error — caller should handle.
   Future<void> sendSubstitution({
     required String orderId,
-    required String senderId,
+    required String senderType,
     required String original,
     required String suggestion,
     required double price,
+    String? conversationType,
   }) async {
     final msg = MessageModel.substitution(
       orderId: orderId,
-      senderId: senderId,
+      senderType: senderType,
       original: original,
       suggestion: suggestion,
       price: price,
+      conversationType: conversationType,
     );
 
     // Optimistic insert.
@@ -148,7 +152,7 @@ class ChatStore extends ChangeNotifier {
     } catch (e, st) {
       debugPrint('[ChatStore] ❌ sendSubstitution ERROR\n'
           '  orderId  : $orderId\n'
-          '  senderId : $senderId\n'
+          '  senderType: $senderType\n'
           '  auth.uid(): ${_supabase.auth.currentUser?.id}\n'
           '  error    : $e\n$st');
       list.remove(msg);

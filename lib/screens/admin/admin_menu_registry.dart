@@ -44,6 +44,7 @@ import 'admin_marcacoes_confirmacao_screen.dart';
 import 'admin_decisoes_screen.dart';
 import 'admin_radar_videos_screen.dart';
 import 'admin_avencas_screen.dart';
+import 'admin_caca_clientes_screen.dart';
 import 'admin_assistentes_screen.dart';
 import 'admin_motores_screen.dart';
 import 'admin_crash_logs_screen.dart';
@@ -1009,6 +1010,16 @@ List<AdminMenuSection> adminMenuSections() => [
       color: const Color(0xFF7C3AED),
       builder: () => const AdminAvencasScreen(),
       keywords: const ['avenca', 'avencas', 'presenca', 'digital', 'negocios', 'prospect', 'proposta', 'amostra', 'guarda', 'clientes'],
+    ),
+    // [Caca-clientes 03/10] o circuito inteiro: contato verificado, peça, email em nome da Bora, seguimento e respostas.
+    AdminMenuItem(
+      id: 'robos_caca_clientes',
+      title: 'Caça-clientes',
+      subtitle: 'Negócios encontrados, email verificado, a peça e o email escrito; enviar agora, pausar, recusou, cliente, e o interruptor do carteiro',
+      icon: Icons.travel_explore_rounded,
+      color: const Color(0xFF0E7490),
+      builder: () => const AdminCacaClientesScreen(),
+      keywords: const ['caca', 'caça', 'clientes', 'prospect', 'carteiro', 'email', 'seguimento', 'vendedor', 'proposta', 'enviar', 'csv'],
     ),
     // [Assistentes · 01/10] o funcionário digital de WhatsApp dos negócios (assistant_tenants).
     AdminMenuItem(

@@ -12,6 +12,7 @@ import '../services/wallet_service.dart';
 import '../stores/order_store.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
+import '../widgets/private_bucket_image.dart';
 import 'order_details_screen.dart';
 import 'restaurants_screen.dart';
 import 'wallet_history_screen.dart';
@@ -130,6 +131,27 @@ class _OrdersScreenState extends State<OrdersScreen> {
                           children: [
                             card,
                             const SizedBox(height: 6),
+                            // [03/10] A foto do Favor vive num bucket privado:
+                            // abre com link assinado (PrivateBucketImage).
+                            if (order.errandRequestPhotoUrl?.isNotEmpty == true)
+                              TextButton.icon(
+                                onPressed: () => showDialog<void>(
+                                  context: context,
+                                  builder: (_) => Dialog(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(12),
+                                      child: PrivateBucketImage(
+                                        urlOrPath: order.errandRequestPhotoUrl!,
+                                        height: 320,
+                                        fit: BoxFit.contain,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                icon: const Icon(Icons.photo_outlined, size: 18),
+                                label: Text('Ver a foto que enviaste'.tr),
+                              ),
                             OutlinedButton.icon(
                               onPressed: () => Navigator.push(
                                 context,

@@ -447,13 +447,15 @@ class _TvdeOfferOverlayCardState extends State<TvdeOfferOverlayCard> {
     }
     _janelaRecusa?.cancel();
     _confirmarRecusa = false;
-    _travar();
-    try {
-      await widget.onReject();
-    } finally {
-      if (mounted) setState(() => _respondendo = false);
-    }
+    // [Recusar não fecha · 03/10 · corrida 540b738a] O cartão ficava no ecrã
+    // à espera da rede e o motorista tocou 6 vezes. Some JÁ, com estado
+    // próprio; a recusa segue em fundo (o host limpa a oferta mesmo se falhar).
+    setState(() => _recusada = true);
+    unawaited(widget.onReject());
   }
+
+  /// Recusa confirmada: o cartão já não se desenha (não depende do store).
+  bool _recusada = false;
 
   void _agendarFecho() {
     if (_expirouAvisado) return;
@@ -466,6 +468,7 @@ class _TvdeOfferOverlayCardState extends State<TvdeOfferOverlayCard> {
 
   @override
   Widget build(BuildContext context) {
+    if (_recusada) return const SizedBox.shrink();
     if (_expirada) {
       _agendarFecho();
       return const OfertaExpiradaNotice(

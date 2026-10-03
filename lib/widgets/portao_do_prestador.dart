@@ -7,7 +7,7 @@ import '../screens/washer/washer_home_screen.dart';
 import '../services/role_switch_helper.dart';
 import '../services/roles_service.dart';
 import '../stores/session_store.dart';
-import 'trocar_de_papel.dart';
+import 'profile_switcher_button.dart';
 
 /// PORTÃO POR PAPEL — a entrada de quem trabalha no Bora.
 ///
@@ -91,12 +91,15 @@ class _PortaoDoPrestadorState extends State<PortaoDoPrestador>
 /// Os botões da barra quando o ecrã da limpeza ou da lavagem é a ENTRADA da
 /// pessoa (e não um ecrã aberto por cima do do estafeta): sem eles não havia
 /// como sair, nem como ir fazer pedidos como cliente.
-List<Widget> acoesDaEntradaDoPrestador(BuildContext context) => [
-      IconButton(
-        icon: const Icon(Icons.work_outline),
-        tooltip: 'Trabalhar noutra coisa',
-        onPressed: () => abrirTrocaDePapel(context),
-      ),
+///
+/// [03/10 · Mayra] Os dois ícones sem texto ("trabalhar noutra coisa" e
+/// "fazer pedidos como cliente") deram lugar ao botão "Mudar de modo", que
+/// lista TODOS os papéis da pessoa. Quem só tem um papel continua a ter o
+/// atalho para cliente.
+List<Widget> acoesDaEntradaDoPrestador(BuildContext context,
+        {String? modoAtual}) =>
+    [
+      ProfileSwitcherButton(modoAtual: modoAtual, comTexto: true),
       IconButton(
         icon: const Icon(Icons.shopping_bag_outlined),
         tooltip: 'Fazer pedidos como cliente',

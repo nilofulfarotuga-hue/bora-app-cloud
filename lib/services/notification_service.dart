@@ -888,6 +888,63 @@ Future<void> _mostrarAvisoCorridaCancelada(Map<String, dynamic> data) async {
   }
 }
 
+/// [03/10 · reserva b4d4b703] Ao abrir a app, apaga os avisos TVDE que ficaram
+/// na barra de corridas que já acabaram (finalizada, cancelada, sem motorista).
+/// Antes, um "a caminho" de uma reserva concluída de manhã voltava a aparecer.
+/// Só Android (é o único que lista os avisos ativos). Nunca rebenta.
+DateTime? _ultimaLimpezaAvisosTvde;
+Future<void> limparAvisosTvdeTerminados() async {
+  final agora = DateTime.now();
+  final ultima = _ultimaLimpezaAvisosTvde;
+  if (ultima != null && agora.difference(ultima) < const Duration(minutes: 1)) {
+    return;
+  }
+  _ultimaLimpezaAvisosTvde = agora;
+  try {
+    final plugin = FlutterLocalNotificationsPlugin();
+    final ativos = await plugin.getActiveNotifications();
+    final ids = <String>{};
+    final avisosDe = <String, List<int>>{};
+    for (final n in ativos) {
+      final p = n.payload;
+      if (p == null || p.isEmpty) continue;
+      try {
+        final data = jsonDecode(p);
+        if (data is! Map) continue;
+        final tipo = data['type']?.toString() ?? '';
+        final rideId = data['rideId']?.toString() ?? '';
+        if (tipo.startsWith('tvde') && rideId.isNotEmpty) {
+          ids.add(rideId);
+          if (n.id != null) (avisosDe[rideId] ??= <int>[]).add(n.id!);
+        }
+      } catch (_) {/* payload que não é JSON */}
+    }
+    if (ids.isEmpty) return;
+    final rows = await Supabase.instance.client
+        .from('tvde_rides')
+        .select('id,status,reservation_status')
+        .inFilter('id', ids.toList());
+    const finais = {
+      'finalizada', 'cancelada_cliente', 'cancelada_motorista',
+      'no_show', 'sem_motorista',
+    };
+    for (final r in rows) {
+      final st = r['status']?.toString();
+      if (finais.contains(st) || r['reservation_status'] == 'cancelada') {
+        final id = r['id'].toString();
+        for (final nid in avisosDe[id] ?? const <int>[]) {
+          await plugin.cancel(nid);
+        }
+        // Só o aviso — não o cancelTvdeRideNotification, que fecha também a
+        // janela sobreposta (podia ser de outra oferta viva).
+        await plugin.cancel(id.hashCode);
+      }
+    }
+  } catch (e) {
+    debugPrint('[BORA-TVDE] limparAvisosTvdeTerminados: $e');
+  }
+}
+
 Future<void> cancelTvdeRideNotification(String rideId) async {
   if (rideId.isEmpty) return;
   try {

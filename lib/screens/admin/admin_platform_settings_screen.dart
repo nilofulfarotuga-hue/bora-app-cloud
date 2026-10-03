@@ -237,6 +237,20 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
       'tvde_queue_pickup_radius_km',
     };
     if (tvdeBackToBackOperational.contains(key)) return true;
+    // MISSÃO 03/10 — três chaves OPERACIONAIS (tempo e espessura de linha,
+    // nenhuma mexe em valor cobrado ou pago):
+    //   - `tvde_reject_cooldown_seconds`: quem recusou uma corrida não a volta
+    //     a receber durante este tempo (corrida 540b738a voltou em 43 s).
+    //   - `errand_duplicate_window_seconds`: o servidor recusa um Favor igual
+    //     (mesmo cliente, morada e total) dentro desta janela.
+    //   - `map_route_line_width`: grossura da linha da rota nos mapas do
+    //     estafeta e do motorista TVDE.
+    const missao0310Operational = {
+      'tvde_reject_cooldown_seconds',
+      'errand_duplicate_window_seconds',
+      'map_route_line_width',
+    };
+    if (missao0310Operational.contains(key)) return true;
     // BLOCO 4E (2026-09-05) — ETA do TVDE mostrado ao cliente. Mesma regra
     // do `eta_*` genérico (linha ~75): afinam só o TEMPO MOSTRADO no ecrã,
     // nunca um valor cobrado ou pago. Usam o prefixo `tvde_eta_`, não

@@ -16,6 +16,9 @@ const Map<String, String> kRoleLabelsPtBr = {
   'driver': 'Entregador',
   'partner': 'Parceiro',
   'cleaner': 'Faxineira/o',
+  // [03/10] Estava fora da lista: o admin não via nem dava o papel de lavagem
+  // (o CHECK de user_roles já o aceita).
+  'washer': 'Lavador/a',
   'admin': 'Admin',
 };
 

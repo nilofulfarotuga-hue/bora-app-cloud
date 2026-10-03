@@ -461,7 +461,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // MULTI-PAPEL: o botão só aparece a quem tem mais do que um papel.
       appBar: BoraScreenAppBar(
         title: 'Perfil'.tr,
-        actions: const [ProfileSwitcherButton()],
+        // [03/10 · Mayra] Com texto: "Mudar de modo" (cliente ⇄ estafeta ⇄
+        // limpeza ⇄ lavagem), à vista de quem não conhece o ícone.
+        actions: const [ProfileSwitcherButton(comTexto: true)],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.only(bottom: Spacing.xxxl),

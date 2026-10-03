@@ -1903,6 +1903,12 @@ const Map<String, String> kStringsEn = <String, String>{
       'Order food, shopping and services',
   'Pedir de novo':
       'Reorder',
+  'Ver a foto que enviaste':
+      'See the photo you sent',
+  'Mudar de modo':
+      'Switch mode',
+  'Lavagem de carros':
+      'Car wash',
   'Pedir lavagem':
       'Request a wash',
   'Pedir nova ligação':

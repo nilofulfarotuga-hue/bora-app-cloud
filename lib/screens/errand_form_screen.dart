@@ -32,6 +32,7 @@ import '../services/place_autocomplete_service.dart';
 import '../stores/cart_store.dart';
 import '../widgets/address_autocomplete_field.dart';
 import '../widgets/business_autocomplete_field.dart';
+import 'orders_screen.dart';
 import 'payment_method_screen.dart';
 
 import '../l10n/tr.dart';
@@ -441,9 +442,15 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
             _homeCtrl.text.trim().isNotEmpty;
         return favorOk && dropOk && homeOk;
       case _ErrandStep.when:
-        return _quote != null && !_quoting;
+        return _quote != null && !_quoting && !_aAbrirPagamento;
     }
   }
+
+  /// [Favor duplicado · 03/10 · c20f61b8/1a2c3afe] Trava PRÓPRIA do botão
+  /// "Continuar para pagamento": fica true do 1.º toque até o ecrã de
+  /// pagamento fechar. Antes, depois de pagar, a app voltava a este formulário
+  /// com tudo preenchido e o botão ativo — um 2.º toque criava outro Favor.
+  bool _aAbrirPagamento = false;
 
   void _next() {
     if (_step == _ErrandStep.what) {
@@ -472,6 +479,16 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
   }
 
   Future<void> _goToCheckout() async {
+    if (_aAbrirPagamento) return;
+    setState(() => _aAbrirPagamento = true);
+    try {
+      await _goToCheckoutInner();
+    } finally {
+      if (mounted) setState(() => _aAbrirPagamento = false);
+    }
+  }
+
+  Future<void> _goToCheckoutInner() async {
     final quote = _quote;
     if (quote == null) return;
     // Defensivo: coords já resolvidas no passo where→when, mas nunca submeter
@@ -521,10 +538,18 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
       requestPhotoUrl: _requestPhotoUrl,
     );
     if (!mounted) return;
-    Navigator.push(
+    final confirmed = await Navigator.push<bool>(
       context,
       MaterialPageRoute(builder: (_) => const PaymentMethodScreen()),
     );
+    // Pedido criado: sai do formulário (como o carrinho), para não ficar à
+    // mão um segundo "Continuar para pagamento" com tudo preenchido.
+    if (confirmed == true && mounted) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const OrdersScreen()),
+      );
+    }
   }
 
   void _showFriendlyCashDialog() {

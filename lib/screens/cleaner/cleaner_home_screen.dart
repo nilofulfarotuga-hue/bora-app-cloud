@@ -15,6 +15,7 @@ import '../../widgets/payments/collect_badge.dart';
 import '../../widgets/cleaning_chat_button.dart';
 import '../../widgets/multirole_switch_card.dart';
 import '../../widgets/portao_do_prestador.dart';
+import '../../widgets/profile_switcher_button.dart';
 import '../driver/driver_role_apply_screen.dart';
 import 'cleaner_apply_screen.dart';
 import 'cleaner_availability_screen.dart';
@@ -67,8 +68,12 @@ class _CleanerHomeScreenState extends State<CleanerHomeScreen> {
     return Scaffold(
       appBar: BoraScreenAppBar(
         title: 'Limpezas — Profissional',
-        actions:
-            widget.comoEntrada ? acoesDaEntradaDoPrestador(context) : null,
+        // [Limpadora presa · 03/10 · Mayra] "Mudar de modo" SEMPRE visível
+        // (cliente, estafeta, limpeza, lavagem) — antes só aparecia quando
+        // este ecrã era a entrada, e só como ícones sem texto.
+        actions: widget.comoEntrada
+            ? acoesDaEntradaDoPrestador(context, modoAtual: 'cleaner')
+            : const [ProfileSwitcherButton(modoAtual: 'cleaner', comTexto: true)],
       ),
       body: !store.profileLoaded
           ? const Center(child: CircularProgressIndicator())

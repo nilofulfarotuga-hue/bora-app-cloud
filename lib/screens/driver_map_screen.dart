@@ -144,12 +144,28 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
   static const double _offRouteThresholdMetres = 50.0;
   static const int _rerouteThrottleSeconds = 15;
 
+  /// [03/10] Grossura da linha da rota — `map_route_line_width`, a MESMA do
+  /// mapa do motorista TVDE (12). Antes era 6 e o Danilo achou-a fina.
+  double _larguraRota = 12;
+
+  Future<void> _lerLarguraRota() async {
+    try {
+      final v = await Supabase.instance.client
+          .rpc('get_setting', params: {'p_key': 'map_route_line_width'});
+      final n = double.tryParse(v?.toString() ?? '');
+      if (n != null && n > 0 && n <= 40 && mounted) {
+        setState(() => _larguraRota = n);
+      }
+    } catch (_) {/* fica o 12 */}
+  }
+
   @override
   void initState() {
     super.initState();
     // Capture DriverStore once in initState so fallback logic can access it
     // safely without async context issues.
     _driverStore = context.read<DriverStore>();
+    unawaited(_lerLarguraRota());
 
     // Freeze the initial camera target for the lifetime of this State.
     // Priority: current driver location → fallback padrão.
@@ -744,7 +760,7 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
         Polyline(
           polylineId: const PolylineId('driver-route'),
           color: const Color(0xFF1C6EF2),
-          width: 6,
+          width: _larguraRota.round(),
           points: _routePoints.toGMaps(),
           startCap: Cap.roundCap,
           endCap: Cap.roundCap,

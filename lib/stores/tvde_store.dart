@@ -8,6 +8,7 @@ import '../models/falha_de_acao.dart';
 import '../models/tvde_dest_change.dart';
 import '../models/tvde_ride.dart';
 import '../models/tvde_subscription.dart';
+import '../services/notification_service.dart' show limparAvisosTvdeTerminados;
 import '../services/payment_service.dart';
 
 /// TVDE — Bora Motorista. Store reativo do cliente (passageiro).
@@ -184,6 +185,11 @@ String traduzErroReserva(Object erro) {
 
 /// Estado da reserva em português simples, para o cliente ler.
 String estadoReservaPt(TvdeRide r) {
+  // [03/10 · reserva b4d4b703] A corrida terminou mas `reservation_status`
+  // ficou 'ativada' — mostrava "a caminho" para sempre. O estado final da
+  // corrida manda sobre o da reserva.
+  if (r.isFinished) return 'concluída';
+  if (r.isCancelled) return 'cancelada';
   switch (r.reservationStatus) {
     case 'aguarda_pagamento':
       return 'à espera do pagamento';
@@ -882,6 +888,8 @@ class TvdeStore extends ChangeNotifier {
     // ativação em fundo — é isto que impede a ida de ficar presa quando a app
     // foi fechada a meio do pagamento (caso 9f543c4b, 30/08).
     unawaited(resumePendingRoundtripActivation());
+    // [03/10] Avisos "a caminho" de corridas/reservas já terminadas saem.
+    unawaited(limparAvisosTvdeTerminados());
     try {
       final rows = await _sb
           .from('tvde_rides')

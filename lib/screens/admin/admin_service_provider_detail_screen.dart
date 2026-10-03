@@ -817,28 +817,56 @@ class _AdminServiceProviderDetailScreenState
   }
 
   Future<void> _removeGalleryPhoto(int index) async {
-    final ok = await showDialog<bool>(
+    // 'esconder' = só sai da galeria (ficheiro fica no Storage);
+    // 'apagar' = sai da galeria e o ficheiro é apagado do Storage — o link
+    // público deixa de funcionar (caso Mister Navalha, direitos de imagem).
+    final accao = await showDialog<String>(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Remover foto?'),
-        content: const Text('Esta foto será removida da galeria. Continuar?'),
+        content: const Text(
+            'Esconder: a foto sai da galeria, mas o arquivo continua guardado.\n\n'
+            'Apagar de vez: a foto sai da galeria e o arquivo é apagado — o '
+            'link deixa de funcionar. Use quando alguém pediu para tirar a '
+            'imagem.'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () => Navigator.pop(context),
               child: const Text('Cancelar')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, 'esconder'),
+              child: const Text('Esconder')),
           FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Remover')),
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Navigator.pop(context, 'apagar'),
+              child: const Text('Apagar de vez')),
         ],
       ),
     );
-    if (ok != true || !mounted) return;
+    if (accao == null || !mounted) return;
+    final url = _galleryUrls[index];
     final updated = [..._galleryUrls]..removeAt(index);
     try {
       await _saveGalleryUrls(updated);
       if (!mounted) return;
       setState(() => _galleryUrls = updated);
-      _toast('Foto removida.');
+      if (accao == 'apagar') {
+        const marca = '/object/public/restaurant-assets/';
+        final i = url.indexOf(marca);
+        if (i < 0) {
+          _toast('Foto escondida. O arquivo não é do Bora — não deu para apagar.');
+          return;
+        }
+        final caminho = Uri.decodeComponent(
+            url.substring(i + marca.length).split('?').first);
+        final apagados =
+            await _supabase.storage.from('restaurant-assets').remove([caminho]);
+        _toast(apagados.isEmpty
+            ? 'Foto escondida, mas o arquivo não foi apagado (sem permissão ou já não existia).'
+            : 'Foto apagada de vez.');
+      } else {
+        _toast('Foto escondida da galeria.');
+      }
     } catch (e) {
       _toast('Erro ao remover: $e');
     }

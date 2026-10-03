@@ -205,10 +205,23 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
 
   /// [PART1 2026-07-07] Follow heading-up contínuo (estilo Waze). A câmara
   /// segue o motorista e RODA com a direção de marcha. O gesto do utilizador
-  /// pausa o seguimento; o botão mira volta a ligar. `_progCamMove` distingue
-  /// movimento programático (nosso animateCamera) de gesto do dedo.
+  /// pausa o seguimento (toque no mapa, ver `Listener` no build); o botão mira
+  /// volta a ligar.
   bool _followCam = true;
-  bool _progCamMove = false;
+
+  /// [Mapa trava · 03/10] A seta e a câmara DESLIZAM entre leituras de GPS,
+  /// como no mapa do estafeta (que o Danilo achou fluido na rua). Antes a seta
+  /// saltava de ponto em ponto e a câmara animava 900 ms com pontos a cada
+  /// 700 ms — cada animação era cortada a meio (pára-arranca). Agora um
+  /// temporizador de 16 ms leva seta + câmara do ponto actual ao novo, e só o
+  /// GoogleMap ouve ([_setaTick]); o resto do ecrã continua a repintar 1×/leitura.
+  final ValueNotifier<int> _setaTick = ValueNotifier<int>(0);
+  LatLng? _setaPos;
+  double _setaBearing = 0;
+  Timer? _setaTimer;
+
+  /// Grossura da linha da rota — `map_route_line_width` (igual nos dois mapas).
+  double _larguraRota = 12;
 
   /// [nav 05/09] GPS PRÓPRIO deste ecrã. O ecrã do motorista deixa de depender
   /// da posição interpolada do `DriverStore` (essa continua a existir e serve o
@@ -405,6 +418,8 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     _waitTicker?.cancel();
     _stopsTicker?.cancel();
     _etaTicker?.cancel();
+    _setaTimer?.cancel();
+    _setaTick.dispose();
     _gps?.cancel();
     _gps = null;
     // [Uma corrida = uma stream · 05/09] Devolve o GPS à home ANTES de o resto
@@ -438,7 +453,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
       _gpsPos = pos;
       if (novaLinha != null) _routePolys = novaLinha;
     });
-    _followDriver(pos);
+    _deslizarPara(pos);
     final ride = context.read<TvdeDriverStore>().activeRide;
     if (ride == null) return;
     _updateEtaLive(ride, pos);
@@ -468,8 +483,10 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
       final minS =
           await store.getSettingInt('tvde_nav_reroute_min_seconds', 15);
       final camMs = await store.getSettingInt('tvde_nav_camera_follow_ms', 900);
+      final largura = await store.getSettingDouble('map_route_line_width', 12);
       if (!mounted) return;
       setState(() {
+        if (largura > 0 && largura <= 40) _larguraRota = largura;
         _navZoom = zoom > 0 ? zoom : _navZoom;
         _navTilt = tilt >= 0 ? tilt : _navTilt;
         _rerouteMinSeconds = minS > 0 ? minS : _rerouteMinSeconds;
@@ -488,7 +505,6 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     final c = _mapCtrl;
     if (c == null) return;
     _followCam = true;
-    _progCamMove = true;
     final target = driverPos ?? fallback;
     await c.animateCamera(CameraUpdate.newCameraPosition(
       CameraPosition(
@@ -500,30 +516,65 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     ));
   }
 
-  /// [PART1] Câmara segue o motorista com heading-up CONTÍNUO (Waze): a cada
-  /// posição nova anima para o carro com o bearing atual → o mapa RODA quando
-  /// o motorista vira. No-op se o utilizador pausou o seguimento (arrastou).
-  void _followDriver(LatLng target) {
+  /// [Mapa trava · 03/10] Leva a seta e a câmara do ponto onde estão até
+  /// [alvo], em passos de 16 ms durante `tvde_nav_camera_follow_ms` (900 ms
+  /// por omissão). Uma leitura nova a meio recomeça DO PONTO ONDE A SETA ESTÁ
+  /// — o movimento nunca pára nem salta. Câmara heading-up (Waze) e o bearing
+  /// também deslizam. No-op de câmara se o utilizador pausou o seguimento.
+  void _deslizarPara(LatLng alvo) {
+    _setaTimer?.cancel();
+    final de = _setaPos ?? alvo;
+    final bDe = _setaBearing;
+    var dB = _bearing - bDe;
+    while (dB > 180) {
+      dB -= 360;
+    }
+    while (dB < -180) {
+      dB += 360;
+    }
+    final passos = (_camFollowMs.clamp(200, 1500) / 16).round();
+    var i = 0;
+    void passo() {
+      i++;
+      final f = i >= passos ? 1.0 : i / passos;
+      _setaPos = LatLng(
+        de.latitude + (alvo.latitude - de.latitude) * f,
+        de.longitude + (alvo.longitude - de.longitude) * f,
+      );
+      var b = bDe + dB * f;
+      if (b < 0) b += 360;
+      if (b >= 360) b -= 360;
+      _setaBearing = b;
+      _setaTick.value++;
+      _moverCamara(_setaPos!, _setaBearing);
+    }
+
+    passo();
+    if (i >= passos) return;
+    _setaTimer = Timer.periodic(const Duration(milliseconds: 16), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      passo();
+      if (i >= passos) t.cancel();
+    });
+  }
+
+  /// Câmara colada à seta (um `moveCamera` por passo, sem animação nativa
+  /// por cima — era a animação cortada a meio que fazia o pára-arranca).
+  void _moverCamara(LatLng alvo, double bearing) {
     final c = _mapCtrl;
     if (c == null || !_followCam) return;
-    // [4C 05/09] SEM trava de 15 m / 1 s. A trava antiga existia porque a fonte
-    // era o store interpolado (muitos ticks por segundo); com o GPS próprio a
-    // fonte já é rala, e travar por cima dela era o "travando": a câmara
-    // deslizava 400 ms e congelava os outros 600. Agora anima-se CADA leitura
-    // com uma duração (900 ms) MAIOR do que o intervalo entre leituras
-    // (~700 ms) — a animação seguinte começa antes de a anterior acabar e o
-    // movimento encadeia, sem parar entre pontos.
-    _progCamMove = true;
-    c.animateCamera(
+    c.moveCamera(
       CameraUpdate.newCameraPosition(
         CameraPosition(
-          target: target,
+          target: alvo,
           zoom: _navZoom,
           tilt: _navTilt,
-          bearing: _bearing,
+          bearing: bearing,
         ),
       ),
-      duration: Duration(milliseconds: _camFollowMs),
     );
   }
 
@@ -677,7 +728,9 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
         polylineId: const PolylineId('tvde_route'),
         points: pontos.toGMaps(),
         color: AppColors.primary,
-        width: 12, // B2 — linha grossa (cobre quase a largura da rua)
+        // B2 — linha grossa (cobre quase a largura da rua). [03/10] Vem de
+        // `map_route_line_width` (12 por omissão), a mesma do estafeta.
+        width: _larguraRota.round(),
         startCap: Cap.roundCap,
         endCap: Cap.roundCap,
         jointType: JointType.round,
@@ -1218,7 +1271,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     final key = '${ride.isInProgress}|$label|'
         '${target.latitude.toStringAsFixed(5)},${target.longitude.toStringAsFixed(5)}|'
         '${driverPos?.latitude.toStringAsFixed(5)},${driverPos?.longitude.toStringAsFixed(5)}|'
-        '${_bearing.round()}|${_driverArrowIcon != null}|'
+        '${_setaBearing.round()}|${_driverArrowIcon != null}|'
         '${paradas.map((s) => '${s.seq}${s.reached ? 'v' : '.'}').join(',')}|'
         '${_stopIcons.length}';
     if (key == _markersKey) return _mapMarkers;
@@ -1269,7 +1322,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
       markers.add(Marker(
         markerId: const MarkerId('me'),
         position: driverPos,
-        rotation: _bearing,
+        rotation: _setaBearing,
         icon: _driverArrowIcon!,
         anchor: const Offset(0.5, 0.5),
         flat: true,
@@ -1742,11 +1795,18 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
           // os contadores de 1 s (espera/paradas) repintam o texto sem forçar
           // repintura da textura do mapa por baixo.
           RepaintBoundary(
-            child: GoogleMap(
+            // [Mapa trava · 03/10] Só o mapa ouve a seta a deslizar (16 ms);
+            // o painel e a AppBar não se reconstroem a cada passo.
+            child: ValueListenableBuilder<int>(
+            valueListenable: _setaTick,
+            builder: (context, _, __) => GoogleMap(
             initialCameraPosition: CameraPosition(target: center, zoom: 13),
             markers: queued == null
-                ? _markers(ride, driverPos)
-                : {..._markers(ride, driverPos), ..._queuedMarkers(queued)},
+                ? _markers(ride, _setaPos ?? driverPos)
+                : {
+                    ..._markers(ride, _setaPos ?? driverPos),
+                    ..._queuedMarkers(queued)
+                  },
             polylines: queued == null
                 ? _routePolys // B2 — rota real grossa
                 : {..._routePolys, ..._queuedPolylines(ride, queued)},
@@ -1756,22 +1816,22 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
             compassEnabled: true, // [Item G] paridade com o mapa do estafeta
             mapToolbarEnabled: false,
             onMapCreated: (c) => _mapCtrl = c,
-            // [PART1] Gesto do dedo pausa o seguimento (deixa explorar o mapa);
-            // o nosso animateCamera (com _progCamMove) não conta como gesto.
-            // [4C 05/09] A flag passa a ser CONSUMIDA no primeiro arranque de
-            // câmara em vez de esperar pelo `onCameraIdle`: com as animações
-            // encadeadas o mapa quase nunca fica parado, e à espera do idle a
-            // flag ficava presa em `true` — o arrastar do dedo deixava de
-            // pausar o seguimento. Cada `animateCamera` nosso gera exactamente
-            // um arranque; gastamo-lo aqui, e o seguinte já é do utilizador.
-            onCameraMoveStarted: () {
-              if (_progCamMove) {
-                _progCamMove = false;
-                return;
-              }
-              if (_followCam) setState(() => _followCam = false);
-            },
-            onCameraIdle: () => _progCamMove = false,
+            // [PART1] Gesto do dedo pausa o seguimento (deixa explorar o mapa).
+            // [03/10] Com a câmara movida ~60×/s já não dá para separar "nosso"
+            // de "dedo" pelos arranques de câmara (a flag antiga
+            // `_progCamMove`): quem pausa o seguimento é o toque real no mapa
+            // (Listener abaixo).
+            ),
+            ),
+          ),
+          // Toque do dedo no mapa → pausa o seguimento (o botão mira religa).
+          // `translucent`: o toque continua a chegar ao mapa.
+          Positioned.fill(
+            child: Listener(
+              behavior: HitTestBehavior.translucent,
+              onPointerDown: (_) {
+                if (_followCam) setState(() => _followCam = false);
+              },
             ),
           ),
           // B5 — botão mira (recentra no motorista), igual ao estafeta.

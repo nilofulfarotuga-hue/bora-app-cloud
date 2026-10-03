@@ -192,7 +192,9 @@ class _WasherHomeScreenState extends State<WasherHomeScreen> {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         actions:
-            widget.comoEntrada ? acoesDaEntradaDoPrestador(context) : null,
+            widget.comoEntrada
+                ? acoesDaEntradaDoPrestador(context, modoAtual: 'washer')
+                : null,
       ),
       body: RefreshIndicator(
         onRefresh: store.refreshAll,

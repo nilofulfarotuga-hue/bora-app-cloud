@@ -185,10 +185,17 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
     _acting = true;
     _sound?.stop();
     final store = context.read<TvdeDriverStore>();
+    final rideId = widget.ride.id;
+    // [Recusar não fecha · 03/10 · corrida 540b738a] Fecha JÁ; a recusa
+    // segue em fundo. Antes o ecrã esperava pela rede e o motorista
+    // carregava várias vezes.
+    _autoClose();
     try {
-      await store.rejectOffer(widget.ride.id);
-    } catch (_) {/* best-effort — o dispatch trata a rotação/sem_motorista */}
-    if (mounted) _autoClose();
+      await store.rejectOffer(rideId);
+    } catch (_) {
+      // best-effort — o dispatch trata a rotação/sem_motorista
+      store.clearOffer();
+    }
   }
 
   @override

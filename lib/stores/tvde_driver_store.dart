@@ -243,6 +243,14 @@ class TvdeDriverStore extends ChangeNotifier {
         r.id == _standByRide?.id) {
       return false;
     }
+    // [Recusar não fecha · 03/10 · corrida 540b738a] Recusada há pouco: uma
+    // leitura atrasada do servidor não a traz de volta ao ecrã. (Só a recusa —
+    // com o aceite a decorrer o cartão tem de ficar à vista.)
+    final recusadaEm = _recusadas[r.id];
+    if (recusadaEm != null &&
+        DateTime.now().difference(recusadaEm) < const Duration(minutes: 10)) {
+      return false;
+    }
     final para = r.currentOfferDriverId;
     if (para == null) return true;
     String? eu;
@@ -291,6 +299,8 @@ class TvdeDriverStore extends ChangeNotifier {
         if (nova == null || nova.id != _offeredRide?.id) _limparOferta();
         _offeredRide = nova;
         notifyListeners();
+        // [03/10] Avisos na barra de corridas já terminadas saem (1x/min).
+        if (leitor == null) unawaited(limparAvisosTvdeTerminados());
         return;
       }
     } catch (e) {
@@ -793,7 +803,11 @@ class TvdeDriverStore extends ChangeNotifier {
     }
   }
 
+  /// Corridas recusadas por este motorista e quando (ver [ofertaApresentavel]).
+  final Map<String, DateTime> _recusadas = <String, DateTime>{};
+
   Future<void> rejectOffer(String rideId) async {
+    _recusadas[rideId] = DateTime.now();
     _setBusy(true);
     // [Oferta fantasma 01/10] Como no aceitar: mata a notificação pelo id e
     // marca a oferta como respondida, haja ou não oferta em memória.
@@ -810,6 +824,7 @@ class TvdeDriverStore extends ChangeNotifier {
       notifyListeners();
     } catch (_) {
       // Não chegou ao servidor: continua a ser uma oferta por responder.
+      _recusadas.remove(rideId);
       desmarcarOfertaTvdeTratada(rideId);
       rethrow;
     } finally {

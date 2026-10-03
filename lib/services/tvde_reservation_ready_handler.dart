@@ -40,6 +40,17 @@ Future<void> tvdeConfirmarACaminhoGlobal(String rideId) async {
   final store = context.read<TvdeDriverStore>();
   final messenger = ScaffoldMessenger.maybeOf(context);
 
+  // [03/10 · reserva b4d4b703] Aviso velho de uma reserva que já terminou:
+  // não confirma nem abre navegação — só apaga o aviso.
+  final antes = await store.fetchRideById(rideId);
+  if (antes != null && antes.isTerminal) {
+    await cancelTvdeRideNotification(rideId);
+    messenger?.showSnackBar(const SnackBar(
+      content: Text('Esta reserva já terminou.'),
+    ));
+    return;
+  }
+
   bool ok;
   try {
     ok = await store.reservationReady(rideId);

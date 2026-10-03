@@ -5,6 +5,7 @@ import '../../config/app_colors.dart';
 import 'admin_order_edits_screen.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/admin/escolher_estafeta_sheet.dart';
+import '../../widgets/private_bucket_image.dart';
 import '_admin_cancel_order_dialog.dart';
 import 'admin_chat_viewer_screen.dart';
 
@@ -355,9 +356,20 @@ class _SummaryTab extends StatelessWidget {
                           ? '€${(order['final_purchase_value'] as num).toStringAsFixed(2)}'
                           : '—'),
                   if (order['errand_request_photo_url'] != null &&
-                      (order['errand_request_photo_url'] as String).isNotEmpty)
+                      (order['errand_request_photo_url'] as String).isNotEmpty) ...[
                     _row(Icons.photo_camera_outlined, 'Foto do cliente',
-                        'Sim (anexada)'),
+                        'Anexada'),
+                    // Bucket privado: link assinado na hora (03/10).
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: PrivateBucketImage(
+                        urlOrPath: order['errand_request_photo_url'] as String,
+                        height: 180,
+                        fit: BoxFit.contain,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ],
                 ],
               ]),
             ),

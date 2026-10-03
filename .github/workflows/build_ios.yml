@@ -266,6 +266,35 @@ jobs:
           xcrun simctl io "$UDID" recordVideo --codec=h264 --force artefactos/demo.mp4 &
           echo "REC_PID=$!" >> $GITHUB_ENV
 
+      # PROVA DO CARTÃO NO iPHONE (2026-10-03). A folha do Stripe nunca aparecia
+      # com UIScene (Divan 02/10) e o botão rodava para sempre. Isto corre na app
+      # real (Runner + SceneDelegate) e verifica pela parte nativa que a folha
+      # apareceu. Só modo de TESTE do Stripe (segredos STRIPE_TEST_*); sem eles o
+      # teste diz "NAO PROVADO". Fica `continue-on-error` enquanto os segredos de
+      # teste não existirem no GitHub — o resultado lê-se no log, não no ícone.
+      - name: Prova — a folha do cartão aparece no iPhone (Stripe teste)
+        continue-on-error: true
+        timeout-minutes: 30
+        env:
+          STRIPE_TEST_PUBLISHABLE_KEY: ${{ secrets.STRIPE_TEST_PUBLISHABLE_KEY }}
+          STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+        run: |
+          mkdir -p artefactos
+          if [ -z "$STRIPE_TEST_PUBLISHABLE_KEY" ] || [ -z "$STRIPE_TEST_SECRET_KEY" ]; then
+            echo "::warning::NAO PROVADO — faltam os segredos STRIPE_TEST_PUBLISHABLE_KEY/STRIPE_TEST_SECRET_KEY"
+            echo "NAO PROVADO: sem chaves de teste do Stripe" > artefactos/folha-cartao.log
+            exit 1
+          fi
+          perl -e 'alarm 1500; exec @ARGV' flutter drive \
+            --driver=test_driver/integration_test.dart \
+            --target=integration_test/folha_cartao_ios_test.dart \
+            -d "$UDID" \
+            --dart-define-from-file=.dart_defines \
+            --dart-define=STRIPE_TEST_PUBLISHABLE_KEY="$STRIPE_TEST_PUBLISHABLE_KEY" \
+            --dart-define=STRIPE_TEST_SECRET_KEY="$STRIPE_TEST_SECRET_KEY" \
+            2>&1 | tee artefactos/folha-cartao.log
+          grep -q 'folha visivel = true' artefactos/folha-cartao.log
+
       # DESLIGADO de proposito (2026-09-08). Este passo corre integration_test/e2e_test.dart,
       # que se chama "Bora E2E Web" e chama app.main(): com Supabase, Firebase e os
       # Timer.periodic a andar, o pumpAndSettle nunca assenta, o binding fica com

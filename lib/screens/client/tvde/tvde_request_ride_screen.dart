@@ -14,6 +14,7 @@ import '../../../config/maps_config.dart';
 import '../../../models/tvde_ride.dart';
 import '../../../services/directions_service.dart';
 import '../../../services/location_service.dart';
+import '../../../services/folha_cartao.dart';
 import '../../../services/payment_service.dart';
 import '../../../services/saved_card_checkout.dart';
 import '../../../services/tvde_conformidade_service.dart';
@@ -1454,7 +1455,18 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         distanceKm: km,
         paymentMethod: isMbway ? 'mbway' : 'card',
       );
-    } catch (_) {}
+    } catch (e) {
+      // 2026-10-03: era `catch (_) {}` — o cliente via "fala com o suporte" e
+      // ninguém sabia porquê. Pago e sem corrida: o Danilo tem de saber já
+      // (Telegram + painel "Pagamentos presos").
+      debugPrint('[TVDE] ida-e-volta pago mas a ida falhou: $e');
+      registarFalhaPagamento(
+        vertical: 'tvde_ida_volta',
+        fase: 'criar_ida_apos_pagamento',
+        erro: '$e',
+        referenciaId: paymentIntentId,
+      );
+    }
     if (!mounted) return;
     if (ida == null) {
       // O par pendente FICA guardado: o pagamento existe, e o servidor sabe

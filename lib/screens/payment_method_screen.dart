@@ -891,6 +891,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   /// Function to mark the orphan order as cancelled in DB (avoids stuck
   /// status='preparing' / payment_status='pending' rows).
   Future<void> _bailOutAndCancel(String? orderId) async {
+    var cancelFalhou = false;
     if (orderId != null) {
       try {
         await Supabase.instance.client.functions.invoke(
@@ -899,10 +900,21 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         );
       } catch (e) {
         debugPrint('[Checkout] _bailOutAndCancel error (non-fatal): $e');
+        cancelFalhou = true;
       }
     }
     if (!mounted) return;
+    // 2026-10-03: se não deu para cancelar, o cliente tem de saber — o pedido
+    // pode continuar activo à espera de pagamento.
+    final messenger = ScaffoldMessenger.of(context);
     Navigator.of(context).popUntil((route) => route.isFirst);
+    if (cancelFalhou) {
+      messenger.showSnackBar(SnackBar(
+        duration: const Duration(seconds: 6),
+        content: const Text(
+            'Não conseguimos cancelar o pedido por falta de rede. Vê em "Pedidos" e cancela-o lá se ainda aparecer.'),
+      ));
+    }
   }
 
   /// Parte 3 (rodada 2) — grava a paragem em casa do favor (morada + coords +
@@ -1261,12 +1273,16 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         // Edge Function handles E.164 conversion (prepends +351).
         final clientPhone =
             _mbwayPhoneController.text.replaceAll(RegExp(r'\D'), '');
-        setState(() => _isProcessing = false);
+        // 2026-10-03: o botão só volta a ficar activo DEPOIS de o servidor
+        // responder. Antes era libertado aqui, com o pedido já criado e a
+        // chamada ao MB Way ainda a decorrer — um segundo toque criava um
+        // segundo pedido e um segundo pedido de pagamento.
         final piId = await paymentService.initiateMbwayPayment(
           orderId: mbwayOrderId,
           phone: clientPhone,
         );
         if (!mounted) return;
+        setState(() => _isProcessing = false);
         if (piId == null) {
           messenger.showSnackBar(SnackBar(
             content: Text('Não foi possível iniciar o pagamento MBWay.'.tr),

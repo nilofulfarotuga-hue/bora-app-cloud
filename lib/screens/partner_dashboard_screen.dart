@@ -765,8 +765,19 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
           // Cliente sem sair da sessão (ver `ProfileSwitcherButton`).
           const ProfileSwitcherButton(),
           TextButton.icon(
-            onPressed: () => restaurantStore.toggleRestaurantOnline(
-                widget.restaurant.id, !currentRestaurant.isOnline),
+            onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
+              try {
+                await restaurantStore.toggleRestaurantOnline(
+                    widget.restaurant.id, !currentRestaurant.isOnline);
+              } catch (_) {
+                // 2026-10-03: a falha deixou de ser muda (o store já repôs
+                // o estado real no ecrã).
+                messenger.showSnackBar(const SnackBar(
+                    content: Text(
+                        'Não foi possível mudar o estado da loja. Verifica a ligação e tenta de novo.')));
+              }
+            },
             style: TextButton.styleFrom(
               foregroundColor: currentRestaurant.isOnline
                   ? Colors.greenAccent

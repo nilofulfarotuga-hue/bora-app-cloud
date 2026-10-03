@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/ios_launch_flags.dart';
 
 import '../models/saved_card.dart';
+import 'folha_cartao.dart';
 import 'web_checkout.dart';
 
 /// Chave pública do Stripe usada pelo checkout web (`web/pay.html`).
@@ -113,8 +114,10 @@ class PaymentService {
       return;
     }
 
-    await Stripe.instance.initPaymentSheet(
-      paymentSheetParameters: SetupPaymentSheetParameters(
+    // 2026-10-03: abre pela porta única (folha_cartao.dart) — tempo limite,
+    // confirmação de que a folha apareceu no iPhone e registo do erro real.
+    await apresentarFolhaCartao(
+      SetupPaymentSheetParameters(
         paymentIntentClientSecret: clientSecret,
         merchantDisplayName: 'BORA APP',
         style: ThemeMode.system,
@@ -142,8 +145,9 @@ class PaymentService {
           testEnv: false,
         ),
       ),
+      vertical: vertical,
+      referenciaId: referenciaId,
     );
-    await Stripe.instance.presentPaymentSheet();
     debugPrint('[PaymentService] payment sheet completed successfully');
   }
 
@@ -369,8 +373,8 @@ class PaymentService {
     if (kIsWeb) throw StateError('Card payments are only supported on mobile.');
     if (!requiresAction) return true;
     try {
-      await Stripe.instance.initPaymentSheet(
-        paymentSheetParameters: SetupPaymentSheetParameters(
+      await apresentarFolhaCartao(
+        SetupPaymentSheetParameters(
           paymentIntentClientSecret: clientSecret,
           merchantDisplayName: 'BORA APP',
           style: ThemeMode.system,
@@ -381,8 +385,8 @@ class PaymentService {
             testEnv: false,
           ),
         ),
+        vertical: 'cartao_guardado_3ds',
       );
-      await Stripe.instance.presentPaymentSheet();
       return true;
     } on StripeException catch (e) {
       debugPrint(

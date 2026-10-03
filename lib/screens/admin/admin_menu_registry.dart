@@ -48,6 +48,7 @@ import 'admin_caca_clientes_screen.dart';
 import 'admin_assistentes_screen.dart';
 import 'admin_motores_screen.dart';
 import 'admin_crash_logs_screen.dart';
+import 'admin_pagamentos_presos_screen.dart';
 import 'admin_notification_failures_screen.dart';
 import 'admin_ofertas_log_screen.dart';
 import 'admin_orders_screen.dart';
@@ -269,6 +270,15 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.red.shade700,
       builder: () => const AdminCrashLogsScreen(),
       keywords: const ['crash', 'crashes', 'erros', 'android', 'iphone', 'ios', 'web', 'versao', 'aparelho', 'modelo'],
+    ),
+    AdminMenuItem(
+      id: 'operacao_pagamentos_presos',
+      title: 'Pagamentos presos',
+      subtitle: 'Cartões que não chegaram ao fim (iPhone, Android, Web) e o erro real que a app gravou',
+      icon: Icons.credit_card_off_outlined,
+      color: Colors.red.shade700,
+      builder: () => const AdminPagamentosPresosScreen(),
+      keywords: const ['pagamento', 'preso', 'cartao', 'stripe', 'falhou', 'iphone', 'requires_payment_method', 'rodar'],
     ),
     ],
   ),

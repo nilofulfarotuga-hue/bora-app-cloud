@@ -12,6 +12,7 @@ import '../models/appointment_model.dart';
 import '../models/provider_service_model.dart';
 import '../models/service_provider_model.dart';
 import '../models/staff_member_model.dart';
+import '../services/folha_cartao.dart';
 import '../services/payment_service.dart';
 
 /// BLOCO E (2026-07-28) — o parceiro está em `reschedule_only` e a marcação já
@@ -444,8 +445,10 @@ class ServicesStore extends ChangeNotifier {
         }
       } else {
         // Payment Sheet — PADRÃO CANÓNICO BORA APP.
-        await Stripe.instance.initPaymentSheet(
-          paymentSheetParameters: SetupPaymentSheetParameters(
+        // 2026-10-03: porta única (folha_cartao.dart) — tempo limite e
+        // confirmação de que a folha apareceu no iPhone.
+        await apresentarFolhaCartao(
+          SetupPaymentSheetParameters(
             paymentIntentClientSecret: clientSecret,
             merchantDisplayName: 'BORA APP',
             style: ThemeMode.system,
@@ -460,8 +463,9 @@ class ServicesStore extends ChangeNotifier {
               testEnv: false,
             ),
           ),
+          vertical: 'marcacao',
+          referenciaId: appointmentId,
         );
-        await Stripe.instance.presentPaymentSheet();
       }
 
       // 4) Confirmar pagamento (RPC fallback — webhook pode já ter confirmado).

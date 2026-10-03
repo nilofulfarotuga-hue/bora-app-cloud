@@ -103,7 +103,71 @@ class _AdminCleaningBookingsScreenState
         'Limpeza cancelada.');
   }
 
-  /// Conversa da limpeza (read-only + audit via admin_list_cleaning_messages).
+  /// Avançar o estado quando a profissional esqueceu um botão (2026-10-03).
+  /// RPC `admin_set_cleaning_status` — só avança, com motivo e auditoria. Não
+  /// mexe em dinheiro: o pagamento só se liberta na confirmação (cliente ou
+  /// automática às 24 h), como antes.
+  Future<void> _advance(Map<String, dynamic> b) async {
+    final status = (b['status'] as String?) ?? '';
+    const ordem = ['accepted', 'on_the_way', 'in_progress', 'done'];
+    const nomes = {
+      'on_the_way': 'A caminho',
+      'in_progress': 'Em andamento',
+      'done': 'Terminada (cliente confirma)',
+    };
+    final i = ordem.indexOf(status);
+    if (i < 0 || i >= ordem.length - 1) return;
+    final opcoes = ordem.sublist(i + 1);
+    var escolha = opcoes.last;
+    final reasonCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          title: const Text('Avançar estado da limpeza'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final o in opcoes)
+                RadioListTile<String>(
+                  value: o,
+                  groupValue: escolha,
+                  title: Text(nomes[o] ?? o),
+                  onChanged: (v) => setD(() => escolha = v ?? escolha),
+                ),
+              TextField(
+                controller: reasonCtrl,
+                decoration: const InputDecoration(
+                    labelText: 'Motivo (obrigatório)',
+                    hintText: 'Ex.: a profissional confirmou por telefone'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Voltar')),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Avançar')),
+          ],
+        ),
+      ),
+    );
+    if (ok != true || !mounted) return;
+    await _run(
+        () => Supabase.instance.client.rpc('admin_set_cleaning_status', params: {
+              'p_booking_id': b['id'],
+              'p_to': escolha,
+              'p_reason': reasonCtrl.text.trim(),
+            }),
+        'Estado atualizado.');
+  }
+
+  /// Conversa da limpeza (lista via admin_list_cleaning_messages, com
+  /// auditoria). Desde 2026-10-03 a Bora também escreve
+  /// (`admin_send_cleaning_message`) — cliente e profissional recebem push.
   Future<void> _viewChat(Map<String, dynamic> b) async {
     List<Map<String, dynamic>> msgs = const [];
     try {
@@ -121,10 +185,11 @@ class _AdminCleaningBookingsScreenState
       return;
     }
     if (!mounted) return;
-    await showDialog<void>(
+    final msgCtrl = TextEditingController();
+    final enviar = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Conversa (só leitura)'),
+        title: const Text('Conversa'),
         content: SizedBox(
           width: double.maxFinite,
           child: msgs.isEmpty
@@ -152,9 +217,11 @@ class _AdminCleaningBookingsScreenState
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  m['sender_role'] == 'client'
-                                      ? 'Cliente'
-                                      : 'Profissional',
+                                  switch (m['sender_role']) {
+                                    'client' => 'Cliente',
+                                    'admin' => 'Bora',
+                                    _ => 'Profissional',
+                                  },
                                   style: const TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w700,
@@ -170,12 +237,31 @@ class _AdminCleaningBookingsScreenState
                 ),
         ),
         actions: [
+          TextField(
+            controller: msgCtrl,
+            minLines: 1,
+            maxLines: 4,
+            maxLength: 2000,
+            decoration: const InputDecoration(
+                labelText: 'Escrever como Bora',
+                hintText: 'Cliente e profissional recebem notificação'),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
+              onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Fechar')),
+          FilledButton.icon(
+              onPressed: () => Navigator.pop(ctx, true),
+              icon: const Icon(Icons.send, size: 16),
+              label: const Text('Enviar')),
         ],
       ),
     );
+    final texto = msgCtrl.text.trim();
+    if (enviar != true || texto.isEmpty || !mounted) return;
+    await _run(
+        () => Supabase.instance.client.rpc('admin_send_cleaning_message',
+            params: {'p_booking_id': b['id'], 'p_message': texto}),
+        'Mensagem enviada.');
   }
 
   Future<void> _reschedule(Map<String, dynamic> b) async {
@@ -314,6 +400,7 @@ class _AdminCleaningBookingsScreenState
                       onCancel: () => _cancel(rows[i]),
                       onReschedule: () => _reschedule(rows[i]),
                       onViewChat: () => _viewChat(rows[i]),
+                      onAdvance: () => _advance(rows[i]),
                     ),
                   );
                 },
@@ -334,6 +421,7 @@ class _BookingCard extends StatelessWidget {
     required this.onCancel,
     required this.onReschedule,
     required this.onViewChat,
+    required this.onAdvance,
   });
 
   final Map<String, dynamic> data;
@@ -342,6 +430,7 @@ class _BookingCard extends StatelessWidget {
   final VoidCallback onCancel;
   final VoidCallback onReschedule;
   final VoidCallback onViewChat;
+  final VoidCallback onAdvance;
 
   String _euro(dynamic cents) =>
       '€${(((cents as num?)?.toInt() ?? 0) / 100).toStringAsFixed(2)}';
@@ -446,6 +535,18 @@ class _BookingCard extends StatelessWidget {
                 label: const Text('Ver conversa'),
               ),
             ),
+            if (const ['accepted', 'on_the_way', 'in_progress']
+                .contains(status)) ...[
+              const SizedBox(height: 4),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: busy ? null : onAdvance,
+                  icon: const Icon(Icons.fast_forward, size: 18),
+                  label: const Text('Avançar estado (a profissional esqueceu)'),
+                ),
+              ),
+            ],
             if (active) ...[
               const SizedBox(height: 4),
               Row(

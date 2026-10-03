@@ -660,7 +660,20 @@ class _GanhosScreenState extends State<GanhosScreen> {
     return diff.isNegative ? null : diff;
   }
 
+  /// 2026-10-03: trava contra duplo toque — cada toque consumia tokens.
+  bool _aComprarPrioridade = false;
+
   Future<void> _buyPriority(String key, int minutes, int cost) async {
+    if (_aComprarPrioridade) return;
+    _aComprarPrioridade = true;
+    try {
+      await _buyPriorityUmaVez(key, minutes, cost);
+    } finally {
+      _aComprarPrioridade = false;
+    }
+  }
+
+  Future<void> _buyPriorityUmaVez(String key, int minutes, int cost) async {
     if (_tokens < cost) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Tokens insuficientes.')),

@@ -105,7 +105,13 @@ class _PartnerOrderEditSectionState extends State<PartnerOrderEditSection> {
     );
   }
 
+  /// 2026-10-03: uma edição de cada vez. "Em falta" aplica logo e devolve
+  /// dinheiro ao cliente; com duplo toque (ou folha reaberta enquanto a
+  /// chamada demorava) saíam duas edições.
+  bool _aEnviar = false;
+
   Future<void> _abrirEmFalta(BuildContext context) async {
+    if (_aEnviar) return;
     final rascunho = await showModalBottomSheet<OrderEditRascunho>(
       context: context,
       isScrollControlled: true,
@@ -116,6 +122,7 @@ class _PartnerOrderEditSectionState extends State<PartnerOrderEditSection> {
   }
 
   Future<void> _abrirAcrescentar(BuildContext context) async {
+    if (_aEnviar) return;
     final rascunho = await showModalBottomSheet<OrderEditRascunho>(
       context: context,
       isScrollControlled: true,
@@ -126,6 +133,17 @@ class _PartnerOrderEditSectionState extends State<PartnerOrderEditSection> {
   }
 
   Future<void> _confirmarEEnviar(BuildContext context, OrderEditRascunho r,
+      {required bool tirar}) async {
+    if (_aEnviar) return;
+    _aEnviar = true;
+    try {
+      await _confirmarEEnviarUmaVez(context, r, tirar: tirar);
+    } finally {
+      _aEnviar = false;
+    }
+  }
+
+  Future<void> _confirmarEEnviarUmaVez(BuildContext context, OrderEditRascunho r,
       {required bool tirar}) async {
     final svc = OrderEditService.instance;
     final messenger = ScaffoldMessenger.of(context);

@@ -36,15 +36,22 @@ class CleaningChatButton extends StatefulWidget {
 }
 
 class _CleaningChatButtonState extends State<CleaningChatButton> {
+  // 2026-10-03: guardado no initState. O `context.read` dentro do `dispose`
+  // rebentava com "Null check operator used on a null value" ao sair do ecrã
+  // da limpeza (27 crashes Android em 7 dias, debug_crash_logs) — no dispose
+  // o elemento já não pode procurar antepassados.
+  late final CleaningChatStore _store;
+
   @override
   void initState() {
     super.initState();
-    context.read<CleaningChatStore>().listen(widget.bookingId);
+    _store = context.read<CleaningChatStore>();
+    _store.listen(widget.bookingId);
   }
 
   @override
   void dispose() {
-    context.read<CleaningChatStore>().unlisten(widget.bookingId);
+    _store.unlisten(widget.bookingId);
     super.dispose();
   }
 

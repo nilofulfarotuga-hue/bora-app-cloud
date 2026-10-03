@@ -81,12 +81,26 @@ class _PartnerHoursScreenState extends State<PartnerHoursScreen> {
   }
 
   Future<void> _save() async {
+    if (_saving) return;
     setState(() => _saving = true);
-    await context
-        .read<RestaurantStore>()
-        .updateBusinessHours(widget.restaurant.id, _hours);
+    var ok = false;
+    try {
+      ok = await context
+          .read<RestaurantStore>()
+          .updateBusinessHours(widget.restaurant.id, _hours);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
     if (!mounted) return;
-    setState(() => _saving = false);
+    if (!ok) {
+      // 2026-10-03: antes dizia "guardados" mesmo quando falhava.
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Não foi possível guardar os horários. Verifica a ligação e tenta de novo.')),
+      );
+      return;
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Horários guardados.')),
     );

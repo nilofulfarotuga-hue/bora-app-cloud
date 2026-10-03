@@ -984,16 +984,32 @@ class RestaurantStore extends ChangeNotifier {
   Future<void> toggleRestaurantOnline(
       String restaurantId, bool isOnline) async {
     final index = _restaurants.indexWhere((r) => r.id == restaurantId);
+    final anterior = index != -1 ? _restaurants[index] : null;
     if (index != -1) {
       _restaurants[index] = _restaurants[index].copyWith(isOnline: isOnline);
       notifyListeners();
     }
     try {
-      await supabase
+      final linhas = await supabase
           .from('restaurants')
-          .update({'is_online': isOnline}).eq('id', restaurantId);
+          .update({'is_online': isOnline})
+          .eq('id', restaurantId)
+          .select('id')
+          .timeout(const Duration(seconds: 15));
+      if ((linhas as List).isEmpty) throw StateError('0 linhas (RLS?)');
     } catch (e) {
+      // 2026-10-03: antes o ecrã ficava a dizer Online/Offline sem ter
+      // gravado — a loja parecia aberta e não recebia pedidos (ou o
+      // contrário). Agora volta ao estado real e quem chamou fica a saber.
       debugPrint('RestaurantStore: toggleRestaurantOnline error => $e');
+      if (anterior != null) {
+        final i = _restaurants.indexWhere((r) => r.id == restaurantId);
+        if (i != -1) {
+          _restaurants[i] = anterior;
+          notifyListeners();
+        }
+      }
+      rethrow;
     }
     // Sessão 2026-05-17 — foreground service: loja aberta = app sempre activa
     // para receber pedidos (padrão Glovo/Uber Eats partner).
@@ -1139,21 +1155,39 @@ class RestaurantStore extends ChangeNotifier {
   }
 
   // ─── Business hours ──────────────────────────────────────────────────────
-  Future<void> updateBusinessHours(
+  /// Devolve `true` só se a base gravou mesmo (2026-10-03). Antes o erro era
+  /// engolido e o ecrã dizia "Horários guardados." sempre — e a RLS de
+  /// `restaurants` recusa sem erro (0 linhas), por isso pede-se a linha de
+  /// volta. Em falha, o estado local volta ao que estava.
+  Future<bool> updateBusinessHours(
       String restaurantId, BusinessHours hours) async {
     final index = _restaurants.indexWhere((r) => r.id == restaurantId);
+    final anterior = index != -1 ? _restaurants[index] : null;
     if (index != -1) {
       _restaurants[index] =
           _restaurants[index].copyWith(businessHours: hours);
       notifyListeners();
     }
     try {
-      await supabase
+      final linhas = await supabase
           .from('restaurants')
-          .update({'business_hours': hours.toJson()}).eq('id', restaurantId);
+          .update({'business_hours': hours.toJson()})
+          .eq('id', restaurantId)
+          .select('id')
+          .timeout(const Duration(seconds: 15));
+      if ((linhas as List).isNotEmpty) return true;
+      debugPrint('RestaurantStore: updateBusinessHours => 0 linhas (RLS?)');
     } catch (e) {
       debugPrint('RestaurantStore: updateBusinessHours error => $e');
     }
+    if (anterior != null) {
+      final i = _restaurants.indexWhere((r) => r.id == restaurantId);
+      if (i != -1) {
+        _restaurants[i] = anterior;
+        notifyListeners();
+      }
+    }
+    return false;
   }
 
   // ─── BR §6.7 — Partner open/closed status (rich) ──────────────────────────

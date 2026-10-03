@@ -160,11 +160,28 @@ class _CleaningChatScreenState extends State<CleaningChatScreen> {
                                 ? null
                                 : Border.all(color: AppColors.divider),
                           ),
-                          child: Text(m.content,
-                              style: TextStyle(
-                                  color: mine
-                                      ? Colors.white
-                                      : AppColors.textPrimary)),
+                          child: m.senderRole == 'admin'
+                              // 2026-10-03: a equipa da Bora também escreve
+                              // aqui (painel admin) — identifica-se.
+                              ? Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Text('Bora',
+                                        style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w800,
+                                            color: AppColors.primary)),
+                                    Text(m.content,
+                                        style: const TextStyle(
+                                            color: AppColors.textPrimary)),
+                                  ],
+                                )
+                              : Text(m.content,
+                                  style: TextStyle(
+                                      color: mine
+                                          ? Colors.white
+                                          : AppColors.textPrimary)),
                         ),
                       );
                     },

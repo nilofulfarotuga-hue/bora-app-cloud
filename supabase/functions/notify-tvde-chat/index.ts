@@ -74,7 +74,9 @@ Deno.serve(async (req) => {
     message: {
       token,
       notification: { title, body: body || 'Tens uma nova mensagem.' },
-      data: { rideId: String(rideId), type: 'tvde_chat_message', title, body: String(body) },
+      // 2026-10-03: era 'tvde_chat_message', que a app não conhece (o handler
+      // trata 'tvde_chat') — com a app aberta a mensagem chegava sem aviso.
+      data: { rideId: String(rideId), type: 'tvde_chat', title, body: String(body) },
       android: { priority: 'high', notification: { channel_id: 'bora_orders', sound: 'default' } },
       apns: { headers: { 'apns-priority': '10' }, payload: { aps: { sound: 'default', badge: 1 } } },
     },

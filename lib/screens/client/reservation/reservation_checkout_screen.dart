@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../config/ios_launch_flags.dart';
 
 import '../../../config/app_colors.dart';
+import '../../../services/folha_cartao.dart';
 import '../../../services/payment_service.dart';
 import '../../../services/saved_card_checkout.dart';
 import '../../../stores/reservation_store.dart';
@@ -178,8 +179,9 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
         }
       } else {
         // b) Inicializar Payment Sheet — PADRÃO CANÓNICO BORA APP.
-        await Stripe.instance.initPaymentSheet(
-          paymentSheetParameters: SetupPaymentSheetParameters(
+        // b+c) Preparar e apresentar — porta única (folha_cartao.dart, 2026-10-03).
+        await apresentarFolhaCartao(
+          SetupPaymentSheetParameters(
             paymentIntentClientSecret: clientSecret,
             merchantDisplayName: 'BORA APP'.tr,
             style: ThemeMode.system,
@@ -194,10 +196,9 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
               testEnv: false,
             ),
           ),
+          vertical: 'reserva_mesa',
+          referenciaId: reservationId,
         );
-
-        // c) Apresentar Payment Sheet.
-        await Stripe.instance.presentPaymentSheet();
       }
 
       // d) Sucesso — confirmar via RPC fallback.

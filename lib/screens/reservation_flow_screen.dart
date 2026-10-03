@@ -10,6 +10,7 @@ import '../config/ios_launch_flags.dart';
 
 import '../config/app_colors.dart';
 import '../models/restaurant_model.dart';
+import '../services/folha_cartao.dart';
 import '../services/payment_service.dart';
 import '../services/saved_card_checkout.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
@@ -172,8 +173,9 @@ class _ReservationFlowScreenState extends State<ReservationFlowScreen> {
           return;
         }
       } else {
-        await Stripe.instance.initPaymentSheet(
-          paymentSheetParameters: SetupPaymentSheetParameters(
+        // 2026-10-03: porta única (folha_cartao.dart).
+        await apresentarFolhaCartao(
+          SetupPaymentSheetParameters(
             paymentIntentClientSecret: clientSecret,
             merchantDisplayName: 'Bora App',
             billingDetailsCollectionConfiguration:
@@ -187,8 +189,9 @@ class _ReservationFlowScreenState extends State<ReservationFlowScreen> {
               testEnv: false,
             ),
           ),
+          vertical: 'reserva_mesa',
+          referenciaId: reservationId,
         );
-        await Stripe.instance.presentPaymentSheet();
       }
 
       await client.rpc('client_confirm_reservation_payment',

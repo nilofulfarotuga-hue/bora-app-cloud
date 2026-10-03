@@ -42,8 +42,14 @@ class _PartnerReservationsScreenState
 
   /// T2.F (BR §18): use server RPCs that enforce ownership + payment status
   /// + create menu credit + auto-refund on rejection.
+  /// 2026-10-03: reservas com uma acção a decorrer. Rejeitar dispara
+  /// reembolso e "chegou" cria crédito — um duplo toque não pode mandar duas
+  /// chamadas.
+  final Set<String> _aDecorrer = {};
+
   Future<void> _decide(ReservationModel r, bool accept,
       {String? reason}) async {
+    if (!_aDecorrer.add(r.id)) return;
     final client = Supabase.instance.client;
     final messenger = ScaffoldMessenger.of(context);
     try {
@@ -51,30 +57,43 @@ class _PartnerReservationsScreenState
         'p_reservation_id': r.id,
         'p_accept': accept,
         'p_reason': reason,
-      });
+      }).timeout(const Duration(seconds: 20));
       messenger.showSnackBar(SnackBar(
         content: Text(accept
             ? 'Reserva aprovada.'
             : 'Reserva rejeitada — reembolso automático.'),
       ));
-      setState(() => _future = _load());
+      if (mounted) setState(() => _future = _load());
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Erro: $e')));
+      debugPrint('[PartnerReservations] decide: $e');
+      messenger.showSnackBar(const SnackBar(
+          content: Text(
+              'Não foi possível concluir. Atualiza a lista e tenta de novo.')));
+      if (mounted) setState(() => _future = _load());
+    } finally {
+      _aDecorrer.remove(r.id);
     }
   }
 
   Future<void> _markArrived(ReservationModel r) async {
+    if (!_aDecorrer.add(r.id)) return;
     final client = Supabase.instance.client;
     final messenger = ScaffoldMessenger.of(context);
     try {
       await client.rpc('partner_mark_arrival',
-          params: {'p_reservation_id': r.id});
+          params: {'p_reservation_id': r.id}).timeout(const Duration(seconds: 20));
       messenger.showSnackBar(const SnackBar(
         content: Text('Cliente marcado como chegou. Crédito €3 atribuído.'),
       ));
-      setState(() => _future = _load());
+      if (mounted) setState(() => _future = _load());
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Erro: $e')));
+      debugPrint('[PartnerReservations] markArrived: $e');
+      messenger.showSnackBar(const SnackBar(
+          content: Text(
+              'Não foi possível concluir. Atualiza a lista e tenta de novo.')));
+      if (mounted) setState(() => _future = _load());
+    } finally {
+      _aDecorrer.remove(r.id);
     }
   }
 

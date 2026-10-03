@@ -17,7 +17,7 @@ class CleaningMessage {
 
   final String id;
   final String bookingId;
-  final String senderRole; // 'client' | 'cleaner'
+  final String senderRole; // 'client' | 'cleaner' | 'admin' (Bora, desde 03/10)
   final String content;
   final DateTime createdAt;
   final bool read;

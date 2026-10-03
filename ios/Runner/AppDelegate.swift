@@ -29,7 +29,44 @@ import GoogleMaps
       NSLog("[Bora] Sem chave do Google Maps para iOS — o mapa vai aparecer vazio.")
     }
 
+    // Janela do Flutter para o Stripe (2026-10-03, cartão "só a rodar").
+    //
+    // PORQUE: o plugin do Stripe (stripe_ios 11.5) procura de onde apresentar
+    // a folha do cartão em `UIApplication.shared.delegate?.window`. Com UIScene
+    // (Info.plist → SceneDelegate) a janela vive na cena e este `window` fica
+    // vazio; o plugin cai num `UIViewController()` solto, fora de qualquer
+    // janela, a folha nunca aparece e `presentPaymentSheet` nunca devolve —
+    // o cliente vê o botão a rodar para sempre (Divan 02/10, Danilo 21/09:
+    // nenhum cartão de iPhone passou). No Android não há cena, por isso lá
+    // funcionava. Assim que a janela do Flutter fica activa, damo-la ao
+    // AppDelegate; o desafio 3D Secure usa o mesmo caminho.
+    NotificationCenter.default.addObserver(
+      forName: UIWindow.didBecomeKeyNotification, object: nil, queue: .main
+    ) { [weak self] nota in
+      guard let janela = nota.object as? UIWindow,
+            janela.rootViewController is FlutterViewController else { return }
+      self?.window = janela
+    }
+
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  /// Garante que `self.window` é a janela visível do Flutter. Devolve `false`
+  /// se não houver nenhuma — a app trata isso como "o cartão não vai abrir".
+  @discardableResult
+  func ligarJanelaAoStripe() -> Bool {
+    if let actual = window, actual.windowScene != nil, actual.rootViewController != nil {
+      return true
+    }
+    let janelas = UIApplication.shared.connectedScenes
+      .compactMap { $0 as? UIWindowScene }
+      .flatMap { $0.windows }
+    if let flutter = janelas.first(where: { $0.rootViewController is FlutterViewController })
+        ?? janelas.first(where: { $0.isKeyWindow }) {
+      window = flutter
+      return true
+    }
+    return false
   }
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
@@ -50,10 +87,18 @@ import GoogleMaps
       name: "pt.boraapp.bora/native",
       binaryMessenger: engineBridge.applicationRegistrar.messenger()
     )
-    canal.setMethodCallHandler { call, result in
+    canal.setMethodCallHandler { [weak self] call, result in
       switch call.method {
       case "getDeviceDiagnostics":
         result(AppDelegate.diagnosticoDoAparelho())
+      // Pagamento com cartão (2026-10-03): antes de abrir a folha do Stripe a
+      // app pede para ligar a janela; depois pergunta se a folha apareceu
+      // mesmo. Se não aparecer no tempo limite, a app avisa o cliente em vez
+      // de rodar para sempre.
+      case "prepararFolhaStripe":
+        result(self?.ligarJanelaAoStripe() ?? false)
+      case "folhaStripeVisivel":
+        result(self?.window?.rootViewController?.presentedViewController != nil)
       default:
         result(FlutterMethodNotImplemented)
       }

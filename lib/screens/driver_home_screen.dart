@@ -1541,6 +1541,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
   Future<bool> _showDeliveryCodeDialog(OrderModel order) async {
     final controller = TextEditingController();
     String? errorText;
+    // 2026-10-03: trava contra duplo toque — cada envio errado gasta uma das
+    // 5 tentativas do PIN, e com rede lenta o estafeta tocava duas vezes.
+    var aEnviar = false;
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -1583,17 +1586,39 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   child: const Text('Cancelar'),
                 ),
                 ElevatedButton(
-                  onPressed: () async {
+                  onPressed: aEnviar
+                      ? null
+                      : () async {
                     final entered = controller.text.trim();
                     if (entered.length != 4) {
                       setDialogState(() => errorText = 'Digite os 4 dígitos.');
                       return;
                     }
+                    setDialogState(() => aEnviar = true);
                     // P6 (2026-08-17) — o SERVIDOR valida o PIN e fecha a
                     // entrega. A app envia; nunca decide localmente.
-                    final r = await context
-                        .read<OrderStore>()
-                        .finishOrderWithPin(order, entered);
+                    final DeliveryPinResult r;
+                    try {
+                      r = await context
+                          .read<OrderStore>()
+                          .finishOrderWithPin(order, entered)
+                          .timeout(kAcaoTimeout);
+                    } on TimeoutException {
+                      // Sem resposta: pode ter ficado fechada no servidor.
+                      // Não se repete às cegas — o estado real chega por
+                      // realtime e o botão volta a ficar activo.
+                      if (dialogContext.mounted) {
+                        setDialogState(() {
+                          aEnviar = false;
+                          errorText =
+                              'O servidor não respondeu. Espera uns segundos e tenta de novo.';
+                        });
+                      }
+                      return;
+                    }
+                    if (dialogContext.mounted) {
+                      setDialogState(() => aEnviar = false);
+                    }
                     if (r.ok) {
                       if (dialogContext.mounted) {
                         Navigator.of(dialogContext).pop(true);
@@ -1609,12 +1634,20 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                     } else if (r.error == 'network') {
                       setDialogState(() => errorText =
                           'Sem ligação ao servidor. Tenta de novo.');
+                    } else if (r.error == 'invalid_status') {
+                      setDialogState(() => errorText =
+                          'Esta entrega já não está em curso (pode já ter ficado concluída). Fecha e confirma em Pedidos.');
                     } else {
                       setDialogState(() => errorText =
-                          'Não foi possível concluir (${r.error ?? 'erro'}).');
+                          'Não foi possível concluir. Tenta de novo.');
                     }
                   },
-                  child: const Text('Confirmar'),
+                  child: aEnviar
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Text('Confirmar'),
                 ),
               ],
             );

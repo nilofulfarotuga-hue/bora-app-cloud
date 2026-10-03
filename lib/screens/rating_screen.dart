@@ -94,20 +94,31 @@ class _RatingScreenState extends State<RatingScreen> {
       });
 
       // Persist tip (BR §4.5) — best-effort, failure does not invalidate rating.
+      // 2026-10-03: a falha deixou de ser muda. Nenhuma gorjeta ficou gravada
+      // em toda a história (orders.tip_amount_cents > 0 = 0 linhas), e o
+      // cliente via "Obrigado!" na mesma. O `.select` apanha também o caso
+      // em que a base recusa sem erro (0 linhas alteradas).
+      var gorjetaFalhou = false;
       if (_tipCents > 0 && isDriverSubject) {
         try {
-          await client.from('orders').update({
+          final linhas = await client.from('orders').update({
             'tip_amount_cents': _tipCents,
             'tip_added_at': DateTime.now().toUtc().toIso8601String(),
-          }).eq('id', widget.order.id);
+          }).eq('id', widget.order.id).select('id');
+          gorjetaFalhou = (linhas as List).isEmpty;
         } catch (e) {
-          // ignore; rating already saved
+          debugPrint('[Rating] gorjeta não gravada: $e');
+          gorjetaFalhou = true;
         }
       }
 
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text('Obrigado pela tua avaliação!'.tr)),
+        gorjetaFalhou
+            ? const SnackBar(
+                content: Text(
+                    'Avaliação gravada. A gorjeta não ficou registada — não foi cobrado nada.'))
+            : SnackBar(content: Text('Obrigado pela tua avaliação!'.tr)),
       );
       navigator.pop(true);
     } catch (e) {

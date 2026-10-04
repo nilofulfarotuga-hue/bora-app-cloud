@@ -1,5 +1,10 @@
 // @ts-nocheck
 // supabase/functions/notify-driver/index.ts
+// v42 2026-10-04 (ronda de correção, agente despacho) — exige a chave de serviço
+//     (gatilhos/cron do banco via _dispatch_service_jwt, admin-cancel-order,
+//     client_respond_budget_increase) ou o JWT de um admin. Antes era aberta
+//     (verify_jwt=false e sem verificação). verify_jwt continua false (igual ao ar).
+//     Nada mais mudou face ao v41.
 // v41 2026-09-21 — APNs: 'apns-push-type' passa de 'background' para 'alert'.
 //     'background' e' push SILENCIOSO para a Apple (sem banner, sem som, e exige
 //     prioridade 5) — mesmo com token, o iPhone nunca tocava com a oferta.
@@ -32,7 +37,15 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
-  console.log('[notify-driver v41] INVOKED firebase=', !!firebaseProjectId)
+  // v42 (04/10) — só a chave de serviço (gatilhos do banco, outras Edge) ou um admin.
+  // Antes qualquer pessoa na internet podia mandar "Novo pedido!" a um estafeta.
+  const autorizado = await autorizar(req, supabaseUrl, serviceKey)
+  if (!autorizado.ok) {
+    console.warn(`[notify-driver v42] 403 motivo=${autorizado.reason}`)
+    return json({ ok:false, error:'forbidden' }, 403)
+  }
+
+  console.log('[notify-driver v42] INVOKED firebase=', !!firebaseProjectId)
   if (!firebaseProjectId || !firebaseServiceAcct) return json({ ok:false, reason:'firebase_not_configured' })
 
   let driverId = '', orderId = '', vendorName = 'Pedido', total = 0
@@ -182,6 +195,40 @@ Deno.serve(async (req) => {
   if (sent === 0) return json({ ok:false, reason:'fcm_error', detail:flat })
   return json({ ok:true, tokens:flat.length, sent, detail:flat })
 })
+
+// ── Autenticação (v42) ─────────────────────────────────────────────────────
+const servicoOk = new Set<string>()
+const ADMIN_EMAILS = ['nilofulfarotuga@gmail.com', 'nilofulfaro@gmail.com']
+function lerPayload(token:string): any {
+  try {
+    let b = token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')
+    while (b.length % 4) b += '='
+    return JSON.parse(atob(b))
+  } catch (_) { return null }
+}
+async function autorizar(req:Request, supabaseUrl:string, serviceKey:string): Promise<{ ok:boolean, reason?:string }> {
+  const h = req.headers.get('authorization') ?? ''
+  if (!h.toLowerCase().startsWith('bearer ')) return { ok:false, reason:'sem_token' }
+  const token = h.slice(7).trim()
+  if (!token) return { ok:false, reason:'sem_token' }
+  if (token === serviceKey || servicoOk.has(token)) return { ok:true }
+  const p = lerPayload(token)
+  if (p?.role === 'service_role') {
+    // Chave de serviço do cofre do banco (pode não ser igual à do ambiente):
+    // só passa se a Auth a aceitar como admin.
+    try {
+      const r = await fetch(`${supabaseUrl}/auth/v1/admin/users?per_page=1`, { headers:{ apikey:token, Authorization:`Bearer ${token}` } })
+      if (r.ok) { servicoOk.add(token); return { ok:true } }
+    } catch (_) {}
+    return { ok:false, reason:'service_invalido' }
+  }
+  if (p?.role !== 'authenticated') return { ok:false, reason:`papel_${p?.role ?? 'desconhecido'}` }
+  const admin = createClient(supabaseUrl, serviceKey)
+  const { data:u, error } = await admin.auth.getUser(token)
+  if (error || !u?.user) return { ok:false, reason:'jwt_invalido' }
+  if (u.user.app_metadata?.role === 'admin' || ADMIN_EMAILS.includes(String(u.user.email ?? '').toLowerCase())) return { ok:true }
+  return { ok:false, reason:'papel_sem_permissao' }
+}
 
 function json(obj:any, status=200): Response {
   return new Response(JSON.stringify(obj), { status, headers:{ ...corsHeaders, 'Content-Type':'application/json' } })

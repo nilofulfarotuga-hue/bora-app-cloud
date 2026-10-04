@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../utils/hora_lisboa_ext.dart';
 
 class AdminTvdeRecibosScreen extends StatefulWidget {
   const AdminTvdeRecibosScreen({super.key});
@@ -237,7 +238,7 @@ class ReciboLinha {
   factory ReciboLinha.fromMap(Map<String, dynamic> m) => ReciboLinha(
         rideId: (m['ride_id'] ?? '').toString(),
         email: m['email']?.toString(),
-        enviadoEm: m['enviado_em'] == null ? null : DateTime.tryParse(m['enviado_em'].toString())?.toLocal(),
+        enviadoEm: m['enviado_em'] == null ? null : DateTime.tryParse(m['enviado_em'].toString())?.toLisboa(),
         ok: m['ok'] == true,
         detalhe: m['detalhe']?.toString(),
         precoEur: double.tryParse((m['preco_eur'] ?? 0).toString()) ?? 0,

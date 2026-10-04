@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '../../utils/hora_lisboa_ext.dart';
 
 class AdminCancellationRequestsScreen extends StatefulWidget {
   const AdminCancellationRequestsScreen({super.key});
@@ -160,7 +161,7 @@ class _S extends State<AdminCancellationRequestsScreen> {
                                     const Divider(height: 1, color: AppColors.divider),
                                 itemBuilder: (_, i) {
                                   final r = _rows[i];
-                                  final created = DateTime.parse(r['created_at'] as String).toLocal();
+                                  final created = DateTime.parse(r['created_at'] as String).toLisboa();
                                   final pending = r['status'] == 'pending';
                                   final stale = pending &&
                                       DateTime.now().difference(created).inMinutes > 30;

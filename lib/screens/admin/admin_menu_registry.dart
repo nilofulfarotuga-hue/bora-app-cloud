@@ -23,6 +23,13 @@ import 'admin_cleaning_bookings_screen.dart';
 import 'admin_cleaning_cleaners_screen.dart';
 import 'admin_clients_screen.dart';
 import 'admin_complaints_screen.dart';
+import 'admin_bloqueios_screen.dart';
+import 'admin_folgas_screen.dart';
+import 'admin_mesas_screen.dart';
+import 'admin_opcoes_produto_screen.dart';
+import 'admin_reativacao_screen.dart';
+import 'admin_support_escalations_screen.dart';
+import 'admin_tvde_chats_screen.dart';
 import 'admin_connect_payments_screen.dart';
 import 'admin_continente_prices_screen.dart';
 import 'admin_correcoes_preco_screen.dart';
@@ -79,6 +86,7 @@ import 'admin_skill_suggestions_screen.dart';
 import 'admin_stuck_reservations_screen.dart';
 import 'admin_support_stats_screen.dart';
 import 'admin_support_tickets_screen.dart';
+import 'admin_tvde_access_requests_screen.dart';
 import 'admin_tokens_screen.dart';
 import 'admin_tvde_balcao_agenda_screen.dart';
 import 'admin_tvde_balcao_screen.dart';
@@ -504,6 +512,24 @@ List<AdminMenuSection> adminMenuSections() => [
       keywords: const ['canceladas', 'corridas', 'curso', 'feitas', 'todas'],
     ),
     AdminMenuItem(
+      id: 'tvde_pedidos_de_acesso',
+      title: 'Pedidos de acesso TVDE',
+      subtitle: 'Clientes que pediram para usar o Bora Motorista: aprovar ou recusar',
+      icon: Icons.how_to_reg,
+      color: const Color(0xFF0EA5E9),
+      builder: () => const AdminTvdeAccessRequestsScreen(),
+      keywords: const ['acesso', 'pedidos', 'tvde', 'motorista', 'aprovar', 'recusar'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_chat_das_corridas',
+      title: 'Chat das corridas',
+      subtitle: 'Conversas entre cliente e motorista, por corrida, em hora de Lisboa',
+      icon: Icons.forum_outlined,
+      color: const Color(0xFF0EA5E9),
+      builder: () => const AdminTvdeChatsScreen(),
+      keywords: const ['chat', 'conversa', 'mensagens', 'corridas', 'cliente', 'motorista'],
+    ),
+    AdminMenuItem(
       id: 'tvde_pagamentos',
       title: 'Pagamentos das corridas',
       subtitle: 'Quem pagou, quem não conseguiu pagar, e estorno',
@@ -682,6 +708,15 @@ List<AdminMenuSection> adminMenuSections() => [
       keywords: const ['agenda', 'barbearias', 'cancelar', 'cliente', 'marcacoes', 'nome', 'todas'],
     ),
     AdminMenuItem(
+      id: 'servicos_folgas_da_equipa',
+      title: 'Folgas da equipa',
+      subtitle: 'Dias de folga de cada profissional das barbearias e salões: ver, marcar e tirar',
+      icon: Icons.event_busy,
+      color: Colors.deepPurple,
+      builder: () => const AdminFolgasScreen(),
+      keywords: const ['folgas', 'folga', 'ferias', 'equipa', 'profissional', 'barbeiro', 'ausencia'],
+    ),
+    AdminMenuItem(
       id: 'servicos_marcacoes_por_confirmar_e_faltas',
       title: 'Marcações por confirmar e faltas',
       subtitle: 'Serviços que acabaram sem o parceiro dizer se foram feitos, e dinheiro retido por falta — reverter num toque',
@@ -754,6 +789,15 @@ List<AdminMenuSection> adminMenuSections() => [
       keywords: const ['mesa', 'reservas', 'restaurantes', 'todos'],
     ),
     AdminMenuItem(
+      id: 'reservas_mesas',
+      title: 'Mesas',
+      subtitle: 'Mesas de cada restaurante com reservas: número, lugares, zona, ativa',
+      icon: Icons.table_restaurant,
+      color: Colors.brown,
+      builder: () => const AdminMesasScreen(),
+      keywords: const ['mesas', 'mesa', 'lugares', 'zona', 'reservas', 'sala'],
+    ),
+    AdminMenuItem(
       id: 'reservas_metricas_reservas_pro',
       title: 'Métricas Reservas Pro',
       subtitle: 'Números das reservas (7, 30 e 90 dias)',
@@ -817,6 +861,33 @@ List<AdminMenuSection> adminMenuSections() => [
       keywords: const ['abertos', 'ajuda', 'antigos', 'pedidos', 'suporte', 'tickets', 'utilizadores'],
     ),
     AdminMenuItem(
+      id: 'clientes_suporte_falar_com_danilo',
+      title: 'Suporte — falar com o Danilo',
+      subtitle: 'Quem pediu ao assistente para falar com uma pessoa: ver a conversa e responder (vai para a conversa e para o sininho)',
+      icon: Icons.mark_chat_unread,
+      color: Colors.deepOrange,
+      builder: () => const AdminSupportEscalationsScreen(),
+      keywords: const ['suporte', 'escalamento', 'falar', 'danilo', 'humano', 'responder', 'conversa'],
+    ),
+    AdminMenuItem(
+      id: 'clientes_reclamacoes',
+      title: 'Reclamações',
+      subtitle: 'Queixas de clientes, entregadores e parceiros (com foto e pedido): ver tudo, mudar o estado e exportar',
+      icon: Icons.report_problem_outlined,
+      color: Colors.redAccent,
+      builder: () => const AdminComplaintsScreen(),
+      keywords: const ['reclamacoes', 'queixas', 'problema', 'pedido', 'foto', 'reportar'],
+    ),
+    AdminMenuItem(
+      id: 'clientes_bloqueios',
+      title: 'Utilizadores bloqueados',
+      subtitle: 'Quem bloqueou quem (exigência da Apple): ver, motivo e desbloquear',
+      icon: Icons.block,
+      color: Colors.blueGrey,
+      builder: () => const AdminBloqueiosScreen(),
+      keywords: const ['bloqueio', 'bloqueados', 'bloquear', 'desbloquear', 'apple', 'denuncia'],
+    ),
+    AdminMenuItem(
       id: 'clientes_contas_encerradas',
       title: 'Contas encerradas',
       subtitle: 'Contas que foram encerradas',
@@ -860,6 +931,15 @@ List<AdminMenuSection> adminMenuSections() => [
       color: AppColors.primary,
       builder: () => const AdminCarrinhosAbandonadosScreen(),
       keywords: const ['carrinho', 'abandonado', 'largou', 'lembrete', 'push', 'recuperar'],
+    ),
+    AdminMenuItem(
+      id: 'clientes_reativacao',
+      title: 'Clientes parados (reativação)',
+      subtitle: 'Um aviso por dia a quem não pede há X dias (como Uber/Glovo): ligar, dias, texto e quantos voltaram a pedir',
+      icon: Icons.replay_circle_filled,
+      color: Colors.green,
+      builder: () => const AdminReativacaoScreen(),
+      keywords: const ['reativacao', 'parados', 'inativos', 'voltar', 'push', 'clientes', 'saudades'],
     ),
     AdminMenuItem(
       id: 'clientes_personalizacao',
@@ -923,6 +1003,15 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.brown,
       builder: () => const AdminCatalogScreen(),
       keywords: const ['cada', 'catalogo', 'desligar', 'ligar', 'parceiro', 'preco', 'produtos'],
+    ),
+    AdminMenuItem(
+      id: 'parceiros_opcoes_produto',
+      title: 'Opções de produto',
+      subtitle: 'Tamanhos, extras e molhos de cada produto por loja: ver, ligar/desligar e mudar o acréscimo',
+      icon: Icons.tune,
+      color: Colors.orange,
+      builder: () => const AdminOpcoesProdutoScreen(),
+      keywords: const ['opcoes', 'variantes', 'extras', 'tamanho', 'molhos', 'complementos', 'acrescimo'],
     ),
     AdminMenuItem(
       id: 'parceiros_whatsapp_da_loja',
@@ -1247,16 +1336,6 @@ List<AdminMenuSection> adminMenuSections() => [
       builder: () => const AdminCashbacksScreen(),
       keywords: const ['cashback', 'cashbacks', 'dados', 'historico'],
       archivedReason: 'sem dados: não existe tabela de cashback',
-    ),
-    AdminMenuItem(
-      id: 'arquivado_reclamacoes',
-      title: 'Reclamações',
-      subtitle: 'Caixa de reclamações antiga (sem registos; o suporte vive nos Tickets)',
-      icon: Icons.report_problem_outlined,
-      color: Colors.redAccent,
-      builder: () => const AdminComplaintsScreen(),
-      keywords: const ['antiga', 'caixa', 'reclamacoes', 'registos', 'suporte', 'tickets', 'vive'],
-      archivedReason: 'sem dados: 0 reclamações desde sempre (o suporte vive nos Tickets)',
     ),
     AdminMenuItem(
       id: 'arquivado_saude_da_web',

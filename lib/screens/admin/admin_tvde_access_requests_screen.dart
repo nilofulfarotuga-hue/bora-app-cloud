@@ -5,6 +5,8 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '_admin_rpc_errors.dart';
+import '../../utils/hora_lisboa_ext.dart';
+import '../../widgets/admin/admin_csv_button.dart';
 
 /// Bora Motorista (TVDE) — Pedidos de acesso à categoria escondida.
 ///
@@ -39,11 +41,15 @@ class _AdminTvdeAccessRequestsScreenState
     final res =
         await Supabase.instance.client.rpc('admin_tvde_access_requests_list');
     final list = (res as List?) ?? const [];
-    return list
+    _csvRows = list
         .whereType<Map>()
         .map((e) => Map<String, dynamic>.from(e))
         .toList();
+    return _csvRows;
   }
+
+  // Última carga — para o CSV (ronda 04/10).
+  List<Map<String, dynamic>> _csvRows = const [];
 
   Future<void> _refresh() async {
     setState(() => _future = _load());
@@ -135,6 +141,16 @@ class _AdminTvdeAccessRequestsScreenState
       appBar: BoraScreenAppBar(
         title: 'Acesso — Bora Motorista',
         actions: [
+          AdminCsvButton(
+            nome: 'pedidos_acesso_tvde',
+            colunas: const [
+              ('requested_at', 'pedido (Lisboa)'), ('status', 'estado'),
+              ('contact_name', 'nome'), ('contact_phone', 'telefone'),
+              ('request_note', 'nota do pedido'),
+              ('decided_at', 'decidido (Lisboa)'), ('decision_note', 'nota da decisão'),
+            ],
+            linhas: () => _applyFilter(_csvRows),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Atualizar',
@@ -474,7 +490,7 @@ String _fmtDate(dynamic iso) {
   if (iso == null) return '—';
   final d = DateTime.tryParse(iso.toString());
   if (d == null) return iso.toString();
-  final l = d.toLocal();
+  final l = d.toLisboa();
   String two(int n) => n.toString().padLeft(2, '0');
   return '${two(l.day)}/${two(l.month)}/${l.year}';
 }

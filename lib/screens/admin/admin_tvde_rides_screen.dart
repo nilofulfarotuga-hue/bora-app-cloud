@@ -8,6 +8,7 @@ import '../../config/app_spacing.dart';
 import '../../services/admin_export_service.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import 'admin_tvde_dest_change_dialog.dart';
+import '../../utils/hora_lisboa_ext.dart';
 
 /// Bora Motorista (TVDE) — Corridas: ao vivo + histórico + financeiro.
 ///
@@ -1425,7 +1426,7 @@ String _fmtDateTime(dynamic iso) {
   if (iso == null) return '—';
   final d = DateTime.tryParse(iso.toString());
   if (d == null) return iso.toString();
-  final l = d.toLocal();
+  final l = d.toLisboa();
   String two(int n) => n.toString().padLeft(2, '0');
   return '${two(l.day)}/${two(l.month)} ${two(l.hour)}:${two(l.minute)}';
 }

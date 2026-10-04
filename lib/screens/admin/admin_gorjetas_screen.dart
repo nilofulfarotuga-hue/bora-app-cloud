@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../services/admin_export_service.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '../../utils/hora_lisboa.dart';
 
 /// Painel admin (PT-BR) — Gorjetas (missão 03/10 · bloco 3).
 ///
@@ -225,7 +226,7 @@ class _AdminGorjetasScreenState extends State<AdminGorjetasScreen> {
                                 '${(l['pedido'] ?? l['corrida'] ?? '').toString().split('-').first}'
                                 ' · ${l['metodo']} · ${l['momento'] == 'checkout' ? 'no checkout' : 'depois'}'
                                 ' · ${_estado(l['estado'] as String?)}'
-                                '\n${(l['criada_em'] ?? '').toString().replaceFirst('T', ' ').split('.').first}'),
+                                '\n${dataHoraLisboa(l['criada_em'])}'),
                             isThreeLine: true,
                             trailing: l['estado'] == 'succeeded'
                                 ? TextButton(

@@ -68,6 +68,27 @@ class _AdminPartnersScreenState extends State<AdminPartnersScreen> {
 
   Future<void> _toggleActive(String id, bool currentActive) async {
     final newActive = !currentActive;
+    // Ronda 04/10: desativar uma loja tira-a da app dos clientes — pede
+    // confirmação (reativar não precisa).
+    if (!newActive) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Desativar esta loja?'),
+          content: const Text(
+              'A loja deixa de aparecer aos clientes até você a reativar.'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancelar')),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Desativar')),
+          ],
+        ),
+      );
+      if (ok != true || !mounted) return;
+    }
     try {
       await Supabase.instance.client
           .from('restaurants')

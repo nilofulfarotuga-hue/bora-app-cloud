@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '../../utils/hora_lisboa_ext.dart';
 
 class AdminKnowledgeScreen extends StatefulWidget {
   const AdminKnowledgeScreen({super.key});
@@ -127,7 +128,7 @@ class _AdminKnowledgeScreenState extends State<AdminKnowledgeScreen> {
 
   String _fmtDate(dynamic raw) {
     if (raw == null) return '—';
-    final dt = DateTime.tryParse(raw.toString())?.toLocal();
+    final dt = DateTime.tryParse(raw.toString())?.toLisboa();
     if (dt == null) return raw.toString();
     final dd = dt.day.toString().padLeft(2, '0');
     final mm = dt.month.toString().padLeft(2, '0');

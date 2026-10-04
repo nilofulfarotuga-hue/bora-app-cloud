@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/app_colors.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '../../utils/hora_lisboa_ext.dart';
 
 /// Painel admin (PT-BR) — Encomendas por telefone (missão 03/10 · bloco 6).
 ///
@@ -164,7 +165,7 @@ class _AdminEncomendasTelefoneScreenState
 
   String _hora(dynamic iso) {
     if (iso == null) return '—';
-    final t = DateTime.tryParse(iso.toString())?.toLocal();
+    final t = DateTime.tryParse(iso.toString())?.toLisboa();
     if (t == null) return '—';
     return '${t.day.toString().padLeft(2, '0')}/${t.month.toString().padLeft(2, '0')} '
         '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';

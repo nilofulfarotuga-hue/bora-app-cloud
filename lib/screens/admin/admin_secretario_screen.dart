@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '../../utils/hora_lisboa_ext.dart';
 
 /// Painel admin (PT-BR) — Secretário Virtual (missão 03/10 · bloco 5).
 ///
@@ -74,7 +75,7 @@ class _AdminSecretarioScreenState extends State<AdminSecretarioScreen> {
   }
 
   String _data(dynamic iso) {
-    final t = iso == null ? null : DateTime.tryParse(iso.toString())?.toLocal();
+    final t = iso == null ? null : DateTime.tryParse(iso.toString())?.toLisboa();
     if (t == null) return '—';
     return '${t.day.toString().padLeft(2, '0')}/${t.month.toString().padLeft(2, '0')} '
         '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';

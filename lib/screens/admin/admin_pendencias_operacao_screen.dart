@@ -30,6 +30,7 @@ import '../../config/app_spacing.dart';
 import '../../utils/gps_parado.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '_admin_rpc_errors.dart';
+import '../../utils/hora_lisboa_ext.dart';
 
 /// Lê o mapa inteiro das pendências (por omissão `admin_pendencias_operacao`).
 typedef CarregarPendencias = Future<Map<String, dynamic>> Function();
@@ -212,7 +213,7 @@ double? kmDeTexto(String texto) {
 
 DateTime? dataLocal(Object? v) {
   if (v == null) return null;
-  return DateTime.tryParse(v.toString())?.toLocal();
+  return DateTime.tryParse(v.toString())?.toLisboa();
 }
 
 String _dd(int n) => n.toString().padLeft(2, '0');

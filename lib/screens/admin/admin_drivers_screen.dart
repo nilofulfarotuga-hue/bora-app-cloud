@@ -6,6 +6,7 @@ import '../../config/app_spacing.dart';
 import '../../utils/gps_parado.dart';
 import '../../widgets/admin/escolher_estafeta_sheet.dart' show haQuantoTempo;
 import 'admin_driver_detail_screen.dart';
+import '../../widgets/admin/admin_csv_button.dart';
 
 /// Gestão de Entregadores (PT-BR). Aba "Todos" lê a tabela `drivers`; a aba
 /// "Online" [A10 23/09] lê a RPC `admin_drivers_for_assignment` (a mesma do
@@ -427,6 +428,15 @@ class _AdminDriversScreenState extends State<AdminDriversScreen>
         ),
         title: const Text('Gestão de Entregadores'),
         actions: [
+          AdminCsvButton(
+            nome: 'entregadores',
+            colunas: const [
+              ('name', 'nome'), ('phone', 'telefone'),
+              ('vehicle_type', 'veículo'), ('approval_status', 'aprovação'),
+              ('is_online', 'online'), ('last_heartbeat_at', 'último sinal (Lisboa)'),
+            ],
+            linhas: () => _drivers,
+          ),
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load)
         ],
         bottom: TabBar(

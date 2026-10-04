@@ -8,6 +8,7 @@ import '../../services/admin_export_service.dart';
 import '../../widgets/admin/test_order_badge.dart';
 import '_admin_cancel_order_dialog.dart';
 import 'admin_order_detail_screen.dart';
+import '../../utils/hora_lisboa_ext.dart';
 
 class AdminOrdersScreen extends StatefulWidget {
   const AdminOrdersScreen({super.key});
@@ -29,6 +30,9 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   // 'all', 'delivery' (restaurant/storeShopping/carryGroceries/sendPackage),
   // 'takeaway'.
   String _serviceTypeFilter = 'all';
+  // Ronda 04/10 — encomendas de festa (pedidos com data marcada) filtradas
+  // pelo DIA da festa em hora de Lisboa. Null = todas as datas.
+  DateTime? _festaDia;
 
   // Bulk cancel state
   final Set<String> _selectedIds = {};
@@ -61,6 +65,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     ('delivery', 'Entrega'),
     ('takeaway', 'Takeaway'),
     ('errand', 'Favores'),
+    ('festa', 'Festas (com data)'),
   ];
 
   static const _testOptions = <(String, String)>[
@@ -114,10 +119,22 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
       } else if (_serviceTypeFilter == 'delivery') {
         // Delivery = nem takeaway nem favor (entrega clássica).
         query = query.not('service_type', 'in', '(takeaway,errand)');
+      } else if (_serviceTypeFilter == 'festa') {
+        query = query.not('scheduled_for', 'is', null);
+        final dia = _festaDia;
+        if (dia != null) {
+          final ini = inicioDoDiaLisboaUtc(
+              DateTime.utc(dia.year, dia.month, dia.day, 12));
+          query = query
+              .gte('scheduled_for', ini.toIso8601String())
+              .lt('scheduled_for',
+                  ini.add(const Duration(days: 1)).toIso8601String());
+        }
       }
       // 'all' = sem filtro is_test_order.
-      final data =
-          await query.order('created_at', ascending: false).limit(100);
+      final data = _serviceTypeFilter == 'festa'
+          ? await query.order('scheduled_for', ascending: true).limit(200)
+          : await query.order('created_at', ascending: false).limit(100);
       if (mounted) {
         setState(() {
           _orders = List<Map<String, dynamic>>.from(data);
@@ -506,6 +523,44 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
               }).toList(),
             ),
           ),
+          if (_serviceTypeFilter == 'festa')
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(children: [
+                const Icon(Icons.cake_outlined, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(_festaDia == null
+                      ? 'Todas as datas de festa'
+                      : 'Festas do dia ${_festaDia!.day.toString().padLeft(2, '0')}/'
+                          '${_festaDia!.month.toString().padLeft(2, '0')}/${_festaDia!.year}'),
+                ),
+                if (_festaDia != null)
+                  IconButton(
+                    tooltip: 'Todas as datas',
+                    icon: const Icon(Icons.clear),
+                    onPressed: () {
+                      setState(() => _festaDia = null);
+                      _load();
+                    },
+                  ),
+                TextButton(
+                  onPressed: () async {
+                    final hoje = DateTime.now();
+                    final d = await showDatePicker(
+                      context: context,
+                      initialDate: _festaDia ?? hoje,
+                      firstDate: hoje.subtract(const Duration(days: 365)),
+                      lastDate: hoje.add(const Duration(days: 365)),
+                    );
+                    if (d == null || !mounted) return;
+                    setState(() => _festaDia = d);
+                    _load();
+                  },
+                  child: const Text('Escolher dia'),
+                ),
+              ]),
+            ),
           const Divider(height: 1, color: AppColors.divider),
           Expanded(
             child: _loading

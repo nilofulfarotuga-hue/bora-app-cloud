@@ -21,6 +21,7 @@ import '../../widgets/bora/bora_primary_button.dart';
 import '../../widgets/private_bucket_image.dart';
 import '_admin_partner_edit_dialog.dart';
 import 'admin_product_prices_dialog.dart';
+import '../../utils/hora_lisboa.dart';
 
 class AdminPartnerDetailScreen extends StatefulWidget {
   const AdminPartnerDetailScreen({
@@ -1416,7 +1417,7 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
                 ],
                 if (overrideEndsAt != null) ...[
                   const SizedBox(height: 4),
-                  Text('Até: ${overrideEndsAt.substring(0, 16)}',
+                  Text('Até: ${dataHoraLisboa(overrideEndsAt)}',
                       style: const TextStyle(color: Colors.grey, fontSize: 12)),
                 ],
               ]),
@@ -1466,6 +1467,27 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
 
   // ─── Loja Online/Offline (manual, independente da aprovação) ────────────
   Future<void> _setAdminIsOnline(bool online) async {
+    // Ronda 04/10: pôr a loja offline fecha-a aos clientes — pede confirmação.
+    // (A mudança fica no histórico pelo gatilho trg_restaurants_auditoria_admin.)
+    if (!online) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Desligar a loja?'),
+          content: const Text(
+              'A loja fica Offline: os clientes não conseguem pedir até ela voltar a Online.'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancelar')),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Desligar')),
+          ],
+        ),
+      );
+      if (ok != true || !mounted) return;
+    }
     try {
       await Supabase.instance.client
           .from('restaurants')

@@ -68,6 +68,13 @@ import 'screens/admin/admin_pendencias_operacao_screen.dart';
 import 'screens/admin/admin_motoristas_documentos_screen.dart';
 import 'screens/admin/admin_conformidade_legal_screen.dart';
 import 'screens/admin/admin_receipts_screen.dart';
+import 'screens/admin/admin_appointments_screen.dart';
+import 'screens/admin/admin_bloqueios_screen.dart';
+import 'screens/admin/admin_carwash_screen.dart';
+import 'screens/admin/admin_encomendas_telefone_screen.dart';
+import 'screens/admin/admin_reativacao_screen.dart';
+import 'screens/admin/admin_support_escalations_screen.dart';
+import 'screens/admin/admin_tvde_chats_screen.dart';
 import 'screens/admin/admin_tvde_pagos_sem_corrida_screen.dart';
 import 'screens/admin/admin_tvde_roundtrips_screen.dart';
 import 'screens/admin/admin_drivers_screen.dart';
@@ -1032,6 +1039,22 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           '/admin/orders': (_) => const AdminOrdersScreen(),
           '/admin/robot-suggestions': (_) => const AdminRobotSuggestionsScreen(),
           '/admin/ledger': (_) => const AdminExtratoDonoScreen(),
+          // [ronda 04/10/2026 · admin-geral] Avisos que abriam "Página não
+          // encontrada": contados em admin_notifications.deep_link —
+          // /admin/appointments 10, /admin/support-escalations 2,
+          // /admin/receipts 2, /admin/carwash 1 — e os alertas das lojas por
+          // telefone (/admin/encomendas-telefone, criados a 04/10).
+          '/admin/appointments': (_) => const AdminAppointmentsScreen(),
+          '/admin/receipts': (_) => const AdminReceiptsScreen(),
+          '/admin/support-escalations': (_) =>
+              const AdminSupportEscalationsScreen(),
+          '/admin/carwash': (_) => const AdminCarwashScreen(),
+          '/admin/encomendas-telefone': (_) =>
+              const AdminEncomendasTelefoneScreen(),
+          // Ecrãs novos da mesma ronda (bloqueios, chat TVDE, reativação).
+          '/admin/bloqueios': (_) => const AdminBloqueiosScreen(),
+          '/admin/tvde/chats': (_) => const AdminTvdeChatsScreen(),
+          '/admin/reativacao': (_) => const AdminReativacaoScreen(),
           // BLOCO D (2026-07-28) — QR codes impressos apontam para
           // https://bora-app-web.pages.dev/#/registo-cliente. URL CANÓNICA:
           // não renomear. Cai directo no registo de cliente (quem lê o cartaz

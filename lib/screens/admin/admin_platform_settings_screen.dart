@@ -73,6 +73,12 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
     // antes de o cron partner-auto-dispatch chamar estafeta sozinho. É tempo
     // de operação (não é preço nem comissão): editável aqui, como as dispatch_*.
     if (key == 'partner_auto_dispatch_after_minutes') return true;
+    // [ronda 04/10] Foto de entrega obrigatória em TODAS as entregas (false =
+    // só quando o cliente pede "deixar à porta") e a reativação de clientes
+    // parados (interruptor, dias, texto). Operacionais: nenhuma mexe em valor
+    // cobrado ou pago. As 4 dispatch_* novas já entram pelo prefixo acima.
+    if (key == 'foto_entrega_obrigatoria') return true;
+    if (key.startsWith('reativacao_')) return true;
     // [botoes-navbar-eta 31/08] As 3 chaves eta_* (velocidade média do
     // fallback + intervalo de compra não-parceiro) são OPERACIONAIS — afinam
     // o tempo MOSTRADO ao cliente, nunca um valor cobrado ou pago. Autoridade

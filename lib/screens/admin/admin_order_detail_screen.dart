@@ -6,6 +6,7 @@ import 'admin_order_edits_screen.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/admin/escolher_estafeta_sheet.dart';
 import '../../widgets/private_bucket_image.dart';
+import '../../utils/hora_lisboa.dart';
 import '_admin_cancel_order_dialog.dart';
 import 'admin_chat_viewer_screen.dart';
 
@@ -75,7 +76,9 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
               'errand_home_stop_cash_cents, errand_return_leg, errand_leg, '
               'final_purchase_value, errand_request_photo_url, '
               // FESTAS (2026-08-25) — agendamento + tempo de preparo
-              'scheduled_for, prep_time_minutes, customer_notes')
+              'scheduled_for, prep_time_minutes, customer_notes, '
+              // ronda 04/10 — aceite pela loja + prova de entrega
+              'accepted_at, deixar_a_porta, foto_entrega_url, foto_entrega_em')
           .eq('id', widget.orderId)
           .maybeSingle();
 
@@ -283,6 +286,34 @@ class _SummaryTab extends StatelessWidget {
                 _row(Icons.store_mall_directory, 'Recolha',
                     order['pickup_address'] ?? '—'),
                 _row(Icons.euro, 'Total', '€${_amount(order)}'),
+                // ronda 04/10 — hora em que a loja aceitou (o despacho de
+                // parceiros conta o tempo de preparo a partir daqui).
+                if (order['accepted_at'] != null)
+                  _row(Icons.check_circle_outline, 'Aceite pela loja',
+                      _fmtScheduled(order['accepted_at'])),
+                // ronda 04/10 — prova de entrega (foto do estafeta).
+                if (order['deixar_a_porta'] == true)
+                  _row(Icons.door_front_door_outlined, 'Deixar à porta',
+                      'Sim (cliente pediu)'),
+                if ((order['foto_entrega_url'] as String?)?.isNotEmpty ==
+                    true) ...[
+                  _row(Icons.photo_camera_outlined, 'Foto da entrega',
+                      order['foto_entrega_em'] != null
+                          ? 'Tirada ${_fmtScheduled(order['foto_entrega_em'])}'
+                          : 'Anexada'),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8, bottom: 8),
+                    child: PrivateBucketImage(
+                      urlOrPath: order['foto_entrega_url'] as String,
+                      height: 200,
+                      fit: BoxFit.contain,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ] else if (order['deixar_a_porta'] == true &&
+                    order['status'] == 'delivered')
+                  _row(Icons.no_photography_outlined, 'Foto da entrega',
+                      'Em falta'),
                 // FAVORES (errand) — bloco específico do favor (PT-BR admin).
                 // FESTAS (2026-08-25) — agendamento visível e editável.
                 if (order['scheduled_for'] != null ||
@@ -438,8 +469,9 @@ class _SummaryTab extends StatelessWidget {
   // FESTAS — formatação e edição do agendamento (RPC admin, com auditoria).
   String _fmtScheduled(dynamic raw) {
     if (raw == null) return '—';
-    final dt = DateTime.tryParse(raw.toString())?.toLocal();
-    if (dt == null) return raw.toString();
+    final d0 = DateTime.tryParse(raw.toString());
+    if (d0 == null) return raw.toString();
+    final dt = horaLisboa(d0);
     return '${dt.day.toString().padLeft(2, '0')}/'
         '${dt.month.toString().padLeft(2, '0')}/${dt.year} às '
         '${dt.hour.toString().padLeft(2, '0')}:'
@@ -1313,7 +1345,7 @@ class _ReleaseButtonState extends State<_ReleaseButton> {
 }
 
 String _fmtDate(DateTime d) {
-  final l = d.toLocal();
+  final l = horaLisboa(d);
   return '${l.year}-${l.month.toString().padLeft(2, '0')}-${l.day.toString().padLeft(2, '0')} '
       '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
 }

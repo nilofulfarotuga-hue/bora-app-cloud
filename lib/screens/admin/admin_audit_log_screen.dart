@@ -3,6 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '../../utils/hora_lisboa_ext.dart';
+import '../../widgets/admin/admin_csv_button.dart';
 
 class AdminAuditLogScreen extends StatefulWidget {
   const AdminAuditLogScreen({super.key});
@@ -71,7 +73,30 @@ class _AdminAuditLogScreenState extends State<AdminAuditLogScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const BoraScreenAppBar(title: 'Histórico de Acções'),
+      appBar: BoraScreenAppBar(
+        title: 'Histórico de Acções',
+        actions: [
+          AdminCsvButton(
+            nome: 'historico_accoes',
+            colunas: const [
+              ('created_at', 'quando (Lisboa)'), ('admin_email', 'quem'),
+              ('action', 'acção'), ('entity_type', 'tipo'),
+              ('entity_id', 'id'), ('details', 'detalhes'),
+            ],
+            linhas: () => [
+              for (final r in _rows)
+                {
+                  'created_at': r.createdAt,
+                  'admin_email': r.adminEmail,
+                  'action': r.action,
+                  'entity_type': r.entityType,
+                  'entity_id': r.entityId,
+                  'details': r.details.toString(),
+                }
+            ],
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Padding(
@@ -168,7 +193,7 @@ class _AdminAuditLogScreenState extends State<AdminAuditLogScreen> {
   }
 
   String _fmt(DateTime d) {
-    final l = d.toLocal();
+    final l = d.toLisboa();
     return '${l.year}-${l.month.toString().padLeft(2,'0')}-${l.day.toString().padLeft(2,'0')} '
         '${l.hour.toString().padLeft(2,'0')}:${l.minute.toString().padLeft(2,'0')}';
   }

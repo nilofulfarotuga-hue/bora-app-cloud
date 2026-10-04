@@ -10,6 +10,8 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../models/appointment_model.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '../../utils/hora_lisboa_ext.dart';
+import '../../widgets/admin/admin_csv_button.dart';
 
 /// Admin — Agenda global de marcações (vertical Serviços / Barbearias).
 ///
@@ -57,6 +59,9 @@ class _AdminAppointmentsScreenState extends State<AdminAppointmentsScreen> {
     super.dispose();
   }
 
+  // Linhas cruas da última carga — para o CSV (ronda 04/10).
+  List<Map<String, dynamic>> _csvRows = const [];
+
   Future<List<AppointmentModel>> _load() async {
     final rows = await Supabase.instance.client
         .from('appointments')
@@ -66,6 +71,15 @@ class _AdminAppointmentsScreenState extends State<AdminAppointmentsScreen> {
             'provider_services(name), staff_members(name)')
         .order('scheduled_at', ascending: false)
         .limit(200);
+    _csvRows = [
+      for (final r in (rows as List).cast<Map<String, dynamic>>())
+        {
+          ...r,
+          'loja': (r['service_providers'] as Map?)?['name'],
+          'servico': (r['provider_services'] as Map?)?['name'],
+          'profissional': (r['staff_members'] as Map?)?['name'],
+        }
+    ];
     return (rows as List)
         .cast<Map<String, dynamic>>()
         .map(AppointmentModel.fromSupabase)
@@ -85,7 +99,7 @@ class _AdminAppointmentsScreenState extends State<AdminAppointmentsScreen> {
         if (!name.contains(q) && !phone.contains(q)) return false;
       }
       if (_dayFilter != null) {
-        final d = a.scheduledAt.toLocal();
+        final d = a.scheduledAt.toLisboa();
         if (d.year != _dayFilter!.year ||
             d.month != _dayFilter!.month ||
             d.day != _dayFilter!.day) {
@@ -305,7 +319,7 @@ class _AdminAppointmentsScreenState extends State<AdminAppointmentsScreen> {
   }
 
   static String _dmyHm(DateTime utc) {
-    final d = utc.toLocal();
+    final d = utc.toLisboa();
     String two(int v) => v.toString().padLeft(2, '0');
     return '${two(d.day)}/${two(d.month)}/${d.year} ${two(d.hour)}:${two(d.minute)}';
   }
@@ -393,6 +407,17 @@ class _AdminAppointmentsScreenState extends State<AdminAppointmentsScreen> {
       appBar: BoraScreenAppBar(
         title: 'Agenda (admin)',
         actions: [
+          AdminCsvButton(
+            nome: 'marcacoes',
+            colunas: const [
+              ('scheduled_at', 'marcada para (Lisboa)'), ('status', 'estado'),
+              ('loja', 'loja'), ('servico', 'serviço'),
+              ('profissional', 'profissional'), ('client_name', 'cliente'),
+              ('client_phone', 'telefone'), ('is_walk_in', 'walk-in'),
+              ('created_at', 'criada (Lisboa)'),
+            ],
+            linhas: () => _csvRows,
+          ),
           IconButton(
             icon: const Icon(Icons.cancel_outlined, color: Colors.redAccent),
             tooltip: 'Cancelar em nome (por ID)',
@@ -579,7 +604,7 @@ class _AdminAppointmentsScreenState extends State<AdminAppointmentsScreen> {
   }
 
   Widget _buildCard(AppointmentModel a) {
-    final d = a.scheduledAt.toLocal();
+    final d = a.scheduledAt.toLisboa();
     final canCancel = a.status == AppointmentStatus.confirmed ||
         a.status == AppointmentStatus.pendingPayment;
     return Card(

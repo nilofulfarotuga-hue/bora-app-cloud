@@ -12,6 +12,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../utils/hora_lisboa_ext.dart';
 
 class AdminSkillSuggestionsScreen extends StatefulWidget {
   const AdminSkillSuggestionsScreen({super.key});
@@ -831,7 +832,7 @@ class _AdminSkillSuggestionsScreenState
   String _formatTs(dynamic ts) {
     if (ts == null) return '-';
     try {
-      final dt = DateTime.parse(ts as String).toLocal();
+      final dt = DateTime.parse(ts as String).toLisboa();
       return '${dt.year}-${_pad(dt.month)}-${_pad(dt.day)} '
           '${_pad(dt.hour)}:${_pad(dt.minute)}';
     } catch (_) {
@@ -849,7 +850,7 @@ class _AdminSkillSuggestionsScreenState
         : (daysUntilMonday == 0 ? 0 : daysUntilMonday);
     final next = DateTime.utc(now.year, now.month, now.day, 4, 0)
         .add(Duration(days: daysToAdd));
-    final local = next.toLocal();
+    final local = next.toLisboa();
     return '${local.year}-${_pad(local.month)}-${_pad(local.day)} '
         '${_pad(local.hour)}:${_pad(local.minute)}';
   }

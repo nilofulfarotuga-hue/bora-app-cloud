@@ -13,6 +13,7 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/bora/bora_primary_button.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '../../utils/hora_lisboa_ext.dart';
 
 class AdminCrosstalkScreen extends StatefulWidget {
   const AdminCrosstalkScreen({super.key});
@@ -216,7 +217,7 @@ class _AdminCrosstalkScreenState extends State<AdminCrosstalkScreen> {
   String _formatTs(dynamic ts) {
     if (ts == null) return '-';
     try {
-      final dt = DateTime.parse(ts as String).toLocal();
+      final dt = DateTime.parse(ts as String).toLisboa();
       return '${dt.year}-${_pad(dt.month)}-${_pad(dt.day)} '
           '${_pad(dt.hour)}:${_pad(dt.minute)}';
     } catch (_) {

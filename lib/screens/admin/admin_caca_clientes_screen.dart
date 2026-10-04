@@ -8,11 +8,11 @@
 // Tudo passa por RPC com is_admin(). O envio em si é do carteiro na VPS: máximo 5 emails
 // novos por dia útil, das 09h30 às 11h30, só para email verificado.
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/app_colors.dart';
+import '../../services/admin_export_service.dart';
 
 class AdminCacaClientesScreen extends StatefulWidget {
   const AdminCacaClientesScreen({super.key});
@@ -144,8 +144,11 @@ class _AdminCacaClientesScreenState extends State<AdminCacaClientesScreen> {
           p['proximo_seguimento_em'], p['resposta'],
         ].map(c).join(';'),
     ];
-    await Clipboard.setData(ClipboardData(text: linhas.join('\n')));
-    _aviso('CSV com ${_lista.length} negócios copiado. É só colar no Excel ou no Sheets.');
+    await AdminExportService.instance.exportCsvText(
+      filename: 'caca_clientes_${DateTime.now().millisecondsSinceEpoch}.csv',
+      csv: '\uFEFF${linhas.join('\n')}',
+    );
+    _aviso('CSV com ${_lista.length} negócios descarregado.');
   }
 
   Future<void> _editar(Map<String, dynamic> p, Map<String, dynamic> prop) async {

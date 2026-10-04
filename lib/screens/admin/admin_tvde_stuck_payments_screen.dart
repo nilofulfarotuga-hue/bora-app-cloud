@@ -5,6 +5,7 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '_admin_rpc_errors.dart';
+import '../../utils/hora_lisboa_ext.dart';
 
 /// Bora Motorista (TVDE) — **Corridas presas no pagamento**.
 ///
@@ -391,7 +392,7 @@ String _fmtDateTime(dynamic iso) {
   if (iso == null) return '—';
   final d = DateTime.tryParse(iso.toString());
   if (d == null) return iso.toString();
-  final l = d.toLocal();
+  final l = d.toLisboa();
   String two(int n) => n.toString().padLeft(2, '0');
   return '${two(l.day)}/${two(l.month)}/${l.year} ${two(l.hour)}:${two(l.minute)}';
 }

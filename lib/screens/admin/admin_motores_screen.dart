@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '../../utils/hora_lisboa.dart';
 
 class AdminMotoresScreen extends StatefulWidget {
   const AdminMotoresScreen({super.key});
@@ -77,7 +78,7 @@ class _AdminMotoresScreenState extends State<AdminMotoresScreen> {
     }
   }
 
-  String _quando(dynamic v) => (v ?? '—').toString().replaceFirst('T', ' ').split('.').first;
+  String _quando(dynamic v) => dataHoraLisboa(v);
 
   @override
   Widget build(BuildContext context) {

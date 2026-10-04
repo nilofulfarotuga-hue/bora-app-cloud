@@ -7,6 +7,7 @@ import '../../config/app_spacing.dart';
 import '../../widgets/admin/admin_coming_soon.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import 'admin_service_provider_detail_screen.dart';
+import '../../utils/hora_lisboa_ext.dart';
 
 /// Admin — Barbearias / Prestadores de serviços (vertical Serviços).
 ///
@@ -350,7 +351,7 @@ class _AdminServiceProvidersScreenState
     final reason = r['rejection_reason'] as String?;
     final isActive = (r['is_active_admin'] as bool?) ?? true;
     final createdAt =
-        DateTime.tryParse(r['created_at'] as String? ?? '')?.toLocal();
+        DateTime.tryParse(r['created_at'] as String? ?? '')?.toLisboa();
     return Card(
       margin: const EdgeInsets.symmetric(vertical: Spacing.xs + 2),
       shape:

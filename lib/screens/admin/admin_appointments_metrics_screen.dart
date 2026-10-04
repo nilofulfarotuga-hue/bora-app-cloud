@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '../../utils/hora_lisboa_ext.dart';
 
 /// Admin — Métricas de marcações (vertical Serviços / Barbearias).
 ///
@@ -43,7 +44,7 @@ class _AdminAppointmentsMetricsScreenState
     final now = DateTime.now();
     final DateTime from;
     if (_days == 0) {
-      from = DateTime(now.year, now.month, now.day); // início de hoje
+      from = inicioDoDiaLisboaUtc(now); // início de hoje em Lisboa
     } else {
       from = now.subtract(Duration(days: _days));
     }

@@ -1853,6 +1853,25 @@ class TvdeStore extends ChangeNotifier {
     return null;
   }
 
+  /// Estado do pagamento do PACOTE cuja ida estacionada é [rideId], ou null
+  /// se esta corrida não for a ida de um pacote por fechar.
+  ///
+  /// [04/10/2026] A ida do pacote não tem PaymentIntent próprio (vive no
+  /// vale), por isso `confirmRidePayment` nunca a dá como paga. Quem quiser
+  /// cancelá-la tem de perguntar por aqui primeiro — senão cancela-se a ida
+  /// com o dinheiro do pacote a caminho.
+  Future<String?> estadoDoPacotePendente(String rideId) async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      final pi = p.getString(_kPendingRtPiKey);
+      if (pi == null || p.getString(_kPendingRtRideKey) != rideId) return null;
+      return await activateRoundtripDetailed(rideId, pi);
+    } catch (e) {
+      debugPrint('TvdeStore.estadoDoPacotePendente error => $e');
+      return null;
+    }
+  }
+
   /// Retoma o poll do `activate_roundtrip` (idempotente) se houver um par
   /// pendente guardado — mesmo sem o diálogo de espera vivo. Corre em fundo
   /// (~2 min a cada 3 s); se não fechar, volta a tentar na próxima abertura.

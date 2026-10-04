@@ -246,6 +246,17 @@ class _ReservationFlowScreenState extends State<ReservationFlowScreen> {
         ),
       );
     } catch (_) {
+      // [04/10] Na web o cancelamento não é uma StripeException: sem isto a
+      // reserva ficava órfã em `pending_payment`.
+      if (kIsWeb && reservationId != null && paymentIntentId != null) {
+        try {
+          await client.rpc('cancel_orphan_reservation', params: {
+            'p_reservation_id': reservationId,
+            'p_payment_intent_id': paymentIntentId,
+            'p_reason': 'user_canceled',
+          });
+        } catch (_) {}
+      }
       if (!mounted) return;
       messenger.showSnackBar(
         const SnackBar(

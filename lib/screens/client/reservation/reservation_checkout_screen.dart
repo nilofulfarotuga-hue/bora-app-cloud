@@ -252,6 +252,18 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
         ),
       );
     } catch (e) {
+      // [04/10] Na web o cancelamento não é uma StripeException: sem isto a
+      // reserva ficava órfã em `pending_payment`.
+      if (kIsWeb && reservationId != null && paymentIntentId != null) {
+        try {
+          await Supabase.instance.client
+              .rpc('cancel_orphan_reservation', params: {
+            'p_reservation_id': reservationId,
+            'p_payment_intent_id': paymentIntentId,
+            'p_reason': 'user_canceled',
+          });
+        } catch (_) {}
+      }
       if (!mounted) return;
       final msg = e.toString().replaceFirst('Exception: ', '');
       messenger.showSnackBar(

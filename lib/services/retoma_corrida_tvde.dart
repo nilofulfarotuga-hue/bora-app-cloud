@@ -23,6 +23,8 @@ Future<void> retomarCorridaTvdeViva() async {
     // Regresso de um pagamento web: quem abre o ecrã é a retoma do pagamento.
     if (lerPagamentoWebPendente() != null) return;
     if (Supabase.instance.client.auth.currentUser == null) return;
+    // O painel admin abre por rota própria: nunca pôr a corrida por cima dele.
+    if (Uri.base.toString().contains('/admin')) return;
 
     final ctx = NotificationService.navigatorKey.currentContext;
     if (ctx == null) return;

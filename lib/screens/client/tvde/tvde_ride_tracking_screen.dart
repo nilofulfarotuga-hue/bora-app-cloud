@@ -1561,10 +1561,17 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
         final store = context.read<TvdeStore>();
         // Guarda 30/08 (corrida 5bac9a76): NUNCA cancelar como não-pago sem
         // perguntar primeiro ao servidor se o PaymentIntent passou entretanto.
-        final res = await store.confirmRidePayment(ride.id);
+        // [04/10] Ida de um pacote ida-e-volta: o pagamento vive no vale, não
+        // na corrida. Pergunta-se pelo pacote antes de cancelar.
+        final pacote = await store.estadoDoPacotePendente(ride.id);
+        if (!mounted) return;
+        final res = pacote != null ? null : await store.confirmRidePayment(ride.id);
         if (!mounted) return;
         final st = res?['payment_status'] as String?;
-        if ((res != null && res['succeeded'] == true) || st == 'processing') {
+        if (pacote == 'ok' ||
+            pacote == 'pending' ||
+            (res != null && res['succeeded'] == true) ||
+            st == 'processing') {
           await store.refreshActiveRide();
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(

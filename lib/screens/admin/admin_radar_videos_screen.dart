@@ -26,6 +26,7 @@ class _AdminRadarVideosScreenState extends State<AdminRadarVideosScreen> {
   String? _erro;
   List<RadarVideo> _videos = const [];
   List<PlaybookRegra> _regras = const [];
+  List<RadarPesquisa> _pesquisas = const [];
   String? _tema; // null = todos
   int _dias = 1;
 
@@ -43,10 +44,12 @@ class _AdminRadarVideosScreenState extends State<AdminRadarVideosScreen> {
     try {
       final v = await _c.rpc('admin_radar_videos', params: {'p_dias': _dias, 'p_tema': _tema});
       final p = await _c.rpc('admin_playbook_redes');
+      final q = await _c.rpc('admin_radar_pesquisas');
       if (!mounted) return;
       setState(() {
         _videos = (v as List).map((e) => RadarVideo.fromMap(Map<String, dynamic>.from(e as Map))).toList();
         _regras = (p as List).map((e) => PlaybookRegra.fromMap(Map<String, dynamic>.from(e as Map))).toList();
+        _pesquisas = (q as List).map((e) => RadarPesquisa.fromMap(Map<String, dynamic>.from(e as Map))).toList();
         _carregando = false;
       });
     } catch (e) {
@@ -73,7 +76,7 @@ class _AdminRadarVideosScreenState extends State<AdminRadarVideosScreen> {
                   padding: const EdgeInsets.all(16),
                   children: [
                     const Text(
-                      'Vídeos novos do YouTube sobre crescer nas redes e ganhar dinheiro online, recolhidos todos os dias pelo PC (com transcrição) e resumidos por um modelo barato. Nota = utilidade para o Bora e o Em Dia (0-10).',
+                      'Vídeos novos do YouTube (ganhar dinheiro com IA, automação, ferramentas, redes, filme de animação…), recolhidos todos os dias pelo PC com transcrição e resumidos por um modelo barato. Nota = utilidade real para o Danilo (0-10). Todos os dias às 20:52 a Claude.ai revê os vídeos e grava o veredito (já temos / novo / rejeitado) e a ação.',
                       style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                     ),
                     const SizedBox(height: 10),
@@ -87,7 +90,7 @@ class _AdminRadarVideosScreenState extends State<AdminRadarVideosScreen> {
                             _carregar();
                           }),
                         const SizedBox(width: 12),
-                        for (final t in const [null, 'crescer_redes', 'ganhar_dinheiro', 'marketing_apps', 'outro'])
+                        for (final t in const [null, 'ganhar_dinheiro_ia', 'automacao', 'ferramentas_ia', 'animacao_ia', 'marketing_apps', 'crescer_redes', 'conteudo_em_dia', 'ganhar_dinheiro', 'historico', 'recomendados', 'outro'])
                           ChoiceChip(label: Text(rotuloTema(t)), selected: _tema == t, onSelected: (_) {
                             setState(() => _tema = t);
                             _carregar();
@@ -109,6 +112,14 @@ class _AdminRadarVideosScreenState extends State<AdminRadarVideosScreen> {
                     const SizedBox(height: 8),
                     if (_regras.isEmpty) const Text('Ainda sem playbook (aparece depois da primeira destilação).'),
                     for (final r in _regras) _cartaoRegra(r),
+                    const SizedBox(height: 20),
+                    Text('Temas que o radar pesquisa (${_pesquisas.where((p) => p.ativo).length} ativos de ${_pesquisas.length})',
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 4),
+                    const Text('A Claude.ai acrescenta temas a partir das conversas com o Danilo e dos vídeos bons; desliga os que não rendem. Peso 3 = quase todos os dias, 1 = de 3 em 3 dias. Desligar aqui pára a pesquisa desse tema.',
+                        style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                    const SizedBox(height: 8),
+                    for (final q in _pesquisas) _linhaPesquisa(q),
                   ],
                 ),
     );
@@ -134,8 +145,35 @@ class _AdminRadarVideosScreenState extends State<AdminRadarVideosScreen> {
             icon: const Icon(Icons.play_circle_outline),
             label: Text(v.link, style: const TextStyle(fontSize: 12)),
           ),
+          if (v.veredito != null) ...[
+            const SizedBox(height: 6),
+            Text('Veredito da Claude.ai: ${rotuloVeredito(v.veredito)}${v.para != null ? ' · para: ${v.para}' : ''}',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: v.veredito == 'novo' || v.veredito == 'feito' ? AppColors.success : AppColors.textSecondary)),
+            if (v.acao != null) Text(v.acao!, style: const TextStyle(fontSize: 13)),
+          ] else
+            const Padding(padding: EdgeInsets.only(top: 6), child: Text('Ainda por rever (a Claude.ai revê todos os dias às 20:52).', style: TextStyle(fontSize: 12, color: AppColors.textSubtle))),
           Text('motor: ${v.motor ?? '—'} · pesquisa: ${v.pesquisa ?? '—'}', style: const TextStyle(fontSize: 11, color: AppColors.textSubtle)),
         ],
+      ),
+    );
+  }
+
+  Widget _linhaPesquisa(RadarPesquisa q) {
+    return Card(
+      child: SwitchListTile(
+        value: q.ativo,
+        onChanged: (v) async {
+          try {
+            await _c.rpc('admin_radar_pesquisa_ativar', params: {'p_id': q.id, 'p_ativo': v});
+            _carregar();
+          } catch (e) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Não deu para mudar: $e')));
+          }
+        },
+        title: Text(q.termo, style: const TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: Text('${rotuloTema(q.tema)} · peso ${q.peso} · ${q.vezes} corridas · ${q.origem}${q.motivo != null ? ' · ${q.motivo}' : ''}',
+            style: const TextStyle(fontSize: 12)),
       ),
     );
   }
@@ -157,17 +195,33 @@ String rotuloTema(String? t) => switch (t) {
       'crescer_redes' => 'crescer nas redes',
       'ganhar_dinheiro' => 'ganhar dinheiro',
       'marketing_apps' => 'marketing de apps',
+      'ganhar_dinheiro_ia' => 'ganhar dinheiro com IA',
+      'automacao' => 'automação',
+      'ferramentas_ia' => 'ferramentas de IA',
+      'animacao_ia' => 'filme de animação',
+      'conteudo_em_dia' => 'conteúdo Em Dia',
+      'historico' => 'histórico YouTube',
+      'recomendados' => 'sugestões YouTube',
       _ => t,
+    };
+
+String rotuloVeredito(String? v) => switch (v) {
+      'ja_temos' => 'já temos',
+      'novo' => 'novo — vale a pena',
+      'feito' => 'feito',
+      'rejeitado' => 'rejeitado',
+      _ => v ?? '—',
     };
 
 class RadarVideo {
   final String youtubeId, titulo, link;
-  final String? canal, tema, resumo, motor, pesquisa, publicadoEm;
+  final String? canal, tema, resumo, motor, pesquisa, publicadoEm, veredito, para, acao;
   final int? visualizacoes, nota;
   final bool temTranscricao;
   final List<String> ideias;
   const RadarVideo({required this.youtubeId, required this.titulo, required this.link, this.canal, this.tema, this.resumo, this.motor,
-      this.pesquisa, this.publicadoEm, this.visualizacoes, this.nota, this.temTranscricao = false, this.ideias = const []});
+      this.pesquisa, this.publicadoEm, this.visualizacoes, this.nota, this.temTranscricao = false, this.ideias = const [],
+      this.veredito, this.para, this.acao});
   factory RadarVideo.fromMap(Map<String, dynamic> m) => RadarVideo(
         youtubeId: (m['youtube_id'] ?? '').toString(),
         titulo: (m['titulo'] ?? '').toString(),
@@ -182,6 +236,28 @@ class RadarVideo {
         nota: (m['nota_utilidade'] as num?)?.toInt(),
         temTranscricao: m['tem_transcricao'] == true,
         ideias: ((m['ideias'] as List?) ?? const []).map((e) => e.toString()).toList(),
+        veredito: m['veredito']?.toString(),
+        para: m['para']?.toString(),
+        acao: m['acao']?.toString(),
+      );
+}
+
+class RadarPesquisa {
+  final int id;
+  final String termo, tema, origem;
+  final String? motivo;
+  final bool ativo;
+  final int peso, vezes;
+  const RadarPesquisa({required this.id, required this.termo, required this.tema, required this.origem, this.motivo, this.ativo = true, this.peso = 1, this.vezes = 0});
+  factory RadarPesquisa.fromMap(Map<String, dynamic> m) => RadarPesquisa(
+        id: (m['id'] as num).toInt(),
+        termo: (m['termo'] ?? '').toString(),
+        tema: (m['tema'] ?? 'outro').toString(),
+        origem: (m['origem'] ?? '').toString(),
+        motivo: m['motivo']?.toString(),
+        ativo: m['ativo'] == true,
+        peso: (m['peso'] as num?)?.toInt() ?? 1,
+        vezes: (m['vezes'] as num?)?.toInt() ?? 0,
       );
 }
 

@@ -16,6 +16,7 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+<<<<<<< HEAD
   // 04/10/2026 (agente tvde): TVDE em PT-PT (paragem) + partilhar viagem.
   'Como pagaste na app, o valor é devolvido automaticamente.':
       'As you paid in the app, the amount is refunded automatically.',
@@ -67,6 +68,147 @@ const Map<String, String> kStringsEn = <String, String>{
       'Remove stop',
   'Segue a minha viagem Bora em tempo real: {0}':
       'Follow my Bora trip in real time: {0}',
+  // ── cliente-app (04/10/2026) ──
+  'Não foi possível abrir o calendário.':
+      'Could not open the calendar.',
+  'No ecrã inicial, escolhe a categoria (Restaurantes, Supermercados, etc.), seleciona a loja, adiciona produtos ao carrinho e carrega em "Finalizar Pedido". Escolhe o método de pagamento e confirma.':
+      'On the home screen, choose a category (Restaurants, Supermarkets, etc.), pick the store, add products to the cart and tap "Finalizar Pedido". Choose the payment method and confirm.',
+  'Quando um estafeta aceitar o teu pedido, no ecrã de acompanhamento aparece o botão de conversa para escreveres diretamente ao estafeta. Nos restaurantes parceiros também podes falar com a loja.':
+      'Once a courier accepts your order, a chat button appears on the tracking screen so you can write directly to the courier. With partner restaurants you can also talk to the store.',
+  'Podes cancelar o pedido no ecrã do pedido. Enquanto não houver estafeta atribuído, o cancelamento não tem custo. Se já houver um estafeta atribuído, continua a ser possível cancelar, mas é cobrada uma taxa de cancelamento (o valor aparece antes de confirmares). Depois de o estafeta recolher o pedido, já não é possível cancelar pela app — fala com o suporte.':
+      'You can cancel from the order screen. While no courier is assigned, cancelling is free. If a courier is already assigned you can still cancel, but a cancellation fee applies (the amount is shown before you confirm). Once the courier has picked up the order it can no longer be cancelled in the app — contact support.',
+  'Favoritos':
+      'Favourites',
+  'Não foi possível carregar os teus favoritos.':
+      'We could not load your favourites.',
+  'Ainda não tens lojas favoritas.\nToca no ♥ de uma loja para a guardar aqui.':
+      'You have no favourite stores yet.\nTap the ♥ on a store to save it here.',
+  'Tirar dos favoritos':
+      'Remove from favourites',
+  'Lojas favoritas':
+      'Favourite stores',
+  'As lojas que guardaste com ♥':
+      'The stores you saved with ♥',
+  'Não foi possível carregar. Verifica a ligação.':
+      'Could not load. Check your connection.',
+  'Reservar Mesa':
+      'Book a Table',
+  'Restaurantes':
+      'Restaurants',
+  'Preenche as moradas da loja e de entrega.':
+      'Fill in the store and delivery addresses.',
+  'Morada de entrega':
+      'Delivery address',
+  'Pesquisar morada de entrega':
+      'Search delivery address',
+  'Eliminar morada':
+      'Delete address',
+  'Escolher morada':
+      'Choose address',
+  'As minhas moradas':
+      'My addresses',
+  'Ainda não tens moradas guardadas':
+      'You have no saved addresses yet',
+  'Preenche o rótulo e a morada.':
+      'Fill in the label and address.',
+  'Nova morada':
+      'New address',
+  'Editar morada':
+      'Edit address',
+  'Morada':
+      'Address',
+  'Seleccionar morada':
+      'Select address',
+  'Pesquisar morada':
+      'Search address',
+  'Gerir moradas':
+      'Manage addresses',
+  'Morada guardada':
+      'Address saved',
+  'Nenhuma morada guardada':
+      'No saved address',
+  'Indica o teu email.':
+      'Enter your email.',
+  'Indica a palavra-passe.':
+      'Enter the password.',
+  'Moradas':
+      'Addresses',
+  'À espera que o estafeta conclua a compra na loja…':
+      'Waiting for the courier to finish the purchase at the store…',
+  'Quando fizerem o 1º pedido (≥€20) entregue, cada um recebe 1000 Bora Tokens (≈€5).':
+      'When they place their 1st delivered order (≥€20), you each get 1000 Bora Tokens (≈€5).',
+  'Indica a nova palavra-passe.':
+      'Enter the new password.',
+  'Preenche as moradas de recolha e de entrega.':
+      'Fill in the pickup and delivery addresses.',
+  'Escolhe uma morada da lista de sugestões.':
+      'Choose an address from the suggestions list.',
+  'Morada de recolha':
+      'Pickup address',
+  'Pesquisar morada de recolha':
+      'Search pickup address',
+  'Experimenta outra palavra.':
+      'Try another search term.',
+  'Esta loja ainda não tem produtos.':
+      'This store has no products yet.',
+  'Não foi possível enviar a foto. Tenta outra vez.':
+      'Could not send the photo. Please try again.',
+  'Esta loja já não está disponível na Bora.':
+      'This store is no longer available on Bora.',
+  'Marcar de novo':
+      'Book again',
+  'Este serviço já não está disponível na Bora.':
+      'This service is no longer available on Bora.',
+  'Não foi possível abrir a marcação. Tenta outra vez.':
+      'Could not open the booking. Please try again.',
+  'Faltou um produto':
+      'An item was missing',
+  'Produto errado':
+      'Wrong item',
+  'Chegou frio ou danificado':
+      'Arrived cold or damaged',
+  'O pedido nunca chegou':
+      'The order never arrived',
+  'Outro problema':
+      'Another problem',
+  'Em análise':
+      'Under review',
+  'Resolvido':
+      'Resolved',
+  'Fechado':
+      'Closed',
+  'Recebido — vamos analisar':
+      'Received — we will look into it',
+  'Recebemos o teu relato. Vamos analisar e responder-te.':
+      'We received your report. We will look into it and get back to you.',
+  'Algum problema com o pedido?':
+      'Any problem with the order?',
+  '{0} · {1}\nEstado: {2}':
+      '{0} · {1}\nStatus: {2}',
+  'Reportar um problema':
+      'Report a problem',
+  'Escolhe o que aconteceu.':
+      'Choose what happened.',
+  'Não foi possível enviar. Tenta outra vez.':
+      'Could not send. Please try again.',
+  'O que aconteceu?':
+      'What happened?',
+  'Conta-nos mais (opcional)':
+      'Tell us more (optional)',
+  'Juntar uma foto (opcional)':
+      'Add a photo (optional)',
+  'Foto escolhida — trocar':
+      'Photo chosen — change',
+  'Tirar a foto':
+      'Remove the photo',
+  'O meu pedido Bora ({0}): {1}.':
+      'My Bora order ({0}): {1}.',
+  'O meu pedido Bora de {0} ({1}): {2}.':
+      'My Bora order from {0} ({1}): {2}.',
+  'Chegada prevista por volta das {0}.':
+      'Expected arrival around {0}.',
+  'Partilhar o seguimento':
+      'Share tracking',
   '\nJá não podes reagendar esta marcação.':
       '\nYou can no longer reschedule this appointment.',
   '\nPodes reagendar mais 1 vez.':
@@ -984,8 +1126,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'Choose where the driver should stop on the way to the destination.',
   'Escolhe primeiro o dia.':
       'Choose the day first.',
-  'Escolhe um restaurante para reservar mesa. (BR §14)':
-      'Choose a restaurant to book a table. (BR §14)',
+  'Escolhe um restaurante para reservar mesa.':
+      'Choose a restaurant to book a table.',
   'Escolhe {0}':
       'Choose {0}',
   'Escolhe {0} a {1}':
@@ -1704,8 +1846,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'The Bora Tokens discount exceeds the maximum of {0}% of the order.',
   'O estafeta precisa de ~€{0} (orçaste €{1}). Pagas o valor do talão.':
       'The courier needs ~€{0} (you budgeted €{1}). You pay the amount on the receipt.',
-  'O estafeta vê a foto antes de aceitar. Evita surpresas de tamanho/peso. (BR §7.5)':
-      'The courier sees the photo before accepting. It avoids surprises in size/weight. (BR §7.5)',
+  'O estafeta vê a foto antes de aceitar. Evita surpresas de tamanho/peso.':
+      'The courier sees the photo before accepting. It avoids surprises in size/weight.',
   'O meu trabalho no Bora':
       'My work at Bora',
   'O motorista chega em ~{0} min':

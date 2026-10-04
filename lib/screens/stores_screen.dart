@@ -13,6 +13,7 @@ import '../utils/business_mapper.dart';
 import '../utils/business_opener.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora/coming_soon.dart';
+import '../widgets/bora/lista_estado.dart';
 import '../widgets/bora_support_fab.dart';
 import 'store_categories_screen.dart';
 import 'store_products_screen.dart';
@@ -36,6 +37,19 @@ class _StoresScreenState extends State<StoresScreen> {
   _StoreSort _sort = _StoreSort.name;
 
   @override
+  void initState() {
+    super.initState();
+    // Entrada directa sem a lista carregada → carrega aqui (04/10).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final store = context.read<RestaurantStore>();
+      if (!store.restaurantsLoadedOnce && !store.restaurantsLoading) {
+        store.loadRestaurantsFromSupabase();
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _searchCtrl.dispose();
     super.dispose();
@@ -44,7 +58,7 @@ class _StoresScreenState extends State<StoresScreen> {
   String get _title {
     switch (widget.initialCategory) {
       case BusinessCategory.supermarket:
-        return 'Supermercados';
+        return 'Supermercados'.tr;
       case BusinessCategory.store:
         return 'Lojas'.tr;
       case BusinessCategory.pharmacy:
@@ -142,33 +156,49 @@ class _StoresScreenState extends State<StoresScreen> {
     final showPharmacies = widget.initialCategory == null ||
         widget.initialCategory == BusinessCategory.pharmacy;
 
+    // 04/10: a carregar / falhou ≠ "não há lojas".
+    final semDados = relevantBusinesses.isEmpty;
+    final aCarregar = semDados &&
+        !restaurantStore.restaurantsLoadFailed &&
+        (restaurantStore.restaurantsLoading ||
+            !restaurantStore.restaurantsLoadedOnce);
+    final falhou = semDados && restaurantStore.restaurantsLoadFailed;
+
     final sections = <Widget>[];
-    if (showSupermarkets) {
-      sections.addAll(
-        _buildSection(
-          context: context,
-          title: 'Supermercados'.tr,
-          entries: supermarketEntries,
-        ),
-      );
-    }
-    if (showStores) {
-      sections.addAll(
-        _buildSection(
-          context: context,
-          title: 'Lojas'.tr,
-          entries: storeEntries,
-        ),
-      );
-    }
-    if (showPharmacies) {
-      sections.addAll(
-        _buildSection(
-          context: context,
-          title: 'Farmácias'.tr,
-          entries: pharmacyEntries,
-        ),
-      );
+    if (aCarregar) {
+      sections.add(const ListaACarregar());
+    } else if (falhou) {
+      sections.add(ListaComErro(
+        onRetry: () => restaurantStore.loadRestaurantsFromSupabase(),
+      ));
+    } else {
+      if (showSupermarkets) {
+        sections.addAll(
+          _buildSection(
+            context: context,
+            title: 'Supermercados'.tr,
+            entries: supermarketEntries,
+          ),
+        );
+      }
+      if (showStores) {
+        sections.addAll(
+          _buildSection(
+            context: context,
+            title: 'Lojas'.tr,
+            entries: storeEntries,
+          ),
+        );
+      }
+      if (showPharmacies) {
+        sections.addAll(
+          _buildSection(
+            context: context,
+            title: 'Farmácias'.tr,
+            entries: pharmacyEntries,
+          ),
+        );
+      }
     }
 
     if (sections.isEmpty) {
@@ -183,7 +213,7 @@ class _StoresScreenState extends State<StoresScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppColors.background,
       floatingActionButton: const BoraSupportFab(),
       appBar: BoraScreenAppBar(title: _title),
       body: ListView(
@@ -404,13 +434,13 @@ class _StoreTile extends StatelessWidget {
   Color _bannerColor(BusinessCategory cat) {
     switch (cat) {
       case BusinessCategory.supermarket:
-        return const Color(0xFF1A73E8);
+        return AppColors.primary;
       case BusinessCategory.pharmacy:
         return AppColors.primaryMid;
       case BusinessCategory.store:
-        return const Color(0xFF6A1B9A);
+        return AppColors.primaryDeep;
       default:
-        return const Color(0xFF455A64);
+        return AppColors.textSecondary;
     }
   }
 
@@ -521,6 +551,15 @@ class _StoreTile extends StatelessWidget {
                               color: Colors.grey.shade600,
                             ),
                           ),
+                          // Pausa do parceiro (04/10): "Fechada
+                          // temporariamente — volta às HH:MM".
+                          if (entry.business.emPausa()) ...[
+                            const SizedBox(height: 4),
+                            LojaFechadaChip(
+                              texto: entry.business.statusLabel(),
+                              dense: true,
+                            ),
+                          ],
                         ],
                       ),
                     ),

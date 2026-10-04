@@ -108,7 +108,7 @@ class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
     if (pickupAddress.isEmpty || dropoffAddress.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text('Preencha os endereços de recolha e entrega.'.tr)),
+            content: Text('Preenche as moradas de recolha e de entrega.'.tr)),
       );
       return;
     }
@@ -117,7 +117,7 @@ class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             content: Text(
-                'Selecione um endereço válido nas sugestões para obter coordenadas.'.tr)),
+                'Escolhe uma morada da lista de sugestões.'.tr)),
       );
       return;
     }
@@ -187,7 +187,7 @@ class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
           padding: const EdgeInsets.all(16),
           children: [
             Text(
-              'Endereço de recolha'.tr,
+              'Morada de recolha'.tr,
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
             ),
             const SizedBox(height: 8),
@@ -196,7 +196,7 @@ class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
               children: [
                 AddressAutocompleteField(
                   controller: _pickupController,
-                  labelText: 'Pesquisar endereço de recolha'.tr,
+                  labelText: 'Pesquisar morada de recolha'.tr,
                   prefixIcon: const Icon(Icons.my_location_outlined),
                   onSelected: (address, coords) {
                     setState(() => _pickupLocation = coords);
@@ -216,13 +216,13 @@ class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
             ),
             const SizedBox(height: 24),
             Text(
-              'Endereço de entrega'.tr,
+              'Morada de entrega'.tr,
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
             ),
             const SizedBox(height: 8),
             AddressAutocompleteField(
               controller: _dropoffController,
-              labelText: 'Pesquisar endereço de entrega'.tr,
+              labelText: 'Pesquisar morada de entrega'.tr,
               prefixIcon: const Icon(Icons.location_on_outlined),
               onSelected: (address, coords) {
                 setState(() => _dropoffLocation = coords);
@@ -246,7 +246,7 @@ class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
             MandatoryPhotoPicker(
               label: 'Foto da encomenda (obrigatória)'.tr,
               hint:
-                  'O estafeta vê a foto antes de aceitar. Evita surpresas de tamanho/peso. (BR §7.5)'.tr,
+                  'O estafeta vê a foto antes de aceitar. Evita surpresas de tamanho/peso.'.tr,
               pathPrefix: 'package',
               onUploaded: (url) => setState(() => _packagePhotoUrl = url),
             ),

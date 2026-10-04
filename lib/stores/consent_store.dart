@@ -69,6 +69,10 @@ class ConsentStore extends ChangeNotifier {
     if (_answered) {
       NotificationService.instance.applyNotificationConsent(_notificationsConsent);
       LocationService.applyLocationConsent(_locationConsent);
+    } else {
+      // RGPD (04/10/2026): sem resposta ao aviso ainda, não se pede a
+      // permissão de notificações no arranque — só depois da resposta.
+      NotificationService.instance.aguardarConsentimento();
     }
 
     notifyListeners();

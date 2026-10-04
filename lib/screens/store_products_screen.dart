@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config/app_colors.dart';
 import '../models/cart_item.dart';
 import '../models/partner_product.dart';
 import '../models/product_variant.dart';
@@ -437,8 +438,8 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               hasSearch
-                  ? 'Tente outro termo de busca.'.tr
-                  : 'Este estabelecimento ainda não tem produtos cadastrados.',
+                  ? 'Experimenta outra palavra.'.tr
+                  : 'Esta loja ainda não tem produtos.'.tr,
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
             ),
@@ -1252,7 +1253,7 @@ class _VariantMiniCard extends StatelessWidget {
                       _Badge(label: 'Mais barato'.tr, color: Colors.green),
                     ] else if (showPremiumBadge) ...[
                       const SizedBox(height: 3),
-                      _Badge(label: 'Premium'.tr, color: Colors.blue),
+                      _Badge(label: 'Premium'.tr, color: AppColors.info),
                     ],
                   ],
                 ),

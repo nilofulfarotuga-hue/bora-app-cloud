@@ -32,7 +32,7 @@
   "O cartão {0} •••• {1} deixa de estar guardado. Podes voltar a guardá-lo no próximo pagamento.": "Card {0} •••• {1} will no longer be saved. You can save it again on your next payment.",
   "O desconto em Bora Tokens excede o máximo de {0}% do pedido.": "The Bora Tokens discount exceeds the maximum of {0}% of the order.",
   "O estafeta precisa de ~€{0} (orçaste €{1}). Pagas o valor do talão.": "The courier needs ~€{0} (you budgeted €{1}). You pay the amount on the receipt.",
-  "O estafeta vê a foto antes de aceitar. Evita surpresas de tamanho/peso. (BR §7.5)": "The courier sees the photo before accepting. It avoids surprises in size/weight. (BR §7.5)",
+  "O estafeta vê a foto antes de aceitar. Evita surpresas de tamanho/peso.": "The courier sees the photo before accepting. It avoids surprises in size/weight.",
   "O meu trabalho no Bora": "My work at Bora",
   "O motorista chegou": "The driver has arrived",
   "O pagamento do plano está disponível na app móvel.": "Plan payment is available in the mobile app.",

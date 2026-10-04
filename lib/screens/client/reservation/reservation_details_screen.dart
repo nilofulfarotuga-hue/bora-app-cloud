@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../config/app_colors.dart';
+import '../../../models/falha_de_acao.dart';
 import '../../../models/reservation_model.dart';
 import '../../../stores/reservation_store.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
@@ -70,8 +71,11 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
       );
       Navigator.pop(context);
     } catch (e) {
+      debugPrint('[ReservationDetails] markArrived error: $e');
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text(e.toString())));
+      messenger.showSnackBar(SnackBar(
+          content: Text(mensagemDeFalhaDeAcao(e,
+              trabalho: TrabalhoEmCurso.reserva))));
     } finally {
       if (mounted) setState(() => _arriving = false);
     }
@@ -104,11 +108,36 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
     }
   }
 
-  void _comingSoonCalendar() {
+  /// Adiciona a reserva ao calendário do telemóvel/conta Google (padrão
+  /// OpenTable/TheFork): abre o "novo evento" já preenchido com a hora da
+  /// reserva (1h30) e o nome do restaurante. Funciona em Android, iPhone e web.
+  Future<void> _addToCalendar() async {
+    String fmt(DateTime d) {
+      final u = d.toUtc();
+      String two(int n) => n.toString().padLeft(2, '0');
+      return '${u.year}${two(u.month)}${two(u.day)}T'
+          '${two(u.hour)}${two(u.minute)}00Z';
+    }
+
+    final start = _r.reservedFor;
+    final end = start.add(const Duration(minutes: 90));
+    final nome = _r.restaurantName ?? 'Restaurante';
+    final uri = Uri.https('calendar.google.com', '/calendar/render', {
+      'action': 'TEMPLATE',
+      'text': 'Reserva — $nome',
+      'dates': '${fmt(start)}/${fmt(end)}',
+      'location': nome,
+      'details': 'Reserva feita na Bora App.',
+    });
+    var ok = false;
+    try {
+      ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      ok = false;
+    }
+    if (ok || !mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Adicionar ao calendário — em breve.'.tr),
-      ),
+      SnackBar(content: Text('Não foi possível abrir o calendário.'.tr)),
     );
   }
 
@@ -503,7 +532,7 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
         actions.add(
           Expanded(
             child: OutlinedButton.icon(
-              onPressed: _comingSoonCalendar,
+              onPressed: _addToCalendar,
               icon: const Icon(Icons.calendar_month_outlined),
               label: Text('Calendário'.tr),
             ),

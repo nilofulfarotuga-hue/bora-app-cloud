@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../services/client_personalization_service.dart';
+import '../config/app_colors.dart';
+import '../l10n/tr.dart';
+import '../stores/favorite_store.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
+import 'deep_link_store_screen.dart';
 
-/// T2.2 — Cliente favorites screen. Lista parceiros marcados como favoritos.
+/// Lojas favoritas do cliente (04/10/2026).
+///
+/// A fonte é o [FavoriteStore] — o mesmo ♥ que aparece na lista de lojas e
+/// no cabeçalho de cada loja — guardado pelo **id** da loja. Ao abrir, junta
+/// os favoritos guardados na conta e converte os antigos (gravados por nome).
 class ClientFavoritesScreen extends StatefulWidget {
   const ClientFavoritesScreen({super.key});
   @override
@@ -14,7 +22,8 @@ class ClientFavoritesScreen extends StatefulWidget {
 
 class _ClientFavoritesScreenState extends State<ClientFavoritesScreen> {
   bool _loading = true;
-  List<Map<String, dynamic>> _partners = const [];
+  bool _failed = false;
+  List<Map<String, dynamic>> _stores = const [];
 
   @override
   void initState() {
@@ -23,96 +32,144 @@ class _ClientFavoritesScreenState extends State<ClientFavoritesScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _failed = false;
+    });
+    final favs = context.read<FavoriteStore>();
     try {
-      final favs = await ClientPersonalizationService.instance.myFavorites();
-      if (favs.isEmpty) {
-        if (mounted) setState(() {
-          _partners = const [];
+      await favs.loadStoresFromServer();
+      final client = Supabase.instance.client;
+
+      // Favoritos antigos guardados por nome → passam a ser por id.
+      final legacy = favs.legacyStoreNames;
+      if (legacy.isNotEmpty) {
+        final rows = await client
+            .from('restaurants')
+            .select('id, name')
+            .inFilter('name', legacy);
+        final map = <String, String>{};
+        for (final r in rows as List) {
+          final m = r as Map;
+          map[m['name'] as String] = m['id'] as String;
+        }
+        favs.migrateLegacyStores(map);
+      }
+
+      final ids = favs.favoriteStoreIds;
+      if (ids.isEmpty) {
+        if (!mounted) return;
+        setState(() {
+          _stores = const [];
           _loading = false;
         });
         return;
       }
-      // Hydrate with partner data (vendor_name match in restaurants).
-      final res = await Supabase.instance.client
+      final res = await client
           .from('restaurants')
           .select('id, name, category, photo_url')
-          .inFilter('name', favs);
+          .inFilter('id', ids);
       if (!mounted) return;
       setState(() {
-        _partners = (res as List).cast<Map<String, dynamic>>();
+        _stores = (res as List).cast<Map<String, dynamic>>();
         _loading = false;
       });
     } catch (e) {
+      debugPrint('[ClientFavoritesScreen] load error: $e');
       if (!mounted) return;
-      setState(() => _loading = false);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Erro: $e')));
+      setState(() {
+        _loading = false;
+        _failed = true;
+      });
     }
   }
 
-  Future<void> _unfavorite(String partnerId) async {
-    try {
-      await ClientPersonalizationService.instance.toggleFavorite(partnerId);
-      await _load();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Erro: $e')));
-    }
+  void _unfavorite(String id) {
+    context.read<FavoriteStore>().toggleStore(id);
+    setState(() {
+      _stores = _stores.where((s) => s['id'] != id).toList();
+    });
+  }
+
+  void _open(String id) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DeepLinkStoreScreen(tipo: 'loja', id: id),
+      ),
+    );
+  }
+
+  Widget _message(String text, {bool retry = false}) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        const SizedBox(height: 80),
+        Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            text,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: AppColors.textSecondary),
+          ),
+        ),
+        if (retry)
+          Center(
+            child: OutlinedButton.icon(
+              onPressed: _load,
+              icon: const Icon(Icons.refresh),
+              label: Text('Tentar outra vez'.tr),
+            ),
+          ),
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final Widget body;
+    if (_loading) {
+      body = const Center(child: CircularProgressIndicator());
+    } else if (_failed) {
+      body = _message(
+        'Não foi possível carregar os teus favoritos.'.tr,
+        retry: true,
+      );
+    } else if (_stores.isEmpty) {
+      body = _message(
+        'Ainda não tens lojas favoritas.\nToca no ♥ de uma loja para a guardar aqui.'
+            .tr,
+      );
+    } else {
+      body = ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: _stores.length,
+        itemBuilder: (_, i) {
+          final p = _stores[i];
+          final id = p['id'] as String;
+          final photo = p['photo_url'] as String?;
+          return Card(
+            child: ListTile(
+              onTap: () => _open(id),
+              leading: photo != null && photo.isNotEmpty
+                  ? CircleAvatar(backgroundImage: NetworkImage(photo))
+                  : const CircleAvatar(child: Icon(Icons.store)),
+              title: Text(p['name'] as String? ?? '—'),
+              trailing: IconButton(
+                tooltip: 'Tirar dos favoritos'.tr,
+                icon: const Icon(Icons.favorite, color: AppColors.error),
+                onPressed: () => _unfavorite(id),
+              ),
+            ),
+          );
+        },
+      );
+    }
     return Scaffold(
-      appBar: const BoraScreenAppBar(title: 'Favoritos'),
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(title: 'Favoritos'.tr),
       floatingActionButton: const BoraSupportFab(),
-      body: RefreshIndicator(
-        onRefresh: _load,
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _partners.isEmpty
-                ? ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    children: const [
-                      SizedBox(height: 80),
-                      Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(24),
-                          child: Text(
-                            'Ainda não favoritaste nenhum parceiro.\n'
-                            'Toca na ⭐ no ecrã de cada loja.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.black54),
-                          ),
-                        ),
-                      ),
-                    ],
-                  )
-                : ListView.builder(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    itemCount: _partners.length,
-                    itemBuilder: (_, i) {
-                      final p = _partners[i];
-                      return Card(
-                        child: ListTile(
-                          leading: p['photo_url'] != null
-                              ? CircleAvatar(
-                                  backgroundImage:
-                                      NetworkImage(p['photo_url'] as String))
-                              : const CircleAvatar(child: Icon(Icons.store)),
-                          title: Text(p['name'] as String? ?? '—'),
-                          subtitle: Text(p['category'] as String? ?? ''),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.star, color: Colors.amber),
-                            onPressed: () =>
-                                _unfavorite(p['name'] as String),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-      ),
+      body: RefreshIndicator(onRefresh: _load, child: body),
     );
   }
 }

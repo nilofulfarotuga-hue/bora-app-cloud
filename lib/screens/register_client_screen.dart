@@ -199,7 +199,7 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
                   onChanged: (_) => _saveDraft(),
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) {
-                      return 'Informe o seu email.'.tr;
+                      return 'Indica o teu email.'.tr;
                     }
                     if (!v.contains('@')) return 'Email inválido.'.tr;
                     return null;

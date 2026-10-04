@@ -327,7 +327,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
     final addressLine = context.select<CartStore, String>((store) {
       final street = store.dropoffStreet.trim();
       final city = store.dropoffCity.trim();
-      if (street.isEmpty && city.isEmpty) return 'Seleccionar endereço'.tr;
+      if (street.isEmpty && city.isEmpty) return 'Seleccionar morada'.tr;
       if (street.isEmpty) return city;
       if (city.isEmpty) return street;
       return '$street, $city';
@@ -520,7 +520,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                  'Escolhe um restaurante para reservar mesa. (BR §14)'.tr),
+                  'Escolhe um restaurante para reservar mesa.'.tr),
               duration: const Duration(seconds: 2),
             ),
           );
@@ -891,7 +891,7 @@ class _AddressPickerScreenState extends State<_AddressPickerScreen> {
       backgroundColor: AppColors.surface,
       appBar: AppBar(
         title: Text(
-          'Endereço de entrega'.tr,
+          'Morada de entrega'.tr,
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: AppColors.primary,
@@ -908,7 +908,7 @@ class _AddressPickerScreenState extends State<_AddressPickerScreen> {
           // morada é o caminho principal; o GPS é um atalho mais abaixo.
           AddressAutocompleteField(
             controller: _ctrl,
-            labelText: 'Pesquisar endereço'.tr,
+            labelText: 'Pesquisar morada'.tr,
             onSelected: _onAddressSelected,
           ),
           const SizedBox(height: Spacing.sm),
@@ -933,7 +933,7 @@ class _AddressPickerScreenState extends State<_AddressPickerScreen> {
             Padding(
               padding: const EdgeInsets.only(left: 4, bottom: 4),
               child: Text(
-                'Os meus endereços'.tr,
+                'As minhas moradas'.tr,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
@@ -944,7 +944,7 @@ class _AddressPickerScreenState extends State<_AddressPickerScreen> {
           ],
           ListTile(
             leading: const Icon(Icons.edit_location_alt_outlined),
-            title: Text('Gerir endereços'.tr),
+            title: Text('Gerir moradas'.tr),
             subtitle: Text('Adicionar, editar ou eliminar'.tr),
             trailing: const Icon(Icons.chevron_right),
             onTap: _openManageAddresses,
@@ -978,8 +978,8 @@ class _AddressPickerScreenState extends State<_AddressPickerScreen> {
               ),
               subtitle: Text(
                 session.hasHomeAddress
-                    ? 'Endereço guardado'.tr
-                    : 'Nenhum endereço guardado',
+                    ? 'Morada guardada'.tr
+                    : 'Nenhuma morada guardada'.tr,
               ),
               trailing: session.hasHomeAddress
                   ? const Icon(Icons.chevron_right)

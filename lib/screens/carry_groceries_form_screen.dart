@@ -106,7 +106,7 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
     if (pickupAddress.isEmpty || dropoffAddress.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text('Preencha os endereços da loja e de entrega.'.tr)),
+            content: Text('Preenche as moradas da loja e de entrega.'.tr)),
       );
       return;
     }
@@ -198,13 +198,13 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
             ),
             const SizedBox(height: 24),
             Text(
-              'Endereço de entrega'.tr,
+              'Morada de entrega'.tr,
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
             ),
             const SizedBox(height: 8),
             AddressAutocompleteField(
               controller: _dropoffController,
-              labelText: 'Pesquisar endereço de entrega'.tr,
+              labelText: 'Pesquisar morada de entrega'.tr,
               prefixIcon: const Icon(Icons.location_on_outlined),
               onSelected: (address, coords) {
                 setState(() => _dropoffLocation = coords);

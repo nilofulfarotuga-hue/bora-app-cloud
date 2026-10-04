@@ -232,7 +232,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                     ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Informe o seu email.'.tr;
+                        return 'Indica o teu email.'.tr;
                       }
                       if (!value.contains('@')) return 'Email inválido.'.tr;
                       return null;
@@ -272,7 +272,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Informe a palavra-passe.'.tr;
+                        return 'Indica a palavra-passe.'.tr;
                       }
                       return null;
                     },

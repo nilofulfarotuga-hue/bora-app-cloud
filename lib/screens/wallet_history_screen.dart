@@ -181,15 +181,15 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
     switch (tx.kind) {
       case 'settlement':
         icon = Icons.swap_horiz;
-        iconCol = Colors.deepPurple;
+        iconCol = AppColors.textSecondary;
         break;
       case 'forgive':
         icon = Icons.favorite;
-        iconCol = Colors.pink;
+        iconCol = AppColors.primary;
         break;
       case 'adjustment':
         icon = Icons.edit;
-        iconCol = Colors.orange;
+        iconCol = AppColors.warning;
         break;
       case 'debit':
         icon = Icons.shopping_basket;
@@ -214,7 +214,7 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
         break;
       case 'referral':
         icon = Icons.group;
-        iconCol = Colors.blue;
+        iconCol = AppColors.info;
         break;
       // BUG #1 backend (§53) — taxa de cancelamento
       case 'cancel_fee_debit':

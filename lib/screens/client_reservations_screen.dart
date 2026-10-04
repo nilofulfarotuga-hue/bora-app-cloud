@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_colors.dart';
+import '../models/falha_de_acao.dart';
 import '../models/reservation_model.dart';
 import '../stores/reservation_store.dart';
 import '../widgets/bora/bora.dart';
@@ -114,11 +115,16 @@ class _ClientReservationsScreenState extends State<ClientReservationsScreen>
     final messenger = ScaffoldMessenger.of(context);
     try {
       await context.read<ReservationStore>().markArrived(r.id);
+      if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(content: Text('Chegada confirmada. O parceiro foi avisado.'.tr)),
       );
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(e.toString())));
+      debugPrint('[ClientReservations] markArrived error: $e');
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(
+          content: Text(mensagemDeFalhaDeAcao(e,
+              trabalho: TrabalhoEmCurso.reserva))));
     }
   }
 

@@ -6,6 +6,7 @@ import '../../../config/app_spacing.dart';
 import '../../../models/appointment_model.dart';
 import '../../../stores/partner_appointments_store.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
+import '../../../utils/hora_lisboa.dart';
 
 /// Agenda do parceiro (vertical Serviços). Vista Hoje (default) + Semana.
 ///
@@ -272,14 +273,14 @@ class _AppointmentCard extends StatelessWidget {
   String _two(int v) => v.toString().padLeft(2, '0');
 
   String get _timeLabel {
-    final dt = appointment.scheduledAt.toLocal();
+    final dt = horaLisboa(appointment.scheduledAt);
     final time = '${_two(dt.hour)}:${_two(dt.minute)}';
     if (!showDate) return time;
     return '${_two(dt.day)}/${_two(dt.month)} · $time';
   }
 
   String _dateTimeLabel(DateTime utc) {
-    final dt = utc.toLocal();
+    final dt = horaLisboa(utc);
     return '${_two(dt.day)}/${_two(dt.month)} ${_two(dt.hour)}:${_two(dt.minute)}';
   }
 

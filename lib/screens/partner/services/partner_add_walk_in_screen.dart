@@ -121,7 +121,7 @@ class _PartnerAddWalkInScreenState extends State<PartnerAddWalkInScreen> {
       firstDate: DateTime(now.year, now.month, now.day),
       lastDate: now.add(const Duration(days: 90)),
     );
-    if (picked == null) return;
+    if (picked == null || !mounted) return;
     setState(() => _day = picked);
     _reloadSlots();
   }

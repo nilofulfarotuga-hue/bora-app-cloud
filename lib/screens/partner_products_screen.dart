@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_colors.dart';
 import '../models/partner_product.dart';
@@ -58,6 +59,59 @@ class _PartnerProductsScreenState extends State<PartnerProductsScreen> {
   Future<void> _toggleAvailability(
       PartnerProduct product, bool isAvailable) async {
     final store = context.read<PartnerProductStore>();
+    // 04/10/2026: esgotado rápido com volta automática (como a Glovo):
+    // ao desligar pergunta "até amanhã" (volta sozinho à meia-noite) ou
+    // "sem data". O servidor (partner_produto_esgotado) guarda esgotado_ate;
+    // o cron produtos-esgotados-voltam liga-o outra vez.
+    String modo = 'disponivel';
+    if (!isAvailable) {
+      final escolhido = await showModalBottomSheet<String>(
+        context: context,
+        builder: (sheetCtx) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: Text('${product.name} esgotado',
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
+              ),
+              ListTile(
+                leading: const Icon(Icons.schedule),
+                title: const Text('Esgotado só hoje'),
+                subtitle: const Text('Volta a aparecer sozinho amanhã.'),
+                onTap: () => Navigator.of(sheetCtx).pop('ate_amanha'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.block),
+                title: const Text('Esgotado até eu voltar a ligar'),
+                onTap: () => Navigator.of(sheetCtx).pop('sem_data'),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      );
+      if (escolhido == null || !mounted) return;
+      modo = escolhido;
+    }
+    try {
+      final r = await Supabase.instance.client.rpc(
+        'partner_produto_esgotado',
+        params: {'p_product_id': product.id, 'p_modo': modo},
+      );
+      if (r is! Map || r['ok'] != true) throw Exception('$r');
+    } catch (e) {
+      debugPrint('[PartnerProducts] partner_produto_esgotado: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Não foi possível atualizar a disponibilidade.'),
+          ),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
     // Store handles optimistic UI update + rollback on failure — no local
     // loading state needed here. Just await and show error if DB rejects.
     final success = await store.toggleAvailability(
@@ -314,7 +368,7 @@ class _ProductTile extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      product.isAvailable ? 'Disponível' : 'Indisponível',
+                      product.isAvailable ? 'Disponível' : 'Esgotado',
                       style: theme.textTheme.bodyMedium,
                     ),
                     const SizedBox(width: 8),

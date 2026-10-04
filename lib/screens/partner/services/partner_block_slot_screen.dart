@@ -74,7 +74,7 @@ class _PartnerBlockSlotScreenState extends State<PartnerBlockSlotScreen> {
       firstDate: DateTime(now.year, now.month, now.day),
       lastDate: now.add(const Duration(days: 90)),
     );
-    if (picked != null) setState(() => _day = picked);
+    if (picked != null && mounted) setState(() => _day = picked);
   }
 
   Future<void> _pickTime({required bool isStart}) async {
@@ -82,7 +82,7 @@ class _PartnerBlockSlotScreenState extends State<PartnerBlockSlotScreen> {
       context: context,
       initialTime: isStart ? _start : _end,
     );
-    if (picked == null) return;
+    if (picked == null || !mounted) return;
     setState(() {
       if (isStart) {
         _start = picked;

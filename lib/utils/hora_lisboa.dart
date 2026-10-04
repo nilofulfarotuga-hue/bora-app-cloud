@@ -25,3 +25,13 @@ String dataHoraLisboa(Object? iso) {
   String dd(int n) => n.toString().padLeft(2, '0');
   return '${dd(l.day)}/${dd(l.month)} ${dd(l.hour)}:${dd(l.minute)}';
 }
+
+/// Instante UTC da meia-noite (Lisboa) do dia de Lisboa que contém [instante].
+/// Para filtrar "hoje" em colunas timestamptz sem depender do fuso do telemóvel.
+DateTime inicioDiaLisboaUtc(DateTime instante) {
+  final u = instante.toUtc();
+  final l = horaLisboa(u);
+  final desvio = DateTime.utc(l.year, l.month, l.day, l.hour, l.minute, l.second)
+      .difference(DateTime.utc(u.year, u.month, u.day, u.hour, u.minute, u.second));
+  return DateTime.utc(l.year, l.month, l.day).subtract(desvio);
+}

@@ -217,7 +217,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     if (_soldByWeight) {
       if (parsedPrice <= 0) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Indique o preço por quilo.')),
+          const SnackBar(content: Text('Indica o preço por quilo.')),
         );
         return;
       }
@@ -233,7 +233,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     final category = _resolveCategory(_existingCategories);
     if (category.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Indique a categoria do produto.')),
+        const SnackBar(content: Text('Indica a categoria do produto.')),
       );
       return;
     }
@@ -595,7 +595,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
               labelText: 'Categoria do produto',
               prefixIcon: Icon(Icons.category_outlined),
             ),
-            hint: const Text('Selecione a categoria'),
+            hint: const Text('Escolhe a categoria'),
             items: [
               for (final category in existingCategories)
                 DropdownMenuItem(value: category, child: Text(category)),
@@ -818,7 +818,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Insira o nome do produto';
+                        return 'Escreve o nome do produto';
                       }
                       return null;
                     },
@@ -875,14 +875,14 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Indique o preço';
+                        return 'Indica o preço';
                       }
                       final parsed = _parsePrice(value);
                       if (parsed == null || parsed < 0) {
                         return 'Preço inválido';
                       }
                       if (_soldByWeight && parsed <= 0) {
-                        return 'Indique o preço por quilo';
+                        return 'Indica o preço por quilo';
                       }
                       return null;
                     },

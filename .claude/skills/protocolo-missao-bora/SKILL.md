@@ -86,6 +86,11 @@ CARTA DE AUTONOMIA (§4) — copiada por inteiro, nunca resumida.
 Regras do texto: português simples; um bloco por assunto; o que é dinheiro diz "dinheiro" no
 título do bloco; nunca "se der", "talvez", "vê se consegues" — ou está na ordem ou não está.
 
+**Missão que passa de uma sessão (04/10/2026):** no Bloco 0 cria `.claude/.ai/provas/<run_id>/ESPEC.md`
+com 4 coisas — objetivo, quem vai usar, fronteiras (o que NÃO se toca) e decisões já tomadas. Cada
+sessão nova (ou a mesma, quando o contexto sobe) **lê-o primeiro** e acrescenta cada decisão nova
+com data. Sem ele, cada sessão vai para um lado (lição do vídeo "Agent Skills", Addy Osmani).
+
 ## 3. MCP primeiro
 
 Antes de deduzir, **verifica**. Ler a base de dados é melhor do que adivinhar pelo código.
@@ -162,6 +167,11 @@ abordagem antes de agir. **Duas falhas iguais → muda de abordagem; nunca uma t
 Provas de dinheiro correm **primeiro em rollback** (`DO $$ … RAISE EXCEPTION 'RESULT %' … $$`)
 e só depois com pedido de teste real marcado `is_test_order`.
 
+**Quando algo parte, 5 passos por esta ordem (04/10/2026):** (1) reproduzir — ver o erro com os
+próprios olhos e guardar a prova; (2) localizar — onde nasce, não onde aparece; (3) reduzir — o caso
+mais pequeno que ainda falha; (4) corrigir; (5) proteger — um teste ou um SELECT de verificação que
+falharia se o erro voltasse. Nunca corrigir sem ter reproduzido primeiro.
+
 ## 6. Observabilidade — o rasto que fica
 
 - `public.e2e_log` (`fluxo` = `run_id`, `passo` = `b<bloco>.<sub>-<nome>`, `estado` ∈ ok ·
@@ -208,6 +218,12 @@ on conflict (pagina) do update set conteudo = excluded.conteudo, atualizado_em =
   quando o build local falha por ferramenta, corrige-se a ferramenta do PC (JDK portátil,
   `flutter config --jdk-dir`, `--android-skip-build-dependency-validation`), **nunca o Gradle do repo**.
 - Push por HTTPS/GCM; nunca `--force`; nunca `reset --hard`.
+- **Fiscal de segurança antes de publicar (04/10/2026)** — site, app, Edge Function ou tabela nova
+  só sai depois de 4 respostas "não/sim" certas, com a prova no `e2e_log`: (1) há chave ou segredo
+  no que vai para o navegador ou para um repo público? (`grep` por `service_role`, `sk_live`,
+  `sk_test`, `eyJ`, `AIza`, `ghp_`, `-----BEGIN`); (2) a tabela nova tem RLS ligada e política?;
+  (3) a Edge Function nova declara `verify_jwt` de propósito?; (4) sai algum dado pessoal (nome,
+  telefone, morada, histórico) para sítio público? Uma resposta errada → não publica, corrige primeiro.
 
 ## 10. Modelo de prompt curto de missão
 

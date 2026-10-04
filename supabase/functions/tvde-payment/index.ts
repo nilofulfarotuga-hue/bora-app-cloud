@@ -4,6 +4,10 @@
 // PADRAO UNICO (= delivery): cobra NA HORA e faz refund estilo
 // `client-cancel-order` (capado ao pago, menos a taxa). SEM authorize/capture.
 //
+// v18 (2026-10-04) — auditoria: `refund` pedido pelo cliente so de corrida
+//   cancelada/sem motorista/no-show (nunca de uma finalizada; o admin pode);
+//   `charge_roundtrip` calcula o preco do pacote com os km do servidor.
+//
 // v12 (2026-09-30) — MUDAR DESTINO a meio da corrida (missão tvde-mudar-destino):
 //   charge_dest_change / confirm_dest_change_payment (novas), no padrão das
 //   paragens. O valor é o da proposta gravada pelo servidor; o destino só muda
@@ -683,9 +687,17 @@ Deno.serve(async (req) => {
       const distanceKm = Number(body.distance_km ?? 0);
       if (!(distanceKm > 0)) return json({ error: 'invalid_distance' }, 400);
 
+      // 04/10 (auditoria C1): o preco do pacote usa os km do SERVIDOR (nunca
+      // menos que a linha reta x tvde_km_fator_minimo), como a corrida.
+      const { data: kmSeg } = await admin.rpc('_tvde_km_seguro', {
+        p_olat: Number(body.origin_lat), p_olng: Number(body.origin_lng),
+        p_dlat: Number(body.dest_lat), p_dlng: Number(body.dest_lng),
+        p_km: distanceKm,
+      });
+      const kmPreco = Math.max(distanceKm, Number(kmSeg ?? 0) || 0);
       const { data: priceData, error: priceErr } = await admin.rpc(
         'tvde_roundtrip_price_for_km',
-        { p_distance_km: distanceKm },
+        { p_distance_km: kmPreco },
       );
       const amountCents = Number(priceData ?? 0);
       if (priceErr || !(amountCents >= 50)) {

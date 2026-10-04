@@ -14,7 +14,6 @@ import '../../../config/maps_config.dart';
 import '../../../models/tvde_ride.dart';
 import '../../../services/directions_service.dart';
 import '../../../services/location_service.dart';
-import '../../../services/folha_cartao.dart';
 import '../../../services/payment_service.dart';
 import '../../../services/saved_card_checkout.dart';
 import '../../../services/tvde_conformidade_service.dart';
@@ -32,6 +31,7 @@ import 'tvde_my_reservations_screen.dart';
 import 'tvde_operador_plataforma_screen.dart';
 import 'tvde_plans_screen.dart';
 import 'tvde_queixas_screen.dart';
+import 'tvde_rate_screen.dart';
 import 'tvde_rides_history_screen.dart';
 import 'tvde_ride_tracking_screen.dart';
 import 'tvde_schedule_ride_sheet.dart';
@@ -110,6 +110,12 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       _idDaCompraRoundtrip ??= const Uuid().v4();
   int _roundtripSavingCents = 0;
   Map<String, dynamic>? _activeCredit; // vale-volta ativo (mostra "Chamar a volta")
+
+  /// [04/10/2026, caso Priscila] Pacote PAGO online cuja ida nunca chegou a
+  /// nascer. Não é uma "volta garantida": mostrar "Chamar a volta" sem ter
+  /// havido ida foi o que a cliente viu. Fica à parte, com a verdade escrita,
+  /// e só passa a vale de volta se o cliente disser que a ida já foi feita.
+  Map<String, dynamic>? _valeSemIda;
 
   // Cartão + MB Way só aparecem (na FOLHA de pagamento, depois do botão) se o
   // kill switch estiver ligado (`tvde_card_payments_enabled`). Preços do plano
@@ -203,6 +209,9 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       _openTracking();
       return;
     }
+    // [04/10] Corrida terminada com a app fechada: a avaliação aparece aqui,
+    // uma vez (as duas corridas de 04/10 ficaram sem avaliação do cliente).
+    unawaited(TvdeRateScreen.abrirSePendente(context));
     await _detectPickup();
     // [F3] vale ativo (para "Chamar a minha volta").
     final credit = await store.activeRoundtripCredit();
@@ -223,7 +232,13 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     if (mounted) {
       setState(() {
         _conf = conf;
-        _activeCredit = credit;
+        final semIda = credit != null &&
+            credit['outbound_ride_id'] == null &&
+            credit['return_ride_id'] == null &&
+            credit['payment_intent_id'] != null &&
+            credit['outbound_scheduled_at'] == null;
+        _activeCredit = semIda ? null : credit;
+        _valeSemIda = semIda ? credit : null;
         _cardEnabled = cardEnabled;
         _perKmCents = perKm;
         _baseKm = baseKm;
@@ -1380,70 +1395,22 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     // ecrã — ver `_idDaCompraRoundtrip`.
     final requestId = _idDaCompraRoundtripAtual();
 
-    // 1) PaymentIntent do preço dinâmico (server-side). MB Way confirma-se na
-    //    app do banco; cartão confirma-se já a seguir.
-    final created = isMbway
-        ? await store.createRoundtripPaymentMbway(mbwayPhone!, km,
-            tokensUsed: tokensUsed, requestId: requestId)
-        : await store.createRoundtripPayment(km,
-            tokensUsed: tokensUsed, requestId: requestId);
-    if (!mounted) return;
-    final paymentIntentId = created?['paymentIntentId'] as String?;
-    if (created == null || paymentIntentId == null) {
-      messenger.showSnackBar(SnackBar(
-          content: Text(isMbway
-              ? 'Não foi possível iniciar o MBWay. Confirma o número e tenta de novo.'.tr
-              : 'Não foi possível iniciar o pagamento da volta.')));
-      return;
-    }
-    // [30/08, ride 9f543c4b] Persistir JÁ o PaymentIntent: se a app morrer a
-    // partir daqui, a reabertura retoma a ativação sozinha (o servidor sabe
-    // encontrar a ida pendente mesmo sem o id dela).
-    await store.savePendingRoundtrip(paymentIntentId: paymentIntentId);
-    if (!mounted) return;
-    if (!isMbway) {
-      if (created['clientSecret'] == null) {
-        await store.clearPendingRoundtrip();
-        messenger.showSnackBar(SnackBar(
-            content: Text('Não foi possível iniciar o pagamento da volta.'.tr)));
-        return;
-      }
-      try {
-        await PaymentService().processPayment(
-          created['clientSecret'] as String,
-          vertical: 'tvde-roundtrip',
-          paymentIntentId: paymentIntentId,
-        );
-      } catch (_) {
-        // Sheet abandonada: um PI de cartão nunca passa sem esta confirmação,
-        // por isso o par pendente morre aqui.
-        await store.clearPendingRoundtrip();
-        if (!mounted) return;
-        messenger.showSnackBar(
-            SnackBar(content: Text('Pagamento cancelado.'.tr)));
-        return;
-      }
-    }
-
-    // 2) Corrida de IDA — tem de existir ANTES do `activate_roundtrip`, porque é
-    //    ela que fica ligada ao vale (`tvde_rides.roundtrip_credit_id`). Sem essa
-    //    ligação o `tvde_finish_ride` não a trata como pré-paga e o cliente
-    //    pagaria a ida outra vez.
-    //    BUG 6 (2026-08-13) — o `paymentMethod` ficava no DEFAULT ('cash'), e
-    //    isso não era cosmético: `fn_tvde_dispatch_on_request` despacha na hora
-    //    toda a corrida que nasce em dinheiro. Resultado provado na corrida
-    //    81d1bd09 (20:10:43): a ida nasceu 'cash', o motorista foi chamado no
-    //    MESMO milissegundo, aceitou 15 s depois e pôs-se a caminho — tudo com
-    //    o cliente ainda parado no ecrã do MB Way. Aos 20:12 caiu em
-    //    'payment_failed'. O método real TEM de ir aqui.
-    //    O receio antigo ("marcá-la 'card' faz o backend procurar um PI dela
-    //    que não existe") continua válido e continua tratado: o PI dos €8 vive
-    //    no VALE, esta corrida não tem `payment_intent_id`. Quem a liberta
-    //    passa a ser o `activate_roundtrip` → `tvde_create_roundtrip_credit`,
-    //    que marca `payment_status='succeeded'` ao ligar o vale e deixa o
-    //    `tr_tvde_dispatch_on_paid` despachar. Um só mecanismo, o mesmo da
-    //    corrida normal paga online.
+    // 1) Corrida de IDA — nasce no SERVIDOR ANTES de se abrir o cartão.
+    //
+    //    [04/10/2026, cliente Priscila, Safari do iPhone] Era ao contrário:
+    //    cobrava-se primeiro e a ida só nascia depois, nesta página. Na web o
+    //    cartão sai da página (mesmo separador / 3-D Secure) e ela morre: a
+    //    cliente pagou 9,60 EUR, a ida nunca foi criada, nenhum motorista foi
+    //    chamado e ninguém soube. Agora a ida fica guardada e parqueada
+    //    (cartão/MB Way sem `payment_status` não despacha — BUG 6, 13/08) e
+    //    quem a liberta é o SERVIDOR: o `stripe-webhook` cria o vale, liga-lhe
+    //    esta ida e o `tr_tvde_dispatch_on_paid` chama o motorista. Nada
+    //    depende de esta página continuar aberta. Se o pagamento nunca chegar,
+    //    o cron `tvde-sweep-abandoned-payments` cancela-a sem despachar.
+    //
+    //    O PI do pacote vive no VALE; esta corrida não tem `payment_intent_id`.
     TvdeRide? ida;
+    Object? erroIda;
     try {
       ida = await store.requestRide(
         originLat: _pickup!.latitude,
@@ -1456,29 +1423,95 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         paymentMethod: isMbway ? 'mbway' : 'card',
       );
     } catch (e) {
-      // 2026-10-03: era `catch (_) {}` — o cliente via "fala com o suporte" e
-      // ninguém sabia porquê. Pago e sem corrida: o Danilo tem de saber já
-      // (Telegram + painel "Pagamentos presos").
-      debugPrint('[TVDE] ida-e-volta pago mas a ida falhou: $e');
-      registarFalhaPagamento(
-        vertical: 'tvde_ida_volta',
-        fase: 'criar_ida_apos_pagamento',
-        erro: '$e',
-        referenciaId: paymentIntentId,
-      );
+      erroIda = e;
+      debugPrint('[TVDE] ida-e-volta: a ida não nasceu (nada cobrado): $e');
     }
     if (!mounted) return;
     if (ida == null) {
-      // O par pendente FICA guardado: o pagamento existe, e o servidor sabe
-      // criar o vale (e encontrar/libertar a ida) quando o poll retomar.
+      final s = '$erroIda';
       messenger.showSnackBar(SnackBar(
-          content:
-              Text('Pago, mas falhou criar a corrida. Fala com o suporte.'.tr)));
+          content: Text(s.contains('ride_in_progress')
+              ? 'Já tens uma corrida em curso.'.tr
+              : s.contains('card_payments_not_enabled')
+                  ? 'Pagamento por cartão ainda não está disponível.'.tr
+                  : 'Não foi possível pedir a corrida. Não foste cobrado.'.tr)));
       return;
     }
-    // Ida criada → completa o par pendente com o id dela.
+    final idaId = ida.id;
+
+    // Larga a ida que ficou por pagar. Sem refund: não houve cobrança.
+    Future<void> largarIda() async {
+      await store.clearPendingRoundtrip();
+      try {
+        await store.cancelRide(idaId,
+            reason: 'payment_failed', skipRefund: true);
+      } catch (_) {/* o cron limpa (payment_abandoned) */}
+      store.clearActiveRide();
+    }
+
+    // 2) PaymentIntent do preço dinâmico (server-side). MB Way confirma-se na
+    //    app do banco; cartão confirma-se já a seguir.
+    final created = isMbway
+        ? await store.createRoundtripPaymentMbway(mbwayPhone!, km,
+            tokensUsed: tokensUsed, requestId: requestId)
+        : await store.createRoundtripPayment(km,
+            tokensUsed: tokensUsed, requestId: requestId);
+    if (!mounted) return;
+    final paymentIntentId = created?['paymentIntentId'] as String?;
+    if (created == null ||
+        paymentIntentId == null ||
+        (!isMbway && created['clientSecret'] == null)) {
+      await largarIda();
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(
+          content: Text(isMbway
+              ? 'Não foi possível iniciar o MBWay. Confirma o número e tenta de novo.'.tr
+              : 'Não foi possível iniciar o pagamento da volta.'.tr)));
+      return;
+    }
+    // [30/08, ride 9f543c4b] Persistir JÁ o par (ida, PaymentIntent): se a app
+    // morrer a partir daqui, a reabertura retoma a ativação sozinha.
     await store.savePendingRoundtrip(
-        paymentIntentId: paymentIntentId, outboundRideId: ida.id);
+        paymentIntentId: paymentIntentId, outboundRideId: idaId);
+    if (!mounted) return;
+    if (!isMbway) {
+      try {
+        // `referenciaId` = a ida: é o que deixa a retoma web
+        // (`retoma_pagamento_web.dart`) saber que corrida mostrar ao voltar.
+        await PaymentService().processPayment(
+          created['clientSecret'] as String,
+          vertical: 'tvde-roundtrip',
+          referenciaId: idaId,
+          paymentIntentId: paymentIntentId,
+        );
+      } catch (_) {
+        // A folha fechou/falhou. Pode ter rebentado DEPOIS de o pagamento
+        // passar — pergunta-se ao servidor antes de largar a ida.
+        final estado =
+            await store.activateRoundtripDetailed(idaId, paymentIntentId);
+        if (!mounted) return;
+        if (estado == 'failed') {
+          await largarIda();
+          if (!mounted) return;
+          messenger.showSnackBar(SnackBar(
+              content: Text(
+                  'Pagamento cancelado. A corrida não foi pedida e não foste cobrado.'
+                      .tr)));
+          return;
+        }
+        if (estado != 'ok') {
+          // 'pending'/'unknown': o dinheiro pode estar a caminho. Não se
+          // cancela às cegas; o servidor (webhook) e o poll fecham o resto.
+          unawaited(store.resumePendingRoundtripActivation());
+          messenger.showSnackBar(SnackBar(
+              content: Text(
+                  'A confirmar o pagamento… Se foi aprovado, a corrida segue sozinha dentro de momentos.'
+                      .tr)));
+          _openTracking();
+          return;
+        }
+      }
+    }
     // Esta compra está feita: o id sai de cena. Sem isto, um segundo pacote
     // igual (mesma rota, mesmo preço) na mesma sessão do ecrã reusava a chave
     // e a Stripe devolvia o PaymentIntent ANTIGO — a segunda compra não era
@@ -1494,7 +1527,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         context: context,
         barrierDismissible: false,
         builder: (_) => TvdeRideMbwayWaitingDialog.forRoundtrip(
-          outboundRideId: ida!.id,
+          outboundRideId: idaId,
           paymentIntentId: paymentIntentId,
           amountEur: priceEur,
         ),
@@ -1505,7 +1538,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         // que o PaymentIntent NÃO passou — o diálogo pode ter morrido (app
         // fechada, timeout) com o dinheiro já cobrado ou a caminho.
         final estado =
-            await store.activateRoundtripDetailed(ida.id, paymentIntentId);
+            await store.activateRoundtripDetailed(idaId, paymentIntentId);
         if (!mounted) return;
         if (estado == 'ok') {
           // Afinal passou (o diálogo é que já cá não estava). Seguir normal.
@@ -1514,7 +1547,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
           // Terminal na Stripe: aqui sim, cancela-se — nada foi cobrado.
           await store.clearPendingRoundtrip();
           try {
-            await store.cancelRide(ida.id,
+            await store.cancelRide(idaId,
                 reason: 'payment_failed', skipRefund: true);
           } catch (_) {/* o cron limpa (payment_timeout) */}
           if (!mounted) return;
@@ -1535,7 +1568,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       }
     } else {
       try {
-        final ativado = await store.activateRoundtrip(ida.id, paymentIntentId);
+        final ativado = await store.activateRoundtrip(idaId, paymentIntentId);
         if (ativado) {
           await store.clearPendingRoundtrip();
         } else {
@@ -1556,7 +1589,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     }
 
     final trimmed = note?.trim() ?? '';
-    if (trimmed.isNotEmpty) await store.setRideNote(ida.id, trimmed);
+    if (trimmed.isNotEmpty) await store.setRideNote(idaId, trimmed);
     if (!mounted) return;
     // Pacote pago por cartão ou MB Way: a mesma pergunta da volta (24/09/2026). O id do vale
     // não vem do `activate_roundtrip`, por isso pergunta-se ao servidor qual é o vale ativo
@@ -1739,6 +1772,16 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Pacote pago sem ida: dizer a verdade, nunca "Chamar a volta".
+            if (_valeSemIda != null) ...[
+              _ValeSemIdaCard(
+                onJaFizAIda: () => setState(() {
+                  _activeCredit = _valeSemIda;
+                  _valeSemIda = null;
+                }),
+              ),
+              const SizedBox(height: Spacing.md),
+            ],
             // [F3] vale-volta ativo → "Chamar a minha volta".
             if (_activeCredit != null) ...[
               _ReturnCreditCard(
@@ -2695,6 +2738,46 @@ class _ReturnCreditCard extends StatelessWidget {
                 backgroundColor: Colors.white,
                 foregroundColor: AppColors.primary),
             child: Text('Chamar a volta'.tr),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Pacote ida-e-volta pago online cuja corrida de ida não chegou a nascer
+/// (04/10/2026). A Bora é avisada pelo servidor em 2 minutos; aqui o cliente
+/// lê o que se passa em vez de um "Chamar a volta" que não faz sentido.
+class _ValeSemIdaCard extends StatelessWidget {
+  const _ValeSemIdaCard({required this.onJaFizAIda});
+  final VoidCallback onJaFizAIda;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(Spacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        border: Border.all(color: AppColors.primary),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Pagaste a ida e volta, mas a ida não chegou a ser pedida'.tr,
+              style: const TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 4),
+          Text(
+              'O teu pagamento está guardado e a Bora já foi avisada — vamos falar contigo. Não precisas de pagar outra vez.'
+                  .tr,
+              style: const TextStyle(
+                  fontSize: 13, color: AppColors.textSecondary)),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: onJaFizAIda,
+              child: Text('Já fiz a ida — chamar a volta'.tr),
+            ),
           ),
         ],
       ),

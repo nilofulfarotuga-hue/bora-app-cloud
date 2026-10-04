@@ -27,6 +27,14 @@ import 'notification_service.dart';
 Future<void> tvdeResponderOfertaGlobal(String rideId, String actionId) async {
   if (rideId.isEmpty) return;
 
+  // [Nada por cima · 04/10] Respondeu: o aviso morre JÁ, pelo mesmo id com
+  // que nasceu (`rideId.hashCode`), e com ele o som em ciclo e a janela
+  // sobreposta. O Aceitar não o apaga sozinho (`cancelNotification: false`) e
+  // antes só morria quando o store aceitava — depois da espera pelo arranque
+  // aqui em baixo. Se a app não chegasse a montar, ficava a tocar por cima da
+  // corrida até ao fim do prazo.
+  unawaited(cancelTvdeRideNotification(rideId));
+
   // Arranque a frio: o navegador e a sessão podem demorar a estar prontos.
   BuildContext? ctx;
   for (var tentativa = 0; tentativa < 10; tentativa++) {
@@ -46,6 +54,17 @@ Future<void> tvdeResponderOfertaGlobal(String rideId, String actionId) async {
 
   switch (actionId) {
     case kTvdeOfferAcceptAction:
+      // [É dele · 04/10] Já é dele (ou o aceite já vai a caminho, pelo cartão
+      // ou pelo ecrã): um segundo aceite falhava no servidor e mostrava "já
+      // não está disponível" por cima da corrida que ele acabou de aceitar.
+      if (store.aceiteEmCurso(rideId) ||
+          store.activeRide?.id == rideId ||
+          store.queuedRide?.id == rideId) {
+        if (store.activeRide?.id == rideId) {
+          await abrirCorridaActivaSeFechada();
+        }
+        return;
+      }
       try {
         final r = await store.acceptOffer(rideId);
         unawaited(cancelTvdeRideNotification(rideId));

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 // `flutter_stripe` exporta `Card` que colide com Material `Card`.
 import 'package:flutter_stripe/flutter_stripe.dart' hide Card;
@@ -180,25 +181,37 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
       } else {
         // b) Inicializar Payment Sheet — PADRÃO CANÓNICO BORA APP.
         // b+c) Preparar e apresentar — porta única (folha_cartao.dart, 2026-10-03).
-        await apresentarFolhaCartao(
-          SetupPaymentSheetParameters(
-            paymentIntentClientSecret: clientSecret,
-            merchantDisplayName: 'BORA APP'.tr,
-            style: ThemeMode.system,
-            billingDetailsCollectionConfiguration:
-                const BillingDetailsCollectionConfiguration(
-              name: CollectionMode.always,
+        // [04/10/2026] Na web a folha nativa não existe (rebentava antes de
+        // cobrar e a reserva ficava órfã em `pending_payment`). Vai pelo
+        // checkout web: a reserva já está criada e quem a confirma é o
+        // `stripe-webhook`, mesmo que a página morra a meio.
+        if (kIsWeb) {
+          await PaymentService().processPayment(
+            clientSecret,
+            vertical: 'reserva_mesa',
+            referenciaId: reservationId,
+          );
+        } else {
+          await apresentarFolhaCartao(
+            SetupPaymentSheetParameters(
+              paymentIntentClientSecret: clientSecret,
+              merchantDisplayName: 'BORA APP'.tr,
+              style: ThemeMode.system,
+              billingDetailsCollectionConfiguration:
+                  const BillingDetailsCollectionConfiguration(
+                name: CollectionMode.always,
+              ),
+              applePay: boraApplePay,
+              googlePay: const PaymentSheetGooglePay(
+                merchantCountryCode: 'PT',
+                currencyCode: 'EUR',
+                testEnv: false,
+              ),
             ),
-            applePay: boraApplePay,
-            googlePay: const PaymentSheetGooglePay(
-              merchantCountryCode: 'PT',
-              currencyCode: 'EUR',
-              testEnv: false,
-            ),
-          ),
-          vertical: 'reserva_mesa',
-          referenciaId: reservationId,
-        );
+            vertical: 'reserva_mesa',
+            referenciaId: reservationId,
+          );
+        }
       }
 
       // d) Sucesso — confirmar via RPC fallback.

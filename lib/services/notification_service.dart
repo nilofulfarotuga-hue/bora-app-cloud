@@ -289,6 +289,12 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         payload: jsonEncode({'type': 'new_tvde_ride_offer', 'rideId': rideId}),
       );
       debugPrint('[BORA-TVDE] BG full-screen offer notif posted ride=$rideId');
+      // [Nada por cima · 04/10] Como em primeiro plano: respondeu durante o
+      // próprio `show` (o cancelar correu antes de o aviso existir) → mata-se
+      // agora, senão fica a tocar por cima da corrida já aceite.
+      if (await ofertaTvdeJaTratadaPersistida(rideId, prazo: prazo)) {
+        await plugin.cancel(rideId.hashCode);
+      }
     } catch (e) {
       debugPrint('[BORA-TVDE] BG offer notif error: $e');
     }
@@ -1275,6 +1281,34 @@ const String kTvdeOfferRejectAction = 'tvde_reject_ride';
 const String kTvdeReservationAcceptAction = 'tvde_reservation_accept';
 const String kTvdeReservationRejectAction = 'tvde_reservation_reject';
 
+/// [Nada por cima · 04/10] As acções da notificação de oferta TVDE, para o
+/// arranque a frio (ver `getNotificationAppLaunchDetails` no `init()`).
+const Set<String> _kTvdeOfferActionIds = <String>{
+  kTvdeOfferAcceptAction,
+  kTvdeOfferRejectAction,
+  kTvdeReservationAcceptAction,
+  kTvdeReservationRejectAction,
+};
+bool _accaoTvdeAFrioEntregue = false;
+
+/// Entrega a acção ao gancho global (`NotificationService.tvdeOfferAction`,
+/// registado no `main.dart`). Num arranque a frio o gancho pode ainda não
+/// existir quando o `init()` corre: espera-se por ele uns segundos. O próprio
+/// gancho já espera pelo navegador e pela sessão.
+Future<void> _entregarAccaoTvdeAFrio(String rideId, String accao) async {
+  if (rideId.isEmpty) return;
+  for (var tentativa = 0; tentativa < 20; tentativa++) {
+    final gancho = NotificationService.tvdeOfferAction;
+    if (gancho != null) {
+      debugPrint('[BORA-TVDE] arranque a frio pela acção $accao ride=$rideId');
+      gancho(rideId, accao);
+      return;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+  }
+  debugPrint('[BORA-TVDE] acção $accao a frio sem gancho — ignorada');
+}
+
 /// As duas acções da notificação de oferta. Pura (sem plugin) para se poder
 /// testar: [reserva] escolhe os ids da reserva agendada.
 List<AndroidNotificationAction> tvdeOfferNotificationActions(
@@ -2015,6 +2049,20 @@ class NotificationService {
           payload != null &&
           payload.isNotEmpty) {
         final data = jsonDecode(payload) as Map<String, dynamic>;
+        // [Nada por cima · 04/10] App MORTA + botão Aceitar da notificação de
+        // oferta TVDE: o callback de toque não dispara num arranque a frio —
+        // a acção vem só nos launch details. Sem isto o Aceitar perdia-se: a
+        // app abria, o aviso continuava a tocar (`cancelNotification: false`)
+        // e a oferta voltava a aparecer como se ele não tivesse respondido.
+        // Uma vez por processo (os launch details não mudam entre `init()`s).
+        final accaoFrio = launch?.notificationResponse?.actionId;
+        if (accaoFrio != null &&
+            _kTvdeOfferActionIds.contains(accaoFrio) &&
+            !_accaoTvdeAFrioEntregue) {
+          _accaoTvdeAFrioEntregue = true;
+          unawaited(_entregarAccaoTvdeAFrio(
+              data['rideId']?.toString() ?? '', accaoFrio));
+        }
         if (data['type'] == 'chat') {
           final orderId = data['orderId']?.toString() ?? '';
           final conv = data['conversation_type']?.toString();

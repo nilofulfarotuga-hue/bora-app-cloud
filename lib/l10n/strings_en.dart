@@ -1745,6 +1745,18 @@ const Map<String, String> kStringsEn = <String, String>{
       'MBWay payment not confirmed or expired.',
   'Pagamento cancelado ou recusado.':
       'Payment cancelled or declined.',
+  'Não foi possível pedir a corrida. Não foste cobrado.':
+      "We couldn't request the ride. You were not charged.",
+  'Pagamento cancelado. A corrida não foi pedida e não foste cobrado.':
+      "Payment cancelled. The ride was not requested and you were not charged.",
+  'A confirmar o pagamento… Se foi aprovado, a corrida segue sozinha dentro de momentos.':
+      "Confirming the payment… If it was approved, your ride will go ahead by itself in a moment.",
+  'Pagaste a ida e volta, mas a ida não chegou a ser pedida':
+      "You paid for the round trip, but the outbound ride was never requested",
+  'O teu pagamento está guardado e a Bora já foi avisada — vamos falar contigo. Não precisas de pagar outra vez.':
+      "Your payment is safe and Bora has been notified — we'll get in touch. You don't need to pay again.",
+  'Já fiz a ida — chamar a volta':
+      "I already took the outbound ride — call the return",
   'Pagamento cancelado.':
       'Payment cancelled.',
   'Pagamento cancelado. A corrida não foi pedida.':

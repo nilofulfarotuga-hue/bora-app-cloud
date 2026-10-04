@@ -46,6 +46,10 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
   /// de outra operação (bug do teste no device).
   bool _acting = false;
 
+  /// [É dele · 04/10] O Aceitar DESTE ecrã vai a caminho do servidor (o
+  /// `_acting` também serve o Recusar, por isso não chega para o rótulo).
+  bool _aceitando = false;
+
   /// Som CONTÍNUO da oferta (padrão Uber/estafeta) — mesmo `SoundService` +
   /// `bora_alert.wav` que o fluxo de entrega usa em `playLoop`. Instância
   /// própria (AudioPlayer isolado, ver doc do SoundService).
@@ -154,6 +158,7 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
   Future<void> _accept() async {
     if (_acting) return;
     _acting = true;
+    _aceitando = true;
     final store = context.read<TvdeDriverStore>();
     _closing = true; // guarda contra duplo-pop durante o rebuild reativo
     _ticker?.cancel();
@@ -245,7 +250,21 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
         _fecharEstaRota();
       });
     }
-    final countdownLabel = secs > 0 ? '$secs s' : 'A reatribuir…';
+    // [É dele · 04/10 · corrida 8c7f5ca6] Com o aceite a caminho do servidor
+    // (por este ecrã ou pelo botão da notificação) o prazo já não conta: não
+    // se diz "A reatribuir…" de uma corrida que ele acabou de aceitar.
+    // [Nada por cima · 04/10] Aceitou pelo botão da NOTIFICAÇÃO com este ecrã
+    // aberto: o som em ciclo cala-se já e os botões daqui deixam de responder
+    // (um segundo aceite falhava). O ecrã fecha quando a corrida for dele —
+    // ou, se o aceite falhar, quando o gancho limpar a oferta.
+    if (!_aceitando && store.aceiteEmCurso(ride.id)) {
+      _aceitando = true;
+      _acting = true;
+      _sound?.stop();
+    }
+    final countdownLabel = _aceitando
+        ? 'A aceitar…'
+        : (secs > 0 ? '$secs s' : 'A reatribuir…');
 
     // [Item C] o motorista vê o SEU líquido (ganho), não o total do cliente.
     // [Balcão] o valor combinado manda quando existe — nunca recalculado aqui.

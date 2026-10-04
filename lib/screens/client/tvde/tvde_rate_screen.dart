@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -16,6 +18,19 @@ import '../../../l10n/tr.dart';
 class TvdeRateScreen extends StatefulWidget {
   const TvdeRateScreen({super.key, required this.ride});
   final TvdeRide ride;
+
+  /// [04/10 · corridas 0d979026 e 8c7f5ca6] Abre a avaliação da última corrida
+  /// terminada que ficou por avaliar — a que o `TvdeStore.loadActiveRide`
+  /// deixou em `rideAwaitingRating`. Serve o caso em que `finalizada` chegou
+  /// com a app fechada (ou o separador recarregado): o ecrã da corrida já não
+  /// existia e ninguém voltava a pedir as estrelas. Sem pendente, não faz nada.
+  static Future<void> abrirSePendente(BuildContext context) async {
+    final ride = context.read<TvdeStore>().rideAwaitingRating;
+    if (ride == null || !ride.aguardaAvaliacaoCliente) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => TvdeRateScreen(ride: ride)),
+    );
+  }
 
   @override
   State<TvdeRateScreen> createState() => _TvdeRateScreenState();
@@ -125,7 +140,12 @@ class _TvdeRateScreenState extends State<TvdeRateScreen> {
     // ficava pendurada no store.
     return PopScope(
       onPopInvokedWithResult: (didPop, _) {
-        if (didPop) context.read<TvdeStore>().clearActiveRide();
+        if (!didPop) return;
+        final store = context.read<TvdeStore>();
+        store.clearActiveRide();
+        // [04/10] Visto uma vez (enviada ou "Agora não") → não se volta a
+        // pedir esta avaliação a cada abertura da app.
+        unawaited(store.dismissRideAwaitingRating(widget.ride.id));
       },
       child: Scaffold(
         appBar: BoraScreenAppBar(title: 'Avaliar viagem'.tr),

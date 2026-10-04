@@ -22,6 +22,7 @@ import 'services/push_token_service.dart';
 import 'services/bloqueio_service.dart';
 import 'services/remote_fees_service.dart';
 import 'services/small_order_fee.dart';
+import 'services/retoma_corrida_tvde.dart';
 import 'services/retoma_pagamento_web.dart';
 import 'services/tvde_reservation_ready_handler.dart';
 import 'services/tvde_offer_action_handler.dart';
@@ -67,6 +68,7 @@ import 'screens/admin/admin_pendencias_operacao_screen.dart';
 import 'screens/admin/admin_motoristas_documentos_screen.dart';
 import 'screens/admin/admin_conformidade_legal_screen.dart';
 import 'screens/admin/admin_receipts_screen.dart';
+import 'screens/admin/admin_tvde_pagos_sem_corrida_screen.dart';
 import 'screens/admin/admin_tvde_roundtrips_screen.dart';
 import 'screens/admin/admin_drivers_screen.dart';
 import 'screens/admin/admin_tvde_cancellations_screen.dart';
@@ -724,6 +726,12 @@ Future<void> main() async {
     });
   }
 
+  // Corrida TVDE a decorrer quando a app (re)arranca: volta sozinha para o
+  // ecrã da corrida. Ver `services/retoma_corrida_tvde.dart` — 04/10/2026.
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(retomarCorridaTvdeViva());
+  });
+
   runApp(MyApp(
     sessionStore: sessionStore,
     consentStore: consentStore,
@@ -1007,6 +1015,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           '/admin/conformidade': (_) => const AdminConformidadeLegalScreen(),
           '/admin/reembolsos': (_) => const AdminReceiptsScreen(),
           '/admin/tvde/ida-e-volta': (_) => const AdminTvdeRoundtripsScreen(),
+          '/admin/tvde/pagos-sem-corrida': (_) =>
+              const AdminTvdePagosSemCorridaScreen(),
           '/admin/drivers': (_) => const AdminDriversScreen(),
           '/admin/tvde/cancelamentos': (_) =>
               const AdminTvdeCancellationsScreen(),

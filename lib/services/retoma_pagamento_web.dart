@@ -14,6 +14,8 @@
 /// nunca é motivo para cancelar às cegas — pode ter sido cobrado.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -49,6 +51,15 @@ Future<void> retomarPagamentoWebPendente() async {
   // verticais caem na mensagem neutra: o ecrã delas já faz o seu próprio poll.
   if (pendente.vertical == 'tvde' && pendente.referenciaId != null) {
     await _retomarTvde(ctx, pendente);
+    return;
+  }
+
+  // Pacote ida-e-volta (04/10/2026, caso Priscila): a ida já existe no
+  // servidor desde antes do cartão; aqui só se lê o desfecho e se mostra a
+  // corrida. Antes caía na mensagem neutra e a ida nunca nascia.
+  if (pendente.vertical == 'tvde-roundtrip' &&
+      pendente.paymentIntentId != null) {
+    await _retomarPacote(ctx, pendente);
     return;
   }
 
@@ -136,6 +147,57 @@ Future<void> _retomarTvde(
   }
   limparPagamentoWebPendente();
   if (!ctx.mounted) return;
+  _abrirAcompanhamento(ctx);
+}
+
+/// Regresso do cartão do pacote ida-e-volta. Quem liberta a ida é o servidor
+/// (webhook); o `activate_roundtrip` daqui é só o acelerador, idempotente.
+Future<void> _retomarPacote(
+    BuildContext ctx, PagamentoWebPendente pendente) async {
+  final store = ctx.read<TvdeStore>();
+  final pi = pendente.paymentIntentId!;
+  final rideId = pendente.referenciaId;
+
+  final estado = await store.activateRoundtripDetailed(rideId, pi);
+  limparPagamentoWebPendente();
+  if (!ctx.mounted) return;
+
+  if (estado == 'ok') {
+    await store.clearPendingRoundtrip();
+    await store.refreshActiveRide();
+    if (!ctx.mounted) return;
+    _abrirAcompanhamento(ctx);
+    return;
+  }
+
+  // Terminal na Stripe (voltou sem pagar): a ida estacionada larga-se já,
+  // para o cliente não ficar preso a uma corrida que nunca vai despachar.
+  if (estado == 'failed') {
+    await store.clearPendingRoundtrip();
+    if (rideId != null) {
+      try {
+        await store.cancelRide(rideId,
+            reason: 'payment_failed', skipRefund: true);
+      } catch (_) {/* o cron limpa (payment_abandoned) */}
+    }
+    store.clearActiveRide();
+    if (!ctx.mounted) return;
+    _aviso(
+        ctx,
+        'Pagamento cancelado. A corrida não foi pedida e não foste cobrado.'
+            .tr);
+    return;
+  }
+
+  // 'pending'/'unknown': o dinheiro pode estar a caminho — nunca cancelar às
+  // cegas. O poll de fundo e o servidor fecham; o cliente vê o estado real.
+  unawaited(store.resumePendingRoundtripActivation());
+  await store.refreshActiveRide();
+  if (!ctx.mounted) return;
+  _aviso(
+      ctx,
+      'A confirmar o pagamento… Se foi aprovado, a corrida segue sozinha dentro de momentos.'
+          .tr);
   _abrirAcompanhamento(ctx);
 }
 

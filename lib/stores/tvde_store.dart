@@ -224,6 +224,62 @@ class TvdeStore extends ChangeNotifier {
   TvdeRide? _activeRide;
   TvdeRide? get activeRide => _activeRide;
 
+  // [04/10 · corridas 0d979026 e 8c7f5ca6] Última corrida TERMINADA que o
+  // cliente ainda não avaliou. As duas corridas desse dia ficaram com
+  // `rated_by_client=false`: a avaliação só nascia dentro do ecrã da corrida,
+  // e se esse ecrã já não existisse quando chegava `finalizada` (app fechada,
+  // separador do Safari recarregado) ninguém voltava a pedir as estrelas —
+  // o `loadActiveRide` só procura corridas vivas. Preenchida por ele quando
+  // não há corrida viva; quem abre o ecrã é `TvdeRateScreen.abrirSePendente`.
+  TvdeRide? _rideAwaitingRating;
+  TvdeRide? get rideAwaitingRating => _rideAwaitingRating;
+
+  /// Janela em que ainda faz sentido pedir a avaliação ao reabrir a app.
+  static const Duration kJanelaAvaliacaoPendente = Duration(hours: 24);
+  static const _kRatingDismissedKey = 'bora_tvde.rating_dismissed_ride';
+
+  /// O cliente já viu o ecrã de avaliação desta corrida (enviou, ou disse
+  /// "Agora não"): não se volta a pedir a cada abertura da app.
+  Future<void> dismissRideAwaitingRating(String rideId) async {
+    if (_rideAwaitingRating?.id == rideId) _rideAwaitingRating = null;
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.setString(_kRatingDismissedKey, rideId);
+    } catch (e) {
+      debugPrint('TvdeStore.dismissRideAwaitingRating error => $e');
+    }
+  }
+
+  /// Procura a última corrida finalizada e por avaliar. Nunca lança: a
+  /// avaliação é cortesia, não pode estragar a abertura do ecrã de pedir.
+  Future<void> _loadRideAwaitingRating(String uid) async {
+    try {
+      final desde = DateTime.now()
+          .toUtc()
+          .subtract(kJanelaAvaliacaoPendente)
+          .toIso8601String();
+      final rows = await _sb
+          .from('tvde_rides')
+          .select()
+          .eq('client_id', uid)
+          .eq('status', 'finalizada')
+          .eq('rated_by_client', false)
+          .gte('created_at', desde)
+          .order('created_at', ascending: false)
+          .limit(1);
+      if (rows.isEmpty) {
+        _rideAwaitingRating = null;
+        return;
+      }
+      final ride = TvdeRide.fromMap(rows.first);
+      final p = await SharedPreferences.getInstance();
+      _rideAwaitingRating =
+          p.getString(_kRatingDismissedKey) == ride.id ? null : ride;
+    } catch (e) {
+      debugPrint('TvdeStore._loadRideAwaitingRating error => $e');
+    }
+  }
+
   // clientSecret do PaymentIntent da corrida ativa (só memória, só cartão).
   // Serve o "Pagar de novo" quando o cliente abre a PaymentSheet e volta sem
   // pagar (2026-08-16, corrida d947b446): o mesmo PI pode ser re-apresentado.
@@ -910,8 +966,11 @@ class TvdeStore extends ChangeNotifier {
       if (rows.isNotEmpty) {
         _activeRide = TvdeRide.fromMap(rows.first);
         _subscribeRide(_activeRide!.id);
+        _rideAwaitingRating = null;
       } else {
         _activeRide = null;
+        // [04/10] Sem corrida viva: há alguma terminada por avaliar?
+        await _loadRideAwaitingRating(uid);
       }
       notifyListeners();
     } catch (e) {

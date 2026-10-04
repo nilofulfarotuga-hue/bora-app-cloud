@@ -173,6 +173,13 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
   DateTime? _driverRouteEtaAt;
   LatLng? _driverRouteEtaFrom;
 
+  /// [04/10 · corrida 0d979026] Para que FASE foi pedida a rota acima (true =
+  /// já em viagem, ao destino). Sem isto, no instante em que o motorista
+  /// iniciava a viagem o ecrã lia a duração da rota até à RECOLHA (carro
+  /// parado à porta, rota ainda "fresca") como ETA ao destino: "Chegas ao
+  /// destino em ~1 min" numa viagem que estava a começar.
+  bool? _driverRouteEtaEmViagem;
+
   // ── B2 — rota real grossa recolha→destino (mesmo DirectionsService/chave). ──
   final DirectionsService _directions = DirectionsService();
   Set<Polyline> _routePolys = <Polyline>{};
@@ -235,8 +242,17 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     WidgetsBinding.instance.addObserver(this);
     // Espelho do servidor logo ao abrir: o objeto em memória pode estar velho
     // (ex.: corrida entretanto cancelada noutro device / pelo cron).
-    WidgetsBinding.instance.addPostFrameCallback(
-        (_) => context.read<TvdeStore>().refreshActiveRide());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final store = context.read<TvdeStore>();
+      // [04/10] Ecrã aberto com o store vazio (app recarregada a meio da
+      // corrida, ex.: separador do Safari no iPhone): vai buscar a corrida
+      // viva ao servidor em vez de ficar parado em "Sem corrida ativa".
+      if (store.activeRide == null) {
+        store.loadActiveRide();
+      } else {
+        store.refreshActiveRide();
+      }
+    });
     _restartDriverPoll();
     _loadCarIcon();
     _stopsTicker = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -968,7 +984,10 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     final at = _driverRouteEtaAt;
     final from = _driverRouteEtaFrom;
     final routeMin = _driverRouteEtaMin;
-    if (routeMin != null && at != null && from != null) {
+    if (routeMin != null &&
+        at != null &&
+        from != null &&
+        _driverRouteEtaEmViagem == ride.isInProgress) {
       final movedM = Geolocator.distanceBetween(
           from.latitude, from.longitude, pos.latitude, pos.longitude);
       if (DateTime.now().difference(at).inSeconds < 45 && movedM < 150) {
@@ -1259,6 +1278,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
         _driverRouteEtaMin = route.durationMinutes;
         _driverRouteEtaAt = DateTime.now();
         _driverRouteEtaFrom = pos;
+        _driverRouteEtaEmViagem = emViagem;
         _driverRoutePolys = {
           Polyline(
             polylineId: const PolylineId('tvde_driver_route'),
@@ -1274,14 +1294,25 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     } catch (_) {/* sem rota do motorista → fica só a rota grossa (B2) */}
   }
 
+  /// [04/10 · corrida 0d979026] Só `finalizada` por avaliar tira o cliente
+  /// deste ecrã (regra em `TvdeRide.aguardaAvaliacaoCliente`). `em_andamento`
+  /// NÃO: a viagem começar é o mapa continuar, com o ETA ao destino.
   void _maybeGoToRate(TvdeRide ride) {
     if (_navigatedToRate) return;
-    if (ride.isFinished && !ride.ratedByClient) {
+    if (ride.aguardaAvaliacaoCliente) {
       _navigatedToRate = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
+        final nav = Navigator.of(context);
+        // [04/10] Com o chat, as queixas ou uma folha por cima, o
+        // `pushReplacement` trocava ESSE ecrã pela avaliação e deixava este
+        // por baixo — ao sair da avaliação o cliente caía em "Sem corrida
+        // ativa". A corrida acabou: fecha-se o que está por cima primeiro.
+        final rota = ModalRoute.of(context);
+        if (rota != null && !rota.isCurrent) {
+          nav.popUntil((r) => r == rota);
+        }
+        nav.pushReplacement(
           MaterialPageRoute(builder: (_) => TvdeRateScreen(ride: ride)),
         );
       });

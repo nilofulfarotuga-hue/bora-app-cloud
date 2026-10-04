@@ -16,6 +16,32 @@ class TvdeLeituraActual {
   final TvdeRide? oferta;
 }
 
+/// [É dele · 04/10/2026 · corrida 8c7f5ca6] O aviso "já foi para outro
+/// motorista" só se mostra quando a corrida NÃO é deste motorista.
+///
+/// **A cicatriz.** Oferta às 16:57:55 a UM só motorista; ele aceitou às
+/// 16:58:18, a 2 s do fim do prazo. O cartão decidia "foi para outro" só pelo
+/// relógio: com o aceite ainda a caminho do servidor o prazo passou e o aviso
+/// apareceu por cima da corrida que era DELE.
+///
+/// Regra, pura (sem rede, sem relógio):
+///  - com o aceite a decorrer nunca se mostra — espera-se pela resposta;
+///  - `driver_id` (ou `reservation_driver_id`, na reserva) igual ao MEU
+///    `user_id` → é minha, por qualquer caminho (ecrã, sobreposição,
+///    notificação, outro aparelho): fecha em silêncio e segue para a corrida;
+///  - o resto (outro motorista, cancelada, expirou para mim, ou a linha que a
+///    RLS já me esconde → [ride] null) → mostra-se.
+/// Identidade: [meuUid] é o `user_id` (auth uid), nunca `drivers.id`.
+bool devoMostrarFoiParaOutro(
+  TvdeRide? ride,
+  String? meuUid, {
+  bool aceiteEmCurso = false,
+}) {
+  if (aceiteEmCurso) return false;
+  if (ride == null || meuUid == null || meuUid.isEmpty) return true;
+  return ride.driverId != meuUid && ride.reservationDriverId != meuUid;
+}
+
 /// TVDE — Bora Motorista. Store reativo do MOTORISTA (modo passageiros).
 /// 100% isolado do delivery (OrderStore/DispatchEngine intocados). Todas as
 /// transições passam por RPC no backend (Fase 1+2); aqui só lemos e chamamos.
@@ -450,6 +476,14 @@ class TvdeDriverStore extends ChangeNotifier {
         // o admin a mexer na linha — e a oferta que estava a contar sumia do
         // ecrã e o telemóvel calava-se.
         _limparOfertaSe(ride.id);
+        // [Nada por cima · 04/10] A corrida passou a ser dele por um caminho
+        // que não este aparelho (aceitou noutro, ou o admin atribuiu): o
+        // aviso de oferta que ainda toque morre pelo id, haja ou não oferta
+        // em memória. Só a imediata — o id é o mesmo do lembrete "A caminho"
+        // da reserva, que tem de ficar até ele confirmar.
+        if (actual?.id != ride.id && ride.scheduledAt == null) {
+          unawaited(cancelTvdeRideNotification(ride.id));
+        }
       } else if (ride.isTerminal) {
         if (_standByRide?.id == ride.id) _standByRide = null;
         if (_queuedRide?.id == ride.id) {
@@ -537,7 +571,42 @@ class TvdeDriverStore extends ChangeNotifier {
     if (_offeredRide?.id == rideId) _limparOferta();
   }
 
+  /// [É dele · 04/10] Corridas/reservas com o ACEITE a caminho do servidor,
+  /// venha de onde vier (ecrã, cartão, botão da notificação). Enquanto cá
+  /// estiver, o cartão espera pela resposta — nunca diz "foi para outro".
+  final Set<String> _aAceitar = <String>{};
+  bool aceiteEmCurso(String rideId) => _aAceitar.contains(rideId);
+
+  /// [É dele · 04/10] O prazo passou no cartão: antes de dizer "foi para
+  /// outro", pergunta-se ao servidor de quem é a corrida. Se for DELE (aceite
+  /// por outro caminho ou noutro aparelho, com o realtime em baixo) relê o
+  /// estado — a corrida entra como activa/fila (ou na agenda, se [reserva]) e
+  /// a oferta sai — e devolve true: o cartão fecha em silêncio. Nunca lança.
+  Future<bool> ofertaExpiradaEMinha(String rideId,
+      {bool reserva = false}) async {
+    if (rideId == _activeRide?.id ||
+        rideId == _queuedRide?.id ||
+        rideId == _standByRide?.id) {
+      return true;
+    }
+    try {
+      final uid = _uid;
+      if (uid == null) return false;
+      final ride = await fetchRideById(rideId);
+      if (devoMostrarFoiParaOutro(ride, uid)) return false;
+      if (reserva) {
+        await loadAgenda();
+      } else {
+        await loadCurrent();
+      }
+      return true;
+    } catch (_) {
+      return false; // sem sessão/rede: não se afirma que é dele
+    }
+  }
+
   Future<TvdeRide> acceptOffer(String rideId) async {
+    _aAceitar.add(rideId);
     _setBusy(true);
     // [Oferta fantasma 01/10] A notificação morre SEMPRE pelo id da corrida,
     // haja ou não oferta em memória (antes só morria via `_limparOferta`, e
@@ -569,6 +638,7 @@ class TvdeDriverStore extends ChangeNotifier {
       desmarcarOfertaTvdeTratada(rideId);
       rethrow;
     } finally {
+      _aAceitar.remove(rideId);
       _setBusy(false);
     }
   }
@@ -704,7 +774,11 @@ class TvdeDriverStore extends ChangeNotifier {
 
   /// Motorista aceita a oferta antecipada. A reserva passa a ser dele.
   Future<void> acceptReservation(String rideId) async {
+    _aAceitar.add(rideId); // [04/10] ver [aceiteEmCurso]
     _setBusy(true);
+    // [Nada por cima · 04/10] Como na imediata: o aviso insistente da oferta
+    // de reserva cala-se JÁ, pelo id — não só depois de o servidor responder.
+    unawaited(cancelTvdeRideNotification(rideId));
     try {
       await _sb.rpc('tvde_reservation_accept', params: {'p_ride_id': rideId});
       _limparOfertaReserva();
@@ -713,6 +787,7 @@ class TvdeDriverStore extends ChangeNotifier {
       debugPrint('TvdeDriverStore.acceptReservation error => $e');
       rethrow;
     } finally {
+      _aAceitar.remove(rideId);
       _setBusy(false);
     }
   }

@@ -333,6 +333,33 @@ class TvdeRide {
   bool get isLive =>
       isAwaitingPayment || isSearching || isAssigned || isInProgress;
 
+  /// [04/10 · corrida 0d979026] Estados do servidor em que o ecrã da corrida do
+  /// CLIENTE tem de continuar aberto (mapa, carro, ETA). `em_andamento` está cá
+  /// de propósito: a viagem começar NÃO é a corrida acabar — o cliente segue o
+  /// carro até ao destino e só `finalizada` o leva à avaliação.
+  ///
+  /// O `TvdeStore.loadActiveRide` pede ao servidor estes mesmos estados para
+  /// reabrir o ecrã (menos `aguarda_pagamento`, que lá nunca esteve); o teste
+  /// `tvde_ecra_corrida_vivo_test` prende as duas listas uma à outra, para
+  /// nenhuma perder `em_andamento` sem a outra dar por isso.
+  static const Set<String> estadosComEcraVivo = {
+    'aguarda_pagamento',
+    'solicitada',
+    'motorista_atribuido',
+    'motorista_a_caminho',
+    'motorista_chegou',
+    'em_andamento',
+  };
+
+  /// Função pura: este estado mantém o ecrã da corrida do cliente vivo?
+  static bool estadoMantemEcraVivo(String status) =>
+      estadosComEcraVivo.contains(status);
+
+  /// [04/10] Corrida terminada que o cliente ainda não avaliou — a ÚNICA
+  /// altura em que o ecrã da corrida dá lugar ao da avaliação. Cancelada, sem
+  /// motorista ou já avaliada não pedem estrelas a ninguém.
+  bool get aguardaAvaliacaoCliente => isFinished && !ratedByClient;
+
   /// Valor a apresentar ao cliente (cêntimos): final se já houver, senão est.
   int get displayFareCents => finalFareCents ?? estFareCents;
 

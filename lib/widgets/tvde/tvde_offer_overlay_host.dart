@@ -188,6 +188,16 @@ class _TvdeOfferOverlayHostState extends State<TvdeOfferOverlayHost>
     }
   }
 
+  /// [É dele · 04/10 · corrida 8c7f5ca6] O prazo passou no cartão: antes do
+  /// aviso "foi para outro", pergunta-se ao servidor de quem é a corrida. Se
+  /// for dele (aceitou por outro caminho ou noutro aparelho), o store relê,
+  /// o cartão fecha em silêncio e abre-se a corrida — nunca o aviso.
+  Future<bool> _ofertaEMinha(TvdeDriverStore store, String rideId) async {
+    final minha = await store.ofertaExpiradaEMinha(rideId);
+    if (minha) unawaited(abrirCorridaActivaSeFechada());
+    return minha;
+  }
+
   @override
   Widget build(BuildContext context) {
     final store = context.watch<TvdeDriverStore>();
@@ -215,6 +225,10 @@ class _TvdeOfferOverlayHostState extends State<TvdeOfferOverlayHost>
         // fica uns segundos a dizer o que aconteceu e só depois sai do store.
         onExpired: () => unawaited(cancelTvdeRideNotification(offer.id)),
         onExpiredDismiss: store.clearOffer,
+        // [É dele · 04/10] Aceite a decorrer (por qualquer caminho) → espera;
+        // prazo passado → confirma primeiro que a corrida não é dele.
+        aAceitar: store.aceiteEmCurso(offer.id),
+        eMinha: () => _ofertaEMinha(store, offer.id),
       );
     } else if (reserva != null) {
       cartao = TvdeReservationOverlayCard(
@@ -224,6 +238,9 @@ class _TvdeOfferOverlayHostState extends State<TvdeOfferOverlayHost>
         onReject: () => _recusarReserva(store, reserva),
         onExpired: () => unawaited(cancelTvdeRideNotification(reserva.id)),
         onExpiredDismiss: store.clearReservationOffer,
+        // [É dele · 04/10] A mesma regra da imediata, pelo dono da reserva.
+        aAceitar: store.aceiteEmCurso(reserva.id),
+        eMinha: () => store.ofertaExpiradaEMinha(reserva.id, reserva: true),
         // [A11] Com a corrida activa aberta a reserva vive 5 min — entra
         // como faixa de uma linha para não tapar os comandos da corrida.
         compacto: corridaActiva,
@@ -309,7 +326,20 @@ class TvdeOfferOverlayCard extends StatefulWidget {
     this.onExpired,
     this.agora,
     this.tempoAteFechar = const Duration(seconds: 5),
+    this.aAceitar = false,
+    this.eMinha,
   });
+
+  /// [É dele · 04/10] O aceite desta corrida está a caminho do servidor por
+  /// OUTRO caminho que não o botão deste cartão (botão da notificação). O
+  /// cartão fica à espera e nunca mostra o aviso de expirada.
+  final bool aAceitar;
+
+  /// [É dele · 04/10] Perguntada UMA vez quando o prazo passa: a corrida é
+  /// deste motorista? `true` → fecha em silêncio ([onExpiredDismiss] já), sem
+  /// aviso. `false`/erro → o aviso de sempre. Null (testes, uso solto) → o
+  /// aviso aparece logo, como antes.
+  final Future<bool> Function()? eMinha;
 
   final TvdeRide offer;
 
@@ -385,6 +415,7 @@ class _TvdeOfferOverlayCardState extends State<TvdeOfferOverlayCard> {
       _respondendo = false;
       _fecho?.cancel();
       _expirouAvisado = false;
+      _perdida = false;
       _armarGuardaRecusa();
     }
   }
@@ -457,20 +488,58 @@ class _TvdeOfferOverlayCardState extends State<TvdeOfferOverlayCard> {
   /// Recusa confirmada: o cartão já não se desenha (não depende do store).
   bool _recusada = false;
 
+  /// [É dele · 04/10] Só fica a true depois de se saber que a corrida NÃO é
+  /// deste motorista — é o que deixa o aviso aparecer.
+  bool _perdida = false;
+
   void _agendarFecho() {
     if (_expirouAvisado) return;
     _expirouAvisado = true;
     widget.onExpired?.call();
+    final pergunta = widget.eMinha;
+    if (pergunta == null) {
+      _perdida = true;
+      _armarFecho();
+      return;
+    }
+    unawaited(_confirmarDono(pergunta));
+  }
+
+  void _armarFecho() {
     _fecho = Timer(widget.tempoAteFechar, () {
       if (mounted) widget.onExpiredDismiss();
     });
   }
 
+  /// [É dele · 04/10 · corrida 8c7f5ca6] O prazo passou. Antes de dizer "foi
+  /// para outro motorista", confirma-se de quem é: se é dele, sai em silêncio.
+  Future<void> _confirmarDono(Future<bool> Function() pergunta) async {
+    final id = widget.offer.id;
+    var minha = false;
+    try {
+      minha = await pergunta().timeout(const Duration(seconds: 4));
+    } catch (_) {/* sem resposta: vale o aviso */}
+    if (!mounted || widget.offer.id != id) return;
+    if (minha) {
+      widget.onExpiredDismiss();
+      return;
+    }
+    setState(() => _perdida = true);
+    _armarFecho();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_recusada) return const SizedBox.shrink();
-    if (_expirada) {
+    // [É dele · 04/10 · corrida 8c7f5ca6] Com o aceite a caminho do servidor
+    // o prazo não conta: aceitou a 2 s do fim, o relógio passou antes de a
+    // resposta chegar e o cartão dizia "foi para outro motorista" por cima da
+    // corrida que era dele. Espera-se pela resposta, com o indicador.
+    final aAceitar = _respondendo || widget.aAceitar;
+    if (_expirada && !aAceitar) {
       _agendarFecho();
+      // A confirmar de quem é (ou é dele e vai fechar): nada no ecrã.
+      if (!_perdida) return const SizedBox.shrink();
       return const OfertaExpiradaNotice(
         texto: 'Esta corrida já foi para outro motorista.',
       );
@@ -587,7 +656,7 @@ class _TvdeOfferOverlayCardState extends State<TvdeOfferOverlayCard> {
               Expanded(
                 child: OutlinedButton(
                   key: const Key('tvde_oferta_recusar'),
-                  onPressed: _respondendo ? null : _tapRecusar,
+                  onPressed: aAceitar ? null : _tapRecusar,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white,
                     side: BorderSide(
@@ -607,12 +676,12 @@ class _TvdeOfferOverlayCardState extends State<TvdeOfferOverlayCard> {
               Expanded(
                 child: FilledButton(
                   key: const Key('tvde_oferta_aceitar'),
-                  onPressed: _respondendo ? null : _tapAceitar,
+                  onPressed: aAceitar ? null : _tapAceitar,
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.accent,
                     visualDensity: VisualDensity.compact,
                   ),
-                  child: _respondendo
+                  child: aAceitar
                       ? const SizedBox(
                           height: 16,
                           width: 16,
@@ -650,7 +719,14 @@ class TvdeReservationOverlayCard extends StatefulWidget {
     this.agora,
     this.tempoAteFechar = const Duration(seconds: 5),
     this.compacto = false,
+    this.aAceitar = false,
+    this.eMinha,
   });
+
+  /// [É dele · 04/10] Como no cartão da imediata: aceite a decorrer → espera;
+  /// prazo passado → [eMinha] confirma primeiro que a reserva não é dele.
+  final bool aAceitar;
+  final Future<bool> Function()? eMinha;
 
   final TvdeRide ride;
   final VoidCallback onAccept;
@@ -699,6 +775,7 @@ class _TvdeReservationOverlayCardState
     if (old.ride.id != widget.ride.id) {
       _fecho?.cancel();
       _expirouAvisado = false;
+      _perdida = false;
       _expandido = false;
       _timeoutRecusa?.cancel();
       _recusando = false;
@@ -736,16 +813,48 @@ class _TvdeReservationOverlayCardState
     widget.onReject();
   }
 
+  /// [É dele · 04/10] Só a true depois de se saber que a reserva NÃO é dele.
+  bool _perdida = false;
+
+  void _armarFecho() {
+    _fecho = Timer(widget.tempoAteFechar, () {
+      if (mounted) widget.onExpiredDismiss();
+    });
+  }
+
+  /// [É dele · 04/10] Prazo passado: confirma o dono antes do aviso. Se a
+  /// reserva é dele (aceitou por outro caminho), sai em silêncio.
+  Future<void> _confirmarDono(Future<bool> Function() pergunta) async {
+    final id = widget.ride.id;
+    var minha = false;
+    try {
+      minha = await pergunta().timeout(const Duration(seconds: 4));
+    } catch (_) {/* sem resposta: vale o aviso */}
+    if (!mounted || widget.ride.id != id) return;
+    if (minha) {
+      widget.onExpiredDismiss();
+      return;
+    }
+    setState(() => _perdida = true);
+    _armarFecho();
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (_expirada) {
+    if (_expirada && !widget.aAceitar) {
       if (!_expirouAvisado) {
         _expirouAvisado = true;
         widget.onExpired?.call();
-        _fecho = Timer(widget.tempoAteFechar, () {
-          if (mounted) widget.onExpiredDismiss();
-        });
+        final pergunta = widget.eMinha;
+        if (pergunta == null) {
+          _perdida = true;
+          _armarFecho();
+        } else {
+          unawaited(_confirmarDono(pergunta));
+        }
       }
+      // A confirmar de quem é (ou é dele e vai fechar): nada no ecrã.
+      if (!_perdida) return const SizedBox.shrink();
       return const OfertaExpiradaNotice(
         texto: 'Esta reserva já foi para outro motorista.',
       );

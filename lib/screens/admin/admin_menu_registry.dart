@@ -90,6 +90,7 @@ import 'admin_tvde_plan_requests_screen.dart';
 import 'admin_tvde_reservas_screen.dart';
 import 'admin_tvde_rides_screen.dart';
 import 'admin_tvde_pagamentos_screen.dart';
+import 'admin_tvde_pagos_sem_corrida_screen.dart';
 import 'admin_tvde_roundtrips_screen.dart';
 import 'admin_tvde_stuck_payments_screen.dart';
 import 'admin_tvde_subscriptions_screen.dart';
@@ -584,6 +585,15 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.teal,
       builder: () => const AdminTvdeRoundtripsScreen(),
       keywords: const ['expirados', 'pacotes', 'usados', 'usar', 'volta'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_pagos_sem_corrida',
+      title: 'Pagos sem corrida criada',
+      subtitle: 'Cliente pagou e a corrida não nasceu: ligar ou resolver',
+      icon: Icons.report_problem,
+      color: Colors.red,
+      builder: () => const AdminTvdePagosSemCorridaScreen(),
+      keywords: const ['corrida', 'criada', 'ida', 'pagos', 'pagou', 'sem', 'volta'],
     ),
     AdminMenuItem(
       id: 'tvde_corridas_presas_no_pagamento',

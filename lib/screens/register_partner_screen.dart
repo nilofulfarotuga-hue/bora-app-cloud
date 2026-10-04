@@ -322,13 +322,13 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
   bool _validateStep1() {
     if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Indique o nome do estabelecimento')),
+        const SnackBar(content: Text('Indica o nome do estabelecimento')),
       );
       return false;
     }
     if (_addressController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Indique o endereço')),
+        const SnackBar(content: Text('Indica a morada')),
       );
       return false;
     }
@@ -594,7 +594,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
           SnackBar(
             content: Text(
               specificError ??
-                  'Erro: Verifica email/password ou contacta support. Detalhes nos logs.',
+                  'Não foi possível criar a conta. Verifica o email e a palavra-passe, ou fala com a Bora.',
             ),
           ),
         );

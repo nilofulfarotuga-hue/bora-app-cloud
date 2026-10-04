@@ -446,13 +446,13 @@ class _PacingRuleDialogState extends State<_PacingRuleDialog> {
   Future<void> _pickStart() async {
     final p =
         await showTimePicker(context: context, initialTime: _start);
-    if (p != null) setState(() => _start = p);
+    if (p != null && mounted) setState(() => _start = p);
   }
 
   Future<void> _pickEnd() async {
     final p =
         await showTimePicker(context: context, initialTime: _end);
-    if (p != null) setState(() => _end = p);
+    if (p != null && mounted) setState(() => _end = p);
   }
 
   @override

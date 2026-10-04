@@ -36,6 +36,14 @@ class PartnerOrderLine {
   double get lineTotal => product.price * quantity;
 }
 
+/// Recusa do servidor ao "Chamar estafeta" do parceiro (código em [code]).
+class PartnerCallDriverException implements Exception {
+  const PartnerCallDriverException(this.code);
+  final String code;
+  @override
+  String toString() => 'PartnerCallDriverException($code)';
+}
+
 /// Sessão 4C: validação de productId enviado para create_order RPC / Edge Fn.
 /// Não usa regex de prefixo — produção tem 9+ formatos válidos
 /// (pd, cnt, auc, merc, glv, cm, lidl, prod, UUIDs hex puros, sentinelas
@@ -2045,7 +2053,8 @@ class OrderStore extends ChangeNotifier {
     }
   }
 
-  Future<bool> restaurantAcceptOrder(OrderModel order) async {
+  Future<bool> restaurantAcceptOrder(OrderModel order,
+      {int? prepMinutes}) async {
     if (!order.isPartnerStore ||
         order.serviceType != OrderServiceType.restaurant) {
       return false;
@@ -2053,6 +2062,16 @@ class OrderStore extends ChangeNotifier {
     if (order.status != OrderStatus.created &&
         order.status != OrderStatus.preparing) {
       return false;
+    }
+    // A5 (04/10/2026): com tempo de preparação, o servidor grava-o e o
+    // despacho chama o estafeta em aceite + preparação − 8 min.
+    if (prepMinutes != null) {
+      return _runPartnerTransitionRpc(
+        order,
+        rpcName: 'partner_aceitar_pedido',
+        expectedStatus: OrderStatus.preparing,
+        extraParams: {'p_prep_minutes': prepMinutes},
+      );
     }
     return _runPartnerTransitionRpc(
       order,
@@ -2137,12 +2156,13 @@ class OrderStore extends ChangeNotifier {
     OrderModel order, {
     required String rpcName,
     required OrderStatus expectedStatus,
+    Map<String, dynamic> extraParams = const {},
   }) async {
     _lastUpdateError = null;
     try {
       final response = await supabase.rpc(
         rpcName,
-        params: {'p_order_id': order.id},
+        params: {'p_order_id': order.id, ...extraParams},
       );
       final result = response is Map
           ? Map<String, dynamic>.from(response)
@@ -2246,7 +2266,15 @@ class OrderStore extends ChangeNotifier {
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
 
-  Future<OrderModel> createPartnerDeliveryRequest({
+  /// "Chamar estafeta" do parceiro (cliente que pediu ao balcão/telefone),
+  /// business_rules §2.4.1. 04/10/2026: o dinheiro é TODO calculado no
+  /// servidor (`partner_chamar_estafeta`) a partir do preço de balcão de cada
+  /// produto — do telemóvel só vão os produtos, as quantidades, a morada e a
+  /// distância do mapa (que o servidor limita à linha reta × 2,5).
+  /// Devolve o resumo do servidor (`total`, `subtotal`, `comissao`,
+  /// `taxa_servico`, `entrega`, `order_id`). Lança [PartnerCallDriverException]
+  /// com o código do servidor quando recusa.
+  Future<Map<String, dynamic>> createPartnerDeliveryRequest({
     required RestaurantModel restaurant,
     required String customerName,
     required String customerPhone,
@@ -2260,101 +2288,45 @@ class OrderStore extends ChangeNotifier {
           'Partner delivery request requires at least one item.');
     }
 
-    final subtotal = items.fold<double>(0, (sum, line) => sum + line.lineTotal);
-    if (subtotal <= 0) {
-      throw ArgumentError('Subtotal must be greater than zero.');
-    }
-
     final pickupLatLng = restaurant.location;
-    double resolvedDistanceKm;
-    bool isDistanceEstimated = true;
+    double? mapDistanceKm;
     if (pickupLatLng != null && dropoffLocation != null) {
       try {
-        final apiDistance =
+        mapDistanceKm =
             await MapsService.getDistanceKm(pickupLatLng, dropoffLocation);
-        if (apiDistance != null) {
-          resolvedDistanceKm = apiDistance;
-          isDistanceEstimated = false;
-        } else {
-          resolvedDistanceKm = const Distance()
-              .as(LengthUnit.Kilometer, pickupLatLng, dropoffLocation);
-        }
       } catch (e) {
         debugPrint(
             'OrderStore.createPartnerDeliveryRequest: MapsService error => $e');
-        resolvedDistanceKm = const Distance()
-            .as(LengthUnit.Kilometer, pickupLatLng, dropoffLocation);
       }
-    } else {
-      resolvedDistanceKm = PricingService.defaultDistanceKm;
     }
 
-    final pricing = PricingService.calculateBreakdown(
-      serviceType: OrderServiceType.restaurant,
-      subtotal: subtotal,
-      distanceKm: resolvedDistanceKm,
-      isPartnerStore: true,
-      apartmentDelivery: false,
-      // Parceiro chama estafeta por conta própria (cliente comprou direto).
-      // Comissão 15% (sem markup escondido) + cliente paga o pacote completo
-      // em dinheiro ao estafeta. Ver business_rules.md §2.4.1.
-      isPartnerSelfDispatch: true,
-    );
-
-    final orderNotes = _composePartnerOrderNotes(items: items, notes: notes);
-
-    final order = OrderModel(
-      total: pricing.customerTotal,
-      serviceType: OrderServiceType.restaurant,
-      subtotal: pricing.subtotal,
-      deliveryFee: pricing.deliveryFee,
-      serviceFee: pricing.serviceFee,
-      platformCommission: pricing.platformCommission,
-      driverEarnings: pricing.driverEarnings,
-      distanceKm: pricing.distanceKm,
-      vendorName: restaurant.name,
-      pickupAddress: restaurant.address,
-      pickupLocation: pickupLatLng,
-      dropoffAddress: deliveryAddress,
-      destination: dropoffLocation,
-      customerNotes: orderNotes,
-      isPartnerStore: true,
-      apartmentDelivery: false,
-      isDistanceEstimated: isDistanceEstimated,
-      orderType: OrderType.partnerRestaurant,
-      paymentMethod: PaymentMethod.cash,
-      status: OrderStatus.callingDriver,
-      clientPhone: customerPhone,
-      customerName: customerName,
-      items: items
-          .map(
-            (line) => CartItem(
-              productId: line.product.id,
-              name: line.product.name,
-              price: line.product.price,
-              quantity: line.quantity,
-            ),
-          )
-          .toList(),
-    );
-
-    _orders.insert(0, order);
-    notifyListeners();
-
-    try {
-      await _saveOrderToDatabase(order);
-    } catch (e) {
-      _orders.remove(order);
-      notifyListeners();
-      debugPrint('OrderStore: createPartnerDeliveryRequest failed => $e');
-      rethrow;
+    final response = await supabase.rpc('partner_chamar_estafeta', params: {
+      'p_restaurant_id': restaurant.id,
+      'p_itens': [
+        for (final line in items)
+          {'product_id': line.product.id, 'quantity': line.quantity},
+      ],
+      'p_nome_cliente': customerName,
+      'p_telefone_cliente': customerPhone,
+      'p_morada': deliveryAddress,
+      'p_lat': dropoffLocation?.latitude,
+      'p_lng': dropoffLocation?.longitude,
+      'p_notas': notes,
+      'p_distancia_km': mapDistanceKm,
+    });
+    final result = response is Map
+        ? Map<String, dynamic>.from(response)
+        : <String, dynamic>{};
+    if (result['ok'] != true) {
+      throw PartnerCallDriverException(
+          (result['error'] ?? 'invalid_server_response').toString());
     }
-
-    // Partner orders start directly as callingDriver — invoke dispatch now.
-    // The DB trigger is unreliable (placeholder key); Flutter is the primary path.
-    unawaited(_invokeDispatch(order.id));
-
-    return order;
+    final orderId = result['order_id']?.toString();
+    if (orderId != null && orderId.isNotEmpty) {
+      // Pedidos de parceiro nascem em callingDriver — chamar o despacho já.
+      unawaited(_invokeDispatch(orderId));
+    }
+    return result;
   }
 
   List<ChatMessage> messagesForOrder(String orderId) {
@@ -2414,20 +2386,10 @@ class OrderStore extends ChangeNotifier {
       return;
     }
 
-    if (order.status == OrderStatus.preparing) {
-      _schedulePartnerPreparationTimer(order);
-    } else {
-      _cancelPartnerPreparationTimer(order.id);
-    }
-  }
-
-  void _schedulePartnerPreparationTimer(OrderModel order) {
+    // 04/10/2026: a app do parceiro já NÃO chama o estafeta sozinha aos
+    // 5 minutos. Quem chama é o servidor (cron partner_auto_dispatch_ready_orders:
+    // aceite + preparação − 8 min) ou o botão "Chamar estafeta já".
     _cancelPartnerPreparationTimer(order.id);
-    _partnerPreparationTimers[order.id] = Timer(const Duration(minutes: 5), () {
-      if (!_orders.any((o) => o.id == order.id)) return;
-      if (order.status != OrderStatus.preparing) return;
-      _advanceStatus(order, OrderStatus.callingDriver);
-    });
   }
 
   void _cancelPartnerPreparationTimer(String orderId) {
@@ -2849,25 +2811,6 @@ class OrderStore extends ChangeNotifier {
       );
     }
     return PricingService.defaultDistanceKm;
-  }
-
-  String _composePartnerOrderNotes({
-    required List<PartnerOrderLine> items,
-    String? notes,
-  }) {
-    final buffer = StringBuffer('Itens do pedido:\n');
-    for (final line in items) {
-      final lineTotal = _roundCurrency(line.lineTotal);
-      buffer.writeln(
-          '- ${line.quantity}× ${line.product.name} (€${line.product.price.toStringAsFixed(2)} cada) • €${lineTotal.toStringAsFixed(2)}');
-    }
-    final normalizedNotes = notes?.trim();
-    if (normalizedNotes != null && normalizedNotes.isNotEmpty) {
-      buffer
-        ..writeln()
-        ..writeln('Observações: $normalizedNotes');
-    }
-    return buffer.toString().trim();
   }
 
   double _roundCurrency(double value) => (value * 100).roundToDouble() / 100;

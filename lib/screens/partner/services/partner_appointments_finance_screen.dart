@@ -6,6 +6,7 @@ import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../stores/partner_appointments_store.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
+import '../../../utils/hora_lisboa.dart';
 
 /// Financeiro do prestador (vertical Serviços). Resumo da semana actual
 /// (preview RPC) + BarChart das últimas 4 semanas (receita das liquidações)
@@ -402,7 +403,9 @@ class _PartnerAppointmentsFinanceScreenState
   }
 
   DateTime? _parse(Object? v) =>
-      v is String ? DateTime.tryParse(v)?.toLocal() : null;
+      v is String ? _lisboa(DateTime.tryParse(v)) : null;
+
+  static DateTime? _lisboa(DateTime? d) => d == null ? null : horaLisboa(d);
 }
 
 class _FinanceData {

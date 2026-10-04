@@ -6,6 +6,7 @@ import '../../../models/client_restaurant_profile.dart';
 import '../../../models/reservation_model.dart';
 import '../../../models/restaurant_table.dart';
 import '../../../stores/partner_reservas_store.dart';
+import '../../../utils/hora_lisboa.dart';
 
 /// Reservas PRO F4 — lista partner com 3 tabs.
 ///
@@ -268,7 +269,7 @@ class _PartnerReservationsScreenState extends State<PartnerReservationsScreen>
         SnackBar(
           content: Text(
             turnTime > 0
-                ? 'Mesa libertada (turn time $turnTime min).'
+                ? 'Mesa libertada (ocupada $turnTime min).'
                 : 'Mesa libertada.',
           ),
           backgroundColor: AppColors.primary,
@@ -449,7 +450,7 @@ class _PartnerReservationsScreenState extends State<PartnerReservationsScreen>
         final items = <Widget>[];
         String? currentKey;
         for (final r in list) {
-          final local = r.reservedFor.toLocal();
+          final local = horaLisboa(r.reservedFor);
           final key = '${local.year}-${local.month}-${local.day}';
           if (key != currentKey) {
             currentKey = key;
@@ -575,7 +576,7 @@ class _ReservationCardState extends State<_ReservationCard> {
                         ),
                       const SizedBox(height: 4),
                       Text(
-                        _formatDateTimePt(r.reservedFor.toLocal()),
+                        _formatDateTimePt(horaLisboa(r.reservedFor)),
                         style: const TextStyle(
                           fontSize: 13,
                           color: AppColors.textSecondary,

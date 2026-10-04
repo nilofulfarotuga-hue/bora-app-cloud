@@ -23,6 +23,7 @@ import '../widgets/notification_bell.dart';
 import '../services/sound_service.dart';
 import '../services/incoming_job_alert.dart';
 import '../stores/session_store.dart';
+import '../utils/hora_lisboa.dart';
 import '../widgets/address_text.dart';
 import '../widgets/biometric_login_tile.dart';
 import '../widgets/partner_weekly_closeout_card.dart';
@@ -50,10 +51,6 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
   final Set<String> _knownCreatedOrderIds = <String>{};
   final SoundService _soundService = SoundService();
   Timer? _vibrationTimer;
-  // BUG-PT-006 (2026-05-14) — fallback de segurança. Se a condição de
-  // paragem do som não disparar (latência realtime, bug logic, etc.),
-  // o som auto-para após 60s para evitar loop infinito no parceiro.
-  Timer? _soundTimeoutTimer;
   int _pendingReservationsCount = 0;
   final Set<String> _seenPendingReservationIds = <String>{};
   RealtimeChannel? _reservationsChannel;
@@ -72,6 +69,21 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
   // dentro da mesma sessão guardamos para evitar re-mostrar).
   RealtimeChannel? _dispatchDecisionChannel;
   final Set<String> _shownDispatchModalForOrderIds = <String>{};
+
+  // C3 (04/10/2026): os cartões "Ganhos hoje/semana/totais" vêm do servidor
+  // (partner_ganhos_resumo) — a MESMA conta do "Ver detalhe de ganhos"
+  // (order_financials / partner_store_share), só pedidos entregues.
+  Map<String, dynamic>? _ganhos;
+  int _entreguesVistos = -1;
+
+  // A4: o que a loja recebe por pedido (partner_loja_recebe), em cêntimos.
+  final Map<String, int> _lojaRecebeCents = <String, int>{};
+  final Set<String> _lojaRecebePedidos = <String>{};
+
+  // A5: pausa da loja (restaurants.pausa_ate). Valor local depois de mudar.
+  DateTime? _pausaAteLocal;
+  bool _pausaLocalDefinida = false;
+  bool _aMudarPausa = false;
   bool _isShowingDispatchModal = false;
 
   @override
@@ -95,7 +107,130 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
           .saveTokenForPartner(widget.restaurant.id)
           .ignore();
       unawaited(_checkServiceProvider());
+      unawaited(_carregarGanhos());
     });
+  }
+
+  Future<void> _carregarGanhos() async {
+    try {
+      final r = await Supabase.instance.client.rpc(
+        'partner_ganhos_resumo',
+        params: {'p_restaurant_id': widget.restaurant.id},
+      );
+      if (!mounted) return;
+      if (r is Map && r['ok'] == true) {
+        setState(() => _ganhos = Map<String, dynamic>.from(r));
+      }
+    } catch (e) {
+      debugPrint('[PartnerDashboard] partner_ganhos_resumo: $e');
+    }
+  }
+
+  /// Pede ao servidor o que a loja recebe dos pedidos que ainda não sabemos.
+  void _pedirLojaRecebe(Iterable<OrderModel> orders) {
+    final faltam = orders
+        .map((o) => o.id)
+        .where((id) => !_lojaRecebePedidos.contains(id))
+        .toList();
+    if (faltam.isEmpty) return;
+    _lojaRecebePedidos.addAll(faltam);
+    Supabase.instance.client.rpc(
+      'partner_loja_recebe',
+      params: {'p_order_ids': faltam},
+    ).then((r) {
+      if (!mounted || r is! Map) return;
+      setState(() {
+        r.forEach((k, v) {
+          if (v is num) _lojaRecebeCents[k.toString()] = v.toInt();
+        });
+      });
+    }).catchError((Object e) {
+      debugPrint('[PartnerDashboard] partner_loja_recebe: $e');
+      _lojaRecebePedidos.removeAll(faltam);
+    });
+  }
+
+  static String _hhmmLisboa(DateTime d) {
+    final l = horaLisboa(d);
+    String dd(int n) => n.toString().padLeft(2, '0');
+    return '${dd(l.hour)}:${dd(l.minute)}';
+  }
+
+  double? _recebe(OrderModel o) {
+    final c = _lojaRecebeCents[o.id];
+    return c == null ? null : c / 100.0;
+  }
+
+  DateTime? _pausaAte(RestaurantModel r) =>
+      _pausaLocalDefinida ? _pausaAteLocal : r.pausaAte;
+
+  Future<void> _mudarPausa(int minutos) async {
+    if (_aMudarPausa) return;
+    setState(() => _aMudarPausa = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final r = await Supabase.instance.client.rpc(
+        'partner_pausar_loja',
+        params: {'p_restaurant_id': widget.restaurant.id, 'p_minutos': minutos},
+      );
+      if (!mounted) return;
+      if (r is Map && r['ok'] == true) {
+        final ate = r['pausa_ate'] == null
+            ? null
+            : DateTime.tryParse(r['pausa_ate'].toString());
+        setState(() {
+          _pausaLocalDefinida = true;
+          _pausaAteLocal = ate;
+        });
+        messenger.showSnackBar(SnackBar(
+          content: Text(ate == null
+              ? 'Loja a receber pedidos outra vez.'
+              : 'Loja em pausa até às ${r['volta_as']}. Volta sozinha.'),
+        ));
+      } else {
+        messenger.showSnackBar(const SnackBar(
+            content: Text('Não foi possível mudar a pausa. Tenta de novo.')));
+      }
+    } catch (e) {
+      debugPrint('[PartnerDashboard] partner_pausar_loja: $e');
+      messenger.showSnackBar(const SnackBar(
+          content: Text('Não foi possível mudar a pausa. Tenta de novo.')));
+    } finally {
+      if (mounted) setState(() => _aMudarPausa = false);
+    }
+  }
+
+  Future<void> _escolherPausa() async {
+    final minutos = await showModalBottomSheet<int>(
+      context: context,
+      builder: (sheetCtx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const ListTile(
+              title: Text('Pausar a loja',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: Text(
+                  'Os clientes veem "Fechada temporariamente" e não fazem pedidos. A loja volta sozinha.'),
+            ),
+            for (final m in const [15, 30, 60])
+              ListTile(
+                leading: const Icon(Icons.pause_circle_outline),
+                title: Text('$m minutos'),
+                onTap: () => Navigator.of(sheetCtx).pop(m),
+              ),
+            ListTile(
+              leading: const Icon(Icons.nightlight_outlined),
+              title: const Text('Até fechar hoje'),
+              onTap: () => Navigator.of(sheetCtx).pop(-1),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (minutos == null || !mounted) return;
+    await _mudarPausa(minutos);
   }
 
   /// Vertical Serviços — descobre se esta conta também é dona de um
@@ -225,7 +360,6 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
     _dispatchDecisionChannel?.unsubscribe();
     _dispatchDecisionChannel = null;
     _vibrationTimer?.cancel();
-    _soundTimeoutTimer?.cancel();
     _soundService.dispose();
     super.dispose();
   }
@@ -418,21 +552,64 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
   Future<void> _startSoundAndVibration() async {
     unawaited(_soundService.playLoop());
     unawaited(_startVibrationLoop());
-    // Fallback: máximo 60s. Se a condição lógica de paragem não disparar
-    // (takeaway com latência realtime, status nunca muda, etc.), o
-    // parceiro NÃO fica com som infinito.
-    _soundTimeoutTimer?.cancel();
-    _soundTimeoutTimer = Timer(const Duration(seconds: 60), () {
-      debugPrint('[BUG-PT-006] Som auto-parado após timeout 60s');
-      _stopSoundAndVibration();
-    });
+    // 04/10/2026: o som repete até alguém aceitar ou recusar o pedido (como o
+    // tablet da Glovo). Antes parava sozinho aos 60 s e o pedido ficava
+    // esquecido. Pára quando já não há pedidos por aceitar
+    // (`_handleNewOrders` → `_stopSoundAndVibration`).
   }
 
   void _stopSoundAndVibration() {
     unawaited(_soundService.stop());
     _stopVibrationLoop();
-    _soundTimeoutTimer?.cancel();
-    _soundTimeoutTimer = null;
+  }
+
+  /// A5 (04/10/2026) — "Fica pronto em quanto tempo?" ao aceitar um pedido
+  /// normal (entrega). Devolve os minutos escolhidos ou null se fechar.
+  static const List<int> _kTempoPreparacao = [10, 15, 20, 25, 30, 40, 45, 60];
+
+  Future<int?> _escolherTempoPreparacao(int padrao) {
+    return showModalBottomSheet<int>(
+      context: context,
+      builder: (sheetCtx) => SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 16, 20, 4),
+                child: Text(
+                  'Aceitar pedido — fica pronto em quanto tempo?',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: Text(
+                  'Chamamos o estafeta a tempo de chegar quando estiver pronto.',
+                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final m in _kTempoPreparacao)
+                      ChoiceChip(
+                        label: Text('$m min'),
+                        selected: m == padrao,
+                        onSelected: (_) => Navigator.of(sheetCtx).pop(m),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _handleTestMode() async {
@@ -463,7 +640,7 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
 
     if (createdIds.isNotEmpty) {
       // Só (re)inicia se houver pedidos created que ainda não tinham
-      // sido vistos — evita reset do timeout 60s a cada rebuild.
+      // sido vistos — evita recomeçar o som a cada rebuild.
       final hasNewOrders =
           createdIds.any((id) => !_knownCreatedOrderIds.contains(id));
       if (hasNewOrders) {
@@ -497,25 +674,7 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
   }
 
   String _ordersLabel(int count) {
-    return count == 1 ? '1 pedido' : '$count pedidos';
-  }
-
-  double _sumEarningsSince(List<OrderModel> orders, DateTime threshold) {
-    var total = 0.0;
-    for (final order in orders) {
-      if (order.createdAt.isBefore(threshold)) continue;
-      total += _partnerRevenue(order);
-    }
-    return total;
-  }
-
-  double _partnerRevenue(OrderModel order) {
-    final commission = order.platformCommissionAmount;
-    final itemsValue = order.subtotal > 0
-        ? order.subtotal
-        : (order.total - order.deliveryFee - order.serviceFee);
-    final revenue = itemsValue - commission;
-    return revenue > 0 ? revenue : 0;
+    return count == 1 ? '1 pedido entregue' : '$count pedidos entregues';
   }
 
   // ── Festas (2026-08-25) — aceitar com tempo ───────────────────────────────
@@ -709,23 +868,29 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
       _handleNewOrders(activePartnerOrders);
     });
 
-    final now = DateTime.now();
-    final startOfToday = DateTime(now.year, now.month, now.day);
-    final startOfWeek = startOfToday.subtract(const Duration(days: 6));
-    final todayCount = partnerOrders
-        .where((order) => !order.createdAt.isBefore(startOfToday))
+    // C3: ganhos do servidor; recarrega quando muda o nº de entregues.
+    final entregues = partnerOrders
+        .where((o) => o.status == OrderStatus.delivered)
         .length;
-    final weekCount = partnerOrders
-        .where((order) => !order.createdAt.isBefore(startOfWeek))
-        .length;
-    final totalCount = partnerOrders.length;
-
-    final todayEarnings = _sumEarningsSince(partnerOrders, startOfToday);
-    final weekEarnings = _sumEarningsSince(partnerOrders, startOfWeek);
-    final totalEarnings = _sumEarningsSince(
-      partnerOrders,
-      DateTime.fromMillisecondsSinceEpoch(0),
-    );
+    if (entregues != _entreguesVistos) {
+      _entreguesVistos = entregues;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_carregarGanhos());
+      });
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _pedirLojaRecebe(partnerOrders);
+    });
+    double cents(String k) => ((_ganhos?[k] as num?) ?? 0) / 100.0;
+    int n(String k) => (_ganhos?[k] as num?)?.toInt() ?? 0;
+    final todayEarnings = cents('hoje_cents');
+    final weekEarnings = cents('semana_cents');
+    final totalEarnings = cents('total_cents');
+    final todayCount = n('hoje_pedidos');
+    final weekCount = n('semana_pedidos');
+    final totalCount = n('total_pedidos');
+    final pausaAte = _pausaAte(currentRestaurant);
+    final emPausa = pausaAte != null && pausaAte.isAfter(DateTime.now());
 
     final appBarForeground =
         theme.appBarTheme.foregroundColor ?? theme.colorScheme.onPrimary;
@@ -836,6 +1001,14 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                   ),
                   const SizedBox(height: 16),
                 ],
+                _PausaLojaCard(
+                  emPausa: emPausa,
+                  voltaAs: (emPausa && pausaAte != null) ? _hhmmLisboa(pausaAte) : null,
+                  aMudar: _aMudarPausa,
+                  onPausar: _escolherPausa,
+                  onRetomar: () => _mudarPausa(0),
+                ),
+                const SizedBox(height: 16),
                 _EarningsSummary(
                   todayAmount: todayEarnings,
                   weekAmount: weekEarnings,
@@ -971,6 +1144,7 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                   ),
                 _OrdersSection(
                   orders: activePartnerOrders,
+                  recebe: _recebe,
                   onAccept: (order) async {
                     // Festas: aceitar abre "Fica pronto em quanto tempo?"
                     // (RPC festas_accept + aviso ao cliente).
@@ -979,8 +1153,16 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                       await _festasAceitarComTempo(order);
                       return;
                     }
-                    final accepted =
-                        await orderStore.restaurantAcceptOrder(order);
+                    // A5 (04/10/2026): ao aceitar, a loja diz quanto tempo
+                    // demora; o servidor chama o estafeta a tempo
+                    // (aceite + preparação − 8 min). Sem escolha → não aceita.
+                    final prep = await _escolherTempoPreparacao(
+                        currentRestaurant.takeawayDefaultPrepMinutes);
+                    if (prep == null || !context.mounted) return;
+                    final accepted = await orderStore.restaurantAcceptOrder(
+                      order,
+                      prepMinutes: prep,
+                    );
                     cancelPartnerOrderNotification(order.id);
                     if (!context.mounted) return;
                     // BUG F (2026-05-13) — incluir ultimos 4 chars do order id
@@ -990,7 +1172,7 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                         ? order.id.substring(order.id.length - 4).toUpperCase()
                         : order.id.toUpperCase();
                     final message = accepted
-                        ? 'Pedido aceite — #$shortId. Prepare os itens.'
+                        ? 'Pedido aceite — #$shortId. Pronto em $prep min.'
                         : 'Não foi possível aceitar o pedido — #$shortId.';
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text(message)),
@@ -1035,7 +1217,7 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                   icon: Icons.inventory_2_outlined,
                   label: 'Gerir produtos',
                   description:
-                      'Atualize o catálogo, ajuste disponibilidade e mantenha os itens organizados.',
+                      'Atualiza o catálogo, marca produtos esgotados e mantém os itens organizados.',
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
@@ -1051,7 +1233,7 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                   icon: Icons.local_shipping_outlined,
                   label: 'Chamar estafeta',
                   description:
-                      'Criar um pedido de entrega com os produtos disponíveis para envio imediato.',
+                      'Cliente pediu ao balcão ou por telefone? Chama um estafeta para lhe levar a encomenda.',
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
@@ -1179,7 +1361,9 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                                     ),
                                   ),
                                   Text(
-                                    '€${o.total.toStringAsFixed(2)}',
+                                    _recebe(o) == null
+                                        ? ''
+                                        : 'Recebes €${_recebe(o)!.toStringAsFixed(2)}',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.w700,
                                     ),
@@ -1259,12 +1443,14 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
 class _OrdersSection extends StatelessWidget {
   const _OrdersSection({
     required this.orders,
+    required this.recebe,
     required this.onAccept,
     required this.onReject,
     required this.onCallDriver,
   });
 
   final List<OrderModel> orders;
+  final double? Function(OrderModel) recebe;
   final Future<void> Function(OrderModel) onAccept;
   final Future<void> Function(OrderModel) onReject;
   final Future<void> Function(OrderModel) onCallDriver;
@@ -1301,6 +1487,7 @@ class _OrdersSection extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 16),
               child: _PartnerOrderCard(
                 order: order,
+                recebe: recebe(order),
                 onAccept: onAccept,
                 onReject: onReject,
                 onCallDriver: onCallDriver,
@@ -1315,12 +1502,15 @@ class _OrdersSection extends StatelessWidget {
 class _PartnerOrderCard extends StatefulWidget {
   const _PartnerOrderCard({
     required this.order,
+    required this.recebe,
     required this.onAccept,
     required this.onReject,
     required this.onCallDriver,
   });
 
   final OrderModel order;
+  /// A4: o que a loja recebe deste pedido (servidor). null = a carregar.
+  final double? recebe;
   final Future<void> Function(OrderModel) onAccept;
   final Future<void> Function(OrderModel) onReject;
   final Future<void> Function(OrderModel) onCallDriver;
@@ -1440,11 +1630,23 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
                 ],
               ),
             ),
-            Text(
-              '€${order.total.toStringAsFixed(2)}',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  'Recebes',
+                  style: theme.textTheme.labelSmall
+                      ?.copyWith(color: Colors.grey.shade600),
+                ),
+                Text(
+                  widget.recebe == null
+                      ? '…'
+                      : '€${widget.recebe!.toStringAsFixed(2)}',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -2040,7 +2242,7 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
                       ),
                     )
                   : const Icon(Icons.delivery_dining),
-              label: Text(busy ? 'A chamar...' : 'Chamar estafeta'),
+              label: Text(busy ? 'A chamar...' : 'Chamar estafeta já'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.accent,
                 foregroundColor: Colors.white,
@@ -2063,7 +2265,7 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
                 color: Colors.white70,
               ),
             ),
-            label: const Text('Aguardando estafeta...'),
+            label: const Text('À procura de estafeta...'),
             style: ElevatedButton.styleFrom(
               disabledBackgroundColor: Colors.grey.shade400,
               disabledForegroundColor: Colors.white,
@@ -2872,6 +3074,60 @@ class _PendingReservationsBadge extends StatelessWidget {
               const Icon(Icons.chevron_right, color: Colors.white),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A5 (04/10/2026) — pausar a loja 15/30/60 min ou até fechar (volta sozinha).
+class _PausaLojaCard extends StatelessWidget {
+  const _PausaLojaCard({
+    required this.emPausa,
+    required this.voltaAs,
+    required this.aMudar,
+    required this.onPausar,
+    required this.onRetomar,
+  });
+
+  final bool emPausa;
+  final String? voltaAs;
+  final bool aMudar;
+  final VoidCallback onPausar;
+  final VoidCallback onRetomar;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: emPausa ? AppColors.warning.withValues(alpha: 0.12) : null,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            Icon(emPausa ? Icons.pause_circle : Icons.storefront_outlined,
+                color: emPausa ? AppColors.warning : AppColors.primary),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                emPausa
+                    ? 'Loja em pausa — volta às ${voltaAs ?? '--:--'}'
+                    : 'Muito trabalho? Pausa a loja uns minutos.',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+            const SizedBox(width: 8),
+            aMudar
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : TextButton(
+                    onPressed: emPausa ? onRetomar : onPausar,
+                    child: Text(emPausa ? 'Retomar' : 'Pausar'),
+                  ),
+          ],
         ),
       ),
     );

@@ -21,6 +21,11 @@ class _PartnerHoursScreenState extends State<PartnerHoursScreen> {
   late BusinessHours _hours;
   bool _saving = false;
 
+  // Dias fechados (feriados/férias) — business_hours.special_dates.
+  List<DateTime> _diasFechados = const [];
+  bool _diasCarregados = false;
+  bool _aGuardarDias = false;
+
   static const _days = <({int weekday, String label})>[
     (weekday: DateTime.monday, label: 'Segunda-feira'),
     (weekday: DateTime.tuesday, label: 'Terça-feira'),
@@ -35,6 +40,59 @@ class _PartnerHoursScreenState extends State<PartnerHoursScreen> {
   void initState() {
     super.initState();
     _hours = widget.restaurant.businessHours;
+    _carregarDiasFechados();
+  }
+
+  Future<void> _carregarDiasFechados() async {
+    final dias = await context
+        .read<RestaurantStore>()
+        .fetchDiasFechados(widget.restaurant.id);
+    if (!mounted) return;
+    final hoje = DateTime.now();
+    final hojeSo = DateTime(hoje.year, hoje.month, hoje.day);
+    setState(() {
+      _diasFechados = dias.where((d) => !d.isBefore(hojeSo)).toList();
+      _diasCarregados = true;
+    });
+  }
+
+  Future<void> _guardarDias(List<DateTime> novos) async {
+    if (_aGuardarDias) return;
+    setState(() => _aGuardarDias = true);
+    final ok = await context
+        .read<RestaurantStore>()
+        .guardarDiasFechados(widget.restaurant.id, novos);
+    if (!mounted) return;
+    setState(() {
+      _aGuardarDias = false;
+      if (ok) _diasFechados = (List<DateTime>.of(novos)..sort());
+    });
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'Não foi possível guardar os dias fechados. Tenta de novo.')));
+    }
+  }
+
+  Future<void> _adicionarDiaFechado() async {
+    final hoje = DateTime.now();
+    final escolhido = await showDatePicker(
+      context: context,
+      initialDate: hoje,
+      firstDate: DateTime(hoje.year, hoje.month, hoje.day),
+      lastDate: hoje.add(const Duration(days: 365)),
+      helpText: 'Dia em que a loja está fechada',
+    );
+    if (escolhido == null || !mounted) return;
+    final d = DateTime(escolhido.year, escolhido.month, escolhido.day);
+    if (_diasFechados.contains(d)) return;
+    await _guardarDias([..._diasFechados, d]);
+  }
+
+  static String _dataPt(DateTime d) {
+    const dias = ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'];
+    String dd(int n) => n.toString().padLeft(2, '0');
+    return '${dias[d.weekday - 1]}, ${dd(d.day)}/${dd(d.month)}/${d.year}';
   }
 
   void _updateDay(int weekday, DayHours day) {
@@ -147,6 +205,48 @@ class _PartnerHoursScreenState extends State<PartnerHoursScreen> {
               loading: _saving,
               onPressed: _saving ? null : _save,
             ),
+            const SizedBox(height: Spacing.xl),
+            const Text(
+              'Dias fechados (feriados, férias)',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Nestes dias a loja aparece fechada o dia todo. Fica guardado logo.',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            ),
+            const SizedBox(height: Spacing.sm),
+            if (!_diasCarregados)
+              const Padding(
+                padding: EdgeInsets.all(8),
+                child: LinearProgressIndicator(),
+              )
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final d in _diasFechados)
+                    InputChip(
+                      label: Text(_dataPt(d)),
+                      onDeleted: _aGuardarDias
+                          ? null
+                          : () => _guardarDias(
+                              _diasFechados.where((x) => x != d).toList()),
+                    ),
+                  ActionChip(
+                    avatar: _aGuardarDias
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.add, size: 18),
+                    label: const Text('Adicionar dia'),
+                    onPressed: _aGuardarDias ? null : _adicionarDiaFechado,
+                  ),
+                ],
+              ),
           ],
         ),
       ),

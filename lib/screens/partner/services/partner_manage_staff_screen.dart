@@ -683,7 +683,7 @@ class _StaffAvailabilityScreenState extends State<_StaffAvailabilityScreen>
         ? (cfg.start ?? const TimeOfDay(hour: 9, minute: 0))
         : (cfg.end ?? const TimeOfDay(hour: 18, minute: 0));
     final picked = await showTimePicker(context: context, initialTime: initial);
-    if (picked == null) return;
+    if (picked == null || !mounted) return;
     setState(() {
       _config[dow] = cfg.copyWith(
         start: isStart ? picked : cfg.start,

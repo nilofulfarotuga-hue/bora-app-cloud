@@ -5,6 +5,7 @@ import '../models/client_restaurant_profile.dart';
 import '../models/floor_plan.dart';
 import '../models/reservation_model.dart';
 import '../models/restaurant_table.dart';
+import '../utils/hora_lisboa.dart';
 
 /// Reservas PRO F4 — store partner-side.
 ///
@@ -39,23 +40,24 @@ class PartnerReservasStore extends ChangeNotifier {
           query = query.eq('status', 'approved');
           break;
         case 'today':
-          final today = DateTime.now();
-          final start = DateTime(today.year, today.month, today.day);
-          final end = start.add(const Duration(days: 1));
+          // M4 (04/10/2026): "hoje" é o dia de Lisboa, em instantes UTC
+          // (antes ia a meia-noite do telemóvel sem fuso → 1 h ao lado no verão).
+          final start = inicioDiaLisboaUtc(DateTime.now());
+          final end = inicioDiaLisboaUtc(
+              start.add(const Duration(hours: 26)));
           query = query
               .gte('reserved_for', start.toIso8601String())
               .lt('reserved_for', end.toIso8601String());
           break;
         case 'future':
           // BUG 3 — reservas futuras (após NOW), ainda activas.
-          final now = DateTime.now();
+          final now = DateTime.now().toUtc();
           query = query
               .gt('reserved_for', now.toIso8601String())
               .inFilter('status', ['pending', 'approved', 'arrived']);
           break;
         case 'history':
-          final today = DateTime.now();
-          final start = DateTime(today.year, today.month, today.day);
+          final start = inicioDiaLisboaUtc(DateTime.now());
           query = query.lt('reserved_for', start.toIso8601String());
           break;
         case 'all':
@@ -366,7 +368,7 @@ class PartnerReservasStore extends ChangeNotifier {
         'is_blocked': isBlocked,
         'blocked_reason': isBlocked ? reason : null,
         'blocked_at':
-            isBlocked ? DateTime.now().toIso8601String() : null,
+            isBlocked ? DateTime.now().toUtc().toIso8601String() : null,
       }).eq('id', profileId);
     } catch (e) {
       debugPrint('[PartnerReservasStore] toggleBlock: $e');
@@ -394,7 +396,7 @@ class PartnerReservasStore extends ChangeNotifier {
     int days = 30,
   }) async {
     try {
-      final since = DateTime.now().subtract(Duration(days: days));
+      final since = DateTime.now().toUtc().subtract(Duration(days: days));
       final res = await _supabase
           .from('reservations')
           .select(

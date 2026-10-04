@@ -1186,14 +1186,15 @@ class RestaurantStore extends ChangeNotifier {
       notifyListeners();
     }
     try {
-      final linhas = await supabase
-          .from('restaurants')
-          .update({'business_hours': hours.toJson()})
-          .eq('id', restaurantId)
-          .select('id')
-          .timeout(const Duration(seconds: 15));
-      if ((linhas as List).isNotEmpty) return true;
-      debugPrint('RestaurantStore: updateBusinessHours => 0 linhas (RLS?)');
+      // 04/10/2026: pelo servidor (partner_guardar_horario), que guarda o
+      // horário semanal SEM apagar os dias especiais/feriados
+      // (business_hours.special_dates) — antes o update direto apagava-os.
+      final r = await supabase.rpc('partner_guardar_horario', params: {
+        'p_restaurant_id': restaurantId,
+        'p_hours': hours.toJson(),
+      }).timeout(const Duration(seconds: 15));
+      if (r is Map && r['ok'] == true) return true;
+      debugPrint('RestaurantStore: updateBusinessHours => $r');
     } catch (e) {
       debugPrint('RestaurantStore: updateBusinessHours error => $e');
     }
@@ -1205,6 +1206,50 @@ class RestaurantStore extends ChangeNotifier {
       }
     }
     return false;
+  }
+
+  // ─── Dias fechados (feriados) — 04/10/2026 ────────────────────────────────
+  /// Datas (Lisboa) em que a loja está fechada o dia todo, a partir de hoje.
+  Future<List<DateTime>> fetchDiasFechados(String restaurantId) async {
+    try {
+      final row = await supabase
+          .from('restaurants')
+          .select('business_hours')
+          .eq('id', restaurantId)
+          .maybeSingle();
+      final bh = row?['business_hours'];
+      final sd = bh is Map ? bh['special_dates'] : null;
+      if (sd is! List) return const [];
+      final out = <DateTime>[];
+      for (final e in sd) {
+        if (e is! Map) continue;
+        if (e['closed'] != true || e['open'] != null) continue;
+        final d = DateTime.tryParse('${e['date']}');
+        if (d != null) out.add(DateTime(d.year, d.month, d.day));
+      }
+      out.sort();
+      return out;
+    } catch (e) {
+      debugPrint('RestaurantStore: fetchDiasFechados error => $e');
+      return const [];
+    }
+  }
+
+  /// Substitui a lista de dias fechados (RPC partner_dias_fechados).
+  Future<bool> guardarDiasFechados(
+      String restaurantId, List<DateTime> datas) async {
+    String iso(DateTime d) =>
+        '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    try {
+      final r = await supabase.rpc('partner_dias_fechados', params: {
+        'p_restaurant_id': restaurantId,
+        'p_datas': datas.map(iso).toList(),
+      });
+      return r is Map && r['ok'] == true;
+    } catch (e) {
+      debugPrint('RestaurantStore: guardarDiasFechados error => $e');
+      return false;
+    }
   }
 
   // ─── BR §6.7 — Partner open/closed status (rich) ──────────────────────────

@@ -11,6 +11,7 @@ import '../stores/order_store.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/partner_monthly_statement_card.dart';
+import '../utils/hora_lisboa.dart';
 
 enum _Period { today, week, month }
 
@@ -266,7 +267,7 @@ class _PartnerEarningsScreenState extends State<PartnerEarningsScreen> {
               commission: totalCommission,
               commissionSobre: totais == null
                   ? null
-                  : 'sobre ${_eurPt(((totais['produtos_cents'] as num?)?.toDouble() ?? 0) / 100.0)} de produtos',
+                  : 'sobre ${_eurPt(((totais['produtos_cents'] as num?)?.toDouble() ?? 0) / 100.0)} de vendas',
             ),
             const SizedBox(height: Spacing.lg),
             _ReservationsSection(
@@ -504,8 +505,8 @@ class _KpiRow extends StatelessWidget {
           child: _kpi(
             icon: Icons.percent,
             label: commissionSobre == null
-                ? 'Parte da Bora'
-                : 'Parte da Bora\n$commissionSobre',
+                ? 'Comissão Bora'
+                : 'Comissão Bora\n$commissionSobre',
             value: _eur(commission),
           ),
         ),
@@ -705,12 +706,12 @@ class _PedidoExtratoTile extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          _linha('O cliente pagou', _eur(pedido['cliente_pagou_cents'])),
-          _linha('Produtos', _eur(pedido['produtos_cents'])),
-          _linha('Entrega e taxas (cobradas pela Bora ao cliente)',
+          // A3 (04/10/2026): vendas ao preço da loja; comissão Bora 10 %.
+          _linha('Vendas (preço da loja)', _eur(pedido['produtos_cents'])),
+          _linha('Entrega e taxas (pagas pelo cliente à Bora)',
               _eur(pedido['entrega_e_taxas_cents'])),
           _linha(
-              'Parte da Bora ${pedido['sobre_txt'] ?? ''}'
+              'Comissão Bora ${pedido['sobre_txt'] ?? ''}'
               '${pct == null ? '' : ' (${pct.toString().replaceAll('.', ',')} %)'}',
               _eur(pedido['parte_bora_cents'])),
           _linha('Fica para ti', _eur(pedido['fica_para_o_parceiro_cents']),
@@ -994,7 +995,7 @@ class _PeakHoursSection extends StatelessWidget {
   List<int> _hourlyCounts() {
     final counts = List<int>.filled(24, 0);
     for (final o in orders) {
-      final h = o.createdAt.toLocal().hour;
+      final h = horaLisboa(o.createdAt).hour;
       counts[h] += 1;
     }
     return counts;
@@ -1108,7 +1109,8 @@ class _WeeklyCloseoutSection extends StatelessWidget {
   }
 
   static String _dataPt(String? iso) {
-    final d = DateTime.tryParse(iso ?? '')?.toLocal();
+    final p = DateTime.tryParse(iso ?? '');
+    final d = p == null ? null : horaLisboa(p);
     if (d == null) return '—';
     String pad(int n) => n.toString().padLeft(2, '0');
     return '${pad(d.day)}/${pad(d.month)}/${d.year}';
@@ -1172,13 +1174,13 @@ class _WeeklyCloseoutSection extends StatelessWidget {
           else ...[
             Text(
               'Esta semana: ${current['total_orders'] ?? 0} pedidos · '
-              '${_eur(current['gross_sales'] as num?)} brutos',
+              '${_eur(current['gross_sales'] as num?)} em vendas',
               style: const TextStyle(
                   fontSize: 13, color: AppColors.textPrimary),
             ),
             const SizedBox(height: 2),
             Text(
-              'Parte da Bora: ${_eur(current['commission_total'] as num?)} '
+              'Comissão Bora: ${_eur(current['commission_total'] as num?)} '
               'sobre ${_eur(current['gross_sales'] as num?)} de vendas · '
               'fica para ti ${_eur(current['partner_share'] as num?)}',
               style: const TextStyle(
@@ -1290,7 +1292,8 @@ class _WeeklyCloseoutSection extends StatelessWidget {
   }
 
   String _weekLabel(String? iso) {
-    final d = DateTime.tryParse(iso ?? '')?.toLocal();
+    final p = DateTime.tryParse(iso ?? '');
+    final d = p == null ? null : horaLisboa(p);
     if (d == null) return '—';
     String pad(int n) => n.toString().padLeft(2, '0');
     final end = d.add(const Duration(days: 6));

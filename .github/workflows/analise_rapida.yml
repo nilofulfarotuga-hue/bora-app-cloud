@@ -1,8 +1,8 @@
 name: Analise rapida (ramos analise-*)
 
-# Ramos de trabalho dos agentes (Claude.ai, 04/10/2026): so analisa e testa.
-# Nao faz build, nao publica, nao mexe no versionCode. Serve de porta antes
-# de juntar o codigo ao ramo de producao.
+# Variante ESTRITA usada so no ramo analise-admin-geral (nao entra no ramo do
+# agente): o original faz "comando | tee" sem pipefail, por isso fica sempre
+# verde mesmo com erros. Aqui os erros fazem falhar e aparecem como anotacoes.
 on:
   push:
     branches:
@@ -27,10 +27,27 @@ jobs:
       - name: Dependencias
         run: flutter pub get
       - name: Analise estatica (so erros fazem falhar)
+        shell: bash
         run: |
-          flutter analyze --no-fatal-infos --no-fatal-warnings 2>&1 | tee analise.txt
+          set +e
+          flutter analyze --no-fatal-infos --no-fatal-warnings > analise.txt 2>&1
+          rc=$?
+          tail -5 analise.txt
+          grep -E "^ *error " analise.txt | head -25 | while IFS= read -r l; do echo "::error::$l"; done
+          grep -cE "^ *warning " analise.txt | xargs -I{} echo "::notice::avisos(warnings)={}"
+          exit $rc
       - name: Testes
-        run: flutter test --reporter expanded 2>&1 | tee testes.txt
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          flutter test --reporter expanded > testes.txt 2>&1
+          rc=$?
+          tail -3 testes.txt
+          grep -E "\[E\]$|\[E\] *$" testes.txt | head -25 | while IFS= read -r l; do echo "::error::FALHOU $l"; done
+          grep -E "^(Expected|  Actual|Error:|.*Exception:)" testes.txt | head -15 | while IFS= read -r l; do echo "::error::$l"; done
+          tail -1 testes.txt | while IFS= read -r l; do echo "::notice::$l"; done
+          exit $rc
       - name: Guardar resultados
         if: always()
         uses: actions/upload-artifact@v4

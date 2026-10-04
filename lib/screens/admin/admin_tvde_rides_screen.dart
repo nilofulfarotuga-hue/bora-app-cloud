@@ -629,6 +629,15 @@ class _RideCard extends StatelessWidget {
             Row(
               children: [
                 _RideStatusChip(status: status),
+                // 04/10: o cliente partilhou a viagem em tempo real (link).
+                if (data['partilhada'] == true) ...[
+                  const SizedBox(width: 6),
+                  const Tooltip(
+                    message: 'Cliente partilhou a viagem em tempo real',
+                    child: Icon(Icons.ios_share,
+                        size: 16, color: AppColors.textSecondary),
+                  ),
+                ],
                 if (isQueued && live) ...[
                   const SizedBox(width: 6),
                   Container(

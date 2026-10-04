@@ -1437,9 +1437,26 @@ class TvdeStore extends ChangeNotifier {
   // HISTÓRICO + ASSINATURA
   // ════════════════════════════════════════════════════════════════════════
 
+  // 04/10 (auditoria): o histórico mostrava "Ainda não tens corridas" enquanto
+  // carregava e também quando a leitura falhava. Agora há três estados.
+  bool _historyLoading = false;
+  bool get historyLoading => _historyLoading;
+  bool _historyLoaded = false;
+  bool get historyLoaded => _historyLoaded;
+  bool _historyFailed = false;
+  bool get historyFailed => _historyFailed;
+
   Future<void> loadHistory() async {
     final uid = _uid;
-    if (uid == null) return;
+    if (uid == null) {
+      _historyLoaded = true;
+      notifyListeners();
+      return;
+    }
+    if (_historyLoading) return;
+    _historyLoading = true;
+    _historyFailed = false;
+    notifyListeners();
     try {
       final rows = await _sb
           .from('tvde_rides')
@@ -1448,9 +1465,13 @@ class TvdeStore extends ChangeNotifier {
           .order('created_at', ascending: false)
           .limit(50);
       _history = rows.map<TvdeRide>((m) => TvdeRide.fromMap(m)).toList();
-      notifyListeners();
+      _historyLoaded = true;
     } catch (e) {
       debugPrint('TvdeStore.loadHistory error => $e');
+      _historyFailed = true;
+    } finally {
+      _historyLoading = false;
+      notifyListeners();
     }
   }
 

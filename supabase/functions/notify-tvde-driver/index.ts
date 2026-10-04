@@ -5,6 +5,8 @@
 // v5: alem da OFERTA de corrida (caminho original, intacto), trata
 // kind='stop_added' — aviso de parada adicionada pelo cliente, com o total
 // a cobrar atualizado (decisao Danilo 2026-07-20).
+// v21 (2026-10-04): push a TODOS os aparelhos do motorista (driver_push_tokens +
+// drivers.fcm_token) e a oferta so toca se ainda for deste motorista.
 // v20 (2026-09-30): kind 'dest_changed' — o cliente mudou o destino a meio
 // (tvde_dest_change_*). Ramo proprio; nada dos kinds anteriores mudou.
 // v19 (2026-09-23): OFERTA mais rapida. Corrida real 1e13a6ea: oferta as
@@ -104,7 +106,7 @@ Deno.serve(async (req) => {
   accessP.catch(() => { /* tratado abaixo */ })
   const lerCorridaOferta = () => supabase
     .from('tvde_rides')
-    .select('origin_label, dest_label, est_fare_cents, est_distance_km, driver_earn_cents, agreed_driver_earn_cents, agreed_fare_cents, payment_method, offer_expires_at')
+    .select('origin_label, dest_label, est_fare_cents, est_distance_km, driver_earn_cents, agreed_driver_earn_cents, agreed_fare_cents, payment_method, offer_expires_at, current_offer_driver_id, status')
     .eq('id', rideId).maybeSingle()
   const offerRideP = kind === 'offer' ? lerCorridaOferta() : null
 
@@ -125,18 +127,27 @@ Deno.serve(async (req) => {
   // FCM token (drivers.fcm_token -> driver_push_tokens fallback).
   const { data: driver } = await driverP
 
-  let fcmToken: string | null = driver?.fcm_token ?? null
-  let fallbackTokenId: string | null = null
-  if (!fcmToken) {
+  // v21 (2026-10-04, auditoria A5): TODOS os aparelhos do motorista, como a
+  // entrega (notify-driver v40): drivers.fcm_token (legado) + todas as linhas
+  // activas de driver_push_tokens (telemovel, tablet, web). Dedup por token.
+  // Antes so ia ao primeiro token — quem tinha a app em dois aparelhos (ou o
+  // navegador do iPhone) perdia a oferta no outro.
+  type Alvo = { token: string; origem: 'drivers' | 'driver_push_tokens'; rowId?: string }
+  const alvos: Alvo[] = []
+  if (driver?.fcm_token) alvos.push({ token: driver.fcm_token, origem: 'drivers' })
+  {
     const { data: pushRows } = await supabase
       .from('driver_push_tokens').select('id, fcm_token')
       .eq('user_id', driverId).eq('active', true)
-      .order('last_used_at', { ascending: false }).limit(1)
-    if (pushRows && pushRows.length > 0) {
-      fcmToken = pushRows[0].fcm_token as string
-      fallbackTokenId = pushRows[0].id as string
+      .order('last_used_at', { ascending: false })
+    for (const r of pushRows ?? []) {
+      if (r.fcm_token && !alvos.some((a) => a.token === r.fcm_token)) {
+        alvos.push({ token: r.fcm_token as string, origem: 'driver_push_tokens', rowId: r.id as string })
+      }
     }
   }
+  const fcmToken: string | null = alvos.length > 0 ? alvos[0].token : null
+  const fallbackTokenId: string | null = null
   if (!fcmToken) {
     console.log(`[notify-tvde-driver] No FCM token for driver ${driverId} — skipping`)
     await logPushEvent(supabase, rideId, false, { reason: 'no_fcm_token', driver_id: driverId, kind })
@@ -155,6 +166,41 @@ Deno.serve(async (req) => {
 
   const fcmUrl = `https://fcm.googleapis.com/v1/projects/${firebaseProjectId}/messages:send`
 
+  // v21: envia a mesma mensagem a TODOS os aparelhos. Devolve um "fcmRes" com
+  // ok=true se pelo menos um aparelho recebeu. Os tokens mortos limpam-se aqui,
+  // na fonte certa; por isso o fcmBody devolvido nao traz errorCode (os blocos
+  // antigos de limpeza ficam sem efeito e nao apagam o token errado).
+  const enviarTodos = async (message: any) => {
+    let enviados = 0
+    let ultimoStatus = 0
+    const erros: unknown[] = []
+    await Promise.allSettled(alvos.map(async (alvo) => {
+      const m = { message: { ...message.message, token: alvo.token } }
+      const r = await fetch(fcmUrl, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(m),
+      })
+      if (r.ok) { enviados++; return }
+      ultimoStatus = r.status
+      const b = await r.json().catch(() => ({}))
+      erros.push({ origem: alvo.origem, status: r.status, b })
+      const code = b?.error?.details?.[0]?.errorCode ?? ''
+      if (code === 'UNREGISTERED' || code === 'INVALID_ARGUMENT') {
+        if (alvo.origem === 'driver_push_tokens' && alvo.rowId) {
+          await supabase.from('driver_push_tokens').update({ active: false }).eq('id', alvo.rowId)
+        } else {
+          await supabase.from('drivers').update({ fcm_token: null }).eq('user_id', driverId)
+        }
+      }
+    }))
+    console.log(`[notify-tvde-driver v21] kind=${kind} aparelhos=${alvos.length} enviados=${enviados}`)
+    return {
+      fcmRes: { ok: enviados > 0, status: enviados > 0 ? 200 : ultimoStatus },
+      fcmBody: { aparelhos: alvos.length, enviados, erros },
+    }
+  }
+
   // ============ kind = stop_added: aviso de parada (v5) ============
   if (kind === 'stop_added') {
     // Detalhes para montar o total a cobrar.
@@ -166,8 +212,8 @@ Deno.serve(async (req) => {
       if (Number.isFinite(v) && v > 0) stopFeeCents = v
     } catch (_e) { /* default 200 */ }
 
-    let title = '📍 Parada adicionada'
-    let body = `Nova parada (+€${eur(stopFeeCents)}).`
+    let title = '📍 Paragem adicionada'
+    let body = `Nova paragem (+€${eur(stopFeeCents)}).`
     try {
       const { data: ride } = await supabase
         .from('tvde_rides')
@@ -176,7 +222,7 @@ Deno.serve(async (req) => {
       if (ride) {
         const stopsFee = Number(ride.extra_stops_fee_cents ?? 0)
         if (stopPaidOnline) {
-          body = `Nova parada já paga na app (+€${eur(stopFeeCents)}). Não cobres a parada.`
+          body = `Nova paragem já paga na app (+€${eur(stopFeeCents)}). Não cobres a paragem.`
         } else if (ride.roundtrip_credit_id) {
           // Perna do pacote €8 — ver se o vale e dinheiro ou online
           const { data: credit } = await supabase
@@ -191,15 +237,15 @@ Deno.serve(async (req) => {
               const v = Number(String(p?.value ?? '800').replace(/\"/g, ''))
               if (Number.isFinite(v) && v > 0) rtPrice = v
             } catch (_e) { /* default */ }
-            body = `Nova parada (+€${eur(stopFeeCents)}). Total a cobrar em dinheiro: €${eur(rtPrice + stopsFee)}.`
+            body = `Nova paragem (+€${eur(stopFeeCents)}). Total a cobrar em dinheiro: €${eur(rtPrice + stopsFee)}.`
           } else {
-            body = `Nova parada (+€${eur(stopFeeCents)} em dinheiro). Paradas a cobrar: €${eur(stopsFee)}.`
+            body = `Nova paragem (+€${eur(stopFeeCents)} em dinheiro). Paragens a cobrar: €${eur(stopsFee)}.`
           }
         } else if ((ride.payment_method ?? 'cash') === 'cash') {
           const total = Number(ride.est_fare_cents ?? 0) + stopsFee
-          body = `Nova parada (+€${eur(stopFeeCents)}). Total a cobrar em dinheiro: €${eur(total)}.`
+          body = `Nova paragem (+€${eur(stopFeeCents)}). Total a cobrar em dinheiro: €${eur(total)}.`
         } else {
-          body = `Nova parada (+€${eur(stopFeeCents)} em dinheiro). Paradas a cobrar: €${eur(stopsFee)}.`
+          body = `Nova paragem (+€${eur(stopFeeCents)} em dinheiro). Paragens a cobrar: €${eur(stopsFee)}.`
         }
       }
     } catch (_e) { /* mantem fallback */ }
@@ -217,12 +263,7 @@ Deno.serve(async (req) => {
       },
     }
 
-    const fcmRes = await fetch(fcmUrl, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(message),
-    })
-    const fcmBody = await fcmRes.json().catch(() => ({}))
+    const { fcmRes, fcmBody } = await enviarTodos(message)
     if (!fcmRes.ok) {
       console.error(`[notify-tvde-driver] stop_added FCM error ${fcmRes.status}:`, JSON.stringify(fcmBody))
       await logPushEvent(supabase, rideId, false, { kind, fcm_status: fcmRes.status })
@@ -283,12 +324,7 @@ Deno.serve(async (req) => {
       },
     }
 
-    const fcmRes = await fetch(fcmUrl, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(message),
-    })
-    const fcmBody = await fcmRes.json().catch(() => ({}))
+    const { fcmRes, fcmBody } = await enviarTodos(message)
     if (!fcmRes.ok) {
       console.error(`[notify-tvde-driver] dest_changed FCM error ${fcmRes.status}:`, JSON.stringify(fcmBody))
       await logPushEvent(supabase, rideId, false, { kind, fcm_status: fcmRes.status })
@@ -346,12 +382,7 @@ Deno.serve(async (req) => {
       },
     }
 
-    const fcmRes = await fetch(fcmUrl, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(message),
-    })
-    const fcmBody = await fcmRes.json().catch(() => ({}))
+    const { fcmRes, fcmBody } = await enviarTodos(message)
     if (!fcmRes.ok) {
       console.error(`[notify-tvde-driver] ride_cancelled FCM error ${fcmRes.status}:`, JSON.stringify(fcmBody))
       await logPushEvent(supabase, rideId, false, { kind, status: fcmRes.status })
@@ -432,12 +463,7 @@ Deno.serve(async (req) => {
       },
     }
 
-    const fcmRes = await fetch(fcmUrl, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(message),
-    })
-    const fcmBody = await fcmRes.json().catch(() => ({}))
+    const { fcmRes, fcmBody } = await enviarTodos(message)
     if (!fcmRes.ok) {
       console.error(`[notify-tvde-driver] ${kind} FCM error ${fcmRes.status}:`, JSON.stringify(fcmBody))
       const errorCode = fcmBody?.error?.details?.[0]?.errorCode ?? ''
@@ -565,12 +591,7 @@ Deno.serve(async (req) => {
       },
     }
 
-    const fcmRes = await fetch(fcmUrl, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(message),
-    })
-    const fcmBody = await fcmRes.json().catch(() => ({}))
+    const { fcmRes, fcmBody } = await enviarTodos(message)
     if (!fcmRes.ok) {
       console.error(`[notify-tvde-driver] ${kind} FCM error ${fcmRes.status}:`, JSON.stringify(fcmBody))
       const errorCode = fcmBody?.error?.details?.[0]?.errorCode ?? ''
@@ -595,6 +616,20 @@ Deno.serve(async (req) => {
   // corrida de balcao — senao driver_earn_cents), forma de pagamento e prazo.
   let originLabel = 'Recolha', destLabel = 'Destino', fareEur = '0.00', distanceKm = '0'
   let earnEur = '0.00', mostraCobranca = false, offerExpiresAt: string | null = null
+  // v21 (2026-10-04, auditoria): antes de tocar, confirma que a oferta AINDA e
+  // deste motorista. Entre o gatilho e este envio a oferta pode ter expirado,
+  // passado a outro ou a corrida ter sido cancelada/aceite — tocar assim fazia
+  // o motorista carregar em Aceitar e receber "ja nao esta disponivel".
+  {
+    const { data: atual } = await supabase
+      .from('tvde_rides').select('current_offer_driver_id, status')
+      .eq('id', rideId).maybeSingle()
+    if (!atual || atual.status !== 'solicitada' || String(atual.current_offer_driver_id ?? '') !== String(driverId)) {
+      console.log(`[notify-tvde-driver] oferta ${rideId} ja nao e de ${driverId} (status=${atual?.status}) — nao se envia`)
+      await logPushEvent(supabase, rideId, false, { reason: 'oferta_ja_nao_e_deste_motorista', driver_id: driverId, status: atual?.status ?? null })
+      return json({ ok: false, reason: 'offer_stale' }, 200)
+    }
+  }
   try {
     const { data: ride } = await (offerRideP ?? lerCorridaOferta())
     if (ride) {
@@ -649,12 +684,7 @@ Deno.serve(async (req) => {
     },
   }
 
-  const fcmRes = await fetch(fcmUrl, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(message),
-  })
-  const fcmBody = await fcmRes.json().catch(() => ({}))
+  const { fcmRes, fcmBody } = await enviarTodos(message)
 
   if (!fcmRes.ok) {
     console.error(`[notify-tvde-driver] FCM error ${fcmRes.status}:`, JSON.stringify(fcmBody))

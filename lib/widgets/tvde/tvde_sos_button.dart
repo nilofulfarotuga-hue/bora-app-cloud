@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/tvde_conformidade_service.dart';
+import '../../services/tvde_partilha_service.dart';
 
 /// Botão de emergência (SOS) durante a viagem TVDE — Lei 45/2018 na versão da
 /// Lei 59/2026 (arts. 17.º-A n.º 2 e) e 19.º n.º 1 j)).
@@ -16,9 +17,14 @@ import '../../services/tvde_conformidade_service.dart';
 /// servidor e avisa o admin. O registo nunca atrasa a chamada: o 112 abre
 /// primeiro, o registo segue em segundo plano.
 class TvdeSosButton extends StatelessWidget {
-  const TvdeSosButton({super.key, required this.rideId, this.compacto = false});
+  const TvdeSosButton(
+      {super.key, required this.rideId, this.compacto = false, this.souCliente = false});
 
   final String rideId;
+
+  /// Passageiro: a folha mostra também "Partilhar viagem em tempo real"
+  /// (link vivo, como a Uber). O motorista não tem essa opção.
+  final bool souCliente;
 
   /// Só o ícone (para barras apertadas).
   final bool compacto;
@@ -32,7 +38,7 @@ class TvdeSosButton extends StatelessWidget {
         key: const Key('tvde_sos_button'),
         tooltip: 'Emergência (SOS)',
         icon: const Icon(Icons.sos, color: _vermelho),
-        onPressed: () => abrirFolhaSos(context, rideId),
+        onPressed: () => abrirFolhaSos(context, rideId, souCliente: souCliente),
       );
     }
     return OutlinedButton.icon(
@@ -43,7 +49,7 @@ class TvdeSosButton extends StatelessWidget {
       ),
       icon: const Icon(Icons.sos),
       label: const Text('SOS'),
-      onPressed: () => abrirFolhaSos(context, rideId),
+      onPressed: () => abrirFolhaSos(context, rideId, souCliente: souCliente),
     );
   }
 }
@@ -61,7 +67,8 @@ Future<Position?> _posicaoRapida() async {
   }
 }
 
-Future<void> abrirFolhaSos(BuildContext context, String rideId) {
+Future<void> abrirFolhaSos(BuildContext context, String rideId,
+    {bool souCliente = false}) {
   return showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
@@ -112,6 +119,22 @@ Future<void> abrirFolhaSos(BuildContext context, String rideId) {
                     partilhou: true, lat: pos?.latitude, lng: pos?.longitude));
               },
             ),
+            if (souCliente) ...[
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                key: const Key('tvde_sos_partilhar_viagem'),
+                style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(48)),
+                icon: const Icon(Icons.route),
+                label: const Text('Partilhar viagem em tempo real'),
+                onPressed: () async {
+                  Navigator.of(ctx).pop();
+                  await TvdePartilhaService.partilhar(context, rideId,
+                      origem: 'sos');
+                  unawaited(_registar(rideId, partilhou: true));
+                },
+              ),
+            ],
           ],
         ),
       ),

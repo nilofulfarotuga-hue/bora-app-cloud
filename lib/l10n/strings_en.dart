@@ -16,6 +16,57 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 04/10/2026 (agente tvde): TVDE em PT-PT (paragem) + partilhar viagem.
+  'Como pagaste na app, o valor é devolvido automaticamente.':
+      'As you paid in the app, the amount is refunded automatically.',
+  'Boa viagem! O preço é o que viste ao pedir.':
+      'Have a good trip! The price is the one you saw when you requested.',
+  'A corrida já não permite adicionar paragens.':
+      'The ride no longer allows adding stops.',
+  'Abre o MBWay e confirma para adicionar a paragem.':
+      'Open MBWay and confirm to add the stop.',
+  'Adicionar paragem':
+      'Add stop',
+  'Esta corrida foi paga no cartão. A paragem é cobrada agora — só é adicionada depois de o pagamento passar.':
+      'This ride was paid by card. The stop is charged now — it is only added after the payment goes through.',
+  'Esta corrida foi paga por MB Way. A paragem é cobrada agora — só é adicionada depois de confirmares no MB Way.':
+      'This ride was paid with MB Way. The stop is charged now — it is only added after you confirm in MB Way.',
+  'Já atingiste o máximo de {0} paragens.':
+      'You have reached the maximum of {0} stops.',
+  'Morada da paragem':
+      'Stop address',
+  'Máximo de {0} paragens atingido.':
+      'Maximum of {0} stops reached.',
+  'Não foi possível adicionar a paragem.':
+      'Could not add the stop.',
+  'Não foi possível carregar as tuas corridas.':
+      'Could not load your rides.',
+  'Não foi possível criar o link da viagem. Tenta de novo.':
+      'Could not create the trip link. Try again.',
+  'Não foi possível remover a paragem.':
+      'Could not remove the stop.',
+  'Não recebemos a confirmação do pagamento. A paragem não foi adicionada.':
+      'We did not receive the payment confirmation. The stop was not added.',
+  'Pagamento devolvido — não foi possível adicionar a paragem. {0}':
+      'Payment refunded — could not add the stop. {0}',
+  'Paragem adicionada.':
+      'Stop added.',
+  'Paragem extra — {0}':
+      'Extra stop — {0}',
+  'Paragem {0}':
+      'Stop {0}',
+  'Paragens':
+      'Stops',
+  'Paragens ({0} × €{1})':
+      'Stops ({0} × €{1})',
+  'Partilhar viagem':
+      'Share trip',
+  'Passa por outro sítio a caminho — €{0} por paragem. A paragem não está incluída no plano.{1}':
+      'Stop somewhere else on the way — €{0} per stop. The stop is not included in the plan.{1}',
+  'Remover paragem':
+      'Remove stop',
+  'Segue a minha viagem Bora em tempo real: {0}':
+      'Follow my Bora trip in real time: {0}',
   '\nJá não podes reagendar esta marcação.':
       '\nYou can no longer reschedule this appointment.',
   '\nPodes reagendar mais 1 vez.':

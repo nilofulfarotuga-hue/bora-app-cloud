@@ -4,6 +4,10 @@
 // PADRAO UNICO (= delivery): cobra NA HORA e faz refund estilo
 // `client-cancel-order` (capado ao pago, menos a taxa). SEM authorize/capture.
 //
+// v18 (2026-10-04) — auditoria: `refund` pedido pelo cliente so de corrida
+//   cancelada/sem motorista/no-show (nunca de uma finalizada; o admin pode);
+//   `charge_roundtrip` calcula o preco do pacote com os km do servidor.
+//
 // v12 (2026-09-30) — MUDAR DESTINO a meio da corrida (missão tvde-mudar-destino):
 //   charge_dest_change / confirm_dest_change_payment (novas), no padrão das
 //   paragens. O valor é o da proposta gravada pelo servidor; o destino só muda
@@ -683,9 +687,17 @@ Deno.serve(async (req) => {
       const distanceKm = Number(body.distance_km ?? 0);
       if (!(distanceKm > 0)) return json({ error: 'invalid_distance' }, 400);
 
+      // 04/10 (auditoria C1): o preco do pacote usa os km do SERVIDOR (nunca
+      // menos que a linha reta x tvde_km_fator_minimo), como a corrida.
+      const { data: kmSeg } = await admin.rpc('_tvde_km_seguro', {
+        p_olat: Number(body.origin_lat), p_olng: Number(body.origin_lng),
+        p_dlat: Number(body.dest_lat), p_dlng: Number(body.dest_lng),
+        p_km: distanceKm,
+      });
+      const kmPreco = Math.max(distanceKm, Number(kmSeg ?? 0) || 0);
       const { data: priceData, error: priceErr } = await admin.rpc(
         'tvde_roundtrip_price_for_km',
-        { p_distance_km: distanceKm },
+        { p_distance_km: kmPreco },
       );
       const amountCents = Number(priceData ?? 0);
       if (priceErr || !(amountCents >= 50)) {
@@ -1459,13 +1471,21 @@ Deno.serve(async (req) => {
       const { data: ride } = await admin
         .from('tvde_rides')
         .select(
-          'id, client_id, payment_intent_id, payment_status, est_fare_cents, final_fare_cents, cancel_fee_cents',
+          'id, client_id, payment_intent_id, payment_status, est_fare_cents, final_fare_cents, cancel_fee_cents, status',
         )
         .eq('id', rideId)
         .maybeSingle();
       if (!ride) return json({ error: 'ride_not_found' }, 404);
-      if (ride.client_id !== user.id && !(await callerIsAdmin(userClient))) {
+      const souAdmin = await callerIsAdmin(userClient);
+      if (ride.client_id !== user.id && !souAdmin) {
         return json({ error: 'not_ride_owner' }, 403);
+      }
+      // 04/10 (auditoria C3): o cliente so pode pedir reembolso de uma corrida
+      // CANCELADA (ou sem motorista / no-show, onde a taxa fica retida). Uma
+      // corrida finalizada nunca e reembolsada por aqui — so o admin decide.
+      const ESTADOS_REEMBOLSAVEIS = ['cancelada_cliente', 'cancelada_motorista', 'sem_motorista', 'no_show'];
+      if (!souAdmin && !ESTADOS_REEMBOLSAVEIS.includes(String(ride.status ?? ''))) {
+        return json({ error: 'ride_not_refundable', status: ride.status }, 409);
       }
       if (!ride.payment_intent_id) return json({ ok: true, noop: true });
       if (ride.payment_status === 'refunded' ||

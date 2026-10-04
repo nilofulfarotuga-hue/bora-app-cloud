@@ -10,6 +10,7 @@ import '../../../widgets/tvde/recibo_pago.dart';
 import '../../../widgets/tvde/recibo_viagem_sheet.dart';
 import '../../../widgets/bora/bora.dart';
 import '../../../widgets/tvde/tvde_roundtrip_driver_notice.dart';
+import '../../../utils/hora_lisboa.dart';
 
 import '../../../l10n/tr.dart';
 
@@ -32,17 +33,29 @@ class _TvdeRidesHistoryScreenState extends State<TvdeRidesHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final rides = context.watch<TvdeStore>().history;
+    final store = context.watch<TvdeStore>();
+    final rides = store.history;
+    final Widget body;
+    if (rides.isNotEmpty) {
+      body = RefreshIndicator(
+        onRefresh: () => context.read<TvdeStore>().loadHistory(),
+        child: ListView.separated(
+          padding: const EdgeInsets.all(Spacing.lg),
+          itemCount: rides.length,
+          separatorBuilder: (_, __) => const SizedBox(height: Spacing.sm),
+          itemBuilder: (_, i) => _RideTile(ride: rides[i]),
+        ),
+      );
+    } else if (store.historyFailed) {
+      body = _Erro(onRetry: () => context.read<TvdeStore>().loadHistory());
+    } else if (!store.historyLoaded || store.historyLoading) {
+      body = const Center(child: CircularProgressIndicator());
+    } else {
+      body = const _Empty();
+    }
     return Scaffold(
       appBar: BoraScreenAppBar(title: 'As minhas corridas'.tr),
-      body: rides.isEmpty
-          ? const _Empty()
-          : ListView.separated(
-              padding: const EdgeInsets.all(Spacing.lg),
-              itemCount: rides.length,
-              separatorBuilder: (_, __) => const SizedBox(height: Spacing.sm),
-              itemBuilder: (_, i) => _RideTile(ride: rides[i]),
-            ),
+      body: body,
     );
   }
 }
@@ -74,7 +87,8 @@ class _RideTileState extends State<_RideTile> {
   @override
   Widget build(BuildContext context) {
     final ride = widget.ride;
-    final d = ride.createdAt;
+    // Data sempre na hora de Lisboa, nunca no fuso do aparelho.
+    final d = ride.createdAt == null ? null : horaLisboa(ride.createdAt!);
     final date = d == null
         ? ''
         : '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
@@ -164,6 +178,34 @@ class _Empty extends StatelessWidget {
           Text('Ainda não tens corridas.'.tr,
               style: const TextStyle(color: AppColors.textSecondary)),
         ],
+      ),
+    );
+  }
+}
+
+class _Erro extends StatelessWidget {
+  const _Erro({required this.onRetry});
+  final VoidCallback onRetry;
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(Spacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.wifi_off, size: 56, color: AppColors.textSubtle),
+            const SizedBox(height: Spacing.md),
+            Text('Não foi possível carregar as tuas corridas.'.tr,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.textSecondary)),
+            const SizedBox(height: Spacing.md),
+            OutlinedButton(
+              onPressed: onRetry,
+              child: Text('Tentar de novo'.tr),
+            ),
+          ],
+        ),
       ),
     );
   }

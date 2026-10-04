@@ -101,7 +101,7 @@ class TvdeRideMbwayWaitingDialog extends StatefulWidget {
     return TvdeRideMbwayWaitingDialog(
       key: key,
       amountEur: amountEur,
-      message: 'Abre o MBWay e confirma para adicionar a parada.'.tr,
+      message: 'Abre o MBWay e confirma para adicionar a paragem.'.tr,
       checkPaid: (store) async {
         final res = await store.confirmStopPayment(paymentIntentId);
         // Sem resposta do servidor (rede) → continuar a tentar, não desistir.

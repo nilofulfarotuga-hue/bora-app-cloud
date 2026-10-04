@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-04T14:18:18.131971+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-04T20:02:14.238116+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -32,3 +32,5 @@ REGRA (Danilo, 01/10/2026): tudo o que ele mandar (vídeos, transcrições, link
 - ANIMAÇÕES MINIMALISTAS COM CLAUDE (Fernando Araujo, 30/09): reels de animação simples feitos em código pelo Claude (HTML/CSS → MP4 por Chrome headless, grátis). Serve para o Em Dia (prazos, impostos, contas explicados em 15 s) e para o Bora. Complementa os reels com pessoas reais.
 - ESTADO DO RADAR DE VÍDEOS (medido 04/10): FUNCIONA — 171 vídeos na tabela radar_videos, 121 na última semana, 158 com legenda, último a 03/10. Temas: crescer_redes 107, ganhar_dinheiro 29, marketing_apps 19. FALHAS: falta o tema novidades de IA/ferramentas Claude; as ideias saem genéricas e não são cruzadas com o que já temos nem viram ações; o Danilo não vê o resultado.
 
+
+## 04/10/2026 - radar diario (agente na nuvem)

@@ -128,7 +128,7 @@ class _WasherApplyScreenState extends State<WasherApplyScreen> {
         maxWidth: 1400,
         imageQuality: 85,
       );
-      if (x == null) return;
+      if (x == null || !mounted) return;
       setState(() => onPicked(x));
     } finally {
       _isPicking = false;

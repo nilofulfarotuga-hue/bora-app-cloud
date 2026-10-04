@@ -294,7 +294,7 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
                     ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Informe o email.';
+                        return 'Indica o email.';
                       }
                       if (!value.contains('@')) return 'Email inválido.';
                       return null;
@@ -334,7 +334,7 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Informe a palavra-passe.';
+                        return 'Indica a palavra-passe.';
                       }
                       return null;
                     },

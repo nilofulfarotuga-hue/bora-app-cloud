@@ -252,7 +252,7 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('GPS desativado. Ative a localização para tracking.'),
+          content: Text('GPS desligado. Ativa a localização para seguir a entrega.'),
           duration: Duration(seconds: 8),
           action: SnackBarAction(
             label: 'Ativar',
@@ -281,7 +281,7 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content:
-              Text('Permissão de localização bloqueada. Ative nas definições.'),
+              Text('Permissão de localização bloqueada. Ativa-a nas definições.'),
           duration: Duration(seconds: 8),
           action: SnackBarAction(
             label: 'Definições',
@@ -408,7 +408,7 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       if (e is LocationServiceDisabledException) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('GPS desativado. Ative a localização para tracking.'),
+            content: Text('GPS desligado. Ativa a localização para seguir a entrega.'),
             duration: Duration(seconds: 8),
             action: SnackBarAction(
               label: 'Ativar',
@@ -1128,6 +1128,113 @@ class _BottomPanel extends StatefulWidget {
 class _BottomPanelState extends State<_BottomPanel> {
   bool _isLoading = false;
 
+  // ── [ronda 04/10 · #6] Reportar problema na entrega (padrão Glovo/Uber) ──
+  static const List<(String, String)> _motivosProblema = [
+    ('loja_fechada', 'A loja está fechada'),
+    ('cliente_ausente', 'O cliente não atende / não está'),
+    ('morada_errada', 'A morada está errada'),
+    ('produto_em_falta', 'Falta um produto'),
+    ('outro', 'Outro problema'),
+  ];
+
+  Future<void> _reportarProblema(OrderModel order) async {
+    final motivo = await showModalBottomSheet<(String, String)>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text('Qual é o problema?',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+            ),
+            for (final m in _motivosProblema)
+              ListTile(
+                title: Text(m.$2),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(ctx).pop(m),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (motivo == null || !mounted) return;
+    // Produto em falta numa compra feita pelo estafeta: já existe o fluxo
+    // próprio na lista de compras (marcar "não há") que tira do total.
+    final temListaDeCompras = !order.isPartnerStore &&
+        (order.serviceType == OrderServiceType.storeShopping ||
+            order.serviceType == OrderServiceType.restaurant) &&
+        !order.isPurchaseFinalized;
+    if (motivo.$1 == 'produto_em_falta' && temListaDeCompras) {
+      _showShoppingListSheet(context, order);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Marca o produto em falta como "Não há" na lista — '
+            'sai do total do cliente.'),
+        duration: Duration(seconds: 5),
+      ));
+      return;
+    }
+    final detalheCtrl = TextEditingController();
+    final enviar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(motivo.$2),
+        content: TextField(
+          controller: detalheCtrl,
+          maxLines: 3,
+          maxLength: 500,
+          decoration: const InputDecoration(
+            hintText: 'Detalhes (opcional)',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Enviar ao suporte'),
+          ),
+        ],
+      ),
+    );
+    final detalhe = detalheCtrl.text.trim();
+    detalheCtrl.dispose();
+    if (enviar != true || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final loja = order.vendorName?.trim().isNotEmpty == true
+        ? order.vendorName!.trim()
+        : order.serviceType.label;
+    try {
+      final r = await Supabase.instance.client.rpc('file_complaint', params: {
+        'p_role': 'driver',
+        'p_category': 'order_issue',
+        'p_subject': 'Estafeta: ${motivo.$2}',
+        'p_body': 'Motivo: ${motivo.$2} (${motivo.$1})\n'
+            'Pedido: ${order.id}\nLoja: $loja\n'
+            'Estado: ${order.status.name}'
+            '${detalhe.isNotEmpty ? '\nDetalhes: $detalhe' : ''}',
+        'p_related_order_id': order.id,
+      }).timeout(const Duration(seconds: 10));
+      if (r is Map && r['success'] == true) {
+        messenger.showSnackBar(const SnackBar(
+          content: Text('Problema enviado. O suporte vai ver e responder-te.'),
+        ));
+      } else {
+        throw Exception('$r');
+      }
+    } catch (e) {
+      debugPrint('[reportar-problema] file_complaint: $e');
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Não foi possível enviar. Verifica a ligação e tenta '
+            'de novo, ou usa o chat de suporte.'),
+      ));
+    }
+  }
+
   bool get _isMultiStop => widget.allStops.length > 1;
 
   /// Shows a 4-digit code dialog before completing the delivery.
@@ -1163,7 +1270,7 @@ class _BottomPanelState extends State<_BottomPanel> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Peça ao cliente o código de 4 dígitos para confirmar a entrega.',
+                      'Pede ao cliente o código de 4 dígitos para confirmar a entrega.',
                     ),
                     const SizedBox(height: 16),
                     Semantics(
@@ -1198,7 +1305,7 @@ class _BottomPanelState extends State<_BottomPanel> {
                   onPressed: () async {
                     final entered = controller.text.trim();
                     if (entered.length != 4) {
-                      setDialogState(() => errorText = 'Digite os 4 dígitos.');
+                      setDialogState(() => errorText = 'Escreve os 4 dígitos.');
                       return;
                     }
                     // P6 (2026-08-17) — o SERVIDOR valida o PIN e fecha a
@@ -1303,6 +1410,16 @@ class _BottomPanelState extends State<_BottomPanel> {
           ? null
           : () async {
               final willFinish = order.status == OrderStatus.onTheWay;
+              // [ronda 04/10 · #7] "Deixar à porta" / foto obrigatória:
+              // a foto vem ANTES do código e do fecho.
+              if (willFinish) {
+                setState(() => _isLoading = true);
+                final podeSeguir =
+                    await ProvaDeEntrega.garantirFoto(context, order);
+                if (!mounted) return;
+                setState(() => _isLoading = false);
+                if (!podeSeguir) return;
+              }
               // BUG 33: cash skips the 4-digit code (driver receives physical
               // cash = real validation). Card/MBWay still require code.
               final isCash = order.paymentMethod == PaymentMethod.cash;
@@ -1682,9 +1799,12 @@ class _BottomPanelState extends State<_BottomPanel> {
                             try {
                               await launchUrl(uri);
                             } catch (e) {
+                              debugPrint('[driver_map] ligar: $e');
                               if (!context.mounted) return;
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Não foi possível ligar: $e')),
+                                const SnackBar(
+                                    content: Text(
+                                        'Não foi possível ligar. Tenta de novo.')),
                               );
                             }
                           },
@@ -1698,6 +1818,53 @@ class _BottomPanelState extends State<_BottomPanel> {
                       ),
                     ],
                   ],
+                ),
+                // [ronda 04/10 · #6] Reportar problema (motivos fixos).
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () => _reportarProblema(focusOrder),
+                    icon: const Icon(Icons.report_problem_outlined, size: 18),
+                    label: const Text('Reportar problema'),
+                    style: TextButton.styleFrom(
+                        foregroundColor: Colors.grey.shade700),
+                  ),
+                ),
+                // [ronda 04/10 · #7] "Deixar à porta" visível no pedido.
+                FutureBuilder<Map<String, dynamic>?>(
+                  future: ProvaDeEntrega.info(focusOrder.id),
+                  builder: (ctx, snap) {
+                    if (snap.data?['deixar_a_porta'] != true) {
+                      return const SizedBox.shrink();
+                    }
+                    return Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(top: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.3)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.door_front_door_outlined,
+                              color: AppColors.primary),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Deixar à porta — tira uma foto ao entregar.',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primary),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
               ],
 
@@ -2460,6 +2627,16 @@ class _ShoppingListSheetContent extends StatefulWidget {
 class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
   late final List<CartItem> _items;
   late int _bagCount;
+
+  /// [ronda 04/10 · #5] Trava de toque duplo do "Confirmar compra" + spinner
+  /// durante o envio e o fecho do talão.
+  bool _aConfirmar = false;
+
+  /// [ronda 04/10 · #5] Talão já fotografado (e, se chegou a subir, o caminho
+  /// no servidor). Se o fecho falhar, a próxima tentativa usa ESTA foto em vez
+  /// de obrigar o estafeta a fotografar outra vez o talão.
+  (File, int)? _talaoGuardado;
+  String? _caminhoTalaoGuardado;
 
   /// B3 (2026-06-11): fotos do catálogo por productId — o estafeta precisa de
   /// VER o produto para comprar o certo. URLs já existentes em products
@@ -3331,8 +3508,57 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: allDecided
+                  onPressed: allDecided && !_aConfirmar
                       ? () async {
+                          if (_aConfirmar) return;
+                          setState(() => _aConfirmar = true);
+                          try {
+                            await _confirmarCompra(
+                                order, extraItems, canonicalItems);
+                          } finally {
+                            if (mounted) setState(() => _aConfirmar = false);
+                          }
+                        }
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green.shade600,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.grey.shade300,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: _aConfirmar
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : Text(
+                          allDecided
+                              ? 'Confirmar compra'
+                              : 'Marca todos os artigos ($pendingCount em falta)',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                          ),
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmarCompra(
+    OrderModel order,
+    List<CartItem> extraItems,
+    List<CartItem> canonicalItems,
+  ) async {
                           final orderStore = context.read<OrderStore>();
                           final messenger = ScaffoldMessenger.of(context);
                           final nav = Navigator.of(context);
@@ -3364,10 +3590,13 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                   order.serviceType ==
                                       OrderServiceType.restaurant);
                           if (useV2) {
-                            final result =
+                            // [ronda 04/10 · #5] Tentativa anterior falhou:
+                            // usa a foto já tirada (não pede outra).
+                            final result = _talaoGuardado ??
                                 await _captureReceiptForV2(context, order);
                             if (!mounted) return;
                             if (result == null) return; // cancelado
+                            _talaoGuardado = result;
                             final photoFile = result.$1;
                             final totalCents = result.$2;
 
@@ -3378,11 +3607,13 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                             // erro PT-PT por código.
                             String storagePath;
                             try {
-                              storagePath = await ReceiptUploadService.uploadReceipt(
-                                orderId: order.id,
-                                photoFile: photoFile,
-                                totalCents: totalCents,
-                              );
+                              storagePath = _caminhoTalaoGuardado ??
+                                  await ReceiptUploadService.uploadReceipt(
+                                    orderId: order.id,
+                                    photoFile: photoFile,
+                                    totalCents: totalCents,
+                                  );
+                              _caminhoTalaoGuardado = storagePath;
                             } catch (e) {
                               debugPrint(
                                   '[driver_map] receipt upload error: $e');
@@ -3419,6 +3650,8 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                               );
                               return;
                             }
+                            _talaoGuardado = null;
+                            _caminhoTalaoGuardado = null;
                             // Estado local imediato; o realtime confirma a seguir.
                             order.isPurchaseFinalized = true;
                             order.cashTotalDue = null;
@@ -3428,11 +3661,19 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                             messenger.showSnackBar(const SnackBar(
                                 content: Text(
                                     'Talão registado — a seguir para a morada do cliente')));
-                            // Regra 2.2 (13/09): direto para a navegação até ao
-                            // cliente, sem ecrã intermédio.
+                            // [ronda 04/10 · #10] A seguir ao talão, o
+                            // estafeta escolhe Google Maps ou Waze (antes
+                            // abria sempre o Google Maps).
                             final dest = order.destination;
+                            final ctxNav = nav.overlay?.context;
                             if (dest != null) {
-                              unawaited(NavigationService.openTurnByTurn(dest));
+                              if (ctxNav != null && ctxNav.mounted) {
+                                unawaited(NavigationService
+                                    .openNavigationOptions(ctxNav, dest));
+                              } else {
+                                unawaited(
+                                    NavigationService.openTurnByTurn(dest));
+                              }
                             }
                             return;
                           }
@@ -3456,37 +3697,10 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                             messenger.showSnackBar(
                               const SnackBar(
                                 content: Text(
-                                    'Compra confirmada — siga para entrega'),
+                                    'Compra confirmada — segue para a entrega'),
                               ),
                             );
                           }
-                        }
-                      : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green.shade600,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: Colors.grey.shade300,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  child: Text(
-                    allDecided
-                        ? 'Confirmar compra'
-                        : 'Marque todos os items ($pendingCount restante${pendingCount > 1 ? 's' : ''})',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
 
@@ -3619,7 +3833,7 @@ class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro na câmara — tenta outra vez. ($e)'),
+            content: const Text('Não foi possível usar a câmara — tenta outra vez.'),
             duration: const Duration(seconds: 5),
           ),
         );

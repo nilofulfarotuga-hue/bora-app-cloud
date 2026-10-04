@@ -26,7 +26,12 @@ import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 
 import '../config/app_colors.dart';
 
-const _kOfferTimeoutSeconds = 40; // matches dispatch_engine TTL backend
+// [ronda 04/10 · #4] Era 40 com o servidor a dar 60 s
+// (`platform_settings.dispatch_offer_timeout_seconds`): a oferta fechava aqui
+// 20 s antes do tempo. Este isolate não fala com o Supabase, por isso o tempo
+// real chega nos dados (`expiresAt` = driver_offer_expires_at, ou
+// `timeoutSeconds`); 60 é só o valor de reserva (o do servidor a 04/10).
+const _kOfferTimeoutSeconds = 60;
 
 const _kBoraGreen = AppColors.primaryMid;
 const _kBoraGreenDark = AppColors.primary;
@@ -71,6 +76,7 @@ class _DriverOrderOverlayState extends State<_DriverOrderOverlay> {
   double _driverEarnings = 0;
 
   int _remaining = _kOfferTimeoutSeconds;
+  int _tempoTotal = _kOfferTimeoutSeconds;
   Timer? _timer;
   StreamSubscription<dynamic>? _sub;
   bool _decided = false;
@@ -105,6 +111,7 @@ class _DriverOrderOverlayState extends State<_DriverOrderOverlay> {
     if (newOrderId != null && newOrderId.isNotEmpty) {
       debugPrint('[OVERLAY] orderId=$newOrderId → setState + updateFlag(defaultFlag) + startCountdown');
       _timer?.cancel();
+      final tempo = _tempoDaOferta(data);
       setState(() {
         _orderId = newOrderId;
         _vendorName = (data['vendorName']?.toString() ?? _vendorName).isEmpty
@@ -115,13 +122,30 @@ class _DriverOrderOverlayState extends State<_DriverOrderOverlay> {
         _driverEarnings =
             double.tryParse(data['driverEarnings']?.toString() ?? '') ??
                 _driverEarnings;
-        _remaining = _kOfferTimeoutSeconds;
+        _remaining = tempo.restante;
+        _tempoTotal = tempo.total;
         _decided = false;
       });
       // Mudar flag para defaultFlag para capturar toques em Aceitar/Rejeitar.
       FlutterOverlayWindow.updateFlag(OverlayFlag.defaultFlag).ignore();
       _startCountdown();
     }
+  }
+
+  /// Tempo da oferta a partir dos dados recebidos (servidor manda).
+  ({int restante, int total}) _tempoDaOferta(Map data) {
+    var total = int.tryParse(data['timeoutSeconds']?.toString() ?? '') ??
+        _kOfferTimeoutSeconds;
+    if (total < 10 || total > 600) total = _kOfferTimeoutSeconds;
+    final exp = DateTime.tryParse(data['expiresAt']?.toString() ?? '');
+    if (exp != null) {
+      final s = exp.difference(DateTime.now()).inSeconds;
+      if (s > 0) {
+        if (s > total) total = s;
+        return (restante: s, total: total);
+      }
+    }
+    return (restante: total, total: total);
   }
 
   void _startCountdown() {
@@ -156,6 +180,7 @@ class _DriverOrderOverlayState extends State<_DriverOrderOverlay> {
       _orderId = null;
       _decided = false;
       _remaining = _kOfferTimeoutSeconds;
+      _tempoTotal = _kOfferTimeoutSeconds;
     });
     try {
       await FlutterOverlayWindow.updateFlag(OverlayFlag.clickThrough);
@@ -175,7 +200,7 @@ class _DriverOrderOverlayState extends State<_DriverOrderOverlay> {
     // initDriverStandbyOverlay). Quando orderId chega via shareData(), o flag
     // muda para defaultFlag e o card é mostrado.
     if (_orderId == null) return const SizedBox.shrink();
-    final progress = _remaining / _kOfferTimeoutSeconds;
+    final progress = (_remaining / _tempoTotal).clamp(0.0, 1.0);
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

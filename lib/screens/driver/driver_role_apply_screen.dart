@@ -74,7 +74,7 @@ class _DriverRoleApplyScreenState extends State<DriverRoleApplyScreen> {
   Future<void> _pick(bool isDoc) async {
     final x = await SafeImagePicker.pickImage(
         source: ImageSource.gallery, maxWidth: 1400, imageQuality: 85);
-    if (x == null) return;
+    if (x == null || !mounted) return;
     setState(() {
       if (isDoc) {
         _idDoc = x;
@@ -159,8 +159,10 @@ class _DriverRoleApplyScreenState extends State<DriverRoleApplyScreen> {
       ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Não foi possível enviar: ${e.toString()}')));
+      debugPrint('[role_apply] enviar: $e');
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Não foi possível enviar. Verifica a ligação e tenta '
+              'de novo.')));
     } finally {
       if (mounted) setState(() => _busy = false);
     }

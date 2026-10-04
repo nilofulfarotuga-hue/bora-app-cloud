@@ -9,6 +9,9 @@ import '../config/auth_links.dart';
 import '../models/driver_model.dart';
 import '../models/restaurant_model.dart';
 import '../services/biometric_auth_service.dart';
+import '../services/floating_bubble_service.dart';
+import '../services/foreground_service.dart';
+import '../services/heartbeat_service.dart';
 import '../services/notification_service.dart';
 import '../services/roles_service.dart';
 import '../services/secure_credentials_store.dart';
@@ -648,7 +651,8 @@ class AuthStore extends ChangeNotifier {
     }
   }
 
-  Future<void> _signOutBackground() async {
+  Future<void> _signOutBackground({bool pararEstafeta = false}) async {
+    if (pararEstafeta) await _pararServicoDoEstafeta();
     try {
       await _supabase.auth.signOut();
     } catch (e) {
@@ -656,6 +660,52 @@ class AuthStore extends ChangeNotifier {
     }
     // No guest fallback after logout — driver flow must not inherit a guest
     // UID as driverId. Client anonymous ordering uses auth_service.dart instead.
+  }
+
+  /// [ronda 04/10 · app-estafeta #1 — caso Ney] Sair da conta com o
+  /// estafeta/motorista online deixava o serviço em segundo plano vivo: ele
+  /// continuava a bater o `driver_heartbeat_by_id` e, como o servidor põe
+  /// online quem bate com GPS vivo, o estafeta "saído" voltava a receber
+  /// pedidos que nunca via. Agora, ANTES de largar a sessão (o UPDATE precisa
+  /// do JWT): pára todos os batimentos da app, pára o serviço em segundo
+  /// plano (e apaga o id + token que ele usa), apaga a bolinha e põe offline
+  /// pelo MESMO caminho do botão Offline (`drivers.is_online=false` por
+  /// `user_id`, DriverStore.updateDriverOnlineStatus). Tudo com limite de
+  /// tempo e sem rebentar: sair da conta nunca fica preso à rede.
+  Future<void> _pararServicoDoEstafeta() async {
+    try {
+      await HeartbeatService.pararTodos();
+    } catch (e) {
+      debugPrint('AuthStore: parar batimentos => $e');
+    }
+    try {
+      await BoraForegroundService.clearDriverId();
+    } catch (e) {
+      debugPrint('AuthStore: limpar id do serviço => $e');
+    }
+    try {
+      await BoraForegroundService.stop();
+    } catch (e) {
+      debugPrint('AuthStore: parar serviço => $e');
+    }
+    try {
+      await BoraBubbleService.setDriverOnline(false);
+    } catch (e) {
+      debugPrint('AuthStore: bolinha => $e');
+    }
+    final uid = _supabase.auth.currentUser?.id;
+    if (uid == null) return;
+    try {
+      // IDENTIDADE (16/09): user_id manda. Mesmo caminho do botão Offline.
+      await _supabase
+          .from('drivers')
+          .update({'is_online': false})
+          .eq('user_id', uid)
+          .timeout(const Duration(seconds: 6));
+      debugPrint('AuthStore: estafeta posto offline antes de sair');
+    } catch (e) {
+      debugPrint('AuthStore: pôr offline ao sair => $e');
+    }
   }
 
   // ─── Client ───────────────────────────────────────────────────────────────
@@ -1789,6 +1839,11 @@ class AuthStore extends ChangeNotifier {
     if (wipeBiometrics) {
       BiometricAuthService.instance.disableAll().ignore();
     }
+    // Quem estava como estafeta (ou com batimento a correr) sai offline e
+    // sem serviço em segundo plano — ver _pararServicoDoEstafeta.
+    final pararEstafeta = _currentDriver != null ||
+        HeartbeatService.relogioAtivo ||
+        _supabase.auth.currentUser?.userMetadata?['bora_role'] == 'driver';
     _currentClient = null;
     _currentDriver = null;
     _currentPartner = null;
@@ -1796,7 +1851,7 @@ class AuthStore extends ChangeNotifier {
     _currentDriverStatus = DriverStatus.pending; // fail-safe default (anomalia #5)
     notifyListeners();
     _clearPersistedAccounts();
-    _signOutBackground();
+    _signOutBackground(pararEstafeta: pararEstafeta);
   }
 
   // ─────────────────────────────────────────────────────────────────────────

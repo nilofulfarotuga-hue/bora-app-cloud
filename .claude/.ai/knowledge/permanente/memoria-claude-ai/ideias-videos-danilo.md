@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-04T20:02:14.238116+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-04T20:12:25.743925+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -34,3 +34,14 @@ REGRA (Danilo, 01/10/2026): tudo o que ele mandar (vídeos, transcrições, link
 
 
 ## 04/10/2026 - radar diario (agente na nuvem)
+60 vídeos revistos: 20 novos, 10 já temos, 30 rejeitados; nenhum de animacao_ia ainda (a missão do filme não tinha chegado à tabela às 20h UTC).
+- DINHEIRO / caça-clientes: escrever a dor de cada nicho com a matriz 4x4 (captação, atendimento, operação, gestão cruzadas com repetição, transferência, espera, inconsistência). https://www.youtube.com/watch?v=E9AvMEIpggs
+- DINHEIRO: aos negócios vender CLIENTES NOVOS, não "automação" nem "IA"; a IA fica nos bastidores. https://www.youtube.com/watch?v=zk0WVnl1dIQ
+- DINHEIRO: Secretário Virtual vendido como serviço gerido com mensalidade ("serviço com software"). https://www.youtube.com/watch?v=xWLmknAkCAM ; caso real de SaaS de atendimento WhatsApp nascido de um problema próprio, para usar na venda: https://www.youtube.com/watch?v=tLYP_DXyU24
+- DINHEIRO: site panfleto vale pouco; sistema com base de dados (área de cliente, painel) é que paga bem; juntar mensalidade de manutenção aos sites. https://www.youtube.com/watch?v=QTZzDvcWvwg , https://www.youtube.com/watch?v=QC37e8uXbDY . Confirma o caminho já em uso (maquete pronta antes de oferecer): https://www.youtube.com/watch?v=1-K5OXrNhYE
+- BORA: arrancar pela confiança local, programa de indicação (código amigo) e microinfluenciadores da Guarda. https://www.youtube.com/watch?v=XpF42nCYOLs ; cada reel do Bora com cupão/link próprio para medir pedidos: https://www.youtube.com/watch?v=HwiiPXkw8U4
+- REELS (Em Dia e Bora): lotes de 12 nas 4 categorias crença/objeção/dúvida/prova social (https://www.youtube.com/watch?v=M7W62V-wosw); perfil = página de vendas, bio diz o que a pessoa ganha (https://www.youtube.com/watch?v=oEzCuIpPiic); palavra-chave no gancho, voz e 2 primeiras linhas da legenda + pedir partilha + testar em trial reels (https://www.youtube.com/watch?v=yKDiu4bwHUA); alternar 7 s (alcance) e até 40 s (conteúdo), testar 3 formatos (https://www.youtube.com/watch?v=72LBkKteFgs); 20 reels em 2-3 semanas agrupados por tema (https://www.youtube.com/watch?v=J79LlstLgao); roteiro "mas/então" e fim ligado ao início (https://www.youtube.com/watch?v=MPg5sOon5eQ); ar de conversa real, pouca edição (https://www.youtube.com/watch?v=3A8DQF5mDw8); não apagar reels antes de 48 h (https://www.youtube.com/watch?v=mCV4RqxGvjE).
+- EM DIA: guia grátis de recibos verdes como isca para downloads. https://www.youtube.com/watch?v=-pp851qDmOY
+- JÁ TEMOS (não repetir): agente de atendimento n8n/ManyChat (= Secretário Virtual), memória partilhada (= Córtex), OpenAI Operator (= Hermes), Claude Code a publicar no Instagram (= robôs de redes), Maia/Make (recusada 01/10).
+- RECUSADO hoje: várias contas de IA para contornar limites; comentar em massa em contas alheias; Micromind (pago).
+

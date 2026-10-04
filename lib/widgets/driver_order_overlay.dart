@@ -76,7 +76,7 @@ class _DriverOrderOverlayState extends State<_DriverOrderOverlay> {
   double _driverEarnings = 0;
 
   int _remaining = _kOfferTimeoutSeconds;
-  int _total = _kOfferTimeoutSeconds;
+  int _tempoTotal = _kOfferTimeoutSeconds;
   Timer? _timer;
   StreamSubscription<dynamic>? _sub;
   bool _decided = false;
@@ -123,7 +123,7 @@ class _DriverOrderOverlayState extends State<_DriverOrderOverlay> {
             double.tryParse(data['driverEarnings']?.toString() ?? '') ??
                 _driverEarnings;
         _remaining = tempo.restante;
-        _total = tempo.total;
+        _tempoTotal = tempo.total;
         _decided = false;
       });
       // Mudar flag para defaultFlag para capturar toques em Aceitar/Rejeitar.
@@ -180,7 +180,7 @@ class _DriverOrderOverlayState extends State<_DriverOrderOverlay> {
       _orderId = null;
       _decided = false;
       _remaining = _kOfferTimeoutSeconds;
-      _total = _kOfferTimeoutSeconds;
+      _tempoTotal = _kOfferTimeoutSeconds;
     });
     try {
       await FlutterOverlayWindow.updateFlag(OverlayFlag.clickThrough);
@@ -200,7 +200,7 @@ class _DriverOrderOverlayState extends State<_DriverOrderOverlay> {
     // initDriverStandbyOverlay). Quando orderId chega via shareData(), o flag
     // muda para defaultFlag e o card é mostrado.
     if (_orderId == null) return const SizedBox.shrink();
-    final progress = (_remaining / _total).clamp(0.0, 1.0);
+    final progress = (_remaining / _tempoTotal).clamp(0.0, 1.0);
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

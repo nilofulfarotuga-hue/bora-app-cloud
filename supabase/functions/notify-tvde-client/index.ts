@@ -8,6 +8,9 @@
 // Chamado por: trigger fn_notify_tvde_client_on_status (net.http_post), quando
 // tvde_rides.status muda para um estado relevante ao passageiro.
 //
+// v6 (2026-10-04) — push a TODOS os aparelhos (client_push_tokens + users.fcm_token);
+// textos alinhados com o preco fixo e com o fim da procura (sem_motorista).
+//
 // v4 (2026-08-19) — RESERVA AGENDADA: aceita `status='agendada'` (reserva
 // marcada) e `status='reserva_confirmar'` (o sweep pergunta ao cliente, 2h
 // antes, se mantem). Estes DOIS vao DATA-ONLY (sem bloco `notification` e sem
@@ -84,10 +87,24 @@ Deno.serve(async (req) => {
     : statusMessage(status, driverName)
   if (!msg) return json({ ok: false, reason: 'status_not_notifiable' }, 200)
 
-  // ── FCM token do passageiro (users.fcm_token) ───────────────────────────────
+  // ── v6 (2026-10-04, auditoria A4): TODOS os aparelhos do passageiro ──────
+  // users.fcm_token (legado) primeiro + todas as linhas activas de
+  // client_push_tokens (a tabela nova, multi-aparelho), como o notify-client
+  // v21. Antes so lia users.fcm_token — a maioria dos clientes so tem token na
+  // tabela nova e nunca recebia "motorista a caminho".
+  const alvos: { token: string; origem: 'users' | 'client_push_tokens' }[] = []
   const { data: user } = await supabase
     .from('users').select('fcm_token').eq('id', clientId).maybeSingle()
-  if (!user?.fcm_token) {
+  if (user?.fcm_token) alvos.push({ token: user.fcm_token, origem: 'users' })
+  const { data: extras } = await supabase
+    .from('client_push_tokens').select('fcm_token')
+    .eq('user_id', clientId).eq('active', true)
+  for (const e of extras ?? []) {
+    if (e.fcm_token && !alvos.some((x) => x.token === e.fcm_token)) {
+      alvos.push({ token: e.fcm_token, origem: 'client_push_tokens' })
+    }
+  }
+  if (alvos.length === 0) {
     console.log(`[notify-tvde-client] No FCM token for client ${clientId} — skipping`)
     return json({ ok: false, reason: 'no_fcm_token' }, 200)
   }
@@ -111,7 +128,7 @@ Deno.serve(async (req) => {
   const fcmUrl = `https://fcm.googleapis.com/v1/projects/${firebaseProjectId}/messages:send`
   const message = {
     message: {
-      token: user.fcm_token,
+      token: alvos[0].token,
       ...(dataOnly ? {} : { notification: { title: msg.title, body: msg.body } }),
       data: {
         rideId: String(rideId),
@@ -141,22 +158,35 @@ Deno.serve(async (req) => {
     },
   }
 
-  const fcmRes = await fetch(fcmUrl, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(message),
-  })
-  const fcmBody = await fcmRes.json().catch(() => ({}))
-
-  if (!fcmRes.ok) {
-    console.error(`[notify-tvde-client] FCM error ${fcmRes.status}:`, JSON.stringify(fcmBody))
+  let enviados = 0
+  let ultimoErro: unknown = null
+  for (const alvo of alvos) {
+    const m = { message: { ...message.message, token: alvo.token } }
+    const fcmRes = await fetch(fcmUrl, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(m),
+    })
+    const fcmBody = await fcmRes.json().catch(() => ({}))
+    if (fcmRes.ok) { enviados++; continue }
+    ultimoErro = fcmBody
+    console.error(`[notify-tvde-client] FCM error ${fcmRes.status} (${alvo.origem}):`, JSON.stringify(fcmBody))
     const errorCode = fcmBody?.error?.details?.[0]?.errorCode ?? ''
     if (errorCode === 'UNREGISTERED' || errorCode === 'INVALID_ARGUMENT') {
-      await supabase.from('users').update({ fcm_token: null }).eq('id', clientId)
+      if (alvo.origem === 'users') {
+        await supabase.from('users').update({ fcm_token: null }).eq('id', clientId)
+      } else {
+        await supabase.from('client_push_tokens')
+          .update({ active: false, last_fail_at: new Date().toISOString() })
+          .eq('user_id', clientId).eq('fcm_token', alvo.token)
+      }
     }
-    return json({ ok: false, reason: 'fcm_error', detail: fcmBody }, 200)
+  }
+  if (enviados === 0) {
+    return json({ ok: false, reason: 'fcm_error', detail: ultimoErro }, 200)
   }
 
+  console.log(`[notify-tvde-client] aparelhos=${alvos.length} enviados=${enviados}`)
   console.log(`[notify-tvde-client] ✓ Push to client ${clientId} (status=${status})`)
   return json({ ok: true }, 200)
 })
@@ -170,11 +200,11 @@ function statusMessage(status: string, driverName: string): { title: string; bod
     case 'motorista_chegou':
       return { title: '📍 O motorista chegou', body: `${d} está no local de recolha.` }
     case 'em_andamento':
-      return { title: '🛣️ Viagem iniciada', body: 'Boa viagem! O valor final é pela distância real.' }
+      return { title: '🛣️ Viagem iniciada', body: 'Boa viagem! O preço é o que viste ao pedir.' }
     case 'finalizada':
       return { title: '✅ Viagem concluída', body: 'Chegaste ao destino. Avalia a tua viagem na app.' }
     case 'sem_motorista':
-      return { title: '😕 Sem motoristas disponíveis', body: 'Não encontrámos motorista agora. Podes tentar de novo.' }
+      return { title: '😕 Sem motoristas disponíveis', body: 'Não encontrámos motorista a tempo e o pedido foi cancelado. Se pagaste na app, o valor é devolvido. Podes tentar de novo.' }
     case 'cancelada_motorista':
       return { title: 'Corrida cancelada', body: 'O motorista cancelou a corrida. Pedimos desculpa — tenta de novo.' }
     // ── [Reserva agendada 2026-08-19] ──────────────────────────────────────

@@ -23,6 +23,7 @@ import '../../../services/directions_service.dart';
 import '../../../services/payment_service.dart';
 import '../../../services/tvde_arriving_notice.dart';
 import '../../../services/tvde_eta_display.dart';
+import '../../../services/tvde_partilha_service.dart';
 import '../../../stores/tvde_chat_store.dart';
 import '../../../stores/tvde_store.dart';
 import '../../../utils/map_utils.dart';
@@ -443,8 +444,8 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     } catch (e) {
       if (mounted) {
         final msg = e.toString().contains('max_stops_reached')
-            ? 'Já atingiste o máximo de {0} paradas.'.trArgs([_maxStops])
-            : 'Não foi possível adicionar a parada.';
+            ? 'Já atingiste o máximo de {0} paragens.'.trArgs([_maxStops])
+            : 'Não foi possível adicionar a paragem.';
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(msg)));
       }
@@ -523,15 +524,15 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
 
       if (paid) {
         messenger.showSnackBar(
-          SnackBar(content: Text('Parada adicionada.'.tr)),
+          SnackBar(content: Text('Paragem adicionada.'.tr)),
         );
       } else if (outcome?['refunded'] == true) {
         messenger.showSnackBar(SnackBar(
-          content: Text('Pagamento devolvido — não foi possível adicionar a parada. {0}'.trArgs([_stopErrorPt(outcome?['error']?.toString())])),
+          content: Text('Pagamento devolvido — não foi possível adicionar a paragem. {0}'.trArgs([_stopErrorPt(outcome?['error']?.toString())])),
         ));
       } else {
         messenger.showSnackBar(SnackBar(
-          content: Text('Não recebemos a confirmação do pagamento. A parada não foi adicionada.'.tr),
+          content: Text('Não recebemos a confirmação do pagamento. A paragem não foi adicionada.'.tr),
         ));
       }
     } catch (e) {
@@ -703,10 +704,10 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
   String _stopErrorPt(String? raw) {
     final e = raw ?? '';
     if (e.contains('max_stops_reached')) {
-      return 'Já atingiste o máximo de {0} paradas.'.trArgs([_maxStops]);
+      return 'Já atingiste o máximo de {0} paragens.'.trArgs([_maxStops]);
     }
     if (e.contains('invalid_ride_state_for_stop')) {
-      return 'A corrida já não permite adicionar paradas.'.tr;
+      return 'A corrida já não permite adicionar paragens.'.tr;
     }
     if (e.contains('card_payments_not_enabled')) {
       return 'Os pagamentos no cartão estão desativados de momento.'.tr;
@@ -714,7 +715,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     if (e.contains('below_minimum')) {
       return 'Valor abaixo do mínimo aceite pelo pagamento.'.tr;
     }
-    return 'Não foi possível adicionar a parada.'.tr;
+    return 'Não foi possível adicionar a paragem.'.tr;
   }
 
   Future<void> _removeStop(TvdeRide ride, TvdeRideStop stop) async {
@@ -724,7 +725,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Não foi possível remover a parada.'.tr)),
+          SnackBar(content: Text('Não foi possível remover a paragem.'.tr)),
         );
       }
     }
@@ -1461,7 +1462,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
         // distingue-se da recolha/destino/carro, e o já-passado fica esbatido.
         alpha: icone != null || !s.reached ? 1.0 : 0.5,
         infoWindow:
-            InfoWindow(title: 'Parada {0}'.trArgs([s.seq]), snippet: s.label),
+            InfoWindow(title: 'Paragem {0}'.trArgs([s.seq]), snippet: s.label),
         icon: icone ??
             BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet),
       ));
@@ -1900,7 +1901,31 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
                         offset: Offset(0, 2)),
                   ],
                 ),
-                child: TvdeSosButton(rideId: ride.id),
+                child: TvdeSosButton(rideId: ride.id, souCliente: true),
+              ),
+            ),
+          // 04/10: partilhar a viagem em tempo real (Uber/Bolt), ao lado do SOS.
+          if (mostraSos)
+            Positioned(
+              left: Spacing.md,
+              top: Spacing.md + 52,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(999),
+                  boxShadow: const [
+                    BoxShadow(
+                        color: Color(0x29000000),
+                        blurRadius: 8,
+                        offset: Offset(0, 2)),
+                  ],
+                ),
+                child: TextButton.icon(
+                  key: const Key('tvde_partilhar_viagem'),
+                  icon: const Icon(Icons.ios_share, size: 18),
+                  label: Text('Partilhar viagem'.tr),
+                  onPressed: () => TvdePartilhaService.partilhar(context, ride.id),
+                ),
               ),
             ),
           if (!compact)
@@ -2667,6 +2692,15 @@ class _StatusPanel extends StatelessWidget {
               'De momento não há motoristas disponíveis. Podes tentar novamente.'.tr,
               style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
             ),
+            // 04/10: a procura tem fim (tvde_procura_max_minutos); se a corrida
+            // estava paga na app, o reembolso sai sozinho.
+            if (ride.isPaidOnline) ...[
+              const SizedBox(height: Spacing.xs),
+              Text(
+                'Como pagaste na app, o valor é devolvido automaticamente.'.tr,
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              ),
+            ],
             const SizedBox(height: Spacing.md),
             BoraAccentButton(
               label: 'Tentar de novo'.tr,
@@ -2677,7 +2711,7 @@ class _StatusPanel extends StatelessWidget {
             const SizedBox(height: Spacing.sm),
             TextButton(onPressed: onClose, child: Text('Fechar'.tr)),
           ] else if (ride.isInProgress) ...[
-            Text('Boa viagem! O valor final é calculado pela distância real.'.tr,
+            Text('Boa viagem! O preço é o que viste ao pedir.'.tr,
                 style: const TextStyle(color: AppColors.textSubtle, fontSize: 12)),
           ] else ...[
             OutlinedButton.icon(
@@ -2778,7 +2812,7 @@ class _StatusPanel extends StatelessWidget {
                 size: 18, color: AppColors.primary),
             const SizedBox(width: Spacing.sm),
             Expanded(
-              child: Text('Paradas'.tr,
+              child: Text('Paragens'.tr,
                   style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 14,
@@ -2790,7 +2824,7 @@ class _StatusPanel extends StatelessWidget {
         ),
         const SizedBox(height: 2),
         Text(
-          'Passa por outro sítio a caminho — €{0} por parada. A parada não está incluída no plano.{1}'.trArgs([feePerStopEur.toStringAsFixed(2), ride.isPaidOnline ? ' Pagas a parada na hora.' : ' Pagas ao motorista no fim.']),
+          'Passa por outro sítio a caminho — €{0} por paragem. A paragem não está incluída no plano.{1}'.trArgs([feePerStopEur.toStringAsFixed(2), ride.isPaidOnline ? ' Pagas a paragem na hora.' : ' Pagas ao motorista no fim.']),
           style: const TextStyle(color: AppColors.textSubtle, fontSize: 11.5),
         ),
         for (final s in stops) ...[
@@ -2811,7 +2845,7 @@ class _StatusPanel extends StatelessWidget {
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.add, size: 18),
-            label: Text(addingStop ? 'A adicionar…' : 'Adicionar parada'),
+            label: Text(addingStop ? 'A adicionar…' : 'Adicionar paragem'),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.primary,
               side: const BorderSide(color: AppColors.primary),
@@ -2820,14 +2854,14 @@ class _StatusPanel extends StatelessWidget {
             ),
           )
         else if (stops.length >= maxStops)
-          Text('Máximo de {0} paradas atingido.'.trArgs([maxStops]),
+          Text('Máximo de {0} paragens atingido.'.trArgs([maxStops]),
               style: const TextStyle(color: AppColors.textSubtle, fontSize: 12)),
         if (stops.isNotEmpty) ...[
           const SizedBox(height: Spacing.sm),
           Row(
             children: [
               Expanded(
-                child: Text('Paradas ({0} × €{1})'.trArgs([stops.length, feePerStopEur.toStringAsFixed(2)]),
+                child: Text('Paragens ({0} × €{1})'.trArgs([stops.length, feePerStopEur.toStringAsFixed(2)]),
                     style: const TextStyle(
                         color: AppColors.textSecondary, fontSize: 13)),
               ),
@@ -2933,7 +2967,7 @@ class _StopRow extends StatelessWidget {
           const SizedBox(width: Spacing.sm),
           Expanded(
             child: Text(
-              stop.label ?? 'Parada ${stop.seq}',
+              stop.label ?? 'Paragem ${stop.seq}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
@@ -2958,7 +2992,7 @@ class _StopRow extends StatelessWidget {
               constraints: const BoxConstraints(),
               onPressed: onRemove,
               icon: const Icon(Icons.close, size: 18, color: AppColors.textSecondary),
-              tooltip: 'Remover parada'.tr,
+              tooltip: 'Remover paragem'.tr,
             ),
         ],
       ),
@@ -3051,7 +3085,7 @@ class _StopPayConfirmSheetState extends State<_StopPayConfirmSheet> {
                   color: AppColors.primary),
               const SizedBox(width: Spacing.sm),
               Expanded(
-                child: Text('Parada extra — {0}'.trArgs([eur]),
+                child: Text('Paragem extra — {0}'.trArgs([eur]),
                     style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -3070,8 +3104,8 @@ class _StopPayConfirmSheetState extends State<_StopPayConfirmSheet> {
           const SizedBox(height: Spacing.md),
           Text(
             isMbway
-                ? 'Esta corrida foi paga por MB Way. A parada é cobrada agora — só é adicionada depois de confirmares no MB Way.'.tr
-                : 'Esta corrida foi paga no cartão. A parada é cobrada agora — só é adicionada depois de o pagamento passar.'.tr,
+                ? 'Esta corrida foi paga por MB Way. A paragem é cobrada agora — só é adicionada depois de confirmares no MB Way.'.tr
+                : 'Esta corrida foi paga no cartão. A paragem é cobrada agora — só é adicionada depois de o pagamento passar.'.tr,
             style: const TextStyle(color: AppColors.textSecondary),
           ),
           if (isMbway) ...[
@@ -3165,7 +3199,7 @@ class _AddStopSheetState extends State<_AddStopSheet> {
                       color: AppColors.primary),
                   const SizedBox(width: Spacing.sm),
                   Expanded(
-                    child: Text(widget.title ?? 'Adicionar parada'.tr,
+                    child: Text(widget.title ?? 'Adicionar paragem'.tr,
                         style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
@@ -3186,7 +3220,7 @@ class _AddStopSheetState extends State<_AddStopSheet> {
               const SizedBox(height: Spacing.md),
               AddressAutocompleteField(
                 controller: _controller,
-                labelText: widget.fieldLabel ?? 'Morada da parada'.tr,
+                labelText: widget.fieldLabel ?? 'Morada da paragem'.tr,
                 onSelected: (address, coords) {
                   if (coords == null) return;
                   Navigator.pop(

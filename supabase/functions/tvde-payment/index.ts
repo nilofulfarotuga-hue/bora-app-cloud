@@ -1459,13 +1459,21 @@ Deno.serve(async (req) => {
       const { data: ride } = await admin
         .from('tvde_rides')
         .select(
-          'id, client_id, payment_intent_id, payment_status, est_fare_cents, final_fare_cents, cancel_fee_cents',
+          'id, client_id, payment_intent_id, payment_status, est_fare_cents, final_fare_cents, cancel_fee_cents, status',
         )
         .eq('id', rideId)
         .maybeSingle();
       if (!ride) return json({ error: 'ride_not_found' }, 404);
-      if (ride.client_id !== user.id && !(await callerIsAdmin(userClient))) {
+      const souAdmin = await callerIsAdmin(userClient);
+      if (ride.client_id !== user.id && !souAdmin) {
         return json({ error: 'not_ride_owner' }, 403);
+      }
+      // 04/10 (auditoria C3): o cliente so pode pedir reembolso de uma corrida
+      // CANCELADA (ou sem motorista / no-show, onde a taxa fica retida). Uma
+      // corrida finalizada nunca e reembolsada por aqui — so o admin decide.
+      const ESTADOS_REEMBOLSAVEIS = ['cancelada_cliente', 'cancelada_motorista', 'sem_motorista', 'no_show'];
+      if (!souAdmin && !ESTADOS_REEMBOLSAVEIS.includes(String(ride.status ?? ''))) {
+        return json({ error: 'ride_not_refundable', status: ride.status }, 409);
       }
       if (!ride.payment_intent_id) return json({ ok: true, noop: true });
       if (ride.payment_status === 'refunded' ||

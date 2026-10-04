@@ -2095,7 +2095,7 @@ class _ActionPanel extends StatelessWidget {
                     size: 15, color: AppColors.primary),
                 const SizedBox(width: 4),
                 Text(
-                    'Paradas: +€${(ride.extraStopsDriverCents / 100).toStringAsFixed(2)}',
+                    'Paragens: +€${(ride.extraStopsDriverCents / 100).toStringAsFixed(2)}',
                     style: const TextStyle(
                         color: AppColors.primary,
                         fontSize: 13,
@@ -2273,7 +2273,7 @@ class _StopsSection extends StatelessWidget {
             children: [
               Icon(Icons.route, size: 16, color: AppColors.primary),
               SizedBox(width: 6),
-              Text('Paradas do cliente',
+              Text('Paragens do cliente',
                   style: TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 13.5,
@@ -2323,7 +2323,7 @@ class _StopTile extends StatelessWidget {
     final mm = (remaining ~/ 60).toString().padLeft(2, '0');
     final ss = (remaining % 60).toString().padLeft(2, '0');
     final hasLabel = stop.label != null && stop.label!.trim().isNotEmpty;
-    final label = hasLabel ? stop.label!.trim() : 'Parada ${stop.seq}';
+    final label = hasLabel ? stop.label!.trim() : 'Paragem ${stop.seq}';
     return Padding(
       padding: const EdgeInsets.only(bottom: Spacing.sm),
       child: Column(
@@ -2367,7 +2367,7 @@ class _StopTile extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: busy ? null : onReach,
               icon: const Icon(Icons.where_to_vote, size: 18),
-              label: const Text('Cheguei à parada'),
+              label: const Text('Cheguei à paragem'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.primary,
                 side:

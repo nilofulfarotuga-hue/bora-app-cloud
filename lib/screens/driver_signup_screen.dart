@@ -231,9 +231,11 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
       );
       if (picked != null && mounted) setState(() => onPicked(picked));
     } catch (e) {
+      debugPrint('[driver_signup] imagem: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao seleccionar imagem: $e')),
+          const SnackBar(
+              content: Text('Não foi possível escolher a imagem. Tenta de novo.')),
         );
       }
     }
@@ -400,8 +402,11 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isProcessing = false);
+      debugPrint('[driver_signup] erro: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro: $e')),
+        const SnackBar(
+            content: Text('Não foi possível concluir. Verifica a ligação e '
+                'tenta de novo.')),
       );
     }
   }
@@ -537,8 +542,11 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isProcessing = false);
+      debugPrint('[driver_signup] erro: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro: $e')),
+        const SnackBar(
+            content: Text('Não foi possível concluir. Verifica a ligação e '
+                'tenta de novo.')),
       );
     }
   }

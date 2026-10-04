@@ -304,7 +304,11 @@ class _BoraTaskHandler extends TaskHandler {
       // [23/09] a cada 2.º tick (~15 s). + posição de reserva se a app
       // principal estiver morta (ver _posicaoDeReserva).
       if (_heartbeatTickCount % 2 == 0) {
-        unawaited(_posicaoDeReserva(url, apiKey));
+        // [ronda 04/10 · #8] posição a cada ~60 s (8 ticks de 7,5 s) mesmo
+        // parado — só se ninguém a tiver mandado no último minuto.
+        if (_heartbeatTickCount % 8 == 0) {
+          unawaited(_posicaoDeReserva(url, apiKey));
+        }
         try {
           final hbUri = Uri.parse('$url/rest/v1/rpc/driver_heartbeat_by_id');
           await http.post(
@@ -360,6 +364,8 @@ class _BoraTaskHandler extends TaskHandler {
         'total': (order['price'] ?? 0).toString(),
         'distanceKm': (order['distance_km'] ?? 0).toString(),
         'driverEarnings': (order['driver_earnings'] ?? 0).toString(),
+        // [ronda 04/10 · #4] o cartão conta até à hora do servidor.
+        if (expiresAt != null) 'expiresAt': expiresAt,
       };
       FlutterForegroundTask.sendDataToMain(payload);
       debugPrint('[BoraTaskHandler] offer found order=$orderId → sendDataToMain');
@@ -387,15 +393,34 @@ class _BoraTaskHandler extends TaskHandler {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.reload();
-      final vivo = prefs.getInt('bora_main_alive_ts') ?? 0;
-      final idade = DateTime.now().millisecondsSinceEpoch - vivo;
-      if (idade <= 20000) return; // app principal viva: ela manda a posição
+      // [ronda 04/10 · #8] Antes só mandava com a app principal MORTA. Com a
+      // app viva mas sem o ecrã do estafeta aberto (serviço religado pelo
+      // arranque do telemóvel, ecrã fechado), ninguém mandava a posição e o
+      // estafeta parado ficava com a posição de há um dia (Valdemir, 04/10:
+      // batimento de há 22 s, posição de há 24 h). Agora decide pela ÚLTIMA
+      // POSIÇÃO ENVIADA (seja por quem for): se tiver menos de 55 s, não
+      // duplica; senão manda esta.
+      final ultima = prefs.getInt('bora_ultima_posicao_ts') ?? 0;
+      final idade = DateTime.now().millisecondsSinceEpoch - ultima;
+      if (idade < 55000) return;
       final token =
           await FlutterForegroundTask.getData<String>(key: 'fgs_access_token');
       if (token == null || token.isEmpty) return;
       final perm = await Geolocator.checkPermission();
       if (perm != LocationPermission.always) return;
-      final pos = await Geolocator.getCurrentPosition(
+      // Bateria: a última posição conhecida serve se tiver < 2 min (o
+      // telemóvel parado não precisa de ligar o GPS a cada minuto).
+      Position? pos;
+      try {
+        final ultimaConhecida = await Geolocator.getLastKnownPosition()
+            .timeout(const Duration(seconds: 3));
+        if (ultimaConhecida != null &&
+            DateTime.now().difference(ultimaConhecida.timestamp).abs() <
+                const Duration(minutes: 2)) {
+          pos = ultimaConhecida;
+        }
+      } catch (_) {/* pede uma nova abaixo */}
+      pos ??= await Geolocator.getCurrentPosition(
         locationSettings:
             const LocationSettings(accuracy: LocationAccuracy.medium),
       ).timeout(const Duration(seconds: 6));
@@ -415,6 +440,10 @@ class _BoraTaskHandler extends TaskHandler {
         }),
       ).timeout(const Duration(seconds: 5));
       debugPrint('[FGS_POLL] posição de reserva → ${res.statusCode}');
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        await prefs.setInt(
+            'bora_ultima_posicao_ts', DateTime.now().millisecondsSinceEpoch);
+      }
     } catch (e) {
       debugPrint('[FGS_POLL] posição de reserva falhou: $e');
     } finally {
@@ -503,6 +532,10 @@ class _BoraTaskHandler extends TaskHandler {
         'total': payload['total']?.toString() ?? '0.00',
         'distanceKm': payload['distanceKm']?.toString() ?? '0',
         'driverEarnings': payload['driverEarnings']?.toString() ?? '0.00',
+        if (payload['expiresAt'] != null)
+          'expiresAt': payload['expiresAt'].toString(),
+        if (payload['timeoutSeconds'] != null)
+          'timeoutSeconds': payload['timeoutSeconds'].toString(),
       });
       debugPrint('[FGS_OVERLAY] shareData OK order=${payload['orderId']}');
     } catch (e) {

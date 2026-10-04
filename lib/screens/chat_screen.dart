@@ -99,11 +99,16 @@ class _ChatScreenState extends State<ChatScreen> {
 
   DateTime _lastMarkRead = DateTime.fromMillisecondsSinceEpoch(0);
 
+  /// [ronda 04/10 · app-estafeta #9] Guardado para fechar a ligação em tempo
+  /// real no dispose (antes ficava aberta um canal por cada chat aberto).
+  ChatStore? _chatStore;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ChatStore>().listen(widget.order.id);
+      if (!mounted) return;
+      _chatStore = context.read<ChatStore>()..listen(widget.order.id);
       _markRead();
     });
   }
@@ -125,6 +130,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    _chatStore?.unlisten(widget.order.id);
     _msgCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();

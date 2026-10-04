@@ -69,6 +69,7 @@ class _GanhosScreenState extends State<GanhosScreen> {
     });
     final uid = Supabase.instance.client.auth.currentUser?.id;
     if (uid == null) {
+      if (!mounted) return;
       setState(() {
         _loading = false;
         _error = 'Utilizador não autenticado.';
@@ -79,23 +80,34 @@ class _GanhosScreenState extends State<GanhosScreen> {
     try {
       final supabase = Supabase.instance.client;
 
-      final weekStart = _weekStart();
-      final conversionRows = await supabase
-          .from('driver_transactions')
-          .select('amount')
-          .eq('driver_id', uid)
-          .eq('type', 'token_conversion')
-          .gte('created_at', weekStart.toIso8601String());
-      final convertedEur = (conversionRows as List).fold(
-          0.0, (sum, r) => sum + ((r['amount'] as num?)?.toDouble() ?? 0));
-      _weeklyTokensConverted =
-          (convertedEur / BRTokens.TOKEN_VALUE_EUR).round();
+      // [ronda 04/10] Cada leitura falha sozinha: um papel ou os tokens em
+      // baixo não podem esconder o total do dia (antes, um erro aqui deitava
+      // o ecrã inteiro abaixo com a mensagem técnica crua).
+      try {
+        final weekStart = _weekStart();
+        final conversionRows = await supabase
+            .from('driver_transactions')
+            .select('amount')
+            .eq('driver_id', uid)
+            .eq('type', 'token_conversion')
+            .gte('created_at', weekStart.toIso8601String());
+        final convertedEur = (conversionRows as List).fold(
+            0.0, (sum, r) => sum + ((r['amount'] as num?)?.toDouble() ?? 0));
+        _weeklyTokensConverted =
+            (convertedEur / BRTokens.TOKEN_VALUE_EUR).round();
+      } catch (e) {
+        debugPrint('[Ganhos] conversões da semana: $e');
+      }
 
-      final tokenResp = await supabase.rpc(
-        'get_user_tokens',
-        params: {'p_user_id': uid},
-      );
-      _tokens = (tokenResp as num?)?.toInt() ?? 0;
+      try {
+        final tokenResp = await supabase.rpc(
+          'get_user_tokens',
+          params: {'p_user_id': uid},
+        );
+        _tokens = (tokenResp as num?)?.toInt() ?? 0;
+      } catch (e) {
+        debugPrint('[Ganhos] get_user_tokens: $e');
+      }
 
       // F6 — resumo unificado servidor (nunca calcular no cliente)
       try {
@@ -135,13 +147,17 @@ class _GanhosScreenState extends State<GanhosScreen> {
 
       // F5.4 (doença id/user_id): era .eq('id', uid) — conta com id≠user_id
       // nunca encontrava a própria linha. Tolerante às duas chaves.
-      final driverRow = await supabase
-          .from('drivers')
-          .select('priority_until')
-          .or('id.eq.$uid,user_id.eq.$uid')
-          .maybeSingle();
-      final pu = driverRow?['priority_until'] as String?;
-      _priorityUntil = pu != null ? DateTime.tryParse(pu) : null;
+      try {
+        final driverRow = await supabase
+            .from('drivers')
+            .select('priority_until')
+            .or('id.eq.$uid,user_id.eq.$uid')
+            .maybeSingle();
+        final pu = driverRow?['priority_until'] as String?;
+        _priorityUntil = pu != null ? DateTime.tryParse(pu) : null;
+      } catch (e) {
+        debugPrint('[Ganhos] priority_until: $e');
+      }
 
       try {
         final cfgRows = await supabase
@@ -168,10 +184,13 @@ class _GanhosScreenState extends State<GanhosScreen> {
 
       if (mounted) setState(() => _loading = false);
     } catch (e) {
+      debugPrint('[Ganhos] _load: $e');
       if (mounted) {
         setState(() {
           _loading = false;
-          _error = e.toString();
+          // Nunca o erro técnico cru ao estafeta (BRIEF §4).
+          _error = 'Não foi possível carregar os ganhos. Verifica a ligação '
+              'à internet e tenta de novo.';
         });
       }
     }
@@ -179,7 +198,9 @@ class _GanhosScreenState extends State<GanhosScreen> {
 
   /// F6 — cabeçalho de ganhos unificados + extrato dos últimos 7 dias.
   Widget _resumoUnificado() {
-    final r = _resumo!;
+    // [ronda 04/10] Sem o resumo das entregas (RPC falhou) continua a
+    // mostrar-se o total de todos os papéis — nunca esconder o dia.
+    final r = _resumo ?? const <String, dynamic>{};
     final dia = Map<String, dynamic>.from(r['dia'] as Map? ?? {});
     final semana = Map<String, dynamic>.from(r['semana'] as Map? ?? {});
     final semanaPassada =
@@ -647,7 +668,8 @@ class _GanhosScreenState extends State<GanhosScreen> {
       } else if (msg.contains('INSUFFICIENT_TOKENS')) {
         friendly = 'Tokens insuficientes.';
       } else {
-        friendly = 'Erro: $e';
+        debugPrint('[Ganhos] converter tokens: $e');
+        friendly = 'Não foi possível converter os tokens. Tenta de novo.';
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(friendly)),
@@ -722,9 +744,11 @@ class _GanhosScreenState extends State<GanhosScreen> {
       );
       _load();
     } catch (e) {
+      debugPrint('[Ganhos] comprar prioridade: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro: $e')),
+        const SnackBar(
+            content: Text('Não foi possível ativar a prioridade. Tenta de novo.')),
       );
     }
   }
@@ -769,7 +793,7 @@ class _GanhosScreenState extends State<GanhosScreen> {
                       // F6 (2026-08-16): GANHOS UNIFICADOS (padrão Uber/Bolt)
                       // — total do DIA no topo + extrato TVDE/entregas/tokens,
                       // tudo da RPC driver_earnings_summary (servidor soma).
-                      if (_resumo != null) ...[
+                      if (_resumo != null || _ganhoTodosOsPapeis != null) ...[
                         _resumoUnificado(),
                         const SizedBox(height: 20),
                       ],

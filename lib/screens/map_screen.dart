@@ -449,13 +449,13 @@ class _MapScreenState extends State<MapScreen> {
 
     if (origin == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecione o ponto de recolha.')),
+        const SnackBar(content: Text('Escolhe o ponto de recolha.')),
       );
       return;
     }
     if (target == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecione um destino.')),
+        const SnackBar(content: Text('Escolhe um destino.')),
       );
       return;
     }
@@ -686,7 +686,7 @@ class _MapScreenState extends State<MapScreen> {
                   icon: Icons.flag,
                   title: 'Destino',
                   value: destinationLocation == null
-                      ? 'Toque no mapa ou pesquise um endereço'
+                      ? 'Toca no mapa ou pesquisa uma morada'
                       : (_destinationAddress?.full ??
                           _formatCoordinate(destinationLocation)),
                 ),

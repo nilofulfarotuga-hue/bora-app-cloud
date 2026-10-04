@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Throttled ping helper for the new admin live ops map (B1).
@@ -27,6 +28,19 @@ class DriverLocationPingService {
   // motorista saía do matching. ~15 s = compasso do LocalizacaoOnline.
   static const int minIntervalSeconds = 14;
 
+  /// [ronda 04/10 · #8] Chave partilhada com o serviço em segundo plano
+  /// (outro isolate): hora (ms) da última posição que chegou ao servidor.
+  /// O serviço só manda a sua posição de reserva se esta tiver > ~60 s.
+  static const String kUltimaPosicaoTs = 'bora_ultima_posicao_ts';
+
+  /// Segundos desde a última posição enviada com sucesso por esta app
+  /// (muito grande se ainda não houve nenhuma).
+  int get segundosDesdeUltimoPing {
+    final l = _lastPing;
+    if (l == null) return 1 << 30;
+    return DateTime.now().difference(l).inSeconds;
+  }
+
   /// Best-effort ping. Safe to call on every GPS tick — internally throttled.
   /// Set [isOnline] to false on logout / go-offline so the driver disappears
   /// from the live map within ~5min freshness window.
@@ -54,6 +68,10 @@ class DriverLocationPingService {
         'p_is_online': isOnline,
       });
       _lastPing = now;
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setInt(kUltimaPosicaoTs, now.millisecondsSinceEpoch);
+      } catch (_) {/* só serve para o serviço não duplicar */}
     } catch (e) {
       debugPrint('[DriverLocationPing] failed: $e');
     } finally {

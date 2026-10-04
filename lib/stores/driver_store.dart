@@ -154,6 +154,11 @@ class DriverStore extends ChangeNotifier {
         // Without this, the previous driver's data leaks into the next session.
         _drivers.clear();
         _primaryDriverId = 'driver-main';
+        // [ronda 04/10 #1] o canal de ofertas do estafeta que saiu fecha-se
+        // também (antes ficava aberto e a reconectar sozinho).
+        _lastSubscribedDriverId = null;
+        _reconnectTimer?.cancel();
+        unawaited(_unsubscribeDriverOfferChannel());
         notifyListeners();
         debugPrint('DriverStore: session ended — driver state cleared.');
         _restartLocationChannel();

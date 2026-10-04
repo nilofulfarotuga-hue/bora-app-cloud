@@ -30,6 +30,20 @@ class WasherHomeScreen extends StatefulWidget {
 }
 
 class _WasherHomeScreenState extends State<WasherHomeScreen> {
+  /// [ronda 04/10 · app-estafeta #9] Trava de toque duplo: enquanto um botão
+  /// (aceitar, passar, avançar) está a gravar, os outros ficam desligados.
+  bool _aAgir = false;
+
+  Future<void> _comTrava(Future<void> Function() acao) async {
+    if (_aAgir) return;
+    setState(() => _aAgir = true);
+    try {
+      await acao();
+    } finally {
+      if (mounted) setState(() => _aAgir = false);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -104,10 +118,10 @@ class _WasherHomeScreenState extends State<WasherHomeScreen> {
     final quer = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Mostre como ficou'),
+        title: const Text('Mostra como ficou'),
         content: const Text(
-          'Quer juntar fotos do carro lavado? O cliente gosta de ver — '
-          'mas é à sua escolha.',
+          'Queres juntar fotos do carro lavado? O cliente gosta de ver — '
+          'mas é à tua escolha.',
         ),
         actions: [
           TextButton(
@@ -142,7 +156,7 @@ class _WasherHomeScreenState extends State<WasherHomeScreen> {
       final mais = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          content: const Text('Quer tirar mais uma?'),
+          content: const Text('Queres tirar mais uma?'),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
@@ -225,14 +239,18 @@ class _WasherHomeScreenState extends State<WasherHomeScreen> {
               for (final o in store.offers)
                 _OfertaCard(
                   booking: o,
-                  onAccept: () async {
-                    final ok = await store.accept(o.id);
-                    if (!ok) _erro(store.lastError);
-                  },
-                  onReject: () async {
-                    final ok = await store.reject(o.id);
-                    if (!ok) _erro(store.lastError);
-                  },
+                  onAccept: _aAgir
+                      ? null
+                      : () => _comTrava(() async {
+                            final ok = await store.accept(o.id);
+                            if (!ok) _erro(store.lastError);
+                          }),
+                  onReject: _aAgir
+                      ? null
+                      : () => _comTrava(() async {
+                            final ok = await store.reject(o.id);
+                            if (!ok) _erro(store.lastError);
+                          }),
                 ),
               const SizedBox(height: Spacing.lg),
             ],
@@ -242,7 +260,8 @@ class _WasherHomeScreenState extends State<WasherHomeScreen> {
               for (final j in ativos)
                 _TrabalhoCard(
                   booking: j,
-                  onAvancar: () => _avancar(j),
+                  onAvancar:
+                      _aAgir ? null : () => _comTrava(() => _avancar(j)),
                   onCall: () => _call(j.clientPhone),
                   onChat: () => Navigator.push(
                     context,
@@ -311,8 +330,8 @@ class _OfertaCard extends StatelessWidget {
   });
 
   final CarwashBooking booking;
-  final VoidCallback onAccept;
-  final VoidCallback onReject;
+  final VoidCallback? onAccept;
+  final VoidCallback? onReject;
 
   @override
   Widget build(BuildContext context) {
@@ -417,7 +436,7 @@ class _TrabalhoCard extends StatelessWidget {
   });
 
   final CarwashBooking booking;
-  final VoidCallback onAvancar;
+  final VoidCallback? onAvancar;
   final VoidCallback onCall;
   final VoidCallback onChat;
 

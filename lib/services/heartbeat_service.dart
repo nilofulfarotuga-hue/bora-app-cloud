@@ -47,15 +47,65 @@ import 'web_presence.dart';
 /// ficava sem sinal e, sem se mexer, sem pedidos. Agora cada tick (30 s)
 /// manda também uma posição — mesmo com o FGS a correr, porque o FGS só bate
 /// o heartbeat (`driver_heartbeat_by_id`), não a posição.
+///
+/// [ronda 04/10 · app-estafeta #2] UM SÓ BATIMENTO na app inteira. O ecrã das
+/// entregas abre POR CIMA do ecrã TVDE (os dois ficam vivos) e cada um tinha
+/// o seu `HeartbeatService` com o seu `Timer` — dois heartbeats e duas
+/// posições pedidas ao GPS a cada 30 s. Agora as instâncias partilham um
+/// relógio só (`_relogio`): a primeira a arrancar liga-o, a última a parar
+/// desliga-o; cada tick corre uma vez e o resultado (sem ligação / posto
+/// offline pelo servidor) é copiado para todas as instâncias ativas.
+/// `pararTodos()` (sair da conta, botão Offline) desliga tudo de uma vez.
+///
+/// [ronda 04/10 · #8] Posição a cada ~60 s mesmo PARADO (pedido do Danilo de
+/// 23/09): o batimento continua a 30 s, a posição sai em ticks alternados
+/// (~60 s) e só se nenhum outro caminho (stream de GPS a andar) a tiver
+/// mandado no último minuto — poupa bateria a quem anda e a quem está parado.
 class HeartbeatService {
   HeartbeatService({Duration interval = const Duration(seconds: 30)})
       : _interval = interval;
 
   final Duration _interval;
-  Timer? _timer;
   bool _running = false;
 
   bool get isRunning => _running;
+
+  // ── Relógio partilhado entre todas as instâncias ──────────────────────
+  static final Set<HeartbeatService> _ativas = <HeartbeatService>{};
+  static Timer? _relogio;
+  static int _ticksPartilhados = 0;
+
+  /// Quantas instâncias estão ligadas (para testes/diagnóstico).
+  @visibleForTesting
+  static int get instanciasAtivas => _ativas.length;
+
+  /// Há um relógio de batimento a correr (sair da conta usa isto).
+  static bool get relogioAtivo => _relogio != null;
+
+  /// Pára TODOS os batimentos da app (sair da conta / ficar offline). Sem
+  /// isto, um ecrã por baixo (TVDE) continuava a bater e o servidor voltava
+  /// a pôr o estafeta online (driver_heartbeat põe online com GPS vivo).
+  static Future<void> pararTodos() async {
+    for (final s in _ativas.toList()) {
+      await s.stop();
+    }
+    _relogio?.cancel();
+    _relogio = null;
+  }
+
+  static Future<void> _tickPartilhado() async {
+    if (_ativas.isEmpty) return;
+    _ticksPartilhados++;
+    final lider = _ativas.first;
+    await lider._tick(comPosicao: _ticksPartilhados % 2 == 1);
+    for (final o in _ativas) {
+      if (identical(o, lider)) continue;
+      o._consecutiveFailures = lider._consecutiveFailures;
+      if (o.serverAck.value != lider.serverAck.value) {
+        o.serverAck.value = lider.serverAck.value;
+      }
+    }
+  }
 
   /// F4B (2026-08-16) — presença HONESTA: false após 3 falhas consecutivas do
   /// heartbeat (~90s sem o servidor confirmar). A UI do motorista escuta isto
@@ -71,7 +121,7 @@ class HeartbeatService {
   bool _visibilityWired = false;
 
   /// Tick imediato fora do timer (botão "Tentar já" do banner de reconexão).
-  Future<void> pingNow() => _tick();
+  Future<void> pingNow() => _tick(comPosicao: true);
 
   Future<void> start() async {
     if (_running) return;
@@ -82,28 +132,44 @@ class HeartbeatService {
       _wireVisibility();
       unawaited(WebPresence.instance.requestWakeLock());
     }
+    final jaHaviaRelogio = _relogio != null && _ativas.isNotEmpty;
+    _ativas.add(this);
+    if (jaHaviaRelogio) {
+      // Outro ecrã já bate: herda o estado dele, não cria segundo relógio.
+      final lider = _ativas.first;
+      _consecutiveFailures = lider._consecutiveFailures;
+      serverAck.value = lider.serverAck.value;
+      return;
+    }
     // Imediato + periódico (não esperar pelo primeiro tick).
-    unawaited(_tick());
-    _timer = Timer.periodic(_interval, (_) => _tick());
+    _relogio?.cancel();
+    _ticksPartilhados = 0;
+    unawaited(_tickPartilhado());
+    _relogio = Timer.periodic(_interval, (_) => _tickPartilhado());
   }
 
   Future<void> stop() async {
-    _timer?.cancel();
-    _timer = null;
+    final estavaAtiva = _ativas.remove(this);
+    if (_ativas.isEmpty) {
+      _relogio?.cancel();
+      _relogio = null;
+      if (kIsWeb && estavaAtiva) {
+        unawaited(WebPresence.instance.releaseWakeLock());
+      }
+    }
     _running = false;
     _pausedAwaitingUser = false;
     serverMarkedOffline.value = false;
     // Offline intencional não é falha de ligação.
     _consecutiveFailures = 0;
     serverAck.value = true;
-    if (kIsWeb) unawaited(WebPresence.instance.releaseWakeLock());
   }
 
   /// A UI respondeu "sim, voltar a ficar online": retoma os ticks já.
   Future<void> resumeAfterUserConfirmed() async {
     _pausedAwaitingUser = false;
     serverMarkedOffline.value = false;
-    await _tick();
+    await _tick(comPosicao: true);
   }
 
   void _wireVisibility() {
@@ -134,14 +200,19 @@ class HeartbeatService {
     } catch (e) {
       debugPrint('[HeartbeatService] visibilidade: $e');
     }
-    unawaited(_tick());
+    unawaited(_tick(comPosicao: true));
   }
 
-  Future<void> _tick() async {
+  Future<void> _tick({bool comPosicao = true}) async {
     if (_pausedAwaitingUser) return;
-    // [ronda-fecho A10, 23/09/2026] Posição em TODOS os ticks na app nativa,
-    // antes do salto do FGS: online = heartbeat E GPS fresco (ver cabeçalho).
-    if (!kIsWeb) unawaited(_pingLocationNative());
+    // [ronda-fecho A10, 23/09/2026] Posição na app nativa antes do salto do
+    // FGS: online = heartbeat E GPS fresco (ver cabeçalho). [04/10] ticks
+    // alternados (~60 s) e só se a última posição enviada tiver ≥ 55 s.
+    if (!kIsWeb &&
+        comPosicao &&
+        DriverLocationPingService.instance.segundosDesdeUltimoPing >= 55) {
+      unawaited(_pingLocationNative());
+    }
     try {
       // Sessão 2026-05-24 (Fix #1) — se o FGS task isolate está vivo, é ele
       // que bate (com auth.uid()=NULL ⇒ usa driver_heartbeat_by_id). Evita
@@ -159,7 +230,7 @@ class HeartbeatService {
 
       // Web: a posição não vem de um stream em background — vai buscar-se
       // uma no mesmo compasso do heartbeat (≤ 30 s), se houver permissão.
-      if (kIsWeb) unawaited(_pingLocationWeb(client));
+      if (kIsWeb && comPosicao) unawaited(_pingLocationWeb(client));
     } catch (e) {
       // Swallow: se o app perde rede, próximo tick recupera. Não cancelar
       // o timer aqui — o cron backend já trata staleness se for prolongado.

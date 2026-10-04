@@ -24,6 +24,7 @@ import '../models/order_model.dart';
 import '../services/receipt_upload_service.dart';
 import '../stores/order_store.dart';
 import 'private_bucket_image.dart';
+import '../utils/safe_image_picker.dart';
 
 enum _Phase { collect, purchase, deliver, done }
 
@@ -92,14 +93,26 @@ class _ErrandExecutionSheetState extends State<ErrandExecutionSheet> {
     return (v * 100).round();
   }
 
+  /// [ronda 04/10 · app-estafeta #9] Câmara protegida contra dois toques
+  /// (SafeImagePicker ignora o segundo em vez de rebentar com
+  /// `already_active`) e sem setState depois de a folha fechar.
   Future<void> _pickReceipt() async {
-    final picker = ImagePicker();
-    final x = await picker.pickImage(
-      source: ImageSource.camera,
-      imageQuality: 70,
-    );
-    if (x == null) return;
-    setState(() => _receiptPhoto = File(x.path));
+    XFile? x;
+    try {
+      x = await SafeImagePicker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 70,
+      );
+    } catch (e) {
+      debugPrint('[favor] câmara: $e');
+      if (mounted) {
+        setState(() => _error = 'Não foi possível abrir a câmara. Tenta de novo.');
+      }
+      return;
+    }
+    if (x == null || !mounted) return;
+    final path = x.path;
+    setState(() => _receiptPhoto = File(path));
   }
 
   // 8.2 — limite de compra já autorizado (buffer = estimativa × 1.2).
@@ -169,7 +182,11 @@ class _ErrandExecutionSheetState extends State<ErrandExecutionSheet> {
             'Pedido enviado ao cliente. Aguarda a autorização antes de comprar.'),
       ));
     } catch (e) {
-      if (mounted) setState(() => _error = 'Erro ao pedir aumento: $e');
+      debugPrint('[favor] pedir aumento: $e');
+      if (mounted) {
+        setState(() => _error =
+            'Não foi possível pedir o aumento. Verifica a ligação e tenta de novo.');
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -251,13 +268,19 @@ class _ErrandExecutionSheetState extends State<ErrandExecutionSheet> {
       final store = context.read<OrderStore>();
       if (o.errandHasPurchase) {
         await store.markErrandArrivedAtErrand(o);
+        if (!mounted) return;
         setState(() => _phase = _Phase.purchase);
       } else {
         await store.markErrandOnTheWay(o);
+        if (!mounted) return;
         setState(() => _phase = _Phase.deliver);
       }
     } catch (e) {
-      setState(() => _error = 'Erro: $e');
+      debugPrint('[favor] confirmar recolha: $e');
+      if (mounted) {
+        setState(() => _error =
+            'Não foi possível guardar. Verifica a ligação e tenta de novo.');
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -302,13 +325,18 @@ class _ErrandExecutionSheetState extends State<ErrandExecutionSheet> {
         _phase = _Phase.deliver;
       });
     } catch (e) {
-      setState(() => _error = 'Erro ao finalizar: $e');
+      debugPrint('[favor] finalizar compra: $e');
+      if (mounted) {
+        setState(() => _error =
+            'Não foi possível fechar a compra. Verifica a ligação e tenta de novo.');
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
   Future<void> _markDelivered() async {
+    if (_busy) return;
     setState(() => _busy = true);
     try {
       await context.read<OrderStore>().markErrandDelivered(widget.order);
@@ -316,7 +344,11 @@ class _ErrandExecutionSheetState extends State<ErrandExecutionSheet> {
       setState(() => _phase = _Phase.done);
       Navigator.pop(context);
     } catch (e) {
-      setState(() => _error = 'Erro: $e');
+      debugPrint('[favor] marcar entregue: $e');
+      if (mounted) {
+        setState(() => _error =
+            'Não foi possível marcar como entregue. Tenta de novo.');
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }

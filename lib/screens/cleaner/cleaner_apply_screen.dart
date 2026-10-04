@@ -124,7 +124,7 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
         maxWidth: 1400,
         imageQuality: 85,
       );
-      if (x == null) return;
+      if (x == null || !mounted) return;
       setState(() {
         if (isPhoto) {
           _photo = x;

@@ -93,9 +93,21 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
   /// driver's real location instead of the default fallback.
   LatLng? _initialGpsCenter;
 
+  /// [ronda 04/10 · #2] Este ecrã foi aberto POR CIMA do ecrã TVDE (que fica
+  /// vivo por baixo, com o seu fluxo de GPS a alimentar a mesma DriverStore
+  /// e a mesma RPC de posição). Nesse caso não se abre um segundo fluxo de
+  /// GPS aqui — um só. O batimento já é partilhado (HeartbeatService).
+  bool _porCimaDoTvde = false;
+
   @override
   void initState() {
     super.initState();
+    // Só o ecrã TVDE empurra este ecrã; na raiz (_RootNavigator) não há
+    // nada por baixo para voltar.
+    // E só conta se já estava online ao abrir (então o TVDE já tem o seu
+    // fluxo de GPS ligado); quem fica online aqui dentro abre o fluxo daqui.
+    _porCimaDoTvde = (Navigator.maybeOf(context)?.canPop() ?? false) &&
+        (context.read<DriverStore>().currentDriver?.isOnline ?? false);
     // BUG 3: observe app lifecycle to re-run safety net on resume
     // (apanha admin approve/ban/delete enquanto app esteve em background).
     WidgetsBinding.instance.addObserver(this);
@@ -237,7 +249,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
         await _heartbeatService.resumeAfterUserConfirmed();
       } else {
         context.read<OrderStore>().toggleDriverAvailability(false);
-        unawaited(_heartbeatService.stop());
+        unawaited(HeartbeatService.pararTodos());
         await _positionSubscription?.cancel();
         _positionSubscription = null;
       }
@@ -352,7 +364,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
         );
         return;
       }
-      unawaited(_heartbeatService.stop());
+      // [ronda 04/10 · #2] Offline pára TODOS os batimentos da app (o ecrã
+      // TVDE por baixo também batia e o servidor punha-o online outra vez).
+      unawaited(HeartbeatService.pararTodos());
       // Stop idle GPS — no location drain when offline.
       await _positionSubscription?.cancel();
       _positionSubscription = null;
@@ -367,7 +381,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Confirme o seu NIF e a atividade aberta nas Finanças (cartão no topo) para voltar a aceitar entregas.',
+            'Confirma o teu NIF e a atividade aberta nas Finanças (cartão no topo) para voltares a aceitar entregas.',
           ),
           duration: Duration(seconds: 5),
         ),
@@ -385,6 +399,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       unawaited(_soundService.desbloquearAudioAposToque());
       final okWeb = orderStore.toggleDriverAvailability(true);
       if (!okWeb || !mounted) return;
+      _porCimaDoTvde = false;
       unawaited(_heartbeatService.start());
       unawaited(_startIdleLocationTracking());
       return;
@@ -405,6 +420,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     if (!mounted) return;
     final success = orderStore.toggleDriverAvailability(true);
     if (!success || !mounted) return;
+    // Ficou online AQUI: o fluxo de GPS é deste ecrã (ver _porCimaDoTvde).
+    _porCimaDoTvde = false;
     // [Oferta na hora · 23/09] uma vez: localização "sempre" + bateria.
     await LocalizacaoOnline.pedirUmaVez(context);
     if (!mounted) return;
@@ -676,6 +693,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     final isOnline =
         context.read<DriverStore>().currentDriver?.isOnline ?? false;
     if (!isOnline) return;
+    // [ronda 04/10 · #2] Por cima do TVDE o fluxo de GPS dele já corre.
+    if (_porCimaDoTvde) return;
     // Cancel any stale subscription before opening a new one.
     await _positionSubscription?.cancel();
     _positionSubscription = null;
@@ -687,7 +706,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-                'GPS desativado. Ative a localização para ver a sua posição.'),
+                'GPS desligado. Ativa a localização para veres a tua posição.'),
             duration: Duration(seconds: 8),
             action: SnackBarAction(
               label: 'Ativar',
@@ -711,7 +730,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content:
-              Text('Permissão de localização bloqueada. Ative nas definições.'),
+              Text('Permissão de localização bloqueada. Ativa-a nas definições.'),
           duration: Duration(seconds: 8),
           action: SnackBarAction(
             label: 'Definições',
@@ -723,6 +742,29 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     }
     if (permission == LocationPermission.denied) {
       _resolveGpsFallback();
+      // [ronda 04/10 · #9] Online sem localização = sem pedidos (o despacho
+      // escolhe pela distância e precisa de GPS fresco). Antes isto era
+      // silencioso e o estafeta ficava "online" à espera de nada.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+              'Estás online mas sem localização: assim não recebes pedidos. '
+              'Permite a localização para começares a receber.'),
+          duration: const Duration(seconds: 10),
+          action: SnackBarAction(
+            label: 'Permitir',
+            onPressed: () async {
+              final p = await Geolocator.requestPermission();
+              if (!mounted) return;
+              if (p == LocationPermission.deniedForever) {
+                await Geolocator.openAppSettings();
+              } else if (p != LocationPermission.denied) {
+                unawaited(_startIdleLocationTracking());
+              }
+            },
+          ),
+        ),
+      );
       return;
     }
 
@@ -764,7 +806,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-                'GPS desativado. Ative a localização para ver a sua posição.'),
+                'GPS desligado. Ativa a localização para veres a tua posição.'),
             duration: Duration(seconds: 8),
             action: SnackBarAction(
               label: 'Ativar',
@@ -1592,7 +1634,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                       : () async {
                     final entered = controller.text.trim();
                     if (entered.length != 4) {
-                      setDialogState(() => errorText = 'Digite os 4 dígitos.');
+                      setDialogState(() => errorText = 'Escreve os 4 dígitos.');
                       return;
                     }
                     setDialogState(() => aEnviar = true);
@@ -1835,6 +1877,40 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                 ],
               ],
             ),
+            // [ronda 04/10 · #7] "Deixar à porta" visível no cartão do pedido.
+            FutureBuilder<Map<String, dynamic>?>(
+              future: ProvaDeEntrega.info(order.id),
+              builder: (ctx, snap) {
+                if (snap.data?['deixar_a_porta'] != true) {
+                  return const SizedBox.shrink();
+                }
+                return Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(top: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.door_front_door_outlined,
+                          color: AppColors.primary, size: 20),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Deixar à porta — tira uma foto ao entregar.',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primary),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
             // ── fixed buttons ────────────────────────────────────────────
             const SizedBox(height: 16),
             Column(
@@ -1878,6 +1954,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                             final messenger = ScaffoldMessenger.of(context);
                             // Gate "Concluir entrega" behind delivery confirmation.
                             if (order.status == OrderStatus.onTheWay) {
+                              // [ronda 04/10 · #7] "Deixar à porta" / foto
+                              // obrigatória: a foto vem antes de tudo.
+                              final podeSeguir = await ProvaDeEntrega
+                                  .garantirFoto(context, order);
+                              if (!podeSeguir || !mounted) return;
                               // Market orders: collect bag count before code.
                               if (order.serviceType ==
                                   OrderServiceType.storeShopping) {
@@ -1984,7 +2065,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                         : () async {
                             final confirmed =
                                 await _confirmCancelDelivery(context);
-                            if (!confirmed) return;
+                            if (!confirmed || !mounted) return;
                             setState(() => _processingOrderIds.add(order.id));
                             await _handleCancelDelivery(order, orderStore);
                             if (mounted) {
@@ -2409,21 +2490,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       return;
     }
 
-    // BUG-STACKING-OFFER (2026-05-16): the DB trigger
-    // `recalc_driver_earnings_on_stack` only fires AFTER assignment
-    // (assigned_driver_id NULL → driver_id), so at offer time
-    // `order.driverEarnings` still holds the single-order value (eg €4.00 /
-    // €5.35) instead of the canonical stacked bonus. Replicate the formula
-    // here so the driver sees the correct value BEFORE accepting.
-    // Source: business_rules.md §2.2 + §6.4. Mirrors pricing_calculate()
-    // partner branch + recalc_driver_earnings_on_stack RPC.
-    //   Partner stacked:     €3.00 + apt_driver_share
-    //   Non-partner stacked: €3.00 + 0.30 × platform_commission + apt_driver_share
-    //   apt_driver_share:    €1.00 when order.apartmentDelivery else €0.00
-    final apartmentDriverShare = order.apartmentDelivery ? 1.00 : 0.0;
-    final stackedEarnings = order.isPartnerStore
-        ? 3.00 + apartmentDriverShare
-        : 3.00 + (0.30 * order.platformCommission) + apartmentDriverShare;
+    // [ronda 04/10 · #4] O ganho do pedido ADICIONAL vem do servidor
+    // (`ganho_oferta_adicional`, o mesmo cálculo que
+    // `recalc_driver_earnings_on_stack` grava ao aceitar). Antes a app tinha a
+    // fórmula com constantes próprias (3,00 € / 1,00 €) — mudar o valor no
+    // painel deixava a oferta a mostrar um número e o pedido a pagar outro.
+    // Sem resposta do servidor (rede) não se inventa número: o botão diz só
+    // "Aceitar" e o valor aparece no pedido depois de aceite.
+    final double? stackedEarnings = await _ganhoOfertaAdicional(order.id);
+    if (!mounted) return;
 
     // Double guard: multiple post-frame callbacks can queue before the first
     // flips _isShowingDialog. Re-check on entry so only ONE offer dialog is
@@ -2466,16 +2541,34 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     final isCash = order.paymentMethod == PaymentMethod.cash;
     final driverLoc = context.read<DriverStore>().currentDriver?.location;
 
-    // 40s auto-dismiss so the offer doesn't block the UI indefinitely.
+    // Auto-dismiss so the offer doesn't block the UI indefinitely. [ronda
+    // 04/10 · #4] O tempo é o do SERVIDOR: até `driver_offer_expires_at` do
+    // pedido; sem ele, `dispatch_offer_timeout_seconds` (era 40 s fixos na
+    // app com o servidor a dar 60 s — a oferta fechava 20 s antes do tempo).
     // Uses the root navigator so the dialog overlays any screen on top
     // (notably DriverMapScreen when the driver is already on delivery).
+    final totalOferta = await TempoDaOferta.segundos();
+    if (!mounted) {
+      _isShowingDialog = false;
+      _currentShowingOrderId = null;
+      _lastOfferedOrderId = null;
+      return;
+    }
+    final expira = order.driverOfferExpiresAt;
+    final duracaoOferta = expira != null
+        ? Duration(
+            seconds: expira
+                .difference(DateTime.now())
+                .inSeconds
+                .clamp(1, totalOferta))
+        : Duration(seconds: totalOferta);
     Timer? autoDismiss;
     final String? decision = await showDialog<String>(
       context: context,
       barrierDismissible: false,
       useRootNavigator: true,
       builder: (dialogCtx) {
-        autoDismiss = Timer(const Duration(seconds: 40), () {
+        autoDismiss = Timer(duracaoOferta, () {
           if (Navigator.of(dialogCtx, rootNavigator: true).canPop()) {
             Navigator.of(dialogCtx, rootNavigator: true).pop('timeout');
           }
@@ -2563,7 +2656,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                           color: Colors.orange.shade900, size: 20),
                       const SizedBox(width: 8),
                       Text(
-                        '+€${stackedEarnings.toStringAsFixed(2)}',
+                        stackedEarnings != null
+                            ? '+${_eurPt(stackedEarnings)}'
+                            : 'Ganho a confirmar',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
@@ -2604,15 +2699,17 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: Colors.green.shade200),
                     ),
-                    child: const Row(
+                    child: Row(
                       children: [
-                        Icon(Icons.add_circle_outline,
+                        const Icon(Icons.add_circle_outline,
                             color: Colors.green, size: 20),
-                        SizedBox(width: 8),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            '+€3.00  +50 tokens',
-                            style: TextStyle(
+                            stackedEarnings != null
+                                ? 'Pedido adicional: +${_eurPt(stackedEarnings)}'
+                                : 'Pedido adicional',
+                            style: const TextStyle(
                               color: Colors.green,
                               fontWeight: FontWeight.bold,
                             ),
@@ -2637,8 +2734,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                 ),
                 onPressed: () =>
                     Navigator.of(dialogCtx, rootNavigator: true).pop('accept'),
-                child: Text(
-                    'Aceitar · +€${stackedEarnings.toStringAsFixed(2)}'),
+                child: Text(stackedEarnings != null
+                    ? 'Aceitar · +${_eurPt(stackedEarnings)}'
+                    : 'Aceitar'),
               ),
             ],
           ),
@@ -2843,7 +2941,10 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
   late final AnimationController _controller;
   bool _isLoading = false;
   Timer? _countdownTimer;
-  int _secondsLeft = 40;
+  // [ronda 04/10 · #4] total da barra = `dispatch_offer_timeout_seconds` do
+  // servidor (era 40 fixo; o servidor dá 60).
+  int _totalSeconds = TempoDaOferta.ultimoConhecido;
+  late int _secondsLeft = _totalSeconds;
   // BUG H6 — true se a oferta já chega com driver_offer_expires_at < NOW
   // (stale subscription snapshot, lag de rede >40s, ou cron 2-min ainda
   // não limpou). Renderiza versão minimal e dispara onDismissExpired após 2s.
@@ -2874,19 +2975,28 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
       return; // NÃO inicia Timer.periodic — não há countdown a correr
     }
 
+    // Lê o valor do servidor (fica em cache) e acerta a barra se mudou.
+    unawaited(TempoDaOferta.segundos().then((t) {
+      if (!mounted || t == _totalSeconds) return;
+      setState(() {
+        _totalSeconds = t;
+        if (widget.order.driverOfferExpiresAt == null) _secondsLeft = t;
+      });
+    }));
     if (expiry != null) {
-      _secondsLeft = expiry.difference(DateTime.now()).inSeconds.clamp(0, 40);
+      _secondsLeft =
+          expiry.difference(DateTime.now()).inSeconds.clamp(0, _totalSeconds);
     }
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       final exp = widget.order.driverOfferExpiresAt;
       final secs = exp != null
-          ? exp.difference(DateTime.now()).inSeconds.clamp(0, 40)
-          : (_secondsLeft - 1).clamp(0, 40);
+          ? exp.difference(DateTime.now()).inSeconds.clamp(0, _totalSeconds)
+          : (_secondsLeft - 1).clamp(0, _totalSeconds);
       setState(() => _secondsLeft = secs);
       if (_secondsLeft <= 0) {
         _countdownTimer?.cancel();
-        // Timeout natural durante os 40s legítimos — comportamento original.
+        // Timeout natural no fim do tempo do servidor — comportamento original.
         widget.onReject();
       }
     });
@@ -3149,7 +3259,8 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
             ],
           ),
           const SizedBox(height: 20),
-          _CountdownBar(secondsLeft: _secondsLeft, totalSeconds: 40),
+          _CountdownBar(
+              secondsLeft: _secondsLeft, totalSeconds: _totalSeconds),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -3567,3 +3678,56 @@ class _SemLocalizacao extends StatelessWidget {
     );
   }
 }
+
+// ─── [ronda 04/10 · #4] Tempo e ganho da oferta vindos do servidor ─────────
+
+/// Tempo (s) que o estafeta tem para responder a uma oferta — o MESMO que o
+/// servidor usa (`platform_settings.dispatch_offer_timeout_seconds`). Lido uma
+/// vez por sessão (cache de 10 min); sem rede fica o último valor conhecido
+/// (arranque: 60 s, o valor do servidor a 04/10/2026).
+class TempoDaOferta {
+  TempoDaOferta._();
+  static int ultimoConhecido = 60;
+  static DateTime? _lidoEm;
+  static Future<int>? _emVoo;
+
+  static Future<int> segundos() {
+    final lido = _lidoEm;
+    if (lido != null &&
+        DateTime.now().difference(lido) < const Duration(minutes: 10)) {
+      return Future.value(ultimoConhecido);
+    }
+    return _emVoo ??= _ler().whenComplete(() => _emVoo = null);
+  }
+
+  static Future<int> _ler() async {
+    try {
+      final v = await Supabase.instance.client
+          .rpc('get_setting', params: {'p_key': 'dispatch_offer_timeout_seconds'})
+          .timeout(const Duration(seconds: 4));
+      final n = v is num ? v.toInt() : int.tryParse('$v');
+      if (n != null && n >= 10 && n <= 600) ultimoConhecido = n;
+      _lidoEm = DateTime.now();
+    } catch (e) {
+      debugPrint('[TempoDaOferta] get_setting: $e');
+    }
+    return ultimoConhecido;
+  }
+}
+
+/// Ganho do pedido adicional calculado pelo servidor; null se não respondeu.
+Future<double?> _ganhoOfertaAdicional(String orderId) async {
+  try {
+    final r = await Supabase.instance.client
+        .rpc('ganho_oferta_adicional', params: {'p_order_id': orderId})
+        .timeout(const Duration(seconds: 4));
+    if (r is Map && r['ok'] == true) {
+      return (r['driver_earnings'] as num?)?.toDouble();
+    }
+  } catch (e) {
+    debugPrint('[Oferta] ganho_oferta_adicional: $e');
+  }
+  return null;
+}
+
+String _eurPt(double v) => '€${v.toStringAsFixed(2).replaceAll('.', ',')}';

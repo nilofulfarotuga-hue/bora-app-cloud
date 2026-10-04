@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -40,27 +42,54 @@ class _GanhoDeHojeCardState extends State<GanhoDeHojeCard>
   int? _hojeCents;
   bool _aLer = false;
 
+  /// [ronda 04/10] Cadência. A store do ecrã notifica a cada mudança (a do
+  /// estafeta até de 3 em 3 s) e cada notificação era uma chamada ao
+  /// servidor. Agora: no máximo uma leitura por [_intervaloMinimo]; uma
+  /// notificação dentro do intervalo marca UMA leitura para o fim dele.
+  /// Voltar à app e voltar do ecrã Ganhos lêem logo (são pedidos explícitos).
+  static const Duration _intervaloMinimo = Duration(seconds: 30);
+  DateTime? _ultimaLeitura;
+  Timer? _leituraMarcada;
+
   @override
   void initState() {
     super.initState();
     _hojeCents = widget.valorInicialCents;
     WidgetsBinding.instance.addObserver(this);
-    widget.recarregarQuando?.addListener(_ler);
+    widget.recarregarQuando?.addListener(_lerComCadencia);
     _ler();
+  }
+
+  void _lerComCadencia() {
+    final ultima = _ultimaLeitura;
+    if (ultima == null) {
+      _ler();
+      return;
+    }
+    final passou = DateTime.now().difference(ultima);
+    if (passou >= _intervaloMinimo) {
+      _ler();
+      return;
+    }
+    if (_leituraMarcada?.isActive ?? false) return;
+    _leituraMarcada = Timer(_intervaloMinimo - passou, () {
+      if (mounted) _ler();
+    });
   }
 
   @override
   void didUpdateWidget(covariant GanhoDeHojeCard old) {
     super.didUpdateWidget(old);
     if (old.recarregarQuando != widget.recarregarQuando) {
-      old.recarregarQuando?.removeListener(_ler);
-      widget.recarregarQuando?.addListener(_ler);
+      old.recarregarQuando?.removeListener(_lerComCadencia);
+      widget.recarregarQuando?.addListener(_lerComCadencia);
     }
   }
 
   @override
   void dispose() {
-    widget.recarregarQuando?.removeListener(_ler);
+    widget.recarregarQuando?.removeListener(_lerComCadencia);
+    _leituraMarcada?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -73,6 +102,8 @@ class _GanhoDeHojeCardState extends State<GanhoDeHojeCard>
   Future<void> _ler() async {
     if (_aLer) return;
     _aLer = true;
+    _ultimaLeitura = DateTime.now();
+    _leituraMarcada?.cancel();
     try {
       // `Supabase.instance` rebenta se ainda não houver arranque (é o caso num
       // teste de widget), por isso fica dentro do try tal como a chamada.

@@ -104,9 +104,11 @@ abstract final class BRBusiness {
   /// Invisible markup applied at product registration for non-partner stores
   static const double NON_PARTNER_MARKUP_RATIO = 0.15;
 
-  /// Maximum order total (EUR) accepted with payment_method = 'cash'.
-  /// Above this threshold the cash option MUST be hidden/disabled. The
-  /// database trigger `enforce_cash_payment_limit` enforces the same rule
-  /// server-side — client validation is UX only.
+  /// VALOR DE RECURSO do limite do pagamento em dinheiro (EUR) — só vale
+  /// enquanto a app não leu `platform_settings.max_cash_amount_cents`.
+  ///
+  /// A fonte única é essa chave (ver `LimiteDinheiroService`): o gatilho
+  /// `enforce_cash_payment_limit` do servidor lê-a desde 04/10/2026. Não usar
+  /// esta constante para decidir — usar `LimiteDinheiroService.maxEur`.
   static const double CASH_MAX_ORDER_VALUE_EUR = 40.00;
 }

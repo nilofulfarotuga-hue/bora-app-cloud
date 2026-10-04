@@ -58,11 +58,13 @@ export const PRODUCT_MARGIN_RATIO = 0.05 as const;
 export const NON_PARTNER_MARKUP_RATIO = 0.15 as const;
 
 /**
- * Maximum order total (EUR) accepted with payment_method = 'cash'.
- * Enforced server-side by the `enforce_cash_payment_limit` DB trigger.
+ * Limite do pagamento em dinheiro (EUR) — APENAS valor de recurso/documentação.
  *
- * Source of truth: platform_settings.max_cash_amount_cents (= 4000).
- * Última actualização: 2026-05-08 (Sessão 7-TS-AUDIT — BUG-7E-B-001 ponta solta).
- * Valor anterior: 30.00 (€30) — desalinhado com prod.
+ * A fonte única é `platform_settings.max_cash_amount_cents` (hoje 4000). O
+ * gatilho `enforce_cash_payment_limit` lê essa chave desde 04/10/2026 (antes
+ * tinha `> 40` cravado e este comentário dizia que a lia — não lia). A app lê-a
+ * em `LimiteDinheiroService`. "Ir buscar" (takeaway) não tem limite.
+ * Nenhuma Edge Function importa esta constante; se alguma precisar do limite,
+ * deve ler a chave (ver `_shared/platform_settings.ts`).
  */
 export const CASH_MAX_ORDER_VALUE_EUR = 40.00 as const;

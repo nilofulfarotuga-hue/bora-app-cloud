@@ -283,6 +283,21 @@ class CartStore extends ChangeNotifier {
       isPartnerStore: _isPartnerStore,
       apartmentDelivery: _apartmentDelivery,
     );
+    // IR BUSCAR (takeaway) — 04/10/2026. O `PricingService` (zona protegida)
+    // não tem ramo para takeaway e cai no de recurso: 2,50 € de entrega que o
+    // servidor NUNCA cobra. Espelho do ramo takeaway do `create_order` /
+    // `quote_order_pricing`: o cliente paga só os produtos — sem entrega, sem
+    // taxa de serviço, sem saco, sem estafeta.
+    if (_serviceType == OrderServiceType.takeaway) {
+      return OrderPricingBreakdown(
+        distanceKm: base.distanceKm,
+        subtotal: base.subtotal,
+        deliveryFee: 0,
+        serviceFee: 0,
+        platformCommission: 0,
+        driverEarnings: 0,
+      );
+    }
     // Festas (2026-08-25, regra do Danilo): a loja de festas não cobra saco.
     // Ajuste aqui, fora do PricingService (ficheiro protegido); o servidor
     // aplica a mesma isenção (migration festas_money_patch). customerTotal é

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/order_edit.dart';
+import 'limite_dinheiro_service.dart';
 
 /// Loja PARCEIRA edita um pedido já feito (acrescentar / tirar produto).
 ///
@@ -152,7 +153,9 @@ String mensagemErroEdicao(Object erro) {
   if (s.contains('NAO_E_A_TUA_LOJA')) return 'Este pedido não é da tua loja.';
   if (s.contains('JA_RECOLHIDO')) return 'O pedido já saiu da loja — já não dá para mudar.';
   if (s.contains('PAGAMENTO_POR_CONFIRMAR')) return 'O pagamento do pedido ainda não está confirmado.';
-  if (s.contains('LIMITE_DINHEIRO')) return 'Pagamento em dinheiro só até 40 €. O total novo passava o limite.';
+  if (s.contains('LIMITE_DINHEIRO')) {
+    return 'Pagamento em dinheiro só até ${LimiteDinheiroService.maxTexto}. O total novo passava o limite.';
+  }
   if (s.contains('VALOR_MINIMO')) return 'A diferença a cobrar tem de ser pelo menos 0,50 €.';
   if (s.contains('JA_HA_PROPOSTA')) return 'Já há uma proposta à espera do cliente.';
   if (s.contains('PEDIDO_FICA_VAZIO')) return 'Não dá para tirar tudo. Para isso, rejeita/cancela o pedido.';

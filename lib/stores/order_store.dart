@@ -5,7 +5,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../auth/auth_store.dart';
-import '../config/business_rules.dart';
+import '../services/limite_dinheiro_service.dart';
 import '../dispatch/dispatch_engine.dart';
 import '../services/driver_location_service.dart';
 import '../models/cart_item.dart';
@@ -497,6 +497,8 @@ class OrderStore extends ChangeNotifier {
     String? customerName,
     int walletAppliedCents = 0,
     String? savedPmId,
+    // 04/10/2026 — "Deixar à porta" (vai no payload do rascunho → create_order).
+    bool deixarAPorta = false,
     // FAVORES (errand) — campos do favor (null/default para outros tipos).
     String? errandDescription,
     String? errandLocation,
@@ -571,6 +573,8 @@ class OrderStore extends ChangeNotifier {
       //   carry/sendPackage → 0
       'bag_count': _resolveBagCount(serviceType, 1),
       'requires_car': requiresCar,
+      if (deixarAPorta && serviceType != OrderServiceType.takeaway)
+        'deixar_a_porta': true,
       'wallet_applied_cents': walletAppliedCents,
       if (pickupLocation != null) 'pickup_lat': pickupLocation.latitude,
       if (pickupLocation != null) 'pickup_lng': pickupLocation.longitude,
@@ -603,8 +607,12 @@ class OrderStore extends ChangeNotifier {
       if (customerName != null) 'customer_name': customerName,
       if (clientPhone != null) 'client_phone': clientPhone,
       'items': clonedItems?.map((i) => i.toJson()).toList() ?? [],
+      // 04/10/2026: "Ir buscar" (takeaway) também manda as linhas — o
+      // servidor soma os preços da base de dados em vez de confiar no
+      // subtotal do telemóvel.
       if ((serviceType == OrderServiceType.restaurant ||
-              serviceType == OrderServiceType.storeShopping) &&
+              serviceType == OrderServiceType.storeShopping ||
+              serviceType == OrderServiceType.takeaway) &&
           clonedItems != null)
         'product_lines': clonedItems
             .map((i) => {
@@ -746,6 +754,11 @@ class OrderStore extends ChangeNotifier {
     String? takeawayCurbsideInfo,
     int tipCents = 0,
     int walletAppliedCents = 0,
+    // 04/10/2026 — "Deixar à porta" (vai para orders.deixar_a_porta).
+    bool deixarAPorta = false,
+    // 04/10/2026 — total do SERVIDOR (quote) para a pré-verificação do
+    // limite do dinheiro. Sem ele usa-se o cálculo local.
+    double? totalServidor,
     // FAVORES (errand) — campos do favor (null/default para outros tipos).
     String? errandDescription,
     String? errandLocation,
@@ -843,11 +856,19 @@ class OrderStore extends ChangeNotifier {
     // ── Cash limit guard (UX only — backend trigger is the source of truth) ─
     // Cash has no Stripe pre-auth, so the +15% buffer (non-partner) does not
     // apply — compare against the real customer total minus token discount.
-    if (paymentMethod == PaymentMethod.cash) {
-      final cashCustomerTotal = localPricing.customerTotal - tokenDiscountEur;
-      if (cashCustomerTotal > BRBusiness.CASH_MAX_ORDER_VALUE_EUR) {
+    // 04/10/2026: o limite vem de platform_settings.max_cash_amount_cents (a
+    // mesma chave do gatilho `enforce_cash_payment_limit`), o total é o do
+    // servidor quando o ecrã o tem, e "Ir buscar" (pagar na loja) não tem
+    // limite — como no servidor. Quando bloqueia, deixa a razão em
+    // [lastCreateOrderError] para o ecrã a mostrar (nunca em silêncio).
+    if (paymentMethod == PaymentMethod.cash &&
+        serviceType != OrderServiceType.takeaway) {
+      final cashCustomerTotal = totalServidor ?? localPricing.customerTotal;
+      if (LimiteDinheiroService.passaLimite(cashCustomerTotal)) {
         debugPrint('[FLOW] createOrder BLOCKED — cash limit exceeded '
-            '(total=$cashCustomerTotal max=${BRBusiness.CASH_MAX_ORDER_VALUE_EUR})');
+            '(total=$cashCustomerTotal max=${LimiteDinheiroService.maxEur})');
+        lastCreateOrderError =
+            'CASH_LIMIT_EXCEEDED: total=$cashCustomerTotal max=${LimiteDinheiroService.maxEur}';
         return false;
       }
     }
@@ -868,6 +889,8 @@ class OrderStore extends ChangeNotifier {
       // BUG #3 (2026-05-12) — bag_count dinâmico por service_type.
       'bag_count': _resolveBagCount(serviceType, 1),
       'requires_car': requiresCar,
+      if (deixarAPorta && serviceType != OrderServiceType.takeaway)
+        'deixar_a_porta': true,
       // S1.4: Wallet debit happens atomically inside create_order RPC.
       // Pre-validates balance with FOR UPDATE lock; throws on insufficient.
       'wallet_applied_cents': walletAppliedCents,
@@ -914,8 +937,12 @@ class OrderStore extends ChangeNotifier {
       // carryGroceries / sendPackage: no product_lines → RPC trusts client subtotal.
       // T16: include product_id (UUID when available) so create_order can do
       //      DB lookup first; falls back to unit_price if not found.
+      // 04/10/2026: "Ir buscar" (takeaway) também manda as linhas — o
+      // servidor soma os preços da base de dados em vez de confiar no
+      // subtotal do telemóvel.
       if ((serviceType == OrderServiceType.restaurant ||
-              serviceType == OrderServiceType.storeShopping) &&
+              serviceType == OrderServiceType.storeShopping ||
+              serviceType == OrderServiceType.takeaway) &&
           clonedItems != null)
         'product_lines': clonedItems
             .map((i) => {
@@ -1703,126 +1730,11 @@ class OrderStore extends ChangeNotifier {
     );
   }
 
-  /// BUG 6 (Fase 3 / 2026-04-30) — Alarga guard p/ aceitar `driverAccepted`.
-  ///
-  /// O UI (`driver_map_screen.dart` _FinalizePurchaseButton) já mostra o botão
-  /// em `driverAccepted` por design (estafeta finaliza compra ANTES de marcar
-  /// pickup). A guarda anterior só aceitava `pickedUp/onTheWay`, causando
-  /// rejeição silenciosa e estafeta preso (Order 6746d61f preso 36h).
-  ///
-  /// Retorna `null` em sucesso, ou um `String` com a razão da falha — caller
-  /// deve mostrar a mensagem ao utilizador em vez do snackbar genérico.
-  Future<String?> finalizePurchaseWithReason({
-    required String orderId,
-    required double purchaseValue,
-  }) async {
-    if (purchaseValue <= 0) return 'Valor inválido (deve ser > 0).';
-
-    final index = _orders.indexWhere((o) => o.id == orderId);
-    if (index == -1) return 'Pedido não encontrado localmente.';
-
-    final order = _orders[index];
-
-    final isEligible = order.serviceType == OrderServiceType.storeShopping ||
-        !order.isPartnerStore;
-    if (!isEligible) {
-      return 'Confirmar compra não disponível para parceiros.';
-    }
-
-    // BUG 6 fix: aceitar driverAccepted (estafeta finaliza ANTES de pickup).
-    if (order.status != OrderStatus.driverAccepted &&
-        order.status != OrderStatus.pickedUp &&
-        order.status != OrderStatus.onTheWay) {
-      return 'Estado do pedido (${order.status.name}) não permite finalizar compra.';
-    }
-
-    if (order.isPurchaseFinalized) {
-      return 'Compra já foi finalizada.';
-    }
-    return await _finalizePurchaseUnchecked(order, purchaseValue);
-  }
-
-  /// Wrapper bool legado — mantém retrocompatibilidade com chamadores antigos.
-  Future<bool> finalizePurchase({
-    required String orderId,
-    required double purchaseValue,
-  }) async {
-    final reason = await finalizePurchaseWithReason(
-      orderId: orderId,
-      purchaseValue: purchaseValue,
-    );
-    return reason == null;
-  }
-
-  /// Lógica interna sem guards — só chamada após validação em finalizePurchaseWithReason.
-  Future<String?> _finalizePurchaseUnchecked(
-      OrderModel order, double purchaseValue) async {
-    final orderId = order.id;
-
-    final breakdown = PricingService.calculateBreakdown(
-      serviceType: order.serviceType,
-      subtotal: purchaseValue,
-      distanceKm: order.distanceKm,
-      isPartnerStore: false,
-      apartmentDelivery: order.apartmentDelivery,
-    );
-    // For storeShopping: add bag_fee (count × €0.10, set by updateBagCount).
-    // For restaurant non-partner: bag_fee €0.30 already included in breakdown.customerTotal.
-    final computedFinalTotal = breakdown.customerTotal +
-        (order.serviceType == OrderServiceType.storeShopping
-            ? order.bagFee
-            : 0.0);
-
-    final diff = double.parse(
-        (computedFinalTotal - order.paymentBufferTotal).toStringAsFixed(2));
-    final refund = diff < 0 ? -diff : 0.0;
-    final extra = diff > 0 ? diff : 0.0;
-    // Client NEVER writes 'paid'. Only refundPending / extraRequired are safe
-    // client-driven transitions (they downgrade, not promote). If neither, the
-    // row stays whatever server-trusted status it already has (webhook-set).
-    final PaymentStatus? newPaymentStatus = refund > 0
-        ? PaymentStatus.refundPending
-        : extra > 0
-            ? PaymentStatus.extraRequired
-            : null;
-
-    try {
-      final update = <String, dynamic>{
-        'final_purchase_value': purchaseValue,
-        'final_total': computedFinalTotal,
-        'is_purchase_finalized': true,
-        'refund_amount': refund,
-        'extra_charge_amount': extra,
-      };
-      if (newPaymentStatus != null) {
-        update['payment_status'] = newPaymentStatus.name;
-      }
-      await supabase.from('orders').update(update).eq('id', orderId);
-    } catch (e) {
-      debugPrint('OrderStore: finalizePurchase DB error => $e');
-      return 'Erro a gravar na base de dados: $e';
-    }
-
-    order.finalPurchaseValue = purchaseValue;
-    order.finalTotal = computedFinalTotal;
-    order.isPurchaseFinalized = true;
-    order.refundAmount = refund;
-    order.extraChargeAmount = extra;
-    if (newPaymentStatus != null) {
-      order.paymentStatus = newPaymentStatus;
-    }
-    notifyListeners();
-
-    if (order.paymentMethod == PaymentMethod.card) {
-      if (refund > 0) {
-        await processRefund(order);
-      } else if (extra > 0) {
-        await processExtraCharge(order);
-      }
-    }
-
-    return null;
-  }
+  // 04/10/2026 (ronda de correções · checkout): apagados `finalizePurchase`,
+  // `finalizePurchaseWithReason` e `_finalizePurchaseUnchecked` — código morto
+  // (0 chamadas em lib/ e test/). Escreviam colunas de dinheiro em `orders`
+  // directamente do telemóvel; o caminho vivo é `finalizePurchaseV2` (RPC
+  // `finalize_storeshopping_purchase`, calculado no servidor).
 
   bool hasPaymentAdjustment(OrderModel order) {
     return (order.refundAmount ?? 0) > 0 || (order.extraChargeAmount ?? 0) > 0;

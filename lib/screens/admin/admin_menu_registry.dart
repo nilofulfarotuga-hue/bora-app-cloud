@@ -13,6 +13,7 @@ import 'admin_appointments_screen.dart';
 import 'admin_audit_log_screen.dart';
 import 'admin_businesses_screen.dart';
 import 'admin_cancellation_requests_screen.dart';
+import 'admin_carrinhos_abandonados_screen.dart';
 import 'admin_cancellations_screen.dart';
 import 'admin_carwash_screen.dart';
 import 'admin_cashbacks_screen.dart';
@@ -850,6 +851,15 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.amber,
       builder: () => const AdminSendNotificationScreen(),
       keywords: const ['aviso', 'cliente', 'enviar', 'mandar', 'notificacao', 'todos'],
+    ),
+    AdminMenuItem(
+      id: 'clientes_carrinho_abandonado',
+      title: 'Carrinho abandonado',
+      subtitle: 'Push automático a quem largou o carrinho: ligar/desligar, minutos, texto e números',
+      icon: Icons.remove_shopping_cart_outlined,
+      color: AppColors.primary,
+      builder: () => const AdminCarrinhosAbandonadosScreen(),
+      keywords: const ['carrinho', 'abandonado', 'largou', 'lembrete', 'push', 'recuperar'],
     ),
     AdminMenuItem(
       id: 'clientes_personalizacao',

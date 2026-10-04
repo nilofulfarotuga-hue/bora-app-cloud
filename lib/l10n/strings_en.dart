@@ -16,6 +16,15 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 04/10/2026 (checkout) — também em tool/l10n/traducoes/pt-en-10-checkout.json
+  'Pagamento em dinheiro só até {0}. Este pedido fica em €{1}. Escolhe Cartão ou MBWay.':
+      'Cash payment only up to {0}. This order comes to €{1}. Choose Card or MBWay.',
+  'Pagamento em dinheiro só até {0}. Escolhe Cartão ou MBWay.':
+      'Cash payment only up to {0}. Choose Card or MBWay.',
+  'A loja está em pausa e não está a aceitar pedidos agora. Tenta daqui a pouco.':
+      'The store is paused and not taking orders right now. Try again shortly.',
+  'Esta loja não aceita "Ir buscar". Escolhe entrega.':
+      "This store doesn't offer pick-up. Choose delivery.",
   '\nJá não podes reagendar esta marcação.':
       '\nYou can no longer reschedule this appointment.',
   '\nPodes reagendar mais 1 vez.':

@@ -21,6 +21,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../config/app_colors.dart';
+import '../services/limite_dinheiro_service.dart';
 import '../services/auto_address.dart';
 import '../widgets/auto_address_hint.dart';
 import '../config/maps_config.dart';
@@ -109,11 +110,14 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
   late final PlaceAutocompleteService _geocoder;
 
   static const _maxAdvanceCents = 4000; // €40 — força paragem-casa
-  static const _maxCashCents = 4000; // limite cash global
+  // Limite do dinheiro: uma só fonte (platform_settings.max_cash_amount_cents),
+  // a mesma que o servidor usa — ver LimiteDinheiroService (04/10/2026).
+  static int get _maxCashCents => LimiteDinheiroService.maxCents;
 
   @override
   void initState() {
     super.initState();
+    LimiteDinheiroService.carregar();
     _geocoder = createPlaceAutocompleteService(googleApiKey);
     final p = widget.prefill;
     if (p != null) {

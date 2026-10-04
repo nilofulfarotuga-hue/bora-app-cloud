@@ -1,0 +1,59 @@
+name: Analise rapida (ramos analise-*)
+
+# Variante ESTRITA usada so no ramo analise-admin-geral (nao entra no ramo do
+# agente): o original faz "comando | tee" sem pipefail, por isso fica sempre
+# verde mesmo com erros. Aqui os erros fazem falhar e aparecem como anotacoes.
+on:
+  push:
+    branches:
+      - "analise-**"
+  workflow_dispatch:
+
+concurrency:
+  group: analise-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analise:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.41.2
+          channel: stable
+          cache: true
+      - name: Dependencias
+        run: flutter pub get
+      - name: Analise estatica (so erros fazem falhar)
+        shell: bash
+        run: |
+          set +e
+          flutter analyze --no-fatal-infos --no-fatal-warnings > analise.txt 2>&1
+          rc=$?
+          tail -5 analise.txt
+          grep -E "^ *error " analise.txt | head -25 | while IFS= read -r l; do echo "::error::$l"; done
+          grep -cE "^ *warning " analise.txt | xargs -I{} echo "::notice::avisos(warnings)={}"
+          exit $rc
+      - name: Testes
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          flutter test --reporter expanded > testes.txt 2>&1
+          rc=$?
+          tail -3 testes.txt
+          grep -E "\[E\]$|\[E\] *$" testes.txt | head -25 | while IFS= read -r l; do echo "::error::FALHOU $l"; done
+          grep -E "^(Expected|  Actual|Error:|.*Exception:)" testes.txt | head -15 | while IFS= read -r l; do echo "::error::$l"; done
+          tail -1 testes.txt | while IFS= read -r l; do echo "::notice::$l"; done
+          exit $rc
+      - name: Guardar resultados
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: analise-${{ github.run_number }}
+          path: |
+            analise.txt
+            testes.txt
+          if-no-files-found: ignore

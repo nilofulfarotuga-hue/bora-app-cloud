@@ -1,0 +1,42 @@
+name: Analise rapida (ramos analise-*)
+
+# Ramos de trabalho dos agentes (Claude.ai, 04/10/2026): so analisa e testa.
+# Nao faz build, nao publica, nao mexe no versionCode. Serve de porta antes
+# de juntar o codigo ao ramo de producao.
+on:
+  push:
+    branches:
+      - "analise-**"
+  workflow_dispatch:
+
+concurrency:
+  group: analise-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analise:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.41.2
+          channel: stable
+          cache: true
+      - name: Dependencias
+        run: flutter pub get
+      - name: Analise estatica (so erros fazem falhar)
+        run: |
+          flutter analyze --no-fatal-infos --no-fatal-warnings 2>&1 | tee analise.txt
+      - name: Testes
+        run: flutter test --reporter expanded 2>&1 | tee testes.txt
+      - name: Guardar resultados
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: analise-${{ github.run_number }}
+          path: |
+            analise.txt
+            testes.txt
+          if-no-files-found: ignore

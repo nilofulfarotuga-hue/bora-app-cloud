@@ -26,6 +26,7 @@ class _CarwashTrackingScreenState extends State<CarwashTrackingScreen>
     with WidgetsBindingObserver {
   String _washerName = '';
   String _washerPhone = '';
+  bool _aPagar = false;
 
   @override
   void initState() {
@@ -252,10 +253,23 @@ class _CarwashTrackingScreenState extends State<CarwashTrackingScreen>
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton(
-                        onPressed: () async {
-                          final store = context.read<CarwashStore>();
-                          await CarwashPaymentFlow.pay(context, store, b);
-                        },
+                        // [Pedido duplicado · 04/10] trava própria: um 2.º
+                        // toque criava um 2.º pagamento (cartão ou MB WAY).
+                        onPressed: _aPagar
+                            ? null
+                            : () async {
+                                if (_aPagar) return;
+                                setState(() => _aPagar = true);
+                                try {
+                                  final store = context.read<CarwashStore>();
+                                  await CarwashPaymentFlow.pay(
+                                      context, store, b);
+                                } finally {
+                                  if (mounted) {
+                                    setState(() => _aPagar = false);
+                                  }
+                                }
+                              },
                         style: FilledButton.styleFrom(
                             backgroundColor: AppColors.primary),
                         child: Text(

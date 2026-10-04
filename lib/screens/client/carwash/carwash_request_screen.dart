@@ -229,6 +229,9 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
   }
 
   Future<void> _submit() async {
+    // [Pedido duplicado · 04/10] guarda de re-entrada: dois toques no mesmo
+    // frame passavam os dois antes de o botão se desligar.
+    if (_submitting) return;
     // Um botão que parece funcionar e não faz nada é pior do que um erro.
     // Antes: carregava-se e não acontecia NADA visível — os erros do Form
     // apareciam em campos fora do ecrã, acima do botão. Agora rola-se até ao

@@ -6,6 +6,7 @@ import '../config/business_rules.dart' show BRTokens;
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/extrato_prestador_section.dart';
+import '../widgets/gorjetas_recebidas_section.dart';
 
 /// GANHOS — um ecra so, para quem trabalha no que for.
 ///
@@ -781,6 +782,9 @@ class _GanhosScreenState extends State<GanhosScreen> {
                         const ExtratoPrestadorSection(),
                         const SizedBox(height: 20),
                       ],
+                      // Gorjetas (04/10): linha "Gorjeta" por pedido/corrida.
+                      const GorjetasRecebidasSection(),
+                      const SizedBox(height: 16),
                       _TokenSection(
                         tokens: _tokens,
                         weeklyConverted: _weeklyTokensConverted,

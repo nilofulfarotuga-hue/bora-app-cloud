@@ -84,7 +84,7 @@ class _TipSelectorState extends State<TipSelector> {
                     widget.enabled ? (_) => _pickPreset(cents) : null,
               ),
             ChoiceChip(
-              label: Text('Nenhuma'.tr),
+              label: Text('Sem gorjeta'.tr),
               selected: _selectedCents == 0,
               onSelected: widget.enabled ? (_) => _pickPreset(0) : null,
             ),

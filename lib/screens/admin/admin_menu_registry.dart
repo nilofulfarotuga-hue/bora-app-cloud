@@ -28,6 +28,7 @@ import 'admin_correcoes_preco_screen.dart';
 import 'admin_crosstalk_screen.dart';
 import 'admin_encomendas_telefone_screen.dart';
 import 'admin_gorjetas_screen.dart';
+import 'admin_secretario_screen.dart';
 import 'admin_deleted_accounts_screen.dart';
 import 'admin_discovery_filters_screen.dart';
 import 'admin_dispatch_settings_screen.dart';
@@ -1050,6 +1051,16 @@ List<AdminMenuSection> adminMenuSections() => [
       color: const Color(0xFF0E7490),
       builder: () => const AdminCacaClientesScreen(),
       keywords: const ['caca', 'caça', 'clientes', 'prospect', 'carteiro', 'email', 'seguimento', 'vendedor', 'proposta', 'enviar', 'csv'],
+    ),
+    // [Secretário Virtual · 04/10] venda do assistente de WhatsApp a negócios de Portugal.
+    AdminMenuItem(
+      id: 'robos_secretario_virtual',
+      title: 'Secretário Virtual',
+      subtitle: 'Prospects de Portugal com WhatsApp, quem testou a demo (7 dias), conversas da demo e o interruptor do envio',
+      icon: Icons.support_agent_rounded,
+      color: AppColors.primary,
+      builder: () => const AdminSecretarioScreen(),
+      keywords: const ['secretario', 'secretário', 'virtual', 'whatsapp', 'demo', 'teste', 'prospect', 'assistente', 'vender'],
     ),
     // [Assistentes · 01/10] o funcionário digital de WhatsApp dos negócios (assistant_tenants).
     AdminMenuItem(

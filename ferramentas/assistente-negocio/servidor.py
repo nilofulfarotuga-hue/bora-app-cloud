@@ -118,7 +118,15 @@ class H(BaseHTTPRequestHandler):
                 # pergunta rapida da porta (sem motor): este numero e de algum assistente?
                 from urllib.parse import parse_qs, urlparse
                 q = parse_qs(urlparse(self.path).query)
-                t, porque = A.tenant_para((q.get("sessao") or [SESSAO])[0], (q.get("numero") or [""])[0])
+                sessao, numero = (q.get("sessao") or [SESSAO])[0], (q.get("numero") or [""])[0]
+                t, porque = A.tenant_para(sessao, numero)
+                if not t:
+                    # Secretario Virtual (04/10): "TESTE 1234" de um numero novo ativa a demo por 7 dias.
+                    r = A.ativar_convite(sessao, numero, (q.get("texto") or [""])[0])
+                    if r is not None:
+                        log("convite secretario", numero, r)
+                    if r and r.get("ok"):
+                        t, porque = A.tenant_para(sessao, numero)
                 return self._json(200, {"meu": bool(t), "porque": porque})
             if self.path.startswith("/saude"):
                 return self._json(200, {"ok": True, "sessao": SESSAO, "tenants": [
@@ -136,7 +144,16 @@ class H(BaseHTTPRequestHandler):
                 d.setdefault("sessao", SESSAO)
                 t, _ = A.tenant_para(d["sessao"], d.get("numero"))
                 if not t:
+                    # rede: a porta antiga pode nao mandar o texto no /quem
+                    r = A.ativar_convite(d["sessao"], d.get("numero"), d.get("texto"))
+                    if r and r.get("ok"):
+                        t, _ = A.tenant_para(d["sessao"], d.get("numero"))
+                if not t:
                     return self._json(200, {"tratado": False, "acao": "nao-e-do-assistente"})
+                if t.get("slug") == "secretario-demo" and A.e_so_o_codigo(d.get("texto")):
+                    A.enfileirar(t, A.so_digitos(d.get("numero")), A.BOAS_VINDAS_DEMO, "boas_vindas_demo")
+                    log("boas-vindas demo", d.get("numero"))
+                    return self._json(200, {"tratado": True, "acao": "boas-vindas-demo"})
                 with tranca_de(A.so_digitos(d.get("numero"))):
                     r = A.atender(d)  # audio: atender() transcreve (voz.ouvir) e responde tambem com nota de voz
                 log("evento", d.get("numero"), d.get("tipo") or "texto", r.get("acao"), r.get("ferramentas"), r.get("modelos"),

@@ -254,6 +254,18 @@ def escrever(p):
     assunto = "Uma página para %s" % curto
     if len(assunto.split()) > 7:
         assunto = "Preparámos uma página para vocês"
+    if p.get("cliente_tipo") == "secretario-virtual":
+        # Missao 03/10 bloco 5 (04/10): Secretario Virtual. Sem preco; numero de teste + codigo.
+        assunto = "Um secretário no vosso WhatsApp"
+        gancho = (p.get("gancho") or "Os pedidos por WhatsApp têm resposta fora de horas?").strip()
+        texto = ("Bom dia,<P>Somos a Bora, da Guarda. Vimos que %s recebe marcações ou pedidos por WhatsApp. %s<P>"
+                 "Criámos um Secretário Virtual: responde no WhatsApp do negócio a qualquer hora, marca na agenda, "
+                 "lembra os clientes na véspera e pergunta-vos quando não sabe. Áudio tem resposta em áudio.<P>"
+                 "Pode experimentar já, como se fosse um cliente: envie «TESTE %s» por WhatsApp para o %s. "
+                 "O teste dura 7 dias.<P>Três conversas de exemplo:<L>%s<P>"
+                 "Faz sentido conversarmos uns minutos?") % (
+                     curto, gancho, p.get("codigo") or "", p.get("numero_teste") or "+351 937 501 673", link)
+        return assunto, texto.replace("<P>", chr(10) + chr(10)).replace("<L>", chr(10))
     if p.get("cliente_tipo") == "parceiro-bora":
         if len(("%s na app Bora?" % curto).split()) <= 7:
             assunto = "%s na app Bora?" % curto

@@ -11,6 +11,7 @@ import '../../services/remote_fees_service.dart';
 import '../../stores/cart_store.dart';
 import '../../stores/favorite_store.dart';
 import '../../stores/restaurant_store.dart';
+import '../bora/banner_pausa_loja.dart';
 import 'market_category_chip_large.dart';
 import 'market_product_card.dart';
 import '../valor_com_risco.dart';
@@ -122,8 +123,8 @@ class MarketStoreTab extends StatelessWidget {
     // TODAS as categorias por sort_order — alimenta a grelha E os carrosséis.
     final orderedCats = _orderedCategories(products);
 
-    final favKey = 'restaurant_${storeName}';
-    final isFav = favoriteStore.isFavorite(favKey);
+    // Favorito pelo id da loja (04/10) — o nome muda, o id não.
+    final isFav = favoriteStore.isFavoriteStore(restaurant.id);
 
     return CustomScrollView(
       slivers: [
@@ -136,7 +137,7 @@ class MarketStoreTab extends StatelessWidget {
           actions: [
             _FavoriteButton(
               isFav: isFav,
-              onTap: () => favoriteStore.toggle(favKey),
+              onTap: () => favoriteStore.toggleStore(restaurant.id),
             ),
             const SizedBox(width: 8),
           ],
@@ -150,6 +151,11 @@ class MarketStoreTab extends StatelessWidget {
               storeName: storeName,
             ),
           ),
+        ),
+
+        // Pausa do parceiro (04/10): "Fechada temporariamente — volta às".
+        SliverToBoxAdapter(
+          child: BannerPausaLoja(restaurantId: restaurant.id),
         ),
 
         // ── 2. Identidade ─────────────────────────────────────────────────

@@ -17,6 +17,7 @@ import '../utils/business_opener.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora/bora_search_field.dart';
 import '../widgets/bora/coming_soon.dart';
+import '../widgets/bora/lista_estado.dart';
 import '../widgets/bora_support_fab.dart';
 import 'client/reservation/reservation_availability_screen.dart';
 import 'restaurant_menu_screen.dart';
@@ -40,6 +41,20 @@ class _RestaurantsScreenState extends State<RestaurantsScreen> {
   String _query = '';
 
   bool get reservationsOnly => widget.reservationsOnly;
+
+  @override
+  void initState() {
+    super.initState();
+    // Se ninguém carregou ainda a lista (entrada directa), carrega aqui —
+    // senão o ecrã ficava eternamente "a carregar".
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final store = context.read<RestaurantStore>();
+      if (!store.restaurantsLoadedOnce && !store.restaurantsLoading) {
+        store.loadRestaurantsFromSupabase();
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -77,7 +92,7 @@ class _RestaurantsScreenState extends State<RestaurantsScreen> {
       backgroundColor: AppColors.background,
       floatingActionButton: const BoraSupportFab(),
       appBar: BoraScreenAppBar(
-        title: reservationsOnly ? 'Reservar Mesa' : 'Restaurantes',
+        title: reservationsOnly ? 'Reservar Mesa'.tr : 'Restaurantes'.tr,
       ),
       body: Column(
         children: [
@@ -91,7 +106,17 @@ class _RestaurantsScreenState extends State<RestaurantsScreen> {
             ),
           ),
           Expanded(
-            child: restaurants.isEmpty
+            child: restaurants.isEmpty &&
+                    (restaurantStore.restaurantsLoading ||
+                        !restaurantStore.restaurantsLoadedOnce) &&
+                    !restaurantStore.restaurantsLoadFailed
+                ? const ListaACarregar()
+                : restaurants.isEmpty && restaurantStore.restaurantsLoadFailed
+                ? ListaComErro(
+                    onRetry: () =>
+                        restaurantStore.loadRestaurantsFromSupabase(),
+                  )
+                : restaurants.isEmpty
                 ? const _EmptyState()
                 : visible.isEmpty
                     ? const _NoResults()
@@ -228,8 +253,10 @@ Future<void> openRestaurantBusiness(
     // Fora de horario o cliente ve tudo, so nao mete no carrinho.
     // Festas ficam de fora: vendem por encomenda com aviso previo, o
     // horario delas e de levantamento (regra de 2026-08-25).
-    vendorFechada:
-        !business.isOpenNow() && !business.belongsTo(BusinessCategory.festas),
+    // Pausa do parceiro (04/10) bloqueia também as Festas.
+    vendorFechada: business.emPausa() ||
+        (!business.isOpenNow() &&
+            !business.belongsTo(BusinessCategory.festas)),
     vendorAvisoFechada: business.avisoLojaFechada,
     pickupLocation: pickupLocation,
     pickupStreet: business.address,
@@ -344,8 +371,8 @@ class RestaurantTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final isPartner = business.isPartner;
     final favorites = context.watch<FavoriteStore>();
-    final favKey = 'restaurant_${business.name}';
-    final isFav = favorites.isFavorite(favKey);
+    // Favorito pelo id da loja (04/10) — o nome muda, o id não.
+    final isFav = favorites.isFavoriteStore(business.id);
 
     // `cartao_restaurante`: e' por aqui que o arnes das capturas da App Store
     // abre uma ficha de parceiro (`integration_test/demo_real_test.dart`).
@@ -401,7 +428,7 @@ class RestaurantTile extends StatelessWidget {
                     ),
                   ),
                   GestureDetector(
-                    onTap: () => favorites.toggle(favKey),
+                    onTap: () => favorites.toggleStore(business.id),
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 200),
                       transitionBuilder: (child, anim) =>

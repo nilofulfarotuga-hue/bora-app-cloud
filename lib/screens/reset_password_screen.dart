@@ -437,7 +437,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'Informe a nova palavra-passe.'.tr;
+                return 'Indica a nova palavra-passe.'.tr;
               }
               if (value.length < 6) return 'Mínimo 6 caracteres.'.tr;
               return null;

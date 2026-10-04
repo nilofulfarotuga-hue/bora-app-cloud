@@ -744,7 +744,7 @@ class _VariantCard extends StatelessWidget {
                   if (isCheapest)
                     _Badge(label: 'Mais barato'.tr, color: Colors.green.shade600)
                   else if (isPremium)
-                    _Badge(label: 'Premium'.tr, color: Colors.blue.shade600),
+                    _Badge(label: 'Premium'.tr, color: AppColors.info),
                   const SizedBox(height: 6),
                   Text(
                     '€${displayPrice.toStringAsFixed(2)}',

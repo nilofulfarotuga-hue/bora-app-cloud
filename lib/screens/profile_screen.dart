@@ -31,6 +31,7 @@ import 'trabalhar_no_bora_screen.dart';
 import 'washer/washer_home_screen.dart';
 import 'client/reservation/my_reservation_lists_screen.dart';
 import 'client/services/my_appointments_screen.dart';
+import 'client_favorites_screen.dart';
 import 'client_reservations_screen.dart';
 import 'orders_screen.dart';
 import 'client_addresses_screen.dart';
@@ -563,7 +564,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   _InfoTile(
                     icon: Icons.location_on_outlined,
-                    label: 'Endereço'.tr,
+                    label: 'Morada'.tr,
                     value: authStore.currentPartner?.address ?? '-',
                   ),
                   _InfoTile(
@@ -756,6 +757,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       MaterialPageRoute(builder: (_) => const OrdersScreen()),
                     ),
                   ),
+                  // Favoritos (04/10): o ♥ das lojas tinha onde se marcar mas
+                  // não tinha onde se ver.
+                  ListTile(
+                    leading: const Icon(Icons.favorite_border,
+                        color: AppColors.primary),
+                    title: Text('Lojas favoritas'.tr),
+                    subtitle: Text('As lojas que guardaste com ♥'.tr),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ClientFavoritesScreen()),
+                    ),
+                  ),
                   ListTile(
                     leading: const Icon(Icons.calendar_today_outlined,
                         color: AppColors.primary),
@@ -820,7 +835,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ListTile(
                     leading: const Icon(Icons.location_on_outlined,
                         color: AppColors.primary),
-                    title: Text('Os meus endereços'.tr),
+                    title: Text('As minhas moradas'.tr),
                     subtitle: Text('Casa, Trabalho e outros'.tr),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.push(

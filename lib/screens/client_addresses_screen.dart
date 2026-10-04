@@ -80,7 +80,7 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text('Eliminar endereço'.tr),
+        title: Text('Eliminar morada'.tr),
         content: Text('Eliminar "{0}"?'.trArgs([a.label])),
         actions: [
           TextButton(
@@ -110,7 +110,9 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: BoraScreenAppBar(
-        title: widget.selectMode ? 'Escolher endereço' : 'Os meus endereços',
+        title: widget.selectMode
+            ? 'Escolher morada'.tr
+            : 'As minhas moradas'.tr,
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openForm(),
@@ -152,7 +154,7 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
               size: 72, color: AppColors.textSubtle),
           const SizedBox(height: 12),
           Center(
-            child: Text('Ainda não tens endereços guardados'.tr,
+            child: Text('Ainda não tens moradas guardadas'.tr,
                 style: const TextStyle(fontSize: 16)),
           ),
           const SizedBox(height: 6),
@@ -327,7 +329,7 @@ class _AddressFormSheetState extends State<_AddressFormSheet> {
 
   Future<void> _save() async {
     if (_labelCtrl.text.trim().isEmpty || _addressCtrl.text.trim().isEmpty) {
-      setState(() => _error = 'Preenche rótulo e endereço.'.tr);
+      setState(() => _error = 'Preenche o rótulo e a morada.'.tr);
       return;
     }
     setState(() {
@@ -379,7 +381,7 @@ class _AddressFormSheetState extends State<_AddressFormSheet> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                widget.edit == null ? 'Novo endereço' : 'Editar endereço',
+                widget.edit == null ? 'Nova morada'.tr : 'Editar morada'.tr,
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 16),
@@ -409,7 +411,7 @@ class _AddressFormSheetState extends State<_AddressFormSheet> {
                 controller: _addressCtrl,
                 onChanged: _onAddressChanged,
                 decoration: InputDecoration(
-                  labelText: 'Endereço'.tr,
+                  labelText: 'Morada'.tr,
                   hintText: 'Rua, número, cidade'.tr,
                   border: const OutlineInputBorder(),
                   prefixIcon: const Icon(Icons.place),

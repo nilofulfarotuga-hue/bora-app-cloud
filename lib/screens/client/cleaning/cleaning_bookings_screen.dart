@@ -42,6 +42,16 @@ class _CleaningBookingsScreenState extends State<CleaningBookingsScreen> {
     });
   }
 
+  /// "Marcar de novo" (04/10): mesmo serviço, morada e profissional.
+  void _bookAgain(CleaningBooking b) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => CleaningWizardScreen(repeatOf: b)),
+    ).then((_) {
+      if (mounted) context.read<CleaningStore>().loadMyBookings();
+    });
+  }
+
   void _openTracking(CleaningBooking b) {
     Navigator.push(
       context,
@@ -75,7 +85,11 @@ class _CleaningBookingsScreenState extends State<CleaningBookingsScreen> {
                     if (past.isNotEmpty) ...[
                       _SectionLabel('Histórico'.tr),
                       for (final b in past)
-                        _BookingCard(booking: b, onTap: () => _openTracking(b)),
+                        _BookingCard(
+                          booking: b,
+                          onTap: () => _openTracking(b),
+                          onBookAgain: () => _bookAgain(b),
+                        ),
                     ],
                     const SizedBox(height: 80),
                   ],
@@ -162,9 +176,11 @@ class _SectionLabel extends StatelessWidget {
 }
 
 class _BookingCard extends StatelessWidget {
-  const _BookingCard({required this.booking, required this.onTap});
+  const _BookingCard(
+      {required this.booking, required this.onTap, this.onBookAgain});
   final CleaningBooking booking;
   final VoidCallback onTap;
+  final VoidCallback? onBookAgain;
 
   Color get _statusColor {
     if (booking.status.isCancelled) return AppColors.error;
@@ -184,7 +200,10 @@ class _BookingCard extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: Spacing.sm),
-      child: InkWell(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+      InkWell(
         borderRadius: BorderRadius.circular(Radii.lg),
         onTap: onTap,
         child: Container(
@@ -244,6 +263,19 @@ class _BookingCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+          if (onBookAgain != null)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: onBookAgain,
+                icon: const Icon(Icons.refresh, size: 18),
+                label: Text('Marcar de novo'.tr),
+                style:
+                    TextButton.styleFrom(foregroundColor: AppColors.primary),
+              ),
+            ),
+        ],
       ),
     );
   }

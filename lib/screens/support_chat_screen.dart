@@ -226,6 +226,7 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
       final remToday = data['messages_remaining_today'] as int?;
       final remSession = data['messages_remaining_session'] as int?;
 
+      if (!mounted) return;
       setState(() {
         if (sessionId != null && _sessionId == null) {
           _sessionId = sessionId;
@@ -248,6 +249,7 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
         Future<void>.delayed(const Duration(milliseconds: 600), _showHandoff);
       }
     } on FunctionException catch (e) {
+      if (!mounted) return;
       setState(() {
         _sending = false;
         final status = e.status;
@@ -262,11 +264,12 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
         }
       });
     } catch (e) {
+      debugPrint('[SupportChatScreen] send error: $e');
+      if (!mounted) return;
       setState(() {
         _sending = false;
         _errorBanner = 'Erro de comunicação. Tenta novamente.'.tr;
       });
-      debugPrint('[SupportChatScreen] send error: $e');
     }
   }
 
@@ -283,6 +286,7 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
   }
 
   void _showHandoff() {
+    if (!mounted) return;
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,

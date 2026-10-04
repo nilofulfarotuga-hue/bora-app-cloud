@@ -33,10 +33,16 @@ class CarwashRequestScreen extends StatefulWidget {
     super.key,
     required this.serviceType,
     required this.quote,
+    this.repeatOf,
   });
 
   final CarwashServiceType serviceType;
   final CarwashQuote? quote;
+
+  /// "Marcar de novo" (04/10/2026): mesmo carro (matrícula, modelo, cor),
+  /// mesmo telefone e notas de uma lavagem antiga. A morada continua a ser
+  /// onde o carro está agora.
+  final CarwashBooking? repeatOf;
 
   @override
   State<CarwashRequestScreen> createState() => _CarwashRequestScreenState();
@@ -69,6 +75,14 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
   @override
   void initState() {
     super.initState();
+    final antiga = widget.repeatOf;
+    if (antiga != null) {
+      _plateCtrl.text = antiga.plate;
+      _carCtrl.text = antiga.carMakeModel;
+      _colorCtrl.text = antiga.carColor;
+      _phoneCtrl.text = antiga.clientPhone;
+      _pickupNotesCtrl.text = antiga.pickupNotes;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) => _preencherMoradaSozinho());
   }
 

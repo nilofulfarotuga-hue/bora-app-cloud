@@ -7,8 +7,13 @@ import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../models/order_model.dart';
+import 'cart_screen.dart';
 import 'errand_form_screen.dart';
+import '../services/reorder_service.dart';
 import '../services/wallet_service.dart';
+import '../stores/cart_store.dart';
+import '../stores/partner_product_store.dart';
+import '../stores/restaurant_store.dart';
 import '../stores/order_store.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
@@ -60,6 +65,48 @@ class _OrdersScreenState extends State<OrdersScreen> {
       }
       if (mounted) setState(() => _walletByOrder = map);
     } catch (_) {/* offline / sem wallet */}
+  }
+
+  /// Só pedidos já fechados (entregues ou cancelados) de restaurante/loja.
+  static bool _podePedirDeNovo(OrderModel order) {
+    if (!ReorderService.isReorderable(order)) return false;
+    return order.status == OrderStatus.delivered ||
+        order.status == OrderStatus.cancelled ||
+        order.status == OrderStatus.rejected;
+  }
+
+  Future<void> _pedirDeNovo(OrderModel order) async {
+    final restaurantStore = context.read<RestaurantStore>();
+    if (!restaurantStore.restaurantsLoadedOnce) {
+      await restaurantStore.loadRestaurantsFromSupabase();
+      if (!mounted) return;
+    }
+    final loja = restaurantStore.restaurantByName(order.vendorName);
+    if (loja == null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Esta loja já não está disponível na Bora.'.tr),
+      ));
+      return;
+    }
+    final changed = ReorderService.applyTo(
+      cart: context.read<CartStore>(),
+      order: order,
+      partnerStore: context.read<PartnerProductStore>(),
+      restaurantStore: restaurantStore,
+    );
+    final messenger = ScaffoldMessenger.of(context);
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const CartScreen()),
+    );
+    if (changed.isNotEmpty) {
+      messenger.showSnackBar(SnackBar(
+        content: Text(
+          'Alguns preços foram atualizados: {0}.'.trArgs([changed.join(', ')]),
+        ),
+        duration: const Duration(seconds: 5),
+      ));
+    }
   }
 
   @override
@@ -121,6 +168,23 @@ class _OrdersScreenState extends State<OrdersScreen> {
                             ),
                           ),
                         );
+                        // "Pedir de novo" (padrão Uber Eats/Glovo, 04/10):
+                        // restaurantes e lojas — volta a encher o carrinho
+                        // com os mesmos produtos ao preço de hoje.
+                        if (_podePedirDeNovo(order)) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              card,
+                              const SizedBox(height: 6),
+                              OutlinedButton.icon(
+                                onPressed: () => _pedirDeNovo(order),
+                                icon: const Icon(Icons.refresh, size: 18),
+                                label: Text('Pedir de novo'.tr),
+                              ),
+                            ],
+                          );
+                        }
                         // N3 — "Pedir de novo" para favores: pré-preenche o
                         // wizard a partir dos campos errand_* do pedido.
                         if (order.serviceType != OrderServiceType.errand) {
@@ -322,22 +386,22 @@ class _OrderCard extends StatelessWidget {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: Colors.deepPurple.shade50,
+                                color: AppColors.primaryWash,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                    color: Colors.deepPurple.shade200),
+                                    color: AppColors.primaryLight),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(Icons.account_balance_wallet,
                                       size: 12,
-                                      color: Colors.deepPurple.shade700),
+                                      color: AppColors.primaryDark),
                                   const SizedBox(width: 4),
                                   Text('Carteira'.tr,
                                       style: TextStyle(
                                           fontSize: 11,
-                                          color: Colors.deepPurple.shade700,
+                                          color: AppColors.primaryDark,
                                           fontWeight: FontWeight.w600)),
                                 ],
                               ),
@@ -376,7 +440,7 @@ void _showWalletAdjustModal(BuildContext context, List<WalletTx> txs) {
           children: [
             Row(children: [
               Icon(Icons.account_balance_wallet,
-                  color: Colors.deepPurple.shade700),
+                  color: AppColors.primaryDark),
               const SizedBox(width: 8),
               Text('Ajustes na carteira'.tr,
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
@@ -397,7 +461,7 @@ void _showWalletAdjustModal(BuildContext context, List<WalletTx> txs) {
                       ? Icons.swap_horiz
                       : Icons.shopping_basket,
                   color: tx.kind == 'settlement'
-                      ? Colors.deepPurple
+                      ? AppColors.primary
                       : Colors.red.shade700,
                 ),
                 title: Text(tx.kindLabel),

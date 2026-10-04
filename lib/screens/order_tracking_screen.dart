@@ -16,6 +16,7 @@ import '../widgets/order_edit/client_order_edit_banner.dart';
 import '../widgets/address_text.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/errand_budget_banner.dart';
+import '../widgets/partilhar_seguimento.dart';
 import '../widgets/takeaway/pickup_code_card.dart';
 import '../widgets/takeaway/preparing_countdown_banner.dart';
 import '../services/directions_service.dart';
@@ -348,14 +349,14 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     if (_routePoints.isNotEmpty) {
       polylines.add(Polyline(
         polylineId: const PolylineId('route'),
-        color: const Color(0xFF1A73E8),
+        color: AppColors.primary,
         width: 5,
         points: _routePoints.toGMaps(),
       ));
     } else if (driverPosition != null && target != null) {
       polylines.add(Polyline(
         polylineId: const PolylineId('route'),
-        color: const Color(0xFF1A73E8),
+        color: AppColors.primary,
         width: 4,
         points: [driverPosition.toGMaps(), target.toGMaps()],
       ));
@@ -618,6 +619,9 @@ class _BottomCardState extends State<_BottomCard> {
                         ],
                       ),
                     ),
+                    // Partilhar o seguimento com a hora prevista (04/10).
+                    BotaoPartilharSeguimento(
+                        order: order, driverPos: widget.driverPos),
                     // Status dot
                     Container(
                       width: 12,

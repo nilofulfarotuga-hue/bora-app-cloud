@@ -80,6 +80,36 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
     );
   }
 
+  /// "Marcar de novo" (04/10, padrão Fresha/Booksy): abre o fluxo normal de
+  /// marcação já com o mesmo serviço e o mesmo profissional escolhidos — o
+  /// cliente só escolhe o dia e a hora. É uma marcação NOVA (paga como
+  /// qualquer outra), não mexe na antiga.
+  Future<void> _bookAgain(AppointmentModel a) async {
+    final store = context.read<ServicesStore>();
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    try {
+      final provider = await store.fetchProviderDetail(a.providerId);
+      if (!mounted) return;
+      if (provider == null) {
+        messenger.showSnackBar(SnackBar(
+          content: Text('Este serviço já não está disponível na Bora.'.tr),
+        ));
+        return;
+      }
+      await navigator.push<bool>(MaterialPageRoute(
+        builder: (_) => BookingFlowScreen(provider: provider, repeatOf: a),
+      ));
+      if (mounted) await _refresh();
+    } catch (e) {
+      debugPrint('[MyAppointments] bookAgain error: $e');
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(
+        content: Text('Não foi possível abrir a marcação. Tenta outra vez.'.tr),
+      ));
+    }
+  }
+
   /// BLOCO E (2026-07-28) — abre o MESMO fluxo de marcação em modo
   /// reagendamento (serviço e profissional já fixos). Não cria marcação nova
   /// nem toca no Stripe: no fim é só `client_reschedule_appointment`.
@@ -249,6 +279,7 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
                       buildCard: (a) => _AppointmentCard(
                         appointment: a,
                         onTap: () => _showDetail(a),
+                        onBookAgain: () => _bookAgain(a),
                       ),
                     ),
                     _AppointmentList(
@@ -259,6 +290,7 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
                       buildCard: (a) => _AppointmentCard(
                         appointment: a,
                         onTap: () => _showDetail(a),
+                        onBookAgain: () => _bookAgain(a),
                       ),
                     ),
                   ],
@@ -334,6 +366,7 @@ class _AppointmentCard extends StatelessWidget {
     this.onTap,
     this.onCancel,
     this.onReschedule,
+    this.onBookAgain,
     this.rescheduleMaxCount = 2,
   });
 
@@ -341,6 +374,9 @@ class _AppointmentCard extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onCancel;
   final VoidCallback? onReschedule;
+
+  /// "Marcar de novo" (04/10): mesmo serviço e mesmo profissional.
+  final VoidCallback? onBookAgain;
   final int rescheduleMaxCount;
 
   @override
@@ -470,6 +506,19 @@ class _AppointmentCard extends StatelessWidget {
                       style:
                           TextButton.styleFrom(foregroundColor: AppColors.error),
                     ),
+            ),
+          ],
+          if (onBookAgain != null) ...[
+            const SizedBox(height: Spacing.sm),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: onBookAgain,
+                icon: const Icon(Icons.refresh, size: 18),
+                label: Text('Marcar de novo'.tr),
+                style:
+                    TextButton.styleFrom(foregroundColor: AppColors.primary),
+              ),
             ),
           ],
           ],

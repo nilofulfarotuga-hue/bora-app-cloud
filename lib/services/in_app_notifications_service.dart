@@ -20,6 +20,14 @@ class InAppNotificationsService {
     }
   }
 
+  /// Igual a [list] mas deixa passar o erro — para o ecrã mostrar
+  /// "Não foi possível carregar" em vez de "Sem notificações" (04/10).
+  Future<List<Map<String, dynamic>>> listOrThrow({int limit = 50}) async {
+    final res = await _supa
+        .rpc('client_list_notifications', params: {'p_limit': limit});
+    return (res as List).cast<Map<String, dynamic>>();
+  }
+
   Future<List<Map<String, dynamic>>> list({int limit = 50}) async {
     try {
       final res = await _supa

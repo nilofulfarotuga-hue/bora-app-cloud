@@ -112,6 +112,24 @@ class _CarwashServiceScreenState extends State<CarwashServiceScreen> {
                           '${b.status.clientLabel} · '
                           '${b.totalEur.toStringAsFixed(2)} €',
                         ),
+                        // "Marcar de novo" (04/10): mesmo serviço e carro.
+                        trailing: store.availableServices
+                                    .contains(b.serviceType) &&
+                                _quotes[b.serviceType] != null
+                            ? TextButton(
+                                onPressed: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => CarwashRequestScreen(
+                                      serviceType: b.serviceType,
+                                      quote: _quotes[b.serviceType],
+                                      repeatOf: b,
+                                    ),
+                                  ),
+                                ),
+                                child: Text('Marcar de novo'.tr),
+                              )
+                            : null,
                         onTap: () {
                           context.read<CarwashStore>().trackBooking(b);
                           Navigator.push(

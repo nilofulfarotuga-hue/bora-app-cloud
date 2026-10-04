@@ -1,5 +1,7 @@
 import 'package:latlong2/latlong.dart';
 
+import '../utils/hora_lisboa.dart';
+
 enum BusinessCategory {
   restaurant,
   supermarket,
@@ -187,6 +189,7 @@ class RestaurantModel {
     this.comingSoonText,
     this.ownerId,
     this.appMarkupPct,
+    this.pausaAte,
   });
 
   final String id;
@@ -263,6 +266,34 @@ class RestaurantModel {
   /// `PartnerPriceRules`; espelha `partner_store_share(price, restaurant_id)`.
   final double? appMarkupPct;
 
+  /// `restaurants.pausa_ate` (04/10/2026) — o parceiro carregou em "pausa"
+  /// (muito movimento, falta de stock…). Até esta hora a loja aparece como
+  /// "Fechada temporariamente — volta às HH:MM" e não se mete no carrinho.
+  /// Campo opcional: sem a coluna (ou a null) a loja segue o horário normal.
+  final DateTime? pausaAte;
+
+  /// True enquanto a pausa do parceiro estiver a correr.
+  bool emPausa([DateTime? nowOverride]) {
+    final ate = pausaAte;
+    if (ate == null) return false;
+    return ate.isAfter(nowOverride ?? DateTime.now());
+  }
+
+  /// "HH:MM" (hora de Lisboa) do fim da pausa.
+  String get pausaVoltaAs {
+    final ate = pausaAte;
+    if (ate == null) return '';
+    final l = horaLisboa(ate);
+    String dd(int n) => n.toString().padLeft(2, '0');
+    return '${dd(l.hour)}:${dd(l.minute)}';
+  }
+
+  /// Lê `pausa_ate` de forma tolerante (coluna pode ainda não existir).
+  static DateTime? parsePausaAte(dynamic raw) {
+    if (raw == null) return null;
+    return DateTime.tryParse(raw.toString());
+  }
+
   /// Texto a mostrar no banner "Em breve" (com fallback).
   String get comingSoonLabel {
     final t = comingSoonText?.trim();
@@ -300,6 +331,9 @@ class RestaurantModel {
   /// nada: não promete agendamento nem aviso de reabertura, porque isso ainda
   /// não existe.
   String get avisoLojaFechada {
+    if (emPausa()) {
+      return '$name está fechada temporariamente. Volta às $pausaVoltaAs.';
+    }
     final day = businessHours.dayFor(DateTime.now().weekday);
     if (day.closed) {
       return '$name está fechada hoje. Volta noutro dia para fazer o pedido.';
@@ -333,6 +367,7 @@ class RestaurantModel {
   bool isOpenNow([DateTime? nowOverride]) {
     if (!isOnline) return false;
     final now = nowOverride ?? DateTime.now();
+    if (emPausa(now)) return false;
     final day = businessHours.dayFor(now.weekday);
     if (day.closed) return false;
     final openMin = _parseMinutes(day.open);
@@ -349,6 +384,9 @@ class RestaurantModel {
   /// Human-readable label for the client UI.
   String statusLabel([DateTime? nowOverride]) {
     if (!isOnline) return 'Indisponível';
+    if (emPausa(nowOverride)) {
+      return 'Fechada temporariamente — volta às $pausaVoltaAs';
+    }
     // Casas de festa vendem por encomenda com aviso prévio: nunca estão
     // "fechadas" para encomendar — o horário é de levantamento/entrega.
     if (belongsTo(BusinessCategory.festas)) return 'Aceita encomendas';
@@ -390,6 +428,7 @@ class RestaurantModel {
     String? heroImageUrl,
     bool? comingSoon,
     String? comingSoonText,
+    DateTime? pausaAte,
   }) {
     return RestaurantModel(
       id: id,
@@ -418,6 +457,7 @@ class RestaurantModel {
       comingSoonText: comingSoonText ?? this.comingSoonText,
       ownerId: ownerId,
       appMarkupPct: appMarkupPct,
+      pausaAte: pausaAte ?? this.pausaAte,
     );
   }
 }

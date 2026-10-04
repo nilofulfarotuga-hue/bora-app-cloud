@@ -23,7 +23,7 @@ class _SupportScreenState extends State<SupportScreen> {
     _Faq(
       question: 'Como faço um pedido?',
       answer:
-          'Na tela inicial, escolhe a categoria (Restaurantes, Supermercados, etc.), seleciona a loja, adiciona produtos ao carrinho e clica em "Finalizar Pedido". Escolhe o método de pagamento e confirma.',
+          'No ecrã inicial, escolhe a categoria (Restaurantes, Supermercados, etc.), seleciona a loja, adiciona produtos ao carrinho e carrega em "Finalizar Pedido". Escolhe o método de pagamento e confirma.',
     ),
     _Faq(
       question: 'Como acompanho a minha entrega?',
@@ -38,12 +38,12 @@ class _SupportScreenState extends State<SupportScreen> {
     _Faq(
       question: 'Como contactar o estafeta?',
       answer:
-          'No ecrã de acompanhamento de entrega, encontras o botão de chamada para falar diretamente com o estafeta atribuído ao teu pedido.',
+          'Quando um estafeta aceitar o teu pedido, no ecrã de acompanhamento aparece o botão de conversa para escreveres diretamente ao estafeta. Nos restaurantes parceiros também podes falar com a loja.',
     ),
     _Faq(
       question: 'Política de cancelamento',
       answer:
-          'Podes cancelar o pedido enquanto está em estado "A preparar". Após o estafeta ter aceite, o cancelamento já não é possível. Contacta o suporte em caso de urgência.',
+          'Podes cancelar o pedido no ecrã do pedido. Enquanto não houver estafeta atribuído, o cancelamento não tem custo. Se já houver um estafeta atribuído, continua a ser possível cancelar, mas é cobrada uma taxa de cancelamento (o valor aparece antes de confirmares). Depois de o estafeta recolher o pedido, já não é possível cancelar pela app — fala com o suporte.',
     ),
     _Faq(
       question: 'Como usar os meus tokens?',

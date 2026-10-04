@@ -577,6 +577,13 @@ Future<void> main() async {
   // o arranque (fire-and-forget); se a bridge falhar, os campos ficam null.
   _loadDeviceDiagnostics();
 
+  // RGPD (04/10/2026): o consentimento lê-se ANTES de arrancar as
+  // notificações. Sem resposta ao aviso de privacidade, o NotificationService
+  // fica à espera e o pedido de permissão do sistema só aparece depois de a
+  // pessoa responder (ver ConsentStore.load / applyNotificationConsent).
+  final consentStore = ConsentStore();
+  await consentStore.load();
+
   if (!kIsWeb) {
     // BUG 13 — Stripe mode toggle. Default = live (safety).
     // For QA com cartões 4242…: pass --dart-define=BORA_STRIPE_MODE=test
@@ -666,9 +673,7 @@ Future<void> main() async {
   // ANTES do runApp, senão o primeiro fotograma sai em português e pisca para
   // inglês à frente de quem escolheu inglês.
   final sessionStore = SessionStore();
-  final consentStore = ConsentStore();
-  await Future.wait(
-      [sessionStore.load(), consentStore.load(), BoraLang.load()]);
+  await Future.wait([sessionStore.load(), BoraLang.load()]);
 
   Provider.debugCheckInvalidValueType = null;
 

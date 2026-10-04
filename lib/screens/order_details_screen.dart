@@ -13,6 +13,7 @@ import '../services/wallet_service.dart';
 import '../services/weight_portions.dart';
 import '../stores/driver_store.dart';
 import '../stores/order_store.dart';
+import '../widgets/reportar_problema_pedido.dart';
 import '../widgets/order_edit/client_order_edit_banner.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/errand_budget_banner.dart';
@@ -137,6 +138,12 @@ class OrderDetailsScreen extends StatelessWidget {
               liveOrder.customerNotes!.isNotEmpty) ...[
             const SizedBox(height: 16),
             _NotesCard(notes: liveOrder.customerNotes!),
+          ],
+
+          // ── Reportar um problema (padrão Uber Eats, 04/10) ────────────
+          if (liveOrder.status == OrderStatus.delivered) ...[
+            const SizedBox(height: 16),
+            ReportarProblemaPedido(order: liveOrder),
           ],
 
           // ── Cancel order (F1 — refund choice) ──────────────────────────
@@ -542,7 +549,7 @@ class _StatusCard extends StatelessWidget {
       case OrderStatus.readyForPickup:
         return AppTheme.primary;
       case OrderStatus.callingDriver:
-        return Colors.blue;
+        return AppColors.info;
       case OrderStatus.driverAccepted:
       case OrderStatus.pickedUp:
       case OrderStatus.onTheWay:
@@ -987,7 +994,7 @@ class _AddressCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _Card(
-      title: 'Endereços'.tr,
+      title: 'Moradas'.tr,
       child: Column(
         children: [
           if (order.pickupAddress != null && order.pickupAddress!.isNotEmpty)
@@ -1009,7 +1016,7 @@ class _AddressCard extends StatelessWidget {
           if (order.dropoffAddress != null && order.dropoffAddress!.isNotEmpty)
             _AddressRow(
               icon: Icons.location_on_rounded,
-              iconColor: const Color(0xFF1C6EF2),
+              iconColor: AppColors.mapDropoff,
               label: 'Entrega'.tr,
               address: order.dropoffAddress!,
             ),
@@ -1512,7 +1519,7 @@ class _PurchaseV2CardState extends State<_PurchaseV2Card> {
             const SizedBox(height: 12),
             if (items.isEmpty)
               Text(
-                'Aguardando o estafeta concluir a compra na loja…'.tr,
+                'À espera que o estafeta conclua a compra na loja…'.tr,
                 style: TextStyle(color: Colors.grey.shade600),
               )
             else
@@ -1694,7 +1701,7 @@ class _PurchaseV2CardState extends State<_PurchaseV2Card> {
         final priceEur = actualEur ?? originalEur;
         return (
           Icons.swap_horiz,
-          const Color(0xFF1A73E8),
+          AppColors.info,
           'SUBSTITUÍDO'.tr,
           'Substituído{0} · €{1}'.trArgs([byPart, priceEur]),
         );

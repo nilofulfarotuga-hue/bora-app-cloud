@@ -20,7 +20,12 @@ import '../../../l10n/tr.dart';
 ///   3. Profissional & Pagamento (lista disponível + resumo + confirmar)
 /// Preço SEMPRE server-side (RPC cleaning_quote); aqui só se mostra.
 class CleaningWizardScreen extends StatefulWidget {
-  const CleaningWizardScreen({super.key});
+  const CleaningWizardScreen({super.key, this.repeatOf});
+
+  /// "Marcar de novo" (04/10/2026): começa com o mesmo serviço, a mesma
+  /// morada e a mesma profissional (se estiver disponível) de uma limpeza
+  /// antiga. O cliente só escolhe o dia. Preço continua a vir do servidor.
+  final CleaningBooking? repeatOf;
 
   @override
   State<CleaningWizardScreen> createState() => _CleaningWizardScreenState();
@@ -72,6 +77,20 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
   @override
   void initState() {
     super.initState();
+    final antiga = widget.repeatOf;
+    if (antiga != null) {
+      _pricingMode = antiga.pricingMode;
+      if (antiga.homeSize != null) _homeSize = antiga.homeSize!;
+      if (antiga.hours != null) _hours = antiga.hours!;
+      _cleaningType = antiga.cleaningType;
+      _productsBy = antiga.productsBy;
+      _streetCtrl.text = antiga.addressStreet;
+      _cityCtrl.text = antiga.addressCity;
+      _postalCtrl.text = antiga.addressPostal;
+      _notesCtrl.text = antiga.notes;
+      _addressPrefilled = antiga.addressStreet.isNotEmpty;
+      _requestedCleanerId = antiga.cleanerId;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       final store = context.read<CleaningStore>();

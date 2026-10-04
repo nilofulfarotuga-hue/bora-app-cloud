@@ -1916,12 +1916,43 @@ class NotificationService {
   /// in memory, and marks the service as uninitialised so that a future
   /// consent grant can re-initialise FCM cleanly.
   void applyNotificationConsent(bool allowed) {
+    final estavaAEspera = _consentPending;
+    _consentPending = false;
     _consentGranted = allowed;
     if (!allowed) {
       clearTokenForCurrentUser().ignore();
       _fcmToken = null;
       _initialized = false;
       debugPrint('[NotificationService] consent revoked — FCM disabled');
+      return;
+    }
+    // RGPD (04/10/2026): o pedido de permissão do sistema só aparece DEPOIS
+    // de a pessoa responder ao aviso de privacidade. Se o arranque ficou à
+    // espera da resposta, arranca-se agora.
+    if (estavaAEspera && !_initialized && !kIsWeb) {
+      unawaited(_initDepoisDoConsentimento());
+    }
+  }
+
+  /// True enquanto o aviso de privacidade ainda não foi respondido.
+  bool _consentPending = false;
+
+  /// Chamado no arranque quando o aviso RGPD ainda não teve resposta: não se
+  /// pede permissão de notificações nem se regista o telemóvel até lá. Não
+  /// apaga tokens já guardados (quem já tinha notificações não as perde por
+  /// uma mudança de versão do aviso).
+  void aguardarConsentimento() {
+    _consentPending = true;
+    _consentGranted = false;
+    debugPrint('[NotificationService] à espera do consentimento RGPD');
+  }
+
+  Future<void> _initDepoisDoConsentimento() async {
+    try {
+      if (Firebase.apps.isEmpty) return; // sem Firebase não há notificações
+      await init();
+    } catch (e) {
+      debugPrint('[NotificationService] init depois do consentimento: $e');
     }
   }
 

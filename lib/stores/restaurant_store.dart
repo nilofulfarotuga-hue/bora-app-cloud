@@ -339,7 +339,19 @@ class RestaurantStore extends ChangeNotifier {
 
   // ─── Load from Supabase ───────────────────────────────────────────────────
 
+  /// Estado da lista pública de lojas (04/10/2026) — para os ecrãs do
+  /// cliente distinguirem "a carregar" e "falhou" de "não há lojas".
+  bool _restaurantsLoading = false;
+  bool _restaurantsLoadFailed = false;
+  bool _restaurantsLoadedOnce = false;
+  bool get restaurantsLoading => _restaurantsLoading;
+  bool get restaurantsLoadFailed => _restaurantsLoadFailed;
+  bool get restaurantsLoadedOnce => _restaurantsLoadedOnce;
+
   Future<void> loadRestaurantsFromSupabase() async {
+    _restaurantsLoading = true;
+    _restaurantsLoadFailed = false;
+    notifyListeners();
     try {
       // BUG 4 follow-up: hide admin-suspended partners from public reads.
       // Admin can still see suspended ones via admin_partners_screen which
@@ -365,11 +377,16 @@ class RestaurantStore extends ChangeNotifier {
         _restaurants.add(_restaurantFromRecord(record as Map<String, dynamic>));
       }
 
+      _restaurantsLoadedOnce = true;
+      _restaurantsLoading = false;
       notifyListeners();
       debugPrint(
           'RestaurantStore: loaded ${_restaurants.length} restaurants from DB');
     } catch (e) {
       debugPrint('RestaurantStore: loadRestaurantsFromSupabase error => $e');
+      _restaurantsLoading = false;
+      _restaurantsLoadFailed = true;
+      notifyListeners();
     }
 
     _subscribeRestaurantsRealtime();
@@ -1398,6 +1415,8 @@ class RestaurantStore extends ChangeNotifier {
       comingSoon: data['coming_soon'] as bool? ?? false,
       comingSoonText: data['coming_soon_text'] as String?,
       appMarkupPct: double.tryParse(data['app_markup_pct']?.toString() ?? ''),
+      // 04/10: pausa do parceiro — tolerante se a coluna ainda não existir.
+      pausaAte: RestaurantModel.parsePausaAte(data['pausa_ate']),
     );
   }
 

@@ -21,7 +21,7 @@ class AddressAutocompleteField extends StatefulWidget {
     required this.controller,
     required this.onSelected,
     this.onChanged,
-    this.labelText = 'Endereço',
+    this.labelText = 'Morada',
     this.prefixIcon,
     this.validator,
     this.serviceOverride,

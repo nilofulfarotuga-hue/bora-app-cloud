@@ -31,6 +31,7 @@ class BookingFlowScreen extends StatefulWidget {
     required this.provider,
     this.preselectedService,
     this.rescheduleOf,
+    this.repeatOf,
   });
 
   final ServiceProviderModel provider;
@@ -42,6 +43,11 @@ class BookingFlowScreen extends StatefulWidget {
   /// marcação nova e NÃO passa pelo Stripe — o valor já pago fica na mesma
   /// linha (mesmo `deposit_pi`).
   final AppointmentModel? rescheduleOf;
+
+  /// "Marcar de novo" (04/10/2026): marcação NOVA com o mesmo serviço e o
+  /// mesmo profissional de uma marcação antiga, já escolhidos — entra no
+  /// passo do dia. Pagamento normal (não é reagendamento).
+  final AppointmentModel? repeatOf;
 
   @override
   State<BookingFlowScreen> createState() => _BookingFlowScreenState();
@@ -144,7 +150,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
       }
       // Reagendamento: bloqueia serviço + profissional da marcação original e
       // arranca já no passo do dia.
-      final appt = widget.rescheduleOf;
+      final appt = widget.rescheduleOf ?? widget.repeatOf;
       if (appt != null) {
         for (final s in _services) {
           if (s.id == appt.serviceId) _service = s;
@@ -156,6 +162,21 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
         }
       }
     });
+    // Marcar de novo: com o serviço ainda activo, salta para a escolha do dia.
+    if (widget.repeatOf != null && mounted && _service != null) {
+      var tentativas = 0;
+      void irParaODia(Duration _) {
+        if (!mounted) return;
+        if (_pageController.hasClients) {
+          _loadAvailability();
+          _goTo(_kDayStep);
+        } else if (++tentativas < 5) {
+          WidgetsBinding.instance.addPostFrameCallback(irParaODia);
+        }
+      }
+
+      WidgetsBinding.instance.addPostFrameCallback(irParaODia);
+    }
     // Defensivo: se o serviço original já não estiver activo, o reagendamento
     // não tem base — cai no passo 0 para o cliente escolher de novo.
     if (_isReschedule && mounted && _service == null) {

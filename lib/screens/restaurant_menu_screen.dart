@@ -21,6 +21,7 @@ import '../stores/favorite_store.dart';
 import '../stores/restaurant_store.dart';
 import '../utils/cart_feedback.dart';
 import '../widgets/bora/bora.dart';
+import '../widgets/bora/banner_pausa_loja.dart';
 import '../widgets/bora/weight_price_text.dart';
 import '../widgets/bora_support_fab.dart';
 import 'cart_screen.dart';
@@ -358,19 +359,18 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
         actions: [
           IconButton(
             onPressed: () =>
-                favorites.toggle('restaurant_${widget.restaurant.name}'),
+                favorites.toggleStore(widget.restaurantId),
             icon: AnimatedSwitcher(
               duration: const Duration(milliseconds: 200),
               transitionBuilder: (child, anim) =>
                   ScaleTransition(scale: anim, child: child),
               child: Icon(
-                favorites.isFavorite('restaurant_${widget.restaurant.name}')
+                favorites.isFavoriteStore(widget.restaurantId)
                     ? Icons.favorite
                     : Icons.favorite_border,
-                key: ValueKey(favorites
-                    .isFavorite('restaurant_${widget.restaurant.name}')),
+                key: ValueKey(favorites.isFavoriteStore(widget.restaurantId)),
                 color:
-                    favorites.isFavorite('restaurant_${widget.restaurant.name}')
+                    favorites.isFavoriteStore(widget.restaurantId)
                         ? Colors.redAccent
                         : Colors.white,
               ),
@@ -385,6 +385,8 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
           // continua todo visível e navegável — só não aceita pedidos.
           if (cart.vendorComingSoon)
             ComingSoonBanner(text: cart.vendorComingSoonText),
+          // Pausa do parceiro (04/10): "Fechada temporariamente — volta às".
+          BannerPausaLoja(restaurantId: widget.restaurantId),
           // Festas: aviso prévio das encomendas, sempre visível na loja.
           if (cart.vendorIsFestas)
             Container(

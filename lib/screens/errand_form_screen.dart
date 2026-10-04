@@ -350,10 +350,10 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
         ]),
       ),
     );
-    if (src == null) return;
+    if (src == null || !mounted) return;
     final x = await SafeImagePicker.pickImage(
         source: src, imageQuality: 70, maxWidth: 1200);
-    if (x == null) return;
+    if (x == null || !mounted) return;
     final file = File(x.path);
     setState(() {
       _requestPhotoFile = file;
@@ -370,13 +370,16 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
         _uploadingPhoto = false;
       });
     } catch (e) {
+      debugPrint('[ErrandForm] upload foto falhou: $e');
       if (!mounted) return;
       setState(() {
         _uploadingPhoto = false;
         _requestPhotoFile = null;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+        SnackBar(
+            content: Text(
+                'Não foi possível enviar a foto. Tenta outra vez.'.tr)),
       );
     }
   }

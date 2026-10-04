@@ -362,7 +362,7 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
         break;
       case 'cancelled_refund_pending':
         label = 'Cancelado (reembolso a processar)'.tr;
-        color = Colors.orange;
+        color = AppColors.warning;
         break;
       case 'cancelled':
         label = 'Cancelado'.tr;
@@ -508,7 +508,7 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
         break;
       case 'converted':
         label = 'Convertido'.tr;
-        color = Colors.blue;
+        color = AppColors.info;
         break;
       case 'expired':
         label = 'Expirado'.tr;
@@ -516,7 +516,7 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
         break;
       case 'cancelled_refund_pending':
         label = 'Cancelado (reembolso a processar)'.tr;
-        color = Colors.orange;
+        color = AppColors.warning;
         break;
       case 'cancelled':
         label = 'Cancelado'.tr;

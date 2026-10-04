@@ -170,7 +170,9 @@ async function tratar(m) {
   // falhe, nunca cai tambem no cerebro da Bora (senao, com a Bora ligada, haveria duas respostas).
   let meu = false
   try {
-    const q = await getJson('/quem?numero=' + numero + '&sessao=vps-baileys:' + OWN, 5000, ASSISTENTE)
+    // 04/10: o inicio do texto vai junto para o "TESTE 1234" do Secretario Virtual ativar a demo.
+    const q = await getJson('/quem?numero=' + numero + '&sessao=vps-baileys:' + OWN +
+      '&texto=' + encodeURIComponent(String(ev.texto || '').slice(0, 40)), 5000, ASSISTENTE)
     meu = !!(q && q.meu)
   } catch (e) { log('assistente /quem falhou (segue o caminho antigo):', e.message) }
   if (meu) {

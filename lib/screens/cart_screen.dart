@@ -7,9 +7,12 @@ import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../models/order_service_type.dart';
 import '../models/restaurant_model.dart' show kFestasPrateleiraEncomenda;
+import '../models/order_model.dart' show PaymentMethod;
+import '../services/tip_service.dart';
 import '../services/wallet_service.dart';
 import '../services/weight_portions.dart';
 import '../stores/cart_store.dart';
+import '../stores/order_store.dart';
 import '../stores/restaurant_store.dart';
 import '../widgets/bora/bora.dart';
 import '../widgets/takeaway/curbside_inputs.dart';
@@ -251,12 +254,54 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
   WalletBalance? _wallet;
   bool _useWalletBalance = false;
 
+  /// [Pedido duplicado · 04/10] Trava PRÓPRIA do "Finalizar pedido": do 1.º
+  /// toque até o ecrã de pagamento fechar. Antes, dois toques rápidos abriam
+  /// dois ecrãs de pagamento (há um await de contacto antes do push).
+  bool _aAbrirPagamento = false;
+
+  Future<void> _comTravaPagamento(Future<void> Function() accao) async {
+    if (_aAbrirPagamento) return;
+    setState(() => _aAbrirPagamento = true);
+    try {
+      await accao();
+    } finally {
+      if (mounted) setState(() => _aAbrirPagamento = false);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     // M-E (2026-06-10): total do painel com distância de ROTA (= cobrança).
     context.read<CartStore>().refreshRouteDistance();
     _loadWallet();
+    TipService.ligada().then((v) {
+      if (!mounted) return;
+      // Desligada: nenhuma gorjeta escondida fica a somar no total.
+      if (!v) context.read<CartStore>().setTipCents(0);
+      setState(() => _gorjetaLigada = v);
+    });
+  }
+
+  /// Gorjeta ligada no servidor (`tips_enabled`)? Até sabermos, não se mostra.
+  bool _gorjetaLigada = false;
+
+  /// Gorjeta do checkout (missão 03/10 · bloco 3): até 04/10 só existia no
+  /// ecrã — a `create_order` nunca a recebia e nunca foi cobrada. Agora, com o
+  /// pedido já criado e pago, cobra-se à parte (cartão/MB Way) ou fica
+  /// registada para entregar em mão (dinheiro). 100% para o estafeta.
+  Future<void> _tratarGorjetaDoCheckout(int tipCents) async {
+    if (tipCents <= 0 || !_gorjetaLigada) return;
+    final orderStore = context.read<OrderStore>();
+    final messenger = ScaffoldMessenger.of(context);
+    final orderId = orderStore.lastCreatedOrderId;
+    if (orderId == null) return;
+    final order = orderStore.orders.where((o) => o.id == orderId).firstOrNull;
+    final r = order?.paymentMethod == PaymentMethod.cash
+        ? await TipService.registarDinheiro(orderId, tipCents)
+        : await TipService.cobrar(
+            target: 'order', id: orderId, cents: tipCents, moment: 'checkout');
+    messenger.showSnackBar(SnackBar(content: Text(r.mensagem)));
   }
 
   Future<void> _loadWallet() async {
@@ -405,12 +450,20 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                     if (cartStore.faltaParaMinimo > 0)
                       _FaltaParaOMinimo(falta: cartStore.faltaParaMinimo),
                     const SizedBox(height: Spacing.md),
-                    TipSelector(
-                      initialCents: cartStore.tipCents,
-                      enabled: cartStore.items.isNotEmpty,
-                      onChanged: (cents) => cartStore.setTipCents(cents),
-                    ),
-                    if (cartStore.tipCents > 0)
+                    if (_gorjetaLigada) ...[
+                      TipSelector(
+                        initialCents: cartStore.tipCents,
+                        enabled: cartStore.items.isNotEmpty,
+                        onChanged: (cents) => cartStore.setTipCents(cents),
+                      ),
+                      Text(
+                        'A gorjeta vai toda para o estafeta e é cobrada à parte.'
+                            .tr,
+                        style: const TextStyle(
+                            fontSize: 12, color: AppColors.textSecondary),
+                      ),
+                    ],
+                    if (_gorjetaLigada && cartStore.tipCents > 0)
                       _SummaryRow(
                           label: 'Gorjeta'.tr,
                           value: cartStore.tipEur,
@@ -548,9 +601,9 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                   ? 'Pagar com saldo Bora'.tr
                   : 'Finalizar pedido',
               icon: Icons.shopping_bag_outlined,
-              onPressed: cartStore.items.isEmpty
+              onPressed: cartStore.items.isEmpty || _aAbrirPagamento
                   ? null
-                  : () async {
+                  : () => _comTravaPagamento(() async {
                       // BLOCO C.3 (2026-09-05) — porta única de contacto: sem
                       // nome/telemóvel válidos, o cliente é bloqueado aqui
                       // antes de seguir para pagamento (ver
@@ -599,6 +652,8 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                         if (!context.mounted) return;
                       }
 
+                      // O carrinho limpa-se ao criar o pedido: guarda-se já.
+                      final tipCents = cartStore.tipCents;
                       final confirmed = await Navigator.push<bool>(
                         context,
                         MaterialPageRoute(
@@ -606,6 +661,8 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                         ),
                       );
                       if (confirmed == true && context.mounted) {
+                        await _tratarGorjetaDoCheckout(tipCents);
+                        if (!context.mounted) return;
                         Navigator.of(context)
                             .popUntil((route) => route.isFirst);
                         Navigator.of(context).push(
@@ -614,7 +671,7 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                           ),
                         );
                       }
-                    },
+                    }),
             ),
           ],
         ),

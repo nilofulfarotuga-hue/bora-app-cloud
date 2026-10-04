@@ -681,8 +681,17 @@ class _BottomCardState extends State<_BottomCard> {
                     order.status == OrderStatus.preparing &&
                     order.prepTimeMinutes != null) ...[
                   const SizedBox(height: 8),
+                  // [Bloco 6 · 04/10] padrão Glovo/Uber: hora prevista, não
+                  // só minutos (vale também para as lojas por telefone).
                   Text(
-                    'A loja aceitou — fica pronto em {0} min.'.trArgs([order.prepTimeMinutes]),
+                    'A loja está a preparar o teu pedido — pronto por volta das {0}.'.trArgs([
+                      () {
+                        final t = order.createdAt
+                            .toLocal()
+                            .add(Duration(minutes: order.prepTimeMinutes!));
+                        return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+                      }()
+                    ]),
                     style: const TextStyle(
                         fontSize: 13, fontWeight: FontWeight.w600),
                   ),

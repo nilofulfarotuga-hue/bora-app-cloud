@@ -13,6 +13,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
 
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
+import '../config/business_rules.dart' show BRBusiness;
 import '../widgets/order_edit/driver_order_edit_notice.dart';
 import '../widgets/background_location_disclosure.dart';
 import '../widgets/bora_support_fab.dart';
@@ -3073,6 +3074,31 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
                           : CollectState.paidOnline,
                       amountCents: (order.totalToCollectCash * 100).round(),
                     ),
+                    // [Bloco 6 · 04/10] Loja não-parceira (ex.: encomendada por
+                    // telefone pela Bora): o estafeta paga ao balcão o preço
+                    // da LOJA (sem os 15%). Só leitura — nada de preços muda.
+                    if (!order.isPartnerStore &&
+                        order.serviceType == OrderServiceType.restaurant &&
+                        order.items.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Pagar ao balcão: ${order.items
+                              .fold<double>(
+                                  0,
+                                  (s, i) =>
+                                      s +
+                                      (i.basePrice ??
+                                              i.price /
+                                                  (1 +
+                                                      BRBusiness
+                                                          .NON_PARTNER_MARKUP_RATIO)) *
+                                          i.quantity)
+                              .toStringAsFixed(2)} €',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: Colors.orange.shade900),
+                      ),
+                    ],
                     if (order.apartmentDelivery) ...[
                       const SizedBox(height: 12),
                       const _ApartmentDeliveryBanner(),

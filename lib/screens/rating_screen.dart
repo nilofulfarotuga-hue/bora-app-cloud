@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/app_colors.dart';
 import '../models/order_model.dart';
 import '../models/rating_model.dart';
+import '../services/tip_service.dart';
 import '../widgets/bora/bora_accent_button.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/tip_selector.dart';
@@ -42,6 +43,17 @@ class _RatingScreenState extends State<RatingScreen> {
   bool _submitting = false;
   bool _isPrivate = false;
   int _tipCents = 0;
+
+  /// Gorjeta ligada no servidor (`tips_enabled`)? Até sabermos, não se mostra.
+  bool _gorjetaLigada = false;
+
+  @override
+  void initState() {
+    super.initState();
+    TipService.ligada().then((v) {
+      if (mounted) setState(() => _gorjetaLigada = v);
+    });
+  }
 
   @override
   void dispose() {
@@ -93,31 +105,25 @@ class _RatingScreenState extends State<RatingScreen> {
         'p_is_private': _isPrivate,
       });
 
-      // Persist tip (BR §4.5) — best-effort, failure does not invalidate rating.
-      // 2026-10-03: a falha deixou de ser muda. Nenhuma gorjeta ficou gravada
-      // em toda a história (orders.tip_amount_cents > 0 = 0 linhas), e o
-      // cliente via "Obrigado!" na mesma. O `.select` apanha também o caso
-      // em que a base recusa sem erro (0 linhas alteradas).
-      var gorjetaFalhou = false;
-      if (_tipCents > 0 && isDriverSubject) {
-        try {
-          final linhas = await client.from('orders').update({
-            'tip_amount_cents': _tipCents,
-            'tip_added_at': DateTime.now().toUtc().toIso8601String(),
-          }).eq('id', widget.order.id).select('id');
-          gorjetaFalhou = (linhas as List).isEmpty;
-        } catch (e) {
-          debugPrint('[Rating] gorjeta não gravada: $e');
-          gorjetaFalhou = true;
-        }
+      // Gorjeta (missão 03/10 · bloco 3): até 04/10 aqui só se escrevia um
+      // número no pedido, sem cobrar nada — e nunca ficou nenhuma gravada.
+      // Agora é cobrada à parte (charge-tip, 100% para o estafeta). A
+      // avaliação já está gravada; a gorjeta falhar não a desfaz.
+      String? avisoGorjeta;
+      if (_tipCents > 0 && isDriverSubject && _gorjetaLigada) {
+        final r = await TipService.cobrar(
+          target: 'order',
+          id: widget.order.id,
+          cents: _tipCents,
+          moment: 'after',
+        );
+        avisoGorjeta = r.ok ? null : 'Avaliação gravada. ${r.mensagem}';
       }
 
       if (!mounted) return;
       messenger.showSnackBar(
-        gorjetaFalhou
-            ? const SnackBar(
-                content: Text(
-                    'Avaliação gravada. A gorjeta não ficou registada — não foi cobrado nada.'))
+        avisoGorjeta != null
+            ? SnackBar(content: Text(avisoGorjeta))
             : SnackBar(content: Text('Obrigado pela tua avaliação!'.tr)),
       );
       navigator.pop(true);
@@ -200,8 +206,10 @@ class _RatingScreenState extends State<RatingScreen> {
               ),
               // BUG 9 — esconder gorjeta em CASH. Em CASH não há como cobrar
               // gorjeta extra (cliente já entregou dinheiro exacto no balcão).
-              if (widget.subjectType == RatingSubjectType.driver &&
-                  widget.order.paymentMethod != PaymentMethod.cash) ...[
+              if (_gorjetaLigada &&
+                  widget.subjectType == RatingSubjectType.driver &&
+                  widget.order.paymentMethod != PaymentMethod.cash &&
+                  widget.order.tipCents == 0) ...[
                 const SizedBox(height: 20),
                 TipSelector(
                   initialCents: 0,

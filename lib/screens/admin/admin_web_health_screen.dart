@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../utils/hora_lisboa_ext.dart';
 
 /// Saúde da Web (PT-BR) — missão endereco-web-2026-08-31.
 ///
@@ -83,7 +84,7 @@ class _AdminWebHealthScreenState extends State<AdminWebHealthScreen> {
 
   String _formatarData(String? iso) {
     if (iso == null) return '';
-    final dt = DateTime.tryParse(iso)?.toLocal();
+    final dt = DateTime.tryParse(iso)?.toLisboa();
     if (dt == null) return iso;
     String dois(int v) => v.toString().padLeft(2, '0');
     return '${dois(dt.day)}/${dois(dt.month)} ${dois(dt.hour)}:${dois(dt.minute)}';

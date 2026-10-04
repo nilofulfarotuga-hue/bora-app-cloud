@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../widgets/bora/bora_primary_button.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '../../utils/hora_lisboa.dart';
 import 'admin_broadcasts_history_screen.dart';
 
 /// T2.3 — Admin: envia notification manual (1 user) ou broadcast segment.
@@ -61,12 +62,97 @@ class _AdminSendNotificationScreenState
     });
   }
 
+  /// Quantas pessoas/aparelhos vão receber (admin_broadcast_preview). Null se
+  /// a pré-visualização falhar — nesse caso a confirmação diz que não se sabe.
+  Future<Map<String, dynamic>?> _preview(String segment) async {
+    try {
+      final r = await Supabase.instance.client.rpc('admin_broadcast_preview',
+          params: {'p_segment': segment, 'p_kind': _kind});
+      return (r is Map) ? Map<String, dynamic>.from(r) : null;
+    } catch (e) {
+      debugPrint('[AdminSendNotification] preview falhou: $e');
+      return null;
+    }
+  }
+
+  /// Confirmação obrigatória antes de qualquer envio em massa (achado 06-admin:
+  /// "Enviar a todos os clientes" saía com um toque, sem dizer a quantos).
+  Future<bool> _confirmarEnvio(String segment, String segmentoLabel) async {
+    final p = await _preview(segment);
+    if (!mounted) return false;
+    final pessoas = p?['pessoas'];
+    final aparelhos = p?['aparelhos'];
+    final soOptIn = p?['so_opt_in'] == true;
+    final quando = _mode == 'schedule' && _scheduledAt != null
+        ? 'Sai em ${dataHoraLisboa(_scheduledAt!.toUtc().toIso8601String())} (hora de Lisboa).'
+        : 'Sai agora.';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmar envio em massa'),
+        content: Text(
+          pessoas == null
+              ? 'Não consegui contar quantas pessoas vão receber.\n'
+                  'Segmento: $segmentoLabel\n$quando\n\nEnviar mesmo assim?'
+              : 'Você vai enviar "${_titleCtrl.text.trim()}" para '
+                  '$pessoas pessoa(s) ($aparelhos aparelho(s) com push).\n'
+                  'Segmento: $segmentoLabel'
+                  '${soOptIn ? ' — só quem aceitou promoções' : ''}\n$quando\n\n'
+                  'Isto não se desfaz depois de sair.',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(pessoas == null ? 'Enviar' : 'Enviar a $pessoas')),
+        ],
+      ),
+    );
+    return ok == true;
+  }
+
+  /// Acorda a fila logo (a tarefa agendada também a apanha em <= 2 min).
+  void _acordarFila() {
+    Supabase.instance.client.functions
+        .invoke('execute-broadcast', body: {'origem': 'painel'})
+        .then((_) {}, onError: (Object e) {
+      debugPrint('[AdminSendNotification] execute-broadcast: $e');
+    });
+  }
+
+  static const _segLabels = {
+    'all_clients': 'Todos os clientes',
+    'recent_clients_30d': 'Clientes ativos (30 dias)',
+    'drivers_online': 'Entregadores online',
+    'partners': 'Parceiros',
+    'all': 'Todos',
+    'clients': 'Clientes',
+    'drivers': 'Entregadores',
+  };
+
   Future<void> _send() async {
+    if (_sending) return;
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _sending = true);
+    if (_mode != 'one_user') {
+      final seg = _mode == 'broadcast' ? _segment : _scheduleSegment;
+      setState(() => _sending = true);
+      final confirmado = await _confirmarEnvio(seg, _segLabels[seg] ?? seg);
+      if (!mounted) return;
+      if (!confirmado) {
+        setState(() => _sending = false);
+        return;
+      }
+    } else {
+      setState(() => _sending = true);
+    }
     final messenger = ScaffoldMessenger.of(context);
     try {
       if (_mode == 'broadcast') {
+        // admin_broadcast_notification (04/10) já grava o sininho E põe o push
+        // na fila só para as pessoas do segmento — não chamar mais nada (o
+        // antigo RPC de gravar o sininho à parte duplicava-o).
         final res = await Supabase.instance.client
             .rpc('admin_broadcast_notification', params: {
           'p_segment': _segment,
@@ -74,32 +160,27 @@ class _AdminSendNotificationScreenState
           'p_title': _titleCtrl.text.trim(),
           'p_body': _bodyCtrl.text.trim().isEmpty ? null : _bodyCtrl.text.trim(),
         });
-        // Also save to in_app_notifications so the bell shows unread.
-        Supabase.instance.client.rpc('admin_save_broadcast_in_app', params: {
-          'p_segment': _segment,
-          'p_kind': _kind,
-          'p_title': _titleCtrl.text.trim(),
-          'p_body': _bodyCtrl.text.trim().isEmpty ? null : _bodyCtrl.text.trim(),
-        }).ignore();
-        messenger.showSnackBar(
-            SnackBar(content: Text('Broadcast enviado: $res destinatários')));
+        _acordarFila();
+        messenger.showSnackBar(SnackBar(
+            content: Text('Enviado: $res pessoa(s) no sininho; o push sai já.')));
       } else if (_mode == 'schedule') {
-        // P1-S11-002 — persistir em push_broadcasts via admin_create_broadcast.
         final res = await Supabase.instance.client
             .rpc('admin_create_broadcast', params: {
           'p_segment': _scheduleSegment,
           'p_title': _titleCtrl.text.trim(),
-          'p_body': _bodyCtrl.text.trim(),
-          'p_scheduled_at':
-              _scheduledAt?.toUtc().toIso8601String(),
+          'p_body': _bodyCtrl.text.trim().isEmpty
+              ? _titleCtrl.text.trim()
+              : _bodyCtrl.text.trim(),
+          'p_scheduled_at': _scheduledAt?.toUtc().toIso8601String(),
         });
-        final id = (res is Map) ? res['broadcast_id']?.toString() : null;
+        final ok = (res is Map) && res['broadcast_id'] != null;
+        if (_scheduledAt == null) _acordarFila();
         messenger.showSnackBar(SnackBar(
-          content: Text(
-            _scheduledAt == null
-                ? 'Broadcast criado (envio assim que Edge Fn corra). id=$id'
-                : 'Broadcast agendado para ${_scheduledAt!.toLocal()}. id=$id',
-          ),
+          content: Text(!ok
+              ? 'Não consegui agendar. Tente de novo.'
+              : _scheduledAt == null
+                  ? 'Notificação na fila — sai em até 2 minutos.'
+                  : 'Agendada para ${dataHoraLisboa(_scheduledAt!.toUtc().toIso8601String())} (hora de Lisboa).'),
         ));
       } else {
         await Supabase.instance.client.rpc('admin_send_push_notification', params: {
@@ -114,7 +195,9 @@ class _AdminSendNotificationScreenState
       _titleCtrl.clear();
       _bodyCtrl.clear();
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Erro: $e')));
+      debugPrint('[AdminSendNotification] erro: $e');
+      messenger.showSnackBar(
+          const SnackBar(content: Text('Não consegui enviar. Tente de novo.')));
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -158,7 +241,7 @@ class _AdminSendNotificationScreenState
                 value: _segment,
                 decoration: const InputDecoration(
                   labelText: 'Segmento',
-                  helperText: 'Envio imediato via FCM (admin_broadcast_notification)',
+                  helperText: 'Sai agora: sininho + push (pede confirmação com o número de pessoas)',
                 ),
                 items: const [
                   DropdownMenuItem(
@@ -170,6 +253,9 @@ class _AdminSendNotificationScreenState
                       value: 'drivers_online', child: Text('Drivers online')),
                   DropdownMenuItem(
                       value: 'partners', child: Text('Parceiros')),
+                  DropdownMenuItem(
+                      value: 'all_users',
+                      child: Text('Clientes + parceiros')),
                 ],
                 onChanged: (v) => setState(() => _segment = v!),
               ),
@@ -178,7 +264,7 @@ class _AdminSendNotificationScreenState
                 value: _scheduleSegment,
                 decoration: const InputDecoration(
                   labelText: 'Segmento',
-                  helperText: 'Persistido em push_broadcasts (Edge Fn consome quando pronta)',
+                  helperText: 'A fila envia na hora marcada (verifica a cada 2 min)',
                 ),
                 items: const [
                   DropdownMenuItem(value: 'all', child: Text('Todos')),
@@ -198,7 +284,7 @@ class _AdminSendNotificationScreenState
                 title: Text(
                   _scheduledAt == null
                       ? 'Enviar assim que pronto'
-                      : 'Agendado: ${_scheduledAt!.toLocal()}',
+                      : 'Agendado: ${dataHoraLisboa(_scheduledAt!.toUtc().toIso8601String())} (Lisboa)',
                 ),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,

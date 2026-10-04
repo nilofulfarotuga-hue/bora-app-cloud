@@ -10,6 +10,8 @@ import '../../widgets/admin/escolher_estafeta_sheet.dart'
 import '../../widgets/private_bucket_image.dart';
 import '_admin_password_reset_dialog.dart';
 import 'admin_papeis_screen.dart';
+import '../../utils/hora_lisboa_ext.dart';
+import '../../utils/hora_lisboa.dart';
 
 /// Full-screen admin detail for an approved driver. Pushed from
 /// `admin_drivers_screen` and from the "Aprovados" tab of
@@ -1022,7 +1024,7 @@ class _PresencaEHistoricoCardState extends State<_PresencaEHistoricoCard> {
                 'Último sinal',
                 hb == null
                     ? 'nunca'
-                    : '${haQuantoTempo(hb)} (${hb.toLocal().toString().substring(0, 16)})',
+                    : '${haQuantoTempo(hb)} (${hb.toLisboa().toString().substring(0, 16)})',
               ),
               _row(
                 gpsFresco ? Icons.gps_fixed : Icons.gps_off,
@@ -1060,7 +1062,7 @@ class _PresencaEHistoricoCardState extends State<_PresencaEHistoricoCard> {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        '${(h['created_at'] ?? '').toString().substring(0, 16).replaceFirst('T', ' ')} · '
+                        '${dataHoraLisboa(h['created_at'])} · '
                         '${_acao((h['action'] ?? '').toString())} · '
                         'por ${h['quem'] ?? 'sistema'} · pedido '
                         '${(h['order_id'] ?? '').toString().replaceAll('-', '').substring(0, 6).toUpperCase()}'
@@ -1899,7 +1901,7 @@ class _AuditTabState extends State<_AuditTab> {
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 String _fmtDate(DateTime d) {
-  final l = d.toLocal();
+  final l = d.toLisboa();
   return '${l.year}-${l.month.toString().padLeft(2, '0')}-${l.day.toString().padLeft(2, '0')} '
          '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
 }

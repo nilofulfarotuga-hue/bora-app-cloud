@@ -15,6 +15,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '../../utils/hora_lisboa_ext.dart';
 
 final _numeroValido = RegExp(r'^\d{9,15}$');
 
@@ -24,7 +25,7 @@ String _euros(dynamic v) {
 }
 
 String _hora(dynamic v) {
-  final d = DateTime.tryParse('${v ?? ''}')?.toLocal();
+  final d = DateTime.tryParse('${v ?? ''}')?.toLisboa();
   if (d == null) return '—';
   String p(int x) => x.toString().padLeft(2, '0');
   return '${p(d.day)}/${p(d.month)} ${p(d.hour)}:${p(d.minute)}';

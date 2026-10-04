@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '../../utils/hora_lisboa.dart';
 
 /// M11 — Viewer READ-ONLY de conversas de um pedido (admin).
 /// Usa a RPC `admin_list_order_messages` (gate `_admin_op_guard` + audit log
@@ -83,9 +84,7 @@ class _AdminChatViewerScreenState extends State<AdminChatViewerScreen> {
               final m = msgs[i];
               final sender = (m['sender_type'] as String?) ?? '?';
               final created = (m['created_at'] as String?) ?? '';
-              final ts = created.length >= 16
-                  ? created.substring(0, 16).replaceFirst('T', ' ')
-                  : created;
+              final ts = dataHoraLisboa(created);
               final conv = (m['conversation_type'] as String?) ?? '—';
               return Card(
                 margin: const EdgeInsets.only(bottom: 8),

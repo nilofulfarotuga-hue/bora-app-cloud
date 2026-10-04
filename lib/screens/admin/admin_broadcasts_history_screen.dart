@@ -2,14 +2,16 @@
 // Chama admin_list_broadcasts (RPC SECURITY DEFINER) e mostra status,
 // destinatários (sent_count/failed_count), scheduled_at, completed_at.
 //
-// admin_create_broadcast persiste rows aqui com status='pending'. Edge Fn
-// broadcast-push (não implementada ainda — bloqueada por Firebase setup #1)
-// consome status='pending' e marca 'sent'/'failed'.
+// 04/10/2026: lê admin_list_broadcasts_v2 (com a nota do porquê) e permite
+// cancelar um agendado que ainda não saiu (admin_cancel_broadcast, com
+// confirmação). A fila (cron execute-broadcast-queue, a cada 2 min) chama a
+// Edge Function execute-broadcast, que marca 'sent'/'failed' com nota.
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../utils/hora_lisboa.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 
 class AdminBroadcastsHistoryScreen extends StatefulWidget {
@@ -40,18 +42,21 @@ class _AdminBroadcastsHistoryScreenState
     });
     try {
       final res = await Supabase.instance.client.rpc(
-        'admin_list_broadcasts',
+        'admin_list_broadcasts_v2',
         params: {'p_limit': _limit},
       );
       if (!mounted) return;
       setState(() {
-        _rows = (res as List).cast<Map<String, dynamic>>();
+        _rows = ((res as List?) ?? const [])
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
         _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        debugPrint('[AdminBroadcastsHistory] $e');
+        _error = 'Não consegui carregar o histórico.';
         _loading = false;
       });
     }
@@ -71,14 +76,43 @@ class _AdminBroadcastsHistoryScreenState
     }
   }
 
-  String _fmt(DateTime? dt) {
-    if (dt == null) return '—';
-    final d = dt.toLocal();
-    return '${d.day.toString().padLeft(2, '0')}/'
-        '${d.month.toString().padLeft(2, '0')}/'
-        '${d.year} '
-        '${d.hour.toString().padLeft(2, '0')}:'
-        '${d.minute.toString().padLeft(2, '0')}';
+  String _fmt(DateTime? dt) =>
+      dt == null ? '—' : dataHoraLisboa(dt.toUtc().toIso8601String());
+
+  Future<void> _cancelar(Map<String, dynamic> r) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancelar notificação?'),
+        content: Text('"${r['title'] ?? ''}" não vai sair. Isto não se desfaz.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Voltar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Cancelar envio')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final res = await Supabase.instance.client
+          .rpc('admin_cancel_broadcast', params: {'p_id': r['id']});
+      if (!mounted) return;
+      final m = (res is Map) ? res : const {};
+      messenger.showSnackBar(SnackBar(
+          content: Text(m['ok'] == true
+              ? 'Cancelada.'
+              : (m['erro']?.toString() ?? 'Não consegui cancelar.'))));
+      _load();
+    } catch (e) {
+      debugPrint('[AdminBroadcastsHistory] cancelar: $e');
+      if (!mounted) return;
+      messenger.showSnackBar(
+          const SnackBar(content: Text('Não consegui cancelar.')));
+    }
   }
 
   String _segmentLabel(String s) {
@@ -157,6 +191,8 @@ class _AdminBroadcastsHistoryScreenState
                               DateTime.tryParse(r['scheduled_at'] as String? ?? '');
                           final completedAt =
                               DateTime.tryParse(r['completed_at'] as String? ?? '');
+                          final nota = (r['status_note'] as String?) ?? '';
+                          final pessoas = r['pessoas_alvo'];
 
                           return ListTile(
                             isThreeLine: true,
@@ -165,6 +201,14 @@ class _AdminBroadcastsHistoryScreenState
                               child: const Icon(Icons.campaign,
                                   color: Colors.white, size: 20),
                             ),
+                            trailing: status == 'pending'
+                                ? IconButton(
+                                    tooltip: 'Cancelar este envio',
+                                    icon: const Icon(Icons.cancel_outlined,
+                                        color: AppColors.error),
+                                    onPressed: () => _cancelar(r),
+                                  )
+                                : null,
                             title: Text(
                               title,
                               style:
@@ -226,8 +270,23 @@ class _AdminBroadcastsHistoryScreenState
                                             fontSize: 11,
                                             color: AppColors.textSecondary),
                                       ),
+                                    if (pessoas != null)
+                                      Text(
+                                        'Pessoas: $pessoas',
+                                        style: const TextStyle(
+                                            fontSize: 11,
+                                            color: AppColors.textSecondary),
+                                      ),
                                   ],
                                 ),
+                                if (nota.isNotEmpty)
+                                  Text(
+                                    nota,
+                                    style: const TextStyle(
+                                        fontSize: 11,
+                                        fontStyle: FontStyle.italic,
+                                        color: AppColors.textSecondary),
+                                  ),
                               ],
                             ),
                           );

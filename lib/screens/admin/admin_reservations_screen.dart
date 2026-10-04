@@ -9,6 +9,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../models/reservation_model.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '../../utils/hora_lisboa_ext.dart';
+import '../../widgets/admin/admin_csv_button.dart';
 
 /// Admin view: all table reservations across restaurants (BR §16.2).
 class AdminReservationsScreen extends StatefulWidget {
@@ -28,12 +30,16 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
     _future = _load();
   }
 
+  // Linhas cruas da última carga — para o CSV (ronda 04/10).
+  List<Map<String, dynamic>> _csvRows = const [];
+
   Future<List<ReservationModel>> _load() async {
     final rows = await Supabase.instance.client
         .from('reservations')
         .select()
         .order('reserved_for', ascending: false)
         .limit(200);
+    _csvRows = List<Map<String, dynamic>>.from(rows as List);
     return (rows as List)
         .cast<Map<String, dynamic>>()
         .map(ReservationModel.fromSupabase)
@@ -205,6 +211,27 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
                               );
                               return;
                             }
+                            // Ronda 04/10: forçar uma reserva passa por cima
+                            // das regras da loja — confirmação explícita.
+                            final confirma = await showDialog<bool>(
+                              context: ctx,
+                              builder: (c2) => AlertDialog(
+                                title: const Text('Forçar esta reserva?'),
+                                content: Text(
+                                    'Cria a reserva de ${clientNameCtrl.text} '
+                                    '($people pessoas) por cima das regras da loja'
+                                    '${skipPrepayment ? ', sem pré-pagamento' : ''}.'),
+                                actions: [
+                                  TextButton(
+                                      onPressed: () => Navigator.pop(c2, false),
+                                      child: const Text('Cancelar')),
+                                  FilledButton(
+                                      onPressed: () => Navigator.pop(c2, true),
+                                      child: const Text('Forçar')),
+                                ],
+                              ),
+                            );
+                            if (confirma != true) return;
                             setSt(() => submitting = true);
                             try {
                               await Supabase.instance.client.rpc(
@@ -612,6 +639,17 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
       appBar: BoraScreenAppBar(
         title: 'Reservas (admin)',
         actions: [
+          AdminCsvButton(
+            nome: 'reservas',
+            colunas: const [
+              ('reserved_for', 'para (Lisboa)'), ('status', 'estado'),
+              ('restaurant_id', 'restaurante'), ('client_name', 'cliente'),
+              ('client_phone', 'telefone'), ('people', 'pessoas'),
+              ('is_walk_in', 'walk-in'), ('notes', 'notas'),
+              ('created_at', 'criada (Lisboa)'),
+            ],
+            linhas: () => _csvRows,
+          ),
           IconButton(
             icon: const Icon(Icons.add_circle, color: Colors.greenAccent),
             tooltip: 'Forçar criar reserva',
@@ -657,7 +695,7 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
                         const Divider(height: 1, color: AppColors.divider),
                     itemBuilder: (context, i) {
                       final r = list[i];
-                      final d = r.reservedFor.toLocal();
+                      final d = r.reservedFor.toLisboa();
                       return ListTile(
                         title: Text(
                           '${r.clientName} · ${r.people} pessoas · ${r.restaurantId}',

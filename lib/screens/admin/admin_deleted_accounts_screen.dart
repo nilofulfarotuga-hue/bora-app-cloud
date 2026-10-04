@@ -5,6 +5,7 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '../../services/admin_export_service.dart';
+import '../../utils/hora_lisboa_ext.dart';
 
 /// Contas encerradas a pedido do próprio (RGPD art. 17).
 ///
@@ -225,7 +226,7 @@ class _Cartao extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final quando = DateTime.tryParse('${linha['encerrada_em']}')?.toLocal();
+    final quando = DateTime.tryParse('${linha['encerrada_em']}')?.toLisboa();
     final data = quando == null
         ? '${linha['encerrada_em']}'
         : '${quando.day.toString().padLeft(2, '0')}/'

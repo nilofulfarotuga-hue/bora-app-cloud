@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '../../utils/hora_lisboa_ext.dart';
 
 /// 🤖 Robot B v4 — inbox de sugestões do "Motor de Perfeição Contínua".
 /// Tab 1: sugestões por nível (🟢 N1 auto / 🟡 N2 1-clique / 🔴 N3 proposta)
@@ -399,7 +400,7 @@ class _S extends State<AdminRobotSuggestionsScreen> {
   }
 
   String _fmtDate(dynamic iso) {
-    final d = DateTime.tryParse(iso?.toString() ?? '')?.toLocal();
+    final d = DateTime.tryParse(iso?.toString() ?? '')?.toLisboa();
     if (d == null) return '—';
     return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')} '
         '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
@@ -700,7 +701,7 @@ class _S extends State<AdminRobotSuggestionsScreen> {
     final on = _knowledge['ligado'] == true;
     final cad = (_knowledge['cadencia'] as String?) ?? '2x';
     final bytes = (_knowledge['tamanho_bytes'] as num?)?.toInt();
-    final geradoEm = DateTime.tryParse('${_knowledge['gerado_em'] ?? ''}')?.toLocal();
+    final geradoEm = DateTime.tryParse('${_knowledge['gerado_em'] ?? ''}')?.toLisboa();
     final horas = geradoEm == null
         ? null
         : DateTime.now().difference(geradoEm).inMinutes / 60.0;

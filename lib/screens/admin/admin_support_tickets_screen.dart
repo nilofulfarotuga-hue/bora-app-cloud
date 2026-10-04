@@ -7,6 +7,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '../../utils/hora_lisboa.dart';
+import '../../widgets/admin/admin_csv_button.dart';
 
 class AdminSupportTicketsScreen extends StatefulWidget {
   const AdminSupportTicketsScreen({super.key});
@@ -113,6 +115,16 @@ class _AdminSupportTicketsScreenState
       appBar: BoraScreenAppBar(
         title: 'Suporte — Tickets',
         actions: [
+          AdminCsvButton(
+            nome: 'tickets_suporte',
+            colunas: const [
+              ('created_at', 'criado (Lisboa)'), ('status', 'estado'),
+              ('channel', 'canal'), ('user_role', 'papel'),
+              ('subject', 'assunto'), ('question', 'pergunta'),
+              ('order_id', 'pedido'), ('resolved_at', 'resolvido (Lisboa)'),
+            ],
+            linhas: () => _tickets,
+          ),
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
         ],
       ),
@@ -193,7 +205,7 @@ class _AdminSupportTicketsScreenState
                             ),
                             subtitle: Text(
                               '${t['channel'] ?? '—'} · ${t['status']} · '
-                              '${t['user_role']} · ${(t['created_at'] as String).substring(0, 19)}',
+                              '${t['user_role']} · ${dataHoraLisboa(t['created_at'])}',
                             ),
                             trailing: t['status'] == 'resolved'
                                 ? const Icon(Icons.check_circle,

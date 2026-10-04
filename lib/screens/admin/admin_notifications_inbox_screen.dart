@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../utils/hora_lisboa_ext.dart';
 
 class AdminNotificationsInboxScreen extends StatefulWidget {
   const AdminNotificationsInboxScreen({super.key});
@@ -168,7 +169,7 @@ class _AdminNotificationsInboxScreenState
 
   String _fmtDateTime(String? iso) {
     if (iso == null) return '—';
-    final d = DateTime.tryParse(iso)?.toLocal();
+    final d = DateTime.tryParse(iso)?.toLisboa();
     if (d == null) return iso;
     final now = DateTime.now();
     final diff = now.difference(d);

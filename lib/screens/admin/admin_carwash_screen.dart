@@ -5,6 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../services/carwash_upload_service.dart';
+import '../../utils/hora_lisboa_ext.dart';
+import '../../services/admin_export_service.dart';
 
 /// LAVAGEM AUTO — painel admin (PT-BR, só o Danilo usa).
 /// Autoridade total: ver, criar, editar, cancelar, reagendar, reatribuir,
@@ -146,9 +148,12 @@ class _AbaPedidosState extends State<_AbaPedidos> {
         'p_from': de.toIso8601String().split('T').first,
         'p_to': hoje.toIso8601String().split('T').first,
       });
-      await Clipboard.setData(ClipboardData(text: (csv ?? '').toString()));
+      await AdminExportService.instance.exportCsvText(
+        filename: 'lavagens_${hoje.toIso8601String().split('T').first}.csv',
+        csv: '\uFEFF${(csv ?? '').toString()}',
+      );
       if (mounted) {
-        _msg(context, 'CSV dos últimos 30 dias copiado para a área de transferência.');
+        _msg(context, 'CSV dos últimos 30 dias descarregado.');
       }
     } catch (e) {
       if (mounted) _msg(context, 'Erro ao exportar: $e');
@@ -262,7 +267,7 @@ class _AbaPedidosState extends State<_AbaPedidos> {
                       final r = _rows[i];
                       final quando =
                           DateTime.tryParse(r['scheduled_at'].toString())
-                              ?.toLocal();
+                              ?.toLisboa();
                       return ListTile(
                         title: Text(
                             '${r['plate']} · ${_servico(r['service_type'])}'),

@@ -5,6 +5,7 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '_admin_rpc_errors.dart';
+import '../../utils/hora_lisboa_ext.dart';
 
 /// Bora Motorista (TVDE) — RESERVAS (corridas agendadas).
 ///
@@ -350,7 +351,7 @@ class _AdminTvdeReservasScreenState extends State<AdminTvdeReservasScreen> {
 
   String _quando(String? iso) {
     if (iso == null) return '—';
-    final d = DateTime.tryParse(iso)?.toLocal();
+    final d = DateTime.tryParse(iso)?.toLisboa();
     if (d == null) return '—';
     final hh = d.hour.toString().padLeft(2, '0');
     final mm = d.minute.toString().padLeft(2, '0');

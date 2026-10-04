@@ -6,6 +6,7 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '../../widgets/private_bucket_image.dart';
+import '../../utils/hora_lisboa_ext.dart';
 
 /// BUG 6d — Admin reviews partners awaiting approval and approves/rejects.
 ///
@@ -432,7 +433,7 @@ class _AdminPartnersPendingScreenState
     final isPending = status == 'pending';
     final reason = r['rejection_reason'] as String?;
     final createdAt =
-        DateTime.tryParse(r['created_at'] as String? ?? '')?.toLocal();
+        DateTime.tryParse(r['created_at'] as String? ?? '')?.toLisboa();
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 6),
       shape: RoundedRectangleBorder(

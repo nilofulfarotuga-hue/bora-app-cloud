@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '../../widgets/private_bucket_image.dart';
+import '../../utils/hora_lisboa_ext.dart';
 
 /// Item 80 (paridade-admin-360): revisão de documentos TVDE (IMT / DL 45/2018).
 /// Lista documentos por estado, mostra preview assinado (bucket privado
@@ -271,7 +272,7 @@ class _AdminTvdeDocsReviewScreenState extends State<AdminTvdeDocsReviewScreen> {
   }
 
   String _fmt(DateTime d) {
-    final l = d.toLocal();
+    final l = d.toLisboa();
     return '${l.day.toString().padLeft(2, '0')}/${l.month.toString().padLeft(2, '0')}/${l.year} '
         '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
   }

@@ -19,6 +19,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../services/admin_export_service.dart';
 import '_admin_rpc_errors.dart';
+import '../../utils/hora_lisboa_ext.dart';
 
 typedef CarregarConformidade = Future<Map<String, dynamic>> Function();
 typedef ExportarDac7 = Future<Map<String, dynamic>> Function(int ano);
@@ -175,7 +176,7 @@ String formatarDataHora(dynamic iso) {
   if (iso == null) return '—';
   final dt = DateTime.tryParse(iso.toString());
   if (dt == null) return iso.toString();
-  final l = dt.toLocal();
+  final l = dt.toLisboa();
   String d2(int n) => n.toString().padLeft(2, '0');
   return '${d2(l.day)}/${d2(l.month)}/${l.year} ${d2(l.hour)}:${d2(l.minute)}';
 }

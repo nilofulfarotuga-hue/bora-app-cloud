@@ -5,11 +5,12 @@
 // "Envio ligado" escreve em whatsapp_settings.envio_ligado — o cérebro lê a cada pedido.
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '../../utils/hora_lisboa.dart';
+import '../../services/admin_export_service.dart';
 
 class AdminWhatsappScreen extends StatefulWidget {
   const AdminWhatsappScreen({super.key});
@@ -172,8 +173,11 @@ class _AdminWhatsappScreenState extends State<AdminWhatsappScreen>
       'numero', 'nome', 'papel', 'tratamento', 'lingua', 'bot_pausado', 'assumido_por_danilo',
       'ultima_msg_em', 'ultima_resposta_bot_em'
     ]);
-    await Clipboard.setData(ClipboardData(text: csv));
-    _aviso('CSV de ${_contatos.length} contatos copiado para a área de transferência.');
+    await AdminExportService.instance.exportCsvText(
+      filename: 'whatsapp_contatos_${DateTime.now().millisecondsSinceEpoch}.csv',
+      csv: '\uFEFF$csv',
+    );
+    _aviso('CSV de ${_contatos.length} contatos descarregado.');
   }
 
   String _mask(String n) => n.length > 6 ? '${n.substring(0, 3)} *** ${n.substring(n.length - 3)}' : n;
@@ -266,7 +270,7 @@ class _AdminWhatsappScreenState extends State<AdminWhatsappScreen>
           ),
           title: Text(c['nome']?.toString().isNotEmpty == true ? '${c['nome']} · ${_mask(numero)}' : '+$numero'),
           subtitle: Text('${c['papel'] ?? 'desconhecido'} · ${c['lingua'] ?? ''} · $estado\n'
-              'última msg: ${(c['ultima_msg_em'] ?? '—').toString().replaceFirst('T', ' ').split('.').first}'),
+              'última msg: ${dataHoraLisboa(c['ultima_msg_em'])}'),
           isThreeLine: true,
           trailing: PopupMenuButton<String>(
             onSelected: (v) {
@@ -375,7 +379,7 @@ class _AdminWhatsappScreenState extends State<AdminWhatsappScreen>
     return ListTile(
       leading: Icon(l['tipo'] == 'estafeta' ? Icons.two_wheeler : Icons.storefront, color: AppColors.primary),
       title: Text('${l['tipo']} · +${l['numero']}'),
-      subtitle: Text('${l['estado']} · ${(l['created_at'] ?? '').toString().split('T').first}\n$dados'),
+      subtitle: Text('${l['estado']} · ${dataHoraLisboa(l['created_at'])}\n$dados'),
       isThreeLine: true,
       trailing: DropdownButton<String>(
         value: l['estado'],
@@ -449,11 +453,14 @@ class _ConversaScreenState extends State<_ConversaScreen> {
               final rows = await _future;
               final b = StringBuffer('quando;direcao;tipo;texto;decisao;enviada');
               for (final r in rows) {
-                b.write('\n"${r['created_at']}";"${r['direcao']}";"${r['tipo']}";"${(r['texto'] ?? r['transcricao'] ?? '').toString().replaceAll('"', '""')}";"${r['decisao'] ?? ''}";"${r['enviada']}"');
+                b.write('\n"${dataHoraLisboa(r['created_at'])}";"${r['direcao']}";"${r['tipo']}";"${(r['texto'] ?? r['transcricao'] ?? '').toString().replaceAll('"', '""')}";"${r['decisao'] ?? ''}";"${r['enviada']}"');
               }
-              await Clipboard.setData(ClipboardData(text: b.toString()));
+              await AdminExportService.instance.exportCsvText(
+                filename: 'whatsapp_conversa_${c['numero'] ?? ''}.csv',
+                csv: '\uFEFF$b',
+              );
               if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('CSV copiado.')));
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('CSV descarregado.')));
               }
             },
           ),
@@ -483,7 +490,7 @@ class _ConversaScreenState extends State<_ConversaScreen> {
                   : (r['entrega_estado'] == 'falhou'
                       ? 'FALHOU a entrega${r['entrega_erro'] != null ? ' · ${r['entrega_erro']}' : ''}'
                       : 'NÃO entregue');
-              final meta = '${(r['created_at'] ?? '').toString().replaceFirst('T', ' ').split('.').first}'
+              final meta = '${dataHoraLisboa(r['created_at'])}'
                   '${saida ? ' · modelo: ${r['modelo'] ?? 'bot'} · ${r['latencia_ms'] ?? 0} ms · $entrega' : ' · ${r['tipo']}'}';
               return Align(
                 alignment: saida ? Alignment.centerRight : Alignment.centerLeft,

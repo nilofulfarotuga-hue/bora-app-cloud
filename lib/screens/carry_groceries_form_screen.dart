@@ -12,6 +12,7 @@ import '../widgets/address_autocomplete_field.dart';
 import '../widgets/business_autocomplete_field.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/quote_price_footer.dart';
+import 'orders_screen.dart';
 import 'payment_method_screen.dart';
 
 import '../l10n/tr.dart';
@@ -82,7 +83,23 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
     }
   }
 
+  /// [Pedido duplicado · 04/10] Trava PRÓPRIA do botão "Continuar para
+  /// pagamento" (mesmo defeito do Favor, 03/10). Aqui a janela era maior: a
+  /// geocodificação corre antes de abrir o pagamento e um 2.º toque nesse
+  /// meio abria um 2.º ecrã de pagamento → dois pedidos.
+  bool _aAbrirPagamento = false;
+
   Future<void> _goToPayment() async {
+    if (_aAbrirPagamento) return;
+    setState(() => _aAbrirPagamento = true);
+    try {
+      await _goToPaymentInner();
+    } finally {
+      if (mounted) setState(() => _aAbrirPagamento = false);
+    }
+  }
+
+  Future<void> _goToPaymentInner() async {
     final pickupAddress = _pickupController.text.trim();
     final dropoffAddress = _dropoffController.text.trim();
 
@@ -122,12 +139,17 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
     );
     cart.setGroceriesPhotoUrl(null);
 
-    Navigator.push<bool>(
+    final ordered = await Navigator.push<bool>(
       context,
       MaterialPageRoute(builder: (_) => const PaymentMethodScreen()),
-    ).then((ordered) {
-      if (ordered == true && mounted) Navigator.pop(context);
-    });
+    );
+    // Pedido criado: sai do formulário para os pedidos (como o Favor).
+    if (ordered == true && mounted) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const OrdersScreen()),
+      );
+    }
   }
 
   @override
@@ -196,7 +218,7 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
             AutoAddressHint(visible: _autoLocating),
             const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: _goToPayment,
+              onPressed: _aAbrirPagamento ? null : _goToPayment,
               child: Text('Continuar para pagamento'.tr),
             ),
           ],

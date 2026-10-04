@@ -1155,6 +1155,24 @@ const Map<String, String> kStringsEn = <String, String>{
       'Tip',
   'Gorjeta (opcional)':
       'Tip (optional)',
+  'Sem gorjeta':
+      'No tip',
+  'Queres deixar uma gorjeta ao motorista?':
+      'Would you like to tip your driver?',
+  'A gorjeta vai toda para o estafeta e é cobrada à parte.':
+      'The whole tip goes to the courier and is charged separately.',
+  'Gorjetas (últimos 30 dias)':
+      'Tips (last 30 days)',
+  'São todas tuas. As de cartão e MB WAY entram no acerto da semana.':
+      'They are all yours. Card and MB WAY tips are added to your weekly settlement.',
+  'corrida':
+      'ride',
+  'entrega':
+      'delivery',
+  'dinheiro':
+      'cash',
+  'A loja está a preparar o teu pedido — pronto por volta das {0}.':
+      'The store is preparing your order — ready around {0}.',
   'Grupos grandes':
       'Large groups',
   'Grátis':

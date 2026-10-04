@@ -123,7 +123,21 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
   /// (`ReservationPaymentMethodSheet`) e, no MB Way, o mesmo padrão server-confirm
   /// + poll. A subscrição ativa-se automaticamente (a Edge Function isolada
   /// `tvde-plan-payment` verifica o PI na Stripe — sem tocar no webhook).
+  /// [Pedido duplicado · 04/10] Trava PRÓPRIA do "Aderir" (PADRAO_BORA 3.13):
+  /// antes o botão só dependia do `store.busy` global.
+  bool _aderindo = false;
+
   Future<void> _aderir(String plan, String label, double priceEur) async {
+    if (_aderindo) return;
+    setState(() => _aderindo = true);
+    try {
+      await _aderirInner(plan, label, priceEur);
+    } finally {
+      if (mounted) setState(() => _aderindo = false);
+    }
+  }
+
+  Future<void> _aderirInner(String plan, String label, double priceEur) async {
     if (kIsWeb) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('O pagamento do plano está disponível na app móvel.'.tr)));
@@ -240,7 +254,7 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
             title: 'Plano Semanal'.tr,
             price: _priceLabel('semanal'),
             detail: _detailLabel('semanal'),
-            onAderir: pending || store.busy || _priceCents == null
+            onAderir: pending || _aderindo || _priceCents == null
                 ? null
                 : () => _aderir(
                     'semanal', 'Plano Semanal'.tr, _priceCents!['semanal']! / 100),
@@ -249,7 +263,7 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
             title: 'Plano Quinzenal'.tr,
             price: _priceLabel('quinzenal'),
             detail: _detailLabel('quinzenal'),
-            onAderir: pending || store.busy || _priceCents == null
+            onAderir: pending || _aderindo || _priceCents == null
                 ? null
                 : () => _aderir('quinzenal', 'Plano Quinzenal'.tr,
                     _priceCents!['quinzenal']! / 100),
@@ -258,7 +272,7 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
             title: 'Plano Mensal'.tr,
             price: _priceLabel('mensal'),
             detail: _detailLabel('mensal'),
-            onAderir: pending || store.busy || _priceCents == null
+            onAderir: pending || _aderindo || _priceCents == null
                 ? null
                 : () => _aderir(
                     'mensal', 'Plano Mensal'.tr, _priceCents!['mensal']! / 100),

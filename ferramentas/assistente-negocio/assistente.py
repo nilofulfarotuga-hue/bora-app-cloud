@@ -80,6 +80,34 @@ def tenant_para(sessao, numero):
     return None, "fora"
 
 
+# ----------------------------------------------------------------------------- Secretario Virtual: convite de teste
+# Missao 03/10 bloco 5 (04/10): o prospect recebe por email "escreva TESTE 1234 para o numero da Bora".
+# Numero desconhecido + codigo valido => entra na allowlist do tenant 'secretario-demo' por 7 dias
+# (RPC secretario_ativar, que recusa numeros de outros clientes: Mister Navalha/Ernando, dono, Danilo).
+CODIGO_TESTE_RE = re.compile(r"\bteste\s*[:#-]?\s*(\d{4})\b", re.I)
+BOAS_VINDAS_DEMO = ("Olá! Bem-vindo ao teste do Secretário Virtual da Bora App. "
+                    "Durante 7 dias, este número faz de recepcionista da Barbearia Bora Demo (fictícia). "
+                    "Experimente como se fosse um cliente: peça uma marcação, pergunte o horário ou mande um áudio.")
+
+
+def ativar_convite(sessao, numero, texto):
+    """Devolve o resultado do RPC quando o texto traz um codigo e o numero ainda nao e de nenhum assistente."""
+    m = CODIGO_TESTE_RE.search(texto or "")
+    if not m:
+        return None
+    t, _ = tenant_para(sessao, numero)
+    if t:
+        return None
+    try:
+        return db.rpc("secretario_ativar", {"p_numero": so_digitos(numero), "p_codigo": m.group(1)})
+    except Exception as e:  # sem a migracao aplicada, o assistente continua igual
+        return {"ok": False, "motivo": "erro:%s" % str(e)[:120]}
+
+
+def e_so_o_codigo(texto):
+    return bool(CODIGO_TESTE_RE.fullmatch((texto or "").strip()))
+
+
 def tenant_por_id(tid):
     r = db.ler("assistant_tenants", f"id=eq.{tid}")
     return r[0] if r else None

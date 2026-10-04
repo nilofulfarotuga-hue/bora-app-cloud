@@ -10,6 +10,7 @@ import '../widgets/address_autocomplete_field.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/mandatory_photo_picker.dart';
 import '../widgets/quote_price_footer.dart';
+import 'orders_screen.dart';
 import 'payment_method_screen.dart';
 
 import '../l10n/tr.dart';
@@ -84,7 +85,23 @@ class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
     }
   }
 
-  void _goToPayment() {
+  /// [Pedido duplicado · 04/10] Trava PRÓPRIA do botão "Continuar para
+  /// pagamento" (mesmo defeito do Favor, 03/10): fica true do 1.º toque até o
+  /// ecrã de pagamento fechar. Antes, dois toques abriam dois ecrãs de
+  /// pagamento e criavam dois pedidos.
+  bool _aAbrirPagamento = false;
+
+  Future<void> _goToPayment() async {
+    if (_aAbrirPagamento) return;
+    setState(() => _aAbrirPagamento = true);
+    try {
+      await _goToPaymentInner();
+    } finally {
+      if (mounted) setState(() => _aAbrirPagamento = false);
+    }
+  }
+
+  Future<void> _goToPaymentInner() async {
     final pickupAddress = _pickupController.text.trim();
     final dropoffAddress = _dropoffController.text.trim();
 
@@ -125,12 +142,18 @@ class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
     );
     cart.setPackagePhotoUrl(_packagePhotoUrl);
 
-    Navigator.push<bool>(
+    final ordered = await Navigator.push<bool>(
       context,
       MaterialPageRoute(builder: (_) => const PaymentMethodScreen()),
-    ).then((ordered) {
-      if (ordered == true && mounted) Navigator.pop(context);
-    });
+    );
+    // Pedido criado: sai do formulário para os pedidos (como o Favor), para
+    // não ficar à mão um segundo "Continuar para pagamento".
+    if (ordered == true && mounted) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const OrdersScreen()),
+      );
+    }
   }
 
   @override
@@ -229,7 +252,7 @@ class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: _goToPayment,
+              onPressed: _aAbrirPagamento ? null : _goToPayment,
               child: Text('Continuar para pagamento'.tr),
             ),
           ],

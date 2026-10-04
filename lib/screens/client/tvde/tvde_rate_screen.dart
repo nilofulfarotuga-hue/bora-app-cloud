@@ -8,8 +8,10 @@ import '../../../config/app_spacing.dart';
 import '../../../models/tvde_fare_view.dart';
 import '../../../models/tvde_ride.dart';
 import '../../../services/pending_rating_queue.dart';
+import '../../../services/tip_service.dart';
 import '../../../stores/tvde_store.dart';
 import '../../../widgets/bora/bora.dart';
+import '../../../widgets/tip_selector.dart';
 import '../../../widgets/tvde/tvde_roundtrip_driver_notice.dart';
 
 import '../../../l10n/tr.dart';
@@ -56,9 +58,19 @@ class _TvdeRateScreenState extends State<TvdeRateScreen> {
   /// nunca pelo estado de ocupado de um store partilhado.
   bool _sending = false;
 
+  /// Gorjeta ao motorista (missão 03/10 · bloco 3), igual à Uber: no mesmo
+  /// ecrã da avaliação, valores rápidos + outro valor + sem gorjeta. Cobrada à
+  /// parte no cartão/MB Way da corrida; 100% para o motorista. Só aparece se
+  /// `tips_enabled` estiver ligado e a corrida tiver sido paga na app.
+  bool _gorjetaLigada = false;
+  int _tipCents = 0;
+
   @override
   void initState() {
     super.initState();
+    TipService.ligada().then((v) {
+      if (mounted) setState(() => _gorjetaLigada = v);
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final store = context.read<TvdeStore>();
       final pkg = await TvdeRoundtripPrice.loadForRide(store, widget.ride);
@@ -101,6 +113,17 @@ class _TvdeRateScreenState extends State<TvdeRateScreen> {
       aviso = guardada
           ? 'Avaliação enviada mais tarde.'.tr
           : 'Não foi possível enviar a avaliação.'.tr;
+    }
+
+    // A gorjeta não depende da avaliação ter passado: são coisas separadas.
+    if (_tipCents > 0 && _gorjetaLigada && widget.ride.isPaidOnline) {
+      final r = await TipService.cobrar(
+        target: 'tvde',
+        id: widget.ride.id,
+        cents: _tipCents,
+        moment: 'after',
+      );
+      aviso = r.mensagem;
     }
 
     if (!mounted) return;
@@ -202,6 +225,16 @@ class _TvdeRateScreenState extends State<TvdeRateScreen> {
                   alignLabelWithHint: true,
                 ),
               ),
+              if (_gorjetaLigada && widget.ride.isPaidOnline && !covered) ...[
+                const SizedBox(height: Spacing.lg),
+                Text('Queres deixar uma gorjeta ao motorista?'.tr,
+                    style: const TextStyle(color: AppColors.textSecondary)),
+                const SizedBox(height: Spacing.sm),
+                TipSelector(
+                  enabled: !_sending,
+                  onChanged: (cents) => _tipCents = cents,
+                ),
+              ],
               const SizedBox(height: Spacing.xl),
               BoraPrimaryButton(
                 label: 'Enviar avaliação'.tr,

@@ -61,6 +61,8 @@ class _PayDebtModalState extends State<PayDebtModal> {
   }
 
   Future<void> _confirm() async {
+    // [Pedido duplicado · 04/10] guarda de re-entrada (dois toques no mesmo frame).
+    if (_isLoading) return;
     final amountCents = _resolveAmountCents();
     if (_payMore) {
       final err = _validate(amountCents);

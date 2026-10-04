@@ -1952,7 +1952,8 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   key: const Key('tvde_marcar_para_depois'),
-                  onPressed: canRequest
+                  // [04/10] desligado enquanto a acção da trava corre.
+                  onPressed: canRequest && !_acionando
                       ? (_roundtrip
                           ? _onScheduleRoundtripPressed
                           : _onSchedulePressed)

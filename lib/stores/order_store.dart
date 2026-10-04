@@ -2968,19 +2968,6 @@ class OrderStore extends ChangeNotifier {
     }
   }
 
-  Future<void> _saveOrderToDatabase(OrderModel order) async {
-    final data = order.toSupabase();
-    debugPrint('[FLOW] _saveOrderToDatabase: id=${order.id}');
-    try {
-      await supabase.from('orders').insert(data);
-      debugPrint('[FLOW] _saveOrderToDatabase: OK');
-    } catch (e, stack) {
-      debugPrint('[FLOW] _saveOrderToDatabase: ERROR => $e');
-      debugPrint('[FLOW] _saveOrderToDatabase: stack => $stack');
-      rethrow;
-    }
-  }
-
   Future<bool> _updateOrderStatusInDatabase(
     OrderModel order,
     OrderStatus newStatus, {

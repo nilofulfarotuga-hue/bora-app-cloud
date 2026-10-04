@@ -1003,7 +1003,7 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                 ],
                 _PausaLojaCard(
                   emPausa: emPausa,
-                  voltaAs: (emPausa && pausaAte != null) ? _hhmmLisboa(pausaAte) : null,
+                  voltaAs: emPausa ? _hhmmLisboa(pausaAte) : null,
                   aMudar: _aMudarPausa,
                   onPausar: _escolherPausa,
                   onRetomar: () => _mudarPausa(0),

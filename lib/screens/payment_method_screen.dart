@@ -18,6 +18,7 @@ import 'package:flutter_stripe/flutter_stripe.dart' show StripeException, Failur
 
 import '../models/saved_card.dart';
 import '../services/card_wallet_service.dart';
+import '../services/limite_dinheiro_service.dart';
 import '../services/payment_service.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/card_mandate_notice.dart';
@@ -126,6 +127,11 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   // BUG #1 frontend (§54 / 2026-05-12) — dívida wallet a cobrar neste checkout
   int _debtSettleCents = 0;
 
+  /// UM SÓ TOTAL (04/10/2026): a resposta do `quote_order_pricing` — a mesma
+  /// conta do `create_order`. Enquanto não chega, o ecrã mostra o provisório
+  /// local (já alinhado com o servidor).
+  Map<String, dynamic>? _quote;
+
   // 2026-05-14 — cartoes guardados (Stripe Customer).
   List<SavedCard> _savedCards = const [];
   String? _selectedSavedPmId; // null = "pagar com novo cartao".
@@ -138,6 +144,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     // atualiza a distância para a ROTA Google (a mesma que o create_order
     // usa). O watch<CartStore> do build refaz o total quando chegar.
     context.read<CartStore>().refreshRouteDistance();
+    // Limite do dinheiro: a mesma chave que o servidor usa.
+    LimiteDinheiroService.carregar().then((_) {
+      if (mounted) setState(() {});
+    });
     _loadTokens();
     _loadDebt();
     _loadSavedCards();
@@ -184,11 +194,31 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       );
       if (mounted && quote != null) {
         final debt = (quote['debt_settle_cents'] as num?)?.toInt() ?? 0;
-        setState(() => _debtSettleCents = debt);
+        setState(() {
+          _debtSettleCents = debt;
+          _quote = quote;
+        });
       }
     } catch (e) {
       debugPrint('[PaymentMethodScreen] _loadDebt error: $e');
     }
+  }
+
+  /// O quote só vale se for deste carrinho. A cache do `CartStore` dura 30 s
+  /// e não olha para o carrinho: voltar atrás, mudar o carrinho e regressar
+  /// em menos de 30 s devolvia o total antigo. Conferem-se o tipo de pedido,
+  /// o subtotal (o servidor soma os mesmos preços que o carrinho, ao cêntimo)
+  /// e o apartamento; se não bater, fica o provisório local.
+  Map<String, dynamic>? _quoteDesteCarrinho(CartStore cart) {
+    final q = _quote;
+    if (q == null) return null;
+    final tipo = q['service_type'] as String?;
+    if (tipo != null && tipo != cart.serviceType.name) return null;
+    final sub = (q['subtotal'] as num?)?.toDouble();
+    if (sub == null || (sub - cart.subtotal).abs() > 0.011) return null;
+    final apt = ((q['apartment_surcharge'] as num?)?.toDouble() ?? 0) > 0;
+    if (apt != (cart.apartmentDelivery && !cart.isTakeaway)) return null;
+    return q;
   }
 
   /// 2026-05-14 — busca cartoes guardados via Edge Fn list-saved-cards.
@@ -305,16 +335,32 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     // Taxa de pedido pequeno (2026-08-27): parcela propria somada ao total.
     // Nao se aplica a favores (errand), que tem quote proprio.
     final double smallOrderFee = isErrand ? 0.0 : cartStore.smallOrderFee;
-    final double baseCustomerTotal =
-        (isErrand ? errandTotal : pricing.customerTotal) + smallOrderFee;
+    // UM SÓ TOTAL (04/10/2026): com o quote do servidor, mostra-se o que ele
+    // cobra (`customer_total`, já com a taxa de pedido pequeno). O cálculo
+    // local só fica enquanto o quote não chega.
+    final Map<String, dynamic>? quoteValido =
+        isErrand ? null : _quoteDesteCarrinho(cartStore);
+    final double? totalServidor =
+        (quoteValido?['customer_total'] as num?)?.toDouble();
+    double doServidor(String k, double local) =>
+        (quoteValido?[k] as num?)?.toDouble() ?? local;
+    final double baseCustomerTotal = totalServidor ??
+        ((isErrand ? errandTotal : pricing.customerTotal) + smallOrderFee);
     final double totalAfterWallet =
         (baseCustomerTotal - walletAppliedEur).clamp(0.0, double.infinity);
     final totalToPay = totalAfterWallet;
     final hasApartmentDelivery = cartStore.apartmentDelivery;
-    double baseDeliveryFee = pricing.deliveryFee - pricing.apartmentSurcharge;
+    final double apartmentSurcharge =
+        doServidor('apartment_surcharge', pricing.apartmentSurcharge);
+    double baseDeliveryFee =
+        doServidor('delivery_fee', pricing.deliveryFee) - apartmentSurcharge;
     if (baseDeliveryFee < 0) {
       baseDeliveryFee = 0;
     }
+    final double subtotalMostrado = doServidor('subtotal', pricing.subtotal);
+    final double taxaServicoMostrada =
+        doServidor('service_fee', pricing.serviceFee);
+    final double sacoMostrado = doServidor('bag_fee', pricing.bagFee);
 
     // ── Token discount calculation ─────────────────────────────────────────
     // B3a (2026-06-12): pct lido da DB (token_payment_max_pct, fallback 50)
@@ -333,12 +379,21 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     final double finalPrice =
         (totalToPay - tokenDiscount + debtEur).clamp(0.0, double.infinity);
 
-    // BUG #1 frontend (§54) — CASH disabled se total_pedido + dívida > €40 (limite hardcoded)
-    // BUG fix pós-takeaway (2026-05-14): limite €40 NÃO se aplica a takeaway —
-    // "Pagar na loja" é gerido pelo parceiro, sem estafeta a cobrar dinheiro.
+    // BUG #1 frontend (§54) — CASH disabled se total_pedido + dívida passa o
+    // limite. 04/10/2026: o limite é platform_settings.max_cash_amount_cents
+    // (a mesma chave do gatilho do servidor), e conta também o total do pedido
+    // sem tokens — é esse que o gatilho `enforce_cash_payment_limit` compara.
+    // Takeaway ("Pagar na loja") não tem limite, aqui e no servidor.
     final double totalCashWithDebt = finalPrice; // já inclui dívida + após desconto tokens
-    final bool cashBlockedByLimit =
-        !cartStore.isTakeaway && totalCashWithDebt > 40.0;
+    final bool cashBlockedByLimit = !cartStore.isTakeaway &&
+        LimiteDinheiroService.passaLimite(
+            max(totalCashWithDebt, baseCustomerTotal));
+    final String avisoLimiteDinheiro =
+        'Pagamento em dinheiro só até {0}. Este pedido fica em €{1}. Escolhe Cartão ou MBWay.'
+            .trArgs([
+      LimiteDinheiroService.maxTexto,
+      max(totalCashWithDebt, baseCustomerTotal).toStringAsFixed(2),
+    ]);
 
     // BUG fix pós-takeaway (2026-05-14): em takeaway, "Dinheiro" passa a
     // "Pagar na loja" (parceiro recebe directamente). Valor enviado ao
@@ -411,17 +466,18 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                         ],
                         if (!isErrand)
                           _SummaryRow(
-                              label: 'Subtotal'.tr, value: pricing.subtotal),
-                        if (!isErrand && pricing.serviceFee > 0)
+                              label: 'Subtotal'.tr, value: subtotalMostrado),
+                        if (!isErrand && taxaServicoMostrada > 0)
                           _SummaryRow(
                             label: 'Taxas'.tr,
-                            value: pricing.serviceFee,
+                            value: taxaServicoMostrada,
                             // Risco estilo Uber/Glovo: o 2,50 € antigo
                             // riscado ao lado do 0,99 € actual. Vem de
                             // platform_settings (ver RemoteFeesService).
                             riscado: cartStore.taxaServicoRiscada,
                           ),
-                        if (!isErrand)
+                        // "Ir buscar" não tem entrega — nem linha a 0.
+                        if (!isErrand && !cartStore.isTakeaway)
                           _SummaryRow(
                           label: 'Entrega'.tr,
                           value: baseDeliveryFee,
@@ -464,18 +520,18 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                         // B1 (2026-06-11): linha do saco visível também aqui
                         // (€0,30 restaurante / €0,10×saco mercado) — era
                         // cobrada pelo servidor mas ausente deste resumo.
-                        if (pricing.bagFee > 0)
+                        if (sacoMostrado > 0)
                           _SummaryRow(
                               label: 'Saco para viagem'.tr,
-                              value: pricing.bagFee),
+                              value: sacoMostrado),
                         if (smallOrderFee > 0)
                           _SummaryRow(
                               label: 'Taxa de pedido pequeno'.tr,
                               value: smallOrderFee),
-                        if (pricing.apartmentSurcharge > 0)
+                        if (apartmentSurcharge > 0)
                           _SummaryRow(
                             label: 'Entrega em apartamento'.tr,
-                            value: pricing.apartmentSurcharge,
+                            value: apartmentSurcharge,
                           ),
                         if (hasApartmentDelivery)
                           Padding(
@@ -675,9 +731,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                       option: option,
                       groupValue: _selectedMethod,
                       disabled: disabled,
-                      disabledTooltip: disabled
-                          ? 'Limite dinheiro €40 excedido. Tens €{0} de dívida + €{1} deste pedido = €{2}. Escolhe Cartão ou MBWay.'.trArgs([debtEur.toStringAsFixed(2), (finalPrice - debtEur).toStringAsFixed(2), finalPrice.toStringAsFixed(2)])
-                          : null,
+                      disabledTooltip: disabled ? avisoLimiteDinheiro : null,
                       onChanged: (value) {
                         if (value != null) {
                           setState(() => _selectedMethod = value);
@@ -686,6 +740,17 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                     );
                   }).toList(),
                 ),
+                // 04/10/2026: o bloqueio do dinheiro diz-se por escrito — nunca
+                // só um botão cinzento (o tooltip só aparecia ao tocar).
+                if (cashBlockedByLimit)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      avisoLimiteDinheiro,
+                      style: const TextStyle(
+                          fontSize: 12.5, color: AppColors.textSecondary),
+                    ),
+                  ),
                 // FAVORES (§55.4) — clareza cartão (garantia ×1,2) vs dinheiro.
                 if (isErrand && errPurchase > 0) ...[
                   const SizedBox(height: 8),
@@ -883,6 +948,18 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     if (err.contains('token_cap_exceeded')) {
       return 'O desconto em Bora Tokens excede o máximo de {0}% do pedido.'.trArgs([_tokenMaxPct]);
     }
+    // 04/10/2026: nunca o genérico quando se sabe a razão.
+    if (err.contains('CASH_LIMIT_EXCEEDED')) {
+      return 'Pagamento em dinheiro só até {0}. Escolhe Cartão ou MBWay.'
+          .trArgs([LimiteDinheiroService.maxTexto]);
+    }
+    if (err.contains('STORE_PAUSED')) {
+      return 'A loja está em pausa e não está a aceitar pedidos agora. Tenta daqui a pouco.'.tr;
+    }
+    if (err.contains('TAKEAWAY_NOT_ENABLED') ||
+        err.contains('TAKEAWAY_REQUIRES_PARTNER')) {
+      return 'Esta loja não aceita "Ir buscar". Escolhe entrega.'.tr;
+    }
     return 'Não foi possível criar o pedido. Tente novamente.'.tr;
   }
 
@@ -950,7 +1027,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     // Pre-flight: block payment if delivery address is not set.
     // This prevents charging the user and then failing at order creation.
     final cartStore = context.read<CartStore>();
-    if (cartStore.deliveryLocation == null || cartStore.dropoffStreet.isEmpty) {
+    // "Ir buscar": o cliente vai à loja — não há morada de entrega a exigir.
+    if (!cartStore.isTakeaway &&
+        (cartStore.deliveryLocation == null ||
+            cartStore.dropoffStreet.isEmpty)) {
       messenger.showSnackBar(
         SnackBar(
           content: Text(
@@ -1026,8 +1106,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       // A taxa de pedido pequeno conta para saber se o saldo cobre TUDO —
       // senao um carrinho com taxa cairia no caminho legacy sem cobrar nada.
       final cartTotalAfterWallet =
-          cartStore.pricingBreakdown.customerTotal +
-              cartStore.smallOrderFee -
+          ((_quoteDesteCarrinho(cartStore)?['customer_total'] as num?)
+                  ?.toDouble() ??
+                  (cartStore.pricingBreakdown.customerTotal +
+                      cartStore.smallOrderFee)) -
               (cartStore.walletAppliedCents / 100.0);
       if (cartTotalAfterWallet <= 0) {
         debugPrint('[Checkout] wallet covers full order — using legacy path');

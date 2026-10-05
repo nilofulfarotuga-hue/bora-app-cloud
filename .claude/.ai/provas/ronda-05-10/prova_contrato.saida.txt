@@ -1,0 +1,24 @@
+== A. cliente demo: demo@bora.app
+A1 quote_order_pricing http 200
+   service_type = storeShopping
+   subtotal = 4.72
+   service_fee = 0.99
+   delivery_fee = 2.5
+   bag_fee = 0.1
+   apartment_surcharge = 0
+   small_order_fee = 1.39
+   customer_total = 9.7
+   debt_settle_cents = 0
+A2 subtotal do servidor bate com o do carrinho (4.72): true
+A3 soma das parcelas = 9.70 | customer_total = 9.7
+A4 carrinho_guardar http 204 
+A5 lido de volta: [{"loja":"Auchan","loja_id":"auchan-guarda","resumo":"2× IOGURTE DANONE AROMA MORANGO BANANA E TUTTI FRUTTI 8X120G","total":9.7,"n_itens":2,"convertido_em":null,"avisado_em":null}]
+A6 carrinho_convertido http 204 
+A7 depois: n_itens = 0 | convertido_em preenchido = true
+A8 carrinho_guardar SEM sessão http 401 (tem de recusar)
+== B. estafeta demo: demo-estafeta@bora.app
+B1 segredo_obter http 200 | ok = true | driver_id = dede0000-0000-4000-8000-000000000001 | tamanho do segredo = 64
+B2 pedir outra vez devolve o mesmo segredo: true
+B3 batimento SEM sessão, segredo certo: http 200 {"ok":true,"driver_id":"dede0000-0000-4000-8000-000000000001","heartbeat_at":"2026-10-05T06:01:03.532366+00:00"}
+B4 batimento SEM sessão, segredo errado: http 200 {"ok":false,"error":"forbidden"}
+B5 segredo_obter SEM sessão http 401 (tem de recusar)

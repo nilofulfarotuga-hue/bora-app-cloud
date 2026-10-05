@@ -1,4 +1,4 @@
-import 'dart:async' show unawaited;
+import 'dart:async' show Timer, unawaited;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -32,23 +32,16 @@ class CartScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final cartStore = context.watch<CartStore>();
     final pricing = cartStore.pricingBreakdown;
+    // UM SÓ TOTAL (05/10/2026): as parcelas e o total são os do
+    // `CartStore.resumo` — os do servidor assim que o quote chega, o cálculo
+    // local até lá. É a mesma fonte do ecrã de pagamento.
+    final resumo = cartStore.resumo;
 
     final apartmentEnabled = cartStore.apartmentDelivery;
-    double baseDeliveryFee = pricing.deliveryFee - pricing.apartmentSurcharge;
-    if (baseDeliveryFee < 0) {
-      baseDeliveryFee = 0;
-    }
-    // Takeaway (BR §14.9) — client skips delivery fee entirely.
-    // Gorjeta (BR §4.5) — somada ao total final (split 80/20 a jusante).
-    // Taxa de pedido pequeno (2026-08-27): parcela propria, somada ao total.
-    // Vive fora do OrderPricingBreakdown porque `pricing_service.dart` e zona
-    // protegida — os valores vem de `platform_settings` (nunca do codigo) e o
-    // servidor cobra pela mesma regra.
-    final totalToPay = (cartStore.isTakeaway
-            ? (pricing.customerTotal - pricing.deliveryFee)
-            : pricing.customerTotal) +
-        cartStore.smallOrderFee +
-        cartStore.tipEur;
+    // A gorjeta fica FORA do total: é cobrada à parte, depois do pedido, e o
+    // ecrã de pagamento nunca a somou — os dois totais diferiam e o saldo
+    // Bora era calculado sobre um valor com gorjeta.
+    final totalToPay = resumo.total;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -97,8 +90,8 @@ class CartScreen extends StatelessWidget {
             child: _CheckoutPanel(
               cartStore: cartStore,
               pricing: pricing,
+              resumo: resumo,
               apartmentEnabled: apartmentEnabled,
-              baseDeliveryFee: baseDeliveryFee,
               totalToPay: totalToPay,
             ),
           ),
@@ -235,15 +228,15 @@ class _CheckoutPanel extends StatefulWidget {
   const _CheckoutPanel({
     required this.cartStore,
     required this.pricing,
+    required this.resumo,
     required this.apartmentEnabled,
-    required this.baseDeliveryFee,
     required this.totalToPay,
   });
 
   final CartStore cartStore;
   final dynamic pricing;
+  final ResumoDoCarrinho resumo;
   final bool apartmentEnabled;
-  final double baseDeliveryFee;
   final double totalToPay;
 
   @override
@@ -269,11 +262,33 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
     }
   }
 
+  /// UM SÓ TOTAL (05/10/2026): o painel pede ao servidor o quote DESTE
+  /// carrinho ao abrir e sempre que ele muda — com uma pausa, para não sair
+  /// uma chamada por cada toque no "+". O [CartStore] avisa quando chega.
+  late final CartStore _cart = context.read<CartStore>();
+  Timer? _quoteTimer;
+
+  void _pedirQuoteComPausa() {
+    _quoteTimer?.cancel();
+    _quoteTimer = Timer(const Duration(milliseconds: 600), () {
+      if (mounted) unawaited(_cart.quoteOrderPricing());
+    });
+  }
+
+  @override
+  void dispose() {
+    _cart.removeListener(_pedirQuoteComPausa);
+    _quoteTimer?.cancel();
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
     // M-E (2026-06-10): total do painel com distância de ROTA (= cobrança).
-    context.read<CartStore>().refreshRouteDistance();
+    _cart.refreshRouteDistance();
+    _cart.addListener(_pedirQuoteComPausa);
+    unawaited(_cart.quoteOrderPricing());
     _loadWallet();
     TipService.ligada().then((v) {
       if (!mounted) return;
@@ -327,8 +342,9 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
   Widget build(BuildContext context) {
     final cartStore = widget.cartStore;
     final pricing = widget.pricing;
+    final resumo = widget.resumo;
     final apartmentEnabled = widget.apartmentEnabled;
-    final baseDeliveryFee = widget.baseDeliveryFee;
+    final baseDeliveryFee = resumo.entrega;
     final totalToPay = widget.totalToPay;
     final walletAppliedCents = _walletAppliedCents();
     final walletAppliedEur = walletAppliedCents / 100;
@@ -388,7 +404,7 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                         subtitle: Text(
-                          'Sem taxa de entrega. Recebes aviso quando estiver pronto. (BR §14.9)'.tr,
+                          'Sem taxa de entrega. Recebes aviso quando estiver pronto.'.tr,
                           style: const TextStyle(fontSize: 12),
                         ),
                       ),
@@ -410,11 +426,11 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                       ),
                     ),
                     const SizedBox(height: Spacing.sm),
-                    _SummaryRow(label: 'Subtotal'.tr, value: cartStore.total),
-                    if (pricing.serviceFee > 0)
+                    _SummaryRow(label: 'Subtotal'.tr, value: resumo.subtotal),
+                    if (resumo.taxaServico > 0)
                       _SummaryRow(
                         label: 'Taxa de serviço'.tr,
-                        value: pricing.serviceFee,
+                        value: resumo.taxaServico,
                         // Risco estilo Uber/Glovo: 2,50 € riscado ao lado do
                         // 0,99 €. Vem de platform_settings — pôr 0 na chave
                         // do risco faz desaparecer sem tocar em código.
@@ -434,14 +450,14 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                         return '€2.50 base + €{0} por {1}km extra'.trArgs([extraCharge.toStringAsFixed(2), extra.toStringAsFixed(1)]);
                       }(),
                     ),
-                    if (pricing.apartmentSurcharge > 0)
+                    if (resumo.apartamento > 0)
                       _SummaryRow(
                         label: 'Entrega em apartamento'.tr,
-                        value: pricing.apartmentSurcharge,
+                        value: resumo.apartamento,
                       ),
-                    if (pricing.bagFee > 0)
+                    if (resumo.saco > 0)
                       _SummaryRow(
-                          label: 'Saco para viagem'.tr, value: pricing.bagFee),
+                          label: 'Saco para viagem'.tr, value: resumo.saco),
                     if (cartStore.smallOrderFee > 0)
                       _SummaryRow(
                         label: 'Taxa de pedido pequeno'.tr,

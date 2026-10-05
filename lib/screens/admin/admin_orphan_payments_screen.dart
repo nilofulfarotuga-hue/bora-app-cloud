@@ -43,12 +43,76 @@ class _AdminOrphanPaymentsScreenState extends State<AdminOrphanPaymentsScreen> {
     await _future;
   }
 
-  Future<void> _deleteDraft(String draftId) async {
+  Future<void> _deleteDraft(Map<String, dynamic> row) async {
+    final draftId = row['id'] as String?;
+    if (draftId == null) return;
+    // [ronda 04/10] Apagar um rascunho não se desfaz, e sem ele um pagamento
+    // que ainda entre não vira pedido (`finalize-order-from-intent` devolve
+    // draft_not_found): confirma-se antes e fica na auditoria.
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Excluir este rascunho de pagamento?'),
+        content: const Text(
+            'Não dá para desfazer. O rascunho guarda o carrinho de um '
+            'pagamento por cartão que ainda não virou pedido: se o cliente '
+            'ainda pagar, o pedido não é criado sozinho.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Excluir')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
     try {
-      await Supabase.instance.client.from('payment_drafts').delete().eq('id', draftId);
+      final sb = Supabase.instance.client;
+      // Sem permissão a base apaga ZERO linhas e não dá erro (hoje a tabela só
+      // deixa ler): pede-se de volta o que saiu e só então se diz "apagado" e
+      // se regista — nunca uma exclusão que não aconteceu.
+      final apagados = await sb
+          .from('payment_drafts')
+          .delete()
+          .eq('id', draftId)
+          .select('id');
+      if (apagados.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text(
+                    'O servidor não deixou excluir este rascunho. Ele some '
+                    'sozinho depois de expirar.')),
+          );
+        }
+        return;
+      }
+      // A auditoria falhar não desfaz o que já foi apagado: diz-se a verdade.
+      var registado = true;
+      try {
+        await sb.rpc('log_admin_action', params: {
+          'p_action': 'rascunho_pagamento_excluido',
+          'p_entity_type': 'payment_draft',
+          'p_entity_id': draftId,
+          'p_details': {
+            'payment_intent_id': row['payment_intent_id'],
+            'valor': row['amount'],
+            'idade_minutos': row['age_minutes'],
+            'estado': row['notes'],
+          },
+        });
+      } catch (e) {
+        registado = false;
+        debugPrint('[AdminOrphanPayments] auditoria: $e');
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Draft apagado.')),
+          SnackBar(
+              content: Text(registado
+                  ? 'Draft apagado.'
+                  : 'Draft apagado, mas não ficou registrado na auditoria.')),
         );
       }
       await _refresh();
@@ -131,7 +195,7 @@ class _OrphanCard extends StatelessWidget {
   const _OrphanCard({required this.row, required this.onDelete});
 
   final Map<String, dynamic> row;
-  final Future<void> Function(String draftId) onDelete;
+  final Future<void> Function(Map<String, dynamic> row) onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -179,7 +243,7 @@ class _OrphanCard extends StatelessWidget {
                 child: TextButton.icon(
                   icon: const Icon(Icons.delete, size: 16),
                   label: const Text('Excluir draft'),
-                  onPressed: () => onDelete(id),
+                  onPressed: () => onDelete(row),
                 ),
               ),
             ],

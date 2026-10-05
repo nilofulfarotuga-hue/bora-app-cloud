@@ -426,6 +426,10 @@ class _PartnerCallDriverScreenState extends State<PartnerCallDriverScreen> {
       case 'loja_nao_parceira':
       case 'forbidden':
         return 'Esta loja não pode chamar estafetas. Fala com a Bora.';
+      // [05/10/2026] Interruptor `dispatch_parceiro_chama_estafeta_ligado`:
+      // desligado até o acerto destes pedidos estar certo.
+      case 'indisponivel':
+        return 'Chamar estafeta por aqui ainda não está disponível. A Bora avisa-te quando abrir.';
       default:
         if (error.toString().contains('CASH_LIMIT_EXCEEDED')) {
           return 'O total passa o limite de pagamento em dinheiro. Divide a encomenda.';

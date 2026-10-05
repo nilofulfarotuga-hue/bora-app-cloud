@@ -2517,8 +2517,14 @@ const Map<String, String> kStringsEn = <String, String>{
       'No results for that search.',
   'Sem sugestões automáticas neste momento.':
       'No automatic suggestions right now.',
-  'Sem taxa de entrega. Recebes aviso quando estiver pronto. (BR §14.9)':
-      'No delivery fee. You get a notification when it is ready. (BR §14.9)',
+  'Sem taxa de entrega. Recebes aviso quando estiver pronto.':
+      'No delivery fee. You get a notification when it is ready.',
+  'Deixar à porta':
+      'Leave at the door',
+  'O estafeta deixa o pedido à tua porta e tira uma foto.':
+      'The courier leaves the order at your door and takes a photo.',
+  'Com pagamento em dinheiro o estafeta entrega-te o pedido em mão.':
+      'With cash payment the courier hands you the order in person.',
   'Sem tokens disponíveis':
       'No tokens available',
   'Sentado':

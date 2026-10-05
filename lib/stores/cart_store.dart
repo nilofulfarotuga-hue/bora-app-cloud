@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -80,6 +81,28 @@ class CartStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// "Deixar à porta" (05/10/2026): o cliente pede ao estafeta que deixe o
+  /// pedido à porta em vez de o entregar em mão. Vai para
+  /// `orders.deixar_a_porta` e o estafeta fecha a entrega com uma foto.
+  /// Transiente — morre com o carrinho e ao mudar de loja.
+  bool _deixarAPorta = false;
+  bool get deixarAPorta => _deixarAPorta;
+  void setDeixarAPorta(bool value) {
+    if (_deixarAPorta == value) return;
+    _deixarAPorta = value;
+    notifyListeners();
+  }
+
+  /// O que segue MESMO no pedido. Só em compras de loja com entrega e com o
+  /// pedido já pago: em dinheiro alguém tem de receber a nota, e o servidor
+  /// (`create_order`) grava o que lhe mandarem sem olhar ao método.
+  @visibleForTesting
+  bool deixarAPortaNoPedido(PaymentMethod metodo) =>
+      _deixarAPorta &&
+      metodo != PaymentMethod.cash &&
+      (_serviceType == OrderServiceType.restaurant ||
+          _serviceType == OrderServiceType.storeShopping);
+
   CartStore() {
     _loadCart();
   }
@@ -87,6 +110,7 @@ class CartStore extends ChangeNotifier {
   // ── Persistence ──────────────────────────────────────────────────────────
 
   Future<void> _saveCart() async {
+    _agendarRetrato();
     try {
       final prefs = await SharedPreferences.getInstance();
       final data = jsonEncode({
@@ -384,36 +408,169 @@ class CartStore extends ChangeNotifier {
   //
   // Cache 30s para evitar quota spam. Returns null em erro (fallback caller
   // usa pricingBreakdown local + disclaimer "Total estimado").
+  //
+  // CACHE PRESA AO CARRINHO (05/10/2026): o quote guardado só vale para a
+  // entrada com que foi pedido ([_quoteCacheChave]). Antes durava 30 s fosse
+  // qual fosse o carrinho — mudar um item e voltar a olhar mostrava a taxa e
+  // o total do carrinho ANTERIOR. Quem o larga é o [notifyListeners]: todas
+  // as mudanças do carrinho passam por lá.
   Map<String, dynamic>? _quoteCache;
   DateTime? _quoteCacheTime;
+  String? _quoteCacheChave;
+
+  /// Pedido a caminho e a entrada a que responde: dois ecrãs a pedir o mesmo
+  /// quote ao mesmo tempo fazem UMA chamada.
+  Future<Map<String, dynamic>?>? _quoteEmCurso;
+  String? _quoteEmCursoChave;
+
+  /// Só para testes: faz de servidor no lugar da RPC `quote_order_pricing`.
+  @visibleForTesting
+  Future<Object?> Function(Map<String, dynamic> entrada)? chamarQuoteParaTeste;
+
+  /// A entrada do quote em texto — é a chave da cache. `null` sem moradas.
+  ///
+  /// O saldo aplicado fica de fora: não muda as parcelas nem o
+  /// `customer_total` (só o que sobra para cobrar), e com ele na chave ligar
+  /// "Usar saldo Bora" largava o quote e o total piscava para o cálculo local.
+  String? _chaveDoQuote() {
+    try {
+      final entrada = entradaDoQuote();
+      if (entrada == null) return null;
+      return jsonEncode(entrada..remove('wallet_applied_cents'));
+    } catch (e) {
+      // Nunca rebentar dentro do notifyListeners: sem chave não há quote.
+      debugPrint('[CartStore] chave do quote falhou: $e');
+      return null;
+    }
+  }
+
+  bool get _eCompraDeLoja =>
+      _serviceType == OrderServiceType.restaurant ||
+      _serviceType == OrderServiceType.storeShopping ||
+      _serviceType == OrderServiceType.takeaway;
+
+  @override
+  void notifyListeners() {
+    if (_quoteCache != null && _quoteCacheChave != _chaveDoQuote()) {
+      _quoteCache = null;
+      _quoteCacheTime = null;
+      _quoteCacheChave = null;
+    }
+    super.notifyListeners();
+  }
 
   Future<Map<String, dynamic>?> quoteOrderPricing({
     int walletAppliedCents = 0,
-  }) async {
-    // Cache hit (30s freshness)
-    final now = DateTime.now();
+  }) {
+    final chave = _chaveDoQuote();
+    final cartInput = chave == null ? null : entradaDoQuote();
+    if (chave == null || cartInput == null) return Future.value(null);
+    // Carrinho de loja vazio: não há nada para orçamentar.
+    if (_items.isEmpty && _eCompraDeLoja) return Future.value(null);
+
+    // Cache hit (30s freshness) — só o quote DESTE carrinho.
     if (_quoteCache != null &&
+        _quoteCacheChave == chave &&
         _quoteCacheTime != null &&
-        now.difference(_quoteCacheTime!).inSeconds < 30) {
-      return _quoteCache;
+        DateTime.now().difference(_quoteCacheTime!).inSeconds < 30) {
+      return Future.value(_quoteCache);
     }
+    if (_quoteEmCurso != null && _quoteEmCursoChave == chave) {
+      return _quoteEmCurso!;
+    }
+    final pedido = _pedirQuote(cartInput, chave);
+    _quoteEmCurso = pedido;
+    _quoteEmCursoChave = chave;
+    return pedido;
+  }
 
-    if (_pickupLocation == null || _deliveryLocation == null) return null;
-
-    final cartInput = entradaDoQuote()!;
-
+  Future<Map<String, dynamic>?> _pedirQuote(
+    Map<String, dynamic> cartInput,
+    String chave,
+  ) async {
+    // Dá tempo a quem chamou de registar este pedido como "a caminho" antes
+    // de alguma coisa aqui poder falhar — senão o `finally` corria primeiro e
+    // a marca ficava presa a esta entrada para sempre.
+    await null;
     try {
-      final result = await Supabase.instance.client
-          .rpc('quote_order_pricing', params: {'p_input': cartInput});
+      final deTeste = chamarQuoteParaTeste;
+      final Object? result;
+      if (deTeste != null) {
+        result = await deTeste(cartInput);
+      } else if (!_temSessao()) {
+        result = null; // sem sessão o servidor recusa: nem se pergunta
+      } else {
+        result = await Supabase.instance.client
+            .rpc('quote_order_pricing', params: {'p_input': cartInput});
+      }
       if (result is Map) {
-        _quoteCache = Map<String, dynamic>.from(result);
-        _quoteCacheTime = now;
-        return _quoteCache;
+        final quote = Map<String, dynamic>.from(result);
+        // O carrinho pode ter mudado enquanto o servidor respondia: a
+        // resposta só fica guardada se ainda for a deste carrinho.
+        if (_chaveDoQuote() == chave) {
+          _quoteCache = quote;
+          _quoteCacheTime = DateTime.now();
+          _quoteCacheChave = chave;
+          // Os ecrãs passam do provisório local ao total do servidor.
+          notifyListeners();
+        }
+        return quote;
       }
     } catch (e) {
       debugPrint('[CartStore] quote_order_pricing failed: $e');
+    } finally {
+      if (_quoteEmCursoChave == chave) {
+        _quoteEmCurso = null;
+        _quoteEmCursoChave = null;
+      }
     }
     return null;
+  }
+
+  /// O quote do servidor PARA ESTE carrinho, ou `null` enquanto não chega.
+  ///
+  /// Além de ser da mesma entrada (a cache já o garante), a resposta tem de
+  /// bater com o que o cliente vê: o tipo de pedido, o subtotal (o servidor
+  /// soma os mesmos preços que o carrinho, ao cêntimo) e o apartamento. Se
+  /// não bater fica o provisório local — nunca o total de outra conta.
+  Map<String, dynamic>? get quoteDoCarrinho {
+    final q = _quoteCache;
+    if (q == null) return null;
+    final tipo = q['service_type'] as String?;
+    if (tipo != null && tipo != _serviceType.name) return null;
+    final sub = (q['subtotal'] as num?)?.toDouble();
+    if (sub == null || (sub - subtotal).abs() > 0.011) return null;
+    final apt = ((q['apartment_surcharge'] as num?)?.toDouble() ?? 0) > 0;
+    if (apt != (_apartmentDelivery && !isTakeaway)) return null;
+    return q;
+  }
+
+  /// UM SÓ TOTAL (05/10/2026): as parcelas e o total que o carrinho E o ecrã
+  /// de pagamento mostram. São os do servidor assim que o quote chega
+  /// (`customer_total` — a mesma conta do `create_order`, já com a taxa de
+  /// pedido pequeno) e o cálculo local até lá.
+  ///
+  /// A gorjeta NÃO entra: é cobrada à parte, depois do pedido.
+  ResumoDoCarrinho get resumo {
+    final local = pricingBreakdown;
+    // Favores têm quote próprio (`errandSession.quote`), não este.
+    final eFavor = _serviceType == OrderServiceType.errand;
+    final q = eFavor ? null : quoteDoCarrinho;
+    double valor(String k, double l) => (q?[k] as num?)?.toDouble() ?? l;
+    final apartamento = valor('apartment_surcharge', local.apartmentSurcharge);
+    final entrega = valor('delivery_fee', local.deliveryFee) - apartamento;
+    final taxaPedidoPequeno = eFavor ? 0.0 : smallOrderFee;
+    return ResumoDoCarrinho(
+      subtotal: valor('subtotal', local.subtotal),
+      taxaServico: valor('service_fee', local.serviceFee),
+      entrega: entrega < 0 ? 0 : entrega,
+      apartamento: apartamento,
+      saco: valor('bag_fee', local.bagFee),
+      taxaPedidoPequeno: taxaPedidoPequeno,
+      total: (q?['customer_total'] as num?)?.toDouble() ??
+          (local.customerTotal + taxaPedidoPequeno),
+      doServidor: q != null,
+    );
   }
 
   /// O `p_input` que se manda ao `quote_order_pricing`. Fica à parte para se
@@ -462,10 +619,6 @@ class CartStore extends ChangeNotifier {
     };
   }
 
-  // Cache invalidation hook — chamar a partir de setters quando cart muda.
-  // Não exposto agora (30s freshness é aceitável para o use case checkout).
-  // Quando necessário invalidar manualmente: _quoteCache=null; _quoteCacheTime=null;
-
   // BR §14.9 — Takeaway agora é derivado de _serviceType (single source of
   // truth). Coluna `is_takeaway` foi APAGADA no servidor. O getter público
   // mantém compatibilidade com call sites existentes que verificam
@@ -494,6 +647,9 @@ class CartStore extends ChangeNotifier {
     if (type != OrderServiceType.takeaway) {
       _isCurbside = false;
       _curbsideInfo = null;
+    } else {
+      // E "deixar à porta" só em entrega — quem vai buscar não tem porta.
+      _deixarAPorta = false;
     }
     notifyListeners();
   }
@@ -578,6 +734,7 @@ class CartStore extends ChangeNotifier {
     _serviceType = OrderServiceType.errand;
     _isPartnerStore = false;
     _requiresCar = false;
+    _deixarAPorta = false;
     _vendorName = null;
     _pickupLocation = home; // null se não houver paragem-casa
     _deliveryLocation = dropoff;
@@ -660,7 +817,10 @@ class CartStore extends ChangeNotifier {
       SmallOrderFeeService.carregarLoja(vendorRestaurantId)
           .then((_) => notifyListeners());
     }
-    if (!isSameContext) _festasQuando = null;
+    if (!isSameContext) {
+      _festasQuando = null;
+      _deixarAPorta = false;
+    }
     _vendorName = vendorName;
     _pickupStreet = pickupStreet;
     _pickupCity = pickupCity;
@@ -749,10 +909,13 @@ class CartStore extends ChangeNotifier {
           routeKm.isFinite &&
           routeKm > 0 &&
           (routeKm - _distanceKm).abs() > 0.01) {
+        // Havia total do servidor no ecrã (ou a caminho)? A distância entra
+        // no quote, por isso o guardado cai no notifyListeners — pede-se já
+        // o da distância certa, senão o ecrã ficava no provisório local.
+        final haviaQuote = _quoteCache != null || _quoteEmCurso != null;
         _distanceKm = routeKm;
-        _quoteCache = null; // total mudou — quote server cacheado ficou stale
-        _quoteCacheTime = null;
         notifyListeners();
+        if (haviaQuote) unawaited(quoteOrderPricing());
       }
     } catch (e) {
       debugPrint('[CartStore] refreshRouteDistance error: $e');
@@ -837,6 +1000,7 @@ class CartStore extends ChangeNotifier {
     // trocar de loja e davam erro "não foi possível finalizar".
     _items.clear();
     _apartmentDelivery = false;
+    _deixarAPorta = false;
     _tipCents = 0;
     _walletAppliedCents = 0;
     // D4 — takeaway agora é derivado de _serviceType. Reset = default restaurant.
@@ -925,6 +1089,7 @@ class CartStore extends ChangeNotifier {
       clientPhone: clientPhone,
       customerName: customerName,
       apartmentDelivery: _apartmentDelivery,
+      deixarAPorta: deixarAPortaNoPedido(PaymentMethod.card),
       walletAppliedCents: _walletAppliedCents,
       // FAVORES (errand)
       errandDescription: _errandSession?.description,
@@ -991,6 +1156,10 @@ class CartStore extends ChangeNotifier {
     }
 
     final breakdown = pricingBreakdown;
+    // O total que o ecrã mostrou (o do servidor, quando chegou) é o que a
+    // pré-verificação do limite do dinheiro tem de comparar — o cálculo local
+    // do `createOrder` não conhece a taxa de pedido pequeno.
+    final resumoMostrado = resumo;
 
     final success = await orderStore.createOrder(
       serviceType: _serviceType,
@@ -1030,6 +1199,8 @@ class CartStore extends ChangeNotifier {
       clientPhone: clientPhone,
       customerName: customerName,
       apartmentDelivery: _apartmentDelivery,
+      deixarAPorta: deixarAPortaNoPedido(paymentMethod),
+      totalServidor: resumoMostrado.doServidor ? resumoMostrado.total : null,
       tokenDiscountEur: tokensUsed * BRTokens.TOKEN_VALUE_EUR,
       packagePhotoUrl: _packagePhotoUrl,
       groceriesPhotoUrl: _groceriesPhotoUrl,
@@ -1096,6 +1267,97 @@ class CartStore extends ChangeNotifier {
     clearCart();
     return true;
   }
+
+  // ── CARRINHO ABANDONADO (05/10/2026) ─────────────────────────────────────
+  // O servidor guarda um retrato do carrinho de quem tem sessão
+  // (`carrinho_guardar`, um por pessoa) para o aviso "ficou alguma coisa no
+  // teu carrinho" — que nasce DESLIGADO e se liga no painel admin. Vai 8 s
+  // depois da última mexida, para não sair uma chamada por cada toque no "+".
+  // Carrinho vazio (virou pedido ou foi esvaziado) = `carrinho_convertido`.
+  // Falhar aqui nunca toca no carrinho.
+  static const _kPausaDoRetrato = Duration(seconds: 8);
+  Timer? _retratoTimer;
+
+  void _agendarRetrato() {
+    _retratoTimer?.cancel();
+    if (!_temContaPropria()) return;
+    _retratoTimer = Timer(_kPausaDoRetrato, _mandarRetrato);
+  }
+
+  bool _temSessao() {
+    try {
+      return Supabase.instance.client.auth.currentUser != null;
+    } catch (_) {
+      return false; // Supabase por iniciar (testes)
+    }
+  }
+
+  /// Sessão de uma conta PRÓPRIA. A conta partilhada do modo convidado não
+  /// conta: o retrato é um por conta, e todos os convidados escreveriam (e
+  /// apagariam) o mesmo.
+  bool _temContaPropria() {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      return user != null && user.email != 'guest@bora.com';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _mandarRetrato() async {
+    if (!_temContaPropria()) return;
+    try {
+      final supabase = Supabase.instance.client;
+      if (_items.isEmpty || !_eCompraDeLoja) {
+        await supabase.rpc('carrinho_convertido');
+        return;
+      }
+      await supabase.rpc('carrinho_guardar', params: {
+        'p_loja': _vendorName,
+        'p_loja_id': _vendorRestaurantId,
+        'p_resumo': _items.map((i) => '${i.quantity}× ${i.name}').join(', '),
+        'p_total': double.parse(resumo.total.toStringAsFixed(2)),
+        'p_n_itens': totalItems,
+      });
+    } catch (e) {
+      debugPrint('[CartStore] retrato do carrinho falhou: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _retratoTimer?.cancel();
+    super.dispose();
+  }
+}
+
+/// As parcelas e o total de um carrinho — ver [CartStore.resumo].
+class ResumoDoCarrinho {
+  const ResumoDoCarrinho({
+    required this.subtotal,
+    required this.taxaServico,
+    required this.entrega,
+    required this.apartamento,
+    required this.saco,
+    required this.taxaPedidoPequeno,
+    required this.total,
+    required this.doServidor,
+  });
+
+  final double subtotal;
+  final double taxaServico;
+
+  /// Entrega SEM o acréscimo de apartamento (esse tem linha própria).
+  final double entrega;
+  final double apartamento;
+  final double saco;
+  final double taxaPedidoPequeno;
+
+  /// O que o cliente paga pelo pedido, antes de saldo, tokens e dívida.
+  final double total;
+
+  /// `true` = números do `quote_order_pricing`; `false` = cálculo local.
+  final bool doServidor;
 }
 
 /// FAVORES (errand) — payload persistido entre o wizard cliente e o

@@ -1,0 +1,15 @@
+sem token → 403, e o motor não consulta nem escreve nada ... ok
+chave pública da app (papel anon) → 403 ... ok
+chave de serviço do ambiente → 200 (gatilhos, webhooks e o próprio motor) ... ok
+chave de serviço do cofre: a Auth valida uma vez, depois fica em memória ... ok
+chave "de serviço" que a Auth não aceita → 403 ... ok
+app: estafeta aprovado, dono do pedido e dono da loja passam; um estranho não ... ok
+app: admin passa ... ok
+a oferta vai para o primeiro candidato do banco (user_id na oferta, drivers.id nos tentados) ... ok
+depois de oferecer, o motor volta a chamar-se com a chave de serviço (que a porta nova aceita) ... ok
+quem já foi tentado é saltado, venha escrito como drivers.id ou como user_id ... ok
+todos os candidatos tentados → o ciclo recomeça pelo primeiro ... ok
+sem candidatos → limpa a oferta, não atribui, e fica a tentar de novo ... ok
+erro na função de candidatos → ninguém recebe oferta por outro caminho; a cadeia volta a tentar ... ok
+o matching antigo saiu: nenhuma consulta directa a drivers (para escolher) nem a tvde_rides ... ok
+ok | 14 passed | 0 failed

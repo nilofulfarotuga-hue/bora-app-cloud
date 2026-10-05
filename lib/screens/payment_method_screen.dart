@@ -127,11 +127,6 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   // BUG #1 frontend (§54 / 2026-05-12) — dívida wallet a cobrar neste checkout
   int _debtSettleCents = 0;
 
-  /// UM SÓ TOTAL (04/10/2026): a resposta do `quote_order_pricing` — a mesma
-  /// conta do `create_order`. Enquanto não chega, o ecrã mostra o provisório
-  /// local (já alinhado com o servidor).
-  Map<String, dynamic>? _quote;
-
   // 2026-05-14 — cartoes guardados (Stripe Customer).
   List<SavedCard> _savedCards = const [];
   String? _selectedSavedPmId; // null = "pagar com novo cartao".
@@ -194,31 +189,11 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       );
       if (mounted && quote != null) {
         final debt = (quote['debt_settle_cents'] as num?)?.toInt() ?? 0;
-        setState(() {
-          _debtSettleCents = debt;
-          _quote = quote;
-        });
+        setState(() => _debtSettleCents = debt);
       }
     } catch (e) {
       debugPrint('[PaymentMethodScreen] _loadDebt error: $e');
     }
-  }
-
-  /// O quote só vale se for deste carrinho. A cache do `CartStore` dura 30 s
-  /// e não olha para o carrinho: voltar atrás, mudar o carrinho e regressar
-  /// em menos de 30 s devolvia o total antigo. Conferem-se o tipo de pedido,
-  /// o subtotal (o servidor soma os mesmos preços que o carrinho, ao cêntimo)
-  /// e o apartamento; se não bater, fica o provisório local.
-  Map<String, dynamic>? _quoteDesteCarrinho(CartStore cart) {
-    final q = _quote;
-    if (q == null) return null;
-    final tipo = q['service_type'] as String?;
-    if (tipo != null && tipo != cart.serviceType.name) return null;
-    final sub = (q['subtotal'] as num?)?.toDouble();
-    if (sub == null || (sub - cart.subtotal).abs() > 0.011) return null;
-    final apt = ((q['apartment_surcharge'] as num?)?.toDouble() ?? 0) > 0;
-    if (apt != (cart.apartmentDelivery && !cart.isTakeaway)) return null;
-    return q;
   }
 
   /// 2026-05-14 — busca cartoes guardados via Edge Fn list-saved-cards.
@@ -337,30 +312,25 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     final double smallOrderFee = isErrand ? 0.0 : cartStore.smallOrderFee;
     // UM SÓ TOTAL (04/10/2026): com o quote do servidor, mostra-se o que ele
     // cobra (`customer_total`, já com a taxa de pedido pequeno). O cálculo
-    // local só fica enquanto o quote não chega.
-    final Map<String, dynamic>? quoteValido =
-        isErrand ? null : _quoteDesteCarrinho(cartStore);
-    final double? totalServidor =
-        (quoteValido?['customer_total'] as num?)?.toDouble();
-    double doServidor(String k, double local) =>
-        (quoteValido?[k] as num?)?.toDouble() ?? local;
-    final double baseCustomerTotal = totalServidor ??
-        ((isErrand ? errandTotal : pricing.customerTotal) + smallOrderFee);
+    // local só fica enquanto o quote não chega. Desde 05/10 as parcelas e o
+    // total são os do `CartStore.resumo` — a mesma fonte do carrinho.
+    final resumo = cartStore.resumo;
+    final double baseCustomerTotal = isErrand ? errandTotal : resumo.total;
     final double totalAfterWallet =
         (baseCustomerTotal - walletAppliedEur).clamp(0.0, double.infinity);
     final totalToPay = totalAfterWallet;
     final hasApartmentDelivery = cartStore.apartmentDelivery;
-    final double apartmentSurcharge =
-        doServidor('apartment_surcharge', pricing.apartmentSurcharge);
-    double baseDeliveryFee =
-        doServidor('delivery_fee', pricing.deliveryFee) - apartmentSurcharge;
-    if (baseDeliveryFee < 0) {
-      baseDeliveryFee = 0;
-    }
-    final double subtotalMostrado = doServidor('subtotal', pricing.subtotal);
-    final double taxaServicoMostrada =
-        doServidor('service_fee', pricing.serviceFee);
-    final double sacoMostrado = doServidor('bag_fee', pricing.bagFee);
+    final double apartmentSurcharge = resumo.apartamento;
+    final double baseDeliveryFee = resumo.entrega;
+    final double subtotalMostrado = resumo.subtotal;
+    final double taxaServicoMostrada = resumo.taxaServico;
+    final double sacoMostrado = resumo.saco;
+    // "Deixar à porta" (05/10/2026): só em entregas de loja, e só com o
+    // pedido já pago — em dinheiro alguém tem de receber a nota.
+    final bool podeDeixarAPorta = !isErrand &&
+        (cartStore.serviceType == OrderServiceType.restaurant ||
+            cartStore.serviceType == OrderServiceType.storeShopping);
+    final bool pagaEmDinheiro = _selectedMethod == PaymentMethod.cash;
 
     // ── Token discount calculation ─────────────────────────────────────────
     // B3a (2026-06-12): pct lido da DB (token_payment_max_pct, fallback 50)
@@ -715,6 +685,26 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                 const SizedBox(height: 24),
                 // C1 — nota opcional para o estafeta (liga ao customerNotes).
                 CustomerNoteField(controller: _notesController),
+                if (podeDeixarAPorta)
+                  SwitchListTile.adaptive(
+                    value: cartStore.deixarAPorta && !pagaEmDinheiro,
+                    onChanged:
+                        pagaEmDinheiro ? null : cartStore.setDeixarAPorta,
+                    contentPadding: EdgeInsets.zero,
+                    activeColor: AppColors.primary,
+                    title: Text(
+                      'Deixar à porta'.tr,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Text(
+                      pagaEmDinheiro
+                          ? 'Com pagamento em dinheiro o estafeta entrega-te o pedido em mão.'
+                              .tr
+                          : 'O estafeta deixa o pedido à tua porta e tira uma foto.'
+                              .tr,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
                 const SizedBox(height: 24),
                 Text(
                   'Escolha o método de pagamento'.tr,
@@ -1106,7 +1096,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       // A taxa de pedido pequeno conta para saber se o saldo cobre TUDO —
       // senao um carrinho com taxa cairia no caminho legacy sem cobrar nada.
       final cartTotalAfterWallet =
-          ((_quoteDesteCarrinho(cartStore)?['customer_total'] as num?)
+          ((cartStore.quoteDoCarrinho?['customer_total'] as num?)
                   ?.toDouble() ??
                   (cartStore.pricingBreakdown.customerTotal +
                       cartStore.smallOrderFee)) -

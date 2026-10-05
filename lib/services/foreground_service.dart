@@ -114,12 +114,37 @@ class BoraForegroundService {
   static Future<void> saveDriverId(String driverId) async {
     await FlutterForegroundTask.saveData(key: 'driverId', value: driverId);
     await _ligarTokenDeSessao();
+    // Sem await: ficar online nunca espera por esta chamada.
+    unawaited(_guardarSegredoDoBatimento());
   }
 
   /// Limpa o driverId quando driver fica offline (polling pára).
   static Future<void> clearDriverId() async {
     await FlutterForegroundTask.removeData(key: 'driverId');
     await FlutterForegroundTask.removeData(key: _kTokenSessao);
+    await FlutterForegroundTask.removeData(key: _kSegredoBatimento);
+  }
+
+  static const String _kSegredoBatimento = 'fgs_hb_segredo';
+
+  /// [ronda 04/10 · despacho A6] O batimento em segundo plano corre sem
+  /// sessão, com a chave pública da app — por isso o `driver_heartbeat_by_id`
+  /// tinha de aceitar qualquer id. Com sessão pede-se aqui o segredo do
+  /// próprio estafeta e o serviço passa a bater por `driver_heartbeat_segredo`,
+  /// que só aceita quem o tem. Sem segredo (ou se falhar) fica o caminho
+  /// antigo, até todas as versões da app usarem este.
+  static Future<void> _guardarSegredoDoBatimento() async {
+    try {
+      final r = await Supabase.instance.client
+          .rpc('driver_heartbeat_segredo_obter')
+          .timeout(const Duration(seconds: 8));
+      if (r is Map && r['ok'] == true && r['segredo'] is String) {
+        await FlutterForegroundTask.saveData(
+            key: _kSegredoBatimento, value: r['segredo'] as String);
+      }
+    } catch (e) {
+      debugPrint('[BoraForegroundService] segredo do batimento: $e');
+    }
   }
 
   static const String _kTokenSessao = 'fgs_access_token';
@@ -309,20 +334,26 @@ class _BoraTaskHandler extends TaskHandler {
         if (_heartbeatTickCount % 8 == 0) {
           unawaited(_posicaoDeReserva(url, apiKey));
         }
-        try {
-          final hbUri = Uri.parse('$url/rest/v1/rpc/driver_heartbeat_by_id');
-          await http.post(
-            hbUri,
-            headers: {
-              'apikey': apiKey,
-              'Authorization': 'Bearer $apiKey',
-              'Content-Type': 'application/json',
-            },
-            body: jsonEncode({'p_driver_id': driverId}),
-          ).timeout(const Duration(seconds: 4));
-          debugPrint('[FGS_POLL] heartbeat OK driver=$driverId tick=$_heartbeatTickCount');
-        } catch (e) {
-          debugPrint('[FGS_POLL] heartbeat error: $e');
+        // [ronda 04/10 · despacho A6] com segredo guardado bate-se pelo
+        // caminho que só aceita o próprio estafeta; sem ele, ou se o servidor
+        // o recusar, fica o antigo — o sinal nunca se perde por isto.
+        final bateuComSegredo = await _batimentoComSegredo(url, apiKey, driverId);
+        if (!bateuComSegredo) {
+          try {
+            final hbUri = Uri.parse('$url/rest/v1/rpc/driver_heartbeat_by_id');
+            await http.post(
+              hbUri,
+              headers: {
+                'apikey': apiKey,
+                'Authorization': 'Bearer $apiKey',
+                'Content-Type': 'application/json',
+              },
+              body: jsonEncode({'p_driver_id': driverId}),
+            ).timeout(const Duration(seconds: 4));
+            debugPrint('[FGS_POLL] heartbeat OK driver=$driverId tick=$_heartbeatTickCount');
+          } catch (e) {
+            debugPrint('[FGS_POLL] heartbeat error: $e');
+          }
         }
       }
 
@@ -375,6 +406,41 @@ class _BoraTaskHandler extends TaskHandler {
       await _wakeActivityIfMainDead(payload);
     } catch (e) {
       debugPrint('[BoraTaskHandler] poll error: $e');
+    }
+  }
+
+  /// Batimento pelo caminho com segredo (`driver_heartbeat_segredo`).
+  /// `false` = não há segredo guardado, a chamada falhou ou o servidor
+  /// recusou — quem chama cai no `driver_heartbeat_by_id`.
+  Future<bool> _batimentoComSegredo(
+      String url, String apiKey, String driverId) async {
+    try {
+      final segredo = await FlutterForegroundTask.getData<String>(
+          key: BoraForegroundService._kSegredoBatimento);
+      if (segredo == null || segredo.isEmpty) return false;
+      final res = await http.post(
+        Uri.parse('$url/rest/v1/rpc/driver_heartbeat_segredo'),
+        headers: {
+          'apikey': apiKey,
+          'Authorization': 'Bearer $apiKey',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({'p_driver_id': driverId, 'p_segredo': segredo}),
+      ).timeout(const Duration(seconds: 4));
+      if (res.statusCode != 200) return false;
+      final corpo = jsonDecode(res.body);
+      final ok = corpo is Map && corpo['ok'] == true;
+      // Segredo que o servidor já não aceita: larga-se, para não gastar duas
+      // chamadas em cada batimento até o estafeta voltar a ficar online.
+      if (!ok && corpo is Map && corpo['error'] == 'forbidden') {
+        await FlutterForegroundTask.removeData(
+            key: BoraForegroundService._kSegredoBatimento);
+      }
+      debugPrint('[FGS_POLL] heartbeat com segredo ok=$ok driver=$driverId');
+      return ok;
+    } catch (e) {
+      debugPrint('[FGS_POLL] heartbeat com segredo error: $e');
+      return false;
     }
   }
 

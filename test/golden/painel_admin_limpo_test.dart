@@ -158,8 +158,11 @@ void main() {
         await t.pumpAndSettle();
       },
     );
-    expect(find.text('Pagamentos/Cartões'), findsOneWidget);
-    expect(find.text('Tokens'), findsOneWidget);
+    // Ronda 04/10: a secção de dinheiro mostra no máximo 5 entradas; Cartões,
+    // Tokens e o resto passaram para o sub-ecrã "Mais dinheiro".
+    expect(find.text('Mais dinheiro'), findsOneWidget);
+    expect(find.text('Pagamentos/Cartões'), findsNothing);
+    expect(find.text('Tokens'), findsNothing);
     // Os sete antigos não estão na secção viva.
     expect(find.text('Fechamento Semanal — Estafetas'), findsNothing);
   });

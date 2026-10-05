@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../utils/hora_lisboa_ext.dart';
 import '../../config/app_colors.dart';
 import '../../services/admin_export_service.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
@@ -424,7 +425,7 @@ class _AdminConnectPaymentsScreenState
       '€ ${((cents ?? 0) / 100.0).toStringAsFixed(2)}';
 
   String _dateShort(String? iso) {
-    final d = DateTime.tryParse(iso ?? '')?.toLocal();
+    final d = DateTime.tryParse(iso ?? '')?.toLisboa();
     if (d == null) return '—';
     return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
   }

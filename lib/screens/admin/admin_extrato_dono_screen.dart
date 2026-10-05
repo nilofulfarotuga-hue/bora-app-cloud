@@ -11,10 +11,10 @@
 // botão porque ainda não existe acerto de TVDE (achado desta missão).
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../services/admin_export_service.dart';
 import 'admin_receipts_screen.dart';
 import 'admin_vigia_dinheiro_screen.dart';
 
@@ -190,6 +190,15 @@ class _AdminExtratoDonoScreenState extends State<AdminExtratoDonoScreen> {
           'p_payment_reference': refCtrl.text.trim().isEmpty ? null : refCtrl.text.trim(),
           'p_notes': 'Marcado na folha do dono (contas claras)',
         });
+      } else if (rpc.startsWith('admin_set_settlement_state')) {
+        // Barbearias (e qualquer acerto semanal): a função única de pago/recebido.
+        await sb.rpc('admin_set_settlement_state', params: {
+          'p_subject_type': accao['p_subject_type'],
+          'p_subject_id': accao['p_subject_id'],
+          'p_week_start': accao['p_week_start'],
+          'p_payment_reference':
+              refCtrl.text.trim().isEmpty ? null : refCtrl.text.trim(),
+        });
       } else if (rpc.startsWith('admin_forgive_wallet_debt')) {
         await sb.rpc('admin_forgive_wallet_debt', params: {
           'p_user_id': accao['p_user_id'],
@@ -216,24 +225,25 @@ class _AdminExtratoDonoScreenState extends State<AdminExtratoDonoScreen> {
   Future<void> _exportarCsv() async {
     final x = _x;
     if (x == null) return;
+    // Ronda 04/10: CSV a sério — ';', aspas certas, e descarrega (não copia).
+    const l = AdminExportService.linhaCsv;
     final b = StringBuffer();
-    b.writeln('secao;tipo;quem;motivo;valor_eur;quando;meio;ref');
-    for (final l in (x['saidas'] as Map)['linhas'] as List) {
-      final m = l as Map;
-      b.writeln('saida;${m['tipo']};${m['quem']};;${eur(m['cents'])};${m['quando_txt'] ?? ''};${m['meio'] ?? ''};${m['ref'] ?? ''}');
+    b.writeln(l(['secao', 'tipo', 'quem', 'motivo', 'valor_eur', 'quando', 'meio', 'ref']));
+    for (final r in (x['saidas'] as Map)['linhas'] as List) {
+      final m = r as Map;
+      b.writeln(l(['saida', m['tipo'], m['quem'], '', eur(m['cents']), m['quando_txt'], m['meio'], m['ref']]));
     }
-    for (final l in x['bora_deve'] as List) {
-      final m = l as Map;
-      b.writeln('bora_deve;${m['tipo']};${m['quem']};${m['motivo']};${eur(m['cents'])};;;${m['ref'] ?? ''}');
+    for (final r in x['bora_deve'] as List) {
+      final m = r as Map;
+      b.writeln(l(['bora_deve', m['tipo'], m['quem'], m['motivo'], eur(m['cents']), '', '', m['ref']]));
     }
-    for (final l in x['devem_a_bora'] as List) {
-      final m = l as Map;
-      b.writeln('devem_a_bora;${m['tipo']};${m['quem']};${m['motivo']};${eur(m['cents'])};;;${m['ref'] ?? ''}');
+    for (final r in x['devem_a_bora'] as List) {
+      final m = r as Map;
+      b.writeln(l(['devem_a_bora', m['tipo'], m['quem'], m['motivo'], eur(m['cents']), '', '', m['ref']]));
     }
-    await Clipboard.setData(ClipboardData(text: b.toString()));
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('CSV copiado para a área de transferência')));
+    await AdminExportService.instance.exportCsvText(
+        filename: 'contas_claras_${DateTime.now().millisecondsSinceEpoch}.csv',
+        csv: b.toString());
   }
 
   // ─── UI ─────────────────────────────────────────────────────────────────

@@ -95,6 +95,17 @@ void main() {
       expect(din.items.first.badge, 'acertos');
     });
 
+    test('ronda 04/10: "Dinheiro e acertos" tem no máximo 5 entradas e o resto vive em "Mais dinheiro"',
+        () {
+      final din = sections.firstWhere((s) => s.id == 'dinheiro');
+      expect(din.items.length, lessThanOrEqualTo(5));
+      final mais = din.items.firstWhere((i) => i.id == 'dinheiro_mais');
+      final filhos = mais.filhos.map((i) => i.title).toList();
+      expect(filhos, containsAll(['Pagamentos/Cartões', 'Tokens', 'Wallets', 'Promo Codes']));
+      // continuam a ser encontrados pela busca e pelos favoritos (id estável)
+      expect(all.map((i) => i.id), contains('dinheiro_tokens'));
+    });
+
     test('a busca encontra por nome, descrição e palavra-chave', () {
       expect(all.where((i) => i.matches('acertos')).map((i) => i.title),
           contains('Dinheiro e acertos'));

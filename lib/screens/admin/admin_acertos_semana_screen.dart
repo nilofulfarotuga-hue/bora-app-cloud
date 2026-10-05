@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/app_colors.dart';
 import '../../services/admin_export_service.dart';
+import '../../widgets/admin/confirmar_dinheiro.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import 'admin_acerto_unificado_screen.dart';
 import 'admin_appointments_payouts_screen.dart';
@@ -199,12 +200,22 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
     }
   }
 
-  /// Um toque, sem diálogo de confirmação: o Danilo marca dezenas destes e
-  /// cada confirmação é um toque a mais. O engano desfaz-se na própria linha.
+  /// Confirma com o NOME e o VALOR antes de marcar (ronda 04/10: todo o botão
+  /// de dinheiro pede confirmação). O engano ainda se desfaz com "Reabrir".
   Future<void> _marcar(Map<String, dynamic> r) async {
     if (_busy) return;
-    setState(() => _busy = true);
     final owes = r['direction'] == 'owes_bora';
+    final ok = await confirmarDinheiro(
+      context,
+      titulo: owes ? 'Marcar como recebido' : 'Marcar como pago',
+      nome: '${r['name'] ?? '—'}',
+      valor: _eur((r['net_cents'] as num?) ?? 0),
+      detalhe: owes
+          ? 'Confirma que esta pessoa já pagou este valor à Bora?'
+          : 'Confirma que a Bora já pagou este valor?',
+    );
+    if (!ok || !mounted) return;
+    setState(() => _busy = true);
     try {
       await _client.rpc('admin_set_settlement_state', params: {
         'p_subject_type': r['type'],

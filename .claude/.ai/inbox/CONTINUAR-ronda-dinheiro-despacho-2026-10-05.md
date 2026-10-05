@@ -17,7 +17,16 @@ Relatório: `.claude/.ai/reports/2026-10-05-ronda-dinheiro-despacho.md` (reescri
 - **Blocos A, B e C da ronda** (dinheiro das entregas, dinheiro do painel, 169 funções fechadas
   a anon): feitos por outra sessão (digest `digest-2026-10-05-ronda-auditoria-04-10-pc`).
 
-## 1. PRIMEIRO: publicar a correcção da loja fechada (precisa da palavra do Danilo)
+## 0.1 Noite de 05/10 (missão `fecho-home-dinheiro-2026-10-05`)
+
+**O ponto 1 está FEITO.** Os dois commits foram juntados em cima de `aedb956b` sem conflitos
+(`c541de97` → `311f8371`, `e5db74a6` → `c4f69adb`) e enviados às 21h29 com `744fe903`
+(esqueleto da home que derrubava Android #498/#499 e iOS #165). Relatório da noite:
+`.claude/.ai/reports/2026-10-05-fecho-home-dinheiro.md`. O ponto 2 (armadilha do relógio)
+deixou de derrubar o autoteste: o auxiliar novo aceita loja fechada e salta o pagamento — mas a
+app continua a decidir pela hora do aparelho (ponto 5, à espera do sim do Danilo).
+
+## 1. (FEITO a 05/10 às 21h29) publicar a correcção da loja fechada
 
 Commit `c541de97` (em cima de `6c86177d`). Está no ramo local `ronda-dinheiro-despacho-05-10`
 (pasta `C:/BoraLocal/wt-ronda-05-10`), com o commit de documentos desta missão por cima, e

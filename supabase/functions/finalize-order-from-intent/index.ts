@@ -95,6 +95,20 @@ Deno.serve(async (req: Request) => {
   // deno-lint-ignore no-explicit-any
   const orderId = (rpcData as any).order_id as string;
 
+  // v14 (ronda 04/10 A.1) — grava o que a Stripe cobrou mesmo (amount_received do PI já
+  // lido acima). Só escreve se o pedido tiver este PI e stripe_charge_cents estiver a 0.
+  // Falhar aqui NÃO desfaz o pedido (o dinheiro já entrou): só log; o lerPagoDoPedido
+  // dos cancelamentos volta a ler a Stripe se o valor ficar a 0.
+  {
+    const { data: gravou, error: cobErr } = await admin.rpc('registar_cobranca_stripe', {
+      p_order_id: orderId,
+      p_payment_intent_id: payment_intent_id,
+      p_cents: Number(pi.amount_received ?? 0),
+    });
+    if (cobErr) console.error('[finalize] registar_cobranca_stripe falhou:', cobErr.message, orderId);
+    else console.log('[finalize] cobranca registada:', orderId, pi.amount_received, 'gravou:', gravou);
+  }
+
   const { error: markErr } = await admin
     .from('payment_drafts')
     .update({ used_at: new Date().toISOString(), order_id: orderId })

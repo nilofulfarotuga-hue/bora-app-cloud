@@ -11,6 +11,94 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
 );
 
+// v36 (ronda 04/10 A.3) — falha REAL (RPC/UPDATE com erro): sobe até ao Deno.serve,
+// que grava last_error em stripe_webhook_events e devolve 500 para a Stripe repetir.
+// "metadata desconhecida" NÃO é falha: continua a ser só log + 200.
+class FalhaWebhook extends Error {}
+function falha(msg: string): never {
+  throw new FalhaWebhook(msg);
+}
+
+// v36 (ronda 04/10 A.1) — grava em orders.stripe_charge_cents o que a Stripe cobrou mesmo.
+// A função só escreve se o pedido tiver este PI e stripe_charge_cents ainda estiver a 0
+// (idempotente; devolve false nos outros casos, o que não é erro).
+async function registarCobranca(orderId: string, intent: Stripe.PaymentIntent) {
+  const cents = Number(intent.amount_received ?? 0);
+  if (!orderId || cents <= 0) return;
+  const { data, error } = await supabase.rpc('registar_cobranca_stripe', {
+    p_order_id: orderId,
+    p_payment_intent_id: intent.id,
+    p_cents: cents,
+  });
+  if (error) falha(`registar_cobranca_stripe: ${error.message} (${orderId})`);
+  console.log('[stripe-webhook] cobranca registada:', orderId, cents, 'gravou:', data);
+}
+
+// v36 (ronda 04/10 A.7b) — mesmo parse do tvde-plan-payment (km pago vem dos METADATA do PI).
+function parseKm(raw: unknown): number | null {
+  const n = typeof raw === 'number' ? raw : Number(raw);
+  if (!Number.isFinite(n) || n <= 0 || n > 500) return null;
+  return Math.round(n * 100) / 100;
+}
+
+// v36 (ronda 04/10 A.7d) — gorjeta: grava o estado como o `confirm` do charge-tip
+// (gravarEstado): mesmo mapeamento Stripe → tips.status, paid_at, taxa, failure_reason,
+// e nunca volta atrás de succeeded/refunded.
+async function tipGravarEstado(intent: Stripe.PaymentIntent) {
+  const tipId = intent.metadata?.tip_id ?? '';
+  if (!tipId) {
+    console.error('[stripe-webhook] tip PI sem tip_id:', intent.id);
+    return;
+  }
+  let status = 'pending';
+  if (intent.status === 'succeeded') status = 'succeeded';
+  else if (intent.status === 'requires_action' || intent.status === 'requires_payment_method'
+    || intent.status === 'requires_confirmation') status = 'requires_action';
+  else if (intent.status === 'canceled') status = 'failed';
+  // deno-lint-ignore no-explicit-any
+  const patch: Record<string, any> = { status, stripe_payment_intent_id: intent.id };
+  if (status === 'succeeded') {
+    patch.paid_at = new Date().toISOString();
+    try {
+      const full = await stripe.paymentIntents.retrieve(intent.id, {
+        expand: ['latest_charge.balance_transaction'],
+      });
+      // deno-lint-ignore no-explicit-any
+      const fee = (full.latest_charge as any)?.balance_transaction?.fee;
+      if (typeof fee === 'number') patch.stripe_fee_cents = fee;
+    } catch (_) { /* taxa é informativa */ }
+  }
+  if (intent.last_payment_error?.message) {
+    patch.failure_reason = String(intent.last_payment_error.message).slice(0, 300);
+  }
+  const { error } = await supabase.from('tips').update(patch).eq('id', tipId)
+    .not('status', 'in', '(succeeded,refunded)');
+  if (error) falha(`tips update: ${error.message} (${tipId})`);
+  console.log('[stripe-webhook] tip', tipId, '->', status, intent.id);
+}
+
+// v36 (ronda 04/10 A.7c) — lavagem: marca 'held' pela MESMA RPC do mark_held do
+// carwash-checkout (valida o valor contra total_cents, idempotente, procura lavador).
+async function carwashMarcarHeld(intent: Stripe.PaymentIntent) {
+  const bookingId = intent.metadata?.booking_id ?? '';
+  if (!bookingId) {
+    console.error('[stripe-webhook] carwash PI sem booking_id:', intent.id);
+    return;
+  }
+  const { data, error } = await supabase.rpc('confirm_carwash_payment_webhook', {
+    p_booking_id: bookingId,
+    p_payment_intent_id: intent.id,
+    p_amount_cents: Number(intent.amount ?? 0),
+  });
+  if (error) falha(`confirm_carwash_payment_webhook: ${error.message} (${bookingId})`);
+  // ok:false (booking_not_found / amount_mismatch) é recusa de negócio — repetir não muda nada.
+  if (!(data as { ok?: boolean })?.ok) {
+    console.error('[stripe-webhook] carwash recusado pela RPC:', JSON.stringify(data), intent.id);
+    return;
+  }
+  console.log('[stripe-webhook] carwash held:', JSON.stringify(data), intent.id);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // TVDE (2026-08-13) — corridas TVDE no webhook.
 //
@@ -89,6 +177,7 @@ async function tvdeHandleSucceeded(intent: Stripe.PaymentIntent, kind: string) {
       if (creditErr) {
         console.error('[stripe-webhook] roundtrip credit (sem ride) failed:',
           creditErr.message, intent.id);
+        falha(`tvde_create_roundtrip_credit (sem ride): ${creditErr.message}`); // v36 (ronda 04/10 A.3)
       } else {
         console.log('[stripe-webhook] roundtrip credit garantido (sem ride):', intent.id);
       }
@@ -114,18 +203,43 @@ async function tvdeHandleSucceeded(intent: Stripe.PaymentIntent, kind: string) {
         );
       } catch (e) {
         console.error('[stripe-webhook] tvde late refund failed:', e, intent.id);
-        return; // nao mentir no payment_status se o refund nao passou
+        // v36 (ronda 04/10 A.3): 500 → a Stripe repete; o refund tem idempotencyKey.
+        falha(`tvde late refund: ${e instanceof Error ? e.message : String(e)}`);
       }
     }
     // `refunded` SO quando dinheiro voltou mesmo. Zero devolvido = kept_cancel_fee.
     const newStatus = refundCents <= 0
       ? 'kept_cancel_fee'
       : (feeCents > 0 ? 'partial_refund' : 'refunded');
-    await supabase.from('tvde_rides')
+    const { error: lateErr } = await supabase.from('tvde_rides')
       .update({ payment_status: newStatus }).eq('id', rideId);
+    if (lateErr) falha(`tvde late payment_status: ${lateErr.message}`); // v36 (ronda 04/10 A.3)
     console.warn('[stripe-webhook] tvde late payment on terminal ride:', rideId,
       'status:', ride.status, 'paid:', paidCents, 'fee:', feeCents,
       'refunded:', refundCents, '->', newStatus);
+    return;
+  }
+
+  // v36 (ronda 04/10 A.7a) — RESERVA TVDE (agendada) paga por cartão/MB Way.
+  // A reserva nasce em status='agendada' + reservation_status='aguarda_pagamento'
+  // (tvde-payment charge_reservation / charge_roundtrip_reservation). Até à v35 o
+  // webhook só punha payment_status='succeeded' (ramo genérico) e a reserva ficava
+  // em 'aguarda_pagamento' até o cliente abrir a app (confirm_*_reservation_payment).
+  // Agora chama as MESMAS funções desse confirm: passa a 'a_procurar', avisa o admin e
+  // oferece ao 1.º motorista — com a app fechada. Ambas são idempotentes.
+  // Corre DEPOIS do bloco terminal acima: reserva morta → refund, nunca activa.
+  if (kind === 'tvde_reservation') {
+    const { data, error } = await supabase.rpc('tvde_reservation_mark_paid', { p_ride_id: rideId });
+    if (error) falha(`tvde_reservation_mark_paid: ${error.message} (${rideId})`);
+    console.log('[stripe-webhook] tvde reserva paga:', rideId, 'activou:', data, intent.id);
+    return;
+  }
+  if (kind === 'tvde_roundtrip_reservation') {
+    const { data, error } = await supabase.rpc('tvde_roundtrip_reservation_mark_paid', {
+      p_ride_id: rideId, p_payment_intent_id: intent.id, p_amount_cents: Number(intent.amount ?? 0),
+    });
+    if (error) falha(`tvde_roundtrip_reservation_mark_paid: ${error.message} (${rideId})`);
+    console.log('[stripe-webhook] tvde reserva ida-e-volta paga:', rideId, 'activou:', data, intent.id);
     return;
   }
 
@@ -150,7 +264,7 @@ async function tvdeHandleSucceeded(intent: Stripe.PaymentIntent, kind: string) {
     if (creditErr) {
       console.error('[stripe-webhook] roundtrip credit failed:',
         creditErr.message, intent.id, rideId);
-      return;
+      falha(`tvde_create_roundtrip_credit: ${creditErr.message}`); // v36 (ronda 04/10 A.3)
     }
     console.log('[stripe-webhook] roundtrip credit garantido + ida paga:',
       intent.id, 'ride:', rideId);
@@ -168,7 +282,7 @@ async function tvdeHandleSucceeded(intent: Stripe.PaymentIntent, kind: string) {
     .eq('id', rideId);
   if (error) {
     console.error('[stripe-webhook] tvde ride paid UPDATE failed:', error.message, rideId);
-    return;
+    falha(`tvde ride paid UPDATE: ${error.message}`); // v36 (ronda 04/10 A.3)
   }
   console.log('[stripe-webhook] tvde ride paid:', rideId, 'kind:', kind, 'intent:', intent.id);
 }
@@ -184,7 +298,7 @@ async function tvdeHandleProcessing(intent: Stripe.PaymentIntent, kind: string) 
     .neq('payment_status', 'succeeded');
   if (error) {
     console.error('[stripe-webhook] tvde ride processing UPDATE failed:', error.message, rideId);
-    return;
+    falha(`tvde ride processing UPDATE: ${error.message}`); // v36 (ronda 04/10 A.3)
   }
   console.log('[stripe-webhook] tvde ride processing:', rideId, 'intent:', intent.id);
 }
@@ -212,10 +326,90 @@ async function tvdeHandleFailed(intent: Stripe.PaymentIntent, kind: string, even
       console.log('[stripe-webhook] tvde ride ja terminal em', eventType, ':', rideId);
     } else {
       console.error('[stripe-webhook] tvde cancel on', eventType, 'failed:', msg, rideId);
+      falha(`tvde_cancel_ride on ${eventType}: ${msg}`); // v36 (ronda 04/10 A.3)
     }
     return;
   }
   console.warn('[stripe-webhook] tvde ride canceled by', eventType, ':', rideId, failureMsg);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// v35 (2026-10-02) — PEDIDO CANCELADO CEDO DEMAIS PELA APP + MB WAY PAGO DEPOIS.
+//
+// PROVA (produção, 02/10 12:25 UTC, pedido a78990d1, Favor do cliente Divan):
+//   12:25:26 create-mbway-payment-intent → status=requires_action (push MB Way
+//            enviado, à espera do cliente)
+//   12:25:30 a app cliente (iOS) chamou client-cancel-order → status=cancelled,
+//            cancel_reason=payment_failed, payment_status=cancelled_no_charge
+//   12:26:01 Stripe: payment_intent.succeeded (o cliente confirmou no MB Way)
+//   → o UPDATE abaixo filtrava payment_status='pending', afectou 0 linhas,
+//     logou "order marked paid" na mesma, e o dispatch não correu:
+//     DINHEIRO COBRADO, PEDIDO MORTO, NENHUM ESTAFETA CHAMADO.
+//
+// Regra do Danilo: dinheiro que entrou tem de virar pedido vivo. Se o pedido
+// foi cancelado APENAS por "payment_failed" (nunca por decisão humana) e o
+// pagamento depois entrou, o webhook REATIVA o pedido (status='created',
+// payment_status='pending') e deixa o fluxo normal marcar pago + despachar.
+// Cancelamentos humanos (cancelled_by / cancellation_initiator preenchidos,
+// ou cancel_reason diferente) NÃO são reativados — nesse caso só se avisa o
+// admin para reembolsar à mão.
+// ─────────────────────────────────────────────────────────────────────────────
+async function reviveOrderCancelledByPaymentFailed(orderId: string, intentId: string): Promise<boolean> {
+  const { data: pre, error: preErr } = await supabase
+    .from('orders')
+    .select('status, payment_status, cancel_reason, cancelled_by, cancellation_initiator')
+    .eq('id', orderId)
+    .maybeSingle();
+  if (preErr || !pre) {
+    console.error('[stripe-webhook] revive: fetch failed:', preErr?.message, orderId);
+    return false;
+  }
+  if (pre.status !== 'cancelled' || pre.payment_status === 'paid') return false;
+
+  const autoCancel = pre.cancel_reason === 'payment_failed' &&
+    !pre.cancelled_by && !pre.cancellation_initiator;
+
+  if (!autoCancel) {
+    console.error('[stripe-webhook] DINHEIRO ENTROU EM PEDIDO CANCELADO (humano) — reembolsar à mão:',
+      orderId, intentId, 'cancel_reason:', pre.cancel_reason);
+    await supabase.rpc('notify_admin_urgent_push', {
+      p_event_type: 'pagamento_em_pedido_cancelado',
+      p_summary: `Pagamento ${intentId} entrou no pedido ${orderId.slice(0, 8)} já cancelado (${pre.cancel_reason ?? '?'}). Reembolsar à mão.`,
+      p_entity_type: 'order',
+      p_entity_id: orderId,
+      p_payload: { payment_intent_id: intentId, cancel_reason: pre.cancel_reason },
+      p_deep_link: `/admin/orders/${orderId}`,
+    }).then(({ error }) => { if (error) console.error('[stripe-webhook] notify_admin_urgent_push failed:', error.message); });
+    return false;
+  }
+
+  const { error: upErr } = await supabase
+    .from('orders')
+    .update({
+      status: 'created',
+      payment_status: 'pending',
+      cancel_reason: null,
+      cancelled_at: null,
+      cancel_fee: null,
+      status_updated_at: new Date().toISOString(),
+    })
+    .eq('id', orderId)
+    .eq('status', 'cancelled');
+  if (upErr) {
+    console.error('[stripe-webhook] revive UPDATE failed:', upErr.message, orderId);
+    return false;
+  }
+  console.warn('[stripe-webhook] PEDIDO REATIVADO (cancelado por payment_failed, MB Way pago depois):',
+    orderId, intentId);
+  await supabase.rpc('notify_admin_urgent_push', {
+    p_event_type: 'pedido_reativado_pos_pagamento',
+    p_summary: `Pedido ${orderId.slice(0, 8)} tinha sido cancelado pela app (payment_failed) mas o MB Way foi pago — reativado e a chamar estafeta.`,
+    p_entity_type: 'order',
+    p_entity_id: orderId,
+    p_payload: { payment_intent_id: intentId },
+    p_deep_link: `/admin/orders/${orderId}`,
+  }).then(({ error }) => { if (error) console.error('[stripe-webhook] notify_admin_urgent_push failed:', error.message); });
+  return true;
 }
 
 Deno.serve(async (req: Request) => {
@@ -239,6 +433,36 @@ Deno.serve(async (req: Request) => {
 
   console.log('[stripe-webhook] event:', event.type);
 
+  // v36 (ronda 04/10 A.3) — IDEMPOTÊNCIA por event.id. A Stripe entrega "pelo menos
+  // uma vez": o mesmo evento pode chegar 2x. INSERT ... ON CONFLICT DO NOTHING; se o
+  // evento já foi PROCESSADO (processed_at preenchido) → 200 sem refazer nada.
+  // Se a tabela não responder, NÃO se bloqueia o dinheiro: processa-se como na v35.
+  let registoOk = false;
+  {
+    const { error: insErr } = await supabase.from('stripe_webhook_events')
+      .upsert({ event_id: event.id, type: event.type },
+        { onConflict: 'event_id', ignoreDuplicates: true });
+    if (insErr) {
+      console.error('[stripe-webhook] stripe_webhook_events insert falhou (segue sem idempotência):',
+        insErr.message, event.id);
+    } else {
+      const { data: reg, error: regErr } = await supabase.from('stripe_webhook_events')
+        .select('processed_at').eq('event_id', event.id).maybeSingle();
+      if (regErr) {
+        console.error('[stripe-webhook] stripe_webhook_events read falhou (segue):', regErr.message, event.id);
+      } else {
+        registoOk = true;
+        if (reg?.processed_at) {
+          console.log('[stripe-webhook] evento repetido, já processado — nada a fazer:', event.id, event.type);
+          return new Response(JSON.stringify({ received: true, duplicate: true }), {
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+      }
+    }
+  }
+
+  try { // v36 (ronda 04/10 A.3) — fecha no catch depois do switch
   switch (event.type) {
     // ── Payment succeeded ────────────────────────────────────────────────────
     // BUG 1 (Fase 2 / 2026-04-30): dual routing.
@@ -263,6 +487,7 @@ Deno.serve(async (req: Request) => {
           if (error) {
             console.error('[stripe-webhook] reservation confirm failed:',
               error.message, intent.id);
+            falha(`confirm_reservation_payment_webhook: ${error.message}`); // v36 (ronda 04/10 A.3)
           } else {
             console.log('[stripe-webhook] reservation confirmed:', data, intent.id);
             // Notify partner — fire-and-forget (same pattern as MBWay orders L164).
@@ -313,6 +538,7 @@ Deno.serve(async (req: Request) => {
           if (error) {
             console.error('[stripe-webhook] appointment confirm failed:',
               error.message, intent.id);
+            falha(`confirm_appointment_payment_webhook: ${error.message}`); // v36 (ronda 04/10 A.3)
           } else {
             console.log('[stripe-webhook] appointment confirmed:', data, intent.id);
           }
@@ -339,6 +565,7 @@ Deno.serve(async (req: Request) => {
           );
           if (error) {
             console.error('[stripe-webhook] cleaning held failed:', error.message, intent.id);
+            falha(`confirm_cleaning_payment_webhook: ${error.message}`); // v36 (ronda 04/10 A.3)
           } else {
             console.log('[stripe-webhook] cleaning held:', data, intent.id);
           }
@@ -362,10 +589,22 @@ Deno.serve(async (req: Request) => {
             p_plan: plan,
             p_payment_intent_id: intent.id,
             p_paid_cents: Number(intent.amount_received ?? intent.amount ?? 0),
+            // v36 (ronda 04/10 A.7b) — os km pagos (e a rota) vêm dos METADATA do PI, tal
+            // como no 'activate' do tvde-plan-payment. Sem isto, se o webhook chegasse
+            // primeiro, o plano nascia sem km e o 'activate' já não o corrigia
+            // (a função devolve a subscrição existente pelo mesmo PI).
+            p_km_included: parseKm(intent.metadata?.distance_km),
+            p_origin_label: intent.metadata?.origin_label ?? null,
+            p_dest_label: intent.metadata?.dest_label ?? null,
           });
           if (error) {
             console.error('[stripe-webhook] tvde plan activation failed:',
               error.message, intent.id);
+            // v36 (ronda 04/10 A.3): pago abaixo do preço é recusa definitiva (repetir não
+            // muda nada) → fica 200 e o admin vê no log; o resto é falha real → 500.
+            if (!String(error.message ?? '').includes('paid_below_plan_price')) {
+              falha(`tvde_activate_paid_subscription: ${error.message}`);
+            }
           } else {
             console.log('[stripe-webhook] tvde plan activated:',
               (data as { id?: string })?.id ?? data, intent.id);
@@ -373,6 +612,18 @@ Deno.serve(async (req: Request) => {
         } else {
           console.error('[stripe-webhook] tvde_plan PI missing user_id/plan:', intent.id);
         }
+        break;
+      }
+
+      // v36 (ronda 04/10 A.7c) — LAVAGEM (MB Way chega aqui como succeeded).
+      if (intent.metadata?.kind === 'carwash') {
+        await carwashMarcarHeld(intent);
+        break;
+      }
+
+      // v36 (ronda 04/10 A.7d) — GORJETA: grava o estado como o confirm do charge-tip.
+      if (intent.metadata?.kind === 'tip') {
+        await tipGravarEstado(intent);
         break;
       }
 
@@ -397,6 +648,7 @@ Deno.serve(async (req: Request) => {
         });
         if (settleErr) {
           console.error('[stripe-webhook] wallet_settle_debt failed:', settleErr.message, intent.id);
+          falha(`wallet_settle_debt: ${settleErr.message}`); // v36 (ronda 04/10 A.3) — idem_key protege a repetição
         } else {
           console.log('[stripe-webhook] debt settled:', piUserId, debtSettleCents, intent.id);
         }
@@ -424,8 +676,17 @@ Deno.serve(async (req: Request) => {
           const resBody = await res.text();
           console.log('[stripe-webhook] finalize invoked:', intent.id, 'draft=', draft_id,
             'status:', res.status, 'body:', resBody);
+          // v36 (ronda 04/10 A.3) — finalize com 5xx = pedido NÃO criado com dinheiro cobrado:
+          // 500 para a Stripe repetir (finalize é idempotente pelo draft).
+          if (res.status >= 500) falha(`finalize-order-from-intent ${res.status}: ${resBody.slice(0, 300)}`);
+          // v36 (ronda 04/10 A.1) — cobrança registada também aqui (redundante com o
+          // finalize v14; cobre o caso de o finalize no ar ainda ser o v13).
+          let finalOrderId = '';
+          try { finalOrderId = String(JSON.parse(resBody)?.order_id ?? ''); } catch (_) { /* corpo não-JSON */ }
+          if (res.ok && finalOrderId) await registarCobranca(finalOrderId, intent);
         } catch (e) {
           console.error('[stripe-webhook] finalize fetch failed:', e);
+          throw e; // v36 (ronda 04/10 A.3) — sem resposta do finalize → 500, a Stripe repete
         }
         break;
       }
@@ -436,17 +697,32 @@ Deno.serve(async (req: Request) => {
         break;
       }
 
-      const { error } = await supabase
+      // v35 (2026-10-02) — se a app cancelou o pedido cedo demais (payment_failed)
+      // e o MB Way foi pago a seguir, reativa ANTES de marcar pago.
+      await reviveOrderCancelledByPaymentFailed(order_id, intent.id);
+
+      const { data: paidRows, error } = await supabase
         .from('orders')
-        .update({ payment_status: 'paid' })
+        .update({ payment_status: 'paid', payment_intent_id: intent.id })
         .eq('id', order_id)
-        .eq('payment_status', 'pending');
+        .eq('payment_status', 'pending')
+        .select('id');
 
       if (error) {
         console.error('[stripe-webhook] payment_intent.succeeded DB update error:', error.message);
-        break;
+        falha(`orders paid UPDATE: ${error.message}`); // v36 (ronda 04/10 A.3) — antes: 200 e pedido por marcar
       }
-      console.log('[stripe-webhook] order marked paid:', order_id, 'intent:', intent.id);
+      if (!paidRows || paidRows.length === 0) {
+        // v35: antes logava "order marked paid" mesmo com 0 linhas. Agora diz a verdade.
+        console.error('[stripe-webhook] order NOT marked paid (payment_status não era pending — ver estado):',
+          order_id, 'intent:', intent.id);
+      } else {
+        console.log('[stripe-webhook] order marked paid:', order_id, 'intent:', intent.id);
+      }
+
+      // v36 (ronda 04/10 A.1) — o que a Stripe cobrou fica gravado no pedido
+      // (inclui o caminho do MB Way reativado acima).
+      await registarCobranca(order_id, intent);
 
       const { data: orderRow, error: fetchErr } = await supabase
         .from('orders')
@@ -456,6 +732,7 @@ Deno.serve(async (req: Request) => {
 
       if (fetchErr || !orderRow) {
         console.error('[stripe-webhook] failed to fetch order after payment:', fetchErr?.message);
+        if (fetchErr) falha(`orders fetch after paid: ${fetchErr.message}`); // v36 (ronda 04/10 A.3)
         break;
       }
 
@@ -500,7 +777,7 @@ Deno.serve(async (req: Request) => {
 
         if (statusErr) {
           console.error('[stripe-webhook] failed to advance to callingDriver:', statusErr.message);
-          break;
+          falha(`advance callingDriver: ${statusErr.message}`); // v36 (ronda 04/10 A.3)
         }
         console.log('[stripe-webhook] order advanced to callingDriver:', order_id);
 
@@ -546,6 +823,12 @@ Deno.serve(async (req: Request) => {
         break;
       }
 
+      // v36 (ronda 04/10 A.7d) — GORJETA falhada/cancelada: mesmo estado que o confirm grava.
+      if (intent.metadata?.kind === 'tip') {
+        await tipGravarEstado(intent);
+        break;
+      }
+
       // ⭐ F3a (2026-08-16) — MARCAÇÕES: pagamento falhou/cancelado. A marcação
       // fica pending_payment DE PROPÓSITO — o cliente pode tentar outro método
       // (MB Way falhado é retentável por cartão e vice-versa). Só log.
@@ -582,6 +865,7 @@ Deno.serve(async (req: Request) => {
           if (error) {
             console.error('[stripe-webhook] reservation cancel failed:',
               error.message, intent.id);
+            falha(`cancel_orphan_reservation: ${error.message}`); // v36 (ronda 04/10 A.3)
           } else {
             console.log('[stripe-webhook] reservation orphan cleanup:', data, intent.id);
           }
@@ -602,6 +886,7 @@ Deno.serve(async (req: Request) => {
           .is('used_at', null);
         if (error) {
           console.error('[stripe-webhook] draft delete failed:', error.message);
+          falha(`draft delete: ${error.message}`); // v36 (ronda 04/10 A.3)
         } else {
           console.warn('[stripe-webhook] draft deleted (PI failed/canceled):', draft_id, failureMsg);
         }
@@ -621,6 +906,7 @@ Deno.serve(async (req: Request) => {
 
       if (error) {
         console.error('[stripe-webhook]', event.type, 'DB update error:', error.message);
+        falha(`orders failed UPDATE: ${error.message}`); // v36 (ronda 04/10 A.3)
       } else {
         console.warn('[stripe-webhook] order payment', event.type, ':', order_id, failureMsg);
       }
@@ -638,6 +924,29 @@ Deno.serve(async (req: Request) => {
 
     default:
       console.log('[stripe-webhook] unhandled event type:', event.type);
+  }
+  } catch (e) {
+    // v36 (ronda 04/10 A.3) — falha real: regista e devolve 500 → a Stripe volta a enviar.
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('[stripe-webhook] FALHA a processar', event.type, event.id, '—', msg);
+    if (registoOk) {
+      const { error: leErr } = await supabase.from('stripe_webhook_events')
+        .update({ last_error: msg.slice(0, 1000) })
+        .eq('event_id', event.id);
+      if (leErr) console.error('[stripe-webhook] last_error não gravado:', leErr.message);
+    }
+    return new Response(JSON.stringify({ received: true, error: 'processing_failed' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  // v36 (ronda 04/10 A.3) — processado (inclui "metadata desconhecida", que é só log).
+  if (registoOk) {
+    const { error: doneErr } = await supabase.from('stripe_webhook_events')
+      .update({ processed_at: new Date().toISOString(), last_error: null })
+      .eq('event_id', event.id);
+    if (doneErr) console.error('[stripe-webhook] processed_at não gravado:', doneErr.message, event.id);
   }
 
   return new Response(JSON.stringify({ received: true }), {

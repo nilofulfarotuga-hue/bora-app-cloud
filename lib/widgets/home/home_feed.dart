@@ -666,9 +666,14 @@ class _RailEsqueleto extends StatelessWidget {
       children: [
         const _Esqueleto(altura: 18, largura: 160),
         const SizedBox(height: Spacing.sm),
+        // ListView e não Row: 3 cartões de 140 não cabem num telemóvel de
+        // 380 px e a Row transbordava (autoteste Android #499 e iOS #165).
+        // A lista corta o que sobra, como as faixas verdadeiras.
         SizedBox(
           height: 150,
-          child: Row(
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            physics: const NeverScrollableScrollPhysics(),
             children: [
               for (var i = 0; i < 3; i++) ...[
                 const _Esqueleto(altura: 150, largura: 140),

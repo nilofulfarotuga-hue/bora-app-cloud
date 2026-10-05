@@ -386,6 +386,10 @@ Each file exports `createPlaceAutocompleteServiceImpl`. The stub returns empty r
 ### Key conventions
 
 - `assigned_driver_id` is intentionally TEXT (not UUID) for historical data compatibility. Triggers that need it as UUID cast explicitly (`assigned_driver_id::UUID`). Do NOT change the column type — the cast workaround is deliberate.
+- **Funções SQL nascem fechadas a quem não tem sessão (05/10/2026, ronda 04/10 C.2).** Função nova no
+  `public` não é chamável por `anon` (privilégio por defeito tirado). Só se abre com `GRANT EXECUTE ... TO anon`
+  explícito, e só para: app antes do login, página pública, ou robô que valida segredo (`p_chave`). Quem mexe em
+  dados de outros valida `auth.uid()`/`is_admin()` dentro. Lista do que se fechou: `bkp_anon_execute_20261005`.
 - `OrderModel.fromSupabase` / `toSupabase` — all DB serialisation goes through these. `fromSupabase` maps every column; never assume defaults.
 - `OrderServiceType` — 4 types: `restaurant`, `storeShopping`, `carryGroceries`, `sendPackage`. Pricing rules differ per type.
 - `BusinessCategory` — enum on `RestaurantModel`: `restaurant`, `supermarket`, `store`, `pharmacy`.

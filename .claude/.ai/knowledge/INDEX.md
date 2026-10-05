@@ -56,7 +56,7 @@ knowledge/
 ### Episódica — história
 | Tema | Ficheiro | Quando ler |
 |---|---|---|
-| Bugs resolvidos (sagas + causa-raiz) — inclui abertos, marcados ABERTO (ex.: #25, fecho do "parceiro chama estafeta") | `permanente/episodica/bugs-resolvidos.md` | antes de "corrigir" algo já corrigido; antes de ligar ou mexer no "parceiro chama estafeta" |
+| Bugs resolvidos (sagas + causa-raiz) — inclui abertos, marcados ABERTO (ex.: #25, fecho do "parceiro chama estafeta"); #26 loja fechada publicado a 05/10 (versionCode 650) | `permanente/episodica/bugs-resolvidos.md` | antes de "corrigir" algo já corrigido; antes de ligar ou mexer no "parceiro chama estafeta" |
 | Decisões arquiteturais | `permanente/episodica/decisoes.md` | refactors, mudanças de estrutura |
 | Auditoria 360° (5 P0 + placar admin) | `permanente/episodica/auditoria-360.md` | prioridades de produto/gaps |
 | 🕵️ Diário 2026-07-15 caça-mentiras (executor inventava, juiz não julgava; loop religado com Juiz mecânico) | `permanente/episodica/diario-2026-07-15-caca-mentiras.md` | antes de mexer no carteiro/Juiz/e2e_log; regra: prova = git+disco |
@@ -78,6 +78,10 @@ knowledge/
 | ↳ "Autorizo tudo" é a ordem, não a chave (não abre a Trava nem o classificador do Claude Code) | `permanente/procedural/licoes/licao-autorizo-tudo-e-a-ordem-nao-a-chave.md` | a Trava ou o classificador recusam com a ordem do Danilo já dada; push de produção recusado |
 | ↳ DELETE/UPDATE sem política RLS devolve 204 e muda ZERO linhas | `permanente/procedural/licoes/licao-apagar-sem-politica-devolve-204.md` | botões de apagar/editar no painel; antes de dizer "apagado" ou registar na auditoria |
 | ↳ Autoteste Android: emulador do CI em UTC vs. hora de Lisboa (de verão falha das 08h às 10h) | `permanente/procedural/licoes/licao-autoteste-android-relogio-utc.md` | autoteste falha em `botao-ver-carrinho`; escolher a hora de um envio para produção |
+| ↳ Faixa horizontal em `Row` de largura fixa transborda → autoteste cai com "Multiple exceptions" | `permanente/procedural/licoes/licao-esqueleto-row-largura-fixa-transborda.md` | faixas/carrosséis/esqueletos na UI; autoteste CI com "Multiple exceptions (2)" |
+| ↳ `Supabase.initialize` em teste liga `app_links`: passa no Windows, cai no macOS | `permanente/procedural/licoes/licao-supabase-em-teste-liga-app-links.md` | testes Flutter que arrancam o Supabase; iOS cai num teste que passa no PC |
+| ↳ iPhone só se publica sozinho com push em `lib/`/`ios/`/`integration_test/`/`pubspec.yaml` | `permanente/procedural/licoes/licao-ios-so-arranca-com-lib-ios-pubspec.md` | depois de push só de testes/docs que tem de chegar ao iPhone |
+| ↳ Juiz: `PHANTOM_FIX` em falso quando a avaria é do arnês de teste | `permanente/procedural/licoes/licao-juiz-phantom-fix-em-arnes-de-teste.md` | o Juiz rejeita um conserto só de `test/`; nunca trocar `--task` |
 | Aprovador-vermelho — conhecimento de triagem (Balde A/B) | `permanente/procedural/aprovador-vermelho-triagem.md` | antes de triar a fila `robot_suggestions`; staleness de item Balde B não é bug |
 | ↳ Aprovador-vermelho — histórico de corridas ATIVO (2026-07-24 em diante) | `permanente/procedural/aprovador-vermelho-historico-corridas.md` | ver detalhe de uma corrida recente (corridas 2026-07-20/21 movidas para arquivo em 2026-07-27 por tamanho) |
 | ↳ Aprovador-vermelho — anomalia backoff exponencial do script gatilho | `permanente/procedural/aprovador-vermelho-anomalia-backoff-script.md` | investigar disparos repetidos do FALLBACK 30MIN / deploy de `hermes-aprovador-vermelho.sh` (partido de `aprovador-vermelho-triagem.md` em 2026-07-27) |

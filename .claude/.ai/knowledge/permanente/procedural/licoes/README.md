@@ -51,3 +51,16 @@ tema: licao-<slug> · escopo: projeto|agente:<nome> · estado: atual · atualiza
 - `licao-autoteste-android-relogio-utc.md` — o emulador do CI anda em UTC e a app decide "loja
   aberta" pelo relógio do aparelho: de verão, das 08h às 10h de Lisboa o autoteste falha em
   `botao-ver-carrinho` (2026-10-05).
+- `licao-storage-policy-auth-users.md` — policy de Storage não pode ler `auth.users`; usar a
+  claim do JWT (entrada que faltava nesta lista; já estava no `INDEX.md`).
+- `licao-esqueleto-row-largura-fixa-transborda.md` — faixa horizontal (real ou esqueleto) em
+  `Row` de largura fixa transborda no telemóvel e derruba o autoteste como "Multiple exceptions";
+  usar `ListView` horizontal e testar a 320/379/408 px (2026-10-05).
+- `licao-supabase-em-teste-liga-app-links.md` — `Supabase.initialize` num teste liga o ouvinte
+  de links; passa no Windows e cai no macOS do CI; usar `detectSessionInUri: false` (2026-10-05).
+- `licao-ios-so-arranca-com-lib-ios-pubspec.md` — o iPhone só se publica sozinho com push que
+  mude `lib/`, `ios/`, `integration_test/` ou `pubspec.yaml`; push só de `test/` pede
+  `gh workflow run build_ios.yml` (2026-10-05).
+- `licao-juiz-phantom-fix-em-arnes-de-teste.md` — `PHANTOM_FIX` acusa em falso quando a avaria
+  é do arnês de teste; medir a causa, provar 0 asserções mudadas, registar — nunca trocar
+  `--task` (2026-10-05).

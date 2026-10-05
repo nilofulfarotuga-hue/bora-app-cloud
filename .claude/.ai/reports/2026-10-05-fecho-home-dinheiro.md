@@ -14,7 +14,11 @@ Missão `fecho-home-dinheiro-2026-10-05` · Claude Code (Opus 5.5) · PC do Dani
 - **B5 não reproduzido** — a tradução está certa no código (ver B5). Nada mudado.
 - **Convidado `guest@bora.com`**: continua sem entrar (senha diferente desde 01/09). Não é a
   causa da falha do CI. Repor a senha é acto humano (ver "Para o Danilo").
-- **Builds**: ver B6 (preenchido no fim).
+- **iPhone 1.0.11** está submetido mas **à espera da Apple** (`WAITING_FOR_REVIEW`) — ainda
+  não está na loja.
+- **Córtex**: o conector MCP pede nova autorização (OAuth) — não houve `cortex_buscar` nem
+  `cortex_reportar` nesta sessão. O registo ficou no `e2e_log` e no digest.
+- **`/ctx doctor` e `/ctx stats`**: o servidor `context-mode` não ligou nesta sessão.
 
 ## B0 — Estado encontrado
 
@@ -70,6 +74,30 @@ aceita loja fechada fora de horas e salta o pagamento, por isso a hora do envio 
 derrubar o build. A app **continua** a decidir "aberta/fechada" pela hora do aparelho — a
 receita (`horaLisboa()` nos três sítios) espera o sim do Danilo (CONTINUAR da ronda, ponto 5).
 
+### iPhone #166 — 998 testes passaram, 1 caiu (avisado pelo Claude.ai às 22h10)
+
+O iPhone #166 (commit `744fe903`) passou a compilação mas caiu nos testes:
+`test/loja_fechada_ficha_e_repetir_test.dart:236` — `expect(tester.takeException(), isNull)`
+recebeu `MissingPluginException(... com.llfbandit.app_links/events)`.
+
+- Causa: o `Supabase.initialize` dos testes liga o ouvinte de links (`app_links`). Em teste não
+  há plugin; no macOS do CI a excepção cai dentro do primeiro teste, no Windows cai fora (por
+  isso passava aqui). Os testes novos da home passaram no iPhone.
+- Prova da causa (rascunho, apagado): `LIGACOES_APP_LINKS=1` com a configuração normal,
+  `LIGACOES_APP_LINKS=0` com `detectSessionInUri: false`.
+- Correcção (commit `ac626b95`): `authOptions: FlutterAuthClientOptions(detectSessionInUri:
+  false)` nos 3 testes que arrancam o Supabase com servidor de brincar. A app não muda.
+  `+22: All tests passed!`; 0 linhas removidas, 0 `expect` mudados.
+- **Juiz anti-trapaça: ❌ REJECT `PHANTOM_FIX`** ("conserto que só mexeu em testes"). Falso
+  positivo: a avaria era do arnês de teste, não da app, e nenhuma verificação foi tocada.
+  Fica registado aqui em vez de escondido (precedente: memória "anti-trapaça compara com main").
+- O workflow do iPhone só arranca sozinho com `lib/`, `ios/`, `integration_test/` ou
+  `pubspec`. Como o envio só mexeu em `test/`, arranquei-o à mão: iPhone #167
+  (`workflow_dispatch`, `enviar=true`, `submeter_revisao=true`).
+- Web #194 e olho-golden #186 caíram por "job not acquired by Runner" (incidente do GitHub).
+  Não os relancei: o envio `ac626b95` trouxe a web #195 e o golden #187 do commit mais novo, e
+  relançar a #194 (antiga) podia cancelar a nova (`cancel-in-progress: true` na web).
+
 ## B4 — Prova da home
 
 | O quê | Prova | Resultado |
@@ -96,7 +124,22 @@ Não reproduz. `lib/l10n/strings_en.dart:45-46` tem
 
 - `git push origin HEAD:autonomous-night-2026-04-29` às 21h29: `aedb956b..744fe903`, rc=0.
 - Web antes do deploy (21h38): `main.dart.js` 11 111 697 bytes, sha E5E40BBDFBA6FD1B.
-- (resultado dos builds preenchido no fim)
+- 22h14: segundo envio `744fe903..ac626b95` (teste das faixas, documentos, arnês dos testes).
+- GitHub com incidente aberto desde as 20h11 ("delays in assigning GitHub-hosted runners"):
+  as corridas ficaram até ~1 h na fila.
+
+| Plataforma | Corrida | Resultado | Prova |
+|---|---|---|---|
+| Android | #500 (`744fe903`) | ✅ | Autoteste 3 perfis success; Upload to Google Play (internal + alpha + production) success 21:28 UTC; commit do CI `f593514e ci: bump versionCode to 650`; `platform_settings.app_latest_version_code = 650` (era 649) |
+| Web | #195 (`ac626b95`) | ✅ | `main.dart.js` 11 111 697 → 11 112 632 bytes, sha 3F3215836EF3EF46, igual em app.boraguarda.com e bora-app-web.pages.dev |
+| olho-golden | #187 | ✅ | success |
+| iPhone | #165 / #166 | ❌ | #165 esqueleto; #166 1 teste (app_links) — ambos corrigidos |
+| iPhone | #167 (`ac626b95`, à mão) | ✅ | testes no macOS success; IPA **1.0.11 (build 167)** "UPLOAD SUCCEEDED with no errors"; versão 1.0.11 `AFTER_APPROVAL`, submissão lida de volta `WAITING_FOR_REVIEW` (22:45 UTC) |
+| Android | #501 (`ac626b95`) | ✅ | mesma app que o #500 + testes; Upload to Google Play success 22:14 UTC; `7a401201 ci: bump versionCode to 651`; `app_latest_version_code = 651` |
+
+**A home nova está nas três**: Android (650/651 no Play: internal + alpha + produção),
+web (app.boraguarda.com) e iPhone (1.0.11 à espera da revisão da Apple; sai sozinha quando
+aprovar).
 
 ## Achados pelo caminho (reportados, não corrigidos)
 

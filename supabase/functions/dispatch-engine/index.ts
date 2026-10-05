@@ -1,4 +1,18 @@
 // @ts-nocheck
+// dispatch-engine v62 (ronda 04/10/2026) — duas mudanças, mais nada:
+//   (1) QUEM PODE CHAMAR. Até aqui qualquer pessoa na internet podia acordar o
+//       motor (verify_jwt=false e nenhuma verificação). Agora só passa: a chave
+//       de serviço (a do ambiente ou a do cofre do banco, validada na Auth), um
+//       admin, um estafeta aprovado, o dono do pedido ou o dono da loja do
+//       pedido. É a mesma autenticação do notify-driver v42, mais os papéis com
+//       que a app chama o motor. verify_jwt continua false.
+//   (2) QUEM RECEBE A OFERTA. Os candidatos vêm TODOS de
+//       public.dispatch_candidatos_entrega(order_id) — o matching das entregas
+//       num sítio só: online + aprovado + não banido + batimento E GPS frescos
+//       (dispatch_gps_fresh_seconds_entregas) + uma oferta viva de cada vez +
+//       favor sozinho + máx. 3 ativos + raio (dispatch_raio_max_oferta_km),
+//       já ordenados (mesma loja primeiro, depois o mais perto).
+//   Ofertas, TTL, claim, redispatch e identidade (v59) ficam IGUAIS.
 // dispatch-engine v59 (2026-08-16) — FIX identidade do estafeta (drivers.id vs drivers.user_id).
 //   PROBLEMA PROVADO: a app do estafeta consulta ofertas/pedidos por auth.uid()
 //   (= drivers.user_id), mas o engine gravava drivers.id em current_driver_offer_id.
@@ -44,12 +58,6 @@ const DEFAULT_MAX_TOTAL_SECONDS = 1200
 const DEFAULT_SAFETY_SECONDS = 1800
 const REDISPATCH_MAX_RETRIES = 3
 const REDISPATCH_RETRY_DELAY_MS = 2000
-const PREFERRED_RADIUS_KM = 10
-const CAR_REQUIRED_SERVICES = ['carryGroceries']
-const DISTANCE_WEIGHT = 5.0
-const COST_WEIGHT = 1.0
-const COST_PER_KM = 1.0
-const AVG_SPEED_KMH = 30.0
 
 // v59: um estafeta pode ser referido por drivers.id OU drivers.user_id.
 function driverKeys(d: any): string[] {
@@ -103,8 +111,6 @@ async function loadDispatchSettings(supabase: any): Promise<DispatchSettings> {
 }
 
 function sleep(ms: number): Promise<void> { return new Promise(r => setTimeout(r, ms)) }
-function computeScore(d: number) { return (-d * DISTANCE_WEIGHT) + (-d * COST_PER_KM * COST_WEIGHT) }
-function estimateEta(d: number) { return Math.round((d / AVG_SPEED_KMH) * 60) }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -113,7 +119,12 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, serviceKey)
   let orderId: string | null = null
   try { const b = await req.json(); orderId = b?.orderId ?? null } catch (_) {}
-  console.log(`[dispatch-engine] v59 INVOKED orderId=${orderId ?? 'ALL'}`)
+  const autorizado = await autorizar(req, supabase, supabaseUrl, serviceKey, orderId)
+  if (!autorizado.ok) {
+    console.warn(`[dispatch-engine] v62 403 motivo=${autorizado.reason} orderId=${orderId ?? 'ALL'}`)
+    return new Response(JSON.stringify({ ok: false, error: 'forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+  }
+  console.log(`[dispatch-engine] v62 INVOKED orderId=${orderId ?? 'ALL'}`)
   const settings = await loadDispatchSettings(supabase)
   console.log(`[dispatch-engine] settings: offerTimeout=${settings.offerTimeoutS}s retryNoDriver=${settings.retryNoDriverS}s maxTotal=${settings.maxTotalS}s safety=${settings.safetyS}s`)
   let redispatchPromise: Promise<void> | null = null
@@ -234,19 +245,15 @@ async function dispatchOrder(supabase: any, order: any, settings: DispatchSettin
   if (order.current_driver_offer_id && !triedIds.includes(order.current_driver_offer_id)) {
     triedIds.push(order.current_driver_offer_id)
   }
-  if (triedIds.length > 0) {
-    const reqCar = order.requires_car === true || CAR_REQUIRED_SERVICES.includes(order.service_type)
-    // v59: precisa de user_id para reconhecer quem já foi tentado em qualquer dos formatos
-    let q = supabase.from('drivers').select('id,user_id').eq('is_online', true)
-      .or('work_mode.is.null,work_mode.neq.rides_only')
-    if (reqCar) q = q.in('vehicle_type', ['car', 'carro_passageiros'])
-    const { data: online } = await q
-    if (online?.length > 0 && online.every((d: any) => driverKeys(d).some(k => triedIds.includes(k)))) {
-      console.log(`[dispatch] All ${online.length} drivers tried — cycle reset`)
-      triedIds.length = 0
-    }
+  // v62: o matching vive em dispatch_candidatos_entrega (banco). Um erro aqui
+  // sobe — a cadeia volta a tentar; nunca se cai num matching antigo às escondidas.
+  const candidatos = await carregarCandidatos(supabase, order.id)
+  if (triedIds.length > 0 && candidatos.length > 0 &&
+      candidatos.every((d: any) => driverKeys(d).some(k => triedIds.includes(k)))) {
+    console.log(`[dispatch] All ${candidatos.length} drivers tried — cycle reset`)
+    triedIds.length = 0
   }
-  const driver = await findNextDriver(supabase, order, triedIds)
+  const driver = findNextDriver(candidatos, triedIds)
   if (!driver) {
     console.log(`[dispatch] NO DRIVERS for order ${order.id}`)
     await supabase.from('orders').update({ current_driver_offer_id: null, driver_offer_expires_at: null }).eq('id', order.id)
@@ -259,39 +266,21 @@ async function dispatchOrder(supabase: any, order: any, settings: DispatchSettin
   return true
 }
 
-async function findNextDriver(supabase: any, order: any, excludeIds: string[]) {
-  // work_mode: 'rides_only' nunca recebe entregas (default 'everything' — zero regressão)
-  const q = supabase.from('drivers').select('id,user_id,lat,lng,vehicle_type').eq('is_online', true)
-    .or('work_mode.is.null,work_mode.neq.rides_only')
-  const { data: driversRaw } = await q
-  // v59: exclusão em JS porque excludeIds pode conter drivers.id OU drivers.user_id (legado)
-  const drivers = (driversRaw ?? []).filter((d: any) => !driverKeys(d).some(k => excludeIds.includes(k)))
-  console.log(`[dispatch] ${drivers.length} online drivers (excl ${excludeIds.length})`)
-  if (!drivers.length) return null
-  const reqCar = order.requires_car === true || CAR_REQUIRED_SERVICES.includes(order.service_type)
-  // dual-driver: carro de passageiros conta como carro
-  let elig = reqCar ? drivers.filter((d: any) => d.vehicle_type === 'car' || d.vehicle_type === 'carro_passageiros') : drivers
-  if (!elig.length) return null
-  // dual-driver: corrida TVDE ativa → sem ofertas de entrega (tvde_rides.driver_id = user_id)
-  const { data: busyTvde } = await supabase.from('tvde_rides').select('driver_id')
-    .in('status', ['motorista_atribuido','motorista_a_caminho','motorista_chegou','em_andamento'])
-    .not('driver_id', 'is', null)
-  const busyUids = new Set((busyTvde ?? []).map((r: any) => r.driver_id))
-  elig = elig.filter((d: any) => !d.user_id || !busyUids.has(d.user_id))
-  if (!elig.length) return null
-  const { data: active } = await supabase.from('orders').select('assigned_driver_id').in('status', ['driverAccepted','pickedUp','onTheWay']).not('assigned_driver_id','is',null)
-  const cnt: Record<string,number> = {}
-  for (const r of active ?? []) { cnt[r.assigned_driver_id] = (cnt[r.assigned_driver_id] ?? 0) + 1 }
-  // v59: assigned_driver_id pode estar em qualquer dos formatos — somar os dois
-  elig = elig.filter((d: any) => driverKeys(d).reduce((s, k) => s + (cnt[k] ?? 0), 0) < 3)
-  if (!elig.length) return null
-  if (!order.pickup_lat || !order.pickup_lng) return elig[0]
-  const withCoords = elig.filter((d: any) => d.lat && d.lng)
-  if (!withCoords.length) return elig[0]
-  const scored = withCoords.map((d: any) => ({ ...d, dist: haversine(order.pickup_lat, order.pickup_lng, d.lat, d.lng) }))
-    .sort((a: any, b: any) => computeScore(b.dist) - computeScore(a.dist))
-  const best = scored.find((d: any) => d.dist <= PREFERRED_RADIUS_KM) ?? scored[0]
-  console.log(`[dispatch] Best driver=${best.id} dist=${best.dist?.toFixed(2)}km eta=${estimateEta(best.dist)}min`)
+async function carregarCandidatos(supabase: any, orderId: string): Promise<any[]> {
+  const { data, error } = await supabase.rpc('dispatch_candidatos_entrega', { p_order_id: orderId })
+  if (error) { console.error('[dispatch] dispatch_candidatos_entrega error:', JSON.stringify(error)); throw error }
+  return (data ?? []).map((c: any) => ({
+    id: c.driver_id, user_id: c.user_id, lat: c.lat, lng: c.lng, vehicle_type: c.vehicle_type, dist: c.dist_km,
+  }))
+}
+
+function findNextDriver(candidatos: any[], excludeIds: string[]) {
+  // A ordem já vem do banco: quem leva pedido da mesma loja primeiro, depois o mais perto.
+  // v59: excludeIds pode conter drivers.id OU drivers.user_id (legado).
+  const livres = candidatos.filter((d: any) => !driverKeys(d).some(k => excludeIds.includes(k)))
+  console.log(`[dispatch] ${livres.length} candidatos (de ${candidatos.length}, excl ${excludeIds.length})`)
+  const best = livres[0] ?? null
+  if (best) console.log(`[dispatch] Best driver=${best.id} dist=${best.dist != null ? Number(best.dist).toFixed(2) : '?'}km`)
   return best
 }
 
@@ -331,8 +320,49 @@ async function scheduleRedispatch(supabaseUrl: string, serviceKey: string, order
   }
 }
 
-function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371, dLat = (lat2-lat1)*Math.PI/180, dLng = (lng2-lng1)*Math.PI/180
-  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2
-  return R*2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+// ── Autenticação (v62) — a do notify-driver v42, mais os papéis da app ────────
+const servicoOk = new Set<string>()
+const ADMIN_EMAILS = ['nilofulfarotuga@gmail.com', 'nilofulfaro@gmail.com']
+function lerPayload(token: string): any {
+  try {
+    let b = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
+    while (b.length % 4) b += '='
+    return JSON.parse(atob(b))
+  } catch (_) { return null }
+}
+async function autorizar(req: Request, supabase: any, supabaseUrl: string, serviceKey: string, orderId: string | null): Promise<{ ok: boolean, reason?: string }> {
+  const h = req.headers.get('authorization') ?? ''
+  if (!h.toLowerCase().startsWith('bearer ')) return { ok: false, reason: 'sem_token' }
+  const token = h.slice(7).trim()
+  if (!token) return { ok: false, reason: 'sem_token' }
+  // Gatilhos, cron, webhooks e o próprio motor (redispatch) mandam a chave de serviço.
+  if (token === serviceKey || servicoOk.has(token)) return { ok: true }
+  const p = lerPayload(token)
+  if (p?.role === 'service_role') {
+    // Chave de serviço do cofre do banco (pode não ser igual à do ambiente):
+    // só passa se a Auth a aceitar como admin.
+    try {
+      const r = await fetch(`${supabaseUrl}/auth/v1/admin/users?per_page=1`, { headers: { apikey: token, Authorization: `Bearer ${token}` } })
+      if (r.ok) { servicoOk.add(token); return { ok: true } }
+    } catch (_) {}
+    return { ok: false, reason: 'service_invalido' }
+  }
+  if (p?.role !== 'authenticated') return { ok: false, reason: `papel_${p?.role ?? 'desconhecido'}` }
+  const { data: u, error } = await supabase.auth.getUser(token)
+  if (error || !u?.user) return { ok: false, reason: 'jwt_invalido' }
+  const uid = String(u.user.id)
+  if (u.user.app_metadata?.role === 'admin' || ADMIN_EMAILS.includes(String(u.user.email ?? '').toLowerCase())) return { ok: true }
+  // Estafeta aprovado: a app dele acorda o motor ao ficar online (por pedido pendente).
+  const { data: d } = await supabase.from('drivers').select('id').eq('user_id', uid).eq('approval_status', 'approved').limit(1)
+  if (d?.length) return { ok: true }
+  if (!orderId) return { ok: false, reason: 'sem_pedido' }
+  // Dono do pedido (cliente) ou dono da loja do pedido (parceiro).
+  const { data: o } = await supabase.from('orders').select('user_id,restaurant_id').eq('id', orderId).maybeSingle()
+  if (!o) return { ok: false, reason: 'pedido_desconhecido' }
+  if (o.user_id && String(o.user_id) === uid) return { ok: true }
+  if (o.restaurant_id) {
+    const { data: r } = await supabase.from('restaurants').select('user_id,user_').eq('id', o.restaurant_id).maybeSingle()
+    if (r && (String(r.user_id ?? '') === uid || String(r.user_ ?? '') === uid)) return { ok: true }
+  }
+  return { ok: false, reason: 'papel_sem_permissao' }
 }

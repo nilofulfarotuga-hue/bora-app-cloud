@@ -258,10 +258,13 @@ class _ErrandExecutionSheetState extends State<ErrandExecutionSheet> {
     });
     try {
       if (isCashStop && _cashReceivedCents > 0) {
-        await Supabase.instance.client
-            .from('orders')
-            .update({'errand_home_stop_cash_cents': _cashReceivedCents}).eq(
-                'id', o.id);
+        final res = await Supabase.instance.client.rpc(
+          'estafeta_registar_dinheiro_paragem',
+          params: {'p_order_id': o.id, 'p_cents': _cashReceivedCents},
+        );
+        if (res is! Map || res['ok'] != true) {
+          throw Exception('dinheiro da paragem não gravado: $res');
+        }
       }
       // Avança estado: driverAccepted → pickedUp se há compra; senão → onTheWay
       if (!mounted) return;

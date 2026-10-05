@@ -452,6 +452,30 @@ nenhum, porque isso não existe.
 > no carrinho e no servidor. Lição: um teste que corre a horas diferentes das tuas
 > descobre regras que só se cumpriam de dia.
 
+### 1.28 A categoria nova aparece na lupa e pode ser destino de uma faixa da home
+
+Desde 05/10 a home do cliente tem **faixas clicáveis** (`home_banners`, geridas no painel
+em "Faixas da home") e a lupa abre a **pesquisa global** (`GlobalSearchScreen`, RPC
+`cliente_pesquisar`), que acha lojas de todas as secções e produtos. Uma categoria nova
+só está lançada quando:
+
+1. as lojas dela saem na lupa (grupo próprio em `global_search_screen.dart`) e na lista
+   "Todas as lojas" da home (`_seccoesLoja` em `widgets/home/home_feed.dart`);
+2. o ecrã dela é destino de faixa do tipo `categoria` (`_ecraCategoria` e
+   `categoriasDestino` em `utils/home_destino.dart`, e a mesma chave no seletor do
+   `admin_home_banners_screen.dart`);
+3. se tiver tipo de comida novo, o sinónimo entra em `utils/cozinhas.dart` (é a única
+   verdade das cozinhas: faixas por cozinha, filtro da lista e pesquisa).
+
+Regras das faixas: uma faixa do tipo `codigo` só aparece a quem ainda não usou o código
+e some quando esgota ou fica inactivo; o texto vem do banco e **nunca** se calcula euros
+de `promo_codes.value_cents` (são tokens). Sem faixas ou com erro, volta o banner antigo —
+a home nunca fica vazia.
+
+> **Cicatriz (05/10, Danilo):** a home acabava vazia depois da grelha e de um banner fixo,
+> e a lupa só filtrava restaurantes pelo nome — "leite" ou "pizzza" não achavam nada. No
+> mesmo dia, a faixa de boas-vindas nasceu a dizer 10 € quando a oferta é 5 € em tokens.
+
 
 ## 2. ONDE CADA COISA VIVE — A REGRA DOS GÉMEOS
 

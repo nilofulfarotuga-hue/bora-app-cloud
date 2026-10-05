@@ -73,6 +73,7 @@ import 'admin_payments_cards_screen.dart';
 import 'admin_pending_actions_screen.dart';
 import 'admin_platform_settings_screen.dart';
 import 'admin_promo_codes_screen.dart';
+import 'admin_home_banners_screen.dart';
 import 'admin_ratings_screen.dart';
 import 'admin_receipts_screen.dart';
 import 'admin_referrals_screen.dart';
@@ -984,6 +985,15 @@ List<AdminMenuSection> adminMenuSections() => [
       color: const Color(0xFF8B5CF6),
       builder: () => const AdminDiscoveryFiltersScreen(),
       keywords: const ['aberto', 'agora', 'cliente', 'descoberta', 'dieta', 'filtros', 'inicial', 'pagina'],
+    ),
+    AdminMenuItem(
+      id: 'clientes_faixas_da_home',
+      title: 'Faixas da home',
+      subtitle: 'Faixas coloridas do topo da página inicial: criar, ordenar, ligar/desligar, destino, patrocínio e cliques',
+      icon: Icons.view_carousel_outlined,
+      color: AppColors.primary,
+      builder: () => const AdminHomeBannersScreen(),
+      keywords: const ['faixas', 'banners', 'home', 'inicial', 'pagina', 'marketing', 'promocoes', 'campanha', 'destaque', 'patrocinado', 'ctr', 'cliques'],
     ),
     ],
   ),

@@ -178,6 +178,25 @@ class RestaurantStore extends ChangeNotifier {
       'photo_url,is_available,category,category_root,is_popular,is_on_sale,'
       'discount_price,allergens,sold_by_weight,shelf_price_per_kg';
 
+  /// Um produto pelo id, com a mesma projecção e o mesmo parse do catálogo.
+  /// Usado pelas faixas da home e pela pesquisa global (05/10) para abrir a
+  /// loja já com o produto aberto. Null se não existir ou falhar a rede.
+  Future<PartnerProduct?> fetchProductById(String productId) async {
+    if (productId.isEmpty) return null;
+    try {
+      final row = await supabase
+          .from('products')
+          .select(_productProjection)
+          .eq('id', productId)
+          .maybeSingle();
+      if (row == null) return null;
+      return _productFromRow(row);
+    } catch (e) {
+      debugPrint('RestaurantStore: fetchProductById($productId) error => $e');
+      return null;
+    }
+  }
+
   /// B5 (2026-06-12): parse partilhado row→PartnerProduct (arranque +
   /// páginas lazy). Devolve null para rows sem restaurant_id.
   PartnerProduct? _productFromRow(Map<String, dynamic> data) {

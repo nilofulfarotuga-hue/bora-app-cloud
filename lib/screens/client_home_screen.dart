@@ -22,6 +22,7 @@ import '../stores/session_store.dart';
 import '../widgets/address_autocomplete_field.dart';
 import '../widgets/bora/bora.dart';
 import '../widgets/bora_support_fab.dart';
+import '../widgets/home/home_feed.dart';
 import '../widgets/language_toggle.dart';
 import '../widgets/notification_bell.dart';
 import 'carry_groceries_screen.dart';
@@ -29,6 +30,7 @@ import 'client/carwash/carwash_service_screen.dart';
 import 'client/cleaning/cleaning_bookings_screen.dart';
 import 'client/services/services_category_screen.dart';
 import 'client_addresses_screen.dart';
+import 'global_search_screen.dart';
 import 'rating_screen.dart';
 import 'restaurants_screen.dart';
 import 'send_package_form_screen.dart';
@@ -383,12 +385,15 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                   BoraSearchField(
                     hint: 'O que queres pedir hoje?'.tr,
                     readOnly: true,
+                    // A LUPA ACHA TUDO (05/10): lojas de todas as secções e
+                    // produtos — antes abria a lista de restaurantes, que só
+                    // filtrava restaurantes pelo nome.
                     onTap: () {
                       _navigateWithAddressGuard(() {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const RestaurantsScreen(),
+                            builder: (_) => const GlobalSearchScreen(),
                           ),
                         );
                       });
@@ -397,19 +402,30 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                   const SizedBox(height: Spacing.xl),
                   _buildCategoryGrid(context),
                   const SizedBox(height: Spacing.xl),
-                  BoraPromoBanner(
-                    title: 'Entregas rápidas\ne seguras'.tr,
-                    subtitle: 'Tudo o que precisas à distância de um toque'.tr,
-                    trailingIcon: Icons.delivery_dining,
-                    onTap: () => _navigateWithAddressGuard(() {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const RestaurantsScreen(),
-                        ),
-                      );
-                    }),
+                  // FAIXAS DA HOME (05/10): carrossel lido de `home_banners`
+                  // (gerido no painel admin). Vazio ou com erro, volta o banner
+                  // antigo — a home nunca fica vazia.
+                  HomeBannerCarousel(
+                    key: ValueKey('faixas-${authStore.userId ?? ''}'),
+                    fallback: BoraPromoBanner(
+                      title: 'Entregas rápidas\ne seguras'.tr,
+                      subtitle:
+                          'Tudo o que precisas à distância de um toque'.tr,
+                      trailingIcon: Icons.delivery_dining,
+                      onTap: () => _navigateWithAddressGuard(() {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const RestaurantsScreen(),
+                          ),
+                        );
+                      }),
+                    ),
                   ),
+                  const SizedBox(height: Spacing.xl),
+                  // Pede outra vez · Os mais pedidos · Novidades · cozinhas ·
+                  // Todas as lojas — cada secção carrega e falha sozinha.
+                  HomeFeedSections(sessaoId: authStore.userId),
                   // Espaco para o botao redondo de ajuda (BoraSupportFab, canto
                   // inferior direito) nao ficar por cima do ultimo elemento —
                   // com a grelha a 4 colunas o ultimo ladrilho passou a chegar

@@ -50,6 +50,16 @@ Se o gradient da nova categoria for **laranja** (`#F97316`/`#FB923C`/`#EA580C` o
 laranja), a skill **exige `--confirm-orange`** e avisa no relatório (já há tiles laranja:
 Restaurantes, Enviar Encomenda).
 
+## Faixas da home e lupa (obrigatório desde 05/10 — PADRAO_BORA 1.28)
+A home tem faixas clicáveis (`home_banners`) e a lupa abre a pesquisa global. Ao lançar a
+categoria nova, além do ladrilho:
+1. destino de faixa: chave em `categoriasDestino` + `_ecraCategoria` (`lib/utils/home_destino.dart`)
+   e no seletor de categoria de `lib/screens/admin/admin_home_banners_screen.dart`;
+2. pesquisa: grupo próprio em `lib/screens/global_search_screen.dart` e entrada em
+   `_seccoesLoja` (`lib/widgets/home/home_feed.dart`) para sair em "Todas as lojas";
+3. cozinha nova → sinónimo em `lib/utils/cozinhas.dart`.
+O relatório do patch tem de listar estes 3 pontos como feitos ou por fazer.
+
 ## Salvaguardas
 - Sem `--apply` → zero escrita em `lib/`.
 - Asset PNG e entrada em `pubspec.yaml` são responsabilidade do humano (a skill lembra, não cria binários).

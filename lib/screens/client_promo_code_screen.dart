@@ -16,14 +16,19 @@ import '../l10n/tr.dart';
 /// NÃO usar `client_apply_promo_code` aqui — essa função aplica desconto a um
 /// pedido (modelo errado). A Bora usa tokens, não cupões de desconto directo.
 class ClientPromoCodeScreen extends StatefulWidget {
-  const ClientPromoCodeScreen({super.key});
+  const ClientPromoCodeScreen({super.key, this.initialCode});
+
+  /// Código já preenchido (faixa da home do tipo `codigo`, 05/10). Só
+  /// preenche o campo — o resgate continua a ser o toque do cliente.
+  final String? initialCode;
 
   @override
   State<ClientPromoCodeScreen> createState() => _ClientPromoCodeScreenState();
 }
 
 class _ClientPromoCodeScreenState extends State<ClientPromoCodeScreen> {
-  final _ctrl = TextEditingController();
+  late final _ctrl = TextEditingController(
+      text: widget.initialCode?.trim().toUpperCase() ?? '');
   bool _submitting = false;
   String? _error;
   String? _successMessage;

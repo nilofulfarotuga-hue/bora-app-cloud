@@ -14,6 +14,7 @@ import '../stores/favorite_store.dart';
 import '../stores/restaurant_store.dart';
 import '../utils/business_mapper.dart';
 import '../utils/business_opener.dart';
+import '../utils/cozinhas.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora/bora_search_field.dart';
 import '../widgets/bora/coming_soon.dart';
@@ -26,9 +27,17 @@ import 'restaurant_options_screen.dart';
 import '../l10n/tr.dart';
 
 class RestaurantsScreen extends StatefulWidget {
-  const RestaurantsScreen({super.key, this.reservationsOnly = false});
+  const RestaurantsScreen({
+    super.key,
+    this.reservationsOnly = false,
+    this.cozinha,
+  });
 
   final bool reservationsOnly;
+
+  /// Filtro por tipo de comida (faixas da home, 05/10): chave canónica de
+  /// `cozinhaChaves` — ex. 'sushi', 'pizza', 'hamburguer'. Null = todos.
+  final String? cozinha;
 
   @override
   State<RestaurantsScreen> createState() => _RestaurantsScreenState();
@@ -70,6 +79,9 @@ class _RestaurantsScreenState extends State<RestaurantsScreen> {
             // Inclui também os negócios cuja `extra_categories` contém
             // `restaurant` (mesma loja listada em mais do que uma secção).
             business.belongsTo(BusinessCategory.restaurant) &&
+            (widget.cozinha == null ||
+                cozinhaChaves(business.cuisineType)
+                    .contains(chaveCozinha(widget.cozinha!))) &&
             (!reservationsOnly ||
                 (business.isPartner && business.reservationsEnabled)))
         .toList()
@@ -92,7 +104,11 @@ class _RestaurantsScreenState extends State<RestaurantsScreen> {
       backgroundColor: AppColors.background,
       floatingActionButton: const BoraSupportFab(),
       appBar: BoraScreenAppBar(
-        title: reservationsOnly ? 'Reservar Mesa'.tr : 'Restaurantes'.tr,
+        title: reservationsOnly
+            ? 'Reservar Mesa'.tr
+            : widget.cozinha != null
+                ? nomeCozinha(chaveCozinha(widget.cozinha!))
+                : 'Restaurantes'.tr,
       ),
       body: Column(
         children: [

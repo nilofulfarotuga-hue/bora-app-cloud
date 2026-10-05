@@ -1,10 +1,13 @@
 // supabase/functions/admin-cancel-order/index.ts
 // FASE 4 BUG 3 M3 — Admin order cancellation orchestrator.
+// v14 (ronda 04/10 A.2, 05/10/2026): reembolsa o valor realmente cobrado pela Stripe e devolve
+// à carteira a parte paga com carteira/tokens (_shared/cobranca_stripe.ts).
 
 // @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { corsHeaders } from '../_shared/cors.ts';
+import { lerPagoDoPedido, repartirReembolso, totalPago } from '../_shared/cobranca_stripe.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   apiVersion: '2023-10-16',
@@ -181,32 +184,74 @@ Deno.serve(async (req) => {
   let stripeRefundId = null;
   let stripeError = null;
   let refundAmountEur = null;
+  let carteiraCents = 0;
+  let carteiraResult = 'not_applicable';
 
-  if (refundInit === 'pending' && paymentPI && totalNum > 0 && stripeKey) {
-    const { data: orderNow } = await admin.from('orders').select('refund_status, refund_id').eq('id', orderId).maybeSingle();
-    if (orderNow?.refund_status === 'succeeded') {
-      refundResult = 'skipped';
-      stripeRefundId = orderNow.refund_id ?? null;
-    } else {
+  // v14 (ronda 04/10 A.2, 05/10/2026): devolve o que foi REALMENTE pago, por fonte.
+  // Antes mandava o total inteiro à Stripe: num pedido pago em parte com carteira/tokens
+  // a Stripe recusava (mais do que o cobrado) e o reembolso ficava 'failed'; e um pedido
+  // pago só com carteira/tokens (sem PI) nunca devolvia nada.
+  let pago = null;
+  try { pago = await lerPagoDoPedido(admin, stripeKey, orderId); }
+  catch (e) { stripeError = `pago_nao_lido: ${String(e?.message ?? e)}`; }
+
+  const { data: orderNow } = await admin.from('orders')
+    .select('refund_status, refund_id, payment_method').eq('id', orderId).maybeSingle();
+
+  if (orderNow?.refund_status === 'succeeded') {
+    refundResult = 'skipped';
+    stripeRefundId = orderNow.refund_id ?? null;
+  } else if (pago) {
+    // Tudo o que foi pago (nunca acima do preço), repartido: Stripe até ao que ainda se pode
+    // devolver lá; o resto (carteira/tokens) volta à carteira.
+    const parte = repartirReembolso(totalPago(pago), pago);
+    let stripeCentsFeitos = 0;
+    // 1) cartão / MB Way
+    if (paymentPI && parte.stripeCents > 0) {
       try {
         const refund = await stripe.refunds.create(
-          { payment_intent: paymentPI, amount: Math.round(totalNum * 100) },
-          { idempotencyKey: `admin-cancel-${orderId}` },
+          { payment_intent: paymentPI, amount: parte.stripeCents },
+          { idempotencyKey: `admin-cancel-v14-${orderId}-${parte.stripeCents}` },
         );
-        stripeRefundId  = refund.id;
-        refundAmountEur = totalNum;
-        refundResult    = 'succeeded';
-        await admin.from('orders').update({
-          refund_id: refund.id, refund_amount: refundAmountEur,
-          refund_status: 'succeeded', refunded_at: new Date().toISOString(),
-          payment_status: 'refunded',
-        }).eq('id', orderId);
+        stripeRefundId = refund.id;
+        refundResult   = 'succeeded';
+        stripeCentsFeitos = parte.stripeCents;
+        // grava já o id: se o resto falhar, o banco sabe que o dinheiro saiu
+        await admin.from('orders').update({ refund_id: refund.id, payment_status: 'refunded' }).eq('id', orderId);
       } catch (e) {
         stripeError = String(e?.message ?? e);
         refundResult = 'failed';
-        await admin.from('orders').update({ refund_status: 'failed' }).eq('id', orderId);
         console.error('[admin-cancel-order] stripe refund failed:', stripeError);
       }
+    }
+    // 2) carteira + tokens: volta à carteira (80/20 como todos os reembolsos para a carteira).
+    //    A chave é o id do pedido: se outro caminho já devolveu, não devolve outra vez.
+    if (parte.carteiraCents > 0 && r.user_id && refundResult !== 'failed') {
+      const { data: w, error: we } = await admin.rpc('wallet_credit_refund_split', {
+        p_order_id: orderId, p_user_id: r.user_id, p_total_cents: parte.carteiraCents,
+        p_reason: `admin_cancel: ${reasonCode}`, p_idempotency_key: orderId,
+      });
+      if (we) { carteiraResult = 'failed'; stripeError = (stripeError ? stripeError + ' | ' : '') + `carteira: ${we.message}`; }
+      else { carteiraResult = w?.already_applied ? 'already_applied' : 'succeeded'; carteiraCents = w?.already_applied ? 0 : parte.carteiraCents; }
+    }
+
+    const devolvidoCents = stripeCentsFeitos + carteiraCents;
+    if (refundResult === 'failed') {
+      // nada saiu pela Stripe: 'failed' como antes (o painel tem o Reprocessar)
+      await admin.from('orders').update({ refund_status: 'failed' }).eq('id', orderId);
+    } else if (carteiraResult === 'failed') {
+      // a Stripe já devolveu (refund_id gravado) e a carteira falhou: 'needs_review' — o
+      // Reprocessar só pega em 'failed', por isso não devolve a parte da Stripe outra vez.
+      await admin.from('orders').update({ refund_status: 'needs_review' }).eq('id', orderId);
+    } else if (devolvidoCents > 0) {
+      refundAmountEur = devolvidoCents / 100;
+      const upd = {
+        refund_amount: refundAmountEur,
+        refund_method: stripeCentsFeitos > 0 ? 'stripe' : 'wallet',
+        refund_status: 'succeeded', refunded_at: new Date().toISOString(),
+      };
+      const { error: ue } = await admin.from('orders').update(upd).eq('id', orderId);
+      if (ue) console.error('[admin-cancel-order] update refund falhou:', ue.message);
     }
   }
 
@@ -218,7 +263,7 @@ Deno.serve(async (req) => {
   const { data: orderRow } = await admin.from('orders').select('restaurant_id').eq('id', orderId).maybeSingle();
   resolvedRestaurantId = orderRow?.restaurant_id ?? null;
 
-  const clientMsg = mapClientMessage(reasonCode, refundAmountEur ?? totalNum, refundInit, reason);
+  const clientMsg = mapClientMessage(reasonCode, refundAmountEur ?? 0, refundAmountEur ? 'pending' : refundInit, reason);
   const driverShort = mapDriverMessage(reasonCode);
 
   const notifyTasks = [];
@@ -257,6 +302,8 @@ Deno.serve(async (req) => {
         refund_result: refundResult, refund_id: stripeRefundId,
         refund_amount: refundAmountEur, refund_status_initial: refundInit,
         stripe_error: stripeError, notifications: notifySummary,
+        carteira_result: carteiraResult, carteira_cents: carteiraCents,
+        pago: pago ? { stripe_cents: pago.stripeCents, stripe_disponivel_cents: pago.stripeDisponivelCents, wallet_cents: pago.walletCents, tokens_cents: pago.tokensCents, total_cents: pago.totalCents } : null,
         total: totalNum, payment_method: r.payment_method,
         payment_intent_id: paymentPI,
       },

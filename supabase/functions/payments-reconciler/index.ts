@@ -1,4 +1,4 @@
-// supabase/functions/payments-reconciler/index.ts — v3 (v2 F8 MISSAO TOTAL 2026-08-16; v3 order_edit 2026-09-22)
+// supabase/functions/payments-reconciler/index.ts — v4 (v2 F8 MISSAO TOTAL 2026-08-16; v3 order_edit 2026-09-22; v4 cobrancas 2026-10-05)
 //
 // RECONCILIADOR DE PAGAMENTOS — a "luz dos dados" pedida pelo Danilo.
 // Cruza Stripe <-> banco e grava divergencias em payment_reconciliation_findings
@@ -16,10 +16,17 @@
 //  B) refunds prometidos no banco (tvde 7d + orders pending) sem refund Stripe
 //  C) entidades presas a aguardar pagamento ha >1h (DB-only)
 //
+//  D) (v4, ronda 04/10 A.1/A.5 — 05/10/2026) pedidos pagos por Stripe com
+//     stripe_charge_cents a 0: le o PI e grava o amount_received pela funcao
+//     public.registar_cobranca_stripe (unica escrita deste robo, so nesse campo,
+//     so quando esta a 0). PI que a Stripe nao cobrou -> achado 'pago_sem_cobranca'.
+//     Corpo {"modo":"cobrancas"} corre so a D (cron de 10 em 10 min).
+//
 // Auth: verify_jwt=true + role service_role. Kill switch:
 // platform_settings.payments_reconciler_enabled. Cron: run_payments_reconciler().
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { lerPagoDoPedido } from '../_shared/cobranca_stripe.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -149,9 +156,36 @@ Deno.serve(async (req) => {
 
   const findings: Finding[] = [];
   const errors: string[] = [];
+  let modo = '';
+  try { modo = String((await req.json())?.modo ?? ''); } catch (_) { /* corpo vazio = tudo */ }
+  const soCobrancas = modo === 'cobrancas';
+
+  // ── D) (v4) pagos pela Stripe com stripe_charge_cents a 0 ─────────────────
+  let cobrancasGravadas = 0;
+  try {
+    // pedidos já com achado 'pago_sem_cobranca' não voltam a ser perguntados à Stripe
+    const { data: jaVistos } = await admin.from('payment_reconciliation_findings')
+      .select('entity_id').eq('kind', 'pago_sem_cobranca').limit(1000);
+    const vistos = new Set((jaVistos ?? []).map((f: any) => String(f.entity_id)));
+    const { data: ords, error } = await admin.from('orders')
+      .select('id, payment_intent_id, payment_status')
+      .not('payment_intent_id', 'is', null)
+      .or('stripe_charge_cents.is.null,stripe_charge_cents.eq.0')
+      .in('payment_status', ['paid', 'refunded', 'refundPending', 'partial_refund', 'refund_pending'])
+      .order('created_at', { ascending: false })
+      .limit(200);
+    if (error) errors.push(`sweep_cobrancas_q: ${error.message}`);
+    for (const o of (ords ?? []).filter((x: any) => !vistos.has(String(x.id))).slice(0, 50)) {
+      try {
+        const pago = await lerPagoDoPedido(admin, STRIPE_KEY, String(o.id));
+        if (pago.stripeCents > 0) { cobrancasGravadas++; continue; }
+        findings.push({ kind: 'pago_sem_cobranca', severity: 'critical', entity_type: 'order', entity_id: String(o.id), pi_id: String(o.payment_intent_id), amount_cents: 0, details: { payment_status: o.payment_status, pi_status: pago.piStatus } });
+      } catch (e) { errors.push(`cobranca ${o.id}: ${e}`); }
+    }
+  } catch (e) { errors.push(`sweep_cobrancas: ${e}`); }
 
   // ── A) PIs succeeded das ultimas 48h sem entidade confirmada ─────────────
-  try {
+  if (!soCobrancas) try {
     const since = Math.floor(Date.now() / 1000) - 48 * 3600;
     let url = `/payment_intents?limit=100&created[gte]=${since}`;
     let pages = 0;
@@ -168,6 +202,7 @@ Deno.serve(async (req) => {
     }
   } catch (e) { errors.push(`sweep_stripe: ${e}`); }
 
+  if (!soCobrancas) {
   // ── B) refunds prometidos sem refund na Stripe ──────────────────────────────
   try {
     const { data: rides, error } = await admin.from('tvde_rides')
@@ -235,6 +270,7 @@ Deno.serve(async (req) => {
       findings.push({ kind: 'preso_aguarda_pagamento', severity: 'warn', entity_type: 'cleaning_booking', entity_id: String(c.id), pi_id: null, amount_cents: null, details: { payment_method: c.payment_method, status: c.status } });
     }
   } catch (e) { errors.push(`sweep_stuck_cleaning: ${e}`); }
+  } // fim do if (!soCobrancas)
 
   // ── Gravar (idempotente) e contar SO os novos ────────────────────────────────
   let novos = 0;
@@ -271,6 +307,6 @@ Deno.serve(async (req) => {
     } catch (e) { errors.push(`alerta: ${e}`); }
   }
 
-  console.log('[payments-reconciler] achados:', findings.length, 'novos:', novos, 'alerted:', alerted, 'erros:', errors.length);
-  return json({ ok: true, achados: findings.length, novos, alerted, erros: errors });
+  console.log('[payments-reconciler] modo:', modo || 'tudo', 'cobrancas_gravadas:', cobrancasGravadas, 'achados:', findings.length, 'novos:', novos, 'alerted:', alerted, 'erros:', errors.length);
+  return json({ ok: true, modo: modo || 'tudo', cobrancas_gravadas: cobrancasGravadas, achados: findings.length, novos, alerted, erros: errors });
 });

@@ -126,7 +126,9 @@ Deno.serve(async (req: Request) => {
       if (!booking.stripe_payment_intent_id) return json({ ok: true, note: 'nothing_to_reverse' });
 
       let pi;
-      try { pi = await stripe.paymentIntents.retrieve(booking.stripe_payment_intent_id); }
+      try {
+        pi = await stripe.paymentIntents.retrieve(booking.stripe_payment_intent_id, { expand: ['latest_charge'] });
+      }
       catch (_) { return json({ error: 'payment_intent_not_found' }, 404); }
 
       const amountCents = Number(booking.total_cents ?? 0);
@@ -144,13 +146,22 @@ Deno.serve(async (req: Request) => {
       }
 
       if (pi.status === 'succeeded') {
-        const backCents = amountCents - feeCents;
+        // Ronda 04/10 A.7 (05/10/2026): reembolso a dobrar. Uma segunda chamada a 'reverse'
+        // devolvia outra vez quando a taxa >= metade do total (a 2.ª devolução ainda cabia no
+        // que restava). Agora: se a cobrança já tem devolução, não devolve; e a Stripe recebe
+        // uma chave de idempotência por reserva. Nunca devolve mais do que se cobrou.
+        // deno-lint-ignore no-explicit-any
+        const charge: any = pi.latest_charge;
+        const jaDevolvido = Number(charge?.amount_refunded ?? 0);
+        if (jaDevolvido > 0) return json({ ok: true, note: 'already_reversed', refundedCents: jaDevolvido });
+        const cobrado = Number(pi.amount_received ?? amountCents);
+        const backCents = Math.min(amountCents, cobrado) - feeCents;
         if (backCents <= 0) return json({ ok: true, note: 'fee_equals_total' });
         const r = await stripe.refunds.create({
           payment_intent: pi.id,
           amount: backCents,
           metadata: { kind: 'carwash', booking_id: bookingId },
-        });
+        }, { idempotencyKey: `carwash-reverse-${bookingId}` });
         return json({ ok: true, note: 'reversed', refundStatus: r.status, backCents });
       }
 

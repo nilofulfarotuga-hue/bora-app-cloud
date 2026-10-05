@@ -1,11 +1,15 @@
 // supabase/functions/cancel-order-with-choice/index.ts
 // FIX 2026-05-12: CASH antes de entrega não tem reembolso.
 // v11 (2026-05-12 — Bug #1): cancel CASH/MBWay-não-pago → débito wallet (dívida), não simples cancel.
+// v18 (2026-10-05 — ronda 04/10 A.1/A.2/A.6): trava atómica contra duplo toque; o que se pagou lê-se
+//   da Stripe quando stripe_charge_cents está a 0; reembolso limitado ao pago e repartido por fonte
+//   (MB Way também volta pela Stripe; carteira/tokens voltam à carteira).
 
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCancelFees, computeCancelFeeEur } from '../_shared/platform_settings.ts';
 import { corsHeaders } from '../_shared/cors.ts';
+import { lerPagoDoPedido, repartirReembolso, totalPago } from '../_shared/cobranca_stripe.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   apiVersion: '2023-10-16',
@@ -79,7 +83,7 @@ Deno.serve(async (req) => {
     .select(
       'id, user_id, status, payment_method, payment_intent_id, payment_status, ' +
         'total, estimated_total, final_total, customer_total, refund_amount, ' +
-        'stripe_charge_cents, wallet_applied_cents, tokens_applied_value_cents',
+        'stripe_charge_cents, wallet_applied_cents, tokens_applied_value_cents, refund_status',
     )
     .eq('id', orderId)
     .maybeSingle();
@@ -91,21 +95,40 @@ Deno.serve(async (req) => {
     return json({ error: 'cannot_cancel_at_status', status: order.status }, 409);
   }
 
+  // v18 (ronda 04/10 A.6): trava contra duplo toque — reserva atómica do pedido
+  // (refund_status -> 'processing' só se ainda não estiver). O segundo toque leva 409.
+  const refundStatusAntes = order.refund_status ?? null;
+  const { data: reservado, error: resErr } = await admin.from('orders')
+    .update({ refund_status: 'processing' })
+    .eq('id', orderId).eq('user_id', user.id).neq('status', 'cancelled')
+    .or('refund_status.is.null,refund_status.neq.processing')
+    .select('id');
+  if (resErr) return json({ error: 'db_reserve_failed', details: resErr.message }, 500);
+  if (!reservado || reservado.length === 0) return json({ error: 'cancellation_in_progress' }, 409);
+  const libertar = async () => {
+    await admin.from('orders').update({ refund_status: refundStatusAntes })
+      .eq('id', orderId).eq('refund_status', 'processing');
+  };
+
   const totalEur = Number(
     order.customer_total ?? order.final_total ?? order.total ?? order.estimated_total ?? 0,
   );
   const fees = await getCancelFees();
   const fee = Number(computeCancelFeeEur(t, totalEur, fees).toFixed(2));
-  const refundEur = Math.max(0, Number((totalEur - fee).toFixed(2)));
-  const refundCents = Math.round(refundEur * 100);
 
   // FIX 2026-05-12: Calcular quanto cliente REALMENTE pagou
-  const paidCents = Number(order.stripe_charge_cents ?? 0)
-                  + Number(order.wallet_applied_cents ?? 0)
-                  + Number(order.tokens_applied_value_cents ?? 0);
+  // v18 (ronda 04/10 A.1): stripe_charge_cents vem da Stripe quando está a 0 (lerPagoDoPedido).
+  let pago;
+  try { pago = await lerPagoDoPedido(admin, Deno.env.get('STRIPE_SECRET_KEY') ?? '', orderId); }
+  catch (e) { await libertar(); return json({ error: 'paid_unknown', details: String(e) }, 502); }
+  const paidCents = totalPago(pago);
   const nothingToRefund = paidCents === 0;
+  // nunca devolve mais do que se pagou
+  const refundCents = Math.min(Math.max(0, Math.round((totalEur - fee) * 100)), paidCents);
+  const refundEur = refundCents / 100;
 
   let stripeRefundId: string | undefined;
+  let devolvidoCents = 0;
   let walletResult: any = null;
   let refundExecuted = false;
   let chargeMissing = false;
@@ -159,56 +182,56 @@ Deno.serve(async (req) => {
     }
   } else if (refundEur <= 0) {
     // 100% retido
-  } else if (refundMethod === 'stripe') {
-    if (order.payment_method !== 'card' || !order.payment_intent_id) {
-      return json(
-        { error: 'stripe_refund_unavailable',
-          details: 'Order paid with non-card method or no payment_intent. Use wallet.' },
-        409,
-      );
-    }
-    let piStatus: string | undefined;
-    let piLatestCharge: string | null | undefined;
-    try {
-      const pi = await stripe.paymentIntents.retrieve(order.payment_intent_id);
-      piStatus = pi.status;
-      piLatestCharge = (pi.latest_charge as string | null) ?? null;
-    } catch (e) {
-      console.error('[cancel-with-choice] PI retrieve failed:', e);
-      return json({ error: 'pi_retrieve_failed', details: String(e) }, 502);
-    }
-    if (piStatus !== 'succeeded' || !piLatestCharge) {
-      chargeMissing = true;
-    } else {
-      try {
-        const idempotencyKey = `refund-${order.payment_intent_id}-${refundCents}`;
-        const refund = await stripe.refunds.create(
-          { payment_intent: order.payment_intent_id, amount: refundCents },
-          { idempotencyKey },
-        );
-        stripeRefundId = refund.id;
-        refundExecuted = true;
-      } catch (e) {
-        console.error('[cancel-with-choice] stripe failed:', e);
-        return json({ error: 'refund_failed', details: String(e) }, 502);
+  } else {
+    // v18 (ronda 04/10 A.2): cada parte volta pela fonte. 'stripe' = até ao que a Stripe
+    // cobrou (cartão OU MB Way) volta ao meio de pagamento; o que foi pago com carteira/
+    // tokens volta à carteira. 'wallet' = tudo para a carteira.
+    let carteiraCents = refundCents;
+    if (refundMethod === 'stripe') {
+      const parte = repartirReembolso(refundCents, pago);
+      carteiraCents = parte.carteiraCents;
+      if (parte.stripeCents > 0 && order.payment_intent_id) {
+        try {
+          const idempotencyKey = `refund-${order.payment_intent_id}-${parte.stripeCents}`;
+          const refund = await stripe.refunds.create(
+            { payment_intent: order.payment_intent_id, amount: parte.stripeCents },
+            { idempotencyKey },
+          );
+          stripeRefundId = refund.id;
+          refundExecuted = true;
+          devolvidoCents += parte.stripeCents;
+          // grava já o id: se o resto falhar, o banco sabe que o dinheiro saiu
+          await admin.from('orders').update({ refund_id: refund.id }).eq('id', orderId);
+        } catch (e) {
+          console.error('[cancel-with-choice] stripe failed:', e);
+          await libertar();
+          return json({ error: 'refund_failed', details: String(e) }, 502);
+        }
+      } else if (carteiraCents <= 0) {
+        chargeMissing = true;
       }
     }
-  } else {
-    const { data: walletRpc, error: walletErr } = await admin.rpc(
-      'wallet_credit_refund_split',
-      {
-        p_order_id: orderId,
-        p_user_id: user.id,
-        p_total_cents: refundCents,
-        p_reason: `Cancelamento pedido ${orderId}: ${reason}`,
-      },
-    );
-    if (walletErr) {
-      console.error('[cancel-with-choice] wallet RPC failed:', walletErr);
-      return json({ error: 'wallet_credit_failed', details: walletErr.message }, 500);
+    if (carteiraCents > 0) {
+      const { data: walletRpc, error: walletErr } = await admin.rpc(
+        'wallet_credit_refund_split',
+        {
+          p_order_id: orderId,
+          p_user_id: user.id,
+          p_total_cents: carteiraCents,
+          p_reason: `Cancelamento pedido ${orderId}: ${reason}`,
+        },
+      );
+      if (walletErr) {
+        console.error('[cancel-with-choice] wallet RPC failed:', walletErr);
+        if (!stripeRefundId) await libertar();
+        // a Stripe já devolveu: 'needs_review' (o Reprocessar só pega em 'failed')
+        else await admin.from('orders').update({ refund_status: 'needs_review' }).eq('id', orderId);
+        return json({ error: 'wallet_credit_failed', details: walletErr.message, refund_id: stripeRefundId ?? null }, 500);
+      }
+      walletResult = walletRpc;
+      refundExecuted = true;
+      if (!walletRpc?.already_applied) devolvidoCents += carteiraCents;
     }
-    walletResult = walletRpc;
-    refundExecuted = true;
   }
 
   const now = new Date().toISOString();
@@ -231,10 +254,13 @@ Deno.serve(async (req) => {
     cancellation_initiator: 'client',
   };
   if (refundExecuted) {
-    updatePayload.refund_amount = refundEur;
-    updatePayload.refund_method = refundMethod;
-    updatePayload.refund_status =
-      refundMethod === 'wallet' ? 'completed' : 'pending';
+    updatePayload.refund_amount = devolvidoCents / 100;
+    updatePayload.refund_method = stripeRefundId ? 'stripe' : 'wallet';
+    updatePayload.refund_status = stripeRefundId ? 'pending' : 'completed';
+    if (stripeRefundId) updatePayload.refund_id = stripeRefundId;
+  } else {
+    // v18: tira a reserva da trava
+    updatePayload.refund_status = refundStatusAntes;
   }
 
   const { error: updateErr } = await admin
@@ -245,6 +271,8 @@ Deno.serve(async (req) => {
 
   if (updateErr) {
     console.error('[cancel-with-choice] update failed:', updateErr);
+    if (refundExecuted) await admin.from('orders').update({ refund_status: 'needs_review' }).eq('id', orderId);
+    else await libertar();
     return json({ error: 'db_update_failed', details: updateErr.message }, 500);
   }
 
@@ -263,8 +291,8 @@ Deno.serve(async (req) => {
       title = 'Pedido cancelado';
       message =
         'O pedido foi cancelado. Não houve cobrança no cartão, por isso não há reembolso a processar.';
-    } else if (refundMethod === 'stripe') {
-      message = `Reembolso de €${refundEur.toFixed(2)} processado. Pode demorar 5-10 dias úteis a aparecer no cartão.`;
+    } else if (stripeRefundId) {
+      message = `Reembolso de €${(devolvidoCents / 100).toFixed(2)} processado. Pode demorar 5-10 dias úteis a aparecer no cartão.`;
     } else if (walletResult) {
       message = `€${(walletResult.free_cents / 100).toFixed(2)} creditados em saldo livre + ${walletResult.tokens_count} tokens (≈€${(walletResult.tokens_value_cents / 100).toFixed(2)}). Disponível imediatamente.`;
     } else {

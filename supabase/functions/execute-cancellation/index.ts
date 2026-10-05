@@ -2,7 +2,8 @@
 //
 // Executes a cancellation_request that was previously approved by admin.
 // Body: { request_id: string }
-// Auth: caller must be admin (bora_role='admin' in JWT).
+// Auth: caller must be admin — public.is_admin() no servidor (v15, ronda 04/10 A.6).
+// v15: trava atómica contra duplo toque; reembolso limitado ao que foi pago, por fonte.
 //
 // Flow:
 //   1. Auth admin via JWT
@@ -21,6 +22,7 @@ import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCancelFees, computeCancelFeeEur } from '../_shared/platform_settings.ts';
 import { corsHeaders } from '../_shared/cors.ts';
+import { lerPagoDoPedido, repartirReembolso, totalPago } from '../_shared/cobranca_stripe.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   apiVersion: '2023-10-16',
@@ -69,9 +71,10 @@ Deno.serve(async (req) => {
   const user = userData?.user;
   if (authError || !user) return json({ error: 'unauthorized' }, 401);
 
-  const role = (user.user_metadata as Record<string, unknown> | undefined)?.['bora_role']
-            ?? (user.app_metadata as Record<string, unknown> | undefined)?.['role'];
-  if (role !== 'admin') return json({ error: 'admin_required' }, 403);
+  // v15 (ronda 04/10 A.6): admin verificado NO SERVIDOR por public.is_admin().
+  // Antes aceitava user_metadata.bora_role, que o próprio utilizador pode editar.
+  const { data: eAdmin, error: adminErr } = await userClient.rpc('is_admin');
+  if (adminErr || eAdmin !== true) return json({ error: 'admin_required' }, 403);
 
   const admin = createClient(supabaseUrl, serviceKey);
 
@@ -88,7 +91,7 @@ Deno.serve(async (req) => {
   // Load order
   const { data: order, error: oErr } = await admin
     .from('orders')
-    .select('id, user_id, status, payment_method, payment_intent_id, payment_status, total, estimated_total, final_total, customer_total, refund_amount, refund_method, cancelled_at')
+    .select('id, user_id, status, payment_method, payment_intent_id, payment_status, total, estimated_total, final_total, customer_total, refund_amount, refund_method, refund_status, cancelled_at')
     .eq('id', cReq.order_id)
     .maybeSingle();
   if (oErr || !order) return json({ error: 'order_not_found' }, 404);
@@ -100,59 +103,105 @@ Deno.serve(async (req) => {
   const t = tier(order.status);
   if (t === 'invalid') return json({ error: 'cannot_cancel_at_status', status: order.status }, 409);
 
+  // v15 (ronda 04/10 A.6): trava contra duplo toque — reserva o pedido de forma atómica
+  // (refund_status -> 'processing' só se ainda não estiver). O segundo toque leva 409.
+  const refundStatusAntes = order.refund_status ?? null;
+  const { data: reservado, error: resErr } = await admin.from('orders')
+    .update({ refund_status: 'processing' })
+    .eq('id', order.id).neq('status', 'cancelled')
+    .or('refund_status.is.null,refund_status.neq.processing')
+    .select('id');
+  if (resErr) return json({ error: 'db_reserve_failed', details: resErr.message }, 500);
+  if (!reservado || reservado.length === 0) return json({ error: 'cancellation_in_progress' }, 409);
+  const libertar = async () => {
+    await admin.from('orders').update({ refund_status: refundStatusAntes })
+      .eq('id', order.id).eq('refund_status', 'processing');
+  };
+
   const totalEur = Number(order.customer_total ?? order.final_total ?? order.total ?? order.estimated_total ?? 0);
   const fees = await getCancelFees();
   const fee = Number(computeCancelFeeEur(t, totalEur, fees).toFixed(2));
-  const refundEur = Math.max(0, Number((totalEur - fee).toFixed(2)));
-  const refundCents = Math.round(refundEur * 100);
+
+  // v15 (ronda 04/10 A.1/A.2): o que se devolve nunca passa do que foi pago, e cada parte
+  // volta pela fonte: Stripe até ao que a Stripe cobrou; carteira+tokens para a carteira.
+  let pago;
+  try { pago = await lerPagoDoPedido(admin, Deno.env.get('STRIPE_SECRET_KEY') ?? '', order.id); }
+  catch (e) { await libertar(); return json({ error: 'paid_unknown', details: String(e) }, 502); }
+  const pagoCents = totalPago(pago);
+  const refundCents = Math.min(Math.max(0, Math.round((totalEur - fee) * 100)), pagoCents);
 
   const method = cReq.refund_method as 'stripe' | 'wallet' | 'none';
   let stripeRefundId: string | undefined;
   // deno-lint-ignore no-explicit-any
   let walletResult: any = null;
+  let stripeCents = 0;
+  let carteiraCents = 0;
 
-  if (method !== 'none' && refundEur > 0) {
+  if (method !== 'none' && refundCents > 0) {
     if (method === 'stripe') {
-      if (order.payment_method !== 'card' || !order.payment_intent_id) {
+      const parte = repartirReembolso(refundCents, pago);
+      if (parte.stripeCents <= 0 || !order.payment_intent_id) {
+        await libertar();
         return json({ error: 'stripe_refund_unavailable',
-          details: 'Order not paid with card. Re-approve with wallet method.' }, 409);
+          details: 'Pedido sem cobrança na Stripe. Volta a aprovar com carteira.' }, 409);
       }
       try {
-        const refund = await stripe.refunds.create({
-          payment_intent: order.payment_intent_id, amount: refundCents,
-        });
+        const refund = await stripe.refunds.create(
+          { payment_intent: order.payment_intent_id, amount: parte.stripeCents },
+          { idempotencyKey: `exec-cancel-${cReq.id}-${parte.stripeCents}` },
+        );
         stripeRefundId = refund.id;
+        stripeCents = parte.stripeCents;
+        // grava já o id: se o resto falhar, o banco sabe que o dinheiro saiu
+        await admin.from('orders').update({ refund_id: refund.id }).eq('id', order.id);
       } catch (e) {
         console.error('[execute-cancellation] stripe failed:', e);
+        await libertar();
         return json({ error: 'refund_failed', details: String(e) }, 502);
       }
+      carteiraCents = parte.carteiraCents;
     } else {
+      carteiraCents = refundCents;
+    }
+    if (carteiraCents > 0) {
       const { data: walletRpc, error: walletErr } = await admin.rpc('wallet_credit_refund_split', {
-        p_order_id: order.id, p_user_id: order.user_id, p_total_cents: refundCents,
+        p_order_id: order.id, p_user_id: order.user_id, p_total_cents: carteiraCents,
         p_reason: `Aprovado por admin (req ${cReq.id}, ${cReq.requester_role})`,
       });
       if (walletErr) {
         console.error('[execute-cancellation] wallet RPC failed:', walletErr);
-        return json({ error: 'wallet_credit_failed', details: walletErr.message }, 500);
+        if (!stripeRefundId) await libertar();
+        // a Stripe já devolveu: 'needs_review' (o Reprocessar só pega em 'failed')
+        else await admin.from('orders').update({ refund_status: 'needs_review' }).eq('id', order.id);
+        return json({ error: 'wallet_credit_failed', details: walletErr.message, stripe_refund_id: stripeRefundId ?? null }, 500);
       }
       walletResult = walletRpc;
     }
   }
 
-  // Update order
+  // Update order — o que se devolveu mesmo (método 'none' = nada)
+  const devolvidoCents = method === 'none' ? 0 : stripeCents + carteiraCents;
+  const refundEur = devolvidoCents / 100;
   const now = new Date().toISOString();
-  const newPaymentStatus = refundEur <= 0 ? 'refunded' : fee > 0 ? 'partial_refund' : 'refunded';
+  const newPaymentStatus = devolvidoCents <= 0
+    ? (method === 'none' ? (order.payment_status ?? 'refunded') : 'refunded')
+    : fee > 0 ? 'partial_refund' : 'refunded';
   const { error: updateErr } = await admin.from('orders').update({
     status: 'cancelled',
     cancel_reason: `Cancelamento aprovado pelo admin (pedido por ${cReq.requester_role})`,
     cancel_fee: fee, cancelled_at: now,
-    refund_amount: refundEur, refund_method: method,
-    refund_status: method === 'wallet' ? 'completed' : (method === 'none' ? 'completed' : 'pending'),
+    refund_amount: devolvidoCents > 0 ? refundEur : null,
+    refund_method: stripeCents > 0 ? 'stripe' : method,
+    refund_id: stripeRefundId ?? null,
+    refund_status: 'completed',
+    refunded_at: devolvidoCents > 0 ? now : null,
     payment_status: newPaymentStatus,
     cancellation_initiator: cReq.requester_role,
   }).eq('id', order.id);
   if (updateErr) {
     console.error('[execute-cancellation] update failed:', updateErr);
+    if (devolvidoCents > 0) await admin.from('orders').update({ refund_status: 'needs_review' }).eq('id', order.id);
+    else await libertar();
     return json({ error: 'db_update_failed', details: updateErr.message }, 500);
   }
 

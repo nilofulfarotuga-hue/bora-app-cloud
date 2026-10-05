@@ -16,6 +16,31 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 05/10/2026: home com faixas e secções + pesquisa global (a lupa).
+  '1 pedido este mês': '1 order this month',
+  '{0} pedidos este mês': '{0} orders this month',
+  'Os mais pedidos da Guarda': 'Most ordered in Guarda',
+  'Populares na Guarda': 'Popular in Guarda',
+  'Pede outra vez': 'Order again',
+  'Novidades': 'New on Bora',
+  'Todas as lojas': 'All stores',
+  'Ver mais lojas': 'See more stores',
+  'Ver tudo': 'See all',
+  'Pesquisar': 'Search',
+  'Pesquisas recentes': 'Recent searches',
+  'Limpar': 'Clear',
+  'Cozinhas populares': 'Popular cuisines',
+  'Lojas, pratos, produtos…': 'Stores, dishes, products…',
+  'Não encontrámos "{0}" — tenta pizza, sushi, açaí…':
+      'We could not find "{0}" — try pizza, sushi, açaí…',
+  'Não foi possível pesquisar agora. Verifica a ligação.':
+      'Search is not available right now. Check your connection.',
+  'Esta loja não está disponível de momento.':
+      'This store is not available at the moment.',
+  'Esta secção não está disponível de momento.':
+      'This section is not available at the moment.',
+  'Este produto já não está disponível.':
+      'This product is no longer available.',
   // 04/10/2026 (agente tvde): TVDE em PT-PT (paragem) + partilhar viagem.
   'Como pagaste na app, o valor é devolvido automaticamente.':
       'As you paid in the app, the amount is refunded automatically.',

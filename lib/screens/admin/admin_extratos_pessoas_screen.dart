@@ -6,10 +6,10 @@
 // nada — mostra o que o servidor devolve.
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../services/admin_export_service.dart';
 import '../../widgets/extrato_prestador_section.dart';
 
 class AdminExtratosPessoasScreen extends StatefulWidget {
@@ -151,15 +151,17 @@ class _AdminExtratoPrestadorPage extends StatelessWidget {
       final r = await Supabase.instance.client
           .rpc('extrato_prestador', params: {'p_semanas': 12, 'p_user_id': userId});
       final m = Map<String, dynamic>.from(r as Map);
-      final b = StringBuffer('quando;tipo;descricao;pagamento;cliente_pagou_eur;ganhou_eur;parte_bora_eur;recebeu_em_mao_eur;fica_para_a_bora_eur\n');
+      const l = AdminExportService.linhaCsv;
+      final b = StringBuffer();
+      b.writeln(l(['quando', 'tipo', 'descricao', 'pagamento', 'cliente_pagou_eur', 'ganhou_eur', 'parte_bora_eur', 'recebeu_em_mao_eur', 'fica_para_a_bora_eur']));
       for (final t in (m['trabalhos'] as List? ?? const [])) {
         final x = t as Map;
         String e(dynamic c) => c == null ? '' : ((c as num) / 100).toStringAsFixed(2).replaceAll('.', ',');
-        b.writeln('${x['quando_txt']};${x['tipo']};${x['descricao']};${x['pagamento'] ?? ''};${e(x['cliente_pagou_cents'])};${e(x['ganhou_cents'])};${e(x['parte_bora_cents'])};${e(x['recebeu_em_mao_cents'])};${e(x['fica_para_a_bora_cents'])}');
+        b.writeln(l([x['quando_txt'], x['tipo'], x['descricao'], x['pagamento'], e(x['cliente_pagou_cents']), e(x['ganhou_cents']), e(x['parte_bora_cents']), e(x['recebeu_em_mao_cents']), e(x['fica_para_a_bora_cents'])]));
       }
-      await Clipboard.setData(ClipboardData(text: b.toString()));
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('CSV copiado')));
+      await AdminExportService.instance.exportCsvText(
+          filename: 'extrato_${nome}_${DateTime.now().millisecondsSinceEpoch}.csv',
+          csv: b.toString());
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
@@ -234,15 +236,17 @@ class _AdminExtratoParceiroPageState extends State<_AdminExtratoParceiroPage> {
   Future<void> _csv() async {
     final x = _x;
     if (x == null) return;
-    final b = StringBuffer('quando;cliente;pagamento;cliente_pagou_eur;produtos_eur;entrega_e_taxas_eur;parte_bora_eur;fica_para_o_parceiro_eur\n');
+    const l = AdminExportService.linhaCsv;
+    final b = StringBuffer();
+    b.writeln(l(['quando', 'cliente', 'pagamento', 'cliente_pagou_eur', 'produtos_eur', 'entrega_e_taxas_eur', 'parte_bora_eur', 'fica_para_o_parceiro_eur']));
     String e(dynamic c) => c == null ? '' : ((c as num) / 100).toStringAsFixed(2).replaceAll('.', ',');
     for (final p in (x['pedidos'] as List? ?? const [])) {
       final m = p as Map;
-      b.writeln('${m['quando_txt']};${m['cliente'] ?? ''};${m['pagamento'] ?? ''};${e(m['cliente_pagou_cents'])};${e(m['produtos_cents'])};${e(m['entrega_e_taxas_cents'])};${e(m['parte_bora_cents'])};${e(m['fica_para_o_parceiro_cents'])}');
+      b.writeln(l([m['quando_txt'], m['cliente'], m['pagamento'], e(m['cliente_pagou_cents']), e(m['produtos_cents']), e(m['entrega_e_taxas_cents']), e(m['parte_bora_cents']), e(m['fica_para_o_parceiro_cents'])]));
     }
-    await Clipboard.setData(ClipboardData(text: b.toString()));
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('CSV copiado')));
+    await AdminExportService.instance.exportCsvText(
+        filename: 'extrato_parceiro_${DateTime.now().millisecondsSinceEpoch}.csv',
+        csv: b.toString());
   }
 
   Widget _linha(String k, String v, {bool bold = false}) => Padding(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../utils/hora_lisboa_ext.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
@@ -258,7 +259,7 @@ class _Lista extends StatelessWidget {
 }
 
 String _quando(Map<String, dynamic> c) {
-  final t = DateTime.tryParse((c['created_at'] as String?) ?? '')?.toLocal();
+  final t = DateTime.tryParse((c['created_at'] as String?) ?? '')?.toLisboa();
   if (t == null) return '';
   String dd(int n) => n.toString().padLeft(2, '0');
   return '${dd(t.day)}/${dd(t.month)} ${dd(t.hour)}:${dd(t.minute)}';

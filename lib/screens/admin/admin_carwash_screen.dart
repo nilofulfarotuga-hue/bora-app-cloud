@@ -7,6 +7,7 @@ import '../../config/app_spacing.dart';
 import '../../services/carwash_upload_service.dart';
 import '../../utils/hora_lisboa_ext.dart';
 import '../../services/admin_export_service.dart';
+import '../../widgets/admin/confirmar_dinheiro.dart';
 
 /// LAVAGEM AUTO — painel admin (PT-BR, só o Danilo usa).
 /// Autoridade total: ver, criar, editar, cancelar, reagendar, reatribuir,
@@ -984,10 +985,24 @@ class _AbaAcertosState extends State<_AbaAcertos> {
     }
   }
 
-  Future<void> _marcarPago(String id) async {
+  Future<void> _marcarPago(Map<String, dynamic> s) async {
+    final cents = ((s['net_payout_cents'] as num?) ?? 0).toInt();
+    final ok = await confirmarDinheiro(
+      context,
+      titulo: cents < 0 ? 'Marcar como recebido' : 'Marcar como pago',
+      nome: '${s['washer_name'] ?? '—'}',
+      valor: '${(cents.abs() / 100).toStringAsFixed(2)} €',
+      detalhe: cents < 0
+          ? 'O lavador deve este valor à Bora. Confirma que já o recebeu?'
+          : 'Confirma que a Bora já pagou este valor ao lavador?',
+    );
+    if (!ok || !mounted) return;
     try {
-      await _sb.rpc('admin_mark_carwash_settlement_paid',
-          params: {'p_id': id, 'p_method': 'mbway', 'p_reference': ''});
+      await _sb.rpc('admin_mark_carwash_settlement_paid', params: {
+        'p_id': s['id'].toString(),
+        'p_method': 'mbway',
+        'p_reference': ''
+      });
       if (mounted) _msg(context, 'Marcado como pago.');
       _load();
     } catch (e) {
@@ -1035,12 +1050,13 @@ class _AbaAcertosState extends State<_AbaAcertos> {
                                   '${(((s['net_payout_cents'] as num?) ?? 0) / 100).toStringAsFixed(2)} €',
                                   style: const TextStyle(
                                       fontWeight: FontWeight.w700)),
-                              if (s['status'] != 'paid')
+                              if (s['status'] != 'paid' &&
+                                  s['status'] != 'received')
                                 IconButton(
                                   icon: const Icon(Icons.check_circle_outline),
                                   tooltip: 'Marcar como pago',
                                   onPressed: () =>
-                                      _marcarPago(s['id'].toString()),
+                                      _marcarPago(s),
                                 ),
                             ],
                           ),

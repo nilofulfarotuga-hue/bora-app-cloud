@@ -4,6 +4,7 @@ import '../../config/app_colors.dart';
 
 import 'admin_order_edits_screen.dart';
 import 'admin_acerto_unificado_screen.dart';
+import 'admin_menu_sub_screen.dart';
 import 'admin_acertos_semana_screen.dart';
 import 'admin_advanced_kpis_screen.dart';
 import 'admin_ai_assistant_screen.dart';
@@ -139,7 +140,13 @@ class AdminMenuItem {
     this.keywords = const [],
     this.badge,
     this.archivedReason,
+    this.filhos = const [],
   });
+
+  /// Entradas que vivem DENTRO deste item (sub-ecrã "Mais ..."). Contam para a
+  /// busca e para os favoritos, mas não ocupam linha na secção (ronda 04/10:
+  /// "Dinheiro e acertos" com no máximo 5 entradas).
+  final List<AdminMenuItem> filhos;
 
   final String id;
   final String title;
@@ -341,15 +348,6 @@ List<AdminMenuSection> adminMenuSections() => [
       keywords: const ['fecho', 'mensal', 'mes', 'financas', 'recibo', 'verde', 'fatura', 'dac7', 'extrato', 'prejuizo'],
     ),
     AdminMenuItem(
-      id: 'dinheiro_extratos_pessoas',
-      title: 'Extratos por pessoa',
-      subtitle: 'O extrato que cada estafeta, motorista e parceiro vê — aberto pelo admin, com CSV',
-      icon: Icons.person_search_outlined,
-      color: AppColors.primary,
-      builder: () => const AdminExtratosPessoasScreen(),
-      keywords: const ['extrato', 'estafeta', 'motorista', 'parceiro', 'pessoa', 'csv', 'ganhos'],
-    ),
-    AdminMenuItem(
       id: 'dinheiro_vigia',
       title: 'Vigia do dinheiro',
       subtitle: 'Achados diários: onde o histórico e o saldo não batem, com quem e quanto; só aponta, você decide',
@@ -357,6 +355,32 @@ List<AdminMenuSection> adminMenuSections() => [
       color: AppColors.warning,
       builder: () => const AdminVigiaDinheiroScreen(),
       keywords: const ['vigia', 'achados', 'desacerto', 'saldo', 'historico', 'arcas', 'telegram'],
+    ),
+    // Ronda 04/10: a secção mostra no máximo 5 entradas; o resto vive aqui.
+    AdminMenuItem(
+      id: 'dinheiro_mais',
+      title: 'Mais dinheiro',
+      subtitle: 'Extratos por pessoa, cartões, gorjetas, órfãos, reembolsos, preços por talão, carteiras, tokens e códigos',
+      icon: Icons.more_horiz,
+      color: AppColors.primary,
+      builder: () => AdminMenuSubScreen(
+        titulo: 'Mais dinheiro',
+        itens: adminMenuSections()
+            .firstWhere((s) => s.id == 'dinheiro')
+            .items
+            .firstWhere((i) => i.id == 'dinheiro_mais')
+            .filhos,
+      ),
+      keywords: const ['mais', 'dinheiro', 'outros'],
+      filhos: [
+    AdminMenuItem(
+      id: 'dinheiro_extratos_pessoas',
+      title: 'Extratos por pessoa',
+      subtitle: 'O extrato que cada estafeta, motorista e parceiro vê — aberto pelo admin, com CSV',
+      icon: Icons.person_search_outlined,
+      color: AppColors.primary,
+      builder: () => const AdminExtratosPessoasScreen(),
+      keywords: const ['extrato', 'estafeta', 'motorista', 'parceiro', 'pessoa', 'csv', 'ganhos'],
     ),
     AdminMenuItem(
       id: 'dinheiro_pagamentos_cartoes',
@@ -429,6 +453,8 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.pinkAccent,
       builder: () => const AdminPromoCodesScreen(),
       keywords: const ['codes', 'codigos', 'criar', 'desligar', 'promo', 'promocionais'],
+    ),
+      ],
     ),
     ],
   ),
@@ -1373,4 +1399,4 @@ List<AdminMenuSection> adminMenuSections() => [
 
 /// Todos os itens (activos e arquivados), para a busca e os favoritos.
 List<AdminMenuItem> adminMenuAllItems() =>
-    adminMenuSections().expand((s) => s.items).toList();
+    adminMenuSections().expand((s) => s.items).expand((i) => [i, ...i.filhos]).toList();

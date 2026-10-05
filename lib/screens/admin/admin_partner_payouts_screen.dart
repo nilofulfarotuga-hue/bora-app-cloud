@@ -19,6 +19,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../utils/hora_lisboa_ext.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
@@ -439,7 +440,7 @@ class _AdminPartnerPayoutsScreenState extends State<AdminPartnerPayoutsScreen> {
 
   String _fmtDateTime(String? iso) {
     if (iso == null) return '—';
-    final d = DateTime.tryParse(iso)?.toLocal();
+    final d = DateTime.tryParse(iso)?.toLisboa();
     if (d == null) return iso;
     return '${d.day.toString().padLeft(2, '0')}/'
         '${d.month.toString().padLeft(2, '0')}/'

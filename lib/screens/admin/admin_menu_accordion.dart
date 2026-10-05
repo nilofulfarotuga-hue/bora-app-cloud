@@ -48,7 +48,10 @@ class _AdminMenuAccordionState extends State<AdminMenuAccordion> {
   }
 
   List<AdminMenuItem> get _todos =>
-      widget.sections.expand((s) => s.items).toList();
+      widget.sections
+          .expand((s) => s.items)
+          .expand((i) => [i, ...i.filhos])
+          .toList();
 
   void _abrir(BuildContext context, AdminMenuItem item) {
     if (widget.onOpen != null) {

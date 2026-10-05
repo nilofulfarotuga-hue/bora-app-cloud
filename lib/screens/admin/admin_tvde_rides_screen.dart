@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../services/admin_export_service.dart';
+import '../../widgets/admin/confirmar_dinheiro.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import 'admin_tvde_dest_change_dialog.dart';
 import '../../utils/hora_lisboa_ext.dart';
@@ -359,6 +360,19 @@ class _RidesListState extends State<_RidesList>
       }
       cents = (v * 100).round();
     }
+    final pago = (r['final_fare_cents'] ?? r['est_fare_cents']) as num?;
+    final cliente = (r['client_name'] as String?)?.trim();
+    final confirmado = await confirmarDinheiro(
+      context,
+      titulo: 'Confirmar reembolso',
+      nome: (cliente == null || cliente.isEmpty) ? 'Cliente sem nome' : cliente,
+      valor: cents != null
+          ? 'EUR ${(cents / 100).toStringAsFixed(2)}'
+          : 'Total (até EUR ${((pago ?? 0) / 100).toStringAsFixed(2)})',
+      detalhe: '${r['origin_label'] ?? '?'} → ${r['dest_label'] ?? '?'}',
+      botao: 'Reembolsar',
+    );
+    if (!confirmado || !mounted) return;
     try {
       await Supabase.instance.client.rpc('admin_tvde_refund_ride', params: {
         'p_ride_id': r['id'],

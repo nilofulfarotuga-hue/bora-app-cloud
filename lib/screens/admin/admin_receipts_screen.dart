@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../utils/hora_lisboa_ext.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 
@@ -1057,7 +1058,7 @@ class _ReceiptCardState extends State<_ReceiptCard> {
         row['reimbursement_processed_at'] as String?;
     String data = '';
     if (quando != null) {
-      final dt = DateTime.tryParse(quando)?.toLocal();
+      final dt = DateTime.tryParse(quando)?.toLisboa();
       if (dt != null) {
         data = ' em ${dt.day.toString().padLeft(2, '0')}/'
             '${dt.month.toString().padLeft(2, '0')}/${dt.year}';

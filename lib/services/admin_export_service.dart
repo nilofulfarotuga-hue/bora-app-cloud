@@ -23,6 +23,18 @@ class AdminExportService {
   AdminExportService._();
   static final instance = AdminExportService._();
 
+  /// Marca BOM UTF-8 (U+FEFF) no início do CSV: o Excel abre os acentos certos.
+  static final String _bom = String.fromCharCode(0xFEFF);
+
+  /// Uma linha de CSV com ';' e as aspas certas: um campo que tenha ';', aspas
+  /// ou quebra de linha vai entre aspas, com as aspas internas dobradas.
+  static String linhaCsv(List<Object?> campos) => campos.map((c) {
+        final s = (c ?? '').toString();
+        return RegExp(r'[;"\r\n]').hasMatch(s)
+            ? '"${s.replaceAll('"', '""')}"'
+            : s;
+      }).join(';');
+
   /// Generate a CSV from a list of headers + row maps and share via sheet.
   /// On web, returns the bytes (caller uses `download_helper` shim).
   Future<void> exportCsv({
@@ -32,7 +44,9 @@ class AdminExportService {
     String? subject,
   }) async {
     final all = <List<dynamic>>[headers, ...rows];
-    final csv = const ListToCsvConverter(fieldDelimiter: ',').convert(all);
+    // Ronda 04/10: separador ';' (o que o Excel em português abre em colunas)
+    // e BOM UTF-8 para os acentos. O conversor trata das aspas e quebras.
+    final csv = '$_bom${const ListToCsvConverter(fieldDelimiter: ';').convert(all)}';
 
     final safeNameWeb = filename.replaceAll(RegExp(r'[^\w.\-]'), '_');
     if (kIsWeb) {
@@ -67,10 +81,11 @@ class AdminExportService {
     required String csv,
     String? subject,
   }) async {
+    final texto = csv.startsWith(_bom) ? csv : '$_bom$csv';
     final safeName = filename.replaceAll(RegExp(r'[^\w.\-]'), '_');
     if (kIsWeb) {
       final ok = await descarregarBytes(
-          utf8.encode(csv), safeName, 'text/csv;charset=utf-8');
+          utf8.encode(texto), safeName, 'text/csv;charset=utf-8');
       if (!ok) {
         debugPrint('[AdminExportService] CSV web download falhou: $filename');
       }
@@ -79,7 +94,7 @@ class AdminExportService {
 
     final dir = await getTemporaryDirectory();
     final file = File('${dir.path}/$safeName');
-    await file.writeAsString(csv);
+    await file.writeAsString(texto);
     await Share.shareXFiles(
       [XFile(file.path, mimeType: 'text/csv')],
       subject: subject ?? filename,

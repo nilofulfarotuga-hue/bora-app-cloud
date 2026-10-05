@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../utils/hora_lisboa.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 
 /// Acerto Semanal Parceiros — agregação por restaurante dos créditos €2
@@ -31,13 +32,20 @@ class _AdminPartnerSettlementsScreenState
   }
 
   // Semana = segunda 00:00 (local) → segunda seguinte 00:00.
-  DateTime _weekStart() {
-    final now = DateTime.now().add(Duration(days: 7 * _weekOffset));
-    final monday = now.subtract(Duration(days: now.weekday - 1));
-    return DateTime(monday.year, monday.month, monday.day);
-  }
+  /// Segunda-feira 00:00 de LISBOA da semana escolhida, como instante UTC
+  /// (ronda 04/10: o servidor recebe sempre UTC, nunca o fuso do navegador).
+  DateTime _weekStart() => _segundaLisboaUtc(7 * _weekOffset);
 
-  DateTime _weekEnd() => _weekStart().add(const Duration(days: 7));
+  DateTime _weekEnd() => _segundaLisboaUtc(7 * _weekOffset + 7);
+
+  DateTime _segundaLisboaUtc(int deslocDias) {
+    final l = horaLisboa(DateTime.now().toUtc());
+    final segunda = DateTime.utc(l.year, l.month, l.day)
+        .subtract(Duration(days: l.weekday - 1))
+        .add(Duration(days: deslocDias));
+    // meio-dia UTC dessa segunda está sempre na segunda de Lisboa
+    return inicioDiaLisboaUtc(segunda.add(const Duration(hours: 12))).toUtc();
+  }
 
   Future<void> _load() async {
     setState(() {
@@ -161,8 +169,8 @@ class _AdminPartnerSettlementsScreenState
   String _euros(int cents) => '€${(cents / 100.0).toStringAsFixed(2)}';
 
   String _weekLabel() {
-    final s = _weekStart();
-    final e = _weekEnd().subtract(const Duration(days: 1));
+    final s = horaLisboa(_weekStart());
+    final e = horaLisboa(_weekEnd()).subtract(const Duration(days: 1));
     return '${_dt(s)} — ${_dt(e)}';
   }
 

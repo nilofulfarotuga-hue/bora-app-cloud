@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../services/admin_export_service.dart';
+import '../../utils/hora_lisboa.dart';
+import '../../utils/hora_lisboa_ext.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
@@ -94,15 +96,24 @@ class _AdminTvdeDriverDebtsScreenState
 
   /// Exporta o resumo para a área de transferência (CSV simples) — auditoria.
   Future<void> _export(List<_DriverDebt> rows) async {
-    final buffer = StringBuffer('driver_id;nome;telefone;divida_eur;atualizado\n');
+    const l = AdminExportService.linhaCsv;
+    final buffer = StringBuffer();
+    buffer.writeln(l(['driver_id', 'nome', 'telefone', 'divida_eur', 'atualizado_lisboa']));
     for (final d in rows) {
-      buffer.writeln('${d.driverId};${d.name ?? ''};${d.phone ?? ''};'
-          '${d.balanceEur.toStringAsFixed(2)};${d.updatedAt ?? ''}');
+      buffer.writeln(l([
+        d.driverId,
+        d.name,
+        d.phone,
+        d.balanceEur.toStringAsFixed(2).replaceAll('.', ','),
+        d.updatedAt == null ? '' : dataHoraLisboa(d.updatedAt),
+      ]));
     }
-    await Clipboard.setData(ClipboardData(text: buffer.toString()));
+    await AdminExportService.instance.exportCsvText(
+        filename: 'dividas_tvde_${DateTime.now().millisecondsSinceEpoch}.csv',
+        csv: buffer.toString());
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text('${rows.length} linha(s) copiadas em CSV.'),
+      content: Text('${rows.length} linha(s) exportadas em CSV.'),
       backgroundColor: AppColors.primary,
     ));
   }
@@ -297,7 +308,7 @@ String _fmtDateTime(dynamic iso) {
   if (iso == null) return '—';
   final d = DateTime.tryParse(iso.toString());
   if (d == null) return iso.toString();
-  final l = d.toLocal();
+  final l = d.toLisboa();
   String two(int n) => n.toString().padLeft(2, '0');
   return '${two(l.day)}/${two(l.month)}/${l.year} ${two(l.hour)}:${two(l.minute)}';
 }

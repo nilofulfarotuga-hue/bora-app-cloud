@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../utils/hora_lisboa_ext.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
@@ -121,12 +122,25 @@ class _AdminSettlementsScreenState extends State<AdminSettlementsScreen> {
           title: Text(newStatus == 'paid'
               ? 'Marcar PAGO ao parceiro'
               : 'Marcar RECEBIDO do parceiro'),
-          content: TextField(
-            controller: ctrl,
-            decoration: const InputDecoration(
-              labelText: 'Referência da transferência (opcional)',
-              border: OutlineInputBorder(),
-            ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('${settlement['partner_name'] ?? '—'}',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 16)),
+              Text(_fmtEur(settlement['net_balance'] as num?),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w800, fontSize: 22)),
+              const SizedBox(height: 12),
+              TextField(
+                controller: ctrl,
+                decoration: const InputDecoration(
+                  labelText: 'Referência da transferência (opcional)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
           ),
           actions: [
             TextButton(
@@ -205,13 +219,26 @@ class _AdminSettlementsScreenState extends State<AdminSettlementsScreen> {
           title: Text(newStatus == 'paid'
               ? 'Marcar PAGO via MBWay'
               : 'Marcar RECEBIDO via MBWay'),
-          content: TextField(
-            controller: ctrl,
-            decoration: const InputDecoration(
-              labelText: 'Referência MBWay (opcional)',
-              hintText: 'ex: 123456',
-              border: OutlineInputBorder(),
-            ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('${settlement['driver_name'] ?? '—'}',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 16)),
+              Text(_fmtEur(settlement['net_balance'] as num?),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w800, fontSize: 22)),
+              const SizedBox(height: 12),
+              TextField(
+                controller: ctrl,
+                decoration: const InputDecoration(
+                  labelText: 'Referência MBWay (opcional)',
+                  hintText: 'ex: 123456',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
           ),
           actions: [
             TextButton(
@@ -282,9 +309,9 @@ class _AdminSettlementsScreenState extends State<AdminSettlementsScreen> {
   String _fmtRange() {
     if (_data == null) return '—';
     final ws = DateTime.tryParse(_data!['week_start'] as String? ?? '')
-        ?.toLocal();
+        ?.toLisboa();
     final we =
-        DateTime.tryParse(_data!['week_end'] as String? ?? '')?.toLocal();
+        DateTime.tryParse(_data!['week_end'] as String? ?? '')?.toLisboa();
     String pad(int n) => n.toString().padLeft(2, '0');
     if (ws == null || we == null) return '—';
     return '${pad(ws.day)}/${pad(ws.month)} → ${pad(we.day)}/${pad(we.month)}';

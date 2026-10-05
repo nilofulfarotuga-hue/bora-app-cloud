@@ -1,0 +1,138 @@
+--- client-cancel-order-v29/ar-v28-index.ts	2026-10-05 10:08:46.516803900 +0100
++++ client-cancel-order-v29/index.v29.PROPOSTA.ts	2026-10-05 10:09:56.830482900 +0100
+@@ -1,10 +1,15 @@
+ // ============================================================================
+ // client-cancel-order v25.1 (deploy v26) — Bloco 4 (cancelamento estilo Uber)
++// v29 (ronda 04/10 A.2) — o pago lê-se com lerPagoDoPedido (stripe_charge_cents estava
++// sempre a 0 → pedidos pagos a cartão/MB Way cancelavam SEM reembolso) e o reembolso
++// reparte-se por fonte com repartirReembolso: Stripe até ao que a Stripe cobrou, o resto
++// à carteira (wallet_credit_refund_split, chave = id do pedido).
+ // ============================================================================
+ import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
+ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+ import { getCancelFees, computeCancelFeeEur } from '../_shared/platform_settings.ts';
+ import { corsHeaders } from '../_shared/cors.ts';
++import { lerPagoDoPedido, repartirReembolso, type Pago } from '../_shared/cobranca_stripe.ts'; // v29 (ronda 04/10 A.2)
+ 
+ const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
+   apiVersion: '2023-10-16',
+@@ -96,7 +101,17 @@
+   const feeEur = tier === 'grace' ? 0
+     : Number(computeCancelFeeEur(tier as any, totalEur, fees).toFixed(2));
+ 
+-  const paidCents = Number(order.stripe_charge_cents ?? 0) + Number(order.wallet_applied_cents ?? 0) + Number(order.tokens_applied_value_cents ?? 0);
++  // v29 (ronda 04/10 A.2) — o pago por fonte. Se stripe_charge_cents estiver a 0 e houver PI,
++  // lerPagoDoPedido lê a Stripe e grava (registar_cobranca_stripe). Se a leitura falhar,
++  // pára ANTES do claim (nada mudou) — melhor "tenta outra vez" do que cancelar sem devolver.
++  let pago: Pago;
++  try {
++    pago = await lerPagoDoPedido(admin, Deno.env.get('STRIPE_SECRET_KEY') ?? '', orderId);
++  } catch (e) {
++    console.error('[client-cancel] lerPagoDoPedido falhou:', e);
++    return jsonResponse({ error: 'payment_read_failed', retry: true }, 503);
++  }
++  const paidCents = pago.stripeCents + pago.walletCents + pago.tokensCents;
+   const nothingToRefund = paidCents === 0;
+   const refundEur = Math.max(0, Math.min(
+     Number((totalEur - feeEur).toFixed(2)),
+@@ -125,6 +140,8 @@
+   let cancelFeeDebited = false;
+   let cancelFeeDebitResult: any = null;
+   let refundFailed = false;
++  let refundStripeCents = 0;   // v29 (ronda 04/10 A.2) — parte devolvida ao cartão/MB Way
++  let refundCarteiraCents = 0; // v29 (ronda 04/10 A.2) — parte creditada na carteira
+   const isTechnicalFailure = reason === 'payment_failed';
+ 
+   if (nothingToRefund) {
+@@ -143,32 +160,43 @@
+   } else if (refundEur > 0) {
+     if (refundTarget === 'wallet') {
+       const rpcName = tier === 'grace' ? 'wallet_credit_refund_full' : 'wallet_credit_refund_split';
+-      const { error: wErr } = await admin.rpc(rpcName, {
++      // v29 (ronda 04/10 A.2) — o split leva chave = id do pedido (não credita 2x).
++      const wArgs: Record<string, unknown> = {
+         p_order_id: orderId, p_user_id: user.id, p_total_cents: Math.round(refundEur * 100), p_reason: `cancel_${tier}`,
+-      });
++      };
++      if (rpcName === 'wallet_credit_refund_split') wArgs.p_idempotency_key = orderId;
++      const { error: wErr } = await admin.rpc(rpcName, wArgs);
+       if (wErr) { console.error('[client-cancel] wallet credit failed:', wErr); refundFailed = true; }
+-      else walletCredited = true;
+-    } else if (order.payment_method === 'card' && order.payment_intent_id) {
+-      let piStatus: string | undefined; let piLatestCharge: string | null | undefined;
+-      try {
+-        const pi = await stripe.paymentIntents.retrieve(order.payment_intent_id);
+-        piStatus = pi.status; piLatestCharge = (pi.latest_charge as string | null) ?? null;
+-      } catch (e) { console.error('[client-cancel] pi retrieve failed:', e); refundFailed = true; }
+-      if (!refundFailed) {
+-        if (piStatus !== 'succeeded' || !piLatestCharge) { chargeMissing = true; }
+-        else {
+-          try {
+-            const idempotencyKey = `refund-${order.payment_intent_id}-${Math.round(refundEur * 100)}`;
+-            const refund = await stripe.refunds.create({ payment_intent: order.payment_intent_id, amount: Math.round(refundEur * 100) }, { idempotencyKey });
+-            refundId = refund.id; refundExecuted = true;
+-          } catch (e) { console.error('[client-cancel] stripe refund failed:', e); refundFailed = true; }
++      else { walletCredited = true; refundCarteiraCents = Math.round(refundEur * 100); }
++    } else {
++      // v29 (ronda 04/10 A.2) — reparte por fonte (cartão E MB Way vão à Stripe até ao
++      // que a Stripe cobrou; o resto — carteira/tokens/dinheiro — vai à carteira).
++      const parte = repartirReembolso(Math.round(refundEur * 100), pago);
++      if (parte.stripeCents > 0 && pago.piId) {
++        let piStatus: string | undefined; let piLatestCharge: string | null | undefined;
++        try {
++          const pi = await stripe.paymentIntents.retrieve(pago.piId);
++          piStatus = pi.status; piLatestCharge = (pi.latest_charge as string | null) ?? null;
++        } catch (e) { console.error('[client-cancel] pi retrieve failed:', e); refundFailed = true; }
++        if (!refundFailed) {
++          if (piStatus !== 'succeeded' || !piLatestCharge) { chargeMissing = true; }
++          else {
++            try {
++              const idempotencyKey = `refund-${pago.piId}-${parte.stripeCents}`;
++              const refund = await stripe.refunds.create({ payment_intent: pago.piId, amount: parte.stripeCents }, { idempotencyKey });
++              refundId = refund.id; refundExecuted = true; refundStripeCents = parte.stripeCents;
++            } catch (e) { console.error('[client-cancel] stripe refund failed:', e); refundFailed = true; }
++          }
+         }
+       }
+-    } else {
+-      const rpcName = tier === 'grace' ? 'wallet_credit_refund_full' : 'wallet_credit_refund_split';
+-      const { error: wErr } = await admin.rpc(rpcName, { p_order_id: orderId, p_user_id: user.id, p_total_cents: Math.round(refundEur * 100), p_reason: `cancel_${tier}` });
+-      if (wErr) { console.error('[client-cancel] wallet credit failed:', wErr); refundFailed = true; }
+-      else walletCredited = true;
++      if (parte.carteiraCents > 0) {
++        const { error: wErr } = await admin.rpc('wallet_credit_refund_split', {
++          p_order_id: orderId, p_user_id: user.id, p_total_cents: parte.carteiraCents,
++          p_reason: `cancel_${tier}`, p_idempotency_key: orderId,
++        });
++        if (wErr) { console.error('[client-cancel] wallet credit failed:', wErr); refundFailed = true; }
++        else { walletCredited = true; refundCarteiraCents = parte.carteiraCents; }
++      }
+     }
+   }
+ 
+@@ -205,8 +233,11 @@
+     : 'cancelled_no_charge';
+ 
+   const patch: Record<string, any> = { payment_status: newPaymentStatus };
+-  if (refundExecuted) { patch.refund_amount = refundEur; patch.refund_method = 'stripe'; patch.refund_status = 'pending'; }
+-  if (walletCredited) { patch.refund_amount = refundEur; patch.refund_method = 'wallet'; patch.refund_status = 'completed'; }
++  // v29 (ronda 04/10 A.2) — refund_amount = o que se moveu mesmo (Stripe + carteira).
++  // refund_method só aceita stripe|wallet|none: misto fica 'stripe' (a parte que demora).
++  const movidoEur = (refundStripeCents + refundCarteiraCents) / 100;
++  if (walletCredited) { patch.refund_amount = movidoEur; patch.refund_method = 'wallet'; patch.refund_status = 'completed'; }
++  if (refundExecuted) { patch.refund_amount = movidoEur; patch.refund_method = 'stripe'; patch.refund_status = 'pending'; }
+   if (refundFailed) { patch.refund_amount = refundEur; patch.refund_status = 'failed'; }
+   if (chargeMissing && nothingToRefund) { patch.cancel_fee = 0; }
+ 
+@@ -215,8 +246,9 @@
+ 
+   return jsonResponse({
+     ok: true, tier, fee_eur: (cancelFeeDebited || !nothingToRefund) ? feeEur : 0,
+-    refund_eur: (refundExecuted || walletCredited) ? refundEur : 0,
+-    refund_target: walletCredited ? 'wallet' : (refundExecuted ? 'card' : 'none'),
++    refund_eur: (refundExecuted || walletCredited) ? (refundStripeCents + refundCarteiraCents) / 100 : 0,
++    refund_target: (walletCredited && refundExecuted) ? 'card+wallet' : walletCredited ? 'wallet' : (refundExecuted ? 'card' : 'none'),
++    refund_card_eur: refundStripeCents / 100, refund_wallet_eur: refundCarteiraCents / 100, // v29 (ronda 04/10 A.2)
+     refund_pending: refundFailed,
+     refund_id: refundId ?? null, charge_missing: chargeMissing,
+     nothing_to_refund: nothingToRefund, cancel_fee_debited: cancelFeeDebited, cancel_fee_debit: cancelFeeDebitResult,

@@ -1,0 +1,56 @@
+# Simulação — 2026-10-05T10:12:10+01:00 — deno deno 2.9.7 (stable, release, x86_64-pc-windows-msvc)
+## v36 (proposta)
+Simulação stripe-webhook — alvo: index.v36.PROPOSTA.ts
+PASSA  A.1 pedido pago (cartão/MB Way) grava stripe_charge_cents — http=200 payment_status=paid stripe_charge_cents=1850
+PASSA  A.1 pedido por draft/finalize grava stripe_charge_cents — http=200 finalize=1 stripe_charge_cents=990
+PASSA  A.3 evento repetido NÃO processa duas vezes — http=200/200 avisos ao parceiro=1 (esperado 1)
+PASSA  A.3 falha de RPC → 500, regista last_error; a repetição da Stripe acaba o trabalho — http=500 depois 200; last_error na 1.ª="confirm_cleaning_payment_webhook: falha simulada em confirm_cleaning_payment_webhook"; processed_at no fim=sim
+PASSA  A.3 falha do UPDATE do pedido → 500 (antes: 200 e pedido por marcar) — http=500 payment_status=pending
+PASSA  A.7d gorjeta (kind=tip) fica succeeded com paid_at e taxa — http=200 status=succeeded paid_at=sim taxa=25
+PASSA  A.7c lavagem (kind=carwash) fica held — http=200 payment_status=held
+PASSA  A.7a reserva TVDE paga por MB Way fica a procurar motorista (app fechada) — http=200 reservation_status=a_procurar payment_status=succeeded
+PASSA  A.7b plano TVDE grava os km pagos — http=200 km_included=12.5
+PASSA  controlo: metadata desconhecida continua 200 — http=200
+RESULTADO: 10/10 passam
+rc=0
+
+## v35 (no ar) — o MESMO guião TEM de falhar
+Simulação stripe-webhook — alvo: ar-v35-index.ts
+FALHA  A.1 pedido pago (cartão/MB Way) grava stripe_charge_cents — http=200 payment_status=paid stripe_charge_cents=0
+  [log] [stripe-webhook] event: payment_intent.succeeded
+  [log] [stripe-webhook] order marked paid: o1 intent: pi_1
+  [log] [stripe-webhook] order advanced to callingDriver: o1
+  [log] [stripe-webhook] dispatch-engine invoked for order: o1 status: 200
+FALHA  A.1 pedido por draft/finalize grava stripe_charge_cents — http=200 finalize=1 stripe_charge_cents=0
+  [log] [stripe-webhook] event: payment_intent.succeeded
+  [log] [stripe-webhook] finalize invoked: pi_9 draft= d9 status: 200 body: {"ok":true,"order_id":"o9","idempotent":false}
+FALHA  A.3 evento repetido NÃO processa duas vezes — http=200/200 avisos ao parceiro=2 (esperado 1)
+  [log] [stripe-webhook] dispatch not triggered — status: created isPartnerRestaurant: true
+  [log] [stripe-webhook] notify-partner (mbway) status: 200 order: o2
+  [log] [stripe-webhook] event: payment_intent.succeeded
+  [error] [stripe-webhook] order NOT marked paid (payment_status não era pending — ver estado): o2 intent: pi_2
+  [log] [stripe-webhook] dispatch not triggered — status: created isPartnerRestaurant: true
+  [log] [stripe-webhook] notify-partner (mbway) status: 200 order: o2
+FALHA  A.3 falha de RPC → 500, regista last_error; a repetição da Stripe acaba o trabalho — http=200 depois 200; last_error na 1.ª=null; processed_at no fim=não
+  [log] [stripe-webhook] event: payment_intent.succeeded
+  [error] [stripe-webhook] cleaning held failed: falha simulada em confirm_cleaning_payment_webhook pi_3
+  [log] [stripe-webhook] event: payment_intent.succeeded
+  [log] [stripe-webhook] cleaning held: {"ok":true} pi_3
+FALHA  A.3 falha do UPDATE do pedido → 500 (antes: 200 e pedido por marcar) — http=200 payment_status=pending
+  [log] [stripe-webhook] event: payment_intent.succeeded
+  [error] [stripe-webhook] payment_intent.succeeded DB update error: falha simulada no UPDATE de orders
+FALHA  A.7d gorjeta (kind=tip) fica succeeded com paid_at e taxa — http=200 status=requires_action paid_at=não taxa=-
+  [log] [stripe-webhook] event: payment_intent.succeeded
+  [error] [stripe-webhook] payment_intent.succeeded missing metadata.draft_id and order_id: pi_5
+FALHA  A.7c lavagem (kind=carwash) fica held — http=200 payment_status=unpaid
+  [log] [stripe-webhook] event: payment_intent.succeeded
+  [error] [stripe-webhook] payment_intent.succeeded missing metadata.draft_id and order_id: pi_6
+FALHA  A.7a reserva TVDE paga por MB Way fica a procurar motorista (app fechada) — http=200 reservation_status=aguarda_pagamento payment_status=succeeded
+  [log] [stripe-webhook] event: payment_intent.succeeded
+  [log] [stripe-webhook] tvde ride paid: r1 kind: tvde_reservation intent: pi_7
+FALHA  A.7b plano TVDE grava os km pagos — http=200 km_included=-
+  [log] [stripe-webhook] event: payment_intent.succeeded
+  [log] [stripe-webhook] tvde plan activated: sub_1 pi_8
+PASSA  controlo: metadata desconhecida continua 200 — http=200
+RESULTADO: 1/10 passam
+rc=1

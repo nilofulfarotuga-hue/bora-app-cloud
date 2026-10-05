@@ -1,0 +1,7 @@
+# deno check — 2026-10-05T10:12:30+01:00 — config {"nodeModulesDir":"auto"} — deno 2.9.7 (stable, release, x86_64-pc-windows-msvc)
+ar-v35-index.ts: rc=0 erros_TS=0
+index.v36.PROPOSTA.ts: rc=0 erros_TS=0
+finalize-v13-ar (com _shared do repo: cors, platform_settings, cobranca_stripe): rc=0 erros_TS=0
+finalize-v14-proposta (com _shared do repo: cors, platform_settings, cobranca_stripe): rc=0 erros_TS=0
+client-cancel-v28-ar (com _shared do repo: cors, platform_settings, cobranca_stripe): rc=0 erros_TS=0
+client-cancel-v29-proposta (com _shared do repo: cors, platform_settings, cobranca_stripe): rc=0 erros_TS=0

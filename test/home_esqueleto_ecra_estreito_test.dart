@@ -30,6 +30,10 @@ void main() {
       url: 'http://127.0.0.1:1',
       publishableKey: 'teste',
       debug: false,
+      // Sem o ouvinte de links (app_links): nos testes nao ha plugin e, no
+      // macOS do CI, o MissingPluginException caia dentro do 1.o teste
+      // (iOS #166, 05/10/2026). Os testes nao usam links.
+      authOptions: const FlutterAuthClientOptions(detectSessionInUri: false),
       httpClient: MockClient((req) async {
         await _soltar.future;
         return http.Response('[]', 200,

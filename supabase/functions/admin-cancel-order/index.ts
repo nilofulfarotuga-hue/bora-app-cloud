@@ -226,7 +226,8 @@ Deno.serve(async (req) => {
     }
     // 2) carteira + tokens: volta à carteira (80/20 como todos os reembolsos para a carteira).
     //    A chave é o id do pedido: se outro caminho já devolveu, não devolve outra vez.
-    if (parte.carteiraCents > 0 && r.user_id && refundResult !== 'failed') {
+    //    Independente da Stripe: se a Stripe falhar, a carteira devolve-se na mesma.
+    if (parte.carteiraCents > 0 && r.user_id) {
       const { data: w, error: we } = await admin.rpc('wallet_credit_refund_split', {
         p_order_id: orderId, p_user_id: r.user_id, p_total_cents: parte.carteiraCents,
         p_reason: `admin_cancel: ${reasonCode}`, p_idempotency_key: orderId,
@@ -237,8 +238,12 @@ Deno.serve(async (req) => {
 
     const devolvidoCents = stripeCentsFeitos + carteiraCents;
     if (refundResult === 'failed') {
-      // nada saiu pela Stripe: 'failed' como antes (o painel tem o Reprocessar)
-      await admin.from('orders').update({ refund_status: 'failed' }).eq('id', orderId);
+      // nada saiu pela Stripe: 'failed' com o valor da parte da Stripe, para o Reprocessar
+      // (reprocess-refund lê refund_amount/refund_method) devolver o certo e não 0.
+      await admin.from('orders').update({
+        refund_status: 'failed',
+        refund_amount: parte.stripeCents / 100, refund_method: 'stripe',
+      }).eq('id', orderId);
     } else if (carteiraResult === 'failed') {
       // a Stripe já devolveu (refund_id gravado) e a carteira falhou: 'needs_review' — o
       // Reprocessar só pega em 'failed', por isso não devolve a parte da Stripe outra vez.

@@ -101,7 +101,8 @@ Deno.serve(async (req) => {
   const { data: reservado, error: resErr } = await admin.from('orders')
     .update({ refund_status: 'processing' })
     .eq('id', orderId).eq('user_id', user.id).neq('status', 'cancelled')
-    .or('refund_status.is.null,refund_status.neq.processing')
+    // 'needs_review' = já saiu dinheiro e falhou o resto: não se deixa tentar outra vez
+    .or('refund_status.is.null,refund_status.not.in.(processing,needs_review)')
     .select('id');
   if (resErr) return json({ error: 'db_reserve_failed', details: resErr.message }, 500);
   if (!reservado || reservado.length === 0) return json({ error: 'cancellation_in_progress' }, 409);

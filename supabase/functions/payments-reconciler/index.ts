@@ -21,6 +21,8 @@
 //     public.registar_cobranca_stripe (unica escrita deste robo, so nesse campo,
 //     so quando esta a 0). PI que a Stripe nao cobrou -> achado 'pago_sem_cobranca'.
 //     Corpo {"modo":"cobrancas"} corre so a D (cron de 10 em 10 min).
+//  D2) pedidos com refund_status 'needs_review' (Stripe devolveu, resto falhou)
+//     -> achado 'reembolso_por_rever' + alerta.
 //
 // Auth: verify_jwt=true + role service_role. Kill switch:
 // platform_settings.payments_reconciler_enabled. Cron: run_payments_reconciler().
@@ -183,6 +185,16 @@ Deno.serve(async (req) => {
       } catch (e) { errors.push(`cobranca ${o.id}: ${e}`); }
     }
   } catch (e) { errors.push(`sweep_cobrancas: ${e}`); }
+
+  // D2) reembolso a meio: a Stripe devolveu e a carteira/gravação falhou ('needs_review')
+  try {
+    const { data: rev, error } = await admin.from('orders')
+      .select('id, payment_intent_id, refund_id').eq('refund_status', 'needs_review').limit(50);
+    if (error) errors.push(`sweep_needs_review_q: ${error.message}`);
+    for (const o of rev ?? []) {
+      findings.push({ kind: 'reembolso_por_rever', severity: 'critical', entity_type: 'order', entity_id: String(o.id), pi_id: o.payment_intent_id ? String(o.payment_intent_id) : null, amount_cents: null, details: { refund_id: o.refund_id ?? null } });
+    }
+  } catch (e) { errors.push(`sweep_needs_review: ${e}`); }
 
   // ── A) PIs succeeded das ultimas 48h sem entidade confirmada ─────────────
   if (!soCobrancas) try {

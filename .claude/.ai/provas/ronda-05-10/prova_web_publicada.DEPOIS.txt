@@ -1,0 +1,18 @@
+== https://app.boraguarda.com/main.dart.js  http 200  10969821 bytes  é o bundle da app: true
+   limpo e quebra-cache iguais: true
+   novo   "carrinho_guardar": true
+   novo   "carrinho_convertido": true
+   novo   "driver_heartbeat_segredo_obter": true
+   novo   "rascunho_pagamento_excluido": true
+   novo   "O estafeta deixa o pedido à tua porta": true
+   novo   "Chamar estafeta por aqui ainda não está disponível": true
+   antigo "quando estiver pronto. (BR §14.9)": false
+== https://bora-app-web.pages.dev/main.dart.js  http 200  10969821 bytes  é o bundle da app: true
+   limpo e quebra-cache iguais: true
+   novo   "carrinho_guardar": true
+   novo   "carrinho_convertido": true
+   novo   "driver_heartbeat_segredo_obter": true
+   novo   "rascunho_pagamento_excluido": true
+   novo   "O estafeta deixa o pedido à tua porta": true
+   novo   "Chamar estafeta por aqui ainda não está disponível": true
+   antigo "quando estiver pronto. (BR §14.9)": false

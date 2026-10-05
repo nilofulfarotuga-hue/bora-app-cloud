@@ -1,0 +1,9 @@
+== https://app.boraguarda.com/main.dart.js  http 200  10963198 bytes  é o bundle da app: true
+   limpo e quebra-cache iguais: true
+   novo   "carrinho_guardar": false
+   novo   "carrinho_convertido": false
+   novo   "driver_heartbeat_segredo_obter": false
+   novo   "rascunho_pagamento_excluido": false
+   novo   "O estafeta deixa o pedido à tua porta": false
+   novo   "Chamar estafeta por aqui ainda não está disponível": false
+   antigo "quando estiver pronto. (BR §14.9)": true

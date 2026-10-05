@@ -1,5 +1,5 @@
 ---
-tema: licoes-index · escopo: projeto · estado: atual · atualizado: 2026-07-13
+tema: licoes-index · escopo: projeto · estado: atual · atualizado: 2026-10-05
 id: licoes-index
 tipo: conceito
 origem: [.claude/.ai/knowledge/PROTOCOLO.md]
@@ -40,3 +40,14 @@ tema: licao-<slug> · escopo: projeto|agente:<nome> · estado: atual · atualiza
 - `licao-robustez-loop-autonomo-2026-07-13.md` — 5 causas-raiz do carteiro/executor headless:
   pipe SSH sem EOF, grep cego = falso rate-limit, RAM sem lock, juiz mudo = lock não tratado,
   mega-ordem estoura timeout (2026-07-13).
+- `licao-skip-ci-no-commit-de-cima.md` — `[skip ci]` no commit de cima salta o build do push
+  inteiro, mesmo com código nos commits de baixo; só com push todo de documentos (2026-10-05).
+- `licao-autorizo-tudo-e-a-ordem-nao-a-chave.md` — o "autorizo tudo" do Danilo não abre a Trava
+  nem o classificador do Claude Code; faz-se o que não está trancado, o resto fica pronto em
+  `missoes/<ronda>/pronto/` e pede-se a palavra uma vez (2026-10-05).
+- `licao-apagar-sem-politica-devolve-204.md` — DELETE (ou UPDATE) numa tabela com RLS e sem
+  política devolve 204 e muda zero linhas; pedir de volta o que saiu antes de dizer "apagado"
+  (2026-10-05).
+- `licao-autoteste-android-relogio-utc.md` — o emulador do CI anda em UTC e a app decide "loja
+  aberta" pelo relógio do aparelho: de verão, das 08h às 10h de Lisboa o autoteste falha em
+  `botao-ver-carrinho` (2026-10-05).

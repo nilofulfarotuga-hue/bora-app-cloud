@@ -1,5 +1,5 @@
 ---
-tema: indice-cerebro · escopo: projeto · estado: atual · atualizado: 2026-07-27
+tema: indice-cerebro · escopo: projeto · estado: atual · atualizado: 2026-10-05
 ---
 
 # 🧠 CÉREBRO DO BORA — Índice
@@ -56,7 +56,7 @@ knowledge/
 ### Episódica — história
 | Tema | Ficheiro | Quando ler |
 |---|---|---|
-| Bugs resolvidos (sagas + causa-raiz) | `permanente/episodica/bugs-resolvidos.md` | antes de "corrigir" algo já corrigido |
+| Bugs resolvidos (sagas + causa-raiz) — inclui abertos, marcados ABERTO (ex.: #25, fecho do "parceiro chama estafeta") | `permanente/episodica/bugs-resolvidos.md` | antes de "corrigir" algo já corrigido; antes de ligar ou mexer no "parceiro chama estafeta" |
 | Decisões arquiteturais | `permanente/episodica/decisoes.md` | refactors, mudanças de estrutura |
 | Auditoria 360° (5 P0 + placar admin) | `permanente/episodica/auditoria-360.md` | prioridades de produto/gaps |
 | 🕵️ Diário 2026-07-15 caça-mentiras (executor inventava, juiz não julgava; loop religado com Juiz mecânico) | `permanente/episodica/diario-2026-07-15-caca-mentiras.md` | antes de mexer no carteiro/Juiz/e2e_log; regra: prova = git+disco |
@@ -74,6 +74,10 @@ knowledge/
 | ↳ Policy de Storage não pode ler `auth.users` (usar claim JWT) | `permanente/procedural/licoes/licao-storage-policy-auth-users.md` | criar/editar policies de storage.objects; upload 400 opaco |
 | ↳ cron que dispara ordem na fila a cada sinal = spam por construção | `permanente/procedural/licoes/licao-spam-ordens-autoreferencial.md` | desenhar/religar qualquer agente reativo (evolution-engine e futuros) |
 | ↳ 5 causas-raiz de robustez do loop autónomo (pipe SSH, rate-limit falso, RAM/lock, juiz mudo, timeout) | `permanente/procedural/licoes/licao-robustez-loop-autonomo-2026-07-13.md` | mexer no carteiro/executor headless/Juiz |
+| ↳ `[skip ci]` no commit de cima salta o build do push inteiro | `permanente/procedural/licoes/licao-skip-ci-no-commit-de-cima.md` | antes de empurrar um commit de relatório/documentos por cima de código |
+| ↳ "Autorizo tudo" é a ordem, não a chave (não abre a Trava nem o classificador do Claude Code) | `permanente/procedural/licoes/licao-autorizo-tudo-e-a-ordem-nao-a-chave.md` | a Trava ou o classificador recusam com a ordem do Danilo já dada; push de produção recusado |
+| ↳ DELETE/UPDATE sem política RLS devolve 204 e muda ZERO linhas | `permanente/procedural/licoes/licao-apagar-sem-politica-devolve-204.md` | botões de apagar/editar no painel; antes de dizer "apagado" ou registar na auditoria |
+| ↳ Autoteste Android: emulador do CI em UTC vs. hora de Lisboa (de verão falha das 08h às 10h) | `permanente/procedural/licoes/licao-autoteste-android-relogio-utc.md` | autoteste falha em `botao-ver-carrinho`; escolher a hora de um envio para produção |
 | Aprovador-vermelho — conhecimento de triagem (Balde A/B) | `permanente/procedural/aprovador-vermelho-triagem.md` | antes de triar a fila `robot_suggestions`; staleness de item Balde B não é bug |
 | ↳ Aprovador-vermelho — histórico de corridas ATIVO (2026-07-24 em diante) | `permanente/procedural/aprovador-vermelho-historico-corridas.md` | ver detalhe de uma corrida recente (corridas 2026-07-20/21 movidas para arquivo em 2026-07-27 por tamanho) |
 | ↳ Aprovador-vermelho — anomalia backoff exponencial do script gatilho | `permanente/procedural/aprovador-vermelho-anomalia-backoff-script.md` | investigar disparos repetidos do FALLBACK 30MIN / deploy de `hermes-aprovador-vermelho.sh` (partido de `aprovador-vermelho-triagem.md` em 2026-07-27) |

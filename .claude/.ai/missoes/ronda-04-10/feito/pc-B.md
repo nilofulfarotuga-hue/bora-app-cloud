@@ -92,3 +92,13 @@ primeira verificava admin por metadados que o próprio utilizador pode mudar; ag
 ## Não feito / para o Danilo
 - Itens 6 e 8 (parte): as 2 propostas acima esperam o teu "vai".
 - O digest para os outros motores (`claude_ai_memoria`) fica para quem fecha a ronda.
+
+## Revisão de contexto limpo (05/10, depois do merge) e correcções
+- Corrigido (migração 20261005092813, remendo por âncora a partir do ar, cópia em `bkp_fn_settlement_20261005`):
+  `admin_set_settlement_state` decidia pago/recebido pelo resumo semanal (fica velho depois de reabrir) — agora
+  pelo saldo do acerto; `admin_unmark_settlement` e `admin_reabrir_acerto` só achavam a semana pela data UTC —
+  agora Lisboa ou UTC. Prova (transacção desfeita, como admin): desmarcar com a segunda de Lisboa achou 1 linha;
+  marcar decidiu "pago" pelo saldo 96,22.
+- Ficam registados (baixos): o gatilho que congela semanas pagas também impede corrigir o rótulo pago↔recebido
+  sem reabrir; `log_admin_action` pode ser chamada por qualquer pessoa com sessão (já era assim);
+  os padrões de demo `test_%`/`e2e_%` usam `_` como "qualquer letra" (hoje não apanham ninguém real).

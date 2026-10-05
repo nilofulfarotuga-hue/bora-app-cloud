@@ -3,6 +3,20 @@
 Relatório: `.claude/.ai/reports/2026-10-05-ronda-dinheiro-despacho.md`.
 Tudo o que está pronto mas não aplicado vive em `.claude/.ai/missoes/ronda-04-10/pronto/LEIA.md`.
 
+## 0. PRIMEIRO: o código está gravado mas NÃO publicado
+
+O `git push` para o ramo de produção foi recusado pelo classificador de segurança do
+Claude Code a 05/10 às 07h43 (como a 04/10). Não se tentou outro caminho. O commit
+`5efd2d96` está em `C:/BoraLocal/wt-ronda-05-10`, ramo local
+`ronda-dinheiro-despacho-05-10`, um commit em cima de `7615eee7` (versionCode 648).
+Só segue com a confirmação expressa do Danilo. Quando seguir: conferir que o remoto
+não avançou (se avançou, rebase), empurrar fora de hh:05–09, e acompanhar o CI
+(autoteste → build → Play e web).
+
+Enquanto não for publicado: a migração `20261005061548` já está aplicada em produção
+mas o ficheiro dela só existe neste commit; e a app publicada mostra a mensagem
+genérica (não a nova) quando o parceiro toca em "Chamar estafeta".
+
 ## 1. Motor de despacho v62 — precisa da Trava aberta (só o Danilo abre)
 
 Proposta completa e simulada (14 de 14) em `pronto/dispatch-engine-v62/`. Aplicar =
@@ -52,3 +66,56 @@ tem de as escrever em `.claude/.ai/missoes/ronda-04-10/` para alguém as poder e
   `driver_heartbeat_segredos.usado_em`.
 - Cliente: "Deixar à porta" com cartão e MB Way ponta a ponta; o estafeta vê o aviso e
   a foto fica gravada.
+
+## 7. Handoff para o Cérebro (por entregar ao `bibliotecario-cerebro`)
+
+Não foi entregue a 05/10 porque o que ele escrevesse ficava por publicar com o resto.
+Quem empurrar este commit entrega os quatro blocos.
+
+```
+HANDOFF → bibliotecario-cerebro
+tipo: licao
+escopo: projeto
+tema-alvo: permanente/procedural/licoes/licao-skip-ci-no-commit-de-cima.md
+conteudo: A marca [skip ci] no commit de CIMA de um push salta o build do push inteiro,
+  mesmo que os commits de baixo tragam código. A 05/10/2026 o commit do relatório ia
+  com a marca por cima do commit de código 5efd2d96; foi corrigido antes de empurrar.
+  Só se põe a marca quando TODOS os commits do push são só-documentos.
+```
+
+```
+HANDOFF → bibliotecario-cerebro
+tipo: facto
+escopo: projeto
+tema-alvo: permanente/semantica/zonas-protegidas.md
+conteudo: O "autorizo tudo" do Danilo é a ordem, não a chave. A 05/10/2026, com essa
+  ordem dada na conversa, a Trava do PC continuou a proibir editar e publicar o
+  dispatch-engine e editar pricing_service.dart (já tinha sido assim a 08/09), e o
+  git push para produção foi recusado pelo classificador do Claude Code (como a 04/10).
+  O que se faz: tudo o que não está trancado, o resto pronto em
+  .claude/.ai/missoes/<ronda>/pronto/ com prova, e a palavra pedida uma vez no fim.
+```
+
+```
+HANDOFF → bibliotecario-cerebro
+tipo: bug
+escopo: projeto
+tema-alvo: permanente/episodica/bugs-resolvidos.md
+conteudo: (ABERTO) "Parceiro chama estafeta" — post_order_to_ledger e
+  apply_order_financial_split lançam o pedido como pedido normal de parceiro em dinheiro;
+  as regras 2.4.1 dizem que o estafeta paga o total à loja. 10 € de balcão: loja +12,57 a
+  mais, estafeta −10. Interruptor dispatch_parceiro_chama_estafeta_ligado=false desde
+  05/10/2026 (migração 20261005061548). Zero pedidos existiam.
+```
+
+```
+HANDOFF → bibliotecario-cerebro
+tipo: licao
+escopo: projeto
+tema-alvo: permanente/procedural/licoes/licao-apagar-sem-politica-devolve-204.md
+conteudo: Um DELETE pelo PostgREST numa tabela com RLS e sem política de apagar devolve
+  204 e apaga ZERO linhas, sem erro. O painel "apagava" rascunhos de pagamento há meses
+  sem apagar nenhum (payment_drafts só tem política de leitura; medido a 05/10/2026).
+  Pedir sempre de volta o que saiu (.select('id')) antes de dizer "apagado" ou registar
+  na auditoria.
+```

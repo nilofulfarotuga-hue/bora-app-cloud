@@ -451,6 +451,20 @@ nenhum, porque isso não existe.
 > CI (run #432, 23:25 UTC: "nenhuma das 5 lojas abriu"). Portão retirado; o travão fica
 > no carrinho e no servidor. Lição: um teste que corre a horas diferentes das tuas
 > descobre regras que só se cumpriam de dia.
+> **Cicatriz (05/10):** o travão do carrinho recusa em silêncio (`CartStore.addItem`) e só
+> os cartões o diziam. Na ficha do produto o botão dizia "adicionado ao carrinho" e a ficha
+> fechava-se sem adicionar nada; a linha das variantes dizia "no carrinho"; o "Pedir de
+> novo" reconfigurava o carrinho sem a marca de fechada e enchia-o — e, por procurar a loja
+> só entre as parceiras, respondia "já não está disponível" a 20 dos 25 pedidos entregues
+> que se podiam repetir. A ficha foi apanhada pelo autoteste do CI (corrida #495), que ainda
+> por cima procurava o aviso de 4 s mais de oito segundos depois do toque; o resto veio da
+> revisão de contexto limpo. Lição: **todo** o sítio que mete no carrinho mostra o aviso
+> da loja — cartão, ficha, linha, "+" e "Pedir de novo" — e um aviso que dura segundos
+> vigia-se enquanto se espera, não no fim. Guardado por
+> `test/loja_fechada_ficha_e_repetir_test.dart`.
+> **Gémeos por unificar:** a app decide aberta/fechada pelo relógio do **aparelho**
+> (`RestaurantModel.isOpenNow`), o servidor pela hora de **Lisboa** (`is_partner_open`, a
+> fonte). Num aparelho noutro fuso — o emulador do CI anda em UTC — divergem uma hora.
 
 ### 1.28 A categoria nova aparece na lupa e pode ser destino de uma faixa da home
 

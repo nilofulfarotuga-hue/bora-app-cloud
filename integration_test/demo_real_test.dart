@@ -136,6 +136,31 @@ Future<void> _tocar(WidgetTester t, Finder f) async {
   await _bombear(t, segundos: 1.5);
 }
 
+/// Toca como o [_tocar] e bombeia [segundos], a vigiar [aviso] a cada volta em
+/// vez de só olhar no fim. Devolve se o aviso chegou a aparecer.
+///
+/// CICATRIZ (corrida #495, 05/10/2026): o aviso "… está fechada" é um SnackBar
+/// que vive 4 s, e cada volta do [_bombear] custa pelo menos 0,4 s reais
+/// (bombeia 200 ms e espera outros 200 ms). O teste tocava, bombeava "4 s" —
+/// mais de 8 reais — e só então procurava o aviso, que já tinha saído: a
+/// tolerância da loja fechada nunca disparava.
+Future<bool> _tocarEVigiar(WidgetTester t, Finder f, Finder aviso,
+    {required double segundos}) async {
+  try {
+    await t.ensureVisible(f.first);
+    await _bombear(t, segundos: 0.6);
+  } catch (_) {
+    // Não está dentro de nenhum `Scrollable` — segue-se e toca-se na mesma.
+  }
+  await t.tap(f.first, warnIfMissed: false);
+  bool visto = false;
+  for (int i = 0; i < (segundos * 5).round(); i++) {
+    await _bombear(t, segundos: 0.2);
+    visto = visto || aviso.evaluate().isNotEmpty;
+  }
+  return visto;
+}
+
 /// Rola a página para baixo até [f] existir na árvore, ou [vezes] tentativas.
 ///
 /// Numa lista preguiçosa, o que está fora do ecrã não está construído — e um
@@ -437,9 +462,8 @@ void main() {
     // (`RestaurantModel.avisoLojaFechada`): "<loja> está fechada agora…".
     final avisoLojaFechada = find.textContaining('está fechada');
     await _foto(t, '04-video-produtos');
-    await _tocar(t, botaoAdicionar);
-    await _bombear(t, segundos: 2.5);
-    bool lojaFechadaVista = avisoLojaFechada.evaluate().isNotEmpty;
+    bool lojaFechadaVista =
+        await _tocarEVigiar(t, botaoAdicionar, avisoLojaFechada, segundos: 4);
 
     // O "+" do cartão não põe o artigo no carrinho: abre a FICHA DO PRODUTO,
     // com foto, quantidade e o seu próprio botão em baixo — medido na corrida
@@ -449,10 +473,12 @@ void main() {
     final adicionarNaFicha = find.textContaining('Adicionar ao carrinho');
     if (await _esperar(t, adicionarNaFicha, segundos: 12)) {
       await _foto(t, '05-loja-produto');
-      await _tocar(t, adicionarNaFicha);
-      await _bombear(t, segundos: 3);
-      lojaFechadaVista =
-          lojaFechadaVista || avisoLojaFechada.evaluate().isNotEmpty;
+      // Com a loja fechada a ficha fica aberta e mostra o mesmo aviso (antes
+      // dizia "adicionado ao carrinho" e fechava-se sem adicionar nada).
+      final avisoNaFicha = await _tocarEVigiar(
+          t, adicionarNaFicha, avisoLojaFechada,
+          segundos: 4.5);
+      lojaFechadaVista = lojaFechadaVista || avisoNaFicha;
     }
 
     // ── Carrinho e pagamento: já não há marca de terceiros à vista ────────

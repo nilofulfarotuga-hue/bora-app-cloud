@@ -1185,6 +1185,12 @@ class _VariantMiniCard extends StatelessWidget {
   String get _variantKey => variant.id;
 
   void _addToCart(BuildContext context) {
+    // Loja fechada: a linha inteira adiciona ao toque (não só o "+"), por
+    // isso o travão tem de estar aqui também.
+    if (cartStore.lojaFechada) {
+      showLojaFechadaSnackBar(context, cartStore.avisoLojaFechada);
+      return;
+    }
     // B1 (2026-06-11): variantes podem não existir em `products` — o servidor
     // usa unit_price (basePrice) como fallback e aplica o markup à soma.
     context.read<CartStore>().addItem(CartItem(
@@ -1453,9 +1459,20 @@ class _QtyButton extends StatelessWidget {
     // O "-" (remover) não é afectado.
     final comingSoon = icon == Icons.add &&
         context.watch<CartStore>().vendorBlocksAddToCart;
-    final effectiveColor = comingSoon ? Colors.grey.shade500 : color;
+    // Loja fechada (fora de horário): o "+" pára e diz porquê, com a hora a
+    // que abre. Sem isto o carrinho recusava em silêncio e o aviso dizia
+    // "no carrinho" na mesma.
+    final fechada =
+        icon == Icons.add && context.watch<CartStore>().lojaFechada;
+    final avisoFechada = context.watch<CartStore>().avisoLojaFechada;
+    final effectiveColor =
+        (comingSoon || fechada) ? Colors.grey.shade500 : color;
     final button = InkWell(
-      onTap: comingSoon ? () => showComingSoonBlockedSnackBar(context) : onTap,
+      onTap: fechada
+          ? () => showLojaFechadaSnackBar(context, avisoFechada)
+          : comingSoon
+              ? () => showComingSoonBlockedSnackBar(context)
+              : onTap,
       borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.all(8),

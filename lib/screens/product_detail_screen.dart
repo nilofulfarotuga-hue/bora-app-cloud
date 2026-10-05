@@ -123,6 +123,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     fecharFichaAposAdicionar(context);
   }
 
+  // LOJA FECHADA (05/10/2026): o carrinho trava o artigo em silêncio
+  // (`CartStore.addItem`), por isso a ficha tem de o dizer. Antes dizia
+  // "adicionado ao carrinho" e fechava — sem ter adicionado nada. A ficha fica
+  // aberta com o mesmo aviso dos cartões da loja ("… está fechada agora.
+  // Abre às …").
+  bool _lojaFechadaAvisa() {
+    final cart = context.read<CartStore>();
+    if (!cart.lojaFechada) return false;
+    showLojaFechadaSnackBar(context, cart.avisoLojaFechada);
+    return true;
+  }
+
   // Sessão 4C: ProductVariant.id é UUID válido — usar directamente.
   // Embeber o nome do produto criava productId que falhava lookup na RPC.
   String _variantKey(ProductVariant v) => v.id;
@@ -130,6 +142,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   // B1 (2026-06-11): price = exibido/cobrado (markup não-parceiro runtime);
   // basePrice = puro de catálogo (product_lines.unit_price — fallback server).
   void _addToCart(BuildContext context, ProductVariant v) {
+    if (_lojaFechadaAvisa()) return;
     context.read<CartStore>().addItem(CartItem(
           productId: _variantKey(v),
           name: '${widget.product.name} (${v.brandName})',
@@ -141,6 +154,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 
   void _addNoVariantToCart(BuildContext context) {
+    if (_lojaFechadaAvisa()) return;
     context.read<CartStore>().addItem(CartItem(
           productId: widget.product.id,
           name: widget.product.name,
@@ -153,6 +167,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 
   void _addWithOptions(BuildContext context) {
+    if (_lojaFechadaAvisa()) return;
     final selected = <SelectedOption>[];
     for (final g in _groups) {
       final ids = _sel[g.id];

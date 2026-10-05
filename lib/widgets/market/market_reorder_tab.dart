@@ -10,6 +10,7 @@ import '../../stores/cart_store.dart';
 import '../../stores/order_store.dart';
 import '../../stores/partner_product_store.dart';
 import '../../stores/restaurant_store.dart';
+import '../bora/coming_soon.dart';
 
 import '../../l10n/tr.dart';
 
@@ -90,6 +91,14 @@ class MarketReorderTab extends StatelessWidget {
     final restaurantStore = context.read<RestaurantStore>();
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
+
+    // Loja fechada: mesmo travão do "+" — avisa e não toca no carrinho.
+    final loja = ReorderService.lojaDoPedido(
+        order.vendorName, restaurantStore.restaurants);
+    if (loja != null && ReorderService.lojaFechada(loja)) {
+      showLojaFechadaSnackBar(context, loja.avisoLojaFechada);
+      return;
+    }
 
     // Reconstrói o carrinho a partir do pedido (preço atual). Devolve os nomes
     // dos itens cujo preço/disponibilidade mudou (parceiros).

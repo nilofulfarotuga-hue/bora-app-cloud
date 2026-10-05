@@ -19,6 +19,27 @@ class ReorderService {
         order.serviceType == OrderServiceType.storeShopping;
   }
 
+  /// A loja de um pedido antigo, parceira ou não. O
+  /// `RestaurantStore.restaurantByName` só devolve parceiras, e os mercados,
+  /// as lojas e a maior parte dos restaurantes não o são.
+  static RestaurantModel? lojaDoPedido(
+      String? vendorName, Iterable<RestaurantModel> lojas) {
+    if (vendorName == null) return null;
+    final nome = vendorName.toLowerCase();
+    return lojas.where((r) => r.name.toLowerCase() == nome).firstOrNull;
+  }
+
+  /// Loja fora de horas ou em pausa: o "Pedir de novo" passa pelo mesmo
+  /// travão da porta da loja (`restaurants_screen` / `stores_screen`). Sem
+  /// isto enchia o carrinho de uma loja fechada — [applyTo] reconfigura a
+  /// sessão do carrinho e a marca de fechada perdia-se — e o cliente só
+  /// descobria no fim, quando o servidor recusava o pedido (STORE_CLOSED).
+  /// As Festas vendem por encomenda: só a pausa as trava.
+  static bool lojaFechada(RestaurantModel? loja) =>
+      loja != null &&
+      (loja.emPausa() ||
+          (!loja.isOpenNow() && !loja.belongsTo(BusinessCategory.festas)));
+
   /// Applies the order to the cart. Returns the list of item names whose
   /// current price differs from the historical price (partner store only);
   /// caller can show a toast warning the user.
@@ -70,7 +91,11 @@ class ReorderService {
     for (final it in order.items) {
       double currentPrice = it.price;
       double? basePrice = it.basePrice;
-      if (liveProducts != null) {
+      // Linhas com escolhas (menus, açaí): o preço guardado já inclui os
+      // extras, por isso não se compara com o preço de menu, que é só a base
+      // — dava um falso "preço atualizado" e deitava os extras fora. O
+      // servidor volta a fazer a conta no orçamento.
+      if (liveProducts != null && it.selectedOptions.isEmpty) {
         final fresh = _findMatch(liveProducts, it);
         if (fresh != null && (fresh.price - it.price).abs() > 0.01) {
           changedPrices.add(it.name);
@@ -94,6 +119,9 @@ class ReorderService {
         price: currentPrice,
         basePrice: basePrice,
         quantity: it.quantity,
+        // As escolhas voltam com a linha (nomes puros, como o servidor as
+        // espera): sem elas um menu repetia-se sem bebida nem acompanhamento.
+        selectedOptions: it.selectedOptions,
       ));
     }
     return changedPrices;

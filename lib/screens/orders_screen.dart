@@ -16,6 +16,7 @@ import '../stores/partner_product_store.dart';
 import '../stores/restaurant_store.dart';
 import '../stores/order_store.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
+import '../widgets/bora/coming_soon.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/private_bucket_image.dart';
 import 'order_details_screen.dart';
@@ -81,11 +82,17 @@ class _OrdersScreenState extends State<OrdersScreen> {
       await restaurantStore.loadRestaurantsFromSupabase();
       if (!mounted) return;
     }
-    final loja = restaurantStore.restaurantByName(order.vendorName);
+    final loja = ReorderService.lojaDoPedido(
+        order.vendorName, restaurantStore.restaurants);
     if (loja == null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Esta loja já não está disponível na Bora.'.tr),
       ));
+      return;
+    }
+    // Loja fechada: mesmo travão do "+" — avisa e não toca no carrinho.
+    if (ReorderService.lojaFechada(loja)) {
+      showLojaFechadaSnackBar(context, loja.avisoLojaFechada);
       return;
     }
     final changed = ReorderService.applyTo(

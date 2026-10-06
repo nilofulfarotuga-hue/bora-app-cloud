@@ -337,7 +337,7 @@ class RestaurantModel {
     if (emPausa(instante)) {
       return '$name está fechada temporariamente. Volta às $pausaVoltaAs.';
     }
-    final day = businessHours.dayFor(horaLisboa(instante).weekday);
+    final day = businessHours.dayFor(paredeLisboa(instante).weekday);
     if (day.closed) {
       return '$name está fechada hoje. Volta noutro dia para fazer o pedido.';
     }
@@ -372,12 +372,14 @@ class RestaurantModel {
   /// Portugal e o servidor (`is_partner_open`, travão `STORE_CLOSED`) decide
   /// pela hora de Lisboa. Pelo relógio do aparelho (emulador do CI em UTC,
   /// turista, relógio mal acertado) a app e o servidor divergiam uma hora.
-  /// [nowOverride] é um instante; o dia e a hora tiram-se dele em Lisboa.
+  /// [nowOverride] é um instante; o dia e a hora tiram-se dele em Lisboa
+  /// (por [paredeLisboa], que não cai nos buracos da mudança de hora do fuso
+  /// do telemóvel).
   bool isOpenNow([DateTime? nowOverride]) {
     if (!isOnline) return false;
     final instante = nowOverride ?? DateTime.now();
     if (emPausa(instante)) return false;
-    final now = horaLisboa(instante);
+    final now = paredeLisboa(instante);
     final day = businessHours.dayFor(now.weekday);
     if (day.closed) return false;
     final openMin = _parseMinutes(day.open);
@@ -401,7 +403,7 @@ class RestaurantModel {
     // "fechadas" para encomendar — o horário é de levantamento/entrega.
     if (belongsTo(BusinessCategory.festas)) return 'Aceita encomendas';
     final instante = nowOverride ?? DateTime.now();
-    final day = businessHours.dayFor(horaLisboa(instante).weekday);
+    final day = businessHours.dayFor(paredeLisboa(instante).weekday);
     if (day.closed) return 'Fechada hoje';
     if (isOpenNow(instante)) return 'Aberto';
     return 'Fechada, abre às ${_horaBonita(day.open)}';

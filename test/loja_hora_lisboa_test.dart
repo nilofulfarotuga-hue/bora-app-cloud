@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:bora_app/models/restaurant_model.dart';
 import 'package:bora_app/utils/hora_lisboa.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -155,6 +157,38 @@ void main() {
       )));
       expect(loja.isOpenNow(), isFalse);
     });
+  });
+
+  group('paredeLisboa não depende do fuso do telemóvel', () {
+    test('vem marcado UTC, com o dia e a hora de Lisboa', () {
+      // Um relógio LOCAL cairia no buraco da mudança de hora do fuso do
+      // aparelho (ex.: Chile, Austrália) e saltava uma hora.
+      final l = paredeLisboa(DateTime.utc(2026, 10, 4, 23, 30));
+      expect(l.isUtc, isTrue);
+      expect([l.weekday, l.hour, l.minute], [DateTime.monday, 0, 30]);
+      final i = paredeLisboa(DateTime.utc(2026, 1, 15, 21, 30));
+      expect([i.isUtc, i.hour, i.minute], [true, 21, 30]);
+    });
+  });
+
+  group('festas: a data vai ao servidor pelo relógio de Lisboa', () {
+    test('09h de amanhã em Lisboa nunca vira "hoje" (telemóvel UTC+11)', () {
+      // Em Sydney (UTC+11) um `.toUtc()` mandava 22:00 UTC da véspera — que
+      // em Lisboa ainda é hoje — e o festas_set_schedule recusava.
+      expect(instanteDeLisboa(DateTime(2026, 10, 7, 9)),
+          DateTime.utc(2026, 10, 7, 8));
+    });
+
+    for (final ficheiro in [
+      'lib/screens/payment_method_screen.dart',
+      'lib/stores/cart_store.dart',
+    ]) {
+      test('$ficheiro envia por instanteDeLisboa', () {
+        final src = File(ficheiro).readAsStringSync();
+        expect(src, contains("'p_scheduled_for': instanteDeLisboa(quandoFesta)"));
+        expect(src, isNot(contains('quandoFesta.toUtc()')));
+      });
+    }
   });
 
   group('instanteDeLisboa é o inverso de horaLisboa', () {

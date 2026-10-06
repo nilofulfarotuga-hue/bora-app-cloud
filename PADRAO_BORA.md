@@ -466,11 +466,12 @@ nenhum, porque isso não existe.
 > aberta/fechada pelo relógio do **aparelho** e o servidor pela hora de **Lisboa**
 > (`is_partner_open`, a fonte); num aparelho noutro fuso — o emulador do CI anda em UTC —
 > divergiam uma hora. Agora `isOpenNow`, `statusLabel` e `avisoLojaFechada` passam o instante
-> por `horaLisboa()` (`lib/utils/hora_lisboa.dart`) antes de lerem o dia e a hora. Regra: o
-> que se compara com o horário da loja é sempre o relógio de Lisboa; uma hora escolhida no
-> relógio da loja vai para o servidor por `instanteDeLisboa()`, nunca por `.toUtc()` — o envio
-> da data das festas (`festas_set_schedule`) e o da hora da mesa (`reserved_for`, dentro do
-> pagamento) ainda usam `.toUtc()` e esperam ordem própria.
+> por `paredeLisboa()` (`lib/utils/hora_lisboa.dart`) antes de lerem o dia e a hora. Regra: o
+> que se compara com o horário da loja é sempre o relógio de Lisboa; para LER dia e hora usa-se
+> `paredeLisboa()`, marcado UTC, que não cai nos buracos da mudança de hora do fuso do
+> telemóvel; uma hora escolhida no relógio da loja vai para o servidor por
+> `instanteDeLisboa()`, nunca por `.toUtc()` (a data das festas já vai assim). Falta a hora da
+> mesa (`reserved_for`, dentro das funções que criam o pagamento) — espera ordem própria.
 > Guardado por `test/loja_hora_lisboa_test.dart`. **Gémeos que ainda divergem:** a app não lê
 > os dias fechados (`business_hours.special_dates`) que o servidor lê, e o servidor não lê o
 > `is_online` que a app lê.

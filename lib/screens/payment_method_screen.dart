@@ -20,6 +20,7 @@ import '../models/saved_card.dart';
 import '../services/card_wallet_service.dart';
 import '../services/limite_dinheiro_service.dart';
 import '../services/payment_service.dart';
+import '../utils/hora_lisboa.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/card_mandate_notice.dart';
 import '../widgets/checkout_legal_notice.dart';
@@ -1284,7 +1285,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
             'festas_set_schedule',
             params: {
               'p_order_id': orderId,
-              'p_scheduled_for': quandoFesta.toUtc().toIso8601String(),
+              // A hora escolhida é a do relógio da loja (Lisboa).
+              'p_scheduled_for': instanteDeLisboa(quandoFesta).toIso8601String(),
             },
           );
         } catch (e) {

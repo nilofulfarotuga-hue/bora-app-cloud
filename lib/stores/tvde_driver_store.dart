@@ -53,7 +53,17 @@ bool devoMostrarFoiParaOutro(
 ///   a RPC falha e a UI mostra "oferta já não disponível" — sem crashar.
 class TvdeDriverStore extends ChangeNotifier {
   SupabaseClient get _sb => Supabase.instance.client;
-  String? get _uid => _sb.auth.currentUser?.id;
+  String? get _uid => debugUid ?? _sb.auth.currentUser?.id;
+
+  /// Só para testes: o `user_id` do motorista sem sessão montada. Nunca
+  /// escrever aqui em código de produção.
+  @visibleForTesting
+  String? debugUid;
+
+  /// Só para testes: entrega uma linha como se viesse do realtime.
+  @visibleForTesting
+  void debugEventoRealtime(Map<String, dynamic> record) =>
+      _onRideChange(record);
 
   /// Oferta pendente para este motorista (status 'solicitada').
   TvdeRide? _offeredRide;
@@ -443,6 +453,17 @@ class TvdeDriverStore extends ChangeNotifier {
     }
 
     _versao++; // uma leitura do servidor a meio já não vale (ver _loadGen)
+
+    // [Cartão preso · 06/10] A corrida da oferta passou a ser minha ou deixou
+    // de procurar motorista: a oferta sai JÁ, venha o evento por onde vier
+    // (aceite noutro caminho, terminada, cancelada, para outro). Antes uma
+    // corrida minha já terminada deixava a oferta em memória.
+    if (_offeredRide?.id == ride.id &&
+        (ride.status != 'solicitada' ||
+            ride.driverId == uid ||
+            ride.currentOfferDriverId != uid)) {
+      _limparOferta();
+    }
 
     // Corrida ativa minha → atualiza/limpa.
     if (ride.driverId == uid) {

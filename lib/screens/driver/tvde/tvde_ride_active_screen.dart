@@ -33,6 +33,8 @@ import '../../../widgets/payments/collect_badge.dart';
 import '../../../widgets/payments/collect_reminder_dialog.dart';
 import '../../../widgets/tvde/tvde_counter_ride_badge.dart';
 import '../../../widgets/tvde/tvde_dest_change_driver_notice.dart';
+import '../../../widgets/tvde/tvde_offer_overlay_host.dart'
+    show TvdeOfferPresentation;
 import '../../../widgets/tvde/tvde_pay_badge.dart';
 import '../../../widgets/tvde/tvde_roundtrip_driver_notice.dart';
 import '../../../widgets/tvde/tvde_sos_button.dart';
@@ -415,6 +417,9 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   @override
   void dispose() {
     _montados--;
+    if (TvdeOfferPresentation.corridaMostrada.value == _rideId) {
+      TvdeOfferPresentation.corridaMostrada.value = null;
+    }
     _waitTicker?.cancel();
     _stopsTicker?.cancel();
     _etaTicker?.cancel();
@@ -912,6 +917,9 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   void _onRideChanged(TvdeRide ride) {
     if (_rideId == ride.id) return;
     _rideId = ride.id;
+    // [Cartão preso · 06/10] O cartão global nunca desenha como oferta a
+    // corrida que este ecrã está a mostrar.
+    TvdeOfferPresentation.corridaMostrada.value = ride.id;
     _navigatedToRate = false;
     // [Bloco 6] corrida nova (back-to-back) → o recolher-em-viagem reinicia.
     _sheetCollapsedForTrip = false;

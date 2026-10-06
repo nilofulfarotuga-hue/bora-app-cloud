@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -69,6 +70,13 @@ class TvdeOfferOverlayHost extends StatefulWidget {
 const Duration kTvdeRecusaGuardaAoAparecer = Duration(seconds: 1);
 const Duration kTvdeRecusaJanelaConfirmar = Duration(seconds: 3);
 
+/// [Cartão preso · 06/10] Prazo a 0 com o aceite "a decorrer": ao fim de
+/// quanto tempo o cartão pergunta ao servidor de quem é a corrida (e de
+/// quanto em quanto volta a perguntar), e quando desiste de esperar. 16 s
+/// passa folgado o tempo máximo do aceite (`kAcaoTimeout`, 12 s).
+const Duration kTvdeAceitePenduradoPergunta = Duration(seconds: 4);
+const Duration kTvdeAceitePenduradoDesiste = Duration(seconds: 16);
+
 /// Coordenação entre o cartão global e o `TvdeOfferScreen` (ecrã inteiro).
 class TvdeOfferPresentation {
   TvdeOfferPresentation._();
@@ -87,6 +95,13 @@ class TvdeOfferPresentation {
   /// escrever aqui em código de produção; o teste repõe a null no fim.
   static final ValueNotifier<bool?> activeRideOpenOverride =
       ValueNotifier<bool?>(null);
+
+  /// [Cartão preso · 06/10 · corrida 3835a143] A corrida que o
+  /// `TvdeRideActiveScreen` está a mostrar (null = nenhum aberto). O cartão
+  /// nunca desenha a oferta dessa corrida, diga o store o que disser: o
+  /// motorista já a está a fazer.
+  static final ValueNotifier<String?> corridaMostrada =
+      ValueNotifier<String?>(null);
 
   /// A corrida activa manda no ecrã? Sim quando o ecrã dela está montado OU
   /// há uma corrida viva no store (a home abre o ecrã por causa dela). Nesse
@@ -108,6 +123,7 @@ class _TvdeOfferOverlayHostState extends State<TvdeOfferOverlayHost>
     TvdeOfferPresentation.fullScreenRideId.addListener(_onPresentationChanged);
     TvdeOfferPresentation.activeRideOpenOverride
         .addListener(_onPresentationChanged);
+    TvdeOfferPresentation.corridaMostrada.addListener(_onPresentationChanged);
   }
 
   @override
@@ -116,12 +132,43 @@ class _TvdeOfferOverlayHostState extends State<TvdeOfferOverlayHost>
         .removeListener(_onPresentationChanged);
     TvdeOfferPresentation.activeRideOpenOverride
         .removeListener(_onPresentationChanged);
+    TvdeOfferPresentation.corridaMostrada
+        .removeListener(_onPresentationChanged);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
+  bool _redesenhoAgendado = false;
+
+  /// [Cartão preso · 06/10 · corrida 3835a143] NUNCA `setState` a meio de um
+  /// build.
+  ///
+  /// **A cicatriz.** O ecrã "Nova corrida" avisa este host no `initState`
+  /// (`fullScreenRideId`), e o `initState` corre A MEIO do build do frame —
+  /// depois de este host, que está mais acima na árvore, já se ter desenhado.
+  /// Em modo debug isso rebenta ("setState() called during build"); na app
+  /// publicada o Flutter salta o host nesse frame e deixa-o marcado como
+  /// "por redesenhar" para sempre: todos os avisos seguintes do store eram
+  /// ignorados. O cartão ficou congelado com o que tinha no último desenho —
+  /// "Nova corrida — agora", aceite a decorrer — e o próprio relógio dele
+  /// levou a contagem a "0s" por cima da corrida que o motorista já levava.
+  /// O servidor e o store estavam certos (a releitura de 10 em 10 s só corre
+  /// sem oferta no store, e correu o minuto todo).
+  ///
+  /// Regra: a meio de um frame, o redesenho fica para o fim desse frame.
   void _onPresentationChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    if (SchedulerBinding.instance.schedulerPhase !=
+        SchedulerPhase.persistentCallbacks) {
+      setState(() {});
+      return;
+    }
+    if (_redesenhoAgendado) return;
+    _redesenhoAgendado = true;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _redesenhoAgendado = false;
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -211,9 +258,12 @@ class _TvdeOfferOverlayHostState extends State<TvdeOfferOverlayHost>
     final reserva = store.reservationOffer;
     final emEcraInteiro = TvdeOfferPresentation.fullScreenRideId.value;
     final corridaActiva = TvdeOfferPresentation.corridaActivaAberta(store);
+    // [Cartão preso · 06/10] A corrida aberta no ecrã da corrida nunca é
+    // oferta — compara-se pelo id que esse ecrã mostra, não só pelo store.
+    final mostrada = TvdeOfferPresentation.corridaMostrada.value;
 
     Widget? cartao;
-    if (offer != null && offer.id != emEcraInteiro) {
+    if (offer != null && offer.id != emEcraInteiro && offer.id != mostrada) {
       cartao = TvdeOfferOverlayCard(
         key: ValueKey<String>('oferta-sobreposta-${offer.id}'),
         offer: offer,
@@ -298,7 +348,10 @@ String mensagemDeOfertaFalhada(Object e) {
 /// faz-se aqui. Nunca abre dois.
 Future<void> abrirCorridaActivaSeFechada() async {
   await Future<void>.delayed(const Duration(milliseconds: 700));
-  if (TvdeRideActiveScreen.estaAberto) return;
+  if (TvdeOfferPresentation.activeRideOpenOverride.value ??
+      TvdeRideActiveScreen.estaAberto) {
+    return;
+  }
   final ctx = NotificationService.navigatorKey.currentContext;
   final nav = NotificationService.navigatorKey.currentState;
   if (ctx == null || nav == null || !ctx.mounted) return;
@@ -401,7 +454,9 @@ class _TvdeOfferOverlayCardState extends State<TvdeOfferOverlayCard> {
     super.initState();
     _prazoLocal = _now.add(const Duration(seconds: 25));
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
+      if (!mounted) return;
+      _vigiarAceitePendurado();
+      setState(() {});
     });
     _armarGuardaRecusa();
   }
@@ -416,6 +471,9 @@ class _TvdeOfferOverlayCardState extends State<TvdeOfferOverlayCard> {
       _fecho?.cancel();
       _expirouAvisado = false;
       _perdida = false;
+      _fechada = false;
+      _penduradoDesde = null;
+      _ultimaPergunta = null;
       _armarGuardaRecusa();
     }
   }
@@ -492,6 +550,17 @@ class _TvdeOfferOverlayCardState extends State<TvdeOfferOverlayCard> {
   /// deste motorista — é o que deixa o aviso aparecer.
   bool _perdida = false;
 
+  /// [Cartão preso · 06/10] O cartão já se despediu: não volta a desenhar-se,
+  /// mesmo que quem o pôs no ecrã não o tire (era o host congelado).
+  bool _fechada = false;
+
+  /// [Cartão preso · 06/10] Desde quando está com o prazo a 0 E "a aceitar".
+  DateTime? _penduradoDesde;
+  DateTime? _ultimaPergunta;
+  bool _perguntaEmCurso = false;
+
+  bool get _aAceitar => _respondendo || widget.aAceitar;
+
   void _agendarFecho() {
     if (_expirouAvisado) return;
     _expirouAvisado = true;
@@ -506,9 +575,70 @@ class _TvdeOfferOverlayCardState extends State<TvdeOfferOverlayCard> {
   }
 
   void _armarFecho() {
-    _fecho = Timer(widget.tempoAteFechar, () {
-      if (mounted) widget.onExpiredDismiss();
-    });
+    _fecho?.cancel();
+    _fecho = Timer(widget.tempoAteFechar, _fecharJa);
+  }
+
+  /// Despede-se: avisa quem o mostrou (o store limpa a oferta) e deixa de se
+  /// desenhar por conta própria.
+  void _fecharJa() {
+    if (!mounted || _fechada) return;
+    widget.onExpiredDismiss();
+    setState(() => _fechada = true);
+  }
+
+  /// [Cartão preso · 06/10 · corrida 3835a143] Prazo a 0 e "a aceitar" há
+  /// [kTvdeAceitePenduradoPergunta] — o aceite já devia ter respondido.
+  /// Pergunta-se ao servidor de quem é a corrida (de 4 em 4 s):
+  ///  - é dele → fecha em silêncio (o store relê: a corrida entra como activa);
+  ///  - ainda não é → continua à espera, porque o aceite pode estar a chegar;
+  ///  - passados [kTvdeAceitePenduradoDesiste] sem ser dele → o aviso de que
+  ///    foi para outro e fecha. Nunca fica preso com "0s".
+  void _vigiarAceitePendurado() {
+    if (_fechada || _perdida || _recusada || !_expirada || !_aAceitar) {
+      _penduradoDesde = null;
+      return;
+    }
+    final desde = _penduradoDesde ??= _now;
+    if (_perguntaEmCurso ||
+        _now.difference(desde) < kTvdeAceitePenduradoPergunta) {
+      return;
+    }
+    final ultima = _ultimaPergunta;
+    if (ultima != null &&
+        _now.difference(ultima) < kTvdeAceitePenduradoPergunta) {
+      return;
+    }
+    unawaited(_perguntarDonoPendurado());
+  }
+
+  Future<void> _perguntarDonoPendurado() async {
+    _perguntaEmCurso = true;
+    _ultimaPergunta = _now;
+    final id = widget.offer.id;
+    var minha = false;
+    final pergunta = widget.eMinha;
+    if (pergunta != null) {
+      try {
+        minha = await pergunta().timeout(kTvdeAceitePenduradoPergunta);
+      } catch (_) {/* sem resposta: ainda não se sabe */}
+    }
+    _perguntaEmCurso = false;
+    if (!mounted || widget.offer.id != id || _fechada || _perdida) return;
+    if (minha) {
+      _fecharJa();
+      return;
+    }
+    final desde = _penduradoDesde;
+    if (desde != null &&
+        _now.difference(desde) >= kTvdeAceitePenduradoDesiste) {
+      if (!_expirouAvisado) {
+        _expirouAvisado = true;
+        widget.onExpired?.call();
+      }
+      setState(() => _perdida = true);
+      _armarFecho();
+    }
   }
 
   /// [É dele · 04/10 · corrida 8c7f5ca6] O prazo passou. Antes de dizer "foi
@@ -521,7 +651,7 @@ class _TvdeOfferOverlayCardState extends State<TvdeOfferOverlayCard> {
     } catch (_) {/* sem resposta: vale o aviso */}
     if (!mounted || widget.offer.id != id) return;
     if (minha) {
-      widget.onExpiredDismiss();
+      _fecharJa();
       return;
     }
     setState(() => _perdida = true);
@@ -530,14 +660,15 @@ class _TvdeOfferOverlayCardState extends State<TvdeOfferOverlayCard> {
 
   @override
   Widget build(BuildContext context) {
-    if (_recusada) return const SizedBox.shrink();
+    if (_recusada || _fechada) return const SizedBox.shrink();
     // [É dele · 04/10 · corrida 8c7f5ca6] Com o aceite a caminho do servidor
     // o prazo não conta: aceitou a 2 s do fim, o relógio passou antes de a
     // resposta chegar e o cartão dizia "foi para outro motorista" por cima da
-    // corrida que era dele. Espera-se pela resposta, com o indicador.
-    final aAceitar = _respondendo || widget.aAceitar;
-    if (_expirada && !aAceitar) {
-      _agendarFecho();
+    // corrida que era dele. Espera-se pela resposta, com o indicador — mas só
+    // até a rede de segurança decidir ([_vigiarAceitePendurado]).
+    final aAceitar = _aAceitar;
+    if (_expirada && (!aAceitar || _perdida)) {
+      if (!aAceitar) _agendarFecho();
       // A confirmar de quem é (ou é dele e vai fechar): nada no ecrã.
       if (!_perdida) return const SizedBox.shrink();
       return const OfertaExpiradaNotice(

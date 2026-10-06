@@ -41,3 +41,39 @@ fechar destruiria trabalho alheio. O Bloco D explica de onde vem essa falta de m
   in UTF-8"); por isso os alarmes dele saem sem acentos. Usei a ponte normal (VPS viva).
 - O túnel do Ollama para a VPS está em ciclo de falha (ver Bloco D, correção 3).
 - O `CLAUDE.md` diz que o PC tem 4 GB; o PC atual tem 13,7 GB de RAM (o problema é o consumo, não a RAM).
+
+---
+
+# Continuação (06/10, 16:33–17:10) — correções do PC e 23 fichas do Guarda FC
+
+**RAM no arranque da continuação:** 1653 MB disponíveis (acima do portão leve de 400; nada compilou).
+
+| Bloco | Feito | Prova | Falhou / saltado |
+|---|---|---|---|
+| **Guardião de git** | — | — | **Recusado pelas permissões** (`.claude/hooks/` só o Danilo altera). Não contornado. Patch pronto em `.claude/.ai/missoes/quatro-blocos-06-10/pronto/git-guardrails-excecao-guarda-fc.md`. |
+| **Sessões** | Sessão agendada "Em Dia — «sim» do dia" presa a correr desde 02/10 interrompida (bloqueava a tarefa e a atualização da app). Sessão remota órfã `cse_01Fi4d` fechada. | `get_session` → `isRunning:false`; registo da app deixou de dizer `per_task_limit` | As outras 5 sessões remotas ficaram (tinham atividade hoje). |
+| **Terminal 12,9 GB** | Descobri o que lá está: o serviço remoto `claude rc --name bora-app` (641 MB de registo em 6 dias) com 5 sessões remotas dentro. Fechar agora matava-as. Os vigias passam a arrancar o serviço escondido e a rodar o registo; reinício único às 04h se o Terminal >3 GB e as sessões paradas (20 s de CPU em 10 min). | Ensaio: recusou com sessões a trabalhar, aceitou com elas paradas | Liberta-se esta madrugada, não agora. |
+| **Ollama** | Túnel mantido (é usado pelo Motor Bora e pela `cadeia_prova`). Causa do ciclo: a VPS não largava ligações mortas → `ClientAliveInterval 30` / `CountMax 3` (`sshd -t` OK). Quem segurava o modelo 30 min era o Cérebro do WhatsApp (PC e VPS) → `keep_alive` 2 min; modelo descarregado. | `curl 172.16.1.1:11434` → 200; `ollama ps` vazio; Cérebro PC `/saude` 200; VPS `active` | — |
+| **Chrome** | Ficheiro de um clique `.claude/skills/pc-sempre-ligado/chrome-excecoes-poupador.reg`. | — | Windows recusa `HKCU\Software\Policies` sem administrador; fechar o Chrome perdia os separadores. "Segundo plano" já ligado por omissão. |
+| **App Claude** | A sessão presa que impedia a atualização foi interrompida; o vigia passa a sincronizar o host nativo depois da atualização. | Host nativo hoje igual à versão em uso (hash `F6D35822D0A9`) — o EBUSY de hoje era inofensivo (corrige o diagnóstico) | Atualização 2.19675.1 aplica-se sozinha quando nenhuma sessão trabalhar. |
+| **Vigia VPS** | 3 tentativas × 1 min, erro guardado. | Testado nos dois caminhos | — |
+| **Energia** | Confirmado: em corrente nunca suspende. Nada mudado. | `powercfg` AC = 0 | — |
+| **Antes → depois** | RAM 1653 → 2388 MB; comprometida 49,7 → 43,8 GB; Ollama 5,5 GB → vazio; extensão a responder nos 2 perfis | e2e_log 3030–3031 | Terminal 12,9 GB até às 04h |
+| **23 fichas** | Isnaba Mané #12, Mboulou Júnior #5, Luís Maurício #15 (renovação, sem clube anterior nem notícia). Entrada a 23 nas 4 línguas; o build recusa número errado. | Verificador limpo APROVADO; cópia `a37f76e0`: 23/23 fichas, 46/46 fotos, 0 partidas; `guardafcsad.com` = `fd69d3bf` | Push para `principal` bloqueado (ver acima). |
+
+## PARA O DANILO
+
+1. **Um comando** (fixa as fotos e as 23 fichas no ramo que o robô do clube publica):
+
+   ```
+   git -C C:/BoraLocal/projetosflutter/guarda-fc-site-fotos push origin HEAD:principal
+   ```
+2. **Chrome:** quando quiseres, duplo clique em `.claude/skills/pc-sempre-ligado/chrome-excecoes-poupador.reg` → "Sim".
+
+## Fora do âmbito (só reporto)
+
+- A notícia `plantel-renovado-2026-27` diz "Onze reforços"; já não batia antes e agora há 16 jogadores com chegada em 2026/27.
+- As estatísticas dos 20 jogadores antigos estão paradas desde a Supertaça (ex.: Joel Mendes 1 jogo no site, 6 no zerozero).
+- O zerozero tem Yohaan Benjamin #88 e Jovane Camará #28 no plantel, sem cartão da Diana nem ficha no site.
+- `tools/build.mjs`: o 27 em hindi tem uma letra árabe trocada ('सत्ताईس').
+- Correção minha: a mensagem do commit `0f0b010` diz Luís Maurício "2025/26 no Vitória Sernache"; o certo é 2024/25 (registado em `provas/origens.md`).

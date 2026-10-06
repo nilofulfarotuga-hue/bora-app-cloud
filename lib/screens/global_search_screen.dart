@@ -12,6 +12,7 @@ import '../models/restaurant_model.dart';
 import '../services/home_feed_service.dart';
 import '../services/pricing_service.dart';
 import '../stores/restaurant_store.dart';
+import '../stores/tvde_store.dart';
 import '../utils/cozinhas.dart';
 import '../utils/home_destino.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
@@ -259,6 +260,9 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
           runSpacing: Spacing.sm,
           children: [
             for (final e in categoriasDestino.entries)
+              // Bora Motorista so aparece a quem tem acesso (regra 30/09).
+              if (e.key != 'motorista' ||
+                  context.watch<TvdeStore>().tvdeAccess)
               ActionChip(
                 label: Text(e.value.tr),
                 onPressed: () => abrirCategoria(context, e.key),

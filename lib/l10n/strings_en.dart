@@ -3250,4 +3250,22 @@ const Map<String, String> kStringsEn = <String, String>{
       'We could not calculate the route to that destination. Please try again.',
   'Ainda não temos a posição do carro. Tenta daqui a um minuto.':
       'We do not have the position of the car yet. Try again in a minute.',
+  // 2026-10-06 — Bora Motorista por descobrir (caso Beatriz).
+  'Esta categoria ainda não está liberada para ti.':
+      'This category is not unlocked for you yet.',
+  'Não consegui enviar o pedido. Tenta de novo.':
+      'I could not send the request. Please try again.',
+  'Nova categoria': 'New category',
+  'Nova\ncategoria': 'New\ncategory',
+  'Pedido enviado!': 'Request sent!',
+  'Há uma categoria nova à tua espera': 'A new category is waiting for you',
+  'Estamos a analisar o teu pedido. Assim que for aprovado, a categoria aparece na tua página inicial.':
+      'We are reviewing your request. As soon as it is approved, the category will appear on your home page.',
+  'Desta vez o teu pedido não foi aprovado. Podes voltar a pedir quando quiseres.':
+      'Your request was not approved this time. You can ask again whenever you like.',
+  'É exclusiva e o acesso é dado um a um. Deixa o teu nome e telefone e pede para a descobrir.':
+      'It is exclusive and access is given one by one. Leave your name and phone number and ask to discover it.',
+  'Escreve o teu nome.': 'Enter your name.',
+  'Escreve um telefone válido.': 'Enter a valid phone number.',
+  'Pedir para descobrir': 'Ask to discover',
 };

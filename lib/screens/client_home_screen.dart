@@ -19,6 +19,7 @@ import '../stores/carwash_store.dart';
 import '../stores/order_store.dart';
 import '../stores/restaurant_store.dart';
 import '../stores/session_store.dart';
+import '../stores/tvde_store.dart';
 import '../widgets/address_autocomplete_field.dart';
 import '../widgets/bora/bora.dart';
 import '../widgets/bora_support_fab.dart';
@@ -36,7 +37,7 @@ import 'restaurants_screen.dart';
 import 'send_package_form_screen.dart';
 import 'errand_form_screen.dart';
 import 'stores_screen.dart';
-import 'client/tvde/tvde_request_ride_screen.dart';
+import 'client/tvde/tvde_entrada_screen.dart';
 import 'festas_screen.dart';
 import 'sobremesas_screen.dart';
 
@@ -75,6 +76,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
       // Lavagem Auto: saber se a categoria esta aberta antes de
       // desenhar o ladrilho (ver _buildCategoryGrid).
       context.read<CarwashStore>().refreshSettings();
+      // Bora Motorista so para quem tem acesso (regra 30/09, caso Beatriz 06/10).
+      context.read<TvdeStore>().refreshAccess();
       _detectLocation();
       // Sessão 6 §44 — abre RatingScreen se há pedido entregue ainda não avaliado.
       _checkUnratedOrders();
@@ -98,6 +101,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && mounted) {
       _checkUnratedOrders();
+      // Aprovado no painel enquanto a app estava em fundo → aparece ao voltar.
+      context.read<TvdeStore>().refreshAccess();
     }
   }
 
@@ -569,20 +574,39 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
       ),
     ];
 
-    // TVDE — categoria aberta a todos os clientes desde 2026-08-01.
-    tiles.add(
-      _TileData(
-        label: 'Bora\nMotorista',
-        gradient: AppColors.tileServices,
-        imageAsset: 'assets/categories/cat_motorista.png',
-        onTap: () => _navigateWithAddressGuard(() {
-          Navigator.push(
+    // TVDE — categoria por descobrir (regra do Danilo 30/09, caso Beatriz 06/10).
+    // Quem tem users.tvde_access ve o Bora Motorista; os novos cadastros veem
+    // "Nova categoria", pedem acesso com nome e telefone e o Danilo aprova no
+    // painel (Pedidos de acesso TVDE). Enquanto o acesso nao foi lido nao se
+    // desenha nenhum dos dois (evita mostrar a quem nao pode e o pisca-pisca).
+    final tvde = context.watch<TvdeStore>();
+    if (tvde.tvdeAccess) {
+      tiles.add(
+        _TileData(
+          label: 'Bora\nMotorista',
+          gradient: AppColors.tileServices,
+          imageAsset: 'assets/categories/cat_motorista.png',
+          onTap: () => _navigateWithAddressGuard(() {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const TvdeEntradaScreen()),
+            );
+          }),
+        ),
+      );
+    } else if (tvde.accessLoaded) {
+      tiles.add(
+        _TileData(
+          label: 'Nova\ncategoria',
+          gradient: AppColors.tileServices,
+          iconData: Icons.auto_awesome,
+          onTap: () => Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const TvdeRequestRideScreen()),
-          );
-        }),
-      ),
-    );
+            MaterialPageRoute(builder: (_) => const TvdeEntradaScreen()),
+          ),
+        ),
+      );
+    }
 
     // Festas (2026-08-25) — salgados, doces e bolos por encomenda.
     tiles.add(

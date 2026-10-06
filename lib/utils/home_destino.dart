@@ -5,7 +5,7 @@ import '../l10n/tr.dart';
 import '../models/restaurant_model.dart';
 import '../screens/client/cleaning/cleaning_bookings_screen.dart';
 import '../screens/client/services/services_category_screen.dart';
-import '../screens/client/tvde/tvde_request_ride_screen.dart';
+import '../screens/client/tvde/tvde_entrada_screen.dart';
 import '../screens/client_promo_code_screen.dart';
 import '../screens/festas_screen.dart';
 import '../screens/product_detail_screen.dart';
@@ -138,7 +138,8 @@ Widget? _ecraCategoria(String chave) {
       return const CleaningBookingsScreen();
     case 'motorista':
     case 'tvde':
-      return const TvdeRequestRideScreen();
+      // Passa pela porta: sem acesso mostra a categoria por descobrir.
+      return const TvdeEntradaScreen();
   }
   return null;
 }

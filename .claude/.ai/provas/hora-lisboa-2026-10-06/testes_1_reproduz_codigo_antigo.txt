@@ -1,0 +1,60 @@
+00:00 +1 -4: o dia da semana também é o de Lisboa domingo 23:30 UTC já é segunda 00:30 em Lisboa [E]
+  Expected: true
+    Actual: <false>
+  
+  package:matcher                                     expect
+  package:flutter_test/src/widget_tester.dart 473:18  expect
+  test\loja_hora_lisboa_test.dart 84:7                main.<fn>.<fn>
+  
+00:00 +1 -4: o dia da semana também é o de Lisboa o aviso do carrinho fala do dia de Lisboa
+00:00 +1 -5: o dia da semana também é o de Lisboa o aviso do carrinho fala do dia de Lisboa [E]
+  Expected: 'Fechada hoje'
+    Actual: 'Fechada, abre às 10h00'
+     Which: is different.
+            Expected: Fechada hoje
+              Actual: Fechada, abre às  ...
+                             ^
+             Differ at offset 7
+  
+  package:matcher                                     expect
+  package:flutter_test/src/widget_tester.dart 473:18  expect
+  test\loja_hora_lisboa_test.dart 96:7                main.<fn>.<fn>
+  
+00:00 +1 -5: o dia da semana também é o de Lisboa o aviso diz a hora de abrir do dia de Lisboa
+00:00 +1 -6: o dia da semana também é o de Lisboa o aviso diz a hora de abrir do dia de Lisboa [E]
+  Expected: 'Loja Teste está fechada agora. Abre às 08h00.'
+    Actual: 'Loja Teste está fechada agora. Abre às 12h00.'
+     Which: is different.
+            Expected: ... . Abre às 08h00.
+              Actual: ... . Abre às 12h00.
+                                    ^
+             Differ at offset 39
+  
+  package:matcher                                     expect
+  package:flutter_test/src/widget_tester.dart 473:18  expect
+  test\loja_hora_lisboa_test.dart 109:7               main.<fn>.<fn>
+  
+00:00 +1 -6: outro fuso: o mesmo instante dá a mesma resposta São Paulo, Tóquio, UTC e Lisboa no mesmo instante
+00:00 +1 -7: outro fuso: o mesmo instante dá a mesma resposta São Paulo, Tóquio, UTC e Lisboa no mesmo instante [E]
+  Expected: false
+    Actual: <true>
+  2026-10-06 21:30:00.000Z
+  
+  package:matcher                                     expect
+  package:flutter_test/src/widget_tester.dart 473:18  expect
+  test\loja_hora_lisboa_test.dart 128:9               main.<fn>.<fn>
+  
+00:00 +1 -7: sem instante dado, usa o agora deste aparelho em hora de Lisboa aberta só na hora de Lisboa de agora
+00:00 +2 -7: sem instante dado, usa o agora deste aparelho em hora de Lisboa fechada na hora do aparelho quando esta não é a de Lisboa
+00:00 +3 -7: instanteDeLisboa é o inverso de horaLisboa verão: 20:00 em Lisboa = 19:00 UTC
+00:00 +4 -7: instanteDeLisboa é o inverso de horaLisboa inverno: 20:00 em Lisboa = 20:00 UTC
+00:00 +5 -7: instanteDeLisboa é o inverso de horaLisboa meia-noite de Lisboa no verão é 23:00 UTC da véspera
+00:00 +6 -7: instanteDeLisboa é o inverso de horaLisboa ida e volta dá o mesmo relógio, ao longo do ano
+00:01 +7 -7: Some tests failed.
+
+Failing tests:
+  C:/BoraLocal/wt-ronda-05-10/test/loja_hora_lisboa_test.dart: o dia da semana também é o de Lisboa domingo 23:30 UTC já é segunda 00:30 em Lisboa
+  C:/BoraLocal/wt-ronda-05-10/test/loja_hora_lisboa_test.dart: o dia da semana também é o de Lisboa o aviso diz a hora de abrir do dia de Lisboa
+  C:/BoraLocal/wt-ronda-05-10/test/loja_hora_lisboa_test.dart: o dia da semana também é o de Lisboa o aviso do carrinho fala do dia de Lisboa
+  C:/BoraLocal/wt-ronda-05-10/test/loja_hora_lisboa_test.dart: o instante decide, não o fuso do telemóvel mudança da hora (25/10/2026, 01:00 UTC) acompanha Lisboa
+  ... and 3 more

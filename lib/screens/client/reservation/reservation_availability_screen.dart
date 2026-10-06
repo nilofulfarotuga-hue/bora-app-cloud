@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../config/app_colors.dart';
 import '../../../stores/reservation_store.dart';
+import '../../../utils/hora_lisboa.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
 import 'reservation_checkout_screen.dart';
 import 'reservation_notify_join_screen.dart';
@@ -32,7 +33,10 @@ class ReservationAvailabilityScreen extends StatefulWidget {
 
 class _ReservationAvailabilityScreenState
     extends State<ReservationAvailabilityScreen> {
-  DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
+  // Datas e horas da mesa são as do relógio da loja (Lisboa), nunca as do
+  // fuso do telemóvel.
+  DateTime _selectedDate =
+      horaLisboa(DateTime.now()).add(const Duration(days: 1));
   int _selectedPartySize = 2;
   TimeOfDay? _selectedTime;
   Map<String, dynamic>? _availabilityResult;
@@ -43,7 +47,7 @@ class _ReservationAvailabilityScreenState
     // em main.dart (flutter_localizations delegates). Este catch garante que
     // qualquer falha futura mostra snackbar em vez de tela em branco.
     try {
-      final now = DateTime.now();
+      final now = horaLisboa(DateTime.now());
       final picked = await showDatePicker(
         context: context,
         initialDate: _selectedDate.isBefore(now) ? now : _selectedDate,
@@ -104,7 +108,7 @@ class _ReservationAvailabilityScreenState
         _selectedTime!.hour,
         _selectedTime!.minute,
       );
-      if (picked.isBefore(DateTime.now())) {
+      if (picked.isBefore(horaLisboa(DateTime.now()))) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('A hora escolhida já passou. Escolhe outra.'.tr),

@@ -12,6 +12,20 @@ DateTime horaLisboa(DateTime instante) {
   return DateTime(l.year, l.month, l.day, l.hour, l.minute, l.second);
 }
 
+/// Instante (UTC) em que o relógio de Lisboa marca [parede] — o inverso de
+/// [horaLisboa]. Só lê ano/mês/dia/hora/minuto/segundo de [parede]: o fuso do
+/// telemóvel não entra. Para mandar ao servidor uma hora escolhida no relógio
+/// da loja, em vez de `parede.toUtc()` (que usa o fuso do aparelho).
+/// Na hora que se repete em outubro devolve a primeira (ainda de verão).
+DateTime instanteDeLisboa(DateTime parede) {
+  final comoUtc = DateTime.utc(parede.year, parede.month, parede.day,
+      parede.hour, parede.minute, parede.second);
+  final verao = comoUtc.subtract(const Duration(hours: 1));
+  final l = horaLisboa(verao);
+  if (l.day == parede.day && l.hour == parede.hour) return verao;
+  return comoUtc;
+}
+
 int _ultimoDomingo(int ano, int mes) {
   final ultimo = DateTime.utc(ano, mes + 1, 0); // último dia do mês
   return ultimo.day - (ultimo.weekday % 7); // weekday: domingo = 7

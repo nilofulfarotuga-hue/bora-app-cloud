@@ -462,9 +462,18 @@ nenhum, porque isso não existe.
 > da loja — cartão, ficha, linha, "+" e "Pedir de novo" — e um aviso que dura segundos
 > vigia-se enquanto se espera, não no fim. Guardado por
 > `test/loja_fechada_ficha_e_repetir_test.dart`.
-> **Gémeos por unificar:** a app decide aberta/fechada pelo relógio do **aparelho**
-> (`RestaurantModel.isOpenNow`), o servidor pela hora de **Lisboa** (`is_partner_open`, a
-> fonte). Num aparelho noutro fuso — o emulador do CI anda em UTC — divergem uma hora.
+> **Hora unificada (06/10, decisão da Claude.ai com a autoridade do Danilo):** a app decidia
+> aberta/fechada pelo relógio do **aparelho** e o servidor pela hora de **Lisboa**
+> (`is_partner_open`, a fonte); num aparelho noutro fuso — o emulador do CI anda em UTC —
+> divergiam uma hora. Agora `isOpenNow`, `statusLabel` e `avisoLojaFechada` passam o instante
+> por `horaLisboa()` (`lib/utils/hora_lisboa.dart`) antes de lerem o dia e a hora. Regra: o
+> que se compara com o horário da loja é sempre o relógio de Lisboa; uma hora escolhida no
+> relógio da loja vai para o servidor por `instanteDeLisboa()`, nunca por `.toUtc()` — o envio
+> da data das festas (`festas_set_schedule`) e o da hora da mesa (`reserved_for`, dentro do
+> pagamento) ainda usam `.toUtc()` e esperam ordem própria.
+> Guardado por `test/loja_hora_lisboa_test.dart`. **Gémeos que ainda divergem:** a app não lê
+> os dias fechados (`business_hours.special_dates`) que o servidor lê, e o servidor não lê o
+> `is_online` que a app lê.
 
 ### 1.28 A categoria nova aparece na lupa e pode ser destino de uma faixa da home
 

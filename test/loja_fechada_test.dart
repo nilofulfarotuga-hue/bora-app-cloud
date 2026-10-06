@@ -2,6 +2,7 @@ import 'package:bora_app/models/order_service_type.dart';
 import 'package:bora_app/models/restaurant_model.dart';
 import 'package:bora_app/stores/cart_store.dart';
 import 'package:bora_app/models/cart_item.dart';
+import 'package:bora_app/utils/hora_lisboa.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// LOJA FECHADA É VISITÁVEL (2026-08-27, pedido do Danilo).
@@ -31,9 +32,10 @@ RestaurantModel _loja({
       businessHours: horario,
     );
 
-/// Horário que garante loja FECHADA à hora a que o teste corre.
+/// Horário que garante loja FECHADA à hora a que o teste corre. A hora é a de
+/// Lisboa, a mesma com que a app decide (06/10/2026) — não a do aparelho.
 BusinessHours _fechadaAgora() {
-  final agora = DateTime.now();
+  final agora = horaLisboa(DateTime.now());
   // Janela de uma hora que já passou (ou ainda vem longe), nunca a actual.
   final abre = (agora.hour + 3) % 24;
   final fecha = (abre + 1) % 24;

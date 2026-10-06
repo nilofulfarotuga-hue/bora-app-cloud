@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../models/restaurant_model.dart';
+import '../utils/hora_lisboa.dart';
 import '../widgets/bora/bora_bottom_action_bar.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 
@@ -49,7 +50,8 @@ class _FestasQuandoScreenState extends State<FestasQuandoScreen> {
     super.initState();
     // Regra do Danilo (2026-08-25): UM dia, ponto — a partir da meia-noite
     // seguinte qualquer hora do dia serve (bate com festas_set_schedule).
-    final agora = DateTime.now();
+    // "Hoje" é o dia de Lisboa, o mesmo do servidor — não o do telemóvel.
+    final agora = horaLisboa(DateTime.now());
     _minimo = DateTime(agora.year, agora.month, agora.day + kFestasAvisoDias);
     _mes = DateTime(agora.year, agora.month);
     final ini = widget.inicial;

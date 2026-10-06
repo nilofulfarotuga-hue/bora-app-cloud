@@ -235,6 +235,7 @@ Widget _app(TvdeDriverStore store, {Widget home = const _Home()}) {
 }
 
 final _cartao = find.byKey(const Key('tvde_oferta_sobreposta'));
+const _avisoOutro = 'Esta corrida já foi para outro motorista.';
 final _ecraOferta = find.byType(TvdeOfferScreen, skipOffstage: false);
 
 /// O cliente do Supabase acaba a resposta fora do relógio falso do teste:
@@ -543,28 +544,35 @@ void main() {
       expect(_cartao, findsNothing);
     });
 
-    testWidgets('nunca é dele: ao fim de 16 s o aviso honesto, e sai',
-        (tester) async {
+    testWidgets(
+        'nunca é dele: ao fim de 16 s sai EM SILÊNCIO — por este caminho nunca '
+        'diz "foi para outro" (a cicatriz de 04/10)', (tester) async {
       final c = await montar(tester, eMinha: () async => false);
-      await passar(tester, c, 17);
+      for (var i = 0; i < 16; i++) {
+        await passar(tester, c, 1);
+        expect(find.text(_avisoOutro), findsNothing);
+      }
+      expect(_cartao, findsOneWidget, reason: 'desistiu antes dos 16 s');
+      await passar(tester, c, 1);
       await tester.pump();
-      expect(find.text('Esta corrida já foi para outro motorista.'),
-          findsOneWidget);
-      expect(find.text('0s'), findsNothing);
+      expect(find.text(_avisoOutro), findsNothing);
       expect(c.expirou, 1);
-      await passar(tester, c, 6);
-      await tester.pump();
       expect(c.fechou, 1);
-      expect(find.text('Esta corrida já foi para outro motorista.'),
-          findsNothing);
       expect(_cartao, findsNothing);
+      expect(find.text('0s'), findsNothing);
+      await passar(tester, c, 10);
+      expect(c.fechou, 1, reason: 'despediu-se duas vezes');
     });
 
-    testWidgets('sem rede para perguntar: também nunca fica preso',
-        (tester) async {
+    testWidgets(
+        'sem rede para perguntar (a pergunta falha numa corrida que pode ser '
+        'dele): nunca fica preso e nunca diz "foi para outro"', (tester) async {
       final c = await montar(tester,
           eMinha: () async => throw StateError('sem rede'));
-      await passar(tester, c, 30);
+      for (var i = 0; i < 30; i++) {
+        await passar(tester, c, 1);
+        expect(find.text(_avisoOutro), findsNothing);
+      }
       await tester.pump();
       expect(c.fechou, 1);
       expect(_cartao, findsNothing);
@@ -616,14 +624,37 @@ void main() {
           reason: 'a corrida já é dele e acabou; a oferta ficou em memória');
     });
 
-    test('cancelada ou foi para outro motorista', () {
-      final store = _store()..debugInjectar(oferta: TvdeRide.fromMap(_linha));
-      store.debugEventoRealtime(evento('cancelada_cliente'));
-      expect(store.offeredRide, isNull);
+    test(
+        'cancelada, foi para outro, ou largada pelo sweep: sai E avisa quem a '
+        'mostra (senão o cartão ficava com o Aceitar vivo)', () {
+      for (final e in [
+        evento('cancelada_cliente'),
+        evento('solicitada', para: 'outro'),
+        evento('solicitada', para: null),
+        evento('finalizada', driver: _eu),
+      ]) {
+        final store = _store()
+          ..debugInjectar(oferta: TvdeRide.fromMap(_linha));
+        var avisos = 0;
+        store.addListener(() => avisos++);
+        store.debugEventoRealtime(e);
+        expect(store.offeredRide, isNull, reason: '${e['status']}');
+        expect(avisos, greaterThan(0),
+            reason: '${e['status']} / ${e['current_offer_driver_id']}: tirou a '
+                'oferta sem avisar o cartão');
+      }
+    });
 
-      store.debugInjectar(oferta: TvdeRide.fromMap(_linha));
-      store.debugEventoRealtime(evento('solicitada', para: 'outro'));
+    test('limpar a oferta de um cartão nunca apaga outra que entretanto entrou',
+        () {
+      final store = _store()..debugInjectar(oferta: _oferta(id: 'r2'));
+      store.clearOfferSe('r1');
+      expect(store.offeredRide?.id, 'r2');
+      var avisos = 0;
+      store.addListener(() => avisos++);
+      store.clearOfferSe('r2');
       expect(store.offeredRide, isNull);
+      expect(avisos, 1);
     });
 
     test('a mesma oferta, ainda minha e à procura, fica', () {

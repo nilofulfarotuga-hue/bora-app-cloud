@@ -167,7 +167,11 @@ class _TvdeOfferOverlayHostState extends State<TvdeOfferOverlayHost>
     _redesenhoAgendado = true;
     SchedulerBinding.instance.addPostFrameCallback((_) {
       _redesenhoAgendado = false;
-      if (mounted) setState(() {});
+      if (!mounted) return;
+      setState(() {});
+      // Garante o frame seguinte mesmo que o pedido de redesenho tenha ficado
+      // preso noutro elemento marcado no fecho da árvore.
+      SchedulerBinding.instance.ensureVisualUpdate();
     });
   }
 
@@ -274,7 +278,9 @@ class _TvdeOfferOverlayHostState extends State<TvdeOfferOverlayHost>
         // heads-up, que tapava a frase honesta no emulador a 21/09) — o cartão
         // fica uns segundos a dizer o que aconteceu e só depois sai do store.
         onExpired: () => unawaited(cancelTvdeRideNotification(offer.id)),
-        onExpiredDismiss: store.clearOffer,
+        // [Cartão preso · 06/10] Só a oferta DESTE cartão: uma oferta nova
+        // que tenha entrado entretanto fica.
+        onExpiredDismiss: () => store.clearOfferSe(offer.id),
         // [É dele · 04/10] Aceite a decorrer (por qualquer caminho) → espera;
         // prazo passado → confirma primeiro que a corrida não é dele.
         aAceitar: store.aceiteEmCurso(offer.id),
@@ -591,9 +597,13 @@ class _TvdeOfferOverlayCardState extends State<TvdeOfferOverlayCard> {
   /// [kTvdeAceitePenduradoPergunta] — o aceite já devia ter respondido.
   /// Pergunta-se ao servidor de quem é a corrida (de 4 em 4 s):
   ///  - é dele → fecha em silêncio (o store relê: a corrida entra como activa);
-  ///  - ainda não é → continua à espera, porque o aceite pode estar a chegar;
-  ///  - passados [kTvdeAceitePenduradoDesiste] sem ser dele → o aviso de que
-  ///    foi para outro e fecha. Nunca fica preso com "0s".
+  ///  - ainda não é (ou sem resposta) → continua à espera, porque o aceite
+  ///    pode estar a chegar;
+  ///  - passados [kTvdeAceitePenduradoDesiste] → fecha EM SILÊNCIO. Nunca diz
+  ///    "foi para outro" por este caminho: com a rede lenta a pergunta pode
+  ///    falhar numa corrida que é dele (a cicatriz de 04/10), e se o aceite
+  ///    falhou de verdade quem o fez já avisou ("já não está disponível").
+  ///    Nunca fica preso com "0s".
   void _vigiarAceitePendurado() {
     if (_fechada || _perdida || _recusada || !_expirada || !_aAceitar) {
       _penduradoDesde = null;
@@ -636,8 +646,7 @@ class _TvdeOfferOverlayCardState extends State<TvdeOfferOverlayCard> {
         _expirouAvisado = true;
         widget.onExpired?.call();
       }
-      setState(() => _perdida = true);
-      _armarFecho();
+      _fecharJa();
     }
   }
 

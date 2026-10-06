@@ -458,12 +458,11 @@ class TvdeDriverStore extends ChangeNotifier {
     // de procurar motorista: a oferta sai JÁ, venha o evento por onde vier
     // (aceite noutro caminho, terminada, cancelada, para outro). Antes uma
     // corrida minha já terminada deixava a oferta em memória.
-    if (_offeredRide?.id == ride.id &&
+    final limpou = _offeredRide?.id == ride.id &&
         (ride.status != 'solicitada' ||
             ride.driverId == uid ||
-            ride.currentOfferDriverId != uid)) {
-      _limparOferta();
-    }
+            ride.currentOfferDriverId != uid);
+    if (limpou) _limparOferta();
 
     // Corrida ativa minha → atualiza/limpa.
     if (ride.driverId == uid) {
@@ -526,9 +525,10 @@ class TvdeDriverStore extends ChangeNotifier {
       if (!_podeSerOferta(ride)) return;
       _offeredRide = ride;
       notifyListeners();
-    } else if (_offeredRide?.id == ride.id) {
+    } else if (limpou || _offeredRide?.id == ride.id) {
       // A oferta saiu de mim (expirou/recusada → passou ao próximo) ou mudou
-      // de estado. Limpa para fechar o ecrã de oferta.
+      // de estado. Limpa para fechar o ecrã de oferta — e avisa SEMPRE quem
+      // a mostra, mesmo que a guarda de cima já a tenha tirado.
       _limparOferta();
       notifyListeners();
     }
@@ -1136,6 +1136,14 @@ class TvdeDriverStore extends ChangeNotifier {
     _versao++;
     _limparOferta();
     notifyListeners();
+  }
+
+  /// [Cartão preso · 06/10] Limpa a oferta SÓ se ainda for a corrida
+  /// [rideId]. O cartão que se despede de uma oferta nunca apaga outra que
+  /// entretanto tenha entrado (a releitura do "é dele?" pode trazê-la).
+  void clearOfferSe(String rideId) {
+    if (_offeredRide?.id != rideId) return;
+    clearOffer();
   }
 
   /// Só para testes de widget: mete o estado directamente, sem servidor.

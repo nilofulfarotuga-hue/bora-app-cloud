@@ -32,6 +32,9 @@ class _PilhaState extends State<_Pilha> {
   bool sos = true;
   double extent = 0.30;
 
+  /// O que o ecrã real faz quando o estado muda (corrida terminada, fila).
+  void mudar(VoidCallback f) => setState(f);
+
   @override
   void dispose() {
     ctrl.dispose();
@@ -85,9 +88,9 @@ void main() {
       'arrastável rebenta — a réplica reproduz o erro de produção',
       (tester) async {
     final s = await _montar(tester, comChave: false);
-    s.setState(() => s.sos = false); // corrida terminada
+    s.mudar(() => s.sos = false); // corrida terminada
     await tester.pump();
-    s.setState(() => s.extent = 0.14); // a actualização seguinte
+    s.mudar(() => s.extent = 0.14); // a actualização seguinte
     await tester.pump();
     // Em debug o Flutter apanha-o à entrada ("already attached"); na app
     // publicada passa e rebenta depois em `_onExtentReplaced` (Null check).
@@ -106,18 +109,18 @@ void main() {
     final painel = tester.element(find.byType(DraggableScrollableSheet));
     expect(s.ctrl.isAttached, isTrue);
 
-    s.setState(() => s.sos = false); // corrida terminada
+    s.mudar(() => s.sos = false); // corrida terminada
     await tester.pump();
-    s.setState(() => s.extent = 0.14);
+    s.mudar(() => s.extent = 0.14);
     await tester.pump();
     expect(tester.takeException(), isNull);
     expect(tester.element(find.byType(DraggableScrollableSheet)), same(painel),
         reason: 'o painel foi recriado');
     expect(s.ctrl.isAttached, isTrue);
 
-    s.setState(() => s.sos = true); // entra a corrida da fila
+    s.mudar(() => s.sos = true); // entra a corrida da fila
     await tester.pump();
-    s.setState(() => s.extent = 0.52);
+    s.mudar(() => s.extent = 0.52);
     await tester.pump();
     expect(tester.takeException(), isNull);
     expect(tester.element(find.byType(DraggableScrollableSheet)), same(painel));

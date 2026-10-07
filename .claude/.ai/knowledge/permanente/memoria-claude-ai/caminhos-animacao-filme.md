@@ -10,7 +10,7 @@ estado: atual
 
 # Filme das filhas — 5 caminhos grátis para o desenho (revisto 05/10 com os 50 vídeos)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-07T12:33:29.536905+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-07T19:54:13.973386+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: caminhos animacao filme · memoria claude.ai · claude_ai_memoria
 
@@ -29,3 +29,6 @@ Ordem recomendada: 2 (bíblia) → 1 (personagens fixos) → 3 (vozes) → 4 (bo
 - Reforço do caminho 2: "geografia de cena" — fixar layout e luz de cada cenário no prompt; usar a imagem da cena anterior como referência para variações da mesma personagem. https://www.youtube.com/watch?v=NBS98oN5zs0
 - Alternativa ao caminho 1 com o conector Higgsfield que já existe: personagem guardada como elemento de referência (folha de ângulos + prompt em blocos identidade/roupa/cenário); gasta créditos Higgsfield. https://www.youtube.com/watch?v=YgDJDdFQZFY
 - Reserva quando acabarem os créditos do Flow: Pruna AI (demo grátis, sem marca de água, imagem-para-vídeo; lip sync fraco). https://www.youtube.com/watch?v=Ue6lYqBz_ds ; Atlabs só se o plano grátis não pedir cartão (o vídeo não diz preço). https://www.youtube.com/watch?v=gwaXdsxXGtY
+
+## 07/10/2026 — radar diário (sem vídeos novos do tema animacao_ia; 1 achado de outra pesquisa)
+- Reforço do caminho 1: folha de cada personagem de frente, lado e costas antes de gerar qualquer cena; e esconder a emenda entre dois clipes atrás de um objeto da cena (pilar, porta) para fazer cenas mais longas e contínuas. O vídeo usa Midjourney e Flick (pagos) — aproveitar só a técnica com o Nano Banana/Flow que já temos. https://www.youtube.com/watch?v=Bf_ZGWc5l1o

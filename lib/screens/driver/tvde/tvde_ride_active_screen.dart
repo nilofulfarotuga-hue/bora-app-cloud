@@ -20,6 +20,8 @@ import '../../../models/tvde_ride.dart';
 import '../../../services/directions_service.dart';
 import '../../../services/driver_location_ping_service.dart';
 import '../../../services/navigation_service.dart';
+import '../../../services/localizacao_online.dart'
+    show gpsLigadoSemServicoPorEstarEmFundo;
 import '../../../services/tvde_corrida_localizacao_service.dart';
 import '../../../stores/driver_store.dart';
 import '../../../stores/tvde_chat_store.dart';
@@ -232,6 +234,12 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   /// saltava meio quarteirão de cada vez; (2) o store notifica por qualquer
   /// motorista que se mexa, e o ecrã não tem de acordar por causa disso.
   StreamSubscription<Position>? _gps;
+
+  /// [GPS em fundo · 07/10] O [_gps] nasceu sem serviço em primeiro plano só
+  /// porque a app estava em fundo (corrida aceite pelo botão da notificação):
+  /// religa-se com serviço quando a app vem à frente ([_ciclo]).
+  bool _gpsSemServicoPorFundo = false;
+  AppLifecycleListener? _ciclo;
   LatLng? _gpsPos;
 
   /// [Uma corrida = uma stream · 05/09] Este ecrã assumiu o GPS (a stream da
@@ -276,6 +284,9 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   void initState() {
     super.initState();
     _montados++;
+    _ciclo = AppLifecycleListener(onResume: () {
+      if (mounted && _gpsSemServicoPorFundo) unawaited(_startGps());
+    });
     _loadDriverArrowIcon();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -333,6 +344,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     // SEM a notificação em vez de rebentar.
     final settings = await TvdeCorridaLocalizacao.definicoesDeCorrida();
     if (!mounted) return;
+    _gpsSemServicoPorFundo = gpsLigadoSemServicoPorEstarEmFundo(settings);
     try {
       _gps = Geolocator.getPositionStream(locationSettings: settings).listen(
         (p) {
@@ -417,6 +429,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   @override
   void dispose() {
     _montados--;
+    _ciclo?.dispose();
     if (TvdeOfferPresentation.corridaMostrada.value == _rideId) {
       TvdeOfferPresentation.corridaMostrada.value = null;
     }

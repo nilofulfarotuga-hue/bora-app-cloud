@@ -93,6 +93,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
   final HeartbeatService _heartbeatService = HeartbeatService();
   final Set<String> _processingOrderIds = {};
   StreamSubscription<Position>? _positionSubscription;
+
+  /// [GPS em fundo · 07/10] O GPS "online" foi ligado sem serviço em primeiro
+  /// plano só porque a app estava em fundo — religa-se ao voltar à frente.
+  bool _gpsSemServicoPorFundo = false;
   OrderStore? _orderStore; // held so we can remove the listener in dispose
 
   /// GPS position obtained via getCurrentPosition() at startup.
@@ -336,6 +340,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       final driver = context.read<DriverStore>().currentDriver;
       if (driver?.isOnline == true) {
         unawaited(_heartbeatService.start());
+        // [GPS em fundo · 07/10] Ligado em fundo sem serviço → religa à frente.
+        if (_gpsSemServicoPorFundo && _positionSubscription != null) {
+          unawaited(_startIdleLocationTracking());
+        }
       }
     }
     // 2026-05-20 — NÃO parar heartbeat em paused/detached enquanto driver
@@ -785,6 +793,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       texto: 'Recebes os pedidos na hora, mesmo com a app em fundo.',
     );
     if (!mounted) return;
+    _gpsSemServicoPorFundo = gpsLigadoSemServicoPorEstarEmFundo(locationSettings);
     await _positionSubscription?.cancel();
 
     _positionSubscription = Geolocator.getPositionStream(

@@ -1,0 +1,116 @@
+import 'dart:io';
+
+import 'package:bora_app/services/localizacao_online.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:geolocator/geolocator.dart';
+
+/// [GPS em fundo · 07/10/2026 · debug_crash_logs] "Starting FGS with type
+/// location ... targetSDK=36 requires ... and the app must be in the eligible
+/// state/exemptions to access the foreground only permission" — telemóvel do
+/// Danilo (Android 16), 26/09, 27/09, 29/09 e 03/10, sempre segundos depois de
+/// terminar uma corrida: o ecrã da corrida fecha, devolve o GPS à home, e a
+/// home religava-o COM serviço em primeiro plano com a app em fundo e a
+/// permissão só "enquanto se usa". O Android recusa e o Flutter só regista o
+/// erro: o GPS que alimenta o despacho ficava calado até reabrir a app.
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  group('regra: pode ligar o serviço de localização agora?', () {
+    bool pode(LocationPermission p, AppLifecycleState? e, {bool ligada = true}) =>
+        podeLigarServicoDeLocalizacao(
+            localizacaoLigada: ligada, permissao: p, estadoDaApp: e);
+
+    test('"enquanto se usa" só com a app à frente (o caso do Danilo)', () {
+      expect(pode(LocationPermission.whileInUse, AppLifecycleState.resumed),
+          isTrue);
+      for (final e in [
+        AppLifecycleState.paused,
+        AppLifecycleState.inactive,
+        AppLifecycleState.hidden,
+        AppLifecycleState.detached,
+        null,
+      ]) {
+        expect(pode(LocationPermission.whileInUse, e), isFalse,
+            reason: 'ligava o serviço com a app em $e');
+      }
+    });
+
+    test('"sempre" pode em qualquer altura (não se piora quem já funciona)',
+        () {
+      for (final e in [...AppLifecycleState.values, null]) {
+        expect(pode(LocationPermission.always, e), isTrue, reason: '$e');
+      }
+    });
+
+    test('sem permissão ou com a localização desligada, nunca', () {
+      for (final p in [
+        LocationPermission.denied,
+        LocationPermission.deniedForever,
+        LocationPermission.unableToDetermine,
+      ]) {
+        expect(pode(p, AppLifecycleState.resumed), isFalse, reason: '$p');
+      }
+      expect(
+          pode(LocationPermission.always, AppLifecycleState.resumed,
+              ligada: false),
+          isFalse);
+    });
+  });
+
+  group('o GPS ligado em fundo sem serviço é reconhecido para se religar', () {
+    final semServico = AndroidSettings(accuracy: LocationAccuracy.high);
+    final comServico = AndroidSettings(
+      accuracy: LocationAccuracy.high,
+      foregroundNotificationConfig: const ForegroundNotificationConfig(
+        notificationTitle: 't',
+        notificationText: 'x',
+      ),
+    );
+
+    test('em fundo e sem serviço → religar; à frente ou com serviço → não',
+        () {
+      final b = TestWidgetsFlutterBinding.instance;
+      b.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      b.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      b.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      b.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      expect(gpsLigadoSemServicoPorEstarEmFundo(semServico), isTrue);
+      expect(gpsLigadoSemServicoPorEstarEmFundo(comServico), isFalse);
+      expect(
+          gpsLigadoSemServicoPorEstarEmFundo(
+              const LocationSettings(accuracy: LocationAccuracy.high)),
+          isFalse,
+          reason: 'iPhone/web não usam o serviço do Android');
+
+      b.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      b.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      b.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      expect(gpsLigadoSemServicoPorEstarEmFundo(semServico), isFalse,
+          reason: 'à frente e sem serviço é falta de permissão, não fundo');
+    });
+  });
+
+  test('os três sítios que ligam o GPS religam-no ao voltar à frente', () {
+    String ler(String c) => File(c).readAsStringSync();
+    final tvdeHome = ler('lib/screens/driver/tvde/tvde_driver_home_screen.dart');
+    final corrida = ler('lib/screens/driver/tvde/tvde_ride_active_screen.dart');
+    final entregas = ler('lib/screens/driver_home_screen.dart');
+    final servicoCorrida = ler('lib/services/tvde_corrida_localizacao_service.dart');
+    final online = ler('lib/services/localizacao_online.dart');
+
+    for (final (nome, f) in [
+      ('home TVDE', tvdeHome),
+      ('corrida', corrida),
+      ('entregas', entregas),
+    ]) {
+      expect(f, contains('_gpsSemServicoPorFundo = gpsLigadoSemServicoPorEstarEmFundo('),
+          reason: '$nome não marca o GPS ligado em fundo');
+    }
+    expect(tvdeHome, contains('if (_gpsSemServicoPorFundo &&'));
+    expect(entregas, contains('if (_gpsSemServicoPorFundo && _positionSubscription != null)'));
+    expect(corrida, contains('AppLifecycleListener(onResume:'));
+    expect(servicoCorrida, contains('podeLigarServicoDeLocalizacao('));
+    expect(online, contains('estadoDaApp: WidgetsBinding.instance.lifecycleState'));
+  });
+}

@@ -27,6 +27,39 @@ import 'foreground_service.dart';
 /// manifesto com `foregroundServiceType="location"`), uma posição a cada
 /// ~15 s mesmo parado, e o envio passa a ~15 s
 /// (`DriverLocationPingService.minIntervalSeconds`).
+///
+/// [GPS em fundo · 07/10/2026] Pode-se ligar AGORA o serviço em primeiro plano
+/// de localização (Android 14+)? Pura — sem plugin — para se poder testar.
+///
+/// **A cicatriz.** debug_crash_logs, telemóvel do Danilo (Android 16), quatro
+/// vezes entre 26/09 e 03/10, sempre segundos depois de terminar uma corrida:
+/// "Starting FGS with type location ... the app must be in the eligible state
+/// to access the foreground only permission". O ecrã da corrida fecha e
+/// devolve o GPS à home, que o religava com o serviço — com a app em fundo e
+/// a permissão só "enquanto se usa", o Android recusa. O Flutter só regista
+/// o erro: o GPS que alimenta o despacho ficava calado até reabrir a app.
+///
+/// Regra: com a permissão "sempre" pode-se em qualquer altura; com "enquanto
+/// se usa", só com a app à frente. Fora disso liga-se o GPS sem serviço e
+/// quem o ligou volta a ligá-lo com serviço quando a app regressa à frente.
+bool podeLigarServicoDeLocalizacao({
+  required bool localizacaoLigada,
+  required LocationPermission permissao,
+  required AppLifecycleState? estadoDaApp,
+}) {
+  if (!localizacaoLigada) return false;
+  if (permissao == LocationPermission.always) return true;
+  if (permissao != LocationPermission.whileInUse) return false;
+  return estadoDaApp == AppLifecycleState.resumed;
+}
+
+/// O GPS acabou de ser ligado SEM serviço só por a app estar em fundo? Quem
+/// o ligou usa isto para o religar com serviço ao voltar à frente.
+bool gpsLigadoSemServicoPorEstarEmFundo(LocationSettings definicoes) =>
+    definicoes is AndroidSettings &&
+    definicoes.foregroundNotificationConfig == null &&
+    WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed;
+
 class LocalizacaoOnline {
   LocalizacaoOnline._();
 
@@ -85,10 +118,11 @@ class LocalizacaoOnline {
 
   static Future<bool> _podeServicoLocalizacao() async {
     try {
-      if (!await Geolocator.isLocationServiceEnabled()) return false;
-      final p = await Geolocator.checkPermission();
-      return p == LocationPermission.always ||
-          p == LocationPermission.whileInUse;
+      return podeLigarServicoDeLocalizacao(
+        localizacaoLigada: await Geolocator.isLocationServiceEnabled(),
+        permissao: await Geolocator.checkPermission(),
+        estadoDaApp: WidgetsBinding.instance.lifecycleState,
+      );
     } catch (e) {
       debugPrint('[LocalizacaoOnline] verificação falhou: $e');
       return false;

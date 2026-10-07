@@ -57,6 +57,10 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     with WidgetsBindingObserver {
   final HeartbeatService _heartbeat = HeartbeatService();
   StreamSubscription<Position>? _gps;
+
+  /// [GPS em fundo · 07/10] O [_gps] foi ligado sem serviço em primeiro plano
+  /// só porque a app estava em fundo — religa-se ao voltar à frente.
+  bool _gpsSemServicoPorFundo = false;
   Position? _lastPos;
   Timer? _offerPoll;
   bool _offerOpen = false;
@@ -152,6 +156,14 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
       final driverStore = context.read<DriverStore>();
       if (driverStore.currentDriver?.isOnline == true) {
         unawaited(_heartbeat.start());
+        // [GPS em fundo · 07/10] O GPS foi religado com a app em fundo (a
+        // corrida acabou com ele noutra app) e ficou sem serviço: agora,
+        // à frente, volta a ligar-se com serviço — senão ficava calado.
+        if (_gpsSemServicoPorFundo &&
+            _gps != null &&
+            !tvdeCorridaControlaGps.value) {
+          unawaited(_startGps());
+        }
       }
       context.read<TvdeDriverStore>().loadCurrent().then((_) {
         if (mounted) _syncNav();
@@ -649,6 +661,7 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
       texto: 'Recebes as corridas na hora, mesmo com a app em fundo.',
     );
     if (!mounted || tvdeCorridaControlaGps.value) return;
+    _gpsSemServicoPorFundo = gpsLigadoSemServicoPorEstarEmFundo(definicoes);
     _gps = Geolocator.getPositionStream(
       locationSettings: definicoes,
     ).listen((pos) {

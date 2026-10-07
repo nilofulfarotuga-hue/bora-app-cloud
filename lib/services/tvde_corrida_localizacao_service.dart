@@ -88,6 +88,20 @@ class TvdeCorridaLocalizacao {
     const accuracy = LocationAccuracy.bestForNavigation;
     const distanceFilter = 3;
 
+    // [GPS em fundo no iPhone · 07/10] As definições simples paravam o GPS da
+    // corrida quando a app ia para fundo (o motorista abre o Waze): o cliente
+    // via o carro parado e o servidor dava-o offline aos 90 s. O mesmo que o
+    // GPS "online" já faz no iPhone (UIBackgroundModes location no plist).
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+      return AppleSettings(
+        accuracy: accuracy,
+        distanceFilter: distanceFilter,
+        pauseLocationUpdatesAutomatically: false,
+        showBackgroundLocationIndicator: true,
+        activityType: ActivityType.automotiveNavigation,
+        allowBackgroundLocationUpdates: true,
+      );
+    }
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
       return const LocationSettings(
         accuracy: accuracy,

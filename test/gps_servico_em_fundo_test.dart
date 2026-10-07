@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:bora_app/services/localizacao_online.dart';
+import 'package:bora_app/services/tvde_corrida_localizacao_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
@@ -88,6 +90,34 @@ void main() {
       b.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       expect(gpsLigadoSemServicoPorEstarEmFundo(semServico), isFalse,
           reason: 'à frente e sem serviço é falta de permissão, não fundo');
+    });
+  });
+
+  group('iPhone: o GPS da corrida e da entrega continua com a app em fundo', () {
+    tearDown(() => debugDefaultTargetPlatformOverride = null);
+
+    test('a corrida TVDE no iPhone pede localização em fundo, sem pausas', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      final d = await TvdeCorridaLocalizacao.definicoesDeCorrida();
+      expect(d, isA<AppleSettings>(),
+          reason: 'definições simples param o GPS quando a app vai para fundo');
+      final a = d as AppleSettings;
+      expect(a.allowBackgroundLocationUpdates, isTrue);
+      expect(a.pauseLocationUpdatesAutomatically, isFalse);
+      expect(a.activityType, ActivityType.automotiveNavigation);
+      expect(a.accuracy, LocationAccuracy.bestForNavigation);
+    });
+
+    test('o mapa da entrega no iPhone também, e o Android segue a regra', () {
+      final f = File('lib/screens/driver_map_screen.dart').readAsStringSync();
+      expect(f, contains('locationSettings = AppleSettings('));
+      expect(f, contains('allowBackgroundLocationUpdates: true'));
+      expect(f, contains('foregroundNotificationConfig: comServico'));
+      expect(f, contains('_gpsSemServicoPorFundo = gpsLigadoSemServicoPorEstarEmFundo(locationSettings);'));
+      expect(f, contains('AppLifecycleListener(onResume:'));
+      final plist = File('ios/Runner/Info.plist').readAsStringSync();
+      expect(plist, contains('<string>location</string>'),
+          reason: 'sem o modo de fundo "location" o iPhone rebenta com isto');
     });
   });
 

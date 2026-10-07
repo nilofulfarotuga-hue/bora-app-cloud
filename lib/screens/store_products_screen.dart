@@ -14,10 +14,11 @@ import '../stores/favorite_store.dart';
 import '../stores/restaurant_store.dart';
 import '../utils/cart_feedback.dart';
 import '../widgets/bora/bora_product_card.dart';
+import '../widgets/bora/maior_18.dart';
 import '../widgets/bora/weight_price_text.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora/coming_soon.dart';
-import '../widgets/bora_support_fab.dart';
+import '../widgets/bora_assistant_fab.dart';
 import 'cart_screen.dart';
 import 'product_detail_screen.dart';
 
@@ -211,7 +212,7 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
-      floatingActionButton: const BoraSupportFab(),
+      floatingActionButton: const BoraClientFabs(),
       appBar: BoraScreenAppBar(
         title: widget.storeName,
         actions: [
@@ -908,6 +909,7 @@ class _BoraProductCardTile extends StatelessWidget {
               name: product.name,
               price: PricingService.applyMarkup(product.price, isPartnerStore),
               basePrice: product.price,
+              ageRestricted: product.ageRestricted,
             ));
         showAddedToCartSnack(context, '{0} no carrinho'.trArgs([product.name]));
       },
@@ -1008,9 +1010,20 @@ class _ProductCardState extends State<_ProductCard>
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _ProductThumbnail(
-                      photoUrl: widget.product.photoUrl,
-                      category: widget.product.category,
+                    Stack(
+                      children: [
+                        _ProductThumbnail(
+                          photoUrl: widget.product.photoUrl,
+                          category: widget.product.category,
+                        ),
+                        // Missão maiores-18: "+18" no canto da miniatura.
+                        if (widget.product.ageRestricted)
+                          const Positioned(
+                            bottom: 2,
+                            left: 2,
+                            child: Maior18Badge(small: true),
+                          ),
+                      ],
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -1117,6 +1130,7 @@ class _ProductCardState extends State<_ProductCard>
                                     widget.product.price,
                                     widget.isPartnerStore),
                                 basePrice: widget.product.price,
+                                ageRestricted: widget.product.ageRestricted,
                               ));
                           showAddedToCartSnack(
                               context, '{0} no carrinho'.trArgs([widget.product.name]));
@@ -1566,6 +1580,7 @@ class _SuggestionsPanel extends StatelessWidget {
       isAvailable: true,
       category: (row['category'] ?? '').toString(),
       categoryRoot: (row['category_root'] ?? '').toString(),
+      ageRestricted: row['age_restricted'] == true,
     );
   }
 

@@ -15,6 +15,7 @@ import '../utils/cart_feedback.dart';
 import '../widgets/bora/bora_accent_button.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/bora/coming_soon.dart';
+import '../widgets/bora/maior_18.dart';
 import '../widgets/bora/weight_price_text.dart';
 import 'cart_screen.dart';
 
@@ -149,6 +150,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           price: PricingService.applyMarkup(v.price, widget.isPartnerStore),
           basePrice: v.price,
           quantity: _quantity,
+          ageRestricted: widget.product.ageRestricted,
         ));
     _snackEFecha('{0} × {1} adicionado ao carrinho'.trArgs([v.brandName, _quantity]));
   }
@@ -162,6 +164,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               widget.product.price, widget.isPartnerStore),
           basePrice: widget.product.price,
           quantity: _quantity,
+          ageRestricted: widget.product.ageRestricted,
         ));
     _snackEFecha('{0} × {1} adicionado ao carrinho'.trArgs([widget.product.name, _quantity]));
   }
@@ -190,6 +193,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           basePrice: widget.product.price,
           quantity: _quantity,
           selectedOptions: selected,
+          ageRestricted: widget.product.ageRestricted,
         ));
     _snackEFecha('{0} × {1} adicionado ao carrinho'.trArgs([widget.product.name, _quantity]));
   }
@@ -297,6 +301,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               height: 1.4,
                             ),
                           ),
+                        ],
+                        // Missão maiores-18 (07/10/2026): tabaco/álcool —
+                        // o estafeta pede documento na entrega.
+                        if (widget.product.ageRestricted) ...[
+                          const SizedBox(height: 12),
+                          const Maior18Linha(),
                         ],
                         // B6 (2026-06-12): alergénios (Reg. UE 1169/2011) —
                         // chips quando declarados; disclaimer quando vazio.

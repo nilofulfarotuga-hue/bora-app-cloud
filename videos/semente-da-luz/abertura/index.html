@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>A Semente da Luz — genérico de abertura</title>
+<style>
+@font-face { font-family:'Inter'; src:url('../assets/Inter-VariableFont.ttf') format('truetype'); font-weight:100 900; }
+html,body { margin:0; background:#000; overflow:hidden; font-family:'Inter',sans-serif; }
+#stage { position:absolute; left:0; top:0; width:1920px; height:1080px; background:#12121C; transform-origin:0 0; overflow:hidden; color:#fff; }
+body.port #stage { width:1080px; height:1920px; }
+.el { position:absolute; left:0; top:0; will-change:transform,opacity; }
+.hidden { visibility:hidden; }
+#studio { left:50%; top:50%; transform:translate(-50%,-50%); text-align:center; }
+#studio b { display:block; font-size:120px; font-weight:800; color:#FF8C00; letter-spacing:.02em; }
+#studio span { display:block; font-size:44px; font-weight:700; color:#F2E4C6; margin-top:40px; }
+body.port #studio b { font-size:96px; }
+#sky { left:0; top:0; width:1920px; height:1080px; background:radial-gradient(ellipse at 50% 55%, #1E2A52 0%, #12121C 60%); }
+body.port #sky { width:1080px; height:1920px; }
+#portal { left:50%; top:50%; width:600px; height:600px; margin:-300px 0 0 -300px; border-radius:999px; transform-origin:50% 50%;
+  background:radial-gradient(circle, #FFF7D6 0%, #FFD54F 18%, #4FC3F7 45%, rgba(79,195,247,0) 70%); filter:blur(6px); }
+#ring { left:50%; top:50%; width:620px; height:620px; margin:-310px 0 0 -310px; border-radius:999px; border:14px solid #FFD54F; box-sizing:border-box; transform-origin:50% 50%; box-shadow:0 0 60px #FFD54F, inset 0 0 60px #4FC3F7; }
+.kid { transform-origin:50% 50%; }
+.kid img { height:760px; display:block; }
+.paper { width:70px; height:50px; background:#F5F0E6; transform-origin:50% 50%; }
+#title { left:50%; top:50%; transform:translate(-50%,-50%); text-align:center; white-space:nowrap; }
+#title .t1 { font-size:150px; font-weight:900; letter-spacing:.06em; color:#FFD54F; text-shadow:0 0 40px rgba(255,213,79,.45); }
+#title .t2 { font-size:46px; font-weight:600; color:#CFE8FF; margin-top:24px; letter-spacing:.3em; }
+body.port #title .t1 { font-size:108px; white-space:normal; width:1000px; line-height:1.05; }
+#ep { left:50%; top:50%; margin-top:200px; transform:translateX(-50%); font-size:56px; font-weight:700; color:#fff; letter-spacing:.08em; white-space:nowrap; }
+body.port #ep { margin-top:260px; }
+#prod { left:50%; bottom:70px; transform:translateX(-50%); font-size:30px; font-weight:600; color:#FF8C00; letter-spacing:.2em; white-space:nowrap; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="studio" class="el"><b>BORA STUDIO</b><span>apresenta</span></div>
+  <div id="sky" class="el"></div>
+  <div id="portal" class="el"></div>
+  <div id="ring" class="el"></div>
+  <div id="papers"></div>
+  <div id="k1" class="el kid"><img src="../assets/tailine_frente.png" alt=""></div>
+  <div id="k2" class="el kid"><img src="../assets/gustavo_frente.png" alt=""></div>
+  <div id="k3" class="el kid"><img src="../assets/tabita_frente.png" alt=""></div>
+  <div id="k4" class="el kid"><img src="../assets/antony_frente.png" alt=""></div>
+  <div id="title" class="el"><div class="t1">A SEMENTE DA LUZ</div><div class="t2">UMA SÉRIE DE ANIMAÇÃO</div></div>
+  <div id="ep" class="el">Episódio 1</div>
+  <div id="prod" class="el">BORA STUDIO · GUARDA</div>
+</div>
+<script src="../_engine.js"></script>
+<script>
+fitStage();
+for (const id of ['studio', 'title']) $(id).dataset.base = 'translate(-50%,-50%)';
+for (const id of ['ep', 'prod']) $(id).dataset.base = 'translateX(-50%)';
+const papers = []; for (let i = 0; i < 14; i++) { const d = document.createElement('div'); d.className = 'el paper'; $('papers').appendChild(d); papers.push(d); }
+const C = { x: SW / 2, y: SH / 2 };
+const starts = PORT ? [[-60, 1250], [880, 1300], [-40, 150], [860, 120]] : [[40, 420], [1700, 460], [120, -80], [1600, -120]];
+function seek(t) {
+  kf($('studio'), [{ t: 0, o: 0 }, { t: .5, o: 1 }, { t: 2.0, o: 1 }, { t: 2.4, o: 0, e: 'in' }], t);
+  kf($('sky'), [{ t: 2.2, o: 0 }, { t: 2.7, o: 1 }], t);
+  // portal abre em 2.5 com o whoosh; pulsa; encolhe para o título em 8.0
+  const pulse = 1 + 0.04 * Math.sin(t * 7);
+  kf($('portal'), [{ t: 2.5, s: 0, o: 0 }, { t: 3.1, s: 1 * pulse, o: 1, e: 'pop' }, { t: 7.6, s: 1.15 * pulse, o: 1 }, { t: 8.0, s: 2.6, o: 0, e: 'in' }], t);
+  kf($('ring'), [{ t: 2.5, s: 0, o: 0 }, { t: 3.2, s: 1, o: .9, e: 'pop' }, { t: 7.6, s: 1.1, o: .9, r: 90 }, { t: 8.0, s: 2.4, o: 0, r: 120, e: 'in' }], t);
+  // crianças puxadas para o portal
+  const kids = ['k1', 'k2', 'k3', 'k4'];
+  kids.forEach((id, i) => {
+    const el = $(id); const t0 = 3.0 + i * 0.9, t1 = t0 + 2.6;
+    const p = prog(t, t0, t1, 'inq');
+    const sx = starts[i][0], sy = starts[i][1];
+    const x = lerp(sx, C.x - 100, p), y = lerp(sy, C.y - 380, p);
+    const wob = Math.sin(t * 11 + i) * 6 * (1 - p);
+    const st = { x: x + wob, y: y, s: lerp(0.75, 0.05, E.in(p)), o: t < t0 ? 0 : (p > 0.97 ? 0 : 1), r: lerp(i % 2 ? -8 : 8, i % 2 ? -200 : 200, p) };
+    apply(el, st);
+  });
+  // papéis em espiral à volta do portal (entre 2.8 e 8)
+  papers.forEach((d, i) => {
+    const t0 = 2.8 + hash(i) * 2; const p = prog(t, t0, t0 + 3.5, 'lin');
+    const ang = p * 9 + i; const rad = (1 - p) * (700 + hash(i + 50) * 500);
+    apply(d, { x: C.x + Math.cos(ang) * rad - 35, y: C.y + Math.sin(ang) * rad * 0.6 - 25, s: lerp(1, 0.1, p), o: t < t0 || p >= 1 ? 0 : 0.9, r: ang * 57 });
+  });
+  // título
+  kf($('title'), [{ t: 8.0, s: .7, o: 0 }, { t: 8.6, s: 1, o: 1, e: 'pop' }, { t: 12, s: 1.04, o: 1, e: 'lin' }], t);
+  kf($('ep'), [{ t: 9.0, y: 20, o: 0 }, { t: 9.5, y: 0, o: 1, e: 'soft' }], t);
+  kf($('prod'), [{ t: 10.5, o: 0 }, { t: 11.0, o: 1 }], t);
+}
+window.seek = seek; ready();
+</script>
+</body>
+</html>

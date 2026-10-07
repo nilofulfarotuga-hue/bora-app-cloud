@@ -28,6 +28,7 @@ import 'admin_bloqueios_screen.dart';
 import 'admin_folgas_screen.dart';
 import 'admin_mesas_screen.dart';
 import 'admin_opcoes_produto_screen.dart';
+import 'admin_maiores_18_screen.dart';
 import 'admin_reativacao_screen.dart';
 import 'admin_support_escalations_screen.dart';
 import 'admin_tvde_chats_screen.dart';
@@ -58,6 +59,7 @@ import 'admin_radar_videos_screen.dart';
 import 'admin_avencas_screen.dart';
 import 'admin_caca_clientes_screen.dart';
 import 'admin_assistentes_screen.dart';
+import 'admin_assistente_screen.dart';
 import 'admin_motores_screen.dart';
 import 'admin_crash_logs_screen.dart';
 import 'admin_pagamentos_presos_screen.dart';
@@ -1041,6 +1043,15 @@ List<AdminMenuSection> adminMenuSections() => [
       keywords: const ['cada', 'catalogo', 'desligar', 'ligar', 'parceiro', 'preco', 'produtos'],
     ),
     AdminMenuItem(
+      id: 'parceiros_maiores_18',
+      title: 'Maiores de 18',
+      subtitle: 'Tabaco e álcool: marcar produtos +18 e ver as verificações de idade na entrega',
+      icon: Icons.no_adult_content,
+      color: Colors.black87,
+      builder: () => const AdminMaiores18Screen(),
+      keywords: const ['18', 'alcool', 'bebidas', 'cerveja', 'cigarros', 'idade', 'maiores', 'tabaco', 'vinho', 'documento'],
+    ),
+    AdminMenuItem(
       id: 'parceiros_opcoes_produto',
       title: 'Opções de produto',
       subtitle: 'Tamanhos, extras e molhos de cada produto por loja: ver, ligar/desligar e mudar o acréscimo',
@@ -1216,6 +1227,16 @@ List<AdminMenuSection> adminMenuSections() => [
       color: AppColors.primary,
       builder: () => const AdminAssistentesScreen(),
       keywords: const ['assistente', 'assistentes', 'funcionario', 'digital', 'whatsapp', 'barbearia', 'ficha', 'conversas', 'allowlist', 'marcacoes'],
+    ),
+    // [Bora Assistente · 07/10] o assistente de compras do cliente (chat, propostas, custo).
+    AdminMenuItem(
+      id: 'robos_bora_assistente_cliente',
+      title: 'Bora Assistente (cliente)',
+      subtitle: 'O assistente de compras do app: ligar/desligar, conversas, propostas, custo, conhecimento e lacunas',
+      icon: Icons.auto_awesome,
+      color: AppColors.primary,
+      builder: () => const AdminAssistenteScreen(),
+      keywords: const ['assistente', 'bora assistente', 'compras', 'cliente', 'chat', 'propostas', 'carrinho', 'poupanca', 'conhecimento', 'lacunas', 'gaps', 'custo', 'gemini'],
     ),
     AdminMenuItem(
       id: 'robos_assistente_ia_admin',

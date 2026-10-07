@@ -17,7 +17,9 @@ import '../../../config/app_spacing.dart';
 import '../../../models/tvde_fare_view.dart';
 import '../../../models/falha_de_acao.dart';
 import '../../../models/tvde_ride.dart';
+import '../../../services/client_live_location_service.dart';
 import '../../../services/directions_service.dart';
+import '../../../services/driver_live_feed.dart' show RastreioSettings;
 import '../../../services/driver_location_ping_service.dart';
 import '../../../services/navigation_service.dart';
 import '../../../services/localizacao_online.dart'
@@ -28,6 +30,7 @@ import '../../../stores/tvde_chat_store.dart';
 import '../../../stores/tvde_driver_store.dart';
 import '../../../stores/tvde_store.dart';
 import '../../../utils/map_utils.dart';
+import '../../../utils/marcador_animado.dart';
 import '../../../utils/route_deviation.dart';
 import '../../../utils/tvde_stops_route.dart';
 import '../../../widgets/bora/bora.dart';
@@ -247,15 +250,30 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   /// home está suspensa) → é ele que tem de alimentar o servidor.
   bool _donoDoGps = false;
 
-  /// Última posição JÁ entregue ao servidor por este ecrã. O portão dos 50 m
-  /// mede-se a partir daqui.
-  LatLng? _ultimaEnviadaAoServidor;
+  /// [Fluxo partilhado · 07/10] O geolocator guarda UM fluxo de GPS por app:
+  /// enquanto a home TVDE ouve, o `getPositionStream` deste ecrã devolve o
+  /// fluxo DELA, com as definições dela (15 s, sem os 3 m / 700 ms). Depois de
+  /// a home largar (primeira leitura → [_assumirGps] → a home cancela), este
+  /// ecrã subscreve de novo UMA vez para as definições da corrida valerem.
+  /// Volta a `false` em [_libertarGps], para se repetir se a home retomar.
+  bool _religadoComDefinicoesDaCorrida = false;
 
-  /// O MESMO `distanceFilter: 50` que a stream da home usava. É este número que
-  /// garante que o servidor não passa a receber mais vezes do que recebia: o
-  /// GPS deste ecrã é fino (3 m) para a navegação, mas ao servidor só sobe uma
-  /// posição a cada 50 m, como antes.
-  static const double _metrosEntreEnviosAoServidor = 50;
+  /// [Rastreio em tempo real · 07/10] Cadência com que a posição vai para o
+  /// servidor em corrida (`tvde_ride_gps_interval_seconds`, 5 s). É o que o
+  /// cliente vê a mexer no mapa. Substitui o portão dos 50 m: a 50 m, parado
+  /// num semáforo o cliente via "última posição há 60 s" com o carro vivo.
+  int _intervaloFeedSegundos = 5;
+  DateTime? _ultimoEnvioAoServidor;
+  Position? _ultimaPosicaoLida;
+  Timer? _feedTicker;
+
+  /// [Pontinho azul · 07/10] O cliente a mexer-se enquanto o motorista chega
+  /// — vem de `client_live_locations` (Realtime, só quando ele quis
+  /// partilhar). Mesma interpolação do carro no mapa do cliente.
+  ClientLiveLocationFeed? _clienteFeed;
+  late final MarcadorAnimado _pontoCliente =
+      MarcadorAnimado(onFrame: () => _setaTick.value++);
+  BitmapDescriptor? _pontoAzulIcon;
 
   /// Valores de navegação afináveis em `platform_settings` (categoria `tvde`).
   /// Os defaults abaixo são os valores que estavam cravados no código.
@@ -296,6 +314,20 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
       _semearPosicaoDoStore();
       _ensureNavSettingsLoaded();
       _startGps();
+      _ligarPontoDoCliente();
+    });
+    // [Rastreio em tempo real · 07/10] Parado, o GPS (filtro 3 m) não dá
+    // leituras — este relógio reenvia a última posição à cadência da corrida,
+    // para o cliente nunca ver "última posição há X s" com o carro vivo.
+    _feedTicker = Timer.periodic(const Duration(seconds: 2), (_) {
+      if (!mounted) return;
+      final p = _ultimaPosicaoLida;
+      if (p != null) _alimentarServidor(p);
+      if (_pontoCliente.posicao != null &&
+          _pontoCliente.expirado(ClientLiveLocationFeed.validade)) {
+        _pontoCliente.limpar();
+        _setaTick.value++;
+      }
     });
     // [31/08] parado (GPS sem tick novo), o ETA reavalia-se na mesma a cada 30 s.
     _etaTicker = Timer.periodic(const Duration(seconds: 30), (_) {
@@ -365,6 +397,15 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
           _assumirGps();
           _alimentarServidor(p);
           _onGpsFix(LatLng(p.latitude, p.longitude));
+          // [Fluxo partilhado · 07/10] Esta primeira leitura pode ter vindo
+          // pelo fluxo da HOME (o geolocator só tem um). A home já largou
+          // (o `_assumirGps` acima fê-la cancelar); subscreve-se de novo UMA
+          // vez para o fluxo nascer com as definições da corrida
+          // (bestForNavigation, 3 m, 700 ms, serviço da corrida).
+          if (!_religadoComDefinicoesDaCorrida) {
+            _religadoComDefinicoesDaCorrida = true;
+            unawaited(_startGps());
+          }
         },
         onError: (Object _) {
           // GPS deste ecrã morreu a meio (utilizador desligou a localização).
@@ -391,7 +432,8 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   /// e no arranque falhado.
   void _libertarGps() {
     _donoDoGps = false;
-    _ultimaEnviadaAoServidor = null;
+    _ultimoEnvioAoServidor = null;
+    _religadoComDefinicoesDaCorrida = false;
     tvdeCorridaControlaGps.value = false;
   }
 
@@ -414,17 +456,21 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   /// entregaria posições de segundo a segundo e, em trânsito lento, o travão de
   /// 5 s deixaria passar MAIS escritas do que a home fazia. Com ele, o servidor
   /// recebe o que sempre recebeu.
+  ///
+  /// [Rastreio em tempo real · 07/10] O portão deixou de ser 50 m e passou a
+  /// ser TEMPO: uma posição a cada `tvde_ride_gps_interval_seconds` (5 s),
+  /// a andar ou parado (o [_feedTicker] chama isto com a última leitura). É
+  /// a cadência que o cliente vê no mapa, como na Uber. O `heading` e a
+  /// velocidade seguem na mesma chamada — é com eles que o carro roda lá.
   void _alimentarServidor(Position p) {
     if (!_donoDoGps || !mounted) return;
+    _ultimaPosicaoLida = p;
+    final agora = DateTime.now();
+    final intervalo = Duration(seconds: _intervaloFeedSegundos.clamp(1, 60));
+    final ultimo = _ultimoEnvioAoServidor;
+    if (ultimo != null && agora.difference(ultimo) < intervalo) return;
+    _ultimoEnvioAoServidor = agora;
     final pos = LatLng(p.latitude, p.longitude);
-    final anterior = _ultimaEnviadaAoServidor;
-    if (anterior != null &&
-        Geolocator.distanceBetween(anterior.latitude, anterior.longitude,
-                pos.latitude, pos.longitude) <
-            _metrosEntreEnviosAoServidor) {
-      return;
-    }
-    _ultimaEnviadaAoServidor = pos;
     final store = context.read<DriverStore>();
     store.updateDriverLocation(
         store.currentDriverId, ll.LatLng(pos.latitude, pos.longitude));
@@ -434,7 +480,51 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
       heading: p.heading.isFinite ? p.heading : null,
       speedKmh: p.speed.isFinite ? p.speed * 3.6 : null,
       isOnline: true,
+      intervaloMinimo: intervalo,
     ));
+  }
+
+  /// [Pontinho azul · 07/10] Ouve a posição do cliente (se ele a partilhar).
+  void _ligarPontoDoCliente() {
+    if (_clienteFeed != null) return;
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (uid == null) return;
+    unawaited(_loadPontoAzulIcon());
+    _clienteFeed = ClientLiveLocationFeed(
+      driverUserId: uid,
+      onAmostra: (a, rideId, _) {
+        if (!mounted) return;
+        if (rideId != null && rideId != _rideId) return; // de outra corrida
+        _pontoCliente.aceitar(a,
+            intervaloEsperadoMs:
+                RastreioSettings.clientLiveLocationIntervalSeconds * 1000);
+      },
+      onApagado: () {
+        if (!mounted) return;
+        _pontoCliente.limpar();
+        _setaTick.value++;
+      },
+    )..iniciar();
+  }
+
+  Future<void> _loadPontoAzulIcon() async {
+    if (kIsWeb) return;
+    try {
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      const size = 44.0;
+      canvas.drawCircle(const Offset(size / 2, size / 2), size / 2,
+          Paint()..color = AppColors.info.withValues(alpha: 0.25));
+      canvas.drawCircle(const Offset(size / 2, size / 2), 11,
+          Paint()..color = Colors.white);
+      canvas.drawCircle(const Offset(size / 2, size / 2), 8,
+          Paint()..color = AppColors.info);
+      final img = await recorder.endRecording().toImage(size.toInt(), size.toInt());
+      final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
+      if (!mounted || bytes == null) return;
+      _pontoAzulIcon = BitmapDescriptor.bytes(bytes.buffer.asUint8List());
+      _setaTick.value++;
+    } catch (_) {/* fica o pino azul de recurso */}
   }
 
   @override
@@ -448,6 +538,11 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     _stopsTicker?.cancel();
     _etaTicker?.cancel();
     _setaTimer?.cancel();
+    _feedTicker?.cancel();
+    _pontoCliente.dispose();
+    final feed = _clienteFeed;
+    _clienteFeed = null;
+    if (feed != null) unawaited(feed.parar());
     _setaTick.dispose();
     _gps?.cancel();
     _gps = null;
@@ -513,7 +608,11 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
           await store.getSettingInt('tvde_nav_reroute_min_seconds', 15);
       final camMs = await store.getSettingInt('tvde_nav_camera_follow_ms', 900);
       final largura = await store.getSettingDouble('map_route_line_width', 12);
+      final feedS =
+          await store.getSettingInt('tvde_ride_gps_interval_seconds', 5);
+      unawaited(RastreioSettings.carregar());
       if (!mounted) return;
+      _intervaloFeedSegundos = feedS.clamp(1, 60);
       setState(() {
         if (largura > 0 && largura <= 40) _larguraRota = largura;
         _navZoom = zoom > 0 ? zoom : _navZoom;
@@ -1316,7 +1415,10 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
         '${driverPos?.latitude.toStringAsFixed(5)},${driverPos?.longitude.toStringAsFixed(5)}|'
         '${_setaBearing.round()}|${_driverArrowIcon != null}|'
         '${paradas.map((s) => '${s.seq}${s.reached ? 'v' : '.'}').join(',')}|'
-        '${_stopIcons.length}';
+        '${_stopIcons.length}|'
+        '${_pontoCliente.posicao?.latitude.toStringAsFixed(5)},'
+        '${_pontoCliente.posicao?.longitude.toStringAsFixed(5)}|'
+        '${_pontoAzulIcon != null}';
     if (key == _markersKey) return _mapMarkers;
     _markersKey = key;
     final markers = <Marker>{
@@ -1369,6 +1471,22 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
         icon: _driverArrowIcon!,
         anchor: const Offset(0.5, 0.5),
         flat: true,
+      ));
+    }
+    // [Pontinho azul · 07/10] O cliente, quando partilha onde está.
+    final cliente = _pontoCliente.posicao;
+    if (cliente != null) {
+      markers.add(Marker(
+        markerId: const MarkerId('cliente'),
+        position: LatLng(cliente.latitude, cliente.longitude),
+        icon: _pontoAzulIcon ??
+            BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+        anchor: _pontoAzulIcon != null
+            ? const Offset(0.5, 0.5)
+            : const Offset(0.5, 1),
+        flat: true,
+        zIndexInt: 3,
+        infoWindow: const InfoWindow(title: 'Cliente'),
       ));
     }
     _mapMarkers = markers;

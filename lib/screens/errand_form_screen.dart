@@ -13,6 +13,8 @@
 //   • 8.4 atalhos de favores · 8.1 foto opcional "do que comprar"
 import '../utils/io_compat.dart';
 
+import 'dart:async' show Timer;
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -22,6 +24,7 @@ import 'package:provider/provider.dart';
 
 import '../config/app_colors.dart';
 import '../services/limite_dinheiro_service.dart';
+import '../services/maior_18_service.dart';
 import '../services/auto_address.dart';
 import '../widgets/auto_address_hint.dart';
 import '../config/maps_config.dart';
@@ -32,6 +35,7 @@ import '../services/payment_service.dart';
 import '../services/place_autocomplete_service.dart';
 import '../stores/cart_store.dart';
 import '../widgets/address_autocomplete_field.dart';
+import '../widgets/bora/maior_18.dart';
 import '../widgets/business_autocomplete_field.dart';
 import 'orders_screen.dart';
 import 'payment_method_screen.dart';
@@ -102,6 +106,13 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
   String? _requestPhotoUrl;
   bool _uploadingPhoto = false;
 
+  // Missão maiores-18 (07/10/2026): a descrição pede tabaco ou álcool?
+  // Pergunta-se ao servidor (texto_pede_maior_18) com debounce; o aviso é
+  // só informativo — a marca do pedido é posta pelo trigger ao criar.
+  bool _pedeMaior18 = false;
+  Timer? _maior18Timer;
+  int _maior18Seq = 0;
+
   Map<String, dynamic>? _quote;
   bool _quoting = false;
   String? _geoError;
@@ -156,6 +167,7 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
 
   @override
   void dispose() {
+    _maior18Timer?.cancel();
     _descCtrl.dispose();
     _descFocus.dispose();
     _estimateCtrl.dispose();
@@ -245,7 +257,26 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
         _homeStopReason = 'dinheiro';
       }
     });
+    _agendarMaior18();
     if (_errandLocation != null && _dropoff != null) _refreshQuote();
+  }
+
+  void _agendarMaior18() {
+    _maior18Timer?.cancel();
+    final texto = _descCtrl.text.trim();
+    if (texto.isEmpty) {
+      if (_pedeMaior18) setState(() => _pedeMaior18 = false);
+      return;
+    }
+    _maior18Timer = Timer(const Duration(milliseconds: 600), _verificarMaior18);
+  }
+
+  Future<void> _verificarMaior18() async {
+    final seq = ++_maior18Seq;
+    final texto = _descCtrl.text.trim();
+    final pede = await Maior18Service.textoPedeMaior18(texto);
+    if (!mounted || seq != _maior18Seq) return;
+    if (pede != _pedeMaior18) setState(() => _pedeMaior18 = pede);
   }
 
   // ── Coords (autocomplete) ───────────────────────────────────────────────
@@ -616,6 +647,7 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
             _onWhatChanged();
           },
           onChanged: _onWhatChanged,
+          pedeMaior18: _pedeMaior18,
         );
       case _ErrandStep.where:
         return _StepWhere(
@@ -682,6 +714,7 @@ class _StepWhat extends StatelessWidget {
     required this.onRemovePhoto,
     required this.onHasPurchaseChanged,
     required this.onChanged,
+    this.pedeMaior18 = false,
   });
 
   final TextEditingController descCtrl;
@@ -696,6 +729,9 @@ class _StepWhat extends StatelessWidget {
   final VoidCallback onRemovePhoto;
   final ValueChanged<bool> onHasPurchaseChanged;
   final VoidCallback onChanged;
+
+  /// Missão maiores-18: a descrição fala de tabaco/álcool (servidor).
+  final bool pedeMaior18;
 
   static const _shortcuts = <(String, IconData, String)>[
     ('Farmácia', Icons.local_pharmacy_outlined, 'Vai à farmácia e compra '),
@@ -746,6 +782,10 @@ class _StepWhat extends StatelessWidget {
             labelText: 'Descreve o favor'.tr,
           ),
         ),
+        if (pedeMaior18) ...[
+          const Maior18Aviso(),
+          const SizedBox(height: 8),
+        ],
         const SizedBox(height: 8),
         // 8.1 — foto opcional do que comprar.
         _RequestPhoto(

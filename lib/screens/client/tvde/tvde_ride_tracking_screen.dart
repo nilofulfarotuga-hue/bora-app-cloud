@@ -20,6 +20,7 @@ import '../../../models/tvde_ride.dart';
 import '../../../widgets/tvde/recibo_pago.dart';
 import '../../../widgets/tvde/recibo_viagem_sheet.dart';
 import '../../../services/directions_service.dart';
+import '../../../services/driver_live_feed.dart';
 import '../../../services/payment_service.dart';
 import '../../../services/tvde_arriving_notice.dart';
 import '../../../services/tvde_eta_display.dart';
@@ -27,10 +28,12 @@ import '../../../services/tvde_partilha_service.dart';
 import '../../../stores/tvde_chat_store.dart';
 import '../../../stores/tvde_store.dart';
 import '../../../utils/map_utils.dart';
-import '../../../utils/tvde_route_walk.dart';
+import '../../../utils/marcador_animado.dart';
+import '../../../utils/rastreio_interpolacao.dart' show AmostraPosicao;
 import '../../../utils/tvde_sinal_motorista.dart';
 import '../../../utils/tvde_stops_route.dart';
 import '../../../widgets/address_autocomplete_field.dart';
+import '../../../widgets/partilhar_localizacao_card.dart';
 import '../../../widgets/bora/bora.dart';
 import '../../../widgets/private_bucket_image.dart';
 import '../../../widgets/tvde/tvde_roundtrip_driver_notice.dart';
@@ -77,8 +80,16 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
   String? _driverOperador;
   bool _driverFalaPortugues = false;
   Timer? _driverPoll;
-  Timer? _animTimer;
   bool _navigatedToRate = false;
+
+  /// [Rastreio em tempo real · 07/10] O carro no mapa: interpolação, rumo e
+  /// "nunca para trás" vivem no `MarcadorAnimado` (regra partilhada).
+  late final MarcadorAnimado _carro = MarcadorAnimado(onFrame: _onCarroFrame);
+  DriverLiveFeed? _feed;
+  String? _feedDriverId;
+
+  /// [Pontinho azul · 07/10] Partilhar a minha posição com o motorista.
+  PartilharLocalizacaoController? _partilha;
 
   // ── [TVDE 05/09 · 1A] Cartão do motorista pela RPC ────────────────────────
   // A RLS de `public.drivers` só deixa ler a própria linha (ou admin) — e bem:
@@ -210,15 +221,10 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
   static const double _kNavTilt = 45.0;
 
   // ── [2B · 05/09] Ritmo da animação do carro ───────────────────────────────
-  // Os 12 passos históricos passam a ser o MÍNIMO, não o número fixo: quem
-  // manda no tempo total é a velocidade real. Numa janela longa acrescentam-se
-  // fotogramas (a ~80 ms cada, a cadência que já era suave) em vez de espaçar
-  // os 12 — 12 passos em 4 segundos dariam três imagens por segundo.
-  static const int _kAnimPassosBase = 12;
-  static const double _kAnimMsPorPasso = 80;
-  static const int _kAnimMinMs = 240;
+  // [07/10] Mudou-se para `InterpoladorDePosicao` (chão 240 ms, 12 passos
+  // mínimos a ~80 ms, duração = intervalo real entre amostras, tecto 2× o
+  // poll). Aqui fica só o rumo que a câmara heading-up usa.
   double _bearing = 0;
-  LatLng? _lastBearingPos;
   bool _followCam = true; // gesto do utilizador pausa; botão mira religa
   bool _progCamMove = false;
 
@@ -264,7 +270,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
       // morto é uma mentira em movimento) e repintar, porque o "há X" conta
       // sozinho — não chega nenhum evento para o atualizar.
       final velho = _sinalVelho;
-      if (velho) _animTimer?.cancel();
+      if (velho) _carro.pararAnimacao();
       // repinta os countdowns de espera (só quando há paradas alcançadas)
       if (velho || _stops.any((s) => s.reached)) setState(() {});
     });
@@ -290,7 +296,11 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _driverPoll?.cancel();
-    _animTimer?.cancel();
+    _carro.dispose();
+    final feed = _feed;
+    _feed = null;
+    if (feed != null) unawaited(feed.parar());
+    _partilha?.dispose();
     _stopsTicker?.cancel();
     _map?.dispose();
     _directions.dispose();
@@ -804,129 +814,126 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     }
   }
 
-  /// C4 + [2A/2B · 05/09] — o carro deixa de saltar E deixa de cortar esquinas.
+  /// C4 + [2A/2B · 05/09] + [Rastreio em tempo real · 07/10] — o carro deixa
+  /// de saltar, de cortar esquinas, de andar PARA TRÁS e de apontar para
+  /// norte a andar para sul.
   ///
-  /// **A cicatriz:** eram 12 passos × 80 ms em LINHA RECTA entre duas leituras.
-  /// Como as leituras chegam de 50 em 50 metros, o carro cortava esquinas e
-  /// atravessava quarteirões — passava por dentro dos prédios enquanto a linha
-  /// da rota, desenhada mesmo ali, ia pela rua. E, fosse o carro parado num
-  /// semáforo ou a 90 na variante, a animação durava sempre os mesmos 960 ms:
-  /// um deslizava sem sair do sítio, o outro dava um solavanco e congelava.
-  ///
-  /// Agora: anda POR CIMA da polilinha já desenhada (`passosSobreRota`) e ao
-  /// ritmo do `speed_kmh` que a RPC sempre mandou. Sem rota desenhada (ainda a
-  /// carregar, ou o Directions falhou) mantém-se a linha recta — recurso, não
-  /// regressão.
-  void _setDriverPos(LatLng target) {
-    // Heading-up: bearing pela direção de marcha, a partir das posições CRUAS
-    // do poll (não das animadas) — paridade com o motorista [Item G].
-    final prevRaw = _lastBearingPos;
-    if (prevRaw != null) {
-      final moved = Geolocator.distanceBetween(prevRaw.latitude,
-          prevRaw.longitude, target.latitude, target.longitude);
-      if (moved >= 5) {
-        var b = Geolocator.bearingBetween(prevRaw.latitude, prevRaw.longitude,
-            target.latitude, target.longitude);
-        if (b < 0) b += 360;
-        _bearing = b;
-      }
-    }
-    _lastBearingPos = target;
-    _followDriver(target);
-
-    final from = _driverPos;
-    _animTimer?.cancel();
-    if (from == null) {
-      setState(() => _driverPos = target);
-      return;
-    }
-    if ((from.latitude - target.latitude).abs() < 1e-6 &&
-        (from.longitude - target.longitude).abs() < 1e-6) {
-      return;
-    }
-
-    final metrosRecta = Geolocator.distanceBetween(
-        from.latitude, from.longitude, target.latitude, target.longitude);
-    final v = _driverSpeedKmh;
-
-    // [2B] Carro PARADO não desliza: velocidade a zero com um salto de metros
-    // é ruído de GPS, não marcha. Assenta e fica quieto.
-    // [2C] Posição já velha também não se anima — seria movimento inventado.
-    if ((v != null && v < 1.5 && metrosRecta < 15) || _sinalVelho) {
-      setState(() => _driverPos = target);
-      return;
-    }
-
-    // [2B] Quanto tempo é que o carro leva MESMO a fazer este bocado, ao ritmo
-    // a que anda. Tecto = o intervalo do poll: a animação tem de acabar antes
-    // da leitura seguinte, senão empilham-se duas.
-    final tetoMs = _driverPollSeconds.clamp(1, 30) * 1000;
-    var totalMs = tetoMs;
-    if (v != null && v > 1.0) {
-      totalMs = (metrosRecta / (v / 3.6) * 1000).round();
-    }
-    totalMs = totalMs.clamp(_kAnimMinMs, tetoMs);
-    // Os 12 passos são o CHÃO: numa janela longa acrescentam-se fotogramas em
-    // vez de os espaçar, senão o carro anda a três imagens por segundo.
-    final passos =
-        (totalMs / _kAnimMsPorPasso).round().clamp(_kAnimPassosBase, 60);
-
-    // [2A] Por cima da rota — só se houver linha e o carro estiver mesmo nela.
-    final sobreRota = passosSobreRota(
-      _driverRouteLL,
-      ll.LatLng(from.latitude, from.longitude),
-      ll.LatLng(target.latitude, target.longitude),
-      passos: passos,
+  /// A regra inteira vive em `InterpoladorDePosicao`/`MarcadorAnimado`
+  /// (partilhada com o rastreio da entrega e com o pontinho azul no mapa do
+  /// condutor): uma amostra com `location_updated_at` mais antigo do que a
+  /// última aceite é ignorada; o rumo vem do `heading` do aparelho e, com
+  /// heading nulo/zero a andar, do rumo entre os dois últimos pontos; a
+  /// animação dura o intervalo REAL entre amostras (com chão e tecto), e anda
+  /// por cima da polilinha quando ela existe (`passosSobreRota`); sem rota,
+  /// linha recta. Sinal velho → assenta sem animar.
+  void _setDriverPos(AmostraPosicao amostra) {
+    final aceite = _carro.aceitar(
+      amostra,
+      rota: _driverRouteLL,
+      intervaloEsperadoMs: _driverPollSeconds.clamp(1, 30) * 1000,
+      animar: !_sinalVelho,
     );
-    if (sobreRota != null) {
-      // O comprimento REAL pela estrada é maior do que a distância a direito:
-      // com ele o ritmo deixa de ser optimista.
-      if (v != null && v > 1.0) {
-        totalMs = (sobreRota.metros / (v / 3.6) * 1000)
-            .round()
-            .clamp(_kAnimMinMs, tetoMs);
-      }
-    }
-    final caminho = sobreRota?.pontos;
-    final periodo = Duration(
-        milliseconds: (totalMs / passos).round().clamp(30, 200));
+    if (!aceite) return; // mais antiga (ou repetida) do que a última: fora
+    _driverSpeedKmh = amostra.velocidadeKmh;
+    _driverFixAt = amostra.em;
+    _followDriver(
+        LatLng(amostra.ponto.latitude, amostra.ponto.longitude));
+  }
 
-    var step = 0;
-    _animTimer = Timer.periodic(periodo, (t) {
-      step++;
-      if (!mounted) {
-        t.cancel();
-        return;
+  /// Um fotograma do carro → um `setState`. A câmara heading-up e o
+  /// carrinho rodam com o mesmo rumo.
+  void _onCarroFrame() {
+    if (!mounted) return;
+    final p = _carro.posicao;
+    final r = _carro.rumo;
+    setState(() {
+      if (p != null) _driverPos = LatLng(p.latitude, p.longitude);
+      if (r != null) {
+        _driverHeading = r;
+        _bearing = r;
       }
-      final LatLng p;
-      if (caminho != null) {
-        // `min` é cinto e suspensórios: o timer já pára no último passo.
-        final q = caminho[math.min(step, caminho.length) - 1];
-        p = LatLng(q.latitude, q.longitude);
-      } else {
-        final f = step / passos;
-        p = LatLng(
-          from.latitude + (target.latitude - from.latitude) * f,
-          from.longitude + (target.longitude - from.longitude) * f,
-        );
-      }
-      // [2B] A andar em cima da rota, o carro aponta para onde a ESTRADA vai —
-      // é isto que o faz dobrar a esquina em vez de derrapar de lado. Só conta
-      // como plano B: o `heading` do dispositivo, quando existe, manda.
-      final ant = _driverPos;
-      if (ant != null) {
-        final d = Geolocator.distanceBetween(
-            ant.latitude, ant.longitude, p.latitude, p.longitude);
-        if (d >= 2) {
-          var b = Geolocator.bearingBetween(
-              ant.latitude, ant.longitude, p.latitude, p.longitude);
-          if (b < 0) b += 360;
-          _bearing = b;
-        }
-      }
-      setState(() => _driverPos = p);
-      if (step >= passos) t.cancel();
     });
+  }
+
+  /// [Rastreio em tempo real · 07/10] Canal Realtime na linha do condutor em
+  /// `driver_locations` (filtro pelo `user_id` dele). O poll do cartão
+  /// (`tvde_driver_card_poll_seconds`) fica como reserva — e é dele que vêm
+  /// nome, carro e ETA. Enquanto a migração que abre a leitura ao cliente não
+  /// estiver no ar, o canal fica mudo e o poll faz o trabalho todo, como hoje.
+  void _sincronizarFeed(TvdeRide? ride) {
+    final id = ride != null && (ride.isAssigned || ride.isInProgress)
+        ? ride.driverId
+        : null;
+    if (id == _feedDriverId) return;
+    final velho = _feed;
+    _feed = null;
+    _feedDriverId = id;
+    if (velho != null) unawaited(velho.parar());
+    _carro.limpar();
+    if (id == null) return;
+    _feed = DriverLiveFeed(
+      driverUserId: id,
+      onAmostra: (a) {
+        if (!mounted) return;
+        final r = context.read<TvdeStore>().activeRide;
+        if (r == null || r.driverId != id) return;
+        _setDriverPos(a);
+        _maybeFetchDriverRoute(
+            r, LatLng(a.ponto.latitude, a.ponto.longitude));
+      },
+    )..iniciar();
+  }
+
+  /// (d) Tocar no carro: centra e mostra nome, carro e ETA.
+  Future<void> _tocarNoCarro(TvdeRide ride) async {
+    final pos = _driverPos;
+    if (pos == null) return;
+    final c = _map;
+    if (c != null) {
+      try {
+        await c.animateCamera(CameraUpdate.newLatLngZoom(pos, _kNavZoom));
+      } catch (_) {/* mapa já fechado */}
+    }
+    if (!mounted) return;
+    final eta = _etaShownMinutes(ride);
+    final carro = [
+      if ((_driverCarColor ?? '').isNotEmpty) _driverCarColor!,
+      if ((_driverCar ?? '').isNotEmpty) _driverCar!,
+      if ((_driverPlate ?? '').isNotEmpty) _driverPlate!,
+    ].join(' · ');
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(_driverName ?? 'Motorista'.tr,
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.w700)),
+              if (carro.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(carro,
+                    style: const TextStyle(color: AppColors.textSecondary)),
+              ],
+              const SizedBox(height: 8),
+              Text(
+                eta != null
+                    ? (ride.isInProgress
+                        ? 'Chegada ao destino em ~{0} min'.trArgs([eta])
+                        : 'Chega em ~{0} min'.trArgs([eta]))
+                    : 'A calcular o tempo de chegada…'.tr,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w600, color: AppColors.primary),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   double _haversineKm(double lat1, double lng1, double lat2, double lng2) {
@@ -1082,6 +1089,9 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
 
   Future<void> _pollDriver() async {
     final ride = context.read<TvdeStore>().activeRide;
+    // [07/10] O canal Realtime segue o motorista desta corrida (abre, troca
+    // ou fecha conforme o `driverId`).
+    _sincronizarFeed(ride);
     // Também em viagem (em_andamento): alimenta o ETA ao destino e a animação.
     if (ride == null ||
         ride.driverId == null ||
@@ -1127,16 +1137,18 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
           DateTime.tryParse(row['location_updated_at']?.toString() ?? '');
       if (!mounted) return;
 
-      // A velocidade e a idade têm de estar postas ANTES de mexer na posição:
-      // é `_setDriverPos` que decide, com elas, se anima ou se assenta.
-      _driverSpeedKmh = speed;
-      if (fixAt != null) _driverFixAt = fixAt;
-
-      // C4 — anima em vez de saltar. Primeiro a posição: é ela que atualiza o
-      // `_bearing` calculado entre pontos, que serve de plano B ao heading.
+      // C4 — anima em vez de saltar. A amostra inteira (posição, heading,
+      // velocidade, hora do servidor) vai ao `MarcadorAnimado`, que a aceita
+      // ou ignora (mais antiga/repetida do que a última — p.ex. a mesma
+      // leitura já entregue pelo Realtime).
       if (lat != null && lng != null) {
         final pos = LatLng(lat, lng);
-        _setDriverPos(pos);
+        _setDriverPos(AmostraPosicao(
+          ponto: ll.LatLng(lat, lng),
+          em: (fixAt ?? DateTime.now()).toUtc(),
+          heading: heading,
+          velocidadeKmh: speed,
+        ));
         // [Bloco 5] rota viva do motorista (→recolha / →destino).
         _maybeFetchDriverRoute(ride, pos);
       }
@@ -1158,14 +1170,10 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
         _driverYear = (row['vehicle_year'] as num?)?.toInt();
         _driverOperador = (row['operador'] as String?)?.trim();
         _driverFalaPortugues = row['fala_portugues'] == true;
-        // 1B — para onde o carrinho aponta: heading do dispositivo enquanto
-        // anda; parado (ou sem heading) usa a direção entre as duas últimas
-        // posições; sem nem isso, mantém a última — parado não gira à toa.
-        final aMexer = speed == null || speed > 1.5;
-        final alvo = (heading != null && aMexer)
-            ? heading
-            : (_lastBearingPos != null ? _bearing : null);
-        if (alvo != null) _driverHeading = _suavizaHeading(_driverHeading, alvo);
+        // 1B — para onde o carrinho aponta: decidido pelo `MarcadorAnimado`
+        // (heading do aparelho a andar; senão o rumo entre pontos; parado
+        // mantém — não gira à toa).
+        _driverHeading = _carro.rumo ?? _driverHeading;
         _driverCardFails = 0;
         _driverCardDegraded = false;
       });
@@ -1212,17 +1220,6 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     if (_driverCardFails >= 3 && !_driverCardDegraded && mounted) {
       setState(() => _driverCardDegraded = true);
     }
-  }
-
-  /// Suaviza a rotação do carrinho (novo×0,3 + antigo×0,7) pelo caminho mais
-  /// curto do círculo — sem isto, passar de 359° para 1° dava uma pirueta.
-  double _suavizaHeading(double? anterior, double novo) {
-    final n = ((novo % 360) + 360) % 360;
-    if (anterior == null) return n;
-    var delta = (n - anterior) % 360;
-    if (delta > 180) delta -= 360;
-    if (delta < -180) delta += 360;
-    return ((anterior + delta * 0.3) % 360 + 360) % 360;
   }
 
   /// [Bloco 5, 30/08] Rota do motorista até ao alvo da fase atual — como o
@@ -1448,6 +1445,9 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
         infoWindow: InfoWindow(title: _driverName ?? 'Motorista'.tr),
         icon: _carIcon ??
             BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+        // (d) tocar no carro: centra e mostra nome/carro/ETA.
+        consumeTapEvents: true,
+        onTap: () => unawaited(_tocarNoCarro(ride)),
       ));
     }
     // [Feature 1 + 1B · 05/09] Paradas adicionais, agora com o número À VISTA
@@ -1762,6 +1762,14 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     // — aí a informação É o ecrã.
     final compact = ride.isAssigned || ride.isInProgress;
     const stripSize = 0.14;
+    // [Pontinho azul · 07/10] O dono do envio vive aqui (não no cartão, que
+    // está num painel arrastável e desmonta ao recolher). Envia só enquanto
+    // o motorista vem a caminho.
+    if (_partilha == null || _partilha!.rideId != ride.id) {
+      _partilha?.dispose();
+      _partilha = PartilharLocalizacaoController(rideId: ride.id);
+    }
+    _partilha!.aChegar = ride.isOnTheWay;
     // [2A] Chegou = o estado do servidor OU o carro já ali (o realtime pode
     // demorar, e quem vê o carro à porta não pode ler "chega em ~1 min").
     // [Oferta sobreposta 20/09 · Bloco 4] Em FILA o motorista ainda está a
@@ -1972,6 +1980,15 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
                       driverFirstName: _primeiroNome(_driverName),
                       driverArrived: chegou,
                     ),
+                    if (ride.isOnTheWay && _partilha != null)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                            Spacing.lg, Spacing.sm, Spacing.lg, 0),
+                        child: PartilharLocalizacaoCard(
+                          controller: _partilha!,
+                          quem: QuemChega.motorista,
+                        ),
+                      ),
                     panel,
                   ],
                 ),

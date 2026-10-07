@@ -73,6 +73,11 @@
 	<string>A Bora usa a câmara para tirares foto de perfil, de encomendas (Enviar Encomenda) e de compras (Levar Compras).</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>A Bora usa a galeria para escolheres foto de perfil, de encomendas ou de compras.</string>
+	<!-- Bora Assistente (07/10/2026): ditar a lista de compras por voz no chat. -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>A Bora usa o microfone para ditares a tua lista de compras ao Bora Assistente.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>A Bora usa o reconhecimento de voz para transformar o que dizes em texto no Bora Assistente.</string>
 	<!-- FACE ID / TOUCH ID (2026-09-10).
 	     SEM esta chave o iOS MATA a app: desde o iOS 17 o proprio
 	     canEvaluatePolicy do LocalAuthentication a exige, e a app termina

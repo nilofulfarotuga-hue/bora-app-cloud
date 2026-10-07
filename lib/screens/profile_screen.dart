@@ -44,6 +44,8 @@ import 'my_cards_screen.dart';
 import 'referral_screen.dart';
 import 'support_screen.dart';
 import 'wallet_history_screen.dart';
+import 'client/assistant/assistant_memory_screen.dart';
+import '../services/assistant_service.dart';
 
 import '../l10n/tr.dart';
 
@@ -757,6 +759,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       MaterialPageRoute(builder: (_) => const OrdersScreen()),
                     ),
                   ),
+                  // Bora Assistente (07/10): poupança e "a minha memória".
+                  const _AssistenteTile(),
                   // Favoritos (04/10): o ♥ das lojas tinha onde se marcar mas
                   // não tinha onde se ver.
                   ListTile(
@@ -1766,6 +1770,56 @@ class _TokenBalanceRowState extends State<_TokenBalanceRow>
                 ],
               ),
             ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Entrada do Bora Assistente no perfil: mostra "Já poupaste €X" (lido de
+/// `assistant_client_stats`) e abre "A minha memória". Escondida quando o
+/// interruptor `assistant_enabled` está desligado.
+class _AssistenteTile extends StatefulWidget {
+  const _AssistenteTile();
+
+  @override
+  State<_AssistenteTile> createState() => _AssistenteTileState();
+}
+
+class _AssistenteTileState extends State<_AssistenteTile> {
+  double? _poupanca;
+
+  @override
+  void initState() {
+    super.initState();
+    AssistantFlags.carregar();
+    AssistantService.stats().then((s) {
+      if (!mounted || s == null) return;
+      setState(() => _poupanca =
+          ((s['savings_realized_cents'] as num?) ?? 0).toDouble() / 100);
+    }).catchError((Object e) {
+      debugPrint('[Perfil] assistente stats: $e');
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: AssistantFlags.enabled,
+      builder: (context, ligado, _) {
+        if (!ligado) return const SizedBox.shrink();
+        final p = _poupanca;
+        return ListTile(
+          leading: const Icon(Icons.auto_awesome, color: AppColors.primary),
+          title: Text('Bora Assistente'.tr),
+          subtitle: Text(p == null
+              ? 'A tua poupança e a tua memória'.tr
+              : 'Já poupaste {0}'.trArgs(['€${p.toStringAsFixed(2)}'])),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AssistantMemoryScreen()),
           ),
         );
       },

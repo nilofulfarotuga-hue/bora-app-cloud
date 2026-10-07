@@ -25,6 +25,7 @@ import '../services/incoming_job_alert.dart';
 import '../stores/session_store.dart';
 import '../utils/hora_lisboa.dart';
 import '../widgets/address_text.dart';
+import '../widgets/web_push_card.dart';
 import '../widgets/biometric_login_tile.dart';
 import '../widgets/partner_weekly_closeout_card.dart';
 import '../widgets/profile_switcher_button.dart';
@@ -981,6 +982,9 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // [Web 07/10/2026] Só no navegador e só até a permissão
+                // estar dada: regista o token em partner_push_tokens.
+                const WebPushCard(role: 'partner'),
                 if (currentRestaurant.reservationsEnabled &&
                     _pendingReservationsCount > 0) ...[
                   _PendingReservationsBadge(

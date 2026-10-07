@@ -238,6 +238,8 @@ class RestaurantStore extends ChangeNotifier {
       allergens: allergens,
       soldByWeight: (data['sold_by_weight'] as bool?) ?? false,
       shelfPricePerKg: _numFromRow(data, 'shelf_price_per_kg'),
+      // Missão maiores-18: tolerante a null (coluna pode não existir ainda).
+      ageRestricted: (data['age_restricted'] as bool?) ?? false,
     );
   }
 
@@ -644,6 +646,7 @@ class RestaurantStore extends ChangeNotifier {
             hasRequiredOptions: (data['sold_by_weight'] as bool?) ?? false,
             soldByWeight: (data['sold_by_weight'] as bool?) ?? false,
             shelfPricePerKg: _numFromRow(data, 'shelf_price_per_kg'),
+            ageRestricted: (data['age_restricted'] as bool?) ?? false,
           );
           final list = _productsByRestaurant.putIfAbsent(
               restaurantId, () => <PartnerProduct>[]);
@@ -688,6 +691,8 @@ class RestaurantStore extends ChangeNotifier {
                 list[index].soldByWeight,
             shelfPricePerKg: _numFromRow(data, 'shelf_price_per_kg') ??
                 list[index].shelfPricePerKg,
+            ageRestricted: (data['age_restricted'] as bool?) ??
+                list[index].ageRestricted,
           );
           notifyListeners();
         },

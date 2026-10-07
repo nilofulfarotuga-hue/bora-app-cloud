@@ -21,9 +21,10 @@ import '../stores/favorite_store.dart';
 import '../stores/restaurant_store.dart';
 import '../utils/cart_feedback.dart';
 import '../widgets/bora/bora.dart';
+import '../widgets/bora/maior_18.dart';
 import '../widgets/bora/banner_pausa_loja.dart';
 import '../widgets/bora/weight_price_text.dart';
-import '../widgets/bora_support_fab.dart';
+import '../widgets/bora_assistant_fab.dart';
 import 'cart_screen.dart';
 import 'client/reservation/reservation_availability_screen.dart';
 import 'product_detail_screen.dart';
@@ -196,6 +197,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
       isAvailable: true,
       category: (row['category'] ?? '').toString(),
       categoryRoot: (row['category_root'] ?? '').toString(),
+      ageRestricted: row['age_restricted'] == true,
     );
   }
 
@@ -264,6 +266,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
           price: PricingService.applyMarkup(
               product.price, widget.restaurant.isPartner),
           basePrice: product.price,
+          ageRestricted: product.ageRestricted,
         ));
     showAddedToCartSnack(context, '{0} no carrinho'.trArgs([product.name]));
   }
@@ -344,7 +347,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      floatingActionButton: const BoraSupportFab(),
+      floatingActionButton: const BoraClientFabs(),
       appBar: AppBar(
         title: Text(
           widget.restaurant.name,
@@ -1052,16 +1055,30 @@ class _GlovoProductCard extends StatelessWidget {
                 children: [
                   SizedBox(
                     height: 104,
-                    child: product.photoUrl.isNotEmpty
-                        ? CachedNetworkImage(
-                            imageUrl: product.photoUrl,
-                            fit: BoxFit.cover,
-                            fadeInDuration: const Duration(milliseconds: 120),
-                            placeholder: (_, __) => const _CardImageFallback(),
-                            errorWidget: (_, __, ___) =>
-                                const _CardImageFallback(),
-                          )
-                        : const _CardImageFallback(),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        product.photoUrl.isNotEmpty
+                            ? CachedNetworkImage(
+                                imageUrl: product.photoUrl,
+                                fit: BoxFit.cover,
+                                fadeInDuration:
+                                    const Duration(milliseconds: 120),
+                                placeholder: (_, __) =>
+                                    const _CardImageFallback(),
+                                errorWidget: (_, __, ___) =>
+                                    const _CardImageFallback(),
+                              )
+                            : const _CardImageFallback(),
+                        // Missão maiores-18: "+18" no canto da foto.
+                        if (product.ageRestricted)
+                          const Positioned(
+                            bottom: 6,
+                            left: 6,
+                            child: Maior18Badge(),
+                          ),
+                      ],
+                    ),
                   ),
                   Expanded(
                     child: Padding(
@@ -1187,6 +1204,7 @@ class _SectionProductsScreen extends StatelessWidget {
             price: PricingService.applyMarkup(
                 product.price, restaurant.isPartner),
             basePrice: product.price,
+            ageRestricted: product.ageRestricted,
           ));
       showAddedToCartSnack(context, '{0} no carrinho'.trArgs([product.name]));
     }
@@ -1296,7 +1314,18 @@ class _SectionProductCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             child: Row(
               children: [
-                _ProductThumbnail(photoUrl: product.photoUrl),
+                Stack(
+                  children: [
+                    _ProductThumbnail(photoUrl: product.photoUrl),
+                    // Missão maiores-18: "+18" no canto da miniatura.
+                    if (product.ageRestricted)
+                      const Positioned(
+                        bottom: 2,
+                        left: 2,
+                        child: Maior18Badge(small: true),
+                      ),
+                  ],
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(

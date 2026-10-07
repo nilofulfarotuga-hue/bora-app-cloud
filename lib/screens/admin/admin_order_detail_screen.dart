@@ -78,7 +78,9 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
               // FESTAS (2026-08-25) — agendamento + tempo de preparo
               'scheduled_for, prep_time_minutes, customer_notes, '
               // ronda 04/10 — aceite pela loja + prova de entrega
-              'accepted_at, deixar_a_porta, foto_entrega_url, foto_entrega_em')
+              'accepted_at, deixar_a_porta, foto_entrega_url, foto_entrega_em, '
+              // Missão maiores-18 (07/10/2026)
+              'has_age_restricted')
           .eq('id', widget.orderId)
           .maybeSingle();
 
@@ -91,9 +93,24 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
         }
         return;
       }
+      // Missão maiores-18: a verificação do estafeta (confirmado/recusado).
+      Map<String, dynamic>? ageCheck;
+      if (data['has_age_restricted'] == true) {
+        try {
+          final c = await Supabase.instance.client
+              .from('order_age_checks')
+              .select('status, checked_at, driver_uid, cancellation_request_id')
+              .eq('order_id', widget.orderId)
+              .maybeSingle();
+          if (c != null) ageCheck = Map<String, dynamic>.from(c);
+        } catch (e) {
+          debugPrint('[AdminOrderDetail] order_age_checks: $e');
+        }
+      }
       if (!mounted) return;
       setState(() {
         _order = Map<String, dynamic>.from(data);
+        if (ageCheck != null) _order!['_age_check'] = ageCheck;
         _loading = false;
       });
     } catch (e) {
@@ -286,6 +303,11 @@ class _SummaryTab extends StatelessWidget {
                 _row(Icons.store_mall_directory, 'Recolha',
                     order['pickup_address'] ?? '—'),
                 _row(Icons.euro, 'Total', '€${_amount(order)}'),
+                // Missão maiores-18 (07/10/2026): selo +18 e a verificação
+                // de idade feita pelo estafeta na entrega.
+                if (order['has_age_restricted'] == true)
+                  _row(Icons.no_adult_content, 'Maiores de 18',
+                      _ageCheckLabel(order['_age_check'])),
                 // ronda 04/10 — hora em que a loja aceitou (o despacho de
                 // parceiros conta o tempo de preparo a partir daqui).
                 if (order['accepted_at'] != null)
@@ -536,6 +558,18 @@ class _SummaryTab extends StatelessWidget {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Erro ao salvar: $e')));
     }
+  }
+
+  /// Missão maiores-18: "+18 · verificação pendente / confirmada / recusada".
+  String _ageCheckLabel(dynamic check) {
+    if (check is! Map) return '+18 · verificação pendente';
+    final status = check['status']?.toString();
+    final quando = _fmtScheduled(check['checked_at']);
+    if (status == 'confirmado') return '+18 · documento confirmado ($quando)';
+    if (status == 'recusado') {
+      return '+18 · RECUSADO — cliente sem documento/menor ($quando); cancelamento aberto';
+    }
+    return '+18 · $status';
   }
 
   Widget _row(IconData icon, String label, dynamic value) {

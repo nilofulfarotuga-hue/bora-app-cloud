@@ -38,6 +38,12 @@ class CartItem {
   List<SelectedOption> get displayOptions =>
       selectedOptionsPriced.isNotEmpty ? selectedOptionsPriced : selectedOptions;
 
+  /// Missão maiores-18 (07/10/2026): produto para maiores de 18 (tabaco ou
+  /// álcool). Copiado de `PartnerProduct.ageRestricted` ao adicionar; serve
+  /// só para o aviso no carrinho e no pagamento — a marca do PEDIDO é posta
+  /// pelo servidor (trigger trg_orders_maior_18_criacao), nunca pela app.
+  final bool ageRestricted;
+
   // Sessão 4C (2026-05-04): defesa run-time em release.
   // Asserts (4B5) STRIP em release → asserts são detectores dev. Validação
   // crítica usa `if-throw` no body do constructor (executa também em release).
@@ -54,6 +60,7 @@ class CartItem {
     this.basePrice,
     this.selectedOptions = const [],
     this.selectedOptionsPriced = const [],
+    this.ageRestricted = false,
   })  : assert(productId.isNotEmpty, 'CartItem.productId vazio'),
         assert(!productId.contains(' '),
             'CartItem.productId com espaço — parece nome ($productId)'),
@@ -86,6 +93,7 @@ class CartItem {
     this.basePrice,
     this.selectedOptions = const [],
     this.selectedOptionsPriced = const [],
+    this.ageRestricted = false,
   });
 
   /// Cart dedup key. Two lines with different option selections are distinct.
@@ -103,6 +111,7 @@ class CartItem {
         'purchaseStatus': purchaseStatus,
         if (actualPrice != null) 'actualPrice': actualPrice,
         if (basePrice != null) 'basePrice': basePrice,
+        if (ageRestricted) 'age_restricted': true,
         if (selectedOptions.isNotEmpty)
           'selected_options':
               selectedOptions.map((o) => o.toJson()).toList(),
@@ -121,6 +130,7 @@ class CartItem {
       purchaseStatus: json['purchaseStatus'] as String? ?? 'pending',
       actualPrice: (json['actualPrice'] as num?)?.toDouble(),
       basePrice: (json['basePrice'] as num?)?.toDouble(),
+      ageRestricted: json['age_restricted'] == true,
       selectedOptions: rawOpts == null
           ? const []
           : rawOpts

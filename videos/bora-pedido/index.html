@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<title>Bora — Pedido a caminho</title>
+<style>
+@font-face { font-family: 'Inter'; src: url('assets/Inter-VariableFont.ttf') format('truetype'); font-weight: 100 900; }
+:root { --verde:#16A34A; --verde2:#15803D; --verde3:#DCFCE7; --laranja:#F97316; --ink:#111827; --ink2:#6B7280; --bg:#F6F7F4; --card:#FFFFFF; --linha:#E5E7EB; }
+html,body { margin:0; padding:0; background:#000; overflow:hidden; font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased; }
+#stage { position:absolute; left:0; top:0; width:1920px; height:1080px; background:#FFFFFF; transform-origin:0 0; overflow:hidden; color:var(--ink); }
+body.port #stage { width:1080px; height:1920px; }
+.abs { position:absolute; left:0; top:0; }
+.el { position:absolute; will-change:transform,opacity; }
+.hidden { visibility:hidden; }
+
+/* ---------- logo / abertura ---------- */
+#logo { width:760px; left:50%; top:50%; margin-left:-380px; margin-top:-212px; transform-origin:50% 50%; }
+body.port #logo { width:720px; margin-left:-360px; margin-top:-200px; }
+#logo img { width:100%; display:block; }
+#pill { left:50%; top:50%; margin-top:40px; transform:translateX(-50%); background:var(--verde3); color:var(--verde2); font-weight:600; font-size:48px; padding:22px 56px; border-radius:999px; white-space:nowrap; }
+body.port #pill { margin-top:40px; font-size:44px; }
+#logoSmall { width:300px; left:72px; top:48px; transform-origin:0 0; }
+#logoSmall img { width:100%; display:block; }
+body.port #logoSmall { width:300px; left:50%; margin-left:-150px; top:60px; }
+
+/* ---------- captions ---------- */
+.caption { left:120px; top:400px; width:820px; font-weight:800; font-size:96px; line-height:1.05; letter-spacing:-0.02em; color:var(--ink); }
+.caption small { display:block; font-weight:500; font-size:40px; color:var(--ink2); margin-top:26px; letter-spacing:0; }
+body.port .caption { left:80px; top:230px; width:920px; font-size:92px; text-align:center; }
+
+/* ---------- phone ---------- */
+#phone { left:1150px; top:40px; width:400px; height:820px; transform-origin:50% 0; }
+body.port #phone { left:50%; margin-left:-200px; top:520px; transform-origin:50% 0; }
+.frame { position:absolute; inset:0; background:#0B0F14; border-radius:56px; box-shadow:0 30px 60px rgba(15,23,42,.18), 0 2px 0 rgba(255,255,255,.08) inset; }
+.frame:after { content:''; position:absolute; left:50%; top:16px; width:120px; height:30px; margin-left:-60px; background:#0B0F14; border-radius:999px; z-index:3; }
+.screen { position:absolute; left:12px; top:12px; width:376px; height:796px; border-radius:46px; overflow:hidden; background:var(--bg); }
+.scr { position:absolute; left:0; top:0; width:376px; height:796px; background:var(--bg); }
+#scrHome .hdr { padding:70px 22px 10px; }
+#scrHome .hdr b { display:block; font-size:30px; font-weight:800; }
+#scrHome .hdr span { display:block; font-size:16px; color:var(--ink2); margin-top:4px; }
+#scrHome img { position:absolute; left:0; top:132px; width:376px; }
+.tapTile { position:absolute; left:13px; top:140px; width:78px; height:78px; border-radius:20px; transform-origin:50% 50%; }
+#scrMenu .bar { height:110px; background:#fff; border-bottom:1px solid var(--linha); display:flex; align-items:flex-end; padding:0 20px 16px; font-size:22px; font-weight:800; gap:14px; }
+#scrMenu .bar i { width:14px; height:14px; border-left:3px solid var(--ink); border-bottom:3px solid var(--ink); transform:rotate(45deg); margin-bottom:6px; display:inline-block; }
+.dish { margin:14px 16px 0; background:#fff; border-radius:16px; padding:14px 16px; display:flex; align-items:center; gap:14px; box-shadow:0 2px 8px rgba(15,23,42,.06); }
+.dish .ph { width:72px; height:72px; border-radius:14px; background:var(--verde3); flex:none; display:flex; align-items:center; justify-content:center; }
+.dish .ph img { width:56px; }
+.dish .tx { flex:1; }
+.dish .tx b { display:block; font-size:17px; font-weight:700; }
+.dish .tx span { display:block; font-size:13px; color:var(--ink2); margin-top:3px; }
+.dish .tx em { display:inline-block; font-style:normal; font-size:12px; color:var(--verde2); background:var(--verde3); padding:2px 8px; border-radius:999px; margin-top:6px; font-weight:600; }
+.dish .add { width:40px; height:40px; border-radius:12px; background:var(--verde); color:#fff; font-size:26px; font-weight:700; display:flex; align-items:center; justify-content:center; transform-origin:50% 50%; }
+#cartBtn { position:absolute; left:16px; bottom:22px; width:344px; height:54px; border-radius:16px; background:var(--verde); color:#fff; font-weight:700; font-size:18px; display:flex; align-items:center; justify-content:center; gap:12px; }
+#cartBadge { position:absolute; right:-10px; top:-12px; min-width:34px; height:34px; border-radius:999px; background:var(--laranja); color:#fff; font-size:16px; font-weight:800; display:flex; align-items:center; justify-content:center; transform-origin:50% 50%; }
+#scrStatus .bar { height:110px; background:#fff; border-bottom:1px solid var(--linha); display:flex; align-items:flex-end; padding:0 20px 16px; font-size:22px; font-weight:800; }
+.steps { margin:30px 24px; }
+.step { display:flex; align-items:center; gap:16px; height:64px; font-size:17px; font-weight:600; color:var(--ink2); }
+.step .dot { width:26px; height:26px; border-radius:999px; border:3px solid var(--linha); background:#fff; box-sizing:border-box; position:relative; flex:none; }
+.step.on { color:var(--ink); }
+.step.on .dot { border-color:var(--verde); background:var(--verde); }
+.step.on .dot:after { content:''; position:absolute; left:7px; top:3px; width:6px; height:11px; border-right:3px solid #fff; border-bottom:3px solid #fff; transform:rotate(45deg); }
+.step .ln { position:absolute; left:36px; width:3px; height:40px; background:var(--linha); margin-top:64px; }
+.step.on .ln { background:var(--verde); }
+#finger { width:70px; height:70px; border-radius:999px; background:rgba(255,255,255,.55); border:4px solid var(--verde); box-sizing:border-box; transform-origin:50% 50%; }
+
+/* ---------- confirmado ---------- */
+#confirm { left:50%; top:50%; width:840px; height:400px; margin-left:-420px; margin-top:-200px; background:#fff; border-radius:32px; box-shadow:0 30px 80px rgba(15,23,42,.16); display:flex; align-items:center; gap:40px; padding:0 60px; box-sizing:border-box; transform-origin:50% 50%; }
+body.port #confirm { width:900px; margin-left:-450px; top:50%; margin-top:-230px; height:460px; flex-direction:column; justify-content:center; gap:20px; text-align:center; }
+#confirm svg { width:180px; height:180px; flex:none; }
+#confirm .t1 { font-size:64px; font-weight:800; letter-spacing:-0.02em; }
+#confirm .t2 { font-size:34px; color:var(--ink2); font-weight:500; margin-top:12px; }
+
+/* ---------- mapa ---------- */
+#mapWrap { width:1920px; height:1080px; overflow:hidden; background:#EDF1E8; transform-origin:50% 50%; }
+body.port #mapWrap { width:1080px; height:1920px; }
+#map { position:absolute; left:0; top:0; }
+#mapCaption { left:80px; top:860px; font-weight:800; font-size:64px; line-height:1.05; letter-spacing:-0.02em; color:var(--ink); background:#fff; padding:26px 44px; border-radius:28px; box-shadow:0 16px 40px rgba(15,23,42,.14); white-space:nowrap; }
+body.port #mapCaption { left:50%; top:1560px; font-size:56px; }
+#eta { background:#fff; border-radius:999px; padding:14px 26px; font-size:30px; font-weight:800; color:var(--ink); box-shadow:0 10px 30px rgba(15,23,42,.18); white-space:nowrap; transform-origin:50% 100%; }
+#eta b { color:var(--verde2); }
+#notif { left:50%; top:60px; width:900px; margin-left:-450px; background:#fff; border-radius:28px; padding:26px 34px; display:flex; align-items:center; gap:24px; box-shadow:0 20px 50px rgba(15,23,42,.2); transform-origin:50% 0; }
+body.port #notif { width:940px; margin-left:-470px; top:120px; }
+#notif .ic { width:72px; height:72px; border-radius:20px; flex:none; display:flex; align-items:center; justify-content:center; background:#fff; }
+#notif .ic img { width:72px; border-radius:18px; }
+#notif .b1 { font-size:34px; font-weight:800; }
+#notif .b2 { font-size:26px; color:var(--ink2); margin-top:2px; font-weight:500; }
+#notif .ag { margin-left:auto; font-size:22px; color:var(--ink2); }
+
+/* ---------- frase + código ---------- */
+#phrase { left:0; top:0; width:1920px; height:1080px; background:var(--bg); }
+body.port #phrase { width:1080px; height:1920px; }
+#ola { left:50%; top:300px; transform:translateX(-50%); font-size:160px; font-weight:900; letter-spacing:-0.03em; color:var(--verde); transform-origin:50% 50%; }
+#precisas { left:50%; top:500px; transform:translateX(-50%); font-size:104px; font-weight:800; letter-spacing:-0.025em; white-space:nowrap; transform-origin:50% 50%; }
+body.port #ola { top:520px; font-size:170px; }
+body.port #precisas { top:730px; font-size:92px; }
+#code { left:50%; top:700px; width:820px; margin-left:-410px; background:var(--laranja); color:#fff; border-radius:30px; padding:34px 48px; box-sizing:border-box; display:flex; align-items:center; gap:34px; box-shadow:0 24px 60px rgba(249,115,22,.35); transform-origin:50% 50%; }
+body.port #code { top:960px; width:880px; margin-left:-440px; flex-direction:column; text-align:center; gap:16px; padding:44px 48px; }
+#code .k { font-size:28px; font-weight:600; opacity:.9; letter-spacing:.08em; }
+#code .c { font-size:76px; font-weight:900; letter-spacing:.04em; line-height:1; }
+#code .v { font-size:36px; font-weight:700; margin-left:auto; text-align:right; line-height:1.15; }
+body.port #code .v { margin-left:0; text-align:center; }
+
+/* ---------- CTA ---------- */
+#cta { left:0; top:0; width:1920px; height:1080px; background:var(--verde); color:#fff; }
+body.port #cta { width:1080px; height:1920px; }
+#ctaTitle { left:50%; top:200px; transform:translateX(-50%); font-size:132px; font-weight:900; letter-spacing:-0.03em; white-space:nowrap; transform-origin:50% 50%; }
+body.port #ctaTitle { top:420px; font-size:118px; }
+.badge { width:440px; height:124px; background:#0B0F14; border-radius:22px; display:flex; align-items:center; gap:20px; padding:0 28px; box-sizing:border-box; color:#fff; transform-origin:50% 50%; }
+.badge svg, .badge img { width:62px; height:62px; flex:none; }
+.badge .t { line-height:1.05; }
+.badge .t small { display:block; font-size:18px; font-weight:500; opacity:.85; letter-spacing:.02em; }
+.badge .t b { display:block; font-size:36px; font-weight:700; letter-spacing:-0.01em; }
+#b1 { left:230px; top:480px; } #b2 { left:740px; top:480px; } #b3 { left:1250px; top:480px; }
+body.port #b1, body.port #b2, body.port #b3 { left:50%; margin-left:-220px; }
+body.port #b1 { top:720px; } body.port #b2 { top:880px; } body.port #b3 { top:1040px; }
+#ctaLogo { left:50%; top:690px; width:520px; margin-left:-260px; background:#fff; border-radius:34px; padding:18px 36px; box-sizing:border-box; transform-origin:50% 50%; }
+#ctaLogo img { width:100%; display:block; }
+body.port #ctaLogo { top:1320px; width:620px; margin-left:-310px; }
+#ctaSub { left:50%; top:1000px; transform:translateX(-50%); font-size:34px; font-weight:600; opacity:.9; white-space:nowrap; }
+body.port #ctaSub { top:1730px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <!-- abertura -->
+  <div id="logo" class="el"><img src="assets/bora_logo.png" alt=""></div>
+  <div id="pill" class="el">Entregas rápidas em Portugal</div>
+  <div id="logoSmall" class="el"><img src="assets/bora_logo.png" alt=""></div>
+
+  <!-- cena app -->
+  <div id="cap" class="el caption"><span id="capMain">Escolhe no app</span><small id="capSub">Restaurantes, mercados, farmácias e lojas da Guarda</small></div>
+  <div id="phone" class="el">
+    <div class="frame"></div>
+    <div class="screen">
+      <div id="scrHome" class="scr">
+        <div class="hdr"><b>Olá!</b><span>O que precisas hoje?</span></div>
+        <img src="assets/golden_home_grelha_390.png" alt="">
+        <div id="tapTile" class="tapTile"></div>
+      </div>
+      <div id="scrMenu" class="scr">
+        <div class="bar"><i></i> Restaurantes</div>
+        <div class="dish"><div class="ph"><img src="assets/cat_restaurantes.png" alt=""></div><div class="tx"><b>Francesinha especial</b><span>Com molho da casa e batata</span><em>preço: exemplo</em></div><div class="add" id="add1">+</div></div>
+        <div class="dish"><div class="ph"><img src="assets/cat_restaurantes.png" alt=""></div><div class="tx"><b>Bitoque de vitela</b><span>Ovo, arroz e batata frita</span><em>preço: exemplo</em></div><div class="add">+</div></div>
+        <div class="dish"><div class="ph"><img src="assets/cat_restaurantes.png" alt=""></div><div class="tx"><b>Arroz de pato</b><span>No forno, com chouriço</span><em>preço: exemplo</em></div><div class="add">+</div></div>
+        <div id="cartBtn">Ver carrinho<div id="cartBadge">1</div></div>
+      </div>
+      <div id="scrStatus" class="scr">
+        <div class="bar">Pedido a caminho</div>
+        <div class="steps">
+          <div class="step on" id="st1"><div class="dot"></div>Pedido confirmado<div class="ln"></div></div>
+          <div class="step" id="st2"><div class="dot"></div>A loja está a preparar<div class="ln"></div></div>
+          <div class="step" id="st3"><div class="dot"></div>Estafeta a caminho<div class="ln"></div></div>
+          <div class="step" id="st4"><div class="dot"></div>Entregue à porta</div>
+        </div>
+        <div class="dish" style="margin-top:20px"><div class="ph"><img src="assets/icon_512.png" alt="" style="width:56px;border-radius:12px"></div><div class="tx"><b>Chega em ~25 min</b><span>Estafeta de mota · segue no mapa</span></div></div>
+      </div>
+    </div>
+    <div id="finger" class="el"></div>
+  </div>
+
+  <!-- confirmado -->
+  <div id="confirm" class="el">
+    <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="#DCFCE7"/><circle id="ckRing" cx="50" cy="50" r="44" fill="none" stroke="#16A34A" stroke-width="6" stroke-linecap="round" stroke-dasharray="276.5" stroke-dashoffset="276.5" transform="rotate(-90 50 50)"/><path id="ckPath" d="M30 52 L44 66 L72 36" fill="none" stroke="#16A34A" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="62" stroke-dashoffset="62"/></svg>
+    <div><div class="t1">Pedido confirmado</div><div class="t2" id="confirm2">A loja já está a preparar</div></div>
+  </div>
+
+  <!-- mapa -->
+  <div id="mapWrap" class="el">
+    <svg id="map" width="1920" height="1080" viewBox="0 0 1920 1080">
+      <defs>
+        <filter id="sh" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#0F172A" flood-opacity=".22"/></filter>
+        <g id="mota">
+          <!-- mota Bora, vista de lado, virada para a direita; origem no centro entre rodas -->
+          <ellipse cx="0" cy="34" rx="70" ry="8" fill="#0F172A" opacity=".12"/>
+          <g id="wheelR" transform="translate(-44 22)"><circle r="22" fill="#1F2937"/><circle r="12" fill="#D1D5DB"/><g id="spR" stroke="#6B7280" stroke-width="3"><line x1="-12" y1="0" x2="12" y2="0"/><line x1="0" y1="-12" x2="0" y2="12"/></g></g>
+          <g id="wheelF" transform="translate(48 22)"><circle r="22" fill="#1F2937"/><circle r="12" fill="#D1D5DB"/><g id="spF" stroke="#6B7280" stroke-width="3"><line x1="-12" y1="0" x2="12" y2="0"/><line x1="0" y1="-12" x2="0" y2="12"/></g></g>
+          <path d="M-60 10 Q-50 -14 -20 -12 L10 -12 Q30 -12 44 2 L58 10 Q66 16 58 22 L34 22 Q26 8 10 6 L-18 6 Q-30 6 -38 16 L-50 22 Q-64 22 -60 10 Z" fill="#16A34A"/>
+          <path d="M40 -6 Q58 -26 60 -40 L66 -40 Q64 -20 50 2 Z" fill="#15803D"/>
+          <circle cx="62" cy="-18" r="7" fill="#FDE68A"/>
+          <rect x="-24" y="-20" width="36" height="10" rx="5" fill="#1F2937"/>
+          <path d="M-48 -4 L-30 -4 L-26 8 L-50 8 Z" fill="#F97316"/>
+          <rect x="-92" y="-52" width="50" height="44" rx="9" fill="#15803D"/>
+          <rect x="-80" y="-42" width="26" height="26" rx="6" fill="#F97316"/>
+          <text x="-67" y="-23" font-family="Inter" font-weight="900" font-size="20" fill="#fff" text-anchor="middle">B</text>
+          <!-- condutor -->
+          <path d="M-22 -18 Q-26 -50 -6 -56 L6 -56 Q22 -52 20 -30 L28 -22 L10 -16 Z" fill="#16A34A"/>
+          <path d="M8 -36 L36 -22" stroke="#16A34A" stroke-width="12" stroke-linecap="round"/>
+          <path d="M-8 -22 L-10 6" stroke="#1F2937" stroke-width="12" stroke-linecap="round"/>
+          <circle cx="4" cy="-74" r="21" fill="#F9FAFB"/>
+          <path d="M-17 -76 A21 21 0 0 1 25 -76 L25 -70 L-17 -70 Z" fill="#F3F4F6"/>
+          <rect x="-4" y="-78" width="24" height="12" rx="6" fill="#F2C9A0"/>
+          <rect x="4" y="-76" width="4" height="4" rx="2" fill="#111827"/>
+          <rect x="12" y="-76" width="4" height="4" rx="2" fill="#111827"/>
+        </g>
+        <g id="pin"><path d="M0 0 C-18 -24 -30 -36 -30 -54 A30 30 0 1 1 30 -54 C30 -36 18 -24 0 0 Z" fill="#15803D"/><circle cx="0" cy="-54" r="12" fill="#fff"/></g>
+      </defs>
+      <g id="cam">
+        <rect x="-2000" y="-2000" width="6000" height="6000" fill="#EDF1E8"/>
+        <!-- quarteirões -->
+        <g fill="#E2E7DD">
+          <rect x="120" y="120" width="420" height="300" rx="26"/><rect x="620" y="120" width="300" height="200" rx="26"/><rect x="1000" y="80" width="520" height="240" rx="26"/>
+          <rect x="120" y="500" width="300" height="420" rx="26"/><rect x="500" y="420" width="380" height="240" rx="26"/><rect x="520" y="740" width="360" height="300" rx="26"/>
+          <rect x="980" y="420" width="260" height="220" rx="26"/><rect x="1320" y="420" width="420" height="200" rx="26"/><rect x="1000" y="720" width="440" height="300" rx="26"/>
+          <rect x="1560" y="700" width="360" height="360" rx="26"/><rect x="1620" y="100" width="300" height="240" rx="26"/>
+        </g>
+        <!-- jardim -->
+        <path d="M1300 640 Q1420 600 1540 660 Q1560 760 1480 800 Q1360 820 1300 760 Z" fill="#CBE7CF"/>
+        <circle cx="1360" cy="700" r="14" fill="#9CD3A2"/><circle cx="1430" cy="740" r="18" fill="#9CD3A2"/><circle cx="1490" cy="690" r="12" fill="#9CD3A2"/>
+        <!-- praça -->
+        <rect x="900" y="330" width="130" height="110" rx="14" fill="#E9EDE3" stroke="#D7DDD1" stroke-width="3"/>
+        <!-- ruas: casing + asfalto -->
+        <g fill="none" stroke="#D3D9CD" stroke-width="40" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M60 460 L960 460 L1920 440"/><path d="M460 40 L460 1040"/><path d="M940 40 L940 1060"/><path d="M60 690 L940 690 Q1100 690 1260 660 L1920 660"/>
+          <path d="M1260 40 L1260 1060"/><path d="M1540 40 L1540 1060"/><path d="M60 1000 L1920 1000"/><path d="M60 100 L1920 100"/><path d="M1260 380 L1920 380"/><path d="M960 460 Q1100 300 1260 380"/><path d="M60 250 Q300 300 460 250 Q700 180 940 250"/><path d="M1540 1000 Q1700 850 1920 820"/>
+        </g>
+        <g fill="none" stroke="#FFFFFF" stroke-width="30" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M60 460 L960 460 L1920 440"/><path d="M460 40 L460 1040"/><path d="M940 40 L940 1060"/><path d="M60 690 L940 690 Q1100 690 1260 660 L1920 660"/>
+          <path d="M1260 40 L1260 1060"/><path d="M1540 40 L1540 1060"/><path d="M60 1000 L1920 1000"/><path d="M60 100 L1920 100"/><path d="M1260 380 L1920 380"/><path d="M960 460 Q1100 300 1260 380"/><path d="M60 250 Q300 300 460 250 Q700 180 940 250"/><path d="M1540 1000 Q1700 850 1920 820"/>
+        </g>
+        <!-- Sé -->
+        <g transform="translate(965 300)"><rect x="-26" y="-10" width="52" height="40" rx="6" fill="#A8B5A3"/><rect x="-22" y="-40" width="14" height="34" rx="3" fill="#94A290"/><rect x="8" y="-40" width="14" height="34" rx="3" fill="#94A290"/><path d="M-15 -40 L-15 -52 M-9 -46 L-21 -46 M15 -40 L15 -52 M9 -46 L21 -46" stroke="#6B7280" stroke-width="3"/></g>
+        <!-- rótulos -->
+        <g font-family="Inter" font-weight="600" fill="#6B7280" font-size="26">
+          <text x="560" y="440">Rua 31 de Janeiro</text>
+          <text x="890" y="320" font-size="20" fill="#4B5563">Sé da Guarda</text>
+          <text x="880" y="470" font-size="20" fill="#4B5563">Praça Velha</text>
+          <text x="1290" y="845" font-size="22" fill="#3F7D48">Jardim José de Lemos</text>
+          <text x="1300" y="1040">Av. Cidade de Salamanca</text><text x="1290" y="365" font-size="20">Rua Dom Miguel de Alarcão</text><text x="1565" y="560" font-size="20" transform="rotate(90 1565 560)">Rua Batalha Reis</text>
+          <text x="140" y="730">Rua Comandante Salvador do Nascimento</text>
+          <text x="1570" y="140">Torre de Menagem</text>
+          <text x="485" y="80" font-size="20">Rua Vasco da Gama</text>
+        </g>
+        <!-- percurso -->
+        <path id="rota" d="M300 690 L460 690 L460 460 L940 460 Q1000 460 1040 420 Q1120 330 1260 380 L1540 380 L1540 660 L1625 660" fill="none" stroke="none"/>
+        <path id="rotaTrace" d="M300 690 L460 690 L460 460 L940 460 Q1000 460 1040 420 Q1120 330 1260 380 L1540 380 L1540 660 L1625 660" fill="none" stroke="#16A34A" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4000" stroke-dashoffset="4000" opacity=".9"/>
+        <g id="pinLoja" transform="translate(300 690)"><use href="#pin" filter="url(#sh)"/><text y="-112" font-family="Inter" font-weight="800" font-size="28" fill="#111827" text-anchor="middle">Loja</text></g>
+        <g id="pinCasa" transform="translate(1700 660)"><use href="#pin" filter="url(#sh)"/><text y="-112" font-family="Inter" font-weight="800" font-size="28" fill="#111827" text-anchor="middle">Casa</text></g>
+        <g id="motaG"><use href="#mota" filter="url(#sh)"/></g>
+      </g>
+    </svg>
+    <div id="mapCaption" class="el"><span id="mapCapText">O estafeta sai da loja</span></div>
+    <div id="eta" class="el"><b id="etaN">4 min</b><span id="etaS"> · a caminho</span></div>
+    <div id="notif" class="el"><div class="ic"><img src="assets/icon_512.png" alt=""></div><div><div class="b1">O teu pedido chegou</div><div class="b2">Entregue à porta. Bom apetite!</div></div><div class="ag">agora</div></div>
+  </div>
+
+  <!-- frase + código -->
+  <div id="phrase" class="el"></div>
+  <div id="ola" class="el">Olá!</div>
+  <div id="precisas" class="el">O que precisas hoje?</div>
+  <div id="code" class="el"><div><div class="k">CÓDIGO</div><div class="c">BEMVINDO</div></div><div class="v">5 € de desconto<br>no primeiro pedido</div></div>
+
+  <!-- CTA -->
+  <div id="cta" class="el"></div>
+  <div id="ctaTitle" class="el">Instala a Bora</div>
+  <div id="b1" class="el badge"><svg viewBox="0 0 64 64"><path d="M14 8 L46 32 L14 56 Z" fill="#34D399"/><path d="M14 8 L36 28 L28 36 Z" fill="#60A5FA"/><path d="M14 56 L36 36 L28 28 Z" fill="#F87171"/><path d="M36 28 L46 32 L36 36 L28 32 Z" fill="#FBBF24"/></svg><div class="t"><small>DISPONÍVEL NO</small><b>Google Play</b></div></div>
+  <div id="b2" class="el badge"><svg viewBox="0 0 64 64"><path d="M43 34c0-6 5-9 5-9-3-4-7-5-9-5-4 0-7 2-9 2s-5-2-8-2c-5 0-11 4-11 13 0 9 7 20 11 20 2 0 4-2 7-2s5 2 8 2c4 0 8-7 9-10-3-1-3-5-3-9zM37 16c2-2 3-5 3-8-3 0-6 2-8 4-2 2-3 5-3 7 3 0 6-1 8-3z" fill="#fff"/></svg><div class="t"><small>Descarregar na</small><b>App Store</b></div></div>
+  <div id="b3" class="el badge"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="24" fill="none" stroke="#fff" stroke-width="4"/><ellipse cx="32" cy="32" rx="10" ry="24" fill="none" stroke="#fff" stroke-width="4"/><path d="M8 32 H56 M12 20 H52 M12 44 H52" stroke="#fff" stroke-width="4"/></svg><div class="t"><small>No browser</small><b>app.boraguarda.com</b></div></div>
+  <div id="ctaLogo" class="el"><img src="assets/bora_logo.png" alt=""></div>
+  <div id="ctaSub" class="el">Guarda · entregas, mercados, favores e mais</div>
+</div>
+
+<script>
+// ---------- motor ----------
+const $ = id => document.getElementById(id);
+const E = {
+  lin: p => p,
+  out: p => 1 - Math.pow(1 - p, 3),
+  in: p => p * p * p,
+  io: p => p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2,
+  pop: p => 1 - Math.exp(-7 * p) * Math.cos(2 * Math.PI * 1.1 * p),   // overshoot ~4 %
+  back: p => { const c = 1.3; return 1 + c * Math.pow(p - 1, 3) + (c - 1) * Math.pow(p - 1, 2); }
+};
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, p) => a + (b - a) * p;
+// progresso 0..1 entre t0 e t1 com easing
+const prog = (t, t0, t1, e = 'out') => E[e](clamp((t - t0) / (t1 - t0), 0, 1));
+// keyframes: [{t, x,y,s,o,r,e}] ; props ausentes herdam o anterior
+function kf(el, keys, t) {
+  const def = { x: 0, y: 0, s: 1, o: 1, r: 0, sx: null };
+  const full = []; let cur = { ...def };
+  for (const k of keys) { cur = { ...cur, ...k }; full.push(cur); }
+  let st;
+  if (t <= full[0].t) st = full[0];
+  else if (t >= full[full.length - 1].t) st = full[full.length - 1];
+  else {
+    let i = 1; while (full[i].t < t) i++;
+    const a = full[i - 1], b = full[i]; const p = E[b.e || 'out']((t - a.t) / (b.t - a.t));
+    st = { x: lerp(a.x, b.x, p), y: lerp(a.y, b.y, p), s: lerp(a.s, b.s, p), o: lerp(a.o, b.o, p), r: lerp(a.r, b.r, p) };
+  }
+  apply(el, st);
+}
+function apply(el, st) {
+  const base = el.dataset.base || '';
+  el.style.transform = `${base} translate(${st.x}px, ${st.y}px) scale(${st.s}) rotate(${st.r}deg)`;
+  el.style.opacity = st.o;
+  el.classList.toggle('hidden', st.o <= 0.001);
+}
+const hide = el => apply(el, { x: 0, y: 0, s: 1, o: 0, r: 0 });
+
+// palco responsivo
+const PORT = window.innerHeight > window.innerWidth;
+document.body.classList.add(PORT ? 'port' : 'land');
+const SW = PORT ? 1080 : 1920, SH = PORT ? 1920 : 1080;
+(function fit() { const s = Math.min(window.innerWidth / SW, window.innerHeight / SH); $('stage').style.transform = `scale(${s})`; })();
+// elementos com transform base no CSS (translateX(-50%)) → guardar como base
+for (const id of ['pill', 'ola', 'precisas', 'ctaTitle', 'ctaSub']) $(id).dataset.base = 'translateX(-50%)';
+$('phone').dataset.base = PORT ? 'scale(1.5)' : 'scale(1.25)';
+if (PORT) $('mapCaption').dataset.base = 'translateX(-50%)';
+const map = $('map'); map.setAttribute('width', SW); map.setAttribute('height', SH); map.setAttribute('viewBox', `0 0 ${SW} ${SH}`);
+const rota = $('rota'); const rotaLen = rota.getTotalLength(); $('rotaTrace').setAttribute('stroke-dasharray', rotaLen); $('rotaTrace').setAttribute('stroke-dashoffset', rotaLen);
+
+// ---------- cenas ----------
+function seek(t) {
+  // --- abertura 0–2
+  kf($('logo'), [{ t: 0, s: .6, o: 0 }, { t: .45, s: 1, o: 1, e: 'pop' }, { t: 1.95, s: 1, o: 1 }, { t: 2.15, s: .7, o: 0, e: 'in' }], t);
+  kf($('pill'), [{ t: 1.0, y: 30, o: 0 }, { t: 1.4, y: 0, o: 1 }, { t: 1.95, y: 0, o: 1 }, { t: 2.12, y: -20, o: 0, e: 'in' }], t);
+  kf($('logoSmall'), [{ t: 2.0, x: -40, o: 0 }, { t: 2.4, x: 0, o: 1 }, { t: 9.0, x: 0, o: 1 }, { t: 9.3, x: -40, o: 0, e: 'in' }], t);
+
+  // --- cena app 2–9
+  const capMain = $('capMain'), capSub = $('capSub');
+  if (t < 6) { capMain.textContent = 'Escolhe no app'; capSub.textContent = 'Restaurantes, mercados, farmácias e lojas da Guarda'; }
+  else { capMain.textContent = 'Pedido confirmado'; capSub.textContent = 'A loja já está a preparar o teu pedido'; }
+  kf($('cap'), [{ t: 2.0, x: -60, o: 0 }, { t: 2.5, x: 0, o: 1 }, { t: 5.8, x: 0, o: 1 }, { t: 6.0, x: 0, o: 0, e: 'in' }, { t: 7.0, x: 40, o: 0 }, { t: 7.4, x: 0, o: 1 }, { t: 8.9, x: 0, o: 1 }, { t: 9.1, x: -60, o: 0, e: 'in' }], t);
+  kf($('phone'), [{ t: 2.1, x: PORT ? 0 : 600, y: PORT ? 500 : 0, o: 0, r: PORT ? 0 : 6 }, { t: 2.6, x: 0, y: 0, o: 1, r: 0 }, { t: 8.9, x: 0, o: 1 }, { t: 9.2, x: PORT ? 0 : 200, y: PORT ? 300 : 0, o: 0, e: 'in' }], t);
+  // ecrãs do telemóvel
+  const menuIn = prog(t, 3.5, 3.95, 'out'); $('scrMenu').style.transform = `translateX(${(1 - menuIn) * 376}px)`;
+  const statIn = prog(t, 7.75, 8.1, 'out'); $('scrStatus').style.transform = `translateX(${(1 - statIn) * 376}px)`;
+  // toque no tile Restaurantes (3.0)
+  const tp = t >= 3.0 && t < 3.5 ? prog(t, 3.0, 3.4, 'pop') : 0; $('tapTile').style.transform = `scale(${t >= 3.0 && t < 3.5 ? 0.88 + 0.12 * tp : 1})`;
+  // botão adicionar (5.0) + badge
+  const ap = t >= 5.0 && t < 5.5 ? prog(t, 5.0, 5.4, 'pop') : 0; $('add1').style.transform = `scale(${t >= 5.0 && t < 5.5 ? 0.8 + 0.2 * ap : 1})`;
+  const bp = prog(t, 5.05, 5.5, 'pop'); $('cartBadge').style.transform = `scale(${t < 5.05 ? 0 : bp})`;
+  // dedo
+  const fingerKeys = [
+    { t: 2.7, x: 60, y: 260, o: 0, s: 1.4 }, { t: 2.95, x: 60, y: 260, o: 1, s: 1.0 }, { t: 3.0, s: .8, e: 'in' }, { t: 3.25, s: 1.1, o: 0, e: 'out' },
+    { t: 4.6, x: 350, y: 180, o: 0, s: 1.4 }, { t: 4.9, x: 350, y: 180, o: 1, s: 1.0 }, { t: 5.0, s: .8, e: 'in' }, { t: 5.3, s: 1.1, o: 0, e: 'out' }];
+  kf($('finger'), fingerKeys, t);
+  // estados do pedido (8.0–9.0)
+  $('st2').classList.toggle('on', t >= 8.2); $('st3').classList.toggle('on', t >= 8.6);
+
+  // --- confirmado 6–7.75
+  kf($('confirm'), [{ t: 6.0, s: .6, o: 0 }, { t: 6.45, s: 1, o: 1, e: 'pop' }, { t: 7.6, s: 1, o: 1 }, { t: 7.85, s: .85, o: 0, e: 'in' }], t);
+  const rp = prog(t, 6.05, 6.6, 'io'); $('ckRing').setAttribute('stroke-dashoffset', 276.5 * (1 - rp));
+  const cp = prog(t, 6.45, 6.85, 'out'); $('ckPath').setAttribute('stroke-dashoffset', 62 * (1 - cp));
+  $('confirm2').style.opacity = prog(t, 7.0, 7.3, 'out');
+
+  // --- mapa 9–18.5
+  const mapOn = t >= 9.0 && t < 18.9;
+  if (mapOn) {
+    kf($('mapWrap'), [{ t: 9.0, s: 1.08, o: 0 }, { t: 9.5, s: 1, o: 1 }, { t: 18.5, s: 1, o: 1 }, { t: 18.8, s: 1.04, o: 0, e: 'in' }], t);
+    // mota ao longo da rota
+    const ride = prog(t, 10.0, 16.0, 'io');
+    const L = rotaLen * ride;
+    const P = rota.getPointAtLength(L), P2 = rota.getPointAtLength(Math.min(rotaLen, L + 2)), P1 = rota.getPointAtLength(Math.max(0, L - 2));
+    let ang = Math.atan2(P2.y - P1.y, P2.x - P1.x) * 180 / Math.PI;
+    const lean = t > 10 && t < 16 ? Math.sin((t - 10) * 1.5) * 1.2 : 0;
+    const brake = t >= 16.0 && t < 16.5 ? -6 * Math.exp(-(t - 16) * 9) : 0;
+    $('motaG').setAttribute('transform', `translate(${P.x} ${P.y - 10}) rotate(${ang + lean + brake}) scale(1.0)`);
+    const spin = L * 2; $('spR').setAttribute('transform', `rotate(${spin})`); $('spF').setAttribute('transform', `rotate(${spin})`);
+    $('rotaTrace').setAttribute('stroke-dashoffset', rotaLen * (1 - ride));
+    // pinos
+    const pl = prog(t, 9.5, 9.9, 'pop'); $('pinLoja').setAttribute('transform', `translate(300 690) scale(${pl})`);
+    const pc = prog(t, 16.0, 16.4, 'pop'); const pcs = t < 15.6 ? 0.0001 : (t < 16.0 ? 1 : 1 + 0.18 * (1 - pc)); $('pinCasa').setAttribute('transform', `translate(1700 660) scale(${t < 15.6 ? 0.0001 : pcs})`);
+    // câmara: zoom 1.0→1.35 no arranque; segue a mota
+    const z = PORT ? lerp(1.35, 1.55, prog(t, 9.0, 10.5, 'io')) : lerp(1.0, 1.35, prog(t, 9.0, 10.5, 'io'));
+    const introF = prog(t, 9.0, 10.3, 'io');
+    const startF = PORT ? { x: 960, y: 540 } : { x: 960, y: 540 };
+    const fx = lerp(startF.x, P.x, introF), fy = lerp(startF.y, P.y, introF);
+    const cx = SW / 2, cy = PORT ? SH / 2 + 60 : SH / 2 + 40;
+    $('cam').setAttribute('transform', `translate(${cx} ${cy}) scale(${z}) translate(${-fx} ${-fy})`);
+    // ETA (posição em px do palco = projeção da mota)
+    const sx = cx + (P.x - fx) * z, sy = cy + (P.y - 10 - fy) * z;
+    const eta = $('eta'); eta.style.left = (sx - 110) + 'px'; eta.style.top = (sy - 150) + 'px';
+    $('etaN').textContent = t < 15.0 ? '4 min' : (t < 16.0 ? '1 min' : 'Chegou!'); $('etaS').textContent = t < 16.0 ? ' · a caminho' : '';
+    kf(eta, [{ t: 14.0, y: 20, o: 0, s: .8 }, { t: 14.4, y: 0, o: 1, s: 1, e: 'pop' }, { t: 15.95, o: 1 }, { t: 16.15, o: 0, y: -10, e: 'in' }], t);
+    // caption
+    const mc = $('mapCapText');
+    mc.textContent = t < 13.0 ? 'O estafeta sai da loja' : (t < 17.25 ? '…e atravessa a Guarda' : 'Entregue à porta');
+    kf($('mapCaption'), [{ t: 10.0, y: 30, o: 0 }, { t: 10.4, y: 0, o: 1 }, { t: 12.8, o: 1 }, { t: 13.0, o: 0, y: -20, e: 'in' }, { t: 13.01, y: 30, o: 0 }, { t: 13.4, y: 0, o: 1 }, { t: 17.05, o: 1 }, { t: 17.25, o: 0, y: -20, e: 'in' }, { t: 17.26, y: 30, o: 0 }, { t: 17.65, y: 0, o: 1 }, { t: 18.5, o: 1 }], t);
+    // notificação
+    kf($('notif'), [{ t: 16.5, y: -140, o: 0 }, { t: 16.95, y: 0, o: 1, e: 'pop' }, { t: 18.4, o: 1 }, { t: 18.7, y: -60, o: 0, e: 'in' }], t);
+    
+  } else { hide($('mapWrap')); }
+
+  // --- frase + código 18.5–22
+  kf($('phrase'), [{ t: 18.5, o: 0 }, { t: 18.7, o: 1 }, { t: 22.0, o: 1 }, { t: 22.25, o: 0, e: 'in' }], t);
+  kf($('ola'), [{ t: 18.75, s: .7, o: 0 }, { t: 19.2, s: 1, o: 1, e: 'pop' }, { t: 21.9, o: 1 }, { t: 22.1, o: 0, y: -30, e: 'in' }], t);
+  kf($('precisas'), [{ t: 19.5, y: 40, o: 0 }, { t: 19.95, y: 0, o: 1 }, { t: 21.9, o: 1 }, { t: 22.1, o: 0, y: -30, e: 'in' }], t);
+  kf($('code'), [{ t: 20.5, s: .7, o: 0, r: -3 }, { t: 20.95, s: 1, o: 1, r: 0, e: 'pop' }, { t: 21.9, o: 1 }, { t: 22.1, o: 0, y: 30, e: 'in' }], t);
+
+  // --- CTA 22–25
+  kf($('cta'), [{ t: 22.0, o: 0 }, { t: 22.2, o: 1 }], t);
+  kf($('ctaTitle'), [{ t: 22.0, s: .8, o: 0 }, { t: 22.45, s: 1, o: 1, e: 'pop' }], t);
+  kf($('b1'), [{ t: 22.5, s: .6, o: 0 }, { t: 22.9, s: 1, o: 1, e: 'pop' }], t);
+  kf($('b2'), [{ t: 22.75, s: .6, o: 0 }, { t: 23.15, s: 1, o: 1, e: 'pop' }], t);
+  kf($('b3'), [{ t: 23.0, s: .6, o: 0 }, { t: 23.4, s: 1, o: 1, e: 'pop' }], t);
+  kf($('ctaLogo'), [{ t: 23.5, y: 30, o: 0 }, { t: 23.9, y: 0, o: 1 }], t);
+  kf($('ctaSub'), [{ t: 23.8, o: 0 }, { t: 24.2, o: 1 }], t);
+}
+window.seek = seek;
+
+// pré-carregar fontes e imagens
+Promise.all([document.fonts.load('900 1em Inter'), document.fonts.load('400 1em Inter'), ...[...document.images].map(i => i.decode().catch(() => { }))])
+  .then(() => { seek(0); window.__ready = true; });
+</script>
+</body>
+</html>

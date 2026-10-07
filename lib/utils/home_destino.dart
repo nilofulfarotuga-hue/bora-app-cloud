@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../l10n/tr.dart';
 import '../models/restaurant_model.dart';
+import '../screens/client/assistant/assistant_chat_screen.dart';
 import '../screens/client/cleaning/cleaning_bookings_screen.dart';
 import '../screens/client/services/services_category_screen.dart';
 import '../screens/client/tvde/tvde_entrada_screen.dart';
@@ -41,6 +42,11 @@ Future<RestaurantModel?> _lojaPorId(BuildContext context, String id) async {
   await store.loadRestaurantsFromSupabase();
   return achar();
 }
+
+/// Loja pelo id, com a lista carregada se preciso (o Bora Assistente usa
+/// isto para encher o carrinho de uma proposta).
+Future<RestaurantModel?> lojaPorId(BuildContext context, String id) =>
+    _lojaPorId(context, id);
 
 /// Abre uma loja pelo mesmo caminho das listas (layout da categoria
 /// principal, loja fechada visitável, "Em breve" com selo).
@@ -140,6 +146,11 @@ Widget? _ecraCategoria(String chave) {
     case 'tvde':
       // Passa pela porta: sem acesso mostra a categoria por descobrir.
       return const TvdeEntradaScreen();
+    case 'assistente':
+      // Bora Assistente (07/10): a faixa da home vem com
+      // tipo_destino='categoria' (o CHECK de home_banners não aceita
+      // 'assistente' como tipo) e destino='assistente'.
+      return const AssistantChatScreen();
   }
   return null;
 }
@@ -175,6 +186,17 @@ Future<void> abrirDestino(
         context,
         MaterialPageRoute(
           builder: (_) => ClientPromoCodeScreen(initialCode: d),
+        ),
+      );
+    case 'assistente':
+      // Bora Assistente (07/10): o destino leva a primeira mensagem
+      // ("lista" abre o chat vazio).
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AssistantChatScreen(
+            mensagemInicial: d == 'lista' ? null : d,
+          ),
         ),
       );
   }

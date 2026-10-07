@@ -36,16 +36,20 @@ class _CleaningChatScreenState extends State<CleaningChatScreen> {
   final _controller = TextEditingController();
   final _scroll = ScrollController();
   bool _sending = false;
+  // Guardado no initState: ler o Provider dentro do dispose rebenta quando o
+  // ecrã sai da árvore (mesmo defeito corrigido no botão a 03/10).
+  late final CleaningChatStore _chatStore;
 
   @override
   void initState() {
     super.initState();
-    context.read<CleaningChatStore>().listen(widget.bookingId);
+    _chatStore = context.read<CleaningChatStore>();
+    _chatStore.listen(widget.bookingId);
   }
 
   @override
   void dispose() {
-    context.read<CleaningChatStore>().unlisten(widget.bookingId);
+    _chatStore.unlisten(widget.bookingId);
     _controller.dispose();
     _scroll.dispose();
     super.dispose();

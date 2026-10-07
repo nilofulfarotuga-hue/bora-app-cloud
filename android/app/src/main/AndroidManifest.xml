@@ -47,6 +47,8 @@
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING"/>
 <!-- Camera: profile photo, sendPackage photo, carryGroceries photo (BR §7.5/§7.6), partner product photo -->
 <uses-permission android:name="android.permission.CAMERA"/>
+<!-- Bora Assistente (07/10/2026): ditado por voz no chat de compras (speech_to_text). -->
+<uses-permission android:name="android.permission.RECORD_AUDIO"/>
 <!-- Gallery access for partner product photo: Android 13+ usa o Android Photo Picker
      (image_picker ^1.1.2 — sem permissão). READ_MEDIA_IMAGES removido para cumprir a
      Google Play "Photo and Video Permissions policy" (usar seletor de sistema).
@@ -178,6 +180,10 @@
 
          In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
     <queries>
+        <!-- Bora Assistente: Android 11+ so ve o motor de reconhecimento de voz com esta query. -->
+        <intent>
+            <action android:name="android.speech.RecognitionService"/>
+        </intent>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>

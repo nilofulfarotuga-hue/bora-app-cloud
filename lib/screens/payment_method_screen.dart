@@ -22,6 +22,7 @@ import '../services/limite_dinheiro_service.dart';
 import '../services/payment_service.dart';
 import '../utils/hora_lisboa.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
+import '../widgets/bora/maior_18.dart';
 import '../widgets/card_mandate_notice.dart';
 import '../widgets/checkout_legal_notice.dart';
 import '../widgets/customer_note_field.dart';
@@ -401,6 +402,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                // Missão maiores-18: o cliente vê outra vez, antes de pagar,
+                // que vai ter de mostrar documento ao estafeta.
+                if (cartStore.hasAgeRestricted)
+                  const Maior18Aviso(margin: EdgeInsets.only(bottom: 12)),
                 Container(
                   decoration: BoxDecoration(
                     color: AppColors.card,

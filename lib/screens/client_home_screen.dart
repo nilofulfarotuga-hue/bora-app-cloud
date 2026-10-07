@@ -21,8 +21,9 @@ import '../stores/restaurant_store.dart';
 import '../stores/session_store.dart';
 import '../stores/tvde_store.dart';
 import '../widgets/address_autocomplete_field.dart';
+import '../widgets/web_push_card.dart';
 import '../widgets/bora/bora.dart';
-import '../widgets/bora_support_fab.dart';
+import '../widgets/bora_assistant_fab.dart';
 import '../widgets/home/home_feed.dart';
 import '../widgets/language_toggle.dart';
 import '../widgets/notification_bell.dart';
@@ -348,7 +349,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      floatingActionButton: const BoraSupportFab(),
+      floatingActionButton: const BoraClientFabs(),
       body: Column(
         children: [
           BoraAppBar(
@@ -380,6 +381,9 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // [Web 07/10/2026] Só no navegador e só até a permissão
+                  // estar dada: regista o token em client_push_tokens.
+                  const WebPushCard(role: 'client'),
                   BoraAddressBar(
                     label: 'Entrega em'.tr,
                     address: addressLine,

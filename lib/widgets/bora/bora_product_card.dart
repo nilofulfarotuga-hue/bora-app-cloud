@@ -6,6 +6,7 @@ import '../../config/app_colors.dart';
 import '../../models/partner_product.dart';
 import '../../stores/cart_store.dart';
 import 'coming_soon.dart';
+import 'maior_18.dart';
 import 'weight_price_text.dart';
 
 import '../../l10n/tr.dart';
@@ -105,6 +106,14 @@ class BoraProductCard extends StatelessWidget {
                           ],
                         ],
                       ),
+                    ),
+                  // Missão maiores-18: etiqueta "+18" no canto inferior
+                  // esquerdo da foto (o coração vive em cima à direita).
+                  if (product.ageRestricted)
+                    const Positioned(
+                      bottom: 8,
+                      left: 8,
+                      child: Maior18Badge(),
                     ),
                   if (onFavoriteToggle != null)
                     Positioned(

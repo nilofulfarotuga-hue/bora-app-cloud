@@ -11,6 +11,7 @@ import '../../stores/cart_store.dart';
 import '../../stores/restaurant_store.dart';
 import '../../utils/cart_feedback.dart';
 import '../bora/coming_soon.dart';
+import '../bora/maior_18.dart';
 import '../bora/weight_price_text.dart';
 
 import '../../l10n/tr.dart';
@@ -64,6 +65,7 @@ class MarketProductCard extends StatelessWidget {
           price: PricingService.applyMarkup(product.price, isPartnerStore),
           basePrice: product.price,
           quantity: 1,
+          ageRestricted: product.ageRestricted,
         ));
     showAddedToCartSnack(context, '{0} no carrinho'.trArgs([product.name]));
   }
@@ -177,6 +179,13 @@ class _ProductImage extends StatelessWidget {
                     fontWeight: FontWeight.bold),
               ),
             ),
+          ),
+        // Missão maiores-18: etiqueta "+18" no canto da foto.
+        if (product.ageRestricted)
+          const Positioned(
+            bottom: 6,
+            left: 6,
+            child: Maior18Badge(),
           ),
       ],
     );

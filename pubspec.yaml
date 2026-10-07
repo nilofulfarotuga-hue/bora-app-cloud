@@ -97,6 +97,8 @@ dependencies:
   local_auth: ^2.3.0
   flutter_secure_storage: ^9.2.2
   table_calendar: ^3.2.0
+  # Bora Assistente (07/10/2026) — ditado por voz no chat do cliente (pt_PT).
+  speech_to_text: 7.4.0
 
 
 

@@ -44,18 +44,28 @@ class DriverLocationPingService {
   /// Best-effort ping. Safe to call on every GPS tick — internally throttled.
   /// Set [isOnline] to false on logout / go-offline so the driver disappears
   /// from the live map within ~5min freshness window.
+  ///
+  /// [Rastreio em tempo real · 07/10] [intervaloMinimo] deixa o ecrã da
+  /// corrida/entrega pedir uma cadência mais curta do que os 14 s (é o que o
+  /// cliente vê a mexer no mapa; vem de `tvde_ride_gps_interval_seconds`).
+  /// Nunca mais curta do que 1 s. Quem não passa nada fica com os 14 s.
   Future<void> ping({
     required double latitude,
     required double longitude,
     double? heading,
     double? speedKmh,
     bool isOnline = true,
+    Duration? intervaloMinimo,
   }) async {
     if (!isOnline) return; // no ping when offline — goOffline() handles final update
     if (_inFlight) return;
     final now = DateTime.now();
-    if (_lastPing != null &&
-        now.difference(_lastPing!).inSeconds < minIntervalSeconds) {
+    final minimo = intervaloMinimo == null
+        ? const Duration(seconds: minIntervalSeconds)
+        : (intervaloMinimo < const Duration(seconds: 1)
+            ? const Duration(seconds: 1)
+            : intervaloMinimo);
+    if (_lastPing != null && now.difference(_lastPing!) < minimo) {
       return;
     }
     _inFlight = true;

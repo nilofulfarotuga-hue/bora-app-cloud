@@ -24,7 +24,12 @@ import '../config/app_colors.dart';
 import '../config/business_rules.dart' show BRBags, BRBusiness, BRDriver;
 import '../models/cart_item.dart';
 import '../models/order_model.dart';
+import '../services/client_live_location_service.dart';
 import '../services/directions_service.dart';
+import '../services/driver_live_feed.dart' show RastreioSettings;
+import '../services/driver_location_ping_service.dart';
+import '../utils/marcador_animado.dart';
+import '../utils/rastreio_interpolacao.dart' show InterpoladorDePosicao;
 import '../services/localizacao_online.dart'
     show podeLigarServicoDeLocalizacao, gpsLigadoSemServicoPorEstarEmFundo;
 import '../services/navigation_service.dart';
@@ -42,6 +47,9 @@ import '../widgets/address_text.dart';
 import '../widgets/driver_chat_fab.dart';
 import '../widgets/driver_item_options.dart';
 import 'driver_order_action_helper.dart';
+import '../widgets/bora/maior_18.dart';
+import '../widgets/verificacao_idade_sheet.dart';
+import '../l10n/tr.dart';
 import '../widgets/errand_execution_sheet_compat.dart';
 
 // BUG 29: Google sobrepunha o nome da rua mais próxima (ex: "Alexandre
@@ -116,6 +124,22 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
   ll.LatLng? _smoothedPosition;
   Timer? _interpolationTimer;
 
+  // ── [Rastreio em tempo real · 07/10] posição para o servidor em entrega ──
+  // A cada `tvde_ride_gps_interval_seconds` (5 s) a posição (com heading e
+  // velocidade) sobe a `driver_locations` — é o que o cliente vê a mexer no
+  // rastreio. Antes só subia pelo batimento (30 s) e sem heading: o estafeta
+  // saltava de 30 em 30 s no mapa do cliente. Parado, o relógio reenvia a
+  // última leitura. Nada disto muda o despacho (só torna a posição mais
+  // fresca).
+  Position? _ultimaPosicaoLida;
+  DateTime? _ultimoEnvioAoServidor;
+  Timer? _feedTicker;
+
+  // ── [Pontinho azul · 07/10] o cliente a mexer-se enquanto o estafeta chega
+  ClientLiveLocationFeed? _clienteFeed;
+  final Map<String, MarcadorAnimado> _pontosCliente = {};
+  BitmapDescriptor? _pontoAzulIcon;
+
   // ── Driver-arrow marker (Uber-style bearing rotation) ─────────────────────
   double _bearing = 0.0;
   BitmapDescriptor? _driverArrowIcon;
@@ -182,6 +206,106 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     });
     _startLocationTracking();
     _loadDriverArrowIcon();
+    unawaited(RastreioSettings.carregar());
+    _ligarPontoDoCliente();
+    _feedTicker = Timer.periodic(const Duration(seconds: 2), (_) {
+      if (!mounted) return;
+      final p = _ultimaPosicaoLida;
+      if (p != null) _alimentarServidor(p);
+      var mudou = false;
+      _pontosCliente.removeWhere((_, m) {
+        final fora = m.expirado(ClientLiveLocationFeed.validade);
+        if (fora) {
+          m.dispose();
+          mudou = true;
+        }
+        return fora;
+      });
+      if (mudou) setState(() {});
+    });
+  }
+
+  /// [Rastreio em tempo real · 07/10] Uma posição a cada
+  /// `tvde_ride_gps_interval_seconds` para `driver_locations`, com heading e
+  /// velocidade (o `updateDriverLocation` do store continua a tratar de
+  /// `drivers`/`orders.driver_lat` com o travão dele).
+  void _alimentarServidor(Position p) {
+    if (!mounted) return;
+    _ultimaPosicaoLida = p;
+    final agora = DateTime.now();
+    final intervalo =
+        Duration(seconds: RastreioSettings.rideGpsIntervalSeconds.clamp(1, 60));
+    final ultimo = _ultimoEnvioAoServidor;
+    if (ultimo != null && agora.difference(ultimo) < intervalo) return;
+    _ultimoEnvioAoServidor = agora;
+    unawaited(DriverLocationPingService.instance.ping(
+      latitude: p.latitude,
+      longitude: p.longitude,
+      heading: p.heading.isFinite ? p.heading : null,
+      speedKmh: p.speed.isFinite ? p.speed * 3.6 : null,
+      isOnline: true,
+      intervaloMinimo: intervalo,
+    ));
+  }
+
+  /// [Pontinho azul · 07/10] Ouve a posição dos clientes dos MEUS pedidos
+  /// (filtro `driver_user_id = eu`); um ponto por pedido (há entregas em
+  /// lote).
+  void _ligarPontoDoCliente() {
+    if (_clienteFeed != null) return;
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (uid == null) return;
+    unawaited(_loadPontoAzulIcon());
+    _clienteFeed = ClientLiveLocationFeed(
+      driverUserId: uid,
+      onAmostra: (a, rideId, orderId) {
+        if (!mounted || orderId == null) return; // corridas TVDE têm o seu ecrã
+        final m = _pontosCliente.putIfAbsent(
+          orderId,
+          () => MarcadorAnimado(
+            interpolador: InterpoladorDePosicao(msPorPasso: 120),
+            onFrame: () {
+              if (mounted) setState(() {});
+            },
+          ),
+        );
+        m.aceitar(a,
+            intervaloEsperadoMs:
+                RastreioSettings.clientLiveLocationIntervalSeconds * 1000);
+      },
+      onApagado: () {
+        if (!mounted) return;
+        // O DELETE não diz de que pedido é (só chega a linha inteira com
+        // REPLICA IDENTITY FULL): limpa-se tudo e, se outro cliente continuar
+        // a partilhar, o ponto dele volta na amostra seguinte (≤ 4 s).
+        for (final m in _pontosCliente.values) {
+          m.dispose();
+        }
+        _pontosCliente.clear();
+        setState(() {});
+      },
+    )..iniciar();
+  }
+
+  Future<void> _loadPontoAzulIcon() async {
+    if (kIsWeb) return;
+    try {
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      const size = 44.0;
+      canvas.drawCircle(const Offset(size / 2, size / 2), size / 2,
+          Paint()..color = AppColors.info.withValues(alpha: 0.25));
+      canvas.drawCircle(const Offset(size / 2, size / 2), 11,
+          Paint()..color = Colors.white);
+      canvas.drawCircle(const Offset(size / 2, size / 2), 8,
+          Paint()..color = AppColors.info);
+      final img =
+          await recorder.endRecording().toImage(size.toInt(), size.toInt());
+      final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
+      if (!mounted || bytes == null) return;
+      setState(
+          () => _pontoAzulIcon = BitmapDescriptor.bytes(bytes.buffer.asUint8List()));
+    } catch (_) {/* fica o pino azul de recurso */}
   }
 
   /// [GPS em fundo · 07/10] O GPS da entrega nasceu sem serviço em primeiro
@@ -230,6 +354,14 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
   @override
   void dispose() {
     _ciclo?.dispose();
+    _feedTicker?.cancel();
+    for (final m in _pontosCliente.values) {
+      m.dispose();
+    }
+    _pontosCliente.clear();
+    final feed = _clienteFeed;
+    _clienteFeed = null;
+    if (feed != null) unawaited(feed.parar());
     _debounceTimer?.cancel();
     _interpolationTimer?.cancel();
     _followResumeTimer?.cancel();
@@ -439,6 +571,9 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       // the smoothed overlay only affects the marker and camera.
       final driverStore = context.read<DriverStore>();
       driverStore.updateDriverLocation(driverStore.currentDriverId, newLoc);
+      // [Rastreio em tempo real · 07/10] e para `driver_locations`, com
+      // heading, à cadência da corrida (o cliente vê isto).
+      _alimentarServidor(position);
 
       // 2B: trim polyline segments already passed by the driver.
       _trimPassedRoutePoints(newLoc);
@@ -763,6 +898,24 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
         ),
       );
     }
+
+    // [Pontinho azul · 07/10] Cliente(s) a partilhar onde estão.
+    _pontosCliente.forEach((orderId, m) {
+      final p = m.posicao;
+      if (p == null) return;
+      markers.add(Marker(
+        markerId: MarkerId('cliente_$orderId'),
+        position: ll.LatLng(p.latitude, p.longitude).toGMaps(),
+        icon: _pontoAzulIcon ??
+            BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+        anchor: _pontoAzulIcon != null
+            ? const Offset(0.5, 0.5)
+            : const Offset(0.5, 1),
+        flat: true,
+        zIndexInt: 3,
+        infoWindow: const InfoWindow(title: 'Cliente'),
+      ));
+    });
 
     // BUG 7 (Fase 6 / 2026-04-30): mostrar TODOS os stops simultaneamente.
     // Antes: só o NEXT stop tinha marker → estafeta não via partner pin
@@ -1456,6 +1609,16 @@ class _BottomPanelState extends State<_BottomPanel> {
               // [ronda 04/10 · #7] "Deixar à porta" / foto obrigatória:
               // a foto vem ANTES do código e do fecho.
               if (willFinish) {
+                // Missão maiores-18 (07/10): o documento do cliente vem
+                // antes da foto e do PIN. Recusa → volta à lista.
+                final idade =
+                    await VerificacaoIdade.garantir(context, order);
+                if (!mounted) return;
+                if (idade == VerificacaoIdadeDecisao.recusado) {
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                  return;
+                }
+                if (idade != VerificacaoIdadeDecisao.seguir) return;
                 setState(() => _isLoading = true);
                 final podeSeguir =
                     await ProvaDeEntrega.garantirFoto(context, order);
@@ -1908,6 +2071,35 @@ class _BottomPanelState extends State<_BottomPanel> {
                       ),
                     );
                   },
+                ),
+              ],
+
+              // Missão maiores-18 (07/10): o detalhe do pedido avisa que vai
+              // ser pedido documento ao cliente.
+              if (focusOrder != null &&
+                  focusOrder.hasAgeRestricted &&
+                  focusOrder.status != OrderStatus.delivered &&
+                  focusOrder.status != OrderStatus.cancelled) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.amber.shade300),
+                  ),
+                  child: Row(children: [
+                const Maior18Badge(),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Pede documento de identificação na entrega.'.tr,
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ]),
                 ),
               ],
 

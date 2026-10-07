@@ -52,7 +52,8 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
 
   /// Som CONTÍNUO da oferta (padrão Uber/estafeta) — mesmo `SoundService` +
   /// `bora_alert.wav` que o fluxo de entrega usa em `playLoop`. Instância
-  /// própria (AudioPlayer isolado, ver doc do SoundService).
+  /// própria (AudioPlayer isolado nos telemóveis; na web é o leitor
+  /// partilhado, desbloqueado no primeiro toque — ver doc do SoundService).
   final SoundService? _sound =
       TvdeOfferScreen.debugSemPlataforma ? null : SoundService();
 

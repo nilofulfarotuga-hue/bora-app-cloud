@@ -15,6 +15,7 @@ import '../stores/cart_store.dart';
 import '../stores/order_store.dart';
 import '../stores/restaurant_store.dart';
 import '../widgets/bora/bora.dart';
+import '../widgets/bora/maior_18.dart';
 import '../widgets/takeaway/curbside_inputs.dart';
 import '../widgets/tip_selector.dart';
 import '../widgets/valor_com_risco.dart';
@@ -58,10 +59,17 @@ class CartScreen extends StatelessWidget {
                       Spacing.lg,
                       Spacing.lg,
                     ),
-                    itemCount: cartStore.items.length,
+                    // Missão maiores-18: aviso persistente no topo da lista
+                    // quando há tabaco/álcool — o estafeta pede documento.
+                    itemCount: cartStore.items.length +
+                        (cartStore.hasAgeRestricted ? 1 : 0),
                     separatorBuilder: (_, __) =>
                         const SizedBox(height: Spacing.sm),
                     itemBuilder: (context, index) {
+                      if (cartStore.hasAgeRestricted) {
+                        if (index == 0) return const Maior18Aviso();
+                        index -= 1;
+                      }
                       final item = cartStore.items[index];
                       return _CartItemTile(
                         // Ao peso: "Abóbora Cabotiá — 500 g (meio quilo)".

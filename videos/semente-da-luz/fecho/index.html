@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>A Semente da Luz — genérico de fecho</title>
+<style>
+@font-face { font-family:'Inter'; src:url('../assets/Inter-VariableFont.ttf') format('truetype'); font-weight:100 900; }
+html,body { margin:0; background:#000; overflow:hidden; font-family:'Inter',sans-serif; }
+#stage { position:absolute; left:0; top:0; width:1920px; height:1080px; background:#12121C; transform-origin:0 0; overflow:hidden; color:#fff; }
+body.port #stage { width:1080px; height:1920px; }
+.el { position:absolute; left:0; top:0; will-change:transform,opacity; }
+.hidden { visibility:hidden; }
+#top { left:50%; top:70px; transform:translateX(-50%); font-size:44px; font-weight:900; letter-spacing:.14em; color:#FFD54F; white-space:nowrap; }
+#roll { left:50%; top:1080px; width:1400px; margin-left:-700px; text-align:center; }
+body.port #roll { top:1920px; width:960px; margin-left:-480px; }
+.sec { margin-bottom:90px; }
+.sec h3 { font-size:30px; font-weight:600; letter-spacing:.3em; color:#8FB6D9; margin:0 0 22px; }
+.sec p { font-size:44px; font-weight:700; margin:0; line-height:1.5; color:#F2E4C6; }
+.sec p.s { font-size:30px; font-weight:500; color:#B9C3D1; line-height:1.5; }
+#kids { display:flex; justify-content:center; gap:40px; align-items:flex-end; margin-bottom:60px; }
+#kids img { height:420px; }
+body.port #kids img { height:300px; }
+body.port #kids { gap:16px; }
+#kids div { text-align:center; font-size:30px; font-weight:800; color:#FFD54F; margin-top:14px; }
+#end { left:50%; top:50%; transform:translate(-50%,-50%); text-align:center; }
+#end b { display:block; font-size:110px; font-weight:800; color:#FF8C00; letter-spacing:.02em; }
+#end span { display:block; font-size:34px; font-weight:600; color:#F2E4C6; margin-top:30px; letter-spacing:.2em; }
+body.port #end b { font-size:84px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="top" class="el">A SEMENTE DA LUZ</div>
+  <div id="roll" class="el">
+    <div class="sec"><h3>EPISÓDIO 1</h3><p>A Semente da Luz</p><p class="s">Roteiro v7 · 6 blocos</p></div>
+    <div class="sec"><h3>AS CRIANÇAS</h3>
+      <div id="kids">
+        <div><img src="../assets/antony_frente.png" alt=""><div>Antony</div></div>
+        <div><img src="../assets/tabita_frente.png" alt=""><div>Tabita</div></div>
+        <div><img src="../assets/tailine_frente.png" alt=""><div>Tailine</div></div>
+        <div><img src="../assets/gustavo_frente.png" alt=""><div>Gustavo</div></div>
+      </div>
+      <p class="s">e o Vento, o cão</p></div>
+    <div class="sec"><h3>COM</h3><p>Avó Mônica · Sônia, a professora · Mateus · Laura · Luara<br>Kaká · Rafinha · Alan · Daniela · Danilo</p></div>
+    <div class="sec"><h3>CANÇÕES ORIGINAIS</h3><p>Tema de abertura</p><p class="s">"Alguém me responde" · "Um dia vão ver"</p></div>
+    <div class="sec"><h3>REFERÊNCIAS DE TIMBRE</h3><p class="s">Referências de timbre infantil: Samrómur Children (Language and Voice Lab, Reykjavík University), licenciado sob CC BY 4.0.<br><br>Referências de timbre adulto: CREMA-D (Cao, Cooper, Keutmann, Gur, Nenkova &amp; Verma), licenciado sob Open Database License (ODbL) v1.0.</p></div>
+    <div class="sec"><h3>PRODUÇÃO</h3><p>Bora Studio · Guarda, Portugal</p><p class="s">2026</p></div>
+  </div>
+  <div id="end" class="el"><b>BORA STUDIO</b><span>OBRIGADO POR VER</span></div>
+</div>
+<script src="../_engine.js"></script>
+<script>
+fitStage();
+$('top').dataset.base = 'translateX(-50%)'; $('end').dataset.base = 'translate(-50%,-50%)';
+const rollH = () => $('roll').offsetHeight;
+function seek(t) {
+  kf($('top'), [{ t: 0, o: 0 }, { t: .6, o: 1 }, { t: 2.2, o: 1 }, { t: 2.8, o: 0 }], t);
+  // rolo: sobe de SH até -altura entre 0.3 e 12.0 (linear = créditos clássicos)
+  const p = prog(t, 0.3, 12.0, 'lin');
+  const y = -p * (rollH() + SH);
+  apply($('roll'), { x: 0, y: y, s: 1, o: t < 12.2 ? 1 : 0, r: 0 });
+  kf($('end'), [{ t: 12.0, s: .9, o: 0 }, { t: 12.6, s: 1, o: 1, e: 'soft' }, { t: 15, s: 1.02, o: 1, e: 'lin' }], t);
+}
+window.seek = seek; ready();
+</script>
+</body>
+</html>

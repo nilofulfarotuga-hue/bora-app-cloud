@@ -228,6 +228,13 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
       // porquê. São segundos de ecrã — não são dinheiro.
       'tvde_driver_stale_seconds',
       'tvde_driver_lost_seconds',
+      // [Rastreio em tempo real · 07/10] Cadência da posição do motorista
+      // para o servidor em corrida/entrega (o que o cliente vê a mexer) e o
+      // "pontinho azul" do cliente (interruptor + cadência). São segundos
+      // de ecrã e um interruptor — não são dinheiro.
+      'tvde_ride_gps_interval_seconds',
+      'client_live_location_enabled',
+      'client_live_location_interval_seconds',
     };
     if (tvdeNavOperational.contains(key)) return true;
     // SOBREPOSIÇÃO DE CORRIDAS (14/09 → 20/09) — o interruptor e os limites
@@ -300,8 +307,10 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
     // `app_update` (número de build mais recente / mínimo suportado, Android e
     // iPhone, e a frase do aviso) são OPERACIONAIS: dizem QUE VERSÃO avisar
     // ou bloquear, nunca um valor cobrado ou pago. O Danilo tem de as poder
-    // pôr à mão — a `app_latest_version_code_ios` não é escrita pelo CI
-    // (um build iOS enviado ainda não está na loja).
+    // pôr à mão — a `app_latest_version_code_ios` passou a ser escrita pelo
+    // CI a 07/10/2026 (build_ios.yml, logo a seguir ao envio), mas um build
+    // iOS enviado ainda não está na loja até a Apple aprovar; por isso tem de
+    // continuar editável aqui (pôr a 0 ou ao número anterior se incomodar).
     if (key.startsWith('app_latest_version_code') ||
         key.startsWith('app_min_supported_version_code') ||
         key == 'app_update_notes_pt') {

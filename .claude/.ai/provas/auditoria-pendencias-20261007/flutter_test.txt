@@ -1,0 +1,95 @@
+00:00 +0: loading C:/BoraLocal/projetosflutter/bora_app/test/cleaning_chat_dispose_test.dart
+00:00 +0: C:/BoraLocal/projetosflutter/bora_app/test/sound_service_desbloqueio_web_test.dart: DesbloqueioAudioWeb só o primeiro pointer-down desbloqueia; o resto é ignorado
+00:00 +1: C:/BoraLocal/projetosflutter/bora_app/test/sound_service_desbloqueio_web_test.dart: DesbloqueioAudioWeb um erro no toque silencioso não impede a porta de ficar fechada
+DesbloqueioAudioWeb: toque silencioso falhou => Bad state: x
+00:00 +2: C:/BoraLocal/projetosflutter/bora_app/test/sound_service_desbloqueio_web_test.dart: fora da web o desbloqueio global não se instala (idempotente)
+00:00 +3: C:/BoraLocal/projetosflutter/bora_app/test/cleaning_chat_dispose_test.dart: sair da árvore junto com o Provider não rebenta e larga o chat
+00:00 +4: C:/BoraLocal/projetosflutter/bora_app/test/cleaning_chat_dispose_test.dart: sair da árvore junto com o Provider não rebenta e larga o chat
+00:00 +5: C:/BoraLocal/projetosflutter/bora_app/test/cleaning_chat_dispose_test.dart: sair da árvore junto com o Provider não rebenta e larga o chat
+00:00 +6: C:/BoraLocal/projetosflutter/bora_app/test/cleaning_chat_dispose_test.dart: sair da árvore junto com o Provider não rebenta e larga o chat
+00:01 +7: C:/BoraLocal/projetosflutter/bora_app/test/cleaning_chat_dispose_test.dart: sair da árvore junto com o Provider não rebenta e larga o chat
+00:01 +8: C:/BoraLocal/projetosflutter/bora_app/test/cleaning_chat_dispose_test.dart: sair da árvore junto com o Provider não rebenta e larga o chat
+00:01 +9: C:/BoraLocal/projetosflutter/bora_app/test/cleaning_chat_dispose_test.dart: sair da árvore junto com o Provider não rebenta e larga o chat
+00:01 +10: C:/BoraLocal/projetosflutter/bora_app/test/l10n_cobertura_test.dart: dicionário PT→EN toda a chave pedida por .tr existe no dicionário inglês
+00:01 +11: C:/BoraLocal/projetosflutter/bora_app/test/l10n_cobertura_test.dart: dicionário PT→EN toda a chave pedida por .tr existe no dicionário inglês
+00:01 +12: C:/BoraLocal/projetosflutter/bora_app/test/l10n_cobertura_test.dart: dicionário PT→EN toda a chave pedida por .tr existe no dicionário inglês
+00:01 +13: C:/BoraLocal/projetosflutter/bora_app/test/l10n_cobertura_test.dart: dicionário PT→EN toda a chave pedida por .tr existe no dicionário inglês
+00:01 +14: C:/BoraLocal/projetosflutter/bora_app/test/l10n_cobertura_test.dart: dicionário PT→EN toda a chave pedida por .tr existe no dicionário inglês
+00:03 +14 -1: C:/BoraLocal/projetosflutter/bora_app/test/l10n_cobertura_test.dart: dicionário PT→EN toda a chave pedida por .tr existe no dicionário inglês [E]
+  Expected: empty
+    Actual: [
+              '+18: o estafeta pede documento na entrega.',
+              'A conversa actual fica guardada no teu histórico. Começar de novo?',
+              'A minha memória',
+              'A ouvir…',
+              'A partilhar — pára sozinho quando ele chegar.',
+              'A tua poupança e a tua memória',
+              'Ainda não guardei nada',
+              'Apagar tudo',
+              'Apagar tudo?',
+              'Bora Assistente',
+              'Chegaste ao limite de mensagens de hoje. Amanhã há mais.',
+              'Começar de novo',
+              'Compara preços nas lojas da Guarda e enche o carrinho por ti.',
+              'Comprar: {0}',
+              'Confirmar lista',
+              'Corrigir artigo',
+              'Ditado por voz não disponível neste aparelho.',
+              'Ditar por voz',
+              'Dividir em 2 lojas',
+              'Diz-me o que precisas',
+              'Encher o carrinho',
+              'Enviar foto da lista',
+              'Escreve a lista, dita por voz ou manda uma foto. Eu procuro nas lojas da Guarda e mostro-te onde fica mais barato.',
+              'Escreve a tua lista…',
+              ...
+            ]
+  Estas 75 frases aparecem no app cliente com .tr mas não têm inglês em lib/l10n/strings_en.dart:
+    • +18: o estafeta pede documento na entrega.
+    • A conversa actual fica guardada no teu histórico. Começar de novo?
+    • A minha memória
+    • A ouvir…
+    • A partilhar — pára sozinho quando ele chegar.
+    • A tua poupança e a tua memória
+    • Ainda não guardei nada
+    • Apagar tudo
+    • Apagar tudo?
+    • Bora Assistente
+    • Chegaste ao limite de mensagens de hoje. Amanhã há mais.
+    • Começar de novo
+    • Compara preços nas lojas da Guarda e enche o carrinho por ti.
+    • Comprar: {0}
+    • Confirmar lista
+    • Corrigir artigo
+    • Ditado por voz não disponível neste aparelho.
+    • Ditar por voz
+    • Dividir em 2 lojas
+    • Diz-me o que precisas
+    • Encher o carrinho
+    • Enviar foto da lista
+    • Escreve a lista, dita por voz ou manda uma foto. Eu procuro nas lojas da Guarda e mostro-te onde fica mais barato.
+    • Escreve a tua lista…
+    • Esta proposta já não está disponível.
+    • Esta proposta não tem artigos.
+    • Expresso · até {0} min
+    • Favores indisponíveis de momento.
+    • Fechada agora
+    • Inicia sessão para falar com o assistente.
+  
+  package:matcher                                     expect
+  package:flutter_test/src/widget_tester.dart 473:18  expect
+  test\l10n_cobertura_test.dart 57:7                  main.<fn>.<fn>
+  
+00:03 +14 -1: C:/BoraLocal/projetosflutter/bora_app/test/l10n_cobertura_test.dart: dicionário PT→EN nenhuma tradução está vazia nem ficou igual por engano
+00:03 +15 -1: C:/BoraLocal/projetosflutter/bora_app/test/l10n_cobertura_test.dart: dicionário PT→EN os marcadores {0}, {1}… são os mesmos em PT e EN
+00:03 +16 -1: C:/BoraLocal/projetosflutter/bora_app/test/l10n_cobertura_test.dart: String.tr em português devolve exactamente o texto original
+00:03 +17 -1: C:/BoraLocal/projetosflutter/bora_app/test/l10n_cobertura_test.dart: String.tr em inglês traduz o que conhece
+00:03 +18 -1: C:/BoraLocal/projetosflutter/bora_app/test/l10n_cobertura_test.dart: String.tr em inglês, chave desconhecida cai no português — nunca na chave crua
+00:03 +19 -1: C:/BoraLocal/projetosflutter/bora_app/test/l10n_cobertura_test.dart: String.tr trArgs põe os valores pela ordem, sem lhes tocar
+00:03 +20 -1: C:/BoraLocal/projetosflutter/bora_app/test/l10n_cobertura_test.dart: String.tr o valor entre marcadores passa intacto — não se traduz dinheiro
+00:03 +21 -1: C:/BoraLocal/projetosflutter/bora_app/test/l10n_cobertura_test.dart: idioma o padrão é português
+00:03 +22 -1: C:/BoraLocal/projetosflutter/bora_app/test/l10n_cobertura_test.dart: idioma locale acompanha a escolha
+00:03 +23 -1: Some tests failed.
+
+Failing tests:
+  C:/BoraLocal/projetosflutter/bora_app/test/l10n_cobertura_test.dart: dicionário PT→EN toda a chave pedida por .tr existe no dicionário inglês

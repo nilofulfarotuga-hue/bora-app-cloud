@@ -20,6 +20,7 @@ class PartnerProduct {
     this.allergens = const [],
     this.soldByWeight = false,
     this.shelfPricePerKg,
+    this.ageRestricted = false,
   });
 
   final String id;
@@ -64,6 +65,12 @@ class PartnerProduct {
   /// Só faz sentido com [soldByWeight].
   final double? shelfPricePerKg;
 
+  /// `products.age_restricted` (missão maiores-18, 07/10/2026): tabaco ou
+  /// bebida alcoólica. Etiqueta "+18" no cartão; o estafeta pede documento na
+  /// entrega. Marcado no servidor (classificador + painel admin). Default
+  /// false — a coluna pode ainda não existir numa base antiga.
+  final bool ageRestricted;
+
   PartnerProduct copyWith({
     String? name,
     String? description,
@@ -81,6 +88,7 @@ class PartnerProduct {
     List<String>? allergens,
     bool? soldByWeight,
     double? shelfPricePerKg,
+    bool? ageRestricted,
   }) {
     return PartnerProduct(
       id: id,
@@ -101,6 +109,7 @@ class PartnerProduct {
       allergens: allergens ?? this.allergens,
       soldByWeight: soldByWeight ?? this.soldByWeight,
       shelfPricePerKg: shelfPricePerKg ?? this.shelfPricePerKg,
+      ageRestricted: ageRestricted ?? this.ageRestricted,
     );
   }
 }

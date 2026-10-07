@@ -1,0 +1,16 @@
+OK   {"type":"new_order_offer","orderId":"A1"} -> https://app.boraguarda.com/#/driver?order=A1
+OK   {"type":"order_reassigned","orderId":"A2"} -> https://app.boraguarda.com/#/driver?order=A2
+OK   {"type":"driver_offline"} -> https://app.boraguarda.com/#/driver
+OK   {"type":"new_order","orderId":"P1"} -> https://app.boraguarda.com/#/partner?order=P1
+OK   {"type":"appointment_new"} -> https://app.boraguarda.com/#/partner
+OK   {"type":"order_status","orderId":"C1"} -> https://app.boraguarda.com/#/client?order=C1
+OK   {"type":"purchase_finalized","order_id":"C2"} -> https://app.boraguarda.com/#/client?order=C2
+OK   {"type":"reservation_status"} -> https://app.boraguarda.com/#/client
+OK   {"type":"chat","order_id":"X","audience":"partner"} -> https://app.boraguarda.com/#/partner?order=X
+OK   {"type":"desconhecido_qualquer"} -> https://app.boraguarda.com/#/
+OK   {"type":"order_status","url":"/#/loja/abc"} -> https://app.boraguarda.com/#/loja/abc
+OK   {"url":"https://outro.exemplo/x"} -> https://outro.exemplo/x
+OK   {} -> https://app.boraguarda.com/#/
+OK   clique do cliente abre https://app.boraguarda.com/#/client?order=C9
+OK   clique sem url abre https://app.boraguarda.com/#/partner?order=P7
+falhas=0

@@ -16,16 +16,21 @@ import '../widgets/order_edit/client_order_edit_banner.dart';
 import '../widgets/address_text.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/errand_budget_banner.dart';
+import '../widgets/partilhar_localizacao_card.dart';
 import '../widgets/partilhar_seguimento.dart';
 import '../widgets/takeaway/pickup_code_card.dart';
 import '../widgets/takeaway/preparing_countdown_banner.dart';
 import '../services/directions_service.dart';
+import '../services/driver_live_feed.dart';
 import '../services/order_eta_service.dart';
 import '../stores/driver_store.dart';
 import '../stores/order_store.dart';
 import '../utils/constants.dart';
 import '../utils/map_marker_helper.dart';
 import '../utils/map_utils.dart';
+import '../utils/route_deviation.dart' show distanciaARotaMetros;
+import '../utils/marcador_animado.dart';
+import '../utils/rastreio_interpolacao.dart' show AmostraPosicao;
 import '../services/notification_service.dart';
 import '../widgets/chat_bubble_button.dart';
 import 'chat_screen.dart';
@@ -45,6 +50,23 @@ class OrderTrackingScreen extends StatefulWidget {
 class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   final Completer<GoogleMapController> _mapController = Completer();
   final DirectionsService _directionsService = DirectionsService();
+
+  // ── [Rastreio em tempo real · 07/10] o estafeta EXACTO no mapa ───────────
+  // Canal Realtime na linha do estafeta em `driver_locations` (+ poll de
+  // reserva ao `tvde_driver_card_poll_seconds`), interpolado pelo
+  // `MarcadorAnimado`: nunca anda para trás, rumo pelo heading, anda por cima
+  // da rota desenhada, dura o intervalo real entre amostras. Antes a posição
+  // vinha do DriverStore (`drivers` por Realtime) — que a RLS de `drivers` não
+  // deixa chegar ao cliente: o estafeta não aparecia.
+  late final MarcadorAnimado _estafeta =
+      MarcadorAnimado(onFrame: _onEstafetaFrame);
+  DriverLiveFeed? _feed;
+  String? _feedDriverId;
+  Timer? _pollReserva;
+  DateTime? _ultimaRotaEm;
+
+  /// [Pontinho azul · 07/10] partilhar a minha posição com o estafeta.
+  PartilharLocalizacaoController? _partilha;
 
   List<ll.LatLng> _routePoints = <ll.LatLng>[];
   String? _activeRouteKey;
@@ -81,6 +103,63 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     MapMarkerHelper.preload();
     // [31/08] carrega as chaves eta_* das definições (uma vez, best-effort).
     OrderEtaService.ensureConfigured();
+    unawaited(RastreioSettings.carregar());
+  }
+
+  /// [07/10] Abre/troca/fecha o canal do estafeta conforme o pedido.
+  void _sincronizarFeed(OrderModel order) {
+    final ativo = order.status.index >= OrderStatus.driverAccepted.index &&
+        order.status.index < OrderStatus.delivered.index;
+    final id = ativo ? order.assignedDriverId : null;
+    if (id == _feedDriverId) return;
+    final velho = _feed;
+    _feed = null;
+    _feedDriverId = id;
+    if (velho != null) unawaited(velho.parar());
+    _estafeta.limpar();
+    _pollReserva?.cancel();
+    _pollReserva = null;
+    if (id == null || id.isEmpty) return;
+    final feed = _feed = DriverLiveFeed(
+      driverUserId: id,
+      onAmostra: _aceitarAmostra,
+    )..iniciar();
+    unawaited(feed.lerAgora().then((a) {
+      if (a != null && mounted && _feed == feed) _aceitarAmostra(a);
+    }));
+    final s = RastreioSettings.driverCardPollSeconds.clamp(1, 60);
+    _pollReserva = Timer.periodic(Duration(seconds: s), (_) async {
+      final f = _feed;
+      if (f == null || !mounted) return;
+      final a = await f.lerAgora();
+      if (a != null && mounted && _feed == f) _aceitarAmostra(a);
+    });
+  }
+
+  /// Uma amostra do estafeta (Realtime ou poll). A mesma leitura pelas duas
+  /// portas é ignorada pelo interpolador (hora igual).
+  void _aceitarAmostra(AmostraPosicao a) {
+    if (!mounted) return;
+    // Só a rota REAL (>2 pontos) serve para colar o estafeta à estrada; a
+    // linha de recurso origem→destino não é estrada.
+    final rota = _routePoints.length > 2 ? _routePoints : const <ll.LatLng>[];
+    final ok = _estafeta.aceitar(
+      a,
+      rota: rota,
+      intervaloEsperadoMs: RastreioSettings.driverCardPollSeconds * 1000,
+    );
+    if (!ok) return;
+    final target = _resolveTarget(_freshOrder(context.read<OrderStore>()));
+    if (target != null) {
+      _updateRoute(a.ponto, target);
+      // A câmara acompanha por AMOSTRA (4-5 s), não por fotograma: encaixar
+      // os limites 12× por segundo fazia o mapa tremer.
+      _fitCamera(a.ponto, target);
+    }
+  }
+
+  void _onEstafetaFrame() {
+    if (mounted) setState(() {});
   }
 
   /// BUG #3 + BLOCO 3 — Best-effort fetch de nome/veículo/matrícula do estafeta
@@ -114,6 +193,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     _directionsService.dispose();
     _followResumeTimer?.cancel();
     _programmaticMoveTimer?.cancel();
+    _pollReserva?.cancel();
+    _estafeta.dispose();
+    final feed = _feed;
+    _feed = null;
+    if (feed != null) unawaited(feed.parar());
+    _partilha?.dispose();
     super.dispose();
   }
 
@@ -230,6 +315,23 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         '${origin.latitude.toStringAsFixed(4)},${origin.longitude.toStringAsFixed(4)}'
         '|${destination.latitude.toStringAsFixed(4)},${destination.longitude.toStringAsFixed(4)}';
     if (_activeRouteKey == key && _routePoints.isNotEmpty) return;
+    // [07/10] Antes pedia-se uma rota nova ao Directions a cada ~11 m do
+    // estafeta (4 casas decimais). Agora só com destino novo, ou passados
+    // 45 s, ou se ele saiu da linha desenhada (>60 m).
+    final destinoMudou = _activeRouteKey == null ||
+        !_activeRouteKey!.endsWith('|${key.split('|').last}');
+    final agora = DateTime.now();
+    final ha = _ultimaRotaEm;
+    final foraDaRota = _routePoints.length > 2 &&
+        distanciaARotaMetros(origin, _routePoints) > 60;
+    if (!destinoMudou &&
+        _routePoints.isNotEmpty &&
+        ha != null &&
+        agora.difference(ha).inSeconds < 45 &&
+        !foraDaRota) {
+      return;
+    }
+    _ultimaRotaEm = agora;
     _activeRouteKey = key;
     final requestId = ++_routeRequestId;
     _directionsService
@@ -295,23 +397,33 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             .isNotEmpty
         ? (_fetchedLicensePlate ?? driver?.licensePlate)!.trim()
         : null;
-    // Single source of truth: DriverStore.currentDriver.location, synced in
-    // real time via the `drivers` table subscription. Scoped via select() so
-    // that only changes to THIS driver's location trigger a rebuild.
-    final driverPosition = assignedId == null
+    // [Rastreio em tempo real · 07/10] Fonte da posição, por ordem: (1) o
+    // canal em `driver_locations` + poll de reserva, interpolado
+    // (`_estafeta`); (2) o DriverStore em memória (legado — a RLS de
+    // `drivers` não deixa chegar nada ao cliente, fica como último recurso).
+    final legado = assignedId == null
         ? null
         : context.select<DriverStore, ll.LatLng?>(
             (s) => s.getDriverById(assignedId)?.location,
           );
+    final vivo = _estafeta.posicao;
+    final driverPosition =
+        vivo != null ? ll.LatLng(vivo.latitude, vivo.longitude) : legado;
     final target = _resolveTarget(order);
+    _partilha ??= PartilharLocalizacaoController(orderId: order.id);
 
-    if (driverPosition != null && target != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        _updateRoute(driverPosition, target);
-        _fitCamera(driverPosition, target);
-      });
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _sincronizarFeed(order);
+      _partilha?.aChegar =
+          order.status == OrderStatus.onTheWay && assignedId != null;
+      // Só o legado encaixa a câmara a partir do build; com o canal vivo a
+      // câmara acompanha por amostra (em `_aceitarAmostra`).
+      if (vivo == null && legado != null && target != null) {
+        _updateRoute(legado, target);
+        _fitCamera(legado, target);
+      }
+    });
 
     // ── Markers ──────────────────────────────────────────────────────────────
     final markers = <Marker>{};
@@ -479,6 +591,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
               // [31/08] posição VIVA do estafeta (realtime) → ETA nunca
               // congela na coordenada velha gravada na linha do pedido.
               driverPos: driverPosition,
+              partilha: _partilha,
             ),
           ),
         ],
@@ -500,6 +613,7 @@ class _BottomCard extends StatefulWidget {
     this.driverPlate,
     this.driverRating,
     this.driverPos,
+    this.partilha,
   });
 
   final ScrollController scrollController;
@@ -513,6 +627,10 @@ class _BottomCard extends StatefulWidget {
 
   /// Avaliação média REAL do estafeta (null/0 = esconder a linha).
   final double? driverRating;
+
+  /// [Pontinho azul · 07/10] dono do envio da posição do cliente (vive no
+  /// ecrã; aqui só se pinta o cartão).
+  final PartilharLocalizacaoController? partilha;
 
   @override
   State<_BottomCard> createState() => _BottomCardState();
@@ -833,6 +951,17 @@ class _BottomCardState extends State<_BottomCard> {
                   ),
 
                   const SizedBox(height: 14),
+
+                  // [Pontinho azul · 07/10] partilhar a minha posição com o
+                  // estafeta enquanto ele vem a caminho (opt-in).
+                  if (widget.partilha != null &&
+                      order.status == OrderStatus.onTheWay) ...[
+                    PartilharLocalizacaoCard(
+                      controller: widget.partilha!,
+                      quem: QuemChega.estafeta,
+                    ),
+                    const SizedBox(height: Spacing.sm),
+                  ],
 
                   // M11 (padrão Uber Eats): 2 acessos de chat com badge de
                   // não-lidas + preview — restaurante E estafeta (após aceitar).

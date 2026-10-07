@@ -53,6 +53,9 @@ import '../widgets/driver_fiscal_card.dart';
 import '../services/role_switch_helper.dart';
 import 'driver_map_screen.dart';
 import 'driver_order_action_helper.dart';
+import '../widgets/bora/maior_18.dart';
+import '../widgets/verificacao_idade_sheet.dart';
+import '../l10n/tr.dart';
 import 'profile_screen.dart';
 
 class DriverHomeScreen extends StatefulWidget {
@@ -1760,6 +1763,21 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+                // Missão maiores-18: o estafeta sabe que vai pedir documento.
+                if (order.hasAgeRestricted) ...[
+                  const SizedBox(height: 8),
+                  Row(children: [
+                const Maior18Badge(),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Pede documento de identificação na entrega.'.tr,
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ]),
+                ],
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 12,
@@ -1978,6 +1996,16 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                             final messenger = ScaffoldMessenger.of(context);
                             // Gate "Concluir entrega" behind delivery confirmation.
                             if (order.status == OrderStatus.onTheWay) {
+                              // Missão maiores-18 (07/10): pedido com tabaco/
+                              // álcool — primeiro o documento do cliente.
+                              // Sem escolha não há entrega; recusa → o
+                              // servidor abre o cancelamento.
+                              final idade = await VerificacaoIdade.garantir(
+                                  context, order);
+                              if (idade != VerificacaoIdadeDecisao.seguir ||
+                                  !mounted) {
+                                return;
+                              }
                               // [ronda 04/10 · #7] "Deixar à porta" / foto
                               // obrigatória: a foto vem antes de tudo.
                               final podeSeguir = await ProvaDeEntrega
@@ -2617,6 +2645,23 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Missão maiores-18: antes de aceitar, o estafeta sabe que
+                // vai pedir documento de identificação.
+                if (order.hasAgeRestricted)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(children: [
+                const Maior18Badge(),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Pede documento de identificação na entrega.'.tr,
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ]),
+                  ),
                 if (isErrand)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 6),
@@ -3387,6 +3432,20 @@ class _AvailableOrderCardState extends State<_AvailableOrderCard> {
                 fontWeight: FontWeight.bold,
               ),
             ),
+            if (order.hasAgeRestricted) ...[
+              const SizedBox(height: 4),
+              Row(children: [
+                const Maior18Badge(),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Pede documento de identificação na entrega.'.tr,
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ]),
+            ],
             if (order.vendorName != null) ...[
               const SizedBox(height: 4),
               Text(

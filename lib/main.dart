@@ -16,6 +16,7 @@ import 'services/app_update_service.dart';
 import 'services/floating_bubble_service.dart';
 import 'services/foreground_service.dart';
 import 'services/notification_service.dart';
+import 'services/sound_service.dart';
 import 'services/web_presence.dart';
 import 'widgets/atalho_trabalho_em_curso.dart';
 import 'services/push_token_service.dart';
@@ -42,6 +43,7 @@ import 'screens/admin/admin_crosstalk_screen.dart';
 import 'screens/admin/admin_whatsapp_screen.dart';
 import 'screens/admin/admin_decisoes_screen.dart';
 import 'screens/admin/admin_motores_screen.dart';
+import 'screens/admin/admin_maiores_18_screen.dart';
 import 'screens/admin/admin_tvde_conformidade_screen.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
 // PARTE A (2026-07-17) — deep links dos pushes admin persistentes
@@ -81,11 +83,13 @@ import 'screens/admin/admin_drivers_screen.dart';
 import 'screens/admin/admin_tvde_cancellations_screen.dart';
 import 'screens/admin/admin_stuck_reservations_screen.dart';
 import 'screens/admin/admin_platform_settings_screen.dart';
+import 'screens/admin/admin_assistente_screen.dart';
 import 'screens/admin/admin_partners_screen.dart';
 import 'screens/admin/admin_send_notification_screen.dart';
 import 'screens/restaurant_ratings_list_screen.dart';
 import 'screens/cleaner/cleaner_home_screen.dart';
 import 'screens/washer/washer_home_screen.dart';
+import 'screens/client/assistant/assistant_chat_screen.dart';
 import 'screens/client_login_screen.dart';
 import 'screens/client_main_screen.dart';
 import 'screens/driver_home_screen.dart';
@@ -744,6 +748,11 @@ Future<void> main() async {
     unawaited(retomarCorridaTvdeViva());
   });
 
+  // [Web 07/10/2026] O leitor de áudio partilhado da web desbloqueia-se no
+  // PRIMEIRO toque em qualquer sítio da página (o Safari só deixa tocar o
+  // elemento que já tocou dentro de um gesto). Fora da web não faz nada.
+  SoundService.instalarDesbloqueioWeb();
+
   runApp(MyApp(
     sessionStore: sessionStore,
     consentStore: consentStore,
@@ -995,6 +1004,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               const AdminMarcacoesConfirmacaoScreen(),
           '/admin/dinheiro-retido-falta': (_) =>
               const AdminMarcacoesConfirmacaoScreen(abaInicial: 1),
+          // Missão maiores-18 (07/10/2026) — tabaco/álcool, verificação de idade.
+          '/admin/maiores-18': (_) => const AdminMaiores18Screen(),
           // PARTE A (2026-07-17) — deep links dos 5 pushes admin persistentes
           '/admin/robot': (_) => const AdminRobotSuggestionsScreen(),
           '/admin/drivers/approval': (_) => const AdminDriverApprovalScreen(),
@@ -1034,6 +1045,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               const AdminTvdeCancellationsScreen(),
           '/admin/reservas/presas': (_) => const AdminStuckReservationsScreen(),
           '/admin/configuracoes': (_) => const AdminPlatformSettingsScreen(),
+          // Bora Assistente (07/10/2026): painel do assistente de compras.
+          '/admin/assistente': (_) => const AdminAssistenteScreen(),
+          // Bora Assistente — ecrã do cliente. No web aceita
+          // /#/assistente?proposta=<uuid> (link do e-mail/push) e enche logo
+          // o carrinho dessa proposta.
+          '/assistente': (_) => AssistantChatScreen(
+                propostaInicial: propostaDaUrl(Uri.base),
+              ),
           '/admin/parceiros': (_) => const AdminPartnersScreen(),
           '/admin/notificacoes': (_) => const AdminSendNotificationScreen(),
           '/admin/orders': (_) => const AdminOrdersScreen(),
@@ -1332,4 +1351,16 @@ class _RootNavigator extends StatelessWidget {
         return const PartnerEntryScreen();
     }
   }
+}
+
+/// `?proposta=<uuid>` da URL do web, quer venha antes quer depois do `#`
+/// (`/?proposta=x#/assistente` ou `/#/assistente?proposta=x`).
+String? propostaDaUrl(Uri base) {
+  final directa = base.queryParameters['proposta'];
+  if (directa != null && directa.isNotEmpty) return directa;
+  final frag = base.fragment;
+  final q = frag.indexOf('?');
+  if (q < 0) return null;
+  final v = Uri.splitQueryString(frag.substring(q + 1))['proposta'];
+  return (v == null || v.isEmpty) ? null : v;
 }

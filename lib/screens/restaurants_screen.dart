@@ -19,7 +19,7 @@ import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora/bora_search_field.dart';
 import '../widgets/bora/coming_soon.dart';
 import '../widgets/bora/lista_estado.dart';
-import '../widgets/bora_support_fab.dart';
+import '../widgets/bora_assistant_fab.dart';
 import 'client/reservation/reservation_availability_screen.dart';
 import 'restaurant_menu_screen.dart';
 import 'restaurant_options_screen.dart';
@@ -102,7 +102,7 @@ class _RestaurantsScreenState extends State<RestaurantsScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      floatingActionButton: const BoraSupportFab(),
+      floatingActionButton: const BoraClientFabs(),
       appBar: BoraScreenAppBar(
         title: reservationsOnly
             ? 'Reservar Mesa'.tr

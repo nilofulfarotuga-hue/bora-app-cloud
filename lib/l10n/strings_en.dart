@@ -3270,4 +3270,135 @@ const Map<String, String> kStringsEn = <String, String>{
   'Pedir para descobrir': 'Ask to discover',
   'Escreve-nos para boraappbora@gmail.com':
       'Write to us at boraappbora@gmail.com',
+  // 07/10/2026: missão maiores-18 — tabaco/álcool, documento na entrega.
+  'Só para maiores de 18 anos':
+      'Adults only (18+)',
+  'Este pedido tem artigos para maiores de 18: terás de mostrar documento de identificação ao estafeta.':
+      'This order has 18+ items: you will need to show an ID to the courier.',
+  'Só para maiores de 18 anos. O estafeta pede documento na entrega.':
+      'Adults only (18+). The courier will ask for an ID on delivery.',
+  'Pedido enviado para cancelamento; o suporte trata do resto.':
+      'Order sent for cancellation; support will handle the rest.',
+  'Não entregar os artigos +18?':
+      'Do not hand over the 18+ items?',
+  'O pedido vai para cancelamento e o suporte trata do resto. Não entregues os artigos +18 ao cliente.':
+      'The order goes to cancellation and support handles the rest. Do not hand the 18+ items to the customer.',
+  'Confirmar recusa':
+      'Confirm refusal',
+  'Pedido +18 — verificar idade':
+      '18+ order — check age',
+  'Este pedido tem tabaco ou bebidas alcoólicas. Pede o documento de identificação ao cliente antes de entregar.':
+      'This order has tobacco or alcohol. Ask the customer for an ID before handing it over.',
+  'Vi o documento, tem 18 ou mais':
+      'I saw the ID, 18 or older',
+  'Não mostrou documento / é menor':
+      'No ID shown / under 18',
+  'Pede documento de identificação na entrega.':
+      'Ask for an ID on delivery.',
+  'Este pedido não está atribuído a ti.':
+      'This order is not assigned to you.',
+  'Esta entrega já não está em curso. Fecha e confirma em Pedidos.':
+      'This delivery is no longer in progress. Close and check in Orders.',
+  'Pedido não encontrado. Fecha e tenta de novo.':
+      'Order not found. Close and try again.',
+  'A tua sessão expirou. Entra outra vez.':
+      'Your session expired. Sign in again.',
+  'Não foi possível registar a verificação. Tenta de novo.':
+      'Could not record the check. Try again.',
+  'Sem ligação ao servidor. Tenta de novo.':
+      'No connection to the server. Try again.',
+  // Cartão "Ativar notificações" na web (cliente e parceiro), 07/10/2026.
+  'Recebe avisos do teu pedido': 'Get updates about your order',
+  'Recebe os pedidos novos': 'Get new orders',
+  'Ativa as notificações para saberes quando o pedido está a caminho, mesmo com a Bora fechada.':
+      'Turn on notifications to know when your order is on its way, even with Bora closed.',
+  'Ativa as notificações para o navegador avisar quando entra um pedido, mesmo com o painel fechado.':
+      'Turn on notifications so the browser alerts you when an order comes in, even with the panel closed.',
+  'As notificações estão bloqueadas neste navegador. Ativa-as nas definições do site e volta a abrir a Bora.':
+      'Notifications are blocked in this browser. Enable them in the site settings and open Bora again.',
+  'No iPhone só funciona com a Bora instalada no ecrã principal.':
+      'On iPhone this only works with Bora installed on the Home Screen.',
+  'Não ficou ativo. Tenta de novo ou verifica as permissões do navegador.':
+      'It did not turn on. Try again or check the browser permissions.',
+  'Ativar notificações': 'Turn on notifications',
+  'A ativar…': 'Turning on…',
+  // 07/10/2026: Bora Assistente (chat de compras, cartoes, memoria, perfil).
+  '+18: o estafeta pede documento na entrega.': '+18: the courier will ask for ID on delivery.',
+  'A conversa actual fica guardada no teu histórico. Começar de novo?': 'The current conversation stays in your history. Start over?',
+  'A minha memória': 'My memory',
+  'A ouvir…': 'Listening…',
+  'A partilhar — pára sozinho quando ele chegar.': 'Sharing — stops by itself when they arrive.',
+  'A tua poupança e a tua memória': 'Your savings and your memory',
+  'Ainda não guardei nada': 'I haven\'t saved anything yet',
+  'Apagar tudo': 'Delete everything',
+  'Apagar tudo?': 'Delete everything?',
+  'Bora Assistente': 'Bora Assistant',
+  'Chegaste ao limite de mensagens de hoje. Amanhã há mais.': 'You reached today\'s message limit. More tomorrow.',
+  'Começar de novo': 'Start over',
+  'Compara preços nas lojas da Guarda e enche o carrinho por ti.': 'Compares prices across Guarda stores and fills your cart for you.',
+  'Comprar: {0}': 'Buy: {0}',
+  'Confirmar lista': 'Confirm list',
+  'Corrigir artigo': 'Fix item',
+  'Ditado por voz não disponível neste aparelho.': 'Voice dictation is not available on this device.',
+  'Ditar por voz': 'Dictate by voice',
+  'Dividir em 2 lojas': 'Split across 2 stores',
+  'Diz-me o que precisas': 'Tell me what you need',
+  'Encher o carrinho': 'Fill the cart',
+  'Enviar foto da lista': 'Send a photo of the list',
+  'Escreve a lista, dita por voz ou manda uma foto. Eu procuro nas lojas da Guarda e mostro-te onde fica mais barato.': 'Type your list, dictate it or send a photo. I search the stores in Guarda and show you where it is cheapest.',
+  'Escreve a tua lista…': 'Type your list…',
+  'Esta proposta já não está disponível.': 'This proposal is no longer available.',
+  'Esta proposta não tem artigos.': 'This proposal has no items.',
+  'Expresso · até {0} min': 'Express · up to {0} min',
+  'Favores indisponíveis de momento.': 'Favours are unavailable right now.',
+  'Fechada agora': 'Closed right now',
+  'Inicia sessão para falar com o assistente.': 'Sign in to talk to the assistant.',
+  'Isto não está em nenhuma loja da app — um estafeta vai buscar por ti.': 'This is not in any store on the app — a courier will fetch it for you.',
+  'Já poupaste {0}': 'You\'ve saved {0} so far',
+  'Li isto na tua lista — confirma ou corrige:': 'I read this on your list — confirm or fix it:',
+  'Marca preferida': 'Preferred brand',
+  'Mercado': 'Market',
+  'Normal · até {0} min': 'Standard · up to {0} min',
+  'Nota': 'Note',
+  'Nova conversa': 'New conversation',
+  'Nunca substituir': 'Never substitute',
+  'Não consegui apagar. Tenta outra vez.': 'I couldn\'t delete it. Try again.',
+  'Não consegui ler a foto.': 'I couldn\'t read the photo.',
+  'Não consegui meter os artigos no carrinho.': 'I couldn\'t add the items to the cart.',
+  'Não consegui responder agora. Tenta outra vez.': 'I couldn\'t answer right now. Try again.',
+  'Não foi possível carregar. Tenta outra vez.': 'Could not load. Try again.',
+  'O assistente esquece o que sabe sobre ti. Os teus pedidos ficam.': 'The assistant forgets what it knows about you. Your orders stay.',
+  'O assistente está desligado de momento.': 'The assistant is switched off right now.',
+  'O de sempre': 'The usual',
+  'O estafeta adianta até {0}; acertas pelo talão.': 'The courier advances up to {0}; you settle by the receipt.',
+  'O que o assistente aprendeu contigo. Podes apagar o que quiseres.': 'What the assistant learned with you. Delete whatever you like.',
+  'Orçamento habitual': 'Usual budget',
+  'Parar': 'Stop',
+  'Parceiro': 'Partner',
+  'Parecido — confirma': 'Similar — please confirm',
+  'Partilhar a minha localização com o estafeta enquanto ele chega': 'Share my location with the courier while they are on the way',
+  'Partilhar a minha localização com o motorista enquanto ele chega': 'Share my location with the driver while they are on the way',
+  'Passei a conversa ao suporte humano (ticket #{0}).': 'I handed the conversation to human support (ticket #{0}).',
+  'Passei a conversa ao suporte humano.': 'I handed the conversation to human support.',
+  'Pedir como Favor': 'Request as a Favour',
+  'Poupança proposta: {0} · pedidos pelo assistente: {1}': 'Savings proposed: {0} · orders via the assistant: {1}',
+  'Poupas {0} face à loja mais cara': 'You save {0} vs. the priciest store',
+  'Poupas {0} face à melhor loja sozinha (2 entregas)': 'You save {0} vs. the best single store (2 deliveries)',
+  'Quando pedires "o de sempre" ou uma marca, fica aqui.': 'When you ask for "the usual" or a brand, it shows up here.',
+  'Restam {0} mensagens hoje': '{0} messages left today',
+  'Restrição alimentar': 'Dietary restriction',
+  'Sacos': 'Bags',
+  'Sem ligação. Verifica a internet e tenta outra vez.': 'No connection. Check the internet and try again.',
+  'Sem permissão de localização. Ativa-a nas definições do telemóvel para partilhares onde estás.': 'No location permission. Enable it in the phone settings to share where you are.',
+  'Sem {0} ({1}×) nesta loja': 'No {0} ({1}×) at this store',
+  'Substituir por': 'Substitute with',
+  'Só enquanto ele vem a caminho. Podes desligar quando quiseres.': 'Only while they are on the way. You can switch it off whenever you like.',
+  'Tem {0}% da tua lista': 'Has {0}% of your list',
+  'Tirar foto da lista': 'Take a photo of the list',
+  'a pensar…': 'thinking…',
+  '{0} artigos no carrinho': '{0} items in the cart',
+  '{0}× {1}': '{0} × {1}',
+  // 07/10/2026: rastreio em tempo real (tocar no carro: ETA).
+  'Chega em ~{0} min': 'Arrives in ~{0} min',
+  'A calcular o tempo de chegada…': 'Calculating arrival time…',
 };

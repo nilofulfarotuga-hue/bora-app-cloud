@@ -96,6 +96,13 @@ class OrderModel {
   /// Filtrado por defeito do painel admin para nao poluir metricas reais.
   /// Coluna DB: orders.is_test_order (BOOLEAN DEFAULT false).
   final bool isTestOrder;
+
+  /// Missão maiores-18 (07/10/2026): o pedido tem produtos +18 (tabaco ou
+  /// álcool) ou é um Favor que os pede. Coluna `orders.has_age_restricted`,
+  /// posta ao nascer pelo trigger `trg_orders_maior_18_criacao` — a app só
+  /// lê (nunca a envia em [toSupabase]). O estafeta tem de confirmar o
+  /// documento (`driver_confirm_age_check`) antes de marcar "entregue".
+  final bool hasAgeRestricted;
   final bool apartmentDelivery;
   final bool isDistanceEstimated;
   final bool requiresCar;
@@ -305,6 +312,7 @@ class OrderModel {
     this.customerNotes,
     this.isPartnerStore = false,
     this.isTestOrder = false,
+    this.hasAgeRestricted = false,
     this.apartmentDelivery = false,
     this.isDistanceEstimated = false,
     this.requiresCar = false,
@@ -504,6 +512,7 @@ class OrderModel {
       paymentMethod: paymentMethod,
       isPartnerStore: data['is_partner_store'] as bool? ?? false,
       isTestOrder: data['is_test_order'] as bool? ?? false,
+      hasAgeRestricted: data['has_age_restricted'] as bool? ?? false,
       apartmentDelivery: data['apartment_delivery'] as bool? ?? false,
       isDistanceEstimated: data['is_distance_estimated'] as bool? ?? false,
       requiresCar: data['requires_car'] as bool? ?? false,

@@ -648,6 +648,30 @@ jobs:
           xcrun altool --upload-app -f "$IPA" -t ios \
             --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
 
+      # (07/10/2026) Liga o AVISO DE ATUALIZACAO do iPhone sozinho — o gemeo
+      # do passo 12b do build_android.yml. Grava em
+      # platform_settings.app_latest_version_code_ios o MESMO numero que foi
+      # em --build-number e em BORA_VERSION_CODE (github.run_number =
+      # CFBundleVersion, ex.: 173): e' com esse que o AppUpdateService compara
+      # no iPhone (chaveSufixo '_ios'). Estava a 0 desde 21/09 porque ninguem o
+      # escrevia. Mesmo segredo do Android (SUPABASE_SERVICE_ROLE_KEY); se nao
+      # existir no GitHub, salta em silencio e o aviso fica manual (nao fatal).
+      - name: Publicar app_latest_version_code_ios (aviso de atualizacao)
+        env:
+          SRK: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEW_CODE: ${{ github.run_number }}
+        run: |
+          if [ -z "$SRK" ]; then
+            echo "SUPABASE_SERVICE_ROLE_KEY ausente — aviso de update do iPhone fica manual (nao fatal)"
+            exit 0
+          fi
+          curl -sf -X PATCH "https://ojykpzwqrtusfeakzrna.supabase.co/rest/v1/platform_settings?key=eq.app_latest_version_code_ios" \
+            -H "apikey: $SRK" -H "Authorization: Bearer $SRK" \
+            -H "Content-Type: application/json" -H "Prefer: return=minimal" \
+            -d "{\"value\": $NEW_CODE}" \
+            && echo "app_latest_version_code_ios=$NEW_CODE gravado" \
+            || echo "AVISO: falha ao gravar app_latest_version_code_ios (nao fatal)"
+
       # ── O iPhone passa a publicar-se sozinho (2026-09-23) ────────────────
       #
       # A CICATRIZ: a 22/09 a Apple APROVOU a 1.0.2 as 22:44 UTC e a App Store

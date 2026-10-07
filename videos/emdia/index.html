@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<title>Em Dia — Fica em dia sem dor de cabeça</title>
+<style>
+@font-face { font-family: 'Inter'; src: url('assets/Inter-VariableFont.ttf') format('truetype'); font-weight: 100 900; }
+:root { --emdia:#16A34A; --emdiaDark:#15803D; --emdiaClaro:#DCFCE7; --aVencer:#F97316; --aVencerClaro:#FFEDD5; --passou:#DC2626; --ink:#111827; --ink2:#6B7280; --bg:#F6F7F4; --linha:#E5E7EB; }
+html,body { margin:0; padding:0; background:#000; overflow:hidden; font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased; }
+#stage { position:absolute; left:0; top:0; width:1920px; height:1080px; background:var(--bg); transform-origin:0 0; overflow:hidden; color:var(--ink); }
+body.port #stage { width:1080px; height:1920px; }
+.el { position:absolute; will-change:transform,opacity; }
+.hidden { visibility:hidden; }
+
+#intro { left:50%; top:50%; width:1100px; margin-left:-550px; margin-top:-130px; display:flex; align-items:center; gap:44px; }
+body.port #intro { width:900px; margin-left:-450px; margin-top:-300px; flex-direction:column; text-align:center; gap:30px; }
+#introIcon { width:220px; height:220px; flex:none; transform-origin:50% 50%; position:relative; }
+#introIcon img { width:100%; border-radius:52px; display:block; box-shadow:0 20px 50px rgba(15,23,42,.14); }
+#introT { font-size:120px; font-weight:900; letter-spacing:-0.03em; line-height:1; color:var(--emdiaDark); position:relative; }
+#introS { font-size:40px; color:var(--ink2); font-weight:500; margin-top:16px; position:relative; }
+
+.caption { left:120px; top:300px; width:820px; font-weight:800; font-size:84px; line-height:1.08; letter-spacing:-0.02em; }
+.caption small { display:block; font-weight:500; font-size:36px; color:var(--ink2); margin-top:22px; letter-spacing:0; line-height:1.3; }
+body.port .caption { left:80px; top:200px; width:920px; font-size:80px; text-align:center; }
+#chips { left:120px; top:640px; display:flex; gap:18px; flex-wrap:wrap; width:840px; }
+body.port #chips { left:50%; margin-left:-460px; width:920px; justify-content:center; top:540px; }
+.chip { display:flex; align-items:center; gap:12px; background:var(--aVencerClaro); color:#9A3412; font-weight:700; font-size:34px; padding:16px 28px; border-radius:999px; transform-origin:50% 50%; position:relative; }
+.chip i { width:30px; height:30px; border-radius:999px; background:var(--aVencer); display:inline-block; position:relative; }
+.chip.ok { background:var(--emdiaClaro); color:var(--emdiaDark); }
+.chip.ok i { background:var(--emdia); }
+.chip.ok i:after { content:''; position:absolute; left:10px; top:5px; width:7px; height:13px; border-right:3px solid #fff; border-bottom:3px solid #fff; transform:rotate(45deg); }
+#counter { left:120px; top:640px; background:#fff; border-radius:28px; padding:30px 40px; box-shadow:0 12px 30px rgba(15,23,42,.08); transform-origin:0 50%; }
+body.port #counter { left:50%; margin-left:-300px; width:600px; box-sizing:border-box; top:520px; text-align:center; transform-origin:50% 50%; }
+#counter small { display:block; font-size:28px; color:var(--ink2); font-weight:500; }
+#counter b { display:block; font-size:92px; font-weight:900; color:var(--emdiaDark); letter-spacing:-0.03em; line-height:1.1; font-variant-numeric:tabular-nums; }
+
+#phone { left:1130px; top:40px; width:400px; height:820px; transform-origin:50% 0; }
+body.port #phone { left:50%; margin-left:-200px; top:760px; transform-origin:50% 0; }
+.frame { position:absolute; inset:0; background:#0B0F14; border-radius:56px; box-shadow:0 30px 60px rgba(15,23,42,.18); }
+.frame:after { content:''; position:absolute; left:50%; top:16px; width:120px; height:30px; margin-left:-60px; background:#0B0F14; border-radius:999px; z-index:3; }
+.screen { position:absolute; left:12px; top:12px; width:376px; height:796px; border-radius:46px; overflow:hidden; background:var(--bg); }
+.scr { position:absolute; left:0; top:0; width:376px; height:796px; background:var(--bg); overflow:hidden; }
+.scr img { position:absolute; left:0; top:44px; width:376px; }
+#day20 { position:absolute; left:258px; top:304px; width:34px; height:34px; border-radius:999px; border:4px solid var(--emdia); box-sizing:border-box; transform-origin:50% 50%; }
+#tot { position:absolute; left:14px; top:78px; width:200px; height:48px; border-radius:12px; border:3px solid var(--emdia); box-sizing:border-box; transform-origin:50% 50%; }
+#notif { left:120px; top:640px; width:860px; margin-left:0; background:#fff; border-radius:28px; padding:24px 32px; display:flex; align-items:flex-start; gap:22px; box-shadow:0 20px 50px rgba(15,23,42,.18); transform-origin:50% 0; }
+body.port #notif { left:50%; width:960px; margin-left:-480px; top:16px; }
+#notif .ic img { width:68px; border-radius:18px; display:block; }
+#notif .b1 { font-size:28px; font-weight:800; }
+#notif .b2 { font-size:25px; color:var(--ink2); margin-top:4px; font-weight:500; line-height:1.3; }
+#notif .ag { margin-left:auto; font-size:20px; color:var(--ink2); white-space:nowrap; }
+
+#carro { left:0; top:905px; width:420px; transform-origin:50% 50%; }
+body.port #carro { top:1800px; }
+
+#fim { left:0; top:0; width:1920px; height:1080px; background:var(--bg); }
+body.port #fim { width:1080px; height:1920px; }
+#fimIcon { left:50%; top:250px; width:180px; margin-left:-90px; transform-origin:50% 50%; }
+#fimIcon img { width:100%; border-radius:44px; display:block; box-shadow:0 16px 40px rgba(15,23,42,.14); }
+#fimT { left:50%; top:470px; font-size:112px; font-weight:900; letter-spacing:-0.03em; white-space:nowrap; color:var(--ink); transform-origin:50% 50%; }
+#fimT b { color:var(--emdia); font-weight:900; }
+body.port #fimIcon { top:520px; width:220px; margin-left:-110px; }
+body.port #fimT { top:800px; font-size:84px; white-space:normal; width:960px; text-align:center; line-height:1.1; }
+.badge { width:540px; height:120px; background:#0B0F14; border-radius:22px; display:flex; align-items:center; gap:20px; padding:0 28px; box-sizing:border-box; color:#fff; transform-origin:50% 50%; }
+.badge svg { width:60px; height:60px; flex:none; }
+.badge .t small { display:block; font-size:18px; font-weight:500; opacity:.85; }
+.badge .t b { display:block; font-size:31px; font-weight:700; }
+#b1 { left:390px; top:700px; } #b2 { left:990px; top:700px; }
+body.port #b1, body.port #b2 { left:50%; margin-left:-270px; }
+body.port #b1 { top:1100px; } body.port #b2 { top:1260px; }
+#gratis { left:50%; top:880px; background:var(--emdiaClaro); color:var(--emdiaDark); font-weight:700; font-size:34px; padding:16px 36px; border-radius:999px; white-space:nowrap; }
+body.port #gratis { top:1440px; }
+#fimSub { left:50%; top:980px; font-size:30px; color:var(--ink2); font-weight:500; white-space:nowrap; }
+body.port #fimSub { top:1560px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="intro" class="el">
+    <div id="introIcon" class="el"><img src="assets/emdia_icon.png" alt=""></div>
+    <div><div id="introT" class="el">Em Dia</div><div id="introS" class="el">Para quem trabalha a recibos verdes</div></div>
+  </div>
+
+  <div id="cap" class="el caption"><span id="capMain"></span><small id="capSub"></small></div>
+  <div id="chips" class="el">
+    <div class="chip el" id="c1" style="position:relative"><i></i>Segurança Social</div>
+    <div class="chip el" id="c2" style="position:relative"><i></i>IVA</div>
+    <div class="chip el" id="c3" style="position:relative"><i></i>IRS</div>
+    <div class="chip el" id="c4" style="position:relative"><i></i>Carro</div>
+  </div>
+  <div id="counter" class="el"><small>Este mês entrou</small><b id="counterN">0,00 €</b></div>
+
+  <svg id="carro" class="el" viewBox="0 0 420 160">
+    <ellipse cx="210" cy="140" rx="180" ry="10" fill="#0F172A" opacity=".10"/>
+    <path d="M40 110 L60 70 Q70 50 95 48 L150 44 Q175 20 215 18 L285 18 Q315 20 335 44 L380 54 Q400 60 402 80 L404 108 Q404 118 394 118 L50 118 Q40 118 40 110 Z" fill="#16A34A"/>
+    <path d="M160 48 Q178 30 212 28 L228 28 L228 50 Z M240 28 L282 28 Q306 30 320 46 L240 50 Z" fill="#DCFCE7"/>
+    <rect x="52" y="86" width="26" height="12" rx="4" fill="#FDE68A"/><rect x="370" y="86" width="24" height="12" rx="4" fill="#F97316"/>
+    <circle cx="110" cy="118" r="30" fill="#1F2937"/><circle cx="110" cy="118" r="14" fill="#D1D5DB"/><g id="wa" stroke="#6B7280" stroke-width="4" transform="translate(110 118)"><line x1="-14" y1="0" x2="14" y2="0"/><line x1="0" y1="-14" x2="0" y2="14"/></g>
+    <circle cx="320" cy="118" r="30" fill="#1F2937"/><circle cx="320" cy="118" r="14" fill="#D1D5DB"/><g id="wb" stroke="#6B7280" stroke-width="4" transform="translate(320 118)"><line x1="-14" y1="0" x2="14" y2="0"/><line x1="0" y1="-14" x2="0" y2="14"/></g>
+    <rect x="300" y="60" width="40" height="18" rx="4" fill="#fff"/><text x="320" y="74" font-family="Inter" font-weight="800" font-size="12" fill="#111827" text-anchor="middle">TVDE</text>
+  </svg>
+
+  <div id="phone" class="el">
+    <div class="frame"></div>
+    <div class="screen">
+      <div id="s1" class="scr"><img src="assets/painel_verde_medio_pt.png" alt=""></div>
+      <div id="s2" class="scr"><img src="assets/calendario_medio_pt.png" alt=""><div id="tot"></div><div id="day20"></div></div>
+      <div id="s3" class="scr"><img src="assets/carro_medio_pt.png" alt=""></div>
+      <div id="s4" class="scr"><img src="assets/vida_entra_cheio_medio_pt.png" alt=""></div>
+    </div>
+  </div>
+  <div id="notif" class="el"><div class="ic"><img src="assets/emdia_icon.png" alt=""></div><div><div class="b1">Em Dia · O carro</div><div class="b2">A inspeção do teu carro (AA-11-BB) é até 24/10/2026. Marca já — os centros enchem no fim do mês.</div></div><div class="ag">agora</div></div>
+
+  <div id="fim" class="el"></div>
+  <div id="fimIcon" class="el"><img src="assets/emdia_icon.png" alt=""></div>
+  <div id="fimT" class="el">Fica <b>em dia</b> sem dor de cabeça</div>
+  <div id="b1" class="el badge"><svg viewBox="0 0 64 64"><path d="M14 8 L46 32 L14 56 Z" fill="#34D399"/><path d="M14 8 L36 28 L28 36 Z" fill="#60A5FA"/><path d="M14 56 L36 36 L28 28 Z" fill="#F87171"/><path d="M36 28 L46 32 L36 36 L28 32 Z" fill="#FBBF24"/></svg><div class="t"><small>DISPONÍVEL NO</small><b>Google Play</b></div></div>
+  <div id="b2" class="el badge"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="24" fill="none" stroke="#fff" stroke-width="4"/><ellipse cx="32" cy="32" rx="10" ry="24" fill="none" stroke="#fff" stroke-width="4"/><path d="M8 32 H56 M12 20 H52 M12 44 H52" stroke="#fff" stroke-width="4"/></svg><div class="t"><small>No browser</small><b>app.emdia.boraguarda.com</b></div></div>
+  <div id="gratis" class="el">Mês grátis para experimentar</div>
+  <div id="fimSub" class="el">Segurança Social · IVA · IRS · carro — avisa antes de vencer</div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const E = { lin: p => p, out: p => 1 - Math.pow(1 - p, 3), in: p => p * p * p, io: p => p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2, pop: p => 1 - Math.exp(-7 * p) * Math.cos(2 * Math.PI * 1.1 * p), soft: p => 1 - Math.pow(1 - p, 4) };
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v)); const lerp = (a, b, p) => a + (b - a) * p;
+const prog = (t, t0, t1, e = 'out') => E[e](clamp((t - t0) / (t1 - t0), 0, 1));
+function kf(el, keys, t) {
+  const def = { x: 0, y: 0, s: 1, o: 1, r: 0 }; const full = []; let cur = { ...def };
+  for (const k of keys) { cur = { ...cur, ...k }; full.push(cur); }
+  let st; if (t <= full[0].t) st = full[0]; else if (t >= full[full.length - 1].t) st = full[full.length - 1];
+  else { let i = 1; while (full[i].t < t) i++; const a = full[i - 1], b = full[i]; const p = E[b.e || 'out']((t - a.t) / (b.t - a.t)); st = { x: lerp(a.x, b.x, p), y: lerp(a.y, b.y, p), s: lerp(a.s, b.s, p), o: lerp(a.o, b.o, p), r: lerp(a.r, b.r, p) }; }
+  apply(el, st);
+}
+function apply(el, st) { const base = el.dataset.base || ''; el.style.transform = `${base} translate(${st.x}px, ${st.y}px) scale(${st.s}) rotate(${st.r}deg)`; el.style.opacity = st.o; el.classList.toggle('hidden', st.o <= 0.001); }
+const PORT = window.innerHeight > window.innerWidth; document.body.classList.add(PORT ? 'port' : 'land');
+const SW = PORT ? 1080 : 1920, SH = PORT ? 1920 : 1080;
+(function fit() { const s = Math.min(window.innerWidth / SW, window.innerHeight / SH); $('stage').style.transform = `scale(${s})`; })();
+for (const id of ['fimT', 'gratis', 'fimSub']) $(id).dataset.base = 'translateX(-50%)';
+$('phone').dataset.base = PORT ? 'scale(1.3)' : 'scale(1.25)';
+const B = 60 / 90; // 0.6667
+const bar = n => n * 4 * B;
+const fmt = v => v.toFixed(2).replace('.', ',') + ' €';
+
+function seek(t) {
+  // abertura 0–2.67
+  kf($('intro'), [{ t: 0, o: 1 }, { t: 2.4, o: 1 }, { t: 2.67, o: 0, y: -24, e: 'in' }], t);
+  kf($('introIcon'), [{ t: 0, s: .6, o: 0 }, { t: .5, s: 1, o: 1, e: 'pop' }], t);
+  kf($('introT'), [{ t: B, x: 24, o: 0 }, { t: B + .4, x: 0, o: 1, e: 'soft' }], t);
+  kf($('introS'), [{ t: 2 * B, y: 16, o: 0 }, { t: 2 * B + .4, y: 0, o: 1, e: 'soft' }], t);
+
+  // captions por cena
+  const scenes = [[bar(1), 'Tudo o que tens de pagar, num sítio só', 'Segurança Social, IVA, IRS e o carro — a app diz o que fazer agora'],
+    [bar(2.5), 'Os prazos no calendário, antes de vencerem', 'Um aviso dias antes. Nunca mais a multa por esquecimento.'],
+    [bar(4), 'O carro também', 'Seguro, inspeção, IUC, revisão — tudo com data e valor'],
+    [bar(5.5), 'O que entra e o que sai, organizado', 'Uber, Bolt, recibos, salário — escreves uma vez, a app faz as contas']];
+  let si = -1; for (let i = 0; i < scenes.length; i++) if (t >= scenes[i][0]) si = i;
+  if (si >= 0) { $('capMain').textContent = scenes[si][1]; $('capSub').textContent = scenes[si][2]; }
+  const capKeys = [];
+  scenes.forEach((s, i) => { const t0 = s[0], t1 = i < scenes.length - 1 ? scenes[i + 1][0] : bar(7); capKeys.push({ t: t0, x: -40, o: 0 }, { t: t0 + .45, x: 0, o: 1, e: 'soft' }, { t: t1 - .25, x: 0, o: 1 }, { t: t1 - .02, x: 30, o: 0, e: 'in' }); });
+  kf($('cap'), capKeys, t);
+
+  // telemóvel: entra em bar1, sai em bar7
+  kf($('phone'), [{ t: bar(1), x: PORT ? 0 : 400, y: PORT ? 400 : 0, o: 0 }, { t: bar(1) + .6, x: 0, y: 0, o: 1, e: 'soft' }, { t: bar(7) - .3, o: 1 }, { t: bar(7), o: 0, y: 80, e: 'in' }], t);
+  // ecrãs deslizam como tabs
+  const slides = [bar(2.5), bar(4), bar(5.5)];
+  const scr = ['s1', 's2', 's3', 's4'];
+  let cur = 0; for (let i = 0; i < slides.length; i++) if (t >= slides[i]) cur = i + 1;
+  scr.forEach((id, i) => {
+    let x; if (i < cur) x = -376; else if (i > cur) x = 376; else x = 0;
+    if (i === cur && cur > 0) { const p = prog(t, slides[cur - 1], slides[cur - 1] + .5, 'soft'); x = (1 - p) * 376; }
+    if (i === cur - 1) { const p = prog(t, slides[cur - 1], slides[cur - 1] + .5, 'soft'); x = -p * 376; }
+    $(id).style.transform = `translateX(${x}px)`;
+  });
+  // chips (cena 1): saltam a cada tempo de 3.33, viram verdes 1.33 s depois
+  ['c1', 'c2', 'c3', 'c4'].forEach((id, i) => { const t0 = bar(1) + B + i * B; kf($(id), [{ t: t0, s: .5, o: 0 }, { t: t0 + .4, s: 1, o: 1, e: 'pop' }], t); $(id).classList.toggle('ok', t >= t0 + 2 * B); });
+  kf($('chips'), [{ t: bar(1), o: 1 }, { t: bar(2.5) - .3, o: 1 }, { t: bar(2.5) - .02, o: 0, x: 30, e: 'in' }], t);
+  // agenda: realces
+  const hl = prog(t, bar(3), bar(3) + .5, 'pop'); $('day20').style.transform = `scale(${t < bar(3) ? 0 : hl})`; $('day20').style.opacity = t < bar(3) ? 0 : 1;
+  const hl2 = prog(t, bar(3) + B, bar(3) + B + .5, 'pop'); $('tot').style.transform = `scale(${t < bar(3) + B ? 0 : hl2})`; $('tot').style.opacity = t < bar(3) + B ? 0 : 1;
+  // carro 2D passa (cena 3) por baixo da caption, da esquerda para a direita
+  const cp = prog(t, bar(4) + .2, bar(5.5), 'io');
+  const cx = PORT ? lerp(-520, 1200, cp) : lerp(-520, 640, cp);
+  kf($('carro'), [{ t: bar(4), o: 1 }, { t: bar(5.5) - .2, o: 1 }, { t: bar(5.5), o: 0 }], t);
+  $('carro').style.transform = `translate(${cx}px, ${Math.sin(t * 9) * 1.5}px)`;
+  const spin = cp * 1400; $('wa').setAttribute('transform', `translate(110 118) rotate(${spin})`); $('wb').setAttribute('transform', `translate(320 118) rotate(${spin})`);
+  // notificação (12.0)
+  kf($('notif'), [{ t: 12.0, y: -160, o: 0 }, { t: 12.5, y: 0, o: 1, e: 'pop' }, { t: bar(5.5) - .3, o: 1 }, { t: bar(5.5), y: -60, o: 0, e: 'in' }], t);
+  // contador (cena 4)
+  const cnt = prog(t, bar(5.5) + .4, bar(5.5) + 1.9, 'out'); $('counterN').textContent = fmt(989.70 * cnt);
+  kf($('counter'), [{ t: bar(5.5), s: .8, o: 0 }, { t: bar(5.5) + .45, s: 1, o: 1, e: 'pop' }, { t: bar(7) - .3, o: 1 }, { t: bar(7), o: 0, x: 30, e: 'in' }], t);
+
+  // fecho 18.67 → 24
+  kf($('fim'), [{ t: bar(7), o: 0 }, { t: bar(7) + .3, o: 1 }], t);
+  kf($('fimIcon'), [{ t: bar(7), s: .6, o: 0 }, { t: bar(7) + .5, s: 1, o: 1, e: 'pop' }], t);
+  kf($('fimT'), [{ t: bar(7) + .3, y: 30, o: 0 }, { t: bar(7) + .8, y: 0, o: 1, e: 'soft' }], t);
+  kf($('b1'), [{ t: bar(8), s: .6, o: 0 }, { t: bar(8) + .4, s: 1, o: 1, e: 'pop' }], t);
+  kf($('b2'), [{ t: bar(8) + B / 2, s: .6, o: 0 }, { t: bar(8) + B / 2 + .4, s: 1, o: 1, e: 'pop' }], t);
+  kf($('gratis'), [{ t: bar(8) + B, y: 16, o: 0 }, { t: bar(8) + B + .4, y: 0, o: 1, e: 'soft' }], t);
+  kf($('fimSub'), [{ t: bar(8) + 2 * B, o: 0 }, { t: bar(8) + 2 * B + .4, o: 1 }], t);
+}
+window.seek = seek;
+Promise.all([document.fonts.load('900 1em Inter'), document.fonts.load('400 1em Inter'), ...[...document.images].map(i => i.decode().catch(() => { }))]).then(() => { seek(0); window.__ready = true; });
+</script>
+</body>
+</html>

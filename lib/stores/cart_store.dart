@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/cart_item.dart';
 import '../models/order_model.dart';
 import '../config/business_rules.dart' show BRTokens;
+import '../services/assistant_service.dart';
 import '../services/maps_service.dart';
 import '../services/pricing_service.dart';
 import '../services/remote_fees_service.dart';
@@ -194,6 +195,12 @@ class CartStore extends ChangeNotifier {
   // ── Getters ───────────────────────────────────────────────────────────────
 
   List<CartItem> get items => List.unmodifiable(_items);
+
+  /// Missão maiores-18 (07/10/2026): há pelo menos um artigo +18 (tabaco ou
+  /// álcool) no carrinho — o carrinho e o pagamento mostram o aviso de que o
+  /// estafeta vai pedir documento. Só informação: a marca do pedido é do
+  /// servidor.
+  bool get hasAgeRestricted => _items.any((i) => i.ageRestricted);
 
   int get totalItems => _items.fold(0, (sum, item) => sum + item.quantity);
 
@@ -1228,6 +1235,10 @@ class CartStore extends ChangeNotifier {
     // 8.1 — persistir a foto do favor SEM tocar create_order (RPC dedicada).
     final reqPhoto = _errandRequestPhotoUrl;
     final newOrderId = orderStore.lastCreatedOrderId;
+    // Bora Assistente (07/10/2026): se este carrinho veio de uma proposta do
+    // assistente, marca-a como encomendada. Fire-and-forget: nunca trava o
+    // checkout nem lança.
+    unawaited(AssistantService.pedidoCriado(newOrderId));
     if (reqPhoto != null && newOrderId != null) {
       try {
         await Supabase.instance.client.rpc(

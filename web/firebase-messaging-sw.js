@@ -1,4 +1,5 @@
-// web/firebase-messaging-sw.js — service worker de push da PWA (estafeta).
+// web/firebase-messaging-sw.js — service worker de push da PWA (estafeta,
+// cliente e parceiro — os três registam token na web desde 07/10/2026).
 //
 // [Estafeta web 2026-09-16] O plugin firebase_messaging (web) regista este
 // ficheiro sozinho na raiz do site quando a app pede o token. As Edge Functions
@@ -17,6 +18,49 @@ importScripts('firebase-config.js');
 
 var cfg = self.boraFirebaseConfig || {};
 var configurado = cfg.apiKey && cfg.apiKey.charAt(0) !== '<';
+
+// [Web 07/10/2026] Para onde abre o toque na notificação, pelo TIPO do aviso.
+// Antes mandava tudo para /#/driver — o cliente e o parceiro (que passaram a
+// registar token na web neste dia) aterravam no ecrã do estafeta.
+//   estafeta → /#/driver?order=…      parceiro → /#/partner?order=…
+//   cliente  → /#/client?order=…      sem tipo conhecido → /#/
+// Um `url` explícito no payload manda sempre; `audience`/`role` (driver |
+// partner | client) manda a seguir; só depois é que o tipo decide.
+var TIPOS_ESTAFETA = {
+  new_order_offer: 1, order_reassigned: 1, order_preassigned: 1,
+  order_unassigned: 1, driver_offline: 1, new_tvde_ride_offer: 1,
+  tvde_ride_offer: 1, tvde_reservation: 1, tvde_stop: 1
+};
+var TIPOS_PARCEIRO = {
+  new_order: 1, order_cancelled_partner: 1, appointment_new: 1,
+  appointment_cancelled: 1, appointment: 1, reservation_new: 1,
+  reservation_cancelled: 1, reservation: 1, service: 1
+};
+var TIPOS_CLIENTE = {
+  order_status: 1, appointment_status: 1, reservation_status: 1,
+  purchase_finalized: 1, order_delivered: 1, order_ready: 1,
+  cleaning_status: 1, custom: 1
+};
+function boraDestinoDoAviso(d, origem) {
+  d = d || {};
+  if (d.url) {
+    return (d.url.charAt(0) === '/' ? origem : '') + d.url;
+  }
+  var id = d.orderId || d.order_id || '';
+  var q = id ? '?order=' + encodeURIComponent(id) : '';
+  var papel = (d.audience || d.role || d.to_role || '').toString().toLowerCase();
+  var t = (d.type || '').toString();
+  if (!papel) {
+    if (TIPOS_ESTAFETA[t]) papel = 'driver';
+    else if (TIPOS_PARCEIRO[t]) papel = 'partner';
+    else if (TIPOS_CLIENTE[t]) papel = 'client';
+  }
+  if (papel === 'driver') return origem + '/#/driver' + q;
+  if (papel === 'partner') return origem + '/#/partner' + q;
+  if (papel === 'client') return origem + '/#/client' + q;
+  return origem + '/#/' + q;
+}
+self.boraDestinoDoAviso = boraDestinoDoAviso;
 
 if (configurado) {
   firebase.initializeApp({
@@ -50,9 +94,7 @@ if (configurado) {
     var tx = textos(d);
     var title = d.title || tx.title;
     var body = d.body || tx.body;
-    var url = d.url || (d.orderId
-      ? (self.location.origin + '/#/driver?order=' + d.orderId)
-      : (self.location.origin + '/#/driver'));
+    var url = boraDestinoDoAviso(d, self.location.origin);
     var urgente = d.type === 'new_order_offer' || d.type === 'order_reassigned' || d.type === 'order_preassigned';
     return self.registration.showNotification(title, {
       body: body,
@@ -70,7 +112,10 @@ if (configurado) {
 // Tocar na notificação: foca a Bora se já estiver aberta, senão abre-a.
 self.addEventListener('notificationclick', function (event) {
   event.notification.close();
-  var url = (event.notification.data && event.notification.data.url) || (self.location.origin + '/#/driver');
+  var dados = (event.notification && event.notification.data) || {};
+  // `data.url` já vem resolvido pelo tipo (ver boraDestinoDoAviso); se faltar
+  // (aviso montado por outro caminho), decide-se agora pelos mesmos dados.
+  var url = dados.url || boraDestinoDoAviso(dados, self.location.origin);
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (lista) {
       for (var i = 0; i < lista.length; i++) {

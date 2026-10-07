@@ -29,6 +29,18 @@ import 'offer_presentation_gate.dart';
 import 'push_token_service.dart';
 import 'sound_service.dart';
 
+/// [iPhone 07/10/2026] Notificações LOCAIS de pedido/oferta no iOS: antes não
+/// levavam detalhe nenhum de iOS e saíam com o som genérico do sistema. Agora
+/// tocam o `bora_alert.wav` que vai no bundle (ios/Runner/bora_alert.wav,
+/// ligado no project.pbxproj como recurso), o mesmo do Android e da web.
+/// Só nas de pedido e oferta — chat, cancelamento e estado persistente ficam
+/// com o som normal, de propósito.
+const DarwinNotificationDetails kDetalhesIosPedido = DarwinNotificationDetails(
+  sound: 'bora_alert.wav',
+  presentAlert: true,
+  presentSound: true,
+);
+
 /// Background message handler — must be a top-level function (not a closure).
 ///
 /// Sessão 2026-05-22 (fullScreenIntent definitivo) — cadeia tripla de
@@ -189,7 +201,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         orderId.isNotEmpty ? orderId.hashCode : 9999,
         '🔔 Novo pedido — €$total',
         '$items${customer.isNotEmpty ? " • $customer" : ""}',
-        NotificationDetails(android: androidDetails),
+        NotificationDetails(android: androidDetails, iOS: kDetalhesIosPedido),
         payload: jsonEncode({'orderId': orderId, 'type': 'new_order'}),
       );
       debugPrint('[FCM BG] partner rich notif posted order=$orderId');
@@ -285,7 +297,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         rideId.isNotEmpty ? rideId.hashCode : title.hashCode,
         title,
         body,
-        NotificationDetails(android: androidDetails),
+        NotificationDetails(android: androidDetails, iOS: kDetalhesIosPedido),
         payload: jsonEncode({'type': 'new_tvde_ride_offer', 'rideId': rideId}),
       );
       debugPrint('[BORA-TVDE] BG full-screen offer notif posted ride=$rideId');
@@ -466,7 +478,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       orderId.hashCode,
       '🛵 Novo pedido — €$driverEarnings',
       '$vendorName • €$total • ${distanceKm}km',
-      NotificationDetails(android: androidDetails),
+      NotificationDetails(android: androidDetails, iOS: kDetalhesIosPedido),
       payload: jsonEncode({'orderId': orderId, 'type': 'new_order_offer'}),
     );
     debugPrint('[BORA-OFFER] rich offer notif posted order=$orderId');
@@ -1199,7 +1211,7 @@ Future<void> postWakeActivityNotification({
       orderId.hashCode,
       '🛵 Novo pedido — €$driverEarnings',
       '$vendorName • €$total • ${distanceKm}km',
-      NotificationDetails(android: androidDetails),
+      NotificationDetails(android: androidDetails, iOS: kDetalhesIosPedido),
       payload: jsonEncode({'orderId': orderId, 'type': 'new_order_offer'}),
     );
     debugPrint('[BORA-OFFER] postWakeActivityNotification posted order=$orderId');
@@ -1478,7 +1490,7 @@ Future<void> showTvdeReservationNotification(Map<String, dynamic> data) async {
       rideId.isNotEmpty ? rideId.hashCode : title.hashCode,
       title,
       body,
-      NotificationDetails(android: androidDetails),
+      NotificationDetails(android: androidDetails, iOS: kDetalhesIosPedido),
       payload: jsonEncode({
         'type': type,
         'rideId': rideId,
@@ -3075,7 +3087,7 @@ class NotificationService {
         rideId.isNotEmpty ? rideId.hashCode : title.hashCode,
         title,
         body,
-        NotificationDetails(android: androidDetails),
+        NotificationDetails(android: androidDetails, iOS: kDetalhesIosPedido),
         payload: jsonEncode({'type': 'new_tvde_ride_offer', 'rideId': rideId}),
       );
       debugPrint('[NotificationService FG] TVDE offer notif posted ride=$rideId');

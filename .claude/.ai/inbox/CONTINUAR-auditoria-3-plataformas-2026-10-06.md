@@ -6,6 +6,9 @@ Feito e publicado nesta missão: painel da corrida (chaves), câmara do mapa, GP
 
 ## Por fazer (sem dinheiro), por ordem de impacto
 
+> **07/10 (noite):** itens 3, 4, 5, 6 e 7 FEITOS (sem commit) — provas e resumo em
+> `.claude/.ai/provas/auditoria-pendencias-20261007/resumo.md`. Ficam 1, 2 e 8.
+
 1. GPS do ecrã da corrida herda o fluxo da home. O geolocator guarda um único fluxo por app (geolocator_android 5.1.x geolocator_android.dart:169-171 e 208-211; geolocator_apple 2.3.x 156-157 e 195-197): enquanto a home TVDE ouve, o getPositionStream do ecrã da corrida devolve o fluxo da home, com as definições dela (15 s, sem as 3 m / 700 ms). Conserto proposto: no _assumirGps do TvdeRideActiveScreen, depois de a home largar (tvdeCorridaControlaGps a true e o _gps da home cancelado), voltar a subscrever uma vez para as definições da corrida valerem. Mexe na passagem do GPS entre a home e a corrida — provar com um aparelho, sem motoristas reais ligados.
 2. iPhone: ligar "Time Sensitive Notifications" no App ID (portal da Apple, perfil Bora), regenerar o perfil e acrescentar com.apple.developer.usernotifications.time-sensitive ao ios/Runner/Runner.entitlements — tudo no mesmo envio, senão o build do iPhone parte. Hoje as ofertas no iPhone chegam sem som no modo Foco / A conduzir.
 3. Web: som no Safari do painel do parceiro (partner_dashboard_screen.dart ~553) e da oferta TVDE (tvde_offer_screen.dart ~86) — leitor de áudio partilhado e desbloqueado no primeiro toque (o desbloqueio é por leitor; cada SoundService cria o seu).

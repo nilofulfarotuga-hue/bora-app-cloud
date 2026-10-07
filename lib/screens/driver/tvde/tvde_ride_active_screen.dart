@@ -511,14 +511,18 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     if (c == null) return;
     _followCam = true;
     final target = driverPos ?? fallback;
-    await c.animateCamera(CameraUpdate.newCameraPosition(
-      CameraPosition(
-        target: target,
-        zoom: _navZoom,
-        tilt: _navTilt,
-        bearing: _bearing,
-      ),
-    ));
+    try {
+      await c.animateCamera(CameraUpdate.newCameraPosition(
+        CameraPosition(
+          target: target,
+          zoom: _navZoom,
+          tilt: _navTilt,
+          bearing: _bearing,
+        ),
+      ));
+    } on StateError {
+      _mapCtrl = null; // [07/10] o mapa deste controlador já saiu do ecrã
+    }
   }
 
   /// [Mapa trava · 03/10] Leva a seta e a câmara do ponto onde estão até
@@ -571,16 +575,23 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   void _moverCamara(LatLng alvo, double bearing) {
     final c = _mapCtrl;
     if (c == null || !_followCam) return;
-    c.moveCamera(
-      CameraUpdate.newCameraPosition(
-        CameraPosition(
-          target: alvo,
-          zoom: _navZoom,
-          tilt: _navTilt,
-          bearing: bearing,
+    try {
+      c.moveCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: alvo,
+            zoom: _navZoom,
+            tilt: _navTilt,
+            bearing: bearing,
+          ),
         ),
-      ),
-    );
+      );
+    } on StateError {
+      // [Mapa já saiu · 07/10] O mapa deste controlador já não está no ecrã:
+      // larga-se o controlador e pára-se a seta; o mapa seguinte traz outro.
+      _mapCtrl = null;
+      _setaTimer?.cancel();
+    }
   }
 
   /// [Item N] Seta verde do motorista (igual à home). Off-Web apenas —
@@ -1709,6 +1720,13 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     final LatLng? driverPos = _gpsPos;
 
     if (ride == null) {
+      // [Mapa já saiu · 07/10] Este ramo tira o GoogleMap do ecrã: o
+      // controlador dele morre aqui. A seta (16 ms) e o GPS deste ecrã
+      // continuavam a mexer-lhe na câmara — "GoogleMapController ... used
+      // after the associated GoogleMap widget had already been disposed"
+      // (debug_crash_logs, 644). Um mapa novo traz um controlador novo.
+      _setaTimer?.cancel();
+      _mapCtrl = null;
       // Corrida terminou e foi limpa — volta à home.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) Navigator.of(context).maybePop();

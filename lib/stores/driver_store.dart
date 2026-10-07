@@ -417,6 +417,9 @@ class DriverStore extends ChangeNotifier {
                 driverEarnings:
                     inner['driverEarnings']?.toString() ?? '0.00',
                 dropoffAddress: inner['dropoffAddress']?.toString() ?? '',
+                offerExpiresAt: (inner['offerExpiresAt'] ??
+                        inner['expiresAt'])
+                    ?.toString(),
               );
             } catch (e) {
               debugPrint('[Realtime] broadcast callback error: $e');

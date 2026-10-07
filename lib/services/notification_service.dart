@@ -346,6 +346,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       'distanceKm': distanceKm,
       'driverEarnings': driverEarnings,
       'dropoffAddress': dropoffAddress,
+      'offerExpiresAt': data['offerExpiresAt']?.toString() ?? '',
       'ts': DateTime.now().millisecondsSinceEpoch,
     }));
     debugPrint('[BORA-OFFER] pending_offer SAVED order=$orderId');
@@ -372,7 +373,11 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     }
     final handledList =
         prefs.getStringList('gate_handled_orderids') ?? const <String>[];
-    if (handledList.contains(orderId)) {
+    // [07/10] Só salta se for a MESMA oferta (mesmo prazo). Oferta nova do
+    // mesmo pedido volta a tocar em loop.
+    if (handledList.contains(orderId) &&
+        !OfferPresentationGate.isNewOfferFromPrefs(
+            prefs, orderId, data['offerExpiresAt']?.toString())) {
       debugPrint('[FCM BG] HANDLED SKIP (SP persistent list) order=$orderId');
       return;
     }
@@ -486,7 +491,9 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     }
     final handledList =
         prefs.getStringList('gate_handled_orderids') ?? const <String>[];
-    if (handledList.contains(orderId)) {
+    if (handledList.contains(orderId) &&
+        !OfferPresentationGate.isNewOfferFromPrefs(
+            prefs, orderId, data['offerExpiresAt']?.toString())) {
       debugPrint('[FCM BG] post-delay SKIP — main isolate já tratou order=$orderId');
       return;
     }
@@ -510,6 +517,9 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         'distanceKm': distanceKm,
         'driverEarnings': driverEarnings,
         'dropoffAddress': dropoffAddress,
+        // [07/10] prazo da oferta: o gate distingue oferta nova do mesmo pedido.
+        if ((data['offerExpiresAt']?.toString() ?? '').isNotEmpty)
+          'expiresAt': data['offerExpiresAt'].toString(),
       });
       debugPrint('[FGS_BRIDGE] sendDataToTask returned (sync) order=$orderId');
     } else {
@@ -2387,6 +2397,7 @@ class NotificationService {
       distanceKm: data['distanceKm']?.toString() ?? '0',
       driverEarnings: data['driverEarnings']?.toString() ?? '0.00',
       dropoffAddress: data['dropoffAddress']?.toString() ?? '',
+      offerExpiresAt: data['expiresAt']?.toString(),
     );
   }
 
@@ -2515,6 +2526,7 @@ class NotificationService {
           distanceKm: data['distanceKm']?.toString() ?? '0',
           driverEarnings: data['driverEarnings']?.toString() ?? '0.00',
           dropoffAddress: data['dropoffAddress']?.toString() ?? '',
+          offerExpiresAt: data['offerExpiresAt']?.toString(),
         );
       } catch (e) {
         debugPrint('[BORA-OFFER] rehydrate error: $e');

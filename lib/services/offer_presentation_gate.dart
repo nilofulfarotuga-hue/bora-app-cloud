@@ -43,12 +43,62 @@ class OfferPresentationGate {
   static final List<String> _handledOrderIds = <String>[];
   static const int _handledMaxSize = 50;
 
-  static void _addHandled(String orderId) {
+  // [07/10/2026 · oferta repetida] Antes o "já tratado" era só pelo orderId e
+  // nunca expirava: quando o mesmo pedido voltava a ser oferecido ao mesmo
+  // estafeta (só ele ligado, o despacho repete a cada minuto), a app calava-se
+  // e só tocava o aviso simples do sistema, uma vez. Caso real: McDonald's
+  // 947f7206 de 06/10, 20 ofertas ao Danilo, ninguém aceitou, cliente perdida.
+  // Agora cada oferta é identificada pelo seu prazo (driver_offer_expires_at):
+  // prazo novo = oferta nova = volta a tocar em loop, como na Uber/Glovo.
+  /// Prazo (ms desde epoch, em texto) da oferta de cada orderId já tratado.
+  static final Map<String, String> _handledOfferExp = <String, String>{};
+  /// Quando cada orderId foi marcado como tratado (ms desde epoch).
+  static final Map<String, int> _handledAt = <String, int>{};
+  /// Prazo da oferta que o gate apresentou por último para cada orderId.
+  static final Map<String, String> _presentedOfferExp = <String, String>{};
+
+  /// Normaliza um prazo de oferta (ISO 8601 do servidor) para ms em texto, para
+  /// comparar igual venha do FCM, do realtime ou do serviço em segundo plano.
+  static String? normExp(Object? v) {
+    if (v == null) return null;
+    final s = v.toString().trim();
+    if (s.isEmpty || s == 'null') return null;
+    final d = DateTime.tryParse(s);
+    return d?.millisecondsSinceEpoch.toString();
+  }
+
+  /// Decide se uma oferta que chega para um pedido já tratado é NOVA.
+  /// `handledExp`/`handledAtMs` descrevem a oferta tratada; `exp` a que chega.
+  static bool isNewOffer({
+    required String? exp,
+    required String? handledExp,
+    required int handledAtMs,
+  }) {
+    if (exp == null) {
+      // Sem prazo não dá para distinguir: só bloqueia logo a seguir ao fecho.
+      return DateTime.now().millisecondsSinceEpoch - handledAtMs > 90000;
+    }
+    if (handledExp != null) return exp != handledExp;
+    // Tratado sem prazo conhecido: nova se acaba bem depois do fecho.
+    return (int.tryParse(exp) ?? 0) > handledAtMs + 20000;
+  }
+
+  static void _addHandled(String orderId, {String? exp}) {
     if (orderId.isEmpty) return;
     _handledOrderIds.remove(orderId);
     _handledOrderIds.add(orderId);
+    _handledAt[orderId] = DateTime.now().millisecondsSinceEpoch;
+    final e = exp ?? _presentedOfferExp[orderId];
+    if (e != null) {
+      _handledOfferExp[orderId] = e;
+    } else {
+      _handledOfferExp.remove(orderId);
+    }
     while (_handledOrderIds.length > _handledMaxSize) {
-      _handledOrderIds.removeAt(0);
+      final old = _handledOrderIds.removeAt(0);
+      _handledOfferExp.remove(old);
+      _handledAt.remove(old);
+      _presentedOfferExp.remove(old);
     }
   }
 
@@ -56,6 +106,8 @@ class OfferPresentationGate {
   /// (ex: cycle reset). Limpa o orderId da lista handled.
   static void clearHandled(String orderId) {
     _handledOrderIds.remove(orderId);
+    _handledOfferExp.remove(orderId);
+    _handledAt.remove(orderId);
   }
 
   // ── HEARTBEATS ──────────────────────────────────────────────────────────
@@ -131,14 +183,36 @@ class OfferPresentationGate {
   /// Liberta o dedup quando a UI da oferta termina (accept/reject/expired).
   /// Chamado por: overlay listener no notification_service, RPC helpers,
   /// cancelDriverOfferNotification, DriverFullScreenOfferDialog (legacy).
-  static void markActionCompleted(String orderId) {
+  static void markActionCompleted(String orderId, {String? offerExpiresAt}) {
     if (_activeGateOrderId == orderId) {
       debugPrint('[GATE] release order=$orderId');
       _activeGateOrderId = null;
     }
-    _addHandled(orderId);
-    debugPrint('[GATE] handled+=$orderId (size=${_handledOrderIds.length})');
+    _addHandled(orderId, exp: normExp(offerExpiresAt));
+    debugPrint('[GATE] handled+=$orderId exp=${_handledOfferExp[orderId]} '
+        '(size=${_handledOrderIds.length})');
     _persistHandledToSp(orderId);
+  }
+
+  /// [07/10] Lido pelo handler FCM em segundo plano (outro isolate): diz se a
+  /// oferta que chegou é nova face à que ficou tratada para este pedido.
+  /// Formato de cada entrada em `gate_handled_offer_exp`: "orderId|prazo|tratadoEm".
+  static bool isNewOfferFromPrefs(
+      SharedPreferences prefs, String orderId, String? offerExpiresAt) {
+    final exp = normExp(offerExpiresAt);
+    final list = prefs.getStringList('gate_handled_offer_exp') ?? const <String>[];
+    for (final e in list) {
+      final p = e.split('|');
+      if (p.length == 3 && p[0] == orderId) {
+        return isNewOffer(
+          exp: exp,
+          handledExp: p[1].isEmpty ? null : p[1],
+          handledAtMs: int.tryParse(p[2]) ?? 0,
+        );
+      }
+    }
+    // Tratado por uma versão antiga da app (sem prazo): regra do "sem prazo".
+    return isNewOffer(exp: exp, handledExp: null, handledAtMs: 0);
   }
 
   static Future<void> _persistHandledToSp(String orderId) async {
@@ -151,6 +225,15 @@ class OfferPresentationGate {
         list.removeAt(0);
       }
       await prefs.setStringList('gate_handled_orderids', list);
+      final exps =
+          prefs.getStringList('gate_handled_offer_exp') ?? <String>[];
+      exps.removeWhere((e) => e.startsWith('$orderId|'));
+      exps.add('$orderId|${_handledOfferExp[orderId] ?? ''}|'
+          '${_handledAt[orderId] ?? DateTime.now().millisecondsSinceEpoch}');
+      while (exps.length > _handledMaxSize) {
+        exps.removeAt(0);
+      }
+      await prefs.setStringList('gate_handled_offer_exp', exps);
       // Limpa flag som dedup in-app (próximo pedido pode tocar).
       if (prefs.getString('gate_fullscreen_orderid') == orderId) {
         await prefs.remove('gate_fullscreen_orderid');
@@ -172,8 +255,17 @@ class OfferPresentationGate {
     required String driverEarnings,
     String dropoffAddress = '',
     bool fromBgIsolate = false,
+    String? offerExpiresAt,
   }) async {
     if (orderId.isEmpty) return;
+    final exp = normExp(offerExpiresAt);
+
+    // [07/10] Oferta já vencida (evento atrasado): não toca.
+    if (exp != null &&
+        (int.tryParse(exp) ?? 0) < DateTime.now().millisecondsSinceEpoch - 2000) {
+      debugPrint('[GATE] VENCIDA — order=$orderId exp=$exp, skip');
+      return;
+    }
 
     // Dedup forte por orderId.
     if (_activeGateOrderId == orderId) {
@@ -182,9 +274,20 @@ class OfferPresentationGate {
     }
 
     if (_handledOrderIds.contains(orderId)) {
-      debugPrint('[GATE] HANDLED — order=$orderId já foi tratado, skip');
-      return;
+      if (isNewOffer(
+        exp: exp,
+        handledExp: _handledOfferExp[orderId],
+        handledAtMs: _handledAt[orderId] ?? 0,
+      )) {
+        debugPrint('[GATE] OFERTA NOVA do mesmo pedido order=$orderId '
+            'exp=$exp (antes ${_handledOfferExp[orderId]}) → volta a tocar');
+        clearHandled(orderId);
+      } else {
+        debugPrint('[GATE] HANDLED — order=$orderId já foi tratado, skip');
+        return;
+      }
     }
+    if (exp != null) _presentedOfferExp[orderId] = exp;
 
     final state = _detectState(fromBgIsolate: fromBgIsolate);
     debugPrint(

@@ -3,13 +3,35 @@
 /// o verão vai do último domingo de março às 01:00 UTC ao último domingo de
 /// outubro às 01:00 UTC (regra da UE).
 DateTime horaLisboa(DateTime instante) {
+  final l = paredeLisboa(instante);
+  // devolve "wall clock" sem fuso, para formatar dia/hora directamente
+  return DateTime(l.year, l.month, l.day, l.hour, l.minute, l.second);
+}
+
+/// O mesmo relógio de Lisboa que [horaLisboa], mas com a marca UTC: serve só
+/// para LER dia da semana, hora e minuto. Um `DateTime` local cai no buraco da
+/// mudança de hora do fuso do telemóvel (ex.: Chile, Austrália) e salta uma
+/// hora; este não. Nunca para comparar com instantes nem mandar ao servidor.
+DateTime paredeLisboa(DateTime instante) {
   final u = instante.toUtc();
   final inicio = DateTime.utc(u.year, 3, _ultimoDomingo(u.year, 3), 1);
   final fim = DateTime.utc(u.year, 10, _ultimoDomingo(u.year, 10), 1);
   final verao = !u.isBefore(inicio) && u.isBefore(fim);
-  final l = u.add(Duration(hours: verao ? 1 : 0));
-  // devolve "wall clock" sem fuso, para formatar dia/hora directamente
-  return DateTime(l.year, l.month, l.day, l.hour, l.minute, l.second);
+  return u.add(Duration(hours: verao ? 1 : 0));
+}
+
+/// Instante (UTC) em que o relógio de Lisboa marca [parede] — o inverso de
+/// [horaLisboa]. Só lê ano/mês/dia/hora/minuto/segundo de [parede]: o fuso do
+/// telemóvel não entra. Para mandar ao servidor uma hora escolhida no relógio
+/// da loja, em vez de `parede.toUtc()` (que usa o fuso do aparelho).
+/// Na hora que se repete em outubro devolve a primeira (ainda de verão).
+DateTime instanteDeLisboa(DateTime parede) {
+  final comoUtc = DateTime.utc(parede.year, parede.month, parede.day,
+      parede.hour, parede.minute, parede.second);
+  final verao = comoUtc.subtract(const Duration(hours: 1));
+  final l = paredeLisboa(verao);
+  if (l.day == parede.day && l.hour == parede.hour) return verao;
+  return comoUtc;
 }
 
 int _ultimoDomingo(int ano, int mes) {

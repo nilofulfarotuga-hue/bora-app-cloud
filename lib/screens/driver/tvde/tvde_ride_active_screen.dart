@@ -20,6 +20,8 @@ import '../../../models/tvde_ride.dart';
 import '../../../services/directions_service.dart';
 import '../../../services/driver_location_ping_service.dart';
 import '../../../services/navigation_service.dart';
+import '../../../services/localizacao_online.dart'
+    show gpsLigadoSemServicoPorEstarEmFundo;
 import '../../../services/tvde_corrida_localizacao_service.dart';
 import '../../../stores/driver_store.dart';
 import '../../../stores/tvde_chat_store.dart';
@@ -232,6 +234,13 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   /// saltava meio quarteirão de cada vez; (2) o store notifica por qualquer
   /// motorista que se mexa, e o ecrã não tem de acordar por causa disso.
   StreamSubscription<Position>? _gps;
+
+  /// [GPS em fundo · 07/10] O [_gps] nasceu sem serviço em primeiro plano só
+  /// porque a app estava em fundo (corrida aceite pelo botão da notificação):
+  /// religa-se com serviço quando a app vem à frente ([_ciclo]).
+  bool _gpsSemServicoPorFundo = false;
+  AppLifecycleListener? _ciclo;
+  int _gpsGeracao = 0;
   LatLng? _gpsPos;
 
   /// [Uma corrida = uma stream · 05/09] Este ecrã assumiu o GPS (a stream da
@@ -276,6 +285,9 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   void initState() {
     super.initState();
     _montados++;
+    _ciclo = AppLifecycleListener(onResume: () {
+      if (mounted && _gpsSemServicoPorFundo) unawaited(_startGps());
+    });
     _loadDriverArrowIcon();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -316,6 +328,10 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   /// filtro de distância cala o stream — sem ticks, sem bateria, sem tremer.
   Future<void> _startGps() async {
     if (kIsWeb) return; // na Web fica a semente do store (sem FGS/navegação)
+    // [GPS órfão · 07/10] Só o arranque mais recente subscreve: dois arranques
+    // sobrepostos (voltar à frente duas vezes seguidas) deixavam uma
+    // subscrição sem dono que sobrevivia ao ecrã.
+    final geracao = ++_gpsGeracao;
     await _gps?.cancel();
     // [Bloco 3B · 05/09] Serviço em primeiro plano do próprio geolocator, que
     // é o que impede o Android de estrangular o GPS quando o motorista
@@ -332,10 +348,17 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     // 3 m, 700 ms); e se a permissão faltar, o serviço devolve as definições
     // SEM a notificação em vez de rebentar.
     final settings = await TvdeCorridaLocalizacao.definicoesDeCorrida();
-    if (!mounted) return;
+    if (!mounted || geracao != _gpsGeracao) return;
+    _gpsSemServicoPorFundo = gpsLigadoSemServicoPorEstarEmFundo(settings);
+    final anterior = _gps;
+    _gps = null;
+    if (anterior != null) unawaited(anterior.cancel());
     try {
       _gps = Geolocator.getPositionStream(locationSettings: settings).listen(
         (p) {
+          // Uma leitura que chega depois de o ecrã fechar não pode voltar a
+          // tirar o GPS à home (tvdeCorridaControlaGps ficaria preso a true).
+          if (!mounted) return;
           // A ordem é deliberada: primeiro assume-se o GPS (o que suspende a
           // stream da home), e só depois se alimenta o servidor — nesta mesma
           // leitura. O servidor nunca fica um ciclo sem quem lhe escreva.
@@ -417,6 +440,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   @override
   void dispose() {
     _montados--;
+    _ciclo?.dispose();
     if (TvdeOfferPresentation.corridaMostrada.value == _rideId) {
       TvdeOfferPresentation.corridaMostrada.value = null;
     }
@@ -511,14 +535,18 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     if (c == null) return;
     _followCam = true;
     final target = driverPos ?? fallback;
-    await c.animateCamera(CameraUpdate.newCameraPosition(
-      CameraPosition(
-        target: target,
-        zoom: _navZoom,
-        tilt: _navTilt,
-        bearing: _bearing,
-      ),
-    ));
+    try {
+      await c.animateCamera(CameraUpdate.newCameraPosition(
+        CameraPosition(
+          target: target,
+          zoom: _navZoom,
+          tilt: _navTilt,
+          bearing: _bearing,
+        ),
+      ));
+    } on StateError {
+      _mapCtrl = null; // [07/10] o mapa deste controlador já saiu do ecrã
+    }
   }
 
   /// [Mapa trava · 03/10] Leva a seta e a câmara do ponto onde estão até
@@ -571,16 +599,23 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   void _moverCamara(LatLng alvo, double bearing) {
     final c = _mapCtrl;
     if (c == null || !_followCam) return;
-    c.moveCamera(
-      CameraUpdate.newCameraPosition(
-        CameraPosition(
-          target: alvo,
-          zoom: _navZoom,
-          tilt: _navTilt,
-          bearing: bearing,
+    try {
+      c.moveCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: alvo,
+            zoom: _navZoom,
+            tilt: _navTilt,
+            bearing: bearing,
+          ),
         ),
-      ),
-    );
+      );
+    } on StateError {
+      // [Mapa já saiu · 07/10] O mapa deste controlador já não está no ecrã:
+      // larga-se o controlador e pára-se a seta; o mapa seguinte traz outro.
+      _mapCtrl = null;
+      _setaTimer?.cancel();
+    }
   }
 
   /// [Item N] Seta verde do motorista (igual à home). Off-Web apenas —
@@ -1709,6 +1744,13 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     final LatLng? driverPos = _gpsPos;
 
     if (ride == null) {
+      // [Mapa já saiu · 07/10] Este ramo tira o GoogleMap do ecrã: o
+      // controlador dele morre aqui. A seta (16 ms) e o GPS deste ecrã
+      // continuavam a mexer-lhe na câmara — "GoogleMapController ... used
+      // after the associated GoogleMap widget had already been disposed"
+      // (debug_crash_logs, 644). Um mapa novo traz um controlador novo.
+      _setaTimer?.cancel();
+      _mapCtrl = null;
       // Corrida terminou e foi limpa — volta à home.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) Navigator.of(context).maybePop();
@@ -1862,6 +1904,10 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
           // botões principais e da própria mira.
           if (!ride.isFinished && !ride.isCancelled)
             Positioned(
+              // [Painel rebenta · 07/10] Chave: este SOS some no fim da
+              // corrida, e sem chave o painel de baixo era "encaixado" no
+              // lugar dele (ver a chave do painel).
+              key: const ValueKey<String>('tvde_corrida_sos'),
               left: Spacing.md,
               bottom: MediaQuery.of(context).size.height * _sheetExtent +
                   Spacing.md,
@@ -1882,7 +1928,17 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
           // para cima expande. O mapa (com a rota) ocupa o resto.
           // [Bloco 6, 30/08] Em viagem começa RECOLHIDO (mapa quase cheio); o
           // NotificationListener segue a altura para posicionar a mira.
+          //
+          // [Painel rebenta · 07/10 · 19 erros em 637–654] O painel tem chave
+          // própria. Sem ela, quando o SOS de cima sai (corrida terminada ou
+          // cancelada) ou volta (entra a corrida da fila), o Flutter casava o
+          // painel com o lugar do SOS e criava um painel NOVO com o mesmo
+          // `_sheetCtrl`: o novo ligava-se ao controlador, o velho ao sair
+          // desligava-o e destruía o tamanho do novo — na actualização seguinte
+          // `_onExtentReplaced` rebentava com "Null check operator" e o painel
+          // ficava cinzento.
           Positioned.fill(
+            key: const ValueKey<String>('tvde_corrida_painel'),
             child: NotificationListener<DraggableScrollableNotification>(
               onNotification: (n) {
                 if (mounted && (n.extent - _sheetExtent).abs() > 0.01) {

@@ -13,6 +13,7 @@ import '../services/maps_service.dart';
 import '../services/pricing_service.dart';
 import '../services/remote_fees_service.dart';
 import '../services/small_order_fee.dart';
+import '../utils/hora_lisboa.dart';
 import 'order_store.dart';
 
 class CartStore extends ChangeNotifier {
@@ -1248,7 +1249,8 @@ class CartStore extends ChangeNotifier {
           'festas_set_schedule',
           params: {
             'p_order_id': newOrderId,
-            'p_scheduled_for': quandoFesta.toUtc().toIso8601String(),
+            // A hora escolhida é a do relógio da loja (Lisboa).
+            'p_scheduled_for': instanteDeLisboa(quandoFesta).toIso8601String(),
           },
         );
       } catch (e) {

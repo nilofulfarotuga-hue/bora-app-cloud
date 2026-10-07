@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-04
+ultima_confirmacao: 2026-10-07
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-04T20:12:25.743925+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-07T19:54:13.973386+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -45,3 +45,22 @@ REGRA (Danilo, 01/10/2026): tudo o que ele mandar (vídeos, transcrições, link
 - JÁ TEMOS (não repetir): agente de atendimento n8n/ManyChat (= Secretário Virtual), memória partilhada (= Córtex), OpenAI Operator (= Hermes), Claude Code a publicar no Instagram (= robôs de redes), Maia/Make (recusada 01/10).
 - RECUSADO hoje: várias contas de IA para contornar limites; comentar em massa em contas alheias; Micromind (pago).
 
+
+## Do radar de 06/10
+- BORA: anúncio UGC de 30 s com personagem e produto fixos feitos por IA (folha de personagem), sem atores. https://www.youtube.com/watch?v=eoSCoD--npk
+- EM DIA: Google Vids + voz do Gemini para explicativos curtos (prazos, recibos verdes). https://www.youtube.com/watch?v=IWA9LCvNW8g
+- JÁ TEMOS: Claude Code 24/7 em VPS (= Hermes na VPS + claude rc), relatórios/painéis com Claude Code, Higgsfield Soul ID, storyboard por IA.
+- RECUSADO: Pulso Social (3.ª vez), Kimodo/MotionBricks (3D, não serve), "Claude Code ficou para trás" (opinião sem ação).
+
+
+
+## 07/10/2026 — radar diário
+24 vídeos revistos: 9 novos, 11 já temos, 4 rejeitados.
+- SISTEMA: skills em 3 camadas — descrição curta que dispara, método no SKILL.md, referências pesadas só carregadas quando precisas; topo do SKILL.md com resumo claro e checklist de autoverificação no fim. https://www.youtube.com/watch?v=-fmSIk0RHuo , https://www.youtube.com/watch?v=LGj4nYG60so
+- SISTEMA: mods do Claude Code — mod que pede confirmação antes de apagar ficheiros/pastas no PC e na VPS; quando o Jev for pago, ligá-lo como mod porteiro de pacotes. https://www.youtube.com/watch?v=VIfhvONGlOs , https://www.youtube.com/watch?v=JrsBuJmXMDw
+- SISTEMA: falar com o Hermes por mensagens de voz no Telegram; relatório semanal automático de vendas a partir do Stripe (só leitura). https://www.youtube.com/watch?v=FO5RVzgbgnw
+- REELS (Em Dia e Bora): "double dip" — o reel orgânico com melhor retenção é o candidato a anúncio; nunca fazer anúncio do zero. https://www.youtube.com/watch?v=0mOLs315i04
+- EM DIA: além de publicar, responder com ajuda real (sem link nem anúncio) a perguntas de recibos verdes nos grupos onde já publica. https://www.youtube.com/watch?v=c0GxTUYHYEw
+- DINHEIRO: nas propostas a PMEs, entregar a automação como skills no Claude Cowork do cliente (interface de conversa) em vez de ferramentas técnicas. https://www.youtube.com/watch?v=hwHIs9IoUus
+- JÁ TEMOS: Hermes (4 tutoriais), Jev como roteador (à espera de pagamento), agentes com Claude Code, vender conversão e não IA, sites com pedido por WhatsApp, explicativos animados, bio/perfil como página de vendas.
+- RECUSADO: consultoria de vendas do Kelvin Cleto (sem passo aplicável); Seedance 2.5/OpenArt e stickman (nota baixa).

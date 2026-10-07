@@ -1419,7 +1419,9 @@ class OrderStore extends ChangeNotifier {
     _dismissedOrderIds.add(order.id);
     // Exec6.5 — marca handled no gate para impedir re-trigger noutra UI
     // (laranja rejeitada → bonita NÃO pode aparecer para o mesmo pedido).
-    OfferPresentationGate.markActionCompleted(order.id);
+    // [07/10] Com o prazo: uma oferta NOVA do mesmo pedido volta a tocar.
+    OfferPresentationGate.markActionCompleted(order.id,
+        offerExpiresAt: order.driverOfferExpiresAt?.toIso8601String());
     notifyListeners();
     // Notify backend immediately so the next driver is dispatched without
     // waiting for the 40-second offer timeout to expire.
@@ -2595,6 +2597,9 @@ class OrderStore extends ChangeNotifier {
                       (rec['driver_earnings'] as num?)?.toStringAsFixed(2) ??
                           '0.00',
                       dropoffAddress: (rec['dropoff_address'] as String?) ?? '',
+                      // [07/10] prazo: oferta nova do mesmo pedido volta a tocar.
+                      offerExpiresAt:
+                          rec['driver_offer_expires_at']?.toString(),
                     ).ignore();
                   }
                 } else if (_driverOfferIds.contains(orderId)) {

@@ -5,6 +5,7 @@ import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../models/restaurant_model.dart';
 import '../stores/restaurant_store.dart';
+import '../utils/hora_lisboa.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 
@@ -48,7 +49,8 @@ class _PartnerHoursScreenState extends State<PartnerHoursScreen> {
         .read<RestaurantStore>()
         .fetchDiasFechados(widget.restaurant.id);
     if (!mounted) return;
-    final hoje = DateTime.now();
+    // "Hoje" é o dia de Lisboa — o servidor lê os dias fechados por Lisboa.
+    final hoje = horaLisboa(DateTime.now());
     final hojeSo = DateTime(hoje.year, hoje.month, hoje.day);
     setState(() {
       _diasFechados = dias.where((d) => !d.isBefore(hojeSo)).toList();
@@ -75,7 +77,7 @@ class _PartnerHoursScreenState extends State<PartnerHoursScreen> {
   }
 
   Future<void> _adicionarDiaFechado() async {
-    final hoje = DateTime.now();
+    final hoje = horaLisboa(DateTime.now());
     final escolhido = await showDatePicker(
       context: context,
       initialDate: hoje,

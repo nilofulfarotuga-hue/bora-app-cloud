@@ -1,0 +1,26 @@
+Cache do navegador na zona Cloudflare boraguarda.com — 07/10/2026 (auditoria das 3 plataformas)
+
+Problema: no domínio principal app.boraguarda.com o código da app (main.dart.js,
+flutter_bootstrap.js) saía com cache-control "max-age=14400" (4 horas) por causa do
+"Browser Cache TTL" da zona; em bora-app-web.pages.dev o mesmo ficheiro sai com "no-cache".
+O index.html vinha fresco e o carimbo batia com o versao.json, por isso a verificação de
+versão não recarregava: quem voltava à app dentro de 4 h corria o código antigo.
+
+Antes (lido pela API e pelo endereço público):
+  browser_cache_ttl = 14400
+  https://app.boraguarda.com/main.dart.js -> 200 cache-control="max-age=14400"
+  https://app.boraguarda.com/flutter_bootstrap.js -> 200 cache-control="max-age=14400"
+
+Mudança: PATCH /zones/<boraguarda.com>/settings/browser_cache_ttl {"value": 0}
+(= "Respect Existing Headers"), com o CLOUDFLARE_API_TOKEN do bora-site. Resposta ok, valor=0.
+
+Depois (20 s):
+  browser_cache_ttl = 0
+  https://app.boraguarda.com/main.dart.js -> 200 cache-control="no-cache"
+  https://app.boraguarda.com/flutter_bootstrap.js -> 200 cache-control="no-cache"
+  https://app.boraguarda.com/ -> 200 cache-control="no-cache"
+  https://app.boraguarda.com/versao.json -> 200 cache-control="no-store"
+  https://boraguarda.com/ -> 200 cache-control="public, max-age=0, must-revalidate" (site institucional, intacto)
+  https://boraguarda.com/robots.txt -> 200 cache-control="public, max-age=0, must-revalidate"
+
+Como se reverte: o mesmo PATCH com {"value": 14400}. Script: scratchpad cf_cache.js (lê os tokens do .env do bora-site, nunca os imprime).

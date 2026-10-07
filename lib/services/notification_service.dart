@@ -346,6 +346,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       'distanceKm': distanceKm,
       'driverEarnings': driverEarnings,
       'dropoffAddress': dropoffAddress,
+      'offerExpiresAt': data['offerExpiresAt']?.toString() ?? '',
       'ts': DateTime.now().millisecondsSinceEpoch,
     }));
     debugPrint('[BORA-OFFER] pending_offer SAVED order=$orderId');
@@ -372,7 +373,11 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     }
     final handledList =
         prefs.getStringList('gate_handled_orderids') ?? const <String>[];
-    if (handledList.contains(orderId)) {
+    // [07/10] Só salta se for a MESMA oferta (mesmo prazo). Oferta nova do
+    // mesmo pedido volta a tocar em loop.
+    if (handledList.contains(orderId) &&
+        !OfferPresentationGate.isNewOfferFromPrefs(
+            prefs, orderId, data['offerExpiresAt']?.toString())) {
       debugPrint('[FCM BG] HANDLED SKIP (SP persistent list) order=$orderId');
       return;
     }
@@ -486,7 +491,9 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     }
     final handledList =
         prefs.getStringList('gate_handled_orderids') ?? const <String>[];
-    if (handledList.contains(orderId)) {
+    if (handledList.contains(orderId) &&
+        !OfferPresentationGate.isNewOfferFromPrefs(
+            prefs, orderId, data['offerExpiresAt']?.toString())) {
       debugPrint('[FCM BG] post-delay SKIP — main isolate já tratou order=$orderId');
       return;
     }
@@ -510,6 +517,9 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         'distanceKm': distanceKm,
         'driverEarnings': driverEarnings,
         'dropoffAddress': dropoffAddress,
+        // [07/10] prazo da oferta: o gate distingue oferta nova do mesmo pedido.
+        if ((data['offerExpiresAt']?.toString() ?? '').isNotEmpty)
+          'expiresAt': data['offerExpiresAt'].toString(),
       });
       debugPrint('[FGS_BRIDGE] sendDataToTask returned (sync) order=$orderId');
     } else {
@@ -1236,6 +1246,11 @@ const Set<String> _kPersistentCategoryTypes = <String>{
   'appointment_no_show_reverted',
   'low_rating',
   'purchase_finalized',
+  // [Aviso ao parceiro · 07/10] notify-partner kind `status_change`: o admin
+  // forçou a loja aberta/fechada ou mudou o horário. O servidor passou a
+  // mandá-lo a 07/10 (antes nunca saía); sem esta entrada o Android, que
+  // recebe só dados, não mostrava nada.
+  'status_change',
   // Backend emite `admin_reimbursement`; `reimbursement` fica como alias
   // defensivo caso alguma Edge Function envie o nome curto.
   'admin_reimbursement',
@@ -1675,6 +1690,18 @@ Future<void> _showPersistentCategoryNotification(RemoteMessage message) async {
         body: notif?.body ?? '',
         notificationId: ratingId.isNotEmpty ? ratingId.hashCode : type.hashCode,
         payload: {'restaurantId': data['restaurant_id']?.toString() ?? ''},
+      );
+      return;
+    // [Aviso ao parceiro · 07/10] Loja forçada aberta/fechada ou horário mudado
+    // pelo admin (notify-partner, data-only com title/body nos dados).
+    case 'status_change':
+      final restaurantId = data['restaurantId']?.toString() ?? '';
+      await _showPersistentStatusNotification(
+        type: type,
+        title: data['title']?.toString() ?? notif?.title ?? '🏪 A tua loja',
+        body: data['body']?.toString() ?? notif?.body ?? '',
+        notificationId: ('status_change:$restaurantId').hashCode,
+        payload: {'restaurantId': restaurantId},
       );
       return;
     case 'purchase_finalized':
@@ -2387,6 +2414,7 @@ class NotificationService {
       distanceKm: data['distanceKm']?.toString() ?? '0',
       driverEarnings: data['driverEarnings']?.toString() ?? '0.00',
       dropoffAddress: data['dropoffAddress']?.toString() ?? '',
+      offerExpiresAt: data['expiresAt']?.toString(),
     );
   }
 
@@ -2515,6 +2543,7 @@ class NotificationService {
           distanceKm: data['distanceKm']?.toString() ?? '0',
           driverEarnings: data['driverEarnings']?.toString() ?? '0.00',
           dropoffAddress: data['dropoffAddress']?.toString() ?? '',
+          offerExpiresAt: data['offerExpiresAt']?.toString(),
         );
       } catch (e) {
         debugPrint('[BORA-OFFER] rehydrate error: $e');

@@ -1,0 +1,15 @@
+== relogio=LISBOA rc=0 04:56 +46: All tests passed!
+== relogio=UTC1 rc=0 13:55 +46: All tests passed!
+== relogio=BRT3 rc=124 00:19 +14: loading C:/BoraLocal/wt-ronda-05-10/test/loja_fechada_test.dart
+== relogio=JST-9 rc=0 05:11 +46: All tests passed!
+== relogio=BRT3 test/loja_hora_lisboa_test.dart rc=0 00:00 +14: All tests passed!
+== relogio=BRT3 test/loja_fechada_test.dart rc=0 00:00 +8: All tests passed!
+== relogio=BRT3 test/loja_em_pausa_test.dart rc=0 00:09 +8: All tests passed!
+== relogio=BRT3 test/loja_fechada_ficha_e_repetir_test.dart rc=0 00:17 +16: All tests passed!
+== v2 relogio=LISBOA test/loja_hora_lisboa_test.dart rc=0 00:00 +18: All tests passed!
+== v2 relogio=LISBOA test/loja_fechada_test.dart rc=0 00:00 +8: All tests passed!
+== v2 relogio=LISBOA test/loja_em_pausa_test.dart rc=0 00:00 +8: All tests passed!
+== v2 relogio=LISBOA test/loja_fechada_ficha_e_repetir_test.dart rc=0 00:03 +16: All tests passed!
+== v2 relogio=UTC1 test/loja_hora_lisboa_test.dart rc=0 00:00 +18: All tests passed!
+== v2 relogio=UTC1 test/loja_fechada_ficha_e_repetir_test.dart rc=0 00:03 +16: All tests passed!
+== v2 relogio=JST-9 test/loja_hora_lisboa_test.dart rc=0 00:00 +18: All tests passed!

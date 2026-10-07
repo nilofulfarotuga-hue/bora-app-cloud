@@ -25,6 +25,8 @@ import '../config/business_rules.dart' show BRBags, BRBusiness, BRDriver;
 import '../models/cart_item.dart';
 import '../models/order_model.dart';
 import '../services/directions_service.dart';
+import '../services/localizacao_online.dart'
+    show podeLigarServicoDeLocalizacao, gpsLigadoSemServicoPorEstarEmFundo;
 import '../services/navigation_service.dart';
 import '../widgets/order_edit/driver_order_edit_notice.dart';
 import '../widgets/bora_support_fab.dart';
@@ -175,9 +177,18 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
         _driverStore.currentDriver?.location ?? _defaultFallbackCenter;
 
     MapMarkerHelper.preload();
+    _ciclo = AppLifecycleListener(onResume: () {
+      if (mounted && _gpsSemServicoPorFundo) _startLocationTracking();
+    });
     _startLocationTracking();
     _loadDriverArrowIcon();
   }
+
+  /// [GPS em fundo · 07/10] O GPS da entrega nasceu sem serviço em primeiro
+  /// plano só porque a app estava em fundo — religa-se ao voltar à frente.
+  bool _gpsSemServicoPorFundo = false;
+  AppLifecycleListener? _ciclo;
+  int _gpsGeracao = 0;
 
   /// Builds the green arrow marker used for the driver. Runs off Web
   /// (BitmapDescriptor.fromBytes is not supported on the web platform);
@@ -218,6 +229,7 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
 
   @override
   void dispose() {
+    _ciclo?.dispose();
     _debounceTimer?.cancel();
     _interpolationTimer?.cancel();
     _followResumeTimer?.cancel();
@@ -237,6 +249,8 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
   ///      On Android: uses AndroidSettings with ForegroundNotificationConfig
   ///      so the stream survives app minimisation (foreground service).
   Future<void> _startLocationTracking() async {
+    // [GPS órfão · 07/10] Só o arranque mais recente subscreve.
+    final geracao = ++_gpsGeracao;
     // ── 1. GPS service check ────────────────────────────────────────────────
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
 
@@ -353,7 +367,17 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     // even when the app is minimised (Android foreground service).
     // On iOS, standard LocationSettings suffice (the OS handles background).
     final LocationSettings locationSettings;
-    if (defaultTargetPlatform == TargetPlatform.android) {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      // [GPS em fundo · 07/10] O serviço em primeiro plano só com a app à
+      // frente (ou permissão "sempre") — ver podeLigarServicoDeLocalizacao.
+      // Com a app em fundo o Android recusava-o, o Flutter só registava o
+      // erro e o GPS da entrega ficava morto; agora liga sem serviço e
+      // religa-se com serviço quando a app volta à frente ([_ciclo]).
+      final comServico = podeLigarServicoDeLocalizacao(
+        localizacaoLigada: true,
+        permissao: await Geolocator.checkPermission(),
+        estadoDaApp: WidgetsBinding.instance.lifecycleState,
+      );
       locationSettings = AndroidSettings(
         // bestForNavigation: highest accuracy, continuous updates
         accuracy: LocationAccuracy.bestForNavigation,
@@ -362,11 +386,25 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
         distanceFilter: 5,
         // Update frequency: 1 second (fast enough for real-time tracking)
         intervalDuration: const Duration(seconds: 1),
-        foregroundNotificationConfig: const ForegroundNotificationConfig(
-          notificationTitle: 'BORA em execução',
-          notificationText: 'Localização ativa para entregas',
-          enableWakeLock: true,
-        ),
+        foregroundNotificationConfig: comServico
+            ? const ForegroundNotificationConfig(
+                notificationTitle: 'BORA em execução',
+                notificationText: 'Localização ativa para entregas',
+                enableWakeLock: true,
+              )
+            : null,
+      );
+    } else if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+      // [GPS em fundo no iPhone · 07/10] As definições simples paravam o GPS
+      // quando a app ia para fundo (o estafeta abre o Waze a meio da entrega):
+      // o cliente via a mota parada. O mesmo que o GPS "online" já faz.
+      locationSettings = AppleSettings(
+        accuracy: LocationAccuracy.bestForNavigation,
+        distanceFilter: 5,
+        pauseLocationUpdatesAutomatically: false,
+        showBackgroundLocationIndicator: true,
+        activityType: ActivityType.automotiveNavigation,
+        allowBackgroundLocationUpdates: true,
       );
     } else {
       locationSettings = const LocationSettings(
@@ -376,6 +414,11 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
         distanceFilter: 5,
       );
     }
+    if (!mounted || geracao != _gpsGeracao) return;
+    _gpsSemServicoPorFundo = gpsLigadoSemServicoPorEstarEmFundo(locationSettings);
+    final anterior = _positionSubscription;
+    _positionSubscription = null;
+    if (anterior != null) unawaited(anterior.cancel());
 
     _positionSubscription = Geolocator.getPositionStream(
       locationSettings: locationSettings,

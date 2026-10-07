@@ -983,6 +983,8 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       if (!mounted) return;
       final msg = s.contains('PAGAMENTO_ELETRONICO_OBRIGATORIO')
           ? mensagemErroConformidade(e)
+          : s.contains('no_tvde_access')
+          ? 'Esta categoria ainda não está liberada para ti.'.tr
           : s.contains('ride_in_progress')
           ? 'Já tens uma corrida em curso.'.tr
           : s.contains('card_payments_not_enabled')
@@ -1430,7 +1432,9 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       if (!mounted) return;
       final s = '$erroIda';
       messenger.showSnackBar(SnackBar(
-          content: Text(s.contains('ride_in_progress')
+          content: Text(s.contains('no_tvde_access')
+              ? 'Esta categoria ainda não está liberada para ti.'.tr
+              : s.contains('ride_in_progress')
               ? 'Já tens uma corrida em curso.'.tr
               : s.contains('card_payments_not_enabled')
                   ? 'Pagamento por cartão ainda não está disponível.'.tr

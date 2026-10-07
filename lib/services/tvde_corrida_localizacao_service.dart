@@ -1,7 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:geolocator/geolocator.dart';
+
+import 'localizacao_online.dart' show podeLigarServicoDeLocalizacao;
 
 /// Serviço em primeiro plano de LOCALIZAÇÃO para corridas TVDE.
 ///
@@ -85,6 +88,20 @@ class TvdeCorridaLocalizacao {
     const accuracy = LocationAccuracy.bestForNavigation;
     const distanceFilter = 3;
 
+    // [GPS em fundo no iPhone · 07/10] As definições simples paravam o GPS da
+    // corrida quando a app ia para fundo (o motorista abre o Waze): o cliente
+    // via o carro parado e o servidor dava-o offline aos 90 s. O mesmo que o
+    // GPS "online" já faz no iPhone (UIBackgroundModes location no plist).
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+      return AppleSettings(
+        accuracy: accuracy,
+        distanceFilter: distanceFilter,
+        pauseLocationUpdatesAutomatically: false,
+        showBackgroundLocationIndicator: true,
+        activityType: ActivityType.automotiveNavigation,
+        allowBackgroundLocationUpdates: true,
+      );
+    }
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
       return const LocationSettings(
         accuracy: accuracy,
@@ -170,11 +187,18 @@ class TvdeCorridaLocalizacao {
         return false;
       }
       final permissao = await Geolocator.checkPermission();
-      final ok = permissao == LocationPermission.always ||
-          permissao == LocationPermission.whileInUse;
+      // [GPS em fundo · 07/10] Com "enquanto se usa", só com a app à frente
+      // (ver [podeLigarServicoDeLocalizacao]): aceitar a corrida pelo botão
+      // da notificação abre este ecrã antes de a app estar à frente.
+      final estado = WidgetsBinding.instance.lifecycleState;
+      final ok = podeLigarServicoDeLocalizacao(
+        localizacaoLigada: true,
+        permissao: permissao,
+        estadoDaApp: estado,
+      );
       if (!ok) {
         debugPrint('[TvdeCorridaLocalizacao] permissão=$permissao '
-            '— sem serviço em primeiro plano');
+            'estado=$estado — sem serviço em primeiro plano');
       }
       return ok;
     } catch (e) {

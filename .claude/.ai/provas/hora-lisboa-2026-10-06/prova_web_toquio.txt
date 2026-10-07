@@ -1,0 +1,37 @@
+Prova ao vivo — web publicada com o navegador NOUTRO FUSO (06/10/2026)
+Missão hora-lisboa-2026-10-06 · script: prova_fuso_web.py · conta: cliente demo do autoteste do CI
+
+Bundle publicado (lido 3 vezes, igual nos dois domínios):
+  antes do envio : 11112632 bytes  sha256 3f3215836ef3ef46…  (app.boraguarda.com = bora-app-web.pages.dev)
+  depois da web #196 (commit a1aa5594): 11113107 bytes  sha256 241e566605d2cd2a…
+
+Comando:
+  PYTHONIOENCODING=utf-8 FUSO=Asia/Tokyo python prova_fuso_web.py ../../../.. guiao "b:Sou Cliente" "e:0:EMAIL" "e:1:SENHA" "b:Entrar" "w:9000" "v:inicio" "f:02-inicio"
+
+Saída literal (excerto):
+  fuso do navegador: Asia/Tokyo | relogio do navegador: Tue Oct 06 2026 23:57:07 GMT+0900
+  group: Auchan Aberto 10-20 min 0.4 km €2.50
+  group: Burger King Aberto 10-20 min 2.1 km €2.50
+  group: Continente Aberto 10-20 min 1.0 km €2.50
+  group: DaVinci Restaurante & Pizzaria Aberto 10-20 min 0.5 km €2.50
+  group: Fuku Sushi Aberto 10-20 min 2.5 km €2.50
+  group: Intermarché Aberto 10-20 min 1.6 km €2.50
+  group: KFC Aberto 10-20 min 2.3 km €2.50
+  group: Leroy Merlin Aberto 10-20 min 2.3 km €2.50
+  group: McDonald's Aberto 10-20 min 2.4 km €2.50
+  group: Pingo Doce Aberto 10-20 min 2.3 km €2.50
+  group: Wells Aberto 10-20 min 1.0 km €2.50
+  group: Sabores do Brasil - Keli Barbosa Aceita encomendas …
+  erros de página: []
+  foto: web-Asia_Tokyo-02-inicio.png
+
+Servidor no mesmo minuto (MCP execute_sql, is_partner_open(id, now())):
+  hora_lisboa = Tue 15:58 · hora_toquio = Tue 23:58
+  Auchan 09:00-21:00 true · Continente 08:00-22:00 true · DaVinci 12:00-23:00 true
+  Fuku Sushi 12:00-23:00 true · Intermarché 08:30-20:00 true · KFC 11:00-23:00 true
+  Leroy Merlin 09:00-21:00 true · McDonald's 10:00-23:59 true · Pingo Doce 08:00-21:00 true
+  Wells 09:00-21:00 true
+
+Leitura: a app no navegador em Tóquio (23h57) mostra o mesmo que o servidor diz para
+Lisboa (15h58). Pela regra antiga (relógio do aparelho), às 23h57 todas estas lojas,
+menos o McDonald's (fecha 23h59), apareceriam "Fechada".

@@ -126,7 +126,18 @@ class _SupportScreenState extends State<SupportScreen> {
       path: 'boraappbora@gmail.com',
       query: 'subject=Suporte Bora App',
     );
-    if (await canLaunchUrl(uri)) await launchUrl(uri);
+    // [E-mail do suporte · 07/10] Sem `canLaunchUrl`: no Android 11+ ela diz
+    // "não" a `mailto:` sem `<queries>` no manifesto e o botão não fazia nada
+    // (o legal_info_screen já tinha esta lição). Sem app de e-mail, mostra-se
+    // o endereço.
+    var abriu = false;
+    try {
+      abriu = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {/* sem app de e-mail */}
+    if (!abriu && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Escreve-nos para boraappbora@gmail.com'.tr)));
+    }
   }
 
   Future<void> _launchPhone() async {

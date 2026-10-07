@@ -80,12 +80,24 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
   // provide log context when a second offer event is dropped while the first
   // is still on screen. Cleared when the dialog closes.
   String? _lastOfferedOrderId;
+  // [07/10/2026] A mesma oferta = mesmo pedido E mesmo prazo. Quando o despacho
+  // volta a oferecer o MESMO pedido (só um estafeta ligado), o prazo é novo e o
+  // cartão + som em loop têm de voltar (antes ficava calado: McDonald's 06/10).
+  String? _lastOfferedKey;
+  final Set<String> _alertedOfferKeys = <String>{};
+  static String _offerKey(OrderModel o) =>
+      '${o.id}|${o.driverOfferExpiresAt?.millisecondsSinceEpoch ?? ''}';
   String? _currentShowingOrderId;
   String? _highlightedOrderId;
   final SoundService _soundService = SoundService();
   final HeartbeatService _heartbeatService = HeartbeatService();
   final Set<String> _processingOrderIds = {};
   StreamSubscription<Position>? _positionSubscription;
+
+  /// [GPS em fundo · 07/10] O GPS "online" foi ligado sem serviço em primeiro
+  /// plano só porque a app estava em fundo — religa-se ao voltar à frente.
+  bool _gpsSemServicoPorFundo = false;
+  int _gpsGeracao = 0;
   OrderStore? _orderStore; // held so we can remove the listener in dispose
 
   /// GPS position obtained via getCurrentPosition() at startup.
@@ -250,6 +262,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       } else {
         context.read<OrderStore>().toggleDriverAvailability(false);
         unawaited(HeartbeatService.pararTodos());
+        _gpsGeracao++; // [07/10] um arranque a meio já não subscreve depois
         await _positionSubscription?.cancel();
         _positionSubscription = null;
       }
@@ -329,6 +342,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       final driver = context.read<DriverStore>().currentDriver;
       if (driver?.isOnline == true) {
         unawaited(_heartbeatService.start());
+        // [GPS em fundo · 07/10] Ligado em fundo sem serviço → religa à frente.
+        if (_gpsSemServicoPorFundo && _positionSubscription != null) {
+          unawaited(_startIdleLocationTracking());
+        }
       }
     }
     // 2026-05-20 — NÃO parar heartbeat em paused/detached enquanto driver
@@ -368,6 +385,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       // TVDE por baixo também batia e o servidor punha-o online outra vez).
       unawaited(HeartbeatService.pararTodos());
       // Stop idle GPS — no location drain when offline.
+      _gpsGeracao++; // [07/10] um arranque a meio já não subscreve depois
       await _positionSubscription?.cancel();
       _positionSubscription = null;
       // Fechar overlay de standby — driver já não vai receber pedidos.
@@ -695,6 +713,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     if (!isOnline) return;
     // [ronda 04/10 · #2] Por cima do TVDE o fluxo de GPS dele já corre.
     if (_porCimaDoTvde) return;
+    // [GPS órfão · 07/10] Só o arranque mais recente subscreve.
+    final geracao = ++_gpsGeracao;
     // Cancel any stale subscription before opening a new one.
     await _positionSubscription?.cancel();
     _positionSubscription = null;
@@ -777,8 +797,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       titulo: 'Bora — estás online',
       texto: 'Recebes os pedidos na hora, mesmo com a app em fundo.',
     );
-    if (!mounted) return;
-    await _positionSubscription?.cancel();
+    if (!mounted || geracao != _gpsGeracao) return;
+    _gpsSemServicoPorFundo = gpsLigadoSemServicoPorEstarEmFundo(locationSettings);
+    final anterior = _positionSubscription;
+    _positionSubscription = null;
+    if (anterior != null) unawaited(anterior.cancel());
 
     _positionSubscription = Geolocator.getPositionStream(
       locationSettings: locationSettings,
@@ -822,6 +845,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
   /// active (DriverMapScreen has its own high-precision stream). Resumes
   /// the idle stream when the map is popped.
   Future<void> _navigateToMap() async {
+    _gpsGeracao++; // [07/10] o mapa é o dono do GPS; um arranque a meio larga
     await _positionSubscription?.cancel();
     _positionSubscription = null;
     if (!mounted) return;
@@ -2370,7 +2394,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
         .where((o) =>
             o.status == OrderStatus.callingDriver &&
             !_processingOrderIds.contains(o.id) &&
-            o.id != _lastOfferedOrderId &&
+            _offerKey(o) != _lastOfferedKey &&
             o.id != _currentShowingOrderId)
         .toList()
       ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
@@ -2388,9 +2412,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
           'alreadyAlerted=${_alreadyAlertedOrderIds.contains(next.id)} '
           'isShowingDialog=$_isShowingDialog currentShowing=$_currentShowingOrderId');
 
-      if (newIds.contains(next.id) &&
-          !_alreadyAlertedOrderIds.contains(next.id)) {
+      final nextKey = _offerKey(next);
+      // [07/10] Oferta nova do mesmo pedido (prazo novo) também toca.
+      final ofertaRepetida = _alreadyAlertedOrderIds.contains(next.id) &&
+          !_alertedOfferKeys.contains(nextKey);
+      if ((newIds.contains(next.id) &&
+              !_alreadyAlertedOrderIds.contains(next.id)) ||
+          ofertaRepetida) {
         _alreadyAlertedOrderIds.add(next.id);
+        _alertedOfferKeys.add(nextKey);
         unawaited(_triggerNewOrderFeedback(next));
         // Exec6.9 (2026-05-25) — som da laranja SÓ se a bonita full-screen
         // NÃO está activa para este orderId (gate marca SP em BG-unlocked).
@@ -2428,6 +2458,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
         .map((o) => o.id)
         .toSet();
     _alreadyAlertedOrderIds.removeWhere((id) => !callingIds.contains(id));
+    _alertedOfferKeys
+        .removeWhere((k) => !callingIds.contains(k.split('|').first));
     // BUG H6 — mantém o set bounded: limpa entries cujos pedidos já saíram
     // de callingDriver (backend re-atribuiu ou cancelou).
     _dismissedExpiredOrderIds
@@ -2514,16 +2546,18 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     }
 
     // Dedupe stream re-emissions of the same order while the dialog is open.
-    if (_lastOfferedOrderId == order.id) return;
+    if (_lastOfferedKey == _offerKey(order)) return;
 
     _isShowingDialog = true;
     _currentShowingOrderId = order.id;
     _lastOfferedOrderId = order.id;
+    _lastOfferedKey = _offerKey(order);
 
     if (!mounted) {
       _isShowingDialog = false;
       _currentShowingOrderId = null;
       _lastOfferedOrderId = null;
+      _lastOfferedKey = null;
       unawaited(_soundService.stop());
       return;
     }
@@ -2552,6 +2586,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       _isShowingDialog = false;
       _currentShowingOrderId = null;
       _lastOfferedOrderId = null;
+      _lastOfferedKey = null;
       return;
     }
     final expira = order.driverOfferExpiresAt;
@@ -2748,6 +2783,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     _isShowingDialog = false;
     _currentShowingOrderId = null;
     _lastOfferedOrderId = order.id;
+    _lastOfferedKey = _offerKey(order);
 
     if (!mounted) return;
 

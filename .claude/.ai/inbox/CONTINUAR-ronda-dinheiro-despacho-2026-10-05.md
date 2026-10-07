@@ -93,7 +93,10 @@ Só depois: `dispatch_parceiro_chama_estafeta_ligado = true` (painel, Configura�
   enche um carrinho que não está ligado àquela loja (nome, id, morada de recolha e marca de
   fechada ficam os da sessão anterior, ou vazios). Confirmar ao vivo e corrigir: a porta do link
   tem de fazer o mesmo que `openRetailBusiness`.
-- **Relógio do aparelho (gémeos por unificar, registado no PADRAO §1.27):**
+- **(FEITO a 06/10, missão `hora-lisboa-2026-10-06`, commits `af8838f3` + `a1aa5594`, Android
+  652 / web #196 / iPhone 1.0.12 build 168 no TestFlight — relatório
+  `.claude/.ai/reports/2026-10-06-hora-lisboa.md`.)**
+  **Relógio do aparelho (gémeos por unificar, registado no PADRAO §1.27):**
   `RestaurantModel.isOpenNow`, `statusLabel` e `avisoLojaFechada` usam a hora do telemóvel; o
   servidor (`is_partner_open`) usa `Europe/Lisbon`. Num aparelho noutro fuso divergem uma hora:
   a app deixa encher o carrinho e o servidor recusa (`STORE_CLOSED`), ou o contrário. Receita:

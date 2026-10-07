@@ -1613,13 +1613,15 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
       ),
     );
     if (ok != true || !mounted || reasonCtrl.text.trim().length < 3) return;
+    // "Até dia X" = meia-noite desse dia em Lisboa, não no fuso do navegador.
+    final fim = endsAt;
     try {
       final store = context.read<RestaurantStore>();
       await store.adminSetPartnerOverride(
         restaurantId: widget.restaurantId,
         state: state,
         reason: reasonCtrl.text.trim(),
-        endsAt: endsAt,
+        endsAt: fim == null ? null : instanteDeLisboa(fim),
       );
       _loadAll();
     } catch (e) {

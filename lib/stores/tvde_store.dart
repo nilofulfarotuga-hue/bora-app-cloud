@@ -162,6 +162,9 @@ String traduzErroReserva(Object erro) {
   if (tem('too_many_reservations')) {
     return 'Já tens reservas a mais marcadas. Cancela uma antes de marcar outra.';
   }
+  if (tem('no_tvde_access')) {
+    return 'Esta categoria ainda não está liberada para ti.';
+  }
   if (tem('card_payments_not_enabled')) {
     return 'Os pagamentos online estão desligados. Marca a reserva para pagar em dinheiro.';
   }
@@ -215,6 +218,13 @@ class TvdeStore extends ChangeNotifier {
   // ── Acesso à categoria escondida ────────────────────────────────────────
   bool _tvdeAccess = false;
   bool get tvdeAccess => _tvdeAccess;
+
+  /// 2026-10-06 (caso Beatriz): `true` só depois de a primeira leitura de
+  /// `users.tvde_access` correr bem. Enquanto for `false` a home não desenha
+  /// nem o ladrilho do Bora Motorista nem o da categoria por descobrir —
+  /// evita mostrar a categoria a quem não tem acesso e o pisca-pisca a quem tem.
+  bool _accessLoaded = false;
+  bool get accessLoaded => _accessLoaded;
 
   /// null | 'pendente' | 'aprovado' | 'recusado'
   String? _accessRequestStatus;
@@ -332,6 +342,7 @@ class TvdeStore extends ChangeNotifier {
           .maybeSingle();
       if (user != null) {
         _tvdeAccess = (user['tvde_access'] as bool?) ?? false;
+        _accessLoaded = true;
       } else {
         debugPrint(
             'TvdeStore.refreshAccess: users sem linha — mantém tvdeAccess=$_tvdeAccess');
@@ -364,10 +375,17 @@ class TvdeStore extends ChangeNotifier {
   }
 
   /// Cliente pede desbloqueio → cria tvde_access_requests (pendente) + notifica admin.
-  Future<void> requestAccess() async {
+  ///
+  /// 2026-10-06: leva nome e telefone (o Danilo aprova no painel e precisa de
+  /// saber quem é). A RPC aceita os três parâmetros desde 30/09.
+  Future<void> requestAccess({String? nome, String? telefone, String? nota}) async {
     _setBusy(true);
     try {
-      await _sb.rpc('tvde_request_access').timeout(kAcaoTimeout);
+      await _sb.rpc('tvde_request_access', params: {
+        'p_nome': nome,
+        'p_telefone': telefone,
+        'p_nota': nota,
+      }).timeout(kAcaoTimeout);
       _accessRequestStatus = 'pendente';
     } catch (e) {
       debugPrint('TvdeStore.requestAccess error => $e');

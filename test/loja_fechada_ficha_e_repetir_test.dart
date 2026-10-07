@@ -21,6 +21,7 @@ import 'package:bora_app/screens/product_detail_screen.dart';
 import 'package:bora_app/services/reorder_service.dart';
 import 'package:bora_app/stores/cart_store.dart';
 import 'package:bora_app/stores/restaurant_store.dart';
+import 'package:bora_app/utils/hora_lisboa.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -76,9 +77,10 @@ final _grupoDoQueijo = [
 ];
 
 /// Horário que garante loja FECHADA à hora a que o teste corre: uma janela de
-/// uma hora que começa daqui a três.
+/// uma hora que começa daqui a três. A hora é a de Lisboa, a mesma com que a
+/// app decide (06/10/2026) — não a do aparelho.
 BusinessHours _fechadaAgora() {
-  final abre = (DateTime.now().hour + 3) % 24;
+  final abre = (horaLisboa(DateTime.now()).hour + 3) % 24;
   final fecha = (abre + 1) % 24;
   return _todosOsDias(abre, fecha);
 }
@@ -87,7 +89,7 @@ BusinessHours _fechadaAgora() {
 /// hora e fecha daqui a duas (a janela pode atravessar a meia-noite — um
 /// "00:00–23:59" falhava no último minuto do dia).
 BusinessHours _abertaAgora() {
-  final agora = DateTime.now().hour;
+  final agora = horaLisboa(DateTime.now()).hour;
   return _todosOsDias((agora + 23) % 24, (agora + 2) % 24);
 }
 

@@ -1862,6 +1862,10 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
           // botões principais e da própria mira.
           if (!ride.isFinished && !ride.isCancelled)
             Positioned(
+              // [Painel rebenta · 07/10] Chave: este SOS some no fim da
+              // corrida, e sem chave o painel de baixo era "encaixado" no
+              // lugar dele (ver a chave do painel).
+              key: const ValueKey<String>('tvde_corrida_sos'),
               left: Spacing.md,
               bottom: MediaQuery.of(context).size.height * _sheetExtent +
                   Spacing.md,
@@ -1882,7 +1886,17 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
           // para cima expande. O mapa (com a rota) ocupa o resto.
           // [Bloco 6, 30/08] Em viagem começa RECOLHIDO (mapa quase cheio); o
           // NotificationListener segue a altura para posicionar a mira.
+          //
+          // [Painel rebenta · 07/10 · 19 erros em 637–654] O painel tem chave
+          // própria. Sem ela, quando o SOS de cima sai (corrida terminada ou
+          // cancelada) ou volta (entra a corrida da fila), o Flutter casava o
+          // painel com o lugar do SOS e criava um painel NOVO com o mesmo
+          // `_sheetCtrl`: o novo ligava-se ao controlador, o velho ao sair
+          // desligava-o e destruía o tamanho do novo — na actualização seguinte
+          // `_onExtentReplaced` rebentava com "Null check operator" e o painel
+          // ficava cinzento.
           Positioned.fill(
+            key: const ValueKey<String>('tvde_corrida_painel'),
             child: NotificationListener<DraggableScrollableNotification>(
               onNotification: (n) {
                 if (mounted && (n.extent - _sheetExtent).abs() > 0.01) {

@@ -123,7 +123,15 @@
               }
               if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
                 limpezas.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
-                  return Promise.all(rs.map(function (r) { return r.unregister(); }));
+                  return Promise.all(rs.map(function (r) {
+                    // [Avisos da web · 07/10] O do Firebase fica: desregistá-lo
+                    // matava a subscrição de avisos a cada publicação (o envio
+                    // seguinte dava UNREGISTERED com HTTP 200, visto a 02/10).
+                    var sw = r.active || r.waiting || r.installing;
+                    var url = (sw && sw.scriptURL) || '';
+                    if (url.indexOf('firebase-messaging-sw.js') !== -1) return null;
+                    return r.unregister();
+                  }));
                 }));
               }
             } catch (e) {}

@@ -97,6 +97,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
   /// [GPS em fundo · 07/10] O GPS "online" foi ligado sem serviço em primeiro
   /// plano só porque a app estava em fundo — religa-se ao voltar à frente.
   bool _gpsSemServicoPorFundo = false;
+  int _gpsGeracao = 0;
   OrderStore? _orderStore; // held so we can remove the listener in dispose
 
   /// GPS position obtained via getCurrentPosition() at startup.
@@ -261,6 +262,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       } else {
         context.read<OrderStore>().toggleDriverAvailability(false);
         unawaited(HeartbeatService.pararTodos());
+        _gpsGeracao++; // [07/10] um arranque a meio já não subscreve depois
         await _positionSubscription?.cancel();
         _positionSubscription = null;
       }
@@ -383,6 +385,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       // TVDE por baixo também batia e o servidor punha-o online outra vez).
       unawaited(HeartbeatService.pararTodos());
       // Stop idle GPS — no location drain when offline.
+      _gpsGeracao++; // [07/10] um arranque a meio já não subscreve depois
       await _positionSubscription?.cancel();
       _positionSubscription = null;
       // Fechar overlay de standby — driver já não vai receber pedidos.
@@ -710,6 +713,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     if (!isOnline) return;
     // [ronda 04/10 · #2] Por cima do TVDE o fluxo de GPS dele já corre.
     if (_porCimaDoTvde) return;
+    // [GPS órfão · 07/10] Só o arranque mais recente subscreve.
+    final geracao = ++_gpsGeracao;
     // Cancel any stale subscription before opening a new one.
     await _positionSubscription?.cancel();
     _positionSubscription = null;
@@ -792,9 +797,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       titulo: 'Bora — estás online',
       texto: 'Recebes os pedidos na hora, mesmo com a app em fundo.',
     );
-    if (!mounted) return;
+    if (!mounted || geracao != _gpsGeracao) return;
     _gpsSemServicoPorFundo = gpsLigadoSemServicoPorEstarEmFundo(locationSettings);
-    await _positionSubscription?.cancel();
+    final anterior = _positionSubscription;
+    _positionSubscription = null;
+    if (anterior != null) unawaited(anterior.cancel());
 
     _positionSubscription = Geolocator.getPositionStream(
       locationSettings: locationSettings,
@@ -838,6 +845,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
   /// active (DriverMapScreen has its own high-precision stream). Resumes
   /// the idle stream when the map is popped.
   Future<void> _navigateToMap() async {
+    _gpsGeracao++; // [07/10] o mapa é o dono do GPS; um arranque a meio larga
     await _positionSubscription?.cancel();
     _positionSubscription = null;
     if (!mounted) return;

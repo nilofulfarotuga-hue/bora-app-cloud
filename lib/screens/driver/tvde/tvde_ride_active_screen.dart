@@ -240,6 +240,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   /// religa-se com serviço quando a app vem à frente ([_ciclo]).
   bool _gpsSemServicoPorFundo = false;
   AppLifecycleListener? _ciclo;
+  int _gpsGeracao = 0;
   LatLng? _gpsPos;
 
   /// [Uma corrida = uma stream · 05/09] Este ecrã assumiu o GPS (a stream da
@@ -327,6 +328,10 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   /// filtro de distância cala o stream — sem ticks, sem bateria, sem tremer.
   Future<void> _startGps() async {
     if (kIsWeb) return; // na Web fica a semente do store (sem FGS/navegação)
+    // [GPS órfão · 07/10] Só o arranque mais recente subscreve: dois arranques
+    // sobrepostos (voltar à frente duas vezes seguidas) deixavam uma
+    // subscrição sem dono que sobrevivia ao ecrã.
+    final geracao = ++_gpsGeracao;
     await _gps?.cancel();
     // [Bloco 3B · 05/09] Serviço em primeiro plano do próprio geolocator, que
     // é o que impede o Android de estrangular o GPS quando o motorista
@@ -343,11 +348,17 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     // 3 m, 700 ms); e se a permissão faltar, o serviço devolve as definições
     // SEM a notificação em vez de rebentar.
     final settings = await TvdeCorridaLocalizacao.definicoesDeCorrida();
-    if (!mounted) return;
+    if (!mounted || geracao != _gpsGeracao) return;
     _gpsSemServicoPorFundo = gpsLigadoSemServicoPorEstarEmFundo(settings);
+    final anterior = _gps;
+    _gps = null;
+    if (anterior != null) unawaited(anterior.cancel());
     try {
       _gps = Geolocator.getPositionStream(locationSettings: settings).listen(
         (p) {
+          // Uma leitura que chega depois de o ecrã fechar não pode voltar a
+          // tirar o GPS à home (tvdeCorridaControlaGps ficaria preso a true).
+          if (!mounted) return;
           // A ordem é deliberada: primeiro assume-se o GPS (o que suspende a
           // stream da home), e só depois se alimenta o servidor — nesta mesma
           // leitura. O servidor nunca fica um ciclo sem quem lhe escreva.

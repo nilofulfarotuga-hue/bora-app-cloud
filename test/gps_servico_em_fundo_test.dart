@@ -121,6 +121,27 @@ void main() {
     });
   });
 
+  test('dois arranques sobrepostos nunca deixam uma subscrição de GPS órfã', () {
+    for (final c in [
+      'lib/screens/driver/tvde/tvde_driver_home_screen.dart',
+      'lib/screens/driver/tvde/tvde_ride_active_screen.dart',
+      'lib/screens/driver_home_screen.dart',
+      'lib/screens/driver_map_screen.dart',
+    ]) {
+      final f = File(c).readAsStringSync();
+      expect(f, contains('final geracao = ++_gpsGeracao;'), reason: c);
+      expect(f, contains('geracao != _gpsGeracao'), reason: c);
+      expect(f, contains('if (anterior != null) unawaited(anterior.cancel());'),
+          reason: '$c: a subscrição anterior tem de sair antes da nova');
+    }
+    final corrida = File('lib/screens/driver/tvde/tvde_ride_active_screen.dart')
+        .readAsStringSync();
+    final escuta = corrida.indexOf('Geolocator.getPositionStream(locationSettings: settings).listen(');
+    expect(corrida.substring(escuta, corrida.indexOf('_assumirGps();', escuta)),
+        contains('if (!mounted) return;'),
+        reason: 'uma leitura depois de o ecrã fechar tirava o GPS à home para sempre');
+  });
+
   test('os três sítios que ligam o GPS religam-no ao voltar à frente', () {
     String ler(String c) => File(c).readAsStringSync();
     final tvdeHome = ler('lib/screens/driver/tvde/tvde_driver_home_screen.dart');

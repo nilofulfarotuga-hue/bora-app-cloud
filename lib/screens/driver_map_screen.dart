@@ -188,6 +188,7 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
   /// plano só porque a app estava em fundo — religa-se ao voltar à frente.
   bool _gpsSemServicoPorFundo = false;
   AppLifecycleListener? _ciclo;
+  int _gpsGeracao = 0;
 
   /// Builds the green arrow marker used for the driver. Runs off Web
   /// (BitmapDescriptor.fromBytes is not supported on the web platform);
@@ -248,6 +249,8 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
   ///      On Android: uses AndroidSettings with ForegroundNotificationConfig
   ///      so the stream survives app minimisation (foreground service).
   Future<void> _startLocationTracking() async {
+    // [GPS órfão · 07/10] Só o arranque mais recente subscreve.
+    final geracao = ++_gpsGeracao;
     // ── 1. GPS service check ────────────────────────────────────────────────
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
 
@@ -411,9 +414,11 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
         distanceFilter: 5,
       );
     }
-    if (!mounted) return;
+    if (!mounted || geracao != _gpsGeracao) return;
     _gpsSemServicoPorFundo = gpsLigadoSemServicoPorEstarEmFundo(locationSettings);
-    await _positionSubscription?.cancel();
+    final anterior = _positionSubscription;
+    _positionSubscription = null;
+    if (anterior != null) unawaited(anterior.cancel());
 
     _positionSubscription = Geolocator.getPositionStream(
       locationSettings: locationSettings,

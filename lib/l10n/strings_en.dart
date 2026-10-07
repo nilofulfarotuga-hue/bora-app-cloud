@@ -3268,4 +3268,6 @@ const Map<String, String> kStringsEn = <String, String>{
   'Escreve o teu nome.': 'Enter your name.',
   'Escreve um telefone válido.': 'Enter a valid phone number.',
   'Pedir para descobrir': 'Ask to discover',
+  'Escreve-nos para boraappbora@gmail.com':
+      'Write to us at boraappbora@gmail.com',
 };

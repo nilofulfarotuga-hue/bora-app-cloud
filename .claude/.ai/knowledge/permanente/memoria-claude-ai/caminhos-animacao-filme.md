@@ -2,7 +2,7 @@
 id: memoria-claude-ai-caminhos-animacao-filme
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-05
+ultima_confirmacao: 2026-10-07
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Filme das filhas — 5 caminhos grátis para o desenho (revisto 05/10 com os 50 vídeos)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-05T08:22:21.140009+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-07T12:33:29.536905+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: caminhos animacao filme · memoria claude.ai · claude_ai_memoria
 
@@ -24,3 +24,8 @@ Música: ferramentas grátis de música + trilha do Vibes, atenção ao uso come
 Reserva, não caminho principal: Kaggle 2 GPUs com LTX-2.3/MiniMax H3 (fluxos ComfyUI; o próprio vídeo do LTX-2 diz que é inconsistente). Rejeitados: Skywork, Magic Hour, InsMind, Newport, Nan (créditos/custo não claro), Veo grátis via teste Google Cloud (pede cartão), Kimodo (jogos/GPU).
 
 Ordem recomendada: 2 (bíblia) → 1 (personagens fixos) → 3 (vozes) → 4 (boca) → 5 (animar e encadear) → montar no CapCut.
+
+## Filme (complemento aos 5 caminhos de 05/10, que continuam válidos)
+- Reforço do caminho 2: "geografia de cena" — fixar layout e luz de cada cenário no prompt; usar a imagem da cena anterior como referência para variações da mesma personagem. https://www.youtube.com/watch?v=NBS98oN5zs0
+- Alternativa ao caminho 1 com o conector Higgsfield que já existe: personagem guardada como elemento de referência (folha de ângulos + prompt em blocos identidade/roupa/cenário); gasta créditos Higgsfield. https://www.youtube.com/watch?v=YgDJDdFQZFY
+- Reserva quando acabarem os créditos do Flow: Pruna AI (demo grátis, sem marca de água, imagem-para-vídeo; lip sync fraco). https://www.youtube.com/watch?v=Ue6lYqBz_ds ; Atlabs só se o plano grátis não pedir cartão (o vídeo não diz preço). https://www.youtube.com/watch?v=gwaXdsxXGtY

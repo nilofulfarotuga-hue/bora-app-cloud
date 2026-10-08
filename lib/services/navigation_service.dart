@@ -45,6 +45,46 @@ class NavigationService {
     );
   }
 
+  /// Igual a [openNavigationOptions], mas para quando só há a morada escrita
+  /// (sem coordenadas) — ex.: paragem de um favor antigo. Google Maps e Waze
+  /// procuram a morada.
+  static Future<void> openNavigationToAddress(
+    BuildContext context,
+    String address,
+  ) async {
+    final q = Uri.encodeComponent(address);
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.directions_car, color: Colors.blue),
+                title: const Text("Abrir no Google Maps"),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _launchUri(context, Uri.parse(
+                      'https://www.google.com/maps/dir/?api=1&destination=$q'));
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.navigation, color: Colors.deepPurple),
+                title: const Text("Abrir no Waze"),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _launchUri(
+                      context, Uri.parse('https://waze.com/ul?q=$q&navigate=yes'));
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   /// Abre a navegação passo-a-passo DIRETAMENTE (sem folha de escolha).
   /// Regra de 13/09: depois de fechar o talão o estafeta segue logo para a
   /// morada do cliente, sem ecrã intermédio. Tenta a app do Google Maps em

@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../models/reservation_model.dart';
+import '../../widgets/bora/bora_bottom_action_bar.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '../../utils/hora_lisboa_ext.dart';
 import '../../widgets/admin/admin_csv_button.dart';
@@ -68,7 +69,7 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSt) => Padding(
           padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+            bottom: BoraBottomActionBar.folgaInferior(ctx),
             left: 16,
             right: 16,
             top: 16,
@@ -307,7 +308,7 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSt) => Padding(
           padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+            bottom: BoraBottomActionBar.folgaInferior(ctx),
             left: 16,
             right: 16,
             top: 16,
@@ -458,7 +459,7 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSt) => Padding(
           padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+            bottom: BoraBottomActionBar.folgaInferior(ctx),
             left: 16,
             right: 16,
             top: 16,

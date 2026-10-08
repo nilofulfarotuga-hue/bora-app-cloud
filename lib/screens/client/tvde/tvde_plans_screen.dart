@@ -236,7 +236,8 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
     return Scaffold(
       appBar: BoraScreenAppBar(title: 'Planos'.tr),
       body: ListView(
-        padding: const EdgeInsets.all(Spacing.lg),
+        padding: EdgeInsets.fromLTRB(Spacing.lg, Spacing.lg, Spacing.lg,
+            BoraBottomActionBar.folgaInferior(context)),
         children: [
           if (sub != null) _ActiveSubscription(sub: sub, dailyUsed: store.dailyUsed),
           if (sub != null) const SizedBox(height: Spacing.lg),

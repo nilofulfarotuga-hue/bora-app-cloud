@@ -37,6 +37,23 @@ class BoraBottomActionBar extends StatelessWidget {
 
   final double topPadding;
 
+  /// Folga inferior para o que não é um rodapé fixo — folhas que sobem
+  /// (`showModalBottomSheet`) e listas roláveis que acabam num botão
+  /// (varredura de 08/10/2026: Android 15 desenha a barra de 3 botões POR
+  /// CIMA da app, e o "Marcar como entregue" ficava meio escondido).
+  ///
+  /// [base] + o MAIOR entre o teclado (`viewInsets`) e a barra do sistema
+  /// (`viewPadding`): com o teclado aberto a barra fica por baixo dele, por
+  /// isso nunca se soma duas vezes. O `useSafeArea: true` de uma folha NÃO
+  /// protege o fundo (só topo e lados) — usa-se isto.
+  static double folgaInferior(BuildContext context,
+      {double base = Spacing.lg}) {
+    final mq = MediaQuery.of(context);
+    final teclado = mq.viewInsets.bottom;
+    final sistema = mq.viewPadding.bottom;
+    return base + (teclado > sistema ? teclado : sistema);
+  }
+
   @override
   Widget build(BuildContext context) {
     final bottomSafe = MediaQuery.of(context).viewPadding.bottom;

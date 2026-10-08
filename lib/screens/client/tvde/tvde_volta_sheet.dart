@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../l10n/tr.dart';
+import '../../../widgets/bora/bora_bottom_action_bar.dart';
 
 /// Escolha da VOLTA no ida-e-volta marcado (2026-09-23).
 /// `hora == null` = "Chamo quando terminar" (fica o vale da volta, como hoje).
@@ -76,7 +77,7 @@ class _TvdeVoltaSheetState extends State<TvdeVoltaSheet> {
     final podeContinuar = !_marcar || (_volta != null && _erro == null);
     return Padding(
       padding: EdgeInsets.fromLTRB(Spacing.lg, Spacing.lg, Spacing.lg,
-          Spacing.lg + MediaQuery.of(context).viewInsets.bottom),
+          BoraBottomActionBar.folgaInferior(context)),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,

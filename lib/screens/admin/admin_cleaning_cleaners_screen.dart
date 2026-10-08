@@ -5,7 +5,7 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/admin_other_role_badge.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
-import '../../widgets/private_bucket_image.dart';
+import '../../widgets/bora_foto_ecra_inteiro.dart';
 import '_admin_rpc_errors.dart';
 
 /// Limpeza doméstica — Admin: profissionais de limpeza.
@@ -475,7 +475,7 @@ class _AvatarThumb extends StatelessWidget {
 }
 
 /// Linha de documentos KYC (paths no bucket privado `cleaner-documents`).
-/// Abre preview assinado via PrivateBucketImage.
+/// Abre a foto inteira (visualizador comum, assina o balde privado sozinho).
 class _DocsRow extends StatelessWidget {
   const _DocsRow({required this.docs});
   final dynamic docs;
@@ -511,35 +511,9 @@ class _DocsRow extends StatelessWidget {
         children: [
           for (final e in entries)
             OutlinedButton.icon(
-              onPressed: () => showDialog<void>(
-                context: context,
-                builder: (ctx) => Dialog(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(_labels[e.key] ?? e.key,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w700)),
-                        const SizedBox(height: 8),
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxHeight: 400),
-                          child: PrivateBucketImage(
-                            urlOrPath: 'cleaner-documents/${e.value}',
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Text('Fechar'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+              onPressed: () => BoraFotoEcraInteiro.abrir(context,
+                  urlOrPath: 'cleaner-documents/${e.value}',
+                  titulo: _labels[e.key] ?? e.key),
               icon: const Icon(Icons.description_outlined, size: 16),
               label: Text(_labels[e.key] ?? e.key),
             ),

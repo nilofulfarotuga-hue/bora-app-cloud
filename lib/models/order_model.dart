@@ -230,8 +230,14 @@ class OrderModel {
   /// Se o favor implica voltar a casa no fim (devolver troco/comprovativo).
   final bool errandReturnLeg;
   final DateTime? errandReturnDoneAt;
-  /// Perna atual: 0=por-iniciar, 1=em-casa, 2=no-favor, 3=de-volta.
+  /// LEGADO — nunca foi escrito por nenhuma app (0=por-iniciar, 1=em-casa,
+  /// 2=no-favor, 3=de-volta). O passo do favor vive em [errandPasso].
   final int errandLeg;
+  /// Passo atual do estafeta no favor (08/10/2026): 0 = casa da cliente,
+  /// 1 = tratar do favor, 2 = entrega. Escrito pelo servidor (gatilho
+  /// `trg_orders_errand_passo`) a cada botão; NULL em pedidos antigos — aí
+  /// deduz-se pelo estado (`lib/utils/favor_passos.dart`).
+  final int? errandPasso;
   /// 'normal' | 'express'
   final String? errandSpeed;
   final bool errandHasPurchase;
@@ -375,6 +381,7 @@ class OrderModel {
     this.errandReturnLeg = false,
     this.errandReturnDoneAt,
     this.errandLeg = 0,
+    this.errandPasso,
     this.errandSpeed,
     this.errandHasPurchase = false,
     this.errandEstimatedPurchaseCents = 0,
@@ -397,8 +404,19 @@ class OrderModel {
   /// Hierarquia: cashTotalDue (set pelo finalize_storeshopping_purchase para sacos)
   /// → finalTotal (set pelo finalize quando há reconcile) → total (price original).
   /// + dívida em cents convertida a EUR.
-  double get totalToCollectCash =>
-      (cashTotalDue ?? finalTotal ?? total) + debtCollectedCents / 100.0;
+  ///
+  /// É A conta do "Cobrar ao cliente" — a faixa laranja, os cartões do
+  /// estafeta e o passo da entrega do favor usam todos esta. Favor (08/10,
+  /// pedido 74dd4ecc): depois do talão manda o `final_total` (taxa + talão),
+  /// o mesmo valor que o acerto do estafeta usa; antes do talão, o `price`.
+  double get totalToCollectCash {
+    if (serviceType == OrderServiceType.errand &&
+        isPurchaseFinalized &&
+        finalTotal != null) {
+      return finalTotal! + debtCollectedCents / 100.0;
+    }
+    return (cashTotalDue ?? finalTotal ?? total) + debtCollectedCents / 100.0;
+  }
 
   /// True se este pedido inclui cobrança de dívida prévia da wallet do cliente.
   bool get hasCashDebt => debtCollectedCents > 0;
@@ -596,6 +614,7 @@ class OrderModel {
           ? DateTime.tryParse(data['errand_return_done_at'].toString())
           : null,
       errandLeg: (data['errand_leg'] as num?)?.toInt() ?? 0,
+      errandPasso: (data['errand_passo'] as num?)?.toInt(),
       errandSpeed: data['errand_speed'] as String?,
       errandHasPurchase: data['errand_has_purchase'] as bool? ?? false,
       errandEstimatedPurchaseCents:

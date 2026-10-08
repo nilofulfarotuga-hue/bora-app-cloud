@@ -801,14 +801,12 @@ class _DriverDetailSheet extends StatelessWidget {
             const Text('Foto do documento',
                 style: TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
-            GestureDetector(
-              onTap: () => _showFullscreen(context, docPhotoUrl),
-              child: PrivateBucketImage(
-                urlOrPath: docPhotoUrl,
-                height: 160,
-                width: double.infinity,
-                borderRadius: BorderRadius.circular(10),
-              ),
+            PrivateBucketImage(
+              urlOrPath: docPhotoUrl,
+              height: 160,
+              width: double.infinity,
+              borderRadius: BorderRadius.circular(10),
+              tituloAmpliada: 'Documento',
             ),
             const SizedBox(height: 12),
           ],
@@ -818,14 +816,12 @@ class _DriverDetailSheet extends StatelessWidget {
             const Text('Foto do veículo',
                 style: TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
-            GestureDetector(
-              onTap: () => _showFullscreen(context, vehiclePhotoUrl),
-              child: PrivateBucketImage(
-                urlOrPath: vehiclePhotoUrl,
-                height: 160,
-                width: double.infinity,
-                borderRadius: BorderRadius.circular(10),
-              ),
+            PrivateBucketImage(
+              urlOrPath: vehiclePhotoUrl,
+              height: 160,
+              width: double.infinity,
+              borderRadius: BorderRadius.circular(10),
+              tituloAmpliada: 'Foto do veículo',
             ),
             const SizedBox(height: 12),
           ],
@@ -837,14 +833,12 @@ class _DriverDetailSheet extends StatelessWidget {
             const Text('Documento do veículo (livrete)',
                 style: TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
-            GestureDetector(
-              onTap: () => _showFullscreen(context, vehicleDocUrl),
-              child: PrivateBucketImage(
-                urlOrPath: vehicleDocUrl,
-                height: 160,
-                width: double.infinity,
-                borderRadius: BorderRadius.circular(10),
-              ),
+            PrivateBucketImage(
+              urlOrPath: vehicleDocUrl,
+              height: 160,
+              width: double.infinity,
+              borderRadius: BorderRadius.circular(10),
+              tituloAmpliada: 'Documento do veículo (livrete)',
             ),
             const SizedBox(height: 12),
           ],
@@ -854,14 +848,12 @@ class _DriverDetailSheet extends StatelessWidget {
             const Text('Selfie de registo',
                 style: TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
-            GestureDetector(
-              onTap: () => _showFullscreen(context, selfieUrl),
-              child: PrivateBucketImage(
-                urlOrPath: selfieUrl,
-                height: 160,
-                width: double.infinity,
-                borderRadius: BorderRadius.circular(10),
-              ),
+            PrivateBucketImage(
+              urlOrPath: selfieUrl,
+              height: 160,
+              width: double.infinity,
+              borderRadius: BorderRadius.circular(10),
+              tituloAmpliada: 'Selfie de registo',
             ),
           ],
         ],
@@ -869,24 +861,6 @@ class _DriverDetailSheet extends StatelessWidget {
     );
   }
 
-  Future<void> _showFullscreen(BuildContext context, String url) async {
-    final resolved = await resolveSignedUrlIfPrivate(url) ?? url;
-    if (!context.mounted) return;
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => Scaffold(
-          backgroundColor: Colors.black,
-          appBar: AppBar(backgroundColor: Colors.black),
-          body: Center(
-            child: InteractiveViewer(
-              child: Image.network(resolved),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 // ── Warning chips — invalid email/phone format ────────────────────────────────

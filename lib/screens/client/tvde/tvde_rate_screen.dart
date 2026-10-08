@@ -173,7 +173,8 @@ class _TvdeRateScreenState extends State<TvdeRateScreen> {
       child: Scaffold(
         appBar: BoraScreenAppBar(title: 'Avaliar viagem'.tr),
         body: SingleChildScrollView(
-          padding: const EdgeInsets.all(Spacing.lg),
+          padding: EdgeInsets.fromLTRB(Spacing.lg, Spacing.lg, Spacing.lg,
+              BoraBottomActionBar.folgaInferior(context)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

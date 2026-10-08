@@ -120,7 +120,8 @@ class _TvdeDriverRateScreenState extends State<TvdeDriverRateScreen> {
       child: Scaffold(
         appBar: const BoraScreenAppBar(title: 'Fim da corrida'),
         body: SingleChildScrollView(
-          padding: const EdgeInsets.all(Spacing.lg),
+          padding: EdgeInsets.fromLTRB(Spacing.lg, Spacing.lg, Spacing.lg,
+              BoraBottomActionBar.folgaInferior(context)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

@@ -8,6 +8,8 @@ import '../../../config/app_spacing.dart';
 import '../../../models/carwash_models.dart';
 import '../../../services/carwash_upload_service.dart';
 import '../../../stores/carwash_store.dart';
+import '../../../widgets/bora/bora_bottom_action_bar.dart';
+import '../../../widgets/bora_foto_ecra_inteiro.dart';
 import '../../shared/carwash_chat_screen.dart';
 import 'carwash_payment_flow.dart';
 
@@ -187,7 +189,8 @@ class _CarwashTrackingScreenState extends State<CarwashTrackingScreen>
       body: RefreshIndicator(
         onRefresh: () => context.read<CarwashStore>().refreshTracked(),
         child: ListView(
-          padding: const EdgeInsets.all(Spacing.lg),
+          padding: EdgeInsets.fromLTRB(Spacing.lg, Spacing.lg, Spacing.lg,
+              BoraBottomActionBar.folgaInferior(context)),
           children: [
             _EstadoCabecalho(booking: b, washerName: _washerName),
             const SizedBox(height: Spacing.lg),
@@ -548,38 +551,46 @@ class _FotoTile extends StatelessWidget {
         final url = snap.data;
         return Column(
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: url == null
-                  // Sem URL: distinguir "ainda a carregar" de "não deu".
-                  // Antes ficava em roda-viva para sempre quando a foto
-                  // não existia no bucket.
-                  ? Container(
-                      width: 140,
-                      height: 88,
-                      color: AppColors.surface2,
-                      child: Center(
-                        child: aCarregar
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Icon(Icons.image_not_supported_outlined,
-                                color: AppColors.textSubtle),
-                      ),
-                    )
-                  : Image.network(url,
-                      width: 140,
-                      height: 88,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                            width: 140,
-                            height: 88,
-                            color: AppColors.surface2,
-                            child: const Icon(Icons.broken_image,
-                                color: AppColors.textSubtle),
-                          )),
+            // Toque → foto inteira (visualizador comum, 08/10/2026).
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: url == null
+                  ? null
+                  : () => BoraFotoEcraInteiro.abrir(context, urlOrPath: url),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: url == null
+                    // Sem URL: distinguir "ainda a carregar" de "não deu".
+                    // Antes ficava em roda-viva para sempre quando a foto
+                    // não existia no bucket.
+                    ? Container(
+                        width: 140,
+                        height: 88,
+                        color: AppColors.surface2,
+                        child: Center(
+                          child: aCarregar
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.image_not_supported_outlined,
+                                  color: AppColors.textSubtle),
+                        ),
+                      )
+                    : Image.network(url,
+                        width: 140,
+                        height: 88,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                              width: 140,
+                              height: 88,
+                              color: AppColors.surface2,
+                              child: const Icon(Icons.broken_image,
+                                  color: AppColors.textSubtle),
+                            )),
+              ),
             ),
             if (foto.angle.isNotEmpty)
               Padding(

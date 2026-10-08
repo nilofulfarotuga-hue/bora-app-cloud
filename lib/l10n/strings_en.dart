@@ -16,6 +16,23 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 08/10/2026: Favor de farmácia (receita por foto) e paragem em casa.
+  'Não é permitido pedir itens ilegais ou armas.\nMedicamento com receita? Junta uma foto da receita — não é preciso o estafeta passar em tua casa.':
+      'Ordering illegal items or weapons is not allowed.\nPrescription medicine? Attach a photo of the prescription — the courier doesn\'t need to stop at your place.',
+  'Medicamento com receita? Tira uma foto ao SMS ou ao guia da receita e junta-a aqui. A farmácia só precisa do Número da receita e do Código de acesso e dispensa (e do Código de direito de opção, se quiseres uma marca mais cara). Não é preciso o estafeta passar em tua casa: ele paga na farmácia e tu pagas-lhe na entrega (até {0}).':
+      'Prescription medicine? Take a photo of the SMS or the prescription guide and attach it here. The pharmacy only needs the Prescription number and the Access and dispensing code (and the Right-of-option code, if you want a more expensive brand). The courier doesn\'t need to stop at your place: they pay at the pharmacy and you pay them on delivery (up to {0}).',
+  'Só é preciso se o estafeta tiver de ir buscar alguma coisa a tua casa (objeto, papel, dinheiro acima de {0}). Custa mais {1}.':
+      'Only needed if the courier has to pick something up at your place (an object, a document, cash above {0}). It costs {1} more.',
+  'Sem foto da receita':
+      'No prescription photo',
+  'Sem a foto da receita a farmácia pode não vender o medicamento.':
+      'Without the prescription photo the pharmacy may not sell the medicine.',
+  'Juntar foto':
+      'Add photo',
+  'Continuar sem foto':
+      'Continue without photo',
+  'A foto que enviaste':
+      'The photo you sent',
   // 05/10/2026: home com faixas e secções + pesquisa global (a lupa).
   '1 pedido este mês': '1 order this month',
   '{0} pedidos este mês': '{0} orders this month',
@@ -1851,8 +1868,6 @@ const Map<String, String> kStringsEn = <String, String>{
       'Not refunded',
   'Não vais receber notificação se vagar.':
       'You will not be notified if one frees up.',
-  'Não é permitido pedir itens ilegais ou armas.\nPara medicamentos com receita, ativa a paragem em tua casa no próximo passo para o estafeta recolher a receita.':
-      'Ordering illegal items or weapons is not allowed.\nFor prescription medicines, turn on the stop at your place in the next step so the courier can collect the prescription.',
   'Número MB WAY':
       'MB WAY number',
   'Número MB Way':

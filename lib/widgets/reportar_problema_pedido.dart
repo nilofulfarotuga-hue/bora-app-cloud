@@ -9,6 +9,7 @@ import '../services/order_photo_upload_service.dart';
 import '../utils/hora_lisboa.dart';
 import '../utils/io_compat.dart';
 import '../utils/safe_image_picker.dart';
+import 'bora/bora_bottom_action_bar.dart';
 
 /// "Reportar um problema" no pedido (padrão Uber Eats, 04/10/2026).
 ///
@@ -228,7 +229,7 @@ class _FolhaReportarState extends State<_FolhaReportar> {
         left: 20,
         right: 20,
         top: 16,
-        bottom: 16 + MediaQuery.of(context).viewInsets.bottom,
+        bottom: BoraBottomActionBar.folgaInferior(context, base: 16),
       ),
       child: SingleChildScrollView(
         child: Column(

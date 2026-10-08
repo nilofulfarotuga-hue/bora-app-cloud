@@ -1,6 +1,7 @@
 import 'package:latlong2/latlong.dart';
 
 import '../models/order_model.dart';
+import '../utils/favor_passos.dart';
 
 enum RouteStopType { pickup, delivery }
 
@@ -10,6 +11,8 @@ class RouteStop {
     required this.orderId,
     required this.location,
     this.label,
+    this.passoFavor,
+    this.tituloPasso,
   });
 
   final RouteStopType type;
@@ -18,6 +21,12 @@ class RouteStop {
 
   /// Human-readable address for display in the map panel.
   final String? label;
+
+  /// Favor: número do passo que o estafeta lê (1, 2, 3). Null nos outros.
+  final int? passoFavor;
+
+  /// Favor: nome do sítio ("Casa da cliente — Cristina", "Farmácia Tavares").
+  final String? tituloPasso;
 
   bool get isPickup => type == RouteStopType.pickup;
 }
@@ -54,6 +63,55 @@ class RouteOptimizer {
   static const _dist = Distance();
 
   static OptimizedRoute optimize(
+    List<OrderModel> orders,
+    LatLng driverPosition,
+  ) {
+    if (orders.isEmpty) return const OptimizedRoute.empty();
+
+    // Favores (08/10/2026): não são "recolha → entrega". As paragens são os
+    // passos do favor (casa da cliente → local do favor → entrega), por esta
+    // ordem e a começar no passo atual (orders.errand_passo). O
+    // `pickupLocation` de um favor nunca é paragem: é texto/GPS herdado.
+    final favores = orders
+        .where((o) =>
+            o.serviceType == OrderServiceType.errand &&
+            (o.status == OrderStatus.driverAccepted ||
+                o.status == OrderStatus.pickedUp ||
+                o.status == OrderStatus.onTheWay))
+        .toList();
+    final outros =
+        orders.where((o) => o.serviceType != OrderServiceType.errand).toList();
+    if (favores.isNotEmpty) {
+      final base = _optimizeGeneric(outros, driverPosition);
+      final stops = List<RouteStop>.of(base.stops);
+      var current = stops.isNotEmpty ? stops.last.location : driverPosition;
+      var totalKm = base.totalDistanceKm;
+      for (final o in favores) {
+        final rota = FavorRota.de(o);
+        if (rota == null) continue;
+        for (final p in rota.restantes) {
+          final loc = p.coords;
+          if (loc == null) continue;
+          totalKm += _dist.as(LengthUnit.Kilometer, current, loc);
+          stops.add(RouteStop(
+            type: p.tipo == FavorPassoTipo.entrega
+                ? RouteStopType.delivery
+                : RouteStopType.pickup,
+            orderId: o.id,
+            location: loc,
+            label: p.morada,
+            passoFavor: p.numero,
+            tituloPasso: p.nome,
+          ));
+          current = loc;
+        }
+      }
+      return OptimizedRoute(stops: stops, totalDistanceKm: totalKm);
+    }
+    return _optimizeGeneric(orders, driverPosition);
+  }
+
+  static OptimizedRoute _optimizeGeneric(
     List<OrderModel> orders,
     LatLng driverPosition,
   ) {

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../config/app_colors.dart';
 import '../../../models/client_restaurant_profile.dart';
 import '../../../stores/partner_reservas_store.dart';
+import '../../../widgets/bora/bora_bottom_action_bar.dart';
 
 /// Reservas PRO F4 — guest book partner-side.
 ///
@@ -439,8 +440,10 @@ class _ProfileEditorSheetState extends State<_ProfileEditorSheet> {
   Widget build(BuildContext context) {
     final p = widget.profile;
     return Padding(
+      // Teclado OU barra do sistema (Android 15 edge-to-edge); os 24 px de
+      // respiro ficam no Padding de dentro.
       padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
+        bottom: BoraBottomActionBar.folgaInferior(context, base: 0),
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),

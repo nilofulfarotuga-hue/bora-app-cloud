@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../config/app_colors.dart';
 import '../../../services/ficha_legal_service.dart';
+import '../../../widgets/bora/bora_bottom_action_bar.dart';
 
 /// Os dados que a lei pede ao motorista TVDE e que ainda não viviam na app:
 /// certificado IMT, carta, dístico, inspeção, seguro e o operador (frota).
@@ -208,7 +209,8 @@ class _FichaLegalFormScreenState extends State<FichaLegalFormScreen> {
       body: !_carregado
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.fromLTRB(16, 16, 16,
+                  BoraBottomActionBar.folgaInferior(context, base: 16)),
               children: [
                 if (_original == null)
                   const Padding(

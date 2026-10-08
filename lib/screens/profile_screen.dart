@@ -18,6 +18,7 @@ import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../services/roles_service.dart';
 import '../widgets/biometric_login_tile.dart';
+import '../widgets/bora/bora_bottom_action_bar.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/profile_switcher_button.dart';
 import '../models/driver_model.dart';
@@ -469,7 +470,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: const [ProfileSwitcherButton(comTexto: true)],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.only(bottom: Spacing.xxxl),
+        padding: EdgeInsets.only(
+            bottom: BoraBottomActionBar.folgaInferior(context,
+                base: Spacing.xxxl)),
         child: Column(
           children: [
             Container(

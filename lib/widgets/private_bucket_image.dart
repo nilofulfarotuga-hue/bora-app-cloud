@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_colors.dart';
+import 'bora_foto_ecra_inteiro.dart';
 
 const _privateBuckets = <String>{
   'driver-documents',
@@ -88,6 +89,8 @@ class PrivateBucketImage extends StatefulWidget {
     this.fit = BoxFit.cover,
     this.borderRadius,
     this.placeholderHeight = 160,
+    this.tocarParaAmpliar = true,
+    this.tituloAmpliada,
   });
 
   final String urlOrPath;
@@ -96,6 +99,14 @@ class PrivateBucketImage extends StatefulWidget {
   final BoxFit fit;
   final BorderRadius? borderRadius;
   final double placeholderHeight;
+
+  /// 08/10/2026: tocar na foto abre-a em ecrã inteiro com zoom
+  /// ([BoraFotoEcraInteiro]), na resolução original. Ligado por defeito em
+  /// todas as fotos privadas (receita do Favor, talão, documentos, entrega).
+  final bool tocarParaAmpliar;
+
+  /// Título opcional no topo do ecrã inteiro ("Foto da receita").
+  final String? tituloAmpliada;
 
   @override
   State<PrivateBucketImage> createState() => _PrivateBucketImageState();
@@ -173,7 +184,7 @@ class _PrivateBucketImageState extends State<PrivateBucketImage> {
             color: AppColors.textSecondary, size: 48),
       ));
     }
-    return _wrap(Image.network(
+    final imagem = _wrap(Image.network(
       url,
       height: widget.height,
       width: widget.width,
@@ -187,6 +198,19 @@ class _PrivateBucketImageState extends State<PrivateBucketImage> {
             color: AppColors.textSecondary, size: 48),
       ),
     ));
+    if (!widget.tocarParaAmpliar) return imagem;
+    return Semantics(
+      button: true,
+      label: 'Ampliar foto',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        // O original (não a URL já assinada): o ecrã inteiro assina de novo,
+        // com validade inteira, para não expirar a meio da leitura.
+        onTap: () => BoraFotoEcraInteiro.abrir(context,
+            urlOrPath: widget.urlOrPath, titulo: widget.tituloAmpliada),
+        child: imagem,
+      ),
+    );
   }
 }
 

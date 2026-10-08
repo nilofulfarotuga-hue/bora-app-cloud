@@ -175,7 +175,8 @@ class _DriverRoleApplyScreenState extends State<DriverRoleApplyScreen> {
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(Spacing.lg),
+          padding: EdgeInsets.fromLTRB(Spacing.lg, Spacing.lg, Spacing.lg,
+              BoraBottomActionBar.folgaInferior(context)),
           children: [
             const Text(
               'Faz entregas e viagens quando quiseres — com a mesma conta. '

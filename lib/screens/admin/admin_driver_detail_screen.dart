@@ -7,6 +7,7 @@ import '../../services/admin/admin_driver_service.dart';
 import '../../utils/gps_parado.dart';
 import '../../widgets/admin/escolher_estafeta_sheet.dart'
     show plataformaLabel, haQuantoTempo;
+import '../../widgets/bora/bora_bottom_action_bar.dart';
 import '../../widgets/private_bucket_image.dart';
 import '_admin_password_reset_dialog.dart';
 import 'admin_papeis_screen.dart';
@@ -781,36 +782,15 @@ class _ZoomableImage extends StatelessWidget {
   const _ZoomableImage({required this.url});
   final String url;
 
-  Future<void> _openFullscreen(BuildContext context) async {
-    final resolved = await resolveSignedUrlIfPrivate(url) ?? url;
-    if (!context.mounted) return;
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => Scaffold(
-        backgroundColor: Colors.black,
-        appBar: AppBar(backgroundColor: Colors.black),
-        body: Center(
-          child: InteractiveViewer(
-            child: Image.network(resolved,
-                errorBuilder: (_, __, ___) => const Icon(
-                    Icons.broken_image,
-                    color: Colors.white54,
-                    size: 64)),
-          ),
-        ),
-      ),
-    ));
-  }
-
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _openFullscreen(context),
-      child: PrivateBucketImage(
-        urlOrPath: url,
-        height: 160,
-        width: double.infinity,
-        borderRadius: BorderRadius.circular(10),
-      ),
+    // O toque abre a foto inteira (BoraFotoEcraInteiro) pelo próprio
+    // PrivateBucketImage — não há ecrã inteiro próprio aqui (08/10/2026).
+    return PrivateBucketImage(
+      urlOrPath: url,
+      height: 160,
+      width: double.infinity,
+      borderRadius: BorderRadius.circular(10),
     );
   }
 }
@@ -1332,7 +1312,7 @@ class _EditDriverSheetState extends State<_EditDriverSheet> {
 
     return Padding(
       padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
+        bottom: BoraBottomActionBar.folgaInferior(context),
         left: 16, right: 16, top: 16,
       ),
       child: SingleChildScrollView(

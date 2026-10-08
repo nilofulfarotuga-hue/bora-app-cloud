@@ -353,7 +353,8 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
         title: 'Limpeza · {0}'.trArgs([b.status.labelPt]),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(Spacing.lg),
+        padding: EdgeInsets.fromLTRB(Spacing.lg, Spacing.lg, Spacing.lg,
+            BoraBottomActionBar.folgaInferior(context)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

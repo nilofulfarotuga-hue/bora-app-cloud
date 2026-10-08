@@ -2491,8 +2491,9 @@ class _AdminTakeawayConfigCardState extends State<_AdminTakeawayConfigCard> {
 }
 
 // ── Partner doc viewer (RGPD bucket privado restaurant-documents) ───────────
-// Mesmo padrão do _ZoomableImage do admin_driver_detail: PrivateBucketImage
-// para thumbnail (signed URL on-demand) + InteractiveViewer fullscreen ao tap.
+// PrivateBucketImage para thumbnail (signed URL on-demand); o toque abre a
+// foto inteira no visualizador comum (BoraFotoEcraInteiro), pelo próprio
+// PrivateBucketImage — sem ecrã inteiro próprio (08/10/2026).
 class _PartnerDocImage extends StatelessWidget {
   const _PartnerDocImage({required this.urlOrPath});
   final String urlOrPath;
@@ -2500,35 +2501,13 @@ class _PartnerDocImage extends StatelessWidget {
   String get _prefixedPath =>
       withPrivateBucketPrefix('restaurant-documents', urlOrPath);
 
-  Future<void> _openFullscreen(BuildContext context) async {
-    final resolved =
-        await resolveSignedUrlIfPrivate(_prefixedPath) ?? _prefixedPath;
-    if (!context.mounted) return;
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => Scaffold(
-        backgroundColor: Colors.black,
-        appBar: AppBar(backgroundColor: Colors.black),
-        body: Center(
-          child: InteractiveViewer(
-            child: Image.network(resolved,
-                errorBuilder: (_, __, ___) => const Icon(Icons.broken_image,
-                    color: Colors.white54, size: 64)),
-          ),
-        ),
-      ),
-    ));
-  }
-
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _openFullscreen(context),
-      child: PrivateBucketImage(
-        urlOrPath: _prefixedPath,
-        height: 160,
-        width: double.infinity,
-        borderRadius: BorderRadius.circular(10),
-      ),
+    return PrivateBucketImage(
+      urlOrPath: _prefixedPath,
+      height: 160,
+      width: double.infinity,
+      borderRadius: BorderRadius.circular(10),
     );
   }
 }

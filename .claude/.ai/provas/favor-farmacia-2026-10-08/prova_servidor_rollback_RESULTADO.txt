@@ -1,0 +1,17 @@
+Prova do servidor em transação desfeita — 08/10/2026 ~22:20 (Lisboa), MCP execute_sql,
+projeto ojykpzwqrtusfeakzrna. Script: prova_servidor_rollback.sql (mesmo conteúdo).
+Saída literal (RAISE EXCEPTION 'RESULT …' → tudo desfeito, nenhum pedido ficou):
+
+A criado: {"is_test_order":true,"status":"driverAccepted","errand_passo":1,"errand_home_stop":false,"price":10.0000000000000000,"total":10.0000000000000000}
+B criado: {"is_test_order":true,"status":"driverAccepted","errand_passo":0,"errand_home_stop":true,"a":"Rua de Prova 1, Guarda (TESTE)","lat":40.537,"lng":-7.268,"price":12.0000000000000000}
+B atribuído: {"assigned_driver_id":null,"status":null,"errand_passo":null}   ← SELECT como admin não vê a linha (RLS); o passo seguinte, como estafeta 0001, prova que a atribuição entrou
+B recolhido em casa: {"status":"pickedUp","errand_passo":1}
+B talão 1,88: {"errand_passo":2,"subtotal":1.8800000000000000,"price":9.8800000000000000,"total":9.8800000000000000,"customer_total":9.8800000000000000,"cash_total_due":9.8800000000000000,"final_total":9.8800000000000000}
+B entregue: {"status":"delivered","errand_passo":2,"price":9.8800000000000000,"final_total":9.8800000000000000}
+A no favor: {"status":"driverAccepted","errand_passo":1}
+A talão 1,88: {"errand_passo":2,"price":7.8800000000000000,"total":7.8800000000000000,"cash_total_due":7.8800000000000000,"final_total":7.8800000000000000}
+A a caminho: {"status":"onTheWay","errand_passo":2}
+
+Leitura: o B é o caso da Cristina (taxa 6 + paragem 2 + estimativa 4 = 12,00); depois do talão
+de 1,88 todos os campos dizem 9,88 (8 + 1,88). O passo muda sozinho a cada botão (0 → 1 → 2).
+A paragem em casa fica gravada com morada e coordenadas quando a app chama errand_set_home_stop.

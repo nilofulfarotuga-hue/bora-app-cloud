@@ -35,6 +35,21 @@ class MapMarkerHelper {
       _client ??
       BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
 
+  /// Passos do favor (08/10/2026): bolas numeradas 1, 2, 3. O passo atual é
+  /// maior e verde-água; os feitos ficam cinzentos; os que faltam, brancos.
+  /// Cache por "n|estado"; na web (ou antes de carregar) cai num marcador
+  /// normal de cor.
+  static final Map<String, BitmapDescriptor> _numerados = {};
+
+  static BitmapDescriptor passoIcon(int numero,
+      {required bool atual, required bool feito}) {
+    final estado = atual ? 'a' : (feito ? 'f' : 'p');
+    return _numerados['$numero|$estado'] ??
+        BitmapDescriptor.defaultMarkerWithHue(atual
+            ? BitmapDescriptor.hueCyan
+            : (feito ? BitmapDescriptor.hueViolet : BitmapDescriptor.hueAzure));
+  }
+
   // ── Preload ───────────────────────────────────────────────────────────────
 
   /// Pre-renders all markers. Safe to call multiple times (cached after first).
@@ -64,9 +79,60 @@ class MapMarkerHelper {
         icon: Icons.person,
         size: 46,
       );
+      for (var n = 1; n <= 3; n++) {
+        _numerados['$n|a'] = await _numberMarker(n,
+            fill: const Color(0xFF14B8A6), text: Colors.white, size: 76);
+        _numerados['$n|p'] = await _numberMarker(n,
+            fill: Colors.white, text: const Color(0xFF0F766E), size: 56);
+        _numerados['$n|f'] = await _numberMarker(n,
+            fill: const Color(0xFF9CA3AF), text: Colors.white, size: 48);
+      }
     } catch (e) {
       debugPrint('[MapMarkerHelper] preload failed — using default: $e');
     }
+  }
+
+  static Future<BitmapDescriptor> _numberMarker(
+    int numero, {
+    required Color fill,
+    required Color text,
+    required double size,
+  }) async {
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    final r = size / 2;
+    final center = Offset(r, r);
+    canvas.drawCircle(
+      Offset(r, r + 2.5),
+      r - 3,
+      Paint()
+        ..color = Colors.black.withValues(alpha: 0.22)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+    );
+    canvas.drawCircle(center, r - 3, Paint()..color = fill);
+    canvas.drawCircle(
+      center,
+      r - 3,
+      Paint()
+        ..color = const Color(0xFF0F766E)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3,
+    );
+    final tp = TextPainter(textDirection: ui.TextDirection.ltr)
+      ..text = TextSpan(
+        text: '$numero',
+        style: TextStyle(
+          fontSize: size * 0.48,
+          fontWeight: FontWeight.w800,
+          color: text,
+        ),
+      )
+      ..layout();
+    tp.paint(canvas, Offset(r - tp.width / 2, r - tp.height / 2));
+    final picture = recorder.endRecording();
+    final img = await picture.toImage(size.toInt(), size.toInt());
+    final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
+    return BitmapDescriptor.bytes(bytes!.buffer.asUint8List());
   }
 
   // ── Canvas renderer ───────────────────────────────────────────────────────

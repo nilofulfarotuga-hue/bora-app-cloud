@@ -6,6 +6,7 @@ import 'admin_order_edits_screen.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/admin/escolher_estafeta_sheet.dart';
 import '../../widgets/private_bucket_image.dart';
+import '../../widgets/admin/admin_favor_passos_section.dart';
 import '../../utils/hora_lisboa.dart';
 import '_admin_cancel_order_dialog.dart';
 import 'admin_chat_viewer_screen.dart';
@@ -75,6 +76,11 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
               'errand_home_stop_address, errand_home_stop_reason, '
               'errand_home_stop_cash_cents, errand_return_leg, errand_leg, '
               'final_purchase_value, errand_request_photo_url, '
+              // Favor 08/10 — passo do entregador + coordenadas dos passos
+              'errand_passo, errand_home_stop_lat, errand_home_stop_lng, '
+              'errand_location_lat, errand_location_lng, dropoff_lat, '
+              'dropoff_lng, dropoff_street, errand_has_purchase, '
+              'is_purchase_finalized, subtotal, customer_name, '
               // FESTAS (2026-08-25) — agendamento + tempo de preparo
               'scheduled_for, prep_time_minutes, customer_notes, '
               // ronda 04/10 — aceite pela loja + prova de entrega
@@ -386,43 +392,15 @@ class _SummaryTab extends StatelessWidget {
                           '€${((order['errand_home_stop_cash_cents'] as num) / 100).toStringAsFixed(2)}'),
                     _row(Icons.replay, 'Perna de volta',
                         order['errand_return_leg'] == true ? 'Sim' : 'Não'),
-                    _row(
-                        Icons.timeline,
-                        'Estado da perna',
-                        switch ((order['errand_leg'] as num?)?.toInt() ?? 0) {
-                          1 => 'Em casa do cliente',
-                          2 => 'No local do favor',
-                          3 => 'De volta a casa',
-                          _ => 'Por iniciar',
-                        }),
                   ],
-                  _row(
-                      Icons.shopping_bag_outlined,
-                      'Compra estimada',
-                      order['errand_estimated_purchase_cents'] != null
-                          ? '€${((order['errand_estimated_purchase_cents'] as num) / 100).toStringAsFixed(2)}'
-                          : '—'),
-                  _row(
-                      Icons.receipt_long,
-                      'Valor real (recibo)',
-                      order['final_purchase_value'] != null
-                          ? '€${(order['final_purchase_value'] as num).toStringAsFixed(2)}'
-                          : '—'),
-                  if (order['errand_request_photo_url'] != null &&
-                      (order['errand_request_photo_url'] as String).isNotEmpty) ...[
-                    _row(Icons.photo_camera_outlined, 'Foto do cliente',
-                        'Anexada'),
-                    // Bucket privado: link assinado na hora (03/10).
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: PrivateBucketImage(
-                        urlOrPath: order['errand_request_photo_url'] as String,
-                        height: 180,
-                        fit: BoxFit.contain,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ],
+                  // Favor 08/10: passos do entregador (e mudar à mão),
+                  // editar a parada, valores estimado × talão × total e as
+                  // fotos do pedido e do talão. Substitui o "Estado da
+                  // perna" (errand_leg, que nunca foi escrito).
+                  AdminFavorPassosSection(
+                    order: order,
+                    onAlterado: onReassigned,
+                  ),
                 ],
               ]),
             ),

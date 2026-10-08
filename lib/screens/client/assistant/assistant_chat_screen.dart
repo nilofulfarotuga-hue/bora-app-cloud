@@ -24,6 +24,7 @@ import '../../../services/assistant_service.dart';
 import '../../../stores/cart_store.dart';
 import '../../../utils/home_destino.dart';
 import '../../../utils/safe_image_picker.dart';
+import '../../../widgets/bora_foto_ecra_inteiro.dart';
 import '../../../widgets/bora_support_sheet.dart';
 import '../../errand_form_screen.dart';
 import '../../orders_screen.dart';
@@ -627,21 +628,31 @@ class _BalaoUtilizador extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.end,
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Toque → foto inteira (visualizador comum, 08/10/2026).
             if (imagem != null)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.memory(imagem, width: 180, fit: BoxFit.cover),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => BoraFotoEcraInteiro.abrir(context,
+                    imagem: MemoryImage(imagem)),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.memory(imagem, width: 180, fit: BoxFit.cover),
+                ),
               )
             else if (url != null && url.isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.network(
-                  url,
-                  width: 180,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const Icon(
-                      Icons.image_not_supported_outlined,
-                      color: Colors.white70),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => BoraFotoEcraInteiro.abrir(context, urlOrPath: url),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.network(
+                    url,
+                    width: 180,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const Icon(
+                        Icons.image_not_supported_outlined,
+                        color: Colors.white70),
+                  ),
                 ),
               ),
             if (msg.texto.isNotEmpty) ...[

@@ -302,7 +302,8 @@ class _WasherApplyScreenState extends State<WasherApplyScreen> {
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(Spacing.lg),
+          padding: EdgeInsets.fromLTRB(Spacing.lg, Spacing.lg, Spacing.lg,
+              BoraBottomActionBar.folgaInferior(context)),
           children: [
             const Text(
               'Vais ter com o cliente, lavas o carro onde ele estiver e '

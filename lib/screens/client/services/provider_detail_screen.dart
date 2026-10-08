@@ -14,10 +14,10 @@ import '../../../stores/services_store.dart';
 import '../../../widgets/bora/bora_accent_button.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
 import '../../../widgets/bora/coming_soon.dart';
+import '../../../widgets/bora_foto_ecra_inteiro.dart';
 import '../../../widgets/services/staff_avatar.dart';
 import '../../register_client_screen.dart';
 import 'booking_flow_screen.dart';
-import 'gallery_viewer_screen.dart';
 
 import '../../../l10n/tr.dart';
 
@@ -381,14 +381,10 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
             separatorBuilder: (_, __) => const SizedBox(width: Spacing.sm),
             itemBuilder: (_, i) => InkWell(
               borderRadius: BorderRadius.circular(Radii.md),
-              onTap: () => Navigator.push(
+              onTap: () => BoraFotoEcraInteiro.abrirVarias(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => GalleryViewerScreen(
-                    imageUrls: photos,
-                    initialIndex: i,
-                  ),
-                ),
+                photos.map(BoraFoto.url).toList(),
+                inicial: i,
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(Radii.md),

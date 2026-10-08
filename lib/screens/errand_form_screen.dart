@@ -24,6 +24,8 @@ import 'package:provider/provider.dart';
 
 import '../config/app_colors.dart';
 import '../services/limite_dinheiro_service.dart';
+import '../services/favor_definicoes.dart';
+import '../utils/favor_passos.dart' show textoPareceFarmacia;
 import '../services/maior_18_service.dart';
 import '../services/auto_address.dart';
 import '../widgets/auto_address_hint.dart';
@@ -129,6 +131,11 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
   void initState() {
     super.initState();
     LimiteDinheiroService.carregar();
+    // 08/10: custo da paragem e limite do adiantamento vêm do servidor.
+    FavorDefinicoes.carregar().then((_) {
+      if (mounted) setState(() {});
+    });
+    _errandLocationCtrl.addListener(_aoMudarLocal);
     _geocoder = createPlaceAutocompleteService(googleApiKey);
     final p = widget.prefill;
     if (p != null) {
@@ -149,6 +156,31 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
 
   bool _autoLocating = false;
 
+  /// Favor de farmácia/medicamento/receita (descrição ou local) — mostra a
+  /// ajuda da receita e o aviso de foto em falta (08/10/2026).
+  bool get _pareceFarmacia =>
+      textoPareceFarmacia(_descCtrl.text) ||
+      textoPareceFarmacia(_errandLocationCtrl.text);
+  bool _farmaciaVista = false;
+
+  void _aoMudarLocal() {
+    final agora = _pareceFarmacia;
+    if (agora != _farmaciaVista && mounted) {
+      setState(() => _farmaciaVista = agora);
+    }
+  }
+
+  /// Ao ligar a paragem em casa, a casa é por defeito a morada de entrega
+  /// (texto + coordenadas), e a cliente pode mudá-la. Pedido 74dd4ecc: a
+  /// paragem chegou ao servidor sem morada e o estafeta saltou o passo 1.
+  void _preencherCasaComEntrega() {
+    if (_homeCtrl.text.trim().isNotEmpty) return;
+    final entrega = _dropoffCtrl.text.trim();
+    if (entrega.isEmpty) return;
+    _homeCtrl.text = entrega;
+    _home = _dropoff;
+  }
+
   /// Morada de entrega preenchida sozinha ao abrir (padrão da app do motorista).
   /// REGRA DE 24/08: nunca trava — falhar deixa o campo vazio e escrevível.
   Future<void> _preencherMoradaSozinho() async {
@@ -168,6 +200,7 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
   @override
   void dispose() {
     _maior18Timer?.cancel();
+    _errandLocationCtrl.removeListener(_aoMudarLocal);
     _descCtrl.dispose();
     _descFocus.dispose();
     _estimateCtrl.dispose();
@@ -255,7 +288,9 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
       if (_forcedHomeStopByEstimate && !_homeStop) {
         _homeStop = true;
         _homeStopReason = 'dinheiro';
+        _preencherCasaComEntrega();
       }
+      _farmaciaVista = _pareceFarmacia;
     });
     _agendarMaior18();
     if (_errandLocation != null && _dropoff != null) _refreshQuote();
@@ -552,6 +587,32 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
               'Diz quanto dinheiro o estafeta leva de tua casa (valor acima de €0).'.tr)));
       return;
     }
+    // 08/10: farmácia sem foto da receita → aviso suave, não bloqueia.
+    if (_pareceFarmacia && (_requestPhotoUrl ?? '').isEmpty) {
+      final seguir = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text('Sem foto da receita'.tr),
+          content: Text(
+              'Sem a foto da receita a farmácia pode não vender o medicamento.'.tr),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text('Juntar foto'.tr),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text('Continuar sem foto'.tr),
+            ),
+          ],
+        ),
+      );
+      if (!mounted) return;
+      if (seguir != true) {
+        if (seguir == false) setState(() => _step = _ErrandStep.what);
+        return;
+      }
+    }
     final cart = context.read<CartStore>();
     cart.configureErrandSession(
       description: _descCtrl.text.trim(),
@@ -648,6 +709,7 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
           },
           onChanged: _onWhatChanged,
           pedeMaior18: _pedeMaior18,
+          ajudaFarmacia: _pareceFarmacia,
         );
       case _ErrandStep.where:
         return _StepWhere(
@@ -662,7 +724,10 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
           geoError: _geoError,
           onHomeStopChanged: (v) {
             if (_forcedHomeStopByEstimate) return;
-            setState(() => _homeStop = v);
+            setState(() {
+              _homeStop = v;
+              if (v) _preencherCasaComEntrega();
+            });
             _recomputeDistanceAndQuote();
           },
           onReasonChanged: (r) {
@@ -682,6 +747,7 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
             if (_home != null) setState(() => _home = null);
           },
           onUseMyLocationForHome: _useMyLocationForHome,
+          ajudaFarmacia: _pareceFarmacia,
         );
       case _ErrandStep.when:
         return _StepWhen(
@@ -715,6 +781,7 @@ class _StepWhat extends StatelessWidget {
     required this.onHasPurchaseChanged,
     required this.onChanged,
     this.pedeMaior18 = false,
+    this.ajudaFarmacia = false,
   });
 
   final TextEditingController descCtrl;
@@ -732,6 +799,9 @@ class _StepWhat extends StatelessWidget {
 
   /// Missão maiores-18: a descrição fala de tabaco/álcool (servidor).
   final bool pedeMaior18;
+
+  /// O favor é de farmácia/medicamento/receita → cartão de ajuda.
+  final bool ajudaFarmacia;
 
   static const _shortcuts = <(String, IconData, String)>[
     ('Farmácia', Icons.local_pharmacy_outlined, 'Vai à farmácia e compra '),
@@ -786,6 +856,10 @@ class _StepWhat extends StatelessWidget {
           const Maior18Aviso(),
           const SizedBox(height: 8),
         ],
+        if (ajudaFarmacia) ...[
+          const _AjudaFarmacia(),
+          const SizedBox(height: 8),
+        ],
         const SizedBox(height: 8),
         // 8.1 — foto opcional do que comprar.
         _RequestPhoto(
@@ -804,7 +878,8 @@ class _StepWhat extends StatelessWidget {
             border: Border.all(color: AppColors.divider),
           ),
           child: Text(
-            'Não é permitido pedir itens ilegais ou armas.\nPara medicamentos com receita, ativa a paragem em tua casa no próximo passo para o estafeta recolher a receita.'.tr,
+            // 08/10: a receita não obriga a passar em casa — basta a foto.
+            'Não é permitido pedir itens ilegais ou armas.\nMedicamento com receita? Junta uma foto da receita — não é preciso o estafeta passar em tua casa.'.tr,
             style: const TextStyle(fontSize: 13),
           ),
         ),
@@ -937,6 +1012,7 @@ class _StepWhere extends StatelessWidget {
     required this.onHomeSelected,
     required this.onHomeCleared,
     required this.onUseMyLocationForHome,
+    this.ajudaFarmacia = false,
   });
 
   final bool autoLocating;
@@ -957,6 +1033,7 @@ class _StepWhere extends StatelessWidget {
   final void Function(String, LatLng?) onHomeSelected;
   final VoidCallback onHomeCleared;
   final VoidCallback onUseMyLocationForHome;
+  final bool ajudaFarmacia;
 
   @override
   Widget build(BuildContext context) {
@@ -984,6 +1061,10 @@ class _StepWhere extends StatelessWidget {
           onChanged: (_) => onDropoffCleared(),
         ),
         AutoAddressHint(visible: autoLocating),
+        if (ajudaFarmacia) ...[
+          const SizedBox(height: 12),
+          const _AjudaFarmacia(),
+        ],
         const SizedBox(height: 20),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
@@ -996,6 +1077,19 @@ class _StepWhere extends StatelessWidget {
           value: homeStop,
           onChanged: forced ? null : onHomeStopChanged,
         ),
+        if (!forced)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text(
+              'Só é preciso se o estafeta tiver de ir buscar alguma coisa a tua casa (objeto, papel, dinheiro acima de {0}). Custa mais {1}.'
+                  .trArgs([
+                FavorDefinicoes.adiantamentoMaxTexto,
+                FavorDefinicoes.paragemCasaTexto,
+              ]),
+              style: const TextStyle(
+                  fontSize: 12, color: AppColors.textSecondary),
+            ),
+          ),
         if (homeStop) ...[
           const SizedBox(height: 8),
           Text('Motivo:'.tr, style: const TextStyle(color: AppColors.textSecondary)),
@@ -1328,6 +1422,41 @@ class _PriceFooter extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
             ),
             child: Text(nextLabel),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Cartão de ajuda da farmácia (08/10/2026, pedido real 74dd4ecc): a cliente
+/// ligou a paragem em casa por causa da receita, quando a farmácia só precisa
+/// da foto. O estafeta adianta o dinheiro e recebe na entrega.
+class _AjudaFarmacia extends StatelessWidget {
+  const _AjudaFarmacia();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('ajuda_farmacia'),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.primaryWash,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.local_pharmacy_outlined,
+              color: AppColors.primary, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Medicamento com receita? Tira uma foto ao SMS ou ao guia da receita e junta-a aqui. A farmácia só precisa do Número da receita e do Código de acesso e dispensa (e do Código de direito de opção, se quiseres uma marca mais cara). Não é preciso o estafeta passar em tua casa: ele paga na farmácia e tu pagas-lhe na entrega (até {0}).'
+                  .trArgs([FavorDefinicoes.adiantamentoMaxTexto]),
+              style: const TextStyle(fontSize: 13, height: 1.35),
+            ),
           ),
         ],
       ),

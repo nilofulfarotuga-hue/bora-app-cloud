@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/app_colors.dart';
+import '../../widgets/bora/bora_bottom_action_bar.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 
 /// "Receber pagamentos" — Stripe Connect Express, Fase 1 (2026-08-06).
@@ -121,7 +122,8 @@ class _ConnectPaymentsScreenState extends State<ConnectPaymentsScreen> {
           : RefreshIndicator(
               onRefresh: _load,
               child: ListView(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.fromLTRB(16, 16, 16,
+                    BoraBottomActionBar.folgaInferior(context, base: 16)),
                 children: [
                   if (_error != null)
                     Card(

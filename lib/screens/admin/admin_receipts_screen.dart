@@ -12,6 +12,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../utils/hora_lisboa_ext.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../widgets/bora_foto_ecra_inteiro.dart';
+import '../../widgets/private_bucket_image.dart';
 
 class AdminReceiptsScreen extends StatefulWidget {
   const AdminReceiptsScreen({super.key});
@@ -473,11 +475,13 @@ class _ReceiptCardState extends State<_ReceiptCard> {
 
   Future<String?> _getReceiptSignedUrl(String photoUrl) async {
     try {
-      if (photoUrl.startsWith('http')) return photoUrl;
-      final clean = photoUrl.replaceFirst(RegExp(r'^receipts/'), '');
-      return await Supabase.instance.client.storage
-          .from('receipts')
-          .createSignedUrl(clean, 3600);
+      // 08/10/2026: antes, um link http (público, de quando o balde era
+      // público) passava sem ser assinado e o balde `receipts` é privado.
+      // Agora volta a assinar; se não conseguir, mantém o link como estava.
+      final assinado = await resolveSignedUrlIfPrivate(
+          withPrivateBucketPrefix('receipts', photoUrl));
+      if (assinado == null && photoUrl.startsWith('http')) return photoUrl;
+      return assinado;
     } catch (e) {
       debugPrint('[AdminReceipts] signed URL error: $e');
       return null;
@@ -905,7 +909,8 @@ class _ReceiptCardState extends State<_ReceiptCard> {
                 final signedUrl = snapshot.data;
                 if (signedUrl != null) {
                   return GestureDetector(
-                    onTap: () => _showPhotoFullscreen(context, signedUrl),
+                    onTap: () => BoraFotoEcraInteiro.abrir(context,
+                        urlOrPath: signedUrl, titulo: 'Talão'),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(6),
                       child: Image.network(
@@ -1104,17 +1109,6 @@ class _ReceiptCardState extends State<_ReceiptCard> {
               color: Colors.white,
               fontSize: 11,
               fontWeight: FontWeight.bold)),
-    );
-  }
-
-  void _showPhotoFullscreen(BuildContext context, String signedUrl) {
-    showDialog(
-      context: context,
-      builder: (_) => Dialog(
-        child: InteractiveViewer(
-          child: Image.network(signedUrl),
-        ),
-      ),
     );
   }
 }

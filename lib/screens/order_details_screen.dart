@@ -13,6 +13,7 @@ import '../services/wallet_service.dart';
 import '../services/weight_portions.dart';
 import '../stores/driver_store.dart';
 import '../stores/order_store.dart';
+import '../widgets/bora/bora_bottom_action_bar.dart';
 import '../widgets/reportar_problema_pedido.dart';
 import '../widgets/order_edit/client_order_edit_banner.dart';
 import '../widgets/bora_support_fab.dart';
@@ -51,7 +52,8 @@ class OrderDetailsScreen extends StatelessWidget {
       ),
       floatingActionButton: BoraSupportFab(orderId: order.id),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.fromLTRB(
+            16, 16, 16, BoraBottomActionBar.folgaInferior(context, base: 16)),
         children: [
           // ── Status card ───────────────────────────────────────────────
           _StatusCard(order: liveOrder),

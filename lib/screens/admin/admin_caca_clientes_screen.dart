@@ -13,6 +13,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/app_colors.dart';
 import '../../services/admin_export_service.dart';
+import '../../widgets/bora/bora_bottom_action_bar.dart';
 
 class AdminCacaClientesScreen extends StatefulWidget {
   const AdminCacaClientesScreen({super.key});
@@ -206,7 +207,8 @@ class _AdminCacaClientesScreenState extends State<AdminCacaClientesScreen> {
         initialChildSize: 0.88,
         builder: (_, controle) => ListView(
           controller: controle,
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.fromLTRB(
+              20, 20, 20, BoraBottomActionBar.folgaInferior(ctx, base: 20)),
           children: [
             Text('${p['nome']}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
             Text('${p['categoria'] ?? '—'} · ${p['concelho'] ?? 'concelho por preencher'} · ${_tipos[p['cliente_tipo']] ?? 'tipo por definir'}',

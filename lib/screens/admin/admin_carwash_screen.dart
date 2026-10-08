@@ -8,6 +8,8 @@ import '../../services/carwash_upload_service.dart';
 import '../../utils/hora_lisboa_ext.dart';
 import '../../services/admin_export_service.dart';
 import '../../widgets/admin/confirmar_dinheiro.dart';
+import '../../widgets/bora/bora_bottom_action_bar.dart';
+import '../../widgets/bora_foto_ecra_inteiro.dart';
 
 /// LAVAGEM AUTO — painel admin (PT-BR, só o Danilo usa).
 /// Autoridade total: ver, criar, editar, cancelar, reagendar, reatribuir,
@@ -412,7 +414,8 @@ Future<void> _abrirDetalhe(
       initialChildSize: 0.85,
       builder: (_, scroll) => ListView(
         controller: scroll,
-        padding: const EdgeInsets.all(Spacing.lg),
+        padding: EdgeInsets.fromLTRB(Spacing.lg, Spacing.lg, Spacing.lg,
+            BoraBottomActionBar.folgaInferior(ctx)),
         children: [
           Text('${d!['plate']} · ${d['car_make_model']}',
               style: const TextStyle(
@@ -507,17 +510,25 @@ Widget _fotosAdmin(String titulo, dynamic raw) {
           scrollDirection: Axis.horizontal,
           itemCount: lista.length,
           separatorBuilder: (_, __) => const SizedBox(width: Spacing.sm),
-          itemBuilder: (_, i) {
+          itemBuilder: (ctx, i) {
             final path = (lista[i] as Map)['url']?.toString() ?? '';
             return FutureBuilder<String?>(
               future: CarwashUploadService.signedUrl(path),
-              builder: (_, snap) => ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: snap.data == null
-                    ? Container(
-                        width: 130, height: 100, color: AppColors.surface2)
-                    : Image.network(snap.data!,
-                        width: 130, height: 100, fit: BoxFit.cover),
+              // Toque → foto inteira (visualizador comum, 08/10/2026).
+              builder: (_, snap) => GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: snap.data == null
+                    ? null
+                    : () => BoraFotoEcraInteiro.abrir(ctx,
+                        urlOrPath: snap.data!, titulo: titulo),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: snap.data == null
+                      ? Container(
+                          width: 130, height: 100, color: AppColors.surface2)
+                      : Image.network(snap.data!,
+                          width: 130, height: 100, fit: BoxFit.cover),
+                ),
               ),
             );
           },

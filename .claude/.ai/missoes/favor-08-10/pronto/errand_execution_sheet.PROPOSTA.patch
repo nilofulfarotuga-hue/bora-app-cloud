@@ -1,0 +1,51 @@
+--- a/lib/widgets/errand_execution_sheet.dart
++++ b/lib/widgets/errand_execution_sheet.dart
+@@ -21,6 +21,8 @@
+ 
+ import '../config/app_colors.dart';
+ import '../models/order_model.dart';
++import '../utils/favor_passos.dart';
++import 'bora/bora_bottom_action_bar.dart';
+ import '../services/receipt_upload_service.dart';
+ import '../stores/order_store.dart';
+ import 'private_bucket_image.dart';
+@@ -66,9 +68,12 @@
+   void initState() {
+     super.initState();
+     final o = widget.order;
+-    _phase = o.errandHomeStop
++    // 08/10: arranca no passo gravado no servidor (orders.errand_passo), não
++    // só pela paragem/compra — ao reabrir a folha já não volta à recolha.
++    final passo = passoAtual(o);
++    _phase = passo == 0
+         ? _Phase.collect
+-        : (o.errandHasPurchase ? _Phase.purchase : _Phase.deliver);
++        : (passo == 1 && o.errandHasPurchase ? _Phase.purchase : _Phase.deliver);
+     _budgetStatus = o.errandBudgetStatus;
+     if (_budgetStatus == 'pending') _startBudgetPoll();
+   }
+@@ -379,10 +384,11 @@
+           ? (label: 'Devolver ao cliente', amount: netToReturn, isRefund: true)
+           : (label: 'Cobrar ao cliente', amount: -netToReturn, isRefund: false);
+     }
+-    // Cash normal: cobra total
++    // Cash normal: a conta única de "Cobrar ao cliente" (08/10) — a mesma da
++    // faixa laranja e do cartão dos passos (final_total depois do talão).
+     return (
+       label: 'Cobrar ao cliente',
+-      amount: o.finalTotal ?? o.total,
++      amount: o.totalToCollectCash,
+       isRefund: false
+     );
+   }
+@@ -391,8 +397,9 @@
+   Widget build(BuildContext context) {
+     final o = widget.order;
+     return Padding(
++      // 08/10: teclado OU barra de 3 botões do Android (edge-to-edge).
+       padding: EdgeInsets.only(
+-        bottom: MediaQuery.of(context).viewInsets.bottom,
++        bottom: BoraBottomActionBar.folgaInferior(context, base: 0),
+       ),
+       child: Container(
+         padding: const EdgeInsets.all(20),

@@ -5,6 +5,7 @@ import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../models/provider_service_model.dart';
 import '../../../stores/partner_appointments_store.dart';
+import '../../../widgets/bora/bora_bottom_action_bar.dart';
 import '../../../widgets/bora/bora_primary_button.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
 
@@ -337,7 +338,7 @@ class _ServiceFormState extends State<_ServiceForm> {
         left: Spacing.lg,
         right: Spacing.lg,
         top: Spacing.lg,
-        bottom: MediaQuery.of(context).viewInsets.bottom + Spacing.lg,
+        bottom: BoraBottomActionBar.folgaInferior(context),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

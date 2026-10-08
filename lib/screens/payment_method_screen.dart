@@ -993,21 +993,35 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   /// Parte 3 (rodada 2) — grava a paragem em casa do favor (morada + coords +
   /// dinheiro a pegar + perna de volta) via RPC NÃO-financeira, SEM tocar no
   /// create_order (checkout que cobra). Best-effort — falha não quebra o checkout.
-  Future<void> _persistErrandHomeStop(CartStore cart, String orderId) async {
-    final es = cart.errandSession;
+  ///
+  /// [es] é a sessão do favor tirada ANTES do `finishOrder`: o `finishOrder`
+  /// limpa a sessão no fim, e em dinheiro e MB Way esta chamada vinha depois
+  /// — saía sem fazer nada e o estafeta ficava sem o passo "casa da cliente"
+  /// (pedido real 74dd4ecc, 08/10/2026: zero chamadas a esta RPC no servidor).
+  Future<void> _persistErrandHomeStop(ErrandSession? es, String orderId) async {
     final home = es?.home;
     if (es == null || home == null) return;
-    try {
-      await Supabase.instance.client.rpc('errand_set_home_stop', params: {
-        'p_order_id': orderId,
-        'p_address': es.homeStopAddress,
-        'p_lat': home.latitude,
-        'p_lng': home.longitude,
-        'p_cash_cents': es.homeStopCashCents,
-        'p_return_leg': es.returnLeg,
-      });
-    } catch (e) {
-      debugPrint('[Checkout] errand_set_home_stop failed (non-fatal): $e');
+    // Uma segunda tentativa se a rede falhar (a primeira corre logo a seguir
+    // a criar o pedido). Se as duas falharem, o servidor já pôs a morada de
+    // entrega como paragem (gatilho trg_orders_errand_home_stop_fallback).
+    for (var tentativa = 1; tentativa <= 2; tentativa++) {
+      try {
+        await Supabase.instance.client.rpc('errand_set_home_stop', params: {
+          'p_order_id': orderId,
+          'p_address': es.homeStopAddress,
+          'p_lat': home.latitude,
+          'p_lng': home.longitude,
+          'p_cash_cents': es.homeStopCashCents,
+          'p_return_leg': es.returnLeg,
+        }).timeout(const Duration(seconds: 8));
+        return;
+      } catch (e) {
+        debugPrint(
+            '[Checkout] errand_set_home_stop falhou (tentativa $tentativa): $e');
+        if (tentativa == 1) {
+          await Future<void>.delayed(const Duration(seconds: 2));
+        }
+      }
     }
   }
 
@@ -1111,6 +1125,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         debugPrint('[Checkout] wallet covers full order — using legacy path');
         // Use old finishOrder flow (cash-like) since no card charge needed.
         final bool ordered;
+        final favorSaldo = cartStore.errandSession; // antes do finishOrder
         try {
           ordered = await cartStore.finishOrder(
             orderStore,
@@ -1136,6 +1151,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           messenger.showSnackBar(SnackBar(
               content: Text(_createOrderErrorMessage(orderStore))));
           return;
+        }
+        final saldoOrderId = orderStore.lastCreatedOrderId;
+        if (saldoOrderId != null) {
+          await _persistErrandHomeStop(favorSaldo, saldoOrderId);
         }
         await _consumeTokensAndNavigate(tokensUsed);
         return;
@@ -1279,7 +1298,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       }
       // Parte 3 (rodada 2) — persistir a paragem em casa (morada+coords+cash+volta)
       // ANTES de clearCart (que apaga a errandSession).
-      await _persistErrandHomeStop(cartStore, orderId);
+      await _persistErrandHomeStop(cartStore.errandSession, orderId);
       // Festas (2026-08-25) — a ordem do cartão nasce no webhook sem a data;
       // gravá-la agora pela RPC dedicada (valida dono/categoria/dia seguinte).
       // Se falhar, a data já segue nas observações do pedido.
@@ -1321,6 +1340,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         //      a orders.payment_status até detectar 'paid' (webhook resolveu).
         //   4. Se utilizador cancela ou expira → _bailOutAndCancel (reason=payment_failed
         //      → client-cancel-order v20 isenta de taxa de cancelamento).
+        final favorMbway = cartStore.errandSession; // antes do finishOrder
         final mbwayOrdered = await cartStore.finishOrder(
           orderStore,
           paymentMethod: PaymentMethod.mbway,
@@ -1378,7 +1398,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           await _bailOutAndCancel(mbwayOrderId);
           return;
         }
-        await _persistErrandHomeStop(cartStore, mbwayOrderId);
+        await _persistErrandHomeStop(favorMbway, mbwayOrderId);
         await _consumeTokensAndNavigate(tokensUsed);
         return;
       case PaymentMethod.cash:
@@ -1405,6 +1425,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     // Pagamento local confirmado (MBWay/Cash) — marcar como paid antes de criar order.
     paymentStatus = PaymentStatus.paid;
 
+    final favorDinheiro = cartStore.errandSession; // antes do finishOrder
     final ordered = await cartStore.finishOrder(
       orderStore,
       paymentMethod: _selectedMethod,
@@ -1429,7 +1450,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
 
     final cashOrderId = orderStore.lastCreatedOrderId;
     if (cashOrderId != null) {
-      await _persistErrandHomeStop(cartStore, cashOrderId);
+      await _persistErrandHomeStop(favorDinheiro, cashOrderId);
     }
     await _consumeTokensAndNavigate(tokensUsed);
   }

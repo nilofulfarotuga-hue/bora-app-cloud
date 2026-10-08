@@ -19,7 +19,9 @@ import '../widgets/background_location_disclosure.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/cancel_blocked_pickup_sheet.dart';
 import '../widgets/payments/collect_badge.dart';
-import '../widgets/errand_execution_sheet_compat.dart';
+import '../utils/favor_passos.dart';
+import '../widgets/favor_passos_card.dart';
+import '../widgets/bora/bora_bottom_action_bar.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../utils/constants.dart';
 import '../utils/map_utils.dart';
@@ -1038,7 +1040,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
             if (myOrders.isNotEmpty) ...[
               Expanded(
                 child: ListView.builder(
-                  padding: EdgeInsets.zero,
+                  // [08/10] Os botões do último cartão ("Tratar do favor",
+                  // "Cancelar entrega"…) ficavam por baixo da barra de 3
+                  // botões do Android (edge-to-edge do Android 15).
+                  padding: EdgeInsets.only(
+                      bottom: BoraBottomActionBar.folgaInferior(context,
+                          base: 0)),
                   itemCount: myOrders.length,
                   itemBuilder: (ctx, i) =>
                       _buildActiveOrderCard(context, orderStore, myOrders[i]),
@@ -1739,10 +1746,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     final pickupTarget = order.pickupLocation ?? order.destination;
     final deliveryTarget = order.destination;
     final hasPickedUp = order.status.index >= OrderStatus.pickedUp.index;
-    final LatLng? navigationTarget =
-        hasPickedUp ? deliveryTarget : pickupTarget;
-    final String navigationLabel =
-        hasPickedUp ? "Navegar para cliente" : "Navegar para recolha";
+    // Favor (08/10): o "Navegar" leva sempre à morada do passo atual (casa da
+    // cliente → local do favor → entrega), nunca ao pickup_address.
+    final favorRota = FavorRota.de(order);
+    final LatLng? navigationTarget = favorRota != null
+        ? favorRota.atual.coords
+        : (hasPickedUp ? deliveryTarget : pickupTarget);
+    final String navigationLabel = favorRota != null
+        ? "Navegar — ${favorRota.atual.rotuloCurto}"
+        : (hasPickedUp ? "Navegar para cliente" : "Navegar para recolha");
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -1844,7 +1856,20 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
-                if (order.pickupAddress != null &&
+                // Favor (08/10): os passos (casa → favor → entrega) em vez de
+                // "Recolha:" — num favor o pickup_address é texto herdado.
+                if (favorRota != null &&
+                    order.status != OrderStatus.delivered &&
+                    order.status != OrderStatus.cancelled) ...[
+                  const SizedBox(height: 12),
+                  FavorPassosCard(
+                    order: order,
+                    posicaoEstafeta:
+                        context.read<DriverStore>().currentDriver?.location,
+                  ),
+                ],
+                if (favorRota == null &&
+                    order.pickupAddress != null &&
                     order.pickupAddress!.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   const Text(
@@ -1857,7 +1882,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
-                if (order.dropoffAddress != null &&
+                if (favorRota == null &&
+                    order.dropoffAddress != null &&
                     order.dropoffAddress!.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   const Text(
@@ -2093,21 +2119,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                         : Text(nextAction.label),
                   ),
                 ],
-                // Row 2.5: FAVORES — abrir execution sheet (recolha/compra/entrega)
-                if (order.serviceType == OrderServiceType.errand &&
-                    order.status != OrderStatus.delivered &&
-                    order.status != OrderStatus.cancelled) ...[
-                  const SizedBox(height: 8),
-                  ElevatedButton.icon(
-                    onPressed: () => ErrandExecutionSheet.show(context, order),
-                    icon: const Icon(Icons.task_alt),
-                    label: const Text('Tratar do favor'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF14B8A6),
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ],
+                // Row 2.5: FAVORES — o botão da folha (recolha/compra/entrega)
+                // vive no FavorPassosCard, acima (08/10).
                 // Row 3: cancel delivery — only while order is driverAccepted
                 if (order.status == OrderStatus.driverAccepted) ...[
                   const SizedBox(height: 8),
@@ -2713,7 +2726,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (dropoffText.isNotEmpty) ...[
+                if (isErrand) ...[
+                  const SizedBox(height: 6),
+                  FavorPassosCard(
+                    order: order,
+                    posicaoEstafeta: driverLoc,
+                    compacto: true,
+                  ),
+                ] else if (dropoffText.isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Text(
                     dropoffText,
@@ -3210,7 +3230,19 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
-                    if (order.pickupAddress != null &&
+                    // Favor (08/10): antes de aceitar, a rota toda — "Casa
+                    // da cliente → Farmácia Tavares → Casa da cliente" — com
+                    // morada, distância e Navegar de cada passo.
+                    if (order.serviceType == OrderServiceType.errand) ...[
+                      const SizedBox(height: 8),
+                      FavorPassosCard(
+                        order: order,
+                        posicaoEstafeta: widget.driverLocation,
+                        compacto: true,
+                      ),
+                    ],
+                    if (order.serviceType != OrderServiceType.errand &&
+                        order.pickupAddress != null &&
                         order.pickupAddress!.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Text(
@@ -3220,7 +3252,8 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
-                    if (order.dropoffAddress != null &&
+                    if (order.serviceType != OrderServiceType.errand &&
+                        order.dropoffAddress != null &&
                         order.dropoffAddress!.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
@@ -3508,7 +3541,17 @@ class _AvailableOrderCardState extends State<_AvailableOrderCard> {
                 amountCents: (order.totalToCollectCash * 100).round(),
               ),
             ),
-            if (order.pickupAddress != null &&
+            // Favor (08/10): a rota toda, nunca o pickup_address herdado.
+            if (order.serviceType == OrderServiceType.errand) ...[
+              const SizedBox(height: 8),
+              FavorPassosCard(
+                order: order,
+                posicaoEstafeta: widget.driverLocation,
+                compacto: true,
+              ),
+            ],
+            if (order.serviceType != OrderServiceType.errand &&
+                order.pickupAddress != null &&
                 order.pickupAddress!.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
@@ -3517,7 +3560,8 @@ class _AvailableOrderCardState extends State<_AvailableOrderCard> {
                 overflow: TextOverflow.ellipsis,
               ),
             ],
-            if (order.dropoffAddress != null &&
+            if (order.serviceType != OrderServiceType.errand &&
+                order.dropoffAddress != null &&
                 order.dropoffAddress!.isNotEmpty) ...[
               const SizedBox(height: 4),
               Text(

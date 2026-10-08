@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../widgets/bora/bora_bottom_action_bar.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '../../utils/hora_lisboa_ext.dart';
 
@@ -433,7 +434,8 @@ class _S extends State<AdminRobotSuggestionsScreen> {
         initialChildSize: 0.75,
         maxChildSize: 0.95,
         builder: (_, scroll) => Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.fromLTRB(16, 16, 16,
+              BoraBottomActionBar.folgaInferior(ctx, base: 16)),
           child: ListView(
             controller: scroll,
             children: [
@@ -562,7 +564,8 @@ class _S extends State<AdminRobotSuggestionsScreen> {
         initialChildSize: 0.75,
         maxChildSize: 0.95,
         builder: (_, scroll) => Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.fromLTRB(16, 16, 16,
+              BoraBottomActionBar.folgaInferior(ctx, base: 16)),
           child: ListView(
             controller: scroll,
             children: [

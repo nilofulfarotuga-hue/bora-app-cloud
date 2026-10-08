@@ -745,6 +745,15 @@ class CartStore extends ChangeNotifier {
     _deixarAPorta = false;
     _vendorName = null;
     _pickupLocation = home; // null se não houver paragem-casa
+    // Favor (08/10/2026, pedido 74dd4ecc): o texto da recolha ficava com a
+    // rua de um carrinho anterior ("Rua do Ferrinho") porque ninguém o
+    // limpava. Passa a ser a morada da paragem em casa, ou o local do favor.
+    // Só o TEXTO: as coordenadas (que o servidor usa para validar a
+    // distância e o preço) continuam as mesmas.
+    final casa = homeStopAddress?.trim() ?? '';
+    _pickupStreet = home != null && casa.isNotEmpty ? casa : location.trim();
+    _pickupCity = null;
+    _pickupPostalCode = null;
     _deliveryLocation = dropoff;
     // O servidor (e o finishOrder) exigem uma morada de entrega — o wizard
     // captura-a via autocomplete de rua.

@@ -101,7 +101,8 @@ class _CleanerAvailabilityScreenState extends State<CleanerAvailabilityScreen> {
     return Scaffold(
       appBar: const BoraScreenAppBar(title: 'A minha disponibilidade'),
       body: ListView(
-        padding: const EdgeInsets.all(Spacing.lg),
+        padding: EdgeInsets.fromLTRB(Spacing.lg, Spacing.lg, Spacing.lg,
+            BoraBottomActionBar.folgaInferior(context)),
         children: [
           const Text(
             'Marca os dias e as horas em que aceitas limpezas. Só recebes '

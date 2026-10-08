@@ -50,7 +50,10 @@ import 'driver_order_action_helper.dart';
 import '../widgets/bora/maior_18.dart';
 import '../widgets/verificacao_idade_sheet.dart';
 import '../l10n/tr.dart';
-import '../widgets/errand_execution_sheet_compat.dart';
+import '../utils/favor_passos.dart';
+import '../widgets/bora_foto_ecra_inteiro.dart';
+import '../widgets/favor_passos_card.dart';
+import '../widgets/bora/bora_bottom_action_bar.dart';
 
 // BUG 29: Google sobrepunha o nome da rua mais próxima (ex: "Alexandre
 // Herculano") perto do marker do dropoff, fazendo crer ao estafeta que a
@@ -922,25 +925,57 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     // depois de marcar pickup nem em pedidos com batching.
     // Agora: pickup laranja + delivery verde sempre visíveis em paralelo.
     final totalStops = optimizedRoute.stops.length;
+    final favoresComPassoAtual = <String>{};
     for (var i = 0; i < totalStops; i++) {
       final stop = optimizedRoute.stops[i];
       final isPickup = stop.isPickup;
       final stepLabel = totalStops > 1 ? ' ${i + 1}/$totalStops' : '';
+      // Favor (08/10): bolas numeradas 1/2/3; a do passo atual (a primeira
+      // paragem do favor na rota) maior e destacada.
+      final passo = stop.passoFavor;
+      final atual = passo != null && favoresComPassoAtual.add(stop.orderId);
       markers.add(
         Marker(
           markerId: MarkerId('stop_${i}_${stop.orderId}'),
           position: stop.location.toGMaps(),
-          icon: isPickup
-              ? MapMarkerHelper.pickupIcon
-              : MapMarkerHelper.deliveryIcon,
+          icon: passo != null
+              ? MapMarkerHelper.passoIcon(passo, atual: atual, feito: false)
+              : (isPickup
+                  ? MapMarkerHelper.pickupIcon
+                  : MapMarkerHelper.deliveryIcon),
+          anchor: passo != null ? const Offset(0.5, 0.5) : const Offset(0.5, 1),
           infoWindow: InfoWindow(
-            title: isPickup ? 'Recolha$stepLabel' : 'Entrega$stepLabel',
+            title: passo != null
+                ? 'Passo $passo — ${stop.tituloPasso ?? ''}'
+                : (isPickup ? 'Recolha$stepLabel' : 'Entrega$stepLabel'),
             snippet: stop.label,
           ),
           // Stop seguinte (i==0) tem zIndex maior para destaque.
-          zIndexInt: i == 0 ? 2 : 1,
+          zIndexInt: (i == 0 || atual) ? 2 : 1,
         ),
       );
+    }
+    // Favor: os passos já feitos ficam no mapa, a cinzento.
+    for (final o in myOrders) {
+      final rota = FavorRota.de(o);
+      if (rota == null ||
+          (o.status != OrderStatus.driverAccepted &&
+              o.status != OrderStatus.pickedUp &&
+              o.status != OrderStatus.onTheWay)) {
+        continue;
+      }
+      for (var j = 0; j < rota.indiceAtual; j++) {
+        final p = rota.passos[j];
+        if (p.coords == null) continue;
+        markers.add(Marker(
+          markerId: MarkerId('favor_feito_${p.numero}_${o.id}'),
+          position: p.coords!.toGMaps(),
+          icon: MapMarkerHelper.passoIcon(p.numero, atual: false, feito: true),
+          anchor: const Offset(0.5, 0.5),
+          infoWindow: InfoWindow(title: 'Passo ${p.numero} feito — ${p.nome}'),
+          zIndexInt: 0,
+        ));
+      }
     }
 
     // ── Polyline ────────────────────────────────────────────────────────────
@@ -985,7 +1020,11 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     //     which runs the 60 fps interpolation loop. No camera update for
     //     position changes is scheduled here to avoid competing with the
     //     interpolation timer.
-    final stopsKey = optimizedRoute.stops.map((s) => s.orderId).join(',');
+    // Favor: o mesmo pedido muda de paragem a cada passo — a chave leva o
+    // passo para a câmara voltar a enquadrar quando o estafeta avança.
+    final stopsKey = optimizedRoute.stops
+        .map((s) => '${s.orderId}#${s.passoFavor ?? ''}')
+        .join(',');
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
@@ -1749,7 +1788,15 @@ class _BottomPanelState extends State<_BottomPanel> {
                 ),
                 const SizedBox(height: 16),
 
-                if (_isMultiStop)
+                // Favor (08/10): o cartão dos passos substitui "recolha →
+                // entrega" — nome do sítio, morada, distância e Navegar do
+                // passo atual, a foto da receita e o botão da folha.
+                if (focusOrder.serviceType == OrderServiceType.errand)
+                  FavorPassosCard(
+                    order: focusOrder,
+                    posicaoEstafeta: widget.driverPosition,
+                  )
+                else if (_isMultiStop)
                   _StopList(
                     stops: widget.allStops,
                     orders: widget.orders,
@@ -1816,9 +1863,13 @@ class _BottomPanelState extends State<_BottomPanel> {
                 // BUG 9 (2026-05-15) — banner "RECEBER €X" para pedidos cash
                 // a partir de pickedUp (estafeta já recolheu, está a caminho).
                 // Texto diferenciado parceiro/não-parceiro/self-dispatch.
+                // Favor: só no passo da entrega — antes do talão o valor é uma
+                // estimativa, e a faixa a dizê-lo enganava (pedido 74dd4ecc).
                 if (focusOrder.paymentMethod == PaymentMethod.cash &&
                     (focusOrder.status == OrderStatus.pickedUp ||
-                        focusOrder.status == OrderStatus.onTheWay)) ...[
+                        focusOrder.status == OrderStatus.onTheWay) &&
+                    (focusOrder.serviceType != OrderServiceType.errand ||
+                        passoAtual(focusOrder) == 2)) ...[
                   _CashCollectBanner(order: focusOrder),
                   const SizedBox(height: 16),
                 ],
@@ -2103,70 +2154,8 @@ class _BottomPanelState extends State<_BottomPanel> {
                 ),
               ],
 
-              // FAVOR-ESTAFETA (27/09): o mapa tratava o favor como pedido de
-              // loja — sem o texto do que fazer nem o botão da folha do favor
-              // (compra → talão → entrega). Caso real: pedido 33243355.
-              if (focusOrder != null &&
-                  focusOrder.serviceType == OrderServiceType.errand &&
-                  focusOrder.status != OrderStatus.delivered &&
-                  focusOrder.status != OrderStatus.cancelled) ...[
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF0FDFA),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFF99F6E4)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        focusOrder.errandSpeed == 'express'
-                            ? 'FAVOR EXPRESSO'
-                            : 'FAVOR',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF0F766E),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        focusOrder.errandDescription?.trim().isNotEmpty == true
-                            ? focusOrder.errandDescription!.trim()
-                            : 'Favor — ${focusOrder.errandLocation ?? "ver mapa"}',
-                        style: const TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.w600),
-                      ),
-                      if (focusOrder.errandLocation?.trim().isNotEmpty ==
-                          true) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          'Onde: ${focusOrder.errandLocation!.trim()}',
-                          style: TextStyle(
-                              fontSize: 12, color: Colors.grey.shade700),
-                        ),
-                      ],
-                      const SizedBox(height: 10),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () =>
-                              ErrandExecutionSheet.show(context, focusOrder),
-                          icon: const Icon(Icons.task_alt),
-                          label: const Text('Tratar do favor'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF14B8A6),
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+              // FAVOR-ESTAFETA (27/09): o texto do favor e o botão da folha
+              // vivem agora no FavorPassosCard (topo do painel, 08/10).
 
               // Customer notes — tied to focusOrder (the order with the next
               // pending action). BUG-STACKING-NOTES (2026-05-16): removed
@@ -2928,58 +2917,9 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
     }
   }
 
-  /// Amplia a foto (fullscreen com pinch-zoom) — tap fora fecha.
+  /// Amplia a foto — o visualizador comum de ecrã inteiro (08/10/2026).
   void _showPhotoZoom(String url, String name) {
-    showDialog<void>(
-      context: context,
-      barrierColor: Colors.black87,
-      builder: (_) => Dialog.fullscreen(
-        backgroundColor: Colors.black,
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: InteractiveViewer(
-                minScale: 0.5,
-                maxScale: 5,
-                child: Center(
-                  child: Image.network(
-                    url,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Icon(
-                      Icons.image_not_supported_outlined,
-                      color: Colors.white54,
-                      size: 64,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 24,
-              child: Text(
-                name,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
-              ),
-            ),
-            Positioned(
-              top: 8,
-              right: 8,
-              child: SafeArea(
-                child: IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white, size: 28),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    BoraFotoEcraInteiro.abrir(context, urlOrPath: url, titulo: name);
   }
 
   // ── Add-product dialog ──────────────────────────────────────────────────
@@ -3183,11 +3123,13 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
     final progress = totalCount > 0 ? boughtCount / totalCount : 0.0;
 
     return Padding(
+      // [08/10] Teclado OU barra de 3 botões do Android — o "Confirmar
+      // compra" ficava por baixo da barra (edge-to-edge do Android 15).
       padding: EdgeInsets.fromLTRB(
         20,
         16,
         20,
-        24 + MediaQuery.of(context).viewInsets.bottom,
+        BoraBottomActionBar.folgaInferior(context, base: 24),
       ),
       child: ConstrainedBox(
         constraints: BoxConstraints(
@@ -4097,7 +4039,9 @@ class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    // [08/10] Teclado OU barra de 3 botões do Android (o "Confirmar" do
+    // talão ficava por baixo da barra no edge-to-edge do Android 15).
+    final bottomInset = BoraBottomActionBar.folgaInferior(context, base: 0);
     final hint = widget.isCash
         ? 'Foto guardada para registo Bora (auditoria).'
         : 'Foto + valor permitem Bora reembolsar-te o valor correcto do talão.';

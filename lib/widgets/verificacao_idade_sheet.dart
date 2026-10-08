@@ -17,6 +17,7 @@ import '../config/app_colors.dart';
 import '../l10n/tr.dart';
 import '../models/order_model.dart';
 import '../services/maior_18_service.dart';
+import 'bora/bora_bottom_action_bar.dart';
 import 'bora/maior_18.dart';
 
 /// O que o estafeta decidiu na folha.
@@ -150,7 +151,8 @@ class _VerificacaoIdadeSheetState extends State<VerificacaoIdadeSheet> {
     return PopScope(
       canPop: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+        padding: EdgeInsets.fromLTRB(
+            20, 16, 20, BoraBottomActionBar.folgaInferior(context, base: 20)),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,

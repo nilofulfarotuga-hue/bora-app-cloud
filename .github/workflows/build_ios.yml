@@ -505,23 +505,22 @@ jobs:
       - name: Conferir que os segredos de assinatura existem
         env:
           CERT: ${{ secrets.IOS_DIST_CERT_P12_B64 }}
-          PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE_B64 }}
           ASC_KEY: ${{ secrets.ASC_KEY_P8_B64 }}
         run: |
           faltam=""
           [ -z "$CERT" ]    && faltam="$faltam IOS_DIST_CERT_P12_B64"
-          [ -z "$PROFILE" ] && faltam="$faltam IOS_PROVISIONING_PROFILE_B64"
           [ -z "$ASC_KEY" ] && faltam="$faltam ASC_KEY_P8_B64"
           if [ -n "$faltam" ]; then
             echo "::error::Faltam segredos:$faltam — a conta Apple ainda não está pronta."
             exit 1
           fi
 
-      - name: Instalar certificado e perfil
+      # (08/10) O perfil ja nao vem do segredo IOS_PROVISIONING_PROFILE_B64:
+      # e' pedido a Apple no passo "Instalar o perfil (pela Apple)", mais abaixo.
+      - name: Instalar certificado
         env:
           CERT_B64: ${{ secrets.IOS_DIST_CERT_P12_B64 }}
           CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
-          PROFILE_B64: ${{ secrets.IOS_PROVISIONING_PROFILE_B64 }}
         run: |
           KEYCHAIN=$RUNNER_TEMP/bora.keychain-db
           KEYCHAIN_PASS=$(uuidgen)
@@ -534,10 +533,6 @@ jobs:
             -A -t cert -f pkcs12 -k "$KEYCHAIN"
           security list-keychain -d user -s "$KEYCHAIN"
           security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASS" "$KEYCHAIN"
-
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo "$PROFILE_B64" | base64 --decode > \
-            ~/Library/MobileDevice/Provisioning\ Profiles/bora.mobileprovision
 
       - name: Segredos de build
         env:
@@ -626,6 +621,21 @@ jobs:
           echo "$NOME" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "::error::nome de versao invalido: $NOME"; exit 1; }
           echo "versao do IPA: $NOME"
           echo "IOS_BUILD_NAME=$NOME" >> $GITHUB_ENV
+
+      # (08/10, C2) Ligar uma capacidade no App ID (Time Sensitive) invalida o
+      # perfil; com ele num segredo, o build caia na assinatura ate alguem o
+      # trocar a mao. Agora pede-se o perfil "Bora App Store" ACTIVE a Apple em
+      # cada build, e o script falha se o perfil nao trouxer todas as chaves do
+      # Runner.entitlements. Reaproveita o venv e a chave do passo anterior.
+      - name: Instalar o perfil (pela Apple)
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          export ASC_P8=~/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          "$RUNNER_TEMP/asc-venv/bin/python" .github/scripts/ios_perfil.py \
+            ~/Library/MobileDevice/Provisioning\ Profiles/bora.mobileprovision
 
       - name: Construir o IPA
         run: |

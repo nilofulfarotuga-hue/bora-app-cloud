@@ -12,5 +12,12 @@
 	     simulador (job A do build_ios.yml, que corre sem conta Apple). -->
 	<key>aps-environment</key>
 	<string>production</string>
+	<!-- Notificacoes urgentes (2026-10-08, C2). Capacidade "Time Sensitive
+	     Notifications" ligada no App ID pt.boraapp.bora. Sem esta chave o
+	     iOS ignora o 'interruption-level: time-sensitive' que as funcoes
+	     notify-driver / notify-tvde-driver mandam na oferta, e o modo Foco
+	     ou o resumo agendado escondem a corrida ao motorista. -->
+	<key>com.apple.developer.usernotifications.time-sensitive</key>
+	<true/>
 </dict>
 </plist>

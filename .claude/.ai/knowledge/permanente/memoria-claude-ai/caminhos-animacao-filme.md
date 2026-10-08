@@ -2,7 +2,7 @@
 id: memoria-claude-ai-caminhos-animacao-filme
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-07
+ultima_confirmacao: 2026-10-08
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Filme das filhas — 5 caminhos grátis para o desenho (revisto 05/10 com os 50 vídeos)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-07T19:54:13.973386+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-08T19:54:35.644338+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: caminhos animacao filme · memoria claude.ai · claude_ai_memoria
 
@@ -32,3 +32,8 @@ Ordem recomendada: 2 (bíblia) → 1 (personagens fixos) → 3 (vozes) → 4 (bo
 
 ## 07/10/2026 — radar diário (sem vídeos novos do tema animacao_ia; 1 achado de outra pesquisa)
 - Reforço do caminho 1: folha de cada personagem de frente, lado e costas antes de gerar qualquer cena; e esconder a emenda entre dois clipes atrás de um objeto da cena (pilar, porta) para fazer cenas mais longas e contínuas. O vídeo usa Midjourney e Flick (pagos) — aproveitar só a técnica com o Nano Banana/Flow que já temos. https://www.youtube.com/watch?v=Bf_ZGWc5l1o
+
+## 08/10/2026 — radar diário (sem vídeos do tema animacao_ia; 2 achados das pesquisas de lip sync)
+- REFORÇO do caminho 4 (boca sincronizada), ataca a voz trocada: o Google Flow (modelo Omniflash 1.1) já aceita subir a IMAGEM da personagem + um FICHEIRO DE ÁUDIO e sincroniza os lábios com esse áudio; dá para juntar texto com movimento e cenário. Assim cada personagem fala sempre com a voz fixa gerada no caminho 3, em vez de o Flow inventar a voz. Custo: créditos do Flow (já incluído no Google AI Plus). https://www.youtube.com/watch?v=htROyMzUbA8
+- RESERVA do caminho 4 quando acabarem os créditos do Flow: MuseTalk ou Wav2Lip num notebook grátis (Colab ou o Kaggle que já temos); limpar o áudio antes (tirar ruído) e processar por blocos curtos (fala a fala). Grátis. https://www.youtube.com/watch?v=rxZZ1xi81a4
+- Rejeitados hoje para o filme: ComfyUI/RunPod (pago), ComfyUI no Colab (clipes 3-5 s, mesma deriva do Kaggle), Wan 2.2 Animate (GPU 12 GB), ferramenta de vídeo longo da Meta só nos EUA (pede VPN e cartão/verificação).

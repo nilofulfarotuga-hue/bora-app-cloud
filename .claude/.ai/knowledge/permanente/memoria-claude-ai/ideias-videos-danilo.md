@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-07
+ultima_confirmacao: 2026-10-08
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-07T19:54:13.973386+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-08T19:54:29.020963+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -64,3 +64,14 @@ REGRA (Danilo, 01/10/2026): tudo o que ele mandar (vídeos, transcrições, link
 - DINHEIRO: nas propostas a PMEs, entregar a automação como skills no Claude Cowork do cliente (interface de conversa) em vez de ferramentas técnicas. https://www.youtube.com/watch?v=hwHIs9IoUus
 - JÁ TEMOS: Hermes (4 tutoriais), Jev como roteador (à espera de pagamento), agentes com Claude Code, vender conversão e não IA, sites com pedido por WhatsApp, explicativos animados, bio/perfil como página de vendas.
 - RECUSADO: consultoria de vendas do Kelvin Cleto (sem passo aplicável); Seedance 2.5/OpenArt e stickman (nota baixa).
+
+## 08/10/2026 — radar diário
+32 vídeos revistos: 9 novos, 10 já temos, 13 rejeitados.
+- SISTEMA (gastar menos Claude): Haiku 5.5 como subagente barato no Claude Code para ler ficheiros, extrair dados e classificar; Opus só para planear. https://www.youtube.com/watch?v=oNscMz8dRfo , https://www.youtube.com/watch?v=QrnyfHvamrY
+- SISTEMA (destravar o Jev parado por pagamento): testar o Jev pelo Vercel AI Gateway https://www.youtube.com/watch?v=ROk7yeYDTyU e a alternativa aberta "Laya/LIA" https://www.youtube.com/watch?v=X0q6fgG24bU — confirmar antes que nenhuma pede cartão novo.
+- SISTEMA: skill "observador de tarefas" que regista os erros repetidos dos agentes num ficheiro de lições e os transforma em regras. https://www.youtube.com/watch?v=jyLKRN36-Dc
+- SISTEMA: mods do Claude Code — aviso sonoro no fim de tarefa longa, esconder dados sensíveis ao gravar ecrã, contador de consumo de tokens. https://www.youtube.com/watch?v=ObfoipOqS3M
+- EM DIA / BORA (AEO): ver se ChatGPT, Gemini e Perplexity recomendam o Em Dia quando se pergunta "app de recibos verdes em Portugal" e o Bora em "entregas na Guarda"; trabalhar as páginas que essas IAs citam (sem pagar inserções). Também pode virar serviço para PMEs. https://www.youtube.com/watch?v=UWWfsvdu29U
+- REFORÇO explicativos animados (Em Dia/Bora): deixar o Claude renderizar nativo (HTML + Playwright + ffmpeg, sem Remotion), dar referências visuais detalhadas e iterar com ajustes pontuais. https://www.youtube.com/watch?v=4wk7nTZler4 , https://www.youtube.com/watch?v=DRBhfcJjnsw
+- JÁ TEMOS: Jev (fila), serviço com software, sites com maquete, Hermes como assistente, roteiro+prompts antes de gerar, imagens com texto (Nano Banana/Higgsfield).
+- RECUSADO: OpenAI Dots (Pro), API sem censura paga, ferramenta de vídeo da Meta só nos EUA (VPN + cartão), ComfyUI/RunPod, Wan 2.2 Animate (GPU 12 GB), WhatsApp modificado.

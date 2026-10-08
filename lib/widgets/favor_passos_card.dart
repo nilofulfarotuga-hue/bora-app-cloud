@@ -322,21 +322,26 @@ class _PassoAtual extends StatelessWidget {
         ],
 
         // ── Passo 3: entrega ─────────────────────────────────────────────
-        if (p.tipo == FavorPassoTipo.entrega) ...[
-          const SizedBox(height: 8),
-          if (order.paymentMethod == PaymentMethod.cash)
-            _Linha(
-              icone: Icons.payments_outlined,
-              texto:
-                  'Cobrar à cliente: €${order.totalToCollectCash.toStringAsFixed(2)}',
-              destaque: true,
-            )
-          else
-            const _Linha(
-              icone: Icons.check_circle_outline,
-              texto: 'Já pago na app — não cobres nada.',
-            ),
-        ],
+        if (p.tipo == FavorPassoTipo.entrega)
+          Builder(builder: (_) {
+            final conta = contaDaEntregaFavor(order);
+            return Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: conta == null
+                  ? const _Linha(
+                      icone: Icons.check_circle_outline,
+                      texto: 'Já pago na app — não cobres nada.',
+                    )
+                  : _Linha(
+                      icone: conta.devolver
+                          ? Icons.currency_exchange
+                          : Icons.payments_outlined,
+                      texto:
+                          '${conta.rotulo}: €${conta.valor.toStringAsFixed(2)}',
+                      destaque: true,
+                    ),
+            );
+          }),
 
         const SizedBox(height: 10),
         SizedBox(

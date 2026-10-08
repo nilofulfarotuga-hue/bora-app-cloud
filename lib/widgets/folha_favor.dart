@@ -51,11 +51,15 @@ class FolhaFavor {
   static OrderModel paraArranque(OrderModel o) {
     final passo = passoAtual(o);
     if (passo == 0) return o;
+    // Talão por fechar → nunca salta a compra, diga o passo o que disser
+    // (ex.: o admin mudou o passo à mão). Revisão de 08/10.
+    final saltaCompra =
+        passo >= 2 && (!o.errandHasPurchase || o.isPurchaseFinalized);
     try {
       return OrderModel.fromSupabase({
         ...o.toSupabase(),
         'errand_home_stop': false,
-        if (passo >= 2) 'errand_has_purchase': false,
+        if (saltaCompra) 'errand_has_purchase': false,
         'errand_budget_status': o.errandBudgetStatus,
         'errand_request_photo_url': o.errandRequestPhotoUrl,
         'errand_passo': o.errandPasso,
@@ -96,11 +100,29 @@ class _FolhaFavorAoVivoState extends State<FolhaFavorAoVivo> {
     super.dispose();
   }
 
+  OrderStatus? _maisAvancado;
+
   OrderModel _vivo(OrderStore store) {
+    var vivo = widget.inicial;
     for (final o in store.orders) {
-      if (o.id == widget.inicial.id) return o;
+      if (o.id == widget.inicial.id) {
+        vivo = o;
+        break;
+      }
     }
-    return widget.inicial;
+    // O estado só anda para a frente: a folha muda-o no objeto que tem na mão
+    // depois de o servidor confirmar, e um aviso do Realtime que chegue
+    // atrasado (com o estado de antes) não pode fazer "Marcar como entregue"
+    // falhar em silêncio. Revisão de contexto limpo, 08/10.
+    final antes = _maisAvancado;
+    if (antes != null && vivo.status.index < antes.index &&
+        vivo.status != OrderStatus.cancelled) {
+      vivo.status = antes;
+    }
+    if (antes == null || vivo.status.index > antes.index) {
+      _maisAvancado = vivo.status;
+    }
+    return vivo;
   }
 
   /// Mudou o estado (recolha, talão, a caminho) → relê do servidor, para o

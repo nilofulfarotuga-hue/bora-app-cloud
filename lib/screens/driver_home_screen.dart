@@ -2726,12 +2726,16 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (isErrand) ...[
+                // Favor: só a linha da rota — este diálogo não desliza e o
+                // cartão inteiro empurrava o ganho para fora do ecrã.
+                if (isErrand && FavorRota.de(order) != null) ...[
                   const SizedBox(height: 6),
-                  FavorPassosCard(
-                    order: order,
-                    posicaoEstafeta: driverLoc,
-                    compacto: true,
+                  Text(
+                    FavorRota.de(order)!.resumo,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, color: Color(0xFF0F766E)),
                   ),
                 ] else if (dropoffText.isNotEmpty) ...[
                   const SizedBox(height: 6),

@@ -102,8 +102,24 @@ void main() {
       expect(passoAtual(favor(status: OrderStatus.driverAccepted)), 0);
       expect(passoAtual(favor(status: OrderStatus.pickedUp)), 1);
       expect(passoAtual(favor(status: OrderStatus.pickedUp, finalizado: true)), 2);
-      expect(passoAtual(favor(status: OrderStatus.onTheWay)), 2);
+      expect(passoAtual(favor(status: OrderStatus.onTheWay, finalizado: true)), 2);
+      // revisão 08/10: a caminho SEM talão fechado ainda falta a compra
+      expect(passoAtual(favor(status: OrderStatus.onTheWay)), 1);
       expect(passoAtual(favor(homeStop: false)), 1);
+    });
+
+    test('revisão: casa sem compra não salta o local do favor', () {
+      final o = favor(status: OrderStatus.onTheWay, hasPurchase: false);
+      expect(passoAtual(o), 1);
+      final r = RouteOptimizer.optimize([o], _casa);
+      expect(r.stops.first.location, _farmacia); // passa pelo favor
+      expect(r.stops.last.location, _casa);
+    });
+
+    test('revisão: reaceite depois do talão fica na entrega', () {
+      expect(
+          passoAtual(favor(status: OrderStatus.driverAccepted, finalizado: true)),
+          2);
     });
 
     test('morada da paragem gravada ganha à de entrega', () {
@@ -137,6 +153,35 @@ void main() {
 
     test('antes do talão: o price (estimado)', () {
       expect(favor().totalToCollectCash, closeTo(12.00, 0.001));
+    });
+
+    test('revisão: dinheiro levantado em casa → devolve o troco, igual à folha', () {
+      // 60 € levantados em casa, talão 45 €, taxa 4,50 → devolver 10,50.
+      final o = OrderModel(
+        id: 'x',
+        total: 49.50,
+        serviceType: OrderServiceType.errand,
+        paymentMethod: PaymentMethod.cash,
+        errandHomeStop: true,
+        errandHomeStopReason: 'dinheiro',
+        errandHomeStopCashCents: 6000,
+        deliveryFee: 4.50,
+        errandHasPurchase: true,
+        isPurchaseFinalized: true,
+        finalPurchaseValue: 45.00,
+        finalTotal: 49.50,
+      );
+      final c = contaDaEntregaFavor(o)!;
+      expect(c.devolver, isTrue);
+      expect(c.rotulo, 'Devolver à cliente');
+      expect(c.valor, closeTo(10.50, 0.001));
+      expect(favorComDinheiroDeCasa(o), isTrue);
+      // dinheiro normal: a conta única
+      final n = contaDaEntregaFavor(favor(finalizado: true, finalTotal: 9.88))!;
+      expect(n.devolver, isFalse);
+      expect(n.valor, closeTo(9.88, 0.001));
+      // pago na app: nada a cobrar
+      expect(contaDaEntregaFavor(favor(pagamento: PaymentMethod.card)), isNull);
     });
   });
 
@@ -172,6 +217,12 @@ void main() {
       expect(c.errandHomeStop, isFalse);
       expect(c.errandHasPurchase, isTrue);
       expect(c.id, '74dd4ecc-6d33-4b93-b404-1c70dc8cf0f9');
+    });
+
+    test('revisão: passo 2 com talão por fechar NÃO salta a compra', () {
+      final c = FolhaFavor.paraArranque(favor(status: OrderStatus.pickedUp, passo: 2));
+      expect(c.errandHomeStop, isFalse);
+      expect(c.errandHasPurchase, isTrue);
     });
 
     test('passo 2: cópia sem paragem nem compra (a folha abre na entrega)', () {

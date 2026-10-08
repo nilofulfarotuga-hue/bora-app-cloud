@@ -1196,6 +1196,8 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     if (route.stops.isEmpty) return route;
     final corrected = route.stops.map((stop) {
       if (!stop.isPickup) return stop;
+      // Favor: as paragens já vêm com as moradas certas de cada passo.
+      if (stop.passoFavor != null) return stop;
       OrderModel? order;
       for (final o in orders) {
         if (o.id == stop.orderId) {
@@ -1869,7 +1871,10 @@ class _BottomPanelState extends State<_BottomPanel> {
                     (focusOrder.status == OrderStatus.pickedUp ||
                         focusOrder.status == OrderStatus.onTheWay) &&
                     (focusOrder.serviceType != OrderServiceType.errand ||
-                        passoAtual(focusOrder) == 2)) ...[
+                        (passoAtual(focusOrder) == 2 &&
+                            // Com o dinheiro levantado em casa o estafeta
+                            // devolve o troco — a conta está no cartão.
+                            !favorComDinheiroDeCasa(focusOrder)))) ...[
                   _CashCollectBanner(order: focusOrder),
                   const SizedBox(height: 16),
                 ],
@@ -4039,9 +4044,15 @@ class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
 
   @override
   Widget build(BuildContext context) {
-    // [08/10] Teclado OU barra de 3 botões do Android (o "Confirmar" do
-    // talão ficava por baixo da barra no edge-to-edge do Android 15).
-    final bottomInset = BoraBottomActionBar.folgaInferior(context, base: 0);
+    // [08/10] O teclado empurra a folha (por fora); a barra de 3 botões do
+    // Android fica DENTRO do fundo branco (o "Confirmar" do talão ficava por
+    // baixo dela no edge-to-edge do Android 15). Com o teclado aberto a barra
+    // está por baixo dele, por isso só se soma o que sobra.
+    final mq = MediaQuery.of(context);
+    final bottomInset = mq.viewInsets.bottom;
+    final barra = mq.viewPadding.bottom > bottomInset
+        ? mq.viewPadding.bottom - bottomInset
+        : 0.0;
     final hint = widget.isCash
         ? 'Foto guardada para registo Bora (auditoria).'
         : 'Foto + valor permitem Bora reembolsar-te o valor correcto do talão.';
@@ -4052,7 +4063,7 @@ class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
         ),
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + barra),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,

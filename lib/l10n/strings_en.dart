@@ -33,6 +33,12 @@ const Map<String, String> kStringsEn = <String, String>{
       'Continue without photo',
   'A foto que enviaste':
       'The photo you sent',
+  'Dois toques para voltar ao tamanho normal':
+      'Double-tap to go back to normal size',
+  'Dois dedos ou dois toques para ampliar':
+      'Pinch or double-tap to zoom',
+  'Não foi possível abrir a foto. Verifica a ligação e tenta de novo.':
+      'Couldn\'t open the photo. Check your connection and try again.',
   // 05/10/2026: home com faixas e secções + pesquisa global (a lupa).
   '1 pedido este mês': '1 order this month',
   '{0} pedidos este mês': '{0} orders this month',

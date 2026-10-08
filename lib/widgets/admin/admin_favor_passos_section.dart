@@ -394,7 +394,15 @@ class _AdminFavorPassosSectionState extends State<AdminFavorPassosSection> {
         messenger.showSnackBar(SnackBar(content: Text('Não salvou: $r')));
       }
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Erro ao salvar: $e')));
+      final t = '$e';
+      final msg = t.contains('talao_por_fechar')
+          ? 'O talão ainda não foi fechado: o entregador tem de passar pela compra antes da entrega.'
+          : t.contains('sem_paragem_em_casa')
+              ? 'Este favor não tem parada em casa.'
+              : t.contains('coordenadas_invalidas')
+                  ? 'Não foi possível achar esse endereço no mapa.'
+                  : 'Erro ao salvar: $e';
+      messenger.showSnackBar(SnackBar(content: Text(msg)));
     } finally {
       if (mounted) setState(() => _aGravar = false);
     }

@@ -132,8 +132,12 @@ int passoAtual(OrderModel o) {
 int _deduzirPasso(OrderModel o) {
   switch (o.status) {
     case OrderStatus.pickedUp:
-      return (o.errandHasPurchase && !o.isPurchaseFinalized) ? 1 : 2;
     case OrderStatus.onTheWay:
+      // Com compra: até fechar o talão está no favor. Sem compra e com
+      // paragem em casa, a folha vai da recolha direta à entrega sem estado
+      // intermédio — fica no favor para o mapa e o "Navegar" passarem por lá.
+      if (o.errandHasPurchase) return o.isPurchaseFinalized ? 2 : 1;
+      return o.errandHomeStop ? 1 : 2;
     case OrderStatus.delivered:
       return 2;
     default:
@@ -141,6 +145,35 @@ int _deduzirPasso(OrderModel o) {
       return o.errandHomeStop ? 0 : 1;
   }
 }
+
+/// O que fazer ao dinheiro na entrega do favor — a MESMA conta da folha do
+/// favor (`_deliveryAmount` em errand_execution_sheet.dart):
+///  - pago na app → null (nada a cobrar);
+///  - paragem em casa para levantar dinheiro → devolve o troco (recebido −
+///    talão − taxa) ou cobra o que faltar;
+///  - dinheiro normal → cobra `totalToCollectCash` (final_total depois do
+///    talão). Revisão de 08/10: a faixa e o cartão diziam "cobrar" o total
+///    quando o estafeta já tinha o dinheiro e tinha de devolver o troco.
+({String rotulo, double valor, bool devolver})? contaDaEntregaFavor(
+    OrderModel o) {
+  if (o.paymentMethod != PaymentMethod.cash) return null;
+  if (o.errandHomeStop && o.errandHomeStopReason == 'dinheiro') {
+    final recebido = (o.errandHomeStopCashCents ?? 0) / 100.0;
+    final talao = o.finalPurchaseValue ?? 0;
+    final liquido = recebido - talao - o.deliveryFee;
+    return liquido >= 0
+        ? (rotulo: 'Devolver à cliente', valor: liquido, devolver: true)
+        : (rotulo: 'Cobrar à cliente', valor: -liquido, devolver: false);
+  }
+  return (rotulo: 'Cobrar à cliente', valor: o.totalToCollectCash, devolver: false);
+}
+
+/// Favor em que o estafeta leva o dinheiro da cliente de casa (troco na
+/// entrega) — a faixa "RECEBER €X" não se aplica.
+bool favorComDinheiroDeCasa(OrderModel o) =>
+    o.serviceType == OrderServiceType.errand &&
+    o.errandHomeStop &&
+    o.errandHomeStopReason == 'dinheiro';
 
 FavorPassoTipo tipoDoPasso(int passo) => switch (passo) {
       0 => FavorPassoTipo.casa,

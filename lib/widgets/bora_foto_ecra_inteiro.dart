@@ -13,6 +13,7 @@
 // `PrivateBucketImage` já abre isto sozinho ao tocar.
 import 'package:flutter/material.dart';
 
+import '../l10n/tr.dart';
 import 'private_bucket_image.dart';
 
 /// Uma foto a mostrar: endereço/caminho do Storage OU uma imagem já em
@@ -128,7 +129,7 @@ class _BoraFotoEcraInteiroState extends State<BoraFotoEcraInteiro> {
                     shape: const CircleBorder(),
                     child: IconButton(
                       key: const Key('bora_foto_fechar'),
-                      tooltip: 'Fechar',
+                      tooltip: 'Fechar'.tr,
                       icon: const Icon(Icons.close, color: Colors.white),
                       iconSize: 28,
                       onPressed: () => Navigator.of(context).maybePop(),
@@ -162,8 +163,8 @@ class _BoraFotoEcraInteiroState extends State<BoraFotoEcraInteiro> {
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Text(
                   _ampliada
-                      ? 'Dois toques para voltar ao tamanho normal'
-                      : 'Dois dedos ou dois toques para ampliar',
+                      ? 'Dois toques para voltar ao tamanho normal'.tr
+                      : 'Dois dedos ou dois toques para ampliar'.tr,
                   style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               ),
@@ -297,18 +298,20 @@ class _ErroFoto extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Padding(
-        padding: EdgeInsets.all(24),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.broken_image_outlined, color: Colors.white70, size: 56),
-            SizedBox(height: 12),
+            const Icon(Icons.broken_image_outlined,
+                color: Colors.white70, size: 56),
+            const SizedBox(height: 12),
             Text(
-              'Não foi possível abrir a foto. Verifica a ligação e tenta de novo.',
+              'Não foi possível abrir a foto. Verifica a ligação e tenta de novo.'
+                  .tr,
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white70, fontSize: 14),
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
             ),
           ],
         ),

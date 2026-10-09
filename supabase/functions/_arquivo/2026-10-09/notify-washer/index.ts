@@ -1,18 +1,22 @@
 // @ts-nocheck
-// supabase/functions/notify-cleaner/index.ts  v1
+// supabase/functions/notify-washer/index.ts  v1
 //
-// MEGA-FIX 2026-07-18 Parte 7 — push dedicado à profissional de limpeza.
+// Push da Lavagem Auto (lavador e cliente).
 //
-// PORQUÊ dedicado (padrão notify-partner): a `notify-client` entregava a notificação de limpeza
-// no canal fraco `bora_orders` e o `_cleaning_notify_user` engolia qualquer erro em silêncio
-// (EXCEPTION WHEN OTHERS THEN NULL) → a profissional não recebia nada e não havia rasto.
-// Aqui: canal URGENTE `bora_orders_urgent_v3` (som `bora_alert`) para ofertas, resolve o token
-// FCM da profissional a partir de `users.fcm_token` (cleaners.user_id → users.id), e devolve
-// razão explícita quando não há token/erro (o chamador grava em notification_failures).
+// DATA-ONLY, DE PROPOSITO — esta familia de bug ja mordeu tres vezes
+// (notify-admin-urgent, notify-service-provider, notify-partner):
+// se o payload FCM levar bloco `notification`, o Android desenha pelo tray,
+// o _firebaseMessagingBackgroundHandler do Flutter NAO corre, e a notificacao
+// persistente nunca aparece. Por isso NAO existe aqui bloco `notification`:
+// o title/body viajam dentro de `data` e e o Dart que desenha, com
+// Importance.max no canal urgente.
+//
+// O molde (notify-cleaner) ainda usa `notification` — foi deliberadamente
+// NAO copiado nessa parte.
 //
 // Body esperado:
-//   { cleanerUserId: uuid, title: string, body: string,
-//     kind?: string, bookingId?: string, type?: 'cleaning_offer'|'cleaning_status' }
+//   { targetUserId: uuid, title: string, body: string,
+//     kind?: string, bookingId?: string, type?: 'carwash_offer'|'carwash_status' }
 //
 // Secrets: FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT.
 
@@ -33,76 +37,105 @@ Deno.serve(async (req) => {
   const serviceKey          = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
   if (!firebaseProjectId || !firebaseServiceAcct) {
-    console.warn('[notify-cleaner] Firebase env vars not set — skipping push')
+    console.warn('[notify-washer] Firebase env vars not set — skipping push')
     return json({ ok: false, reason: 'firebase_not_configured' })
   }
 
   let payload: any
   try { payload = await req.json() } catch { return json({ ok: false, error: 'Invalid JSON body' }, 400) }
 
-  const cleanerUserId = payload.cleanerUserId as string | undefined
-  const title         = payload.title         as string | undefined
-  const body          = payload.body          as string | undefined
-  const kind          = payload.kind          as string | undefined
-  const bookingId     = payload.bookingId     as string | undefined
-  const notifType     = (payload.type as string | undefined) ?? 'cleaning_status'
+  // aceita targetUserId (novo) e washerUserId (alias defensivo)
+  const targetUserId = (payload.targetUserId ?? payload.washerUserId) as string | undefined
+  const title        = payload.title      as string | undefined
+  const body         = payload.body       as string | undefined
+  const kind         = payload.kind       as string | undefined
+  const bookingId    = payload.bookingId  as string | undefined
+  const notifType    = (payload.type as string | undefined) ?? 'carwash_status'
 
-  if (!cleanerUserId) return json({ ok: false, error: 'cleanerUserId is required' }, 400)
+  if (!targetUserId)  return json({ ok: false, error: 'targetUserId is required' }, 400)
   if (!title || !body) return json({ ok: false, error: 'title/body required' }, 400)
 
   const supabase = createClient(supabaseUrl, serviceKey)
 
+  // A pessoa quer receber pedidos deste papel hoje?
+  //
+  // Quem acumula papeis liga e desliga cada um na caixa "O que queres
+  // aceitar?". Sem preferencia gravada = sim, que e o comportamento de
+  // sempre. Sem esta verificacao o interruptor da caixa era decorativo.
+
+// ── 2026-08-29: O CLIENTE TAMBEM E AVISADO POR AQUI ───────────────────────
+// `_carwash_notify_user` manda TUDO por esta funcao, incluindo os avisos
+// dirigidos ao CLIENTE ("Lavador a caminho"). Mas ela so procurava
+// aparelhos em `provider_push_tokens` com role='washer` — e o cliente nao
+// tem nenhum la. Resultado: o cliente nunca recebeu um unico push desta
+// categoria; ficava so com o aviso dentro da app, que ele so ve se abrir.
+//
+// Duas correccoes, ambas dependentes de saber SE o destinatario e prestador:
+//   1. o portao "queres receber deste papel?" so faz sentido para prestadores;
+//      a um cliente nao se pergunta se aceita lavagens.
+//   2. sem aparelho de prestador e nao sendo prestador, procura-se em
+//      `client_push_tokens`, que e onde vivem os aparelhos dos clientes.
+
   const { data: linhaPrestador } = await supabase
-    .from('cleaners').select('id').eq('user_id', cleanerUserId).maybeSingle()
+    .from('washers').select('id').eq('user_id', targetUserId).maybeSingle()
   const ehPrestador = !!linhaPrestador
 
   const { data: quer } = ehPrestador
     ? await supabase.rpc('aceita_papel', {
-        p_user_id: cleanerUserId, p_papel: 'cleaner',
+        p_user_id: targetUserId, p_papel: 'washer',
       })
     : { data: null }
   if (quer === false) {
-    console.log(`[notify-cleaner] cleaner ${cleanerUserId} tem o papel desligado — nao se envia`)
+    console.log(`[notify-washer] washer ${targetUserId} tem o papel desligado — nao se envia`)
     return json({ ok: false, reason: 'papel_desligado' })
   }
 
+  // [2026-08-28] Tokens de TODOS os aparelhos deste washer.
+  //
+  // Antes lia-se so `users.fcm_token`, a coluna antiga de um aparelho unico —
+  // e ela esta vazia para os washers que existem, porque nada a preenchia.
+  // A funcao devolvia `no_fcm_token` e ninguem era chamado. Agora junta-se a
+  // tabela nova `provider_push_tokens`, que guarda um aparelho por linha e
+  // por papel, com a coluna antiga como recurso.
   const tokens = new Set<string>()
 
   const { data: linhas, error: tokensErr } = await supabase
     .from('provider_push_tokens')
     .select('fcm_token')
-    .eq('user_id', cleanerUserId)
-    .eq('role', 'cleaner')
+    .eq('user_id', targetUserId)
+    .eq('role', 'washer')
     .eq('active', true)
   if (tokensErr) {
-    console.error('[notify-cleaner] erro a ler provider_push_tokens:', JSON.stringify(tokensErr))
+    console.error('[notify-washer] erro a ler provider_push_tokens:', JSON.stringify(tokensErr))
   } else {
     for (const l of linhas ?? []) if (l?.fcm_token) tokens.add(l.fcm_token as string)
   }
 
   const { data: user, error: userErr } = await supabase
-    .from('users').select('fcm_token').eq('id', cleanerUserId).maybeSingle()
+    .from('users').select('fcm_token').eq('id', targetUserId).maybeSingle()
   if (userErr) {
-    console.error('[notify-cleaner] DB error:', JSON.stringify(userErr))
+    console.error('[notify-washer] DB error:', JSON.stringify(userErr))
   } else if (user?.fcm_token) {
     tokens.add(user.fcm_token as string)
   }
 
+  // Sem aparelho de prestador E nao sendo prestador: e o cliente. Os
+  // aparelhos dele vivem noutra tabela.
   if (tokens.size === 0 && !ehPrestador) {
     const { data: doCliente, error: errCliente } = await supabase
       .from('client_push_tokens')
       .select('fcm_token')
-      .eq('user_id', cleanerUserId)
+      .eq('user_id', targetUserId)
       .eq('active', true)
     if (errCliente) {
-      console.error('[notify-cleaner] erro a ler client_push_tokens:', JSON.stringify(errCliente))
+      console.error('[notify-washer] erro a ler client_push_tokens:', JSON.stringify(errCliente))
     } else {
       for (const l of doCliente ?? []) if (l?.fcm_token) tokens.add(l.fcm_token as string)
     }
   }
 
   if (tokens.size === 0) {
-    console.log(`[notify-cleaner] Sem aparelho registado para cleaner ${cleanerUserId}`)
+    console.log(`[notify-washer] Sem aparelho registado para washer ${targetUserId}`)
     return json({ ok: false, reason: 'no_fcm_token' })
   }
 
@@ -110,45 +143,40 @@ Deno.serve(async (req) => {
   try {
     accessToken = await getFirebaseAccessToken(JSON.parse(firebaseServiceAcct))
   } catch (e) {
-    console.error('[notify-cleaner] Firebase auth error:', e)
+    console.error('[notify-washer] Firebase auth error:', e)
     return json({ ok: false, reason: 'firebase_auth_error' })
   }
 
-  // Oferta (cleaning_offer) = canal urgente insistente; estado = canal normal.
-  const isOffer = notifType === 'cleaning_offer'
+  // Oferta = canal urgente insistente; mudanca de estado = canal normal.
+  const isOffer   = notifType === 'carwash_offer'
   const channelId = isOffer ? 'bora_orders_urgent_v3' : 'bora_orders'
-  const sound = isOffer ? 'bora_alert' : 'default'
+  const sound     = isOffer ? 'bora_alert' : 'default'
 
-  // title/body vao TAMBEM no data: a app le-os daqui quando o push e data-only.
+  // DATA-ONLY: title/body vao DENTRO do data. Sem bloco `notification`.
   const dataPayload: Record<string, string> = {
     type: notifType,
     title: String(title),
     body: String(body),
+    channelId,
+    sound,
     ...(bookingId ? { bookingId: String(bookingId) } : {}),
     ...(kind ? { kind: String(kind) } : {}),
   }
 
-  // [09/10/2026 · Mayra] OFERTA = DATA-ONLY (padrao notify-washer / oferta TVDE).
-  // Com bloco `notification`, o Android mostra o aviso sozinho UMA vez e o
-  // handler da app nao corre -> nada de aviso preso nem de toque insistente.
-  // Sem ele, o handler da app cria a notificacao persistente no canal urgente.
-  // O toque repetido ate ela responder vem do cron `cleaning-offer-reping`.
-  const baseMessage = isOffer
-    ? {
-        data: dataPayload,
-        android: { priority: 'high', ttl: '60s' },
-        apns: {
-          headers: { 'apns-priority': '10', 'apns-push-type': 'alert' },
-          payload: { aps: { alert: { title: String(title), body: String(body) }, sound: 'bora_alert.wav', 'content-available': 1 } },
-        },
-      }
-    : {
-        notification: { title, body },
-        data: dataPayload,
-        android: { priority: 'high', notification: { channel_id: channelId, sound } },
-        apns: { headers: { 'apns-priority': '10' }, payload: { aps: { sound, badge: 1, 'content-available': 1 } } },
-      }
+  const baseMessage = {
+      data: dataPayload,
+      android: { priority: 'high' },
+      // [iPhone 2026-09-21] 'alert' + som + texto: 'background' e' push SILENCIOSO
+      // para a Apple (sem banner, sem som; prioridade obrigatoria 5) — com token,
+      // o iPhone nunca tocava. content-available fica para acordar a app tambem.
+      apns: {
+        headers: { 'apns-priority': '10', 'apns-push-type': 'alert' },
+        payload: { aps: { alert: { title: String(title), body: String(body) }, sound: isOffer ? 'bora_alert.wav' : 'default', 'content-available': 1 } },
+      },
+  }
 
+  // Envia a TODOS os aparelhos. Um token morto e desligado sozinho, sem
+  // levar os outros a frente — a pessoa pode ter dois telemoveis.
   const fcmUrl = `https://fcm.googleapis.com/v1/projects/${firebaseProjectId}/messages:send`
   let enviados = 0
   const falhas: string[] = []
@@ -164,22 +192,22 @@ Deno.serve(async (req) => {
 
     if (fcmRes.ok) { enviados++; continue }
 
-    console.error(`[notify-cleaner] FCM ${fcmRes.status}:`, JSON.stringify(fcmBody))
+    console.error(`[notify-washer] FCM ${fcmRes.status}:`, JSON.stringify(fcmBody))
     falhas.push(String(fcmBody?.error?.details?.[0]?.errorCode ?? fcmRes.status))
     const errorCode = fcmBody?.error?.details?.[0]?.errorCode ?? ''
     if (errorCode === 'UNREGISTERED' || errorCode === 'INVALID_ARGUMENT') {
       await supabase.from('provider_push_tokens')
         .update({ active: false, last_fail_at: new Date().toISOString() })
-        .eq('user_id', cleanerUserId).eq('role', 'cleaner').eq('fcm_token', fcmToken)
+        .eq('user_id', targetUserId).eq('role', 'washer').eq('fcm_token', fcmToken)
       await supabase.from('users').update({ fcm_token: null })
-        .eq('id', cleanerUserId).eq('fcm_token', fcmToken)
+        .eq('id', targetUserId).eq('fcm_token', fcmToken)
     }
   }
 
   if (enviados === 0) {
     return json({ ok: false, reason: 'fcm_error', detail: falhas })
   }
-  console.log(`[notify-cleaner v3] ✓ enviado a ${enviados}/${tokens.size} aparelho(s) de ${cleanerUserId} (${notifType})`)
+  console.log(`[notify-washer v2] ✓ enviado a ${enviados}/${tokens.size} aparelho(s) de ${targetUserId} (${notifType})`)
   return json({ ok: true, enviados, aparelhos: tokens.size })
 })
 

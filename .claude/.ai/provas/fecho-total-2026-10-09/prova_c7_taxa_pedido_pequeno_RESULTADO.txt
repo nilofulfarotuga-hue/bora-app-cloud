@@ -1,0 +1,26 @@
+Prova C7 (taxa de pedido pequeno) — 09/10/2026, transação DESFEITA (DO + RAISE), JWT demo@bora.app.
+As duas lojas foram abertas (sexta 00:00–23:59) só dentro da transação: a esta hora (22h) estavam fechadas
+e o create_order recusava com STORE_CLOSED. Mesma entrada para o orçamento (quote_order_pricing, sem nome da loja,
+como manda o cart_store.entradaDoQuote) e para a criação do pedido (create_order, com vendor_name, como manda o order_store).
+
+Saída literal:
+A_goola_parceiro_mbway || QUOTE customer_total=13.87 buffer=13.87 small=1.39 charge_total=13.87
+                       || JSON price=12.48 charge_total=12.48 small=0 pay_status=pending
+                       || LINHA {"price":12.48,"final_total":12.48,"payment_buffer_total":12.48,"small_order_fee":0.00,"customer_total":12.48,"subtotal":9.22}
+B_wells_1x_cash        || QUOTE customer_total=9.01 buffer=10.36 small=1.39 charge_total=9.01
+                       || JSON price=9.01 charge_total=9.01 small=1.39
+                       || LINHA {"price":9.01,"final_total":9.01,"payment_buffer_total":10.36,"small_order_fee":1.39,"customer_total":9.01,"subtotal":4.03}
+C_wells_6x_cash        || QUOTE customer_total=27.77 buffer=31.94 small=0
+                       || JSON price=27.77 small=0 || LINHA price 27.77, buffer 31.94, small 0.00
+D_wells_1x_mbway       || QUOTE 9.01 / 10.36 / 1.39 || JSON 9.01 / 1.39 || LINHA 9.01 / 10.36 / 1.39
+
+Conclusão:
+- A função que cria o pedido JÁ tem o C7 (marca "CONTAS CLARAS C7", v_small_order_fee) e cobra nos não-parceiros
+  exatamente o que o carrinho mostra, ao cêntimo (B, C, D). A gaveta staged_contas_claras_20260921_c7 ficou
+  estado=superado. Nenhum valor de taxa, mínimo ou preço foi mudado.
+- ACHADO (não corrigido, zona de dinheiro): numa loja PARCEIRA abaixo do mínimo (A), o pedido nasce sem taxa,
+  porque a regra do Danilo de 22/09 diz que parceiro não paga a taxa (small_order_fee_calc com o id da loja).
+  Mas o orçamento do carrinho não recebe o nome nem o id da loja (cart_store.entradaDoQuote não manda vendor_name
+  nem restaurant_id), por isso calcula a taxa global e o cliente vê 13,87 € no carrinho para um pedido de 12,48 €.
+  A confirmar: se o caminho do cartão que cria o pagamento a partir do orçamento cobra 13,87 € antes de o pedido
+  nascer com 12,48 € (cobrança a mais de 1,39 €).

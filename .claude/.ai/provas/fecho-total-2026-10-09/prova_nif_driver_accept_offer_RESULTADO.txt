@@ -1,0 +1,35 @@
+Prova da regra do NIF no driver_accept_offer — 09/10/2026, transação DESFEITA (DO + RAISE).
+Pedidos de teste: 3 pedidos antigos e cancelados da conta demo (is_test_order=true), postos em
+"a chamar estafeta" só dentro da transação. Estafeta X = 4f61dd31 (conta de estafeta do Danilo, sem NIF).
+NIF de teste: 234567899 (válido pelo algoritmo; 123456789 é recusado de propósito pelo _nif_valido).
+
+Saída literal do servidor:
+RESULT md5_nova=8cabacd260f8ddcc0de18f19b8192466 | em_oferta=3
+| S1 prazo=15/10 bloqueado=false accept={"ok": true, "status": "driverAccepted", "order_id": "4a3bb2ca-4fad-40c6-897c-a8827c6c8754"}
+| S2 prazo=09/10 bloqueado=true accept={"ok": false, "hint": "Confirme o NIF e a atividade aberta nas Finanças na app", "error": "estafeta_sem_nif_atividade"}
+  B_depois={"status":"callingDriver","assigned_driver_id":null,"current_driver_offer_id":"4f61dd31-5e9e-4a7c-a557-7d53d2ceded7"}
+| S2b A_outra_vez={"ok": true, "status": "driverAccepted", "order_id": "4a3bb2ca-…", "idempotent": true}
+| S3 com_nif_valido=true bloqueado=false accept={"ok": true, "status": "driverAccepted", "order_id": "f18c21cf-8e72-429e-aec7-d1a04c25ee49"}
+  B_final={"status":"driverAccepted","assigned_driver_id":"4f61dd31-5e9e-4a7c-a557-7d53d2ceded7"}
+| S4 demo_sem_nif bloqueado=false accept={"ok": true, "status": "driverAccepted", "order_id": "d16a60a6-c218-4dac-a73f-c22f921b60b9"}
+
+Depois da prova (confirmação de que nada ficou): md5 no ar 6e65fbd0 (a antiga), prazo 2026-10-15,
+driver_fiscal_status 0 linhas, os 3 pedidos continuam cancelled.
+
+Aplicado a seguir: migração 20261009210533_fecho_mensal_estafeta_sem_nif_nao_aceita_entregas.
+md5 no ar depois = 8cabacd260f8ddcc0de18f19b8192466 (igual ao provado). Permissões iguais
+(postgres, service_role, authenticated).
+
+Primeira tentativa recusada pela Trava do PC (protege-banco.sh): o guião juntava DDL com uma chamada
+a create_order (função de dinheiro). O driver_accept_offer não está na lista da Trava; a prova foi refeita
+sem create_order, com pedidos de teste já existentes.
+
+Quem fica bloqueado a 15/10 (tabela driver_fiscal_status VAZIA — ninguém confirmou ainda):
+  Danilo (conta de estafeta 4f61dd31) — online, 16 pedidos em 30 dias
+  Valdemir Vasconcelos — online, 4 pedidos em 30 dias
+  Erika Vanessa Alves Rodrigues — último sinal 16/09
+  Euliney Fernandes — último sinal 28/09
+  Danilo Fulfaro (503a2e09) — último sinal 04/09
+  (Estafeta Demo fica de fora por ser conta demo.)
+3 estafetas aprovados têm NIF na tabela drivers, mas a confirmação fiscal (NIF + atividade aberta)
+é feita na app e ainda ninguém a fez. Nenhuma conta foi mexida.

@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-08
+ultima_confirmacao: 2026-10-09
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-08T19:54:29.020963+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-09T19:54:27.951658+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -75,3 +75,17 @@ REGRA (Danilo, 01/10/2026): tudo o que ele mandar (vídeos, transcrições, link
 - REFORÇO explicativos animados (Em Dia/Bora): deixar o Claude renderizar nativo (HTML + Playwright + ffmpeg, sem Remotion), dar referências visuais detalhadas e iterar com ajustes pontuais. https://www.youtube.com/watch?v=4wk7nTZler4 , https://www.youtube.com/watch?v=DRBhfcJjnsw
 - JÁ TEMOS: Jev (fila), serviço com software, sites com maquete, Hermes como assistente, roteiro+prompts antes de gerar, imagens com texto (Nano Banana/Higgsfield).
 - RECUSADO: OpenAI Dots (Pro), API sem censura paga, ferramenta de vídeo da Meta só nos EUA (VPN + cartão), ComfyUI/RunPod, Wan 2.2 Animate (GPU 12 GB), WhatsApp modificado.
+
+## 09/10/2026 — radar diário
+28 vídeos revistos: 10 novos, 7 já temos, 11 rejeitados (6 por nota baixa). Nenhum do tema animacao_ia.
+- SISTEMA: Hermes como gerente a pôr tarefas num quadro (Linear, plano grátis) e Orca a executar com vários modelos — baratos (GLM/Haiku) no simples, Opus só no difícil. Confirmar antes que nada pede cartão. https://www.youtube.com/watch?v=lDqcDPEjGUw
+- DINHEIRO / caça-clientes: Biblioteca de Anúncios do Facebook para achar PMEs da zona que já pagam anúncios = leads quentes para a proposta de atendimento/automação. https://www.youtube.com/watch?v=sy-CInKoviw
+- DINHEIRO: micro-SaaS de nicho com assinatura na stack que já temos (Supabase + Stripe + IA de imagem); testar com 1 campanha / 1 conjunto / 1 anúncio. https://www.youtube.com/watch?v=CLknWR9ttT4
+- REELS/ANÚNCIOS (Em Dia e Bora): medir hook rate (vistas 3 s / impressões), hold rate (alvo > 40%) e CTR de link (> 1%) para saber se falha o início, a edição ou a oferta. https://www.youtube.com/watch?v=M01eyd-SGHI
+- EM DIA: gatilho de comentário — "comenta GUIA" e o guia grátis de recibos verdes segue por DM; 3 a 5 hashtags específicas. https://www.youtube.com/watch?v=pY5F5JbKBCQ
+- EM DIA / BORA: acabar cada reel com pergunta concreta que puxe comentários qualificados; mesma palavra-chave no ecrã, legenda e hashtags (algoritmo TikTok out/2026). https://www.youtube.com/watch?v=noVtKaQYge0
+- EM DIA: temas dos reels escolhidos pela barra de pesquisa do TikTok/Instagram e reciclar os reels que já correram bem. https://www.youtube.com/watch?v=RPawhg2yaik
+- EM DIA: ângulo "dinheiro invisível / assinaturas esquecidas" para conteúdo; ideia de função com total poupado ao cancelar. https://www.youtube.com/watch?v=Caus4r5_V3I ; monetização freemium limitada por registos/mês: https://www.youtube.com/watch?v=nDT1ObjOjqo
+- BORA / EM DIA: carrosséis modelados na estrutura de posts do nicho com mais de 1.000 gostos (Canva). https://www.youtube.com/watch?v=AO0-hZYnMWQ
+- JÁ TEMOS: Claude Code com CLAUDE.md/skills, Jev (fila), perfil como página de vendas, gancho de 3 s, Higgsfield/personagem fixo, ar de conversa real (conteúdo 100% IA perde alcance).
+- RECUSADO: clonar apps com IA sem censura (jailbreak), API "Opus/GPT grátis ilimitado" da Codecraft, análise de ações AppLovin, planilha genérica.

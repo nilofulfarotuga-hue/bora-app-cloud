@@ -1387,13 +1387,12 @@ void _abrirTrabalhoDoPush(RemoteMessage msg) {
 /// [09/10 · Mayra] Entrega Aceitar/Recusar da oferta de limpeza/lavagem ao
 /// gancho global (`NotificationService.trabalhoOfertaAction`, no main.dart).
 /// Num arranque a frio o gancho pode ainda não existir: espera-se por ele.
-/// A marca "já respondida" fica logo, para a repetição do minuto seguinte
-/// não voltar a tocar enquanto o aceite segue para o servidor.
+/// A marca "já respondida" só fica quando o servidor responde (é o gancho /
+/// o store que a põem) — um aceite perdido não cala a repetição do toque.
 bool _accaoTrabalhoAFrioEntregue = false;
 Future<void> _entregarAccaoTrabalho(
     String categoria, String bookingId, String accao) async {
   if (bookingId.isEmpty) return;
-  await marcarOfertaTrabalhoTratada(bookingId);
   for (var tentativa = 0; tentativa < 20; tentativa++) {
     final gancho = NotificationService.trabalhoOfertaAction;
     if (gancho != null) {

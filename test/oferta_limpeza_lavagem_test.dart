@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:bora_app/models/carwash_models.dart';
@@ -190,6 +191,30 @@ void main() {
           EntradaDoPrestador.estafeta);
     });
 
+    test('[revisão 09/10] escolher limpeza/lavagem NUNCA desmonta o estafeta',
+        () {
+      // O ecrã do estafeta é onde vivem o batimento, o GPS e o cartão das
+      // ofertas de entrega (caso Ney): limpeza e lavagem abrem POR CIMA.
+      final botao =
+          File('lib/widgets/profile_switcher_button.dart').readAsStringSync();
+      expect(botao, isNot(contains('if (base == UserRole.driver) return;')));
+      final portao =
+          File('lib/widgets/portao_do_prestador.dart').readAsStringSync();
+      final i = portao.indexOf('void didChangeDependencies()');
+      final corpo = portao.substring(i, portao.indexOf('bool _papelAprovado', i));
+      expect(corpo, contains('pedida != EntradaDoPrestador.estafeta'),
+          reason: 'o portão só segue sozinho a troca PARA o estafeta');
+      // Com outro modo guardado, o estafeta aprovado espera pelo servidor.
+      expect(portao, contains("(modo == null || modo == 'estafeta')"));
+    });
+
+    test('[revisão 09/10] só falha de REDE mantém a oferta para tentar outra vez',
+        () {
+      expect(falhaDeRede(TimeoutException('x')), isTrue);
+      expect(falhaDeRede(Exception('SocketException: Failed host lookup')), isTrue);
+      expect(falhaDeRede(Exception('offer_no_longer_valid')), isFalse);
+    });
+
     test('modo ↔ entrada', () {
       expect(modoDaEntrada(EntradaDoPrestador.limpeza), 'limpeza');
       expect(modoDaEntrada(EntradaDoPrestador.nenhuma), isNull);
@@ -297,6 +322,35 @@ void main() {
       await tester.pump();
       expect(find.byKey(const Key('trabalho_oferta_cartao')), findsNothing);
       expect(somParou, greaterThanOrEqualTo(1));
+    });
+
+    testWidgets(
+        'a trabalhar como estafeta: faixa compacta no fundo, sem tapar e sem som',
+        (tester) async {
+      limpeza.debugDefinirOfertas([_limpeza(ganho: 3400)]);
+      await tester.pumpWidget(MultiProvider(
+        providers: [
+          ChangeNotifierProvider<CleanerStore>.value(value: limpeza),
+          ChangeNotifierProvider<WasherStore>.value(value: lavagem),
+        ],
+        child: MaterialApp(
+          home: const Scaffold(body: Text('mapa da entrega')),
+          builder: (context, child) => TrabalhoOfertaOverlayHost(
+            ligarSessao: false,
+            debugEstafetaOcupado: true,
+            tocarSom: () async => somTocou++,
+            pararSom: () async => somParou++,
+            child: child!,
+          ),
+        ),
+      ));
+      await tester.pump();
+      expect(find.byKey(const Key('trabalho_oferta_compacta')), findsOneWidget);
+      expect(find.byKey(const Key('trabalho_oferta_cartao')), findsNothing);
+      expect(find.text('Nova limpeza · €34,00'), findsOneWidget);
+      expect(somTocou, 0, reason: 'o som em ciclo é da oferta de entrega');
+      // O ecrã de baixo continua tocável (não há fundo escuro por cima).
+      expect(find.text('mapa da entrega').hitTestable(), findsOneWidget);
     });
 
     testWidgets('lavagem só aparece a lavador aprovado', (tester) async {

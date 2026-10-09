@@ -57,10 +57,13 @@ class _PortaoDoPrestadorState extends State<PortaoDoPrestador>
     WidgetsBinding.instance.addObserver(this);
     final modo = context.read<SessionStore>().ultimoModoTrabalho;
     _modoVisto = modo;
-    // Estafeta aprovado: abre já no modo guardado (ou no do estafeta), sem
-    // roda. O servidor confirma a seguir.
-    if (widget.estafetaAprovado) {
-      _entrada = entradaDoModo(modo) ?? EntradaDoPrestador.estafeta;
+    // Estafeta aprovado e último modo = estafeta (ou nenhum): abre JÁ o ecrã
+    // do estafeta, sem roda — exatamente como antes. Com outro modo guardado
+    // espera pela leitura do servidor: um estafeta ligado ou com entrega nunca
+    // abre noutro ecrã, e se a leitura falhar cai no do estafeta (revisão 09/10).
+    if (widget.estafetaAprovado &&
+        (modo == null || modo == 'estafeta')) {
+      _entrada = EntradaDoPrestador.estafeta;
     }
     _ler();
   }
@@ -79,14 +82,16 @@ class _PortaoDoPrestadorState extends State<PortaoDoPrestador>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // "Mudar de modo" grava o modo no SessionStore: o portão segue-o, se esse
-    // papel estiver aprovado (ou ainda não se sabe e é o do estafeta aprovado).
+    // "Mudar de modo" → Estafeta grava o modo no SessionStore: o portão volta
+    // ao ecrã do estafeta. SÓ nessa direção: limpeza e lavagem abrem POR CIMA
+    // (ver ProfileSwitcherButton), nunca desmontando o ecrã do estafeta — que
+    // é onde vivem o batimento, o GPS e o cartão das ofertas de entrega.
     final modo = Provider.of<SessionStore>(context).ultimoModoTrabalho;
     if (modo == _modoVisto) return;
     _modoVisto = modo;
     final pedida = entradaDoModo(modo);
-    if (pedida == null || pedida == _entrada) return;
-    if (_papelAprovado(pedida)) _entrada = pedida;
+    if (pedida != EntradaDoPrestador.estafeta || pedida == _entrada) return;
+    if (_papelAprovado(pedida!)) _entrada = pedida;
   }
 
   bool _papelAprovado(EntradaDoPrestador e) {

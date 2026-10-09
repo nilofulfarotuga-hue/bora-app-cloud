@@ -9,6 +9,7 @@ import '../config/app_colors.dart';
 import '../services/incoming_job_alert.dart';
 import '../services/notification_service.dart';
 import '../services/oferta_trabalho_aviso.dart';
+import '../services/roles_service.dart';
 import '../services/sound_service.dart';
 import '../stores/cleaner_store.dart';
 import '../stores/washer_store.dart';
@@ -40,9 +41,15 @@ class TrabalhoOfertaOverlayHost extends StatefulWidget {
     this.agora,
     this.tocarSom,
     this.pararSom,
+    this.debugEstafetaOcupado = false,
   });
 
   final Widget child;
+
+  /// SÓ PARA TESTES: finge que a pessoa está a trabalhar como estafeta
+  /// (em produção pergunta-se ao servidor, `my_trabalho_pendente`).
+  @visibleForTesting
+  final bool debugEstafetaOcupado;
 
   /// Ouvir a sessão do Supabase para carregar/esquecer os stores. Só os
   /// testes desligam (não há Supabase inicializado).
@@ -127,6 +134,11 @@ class _TrabalhoOfertaOverlayHostState extends State<TrabalhoOfertaOverlayHost>
   /// Ofertas que já se mostraram — para calar o aviso quando deixam de viver.
   final Set<String> _mostradas = <String>{};
 
+  /// [Revisão 09/10] Por oferta: a pessoa está a trabalhar como estafeta
+  /// (ligada, com entrega em curso)? Aí a oferta entra COMPACTA e sem som em
+  /// ciclo — nunca tapa o cartão da oferta de entrega nem o mapa da entrega.
+  final Map<String, bool> _estafetaOcupado = <String, bool>{};
+
   DateTime get _now => (widget.agora ?? DateTime.now)();
 
   @override
@@ -142,6 +154,7 @@ class _TrabalhoOfertaOverlayHostState extends State<TrabalhoOfertaOverlayHost>
     _authSub?.cancel();
     _ticker?.cancel();
     unawaited(_pararSom());
+    _soundService?.dispose();
     super.dispose();
   }
 
@@ -177,8 +190,14 @@ class _TrabalhoOfertaOverlayHostState extends State<TrabalhoOfertaOverlayHost>
   void _esquecer() {
     if (_uidCarregado == null) return;
     _uidCarregado = null;
+    // Cala JÁ o que estava a tocar desta conta, antes de esquecer.
+    for (final id in _mostradas) {
+      unawaited(IncomingJobAlert.dismiss(id));
+    }
+    unawaited(_pararSom());
     _respondidas.clear();
     _mostradas.clear();
+    _estafetaOcupado.clear();
     SchedulerBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<CleanerStore>().reset();
@@ -191,8 +210,32 @@ class _TrabalhoOfertaOverlayHostState extends State<TrabalhoOfertaOverlayHost>
     if (!mounted) return;
     final limpeza = context.read<CleanerStore>();
     final lavagem = context.read<WasherStore>();
-    if (limpeza.profile?.isApproved == true) unawaited(limpeza.loadWork());
-    if (lavagem.isApproved) unawaited(lavagem.loadOffers());
+    // Perfil por carregar (ex.: o arranque falhou sem rede): carrega-o — o
+    // loadProfile já lê as ofertas de quem está aprovado.
+    if (limpeza.profile == null) {
+      if (_uidCarregado != null) {
+        unawaited(limpeza.loadProfile());
+      }
+    } else if (limpeza.profile!.isApproved) {
+      unawaited(limpeza.loadWork());
+    }
+    if (lavagem.profile == null) {
+      if (_uidCarregado != null) {
+        unawaited(lavagem.loadProfile());
+      }
+    } else if (lavagem.isApproved) {
+      unawaited(lavagem.loadOffers());
+    }
+  }
+
+  /// Pergunta UMA vez por oferta se a pessoa está a trabalhar como estafeta.
+  void _verSeEstafetaOcupado(String bookingId) {
+    if (_estafetaOcupado.containsKey(bookingId) || !widget.ligarSessao) return;
+    _estafetaOcupado[bookingId] = false;
+    unawaited(RolesService.myTrabalhoPendente().then((p) {
+      if (!mounted || !p.estafeta) return;
+      setState(() => _estafetaOcupado[bookingId] = true);
+    }));
   }
 
   /// Chamado pelo gancho global quando chega um push de oferta com a app aberta.
@@ -291,6 +334,12 @@ class _TrabalhoOfertaOverlayHostState extends State<TrabalhoOfertaOverlayHost>
       );
     } catch (e) {
       if (!mounted) return;
+      // [Revisão 09/10] Falha de REDE: a oferta continua viva — o cartão fica
+      // para tentar outra vez. Só sai quando o servidor diz que já não há.
+      if (falhaDeRede(e)) {
+        _snack('Sem rede — não consegui aceitar. Tenta outra vez.');
+        return;
+      }
       setState(() => _respondidas.add(o.bookingId));
       _reler();
       _snack(limpeza
@@ -325,33 +374,51 @@ class _TrabalhoOfertaOverlayHostState extends State<TrabalhoOfertaOverlayHost>
     );
     // Efeitos (som, relógio, calar avisos) só no fim do frame — nunca setState
     // a meio de um build (cicatriz de 06/10 no cartão TVDE).
+    final compacto = oferta != null &&
+        (widget.debugEstafetaOcupado ||
+            (_estafetaOcupado[oferta.bookingId] ?? false));
     SchedulerBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _calarOfertasMortas(oferta?.bookingId);
-      if (oferta != null) _mostradas.add(oferta.bookingId);
+      if (oferta != null) {
+        _mostradas.add(oferta.bookingId);
+        _verSeEstafetaOcupado(oferta.bookingId);
+      }
       _armarRelogio(oferta != null);
       final aFrente = WidgetsBinding.instance.lifecycleState == null ||
           WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
-      if (oferta != null && aFrente) {
+      // A trabalhar como estafeta: sem som em ciclo (o som é da oferta de
+      // entrega; na web o leitor é partilhado).
+      if (oferta != null && aFrente && !compacto) {
         unawaited(_tocarSom());
       } else {
         unawaited(_pararSom());
       }
     });
 
+    final cartao = oferta == null
+        ? null
+        : TrabalhoOfertaCartao(
+            key: ValueKey<String>('trabalho-oferta-${oferta.bookingId}'),
+            oferta: oferta,
+            agora: _now,
+            compacto: compacto,
+            onAceitar: () => _aceitar(oferta),
+            onRecusar: () => _recusar(oferta),
+          );
     return Stack(
       fit: StackFit.expand,
       children: [
         widget.child,
-        if (oferta != null)
-          Positioned.fill(
-            child: TrabalhoOfertaCartao(
-              key: ValueKey<String>('trabalho-oferta-${oferta.bookingId}'),
-              oferta: oferta,
-              agora: _now,
-              onAceitar: () => _aceitar(oferta),
-              onRecusar: () => _recusar(oferta),
-            ),
+        if (cartao != null && !compacto) Positioned.fill(child: cartao),
+        // Estafeta a trabalhar: faixa no FUNDO do ecrã, para não tapar o
+        // cartão da oferta de entrega (no topo) nem os comandos do mapa.
+        if (cartao != null && compacto)
+          Positioned(
+            left: 12,
+            right: 12,
+            bottom: MediaQuery.paddingOf(context).bottom + 12,
+            child: cartao,
           ),
       ],
     );
@@ -367,10 +434,15 @@ class TrabalhoOfertaCartao extends StatefulWidget {
     required this.agora,
     required this.onAceitar,
     required this.onRecusar,
+    this.compacto = false,
   });
 
   final OfertaDeTrabalhoVista oferta;
   final DateTime agora;
+
+  /// [Revisão 09/10] A pessoa está a trabalhar como estafeta: faixa compacta
+  /// (sem fundo escuro) para não tapar a oferta de entrega nem o mapa.
+  final bool compacto;
   final Future<void> Function() onAceitar;
   final Future<void> Function() onRecusar;
 
@@ -446,6 +518,67 @@ class _TrabalhoOfertaCartaoState extends State<TrabalhoOfertaCartao> {
       final mm = (s ~/ 60).toString().padLeft(2, '0');
       final ss = (s % 60).toString().padLeft(2, '0');
       contagem = '$mm:$ss';
+    }
+
+    if (widget.compacto) {
+      return Material(
+        key: const Key('trabalho_oferta_compacta'),
+        color: AppColors.primaryDeep,
+        elevation: 8,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+          child: Row(
+            children: [
+              Icon(
+                  limpeza
+                      ? Icons.cleaning_services_rounded
+                      : Icons.local_car_wash_rounded,
+                  color: Colors.white,
+                  size: 22),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${limpeza ? 'Nova limpeza' : 'Nova lavagem'} · €$ganho',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800),
+                    ),
+                    Text(
+                      [quando, if (contagem != null) contagem].join(' · '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style:
+                          const TextStyle(color: Colors.white70, fontSize: 12.5),
+                    ),
+                  ],
+                ),
+              ),
+              TextButton(
+                key: const Key('trabalho_oferta_recusar'),
+                onPressed: _aAceitar ? null : _tapRecusar,
+                style: TextButton.styleFrom(foregroundColor: Colors.white),
+                child: Text(_confirmarRecusa ? 'Confirmar' : 'Recusar'),
+              ),
+              FilledButton(
+                key: const Key('trabalho_oferta_aceitar'),
+                onPressed: _aAceitar ? null : _tapAceitar,
+                style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    padding: const EdgeInsets.symmetric(horizontal: 14)),
+                child: const Text('Aceitar'),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     return Material(
@@ -600,14 +733,46 @@ void releituraDasOfertasDeTrabalho() {
   if (s is _TrabalhoOfertaOverlayHostState) s.releituraPedida();
 }
 
+/// A falha foi de rede (sem resposta do servidor) e não uma recusa dele?
+bool falhaDeRede(Object e) {
+  if (e is TimeoutException) return true;
+  final s = e.toString();
+  return s.contains('SocketException') ||
+      s.contains('ClientException') ||
+      s.contains('Failed host lookup') ||
+      s.contains('Connection closed') ||
+      s.contains('Network is unreachable');
+}
+
 /// Aceitar/Recusar carregado na notificação (gancho global do main.dart).
+///
+/// [Revisão 09/10 · caso Mayra] Com a app FECHADA o gancho corre antes de
+/// haver navegador e sessão: cala-se o aviso JÁ e espera-se por eles (o mesmo
+/// padrão do Aceitar da oferta TVDE). Se mesmo assim não houver, não se marca
+/// nada como respondido — a repetição do minuto seguinte volta a tocar.
 Future<void> responderOfertaDeTrabalhoGlobal(
     String categoria, String bookingId, String accao) async {
-  final ctx = NotificationService.navigatorKey.currentContext;
-  if (ctx == null || !ctx.mounted || bookingId.isEmpty) return;
-  await marcarOfertaTrabalhoTratada(bookingId);
+  if (bookingId.isEmpty) return;
+  await IncomingJobAlert.dismiss(bookingId);
+  BuildContext? ctx;
+  for (var tentativa = 0; tentativa < 10; tentativa++) {
+    final c = NotificationService.navigatorKey.currentContext;
+    String? uid;
+    try {
+      uid = Supabase.instance.client.auth.currentUser?.id;
+    } catch (_) {}
+    if (c != null && c.mounted && uid != null) {
+      ctx = c;
+      break;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 700));
+  }
+  if (ctx == null || !ctx.mounted) {
+    debugPrint('[BORA-TRABALHO] $accao sem navegador/sessão — fica para a '
+        'próxima repetição do toque');
+    return;
+  }
   final limpeza = categoria == 'limpeza';
-  if (!ctx.mounted) return;
   final cleaner = ctx.read<CleanerStore>();
   final washer = ctx.read<WasherStore>();
   try {
@@ -631,13 +796,14 @@ Future<void> responderOfertaDeTrabalhoGlobal(
     NotificationService.abrirTrabalho?.call(categoria, bookingId);
   } catch (e) {
     debugPrint('[BORA-TRABALHO] acção $accao falhou: $e');
-    await IncomingJobAlert.dismiss(bookingId);
     final c2 = NotificationService.navigatorKey.currentContext;
     if (c2 != null && c2.mounted) {
       ScaffoldMessenger.maybeOf(c2)?.showSnackBar(SnackBar(
-          content: Text(limpeza
-              ? 'Esta limpeza já não está disponível.'
-              : 'Esta lavagem já não está disponível.')));
+          content: Text(falhaDeRede(e)
+              ? 'Sem rede — não consegui responder. Tenta outra vez.'
+              : limpeza
+                  ? 'Esta limpeza já não está disponível.'
+                  : 'Esta lavagem já não está disponível.')));
     }
   }
 }

@@ -230,14 +230,15 @@ class CleanerStore extends ChangeNotifier {
       return;
     }
     if ((rec['cleaner_id'] ?? '').toString().isNotEmpty) return; // já aceite
-    if (!_alertedOfferIds.add(id)) return; // já alertado
     // [09/10 · Mayra] Com a app à frente, quem mostra a oferta é o cartão
     // global em ecrã inteiro (com som em ciclo) — a notificação seria som a
     // dobrar. Em segundo plano, toca a notificação com Aceitar/Recusar.
+    // (Antes de marcar como avisada: se a app for para trás, ainda toca.)
     if (!kIsWeb &&
         WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
       return;
     }
+    if (!_alertedOfferIds.add(id)) return; // já alertado
     final earn = rec['cleaner_earnings_cents'];
     final earnStr = earn is num ? '€${(earn / 100).toStringAsFixed(2)}' : '';
     final city = (rec['address_city'] ?? '').toString();
@@ -255,11 +256,13 @@ class CleanerStore extends ChangeNotifier {
 
   Future<void> acceptBooking(String bookingId) async {
     IncomingJobAlert.dismiss(bookingId);
-    unawaited(marcarOfertaTrabalhoTratada(bookingId));
     _setBusy(true);
     try {
       await _sb
           .rpc('cleaner_accept_booking', params: {'p_booking_id': bookingId}).timeout(kAcaoTimeout);
+      // Só depois de o servidor aceitar: uma falha de rede não cala a
+      // repetição do toque (a oferta continua viva para tentar outra vez).
+      unawaited(marcarOfertaTrabalhoTratada(bookingId));
       await loadWork();
     } catch (e) {
       debugPrint('CleanerStore.acceptBooking error => $e');

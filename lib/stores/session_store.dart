@@ -119,6 +119,9 @@ class SessionStore extends ChangeNotifier {
   Future<void> clearRole() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_roleKey);
+    // O último modo de trabalho é da pessoa que saiu, não do telemóvel.
+    await prefs.remove(_ultimoModoKey);
+    _ultimoModoTrabalho = null;
     _role = null;
     _isInitialized = true;
     notifyListeners();

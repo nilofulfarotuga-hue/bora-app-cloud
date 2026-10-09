@@ -100,12 +100,11 @@ class _ProfileSwitcherButtonState extends State<ProfileSwitcherButton> {
     void abrirTrabalho(String papel) {
       // Fecha o que estiver por cima (outro ecrã de trabalho).
       nav.popUntil((r) => r.isFirst);
-      // [09/10 · Mayra] Grava o modo: ao reabrir a app entra-se nele.
+      // [09/10 · Mayra] Grava o modo: ao reabrir a app entra-se nele. Abre-se
+      // SEMPRE por cima — o ecrã do estafeta fica montado por baixo (batimento,
+      // GPS e ofertas de entrega continuam vivos).
       sessionStore
           .setUltimoModoTrabalho(papel == 'washer' ? 'lavagem' : 'limpeza');
-      // Com a base no estafeta, quem troca o ecrã é o portão do prestador
-      // (segue o modo guardado) — abrir por cima duplicava o ecrã.
-      if (base == UserRole.driver) return;
       nav.push(MaterialPageRoute<void>(
         builder: (_) => papel == 'washer'
             ? const WasherHomeScreen()

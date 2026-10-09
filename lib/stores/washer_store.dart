@@ -212,14 +212,14 @@ class WasherStore extends ChangeNotifier {
     final eu = _profile?.id ?? ' ';
     if ((linha['offer_washer_id'] ?? '').toString() != eu) return;
     if ((linha['washer_id'] ?? '').toString().isNotEmpty) return; // já aceite
-    if (!_ofertasJaAlertadas.add(id)) return;
     // [09/10] Com a app à frente, o cartão global em ecrã inteiro mostra a
     // oferta (com som em ciclo). Em segundo plano toca a notificação com
-    // Aceitar/Recusar.
+    // Aceitar/Recusar. (Antes de marcar como avisada.)
     if (!kIsWeb &&
         WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
       return;
     }
+    if (!_ofertasJaAlertadas.add(id)) return;
 
     // O valor VAI no aviso. Mostra-se o que a pessoa ganha, não o que o
     // cliente paga — foi o que se pediu, e um aviso sem valor não decide nada.
@@ -243,10 +243,12 @@ class WasherStore extends ChangeNotifier {
   // AÇÕES — todas por RPC (o servidor é que valida)
   // ══════════════════════════════════════════════════════════════════════════
 
-  Future<bool> accept(String bookingId) {
+  Future<bool> accept(String bookingId) async {
     IncomingJobAlert.dismiss(bookingId);
-    unawaited(marcarOfertaTrabalhoTratada(bookingId));
-    return _call('washer_accept_booking', {'p_booking_id': bookingId});
+    final ok = await _call('washer_accept_booking', {'p_booking_id': bookingId});
+    // Só depois de o servidor aceitar (falha de rede não cala o toque).
+    if (ok) unawaited(marcarOfertaTrabalhoTratada(bookingId));
+    return ok;
   }
 
   /// Rejeitar cala o alerta e devolve o trabalho à rotação — o servidor

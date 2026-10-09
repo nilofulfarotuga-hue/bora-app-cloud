@@ -95,12 +95,15 @@ if (configurado) {
     var title = d.title || tx.title;
     var body = d.body || tx.body;
     var url = boraDestinoDoAviso(d, self.location.origin);
-    var urgente = d.type === 'new_order_offer' || d.type === 'order_reassigned' || d.type === 'order_preassigned';
+    // [09/10 · Mayra] As ofertas de limpeza e de lavagem são urgentes como a do
+    // estafeta: o aviso fica no ecrã até a pessoa responder.
+    var urgente = d.type === 'new_order_offer' || d.type === 'order_reassigned' || d.type === 'order_preassigned' ||
+      d.type === 'cleaning_offer' || d.type === 'carwash_offer';
     return self.registration.showNotification(title, {
       body: body,
       icon: 'icons/Icon-192.png',
       badge: 'icons/Icon-192.png',
-      tag: (d.type || 'bora') + ':' + (d.orderId || ''),
+      tag: (d.type || 'bora') + ':' + (d.orderId || d.bookingId || ''),
       renotify: true,
       requireInteraction: urgente,
       vibrate: urgente ? [300, 100, 300, 100, 300] : [100],

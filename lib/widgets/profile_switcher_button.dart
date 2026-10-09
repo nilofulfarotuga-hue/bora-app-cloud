@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -96,9 +98,14 @@ class _ProfileSwitcherButtonState extends State<ProfileSwitcherButton> {
         };
 
     void abrirTrabalho(String papel) {
-      // Fecha o que estiver por cima (outro ecrã de trabalho) e abre este por
-      // cima do modo base.
+      // Fecha o que estiver por cima (outro ecrã de trabalho).
       nav.popUntil((r) => r.isFirst);
+      // [09/10 · Mayra] Grava o modo: ao reabrir a app entra-se nele.
+      sessionStore
+          .setUltimoModoTrabalho(papel == 'washer' ? 'lavagem' : 'limpeza');
+      // Com a base no estafeta, quem troca o ecrã é o portão do prestador
+      // (segue o modo guardado) — abrir por cima duplicava o ecrã.
+      if (base == UserRole.driver) return;
       nav.push(MaterialPageRoute<void>(
         builder: (_) => papel == 'washer'
             ? const WasherHomeScreen()
@@ -159,6 +166,14 @@ class _ProfileSwitcherButtonState extends State<ProfileSwitcherButton> {
                       ? null
                       : () async {
                           Navigator.pop(ctx);
+                          // [09/10 · Mayra] Escolher o estafeta grava o modo
+                          // (o portão do prestador volta ao ecrã dele).
+                          if (uiRole == UserRole.driver) {
+                            // Memória já, disco em fundo (sem esperar: o
+                            // contexto é usado logo a seguir).
+                            unawaited(
+                                sessionStore.setUltimoModoTrabalho('estafeta'));
+                          }
                           // Já é o modo base (ex.: está na Limpeza por cima
                           // do modo cliente): basta fechar o que está por cima.
                           if (uiRole == base) {

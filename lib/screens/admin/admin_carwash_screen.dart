@@ -8,6 +8,7 @@ import '../../services/carwash_upload_service.dart';
 import '../../utils/hora_lisboa_ext.dart';
 import '../../services/admin_export_service.dart';
 import '../../widgets/admin/confirmar_dinheiro.dart';
+import '../../widgets/admin/papeis_da_pessoa.dart';
 import '../../widgets/bora/bora_bottom_action_bar.dart';
 import '../../widgets/bora_foto_ecra_inteiro.dart';
 
@@ -773,6 +774,13 @@ class _AbaLavadoresState extends State<_AbaLavadores> {
                     OutlinedButton(
                         onPressed: () => _patch(id, {'is_banned': !banido}),
                         child: Text(banido ? 'Remover banimento' : 'Banir')),
+                    // Estafeta / limpeza / lavagem da mesma pessoa (user_id).
+                    if ((l['user_id']?.toString() ?? '').isNotEmpty)
+                      BotaoPapeisDaPessoa(
+                        userId: l['user_id'].toString(),
+                        nome: l['name']?.toString(),
+                        aoMudar: _load,
+                      ),
                   ],
                 ),
               ),

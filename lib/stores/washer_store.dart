@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import '../services/incoming_job_alert.dart';
+import '../services/oferta_trabalho_aviso.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/carwash_models.dart';
@@ -25,6 +29,18 @@ class WasherStore extends ChangeNotifier {
   /// Ofertas por responder (o servidor roda-as com timeout).
   List<CarwashBooking> _offers = const [];
   List<CarwashBooking> get offers => _offers;
+
+  /// [09/10] As ofertas que ainda esperam resposta AGORA (prazo por passar),
+  /// só de lavador aprovado. É o que o cartão global da oferta mostra.
+  List<CarwashBooking> ofertasVivas({DateTime? agora}) {
+    if (!isApproved) return const [];
+    final now = agora ?? DateTime.now();
+    return _offers
+        .where((b) =>
+            (b.washerId == null || b.washerId!.isEmpty) &&
+            (b.offerExpiresAt == null || b.offerExpiresAt!.isAfter(now)))
+        .toList();
+  }
 
   /// Trabalhos já aceites e ainda por fechar.
   List<CarwashBooking> _jobs = const [];
@@ -197,6 +213,13 @@ class WasherStore extends ChangeNotifier {
     if ((linha['offer_washer_id'] ?? '').toString() != eu) return;
     if ((linha['washer_id'] ?? '').toString().isNotEmpty) return; // já aceite
     if (!_ofertasJaAlertadas.add(id)) return;
+    // [09/10] Com a app à frente, o cartão global em ecrã inteiro mostra a
+    // oferta (com som em ciclo). Em segundo plano toca a notificação com
+    // Aceitar/Recusar.
+    if (!kIsWeb &&
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+      return;
+    }
 
     // O valor VAI no aviso. Mostra-se o que a pessoa ganha, não o que o
     // cliente paga — foi o que se pediu, e um aviso sem valor não decide nada.
@@ -204,17 +227,16 @@ class WasherStore extends ChangeNotifier {
     final ganhoStr =
         ganho is num && ganho > 0 ? '€${(ganho / 100).toStringAsFixed(2)}' : '';
     final cidade = (linha['address_city'] ?? '').toString();
-    IncomingJobAlert.show(
-      id: id,
-      type: 'carwash_offer',
-      title: '🚿 Nova lavagem!',
-      body: [
+    unawaited(mostrarOfertaDeTrabalho(
+      categoria: 'lavagem',
+      bookingId: id,
+      titulo: '🚿 Nova lavagem!',
+      corpo: [
         if (ganhoStr.isNotEmpty) 'Ganhas $ganhoStr',
         if (cidade.isNotEmpty) cidade,
-        'Toca para ver e aceitar.',
+        'Aceita ou recusa.',
       ].join(' · '),
-      extraPayload: {'bookingId': id},
-    );
+    ));
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -223,6 +245,7 @@ class WasherStore extends ChangeNotifier {
 
   Future<bool> accept(String bookingId) {
     IncomingJobAlert.dismiss(bookingId);
+    unawaited(marcarOfertaTrabalhoTratada(bookingId));
     return _call('washer_accept_booking', {'p_booking_id': bookingId});
   }
 
@@ -231,6 +254,7 @@ class WasherStore extends ChangeNotifier {
   /// estava, porque o alerta é notificação e não ecrã empurrado.
   Future<bool> reject(String bookingId) {
     IncomingJobAlert.dismiss(bookingId);
+    unawaited(marcarOfertaTrabalhoTratada(bookingId));
     _ofertasJaAlertadas.remove(bookingId);
     return _call('washer_reject_booking', {'p_booking_id': bookingId});
   }
@@ -310,6 +334,25 @@ class WasherStore extends ChangeNotifier {
     final ch = _channel;
     _channel = null;
     if (ch != null) _sb.removeChannel(ch);
+  }
+
+  /// SÓ PARA TESTES: põe perfil e ofertas no store sem Supabase.
+  @visibleForTesting
+  void debugDefinir({WasherProfile? perfil, List<CarwashBooking>? ofertas}) {
+    if (perfil != null) _profile = perfil;
+    if (ofertas != null) _offers = List.of(ofertas);
+    notifyListeners();
+  }
+
+  /// [09/10] Sessão terminada (ou outra pessoa entrou): esquece tudo e desliga
+  /// o realtime — a oferta de uma conta nunca aparece a outra.
+  void reset() {
+    _unsubscribe();
+    _profile = null;
+    _offers = const [];
+    _jobs = const [];
+    _ofertasJaAlertadas.clear();
+    notifyListeners();
   }
 
   @override

@@ -3,6 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../widgets/admin/ofertas_limpeza_em_aberto.dart';
+import '../../widgets/admin/papeis_da_pessoa.dart';
 import '../../widgets/admin_other_role_badge.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '../../widgets/bora_foto_ecra_inteiro.dart';
@@ -11,6 +13,10 @@ import '_admin_rpc_errors.dart';
 /// Limpeza doméstica — Admin: profissionais de limpeza.
 /// Aprovar/recusar candidaturas, suspender/reativar, editar raio/ativo e
 /// acertar o caixa semanal (15% das limpezas em dinheiro). Idioma: PT-BR.
+/// No topo: "Ofertas em aberto" (quem está a receber oferta agora, quantas
+/// vezes tocou, se tem aparelho registrado) e o interruptor do toque repetido.
+/// Em cada cartão: "Papéis desta pessoa" (ligar/desligar estafeta, limpeza e
+/// lavagem, com motivo e registro em `admin_audit_log`).
 class AdminCleaningCleanersScreen extends StatefulWidget {
   const AdminCleaningCleanersScreen({super.key});
 
@@ -24,6 +30,9 @@ class _AdminCleaningCleanersScreenState
   late Future<List<Map<String, dynamic>>> _future;
   bool _busy = false;
   String? _statusFilter = 'pending';
+
+  /// Sobe a cada atualização: o cartão das ofertas recarrega junto.
+  int _versao = 0;
 
   @override
   void initState() {
@@ -42,7 +51,10 @@ class _AdminCleaningCleanersScreenState
   }
 
   Future<void> _refresh() async {
-    setState(() => _future = _load());
+    setState(() {
+      _future = _load();
+      _versao++;
+    });
     await _future;
   }
 
@@ -240,46 +252,53 @@ class _AdminCleaningCleanersScreenState
               child: FutureBuilder<List<Map<String, dynamic>>>(
                 future: _future,
                 builder: (context, snap) {
+                  // O cartão das ofertas fica sempre no topo, na mesma
+                  // posição da mesma lista, para não recarregar à toa.
+                  ListView lista(List<Widget> abaixo) => ListView(
+                        padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+                        children: [
+                          OfertasLimpezaEmAberto(
+                              key: ValueKey('ofertas_limpeza_$_versao')),
+                          ...abaixo,
+                        ],
+                      );
                   if (snap.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
+                    return lista(const [
+                      SizedBox(height: 40),
+                      Center(child: CircularProgressIndicator()),
+                    ]);
                   }
                   if (snap.hasError) {
-                    return ListView(
-                      padding: const EdgeInsets.all(24),
-                      children: [
-                        const SizedBox(height: 60),
-                        const Icon(Icons.error_outline,
-                            size: 44, color: AppColors.error),
-                        const SizedBox(height: 12),
-                        Text('Erro:\n${snap.error}',
-                            textAlign: TextAlign.center),
-                      ],
-                    );
+                    return lista([
+                      const SizedBox(height: 40),
+                      const Icon(Icons.error_outline,
+                          size: 44, color: AppColors.error),
+                      const SizedBox(height: 12),
+                      Text('Erro:\n${snap.error}',
+                          textAlign: TextAlign.center),
+                    ]);
                   }
                   final rows = snap.data ?? const [];
                   if (rows.isEmpty) {
-                    return ListView(
-                      children: const [
-                        SizedBox(height: 120),
-                        Center(
-                          child: Text('Nenhuma profissional neste filtro.',
-                              style:
-                                  TextStyle(color: AppColors.textSecondary)),
-                        ),
-                      ],
-                    );
+                    return lista(const [
+                      SizedBox(height: 60),
+                      Center(
+                        child: Text('Nenhuma profissional neste filtro.',
+                            style: TextStyle(color: AppColors.textSecondary)),
+                      ),
+                    ]);
                   }
-                  return ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
-                    itemCount: rows.length,
-                    itemBuilder: (_, i) => _CleanerCard(
-                      data: rows[i],
-                      busy: _busy,
-                      onReview: (action) => _review(rows[i], action),
-                      onEdit: () => _editCleaner(rows[i]),
-                      onSettleCash: () => _settleCash(rows[i]),
-                    ),
-                  );
+                  return lista([
+                    for (final r in rows)
+                      _CleanerCard(
+                        data: r,
+                        busy: _busy,
+                        onReview: (action) => _review(r, action),
+                        onEdit: () => _editCleaner(r),
+                        onSettleCash: () => _settleCash(r),
+                        onPapeisMudaram: _refresh,
+                      ),
+                  ]);
                 },
               ),
             ),
@@ -297,6 +316,7 @@ class _CleanerCard extends StatelessWidget {
     required this.onReview,
     required this.onEdit,
     required this.onSettleCash,
+    required this.onPapeisMudaram,
   });
 
   final Map<String, dynamic> data;
@@ -304,6 +324,7 @@ class _CleanerCard extends StatelessWidget {
   final void Function(String action) onReview;
   final VoidCallback onEdit;
   final VoidCallback onSettleCash;
+  final VoidCallback onPapeisMudaram;
 
   @override
   Widget build(BuildContext context) {
@@ -445,6 +466,13 @@ class _CleanerCard extends StatelessWidget {
                         backgroundColor: AppColors.primary),
                     icon: const Icon(Icons.refresh, size: 18),
                     label: const Text('Reativar'),
+                  ),
+                // Estafeta / limpeza / lavagem da mesma pessoa (user_id).
+                if ((data['user_id']?.toString() ?? '').isNotEmpty)
+                  BotaoPapeisDaPessoa(
+                    userId: data['user_id'].toString(),
+                    nome: data['name'] as String?,
+                    aoMudar: onPapeisMudaram,
                   ),
               ],
             ),

@@ -25,7 +25,7 @@ sempre pelo `deviceId`; escolher pelo nome é como escolher uma chave pela cor.
 Apple (App Store Connect e portal), Meta e Instagram, Meta AI / Vibes (vídeo), Google Play
 Console, Cloudflare, painel do Supabase, Resend, 99Freelas, Codester, Google Search Console
 do Em Dia, Gemini AI Plus, Flow/Veo, AI Studio, WhatsApp da loja, Bing Webmaster, Wikidata,
-Drive da equipa, Hostinger.
+Drive da equipa, Hostinger, área de cliente dos CTT (encomendas do Jai), Google Cloud da Bora.
 
 > 26/09 (missão `redondo-total-2026-09-26`): 99Freelas, Codester e Meta AI/Vibes entraram
 > no mapa (`~/.claude/contas/MAPA-CONTAS.json`) no perfil Bora; ZSky, Grok e Kaggle entraram
@@ -38,7 +38,10 @@ Drive da equipa, Hostinger.
 claude.ai e claude.ai/code, ChatGPT (a conta **Plus** é `nilofulfaro@gmail.com` e vive no
 **aplicativo ChatGPT do Windows**, que é o que o Codex usa — a do Chrome é Free), GitHub
 pessoal, Gemini pessoal (o **pago**, com Veo, é o do perfil Bora), Firebase `boraapp-d2bea`, Google Cloud da app, Gmail
-nilofulfarotuga/nilofulfaro, Search Console e Google Ads de jaiagarwala.com.
+nilofulfarotuga/nilofulfaro, Search Console e Google Ads de jaiagarwala.com, DeepSeek.
+
+> 09/10 (missão `fecho-total-2026-10-09`): CTT e Google Cloud da Bora no perfil Bora; DeepSeek
+> no pessoal. A regra não muda: escolhe-se SEMPRE pelo deviceId, nunca por "Browser 1/2".
 
 ## Antes de abrir seja o que for
 

@@ -76,7 +76,44 @@ class RolesSummary {
       );
 }
 
+/// [09/10 · Mayra] Há trabalho à espera em cada papel aprovado? (RPC
+/// `my_trabalho_pendente`): estafeta ligado ou com entrega em curso; limpeza
+/// ou lavagem com oferta viva, trabalho em curso ou aceite para hoje (Lisboa).
+class TrabalhoPendente {
+  const TrabalhoPendente({
+    this.estafeta = false,
+    this.limpeza = false,
+    this.lavagem = false,
+  });
+
+  final bool estafeta;
+  final bool limpeza;
+  final bool lavagem;
+
+  static const TrabalhoPendente nenhum = TrabalhoPendente();
+
+  factory TrabalhoPendente.fromJson(Map<String, dynamic> j) => TrabalhoPendente(
+        estafeta: j['estafeta'] == true,
+        limpeza: j['limpeza'] == true,
+        lavagem: j['lavagem'] == true,
+      );
+}
+
 class RolesService {
+  /// Nunca lança: sem rede/sessão devolve "nada pendente".
+  static Future<TrabalhoPendente> myTrabalhoPendente() async {
+    try {
+      final res =
+          await Supabase.instance.client.rpc('my_trabalho_pendente');
+      if (res is Map) {
+        return TrabalhoPendente.fromJson(res.cast<String, dynamic>());
+      }
+    } catch (e) {
+      debugPrint('RolesService.myTrabalhoPendente error => $e');
+    }
+    return TrabalhoPendente.nenhum;
+  }
+
   static Future<RolesSummary> mySummary() async {
     try {
       final res = await Supabase.instance.client.rpc('my_roles_summary');
@@ -126,12 +163,51 @@ enum EntradaDoPrestador { estafeta, limpeza, lavagem, nenhuma }
 ///
 /// O estafeta aprovado vem primeiro porque o ecrã dele já tem o botão para
 /// saltar para a limpeza e a lavagem; o contrário não é verdade.
-EntradaDoPrestador entradaDoPrestador(RolesSummary r) {
+///
+/// [09/10 · Mayra] Quem tem vários papéis entra pela ordem:
+///  1. o papel com TRABALHO À ESPERA ([pendente]) — o estafeta ligado ou com
+///     entrega em curso nunca é tirado do ecrã dele;
+///  2. o ÚLTIMO MODO usado ([ultimoModo]: 'estafeta' | 'limpeza' | 'lavagem'),
+///     se esse papel continuar aprovado;
+///  3. a ordem de sempre (estafeta, limpeza, lavagem).
+EntradaDoPrestador entradaDoPrestador(
+  RolesSummary r, {
+  String? ultimoModo,
+  TrabalhoPendente pendente = TrabalhoPendente.nenhum,
+}) {
+  if (pendente.estafeta && r.driverApproved) return EntradaDoPrestador.estafeta;
+  if (pendente.limpeza && r.cleanerApproved) return EntradaDoPrestador.limpeza;
+  if (pendente.lavagem && r.washerApproved) return EntradaDoPrestador.lavagem;
+  switch (ultimoModo) {
+    case 'estafeta' when r.driverApproved:
+      return EntradaDoPrestador.estafeta;
+    case 'limpeza' when r.cleanerApproved:
+      return EntradaDoPrestador.limpeza;
+    case 'lavagem' when r.washerApproved:
+      return EntradaDoPrestador.lavagem;
+  }
   if (r.driverApproved) return EntradaDoPrestador.estafeta;
   if (r.cleanerApproved) return EntradaDoPrestador.limpeza;
   if (r.washerApproved) return EntradaDoPrestador.lavagem;
   return EntradaDoPrestador.nenhuma;
 }
+
+/// O modo de trabalho guardado ('estafeta' | 'limpeza' | 'lavagem') para uma
+/// entrada; null para [EntradaDoPrestador.nenhuma].
+String? modoDaEntrada(EntradaDoPrestador e) => switch (e) {
+      EntradaDoPrestador.estafeta => 'estafeta',
+      EntradaDoPrestador.limpeza => 'limpeza',
+      EntradaDoPrestador.lavagem => 'lavagem',
+      EntradaDoPrestador.nenhuma => null,
+    };
+
+/// A entrada para um modo guardado; null se o modo não for conhecido.
+EntradaDoPrestador? entradaDoModo(String? modo) => switch (modo) {
+      'estafeta' => EntradaDoPrestador.estafeta,
+      'limpeza' => EntradaDoPrestador.limpeza,
+      'lavagem' => EntradaDoPrestador.lavagem,
+      _ => null,
+    };
 
 // ════════════════════════════════════════════════════════════════════════════
 // A PORTA "QUERO TRABALHAR NO BORA"

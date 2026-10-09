@@ -13,7 +13,14 @@ class SessionStore extends ChangeNotifier {
 
   static const _driverDraftNameKey = 'bora_app.signup_draft.driver.name';
 
+  /// [09/10 · Mayra] O último MODO DE TRABALHO usado por quem tem vários
+  /// papéis: 'estafeta' | 'limpeza' | 'lavagem'. Ao reabrir a app entra-se
+  /// nele (o portão do prestador decide; trabalho pendente noutro papel manda).
+  static const _ultimoModoKey = 'bora_app.ultimo_modo_trabalho';
+
   UserRole? _role;
+  String? _ultimoModoTrabalho;
+  String? get ultimoModoTrabalho => _ultimoModoTrabalho;
   bool _isInitialized = false;
   bool _hasDriverSignupDraft = false;
 
@@ -42,8 +49,23 @@ class SessionStore extends ChangeNotifier {
     _homeLng = prefs.getDouble(_homeLngKey);
     _hasDriverSignupDraft =
         (prefs.getString(_driverDraftNameKey) ?? '').isNotEmpty;
+    _ultimoModoTrabalho = prefs.getString(_ultimoModoKey);
     _isInitialized = true;
     notifyListeners();
+  }
+
+  /// Guarda o modo de trabalho em uso ('estafeta' | 'limpeza' | 'lavagem').
+  Future<void> setUltimoModoTrabalho(String modo) async {
+    if (!const {'estafeta', 'limpeza', 'lavagem'}.contains(modo)) return;
+    if (_ultimoModoTrabalho == modo) return;
+    _ultimoModoTrabalho = modo;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_ultimoModoKey, modo);
+    } catch (e) {
+      debugPrint('SessionStore.setUltimoModoTrabalho => $e');
+    }
   }
 
   Future<void> setHomeAddress({

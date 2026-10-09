@@ -11,20 +11,34 @@ import 'profile_switcher_button.dart';
 
 /// PORTÃO POR PAPEL — a entrada de quem trabalha no Bora.
 ///
-/// O `_RootNavigator` só o mostra quando o perfil de estafeta NÃO está
-/// aprovado (pendente, recusado ou inexistente). Em vez de prender a pessoa em
-/// "em análise" por causa desse perfil, vê se ela tem outro papel aprovado e
-/// abre o ecrã de trabalho desse papel. Sem nenhum, mostra [semOutroPapel] —
-/// o comportamento de sempre.
+/// O `_RootNavigator` mostra-o a TODOS os que entram pela porta do estafeta.
+/// Em vez de prender a pessoa em "em análise" por causa do perfil de estafeta,
+/// vê que papéis tem aprovados e abre o ecrã de trabalho certo. Sem nenhum,
+/// mostra [semOutroPapel] — o comportamento de sempre.
+///
+/// [09/10/2026 · Mayra] Com vários papéis aprovados entra-se, por esta ordem:
+/// no papel com trabalho à espera (oferta viva, trabalho de hoje; estafeta
+/// ligado ou com entrega em curso), no ÚLTIMO MODO usado (guardado no
+/// `SessionStore`), e só depois na ordem de sempre. Para o estafeta aprovado o
+/// portão abre JÁ no modo guardado (sem roda) e só muda depois de ler o
+/// servidor se outro papel tiver trabalho à espera — ou se o modo guardado já
+/// não estiver aprovado. "Mudar de modo" grava o modo e o portão segue-o.
 ///
 /// Relê ao voltar à app: quem é aprovado com a app em segundo plano entra
 /// sem ter de sair e voltar a entrar.
 class PortaoDoPrestador extends StatefulWidget {
-  const PortaoDoPrestador({super.key, required this.semOutroPapel});
+  const PortaoDoPrestador({
+    super.key,
+    required this.semOutroPapel,
+    this.estafetaAprovado = false,
+  });
 
-  /// O que se mostrava antes de existir este portão (ecrã do estafeta, que
-  /// tem o seu próprio "em análise", ou a candidatura por acabar).
+  /// O ecrã do estafeta (aprovado, ou com o seu próprio "em análise" / a
+  /// candidatura por acabar).
   final Widget semOutroPapel;
+
+  /// O perfil de estafeta está aprovado (o AuthStore já o sabe).
+  final bool estafetaAprovado;
 
   @override
   State<PortaoDoPrestador> createState() => _PortaoDoPrestadorState();
@@ -33,11 +47,21 @@ class PortaoDoPrestador extends StatefulWidget {
 class _PortaoDoPrestadorState extends State<PortaoDoPrestador>
     with WidgetsBindingObserver {
   EntradaDoPrestador? _entrada; // null = ainda a ler
+  RolesSummary? _resumo;
+  bool _decidido = false;
+  String? _modoVisto;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    final modo = context.read<SessionStore>().ultimoModoTrabalho;
+    _modoVisto = modo;
+    // Estafeta aprovado: abre já no modo guardado (ou no do estafeta), sem
+    // roda. O servidor confirma a seguir.
+    if (widget.estafetaAprovado) {
+      _entrada = entradaDoModo(modo) ?? EntradaDoPrestador.estafeta;
+    }
     _ler();
   }
 
@@ -52,29 +76,83 @@ class _PortaoDoPrestadorState extends State<PortaoDoPrestador>
     if (state == AppLifecycleState.resumed) _ler();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // "Mudar de modo" grava o modo no SessionStore: o portão segue-o, se esse
+    // papel estiver aprovado (ou ainda não se sabe e é o do estafeta aprovado).
+    final modo = Provider.of<SessionStore>(context).ultimoModoTrabalho;
+    if (modo == _modoVisto) return;
+    _modoVisto = modo;
+    final pedida = entradaDoModo(modo);
+    if (pedida == null || pedida == _entrada) return;
+    if (_papelAprovado(pedida)) _entrada = pedida;
+  }
+
+  bool _papelAprovado(EntradaDoPrestador e) {
+    final r = _resumo;
+    return switch (e) {
+      EntradaDoPrestador.estafeta =>
+        widget.estafetaAprovado || (r?.driverApproved ?? false),
+      EntradaDoPrestador.limpeza => r?.cleanerApproved ?? false,
+      EntradaDoPrestador.lavagem => r?.washerApproved ?? false,
+      EntradaDoPrestador.nenhuma => false,
+    };
+  }
+
   Future<void> _ler() async {
     final auth = context.read<AuthStore>();
+    final session = context.read<SessionStore>();
     // O estado do estafeta refresca-se aqui também: se entretanto foi
-    // aprovado, o AuthStore avisa e o `_RootNavigator` tira este portão.
+    // aprovado, o AuthStore avisa e o `_RootNavigator` reconstrói o portão.
     //
     // Com limite de tempo: sem rede, ninguém fica preso na roda — cai no
     // ecrã de sempre, que tem os seus próprios botões.
     RolesSummary resumo;
+    TrabalhoPendente pendente;
     try {
       final resultados = await Future.wait<Object>([
         auth.refreshApprovalStatus(),
         RolesService.mySummary(),
+        RolesService.myTrabalhoPendente(),
       ]).timeout(const Duration(seconds: 8));
       resumo = resultados[1] as RolesSummary;
+      pendente = resultados[2] as TrabalhoPendente;
     } catch (_) {
       resumo = RolesSummary.empty();
+      pendente = TrabalhoPendente.nenhum;
     }
     if (!mounted) return;
-    final nova = entradaDoPrestador(resumo);
-    // Uma releitura falhada (ao voltar à app sem rede) não tira ninguém do
-    // ecrã de trabalho em que já estava.
-    if (_entrada != null && nova == EntradaDoPrestador.nenhuma) return;
-    setState(() => _entrada = nova);
+    final leituraFalhou = !resumo.temAlgumPapel;
+    if (!leituraFalhou) _resumo = resumo;
+    final nova = entradaDoPrestador(resumo,
+        ultimoModo: session.ultimoModoTrabalho, pendente: pendente);
+
+    final atual = _entrada;
+    EntradaDoPrestador? escolhida;
+    if (!_decidido) {
+      // Primeira leitura: decide. Uma leitura falhada não tira o estafeta
+      // aprovado do ecrã que já está a ver.
+      if (leituraFalhou && atual != null) {
+        escolhida = atual;
+      } else {
+        escolhida = nova;
+      }
+      _decidido = !leituraFalhou;
+    } else if (atual == null ||
+        atual == EntradaDoPrestador.nenhuma ||
+        (!leituraFalhou && !_papelAprovado(atual))) {
+      // Depois: só se muda quando o ecrã atual deixou de ser válido.
+      escolhida = leituraFalhou ? atual : nova;
+    } else {
+      escolhida = atual;
+    }
+    if (escolhida != _entrada) setState(() => _entrada = escolhida);
+    final modo = escolhida == null ? null : modoDaEntrada(escolhida);
+    if (modo != null) {
+      _modoVisto = modo;
+      await session.setUltimoModoTrabalho(modo);
+    }
   }
 
   @override

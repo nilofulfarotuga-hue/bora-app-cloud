@@ -26,6 +26,7 @@ import '../screens/notifications_screen.dart';
 import '../screens/partner/services/partner_agenda_screen.dart';
 import 'fcm_token_helper.dart';
 import 'offer_presentation_gate.dart';
+import 'oferta_trabalho_aviso.dart';
 import 'push_token_service.dart';
 import 'sound_service.dart';
 
@@ -634,6 +635,16 @@ void _onLocalNotifTap(NotificationResponse response) {
       NotificationService.instance.openPartnerAgendaFromNotification();
       return;
     }
+    // [09/10 · Mayra] Botões Aceitar/Recusar da oferta de limpeza/lavagem. O
+    // Aceitar abre a app e chega aqui; o Recusar normalmente vai pelo isolate
+    // de fundo, mas se o sistema o entregar aqui (app viva) trata-se igual.
+    final categoriaAccao = categoriaDaOfertaDeTrabalho(data['type']?.toString());
+    if (categoriaAccao != null &&
+        (accao == kTrabalhoAceitarAction || accao == kTrabalhoRecusarAction)) {
+      final bookingId = data['bookingId']?.toString() ?? '';
+      unawaited(_entregarAccaoTrabalho(categoriaAccao, bookingId, accao!));
+      return;
+    }
     // Limpeza e lavagem: abrir o ecrã da categoria certa, no trabalho certo.
     const ofertasDeCategoria = <String, String>{
       'cleaning_offer': 'limpeza',
@@ -755,6 +766,27 @@ Future<void> onBackgroundNotificationAction(NotificationResponse response) async
       print('[BORA-TVDE] recusar headless $rpc ride=$rideId ok=$ok');
       return;
     }
+
+    // [09/10 · Mayra] RECUSAR a oferta de limpeza/lavagem sem abrir a app: a
+    // RPC de sempre por HTTP cru; o servidor passa à profissional seguinte.
+    // Marca-se "já respondida" ANTES, para a repetição do minuto seguinte
+    // (cron cleaning-offer-reping) não voltar a tocar neste telemóvel.
+    if (actionId == kTrabalhoRecusarAction) {
+      final categoria = categoriaDaOfertaDeTrabalho(data['type']?.toString());
+      final bookingId = data['bookingId']?.toString() ?? '';
+      if (categoria == null || bookingId.isEmpty) return;
+      await marcarOfertaTrabalhoTratada(bookingId);
+      final ok = await _rpcHeadless(
+          rpcRecusarOfertaDeTrabalho(categoria), {'p_booking_id': bookingId});
+      try {
+        await FlutterLocalNotificationsPlugin().cancel(bookingId.hashCode);
+      } catch (_) {}
+      // ignore: avoid_print
+      print('[BORA-TRABALHO] recusar headless $categoria booking=$bookingId ok=$ok');
+      return;
+    }
+    // Aceitar abre a app (showsUserInterface: true) e é tratado lá.
+    if (actionId == kTrabalhoAceitarAction) return;
 
     final orderId = data['orderId']?.toString() ?? '';
     if (orderId.isEmpty) return;
@@ -1336,6 +1368,44 @@ Future<void> _entregarAccaoTvdeAFrio(String rideId, String accao) async {
   debugPrint('[BORA-TVDE] acção $accao a frio sem gancho — ignorada');
 }
 
+/// [09/10 · Mayra] Toque num push de limpeza/lavagem aberto pelo sistema (iOS
+/// ou Android com o aviso do próprio FCM): abre o trabalho dessa categoria.
+void _abrirTrabalhoDoPush(RemoteMessage msg) {
+  final type = msg.data['type']?.toString();
+  final categoria = categoriaDaOfertaDeTrabalho(type) ??
+      switch (type) {
+        'cleaning_status' => 'limpeza',
+        'carwash_status' => 'lavagem',
+        _ => null,
+      };
+  if (categoria == null) return;
+  NotificationService.trabalhoOfertaReload?.call();
+  NotificationService.abrirTrabalho
+      ?.call(categoria, msg.data['bookingId']?.toString() ?? '');
+}
+
+/// [09/10 · Mayra] Entrega Aceitar/Recusar da oferta de limpeza/lavagem ao
+/// gancho global (`NotificationService.trabalhoOfertaAction`, no main.dart).
+/// Num arranque a frio o gancho pode ainda não existir: espera-se por ele.
+/// A marca "já respondida" fica logo, para a repetição do minuto seguinte
+/// não voltar a tocar enquanto o aceite segue para o servidor.
+bool _accaoTrabalhoAFrioEntregue = false;
+Future<void> _entregarAccaoTrabalho(
+    String categoria, String bookingId, String accao) async {
+  if (bookingId.isEmpty) return;
+  await marcarOfertaTrabalhoTratada(bookingId);
+  for (var tentativa = 0; tentativa < 20; tentativa++) {
+    final gancho = NotificationService.trabalhoOfertaAction;
+    if (gancho != null) {
+      debugPrint('[BORA-TRABALHO] acção $accao $categoria booking=$bookingId');
+      gancho(categoria, bookingId, accao);
+      return;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+  }
+  debugPrint('[BORA-TRABALHO] acção $accao sem gancho — ignorada');
+}
+
 /// As duas acções da notificação de oferta. Pura (sem plugin) para se poder
 /// testar: [reserva] escolhe os ids da reserva agendada.
 List<AndroidNotificationAction> tvdeOfferNotificationActions(
@@ -1540,13 +1610,30 @@ Future<void> _showPersistentCategoryNotification(RemoteMessage message) async {
     case 'cleaning_offer':
     case 'cleaning_status':
       final bookingId = data['bookingId']?.toString() ?? '';
+      // [09/10 · Mayra] O push de oferta é data-only: o texto vem no `data`.
+      final textoLimpeza = textoDoAvisoDeTrabalho(
+        data: data,
+        notifTitle: notif?.title,
+        notifBody: notif?.body,
+        tituloDeRecurso: '🧹 Bora Limpeza',
+      );
+      // A oferta toca como a do estafeta: ecrã inteiro, som em ciclo e os
+      // botões Aceitar/Recusar na própria notificação.
+      if (type == 'cleaning_offer') {
+        await mostrarOfertaDeTrabalho(
+          categoria: 'limpeza',
+          bookingId: bookingId,
+          titulo: textoLimpeza.titulo,
+          corpo: textoLimpeza.corpo,
+        );
+        return;
+      }
       await _showPersistentStatusNotification(
         type: type,
-        title: notif?.title ?? '🧹 Bora Limpeza',
-        body: notif?.body ?? '',
+        title: textoLimpeza.titulo,
+        body: textoLimpeza.corpo,
         notificationId: bookingId.isNotEmpty ? bookingId.hashCode : type.hashCode,
         payload: {'bookingId': bookingId},
-        urgent: type == 'cleaning_offer',
       );
       return;
     // [2026-08-28] A lavagem faltava aqui por inteiro. Sem este ramo o aviso
@@ -1556,13 +1643,29 @@ Future<void> _showPersistentCategoryNotification(RemoteMessage message) async {
     case 'carwash_offer':
     case 'carwash_status':
       final bookingId = data['bookingId']?.toString() ?? '';
+      // [09/10 · 4.C] O `notify-washer` é SEMPRE data-only: lia-se só o
+      // `notification` (nulo) e o aviso chegava sem texto.
+      final textoLavagem = textoDoAvisoDeTrabalho(
+        data: data,
+        notifTitle: notif?.title,
+        notifBody: notif?.body,
+        tituloDeRecurso: '🚿 Bora Lavagem',
+      );
+      if (type == 'carwash_offer') {
+        await mostrarOfertaDeTrabalho(
+          categoria: 'lavagem',
+          bookingId: bookingId,
+          titulo: textoLavagem.titulo,
+          corpo: textoLavagem.corpo,
+        );
+        return;
+      }
       await _showPersistentStatusNotification(
         type: type,
-        title: notif?.title ?? '🚿 Bora Lavagem',
-        body: notif?.body ?? '',
+        title: textoLavagem.titulo,
+        body: textoLavagem.corpo,
         notificationId: bookingId.isNotEmpty ? bookingId.hashCode : type.hashCode,
         payload: {'bookingId': bookingId},
-        urgent: type == 'carwash_offer',
       );
       return;
     case 'tvde_chat':
@@ -1864,6 +1967,17 @@ class NotificationService {
   /// `main.dart` (`tvdeResponderOfertaGlobal`), nunca dentro de um ecrã.
   static void Function(String rideId, String actionId)? tvdeOfferAction;
 
+  /// [09/10 · Mayra] Aceitar/Recusar carregado na notificação de oferta de
+  /// LIMPEZA ou de LAVAGEM. `categoria` = 'limpeza' | 'lavagem'; `accao` =
+  /// [kTrabalhoAceitarAction] | [kTrabalhoRecusarAction]. Registado no
+  /// `main.dart`, ao nível da app (nunca dentro de um ecrã).
+  static void Function(String categoria, String bookingId, String accao)?
+      trabalhoOfertaAction;
+
+  /// [09/10 · Mayra] Push de oferta de limpeza/lavagem com a app aberta:
+  /// manda os stores reler (o cartão global mostra a oferta). No `main.dart`.
+  static VoidCallback? trabalhoOfertaReload;
+
   /// Tocar num aviso de LIMPEZA ou de LAVAGEM abre o ecrã dessa categoria.
   ///
   /// Um gancho só para as duas, com a categoria no argumento — não um por
@@ -2133,6 +2247,26 @@ class NotificationService {
           unawaited(_entregarAccaoTvdeAFrio(
               data['rideId']?.toString() ?? '', accaoFrio));
         }
+        // [09/10 · Mayra] O mesmo para a oferta de limpeza/lavagem: app morta
+        // + Aceitar na notificação → a acção vem só nos launch details.
+        final categoriaFrio =
+            categoriaDaOfertaDeTrabalho(data['type']?.toString());
+        if (accaoFrio != null &&
+            categoriaFrio != null &&
+            (accaoFrio == kTrabalhoAceitarAction ||
+                accaoFrio == kTrabalhoRecusarAction) &&
+            !_accaoTrabalhoAFrioEntregue) {
+          _accaoTrabalhoAFrioEntregue = true;
+          unawaited(_entregarAccaoTrabalho(categoriaFrio,
+              data['bookingId']?.toString() ?? '', accaoFrio));
+        } else if (categoriaFrio != null) {
+          // Toque no corpo do aviso com a app morta: abre o trabalho.
+          final categoria = categoriaFrio;
+          final bookingId = data['bookingId']?.toString() ?? '';
+          unawaited(Future<void>.delayed(const Duration(seconds: 1), () {
+            NotificationService.abrirTrabalho?.call(categoria, bookingId);
+          }));
+        }
         if (data['type'] == 'chat') {
           final orderId = data['orderId']?.toString() ?? '';
           final conv = data['conversation_type']?.toString();
@@ -2325,6 +2459,18 @@ class NotificationService {
       // caíam no catch-all `_sound.playOnce()` — em foreground o utilizador
       // só ouvia um beep e nunca via nada (a msg.notification do FCM não é
       // auto-exibida pelo sistema quando a app está aberta).
+      // [09/10 · Mayra] Oferta de limpeza/lavagem com a app ABERTA: o cartão
+      // global (`TrabalhoOfertaOverlayHost`) mostra-a em ecrã inteiro com som
+      // em ciclo — não se põe também a notificação insistente (som a dobrar).
+      // Manda-se só reler o store. Na web e com a app em segundo plano a
+      // notificação continua a ser posta (abaixo / isolate de fundo).
+      if (categoriaDaOfertaDeTrabalho(type?.toString()) != null &&
+          (kIsWeb ||
+              WidgetsBinding.instance.lifecycleState ==
+                  AppLifecycleState.resumed)) {
+        trabalhoOfertaReload?.call();
+        return;
+      }
       if (_kPersistentCategoryTypes.contains(type)) {
         unawaited(_showPersistentCategoryNotification(msg));
         return;
@@ -2336,6 +2482,9 @@ class NotificationService {
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage msg) {
       debugPrint('[NotificationService opened] ${msg.notification?.title}');
       if (msg.data['type'] == 'new_tvde_ride_offer') tvdeOfferReload?.call();
+      // [09/10 · Mayra] iPhone: tocar no aviso de limpeza/lavagem (o iOS mostra
+      // o alerta do APNs sozinho) abre o trabalho e relê a oferta.
+      _abrirTrabalhoDoPush(msg);
     });
 
     // Notification tap while app was terminated.
@@ -2353,6 +2502,7 @@ class NotificationService {
       if (initial.data['type'] == 'new_tvde_ride_offer') {
         tvdeOfferReload?.call();
       }
+      _abrirTrabalhoDoPush(initial);
     }).catchError((Object e) =>
         debugPrint('[NotificationService] getInitialMessage failed: $e')));
 

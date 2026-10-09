@@ -28,6 +28,7 @@ import 'services/retoma_pagamento_web.dart';
 import 'services/tvde_reservation_ready_handler.dart';
 import 'services/tvde_offer_action_handler.dart';
 import 'widgets/tvde/tvde_offer_overlay_host.dart';
+import 'widgets/trabalho_oferta_overlay_host.dart';
 import 'services/offer_presentation_gate.dart';
 // Sessão 2026-05-21 — overlay system_alert_window. O import garante que o
 // `@pragma('vm:entry-point') void overlayMain()` ali declarado fica vivo no
@@ -522,6 +523,14 @@ Future<void> main() async {
     ));
   };
 
+  // [09/10 · Mayra] Oferta de LIMPEZA/LAVAGEM: Aceitar/Recusar carregado na
+  // notificação, e o push com a app aberta a pedir releitura. Ao nível da
+  // app, pela mesma razão dos ganchos acima.
+  NotificationService.trabalhoOfertaAction = (categoria, bookingId, accao) {
+    unawaited(responderOfertaDeTrabalhoGlobal(categoria, bookingId, accao));
+  };
+  NotificationService.trabalhoOfertaReload = releituraDasOfertasDeTrabalho;
+
   // [Fecho semanal 2026-09-07] Tocar no aviso do painel abre o ecrã certo, no
   // assunto certo — um toque, sem procurar nada. Mesmo sítio e mesma razão do
   // gancho acima: ao nível da app, para não ficar a null com um ecrã por cima.
@@ -953,10 +962,16 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         // de QUALQUER ecrã — corrida activa, chat, agenda, ganhos, entregas,
         // outro papel. Foi a falta disto que deixou o Danilo sem cartão a
         // 20/09, com a oferta da reserva a tocar e o ecrã da corrida por cima.
+        // [09/10 · Mayra] `TrabalhoOfertaOverlayHost`: a oferta de LIMPEZA e
+        // de LAVAGEM em ecrã inteiro, com som em ciclo, por cima de qualquer
+        // ecrã e de qualquer papel — o mesmo princípio da oferta TVDE.
         builder: (context, child) => KeyedSubtree(
           key: ValueKey<AppLang>(BoraLang.current),
           child: TvdeOfferOverlayHost(
-            child: child ?? const SizedBox.shrink(),
+            child: TrabalhoOfertaOverlayHost(
+              key: trabalhoOfertaHostKey,
+              child: child ?? const SizedBox.shrink(),
+            ),
           ),
         ),
         navigatorObservers: [routeObserver, crashRouteObserver],
@@ -1340,10 +1355,15 @@ class _RootNavigator extends StatelessWidget {
           }
           // PORTÃO POR PAPEL (02/10/2026): perfil de estafeta por aprovar não
           // prende quem já tem a limpeza ou a lavagem aprovada.
-          if (auth.currentDriverStatus != DriverStatus.approved) {
-            return PortaoDoPrestador(semOutroPapel: estafeta);
-          }
-          return estafeta;
+          // [09/10 · Mayra] E quem tem vários papéis aprovados entra no papel
+          // com trabalho à espera ou no ÚLTIMO modo usado — por isso o portão
+          // passa a envolver também o estafeta aprovado (abre já no modo
+          // guardado, sem roda; ver PortaoDoPrestador).
+          return PortaoDoPrestador(
+            semOutroPapel: estafeta,
+            estafetaAprovado:
+                auth.currentDriverStatus == DriverStatus.approved,
+          );
         }
         return const DriverLoginScreen();
 

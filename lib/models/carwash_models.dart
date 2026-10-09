@@ -257,6 +257,10 @@ class CarwashBooking {
 
   final int? rating;
 
+  /// Até quando a oferta espera pelo lavador (null = sem oferta ou sem prazo).
+  /// [09/10] O cartão global da oferta usa-o para contar e fechar sozinho.
+  final DateTime? offerExpiresAt;
+
   const CarwashBooking({
     required this.id,
     required this.clientUserId,
@@ -292,6 +296,7 @@ class CarwashBooking {
     required this.deliveredAt,
     required this.createdAt,
     required this.rating,
+    this.offerExpiresAt,
   });
 
   double get totalEur => totalCents / 100.0;
@@ -353,6 +358,7 @@ class CarwashBooking {
         deliveredAt: _dt(m['delivered_at']),
         createdAt: _dt(m['created_at']) ?? DateTime.now(),
         rating: (m['rating'] as num?)?.toInt(),
+        offerExpiresAt: _dt(m['offer_expires_at']),
       );
 }
 

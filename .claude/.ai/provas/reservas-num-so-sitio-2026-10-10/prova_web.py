@@ -138,7 +138,9 @@ def main():
             return route.continue_()
         url = route.request.url
         # A retoma da corrida viva pede status=in.(...) — nunca lhe dar nada.
-        if nome == "tvde_rides" and ("status=in." in url or "id=eq." in url):
+        # ("?id=eq."/"&id=eq." — "client_id=eq." não conta.)
+        if nome == "tvde_rides" and ("status=in." in url or "?id=eq." in url
+                                     or "&id=eq." in url):
             return route.fulfill(status=200, json=[])
         intercetadas.append(nome)
         return route.fulfill(status=200, json=dados)

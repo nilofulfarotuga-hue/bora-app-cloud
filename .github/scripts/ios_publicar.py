@@ -42,8 +42,12 @@ NOTAS = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                      "..", "..", "ios", "notas_de_versao.json")
 
 # Estados em que a versao ainda se pode editar/submeter.
+# READY_FOR_REVIEW (10/10/2026): a versao ja esta numa submissao aberta mas o
+# "Submeter" nao chegou a passar (corrida 177: 500 da Apple). Sem este estado
+# aqui, a corrida seguinte tentava criar a versao +1 e a Apple dava 409 ("You
+# cannot create a new version of the App in the current state") - corrida 178.
 EDITAVEL = {"PREPARE_FOR_SUBMISSION", "DEVELOPER_REJECTED", "REJECTED",
-            "METADATA_REJECTED", "INVALID_BINARY"}
+            "METADATA_REJECTED", "INVALID_BINARY", "READY_FOR_REVIEW"}
 # Estados em que ja ha uma versao entregue a Apple e nao se pode submeter outra.
 EM_ANALISE = {"WAITING_FOR_REVIEW", "IN_REVIEW", "PENDING_DEVELOPER_RELEASE",
               "PROCESSING_FOR_APP_STORE", "PENDING_APPLE_RELEASE"}
@@ -174,6 +178,11 @@ def versao_alvo():
 
 # -- 3. lancamento automatico ----------------------------------------------
 def por_automatica(vid):
+    c, j = get("/v1/appStoreVersions/" + vid,
+               **{"fields[appStoreVersions]": "releaseType"})
+    if (j.get("data") or {}).get("attributes", {}).get("releaseType") == "AFTER_APPROVAL":
+        print("releaseType ja e AFTER_APPROVAL")
+        return
     c, j = patch("/v1/appStoreVersions/" + vid,
                  {"type": "appStoreVersions", "id": vid,
                   "attributes": {"releaseType": "AFTER_APPROVAL"}})
@@ -189,9 +198,32 @@ def por_automatica(vid):
 
 
 # -- 4. ligar a build ------------------------------------------------------
+def tirar_da_submissao_aberta(vid):
+    """(10/10) A versao ficou numa submissao que nao chegou a ser enviada:
+    tira-se o item dela para a versao voltar a ser editavel. A submissao fica
+    aberta e o submeter() volta a usa-la."""
+    c, j = get("/v1/reviewSubmissions", **{"filter[app]": APP,
+                                           "filter[state]": "READY_FOR_REVIEW",
+                                           "fields[reviewSubmissions]": "state"})
+    for s in (j.get("data") or []) if c == 200 else []:
+        c2, j2 = get("/v1/reviewSubmissions/%s/items" % s["id"],
+                     **{"include": "appStoreVersion"})
+        for it in j2.get("data", []) if c2 == 200 else []:
+            alvo = ((it.get("relationships") or {}).get("appStoreVersion") or {}).get("data") or {}
+            if alvo.get("id") == vid:
+                r = requests.delete(BASE + "/v1/reviewSubmissionItems/" + it["id"],
+                                    headers=_h(), timeout=60)
+                print("tirei a versao da submissao %s (%s)" % (s["id"], r.status_code))
+                return r.status_code < 300
+    return False
+
+
 def ligar_build(vid, bid):
     c, j = patch("/v1/appStoreVersions/%s/relationships/build" % vid,
                  {"type": "builds", "id": bid})
+    if c >= 300 and tirar_da_submissao_aberta(vid):
+        c, j = patch("/v1/appStoreVersions/%s/relationships/build" % vid,
+                     {"type": "builds", "id": bid})
     if c >= 300:
         morre("nao consegui ligar a build (%s): %s" % (c, erro_apple(j)))
     c, j = get("/v1/appStoreVersions/%s/build" % vid, **{"fields[builds]": "version"})

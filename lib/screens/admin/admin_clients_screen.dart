@@ -10,6 +10,7 @@ import '../../services/admin_export_service.dart';
 import '../../widgets/admin/admin_user_roles_sheet.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '_admin_password_reset_dialog.dart';
+import 'admin_cliente_reservas_screen.dart';
 
 class AdminClientsScreen extends StatefulWidget {
   const AdminClientsScreen({super.key});
@@ -805,6 +806,21 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
                                 onSelected: (action) {
                                   if (action == 'edit_contact') _editarContato(c);
                                   if (action == 'history') _showHistory(c);
+                                  if (action == 'reservas') {
+                                    // 10/10/2026: mesas, corridas marcadas,
+                                    // limpezas e marcações deste cliente.
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            AdminClienteReservasScreen(
+                                          userId: c['user_id'] as String,
+                                          email: c['email']?.toString(),
+                                          nome: c['name']?.toString(),
+                                        ),
+                                      ),
+                                    );
+                                  }
                                   if (action == 'roles') {
                                     // MULTI-PAPEL: ver/adicionar/remover papéis.
                                     showAdminUserRolesSheet(
@@ -833,6 +849,10 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
                                       value: 'edit_contact',
                                       child: Text('Editar nome e telefone')),
                                   const PopupMenuItem(value: 'history', child: Text('Histórico')),
+                                  const PopupMenuItem(
+                                      value: 'reservas',
+                                      child: Text(
+                                          'Reservas (mesas, corridas, limpezas, marcações)')),
                                   const PopupMenuItem(
                                       value: 'roles',
                                       child: Text('Papéis do usuário')),

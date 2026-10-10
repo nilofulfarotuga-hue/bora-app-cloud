@@ -21,7 +21,11 @@ import '../../widgets/admin/admin_csv_button.dart';
 /// (espelha `admin_reservations_screen.dart`). Cancelar em nome do cliente
 /// via RPC `admin_cancel_appointment_on_behalf_of`. PT-BR.
 class AdminAppointmentsScreen extends StatefulWidget {
-  const AdminAppointmentsScreen({super.key});
+  const AdminAppointmentsScreen({super.key, this.pesquisaInicial});
+
+  /// Nome ou telefone do cliente já posto no filtro (vindo da ficha
+  /// "Reservas" do cliente).
+  final String? pesquisaInicial;
 
   @override
   State<AdminAppointmentsScreen> createState() =>
@@ -51,6 +55,8 @@ class _AdminAppointmentsScreenState extends State<AdminAppointmentsScreen> {
   @override
   void initState() {
     super.initState();
+    _clientQuery = widget.pesquisaInicial ?? '';
+    _clientQueryController.text = _clientQuery;
     _future = _load();
   }
 

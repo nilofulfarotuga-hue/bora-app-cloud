@@ -897,6 +897,12 @@ class TvdeStore extends ChangeNotifier {
     }
   }
 
+  /// A última leitura de [loadMyReservations] falhou (a lista é a anterior,
+  /// possivelmente velha). O separador Reserva usa isto para avisar e para
+  /// preferir a cópia do histórico.
+  bool _myReservationsFailed = false;
+  bool get myReservationsFailed => _myReservationsFailed;
+
   /// Carrega as reservas do cliente com hora no futuro.
   Future<void> loadMyReservations() async {
     final uid = _uid;
@@ -912,9 +918,11 @@ class TvdeStore extends ChangeNotifier {
       _reservations = (rows as List)
           .map((r) => TvdeRide.fromMap(Map<String, dynamic>.from(r as Map)))
           .toList();
+      _myReservationsFailed = false;
       notifyListeners();
     } catch (e) {
       debugPrint('TvdeStore.loadMyReservations error => $e');
+      _myReservationsFailed = true;
     }
   }
 

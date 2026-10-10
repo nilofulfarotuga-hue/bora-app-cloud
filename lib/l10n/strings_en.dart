@@ -16,6 +16,51 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 10/10/2026: separador Reserva com tudo o que o cliente marcou
+  // (tool/l10n/traducoes/pt-en-13-reservas-num-so-sitio.json).
+  '1 pessoa': '1 person',
+  '{0} pessoas': '{0} people',
+  'A aguardar confirmação': 'Awaiting confirmation',
+  'A aguardar pagamento': 'Awaiting payment',
+  'A caminho': 'On the way',
+  'Agendada': 'Scheduled',
+  'Ainda não tens nada marcado': 'You have nothing booked yet',
+  'Ainda não tens nada no histórico': 'Nothing in your history yet',
+  'Hoje às {0}': 'Today at {0}',
+  'Amanhã às {0}': 'Tomorrow at {0}',
+  'Ontem às {0}': 'Yesterday at {0}',
+  '{0} às {1}': '{0} at {1}',
+  'Concluída — confirma': 'Done — please confirm',
+  'Corrida marcada': 'Scheduled ride',
+  'Corrida marcada!': 'Ride booked!',
+  'De {0}': 'From {0}',
+  'Para {0}': 'To {0}',
+  'Em curso': 'In progress',
+  'Fica guardada no separador Reserva, em baixo.':
+      'It is kept in the Reserva tab, at the bottom.',
+  'Incluída no pacote ida e volta': 'Included in the round-trip package',
+  'Limpeza': 'Cleaning',
+  'Limpeza marcada!': 'Cleaning booked!',
+  'Marcação': 'Appointment',
+  'Mesa': 'Table',
+  'Mesas, corridas para mais tarde, limpezas e marcações aparecem todas aqui.':
+      'Tables, rides for later, cleanings and appointments all show up here.',
+  'Motorista confirmado': 'Driver confirmed',
+  'Nada cancelado': 'Nothing cancelled',
+  'Não conseguimos carregar: {0}. Puxa para baixo para tentar de novo.':
+      "We couldn't load: {0}. Pull down to try again.",
+  'Pagas em dinheiro': 'You pay in cash',
+  'Pagas em dinheiro ao motorista': 'You pay the driver in cash',
+  'Por pagar': 'Not paid yet',
+  'Sem motoristas disponíveis': 'No drivers available',
+  'Sem pagamento antecipado': 'No prepayment',
+  'Sem profissional disponível': 'No professional available',
+  'Ver nas minhas reservas': 'See in my bookings',
+  'À procura de motorista': 'Looking for a driver',
+  'mesas': 'tables',
+  'corridas': 'rides',
+  'limpezas': 'cleanings',
+  'marcações': 'appointments',
   // 08/10/2026: Favor de farmácia (receita por foto) e paragem em casa.
   'Não é permitido pedir itens ilegais ou armas.\nMedicamento com receita? Junta uma foto da receita — não é preciso o estafeta passar em tua casa.':
       'Ordering illegal items or weapons is not allowed.\nPrescription medicine? Attach a photo of the prescription — the courier doesn\'t need to stop at your place.',

@@ -9,6 +9,7 @@ import '../../../models/cleaning_models.dart';
 import '../../../stores/cleaning_store.dart';
 import '../../../widgets/bora/bora.dart';
 import '../../../widgets/cleaning_chat_button.dart';
+import '../../../widgets/ver_nas_minhas_reservas.dart';
 import 'cleaning_payment_flow.dart';
 
 import '../../../l10n/tr.dart';
@@ -17,9 +18,17 @@ import '../../../l10n/tr.dart';
 /// Timeline de estados + detalhes + ações do cliente (cancelar / confirmar /
 /// avaliar). As transições são todas RPCs; aqui só se reage.
 class CleaningTrackingScreen extends StatefulWidget {
-  const CleaningTrackingScreen({super.key, required this.booking});
+  const CleaningTrackingScreen({
+    super.key,
+    required this.booking,
+    this.acabadaDeMarcar = false,
+  });
 
   final CleaningBooking booking;
+
+  /// Aberto logo a seguir a marcar: mostra a faixa "Limpeza marcada" com o
+  /// botão para o separador Reservas (10/10/2026).
+  final bool acabadaDeMarcar;
 
   @override
   State<CleaningTrackingScreen> createState() => _CleaningTrackingScreenState();
@@ -358,6 +367,10 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (widget.acabadaDeMarcar && !b.status.isCancelled) ...[
+              ReservaMarcadaFaixa(titulo: 'Limpeza marcada!'.tr),
+              const SizedBox(height: Spacing.lg),
+            ],
             if (b.status.isCancelled)
               _CancelledBanner(booking: b)
             else

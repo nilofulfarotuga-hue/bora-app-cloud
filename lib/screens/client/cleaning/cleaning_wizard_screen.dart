@@ -261,7 +261,8 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-            builder: (_) => CleaningTrackingScreen(booking: booking)),
+            builder: (_) => CleaningTrackingScreen(
+                booking: booking, acabadaDeMarcar: true)),
       );
     } catch (e) {
       final msg = e.toString();

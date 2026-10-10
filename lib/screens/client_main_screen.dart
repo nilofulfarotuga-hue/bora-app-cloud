@@ -24,6 +24,18 @@ import 'profile_screen.dart';
 class ClientMainScreen extends StatefulWidget {
   const ClientMainScreen({super.key});
 
+  /// Separador pedido por um ecrã empilhado por cima da home (ex.: "Ver nas
+  /// minhas reservas" no fim de uma marcação). Consome-se e volta a nulo.
+  static final ValueNotifier<BoraNavTab?> separadorPedido =
+      ValueNotifier<BoraNavTab?>(null);
+
+  /// Fecha tudo o que está por cima da home e mostra o separador [tab].
+  static void abrirSeparador(BuildContext context, BoraNavTab tab) {
+    separadorPedido.value = tab;
+    if (tab == BoraNavTab.reservation) ClientReservationsScreen.pedirRecarga();
+    Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
   @override
   State<ClientMainScreen> createState() => _ClientMainScreenState();
 }
@@ -31,9 +43,30 @@ class ClientMainScreen extends StatefulWidget {
 class _ClientMainScreenState extends State<ClientMainScreen> {
   BoraNavTab _currentTab = BoraNavTab.home;
 
+  void _aplicarSeparadorPedido() {
+    final tab = ClientMainScreen.separadorPedido.value;
+    if (tab == null) return;
+    ClientMainScreen.separadorPedido.value = null;
+    if (!mounted) return;
+    setState(() => _currentTab = tab);
+  }
+
+  @override
+  void dispose() {
+    ClientMainScreen.separadorPedido.removeListener(_aplicarSeparadorPedido);
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
+    // Pedido feito antes de este ecrã existir: aplica-se já, sem setState.
+    final pedido = ClientMainScreen.separadorPedido.value;
+    if (pedido != null) {
+      _currentTab = pedido;
+      ClientMainScreen.separadorPedido.value = null;
+    }
+    ClientMainScreen.separadorPedido.addListener(_aplicarSeparadorPedido);
     // Quem chegou de fora a uma ficha (site, QR, WhatsApp) e teve de se
     // registar para marcar: o registo termina com popUntil(isFirst), portanto
     // a ficha desapareceu da pilha. Volta-se a ela aqui, mal a home aparece —
@@ -81,12 +114,6 @@ class _ClientMainScreenState extends State<ClientMainScreen> {
   /// Prevents re-navigation on every rebuild after the user presses back.
   final Set<String> _navigatedOrderIds = {};
 
-  final List<Widget> _screens = const [
-    ClientHomeScreen(),
-    OrdersScreen(),
-    ClientReservationsScreen(),
-    ProfileScreen(),
-  ];
 
   OrderModel? _findActiveOrder(List<OrderModel> orders) {
     for (final o in orders) {
@@ -121,7 +148,14 @@ class _ClientMainScreenState extends State<ClientMainScreen> {
     }
 
     return Scaffold(
-      body: IndexedStack(index: _currentTab.index, children: _screens),
+      body: IndexedStack(index: _currentTab.index, children: [
+        const ClientHomeScreen(),
+        const OrdersScreen(),
+        // Recarrega de cada vez que a pessoa abre o separador.
+        ClientReservationsScreen(
+            ativo: _currentTab == BoraNavTab.reservation),
+        const ProfileScreen(),
+      ]),
       bottomNavigationBar: BoraBottomNavV2(
         current: _currentTab,
         onTabChanged: (tab) => setState(() => _currentTab = tab),

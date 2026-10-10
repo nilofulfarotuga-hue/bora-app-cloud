@@ -5,6 +5,7 @@ import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../models/tvde_ride.dart';
 import '../../../stores/tvde_store.dart';
+import '../../../widgets/ver_nas_minhas_reservas.dart';
 
 import '../../../l10n/tr.dart';
 
@@ -15,7 +16,11 @@ import '../../../l10n/tr.dart';
 /// dos lembretes e do re-despacho é o cron `tvde-reservations-sweep`. Aqui só
 /// se mostra o que está na linha e se deixa cancelar.
 class TvdeMyReservationsScreen extends StatefulWidget {
-  const TvdeMyReservationsScreen({super.key});
+  const TvdeMyReservationsScreen({super.key, this.acabadaDeMarcar = false});
+
+  /// Aberto logo a seguir a marcar: mostra a faixa "Corrida marcada" com o
+  /// botão para o separador Reservas (10/10/2026).
+  final bool acabadaDeMarcar;
 
   @override
   State<TvdeMyReservationsScreen> createState() =>
@@ -122,9 +127,7 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
     final store = context.watch<TvdeStore>();
     final reservas = store.reservations;
 
-    return Scaffold(
-      appBar: AppBar(title: Text('As minhas reservas'.tr)),
-      body: _aCarregar
+    final Widget lista = _aCarregar
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _carregar,
@@ -163,7 +166,22 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
                           const SizedBox(height: Spacing.md),
                       itemBuilder: (_, i) => _cartao(reservas[i], reservas),
                     ),
-            ),
+            );
+
+    return Scaffold(
+      appBar: AppBar(title: Text('As minhas reservas'.tr)),
+      body: widget.acabadaDeMarcar
+          ? Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                      Spacing.lg, Spacing.lg, Spacing.lg, 0),
+                  child: ReservaMarcadaFaixa(titulo: 'Corrida marcada!'.tr),
+                ),
+                Expanded(child: lista),
+              ],
+            )
+          : lista,
     );
   }
 

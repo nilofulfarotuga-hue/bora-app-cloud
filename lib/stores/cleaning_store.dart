@@ -175,6 +175,11 @@ class CleaningStore extends ChangeNotifier {
     }
   }
 
+  /// A última leitura de [loadMyBookings] falhou (a lista é a anterior).
+  /// O separador Reserva usa isto para avisar em vez de dizer "nada marcado".
+  bool _myBookingsFailed = false;
+  bool get myBookingsFailed => _myBookingsFailed;
+
   /// Carrega as reservas do cliente (ativas + histórico, mais recentes primeiro).
   Future<void> loadMyBookings() async {
     final uid = _uid;
@@ -188,9 +193,11 @@ class CleaningStore extends ChangeNotifier {
           .limit(50);
       _bookings =
           rows.map<CleaningBooking>(CleaningBooking.fromSupabase).toList();
+      _myBookingsFailed = false;
       notifyListeners();
     } catch (e) {
       debugPrint('CleaningStore.loadMyBookings error => $e');
+      _myBookingsFailed = true;
     }
   }
 

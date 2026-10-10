@@ -11,7 +11,11 @@ import '../../utils/hora_lisboa_ext.dart';
 /// Filtros por estado/pesquisa, cancelar (admin_cancel_cleaning) e
 /// reagendar (admin_reschedule_cleaning). Idioma: PT-BR.
 class AdminCleaningBookingsScreen extends StatefulWidget {
-  const AdminCleaningBookingsScreen({super.key});
+  const AdminCleaningBookingsScreen({super.key, this.pesquisaInicial});
+
+  /// Texto já posto na pesquisa (ex.: o email do cliente, vindo da ficha
+  /// "Reservas" do cliente).
+  final String? pesquisaInicial;
 
   @override
   State<AdminCleaningBookingsScreen> createState() =>
@@ -40,6 +44,7 @@ class _AdminCleaningBookingsScreenState
   @override
   void initState() {
     super.initState();
+    _searchCtrl.text = widget.pesquisaInicial ?? '';
     _future = _load();
   }
 

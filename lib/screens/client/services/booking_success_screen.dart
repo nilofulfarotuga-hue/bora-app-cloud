@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
-import '../../../widgets/bora/bora_primary_button.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
-import 'my_appointments_screen.dart';
+import '../../../widgets/ver_nas_minhas_reservas.dart';
 
 import '../../../l10n/tr.dart';
 
@@ -76,18 +75,10 @@ class BookingSuccessScreen extends StatelessWidget {
                     fontSize: 13, color: AppColors.textSubtle),
               ),
               const Spacer(),
-              BoraPrimaryButton(
-                label: 'Ver as minhas marcações'.tr,
-                icon: Icons.event_note,
-                onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const MyAppointmentsScreen(),
-                    ),
-                  );
-                },
-              ),
+              // 10/10/2026: leva ao separador Reservas, onde a marcação fica
+              // junto das corridas, limpezas e mesas — era aí que o cliente a
+              // procurava e não a via.
+              const VerNasMinhasReservas(),
               const SizedBox(height: Spacing.sm),
               TextButton(
                 onPressed: () =>

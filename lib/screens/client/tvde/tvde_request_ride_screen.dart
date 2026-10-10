@@ -849,13 +849,16 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
   void _reservaMarcada(String msg) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(msg)));
-    _abrirReservas();
+    // 10/10: com a faixa "Corrida marcada" e o botão para o separador Reservas.
+    _abrirReservas(acabadaDeMarcar: true);
   }
 
-  void _abrirReservas() {
+  void _abrirReservas({bool acabadaDeMarcar = false}) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const TvdeMyReservationsScreen()),
+      MaterialPageRoute(
+          builder: (_) =>
+              TvdeMyReservationsScreen(acabadaDeMarcar: acabadaDeMarcar)),
     );
   }
 

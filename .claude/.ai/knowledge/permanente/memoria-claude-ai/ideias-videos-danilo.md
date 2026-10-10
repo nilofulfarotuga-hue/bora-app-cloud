@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-09
+ultima_confirmacao: 2026-10-10
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-09T19:54:27.951658+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-10T19:54:05.550034+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -89,3 +89,16 @@ REGRA (Danilo, 01/10/2026): tudo o que ele mandar (vídeos, transcrições, link
 - BORA / EM DIA: carrosséis modelados na estrutura de posts do nicho com mais de 1.000 gostos (Canva). https://www.youtube.com/watch?v=AO0-hZYnMWQ
 - JÁ TEMOS: Claude Code com CLAUDE.md/skills, Jev (fila), perfil como página de vendas, gancho de 3 s, Higgsfield/personagem fixo, ar de conversa real (conteúdo 100% IA perde alcance).
 - RECUSADO: clonar apps com IA sem censura (jailbreak), API "Opus/GPT grátis ilimitado" da Codecraft, análise de ações AppLovin, planilha genérica.
+
+## 10/10/2026 — radar diário
+27 vídeos revistos: 8 novos, 13 já temos, 6 rejeitados (1 por nota baixa). Nenhum do tema animacao_ia.
+- DINHEIRO / caça-clientes: alvo = negócios da Guarda sem site ou com presença digital fraca, com nome, telefone e decisor; pôr esta lógica no agente caça-clientes. A ferramenta AIsa (Claude por MCP) só se não pedir chave paga nova. https://www.youtube.com/watch?v=S0QstK06VQg
+- EM DIA: novidade 2026 do Portal das Finanças — a fatura-recibo calcula o valor com ou sem IVA incluído; tema de reel + ajuda na app para escolher isenção art. 53 (IVA) / art. 101-B (IRS). https://www.youtube.com/watch?v=WKQsQgMMDrI
+- EM DIA: lembrete para emitir o recibo logo depois de receber e simulador de retenção/IVA contra a surpresa de abril; conteúdo em inglês para estrangeiros a trabalhar em PT. https://www.youtube.com/watch?v=78QYj9IgocI
+- EM DIA: conteúdo para grupos de brasileiros em PT — recibos verdes como prova de rendimento para visto D7/D8 e pasta organizada (contratos, faturas, extratos). https://www.youtube.com/watch?v=MHqC9wMm7pI
+- EM DIA: testar 2 versões da ficha na loja e do ecrã de assinatura; o orgânico tem teto. https://www.youtube.com/watch?v=flZSSe5gr34
+- CARROSSÉIS (Em Dia/Bora): o 2.º slide é o que o Instagram mostra na segunda passagem, tem de valer sozinho; testar formato de 2 slides problema→solução. https://www.youtube.com/watch?v=KTyPBkATqAk
+- REELS EM DIA: roteiro em 4 fases — calma, desastre de repente (erro no recibo/multa), resolução calma com a app, fecho limpo. https://www.youtube.com/watch?v=ME6SYONvBkY
+- FILME: Google Flow com ferramenta que parte o roteiro em cenas de 10 s e gera em sequência com o mesmo visual (ver caminhos-animacao-filme). https://www.youtube.com/watch?v=Zi4UDsCGtOE
+- JÁ TEMOS: Higgsfield ads/UGC (Buzzy MCP não acrescenta), mods do Claude Code, plan mode/spec.md, gancho de 3 s, ar de conversa real, Google Flow, motion control.
+- RECUSADO: ponte "GPT-6.1/Codex grátis ilimitado" de terceiros (risco de conta), remisturar/republicar posts e vídeos virais alheios, páginas de curiosidades para monetizar, influencer IA com histórico falso.

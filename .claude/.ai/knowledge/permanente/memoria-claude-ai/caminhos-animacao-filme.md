@@ -2,7 +2,7 @@
 id: memoria-claude-ai-caminhos-animacao-filme
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-08
+ultima_confirmacao: 2026-10-10
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Filme das filhas — 5 caminhos grátis para o desenho (revisto 05/10 com os 50 vídeos)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-08T19:54:35.644338+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-10T19:54:05.550034+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: caminhos animacao filme · memoria claude.ai · claude_ai_memoria
 
@@ -37,3 +37,6 @@ Ordem recomendada: 2 (bíblia) → 1 (personagens fixos) → 3 (vozes) → 4 (bo
 - REFORÇO do caminho 4 (boca sincronizada), ataca a voz trocada: o Google Flow (modelo Omniflash 1.1) já aceita subir a IMAGEM da personagem + um FICHEIRO DE ÁUDIO e sincroniza os lábios com esse áudio; dá para juntar texto com movimento e cenário. Assim cada personagem fala sempre com a voz fixa gerada no caminho 3, em vez de o Flow inventar a voz. Custo: créditos do Flow (já incluído no Google AI Plus). https://www.youtube.com/watch?v=htROyMzUbA8
 - RESERVA do caminho 4 quando acabarem os créditos do Flow: MuseTalk ou Wav2Lip num notebook grátis (Colab ou o Kaggle que já temos); limpar o áudio antes (tirar ruído) e processar por blocos curtos (fala a fala). Grátis. https://www.youtube.com/watch?v=rxZZ1xi81a4
 - Rejeitados hoje para o filme: ComfyUI/RunPod (pago), ComfyUI no Colab (clipes 3-5 s, mesma deriva do Kaggle), Wan 2.2 Animate (GPU 12 GB), ferramenta de vídeo longo da Meta só nos EUA (pede VPN e cartão/verificação).
+
+## 10/10/2026 — radar diário (vídeo fora do tema animacao_ia)
+- DURAÇÃO DO EPISÓDIO: no Google Flow dá para criar uma ferramenta própria com um prompt que parte o roteiro em cenas de 10 s, gera-as em sequência e junta-as num vídeo só, mantendo o visual (modelo indicado no vídeo: OmniFlash 1.1). Encaixa nos caminhos 1 e 2: a bíblia de continuidade escreve o roteiro por cenas e o Flow gera em lote em vez de clipe a clipe. Custo: créditos do Flow (Google AI Plus); ignorar a dica do vídeo de comprar créditos baratos. https://www.youtube.com/watch?v=Zi4UDsCGtOE

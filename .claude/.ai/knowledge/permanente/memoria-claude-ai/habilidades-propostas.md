@@ -14,6 +14,37 @@ estado: atual
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: habilidades propostas · memoria claude.ai · claude_ai_memoria
 
+PROPOSTAS DO VIGIA 2026-10-09 23:30 (nao ativadas: tocam dinheiro, dispatch, wallet, RLS ou publicacao; quem decide e a Claude.ai)
+
+### criar bora-tranca-bloqueio-migration — Tranca bloqueia migration que toca tokens/wallet/pagamentos/ledger
+Falas: erro repetido (2x em 2 sessoes/2 dias): <tool_use_error>bora-tranca: BLOQUEADO Write — migration que toca tokens/wallet/pagamentos/ledger. Não contornes: reporta no e2e_log e ao Danilo.
+Descricao proposta: Usa SEMPRE que um Write/Edit for recusado com 'bora-tranca: BLOQUEADO Write — migration que toca tokens/wallet/pagamentos/ledger'. Visto 2x em 2 sessões/2 dias (outubro 2026). NÃO contornes (nada de outro caminho, outro ficheiro, bash, heredoc ou renomear). Reporta no e2e_log, propõe com cortex_propor e segue com o resto do trabalho que não depende dessa escrita.
+Corpo proposto:
+# Tranca bloqueou uma migration de dinheiro
+
+## Origem
+Erro repetido em 2 sessões de 2 dias distintos (detetado pelo vigia, 09/10/2026):
+`bora-tranca: BLOQUEADO Write — migration que toca tokens/wallet/pagamentos/ledger. Não contornes: reporta no e2e_log e ao Danilo.`
+
+A tranca é uma trava de segurança de propósito. Não é um erro a resolver. As zonas protegidas (bora_tokens, wallets, ledger, pagamentos, RLS) só mudam com ordem explícita.
+
+## O que fazer
+1. Para. Não repitas o Write idêntico e não tentes outro caminho (Bash, outro ficheiro, outro nome, ctx_execute).
+2. Regista no e2e_log: o que ias escrever, o ficheiro e o motivo. Confirma por SELECT que a linha ficou gravada.
+3. Propõe a mudança com `cortex_propor` (texto da migration no corpo). Não a apliques.
+4. Continua com as tarefas que não dependem dessa escrita.
+5. No relatório final, em ficheiro, escreve numa linha: o que foi bloqueado, a prova (o erro literal) e que ficou pendente.
+
+## O que NÃO fazer
+- Contornar a tranca.
+- Pedir ao Danilo para fazer a migration à mão.
+- Dar o trabalho por feito sem a escrita ter acontecido.
+
+## Quando o Danilo der ordem explícita
+Só então se avança, pelo caminho que a ordem indicar, com backup antes e prova por SELECT depois.
+
+
+---- anteriores ----
 PROPOSTAS DO VIGIA 2026-09-28 23:30 (nao ativadas: tocam dinheiro, dispatch, wallet, RLS ou publicacao; quem decide e a Claude.ai)
 
 ### criar emdia-planos-a-venda-nao — Em Dia com planos_a_venda='nao': proibido linguagem de período grátis/teste e proibido aplicar limites

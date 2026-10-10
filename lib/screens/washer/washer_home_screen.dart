@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../models/carwash_models.dart';
+import '../../widgets/aviso_toque_banner.dart';
 import '../../widgets/botao_rota.dart';
 import '../../widgets/ganho_de_hoje_card.dart';
 import '../../widgets/portao_do_prestador.dart';
@@ -215,6 +216,13 @@ class _WasherHomeScreenState extends State<WasherHomeScreen> {
         child: ListView(
           padding: const EdgeInsets.all(Spacing.lg),
           children: [
+            // [10/10/2026] O que pode calar a oferta de lavagem (volume do
+            // alarme, canal, "Não incomodar"…) + "Corrigir". Só com a conta
+            // aprovada (antes disso não há ofertas).
+            AvisoToqueBanner(
+              ativo: store.isApproved,
+              margem: const EdgeInsets.only(bottom: Spacing.md),
+            ),
             // O total do dia de TUDO o que ele faz — o mesmo cartão dos ecrãs
             // do estafeta, do TVDE e da limpeza.
             GanhoDeHojeCard(recarregarQuando: store),

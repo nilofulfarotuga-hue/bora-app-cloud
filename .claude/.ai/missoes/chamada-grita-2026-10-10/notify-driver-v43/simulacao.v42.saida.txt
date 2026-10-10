@@ -1,0 +1,25 @@
+[notify-driver v41] order=d383a09e-0000-4000-8000-000000000002 driver=4f61dd31-0000-4000-8000-000000000001 tokens=3 sent=3 expires=2026-10-10T04:26:34.126Z
+[simulação antigo] resposta={"ok":true,"tokens":3,"sent":3,"detail":[{"ok":true,"source":"drivers.fcm_token","platform":null},{"ok":true,"source":"driver_push_tokens","platform":"ios"},{"ok":true,"source":"driver_push_tokens","platform":"web"}]} envios=3
+Android: só dados — sem bloco notification no topo nem android.notification ... [0m[31mFAILED[0m [0m[38;5;245m(7ms)[0m
+Android: ttl = tempo que falta à oferta (~60 s, não 25 s) ... [0m[31mFAILED[0m [0m[38;5;245m(560µs)[0m
+iPhone: alerta completo dentro do apns + som + time-sensitive + collapse-id ... [0m[31mFAILED[0m [0m[38;5;245m(431µs)[0m
+iPhone: reenviado enquanto a oferta estiver viva; Android não ... [0m[31mFAILED[0m [0m[38;5;245m(460µs)[0m
+Web: notificação do navegador com título e corpo ... [0m[31mFAILED[0m [0m[38;5;245m(590µs)[0m
+Painel: resultado do toque escrito na linha da oferta ... [0m[31mFAILED[0m [0m[38;5;245m(539µs)[0m
+Corpo: o número grande é o que o estafeta ganha ... [0m[31mFAILED[0m [0m[38;5;245m(398µs)[0m
+[0m[1m[31merror[0m: Error: FALHOU: sem `notification` no topo
+function verifica(cond: unknown, msg: string) { if (!cond) throw new Error('FALHOU: ' + msg) }
+[0m[1m[31merror[0m: Error: FALHOU: ttl entre 55 e 60 s (veio 25)
+function verifica(cond: unknown, msg: string) { if (!cond) throw new Error('FALHOU: ' + msg) }
+[0m[1m[31merror[0m: Error: FALHOU: aps.alert com título e corpo
+function verifica(cond: unknown, msg: string) { if (!cond) throw new Error('FALHOU: ' + msg) }
+[0m[1m[31merror[0m: Error: FALHOU: iPhone recebeu mais de um envio (recebeu 1)
+function verifica(cond: unknown, msg: string) { if (!cond) throw new Error('FALHOU: ' + msg) }
+[0m[1m[31merror[0m: Error: FALHOU: webpush.notification com título e corpo
+function verifica(cond: unknown, msg: string) { if (!cond) throw new Error('FALHOU: ' + msg) }
+[0m[1m[31merror[0m: Error: FALHOU: uma escrita no registo de ofertas
+function verifica(cond: unknown, msg: string) { if (!cond) throw new Error('FALHOU: ' + msg) }
+[0m[1m[31merror[0m: Error: FALHOU: corpo começa por "Ganhas €4.50" (veio "Favor • €6.00 • 2.3km")
+function verifica(cond: unknown, msg: string) { if (!cond) throw new Error('FALHOU: ' + msg) }
+[0m[31mFAILED[0m | 0 passed | 7 failed [0m[38;5;245m(23ms)[0m
+[0m[1m[31merror[0m: Test failed

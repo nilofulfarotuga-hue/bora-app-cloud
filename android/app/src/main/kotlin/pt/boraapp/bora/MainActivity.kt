@@ -19,6 +19,12 @@ class MainActivity : FlutterFragmentActivity() {
         // Para escapar à armadilha (channel sound é imutável após criação),
         // criamos um ID NOVO com setSound() correcto.
         const val CHANNEL_ORDERS_V3 = "bora_orders_urgent_v3"
+        // 10/10/2026 — canal v4 das OFERTAS a tocar pelo volume do ALARME.
+        // O v3 toca pelo volume da campainha (USAGE_NOTIFICATION_RINGTONE): com o
+        // telemóvel em Vibrar ou em modo noite só vibra (Favor d383a09e, 09/10,
+        // e reserva TVDE 6f89ef6a, 10/10, no Samsung A36 do Danilo). O áudio de
+        // um canal não muda depois de criado — daí um id novo.
+        const val CHANNEL_OFFERS_ALARM_V4 = "bora_offers_alarm_v4"
         const val NATIVE_BRIDGE = "pt.boraapp.bora/native"
     }
 
@@ -27,6 +33,7 @@ class MainActivity : FlutterFragmentActivity() {
         registerReservationsChannel()
         deleteLegacyOrderChannels()
         createDriverOfferChannelV3()
+        createOffersAlarmChannelV4()
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -106,9 +113,107 @@ class MainActivity : FlutterFragmentActivity() {
                             result.error("FSI_CHECK", e.message, null)
                         }
                     }
+                    "estadoDoToque" -> {
+                        // 10/10/2026 — o que pode calar uma oferta: volume do
+                        // alarme a zero, notificações desligadas, canal v4 mudado
+                        // pela pessoa, sem acesso ao "Não incomodar".
+                        try {
+                            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                            val am = getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                            val canal = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                nm.getNotificationChannel(CHANNEL_OFFERS_ALARM_V4)
+                            } else null
+                            val map = hashMapOf<String, Any?>(
+                                "volumeAlarme" to am.getStreamVolume(android.media.AudioManager.STREAM_ALARM),
+                                "volumeAlarmeMax" to am.getStreamMaxVolume(android.media.AudioManager.STREAM_ALARM),
+                                "modoCampainha" to when (am.ringerMode) {
+                                    android.media.AudioManager.RINGER_MODE_SILENT -> "silencio"
+                                    android.media.AudioManager.RINGER_MODE_VIBRATE -> "vibrar"
+                                    else -> "som"
+                                },
+                                "notificacoesLigadas" to nm.areNotificationsEnabled(),
+                                "acessoNaoIncomodar" to (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+                                    nm.isNotificationPolicyAccessGranted),
+                                "canalImportancia" to (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) canal?.importance else null),
+                                "canalComSom" to (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) canal?.sound != null else true),
+                                "canalUsoAlarme" to (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                                    canal?.audioAttributes?.usage == AudioAttributes.USAGE_ALARM else true),
+                            )
+                            result.success(map)
+                        } catch (e: Exception) {
+                            result.error("TOQUE", e.message, null)
+                        }
+                    }
+                    "abrirAcessoNaoIncomodar" -> {
+                        try {
+                            val intent = android.content.Intent(android.provider.Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
+                            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            startActivity(intent)
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.success(false)
+                        }
+                    }
+                    "abrirDefinicoesSom" -> {
+                        try {
+                            val intent = android.content.Intent(android.provider.Settings.ACTION_SOUND_SETTINGS)
+                            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            startActivity(intent)
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.success(false)
+                        }
+                    }
+                    "abrirCanalOfertas" -> {
+                        try {
+                            val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                android.content.Intent(android.provider.Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
+                                    putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, packageName)
+                                    putExtra(android.provider.Settings.EXTRA_CHANNEL_ID, CHANNEL_OFFERS_ALARM_V4)
+                                }
+                            } else {
+                                android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                    Uri.parse("package:$packageName"))
+                            }
+                            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            startActivity(intent)
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.success(false)
+                        }
+                    }
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    /// 10/10/2026 — canal das OFERTAS (entregas, Favores, TVDE, reservas,
+    /// limpeza, lavagem, parceiros): som bora_alert pelo fluxo do ALARME. Toca
+    /// com o telemóvel em Vibrar e passa o "Não incomodar" que deixa passar
+    /// alarmes (é o de origem). O ciclo vem do FLAG_INSISTENT da notificação.
+    private fun createOffersAlarmChannelV4() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val soundUri = Uri.parse("android.resource://$packageName/raw/bora_alert")
+        val audioAttrs = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ALARM)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
+        val channel = NotificationChannel(
+            CHANNEL_OFFERS_ALARM_V4,
+            "Bora — Ofertas de trabalho (alarme)",
+            NotificationManager.IMPORTANCE_HIGH,
+        ).apply {
+            description = "Toca como um alarme até aceitares, recusares ou a oferta acabar."
+            setSound(soundUri, audioAttrs)
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0L, 800L, 300L, 800L, 300L, 800L)
+            enableLights(true)
+            setShowBadge(true)
+            lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+            setBypassDnd(true)
+        }
+        manager.createNotificationChannel(channel)
     }
 
     private fun registerReservationsChannel() {

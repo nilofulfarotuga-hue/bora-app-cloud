@@ -532,8 +532,11 @@ class _BoraTaskHandler extends TaskHandler {
         return;
       }
       // Persist pending_offer para rehydrate consumir quando Activity sobe.
+      // [10/10] o prazo da oferta segue com o nome que o rehydrate lê.
+      final prazo = (payload['offerExpiresAt'] ?? payload['expiresAt'])?.toString();
       await prefs.setString('pending_offer', jsonEncode({
         ...payload,
+        if (prazo != null && prazo.isNotEmpty) 'offerExpiresAt': prazo,
         'ts': DateTime.now().millisecondsSinceEpoch,
       }));
       debugPrint('[FGS_AUTO_REVIVE] main isolate MORTO (age=${age}ms) — postWakeActivity');
@@ -543,6 +546,7 @@ class _BoraTaskHandler extends TaskHandler {
         total: payload['total']?.toString() ?? '0.00',
         distanceKm: payload['distanceKm']?.toString() ?? '0',
         driverEarnings: payload['driverEarnings']?.toString() ?? '0.00',
+        offerExpiresAt: prazo,
       );
     } catch (e) {
       debugPrint('[FGS_AUTO_REVIVE] error: $e');

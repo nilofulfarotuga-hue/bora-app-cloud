@@ -6,7 +6,7 @@
 // porque a app lia o título do bloco `notification`, que deixou de vir.
 //
 // Agora é igual ao estafeta/TVDE (que não se mexe — só se copia o padrão):
-//  - canal urgente `bora_orders_urgent_v3`, ecrã inteiro, som em ciclo (FLAG_INSISTENT);
+//  - canal das ofertas `bora_offers_alarm_v4` (volume do alarme), ecrã inteiro, som em ciclo (FLAG_INSISTENT);
 //  - botões na própria notificação: Aceitar ABRE a app (o gancho global
 //    `NotificationService.trabalhoOfertaAction`, no main.dart, aceita pelo store);
 //    Recusar NÃO abre a app (isolate de fundo → RPC por HTTP cru);
@@ -168,28 +168,18 @@ Future<void> mostrarOfertaDeTrabalho({
   }
   try {
     final plugin = FlutterLocalNotificationsPlugin();
-    final androidImpl = plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
-    await androidImpl?.createNotificationChannel(
-      const AndroidNotificationChannel(
-        kIncomingJobChannelId,
-        kIncomingJobChannelName,
-        description: 'Som contínuo + vibração para novos pedidos urgentes.',
-        importance: Importance.max,
-        playSound: true,
-        sound: RawResourceAndroidNotificationSound('bora_alert'),
-        enableVibration: true,
-        showBadge: true,
-      ),
-    );
+    // [10/10] definição única do canal das ofertas (volume do alarme). Criar o
+    // mesmo id com outros atributos fazia-o nascer errado para sempre.
+    await garantirCanalOfertasAlarme(plugin);
     final androidDetails = AndroidNotificationDetails(
-      kIncomingJobChannelId,
-      kIncomingJobChannelName,
+      kCanalOfertasAlarme,
+      kCanalOfertasAlarmeNome,
       channelDescription: 'Trabalho a chegar — aceita ou recusa.',
       importance: Importance.max,
       priority: Priority.max,
       playSound: true,
       sound: const RawResourceAndroidNotificationSound('bora_alert'),
+      audioAttributesUsage: AudioAttributesUsage.alarm,
       enableVibration: true,
       category: AndroidNotificationCategory.call,
       fullScreenIntent: true,

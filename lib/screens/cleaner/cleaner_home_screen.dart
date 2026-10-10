@@ -9,6 +9,7 @@ import '../../models/cleaning_models.dart';
 import '../../services/roles_service.dart';
 import '../../stores/cleaner_store.dart';
 import '../../stores/session_store.dart';
+import '../../widgets/aviso_toque_banner.dart';
 import '../../widgets/bora/bora.dart';
 import '../../widgets/bora_support_sheet.dart';
 import '../../widgets/payments/collect_badge.dart';
@@ -275,6 +276,13 @@ class _PanelView extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.all(Spacing.lg),
         children: [
+          // [10/10/2026] O que pode calar a oferta de limpeza (volume do
+          // alarme, canal, "Não incomodar"…) + "Corrigir". Só se ela estiver
+          // a receber limpezas.
+          AvisoToqueBanner(
+            ativo: profile.isActive,
+            margem: const EdgeInsets.only(bottom: Spacing.md),
+          ),
           // O total do dia de TUDO o que ela faz — o mesmo cartão dos ecrãs
           // do estafeta, do TVDE e da lavagem.
           GanhoDeHojeCard(recarregarQuando: store),

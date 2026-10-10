@@ -42,6 +42,7 @@ import '../services/sound_service.dart';
 import '../services/web_presence.dart';
 import '../widgets/driver_web_cards.dart';
 import '../widgets/driver_push_warning_card.dart';
+import '../widgets/aviso_toque_banner.dart';
 import '../widgets/notification_bell.dart';
 import '../stores/driver_store.dart';
 import '../stores/order_store.dart';
@@ -1021,6 +1022,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
             // [ronda-fecho A8 23/09] Online sem aparelho para notificações →
             // aviso + "Ativar notificações". Nos DOIS desenhos (PADRAO 2.6).
             DriverPushWarningCard(isOnline: isAvailable),
+            // [10/10/2026] O que pode calar a oferta (volume do alarme, canal,
+            // "Não incomodar"…) + "Corrigir". Nos DOIS desenhos (PADRAO 2.6).
+            AvisoToqueBanner(ativo: isAvailable),
             Card(
               margin: const EdgeInsets.only(bottom: 16),
               child: ListTile(
@@ -1443,6 +1447,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                 // [ronda-fecho A8 23/09] Online sem aparelho para notificações →
                 // aviso + "Ativar notificações". Nos DOIS desenhos (PADRAO 2.6).
                 DriverPushWarningCard(isOnline: isAvailable),
+                // [10/10/2026] O que pode calar a oferta + "Corrigir". Aqui e
+                // não no topo: o topo do mapa é dos botões e dos ganhos.
+                AvisoToqueBanner(ativo: isAvailable),
             // [Estafeta web 2026-09-16] Só no navegador: aviso do iPhone,
             // "instalar no ecrã principal" e "ativar notificações".
             if (kIsWeb)

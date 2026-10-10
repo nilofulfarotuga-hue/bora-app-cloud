@@ -27,6 +27,7 @@ import '../../../services/push_token_service.dart';
 import '../../../stores/driver_store.dart';
 import '../../../stores/order_store.dart';
 import '../../../stores/tvde_driver_store.dart';
+import '../../../widgets/aviso_toque_banner.dart';
 import '../../../widgets/background_location_disclosure.dart';
 import '../../../widgets/bora_support_sheet.dart';
 import '../../driver_home_screen.dart';
@@ -950,155 +951,168 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
       // estado/toggle flutuante. O cartão vive num Stack por CIMA do mapa, logo
       // renderiza SEMPRE (mesmo que a platform view do GoogleMap demore) — é o
       // fallback defensivo contra tela sem controlo.
-      body: Stack(
+      body: Column(
         children: [
-          gmaps.GoogleMap(
-            initialCameraPosition: gmaps.CameraPosition(
-              target: mePos ?? _guardaCenter,
-              zoom: 14.5,
-            ),
-            myLocationEnabled: _driverArrowIcon == null,
-            myLocationButtonEnabled: false,
-            zoomControlsEnabled: false,
-            compassEnabled: true,
-            mapToolbarEnabled: false,
-            onMapCreated: (c) {
-              _mapController = c;
-              if (mePos != null) {
-                _lastCameraTarget = mePos;
-                c.moveCamera(gmaps.CameraUpdate.newLatLng(mePos));
-              }
-            },
-            markers: (mePos == null || _driverArrowIcon == null)
-                ? <gmaps.Marker>{}
-                : {
-                    // [Item G] Seta verde rotativa (paridade com o estafeta) —
-                    // sem o pino azul grande. Enquanto o ícone não carrega, a
-                    // bolinha nativa (myLocationEnabled) marca a posição.
-                    gmaps.Marker(
-                      markerId: const gmaps.MarkerId('me'),
-                      position: mePos,
-                      rotation: _bearing,
-                      icon: _driverArrowIcon!,
-                      anchor: const Offset(0.5, 0.5),
-                      flat: true,
-                    ),
+          // [10/10/2026] O que pode calar a oferta (volume do alarme, canal,
+          // "Não incomodar"…) + "Corrigir". Por cima do mapa e fora do
+          // Stack, para nunca tapar a oferta de entrega nem os botões.
+          AvisoToqueBanner(
+            ativo: isOnline,
+            margem: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+          ),
+          Expanded(
+            child: Stack(
+              children: [
+                gmaps.GoogleMap(
+                  initialCameraPosition: gmaps.CameraPosition(
+                    target: mePos ?? _guardaCenter,
+                    zoom: 14.5,
+                  ),
+                  myLocationEnabled: _driverArrowIcon == null,
+                  myLocationButtonEnabled: false,
+                  zoomControlsEnabled: false,
+                  compassEnabled: true,
+                  mapToolbarEnabled: false,
+                  onMapCreated: (c) {
+                    _mapController = c;
+                    if (mePos != null) {
+                      _lastCameraTarget = mePos;
+                      c.moveCamera(gmaps.CameraUpdate.newLatLng(mePos));
+                    }
                   },
-          ),
-          if (mePos == null) const _LocatingBanner(),
-          // [Oferta sobreposta 20/09] O cartão da oferta ANTECIPADA de reserva
-          // saiu daqui. Vivia só neste mapa e a 20/09 ficou tapado pelo ecrã
-          // da corrida activa — o Danilo ouviu o toque e não teve onde
-          // aceitar. Agora desenha-se por cima de qualquer ecrã, no
-          // `TvdeOfferOverlayHost` (main.dart), com o mesmo cartão.
-          // [Item G] Botão centralizar (paridade com o estafeta) — recentra na
-          // posição do motorista e volta ao zoom de navegação.
-          // [Ficha legal · 23/09] Sempre à vista no mapa (é aqui que o
-          // motorista está quando o mandam parar), não escondido num menu.
-          Positioned(
-            left: 16,
-            top: MediaQuery.of(context).size.height * 0.55,
-            child: FloatingActionButton.extended(
-              heroTag: 'tvde_fiscalizacao',
-              backgroundColor: Colors.white,
-              foregroundColor: AppColors.textPrimary,
-              onPressed: _abrirFiscalizacao,
-              icon: const Icon(Icons.local_police_outlined),
-              label: const Text('Mostrar à autoridade'),
-            ),
-          ),
-          if (mePos != null)
-            Positioned(
-              right: 16,
-              top: MediaQuery.of(context).size.height * 0.55,
-              child: FloatingActionButton.small(
-                heroTag: 'tvde_map_recenter',
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                onPressed: () {
-                  final c = _mapController;
-                  if (c == null) return;
-                  _lastCameraTarget = mePos;
-                  c.animateCamera(
-                      gmaps.CameraUpdate.newLatLngZoom(mePos, 15.5));
-                },
-                child: const Icon(Icons.my_location),
-              ),
-            ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: SafeArea(
-              child: _OnlinePanel(
-                isOnline: isOnline,
-                todayEarnCents:
-                    context.read<TvdeDriverStore>().todayEarnCents,
-                avgRating: context
-                    .select<DriverStore, double?>((d) => d.currentDriver?.avgRating),
-                ratingsCount: context.select<DriverStore, int>(
-                    (d) => d.currentDriver?.ratingsCount ?? 0),
-                onlineLabel: isOnline ? _onlineElapsedLabel() : null,
-                onChanged: _toggleOnline,
-                avisoConformidade: _cartaoAvisosConformidade(),
-                horasServico: _conformidade == null
-                    ? null
-                    : TvdeHorasServicoCard.fromConformidade(_conformidade!),
-              ),
-            ),
-          ),
-          // [Item F] Ofertas de entrega/favor SOBRE o mapa TVDE (tela única) —
-          // sem ícone separado nem teleporte automático; toca para aceitar no
-          // fluxo de estafeta provado (com contagem + som).
-          if (deliveryOffers.isNotEmpty)
-            Positioned(
-              left: 16,
-              right: 16,
-              top: 12,
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: _openDeliveryFlow,
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: const [
-                        BoxShadow(
-                            color: Colors.black26,
-                            blurRadius: 8,
-                            offset: Offset(0, 2)),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.delivery_dining, color: Colors.white),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                deliveryOffers.length == 1
-                                    ? 'Nova oferta de entrega/favor'
-                                    : '${deliveryOffers.length} ofertas de entrega/favor',
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700),
-                              ),
-                              const Text('Toca para ver e aceitar',
-                                  style: TextStyle(
-                                      color: Colors.white70, fontSize: 12)),
-                            ],
+                  markers: (mePos == null || _driverArrowIcon == null)
+                      ? <gmaps.Marker>{}
+                      : {
+                          // [Item G] Seta verde rotativa (paridade com o estafeta) —
+                          // sem o pino azul grande. Enquanto o ícone não carrega, a
+                          // bolinha nativa (myLocationEnabled) marca a posição.
+                          gmaps.Marker(
+                            markerId: const gmaps.MarkerId('me'),
+                            position: mePos,
+                            rotation: _bearing,
+                            icon: _driverArrowIcon!,
+                            anchor: const Offset(0.5, 0.5),
+                            flat: true,
                           ),
-                        ),
-                        const Icon(Icons.chevron_right, color: Colors.white),
-                      ],
+                        },
+                ),
+                if (mePos == null) const _LocatingBanner(),
+                // [Oferta sobreposta 20/09] O cartão da oferta ANTECIPADA de reserva
+                // saiu daqui. Vivia só neste mapa e a 20/09 ficou tapado pelo ecrã
+                // da corrida activa — o Danilo ouviu o toque e não teve onde
+                // aceitar. Agora desenha-se por cima de qualquer ecrã, no
+                // `TvdeOfferOverlayHost` (main.dart), com o mesmo cartão.
+                // [Item G] Botão centralizar (paridade com o estafeta) — recentra na
+                // posição do motorista e volta ao zoom de navegação.
+                // [Ficha legal · 23/09] Sempre à vista no mapa (é aqui que o
+                // motorista está quando o mandam parar), não escondido num menu.
+                Positioned(
+                  left: 16,
+                  top: MediaQuery.of(context).size.height * 0.55,
+                  child: FloatingActionButton.extended(
+                    heroTag: 'tvde_fiscalizacao',
+                    backgroundColor: Colors.white,
+                    foregroundColor: AppColors.textPrimary,
+                    onPressed: _abrirFiscalizacao,
+                    icon: const Icon(Icons.local_police_outlined),
+                    label: const Text('Mostrar à autoridade'),
+                  ),
+                ),
+                if (mePos != null)
+                  Positioned(
+                    right: 16,
+                    top: MediaQuery.of(context).size.height * 0.55,
+                    child: FloatingActionButton.small(
+                      heroTag: 'tvde_map_recenter',
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      onPressed: () {
+                        final c = _mapController;
+                        if (c == null) return;
+                        _lastCameraTarget = mePos;
+                        c.animateCamera(
+                            gmaps.CameraUpdate.newLatLngZoom(mePos, 15.5));
+                      },
+                      child: const Icon(Icons.my_location),
+                    ),
+                  ),
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: SafeArea(
+                    child: _OnlinePanel(
+                      isOnline: isOnline,
+                      todayEarnCents:
+                          context.read<TvdeDriverStore>().todayEarnCents,
+                      avgRating: context
+                          .select<DriverStore, double?>((d) => d.currentDriver?.avgRating),
+                      ratingsCount: context.select<DriverStore, int>(
+                          (d) => d.currentDriver?.ratingsCount ?? 0),
+                      onlineLabel: isOnline ? _onlineElapsedLabel() : null,
+                      onChanged: _toggleOnline,
+                      avisoConformidade: _cartaoAvisosConformidade(),
+                      horasServico: _conformidade == null
+                          ? null
+                          : TvdeHorasServicoCard.fromConformidade(_conformidade!),
                     ),
                   ),
                 ),
-              ),
+                // [Item F] Ofertas de entrega/favor SOBRE o mapa TVDE (tela única) —
+                // sem ícone separado nem teleporte automático; toca para aceitar no
+                // fluxo de estafeta provado (com contagem + som).
+                if (deliveryOffers.isNotEmpty)
+                  Positioned(
+                    left: 16,
+                    right: 16,
+                    top: 12,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _openDeliveryFlow,
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: const [
+                              BoxShadow(
+                                  color: Colors.black26,
+                                  blurRadius: 8,
+                                  offset: Offset(0, 2)),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.delivery_dining, color: Colors.white),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      deliveryOffers.length == 1
+                                          ? 'Nova oferta de entrega/favor'
+                                          : '${deliveryOffers.length} ofertas de entrega/favor',
+                                      style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700),
+                                    ),
+                                    const Text('Toca para ver e aceitar',
+                                        style: TextStyle(
+                                            color: Colors.white70, fontSize: 12)),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.chevron_right, color: Colors.white),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
+          ),
         ],
       ),
     );

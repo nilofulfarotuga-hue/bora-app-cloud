@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart' as fow;
+import 'package:geolocator/geolocator.dart' show Geolocator;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'foreground_service.dart';
@@ -51,6 +53,80 @@ class PermissionGateService {
     } catch (e) {
       debugPrint('[BORA-FSI] checkFullScreenIntentAllowed indeterminado: $e');
       return null;
+    }
+  }
+
+  // ── Toque das ofertas (10/10/2026) ────────────────────────────────────────
+  //
+  // A 09/10 e 10/10 as ofertas só vibraram (Samsung A36, Android 16, em
+  // Vibrar/noite). As ofertas passaram a tocar pelo volume do ALARME (canal
+  // `bora_offers_alarm_v4`); isto diz o que ainda as pode calar.
+
+  /// O que pode calar uma oferta neste telemóvel, lido ao vivo do Android
+  /// (método nativo "estadoDoToque") mais o ecrã inteiro
+  /// ([checkFullScreenIntentAllowed]). Fora do Android (web, iPhone) ou se a
+  /// leitura falhar devolve null — quem chama não inventa avisos.
+  static Future<EstadoDoToque?> estadoDoToque() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return null;
+    try {
+      final mapa = await _nativeBridge
+          .invokeMapMethod<String, Object?>('estadoDoToque');
+      if (mapa == null) return null;
+      final ecraInteiro = await checkFullScreenIntentAllowed();
+      return EstadoDoToque.fromMap(mapa, ecraInteiroPermitido: ecraInteiro);
+    } catch (e) {
+      debugPrint('[BORA-TOQUE] estadoDoToque indisponível: $e');
+      return null;
+    }
+  }
+
+  /// Definições de acesso ao "Não incomodar".
+  static Future<bool> abrirAcessoNaoIncomodar() =>
+      _abrirNativo('abrirAcessoNaoIncomodar');
+
+  /// Definições do canal das ofertas (som, importância).
+  static Future<bool> abrirCanalOfertas() => _abrirNativo('abrirCanalOfertas');
+
+  /// Definições de som do telemóvel (volume do alarme).
+  static Future<bool> abrirDefinicoesSom() =>
+      _abrirNativo('abrirDefinicoesSom');
+
+  static Future<bool> _abrirNativo(String metodo) async {
+    try {
+      return await _nativeBridge.invokeMethod<bool>(metodo) ?? false;
+    } catch (e) {
+      debugPrint('[BORA-TOQUE] $metodo falhou: $e');
+      return false;
+    }
+  }
+
+  /// Abre o sítio certo para corrigir um [ProblemaToque].
+  static Future<void> abrirCorrecao(CorrecaoToque correcao) async {
+    switch (correcao) {
+      case CorrecaoToque.notificacoes:
+        // Primeiro o pedido do sistema (Android 13+, enquanto ainda o deixa
+        // aparecer). Se continuar desligado, as definições da app, onde está
+        // "Notificações" — não há atalho nativo directo para essa página.
+        try {
+          await FlutterForegroundTask.requestNotificationPermission();
+        } catch (e) {
+          debugPrint('[BORA-TOQUE] pedido de notificações: $e');
+        }
+        final depois = await estadoDoToque();
+        if (depois != null && !depois.notificacoesLigadas) {
+          await Geolocator.openAppSettings();
+        }
+      case CorrecaoToque.canalOfertas:
+        await abrirCanalOfertas();
+      case CorrecaoToque.volumeAlarme:
+        await abrirDefinicoesSom();
+      case CorrecaoToque.ecraInteiro:
+        await FlutterLocalNotificationsPlugin()
+            .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin>()
+            ?.requestFullScreenIntentPermission();
+      case CorrecaoToque.naoIncomodar:
+        await abrirAcessoNaoIncomodar();
     }
   }
 
@@ -407,4 +483,160 @@ class DriverPermissionsSnapshot {
 
   bool get allOk =>
       notifications && overlay && battery && fullScreenIntent != false;
+}
+
+/// Onde se corrige cada problema do toque das ofertas
+/// (ver [PermissionGateService.abrirCorrecao]).
+enum CorrecaoToque {
+  notificacoes,
+  canalOfertas,
+  volumeAlarme,
+  ecraInteiro,
+  naoIncomodar,
+}
+
+/// Uma coisa que pode calar ou esconder uma oferta, com o texto para o
+/// profissional (PT-PT) e o sítio onde se corrige.
+class ProblemaToque {
+  const ProblemaToque({
+    required this.texto,
+    required this.grave,
+    required this.correcao,
+  });
+
+  final String texto;
+
+  /// true = vermelho (a oferta não toca ou não aparece) · false = laranja
+  /// (aviso: pode não tocar em certas situações).
+  final bool grave;
+
+  final CorrecaoToque correcao;
+}
+
+/// NotificationManager.IMPORTANCE_HIGH — a notificação faz som e aparece no
+/// ecrã. Abaixo disto o canal das ofertas está silenciado.
+const int kImportanciaAltaAndroid = 4;
+
+/// Lista PURA dos problemas do toque, do mais grave para o menos grave:
+/// notificações desligadas · canal das ofertas silenciado ou abaixo de "alta"
+/// · volume do alarme a zero · ecrã inteiro não permitido · sem acesso ao
+/// "Não incomodar" (o único que é aviso e não erro).
+///
+/// Valores desconhecidos (null) nunca contam como problema: o canal sem
+/// importância conhecida, o volume por ler, o ecrã inteiro indeterminado.
+List<ProblemaToque> problemasDoToque({
+  required bool notificacoesLigadas,
+  required int? canalImportancia,
+  required bool canalComSom,
+  required int? volumeAlarme,
+  required bool? ecraInteiroPermitido,
+  required bool acessoNaoIncomodar,
+}) {
+  return [
+    if (!notificacoesLigadas)
+      const ProblemaToque(
+        texto: 'Notificações da Bora desligadas: não vais receber ofertas.',
+        grave: true,
+        correcao: CorrecaoToque.notificacoes,
+      ),
+    if (canalImportancia != null &&
+        (canalImportancia < kImportanciaAltaAndroid || !canalComSom))
+      const ProblemaToque(
+        texto: 'As ofertas estão silenciadas no telemóvel: não vão tocar.',
+        grave: true,
+        correcao: CorrecaoToque.canalOfertas,
+      ),
+    if (volumeAlarme != null && volumeAlarme <= 0)
+      const ProblemaToque(
+        texto: 'Volume do alarme a zero: as ofertas não vão tocar.',
+        grave: true,
+        correcao: CorrecaoToque.volumeAlarme,
+      ),
+    if (ecraInteiroPermitido == false)
+      const ProblemaToque(
+        texto: 'Ecrã inteiro desligado: com o telemóvel bloqueado não vês a '
+            'oferta.',
+        grave: true,
+        correcao: CorrecaoToque.ecraInteiro,
+      ),
+    if (!acessoNaoIncomodar)
+      const ProblemaToque(
+        texto: 'Sem acesso ao "Não incomodar": de noite a oferta pode não '
+            'tocar.',
+        grave: false,
+        correcao: CorrecaoToque.naoIncomodar,
+      ),
+  ];
+}
+
+/// O que o Android diz sobre o toque das ofertas num dado instante (método
+/// nativo "estadoDoToque" em MainActivity.kt) mais o ecrã inteiro.
+class EstadoDoToque {
+  const EstadoDoToque({
+    required this.volumeAlarme,
+    required this.volumeAlarmeMax,
+    required this.modoCampainha,
+    required this.notificacoesLigadas,
+    required this.acessoNaoIncomodar,
+    required this.canalImportancia,
+    required this.canalComSom,
+    required this.canalUsoAlarme,
+    this.ecraInteiroPermitido,
+  });
+
+  /// Lê o mapa do canal nativo. Uma chave em falta ou com tipo errado conta
+  /// como "está bem" — a app nunca inventa um aviso.
+  factory EstadoDoToque.fromMap(
+    Map<dynamic, dynamic> m, {
+    bool? ecraInteiroPermitido,
+  }) {
+    int? inteiro(Object? v) => v is num ? v.toInt() : null;
+    bool simNao(Object? v) => v is bool ? v : true;
+    final modo = m['modoCampainha'];
+    return EstadoDoToque(
+      volumeAlarme: inteiro(m['volumeAlarme']),
+      volumeAlarmeMax: inteiro(m['volumeAlarmeMax']),
+      modoCampainha: modo is String ? modo : null,
+      notificacoesLigadas: simNao(m['notificacoesLigadas']),
+      acessoNaoIncomodar: simNao(m['acessoNaoIncomodar']),
+      canalImportancia: inteiro(m['canalImportancia']),
+      canalComSom: simNao(m['canalComSom']),
+      canalUsoAlarme: simNao(m['canalUsoAlarme']),
+      ecraInteiroPermitido: ecraInteiroPermitido,
+    );
+  }
+
+  final int? volumeAlarme;
+  final int? volumeAlarmeMax;
+
+  /// "som" | "vibrar" | "silencio".
+  final String? modoCampainha;
+  final bool notificacoesLigadas;
+  final bool acessoNaoIncomodar;
+
+  /// NotificationManager.IMPORTANCE_* do canal das ofertas (0 nenhuma …
+  /// 4 alta); null = canal por criar ou Android antigo.
+  final int? canalImportancia;
+  final bool canalComSom;
+  final bool canalUsoAlarme;
+
+  /// Resultado de [PermissionGateService.checkFullScreenIntentAllowed];
+  /// só conta como problema quando é false.
+  final bool? ecraInteiroPermitido;
+
+  /// O canal está com som e importância alta (null = desconhecido).
+  bool? get canalOk => canalImportancia == null
+      ? null
+      : canalImportancia! >= kImportanciaAltaAndroid && canalComSom;
+
+  List<ProblemaToque> get problemas => problemasDoToque(
+        notificacoesLigadas: notificacoesLigadas,
+        canalImportancia: canalImportancia,
+        canalComSom: canalComSom,
+        volumeAlarme: volumeAlarme,
+        ecraInteiroPermitido: ecraInteiroPermitido,
+        acessoNaoIncomodar: acessoNaoIncomodar,
+      );
+
+  bool get temProblemaGrave => problemas.any((p) => p.grave);
 }

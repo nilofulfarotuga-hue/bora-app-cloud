@@ -1,4 +1,4 @@
-// supabase/functions/notify-service-provider/index.ts — v3 (2026-07-28)
+// supabase/functions/notify-service-provider/index.ts — v6 (2026-10-10): iPhone com alerta (era push silencioso)
 //
 // v3: DATA-ONLY (removido o bloco `notification`). Causa raiz do bug "parceiro de
 // Serviços não recebe notificação": com bloco `notification` presente, o Android
@@ -106,9 +106,12 @@ Deno.serve(async (req) => {
           body: String(msgBody),
         },
         android: { priority: 'high', ttl: '300s' },
+        // v6 (10/10/2026): 'alert' com texto + som. 'background' é push
+        // SILENCIOSO para a Apple (sem banner, sem som) — o iPhone do parceiro
+        // nunca tocava. Mesma correção que as outras ofertas levaram a 21/09.
         apns: {
-          headers: { 'apns-priority': '10', 'apns-push-type': 'background' },
-          payload: { aps: { 'content-available': 1, sound: 'bora_alert.wav', 'interruption-level': 'time-sensitive' } },
+          headers: { 'apns-priority': '10', 'apns-push-type': 'alert', 'apns-collapse-id': `marcacao:${appointmentId}` },
+          payload: { aps: { alert: { title: String(title), body: String(msgBody) }, 'content-available': 1, sound: 'bora_alert.wav', 'interruption-level': 'time-sensitive' } },
         },
       },
     }
@@ -131,7 +134,7 @@ Deno.serve(async (req) => {
   }))
 
   const sent = results.filter((r) => r.status === 'fulfilled').length
-  console.log(`[notify-service-provider] v3 provider=${providerId} kind=${kind} sent=${sent}/${tokens.length}`)
+  console.log(`[notify-service-provider] v6 provider=${providerId} kind=${kind} sent=${sent}/${tokens.length}`)
   return json({ ok: true, sent, total: tokens.length })
 })
 

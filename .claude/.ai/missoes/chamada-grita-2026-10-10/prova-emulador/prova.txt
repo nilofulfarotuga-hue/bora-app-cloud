@@ -1,0 +1,28 @@
+# Prova emulador emdia35 (Android 15, API 35) — 2026-10-10T17:25:53Z
+## modo de som
+- ringer mode muted streams = 0x1a6 (STREAM_SYSTEM,STREAM_RING,STREAM_NOTIFICATION,STREAM_SYSTEM_ENFORCED,STREAM_DTMF)
+## canal
+mId='bora_offers_alarm_v4'
+mImportance=4
+mSound=android.resource://pt.boraapp.bora/raw/bora_alert
+usage=USAGE_ALARM
+mId='bora_orders_urgent_v3'
+mImportance=4
+mSound=android.resource://pt.boraapp.bora/raw/bora_alert
+usage=USAGE_NOTIFICATION_RINGTONE
+mId='bora_partner_ratings'
+mImportance=4
+mSound=content://settings/system/notification_sound
+usage=USAGE_NOTIFICATION
+mId='bora_service'
+mImportance=2
+mSound=null
+usage=USAGE_NOTIFICATION
+## notificacao
+## audio
+## app
+10-10 17:25:21.671  3226  3226 I flutter : [FCM BG] received: type=teste_toque_oferta orderId=null notif=null
+10-10 17:25:21.967  3226  3226 I flutter : [BORA-TOQUE] teste do toque mostrado (canal bora_offers_alarm_v4)
+## 32 s depois (timeoutAfter 30 s)
+notificacoes_da_app=0
+alarme_a_tocar=0

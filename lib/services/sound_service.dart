@@ -119,12 +119,36 @@ class SoundService {
     }
   }
 
+  /// [10/10/2026] No Android o alerta toca pelo volume do ALARME (como o canal
+  /// das ofertas `bora_offers_alarm_v4`): com o telemóvel em Vibrar o fluxo de
+  /// multimédia pode estar a zero e o alerta ficava mudo. iOS e web ficam como
+  /// estavam.
+  static const AudioContext _contextoAlarmeAndroid = AudioContext(
+    android: AudioContextAndroid(
+      isSpeakerphoneOn: false,
+      stayAwake: true,
+      contentType: AndroidContentType.sonification,
+      usageType: AndroidUsageType.alarm,
+      audioFocus: AndroidAudioFocus.gainTransient,
+    ),
+  );
+
+  Future<void> _usarFluxoDoAlarme() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    try {
+      await _player.setAudioContext(_contextoAlarmeAndroid);
+    } catch (e) {
+      debugPrint('SoundService: contexto de alarme => $e');
+    }
+  }
+
   Future<void> playLoop() async {
     if (_isPlaying) return;
     _isPlaying = true;
     debugPrint('SoundService: starting loop playback');
     try {
       await _player.stop();
+      await _usarFluxoDoAlarme();
       await _player.setReleaseMode(ReleaseMode.loop);
       await _player.play(
         AssetSource('sounds/bora_alert.wav'),

@@ -23,6 +23,10 @@
      utilizador conceda a permissão "Apps que podem mostrar ecrã completo"
      em Definições → Apps → Bora → Notificações. -->
 <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
+<!-- 10/10/2026 — para o canal das ofertas (bora_offers_alarm_v4) passar o
+     "Não incomodar": o estafeta concede no ecrã de preparação (Definições →
+     Acesso a "Não incomodar"). Sem isto o setBypassDnd do canal não vale. -->
+<uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY"/>
 <!-- Necessário para o sistema acordar/manter o ecrã ligado quando chega o
      fullScreenIntent com app fechada. -->
 <uses-permission android:name="android.permission.TURN_SCREEN_ON"/>

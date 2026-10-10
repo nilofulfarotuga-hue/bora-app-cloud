@@ -15,6 +15,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'services/app_update_service.dart';
 import 'services/floating_bubble_service.dart';
 import 'services/foreground_service.dart';
+import 'services/incoming_job_alert.dart';
 import 'services/notification_service.dart';
 import 'services/sound_service.dart';
 import 'services/web_presence.dart';
@@ -250,6 +251,11 @@ Future<void> _setupForegroundAndUrgentChannel() async {
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
     await androidLocalPlugin?.createNotificationChannel(urgentChannel);
+
+    // 1a) [10/10/2026] Canal das OFERTAS v4 — toca pelo volume do ALARME (o v3
+    //     só vibrava com o telemóvel em Vibrar). Definição única em
+    //     incoming_job_alert.dart, igual à que o MainActivity cria.
+    await androidLocalPlugin?.createNotificationChannel(canalOfertasAlarme);
 
     // 1b) PARTE A (2026-07-17) — canal de alta prioridade para AÇÕES PENDENTES
     //     do admin. A Edge Fn notify-admin-urgent envia channel_id

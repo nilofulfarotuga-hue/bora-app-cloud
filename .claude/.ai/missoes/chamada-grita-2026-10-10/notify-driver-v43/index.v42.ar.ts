@@ -1,21 +1,5 @@
 // @ts-nocheck
 // supabase/functions/notify-driver/index.ts
-// v43 2026-10-10 (missão "a chamada grita sempre") — ANDROID VOLTA A DATA-ONLY.
-//     O v40/v41 mandava bloco `notification` no topo + `android.notification`:
-//     com isso o Android desenhava ele próprio uma notificação normal (toca uma
-//     vez, ou só vibra) e a chamada persistente da app (som em ciclo, ecrã
-//     inteiro) nunca arrancava com o telemóvel em descanso. Caso real: Favor
-//     d383a09e, 09/10 22:12 UTC, 3 ofertas aceites pelo FCM e o telemóvel calado.
-//     Agora é igual ao notify-tvde-driver: Android só `data` (a app monta a
-//     chamada que grita), iPhone com `apns.payload.aps.alert` completo + som
-//     (o iPhone não depende do bloco do topo), web com `webpush.notification`.
-//     Uma só mensagem serve as três plataformas, por isso os tokens antigos sem
-//     plataforma (drivers.fcm_token) ficam certos sem adivinhar.
-//     O `ttl` passa a ser o tempo que falta à oferta (antes 25 s fixos, com a
-//     oferta a durar 60 s). iPhone: `apns-collapse-id` = oferta:<id> e reenvio
-//     de ~20 em 20 s enquanto a oferta for deste estafeta. O resultado do envio
-//     (aparelhos, enviados, plataformas) vai para a linha da oferta em
-//     `ofertas_prestador_log`, para o painel ("o toque foi entregue?").
 // v42 2026-10-04 (ronda de correção, agente despacho) — exige a chave de serviço
 //     (gatilhos/cron do banco via _dispatch_service_jwt, admin-cancel-order,
 //     client_respond_budget_increase) ou o JWT de um admin. Antes era aberta
@@ -57,11 +41,11 @@ Deno.serve(async (req) => {
   // Antes qualquer pessoa na internet podia mandar "Novo pedido!" a um estafeta.
   const autorizado = await autorizar(req, supabaseUrl, serviceKey)
   if (!autorizado.ok) {
-    console.warn(`[notify-driver v43] 403 motivo=${autorizado.reason}`)
+    console.warn(`[notify-driver v42] 403 motivo=${autorizado.reason}`)
     return json({ ok:false, error:'forbidden' }, 403)
   }
 
-  console.log('[notify-driver v43] INVOKED firebase=', !!firebaseProjectId)
+  console.log('[notify-driver v42] INVOKED firebase=', !!firebaseProjectId)
   if (!firebaseProjectId || !firebaseServiceAcct) return json({ ok:false, reason:'firebase_not_configured' })
 
   let driverId = '', orderId = '', vendorName = 'Pedido', total = 0
@@ -87,12 +71,12 @@ Deno.serve(async (req) => {
     .maybeSingle()
   if (orderErr) return json({ ok:false, reason:'order_lookup_error' })
   if (!order || order.status !== 'callingDriver' || String(order.current_driver_offer_id ?? '') !== driverId) {
-    console.log(`[notify-driver v43] stale offer skipped order=${orderId} driver=${driverId}`)
+    console.log(`[notify-driver v41] stale offer skipped order=${orderId} driver=${driverId}`)
     return json({ ok:false, reason:'stale_offer' })
   }
   const expiresAtMs = order.driver_offer_expires_at ? Date.parse(order.driver_offer_expires_at) : 0
   if (!expiresAtMs || expiresAtMs <= Date.now()) {
-    console.log(`[notify-driver v43] expired offer skipped order=${orderId} driver=${driverId}`)
+    console.log(`[notify-driver v41] expired offer skipped order=${orderId} driver=${driverId}`)
     return json({ ok:false, reason:'expired_offer' })
   }
 
@@ -107,10 +91,9 @@ Deno.serve(async (req) => {
 
   // v40 — TODOS os aparelhos: drivers.fcm_token (legado, 1 aparelho) + todos os
   // driver_push_tokens activos (multi-aparelho, inclui web). Dedup por token.
-  // v43 — driver_push_tokens primeiro: assim o token legado, quando também lá
-  // está, fica com a plataforma conhecida (precisa-se dela para o reenvio iOS).
   type Tok = { token:string; source:string; rowId?:string; platform?:string }
   const toks = new Map<string, Tok>()
+  if (driver?.fcm_token) toks.set(driver.fcm_token, { token: driver.fcm_token, source: 'drivers.fcm_token' })
   const uid = driver?.user_id ?? driverId
   const { data: pushRows } = await supabase
     .from('driver_push_tokens')
@@ -123,9 +106,6 @@ Deno.serve(async (req) => {
       toks.set(r.fcm_token, { token: r.fcm_token, source: 'driver_push_tokens', rowId: r.id, platform: r.platform ?? undefined })
     }
   }
-  if (driver?.fcm_token && !toks.has(driver.fcm_token)) {
-    toks.set(driver.fcm_token, { token: driver.fcm_token, source: 'drivers.fcm_token' })
-  }
   if (toks.size === 0) return json({ ok:false, reason:'no_fcm_token' })
 
   let accessToken: string
@@ -136,50 +116,47 @@ Deno.serve(async (req) => {
   const earnings = Number(order.driver_earnings ?? 0)
   const distanceKm = Number.isFinite(km) && km > 0 ? km.toFixed(1) : '0'
   const driverEarnings = Number.isFinite(earnings) && earnings > 0 ? earnings.toFixed(2) : '0.00'
-  // Regra de ouro (PADRAO 1.13): o número grande é o que o estafeta GANHA.
-  const partes = [vendorName]
-  if (driverEarnings !== '0.00') partes.unshift(`Ganhas €${driverEarnings}`)
-  else partes.push(`€${total.toFixed(2)}`)
-  if (distanceKm !== '0') partes.push(`${distanceKm}km`)
-  const headsUpBody = partes.join(' • ')
-  const titulo = '🛵 Novo pedido!'
-
-  // v43 — o push vive o tempo que falta à oferta (mín. 5 s, máx. 120 s).
-  const segundosRestantes = Math.max(5, Math.min(120, Math.floor((expiresAtMs - Date.now()) / 1000)))
+  const headsUpBody = distanceKm !== '0'
+    ? `${vendorName} • €${total.toFixed(2)} • ${distanceKm}km`
+    : `${vendorName} • €${total.toFixed(2)}`
 
   const fcmUrl = `https://fcm.googleapis.com/v1/projects/${firebaseProjectId}/messages:send`
   const data = {
     orderId:String(orderId), type:'new_order_offer', vendorName,
     total:total.toFixed(2), distanceKm, driverEarnings,
     offerExpiresAt:String(order.driver_offer_expires_at ?? ''),
-    title:titulo, body:headsUpBody,
+    title:'🔔 Novo pedido!', body:headsUpBody,
     url:`${WEB_URL}/#/driver?offer=${orderId}`,
   }
 
-  const montar = (t: Tok, ttlS: number) => ({
+  const results = await Promise.allSettled([...toks.values()].map(async (t) => {
+    const isWeb = (t.platform ?? '').toLowerCase().startsWith('web')
+    const message = {
       message: {
         token: t.token,
-        // v43 — SEM bloco `notification` no topo e SEM `android.notification`:
-        // no Android é DATA-ONLY e a app monta a chamada que grita.
+        notification: { title:'🛵 Novo pedido!', body:headsUpBody },
         data,
-        android: { priority:'high', ttl:`${ttlS}s` },
-        // iPhone: o alerta completo vai aqui (texto + som + time-sensitive);
-        // content-available acorda a app também. O collapse-id junta os
-        // reenvios da mesma oferta num só aviso.
-        apns: {
-          headers: {
-            'apns-priority':'10', 'apns-push-type':'alert',
-            'apns-expiration': String(Math.floor(expiresAtMs/1000)),
-            'apns-collapse-id': `oferta:${orderId}`,
+        android: {
+          priority:'high',
+          // Must expire well before the DB offer. DB timeout is 60s after this fix.
+          ttl:'25s',
+          notification: {
+            channel_id:'bora_orders_urgent_v3', notification_priority:'PRIORITY_MAX',
+            default_sound:true, default_vibrate_timings:true, visibility:'PUBLIC',
           },
-          payload: { aps: { alert: { title:titulo, body:headsUpBody }, 'content-available':1, sound:'bora_alert.wav', 'interruption-level':'time-sensitive' } },
+        },
+        // [iPhone 2026-09-21] 'alert' + som + texto: 'background' e' push SILENCIOSO
+        // para a Apple (sem banner, sem som; prioridade obrigatoria 5) — com token,
+        // o iPhone nunca tocava. content-available fica para acordar a app tambem.
+        apns: {
+          headers: { 'apns-priority':'10', 'apns-push-type':'alert', 'apns-expiration': String(Math.floor(Date.now()/1000)+25) },
+          payload: { aps: { 'content-available':1, sound:'bora_alert.wav', 'interruption-level':'time-sensitive' } },
         },
         // v40 — navegador/PWA: o SDK web desenha a notificação com estes campos e
         // o toque abre a oferta (o ecrã do estafeta faz polling e mostra o cartão).
         webpush: {
-          headers: { TTL:String(ttlS), Urgency:'high' },
+          headers: { TTL:'25', Urgency:'high' },
           notification: {
-            title:titulo, body:headsUpBody,
             icon:'icons/Icon-192.png', badge:'icons/Icon-192.png',
             requireInteraction:true, renotify:true, tag:`oferta:${orderId}`,
             vibrate:[300,100,300,100,300],
@@ -187,11 +164,7 @@ Deno.serve(async (req) => {
           fcm_options: { link: data.url },
         },
       },
-  })
-
-  const results = await Promise.allSettled([...toks.values()].map(async (t) => {
-    const isWeb = (t.platform ?? '').toLowerCase().startsWith('web')
-    const message = montar(t, segundosRestantes)
+    }
     const res = await fetch(fcmUrl, {
       method:'POST',
       headers:{ Authorization:`Bearer ${accessToken}`, 'Content-Type':'application/json' },
@@ -200,7 +173,7 @@ Deno.serve(async (req) => {
     const body = await res.json().catch(() => ({}))
     if (!res.ok) {
       const errorCode = body?.error?.details?.[0]?.errorCode ?? body?.error?.status ?? ''
-      console.error(`[notify-driver v43] FCM ${res.status} ${t.source}${isWeb ? ' (web)' : ''}: ${JSON.stringify(body).slice(0,300)}`)
+      console.error(`[notify-driver v41] FCM ${res.status} ${t.source}${isWeb ? ' (web)' : ''}: ${JSON.stringify(body).slice(0,300)}`)
       let cleaned = false
       if (errorCode === 'UNREGISTERED' || errorCode === 'INVALID_ARGUMENT') {
         if (t.source === 'driver_push_tokens' && t.rowId) {
@@ -218,47 +191,7 @@ Deno.serve(async (req) => {
 
   const flat = results.map((r) => r.status === 'fulfilled' ? r.value : { ok:false, error:String(r.reason) })
   const sent = flat.filter((r) => r.ok).length
-  console.log(`[notify-driver v43] order=${orderId} driver=${driverId} tokens=${flat.length} sent=${sent} expires=${order.driver_offer_expires_at}`)
-
-  // v43 — "o toque foi entregue?" para o painel: escreve na linha da oferta em
-  // ofertas_prestador_log (aberta pelo gatilho do despacho). Se a coluna ainda
-  // não existir, o erro fica só no log — nunca impede o envio.
-  try {
-    const plats = flat.map((r: any) => `${r.platform ?? r.source ?? '?'}:${r.ok ? 'ok' : (r.errorCode || 'erro')}`).join(', ')
-    const { error: logErr } = await supabase.from('ofertas_prestador_log')
-      .update({ push_aparelhos: flat.length, push_enviados: sent, push_em: new Date().toISOString(), push_detalhe: plats.slice(0, 500) })
-      .eq('pedido_ref', orderId).eq('user_id', uid).is('desfecho', null)
-    if (logErr) console.warn(`[notify-driver v43] registo do toque: ${logErr.message}`)
-  } catch (e) { console.warn('[notify-driver v43] registo do toque falhou:', e) }
-
-  // v43 — iPhone: o alerta toca uma vez; reenvia-se de ~20 em 20 s enquanto a
-  // oferta for deste estafeta e estiver viva (collapse-id = um só aviso).
-  const iosToks = [...toks.values()].filter((t) => (t.platform ?? '').toLowerCase().startsWith('ios'))
-  if (sent > 0 && iosToks.length > 0) {
-    const reenviar = async () => {
-      for (let volta = 1; volta <= 5; volta++) {
-        await new Promise((r) => setTimeout(r, 20000))
-        const { data: o } = await supabase.from('orders')
-          .select('status,current_driver_offer_id,driver_offer_expires_at').eq('id', orderId).maybeSingle()
-        const mesma = o && o.status === 'callingDriver' && String(o.current_driver_offer_id ?? '') === driverId
-          && o.driver_offer_expires_at && Date.parse(o.driver_offer_expires_at) === expiresAtMs
-        const falta = Math.floor((expiresAtMs - Date.now()) / 1000)
-        if (!mesma || falta < 5) return
-        for (const t of iosToks) {
-          try {
-            await fetch(fcmUrl, {
-              method:'POST',
-              headers:{ Authorization:`Bearer ${accessToken}`, 'Content-Type':'application/json' },
-              body:JSON.stringify(montar(t, falta)),
-            })
-          } catch (_) {}
-        }
-        console.log(`[notify-driver v43] reenvio iOS ${volta} order=${orderId} driver=${driverId} faltam=${falta}s`)
-      }
-    }
-    try { EdgeRuntime.waitUntil(reenviar()) } catch (_) { /* sem waitUntil: só o 1.º envio */ }
-  }
-
+  console.log(`[notify-driver v41] order=${orderId} driver=${driverId} tokens=${flat.length} sent=${sent} expires=${order.driver_offer_expires_at}`)
   if (sent === 0) return json({ ok:false, reason:'fcm_error', detail:flat })
   return json({ ok:true, tokens:flat.length, sent, detail:flat })
 })

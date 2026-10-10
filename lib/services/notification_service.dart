@@ -25,6 +25,7 @@ import '../screens/chat_screen.dart';
 import '../screens/notifications_screen.dart';
 import '../screens/partner/services/partner_agenda_screen.dart';
 import 'fcm_token_helper.dart';
+import 'incoming_job_alert.dart';
 import 'offer_presentation_gate.dart';
 import 'oferta_trabalho_aviso.dart';
 import 'push_token_service.dart';
@@ -71,6 +72,13 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   debugPrint('[FCM BG] received: type=${data['type']} '
       'orderId=${data['orderId']} '
       'notif=${message.notification?.title}');
+
+  // [10/10] "Testar o toque": o mesmo caminho de uma oferta (só dados → canal
+  // v4 do alarme, em ciclo, ecrã inteiro), 30 s, sem botões nem pedido real.
+  if (data['type'] == kTipoTesteToque) {
+    await mostrarTesteDoToque(Map<String, dynamic>.from(data));
+    return;
+  }
 
   // ── Chat: nova mensagem em background (exec6.23) ───────────────────────
   // Antes: caía no default sound-only sem notificação visual → user perdia
@@ -155,26 +163,17 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       // (mesmo do driver). Notif PERSISTENTE c/ FLAG_INSISTENT (som loop) +
       // BigText (items + cliente + total) + actions Aceitar/Rejeitar via
       // RPCs partner_accept_order / partner_reject_order. Padrão Uber.
-      await androidImpl?.createNotificationChannel(
-        const AndroidNotificationChannel(
-          'bora_orders_urgent_v3',
-          'Bora — Novos pedidos',
-          description: 'Som contínuo + vibração para novos pedidos urgentes.',
-          importance: Importance.max,
-          playSound: true,
-          sound: RawResourceAndroidNotificationSound('bora_alert'),
-          enableVibration: true,
-          showBadge: true,
-        ),
-      );
+      // [10/10] canal das ofertas v4: toca pelo volume do alarme.
+      await androidImpl?.createNotificationChannel(canalOfertasAlarme);
       final androidDetails = AndroidNotificationDetails(
-        'bora_orders_urgent_v3',
-        'Bora — Novos pedidos',
+        kCanalOfertasAlarme,
+        kCanalOfertasAlarmeNome,
         channelDescription: 'Pedido novo — tap Aceitar ou Rejeitar.',
         importance: Importance.max,
         priority: Priority.max,
         playSound: true,
         sound: const RawResourceAndroidNotificationSound('bora_alert'),
+        audioAttributesUsage: AudioAttributesUsage.alarm,
         enableVibration: true,
         category: AndroidNotificationCategory.call,
         fullScreenIntent: true,
@@ -247,18 +246,8 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       final plugin = FlutterLocalNotificationsPlugin();
       final androidImpl = plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
-      await androidImpl?.createNotificationChannel(
-        const AndroidNotificationChannel(
-          'bora_orders_urgent_v3',
-          'Bora — Novos pedidos',
-          description: 'Som contínuo + vibração para novos pedidos urgentes.',
-          importance: Importance.max,
-          playSound: true,
-          sound: RawResourceAndroidNotificationSound('bora_alert'),
-          enableVibration: true,
-          showBadge: true,
-        ),
-      );
+      // [10/10] canal das ofertas v4: toca pelo volume do alarme.
+      await androidImpl?.createNotificationChannel(canalOfertasAlarme);
       // [Oferta fantasma 01/10] Respondida entretanto (noutro isolate ou
       // pelo botão da notificação)? Não se mostra.
       final prazo = DateTime.tryParse(data['offerExpiresAt']?.toString() ?? '');
@@ -267,13 +256,14 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         return;
       }
       final androidDetails = AndroidNotificationDetails(
-        'bora_orders_urgent_v3',
-        'Bora — Novos pedidos',
+        kCanalOfertasAlarme,
+        kCanalOfertasAlarmeNome,
         channelDescription: 'Oferta de corrida — tap para abrir e aceitar.',
         importance: Importance.max,
         priority: Priority.max,
         playSound: true,
         sound: const RawResourceAndroidNotificationSound('bora_alert'),
+        audioAttributesUsage: AudioAttributesUsage.alarm,
         enableVibration: true,
         category: AndroidNotificationCategory.call,
         fullScreenIntent: true,
@@ -421,28 +411,18 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // banner sem precisar de overlay. fullScreenIntent acorda ecrã também.
   try {
     final plugin = FlutterLocalNotificationsPlugin();
-    final androidImpl = plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
-    await androidImpl?.createNotificationChannel(
-      const AndroidNotificationChannel(
-        'bora_orders_urgent_v3',
-        'Bora — Novos pedidos',
-        description: 'Som contínuo + vibração para novos pedidos urgentes.',
-        importance: Importance.max,
-        playSound: true,
-        sound: RawResourceAndroidNotificationSound('bora_alert'),
-        enableVibration: true,
-        showBadge: true,
-      ),
-    );
+    // [10/10] canal das ofertas v4: toca pelo volume do alarme (o v3 só
+    // vibrava com o telemóvel em Vibrar — Favor d383a09e de 09/10).
+    await garantirCanalOfertasAlarme(plugin);
     final androidDetails = AndroidNotificationDetails(
-      'bora_orders_urgent_v3',
-      'Bora — Novos pedidos',
+      kCanalOfertasAlarme,
+      kCanalOfertasAlarmeNome,
       channelDescription: 'Pedido novo — tap Aceitar ou Rejeitar.',
       importance: Importance.max,
       priority: Priority.max,
       playSound: true,
       sound: const RawResourceAndroidNotificationSound('bora_alert'),
+      audioAttributesUsage: AudioAttributesUsage.alarm,
       enableVibration: true,
       category: AndroidNotificationCategory.call,
       fullScreenIntent: true,
@@ -450,7 +430,9 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       autoCancel: false,
       // exec6.21 — Anti-swipe + sempre expandido + alarm-style
       onlyAlertOnce: false,
-      timeoutAfter: null,
+      // [10/10] toca até ao fim da oferta e cala-se sozinho quando ela acaba.
+      timeoutAfter:
+          msAteFimDaOferta(data['offerExpiresAt']?.toString(), semPrazo: 90000),
       ticker: '🛵 Novo pedido — €$driverEarnings',
       visibility: fln.NotificationVisibility.public,
       colorized: true,
@@ -541,6 +523,55 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   } catch (e, st) {
     debugPrint('[FGS_BRIDGE] FGS bridge EXCEPTION: $e');
     debugPrint('[FGS_BRIDGE] stack: ${st.toString().split("\n").take(5).join(" | ")}');
+  }
+}
+
+/// [10/10/2026] Tipo do push do botão "Testar o toque" (Edge `testar-toque`).
+const String kTipoTesteToque = 'teste_toque_oferta';
+
+/// Mostra o teste do toque: exactamente a mecânica de uma oferta (canal v4 a
+/// tocar pelo volume do alarme, em ciclo, ecrã inteiro), durante o tempo que
+/// o servidor mandar (30 s por defeito). Corre em qualquer isolate.
+@pragma('vm:entry-point')
+Future<void> mostrarTesteDoToque(Map<String, dynamic> data) async {
+  try {
+    final plugin = FlutterLocalNotificationsPlugin();
+    await garantirCanalOfertasAlarme(plugin);
+    final title = data['title']?.toString() ?? '🔔 Teste do toque';
+    final body = data['body']?.toString() ??
+        'É assim que uma oferta vai tocar. Pára sozinho daqui a 30 segundos.';
+    final androidDetails = AndroidNotificationDetails(
+      kCanalOfertasAlarme,
+      kCanalOfertasAlarmeNome,
+      channelDescription: 'Teste do toque das ofertas.',
+      importance: Importance.max,
+      priority: Priority.max,
+      playSound: true,
+      sound: const RawResourceAndroidNotificationSound('bora_alert'),
+      audioAttributesUsage: AudioAttributesUsage.alarm,
+      enableVibration: true,
+      category: AndroidNotificationCategory.call,
+      fullScreenIntent: true,
+      ongoing: true,
+      autoCancel: true,
+      onlyAlertOnce: false,
+      additionalFlags: Int32List.fromList(<int>[4]),
+      timeoutAfter:
+          msAteFimDaOferta(data['offerExpiresAt']?.toString(), semPrazo: 30000),
+      visibility: fln.NotificationVisibility.public,
+      ticker: title,
+      styleInformation: BigTextStyleInformation(body, contentTitle: title),
+    );
+    await plugin.show(
+      kTipoTesteToque.hashCode,
+      title,
+      body,
+      NotificationDetails(android: androidDetails, iOS: kDetalhesIosPedido),
+      payload: jsonEncode({'type': kTipoTesteToque}),
+    );
+    debugPrint('[BORA-TOQUE] teste do toque mostrado (canal $kCanalOfertasAlarme)');
+  } catch (e) {
+    debugPrint('[BORA-TOQUE] teste do toque falhou: $e');
   }
 }
 
@@ -1195,37 +1226,34 @@ Future<void> postWakeActivityNotification({
   required String total,
   required String distanceKm,
   required String driverEarnings,
+  String? offerExpiresAt,
 }) async {
   try {
     final plugin = FlutterLocalNotificationsPlugin();
-    final androidImpl = plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
-    await androidImpl?.createNotificationChannel(
-      const AndroidNotificationChannel(
-        'bora_orders_urgent_v3',
-        'Bora — Novos pedidos',
-        description: 'Som contínuo + vibração para novos pedidos urgentes.',
-        importance: Importance.max,
-        playSound: true,
-        sound: RawResourceAndroidNotificationSound('bora_alert'),
-        enableVibration: true,
-        showBadge: true,
-      ),
-    );
+    // [10/10] canal das ofertas v4 (volume do alarme).
+    await garantirCanalOfertasAlarme(plugin);
     final androidDetails = AndroidNotificationDetails(
-      'bora_orders_urgent_v3',
-      'Bora — Novos pedidos',
+      kCanalOfertasAlarme,
+      kCanalOfertasAlarmeNome,
       channelDescription: 'Wake Activity para mostrar SOBREPOSIÇÃO.',
       importance: Importance.max,
       priority: Priority.max,
       playSound: true,
       sound: const RawResourceAndroidNotificationSound('bora_alert'),
+      audioAttributesUsage: AudioAttributesUsage.alarm,
       enableVibration: true,
       // fullScreenIntent: acorda ecrã + lança MainActivity (não é CallStyle).
       category: AndroidNotificationCategory.call,
       fullScreenIntent: true,
       ongoing: true,
       autoCancel: false,
+      onlyAlertOnce: false,
+      // [10/10] Esta notificação usa o MESMO id da oferta que o handler de
+      // fundo pôs a tocar em ciclo. Sem FLAG_INSISTENT trocava o ciclo por um
+      // toque só (defeito apanhado na varredura de 10/10). Agora mantém o ciclo
+      // e cala-se sozinha no fim da oferta.
+      additionalFlags: Int32List.fromList(<int>[4]),
+      timeoutAfter: msAteFimDaOferta(offerExpiresAt, semPrazo: 90000),
       visibility: fln.NotificationVisibility.public,
       ticker: 'Novo pedido — €$driverEarnings',
       actions: const <AndroidNotificationAction>[
@@ -1496,7 +1524,10 @@ Future<void> showTvdeReservationNotification(Map<String, dynamic> data) async {
     final plugin = FlutterLocalNotificationsPlugin();
     final androidImpl = plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
-    // Mesmo canal já provado das ofertas — NÃO criar canal novo.
+    // [10/10] O "A caminho" e a oferta de reserva (os insistentes) vão no
+    // canal das ofertas v4, a tocar pelo volume do ALARME: a 10/10 às 04:48 o
+    // "A caminho" só vibrou com o telemóvel em descanso. Os avisos simples
+    // (lembrete, atribuída, cancelada, perdida) ficam no v3, a tocar uma vez.
     await androidImpl?.createNotificationChannel(
       const AndroidNotificationChannel(
         'bora_orders_urgent_v3',
@@ -1509,10 +1540,11 @@ Future<void> showTvdeReservationNotification(Map<String, dynamic> data) async {
         showBadge: true,
       ),
     );
+    if (insistente) await garantirCanalOfertasAlarme(plugin);
 
     final androidDetails = AndroidNotificationDetails(
-      'bora_orders_urgent_v3',
-      'Bora — Novos pedidos',
+      insistente ? kCanalOfertasAlarme : 'bora_orders_urgent_v3',
+      insistente ? kCanalOfertasAlarmeNome : 'Bora — Novos pedidos',
       channelDescription: ehComecarAgora
           ? 'Reserva a começar — confirma "A caminho".'
           : 'Reserva agendada.',
@@ -1520,6 +1552,9 @@ Future<void> showTvdeReservationNotification(Map<String, dynamic> data) async {
       priority: Priority.max,
       playSound: true,
       sound: const RawResourceAndroidNotificationSound('bora_alert'),
+      audioAttributesUsage: insistente
+          ? AudioAttributesUsage.alarm
+          : AudioAttributesUsage.notification,
       enableVibration: true,
       category: insistente
           ? AndroidNotificationCategory.call
@@ -1862,32 +1897,40 @@ Future<void> _showPersistentStatusNotification({
   String? channelOverride,
   String? channelNameOverride,
 }) async {
+  // [10/10] `urgent` (trabalho a chegar: marcação nova, estafeta pré-atribuído)
+  // vai no canal das ofertas v4, a tocar pelo volume do alarme, EM CICLO e com
+  // ecrã inteiro — antes dizia "som em loop" mas tocava uma vez só.
+  final alarme = urgent && channelOverride == null;
   final channelId =
-      channelOverride ?? (urgent ? 'bora_orders_urgent_v3' : 'bora_orders');
+      channelOverride ?? (alarme ? kCanalOfertasAlarme : 'bora_orders');
   final channelName = channelNameOverride ??
-      (urgent ? 'Bora — Novos pedidos' : 'Bora — Notificações');
+      (alarme ? kCanalOfertasAlarmeNome : 'Bora — Notificações');
   // Canal próprio do admin também é heads-up de prioridade máxima.
   final maxImportance = urgent || channelOverride == 'bora_admin_urgent';
   try {
     final plugin = FlutterLocalNotificationsPlugin();
     final androidImpl = plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
-    await androidImpl?.createNotificationChannel(
-      AndroidNotificationChannel(
-        channelId,
-        channelName,
-        description: urgent
-            ? 'Som contínuo + vibração para novos pedidos urgentes.'
-            : 'Notificações do Bora App.',
-        importance: maxImportance ? Importance.max : Importance.high,
-        playSound: true,
-        sound: urgent
-            ? const RawResourceAndroidNotificationSound('bora_alert')
-            : null,
-        enableVibration: true,
-        showBadge: true,
-      ),
-    );
+    if (alarme) {
+      await garantirCanalOfertasAlarme(plugin);
+    } else {
+      await androidImpl?.createNotificationChannel(
+        AndroidNotificationChannel(
+          channelId,
+          channelName,
+          description: urgent
+              ? 'Som contínuo + vibração para novos pedidos urgentes.'
+              : 'Notificações do Bora App.',
+          importance: maxImportance ? Importance.max : Importance.high,
+          playSound: true,
+          sound: urgent
+              ? const RawResourceAndroidNotificationSound('bora_alert')
+              : null,
+          enableVibration: true,
+          showBadge: true,
+        ),
+      );
+    }
     final androidDetails = AndroidNotificationDetails(
       channelId,
       channelName,
@@ -1898,8 +1941,16 @@ Future<void> _showPersistentStatusNotification({
       sound: urgent
           ? const RawResourceAndroidNotificationSound('bora_alert')
           : null,
+      audioAttributesUsage: alarme
+          ? AudioAttributesUsage.alarm
+          : AudioAttributesUsage.notification,
       enableVibration: true,
-      category: AndroidNotificationCategory.status,
+      category: alarme
+          ? AndroidNotificationCategory.call
+          : AndroidNotificationCategory.status,
+      fullScreenIntent: alarme,
+      additionalFlags: alarme ? Int32List.fromList(<int>[4]) : null,
+      timeoutAfter: alarme ? 90000 : null,
       ongoing: true,
       autoCancel: false,
       onlyAlertOnce: false,
@@ -2414,6 +2465,11 @@ class NotificationService {
       // [Fix 2026-08-21] Cancelamento com a app aberta: mata a persistente,
       // avisa e manda reler. Antes disto, recusar ou cancelar deixava o som
       // em loop preso — foi o que aconteceu ao Danilo as 06:41.
+      // [10/10] "Testar o toque" com a app aberta: toca igual (canal v4).
+      if (type == kTipoTesteToque) {
+        unawaited(mostrarTesteDoToque(Map<String, dynamic>.from(msg.data)));
+        return;
+      }
       if (type == 'tvde_ride_cancelled') {
         final rideId = msg.data['rideId']?.toString() ?? '';
         unawaited(cancelTvdeRideNotification(rideId));
@@ -2680,7 +2736,17 @@ class NotificationService {
         }
         final data = jsonDecode(pending) as Map<String, dynamic>;
         final ts = data['ts'];
-        if (ts is int) {
+        // [10/10] Com prazo do servidor, vale o prazo (a oferta dura 60 s e
+        // quem acorda com o toque pode demorar mais de 45 s a abrir a app).
+        final prazoOferta =
+            DateTime.tryParse(data['offerExpiresAt']?.toString() ?? '');
+        if (prazoOferta != null) {
+          if (prazoOferta.isBefore(DateTime.now())) {
+            debugPrint('[BORA-OFFER] rehydrate skip — oferta expirada (prazo=$prazoOferta)');
+            await prefs.remove('pending_offer');
+            return;
+          }
+        } else if (ts is int) {
           final age = DateTime.now().millisecondsSinceEpoch - ts;
           if (age > 45000) {
             debugPrint('[BORA-OFFER] rehydrate skip — oferta expirada (age=${age}ms)');
@@ -3186,18 +3252,8 @@ class NotificationService {
       final plugin = FlutterLocalNotificationsPlugin();
       final androidImpl = plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
-      await androidImpl?.createNotificationChannel(
-        const AndroidNotificationChannel(
-          'bora_orders_urgent_v3',
-          'Bora — Novos pedidos',
-          description: 'Som contínuo + vibração para novos pedidos e mensagens.',
-          importance: Importance.max,
-          playSound: true,
-          sound: RawResourceAndroidNotificationSound('bora_alert'),
-          enableVibration: true,
-          showBadge: true,
-        ),
-      );
+      // [10/10] canal das ofertas v4 (volume do alarme).
+      await androidImpl?.createNotificationChannel(canalOfertasAlarme);
       // [Oferta fantasma 01/10] O `await` de cima dá tempo ao motorista de
       // aceitar (1 s depois do push, a 01/10). Se já respondeu, não se mostra.
       final prazo = DateTime.tryParse(data['offerExpiresAt']?.toString() ?? '');
@@ -3206,13 +3262,14 @@ class NotificationService {
         return;
       }
       final androidDetails = AndroidNotificationDetails(
-        'bora_orders_urgent_v3',
-        'Bora — Novos pedidos',
+        kCanalOfertasAlarme,
+        kCanalOfertasAlarmeNome,
         channelDescription: 'Oferta de corrida — tap para abrir e aceitar.',
         importance: Importance.max,
         priority: Priority.max,
         playSound: true,
         sound: const RawResourceAndroidNotificationSound('bora_alert'),
+        audioAttributesUsage: AudioAttributesUsage.alarm,
         enableVibration: true,
         category: AndroidNotificationCategory.call,
         fullScreenIntent: true,

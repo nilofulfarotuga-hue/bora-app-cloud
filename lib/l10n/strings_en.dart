@@ -3467,4 +3467,8 @@ const Map<String, String> kStringsEn = <String, String>{
   // 07/10/2026: rastreio em tempo real (tocar no carro: ETA).
   'Chega em ~{0} min': 'Arrives in ~{0} min',
   'A calcular o tempo de chegada…': 'Calculating arrival time…',
+  // 10/10/2026: consentimento da chamada de reforço (perfil do estafeta).
+  'Aceito chamadas de reforço quando estou desligado': 'I accept backup calls when I am offline',
+  'Se nenhum estafeta ligado aceitar um pedido, a Bora pode chamar-te mesmo desligado, das 8h às 23h, no máximo 3 vezes por dia. Recusar nunca te prejudica.': 'If no online courier accepts an order, Bora may call you even when you are offline, between 8h and 23h, at most 3 times a day. Declining never counts against you.',
+  'Não foi possível guardar. Tenta outra vez.': 'Could not save. Try again.',
 };

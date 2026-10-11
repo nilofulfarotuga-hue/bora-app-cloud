@@ -7,6 +7,7 @@ import '../../config/app_spacing.dart';
 import '../../widgets/admin/escolher_estafeta_sheet.dart';
 import '../../widgets/private_bucket_image.dart';
 import '../../widgets/admin/admin_favor_passos_section.dart';
+import '../../widgets/admin/admin_ofertas_do_pedido_section.dart';
 import '../../utils/hora_lisboa.dart';
 import '_admin_cancel_order_dialog.dart';
 import 'admin_chat_viewer_screen.dart';
@@ -436,6 +437,10 @@ class _SummaryTab extends StatelessWidget {
               onDone: onReassigned,
             ),
           ],
+          // [10/10] Quem foi chamado: cada oferta deste pedido — fase, se
+          // estava online, toque entregue ao FCM e desfecho.
+          const SizedBox(height: 24),
+          AdminOfertasDoPedidoSection(pedidoRef: order['id'] as String),
         ],
       ),
     );

@@ -18,6 +18,7 @@ import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../services/roles_service.dart';
 import '../widgets/biometric_login_tile.dart';
+import '../widgets/chamada_reforco_tile.dart';
 import '../widgets/bora/bora_bottom_action_bar.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/profile_switcher_button.dart';
@@ -640,6 +641,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                   ),
+                  // [10/10] Consentimento da chamada de reforço (desligado
+                  // por defeito; escondido se o servidor ainda não o tiver).
+                  const ChamadaReforcoTile(),
                   // MULTI-PAPEL: a porta também tem de aparecer ao estafeta
                   // (a secção "Quick links" abaixo é só do cliente, por isso o
                   // convite ficava invisível para drivers).

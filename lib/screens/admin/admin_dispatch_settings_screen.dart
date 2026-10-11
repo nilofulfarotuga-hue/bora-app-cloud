@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../widgets/admin/admin_reforco_section.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 
 /// Admin · Configurações de Despacho (PT-BR).
@@ -27,6 +28,9 @@ class _AdminDispatchSettingsScreenState
   bool _loading = true;
   String? _error;
   final Map<String, num> _values = {};
+
+  /// Muda a cada recarga para a secção de reforço recarregar também.
+  int _versao = 0;
 
   /// Definições dos 5 settings com label PT-BR amigável + explicação técnica.
   /// A ordem aqui é a ordem de exibição.
@@ -118,6 +122,7 @@ class _AdminDispatchSettingsScreenState
     setState(() {
       _loading = true;
       _error = null;
+      _versao++;
     });
     try {
       final res = await Supabase.instance.client
@@ -365,6 +370,11 @@ class _AdminDispatchSettingsScreenState
                           ),
                         );
                       }),
+                      // [10/10] Chamada de reforço: estafetas desligados que
+                      // ligaram o interruptor no telemóvel (nasce desligada).
+                      const SizedBox(height: 16),
+                      AdminReforcoSection(key: ValueKey(_versao)),
+                      const SizedBox(height: 24),
                     ],
                   ),
                 ),

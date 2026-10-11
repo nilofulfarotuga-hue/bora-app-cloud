@@ -1,0 +1,21 @@
+OK     _reforco_carimbo
+OK     _registar_oferta_entrega
+OK     _registar_oferta_tvde
+OK     _registar_toque_tvde
+OK     admin_ofertas_do_pedido
+OK     admin_reforco_lista
+OK     admin_ofertas_log
+OK     _dispatch_candidatos_online
+OK     _dispatch_forcados_entrega
+OK     dispatch_fase_decidir
+OK     dispatch_fase_entrega
+OK     dispatch_candidatos_entrega
+OK     _registar_oferta_entrega
+OK     _dispatch_nao_cancelar_cedo
+OK     dispatch_fases_sweep
+OK     _tvde_forcados
+OK     _tvde_chamada_de_reforco
+OK     _registar_oferta_tvde
+
+funções criadas: 18, falhas: 0
+OK     _cleaning_next_offer criada sem erros

@@ -1,0 +1,17 @@
+OK  Regra do Danilo: 1 online, 2 do reforço (Valdemir 1.º)
+     obtido:   online1→Danilo | online1→Danilo | reforço→Valdemir | reforço→Outro | online2→Danilo | SEM ESTAFETA (cancela)
+OK  2 online, só 1 consentiu no reforço
+     obtido:   online1→Ana | online1→Bruno | online1→Ana | online1→Bruno | reforço→Valdemir | online2→Ana | online2→Bruno | SEM ESTAFETA (cancela)
+OK  Ninguém online, 2 no reforço: chama logo o reforço
+     obtido:   reforço→Valdemir | reforço→Outro | SEM ESTAFETA (cancela)
+OK  Ninguém online e ninguém no reforço: esgotado sem ofertas (a varredura NÃO cancela; vale o tempo de sempre)
+     obtido:   SEM ESTAFETA (cancela)
+OK  Reforço desligado: igual a hoje (sempre online1, nunca esgota)
+     obtido:   online1→Danilo | online1→Danilo | online1→Danilo | online1→Danilo | online1→Danilo | online1→Danilo | online1→Danilo | online1→Danilo | online1→Danilo | online1→Danilo | online1→Danilo | online1→Danilo | online1→Danilo | online1→Danilo | online1→Danilo | online1→Danilo | online1→Danilo | online1→Danilo | online1→Danilo | online1→Danilo | online1→Danilo | online1→Danilo | online1→Danilo | online1→Danilo | online1→Danilo | online1→Danilo | online1→Danilo | online1→Danilo | online1→Danilo | online1→Danilo
+OK  Uma vez por pedido: o Valdemir aparece 2 vezes na lista mas só é chamado 1 vez
+     obtido:   online1→Danilo | online1→Danilo | reforço→Valdemir | online2→Danilo | SEM ESTAFETA (cancela)
+OK  Tentativas = 1: só o 1.º da ordem
+     obtido:   online1→Danilo | online1→Danilo | reforço→Valdemir | online2→Danilo | SEM ESTAFETA (cancela)
+OK  pedido novo começa em online1 (veio online1)
+
+RESULTADO: 8/8 TODOS OK

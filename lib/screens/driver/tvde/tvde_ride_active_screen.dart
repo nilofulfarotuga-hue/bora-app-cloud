@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart'
     show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderProxyBox;
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:latlong2/latlong.dart' as ll;
@@ -154,8 +155,10 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   /// nunca destruída — se o carro parar ou recuar, a linha reaparece certa.
   List<ll.LatLng> _routePoints = const [];
 
-  /// ETA para o motorista (B6): até à recolha (a caminho) ou ao destino (viagem).
-  String? _etaText;
+  /// ETA para o motorista (B6), em minutos: até à recolha (a caminho) ou ao
+  /// destino (viagem). [Cartão por fases · 11/10] A frase sai do cabeçalho da
+  /// fase ("Chegas em…" / "Chegada em…") — aparece UMA vez só.
+  int? _etaMin;
 
   // [botoes-navbar-eta 31/08] ETA VIVO: a duração da rota desenhada é a fonte
   // enquanto fresca; velha (>45 s ou carro >150 m do ponto do pedido) cai no
@@ -289,15 +292,14 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   Set<Marker> _mapMarkers = <Marker>{};
   String? _markersKey;
 
-  /// [Bloco 6, 30/08] Painel arrastável controlado: em "Viagem em curso" abre
-  /// RECOLHIDO por defeito (só a linha estado·ganho) com o mapa quase cheio —
-  /// o "Finalizar viagem" deixa de ficar fora do alcance porque se puxa o
-  /// painel quando se quer os botões. `_sheetExtent` é seguido para a mira
-  /// ficar SEMPRE acima do painel, em qualquer estado.
+  /// [Cartão por fases · 11/10] Gaveta da corrida (ver [TvdeCorridaGaveta]).
+  /// Recolhida mostra o cabeçalho da fase inteiro; o botão da acção já não
+  /// vive nela (está fixo no fundo). `_sheetExtent` é seguido para a mira e o
+  /// SOS ficarem SEMPRE acima da gaveta, em qualquer estado.
   final DraggableScrollableController _sheetCtrl =
       DraggableScrollableController();
-  double _sheetExtent = 0.30;
-  bool _sheetCollapsedForTrip = false;
+  double _sheetExtent = 0.25;
+  bool _seguirGavetaAgendado = false;
 
   @override
   void initState() {
@@ -307,6 +309,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
       if (mounted && _gpsSemServicoPorFundo) unawaited(_startGps());
     });
     _loadDriverArrowIcon();
+    _sheetCtrl.addListener(_seguirGaveta);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       // Semente: enquanto o GPS local não dá o primeiro ponto, mostra a última
@@ -552,6 +555,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     _libertarGps();
     _mapCtrl?.dispose();
     _directions.dispose();
+    _sheetCtrl.removeListener(_seguirGaveta);
     _sheetCtrl.dispose();
     if (_chatRideId != null) _chatStore?.unlisten(_chatRideId!);
     super.dispose();
@@ -974,10 +978,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
         _routeEtaMin = etaMin;
         _routeEtaAt = DateTime.now();
         _routeEtaFrom = driverPos;
-        final mins = etaMin.round();
-        _etaText = ride.isInProgress
-            ? 'Chegada ao destino em ~$mins min'
-            : 'Recolha em ~$mins min';
+        _etaMin = etaMin.round();
       });
     } catch (_) {
       // Falha (offline/sem chave) → mantém o mapa sem rota; haversine é fallback.
@@ -1040,11 +1041,8 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     }
     var mins = minutes.ceil();
     if (mins < 1) mins = 1;
-    final text = ride.isInProgress
-        ? 'Chegada ao destino em ~$mins min'
-        : 'Recolha em ~$mins min';
-    if (text != _etaText && mounted) {
-      setState(() => _etaText = text);
+    if (mins != _etaMin && mounted) {
+      setState(() => _etaMin = mins);
     }
   }
 
@@ -1055,8 +1053,6 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     // corrida que este ecrã está a mostrar.
     TvdeOfferPresentation.corridaMostrada.value = ride.id;
     _navigatedToRate = false;
-    // [Bloco 6] corrida nova (back-to-back) → o recolher-em-viagem reinicia.
-    _sheetCollapsedForTrip = false;
     _passengerName = null;
     _passengerPhotoUrl = null;
     _passengerPhone = null;
@@ -1850,6 +1846,21 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     );
   }
 
+  /// [Cartão por fases · 11/10] A altura recolhida da gaveta muda com o
+  /// cabeçalho (medido), e essa troca não dispara a notificação de arrastar —
+  /// a mira e o SOS ficavam à altura antiga. O controlador avisa, às vezes a
+  /// meio de um build: a leitura fica para depois do frame.
+  void _seguirGaveta() {
+    if (_seguirGavetaAgendado) return;
+    _seguirGavetaAgendado = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _seguirGavetaAgendado = false;
+      if (!mounted || !_sheetCtrl.isAttached) return;
+      final s = _sheetCtrl.size;
+      if ((s - _sheetExtent).abs() > 0.005) setState(() => _sheetExtent = s);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final store = context.watch<TvdeDriverStore>();
@@ -1879,19 +1890,10 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     _onRideChanged(ride);
     _syncWaitTicker(ride);
     _syncStopsTicker();
-    // [Bloco 6, 30/08] Ao entrar em "Viagem em curso", recolhe o painel para a
-    // linha única (estado · ganho) e dá o mapa inteiro — uma vez por corrida;
-    // o motorista continua livre de o puxar quando quiser os botões.
-    if (ride.isInProgress && !_sheetCollapsedForTrip) {
-      _sheetCollapsedForTrip = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _sheetCtrl.isAttached) {
-          _sheetCtrl.animateTo(0.14,
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOut);
-        }
-      });
-    }
+    // [Cartão por fases · 11/10] O "recolher para uma linha ao iniciar a
+    // viagem" (Bloco 6, 30/08) saiu: escondia o "Finalizar viagem". A gaveta
+    // volta sozinha à posição recolhida NOVA quando a fase muda (`fase` da
+    // TvdeCorridaGaveta), e essa já mostra o essencial.
     // [4A 05/09] Aqui trata-se só do que muda por ESTADO da corrida: fase nova
     // (a caminho → em viagem), paragens novas, ETA. O bearing e a câmara saíram
     // daqui — vivem em `_onGpsFix`, ao ritmo do GPS. `_maybeFetchRoute` já não
@@ -1957,7 +1959,24 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
             ),
         ],
       ),
-      body: Stack(
+      // [Cartão por fases · 11/10] A acção principal (Cheguei / Iniciar /
+      // Finalizar / Vou a caminho…) saiu de DENTRO da gaveta: está fixa no
+      // fundo, sempre visível, e a gaveta assenta por cima dela. Na corrida
+      // real de 11/10 a gaveta recolhia e o "Finalizar viagem" ficava cortado.
+      // O rodapé continua a ser o BoraBottomActionBar (navbar de 3 botões).
+      bottomNavigationBar: TvdeCorridaBotaoPrincipal(
+        ride: ride,
+        busy: _agindo,
+        // [PADRAO_BORA 3.13] `_agindo` LOCAL, não o `busy` global.
+        onCheguei: () => _arrived(ride),
+        onIniciar: () => _start(ride),
+        onFinalizar: () => _finish(ride),
+        onVouACaminho: () => _confirmarReservaACaminho(ride),
+        onAtualizar: () => _recarregarDoServidor(),
+      ),
+      // A altura da mira/SOS conta-se pela caixa do corpo — é nela que a
+      // gaveta mede as suas fracções (o rodapé fica de fora).
+      body: LayoutBuilder(builder: (context, caixa) => Stack(
         children: [
           // [Perf] RepaintBoundary: isola a camada do mapa do resto do ecrã —
           // os contadores de 1 s (espera/paradas) repintam o texto sem forçar
@@ -2007,8 +2026,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
           // _sheetExtent) — antes ficava escondida atrás dele.
           Positioned(
             right: Spacing.md,
-            bottom: MediaQuery.of(context).size.height * _sheetExtent +
-                Spacing.md,
+            bottom: caixa.maxHeight * _sheetExtent + Spacing.md,
             child: FloatingActionButton.small(
               heroTag: 'tvde_recenter',
               backgroundColor: AppColors.surface,
@@ -2027,8 +2045,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
               // lugar dele (ver a chave do painel).
               key: const ValueKey<String>('tvde_corrida_sos'),
               left: Spacing.md,
-              bottom: MediaQuery.of(context).size.height * _sheetExtent +
-                  Spacing.md,
+              bottom: caixa.maxHeight * _sheetExtent + Spacing.md,
               child: Material(
                 color: AppColors.surface,
                 shape: const CircleBorder(),
@@ -2043,9 +2060,11 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
           // deixou de ser ponto único de falha.
           // [Item N] Card arrastável (bottom sheet), igual ao delivery: puxar
           // para baixo encolhe (mostra só o essencial e liberta o mapa), puxar
-          // para cima expande. O mapa (com a rota) ocupa o resto.
-          // [Bloco 6, 30/08] Em viagem começa RECOLHIDO (mapa quase cheio); o
+          // para cima expande. O mapa (com a rota) ocupa o resto. O
           // NotificationListener segue a altura para posicionar a mira.
+          // [Cartão por fases · 11/10] Padrão Uber/Bolt Driver: recolhida
+          // mostra o cabeçalho da fase inteiro (quem, onde, quando, quanto);
+          // aberta mostra o detalhe. Ver TvdeCorridaGaveta.
           //
           // [Painel rebenta · 07/10 · 19 erros em 637–654] O painel tem chave
           // própria. Sem ela, quando o SOS de cima sai (corrida terminada ou
@@ -2064,248 +2083,69 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
                 }
                 return false;
               },
-              child: DraggableScrollableSheet(
-              controller: _sheetCtrl,
-              initialChildSize: ride.isInProgress ? 0.14 : 0.30,
-              minChildSize: 0.14,
-              maxChildSize: 0.52,
-              snap: true,
-              snapSizes: const [0.14, 0.30, 0.52],
-              builder: (ctx, scrollController) => Container(
-                decoration: const BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius:
-                      BorderRadius.vertical(top: Radius.circular(Radii.lg)),
-                  boxShadow: [
-                    BoxShadow(
-                        color: Color(0x1F000000),
-                        blurRadius: 16,
-                        offset: Offset(0, -2)),
-                  ],
-                ),
-                child: ListView(
-                  controller: scrollController,
-                  padding: EdgeInsets.zero,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 4,
-                        margin:
-                            const EdgeInsets.symmetric(vertical: Spacing.sm),
-                        decoration: BoxDecoration(
-                          color: AppColors.divider,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                    // [PADRAO_BORA 3.13] `_agindo` LOCAL, não o `busy` global.
-                    _ActionPanel(ride: ride, busy: _agindo, actions: this),
-                  ],
-                ),
-              ),
+              child: TvdeCorridaGaveta(
+                controller: _sheetCtrl,
+                // Fase nova (ou corrida nova da fila) → volta à recolhida nova.
+                fase: '${ride.id}|${ride.status}',
+                // O Builder isola o `watch` do chat: uma mensagem nova repinta
+                // o cabeçalho, não o ecrã com o mapa.
+                cabecalho: Builder(builder: (context) {
+                  final naoLidas = context
+                      .watch<TvdeChatStore>()
+                      .unreadFor(ride.id, 'driver');
+                  final pendentes = _paragensPendentes;
+                  return TvdeCorridaCabecalho(
+                    ride: ride,
+                    passengerName: _passengerName,
+                    etaMin: _etaMin,
+                    proximaParagem: ride.isInProgress && pendentes.isNotEmpty
+                        ? pendentes.first
+                        : null,
+                    esperaSegundos: _waitSeconds(ride),
+                    naoCompareceuLiberto: _noShowUnlocked(ride),
+                    naoLidas: naoLidas,
+                    onNavegar: () => _navigate(ride),
+                    onChat: () => _openChat(ride),
+                  );
+                }),
+                // [PADRAO_BORA 3.13] `_agindo` LOCAL, não o `busy` global.
+                detalhe: _DetalheDaCorrida(
+                    ride: ride, busy: _agindo, actions: this),
               ),
             ),
           ),
         ],
-      ),
+      )),
     );
   }
 }
 
-class _ActionPanel extends StatelessWidget {
-  const _ActionPanel({required this.ride, required this.busy, required this.actions});
+/// [Cartão por fases · 11/10] Detalhe da corrida — o que se vê com a gaveta
+/// ABERTA. Tudo o que vivia no painel antigo continua aqui; só saíram o
+/// cabeçalho da fase (para o [TvdeCorridaCabecalho]) e o botão da acção (para
+/// o [TvdeCorridaBotaoPrincipal], fixo no fundo do ecrã).
+class _DetalheDaCorrida extends StatelessWidget {
+  const _DetalheDaCorrida(
+      {required this.ride, required this.busy, required this.actions});
   final TvdeRide ride;
   final bool busy;
   final _TvdeRideActiveScreenState actions;
 
   @override
   Widget build(BuildContext context) {
-    // [Item C] o motorista vê o SEU líquido (ganho), não o total do cliente.
-    // [Balcão] o valor combinado manda quando existe — nunca recalculado aqui.
-    final net = (ride.netDriverEarnCents / 100).toStringAsFixed(2);
     // [Item I] badge de mensagens por ler (lado do motorista).
     final unread = context.watch<TvdeChatStore>().unreadFor(ride.id, 'driver');
 
-    String label;
-    IconData icon;
-    VoidCallback? onPressed;
-    if (ride.isOnTheWay) {
-      label = 'Cheguei ao passageiro';
-      icon = Icons.where_to_vote;
-      onPressed = busy ? null : () => actions._arrived(ride);
-    } else if (ride.hasArrived) {
-      label = 'Iniciar viagem';
-      icon = Icons.play_arrow;
-      onPressed = busy ? null : () => actions._start(ride);
-    } else if (ride.isInProgress) {
-      label = 'Finalizar viagem';
-      icon = Icons.flag;
-      onPressed = busy ? null : () => actions._finish(ride);
-    } else if (ride.status == 'motorista_atribuido' && ride.isReservation) {
-      // [Fix 2026-08-20] A reserva fica NESTE estado entre os 20 e os 10
-      // minutos da hora (o sweep activa aos 20; aos 10 é que promove quem está
-      // vivo a 'motorista_a_caminho'). O painel não tinha ramo para aqui e o
-      // motorista via "A processar…" — sem perceber que só tinha de confirmar.
-      label = 'Vou a caminho';
-      icon = Icons.directions_car_filled;
-      onPressed = busy ? null : () => actions._confirmarReservaACaminho(ride);
-    } else if (ride.status == 'motorista_atribuido' && ride.isQueued) {
-      // Back-to-back: usa o mesmo estado, mas não há nada a confirmar — esta
-      // arranca sozinha quando a viagem actual terminar.
-      label = 'Começa ao terminares esta viagem';
-      icon = Icons.queue;
-      onPressed = null;
-    } else {
-      // [Fix botão preso 2026-08-20] Rede para estados que o ecrã não sabe
-      // tratar. Era um botão MORTO — sem acção, sem explicação, sem saída.
-      label = 'A processar… toca para atualizar';
-      icon = Icons.refresh;
-      onPressed = busy ? null : () => actions._recarregarDoServidor();
-    }
-
-    // [botoes-navbar-eta 31/08] O conteúdo fica no Padding; os BOTÕES finais
-    // saem para o BoraBottomActionBar — no Samsung do Danilo (navbar de 3
-    // botões) o "Finalizar viagem" ficava tapado pela barra do sistema.
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(Spacing.lg, 0, Spacing.lg, 0),
-          child: Column(
+    return Padding(
+      padding:
+          const EdgeInsets.fromLTRB(Spacing.lg, 0, Spacing.lg, Spacing.lg),
+      child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Icon(Icons.directions_car, color: AppColors.primary),
-              const SizedBox(width: Spacing.md),
-              Expanded(
-                // [Bloco 6] Estado + ETA na PRIMEIRA linha: é a única coisa
-                // visível com o painel recolhido em viagem, e o ETA tem de lá
-                // estar (padrão Waze/Uber).
-                child: Text(
-                    actions._etaText != null &&
-                            (ride.isOnTheWay ||
-                                ride.hasArrived ||
-                                ride.isInProgress)
-                        ? '${ride.statusLabel} · ${actions._etaText}'
-                        : ride.statusLabel,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary)),
-              ),
-              Text('€$net',
-                  style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary)),
-            ],
-          ),
-          const SizedBox(height: Spacing.sm),
-          Text('${ride.originLabel ?? 'Recolha'} → ${ride.destLabel ?? 'Destino'}',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-          // [Fix 2026-08-20] Reserva ainda por confirmar: dizer a hora marcada
-          // e quanto falta. Sem isto o motorista via só "Motorista atribuído"
-          // e não sabia que a corrida é para daqui a bocado.
-          if (ride.status == 'motorista_atribuido' &&
-              ride.isReservation &&
-              ride.scheduledAt != null) ...[
-            const SizedBox(height: Spacing.xs),
-            Row(
-              children: [
-                const Icon(Icons.schedule, size: 15, color: AppColors.primary),
-                const SizedBox(width: 6),
-                Text(avisoDaReserva(ride.scheduledAt!),
-                    style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primary)),
-              ],
-            ),
-            // [Bloco 4.4 — 2026-09-05] Devolver a reserva. A função do servidor
-            // (`tvde_reservation_release`) já existia e estava provada; faltava
-            // maneira de lhe chamar do telemóvel. Sem isto, o motorista que
-            // percebe a meio que não vai conseguir não tinha como avisar — ou
-            // segurava a reserva até ao corte automático, ou desaparecia.
-            // Devolver cedo dá tempo à Bora de arranjar outro.
-            const SizedBox(height: Spacing.xs),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed:
-                    busy ? null : () => actions._devolverReserva(ride),
-                icon: const Icon(Icons.undo, size: 17),
-                label: const Text('Devolver reserva'),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.textSecondary,
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  visualDensity: VisualDensity.compact,
-                ),
-              ),
-            ),
-          ],
-          // PART2 — método de pagamento + quanto COBRAR ao passageiro (paridade
-          // com o estafeta do delivery). Hoje as corridas são todas em dinheiro.
-          const SizedBox(height: Spacing.sm),
-          TvdePayBadge(ride: ride),
-          // [Balcão] cliente sem app — selo visível durante toda a corrida.
-          if (ride.isCounterRide) ...[
-            const SizedBox(height: Spacing.xs),
-            const TvdeCounterRideBadge(),
-          ],
-          // [Fase B] Pacote €8: separar o que ele GANHA do que o cliente PAGA.
-          if (ride.isRoundtripLeg) ...[
-            const SizedBox(height: Spacing.xs),
-            TvdeRoundtripDriverNotice(ride: ride),
-          ],
-          // [Mudar destino 30/09] destino novo + o que ganha a mais.
-          if (ride.hasDestChange) ...[
-            const SizedBox(height: Spacing.xs),
-            TvdeDestChangeDriverNotice(ride: ride),
-          ],
-          // [CAMPO-02 · F1] ganho extra por paradas (some ao líquido do motorista).
-          if (ride.extraStopsDriverCents > 0) ...[
-            const SizedBox(height: Spacing.xs),
-            Row(
-              children: [
-                const Icon(Icons.add_location_alt,
-                    size: 15, color: AppColors.primary),
-                const SizedBox(width: 4),
-                Text(
-                    'Paragens: +€${(ride.extraStopsDriverCents / 100).toStringAsFixed(2)}',
-                    style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700)),
-              ],
-            ),
-          ],
-          // B6 — ETA para o motorista (rota real). Escondido quando a viagem
-          // terminou/processa ou a rota ainda não chegou.
-          if (actions._etaText != null &&
-              (ride.isOnTheWay || ride.hasArrived || ride.isInProgress)) ...[
-            const SizedBox(height: Spacing.xs),
-            Row(
-              children: [
-                const Icon(Icons.schedule,
-                    size: 16, color: AppColors.primary),
-                const SizedBox(width: 4),
-                Text(actions._etaText!,
-                    style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700)),
-              ],
-            ),
-          ],
+          const Divider(height: Spacing.md),
           // M16/D2 — cartão do passageiro (foto + nome) + falar (chat/ligar).
           if (actions._passengerName != null) ...[
-            const SizedBox(height: Spacing.sm),
             Row(
               children: [
                 CircleAvatar(
@@ -2351,6 +2191,42 @@ class _ActionPanel extends StatelessWidget {
                   ),
               ],
             ),
+            const SizedBox(height: Spacing.xs),
+          ],
+          // PART2 — método de pagamento + quanto COBRAR ao passageiro (paridade
+          // com o estafeta do delivery). Hoje as corridas são todas em dinheiro.
+          TvdePayBadge(ride: ride),
+          // [Balcão] cliente sem app — selo visível durante toda a corrida.
+          if (ride.isCounterRide) ...[
+            const SizedBox(height: Spacing.xs),
+            const TvdeCounterRideBadge(),
+          ],
+          // [Fase B] Pacote €8: separar o que ele GANHA do que o cliente PAGA.
+          if (ride.isRoundtripLeg) ...[
+            const SizedBox(height: Spacing.xs),
+            TvdeRoundtripDriverNotice(ride: ride),
+          ],
+          // [Mudar destino 30/09] destino novo + o que ganha a mais.
+          if (ride.hasDestChange) ...[
+            const SizedBox(height: Spacing.xs),
+            TvdeDestChangeDriverNotice(ride: ride),
+          ],
+          // [CAMPO-02 · F1] ganho extra por paradas (some ao líquido do motorista).
+          if (ride.extraStopsDriverCents > 0) ...[
+            const SizedBox(height: Spacing.xs),
+            Row(
+              children: [
+                const Icon(Icons.add_location_alt,
+                    size: 15, color: AppColors.primary),
+                const SizedBox(width: 4),
+                Text(
+                    'Paragens: +€${(ride.extraStopsDriverCents / 100).toStringAsFixed(2)}',
+                    style: const TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700)),
+              ],
+            ),
           ],
           // [CAMPO-02 · F1] Paradas do cliente — lista numerada, "Cheguei à
           // parada" e countdown informativo de espera grátis. Só se houver.
@@ -2361,14 +2237,6 @@ class _ActionPanel extends StatelessWidget {
               busy: busy,
               onReach: (stop) => actions._reachStop(ride, stop),
             ),
-          // 4c — temporizador de espera no pickup (padrão Uber).
-          if (ride.hasArrived) ...[
-            const SizedBox(height: Spacing.sm),
-            _WaitChip(
-              seconds: actions._waitSeconds(ride) ?? 0,
-              unlocked: actions._noShowUnlocked(ride),
-            ),
-          ],
           // Back-to-back — cartão "Próxima corrida" (a que está em fila).
           // [Sobreposição 14/09 · itens 7 e 9] Era só um chip "na fila"; passa a
           // dizer o que ele ganha, de onde para onde, a que distância do
@@ -2387,37 +2255,642 @@ class _ActionPanel extends StatelessWidget {
               ),
             );
           }),
-          ],
-          ),
-        ),
-        // Navegar (Google Maps/Waze) + ação principal, no rodapé aprovado:
-        // padding do sistema somado UMA vez, toque ≥56, largura total.
-        BoraBottomActionBar(
-          topPadding: Spacing.lg,
-          children: [
-            if (ride.isOnTheWay || ride.hasArrived || ride.isInProgress)
-              OutlinedButton.icon(
-                onPressed: () => actions._navigate(ride),
-                icon: const Icon(Icons.navigation),
-                label: Text(ride.isInProgress
-                    ? 'Navegar até ao destino'
-                    : 'Navegar até à recolha'),
-                // D3 — botão arredondado (radius do design system).
-                style: OutlinedButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(Radii.md)),
+          // [Bloco 4.4 — 2026-09-05] Devolver a reserva. A função do servidor
+          // (`tvde_reservation_release`) já existia e estava provada; faltava
+          // maneira de lhe chamar do telemóvel. Sem isto, o motorista que
+          // percebe a meio que não vai conseguir não tinha como avisar — ou
+          // segurava a reserva até ao corte automático, ou desaparecia.
+          // Devolver cedo dá tempo à Bora de arranjar outro.
+          if (ride.status == 'motorista_atribuido' &&
+              ride.isReservation &&
+              ride.scheduledAt != null) ...[
+            const SizedBox(height: Spacing.xs),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed:
+                    busy ? null : () => actions._devolverReserva(ride),
+                icon: const Icon(Icons.undo, size: 17),
+                label: const Text('Devolver reserva'),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.textSecondary,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  visualDensity: VisualDensity.compact,
                 ),
               ),
-            BoraAccentButton(
-              label: label,
-              icon: icon,
-              loading: busy,
-              onPressed: onPressed,
             ),
           ],
+          // A viagem inteira, pequena, só para referência — a morada em
+          // grande é a do alvo da fase, no cabeçalho.
+          const SizedBox(height: Spacing.md),
+          Text(
+              'Viagem: ${ride.originLabel ?? 'Recolha'} → '
+              '${ride.destLabel ?? 'Destino'}',
+              style: const TextStyle(
+                  color: AppColors.textSecondary, fontSize: 12.5)),
+        ],
+      ),
+    );
+  }
+}
+
+/// [Cartão por fases · 11/10] Cabeçalho da corrida por FASE, do lado do
+/// motorista (padrão Uber Driver / Bolt Driver). É o que fica à vista com a
+/// gaveta recolhida — o que fazer agora, onde, em quanto tempo e quanto ganha:
+///
+///  · a caminho → "A caminho da recolha · <nome>" e SÓ a morada de recolha;
+///  · chegou    → "À espera de <nome>", o cronómetro de espera e a recolha;
+///  · em viagem → "A levar <nome> ao destino" e SÓ a morada do destino (ou da
+///                próxima paragem por alcançar, se houver paragens).
+///
+/// O título vem de [TvdeRide.driverPhaseTitle] (o `statusLabel` é a frase do
+/// cliente). O ETA aparece UMA vez só, na linha pequena, nunca no título.
+/// Público para os testes de widget — o ecrã inteiro não monta num teste.
+class TvdeCorridaCabecalho extends StatelessWidget {
+  const TvdeCorridaCabecalho({
+    super.key,
+    required this.ride,
+    this.passengerName,
+    this.etaMin,
+    this.proximaParagem,
+    this.esperaSegundos,
+    this.naoCompareceuLiberto = false,
+    this.naoLidas = 0,
+    this.onNavegar,
+    this.onChat,
+  });
+
+  final TvdeRide ride;
+  final String? passengerName;
+
+  /// Minutos até à recolha (a caminho) ou ao destino (em viagem, já com as
+  /// paragens pelo caminho). Null = a rota ainda não chegou.
+  final int? etaMin;
+
+  /// Próxima paragem por alcançar — só em viagem. Null = segue para o destino.
+  final TvdeRideStop? proximaParagem;
+
+  /// Segundos desde o "cheguei" (fase chegou).
+  final int? esperaSegundos;
+  final bool naoCompareceuLiberto;
+
+  /// Mensagens do passageiro por ler: o balão fica à vista mesmo recolhida.
+  final int naoLidas;
+  final VoidCallback? onNavegar;
+  final VoidCallback? onChat;
+
+  /// O rótulo pequeno por cima da morada grande: diz que morada é.
+  String get alvoRotulo {
+    if (ride.isInProgress) {
+      final p = proximaParagem;
+      return p == null ? 'Destino' : 'Paragem ${p.seq}';
+    }
+    return 'Recolha';
+  }
+
+  /// A morada do alvo da fase — a ÚNICA em letra grande.
+  String get alvoMorada {
+    if (ride.isInProgress) {
+      final p = proximaParagem;
+      if (p != null) {
+        final l = p.label?.trim() ?? '';
+        return l.isNotEmpty ? l : 'Paragem ${p.seq}';
+      }
+      return _ou(ride.destLabel, 'Destino');
+    }
+    return _ou(ride.originLabel, 'Recolha');
+  }
+
+  static String _ou(String? v, String vazio) {
+    final t = v?.trim() ?? '';
+    return t.isEmpty ? vazio : t;
+  }
+
+  /// "Chegas em ~X min" a caminho; "Chegada em ~X min" em viagem. Com uma
+  /// paragem por fazer, a morada grande é a da paragem mas o tempo é até ao
+  /// DESTINO (a rota e o ETA contam as paragens pelo caminho) — diz-se isso.
+  String? get etaFrase {
+    final m = etaMin;
+    if (m == null) return null;
+    if (ride.isOnTheWay) return 'Chegas em ~$m min';
+    if (ride.isInProgress) {
+      return proximaParagem == null
+          ? 'Chegada em ~$m min'
+          : 'Chegada ao destino em ~$m min';
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // [Item C] o motorista vê o SEU líquido (ganho), não o total do cliente.
+    // [Balcão] o valor combinado manda quando existe — nunca recalculado aqui.
+    final net = (ride.netDriverEarnCents / 100).toStringAsFixed(2);
+    final navegavel = ride.isOnTheWay || ride.hasArrived || ride.isInProgress;
+    final eta = etaFrase;
+
+    return Padding(
+      padding:
+          const EdgeInsets.fromLTRB(Spacing.lg, 0, Spacing.lg, Spacing.md),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                // Até duas linhas: o título nunca sai cortado a meio.
+                child: Text(
+                  ride.driverPhaseTitle(passengerName: passengerName),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 17,
+                      height: 1.25,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary),
+                ),
+              ),
+              if (naoLidas > 0 && onChat != null)
+                Badge(
+                  label: Text('$naoLidas'),
+                  child: IconButton(
+                    onPressed: onChat,
+                    icon: const Icon(Icons.chat_bubble_outline),
+                    color: AppColors.primary,
+                    tooltip: 'Mensagem',
+                  ),
+                ),
+            ],
+          ),
+          // [Fix 2026-08-20] Reserva ainda por confirmar: dizer a hora marcada
+          // e quanto falta. Sem isto o motorista não sabia que a corrida é
+          // para daqui a bocado.
+          if (ride.status == 'motorista_atribuido' &&
+              ride.isReservation &&
+              ride.scheduledAt != null) ...[
+            const SizedBox(height: Spacing.xs),
+            Row(
+              children: [
+                const Icon(Icons.schedule, size: 15, color: AppColors.primary),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(avisoDaReserva(ride.scheduledAt!),
+                      style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary)),
+                ),
+              ],
+            ),
+          ],
+          // 4c — temporizador de espera no pickup (padrão Uber).
+          if (ride.hasArrived) ...[
+            const SizedBox(height: Spacing.sm),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: _WaitChip(
+                seconds: esperaSegundos ?? 0,
+                unlocked: naoCompareceuLiberto,
+              ),
+            ),
+          ],
+          const SizedBox(height: Spacing.sm),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(alvoRotulo,
+                        style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textSecondary)),
+                    const SizedBox(height: 2),
+                    Text(
+                      alvoMorada,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 20,
+                          height: 1.2,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary),
+                    ),
+                  ],
+                ),
+              ),
+              if (navegavel && onNavegar != null) ...[
+                const SizedBox(width: Spacing.sm),
+                _BotaoNavegar(
+                    paraODestino: ride.isInProgress, onPressed: onNavegar!),
+              ],
+            ],
+          ),
+          const SizedBox(height: Spacing.sm),
+          Row(
+            children: [
+              Expanded(
+                child: eta == null
+                    ? const SizedBox.shrink()
+                    : Row(
+                        children: [
+                          const Icon(Icons.schedule,
+                              size: 15, color: AppColors.textSecondary),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(eta,
+                                style: const TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textSecondary)),
+                          ),
+                        ],
+                      ),
+              ),
+              Text('Ganhas €$net',
+                  style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primary)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// [Cartão por fases · 11/10] "Navegar" compacto, ao lado da morada do alvo
+/// (como na Uber), em vez do botão de largura inteira. A acção é a mesma de
+/// sempre (`_navigate`): a caminho → recolha; em viagem → destino.
+class _BotaoNavegar extends StatelessWidget {
+  const _BotaoNavegar({required this.paraODestino, required this.onPressed});
+  final bool paraODestino;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final rotulo =
+        paraODestino ? 'Navegar até ao destino' : 'Navegar até à recolha';
+    return Tooltip(
+      message: rotulo,
+      excludeFromSemantics: true,
+      child: Semantics(
+        button: true,
+        label: rotulo,
+        excludeSemantics: true,
+        child: Material(
+          color: AppColors.primary,
+          borderRadius: BorderRadius.circular(Radii.md),
+          child: InkWell(
+            key: const ValueKey<String>('tvde_corrida_navegar'),
+            borderRadius: BorderRadius.circular(Radii.md),
+            onTap: onPressed,
+            child: const SizedBox(
+              width: 64,
+              height: 56,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.navigation, color: Colors.white, size: 22),
+                  SizedBox(height: 2),
+                  Text('Navegar',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// [Cartão por fases · 11/10] A acção principal da fase, FIXA no fundo do
+/// ecrã — fora da gaveta, sempre visível, em todas as fases. Os ramos são os
+/// de sempre (só mudaram de casa). O rodapé continua a ser o
+/// BoraBottomActionBar: no Samsung do Danilo (navbar de 3 botões) o
+/// "Finalizar viagem" ficava tapado pela barra do sistema (31/08).
+class TvdeCorridaBotaoPrincipal extends StatelessWidget {
+  const TvdeCorridaBotaoPrincipal({
+    super.key,
+    required this.ride,
+    required this.busy,
+    this.onCheguei,
+    this.onIniciar,
+    this.onFinalizar,
+    this.onVouACaminho,
+    this.onAtualizar,
+  });
+
+  final TvdeRide ride;
+
+  /// [PADRAO_BORA 3.13] Estado de envio LOCAL do ecrã (`_agindo`), nunca o
+  /// `busy` partilhado do store.
+  final bool busy;
+  final VoidCallback? onCheguei;
+  final VoidCallback? onIniciar;
+  final VoidCallback? onFinalizar;
+  final VoidCallback? onVouACaminho;
+  final VoidCallback? onAtualizar;
+
+  @override
+  Widget build(BuildContext context) {
+    String label;
+    IconData icon;
+    VoidCallback? accao;
+    if (ride.isOnTheWay) {
+      label = 'Cheguei ao passageiro';
+      icon = Icons.where_to_vote;
+      accao = onCheguei;
+    } else if (ride.hasArrived) {
+      label = 'Iniciar viagem';
+      icon = Icons.play_arrow;
+      accao = onIniciar;
+    } else if (ride.isInProgress) {
+      label = 'Finalizar viagem';
+      icon = Icons.flag;
+      accao = onFinalizar;
+    } else if (ride.status == 'motorista_atribuido' && ride.isReservation) {
+      // [Fix 2026-08-20] A reserva fica NESTE estado entre os 20 e os 10
+      // minutos da hora (o sweep activa aos 20; aos 10 é que promove quem está
+      // vivo a 'motorista_a_caminho'). O painel não tinha ramo para aqui e o
+      // motorista via "A processar…" — sem perceber que só tinha de confirmar.
+      label = 'Vou a caminho';
+      icon = Icons.directions_car_filled;
+      accao = onVouACaminho;
+    } else if (ride.status == 'motorista_atribuido' && ride.isQueued) {
+      // Back-to-back: usa o mesmo estado, mas não há nada a confirmar — esta
+      // arranca sozinha quando a viagem actual terminar.
+      label = 'Começa ao terminares esta viagem';
+      icon = Icons.queue;
+      accao = null;
+    } else {
+      // [Fix botão preso 2026-08-20] Rede para estados que o ecrã não sabe
+      // tratar. Era um botão MORTO — sem acção, sem explicação, sem saída.
+      label = 'A processar… toca para atualizar';
+      icon = Icons.refresh;
+      accao = onAtualizar;
+    }
+
+    return BoraBottomActionBar(
+      color: AppColors.surface,
+      children: [
+        BoraAccentButton(
+          label: label,
+          icon: icon,
+          loading: busy,
+          onPressed: busy ? null : accao,
         ),
       ],
     );
+  }
+}
+
+/// [Cartão por fases · 11/10] A gaveta da corrida. Queixa do Danilo numa
+/// corrida real (11/10, fotos): recolhia sozinha para uma linha cortada,
+/// subia com dificuldade e, aberta, ficava fininha (máximo 0.52) com o
+/// "Finalizar viagem" cortado.
+///
+///  · recolhida = o [cabecalho] INTEIRO: a altura MEDE-SE, não é 0.14 fixo;
+///  · abre até [maxAberta] (ou à altura do conteúdo, o que for menor), com
+///    paragens recolhida / meia / cheia;
+///  · tocar na pega ou no cabeçalho alterna recolhida ↔ aberta, e a zona de
+///    agarrar ([alturaPega]) é maior do que a risca de 40×4 de antes;
+///  · [fase] nova → volta à posição recolhida NOVA (que já mostra o
+///    essencial), em vez de encolher para uma linha ao iniciar a viagem.
+///
+/// O botão da acção NÃO vive aqui: está fixo no fundo do ecrã. Público para
+/// os testes de widget.
+class TvdeCorridaGaveta extends StatefulWidget {
+  const TvdeCorridaGaveta({
+    super.key,
+    required this.controller,
+    required this.fase,
+    required this.cabecalho,
+    required this.detalhe,
+  });
+
+  final DraggableScrollableController controller;
+
+  /// Muda quando a corrida muda de fase (ou entra a corrida da fila).
+  final String fase;
+  final Widget cabecalho;
+  final Widget detalhe;
+
+  /// Até onde abre, em fracção da caixa do corpo (o rodapé fica de fora).
+  static const double maxAberta = 0.88;
+
+  /// Altura da zona de agarrar; a risca fica ao centro.
+  static const double alturaPega = 28;
+
+  @override
+  State<TvdeCorridaGaveta> createState() => _TvdeCorridaGavetaState();
+}
+
+class _TvdeCorridaGavetaState extends State<TvdeCorridaGaveta> {
+  /// Pega + cabeçalho, em px (medido). Null até à primeira medição.
+  double? _altCabecalho;
+
+  /// Tudo — pega + cabeçalho + detalhe —, em px (medido).
+  double? _altConteudo;
+
+  /// Última conta, em fracção da caixa: a usam os toques e a recolha.
+  double _min = 0.25;
+  double _max = TvdeCorridaGaveta.maxAberta;
+  bool _recolherPendente = false;
+
+  /// A paragem do meio, guardada. [Juiz 11/10] O DraggableScrollableSheet
+  /// compara `snapSizes` por IDENTIDADE: uma lista nova em cada build manda-o
+  /// "assentar" e cancela o dedo a meio do arrasto — e este ecrã redesenha-se
+  /// a arrastar (mira, SOS, cronómetro). Só se troca quando o valor muda.
+  List<double>? _snaps;
+
+  @override
+  void didUpdateWidget(covariant TvdeCorridaGaveta oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.fase != widget.fase) {
+      _recolherPendente = true;
+      // Dois frames: no primeiro mede-se o cabeçalho da fase nova; no segundo
+      // já está calculada a posição recolhida nova.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        WidgetsBinding.instance
+            .addPostFrameCallback((_) => _recolherSePendente());
+        WidgetsBinding.instance.scheduleFrame();
+      });
+    }
+  }
+
+  void _recolherSePendente() {
+    if (!mounted || !_recolherPendente) return;
+    _recolherPendente = false;
+    final c = widget.controller;
+    if (!c.isAttached) return;
+    c.animateTo(_min,
+        duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+  }
+
+  void _alternar() {
+    final c = widget.controller;
+    if (!c.isAttached) return;
+    final aberta = c.size > _min + 0.02;
+    c.animateTo(aberta ? _min : _max,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic);
+  }
+
+  void _mediuCabecalho(double altura) {
+    if (!mounted) return;
+    final antes = _altCabecalho;
+    if (antes != null && (altura - antes).abs() < 0.5) return;
+    final c = widget.controller;
+    // Estava recolhida? Continua recolhida à altura nova — o nome do
+    // passageiro chega depois e pode pôr o título em duas linhas.
+    final estavaRecolhida = c.isAttached && (c.size - _min).abs() < 0.01;
+    setState(() => _altCabecalho = altura);
+    if (estavaRecolhida) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && c.isAttached && (c.size - _min).abs() > 0.001) {
+          c.jumpTo(_min);
+        }
+      });
+    }
+  }
+
+  void _mediuConteudo(double altura) {
+    if (!mounted) return;
+    final antes = _altConteudo;
+    if (antes != null && (altura - antes).abs() < 0.5) return;
+    setState(() => _altConteudo = altura);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, caixa) {
+      final h = caixa.maxHeight;
+      if (!h.isFinite || h <= 0) return const SizedBox.shrink();
+      const maxAberta = TvdeCorridaGaveta.maxAberta;
+      // Antes da primeira medição: um cabeçalho típico (~190 px).
+      final min =
+          ((_altCabecalho ?? 190) / h).clamp(0.10, maxAberta).toDouble();
+      final conteudo = _altConteudo;
+      final max = conteudo == null
+          ? maxAberta
+          : (conteudo / h).clamp(min, maxAberta).toDouble();
+      _min = min;
+      _max = max;
+      final meio = max - min > 0.15 ? (min + max) / 2 : null;
+      final antes = _snaps;
+      if (meio == null) {
+        _snaps = null;
+      } else if (antes == null || (antes.single - meio).abs() > 1e-6) {
+        _snaps = List<double>.unmodifiable(<double>[meio]);
+      }
+      return DraggableScrollableSheet(
+        controller: widget.controller,
+        initialChildSize: min,
+        minChildSize: min,
+        maxChildSize: max,
+        snap: true,
+        snapSizes: _snaps,
+        builder: (context, scrollController) => DecoratedBox(
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(Radii.lg)),
+            boxShadow: [
+              BoxShadow(
+                  color: Color(0x1F000000),
+                  blurRadius: 16,
+                  offset: Offset(0, -2)),
+            ],
+          ),
+          child: ListView(
+            controller: scrollController,
+            padding: EdgeInsets.zero,
+            children: [
+              _MedidorDeAltura(
+                onAltura: _mediuConteudo,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _MedidorDeAltura(
+                      onAltura: _mediuCabecalho,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: _alternar,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            SizedBox(
+                              key: const ValueKey<String>('tvde_corrida_pega'),
+                              height: TvdeCorridaGaveta.alturaPega,
+                              child: Center(
+                                child: Container(
+                                  width: 48,
+                                  height: 5,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.textSubtle
+                                        .withValues(alpha: 0.45),
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            widget.cabecalho,
+                          ],
+                        ),
+                      ),
+                    ),
+                    widget.detalhe,
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+}
+
+/// Mede a altura do filho depois de cada layout e avisa — fora do frame, e só
+/// quando muda. A gaveta usa-o para saber quanto ocupam o cabeçalho e o resto.
+class _MedidorDeAltura extends SingleChildRenderObjectWidget {
+  const _MedidorDeAltura({required this.onAltura, required Widget super.child});
+  final ValueChanged<double> onAltura;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderMedidorDeAltura(onAltura);
+
+  @override
+  void updateRenderObject(
+      BuildContext context, _RenderMedidorDeAltura renderObject) {
+    renderObject.onAltura = onAltura;
+  }
+}
+
+class _RenderMedidorDeAltura extends RenderProxyBox {
+  _RenderMedidorDeAltura(this.onAltura);
+  ValueChanged<double> onAltura;
+  double? _ultima;
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    final altura = size.height;
+    if (_ultima == altura) return;
+    _ultima = altura;
+    WidgetsBinding.instance.addPostFrameCallback((_) => onAltura(altura));
   }
 }
 

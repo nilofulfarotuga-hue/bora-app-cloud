@@ -399,6 +399,26 @@ class TvdeRide {
         return status;
     }
   }
+
+  /// [Cartão por fases · 11/10] Título da corrida no ecrã do MOTORISTA. O
+  /// [statusLabel] é a frase do CLIENTE ("Motorista a caminho", "O motorista
+  /// chegou") e estava a aparecer a quem conduz. Sem nome do passageiro
+  /// diz-se "o passageiro". Nunca leva o ETA — esse tem linha própria.
+  String driverPhaseTitle({String? passengerName}) {
+    final nome = passengerName?.trim() ?? '';
+    final temNome = nome.isNotEmpty;
+    if (isOnTheWay || (status == 'motorista_atribuido' && isReservation)) {
+      return temNome ? 'A caminho da recolha · $nome' : 'A caminho da recolha';
+    }
+    if (hasArrived) {
+      return temNome ? 'À espera de $nome' : 'À espera do passageiro';
+    }
+    if (isInProgress) {
+      return 'A levar ${temNome ? nome : 'o passageiro'} ao destino';
+    }
+    if (status == 'motorista_atribuido' && isQueued) return 'Próxima corrida';
+    return 'A processar…';
+  }
 }
 
 /// [CAMPO-02 · Feature 1] Uma parada adicional de uma corrida TVDE.

@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-10
+ultima_confirmacao: 2026-10-11
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-10T19:54:05.550034+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-11T19:53:51.653991+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -102,3 +102,12 @@ REGRA (Danilo, 01/10/2026): tudo o que ele mandar (vídeos, transcrições, link
 - FILME: Google Flow com ferramenta que parte o roteiro em cenas de 10 s e gera em sequência com o mesmo visual (ver caminhos-animacao-filme). https://www.youtube.com/watch?v=Zi4UDsCGtOE
 - JÁ TEMOS: Higgsfield ads/UGC (Buzzy MCP não acrescenta), mods do Claude Code, plan mode/spec.md, gancho de 3 s, ar de conversa real, Google Flow, motion control.
 - RECUSADO: ponte "GPT-6.1/Codex grátis ilimitado" de terceiros (risco de conta), remisturar/republicar posts e vídeos virais alheios, páginas de curiosidades para monetizar, influencer IA com histórico falso.
+
+## 11/10/2026 — radar diário
+34 vídeos revistos: 4 novos, 15 já temos, 15 rejeitados (4 por nota baixa). Nenhum do tema animacao_ia.
+- DINHEIRO / caça-clientes: na Mister Navalha medir antes/depois do assistente de WhatsApp (marcações perdidas, horas poupadas) e pedir depoimento em vídeo de 30 s; virar prova nas propostas. Para os próximos clientes: automação grátis de 1 problema concreto em troca de números + depoimento. https://www.youtube.com/watch?v=RP4IgcE4YtI , https://www.youtube.com/watch?v=W4rufzCrzio
+- SISTEMA / EM DIA: Claude Motion para os explicativos de 15 s do Em Dia (sai MP4) e painel Claude Dashboards só de leitura com métricas do Bora e do Em Dia. https://www.youtube.com/watch?v=Opzc2UnfROg
+- SISTEMA (gastar menos): Atria dá 100 milhões de tokens grátis sem cartão e liga ao Hermes; texto só (sem imagem/PDF), contexto menor. Testar UMA conta em tarefas sem dados de clientes; confirmar termos/privacidade (plataforma chinesa). Ignorar a dica de várias contas. https://www.youtube.com/watch?v=SYIF0OCK5-g
+- REELS EM DIA: formato tela verde com o ecrã da app atrás; descrição com palavras-chave porque o Instagram passou a ser indexado no Google e nas IAs (out/2026). https://www.youtube.com/watch?v=zHWHRejp7SY
+- JÁ TEMOS: assistente WhatsApp/CRM (4 vídeos), Claude Code 24/7 na VPS, equipa de agentes (Paperclip = Hermes+Orca), skills, micro-SaaS, vender resultado, sites com maquete, ArtCraft (analisado 10/10).
+- RECUSADO: Pulso Social (4.ª e 5.ª vez), IA local do PewDiePie (GPU), PhotoSwitch, boatos de modelos (Carbon, BIM), Blender 3D com Opus (3D descartado para o filme), Pabbly (pago).

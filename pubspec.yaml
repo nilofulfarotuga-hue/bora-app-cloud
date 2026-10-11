@@ -50,7 +50,11 @@ dependencies:
   firebase_core: ^4.15.0
   firebase_messaging: ^16.7.0
   image_picker: ^1.1.2
-  image: ^4.5.4
+  # 11/10/2026: < 4.11.0 — a image 4.11.0 (publicada a 11/10) chama
+  # ZLibDecoder.decodeLazy, que a archive 4.0.9 (a que os outros pacotes
+  # deixam resolver) não tem: o CI partiu web, Android e iPhone. Tirar o
+  # tecto quando a archive >= 4.5 resolver com o resto.
+  image: ">=4.5.4 <4.11.0"
   # 2026-05-14 perf: cache de imagens em disco (Image.network re-download a cada
   # build — em listas grandes [restaurants, products, stores] e' notavelmente
   # lento). cached_network_image usa flutter_cache_manager por baixo.

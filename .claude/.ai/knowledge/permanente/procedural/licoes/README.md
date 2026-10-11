@@ -1,5 +1,5 @@
 ---
-tema: licoes-index · escopo: projeto · estado: atual · atualizado: 2026-10-05
+tema: licoes-index · escopo: projeto · estado: atual · atualizado: 2026-10-11
 id: licoes-index
 tipo: conceito
 origem: [.claude/.ai/knowledge/PROTOCOLO.md]
@@ -64,3 +64,6 @@ tema: licao-<slug> · escopo: projeto|agente:<nome> · estado: atual · atualiza
 - `licao-juiz-phantom-fix-em-arnes-de-teste.md` — `PHANTOM_FIX` acusa em falso quando a avaria
   é do arnês de teste; medir a causa, provar 0 asserções mudadas, registar — nunca trocar
   `--task` (2026-10-05).
+- `licao-snapsizes-lista-nova-cancela-arrasto.md`: `snapSizes` do `DraggableScrollableSheet`
+  como lista nova em cada build cancela o arrasto do dedo quando o pai se redesenha a meio do
+  gesto; guardar no `State` e testar com `startGesture` + `moveBy` + `pump(16 ms)` (2026-10-11).

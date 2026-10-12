@@ -1,0 +1,25 @@
+OK     SQL da proposta criado sem erro (7 funções + setting)
+OK     S0 interruptor desligado recusa → reservation_dest_change_disabled
+OK     S1 cotação dinheiro 10 km: 500→900 (+400), motorista 720, needs_payment=false
+OK     S1 aplicado: preço 900, ganho 720, bora 180, km 10, fee_cents(online)=0
+OK     S1 evento reserva_destino_alterado (client, +400)
+OK     S1 aviso dest_changed ao motorista atribuído (paidOnline=false)
+OK     S2 cartão +400 → proposta e9ac7c58, reserva INTACTA (500, Hospital)
+OK     S2 confirm_paid com valor errado recusa → amount_mismatch
+OK     S2 confirm_paid 400 → aplicado: preço 900, fee à parte 400, motorista à parte 320, change aplicada/reserva
+OK     S2 confirm_paid repetido é idempotente (already=true)
+OK     S2 aviso dest_changed paidOnline=true, +320 ao motorista
+OK     S3 cotação mais perto: diff -400, refund_cents 400
+OK     S3 mais perto pago: preço 500, estado pagamento succeeded, pedido auto_refund_reservation valor_cents=400, change refund_cents=400 (refunded_at null até a tvde-payment confirmar)
+OK     S4 preço fixo do cliente respeitado a 7 km: 500 (diff 0), motorista 400
+OK     S4b acima do max_km (9 km) volta à tabela: 800 (+300), needs_payment=true
+OK     S4c admin aplica com diff 0 e actor=admin
+OK     S5a aguarda_pagamento recusa → reservation_awaiting_payment
+OK     S5b pacote ida-e-volta recusa → reservation_dest_change_not_supported
+OK     S5c corrida já arrancada recusa → too_late_to_change
+OK     S5d reserva alheia recusa → reservation_not_yours
+OK     S5e preço esperado diferente recusa → dest_change_price_changed: 0
+OK     S5f 400 km recusa → dest_too_far
+OK     S6 diferença de 20 c online → 0 (abaixo do mínimo Stripe), preço fica 500
+
+falhas: 0

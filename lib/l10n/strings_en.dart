@@ -16,6 +16,26 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 12/10/2026: mudar hora / destino de uma reserva de corrida (As minhas reservas)
+  // (tool/l10n/traducoes/pt-en-14-reserva-mudar-hora-destino.json).
+  'Mudar hora': 'Change time',
+  'Dia da viagem': 'Trip day',
+  'Hora da viagem': 'Trip time',
+  'Passar a reserva para {0}?': 'Move the booking to {0}?',
+  'O motorista é avisado. Se já tiver outra reserva perto dessa hora, procuramos outro motorista.':
+      'The driver is notified. If they already have another booking close to that time, we look for another driver.',
+  'Manter como está': 'Keep as is',
+  'Mudar': 'Change',
+  'A reserva já estava nessa hora.': 'The booking was already at that time.',
+  'Hora alterada. O teu motorista mantém-se.': 'Time changed. Your driver stays the same.',
+  'Hora alterada. Vamos procurar motorista para a hora nova.':
+      'Time changed. We will look for a driver for the new time.',
+  'Escreve a morada nova e escolhe-a na lista.': 'Type the new address and pick it from the list.',
+  'A viagem fica com {0} km.': 'The trip will be {0} km.',
+  'Devolvemos {0}': 'We refund {0}',
+  'Pagas {0} a menos ao motorista, em dinheiro.': 'You pay {0} less to the driver, in cash.',
+  'Devolvemos {0} para o cartão ou MB Way.': 'We refund {0} to your card or MB Way.',
+  'Destino mudado. Devolvemos {0}.': 'Destination changed. We refund {0}.',
   // 10/10/2026: separador Reserva com tudo o que o cliente marcou
   // (tool/l10n/traducoes/pt-en-13-reservas-num-so-sitio.json).
   '1 pessoa': '1 person',

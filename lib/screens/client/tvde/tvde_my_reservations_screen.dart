@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart' as ll;
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
+import '../../../models/tvde_dest_change.dart' show TvdeDestChangeQuote;
 import '../../../models/tvde_ride.dart';
+import '../../../services/payment_service.dart';
 import '../../../stores/tvde_store.dart';
+import '../../../widgets/address_autocomplete_field.dart';
+import '../../../widgets/bora/bora.dart';
 import '../../../widgets/ver_nas_minhas_reservas.dart';
+import 'ride_mbway_waiting_dialog.dart';
 
 import '../../../l10n/tr.dart';
 
@@ -14,7 +21,9 @@ import '../../../l10n/tr.dart';
 ///
 /// O ecrã é READ-ONLY sobre o relógio: quem trata da rotação de motoristas,
 /// dos lembretes e do re-despacho é o cron `tvde-reservations-sweep`. Aqui só
-/// se mostra o que está na linha e se deixa cancelar.
+/// se mostra o que está na linha, se deixa cancelar e, desde 12/10/2026,
+/// mudar a hora e o destino (padrão Uber Reserve): a cliente que teve de ligar
+/// ao Danilo para passar a reserva das 17:30 para as 17:45 faz isto sozinha.
 class TvdeMyReservationsScreen extends StatefulWidget {
   const TvdeMyReservationsScreen({super.key, this.acabadaDeMarcar = false});
 
@@ -30,6 +39,15 @@ class TvdeMyReservationsScreen extends StatefulWidget {
 class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
   bool _aCarregar = true;
   int _horasCancelGratis = 2;
+  int _maxDias = 30;
+
+  /// Interruptor do servidor (`tvde_reservation_dest_change_enabled`). Nasce
+  /// desligado: o botão "Mudar destino" só aparece quando o Danilo o ligar.
+  bool _destinoLigado = false;
+
+  /// Reserva com uma mudança em curso — trava LOCAL do botão (lição 05/09:
+  /// nunca um `busy` partilhado do store).
+  String? _aMudar;
 
   @override
   void initState() {
@@ -40,10 +58,13 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
   Future<void> _carregar() async {
     final store = context.read<TvdeStore>();
     final limites = await store.loadReservationLimits();
+    final destino = await store.reservationDestChangeEnabled();
     await store.loadMyReservations();
     if (!mounted) return;
     setState(() {
       _horasCancelGratis = limites['freeCancelHours'] ?? 2;
+      _maxDias = limites['maxAdvanceDays'] ?? 30;
+      _destinoLigado = destino;
       _aCarregar = false;
     });
   }
@@ -78,6 +99,12 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
     return quando.toLocal().difference(DateTime.now()).inMinutes >
         _horasCancelGratis * 60;
   }
+
+  /// Ainda se pode mexer: só reservas marcadas que ainda não arrancaram.
+  bool _podeMudar(TvdeRide r) =>
+      r.status == 'agendada' &&
+      r.reservationStatus != 'cancelada' &&
+      r.scheduledAt != null;
 
   Future<void> _cancelar(TvdeRide r) async {
     final gratis = _cancelaGratis(r);
@@ -121,6 +148,197 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
           .showSnackBar(SnackBar(content: Text(traduzErroReserva(e))));
     }
   }
+
+  // ── Mudar a HORA (12/10/2026) ───────────────────────────────────────────
+
+  Future<void> _mudarHora(TvdeRide r) async {
+    if (_aMudar != null) return;
+    final atual = (r.scheduledAt ?? DateTime.now()).toLocal();
+    final agora = DateTime.now();
+    final dia = await showDatePicker(
+      context: context,
+      initialDate: atual.isBefore(agora) ? agora : atual,
+      firstDate: agora,
+      lastDate: agora.add(Duration(days: _maxDias)),
+      helpText: 'Dia da viagem'.tr,
+    );
+    if (dia == null || !mounted) return;
+    final hora = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(atual),
+      helpText: 'Hora da viagem'.tr,
+    );
+    if (hora == null || !mounted) return;
+    final nova = DateTime(dia.year, dia.month, dia.day, hora.hour, hora.minute);
+
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Passar a reserva para {0}?'.trArgs([_quando(nova)])),
+        content: Text(
+          'O motorista é avisado. Se já tiver outra reserva perto dessa hora, procuramos outro motorista.'.tr,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Manter como está'.tr),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Mudar'.tr),
+          ),
+        ],
+      ),
+    );
+    if (confirmou != true || !mounted) return;
+
+    setState(() => _aMudar = r.id);
+    final messenger = ScaffoldMessenger.of(context);
+    final store = context.read<TvdeStore>();
+    try {
+      final res = await store.rescheduleReservation(r.id, nova);
+      if (!mounted) return;
+      final mantem = res['motorista_mantem'] == true;
+      messenger.showSnackBar(SnackBar(
+        content: Text(res['sem_mudanca'] == true
+            ? 'A reserva já estava nessa hora.'.tr
+            : mantem
+                ? 'Hora alterada. O teu motorista mantém-se.'.tr
+                : 'Hora alterada. Vamos procurar motorista para a hora nova.'.tr),
+      ));
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(SnackBar(content: Text(traduzErroReserva(e))));
+      }
+    } finally {
+      if (mounted) setState(() => _aMudar = null);
+    }
+  }
+
+  // ── Mudar o DESTINO (12/10/2026, Bloco 2 — atrás do interruptor) ────────
+
+  Future<void> _mudarDestino(TvdeRide r) async {
+    if (_aMudar != null) return;
+    final escolhido = await showModalBottomSheet<_DestinoEscolhido>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => const _EscolherDestinoSheet(),
+    );
+    if (escolhido == null || !mounted) return;
+
+    setState(() => _aMudar = r.id);
+    final messenger = ScaffoldMessenger.of(context);
+    final store = context.read<TvdeStore>();
+    try {
+      // Rota e preço SEMPRE do servidor (Edge tvde-dest-change → RPC).
+      final quote = await store.quoteReservationDest(r.id,
+          lat: escolhido.lat, lng: escolhido.lng, label: escolhido.morada);
+      if (!mounted) return;
+
+      final decisao = await showModalBottomSheet<_DestinoDecisao>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: AppColors.surface,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (_) => _ReservaDestinoSheet(
+          quote: quote,
+          method: r.paymentMethod,
+          initialPhone: Supabase.instance.client.auth.currentUser?.phone ?? '',
+        ),
+      );
+      if (decisao == null || !mounted) return;
+
+      final diff = _int(quote['client_diff_cents']);
+      final res = await store.changeReservationDest(r.id,
+          lat: escolhido.lat,
+          lng: escolhido.lng,
+          label: (quote['dest_label'] ?? escolhido.morada).toString(),
+          expectedClientDiffCents: diff);
+
+      var mudou = res['estado'] == 'aplicada' || res['applied'] == true;
+      Map<String, dynamic>? outcome;
+      if (res['needs_payment'] == true) {
+        // Diferença a mais com cartão/MB Way: o MESMO caminho da mudança a
+        // meio da corrida (tvde-payment charge_dest_change → confirm).
+        final changeId = res['change_id']?.toString() ?? '';
+        final pmethod = r.paymentMethod == 'mbway' ? 'mbway' : 'card';
+        try {
+          final charge = await store.chargeDestChange(changeId,
+              method: pmethod,
+              mbwayPhone: pmethod == 'mbway' ? decisao.phone : null);
+          final piId = charge['paymentIntentId'] as String?;
+          if (piId == null) throw Exception('sem_payment_intent');
+          final amountEur =
+              ((charge['amountCents'] as num?)?.toInt() ?? diff) / 100;
+          if (pmethod == 'card') {
+            final clientSecret = charge['clientSecret'] as String?;
+            if (clientSecret == null) throw Exception('sem_client_secret');
+            await PaymentService().processPayment(clientSecret);
+            outcome = await store.confirmDestChangePayment(piId);
+            mudou = outcome?['succeeded'] == true;
+          } else {
+            if (!mounted) return;
+            final ok = await showDialog<bool>(
+              context: context,
+              barrierDismissible: false,
+              builder: (_) => TvdeRideMbwayWaitingDialog.forDestChange(
+                paymentIntentId: piId,
+                amountEur: amountEur,
+                onResponse: (o) => outcome = o,
+              ),
+            );
+            mudou = ok == true;
+          }
+        } catch (e) {
+          debugPrint('TvdeMyReservations._mudarDestino pagamento => $e');
+          mudou = false;
+        }
+        if (!mudou && changeId.isNotEmpty) {
+          await store.cancelDestChange(changeId);
+        }
+        await store.loadMyReservations();
+      }
+
+      if (!mounted) return;
+      if (mudou) {
+        messenger.showSnackBar(SnackBar(
+          content: Text(diff > 0
+              ? 'Destino mudado. Pagas mais {0}.'
+                  .trArgs([TvdeDestChangeQuote.eur(diff)])
+              : diff < 0 && r.paymentMethod != 'cash'
+                  ? 'Destino mudado. Devolvemos {0}.'
+                      .trArgs([TvdeDestChangeQuote.eur(-diff)])
+                  : 'Destino mudado. O preço fica igual.'.tr),
+        ));
+      } else if (outcome?['refunded'] == true) {
+        messenger.showSnackBar(SnackBar(
+          content: Text('Pagamento devolvido — o destino não mudou.'.tr),
+        ));
+      } else {
+        messenger.showSnackBar(SnackBar(
+          content: Text(
+              'Não recebemos a confirmação do pagamento. O destino não mudou.'.tr),
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(SnackBar(content: Text(traduzErroReserva(e))));
+      }
+    } finally {
+      if (mounted) setState(() => _aMudar = null);
+    }
+  }
+
+  static int _int(dynamic v) =>
+      v is num ? v.toInt() : int.tryParse('${v ?? ''}') ?? 0;
 
   @override
   Widget build(BuildContext context) {
@@ -207,6 +425,15 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
     final preco = (r.estFareCents / 100).toStringAsFixed(2);
     final podeCancelar = r.reservationStatus != 'cancelada';
     final etiqueta = _etiquetaPacote(r, todas);
+    final aMexer = _aMudar == r.id;
+    final podeMudar = _podeMudar(r) && !aMexer;
+    // O destino de um pacote ida-e-volta, de uma corrida de balcão ou de uma
+    // reserva ainda por pagar não se muda daqui (o servidor também recusa).
+    final podeMudarDestino = podeMudar &&
+        _destinoLigado &&
+        r.roundtripCreditId == null &&
+        r.agreedFareCents == null &&
+        !r.reservationAwaitingPayment;
 
     return Container(
       padding: const EdgeInsets.all(Spacing.lg),
@@ -288,17 +515,44 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
           ],
           if (podeCancelar) ...[
             const SizedBox(height: Spacing.sm),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () => _cancelar(r),
-                child: Text(
-                  _cancelaGratis(r)
-                      ? 'Cancelar (grátis)'.tr
-                      : 'Cancelar reserva',
-                  style: const TextStyle(color: AppColors.error),
+            // [12/10/2026] Mudar hora / destino ao lado do cancelar (Uber Reserve).
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: Spacing.xs,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (_podeMudar(r))
+                  TextButton.icon(
+                    key: Key('reserva_mudar_hora_${r.id}'),
+                    onPressed: podeMudar ? () => _mudarHora(r) : null,
+                    icon: const Icon(Icons.schedule, size: 18),
+                    label: Text('Mudar hora'.tr),
+                  ),
+                if (podeMudarDestino)
+                  TextButton.icon(
+                    key: Key('reserva_mudar_destino_${r.id}'),
+                    onPressed: () => _mudarDestino(r),
+                    icon: const Icon(Icons.edit_location_alt_outlined, size: 18),
+                    label: Text('Mudar destino'.tr),
+                  ),
+                if (aMexer)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: Spacing.sm),
+                    child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2)),
+                  ),
+                TextButton(
+                  onPressed: () => _cancelar(r),
+                  child: Text(
+                    _cancelaGratis(r)
+                        ? 'Cancelar (grátis)'.tr
+                        : 'Cancelar reserva',
+                    style: const TextStyle(color: AppColors.error),
+                  ),
                 ),
-              ),
+              ],
             ),
           ],
         ],
@@ -347,4 +601,302 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
       ),
     );
   }
+}
+
+/// Destino escolhido na folha: morada escrita + ponto no mapa (do autocomplete).
+class _DestinoEscolhido {
+  const _DestinoEscolhido(
+      {required this.morada, required this.lat, required this.lng});
+  final String morada;
+  final double lat;
+  final double lng;
+}
+
+/// Folha para escolher o destino novo. Só deixa continuar com uma morada
+/// escolhida NA LISTA (com coordenadas) — o servidor nunca recebe texto solto.
+class _EscolherDestinoSheet extends StatefulWidget {
+  const _EscolherDestinoSheet();
+
+  @override
+  State<_EscolherDestinoSheet> createState() => _EscolherDestinoSheetState();
+}
+
+class _EscolherDestinoSheetState extends State<_EscolherDestinoSheet> {
+  final _ctrl = TextEditingController();
+  String? _morada;
+  ll.LatLng? _coords;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final inset = MediaQuery.of(context).viewInsets.bottom;
+    return SingleChildScrollView(
+      padding: EdgeInsets.fromLTRB(
+          Spacing.lg, Spacing.lg, Spacing.lg, Spacing.lg + inset),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.edit_location_alt_outlined,
+                  color: AppColors.primary),
+              const SizedBox(width: Spacing.sm),
+              Expanded(
+                child: Text('Mudar destino'.tr,
+                    style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary)),
+              ),
+              IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close, color: AppColors.textSecondary),
+                tooltip: 'Fechar'.tr,
+              ),
+            ],
+          ),
+          const SizedBox(height: Spacing.xs),
+          Text('Escreve a morada nova e escolhe-a na lista.'.tr,
+              style: const TextStyle(
+                  color: AppColors.textSecondary, fontSize: 13)),
+          const SizedBox(height: Spacing.md),
+          AddressAutocompleteField(
+            key: const Key('reserva_destino_novo'),
+            controller: _ctrl,
+            labelText: 'Destino novo'.tr,
+            prefixIcon: const Icon(Icons.place_outlined),
+            onChanged: (_) {
+              if (_coords != null) setState(() => _coords = null);
+            },
+            onSelected: (address, coords) =>
+                setState(() {
+                  _morada = address;
+                  _coords = coords;
+                }),
+          ),
+          // Espaço para o overlay de sugestões não ficar escondido na folha.
+          const SizedBox(height: 220),
+          BoraAccentButton(
+            key: const Key('reserva_destino_continuar'),
+            label: 'Continuar'.tr,
+            onPressed: _coords == null
+                ? null
+                : () => Navigator.pop(
+                    context,
+                    _DestinoEscolhido(
+                        morada: _morada ?? _ctrl.text.trim(),
+                        lat: _coords!.latitude,
+                        lng: _coords!.longitude)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// O que o cliente decidiu na folha de confirmação do destino.
+class _DestinoDecisao {
+  const _DestinoDecisao({required this.phone});
+
+  /// 9 dígitos, só preenchido quando a diferença se paga por MB Way.
+  final String phone;
+}
+
+/// Confirmação do destino novo de uma RESERVA: morada encontrada, km, preço
+/// combinado, preço novo e a diferença (a mais, a menos ou igual). Tudo vem do
+/// servidor; "Aceitar" devolve a decisão, fechar devolve null e nada muda.
+class _ReservaDestinoSheet extends StatefulWidget {
+  const _ReservaDestinoSheet({
+    required this.quote,
+    required this.method,
+    this.initialPhone = '',
+  });
+
+  final Map<String, dynamic> quote;
+  final String method;
+  final String initialPhone;
+
+  @override
+  State<_ReservaDestinoSheet> createState() => _ReservaDestinoSheetState();
+}
+
+class _ReservaDestinoSheetState extends State<_ReservaDestinoSheet> {
+  late final TextEditingController _phone;
+  String? _phoneError;
+
+  int get _diff => _TvdeMyReservationsScreenState._int(widget.quote['client_diff_cents']);
+  bool get _pagaAgora =>
+      _diff > 0 && widget.method != 'cash' && widget.quote['needs_payment'] == true;
+  bool get _mbway => _pagaAgora && widget.method == 'mbway';
+
+  @override
+  void initState() {
+    super.initState();
+    final digits = widget.initialPhone.replaceAll(RegExp(r'\D'), '');
+    _phone = TextEditingController(
+        text: digits.length >= 9 ? digits.substring(digits.length - 9) : '');
+  }
+
+  @override
+  void dispose() {
+    _phone.dispose();
+    super.dispose();
+  }
+
+  void _aceitar() {
+    if (_mbway) {
+      final digits = _phone.text.replaceAll(RegExp(r'\D'), '');
+      if (digits.length != 9) {
+        setState(() => _phoneError = 'Indica um número com 9 dígitos.'.tr);
+        return;
+      }
+      Navigator.pop(context, _DestinoDecisao(phone: digits));
+      return;
+    }
+    Navigator.pop(context, const _DestinoDecisao(phone: ''));
+  }
+
+  String get _comoPagas {
+    const eur = TvdeDestChangeQuote.eur;
+    if (_diff == 0) return 'Não há nada a pagar.'.tr;
+    if (_diff < 0) {
+      return widget.method == 'cash'
+          ? 'Pagas {0} a menos ao motorista, em dinheiro.'.trArgs([eur(-_diff)])
+          : 'Devolvemos {0} para o cartão ou MB Way.'.trArgs([eur(-_diff)]);
+    }
+    switch (widget.method) {
+      case 'card':
+        return 'Cobramos {0} no cartão agora. O destino só muda depois de o pagamento passar.'
+            .trArgs([eur(_diff)]);
+      case 'mbway':
+        return 'Cobramos {0} por MB Way agora. O destino só muda depois de confirmares no MB Way.'
+            .trArgs([eur(_diff)]);
+      default:
+        return 'Pagas {0} a mais ao motorista, em dinheiro, no fim da viagem.'
+            .trArgs([eur(_diff)]);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final q = widget.quote;
+    final media = MediaQuery.of(context);
+    final inset = media.viewInsets.bottom;
+    const secundario = TextStyle(color: AppColors.textSecondary, fontSize: 13);
+    const eur = TvdeDestChangeQuote.eur;
+    final km = (q['route_km'] ?? q['km_new'] ?? 0);
+    final kmTxt = TvdeDestChangeQuote.km(km is num ? km.toDouble() : 0);
+    final antes = _TvdeMyReservationsScreenState._int(q['price_before_cents']);
+    final depois = _TvdeMyReservationsScreenState._int(q['price_new_cents']);
+
+    return SingleChildScrollView(
+      padding: EdgeInsets.only(
+          left: Spacing.lg,
+          right: Spacing.lg,
+          top: Spacing.lg,
+          bottom: Spacing.lg + inset + media.padding.bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.edit_location_alt_outlined,
+                  color: AppColors.primary),
+              const SizedBox(width: Spacing.sm),
+              Expanded(
+                child: Text('Mudar destino'.tr,
+                    style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary)),
+              ),
+              IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close, color: AppColors.textSecondary),
+                tooltip: 'Fechar'.tr,
+              ),
+            ],
+          ),
+          const SizedBox(height: Spacing.xs),
+          Text('Destino novo'.tr, style: secundario),
+          Text((q['dest_label'] ?? '').toString(),
+              key: const Key('reserva_destino_label'),
+              style: const TextStyle(
+                  fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+          const SizedBox(height: Spacing.md),
+          Text('A viagem fica com {0} km.'.trArgs([kmTxt]),
+              key: const Key('reserva_destino_km'), style: secundario),
+          const SizedBox(height: Spacing.sm),
+          _linha('Preço combinado'.tr, eur(antes)),
+          _linha('Preço novo'.tr, eur(depois), forte: true),
+          const SizedBox(height: Spacing.sm),
+          Text(
+            _diff > 0
+                ? 'Pagas mais {0}'.trArgs([eur(_diff)])
+                : _diff < 0
+                    ? 'Devolvemos {0}'.trArgs([eur(-_diff)])
+                    : 'Não pagas mais nada'.tr,
+            key: const Key('reserva_destino_diff'),
+            style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary),
+          ),
+          const SizedBox(height: Spacing.sm),
+          Text(_comoPagas, style: secundario),
+          if (_mbway) ...[
+            const SizedBox(height: Spacing.md),
+            TextField(
+              key: const Key('reserva_destino_mbway_phone'),
+              controller: _phone,
+              keyboardType: TextInputType.phone,
+              decoration: InputDecoration(
+                labelText: 'Número MBWay'.tr,
+                hintText: '9XXXXXXXX'.tr,
+                prefixText: '+351 ',
+                errorText: _phoneError,
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+          ],
+          const SizedBox(height: Spacing.lg),
+          BoraAccentButton(
+            key: const Key('reserva_destino_aceitar'),
+            label: 'Aceitar'.tr,
+            onPressed: _aceitar,
+          ),
+          const SizedBox(height: Spacing.sm),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancelar'.tr),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _linha(String k, String v, {bool forte = false}) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          children: [
+            Expanded(
+                child: Text(k,
+                    style: const TextStyle(
+                        color: AppColors.textSecondary, fontSize: 13.5))),
+            Text(v,
+                style: TextStyle(
+                    fontWeight: forte ? FontWeight.w700 : FontWeight.w500,
+                    color: AppColors.textPrimary,
+                    fontSize: 13.5)),
+          ],
+        ),
+      );
 }

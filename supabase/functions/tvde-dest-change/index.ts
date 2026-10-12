@@ -21,6 +21,16 @@
 // 60 s e no mesmo estado); GPS do motorista com mais de 3 min -> recusa
 // (`driver_position_stale`); interruptor desligado ou corrida fora dos estados
 // permitidos -> recusa ANTES de gastar Google.
+// v3 (2026-10-12, missão reserva-tvde-robo, Bloco 2): mudar o destino de uma
+// RESERVA (corrida marcada, status 'agendada') — acções `reservation_quote` e
+// `reservation_change` {ride_id, dest_text | dest_lat+dest_lng, dest_label?,
+// expected_client_diff_cents?}. Aceita a morada ESCRITA (robô de suporte /
+// painel): geocodifica no Google (país PT, viés Guarda) e devolve a morada
+// encontrada para o cliente confirmar. Os km são sempre a rota ORIGEM → destino
+// novo (a reserva ainda não arrancou). Chama as RPCs tvde_reservation_dest_quote
+// / tvde_reservation_change_dest com o JWT de quem pede (dono ou admin). Tudo
+// atrás do interruptor `tvde_reservation_dest_change_enabled` (nasce desligado:
+// as RPCs só entram no ar com o "vai" do Danilo — mexem em dinheiro).
 // =============================================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -64,12 +74,85 @@ async function rotaKm(o: [number, number], d: [number, number]): Promise<number 
   return metros > 0 ? Math.round(metros / 10) / 100 : null;
 }
 
+/** Morada escrita → ponto no mapa (Google Geocoding, país PT, viés Guarda). */
+async function geocodificar(texto: string): Promise<{ lat: number; lng: number; label: string } | null> {
+  const url = 'https://maps.googleapis.com/maps/api/geocode/json' +
+    `?address=${encodeURIComponent(texto)}&region=pt&language=pt-PT&components=country:PT` +
+    `&bounds=40.45,-7.40|40.65,-7.10&key=${await googleKey()}`;
+  const res = await fetch(url);
+  if (!res.ok) return null;
+  const j = await res.json().catch(() => null);
+  if (j?.status !== 'OK') return null;
+  const r = j.results?.[0];
+  const loc = r?.geometry?.location;
+  if (!r || !loc || !Number.isFinite(Number(loc.lat)) || !Number.isFinite(Number(loc.lng))) return null;
+  return { lat: Number(loc.lat), lng: Number(loc.lng), label: String(r.formatted_address ?? texto).slice(0, 300) };
+}
+
+/**
+ * v3 — RESERVA (corrida marcada): cotação / mudança de destino. Quem pede é o
+ * dono ou um admin; a RPC volta a conferir com o JWT. A morada pode vir
+ * escrita (robô, painel) ou já como coordenadas (app). Os km são a rota
+ * origem → destino novo pelo Google (nunca da app, nunca do modelo).
+ */
+// deno-lint-ignore no-explicit-any
+async function reservaDestino(action: string, body: any, user: { id: string }, userClient: any) {
+  const rideId = String(body.ride_id ?? '');
+  if (!rideId) return json({ error: 'invalid_ride' }, 400);
+
+  const { data: ligado } = await admin.rpc('get_setting', { p_key: 'tvde_reservation_dest_change_enabled' });
+  if (!(ligado === true || String(ligado).toLowerCase() === 'true')) {
+    return json({ error: 'reservation_dest_change_disabled' }, 403);
+  }
+
+  const { data: ride } = await admin.from('tvde_rides')
+    .select('id, client_id, status, scheduled_at, origin_lat, origin_lng, reservation_status')
+    .eq('id', rideId).maybeSingle();
+  if (!ride) return json({ error: 'reservation_not_found' }, 404);
+  if (ride.client_id !== user.id) {
+    const { data: souAdmin } = await userClient.rpc('is_admin');
+    if (souAdmin !== true) return json({ error: 'reservation_not_yours' }, 403);
+  }
+  if (ride.status !== 'agendada' || !ride.scheduled_at) return json({ error: 'too_late_to_change' }, 400);
+  if (ride.reservation_status === 'aguarda_pagamento') return json({ error: 'reservation_awaiting_payment' }, 400);
+
+  let lat = Number(body.dest_lat), lng = Number(body.dest_lng);
+  let label: string | null = body.dest_label == null ? null : String(body.dest_label).slice(0, 300);
+  const texto = body.dest_text == null ? '' : String(body.dest_text).trim().slice(0, 300);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    if (!texto) return json({ error: 'invalid_dest' }, 400);
+    const g = await geocodificar(texto);
+    if (!g) return json({ error: 'address_not_found' }, 404);
+    lat = g.lat; lng = g.lng;
+    label = label ?? g.label;
+  }
+  if (!label) label = texto || null;
+
+  const km = await rotaKm([Number(ride.origin_lat), Number(ride.origin_lng)], [lat, lng]);
+  if (km == null) return json({ error: 'route_failed' }, 502);
+
+  const params: Record<string, unknown> = {
+    p_ride: rideId, p_dest_lat: lat, p_dest_lng: lng, p_dest_label: label, p_est_distance_km: km,
+  };
+  if (action === 'reservation_change') {
+    params.p_expected_client_diff_cents = body.expected_client_diff_cents == null
+      ? null : Math.trunc(Number(body.expected_client_diff_cents));
+  }
+  const { data, error } = await userClient.rpc(
+    action === 'reservation_quote' ? 'tvde_reservation_dest_quote' : 'tvde_reservation_change_dest', params);
+  if (error) return json({ error: String(error.message ?? 'rpc_failed') }, 400);
+  const out = (data && typeof data === 'object') ? data : {};
+  return json({ ...out, dest_lat: lat, dest_lng: lng, dest_label: label, route_km: km });
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
     const body = await req.json().catch(() => ({}));
     const action = String(body.action ?? '');
-    if (action !== 'quote' && action !== 'request') return json({ error: 'unknown_action' }, 400);
+    if (!['quote', 'request', 'reservation_quote', 'reservation_change'].includes(action)) {
+      return json({ error: 'unknown_action' }, 400);
+    }
 
     const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
     const userClient = createClient(SUPABASE_URL, ANON_KEY, {
@@ -78,6 +161,11 @@ Deno.serve(async (req) => {
     const { data: userData } = await userClient.auth.getUser();
     const user = userData?.user;
     if (!user) return json({ error: 'not_authenticated' }, 401);
+
+    // v3 — reserva (corrida marcada): ramo próprio, nada do caminho a meio da corrida mudou.
+    if (action === 'reservation_quote' || action === 'reservation_change') {
+      return await reservaDestino(action, body, user, userClient);
+    }
 
     const rideId = String(body.ride_id ?? '');
     const lat = Number(body.dest_lat), lng = Number(body.dest_lng);

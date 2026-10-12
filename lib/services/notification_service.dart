@@ -1495,6 +1495,11 @@ const Set<String> _kTvdeReservationTypes = <String>{
   'tvde_reservation_start_now',
   'tvde_reservation_cancelled',
   'tvde_reservation_lost',
+  // [12/10/2026] O cliente mudou a HORA da reserva e o motorista fica com ela
+  // (notify-tvde-driver v22, kind 'reservation_rescheduled'). Aviso simples,
+  // sem botões — a reserva já é dele, só mudou a hora. Quando a perde por
+  // conflito o servidor usa o type 'tvde_reservation_lost' já tratado.
+  'tvde_reservation_rescheduled',
 };
 
 /// Posta o alerta de reserva. Corre tanto no isolate de background como em

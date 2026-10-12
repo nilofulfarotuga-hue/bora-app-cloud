@@ -1,4 +1,13 @@
 // Sessão 5A-1 B9 + 5C-β RAG + 5B-α B4 + 5B-β1 B5 + 5F B3 + 5F-α B2 — Edge Fn support-chatbot
+// v28 (2026-10-12, missão reserva-tvde-robo): o robô passa a conhecer as RESERVAS DE
+// CORRIDA (TVDE). Tools novas, chamadas com o JWT do cliente como as outras:
+//   agent_get_my_tvde_reservations() e tvde_reservation_reschedule(p_ride, p_nova_hora_local)
+//   (RPCs; a mudança de hora aplica-se JÁ, sem aprovação — regra do Danilo de 12/10, depois
+//   de uma cliente ter de lhe ligar para passar a reserva das 17:30 para as 17:45);
+//   tvde_reservation_dest_quote / tvde_reservation_change_dest (vão pela Edge tvde-dest-change,
+//   acções reservation_quote / reservation_change — Bloco 2, atrás do interruptor
+//   tvde_reservation_dest_change_enabled; desligado devolve reservation_dest_change_disabled).
+// Secção nova no system prompt: RESERVAS DE CORRIDA (TVDE) ≠ reservas de mesa.
 // 2026-10-07 (Claude.ai via MCP): CORRIGE erro Gemini "Role 'function' is not supported" e
 // "missing thought_signature" — respostas de ferramentas passam a ir com role 'user' e a
 // chamada do modelo é devolvida com as parts originais (mantém thoughtSignature).
@@ -26,6 +35,11 @@ const TOOL_WHITELIST = new Set([
   'agent_propose_action_account',
   'agent_ask_robot_b',
   'propose_skill_now',
+  // v28 — reservas de corrida (TVDE)
+  'agent_get_my_tvde_reservations',
+  'tvde_reservation_reschedule',
+  'tvde_reservation_dest_quote',
+  'tvde_reservation_change_dest',
 ]);
 
 const PROPOSE_ACTION_TOOL_NAMES = new Set([
@@ -34,6 +48,13 @@ const PROPOSE_ACTION_TOOL_NAMES = new Set([
   'agent_propose_action_password',
   'agent_propose_action_account',
 ]);
+
+// v28 — tools que NAO sao RPC: vao a uma Edge Function (com o JWT do cliente), porque a
+// morada tem de ser geocodificada e os km calculados no servidor (Google), nunca pelo modelo.
+const EDGE_TOOLS: Record<string, { fn: string; action: string }> = {
+  tvde_reservation_dest_quote: { fn: 'tvde-dest-change', action: 'reservation_quote' },
+  tvde_reservation_change_dest: { fn: 'tvde-dest-change', action: 'reservation_change' },
+};
 
 const WRITE_SHADOW_ACTION_TYPES = new Set([
   'UPDATE_DELIVERY_INSTRUCTIONS',
@@ -149,6 +170,65 @@ function buildFunctionDeclarations() {
           p_order_id: { type: 'string', description: 'ID do pedido.' },
         },
         required: ['p_order_id'],
+      },
+    },
+    // ── v28: RESERVAS DE CORRIDA (TVDE / Bora Motorista) ──────────────────────────
+    {
+      name: 'agent_get_my_tvde_reservations',
+      description:
+        'Lista as CORRIDAS MARCADAS para depois (reservas de corrida TVDE / Bora Motorista) do cliente da sessao: ' +
+        'ride_id, hora_local (hora de Portugal, AAAA-MM-DD HH:MM), recolha, destino, preco_eur, pagamento (cash/card/mbway), ' +
+        'pago, motorista_atribuido, estado. Chamar SEMPRE antes de mudar hora ou destino. Nao sao reservas de mesa.',
+      parameters: { type: 'object', properties: {} },
+    },
+    {
+      name: 'tvde_reservation_reschedule',
+      description:
+        'MUDA A HORA de uma corrida marcada do cliente. Aplica-se de imediato (sem aprovacao). ' +
+        'Devolve hora_nova e motorista_mantem (true = o mesmo motorista fica; false = vai-se procurar motorista). ' +
+        'Erros possiveis: too_soon (min. 30 min a partir de agora), too_far (max. 30 dias), reservation_overlap ' +
+        '(outra reserva a menos de 30 min), too_late_to_change (ja arrancou/acabou), invalid_time, reservation_not_found, reservation_not_yours.',
+      parameters: {
+        type: 'object',
+        properties: {
+          p_ride: { type: 'string', description: 'ride_id devolvido por agent_get_my_tvde_reservations.' },
+          p_nova_hora_local: { type: 'string', description: 'Hora nova em hora de Portugal, formato AAAA-MM-DD HH:MM (ex.: 2026-10-13 17:45).' },
+        },
+        required: ['p_ride', 'p_nova_hora_local'],
+      },
+    },
+    {
+      name: 'tvde_reservation_dest_quote',
+      description:
+        'COTACAO para mudar o DESTINO de uma corrida marcada: recebe a morada escrita pelo cliente, encontra-a no mapa e devolve ' +
+        'dest_label (morada encontrada — confirmar SEMPRE com o cliente), dest_lat, dest_lng, route_km, preco antes/depois, ' +
+        'client_diff_cents (positivo = paga mais; negativo = devolvemos) e needs_payment. Nao muda nada. ' +
+        'Erro reservation_dest_change_disabled = funcao ainda desligada (diz ao cliente que pelo chat ainda nao da).',
+      parameters: {
+        type: 'object',
+        properties: {
+          p_ride: { type: 'string', description: 'ride_id da reserva.' },
+          p_morada: { type: 'string', description: 'Morada nova tal como o cliente a escreveu (rua, numero, localidade).' },
+        },
+        required: ['p_ride', 'p_morada'],
+      },
+    },
+    {
+      name: 'tvde_reservation_change_dest',
+      description:
+        'APLICA a mudanca de destino de uma corrida marcada, SO depois de o cliente confirmar a morada encontrada e o preco da cotacao. ' +
+        'Usa exactamente os valores devolvidos por tvde_reservation_dest_quote. needs_payment=true na resposta = a diferenca ' +
+        'paga-se na app em "As minhas reservas" e o destino so muda depois de pagar.',
+      parameters: {
+        type: 'object',
+        properties: {
+          p_ride: { type: 'string' },
+          p_dest_lat: { type: 'number', description: 'dest_lat da cotacao.' },
+          p_dest_lng: { type: 'number', description: 'dest_lng da cotacao.' },
+          p_dest_label: { type: 'string', description: 'dest_label da cotacao.' },
+          p_expected_client_diff_cents: { type: 'integer', description: 'client_diff_cents da cotacao (para o servidor recusar se o preco mudou).' },
+        },
+        required: ['p_ride', 'p_dest_lat', 'p_dest_lng', 'p_dest_label', 'p_expected_client_diff_cents'],
       },
     },
     {
@@ -358,6 +438,23 @@ function buildSystemPrompt(
     '- Cancela >2h antes → refund total €3.',
     '- Cancela <2h antes → Bora fica 100% (€3).',
     '- No-show → Bora fica 100% (€3). Parceiro nao recebe.',
+    'RESERVAS DE CORRIDA (TVDE / "Bora Motorista") — corrida de carro marcada para depois. NAO e reserva de mesa:',
+    '- O cliente pode MUDAR A HORA pelo chat e tu fazes isso SOZINHO, sem aprovacao de ninguem (regra do Danilo, 12/10/2026).',
+    '- Passos: 1) chama agent_get_my_tvde_reservations; 2) confirma QUAL reserva (dia, hora e destino) — se so houver uma, confirma-a numa frase;',
+    '  3) pergunta a hora nova (hora de Portugal; so a hora = mesmo dia da reserva); 4) chama tvde_reservation_reschedule (AAAA-MM-DD HH:MM);',
+    '  5) responde com a hora final e se o motorista se mantem (motorista_mantem=true → "o teu motorista mantem-se"; false → "vamos procurar motorista para a hora nova").',
+    '- MUDAR O DESTINO: pede a morada nova por extenso → tvde_reservation_dest_quote → confirma com o cliente a MORADA ENCONTRADA e o preco',
+    '  (igual / paga mais X / devolvemos X) → so com o "sim" chamas tvde_reservation_change_dest com os valores exactos da cotacao.',
+    '  NUNCA inventas coordenadas nem precos: vem tudo da tool. needs_payment=true → a diferenca paga-se na app, em "As minhas reservas".',
+    '- Regras: mudar a hora so ate 30 dias e com pelo menos 30 min de antecedencia; a reserva tem de estar ainda marcada (nao a decorrer).',
+    '- Erros → frase simples: too_soon = "Essa hora esta muito em cima, tem de ser pelo menos 30 minutos a partir de agora";',
+    '  too_far = "So da para marcar ate 30 dias para a frente"; reservation_overlap = "Ja tens outra reserva a menos de 30 minutos dessa hora";',
+    '  too_late_to_change = "Essa reserva ja esta em andamento ou ja acabou, ja nao da para mudar"; invalid_time = "Nao percebi a hora, diz-me o dia e a hora";',
+    '  reservation_not_found / reservation_not_yours = "Nao encontrei essa reserva na tua conta";',
+    '  reservation_dest_change_disabled = "Mudar o destino pelo chat ainda nao esta disponivel; posso passar o pedido a equipa";',
+    '  reservation_awaiting_payment = "Essa reserva ainda esta a espera do pagamento, termina-o na app primeiro";',
+    '  address_not_found / route_failed = "Nao consegui encontrar essa morada, escreve a rua, o numero e a localidade".',
+    '- Cancelar a corrida marcada: na app, em "As minhas reservas" (reembolso automatico quando foi paga online).',
     '',
     '═══ REGRAS CRITICAS (nao quebrar) ═══',
     '#1: NUNCA calculas dinheiro complexo, refunds finais, creditos finais (sao calculados por RPCs/triggers).',
@@ -404,6 +501,44 @@ async function callRpc(
   const { data, error } = await userClient.rpc(toolName, toolArgs);
   if (error) return { ok: false, error: error.message };
   return { ok: true, data };
+}
+
+// v28 — tool por Edge Function (tvde-dest-change), com o JWT do cliente. A Edge geocodifica
+// a morada, calcula os km no Google e chama a RPC; o modelo nunca ve coordenadas inventadas.
+async function callEdgeTool(
+  userJwt: string,
+  toolName: string,
+  toolArgs: Record<string, unknown>,
+): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+  const cfg = EDGE_TOOLS[toolName];
+  if (!cfg) return { ok: false, error: `tool ${toolName} not an edge tool` };
+  const body: Record<string, unknown> = {
+    action: cfg.action,
+    ride_id: toolArgs.p_ride,
+    dest_text: toolArgs.p_morada,
+    dest_lat: toolArgs.p_dest_lat,
+    dest_lng: toolArgs.p_dest_lng,
+    dest_label: toolArgs.p_dest_label,
+    expected_client_diff_cents: toolArgs.p_expected_client_diff_cents,
+  };
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/functions/v1/${cfg.fn}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${userJwt}`,
+        apikey: SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify(body),
+    });
+    const j = await resp.json().catch(() => ({}));
+    if (!resp.ok || (j && typeof j === 'object' && j.error)) {
+      return { ok: false, error: String(j?.error ?? `http ${resp.status}`) };
+    }
+    return { ok: true, data: j };
+  } catch (e) {
+    return { ok: false, error: `edge fetch fail: ${(e as Error).message}` };
+  }
 }
 
 async function callGemini(
@@ -820,6 +955,8 @@ Deno.serve(async (req: Request) => {
             rpcRes = { ok: true, data: { proposed: true, action_id: actionId, message: 'Proposta criada. Aguarda aprovacao do admin.' } };
           }
         }
+      } else if (EDGE_TOOLS[fnName]) {
+        rpcRes = await callEdgeTool(userJwt, fnName, fnArgs);
       } else {
         rpcRes = await callRpc(userJwt, fnName, fnArgs);
       }

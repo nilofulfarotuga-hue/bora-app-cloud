@@ -10,6 +10,7 @@ import '../models/tvde_ride.dart';
 import '../models/tvde_subscription.dart';
 import '../services/notification_service.dart' show limparAvisosTvdeTerminados;
 import '../services/payment_service.dart';
+import '../utils/hora_lisboa.dart' show paredeLisboa;
 
 /// TVDE — Bora Motorista. Store reativo do cliente (passageiro).
 /// Camada read-only: todas as transições passam por RPC no backend.
@@ -179,6 +180,29 @@ String traduzErroReserva(Object erro) {
   }
   if (tem('not_authenticated')) {
     return 'A tua sessão expirou. Entra outra vez para marcar a reserva.';
+  }
+  // [12/10/2026] Mudar a hora / o destino de uma reserva (tvde_reservation_reschedule,
+  // tvde_reservation_dest_quote / _change_dest pela Edge tvde-dest-change).
+  if (tem('too_late_to_change')) {
+    return 'Essa reserva já está a decorrer ou já acabou — já não dá para mudar.';
+  }
+  if (tem('invalid_time')) {
+    return 'Não percebi a hora. Escolhe o dia e a hora outra vez.';
+  }
+  if (tem('reservation_not_found') || tem('reservation_not_yours')) {
+    return 'Não encontrámos essa reserva na tua conta.';
+  }
+  if (tem('reservation_dest_change_disabled')) {
+    return 'Mudar o destino ainda não está disponível. Podes cancelar e marcar de novo.';
+  }
+  if (tem('reservation_awaiting_payment')) {
+    return 'Termina primeiro o pagamento desta reserva.';
+  }
+  if (tem('dest_change_price_changed')) {
+    return 'O preço mudou entretanto. Abre outra vez para veres o preço novo.';
+  }
+  if (tem('address_not_found') || tem('route_failed')) {
+    return 'Não consegui encontrar essa morada. Escolhe-a na lista de sugestões.';
   }
   if (tem('cancelled') || tem('cancel')) {
     return 'Pagamento não concluído. A reserva não ficou marcada.';
@@ -945,6 +969,82 @@ class TvdeStore extends ChangeNotifier {
     } finally {
       _setBusy(false);
     }
+  }
+
+  // ===== MUDAR HORA / DESTINO de uma reserva (12/10/2026, padrão Uber Reserve) =====
+  // Hoje uma cliente teve de LIGAR ao Danilo para passar a reserva das 17:30
+  // para as 17:45. A hora muda pela RPC `tvde_reservation_reschedule` (só o
+  // dono; mesmas regras de marcar; o motorista mantém-se se não tiver outra
+  // reserva a menos de 60 min). O destino vai pela Edge `tvde-dest-change`
+  // (acções reservation_quote / reservation_change): a rota e o preço são
+  // sempre do servidor. Sem `_setBusy` de propósito (lição 05/09: o estado de
+  // envio é do botão que o disparou, nunca um ocupado partilhado).
+
+  /// Hora nova como PAREDE DE LISBOA 'AAAA-MM-DD HH:MM' — é o que a RPC lê.
+  /// [novaHora] é o instante escolhido pelo cliente (qualquer fuso).
+  static String horaLisboaParaRpc(DateTime novaHora) {
+    final p = paredeLisboa(novaHora.toUtc());
+    String dois(int n) => n.toString().padLeft(2, '0');
+    return '${p.year}-${dois(p.month)}-${dois(p.day)} ${dois(p.hour)}:${dois(p.minute)}';
+  }
+
+  /// Muda a hora da reserva. Devolve o JSON da RPC
+  /// ({ok, hora_nova, motorista_mantem, a_procurar_motorista}).
+  Future<Map<String, dynamic>> rescheduleReservation(
+      String rideId, DateTime novaHora) async {
+    try {
+      final res = await _sb.rpc('tvde_reservation_reschedule', params: {
+        'p_ride': rideId,
+        'p_nova_hora_local': horaLisboaParaRpc(novaHora),
+      }).timeout(kAcaoTimeout);
+      await loadMyReservations();
+      return res is Map ? Map<String, dynamic>.from(res) : <String, dynamic>{};
+    } catch (e) {
+      debugPrint('TvdeStore.rescheduleReservation error => $e');
+      rethrow;
+    }
+  }
+
+  /// Interruptor do servidor: mudar o destino de uma reserva (nasce desligado;
+  /// só liga com o "vai" do Danilo porque mexe em dinheiro).
+  Future<bool> reservationDestChangeEnabled() =>
+      getSettingBool('tvde_reservation_dest_change_enabled', false);
+
+  /// Cotação para mudar o destino de uma reserva. Não grava nada.
+  Future<Map<String, dynamic>> quoteReservationDest(
+    String rideId, {
+    required double lat,
+    required double lng,
+    String? label,
+  }) =>
+      _invokeDestChange({
+        'action': 'reservation_quote',
+        'ride_id': rideId,
+        'dest_lat': lat,
+        'dest_lng': lng,
+        'dest_label': label,
+      });
+
+  /// Aplica a mudança de destino da reserva. Dinheiro / diferença 0 / mais
+  /// perto → muda já. Cartão/MB Way com diferença a mais → `needs_payment:true`
+  /// + `change_id`; o destino só muda depois de [confirmDestChangePayment].
+  Future<Map<String, dynamic>> changeReservationDest(
+    String rideId, {
+    required double lat,
+    required double lng,
+    String? label,
+    required int expectedClientDiffCents,
+  }) async {
+    final res = await _invokeDestChange({
+      'action': 'reservation_change',
+      'ride_id': rideId,
+      'dest_lat': lat,
+      'dest_lng': lng,
+      'dest_label': label,
+      'expected_client_diff_cents': expectedClientDiffCents,
+    });
+    await loadMyReservations();
+    return res;
   }
 
   /// Grava a nota opcional do cliente para o MOTORISTA (paridade com a "Nota

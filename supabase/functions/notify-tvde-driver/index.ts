@@ -5,6 +5,12 @@
 // v5: alem da OFERTA de corrida (caminho original, intacto), trata
 // kind='stop_added' — aviso de parada adicionada pelo cliente, com o total
 // a cobrar atualizado (decisao Danilo 2026-07-20).
+// v22 (2026-10-12): kinds 'reservation_rescheduled' (o cliente mudou a HORA da
+// reserva e este motorista fica com ela: "A reserva passou para DD/MM as HH:MM")
+// e 'reservation_rescheduled_lost' (mudou a hora e ele ja tinha outra reserva
+// perto — passou a outro motorista, texto verdadeiro em vez do "cancelada").
+// Chamados pela RPC tvde_reservation_reschedule. Ramo proprio dentro do switch
+// das reservas; nada dos kinds anteriores mudou.
 // v21 (2026-10-04): push a TODOS os aparelhos do motorista (driver_push_tokens +
 // drivers.fcm_token) e a oferta so toca se ainda for deste motorista.
 // v20 (2026-09-30): kind 'dest_changed' — o cliente mudou o destino a meio
@@ -551,6 +557,23 @@ Deno.serve(async (req) => {
         type  = 'tvde_reservation_lost'
         title = 'Reserva passou a outro motorista'
         body  = `Não confirmaste a tempo a reserva das ${hora}. Foi entregue a outro motorista.`
+        break
+      // v22 (2026-10-12) — o CLIENTE mudou a hora (RPC tvde_reservation_reschedule).
+      // Fica com ela: aviso afirmativo com a hora NOVA (a linha ja esta gravada,
+      // por isso scheduledAt ja e a nova). Nao e oferta: sem botoes.
+      case 'reservation_rescheduled':
+        type  = 'tvde_reservation_rescheduled'
+        title = '📅 A tua reserva mudou de hora'
+        body  = `A reserva passou para ${ptShort(scheduledAt)} às ${hora}`
+              + ` • ${rota} • ${ganhaFrase}`
+        break
+      // v22 — mudou a hora e este motorista ja tinha outra reserva a menos de
+      // 60 min da hora nova: perde-a com o motivo verdadeiro (antes ia como
+      // 'reservation_cancelled', que dizia "o cliente cancelou" e era mentira).
+      case 'reservation_rescheduled_lost':
+        type  = 'tvde_reservation_lost'
+        title = 'Reserva passou a outro motorista'
+        body  = `O cliente mudou a hora para ${ptShort(scheduledAt)} às ${hora} e já tens outra reserva perto — passou a outro motorista.`
         break
       default:
         console.warn(`[notify-tvde-driver] kind de reserva desconhecido: ${kind}`)

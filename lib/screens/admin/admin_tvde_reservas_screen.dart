@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../stores/tvde_store.dart' show TvdeStore;
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '_admin_rpc_errors.dart';
 import '../../utils/hora_lisboa_ext.dart';
@@ -139,7 +140,34 @@ class _AdminTvdeReservasScreenState extends State<AdminTvdeReservasScreen> {
           return 'Motorista trocado: ${quem(meta['de'])} → ${quem(meta['para'])}';
         case 'volta_marcada':
           return 'Volta do pacote marcada para ${_quando(meta['return_at']?.toString())}';
+        // [12/10/2026] Mudança de hora (cliente pelo app/robô ou admin) e de destino.
+        case 'reserva_hora_alterada':
+          final quemMudou = e['actor'] == 'admin' ? 'pelo admin' : 'pelo cliente';
+          final motorista = meta['motorista'];
+          final mantem = meta['motorista_mantem'] == true;
+          return 'Hora alterada $quemMudou: '
+              '${_quando(meta['hora_antiga']?.toString())} → ${_quando(meta['hora_nova']?.toString())}'
+              '${motorista != null ? (mantem ? ' · ${quem(motorista)} mantém a reserva' : ' · ${quem(motorista)} perdeu a reserva (conflito de horário)') : ''}';
+        case 'reserva_destino_alterado':
+          final diff = (meta['client_diff_cents'] as num?)?.toInt() ?? 0;
+          final antes = ((meta['price_before_cents'] as num?)?.toInt() ?? 0) / 100;
+          final depois = ((meta['price_new_cents'] as num?)?.toInt() ?? 0) / 100;
+          return 'Destino alterado ${e['actor'] == 'admin' ? 'pelo admin' : 'pelo cliente'}: '
+              '${meta['old_dest_label'] ?? '?'} → ${meta['new_dest_label'] ?? '?'} · '
+              '€${antes.toStringAsFixed(2)} → €${depois.toStringAsFixed(2)}'
+              '${diff > 0 ? ' (cobra +€${(diff / 100).toStringAsFixed(2)})' : diff < 0 ? ' (devolve €${(-diff / 100).toStringAsFixed(2)})' : ''}';
+        case 'reserva_reembolso_pedido':
+          return 'Reembolso pedido ao servidor · ${meta['motivo'] ?? ''}';
+        case 'push_enviado':
+          return 'Aviso enviado ao motorista${meta['kind'] != null ? ' (${meta['kind']})' : ''}'
+              '${meta['driver_id'] != null ? ' · ${quem(meta['driver_id'])}' : ''}';
+        case 'push_falhou':
+          return 'Aviso ao motorista FALHOU${meta['kind'] != null ? ' (${meta['kind']})' : ''}'
+              '${meta['reason'] != null ? ' · ${meta['reason']}' : ''}';
         default:
+          if (meta['event'] == 'dest_changed') {
+            return 'Destino alterado (pago): ${meta['old_dest_label'] ?? '?'} → ${meta['new_dest_label'] ?? '?'}';
+          }
           return '${e['status']} · ${e['actor'] ?? '—'}';
       }
     }
@@ -211,6 +239,131 @@ class _AdminTvdeReservasScreenState extends State<AdminTvdeReservasScreen> {
       {'p_credit_id': creditId, 'p_return_at': quando.toUtc().toIso8601String()},
       'Volta marcada para ${_quando(quando.toUtc().toIso8601String())}.',
     );
+  }
+
+  // ── Mudar hora / destino (12/10/2026, paridade com o app do cliente) ───────
+  // As MESMAS funções do cliente: `tvde_reservation_reschedule` aceita admin
+  // (is_admin()) e a Edge `tvde-dest-change` (reservation_quote/_change) também.
+
+  Future<void> _mudarHora(Map<String, dynamic> r) async {
+    final atual = DateTime.tryParse(r['scheduled_at']?.toString() ?? '')?.toLocal() ??
+        DateTime.now();
+    final agora = DateTime.now();
+    final dia = await showDatePicker(
+      context: context,
+      initialDate: atual.isBefore(agora) ? agora : atual,
+      firstDate: agora,
+      lastDate: agora.add(const Duration(days: 30)),
+      helpText: 'Dia da viagem',
+    );
+    if (dia == null || !mounted) return;
+    final hora = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(atual),
+      helpText: 'Hora da viagem (hora de Lisboa)',
+    );
+    if (hora == null || !mounted) return;
+    final nova = DateTime(dia.year, dia.month, dia.day, hora.hour, hora.minute);
+    final ok = await _confirmar(
+      'Mudar a hora da reserva?',
+      'Passa para ${_quando(nova.toUtc().toIso8601String())}. O motorista é avisado; '
+          'se já tiver outra reserva a menos de 60 min, a reserva volta à rotação.',
+    );
+    if (ok != true) return;
+    await _acao(
+      'tvde_reservation_reschedule',
+      {'p_ride': r['id'], 'p_nova_hora_local': TvdeStore.horaLisboaParaRpc(nova)},
+      'Hora alterada. O motorista foi avisado.',
+    );
+  }
+
+  Future<void> _mudarDestino(Map<String, dynamic> r) async {
+    final morada = await showDialog<String>(
+      context: context,
+      builder: (_) => const _MoradaDialog(),
+    );
+    if (morada == null || morada.trim().isEmpty || !mounted) return;
+    final fn = Supabase.instance.client.functions;
+    Map<String, dynamic> cot;
+    try {
+      final res = await fn.invoke('tvde-dest-change', body: {
+        'action': 'reservation_quote',
+        'ride_id': r['id'],
+        'dest_text': morada.trim(),
+      });
+      cot = res.data is Map ? Map<String, dynamic>.from(res.data as Map) : {};
+      if (cot['error'] != null) throw Exception(cot['error']);
+    } on FunctionException catch (e) {
+      if (!mounted) return;
+      final d = e.details;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(_erroDestinoPtBr(
+              d is Map && d['error'] != null ? d['error'].toString() : '$d'))));
+      return;
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(_erroDestinoPtBr(e.toString()))));
+      return;
+    }
+    if (!mounted) return;
+    final diff = (cot['client_diff_cents'] as num?)?.toInt() ?? 0;
+    final antes = ((cot['price_before_cents'] as num?)?.toInt() ?? 0) / 100;
+    final depois = ((cot['price_new_cents'] as num?)?.toInt() ?? 0) / 100;
+    final precisaPagar = cot['needs_payment'] == true;
+    final ok = await _confirmar(
+      'Confirmar o destino novo?',
+      'Endereço encontrado: ${cot['dest_label']}\n'
+          'Distância: ${cot['route_km']} km\n'
+          'Preço: €${antes.toStringAsFixed(2)} → €${depois.toStringAsFixed(2)}'
+          '${diff > 0 ? ' (cobra +€${(diff / 100).toStringAsFixed(2)})' : diff < 0 ? ' (devolve €${(-diff / 100).toStringAsFixed(2)})' : ' (sem diferença)'}'
+          '${precisaPagar ? '\n\nATENÇÃO: a diferença é cobrada no cartão/MB Way do cliente. '
+              'Fica como proposta e o cliente paga no app, em "As minhas reservas"; o destino só muda depois de pagar.' : ''}',
+    );
+    if (ok != true || !mounted) return;
+    try {
+      final res = await fn.invoke('tvde-dest-change', body: {
+        'action': 'reservation_change',
+        'ride_id': r['id'],
+        'dest_lat': cot['dest_lat'],
+        'dest_lng': cot['dest_lng'],
+        'dest_label': cot['dest_label'],
+        'expected_client_diff_cents': diff,
+      });
+      final out = res.data is Map ? Map<String, dynamic>.from(res.data as Map) : {};
+      if (out['error'] != null) throw Exception(out['error']);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(out['needs_payment'] == true
+              ? 'Proposta criada. O cliente paga a diferença no app e o destino muda depois.'
+              : 'Destino alterado. O motorista foi avisado.')));
+      await _refresh();
+    } on FunctionException catch (e) {
+      if (!mounted) return;
+      final d = e.details;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(_erroDestinoPtBr(
+              d is Map && d['error'] != null ? d['error'].toString() : '$d'))));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(_erroDestinoPtBr(e.toString()))));
+    }
+  }
+
+  String _erroDestinoPtBr(String raw) {
+    if (raw.contains('reservation_dest_change_disabled')) {
+      return 'Mudar destino de reserva está DESLIGADO (platform_settings.tvde_reservation_dest_change_enabled). Bloco 2 espera o "vai".';
+    }
+    if (raw.contains('reservation_awaiting_payment')) return 'A reserva ainda aguarda pagamento.';
+    if (raw.contains('address_not_found')) return 'Endereço não encontrado. Escreva rua, número e localidade.';
+    if (raw.contains('route_failed')) return 'Não deu para calcular a rota (Google).';
+    if (raw.contains('too_late_to_change')) return 'A reserva já começou ou acabou.';
+    if (raw.contains('dest_change_price_changed')) return 'O preço mudou entretanto. Tente de novo.';
+    if (raw.contains('reservation_dest_change_not_supported')) {
+      return 'Esta reserva não aceita mudar destino (pacote ida-e-volta, balcão, plano, promo ou tokens).';
+    }
+    return humanizeAdminRpcError(raw);
   }
 
   Future<void> _cancelar(Map<String, dynamic> r) async {
@@ -610,6 +763,21 @@ class _AdminTvdeReservasScreenState extends State<AdminTvdeReservasScreen> {
                   icon: const Icon(Icons.refresh, size: 18),
                   label: const Text('Forçar chamada'),
                 ),
+                // [12/10/2026] As mesmas funções do cliente (padrão Uber Reserve).
+                if (r['status'] == 'agendada')
+                  TextButton.icon(
+                    onPressed: () => _mudarHora(r),
+                    icon: const Icon(Icons.schedule, size: 18),
+                    label: const Text('Mudar hora'),
+                  ),
+                if (r['status'] == 'agendada' &&
+                    r['roundtrip_credit_id'] == null &&
+                    estado != 'aguarda_pagamento')
+                  TextButton.icon(
+                    onPressed: () => _mudarDestino(r),
+                    icon: const Icon(Icons.edit_location_alt_outlined, size: 18),
+                    label: const Text('Mudar destino'),
+                  ),
                 TextButton.icon(
                   onPressed: () => _cancelar(r),
                   icon: const Icon(Icons.close, size: 18),
@@ -659,6 +827,49 @@ class _AdminTvdeReservasScreenState extends State<AdminTvdeReservasScreen> {
           ],
         ),
       );
+}
+
+/// Endereço novo escrito à mão (o servidor geocodifica e devolve o encontrado
+/// para confirmar antes de aplicar).
+class _MoradaDialog extends StatefulWidget {
+  const _MoradaDialog();
+
+  @override
+  State<_MoradaDialog> createState() => _MoradaDialogState();
+}
+
+class _MoradaDialogState extends State<_MoradaDialog> {
+  final _ctrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Mudar destino da reserva'),
+      content: TextField(
+        controller: _ctrl,
+        autofocus: true,
+        decoration: const InputDecoration(
+          labelText: 'Endereço novo (rua, número, localidade)',
+          border: OutlineInputBorder(),
+        ),
+        onSubmitted: (v) => Navigator.pop(context, v),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Voltar')),
+        TextButton(
+            onPressed: () => Navigator.pop(context, _ctrl.text),
+            child: const Text('Ver preço')),
+      ],
+    );
+  }
 }
 
 /// Criar reserva à mão. Só DINHEIRO — cobrar cartão/MB Way exigiria um

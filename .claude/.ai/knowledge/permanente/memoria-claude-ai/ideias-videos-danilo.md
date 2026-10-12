@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-11
+ultima_confirmacao: 2026-10-12
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-11T19:53:51.653991+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-12T19:54:11.603765+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -111,3 +111,14 @@ REGRA (Danilo, 01/10/2026): tudo o que ele mandar (vídeos, transcrições, link
 - REELS EM DIA: formato tela verde com o ecrã da app atrás; descrição com palavras-chave porque o Instagram passou a ser indexado no Google e nas IAs (out/2026). https://www.youtube.com/watch?v=zHWHRejp7SY
 - JÁ TEMOS: assistente WhatsApp/CRM (4 vídeos), Claude Code 24/7 na VPS, equipa de agentes (Paperclip = Hermes+Orca), skills, micro-SaaS, vender resultado, sites com maquete, ArtCraft (analisado 10/10).
 - RECUSADO: Pulso Social (4.ª e 5.ª vez), IA local do PewDiePie (GPU), PhotoSwitch, boatos de modelos (Carbon, BIM), Blender 3D com Opus (3D descartado para o filme), Pabbly (pago).
+
+## 12/10/2026 — radar diário
+21 vídeos revistos: 7 novos, 10 já temos, 4 rejeitados (1 por nota baixa). Nenhum do tema animacao_ia.
+- DINHEIRO / serviço novo para PMEs: IA que lê as conversas de WhatsApp e chamadas dos vendedores e aponta pontos fortes, fracos e melhorias do guião. https://www.youtube.com/watch?v=dMIjW_SzX4Y
+- DINHEIRO / caça-clientes por email: validar cada email antes de enviar (menos devoluções, protege o domínio); Kipflow/Apify só com plano grátis sem cartão. https://www.youtube.com/watch?v=tIWxMtH0DJw
+- DINHEIRO / Upwork: cada proposta leva uma mini-amostra feita à medida da vaga (https://www.youtube.com/watch?v=tp3-8woy808) e responder só a vagas recentes, filtro Most Recent (https://www.youtube.com/watch?v=XyBmMPfykv4). Ignorar a dica de assinar e cancelar o plano.
+- EM DIA: vigiar no Reddit perguntas de recibos verdes/finanças em Portugal e responder com ajuda real, sem link; análise semanal do conteúdo dos concorrentes. https://www.youtube.com/watch?v=3qHSDpuu4mw
+- EM DIA: ideia de oferta de entrada barata (ex.: 1 € nos primeiros 30 dias) — só proposta, preços são do Danilo. https://www.youtube.com/watch?v=GBjHpgPKp0o
+- FILME: ElevenLabs grátis como reserva do caminho 3 das vozes (ver caminhos-animacao-filme). https://www.youtube.com/watch?v=fxaAdIbQy20
+- JÁ TEMOS: Hermes na VPS (2 vídeos), assistente WhatsApp/agenda (3 vídeos = Mister Navalha), AIsa/negócios sem site, serviço com software (referência EUA: 2-3 mil USD de setup), vender resultado, ritmo humano nos grupos, robôs de reels.
+- RECUSADO: DeepSeek Harness 2.0 (chave paga, DeepSeek já recusado), postadores automáticos em massa nos grupos do Facebook (risco de ban), canal dark de curiosidades.

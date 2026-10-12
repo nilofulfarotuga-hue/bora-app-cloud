@@ -2,7 +2,7 @@
 id: memoria-claude-ai-caminhos-animacao-filme
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-10
+ultima_confirmacao: 2026-10-12
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Filme das filhas — 5 caminhos grátis para o desenho (revisto 05/10 com os 50 vídeos)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-10T19:54:05.550034+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-12T19:54:11.603765+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: caminhos animacao filme · memoria claude.ai · claude_ai_memoria
 
@@ -40,3 +40,7 @@ Ordem recomendada: 2 (bíblia) → 1 (personagens fixos) → 3 (vozes) → 4 (bo
 
 ## 10/10/2026 — radar diário (vídeo fora do tema animacao_ia)
 - DURAÇÃO DO EPISÓDIO: no Google Flow dá para criar uma ferramenta própria com um prompt que parte o roteiro em cenas de 10 s, gera-as em sequência e junta-as num vídeo só, mantendo o visual (modelo indicado no vídeo: OmniFlash 1.1). Encaixa nos caminhos 1 e 2: a bíblia de continuidade escreve o roteiro por cenas e o Flow gera em lote em vez de clipe a clipe. Custo: créditos do Flow (Google AI Plus); ignorar a dica do vídeo de comprar créditos baratos. https://www.youtube.com/watch?v=Zi4UDsCGtOE
+
+
+## 12/10/2026 — radar diário (vídeo fora do tema animacao_ia)
+- RESERVA do caminho 3 (vozes): ElevenLabs tem plano grátis com 10 mil créditos/mês para narração, clonagem de voz, trilha sonora e legendas. Pode servir para dar a cada personagem uma voz fixa e para a música se o Google AI Studio não chegar. O vídeo NÃO mostra voz de criança — tem de se testar. Custo: grátis dentro dos créditos. https://www.youtube.com/watch?v=fxaAdIbQy20

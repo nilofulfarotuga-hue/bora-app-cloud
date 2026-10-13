@@ -30,6 +30,7 @@ import 'admin_mesas_screen.dart';
 import 'admin_opcoes_produto_screen.dart';
 import 'admin_maiores_18_screen.dart';
 import 'admin_reativacao_screen.dart';
+import 'admin_checkin_screen.dart';
 import 'admin_support_escalations_screen.dart';
 import 'admin_tvde_chats_screen.dart';
 import 'admin_connect_payments_screen.dart';
@@ -969,6 +970,15 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.green,
       builder: () => const AdminReativacaoScreen(),
       keywords: const ['reativacao', 'parados', 'inativos', 'voltar', 'push', 'clientes', 'saudades'],
+    ),
+    AdminMenuItem(
+      id: 'clientes_checkin_diario',
+      title: 'Check-in diário',
+      subtitle: 'Sequência de 7 dias com tokens: ligar, valores, lembretes 11h/20h, quem está em que dia, custo e dar/tirar tokens',
+      icon: Icons.event_available,
+      color: AppColors.primary,
+      builder: () => const AdminCheckinScreen(),
+      keywords: const ['checkin', 'check-in', 'diario', 'sequencia', 'streak', 'tokens', 'todo dia', 'lembrete'],
     ),
     AdminMenuItem(
       id: 'clientes_personalizacao',

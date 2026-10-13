@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Wallet Service — wraps Supabase RPCs for client_wallets + bora_tokens.
@@ -10,6 +11,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class WalletService {
   WalletService._();
   static final instance = WalletService._();
+
+  /// Sobe quando o saldo muda fora do ecrã que o mostra (ex.: check-in diário);
+  /// quem mostra o saldo escuta isto e volta a lê-lo.
+  static final ValueNotifier<int> saldoMudou = ValueNotifier<int>(0);
 
   final _supa = Supabase.instance.client;
 

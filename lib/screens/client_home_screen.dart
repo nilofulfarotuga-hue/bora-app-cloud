@@ -24,6 +24,7 @@ import '../widgets/address_autocomplete_field.dart';
 import '../widgets/web_push_card.dart';
 import '../widgets/bora/bora.dart';
 import '../widgets/bora_assistant_fab.dart';
+import '../widgets/home/checkin_diario_card.dart';
 import '../widgets/home/home_feed.dart';
 import '../widgets/language_toggle.dart';
 import '../widgets/notification_bell.dart';
@@ -409,6 +410,11 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                     },
                   ),
                   const SizedBox(height: Spacing.xl),
+                  // Bora Todo Dia (13/10): check-in diário com sequência de 7
+                  // dias. Some sozinho se o servidor o tiver desligado.
+                  CheckinDiarioCard(
+                    key: ValueKey('checkin-${authStore.userId ?? ''}'),
+                  ),
                   _buildCategoryGrid(context),
                   const SizedBox(height: Spacing.xl),
                   // FAIXAS DA HOME (05/10): carrossel lido de `home_banners`

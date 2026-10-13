@@ -1,0 +1,61 @@
+OK     migração da base corre sem erro (tabelas, definições, funções, cron)
+OK     migração da base corre segunda vez sem erro (idempotente)
+OK     tarefa checkin-lembretes agendada uma vez só
+OK     a base não grava valores em tokens (vão com a proposta do crédito)
+OK     sem a definição, os prémios são os do Danilo: 5,5,10,10,15,15,40
+OK     sem a função de crédito o check-in está desligado (enabled=false, reason=desligado)
+OK     sem a função de crédito não sai nenhum lembrete
+OK     _checkin_dia_de_hoje: sem histórico → Dia 1 (deu 1)
+OK     _checkin_dia_de_hoje: ontem Dia 1 → Dia 2 (deu 2)
+OK     _checkin_dia_de_hoje: ontem Dia 6 → Dia 7 (deu 7)
+OK     _checkin_dia_de_hoje: ontem Dia 7 → ciclo novo, Dia 1 (deu 1)
+OK     _checkin_dia_de_hoje: falhou ontem → volta ao Dia 1 (deu 1)
+OK     telemóvel 912345678 conta como confirmado
+OK     telemóvel "+351 913 000 000" conta como confirmado
+OK     telemóvel 00351914000000 conta como confirmado
+OK     telemóvel 351915000000 conta como confirmado
+OK     telemóvel "(916) 000-000" conta como confirmado
+OK     telemóvel vazio NÃO conta
+OK     número fixo 212345678 NÃO conta
+OK     proposta de crédito criada sem erro
+OK     a proposta grava prémios 5,5,10,10,15,15,40 e validade 60 dias
+OK     estado antes do primeiro check-in: Dia 1, vale 5 ({"e":true,"el":true,"d":1,"t":5})
+OK     Dia 1: ganha 5, amanhã vale 5 ({"ok":true,"ad":false,"d":1,"t":5,"n":5})
+OK     token gravado com source_order_id checkin-2026-10-13-<uid> (checkin-2026-10-13-00000000-0000-4000-8000-000000000001)
+OK     validade de 60 dias (60.000)
+OK     saldo devolvido na hora = 5 (5)
+OK     segundo toque no mesmo dia não dá tokens nem grava outra linha
+OK     um check-in por dia de calendário
+OK     ontem Dia 2 → hoje Dia 3, 10 tokens (deu Dia 3, 10)
+OK     segundo cliente do mesmo dia também recebe (sem choque no índice único)
+OK     falhou ontem (anteontem Dia 5) → Dia 1, 5 tokens (deu Dia 1)
+OK     ontem Dia 7 → ciclo novo, Dia 1 (deu Dia 1)
+OK     ontem Dia 6 → Dia 7, 40 tokens, amanhã volta a 5 (deu 40, próximo 5)
+OK     sem telemóvel recusa e não grava nada (reason=sem_telemovel)
+OK     estafeta sem papel de cliente recusa (reason=nao_cliente)
+OK     sem sessão recusa
+OK     com checkin_require_phone=false quem não tem telemóvel já ganha
+OK     prémios editados no painel valem logo
+OK     prémios inválidos → volta aos do Danilo (5)
+OK     validade editada no painel (30 dias) vale logo (30.000)
+OK     checkin_enabled=false desliga o check-in
+OK     por defeito, lembretes só a quem aceitou promoções
+OK     sem ninguém com promoções aceites, não sai nenhum lembrete
+OK     com promoções aceites só pelo 10, só o 10 recebe (o 9 não aceitou)
+OK     manhã: só quem ainda não fez hoje, tem telemóvel e aparelho ativo (alvos=9,10)
+OK     texto da manhã com o valor de cada um ("O teu check-in de hoje vale 5 tokens." / "O teu check-in de hoje vale 10 tokens.")
+OK     tipo checkin_diario e título "Check-in diário"
+OK     manhã a correr outra vez: ninguém recebe duas vezes
+OK     noite: só quem tem sequência a correr e ainda não fez hoje (alvos=10)
+OK     texto da noite: "Não percas a tua sequência de 3 dias! Faz o check-in de hoje e ganha 10 tokens."
+OK     noite a correr outra vez: ninguém recebe duas vezes
+OK     no máximo 2 lembretes de check-in por pessoa por dia (máximo visto: 2)
+OK     singular: "Não percas a tua sequência de 1 dia! Faz o check-in de hoje e ganha 5 tokens."
+OK     fora das horas das definições não sai nada
+OK     resumo do painel recusa quem não é admin
+OK     resumo de hoje: 8 check-ins, 76 tokens (o ecrã converte em € com token_value_cents_x100)
+OK     resumo por semana e por mês e diz que a função de crédito existe
+OK     lista do painel mostra quem está em que dia (Cliente Cinco no Dia 7, 40 tokens)
+OK     pesquisa encontra cliente que ainda não fez check-in (para dar tokens)
+
+59/59 verificações passaram

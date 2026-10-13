@@ -16,6 +16,21 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 13/10/2026: cartão "Check-in diário" da home (Bora Todo Dia)
+  // (tool/l10n/traducoes/pt-en-15-checkin-diario.json).
+  'Check-in diário': 'Daily check-in',
+  'Entra todos os dias e ganha mais tokens. Se falhares um dia, voltas ao Dia 1.':
+      'Come back every day and earn more tokens. Miss a day and you go back to Day 1.',
+  'Confirma o teu telemóvel para ganhar tokens': 'Confirm your mobile number to earn tokens',
+  'Confirmar telemóvel': 'Confirm mobile number',
+  'Fazer check-in': 'Check in',
+  'A fazer check-in…': 'Checking in…',
+  'Ganhaste {0} tokens!': 'You earned {0} tokens!',
+  'Volta amanhã para ganhar {0} tokens.': 'Come back tomorrow to earn {0} tokens.',
+  'Dia {0}': 'Day {0}',
+  'Saldo: {0} tokens': 'Balance: {0} tokens',
+  '+{0} tokens': '+{0} tokens',
+  'Não foi possível fazer o check-in. Tenta de novo.': 'Could not check in. Please try again.',
   // 12/10/2026: mudar hora / destino de uma reserva de corrida (As minhas reservas)
   // (tool/l10n/traducoes/pt-en-14-reserva-mudar-hora-destino.json).
   'Mudar hora': 'Change time',

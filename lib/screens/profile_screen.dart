@@ -1508,6 +1508,15 @@ class _WalletCardsBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Check-in diário (13/10): o saldo de tokens muda fora deste ecrã; cada
+    // aviso reconstrói e o future (que nasce no build) volta a ler o saldo.
+    return ValueListenableBuilder<int>(
+      valueListenable: WalletService.saldoMudou,
+      builder: (context, _, __) => _cartoes(context),
+    );
+  }
+
+  Widget _cartoes(BuildContext context) {
     return FutureBuilder<WalletBalance>(
       future: WalletService.instance.getBalance(),
       builder: (ctx, snap) {

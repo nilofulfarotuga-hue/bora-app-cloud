@@ -421,6 +421,14 @@ class OrderModel {
   /// True se este pedido inclui cobrança de dívida prévia da wallet do cliente.
   bool get hasCashDebt => debtCollectedCents > 0;
 
+  /// Total com a dívida anterior incluída, para os ecrãs do cliente e do
+  /// painel quando [debtCollectedCents] > 0 (13/10). Em dinheiro é o mesmo
+  /// número que o estafeta cobra ([totalToCollectCash]); em cartão/MB Way a
+  /// dívida soma-se ao total do pedido. Só leitura — não muda o que se cobra.
+  double get totalWithDebt => paymentMethod == PaymentMethod.cash
+      ? totalToCollectCash
+      : (finalTotal ?? total) + debtCollectedCents / 100.0;
+
   // ─────────────────────────────────────────────────────────────────────────
   // FIX (CRITICAL): Previously fromSupabase hardcoded
   //   serviceType: OrderServiceType.storeShopping

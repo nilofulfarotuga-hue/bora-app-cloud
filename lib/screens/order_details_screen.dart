@@ -780,10 +780,18 @@ class _OrderInfoCard extends StatelessWidget {
       child: Column(
         children: [
           _Row(label: 'Serviço'.tr, value: order.serviceType.label),
+          // 13/10: com dívida anterior, o cliente vê a linha e o total com a
+          // dívida — o mesmo número que o estafeta lhe cobra à porta.
+          if (order.debtCollectedCents > 0)
+            _Row(
+                label: 'Dívida anterior'.tr,
+                value:
+                    '€${(order.debtCollectedCents / 100).toStringAsFixed(2)}'),
           _Row(
               label: 'Total'.tr,
-              value:
-                  '€${(order.finalTotal ?? order.total).toStringAsFixed(2)}',
+              value: order.debtCollectedCents > 0
+                  ? '€${order.totalWithDebt.toStringAsFixed(2)}'
+                  : '€${(order.finalTotal ?? order.total).toStringAsFixed(2)}',
               bold: true),
           _Row(
               label: 'Taxa de entrega'.tr,

@@ -1166,10 +1166,20 @@ class _BottomCardState extends State<_BottomCard> {
                             label: 'Saldo Bora aplicado'.tr,
                             value: -(order.walletAppliedCents / 100),
                             isDiscount: true),
+                      // 13/10: dívida anterior cobrada neste pedido — o total
+                      // passa a ser o que o estafeta cobra à porta.
+                      if (order.debtCollectedCents > 0)
+                        _SummaryRow(
+                            label: 'Dívida anterior'.tr,
+                            value: order.debtCollectedCents / 100),
                       Divider(color: Colors.grey.shade300, height: 16),
                       _SummaryRow(
-                        label: 'Total do pedido'.tr,
-                        value: order.total,
+                        label: order.debtCollectedCents > 0
+                            ? 'Total a pagar'.tr
+                            : 'Total do pedido'.tr,
+                        value: order.debtCollectedCents > 0
+                            ? order.totalWithDebt
+                            : order.total,
                         isStrong: true,
                       ),
                     ],

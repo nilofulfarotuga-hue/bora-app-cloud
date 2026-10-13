@@ -87,7 +87,9 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
               // ronda 04/10 — aceite pela loja + prova de entrega
               'accepted_at, deixar_a_porta, foto_entrega_url, foto_entrega_em, '
               // Missão maiores-18 (07/10/2026)
-              'has_age_restricted')
+              'has_age_restricted, '
+              // 13/10: dívida anterior do cliente cobrada neste pedido
+              'debt_collected_cents')
           .eq('id', widget.orderId)
           .maybeSingle();
 
@@ -310,6 +312,9 @@ class _SummaryTab extends StatelessWidget {
                 _row(Icons.store_mall_directory, 'Recolha',
                     order['pickup_address'] ?? '—'),
                 _row(Icons.euro, 'Total', '€${_amount(order)}'),
+                if (_debtCents(order) > 0)
+                  _row(Icons.history, 'Dívida anterior cobrada neste pedido',
+                      '€${(_debtCents(order) / 100).toStringAsFixed(2)}'),
                 // Missão maiores-18 (07/10/2026): selo +18 e a verificação
                 // de idade feita pelo estafeta na entrega.
                 if (order['has_age_restricted'] == true)
@@ -754,6 +759,9 @@ class _PaymentTab extends StatelessWidget {
               _row('Método', method ?? '—'),
               _row('Estado', paymentStatus ?? '—'),
               _row('Total', '€${_amount(order)}'),
+              if (_debtCents(order) > 0)
+                _row('Dívida anterior cobrada neste pedido',
+                    '€${(_debtCents(order) / 100).toStringAsFixed(2)}'),
               if (pi != null) _row('Stripe PI', pi),
             ]),
           ),
@@ -1372,3 +1380,6 @@ String _amount(Map<String, dynamic> order) {
   if (v is num) return v.toStringAsFixed(2);
   return '0.00';
 }
+
+int _debtCents(Map<String, dynamic> order) =>
+    (order['debt_collected_cents'] as num?)?.toInt() ?? 0;

@@ -314,9 +314,14 @@ class _OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final totalLabel = order.isPurchaseFinalized && order.finalTotal != null
-        ? '€${order.finalTotal!.toStringAsFixed(2)}'
-        : '€${order.total.toStringAsFixed(2)}';
+    // 13/10: com dívida anterior, o total do cartão já a inclui (o mesmo
+    // número que o estafeta cobra) e uma linha pequena diz quanto é.
+    final hasDebt = order.debtCollectedCents > 0;
+    final totalLabel = hasDebt
+        ? '€${order.totalWithDebt.toStringAsFixed(2)}'
+        : order.isPurchaseFinalized && order.finalTotal != null
+            ? '€${order.finalTotal!.toStringAsFixed(2)}'
+            : '€${order.total.toStringAsFixed(2)}';
     final hasWalletAdjust = walletTxs.isNotEmpty;
 
     return Material(
@@ -372,6 +377,16 @@ class _OrderCard extends StatelessWidget {
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
+                      ),
+                    if (hasDebt)
+                      Text(
+                        'Inclui €{0} de dívida anterior'.trArgs([
+                          (order.debtCollectedCents / 100).toStringAsFixed(2)
+                        ]),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     const SizedBox(height: Spacing.sm),
                     Row(

@@ -16,6 +16,9 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 13/10/2026: dívida anterior no cartão do pedido (Os meus pedidos)
+  // (tool/l10n/traducoes/pt-en-16-divida-anterior.json).
+  'Inclui €{0} de dívida anterior': 'Includes €{0} of previous debt',
   // 13/10/2026: cartão "Check-in diário" da home (Bora Todo Dia)
   // (tool/l10n/traducoes/pt-en-15-checkin-diario.json).
   'Check-in diário': 'Daily check-in',

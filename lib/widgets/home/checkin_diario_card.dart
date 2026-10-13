@@ -55,14 +55,18 @@ class _CheckinDiarioCardState extends State<CheckinDiarioCard>
   int _ganhos = 0;
   int? _saldo;
 
-  late final AnimationController _entrada = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1400),
-  );
+  // Criado no initState, nunca "à preguiça": com o cartão escondido o
+  // controlador nunca era lido e nascia dentro do dispose(), a procurar o
+  // TickerMode num elemento já desativado (rebentou no CI, Flutter 3.41).
+  late final AnimationController _entrada;
 
   @override
   void initState() {
     super.initState();
+    _entrada = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    );
     WidgetsBinding.instance.addObserver(this);
     unawaited(_carregar());
   }

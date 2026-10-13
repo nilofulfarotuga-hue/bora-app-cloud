@@ -80,14 +80,27 @@ class _CheckinDiarioCardState extends State<CheckinDiarioCard>
     if (state == AppLifecycleState.resumed && !_aFazer) unawaited(_carregar());
   }
 
+  /// Sobe a cada leitura e a cada check-in: uma leitura que chegue depois do
+  /// check-in (lançada antes dele) é ignorada em vez de repor o botão.
+  int _versao = 0;
+
   Future<void> _carregar() async {
+    final minha = ++_versao;
     final e = await (widget.carregar ?? CheckinService.instance.estado)();
-    if (!mounted) return;
-    setState(() => _estado = e);
+    if (!mounted || minha != _versao) return;
+    setState(() {
+      _estado = e;
+      // O saldo e o "Ganhaste" só valem logo a seguir ao check-in; numa
+      // releitura (ex.: voltar à app depois de gastar tokens) somem.
+      _saldo = null;
+      _ganhos = 0;
+    });
   }
 
   Future<void> _fazer() async {
     if (_aFazer) return;
+    final anteriorFalhou = _falhou;
+    _versao++;
     setState(() {
       _aFazer = true;
       _falhou = false;
@@ -95,6 +108,7 @@ class _CheckinDiarioCardState extends State<CheckinDiarioCard>
     try {
       final r = await (widget.fazer ?? CheckinService.instance.fazerCheckin)();
       if (!mounted) return;
+      _versao++;
       final ganhos = r.tokensAwarded ?? 0;
       setState(() {
         _aFazer = false;
@@ -102,9 +116,10 @@ class _CheckinDiarioCardState extends State<CheckinDiarioCard>
         _ganhos = ganhos;
         _saldo = r.balance ?? _saldo;
       });
-      if (ganhos > 0) {
-        unawaited(_entrada.forward(from: 0));
-        // O saldo mostrado noutros ecrãs (perfil) volta a ser lido.
+      if (ganhos > 0) unawaited(_entrada.forward(from: 0));
+      // O saldo mostrado noutros ecrãs (perfil) volta a ser lido. Também quando
+      // a tentativa anterior falhou por tempo: o servidor pode tê-la gravado.
+      if (ganhos > 0 || (anteriorFalhou && r.alreadyDone)) {
         WalletService.saldoMudou.value++;
       }
     } catch (e) {

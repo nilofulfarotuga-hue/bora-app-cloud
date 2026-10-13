@@ -310,9 +310,14 @@ BEGIN
        WHERE b.ult_data IS DISTINCT FROM v_hoje                                 -- ainda não fez hoje
          AND (v_turno = 'manha' OR (b.ult_data = v_hoje - 1 AND b.ult_dia >= 1)) -- noite: sequência a correr
     )
-    SELECT a.dia, CASE WHEN v_turno = 'noite' THEN a.ult_dia END AS seq, array_agg(a.user_id) AS ids
-      FROM alvo a
-     GROUP BY 1, 2
+    , lotes AS (
+      -- lotes de 150: o push-clientes-alvo lê os aparelhos por GET com a lista no endereço
+      SELECT a.*, (row_number() OVER (PARTITION BY a.dia, a.ult_dia ORDER BY a.user_id) - 1) / 150 AS lote
+        FROM alvo a
+    )
+    SELECT l.dia, CASE WHEN v_turno = 'noite' THEN l.ult_dia END AS seq, array_agg(l.user_id) AS ids
+      FROM lotes l
+     GROUP BY 1, 2, l.lote
   LOOP
     IF v_turno = 'manha' THEN
       v_texto := format('O teu check-in de hoje vale %s tokens.', v_premios[g.dia]);
@@ -400,7 +405,11 @@ BEGIN
                GROUP BY 1) s), '{}'::jsonb),
     'lembretes_hoje', COALESCE((
       SELECT jsonb_object_agg(turno, n)
-        FROM (SELECT turno, count(*) AS n FROM public.checkin_lembretes_envios WHERE dia = v_hoje GROUP BY 1) s), '{}'::jsonb)
+        FROM (SELECT turno, count(*) AS n FROM public.checkin_lembretes_envios WHERE dia = v_hoje GROUP BY 1) s), '{}'::jsonb),
+    -- com checkin_push_so_opt_in ligado, só estes podem receber lembretes
+    'clientes_com_promocoes_aceites', (
+      SELECT count(*) FROM public.users u
+       WHERE COALESCE(u.marketing_opt_in, false) AND public._checkin_e_cliente(u.id))
   );
 END;
 $function$;

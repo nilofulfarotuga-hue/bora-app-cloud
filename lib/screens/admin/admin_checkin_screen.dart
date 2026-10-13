@@ -688,10 +688,18 @@ class _AdminCheckinScreenState extends State<AdminCheckinScreen> {
   Widget build(BuildContext context) {
     final porDia = _linhas('por_dia');
     final hoje = '${_resumo?['hoje'] ?? ''}';
+    final hojeData = DateTime.tryParse(hoje);
     final deHoje = _soma(porDia.where((r) => '${r['dia']}' == hoje));
-    final ultimos7 = _soma(porDia.take(7));
-    final porMes = _linhas('por_mes');
-    final esteMes = _soma(porMes.take(1));
+    // Pelo calendário (não "os 7 dias com check-ins"): de hoje-6 a hoje.
+    final ultimos7 = _soma(porDia.where((r) {
+      final d = DateTime.tryParse('${r['dia']}');
+      return hojeData != null && d != null && !d.isBefore(hojeData.subtract(const Duration(days: 6)));
+    }));
+    final mesAtual = hojeData == null
+        ? ''
+        : '${hojeData.year}-${hojeData.month.toString().padLeft(2, '0')}-01';
+    final esteMes = _soma(_linhas('por_mes').where((r) => '${r['mes']}' == mesAtual));
+    final comPromocoes = (_resumo?['clientes_com_promocoes_aceites'] as num?)?.toInt();
     final porDiaSeq = (_resumo?['pessoas_por_dia_da_sequencia'] as Map?) ?? const {};
     final lembretes = (_resumo?['lembretes_hoje'] as Map?) ?? const {};
 
@@ -715,7 +723,14 @@ class _AdminCheckinScreenState extends State<AdminCheckinScreen> {
               ('total_tokens_checkin', 'tokens ganhos no check-in'),
               ('saldo_tokens', 'saldo de tokens'),
             ],
-            linhas: () => _clientes,
+            linhas: () => [
+              for (final c in _clientes)
+                {
+                  ...c,
+                  for (final k in const ['telemovel_confirmado', 'em_sequencia', 'fez_hoje'])
+                    k: c[k] == true ? 'sim' : 'não',
+                },
+            ],
           ),
           AdminCsvButton(
             nome: 'checkin_tokens_por_dia',
@@ -727,7 +742,12 @@ class _AdminCheckinScreenState extends State<AdminCheckinScreen> {
             ],
             linhas: () => [
               for (final r in porDia)
-                {...r, 'euros': (((r['tokens'] as num?) ?? 0) * _euroPorToken).toStringAsFixed(2)},
+                {
+                  ...r,
+                  'euros': (((r['tokens'] as num?) ?? 0) * _euroPorToken)
+                      .toStringAsFixed(2)
+                      .replaceAll('.', ','),
+                },
             ],
           ),
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
@@ -753,9 +773,23 @@ class _AdminCheckinScreenState extends State<AdminCheckinScreen> {
                         style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                       ),
                       Text(
-                        'Lembretes enviados hoje: manhã ${lembretes['manha'] ?? 0} · noite ${lembretes['noite'] ?? 0}',
+                        'Lembretes registados hoje (pedidos ao serviço de push; não confirma a entrega): '
+                        'manhã ${lembretes['manha'] ?? 0} · noite ${lembretes['noite'] ?? 0}',
                         style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                       ),
+                      if (_soOptIn && comPromocoes == 0)
+                        Card(
+                          key: const Key('admin_checkin_aviso_opt_in'),
+                          color: Colors.red.shade50,
+                          child: const ListTile(
+                            leading: Icon(Icons.notifications_off),
+                            title: Text(
+                              'Nenhum cliente aceitou promoções (opt-in de marketing). Com "Só quem aceitou '
+                              'promoções" ligado, os lembretes das 11h e das 20h não chegam a ninguém.',
+                              style: TextStyle(fontSize: 13),
+                            ),
+                          ),
+                        ),
                       const SizedBox(height: 16),
                       _configuracoes(),
                       const Divider(height: 32),

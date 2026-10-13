@@ -280,6 +280,30 @@ await set('checkin_push_evening_hour', (horaAgora + 1) % 24)
 lem = (await one(`SELECT public.checkin_lembretes_processar() AS r`)).r
 ok(lem.motivo === 'fora_de_hora', 'fora das horas das definições não sai nada')
 
+// lotes de 150 (o push-clientes-alvo lê a lista por GET no endereço)
+await q(`DELETE FROM checkin_lembretes_envios`)
+await q(`DELETE FROM net_calls`)
+const muitos = Array.from({ length: 151 }, (_, i) => U(1000 + i))
+for (const [i, id] of muitos.entries()) {
+  await q(`INSERT INTO auth.users(id, email) VALUES ($1, $2)`, [id, `m${i}@teste.local`])
+  await q(`INSERT INTO public.users(id, name, email, phone, role, marketing_opt_in) VALUES ($1,$2,$3,$4,'client',true)`,
+    [id, `Muitos ${i}`, `m${i}@teste.local`, `93${String(i).padStart(7, '0')}`])
+  await q(`INSERT INTO public.client_push_tokens(user_id, fcm_token, active) VALUES ($1, $2, true)`, [id, `tok-m${i}`])
+}
+await set('checkin_push_morning_enabled', true)
+await set('checkin_push_morning_hour', horaAgora)
+await set('checkin_push_evening_enabled', false)
+await set('checkin_push_so_opt_in', true)   // um passo anterior desligou-o
+await one(`SELECT public.checkin_lembretes_processar() AS r`)
+chamadas = await q(`SELECT body FROM net_calls ORDER BY id`)
+const tamanhos = chamadas.map((c) => c.body.user_ids.length)
+const todos = chamadas.flatMap((c) => c.body.user_ids)
+ok(Math.max(...tamanhos) <= 150 && tamanhos.includes(150) && muitos.every((id) => todos.filter((x) => x === id).length === 1),
+  `151 pessoas no mesmo dia vão em lotes de no máximo 150, cada uma uma vez (lotes: ${tamanhos.join(', ')})`)
+const outros = todos.filter((x) => !muitos.includes(x)).map((a) => +a.slice(-4)).sort((a, b) => a - b)
+ok(JSON.stringify(outros) === JSON.stringify([10]),
+  `além das 151, só recebe quem pode (aceitou promoções, telemóvel, aparelho, não fez hoje): ${outros.join(',')}`)
+
 // ---- 6. painel admin ------------------------------------------------------------
 await comoAdmin(false)
 let recusou = false
@@ -292,6 +316,8 @@ const tokHoje = (await one(`SELECT sum(tokens_awarded)::int AS t, count(*)::int 
 ok(hojeRes && hojeRes.tokens === tokHoje.t && hojeRes.checkins === tokHoje.n,
   `resumo de hoje: ${hojeRes?.checkins} check-ins, ${hojeRes?.tokens} tokens (o ecrã converte em € com token_value_cents_x100)`)
 ok(res.por_semana.length >= 1 && res.por_mes.length >= 1 && res.funcao_de_credito_existe === true, 'resumo por semana e por mês e diz que a função de crédito existe')
+const optIn = (await one(`SELECT count(*)::int AS n FROM public.users WHERE marketing_opt_in AND role = 'client'`)).n
+ok(Number(res.clientes_com_promocoes_aceites) === optIn, `resumo diz quantos clientes aceitaram promoções (${res.clientes_com_promocoes_aceites} = ${optIn})`)
 const lista = (await q(`SELECT * FROM public.admin_checkin_clientes()`))
 ok(lista.some((l) => l.user_id === U(5) && l.dia_sequencia === 7 && l.fez_hoje === true && l.total_tokens_checkin === 40),
   'lista do painel mostra quem está em que dia (Cliente Cinco no Dia 7, 40 tokens)')

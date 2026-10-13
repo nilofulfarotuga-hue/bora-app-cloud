@@ -52,10 +52,13 @@ OK     noite a correr outra vez: ninguém recebe duas vezes
 OK     no máximo 2 lembretes de check-in por pessoa por dia (máximo visto: 2)
 OK     singular: "Não percas a tua sequência de 1 dia! Faz o check-in de hoje e ganha 5 tokens."
 OK     fora das horas das definições não sai nada
+OK     151 pessoas no mesmo dia vão em lotes de no máximo 150, cada uma uma vez (lotes: 150, 1, 1)
+OK     além das 151, só recebe quem pode (aceitou promoções, telemóvel, aparelho, não fez hoje): 10
 OK     resumo do painel recusa quem não é admin
 OK     resumo de hoje: 8 check-ins, 76 tokens (o ecrã converte em € com token_value_cents_x100)
 OK     resumo por semana e por mês e diz que a função de crédito existe
+OK     resumo diz quantos clientes aceitaram promoções (154 = 154)
 OK     lista do painel mostra quem está em que dia (Cliente Cinco no Dia 7, 40 tokens)
 OK     pesquisa encontra cliente que ainda não fez check-in (para dar tokens)
 
-59/59 verificações passaram
+62/62 verificações passaram

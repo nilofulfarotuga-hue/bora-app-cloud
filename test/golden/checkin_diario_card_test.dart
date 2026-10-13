@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -172,6 +174,89 @@ void main() {
     expect(find.textContaining('Ganhaste'), findsNothing);
     expect(find.text('Volta amanhã para ganhar 10 tokens.'), findsOneWidget); // Dia 3 feito → amanhã Dia 4 = 10
     expect(WalletService.saldoMudou.value, antes);
+  });
+
+  testWidgets('uma releitura lançada antes do check-in e chegada depois não repõe o botão',
+      (tester) async {
+    final atrasada = Completer<CheckinEstado?>();
+    var leituras = 0;
+    await tester.pumpWidget(MaterialApp(
+      home: _tela(CheckinDiarioCard(
+        carregar: () {
+          leituras++;
+          return leituras == 1 ? Future.value(_estado()) : atrasada.future;
+        },
+        fazer: () async => _estado(alreadyDone: true, tokensAwarded: 10, balance: 50),
+      )),
+    ));
+    await tester.pump();
+    // volta à app: começa uma releitura que fica pendurada
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    expect(leituras, 2);
+
+    await tester.tap(find.byKey(const Key('btn_checkin')));
+    await tester.pumpAndSettle();
+    // a releitura antiga chega agora, com o estado de antes do check-in
+    atrasada.complete(_estado());
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('btn_checkin')), findsNothing);
+    expect(find.text('Ganhaste 10 tokens!'), findsOneWidget);
+  });
+
+  testWidgets('ao voltar à app o saldo antigo some (pode ter gasto os tokens)', (tester) async {
+    var leituras = 0;
+    await tester.pumpWidget(MaterialApp(
+      home: _tela(CheckinDiarioCard(
+        carregar: () async {
+          leituras++;
+          return leituras == 1 ? _estado() : _estado(alreadyDone: true);
+        },
+        fazer: () async => _estado(alreadyDone: true, tokensAwarded: 10, balance: 45),
+      )),
+    ));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('btn_checkin')));
+    await tester.pumpAndSettle();
+    expect(find.text('Saldo: 45 tokens'), findsOneWidget);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('checkin_saldo')), findsNothing);
+    expect(find.textContaining('Ganhaste'), findsNothing);
+    expect(find.text('Volta amanhã para ganhar 10 tokens.'), findsOneWidget);
+  });
+
+  testWidgets('tempo esgotado e nova tentativa já feita: o saldo do perfil volta a ser lido',
+      (tester) async {
+    final antes = WalletService.saldoMudou.value;
+    var tentativas = 0;
+    await tester.pumpWidget(MaterialApp(
+      home: _tela(CheckinDiarioCard(
+        carregar: () async => _estado(),
+        fazer: () async {
+          tentativas++;
+          if (tentativas == 1) throw TimeoutException('15 s');
+          // o servidor tinha gravado a primeira: agora vem 0 tokens
+          return _estado(alreadyDone: true, tokensAwarded: 0, balance: 60);
+        },
+      )),
+    ));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('btn_checkin')));
+    await tester.pumpAndSettle();
+    expect(find.text('Não foi possível fazer o check-in. Tenta de novo.'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('btn_checkin')));
+    await tester.pumpAndSettle();
+
+    expect(tentativas, 2);
+    expect(find.byKey(const Key('checkin_feito')), findsOneWidget);
+    expect(WalletService.saldoMudou.value, antes + 1);
   });
 
   testWidgets('falha do servidor: avisa e deixa tentar de novo', (tester) async {

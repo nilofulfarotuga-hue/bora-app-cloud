@@ -312,7 +312,9 @@ BEGIN
     )
     , lotes AS (
       -- lotes de 150: o push-clientes-alvo lê os aparelhos por GET com a lista no endereço
-      SELECT a.*, (row_number() OVER (PARTITION BY a.dia, a.ult_dia ORDER BY a.user_id) - 1) / 150 AS lote
+      -- a contagem usa a MESMA chave do agrupamento final (de manhã a sequência não conta)
+      SELECT a.*, (row_number() OVER (PARTITION BY a.dia, CASE WHEN v_turno = 'noite' THEN a.ult_dia END
+                                      ORDER BY a.user_id) - 1) / 150 AS lote
         FROM alvo a
     )
     SELECT l.dia, CASE WHEN v_turno = 'noite' THEN l.ult_dia END AS seq, array_agg(l.user_id) AS ids

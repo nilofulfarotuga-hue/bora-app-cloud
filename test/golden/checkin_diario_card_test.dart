@@ -259,6 +259,32 @@ void main() {
     expect(WalletService.saldoMudou.value, antes + 1);
   });
 
+  testWidgets('tempo esgotado e volta à app já feito: o saldo do perfil volta a ser lido',
+      (tester) async {
+    final antes = WalletService.saldoMudou.value;
+    var leituras = 0;
+    await tester.pumpWidget(MaterialApp(
+      home: _tela(CheckinDiarioCard(
+        carregar: () async {
+          leituras++;
+          return leituras == 1 ? _estado() : _estado(alreadyDone: true);
+        },
+        fazer: () async => throw TimeoutException('15 s'),
+      )),
+    ));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('btn_checkin')));
+    await tester.pumpAndSettle();
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('checkin_feito')), findsOneWidget);
+    expect(find.text('Não foi possível fazer o check-in. Tenta de novo.'), findsNothing);
+    expect(WalletService.saldoMudou.value, antes + 1);
+  });
+
   testWidgets('falha do servidor: avisa e deixa tentar de novo', (tester) async {
     await tester.pumpWidget(MaterialApp(
       home: _tela(CheckinDiarioCard(

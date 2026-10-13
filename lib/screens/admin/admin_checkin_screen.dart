@@ -688,13 +688,17 @@ class _AdminCheckinScreenState extends State<AdminCheckinScreen> {
   Widget build(BuildContext context) {
     final porDia = _linhas('por_dia');
     final hoje = '${_resumo?['hoje'] ?? ''}';
-    final hojeData = DateTime.tryParse(hoje);
+    // Datas do servidor (AAAA-MM-DD, dia de Lisboa) em UTC: a conta de dias não
+    // pode passar pela hora local do aparelho (a mudança de hora comia um dia).
+    final hojeData = DateTime.tryParse('${hoje}T00:00:00Z');
     final deHoje = _soma(porDia.where((r) => '${r['dia']}' == hoje));
     // Pelo calendário (não "os 7 dias com check-ins"): de hoje-6 a hoje.
-    final ultimos7 = _soma(porDia.where((r) {
-      final d = DateTime.tryParse('${r['dia']}');
-      return hojeData != null && d != null && !d.isBefore(hojeData.subtract(const Duration(days: 6)));
-    }));
+    final desde = hojeData
+        ?.subtract(const Duration(days: 6))
+        .toIso8601String()
+        .substring(0, 10);
+    final ultimos7 = _soma(porDia.where(
+        (r) => desde != null && '${r['dia']}'.compareTo(desde) >= 0));
     final mesAtual = hojeData == null
         ? ''
         : '${hojeData.year}-${hojeData.month.toString().padLeft(2, '0')}-01';

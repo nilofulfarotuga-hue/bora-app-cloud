@@ -88,7 +88,11 @@ class _CheckinDiarioCardState extends State<CheckinDiarioCard>
     final minha = ++_versao;
     final e = await (widget.carregar ?? CheckinService.instance.estado)();
     if (!mounted || minha != _versao) return;
+    // A tentativa que falhou por tempo pode ter ficado gravada no servidor:
+    // se a releitura já a mostra feita, o perfil volta a ler o saldo.
+    if (_falhou && e != null && e.alreadyDone) WalletService.saldoMudou.value++;
     setState(() {
+      _falhou = false;
       _estado = e;
       // O saldo e o "Ganhaste" só valem logo a seguir ao check-in; numa
       // releitura (ex.: voltar à app depois de gastar tokens) somem.

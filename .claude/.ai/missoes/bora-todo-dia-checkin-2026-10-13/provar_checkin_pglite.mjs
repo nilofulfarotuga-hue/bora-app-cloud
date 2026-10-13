@@ -290,6 +290,12 @@ for (const [i, id] of muitos.entries()) {
     [id, `Muitos ${i}`, `m${i}@teste.local`, `93${String(i).padStart(7, '0')}`])
   await q(`INSERT INTO public.client_push_tokens(user_id, fcm_token, active) VALUES ($1, $2, true)`, [id, `tok-m${i}`])
 }
+// metade com a sequência partida (anteontem Dia 3): de manhã também são Dia 1 e
+// misturam-se com quem nunca fez — o lote tem de contar todos juntos (juiz, 13/10)
+for (const id of muitos.slice(0, 75)) {
+  await q(`INSERT INTO public.daily_checkins(user_id, checkin_date, streak_day, tokens_awarded) VALUES ($1, $2::date, 3, 10)`,
+    [id, await diaMenos(2)])
+}
 await set('checkin_push_morning_enabled', true)
 await set('checkin_push_morning_hour', horaAgora)
 await set('checkin_push_evening_enabled', false)

@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-12
+ultima_confirmacao: 2026-10-13
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-12T19:54:11.603765+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-13T19:54:17.048144+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -122,3 +122,12 @@ REGRA (Danilo, 01/10/2026): tudo o que ele mandar (vídeos, transcrições, link
 - FILME: ElevenLabs grátis como reserva do caminho 3 das vozes (ver caminhos-animacao-filme). https://www.youtube.com/watch?v=fxaAdIbQy20
 - JÁ TEMOS: Hermes na VPS (2 vídeos), assistente WhatsApp/agenda (3 vídeos = Mister Navalha), AIsa/negócios sem site, serviço com software (referência EUA: 2-3 mil USD de setup), vender resultado, ritmo humano nos grupos, robôs de reels.
 - RECUSADO: DeepSeek Harness 2.0 (chave paga, DeepSeek já recusado), postadores automáticos em massa nos grupos do Facebook (risco de ban), canal dark de curiosidades.
+
+## 13/10/2026 — radar diário
+29 vídeos revistos: 4 novos, 17 já temos, 8 rejeitados (5 por nota baixa). Nenhum do tema animacao_ia.
+- SISTEMA / BORA / EM DIA (segurança): REA (Reverse Engineer Anything, open source, liga ao Claude Code por MCP) para auditar o APK e o site do Bora e do Em Dia como um atacante veria — chaves no front, regras de negócio no cliente — e passar o que for sensível para o servidor/RLS. Nunca para clonar apps alheios (risco legal). Apareceu em 5 vídeos hoje. https://www.youtube.com/watch?v=Vkcm5k7BtXw , https://www.youtube.com/watch?v=cETRWvT1fz8
+- DINHEIRO / serviço novo para PMEs: rececionista de voz por IA que atende chamadas fora de horas e marca serviços (o vídeo usa GoHighLevel, pago — só com motor grátis). https://www.youtube.com/watch?v=jO7Bvm0-PTg
+- DINHEIRO / pacote PMEs: juntar ao atendente WhatsApp + agendamento o RESGATE DE ORÇAMENTOS PERDIDOS (reabordar quem pediu preço e não fechou); diagnóstico grátis + implementação + mensalidade. https://www.youtube.com/watch?v=ssyP8ZBOFYI
+- DINHEIRO / caça-clientes: primeiro a lista de conhecidos com negócio (amigos, ex-colegas, comerciantes do Bora na Guarda), abordagem estruturada, só depois o frio. https://www.youtube.com/watch?v=at0sDrfJgrU
+- JÁ TEMOS: sites com maquete para negócios locais (4 vídeos), AIsa, orquestração de agentes (Hermes+Orca), Haiku como subagente barato, manutenção mensal, personagem fixo/UGC, Manus (= Higgsfield/Claude Motion).
+- RECUSADO: 2 robôs de trading cripto, canal dark de curiosidades, Google Playground (só EUA/VPN), opinião sobre ética do REA.

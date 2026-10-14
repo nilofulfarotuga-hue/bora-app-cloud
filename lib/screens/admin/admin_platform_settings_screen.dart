@@ -113,6 +113,10 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
       // 50% CRAVADOS no SQL e ignorava esta chave — mexer aqui só afeta o TVDE
       // depois dessa migration estar aplicada.
       'token_payment_max_pct',
+      // 14/10/2026 (regra do Danilo): % do SALDO de tokens que o cliente pode
+      // usar num pedido/corrida (50 = metade). Lido pelo create_order,
+      // quote_order_pricing, tvde_request_ride e pelos ecrãs de pagamento.
+      'token_balance_max_use_pct',
     };
     if (tvdeOperational.contains(key)) return true;
     // BLOCO E (2026-07-28) — reagendamento de marcações. São chaves

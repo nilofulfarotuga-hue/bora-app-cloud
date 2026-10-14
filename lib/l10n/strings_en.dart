@@ -2793,6 +2793,10 @@ const Map<String, String> kStringsEn = <String, String>{
       'You have €{0} in tokens — you can use up to €{1} on this ride (max. {2}%).',
   'Tens €{0} em tokens — podes usar até €{1} neste pedido (máx. {2}%).':
       'You have €{0} in tokens — you can use up to €{1} on this order (max. {2}%).',
+  'Tens €{0} em tokens — podes usar até €{1} nesta corrida (no máximo metade dos teus tokens).':
+      'You have €{0} in tokens — you can use up to €{1} on this ride (at most half of your tokens).',
+  'Tens €{0} em tokens — podes usar até €{1} neste pedido (no máximo metade dos teus tokens).':
+      'You have €{0} in tokens — you can use up to €{1} on this order (at most half of your tokens).',
   'Tenta outra data ou junta-te à fila.':
       'Try another date or join the queue.',
   'Tentar de novo':

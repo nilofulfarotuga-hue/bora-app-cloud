@@ -295,6 +295,9 @@ class CartStore extends ChangeNotifier {
   double get smallOrderFee {
     final doServidor = (_quoteCache?['small_order_fee'] as num?)?.toDouble();
     if (doServidor != null) return doServidor;
+    // Espelho do servidor (small_order_fee_calc, regra de 22/09): loja
+    // PARCEIRA nao leva taxa de pedido pequeno.
+    if (_isPartnerStore) return 0;
     return smallOrderFeeConfig.taxaPara(_serviceType, subtotal);
   }
 
@@ -304,8 +307,9 @@ class CartStore extends ChangeNotifier {
       _quoteCache?['small_order_fee'] != null;
 
   /// Quanto falta gastar para deixar de pagar a taxa. 0 quando ja nao paga.
-  double get faltaParaMinimo =>
-      smallOrderFeeConfig.faltaPara(_serviceType, subtotal);
+  double get faltaParaMinimo => _isPartnerStore
+      ? 0
+      : smallOrderFeeConfig.faltaPara(_serviceType, subtotal);
 
   OrderPricingBreakdown get pricingBreakdown {
     final base = PricingService.calculateBreakdown(
@@ -591,6 +595,11 @@ class CartStore extends ChangeNotifier {
     return <String, dynamic>{
       'service_type': _serviceType.name,
       'is_partner_store': _isPartnerStore,
+      // 14/10/2026: sem a loja o servidor nao sabia que era PARCEIRA e somava
+      // a taxa de pedido pequeno (1,39 EUR) que o create_order nao cobra — o
+      // ecra mostrava 16,68 EUR num pedido de 15,29 EUR (Goola, 14/10).
+      if (_vendorRestaurantId != null) 'restaurant_id': _vendorRestaurantId,
+      if (_vendorName != null) 'vendor_name': _vendorName,
       'items': _items.map((i) => i.toJson()).toList(),
       // SEM ISTO O SERVIDOR CALCULA O SUBTOTAL A ZERO (2026-09-08).
       // `quote_order_pricing` só soma o carrinho a partir de `product_lines`;
@@ -1036,6 +1045,11 @@ class CartStore extends ChangeNotifier {
     _saveCart();
   }
 
+  /// Desconto (EUR) de [tokens] Bora Tokens, em cêntimos inteiros arredondados
+  /// para baixo — a mesma conta do ecrã de pagamento e do servidor.
+  static double tokenDiscountEurDe(int tokens) =>
+      tokens <= 0 ? 0.0 : (tokens * BRTokens.TOKEN_VALUE_EUR * 100).floor() / 100;
+
   /// BUG 1 / Fase 2 (2026-04-30) — Card payment-first flow.
   ///
   /// Builds the cart payload from this store's current state and invokes
@@ -1051,6 +1065,9 @@ class CartStore extends ChangeNotifier {
     String? clientPhone,
     String? customerName,
     String? savedPmId,
+    // 14/10/2026: tokens escolhidos no ecrã — sem isto o cartão cobrava o
+    // total cheio e a app gastava os tokens na mesma.
+    int tokensUsed = 0,
   }) async {
     final isShoppingOrder = _serviceType == OrderServiceType.restaurant ||
         _serviceType == OrderServiceType.storeShopping;
@@ -1120,6 +1137,7 @@ class CartStore extends ChangeNotifier {
       errandEstimatedPurchaseCents: _errandSession?.estimatedCents ?? 0,
       errandRequestPhotoUrl: _errandRequestPhotoUrl,
       savedPmId: savedPmId,
+      tokenDiscountEur: tokenDiscountEurDe(tokensUsed),
     );
   }
 
@@ -1218,7 +1236,7 @@ class CartStore extends ChangeNotifier {
       apartmentDelivery: _apartmentDelivery,
       deixarAPorta: deixarAPortaNoPedido(paymentMethod),
       totalServidor: resumoMostrado.doServidor ? resumoMostrado.total : null,
-      tokenDiscountEur: tokensUsed * BRTokens.TOKEN_VALUE_EUR,
+      tokenDiscountEur: tokenDiscountEurDe(tokensUsed),
       packagePhotoUrl: _packagePhotoUrl,
       groceriesPhotoUrl: _groceriesPhotoUrl,
       // D4 — takeaway propaga via serviceType: OrderServiceType.takeaway.

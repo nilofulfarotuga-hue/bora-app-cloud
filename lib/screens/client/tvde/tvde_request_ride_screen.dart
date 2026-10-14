@@ -2338,6 +2338,9 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
   int _availableTokens = 0;
   bool _tokensLoaded = false;
   int _tokenMaxPct = 50;
+  // 14/10/2026 (regra do Danilo): só METADE do saldo de tokens por corrida
+  // (platform_settings.token_balance_max_use_pct; o servidor corta igual).
+  int _tokenBalanceMaxPct = 50;
 
   /// Adendo2.3 (2026-08-16): SLIDER — o cliente escolhe QUANTOS tokens usar;
   /// o teto é o fim físico do trilho. Conversão lida das settings.
@@ -2391,6 +2394,20 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
       } catch (e) {
         debugPrint('[TvdePaymentSheet] token_payment_max_pct fallback: $e');
       }
+      int balPct = _tokenBalanceMaxPct;
+      try {
+        final balRes = await Supabase.instance.client.rpc(
+          'get_setting',
+          params: {'p_key': 'token_balance_max_use_pct'},
+        );
+        if (balRes is num) {
+          balPct = balRes.toInt();
+        } else if (balRes is String) {
+          balPct = int.tryParse(balRes.replaceAll('"', '')) ?? balPct;
+        }
+      } catch (e) {
+        debugPrint('[TvdePaymentSheet] token_balance_max_use_pct fallback: $e');
+      }
       // Adendo2.3: valor do token vem das settings, nunca cravado.
       double tokenValue = _tokenValueEur;
       try {
@@ -2409,6 +2426,7 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
         setState(() {
           _availableTokens = (response as num?)?.toInt() ?? 0;
           _tokenMaxPct = pct;
+          _tokenBalanceMaxPct = balPct;
           _tokenValueEur = tokenValue;
           _tokensLoaded = true;
         });
@@ -2425,7 +2443,10 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
     final double maxDiscountEur =
         (widget.amountCents / 100) * (_tokenMaxPct / 100.0);
     final int tokensToUse = (maxDiscountEur / _tokenValueEur).toInt();
-    return tokensToUse.clamp(0, _availableTokens);
+    final int metadeDoSaldo =
+        (_availableTokens * _tokenBalanceMaxPct / 100).floor();
+    final int teto = tokensToUse < metadeDoSaldo ? tokensToUse : metadeDoSaldo;
+    return teto.clamp(0, _availableTokens);
   }
 
   /// Adendo2.3 (2026-08-16): SLIDER de tokens (estilo delivery) — o cliente
@@ -2434,7 +2455,7 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
   Widget _buildTokenToggle() {
     final tokensMax = _calculateTokensToUse();
     final tokensChosen = _tokensSelected.clamp(0, tokensMax);
-    final tokenDiscount = tokensChosen * _tokenValueEur;
+    final tokenDiscount = (tokensChosen * _tokenValueEur * 100).floor() / 100;
 
     return Container(
       decoration: BoxDecoration(
@@ -2471,7 +2492,7 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
               ],
             ),
             Text(
-              'Tens €{0} em tokens — podes usar até €{1} nesta corrida (máx. {2}%).'.trArgs([(_availableTokens * _tokenValueEur).toStringAsFixed(2), (tokensMax * _tokenValueEur).toStringAsFixed(2), _tokenMaxPct]),
+              'Tens €{0} em tokens — podes usar até €{1} nesta corrida (no máximo metade dos teus tokens).'.trArgs([(_availableTokens * _tokenValueEur).toStringAsFixed(2), ((tokensMax * _tokenValueEur * 100).floor() / 100).toStringAsFixed(2)]),
               style: TextStyle(fontSize: 12, color: Colors.amber.shade800),
             ),
             Row(

@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-13
+ultima_confirmacao: 2026-10-14
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-13T19:54:17.048144+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-14T07:17:58.881658+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -131,3 +131,13 @@ REGRA (Danilo, 01/10/2026): tudo o que ele mandar (vídeos, transcrições, link
 - DINHEIRO / caça-clientes: primeiro a lista de conhecidos com negócio (amigos, ex-colegas, comerciantes do Bora na Guarda), abordagem estruturada, só depois o frio. https://www.youtube.com/watch?v=at0sDrfJgrU
 - JÁ TEMOS: sites com maquete para negócios locais (4 vídeos), AIsa, orquestração de agentes (Hermes+Orca), Haiku como subagente barato, manutenção mensal, personagem fixo/UGC, Manus (= Higgsfield/Claude Motion).
 - RECUSADO: 2 robôs de trading cripto, canal dark de curiosidades, Google Playground (só EUA/VPN), opinião sobre ética do REA.
+
+
+
+## 14/10/2026 — roteiro da propaganda da Limpeza (conselho + radar). AGUARDA O OK DO DANILO, NADA PRODUZIDO
+Pedido: vídeo curto de propaganda da Limpeza com a profissional de polo verde com o símbolo do Bora a chegar com aspirador e balde. Gemini, ChatGPT e DeepSeek (Chrome pessoal) fizeram um roteiro cada; o Claude.ai juntou.
+ROTEIRO FINAL "A casa estava assim", 20 s, 9:16, com som. 0-3 s sala em caos com a Sé/granito da Guarda pela janela, texto "Quanto custa limpar isto na Guarda?", toc-toc na porta (sem logo). 3-6 s ela chega (polo verde, aspirador, balde), texto "MAS chegou ela". 6-10 s cortes de 1-2 s com ASMR (aspirador, pano, spray), texto "ENTÃO...". 10-14 s ecrã real da app: T2, dia e hora, MB Way, "Preço fechado". 14-18 s mesmo enquadramento do início, impecável: "Esta sala: 45 €". 18-20 s ela sorri, último plano igual ao primeiro (loop).
+CTA: "Vê o preço da tua casa no link da bio" (link com marca própria, ex. ?de=reel-limpeza). Pergunta final: "Qual é a divisão que mais odeias limpar?". Hashtags: #LimpezaGuarda #BoraGuarda #GuardaPortugal #LimpezaDomestica #ServicosGuarda. Variante 9 s: "Assim." (caos) > "Bora." (ela na porta) > ASMR > "Assim." (limpo). Ganchos a testar: POV "disseste que este sábado não ias limpar"; Sé com vento e casa em caos.
+CONCORRÊNCIA (Biblioteca de Anúncios da Meta, 14/10): OSCAR (app de Lisboa) ~75 anúncios ativos, quase tudo preço fixo (T2 abaixo de 50 €, desde 8,99 €/h, mesmo profissional), vídeos curtos de telemóvel, botão instalar; WEGHO prova em números (+5000 serviços, 4,45/5) e imprensa, tom sério; pequenas empresas = texto longo e orçamento por WhatsApp.
+A CONFERIR ANTES DE PRODUZIR: cronometrar a marcação na app ("1 minuto" não foi medido); a marcação da limpeza NÃO tem campo de código/tokens, por isso não prometer BEMVINDO nem desconto; logo colado por script (marca a mudar para Já Está); se a profissional for personagem de IA, marcar como IA, se for a Mayra, só com o consentimento dela. Preços reais conferidos na base: T0/T1 35 €, T2 45 €, T3 55 €, T4+ 70 €, profunda +40 %, pós-obras +60 %, recorrente -10 %.
+

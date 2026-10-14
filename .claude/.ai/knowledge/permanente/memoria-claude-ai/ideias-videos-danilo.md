@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-14T07:17:58.881658+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-14T12:20:50.659413+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -141,3 +141,5 @@ CTA: "Vê o preço da tua casa no link da bio" (link com marca própria, ex. ?de
 CONCORRÊNCIA (Biblioteca de Anúncios da Meta, 14/10): OSCAR (app de Lisboa) ~75 anúncios ativos, quase tudo preço fixo (T2 abaixo de 50 €, desde 8,99 €/h, mesmo profissional), vídeos curtos de telemóvel, botão instalar; WEGHO prova em números (+5000 serviços, 4,45/5) e imprensa, tom sério; pequenas empresas = texto longo e orçamento por WhatsApp.
 A CONFERIR ANTES DE PRODUZIR: cronometrar a marcação na app ("1 minuto" não foi medido); a marcação da limpeza NÃO tem campo de código/tokens, por isso não prometer BEMVINDO nem desconto; logo colado por script (marca a mudar para Já Está); se a profissional for personagem de IA, marcar como IA, se for a Mayra, só com o consentimento dela. Preços reais conferidos na base: T0/T1 35 €, T2 45 €, T3 55 €, T4+ 70 €, profunda +40 %, pós-obras +60 %, recorrente -10 %.
 
+
+14/10 RESULTADO reel "A casa estava assim" (Limpeza): publicado 13:05 na v2. IG https://www.instagram.com/reel/DeeV6SlE5vQ/ · FB https://www.facebook.com/reel/2376892836416049/ · story IG/FB. Fiscal 94/100 (20 s) e 95/100 (9 s); v1 (95/100 no fiscal) foi reprovada pelo Danilo por parecer artificial: lição = o fiscal não mede "humano"; fotos com zoom e personagem parada parecem anúncio de IA. O que humanizou: câmara à mão, ela a fazer o trabalho na própria sala, aceno, sem fala gerada, voz Kore. Grupos: à espera de clique humano (folha + fila prontas).

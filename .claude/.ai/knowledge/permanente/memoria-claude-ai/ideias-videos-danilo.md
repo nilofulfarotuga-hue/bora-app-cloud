@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-14T12:20:50.659413+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-14T19:57:50.334858+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -143,3 +143,12 @@ A CONFERIR ANTES DE PRODUZIR: cronometrar a marcação na app ("1 minuto" não f
 
 
 14/10 RESULTADO reel "A casa estava assim" (Limpeza): publicado 13:05 na v2. IG https://www.instagram.com/reel/DeeV6SlE5vQ/ · FB https://www.facebook.com/reel/2376892836416049/ · story IG/FB. Fiscal 94/100 (20 s) e 95/100 (9 s); v1 (95/100 no fiscal) foi reprovada pelo Danilo por parecer artificial: lição = o fiscal não mede "humano"; fotos com zoom e personagem parada parecem anúncio de IA. O que humanizou: câmara à mão, ela a fazer o trabalho na própria sala, aceno, sem fala gerada, voz Kore. Grupos: à espera de clique humano (folha + fila prontas).
+
+## 14/10/2026 — radar diário
+32 vídeos revistos: 4 novos, 8 já temos, 20 rejeitados (14 por nota baixa). Nenhum do tema animacao_ia.
+- REELS (Bora e Em Dia, com pessoas reais): skill de corte automático que tira pausas, respirações e erros com ffmpeg (deteção de silêncio) antes da montagem. https://www.youtube.com/watch?v=61u9wOT-Cds
+- ROTEIROS (reels Em Dia e filme): medir cada fala a 2,5 palavras por segundo para caber no tempo e não cortar falas. https://www.youtube.com/watch?v=frfTrlAPy1M
+- SISTEMA: Gemini 4 Argon é mais forte em escrita longa e perde em multiagente — usar para roteiros/textos longos se o Google AI Plus der acesso; Claude continua motor dos agentes. https://www.youtube.com/watch?v=pxuGbwyxXU0
+- FILME: prompts de movimento só com 3 coisas (ver caminhos-animacao-filme). https://www.youtube.com/watch?v=vQvHauaboug
+- JÁ TEMOS: Free Claude Code (= OpenCode com GLM + Hermes no Telegram), REA (2 vídeos, registado 13/10), Claude Dashboards (11/10), executor+supervisor (= fiscal dos reels), Claude Design/sites com maquete, vídeos longos em blocos no Flow (caminhos 1/2/5).
+- RECUSADO: DeepSeek Harness/créditos promocionais, Golpo AI (paga), Seedance 2.5/Zooi, Blender 3D, geradores de vídeo genéricos de sites desconhecidos, bot de contas premium baratas pagas em cripto.

@@ -623,6 +623,7 @@ class _EscolherDestinoSheet extends StatefulWidget {
 
 class _EscolherDestinoSheetState extends State<_EscolherDestinoSheet> {
   final _ctrl = TextEditingController();
+  final _campoKey = GlobalKey<AddressAutocompleteFieldState>();
   String? _morada;
   ll.LatLng? _coords;
 
@@ -630,6 +631,17 @@ class _EscolherDestinoSheetState extends State<_EscolherDestinoSheet> {
   void dispose() {
     _ctrl.dispose();
     super.dispose();
+  }
+
+  /// "Continuar" sem morada com coordenadas: aceita a morada escrita (se a
+  /// encontrar, o botão passa a "Continuar"); senão leva o foco ao campo.
+  Future<void> _semDestino() async {
+    final campo = _campoKey.currentState;
+    if (campo != null && campo.temTextoPorConfirmar) {
+      final ok = await campo.confirmarTextoEscrito();
+      if (ok || !mounted) return;
+    }
+    campo?.pedirFoco();
   }
 
   @override
@@ -666,27 +678,33 @@ class _EscolherDestinoSheetState extends State<_EscolherDestinoSheet> {
               style: const TextStyle(
                   color: AppColors.textSecondary, fontSize: 13)),
           const SizedBox(height: Spacing.md),
-          AddressAutocompleteField(
+          KeyedSubtree(
             key: const Key('reserva_destino_novo'),
-            controller: _ctrl,
-            labelText: 'Destino novo'.tr,
-            prefixIcon: const Icon(Icons.place_outlined),
-            onChanged: (_) {
-              if (_coords != null) setState(() => _coords = null);
-            },
-            onSelected: (address, coords) =>
-                setState(() {
-                  _morada = address;
-                  _coords = coords;
-                }),
+            child: AddressAutocompleteField(
+              key: _campoKey,
+              controller: _ctrl,
+              labelText: 'Destino novo'.tr,
+              prefixIcon: const Icon(Icons.place_outlined),
+              onChanged: (_) {
+                if (_coords != null) setState(() => _coords = null);
+              },
+              onSelected: (address, coords) =>
+                  setState(() {
+                    _morada = address;
+                    _coords = coords;
+                  }),
+            ),
           ),
           // Espaço para o overlay de sugestões não ficar escondido na folha.
           const SizedBox(height: 220),
+          // [14/10, tvde-pedir-nunca-trava] Era cinzento e mudo sem morada
+          // escolhida. Agora diz o que falta e, tocado, aceita a morada
+          // escrita (geocode) ou leva o foco ao campo.
           BoraAccentButton(
             key: const Key('reserva_destino_continuar'),
-            label: 'Continuar'.tr,
+            label: _coords == null ? 'Escolhe o destino novo'.tr : 'Continuar'.tr,
             onPressed: _coords == null
-                ? null
+                ? _semDestino
                 : () => Navigator.pop(
                     context,
                     _DestinoEscolhido(

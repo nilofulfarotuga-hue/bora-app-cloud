@@ -1,0 +1,15 @@
+- 'button "Idioma: português. Toca para mudar para inglês. PT EN"'
+- img "BORA"
+- img
+- text: Entregas rápidas em Portugal
+- button "Sou Cliente"
+- text: Pedir comida, compras e serviços
+- button "Sou Estafeta"
+- text: Entregar, fazer corridas, limpezas ou lavagens Privacidade e Cookies
+- button "Sou Parceiro"
+- text: "A Bora usa dados para te entregar o serviço: localização do estafeta, análise de uso da app e notificações de pedidos. Podes aceitar tudo, rejeitar, ou escolher o que preferes. Tenho restaurante, loja ou salão no Bora"
+- 'button "Idioma: português. Toca para mudar para inglês. PT EN"'
+- button "Aceitar tudo"
+- button "Rejeitar"
+- button "Gerir preferências"
+- text: v1.0 · boraappbora@gmail.com

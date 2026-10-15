@@ -250,6 +250,17 @@ List<AdminMenuSection> adminMenuSections() => [
       builder: () => const AdminPendenciasOperacaoScreen(),
       keywords: const ['pendencias', 'pendências', 'talao', 'taloes', 'reembolso', 'pagamento', 'falhado', 'volta', 'retida', 'vale', 'reserva', 'gps', 'push', 'notificacoes', 'sem sinal'],
     ),
+    // [14/10, tvde-pedir-nunca-trava] Saiu do Arquivado: passa a mostrar quem
+    // tocou em "pedir" e não conseguiu, com nome e telefone para ligar.
+    AdminMenuItem(
+      id: 'operacao_saude_da_web',
+      title: 'Saúde da Web',
+      subtitle: 'Clientes que tentaram pedir e não conseguiram (nome e telefone para ligar) e falhas do campo de endereço',
+      icon: Icons.travel_explore_outlined,
+      color: Colors.teal,
+      builder: () => const AdminWebHealthScreen(),
+      keywords: const ['campo', 'falhas', 'morada', 'endereco', 'saude', 'travado', 'pedido', 'ligar', 'cliente', 'corrida'],
+    ),
     AdminMenuItem(
       id: 'operacao_edicoes_pedidos',
       title: 'Edições de pedidos (parceiros)',
@@ -1403,16 +1414,6 @@ List<AdminMenuSection> adminMenuSections() => [
       builder: () => const AdminCashbacksScreen(),
       keywords: const ['cashback', 'cashbacks', 'dados', 'historico'],
       archivedReason: 'sem dados: não existe tabela de cashback',
-    ),
-    AdminMenuItem(
-      id: 'arquivado_saude_da_web',
-      title: 'Saúde da Web',
-      subtitle: 'Falhas do campo de morada na versão web',
-      icon: Icons.travel_explore_outlined,
-      color: Colors.teal,
-      builder: () => const AdminWebHealthScreen(),
-      keywords: const ['campo', 'falhas', 'morada', 'saude', 'versao'],
-      archivedReason: 'sem uso: 4 registos desde sempre',
     ),
     AdminMenuItem(
       id: 'arquivado_mapeamento_de_categorias',

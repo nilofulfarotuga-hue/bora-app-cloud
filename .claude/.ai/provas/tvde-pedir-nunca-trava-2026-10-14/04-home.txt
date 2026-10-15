@@ -1,0 +1,8 @@
+- button "Fechar"
+- heading "Os seus contactos" [level=2]
+- group:
+  - text: Falta o seu contacto Precisamos do seu nome e telemóvel para lhe ligarmos se algo correr mal com o seu pedido. Não é usado para mais nada.
+  - textbox "Nome completo"
+  - textbox "Telemóvel"
+  - button "Guardar"
+  - button "Agora não"

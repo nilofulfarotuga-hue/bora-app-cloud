@@ -959,6 +959,9 @@ class _AddressPickerScreenState extends State<_AddressPickerScreen> {
           AddressAutocompleteField(
             controller: _ctrl,
             labelText: 'Pesquisar morada'.tr,
+            // Escolher aqui abre o "Guardar como Casa?": só por toque numa
+            // sugestão (ou nas guardadas abaixo), nunca ao sair do campo.
+            confirmarAoSair: false,
             onSelected: _onAddressSelected,
           ),
           const SizedBox(height: Spacing.sm),

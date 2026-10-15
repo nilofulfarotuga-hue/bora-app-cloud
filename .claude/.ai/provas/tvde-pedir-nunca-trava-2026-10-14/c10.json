@@ -1,0 +1,7 @@
+[["goto","http://127.0.0.1:8766/"],["wait",3000],["sem"],["click_role","button","Agora não"],["wait",1500],["sem"],["click_role","button","Bora Motorista"],["wait",14000],["sem"],
+ ["type_into","Ponto de recolha","Av. Cidade de Safed n8 a 1d, Guarda"],["wait",2500],["key","Tab"],["wait",8000],["sem"],
+ ["type_into","Para onde vais?","Rua Inventada Xyzqw 999, Guarda"],["wait",2500],["key","Tab"],["wait",10000],["sem"],["shot","20-morada-inexistente-recusada"],["tree","20-morada-inexistente-recusada"],
+ ["click_role","button","Escolhe o destino"],["wait",8000],["sem"],["shot","21-toque-no-botao-sem-destino"],["tree","21-toque-no-botao-sem-destino"],
+ ["type_into","Para onde vais?","Av. Monsenhor Mendes do Carmo nº 5, Guarda"],["wait",2500],["key","Enter"],["wait",15000],["sem"],["shot","22-pronto-para-pedir"],["tree","22-pronto-para-pedir"],
+ ["click_role","button","Solicitar corrida"],["wait",5000],["sem"],["shot","23-folha-pagamento-dinheiro"],["tree","23-folha-pagamento-dinheiro"],
+ ["key","Escape"],["wait",3000],["sem"],["shot","19-folha-fechada-sem-pedido"],["tree","19-folha-fechada-sem-pedido"]]

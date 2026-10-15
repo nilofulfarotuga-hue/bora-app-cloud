@@ -1,0 +1,1 @@
+[["goto","http://127.0.0.1:8766/"],["wait",3000],["sem"],["click_role","button","Agora não"],["wait",1500],["sem"],["click_role","button","Bora Motorista"],["wait",15000],["sem"],["shot","06-tvde-gps-negado"],["tree","06-tvde-gps-negado"]]

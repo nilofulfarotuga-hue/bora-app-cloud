@@ -1,0 +1,11 @@
+- group:
+  - text: Pagamento
+  - button
+  - text: "Total: €5.00 Pagamento"
+  - checkbox "Dinheiro" [checked]
+  - checkbox "Cartão"
+  - checkbox "MB Way"
+  - text: Nota para o motorista (opcional)
+  - 'textbox "Ex.: espero à porta, levo mala grande, cadeira de bebé"'
+  - text: Restam 200 carateres Pagar €5.00 em dinheiro Ao confirmar, pedes uma corrida com obrigação de pagar. O serviço começa de imediato com o teu acordo, pelo que não há direito de livre resolução (DL 24/2014). Termos
+  - button "Encomenda com obrigação de pagar"

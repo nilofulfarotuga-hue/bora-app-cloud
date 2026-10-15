@@ -1,0 +1,5 @@
+[["goto","http://127.0.0.1:8766/"],["wait",3000],["sem"],["click_role","button","Agora não"],["wait",1500],["sem"],["click_role","button","Bora Motorista"],["wait",14000],["sem"],
+ ["type_into","Ponto de recolha","Av. Cidade de Safed n8 a 1d, Guarda"],["wait",3500],["shot","07-recolha-escrita-sugestoes"],["tree","07-recolha-escrita-sugestoes"],
+ ["key","Enter"],["wait",7000],["sem"],["shot","08-recolha-aceite"],["tree","08-recolha-aceite"],
+ ["type_into","Para onde vais?","Av. Rainha D. Amélia 14, Guarda"],["wait",3000],["sem"],["shot","09a-destino-escrito"],["tree","09a-destino-escrito"],
+ ["click_role","button","Escolhe o destino"],["wait",14000],["sem"],["shot","09-destino-aceite-preco"],["tree","09-destino-aceite-preco"]]

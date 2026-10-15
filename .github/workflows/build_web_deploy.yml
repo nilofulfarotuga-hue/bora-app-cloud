@@ -52,6 +52,7 @@ jobs:
           DART_DEFINES_FILE_B64: ${{ secrets.DART_DEFINES_FILE_B64 }}
         run: |
           echo "$DART_DEFINES_FILE_B64" | base64 --decode > .dart_defines
+          python3 .github/scripts/chave_publica_supabase.py .dart_defines  # chave publicável (15/10/2026)
           if [ ! -s .dart_defines ]; then
             echo "ERRO: .dart_defines vazio apos decode"; exit 1
           fi

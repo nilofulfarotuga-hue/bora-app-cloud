@@ -151,15 +151,22 @@ def main():
 
         log("6. adiantar o relógio do browser 65 min (o token expira e o SDK renova)")
         page.clock.fast_forward("01:05:00")
-        for _ in range(12):
-            page.wait_for_timeout(2500)
-            page.clock.fast_forward("00:00:15")
+        # Avança de segundo a segundo: o aviso dura 8 s e fotografa-se quando
+        # aparece (saltos grandes de relógio fazem-no desaparecer antes).
+        tem_aviso = False
+        for _ in range(40):
+            page.wait_for_timeout(1500)
+            page.clock.fast_forward("00:00:01")
+            if any(AVISO in t for t in textos(page)):
+                tem_aviso = True
+                foto(page, "05-aviso-sessao-terminou")
+                log("   aviso no ecrã:", AVISO)
+                break
         ligar_acessibilidade(page)
-        foto(page, "05-depois-da-sessao-cair")
+        foto(page, "06-depois-da-sessao-cair")
         depois = textos(page)
         log("   no ecrã:", depois[:30])
 
-        tem_aviso = any(AVISO in t for t in depois)
         voltou_entrada = any(re.search(r"^entrar$|palavra-passe|e-?mail", t, re.I)
                              for t in depois)
         ficou_produtos = any(re.search(r"produto", t, re.I) for t in depois)

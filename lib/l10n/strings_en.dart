@@ -16,6 +16,11 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 15/10/2026: pesquisa única — a lupa leva também ao motorista, à limpeza e
+  // aos serviços (tool/l10n/traducoes/pt-en-18-pesquisa-unica.json).
+  'Lojas, produtos, serviços, motorista…': 'Shops, products, services, driver…',
+  'Lojas, produtos e serviços…': 'Shops, products and services…',
+  'Ir para': 'Go to',
   // 14/10/2026: pedir corrida nunca trava — morada escrita, botão que diz o
   // que falta (tool/l10n/traducoes/pt-en-17-pedir-nunca-trava.json).
   'Não encontrei esta morada no mapa. Escolhe uma sugestão ou acrescenta a cidade (ex.: Guarda).':

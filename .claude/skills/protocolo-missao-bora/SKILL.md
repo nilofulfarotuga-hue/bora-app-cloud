@@ -164,6 +164,10 @@ permissão, RAM (portão 400 MB leve / 800 MB para compilar — medir com
 `(Get-CimInstance Win32_PerfFormattedData_PerfOS_Memory).AvailableMBytes`), ferramenta que pode
 não existir (`gh`, Java certo, Flutter do CI ≠ Flutter do PC). Previsão de falha → muda a
 abordagem antes de agir. **Duas falhas iguais → muda de abordagem; nunca uma terceira igual.**
+**Emulador (regra do Danilo, 15/10/2026):** antes de abrir um emulador, **≥ 3 GB disponíveis**
+(medido como acima). Abaixo disso não se abre — regista-se no e2e_log e segue-se. Um emulador
+de cada vez, sempre `emulator -avd emdia35 -no-snapshot-save` (AVD de 2 GB); fechá-lo no fim.
+Cicatriz: a 15/10 às 06:56 o PC desceu a 470 MB, "System UI isn't responding" e o emulador caiu.
 Provas de dinheiro correm **primeiro em rollback** (`DO $$ … RAISE EXCEPTION 'RESULT %' … $$`)
 e só depois com pedido de teste real marcado `is_test_order`.
 

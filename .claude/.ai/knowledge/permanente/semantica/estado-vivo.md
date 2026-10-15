@@ -1,9 +1,9 @@
 ---
-tema: estado-vivo · escopo: projeto · estado: atual · atualizado: 2026-09-08
+tema: estado-vivo · escopo: projeto · estado: atual · atualizado: 2026-10-15
 id: estado-vivo
 tipo: foto
-origem: [reescrito pela Claude.ai 2026-09-05 a pedido do Danilo — foto geral + cascata de ferramentas; cascata de IMAGEM corrigida por medição no BoraStudio 2026-09-05; cadência das redes e executor-com-navegador actualizados 2026-09-07 pela sessão redes-hoje-07-09; cascata de VÍDEO medida e passada a config na noite de 07→08/09 pela missão cascata-video-tres-motores]
-ultima_confirmacao: 2026-09-08
+origem: [reescrito pela Claude.ai 2026-09-05 a pedido do Danilo — foto geral + cascata de ferramentas; cascata de IMAGEM corrigida por medição no BoraStudio 2026-09-05; cadência das redes e executor-com-navegador actualizados 2026-09-07 pela sessão redes-hoje-07-09; cascata de VÍDEO medida e passada a config na noite de 07→08/09 pela missão cascata-video-tres-motores; secção do site acrescentada 2026-10-15 pela missão site-botoes-lojas-2026-10-15 (Claude Code)]
+ultima_confirmacao: 2026-10-15
 zona: verde
 confianca: alta
 ---
@@ -12,6 +12,33 @@ confianca: alta
 
 > **ÚNICA página do Cérebro que se REESCREVE.** Quem precisa da "foto da empresa" lê ESTA página.
 > Foto operacional ao minuto: o daily-pulse escreve `/opt/data/estado-vivo.md` na VPS.
+
+## 🌐 SITE boraguarda.com — botões de descarregar (2026-10-15)
+
+- **Todos os botões de descarregar do site** (página inicial, categorias, páginas de loja) vão para
+  `https://www.boraguarda.com/baixar?de=site-<pagina>`: iPhone → App Store
+  (`apps.apple.com/pt/app/bora-entregas-e-servicos/id6809954739`), Android → Google Play
+  (`pt.boraapp.bora`), computador → página com as duas lojas. Provado no endereço público em
+  iPhone 15, Pixel 7 e computador: 31 cliques, 0 errados. Provas:
+  `boraguarda.com/provas/2026-10-15-botoes-lojas/`.
+- **Porquê no `www` e não no `boraguarda.com`:** no domínio sem www há uma **regra de
+  redireccionamento da Cloudflare** (posta entre 23 e 30/09) que apanha `/baixar` antes da função:
+  manda o computador para a Play Store e **não conta a visita**. No `www` corre a função
+  `functions/baixar.js`, que conta por origem (`link_clicks`) e mostra as duas lojas no computador.
+  Os QR em papel e o da página inicial (`?de=qr-site`) usam o domínio sem www — no telemóvel vão à
+  loja certa, mas **não são contados** enquanto a regra existir. Apagá-la é no painel da
+  Cloudflare (nenhum token do PC tem permissão de Rules).
+- Página inicial: selos oficiais **App Store (PT)** e **Google Play (PT, "Obter no")** lado a lado; no
+  telemóvel a loja do aparelho vem primeiro e maior. Sai o "iOS brevemente" e o "funciona no iPhone".
+- **Fonte das páginas geradas:** `bora-site/site_base.py` (`BAIXAR`, `baixar(pagina)`) e
+  `gerar_paginas.py`. ⚠️ Correr `gerar_paginas.py` hoje puxa da base lojas que não estão no site
+  (a "loja-demo-bora-teste-nao-e-real", a Mister Navalha — fora do ar por direitos de imagem — e a
+  Goola). A 15/10 as páginas foram geradas com o `dados/parceiros.json` publicado, para só mudarem
+  os links.
+- **Git do bora-site:** o que está no ar vive no PC (`C:\BoraLocal\projetosflutter\bora-site`) e
+  agora também no GitHub, ramo `botoes-lojas-2026-10-15` (PR #2 em rascunho para o `main`), com
+  os commits de 05–21/09 que só existiam no PC. O projecto Pages é de upload directo:
+  publica-se só com `bash deploy-cloudflare.sh`.
 
 ## ⚙️ CASCATA DE FERRAMENTAS — qual usar e por que ordem
 

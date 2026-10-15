@@ -43,6 +43,17 @@ nilofulfarotuga/nilofulfaro, Search Console e Google Ads de jaiagarwala.com, Dee
 > 09/10 (missão `fecho-total-2026-10-09`): CTT e Google Cloud da Bora no perfil Bora; DeepSeek
 > no pessoal. A regra não muda: escolhe-se SEMPRE pelo deviceId, nunca por "Browser 1/2".
 
+> **15/10 — Protocolo Danilo (manda sobre o resto desta página e sobre o mapa):**
+> - **Bora** (`d9e862e0-a5ea-486f-b054-f333ef51b46a`): Supabase, Play Console, App Store Connect,
+>   Meta, Instagram, Facebook da Bora, Cloudflare, Resend, painel admin Bora.
+> - **Pessoal** (`5b260cdd-9d4f-49d6-842b-ebfbfea69c75`): GitHub (o repo
+>   `nilofulfarotuga-hue/bora-app-cloud` é desta conta), claude.ai/code, Gemini, ChatGPT, DeepSeek,
+>   Gmail pessoal.
+> - Nunca fazer logout de nenhum dos dois.
+> - Conflito por resolver: `~/.claude/contas/MAPA-CONTAS.json` e o aviso de arranque ainda põem
+>   Supabase e Cloudflare no perfil **pessoal**. Vale o Protocolo (é o mais recente); se não houver
+>   sessão no Bora, experimenta o pessoal antes de abrir login.
+
 ## Antes de abrir seja o que for
 
 1. `~/.claude/contas/abrir-site.ps1 <site>` — o mapa está em

@@ -7,6 +7,7 @@ import '../utils/safe_image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../auth/auth_store.dart';
 import '../config/allergens.dart';
 import '../config/app_colors.dart';
 import '../models/partner_product.dart';
@@ -136,6 +137,12 @@ class _AddProductScreenState extends State<AddProductScreen> {
       appMarkupPct: widget.restaurant.appMarkupPct,
     );
     if (!mounted) return;
+    // 15/10/2026: sem sessão a leitura vem vazia — não é falta de rede nem
+    // de percentagens, é preciso entrar outra vez.
+    if (rules == null && AuthStore.falhaPorSessao()) {
+      context.read<AuthStore>().terminarSessaoCaida();
+      return;
+    }
     setState(() {
       _rules = rules;
       _rulesLoading = false;
@@ -198,6 +205,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
     if (_isPartnerStore) {
       final rules = _rules;
       if (rules == null) {
+        if (AuthStore.falhaPorSessao()) {
+          context.read<AuthStore>().terminarSessaoCaida();
+          return;
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Não foi possível ler as percentagens da '
@@ -309,6 +320,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
         );
       }
     } catch (error) {
+      if (mounted && await AuthStore.sessaoCaiu(error)) {
+        if (mounted) context.read<AuthStore>().terminarSessaoCaida();
+        return;
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Não foi possível guardar o produto: $error')),
@@ -436,6 +451,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
           .getPublicUrl(fileName);
     } catch (e) {
       debugPrint('[AddProduct] upload error: $e');
+      if (!mounted) return null;
+      if (await AuthStore.sessaoCaiu(e)) {
+        if (mounted) context.read<AuthStore>().terminarSessaoCaida();
+        return null;
+      }
       if (!mounted) return null;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

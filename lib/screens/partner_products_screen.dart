@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../models/partner_product.dart';
 import '../models/restaurant_model.dart';
@@ -102,6 +103,11 @@ class _PartnerProductsScreenState extends State<PartnerProductsScreen> {
       if (r is! Map || r['ok'] != true) throw Exception('$r');
     } catch (e) {
       debugPrint('[PartnerProducts] partner_produto_esgotado: $e');
+      // 15/10/2026: sessão caída → entrar outra vez, não "falhou".
+      if (mounted && await AuthStore.sessaoCaiu(e)) {
+        if (mounted) context.read<AuthStore>().terminarSessaoCaida();
+        return;
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -120,6 +126,10 @@ class _PartnerProductsScreenState extends State<PartnerProductsScreen> {
       isAvailable: isAvailable,
     );
     if (!success && mounted) {
+      if (AuthStore.falhaPorSessao()) {
+        context.read<AuthStore>().terminarSessaoCaida();
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Não foi possível atualizar a disponibilidade.'),
@@ -178,6 +188,10 @@ class _PartnerProductsScreenState extends State<PartnerProductsScreen> {
       productId: product.id,
     );
     if (!mounted) return;
+    if (!success && AuthStore.falhaPorSessao()) {
+      context.read<AuthStore>().terminarSessaoCaida();
+      return;
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(success

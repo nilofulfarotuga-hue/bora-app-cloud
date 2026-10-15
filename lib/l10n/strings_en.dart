@@ -16,6 +16,10 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 15/10/2026: sessão caída volta à entrada
+  // (tool/l10n/traducoes/pt-en-20-sessao-terminou.json).
+  'A tua sessão terminou. Entra outra vez.':
+      'Your session has ended. Please sign in again.',
   // 15/10/2026: Receita do Dia (Bora Todo Dia) — cartão da home e ecrã da
   // receita (tool/l10n/traducoes/pt-en-19-receita-do-dia.json).
   'Receita do dia': 'Recipe of the day',

@@ -78,6 +78,9 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
     // parados (interruptor, dias, texto). Operacionais: nenhuma mexe em valor
     // cobrado ou pago. As 4 dispatch_* novas já entram pelo prefixo acima.
     if (key == 'foto_entrega_obrigatoria') return true;
+    // GUIA DA LIMPEZA (15/10/2026) — textos que a profissional vê: o que
+    // fazer em cada tipo e o que levar. Só texto, não mexem em dinheiro.
+    if (key.startsWith('limpeza_guia_')) return true;
     if (key.startsWith('reativacao_')) return true;
     // [botoes-navbar-eta 31/08] As 3 chaves eta_* (velocidade média do
     // fallback + intervalo de compra não-parceiro) são OPERACIONAIS — afinam
@@ -491,6 +494,10 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
             const SizedBox(height: 8),
             TextField(
               controller: ctrl,
+              // Textos longos (ex.: guia da limpeza, uma linha por item)
+              // precisam de várias linhas para se editarem.
+              minLines: s.value is String && (s.value as String).length > 60 ? 6 : 1,
+              maxLines: s.value is String && (s.value as String).length > 60 ? 14 : 1,
               decoration: const InputDecoration(
                 labelText: 'Valor (JSON)',
                 border: OutlineInputBorder(),
@@ -843,7 +850,10 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
                                     size: 18, color: AppColors.textSubtle),
                             title: Text(s.key, style: const TextStyle(fontFamily: 'monospace')),
                             subtitle: s.description != null ? Text(s.description!) : null,
-                            trailing: Text(s.value.toString(),
+                            trailing: Text(
+                                s.value.toString().length > 40
+                                    ? '${s.value.toString().substring(0, 40)}…'
+                                    : s.value.toString(),
                                 style: const TextStyle(fontWeight: FontWeight.w600)),
                             // Dinheiro nunca passa pelo diálogo comum: vai
                             // sempre pelo caminho com motivo obrigatório e

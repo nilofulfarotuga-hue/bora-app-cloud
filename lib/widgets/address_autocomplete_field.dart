@@ -25,9 +25,28 @@ class AddressAutocompleteField extends StatefulWidget {
     this.prefixIcon,
     this.validator,
     this.serviceOverride,
+    this.confirmarAoSair = true,
+    this.helperText,
   });
 
   final TextEditingController controller;
+
+  /// Morada escrita conta sempre (missão tvde-pedir-nunca-trava, 14/10/2026).
+  /// Quando o cliente escreve e sai do campo / carrega em "concluído" SEM
+  /// tocar numa sugestão, o campo geocodifica o texto (com as variantes
+  /// tolerantes) e, se encontrar, chama [onSelected] com as coordenadas e
+  /// mostra por baixo a morada encontrada para confirmar. Se não encontrar,
+  /// diz isso no próprio campo e NÃO chama [onSelected].
+  ///
+  /// Desligar só onde o [onSelected] faz mais do que guardar a morada (fecha
+  /// uma folha, abre um diálogo, escreve na base) — aí a confirmação fica
+  /// para o toque numa sugestão ou para [AddressAutocompleteFieldState.confirmarTextoEscrito].
+  final bool confirmarAoSair;
+
+  /// Texto de ajuda por baixo do campo, vindo do ecrã (ex.: "Liga a
+  /// localização ou escreve a morada" quando o GPS falhou). A confirmação da
+  /// morada encontrada tem prioridade sobre ele.
+  final String? helperText;
 
   /// Test seam: injeta um [PlaceAutocompleteService] falso nos testes de
   /// widget (a renderização das sugestões não pode depender da rede). Em
@@ -50,10 +69,13 @@ class AddressAutocompleteField extends StatefulWidget {
 
   @override
   State<AddressAutocompleteField> createState() =>
-      _AddressAutocompleteFieldState();
+      AddressAutocompleteFieldState();
 }
 
-class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
+/// Estado público para o ecrã poder, com uma `GlobalKey`, confirmar o texto
+/// escrito antes de pedir ([confirmarTextoEscrito]) e levar o foco ao campo
+/// em falta ([pedirFoco]) — o botão diz o que falta e leva lá.
+class AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
   late final PlaceAutocompleteService _service;
   final LayerLink _layerLink = LayerLink();
   final FocusNode _focusNode = FocusNode();
@@ -86,12 +108,179 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
   String? _lastSelectedText;
   // ────────────────────────────────────────────────────────────────────────
 
+  // ── Morada escrita à mão (missão tvde-pedir-nunca-trava, 14/10/2026) ────
+  // Cicatriz: a cliente escrevia a morada e não tocava em nenhuma sugestão;
+  // o ecrã ficava sem coordenadas e o botão de pedir cinzento, sem dizer
+  // porquê. Agora o texto escrito confirma-se sozinho ao sair do campo.
+
+  /// Há texto escrito pelo cliente que ainda não virou morada com
+  /// coordenadas (nem por sugestão, nem pela confirmação automática).
+  bool _textoPendente = false;
+
+  /// Sobe a cada edição ou escolha: uma confirmação que acabe depois de o
+  /// cliente ter escrito mais (ou escolhido uma sugestão) é descartada.
+  int _seq = 0;
+  Future<bool>? _confirmacaoEmCurso;
+  String? _textoEmConfirmacao;
+
+  /// Morada encontrada no mapa (para o cliente confirmar) ou o erro de não a
+  /// ter encontrado — ambos dizem respeito a [_textoDoAviso] e somem quando o
+  /// texto do campo muda.
+  String? _moradaEncontrada;
+  String? _erroMorada;
+  String? _textoDoAviso;
+  String _ultimoTexto = '';
+
+  /// O cliente escreveu e ainda não ficou morada com coordenadas.
+  bool get temTextoPorConfirmar =>
+      _textoPendente && widget.controller.text.trim().isNotEmpty;
+
+  /// Leva o foco (e o teclado) a este campo — é para aqui que o botão de
+  /// pedir manda o cliente quando falta esta morada.
+  void pedirFoco() {
+    if (!mounted) return;
+    _focusNode.requestFocus();
+  }
+
+  /// Geocodifica o texto escrito e, se encontrar, aceita-o como se fosse uma
+  /// sugestão escolhida ([AddressAutocompleteField.onSelected] com
+  /// coordenadas). Devolve `true` quando ficou morada com coordenadas.
+  /// Chamar duas vezes seguidas com o mesmo texto devolve a mesma tentativa.
+  Future<bool> confirmarTextoEscrito() {
+    final texto = widget.controller.text.trim();
+    if (texto.isEmpty) return Future<bool>.value(false);
+    final emCurso = _confirmacaoEmCurso;
+    if (emCurso != null && _textoEmConfirmacao == texto) return emCurso;
+    final tentativa = _confirmar(texto);
+    _confirmacaoEmCurso = tentativa;
+    _textoEmConfirmacao = texto;
+    tentativa.whenComplete(() {
+      if (identical(_confirmacaoEmCurso, tentativa)) {
+        _confirmacaoEmCurso = null;
+        _textoEmConfirmacao = null;
+      }
+    });
+    return tentativa;
+  }
+
+  Future<bool> _confirmar(String texto) async {
+    final seq = _seq;
+    _debounce?.cancel();
+    if (mounted) {
+      setState(() {
+        _resolving = true;
+        _erroMorada = null;
+      });
+    }
+
+    MoradaGeocodificada? achada;
+    try {
+      // 1) Geocoding tolerante (texto todo → sem nº de porta → abreviaturas
+      //    por extenso), com o melhor resultado na Guarda.
+      achada = await _service.geocodeTolerante(texto);
+      // 2) Comércio/POI que o Geocoding não conhece ("Continente", "Lavie"):
+      //    fica a 1.ª sugestão, que já vem com a Guarda à frente.
+      if (achada == null) {
+        final sugestoes = await _service.fetchPredictionsTolerante(texto);
+        // Quem escreveu "…, Guarda" não quer a mesma rua em Lisboa: só vale
+        // uma sugestão da Guarda (prova web 15/10, "Av. Rainha D. Amélia").
+        final pedeGuarda = textoPedeGuarda(texto);
+        final validas = sugestoes.predictions.where((p) {
+          final linha = '${p.description} ${p.secondaryText ?? ''}';
+          return (!pedeGuarda || textoPedeGuarda(linha)) &&
+              partilhaPalavra(texto, linha);
+        });
+        if (validas.isNotEmpty) {
+          final p = validas.first;
+          final c = await _service.resolvePlaceLocation(p.placeId) ??
+              await _service.geocodeAddress(p.description);
+          if (c != null) achada = MoradaGeocodificada(c, morada: p.description);
+        }
+      }
+    } catch (e) {
+      debugPrint('AddressAutocomplete: confirmação do texto falhou => $e');
+    }
+    _service.resetSession();
+
+    if (!mounted) return false;
+    if (seq != _seq) {
+      // O cliente escreveu mais ou escolheu uma sugestão entretanto: manda o
+      // que ele fez depois, esta tentativa já não conta.
+      setState(() => _resolving = false);
+      return false;
+    }
+
+    if (achada == null) {
+      setState(() {
+        _resolving = false;
+        _moradaEncontrada = null;
+        _erroMorada =
+            'Não encontrei esta morada no mapa. Escolhe uma sugestão ou acrescenta a cidade (ex.: Guarda).'
+                .tr;
+        _textoDoAviso = texto;
+      });
+      WebHealthLog.log(
+        motivo: 'geocode_manual_falhou',
+        ecra: widget.labelText,
+        detalhe: 'confirmação automática: ${texto.length} caracteres sem coordenadas',
+      );
+      return false;
+    }
+
+    // Aceite: o texto do cliente fica (tem o nº da porta, que o motorista
+    // precisa); por baixo aparece a morada encontrada no mapa para confirmar.
+    _removeOverlay();
+    if (widget.controller.text != texto) {
+      _lastSelectedText = texto;
+      _isProgrammaticChange = true;
+      widget.controller.text = texto;
+      widget.controller.selection =
+          TextSelection.fromPosition(TextPosition(offset: texto.length));
+      _isProgrammaticChange = false;
+    }
+    setState(() {
+      _resolving = false;
+      _predictions = const [];
+      _textoPendente = false;
+      _erroMorada = null;
+      _moradaEncontrada = achada!.morada ?? '';
+      _textoDoAviso = texto;
+    });
+    debugPrint('AddressAutocomplete: TEXTO CONFIRMADO "$texto" => ${achada.coords}');
+    widget.onSelected(texto, achada.coords);
+    return true;
+  }
+
+  /// Qualquer mudança do texto (escrita ou vinda do ecrã, ex.: GPS) apaga o
+  /// aviso da morada anterior. O texto vindo do ecrã não fica "por
+  /// confirmar": o [_onChanged] volta a marcar só quando foi o cliente.
+  void _onControllerChanged() {
+    final texto = widget.controller.text;
+    if (texto == _ultimoTexto) return;
+    _ultimoTexto = texto;
+    _textoPendente = false;
+    if (_textoDoAviso != null && texto.trim() != _textoDoAviso) {
+      _textoDoAviso = null;
+      if (_moradaEncontrada != null || _erroMorada != null) {
+        _moradaEncontrada = null;
+        _erroMorada = null;
+        if (mounted) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() {});
+          });
+        }
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _service =
         widget.serviceOverride ?? createPlaceAutocompleteService(googleApiKey);
     _focusNode.addListener(_onFocusChanged);
+    _ultimoTexto = widget.controller.text;
+    widget.controller.addListener(_onControllerChanged);
   }
 
   @override
@@ -99,6 +288,7 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
     _debounce?.cancel();
     _focusLossTimer?.cancel();
     _removeOverlay();
+    widget.controller.removeListener(_onControllerChanged);
     _focusNode.removeListener(_onFocusChanged);
     _focusNode.dispose();
     _service.dispose();
@@ -132,7 +322,18 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
       if (_predictions.isNotEmpty && mounted) {
         setState(() => _predictions = const []);
       }
+      // Saiu do campo com morada escrita e sem tocar em nenhuma sugestão:
+      // a morada escrita conta (missão tvde-pedir-nunca-trava, 14/10).
+      if (mounted && widget.confirmarAoSair && temTextoPorConfirmar) {
+        confirmarTextoEscrito();
+      }
     });
+  }
+
+  void _onSubmitted(String _) {
+    if (widget.confirmarAoSair && temTextoPorConfirmar) {
+      confirmarTextoEscrito();
+    }
   }
 
   void _onChanged(String value) {
@@ -154,6 +355,8 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
     // edits (even to the same string) propagate normally.
     debugPrint('[ACF._onChanged] PASS — genuine user input value="$value"');
     _lastSelectedText = null;
+    _seq++;
+    _textoPendente = value.trim().isNotEmpty;
 
     // Notify parent that the user is typing (NOT a programmatic selection).
     widget.onChanged?.call(value);
@@ -172,7 +375,8 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
     _debounce = Timer(const Duration(milliseconds: 250), () async {
       final query = widget.controller.text.trim();
       if (query.isEmpty || !mounted) return;
-      final result = await _service.fetchPredictionsWithStatus(query);
+      // Tolerante: texto todo vazio → repete sem nº de porta / abreviaturas.
+      final result = await _service.fetchPredictionsTolerante(query);
       if (!mounted) return;
       // Discard stale result if the user typed more while we were fetching.
       if (widget.controller.text.trim() != query) return;
@@ -361,15 +565,21 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
     _focusLossTimer?.cancel();
     _debounce?.cancel();
     _removeOverlay();
+    _seq++;
+    _textoPendente = false;
     setState(() {
       _predictions = const [];
       _resolving = true;
+      _erroMorada = null;
+      _moradaEncontrada = null;
+      _textoDoAviso = null;
     });
     _lastSelectedText = texto;
 
     ll.LatLng? coords;
     try {
-      coords = await _service.geocodeAddress(texto);
+      // Tolerante (14/10): sem nº de porta / abreviaturas por extenso.
+      coords = (await _service.geocodeTolerante(texto))?.coords;
     } catch (e) {
       debugPrint('AddressAutocomplete: geocode manual falhou => $e');
     }
@@ -394,9 +604,14 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
     _focusLossTimer?.cancel();
     _debounce?.cancel();
     _removeOverlay();
+    _seq++;
+    _textoPendente = false;
     setState(() {
       _predictions = const [];
       _resolving = true;
+      _erroMorada = null;
+      _moradaEncontrada = null;
+      _textoDoAviso = null;
     });
 
     // Arm both guards BEFORE touching the controller so that neither the
@@ -451,6 +666,8 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
         controller: widget.controller,
         focusNode: _focusNode,
         onChanged: _onChanged,
+        onFieldSubmitted: _onSubmitted,
+        textInputAction: TextInputAction.done,
         validator: widget.validator,
         // Parte 9 — dentro de bottom-sheets/scrollables, mantém o campo bem acima
         // do teclado deixando espaço para a lista de sugestões (abre para baixo,
@@ -458,6 +675,16 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
         scrollPadding: const EdgeInsets.only(bottom: 320),
         decoration: InputDecoration(
           labelText: widget.labelText.tr,
+          // Morada escrita aceite → mostra onde ficou no mapa, para o cliente
+          // confirmar. Senão, a ajuda que o ecrã mandou (ex.: GPS desligado).
+          helperText: _moradaEncontrada != null
+              ? (_moradaEncontrada!.isEmpty
+                  ? 'Morada encontrada no mapa.'.tr
+                  : 'No mapa: {0}'.trArgs([_moradaEncontrada!]))
+              : widget.helperText,
+          helperMaxLines: 2,
+          errorText: _erroMorada,
+          errorMaxLines: 3,
           prefixIcon:
               widget.prefixIcon ?? const Icon(Icons.location_on_outlined),
           suffixIcon: _resolving

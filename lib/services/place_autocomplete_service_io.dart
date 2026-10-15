@@ -152,7 +152,7 @@ class _IoPlaceAutocompleteService extends PlaceAutocompleteService {
       },
     );
 
-    final response = await _client.get(uri);
+    final response = await _client.get(uri).timeout(const Duration(seconds: 8));
     if (response.statusCode != 200) {
       debugPrint(
           'PlaceAutocomplete: HTTP ${response.statusCode} => ${response.body}');
@@ -209,7 +209,7 @@ class _IoPlaceAutocompleteService extends PlaceAutocompleteService {
     );
 
     try {
-      final response = await _client.get(uri);
+      final response = await _client.get(uri).timeout(const Duration(seconds: 8));
       if (response.statusCode != 200) {
         debugPrint(
             'PlaceDetails: HTTP ${response.statusCode} for placeId=$placeId body=${response.body}');
@@ -257,7 +257,7 @@ class _IoPlaceAutocompleteService extends PlaceAutocompleteService {
       },
     );
     try {
-      final response = await _client.get(uri);
+      final response = await _client.get(uri).timeout(const Duration(seconds: 8));
       if (response.statusCode != 200) {
         debugPrint(
             'Geocoding: HTTP ${response.statusCode} for "$address" body=${response.body}');
@@ -282,6 +282,65 @@ class _IoPlaceAutocompleteService extends PlaceAutocompleteService {
       return null;
     } catch (e) {
       debugPrint('Geocoding.geocodeAddress: ERROR => $e');
+      return null;
+    }
+  }
+
+  /// Morada escrita à mão (missão tvde-pedir-nunca-trava, 14/10): pede ao
+  /// Geocoding com a caixa da Guarda como viés (`bounds`, ~30 km) e fica com o
+  /// melhor resultado na Guarda — nunca com "a cidade inteira".
+  @override
+  Future<MoradaGeocodificada?> geocodeComMorada(String address) async {
+    final texto = address.trim();
+    if (texto.isEmpty || _apiKey.isEmpty) return null;
+    const d = 0.27; // ~30 km em latitude à volta do centro da Guarda
+    final uri = Uri.https(
+      'maps.googleapis.com',
+      '/maps/api/geocode/json',
+      {
+        'address': texto,
+        'key': _apiKey,
+        'language': 'pt-PT',
+        'region': 'pt',
+        'components': 'country:PT',
+        'bounds': '${kGuardaBiasLat - d},${kGuardaBiasLng - d}|'
+            '${kGuardaBiasLat + d},${kGuardaBiasLng + d}',
+      },
+    );
+    try {
+      final response =
+          await _client.get(uri).timeout(const Duration(seconds: 8));
+      if (response.statusCode != 200) {
+        debugPrint('GeocodingMorada: HTTP ${response.statusCode}');
+        return null;
+      }
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      if (data['status'] != 'OK') return null;
+      final candidatos = <CandidatoGeocode>[];
+      for (final r in (data['results'] as List<dynamic>? ?? const [])) {
+        final m = r as Map<String, dynamic>;
+        final loc = (m['geometry'] as Map<String, dynamic>?)?['location']
+            as Map<String, dynamic>?;
+        final lat = loc?['lat'];
+        final lng = loc?['lng'];
+        if (lat is! num || lng is! num) continue;
+        candidatos.add(CandidatoGeocode(
+          coords: ll.LatLng(lat.toDouble(), lng.toDouble()),
+          morada: m['formatted_address'] as String? ?? '',
+          tipos: ((m['types'] as List<dynamic>?) ?? const [])
+              .map((t) => t.toString())
+              .toList(),
+        ));
+      }
+      final melhor = escolherMelhorNaGuarda(candidatos,
+          exigirGuarda: textoPedeGuarda(texto), textoPesquisado: texto);
+      if (melhor == null) return null;
+      return MoradaGeocodificada(
+        melhor.coords,
+        morada: melhor.morada.isEmpty ? null : melhor.morada,
+      );
+    } catch (e) {
+      debugPrint('GeocodingMorada: ERROR => $e');
       return null;
     }
   }

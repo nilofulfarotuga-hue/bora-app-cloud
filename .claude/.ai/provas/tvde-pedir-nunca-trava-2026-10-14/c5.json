@@ -1,0 +1,1 @@
+[["goto","http://127.0.0.1:8766/"],["wait",3000],["sem"],["click_role","button","Agora não"],["wait",2000],["sem"],["shot","05-home"],["tree","05-home"]]

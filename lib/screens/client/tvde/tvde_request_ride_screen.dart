@@ -12,14 +12,17 @@ import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../config/maps_config.dart';
 import '../../../models/tvde_ride.dart';
+import '../../../services/atalhos_morada_service.dart';
 import '../../../services/directions_service.dart';
 import '../../../services/location_service.dart';
 import '../../../services/payment_service.dart';
 import '../../../services/saved_card_checkout.dart';
 import '../../../services/tvde_conformidade_service.dart';
+import '../../../services/web_health_log.dart';
 import '../../../stores/tvde_store.dart';
 import '../../../utils/map_utils.dart';
 import '../../../widgets/address_autocomplete_field.dart';
+import '../../../widgets/atalhos_morada.dart';
 import '../../../widgets/bora/bora.dart';
 import '../../../widgets/checkout_legal_notice.dart';
 import '../../../widgets/customer_note_field.dart';
@@ -29,6 +32,7 @@ import '../../../widgets/tvde/tvde_preco_discriminado.dart';
 import 'ride_mbway_waiting_dialog.dart';
 import 'tvde_my_reservations_screen.dart';
 import 'tvde_operador_plataforma_screen.dart';
+import 'tvde_pedir_estado.dart';
 import 'tvde_plans_screen.dart';
 import 'tvde_queixas_screen.dart';
 import 'tvde_rate_screen.dart';
@@ -71,6 +75,25 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
 
   bool _estimating = false;
   bool _locating = true;
+
+  // ── Pedir nunca trava (missão tvde-pedir-nunca-trava, 14/10/2026) ──────
+  // Cicatriz: a cliente Stela abriu este ecrã, escreveu a morada, e o botão
+  // ficou cinzento sem dizer porquê — `_recalcEstimate` nunca correu porque a
+  // recolha ou o destino ficaram sem coordenadas. Ligou ao Danilo.
+
+  /// Para confirmar a morada escrita e levar o foco ao campo em falta.
+  final _pickupFieldKey = GlobalKey<AddressAutocompleteFieldState>();
+  final _destFieldKey = GlobalKey<AddressAutocompleteFieldState>();
+
+  /// Moradas guardadas + destinos recentes, com um toque.
+  List<AtalhoMorada> _atalhos = const [];
+
+  /// A última tentativa de GPS não deu posição (negado/desligado/sem sinal).
+  bool _gpsFalhou = false;
+
+  /// Sobe a cada estimativa pedida: a resposta de uma rota antiga não pode
+  /// pôr preço nem desligar o "a calcular" de uma rota nova.
+  int _estimateSeq = 0;
 
   // B1 — distância efetiva usada na estimativa/pedido: rota real (Directions,
   // mesma chave) com fallback haversine. `_distanceSource` regista qual foi.
@@ -212,6 +235,8 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     // [04/10] Corrida terminada com a app fechada: a avaliação aparece aqui,
     // uma vez (as duas corridas de 04/10 ficaram sem avaliação do cliente).
     unawaited(TvdeRateScreen.abrirSePendente(context));
+    // Atalhos (Casa, destinos recentes) em paralelo com o GPS — nunca o atrasam.
+    unawaited(_carregarAtalhos());
     await _detectPickup();
     // [F3] vale ativo (para "Chamar a minha volta").
     final credit = await store.activeRoundtripCredit();
@@ -251,11 +276,37 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     }
   }
 
+  Future<void> _carregarAtalhos() async {
+    final atalhos = await carregarAtalhosMorada();
+    if (!mounted || atalhos.isEmpty) return;
+    setState(() => _atalhos = atalhos);
+  }
+
   Future<void> _detectPickup() async {
-    setState(() => _locating = true);
-    final loc = await LocationService.getCurrentLocation();
-    if (!mounted) return;
-    if (loc != null) {
+    setState(() {
+      _locating = true;
+      _gpsFalhou = false;
+    });
+    // PADRAO_BORA 1.2 — se o cliente escrever ou escolher a recolha enquanto o
+    // GPS resolve, ganha quem escreveu: o GPS não lhe passa por cima.
+    final textoAntes = _pickupController.text;
+    final pickupAntes = _pickup;
+    bool clienteMexeu() =>
+        _pickupController.text != textoAntes || _pickup != pickupAntes;
+    try {
+      final loc = await LocationService.getCurrentLocation();
+      if (!mounted) return;
+      if (loc == null) {
+        if (!clienteMexeu() && _pickup == null) {
+          // Sem GPS (negado, desligado, sem sinal): o campo diz o que fazer.
+          setState(() {
+            _gpsFalhou = true;
+            _pickupLabel = 'Localização indisponível'.tr;
+          });
+        }
+        return;
+      }
+      if (clienteMexeu()) return;
       String? addr;
       try {
         addr = await LocationService.reverseGeocode(loc, googleApiKey);
@@ -263,20 +314,128 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       // [Paridade 2026-09-21] Segundo `await` sem `mounted`: quem saía do
       // ecrã enquanto o geocoding respondia apanhava "Null check operator"
       // no setState (build 608, 20/09; já tinha acontecido na 496).
-      if (!mounted) return;
+      if (!mounted || clienteMexeu()) return;
       setState(() {
         _pickup = loc;
         _pickupLabel = addr ?? 'Localização atual';
         _pickupController.text = _pickupLabel;
-        _locating = false;
       });
       _moveCamera(loc);
       if (_dest != null) _recalcEstimate();
+    } finally {
+      // Nada fica preso a "A procurar a tua localização…" (Bloco E).
+      if (mounted) setState(() => _locating = false);
+    }
+  }
+
+  /// Tira o preço calculado (a recolha ou o destino deixaram de valer) e
+  /// descarta qualquer cálculo que ainda esteja a meio.
+  void _limparEstimativa() {
+    _estimateSeq++;
+    _estimating = false;
+    _effectiveKm = null;
+    _etaMinutes = null;
+    _payableCents = 0;
+    _roundtripPriceCents = 0;
+    _roundtripSavingCents = 0;
+    _discriminado = null;
+  }
+
+  /// O cliente escreveu na recolha: a localização antiga deixa de valer (tal
+  /// como no destino). A morada escrita confirma-se ao sair do campo ou no
+  /// botão de pedir — nunca fica uma recolha diferente da que está escrita.
+  void _onPickupEditado(String _) {
+    if (_pickup == null) return;
+    setState(() {
+      _pickup = null;
+      _limparEstimativa();
+    });
+  }
+
+  /// Toque num atalho (Casa, destino recente) na recolha.
+  void _aplicarRecolha(AtalhoMorada a) {
+    setState(() {
+      _pickup = a.coords;
+      _pickupLabel = a.morada;
+      _pickupController.text = a.morada;
+      _gpsFalhou = false;
+    });
+    _moveCamera(a.coords);
+    if (_dest != null) _recalcEstimate();
+  }
+
+  /// Toque num atalho no destino.
+  void _aplicarDestino(AtalhoMorada a) {
+    setState(() {
+      _dest = a.coords;
+      _destLabel = a.morada;
+      _destController.text = a.morada;
+    });
+    _moveCamera(a.coords);
+    _recalcEstimate();
+  }
+
+  /// O que falta para poder pedir, em palavras — `null` quando já se pode.
+  /// O botão mostra isto em vez de ficar cinzento e mudo (Bloco D).
+  String? get _oQueFalta => oQueFaltaParaPedir(
+        temRecolha: _pickup != null,
+        temDestino: _dest != null,
+        aLocalizar: _locating,
+        aCalcular: _estimating,
+        temPreco: _effectiveKm != null,
+      );
+
+  /// Toque no botão de pedir quando ainda falta alguma coisa: primeiro tenta
+  /// aceitar a morada escrita (sem ter tocado numa sugestão); se continuar a
+  /// faltar, diz porquê, leva o foco ao campo e regista para o painel admin.
+  Future<void> _onPedirIncompleto() async {
+    final pickupCampo = _pickupFieldKey.currentState;
+    final destCampo = _destFieldKey.currentState;
+    var geocodeFalhou = false;
+
+    if (_pickup == null && (pickupCampo?.temTextoPorConfirmar ?? false)) {
+      final ok = await pickupCampo!.confirmarTextoEscrito();
+      if (!mounted) return;
+      if (!ok) geocodeFalhou = true;
+    }
+    if (_dest == null && (destCampo?.temTextoPorConfirmar ?? false)) {
+      final ok = await destCampo!.confirmarTextoEscrito();
+      if (!mounted) return;
+      if (!ok) geocodeFalhou = true;
+    }
+
+    if (_pickup != null && _dest != null) {
+      // As duas moradas estão aceites. O preço aparece e o cliente confirma
+      // no mesmo botão — nunca se pede sem ele ver o valor.
+      if (!_estimating && _effectiveKm == null) _recalcEstimate();
+      return;
+    }
+
+    final motivo = motivoPedidoTravado(
+      geocodeFalhou: geocodeFalhou,
+      temRecolha: _pickup != null,
+      gpsFalhou: _gpsFalhou,
+    );
+    WebHealthLog.log(
+      motivo: 'pedido_travado',
+      ecra: 'tvde_pedir',
+      detalhe: motivo,
+      repetir: true,
+    );
+    if (!mounted) return;
+    if (geocodeFalhou) {
+      _avisoMoradaSemCoordenadas();
     } else {
-      setState(() {
-        _pickupLabel = 'Localização indisponível'.tr;
-        _locating = false;
-      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(_pickup == null
+            ? 'Falta o ponto de recolha: escreve a morada ou escolhe uma das tuas.'.tr
+            : 'Falta o destino: escreve para onde vais ou escolhe uma das tuas moradas.'.tr),
+      ));
+    }
+    if (_pickup == null) {
+      pickupCampo?.pedirFoco();
+    } else {
+      destCampo?.pedirFoco();
     }
   }
 
@@ -288,6 +447,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       _pickup = loc;
       _pickupLabel = 'A obter morada…'.tr;
       _pickupController.text = _pickupLabel;
+      _gpsFalhou = false;
     });
     String? addr;
     try {
@@ -320,6 +480,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     setState(() {
       _pickup = coords;
       _pickupLabel = address;
+      _gpsFalhou = false;
     });
     _moveCamera(coords);
     if (_dest != null) _recalcEstimate();
@@ -341,9 +502,13 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
   /// estafeta). Se a rota falhar (offline/erro API) cai para haversine e
   /// regista `_distanceSource='haversine'` (persistido no ride ao finalizar).
   Future<void> _recalcEstimate() async {
+    // [14/10, Bloco E] Cada estimativa tem número: só a mais recente põe preço
+    // e só ela desliga o "a calcular" — e desliga-o SEMPRE (finally).
+    final seq = ++_estimateSeq;
     final fallback = _haversineKm;
     if (_pickup == null || _dest == null || fallback == null) {
       setState(() {
+        _estimating = false;
         _effectiveKm = null;
         _etaMinutes = null;
         _payCase = _PayCase.normal;
@@ -355,84 +520,97 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       });
       return;
     }
+    final store = context.read<TvdeStore>();
+    final origem = _pickup!;
+    final destino = _dest!;
     setState(() => _estimating = true);
-    double km = fallback;
-    String source = 'haversine';
-    int? etaMin;
-    // [Item D] a rota real é a FONTE do preço. O Directions falha às vezes de
-    // forma transitória (rede/limite de QPS) e, ao cair para haversine, o km e o
-    // preço ficam SUBESTIMADOS (linha reta << rota real). Uma 2ª tentativa
-    // recupera a rota real na esmagadora maioria desses casos.
-    for (var attempt = 0; attempt < 2 && source == 'haversine'; attempt++) {
-      try {
-        final route = await _directions.fetchRoute(
-          origin: _pickup!,
-          destination: _dest!,
-        );
-        if (route != null && route.distanceKm > 0) {
-          km = double.parse(route.distanceKm.toStringAsFixed(2));
-          source = 'route';
-          final mins = route.durationMinutes.round();
-          if (mins > 0) etaMin = mins;
+    try {
+      double km = fallback;
+      String source = 'haversine';
+      int? etaMin;
+      // [Item D] a rota real é a FONTE do preço. O Directions falha às vezes de
+      // forma transitória (rede/limite de QPS) e, ao cair para haversine, o km e o
+      // preço ficam SUBESTIMADOS (linha reta << rota real). Uma 2ª tentativa
+      // recupera a rota real na esmagadora maioria desses casos.
+      for (var attempt = 0; attempt < 2 && source == 'haversine'; attempt++) {
+        try {
+          final route = await _directions
+              .fetchRoute(
+                origin: origem,
+                destination: destino,
+              )
+              // [14/10] sem resposta em 10 s conta como falha (vai à 2.ª
+              // tentativa / haversine) — nunca fica preso a calcular.
+              .timeout(const Duration(seconds: 10));
+          if (route != null && route.distanceKm > 0) {
+            km = double.parse(route.distanceKm.toStringAsFixed(2));
+            source = 'route';
+            final mins = route.durationMinutes.round();
+            if (mins > 0) etaMin = mins;
+          }
+        } catch (_) {
+          // mantém haversine; volta a tentar se ainda houver tentativa
         }
-      } catch (_) {
-        // mantém haversine; volta a tentar se ainda houver tentativa
       }
-    }
-    final cents = await context.read<TvdeStore>().estimateFareCents(km);
-    // [Item B] cobertura pelo plano (read-only, NÃO consome — só o finish consome).
-    final cov = await context.read<TvdeStore>().previewCoverage();
-    if (!mounted) return;
-    // Planos só cobrem Segunda a Sexta — a RPC tvde_preview_coverage não checa
-    // o dia da semana (só o consumo no finish o faz), então replicamos aqui
-    // para não mostrar "Incluída no plano" ao fim de semana por engano.
-    final isWeekend =
-        DateTime.now().weekday == DateTime.saturday || DateTime.now().weekday == DateTime.sunday;
-    final covered = !isWeekend && cov['covered'] == true;
-    final used = (cov['daily_used'] as num?)?.toInt();
-    final incl = (cov['daily_included'] as num?)?.toInt();
-    final reason = cov['reason'] as String?;
-    // Membro = tem plano ativo (mesmo que hoje não cubra: fim de semana ou já
-    // usou as de hoje). O finish cobra €4,50 + excesso a membros não-cobertos.
-    final isMember = covered || reason == 'daily_limit';
-    final excessKm = km > _baseKm ? (km - _baseKm).ceil() : 0;
-    final excessCents = excessKm * _perKmCents;
+      final cents = await store.estimateFareCents(km);
+      // [Item B] cobertura pelo plano (read-only, NÃO consome — só o finish consome).
+      final cov = await store.previewCoverage();
+      if (!mounted || seq != _estimateSeq) return;
+      // Planos só cobrem Segunda a Sexta — a RPC tvde_preview_coverage não checa
+      // o dia da semana (só o consumo no finish o faz), então replicamos aqui
+      // para não mostrar "Incluída no plano" ao fim de semana por engano.
+      final isWeekend =
+          DateTime.now().weekday == DateTime.saturday || DateTime.now().weekday == DateTime.sunday;
+      final covered = !isWeekend && cov['covered'] == true;
+      final used = (cov['daily_used'] as num?)?.toInt();
+      final incl = (cov['daily_included'] as num?)?.toInt();
+      final reason = cov['reason'] as String?;
+      // Membro = tem plano ativo (mesmo que hoje não cubra: fim de semana ou já
+      // usou as de hoje). O finish cobra €4,50 + excesso a membros não-cobertos.
+      final isMember = covered || reason == 'daily_limit';
+      final excessKm = km > _baseKm ? (km - _baseKm).ceil() : 0;
+      final excessCents = excessKm * _perKmCents;
 
-    _PayCase pc;
-    int payable;
-    String? message;
-    if (covered) {
-      if (excessKm == 0) {
-        pc = _PayCase.freeCovered;
-        payable = 0;
-        message = (used != null && incl != null)
-            ? 'Incluída no teu plano · {0}.ª de {1} hoje'.trArgs([used + 1, incl])
-            : 'Incluída no teu plano';
+      _PayCase pc;
+      int payable;
+      String? message;
+      if (covered) {
+        if (excessKm == 0) {
+          pc = _PayCase.freeCovered;
+          payable = 0;
+          message = (used != null && incl != null)
+              ? 'Incluída no teu plano · {0}.ª de {1} hoje'.trArgs([used + 1, incl])
+              : 'Incluída no teu plano';
+        } else {
+          pc = _PayCase.excess;
+          payable = excessCents;
+          message = 'Corrida do plano — só pagas o excesso: {0} km acima de {1} = €{2}'.trArgs([excessKm, _baseKm, (payable / 100).toStringAsFixed(2)]);
+        }
+      } else if (isMember) {
+        pc = _PayCase.extra;
+        payable = _extraRideCents + excessCents;
+        message = 'Já usaste as corridas de hoje — esta fica €{0} (preço de membro).'.trArgs([(payable / 100).toStringAsFixed(2)]);
       } else {
-        pc = _PayCase.excess;
-        payable = excessCents;
-        message = 'Corrida do plano — só pagas o excesso: {0} km acima de {1} = €{2}'.trArgs([excessKm, _baseKm, (payable / 100).toStringAsFixed(2)]);
+        pc = _PayCase.normal;
+        payable = cents;
+        message = null;
       }
-    } else if (isMember) {
-      pc = _PayCase.extra;
-      payable = _extraRideCents + excessCents;
-      message = 'Já usaste as corridas de hoje — esta fica €{0} (preço de membro).'.trArgs([(payable / 100).toStringAsFixed(2)]);
-    } else {
-      pc = _PayCase.normal;
-      payable = cents;
-      message = null;
+      setState(() {
+        _effectiveKm = km;
+        _etaMinutes = etaMin;
+        _distanceSource = source;
+        _payCase = pc;
+        _payableCents = payable;
+        _payMessage = message;
+        _estimating = false;
+      });
+      _fetchRoundtripQuote(km);
+      _fetchDiscriminado(km);
+    } finally {
+      if (mounted && seq == _estimateSeq && _estimating) {
+        setState(() => _estimating = false);
+      }
     }
-    setState(() {
-      _effectiveKm = km;
-      _etaMinutes = etaMin;
-      _distanceSource = source;
-      _payCase = pc;
-      _payableCents = payable;
-      _payMessage = message;
-      _estimating = false;
-    });
-    _fetchRoundtripQuote(km);
-    _fetchDiscriminado(km);
   }
 
   /// Preço discriminado (Lei 45/2018, art. 15.º) para a distância estimada.
@@ -1755,12 +1933,10 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     // `_acionando` (local) em vez de `store.busy` (global): o botão trava-se
     // pelo SEU pedido. A trava local cobre uma janela MAIOR do que a antiga —
     // do toque até o fluxo acabar, e não só enquanto a chamada ao store corre.
-    final canRequest = _pickup != null &&
-        _dest != null &&
-        _effectiveKm != null &&
-        !_acionando &&
-        !_locating &&
-        !_estimating;
+    // [14/10] O botão nunca fica cinzento e mudo: com algo em falta mostra o
+    // QUÊ ("Escolhe o destino") e, tocado, leva ao campo (Bloco D).
+    final oQueFalta = _oQueFalta;
+    final canRequest = oQueFalta == null && !_acionando;
 
     return Scaffold(
       appBar: BoraScreenAppBar(
@@ -1837,11 +2013,15 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
               children: [
                 Expanded(
                   child: AddressAutocompleteField(
+                    key: _pickupFieldKey,
                     controller: _pickupController,
                     labelText: 'Ponto de recolha'.tr,
                     prefixIcon:
                         const Icon(Icons.my_location, color: AppColors.primary),
                     onSelected: _onPickupSelected,
+                    onChanged: _onPickupEditado,
+                    helperText: ajudaDaRecolha(
+                        gpsFalhou: _gpsFalhou, temRecolha: _pickup != null),
                   ),
                 ),
                 const SizedBox(width: Spacing.sm),
@@ -1861,8 +2041,18 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
                       ),
               ],
             ),
+            // [14/10, Bloco C] Casa e destinos recentes com um toque.
+            if (_atalhos.isNotEmpty) ...[
+              const SizedBox(height: Spacing.xs),
+              AtalhosMorada(
+                atalhos: _atalhos,
+                prefixoChave: 'tvde_atalho_recolha',
+                onEscolher: _aplicarRecolha,
+              ),
+            ],
             const SizedBox(height: Spacing.md),
             AddressAutocompleteField(
+              key: _destFieldKey,
               controller: _destController,
               labelText: 'Para onde vais?'.tr,
               prefixIcon: const Icon(Icons.flag_outlined),
@@ -1882,16 +2072,19 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
                 if (_dest != null) {
                   setState(() {
                     _dest = null;
-                    _effectiveKm = null;
-                    _etaMinutes = null;
-                    _payableCents = 0;
-                    _roundtripPriceCents = 0;
-                    _roundtripSavingCents = 0;
-                    _discriminado = null;
+                    _limparEstimativa();
                   });
                 }
               },
             ),
+            if (_atalhos.isNotEmpty) ...[
+              const SizedBox(height: Spacing.xs),
+              AtalhosMorada(
+                atalhos: _atalhos,
+                prefixoChave: 'tvde_atalho_destino',
+                onEscolher: _aplicarDestino,
+              ),
+            ],
             const SizedBox(height: Spacing.lg),
             _EstimateCard(
               payableCents: _payableCents,
@@ -1947,26 +2140,32 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
             ],
             const SizedBox(height: Spacing.xl),
             BoraAccentButton(
-              label: _activeCredit != null
-                  ? 'Chamar a volta'.tr
-                  : _roundtrip
-                      ? _roundtripPriceCents > 0
-                          ? 'Garantir ida e volta · €{0}'.trArgs([(_roundtripPriceCents / 100).toStringAsFixed(2)])
-                          : 'Garantir ida e volta'
-                      : 'Solicitar corrida',
-              icon: _activeCredit != null
-                  ? Icons.sync_alt
-                  : _roundtrip
-                      ? Icons.sync_alt
-                      : Icons.local_taxi,
-              loading: _acionando,
-              onPressed: canRequest
-                  ? (_activeCredit != null
-                      ? _callReturnFromForm
+              key: const Key('tvde_pedir_botao'),
+              label: oQueFalta ??
+                  (_activeCredit != null
+                      ? 'Chamar a volta'.tr
                       : _roundtrip
-                          ? _solicitarRoundtrip
-                          : _onRequestPressed)
-                  : null,
+                          ? _roundtripPriceCents > 0
+                              ? 'Garantir ida e volta · €{0}'.trArgs([(_roundtripPriceCents / 100).toStringAsFixed(2)])
+                              : 'Garantir ida e volta'
+                          : 'Solicitar corrida'),
+              icon: oQueFalta != null
+                  ? Icons.edit_location_alt_outlined
+                  : _activeCredit != null
+                      ? Icons.sync_alt
+                      : _roundtrip
+                          ? Icons.sync_alt
+                          : Icons.local_taxi,
+              loading: _acionando,
+              onPressed: _acionando
+                  ? null
+                  : oQueFalta != null
+                      ? _onPedirIncompleto
+                      : (_activeCredit != null
+                          ? _callReturnFromForm
+                          : _roundtrip
+                              ? _solicitarRoundtrip
+                              : _onRequestPressed),
             ),
             // [Reserva agendada 2026-08-19] "Marcar para depois", ao lado do
             // pedir agora. Botão SECUNDÁRIO de propósito: o laranja do ecrã já
@@ -2898,13 +3097,31 @@ class _ReturnSheetState extends State<_ReturnSheet> {
     super.dispose();
   }
 
-  void _confirm() {
+  // [14/10] Para confirmar a morada escrita sem sugestão tocada (a cliente de
+  // 15/09 escreveu "De onde sais" à mão e a pesquisa veio vazia).
+  final _originKey = GlobalKey<AddressAutocompleteFieldState>();
+  final _destKey = GlobalKey<AddressAutocompleteFieldState>();
+
+  Future<void> _confirm() async {
+    final origemCampo = _originKey.currentState;
+    if (_originCoords == null && (origemCampo?.temTextoPorConfirmar ?? false)) {
+      await origemCampo!.confirmarTextoEscrito();
+      if (!mounted) return;
+    }
+    final destCampo = _destKey.currentState;
+    if ((_destLat == null || _destLng == null) &&
+        (destCampo?.temTextoPorConfirmar ?? false)) {
+      await destCampo!.confirmarTextoEscrito();
+      if (!mounted) return;
+    }
     final o = _originCoords;
     if (o == null) {
+      origemCampo?.pedirFoco();
       setState(() => _error = 'Escolhe de onde sais na lista de sugestões.'.tr);
       return;
     }
     if (_destLat == null || _destLng == null) {
+      destCampo?.pedirFoco();
       setState(() => _error = 'Escolhe o destino na lista de sugestões.'.tr);
       return;
     }
@@ -2949,7 +3166,7 @@ class _ReturnSheetState extends State<_ReturnSheet> {
                 style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
             const SizedBox(height: Spacing.md),
             AddressAutocompleteField(
-              key: const Key('tvde_return_origin'),
+              key: _originKey,
               controller: _origin,
               labelText: 'De onde sais'.tr,
               prefixIcon: const Icon(Icons.my_location, size: 20),
@@ -2971,7 +3188,7 @@ class _ReturnSheetState extends State<_ReturnSheet> {
             ),
             const SizedBox(height: Spacing.md),
             AddressAutocompleteField(
-              key: const Key('tvde_return_dest'),
+              key: _destKey,
               controller: _dest,
               labelText: 'Destino da volta'.tr,
               prefixIcon: const Icon(Icons.place_outlined, size: 20),

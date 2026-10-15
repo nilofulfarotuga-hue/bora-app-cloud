@@ -1,0 +1,1 @@
+[["goto","http://127.0.0.1:8766/"],["type_into","Email","demo.cliente@bora.app"],["type_into","Palavra-passe","$ENV:BORA_DEMO_SENHA"],["click_role","button","Entrar"],["wait",9000],["sem"],["shot","04-home"],["tree","04-home"]]

@@ -1,0 +1,115 @@
+- img
+- 'button "Idioma: português. Toca para mudar para inglês. PT EN"'
+- button
+- text: 10 Olá! Termos e Condições — versão de 01/10/2026 O que precisas hoje?
+- button "Mudar modo"
+- group: "A partir de 1 de outubro de 2026 mudam os Termos e Condições da Bora. O que muda para si: 1. A Bora é uma plataforma de intermediação. Liga-o às lojas (restaurantes, mercados, farmácias e outras) e aos estafetas independentes que fazem as entregas. 2. O valor da entrega pertence ao estafeta. Cada estafeta é um profissional independente, com atividade aberta nas Finanças, e é ele quem presta o serviço de entrega. A Bora recebe esse valor em nome e por conta do estafeta e entrega-lho no acerto semanal. 3. Os produtos pertencem à loja. O preço dos produtos é recebido pela Bora por conta da loja (lojas parceiras) ou corresponde à compra feita em seu nome pelo estafeta (lojas não parceiras). 4. A Bora cobra apenas as suas próprias taxas: taxa de serviço, sacos, taxa de pedido pequeno e a sua comissão ou margem. É sobre essa parte que a Bora emite fatura. 5. Os preços que paga não mudam. O total do pedido continua a ser o que vê no ecrã antes de confirmar. 6. Se indicar o seu NIF, a fatura da parte da Bora sai em seu nome; se não indicar, sai como consumidor final. 7. Problemas com um produto resolvem-se com a loja; problemas com a entrega podem ser comunicados à Bora pelo suporte na app, que os encaminha ao estafeta. Ao tocar em \"Aceito\" confirma que leu e aceita estes termos."
+- group:
+  - text: Recebe avisos do teu pedido
+  - button "Agora não"
+  - text: As notificações estão bloqueadas neste navegador. Ativa-as nas definições do site e volta a abrir a Bora.
+  - button "Entrega em Seleccionar morada"
+  - textbox "O que queres pedir hoje?"
+  - text: Check-in diário Confirma o teu telemóvel para ganhar tokens +5 +5 +10 +10 +15 +15 +40 Dia 1 Dia 2 Dia 3 Dia 4 Dia 5 Dia 6 Dia 7
+  - button "Confirmar telemóvel"
+  - button "Restaurantes"
+  - button "Supermercados"
+  - button "Farmácia"
+  - button "Lojas"
+  - button "Enviar Encomenda"
+  - button "Levar Compras"
+  - button "Favores"
+  - button "Reservar Mesa"
+  - button "Beleza"
+  - button "Limpeza"
+  - button "Bora Motorista"
+  - button "Festas"
+  - button "Sobremesas"
+  - button "Lavagem Auto"
+  - button "Sushi na Guarda Sushi na Guarda Fuku, Jyosmi e Amaya — peça já"
+  - text: Os mais pedidos da Guarda
+  - group:
+    - button "Goola Açaí 2 pedidos este mês"
+    - button "McDonald's 2 pedidos este mês"
+    - button "B Burger King 2 pedidos este mês"
+    - button "Sabores de Casa Açaí 1 pedido este mês"
+    - button "D DaVinci Restaurante & Pizzaria Italiana"
+  - text: Novidades
+  - group:
+    - button "N Natur House Guarda Reeducação alimentar"
+    - button "D DaVinci Restaurante & Pizzaria Italiana"
+    - button "A Amaya Sushi Bar Em breve"
+    - button "T Tiago's Pizza Pizzas"
+    - button "J Jyosmi Sushi Sushi"
+  - text: Sushi
+  - button "Ver tudo"
+  - group:
+    - button "F Fuku Sushi Sushi"
+    - button "A Amaya Sushi Bar Em breve"
+    - button "J Jyosmi Sushi Sushi"
+  - text: Pizza
+  - button "Ver tudo"
+  - group:
+    - button "D DaVinci Restaurante & Pizzaria Italiana"
+    - button "Pôr do Sol Kebab & Pizza House Kebab"
+    - button "T Tiago's Pizza Pizzas"
+  - text: Hambúrguer
+  - button "Ver tudo"
+  - group:
+    - button "McDonald's Fast Food"
+    - button "B Burger King Fast Food"
+    - button "KFC Fast Food"
+  - text: Açaí
+  - button "Ver tudo"
+  - group:
+    - button "Goola Açaí Açaí"
+    - button "Sabores de Casa Açaí Açaí"
+  - text: Todas as lojas
+  - group "Auchan Fechada, abre às 09h00":
+    - button
+  - group "Burger King Fechada, abre às 11h00":
+    - button
+  - group "Continente Fechada, abre às 08h00":
+    - button
+  - group "D DaVinci Restaurante & Pizzaria Fechada, abre às 12h00":
+    - button
+  - group "F Fuku Sushi Fechada, abre às 12h00":
+    - button
+  - group "Goola Açaí Fechada, abre às 10h00":
+    - button
+  - group "Intermarché Fechada, abre às 08h30":
+    - button
+  - group "J Jyosmi Sushi Fechada, abre às 12h00":
+    - button
+  - group "KFC Fechada, abre às 11h00":
+    - button
+  - group "Kiwoko Fechada, abre às 09h00":
+    - button
+  - group "Leonidas Chocolates Guarda Fechada, abre às 09h00":
+    - button
+  - group "Leroy Merlin Fechada, abre às 09h00":
+    - button
+  - group "McDonald's Fechada, abre às 10h00":
+    - button
+  - group "N Natur House Guarda Fechada, abre às 09h30":
+    - button
+  - group "Pingo Doce Fechada, abre às 08h00":
+    - button
+  - group "Pôr do Sol Kebab & Pizza House Fechada, abre às 11h00":
+    - button
+  - group "Sabores de Casa Açaí Fechada, abre às 09h00":
+    - button
+  - group "Sabores do Brasil - Keli Barbosa Aceita encomendas":
+    - button
+  - group "T Tiago's Pizza Fechada, abre às 12h00":
+    - button
+  - group "Wells Fechada, abre às 09h00":
+    - button
+  - button "Ver mais lojas"
+- button "Bora Assistente"
+- button "Aceito"
+- button "Início"
+- button "Entrega"
+- button "Reserva"
+- button "Suporte Bora"
+- button "Perfil"

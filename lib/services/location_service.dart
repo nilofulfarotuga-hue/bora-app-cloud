@@ -32,8 +32,17 @@ class LocationService {
       return null;
     }
     // On web, isLocationServiceEnabled() always returns true; skip the check.
+    // [14/10/2026] Com limite: PADRAO_BORA 1.26 — nenhum `await` sobre
+    // hardware/permissões sem `.timeout`, cada um é um ecrã que pode prender.
     if (!kIsWeb) {
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      bool serviceEnabled;
+      try {
+        serviceEnabled = await Geolocator.isLocationServiceEnabled()
+            .timeout(const Duration(seconds: 5));
+      } catch (e) {
+        debugPrint('LocationService: service check failed => $e');
+        return null;
+      }
       if (!serviceEnabled) {
         debugPrint('LocationService: location services disabled');
         return null;
@@ -50,9 +59,13 @@ class LocationService {
     // outra falha deste metodo.
     LocationPermission permission;
     try {
-      permission = await Geolocator.checkPermission();
+      permission = await Geolocator.checkPermission()
+          .timeout(const Duration(seconds: 5));
       if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
+        // 30 s para a pessoa ler e responder ao pedido do sistema; no
+        // browser o pedido pode ficar sem resposta para sempre.
+        permission = await Geolocator.requestPermission()
+            .timeout(const Duration(seconds: 30));
       }
     } catch (e) {
       debugPrint('LocationService: permission request failed => $e');
@@ -81,8 +94,13 @@ class LocationService {
     }
   }
 
+  /// Test seam: um [http.Client] falso para provar que uma resposta lenta da
+  /// Google não prende o ecrã. Em produção fica null (usa `http.get`).
+  @visibleForTesting
+  static http.Client? httpClientParaTestes;
+
   /// Reverse-geocodes [location] to a human-readable address string via the
-  /// Google Geocoding API. Returns null on failure.
+  /// Google Geocoding API. Returns null on failure (incl. no reply in 8 s).
   static Future<String?> reverseGeocode(LatLng location, String apiKey) async {
     if (apiKey.isEmpty) return null;
 
@@ -98,7 +116,12 @@ class LocationService {
     );
 
     try {
-      final response = await http.get(uri);
+      // [14/10/2026, tvde-pedir-nunca-trava] Sem limite, uma rede fraca
+      // deixava o ecrã "A obter localização…" à espera para sempre. Aos 8 s
+      // desiste: quem chama fica com as coordenadas e põe "Localização atual".
+      final cliente = httpClientParaTestes;
+      final response = await (cliente != null ? cliente.get(uri) : http.get(uri))
+          .timeout(const Duration(seconds: 8));
       if (response.statusCode != 200) {
         debugPrint(
             'LocationService.reverseGeocode: HTTP ${response.statusCode}');

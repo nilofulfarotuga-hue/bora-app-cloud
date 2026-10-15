@@ -1,0 +1,11 @@
+- group:
+  - img "BORA"
+  - img
+  - text: Área do Cliente Iniciar sessão Entre com a sua conta de cliente
+  - textbox "Email"
+  - textbox "Palavra-passe"
+  - button
+  - button "Entrar"
+  - button "Esqueci-me da palavra-passe"
+  - button "Criar conta"
+  - button "← Voltar à escolha de perfil"

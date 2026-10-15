@@ -16,6 +16,21 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 14/10/2026: pedir corrida nunca trava — morada escrita, botão que diz o
+  // que falta (tool/l10n/traducoes/pt-en-17-pedir-nunca-trava.json).
+  'Não encontrei esta morada no mapa. Escolhe uma sugestão ou acrescenta a cidade (ex.: Guarda).':
+      "I couldn't find this address on the map. Pick a suggestion or add the town (e.g. Guarda).",
+  'Morada encontrada no mapa.': 'Address found on the map.',
+  'No mapa: {0}': 'On the map: {0}',
+  'Liga a localização ou escreve a morada': 'Turn on location or type the address',
+  'A procurar a tua localização…': 'Finding your location…',
+  'Escolhe o ponto de recolha': 'Choose the pick-up point',
+  'A calcular o preço…': 'Calculating the price…',
+  'Falta o ponto de recolha: escreve a morada ou escolhe uma das tuas.':
+      'The pick-up point is missing: type the address or choose one of yours.',
+  'Falta o destino: escreve para onde vais ou escolhe uma das tuas moradas.':
+      "The destination is missing: type where you're going or choose one of your addresses.",
+  'Escolhe o destino novo': 'Choose the new destination',
   // 13/10/2026: dívida anterior no cartão do pedido (Os meus pedidos)
   // (tool/l10n/traducoes/pt-en-16-divida-anterior.json).
   'Inclui €{0} de dívida anterior': 'Includes €{0} of previous debt',

@@ -1,0 +1,6 @@
+[["goto","http://127.0.0.1:8766/"],["wait",3000],["sem"],["click_role","button","Agora não"],["wait",1500],["sem"],["click_role","button","Bora Motorista"],["wait",14000],["sem"],
+ ["shot","10-inicio-gps-negado"],["tree","10-inicio-gps-negado"],
+ ["type_into","Ponto de recolha","Av. Cidade de Safed n8 a 1d, Guarda"],["wait",2500],["key","Tab"],["wait",8000],["sem"],["shot","11-recolha-aceite-ao-sair"],["tree","11-recolha-aceite-ao-sair"],
+ ["type_into","Para onde vais?","Av. Rainha D. Amélia 14, Guarda"],["wait",2500],["key","Tab"],["wait",9000],["sem"],["shot","12-destino-so-lisboa-recusado"],["tree","12-destino-so-lisboa-recusado"],
+ ["click_role","button","Escolhe o destino"],["wait",6000],["sem"],["shot","13-botao-diz-o-que-falta"],["tree","13-botao-diz-o-que-falta"],
+ ["type_into","Para onde vais?","Av. Monsenhor Mendes do Carmo nº 5, Guarda"],["wait",2500],["key","Enter"],["wait",15000],["sem"],["shot","14-destino-aceite-preco"],["tree","14-destino-aceite-preco"]]

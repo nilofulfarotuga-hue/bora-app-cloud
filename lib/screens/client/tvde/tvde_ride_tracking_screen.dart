@@ -3238,6 +3238,9 @@ class _AddStopSheetState extends State<_AddStopSheet> {
               AddressAutocompleteField(
                 controller: _controller,
                 labelText: widget.fieldLabel ?? 'Morada da paragem'.tr,
+                // Escolher aqui fecha a folha e cobra/acrescenta a paragem:
+                // só por toque numa sugestão, nunca ao sair do campo.
+                confirmarAoSair: false,
                 onSelected: (address, coords) {
                   if (coords == null) return;
                   Navigator.pop(

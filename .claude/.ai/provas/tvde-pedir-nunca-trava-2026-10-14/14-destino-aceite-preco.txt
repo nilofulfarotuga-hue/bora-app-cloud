@@ -1,0 +1,42 @@
+- button "Voltar"
+- heading "Bora Motorista" [level=2]
+- button "Planos"
+- button "Histórico"
+- button "Queixas"
+- group:
+  - button "Atalhos de teclado"
+  - region "Mapa"
+  - button "Arrasta para ajustar a recolha"
+  - button "Destino"
+  - button "Controlos da câmara do mapa"
+  - link "Abrir esta área no Google Maps (abre uma nova janela)":
+    - /url: https://maps.google.com/maps?ll=40.53998,-7.272391&z=15&t=m&hl=pt-PT&gl=US&mapclient=apiv3
+    - img "Google"
+  - button "Atalhos de teclado"
+  - text: Dados do mapa ©2026
+  - link "Termos (abre num novo separador)":
+    - /url: https://www.google.com/intl/pt-PT_US/help/terms_maps.html
+    - text: Termos
+  - link "Comunicar um erro no mapa (abre num novo separador)":
+    - /url: https://www.google.com/maps/@40.5399797,-7.2723909,15z/data=!10m1!1e1!12b1?source=apiv3&rapsrc=apiv3
+    - text: Comunicar um erro no mapa
+  - button
+  - textbox "Ponto de recolha": Av. Cidade de Safed n8 a 1d, Guarda
+  - text: "No mapa: Av. Cidade de Safed, Guarda, Portugal"
+  - button "Usar a minha localização"
+  - group:
+    - checkbox "Hospital Sousa Martins, Guarda (TESTE ROBÔ) Hospital Sousa Martins"
+  - textbox "Para onde vais?": Av. Monsenhor Mendes do Carmo nº 5, Guarda
+  - text: "No mapa: Av. Monsenhor Mendes do Carmo 5, 6300-586 Guarda, Portugal"
+  - group:
+    - checkbox "Hospital Sousa Martins, Guarda (TESTE ROBÔ) Hospital Sousa Martins"
+  - text: Valor estimado €5.00 · 1.0 km · ~2 min
+  - button "Ver como é calculado"
+  - switch "Garantir a volta Ida + volta por €8.00 · poupas €2.00"
+  - button "Solicitar corrida"
+  - button "Marcar para depois"
+  - text: Escolhes como pagar depois de solicitares.
+  - button "As minhas reservas"
+  - button "Planos Bora Motorista Corridas incluídas por dia a partir de €3. Vê e adere."
+  - button "Queixas e reclamações"
+  - button "Sobre o operador da plataforma"

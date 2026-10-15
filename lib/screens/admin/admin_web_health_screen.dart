@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../utils/hora_lisboa_ext.dart';
 
 /// Saúde da Web (PT-BR) — missão endereco-web-2026-08-31.
@@ -29,6 +30,7 @@ class _AdminWebHealthScreenState extends State<AdminWebHealthScreen> {
     'sem_resultados': 'Busca sem resultados',
     'geocode_manual_falhou': 'Endereço manual sem coordenadas',
     'proxy_falhou': 'Plano B (servidor) falhou',
+    'pedido_travado': 'Cliente tentou pedir e não conseguiu',
   };
 
   static const Map<String, IconData> _motivoIcone = {
@@ -37,7 +39,42 @@ class _AdminWebHealthScreenState extends State<AdminWebHealthScreen> {
     'sem_resultados': Icons.search_off,
     'geocode_manual_falhou': Icons.location_off,
     'proxy_falhou': Icons.cloud_off,
+    'pedido_travado': Icons.do_not_disturb_on_outlined,
   };
+
+  /// [14/10, tvde-pedir-nunca-trava] Porque é que o pedido travou, em PT-BR.
+  static const Map<String, String> _travadoLabel = {
+    'sem_recolha': 'faltou o ponto de partida',
+    'sem_destino': 'faltou o destino',
+    'geocode_falhou': 'endereço escrito não encontrado no mapa',
+    'gps_falhou': 'GPS desligado ou negado',
+  };
+
+  /// Clientes com pedido travado no período, o mais recente primeiro: um
+  /// cartão por pessoa, com quantas vezes, porquê e o telefone para ligar.
+  List<Map<String, dynamic>> get _clientesTravados {
+    final porCliente = <String, Map<String, dynamic>>{};
+    for (final e in _eventos) {
+      if (e['motivo'] != 'pedido_travado') continue;
+      final chave = e['user_id']?.toString() ?? 'sem_login';
+      final atual = porCliente.putIfAbsent(
+          chave,
+          () => {
+                'user_id': e['user_id'],
+                'nome': e['nome'],
+                'telefone': e['telefone'],
+                'email': e['email'],
+                'plataforma': e['plataforma'],
+                'ultimo': e['criado_em'],
+                'vezes': 0,
+                'motivos': <String>{},
+              });
+      atual['vezes'] = (atual['vezes'] as int) + 1;
+      (atual['motivos'] as Set<String>).add(
+          _travadoLabel[e['detalhe']] ?? (e['detalhe']?.toString() ?? '?'));
+    }
+    return porCliente.values.toList();
+  }
 
   @override
   void initState() {
@@ -51,17 +88,31 @@ class _AdminWebHealthScreenState extends State<AdminWebHealthScreen> {
       _erro = null;
     });
     try {
-      final desde =
-          DateTime.now().subtract(Duration(days: _dias)).toUtc().toIso8601String();
-      final rows = await Supabase.instance.client
-          .from('web_health_events')
-          .select()
-          .gte('criado_em', desde)
-          .order('criado_em', ascending: false)
-          .limit(300);
+      final sb = Supabase.instance.client;
+      List rows;
+      try {
+        // [14/10] Com nome, telefone e email do cliente (RPC só-admin).
+        rows = await sb.rpc('admin_web_health_eventos',
+            params: {'p_dias': _dias}) as List;
+      } catch (e) {
+        // RPC ainda não aplicada no banco: lê a tabela como antes (sem nome).
+        debugPrint('AdminWebHealth: RPC indisponível, leitura direta => $e');
+        final desde = DateTime.now()
+            .subtract(Duration(days: _dias))
+            .toUtc()
+            .toIso8601String();
+        rows = await sb
+            .from('web_health_events')
+            .select()
+            .gte('criado_em', desde)
+            .order('criado_em', ascending: false)
+            .limit(300);
+      }
       if (!mounted) return;
       setState(() {
-        _eventos = List<Map<String, dynamic>>.from(rows as List);
+        _eventos = [
+          for (final r in rows) Map<String, dynamic>.from(r as Map),
+        ];
         _loading = false;
       });
     } catch (e) {
@@ -100,8 +151,7 @@ class _AdminWebHealthScreenState extends State<AdminWebHealthScreen> {
           padding: const EdgeInsets.all(16),
           children: [
             const Text(
-              'Falhas do campo de endereço e do carregamento do Google na '
-              'web, registradas direto do navegador dos clientes.',
+              'Clientes que tocaram em pedir e não conseguiram, e falhas do campo de endereço, registradas direto do app e do navegador dos clientes.',
               style: TextStyle(fontSize: 13, color: Colors.grey),
             ),
             const SizedBox(height: 12),
@@ -142,6 +192,46 @@ class _AdminWebHealthScreenState extends State<AdminWebHealthScreen> {
                 ),
               )
             else ...[
+              // [14/10] Primeiro quem precisa de uma ligação: clientes que
+              // tentaram pedir e não conseguiram.
+              if (_clientesTravados.isNotEmpty) ...[
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 6),
+                  child: Text('Clientes que não conseguiram pedir',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+                for (final c in _clientesTravados)
+                  Card(
+                    color: Colors.orange.shade50,
+                    child: ListTile(
+                      leading: const Icon(Icons.do_not_disturb_on_outlined,
+                          color: Colors.deepOrange),
+                      title: Text(
+                        (c['nome']?.toString().trim().isNotEmpty ?? false)
+                            ? c['nome'].toString()
+                            : c['user_id'] == null
+                                ? 'Sem login'
+                                : 'Cliente ${c['user_id'].toString().substring(0, 8)}…',
+                      ),
+                      subtitle: Text([
+                        '${c['vezes']}x — ${(c['motivos'] as Set<String>).join(', ')}',
+                        if (c['plataforma'] != null) c['plataforma'].toString(),
+                        if (c['email'] != null) c['email'].toString(),
+                      ].join(' · ')),
+                      trailing: c['telefone'] == null
+                          ? Text(_formatarData(c['ultimo']?.toString()),
+                              style: const TextStyle(
+                                  fontSize: 12, color: Colors.grey))
+                          : TextButton.icon(
+                              onPressed: () => launchUrl(
+                                  Uri.parse('tel:${c['telefone']}')),
+                              icon: const Icon(Icons.phone, size: 18),
+                              label: Text(c['telefone'].toString()),
+                            ),
+                    ),
+                  ),
+                const SizedBox(height: 8),
+              ],
               // Resumo por motivo
               Card(
                 child: Padding(
@@ -187,11 +277,15 @@ class _AdminWebHealthScreenState extends State<AdminWebHealthScreen> {
                     subtitle: Text([
                       if (e['ecra'] != null) 'Campo: ${e['ecra']}',
                       if (e['plataforma'] != null) e['plataforma'].toString(),
-                      if (e['user_id'] != null)
+                      if (e['nome'] != null && e['nome'].toString().trim().isNotEmpty)
+                        e['nome'].toString()
+                      else if (e['user_id'] != null)
                         'user ${e['user_id'].toString().substring(0, 8)}…'
                       else
                         'sem login',
-                      if (e['detalhe'] != null) e['detalhe'].toString(),
+                      if (e['telefone'] != null) e['telefone'].toString(),
+                      if (e['detalhe'] != null)
+                        _travadoLabel[e['detalhe']] ?? e['detalhe'].toString(),
                     ].join(' · ')),
                     trailing: Text(_formatarData(e['criado_em']?.toString()),
                         style:

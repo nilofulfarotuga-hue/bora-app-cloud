@@ -455,6 +455,98 @@ class _WebPlaceAutocompleteService extends PlaceAutocompleteService {
     }
   }
 
+  /// Morada escrita à mão (missão tvde-pedir-nunca-trava, 14/10): Geocoder do
+  /// SDK com a caixa da Guarda como viés, fica com o melhor resultado na
+  /// Guarda e com a morada formatada. SDK fora → servidor (só coordenadas).
+  @override
+  Future<MoradaGeocodificada?> geocodeComMorada(String address) async {
+    final texto = address.trim();
+    if (texto.isEmpty) return null;
+
+    Future<MoradaGeocodificada?> peloServidor() async {
+      final c = await _proxyLatLng({'acao': 'geocode', 'morada': texto});
+      return c == null ? null : MoradaGeocodificada(c);
+    }
+
+    js.JsFunction? geocoderCtor;
+    try {
+      final googleRaw = js.context['google'];
+      final mapsRaw = googleRaw is js.JsObject ? googleRaw['maps'] : null;
+      final ctor = mapsRaw is js.JsObject ? mapsRaw['Geocoder'] : null;
+      if (ctor is js.JsFunction) geocoderCtor = ctor;
+    } catch (_) {}
+    if (geocoderCtor == null) return peloServidor();
+
+    const d = 0.27; // ~30 km à volta do centro da Guarda
+    final completer = Completer<List<CandidatoGeocode>?>();
+    try {
+      js.JsObject(geocoderCtor).callMethod('geocode', [
+        js.JsObject.jsify({
+          'address': texto,
+          'region': 'pt',
+          'componentRestrictions': {'country': 'PT'},
+          'bounds': {
+            'south': kGuardaBiasLat - d,
+            'west': kGuardaBiasLng - d,
+            'north': kGuardaBiasLat + d,
+            'east': kGuardaBiasLng + d,
+          },
+        }),
+        (dynamic results, dynamic status) {
+          if (completer.isCompleted) return;
+          if (status?.toString() != 'OK' || results == null) {
+            completer.complete(status?.toString() == 'ZERO_RESULTS'
+                ? const <CandidatoGeocode>[]
+                : null);
+            return;
+          }
+          try {
+            final arr = results as js.JsArray;
+            final lista = <CandidatoGeocode>[];
+            for (var i = 0; i < arr.length; i++) {
+              final r = arr[i] as js.JsObject;
+              final loc = (r['geometry'] as js.JsObject?)?['location']
+                  as js.JsObject?;
+              if (loc == null) continue;
+              final tipos = r['types'];
+              lista.add(CandidatoGeocode(
+                coords: ll.LatLng(
+                  (loc.callMethod('lat', const []) as num).toDouble(),
+                  (loc.callMethod('lng', const []) as num).toDouble(),
+                ),
+                morada: r['formatted_address']?.toString() ?? '',
+                tipos: tipos is js.JsArray
+                    ? [for (final t in tipos) t.toString()]
+                    : const <String>[],
+              ));
+            }
+            completer.complete(lista);
+          } catch (_) {
+            completer.complete(null);
+          }
+        },
+      ]);
+    } catch (_) {
+      return peloServidor();
+    }
+
+    List<CandidatoGeocode>? candidatos;
+    try {
+      candidatos = await completer.future.timeout(const Duration(seconds: 8));
+    } catch (_) {
+      candidatos = null;
+    }
+    // Erro do SDK (quota do browser, rede) → servidor. ZERO_RESULTS é resposta.
+    if (candidatos == null) return peloServidor();
+    final melhor = escolherMelhorNaGuarda(candidatos,
+        exigirGuarda: textoPedeGuarda(texto), textoPesquisado: texto);
+    if (melhor == null) return null;
+    return MoradaGeocodificada(
+      melhor.coords,
+      morada: melhor.morada.isEmpty ? null : melhor.morada,
+    );
+  }
+
   // ─── session / lifecycle ───────────────────────────────────────────────────
 
   @override

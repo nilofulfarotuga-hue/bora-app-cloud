@@ -1,0 +1,1 @@
+[["goto","http://127.0.0.1:8766/"],["click_role","button","Aceitar tudo"],["wait",1500],["click_role","button","Sou Cliente"],["wait",4000],["sem"],["shot","02-cliente"],["tree","02-cliente"]]

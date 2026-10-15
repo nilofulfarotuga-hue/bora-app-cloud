@@ -1,0 +1,41 @@
+- button "Voltar"
+- heading "Bora Motorista" [level=2]
+- button "Planos"
+- button "Histórico"
+- button "Queixas"
+- group:
+  - button "Atalhos de teclado"
+  - region "Mapa"
+  - button "Arrasta para ajustar a recolha"
+  - button "Controlos da câmara do mapa"
+  - link "Abrir esta área no Google Maps (abre uma nova janela)":
+    - /url: https://maps.google.com/maps?ll=40.5373,-7.2657&z=15&t=m&hl=pt-PT&gl=US&mapclient=apiv3
+    - img "Google"
+  - button "Atalhos de teclado"
+  - text: Dados do mapa ©2026
+  - link "Termos (abre num novo separador)":
+    - /url: https://www.google.com/intl/pt-PT_US/help/terms_maps.html
+    - text: Termos
+  - link "Comunicar um erro no mapa (abre num novo separador)":
+    - /url: https://www.google.com/maps/@40.5373,-7.2657,15z/data=!10m1!1e1!12b1?source=apiv3&rapsrc=apiv3
+    - text: Comunicar um erro no mapa
+  - button
+  - textbox "Ponto de recolha": Av. Cidade de Safed n8 a 1d, Guarda
+  - text: Liga a localização ou escreve a morada
+  - button "Usar a minha localização"
+  - group:
+    - checkbox "Hospital Sousa Martins, Guarda (TESTE ROBÔ) Hospital Sousa Martins"
+  - textbox "Para onde vais?"
+  - group:
+    - checkbox "Hospital Sousa Martins, Guarda (TESTE ROBÔ) Hospital Sousa Martins"
+  - text: Valor estimado Escolhe o destino
+  - switch "Garantir a volta Escolhe o destino para ver o preço do pacote." [disabled]
+  - button "Escolhe o ponto de recolha"
+  - button "Marcar para depois" [disabled]
+  - text: Escolhes como pagar depois de solicitares.
+  - button "As minhas reservas"
+  - button "Planos Bora Motorista Corridas incluídas por dia a partir de €3. Vê e adere."
+  - button "Queixas e reclamações"
+  - button "Sobre o operador da plataforma"
+- group:
+  - button "Av. Cidade de Safed n8 a 1d Guarda, Portugal"

@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-14
+ultima_confirmacao: 2026-10-15
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-14T19:57:50.334858+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-15T19:54:35.387832+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -152,3 +152,12 @@ A CONFERIR ANTES DE PRODUZIR: cronometrar a marcação na app ("1 minuto" não f
 - FILME: prompts de movimento só com 3 coisas (ver caminhos-animacao-filme). https://www.youtube.com/watch?v=vQvHauaboug
 - JÁ TEMOS: Free Claude Code (= OpenCode com GLM + Hermes no Telegram), REA (2 vídeos, registado 13/10), Claude Dashboards (11/10), executor+supervisor (= fiscal dos reels), Claude Design/sites com maquete, vídeos longos em blocos no Flow (caminhos 1/2/5).
 - RECUSADO: DeepSeek Harness/créditos promocionais, Golpo AI (paga), Seedance 2.5/Zooi, Blender 3D, geradores de vídeo genéricos de sites desconhecidos, bot de contas premium baratas pagas em cripto.
+
+## 15/10/2026 — radar diário
+20 vídeos revistos: 4 novos, 10 já temos, 6 rejeitados (3 por nota baixa). Nenhum do tema animacao_ia.
+- SISTEMA: OpenCode 2.0 — atualizar o OpenCode (GLM) e testar a sessão no telemóvel por QR + um subagente revisor fixo que revê o código antes de cada entrega. https://www.youtube.com/watch?v=uEzcR7M2RRw
+- SISTEMA (gastar menos): Free LLM API — um só endpoint que roda por ~34 fornecedores grátis; testar na VPS como reserva barata do Hermes/OpenCode só em tarefas sem dados de clientes e confirmar que nenhum pede cartão. https://www.youtube.com/watch?v=_OhfJUhmXY4
+- SISTEMA: skills de análise só leitura (sem ferramentas de escrita) para rever logs/código do Bora sem risco; scripts determinísticos dentro das skills para tarefas repetidas. https://www.youtube.com/watch?v=n9CSSSir3fE
+- BORA (Instagram): destaques fixos Como funciona / Opiniões de clientes / Zonas da Guarda servidas. https://www.youtube.com/watch?v=vuHBPE5McrU
+- JÁ TEMOS: mods do Claude Code (5 vídeos hoje; reforço: editar o .env por mod sem a chave passar pelo chat, e nunca instalar mods de terceiros sem ler o código), plan with files (= spec.md), Higgsfield/Genjutsu e imagem-antes-do-vídeo, sites com maquete (Crify), dores no gancho/perfil como página de vendas.
+- RECUSADO: Rigipo (Unreal), Quasimodo e Kimodo CPP (3D descartado), TikTok Shop afiliados, lista genérica de programas grátis.

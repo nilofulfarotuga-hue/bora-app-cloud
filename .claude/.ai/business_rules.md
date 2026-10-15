@@ -76,6 +76,12 @@
 
 ### 2.4.1 Fluxo: Parceiro chama estafeta por conta própria (IMPLEMENTADO 2026-05-21)
 
+**Acerto implementado e ligado a 15/10/2026** — o fecho reconhece estes pedidos pela
+função `pedido_parceiro_chamou(is_partner_store, order_type, user_id)` (a mesma regra
+de `OrderModel.isPartnerSelfDispatch`) e o interruptor
+`dispatch_parceiro_chama_estafeta_ligado` está `true`. Prova em transacção desfeita:
+8,98 € a 2 km → total 12,83 €, estafeta +4,20 €, loja deve 3,85 €.
+
 Aplica-se quando o parceiro usa o botão **"chamar estafeta"** no seu painel
 (cliente comprou direto com o parceiro por telefone/WhatsApp). Implementação
 em `OrderStore.createPartnerDeliveryRequest` ([lib/stores/order_store.dart](lib/stores/order_store.dart)).

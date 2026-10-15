@@ -6,7 +6,7 @@ const https = require('https');
 
 const SITE_URL = 'https://bora-app-web.pages.dev';
 const SUPABASE_URL = 'https://ojykpzwqrtusfeakzrna.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeWtwendxcnR1c2ZlYWt6cm5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwMDA3MjgsImV4cCI6MjA4ODU3NjcyOH0.-yrhHFZV4bfjBagI5W-c1AvmP8Xkzs1kf2xuxPwdBh4';
+const SUPABASE_ANON = process.env.SUPABASE_ANON_KEY;
 const RUN_ID = 'WEB-E2E-2026-07-21';
 const BASE_DIR = path.resolve(__dirname);
 const VIDEOS_DIR = path.join(BASE_DIR, 'videos');

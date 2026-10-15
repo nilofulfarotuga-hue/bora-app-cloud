@@ -3,7 +3,8 @@
 # Evita ler SQL no contexto — usa REST API com service_role key
 
 $SupabaseUrl = "https://ojykpzwqrtusfeakzrna.supabase.co"
-$ServiceKey  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeWtwendxcnR1c2ZlYWt6cm5hIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzAwMDcyOCwiZXhwIjoyMDg4NTc2NzI4fQ.TFbiYG1SQEB5gNpUb1721mvkL5JU7hJaSsrru4KkE8A"
+$ServiceKey  = $env:SUPABASE_SERVICE_ROLE_KEY
+if (-not $ServiceKey) { throw "Defina SUPABASE_SERVICE_ROLE_KEY no ambiente (nunca no repo)" }
 $RestaurantId = "mercadona-guarda"
 $BatchSize = 100
 

@@ -16,6 +16,27 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 15/10/2026: Receita do Dia (Bora Todo Dia) — cartão da home e ecrã da
+  // receita (tool/l10n/traducoes/pt-en-19-receita-do-dia.json).
+  'Receita do dia': 'Recipe of the day',
+  '{0} ingredientes': '{0} ingredients',
+  'Ingredientes': 'Ingredients',
+  'Como fazer': 'How to make it',
+  'Avisar-me todos os dias às {0}h': 'Remind me every day at {0}:00',
+  'Uma notificação com a receita do dia. Desligas quando quiseres.':
+      'One notification with the recipe of the day. Turn it off whenever you like.',
+  'A procurar o mais barato…': 'Finding the cheapest…',
+  'Pôr no carrinho': 'Add to cart',
+  'Não foi possível gravar agora. Tenta outra vez.':
+      'Could not save right now. Please try again.',
+  'Escolhe primeiro a tua morada de entrega na página inicial.':
+      'First choose your delivery address on the home screen.',
+  'Não encontrámos estes ingredientes nos supermercados agora. Tenta mais tarde.':
+      'We could not find these ingredients in the supermarkets right now. Try again later.',
+  'No carrinho do {0}': 'In your {0} cart',
+  'Não há: {0}.': 'Not available: {0}.',
+  'Não foi possível montar o carrinho agora. Tenta outra vez.':
+      'Could not build the cart right now. Please try again.',
   // 15/10/2026: pesquisa única — a lupa leva também ao motorista, à limpeza e
   // aos serviços (tool/l10n/traducoes/pt-en-18-pesquisa-unica.json).
   'Lojas, produtos, serviços, motorista…': 'Shops, products, services, driver…',

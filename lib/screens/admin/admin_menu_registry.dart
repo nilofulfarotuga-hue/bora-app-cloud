@@ -31,6 +31,7 @@ import 'admin_opcoes_produto_screen.dart';
 import 'admin_maiores_18_screen.dart';
 import 'admin_reativacao_screen.dart';
 import 'admin_checkin_screen.dart';
+import 'admin_receitas_screen.dart';
 import 'admin_support_escalations_screen.dart';
 import 'admin_tvde_chats_screen.dart';
 import 'admin_connect_payments_screen.dart';
@@ -990,6 +991,15 @@ List<AdminMenuSection> adminMenuSections() => [
       color: AppColors.primary,
       builder: () => const AdminCheckinScreen(),
       keywords: const ['checkin', 'check-in', 'diario', 'sequencia', 'streak', 'tokens', 'todo dia', 'lembrete'],
+    ),
+    AdminMenuItem(
+      id: 'clientes_receita_do_dia',
+      title: 'Receita do dia',
+      subtitle: 'Bora Todo Dia: criar, editar e agendar receitas, ligar/desligar, hora do aviso diário e quem pediu o aviso',
+      icon: Icons.restaurant_menu,
+      color: AppColors.primary,
+      builder: () => const AdminReceitasScreen(),
+      keywords: const ['receita', 'receitas', 'cozinha', 'todo dia', 'aviso', 'ingredientes', 'carrinho'],
     ),
     AdminMenuItem(
       id: 'clientes_personalizacao',

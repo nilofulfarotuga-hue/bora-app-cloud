@@ -25,6 +25,7 @@ import '../widgets/web_push_card.dart';
 import '../widgets/bora/bora.dart';
 import '../widgets/bora_assistant_fab.dart';
 import '../widgets/home/checkin_diario_card.dart';
+import '../widgets/home/receita_do_dia_card.dart';
 import '../widgets/home/home_feed.dart';
 import '../widgets/language_toggle.dart';
 import '../widgets/notification_bell.dart';
@@ -414,6 +415,11 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                   // dias. Some sozinho se o servidor o tiver desligado.
                   CheckinDiarioCard(
                     key: ValueKey('checkin-${authStore.userId ?? ''}'),
+                  ),
+                  // Bora Todo Dia (15/10): receita do dia; some sozinha se o
+                  // servidor a tiver desligado.
+                  ReceitaDoDiaCard(
+                    key: ValueKey('receita-${authStore.userId ?? ''}'),
                   ),
                   _buildCategoryGrid(context),
                   const SizedBox(height: Spacing.xl),

@@ -1,0 +1,27 @@
+Proposta (zona vermelha — a tranca bora-mods recusou a edição directa a 16/10/2026):
+a Edge Function de reembolso passa a aceitar também a chave secreta nova da Supabase
+(sb_secret, que não é JWT), validada em _shared/chaves.ts. Sem isto, depois da troca no
+cofre, os cancelamentos de marcações/reservas (client_cancel_appointment,
+client_cancel_reservation, partner_cancel_appointment) deixam de conseguir devolver dinheiro.
+Aplicar com: git apply .claude/.ai/missoes/chave-nova-16-10/propostas/proposta-reembolso-edge.patch
+
+--- a/supabase/functions/refund/index.ts
++++ b/supabase/functions/refund/index.ts
+@@ -1,6 +1,7 @@
+ import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
+ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+ import { corsHeaders } from '../_shared/cors.ts';
++import { chamadaDoServidor } from '../_shared/chaves.ts';
+
+ const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
+   apiVersion: '2023-10-16',
+@@ -25,7 +26,8 @@
+   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+
+   const role = jwtRole(req.headers.get('authorization') ?? '');
+-  if (role !== 'service_role') {
++  // 16/10/2026 (chave nova): a chave secreta nova (sb_secret) não é JWT — ver _shared/chaves.ts
++  if (role !== 'service_role' && !(await chamadaDoServidor(req))) {
+     return new Response(JSON.stringify({ error: 'unauthorized: admin only' }),
+       { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+   }

@@ -9,6 +9,7 @@
 // Body: { user_ids: string[], title: string, body: string, type?: string }
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { chamadaDoServidor } from '../_shared/chaves.ts'
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -26,11 +27,14 @@ Deno.serve(async (req) => {
   if (!fbProject || !fbSa) return json({ ok: false, error: 'firebase_not_configured' }, 500)
 
   const auth = req.headers.get('Authorization') ?? ''
-  try {
-    const p = JSON.parse(atob(auth.substring(7).split('.')[1]))
-    if (p.role !== 'service_role') throw new Error('role')
-  } catch (_e) {
-    return json({ ok: false, error: 'forbidden' }, 403)
+  // 16/10/2026 (chave nova): aceita também a chave secreta nova (sb_secret) em Bearer/apikey — ver _shared/chaves.ts
+  if (!(await chamadaDoServidor(req))) {
+    try {
+      const p = JSON.parse(atob(auth.substring(7).split('.')[1]))
+      if (p.role !== 'service_role') throw new Error('role')
+    } catch (_e) {
+      return json({ ok: false, error: 'forbidden' }, 403)
+    }
   }
 
   const b = await req.json().catch(() => ({}))

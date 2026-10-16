@@ -1,5 +1,7 @@
 // Vetorização privada do Córtex usando o segredo Gemini já mantido no Supabase.
 // A função aceita somente o service_role; nenhum cliente final a chama diretamente.
+import { chamadaDoServidor } from '../_shared/chaves.ts';
+
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 const GEMINI_KEY = Deno.env.get('GEMINI_API_KEY') || '';
@@ -35,7 +37,8 @@ Deno.serve(async (req) => {
   const bearer = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
   let role = '';
   try { role = JSON.parse(atob((bearer.split('.')[1] || '').replace(/-/g, '+').replace(/_/g, '/'))).role || ''; } catch { /* gateway also validates JWT */ }
-  if (!SERVICE_KEY || role !== 'service_role') return reply({ error: 'forbidden' }, 403);
+  // 16/10/2026 (chave nova): aceita também a chave secreta nova (sb_secret) em Bearer/apikey — ver _shared/chaves.ts
+  if (!SERVICE_KEY || (role !== 'service_role' && !(await chamadaDoServidor(req)))) return reply({ error: 'forbidden' }, 403);
   if (!GEMINI_KEY) return reply({ error: 'embedding_not_configured' }, 503);
   let body: { action?: string; texts?: string[]; query?: string; limit?: number } = {};
   try { body = await req.json(); } catch { return reply({ error: 'bad_json' }, 400); }

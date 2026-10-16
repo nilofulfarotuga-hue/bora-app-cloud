@@ -29,6 +29,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { lerPagoDoPedido } from '../_shared/cobranca_stripe.ts';
+import { chamadaDoServidor } from '../_shared/chaves.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -144,11 +145,14 @@ Deno.serve(async (req) => {
 
   // Auth: service_role apenas (mesmo padrao do notify-admin-urgent).
   const auth = req.headers.get('Authorization') ?? '';
-  try {
-    const payload = JSON.parse(atob(auth.replace(/^Bearer\s+/i, '').split('.')[1]));
-    if (payload.role !== 'service_role') return json({ ok: false, error: 'forbidden' }, 403);
-  } catch (_) {
-    return json({ ok: false, error: 'forbidden' }, 403);
+  // 16/10/2026 (chave nova): aceita também a chave secreta nova (sb_secret) em Bearer/apikey — ver _shared/chaves.ts
+  if (!(await chamadaDoServidor(req))) {
+    try {
+      const payload = JSON.parse(atob(auth.replace(/^Bearer\s+/i, '').split('.')[1]));
+      if (payload.role !== 'service_role') return json({ ok: false, error: 'forbidden' }, 403);
+    } catch (_) {
+      return json({ ok: false, error: 'forbidden' }, 403);
+    }
   }
 
   // Kill switch (fail-closed: setting em falta/false = nao corre).

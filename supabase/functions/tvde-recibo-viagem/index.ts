@@ -18,6 +18,7 @@
 // Resultado registado em tvde_recibos_email (ok / motivo) — sem falha muda.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { chamadaDoServidor } from '../_shared/chaves.ts'
 
 const EMAIL_FROM = 'Bora <recibos@boraguarda.com>'
 
@@ -45,6 +46,8 @@ Deno.serve(async (req) => {
     const p = JSON.parse(atob(authHeader.substring(7).split('.')[1]))
     isService = p.role === 'service_role'
   } catch (_e) {}
+  // 16/10/2026 (chave nova): aceita também a chave secreta nova (sb_secret) em Bearer/apikey — ver _shared/chaves.ts
+  if (!isService) isService = await chamadaDoServidor(req)
 
   const admin = createClient(supabaseUrl, serviceKey)
   let recibo: any = null

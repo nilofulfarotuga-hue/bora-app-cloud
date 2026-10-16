@@ -10,6 +10,7 @@
 
 // @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { chamadaDoServidor } from '../_shared/chaves.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -107,7 +108,8 @@ Deno.serve(async (req: Request) => {
 
   // v4: tentar service_role via decode JWT primeiro (cron usa este caminho)
   const jwtRole = decodeJwtRole(token);
-  if (jwtRole === 'service_role') {
+  // 16/10/2026 (chave nova): aceita também a chave secreta nova (sb_secret) em Bearer/apikey — ver _shared/chaves.ts
+  if (jwtRole === 'service_role' || (await chamadaDoServidor(req))) {
     isService = true;
   } else {
     const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {

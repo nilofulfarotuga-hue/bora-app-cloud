@@ -30,6 +30,7 @@
 // pelo tray e o handler Flutter nao corre (cicatriz de 31/07 e 04/09).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { chamadaDoServidor } from '../_shared/chaves.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -68,10 +69,15 @@ Deno.serve(async (req) => {
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
   const authHeader = req.headers.get('Authorization') ?? ''
+  // 16/10/2026: a chave secreta nova da Supabase (sb_secret) não é JWT; valida-se em _shared/chaves.ts
+  // (comparação em tempo constante; a legada só passa confirmada no Auth)
+  const chaveNovaOk = await chamadaDoServidor(req)
   try {
-    if (!authHeader.startsWith('Bearer ')) throw new Error('no bearer')
-    const payload = JSON.parse(atob(authHeader.substring(7).split('.')[1]))
-    if (payload.role !== 'service_role') throw new Error('role')
+    if (!chaveNovaOk && !authHeader.startsWith('Bearer ')) throw new Error('no bearer')
+    if (!chaveNovaOk) {
+      const payload = JSON.parse(atob(authHeader.substring(7).split('.')[1]))
+      if (payload.role !== 'service_role') throw new Error('role')
+    }
   } catch (_e) {
     return new Response(JSON.stringify({ ok: false, error: 'forbidden' }),
       { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })

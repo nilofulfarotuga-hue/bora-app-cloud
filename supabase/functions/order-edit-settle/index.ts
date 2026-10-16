@@ -33,6 +33,7 @@
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import { chamadaDoServidor } from '../_shared/chaves.ts';
 
 const STRIPE_MODE = (Deno.env.get('BORA_STRIPE_MODE') ?? 'live').toLowerCase();
 const stripeSecretKey = STRIPE_MODE === 'test'

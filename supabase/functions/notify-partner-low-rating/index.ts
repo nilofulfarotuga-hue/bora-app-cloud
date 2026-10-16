@@ -20,6 +20,7 @@
 // Returns 200 always (FCM failures logged, not thrown).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { chamadaDoServidor } from '../_shared/chaves.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -37,26 +38,29 @@ Deno.serve(async (req) => {
 
   // Auth — verify_jwt=true valida signature; aqui confirma role
   const authHeader = req.headers.get('Authorization') ?? ''
-  if (!authHeader.startsWith('Bearer ')) {
-    return new Response(
-      JSON.stringify({ ok: false, error: 'forbidden' }),
-      { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    )
-  }
-  try {
-    const token   = authHeader.substring(7)
-    const payload = JSON.parse(atob(token.split('.')[1]))
-    if (payload.role !== 'service_role') {
+  // 16/10/2026 (chave nova): aceita também a chave secreta nova (sb_secret) em Bearer/apikey — ver _shared/chaves.ts
+  if (!(await chamadaDoServidor(req))) {
+    if (!authHeader.startsWith('Bearer ')) {
       return new Response(
         JSON.stringify({ ok: false, error: 'forbidden' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
-  } catch (_e) {
-    return new Response(
-      JSON.stringify({ ok: false, error: 'forbidden' }),
-      { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    )
+    try {
+      const token   = authHeader.substring(7)
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      if (payload.role !== 'service_role') {
+        return new Response(
+          JSON.stringify({ ok: false, error: 'forbidden' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
+      }
+    } catch (_e) {
+      return new Response(
+        JSON.stringify({ ok: false, error: 'forbidden' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
   }
 
   let ratingId: string

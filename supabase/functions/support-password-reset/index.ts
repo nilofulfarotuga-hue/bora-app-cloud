@@ -19,6 +19,7 @@
 //   * regista em `admin_audit_log` quem disparou.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { secretKey } from '../_shared/keys.ts';
 // CORS inline (em vez de ../_shared/cors.ts): esta funcao e' deployada
 // isoladamente pelo MCP, que nao resolve dependencias relativas. Valores
 // identicos aos de _shared/cors.ts.
@@ -30,7 +31,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const SUPABASE_SERVICE_ROLE_KEY = secretKey()!;
 
 // ⚠️ URL CANÓNICA — tem de bater certo com lib/config/auth_links.dart e estar
 // na allow-list "Redirect URLs" do Supabase Auth. Não alterar sem alterar lá.

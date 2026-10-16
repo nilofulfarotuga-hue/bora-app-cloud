@@ -10,6 +10,7 @@
 //  - Aceita customTitle/customBody (reservas) e restaurant_id/title/body.
 // v21 fix: partner_push_tokens usa 'partner_id' nao 'user_id'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { secretKey } from '../_shared/keys.ts'
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -32,7 +33,7 @@ Deno.serve(async (req) => {
   const firebaseProjectId = Deno.env.get('FIREBASE_PROJECT_ID')
   const firebaseServiceAcct = Deno.env.get('FIREBASE_SERVICE_ACCOUNT')
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  const serviceKey = secretKey()!
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
   console.log('[notify-partner] v24 INVOKED')
   let restaurantId, orderId, items, total, customerName, kind, customTitle, customBody

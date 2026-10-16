@@ -19,6 +19,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { chamadaDoServidor } from '../_shared/chaves.ts'
+import { secretKey } from '../_shared/keys.ts'
 
 const EMAIL_FROM = 'Bora <recibos@boraguarda.com>'
 
@@ -32,7 +33,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  const serviceKey = secretKey()!
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
   const authHeader = req.headers.get('Authorization') ?? ''
 

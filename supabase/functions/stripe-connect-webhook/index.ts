@@ -14,6 +14,7 @@
 
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { secretKey } from '../_shared/keys.ts';
 
 const STRIPE_MODE = (Deno.env.get('BORA_STRIPE_MODE') ?? 'live').toLowerCase();
 const stripeSecretKey =
@@ -27,7 +28,7 @@ const stripe = new Stripe(stripeSecretKey, {
 
 const admin = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+  secretKey() ?? '',
 );
 
 Deno.serve(async (req: Request) => {

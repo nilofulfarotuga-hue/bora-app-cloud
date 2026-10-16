@@ -55,6 +55,7 @@
 // Retorna 200 sempre (fire-and-forget).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { exigirCallerOk, secretKey } from '../_shared/keys.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -66,11 +67,15 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
+  // 16/10/2026 (chave nova): verify_jwt passa a false — quem chama tem de ser o servidor (chave secreta,
+  // ou a legada confirmada no Auth) ou um utilizador com sessão válida. Ver _shared/keys.ts.
+  const bloqueio = await exigirCallerOk(req, corsHeaders)
+  if (bloqueio) return bloqueio
 
   const firebaseProjectId   = Deno.env.get('FIREBASE_PROJECT_ID')
   const firebaseServiceAcct = Deno.env.get('FIREBASE_SERVICE_ACCOUNT')
   const supabaseUrl         = Deno.env.get('SUPABASE_URL')!
-  const serviceKey          = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  const serviceKey          = secretKey()!
 
   console.log('[notify-tvde-driver] INVOKED (Firebase configured:', !!firebaseProjectId, ')')
 

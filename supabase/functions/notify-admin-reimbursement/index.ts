@@ -1,8 +1,9 @@
 // notify-admin-reimbursement v7 — try/catch global + debug logs
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { exigirCallerOk, secretKey } from '../_shared/keys.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-const SERVICE_KEY  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const SERVICE_KEY  = secretKey()!;
 const TG_TOKEN    = Deno.env.get('TELEGRAM_BOT_TOKEN') ?? '';
 const TG_CHAT_ID  = Deno.env.get('TELEGRAM_CHAT_ID') ?? '';
 
@@ -30,7 +31,11 @@ async function sendTelegram(msg: string): Promise<{ok:boolean;error?:string}> {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
-  
+  // 16/10/2026: verificação própria de quem chama — servidor com a chave secreta (ou a legada confirmada
+  // no Auth) ou utilizador com sessão válida. Antes esta função aceitava qualquer chamada. Ver _shared/keys.ts.
+  const bloqueio = await exigirCallerOk(req, cors);
+  if (bloqueio) return bloqueio;
+
   try {
     console.log('[notify-reimbursement] START');
     console.log('[notify-reimbursement] TG_TOKEN set:', !!TG_TOKEN);

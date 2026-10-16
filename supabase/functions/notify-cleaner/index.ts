@@ -17,6 +17,7 @@
 // Secrets: FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { secretKey } from '../_shared/keys.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -30,7 +31,7 @@ Deno.serve(async (req) => {
   const firebaseProjectId   = Deno.env.get('FIREBASE_PROJECT_ID')
   const firebaseServiceAcct = Deno.env.get('FIREBASE_SERVICE_ACCOUNT')
   const supabaseUrl         = Deno.env.get('SUPABASE_URL')!
-  const serviceKey          = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  const serviceKey          = secretKey()!
 
   if (!firebaseProjectId || !firebaseServiceAcct) {
     console.warn('[notify-cleaner] Firebase env vars not set — skipping push')

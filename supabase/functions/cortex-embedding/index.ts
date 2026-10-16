@@ -1,9 +1,10 @@
 // Vetorização privada do Córtex usando o segredo Gemini já mantido no Supabase.
 // A função aceita somente o service_role; nenhum cliente final a chama diretamente.
 import { chamadaDoServidor } from '../_shared/chaves.ts';
+import { secretKey } from '../_shared/keys.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
-const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+const SERVICE_KEY = secretKey() || '';
 const GEMINI_KEY = Deno.env.get('GEMINI_API_KEY') || '';
 const MODEL = 'models/gemini-embedding-001';
 

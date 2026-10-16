@@ -30,6 +30,7 @@
 // partir do repo, que ja tinha a v7 por publicar (producao estava na v6).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { secretKey } from '../_shared/keys.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -91,7 +92,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  const serviceKey = secretKey()
 
   const authHeader = req.headers.get('Authorization') ?? ''
   try {
@@ -244,7 +245,7 @@ Deno.serve(async (req) => {
     // Reencaminha o MESMO JWT de entrada (ja validado como service_role acima).
     const res = await fetch(supabaseUrl + '/functions/v1/notify-admin-urgent', {
       method: 'POST',
-      headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
+      headers: { 'Authorization': authHeader, 'apikey': secretKey(), 'Content-Type': 'application/json' },
       body: JSON.stringify({
         kind: 'generic',
         title: 'Fecho da semana ' + per,

@@ -17,8 +17,9 @@
 // Chamada por: tarefa agendada `execute-broadcast-queue` (public.broadcasts_processar_fila)
 // e pelo painel admin logo depois de criar um envio. verify_jwt=false (como a v7).
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { exigirCallerOk, secretKey } from '../_shared/keys.ts';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const SERVICE_KEY = secretKey()!;
 const FB_PROJECT = Deno.env.get('FIREBASE_PROJECT_ID')!;
 const FB_SA = Deno.env.get('FIREBASE_SERVICE_ACCOUNT')!;
 const cors = {
@@ -31,6 +32,11 @@ const json = (o: unknown, status = 200) =>
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
+  // 16/10/2026 (chave nova): esta função está com verify_jwt=false desde a v7 e não verificava ninguém.
+  // Agora quem chama tem de ser o servidor (chave secreta, ou a legada confirmada no Auth) ou um
+  // utilizador com sessão válida (o painel admin). Ver _shared/keys.ts.
+  const bloqueio = await exigirCallerOk(req, cors);
+  if (bloqueio) return bloqueio;
   const sb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
   const body = await req.json().catch(() => ({}));
   const broadcastId: string | null = body?.broadcast_id ?? null;

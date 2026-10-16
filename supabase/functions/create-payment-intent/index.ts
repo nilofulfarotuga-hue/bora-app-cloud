@@ -11,6 +11,7 @@
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import { secretKey } from '../_shared/keys.ts';
 
 const STRIPE_MODE = (Deno.env.get('BORA_STRIPE_MODE') ?? 'live').toLowerCase();
 const stripeSecretKey = STRIPE_MODE === 'test'
@@ -23,7 +24,7 @@ const stripe = new Stripe(stripeSecretKey, {
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
 const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+const serviceKey = secretKey() ?? '';
 
 // deno-lint-ignore no-explicit-any
 const json = (body: any, status = 200) =>

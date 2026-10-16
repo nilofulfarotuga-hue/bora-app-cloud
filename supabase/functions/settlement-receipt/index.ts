@@ -31,6 +31,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { chamadaDoServidor } from '../_shared/chaves.ts'
+import { secretKey } from '../_shared/keys.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -66,7 +67,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  const serviceKey = secretKey()
 
   const authHeader = req.headers.get('Authorization') ?? ''
   // 16/10/2026: a chave secreta nova da Supabase (sb_secret) não é JWT; valida-se em _shared/chaves.ts
@@ -393,7 +394,7 @@ async function avisarDanilo(supabaseUrl, authHeader, titulo, corpo) {
   try {
     const res = await fetch(supabaseUrl + '/functions/v1/notify-admin-urgent', {
       method: 'POST',
-      headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
+      headers: { 'Authorization': authHeader, 'apikey': secretKey(), 'Content-Type': 'application/json' },
       body: JSON.stringify({
         kind: 'generic', title: titulo, body: String(corpo).slice(0, 900),
         route: '/admin/acertos-semana', ref: 'settlement_cobranca',

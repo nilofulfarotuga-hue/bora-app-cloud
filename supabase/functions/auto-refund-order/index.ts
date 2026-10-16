@@ -5,6 +5,7 @@
 // Publicada por MCP a 07/10/2026 (v2), verify_jwt=true.
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { secretKey } from '../_shared/keys.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   apiVersion: '2023-10-16',
@@ -28,7 +29,7 @@ Deno.serve(async (req: Request) => {
   try { const b = await req.json(); orderId = b?.order_id; motivo = b?.motivo ?? motivo; } catch (_) { return json({ error: 'invalid_body' }, 400); }
   if (!orderId) return json({ error: 'order_id required' }, 400);
 
-  const admin = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
+  const admin = createClient(Deno.env.get('SUPABASE_URL') ?? '', secretKey() ?? '');
   const log = async (estado: string, detalhe: unknown) => {
     try { await admin.from('e2e_log').insert({ fluxo: 'auto_refund_order', passo: orderId, estado, detalhe: JSON.stringify(detalhe) }); } catch (_) {}
   };

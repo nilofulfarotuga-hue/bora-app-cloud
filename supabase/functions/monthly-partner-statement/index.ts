@@ -26,6 +26,7 @@
 //   { cron: true }         só corre se em Lisboa for dia 1 às 09h (o pg_cron dispara às 08 e 09 UTC)
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { secretKey } from '../_shared/keys.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -111,7 +112,7 @@ Deno.serve(async (req) => {
   const fazerLojas = !driverId
   const fazerEstafetas = !partnerId && (ano * 12 + mes) >= ESTAFETA_DESDE
 
-  const supabase = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'))
+  const supabase = createClient(Deno.env.get('SUPABASE_URL'), secretKey())
 
   let resendKey = Deno.env.get('RESEND_API_KEY') ?? null
   if (!resendKey) {

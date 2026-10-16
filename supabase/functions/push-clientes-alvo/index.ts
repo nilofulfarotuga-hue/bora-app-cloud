@@ -10,6 +10,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { chamadaDoServidor } from '../_shared/chaves.ts'
+import { secretKey } from '../_shared/keys.ts'
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -21,7 +22,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
 
   const url = Deno.env.get('SUPABASE_URL')!
-  const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  const key = secretKey()!
   const fbProject = Deno.env.get('FIREBASE_PROJECT_ID')
   const fbSa = Deno.env.get('FIREBASE_SERVICE_ACCOUNT')
   if (!fbProject || !fbSa) return json({ ok: false, error: 'firebase_not_configured' }, 500)

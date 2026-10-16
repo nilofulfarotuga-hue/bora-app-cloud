@@ -22,6 +22,7 @@
 // @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
 import { corsHeaders } from '../_shared/cors.ts';
+import { secretKey } from '../_shared/keys.ts';
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -42,7 +43,7 @@ Deno.serve(async (req: Request) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
   const anonKey    = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  const serviceKey = secretKey() ?? '';
   if (!supabaseUrl || !anonKey || !serviceKey) {
     return jsonResponse({ error: 'server_misconfigured' }, 500);
   }

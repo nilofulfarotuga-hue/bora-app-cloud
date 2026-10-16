@@ -15,6 +15,7 @@
 // lida via service role — nunca chega ao browser por este caminho.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { secretKey } from "../_shared/keys.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -38,7 +39,7 @@ async function obterChave(): Promise<string> {
   }
   const admin = createClient(
     Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    secretKey()!,
   );
   const { data, error } = await admin
     .from("server_config")

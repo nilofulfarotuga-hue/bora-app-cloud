@@ -36,6 +36,7 @@
 //     id≠user_id, papel `delivery`) é o v39 tal e qual.
 // v39 2026-09-12 — stale-offer guard + legacy driver identity fix.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { secretKey } from '../_shared/keys.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -51,7 +52,7 @@ Deno.serve(async (req) => {
   const firebaseProjectId = Deno.env.get('FIREBASE_PROJECT_ID')
   const firebaseServiceAcct = Deno.env.get('FIREBASE_SERVICE_ACCOUNT')
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  const serviceKey = secretKey()!
 
   // v42 (04/10) — só a chave de serviço (gatilhos do banco, outras Edge) ou um admin.
   // Antes qualquer pessoa na internet podia mandar "Novo pedido!" a um estafeta.

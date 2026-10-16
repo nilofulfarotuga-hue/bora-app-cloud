@@ -23,6 +23,7 @@
 
 // @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { secretKey } from '../_shared/keys.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -32,7 +33,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const SUPABASE_SERVICE_ROLE_KEY = secretKey()!;
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
 // Cadeia de reserva. gemini-3.1-flash-lite e gemini-3-flash-preview: os que o roteador Motor
 // Bora usa (motor_chamadas, 20–23/09); gemini-3.5-flash-lite: o do support-chatbot

@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-15
+ultima_confirmacao: 2026-10-16
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-15T19:54:35.387832+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-16T19:54:43.89431+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -161,3 +161,15 @@ A CONFERIR ANTES DE PRODUZIR: cronometrar a marcação na app ("1 minuto" não f
 - BORA (Instagram): destaques fixos Como funciona / Opiniões de clientes / Zonas da Guarda servidas. https://www.youtube.com/watch?v=vuHBPE5McrU
 - JÁ TEMOS: mods do Claude Code (5 vídeos hoje; reforço: editar o .env por mod sem a chave passar pelo chat, e nunca instalar mods de terceiros sem ler o código), plan with files (= spec.md), Higgsfield/Genjutsu e imagem-antes-do-vídeo, sites com maquete (Crify), dores no gancho/perfil como página de vendas.
 - RECUSADO: Rigipo (Unreal), Quasimodo e Kimodo CPP (3D descartado), TikTok Shop afiliados, lista genérica de programas grátis.
+
+## 16/10/2026 — radar diário
+32 vídeos revistos: 6 novos, 10 já temos, 16 rejeitados (11 por nota baixa). Nenhum do tema animacao_ia. Proposta no Córtex: prop-ffb7bcaf.
+- SISTEMA: Hermes na VPS a vigiar (só leitura) queda de pedidos do Bora e erros/uptime do site e da app, alerta no Telegram. https://www.youtube.com/watch?v=VXUoi5V9J2o
+- SISTEMA: atualizar o Hermes na VPS para a 0.22 "Threshold" (bot screen, conectores, modelos locais); ler notas antes, sem cartão. https://www.youtube.com/watch?v=8Zxj1kTrkjo
+- EM DIA: vídeo/screenshot de 10 s com o momento mágico (recibo emitido) que se entende sem explicação; teste a frio com pessoas de fora antes de usar na loja e nos reels. https://www.youtube.com/watch?v=TsYgtI-b6n8
+- EM DIA / BORA: carrosséis com movimento feitos em código pelo Claude Code (sai vídeo), na linha dos explicativos animados. https://www.youtube.com/watch?v=TZg-PgSxm3M
+- EM DIA: topo do site com animação leve SVG/CSS que mostra a app em 3 s; mesma técnica nos sites de clientes. https://www.youtube.com/watch?v=26qvV5Yh1yE
+- BORA: logo animado no Google Flow para o fecho dos reels (esperar a marca nova). https://www.youtube.com/watch?v=5B7ITpqJKxw
+- JÁ TEMOS: Obsidian/memória+skills+agentes (= Córtex), REA (2 vídeos, 13/10), Claude Dashboards/Motion (11/10), mods do Claude Code (reforço: logs longos vão para ficheiro, só o essencial no contexto), Claude+Remotion e motion graphics com Opus 5.5 (= explicativos animados), plugin Superpowers (= plan mode/spec.md), ArtCraft, auto-verificação (= fiscal).
+- RECUSADO: DeepSeek Harness, Meta Muse Wonder (assinatura/API paga), vídeos "grátis ilimitados" com Filmora, clones do Office, Hypit/TikTok Shop, apps de partilha de internet, cripto Auria.
+- Radar aprende: 70 termos ativos (limite), nenhum para desligar; ficaram de fora REA (3 vídeos nota 9), Claude Code motion graphics e, das conversas, motores de boca para o filme (LivePortrait/LatentSync/MuseTalk).

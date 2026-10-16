@@ -97,6 +97,6 @@ O "Parado 2" foi desmontado na missão `chave-nova-16-10`: a chave secreta nova 
 plataforma já a injeta nas Edge Functions (mesmo nas variáveis com nome antigo), o portão aceita-a
 em `Bearer` e em `apikey`, e por isso **não é preciso desligar o `verify_jwt`** como este plano
 previa. O que se mediu, o desenho novo (`_shared/chaves.ts`, `chaves-semear`, `vault.bora_server_secret`),
-o estado função a função e o runbook da troca estão em **`docs/SEGURANCA-CHAVES-2026-10-16.md`**.
+o estado função a função e o runbook da troca estão em **`docs/CHAVES-2026-10-16.md`**.
 Os passos 3, 5 e 6 acima continuam válidos (esperar pela maioria das instalações, desligar as
 legadas, repositório público/privado).

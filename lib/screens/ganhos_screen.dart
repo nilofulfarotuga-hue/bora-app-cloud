@@ -8,6 +8,23 @@ import '../widgets/bora_support_fab.dart';
 import '../widgets/extrato_prestador_section.dart';
 import '../widgets/gorjetas_recebidas_section.dart';
 
+/// Icone de uma linha do extracto de ganhos (`driver_earnings_summary`).
+/// [17/10/2026] A compensacao de corrida TVDE cancelada vem com tipo `entrega`
+/// (categoria do servidor): reconhece-se pela descricao e leva o carro.
+IconData iconeDoGanho(Map<String, dynamic> linha) {
+  final tipo = linha['tipo'] as String? ?? '';
+  final descricao = (linha['descricao'] as String? ?? '').trimLeft();
+  if (descricao.startsWith('Compensação · corrida')) {
+    return Icons.directions_car_outlined;
+  }
+  return switch (tipo) {
+    'tvde' => Icons.directions_car_outlined,
+    'tokens' => Icons.monetization_on_outlined,
+    'favor_entrega' => Icons.shopping_bag_outlined,
+    _ => Icons.delivery_dining_outlined,
+  };
+}
+
 /// GANHOS — um ecra so, para quem trabalha no que for.
 ///
 /// Chamava-se `DriverEarningsScreen` e era so do estafeta. A 2026-08-29 o
@@ -20,6 +37,11 @@ import '../widgets/gorjetas_recebidas_section.dart';
 /// acerto vem de `meu_acerto_semanal` (a vista unificada, com a divida ja
 /// abatida e um numero final). O extracto e os tokens continuam a ser do
 /// estafeta, porque so ele os tem.
+///
+/// 17/10/2026 (cancelamento tardio): a compensacao de uma corrida TVDE
+/// cancelada tarde pelo cliente chega do servidor como tipo `entrega`
+/// ("Compensação · corrida ..."); aqui ganha o icone do carro. So o icone —
+/// as somas nao mudam.
 class GanhosScreen extends StatefulWidget {
   const GanhosScreen({super.key});
 
@@ -315,12 +337,7 @@ class _GanhosScreenState extends State<GanhosScreen> {
               ...itens.take(15).map((i) {
                 final tokens = (i['tokens'] as num? ?? 0).toInt();
                 final valor = (i['valor_cents'] as num? ?? 0).toInt();
-                final icone = switch (i['tipo'] as String? ?? '') {
-                  'tvde' => Icons.directions_car_outlined,
-                  'tokens' => Icons.monetization_on_outlined,
-                  'favor_entrega' => Icons.shopping_bag_outlined,
-                  _ => Icons.delivery_dining_outlined,
-                };
+                final icone = iconeDoGanho(i);
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Row(

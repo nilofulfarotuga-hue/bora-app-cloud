@@ -119,6 +119,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         return Icons.local_offer;
       case 'admin':
         return Icons.campaign;
+      // [17/10/2026 · cancelamento tardio] "Corrida cancelada · recebes
+      // 3,75 €" — a compensação ao motorista quando o cliente cancela tarde.
+      case 'tvde_cancel_comp':
+        return Icons.euro;
       default:
         return Icons.notifications;
     }

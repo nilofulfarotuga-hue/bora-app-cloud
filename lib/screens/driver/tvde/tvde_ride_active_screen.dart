@@ -62,9 +62,24 @@ import 'tvde_driver_rate_screen.dart';
 /// sempre esteve.
 final ValueNotifier<bool> tvdeCorridaControlaGps = ValueNotifier<bool>(false);
 
+/// [17/10/2026 · cancelamento tardio] Texto da SnackBar quando o cliente
+/// cancela: o da notificação de compensação (`tvde_cancel_comp`) se existir,
+/// senão o genérico. Função pura (teste em `test/aviso_mensagem_admin_test.dart`).
+String textoDoAvisoDeCancelamento(Map<String, dynamic>? aviso) {
+  final titulo = (aviso?['title'] as String?)?.trim() ?? '';
+  final corpo = (aviso?['body'] as String?)?.trim() ?? '';
+  if (titulo.isEmpty && corpo.isEmpty) return 'O cliente cancelou a corrida.';
+  if (titulo.isEmpty) return corpo;
+  if (corpo.isEmpty) return titulo;
+  return '$titulo. $corpo';
+}
+
 /// TVDE — Corrida ativa do motorista: a caminho → cheguei → iniciar →
 /// finalizar. Reusa o stack de mapa do delivery (google_maps_flutter). A
 /// posição do motorista vem do DriverStore (GPS já a correr na home).
+///
+/// 17/10/2026 (cancelamento tardio): quando o cliente cancela, uma SnackBar
+/// diz porquê e, se houver, a compensação. Navegação e fila ficam iguais.
 class TvdeRideActiveScreen extends StatefulWidget {
   const TvdeRideActiveScreen({super.key});
 
@@ -80,6 +95,40 @@ class TvdeRideActiveScreen extends StatefulWidget {
 class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   static int _montados = 0;
   bool _navigatedToRate = false;
+
+  /// [17/10/2026 · cancelamento tardio] A SnackBar "o cliente cancelou" já foi
+  /// pedida para esta corrida (o build repete-se com a corrida cancelada).
+  bool _avisoClienteCancelou = false;
+
+  /// Lê o aviso de compensação desta corrida (`in_app_notifications`, kind
+  /// `tvde_cancel_comp`, o servidor escreve-o na mesma transação do
+  /// cancelamento) e mostra-o no messenger da raiz, que sobrevive ao pop.
+  /// Sem aviso legível → "O cliente cancelou a corrida.".
+  Future<void> _avisarClienteCancelou(
+      String rideId, ScaffoldMessengerState? messenger) async {
+    if (messenger == null) return;
+    Map<String, dynamic>? aviso;
+    try {
+      final sb = Supabase.instance.client;
+      if (sb.auth.currentUser != null) {
+        aviso = await sb
+            .from('in_app_notifications')
+            .select('title, body')
+            .eq('kind', 'tvde_cancel_comp')
+            .eq('related_id', rideId)
+            .order('created_at', ascending: false)
+            .limit(1)
+            .maybeSingle()
+            .timeout(const Duration(seconds: 5));
+      }
+    } catch (_) {
+      // Sem leitura (rede, sessão): fica o texto genérico.
+    }
+    messenger.showSnackBar(SnackBar(
+      content: Text(textoDoAvisoDeCancelamento(aviso)),
+      duration: const Duration(seconds: 8),
+    ));
+  }
 
   /// [Ronda 2] Enquanto true, a corrida já está 'finalizada' mas o ecrã NÃO
   /// avança para a avaliação — falta o motorista ver o lembrete de cobrança.
@@ -1920,6 +1969,14 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     if (ride.isFinished && !_collectReminderPending) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _goToRate(ride));
     } else if (ride.isCancelled) {
+      // [17/10/2026 · cancelamento tardio] O ecrã saía em silêncio quando o
+      // cliente cancelava. Agora diz-lhe porquê (e, se houve compensação, o
+      // valor), UMA só vez — o build repete-se. A navegação fica igual.
+      if (ride.status == 'cancelada_cliente' && !_avisoClienteCancelou) {
+        _avisoClienteCancelou = true;
+        unawaited(_avisarClienteCancelou(
+            ride.id, ScaffoldMessenger.maybeOf(context)));
+      }
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         store.clearActive();

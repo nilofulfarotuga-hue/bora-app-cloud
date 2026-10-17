@@ -17,6 +17,7 @@ import '../../../models/driver_model.dart';
 import '../../../services/driver_location_ping_service.dart';
 import '../../../services/heartbeat_service.dart';
 import '../../../services/localizacao_online.dart';
+import '../../../services/notification_service.dart';
 import '../../../services/papeis_de_trabalho.dart';
 import '../../../widgets/caixa_de_papeis.dart';
 import '../../../widgets/ganho_de_hoje_card.dart';
@@ -47,6 +48,9 @@ import 'tvde_ride_active_screen.dart';
 /// roteado a partir do _RootNavigator quando vehicle_type='carro_passageiros').
 /// Reusa o MESMO mecanismo de is_online + heartbeat (90s) + GPS do delivery —
 /// não cria heartbeat novo. 100% isolado do dispatch de entregas.
+///
+/// 17/10/2026 (cancelamento tardio): liga também o toque das mensagens do
+/// painel (`setupBroadcastDeepLink`), para o aviso de compensação abrir o sino.
 class TvdeDriverHomeScreen extends StatefulWidget {
   const TvdeDriverHomeScreen({super.key});
 
@@ -831,6 +835,11 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    // [17/10/2026 · cancelamento tardio] Toque numa mensagem do painel
+    // (push `admin_message`, ex.: compensação de cancelamento) abre o ecrã de
+    // notificações. Estava só nas homes da entrega e do parceiro — o motorista
+    // só de TVDE nunca o ligava. Idempotente.
+    NotificationService.setupBroadcastDeepLink(context);
     // Dispara a navegação reativa sempre que o store muda.
     context.watch<TvdeDriverStore>();
     // [Item F] Ofertas de entrega/favor (OrderStore) aparecem como overlay SOBRE

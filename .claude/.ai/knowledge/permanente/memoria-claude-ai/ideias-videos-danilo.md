@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-17T11:17:52.640672+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-17T19:56:23.054295+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -190,3 +190,19 @@ A CONFERIR ANTES DE PRODUZIR: cronometrar a marcação na app ("1 minuto" não f
 - RESERVA GUARDADA (só se a MiniMax licenciar Portugal ou a licença mudar): ComfyUI portátil atualizado + nós Easy Media (Multitrack Editor) e KJNodes; modelos H3 (difusão ~21 GB podada, codificador de texto Qwen3-VL 32B, VAE de vídeo e de áudio, LoRA turbo de 4 passos, modelo de upscale); modo referência-para-vídeo com até 9 imagens; opção "match" para igualar a resolução das referências; sem placa NVIDIA, desligar (bypass) os nós de SageAttention e Triton.
 
 - CORREÇÃO (17/10, mesma sessão) à linha "Vias" do vídeo do H3: a licença comercial da Comfy NÃO está confirmada como via para a UE — a página diz só "disponível globalmente" e que serve para correr localmente com direitos comerciais; quem pode licenciar a UE é a MiniMax (cláusula II). Nenhuma via é grátis. O preço de 0,14 USD por segundo vem de um único fornecedor (Atlas Cloud): é só ordem de grandeza.
+
+## 17/10/2026 — radar diário (agente na nuvem)
+41 vídeos revistos: 10 novos, 15 PENDENTES (registados antes e ainda não feitos), 4 já temos (com prova), 12 rejeitados (6 por nota baixa). 1 do tema animacao_ia (sem nota).
+- MODA DA SEMANA (3+ vídeos nota>=8): REA 12 vídeos desde 13/10 — PENDENTE desde 13/10 (auditar o NOSSO APK/site; nada no e2e_log; missão do emulador também por correr). Hermes 5 vídeos — 0.22 PENDENTE desde 16/10. Google Flow vídeos longos 5 — ferramenta de cenas PENDENTE desde 10/10. Jev 3 hoje — PENDENTE desde 23/09 (pagamento). Mods do Claude Code 5 — FEITO (plugin bora-mods 02/10). Claude Dashboards/Motion 5 — registado 11/10, pendente. WhatsApp atendimento 7 — FEITO (Mister Navalha).
+- DINHEIRO: diagnóstico grátis "o ChatGPT recomenda o teu negócio na Guarda?" como porta de entrada para vender aos comerciantes parceiros do Bora. https://www.youtube.com/watch?v=YvFbpRJaIBU
+- DINHEIRO: rececionista de voz (pendente desde 13/10) — novo: número de demonstração que o cliente liga antes da reunião; post nos grupos com a dor "quem atende depois das 18h?". Vídeo cobra 497 USD/mês. Lente grátis: agentes de voz abertos (Pipecat/LiveKit Agents) em vez de plataforma paga, a confirmar. https://www.youtube.com/watch?v=Hx9XqH8Mv38
+- DINHEIRO / caça-clientes: extrator de leads do Google Maps (negócios da Guarda); o vídeo usa ScraperAPI paga — há extratores abertos no GitHub (ex. gosom/google-maps-scraper), a confirmar licença. https://www.youtube.com/watch?v=EFd3Sty9xUU
+- SISTEMA: Billion Context (proxy aberto que poupa contexto/tokens no Claude Code) e escrever regras dos agentes em inglês técnico simplificado (ASD). https://www.youtube.com/watch?v=3OgJo_Ni2Og
+- SISTEMA: Claude Code Projects (coordenador + vários Claudes em paralelo com memória partilhada) para missões longas. https://www.youtube.com/watch?v=ONqjaW38U14
+- SISTEMA / REDES: revisor que recusa texto genérico de IA ou sem dado real do negócio antes de publicar. https://www.youtube.com/watch?v=CmSJZ6rEM3w
+- BORA / EM DIA: Google Stitch (grátis) para prototipar ecrãs com design system e passar ao Claude Code por MCP. https://www.youtube.com/watch?v=HuGYy8oGyDM
+- EM DIA: reels "pagar-te primeiro"/reserva de emergência para recibos verdes (https://www.youtube.com/watch?v=jW3p50Kyoe8); anúncios em lotes de ~15 criativos com imagens reais, orçamento é do Danilo (https://www.youtube.com/watch?v=vyqUSCZxAqo).
+- FILME: Qwen como 3.º animador grátis; CapCut lip sync como reserva da boca (ver caminhos-animacao-filme).
+- PENDENTES revistos hoje: Orca (09/10), Haiku subagente (08/10), monitor de assinaturas Em Dia (09/10), AEO (08/10), Flow último frame/Extend (17/10).
+- RECUSADO: OpenAI Dots, Meta Muse, Blender 3D, várias contas grátis do Claude via Notion, stock em casa (Home Market).
+- Radar aprende: +5 termos (REA, rececionista de voz, Flow vídeo longo, alternativas open source a IA paga, LivePortrait/LatentSync); desligados 5 com 0 vídeos bons.

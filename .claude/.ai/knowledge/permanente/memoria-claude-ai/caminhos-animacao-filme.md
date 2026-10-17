@@ -10,7 +10,7 @@ estado: atual
 
 # Filme das filhas — 5 caminhos grátis para o desenho (revisto 05/10 com os 50 vídeos)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-17T11:16:59.399518+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-17T19:56:23.054295+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: caminhos animacao filme · memoria claude.ai · claude_ai_memoria
 
@@ -63,3 +63,9 @@ Detalhe e links: página engenharia-reversa-achados-2026-10-17.
 - H3 FORA do filme, agora pelo texto original da licença: só vale fora da UE, Reino Unido, Coreia e EUA e proíbe usar os resultados lá dentro (cláusulas II e V.4); além disso pede placa NVIDIA de 12 a 16 GB e a licença paga da Comfy começa em 5.000 USD por mês. Não voltar a propor. Detalhe em ideias-videos-danilo.
 - IDEIA A TESTAR (PENDENTE, nada testado): nas cenas SEM fala e mais longas (Criação, portal, planetas), encadear com o botão Extend do Flow, que parte do último segundo de um clipe Veo de 8 s e traz som, em vez de usar só o último fotograma. Teste pequeno: 1 cadeia de 3 clipes a partir da imagem-mestre aprovada; medir os créditos gastos; rever fotograma a fotograma (regra de 14/10: nenhuma personagem duplicada, uma pessoa só por plano) antes de entrar no episódio. A função vem de um blog de terceiros; confirmar na conta dele.
 - Reforça o caminho decidido: ficha completa da personagem como imagem de referência fixa em todos os planos, planos de 8 s no máximo, e os prompts de todos os planos escritos de uma vez a partir de um plano com a lista das imagens de referência.
+
+## 17/10/2026 — radar diário
+- RESERVA do caminho 4 (animar grátis): fluxo Gemini (imagens consistentes) → Veo/Google Vids, Meta Vibes ou Qwen; o Qwen é novo como 3.º animador grátis quando os créditos do Flow acabam (Vibes já falhou no botão de conta). Por testar. https://www.youtube.com/watch?v=ERWoiYKd9QQ
+- BOCA: CapCut lip sync dá voz a um clipe (texto ou áudio), grátis com limite de duração e caracteres e pode passar a pago; reserva leve antes do Kaggle LivePortrait/LatentSync. https://www.youtube.com/watch?v=UV7CvWQ3FAY
+- CONTINUIDADE: último fotograma de cada cena = imagem inicial da seguinte no Flow, a dizer no prompt que o movimento continua (confirma a nota do Extend de 17/10; ainda não testado no Ep1). https://www.youtube.com/watch?v=TTEKxCRpDpo
+- Kling 3.0 / Seedance 1.5 Pro em plano grátis com folha de 4 ângulos para diálogo (Kling já está na ordem de reserva do adendo 16/10). https://www.youtube.com/watch?v=2SfZSn-Uca8

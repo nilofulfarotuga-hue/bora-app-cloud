@@ -14,6 +14,18 @@ import '../../../utils/hora_lisboa.dart';
 
 import '../../../l10n/tr.dart';
 
+/// [17/10/2026 · cancelamento tardio] Valor à direita de cada linha. Numa
+/// corrida cancelada é a taxa que o servidor REALMENTE cobrou ("Sem custo" se
+/// 0) — antes mostrava a tarifa inteira, como se a corrida tivesse sido paga.
+String valorNoHistorico(TvdeRide ride, {required int packageCents}) {
+  if (ride.isCancelled) {
+    return ride.cancelFeeCents > 0
+        ? '€${(ride.cancelFeeCents / 100).toStringAsFixed(2)}'
+        : 'Sem custo'.tr;
+  }
+  return '€${(TvdeFareView.of(ride, packageCents: packageCents).clientTotalCents / 100).toStringAsFixed(2)}';
+}
+
 /// TVDE — Histórico de corridas do passageiro.
 class TvdeRidesHistoryScreen extends StatefulWidget {
   const TvdeRidesHistoryScreen({super.key});
@@ -155,8 +167,7 @@ class _RideTileState extends State<_RideTile> {
               ],
             ),
           ),
-          Text(
-              '€${(TvdeFareView.of(ride, packageCents: packageCents).clientTotalCents / 100).toStringAsFixed(2)}',
+          Text(valorNoHistorico(ride, packageCents: packageCents),
               style: const TextStyle(
                   fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
         ],

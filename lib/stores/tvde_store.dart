@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/falha_de_acao.dart';
+import '../models/tvde_cancel_quote.dart';
 import '../models/tvde_dest_change.dart';
 import '../models/tvde_ride.dart';
 import '../models/tvde_subscription.dart';
@@ -1183,18 +1184,45 @@ class TvdeStore extends ChangeNotifier {
     );
   }
 
+  /// [17/10/2026 · cancelamento tardio] Ponto único de chamada das RPCs do
+  /// cancelamento (cotação e cancelar). Os testes substituem-no por um
+  /// cliente falso — o resto da store continua a falar com o Supabase.
+  @visibleForTesting
+  Future<dynamic> rpcCancelamento(String fn, Map<String, dynamic> params) =>
+      _sb.rpc(fn, params: params).timeout(kAcaoTimeout);
+
+  /// [17/10/2026 · cancelamento tardio] Cotação do cancelamento pedida ao
+  /// servidor ANTES de abrir o diálogo: o valor que o cliente vê é o que o
+  /// servidor vai cobrar (a janela grátis conta desde o motorista ACEITAR).
+  /// Erro de rede, prazo ou `ok:false` → `null` (o ecrã mostra o aviso
+  /// neutro). Nunca lança.
+  Future<TvdeCancelQuote?> cancelQuote(String rideId) async {
+    try {
+      final res =
+          await rpcCancelamento('tvde_cancel_quote', {'p_ride_id': rideId});
+      return TvdeCancelQuote.fromJson(res);
+    } catch (e) {
+      debugPrint('TvdeStore.cancelQuote error => $e');
+      return null;
+    }
+  }
+
   /// [skipRefund] para o cancelamento por pagamento falhado: aí **não há nada
   /// cobrado** para devolver, e pedir um refund de um PaymentIntent que nunca
   /// passou só gera erro e ruído na Stripe.
-  Future<void> cancelRide(String rideId,
+  ///
+  /// [17/10] Devolve a taxa REAL que o servidor cobrou (`cancel_fee_cents`,
+  /// 0 se ilegível) — o ecrã diz ao cliente o que foi cobrado.
+  Future<int> cancelRide(String rideId,
       {String? reason, bool skipRefund = false}) async {
     _setBusy(true);
     try {
-      final res = await _sb.rpc('tvde_cancel_ride', params: {
+      final res = await rpcCancelamento('tvde_cancel_ride', {
         'p_ride_id': rideId,
         'p_actor': 'cliente',
         'p_reason': reason,
-      }).timeout(kAcaoTimeout);
+      });
+      final cobrada = taxaCobradaDoCancelamento(res);
       // Corrida paga no app (card/mbway) → refund estilo client-cancel-order
       // (capado ao pago, menos a taxa) via Edge Function. Best-effort: se
       // falhar, o cancelamento já foi feito. Só corre com o switch ligado.
@@ -1214,6 +1242,7 @@ class TvdeStore extends ChangeNotifier {
           debugPrint('TvdeStore.cancelRide refund error => $e');
         }
       }
+      return cobrada;
     } catch (e) {
       debugPrint('TvdeStore.cancelRide error => $e');
       rethrow;

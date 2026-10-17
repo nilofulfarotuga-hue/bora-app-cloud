@@ -46,6 +46,7 @@ class TvdeRide {
     this.destChangeFeeCents = 0,
     this.destChangeDriverCents = 0,
     this.destChangeCashCents = 0,
+    this.cancelFeeCents = 0,
   });
 
   final String id;
@@ -165,6 +166,11 @@ class TvdeRide {
   /// Parte de [destChangeFeeCents] paga em dinheiro (o motorista recolhe).
   final int destChangeCashCents;
 
+  /// [17/10/2026 · cancelamento tardio] Taxa que o servidor REALMENTE cobrou
+  /// ao cancelar (`tvde_rides.cancel_fee_cents`). 0 se não houve taxa ou se o
+  /// mapa não a trouxe. O histórico mostra-a nas corridas canceladas.
+  final int cancelFeeCents;
+
   bool get hasDestChange => destChangeCount > 0;
 
   /// Corrida de balcão: cliente sem app, avisado por telefone.
@@ -243,6 +249,7 @@ class TvdeRide {
       destChangeDriverCents:
           (m['dest_change_driver_cents'] as num?)?.toInt() ?? 0,
       destChangeCashCents: (m['dest_change_cash_cents'] as num?)?.toInt() ?? 0,
+      cancelFeeCents: (m['cancel_fee_cents'] as num?)?.toInt() ?? 0,
     );
   }
 

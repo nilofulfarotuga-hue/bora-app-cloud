@@ -14,11 +14,13 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
+import '../../../models/tvde_cancel_quote.dart';
 import '../../../models/tvde_dest_change.dart';
 import '../../../models/tvde_fare_view.dart';
 import '../../../models/tvde_ride.dart';
 import '../../../widgets/tvde/recibo_pago.dart';
 import '../../../widgets/tvde/recibo_viagem_sheet.dart';
+import '../../../widgets/tvde/tvde_cancel_dialog.dart';
 import '../../../services/directions_service.dart';
 import '../../../services/driver_live_feed.dart';
 import '../../../services/payment_service.dart';
@@ -49,6 +51,10 @@ import '../../../l10n/tr.dart';
 /// TVDE — Mapa em tempo real do estado da corrida (reusa google_maps_flutter,
 /// o mesmo stack de mapa do delivery). Consome o realtime de tvde_rides
 /// produzido pela Fase 2.
+///
+/// 17/10/2026 (cancelamento tardio): o diálogo de cancelar mostra o valor que
+/// o SERVIDOR vai cobrar (`tvde_cancel_quote`, janela grátis contada desde o
+/// motorista aceitar) e, depois de cancelar, diz o que foi mesmo cobrado.
 class TvdeRideTrackingScreen extends StatefulWidget {
   const TvdeRideTrackingScreen({super.key});
 
@@ -1591,85 +1597,41 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
       return;
     }
 
-    // [F2] Preview da taxa por tempo (o backend é a fonte de verdade e respeita
-    // o kill-switch tvde_cancel_full_after_grace). Grátis dentro da janela; depois,
-    // antes do pickup, o cliente paga o valor TOTAL da corrida.
-    final created = ride.createdAt;
-    final elapsed =
-        created == null ? 0 : DateTime.now().difference(created).inSeconds;
-    final withinGrace = elapsed <= _cancelGraceSeconds;
-    // Preview pelo memo partilhado: numa perna do pacote €8 a "corrida toda"
-    // é o pacote, não a tarifa base (que o cliente nunca chega a pagar).
-    final feeCents = withinGrace
-        ? 0
-        : TvdeFareView.of(ride, packageCents: _packageCents).clientTotalCents;
-    final graceMin = (_cancelGraceSeconds / 60).round();
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Cancelar corrida?'.tr),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (feeCents == 0)
-              Text(
-                  'Cancelamento grátis (dentro dos primeiros {0} min).'.trArgs([graceMin]),
-                  style: const TextStyle(color: AppColors.textSecondary))
-            else ...[
-              Text(
-                  'Já passaram mais de {0} min. Cancelar agora tem um custo:'.trArgs([graceMin]),
-                  style: const TextStyle(color: AppColors.textSecondary)),
-              const SizedBox(height: Spacing.md),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: Spacing.md, vertical: Spacing.sm),
-                decoration: BoxDecoration(
-                  color: AppColors.error.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(Radii.md),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.euro, size: 18, color: AppColors.error),
-                    const SizedBox(width: Spacing.sm),
-                    Expanded(
-                      child: Text(
-                        'Custo de cancelamento: €{0}'.trArgs([(feeCents / 100).toStringAsFixed(2)]),
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.error),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: Spacing.sm),
-              Text('Corresponde ao valor total da corrida.'.tr,
-                  style:
-                      const TextStyle(color: AppColors.textSubtle, fontSize: 12.5)),
-            ],
-          ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text('Voltar'.tr)),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(feeCents == 0 ? 'Sim, cancelar' : 'Cancelar e pagar')),
-        ],
-      ),
+    // [17/10/2026 · cancelamento tardio] O valor do diálogo é o do SERVIDOR
+    // (`tvde_cancel_quote`). Antes a app contava a janela grátis desde o
+    // PEDIDO (`createdAt`) e calculava o valor sozinha; o servidor conta desde
+    // o motorista ACEITAR e decide pelo tipo de corrida — a app podia prometer
+    // um valor e cobrar outro. Cotação falhada → aviso neutro, sem números.
+    // Ao confirmar há nova cotação: se subiu, o diálogo volta com o valor novo.
+    final store = context.read<TvdeStore>();
+    final messenger = ScaffoldMessenger.of(context);
+    final decisao = await pedirConfirmacaoDeCancelamento(
+      context,
+      cotar: () => store.cancelQuote(ride.id),
+      minutosDaJanela: (_cancelGraceSeconds / 60).round(),
     );
-    if (ok != true || !mounted) return;
+    if (!mounted) return;
+    final terminada = decisao.jaTerminou;
+    if (terminada != null) {
+      // Já acabou/já foi cancelada noutro sítio: é sucesso para o cliente.
+      messenger.showSnackBar(
+          SnackBar(content: Text(textoJaTerminou(terminada))));
+      store.clearActiveRide();
+      Navigator.pop(context);
+      return;
+    }
+    if (!decisao.confirmou) return;
     try {
-      await context.read<TvdeStore>().cancelRide(ride.id);
+      final cobrada = await store.cancelRide(ride.id);
       if (!mounted) return;
       // P0-3: navegação determinística — limpa o estado e sai já, sem depender
       // do realtime chegar para fechar o ecrã. Reabrir "Bora Motorista" mostra
       // a tela de destino limpa (a corrida cancelada não é retomável).
-      context.read<TvdeStore>().clearActiveRide();
+      store.clearActiveRide();
       Navigator.pop(context);
+      // [17/10] O que foi MESMO cobrado (a taxa que o servidor devolveu).
+      messenger.showSnackBar(
+          SnackBar(content: Text(textoDepoisDeCancelar(cobrada))));
     } catch (e) {
       _cancelFalhou(e);
     }

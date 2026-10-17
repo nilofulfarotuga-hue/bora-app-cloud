@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-16
+ultima_confirmacao: 2026-10-17
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-16T19:54:43.89431+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-17T09:22:21.721524+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -173,3 +173,7 @@ A CONFERIR ANTES DE PRODUZIR: cronometrar a marcação na app ("1 minuto" não f
 - JÁ TEMOS: Obsidian/memória+skills+agentes (= Córtex), REA (2 vídeos, 13/10), Claude Dashboards/Motion (11/10), mods do Claude Code (reforço: logs longos vão para ficheiro, só o essencial no contexto), Claude+Remotion e motion graphics com Opus 5.5 (= explicativos animados), plugin Superpowers (= plan mode/spec.md), ArtCraft, auto-verificação (= fiscal).
 - RECUSADO: DeepSeek Harness, Meta Muse Wonder (assinatura/API paga), vídeos "grátis ilimitados" com Filmora, clones do Office, Hypit/TikTok Shop, apps de partilha de internet, cripto Auria.
 - Radar aprende: 70 termos ativos (limite), nenhum para desligar; ficaram de fora REA (3 vídeos nota 9), Claude Code motion graphics e, das conversas, motores de boca para o filme (LivePortrait/LatentSync/MuseTalk).
+
+## 17/10/2026 — vídeo "clonar qualquer app com Claude + skill REA" (Danilo mandou)
+- ENGENHARIA REVERSA virou método fixo: sempre que algo é pago, tem limite ou trava, primeiro procurar no GitHub o que já existe grátis; se não existe, recriar as funções olhando por fora. Páginas: engenharia-reversa, engenharia-reversa-achados-2026-10-17 (REA, filme, navegador), paridade-mundo-e-lei-2026-10-17 (Uber/Glovo/iFood + lei PT, prazo 02/12/2026 da diretiva das plataformas).
+- REA só no NOSSO app; navegar apps no emulador = MCP do Maestro ou mobile-mcp.

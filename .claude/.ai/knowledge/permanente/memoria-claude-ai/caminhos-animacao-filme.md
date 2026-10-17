@@ -2,7 +2,7 @@
 id: memoria-claude-ai-caminhos-animacao-filme
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-14
+ultima_confirmacao: 2026-10-17
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Filme das filhas — 5 caminhos grátis para o desenho (revisto 05/10 com os 50 vídeos)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-14T19:57:50.334858+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-17T09:21:16.163637+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: caminhos animacao filme · memoria claude.ai · claude_ai_memoria
 
@@ -48,3 +48,13 @@ Ordem recomendada: 2 (bíblia) → 1 (personagens fixos) → 3 (vozes) → 4 (bo
 ## 14/10/2026 — radar diário (sem vídeos do tema animacao_ia; 2 achados de outras pesquisas)
 - REFORÇO do caminho 5 (movimento sem deformar): o prompt de movimento de cada cena leva só 3 coisas — o que se mexe, o movimento da câmara e 1 detalhe pequeno; nada de voltar a descrever a personagem (isso fica na imagem de referência). Gerar antes todas as imagens das cenas em lote no Google Flow a partir da folha da personagem. Custo: créditos do Flow (Google AI Plus). https://www.youtube.com/watch?v=vQvHauaboug
 - REFORÇO dos caminhos 2 e 3 (falas cortadas): a bíblia de continuidade mede cada fala a ~2,5 palavras por segundo e dá à cena a duração que a fala precisa (uma fala de 10 palavras = cena de pelo menos 4 s). Custo: zero. https://www.youtube.com/watch?v=frfTrlAPy1M
+
+## 17/10/2026 — pesquisa mundial (Claude.ai, pedido do Danilo) — CAMINHO DECIDIDO, substitui a ordem dos 5 caminhos onde contradiz
+- Falas: marioneta 2D com Rhubarb (fonético, serve PT) e 6-9 bocas DESENHADAS no estilo de cada personagem a partir da folha aprovada; imagem-mestre fixa por personagem. Nunca forma pintada por cima (reprovado 16/10).
+- Planos aproximados a falar: MultiTalk/InfiniteTalk pelo Wan2GP no Kaggle T4 (MultiTalk suporta desenho por escrito). LatentSync/MuseTalk/LivePortrait não servem para desenho.
+- Kaggle: SEMPRE T4; a P100 deixou de funcionar com o PyTorch novo.
+- Flow: 50 créditos grátis POR DIA além dos 200/mês (Veo 3.1 Lite = 10) = ~5 clipes/dia.
+- Vozes: Chatterbox Multilingual V3 (pt-br/pt-pt) ou Qwen3-TTS VoiceDesign; Seed-VC/RVC se soar adulto.
+- Música: ACE-Step 1.5 (T4); reserva HeartMuLa 3B.
+- Navegador no PC fraco não gera vídeo; o que dá é usar placas grátis pelo navegador (Kaggle, Hugging Face ZeroGPU 5 min/dia).
+Detalhe e links: página engenharia-reversa-achados-2026-10-17.

@@ -18,6 +18,9 @@ import '../../widgets/bora/bora_screen_app_bar.dart';
 /// telefone, para ligar.
 ///
 /// Lê `admin_tvde_pagamentos_list(scope, limite)` — RPC somente leitura.
+///
+/// 17/10/2026 (cancelamento tardio): corrida paga e cancelada tarde fica com
+/// o valor todo; o cartão diz isso e o botão diz "Nada a devolver".
 /// O estorno chama a ação `refund` da Edge `tvde-payment`, que já existia.
 class AdminTvdePagamentosScreen extends StatefulWidget {
   const AdminTvdePagamentosScreen({super.key});
@@ -267,6 +270,18 @@ String _quando(Map<String, dynamic> c) {
 
 String _euros(num? cents) => '€ ${((cents ?? 0) / 100).toStringAsFixed(2)}';
 
+/// [17/10/2026] Pagamento retido por cancelamento tardio que cobriu a corrida
+/// inteira (`kept_cancel_fee` com taxa ≥ tarifa): nada foi devolvido.
+bool ficouComTudo(Map<String, dynamic> corrida) {
+  if (corrida['payment_status'] != 'kept_cancel_fee') return false;
+  final taxa = (corrida['cancel_fee_cents'] as num?)?.toInt() ?? 0;
+  final tarifa = ((corrida['final_fare_cents'] ?? corrida['est_fare_cents'])
+              as num?)
+          ?.toInt() ??
+      0;
+  return tarifa > 0 && taxa >= tarifa;
+}
+
 /// PT-BR com o termo técnico entre parênteses, como o Danilo pediu.
 String _estadoEmPortugues(String? estado) => switch (estado) {
       'succeeded' => 'Pago',
@@ -298,6 +313,9 @@ class _CartaoPago extends StatelessWidget {
     final jaEstornado = estado == 'refunded' ||
         estado == 'partial_refund' ||
         estado == 'kept_cancel_fee';
+    // [17/10/2026 · cancelamento tardio] A taxa cobriu a corrida inteira: não
+    // houve estorno nenhum — "Já estornado" / "ficou só a taxa" seria mentira.
+    final porInteiro = ficouComTudo(corrida);
     final pi = corrida['payment_intent_id'] as String?;
 
     return _Caixa(
@@ -322,7 +340,7 @@ class _CartaoPago extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          '${corrida['payment_method'] == 'card' ? 'Cartão' : 'MB Way'} · ${_estadoEmPortugues(estado)}',
+          '${corrida['payment_method'] == 'card' ? 'Cartão' : 'MB Way'} · ${porInteiro ? 'Ficou com o valor todo (cancelamento tardio: corrida cobrada por inteiro)' : _estadoEmPortugues(estado)}',
           style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
         ),
         Text('${corrida['origin_label'] ?? '?'} → ${corrida['dest_label'] ?? '?'}',
@@ -359,7 +377,9 @@ class _CartaoPago extends StatelessWidget {
           child: OutlinedButton.icon(
             onPressed: jaEstornado ? null : aoEstornar,
             icon: const Icon(Icons.undo, size: 16),
-            label: Text(jaEstornado ? 'Já estornado' : 'Estornar'),
+            label: Text(porInteiro
+                ? 'Nada a devolver'
+                : (jaEstornado ? 'Já estornado' : 'Estornar')),
           ),
         ),
       ],

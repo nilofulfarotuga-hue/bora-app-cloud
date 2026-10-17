@@ -604,11 +604,12 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'tvde_cancelamentos_de_corridas',
       title: 'Cancelamentos de corridas',
-      subtitle: 'Corridas canceladas e as taxas cobradas',
+      // [17/10/2026] cancelamento tardio: o ecrã mostra e dá compensações.
+      subtitle: 'Corridas canceladas, taxas cobradas e compensação ao motorista',
       icon: Icons.cancel_schedule_send,
       color: Colors.redAccent,
       builder: () => const AdminTvdeCancellationsScreen(),
-      keywords: const ['canceladas', 'cancelamentos', 'cobradas', 'corridas', 'taxas'],
+      keywords: const ['canceladas', 'cancelamentos', 'cobradas', 'compensacao', 'corridas', 'motorista', 'taxas'],
     ),
     AdminMenuItem(
       id: 'tvde_motoristas_de_passageiros',

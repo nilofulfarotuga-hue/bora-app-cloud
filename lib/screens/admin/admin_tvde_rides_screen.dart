@@ -8,6 +8,8 @@ import '../../config/app_spacing.dart';
 import '../../services/admin_export_service.dart';
 import '../../widgets/admin/confirmar_dinheiro.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import 'admin_tvde_cancellations_screen.dart'
+    show cobradoDaCompensacao, eurosBr;
 import 'admin_tvde_dest_change_dialog.dart';
 import '../../utils/hora_lisboa_ext.dart';
 
@@ -21,6 +23,12 @@ import '../../utils/hora_lisboa_ext.dart';
 ///
 /// Lê `admin_tvde_rides_list(scope, limite)` (RPC admin read-only, aditivo).
 /// Idioma: PT-BR.
+///
+/// 17/10/2026 (cancelamento tardio): parte da taxa de cancelamento passa a ir
+/// para o motorista (compensação). O resumo financeiro tira-a à Bora e põe-a
+/// no motorista (`admin_tvde_cancel_comps`, tolerante a falha), o cartão diz
+/// quanto foi para cada um, e uma corrida cobrada por inteiro deixa de
+/// aparecer como "POR DEVOLVER" com 0 € e um botão de reembolso.
 class AdminTvdeRidesScreen extends StatefulWidget {
   const AdminTvdeRidesScreen({super.key});
 
@@ -85,6 +93,9 @@ class _RidesListState extends State<_RidesList>
   String? _error;
   Timer? _timer;
 
+  /// [17/10] Compensações ao motorista por id da corrida (vazio se falhar).
+  Map<String, Map<String, dynamic>> _comps = const {};
+
   bool get _isLive => widget.scope == 'live';
 
   @override
@@ -114,12 +125,28 @@ class _RidesListState extends State<_RidesList>
         params: {'p_scope': widget.scope, 'p_limit': _isLive ? 200 : 500},
       );
       final list = (res as List?) ?? const [];
+      // [17/10] Compensações: só fora do "ao vivo" e sem nunca estragar a lista.
+      var comps = _comps;
+      if (!_isLive) {
+        try {
+          final c = await Supabase.instance.client
+              .rpc('admin_tvde_cancel_comps', params: {'p_limit': 500});
+          comps = {
+            for (final m in ((c as List?) ?? const []).whereType<Map>())
+              if (m['ride_id'] != null)
+                m['ride_id'].toString(): Map<String, dynamic>.from(m),
+          };
+        } catch (e) {
+          debugPrint('admin_tvde_cancel_comps falhou: $e');
+        }
+      }
       if (!mounted) return;
       setState(() {
         _rows = list
             .whereType<Map>()
             .map((e) => Map<String, dynamic>.from(e))
             .toList();
+        _comps = comps;
         _loading = false;
         _error = null;
       });
@@ -133,31 +160,8 @@ class _RidesListState extends State<_RidesList>
   }
 
   // ── Financeiro agregado (apenas histórico) ──
-  ({int fare, int driver, int bora, int cancelled, int finished}) _totals() {
-    var fare = 0, driver = 0, bora = 0, cancelled = 0, finished = 0;
-    for (final r in _rows) {
-      final status = r['status'] as String?;
-      if (status == 'finalizada') {
-        finished++;
-        fare += (r['final_fare_cents'] as num?)?.toInt() ?? 0;
-        driver += (r['driver_earn_cents'] as num?)?.toInt() ?? 0;
-        bora += (r['bora_cut_cents'] as num?)?.toInt() ?? 0;
-      } else if ((status != null && status.startsWith('cancel')) ||
-          status == 'no_show' ||
-          status == 'sem_motorista') {
-        cancelled++;
-      }
-      // taxa de cancelamento conta para o Bora
-      bora += (r['cancel_fee_cents'] as num?)?.toInt() ?? 0;
-    }
-    return (
-      fare: fare,
-      driver: driver,
-      bora: bora,
-      cancelled: cancelled,
-      finished: finished
-    );
-  }
+  ({int fare, int driver, int bora, int cancelled, int finished}) _totals() =>
+      totaisDaLista(_rows, _comps);
 
   Future<void> _exportCsv() async {
     if (_rows.isEmpty) {
@@ -443,6 +447,7 @@ class _RidesListState extends State<_RidesList>
                   onForceRedispatch:
                       _isLive ? () => _forcarNovaRoda(r) : null,
                   onRefund: () => _reembolsar(r),
+                  comp: _comps[r['id']?.toString()],
                 )),
         ],
       ),
@@ -564,9 +569,13 @@ class _RideCard extends StatelessWidget {
     this.byId = const {},
     this.onReassign,
     this.onForceRedispatch,
+    this.comp,
   });
   final Map<String, dynamic> data;
   final bool live;
+
+  /// [17/10] Compensação ao motorista desta corrida (cancelamento tardio).
+  final Map<String, dynamic>? comp;
 
   /// Pedido de reembolso a mao (so aparece quando ha dinheiro online por devolver).
   final VoidCallback? onRefund;
@@ -607,6 +616,11 @@ class _RideCard extends StatelessWidget {
     final boraCents = (data['bora_cut_cents'] as num?)?.toInt();
     final cancelReason = (data['cancel_reason'] as String?)?.trim();
     final cancelFee = (data['cancel_fee_cents'] as num?)?.toInt() ?? 0;
+    // [17/10] Corrida cobrada por inteiro (cancelamento tardio): nada a
+    // devolver — nem "POR DEVOLVER" com 0 €, nem botão de reembolso.
+    final estadoReembolso = cobradaPorInteiro(data)
+        ? _kCobradaPorInteiro
+        : data['reembolso_estado']?.toString();
     final usedSubscriptionRide = data['used_subscription_ride'] == true;
     final locUpdated = data['driver_loc_updated_at'];
     // Back-to-back: corrida aceita em fila enquanto o motorista termina outra.
@@ -750,20 +764,38 @@ class _RideCard extends StatelessWidget {
             // [25/09] ESTADO DO REEMBOLSO. So aparece quando ha dinheiro online em jogo.
             // Nasceu do caso da Izilda: 8 EUR pagos por MB Way numa corrida cancelada que
             // ninguem devolveu, e nada no painel dizia que faltava devolver.
-            if (data['reembolso_estado'] != null) ...[
+            // [17/10] Cancelamento tardio: quanto foi para o motorista e
+            // quanto fica para a Bora (a taxa já não é toda da Bora).
+            if (comp != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.euro, size: 15, color: AppColors.primary),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(linhaDaCompensacao(comp!),
+                          style: const TextStyle(
+                              fontSize: 12.5, fontWeight: FontWeight.w600)),
+                    ),
+                  ],
+                ),
+              ),
+            if (estadoReembolso != null) ...[
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Row(
                   children: [
                     Icon(
-                      data['reembolso_estado'] == 'pendente'
+                      estadoReembolso == 'pendente'
                           ? Icons.error_outline
-                          : data['reembolso_estado'] == 'falhou'
+                          : estadoReembolso == 'falhou'
                               ? Icons.report_gmailerrorred
                               : Icons.assignment_turned_in_outlined,
                       size: 16,
-                      color: data['reembolso_estado'] == 'pendente' ||
-                              data['reembolso_estado'] == 'falhou'
+                      color: estadoReembolso == 'pendente' ||
+                              estadoReembolso == 'falhou'
                           ? AppColors.error
                           : AppColors.success,
                     ),
@@ -776,22 +808,26 @@ class _RideCard extends StatelessWidget {
                               'so_taxa': 'Reembolso: ficou so a taxa',
                               'falhou': 'Reembolso: FALHOU — resolver na Stripe',
                               'pendente': 'Reembolso: POR DEVOLVER',
-                            }[data['reembolso_estado']?.toString()] ??
-                            'Reembolso: ${data['reembolso_estado']}',
+                              // [17/10] cancelamento tardio: ficou tudo retido.
+                              _kCobradaPorInteiro:
+                                  'Reembolso: nada a devolver (corrida cobrada por inteiro)',
+                            }[estadoReembolso] ??
+                            'Reembolso: $estadoReembolso',
                         style: TextStyle(
                           fontSize: 13,
-                          fontWeight: data['reembolso_estado'] == 'pendente' ||
-                                  data['reembolso_estado'] == 'falhou'
+                          fontWeight: estadoReembolso == 'pendente' ||
+                                  estadoReembolso == 'falhou'
                               ? FontWeight.w700
                               : FontWeight.w500,
-                          color: data['reembolso_estado'] == 'pendente' ||
-                                  data['reembolso_estado'] == 'falhou'
+                          color: estadoReembolso == 'pendente' ||
+                                  estadoReembolso == 'falhou'
                               ? AppColors.error
                               : AppColors.textSecondary,
                         ),
                       ),
                     ),
-                    if ((data['reembolso_cents'] as num?) != null)
+                    if (estadoReembolso != _kCobradaPorInteiro &&
+                        (data['reembolso_cents'] as num?) != null)
                       Text(
                         'EUR ${(((data['reembolso_cents'] as num).toInt()) / 100).toStringAsFixed(2)}',
                         style: const TextStyle(
@@ -800,7 +836,7 @@ class _RideCard extends StatelessWidget {
                   ],
                 ),
               ),
-              if (onRefund != null)
+              if (onRefund != null && estadoReembolso != _kCobradaPorInteiro)
                 Padding(
                   padding: const EdgeInsets.only(top: 6),
                   child: Align(
@@ -812,8 +848,8 @@ class _RideCard extends StatelessWidget {
                       style: OutlinedButton.styleFrom(
                         visualDensity: VisualDensity.compact,
                         foregroundColor:
-                            data['reembolso_estado'] == 'pendente' ||
-                                    data['reembolso_estado'] == 'falhou'
+                            estadoReembolso == 'pendente' ||
+                                    estadoReembolso == 'falhou'
                                 ? AppColors.error
                                 : AppColors.textSecondary,
                       ),
@@ -1487,4 +1523,71 @@ class _AtrasoOferta extends StatelessWidget {
       ),
     );
   }
+}
+
+// ── [17/10/2026 · cancelamento tardio] funções puras (testes em
+// test/admin_tvde_cancelamentos_test.dart) ──
+
+/// Estado de reembolso "local" de uma corrida cobrada por inteiro.
+const String _kCobradaPorInteiro = 'cobrada_por_inteiro';
+
+int _cents(Object? v) =>
+    v is num ? v.toInt() : (num.tryParse('${v ?? ''}')?.toInt() ?? 0);
+
+/// Resumo financeiro das corridas listadas. A taxa de cancelamento conta para
+/// a Bora, MENOS a compensação que foi para o motorista (que passa a contar
+/// na parte do motorista). Sem compensações carregadas: as contas de sempre.
+({int fare, int driver, int bora, int cancelled, int finished}) totaisDaLista(
+  List<Map<String, dynamic>> rows,
+  Map<String, Map<String, dynamic>> comps,
+) {
+  var fare = 0, driver = 0, bora = 0, cancelled = 0, finished = 0;
+  for (final r in rows) {
+    final status = r['status'] as String?;
+    if (status == 'finalizada') {
+      finished++;
+      fare += _cents(r['final_fare_cents']);
+      driver += _cents(r['driver_earn_cents']);
+      bora += _cents(r['bora_cut_cents']);
+    } else if ((status != null && status.startsWith('cancel')) ||
+        status == 'no_show' ||
+        status == 'sem_motorista') {
+      cancelled++;
+    }
+    // taxa de cancelamento conta para o Bora…
+    bora += _cents(r['cancel_fee_cents']);
+    // …menos a compensação que foi para o motorista (17/10).
+    final c = comps[r['id']?.toString()];
+    if (c != null) {
+      final paraMotorista = _cents(c['driver_cents']);
+      bora -= paraMotorista;
+      driver += paraMotorista;
+    }
+  }
+  return (
+    fare: fare,
+    driver: driver,
+    bora: bora,
+    cancelled: cancelled,
+    finished: finished
+  );
+}
+
+/// Corrida paga online cancelada tarde e cobrada por inteiro: a taxa cobrada
+/// cobre a tarifa toda, logo não há nada a devolver ("só a taxa"/"pendente").
+bool cobradaPorInteiro(Map<String, dynamic> r) {
+  final estado = r['reembolso_estado']?.toString();
+  if (estado != 'so_taxa' && estado != 'pendente') return false;
+  final taxa = _cents(r['cancel_fee_cents']);
+  final tarifa = _cents(r['final_fare_cents'] ?? r['est_fare_cents']);
+  return taxa > 0 && tarifa > 0 && taxa >= tarifa;
+}
+
+/// "Cancelamento tardio · compensação ao motorista 3,75 € · a Bora fica com
+/// 3,25 €" — a Bora fica com o que foi mesmo cobrado menos a compensação.
+String linhaDaCompensacao(Map<String, dynamic> c) {
+  final motorista = _cents(c['driver_cents']);
+  final bora = cobradoDaCompensacao(c) - motorista;
+  return 'Cancelamento tardio · compensação ao motorista ${eurosBr(motorista)}'
+      ' · a Bora fica com ${eurosBr(bora)}';
 }

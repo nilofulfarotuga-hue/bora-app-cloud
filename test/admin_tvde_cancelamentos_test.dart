@@ -10,6 +10,8 @@
 //  "nada a devolver" quando a corrida foi cobrada por inteiro).
 import 'dart:io';
 
+import 'package:bora_app/screens/admin/admin_platform_settings_screen.dart'
+    show erroValorEmCentimos;
 import 'package:bora_app/screens/admin/admin_tvde_cancellations_screen.dart';
 import 'package:bora_app/screens/admin/admin_tvde_pagamentos_screen.dart'
     show ficouComTudo;
@@ -166,6 +168,20 @@ void main() {
           contains('DESLIGADA'));
     });
 
+    test('Definições: chave em cêntimos só aceita número inteiro', () {
+      expect(erroValorEmCentimos('tvde_cancel_driver_fee_cents', 3.75),
+          contains('375 = 3,75 €'));
+      expect(erroValorEmCentimos('tvde_cancel_driver_fee_cents', 4),
+          contains('euros'));
+      expect(erroValorEmCentimos('tvde_cancel_driver_fee_cents', 375), isNull);
+      expect(erroValorEmCentimos('tvde_cancel_driver_fee_cents', 0), isNull,
+          reason: '0 desliga a compensação');
+      expect(erroValorEmCentimos('cancel_fee_before_dispatch_cents', 2.5),
+          isNotNull);
+      expect(erroValorEmCentimos('cancel_grace_seconds', 90.5), isNull);
+      expect(erroValorEmCentimos('cancel_fee_after_pickup_ratio', 0.5), isNull);
+    });
+
     test('valor em euros escrito pelo admin', () {
       expect(centsDoTexto('3,75'), 375);
       expect(centsDoTexto('3.75'), 375);
@@ -251,6 +267,25 @@ void main() {
       expect(t.bora, 250 + 700 + 250 - 375);
       expect(t.cancelled, 2);
       expect(t.finished, 1);
+      // [Revisão 17/10] Cobrança falhada (carteira no limite): a taxa não
+      // entrou — a Bora fica só com o −3,75 € da compensação, como no cartão.
+      final falhada = totaisDaLista([
+        {'id': 'c9', 'status': 'cancelada_cliente', 'cancel_fee_cents': 900},
+      ], {
+        'c9': _comp('c9', fee: 900, driver: 375, via: 'nao_cobrado'),
+      });
+      expect(falhada.bora, -375);
+      expect(
+          linhaDaCompensacao(
+              _comp('c9', fee: 900, driver: 375, via: 'nao_cobrado'),
+              corrida: {'cancel_fee_cents': 900}),
+          endsWith('a Bora fica com −3,75 €'));
+      // Compensação manual numa corrida que pagou a taxa fixa de 2,50 €.
+      expect(
+          linhaDaCompensacao(
+              _comp('c8', fee: 0, driver: 200, via: 'admin', origem: 'admin'),
+              corrida: {'cancel_fee_cents': 250}),
+          endsWith('a Bora fica com 0,50 €'));
       // Sem compensações carregadas: as contas de sempre.
       expect(totaisDaLista([
         {'id': 'c1', 'status': 'cancelada_cliente', 'cancel_fee_cents': 700},

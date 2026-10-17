@@ -206,6 +206,47 @@ void main() {
     expect(find.text('Cancelar e pagar 7,00 €'), findsOneWidget);
   });
 
+  testWidgets(
+      'viu "grátis" e a cotação ao confirmar falhou: NÃO cancela, mostra o aviso neutro',
+      (t) async {
+    // [Revisão 17/10] Antes devolvia "confirmou": se a janela tivesse acabado
+    // entretanto, o servidor cobrava a corrida inteira a quem viu 0 €.
+    final store = _ServidorFalso([
+      () => _q('dentro_da_graca', restam: 120),
+      () => null,
+    ]);
+    final decisoes = await _abrir(t, store);
+    await t.tap(find.text('Sim, cancelar'));
+    await t.pump();
+    await t.pump();
+    expect(decisoes, isEmpty);
+    expect(_principal(t), startsWith('Não foi possível confirmar agora'));
+    // No aviso neutro, sem resposta outra vez, cancela-se: o cliente aceitou
+    // o aviso de que pode custar o valor da corrida.
+    await t.tap(find.text('Cancelar na mesma'));
+    await t.pumpAndSettle();
+    expect(decisoes.single.confirmou, isTrue);
+    expect(store.pedidos, 3);
+  });
+
+  testWidgets('grátis por um triz (menos de 5 s): mostra outra vez, não cancela',
+      (t) async {
+    final store = _ServidorFalso([
+      () => _q('dentro_da_graca', restam: 60),
+      () => _q('dentro_da_graca', restam: 3),
+    ]);
+    final decisoes = await _abrir(t, store);
+    await t.tap(find.text('Sim, cancelar'));
+    await t.pump();
+    await t.pump();
+    expect(decisoes, isEmpty,
+        reason: 'o pedido podia chegar ao servidor já fora da janela');
+    expect(_principal(t), contains('mais 00:03 '));
+    await t.tap(find.byKey(const ValueKey('tvde_cancel_voltar')));
+    await t.pumpAndSettle();
+    expect(decisoes.single.confirmou, isFalse);
+  });
+
   testWidgets('corrida que já tinha terminado: sem diálogo', (t) async {
     final store = _ServidorFalso([
       () => TvdeCancelQuote.fromJson({

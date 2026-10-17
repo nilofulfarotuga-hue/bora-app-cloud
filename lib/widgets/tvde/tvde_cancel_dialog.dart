@@ -24,9 +24,17 @@ import '../../models/tvde_cancel_quote.dart';
 /// Prazo para a cotação chegar antes de se mostrar o aviso neutro.
 const Duration kPrazoDaCotacao = Duration(seconds: 3);
 
+/// Margem antes do fim da janela grátis: com menos do que isto por fazer, não
+/// se cancela "grátis" (o pedido pode chegar ao servidor já fora da janela).
+const Duration kMargemDaJanela = Duration(seconds: 5);
+
 /// O diálogo fecha-se com isto quando a corrida terminou enquanto estava
 /// aberto: quem o abriu volta a perguntar ao servidor e decide.
 const int _kReavaliar = -2;
+
+/// O que o diálogo devolve quando o cliente confirmou o aviso neutro (sem
+/// cotação, nenhum número mostrado) — o mesmo que `TextoCancelamento.taxaCents`.
+const int _kSemCotacao = -1;
 
 /// Resultado de [pedirConfirmacaoDeCancelamento].
 class DecisaoDeCancelamento {
@@ -84,12 +92,27 @@ Future<DecisaoDeCancelamento> pedirConfirmacaoDeCancelamento(
       cotacao = agora;
       continue;
     }
-    // Sem resposta agora: o cliente aceitou o que viu (o valor ou o aviso).
-    if (agora == null) return const DecisaoDeCancelamento.confirmou();
+    if (agora == null) {
+      // Sem resposta agora. Só o aviso neutro (que já dizia "pode custar o
+      // valor da corrida") pode seguir assim; quem viu um número volta a ver
+      // o aviso neutro — a janela grátis pode ter acabado entretanto.
+      if (vista == _kSemCotacao) return const DecisaoDeCancelamento.confirmou();
+      cotacao = null;
+      continue;
+    }
     if (agora.jaTerminou) return DecisaoDeCancelamento.terminada(agora);
     // A janela grátis acabou com o diálogo aberto (ou o aviso neutro não
     // mostrava número): mostra-se outra vez, com o valor novo.
     if (agora.taxaAMostrar > math.max(vista, 0)) {
+      cotacao = agora;
+      continue;
+    }
+    // Grátis por um triz: o cancelamento pode chegar ao servidor já depois da
+    // janela (e aí cobra-se a corrida). Com menos de [kMargemDaJanela] mostra-se
+    // outra vez — o contador chega a zero e o valor real aparece.
+    if (!agora.terminal &&
+        agora.regra == 'dentro_da_graca' &&
+        agora.secondsLeftFree < kMargemDaJanela.inSeconds) {
       cotacao = agora;
       continue;
     }

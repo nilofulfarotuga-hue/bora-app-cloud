@@ -1628,7 +1628,6 @@ Future<void> showTvdeReservationNotification(Map<String, dynamic> data) async {
   }
 }
 
-@pragma('vm:entry-point')
 /// [17/10/2026 · cancelamento tardio] O que a notificação de `admin_message`
 /// mostra (função pura, testada em `test/aviso_mensagem_admin_test.dart`).
 /// Título e texto vêm do `data` (push data-only); `notification` só como
@@ -1658,6 +1657,7 @@ Future<void> showTvdeReservationNotification(Map<String, dynamic> data) async {
   );
 }
 
+@pragma('vm:entry-point')
 Future<void> _showPersistentCategoryNotification(RemoteMessage message) async {
   final data = message.data;
   final type = data['type']?.toString() ?? '';
@@ -2383,6 +2383,9 @@ class NotificationService {
         // [17/10/2026] App morta + toque na mensagem do painel (ex.:
         // compensação de cancelamento): abre o ecrã de notificações.
         if (data['type'] == 'admin_message') {
+          // A notificação é persistente: sai também quando abre a frio.
+          final id = launch?.notificationResponse?.id;
+          if (id != null) unawaited(localPlugin.cancel(id));
           unawaited(openInboxFromNotification());
         }
         if (data['type'] == 'chat') {

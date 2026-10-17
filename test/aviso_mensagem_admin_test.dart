@@ -98,6 +98,22 @@ void main() {
           contains('const NotificationsScreen()'));
     });
 
+    test('a frio, o toque também tira a notificação persistente', () {
+      // [Revisão 17/10] Sem isto "recebes 3,75 €" ficava presa na barra.
+      final i = servico.indexOf(
+          "if (data['type'] == 'admin_message') {", servico.indexOf('getNotificationAppLaunchDetails()'));
+      expect(i, isNonNegative);
+      final ramo = servico.substring(i, servico.indexOf('}', servico.indexOf('openInboxFromNotification', i)) + 1);
+      expect(ramo, contains('localPlugin.cancel(id)'));
+    });
+
+    test('o @pragma do fundo continua na função que o handler chama', () {
+      expect(
+          RegExp(r"@pragma\('vm:entry-point'\)\s+Future<void> _showPersistentCategoryNotification\(")
+              .hasMatch(servico),
+          isTrue);
+    });
+
     test('a home do motorista de TVDE liga o deep link das mensagens', () {
       final home = File('lib/screens/driver/tvde/tvde_driver_home_screen.dart')
           .readAsStringSync();

@@ -775,7 +775,7 @@ class _RideCard extends StatelessWidget {
                     const Icon(Icons.euro, size: 15, color: AppColors.primary),
                     const SizedBox(width: 6),
                     Expanded(
-                      child: Text(linhaDaCompensacao(comp!),
+                      child: Text(linhaDaCompensacao(comp!, corrida: data),
                           style: const TextStyle(
                               fontSize: 12.5, fontWeight: FontWeight.w600)),
                     ),
@@ -1555,9 +1555,9 @@ int _cents(Object? v) =>
       cancelled++;
     }
     // taxa de cancelamento conta para o Bora…
-    bora += _cents(r['cancel_fee_cents']);
-    // …menos a compensação que foi para o motorista (17/10).
     final c = comps[r['id']?.toString()];
+    bora += _taxaRecebida(r, c);
+    // …menos a compensação que foi para o motorista (17/10).
     if (c != null) {
       final paraMotorista = _cents(c['driver_cents']);
       bora -= paraMotorista;
@@ -1583,11 +1583,21 @@ bool cobradaPorInteiro(Map<String, dynamic> r) {
   return taxa > 0 && tarifa > 0 && taxa >= tarifa;
 }
 
+/// A taxa de cancelamento que entrou mesmo: a da corrida, salvo quando a
+/// compensação diz que a cobrança falhou (`nao_cobrado` → 0).
+int _taxaRecebida(Map<String, dynamic> r, Map<String, dynamic>? c) =>
+    c?['collected_via'] == 'nao_cobrado' ? 0 : _cents(r['cancel_fee_cents']);
+
 /// "Cancelamento tardio · compensação ao motorista 3,75 € · a Bora fica com
-/// 3,25 €" — a Bora fica com o que foi mesmo cobrado menos a compensação.
-String linhaDaCompensacao(Map<String, dynamic> c) {
+/// 3,25 €" — a Bora fica com o que entrou mesmo (a taxa da corrida, 0 se a
+/// cobrança falhou) menos a compensação. Mesma conta do resumo financeiro.
+String linhaDaCompensacao(Map<String, dynamic> c,
+    {Map<String, dynamic> corrida = const {}}) {
   final motorista = _cents(c['driver_cents']);
-  final bora = cobradoDaCompensacao(c) - motorista;
+  final taxa = corrida.containsKey('cancel_fee_cents')
+      ? _taxaRecebida(corrida, c)
+      : cobradoDaCompensacao(c);
+  final bora = taxa - motorista;
   return 'Cancelamento tardio · compensação ao motorista ${eurosBr(motorista)}'
       ' · a Bora fica com ${eurosBr(bora)}';
 }

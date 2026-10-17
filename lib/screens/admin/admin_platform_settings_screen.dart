@@ -791,6 +791,17 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
       }
       return;
     }
+    // [17/10/2026] Chave em cêntimos só aceita número inteiro: "3.75" seria
+    // gravado como 4 cêntimos (o servidor arredonda) e a compensação ao
+    // motorista passava a 0,04 € sem ninguém dar por isso.
+    final erroCents = erroValorEmCentimos(s.key, value);
+    if (erroCents != null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(erroCents)));
+      }
+      return;
+    }
     try {
       await Supabase.instance.client.rpc('admin_update_cancel_setting', params: {
         'p_key': s.key,
@@ -924,4 +935,19 @@ class _Setting {
         description: j['description'] as String?,
         category: j['category'] as String?,
       );
+}
+
+/// [17/10/2026 · cancelamento tardio] Validação das chaves de cancelamento em
+/// cêntimos: só número inteiro (o servidor arredondaria "3.75" para 4
+/// cêntimos). A compensação ao motorista abaixo de 50 cêntimos (e não zero)
+/// quase de certeza foi escrita em euros. Devolve a mensagem de erro ou null.
+String? erroValorEmCentimos(String key, num valor) {
+  if (!key.endsWith('_cents')) return null;
+  if (valor != valor.roundToDouble()) {
+    return 'Em cêntimos, sem vírgula nem ponto: 375 = 3,75 €.';
+  }
+  if (key == 'tvde_cancel_driver_fee_cents' && valor > 0 && valor < 50) {
+    return 'Parece um valor em euros. Em cêntimos: 375 = 3,75 €.';
+  }
+  return null;
 }

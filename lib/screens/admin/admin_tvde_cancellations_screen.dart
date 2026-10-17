@@ -153,6 +153,7 @@ class _AdminTvdeCancellationsScreenState
   }
 
   Future<void> _refresh() async {
+    if (!mounted) return; // o admin saiu do ecrã enquanto a RPC corria
     setState(() => _future = _load());
     await _future.catchError((_) => const DadosCancelamentos(linhas: []));
   }

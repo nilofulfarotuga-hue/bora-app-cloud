@@ -1,0 +1,14 @@
+00:00 +0: loading C:/BoraLocal/wt-cancelamento-17-10/integration_test/tvde_cancelamento_prova_test.dart
+00:00 +0: 1. janela grátis com contador e, a zero, o custo
+[prova] PRONTO janela_gratis
+[prova] PRONTO janela_acabou
+00:07 +1: 2. corrida inteira paga online
+[prova] PRONTO corrida_inteira_online
+00:09 +2: 3. corrida inteira em dinheiro → carteira
+[prova] PRONTO corrida_inteira_carteira
+00:12 +3: 4. cotação falhada → aviso neutro
+[prova] PRONTO aviso_neutro
+00:15 +4: 5. o valor subiu ao confirmar → mostra o novo
+[prova] PRONTO valor_subiu
+00:19 +5: (tearDownAll)
+00:19 +5: All tests passed!

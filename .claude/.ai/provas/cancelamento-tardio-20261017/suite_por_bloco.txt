@@ -1,0 +1,4 @@
+linha de base (origin 1bf60fd9): analyze 264 issues found. (ran in 80.0s) · erros 0 · warnings 6 · testes +1336: All tests passed!
+depois do bloco ab: analyze 264 issues found. (ran in 95.9s) · erros 0 · warnings 6 · testes +1361: All tests passed!
+depois do bloco c: analyze 264 issues found. (ran in 40.9s) · erros 0 · warnings 6 · testes +1371: All tests passed!
+depois do bloco d: analyze 264 issues found. (ran in 31.3s) · erros 0 · warnings 6 · testes +1384: All tests passed!

@@ -10,7 +10,7 @@ estado: atual
 
 # Filme das filhas — 5 caminhos grátis para o desenho (revisto 05/10 com os 50 vídeos)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-17T09:21:16.163637+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-17T11:16:59.399518+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: caminhos animacao filme · memoria claude.ai · claude_ai_memoria
 
@@ -58,3 +58,8 @@ Ordem recomendada: 2 (bíblia) → 1 (personagens fixos) → 3 (vozes) → 4 (bo
 - Música: ACE-Step 1.5 (T4); reserva HeartMuLa 3B.
 - Navegador no PC fraco não gera vídeo; o que dá é usar placas grátis pelo navegador (Kaggle, Hugging Face ZeroGPU 5 min/dia).
 Detalhe e links: página engenharia-reversa-achados-2026-10-17.
+
+## 17/10/2026 (tarde) — vídeo de plano contínuo com MiniMax H3: confirmado FORA; uma ideia a testar
+- H3 FORA do filme, agora pelo texto original da licença: só vale fora da UE, Reino Unido, Coreia e EUA e proíbe usar os resultados lá dentro (cláusulas II e V.4); além disso pede placa NVIDIA de 12 a 16 GB e a licença paga da Comfy começa em 5.000 USD por mês. Não voltar a propor. Detalhe em ideias-videos-danilo.
+- IDEIA A TESTAR (PENDENTE, nada testado): nas cenas SEM fala e mais longas (Criação, portal, planetas), encadear com o botão Extend do Flow, que parte do último segundo de um clipe Veo de 8 s e traz som, em vez de usar só o último fotograma. Teste pequeno: 1 cadeia de 3 clipes a partir da imagem-mestre aprovada; medir os créditos gastos; rever fotograma a fotograma (regra de 14/10: nenhuma personagem duplicada, uma pessoa só por plano) antes de entrar no episódio. A função vem de um blog de terceiros; confirmar na conta dele.
+- Reforça o caminho decidido: ficha completa da personagem como imagem de referência fixa em todos os planos, planos de 8 s no máximo, e os prompts de todos os planos escritos de uma vez a partir de um plano com a lista das imagens de referência.

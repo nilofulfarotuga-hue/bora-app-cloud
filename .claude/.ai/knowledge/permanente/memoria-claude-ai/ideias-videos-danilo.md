@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-17T09:22:21.721524+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-17T11:17:52.640672+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -177,3 +177,16 @@ A CONFERIR ANTES DE PRODUZIR: cronometrar a marcação na app ("1 minuto" não f
 ## 17/10/2026 — vídeo "clonar qualquer app com Claude + skill REA" (Danilo mandou)
 - ENGENHARIA REVERSA virou método fixo: sempre que algo é pago, tem limite ou trava, primeiro procurar no GitHub o que já existe grátis; se não existe, recriar as funções olhando por fora. Páginas: engenharia-reversa, engenharia-reversa-achados-2026-10-17 (REA, filme, navegador), paridade-mundo-e-lei-2026-10-17 (Uber/Glovo/iFood + lei PT, prazo 02/12/2026 da diretiva das plataformas).
 - REA só no NOSSO app; navegar apps no emulador = MCP do Maestro ou mobile-mcp.
+
+## 17/10/2026 — vídeo "vídeos longos de plano único com o MiniMax H3 no ComfyUI" (Danilo mandou a transcrição; criador brasileiro, guia próprio em HTML)
+- VEREDITO: FORA para o Danilo, por 3 razões. (1) LICENÇA, lida no texto original a 17/10: o território da licença é o mundo inteiro menos a UE, o Reino Unido, a Coreia e os EUA (cláusula II), e a cláusula V.4 proíbe também usar os VÍDEOS que o modelo gera dentro desses sítios — por isso nem no PC dele em Portugal, nem alugando placa noutro país (ele usaria o resultado cá). Vias: pedir licença à MiniMax (II, 2.º parágrafo) ou a licença comercial vendida pela Comfy (a partir de 5.000 USD por mês). O criador não avisa disto. (2) HARDWARE: o próprio vídeo pede placa NVIDIA de 12 GB no mínimo (16 GB recomendada) e 32 GB de RAM; a ficha do modelo dá 42,5 GB de ficheiros no mínimo e o guia 55 GB; o PC dele tem gráfica integrada Radeon 680M e 16 GB. (3) DINHEIRO: pela API de terceiros custa cerca de 0,14 USD por segundo a 2K, e a regra dele proíbe geração paga. O radar já tinha recusado outro vídeo de H3 (canal MDMZ) só por GPU; a razão forte é a licença.
+- O QUE PRESTA SEM O MODELO (ideias, nada testado ainda = PENDENTE):
+  a) Plano contínuo: cada pedaço novo recebe os ÚLTIMOS SEGUNDOS do anterior (imagem e som), não só o último fotograma (o guia chama-lhe modo "contexto"; o modo "corte" não mantém continuidade). Equivalente permitido: botão Extend do Flow (Veo 3.1 Lite), que parte do último segundo de um clipe Veo de 8 s, com som — fonte: blog de terceiros, por confirmar na conta dele (créditos gastos e se a personagem se mantém).
+  b) A ficha completa da personagem entra como imagem de referência nº 1 em TODOS os pedaços (no guia, shift+clique no elo). Confirma o princípio do projeto: identidade trava-se com IMAGEM.
+  c) Pedaços de 8 s no máximo (o modelo aguenta 15 s, mas 8 s sai mais perfeito); cerca de 720p (1 megapixel) e 8 passos como equilíbrio entre velocidade e qualidade.
+  d) Uma IA barata escreve os prompts de todos os pedaços de uma vez: recebe um "system prompt" fixo + o número de pedaços + a duração + o que é a imagem 1, 2, 3; devolve o plano e um prompt por pedaço. É o espírito da bíblia de continuidade e da decupagem do Bora Studio.
+- CUIDADO DE SEGURANÇA: o guia do criador manda correr PowerShell como administrador, git clone de nós de terceiros e pip install, a partir de um HTML num comentário fixado. Nunca correr isto no PC dele sem o executor ler primeiro o repositório, e só em ambiente isolado.
+- REGRA PARA O RADAR (aprendida 17/10): antes de propor ou recusar um modelo aberto, ler o ficheiro LICENSE (território e uso dos resultados), não só "open source" nem só a GPU; vídeos brasileiros raramente avisam da exclusão da UE. H3 fica na lista de REJEITADOS com o motivo certo (licença).
+- RESERVA GUARDADA (só se a MiniMax licenciar Portugal ou a licença mudar): ComfyUI portátil atualizado + nós Easy Media (Multitrack Editor) e KJNodes; modelos H3 (difusão ~21 GB podada, codificador de texto Qwen3-VL 32B, VAE de vídeo e de áudio, LoRA turbo de 4 passos, modelo de upscale); modo referência-para-vídeo com até 9 imagens; opção "match" para igualar a resolução das referências; sem placa NVIDIA, desligar (bypass) os nós de SageAttention e Triton.
+
+- CORREÇÃO (17/10, mesma sessão) à linha "Vias" do vídeo do H3: a licença comercial da Comfy NÃO está confirmada como via para a UE — a página diz só "disponível globalmente" e que serve para correr localmente com direitos comerciais; quem pode licenciar a UE é a MiniMax (cláusula II). Nenhuma via é grátis. O preço de 0,14 USD por segundo vem de um único fornecedor (Atlas Cloud): é só ordem de grandeza.

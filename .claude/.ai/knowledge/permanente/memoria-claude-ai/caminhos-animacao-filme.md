@@ -2,7 +2,7 @@
 id: memoria-claude-ai-caminhos-animacao-filme
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-17
+ultima_confirmacao: 2026-10-18
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Filme das filhas — 5 caminhos grátis para o desenho (revisto 05/10 com os 50 vídeos)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-17T19:56:23.054295+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-18T19:55:57.675029+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: caminhos animacao filme · memoria claude.ai · claude_ai_memoria
 
@@ -69,3 +69,6 @@ Detalhe e links: página engenharia-reversa-achados-2026-10-17.
 - BOCA: CapCut lip sync dá voz a um clipe (texto ou áudio), grátis com limite de duração e caracteres e pode passar a pago; reserva leve antes do Kaggle LivePortrait/LatentSync. https://www.youtube.com/watch?v=UV7CvWQ3FAY
 - CONTINUIDADE: último fotograma de cada cena = imagem inicial da seguinte no Flow, a dizer no prompt que o movimento continua (confirma a nota do Extend de 17/10; ainda não testado no Ep1). https://www.youtube.com/watch?v=TTEKxCRpDpo
 - Kling 3.0 / Seedance 1.5 Pro em plano grátis com folha de 4 ângulos para diálogo (Kling já está na ordem de reserva do adendo 16/10). https://www.youtube.com/watch?v=2SfZSn-Uca8
+
+## 18/10/2026 — radar diário
+- CANDIDATO A TESTAR (não testado): Pippit — Story Studio que gera vídeos longos com roteiro, narração e legendas a partir de um prompt, diz manter personagem e cenário; créditos grátis que renovam todos os dias. Teste proposto: 1 cena curta com a ficha da personagem como imagem de referência e ver se a cara e o cabelo se mantêm entre planos (ataca o problema da deriva que matou o Kaggle/Wan). Não resolve boca nem voz de criança pelo que o resumo diz. https://www.youtube.com/watch?v=iM4S6v1oMmM

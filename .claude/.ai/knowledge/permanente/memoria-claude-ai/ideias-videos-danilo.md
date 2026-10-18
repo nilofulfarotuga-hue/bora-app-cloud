@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-17
+ultima_confirmacao: 2026-10-18
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-17T19:56:23.054295+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-18T19:55:54.090249+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -206,3 +206,14 @@ A CONFERIR ANTES DE PRODUZIR: cronometrar a marcação na app ("1 minuto" não f
 - PENDENTES revistos hoje: Orca (09/10), Haiku subagente (08/10), monitor de assinaturas Em Dia (09/10), AEO (08/10), Flow último frame/Extend (17/10).
 - RECUSADO: OpenAI Dots, Meta Muse, Blender 3D, várias contas grátis do Claude via Notion, stock em casa (Home Market).
 - Radar aprende: +5 termos (REA, rececionista de voz, Flow vídeo longo, alternativas open source a IA paga, LivePortrait/LatentSync); desligados 5 com 0 vídeos bons.
+
+## 18/10/2026 — radar diário (agente na nuvem)
+20 vídeos revistos (todos das sugestões do YouTube de 16-17/10): 5 novos, 6 PENDENTES, 4 já temos, 5 rejeitados. Nenhum do tema animacao_ia. A recolha das 02:00 de hoje ficou bloqueada (YouTube sem sessão no perfil, e2e_log radar-historico 18/10).
+- MODA DA SEMANA (3+ vídeos nota>=8): REA 12 — PENDENTE desde 13/10 (mais 3 hoje; nada no e2e_log). Claude Dashboards/Design/Motion 6 — PENDENTE desde 11/10. WhatsApp/CRM/voz 6 — atendente FEITO (Mister Navalha), rececionista de voz PENDENTE desde 13/10. Sites 5 — já temos (maquete). Hermes 4 — 0.22 PENDENTE desde 16/10. Flow 4 — PENDENTE desde 10/10. Jev 3 — PENDENTE desde 23/09 (pagamento). OpenCode 3 — instalado. DeepSeek 3 — recusado.
+- DINHEIRO: CRM + WhatsApp com IA de código aberto (Deskcom) numa VPS, vendido com a marca do cliente e mensalidade; encaixa no pacote do atendente WhatsApp. Confirmar repositório, licença e se usa número normal. https://www.youtube.com/watch?v=Wb70wA57KNo
+- DINHEIRO / BORA / EM DIA: sites e landings em Astro estático feitos pelo Claude Code e publicados grátis no Cloudflare Pages (em vez de Hostinger/WordPress/Base44). https://www.youtube.com/watch?v=xPboIzb69is
+- SISTEMA: em cada skill/prompt de agente, critério de pronto explícito (ex.: o ecrã X abre sem erros) e sem texto de cortesia. https://www.youtube.com/watch?v=b4DFYL3TtGc
+- SISTEMA (gastar menos): DeepSeek V4.1 Flash grátis dentro do OpenCode como reserva, só em tarefas sem dados de clientes; confirmar que não pede cartão. https://www.youtube.com/watch?v=v2kzG_B_1Rk
+- EM DIA: para os explicativos animados, fontes Fontshare e ícones LottieFiles grátis para não parecer IA (Claude Motion pendente desde 11/10). https://www.youtube.com/watch?v=XTtTBqECLPs ; guia grátis de recibos verdes (pendente desde 04/10) pode sair no Gamma ou em PDF do Claude: https://www.youtube.com/watch?v=R6F2G8eSdYU
+- FILME: Pippit (créditos grátis diários) como candidato a testar com a ficha da personagem (ver caminhos-animacao-filme). https://www.youtube.com/watch?v=iM4S6v1oMmM
+- RECUSADO: Base44 (créditos), Hostinger (pago), DeepSeek Harness (4.ª vez), Copilot grátis (não acrescenta), Nginx teórico.

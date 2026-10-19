@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-18
+ultima_confirmacao: 2026-10-19
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-18T19:55:54.090249+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-19T19:56:43.864834+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -217,3 +217,15 @@ A CONFERIR ANTES DE PRODUZIR: cronometrar a marcação na app ("1 minuto" não f
 - EM DIA: para os explicativos animados, fontes Fontshare e ícones LottieFiles grátis para não parecer IA (Claude Motion pendente desde 11/10). https://www.youtube.com/watch?v=XTtTBqECLPs ; guia grátis de recibos verdes (pendente desde 04/10) pode sair no Gamma ou em PDF do Claude: https://www.youtube.com/watch?v=R6F2G8eSdYU
 - FILME: Pippit (créditos grátis diários) como candidato a testar com a ficha da personagem (ver caminhos-animacao-filme). https://www.youtube.com/watch?v=iM4S6v1oMmM
 - RECUSADO: Base44 (créditos), Hostinger (pago), DeepSeek Harness (4.ª vez), Copilot grátis (não acrescenta), Nginx teórico.
+
+## 19/10/2026 — radar diário (agente na nuvem)
+24 vídeos revistos (vindos da pesquisa das 19:00 e das sugestões de 16/10): 2 novos, 14 PENDENTES, 1 já temos, 7 rejeitados (4 por nota baixa). Nenhum do tema animacao_ia. A recolha das 02:00 voltou a ficar bloqueada (2.º dia, YouTube sem sessão no perfil — e2e_log radar-historico 19/10).
+- MODA DA SEMANA (3+ vídeos nota>=8 em 7 dias): REA/clonar 17 — PENDENTE desde 13/10 (+4 hoje, nada no e2e_log). Claude Motion/Dashboards 5 — PENDENTE desde 11/10 (+3 hoje). Rececionista de voz 4 — PENDENTE desde 13/10 (+3 hoje). Hermes 3 — 0.22 PENDENTE desde 16/10. Google Flow 3 — PENDENTE desde 10/10. Jev 3 — PENDENTE desde 23/09 (pagamento). OpenCode 3 — instalado.
+- DINHEIRO / rececionista de voz (lente grátis): n8n + motor de voz aberto numa VPS própria ligado por SIP, sem pagar minutos (o vídeo diz "Dogora", provavelmente Dograh — confirmar repo e licença); regra de repetir nome/dia/hora e esperar um "sim" antes de gravar; recado humano quando não entende. https://www.youtube.com/watch?v=FRA4UBY332Q
+- SISTEMA (REA, novo ângulo): um agente chefe + vários Claude Code em paralelo, cada um preso a uma pasta, com contratos fixos entre ecrã e servidor antes de começar. https://www.youtube.com/watch?v=VgidwIHzeiU
+- SISTEMA (gastar menos): gateway aberto OmniRoute (um endpoint para vários modelos) como reserva do Hermes/OpenCode, junto com o Free LLM API pendente desde 15/10; confirmar nome e licença no GitHub. https://www.youtube.com/watch?v=5JJgfcJxyyg
+- SISTEMA (gastar menos): regra fixa de nível de esforço por tipo de tarefa nos agentes Claude Code (baixo/médio no simples), sem esperar pelo Jev. https://www.youtube.com/watch?v=5IXUKEHtyT0
+- REELS: trial reels (registado 04/10, sem prova de uso) — no máximo 5 por dia; só repetir como reel normal os que pegarem. https://www.youtube.com/watch?v=P4J1Zs8Jscc
+- PENDENTES revistos hoje: relatório Stripe+Supabase só leitura (07/10), Flow último fotograma/agente de cenas (10/10).
+- RECUSADO: LTX 2.5 lip sync em ComfyUI (GPU; já fora a 17/10), clone aberto do Lovable (pede chave paga da API), n8n básico, dicas genéricas de reels.
+- Radar aprende: +1 termo das conversas (divulgar limpeza doméstica por app), -1 (como crescer no instagram 2026, 0 vídeos bons); 70 ativos.

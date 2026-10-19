@@ -16,6 +16,10 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 19/10/2026: limpeza por pagar em MB Way — o botão diz o que faz
+  // (tool/l10n/traducoes/pt-en-22-limpeza-mbway.json).
+  'Pagar com MB Way':
+      'Pay with MB Way',
   // 17/10/2026: cancelamento tardio TVDE — o diálogo mostra o valor do
   // servidor e o que foi cobrado (tool/l10n/traducoes/pt-en-21-cancelamento-tardio.json).
   'Não foi possível confirmar agora o custo do cancelamento. Se o motorista já aceitou há mais de {0} min, cancelar custa o valor da corrida. Queres cancelar na mesma?':

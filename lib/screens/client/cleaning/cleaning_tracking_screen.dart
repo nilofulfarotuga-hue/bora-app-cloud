@@ -379,7 +379,10 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
             if (!b.status.isCancelled &&
                 b.paymentMethod != 'cash' &&
                 b.paymentStatus == 'unpaid') ...[
-              _PaymentPendingBanner(busy: _acaoEmCurso, onPay: _payNow),
+              _PaymentPendingBanner(
+                  busy: _acaoEmCurso,
+                  mbway: b.paymentMethod == 'mbway',
+                  onPay: _payNow),
               const SizedBox(height: Spacing.lg),
             ],
             if (b.cleanerId != null) ...[
@@ -543,8 +546,12 @@ class _StatusTimeline extends StatelessWidget {
 }
 
 class _PaymentPendingBanner extends StatelessWidget {
-  const _PaymentPendingBanner({required this.busy, required this.onPay});
+  const _PaymentPendingBanner(
+      {required this.busy, required this.mbway, required this.onPay});
   final bool busy;
+
+  /// 19/10/2026: com MB Way o botão diz o que faz (pedido MB Way no telemóvel).
+  final bool mbway;
   final VoidCallback onPay;
 
   @override
@@ -569,7 +576,7 @@ class _PaymentPendingBanner extends StatelessWidget {
           ),
           TextButton(
             onPressed: busy ? null : onPay,
-            child: Text('Pagar agora'.tr,
+            child: Text(mbway ? 'Pagar com MB Way'.tr : 'Pagar agora'.tr,
                 style: const TextStyle(fontWeight: FontWeight.w700)),
           ),
         ],

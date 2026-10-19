@@ -294,6 +294,40 @@ class _AdminCleaningBookingsScreenState
         'Limpeza reagendada.');
   }
 
+  /// Manda de novo o pedido de MB Way para o telemóvel do cliente (19/10/2026).
+  /// RPC `cleaning_request_payment` → Edge `cleaning-request-payment`. O valor
+  /// é sempre o total da reserva; nada aqui muda preços.
+  Future<void> _requestPayment(Map<String, dynamic> b) async {
+    setState(() => _busy = true);
+    try {
+      final res = await Supabase.instance.client
+          .rpc('cleaning_request_payment', params: {'p_booking_id': b['id']});
+      if (!mounted) return;
+      final r = (res is Map) ? Map<String, dynamic>.from(res) : const {};
+      final ok = r['ok'] == true;
+      final msg = ok
+          ? 'Pedido MB Way disparado (${r['tentativa']}ª tentativa). Se já '
+              'houver um pedido à espera do cliente, não é criado outro.'
+          : switch (r['error']) {
+              'not_requestable' =>
+                'Esta limpeza não está pendente de pagamento em MB Way.',
+              'vault_missing' => 'Falta a chave do servidor no cofre do banco.',
+              _ => 'Não deu para pedir: ${r['error'] ?? 'erro desconhecido'}',
+            };
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(msg),
+          backgroundColor: ok ? AppColors.primary : AppColors.error));
+      await _refresh();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(humanizeAdminRpcError(e)),
+          backgroundColor: AppColors.error));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _run(Future<dynamic> Function() fn, String successMsg) async {
     setState(() => _busy = true);
     try {
@@ -407,6 +441,7 @@ class _AdminCleaningBookingsScreenState
                       onReschedule: () => _reschedule(rows[i]),
                       onViewChat: () => _viewChat(rows[i]),
                       onAdvance: () => _advance(rows[i]),
+                      onRequestPayment: () => _requestPayment(rows[i]),
                     ),
                   );
                 },
@@ -428,6 +463,7 @@ class _BookingCard extends StatelessWidget {
     required this.onReschedule,
     required this.onViewChat,
     required this.onAdvance,
+    required this.onRequestPayment,
   });
 
   final Map<String, dynamic> data;
@@ -437,6 +473,7 @@ class _BookingCard extends StatelessWidget {
   final VoidCallback onReschedule;
   final VoidCallback onViewChat;
   final VoidCallback onAdvance;
+  final VoidCallback onRequestPayment;
 
   String _euro(dynamic cents) =>
       '€${(((cents as num?)?.toInt() ?? 0) / 100).toStringAsFixed(2)}';
@@ -466,6 +503,10 @@ class _BookingCard extends StatelessWidget {
       'mbway' => 'MB Way',
       _ => 'Dinheiro',
     };
+    // 19/10/2026: com MB Way/cartão a profissional só é chamada depois de pago.
+    final porPagarMbway = data['payment_method'] == 'mbway' &&
+        data['payment_status'] == 'unpaid' &&
+        !status.startsWith('cancelled');
 
     return Card(
       elevation: 2,
@@ -519,6 +560,7 @@ class _BookingCard extends StatelessWidget {
                       fontWeight: FontWeight.w600),
                 ),
               ),
+            if (data['payment_method'] != 'cash') _PagamentoLinha(data: data),
             // RASTRO DO PAGAMENTO (2026-09-05) — é isto que se olha quando um
             // cliente diz que foi cobrado duas vezes. A chave de idempotência é
             // a que impede a repetição de rede de criar uma segunda reserva; se
@@ -541,6 +583,17 @@ class _BookingCard extends StatelessWidget {
                 label: const Text('Ver conversa'),
               ),
             ),
+            if (porPagarMbway) ...[
+              const SizedBox(height: 4),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: busy ? null : onRequestPayment,
+                  icon: const Icon(Icons.phone_iphone, size: 18),
+                  label: const Text('Pedir pagamento MB Way'),
+                ),
+              ),
+            ],
             if (const ['accepted', 'on_the_way', 'in_progress']
                 .contains(status)) ...[
               const SizedBox(height: 4),
@@ -580,6 +633,42 @@ class _BookingCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// "Pagamento: pago / pedido enviado (n vezes, hora) / por pagar" (19/10/2026).
+/// Com MB Way ou cartão, a profissional só é chamada quando isto diz "pago".
+class _PagamentoLinha extends StatelessWidget {
+  const _PagamentoLinha({required this.data});
+  final Map<String, dynamic> data;
+
+  @override
+  Widget build(BuildContext context) {
+    final ps = (data['payment_status'] as String?) ?? 'unpaid';
+    final n = (data['payment_request_count'] as num?)?.toInt() ?? 0;
+    final String texto;
+    final Color cor;
+    if (ps == 'held' || ps == 'released') {
+      texto = 'pago';
+      cor = AppColors.primary;
+    } else if (ps != 'unpaid') {
+      texto = ps;
+      cor = AppColors.textSecondary;
+    } else if (n > 0) {
+      final vezes = n == 1 ? '1 vez' : '$n vezes';
+      texto = 'pedido enviado ($vezes, último em '
+          '${_fmtDate(data['payment_requested_at'])})';
+      cor = AppColors.warning;
+    } else {
+      texto = 'por pagar';
+      cor = AppColors.error;
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Text('Pagamento: $texto',
+          style: TextStyle(
+              fontSize: 12, fontWeight: FontWeight.w700, color: cor)),
     );
   }
 }

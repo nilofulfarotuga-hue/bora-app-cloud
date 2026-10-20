@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-19
+ultima_confirmacao: 2026-10-20
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-19T19:56:43.864834+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-20T19:55:27.025776+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -229,3 +229,14 @@ A CONFERIR ANTES DE PRODUZIR: cronometrar a marcação na app ("1 minuto" não f
 - PENDENTES revistos hoje: relatório Stripe+Supabase só leitura (07/10), Flow último fotograma/agente de cenas (10/10).
 - RECUSADO: LTX 2.5 lip sync em ComfyUI (GPU; já fora a 17/10), clone aberto do Lovable (pede chave paga da API), n8n básico, dicas genéricas de reels.
 - Radar aprende: +1 termo das conversas (divulgar limpeza doméstica por app), -1 (como crescer no instagram 2026, 0 vídeos bons); 70 ativos.
+
+## 20/10/2026 — radar diário (agente na nuvem)
+20 vídeos revistos (pesquisa das 19:00 de 19/10): 4 novos, 4 PENDENTES, 5 já temos, 7 rejeitados (2 por nota baixa). Nenhum do tema animacao_ia. A recolha das 02:00 ficou bloqueada pelo 3.º dia (YouTube sem sessão no perfil — e2e_log radar-historico 20/10).
+- MODA DA SEMANA (3+ vídeos nota>=8 em 7 dias): REA 17 — PENDENTE desde 13/10; entrou hoje na super-missão fechar-pendencias-20-10 como bloco E, ainda NÃO arrancou (sem pacote rea-agents). Claude Motion/Dashboards 9 — PENDENTE desde 11/10. Hermes 9 — 0.22 PENDENTE desde 16/10. OpenCode 8 — instalado. Rececionista de voz 5 — PENDENTE desde 13/10. WhatsApp 5 — atendente FEITO (Mister Navalha). Jev 4 — PENDENTE desde 23/09 (pagamento). Recibos verdes 4 — novo hoje. Flow 3 — PENDENTE desde 10/10.
+- EM DIA (URGENTE, prazo): declaração trimestral à Segurança Social dos recibos verdes até 31/10 — obrigatória mesmo com rendimento zero; define a base das contribuições seguintes. Lembrete por push/reel/post nos grupos esta semana. https://www.youtube.com/watch?v=ADubbJD0uf8
+- EM DIA (para março-junho): simulador IRS tributação conjunta vs separada + lembretes de prazos do e-fatura. https://www.youtube.com/watch?v=GDGg2iKra2A ; passo a passo fatura vs fatura-recibo e art. 53 para o guia grátis (pendente desde 04/10): https://www.youtube.com/watch?v=DrXMVaR4kEg
+- EM DIA (TikTok): playlists temáticas no perfil (Recibos verdes, IRS, Segurança Social) e palavra-chave no nome/bio (pendente desde 09/10). https://www.youtube.com/watch?v=UFwUu0Ysz4A
+- DINHEIRO / pacote PMEs: "chamada perdida → mensagem automática no WhatsApp a oferecer marcação" como porta de entrada mais barata que a rececionista de voz; vender com o número de marcações recuperadas; propostas Upwork com vídeo curto da automação a funcionar. https://www.youtube.com/watch?v=DSYlIeY17z4 ; filtrar no Google Maps negócios da Guarda que fecham cedo = alvo da rececionista (extrator pendente desde 17/10): https://www.youtube.com/watch?v=sNy7o_KSF44
+- BORA / Limpeza (lente grátis): em vez do vidIQ, script com yt-dlp que acha vídeos fora da curva (vistas muito acima da média do canal) de limpeza doméstica para inspirar os reels da Limpeza. https://www.youtube.com/watch?v=Pn1ll-ZzIMM
+- JÁ TEMOS: atendente WhatsApp com IA (3 vídeos Pabbly = Mister Navalha; Pabbly é pago, recusado 11/10; aproveitar só a palavra-chave que passa ao humano), gancho de 3 s (2 vídeos).
+- RECUSADO: personagem fictício nas redes, Victor/copiar posts virais alheios, Edits (não acrescenta), conteúdo genérico de crescer no Instagram, Hub Data, "botão secreto" do TikTok.

@@ -382,13 +382,18 @@ class _WebPlaceAutocompleteService extends PlaceAutocompleteService {
       },
     ]);
 
+    ll.LatLng? coords;
     try {
-      return await completer.future.timeout(const Duration(seconds: 10));
+      coords = await completer.future.timeout(const Duration(seconds: 10));
     } catch (_) {
-      return null;
+      coords = null;
     } finally {
       resetSession();
     }
+    // B1 (20/10): o SDK não deu a posição do sítio escolhido → o mesmo
+    // place_id no servidor, antes de alguém cair no texto da sugestão.
+    return coords ??
+        await _proxyLatLng({'acao': 'detalhes', 'place_id': placeId});
   }
 
   // ─── geocodeAddress ────────────────────────────────────────────────────────

@@ -190,6 +190,33 @@ abstract class PlaceAutocompleteService {
     return null;
   }
 
+  /// Coordenadas de uma SUGESTÃO escolhida da lista (B1, 20/10/2026).
+  ///
+  /// A posição certa é a do Place Details (o sítio que o cliente tocou).
+  /// Antes, se o Details falhasse UMA vez (ex.: resposta do places-proxy
+  /// depois dos 8 s), o campo geocodificava o TEXTO da sugestão — e "Rua do
+  /// Comércio, Guarda, Portugal" caía noutra freguesia a ~11 km, com km extra
+  /// cobrado no Favor (reel 17/10: 20,74 € em vez de 14,00 €). Agora o Details
+  /// tenta duas vezes (a 2.ª costuma vir da cache do proxy) e o texto só é
+  /// usado em último recurso, pelo geocode tolerante (melhor resultado na
+  /// Guarda), nunca pelo 1.º resultado cru.
+  Future<ll.LatLng?> coordenadasDaSugestao(PlacePrediction prediction) async {
+    for (var tentativa = 0; tentativa < 2; tentativa++) {
+      try {
+        final c = await resolvePlaceLocation(prediction.placeId);
+        if (c != null) return c;
+      } catch (_) {
+        // tenta outra vez; o recurso ao texto fica para o fim
+      }
+    }
+    if (prediction.description.trim().isEmpty) return null;
+    try {
+      return (await geocodeTolerante(prediction.description))?.coords;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Sugestões tolerantes: igual a [fetchPredictionsWithStatus], mas quando o
   /// serviço responde e o texto todo não dá nada, repete com as variantes de
   /// [variantesDeMorada], como o Uber faz. Mantém o viés da Guarda (cada

@@ -69,6 +69,7 @@ class BusinessAutocompleteField extends StatefulWidget {
     this.validator,
     this.autofillNearestWithinKm,
     this.includeAddresses = false,
+    this.placesOverride,
   });
 
   final TextEditingController controller;
@@ -95,6 +96,11 @@ class BusinessAutocompleteField extends StatefulWidget {
   /// favor" dos Favores. Default false mantém o comportamento só-comércios
   /// (ex.: "Leva a tua compra", onde a loja tem de ser real).
   final bool includeAddresses;
+
+  /// Só para testes: serviço de moradas falso (sem rede), como o
+  /// `serviceOverride` do [AddressAutocompleteField].
+  @visibleForTesting
+  final PlaceAutocompleteService? placesOverride;
 
   @override
   State<BusinessAutocompleteField> createState() =>
@@ -126,7 +132,8 @@ class _BusinessAutocompleteFieldState extends State<BusinessAutocompleteField> {
   void initState() {
     super.initState();
     if (widget.includeAddresses) {
-      _places = createPlaceAutocompleteService(googleApiKey);
+      _places = widget.placesOverride ??
+          createPlaceAutocompleteService(googleApiKey);
     }
     _focusNode.addListener(_onFocusChanged);
     _initGps();
@@ -435,14 +442,9 @@ class _BusinessAutocompleteFieldState extends State<BusinessAutocompleteField> {
     final svc = _places;
     ll.LatLng? coords;
     if (svc != null) {
-      try {
-        coords = await svc.resolvePlaceLocation(prediction.placeId);
-      } catch (_) {}
-      if (coords == null && prediction.description.isNotEmpty) {
-        try {
-          coords = await svc.geocodeAddress(prediction.description);
-        } catch (_) {}
-      }
+      // B1 (20/10): a posição do sítio tocado (Details, 2 tentativas); o texto
+      // da sugestão só em último recurso — ver coordenadasDaSugestao.
+      coords = await svc.coordenadasDaSugestao(prediction);
       svc.resetSession();
     }
 

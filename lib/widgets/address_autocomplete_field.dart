@@ -629,23 +629,10 @@ class AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
     debugPrint(
         'AddressAutocomplete: SELECTED "${prediction.description}" placeId=${prediction.placeId}');
 
-    ll.LatLng? coords;
-    try {
-      coords = await _service.resolvePlaceLocation(prediction.placeId);
-    } catch (e) {
-      debugPrint('AddressAutocomplete: resolvePlaceLocation threw => $e');
-    }
-
-    // Fallback: if Place Details failed, try Geocoding API.
-    if (coords == null && prediction.description.isNotEmpty) {
-      debugPrint(
-          'AddressAutocomplete: Place Details returned null — trying Geocoding fallback');
-      try {
-        coords = await _service.geocodeAddress(prediction.description);
-      } catch (e) {
-        debugPrint('AddressAutocomplete: geocodeAddress threw => $e');
-      }
-    }
+    // B1 (20/10): a posição do sítio tocado (Place Details, 2 tentativas); o
+    // texto da sugestão só em último recurso, pelo geocode tolerante — ver
+    // PlaceAutocompleteService.coordenadasDaSugestao.
+    final ll.LatLng? coords = await _service.coordenadasDaSugestao(prediction);
 
     debugPrint('AddressAutocomplete: COORDS => $coords');
 

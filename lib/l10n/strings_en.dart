@@ -16,6 +16,12 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 20/10/2026: Favor — máximo 2 sacos de pellets por Favor
+  // (tool/l10n/traducoes/pt-en-23-favor-pellets.json).
+  'Pellets: máximo 2 sacos por Favor.':
+      'Pellets: at most 2 bags per Favor.',
+  'Pediste {0} sacos de pellets: máximo 2 sacos por Favor. Pede o resto noutro Favor.':
+      'You asked for {0} bags of pellets: at most 2 bags per Favor. Order the rest in another Favor.',
   // 19/10/2026: limpeza por pagar em MB Way — o botão diz o que faz
   // (tool/l10n/traducoes/pt-en-22-limpeza-mbway.json).
   'Pagar com MB Way':

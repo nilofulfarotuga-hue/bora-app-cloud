@@ -6,6 +6,9 @@ import 'dart:typed_data';
 
 import 'package:bora_app/screens/admin/admin_comprovativo_atividade_screen.dart';
 import 'package:bora_app/services/atividade_service.dart';
+import 'package:bora_app/services/notification_service.dart'
+    show abrirComprovativoQuandoHouverNavegador;
+import 'package:bora_app/widgets/aviso_atividade_banner.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -76,11 +79,25 @@ void main() {
       expect(x.explicacao, contains('Falta enviares o comprovativo'));
     });
 
-    test('em análise COM documento → sem aviso, pode reenviar', () {
+    test(
+        'em análise COM documento → sem aviso e sem reenvio (espera a decisão)',
+        () {
+      // Ronda 1 da revisão: o bucket e a RPC só aceitam escrita quando o
+      // comprovativo falta; o ecrã diz o mesmo.
       final x = e('em_analise', doc: true);
       expect(x.mostrarAviso, isFalse);
-      expect(x.podeEnviar, isTrue);
+      expect(x.podeEnviar, isFalse);
       expect(x.rotulo, 'Em análise');
+      expect(x.explicacao, contains('Suporte'));
+    });
+
+    test(
+        'pode enviar exatamente quando falta (por enviar, recusada, em análise sem documento)',
+        () {
+      expect(e('por_enviar').podeEnviar, isTrue);
+      expect(e('recusada', doc: true).podeEnviar, isTrue);
+      expect(e('em_analise').podeEnviar, isTrue);
+      expect(e('aprovada', doc: true).podeEnviar, isFalse);
     });
 
     test('recusada → aviso com o motivo', () {
@@ -138,6 +155,12 @@ void main() {
 
   test('erros do servidor em PT-PT', () {
     expect(mensagemDoErroAtividade(Exception('nif_invalido')), contains('NIF'));
+    expect(mensagemDoErroAtividade(Exception('ja_enviado')),
+        contains('em análise'));
+    expect(
+        mensagemDoErroAtividade(Exception(
+            'new row violates row-level security policy for table "objects"')),
+        contains('em análise'));
     expect(mensagemDoErroAtividade(Exception('ja_aprovada')),
         contains('já está aprovado'));
     expect(mensagemDoErroAtividade(Exception('nao_e_prestador')),
@@ -229,8 +252,21 @@ void main() {
           n,
           contains(
               "const String kKindComprovativoAtividade = 'provider_atividade';"));
-      expect("abrirTrabalho?.call('atividade', '')".allMatches(n).length, 3,
-          reason: 'app aberta, push aberto pelo sistema e arranque a frio');
+      // Os 3 caminhos (app aberta, push aberto pelo sistema, arranque a frio)
+      // passam pelo que espera pelo navegador — e só ele chama o gancho.
+      expect(
+          'unawaited(NotificationService.abrirComprovativoDoAviso());'
+              .allMatches(n)
+              .length,
+          3);
+      expect("abrirTrabalho?.call('atividade', '')".allMatches(n).length, 1);
+      // Arranque a frio: o ramo do admin_message já não chama o gancho logo.
+      final frio = n.indexOf("if (data['type'] == 'admin_message') {",
+          n.indexOf('getNotificationAppLaunchDetails()'));
+      final ramo =
+          n.substring(frio, n.indexOf('openInboxFromNotification', frio));
+      expect(ramo, contains('abrirComprovativoDoAviso()'));
+      expect(ramo, isNot(contains("abrirTrabalho?.call('atividade'")));
       final m = ler('lib/main.dart');
       expect(m, contains("'atividade' => const ComprovativoAtividadeScreen()"));
       expect(m, contains("'/admin/comprovativo-atividade': (_) =>"));
@@ -239,6 +275,75 @@ void main() {
     test('o painel tem o ecrã no menu', () {
       expect(ler('lib/screens/admin/admin_menu_registry.dart'),
           contains('builder: () => const AdminComprovativoAtividadeScreen()'));
+    });
+  });
+
+  group('arranque a frio: espera pelo navegador antes de abrir (ronda 1)', () {
+    test('fica pronto à 3.ª volta → abre o ecrã, não abre o sino', () async {
+      var voltas = 0, abriu = 0, sino = 0;
+      final esperas = <Duration>[];
+      await abrirComprovativoQuandoHouverNavegador(
+        pronto: () => ++voltas >= 3,
+        abrir: () => abriu++,
+        recurso: () async => sino++,
+        esperar: (d) async => esperas.add(d),
+      );
+      expect(abriu, 1);
+      expect(sino, 0);
+      expect(esperas, hasLength(2));
+      expect(esperas.first, const Duration(milliseconds: 900));
+    });
+
+    test('nunca fica pronto → 6 esperas e cai no sino (como antes)', () async {
+      var abriu = 0, sino = 0, esperas = 0;
+      await abrirComprovativoQuandoHouverNavegador(
+        pronto: () => false,
+        abrir: () => abriu++,
+        recurso: () async => sino++,
+        esperar: (_) async => esperas++,
+      );
+      expect(abriu, 0);
+      expect(sino, 1);
+      expect(esperas, 6);
+    });
+
+    test('app aberta (já pronto) → abre logo, sem esperar', () async {
+      var abriu = 0, esperas = 0;
+      await abrirComprovativoQuandoHouverNavegador(
+        pronto: () => true,
+        abrir: () => abriu++,
+        recurso: () async {},
+        esperar: (_) async => esperas++,
+      );
+      expect(abriu, 1);
+      expect(esperas, 0);
+    });
+  });
+
+  group('texto do aviso (ronda 1)', () {
+    final porEnviar = AtividadeEstado.fromJson(
+        {'e_prestador': true, 'atividade_status': 'por_enviar'});
+    final recusada = AtividadeEstado.fromJson({
+      'e_prestador': true,
+      'atividade_status': 'recusada',
+      'motivo': 'ilegível'
+    });
+
+    test('quem já trabalha lê que pode continuar a trabalhar', () {
+      expect(textoDoAvisoAtividade(porEnviar, emCandidatura: false),
+          contains('Podes continuar a trabalhar'));
+      expect(textoDoAvisoAtividade(recusada, emCandidatura: false),
+          contains('podes continuar a trabalhar'));
+    });
+
+    test('quem está em candidatura NÃO lê "continuar a trabalhar"', () {
+      for (final e in [porEnviar, recusada]) {
+        final t = textoDoAvisoAtividade(e, emCandidatura: true);
+        expect(t.toLowerCase(), isNot(contains('continuar a trabalhar')));
+        expect(t, contains('candidatura'));
+      }
+      expect(textoDoAvisoAtividade(recusada, emCandidatura: true),
+          contains('ilegível'));
     });
   });
 }

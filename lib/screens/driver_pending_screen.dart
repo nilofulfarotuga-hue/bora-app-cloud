@@ -30,7 +30,8 @@ class DriverPendingScreen extends StatelessWidget {
                   // [20/10/2026] O comprovativo de atividade é o que falta para a
                   // aprovação andar (só aparece com sessão e se ainda faltar).
                   const AvisoAtividadeBanner(
-                      margem: EdgeInsets.only(bottom: Spacing.lg)),
+                      margem: EdgeInsets.only(bottom: Spacing.lg),
+                      emCandidatura: true),
                   const BoraMascot(
                     variant: BoraMascotVariant.icon,
                     size: 96,

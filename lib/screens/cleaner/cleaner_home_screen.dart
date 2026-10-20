@@ -197,7 +197,8 @@ class _StatusView extends StatelessWidget {
           children: [
             // [20/10/2026] Candidatura nova: o comprovativo de atividade é o
             // que falta para a aprovação andar (aviso com botão Enviar).
-            const AvisoAtividadeBanner(margem: EdgeInsets.only(bottom: Spacing.lg)),
+            const AvisoAtividadeBanner(
+                margem: EdgeInsets.only(bottom: Spacing.lg), emCandidatura: true),
             Icon(icon, size: 64, color: color),
             const SizedBox(height: Spacing.lg),
             Text(title,

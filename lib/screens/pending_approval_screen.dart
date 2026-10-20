@@ -124,7 +124,8 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
               const SizedBox(height: Spacing.xxl),
               // [20/10/2026] Parceiro de serviços: falta o comprovativo de
               // atividade (os restaurantes não veem isto — não são prestadores).
-              const AvisoAtividadeBanner(margem: EdgeInsets.only(bottom: Spacing.lg)),
+              const AvisoAtividadeBanner(
+                  margem: EdgeInsets.only(bottom: Spacing.lg), emCandidatura: true),
               // Ícone de sucesso
               const Icon(
                 Icons.hourglass_bottom_rounded,

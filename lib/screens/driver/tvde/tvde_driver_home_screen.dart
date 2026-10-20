@@ -972,7 +972,10 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
           ),
           // [20/10/2026] Falta o comprovativo de atividade — aviso, não bloqueia
           // (fora do Stack, como o de cima: nunca tapa a oferta).
-          const AvisoAtividadeBanner(margem: EdgeInsets.fromLTRB(12, 4, 12, 4)),
+          const AvisoAtividadeBanner(
+              margem: EdgeInsets.fromLTRB(12, 4, 12, 4),
+              compacto: true,
+              dispensavel: true),
           Expanded(
             child: Stack(
               children: [

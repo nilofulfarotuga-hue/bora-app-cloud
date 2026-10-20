@@ -660,7 +660,7 @@ void _onLocalNotifTap(NotificationResponse response) {
       // [20/10/2026] "Falta o comprovativo de atividade": abre o ecrã de envio
       // pelo gancho único (PADRAO §1.14), não o sino.
       if (data['kind'] == kKindComprovativoAtividade) {
-        NotificationService.abrirTrabalho?.call('atividade', '');
+        unawaited(NotificationService.abrirComprovativoDoAviso());
       } else {
         unawaited(NotificationService.instance.openInboxFromNotification());
       }
@@ -1363,6 +1363,34 @@ const Set<String> _kPersistentCategoryTypes = <String>{
 /// pela base através da Edge `notify-admin-message`, type `admin_message`).
 const String kKindComprovativoAtividade = 'provider_atividade';
 
+/// Espera até [pronto] (no máximo [tentativas] × [intervalo]) e chama [abrir];
+/// se nunca ficar pronto, chama [recurso]. Função pura (o tempo vem de
+/// [esperar]), testada em `test/atividade_service_test.dart`.
+Future<void> abrirComprovativoQuandoHouverNavegador({
+  required bool Function() pronto,
+  required void Function() abrir,
+  required Future<void> Function() recurso,
+  Future<void> Function(Duration)? esperar,
+  int tentativas = 6,
+  Duration intervalo = const Duration(milliseconds: 900),
+}) async {
+  final dorme = esperar ?? (Duration d) => Future<void>.delayed(d);
+  for (var i = 0; i < tentativas; i++) {
+    if (pronto()) {
+      abrir();
+      return;
+    }
+    await dorme(intervalo);
+  }
+  if (pronto()) {
+    abrir();
+    return;
+  }
+  debugPrint('[NotificationService] comprovativo a frio: navegador nunca ficou '
+      'pronto — abre o sino');
+  await recurso();
+}
+
 /// Tipos que a Edge `notify-driver-assigned` emite (bloco 4, 16/09).
 const Set<String> _kDriverAssignmentTypes = <String>{
   'order_reassigned',
@@ -1429,7 +1457,7 @@ void _abrirTrabalhoDoPush(RemoteMessage msg) {
   // sistema: abre o ecrã de envio, pelo mesmo gancho.
   if (type == 'admin_message' &&
       msg.data['kind']?.toString() == kKindComprovativoAtividade) {
-    NotificationService.abrirTrabalho?.call('atividade', '');
+    unawaited(NotificationService.abrirComprovativoDoAviso());
     return;
   }
   final categoria = categoriaDaOfertaDeTrabalho(type) ??
@@ -2117,6 +2145,19 @@ class NotificationService {
   /// `main.dart`, para responder mesmo com a pessoa noutro papel.
   static void Function(String categoria, String bookingId)? abrirTrabalho;
 
+  /// [20/10/2026 · ronda 1 da revisão do Bloco C] Toque no aviso "Falta o
+  /// comprovativo de atividade": abre o ecrã de envio pelo gancho único
+  /// [abrirTrabalho] ('atividade'). No arranque a frio o toque chega antes do
+  /// `runApp` — espera pelo navegador e pelo gancho (6 × 900 ms, como
+  /// [openInboxFromNotification]) e, se desistir, abre o sino como o caminho
+  /// antigo. Nunca fica pior do que antes.
+  static Future<void> abrirComprovativoDoAviso() =>
+      abrirComprovativoQuandoHouverNavegador(
+        pronto: () => navigatorKey.currentState != null && abrirTrabalho != null,
+        abrir: () => abrirTrabalho?.call('atividade', ''),
+        recurso: () => instance.openInboxFromNotification(),
+      );
+
   /// Tocar num aviso do painel abre o ecrã certo, já no assunto certo.
   /// `ref` traz o assunto (ex.: `weekly_closeout_2026-08-30` → a semana).
   /// Registado no `main.dart`, ao nível da app — nunca dentro de um ecrã.
@@ -2404,8 +2445,11 @@ class NotificationService {
           final id = launch?.notificationResponse?.id;
           if (id != null) unawaited(localPlugin.cancel(id));
           // [20/10/2026] O comprovativo de atividade abre o ecrã de envio.
+          // Ronda 1 da revisão: isto corre dentro do init(), ANTES do runApp —
+          // o navegador ainda não existe; abrirComprovativoDoAviso espera por
+          // ele (como o sino) e, se desistir, abre o sino como antes.
           if (data['kind'] == kKindComprovativoAtividade) {
-            NotificationService.abrirTrabalho?.call('atividade', '');
+            unawaited(NotificationService.abrirComprovativoDoAviso());
           } else {
             unawaited(openInboxFromNotification());
           }

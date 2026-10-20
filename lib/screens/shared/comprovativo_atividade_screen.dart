@@ -367,9 +367,7 @@ class _ComprovativoAtividadeScreenState
                     height: 22,
                     child: CircularProgressIndicator(
                         strokeWidth: 2.5, color: Colors.white))
-                : Text(e.status == AtividadeStatus.recusada ||
-                        (e.status == AtividadeStatus.emAnalise &&
-                            e.temDocumento)
+                : Text(e.status == AtividadeStatus.recusada
                     ? 'Enviar de novo'
                     : 'Enviar comprovativo'),
           ),

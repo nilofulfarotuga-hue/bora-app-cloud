@@ -225,7 +225,9 @@ class _WasherHomeScreenState extends State<WasherHomeScreen> {
               margem: const EdgeInsets.only(bottom: Spacing.md),
             ),
             // [20/10/2026] Falta o comprovativo de atividade — aviso, não bloqueia.
-            const AvisoAtividadeBanner(margem: EdgeInsets.only(bottom: Spacing.md)),
+            AvisoAtividadeBanner(
+                margem: const EdgeInsets.only(bottom: Spacing.md),
+                emCandidatura: !store.isApproved),
             // O total do dia de TUDO o que ele faz — o mesmo cartão dos ecrãs
             // do estafeta, do TVDE e da limpeza.
             GanhoDeHojeCard(recarregarQuando: store),

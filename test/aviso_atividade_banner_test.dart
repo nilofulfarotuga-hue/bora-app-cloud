@@ -31,6 +31,54 @@ Widget _ecraDeTrabalho(AvisoAtividadeBanner banner, VoidCallback trabalhar) =>
     );
 
 void main() {
+  // O "×" esconde o aviso na sessão (memória): cada teste começa do zero.
+  setUp(() => AvisoAtividadeBanner.dispensadoNestaSessao = false);
+
+  testWidgets(
+      'compacto: uma linha + Enviar; o × esconde na sessão só onde é dispensável',
+      (tester) async {
+    Future<AtividadeEstado?> carregar() async => _estado('por_enviar');
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Column(children: [
+          AvisoAtividadeBanner(
+              key: const Key('a'),
+              carregar: carregar,
+              compacto: true,
+              dispensavel: true),
+          AvisoAtividadeBanner(key: const Key('b'), carregar: carregar),
+          ElevatedButton(
+              onPressed: () {}, child: const Text('Aceitar entrega')),
+        ]),
+      ),
+    ));
+    await tester.pump();
+    expect(find.text('Falta o comprovativo de atividade'), findsNWidgets(2));
+    // o compacto não traz o texto longo (só o não-compacto o mostra)
+    expect(find.textContaining('Podes continuar a trabalhar'), findsOneWidget);
+    expect(find.byKey(const Key('aviso-atividade-fechar')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('aviso-atividade-fechar')));
+    await tester.pump();
+    expect(find.text('Falta o comprovativo de atividade'), findsOneWidget,
+        reason: 'o não-dispensável continua lá');
+    expect(AvisoAtividadeBanner.dispensadoNestaSessao, isTrue);
+    expect(find.text('Aceitar entrega'), findsOneWidget);
+  });
+
+  testWidgets(
+      'em candidatura: texto próprio, sem "podes continuar a trabalhar"',
+      (tester) async {
+    await tester.pumpWidget(_ecraDeTrabalho(
+      AvisoAtividadeBanner(
+          carregar: () async => _estado('por_enviar'), emCandidatura: true),
+      () {},
+    ));
+    await tester.pump();
+    expect(find.textContaining('candidatura seguir'), findsOneWidget);
+    expect(find.textContaining('continuar a trabalhar'), findsNothing);
+  });
+
   testWidgets(
       'por enviar: aparece o aviso com Enviar e o trabalho continua a funcionar',
       (tester) async {
@@ -148,6 +196,30 @@ void main() {
       await tester.pump();
       expect(find.textContaining('Estado: Aprovada'), findsOneWidget);
       expect(find.byKey(const Key('atividade-enviar')), findsNothing);
+    });
+
+    testWidgets(
+        'em análise COM documento: espera a decisão, sem formulário (ronda 1)',
+        (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        home: ComprovativoAtividadeScreen(
+            carregar: () async => _estado('em_analise', doc: true)),
+      ));
+      await tester.pump();
+      expect(find.textContaining('Estado: Em análise'), findsOneWidget);
+      expect(find.byKey(const Key('atividade-enviar')), findsNothing);
+    });
+
+    testWidgets('em análise SEM documento (caso Mayra): o formulário está lá',
+        (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        home: ComprovativoAtividadeScreen(
+            carregar: () async => _estado('em_analise')),
+      ));
+      await tester.pump();
+      expect(
+          find.textContaining('Estado: Falta o comprovativo'), findsOneWidget);
+      expect(find.byKey(const Key('atividade-enviar')), findsOneWidget);
     });
 
     testWidgets(

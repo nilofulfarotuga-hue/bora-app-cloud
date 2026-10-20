@@ -1057,8 +1057,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                 ),
               ),
             ] else ...[
-              // Comprovativo de atividade (20/10/2026): aviso que não bloqueia.
-              const AvisoAtividadeBanner(),
+              // Comprovativo de atividade (20/10/2026): aviso que não bloqueia,
+              // numa linha só e com "×" (até reabrir a app) para não encurtar
+              // a lista de pedidos em ecrãs pequenos.
+              const AvisoAtividadeBanner(compacto: true, dispensavel: true),
               // Fecho mensal (2026-09-29): NIF/atividade + recibo verde do mês.
               const DriverFiscalCard(),
               const Text(

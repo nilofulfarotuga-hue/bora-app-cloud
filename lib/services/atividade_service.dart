@@ -46,8 +46,9 @@ String? validarNifAtividade(String? v) {
   final nif = LegalFieldsValidators.normalizeNif(v ?? '');
   if (nif.isEmpty) return 'Indica o teu NIF.';
   if (nif.length != 9) return 'O NIF tem 9 algarismos.';
-  if (!nifAtividadeValido(nif))
+  if (!nifAtividadeValido(nif)) {
     return 'Este NIF não é válido. Confirma os algarismos.';
+  }
   return null;
 }
 
@@ -180,8 +181,11 @@ class AtividadeEstado {
   /// Mostra-se o aviso no ecrã principal do prestador. Nunca bloqueia nada.
   bool get mostrarAviso => ePrestador && precisaDeEnviar;
 
-  /// Pode enviar (ou voltar a enviar) pelo ecrã.
-  bool get podeEnviar => ePrestador && status != AtividadeStatus.aprovada;
+  /// Pode enviar pelo ecrã — só quando o comprovativo falta (por enviar,
+  /// recusado, ou em análise sem documento). Depois de enviado fica à espera
+  /// da decisão; para trocar, o admin usa "Pedir de novo". O bucket e a RPC
+  /// dizem o mesmo (ronda 1 da revisão, 20/10/2026).
+  bool get podeEnviar => ePrestador && precisaDeEnviar;
 
   String get rotulo => switch (status) {
         AtividadeStatus.porEnviar => 'Por enviar',
@@ -197,7 +201,8 @@ class AtividadeEstado {
           'Para trabalhares no Bora por conta própria precisas de atividade aberta nas '
               'Finanças. Envia o teu NIF e uma foto ou PDF do comprovativo.',
         AtividadeStatus.emAnalise => temDocumento
-            ? 'Recebemos o teu comprovativo. Vamos ver e avisamos-te.'
+            ? 'Recebemos o teu comprovativo. Vamos ver e avisamos-te. Se enviaste o '
+                'ficheiro errado, fala connosco no Suporte.'
             : 'Disseste-nos que já tens atividade aberta nas Finanças. Falta enviares o '
                 'comprovativo (foto ou PDF).',
         AtividadeStatus.aprovada =>
@@ -219,9 +224,14 @@ class EnvioAtividade {
 /// Traduz o erro do servidor para PT-PT (função pura, testada).
 String mensagemDoErroAtividade(Object e) {
   final s = e.toString();
-  if (s.contains('nif_invalido'))
+  if (s.contains('nif_invalido')) {
     return 'Este NIF não é válido. Confirma os algarismos.';
+  }
   if (s.contains('ja_aprovada')) return 'O teu comprovativo já está aprovado.';
+  if (s.contains('ja_enviado') || s.contains('row-level security')) {
+    return 'O teu comprovativo já foi enviado e está em análise. Se precisas de o '
+        'trocar, fala connosco no Suporte.';
+  }
   if (s.contains('nao_e_prestador')) {
     return 'Esta conta ainda não tem nenhum trabalho no Bora. Faz primeiro a candidatura.';
   }
@@ -240,8 +250,9 @@ String mensagemDoErroAtividade(Object e) {
   if (s.contains('sem_sessao') || s.contains('JWT')) {
     return 'A tua sessão terminou. Entra outra vez na app e tenta de novo.';
   }
-  if (e is TimeoutException)
+  if (e is TimeoutException) {
     return 'A ligação está lenta. Tenta outra vez daqui a pouco.';
+  }
   return 'Não foi possível enviar. Verifica a ligação e tenta outra vez.';
 }
 
@@ -258,8 +269,9 @@ class AtividadeService {
     try {
       if (_sb.auth.currentUser == null) return null;
       final r = await _sb.rpc('provider_atividade_get').timeout(_tecto);
-      if (r is Map)
+      if (r is Map) {
         return AtividadeEstado.fromJson(Map<String, dynamic>.from(r));
+      }
     } catch (_) {
       // falha aberta: sem aviso, sem bloqueio
     }

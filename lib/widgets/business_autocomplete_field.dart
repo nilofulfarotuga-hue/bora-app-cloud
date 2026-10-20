@@ -128,6 +128,11 @@ class _BusinessAutocompleteFieldState extends State<BusinessAutocompleteField> {
   bool _isProgrammaticChange = false;
   String? _lastSelectedText;
 
+  // Revisão B, ronda 1: cada escolha ou tecla do cliente invalida a resposta
+  // de uma sugestão anterior que ainda esteja a caminho (rede lenta).
+  int _escolhaSeq = 0;
+  int? _escolhaEmCurso;
+
   @override
   void initState() {
     super.initState();
@@ -197,6 +202,7 @@ class _BusinessAutocompleteFieldState extends State<BusinessAutocompleteField> {
     if (_isProgrammaticChange) return;
     if (value == _lastSelectedText) return; // eco IME da seleção
     _lastSelectedText = null;
+    _escolhaSeq++;
     widget.onChanged?.call(value);
 
     _debounce?.cancel();
@@ -422,6 +428,8 @@ class _BusinessAutocompleteFieldState extends State<BusinessAutocompleteField> {
   /// Morada Google: resolve coords no tap (Place Details → geocode fallback).
   /// Se falhar, deixa o texto livre e o pai geocodifica antes de submeter.
   Future<void> _onSelectPlace(PlacePrediction prediction) async {
+    final seq = ++_escolhaSeq;
+    _escolhaEmCurso = seq;
     _isSelecting = true;
     _focusLossTimer?.cancel();
     _debounce?.cancel();
@@ -449,14 +457,28 @@ class _BusinessAutocompleteFieldState extends State<BusinessAutocompleteField> {
     }
 
     if (!mounted) return;
+    // Só esta escolha (a mais recente) desliga o "a carregar".
+    if (_escolhaEmCurso == seq) {
+      _escolhaEmCurso = null;
+      _isSelecting = false;
+      setState(() => _loading = false);
+    }
+    // O cliente escreveu ou escolheu outra coisa entretanto: esta resposta já
+    // não vale (seriam as coordenadas da anterior com o texto novo).
+    if (seq != _escolhaSeq || widget.controller.text != prediction.description) {
+      return;
+    }
     _focusNode.unfocus();
-    _isSelecting = false;
-    setState(() => _loading = false);
     // onSelected exige coords reais; se nulas, o guard do pai geocodifica.
     if (coords != null) widget.onSelected(prediction.description, coords);
   }
 
   void _onSelectBusiness(BusinessPrediction prediction) {
+    _escolhaSeq++;
+    if (_escolhaEmCurso != null) {
+      _escolhaEmCurso = null;
+      _loading = false;
+    }
     _isSelecting = true;
     _focusLossTimer?.cancel();
     _debounce?.cancel();

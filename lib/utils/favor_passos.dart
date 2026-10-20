@@ -198,11 +198,17 @@ bool coordenadasDoLocalContinuam(String? textoEscolhido, String textoAgora) =>
     textoEscolhido.trim().isNotEmpty &&
     textoAgora.trim() == textoEscolhido.trim();
 
-/// B1b (20/10/2026): no máximo 2 sacos de pellets num só Favor (o estafeta vai
-/// de mota). Os pellets só entram no Favor pela descrição escrita.
+/// B1b (20/10/2026): no máximo N sacos de pellets num só Favor (o estafeta vai
+/// de mota). Os pellets só entram no Favor pela descrição escrita. O número vem
+/// de `platform_settings.favor_pellets_max_sacos` (painel admin, ver
+/// `FavorDefinicoes.pelletsMaxSacos`); este é o valor de recurso (sem rede).
 const int kMaxSacosPelletsPorFavor = 2;
 
+/// "Uma palete de pellets" — muito acima de qualquer limite de sacos.
+const int kPaletePellets = 1000;
+
 const Map<String, int> _numerosPorExtenso = {
+  'meia duzia': 6, 'duzia': 12,
   'um': 1, 'uma': 1, 'dois': 2, 'duas': 2, 'tres': 3, 'quatro': 4,
   'cinco': 5, 'seis': 6, 'sete': 7, 'oito': 8, 'nove': 9, 'dez': 10,
   'onze': 11, 'doze': 12, 'quinze': 15, 'vinte': 20,
@@ -221,14 +227,17 @@ String _semAcentosFavor(String s) {
 
 // Quantidade: algarismos (não parte de um número maior nem de um decimal) ou
 // por extenso. "15 kg" não passa por "1".
-const String _q = r'(\d{1,3}(?!\d|[.,]\d)|(?:uma|um|duas|dois|tres|quatro|'
-    r'cinco|seis|sete|oito|nove|dez|onze|doze|quinze|vinte)\b)';
+const String _q = r'(\d{1,3}(?!\d|[.,]\d)|(?:meia duzia|duzia|uma|um|duas|dois|'
+    r'tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|quinze|vinte)\b)';
 const String _saco = r'(?:sacos?|sacas?|embalagens?|pacotes?|unidades?)';
 const String _pel = r'pel{1,2}et(?:e?s)?\b';
 final RegExp _rePellets = RegExp(r'\b' + _pel);
+// palete, paletes, pallet, palette… (não apanha "pellets", que começa por "pe")
+final RegExp _rePalete = RegExp(r'\bpal{1,2}et{1,2}e?s?\b');
 final List<RegExp> _reSacosDePellets = [
-  // "3 sacos de pellets", "3 sacos de 15 kg de pellets", "3x pellets"
-  RegExp('\\b$_q\\s*(?:x\\s*)?(?:$_saco\\s*)?(?:de\\s+)?'
+  // "3 sacos de pellets", "3 sacos de 15 kg de pellets", "3x pellets",
+  // "meia dúzia de sacos de pellets"
+  RegExp('\\b$_q\\s*(?:x\\s*)?(?:de\\s+)?(?:$_saco\\s*)?(?:de\\s+)?'
       '(?:\\d+(?:[.,]\\d+)?\\s*kg\\s*(?:de\\s+)?)?$_pel'),
   // "pellets: 3 sacos", "pellets x3", "pellets (3)"
   RegExp('$_pel\\s*[:(\\-]?\\s*(?:x\\s*)?$_q\\s*(?:$_saco|\\)|\$|[,.;])'),
@@ -243,10 +252,12 @@ int? _quantidade(String palavra) =>
     int.tryParse(palavra) ?? _numerosPorExtenso[palavra];
 
 /// Quantos sacos de pellets pede a descrição: `null` = não fala de pellets;
-/// `0` = fala de pellets sem dizer quantos; `n` = o maior número escrito.
+/// `0` = fala de pellets sem dizer quantos; `n` = o maior número escrito;
+/// [kPaletePellets] = pede uma palete.
 int? sacosDePelletsPedidos(String? texto) {
   final t = _semAcentosFavor(texto ?? '');
   if (!_rePellets.hasMatch(t)) return null;
+  if (_rePalete.hasMatch(t)) return kPaletePellets;
   var maior = 0;
   for (final re in _reSacosDePellets) {
     for (final m in re.allMatches(t)) {
@@ -260,8 +271,9 @@ int? sacosDePelletsPedidos(String? texto) {
 }
 
 /// A descrição pede mais sacos de pellets do que cabem num Favor.
-bool pelletsAcimaDoLimite(String? texto) =>
-    (sacosDePelletsPedidos(texto) ?? 0) > kMaxSacosPelletsPorFavor;
+bool pelletsAcimaDoLimite(String? texto,
+        {int max = kMaxSacosPelletsPorFavor}) =>
+    (sacosDePelletsPedidos(texto) ?? 0) > max;
 
 /// O favor é numa farmácia ou é de medicamentos.
 bool favorEhFarmacia(OrderModel o) =>

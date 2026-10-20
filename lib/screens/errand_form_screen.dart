@@ -28,7 +28,7 @@ import '../services/favor_definicoes.dart';
 import '../utils/favor_passos.dart'
     show
         coordenadasDoLocalContinuam,
-        kMaxSacosPelletsPorFavor,
+        kPaletePellets,
         pelletsAcimaDoLimite,
         sacosDePelletsPedidos,
         textoPareceFarmacia;
@@ -410,7 +410,10 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
     final t = text.trim();
     if (t.isEmpty) return null;
     try {
-      return await _geocoder.geocodeAddress(t);
+      // Revisão B, ronda 1: a mesma procura da morada escrita do TVDE (melhor
+      // na Guarda + conferida com a sugestão quando fica longe do centro),
+      // nunca o 1.º resultado cru — era por aqui que os 11 km podiam voltar.
+      return (await _geocoder.procurarMoradaEscrita(t))?.coords;
     } catch (_) {
       return null;
     }
@@ -523,8 +526,9 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
     switch (_step) {
       case _ErrandStep.what:
         return _descCtrl.text.trim().isNotEmpty &&
-            // B1b (20/10): máximo 2 sacos de pellets por Favor.
-            !pelletsAcimaDoLimite(_descCtrl.text) &&
+            // B1b (20/10): máximo de sacos de pellets por Favor (painel).
+            !pelletsAcimaDoLimite(_descCtrl.text,
+                max: FavorDefinicoes.pelletsMaxSacos) &&
             _purchaseAnswered &&
             (!_hasPurchase || _estimatedCents > 0) &&
             !_uploadingPhoto;
@@ -597,9 +601,11 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
     }
     // B1b (20/10): o limite dos pellets vale também à saída — a descrição
     // pode ter mudado (pedido anterior, atalho) depois do passo 1.
-    if (pelletsAcimaDoLimite(_descCtrl.text)) {
+    if (pelletsAcimaDoLimite(_descCtrl.text,
+        max: FavorDefinicoes.pelletsMaxSacos)) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Pellets: máximo 2 sacos por Favor.'.tr)));
+          content: Text('Pellets: máximo {0} sacos por Favor. Pede o resto noutro Favor.'
+              .trArgs(['${FavorDefinicoes.pelletsMaxSacos}']))));
       setState(() => _step = _ErrandStep.what);
       return;
     }
@@ -801,13 +807,24 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
 /// Aparece quando a descrição fala de pellets. Dentro do limite é só a
 /// regra; acima dele fica vermelho e o "Próximo" não deixa seguir.
 class _AvisoPellets extends StatelessWidget {
-  const _AvisoPellets({required this.sacos});
+  const _AvisoPellets({required this.sacos, required this.max});
 
   final int sacos;
 
+  /// Máximo de sacos (platform_settings.favor_pellets_max_sacos; recurso 2).
+  final int max;
+
   @override
   Widget build(BuildContext context) {
-    final acima = sacos > kMaxSacosPelletsPorFavor;
+    final acima = sacos > max;
+    final texto = acima
+        ? 'Pellets: máximo {0} sacos por Favor. Pede o resto noutro Favor.'
+            .trArgs(['$max'])
+        : 'Pellets: máximo {0} sacos por Favor.'.trArgs(['$max']);
+    // Uma palete não tem número de sacos que se mostre.
+    final pediste = acima && sacos < kPaletePellets
+        ? ' ${'Pediste {0} sacos.'.trArgs(['$sacos'])}'
+        : '';
     return Container(
       key: const ValueKey('aviso-pellets'),
       padding: const EdgeInsets.all(10),
@@ -825,10 +842,7 @@ class _AvisoPellets extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              acima
-                  ? 'Pediste {0} sacos de pellets: máximo 2 sacos por Favor. Pede o resto noutro Favor.'
-                      .trArgs(['$sacos'])
-                  : 'Pellets: máximo 2 sacos por Favor.'.tr,
+              '$texto$pediste',
               style: TextStyle(
                   fontSize: 13,
                   color: acima ? AppColors.error : AppColors.textPrimary),
@@ -874,7 +888,7 @@ class _StepWhat extends StatelessWidget {
   final VoidCallback onChanged;
 
   /// B1b (20/10): sacos de pellets que a descrição pede (null = não fala de
-  /// pellets; 0 = sem quantidade). Acima de 2 o "Próximo" fica desligado.
+  /// pellets; 0 = sem quantidade). Acima do máximo o "Próximo" fica desligado.
   final int? sacosPellets;
 
   /// Missão maiores-18: a descrição fala de tabaco/álcool (servidor).
@@ -933,7 +947,8 @@ class _StepWhat extends StatelessWidget {
           ),
         ),
         if (sacosPellets != null) ...[
-          _AvisoPellets(sacos: sacosPellets!),
+          _AvisoPellets(
+              sacos: sacosPellets!, max: FavorDefinicoes.pelletsMaxSacos),
           const SizedBox(height: 8),
         ],
         if (pedeMaior18) ...[

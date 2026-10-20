@@ -155,6 +155,23 @@ bool partilhaPalavra(String escrito, String encontrado) {
   return pedidas.any(achadas.contains);
 }
 
+/// Todas as palavras "a sério" do que o cliente escreveu estão no resultado
+/// (revisão B, ronda 1) — para trocar um resultado do Geocoding por uma
+/// sugestão, a sugestão tem de ser mesmo aquela morada.
+bool partilhaTodas(String escrito, String encontrado) {
+  final pedidas = _palavrasSignificativas(escrito);
+  if (pedidas.isEmpty) return true;
+  final achadas = _palavrasSignificativas(encontrado);
+  return pedidas.every(achadas.contains);
+}
+
+/// Até aqui é a cidade da Guarda (Guarda-Gare fica a ~3 km do centro).
+const double kRaioCidadeGuardaKm = 5;
+
+/// Distância em linha reta ao centro da Guarda.
+double kmDoCentroDaGuarda(ll.LatLng c) => const ll.Distance()
+    .as(ll.LengthUnit.Kilometer, const ll.LatLng(kGuardaBiasLat, kGuardaBiasLng), c);
+
 abstract class PlaceAutocompleteService {
   Future<List<PlacePrediction>> fetchPredictions(String input);
 
@@ -198,12 +215,17 @@ abstract class PlaceAutocompleteService {
   /// Comércio, Guarda, Portugal" caía noutra freguesia a ~11 km, com km extra
   /// cobrado no Favor (reel 17/10: 20,74 € em vez de 14,00 €). Agora o Details
   /// tenta duas vezes (a 2.ª costuma vir da cache do proxy) e o texto só é
-  /// usado em último recurso, pelo geocode tolerante (melhor resultado na
-  /// Guarda), nunca pelo 1.º resultado cru.
+  /// usado em último recurso, pela mesma procura da morada escrita
+  /// ([procurarMoradaEscrita]), nunca pelo 1.º resultado cru.
+  ///
+  /// Tecto (revisão B, ronda 1): com a rede pendurada isto podia rodar ~36 s.
+  /// Agora são no máximo [limiteDetails1] + [limiteDetails2] + [limiteTexto]
+  /// (10 s) e devolve sempre — o campo nunca fica preso a carregar.
   Future<ll.LatLng?> coordenadasDaSugestao(PlacePrediction prediction) async {
-    for (var tentativa = 0; tentativa < 2; tentativa++) {
+    for (final limite in const [limiteDetails1, limiteDetails2]) {
       try {
-        final c = await resolvePlaceLocation(prediction.placeId);
+        final c =
+            await resolvePlaceLocation(prediction.placeId).timeout(limite);
         if (c != null) return c;
       } catch (_) {
         // tenta outra vez; o recurso ao texto fica para o fim
@@ -211,10 +233,62 @@ abstract class PlaceAutocompleteService {
     }
     if (prediction.description.trim().isEmpty) return null;
     try {
-      return (await geocodeTolerante(prediction.description))?.coords;
+      return (await procurarMoradaEscrita(prediction.description)
+              .timeout(limiteTexto))
+          ?.coords;
     } catch (_) {
       return null;
     }
+  }
+
+  static const Duration limiteDetails1 = Duration(seconds: 5);
+  static const Duration limiteDetails2 = Duration(milliseconds: 2500);
+  static const Duration limiteTexto = Duration(milliseconds: 2500);
+
+  /// Morada ESCRITA à mão (não escolhida da lista). É a procura que o TVDE já
+  /// usava no campo de morada (`confirmarTextoEscrito`), agora num sítio só
+  /// para o TVDE e o Favor (revisão B, ronda 1):
+  ///  1. geocode tolerante, com o melhor resultado na Guarda;
+  ///  2. sem resultado: a 1.ª sugestão da lista que é da Guarda (quando o
+  ///     texto diz "Guarda") e partilha uma palavra a sério com o texto
+  ///     (comércios que o Geocoding não conhece: "Continente", "Lavie");
+  ///  3. com resultado LONGE do centro (> [kRaioCidadeGuardaKm]): confere a
+  ///     1.ª sugestão (que vem com a Guarda à frente) e, se ela tiver TODAS as
+  ///     palavras a sério do texto, fica com a que estiver mais perto. Era o
+  ///     caso "Rua do Comércio, Guarda": o Geocoding dava outra freguesia a
+  ///     ~11 km e a sugestão dá a rua da cidade. "Rua da Igreja, Gonçalo" não
+  ///     muda (a sugestão da cidade não diz Gonçalo).
+  Future<MoradaGeocodificada?> procurarMoradaEscrita(String texto) async {
+    final t = texto.trim();
+    if (t.isEmpty) return null;
+    MoradaGeocodificada? geo;
+    try {
+      geo = await geocodeTolerante(t);
+    } catch (_) {}
+    if (geo != null && kmDoCentroDaGuarda(geo.coords) <= kRaioCidadeGuardaKm) {
+      return geo;
+    }
+    MoradaGeocodificada? sug;
+    try {
+      final sugestoes = await fetchPredictionsTolerante(t);
+      final pedeGuarda = textoPedeGuarda(t);
+      final validas = sugestoes.predictions.where((p) {
+        final linha = '${p.description} ${p.secondaryText ?? ''}';
+        return (!pedeGuarda || textoPedeGuarda(linha)) &&
+            (geo == null ? partilhaPalavra(t, linha) : partilhaTodas(t, linha));
+      });
+      if (validas.isNotEmpty) {
+        final p = validas.first;
+        final c = await resolvePlaceLocation(p.placeId) ??
+            await geocodeAddress(p.description);
+        if (c != null) sug = MoradaGeocodificada(c, morada: p.description);
+      }
+    } catch (_) {}
+    if (geo == null) return sug;
+    if (sug == null) return geo;
+    return kmDoCentroDaGuarda(sug.coords) < kmDoCentroDaGuarda(geo.coords)
+        ? sug
+        : geo;
   }
 
   /// Sugestões tolerantes: igual a [fetchPredictionsWithStatus], mas quando o

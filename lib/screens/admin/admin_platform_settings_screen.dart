@@ -303,6 +303,11 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
       'map_route_line_width',
     };
     if (missao0310Operational.contains(key)) return true;
+    // FECHAR-PENDÊNCIAS (20/10/2026) — máximo de sacos de pellets num Favor
+    // (o estafeta vai de mota). OPERACIONAL: um limite de quantidade que a app
+    // impõe ao cliente, não um valor cobrado nem pago. Edita-se com a mesma
+    // auditoria das outras (admin_update_setting → log_admin_action).
+    if (key == 'favor_pellets_max_sacos') return true;
     // BLOCO 4E (2026-09-05) — ETA do TVDE mostrado ao cliente. Mesma regra
     // do `eta_*` genérico (linha ~75): afinam só o TEMPO MOSTRADO no ecrã,
     // nunca um valor cobrado ou pago. Usam o prefixo `tvde_eta_`, não

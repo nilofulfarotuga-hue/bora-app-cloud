@@ -128,7 +128,8 @@ void main() {
 
       await _escreverETocar(tester);
 
-      expect(svc.chamadasDetails, 2, reason: 'duas tentativas do Details');
+      expect(svc.chamadasDetails, greaterThanOrEqualTo(2),
+          reason: 'duas tentativas do Details antes do texto');
       expect(svc.geocodes, isNotEmpty);
       expect(recebido, isNotNull);
     });

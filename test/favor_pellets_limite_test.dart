@@ -57,12 +57,39 @@ void main() {
       '4 sacos grandes de pellets': 4,
       '3 sacos de 15kg de pellets': 3,
       'compra pellets, 6 embalagens': 6,
+      // revisão B, ronda 1
+      'meia dúzia de sacos de pellets': 6,
+      'uma dúzia de sacos de pellets': 12,
     };
     casos.forEach((t, n) {
       test('"$t" → $n', () {
         expect(sacosDePelletsPedidos(t), n);
         expect(pelletsAcimaDoLimite(t), isTrue);
       });
+    });
+  });
+
+  group('revisão B, ronda 1: palete e limite vindo do painel', () {
+    for (final t in [
+      'uma palete de pellets',
+      'Paletes de pellets para a lareira',
+      'pellets: 1 pallet',
+    ]) {
+      test('"$t" → palete, acima de qualquer limite', () {
+        expect(sacosDePelletsPedidos(t), kPaletePellets);
+        expect(pelletsAcimaDoLimite(t), isTrue);
+        expect(pelletsAcimaDoLimite(t, max: 50), isTrue);
+      });
+    }
+
+    test('o limite do painel manda (3 sacos com máximo 3 passa, 4 não)', () {
+      expect(pelletsAcimaDoLimite('3 sacos de pellets', max: 3), isFalse);
+      expect(pelletsAcimaDoLimite('4 sacos de pellets', max: 3), isTrue);
+      expect(pelletsAcimaDoLimite('2 sacos de pellets', max: 1), isTrue);
+    });
+
+    test('"palete" sem pellets não é com o Favor dos pellets', () {
+      expect(sacosDePelletsPedidos('leva a palete de água'), isNull);
     });
   });
 }

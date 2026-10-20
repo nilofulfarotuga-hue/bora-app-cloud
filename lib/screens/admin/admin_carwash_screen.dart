@@ -11,6 +11,7 @@ import '../../widgets/admin/confirmar_dinheiro.dart';
 import '../../widgets/admin/papeis_da_pessoa.dart';
 import '../../widgets/bora/bora_bottom_action_bar.dart';
 import '../../widgets/bora_foto_ecra_inteiro.dart';
+import '_admin_rpc_errors.dart';
 
 /// LAVAGEM AUTO — painel admin (PT-BR, só o Danilo usa).
 /// Autoridade total: ver, criar, editar, cancelar, reagendar, reatribuir,
@@ -684,7 +685,7 @@ class _AbaLavadoresState extends State<_AbaLavadores> {
       if (mounted) {
         _msg(context, e.toString().contains('washer_has_open_jobs')
             ? 'Este lavador tem pedidos em aberto. Reatribua-os primeiro.'
-            : 'Erro: $e');
+            : humanizeAtividadePorAprovar(e) ?? 'Erro: $e');
       }
     }
   }

@@ -70,9 +70,9 @@
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>A Bora usa a câmara para tirares foto de perfil, de encomendas (Enviar Encomenda) e de compras (Levar Compras).</string>
+	<string>A Bora usa a câmara para tirares foto de perfil, de encomendas (Enviar Encomenda), de compras (Levar Compras) e de documentos, como o comprovativo de atividade nas Finanças.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>A Bora usa a galeria para escolheres foto de perfil, de encomendas ou de compras.</string>
+	<string>A Bora usa a galeria para escolheres foto de perfil, de encomendas, de compras ou de documentos, como o comprovativo de atividade nas Finanças.</string>
 	<!-- Bora Assistente (07/10/2026): ditar a lista de compras por voz no chat. -->
 	<key>NSMicrophoneUsageDescription</key>
 	<string>A Bora usa o microfone para ditares a tua lista de compras ao Bora Assistente.</string>

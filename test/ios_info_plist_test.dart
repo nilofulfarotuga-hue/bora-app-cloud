@@ -56,6 +56,9 @@ void main() {
       'NSCameraUsageDescription',
       'NSPhotoLibraryUsageDescription',
     ],
+    // [20/10/2026] Seletor de ficheiros (comprovativo de atividade): o pod
+    // traz o seletor de fotos (DKImagePickerController) — mesma exigência.
+    'file_picker': ['NSPhotoLibraryUsageDescription'],
     // Localização: sem a chave o pedido de permissão nem aparece e o
     // estafeta fica sem GPS; com background precisa da "Always".
     'geolocator': [

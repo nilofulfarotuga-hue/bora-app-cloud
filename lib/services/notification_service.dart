@@ -657,7 +657,13 @@ void _onLocalNotifTap(NotificationResponse response) {
     if (data['type'] == 'admin_message') {
       final id = response.id;
       if (id != null) unawaited(FlutterLocalNotificationsPlugin().cancel(id));
-      unawaited(NotificationService.instance.openInboxFromNotification());
+      // [20/10/2026] "Falta o comprovativo de atividade": abre o ecrã de envio
+      // pelo gancho único (PADRAO §1.14), não o sino.
+      if (data['kind'] == kKindComprovativoAtividade) {
+        NotificationService.abrirTrabalho?.call('atividade', '');
+      } else {
+        unawaited(NotificationService.instance.openInboxFromNotification());
+      }
       return;
     }
     // [Serviços 2026-07-28] Tocar num push de marcação abre a AGENDA do
@@ -1353,6 +1359,10 @@ const Set<String> _kPersistentCategoryTypes = <String>{
   'driver_offline',
 };
 
+/// [20/10/2026] `kind` do push "Falta o comprovativo de atividade" (enviado
+/// pela base através da Edge `notify-admin-message`, type `admin_message`).
+const String kKindComprovativoAtividade = 'provider_atividade';
+
 /// Tipos que a Edge `notify-driver-assigned` emite (bloco 4, 16/09).
 const Set<String> _kDriverAssignmentTypes = <String>{
   'order_reassigned',
@@ -1415,6 +1425,13 @@ Future<void> _entregarAccaoTvdeAFrio(String rideId, String accao) async {
 /// ou Android com o aviso do próprio FCM): abre o trabalho dessa categoria.
 void _abrirTrabalhoDoPush(RemoteMessage msg) {
   final type = msg.data['type']?.toString();
+  // [20/10/2026] Toque no push "Falta o comprovativo de atividade" aberto pelo
+  // sistema: abre o ecrã de envio, pelo mesmo gancho.
+  if (type == 'admin_message' &&
+      msg.data['kind']?.toString() == kKindComprovativoAtividade) {
+    NotificationService.abrirTrabalho?.call('atividade', '');
+    return;
+  }
   final categoria = categoriaDaOfertaDeTrabalho(type) ??
       switch (type) {
         'cleaning_status' => 'limpeza',
@@ -2386,7 +2403,12 @@ class NotificationService {
           // A notificação é persistente: sai também quando abre a frio.
           final id = launch?.notificationResponse?.id;
           if (id != null) unawaited(localPlugin.cancel(id));
-          unawaited(openInboxFromNotification());
+          // [20/10/2026] O comprovativo de atividade abre o ecrã de envio.
+          if (data['kind'] == kKindComprovativoAtividade) {
+            NotificationService.abrirTrabalho?.call('atividade', '');
+          } else {
+            unawaited(openInboxFromNotification());
+          }
         }
         if (data['type'] == 'chat') {
           final orderId = data['orderId']?.toString() ?? '';

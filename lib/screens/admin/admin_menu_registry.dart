@@ -117,6 +117,7 @@ import 'admin_web_health_screen.dart';
 import 'admin_whatsapp_screen.dart';
 import 'admin_pendencias_operacao_screen.dart';
 import 'admin_conformidade_legal_screen.dart';
+import 'admin_comprovativo_atividade_screen.dart';
 import 'admin_fecho_mensal_screen.dart';
 
 /// Registo ÚNICO do menu do painel admin (PT-BR).
@@ -1127,6 +1128,16 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.blueGrey,
       builder: () => const AdminConformidadeLegalScreen(),
       keywords: const ['conformidade', 'legal', 'dac7', 'dsa', 'nif', 'iban', 'morada', 'autocertificacao', 'opt-in', 'marketing', 'csv', 'financas', 'at'],
+    ),
+    // [20/10/2026 · Bloco C] Comprovativo de atividade nas Finanças dos prestadores.
+    AdminMenuItem(
+      id: 'sistema_comprovativo_atividade',
+      title: 'Comprovativo de atividade',
+      subtitle: 'Atividade aberta nas Finanças de cada prestador: ver documento, aprovar, recusar, pedir de novo, lembrar e exportar',
+      icon: Icons.assignment_ind_outlined,
+      color: Colors.blueGrey,
+      builder: () => const AdminComprovativoAtividadeScreen(),
+      keywords: const ['atividade', 'comprovativo', 'financas', 'nif', 'prestador', 'estafeta', 'limpeza', 'lavagem', 'tvde', 'cae', 'lembrete', 'documento'],
     ),
     AdminMenuItem(
       id: 'sistema_historico_de_accoes',

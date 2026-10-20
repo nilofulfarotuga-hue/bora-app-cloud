@@ -11,6 +11,7 @@ import '../../config/app_spacing.dart';
 import '../../config/maps_config.dart';
 import '../../services/legal_fields_service.dart';
 import '../../services/provider_upload_service.dart';
+import '../shared/comprovativo_atividade_screen.dart';
 import '../../services/push_token_service.dart';
 import '../../services/place_autocomplete_service.dart';
 import '../../stores/cleaner_store.dart';
@@ -244,6 +245,11 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
         const SnackBar(
             content: Text('Candidatura enviada! Vamos rever em breve. 💚')),
       );
+      // [20/10/2026] Último passo: o comprovativo de atividade, quando conta
+      // para a aprovação (candidatura nova com o interruptor ligado). Sem rede
+      // segue em frente — o aviso no ecrã principal e o push tratam do resto.
+      await ComprovativoAtividadeScreen.depoisDaCandidatura(context);
+      if (!mounted) return;
       Navigator.pop(context);
     } on LegalFieldsException catch (e) {
       if (!mounted) return;

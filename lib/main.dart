@@ -71,6 +71,7 @@ import 'screens/admin/admin_tvde_pagamentos_screen.dart';
 import 'screens/admin/admin_pendencias_operacao_screen.dart';
 import 'screens/admin/admin_web_health_screen.dart';
 import 'screens/admin/admin_motoristas_documentos_screen.dart';
+import 'screens/admin/admin_comprovativo_atividade_screen.dart';
 import 'screens/admin/admin_conformidade_legal_screen.dart';
 import 'screens/admin/admin_receipts_screen.dart';
 import 'screens/admin/admin_appointments_screen.dart';
@@ -91,6 +92,7 @@ import 'screens/admin/admin_partners_screen.dart';
 import 'screens/admin/admin_send_notification_screen.dart';
 import 'screens/restaurant_ratings_list_screen.dart';
 import 'screens/cleaner/cleaner_home_screen.dart';
+import 'screens/shared/comprovativo_atividade_screen.dart';
 import 'screens/washer/washer_home_screen.dart';
 import 'screens/client/assistant/assistant_chat_screen.dart';
 import 'screens/client_login_screen.dart';
@@ -524,9 +526,12 @@ Future<void> main() async {
     final nav = NotificationService.navigatorKey.currentState;
     if (nav == null) return;
     nav.push(MaterialPageRoute<void>(
-      builder: (_) => categoria == 'limpeza'
-          ? const CleanerHomeScreen()
-          : const WasherHomeScreen(),
+      builder: (_) => switch (categoria) {
+        'limpeza' => const CleanerHomeScreen(),
+        // [20/10/2026] Push "Falta o comprovativo de atividade" → ecrã de envio.
+        'atividade' => const ComprovativoAtividadeScreen(),
+        _ => const WasherHomeScreen(),
+      },
     ));
   };
 
@@ -1060,6 +1065,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           '/admin/motoristas-documentos': (_) =>
               const AdminMotoristasDocumentosScreen(),
           '/admin/conformidade': (_) => const AdminConformidadeLegalScreen(),
+          // [20/10/2026] deep link do aviso "Comprovativo de atividade para analisar".
+          '/admin/comprovativo-atividade': (_) =>
+              const AdminComprovativoAtividadeScreen(),
           '/admin/reembolsos': (_) => const AdminReceiptsScreen(),
           '/admin/tvde/ida-e-volta': (_) => const AdminTvdeRoundtripsScreen(),
           '/admin/tvde/pagos-sem-corrida': (_) =>

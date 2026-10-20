@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../models/carwash_models.dart';
+import '../../widgets/aviso_atividade_banner.dart';
 import '../../widgets/aviso_toque_banner.dart';
 import '../../widgets/botao_rota.dart';
 import '../../widgets/ganho_de_hoje_card.dart';
@@ -223,6 +224,8 @@ class _WasherHomeScreenState extends State<WasherHomeScreen> {
               ativo: store.isApproved,
               margem: const EdgeInsets.only(bottom: Spacing.md),
             ),
+            // [20/10/2026] Falta o comprovativo de atividade — aviso, não bloqueia.
+            const AvisoAtividadeBanner(margem: EdgeInsets.only(bottom: Spacing.md)),
             // O total do dia de TUDO o que ele faz — o mesmo cartão dos ecrãs
             // do estafeta, do TVDE e da limpeza.
             GanhoDeHojeCard(recarregarQuando: store),

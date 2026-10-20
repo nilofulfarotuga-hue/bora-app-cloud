@@ -103,6 +103,13 @@ dependencies:
   table_calendar: ^3.2.0
   # Bora Assistente (07/10/2026) — ditado por voz no chat do cliente (pt_PT).
   speech_to_text: 7.4.0
+  # Comprovativo de atividade (20/10/2026, Bloco C) — escolher o PDF do comprovativo
+  # (o image_picker só dá fotos) e, na web, a foto também (o seletor da web do
+  # image_picker não volta quando se cancela). Versão FIXA: o pubspec.lock é
+  # gitignored e o CI resolve do zero; a 11.0.3 resolve sem mexer em mais nenhum
+  # pacote (win32 5.15.0, o mesmo do flutter_secure_storage). iOS: deployment 12.0
+  # (o Runner é 15.0); Android: minSdk 21, JVM 17 (iguais ao app).
+  file_picker: 11.0.3
 
 
 

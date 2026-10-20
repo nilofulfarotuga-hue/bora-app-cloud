@@ -11,6 +11,7 @@ import '../../config/app_spacing.dart';
 import '../../services/legal_fields_service.dart';
 import '../../widgets/bora/bora.dart';
 import '../../widgets/legal_fields_section.dart';
+import '../shared/comprovativo_atividade_screen.dart';
 
 /// MULTI-PAPEL — candidatura a estafeta/motorista para um utilizador JÁ
 /// autenticado (tipicamente uma profissional de limpeza a adicionar o 2.º
@@ -151,6 +152,11 @@ class _DriverRoleApplyScreenState extends State<DriverRoleApplyScreen> {
           ),
         ),
       );
+      // [20/10/2026] Último passo: o comprovativo de atividade, quando conta
+      // para a aprovação (candidatura nova com o interruptor ligado). Sem rede
+      // segue em frente — o aviso no ecrã principal e o push tratam do resto.
+      await ComprovativoAtividadeScreen.depoisDaCandidatura(context);
+      if (!mounted) return;
       Navigator.pop(context, true);
     } on LegalFieldsException catch (e) {
       if (!mounted) return;

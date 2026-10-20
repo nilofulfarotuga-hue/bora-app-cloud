@@ -9,6 +9,7 @@ import '../../models/cleaning_models.dart';
 import '../../services/roles_service.dart';
 import '../../stores/cleaner_store.dart';
 import '../../stores/session_store.dart';
+import '../../widgets/aviso_atividade_banner.dart';
 import '../../widgets/aviso_toque_banner.dart';
 import '../../widgets/bora/bora.dart';
 import '../../widgets/bora_support_sheet.dart';
@@ -194,6 +195,9 @@ class _StatusView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // [20/10/2026] Candidatura nova: o comprovativo de atividade é o
+            // que falta para a aprovação andar (aviso com botão Enviar).
+            const AvisoAtividadeBanner(margem: EdgeInsets.only(bottom: Spacing.lg)),
             Icon(icon, size: 64, color: color),
             const SizedBox(height: Spacing.lg),
             Text(title,
@@ -284,6 +288,8 @@ class _PanelView extends StatelessWidget {
             ativo: profile.isActive,
             margem: const EdgeInsets.only(bottom: Spacing.md),
           ),
+          // [20/10/2026] Falta o comprovativo de atividade — aviso, não bloqueia.
+          const AvisoAtividadeBanner(margem: EdgeInsets.only(bottom: Spacing.md)),
           // O total do dia de TUDO o que ela faz — o mesmo cartão dos ecrãs
           // do estafeta, do TVDE e da lavagem.
           GanhoDeHojeCard(recarregarQuando: store),

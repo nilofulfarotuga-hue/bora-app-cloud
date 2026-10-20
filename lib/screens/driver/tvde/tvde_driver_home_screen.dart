@@ -28,6 +28,7 @@ import '../../../services/push_token_service.dart';
 import '../../../stores/driver_store.dart';
 import '../../../stores/order_store.dart';
 import '../../../stores/tvde_driver_store.dart';
+import '../../../widgets/aviso_atividade_banner.dart';
 import '../../../widgets/aviso_toque_banner.dart';
 import '../../../widgets/background_location_disclosure.dart';
 import '../../../widgets/bora_support_sheet.dart';
@@ -969,6 +970,9 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
             ativo: isOnline,
             margem: const EdgeInsets.fromLTRB(12, 8, 12, 4),
           ),
+          // [20/10/2026] Falta o comprovativo de atividade — aviso, não bloqueia
+          // (fora do Stack, como o de cima: nunca tapa a oferta).
+          const AvisoAtividadeBanner(margem: EdgeInsets.fromLTRB(12, 4, 12, 4)),
           Expanded(
             child: Stack(
               children: [

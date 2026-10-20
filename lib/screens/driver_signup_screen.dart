@@ -20,6 +20,7 @@ import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/legal_fields_section.dart';
 import '../widgets/terms_link_text.dart';
 import 'driver_pending_screen.dart';
+import 'shared/comprovativo_atividade_screen.dart';
 
 class DriverSignupScreen extends StatefulWidget {
   const DriverSignupScreen({super.key});
@@ -526,6 +527,11 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
         ).showSnackBar(SnackBar(content: Text(e.message)));
         return;
       }
+      if (!mounted) return;
+
+      // [20/10/2026] Último passo, ainda COM sessão (o logout vem a seguir):
+      // o comprovativo de atividade, quando conta para a aprovação.
+      await ComprovativoAtividadeScreen.depoisDaCandidatura(context);
       if (!mounted) return;
 
       // Clear draft + logout → DriverPendingScreen (limpa a stack do signup

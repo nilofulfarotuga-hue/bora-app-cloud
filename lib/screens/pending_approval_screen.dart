@@ -7,6 +7,7 @@ import '../config/app_spacing.dart';
 import '../stores/partner_appointments_store.dart';
 import '../stores/restaurant_store.dart';
 import '../stores/session_store.dart';
+import '../widgets/aviso_atividade_banner.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import 'partner_login_screen.dart';
 
@@ -121,6 +122,9 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: Spacing.xxl),
+              // [20/10/2026] Parceiro de serviços: falta o comprovativo de
+              // atividade (os restaurantes não veem isto — não são prestadores).
+              const AvisoAtividadeBanner(margem: EdgeInsets.only(bottom: Spacing.lg)),
               // Ícone de sucesso
               const Icon(
                 Icons.hourglass_bottom_rounded,

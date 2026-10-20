@@ -7,6 +7,7 @@ import '../config/ios_launch_flags.dart';
 import '../models/business_view_models.dart';
 import '../models/order_service_type.dart';
 import '../models/restaurant_model.dart';
+import '../services/registo_pesquisa.dart';
 import '../stores/cart_store.dart';
 import '../stores/restaurant_store.dart';
 import '../utils/business_mapper.dart';
@@ -34,6 +35,8 @@ class StoresScreen extends StatefulWidget {
 class _StoresScreenState extends State<StoresScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
   String _query = '';
+  // B2 (20/10): o que se procura aqui também conta no painel "KPIs de pesquisa".
+  final RegistoPesquisa _registo = RegistoPesquisa();
   _StoreSort _sort = _StoreSort.name;
 
   @override
@@ -51,6 +54,7 @@ class _StoresScreenState extends State<StoresScreen> {
 
   @override
   void dispose() {
+    _registo.dispose();
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -74,7 +78,11 @@ class _StoresScreenState extends State<StoresScreen> {
       children: [
         TextField(
           controller: _searchCtrl,
-          onChanged: (v) => setState(() => _query = v),
+          onChanged: (v) {
+            setState(() => _query = v);
+            _registo.aoEscrever(v);
+          },
+          onSubmitted: _registo.registarJa,
           textInputAction: TextInputAction.search,
           decoration: InputDecoration(
             hintText: 'Pesquisar loja...'.tr,

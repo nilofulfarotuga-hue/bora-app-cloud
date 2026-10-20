@@ -9,6 +9,7 @@ import '../models/cart_item.dart';
 import '../models/partner_product.dart';
 import '../models/product_variant.dart';
 import '../services/pricing_service.dart';
+import '../services/registo_pesquisa.dart';
 import '../stores/cart_store.dart';
 import '../stores/favorite_store.dart';
 import '../stores/restaurant_store.dart';
@@ -46,6 +47,8 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
   late String _selectedCategory;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+  // B2 (20/10): o que se procura na loja também conta no painel "KPIs de pesquisa".
+  final RegistoPesquisa _registo = RegistoPesquisa();
   // RPC-backed search (robust to accents/case via server-side normalization).
   Timer? _rpcDebounce;
   List<Map<String, dynamic>> _rpcRows = const [];
@@ -80,6 +83,7 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
   @override
   void dispose() {
     _rpcDebounce?.cancel();
+    _registo.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -234,8 +238,9 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
               onChanged: (v) {
                 setState(() => _searchQuery = v);
                 _scheduleRpcSearch(v);
+                _registo.aoEscrever(v);
               },
-              onSubmitted: (_) {},
+              onSubmitted: _registo.registarJa,
               decoration: InputDecoration(
                 hintText: 'Buscar produtos...'.tr,
                 hintStyle: TextStyle(color: Colors.grey.shade400),
@@ -280,6 +285,7 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
                 loadedProducts: products,
                 isPartnerStore: widget.isPartnerStore,
                 onPickSection: (categoryRoot) {
+                  _registo.registarJa(_searchQuery);
                   _searchController.clear();
                   setState(() {
                     _searchQuery = '';
@@ -289,6 +295,7 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
                   });
                 },
                 onPickProduct: (p) {
+                  _registo.registarJa(_searchQuery);
                   _searchController.clear();
                   setState(() {
                     _searchQuery = '';

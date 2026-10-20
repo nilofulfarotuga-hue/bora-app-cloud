@@ -10,7 +10,7 @@ import '../config/app_spacing.dart';
 import '../l10n/tr.dart';
 import '../models/restaurant_model.dart';
 import '../models/service_provider_model.dart';
-import '../services/client_personalization_service.dart';
+import '../services/registo_pesquisa.dart';
 import '../services/home_feed_service.dart';
 import '../services/pricing_service.dart';
 import '../stores/restaurant_store.dart';
@@ -51,7 +51,9 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
   List<RestaurantModel> _lojas = const [];
   List<Map<String, dynamic>> _produtos = const [];
   List<String> _atalhos = const [];
-  String? _ultimoRegistado;
+  // B2 (20/10): também regista a pesquisa que o cliente deixa parada sem
+  // tocar em nada — as que não deram resultado são as que o painel precisa.
+  final RegistoPesquisa _registo = RegistoPesquisa();
   List<String> _recentes = const [];
   int _pedido = 0; // descarta respostas antigas
 
@@ -73,6 +75,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
   @override
   void dispose() {
     _debounce?.cancel();
+    _registo.dispose();
     _ctrl.dispose();
     super.dispose();
   }
@@ -111,6 +114,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
       _atalhos = atalhosDaPesquisa(v);
     });
     _debounce?.cancel();
+    _registo.aoEscrever(v);
     if (v.trim().length < 2) {
       setState(() {
         _lojas = const [];
@@ -124,15 +128,10 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
   }
 
   /// Regista a pesquisa para o painel "KPIs de pesquisa" (client_search_history
-  /// estava a 0 linhas a 15/10: nada o escrevia). Só quando o cliente escolhe
-  /// um resultado ou carrega em pesquisar — não cada letra. Sem sessão, o RPC
-  /// recusa e ignora-se.
-  void _registar() {
-    final t = _q.trim();
-    if (t.length < 2 || t == _ultimoRegistado) return;
-    _ultimoRegistado = t;
-    unawaited(ClientPersonalizationService.instance.logSearch(t));
-  }
+  /// estava a 0 linhas a 15/10: nada o escrevia). Já, quando o cliente escolhe
+  /// um resultado ou carrega em pesquisar; parado sem tocar, pelo [_registo]
+  /// ao fim de uns segundos. Sem sessão, o RPC recusa e ignora-se.
+  void _registar() => _registo.registarJa(_q);
 
   /// Barbearias e salões: são poucos e já estão no [ServicesStore], por isso
   /// filtram-se aqui, pelo nome, pela descrição e pelo tipo. Chamado no build

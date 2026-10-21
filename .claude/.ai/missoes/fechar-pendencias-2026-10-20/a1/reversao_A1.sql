@@ -1,6 +1,7 @@
 -- REVERSÃO do Bloco A1 (encomendas = TVDE) — 21/10/2026.
 -- Desfaz as migrações 20261021083257_encomendas_base, 20261021083355_encomendas_rpcs_ride_kind
--- e 20261021083510_encomendas_avisos_e_painel, repondo as 6 funções EXACTAMENTE como estavam
+-- , 20261021083510_encomendas_avisos_e_painel e 20261021090625_encomendas_sem_preferencias_de_passageiro,
+-- repondo as 7 funções EXACTAMENTE como estavam
 -- (texto guardado em public.bkp_fn_encomendas_20261021, md5 conferido) e as permissões de antes.
 -- Provada em transacção desfeita a 21/10 (ver RELATORIO-A1.md). Só correr com ordem.
 --
@@ -31,20 +32,21 @@ begin
     execute format('GRANT EXECUTE ON FUNCTION public.%I(%s) TO authenticated, service_role', r.nome, r.sig_antiga);
   end loop;
 
-  -- 2. aviso ao cliente e listas do painel: mesma assinatura, volta o texto antigo
+  -- 2. aviso ao cliente, listas do painel e preferências: mesma assinatura, volta o texto antigo
   for r in select b.nome, b.definicao from public.bkp_fn_encomendas_20261021 b
-            where b.nome in ('fn_notify_tvde_client_on_status', 'admin_tvde_rides_list_v2', 'admin_tvde_reservations_list')
+            where b.nome in ('fn_notify_tvde_client_on_status', 'admin_tvde_rides_list_v2', 'admin_tvde_reservations_list',
+                             'fn_tvde_rides_prefs')
   loop
     execute r.definicao;
   end loop;
 
-  -- 3. confere o md5 das 6 com o backup
+  -- 3. confere o md5 das 7 com o backup
   select count(*) into v_n
     from public.bkp_fn_encomendas_20261021 b
     join pg_proc p on p.proname = b.nome
     join pg_namespace n on n.oid = p.pronamespace and n.nspname = 'public'
    where md5(p.prosrc) = b.prosrc_md5;
-  if v_n <> 6 then raise exception 'REVERSAO A1: só % de 6 funções voltaram ao md5 de antes', v_n; end if;
+  if v_n <> 7 then raise exception 'REVERSAO A1: só % de 7 funções voltaram ao md5 de antes', v_n; end if;
 
   -- 4. o que a A1 criou
   drop function if exists public.admin_tvde_acertos_por_tipo(timestamptz);

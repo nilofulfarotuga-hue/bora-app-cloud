@@ -12,6 +12,8 @@ import 'admin_tvde_cancellations_screen.dart'
     show cobradoDaCompensacao, eurosBr;
 import 'admin_tvde_dest_change_dialog.dart';
 import '../../utils/hora_lisboa_ext.dart';
+import '../../widgets/tvde/filtro_tipo_tvde.dart';
+import 'admin_tvde_acertos_tipo_tab.dart';
 
 /// Bora Motorista (TVDE) — Corridas: ao vivo + histórico + financeiro.
 ///
@@ -42,8 +44,10 @@ class _AdminTvdeRidesScreenState extends State<AdminTvdeRidesScreen> {
     // [25/09] Terceiro separador: "Por devolver". Depois do caso da Izilda — 8 EUR pagos
     // por MB Way que ninguem devolveu — tem de haver UM sitio onde o dinheiro esquecido
     // aparece sozinho, sem ninguem se lembrar de ir la ver.
+    // [21/10 · A1] Quarto separador: o acerto da semana partido por tipo
+    // (passageiros / encomendas), só leitura.
     return const DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         backgroundColor: AppColors.background,
         appBar: BoraScreenAppBar(title: 'Corridas — Bora Motorista'),
@@ -55,10 +59,12 @@ class _AdminTvdeRidesScreenState extends State<AdminTvdeRidesScreen> {
                 labelColor: AppColors.primary,
                 unselectedLabelColor: AppColors.textSecondary,
                 indicatorColor: AppColors.primary,
+                isScrollable: true,
                 tabs: [
                   Tab(text: 'Ao Vivo'),
                   Tab(text: 'Histórico'),
                   Tab(text: 'Por devolver'),
+                  Tab(text: 'Acertos por tipo'),
                 ],
               ),
             ),
@@ -68,6 +74,7 @@ class _AdminTvdeRidesScreenState extends State<AdminTvdeRidesScreen> {
                   _RidesList(scope: 'live'),
                   _RidesList(scope: 'history'),
                   _RidesList(scope: 'sem_reembolso'),
+                  AdminTvdeAcertosTipoTab(),
                 ],
               ),
             ),
@@ -95,6 +102,10 @@ class _RidesListState extends State<_RidesList>
 
   /// [17/10] Compensações ao motorista por id da corrida (vazio se falhar).
   Map<String, Map<String, dynamic>> _comps = const {};
+
+  /// [21/10 · A1] Filtro Passageiros/Encomendas (todos por omissão).
+  String _tipo = 'todos';
+  List<Map<String, dynamic>> get _visiveis => filtrarPorTipoTvde(_rows, _tipo);
 
   bool get _isLive => widget.scope == 'live';
 
@@ -161,10 +172,10 @@ class _RidesListState extends State<_RidesList>
 
   // ── Financeiro agregado (apenas histórico) ──
   ({int fare, int driver, int bora, int cancelled, int finished}) _totals() =>
-      totaisDaLista(_rows, _comps);
+      totaisDaLista(_visiveis, _comps);
 
   Future<void> _exportCsv() async {
-    if (_rows.isEmpty) {
+    if (_visiveis.isEmpty) {
       _toast('Nada para exportar.', AppColors.warning);
       return;
     }
@@ -182,8 +193,9 @@ class _RidesListState extends State<_RidesList>
       'Motivo cancelamento',
       'Cliente',
       'Motorista',
+      'Tipo',
     ];
-    final rows = _rows.map((r) {
+    final rows = _visiveis.map((r) {
       return <dynamic>[
         r['id'],
         _statusLabel(r['status'] as String?),
@@ -198,6 +210,7 @@ class _RidesListState extends State<_RidesList>
         r['cancel_reason'] ?? '',
         r['client_name'] ?? '',
         r['driver_name'] ?? '',
+        rotuloTipoTvde(tipoDaLinhaTvde(r)),
       ];
     }).toList();
     final stamp = DateTime.now().toIso8601String().substring(0, 10);
@@ -428,7 +441,12 @@ class _RidesListState extends State<_RidesList>
           else
             _FinanceHeader(totals: _totals(), onExport: _exportCsv),
           const SizedBox(height: 8),
-          if (_rows.isEmpty)
+          FiltroTipoTvde(
+              linhas: _rows,
+              valor: _tipo,
+              onChanged: (v) => setState(() => _tipo = v)),
+          const SizedBox(height: 8),
+          if (_visiveis.isEmpty)
             const Padding(
               padding: EdgeInsets.only(top: 80),
               child: Center(
@@ -437,7 +455,7 @@ class _RidesListState extends State<_RidesList>
               ),
             )
           else
-            ..._rows.map((r) => _RideCard(
+            ..._visiveis.map((r) => _RideCard(
                   data: r,
                   live: _isLive,
                   // [Sobreposição 14/09 · Bloco D] quem está em fila atrás de
@@ -658,6 +676,11 @@ class _RideCard extends StatelessWidget {
             Row(
               children: [
                 _RideStatusChip(status: status),
+                // [21/10 · A1] Encomenda no motor do Bora Motorista.
+                if (tipoDaLinhaTvde(data) == 'encomendas') ...[
+                  const SizedBox(width: 6),
+                  EtiquetaEncomendaTvde(linha: data),
+                ],
                 // 04/10: o cliente partilhou a viagem em tempo real (link).
                 if (data['partilhada'] == true) ...[
                   const SizedBox(width: 6),

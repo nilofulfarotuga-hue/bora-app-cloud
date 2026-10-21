@@ -219,6 +219,12 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
     // cêntimos: já caem no caminho auditado de dinheiro (_isMoneyKey), com
     // motivo obrigatório — é o dono a mexer no preço do seu produto.
     if (key == 'tvde_dest_change_enabled') return true;
+    // ENCOMENDAS NO MOTOR DO BORA MOTORISTA (21/10/2026 · A1): interruptor
+    // OPERACIONAL (o ladrilho "Enviar Encomenda" passa ao fluxo novo e o
+    // servidor aceita encomendas). Não mexe em preço: é o mesmo do TVDE.
+    // `tvde_passageiros_enabled` fica SÓ de leitura de propósito — nenhum
+    // código o lê ainda e a ordem é nunca fechar o Bora Motorista a clientes.
+    if (key == 'tvde_encomendas_enabled') return true;
     // TAXA DE PEDIDO PEQUENO (2026-08-27). Mesma regra do
     // `appointment_booking_fee_cents` e do `tvde_roundtrip_discount_pct`: e o
     // preco do PROPRIO produto da Bora (a taxa fica toda para a plataforma,

@@ -7,6 +7,7 @@ import '../../stores/tvde_store.dart' show TvdeStore;
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '_admin_rpc_errors.dart';
 import '../../utils/hora_lisboa_ext.dart';
+import '../../widgets/tvde/filtro_tipo_tvde.dart';
 
 /// Bora Motorista (TVDE) — RESERVAS (corridas agendadas).
 ///
@@ -28,6 +29,9 @@ class AdminTvdeReservasScreen extends StatefulWidget {
 class _AdminTvdeReservasScreenState extends State<AdminTvdeReservasScreen> {
   late Future<List<Map<String, dynamic>>> _future;
   String _escopo = 'futuras';
+
+  /// [21/10 · A1] Filtro Passageiros/Encomendas (todos por omissão).
+  String _tipo = 'todos';
 
   @override
   void initState() {
@@ -588,8 +592,9 @@ class _AdminTvdeReservasScreenState extends State<AdminTvdeReservasScreen> {
                     ),
                   );
                 }
-                final linhas = snap.data ?? const [];
-                if (linhas.isEmpty) {
+                final todas = snap.data ?? const <Map<String, dynamic>>[];
+                final linhas = filtrarPorTipoTvde(todas, _tipo);
+                if (todas.isEmpty) {
                   return RefreshIndicator(
                     onRefresh: _refresh,
                     child: ListView(
@@ -600,16 +605,33 @@ class _AdminTvdeReservasScreenState extends State<AdminTvdeReservasScreen> {
                     ),
                   );
                 }
-                return RefreshIndicator(
-                  onRefresh: _refresh,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(
-                        Spacing.lg, 0, Spacing.lg, 90),
-                    itemCount: linhas.length,
-                    separatorBuilder: (_, __) =>
-                        const SizedBox(height: Spacing.md),
-                    itemBuilder: (_, i) => _cartao(linhas[i]),
-                  ),
+                return Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                          Spacing.lg, 0, Spacing.lg, Spacing.sm),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: FiltroTipoTvde(
+                            linhas: todas,
+                            valor: _tipo,
+                            onChanged: (v) => setState(() => _tipo = v)),
+                      ),
+                    ),
+                    Expanded(
+                      child: RefreshIndicator(
+                        onRefresh: _refresh,
+                        child: ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(
+                              Spacing.lg, 0, Spacing.lg, 90),
+                          itemCount: linhas.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: Spacing.md),
+                          itemBuilder: (_, i) => _cartao(linhas[i]),
+                        ),
+                      ),
+                    ),
+                  ],
                 );
               },
             ),
@@ -644,6 +666,11 @@ class _AdminTvdeReservasScreenState extends State<AdminTvdeReservasScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // [21/10 · A1] Encomenda no motor do Bora Motorista.
+          if (tipoDaLinhaTvde(r) == 'encomendas') ...[
+            EtiquetaEncomendaTvde(linha: r),
+            const SizedBox(height: 6),
+          ],
           // [24/09] Diz-se qual das duas pernas do pacote é esta, e a que vale pertence —
           // duas reservas soltas na lista não deixavam ver que eram a mesma viagem.
           if (r['roundtrip_credit_id'] != null) ...[

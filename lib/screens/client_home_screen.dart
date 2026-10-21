@@ -42,7 +42,6 @@ import 'send_package_form_screen.dart';
 import 'errand_form_screen.dart';
 import 'stores_screen.dart';
 import 'client/tvde/tvde_entrada_screen.dart';
-import 'client/tvde/tvde_request_ride_screen.dart';
 import 'festas_screen.dart';
 import 'sobremesas_screen.dart';
 
@@ -525,14 +524,16 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
         onTap: () => _navigateWithAddressGuard(() {
           // 21/10/2026 (fechar-pendencias A1): com `tvde_encomendas_enabled`
           // ligado, as encomendas correm no motor do Bora Motorista (mesmo
-          // preço, despacho e pagamentos; só mudam as palavras) e não pedem o
-          // acesso do Bora Motorista. Desligado: o fluxo antigo, como sempre.
+          // preço, despacho e pagamentos; só mudam as palavras).
+          // N2 (21/10): e com a MESMA regra de acesso — passam pela porta do
+          // Bora Motorista (quem não tem acesso vê o "pedir acesso"; o servidor
+          // recusa `no_tvde_access` nos dois tipos). Desligado: o fluxo antigo.
           final encomendasNovas = context.read<TvdeStore>().encomendasEnabled;
           Navigator.push(
             context,
             MaterialPageRoute(
                 builder: (_) => encomendasNovas
-                    ? const TvdeRequestRideScreen(rideKind: RideKind.encomendas)
+                    ? const TvdeEntradaScreen(rideKind: RideKind.encomendas)
                     : const SendPackageFormScreen()),
           );
         }),

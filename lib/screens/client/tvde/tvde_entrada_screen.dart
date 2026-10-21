@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../l10n/tr.dart';
+import '../../../models/ride_kind.dart';
 import '../../../stores/tvde_store.dart';
 import '../../../widgets/bora/bora.dart';
 import 'tvde_request_ride_screen.dart';
@@ -20,8 +21,16 @@ import 'tvde_request_ride_screen.dart';
 /// Todas as entradas (ladrilho da home, faixas, pesquisa) passam por aqui. O
 /// servidor também recusa (`no_tvde_access`) — este ecrã é só para a pessoa
 /// nunca dar com um erro.
+///
+/// 21/10/2026 (fechar-pendencias N2): as ENCOMENDAS no motor do Bora Motorista
+/// passam pela MESMA porta ([rideKind] = encomendas) — a mesma regra de acesso
+/// (`users.tvde_access`), no ecrã e no servidor (migração 20261021195814).
 class TvdeEntradaScreen extends StatefulWidget {
-  const TvdeEntradaScreen({super.key});
+  const TvdeEntradaScreen({super.key, this.rideKind = RideKind.passageiros});
+
+  /// Passageiros (por omissão) ou encomendas — só decide o ecrã de pedir que
+  /// abre depois do acesso; o acesso é o mesmo para os dois.
+  final RideKind rideKind;
 
   @override
   State<TvdeEntradaScreen> createState() => _TvdeEntradaScreenState();
@@ -40,7 +49,7 @@ class _TvdeEntradaScreenState extends State<TvdeEntradaScreen> {
   @override
   Widget build(BuildContext context) {
     final store = context.watch<TvdeStore>();
-    if (store.tvdeAccess) return const TvdeRequestRideScreen();
+    if (store.tvdeAccess) return TvdeRequestRideScreen(rideKind: widget.rideKind);
     if (!store.accessLoaded) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }

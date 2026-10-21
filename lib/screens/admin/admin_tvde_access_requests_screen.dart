@@ -164,6 +164,16 @@ class _AdminTvdeAccessRequestsScreenState
             value: _filter,
             onChanged: (v) => setState(() => _filter = v),
           ),
+          // N2 · 21/10/2026: a mesma regra vale para as Encomendas (mesmo motor);
+          // o servidor recusa `no_tvde_access` nos dois tipos.
+          const Padding(
+            padding: EdgeInsets.fromLTRB(12, 4, 12, 0),
+            child: Text(
+              'Este acesso vale para o Bora Motorista e também para as Encomendas (mesmo motor): quem não tem acesso não pede nenhum dos dois.',
+              key: Key('acesso_vale_para_encomendas'),
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+          ),
           if (_busy) const LinearProgressIndicator(minHeight: 2),
           Expanded(
             child: RefreshIndicator(

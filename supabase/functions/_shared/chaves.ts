@@ -211,3 +211,22 @@ export async function exigirServidorOuUtilizador(
     utilizador: null,
   };
 }
+
+/**
+ * 403 pronto quando quem chama não é o servidor nem um admin (app_metadata.role = 'admin');
+ * null quando pode seguir. Auditoria de segurança 21/10/2026: as funções que mandam push com
+ * título e texto livres a qualquer pessoa (notify-admin-message, notify-cleaner, notify-washer)
+ * aceitavam qualquer conta com sessão — uma conta normal podia mandar avisos falsos a quem
+ * quisesse. Só o banco/cron/outra função (chave de servidor) ou o painel admin as usam.
+ */
+export async function exigirServidorOuAdmin(
+  req: Request,
+  cors: Record<string, string> = {},
+): Promise<Response | null> {
+  if (await chamadaDoServidor(req)) return null;
+  if (await chamadaDeAdmin(req)) return null;
+  return new Response(JSON.stringify({ ok: false, error: 'forbidden' }), {
+    status: 403,
+    headers: { ...cors, 'Content-Type': 'application/json' },
+  });
+}

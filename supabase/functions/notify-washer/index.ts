@@ -21,7 +21,8 @@
 // Secrets: FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { exigirCallerOk, secretKey } from '../_shared/keys.ts'
+import { secretKey } from '../_shared/keys.ts'
+import { exigirServidorOuAdmin } from '../_shared/chaves.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,9 +32,10 @@ const corsHeaders = {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
-  // 16/10/2026: verificação própria de quem chama — servidor com a chave secreta (ou a legada confirmada
-  // no Auth) ou utilizador com sessão válida. Ver _shared/keys.ts.
-  const bloqueio = await exigirCallerOk(req, corsHeaders)
+  // 21/10/2026 (auditoria de segurança N4): só o servidor (banco/cron, chave secreta ou a legada
+  // confirmada no Auth) ou um admin. Antes bastava qualquer conta com sessão — um cliente podia
+  // mandar um push com texto livre a qualquer pessoa. Ver _shared/chaves.ts.
+  const bloqueio = await exigirServidorOuAdmin(req, corsHeaders)
   if (bloqueio) return bloqueio
 
   const firebaseProjectId   = Deno.env.get('FIREBASE_PROJECT_ID')

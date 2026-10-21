@@ -5,8 +5,8 @@ import { assertEquals } from 'jsr:@std/assert@1'
 
 const NOVA = Deno.env.get('NOVA') ?? 'v6/index.ts'
 Deno.env.set('SUPABASE_URL', 'http://base-falsa.invalid')
-Deno.env.set('SUPABASE_ANON_KEY', 'sb_publishable_falsa')
-Deno.env.set('SUPABASE_SECRET_KEYS', JSON.stringify({ default: 'sb_secret_falsa' }))
+Deno.env.set('SUPABASE_ANON_KEY', 'publicavel-de-simulacao-falsa')
+Deno.env.set('SUPABASE_SECRET_KEYS', JSON.stringify({ default: 'segredo-de-simulacao-falso' }))
 Deno.env.set('RESEND_API_KEY', 're_chave_falsa')
 
 let emails: any[] = []

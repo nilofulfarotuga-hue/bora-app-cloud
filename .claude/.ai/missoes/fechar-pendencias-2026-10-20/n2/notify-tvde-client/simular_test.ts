@@ -5,7 +5,7 @@ import { assertEquals } from 'jsr:@std/assert@1'
 
 const NOVA = Deno.env.get('NOVA') ?? 'v8/index.ts'
 const CLIENTE = '00000000-0000-0000-0000-0000000c1e00'
-const SEGREDO = 'sb_secret_simulacao_falsa'
+const SEGREDO = 'segredo-de-simulacao-falso'
 
 const par = await crypto.subtle.generateKey(
   { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
@@ -17,7 +17,7 @@ Deno.env.set('FIREBASE_PROJECT_ID', 'projeto-falso')
 Deno.env.set('FIREBASE_SERVICE_ACCOUNT', JSON.stringify({ client_email: 'falso@falso.iam', private_key: pem }))
 Deno.env.set('SUPABASE_URL', 'http://base-falsa.invalid')
 Deno.env.set('SUPABASE_SECRET_KEYS', JSON.stringify({ default: SEGREDO }))
-Deno.env.set('SUPABASE_SERVICE_ROLE_KEY', SEGREDO)
+Deno.env.set('SUPABASE_SERVICE_ROLE_KEY', 'chave-de-servico-falsa')
 
 let enviados: any[] = []
 globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {

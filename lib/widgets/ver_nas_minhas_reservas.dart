@@ -69,8 +69,8 @@ class ReservaMarcadaFaixa extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            // O separador chama-se "Reserva" na barra de baixo.
-            'Fica guardada no separador Reserva, em baixo.'.tr,
+            // O separador chama-se "Reservas" na barra de baixo.
+            'Fica guardada no separador Reservas, em baixo.'.tr,
             style: const TextStyle(
                 fontSize: 13, color: AppColors.textSecondary),
           ),

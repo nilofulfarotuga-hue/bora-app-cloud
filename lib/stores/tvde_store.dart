@@ -1054,7 +1054,7 @@ class TvdeStore extends ChangeNotifier {
   }
 
   /// A última leitura de [loadMyReservations] falhou (a lista é a anterior,
-  /// possivelmente velha). O separador Reserva usa isto para avisar e para
+  /// possivelmente velha). O separador Reservas usa isto para avisar e para
   /// preferir a cópia do histórico.
   bool _myReservationsFailed = false;
   bool get myReservationsFailed => _myReservationsFailed;

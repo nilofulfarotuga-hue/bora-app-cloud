@@ -305,7 +305,7 @@ const Map<String, String> kStringsEn = <String, String>{
   'Pagas {0} a menos ao motorista, em dinheiro.': 'You pay {0} less to the driver, in cash.',
   'Devolvemos {0} para o cartão ou MB Way.': 'We refund {0} to your card or MB Way.',
   'Destino mudado. Devolvemos {0}.': 'Destination changed. We refund {0}.',
-  // 10/10/2026: separador Reserva com tudo o que o cliente marcou
+  // 10/10/2026: separador Reservas com tudo o que o cliente marcou
   // (tool/l10n/traducoes/pt-en-13-reservas-num-so-sitio.json).
   '1 pessoa': '1 person',
   '{0} pessoas': '{0} people',
@@ -325,8 +325,8 @@ const Map<String, String> kStringsEn = <String, String>{
   'De {0}': 'From {0}',
   'Para {0}': 'To {0}',
   'Em curso': 'In progress',
-  'Fica guardada no separador Reserva, em baixo.':
-      'It is kept in the Reserva tab, at the bottom.',
+  'Fica guardada no separador Reservas, em baixo.':
+      'It is kept in the Reservas tab, at the bottom.',
   'Incluída no pacote ida e volta': 'Included in the round-trip package',
   'Limpeza': 'Cleaning',
   'Limpeza marcada!': 'Cleaning booked!',

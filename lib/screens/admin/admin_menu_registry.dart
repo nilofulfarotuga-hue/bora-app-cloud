@@ -117,6 +117,7 @@ import 'admin_tvde_subscriptions_screen.dart';
 import 'admin_wallets_screen.dart';
 import 'admin_web_health_screen.dart';
 import 'admin_whatsapp_screen.dart';
+import 'admin_agentes_email_screen.dart';
 import 'admin_pendencias_operacao_screen.dart';
 import 'admin_conformidade_legal_screen.dart';
 import 'admin_comprovativo_atividade_screen.dart';
@@ -1232,6 +1233,16 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.deepOrange,
       builder: () => const AdminMotoresScreen(),
       keywords: const ['agentes', 'cada', 'desligar', 'ligar', 'motores', 'quota', 'robo', 'velocidade'],
+    ),
+    // [Agentes e-mail · 21/10] caixa de cada agente @boraguarda.com (Cloudflare → Edge → agentes_email).
+    AdminMenuItem(
+      id: 'robos_agentes_email',
+      title: 'E-mail dos agentes',
+      subtitle: 'Caixa de entrada e enviados de emerson@, suporte@, vendas@ e os outros; anexos, responder, ligar/desligar',
+      icon: Icons.alternate_email_rounded,
+      color: AppColors.primary,
+      builder: () => const AdminAgentesEmailScreen(),
+      keywords: const ['email', 'e-mail', 'agentes', 'caixa', 'emerson', 'suporte', 'vendas', 'parceiros', 'radar', 'responder', 'boraguarda'],
     ),
     AdminMenuItem(
       id: 'robos_decisoes_jev',

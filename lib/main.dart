@@ -43,6 +43,7 @@ import 'dispatch/dispatch_engine.dart';
 import 'l10n/bora_lang.dart';
 import 'screens/admin/admin_crosstalk_screen.dart';
 import 'screens/admin/admin_whatsapp_screen.dart';
+import 'screens/admin/admin_agentes_email_screen.dart';
 import 'screens/admin/admin_decisoes_screen.dart';
 import 'screens/admin/admin_motores_screen.dart';
 import 'screens/admin/admin_maiores_18_screen.dart';
@@ -995,6 +996,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           '/admin/crosstalk': (_) => const AdminCrosstalkScreen(),
           // Missão 02/09/2026 — WhatsApp da loja (bot que resolve)
           '/admin/whatsapp': (_) => const AdminWhatsappScreen(),
+          // Missão agentes-email-2026-10-21 — caixa de e-mail de cada agente @boraguarda.com
+          '/admin/agentes-email': (_) => const AdminAgentesEmailScreen(),
           // Missão 02/09/2026 (noite) — Motores: o roteador Motor Bora (quota, latência, pausar)
           '/admin/motores': (_) => const AdminMotoresScreen(),
           // Missão jev-decisor-2026-09-23 — Decisor (Jev/Gemini): lista, custo do dia, sombra/ativo.

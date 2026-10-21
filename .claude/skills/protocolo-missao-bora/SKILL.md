@@ -141,7 +141,9 @@ Antes de deduzir, **verifica**. Ler a base de dados é melhor do que adivinhar p
 - **LOGIN NO NAVEGADOR (regra do Danilo, 13/09/2026):** quando precisares de um site ou painel onde
   não há sessão, ou não conseguires abrir/entrar em alguma janela, não tentes senhas nem peças
   token a ninguém — abre a página de login no próprio Chrome do PC **no perfil CERTO para esse
-  site** (skill global `contas-e-navegadores` → `~/.claude/contas/abrir-site.ps1 <site>`; ChatGPT
+  site** (skill do repo `navegadores-e-contas` — perfil SEMPRE pelo `deviceId`, nunca por
+  "Browser 1/2", que trocam de nome; Cloudflare do domínio = perfil pessoal — e a skill global
+  `contas-e-navegadores` → `~/.claude/contas/abrir-site.ps1 <site>`; ChatGPT
   Plus = perfil Danilo/`Default`, conta nilofulfaro@gmail.com; Gemini AI Plus = perfil Bora/`Profile 1`),
   avisa o Danilo pelo Telegram numa linha e continua quando a sessão existir. Fica gravada no
   Chrome e serve para sempre. Uma vez por site. *(Corrigido 17/09: o texto antigo dizia "perfil

@@ -54,6 +54,16 @@ nilofulfarotuga/nilofulfaro, Search Console e Google Ads de jaiagarwala.com, Dee
 >   Supabase e Cloudflare no perfil **pessoal**. Vale o Protocolo (é o mais recente); se não houver
 >   sessão no Bora, experimenta o pessoal antes de abrir login.
 
+> **21/10 — Cloudflare resolvido (regra do Danilo na missão `geral-noite-21-10`):** o domínio
+> `boraguarda.com` (e os sites `bora-site` e `jai-site`) vive na conta Cloudflare
+> `2cd0212b0f5e5c8284aa227f629c050a`, que é a do perfil **pessoal** (`5b260cdd…`). A conta do
+> perfil Bora (`6864b594…`) **não tem zonas**: abrir o Cloudflare no Bora só mostra uma conta
+> vazia. Cloudflare = perfil pessoal (isto fecha o "conflito por resolver" de 15/10 acima).
+> Também a 21/10: **Kaggle** = perfil pessoal (a CLI continua com `~/.kaggle/kaggle.json`);
+> **Colab** = perfil Bora; **YouTube** do radar = perfil pessoal com `?authuser=1` (o índice 0
+> desse perfil é outra conta, pouco usada — não serve para o radar; a conta 1 está sem sessão
+> desde 18/10 e só o Danilo pode voltar a entrar).
+
 ## Antes de abrir seja o que for
 
 1. `~/.claude/contas/abrir-site.ps1 <site>` — o mapa está em

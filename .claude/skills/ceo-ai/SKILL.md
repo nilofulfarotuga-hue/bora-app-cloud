@@ -30,9 +30,10 @@ metadata:
 Qualquer tarefa que toque num site, painel ou login passa primeiro pela skill
 `navegadores-e-contas`. **O perfil escolhe-se pelo `deviceId`, nunca pelo nome** — "Browser 1"
 e "Browser 2" trocam entre sessões. Perfil **Bora** `d9e862e0-a5ea-486f-b054-f333ef51b46a`
-(Apple, Meta/Instagram, Play, Cloudflare, Supabase, Resend, Search Console, Gemini Plus);
+(Apple, Meta/Instagram, Play, Supabase, Resend, Search Console, Gemini Plus, Colab);
 perfil **pessoal** `5b260cdd-9d4f-49d6-842b-ebfbfea69c75` (claude.ai/code, GitHub, ChatGPT,
-Firebase). Sessão sem conector do Chrome: regista-se `bloqueado` no `e2e_log` e avisa-se o
+Firebase, Kaggle, YouTube, e o **Cloudflare** — o domínio boraguarda.com está na conta do
+pessoal; a conta Cloudflare do Bora não tem zonas, 21/10/2026). Sessão sem conector do Chrome: regista-se `bloqueado` no `e2e_log` e avisa-se o
 Danilo numa linha — não se inventa que foi feito.
 
 **Mods (02/10/2026):** a tranca `bora-mods` proíbe as zonas vermelhas por código em todas as sessões; comando negado = reporta, não contornes (skill `mods-bora`).

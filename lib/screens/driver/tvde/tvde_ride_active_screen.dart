@@ -47,6 +47,8 @@ import '../../../widgets/tvde/tvde_sos_button.dart';
 import '../../../services/tvde_conformidade_service.dart';
 import '../../shared/tvde_chat_screen.dart';
 import 'tvde_driver_rate_screen.dart';
+import '../../../models/ride_kind.dart';
+import '../../../utils/ride_kind_context.dart';
 
 /// [Uma corrida = uma stream · 05/09] `true` enquanto o ecrã de corrida activa
 /// tiver GPS PRÓPRIO a funcionar. A home escuta isto e SUSPENDE a stream dela
@@ -65,10 +67,11 @@ final ValueNotifier<bool> tvdeCorridaControlaGps = ValueNotifier<bool>(false);
 /// [17/10/2026 · cancelamento tardio] Texto da SnackBar quando o cliente
 /// cancela: o da notificação de compensação (`tvde_cancel_comp`) se existir,
 /// senão o genérico. Função pura (teste em `test/aviso_mensagem_admin_test.dart`).
-String textoDoAvisoDeCancelamento(Map<String, dynamic>? aviso) {
+String textoDoAvisoDeCancelamento(Map<String, dynamic>? aviso,
+    {RideKind rideKind = RideKind.passageiros}) {
   final titulo = (aviso?['title'] as String?)?.trim() ?? '';
   final corpo = (aviso?['body'] as String?)?.trim() ?? '';
-  if (titulo.isEmpty && corpo.isEmpty) return 'O cliente cancelou a corrida.';
+  if (titulo.isEmpty && corpo.isEmpty) return 'O cliente cancelou a corrida.'.rk(rideKind);
   if (titulo.isEmpty) return corpo;
   if (corpo.isEmpty) return titulo;
   return '$titulo. $corpo';
@@ -107,6 +110,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   Future<void> _avisarClienteCancelou(
       String rideId, ScaffoldMessengerState? messenger) async {
     if (messenger == null) return;
+    final tipo = context.tvdeDriverKind; // antes do await: a corrida ainda está no store
     Map<String, dynamic>? aviso;
     try {
       final sb = Supabase.instance.client;
@@ -125,7 +129,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
       // Sem leitura (rede, sessão): fica o texto genérico.
     }
     messenger.showSnackBar(SnackBar(
-      content: Text(textoDoAvisoDeCancelamento(aviso)),
+      content: Text(textoDoAvisoDeCancelamento(aviso, rideKind: tipo)),
       duration: const Duration(seconds: 8),
     ));
   }
@@ -901,7 +905,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
           alpha: 0.85,
           infoWindow: InfoWindow(
               title: 'Próxima recolha',
-              snippet: queued.originLabel ?? 'Recolha da próxima corrida'),
+              snippet: queued.originLabel ?? 'Recolha da próxima corrida'.rk(context.tvdeDriverKind)),
         ),
         Marker(
           markerId: const MarkerId('queued_dest'),
@@ -910,7 +914,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
           alpha: 0.6,
           infoWindow: InfoWindow(
               title: 'Próximo destino',
-              snippet: queued.destLabel ?? 'Destino da próxima corrida'),
+              snippet: queued.destLabel ?? 'Destino da próxima corrida'.rk(context.tvdeDriverKind)),
         ),
       };
 
@@ -1158,7 +1162,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
         builder: (_) => TvdeChatScreen(
           rideId: ride.id,
           myRole: 'driver',
-          title: _passengerName ?? 'Passageiro',
+          title: _passengerName ?? 'Passageiro'.rk(context.tvdeDriverKind),
           otherPhone: _passengerPhone,
         ),
       ),
@@ -1596,11 +1600,11 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     try {
       final ok = await context
           .read<TvdeDriverStore>()
-          .releaseReservation(ride.id, motivo: 'o motorista devolveu a reserva');
+          .releaseReservation(ride.id, motivo: 'o motorista devolveu a reserva'.rk(context.tvdeDriverKind));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(ok
-              ? 'Reserva devolvida. A Bora procura outro motorista.'
+              ? 'Reserva devolvida. A Bora procura outro motorista.'.rk(context.tvdeDriverKind)
               : 'Não consegui devolver. Atualiza e tenta outra vez.')));
       if (!ok) await _recarregarDoServidor();
     } catch (e) {
@@ -1743,10 +1747,10 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(noShow ? 'Passageiro não compareceu?' : 'Cancelar corrida?'),
+        title: Text(noShow ? 'Passageiro não compareceu?'.rk(context.tvdeDriverKind) : 'Cancelar corrida?'.rk(context.tvdeDriverKind)),
         content: Text(noShow
-            ? 'Marca como "não compareceu" se o passageiro não apareceu no local.'
-            : 'Tens a certeza que queres cancelar esta corrida?'),
+            ? 'Marca como "não compareceu" se o passageiro não apareceu no local.'.rk(context.tvdeDriverKind)
+            : 'Tens a certeza que queres cancelar esta corrida?'.rk(context.tvdeDriverKind)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -1766,16 +1770,16 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
       // de espera é creditada server-side (tvde_cancel_ride actor=no_show). Sem
       // hardcode do valor (a setting manda) — só informa que foi creditada.
       if (noShow) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(
-                'Registado: passageiro não compareceu. A taxa de espera foi creditada a ti.')));
+                'Registado: passageiro não compareceu. A taxa de espera foi creditada a ti.'.rk(context.tvdeDriverKind))));
       }
       // Back-to-back: se a fila foi ativada pelo cancelamento, fica no ecrã
       // (a corrida ativada é renderizada); caso contrário volta à home.
       final next = store.activeRide;
       if (next != null && next.id != ride.id && next.isLive) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Próxima corrida na fila ativada.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Próxima corrida na fila ativada.'.rk(context.tvdeDriverKind))));
         return;
       }
       store.clearActive();
@@ -1791,10 +1795,10 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Largar a próxima corrida?'),
+        title: Text('Largar a próxima corrida?'.rk(context.tvdeDriverKind)),
         content: Text(
-            'A corrida ${queued.originLabel ?? 'em fila'} volta para outros motoristas. '
-            'A corrida que estás a fazer continua igual.'),
+            '${'A corrida {0} volta para outros motoristas.'.rkArgs(context.tvdeDriverKind, [queued.originLabel ?? 'em fila'])} '
+            '${'A corrida que estás a fazer continua igual.'.rk(context.tvdeDriverKind)}'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -1809,8 +1813,8 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     try {
       await context.read<TvdeDriverStore>().releaseQueuedRide(queued.id);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Próxima corrida largada — voltou para a roda.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Próxima corrida largada — voltou para a roda.'.rk(context.tvdeDriverKind))));
     } catch (e) {
       await _falhouAcao(e, rideId: queued.id);
     }
@@ -1870,8 +1874,8 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     }
     if (!mounted) return;
     if (store.activeRide == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Já não tens nenhuma corrida a decorrer.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Já não tens nenhuma corrida a decorrer.'.rk(context.tvdeDriverKind))));
       Navigator.of(context).maybePop();
     }
   }
@@ -1995,7 +1999,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
 
     return Scaffold(
       appBar: BoraScreenAppBar(
-        title: 'Corrida',
+        title: 'Corrida'.rk(context.tvdeDriverKind),
         actions: [
           if (ride.isOnTheWay || ride.hasArrived)
             PopupMenuButton<String>(
@@ -2004,14 +2008,14 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
                 if (v == 'no_show') _cancel(ride, noShow: true);
               },
               itemBuilder: (_) => [
-                const PopupMenuItem(value: 'cancel', child: Text('Cancelar corrida')),
+                PopupMenuItem(value: 'cancel', child: Text('Cancelar corrida'.rk(context.tvdeDriverKind))),
                 if (ride.hasArrived)
                   PopupMenuItem(
                       value: 'no_show',
                       // 4c — só habilita depois da janela de espera (padrão
                       // Uber; default 5 min, configurável no admin).
                       enabled: _noShowUnlocked(ride),
-                      child: const Text('Passageiro não compareceu')),
+                      child: Text('Passageiro não compareceu'.rk(context.tvdeDriverKind))),
               ],
             ),
         ],
@@ -2663,15 +2667,15 @@ class TvdeCorridaBotaoPrincipal extends StatelessWidget {
     IconData icon;
     VoidCallback? accao;
     if (ride.isOnTheWay) {
-      label = 'Cheguei ao passageiro';
+      label = 'Cheguei ao passageiro'.rk(context.tvdeDriverKind);
       icon = Icons.where_to_vote;
       accao = onCheguei;
     } else if (ride.hasArrived) {
-      label = 'Iniciar viagem';
+      label = 'Iniciar viagem'.rk(context.tvdeDriverKind);
       icon = Icons.play_arrow;
       accao = onIniciar;
     } else if (ride.isInProgress) {
-      label = 'Finalizar viagem';
+      label = 'Finalizar viagem'.rk(context.tvdeDriverKind);
       icon = Icons.flag;
       accao = onFinalizar;
     } else if (ride.status == 'motorista_atribuido' && ride.isReservation) {
@@ -2685,7 +2689,7 @@ class TvdeCorridaBotaoPrincipal extends StatelessWidget {
     } else if (ride.status == 'motorista_atribuido' && ride.isQueued) {
       // Back-to-back: usa o mesmo estado, mas não há nada a confirmar — esta
       // arranca sozinha quando a viagem actual terminar.
-      label = 'Começa ao terminares esta viagem';
+      label = 'Começa ao terminares esta viagem'.rk(context.tvdeDriverKind);
       icon = Icons.queue;
       accao = null;
     } else {
@@ -3195,9 +3199,9 @@ class _QueuedRideCard extends StatelessWidget {
             children: [
               const Icon(Icons.queue, size: 16, color: AppColors.primary),
               const SizedBox(width: 6),
-              const Expanded(
-                child: Text('Próxima corrida — depois desta',
-                    style: TextStyle(
+              Expanded(
+                child: Text('Próxima corrida — depois desta'.rk(context.tvdeDriverKind),
+                    style: const TextStyle(
                         color: AppColors.primary,
                         fontSize: 13,
                         fontWeight: FontWeight.w800)),

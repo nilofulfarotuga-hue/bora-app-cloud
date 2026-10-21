@@ -47,6 +47,8 @@ import 'tvde_queixas_screen.dart';
 import 'tvde_rate_screen.dart';
 
 import '../../../l10n/tr.dart';
+import '../../../models/ride_kind.dart';
+import '../../../utils/ride_kind_context.dart';
 
 /// TVDE — Mapa em tempo real do estado da corrida (reusa google_maps_flutter,
 /// o mesmo stack de mapa do delivery). Consome o realtime de tvde_rides
@@ -695,7 +697,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
       return 'O preço mudou entretanto. Abre outra vez para veres o preço novo.'.tr;
     }
     if (raw.contains('invalid_ride_state_for_dest_change')) {
-      return 'A corrida já não permite mudar o destino.'.tr;
+      return 'A corrida já não permite mudar o destino.'.trK(context.tvdeKind);
     }
     if (raw.contains('dest_change_disabled')) {
       return 'Mudar destino não está disponível de momento.'.tr;
@@ -723,7 +725,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
       return 'Já atingiste o máximo de {0} paragens.'.trArgs([_maxStops]);
     }
     if (e.contains('invalid_ride_state_for_stop')) {
-      return 'A corrida já não permite adicionar paragens.'.tr;
+      return 'A corrida já não permite adicionar paragens.'.trK(context.tvdeKind);
     }
     if (e.contains('card_payments_not_enabled')) {
       return 'Os pagamentos no cartão estão desativados de momento.'.tr;
@@ -917,7 +919,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(_driverName ?? 'Motorista'.tr,
+              Text(_driverName ?? 'Motorista'.trK(context.tvdeKind),
                   style: const TextStyle(
                       fontSize: 18, fontWeight: FontWeight.w700)),
               if (carro.isNotEmpty) ...[
@@ -1078,7 +1080,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     if (real == null || _etaIsRough || real > _etaArrivingMin) return;
 
     _arrivingNotifiedRideId = ride.id; // marca ANTES: nunca sai duas vezes
-    final quem = _primeiroNome(_driverName) ?? 'O teu motorista'.tr;
+    final quem = _primeiroNome(_driverName) ?? 'O teu motorista'.trK(context.tvdeKind);
     final carro = <String>[
       if (_driverCar != null && _driverCar!.isNotEmpty) _driverCar!,
       if (_driverCarColor != null && _driverCarColor!.isNotEmpty)
@@ -1448,7 +1450,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
         // [2C] Posição velha → carro ESBATIDO. É o sinal visual de que aquele
         // ponto já não é de fiar; sólido a mentir era o que havia antes.
         alpha: _sinalVelho ? 0.4 : 1.0,
-        infoWindow: InfoWindow(title: _driverName ?? 'Motorista'.tr),
+        infoWindow: InfoWindow(title: _driverName ?? 'Motorista'.trK(context.tvdeKind)),
         icon: _carIcon ??
             BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
         // (d) tocar no carro: centra e mostra nome/carro/ETA.
@@ -1506,7 +1508,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
         builder: (_) => TvdeChatScreen(
           rideId: ride.id,
           myRole: 'client',
-          title: _driverName ?? 'Motorista',
+          title: _driverName ?? 'Motorista'.rk(context.tvdeKind),
           otherPhone: _driverPhone,
         ),
       ),
@@ -1531,7 +1533,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
       store.clearActiveRide();
       Navigator.pop(context);
       messenger.showSnackBar(SnackBar(
-        content: Text('Pede a corrida outra vez para escolheres o pagamento — a anterior não chegou a ter motorista e não foi cobrada.'.tr),
+        content: Text('Pede a corrida outra vez para escolheres o pagamento — a anterior não chegou a ter motorista e não foi cobrada.'.trK(context.tvdeKind)),
       ));
     }
   }
@@ -1550,9 +1552,9 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
       final desistir = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: Text('Desistir da corrida?'.tr),
+          title: Text('Desistir da corrida?'.trK(context.tvdeKind)),
           content: Text(
-              'Ainda não foste cobrado e nenhum motorista foi chamado. Podes desistir sem custo.'.tr),
+              'Ainda não foste cobrado e nenhum motorista foi chamado. Podes desistir sem custo.'.trK(context.tvdeKind)),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
@@ -1582,7 +1584,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
           await store.refreshActiveRide();
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text('Afinal o pagamento já entrou (ou está a ser confirmado) — a corrida segue.'.tr)));
+              content: Text('Afinal o pagamento já entrou (ou está a ser confirmado) — a corrida segue.'.trK(context.tvdeKind))));
           return;
         }
         await store.cancelRide(ride.id,
@@ -1648,8 +1650,8 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     if (s.contains('ride_already_terminal')) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(s.contains('finalizada')
-              ? 'A corrida já tinha terminado.'.tr
-              : 'A corrida já estava cancelada.')));
+              ? 'A corrida já tinha terminado.'.trK(context.tvdeKind)
+              : 'A corrida já estava cancelada.'.rk(context.tvdeKind))));
       context.read<TvdeStore>().clearActiveRide();
       Navigator.pop(context);
       return;
@@ -1689,8 +1691,8 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
 
     if (ride == null) {
       return Scaffold(
-        appBar: BoraScreenAppBar(title: 'A tua corrida'.tr),
-        body: Center(child: Text('Sem corrida ativa.'.tr)),
+        appBar: BoraScreenAppBar(title: 'A tua corrida'.trK(context.tvdeKind)),
+        body: Center(child: Text('Sem corrida ativa.'.trK(context.tvdeKind))),
       );
     }
 
@@ -1807,7 +1809,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
 
     return Scaffold(
       appBar: BoraScreenAppBar(
-        title: 'A tua corrida'.tr,
+        title: 'A tua corrida'.trK(context.tvdeKind),
         actions: [
           IconButton(
             key: const Key('tvde_tracking_queixas'),
@@ -1893,7 +1895,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
                 child: TextButton.icon(
                   key: const Key('tvde_partilhar_viagem'),
                   icon: const Icon(Icons.ios_share, size: 18),
-                  label: Text('Partilhar viagem'.tr),
+                  label: Text('Partilhar viagem'.trK(context.tvdeKind)),
                   onPressed: () => TvdePartilhaService.partilhar(context, ride.id),
                 ),
               ),
@@ -2011,10 +2013,10 @@ class _CompactStrip extends StatelessWidget {
     if (ride.isInProgress) {
       return etaMinutes != null
           ? 'Chegas ao destino em ~{0} min'.trArgs([etaMinutes])
-          : 'Viagem em curso'.tr;
+          : 'Viagem em curso'.trK(ride.rideKind);
     }
     if (driverArrived) {
-      return quem != null ? '{0} chegou'.trArgs([quem]) : 'O motorista chegou'.tr;
+      return quem != null ? '{0} chegou'.trArgs([quem]) : 'O motorista chegou'.trK(ride.rideKind);
     }
     if (ride.isQueued) {
       // [Sobreposição 14/09 → 20/09] em fila: as TRÊS coisas na mesma frase
@@ -2024,23 +2026,23 @@ class _CompactStrip extends StatelessWidget {
       if (etaMinutes == null) {
         return quem != null
             ? '{0} aceitou a tua corrida · está a terminar outra viagem'
-                .trArgs([quem])
-            : 'O teu motorista aceitou · está a terminar outra viagem'.tr;
+                .trArgsK(ride.rideKind, [quem])
+            : 'O teu motorista aceitou · está a terminar outra viagem'.trK(ride.rideKind);
       }
       return quem != null
           ? '{0} aceitou a tua corrida · está a terminar outra viagem · chega em ~{1} min'
-              .trArgs([quem, etaMinutes])
+              .trArgsK(ride.rideKind, [quem, etaMinutes])
           : 'O teu motorista aceitou · está a terminar outra viagem · chega em ~{0} min'
-              .trArgs([etaMinutes]);
+              .trArgsK(ride.rideKind, [etaMinutes]);
     }
     if (etaMinutes == null) {
       return quem != null
           ? '{0} está a caminho'.trArgs([quem])
-          : 'Motorista a caminho'.tr;
+          : 'Motorista a caminho'.trK(ride.rideKind);
     }
     return quem != null
         ? '{0} chega em ~{1} min'.trArgs([quem, etaMinutes])
-        : 'Motorista a caminho · chega em ~{0} min'.trArgs([etaMinutes]);
+        : 'Motorista a caminho · chega em ~{0} min'.trArgsK(ride.rideKind, [etaMinutes]);
   }
 
   @override
@@ -2228,22 +2230,22 @@ class _StatusPanel extends StatelessWidget {
     if (ride.isQueued) {
       return quem != null
           ? '{0} aceitou a tua corrida · está a terminar outra viagem · chega em ~{1} min'
-              .trArgs([quem, minutos])
+              .trArgsK(ride.rideKind, [quem, minutos])
           : 'O teu motorista aceitou · está a terminar outra viagem · chega em ~{0} min'
-              .trArgs([minutos]);
+              .trArgsK(ride.rideKind, [minutos]);
     }
     return quem != null
         ? '{0} chega em ~{1} min'.trArgs([quem, minutos])
-        : 'O motorista chega em ~{0} min'.trArgs([minutos]);
+        : 'O motorista chega em ~{0} min'.trArgsK(ride.rideKind, [minutos]);
   }
 
   /// [1C] Cabeçalho do cartão: uma pessoa, não uma função.
   String _headline() {
     final quem = _primeiroNome(driverName);
-    if (quem == null) return 'Motorista'.tr;
+    if (quem == null) return 'Motorista'.trK(ride.rideKind);
     if (ride.isInProgress) return quem;
     if (driverArrived) return '{0} chegou'.trArgs([quem]);
-    if (ride.isQueued) return '{0} aceitou a tua corrida'.trArgs([quem]);
+    if (ride.isQueued) return '{0} aceitou a tua corrida'.trArgsK(ride.rideKind, [quem]);
     return '{0} está a caminho'.trArgs([quem]);
   }
 
@@ -2281,7 +2283,7 @@ class _StatusPanel extends StatelessWidget {
                 onPressed: () => abrirReciboViagem(context, ride.id),
                 icon: const Icon(Icons.receipt_long_outlined, size: 18),
                 // Conformidade (art. 15.º n.º 8): é um resumo, não uma fatura.
-                label: const Text('Resumo da viagem'),
+                label: Text('Resumo da viagem'.rk(context.tvdeKind)),
               ),
             ),
           // [1C · 05/09] O cartão vive também EM VIAGEM: antes só aparecia com
@@ -2588,7 +2590,7 @@ class _StatusPanel extends StatelessWidget {
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
-                    'A ligar-se ao motorista…'.tr,
+                    'A ligar-se ao motorista…'.trK(context.tvdeKind),
                     style: const TextStyle(
                         color: AppColors.textSubtle, fontSize: 11.5),
                   ),
@@ -2633,13 +2635,13 @@ class _StatusPanel extends StatelessWidget {
                   // 2026-08-13 — dizer exactamente onde está a bola. O cliente
                   // que vê "à espera da confirmação do pagamento" sem saber que
                   // é ELE que tem de confirmar no banco, fica à espera do nada.
-                  ? 'À espera da confirmação do MB Way. Abre a app do teu banco e confirma o pagamento — só depois começamos a procurar motorista.'.tr
+                  ? 'À espera da confirmação do MB Way. Abre a app do teu banco e confirma o pagamento — só depois começamos a procurar motorista.'.trK(context.tvdeKind)
                   : onPayAgain != null
                       // Sheet aberta e abandonada sem pagar (d947b446): dizer
                       // a verdade e dar a saída, em vez de prometer que
                       // "aparece dentro de momentos".
-                      ? 'O pagamento não foi concluído — ainda não começámos a procurar motorista e não foste cobrado. Toca em «Pagar de novo» ou cancela sem custo.'.tr
-                      : 'Ainda não começámos a procurar motorista — estamos à espera da confirmação do pagamento. Se já confirmaste, aparece dentro de momentos.'.tr,
+                      ? 'O pagamento não foi concluído — ainda não começámos a procurar motorista e não foste cobrado. Toca em «Pagar de novo» ou cancela sem custo.'.trK(context.tvdeKind)
+                      : 'Ainda não começámos a procurar motorista — estamos à espera da confirmação do pagamento. Se já confirmaste, aparece dentro de momentos.'.trK(context.tvdeKind),
               style: const TextStyle(
                   color: AppColors.textSubtle, fontSize: 12),
             ),
@@ -2659,7 +2661,7 @@ class _StatusPanel extends StatelessWidget {
           if (ride.isQueued && ride.isAssigned) ...[
             const SizedBox(height: Spacing.sm),
             Text(
-              'O teu motorista aceitou a tua corrida e está a terminar outra viagem aqui perto. Segue logo para a tua recolha — és o próximo.'.tr,
+              'O teu motorista aceitou a tua corrida e está a terminar outra viagem aqui perto. Segue logo para a tua recolha — és o próximo.'.trK(context.tvdeKind),
               style: const TextStyle(color: AppColors.textSubtle, fontSize: 12),
             ),
           ],
@@ -2668,7 +2670,7 @@ class _StatusPanel extends StatelessWidget {
           const SizedBox(height: Spacing.lg),
           if (ride.isNoDriver) ...[
             Text(
-              'De momento não há motoristas disponíveis. Podes tentar novamente.'.tr,
+              'De momento não há motoristas disponíveis. Podes tentar novamente.'.trK(context.tvdeKind),
               style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
             ),
             // 04/10: a procura tem fim (tvde_procura_max_minutos); se a corrida
@@ -2690,13 +2692,13 @@ class _StatusPanel extends StatelessWidget {
             const SizedBox(height: Spacing.sm),
             TextButton(onPressed: onClose, child: Text('Fechar'.tr)),
           ] else if (ride.isInProgress) ...[
-            Text('Boa viagem! O preço é o que viste ao pedir.'.tr,
+            Text('Boa viagem! O preço é o que viste ao pedir.'.trK(context.tvdeKind),
                 style: const TextStyle(color: AppColors.textSubtle, fontSize: 12)),
           ] else ...[
             OutlinedButton.icon(
               onPressed: busy ? null : onCancel,
               icon: const Icon(Icons.close),
-              label: Text('Cancelar corrida'.tr),
+              label: Text('Cancelar corrida'.trK(context.tvdeKind)),
             ),
           ],
         ],
@@ -2872,7 +2874,7 @@ class _TerminalView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: BoraScreenAppBar(title: 'A tua corrida'.tr),
+      appBar: BoraScreenAppBar(title: 'A tua corrida'.trK(context.tvdeKind)),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(Spacing.xl),
@@ -3083,8 +3085,8 @@ class _StopPayConfirmSheetState extends State<_StopPayConfirmSheet> {
           const SizedBox(height: Spacing.md),
           Text(
             isMbway
-                ? 'Esta corrida foi paga por MB Way. A paragem é cobrada agora — só é adicionada depois de confirmares no MB Way.'.tr
-                : 'Esta corrida foi paga no cartão. A paragem é cobrada agora — só é adicionada depois de o pagamento passar.'.tr,
+                ? 'Esta corrida foi paga por MB Way. A paragem é cobrada agora — só é adicionada depois de confirmares no MB Way.'.trK(context.tvdeKind)
+                : 'Esta corrida foi paga no cartão. A paragem é cobrada agora — só é adicionada depois de o pagamento passar.'.trK(context.tvdeKind),
             style: const TextStyle(color: AppColors.textSecondary),
           ),
           if (isMbway) ...[
@@ -3193,7 +3195,7 @@ class _AddStopSheetState extends State<_AddStopSheet> {
               const SizedBox(height: Spacing.xs),
               Text(
                   widget.subtitle ??
-                      'Escolhe onde o motorista deve passar a caminho do destino.'.tr,
+                      'Escolhe onde o motorista deve passar a caminho do destino.'.trK(context.tvdeKind),
                   style:
                       const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
               const SizedBox(height: Spacing.md),

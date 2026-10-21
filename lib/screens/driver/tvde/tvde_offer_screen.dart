@@ -17,6 +17,7 @@ import '../../../widgets/tvde/tvde_counter_ride_badge.dart';
 import '../../../widgets/tvde/tvde_offer_overlay_host.dart';
 import '../../../widgets/tvde/tvde_pay_badge.dart';
 import '../../../widgets/tvde/tvde_roundtrip_driver_notice.dart';
+import '../../../models/ride_kind.dart';
 
 /// TVDE — Ecrã de OFERTA ao motorista (passageiros). Aceite por TOCAR aqui
 /// (nunca pelos botões de ação da notificação — bug conhecido em background).
@@ -171,7 +172,7 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
       store.clearOffer();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Esta corrida já não está disponível.')),
+        SnackBar(content: Text('Esta corrida já não está disponível.'.rk(widget.ride.rideKind))),
       );
       _fecharEstaRota();
     }
@@ -298,7 +299,7 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
                   children: [
                     const Icon(Icons.local_taxi, color: Colors.white, size: 28),
                     const SizedBox(width: Spacing.sm),
-                    Text('Nova corrida',
+                    Text('Nova corrida'.rk(widget.ride.rideKind),
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             color: Colors.white, fontWeight: FontWeight.w800)),
                   ],

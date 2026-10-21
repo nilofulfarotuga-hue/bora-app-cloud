@@ -20,6 +20,8 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../l10n/tr.dart';
 import '../../models/tvde_cancel_quote.dart';
+import '../../models/ride_kind.dart';
+import '../../utils/ride_kind_context.dart';
 
 /// Prazo para a cotação chegar antes de se mostrar o aviso neutro.
 const Duration kPrazoDaCotacao = Duration(seconds: 3);
@@ -207,7 +209,7 @@ class _TvdeCancelDialogState extends State<TvdeCancelDialog> {
       segundosRestantes: _restam,
     );
     return AlertDialog(
-      title: Text('Cancelar corrida?'.tr),
+      title: Text('Cancelar corrida?'.trK(context.tvdeKind)),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,

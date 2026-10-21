@@ -4,6 +4,8 @@ import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../l10n/tr.dart';
 import '../../../widgets/bora/bora_bottom_action_bar.dart';
+import '../../../models/ride_kind.dart';
+import '../../../utils/ride_kind_context.dart';
 
 /// Escolha da VOLTA no ida-e-volta marcado (2026-09-23).
 /// `hora == null` = "Chamo quando terminar" (fica o vale da volta, como hoje).
@@ -108,7 +110,7 @@ class _TvdeVoltaSheetState extends State<TvdeVoltaSheet> {
             titulo: _volta == null
                 ? 'Marcar hora da volta'.tr
                 : 'Volta às {0}'.trArgs([_hhmm(_volta!)]),
-            texto: 'Um motorista vem buscar-te a essa hora.'.tr,
+            texto: 'Um motorista vem buscar-te a essa hora.'.trK(context.tvdeKind),
             onTap: _escolherHora,
           ),
           if (_erro != null) ...[

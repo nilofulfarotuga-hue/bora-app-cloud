@@ -9,6 +9,8 @@ import '../../../config/app_spacing.dart';
 import '../../../models/tvde_ride.dart';
 import '../../../services/navigation_service.dart';
 import '../../../stores/tvde_driver_store.dart';
+import '../../../models/ride_kind.dart';
+import '../../../utils/ride_kind_context.dart';
 
 /// [Reserva agendada 2026-08-19] AGENDA do motorista — as reservas que já são
 /// dele, por ordem de hora. É a "memória" que o Danilo pediu: o motorista abre
@@ -169,7 +171,7 @@ class _TvdeDriverAgendaScreenState extends State<TvdeDriverAgendaScreen> {
     if (!mounted) return;
     messenger.showSnackBar(SnackBar(
       content: Text(ok
-          ? 'Reserva devolvida. Já estamos a procurar outro motorista.'
+          ? 'Reserva devolvida. Já estamos a procurar outro motorista.'.rk(context.tvdeDriverKind)
           : 'Já não dá para devolver esta reserva — fala com a Bora.'),
     ));
   }
@@ -327,17 +329,17 @@ class _TvdeDriverAgendaScreenState extends State<TvdeDriverAgendaScreen> {
                 color: AppColors.error.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Row(
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.warning_amber_rounded,
+                  const Icon(Icons.warning_amber_rounded,
                       size: 18, color: AppColors.error),
-                  SizedBox(width: Spacing.sm),
+                  const SizedBox(width: Spacing.sm),
                   Expanded(
                     child: Text(
-                      'Perto da hora recebes um aviso para confirmares que vais. '
-                      'Se não confirmares, a corrida passa a outro motorista.',
-                      style: TextStyle(fontSize: 12),
+                      'Perto da hora recebes um aviso para confirmares que vais. Se não confirmares, a corrida passa a outro motorista.'
+                          .rk(context.tvdeDriverKind),
+                      style: const TextStyle(fontSize: 12),
                     ),
                   ),
                 ],

@@ -42,6 +42,8 @@ import 'tvde_schedule_ride_sheet.dart';
 import 'tvde_volta_sheet.dart';
 
 import '../../../l10n/tr.dart';
+import '../../../models/ride_kind.dart';
+import '../../../utils/ride_kind_context.dart';
 
 /// Frente 4 — como o cliente paga ESTA corrida, decidido pela cobertura do
 /// plano. Espelha a matemática do `tvde_finish_ride` para mostrar o valor e o
@@ -55,8 +57,15 @@ enum _PayCase {
 
 /// TVDE — Ecrã para o passageiro pedir uma corrida.
 /// Pickup por GPS + destino (Google Places, reuso do Favores) + preço estimado.
+///
+/// 21/10/2026 (A1): o MESMO ecrã pede ENCOMENDAS ([rideKind]) — mesmo preço,
+/// mesmos pagamentos e reservas; só as palavras mudam (`ride_kind.dart`).
 class TvdeRequestRideScreen extends StatefulWidget {
-  const TvdeRequestRideScreen({super.key});
+  const TvdeRequestRideScreen({super.key, this.rideKind = RideKind.passageiros});
+
+  /// Passageiros (Bora Motorista, por omissão) ou encomendas (ladrilho
+  /// "Enviar Encomenda" com `tvde_encomendas_enabled` ligado).
+  final RideKind rideKind;
 
   @override
   State<TvdeRequestRideScreen> createState() => _TvdeRequestRideScreenState();
@@ -212,6 +221,8 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
   @override
   void initState() {
     super.initState();
+    // Antes do primeiro build: as palavras e o p_ride_kind saem deste valor.
+    context.read<TvdeStore>().pedidoKind = widget.rideKind;
     WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrap());
   }
 
@@ -584,12 +595,12 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         } else {
           pc = _PayCase.excess;
           payable = excessCents;
-          message = 'Corrida do plano — só pagas o excesso: {0} km acima de {1} = €{2}'.trArgs([excessKm, _baseKm, (payable / 100).toStringAsFixed(2)]);
+          message = 'Corrida do plano — só pagas o excesso: {0} km acima de {1} = €{2}'.trArgsK(context.tvdeKind, [excessKm, _baseKm, (payable / 100).toStringAsFixed(2)]);
         }
       } else if (isMember) {
         pc = _PayCase.extra;
         payable = _extraRideCents + excessCents;
-        message = 'Já usaste as corridas de hoje — esta fica €{0} (preço de membro).'.trArgs([(payable / 100).toStringAsFixed(2)]);
+        message = 'Já usaste as corridas de hoje — esta fica €{0} (preço de membro).'.trArgsK(context.tvdeKind, [(payable / 100).toStringAsFixed(2)]);
       } else {
         pc = _PayCase.normal;
         payable = cents;
@@ -766,7 +777,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
           note: note,
         );
         if (!mounted) return;
-        _reservaMarcada('Reserva marcada. Pagas em dinheiro ao motorista.'.tr);
+        _reservaMarcada('Reserva marcada. Pagas em dinheiro ao motorista.'.trK(context.tvdeKind));
         return;
       }
 
@@ -816,7 +827,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       final pago = await _aguardarPagamentoReserva(store, piId, method);
       if (!mounted) return;
       if (pago) {
-        _reservaMarcada('Reserva marcada e paga. Já estamos à procura de motorista.'.tr);
+        _reservaMarcada('Reserva marcada e paga. Já estamos à procura de motorista.'.trK(context.tvdeKind));
       } else {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Ainda não recebemos a confirmação do pagamento. Vê o estado em "As minhas reservas" — se não concluíres em 15 minutos, cancelamos sozinhos e não és cobrado.'.tr),
@@ -911,7 +922,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       ),
       builder: (_) => _TvdePaymentSheet(
         amountCents: _roundtripPriceCents,
-        message: 'Pacote ida e volta marcado. Pagas o pacote todo agora; se a ida for cancelada ou ficar sem motorista, devolvemos tudo.'.tr,
+        message: 'Pacote ida e volta marcado. Pagas o pacote todo agora; se a ida for cancelada ou ficar sem motorista, devolvemos tudo.'.trK(context.tvdeKind),
         allowOnline: _cardEnabled,
         allowTokens: false,
         cashEnabled: _cashEnabled,
@@ -956,7 +967,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
           note: note,
         );
         if (!mounted) return;
-        _reservaMarcada('${'Ida e volta marcadas. Pagas o pacote em dinheiro ao motorista da ida.'.tr} $fraseVolta');
+        _reservaMarcada('${'Ida e volta marcadas. Pagas o pacote em dinheiro ao motorista da ida.'.trK(context.tvdeKind)} $fraseVolta');
         return;
       }
 
@@ -1010,7 +1021,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         if (!mounted) return;
       }
       if (pago) {
-        _reservaMarcada('${'Ida e volta marcadas e pagas. Já estamos à procura de motorista.'.tr} $fraseVolta');
+        _reservaMarcada('${'Ida e volta marcadas e pagas. Já estamos à procura de motorista.'.trK(context.tvdeKind)} $fraseVolta');
       } else {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Ainda não recebemos a confirmação do pagamento. Vê o estado em "As minhas reservas" — se não concluíres em 15 minutos, cancelamos sozinhos e não és cobrado.'.tr),
@@ -1059,7 +1070,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         if (!mounted) return;
         if (auth.cancelled) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text('Pagamento cancelado. A corrida não foi pedida.'.tr)));
+              content: Text('Pagamento cancelado. A corrida não foi pedida.'.trK(context.tvdeKind))));
           return;
         }
         savedPmId = auth.savedPmId;
@@ -1167,12 +1178,12 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
           : s.contains('no_tvde_access')
           ? 'Esta categoria ainda não está liberada para ti.'.tr
           : s.contains('ride_in_progress')
-          ? 'Já tens uma corrida em curso.'.tr
+          ? 'Já tens uma corrida em curso.'.trK(context.tvdeKind)
           : s.contains('card_payments_not_enabled')
               ? 'Pagamento por cartão ainda não está disponível.'.tr
               : foiDesistencia
-                  ? 'Pagamento não concluído. A corrida não foi pedida.'.tr
-                  : 'Não foi possível pedir a corrida.';
+                  ? 'Pagamento não concluído. A corrida não foi pedida.'.trK(context.tvdeKind)
+                  : 'Não foi possível pedir a corrida.'.trK(context.tvdeKind);
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(msg)));
     }
@@ -1205,9 +1216,9 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
           : 'Pagamento não concluído'.tr;
       final explicacao = porBanco
           ? 'A confirmação de segurança do banco não chegou ao fim. A corrida não foi pedida e não foste cobrado.'
-              .tr
+              .trK(context.tvdeKind)
           : 'A corrida ainda não foi pedida e não foste cobrado. Queres tentar pagar outra vez?'
-              .tr;
+              .trK(context.tvdeKind);
 
       final saida = await showDialog<_SaidaDoPagamento>(
         context: context,
@@ -1220,7 +1231,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
             TextButton(
                 onPressed: () =>
                     Navigator.pop(ctx, _SaidaDoPagamento.cancelar),
-                child: Text('Cancelar corrida'.tr)),
+                child: Text('Cancelar corrida'.trK(context.tvdeKind))),
             TextButton(
                 onPressed: () =>
                     Navigator.pop(ctx, _SaidaDoPagamento.outroMetodo),
@@ -1265,7 +1276,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       }
 
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Corrida cancelada. Não foste cobrado.'.tr)));
+          content: Text('Corrida cancelada. Não foste cobrado.'.trK(context.tvdeKind))));
       return;
     }
   }
@@ -1307,6 +1318,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         builder: (_) => TvdeRideMbwayWaitingDialog.forRide(
           rideId: ride.id,
           amountEur: _payableCents / 100,
+          rideKind: ride.rideKind,
         ),
       );
       if (paid == true) return true;
@@ -1320,7 +1332,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       final st = res?['payment_status'] as String?;
       if (res == null || st == 'processing') {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Ainda estamos a confirmar o pagamento. Vê o estado no ecrã da corrida — se o MB Way passou, ela segue sozinha.'.tr)));
+            content: Text('Ainda estamos a confirmar o pagamento. Vê o estado no ecrã da corrida — se o MB Way passou, ela segue sozinha.'.trK(context.tvdeKind))));
         return true;
       }
       // [22/09] Dizer a VERDADE: o MB Way só passa se a pessoa aprovar na app
@@ -1335,7 +1347,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
           title: Text('O MB Way não foi aprovado'.tr),
           content: Text(
               'Não aprovaste o pagamento a tempo na app do teu banco. A corrida não foi pedida e não foste cobrado.'
-                  .tr),
+                  .trK(context.tvdeKind)),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
@@ -1370,13 +1382,13 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     if (!respondeu) {
       // Nunca se conseguiu perguntar. Não cancelar às cegas.
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Não conseguimos confirmar o pagamento agora. Vê o estado no ecrã da corrida.'.tr)));
+          content: Text('Não conseguimos confirmar o pagamento agora. Vê o estado no ecrã da corrida.'.trK(context.tvdeKind))));
       return true;
     }
     await cancelar();
     if (!mounted) return false;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Pagamento não concluído. A corrida não foi pedida.'.tr)));
+        content: Text('Pagamento não concluído. A corrida não foi pedida.'.trK(context.tvdeKind))));
     return false;
   }
 
@@ -1427,7 +1439,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     }
     final h = escolha.hora!;
     messenger.showSnackBar(SnackBar(
-        content: Text('Volta marcada para as {0}. Vamos procurar motorista a tempo.'.trArgs([
+        content: Text('Volta marcada para as {0}. Vamos procurar motorista a tempo.'.trArgsK(context.tvdeKind, [
       '${h.hour.toString().padLeft(2, '0')}:${h.minute.toString().padLeft(2, '0')}'
     ]))));
   }
@@ -1450,7 +1462,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       builder: (_) => _TvdePaymentSheet(
         amountCents: _roundtripPriceCents,
         message: _roundtripSavingCents > 0
-            ? 'Ida + volta com desconto. Poupas €{0} face a duas corridas separadas.'.trArgs([(_roundtripSavingCents / 100).toStringAsFixed(2)])
+            ? 'Ida + volta com desconto. Poupas €{0} face a duas corridas separadas.'.trArgsK(context.tvdeKind, [(_roundtripSavingCents / 100).toStringAsFixed(2)])
             : 'Preço total da ida + volta — chamas a volta quando quiseres.',
         allowOnline: _cardEnabled,
         // 2026-08-13 — DESLIGADO de propósito, e só metade da razão mudou.
@@ -1521,7 +1533,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       messenger.showSnackBar(SnackBar(
           content: Text(soEletronico
               ? mensagemErroConformidade(erroIda)
-              : 'Não foi possível pedir a corrida.'.tr)));
+              : 'Não foi possível pedir a corrida.'.trK(context.tvdeKind))));
       return;
     }
 
@@ -1547,7 +1559,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       } catch (_) {/* o cron limpa; o admin vê a ida sem vale */}
       if (!mounted) return;
       messenger.showSnackBar(SnackBar(
-          content: Text('Não foi possível garantir a volta. A corrida não foi pedida — tenta outra vez.'.tr)));
+          content: Text('Não foi possível garantir a volta. A corrida não foi pedida — tenta outra vez.'.trK(context.tvdeKind))));
       return;
     }
 
@@ -1616,10 +1628,10 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
           content: Text(s.contains('no_tvde_access')
               ? 'Esta categoria ainda não está liberada para ti.'.tr
               : s.contains('ride_in_progress')
-              ? 'Já tens uma corrida em curso.'.tr
+              ? 'Já tens uma corrida em curso.'.trK(context.tvdeKind)
               : s.contains('card_payments_not_enabled')
                   ? 'Pagamento por cartão ainda não está disponível.'.tr
-                  : 'Não foi possível pedir a corrida. Não foste cobrado.'.tr)));
+                  : 'Não foi possível pedir a corrida. Não foste cobrado.'.trK(context.tvdeKind))));
       return;
     }
     final idaId = ida.id;
@@ -1705,7 +1717,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
               content: Text(e is StateError
                   ? e.message
                   : 'Pagamento cancelado. A corrida não foi pedida e não foste cobrado.'
-                      .tr)));
+                      .trK(context.tvdeKind))));
           return;
         }
         if (estado != 'ok') {
@@ -1715,7 +1727,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
           messenger.showSnackBar(SnackBar(
               content: Text(
                   'A confirmar o pagamento… Se foi aprovado, a corrida segue sozinha dentro de momentos.'
-                      .tr)));
+                      .trK(context.tvdeKind))));
           _openTracking();
           return;
         }
@@ -1761,14 +1773,14 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
           } catch (_) {/* o cron limpa (payment_timeout) */}
           if (!mounted) return;
           messenger.showSnackBar(SnackBar(
-              content: Text('Não recebemos a confirmação MBWay. A corrida não foi pedida e não foste cobrado.'.tr)));
+              content: Text('Não recebemos a confirmação MBWay. A corrida não foi pedida e não foste cobrado.'.trK(context.tvdeKind))));
           return;
         } else {
           // 'pending'/'unknown': o dinheiro pode estar a caminho — manter a
           // corrida, dizer a verdade e deixar o poll de fundo fechar o resto.
           unawaited(store.resumePendingRoundtripActivation());
           messenger.showSnackBar(SnackBar(
-              content: Text('A confirmar o pagamento… Se já confirmaste no MB Way, a corrida segue sozinha dentro de momentos.'.tr)));
+              content: Text('A confirmar o pagamento… Se já confirmaste no MB Way, a corrida segue sozinha dentro de momentos.'.trK(context.tvdeKind))));
           _openTracking();
           return;
         }
@@ -1940,7 +1952,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
 
     return Scaffold(
       appBar: BoraScreenAppBar(
-        title: 'Bora Motorista'.tr,
+        title: 'Bora Motorista'.trK(context.tvdeKind),
         actions: [
           IconButton(
             icon: const Icon(Icons.card_membership),
@@ -2148,7 +2160,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
                           ? _roundtripPriceCents > 0
                               ? 'Garantir ida e volta · €{0}'.trArgs([(_roundtripPriceCents / 100).toStringAsFixed(2)])
                               : 'Garantir ida e volta'
-                          : 'Solicitar corrida'),
+                          : 'Solicitar corrida'.trK(context.tvdeKind)),
               icon: oQueFalta != null
                   ? Icons.edit_location_alt_outlined
                   : _activeCredit != null
@@ -2205,7 +2217,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
               _activeCredit != null
                   ? 'A volta já está paga no pacote — não pagas nada agora.'.tr
                   : _payCase == _PayCase.freeCovered
-                      ? 'Incluída no teu plano — não pagas nada ao motorista.'.tr
+                      ? 'Incluída no teu plano — não pagas nada ao motorista.'.trK(context.tvdeKind)
                       : 'Escolhes como pagar depois de solicitares.',
               textAlign: TextAlign.center,
               style: const TextStyle(color: AppColors.textSubtle, fontSize: 12),
@@ -2366,12 +2378,12 @@ class _PlansTeaser extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Planos Bora Motorista'.tr,
+                  Text('Planos Bora Motorista'.trK(context.tvdeKind),
                       style: const TextStyle(
                           fontWeight: FontWeight.w700,
                           color: AppColors.textPrimary)),
                   const SizedBox(height: 2),
-                  Text('Corridas incluídas por dia a partir de €3. Vê e adere.'.tr,
+                  Text('Corridas incluídas por dia a partir de €3. Vê e adere.'.trK(context.tvdeKind),
                       style: const TextStyle(
                           fontSize: 12, color: AppColors.textSubtle)),
                 ],
@@ -2691,7 +2703,7 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
               ],
             ),
             Text(
-              'Tens €{0} em tokens — podes usar até €{1} nesta corrida (no máximo metade dos teus tokens).'.trArgs([(_availableTokens * _tokenValueEur).toStringAsFixed(2), ((tokensMax * _tokenValueEur * 100).floor() / 100).toStringAsFixed(2)]),
+              'Tens €{0} em tokens — podes usar até €{1} nesta corrida (no máximo metade dos teus tokens).'.trArgsK(context.tvdeKind, [(_availableTokens * _tokenValueEur).toStringAsFixed(2), ((tokensMax * _tokenValueEur * 100).floor() / 100).toStringAsFixed(2)]),
               style: TextStyle(fontSize: 12, color: Colors.amber.shade800),
             ),
             Row(
@@ -2799,7 +2811,7 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
           // Nota opcional para o MOTORISTA — mesmo widget/limite do delivery.
           CustomerNoteField(
             controller: _noteController,
-            title: 'Nota para o motorista (opcional)'.tr,
+            title: 'Nota para o motorista (opcional)'.trK(context.tvdeKind),
             hint: 'Ex.: espero à porta, levo mala grande, cadeira de bebé'.tr,
           ),
 

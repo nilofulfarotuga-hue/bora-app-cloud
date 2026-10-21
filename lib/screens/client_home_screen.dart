@@ -12,6 +12,7 @@ import '../models/client_address.dart';
 import '../models/order_model.dart';
 import '../models/rating_model.dart';
 import '../models/restaurant_model.dart';
+import '../models/ride_kind.dart';
 import '../services/client_address_service.dart';
 import '../services/location_service.dart';
 import '../stores/cart_store.dart';
@@ -41,6 +42,7 @@ import 'send_package_form_screen.dart';
 import 'errand_form_screen.dart';
 import 'stores_screen.dart';
 import 'client/tvde/tvde_entrada_screen.dart';
+import 'client/tvde/tvde_request_ride_screen.dart';
 import 'festas_screen.dart';
 import 'sobremesas_screen.dart';
 
@@ -521,9 +523,17 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
         gradient: AppColors.tileSendPackage,
         imageAsset: 'assets/categories/cat_encomenda.png',
         onTap: () => _navigateWithAddressGuard(() {
+          // 21/10/2026 (fechar-pendencias A1): com `tvde_encomendas_enabled`
+          // ligado, as encomendas correm no motor do Bora Motorista (mesmo
+          // preço, despacho e pagamentos; só mudam as palavras) e não pedem o
+          // acesso do Bora Motorista. Desligado: o fluxo antigo, como sempre.
+          final encomendasNovas = context.read<TvdeStore>().encomendasEnabled;
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const SendPackageFormScreen()),
+            MaterialPageRoute(
+                builder: (_) => encomendasNovas
+                    ? const TvdeRequestRideScreen(rideKind: RideKind.encomendas)
+                    : const SendPackageFormScreen()),
           );
         }),
       ),

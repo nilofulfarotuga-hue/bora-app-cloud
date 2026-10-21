@@ -15,6 +15,8 @@ import '../../../widgets/ver_nas_minhas_reservas.dart';
 import 'ride_mbway_waiting_dialog.dart';
 
 import '../../../l10n/tr.dart';
+import '../../../models/ride_kind.dart';
+import '../../../utils/ride_kind_context.dart';
 
 /// [Reserva agendada 2026-08-19] "As minhas reservas" — as viagens que o
 /// cliente marcou para depois.
@@ -115,7 +117,7 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
         content: Text(
           gratis
               ? 'Ainda estás a tempo — o cancelamento é grátis.'.tr
-              : 'Faltam menos de {0} horas para a viagem. Pode haver uma taxa de cancelamento.'.trArgs([_horasCancelGratis]),
+              : 'Faltam menos de {0} horas para a viagem. Pode haver uma taxa de cancelamento.'.trArgsK(context.tvdeKind, [_horasCancelGratis]),
         ),
         actions: [
           TextButton(
@@ -160,13 +162,13 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
       initialDate: atual.isBefore(agora) ? agora : atual,
       firstDate: agora,
       lastDate: agora.add(Duration(days: _maxDias)),
-      helpText: 'Dia da viagem'.tr,
+      helpText: 'Dia da viagem'.trK(context.tvdeKind),
     );
     if (dia == null || !mounted) return;
     final hora = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(atual),
-      helpText: 'Hora da viagem'.tr,
+      helpText: 'Hora da viagem'.trK(context.tvdeKind),
     );
     if (hora == null || !mounted) return;
     final nova = DateTime(dia.year, dia.month, dia.day, hora.hour, hora.minute);
@@ -176,7 +178,7 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
       builder: (_) => AlertDialog(
         title: Text('Passar a reserva para {0}?'.trArgs([_quando(nova)])),
         content: Text(
-          'O motorista é avisado. Se já tiver outra reserva perto dessa hora, procuramos outro motorista.'.tr,
+          'O motorista é avisado. Se já tiver outra reserva perto dessa hora, procuramos outro motorista.'.trK(context.tvdeKind),
         ),
         actions: [
           TextButton(
@@ -203,8 +205,8 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
         content: Text(res['sem_mudanca'] == true
             ? 'A reserva já estava nessa hora.'.tr
             : mantem
-                ? 'Hora alterada. O teu motorista mantém-se.'.tr
-                : 'Hora alterada. Vamos procurar motorista para a hora nova.'.tr),
+                ? 'Hora alterada. O teu motorista mantém-se.'.trK(context.tvdeKind)
+                : 'Hora alterada. Vamos procurar motorista para a hora nova.'.trK(context.tvdeKind)),
       ));
     } catch (e) {
       if (mounted) {
@@ -368,7 +370,7 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
                             padding:
                                 const EdgeInsets.symmetric(horizontal: Spacing.xl),
                             child: Text(
-                              'No ecrã de pedir motorista tens "Marcar para depois".'.tr,
+                              'No ecrã de pedir motorista tens "Marcar para depois".'.trK(context.tvdeKind),
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                   color: AppColors.textSubtle, fontSize: 12),
@@ -394,7 +396,7 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(
                       Spacing.lg, Spacing.lg, Spacing.lg, 0),
-                  child: ReservaMarcadaFaixa(titulo: 'Corrida marcada!'.tr),
+                  child: ReservaMarcadaFaixa(titulo: 'Corrida marcada!'.trK(context.tvdeKind)),
                 ),
                 Expanded(child: lista),
               ],
@@ -500,8 +502,8 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
             const SizedBox(height: Spacing.sm),
             Text(
               r.paymentMethod == 'cash'
-                  ? 'Não encontrámos motorista para esta hora. Podes marcar outra viagem.'.tr
-                  : 'Não encontrámos motorista para esta hora. O reembolso é automático — não precisas de fazer nada.'.tr,
+                  ? 'Não encontrámos motorista para esta hora. Podes marcar outra viagem.'.trK(context.tvdeKind)
+                  : 'Não encontrámos motorista para esta hora. O reembolso é automático — não precisas de fazer nada.'.trK(context.tvdeKind),
               style: const TextStyle(
                   fontSize: 12, color: AppColors.textSubtle),
             ),
@@ -785,7 +787,7 @@ class _ReservaDestinoSheetState extends State<_ReservaDestinoSheet> {
     if (_diff == 0) return 'Não há nada a pagar.'.tr;
     if (_diff < 0) {
       return widget.method == 'cash'
-          ? 'Pagas {0} a menos ao motorista, em dinheiro.'.trArgs([eur(-_diff)])
+          ? 'Pagas {0} a menos ao motorista, em dinheiro.'.trArgsK(context.tvdeKind, [eur(-_diff)])
           : 'Devolvemos {0} para o cartão ou MB Way.'.trArgs([eur(-_diff)]);
     }
     switch (widget.method) {
@@ -797,7 +799,7 @@ class _ReservaDestinoSheetState extends State<_ReservaDestinoSheet> {
             .trArgs([eur(_diff)]);
       default:
         return 'Pagas {0} a mais ao motorista, em dinheiro, no fim da viagem.'
-            .trArgs([eur(_diff)]);
+            .trArgsK(context.tvdeKind, [eur(_diff)]);
     }
   }
 
@@ -849,7 +851,7 @@ class _ReservaDestinoSheetState extends State<_ReservaDestinoSheet> {
               style: const TextStyle(
                   fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
           const SizedBox(height: Spacing.md),
-          Text('A viagem fica com {0} km.'.trArgs([kmTxt]),
+          Text('A viagem fica com {0} km.'.trArgsK(context.tvdeKind, [kmTxt]),
               key: const Key('reserva_destino_km'), style: secundario),
           const SizedBox(height: Spacing.sm),
           _linha('Preço combinado'.tr, eur(antes)),

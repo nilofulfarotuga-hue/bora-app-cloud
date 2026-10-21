@@ -7,11 +7,19 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/falha_de_acao.dart';
 import '../models/tvde_cancel_quote.dart';
 import '../models/tvde_dest_change.dart';
+import '../models/ride_kind.dart';
 import '../models/tvde_ride.dart';
 import '../models/tvde_subscription.dart';
 import '../services/notification_service.dart' show limparAvisosTvdeTerminados;
 import '../services/payment_service.dart';
 import '../utils/hora_lisboa.dart' show paredeLisboa;
+
+/// [21/10/2026 · A1] Parâmetro extra das RPCs que criam corridas
+/// (`tvde_request_ride`, `tvde_schedule_ride`, `tvde_schedule_roundtrip`).
+/// Passageiros NÃO manda nada: a chamada fica igual à de antes de 21/10 e
+/// continua a funcionar mesmo que a migração seja revertida.
+Map<String, dynamic> tvdeParamTipo(RideKind k) =>
+    k == RideKind.encomendas ? {'p_ride_kind': k.db} : const <String, dynamic>{};
 
 /// TVDE — Bora Motorista. Store reativo do cliente (passageiro).
 /// Camada read-only: todas as transições passam por RPC no backend.
@@ -255,6 +263,65 @@ class TvdeStore extends ChangeNotifier {
   String? _accessRequestStatus;
   String? get accessRequestStatus => _accessRequestStatus;
 
+  // ── Encomendas = o mesmo motor (21/10/2026 · fechar-pendencias A1) ──────
+  /// `platform_settings.tvde_encomendas_enabled`. Desligado (o valor de
+  /// arranque e o de qualquer falha de leitura) = o ladrilho "Enviar
+  /// Encomenda" abre o fluxo antigo, como sempre.
+  bool _encomendasEnabled = false;
+  bool get encomendasEnabled => _encomendasEnabled;
+
+  /// O que o ecrã de pedir está a pedir AGORA. Quem o põe é o
+  /// [TvdeRequestRideScreen] ao abrir (passageiros por omissão, por isso o
+  /// Bora Motorista abre sempre como sempre abriu).
+  ///
+  /// De propósito SEM `notifyListeners`: é posto no `initState` do ecrã, a
+  /// meio de um build, e a home ouve este store — avisar aí é o "setState em
+  /// antepassado a meio do build" que já congelou a app em release. Quem lê
+  /// o valor (o próprio ecrã, no build seguinte) não precisa do aviso.
+  RideKind pedidoKind = RideKind.passageiros;
+
+  /// Tipo que manda nas palavras do cliente: a corrida viva; sem ela, o pedido.
+  RideKind get rideKind => _activeRide?.rideKind ?? pedidoKind;
+
+  /// Parâmetro extra das RPCs de criar corrida (ver [tvdeParamTipo]).
+  Map<String, dynamic> get _paramTipo => tvdeParamTipo(pedidoKind);
+
+  /// Cartão/MB Way: quem cria a corrida é a Edge `tvde-payment`, que não
+  /// leva o tipo. Declara-se no servidor mesmo antes (vale 5 min e é gasto
+  /// pela corrida). Numa encomenda, se a declaração falhar, NÃO se segue:
+  /// a encomenda nasceria como corrida de passageiros. Num pedido de
+  /// passageiros só se declara se este aparelho declarou uma encomenda há
+  /// pouco (para não sobrar) — e aí uma falha não trava nada.
+  DateTime? _declarouEncomendaEm;
+  Future<void> _declararTipoAntesDaEdge() async {
+    if (pedidoKind == RideKind.encomendas) {
+      await _sb.rpc('tvde_definir_tipo_pedido',
+          params: {'p_ride_kind': pedidoKind.db}).timeout(kAcaoTimeout);
+      _declarouEncomendaEm = DateTime.now();
+      return;
+    }
+    final em = _declarouEncomendaEm;
+    if (em == null || DateTime.now().difference(em) > const Duration(minutes: 10)) {
+      return;
+    }
+    try {
+      await _sb.rpc('tvde_definir_tipo_pedido',
+          params: {'p_ride_kind': RideKind.passageiros.db}).timeout(kAcaoTimeout);
+      _declarouEncomendaEm = null;
+    } catch (e) {
+      debugPrint('TvdeStore._declararTipoAntesDaEdge(passageiros) => $e');
+    }
+  }
+
+  /// Lê o interruptor das encomendas. Falha = desligado (fica como hoje).
+  Future<void> refreshEncomendasFlag() async {
+    final v = await getSettingBool('tvde_encomendas_enabled', false);
+    if (v != _encomendasEnabled) {
+      _encomendasEnabled = v;
+      notifyListeners();
+    }
+  }
+
   // ── Corrida ativa + histórico + assinatura ──────────────────────────────
   TvdeRide? _activeRide;
   TvdeRide? get activeRide => _activeRide;
@@ -359,6 +426,9 @@ class TvdeStore extends ChangeNotifier {
   Future<void> refreshAccess() async {
     final uid = _uid;
     if (uid == null) return;
+    // 21/10/2026 (A1): o interruptor das encomendas lê-se com o acesso, à
+    // parte (uma falha aqui nunca mexe no ladrilho do Bora Motorista).
+    unawaited(refreshEncomendasFlag());
     try {
       final user = await _sb
           .from('users')
@@ -496,6 +566,7 @@ class TvdeStore extends ChangeNotifier {
         'p_est_distance_km': distanceKm,
         'p_payment_method': paymentMethod,
         'p_tokens_to_apply': tokensUsed,
+        ..._paramTipo,
       }), trabalho: TrabalhoEmCurso.corrida);
       final ride = TvdeRide.fromMap(_asMap(res));
       _activeRide = ride;
@@ -538,6 +609,7 @@ class TvdeStore extends ChangeNotifier {
   }) async {
     _setBusy(true);
     try {
+      await _declararTipoAntesDaEdge();
       final res = await _sb.functions.invoke(
         'tvde-payment',
         body: buildTvdeChargeBody(
@@ -665,6 +737,7 @@ class TvdeStore extends ChangeNotifier {
         'p_scheduled_at': scheduledAt.toUtc().toIso8601String(),
         'p_payment_method': 'cash',
         'p_note': note,
+        ..._paramTipo,
       }), trabalho: TrabalhoEmCurso.reserva);
       final row = (res is List && res.isNotEmpty) ? res.first : res;
       if (row is! Map) return null;
@@ -704,6 +777,7 @@ class TvdeStore extends ChangeNotifier {
   }) async {
     _setBusy(true);
     try {
+      await _declararTipoAntesDaEdge();
       final res = await _sb.functions.invoke(
         'tvde-payment',
         body: buildTvdeReservationChargeBody(
@@ -817,6 +891,7 @@ class TvdeStore extends ChangeNotifier {
                 'p_return_at': returnAt?.toUtc().toIso8601String(),
                 'p_payment_method': 'cash',
                 'p_note': note,
+                ..._paramTipo,
               }),
           trabalho: TrabalhoEmCurso.reserva);
       await loadMyReservations();
@@ -850,6 +925,7 @@ class TvdeStore extends ChangeNotifier {
   }) async {
     _setBusy(true);
     try {
+      await _declararTipoAntesDaEdge();
       final res = await _sb.functions.invoke(
         'tvde-payment',
         body: buildTvdeRoundtripReservationChargeBody(
@@ -1172,6 +1248,9 @@ class TvdeStore extends ChangeNotifier {
           'exige pagamento novo, reencaminhar para o ecrã de pedido');
       return null;
     }
+    // 21/10/2026 (A1): repetir uma encomenda é pedir outra ENCOMENDA, mesmo
+    // que a app tenha sido reaberta entretanto (o tipo vem da corrida).
+    pedidoKind = r.rideKind;
     return requestRide(
       originLat: r.originLat,
       originLng: r.originLng,

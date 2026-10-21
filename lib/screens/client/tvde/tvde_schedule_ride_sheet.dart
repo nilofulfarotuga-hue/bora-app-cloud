@@ -5,6 +5,8 @@ import '../../../config/app_spacing.dart';
 import '../../../widgets/bora/bora.dart';
 
 import '../../../l10n/tr.dart';
+import '../../../models/ride_kind.dart';
+import '../../../utils/ride_kind_context.dart';
 
 /// [Reserva agendada 2026-08-19] Folha de "Marcar para depois" — o cliente
 /// escolhe o DIA e a HORA da viagem.
@@ -178,7 +180,7 @@ class _TvdeScheduleRideSheetState extends State<TvdeScheduleRideSheet> {
           ),
           const SizedBox(height: Spacing.xs),
           Text(
-            'Escolhe o dia e a hora. Procuramos motorista com antecedência e avisamos-te assim que estiver confirmado.'.tr,
+            'Escolhe o dia e a hora. Procuramos motorista com antecedência e avisamos-te assim que estiver confirmado.'.trK(context.tvdeKind),
             style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
           ),
           const SizedBox(height: Spacing.lg),
@@ -262,7 +264,7 @@ class _TvdeScheduleRideSheetState extends State<TvdeScheduleRideSheet> {
           const SizedBox(height: Spacing.md),
           Text(
             widget.cashEnabled
-                ? 'A seguir escolhes como pagas: dinheiro ao motorista, cartão ou MB Way.'.tr
+                ? 'A seguir escolhes como pagas: dinheiro ao motorista, cartão ou MB Way.'.trK(context.tvdeKind)
                 : 'A seguir escolhes como pagas: cartão ou MB Way.',
             style: const TextStyle(color: AppColors.textSubtle, fontSize: 12),
           ),

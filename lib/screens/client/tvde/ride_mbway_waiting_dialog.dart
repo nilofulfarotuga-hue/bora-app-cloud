@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../stores/tvde_store.dart';
 
 import '../../../l10n/tr.dart';
+import '../../../models/ride_kind.dart';
 
 /// `true` pago · `false` ainda a aguardar · `null` falhou definitivamente.
 typedef MbwayPaidCheck = Future<bool?> Function(TvdeStore store);
@@ -38,13 +39,14 @@ class TvdeRideMbwayWaitingDialog extends StatefulWidget {
     Key? key,
     required String rideId,
     required double amountEur,
+    RideKind rideKind = RideKind.passageiros,
   }) {
     // Estados da Stripe em que o pagamento já não vai acontecer.
     const failed = {'canceled', 'requires_payment_method'};
     return TvdeRideMbwayWaitingDialog(
       key: key,
       amountEur: amountEur,
-      message: 'Abre o MBWay e confirma para a corrida seguir.'.tr,
+      message: 'Abre o MBWay e confirma para a corrida seguir.'.trK(rideKind),
       // 2026-08-13 — 120 s não chegava: o MB Way demora regularmente mais do
       // que isso e o cliente ficava com a corrida por marcar como paga (era o
       // poll, e não o webhook, o único a marcá-la — ver BUG 1). Com o ramo TVDE

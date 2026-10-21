@@ -8,6 +8,8 @@ import '../../../services/pending_rating_queue.dart';
 import '../../../stores/tvde_driver_store.dart';
 import '../../../widgets/bora/bora.dart';
 import '../../../widgets/tvde/tvde_counter_ride_badge.dart';
+import '../../../models/ride_kind.dart';
+import '../../../utils/ride_kind_context.dart';
 
 /// TVDE — Avaliação do passageiro pelo motorista no fim da corrida
 /// (tvde_rate → subject_type='tvde_passenger'). Mostra o ganho do motorista.
@@ -118,7 +120,7 @@ class _TvdeDriverRateScreenState extends State<TvdeDriverRateScreen> {
         if (didPop) context.read<TvdeDriverStore>().clearActive();
       },
       child: Scaffold(
-        appBar: const BoraScreenAppBar(title: 'Fim da corrida'),
+        appBar: BoraScreenAppBar(title: 'Fim da corrida'.rk(context.tvdeDriverKind)),
         body: SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(Spacing.lg, Spacing.lg, Spacing.lg,
               BoraBottomActionBar.folgaInferior(context)),
@@ -129,7 +131,7 @@ class _TvdeDriverRateScreenState extends State<TvdeDriverRateScreen> {
               const Icon(Icons.check_circle,
                   size: 64, color: AppColors.primary),
               const SizedBox(height: Spacing.md),
-              Text('Viagem concluída',
+              Text('Viagem concluída'.rk(context.tvdeDriverKind),
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w700,
@@ -143,7 +145,7 @@ class _TvdeDriverRateScreenState extends State<TvdeDriverRateScreen> {
                 const Center(child: TvdeCounterRideBadge()),
               ],
               const SizedBox(height: Spacing.xl),
-              Text('Como foi o passageiro?',
+              Text('Como foi o passageiro?'.rk(context.tvdeDriverKind),
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                       fontWeight: FontWeight.w600,

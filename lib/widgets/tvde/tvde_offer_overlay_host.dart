@@ -15,6 +15,7 @@ import '../../stores/tvde_driver_store.dart';
 import 'tvde_counter_ride_badge.dart';
 import 'tvde_pay_badge.dart';
 import 'tvde_reservation_offer_card.dart';
+import '../../models/ride_kind.dart';
 
 /// [Oferta sobreposta 20/09/2026] O ÚNICO caminho de apresentação de uma
 /// oferta TVDE dentro da app — esteja o motorista onde estiver.
@@ -197,13 +198,13 @@ class _TvdeOfferOverlayHostState extends State<TvdeOfferOverlayHost>
       final r = await store.acceptOffer(offer.id);
       if (!mounted) return;
       _snack(r.isQueued
-          ? 'Corrida em fila — abre sozinha quando terminares esta.'
-          : 'Corrida aceite.');
+          ? 'Corrida em fila — abre sozinha quando terminares esta.'.rk(offer.rideKind)
+          : 'Corrida aceite.'.rk(offer.rideKind));
       if (!r.isQueued) unawaited(abrirCorridaActivaSeFechada());
     } catch (e) {
       store.clearOffer();
       if (!mounted) return;
-      _snack(mensagemDeOfertaFalhada(e));
+      _snack(mensagemDeOfertaFalhada(e, rideKind: offer.rideKind));
     }
   }
 
@@ -334,15 +335,16 @@ class _TvdeOfferOverlayHostState extends State<TvdeOfferOverlayHost>
 
 /// Traduz a falha do `tvde_accept_ride` para uma frase que o motorista
 /// percebe. Pública para o gancho da notificação usar a mesma.
-String mensagemDeOfertaFalhada(Object e) {
+String mensagemDeOfertaFalhada(Object e,
+    {RideKind rideKind = RideKind.passageiros}) {
   final s = e.toString();
   if (s.contains('queue_full')) {
-    return 'Já tens uma corrida em fila — só podes levar uma de cada vez.';
+    return 'Já tens uma corrida em fila — só podes levar uma de cada vez.'.rk(rideKind);
   }
   if (s.contains('ride_conflict')) {
-    return 'Não consegui aceitar: já tens outra corrida a decorrer.';
+    return 'Não consegui aceitar: já tens outra corrida a decorrer.'.rk(rideKind);
   }
-  return 'Esta corrida já não está disponível.';
+  return 'Esta corrida já não está disponível.'.rk(rideKind);
 }
 
 /// Abre o ecrã da corrida activa se ainda não estiver aberto.
@@ -680,8 +682,8 @@ class _TvdeOfferOverlayCardState extends State<TvdeOfferOverlayCard> {
       if (!aAceitar) _agendarFecho();
       // A confirmar de quem é (ou é dele e vai fechar): nada no ecrã.
       if (!_perdida) return const SizedBox.shrink();
-      return const OfertaExpiradaNotice(
-        texto: 'Esta corrida já foi para outro motorista.',
+      return OfertaExpiradaNotice(
+        texto: 'Esta corrida já foi para outro motorista.'.rk(widget.offer.rideKind),
       );
     }
 
@@ -725,8 +727,8 @@ class _TvdeOfferOverlayCardState extends State<TvdeOfferOverlayCard> {
               Expanded(
                 child: Text(
                   current != null
-                      ? 'Nova corrida — depois desta corrida'
-                      : 'Nova corrida — agora',
+                      ? 'Nova corrida — depois desta corrida'.rk(widget.offer.rideKind)
+                      : 'Nova corrida — agora'.rk(widget.offer.rideKind),
                   style: const TextStyle(
                       color: Colors.white,
                       fontSize: 13.5,
@@ -995,8 +997,8 @@ class _TvdeReservationOverlayCardState
       }
       // A confirmar de quem é (ou é dele e vai fechar): nada no ecrã.
       if (!_perdida) return const SizedBox.shrink();
-      return const OfertaExpiradaNotice(
-        texto: 'Esta reserva já foi para outro motorista.',
+      return OfertaExpiradaNotice(
+        texto: 'Esta reserva já foi para outro motorista.'.rk(widget.ride.rideKind),
       );
     }
     if (widget.compacto && !_expandido) {

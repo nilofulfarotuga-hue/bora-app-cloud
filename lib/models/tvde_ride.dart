@@ -1,5 +1,8 @@
+import 'ride_kind.dart';
+
 /// TVDE — Bora Motorista. Modelo de corrida de passageiros (read-only no app;
 /// as transições são sempre via RPC no backend). Espelha `public.tvde_rides`.
+/// Desde 21/10/2026 a mesma corrida pode ser uma ENCOMENDA ([rideKind]).
 class TvdeRide {
   TvdeRide({
     required this.id,
@@ -47,6 +50,7 @@ class TvdeRide {
     this.destChangeDriverCents = 0,
     this.destChangeCashCents = 0,
     this.cancelFeeCents = 0,
+    this.rideKind = RideKind.passageiros,
   });
 
   final String id;
@@ -171,6 +175,13 @@ class TvdeRide {
   /// mapa não a trouxe. O histórico mostra-a nas corridas canceladas.
   final int cancelFeeCents;
 
+  /// [21/10/2026 · fechar-pendencias A1] Passageiros ou encomenda
+  /// (`tvde_rides.ride_kind`). Mesmo motor e mesmo dinheiro — só muda o texto
+  /// (ver `ride_kind.dart`). Sem a coluna na resposta = passageiros.
+  final RideKind rideKind;
+
+  bool get isEncomenda => rideKind == RideKind.encomendas;
+
   bool get hasDestChange => destChangeCount > 0;
 
   /// Corrida de balcão: cliente sem app, avisado por telefone.
@@ -250,6 +261,7 @@ class TvdeRide {
           (m['dest_change_driver_cents'] as num?)?.toInt() ?? 0,
       destChangeCashCents: (m['dest_change_cash_cents'] as num?)?.toInt() ?? 0,
       cancelFeeCents: (m['cancel_fee_cents'] as num?)?.toInt() ?? 0,
+      rideKind: rideKindFromDb(m['ride_kind']),
     );
   }
 

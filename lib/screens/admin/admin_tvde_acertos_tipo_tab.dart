@@ -11,7 +11,7 @@ import '../../widgets/tvde/filtro_tipo_tvde.dart';
 /// encomendas. SÓ LEITURA (`admin_tvde_acertos_por_tipo`): usa a mesma regra
 /// do `compute_driver_settlement` para a parte TVDE (corridas finalizadas na
 /// semana, ganho do motorista, dinheiro em mão, pago online, compensações de
-/// cancelamento). O acerto oficial continua a ser o "Acerto da semana" — este
+/// cancelamento) + as gorjetas online das corridas (ronda 1 do revisor, 21/10). O acerto oficial continua a ser o "Acerto da semana" — este
 /// separador só mostra de onde vem o dinheiro.
 class AdminTvdeAcertosTipoTab extends StatefulWidget {
   const AdminTvdeAcertosTipoTab({super.key});
@@ -21,18 +21,20 @@ class AdminTvdeAcertosTipoTab extends StatefulWidget {
 }
 
 /// Soma por tipo das linhas do RPC (função pura, testada).
-Map<String, ({int corridas, int ganho, int dinheiro, int online})>
+/// `ganho` já inclui compensações e gorjetas online (vem assim do servidor).
+Map<String, ({int corridas, int ganho, int dinheiro, int online, int gorjetas})>
     somarAcertosPorTipo(List<Map<String, dynamic>> linhas) {
-  final out = <String, ({int corridas, int ganho, int dinheiro, int online})>{};
+  final out = <String, ({int corridas, int ganho, int dinheiro, int online, int gorjetas})>{};
   for (final l in linhas) {
     final t = tipoDaLinhaTvde(l);
-    final a = out[t] ?? (corridas: 0, ganho: 0, dinheiro: 0, online: 0);
+    final a = out[t] ?? (corridas: 0, ganho: 0, dinheiro: 0, online: 0, gorjetas: 0);
     int n(String k) => (l[k] as num?)?.toInt() ?? 0;
     out[t] = (
       corridas: a.corridas + n('corridas'),
       ganho: a.ganho + n('ganho_cents'),
       dinheiro: a.dinheiro + n('dinheiro_em_mao_cents'),
       online: a.online + n('online_cents'),
+      gorjetas: a.gorjetas + n('gorjetas_online_cents'),
     );
   }
   return out;
@@ -108,6 +110,7 @@ class _AdminTvdeAcertosTipoTabState extends State<AdminTvdeAcertosTipoTab>
         'Dinheiro em mão (€)',
         'Pago online (€)',
         'Compensações (€)',
+        'Gorjetas online (€)',
       ],
       rows: [
         for (final l in linhas)
@@ -119,6 +122,7 @@ class _AdminTvdeAcertosTipoTabState extends State<AdminTvdeAcertosTipoTab>
             (((l['dinheiro_em_mao_cents'] as num?) ?? 0) / 100).toStringAsFixed(2),
             (((l['online_cents'] as num?) ?? 0) / 100).toStringAsFixed(2),
             (((l['compensacao_cents'] as num?) ?? 0) / 100).toStringAsFixed(2),
+            (((l['gorjetas_online_cents'] as num?) ?? 0) / 100).toStringAsFixed(2),
           ],
       ],
       subject: 'Bora Motorista — acerto por tipo ($_semana)',
@@ -157,7 +161,7 @@ class _AdminTvdeAcertosTipoTabState extends State<AdminTvdeAcertosTipoTab>
                   style: const TextStyle(fontWeight: FontWeight.w800)),
               const SizedBox(height: 4),
               Text('${s?.corridas ?? 0} corridas · ganho ${_eur(s?.ganho ?? 0)}'),
-              Text('em mão ${_eur(s?.dinheiro ?? 0)} · online ${_eur(s?.online ?? 0)}',
+              Text('em mão ${_eur(s?.dinheiro ?? 0)} · online ${_eur(s?.online ?? 0)} · gorjetas ${_eur(s?.gorjetas ?? 0)}',
                   style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
             ]),
           ),
@@ -220,7 +224,8 @@ class _AdminTvdeAcertosTipoTabState extends State<AdminTvdeAcertosTipoTab>
                       '${l['corridas'] ?? 0} ${tipoDaLinhaTvde(l) == 'encomendas' ? 'encomendas' : 'corridas'}'
                       ' · em mão ${_eur((l['dinheiro_em_mao_cents'] as num?)?.toInt() ?? 0)}'
                       ' · online ${_eur((l['online_cents'] as num?)?.toInt() ?? 0)}'
-                      '${((l['compensacao_cents'] as num?)?.toInt() ?? 0) > 0 ? ' · compensações ${_eur((l['compensacao_cents'] as num).toInt())}' : ''}'),
+                      '${((l['compensacao_cents'] as num?)?.toInt() ?? 0) > 0 ? ' · compensações ${_eur((l['compensacao_cents'] as num).toInt())}' : ''}'
+                      '${((l['gorjetas_online_cents'] as num?)?.toInt() ?? 0) > 0 ? ' · gorjetas ${_eur((l['gorjetas_online_cents'] as num).toInt())}' : ''}'),
                   trailing: Text(_eur((l['ganho_cents'] as num?)?.toInt() ?? 0),
                       style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
                 ),

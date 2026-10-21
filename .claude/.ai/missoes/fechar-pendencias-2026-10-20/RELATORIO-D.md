@@ -98,7 +98,8 @@ ligares os marcos.
 | Ganho do estafeta | 4,00 € | 4,00 € |
 | A loja recebe (venda normal) | 5,40 € pela lista "A pagar às lojas" (ou no acerto, com a proposta) | 5,40 € no acerto |
 
-Goola com o vale: Goola Bowl 0,00 € + extra Oreo 1,17 € + taxa de serviço 0,06 € + entrega 2,50 € = **4,03 €**.
+Goola com o vale: Goola Bowl 0,00 € + extra Oreo 1,17 € + taxa de serviço 0,06 € + entrega 2,50 € + saco 0,30 €
+= **4,03 €** (a linha do saco faltava na 1.ª versão deste relatório; o total já a contava).
 O Goola recebe 7,90 € (preço de balcão) pelo bowl.
 
 Atenção a um erro antigo que apareceu na prova (não é do prémio): na Sabores do Brasil o valor a cobrar em
@@ -120,6 +121,8 @@ porque o saco é tirado do total mas não do valor a cobrar. Reportado; não cor
 | 20261021050439 | d_checkin_marcos_9_pagamento_premio_nas_marcacoes | ef99068284515a515e6b84fa88d54a65 |
 | 20261021050504 | d_checkin_marcos_10_limpeza_e_lavagem | c1cc5c90c9980bf109d2ce2e29b984b8 |
 | 20261021050727 | d_checkin_marcos_11_robo_suporte | 73869c0c22b85c5a8b37d8267aaecc75 |
+| 20261021061136 | d_checkin_marcos_12_r1_vale_no_pedido (ronda 1) | 5725e2b200d87f2bd15f935abe616f8a |
+| 20261021061215 | d_checkin_marcos_13_r1_marcacoes (ronda 1) | 5d6ca575e155ba8350acdb800f294316 |
 
 Ordem, e porquê: a Trava não deixa provar numa só instrução um gatilho novo de `orders` e chamar a função que
 cria pedidos; e a tranca já não deixa inserir pedidos à mão. Por isso apliquei as peças que não mexem em
@@ -145,7 +148,8 @@ propósito (funções com sessão que verificam quem chama, como as do check-in 
 - Dia 30 sem pedido → "a espera de pedido" 30 dias; com o pedido demo entregue e pago → liberta (até 20/11).
   Tecto 1 → o segundo fica "guardado até 01/11"; com lugar → sai.
 - Pedido demo em dinheiro: a tabela acima; segundo pedido com o mesmo prémio → recusado; pedido do açaí
-  cancelado pelo admin → o vale volta.
+  cancelado pelo admin → o vale volta (**mudou na ronda 1:** o pedido demo já tinha estafeta, por isso agora o
+  vale não volta e a loja continua na lista "A pagar às lojas").
 - Limpeza 2 h: 24,00 € de serviço, a limpadora ganha 20,40 € e o acerto dela sobe 20,40 € a pagar, 0 de dívida.
   Lavagem exterior: 12,00 €, o lavador 10,20 €, acerto +10,20 €.
 - Depois das provas: 0 vales, marcos desligados, 0 pedidos com prémio, horário das lojas igual.
@@ -172,7 +176,8 @@ prémio no acerto semanal sozinha (linha de ganho no ledger). Sem isto, a Bora p
 1. **Taxa de serviço no prémio.** Escolhi a da Uber Eats e da Glovo para "artigo grátis": a taxa de serviço
    calcula-se sobre o que o cliente paga, e o prémio conta 0. Na Keli o cliente não paga os 0,32 € (5 % de
    6,30 €); no Goola não paga 0,46 €. Se quiseres cobrar a taxa sobre o preço normal, é uma mudança na função
-   que cobra (zona protegida): diz e eu preparo.
+   que cobra (zona protegida): diz e eu preparo. (Ronda 1: o desenho está em
+   `d/pronto/ronda1-R1-R2-R3-e-taxa.md`; não está no "Vai" de 21/10.)
 2. **Pedido mínimo.** As duas lojas são parceiras, por isso não têm pedido mínimo nem taxa de pedido pequeno: o
    prémio pode ser pedido sozinho, a pagar só a entrega (2,50 € até 4 km).
 3. **Quanto recebe a Keli.** Pus "como venda normal": 5,40 € pelos 2 salgados (6,00 € de balcão menos os 10 %
@@ -186,11 +191,90 @@ prémio no acerto semanal sozinha (linha de ganho no ledger). Sem isto, a Bora p
    `CHECKIN_MARCOS_PREMIOS`). Quem já estiver a meio da sequência nesse dia começa a ganhar os marcos que
    vierem a seguir; um marco que tenha passado com os marcos desligados não se dá para trás (dá-se à mão no
    painel, se quiseres).
-7. **Limpeza de prémio.** São 2 horas com os produtos da casa (sem os 3 € dos produtos da profissional). Se o
-   cliente cancelar, o vale volta, mesmo em cima da hora.
+7. **Limpeza de prémio.** São 2 horas com os produtos da casa (sem os 3 € dos produtos da profissional).
+   **Mudou na ronda 1:** se o cliente cancelar a tempo (sem taxa), o vale volta; se cancelar em cima da hora
+   (com taxa) ou não estiver em casa, perde o vale, como perderia o dinheiro num pedido normal.
 8. **Erros antigos que encontrei (não corrigi, mexem na função que cobra):** (a) na Sabores do Brasil o valor a
    cobrar em dinheiro sai 0,30 € acima do total (o saco); (b) desde 14/10, num pedido em dinheiro pago em parte
    com tokens, o acerto do estafeta conta o total inteiro como recebido, e o estafeta fica a dever o que o
    cliente não lhe deu. Ainda não aconteceu a ninguém. Os dois estão no e2e_log ("D-achados-fora-do-ambito").
 
 Registos: e2e_log fluxo `fechar-pendencias-20-10`, ids 4070 a 4082 (D1 a D9, robô, as duas provas, achados).
+
+---
+
+## Ronda 1 (21/10/2026) — o revisor disse NÃO; o que mudou
+
+Fiz isto (ramo `checkin-20-10`, commits novos, sem publicar; `checkin_marco_ativo` continua `false`):
+
+- **2 migrações novas, provadas numa transação desfeita ANTES de aplicar** e copiadas para o repo com o mesmo md5:
+  `20261021061136_d_checkin_marcos_12_r1_vale_no_pedido` (5725e2b2…) e
+  `20261021061215_d_checkin_marcos_13_r1_marcacoes` (5d6ca575…).
+- **F1 (crítica):** o vale só volta se o pedido nunca passou por estafeta aceite, recolha ou entrega — lido no
+  histórico real (`order_status_events`, que o cliente não escreve), em `delivered_at`/`takeaway_picked_up_at` e
+  no estado anterior — e nunca se a loja já foi paga. Um pedido entregue nunca sai da lista "A pagar às lojas".
+  Prova depois de aplicar (create_order a sério, desfeita): o admin cancela um pedido demo que já tinha estafeta
+  → o vale fica usado e a Keli continua na lista (5,40 €). Também: os artigos de um pedido já criado não ganham
+  prémios novos (gatilho novo). O ataque literal do revisor (`UPDATE orders SET status='rejected'`) não o consigo
+  repetir: a tranca não me deixa escrever `UPDATE` em `orders`. Provei a decisão pela função e o R2 tapa a escrita.
+- **F2 (alta):** qualquer menção a `premio-checkin-` num artigo, em qualquer campo, exige um vale válido do próprio
+  cliente; um cliente com sessão não usa vales de outra pessoa. Provado com `product_id` sem vale (recusado), com
+  vale (aceite) e com o vale de outra conta (recusado, o vale dela fica intacto).
+- **F3:** a folga de 2 h só vale para um vale "reservado". Um vale por usar que expirou é recusado.
+- **F4:** a reversão repõe primeiro os lembretes de 18/10 (texto da versão 20261018170119; confere o md5
+  `abfeca53…`, provado igual ao de antes do Bloco D) e só depois tira o resto, incluindo o que as migrações 12 e
+  13 criaram. Não corri a reversão inteira: a Trava recusa `DROP` + `orders` no mesmo SQL.
+- **F5:** limpeza ou lavagem do vale dos 30 dias cancelada com taxa, ou "cliente não apareceu" → o vale não volta;
+  cancelada sem taxa → volta. A profissional recebe o mesmo que numa marcação normal cancelada (hoje: nada, o
+  acerto só paga as concluídas — ver PARA O DANILO).
+- **F6:** o pagamento "prémio" numa limpeza ou lavagem só existe com o vale do próprio cliente ligado à marcação,
+  venha a escrita de onde vier; numa marcação "prémio" ninguém muda o dinheiro por escrita direta. Provado: o
+  cliente a pôr "prémio" na sua lavagem → recusado; o servidor sem vale → recusado; o cliente a mexer no ganho do
+  lavador → recusado; o cliente a mudar as notas → passa.
+- **Conta do Goola corrigida** (faltava a linha do saco de 0,30 €; o total 4,03 € estava certo).
+- **App:** não precisou de mudança nesta ronda (`git status` só mostra SQL e documentos), por isso não houve
+  `flutter analyze`/`flutter test` novos. Anti-trapaça (base `origin/autonomous-night-2026-04-29`): CLEAN, exit 0,
+  +19 casos de teste; zonas protegidas: CLEAN, exit 0.
+- **Nada ficou gravado pelas provas:** 0 vales, 67 pedidos, 0 pedidos com prémio, 0 marcações "prémio",
+  `create_order` com o md5 de antes, R2 não existe na base, horário da Sabores igual.
+
+Buracos antigos de zona vermelha (o orquestrador transmitiu o "Vai" do Danilo; **não apliquei**, o revisor vê
+primeiro). Tudo em `d/pronto/ronda1-R1-R2-R3-e-taxa.md`:
+
+- **R1 — `create_order` aceita o `user_id` de outra pessoa.** Pronto a aplicar (troca 1 linha, cópia de segurança,
+  confere o md5 de antes e que o resto ficou igual), com reversão e prova para quem aplica. A linha nova foi
+  provada numa função temporária: cliente → fica ele; admin, servidor e sem sessão → fica quem mandarem. A app não
+  manda `user_id`; só o servidor (cartão) e os testes o mandam. A Trava não me deixa a mim trocar a função.
+- **R2 — o cliente muda o estado do seu pedido.** Pronto a aplicar: um gatilho que só deixa ao cliente as 2 mudanças
+  que a app faz (`created → preparing` e `preparing → callingDriver`, fora de restaurante parceiro — confirmado no
+  código e no histórico real). 16 casos provados: ataques recusados; estafeta, loja, admin e servidor livres.
+  Prova de ponta a ponta com escrita real em `orders` pronta para quem aplica.
+- **R3 — a loja vê "2 Salgados Grandes" a 0 €.** O prémio já não precisa (qualquer prémio exige vale). O buraco geral
+  continua; medido: 48 pedidos reais em 120 dias, 0 com ids que não existem. Não preparei a migração: mexe na conta
+  do preço e não é precisa para o Bloco D.
+- **Taxa de serviço do prémio:** só desenho (0,32 € Keli, 0,46 € Goola); não está no "Vai".
+
+Erros que encontrei pelo caminho (não corrigi, reportados): o cliente também escreve diretamente `payment_status` e
+`cash_total_due` no seu pedido; o lavador e o cliente podem mudar as colunas de dinheiro de qualquer lavagem que
+não seja "prémio" (`carwash_bookings_update_own`); a mensagem de "compensação 85 %" da limpeza não é paga por
+nenhum acerto; um cancelamento direto pelo cliente (`cancelled`) já rebentava antes num aviso
+(`_push_in_app_notification`), por isso a app usa a Edge.
+
+### PARA O DANILO (ronda 1)
+
+9. **Limpadora sem compensação.** Quando o cliente não está em casa ou cancela em cima da hora, a app diz à
+   limpadora que recebe 85 % como compensação, mas nenhum acerto lho paga (só paga as concluídas). Isto já era
+   assim antes do prémio. Decides se se paga.
+10. **Pedido só com o prémio conta como pedido pago** para o vale dos 30 dias (o cliente paga a entrega).
+11. **Várias contas.** "Telemóvel confirmado" é só um número válido na ficha (sem SMS). Com várias contas dá para
+    juntar vales dos 10 e dos 15 dias, que não têm tecto. Decides se pões tecto também nesses.
+12. **Marco 7.** A partir do 2.º ciclo, o 7 da vista do mês já não cai no mesmo dia que o Dia 7 dos tokens.
+13. **R1 e R2** estão prontos e à espera do revisor; o **R3** e a **taxa** esperam por ti.
+14. **Texto do robô de suporte (desligado).** Diz "se o pedido ou a marcação não chegarem a acontecer, o prémio
+    volta". Com as regras novas isso já não é exato (depois de um estafeta aceitar, ou numa marcação cancelada
+    com taxa, o prémio não volta). Tentei pôr a regra certa, mas o validador das skills do robô obriga a "modo
+    sombra" e a passar a uma pessoa sempre que o texto fala de cancelamentos; não reescrevi para fugir ao
+    validador. Antes de ligar o robô: decides se fica em modo sombra com passagem a humano, ou se o robô não
+    fala de cancelamentos.
+
+Registos ronda 1: e2e_log ids 4089 a 4098 (`D-r1-F1` … `D-r1-F6`, `D-r1-R1` … `D-r1-R3`, `D-r1-robo-texto`).

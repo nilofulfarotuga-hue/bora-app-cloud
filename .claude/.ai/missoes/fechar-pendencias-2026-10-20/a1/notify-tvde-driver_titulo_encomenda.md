@@ -1,48 +1,29 @@
-# notify-tvde-driver — título "📦 Nova encomenda!" (PROPOSTA, não publicada)
+# notify-tvde-driver — textos de ENCOMENDA (pronto, NÃO publicado)
 
-21/10/2026 · fechar-pendencias A1. **Não publiquei esta Edge Function** e não mexi no ficheiro do
-repositório, de propósito:
+21/10/2026 · fechar-pendencias A1 · ronda 1 do revisor. Substitui a proposta da 1.ª entrega.
 
-- No ar está a **v22** (`updated_at` 12/10/2026). O ficheiro do repo
-  (`supabase/functions/notify-tvde-driver/index.ts`, último commit 14fb9994 de 16/10) está
-  **à frente** do ar: leva a troca de chave da missão `chave-nova-16-10` (`keys.ts`/`secretKey()`),
-  que é de outra missão (Bloco G). Publicar o ficheiro do repo levaria essa troca "à boleia".
-- É a função que toca o telemóvel do motorista em TODAS as ofertas do Bora Motorista. Um erro de
-  sintaxe aqui cala as ofertas de passageiros. Sem o "sim" do revisor não a publico.
+**Está pronto em `a1/notify-tvde-driver/`:**
 
-Sem esta mudança, numa encomenda o aviso do sistema (o que aparece com o ecrã bloqueado) diz
-"🚗 Nova corrida!" — o resto já diz encomenda: o cartão de oferta dentro da app ("Nova encomenda —
-agora", com o ganho em número grande), os avisos ao cliente e o ecrã do estafeta.
+| Ficheiro | O que é |
+|---|---|
+| `v22_no_ar.ts` | a v22 do ar (12/10). Tirada do commit `ab056aa3`, que é exactamente o que está publicado: conferido contra o `get_edge_function` de 21/10 (sem `keys.ts`, `serviceKey` do env, cabeçalho v22, mesmos ramos). md5 `d6d28e6a776c40a23810daceac478baa`. |
+| `aplicar_encomendas_sobre_v22.py` | as 24 trocas por âncora (cada uma tem de aparecer exactamente as vezes esperadas, senão aborta) |
+| `index.ts` | o resultado: v22 + só os textos de encomenda. md5 `eb45b7afa48365e14835cca4d03e232d`. Sintaxe verificada com `deno fmt --check` (as duas versões lêem-se; só diferem na formatação que já tinham). |
 
-## A mudança (2 sítios, só texto; aplicar POR CIMA da v22 lida com `get_edge_function`)
+O que muda (só quando `tvde_rides.ride_kind = 'encomendas'`; passageiros recebem o texto de
+sempre): oferta "📦 Nova encomenda!" (e `rideKind` nos dados), fila "📦 Encomenda em fila",
+atribuída "📦 Ficaste com uma encomenda", passada "Encomenda passada a outro estafeta",
+cancelada "Entrega cancelada", reservas "📦 Encomenda marcada para aceitar" e "outro estafeta".
+O corpo da oferta continua "Ganhas €x · origem -> destino" — o número grande é o ganho.
 
-1. Na leitura da corrida da oferta (`lerCorridaOferta`), acrescentar `ride_kind` ao `select`:
+**Porque não publiquei:** o ficheiro do repo (`supabase/functions/notify-tvde-driver/index.ts`) está
+À FRENTE do ar com a troca de chave do Bloco G (`keys.ts`/`secretKey()`), que não pode ir junto; e é
+a função que toca todas as ofertas de passageiros.
 
-```ts
-.select('origin_label, dest_label, est_fare_cents, est_distance_km, driver_earn_cents, agreed_driver_earn_cents, agreed_fare_cents, payment_method, offer_expires_at, current_offer_driver_id, status, ride_kind')
-```
-
-2. No caminho original da OFERTA: um título por tipo, usado nos DOIS sítios onde hoje está
-   `'🚗 Nova corrida!'` (bloco `data.title` e `apns.payload.aps.alert.title`):
-
-```ts
-let tituloOferta = '🚗 Nova corrida!'           // junto de: let originLabel = 'Recolha', ...
-// dentro do `if (ride) { ... }` que já existe:
-if (ride.ride_kind === 'encomendas') tituloOferta = '📦 Nova encomenda!'
-// e nos dois sítios:
-title: tituloOferta,
-payload: { aps: { alert: { title: tituloOferta, body: headsUpBody }, ... } },
-```
-
-Passageiros: `ride_kind` vem 'passageiros' (ou nada, numa corrida antiga) → o título fica
-exactamente '🚗 Nova corrida!'. O corpo ("Ganhas €x · origem -> destino") não muda — o número
-grande continua a ser o ganho do estafeta (skill ganho-motorista-numero-grande).
-
-## Como provar depois de publicar
-
-1. `get_edge_function notify-tvde-driver` → a versão nova tem `ride_kind` no select e
-   `tituloOferta` nos 2 sítios; o resto igual à v22.
-2. Uma oferta de passageiros real a seguir: `tvde_ride_events`/log do push com
-   `title: '🚗 Nova corrida!'` e `ok:true`.
-3. Encomenda demo só com motoristas reais offline (ou de madrugada), estafeta demo com token:
-   push com `title: '📦 Nova encomenda!'`.
+**No dia de ligar `tvde_encomendas_enabled`:**
+1. `get_edge_function notify-tvde-driver` → gravar como `v22_no_ar.ts`; o md5 tem de ser o de cima
+   (se não for, o ar mudou: correr o `.py` sobre a versão nova e rever o diff).
+2. `python aplicar_encomendas_sobre_v22.py v22_no_ar.ts index.ts` e `diff v22_no_ar.ts index.ts`.
+3. Publicar o `index.ts` desta pasta (só ele, sem `_shared/keys.ts`), `verify_jwt` = true como hoje.
+4. Prova: a próxima oferta real de passageiros sai com "🚗 Nova corrida!" e `push_enviado`; uma
+   encomenda demo (motoristas reais protegidos) com "📦 Nova encomenda!".

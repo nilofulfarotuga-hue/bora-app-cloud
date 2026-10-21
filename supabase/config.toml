@@ -40,3 +40,5 @@ verify_jwt = false
 verify_jwt = false
 [functions.aviso-conta-nova-em-dia]
 verify_jwt = false
+[functions.agentes-email-receber]
+verify_jwt = false

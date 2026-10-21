@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-20
+ultima_confirmacao: 2026-10-21
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-20T19:55:27.025776+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-21T20:01:31.144181+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -240,3 +240,15 @@ A CONFERIR ANTES DE PRODUZIR: cronometrar a marcação na app ("1 minuto" não f
 - BORA / Limpeza (lente grátis): em vez do vidIQ, script com yt-dlp que acha vídeos fora da curva (vistas muito acima da média do canal) de limpeza doméstica para inspirar os reels da Limpeza. https://www.youtube.com/watch?v=Pn1ll-ZzIMM
 - JÁ TEMOS: atendente WhatsApp com IA (3 vídeos Pabbly = Mister Navalha; Pabbly é pago, recusado 11/10; aproveitar só a palavra-chave que passa ao humano), gancho de 3 s (2 vídeos).
 - RECUSADO: personagem fictício nas redes, Victor/copiar posts virais alheios, Edits (não acrescenta), conteúdo genérico de crescer no Instagram, Hub Data, "botão secreto" do TikTok.
+
+## 21/10/2026 — radar diário (agente na nuvem)
+20 vídeos revistos (pesquisa das 19:00): 5 novos, 5 PENDENTES, 1 já temos, 9 rejeitados (3 por nota baixa). Nenhum do tema animacao_ia. Recolha das 02:00 bloqueada pelo 4.º dia (YouTube conta authuser=1 sem sessão — e2e_log radar-historico 21/10 e N7-radar).
+- MODA DA SEMANA (3+ vídeos nota>=8 em 7 dias): REA 20+ — PENDENTE desde 13/10; o agente-seguranca-n4 (passo N4 da missão geral-noite) arrancou hoje às 20:39, ainda em curso, sem resultado. Claude Motion/Dashboards — PENDENTE desde 11/10. Rececionista de voz — PENDENTE desde 13/10. WhatsApp atendente — FEITO (Mister Navalha). Hermes 0.22 — PENDENTE desde 16/10. Mods do Claude Code — FEITO. Recibos verdes 3 — prazo 31/10 da Segurança Social (prop-cb91e8c2). NOVO na moda: marketing orgânico de apps/UGC 4 vídeos nota>=8 hoje.
+- BORA / EM DIA: reels como laboratório — cruzar cada pico de vistas com pedidos/downloads do dia e repetir em série só o formato que trouxe instalações (sem contas em massa nem criadores pagos). https://www.youtube.com/watch?v=vhimc1ea7Fc
+- EM DIA: vídeos curtos no YouTube a responder 1 dúvida cada + página no site por dúvida com botão de instalar no topo (caso real: app de teleprompter 500 → 33 mil USD/mês sem anúncios). https://www.youtube.com/watch?v=wy3LQrzSKUU
+- EM DIA / BORA: medir em que ecrã do onboarding as pessoas desistem; lente grátis = eventos no próprio Supabase ou PostHog aberto em vez do Mixpanel. https://www.youtube.com/watch?v=gZnyPdVIKjQ
+- DINHEIRO / pacote PMEs: vídeo promocional curto para comércios da Guarda feito com o que já temos (Higgsfield/Claude Motion), vendido junto com o atendente WhatsApp; a Topview do vídeo é paga e não faz falta. https://www.youtube.com/watch?v=W3lqttAyZGE
+- BORA (reel): legenda "Guarda, quinta-feira, 18h" a mostrar a cidade a pedir; pedir resposta só com GIF. https://www.youtube.com/watch?v=Bd4zxSdueiE
+- PENDENTES revistos hoje: microinfluenciadores/UGC reais da Guarda (04/10, 2 vídeos), anúncios em lotes + hook rate (09/10 e 17/10), outliers com yt-dlp (20/10), Vibes com boca (ver caminhos-animacao-filme).
+- JÁ TEMOS: base de dados com o histórico do que funcionou para dar contexto à IA (= Córtex).
+- RECUSADO: troca de rosto em virais alheios/influencer IA, Thunder Core Max (postador em massa nos grupos), extensões de automação do Vibes de terceiros, tutorial de impulsionar post (gasto é do Danilo), dicas genéricas de Instagram.

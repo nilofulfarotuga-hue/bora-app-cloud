@@ -10,7 +10,7 @@ estado: atual
 
 # Filme das filhas — 5 caminhos grátis para o desenho (revisto 05/10 com os 50 vídeos)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-21T18:22:22.523302+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-21T20:01:38.891233+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: caminhos animacao filme · memoria claude.ai · claude_ai_memoria
 
@@ -83,3 +83,6 @@ Ordem da cascata hoje: Flow (sem fala) > InfiniteTalk (um falante) > marioneta 2
 Avisos: os juizes de topo (gemini-3.5-flash, 3-flash-preview) gastam 20 pedidos/dia e esgotaram as 12:21 — o resto do dia julga o lite (sugestionavel): mandam os numeros e a tira revista a olho. Nada pago, nada empurrado para o GitHub.
 
 [21/10 19:25] VIA 3D — resultado do dia: a malha da Tabita (100 k faces, cor por vertice) e a CENA (boca com 9 shape keys, gesto, fundo) ficam prontas no Kaggle, mas a plataforma CANCELA a sessao 5-13 s depois de o Blender trabalhar a personagem (32 sondas; aleatorio 9/13; com um cubo nunca; nao e quota, memoria, EGL, OptiX, denoise, orfaos nem o kimodo). Nao e isolavel a codigo nosso. Caminho (c) do Danilo: Colab T4 gratis com o mesmo notebook (pronto, 11 MB, entradas por sha) — motorista pelo Chrome do perfil Bora, saida pela VPS. A prova do adendo D (juiz 10/10 + boca_natural + tira) fica para quando houver render E juiz com quota.
+
+## 21/10/2026 — radar diário
+- VIBES DA META (boca): um vídeo de hoje diz que o Vibes, além de animar imagens grátis e sem limite, deixa juntar áudio e fazer sincronização labial, e estender clipes (5 s + 4 s). Já foi tentado e parou no botão de conta — só vale a pena se a conta passar; nesse caso testar a boca de uma personagem com a ficha como imagem. Extensões "Vibes Automation" de terceiros: não instalar sem ler o código. https://www.youtube.com/watch?v=M2sB-aveRDU

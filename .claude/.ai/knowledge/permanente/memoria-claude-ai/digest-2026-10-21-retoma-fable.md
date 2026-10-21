@@ -10,7 +10,7 @@ estado: atual
 
 # Digest 21/10/2026 — retoma Fable do Ep1 perfeito (Claude Code no PC)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `digest-2026-10-21-retoma-fable`, origem `claude-code`, atualizada em 2026-10-21T17:57:45.072373+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `digest-2026-10-21-retoma-fable`, origem `claude-code`, atualizada em 2026-10-21T19:54:05.623644+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: digest 2026 10 21 retoma fable · memoria claude.ai · claude_ai_memoria
 
@@ -23,3 +23,5 @@ O QUE NÃO FUNCIONA: (a) REPROVAÇÃO DO DANILO (18:40): as imagens do Gemini sa
 COMO SE USA: python scripts/v5/montar_atual.py monta; o tique faz o resto; _v5/relatorios/2026-10-21.md é a verdade por hora; _v5/CONTINUAR-EP1-PERFEITO-2026-10-21-1150.md para retomar.
 
 PARA O DANILO: voz do Davi (aceitar mista / outra voz / reescrever a gritada); alturas de Deus Pai/Jesus/Espírito Santo no cânone; vó Mônica 1,58 vs Mateus 1,50; nome espirito_santo/espirito; 7 itens de gosto da régua de estúdio (roteiro v9 proposto, não aplicado).
+
+ACTUALIZAÇÃO 21:00: tema v6 instalado (tema_v6_4, 90,6 na régua maior; 6 sementes novas ficaram a 82–88) e a abertura passa a 60 s — o master v6 está renderizado mas o carimbo (fiscal de texto = juiz de visão) espera a quota de amanhã (tarefa abertura_carimbar 08:40). 3D: 32 sondas no Kaggle — a sessão cai 5–13 s depois de o Blender tocar na personagem, aleatório, não é nosso; COLAB pronto (receptor na VPS, notebook leve, motorista no Chrome do perfil Bora, notebook já no Drive da conta Bora) e PARADO no diálogo "Termos de Utilização do Colab": DECISÃO DO DANILO (sim/não), pedida por Telegram 19:41. InfiniteTalk lote 2 (prompt de cauda parada) entra às 21:30 pelo tique; colheita amanhã com juiz. Flow parado até 22/10 10:00. Amanhã pelo tique: 08:20 marioneta (bases neutras da Tailine), 08:30 elenco e escala (prova real do fiscal, lineup, re-julgar os 95, Telegram com números), 08:40 carimbo da abertura, 09:30 portão dos fotogramas (só abre com lineup + fiscal armado).

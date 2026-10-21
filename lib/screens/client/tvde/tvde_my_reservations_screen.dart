@@ -9,6 +9,7 @@ import '../../../models/tvde_dest_change.dart' show TvdeDestChangeQuote;
 import '../../../models/tvde_ride.dart';
 import '../../../services/payment_service.dart';
 import '../../../stores/tvde_store.dart';
+import '../../../utils/hora_lisboa.dart';
 import '../../../widgets/address_autocomplete_field.dart';
 import '../../../widgets/bora/bora.dart';
 import '../../../widgets/ver_nas_minhas_reservas.dart';
@@ -86,9 +87,11 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
     'dez',
   ];
 
+  /// Dia e hora em Lisboa (nunca a hora do telemóvel): é a hora que o
+  /// motorista e o painel veem.
   String _quando(DateTime? d) {
     if (d == null) return 'sem hora'.tr;
-    final l = d.toLocal();
+    final l = paredeLisboa(d);
     final hh = l.hour.toString().padLeft(2, '0');
     final mm = l.minute.toString().padLeft(2, '0');
     return '${l.day} ${_meses[l.month - 1]} · $hh:$mm';
@@ -155,23 +158,30 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
 
   Future<void> _mudarHora(TvdeRide r) async {
     if (_aMudar != null) return;
-    final atual = (r.scheduledAt ?? DateTime.now()).toLocal();
+    // Dia e hora escolhidos no relógio de Lisboa, seja qual for o fuso do
+    // telemóvel; a hora nova segue como INSTANTE (instanteDeLisboa).
     final agora = DateTime.now();
+    final atual = r.scheduledAt ?? agora;
+    final pAgora = paredeLisboa(agora);
+    final pAtual = paredeLisboa(atual);
+    final pUltimo = paredeLisboa(agora.add(Duration(days: _maxDias)));
+    DateTime soDia(DateTime p) => DateTime(p.year, p.month, p.day);
     final dia = await showDatePicker(
       context: context,
-      initialDate: atual.isBefore(agora) ? agora : atual,
-      firstDate: agora,
-      lastDate: agora.add(Duration(days: _maxDias)),
+      initialDate: soDia(atual.isBefore(agora) ? pAgora : pAtual),
+      firstDate: soDia(pAgora),
+      lastDate: soDia(pUltimo),
       helpText: 'Dia da viagem'.trK(r.rideKind),
     );
     if (dia == null || !mounted) return;
     final hora = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(atual),
+      initialTime: TimeOfDay(hour: pAtual.hour, minute: pAtual.minute),
       helpText: 'Hora da viagem'.trK(r.rideKind),
     );
     if (hora == null || !mounted) return;
-    final nova = DateTime(dia.year, dia.month, dia.day, hora.hour, hora.minute);
+    final nova = instanteDeLisboa(
+        DateTime.utc(dia.year, dia.month, dia.day, hora.hour, hora.minute));
 
     final confirmou = await showDialog<bool>(
       context: context,

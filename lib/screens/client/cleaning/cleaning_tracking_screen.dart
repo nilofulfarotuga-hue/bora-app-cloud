@@ -7,6 +7,7 @@ import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../models/cleaning_models.dart';
 import '../../../stores/cleaning_store.dart';
+import '../../../utils/hora_lisboa.dart';
 import '../../../widgets/bora/bora.dart';
 import '../../../widgets/cleaning_chat_button.dart';
 import '../../../widgets/ver_nas_minhas_reservas.dart';
@@ -764,7 +765,10 @@ class _DetailsCard extends StatelessWidget {
     );
   }
 
-  static String _fmtDateTime(DateTime d) {
+  /// Dia e hora em Lisboa de um instante (nunca a hora do telemóvel): o
+  /// servidor e o painel mostram a mesma hora da limpeza.
+  static String _fmtDateTime(DateTime instante) {
+    final d = paredeLisboa(instante);
     String two(int n) => n.toString().padLeft(2, '0');
     return '${two(d.day)}/${two(d.month)}/${d.year} às '
         '${two(d.hour)}:${two(d.minute)}';

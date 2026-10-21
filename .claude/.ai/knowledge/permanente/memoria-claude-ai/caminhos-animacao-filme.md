@@ -10,7 +10,7 @@ estado: atual
 
 # Filme das filhas — 5 caminhos grátis para o desenho (revisto 05/10 com os 50 vídeos)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-21T11:53:59.329053+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-21T18:22:22.523302+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: caminhos animacao filme · memoria claude.ai · claude_ai_memoria
 
@@ -81,3 +81,5 @@ Detalhe e links: página engenharia-reversa-achados-2026-10-17.
 5) VIA 3D (Tabita, prova do adendo D): malha Pixal3D 988k -> 100k faces com cor por vertice (a decimacao com textura parava em 456k), rig SkinTokens OK, animacao Kimodo idle OK, boca por shape keys Rhubarb; a cena v4 (b3_s06, 8 s, 854x480) esta a correr no Kaggle desde 12:47 (as 3 anteriores morreram por memoria no Blender). Resultado e veredito (juiz 10/10 em 10 fotogramas + boca_natural + tira a olho) a seguir nesta pagina.
 Ordem da cascata hoje: Flow (sem fala) > InfiniteTalk (um falante) > marioneta 2D (dois falantes / reserva) > Pippit (closes) ; via 3D decide-se pela prova.
 Avisos: os juizes de topo (gemini-3.5-flash, 3-flash-preview) gastam 20 pedidos/dia e esgotaram as 12:21 — o resto do dia julga o lite (sugestionavel): mandam os numeros e a tira revista a olho. Nada pago, nada empurrado para o GitHub.
+
+[21/10 19:25] VIA 3D — resultado do dia: a malha da Tabita (100 k faces, cor por vertice) e a CENA (boca com 9 shape keys, gesto, fundo) ficam prontas no Kaggle, mas a plataforma CANCELA a sessao 5-13 s depois de o Blender trabalhar a personagem (32 sondas; aleatorio 9/13; com um cubo nunca; nao e quota, memoria, EGL, OptiX, denoise, orfaos nem o kimodo). Nao e isolavel a codigo nosso. Caminho (c) do Danilo: Colab T4 gratis com o mesmo notebook (pronto, 11 MB, entradas por sha) — motorista pelo Chrome do perfil Bora, saida pela VPS. A prova do adendo D (juiz 10/10 + boca_natural + tira) fica para quando houver render E juiz com quota.

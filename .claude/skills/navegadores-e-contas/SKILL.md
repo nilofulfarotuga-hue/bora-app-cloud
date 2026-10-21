@@ -23,7 +23,7 @@ sempre pelo `deviceId`; escolher pelo nome é como escolher uma chave pela cor.
 ### O que vive no perfil **Bora**
 
 Apple (App Store Connect e portal), Meta e Instagram, Meta AI / Vibes (vídeo), Google Play
-Console, Cloudflare, painel do Supabase, Resend, 99Freelas, Codester, Google Search Console
+Console, Cloudflare (ver nota de 21/10: afinal é o pessoal), painel do Supabase, Resend, 99Freelas, Codester, Google Search Console
 do Em Dia, Gemini AI Plus, Flow/Veo, AI Studio, WhatsApp da loja, Bing Webmaster, Wikidata,
 Drive da equipa, Hostinger, área de cliente dos CTT (encomendas do Jai), Google Cloud da Bora.
 
@@ -45,7 +45,7 @@ nilofulfarotuga/nilofulfaro, Search Console e Google Ads de jaiagarwala.com, Dee
 
 > **15/10 — Protocolo Danilo (manda sobre o resto desta página e sobre o mapa):**
 > - **Bora** (`d9e862e0-a5ea-486f-b054-f333ef51b46a`): Supabase, Play Console, App Store Connect,
->   Meta, Instagram, Facebook da Bora, Cloudflare, Resend, painel admin Bora.
+>   Meta, Instagram, Facebook da Bora, Cloudflare (corrigido a 21/10: pessoal), Resend, painel admin Bora.
 > - **Pessoal** (`5b260cdd-9d4f-49d6-842b-ebfbfea69c75`): GitHub (o repo
 >   `nilofulfarotuga-hue/bora-app-cloud` é desta conta), claude.ai/code, Gemini, ChatGPT, DeepSeek,
 >   Gmail pessoal.

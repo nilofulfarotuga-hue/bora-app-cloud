@@ -2280,7 +2280,7 @@ class _StatusPanel extends StatelessWidget {
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
-                onPressed: () => abrirReciboViagem(context, ride.id),
+                onPressed: () => abrirReciboViagem(context, ride.id, rideKind: ride.rideKind),
                 icon: const Icon(Icons.receipt_long_outlined, size: 18),
                 // Conformidade (art. 15.º n.º 8): é um resumo, não uma fatura.
                 label: Text('Resumo da viagem'.rk(context.tvdeKind)),
@@ -2805,7 +2805,7 @@ class _StatusPanel extends StatelessWidget {
         ),
         const SizedBox(height: 2),
         Text(
-          'Passa por outro sítio a caminho — €{0} por paragem. A paragem não está incluída no plano.{1}'.trArgs([feePerStopEur.toStringAsFixed(2), ride.isPaidOnline ? ' Pagas a paragem na hora.' : ' Pagas ao motorista no fim.']),
+          'Passa por outro sítio a caminho — €{0} por paragem. A paragem não está incluída no plano.{1}'.trArgs([feePerStopEur.toStringAsFixed(2), ride.isPaidOnline ? ' Pagas a paragem na hora.' : ' ${'Pagas ao motorista no fim.'.trK(ride.rideKind)}']),
           style: const TextStyle(color: AppColors.textSubtle, fontSize: 11.5),
         ),
         for (final s in stops) ...[

@@ -9,7 +9,6 @@ import '../../l10n/tr.dart';
 import '../../screens/client/tvde/tvde_queixas_screen.dart';
 import '../../services/ficha_legal_service.dart';
 import '../../models/ride_kind.dart';
-import '../../utils/ride_kind_context.dart';
 
 /// Recibo da viagem TVDE (Lei 45/2018 rev. Lei 59/2026): valor da viagem com
 /// a taxa de intermediação da Bora numa linha própria. Não é fatura.
@@ -17,18 +16,23 @@ import '../../utils/ride_kind_context.dart';
 /// Os números vêm todos de `tvde_recibo_viagem` (servidor). A app não soma
 /// nem divide nada — quando o servidor não sabe discriminar (pacote
 /// ida-e-volta), mostra o total e a razão.
-Future<void> abrirReciboViagem(BuildContext context, String rideId) {
+///
+/// [21/10 · A1 r1] [rideKind] é o tipo DESTA corrida (as palavras de uma
+/// encomenda não dependem do último ecrã aberto).
+Future<void> abrirReciboViagem(BuildContext context, String rideId,
+    {RideKind rideKind = RideKind.passageiros}) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    builder: (_) => _ReciboViagemSheet(rideId: rideId),
+    builder: (_) => _ReciboViagemSheet(rideId: rideId, rideKind: rideKind),
   );
 }
 
 class _ReciboViagemSheet extends StatefulWidget {
-  const _ReciboViagemSheet({required this.rideId});
+  const _ReciboViagemSheet({required this.rideId, this.rideKind = RideKind.passageiros});
   final String rideId;
+  final RideKind rideKind;
 
   @override
   State<_ReciboViagemSheet> createState() => _ReciboViagemSheetState();
@@ -52,7 +56,7 @@ class _ReciboViagemSheetState extends State<_ReciboViagemSheet> {
           .timeout(const Duration(seconds: 10));
       if (!mounted) return;
       setState(() => r == null
-          ? _erro = 'O recibo fica disponível quando a viagem terminar.'.trK(context.tvdeKind)
+          ? _erro = 'O recibo fica disponível quando a viagem terminar.'.trK(widget.rideKind)
           : _r = Map<String, dynamic>.from(r as Map));
     } catch (_) {
       if (mounted) {
@@ -187,7 +191,7 @@ class _ReciboViagemSheetState extends State<_ReciboViagemSheet> {
                     Text(
                         (r['titulo'] as String?)?.trim().isNotEmpty == true
                             ? (r['titulo'] as String).trim()
-                            : 'Resumo da viagem'.rk(context.tvdeKind),
+                            : 'Resumo da viagem'.rk(widget.rideKind),
                         key: const Key('tvde_resumo_titulo'),
                         style: const TextStyle(
                             fontSize: 20,
@@ -198,7 +202,7 @@ class _ReciboViagemSheetState extends State<_ReciboViagemSheet> {
                         style: const TextStyle(color: AppColors.textSubtle)),
                     if (r['codigo_viagem'] != null)
                       SelectableText(
-                          'Código da viagem: ${r['codigo_viagem']}',
+                          '${'Código da viagem'.rk(widget.rideKind)}: ${r['codigo_viagem']}',
                           key: const Key('tvde_resumo_codigo'),
                           style: const TextStyle(
                               fontSize: 12, color: AppColors.textSubtle)),
@@ -210,11 +214,11 @@ class _ReciboViagemSheetState extends State<_ReciboViagemSheet> {
                     const SizedBox(height: 10),
                     Text('${r['origem'] ?? ''} → ${r['destino'] ?? ''}'),
                     if (r['motorista'] != null)
-                      Text('${'Motorista'.trK(context.tvdeKind)}: ${r['motorista']}',
+                      Text('${'Motorista'.trK(widget.rideKind)}: ${r['motorista']}',
                           style: const TextStyle(color: AppColors.textSecondary)),
                     const Divider(height: 24),
                     if (r['discriminado'] == true) ...[
-                      _linha('Serviço de transporte (motorista)'.trK(context.tvdeKind),
+                      _linha('Serviço de transporte (motorista)'.trK(widget.rideKind),
                           FichaTexto.euro(_c('transporte_cents'))),
                       _linha(
                           r['taxa_intermediacao_pct'] is num
@@ -222,7 +226,7 @@ class _ReciboViagemSheetState extends State<_ReciboViagemSheet> {
                               : 'Taxa de intermediação Bora'.tr,
                           FichaTexto.euro(_c('taxa_intermediacao_cents'))),
                     ],
-                    _linha('Valor da viagem'.trK(context.tvdeKind),
+                    _linha('Valor da viagem'.trK(widget.rideKind),
                         FichaTexto.euro(_c('valor_viagem_cents')),
                         forte: _c('descontos_cents') == null),
                     // [Mudar destino 30/09] o que se pagou a mais, com o cálculo.
@@ -294,7 +298,7 @@ class _ReciboViagemSheetState extends State<_ReciboViagemSheet> {
                         (r['aviso_legal'] as String?)?.trim().isNotEmpty == true
                             ? (r['aviso_legal'] as String).trim()
                             : 'Recibo de viagem. Não substitui fatura: a fatura é emitida por software certificado.'
-                                .trK(context.tvdeKind),
+                                .trK(widget.rideKind),
                         key: const Key('tvde_resumo_aviso_legal'),
                         style: const TextStyle(
                             fontSize: 12, color: AppColors.textSubtle)),
@@ -312,7 +316,7 @@ class _ReciboViagemSheetState extends State<_ReciboViagemSheet> {
                               builder: (_) =>
                                   TvdeQueixasScreen(rideId: widget.rideId))),
                       icon: const Icon(Icons.feedback_outlined, size: 18),
-                      label: Text('Fazer uma queixa sobre esta viagem'.rk(context.tvdeKind)),
+                      label: Text('Fazer uma queixa sobre esta viagem'.rk(widget.rideKind)),
                     ),
                   ],
                 ),

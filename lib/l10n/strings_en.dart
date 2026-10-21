@@ -16,6 +16,11 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 21/10/2026: encomendas no motor do Bora Motorista (etiqueta nas reservas)
+  // (tool/l10n/traducoes/pt-en-25-encomendas.json). O resto das palavras de
+  // encomenda vive em lib/models/ride_kind_textos.dart (PT e EN juntos).
+  '📦 Encomenda':
+      '📦 Parcel',
   // 21/10/2026: prémios dos marcos do check-in (10, 15 e 30 dias seguidos)
   // (tool/l10n/traducoes/pt-en-24-checkin-marcos.json).
   'Por usar':

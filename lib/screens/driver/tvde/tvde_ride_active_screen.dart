@@ -905,7 +905,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
           alpha: 0.85,
           infoWindow: InfoWindow(
               title: 'Próxima recolha',
-              snippet: queued.originLabel ?? 'Recolha da próxima corrida'.rk(context.tvdeDriverKind)),
+              snippet: queued.originLabel ?? 'Recolha da próxima corrida'.rk(queued.rideKind)),
         ),
         Marker(
           markerId: const MarkerId('queued_dest'),
@@ -914,7 +914,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
           alpha: 0.6,
           infoWindow: InfoWindow(
               title: 'Próximo destino',
-              snippet: queued.destLabel ?? 'Destino da próxima corrida'.rk(context.tvdeDriverKind)),
+              snippet: queued.destLabel ?? 'Destino da próxima corrida'.rk(queued.rideKind)),
         ),
       };
 
@@ -1582,10 +1582,9 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
       context: context,
       builder: (d) => AlertDialog(
         title: const Text('Devolver esta reserva?'),
-        content: const Text(
-            'A Bora procura outro motorista. Deixas de ficar com esta corrida '
-            'e não perdes nada por devolveres — vale mais avisares agora do que '
-            'o cliente ficar à espera.'),
+        content: Text(
+            'A Bora procura outro motorista. Deixas de ficar com esta corrida e não perdes nada por devolveres — vale mais avisares agora do que o cliente ficar à espera.'
+                .rk(ride.rideKind)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(d, false),
@@ -1709,7 +1708,8 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
         final earn = (finished.netDriverEarnCents / 100).toStringAsFixed(2);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(
-                'Corrida finalizada — ganhaste €$earn. Próxima corrida ativada.')));
+                'Corrida finalizada — ganhaste €{0}. Próxima corrida ativada.'
+                    .rkArgs(ride.rideKind, [earn]))));
       }
     } catch (e) {
       if (mounted) setState(() => _collectReminderPending = false);
@@ -1797,7 +1797,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
       builder: (ctx) => AlertDialog(
         title: Text('Largar a próxima corrida?'.rk(context.tvdeDriverKind)),
         content: Text(
-            '${'A corrida {0} volta para outros motoristas.'.rkArgs(context.tvdeDriverKind, [queued.originLabel ?? 'em fila'])} '
+            '${'A corrida {0} volta para outros motoristas.'.rkArgs(queued.rideKind, [queued.originLabel ?? 'em fila'])} '
             '${'A corrida que estás a fazer continua igual.'.rk(context.tvdeDriverKind)}'),
         actions: [
           TextButton(
@@ -2345,7 +2345,7 @@ class _DetalheDaCorrida extends StatelessWidget {
           // grande é a do alvo da fase, no cabeçalho.
           const SizedBox(height: Spacing.md),
           Text(
-              'Viagem: ${ride.originLabel ?? 'Recolha'} → '
+              '${'Viagem'.rk(ride.rideKind)}: ${ride.originLabel ?? 'Recolha'} → '
               '${ride.destLabel ?? 'Destino'}',
               style: const TextStyle(
                   color: AppColors.textSecondary, fontSize: 12.5)),
@@ -2513,6 +2513,7 @@ class TvdeCorridaCabecalho extends StatelessWidget {
               child: _WaitChip(
                 seconds: esperaSegundos ?? 0,
                 unlocked: naoCompareceuLiberto,
+                rideKind: ride.rideKind,
               ),
             ),
           ],
@@ -2667,15 +2668,15 @@ class TvdeCorridaBotaoPrincipal extends StatelessWidget {
     IconData icon;
     VoidCallback? accao;
     if (ride.isOnTheWay) {
-      label = 'Cheguei ao passageiro'.rk(context.tvdeDriverKind);
+      label = 'Cheguei ao passageiro'.rk(ride.rideKind);
       icon = Icons.where_to_vote;
       accao = onCheguei;
     } else if (ride.hasArrived) {
-      label = 'Iniciar viagem'.rk(context.tvdeDriverKind);
+      label = 'Iniciar viagem'.rk(ride.rideKind);
       icon = Icons.play_arrow;
       accao = onIniciar;
     } else if (ride.isInProgress) {
-      label = 'Finalizar viagem'.rk(context.tvdeDriverKind);
+      label = 'Finalizar viagem'.rk(ride.rideKind);
       icon = Icons.flag;
       accao = onFinalizar;
     } else if (ride.status == 'motorista_atribuido' && ride.isReservation) {
@@ -2689,7 +2690,7 @@ class TvdeCorridaBotaoPrincipal extends StatelessWidget {
     } else if (ride.status == 'motorista_atribuido' && ride.isQueued) {
       // Back-to-back: usa o mesmo estado, mas não há nada a confirmar — esta
       // arranca sozinha quando a viagem actual terminar.
-      label = 'Começa ao terminares esta viagem'.rk(context.tvdeDriverKind);
+      label = 'Começa ao terminares esta viagem'.rk(ride.rideKind);
       icon = Icons.queue;
       accao = null;
     } else {
@@ -3118,9 +3119,15 @@ class _StopTile extends StatelessWidget {
 /// 4c — chip do temporizador de espera no pickup. Depois da janela, avisa que
 /// o no-show ficou disponível (menu ⋮ no topo).
 class _WaitChip extends StatelessWidget {
-  const _WaitChip({required this.seconds, required this.unlocked});
+  const _WaitChip(
+      {required this.seconds,
+      required this.unlocked,
+      this.rideKind = RideKind.passageiros});
   final int seconds;
   final bool unlocked;
+
+  /// [21/10 · A1 r1] Numa encomenda espera-se pela recolha, não pelo passageiro.
+  final RideKind rideKind;
 
   @override
   Widget build(BuildContext context) {
@@ -3144,8 +3151,8 @@ class _WaitChip extends StatelessWidget {
           Flexible(
             child: Text(
               unlocked
-                  ? 'Espera $mm:$ss — podes marcar "não compareceu" (menu ⋮)'
-                  : 'À espera do passageiro · $mm:$ss',
+                  ? 'Espera {0} — podes marcar "não compareceu" (menu ⋮)'.rkArgs(rideKind, ['$mm:$ss'])
+                  : 'À espera do passageiro · {0}'.rkArgs(rideKind, ['$mm:$ss']),
               style: TextStyle(
                   color: unlocked ? AppColors.error : AppColors.primary,
                   fontSize: 12.5,
@@ -3200,7 +3207,7 @@ class _QueuedRideCard extends StatelessWidget {
               const Icon(Icons.queue, size: 16, color: AppColors.primary),
               const SizedBox(width: 6),
               Expanded(
-                child: Text('Próxima corrida — depois desta'.rk(context.tvdeDriverKind),
+                child: Text('Próxima corrida — depois desta'.rk(queued.rideKind),
                     style: const TextStyle(
                         color: AppColors.primary,
                         fontSize: 13,
@@ -3225,9 +3232,11 @@ class _QueuedRideCard extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            'Recolha a ${ligacaoKm.toStringAsFixed(1)} km do destino desta corrida '
-            '· ${queued.estDistanceKm.toStringAsFixed(1)} km de viagem. '
-            'Abre sozinha quando terminares.',
+            'Recolha a {0} km do destino desta corrida · {1} km de viagem. Abre sozinha quando terminares.'
+                .rkArgs(queued.rideKind, [
+              ligacaoKm.toStringAsFixed(1),
+              queued.estDistanceKm.toStringAsFixed(1),
+            ]),
             style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
           ),
           Align(

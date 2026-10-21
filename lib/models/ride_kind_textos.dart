@@ -389,4 +389,48 @@ const Map<String, (String, String)> kTextosEncomendas = {
   // ── Estafeta: fim ──────────────────────────────────────────────────────
   'Fim da corrida': ('Fim da entrega', 'Delivery finished'),
   'Como foi o passageiro?': ('Como foi o cliente?', 'How was the customer?'),
+
+  // ── Ronda 1 do revisor (21/10) ─────────────────────────────────────────
+  'À espera do passageiro · {0}': ('À espera na recolha · {0}', 'Waiting at the pickup · {0}'),
+  'Espera {0} — podes marcar "não compareceu" (menu ⋮)': (
+    'Espera {0} — podes marcar "ninguém na recolha" (menu ⋮)',
+    'Waiting {0} — you can mark "nobody at the pickup" (menu ⋮)'
+  ),
+  'Ganhaste €{0} nesta corrida.': ('Ganhaste €{0} nesta entrega.', 'You earned €{0} on this delivery.'),
+  'Corrida finalizada — ganhaste €{0}. Próxima corrida ativada.': (
+    'Entrega concluída — ganhaste €{0}. Próxima entrega ativada.',
+    'Delivery finished — you earned €{0}. Next delivery activated.'
+  ),
+  'A Bora procura outro motorista. Deixas de ficar com esta corrida e não perdes nada por devolveres — vale mais avisares agora do que o cliente ficar à espera.': (
+    'A Bora procura outro estafeta. Deixas de ficar com esta entrega e não perdes nada por devolveres — vale mais avisares agora do que o cliente ficar à espera.',
+    'Bora looks for another courier. You no longer have this delivery and you lose nothing by returning it — better to warn now than leave the customer waiting.'
+  ),
+  'Vamos procurar outro motorista para o cliente. Não és penalizado — avisar cedo é o que ajuda.': (
+    'Vamos procurar outro estafeta para o cliente. Não és penalizado — avisar cedo é o que ajuda.',
+    'We will look for another courier for the customer. You are not penalised — warning early is what helps.'
+  ),
+  'Conclui a corrida atual antes de ficar offline.': (
+    'Conclui a entrega atual antes de ficar offline.',
+    'Finish the current delivery before going offline.'
+  ),
+  'Código da viagem': ('Código da entrega', 'Delivery code'),
+  // estado da corrida em palavras (TvdeRide.statusLabel)
+  'À procura de motorista…': ('À procura de estafeta…', 'Looking for a courier…'),
+  'Sem motoristas disponíveis': ('Sem estafetas disponíveis', 'No couriers available'),
+  'O teu motorista está a terminar uma viagem próxima': (
+    'O teu estafeta está a terminar outra entrega aqui perto',
+    'Your courier is finishing another delivery nearby'
+  ),
+  'Motorista atribuído': ('Estafeta atribuído', 'Courier assigned'),
+  'Cancelada pelo motorista': ('Cancelada pelo estafeta', 'Cancelled by the courier'),
+  'Não compareceu': ('Ninguém na recolha', 'Nobody at the pickup'),
+  // fase da corrida no ecrã do estafeta (TvdeRide.driverPhaseTitle)
+  'À espera do passageiro': ('À espera na recolha', 'Waiting at the pickup'),
+  'Próxima corrida': ('Próxima entrega', 'Next delivery'),
+  'Pagas ao motorista no fim.': ('Pagas ao estafeta no fim.', 'You pay the courier at the end.'),
+  'Viagem': ('Entrega', 'Delivery'),
+  'Recolha a {0} km do destino desta corrida · {1} km de viagem. Abre sozinha quando terminares.': (
+    'Recolha a {0} km do destino desta entrega · {1} km até à entrega. Abre sozinha quando terminares.',
+    'Pickup {0} km from this drop-off · {1} km to deliver. Opens by itself when you finish.'
+  ),
 };

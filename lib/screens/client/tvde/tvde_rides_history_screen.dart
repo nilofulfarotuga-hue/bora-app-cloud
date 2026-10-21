@@ -149,7 +149,7 @@ class _RideTileState extends State<_RideTile> {
                 // [Ficha legal · 23/09] Recibo com a taxa de intermediação.
                 if (ride.isFinished)
                   InkWell(
-                    onTap: () => abrirReciboViagem(context, ride.id),
+                    onTap: () => abrirReciboViagem(context, ride.id, rideKind: ride.rideKind),
                     child: Padding(
                       padding: const EdgeInsets.only(top: 4),
                       child: Row(mainAxisSize: MainAxisSize.min, children: [

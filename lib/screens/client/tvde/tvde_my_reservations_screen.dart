@@ -117,7 +117,7 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
         content: Text(
           gratis
               ? 'Ainda estás a tempo — o cancelamento é grátis.'.tr
-              : 'Faltam menos de {0} horas para a viagem. Pode haver uma taxa de cancelamento.'.trArgsK(context.tvdeKind, [_horasCancelGratis]),
+              : 'Faltam menos de {0} horas para a viagem. Pode haver uma taxa de cancelamento.'.trArgsK(r.rideKind, [_horasCancelGratis]),
         ),
         actions: [
           TextButton(
@@ -162,13 +162,13 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
       initialDate: atual.isBefore(agora) ? agora : atual,
       firstDate: agora,
       lastDate: agora.add(Duration(days: _maxDias)),
-      helpText: 'Dia da viagem'.trK(context.tvdeKind),
+      helpText: 'Dia da viagem'.trK(r.rideKind),
     );
     if (dia == null || !mounted) return;
     final hora = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(atual),
-      helpText: 'Hora da viagem'.trK(context.tvdeKind),
+      helpText: 'Hora da viagem'.trK(r.rideKind),
     );
     if (hora == null || !mounted) return;
     final nova = DateTime(dia.year, dia.month, dia.day, hora.hour, hora.minute);
@@ -178,7 +178,7 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
       builder: (_) => AlertDialog(
         title: Text('Passar a reserva para {0}?'.trArgs([_quando(nova)])),
         content: Text(
-          'O motorista é avisado. Se já tiver outra reserva perto dessa hora, procuramos outro motorista.'.trK(context.tvdeKind),
+          'O motorista é avisado. Se já tiver outra reserva perto dessa hora, procuramos outro motorista.'.trK(r.rideKind),
         ),
         actions: [
           TextButton(
@@ -205,8 +205,8 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
         content: Text(res['sem_mudanca'] == true
             ? 'A reserva já estava nessa hora.'.tr
             : mantem
-                ? 'Hora alterada. O teu motorista mantém-se.'.trK(context.tvdeKind)
-                : 'Hora alterada. Vamos procurar motorista para a hora nova.'.trK(context.tvdeKind)),
+                ? 'Hora alterada. O teu motorista mantém-se.'.trK(r.rideKind)
+                : 'Hora alterada. Vamos procurar motorista para a hora nova.'.trK(r.rideKind)),
       ));
     } catch (e) {
       if (mounted) {
@@ -254,6 +254,7 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
           quote: quote,
           method: r.paymentMethod,
           initialPhone: Supabase.instance.client.auth.currentUser?.phone ?? '',
+          rideKind: r.rideKind,
         ),
       );
       if (decisao == null || !mounted) return;
@@ -447,6 +448,14 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // [21/10 · A1 r1] Encomenda: diz-se logo no topo do cartão.
+          if (r.isEncomenda) ...[
+            Text('📦 Encomenda'.tr,
+                key: const Key('reserva_etiqueta_encomenda'),
+                style: const TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+            const SizedBox(height: 6),
+          ],
           if (etiqueta != null) ...[
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -502,8 +511,8 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
             const SizedBox(height: Spacing.sm),
             Text(
               r.paymentMethod == 'cash'
-                  ? 'Não encontrámos motorista para esta hora. Podes marcar outra viagem.'.trK(context.tvdeKind)
-                  : 'Não encontrámos motorista para esta hora. O reembolso é automático — não precisas de fazer nada.'.trK(context.tvdeKind),
+                  ? 'Não encontrámos motorista para esta hora. Podes marcar outra viagem.'.trK(r.rideKind)
+                  : 'Não encontrámos motorista para esta hora. O reembolso é automático — não precisas de fazer nada.'.trK(r.rideKind),
               style: const TextStyle(
                   fontSize: 12, color: AppColors.textSubtle),
             ),
@@ -736,11 +745,15 @@ class _ReservaDestinoSheet extends StatefulWidget {
     required this.quote,
     required this.method,
     this.initialPhone = '',
+    this.rideKind = RideKind.passageiros,
   });
 
   final Map<String, dynamic> quote;
   final String method;
   final String initialPhone;
+
+  /// [21/10 · A1 r1] As palavras vêm do tipo DESTA reserva.
+  final RideKind rideKind;
 
   @override
   State<_ReservaDestinoSheet> createState() => _ReservaDestinoSheetState();
@@ -787,7 +800,7 @@ class _ReservaDestinoSheetState extends State<_ReservaDestinoSheet> {
     if (_diff == 0) return 'Não há nada a pagar.'.tr;
     if (_diff < 0) {
       return widget.method == 'cash'
-          ? 'Pagas {0} a menos ao motorista, em dinheiro.'.trArgsK(context.tvdeKind, [eur(-_diff)])
+          ? 'Pagas {0} a menos ao motorista, em dinheiro.'.trArgsK(widget.rideKind, [eur(-_diff)])
           : 'Devolvemos {0} para o cartão ou MB Way.'.trArgs([eur(-_diff)]);
     }
     switch (widget.method) {
@@ -799,7 +812,7 @@ class _ReservaDestinoSheetState extends State<_ReservaDestinoSheet> {
             .trArgs([eur(_diff)]);
       default:
         return 'Pagas {0} a mais ao motorista, em dinheiro, no fim da viagem.'
-            .trArgsK(context.tvdeKind, [eur(_diff)]);
+            .trArgsK(widget.rideKind, [eur(_diff)]);
     }
   }
 
@@ -851,7 +864,7 @@ class _ReservaDestinoSheetState extends State<_ReservaDestinoSheet> {
               style: const TextStyle(
                   fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
           const SizedBox(height: Spacing.md),
-          Text('A viagem fica com {0} km.'.trArgsK(context.tvdeKind, [kmTxt]),
+          Text('A viagem fica com {0} km.'.trArgsK(widget.rideKind, [kmTxt]),
               key: const Key('reserva_destino_km'), style: secundario),
           const SizedBox(height: Spacing.sm),
           _linha('Preço combinado'.tr, eur(antes)),

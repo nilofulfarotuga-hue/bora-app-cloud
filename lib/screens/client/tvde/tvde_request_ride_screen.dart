@@ -2125,7 +2125,9 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
             ],
             // Motorista que fala português / mobilidade reduzida — só com o
             // interruptor `tvde_client_options_enabled` ligado.
-            if (_conf.opcoesCliente && _activeCredit == null) ...[
+            // [21/10 · A1 r1] Numa encomenda não há passageiro: as opções de
+            // acessibilidade/língua não aparecem (o servidor também não as copia).
+            if (_conf.opcoesCliente && _activeCredit == null && !widget.rideKind.isEncomenda) ...[
               const SizedBox(height: Spacing.md),
               const TvdeOpcoesAcessibilidade(),
             ],

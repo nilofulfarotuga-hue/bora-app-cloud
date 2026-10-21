@@ -388,32 +388,34 @@ class TvdeRide {
 
   bool get hasExtraStops => extraStopsCount > 0;
 
+  /// Estado em palavras. [21/10 · A1 r1] Numa encomenda as palavras são de
+  /// encomenda (mesmo mapa, `ride_kind_textos.dart`); passageiros igual a antes.
   String get statusLabel {
     switch (status) {
       case 'aguarda_pagamento':
         return 'A aguardar pagamento…';
       case 'solicitada':
-        return 'À procura de motorista…';
+        return 'À procura de motorista…'.rk(rideKind);
       case 'sem_motorista':
-        return 'Sem motoristas disponíveis';
+        return 'Sem motoristas disponíveis'.rk(rideKind);
       case 'motorista_atribuido':
         return isQueued
-            ? 'O teu motorista está a terminar uma viagem próxima'
-            : 'Motorista atribuído';
+            ? 'O teu motorista está a terminar uma viagem próxima'.rk(rideKind)
+            : 'Motorista atribuído'.rk(rideKind);
       case 'motorista_a_caminho':
-        return 'Motorista a caminho';
+        return 'Motorista a caminho'.rk(rideKind);
       case 'motorista_chegou':
-        return 'O motorista chegou';
+        return 'O motorista chegou'.rk(rideKind);
       case 'em_andamento':
-        return 'Viagem em curso';
+        return 'Viagem em curso'.rk(rideKind);
       case 'finalizada':
-        return 'Viagem concluída';
+        return 'Viagem concluída'.rk(rideKind);
       case 'cancelada_cliente':
         return 'Cancelada por si';
       case 'cancelada_motorista':
-        return 'Cancelada pelo motorista';
+        return 'Cancelada pelo motorista'.rk(rideKind);
       case 'no_show':
-        return 'Não compareceu';
+        return 'Não compareceu'.rk(rideKind);
       default:
         return status;
     }
@@ -430,12 +432,14 @@ class TvdeRide {
       return temNome ? 'A caminho da recolha · $nome' : 'A caminho da recolha';
     }
     if (hasArrived) {
-      return temNome ? 'À espera de $nome' : 'À espera do passageiro';
+      return temNome ? 'À espera de $nome' : 'À espera do passageiro'.rk(rideKind);
     }
     if (isInProgress) {
+      // [21/10 · A1 r1] Numa encomenda leva-se a encomenda, não o cliente.
+      if (isEncomenda) return 'A levar a encomenda ao destino';
       return 'A levar ${temNome ? nome : 'o passageiro'} ao destino';
     }
-    if (status == 'motorista_atribuido' && isQueued) return 'Próxima corrida';
+    if (status == 'motorista_atribuido' && isQueued) return 'Próxima corrida'.rk(rideKind);
     return 'A processar…';
   }
 }

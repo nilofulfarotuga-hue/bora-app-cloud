@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+"""hermes-email — comando do Emerson (dentro do contentor) para a caixa dos agentes @boraguarda.com.
+
+Não tem chave nenhuma: deixa o pedido em /opt/data/agentes-email/fila/ e o HOST (que tem a chave do
+servidor) responde em /opt/data/agentes-email/respostas/ (unidade systemd agentes-email-ponte.path).
+
+  hermes-email resumo
+  hermes-email caixa <agente> [todos] [N]
+  hermes-email ler <id>
+  hermes-email responder <id> "<texto>"
+  hermes-email enviar <agente> <para> "<assunto>" "<texto>"
+  hermes-email enviados <agente> [N]
+
+Agentes: emerson, suporte, parceiros, vendas, redes, radar, assinaturas.
+"""
+import json
+import os
+import sys
+import time
+import uuid
+
+BASE = '/opt/data/agentes-email'
+ESPERA_MAX = 90  # segundos
+
+if len(sys.argv) < 2 or sys.argv[1] in ('-h', '--help', 'ajuda'):
+    print(__doc__)
+    sys.exit(0)
+
+pid = 'p' + uuid.uuid4().hex
+fila = os.path.join(BASE, 'fila')
+resp = os.path.join(BASE, 'respostas', pid + '.txt')
+tmp = os.path.join(BASE, 'tmp', pid + '.json')  # fora da fila: a fila só vê ficheiros completos
+with open(tmp, 'w', encoding='utf-8') as f:
+    json.dump({'cmd': sys.argv[1], 'args': sys.argv[2:], 'quem': os.environ.get('USER', 'hermes'),
+               'criado': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}, f, ensure_ascii=False)
+os.replace(tmp, os.path.join(fila, pid + '.json'))
+
+fim = time.time() + ESPERA_MAX
+while time.time() < fim:
+    if os.path.exists(resp):
+        with open(resp, encoding='utf-8') as f:
+            conteudo = f.read()
+        try:
+            os.remove(resp)
+        except OSError:
+            pass
+        rc_txt, _, corpo = conteudo.partition('\n')
+        print(corpo.rstrip('\n'))
+        sys.exit(int(rc_txt) if rc_txt.strip().isdigit() else 1)
+    time.sleep(0.5)
+
+print('ERRO: o host não respondeu em %ds (a ponte agentes-email-ponte.path está parada?). '
+      'Pedido %s ficou na fila.' % (ESPERA_MAX, pid))
+sys.exit(1)

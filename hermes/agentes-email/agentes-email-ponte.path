@@ -1,0 +1,9 @@
+[Unit]
+Description=Caixa dos agentes (boraguarda.com): acorda a ponte quando o Emerson deixa um pedido
+
+[Path]
+DirectoryNotEmpty=/docker/hermes-agent-fvnc/data/agentes-email/fila
+MakeDirectory=yes
+
+[Install]
+WantedBy=multi-user.target

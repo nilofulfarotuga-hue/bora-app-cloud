@@ -1,0 +1,6 @@
+[Unit]
+Description=Caixa dos agentes (boraguarda.com): responde aos pedidos do Emerson com a chave do servidor do host
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/agentes-email/ponte.py fila

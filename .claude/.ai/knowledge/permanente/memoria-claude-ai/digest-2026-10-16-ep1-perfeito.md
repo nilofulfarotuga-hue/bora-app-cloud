@@ -2,7 +2,7 @@
 id: memoria-claude-ai-digest-2026-10-16-ep1-perfeito
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-16
+ultima_confirmacao: 2026-10-21
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Digest Bora Studio — Ep1 perfeito dia e noite (v5), 16/10/2026
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `digest-2026-10-16-ep1-perfeito`, origem `claude-code`, atualizada em 2026-10-16T13:32:38.906998+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `digest-2026-10-16-ep1-perfeito`, origem `claude-code`, atualizada em 2026-10-21T07:13:30.927655+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: digest 2026 10 16 ep1 perfeito · memoria claude.ai · claude_ai_memoria
 
@@ -19,3 +19,6 @@ O QUE FUNCIONA AGORA: (1) F0 fechado: inventário com hash de 5608 ficheiros (_v
 COMO SE USA: python agentes/fotogramas_v5.py cenarios|planos --bloco N; python scripts/v5/tique_v5.py --fila; Gemini().perguntar(texto, ficheiros).
 O QUE FALTA: montador v5 (sub-agente em curso), vozes provisórias edge-tts + Qwen3-TTS no Kaggle (sub-agentes em curso), adaptador Flow/Veo por UIA, canções (Suno sem sessão; ACE-Step no Kaggle), ElevenLabs sem sessão (página de login foi aberta e avisado por Telegram; a janela já não está aberta).
 BLOQUEIOS: GLM (opencode) com erro de servidor; codex com token expirado; RAM do PC ~350-600 MB livres com 11 sessões remotas do Claude penduradas (fechá-las foi recusado pelo classificador).
+
+## 21/10/2026 (manhã, Fable 5.1, passo retoma-fable-21-10) — interim 08:15
+A fábrica esteve 4 dias (17-21/10) só a remontar o mesmo episódio: fotogramas_lote e veo_lote morreram em falhou e nada os reabria; o cão de guarda só olhava para o ultimo_feito (que a montagem horária renovava) e gritava para o log. Hoje: tarefas repetíveis ressuscitam sozinhas, o cão grita por tarefas mortas e avisa o Telegram pela VPS (3 em 3 h), as repetíveis alternam (fotogramas/Veo), prazo por tarefa (30/40 min), marcadores de janela com pid. Tudo provado com defeito plantado (teste_tique_v5 8/8). Flow/Veo: a imagem só nomeada no texto era ignorada (vídeo fotorreal, 24 créditos perdidos); anexada como INGREDIENTE o Veo 3.1 Lite gera o nosso desenho (b1_e01 aprovado: dif 14, Bhattacharyya 0,305). Extend (último fotograma → clipe seguinte) medido: corte invisível (dif 13), deriva +0,05 por clipe, o pedido seguinte tem de fixar o enquadramento. Créditos Flow 70→26, reposição MENSAL (o e-mail "sem crédito" do Danilo é o Flow; Higgsfield a 0). Kaggle (máx. 2 sessões GPU): bora-multitalk (InfiniteTalk/Wan2GP) COMPLETE a colher; bora-rapazes-v5 (vozes Gustavo/Sussurrador/Davi: Qwen3 redesenho EN + pyworld; Seed-VC rejeitado por licença) RUNNING; bora-via3d (adendo: Pixal3D→SkinTokens→Rhubarb em geometria→Blender headless, prova da Tabita 8 s) RUNNING desde 08:10. Pippit: login aberto no perfil Bora à espera do clique. Música ACE-Step de 16/10 ligada ao montador (22 leitos). Juiz lite mente (3 vistas em 4; rosto 9/10 sem rosto): números antes do juiz, olho antes de mostrar. Ficheiros: _v5/relatorios/2026-10-21.md, _v5/CONTINUAR-EP1-PERFEITO-2026-10-21-0815.md, decisions/2026-10-21-*.md.

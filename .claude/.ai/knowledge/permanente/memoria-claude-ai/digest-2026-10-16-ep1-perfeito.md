@@ -10,7 +10,7 @@ estado: atual
 
 # Digest Bora Studio — Ep1 perfeito dia e noite (v5), 16/10/2026
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `digest-2026-10-16-ep1-perfeito`, origem `claude-code`, atualizada em 2026-10-21T09:22:10.634964+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `digest-2026-10-16-ep1-perfeito`, origem `claude-code`, atualizada em 2026-10-21T11:37:50.951541+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: digest 2026 10 16 ep1 perfeito · memoria claude.ai · claude_ai_memoria
 
@@ -25,3 +25,5 @@ A fábrica esteve 4 dias (17-21/10) só a remontar o mesmo episódio: fotogramas
 
 ## 21/10/2026 — interim 10:25
 Flow: ingrediente provado (b1_e01 aprovado), Extend medido (corte invisível, deriva +0,05/clipe), créditos 26, parado por hoje. InfiniteTalk/Wan2GP na T4: 2/2 clipes (20 min por 5 s, VRAM 3,8 GB); fiscal boca_natural recalibrado com boca aberta legítima (16/16) → B aprova, A reprova por defeito real (vão esverdeado). Pippit: Story Studio é paywall; "Foto falante de IA" (25 créditos) aprova boca (fiscal + juiz 10/10) e identidade 9/10 com marca de água → degrau 6 em_prova, só para closes compostos. Via 3D (adendo): malha+rig da Tabita prontos no Kaggle (Pixal3D 988 k faces, SkinTokens 52 ossos, 28 min), colhidos e com checkpoint no PC; o kernel da cena (Blender) foi cancelado 2× pelo Kaggle dentro de construir_boca (sem failureMessage) → a decimar a malha e instrumentar; prova 3D ainda sem resultado. Tique: lote de fotogramas FEITO (bloco 1: 14 aprovados + 5 residuais), veto falso de figurantes corrigido, duas falhas minhas apanhadas (fome de repetíveis; NameError os). Vozes dos rapazes: kernel ainda a correr.
+
+[21/10 12:40, Claude Code/Fable, retoma] Tarde: abertura-mestre do Ep1 feita (50 s, so imagens aprovadas, -14 LUFS, provas R60 e fiscal de texto; cartao "Episodio 1 - Haja Luz" unico), SFX 57/58 resolvidos com licenca (2 reprovados pelo ouvido a refazer), InfiniteTalk lote 1 do bloco 1 a correr no Kaggle (8 clipes, colheita ~14:30), malha 3D da Tabita v3 (cor por vertice) a correr no Kaggle, musica v6 ACE-Step COMPLETE a colher pelo tique. Vozes: Gustavo e Sussurrador aprovados com reserva pelo Representante, Davi reprovado (vocoder) e a ser refeito com VoiceDesign ~120 Hz. Bocas 2D: Tabita aprova 3/3 (juiz 3 votos), Gustavo falha por luz lateral (volta 7 em curso), sem carimbo. Dois defeitos de sistema corrigidos e provados: o juiz 3.5-flash estava marcado morto ha 5 dias (so o lite julgava) e um "limite do Gemini" falso por causa da palavra "tamanho" no eco do pedido. Montagem 12:11: pico +0,3 dBTP corrigido (tecto -3 dBTP) e 4 planos curtos estendidos. Flow volta as 19:56 (26 creditos). Tudo em commits locais ate 64f57e9; nada empurrado; nada pago.

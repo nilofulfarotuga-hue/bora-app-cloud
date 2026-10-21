@@ -2,7 +2,7 @@
 id: memoria-claude-ai-caminhos-animacao-filme
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-18
+ultima_confirmacao: 2026-10-21
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Filme das filhas — 5 caminhos grátis para o desenho (revisto 05/10 com os 50 vídeos)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-18T19:55:57.675029+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-21T11:53:59.329053+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: caminhos animacao filme · memoria claude.ai · claude_ai_memoria
 
@@ -72,3 +72,12 @@ Detalhe e links: página engenharia-reversa-achados-2026-10-17.
 
 ## 18/10/2026 — radar diário
 - CANDIDATO A TESTAR (não testado): Pippit — Story Studio que gera vídeos longos com roteiro, narração e legendas a partir de um prompt, diz manter personagem e cenário; créditos grátis que renovam todos os dias. Teste proposto: 1 cena curta com a ficha da personagem como imagem de referência e ver se a cara e o cabelo se mantêm entre planos (ataca o problema da deriva que matou o Kaggle/Wan). Não resolve boca nem voz de criança pelo que o resumo diz. https://www.youtube.com/watch?v=iM4S6v1oMmM
+
+== 21/10/2026 (Claude Code/Fable, retoma ep1-perfeito) — o que cada caminho MEDIU hoje ==
+1) Flow/Veo (Lite, 10 cr/clipe, perfil Bora): a imagem tem de ir como INGREDIENTE (senao sai fotorreal); b1_e01 aprovado; Extend A+B aprovado com reserva (corte invisivel, identidade segura, cenario deriva +0,05/clipe). 26 creditos ate a reposicao mensal; a conta pessoal nao foi medida. Serve para cenas SEM fala.
+2) InfiniteTalk/Wan2GP no Kaggle T4: funciona (20 min por 5 s, VRAM 3,8 GB); fiscal da boca recalibrado (16/16); EM PRODUCAO: lote 1 do bloco 1 (b1_t04b, e03, e04, e05 x 2 seeds) a correr desde 11:37, colheita ~14:30; so planos com UM falante; caixa da boca conferida pela camisola (o juiz tinha posto a boca da Tabita na Tailine).
+3) Pippit "Foto falante" (gratis, 25 cr/export, marca de agua, 9:16): boca e identidade aprovam -> degrau 6, so closes compostos; Story Studio = paywall (nao se paga).
+4) Marioneta 2D (folhas de 9 bocas desenhadas no Gemini + Rhubarb, no render 2.5D): Tabita APROVA 3/3 com juiz a 3 votos depois de a mascara cobrir a boca original inteira; Gustavo falha com luz lateral (remendo le-se como rectangulo) -> volta 7 em curso; sem carimbo ainda. Necessario para os 4 planos do bloco 1 com dois falantes.
+5) VIA 3D (Tabita, prova do adendo D): malha Pixal3D 988k -> 100k faces com cor por vertice (a decimacao com textura parava em 456k), rig SkinTokens OK, animacao Kimodo idle OK, boca por shape keys Rhubarb; a cena v4 (b3_s06, 8 s, 854x480) esta a correr no Kaggle desde 12:47 (as 3 anteriores morreram por memoria no Blender). Resultado e veredito (juiz 10/10 em 10 fotogramas + boca_natural + tira a olho) a seguir nesta pagina.
+Ordem da cascata hoje: Flow (sem fala) > InfiniteTalk (um falante) > marioneta 2D (dois falantes / reserva) > Pippit (closes) ; via 3D decide-se pela prova.
+Avisos: os juizes de topo (gemini-3.5-flash, 3-flash-preview) gastam 20 pedidos/dia e esgotaram as 12:21 — o resto do dia julga o lite (sugestionavel): mandam os numeros e a tira revista a olho. Nada pago, nada empurrado para o GitHub.

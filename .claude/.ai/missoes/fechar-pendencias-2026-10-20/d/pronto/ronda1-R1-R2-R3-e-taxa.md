@@ -1,5 +1,10 @@
 # Bloco D · ronda 1 — R1, R2, R3 e a taxa de serviço do prémio (21/10/2026)
 
+> **Atualização da ronda 2 (21/10):** R1 e R2 (estendido a `payment_status` e `cash_total_due`) foram
+> APLICADOS em produção (migrações 20261021070823 e 20261021070735), com o "Vai" e o SIM do revisor; o R2
+> aplicado é o de `R2_aplicar.sql` atual (só o dono do pedido é limitado). Ver RELATORIO-D.md, ronda 2.
+> A frase "a Trava recusa" abaixo era dedução: nesta sessão a Trava não correu (e2e_log 4111).
+
 Nada disto está aplicado. O orquestrador transmitiu o "Vai" do Danilo (21/10 06:15Z, MISSAO.md e e2e_log 4087)
 para R1, R2 e R3 "só se for mesmo preciso", com a ordem de **não aplicar ainda**: o revisor vê primeiro.
 A taxa de serviço do prémio e o acerto da loja **não** estão no "Vai": continuam proposta.

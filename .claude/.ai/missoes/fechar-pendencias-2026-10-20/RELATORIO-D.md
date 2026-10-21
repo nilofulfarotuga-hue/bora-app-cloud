@@ -123,6 +123,9 @@ porque o saco é tirado do total mas não do valor a cobrar. Reportado; não cor
 | 20261021050727 | d_checkin_marcos_11_robo_suporte | 73869c0c22b85c5a8b37d8267aaecc75 |
 | 20261021061136 | d_checkin_marcos_12_r1_vale_no_pedido (ronda 1) | 5725e2b200d87f2bd15f935abe616f8a |
 | 20261021061215 | d_checkin_marcos_13_r1_marcacoes (ronda 1) | 5d6ca575e155ba8350acdb800f294316 |
+| 20261021070438 | d_checkin_marcos_14_r2_pedido_pago_a_serio (ronda 2) | a5f2cc01b4410737283a75eb56d2e640 |
+| 20261021070735 | r2_pedido_cliente_so_o_que_a_app_faz (R2 estendido) | 8f35ab985689262f9778cf08488d0de9 |
+| 20261021070823 | r1_create_order_dono_do_pedido (R1) | bc42b7f015b1017f396d24288a52064f |
 
 Ordem, e porquê: a Trava não deixa provar numa só instrução um gatilho novo de `orders` e chamar a função que
 cria pedidos; e a tranca já não deixa inserir pedidos à mão. Por isso apliquei as peças que não mexem em
@@ -161,15 +164,26 @@ App: `flutter analyze` sem erros e sem avisos nos ficheiros novos (os 264 avisos
 `origin/autonomous-night-2026-04-29`): CLEAN, exit 0, +19 casos de teste; zonas protegidas: CLEAN.
 Commits: `09c42742` (servidor), `2721a067` (app), `6c4ac397` (painel), mais este relatório.
 
-## ⚠️ ISTO MEXE EM PAGAMENTO/DINHEIRO. Está tudo pronto — confirma que eu aplico.
+## ⚠️ ISTO MEXE EM PAGAMENTO/DINHEIRO — lista fechada do que está aplicado em produção e como se desfaz
 
-**Aplicado nesta missão (autorizado a 20/10, tudo desligado até publicar):** a tabela dos vales; os 2 artigos a
-0 € com as opções; o gatilho que confirma o vale no pedido; o pagamento "prémio" nas marcações de limpeza e
-lavagem (o prestador recebe o ganho normal, a Bora absorve); as definições `checkin_marco_*`; a lista
-"A pagar às lojas" no painel. Reverte-se com `d/reversao-bloco-d.sql` (ou só desligar: passo 0).
+| # | O quê | Migração (md5 no repo = md5 na base) | Autorização | Como se desfaz |
+|---|---|---|---|---|
+| 1 | Bloco D, peças 1 a 11 (vales, 2 artigos a 0 €, gatilho do vale no pedido, pagamento "prémio" nas marcações, definições `checkin_marco_*`, painel, lembretes, robô) | 20261021045300 … 20261021050727 | ordem de 20/10 | `d/reversao-bloco-d.sql` (passo 0 só desliga; passo 1 desfaz tudo e guarda os vales numa cópia) |
+| 2 | Bloco D ronda 1: vale no pedido (F1-F3) | 20261021061136 (5725e2b2…) | ordem de 20/10 | incluído em `d/reversao-bloco-d.sql` |
+| 3 | Bloco D ronda 1: vale nas marcações (F5, F6) | 20261021061215 (5d6ca575…) | ordem de 20/10 | incluído em `d/reversao-bloco-d.sql` |
+| 4 | Bloco D ronda 2: "1 pedido pago" a sério (F7) | 20261021070438 (a5f2cc01…) | ordem de 20/10 | incluído em `d/reversao-bloco-d.sql` (a função sai) |
+| 5 | **R1** — `create_order`: o pedido é sempre de quem tem a sessão de cliente (servidor e admin podem mandar outro) | 20261021070823 (bc42b7f0…); `create_order` md5 8688fcf8… → 050cd3fc… | "Vai" do Danilo (e2e_log 4087) + SIM do revisor (4100) | `d/reversao-R1.sql` (repõe a cópia `bkp_fn_create_order_20261021` e confere o md5 8688fcf8…) |
+| 6 | **R2 estendido** — o dono do pedido só muda o estado como a app faz e não mexe em `payment_status` nem em `cash_total_due` | 20261021070735 (8f35ab98…) | "Vai" (4087) + SIM do revisor (4100) | `d/reversao-R2.sql` (desligar já numa linha, ou tirar de vez) |
 
-**Por aplicar (precisa do teu "vai"):** `d/pronto/proposta-loja-recebe-premio-no-acerto.md` — a loja recebe o
-prémio no acerto semanal sozinha (linha de ganho no ledger). Sem isto, a Bora paga às lojas pela lista do painel.
+Os marcos continuam desligados (`checkin_marco_ativo = false`), por isso as linhas 1 a 4 não dão nada a ninguém
+até o Danilo os ligar. As linhas 5 e 6 estão a trabalhar desde 21/10 ~07:08.
+
+**Por aplicar (precisa do teu "vai"):**
+- `d/pronto/proposta-loja-recebe-premio-no-acerto.md` — a loja recebe o prémio no acerto semanal sozinha (linha
+  de ganho no ledger). Sem isto, a Bora paga às lojas pela lista do painel.
+- `d/pronto/P4_aplicar.sql` — lavagens: o cliente e o lavador só mudam pela tabela o que a app muda (a foto).
+  Prova desfeita em `d/prova_rollback_resultado.txt` (ronda 2). Reversão: `d/pronto/P4_reversao.sql`.
+- Taxa de serviço do prémio (0,32 € / 0,46 €): só desenho, em `d/pronto/ronda1-R1-R2-R3-e-taxa.md`.
 
 ## PARA O DANILO
 
@@ -278,3 +292,71 @@ nenhum acerto; um cancelamento direto pelo cliente (`cancelled`) já rebentava a
     fala de cancelamentos.
 
 Registos ronda 1: e2e_log ids 4089 a 4098 (`D-r1-F1` … `D-r1-F6`, `D-r1-R1` … `D-r1-R3`, `D-r1-robo-texto`).
+
+---
+
+## Ronda 2 (21/10/2026) — o revisor disse NÃO por 2 pontos; R1 e R2 SIM
+
+Fiz isto:
+
+- **F4:** o guião de reversão esperava o md5 errado. Pus o certo (`4b15f97f…`, a versão "Ontem fizeste…" que estava
+  no ar antes do Bloco D) e provei o 1.º passo tal e qual numa transação desfeita: passa (md5 `4b15f97f…`, frase
+  certa, cron da manutenção tirado).
+- **F7:** o "1 pedido pago nos últimos 30 dias" já não se finge (migração 20261021070438, provada antes de aplicar):
+  - pedidos só contam com a entrega registada por outra pessoa que não o cliente, no histórico que o cliente não
+    escreve, e os 30 dias contam por esse registo;
+  - limpezas só contam concluídas, com profissional e pagamento confirmado;
+  - lavagens deixam de contar até a regra de escrita delas (P4) estar no ar.
+  - Prova: a lavagem fingida pelo cliente dava "sim" e agora dá "não"; comparei as 54 pessoas com pedidos,
+    limpezas, lavagens ou TVDE: ninguém perde nem ganha.
+- **R2 estendido e R1 aplicados** (ver a tabela ⚠️ acima), por `apply_migration`. Prova de ponta a ponta contra
+  produção, desfeita no fim:
+  - **Ataques recusados com 42501:** o cliente a aceitar ele próprio o pedido da loja, ou a pôr "rejected",
+    "delivered", "pago" ou 0 € a cobrar; o cliente a pôr "rejected" num pedido já entregue.
+  - **R1:** o pedido feito com o id de outra pessoa fica no nome de quem o fez.
+  - **Continuam a funcionar:**
+    - o cliente cria o seu pedido;
+    - o cliente faz `created → preparing → callingDriver` num restaurante não-parceiro e muda as notas;
+    - o servidor (chave de serviço, como `finalize-order-from-intent` e os testes e2e) cria pedidos em nome do
+      cliente, e o admin também;
+    - a loja aceita;
+    - o servidor e o admin cancelam;
+    - o estafeta recolhe, segue a caminho (escrita direta) e entrega (`delivered/paid`).
+- **R2, uma coisa que mudei no desenho que o revisor viu:** a regra só se aplica ao dono do pedido. Retirei a
+  exceção "loja do pedido": um cliente podia escrever ele mesmo a loja ou o estafeta do seu pedido e depois
+  passar pela exceção. Ficou só a do estafeta que aceitou o pedido, tirada do histórico que o cliente não
+  escreve. A loja não perde nada: o que ela faz no pedido vai pelas funções dela.
+- **P4 pronto, não aplicado** (`d/pronto/P4_aplicar.sql`, com prova desfeita):
+  - o cliente anexa a foto (1 linha);
+  - marcar a lavagem como concluída, ou mexer no total e no ganho do lavador → 42501;
+  - o servidor e o admin continuam a escrever.
+- **App:** nenhuma linha de Dart mudou nesta ronda, por isso não corri `flutter analyze`/`test`.
+  Anti-trapaça: ver o fim.
+- **Nada ficou gravado pelas provas:** 0 vales, 67 pedidos, 12 limpezas, 2 lavagens, 144 linhas no ledger,
+  0 eventos de estado nas últimas 3 h, marcos desligados, horários das lojas iguais, lembretes com o md5 de
+  agora (`2c169c74…`), cron da manutenção no sítio.
+
+Erro que encontrei pelo caminho (reportado, e2e_log `D-r2-travas`): **a Trava e a bora-tranca não correram nas
+chamadas à base desta sessão.**
+- O `apply_migration` do R1 (texto com `ALTER` e `create_order`) passou. O mesmo tipo de texto, dado à mão ao
+  `protege-banco.sh`, dá "BLOQUEADA" (exit 2).
+- A sessão corre em `C:\BoraLocal\projetosflutter\bora_app\bora_app`, e a regra da Trava está em
+  `...\bora_app\.claude\settings.json`, que aponta para o caminho do PC antigo.
+- A tranca do bora-mods só olha para ferramentas com "supabase" no nome, e este conector chama-se `mcp__cb62ddfa-…`.
+- Nas rondas anteriores, onde escrevi que a Trava ou a tranca me recusavam SQL, era dedução pelas regras, não uma
+  recusa vista. Não mexi nas travas: são zona vermelha.
+
+### PARA O DANILO (ronda 2)
+
+15. **Lavagens (P4).** Hoje o cliente e o lavador podem mudar qualquer coisa da sua lavagem pela tabela (estado,
+    total, ganho). Está pronta a regra que só deixa o cliente anexar a foto (a única coisa que a app escreve). Até
+    lá, as lavagens não contam para o "1 pedido pago" do vale dos 30 dias. Diz "vai" se quiseres que a aplique.
+16. **As travas não estão a guardar a base nesta sessão** (ver acima). Quem decide como as voltar a ligar és tu.
+17. **Mais colunas do pedido que o cliente ainda escreve** (o revisor apontou, não estavam no "Vai"):
+    `delivered_at`, `driver_id`, `assigned_driver_id`, o valor dos tokens e da carteira usados, o estado do
+    reembolso, `is_test_order`. Nenhuma delas muda o que se cobra hoje, mas convém fechar numa próxima ronda.
+
+Registos ronda 2: e2e_log ids 4107 a 4111 (`D-r2-F4`, `D-r2-F7`, `D-r2-R1-aplicado`, `D-r2-R2-aplicado`,
+`D-r2-travas`).
+
+Anti-trapaça ronda 2 (base `origin/autonomous-night-2026-04-29`): CLEAN, exit 0, +19 casos de teste; zonas protegidas: CLEAN, exit 0.

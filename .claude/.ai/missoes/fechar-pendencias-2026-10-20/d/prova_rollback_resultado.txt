@@ -40,3 +40,27 @@ RESULT {"R1": {"6_sem_sessao_manda_V": "fica V", "2_cliente_A_sem_user_id": "fic
 
 == Ronda 1 · estado depois de todas as provas ==
 (ver a contagem final no RELATORIO-D.md, secção Ronda 1)
+
+== Ronda 2 (21/10/2026) — saídas literais; todas as provas em transação desfeita (RAISE no fim) ==
+
+-- F4: o 1.º passo do guião (desliga o cron, repõe os lembretes, confere o md5), tal e qual:
+RESULT passou o 1.o passo: md5=4b15f97f32371b65399ea1d691b463a7 frase_manha=t cron_ainda_la=0
+
+-- F7 ANTES de aplicar (migração 14 criada dentro da transação; T = e2e_client_b):
+RESULT {"1_T_antes_de_tudo": false, "9_quem_perde_e_porque": null, "9_comparacao_toda_a_gente": {"ficam": 29, "ganham": 0, "perdem": 0, "tinham": 29, "pessoas": 54}, "4_T_tenta_o_mesmo_na_limpeza": "0 linhas", "7_limpeza_paga_sem_profissional": false, "8_limpeza_paga_com_profissional": true, "3_funcao_antiga_depois_da_fraude": true, "5_funcao_nova_com_a_lavagem_fingida": false, "6_limpeza_concluida_mas_dinheiro_held": false, "2_T_marca_a_lavagem_concluida_pela_tabela": "1 linha"}
+
+-- R2 estendido ANTES de aplicar (decisão do gatilho com linhas em memória; "deixa" = passa):
+RESULT {"R2x": {"14_admin": "deixa", "15_servidor": "deixa", "08_ATAQUE_poe_pago": "payment_status", "06_ATAQUE_poe_delivered": "status callingDriver -> delivered", "04_cliente_muda_so_as_notas": "deixa", "05_ATAQUE_delivered_rejected": "status delivered -> rejected", "09_ATAQUE_poe_0_euros_a_cobrar": "cash_total_due", "03_cliente_favor_created_preparing": "deixa", "12_dono_que_e_o_estafeta_que_aceitou": "deixa", "13_estafeta_ou_loja_que_nao_e_o_dono": "deixa", "10_ATAQUE_mudanca_boa_com_pago_a_boleia": "payment_status", "01_cliente_naoparceiro_created_preparing": "deixa", "11_ATAQUE_pos_se_como_estafeta_e_depois_pago": "payment_status", "02_cliente_naoparceiro_preparing_callingDriver": "deixa", "07_ATAQUE_restaurante_parceiro_created_preparing": "status created -> preparing"}, "gatilho": "a00_pedido_cliente_guarda ligado", "permissoes": {"anon_decisao": false, "cliente_decisao": true, "cliente_gatilho": false}, "corre_primeiro": "a00_pedido_cliente_guarda"}
+
+-- Aplicado (apply_migration): 20261021070438 F7 (a5f2cc01…), 20261021070735 R2 (8f35ab98…), 20261021070823 R1 (bc42b7f0…).
+-- create_order: md5 antes 8688fcf8b22429246079ec873d076fd8 → depois 050cd3fc5d1bcafdeeaa2946086b9483; cópia em
+-- bkp_fn_create_order_20261021 (1 linha, md5 8688fcf8…, RLS ligada, cliente não lê); anon não chama, cliente chama.
+
+-- DEPOIS de aplicar, ponta a ponta contra produção (create_order, RPCs e escritas diretas reais como a API):
+RESULT {"R2_d_T_poe_pago": "42501 pedido_so_pela_loja_estafeta_ou_servidor (payment_status)", "R2_g_loja_aceita": "preparing", "R1_2_A_cria_o_seu": {"preco": 9.12, "dono_A": true, "estado": "driverAccepted"}, "R1_4_admin_manda_V": "fica no nome de V", "R2_i_admin_cancela": "cancelled", "R2_b_T_poe_rejected": "42501 pedido_so_pela_loja_estafeta_ou_servidor (status created -> rejected)", "R2_c_T_poe_delivered": "42501 pedido_so_pela_loja_estafeta_ou_servidor (status created -> delivered)", "R2_f_T_muda_as_notas": "1 linha", "R2_k_estafeta_entrega": "delivered/paid", "F7_T_sem_nada_entregue": false, "R1_1_A_manda_o_id_de_V": "fica no nome de A", "R1_5_cliente_T_cria_o_seu": {"preco": 9.12, "dono_T": true, "estado": "created", "a_cobrar": 9.42}, "R2_e_T_poe_0_euros_a_cobrar": "42501 pedido_so_pela_loja_estafeta_ou_servidor (cash_total_due)", "R2_l_A_poe_rejected_no_entregue": "42501 pedido_so_pela_loja_estafeta_ou_servidor (status delivered -> rejected)", "R2_h_servidor_cancela_antes_de_aceite": "1 linha", "F7_A_com_pedido_entregue_pelo_estafeta": true, "R1_3_servidor_chave_de_servico_manda_T": {"dono_T": true, "estado": "created"}, "R2_j_estafeta_a_caminho_escrita_direta": "1 linha", "R2_a_T_aceita_ele_proprio_o_pedido_da_loja": "42501 pedido_so_pela_loja_estafeta_ou_servidor (status created -> preparing)"}
+-- e o caminho do cliente num restaurante não-parceiro (McDonald's), escrita direta como a app:
+RESULT {"estado_final": "callingDriver/pending", "estado_inicial": "created/pending", "cliente_created_preparing": "1 linha", "cliente_preparing_callingDriver": "1 linha"}
+
+-- P4 (NÃO aplicado), prova com o gatilho criado dentro da transação:
+RESULT {"6_admin_escreve": "1 linha", "4_servidor_escreve": "1 linha", "5_cliente_cancela_pela_funcao": null, "3_ATAQUE_cliente_muda_dinheiro": "42501 lavagem_so_pelo_servidor (total_cents, washer_earnings_cents)", "1_cliente_anexa_foto_como_a_app": "1 linha", "2_ATAQUE_cliente_marca_concluida": "42501 lavagem_so_pelo_servidor (completed_at, status)"}
+(5: a função de cancelar correu sem erro; a resposta dela não tem a chave "ok".)

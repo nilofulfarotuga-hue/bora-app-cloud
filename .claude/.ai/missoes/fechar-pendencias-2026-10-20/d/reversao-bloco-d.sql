@@ -11,10 +11,13 @@
 BEGIN;
 SELECT cron.unschedule('checkin-premios-manutencao');
 
--- 1.º os lembretes das 11h/20h: repor JÁ a versão de 18/10 (antes do Bloco D), porque a de agora usa
--- _checkin_estado_marcos e _checkin_marcos_config, que saem mais abaixo. Texto tirado da versão
--- 20261018170119 de supabase_migrations.schema_migrations; md5 do corpo = abfeca53817be18e7655e03ad745e0fd
--- (provado a 21/10 numa transação revertida: depois de correr isto, md5(prosrc) = abfeca53..., igual ao de antes).
+-- 1.º os lembretes das 11h/20h: repor JÁ a versão que estava no ar antes do Bloco D (a frase da manhã
+-- "Ontem fizeste o dia %s do check-in…"), porque a de agora usa _checkin_estado_marcos e
+-- _checkin_marcos_config, que saem mais abaixo. Atenção: essa versão NÃO é a da migração 20261018170119
+-- ("Vais no dia %s seguido!…"); foi trocada fora das migrações antes do Bloco D.
+-- md5(prosrc) depois de correr isto = 4b15f97f32371b65399ea1d691b463a7 (ronda 2, 21/10: provado numa
+-- transação desfeita e confirmado pelo revisor; a ronda 1 tinha aqui um md5 errado, abfeca53…, e o guião
+-- parava no passo seguinte).
 CREATE OR REPLACE FUNCTION public.checkin_lembretes_processar()
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -132,8 +135,8 @@ $function$;
 DO $confere$
 BEGIN
   IF (SELECT md5(prosrc) FROM pg_proc WHERE oid = 'public.checkin_lembretes_processar()'::regprocedure)
-     IS DISTINCT FROM 'abfeca53817be18e7655e03ad745e0fd' THEN
-    RAISE EXCEPTION 'reversao: os lembretes nao ficaram iguais aos de 18/10; nada foi desfeito';
+     IS DISTINCT FROM '4b15f97f32371b65399ea1d691b463a7' THEN
+    RAISE EXCEPTION 'reversao: os lembretes nao ficaram iguais aos de antes do Bloco D; nada foi desfeito';
   END IF;
 END $confere$;
 

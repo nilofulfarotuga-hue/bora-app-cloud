@@ -10,6 +10,7 @@ import '../models/cart_item.dart';
 import '../models/order_model.dart';
 import '../config/business_rules.dart' show BRTokens;
 import '../services/assistant_service.dart';
+import '../services/checkin_premios_service.dart';
 import '../services/maps_service.dart';
 import '../services/pricing_service.dart';
 import '../services/remote_fees_service.dart';
@@ -222,6 +223,12 @@ class CartStore extends ChangeNotifier {
   LatLng? get deliveryLocation => _deliveryLocation;
 
   String? get vendorName => _vendorName;
+
+  /// Id da loja da sessão actual (o carrinho do prémio do check-in usa-o).
+  String? get vendorRestaurantId => _vendorRestaurantId;
+
+  /// O carrinho já tem um artigo-prémio do check-in.
+  bool get temArtigoPremio => _items.any((i) => ehArtigoPremio(i.productId));
 
   /// True quando a loja da sessão actual está em "Em breve" — a UI mostra o
   /// botão de adicionar/finalizar desactivado e [addItem] é ignorado.
@@ -980,6 +987,17 @@ class CartStore extends ChangeNotifier {
 
     final cartItem = item;
 
+    // Prémio do check-in (21/10/2026): uma linha só, com a quantidade do vale.
+    // Escolher outros sabores troca a linha; nunca soma (o servidor recusa
+    // um prémio a mais e o pedido não passava).
+    if (ehArtigoPremio(cartItem.productId)) {
+      _items.removeWhere((i) => i.productId == cartItem.productId);
+      _items.add(cartItem);
+      notifyListeners();
+      _saveCart();
+      return;
+    }
+
     final index = _items.indexWhere((i) => i.lineKey == cartItem.lineKey);
 
     if (index >= 0) {
@@ -994,11 +1012,20 @@ class CartStore extends ChangeNotifier {
 
   void removeItem(CartItem item) {
     _items.removeWhere((i) => i.lineKey == item.lineKey);
+    _soltarPremio(item);
     notifyListeners();
     _saveCart();
   }
 
+  /// O prémio saiu do carrinho: o vale volta a "por usar" (não espera 60 min).
+  void _soltarPremio(CartItem item) {
+    if (!ehArtigoPremio(item.productId)) return;
+    unawaited(CheckinPremiosService.instance.libertarArtigo(item.productId));
+  }
+
   void increaseQuantity(CartItem item) {
+    // O prémio vale a quantidade do vale — não se aumenta.
+    if (ehArtigoPremio(item.productId)) return;
     final index = _items.indexWhere((i) => i.lineKey == item.lineKey);
     if (index >= 0) {
       _items[index].quantity++;
@@ -1012,6 +1039,7 @@ class CartStore extends ChangeNotifier {
     if (index >= 0) {
       if (_items[index].quantity <= 1) {
         _items.removeAt(index);
+        _soltarPremio(item);
       } else {
         _items[index].quantity--;
       }

@@ -160,7 +160,8 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
     try {
       await store.cancelBooking(b.id);
       // Liberta a retenção do cartão / estorna MB Way (no-op sem PI).
-      if (b.paymentMethod != 'cash') {
+      // Prémio do check-in: não houve pagamento; o vale volta sozinho.
+      if (b.paymentMethod != 'cash' && b.paymentMethod != 'premio') {
         store.reversePayment(b.id);
       }
       if (!mounted) return;
@@ -719,6 +720,7 @@ class _DetailsCard extends StatelessWidget {
               switch (b.paymentMethod) {
                 'card' => 'Cartão',
                 'mbway' => 'MB Way',
+                'premio' => 'Prémio do check-in (pago pela Bora)'.tr,
                 _ => 'Dinheiro'.tr,
               }),
           if (b.notes.isNotEmpty) _row('Notas'.tr, b.notes),

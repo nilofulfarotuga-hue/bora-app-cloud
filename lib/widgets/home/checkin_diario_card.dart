@@ -18,9 +18,13 @@ import 'package:flutter/material.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../l10n/tr.dart';
+import '../../screens/client/checkin_premios_screen.dart';
 import '../../screens/complete_profile_screen.dart';
+import '../../services/checkin_premios_service.dart';
 import '../../services/checkin_service.dart';
 import '../../services/wallet_service.dart';
+import '../checkin/checkin_mes_sheet.dart';
+import '../checkin/confete.dart';
 
 class CheckinDiarioCard extends StatefulWidget {
   const CheckinDiarioCard({
@@ -28,6 +32,9 @@ class CheckinDiarioCard extends StatefulWidget {
     this.carregar,
     this.fazer,
     this.confirmarTelemovel,
+    this.carregarPremios,
+    this.abrirPremios,
+    this.marcarVistos,
   });
 
   /// Lê o estado de hoje. Por omissão, `CheckinService.instance.estado`.
@@ -38,6 +45,17 @@ class CheckinDiarioCard extends StatefulWidget {
 
   /// Abre a confirmação do telemóvel. Por omissão, o ecrã de completar perfil.
   final Future<void> Function(BuildContext context)? confirmarTelemovel;
+
+  /// Marcos do mês e vales (Bloco D, 21/10/2026). Por omissão,
+  /// `CheckinPremiosService.instance.estado`. `null` = sem marcos (a semana
+  /// fica exatamente como antes).
+  final Future<CheckinPremiosEstado?> Function()? carregarPremios;
+
+  /// Abre "Os meus prémios". Por omissão, o ecrã [CheckinPremiosScreen].
+  final Future<void> Function(BuildContext context)? abrirPremios;
+
+  /// Marca a festa de um prémio como vista. Por omissão, o servidor.
+  final Future<void> Function(List<String> ids)? marcarVistos;
 
   @override
   State<CheckinDiarioCard> createState() => _CheckinDiarioCardState();
@@ -54,6 +72,11 @@ class _CheckinDiarioCardState extends State<CheckinDiarioCard>
   bool _falhou = false;
   int _ganhos = 0;
   int? _saldo;
+
+  // Marcos do check-in: vista do mês (seta) e festa quando nasce um prémio.
+  CheckinPremiosEstado? _premios;
+  String? _premioNovo;
+  bool _confete = false;
 
   // Criado no initState, nunca "à preguiça": com o cartão escondido o
   // controlador nunca era lido e nascia dentro do dispose(), a procurar o
@@ -92,6 +115,7 @@ class _CheckinDiarioCardState extends State<CheckinDiarioCard>
     final minha = ++_versao;
     final e = await (widget.carregar ?? CheckinService.instance.estado)();
     if (!mounted || minha != _versao) return;
+    unawaited(_lerPremios());
     // A tentativa que falhou por tempo pode ter ficado gravada no servidor:
     // se a releitura já a mostra feita, o perfil volta a ler o saldo.
     if (_falhou && e != null && e.alreadyDone) WalletService.saldoMudou.value++;
@@ -103,6 +127,46 @@ class _CheckinDiarioCardState extends State<CheckinDiarioCard>
       _saldo = null;
       _ganhos = 0;
     });
+  }
+
+  /// Lê os marcos; se houver um prémio que o cliente ainda não viu, faz a festa.
+  Future<void> _lerPremios() async {
+    final p = await (widget.carregarPremios ?? CheckinPremiosService.instance.estado)();
+    if (!mounted) return;
+    String? novo;
+    if (p != null && p.marcosAtivos && p.novos.isNotEmpty) {
+      for (final v in p.vales) {
+        if (p.novos.contains(v.id)) {
+          novo = v.titulo;
+          break;
+        }
+      }
+    }
+    setState(() {
+      _premios = (p != null && p.marcosAtivos) ? p : null;
+      if (novo != null) {
+        _premioNovo = novo;
+        _confete = true;
+      }
+    });
+    if (novo != null && p != null) {
+      unawaited((widget.marcarVistos ?? CheckinPremiosService.instance.marcarVistos)(p.novos));
+    }
+  }
+
+  Future<void> _abrirPremios() async {
+    final abrir = widget.abrirPremios ??
+        (BuildContext ctx) => Navigator.of(ctx).push<void>(
+              MaterialPageRoute(builder: (_) => const CheckinPremiosScreen()),
+            );
+    await abrir(context);
+    if (mounted) unawaited(_lerPremios());
+  }
+
+  void _abrirMes() {
+    final p = _premios;
+    if (p == null) return;
+    mostrarCheckinMes(context, p, abrirPremios: _abrirPremios);
   }
 
   Future<void> _fazer() async {
@@ -125,6 +189,8 @@ class _CheckinDiarioCardState extends State<CheckinDiarioCard>
         _saldo = r.balance ?? _saldo;
       });
       if (ganhos > 0) unawaited(_entrada.forward(from: 0));
+      // O gatilho do servidor pode ter dado o prémio de um marco agora mesmo.
+      unawaited(_lerPremios());
       // O saldo mostrado noutros ecrãs (perfil) volta a ser lido. Também quando
       // a tentativa anterior falhou por tempo: o servidor pode tê-la gravado.
       if (ganhos > 0 || (anteriorFalhou && r.alreadyDone)) {
@@ -186,6 +252,10 @@ class _CheckinDiarioCardState extends State<CheckinDiarioCard>
                 _dias(e),
                 const SizedBox(height: 12),
                 _rodape(e),
+                if (_premioNovo != null) ...[
+                  const SizedBox(height: 10),
+                  _premioGanho(_premioNovo!),
+                ],
               ],
             ),
             Positioned(
@@ -193,6 +263,14 @@ class _CheckinDiarioCardState extends State<CheckinDiarioCard>
               top: 0,
               child: IgnorePointer(child: _tokensAEntrar()),
             ),
+            if (_confete)
+              Positioned.fill(
+                child: Confete(
+                  onFim: () {
+                    if (mounted) setState(() => _confete = false);
+                  },
+                ),
+              ),
           ],
         ),
       ),
@@ -210,6 +288,14 @@ class _CheckinDiarioCardState extends State<CheckinDiarioCard>
             style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
           ),
         ),
+        if (_premios != null)
+          IconButton(
+            key: const Key('btn_checkin_mes'),
+            tooltip: 'Ver os prémios do mês'.tr,
+            visualDensity: VisualDensity.compact,
+            onPressed: _abrirMes,
+            icon: const Icon(Icons.chevron_right_rounded, color: AppColors.primary),
+          ),
         if (_saldo != null)
           TweenAnimationBuilder<int>(
             key: const Key('checkin_saldo'),
@@ -393,6 +479,38 @@ class _CheckinDiarioCardState extends State<CheckinDiarioCard>
           ),
         ],
       ],
+    );
+  }
+
+  /// Faixa do prémio novo de um marco ("Ganhaste 2 salgados da Keli! Ver").
+  Widget _premioGanho(String titulo) {
+    return Container(
+      key: const Key('checkin_premio_novo'),
+      padding: const EdgeInsets.fromLTRB(10, 6, 4, 6),
+      decoration: BoxDecoration(
+        color: _verdeClaro,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.card_giftcard, color: AppColors.primary, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Ganhaste {0}!'.trArgs([titulo.tr]),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+            ),
+          ),
+          TextButton(
+            key: const Key('btn_ver_premio'),
+            onPressed: () {
+              setState(() => _premioNovo = null);
+              _abrirPremios();
+            },
+            child: Text('Ver'.tr),
+          ),
+        ],
+      ),
     );
   }
 

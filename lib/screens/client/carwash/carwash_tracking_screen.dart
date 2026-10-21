@@ -100,7 +100,8 @@ class _CarwashTrackingScreenState extends State<CarwashTrackingScreen>
     final store = context.read<CarwashStore>();
     final done = await store.cancelBooking(b.id);
     // Se já tinha sido pago, devolve o que exceder a taxa de cancelamento.
-    if (done && b.paymentMethod != 'cash' && b.paymentStatus != 'unpaid') {
+    // Prémio do check-in: não houve pagamento; o vale volta sozinho.
+    if (done && b.paymentMethod != 'cash' && b.paymentMethod != 'premio' && b.paymentStatus != 'unpaid') {
       await store.reversePayment(b.id);
     }
     if (!mounted) return;
@@ -467,6 +468,7 @@ class _CartaoDados extends StatelessWidget {
               switch (b.paymentMethod) {
                 'card' => 'Cartão',
                 'mbway' => 'MB WAY'.tr,
+                'premio' => 'Prémio do check-in (pago pela Bora)'.tr,
                 _ => 'Dinheiro'.tr,
               }),
           const Divider(height: Spacing.xl),

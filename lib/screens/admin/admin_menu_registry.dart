@@ -96,6 +96,7 @@ import 'admin_support_tickets_screen.dart';
 import 'admin_tvde_access_requests_screen.dart';
 import 'admin_tokens_screen.dart';
 import 'admin_tvde_balcao_agenda_screen.dart';
+import 'admin_tvde_fila_screen.dart';
 import 'admin_tvde_balcao_screen.dart';
 import 'admin_tvde_cancellations_screen.dart';
 import 'admin_tvde_conformidade_screen.dart';
@@ -554,6 +555,16 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.teal,
       builder: () => const AdminTvdeRidesScreen(),
       keywords: const ['canceladas', 'corridas', 'curso', 'feitas', 'todas'],
+    ),
+    // [A2 · 21/10/2026] Fila inteligente + carro a deslizar (paridade admin).
+    AdminMenuItem(
+      id: 'tvde_fila_inteligente',
+      title: 'Fila inteligente',
+      subtitle: 'Quem recebe cada corrida e por que ordem, ao vivo; ligar/desligar; tempo da oferta; histórico de recusas',
+      icon: Icons.format_list_numbered,
+      color: const Color(0xFF0EA5E9),
+      builder: () => const AdminTvdeFilaScreen(),
+      keywords: const ['fila', 'ordem', 'oferta', 'recusou', 'expirou', 'despacho', 'motoristas', 'aceitacao', 'carro', 'mapa'],
     ),
     AdminMenuItem(
       id: 'tvde_pedidos_de_acesso',

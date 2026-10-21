@@ -248,8 +248,77 @@ String rotuloEstadoFila(String estado) {
       return 'Deixou expirar';
     case 'saltado':
       return 'Pulado';
+    case 'cancelada':
+      return 'Corrida cancelada';
     default:
       return estado;
+  }
+}
+
+/// Validação de um número escrito no painel. Inteiro: só algarismos (nada de
+/// "5,5" nem "40.5" — o servidor lê estas chaves como número inteiro).
+/// Devolve `(valor, null)` ou `(null, mensagem em PT-BR)`.
+(num?, String?) validarNumeroAjuste(String texto,
+    {required bool inteiro, required num min, required num max}) {
+  final t = texto.trim();
+  if (t.isEmpty) return (null, 'Escreva um número.');
+  num? v;
+  if (inteiro) {
+    if (!RegExp(r'^[0-9]{1,9}$').hasMatch(t)) {
+      return (null, 'Só número inteiro, sem vírgula nem ponto (ex.: 40).');
+    }
+    v = int.tryParse(t);
+  } else {
+    if (!RegExp(r'^[0-9]{1,9}([.,][0-9]{1,3})?$').hasMatch(t)) {
+      return (null, 'Número inválido (ex.: 2 ou 2,5).');
+    }
+    v = num.tryParse(t.replaceAll(',', '.'));
+  }
+  if (v == null) return (null, 'Número inválido.');
+  if (v < min || v > max) return (null, 'Tem de estar entre $min e $max.');
+  return (v, null);
+}
+
+/// Uma linha do registo da fila (admin_tvde_fila_registo): erros e ofertas
+/// encurtadas a quem não pode ser avisado.
+class FilaRegistoLinha {
+  const FilaRegistoLinha({
+    required this.tipo,
+    required this.detalhe,
+    this.em,
+    this.rideId,
+    this.motorista,
+  });
+
+  final String tipo;
+  final Map<String, dynamic> detalhe;
+  final DateTime? em;
+  final String? rideId;
+  final String? motorista;
+
+  factory FilaRegistoLinha.fromMap(Map<String, dynamic> m) => FilaRegistoLinha(
+        tipo: '${m['tipo'] ?? ''}',
+        detalhe: m['detalhe'] is Map
+            ? Map<String, dynamic>.from(m['detalhe'] as Map)
+            : const <String, dynamic>{},
+        em: _data(m['em']),
+        rideId: m['ride_id']?.toString(),
+        motorista: m['motorista']?.toString(),
+      );
+
+  bool get erro => tipo == 'erro';
+
+  /// Frase curta PT-BR para o painel.
+  String get frase {
+    if (erro) {
+      return 'Erro na fila (${detalhe['onde'] ?? '?'}): ${detalhe['mensagem'] ?? '?'} '
+          '→ seguiu o ${detalhe['seguiu'] ?? 'despacho de sempre'}';
+    }
+    final quem = motorista ?? '${detalhe['driver_id'] ?? '?'}';
+    final porque = detalhe['motivo'] == 'push_falhou'
+        ? 'a notificação falhou'
+        : 'sem notificação no telemóvel';
+    return 'Oferta a $quem encurtada para ${detalhe['janela_s'] ?? '?'} s ($porque)';
   }
 }
 
@@ -264,6 +333,8 @@ String rotuloRondaFila(String? estado) {
       return 'Aceita';
     case 'anulada':
       return 'Anulada (nova rodada)';
+    case 'terminada':
+      return 'Terminada (a corrida saiu da procura)';
     default:
       return 'Sem fila → despacho normal';
   }
@@ -338,6 +409,8 @@ const List<String> kChavesAjustesFila = [
   'tvde_fila_peso_nota_min',
   'tvde_fila_peso_aceitacao_min',
   'tvde_fila_historico_dias',
+  'tvde_fila_nota_min_avaliacoes',
+  'tvde_fila_janela_sem_aviso_s',
   'tvde_pos_ao_vivo_enabled',
   'tvde_pos_ao_vivo_intervalo_s',
 ];
@@ -354,6 +427,7 @@ class AdminTvdeFilaScreen extends StatefulWidget {
     this.carregarAoVivo,
     this.carregarHistorico,
     this.carregarAjustes,
+    this.carregarRegisto,
     this.gravarAjuste,
     this.autoAtualizar = true,
   });
@@ -362,6 +436,7 @@ class AdminTvdeFilaScreen extends StatefulWidget {
   final CarregarMapa? carregarAoVivo;
   final CarregarLista? carregarHistorico;
   final CarregarMapa? carregarAjustes;
+  final CarregarLista? carregarRegisto;
   final GravarAjuste? gravarAjuste;
   final bool autoAtualizar;
 
@@ -373,6 +448,7 @@ class _AdminTvdeFilaScreenState extends State<AdminTvdeFilaScreen> {
   FilaAoVivoView? _vivo;
   DateTime _lidoEm = DateTime.now();
   List<FilaHistoricoLinha> _historico = const [];
+  List<FilaRegistoLinha> _registo = const [];
   Map<String, dynamic> _ajustes = const {};
   String? _erro;
   bool _carregando = true;
@@ -415,6 +491,14 @@ class _AdminTvdeFilaScreenState extends State<AdminTvdeFilaScreen> {
     return r is List ? r : const [];
   }
 
+  Future<List<dynamic>> _lerRegisto() async {
+    final f = widget.carregarRegisto;
+    if (f != null) return f();
+    final r = await _c.rpc('admin_tvde_fila_registo',
+        params: {'p_horas': 24, 'p_limite': 100});
+    return r is List ? r : const [];
+  }
+
   Future<Map<String, dynamic>> _lerAjustes() async {
     final f = widget.carregarAjustes;
     if (f != null) return f();
@@ -437,6 +521,7 @@ class _AdminTvdeFilaScreenState extends State<AdminTvdeFilaScreen> {
       final vivo = await _lerAoVivo();
       final hist = await _lerHistorico();
       final aj = await _lerAjustes();
+      final reg = await _lerRegisto();
       if (!mounted) return;
       setState(() {
         _vivo = FilaAoVivoView.fromMap(vivo);
@@ -445,6 +530,9 @@ class _AdminTvdeFilaScreenState extends State<AdminTvdeFilaScreen> {
             .map((e) => FilaHistoricoLinha.fromMap(Map<String, dynamic>.from(e as Map)))
             .toList();
         _ajustes = aj;
+        _registo = reg
+            .map((e) => FilaRegistoLinha.fromMap(Map<String, dynamic>.from(e as Map)))
+            .toList();
         _carregando = false;
       });
     } catch (e) {
@@ -543,9 +631,36 @@ class _AdminTvdeFilaScreenState extends State<AdminTvdeFilaScreen> {
             subtitle: Text(
                 'Cada oferta dura ${v?.ofertaS ?? '?'} s (tvde_offer_ttl_seconds). '
                 'Até ${v?.maxMotoristas ?? '?'} motoristas por lista. '
+                'Tempo até à recolha em linha recta. '
                 'Atualiza sozinho de 5 em 5 s.'),
           ),
         ),
+        if (_registo.any((g) => g.erro))
+          Card(
+            key: const Key('fila_erros_24h'),
+            color: AppColors.error.withValues(alpha: 0.08),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Erros da fila nas últimas 24 h: ${_registo.where((g) => g.erro).length} '
+                    '(as corridas seguiram pelo despacho de sempre)',
+                    style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.error),
+                  ),
+                  for (final g in _registo.where((g) => g.erro).take(5))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        '${g.em == null ? '' : '${_hora(g.em!)} · '}${g.frase}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
         const SizedBox(height: 8),
         if (corridas.isEmpty)
           const Padding(
@@ -625,7 +740,7 @@ class _AdminTvdeFilaScreenState extends State<AdminTvdeFilaScreen> {
           SizedBox(width: 26, child: Text('${e.pos}.')),
           Expanded(
             child: Text(
-              '${e.motorista} · ${e.etaMin.toStringAsFixed(1)} min de estrada · '
+              '${e.motorista} · ${e.etaMin.toStringAsFixed(1)} min (linha recta) · '
               'nota ${e.nota.toStringAsFixed(2)} · aceita ${(e.taxaAceitacao * 100).round()}% · '
               'pontos ${e.pontos.toStringAsFixed(2)}'
               '${motivo.isEmpty ? '' : ' · $motivo'}',
@@ -672,6 +787,23 @@ class _AdminTvdeFilaScreenState extends State<AdminTvdeFilaScreen> {
           ],
         ),
         const SizedBox(height: 8),
+        if (_registo.isNotEmpty) ...[
+          Text(
+            'Registo da fila (24 h): ${_registo.where((g) => g.erro).length} erros · '
+            '${_registo.where((g) => !g.erro).length} ofertas encurtadas a quem não recebe notificação',
+            key: const Key('fila_registo_resumo'),
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          for (final g in _registo.take(20))
+            ListTile(
+              dense: true,
+              leading: Icon(g.erro ? Icons.error_outline : Icons.timer_outlined,
+                  color: g.erro ? AppColors.error : Colors.grey),
+              title: Text(g.frase, style: const TextStyle(fontSize: 12)),
+              subtitle: g.em == null ? null : Text(_hora(g.em!)),
+            ),
+          const Divider(),
+        ],
         if (_historico.isEmpty)
           const Padding(
             padding: EdgeInsets.all(24),
@@ -727,24 +859,28 @@ class _AdminTvdeFilaScreenState extends State<AdminTvdeFilaScreen> {
         ),
         const SizedBox(height: 8),
         _campoNumero('tvde_offer_ttl_seconds', 'Tempo de cada oferta (segundos)',
-            'Vale para TODAS as ofertas de corrida (é o mesmo relógio que o telemóvel do motorista usa).',
-            min: 10, max: 120),
+            'Vale para TODAS as ofertas de corrida (é o mesmo relógio que o telemóvel do motorista usa). Só número inteiro.',
+            min: 10, max: 120, inteiro: true),
         _campoNumero('tvde_fila_max_motoristas', 'Motoristas em cada lista',
-            'Depois deles, despacho de sempre.', min: 1, max: 20),
+            'Depois deles, despacho de sempre.', min: 1, max: 20, inteiro: true),
         _campoNumero('tvde_fila_peso_nota_min', 'Peso da nota (minutos por estrela abaixo de 5)',
-            'Quanto mais alto, mais a nota pesa face à distância.', min: 0, max: 30),
+            'Quanto mais alto, mais a nota pesa face à distância.', min: 0, max: 30, inteiro: false),
         _campoNumero('tvde_fila_peso_aceitacao_min', 'Peso da aceitação (minutos para 0% de aceitação)',
-            'Quanto mais alto, mais quem recusa muito vai para trás.', min: 0, max: 30),
+            'Quanto mais alto, mais quem recusa muito vai para trás.', min: 0, max: 30, inteiro: false),
         _campoNumero('tvde_fila_historico_dias', 'Dias de histórico para a taxa de aceitação',
-            'Ofertas mais antigas não contam.', min: 1, max: 365),
+            'Ofertas mais antigas não contam.', min: 1, max: 365, inteiro: true),
+        _campoNumero('tvde_fila_nota_min_avaliacoes', 'Avaliações mínimas para usar a nota do Bora Motorista',
+            'Com menos, usa a nota das entregas ou 4,8.', min: 1, max: 50, inteiro: true),
+        _campoNumero('tvde_fila_janela_sem_aviso_s', 'Segundos de oferta para quem não recebe notificação',
+            'Quem não pode ser avisado não prende a corrida os 40 s inteiros.', min: 5, max: 40, inteiro: true),
         _campoNumero('tvde_pos_ao_vivo_intervalo_s', 'Canal da posição: de quantos em quantos segundos',
-            'Mais baixo = mais suave, mais mensagens.', min: 1, max: 10),
+            'Mais baixo = mais suave, mais mensagens.', min: 1, max: 10, inteiro: true),
       ],
     );
   }
 
   Widget _campoNumero(String chave, String titulo, String ajuda,
-      {required int min, required int max}) {
+      {required int min, required int max, required bool inteiro}) {
     final atual = _ajustes[chave];
     return Card(
       child: ListTile(
@@ -757,29 +893,17 @@ class _AdminTvdeFilaScreenState extends State<AdminTvdeFilaScreen> {
             final ctrl = TextEditingController(text: atual == null ? '' : '$atual');
             final novo = await showDialog<num>(
               context: context,
-              builder: (ctx) => AlertDialog(
-                title: Text(titulo),
-                content: TextField(
-                  controller: ctrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(helperText: 'Entre $min e $max'),
-                ),
-                actions: [
-                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
-                  FilledButton(
-                    onPressed: () {
-                      final v = num.tryParse(ctrl.text.replaceAll(',', '.'));
-                      if (v == null || v < min || v > max) return;
-                      Navigator.pop(ctx, v);
-                    },
-                    child: const Text('Gravar'),
-                  ),
-                ],
+              builder: (ctx) => _DialogoNumero(
+                titulo: titulo,
+                controlador: ctrl,
+                inteiro: inteiro,
+                min: min,
+                max: max,
               ),
             );
             ctrl.dispose();
             if (novo == null) return;
-            await _gravar(chave, novo, '$titulo: $novo gravado.');
+            await _gravar(chave, inteiro ? novo.toInt() : novo, '$titulo: $novo gravado.');
           },
         ),
       ),
@@ -790,5 +914,67 @@ class _AdminTvdeFilaScreenState extends State<AdminTvdeFilaScreen> {
     final l = t.toLisboa();
     String d(int n) => n.toString().padLeft(2, '0');
     return '${d(l.day)}/${d(l.month)} ${d(l.hour)}:${d(l.minute)}:${d(l.second)}';
+  }
+}
+
+/// Diálogo de um número: valida antes de gravar e diz porquê em PT-BR.
+class _DialogoNumero extends StatefulWidget {
+  const _DialogoNumero({
+    required this.titulo,
+    required this.controlador,
+    required this.inteiro,
+    required this.min,
+    required this.max,
+  });
+
+  final String titulo;
+  final TextEditingController controlador;
+  final bool inteiro;
+  final int min;
+  final int max;
+
+  @override
+  State<_DialogoNumero> createState() => _DialogoNumeroState();
+}
+
+class _DialogoNumeroState extends State<_DialogoNumero> {
+  String? _erro;
+
+  void _gravar() {
+    final (v, erro) = validarNumeroAjuste(widget.controlador.text,
+        inteiro: widget.inteiro, min: widget.min, max: widget.max);
+    if (erro != null) {
+      setState(() => _erro = erro);
+      return;
+    }
+    Navigator.pop(context, v);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.titulo),
+      content: TextField(
+        key: const Key('aj_campo_numero'),
+        controller: widget.controlador,
+        keyboardType: widget.inteiro
+            ? TextInputType.number
+            : const TextInputType.numberWithOptions(decimal: true),
+        inputFormatters: widget.inteiro
+            ? [FilteringTextInputFormatter.digitsOnly]
+            : null,
+        decoration: InputDecoration(
+          helperText: widget.inteiro
+              ? 'Número inteiro entre ${widget.min} e ${widget.max}'
+              : 'Entre ${widget.min} e ${widget.max}',
+          errorText: _erro,
+        ),
+        onSubmitted: (_) => _gravar(),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+        FilledButton(onPressed: _gravar, child: const Text('Gravar')),
+      ],
+    );
   }
 }

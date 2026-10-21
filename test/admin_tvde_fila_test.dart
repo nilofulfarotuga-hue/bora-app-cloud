@@ -92,6 +92,42 @@ void main() {
         'sem notificação no telemóvel (sem_aviso_no_telemovel)');
   });
 
+  test('R1: chaves inteiras só aceitam inteiro (5,5 / 40.5 / abc recusados, em PT-BR)', () {
+    for (final mau in ['5,5', '40.5', 'abc', '', ' ', '-3', '1e3']) {
+      final (v, erro) = validarNumeroAjuste(mau, inteiro: true, min: 1, max: 20);
+      expect(v, isNull, reason: mau);
+      expect(erro, isNotNull, reason: mau);
+    }
+    expect(validarNumeroAjuste('5,5', inteiro: true, min: 1, max: 20).$2,
+        'Só número inteiro, sem vírgula nem ponto (ex.: 40).');
+    expect(validarNumeroAjuste('25', inteiro: true, min: 1, max: 20).$2, 'Tem de estar entre 1 e 20.');
+    expect(validarNumeroAjuste(' 40 ', inteiro: true, min: 10, max: 120).$1, 40);
+    // pesos podem ter decimais (o servidor lê-os como número com casas)
+    expect(validarNumeroAjuste('2,5', inteiro: false, min: 0, max: 30).$1, 2.5);
+    expect(validarNumeroAjuste('2.5', inteiro: false, min: 0, max: 30).$1, 2.5);
+    expect(validarNumeroAjuste('abc', inteiro: false, min: 0, max: 30).$1, isNull);
+  });
+
+  test('R1/R4/R5: registo da fila e estados novos em PT-BR', () {
+    final erro = FilaRegistoLinha.fromMap({
+      'em': '2026-10-21T13:35:00Z',
+      'tipo': 'erro',
+      'detalhe': {'onde': 'oferecer', 'mensagem': 'division by zero', 'seguiu': 'despacho de sempre'},
+    });
+    expect(erro.erro, isTrue);
+    expect(erro.frase, contains('division by zero'));
+    expect(erro.frase, contains('despacho de sempre'));
+    final curta = FilaRegistoLinha.fromMap({
+      'tipo': 'oferta_encurtada',
+      'motorista': 'DEMO A2 D4 sem push',
+      'detalhe': {'janela_s': 10, 'motivo': 'sem_aviso_no_telemovel'},
+    });
+    expect(curta.erro, isFalse);
+    expect(curta.frase, 'Oferta a DEMO A2 D4 sem push encurtada para 10 s (sem notificação no telemóvel)');
+    expect(rotuloEstadoFila('cancelada'), 'Corrida cancelada');
+    expect(rotuloRondaFila('terminada'), contains('saiu da procura'));
+  });
+
   test('contagem decrescente da oferta a partir da leitura do servidor', () {
     final lido = DateTime.utc(2026, 10, 21, 12, 25, 0);
     expect(segundosQueFaltam(30, lido, lido), 30);
@@ -123,13 +159,22 @@ void main() {
         carregarAjustes: () async => {
           'tvde_fila_inteligente_enabled': false,
           'tvde_offer_ttl_seconds': 40,
+          'tvde_fila_max_motoristas': 5,
           'tvde_pos_ao_vivo_enabled': true,
         },
+        carregarRegisto: () async => [
+          {
+            'em': '2026-10-21T13:35:00Z',
+            'tipo': 'erro',
+            'detalhe': {'onde': 'oferecer', 'mensagem': 'division by zero', 'seguiu': 'despacho de sempre'},
+          },
+        ],
         gravarAjuste: (k, v) async => gravados[k] = v,
       ),
     ));
     await tester.pumpAndSettle();
 
+    expect(find.byKey(const Key('fila_erros_24h')), findsOneWidget);
     expect(find.text('Fila inteligente LIGADA'), findsOneWidget);
     expect(find.text('Sé da Guarda (prova A2) → Bairro da Luz (prova A2)'), findsOneWidget);
     expect(find.byKey(const Key('fila_oferta_a2a20000-0000-4000-8000-0000000000b1')), findsOneWidget);
@@ -151,5 +196,25 @@ void main() {
     await tester.tap(sw);
     await tester.pumpAndSettle();
     expect(gravados['tvde_fila_inteligente_enabled'], true);
+
+    // R1: "Motoristas em cada lista" não aceita 5,5 — fica no diálogo com o porquê.
+    ScaffoldMessenger.of(tester.element(find.byType(Scaffold))).hideCurrentSnackBar();
+    await tester.pumpAndSettle();
+    final campo = find.byKey(const Key('aj_tvde_fila_max_motoristas'));
+    await tester.ensureVisible(campo);
+    await tester.pumpAndSettle();
+    await tester.tap(find.descendant(of: campo, matching: find.byType(TextButton)));
+    await tester.pumpAndSettle();
+    final tf = tester.widget<TextField>(find.byKey(const Key('aj_campo_numero')));
+    tf.controller!.text = '5,5'; // colado (o teclado de inteiros nem deixa escrever a vírgula)
+    await tester.tap(find.text('Gravar'));
+    await tester.pumpAndSettle();
+    expect(find.text('Só número inteiro, sem vírgula nem ponto (ex.: 40).'), findsOneWidget);
+    expect(gravados.containsKey('tvde_fila_max_motoristas'), isFalse);
+    tf.controller!.text = '6';
+    await tester.tap(find.text('Gravar'));
+    await tester.pumpAndSettle();
+    expect(gravados['tvde_fila_max_motoristas'], 6);
+    expect(gravados['tvde_fila_max_motoristas'], isA<int>());
   });
 }

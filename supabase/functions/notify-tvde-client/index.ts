@@ -11,6 +11,11 @@
 // v6 (2026-10-04) — push a TODOS os aparelhos (client_push_tokens + users.fcm_token);
 // textos alinhados com o preco fixo e com o fim da procura (sem_motorista).
 //
+// v8 (2026-10-21, encomendas no motor do Bora Motorista): le tvde_rides.ride_kind e,
+// numa ENCOMENDA, as frases sao de entrega (iguais as do gatilho
+// fn_notify_tvde_client_on_status), incluindo as duas de reserva ('agendada' e
+// 'reserva_confirmar'). Passageiros: frases de sempre. Nada mais mudou.
+//
 // v4 (2026-08-19) — RESERVA AGENDADA: aceita `status='agendada'` (reserva
 // marcada) e `status='reserva_confirmar'` (o sweep pergunta ao cliente, 2h
 // antes, se mantem). Estes DOIS vao DATA-ONLY (sem bloco `notification` e sem
@@ -73,7 +78,7 @@ Deno.serve(async (req) => {
   // ── Corrida: cliente + estado + motorista ───────────────────────────────────
   const { data: ride } = await supabase
     .from('tvde_rides')
-    .select('client_id, driver_id, status')
+    .select('client_id, driver_id, status, ride_kind')
     .eq('id', rideId).maybeSingle()
   if (!ride) return json({ ok: false, reason: 'ride_not_found' }, 200)
 
@@ -89,7 +94,7 @@ Deno.serve(async (req) => {
 
   const msg = (tituloProprio && corpoProprio)
     ? { title: tituloProprio, body: corpoProprio }
-    : statusMessage(status, driverName)
+    : statusMessage(status, driverName, ride.ride_kind === 'encomendas')
   if (!msg) return json({ ok: false, reason: 'status_not_notifiable' }, 200)
 
   // ── v6 (2026-10-04, auditoria A4): TODOS os aparelhos do passageiro ──────
@@ -196,7 +201,8 @@ Deno.serve(async (req) => {
   return json({ ok: true }, 200)
 })
 
-function statusMessage(status: string, driverName: string): { title: string; body: string } | null {
+function statusMessage(status: string, driverName: string, encomenda = false): { title: string; body: string } | null {
+  if (encomenda) return statusMessageEncomenda(status, driverName)
   const d = driverName ? driverName : 'O teu motorista'
   switch (status) {
     case 'motorista_atribuido':
@@ -225,6 +231,31 @@ function statusMessage(status: string, driverName: string): { title: string; bod
         title: 'Ainda queres a tua viagem?',
         body: 'A tua reserva é daqui a pouco. Abre a app para confirmar ou cancelar.',
       }
+    default:
+      return null
+  }
+}
+
+function statusMessageEncomenda(status: string, driverName: string): { title: string; body: string } | null {
+  const d = driverName ? driverName : 'O teu estafeta'
+  switch (status) {
+    case 'motorista_atribuido':
+    case 'motorista_a_caminho':
+      return { title: '📦 Estafeta a caminho da recolha', body: `${d} vem buscar a tua encomenda.` }
+    case 'motorista_chegou':
+      return { title: '📍 O estafeta chegou à recolha', body: `${d} está no local de recolha.` }
+    case 'em_andamento':
+      return { title: '📦 Encomenda recolhida', body: 'A tua encomenda vai a caminho da entrega. O preço é o que viste ao pedir.' }
+    case 'finalizada':
+      return { title: '✅ Encomenda entregue', body: 'A entrega foi concluída. Avalia a entrega na app.' }
+    case 'sem_motorista':
+      return { title: '😕 Sem estafetas disponíveis', body: 'Não encontrámos estafeta a tempo e o pedido foi cancelado. Se pagaste na app, o valor é devolvido. Podes tentar de novo.' }
+    case 'cancelada_motorista':
+      return { title: 'Entrega cancelada', body: 'O estafeta cancelou a entrega. Pedimos desculpa — tenta de novo.' }
+    case 'agendada':
+      return { title: 'Reserva marcada', body: 'A tua encomenda ficou marcada. Avisamos-te assim que houver estafeta.' }
+    case 'reserva_confirmar':
+      return { title: 'Ainda queres a tua entrega?', body: 'A tua reserva é daqui a pouco. Abre a app para confirmar ou cancelar.' }
     default:
       return null
   }

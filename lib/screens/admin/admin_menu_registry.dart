@@ -30,6 +30,7 @@ import 'admin_mesas_screen.dart';
 import 'admin_opcoes_produto_screen.dart';
 import 'admin_maiores_18_screen.dart';
 import 'admin_reativacao_screen.dart';
+import 'admin_checkin_premios_screen.dart';
 import 'admin_checkin_screen.dart';
 import 'admin_receitas_screen.dart';
 import 'admin_support_escalations_screen.dart';
@@ -993,6 +994,15 @@ List<AdminMenuSection> adminMenuSections() => [
       color: AppColors.primary,
       builder: () => const AdminCheckinScreen(),
       keywords: const ['checkin', 'check-in', 'diario', 'sequencia', 'streak', 'tokens', 'todo dia', 'lembrete'],
+    ),
+    AdminMenuItem(
+      id: 'clientes_checkin_premios',
+      title: 'Prêmios do check-in (marcos)',
+      subtitle: '10, 15 e 30 dias seguidos: ligar, teto mensal, pedido pago, valores, vales (anular, entregar à mão, dar), a pagar às lojas e custo',
+      icon: Icons.emoji_events_outlined,
+      color: AppColors.primary,
+      builder: () => const AdminCheckinPremiosScreen(),
+      keywords: const ['premio', 'premios', 'marco', 'marcos', 'vale', 'vales', 'checkin', 'keli', 'goola', 'salgados', 'acai', 'limpeza', 'lavagem'],
     ),
     AdminMenuItem(
       id: 'clientes_receita_do_dia',

@@ -501,6 +501,7 @@ class _BookingCard extends StatelessWidget {
     final payment = switch (data['payment_method']) {
       'card' => 'Cartão',
       'mbway' => 'MB Way',
+      'premio' => 'Prêmio do check-in (Bora paga)',
       _ => 'Dinheiro',
     };
     // 19/10/2026: com MB Way/cartão a profissional só é chamada depois de pago.

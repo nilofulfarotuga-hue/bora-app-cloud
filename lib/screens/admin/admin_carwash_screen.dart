@@ -429,7 +429,9 @@ Future<void> _abrirDetalhe(
           _kv('Telefone', d['client_phone'].toString()),
           _kv('Onde está a chave', d['pickup_notes'].toString()),
           _kv('Lavador', (d['washer_name'] ?? '—').toString()),
-          _kv('Pagamento', d['payment_method'].toString()),
+          _kv('Pagamento', d['payment_method'] == 'premio'
+              ? 'Prêmio do check-in (Bora paga)'
+              : d['payment_method'].toString()),
           _kv('Total', '${((d['total_cents'] as num) / 100).toStringAsFixed(2)} €'),
           _kv('Repasse ao lavador',
               '${((d['washer_earnings_cents'] as num) / 100).toStringAsFixed(2)} €'),

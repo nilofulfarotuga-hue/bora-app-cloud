@@ -7,7 +7,58 @@
 > RAM medida: 1892 MB (início), 1343 MB (antes do analyze), 1564 MB (antes dos testes) — acima dos
 > 800 MB do portão pesado; nenhum emulador.
 
+## RONDA 1 do revisor (21/10, depois do `REVISAO-A1.md`) — lê isto primeiro
+
+Veredicto do revisor: publicar com o interruptor desligado SIM; ligar NÃO ainda. Corrigido no mesmo
+ramo, commits novos, sem push. RAM: 1948 MB antes do analyze, 2812 MB antes dos testes.
+e2e_log passos `A1-r1-1`…`A1-r1-5` (ids 4159–4163).
+
+**Em palavras simples.** Fiz isto: (1) fechei o buraco em que uma encomenda que falhava no cartão
+deixava a corrida seguinte, a dinheiro, de passageiro, a nascer como "encomenda"; (2) tirei as
+palavras de passageiro que ainda apareciam numa encomenda (espera na recolha, quanto ganhaste, fim da
+entrega, reservas, recibo, ecrã inicial do estafeta, opções de mobilidade reduzida); (3) deixei pronto,
+sem publicar, o aviso do telemóvel "📦 Nova encomenda!"; (4) o painel "Acertos por tipo" passou a
+contar as gorjetas pagas por cartão/MB Way, como o acerto a sério. Falta isto: publicar nas 3 e a tua
+decisão do acesso (abaixo, "PARA O DANILO") antes de ligar. Próximo passo: revisor → publicar → decides.
+
+| # | O quê | Onde | Prova (saída literal no ficheiro) |
+|---|---|---|---|
+| 1 | **Defeito E na raiz.** A declaração do tipo leva forma de pagamento + origem + destino, vale 2 min e é gasta por QUALQUER pedido. Só passa à corrida do mesmo pagamento online e do mesmo trajecto; um pedido a dinheiro nunca a herda; declarar com dinheiro é recusado (`invalid_payment_method`). `tvde-payment` intocada. | migração `20261021095810` (md5 104544080a…eb23 = banco), `tvde_store.dart`, commit `b84c5f20` | `a1/prova_r1_declarado_RESULT.json`: ataque exacto do revisor (cartão declarado + dinheiro mesmo trajecto) → `passageiros`; outro trajecto, MB Way vs cartão, declaração com 3 min, passageiros explícito → `passageiros`; encomenda cartão 500/400, reserva MB Way 500/400, ida-e-volta cartão 1760 com ida 855 / volta 855 → `encomendas`. As 3 RPCs só trocaram a linha do resolvedor (md5 conferido antes e reversível ao corpo de 20/10), ACL igual, 1 assinatura cada. |
+| 2 | **Palavras.** Estafeta: "À espera na recolha · mm:ss", "Ganhaste €X nesta entrega", "Entrega concluída — ganhaste €X. Próxima entrega ativada.", próxima entrega / fila, os 2 diálogos de devolver reserva (corrida e agenda), avaliação, ecrã inicial ("corridas e encomendas" quando o interruptor está ligado). Cliente: opções de português/mobilidade reduzida escondidas no pedido de encomenda; "As minhas reservas", agenda, avaliação e recibo usam o tipo DE CADA LINHA (`r.rideKind`/`ride.rideKind`), não o do aparelho; etiqueta "📦 Encomenda"; "Código da entrega"; acompanhamento. Servidor: `_tvde_recibo` dá "Resumo da entrega" só às encomendas. | commit `ee624f8c`; migração `20261021101037` (md5 5571f92d…7604 = banco) | `a1/prova_r1_recibo_RESULT.json`: encomenda e passageiro com total 500 / transporte 400 / taxa 100 iguais, só título e aviso mudam. Teste novo `test/encomenda_sem_palavras_de_passageiro_test.dart` (11 casos): estados, fases, cartão de oferta, oferta caducada, reserva, controlos, e varre 15 ficheiros — falha se aparecer passageiro/corrida/boleia num texto de encomenda. |
+| 3 | **Aviso push** "🚗 Nova corrida!" → "📦 Nova encomenda!" (e fila, atribuída, passada, cancelada, reservas) feito POR CIMA da v22 do ar (md5 d6d28e6a…), não do repo (que leva a chave do Bloco G). **Não publicado.** | `a1/notify-tvde-driver/` + `a1/notify-tvde-driver_titulo_encomenda.md`, commit `902649ec` | 24 trocas por âncora com contagem; `index.ts` md5 eb45b7af…; passageiros recebem o texto de sempre. |
+| 4 | **Acertos por tipo** somam as gorjetas online (mesma regra de `gorjetas_online_do_prestador`), coluna própria no painel. | migração `20261021100840` (md5 05c8f71a…2b3b = banco), `admin_tvde_acertos_tipo_tab.dart`, commit `4fda7b0e` | `a1/prova_r1_gorjetas_no_ar_RESULT.json` (contra a função aplicada): encomenda demo 4,00 a dinheiro + gorjeta 1,50 por cartão → painel **550** cêntimos = acerto real `total_earnings` **5,50**. Depois do rollback: 0 corridas e 0 gorjetas demo gravadas, interruptor `false`. |
+| 5 | Decisão do acesso + lei + foto + planos | §9 abaixo | e2e_log `A1-r1-5` (reportado) |
+
+**Dinheiro e despacho intactos (md5 no ar, 21/10 depois das 3 migrações):** `tvde_calculate_fare`
+4a1c99dd…, `tvde_fare_breakdown` 96a1fcfc…, `tvde_quote_roundtrip` 5f038a01…,
+`tvde_roundtrip_price_for_km` 570bc296…, `tvde_offer_to_next` 40dd523a…, `tvde_dispatch_sweep`
+6218c0a3…, `tvde_reservation_offer_to_next` a57c6a5c…, `tvde_reservations_sweep` c2eb13c9…,
+`tvde_accept_ride` 88bf043c…, `tvde_cancel_ride` 8712208f…, `tvde_finish_ride` 67eddac1…,
+`compute_driver_settlement` 2510dea3…, `gorjetas_online_do_prestador` bded89df…, `_tvde_exige_acesso`
+98381d7a…. anon não executa `tvde_definir_tipo_pedido` nem o acerto; o resolvedor nem o cliente executa.
+Reversão: `a1/reversao_A1.sql` repõe agora 8 funções (inclui `_tvde_recibo` e `fn_tvde_rides_prefs`) e
+apaga o resolvedor/definir novos — reprovada em transacção desfeita: md5 8/8, ACL 8/8, sobra 0.
+
+**Qualidade:** `flutter analyze --no-pub` dos 17 ficheiros tocados → `13 issues found` (0 erros, 0
+avisos, 13 infos); as mesmas 4 telas na versão da base dão 14 infos → nenhuma nova. `flutter test` dos
+18 ficheiros que tocam estas telas/textos (inclui o teste novo, `ride_kind_textos_test`,
+`l10n_cobertura_test`, goldens do TVDE) → `+224: All tests passed!`; antes do último retoque (2 `const`)
+a suite inteira deu 1549/1549. `anti_trapaca.py --base origin/autonomous-night-2026-04-29 --head HEAD`
+→ `✅ CLEAN`, 60 ficheiros, Δ casos de teste +44. `zonas_diff.py` → `Nenhuma zona protegida no diff`.
+
+**O que continua por fazer (dito, não escondido):**
+- Aviso ao cliente "Ainda queres a tua viagem?" (`reserva_confirmar`): quem o manda é
+  `tvde_reservations_sweep` (despacho, md5 c2eb13c9…) — não toquei. Numa reserva de encomenda sai
+  com "viagem". O aviso "agendada" ao cliente não é enviado pelo servidor.
+- Cabeçalho "As minhas corridas" do histórico (lista com os dois tipos misturados) e o ecrã vazio da agenda.
+- Frases com valor no meio que o teste-varredura não apanha (só as que estão no mapa são provadas).
+- Corridas de balcão e reservas criadas pelo admin nascem sempre passageiros.
+- O aviso push só muda quando se publicar `a1/notify-tvde-driver/index.ts`.
+
 ## O que NÃO ficou feito (primeiro, como manda o PADRAO §3.9)
+
+> Estado da 1.ª entrega. Depois da ronda 1: o ponto 1 está pronto mas por publicar, o ponto 3 ficou
+> reduzido ao que está em "O que continua por fazer" da secção RONDA 1.
 
 1. **O aviso do sistema ao estafeta ainda diz "🚗 Nova corrida!" numa encomenda** (o que aparece
    com o telemóvel bloqueado). Precisa de publicar a Edge `notify-tvde-driver`; não publiquei porque
@@ -170,7 +221,9 @@ frase de sempre. Painel: lista e acerto por tipo com `ride_kind`. `a1/prova_roll
 - `fb29848a` feat(encomendas): o Bora Motorista ganha o tipo do pedido — passageiros ou encomendas, mesmo motor
 - `2eaf1696` feat(encomendas): o mesmo ecrã do Bora Motorista fala de encomenda — camada de palavras por tipo
 - `cbef213a` feat(admin): corridas, reservas e acertos do Bora Motorista com filtro Passageiros/Encomendas
-- (+ commit deste relatório)
+- `47d89180` docs(encomendas): relatório do Bloco A1
+- Ronda 1: `b84c5f20` (tipo declarado preso ao pedido), `ee624f8c` (palavras), `4fda7b0e`
+  (acertos com gorjetas), `902649ec` (aviso push pronto sobre a v22) + commit desta actualização.
 
 ## 8. O que o orquestrador tem de fazer depois
 
@@ -190,6 +243,20 @@ frase de sempre. Painel: lista e acerto por tipo com `ride_kind`. `a1/prova_roll
 
 ## 9. PARA O DANILO (decisões só tuas — o trabalho seguiu sem elas)
 
+O interruptor das encomendas está **desligado** e assim fica até decidires isto:
+
+- **Acesso (o mais importante).** Hoje o Bora Motorista só aceita clientes com o acesso ligado na
+  conta (`users.tvde_access`; a 21/10: 159 de 180 contas têm). Com as Encomendas ligadas, **um cliente SEM esse acesso consegue chamar o mesmo carro
+  TVDE desde que diga que é uma encomenda** — o revisor provou-o (sem acesso: passageiros recusado,
+  encomenda aceite). Escolhe uma:
+  - **(a) A mesma regra para os dois:** quem não tem acesso ao Bora Motorista também não pede
+    encomendas. Mais seguro e mais simples de explicar; as encomendas ficam só para quem já tem acesso.
+  - **(b) Encomendas abertas a todos:** qualquer cliente pede encomendas (como o "Enviar Encomenda"
+    antigo), mas o carro e o motorista são os do TVDE — ou seja, abres o carro a todos por esta porta.
+  Diz "a" ou "b". Não liguei nada nem mudei regra nenhuma.
+- **Lei:** a licença TVDE é para levar **pessoas**; levar **mercadorias** com os mesmos carros e
+  motoristas pode ter de ser enquadrado à parte (transporte de mercadorias / estafeta). Confirmar com
+  o contabilista ou o IMT antes de ligar — sobretudo se escolheres (b).
 - **Foto da encomenda:** o Encomendas antigo exigia foto antes de pedir; o Bora Motorista não tem.
   Como a ordem é "cópia exacta", ficou SEM foto. Queres a foto obrigatória de volta?
 - **Planos:** quem tem plano do Bora Motorista também tem as encomendas cobertas pelo plano (é o

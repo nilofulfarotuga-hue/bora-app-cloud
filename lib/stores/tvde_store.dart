@@ -21,6 +21,27 @@ import '../utils/hora_lisboa.dart' show paredeLisboa;
 Map<String, dynamic> tvdeParamTipo(RideKind k) =>
     k == RideKind.encomendas ? {'p_ride_kind': k.db} : const <String, dynamic>{};
 
+/// [21/10/2026 · A1 ronda 1] Parâmetros de `tvde_definir_tipo_pedido`: o tipo
+/// fica PRESO ao pedido que a Edge vai criar (mesma forma de pagamento, mesma
+/// origem e destino que vão no corpo da Edge). Os mesmos números exactos — o
+/// servidor compara-os com os que a Edge lhe passa.
+Map<String, dynamic> tvdeParamsDeclaracao({
+  required RideKind kind,
+  required String method,
+  required double originLat,
+  required double originLng,
+  required double destLat,
+  required double destLng,
+}) =>
+    {
+      'p_ride_kind': kind.db,
+      'p_payment_method': method,
+      'p_origin_lat': originLat,
+      'p_origin_lng': originLng,
+      'p_dest_lat': destLat,
+      'p_dest_lng': destLng,
+    };
+
 /// TVDE — Bora Motorista. Store reativo do cliente (passageiro).
 /// Camada read-only: todas as transições passam por RPC no backend.
 /// Corpo do pedido `charge` da Edge Fn `tvde-payment`.
@@ -287,26 +308,45 @@ class TvdeStore extends ChangeNotifier {
   Map<String, dynamic> get _paramTipo => tvdeParamTipo(pedidoKind);
 
   /// Cartão/MB Way: quem cria a corrida é a Edge `tvde-payment`, que não
-  /// leva o tipo. Declara-se no servidor mesmo antes (vale 5 min e é gasto
-  /// pela corrida). Numa encomenda, se a declaração falhar, NÃO se segue:
-  /// a encomenda nasceria como corrida de passageiros. Num pedido de
-  /// passageiros só se declara se este aparelho declarou uma encomenda há
-  /// pouco (para não sobrar) — e aí uma falha não trava nada.
+  /// leva o tipo. Declara-se no servidor mesmo antes, PRESO A ESTE PEDIDO
+  /// (forma de pagamento + origem + destino; vale 2 min). O servidor só o usa
+  /// na corrida desse mesmo pagamento; qualquer outro pedido gasta-o e um
+  /// pedido a dinheiro nunca o herda (ronda 1 do revisor, 21/10).
+  /// Numa encomenda, se a declaração falhar, NÃO se segue: a encomenda
+  /// nasceria como corrida de passageiros. Num pedido de passageiros só se
+  /// declara se este aparelho declarou uma encomenda há pouco (cobre o caso
+  /// de repetir o MESMO trajecto como passageiro) — e aí uma falha não trava.
   DateTime? _declarouEncomendaEm;
-  Future<void> _declararTipoAntesDaEdge() async {
+  Future<void> _declararTipoAntesDaEdge({
+    required String method,
+    required double originLat,
+    required double originLng,
+    required double destLat,
+    required double destLng,
+  }) async {
+    Map<String, dynamic> params(RideKind k) => tvdeParamsDeclaracao(
+          kind: k,
+          method: method,
+          originLat: originLat,
+          originLng: originLng,
+          destLat: destLat,
+          destLng: destLng,
+        );
     if (pedidoKind == RideKind.encomendas) {
-      await _sb.rpc('tvde_definir_tipo_pedido',
-          params: {'p_ride_kind': pedidoKind.db}).timeout(kAcaoTimeout);
+      await _sb
+          .rpc('tvde_definir_tipo_pedido', params: params(pedidoKind))
+          .timeout(kAcaoTimeout);
       _declarouEncomendaEm = DateTime.now();
       return;
     }
     final em = _declarouEncomendaEm;
-    if (em == null || DateTime.now().difference(em) > const Duration(minutes: 10)) {
+    if (em == null || DateTime.now().difference(em) > const Duration(minutes: 3)) {
       return;
     }
     try {
-      await _sb.rpc('tvde_definir_tipo_pedido',
-          params: {'p_ride_kind': RideKind.passageiros.db}).timeout(kAcaoTimeout);
+      await _sb
+          .rpc('tvde_definir_tipo_pedido', params: params(RideKind.passageiros))
+          .timeout(kAcaoTimeout);
       _declarouEncomendaEm = null;
     } catch (e) {
       debugPrint('TvdeStore._declararTipoAntesDaEdge(passageiros) => $e');
@@ -609,7 +649,12 @@ class TvdeStore extends ChangeNotifier {
   }) async {
     _setBusy(true);
     try {
-      await _declararTipoAntesDaEdge();
+      await _declararTipoAntesDaEdge(
+          method: method,
+          originLat: originLat,
+          originLng: originLng,
+          destLat: destLat,
+          destLng: destLng);
       final res = await _sb.functions.invoke(
         'tvde-payment',
         body: buildTvdeChargeBody(
@@ -777,7 +822,12 @@ class TvdeStore extends ChangeNotifier {
   }) async {
     _setBusy(true);
     try {
-      await _declararTipoAntesDaEdge();
+      await _declararTipoAntesDaEdge(
+          method: method,
+          originLat: originLat,
+          originLng: originLng,
+          destLat: destLat,
+          destLng: destLng);
       final res = await _sb.functions.invoke(
         'tvde-payment',
         body: buildTvdeReservationChargeBody(
@@ -925,7 +975,12 @@ class TvdeStore extends ChangeNotifier {
   }) async {
     _setBusy(true);
     try {
-      await _declararTipoAntesDaEdge();
+      await _declararTipoAntesDaEdge(
+          method: method,
+          originLat: originLat,
+          originLng: originLng,
+          destLat: destLat,
+          destLng: destLng);
       final res = await _sb.functions.invoke(
         'tvde-payment',
         body: buildTvdeRoundtripReservationChargeBody(

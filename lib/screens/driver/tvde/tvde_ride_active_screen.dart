@@ -26,6 +26,7 @@ import '../../../services/navigation_service.dart';
 import '../../../services/localizacao_online.dart'
     show gpsLigadoSemServicoPorEstarEmFundo;
 import '../../../services/tvde_corrida_localizacao_service.dart';
+import '../../../services/tvde_posicao_ao_vivo.dart';
 import '../../../stores/driver_store.dart';
 import '../../../stores/tvde_chat_store.dart';
 import '../../../stores/tvde_driver_store.dart';
@@ -323,6 +324,11 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   Position? _ultimaPosicaoLida;
   Timer? _feedTicker;
 
+  /// [A2 · 21/10] Carro a deslizar no mapa do cliente: a posição vai também
+  /// pelo canal PRIVADO da corrida (Realtime broadcast), de 2 em 2 s. Não
+  /// escreve no banco e não mexe no que vai para `driver_locations`.
+  PosicaoAoVivoEmissor? _emissorPos;
+
   /// [Pontinho azul · 07/10] O cliente a mexer-se enquanto o motorista chega
   /// — vem de `client_live_locations` (Realtime, só quando ele quis
   /// partilhar). Mesma interpolação do carro no mapa do cliente.
@@ -521,6 +527,20 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   void _alimentarServidor(Position p) {
     if (!_donoDoGps || !mounted) return;
     _ultimaPosicaoLida = p;
+    // [A2 · 21/10] O canal da corrida tem o seu próprio travão (2 s); a
+    // cadência da base, abaixo, fica exactamente como estava.
+    final corridaPos = context.read<TvdeDriverStore>().activeRide;
+    if (RastreioSettings.posAoVivoEnabled &&
+        corridaPos != null &&
+        corridaPos.id == _rideId &&
+        tvdeCorridaComPosicao(corridaPos.status)) {
+      _emissorPos?.emitir(
+        lat: p.latitude,
+        lng: p.longitude,
+        heading: p.heading.isFinite ? p.heading : null,
+        speedKmh: p.speed.isFinite ? p.speed * 3.6 : null,
+      );
+    }
     final agora = DateTime.now();
     final intervalo = Duration(seconds: _intervaloFeedSegundos.clamp(1, 60));
     final ultimo = _ultimoEnvioAoServidor;
@@ -595,6 +615,9 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     _etaTicker?.cancel();
     _setaTimer?.cancel();
     _feedTicker?.cancel();
+    final emissor = _emissorPos;
+    _emissorPos = null;
+    if (emissor != null) unawaited(emissor.parar());
     _pontoCliente.dispose();
     final feed = _clienteFeed;
     _clienteFeed = null;
@@ -1102,6 +1125,17 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   void _onRideChanged(TvdeRide ride) {
     if (_rideId == ride.id) return;
     _rideId = ride.id;
+    // [A2 · 21/10] Um canal por corrida: troca de corrida → fecha o velho.
+    final emissorVelho = _emissorPos;
+    _emissorPos = null;
+    if (emissorVelho != null) unawaited(emissorVelho.parar());
+    if (RastreioSettings.posAoVivoEnabled && !kIsWeb) {
+      _emissorPos = PosicaoAoVivoEmissor(
+        rideId: ride.id,
+        intervalo: Duration(
+            seconds: RastreioSettings.posAoVivoIntervaloSeconds.clamp(1, 10)),
+      )..iniciar();
+    }
     // [Cartão preso · 06/10] O cartão global nunca desenha como oferta a
     // corrida que este ecrã está a mostrar.
     TvdeOfferPresentation.corridaMostrada.value = ride.id;

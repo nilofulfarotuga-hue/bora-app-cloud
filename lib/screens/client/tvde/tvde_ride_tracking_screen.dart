@@ -27,6 +27,7 @@ import '../../../services/payment_service.dart';
 import '../../../services/tvde_arriving_notice.dart';
 import '../../../services/tvde_eta_display.dart';
 import '../../../services/tvde_partilha_service.dart';
+import '../../../services/tvde_posicao_ao_vivo.dart';
 import '../../../stores/tvde_chat_store.dart';
 import '../../../stores/tvde_store.dart';
 import '../../../utils/map_utils.dart';
@@ -95,6 +96,20 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
   late final MarcadorAnimado _carro = MarcadorAnimado(onFrame: _onCarroFrame);
   DriverLiveFeed? _feed;
   String? _feedDriverId;
+
+  /// [A2 · 21/10] Carro a deslizar: a posição chega também pelo canal PRIVADO
+  /// da corrida (Realtime broadcast, de 2 em 2 s). Só mexe no marcador — o
+  /// mapa não se redesenha e a rota não se refaz. Sem canal, o [_feed] e o
+  /// poll continuam como sempre (as duas portas dão no mesmo [_carro]).
+  late final SincronizadorPosicaoAoVivo _posAoVivo = SincronizadorPosicaoAoVivo(
+    onAmostra: (a) {
+      if (!mounted) return;
+      final r = context.read<TvdeStore>().activeRide;
+      if (r == null || r.driverId == null) return;
+      _setDriverPosDoCanal(a);
+    },
+  );
+  final FonteDoCarro _fonteCarro = FonteDoCarro();
 
   /// [Pontinho azul · 07/10] Partilhar a minha posição com o motorista.
   PartilharLocalizacaoController? _partilha;
@@ -308,6 +323,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     final feed = _feed;
     _feed = null;
     if (feed != null) unawaited(feed.parar());
+    unawaited(_posAoVivo.parar());
     _partilha?.dispose();
     _stopsTicker?.cancel();
     _map?.dispose();
@@ -326,6 +342,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
   }
 
   Future<void> _loadStopSettings() async {
+    unawaited(RastreioSettings.carregar());
     final store = context.read<TvdeStore>();
     final max = await store.getSettingInt('tvde_max_stops', 2);
     final destOn = await store.getSettingBool('tvde_dest_change_enabled', false);
@@ -835,10 +852,26 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
   /// por cima da polilinha quando ela existe (`passosSobreRota`); sem rota,
   /// linha recta. Sinal velho → assenta sem animar.
   void _setDriverPos(AmostraPosicao amostra) {
+    // [A2 · 21/10] Com o canal da corrida vivo, o marcador segue SÓ o canal
+    // (um relógio de cada vez); a base/poll voltam a mandar quando ele cala.
+    final base = _fonteCarro.chegouDaBase(DateTime.now());
+    if (base == null) return;
+    if (base) _carro.limpar(); // troca de fonte: assenta na posição nova
+    _aplicarPosicao(amostra, _driverPollSeconds.clamp(1, 30) * 1000);
+  }
+
+  /// [A2 · 21/10] Posição vinda do canal privado da corrida (de 2 em 2 s).
+  void _setDriverPosDoCanal(AmostraPosicao amostra) {
+    if (_fonteCarro.chegouDoCanal(DateTime.now())) _carro.limpar();
+    _aplicarPosicao(
+        amostra, RastreioSettings.posAoVivoIntervaloSeconds.clamp(1, 10) * 1000);
+  }
+
+  void _aplicarPosicao(AmostraPosicao amostra, int intervaloEsperadoMs) {
     final aceite = _carro.aceitar(
       amostra,
       rota: _driverRouteLL,
-      intervaloEsperadoMs: _driverPollSeconds.clamp(1, 30) * 1000,
+      intervaloEsperadoMs: intervaloEsperadoMs,
       animar: !_sinalVelho,
     );
     if (!aceite) return; // mais antiga (ou repetida) do que a última: fora
@@ -869,6 +902,9 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
   /// nome, carro e ETA. Enquanto a migração que abre a leitura ao cliente não
   /// estiver no ar, o canal fica mudo e o poll faz o trabalho todo, como hoje.
   void _sincronizarFeed(TvdeRide? ride) {
+    // [A2 · 21/10] Abre/fecha o canal da corrida com a fase dela (fecha no fim).
+    _posAoVivo.ligado = RastreioSettings.posAoVivoEnabled;
+    _posAoVivo.sincronizar(rideId: ride?.id, status: ride?.status);
     final id = ride != null && (ride.isAssigned || ride.isInProgress)
         ? ride.driverId
         : null;

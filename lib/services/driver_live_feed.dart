@@ -132,6 +132,11 @@ class RastreioSettings {
   static bool clientLiveLocationEnabled = true;
   static int clientLiveLocationIntervalSeconds = 4;
 
+  /// [A2 · 21/10] Carro a deslizar pelo canal privado da corrida
+  /// (`tvde_pos_ao_vivo_enabled` / `tvde_pos_ao_vivo_intervalo_s`).
+  static bool posAoVivoEnabled = true;
+  static int posAoVivoIntervaloSeconds = 2;
+
   static Future<void>? _aCarregar;
 
   static Future<void> carregar() {
@@ -150,6 +155,8 @@ class RastreioSettings {
         get('tvde_ride_gps_interval_seconds').catchError((_) => null),
         get('client_live_location_enabled').catchError((_) => null),
         get('client_live_location_interval_seconds').catchError((_) => null),
+        get('tvde_pos_ao_vivo_enabled').catchError((_) => null),
+        get('tvde_pos_ao_vivo_intervalo_s').catchError((_) => null),
       ]);
       final poll = int.tryParse('${r[0]}');
       if (poll != null && poll >= 1 && poll <= 60) driverCardPollSeconds = poll;
@@ -161,6 +168,10 @@ class RastreioSettings {
       if (cli != null && cli >= 2 && cli <= 60) {
         clientLiveLocationIntervalSeconds = cli;
       }
+      if (r[4] is bool) posAoVivoEnabled = r[4] as bool;
+      if ('${r[4]}' == 'false') posAoVivoEnabled = false;
+      final pos = int.tryParse('${r[5]}');
+      if (pos != null && pos >= 1 && pos <= 10) posAoVivoIntervaloSeconds = pos;
     } catch (e) {
       debugPrint('[RastreioSettings] $e');
       _aCarregar = null; // tenta outra vez na próxima chamada

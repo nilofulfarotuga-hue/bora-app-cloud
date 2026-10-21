@@ -59,8 +59,8 @@ const List<String> _mosaicos = [
 ];
 
 /// Separadores de fundo do cliente, além do Início.
-/// Rótulos lidos de `bora_bottom_nav_v2.dart` — no singular.
-const List<String> _separadoresCliente = ['Entrega', 'Reserva', 'Perfil'];
+/// Rótulos lidos de `bora_bottom_nav_v2.dart`.
+const List<String> _separadoresCliente = ['Entrega', 'Reservas', 'Perfil'];
 
 void _diz(String m) => debugPrint('[varredura] $m');
 

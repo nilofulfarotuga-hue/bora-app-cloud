@@ -23,9 +23,15 @@ o pagamento nem nada do resto da sua lavagem. A única coisa que a app escreve d
 cliente anexar as fotos do carro — continua a funcionar, e só o próprio cliente as muda (o lavador
 não as pode trocar nem apagar). O servidor e o admin continuam a escrever.
 
-Migrações: `20261022050000_n3b_lavagem_escrita_direta_guarda.sql` e
-`20261022050100_n3b_pedido_cliente_loja_estafeta_guarda.sql` (ramo `n3b-22-10`). Reversão em
-`n3b/reversao_N3b.sql` (desligar já sem apagar, ou tirar de vez).
+Migrações: `20261022042522_n3b_lavagem_escrita_direta_guarda.sql` e
+`20261022042551_n3b_pedido_cliente_loja_estafeta_guarda.sql` (ramo `n3b-22-10`; os nomes têm a
+versão que a base gravou). Reversão em `n3b/reversao_N3b.sql` (desligar já sem apagar, ou tirar de vez).
+
+**Aplicado na base a 22/10 às ~05:25 Lisboa** (por `apply_migration`, depois do SIM do revisor na
+ronda 2, e2e_log 4351): versões `20261022042522` e `20261022042551`; o texto gravado tem o mesmo md5
+dos ficheiros (`8c0c3906…` e `061d9f9b…`); os 3 gatilhos estão ligados; as funções não são chamáveis
+por quem não tem sessão. Prova ao vivo logo a seguir (transação desfeita): 17 ataques recusados, 11
+caminhos normais a passar, 0 falhas; nada ficou (pedidos de teste e lavagens com o mesmo md5).
 
 ## A prova (transação desfeita, nada ficou)
 
@@ -37,7 +43,8 @@ apontava para um relatório que não dizia isso); (3) o lavador podia trocar as 
 Mais: 3 casos "legítimos" da minha prova não provavam nada (loja fechada às 5h, admin sem regra de
 escrita direta, código morto) e contavam como sucesso.
 
-Corrigi as três e refiz a prova (ronda 2, ~05:35, `n3b/prova_n3b_rollback_r2_RESULT.json`):
+Corrigi as três e refiz a prova (ronda 2, ~05:18 Lisboa, `n3b/prova_n3b_rollback_r2_RESULT.json`;
+o revisor disse SIM na ronda 2):
 - 17 ataques passavam hoje no ar; depois da correção 18 dão "proibido" (o 18.º, criar um pedido de
   loja já com estafeta, às 5h já era travado pela loja fechada; no horário passava).
 - 11 caminhos legítimos passam e ficam iguais antes e depois (incluindo criar um pedido direto sem
@@ -50,8 +57,11 @@ Corrigi as três e refiz a prova (ronda 2, ~05:35, `n3b/prova_n3b_rollback_r2_RE
 
 ## Falta isto (e porquê)
 
-Aplicar só depois do revisor dizer SIM na ronda 2; o envio dos ficheiros para o servidor faz-se um
-de cada vez, combinado com a sessão local_6914492a (só migrações e documentos: não dispara build).
+Pôr os ficheiros no GitHub. Atenção (revisor, ronda 2): os ficheiros `.sql` em `supabase/migrations`
+**disparam** o build Android (versionCode novo e envio para a Play) e a publicação do site, porque o
+CI só ignora `.md`, `.claude/` e `docs/`. A app não muda nada com isto — sai igual, só com número novo.
+O envio fica combinado com a sessão local_6914492a (um de cada vez): ou vai sozinho, ou junto com a
+próxima publicação a sério.
 
 ## PARA O DANILO
 

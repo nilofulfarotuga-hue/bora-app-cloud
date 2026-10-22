@@ -1,4 +1,4 @@
-{"corrida": "22/10/2026 ~05:35 Lisboa, MCP execute_sql, projeto ojykpzwqrtusfeakzrna, DO ... RAISE EXCEPTION 'RESULT' (tudo desfeito). Ficheiro prova_n3b_rollback_r2.sql md5 b478a5d87eab72dc29d1df13e65b26df; migrações 20261022050000 md5 8c0c39060c6ec83a74290366977f43f6 e 20261022050100 md5 061d9f9b06ab5095810976746597c255 (o texto enviado ao MCP é o do ficheiro sem as linhas de comentário de cabeçalho; corpos de funções e gatilhos iguais).",
+{"corrida": "22/10/2026 ~05:18 Lisboa (o commit 3745d21b é das 05:19:57), MCP execute_sql, projeto ojykpzwqrtusfeakzrna, DO ... RAISE EXCEPTION 'RESULT' (tudo desfeito). Ficheiro prova_n3b_rollback_r2.sql md5 b478a5d87eab72dc29d1df13e65b26df; migrações 20261022050000 md5 8c0c39060c6ec83a74290366977f43f6 e 20261022050100 md5 061d9f9b06ab5095810976746597c255 (o texto enviado ao MCP é o do ficheiro sem as linhas de comentário de cabeçalho; corpos de funções e gatilhos iguais).",
  "resumo": {
   "ataques_passavam_antes": 17,
   "ataques_ja_travados_antes_por_outra_regra": ["o9 (loja fechada às 5h — passa durante o horário)"],

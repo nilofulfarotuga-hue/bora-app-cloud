@@ -115,3 +115,79 @@ orders" protegida). Não mudam políticas nem valores, e a ordem do Danilo de 22
   Corri o mesmo texto com o cabeçalho de comentários da 2.ª migração encurtado; os corpos das funções batem por md5.
 - `n3b/revisor_prova_n3b_RESULT.json` — saída literal + antes/depois.
 - Nada aplicado, nada empurrado, sem commit.
+
+---
+
+# Ronda 2 — commit `3745d21b` (sobre `b740fb3d`) · revisão às ~05:25 de 22/10
+
+RAM no arranque da ronda: 2010 MB disponíveis (portão leve: ok).
+
+## VEREDICTO RONDA 2: SIM — aplicar as duas migrações na base
+
+Os 3 achados que bloqueavam estão corrigidos e provados por mim, de forma independente, com defeito plantado.
+**Uma condição antes de levar os ficheiros ao GitHub** (achado R2-1): a frase do relatório "não dispara build" está
+errada para um envio ao ramo de produção.
+
+## O que conferi (saída literal em `n3b/revisor_prova_n3b_r2_RESULT.json`)
+
+- **Diff `b740fb3d..3745d21b` nas migrações**: só três mudanças de código — (1) no INSERT, o `CASE` e o `WHEN` do
+  gatilho `_ins` passam a recusar `cardinality(tried_driver_ids) > 0`, `driver_offer_expires_at IS NOT NULL` e
+  `coalesce(driver_offer_history,'[]') <> '[]'` (iguais nos dois sítios); (2) `photos_client` só muda se
+  `auth.uid() = OLD.client_user_id`, senão `42501 lavagem_fotos_so_do_cliente`; (3) comentários. A função
+  `_pedido_cliente_loja_estafeta_recusa` (UPDATE) não mudou (md5 `67427293…` igual à ronda 1).
+- **O texto testado é o dos ficheiros**: md5 do `prosrc` na transação = md5 local do corpo em `3745d21b`
+  (`425ae3c9…`, `6b7051b4…`, `67427293…`). md5 dos ficheiros = os do RESULT r2 do autor (`8c0c3906…`, `061d9f9b…`).
+- **Achado 1 fechado**: `t09b` (criar com lista de excluídos) → `42501 … (tried_driver_ids)`; `t13` (oferta a
+  expirar + histórico) → `42501 … (driver_offer_expires_at)`; novos: `n2` (histórico `null` em JSON) e `n2b` (só
+  histórico) → `42501 … (driver_offer_history)`.
+- **Sem falsos positivos no INSERT**: `L5` cliente cria sem estafeta → `PASSOU created tried=- hist=[]` (o
+  `'[]'` por defeito não dispara); `L6` com lista vazia `'{}'` e `'[]'` → `PASSOU created`; `L7` conta demo →
+  `PASSOU driverAccepted drv=dede…0002/dede…0001` (o gatilho demo continua); `L8` servidor com lista e histórico →
+  `PASSOU created`.
+- **Achado 3 fechado**: `c03` lavador troca foto → `42501 lavagem_fotos_so_do_cliente`; `c03b` lavador apaga (NULL)
+  → igual. Continuam: `L1` cliente anexa foto como a app (`[{"angle":"","url":…}]`) → `PASSOU (1)`; `L2` lavador
+  escreve sem mexer na foto → `PASSOU (1)`; `L3` admin troca foto → `PASSOU (1)`; `L4` servidor → `PASSOU (1)`.
+- **Ronda 1 continua**: `t03` → `42501 … (assigned_driver_id)`; `c01` → `42501 … (offer_washer_id)`; `L9` dono muda
+  notas → `PASSOU (1)`. Privilégios: `authenticated` executa a função de decisão, `anon` não.
+- **Defeitos plantados meus**: `dC` gatilho `_ins` com o `WHEN` da ronda 1 → `t09b` volta a `PASSOU created`;
+  `dD` guarda da lavagem sem a regra das fotos → `c03` volta a `PASSOU (1)`. O teste não é vazio.
+- **Achado 2 fechado**: `RELATORIO-N3b.md` (novo) tem "PARA O DANILO" n.º 1, em português simples: o que fica aberto
+  (exemplo 20 € / 17 € / 3 €), porquê (a app lê a lavagem inteira; o lavador precisa do seu ganho), e os 3 passos
+  (mudar a app → publicar nas 3 e esperar → tirar a leitura na base). O comentário de `20261022050000` aponta para lá.
+- **Achado 4 fechado**: no RESULT r2 do autor, `v3/v5/v6` estão como "vazios" e fora da contagem de legítimos;
+  entraram `o9b/o9c/o9d`, `l10`, `l11`, `c9`, `d3`, `d4` — todos com o resultado esperado.
+- **Reversão** (`n3b/reversao_N3b.sql`) cobre os 3 gatilhos e as 3 funções.
+- **Nada ficou** depois da minha prova: md5 pedidos de teste `78a9b148…`, lavagens `6697513f…`, 2 lavagens,
+  2 eventos, 1 auditoria, fila pg_net 0, pedidos do T 0, do A 4, 0 funções e 0 gatilhos N3b no ar.
+
+## Achados da ronda 2
+
+| # | Gravidade | Onde | O quê | Prova |
+|---|---|---|---|---|
+| R2-1 | **MÉDIA (condição para o envio ao GitHub, não para aplicar na base)** | `RELATORIO-N3b.md:53-54` | Diz que o envio "(só migrações e documentos: não dispara build)". Se for um envio ao ramo `autonomous-night-2026-04-29`, **dispara**: `build_android.yml` e `build_web_deploy.yml` só ignoram `**.md`, `.claude/**`, `docs/**` e 2 ficheiros do Em Dia — `supabase/migrations/*.sql` não está na lista, e basta um ficheiro fora da lista para o build correr (novo versionCode + Play + site). Push é publicação. Corrigir a frase e decidir se os `.sql` vão sozinhos (gastam uma versão sem mudar a app) ou à boleia da próxima publicação a sério. O iPhone não dispara (`build_ios.yml` só olha `lib/**`, `ios/**`, `pubspec.yaml`…). | `paths-ignore` lidos nos dois ficheiros (ver conversa); `git diff --name-only origin/…  HEAD` mostra os 2 `.sql` no ramo. |
+| R2-2 | BAIXA | `prova_n3b_rollback_r2_RESULT.json:1` e `RELATORIO-N3b.md:40` | Dizem que a prova r2 correu "~05:35"; o commit `3745d21b` é das 05:19:57 e o relógio da base marcava 05:23 quando verifiquei. Hora estimada, não medida. O conteúdo reproduzi-o eu (acima), por isso não muda o veredicto — só corrigir a hora. | `git log` + `now()` da base. |
+| R2-3 | INFO | commit `3745d21b` | O autor meteu no commit o meu `REVISAO-N3b.md` e os meus `revisor_prova_n3b*.sql/json` (iguais ao que escrevi: `git status` limpo antes desta ronda). Não é problema; fica registado que o commit não foi meu. | `git diff --stat b740fb3d 3745d21b`. |
+
+Ficam como estavam (não bloqueiam, já estão no "PARA O DANILO" do relatório): leitura do dinheiro das lavagens
+aberta; estafeta/parceiro ainda escrevem loja/estafeta (não são donos); INSERT "cru" direto (toca preços → decisão
+dele); coordenadas de recolha e telefone do estafeta pelo dono.
+
+## Chão determinístico (ronda 2, saída literal)
+
+```
+python .claude/juiz/anti_trapaca.py --base origin/autonomous-night-2026-04-29 --head HEAD
+  JUIZ · CHÃO ANTI-TRAPAÇA (determinístico)  →  ✅ CLEAN
+  ficheiros alterados: 14 (teste: 0, código: 0)
+  VEREDITO: chão limpo. Segue para Camada 1/2/3.
+exit=0
+
+python .claude/juiz/zonas_diff.py --base origin/autonomous-night-2026-04-29 --head HEAD
+  JUIZ · CAMADA 2 (3) ZONAS PROTEGIDAS  →  ✅ CLEAN
+  Nenhuma zona protegida no diff.
+exit=0
+```
+
+## Ficheiros da ronda 2
+
+- `n3b/revisor_prova_n3b_r2.sql` — a minha prova r2 (DO + RAISE). `n3b/revisor_prova_n3b_r2_RESULT.json` — saída.
+- Nada aplicado, nada empurrado, sem commit meu.

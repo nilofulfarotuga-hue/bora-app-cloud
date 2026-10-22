@@ -8,12 +8,16 @@
 -- o cliente anexa a foto (carwash_store.dart:372, photos_client). Tudo o resto vai pelas funções do
 -- servidor (create_carwash_booking, cancel_carwash_booking, carwash_confirm_completion, as do lavador e
 -- as do admin) e pela Edge carwash-checkout (chave de serviço), que não passam por aqui.
--- Um gatilho que, numa escrita direta de quem não é admin, só deixa mudar photos_client (e updated_at).
+-- Um gatilho que, numa escrita direta de quem não é admin, só deixa mudar photos_client (e updated_at),
+-- e photos_client só pelo próprio cliente da lavagem (revisor N3b, achado 3: o lavador não troca as
+-- fotos que o cliente tirou ao carro, que são a prova numa queixa).
 --
 -- A LEITURA das colunas de dinheiro (total, ganho do lavador, taxa Bora) continua aberta ao cliente e ao
 -- lavador da própria lavagem: a app lê a linha inteira (carwash_store.dart:178/231, washer_store.dart:
--- 139/159, select()), por isso tirar a leitura de colunas parte as duas apps. Fica para uma ronda com
--- mudança na app (relatório da noite 21/10, PARA O DANILO).
+-- 139/159, select()), por isso tirar a leitura de colunas parte as duas apps. Para a fechar é preciso
+-- primeiro mudar a app (ler só as colunas de que cada um precisa), publicar nas 3 plataformas, e só
+-- depois tirar a leitura na base. Escrito para o Danilo em
+-- .claude/.ai/missoes/fechar-pendencias-2026-10-20/RELATORIO-N3b.md (secção PARA O DANILO).
 CREATE OR REPLACE FUNCTION public._lavagem_escrita_direta_guarda()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -26,6 +30,10 @@ DECLARE
 BEGIN
   IF current_user NOT IN ('authenticated', 'anon') OR public.is_admin() THEN
     RETURN NEW;
+  END IF;
+  IF NEW.photos_client IS DISTINCT FROM OLD.photos_client
+     AND auth.uid() IS DISTINCT FROM OLD.client_user_id THEN
+    RAISE EXCEPTION 'lavagem_fotos_so_do_cliente' USING ERRCODE = '42501';
   END IF;
   v_novo  := to_jsonb(NEW) - 'photos_client' - 'updated_at';
   v_velho := to_jsonb(OLD) - 'photos_client' - 'updated_at';

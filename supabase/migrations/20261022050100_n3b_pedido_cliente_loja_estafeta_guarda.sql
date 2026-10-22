@@ -19,9 +19,11 @@
 -- Funções e Edges do servidor correm como o dono delas ou como service_role: não passam aqui.
 -- Admin: passa. Não muda políticas, colunas nem dados.
 --
--- No INSERT direto pela API (política orders_insert_client), o cliente também não pode nascer o
--- pedido já com estafeta. O nome a00_ corre antes de a_trg_pedido_demo_caixa_fechada, que põe o
--- estafeta demo nos pedidos das contas demo — esse continua a funcionar.
+-- No INSERT direto pela API (política orders_insert_client, que nenhuma app usa), o cliente também
+-- não pode nascer o pedido já com estafeta, oferta, estafetas excluídos (tried_driver_ids) ou
+-- histórico de ofertas (revisor N3b, achado 1: driver_offer_history nasce '[]' por defeito).
+-- O nome a00_ corre antes de a_trg_pedido_demo_caixa_fechada, que põe o estafeta demo nos pedidos
+-- das contas demo — esse continua a funcionar.
 
 -- NULL = deixa; senão, a coluna que se recusa.
 CREATE OR REPLACE FUNCTION public._pedido_cliente_loja_estafeta_recusa(o public.orders, n public.orders)
@@ -76,6 +78,9 @@ BEGIN
       WHEN NEW.current_driver_offer_id IS NOT NULL THEN 'current_driver_offer_id'
       WHEN NEW.preassigned_driver_id   IS NOT NULL THEN 'preassigned_driver_id'
       WHEN NEW.helper_driver_id        IS NOT NULL THEN 'helper_driver_id'
+      WHEN COALESCE(cardinality(NEW.tried_driver_ids), 0) > 0 THEN 'tried_driver_ids'
+      WHEN NEW.driver_offer_expires_at IS NOT NULL THEN 'driver_offer_expires_at'
+      WHEN COALESCE(NEW.driver_offer_history, '[]'::jsonb) <> '[]'::jsonb THEN 'driver_offer_history'
     END;
   ELSE
     v_motivo := public._pedido_cliente_loja_estafeta_recusa(OLD, NEW);
@@ -116,5 +121,8 @@ CREATE OR REPLACE TRIGGER a00_pedido_loja_estafeta_guarda_ins
   FOR EACH ROW
   WHEN (NEW.assigned_driver_id IS NOT NULL OR NEW.driver_id IS NOT NULL
         OR NEW.current_driver_offer_id IS NOT NULL OR NEW.preassigned_driver_id IS NOT NULL
-        OR NEW.helper_driver_id IS NOT NULL)
+        OR NEW.helper_driver_id IS NOT NULL
+        OR COALESCE(cardinality(NEW.tried_driver_ids), 0) > 0
+        OR NEW.driver_offer_expires_at IS NOT NULL
+        OR COALESCE(NEW.driver_offer_history, '[]'::jsonb) <> '[]'::jsonb)
   EXECUTE FUNCTION public._pedido_cliente_loja_estafeta_guarda();

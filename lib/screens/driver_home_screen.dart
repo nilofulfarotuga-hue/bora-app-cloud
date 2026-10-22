@@ -54,6 +54,7 @@ import '../widgets/ganho_de_hoje_card.dart';
 import '../widgets/trocar_de_papel.dart';
 import '../widgets/aviso_atividade_banner.dart';
 import '../widgets/driver_fiscal_card.dart';
+import '../widgets/estafeta_documentos_em_falta.dart';
 import '../services/role_switch_helper.dart';
 import 'driver_map_screen.dart';
 import 'driver_order_action_helper.dart';
@@ -1187,68 +1188,75 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
           ),
         ],
       ),
+      // 22/10/2026: rola — a lista do que falta pode não caber num ecrã pequeno.
       body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                isRejected ? Icons.cancel_outlined : Icons.hourglass_top,
-                size: 72,
-                color: isRejected ? Colors.red : Colors.orange,
-              ),
-              const SizedBox(height: 24),
-              Text(
-                isRejected ? 'Conta rejeitada' : 'Conta em análise',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                isRejected
-                    ? 'A sua candidatura não foi aprovada. Contacte o suporte para mais informações.'
-                    : 'A sua conta está a ser verificada pela nossa equipa. Receberá uma notificação quando for aprovada.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 28),
-              // PEDIDO PENDENTE NAO BLOQUEIA (2026-08-29). Este ecra e so do
-              // perfil de estafeta; a app e a mesma. Enquanto a candidatura e
-              // revista, a pessoa continua a poder pedir como cliente — e ate
-              // aqui so tinha 'Terminar sessao', que a mandava embora da app
-              // inteira por causa de um perfil so.
-              Text(
-                'Entretanto podes usar a app normalmente para fazer os teus '
-                'pedidos. A análise continua na mesma.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 14)),
-                onPressed: () async {
-                  final ok = await activateRole(context, UserRole.client);
-                  if (!ok && context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('Não foi possível abrir o teu perfil '
-                            'de cliente. Tenta de novo.')));
-                  }
-                },
-                icon: const Icon(Icons.shopping_bag_outlined),
-                label: const Text('Usar a app como cliente'),
-              ),
-            ],
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  isRejected ? Icons.cancel_outlined : Icons.hourglass_top,
+                  size: 72,
+                  color: isRejected ? Colors.red : Colors.orange,
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  isRejected ? 'Conta rejeitada' : 'Conta em análise',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  isRejected
+                      ? 'A sua candidatura não foi aprovada. Contacte o suporte para mais informações.'
+                      : 'A sua conta está a ser verificada pela nossa equipa. Receberá uma notificação quando for aprovada.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 20),
+                // 22/10/2026 (missão cadastro-estafeta-fotos): o que falta, com
+                // um botão por item para enviar aqui mesmo (mesma regra do painel).
+                const EstafetaDocumentosEmFalta(),
+                const SizedBox(height: 28),
+                // PEDIDO PENDENTE NAO BLOQUEIA (2026-08-29). Este ecra e so do
+                // perfil de estafeta; a app e a mesma. Enquanto a candidatura e
+                // revista, a pessoa continua a poder pedir como cliente — e ate
+                // aqui so tinha 'Terminar sessao', que a mandava embora da app
+                // inteira por causa de um perfil so.
+                Text(
+                  'Entretanto podes usar a app normalmente para fazer os teus '
+                  'pedidos. A análise continua na mesma.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 14)),
+                  onPressed: () async {
+                    final ok = await activateRole(context, UserRole.client);
+                    if (!ok && context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('Não foi possível abrir o teu perfil '
+                              'de cliente. Tenta de novo.')));
+                    }
+                  },
+                  icon: const Icon(Icons.shopping_bag_outlined),
+                  label: const Text('Usar a app como cliente'),
+                ),
+              ],
+            ),
           ),
         ),
       ),

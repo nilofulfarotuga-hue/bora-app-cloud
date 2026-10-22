@@ -1,3 +1,5 @@
+import '../../../services/driver_foto_upload.dart'
+    show DriverFotoUpload, prepararFotoParaEnvio;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -201,22 +203,25 @@ class _TvdeConformidadeScreenState extends State<TvdeConformidadeScreen> {
     final x = await SafeImagePicker.pickImage(
         source: ImageSource.gallery, maxWidth: 1800, imageQuality: 85);
     if (x == null) return null;
-    final nome = x.name.toLowerCase();
-    final ponto = nome.lastIndexOf('.');
-    var ext = ponto >= 0 ? nome.substring(ponto + 1) : 'jpg';
-    if (!const ['jpg', 'jpeg', 'png', 'webp', 'heic'].contains(ext)) ext = 'jpg';
-    final contentType = switch (ext) {
-      'png' => 'image/png',
-      'webp' => 'image/webp',
-      'heic' => 'image/heic',
-      _ => 'image/jpeg',
+    // 22/10/2026: o tipo vem dos bytes e a HEIC do iPhone vira JPEG — antes
+    // ia `image/heic` (o balde recusa) ou `.jpg` com HEIC dentro (o painel
+    // não a mostrava).
+    final foto = await prepararFotoParaEnvio(await x.readAsBytes());
+    if (foto == null) {
+      _msg('Não conseguimos ler esta foto. Tira outra ou escolhe outra imagem.');
+      await DriverFotoUpload.registarFalha('tvde_$tipo', 'formato_ilegivel');
+      return null;
+    }
+    final ext = switch (foto.mime) {
+      'image/png' => 'png',
+      'image/webp' => 'webp',
+      _ => 'jpg',
     };
-    final bytes = await x.readAsBytes();
     final path = '$uid/tvde/${tipo}_${DateTime.now().millisecondsSinceEpoch}.$ext';
     await Supabase.instance.client.storage.from('driver-documents').uploadBinary(
           path,
-          bytes,
-          fileOptions: FileOptions(upsert: true, contentType: contentType),
+          foto.bytes,
+          fileOptions: FileOptions(upsert: true, contentType: foto.mime),
         );
     return path;
   }
@@ -229,7 +234,12 @@ class _TvdeConformidadeScreenState extends State<TvdeConformidadeScreen> {
       await _svc.registarDocumento(
           tipo: tipo, caminho: caminho, validade: validade);
     } catch (e) {
+      // 22/10/2026: já não fica calado — o documento não chegava à revisão
+      // e ninguém sabia. O caminho continua gravado no perfil.
       debugPrint('[TvdeConformidadeScreen] registarDocumento($tipo) falhou: $e');
+      _msg('A foto ficou guardada, mas não chegou à revisão da equipa. '
+          'Tenta enviar outra vez.');
+      await DriverFotoUpload.registarFalha('tvde_registar_$tipo', e.toString());
     }
   }
 

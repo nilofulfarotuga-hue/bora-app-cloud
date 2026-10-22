@@ -1,3 +1,5 @@
+import '../../services/driver_foto_upload.dart'
+    show DriverFotoUpload, FotoEnvioException;
 import '../../utils/io_compat.dart';
 
 import 'package:flutter/material.dart';
@@ -85,18 +87,17 @@ class _DriverRoleApplyScreenState extends State<DriverRoleApplyScreen> {
     });
   }
 
+  /// 22/10/2026: o mesmo envio do cadastro do estafeta (Edge
+  /// `upload-driver-document`: tipo pelos bytes, HEIC vira JPEG, 3 tentativas,
+  /// falha no e2e_log). Antes subia direto com `image/jpeg` cravado e caminho
+  /// solto — o painel mostrava estas fotos partidas.
   Future<String?> _upload(XFile file, String tag) async {
-    final uid = Supabase.instance.client.auth.currentUser?.id;
-    if (uid == null) return null;
-    final bytes = await file.readAsBytes();
-    final path = '$uid/${tag}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-    await Supabase.instance.client.storage.from('driver-documents').uploadBinary(
-          path,
-          bytes,
-          fileOptions:
-              const FileOptions(upsert: true, contentType: 'image/jpeg'),
-        );
-    return path;
+    final selfie = tag == 'selfie';
+    return DriverFotoUpload.enviar(
+      bytes: await file.readAsBytes(),
+      kind: selfie ? 'selfie' : 'document',
+      rotulo: selfie ? 'selfie' : 'foto do documento',
+    );
   }
 
   Future<void> _submit() async {
@@ -163,6 +164,10 @@ class _DriverRoleApplyScreenState extends State<DriverRoleApplyScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(e.message)));
+    } on FotoEnvioException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(e.mensagem), duration: const Duration(seconds: 6)));
     } catch (e) {
       if (!mounted) return;
       debugPrint('[role_apply] enviar: $e');

@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'driver_foto_upload.dart' show FotoPronta, prepararFotoParaEnvio;
+
 /// PRESTADORES — uploads de quem se candidata a trabalhar (faxineiro, lavador).
 ///   • foto de perfil  → bucket `avatars` (público, `$uid/avatar.jpg`)
 ///   • documentos KYC  → bucket privado do papel, `$uid/<tag>_<ts>.jpg`
@@ -11,6 +13,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// a candidatura de lavador chegou (2026-08-29), copiar o ficheiro teria criado
 /// gémeos: duas cópias da mesma lógica delicada de content-type e de erro do
 /// Storage, uma delas a envelhecer em silêncio. O balde passou a argumento.
+///
+/// 22/10/2026 (documentos de todos os papéis): o tipo vem dos primeiros bytes
+/// e uma foto HEIC do iPhone é convertida para JPEG antes de sair (antes saía
+/// rotulada `image/jpeg` e o painel não a conseguia mostrar). Sem sessão já
+/// não devolve null em silêncio — a candidatura gravava-se sem o documento.
 class ProviderUploadService {
   /// Baldes privados por papel. Ambos com as MESMAS quatro políticas.
   static const bucketFaxineiro = 'cleaner-documents';
@@ -22,13 +29,13 @@ class ProviderUploadService {
   /// versionado (cache-bust). null se não houver sessão.
   static Future<String?> uploadAvatar(XFile file) async {
     final uid = _sb.auth.currentUser?.id;
-    if (uid == null) return null;
-    final bytes = await file.readAsBytes();
+    if (uid == null) throw StateError('not_authenticated');
+    final foto = await _preparar(await file.readAsBytes());
     final path = '$uid/avatar.jpg';
     await _sb.storage.from('avatars').uploadBinary(
           path,
-          bytes,
-          fileOptions: const FileOptions(upsert: true, contentType: 'image/jpeg'),
+          foto.bytes,
+          fileOptions: FileOptions(upsert: true, contentType: foto.mime),
         );
     final publicUrl = _sb.storage.from('avatars').getPublicUrl(path);
     return '$publicUrl?v=${DateTime.now().millisecondsSinceEpoch}';
@@ -43,18 +50,15 @@ class ProviderUploadService {
     String bucket = bucketFaxineiro,
   }) async {
     final uid = _sb.auth.currentUser?.id;
-    if (uid == null) return null;
-    final bytes = await file.readAsBytes();
-    // Bytes vazios (imagem ilegível) davam 400 sem causa clara → mensagem própria.
-    if (bytes.isEmpty) {
-      throw StateError('empty_file');
-    }
-    // Content-type VÁLIDO por extensão ('image/jpg' não é MIME válido).
-    final ext = file.name.split('.').last.toLowerCase();
-    final (safeExt, mime) = switch (ext) {
-      'png' => ('png', 'image/png'),
-      'webp' => ('webp', 'image/webp'),
-      _ => ('jpg', 'image/jpeg'), // jpg/jpeg/desconhecido → jpeg (padrão do avatar)
+    if (uid == null) throw StateError('not_authenticated');
+    // Tipo pelos bytes (o nome engana: o iPhone chama .jpg a fotos HEIC).
+    final foto = await _preparar(await file.readAsBytes());
+    final bytes = foto.bytes;
+    final mime = foto.mime;
+    final safeExt = switch (mime) {
+      'image/png' => 'png',
+      'image/webp' => 'webp',
+      _ => 'jpg',
     };
     final path = '$uid/${tag}_${DateTime.now().millisecondsSinceEpoch}.$safeExt';
     try {
@@ -78,5 +82,14 @@ class ProviderUploadService {
     }
     debugPrint('[ProviderUploadService] doc uploaded ($mime): $path');
     return path;
+  }
+
+  /// Bytes vazios ou ilegíveis dão 'empty_file' (a candidatura já tem a frase
+  /// certa para isso: "Não foi possível ler a imagem…").
+  static Future<FotoPronta> _preparar(Uint8List bytes) async {
+    if (bytes.isEmpty) throw StateError('empty_file');
+    final foto = await prepararFotoParaEnvio(bytes);
+    if (foto == null) throw StateError('empty_file: formato ilegivel');
+    return foto;
   }
 }

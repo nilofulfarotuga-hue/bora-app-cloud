@@ -16,6 +16,245 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 21/10/2026: encomendas no motor do Bora Motorista (etiqueta nas reservas)
+  // (tool/l10n/traducoes/pt-en-25-encomendas.json). O resto das palavras de
+  // encomenda vive em lib/models/ride_kind_textos.dart (PT e EN juntos).
+  '📦 Encomenda':
+      '📦 Parcel',
+  // 21/10/2026 (N2): título do histórico quando há encomendas na lista.
+  'As minhas corridas e encomendas':
+      'My rides and parcels',
+  // 21/10/2026: prémios dos marcos do check-in (10, 15 e 30 dias seguidos)
+  // (tool/l10n/traducoes/pt-en-24-checkin-marcos.json).
+  'Por usar':
+      'Ready to use',
+  'Guardado':
+      'Saved',
+  'Falta 1 pedido para desbloquear o prémio':
+      '1 order left to unlock the prize',
+  'Usado':
+      'Used',
+  'Anulado':
+      'Cancelled',
+  'A limpeza marca-se com pelo menos 12 horas de antecedência.':
+      'Cleaning must be booked at least 12 hours in advance.',
+  'Essa morada fica fora da zona da lavagem.':
+      'That address is outside the car wash area.',
+  'Escreve a matrícula do carro.':
+      'Enter the car\'s licence plate.',
+  'Escreve o teu telemóvel.':
+      'Enter your mobile number.',
+  'Este prémio já expirou.':
+      'This prize has expired.',
+  'Este prémio já não está disponível.':
+      'This prize is no longer available.',
+  'Este serviço está em pausa de momento.':
+      'This service is paused right now.',
+  'Não foi possível usar o prémio. Tenta de novo.':
+      'Couldn\'t use the prize. Try again.',
+  'Os prémios do mês':
+      'This month\'s prizes',
+  'Faz o check-in todos os dias. Aos 10 dias seguidos ganhas 2 salgados da Keli (pagas só a entrega e as taxas). Aos 15, um açaí do Goola. Aos 30, escolhes 2 horas de limpeza ou uma lavagem exterior do carro.':
+      'Check in every day. After 10 days in a row you get 2 savoury snacks from Keli (you only pay delivery and fees). After 15, an açaí from Goola. After 30, you choose 2 hours of cleaning or an exterior car wash.',
+  'Se falhares um dia, a sequência volta ao dia 1. Depois do dia {0} recomeça no dia 1.':
+      'If you miss a day, your streak goes back to day 1. After day {0} it starts again at day 1.',
+  'Os meus prémios ({0})':
+      'My prizes ({0})',
+  'Os meus prémios':
+      'My prizes',
+  'Começa hoje a tua sequência.':
+      'Start your streak today.',
+  'Estás no dia {0} de {1}.':
+      'You\'re on day {0} of {1}.',
+  'Falta 1 dia para ganhares {0}.':
+      '1 day left to win {0}.',
+  'Faltam {0} dias para ganhares {1}.':
+      '{0} days left to win {1}.',
+  'dias':
+      'days',
+  'Ganho':
+      'Won',
+  'Falta 1 dia':
+      '1 day left',
+  'Faltam {0} dias':
+      '{0} days left',
+  'O teu prémio do check-in':
+      'Your check-in prize',
+  'Grátis: só pagas a entrega e as taxas.':
+      'Free: you only pay delivery and fees.',
+  'Não foi possível carregar as opções. Tenta de novo.':
+      'Couldn\'t load the options. Try again.',
+  'Pôr no carrinho · €{0}':
+      'Add to cart · €{0}',
+  'Completa as escolhas obrigatórias':
+      'Complete the required choices',
+  'Prémio do check-in no carrinho: pagas só a entrega e as taxas.':
+      'Check-in prize in your cart: you only pay delivery and fees.',
+  'Tens um prémio para esta loja: {0}.':
+      'You have a prize for this store: {0}.',
+  'A aplicar…':
+      'Applying…',
+  'Aplicar':
+      'Apply',
+  'Prémio no carrinho. Pagas só a entrega e as taxas.':
+      'Prize in your cart. You only pay delivery and fees.',
+  'Não foi possível ver os teus prémios. Puxa para tentar de novo.':
+      'Couldn\'t load your prizes. Pull to try again.',
+  'Os marcos do check-in · dia {0}':
+      'Check-in milestones · day {0}',
+  'Os marcos do check-in':
+      'Check-in milestones',
+  'Ainda não tens prémios. Faz o check-in todos os dias: aos 10 dias seguidos ganhas o primeiro.':
+      'No prizes yet. Check in every day: after 10 days in a row you win the first one.',
+  'Usados e expirados':
+      'Used and expired',
+  'Vale até {0}':
+      'Valid until {0}',
+  'Este mês já não há mais prémios de {0} dias. Fica disponível a {1}.':
+      'There are no more {0}-day prizes this month. It becomes available on {1}.',
+  'Falta 1 pedido para desbloquear o prémio. Tens até {0}.':
+      '1 order left to unlock the prize. You have until {0}.',
+  'Usado a {0}':
+      'Used on {0}',
+  'Expirou a {0}':
+      'Expired on {0}',
+  'Usar':
+      'Use',
+  'Escolher':
+      'Choose',
+  'Escreve a morada.':
+      'Enter the address.',
+  'Escolhe o dia e a hora.':
+      'Choose the day and time.',
+  'Limpeza marcada. Vês o estado em Reservas.':
+      'Cleaning booked. See its status in Bookings.',
+  'Lavagem pedida. Vês o estado em Reservas.':
+      'Car wash requested. See its status in Bookings.',
+  'O teu prémio dos {0} dias':
+      'Your {0}-day prize',
+  'Escolhe o teu prémio':
+      'Choose your prize',
+  'Não pagas nada por este serviço.':
+      'You don\'t pay anything for this service.',
+  '2 horas de limpeza em casa':
+      '2 hours of cleaning at home',
+  'Marca-se com pelo menos 12 horas de antecedência.':
+      'Book at least 12 hours in advance.',
+  'Lavagem exterior do carro':
+      'Exterior car wash',
+  'Só por fora (ducha exterior).':
+      'Outside only (exterior rinse).',
+  'Para agora':
+      'Right now',
+  'A marcar…':
+      'Booking…',
+  'Marcar o meu prémio':
+      'Book my prize',
+  'Ver os prémios do mês':
+      'See this month\'s prizes',
+  'Ganhaste {0}!':
+      'You won {0}!',
+  'Ver':
+      'View',
+  'Prémios do check-in diário':
+      'Daily check-in prizes',
+  'Prémio do check-in (pago pela Bora)':
+      'Check-in prize (paid by Bora)',
+  'os tokens do Dia 7':
+      'the Day 7 tokens',
+  '2 salgados da Keli':
+      '2 savoury snacks from Keli',
+  'um açaí do Goola':
+      'an açaí from Goola',
+  '2 horas de limpeza ou uma lavagem exterior do carro':
+      '2 hours of cleaning or an exterior car wash',
+  'Ao 7.º dia seguido ganhas os tokens do Dia 7.':
+      'On the 7th day in a row you get the Day 7 tokens.',
+  'Na Sabores do Brasil: 2 salgados grandes, coxinha ou esfirra à escolha. Pagas só a entrega e as taxas.':
+      'At Sabores do Brasil: 2 large savoury snacks, coxinha or esfirra, your choice. You only pay delivery and fees.',
+  'No Goola Açaí: um Goola Bowl com 3 acompanhamentos à escolha. Pagas só a entrega e as taxas.':
+      'At Goola Açaí: a Goola Bowl with 3 toppings of your choice. You only pay delivery and fees.',
+  'Escolhes: 2 horas de limpeza em casa ou uma lavagem do carro só por fora.':
+      'You choose: 2 hours of cleaning at home or an outside-only car wash.',
+  // 20/10/2026: Favor — máximo de sacos de pellets por Favor (o número vem do
+  // painel, platform_settings.favor_pellets_max_sacos)
+  // (tool/l10n/traducoes/pt-en-23-favor-pellets.json).
+  'Pellets: máximo {0} sacos por Favor.':
+      'Pellets: at most {0} bags per Favor.',
+  'Pellets: máximo {0} sacos por Favor. Pede o resto noutro Favor.':
+      'Pellets: at most {0} bags per Favor. Order the rest in another Favor.',
+  'Pediste {0} sacos.':
+      'You asked for {0} bags.',
+  // 19/10/2026: limpeza por pagar em MB Way — o botão diz o que faz
+  // (tool/l10n/traducoes/pt-en-22-limpeza-mbway.json).
+  'Pagar com MB Way':
+      'Pay with MB Way',
+  // 17/10/2026: cancelamento tardio TVDE — o diálogo mostra o valor do
+  // servidor e o que foi cobrado (tool/l10n/traducoes/pt-en-21-cancelamento-tardio.json).
+  'Não foi possível confirmar agora o custo do cancelamento. Se o motorista já aceitou há mais de {0} min, cancelar custa o valor da corrida. Queres cancelar na mesma?':
+      "We couldn't confirm the cancellation cost right now. If the driver accepted more than {0} min ago, cancelling costs the ride fare. Cancel anyway?",
+  'Cancelar na mesma':
+      'Cancel anyway',
+  'Sim, cancelar':
+      'Yes, cancel',
+  'Cancelar e pagar {0} €':
+      'Cancel and pay {0} €',
+  'Ainda nenhum motorista aceitou. Cancelas sem custo.':
+      'No driver has accepted yet. You can cancel free of charge.',
+  'Cancelamento grátis durante mais {0} (conta desde que o motorista aceitou).':
+      'Free cancellation for {0} more (counted from when the driver accepted).',
+  'Passado esse tempo, cancelar passa a ter custo (até {0} €, o valor da corrida).':
+      'After that, cancelling has a cost (up to {0} €, the ride fare).',
+  'Custo de cancelamento: {0} €':
+      'Cancellation cost: {0} €',
+  'O motorista já aceitou há mais de {0} min. Cancelar agora custa o valor total da corrida.':
+      'The driver accepted more than {0} min ago. Cancelling now costs the full ride fare.',
+  'Esta corrida já está paga: o valor pago fica retido.':
+      'This ride is already paid: the amount paid is kept.',
+  'O valor é debitado da tua carteira Bora (se não tiveres saldo, fica como dívida).':
+      "The amount is debited from your Bora wallet (if you don't have enough balance, it stays as a debt).",
+  'Cancelar agora tem uma taxa de {0} €.':
+      'Cancelling now has a fee of {0} €.',
+  'Cancelamento sem custo.':
+      'Free cancellation.',
+  'Corrida cancelada. Foram cobrados {0} €.':
+      'Ride cancelled. You were charged {0} €.',
+  'Corrida cancelada. Sem custo.':
+      'Ride cancelled. No charge.',
+  'A corrida já estava cancelada.':
+      'The ride was already cancelled.',
+  'Sem custo':
+      'No charge',
+  // 15/10/2026: sessão caída volta à entrada
+  // (tool/l10n/traducoes/pt-en-20-sessao-terminou.json).
+  'A tua sessão terminou. Entra outra vez.':
+      'Your session has ended. Please sign in again.',
+  // 15/10/2026: Receita do Dia (Bora Todo Dia) — cartão da home e ecrã da
+  // receita (tool/l10n/traducoes/pt-en-19-receita-do-dia.json).
+  'Receita do dia': 'Recipe of the day',
+  '{0} ingredientes': '{0} ingredients',
+  'Ingredientes': 'Ingredients',
+  'Como fazer': 'How to make it',
+  'Avisar-me todos os dias às {0}h': 'Remind me every day at {0}:00',
+  'Uma notificação com a receita do dia. Desligas quando quiseres.':
+      'One notification with the recipe of the day. Turn it off whenever you like.',
+  'A procurar o mais barato…': 'Finding the cheapest…',
+  'Pôr no carrinho': 'Add to cart',
+  'Não foi possível gravar agora. Tenta outra vez.':
+      'Could not save right now. Please try again.',
+  'Escolhe primeiro a tua morada de entrega na página inicial.':
+      'First choose your delivery address on the home screen.',
+  'Não encontrámos estes ingredientes nos supermercados agora. Tenta mais tarde.':
+      'We could not find these ingredients in the supermarkets right now. Try again later.',
+  'No carrinho do {0}': 'In your {0} cart',
+  'Não há: {0}.': 'Not available: {0}.',
+  'Não foi possível montar o carrinho agora. Tenta outra vez.':
+      'Could not build the cart right now. Please try again.',
+  // 15/10/2026: pesquisa única — a lupa leva também ao motorista, à limpeza e
+  // aos serviços (tool/l10n/traducoes/pt-en-18-pesquisa-unica.json).
+  'Lojas, produtos, serviços, motorista…': 'Shops, products, services, driver…',
+  'Lojas, produtos e serviços…': 'Shops, products and services…',
+  'Ir para': 'Go to',
   // 14/10/2026: pedir corrida nunca trava — morada escrita, botão que diz o
   // que falta (tool/l10n/traducoes/pt-en-17-pedir-nunca-trava.json).
   'Não encontrei esta morada no mapa. Escolhe uma sugestão ou acrescenta a cidade (ex.: Guarda).':
@@ -69,7 +308,7 @@ const Map<String, String> kStringsEn = <String, String>{
   'Pagas {0} a menos ao motorista, em dinheiro.': 'You pay {0} less to the driver, in cash.',
   'Devolvemos {0} para o cartão ou MB Way.': 'We refund {0} to your card or MB Way.',
   'Destino mudado. Devolvemos {0}.': 'Destination changed. We refund {0}.',
-  // 10/10/2026: separador Reserva com tudo o que o cliente marcou
+  // 10/10/2026: separador Reservas com tudo o que o cliente marcou
   // (tool/l10n/traducoes/pt-en-13-reservas-num-so-sitio.json).
   '1 pessoa': '1 person',
   '{0} pessoas': '{0} people',
@@ -89,8 +328,8 @@ const Map<String, String> kStringsEn = <String, String>{
   'De {0}': 'From {0}',
   'Para {0}': 'To {0}',
   'Em curso': 'In progress',
-  'Fica guardada no separador Reserva, em baixo.':
-      'It is kept in the Reserva tab, at the bottom.',
+  'Fica guardada no separador Reservas, em baixo.':
+      'It is kept in the Reservas tab, at the bottom.',
   'Incluída no pacote ida e volta': 'Included in the round-trip package',
   'Limpeza': 'Cleaning',
   'Limpeza marcada!': 'Cleaning booked!',
@@ -2808,6 +3047,10 @@ const Map<String, String> kStringsEn = <String, String>{
       'You have €{0} in tokens — you can use up to €{1} on this ride (max. {2}%).',
   'Tens €{0} em tokens — podes usar até €{1} neste pedido (máx. {2}%).':
       'You have €{0} in tokens — you can use up to €{1} on this order (max. {2}%).',
+  'Tens €{0} em tokens — podes usar até €{1} nesta corrida (no máximo metade dos teus tokens).':
+      'You have €{0} in tokens — you can use up to €{1} on this ride (at most half of your tokens).',
+  'Tens €{0} em tokens — podes usar até €{1} neste pedido (no máximo metade dos teus tokens).':
+      'You have €{0} in tokens — you can use up to €{1} on this order (at most half of your tokens).',
   'Tenta outra data ou junta-te à fila.':
       'Try another date or join the queue.',
   'Tentar de novo':

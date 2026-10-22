@@ -63,7 +63,7 @@ class BoraBottomNavV2 extends StatelessWidget {
     ),
     _NavSpec(
       tab: BoraNavTab.reservation,
-      label: 'Reserva',
+      label: 'Reservas',
       icon: Icons.event_seat_outlined,
       activeIcon: Icons.event_seat,
     ),

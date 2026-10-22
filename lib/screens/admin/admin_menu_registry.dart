@@ -30,7 +30,9 @@ import 'admin_mesas_screen.dart';
 import 'admin_opcoes_produto_screen.dart';
 import 'admin_maiores_18_screen.dart';
 import 'admin_reativacao_screen.dart';
+import 'admin_checkin_premios_screen.dart';
 import 'admin_checkin_screen.dart';
+import 'admin_receitas_screen.dart';
 import 'admin_support_escalations_screen.dart';
 import 'admin_tvde_chats_screen.dart';
 import 'admin_connect_payments_screen.dart';
@@ -94,6 +96,7 @@ import 'admin_support_tickets_screen.dart';
 import 'admin_tvde_access_requests_screen.dart';
 import 'admin_tokens_screen.dart';
 import 'admin_tvde_balcao_agenda_screen.dart';
+import 'admin_tvde_fila_screen.dart';
 import 'admin_tvde_balcao_screen.dart';
 import 'admin_tvde_cancellations_screen.dart';
 import 'admin_tvde_conformidade_screen.dart';
@@ -114,8 +117,10 @@ import 'admin_tvde_subscriptions_screen.dart';
 import 'admin_wallets_screen.dart';
 import 'admin_web_health_screen.dart';
 import 'admin_whatsapp_screen.dart';
+import 'admin_agentes_email_screen.dart';
 import 'admin_pendencias_operacao_screen.dart';
 import 'admin_conformidade_legal_screen.dart';
+import 'admin_comprovativo_atividade_screen.dart';
 import 'admin_fecho_mensal_screen.dart';
 
 /// Registo ÚNICO do menu do painel admin (PT-BR).
@@ -552,6 +557,16 @@ List<AdminMenuSection> adminMenuSections() => [
       builder: () => const AdminTvdeRidesScreen(),
       keywords: const ['canceladas', 'corridas', 'curso', 'feitas', 'todas'],
     ),
+    // [A2 · 21/10/2026] Fila inteligente + carro a deslizar (paridade admin).
+    AdminMenuItem(
+      id: 'tvde_fila_inteligente',
+      title: 'Fila inteligente',
+      subtitle: 'Quem recebe cada corrida e por que ordem, ao vivo; ligar/desligar; tempo da oferta; histórico de recusas',
+      icon: Icons.format_list_numbered,
+      color: const Color(0xFF0EA5E9),
+      builder: () => const AdminTvdeFilaScreen(),
+      keywords: const ['fila', 'ordem', 'oferta', 'recusou', 'expirou', 'despacho', 'motoristas', 'aceitacao', 'carro', 'mapa'],
+    ),
     AdminMenuItem(
       id: 'tvde_pedidos_de_acesso',
       title: 'Pedidos de acesso TVDE',
@@ -603,11 +618,12 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'tvde_cancelamentos_de_corridas',
       title: 'Cancelamentos de corridas',
-      subtitle: 'Corridas canceladas e as taxas cobradas',
+      // [17/10/2026] cancelamento tardio: o ecrã mostra e dá compensações.
+      subtitle: 'Corridas canceladas, taxas cobradas e compensação ao motorista',
       icon: Icons.cancel_schedule_send,
       color: Colors.redAccent,
       builder: () => const AdminTvdeCancellationsScreen(),
-      keywords: const ['canceladas', 'cancelamentos', 'cobradas', 'corridas', 'taxas'],
+      keywords: const ['canceladas', 'cancelamentos', 'cobradas', 'compensacao', 'corridas', 'motorista', 'taxas'],
     ),
     AdminMenuItem(
       id: 'tvde_motoristas_de_passageiros',
@@ -992,6 +1008,24 @@ List<AdminMenuSection> adminMenuSections() => [
       keywords: const ['checkin', 'check-in', 'diario', 'sequencia', 'streak', 'tokens', 'todo dia', 'lembrete'],
     ),
     AdminMenuItem(
+      id: 'clientes_checkin_premios',
+      title: 'Prêmios do check-in (marcos)',
+      subtitle: '10, 15 e 30 dias seguidos: ligar, teto mensal, pedido pago, valores, vales (anular, entregar à mão, dar), a pagar às lojas e custo',
+      icon: Icons.emoji_events_outlined,
+      color: AppColors.primary,
+      builder: () => const AdminCheckinPremiosScreen(),
+      keywords: const ['premio', 'premios', 'marco', 'marcos', 'vale', 'vales', 'checkin', 'keli', 'goola', 'salgados', 'acai', 'limpeza', 'lavagem'],
+    ),
+    AdminMenuItem(
+      id: 'clientes_receita_do_dia',
+      title: 'Receita do dia',
+      subtitle: 'Bora Todo Dia: criar, editar e agendar receitas, ligar/desligar, hora do aviso diário e quem pediu o aviso',
+      icon: Icons.restaurant_menu,
+      color: AppColors.primary,
+      builder: () => const AdminReceitasScreen(),
+      keywords: const ['receita', 'receitas', 'cozinha', 'todo dia', 'aviso', 'ingredientes', 'carrinho'],
+    ),
+    AdminMenuItem(
       id: 'clientes_personalizacao',
       title: 'Personalização',
       subtitle: 'O que as pessoas mais procuram e os parceiros mais guardados',
@@ -1117,6 +1151,16 @@ List<AdminMenuSection> adminMenuSections() => [
       builder: () => const AdminConformidadeLegalScreen(),
       keywords: const ['conformidade', 'legal', 'dac7', 'dsa', 'nif', 'iban', 'morada', 'autocertificacao', 'opt-in', 'marketing', 'csv', 'financas', 'at'],
     ),
+    // [20/10/2026 · Bloco C] Comprovativo de atividade nas Finanças dos prestadores.
+    AdminMenuItem(
+      id: 'sistema_comprovativo_atividade',
+      title: 'Comprovativo de atividade',
+      subtitle: 'Atividade aberta nas Finanças de cada prestador: ver documento, aprovar, recusar, pedir de novo, lembrar e exportar',
+      icon: Icons.assignment_ind_outlined,
+      color: Colors.blueGrey,
+      builder: () => const AdminComprovativoAtividadeScreen(),
+      keywords: const ['atividade', 'comprovativo', 'financas', 'nif', 'prestador', 'estafeta', 'limpeza', 'lavagem', 'tvde', 'cae', 'lembrete', 'documento'],
+    ),
     AdminMenuItem(
       id: 'sistema_historico_de_accoes',
       title: 'Histórico de Acções',
@@ -1189,6 +1233,16 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.deepOrange,
       builder: () => const AdminMotoresScreen(),
       keywords: const ['agentes', 'cada', 'desligar', 'ligar', 'motores', 'quota', 'robo', 'velocidade'],
+    ),
+    // [Agentes e-mail · 21/10] caixa de cada agente @boraguarda.com (Cloudflare → Edge → agentes_email).
+    AdminMenuItem(
+      id: 'robos_agentes_email',
+      title: 'E-mail dos agentes',
+      subtitle: 'Caixa de entrada e enviados de emerson@, suporte@, vendas@ e os outros; anexos, responder, ligar/desligar',
+      icon: Icons.alternate_email_rounded,
+      color: AppColors.primary,
+      builder: () => const AdminAgentesEmailScreen(),
+      keywords: const ['email', 'e-mail', 'agentes', 'caixa', 'emerson', 'suporte', 'vendas', 'parceiros', 'radar', 'responder', 'boraguarda'],
     ),
     AdminMenuItem(
       id: 'robos_decisoes_jev',

@@ -76,6 +76,12 @@
 
 ### 2.4.1 Fluxo: Parceiro chama estafeta por conta própria (IMPLEMENTADO 2026-05-21)
 
+**Acerto implementado e ligado a 15/10/2026** — o fecho reconhece estes pedidos pela
+função `pedido_parceiro_chamou(is_partner_store, order_type, user_id)` (a mesma regra
+de `OrderModel.isPartnerSelfDispatch`) e o interruptor
+`dispatch_parceiro_chama_estafeta_ligado` está `true`. Prova em transacção desfeita:
+8,98 € a 2 km → total 12,83 €, estafeta +4,20 €, loja deve 3,85 €.
+
 Aplica-se quando o parceiro usa o botão **"chamar estafeta"** no seu painel
 (cliente comprou direto com o parceiro por telefone/WhatsApp). Implementação
 em `OrderStore.createPartnerDeliveryRequest` ([lib/stores/order_store.dart](lib/stores/order_store.dart)).
@@ -4132,3 +4138,52 @@ pro carrinho."
 Jiló) foram montados à mão por SQL; os cartões de mercado (`MarketProductCard`) e o cartão do
 ecrã de loja (`_ProductCard`) tinham um "+" que ignorava os grupos obrigatórios. Fechado na
 missão `sistema-redondo-2026-09-18` (teste `venda_ao_peso_mais_abre_detalhe_test.dart`).
+
+---
+
+## §58 — TVDE: CANCELAMENTO TARDIO DO CLIENTE = CORRIDA INTEIRA + COMPENSAÇÃO AO MOTORISTA (17/10/2026)
+
+*Autorização do Danilo, 17/10/2026 (hora de Lisboa):* 13:45 — "se o cliente cancelar, depois
+dos 3 minutos, deveria cobrar a corrida completa dele. E dar uma taxa de cancelamento de 3,75
+para o Ney." · 13:50 — "Autorizo" (servidor, painel, aviso ao motorista e valor real na app do
+cliente). O Ney foi o caso que originou a regra; no sistema vale para qualquer motorista.
+
+1. **Quando vale:** é o PRÓPRIO cliente a cancelar, o motorista já aceitou, a corrida ainda não
+   foi recolhida e passaram mais de `cancel_grace_seconds` (180 s) **desde o último evento
+   `motorista_atribuido`** — isto é, desde o motorista ACEITAR, não desde o pedido.
+2. **O que acontece:** o cliente paga a corrida INTEIRA (`final_fare_cents`, ou
+   `est_fare_cents` na falta dele); o motorista recebe `tvde_cancel_driver_fee_cents`
+   (375 = 3,75 €) de compensação; o resto fica para a Bora (pode ser negativo se a corrida for
+   mais barata que 3,75 €).
+3. **Só em corrida NORMAL.** Plano, pacote ida-e-volta, marcada, balcão (nunca paga), em fila,
+   preço combinado e pagamento online ainda por confirmar mantêm a taxa fixa antiga
+   (`tvde_cancel_fee_cents` = 250) e o motorista não recebe nada. Tudo o que não é o cliente a
+   cancelar (admin, no-show, motorista que desiste) fica como antes.
+4. **Interruptor:** `tvde_cancel_full_after_grace` (desligado = não se cobra nada por cancelar).
+5. **Como se cobra:** pagamento online já pago → fica retido (Edge `tvde-payment`, ação
+   `refund` com `cancel_fee_cents`: devolve `max(0, min(pago − taxa, pago))` e marca
+   `payment_status = 'kept_cancel_fee'`); dinheiro → debita a carteira do cliente
+   (`wallet_debit_cancel_fee`, piso −40 €); se falhar → `nao_cobrado` + alerta
+   `tvde_cancel_fee_nao_cobrada` (o motorista é compensado na mesma). Compensação que não se
+   consegue registar → alerta `tvde_compensacao_falhou`. Os dois alertas abrem
+   `/admin/tvde/cancelamentos`.
+6. **Onde vive:** tabela própria `tvde_cancel_compensations` (uma linha por corrida). Entra no
+   acerto semanal do motorista dentro de "Corridas" (`compute_driver_settlement` →
+   `tvde_cancel_comp`), sem contar como corrida; no extrato aparece como "Compensação · corrida
+   cancelada pelo cliente". Migração `20261017143124_tvde_cancelamento_tardio_corrida_inteira`.
+7. **A app do cliente nunca calcula:** o diálogo de cancelar mostra a cotação do servidor
+   (`tvde_cancel_quote`: `sem_custo` · `dentro_da_graca` com contador · `corrida_inteira` ·
+   `taxa_fixa`); cotação falhada = aviso neutro sem números; ao confirmar há nova cotação e, se
+   subiu, o diálogo volta com o valor novo (nunca se cobra mais do que o cliente viu). Depois de
+   cancelar diz o que foi mesmo cobrado (`cancel_fee_cents` devolvido por `tvde_cancel_ride`).
+8. **O motorista é avisado:** linha no sino (`in_app_notifications`, kind `tvde_cancel_comp`,
+   "Corrida cancelada · recebes 3,75 €") + push pela Edge `notify-admin-message`
+   (`admin_message`, kind `tvde_cancel_compensation`) + SnackBar no ecrã da corrida.
+9. **Painel:** "Cancelamentos de corridas" mostra o resumo das compensações, o cobrado ao
+   cliente e como, o acerto da semana, e deixa compensar à mão
+   (`admin_tvde_cancel_comp_grant`, 0,01–50 €, motivo obrigatório, não cobra nada ao cliente).
+   O valor da compensação edita-se nas Definições com motivo e auditoria.
+
+*Caso de origem (17/10):* o cliente cancelou depois dos 3 min com o Ney já a caminho; não se
+cobrou nada ao cliente e o Danilo mandou pôr 2,50 € na carteira do Ney à mão. A regra fecha o
+buraco para os próximos.

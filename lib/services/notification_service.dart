@@ -651,6 +651,21 @@ void _onLocalNotifTap(NotificationResponse response) {
       NotificationService.abrirAdmin?.call(rota, ref);
       return;
     }
+    // [17/10/2026 · cancelamento tardio] Mensagem do painel / compensação ao
+    // motorista: abre o ecrã de notificações (o sino), onde está a linha.
+    // A notificação é persistente (padrão das categorias): sai ao tocar.
+    if (data['type'] == 'admin_message') {
+      final id = response.id;
+      if (id != null) unawaited(FlutterLocalNotificationsPlugin().cancel(id));
+      // [20/10/2026] "Falta o comprovativo de atividade": abre o ecrã de envio
+      // pelo gancho único (PADRAO §1.14), não o sino.
+      if (data['kind'] == kKindComprovativoAtividade) {
+        unawaited(NotificationService.abrirComprovativoDoAviso());
+      } else {
+        unawaited(NotificationService.instance.openInboxFromNotification());
+      }
+      return;
+    }
     // [Serviços 2026-07-28] Tocar num push de marcação abre a AGENDA do
     // parceiro (não só a home) — padrão do delivery, que abre o pedido.
     const apptTypes = {
@@ -1323,6 +1338,12 @@ const Set<String> _kPersistentCategoryTypes = <String>{
   // mandá-lo a 07/10 (antes nunca saía); sem esta entrada o Android, que
   // recebe só dados, não mostrava nada.
   'status_change',
+  // [17/10/2026 · cancelamento tardio] Edge `notify-admin-message` (data-only:
+  // type `admin_message`, kind, title, body, relatedId). É por aqui que o
+  // motorista recebe "Corrida cancelada · recebes 3,75 €" (kind
+  // `tvde_cancel_compensation`) e as mensagens livres do painel. Sem esta
+  // entrada o fundo descartava o push e a app aberta só tocava um som.
+  'admin_message',
   // Backend emite `admin_reimbursement`; `reimbursement` fica como alias
   // defensivo caso alguma Edge Function envie o nome curto.
   'admin_reimbursement',
@@ -1337,6 +1358,38 @@ const Set<String> _kPersistentCategoryTypes = <String>{
   'order_unassigned',
   'driver_offline',
 };
+
+/// [20/10/2026] `kind` do push "Falta o comprovativo de atividade" (enviado
+/// pela base através da Edge `notify-admin-message`, type `admin_message`).
+const String kKindComprovativoAtividade = 'provider_atividade';
+
+/// Espera até [pronto] (no máximo [tentativas] × [intervalo]) e chama [abrir];
+/// se nunca ficar pronto, chama [recurso]. Função pura (o tempo vem de
+/// [esperar]), testada em `test/atividade_service_test.dart`.
+Future<void> abrirComprovativoQuandoHouverNavegador({
+  required bool Function() pronto,
+  required void Function() abrir,
+  required Future<void> Function() recurso,
+  Future<void> Function(Duration)? esperar,
+  int tentativas = 6,
+  Duration intervalo = const Duration(milliseconds: 900),
+}) async {
+  final dorme = esperar ?? (Duration d) => Future<void>.delayed(d);
+  for (var i = 0; i < tentativas; i++) {
+    if (pronto()) {
+      abrir();
+      return;
+    }
+    await dorme(intervalo);
+  }
+  if (pronto()) {
+    abrir();
+    return;
+  }
+  debugPrint('[NotificationService] comprovativo a frio: navegador nunca ficou '
+      'pronto — abre o sino');
+  await recurso();
+}
 
 /// Tipos que a Edge `notify-driver-assigned` emite (bloco 4, 16/09).
 const Set<String> _kDriverAssignmentTypes = <String>{
@@ -1400,6 +1453,13 @@ Future<void> _entregarAccaoTvdeAFrio(String rideId, String accao) async {
 /// ou Android com o aviso do próprio FCM): abre o trabalho dessa categoria.
 void _abrirTrabalhoDoPush(RemoteMessage msg) {
   final type = msg.data['type']?.toString();
+  // [20/10/2026] Toque no push "Falta o comprovativo de atividade" aberto pelo
+  // sistema: abre o ecrã de envio, pelo mesmo gancho.
+  if (type == 'admin_message' &&
+      msg.data['kind']?.toString() == kKindComprovativoAtividade) {
+    unawaited(NotificationService.abrirComprovativoDoAviso());
+    return;
+  }
   final categoria = categoriaDaOfertaDeTrabalho(type) ??
       switch (type) {
         'cleaning_status' => 'limpeza',
@@ -1611,6 +1671,35 @@ Future<void> showTvdeReservationNotification(Map<String, dynamic> data) async {
   } catch (e) {
     debugPrint('[BORA-RESERVA] erro a postar notif ($type): $e');
   }
+}
+
+/// [17/10/2026 · cancelamento tardio] O que a notificação de `admin_message`
+/// mostra (função pura, testada em `test/aviso_mensagem_admin_test.dart`).
+/// Título e texto vêm do `data` (push data-only); `notification` só como
+/// recurso. O id junta `kind` + `relatedId`: a mesma mensagem repetida
+/// substitui a anterior em vez de empilhar duas, e mensagens diferentes não
+/// se apagam umas às outras.
+({String title, String body, int notificationId, Map<String, String> payload})
+    avisoDaMensagemDoAdmin(Map<String, dynamic> data,
+        {String? notifTitle, String? notifBody}) {
+  String? texto(Object? v) {
+    final s = v?.toString().trim();
+    return (s == null || s.isEmpty) ? null : s;
+  }
+
+  final kind = texto(data['kind']) ?? 'admin_message';
+  final relatedId = texto(data['relatedId']) ?? '';
+  final title = texto(data['title']) ?? texto(notifTitle) ?? 'Bora';
+  final body = texto(data['body']) ?? texto(notifBody) ?? '';
+  final chave = relatedId.isNotEmpty
+      ? 'admin_message:$kind:$relatedId'
+      : 'admin_message:$kind:$title:$body';
+  return (
+    title: title,
+    body: body,
+    notificationId: chave.hashCode,
+    payload: {'kind': kind, 'relatedId': relatedId},
+  );
 }
 
 @pragma('vm:entry-point')
@@ -1846,6 +1935,20 @@ Future<void> _showPersistentCategoryNotification(RemoteMessage message) async {
         payload: {'restaurantId': data['restaurant_id']?.toString() ?? ''},
       );
       return;
+    // [17/10/2026 · cancelamento tardio] Mensagem do painel / compensação ao
+    // motorista (notify-admin-message, data-only). Padrão do `admin_generic`:
+    // título e texto vêm do `data`; o toque abre o ecrã de notificações.
+    case 'admin_message':
+      final aviso = avisoDaMensagemDoAdmin(data,
+          notifTitle: notif?.title, notifBody: notif?.body);
+      await _showPersistentStatusNotification(
+        type: type,
+        title: aviso.title,
+        body: aviso.body,
+        notificationId: aviso.notificationId,
+        payload: aviso.payload,
+      );
+      return;
     // [Aviso ao parceiro · 07/10] Loja forçada aberta/fechada ou horário mudado
     // pelo admin (notify-partner, data-only com title/body nos dados).
     case 'status_change':
@@ -2041,6 +2144,19 @@ class NotificationService {
   /// o Danilo apanhou-o a 2026-08-28 com a lavagem. Registado uma vez no
   /// `main.dart`, para responder mesmo com a pessoa noutro papel.
   static void Function(String categoria, String bookingId)? abrirTrabalho;
+
+  /// [20/10/2026 · ronda 1 da revisão do Bloco C] Toque no aviso "Falta o
+  /// comprovativo de atividade": abre o ecrã de envio pelo gancho único
+  /// [abrirTrabalho] ('atividade'). No arranque a frio o toque chega antes do
+  /// `runApp` — espera pelo navegador e pelo gancho (6 × 900 ms, como
+  /// [openInboxFromNotification]) e, se desistir, abre o sino como o caminho
+  /// antigo. Nunca fica pior do que antes.
+  static Future<void> abrirComprovativoDoAviso() =>
+      abrirComprovativoQuandoHouverNavegador(
+        pronto: () => navigatorKey.currentState != null && abrirTrabalho != null,
+        abrir: () => abrirTrabalho?.call('atividade', ''),
+        recurso: () => instance.openInboxFromNotification(),
+      );
 
   /// Tocar num aviso do painel abre o ecrã certo, já no assunto certo.
   /// `ref` traz o assunto (ex.: `weekly_closeout_2026-08-30` → a semana).
@@ -2321,6 +2437,22 @@ class NotificationService {
           unawaited(Future<void>.delayed(const Duration(seconds: 1), () {
             NotificationService.abrirTrabalho?.call(categoria, bookingId);
           }));
+        }
+        // [17/10/2026] App morta + toque na mensagem do painel (ex.:
+        // compensação de cancelamento): abre o ecrã de notificações.
+        if (data['type'] == 'admin_message') {
+          // A notificação é persistente: sai também quando abre a frio.
+          final id = launch?.notificationResponse?.id;
+          if (id != null) unawaited(localPlugin.cancel(id));
+          // [20/10/2026] O comprovativo de atividade abre o ecrã de envio.
+          // Ronda 1 da revisão: isto corre dentro do init(), ANTES do runApp —
+          // o navegador ainda não existe; abrirComprovativoDoAviso espera por
+          // ele (como o sino) e, se desistir, abre o sino como antes.
+          if (data['kind'] == kKindComprovativoAtividade) {
+            unawaited(NotificationService.abrirComprovativoDoAviso());
+          } else {
+            unawaited(openInboxFromNotification());
+          }
         }
         if (data['type'] == 'chat') {
           final orderId = data['orderId']?.toString() ?? '';
@@ -3374,6 +3506,23 @@ class NotificationService {
   }
 
   bool _openingPartnerAgenda = false;
+
+  /// [17/10/2026 · cancelamento tardio] Toque numa mensagem do painel
+  /// (`admin_message`): abre o ecrã de notificações quando já houver sessão e
+  /// navegador (arranque a frio: espera como o chat; desiste ao fim de ~5 s).
+  Future<void> openInboxFromNotification() async {
+    for (var attempt = 0; attempt < 6; attempt++) {
+      final nav = navigatorKey.currentState;
+      if (_boundRole != null && nav != null) {
+        nav.push(MaterialPageRoute<void>(
+            builder: (_) => const NotificationsScreen()));
+        return;
+      }
+      await Future.delayed(const Duration(milliseconds: 900));
+    }
+    debugPrint('[NotificationService] openInboxFromNotification DESISTIU — '
+        'role/navigator nunca ficaram prontos');
+  }
 
   Future<void> openChatFromNotification(
       String orderId, String? conversationType) async {

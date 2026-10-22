@@ -23,7 +23,7 @@ sempre pelo `deviceId`; escolher pelo nome é como escolher uma chave pela cor.
 ### O que vive no perfil **Bora**
 
 Apple (App Store Connect e portal), Meta e Instagram, Meta AI / Vibes (vídeo), Google Play
-Console, Cloudflare, painel do Supabase, Resend, 99Freelas, Codester, Google Search Console
+Console, Cloudflare (ver nota de 21/10: afinal é o pessoal), painel do Supabase, Resend, 99Freelas, Codester, Google Search Console
 do Em Dia, Gemini AI Plus, Flow/Veo, AI Studio, WhatsApp da loja, Bing Webmaster, Wikidata,
 Drive da equipa, Hostinger, área de cliente dos CTT (encomendas do Jai), Google Cloud da Bora.
 
@@ -42,6 +42,27 @@ nilofulfarotuga/nilofulfaro, Search Console e Google Ads de jaiagarwala.com, Dee
 
 > 09/10 (missão `fecho-total-2026-10-09`): CTT e Google Cloud da Bora no perfil Bora; DeepSeek
 > no pessoal. A regra não muda: escolhe-se SEMPRE pelo deviceId, nunca por "Browser 1/2".
+
+> **15/10 — Protocolo Danilo (manda sobre o resto desta página e sobre o mapa):**
+> - **Bora** (`d9e862e0-a5ea-486f-b054-f333ef51b46a`): Supabase, Play Console, App Store Connect,
+>   Meta, Instagram, Facebook da Bora, Cloudflare (corrigido a 21/10: pessoal), Resend, painel admin Bora.
+> - **Pessoal** (`5b260cdd-9d4f-49d6-842b-ebfbfea69c75`): GitHub (o repo
+>   `nilofulfarotuga-hue/bora-app-cloud` é desta conta), claude.ai/code, Gemini, ChatGPT, DeepSeek,
+>   Gmail pessoal.
+> - Nunca fazer logout de nenhum dos dois.
+> - Conflito por resolver: `~/.claude/contas/MAPA-CONTAS.json` e o aviso de arranque ainda põem
+>   Supabase e Cloudflare no perfil **pessoal**. Vale o Protocolo (é o mais recente); se não houver
+>   sessão no Bora, experimenta o pessoal antes de abrir login.
+
+> **21/10 — Cloudflare resolvido (regra do Danilo na missão `geral-noite-21-10`):** o domínio
+> `boraguarda.com` (e os sites `bora-site` e `jai-site`) vive na conta Cloudflare
+> `2cd0212b0f5e5c8284aa227f629c050a`, que é a do perfil **pessoal** (`5b260cdd…`). A conta do
+> perfil Bora (`6864b594…`) **não tem zonas**: abrir o Cloudflare no Bora só mostra uma conta
+> vazia. Cloudflare = perfil pessoal (isto fecha o "conflito por resolver" de 15/10 acima).
+> Também a 21/10: **Kaggle** = perfil pessoal (a CLI continua com `~/.kaggle/kaggle.json`);
+> **Colab** = perfil Bora; **YouTube** do radar = perfil pessoal com `?authuser=1` (o índice 0
+> desse perfil é outra conta, pouco usada — não serve para o radar; a conta 1 está sem sessão
+> desde 18/10 e só o Danilo pode voltar a entrar).
 
 ## Antes de abrir seja o que for
 

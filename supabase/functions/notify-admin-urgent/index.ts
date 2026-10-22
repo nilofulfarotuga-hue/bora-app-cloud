@@ -33,6 +33,8 @@
 //   RESEND_API_KEY              — OPTIONAL; if missing, email is skipped
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { chamadaDoServidor } from '../_shared/chaves.ts'
+import { secretKey } from '../_shared/keys.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -52,11 +54,14 @@ Deno.serve(async (req) => {
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-  const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  const serviceKey  = secretKey()!
 
   // ─── Auth: verify_jwt=true valida signature; aqui confirma role ───────────
   const authHeader = req.headers.get('Authorization') ?? ''
-  if (!authHeader.startsWith('Bearer ')) {
+  // 16/10/2026: a chave secreta nova da Supabase (sb_secret) não é JWT; valida-se em _shared/chaves.ts
+  // (comparação em tempo constante; a legada só passa confirmada no Auth)
+  const chaveNovaOk = await chamadaDoServidor(req)
+  if (!chaveNovaOk && !authHeader.startsWith('Bearer ')) {
     return new Response(
       JSON.stringify({ ok: false, error: 'forbidden' }),
       { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -64,7 +69,7 @@ Deno.serve(async (req) => {
   }
   try {
     const token = authHeader.substring(7)
-    const payload = JSON.parse(atob(token.split('.')[1]))
+    const payload = chaveNovaOk ? { role: 'service_role' } : JSON.parse(atob(token.split('.')[1]))
     if (payload.role !== 'service_role') {
       console.warn('[notify-admin-urgent] forbidden — role mismatch:', payload.role)
       return new Response(

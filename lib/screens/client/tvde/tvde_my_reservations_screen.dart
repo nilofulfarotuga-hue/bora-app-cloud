@@ -9,12 +9,15 @@ import '../../../models/tvde_dest_change.dart' show TvdeDestChangeQuote;
 import '../../../models/tvde_ride.dart';
 import '../../../services/payment_service.dart';
 import '../../../stores/tvde_store.dart';
+import '../../../utils/hora_lisboa.dart';
 import '../../../widgets/address_autocomplete_field.dart';
 import '../../../widgets/bora/bora.dart';
 import '../../../widgets/ver_nas_minhas_reservas.dart';
 import 'ride_mbway_waiting_dialog.dart';
 
 import '../../../l10n/tr.dart';
+import '../../../models/ride_kind.dart';
+import '../../../utils/ride_kind_context.dart';
 
 /// [Reserva agendada 2026-08-19] "As minhas reservas" — as viagens que o
 /// cliente marcou para depois.
@@ -84,9 +87,11 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
     'dez',
   ];
 
+  /// Dia e hora em Lisboa (nunca a hora do telemóvel): é a hora que o
+  /// motorista e o painel veem.
   String _quando(DateTime? d) {
     if (d == null) return 'sem hora'.tr;
-    final l = d.toLocal();
+    final l = paredeLisboa(d);
     final hh = l.hour.toString().padLeft(2, '0');
     final mm = l.minute.toString().padLeft(2, '0');
     return '${l.day} ${_meses[l.month - 1]} · $hh:$mm';
@@ -115,7 +120,7 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
         content: Text(
           gratis
               ? 'Ainda estás a tempo — o cancelamento é grátis.'.tr
-              : 'Faltam menos de {0} horas para a viagem. Pode haver uma taxa de cancelamento.'.trArgs([_horasCancelGratis]),
+              : 'Faltam menos de {0} horas para a viagem. Pode haver uma taxa de cancelamento.'.trArgsK(r.rideKind, [_horasCancelGratis]),
         ),
         actions: [
           TextButton(
@@ -153,30 +158,37 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
 
   Future<void> _mudarHora(TvdeRide r) async {
     if (_aMudar != null) return;
-    final atual = (r.scheduledAt ?? DateTime.now()).toLocal();
+    // Dia e hora escolhidos no relógio de Lisboa, seja qual for o fuso do
+    // telemóvel; a hora nova segue como INSTANTE (instanteDeLisboa).
     final agora = DateTime.now();
+    final atual = r.scheduledAt ?? agora;
+    final pAgora = paredeLisboa(agora);
+    final pAtual = paredeLisboa(atual);
+    final pUltimo = paredeLisboa(agora.add(Duration(days: _maxDias)));
+    DateTime soDia(DateTime p) => DateTime(p.year, p.month, p.day);
     final dia = await showDatePicker(
       context: context,
-      initialDate: atual.isBefore(agora) ? agora : atual,
-      firstDate: agora,
-      lastDate: agora.add(Duration(days: _maxDias)),
-      helpText: 'Dia da viagem'.tr,
+      initialDate: soDia(atual.isBefore(agora) ? pAgora : pAtual),
+      firstDate: soDia(pAgora),
+      lastDate: soDia(pUltimo),
+      helpText: 'Dia da viagem'.trK(r.rideKind),
     );
     if (dia == null || !mounted) return;
     final hora = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(atual),
-      helpText: 'Hora da viagem'.tr,
+      initialTime: TimeOfDay(hour: pAtual.hour, minute: pAtual.minute),
+      helpText: 'Hora da viagem'.trK(r.rideKind),
     );
     if (hora == null || !mounted) return;
-    final nova = DateTime(dia.year, dia.month, dia.day, hora.hour, hora.minute);
+    final nova = instanteDeLisboa(
+        DateTime.utc(dia.year, dia.month, dia.day, hora.hour, hora.minute));
 
     final confirmou = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         title: Text('Passar a reserva para {0}?'.trArgs([_quando(nova)])),
         content: Text(
-          'O motorista é avisado. Se já tiver outra reserva perto dessa hora, procuramos outro motorista.'.tr,
+          'O motorista é avisado. Se já tiver outra reserva perto dessa hora, procuramos outro motorista.'.trK(r.rideKind),
         ),
         actions: [
           TextButton(
@@ -203,8 +215,8 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
         content: Text(res['sem_mudanca'] == true
             ? 'A reserva já estava nessa hora.'.tr
             : mantem
-                ? 'Hora alterada. O teu motorista mantém-se.'.tr
-                : 'Hora alterada. Vamos procurar motorista para a hora nova.'.tr),
+                ? 'Hora alterada. O teu motorista mantém-se.'.trK(r.rideKind)
+                : 'Hora alterada. Vamos procurar motorista para a hora nova.'.trK(r.rideKind)),
       ));
     } catch (e) {
       if (mounted) {
@@ -252,6 +264,7 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
           quote: quote,
           method: r.paymentMethod,
           initialPhone: Supabase.instance.client.auth.currentUser?.phone ?? '',
+          rideKind: r.rideKind,
         ),
       );
       if (decisao == null || !mounted) return;
@@ -368,7 +381,7 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
                             padding:
                                 const EdgeInsets.symmetric(horizontal: Spacing.xl),
                             child: Text(
-                              'No ecrã de pedir motorista tens "Marcar para depois".'.tr,
+                              'No ecrã de pedir motorista tens "Marcar para depois".'.trK(context.tvdeKind),
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                   color: AppColors.textSubtle, fontSize: 12),
@@ -394,7 +407,7 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(
                       Spacing.lg, Spacing.lg, Spacing.lg, 0),
-                  child: ReservaMarcadaFaixa(titulo: 'Corrida marcada!'.tr),
+                  child: ReservaMarcadaFaixa(titulo: 'Corrida marcada!'.trK(context.tvdeKind)),
                 ),
                 Expanded(child: lista),
               ],
@@ -445,6 +458,14 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // [21/10 · A1 r1] Encomenda: diz-se logo no topo do cartão.
+          if (r.isEncomenda) ...[
+            Text('📦 Encomenda'.tr,
+                key: const Key('reserva_etiqueta_encomenda'),
+                style: const TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+            const SizedBox(height: 6),
+          ],
           if (etiqueta != null) ...[
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -500,8 +521,8 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
             const SizedBox(height: Spacing.sm),
             Text(
               r.paymentMethod == 'cash'
-                  ? 'Não encontrámos motorista para esta hora. Podes marcar outra viagem.'.tr
-                  : 'Não encontrámos motorista para esta hora. O reembolso é automático — não precisas de fazer nada.'.tr,
+                  ? 'Não encontrámos motorista para esta hora. Podes marcar outra viagem.'.trK(r.rideKind)
+                  : 'Não encontrámos motorista para esta hora. O reembolso é automático — não precisas de fazer nada.'.trK(r.rideKind),
               style: const TextStyle(
                   fontSize: 12, color: AppColors.textSubtle),
             ),
@@ -734,11 +755,15 @@ class _ReservaDestinoSheet extends StatefulWidget {
     required this.quote,
     required this.method,
     this.initialPhone = '',
+    this.rideKind = RideKind.passageiros,
   });
 
   final Map<String, dynamic> quote;
   final String method;
   final String initialPhone;
+
+  /// [21/10 · A1 r1] As palavras vêm do tipo DESTA reserva.
+  final RideKind rideKind;
 
   @override
   State<_ReservaDestinoSheet> createState() => _ReservaDestinoSheetState();
@@ -785,7 +810,7 @@ class _ReservaDestinoSheetState extends State<_ReservaDestinoSheet> {
     if (_diff == 0) return 'Não há nada a pagar.'.tr;
     if (_diff < 0) {
       return widget.method == 'cash'
-          ? 'Pagas {0} a menos ao motorista, em dinheiro.'.trArgs([eur(-_diff)])
+          ? 'Pagas {0} a menos ao motorista, em dinheiro.'.trArgsK(widget.rideKind, [eur(-_diff)])
           : 'Devolvemos {0} para o cartão ou MB Way.'.trArgs([eur(-_diff)]);
     }
     switch (widget.method) {
@@ -797,7 +822,7 @@ class _ReservaDestinoSheetState extends State<_ReservaDestinoSheet> {
             .trArgs([eur(_diff)]);
       default:
         return 'Pagas {0} a mais ao motorista, em dinheiro, no fim da viagem.'
-            .trArgs([eur(_diff)]);
+            .trArgsK(widget.rideKind, [eur(_diff)]);
     }
   }
 
@@ -849,7 +874,7 @@ class _ReservaDestinoSheetState extends State<_ReservaDestinoSheet> {
               style: const TextStyle(
                   fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
           const SizedBox(height: Spacing.md),
-          Text('A viagem fica com {0} km.'.trArgs([kmTxt]),
+          Text('A viagem fica com {0} km.'.trArgsK(widget.rideKind, [kmTxt]),
               key: const Key('reserva_destino_km'), style: secundario),
           const SizedBox(height: Spacing.sm),
           _linha('Preço combinado'.tr, eur(antes)),

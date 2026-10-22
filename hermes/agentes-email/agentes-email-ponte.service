@@ -1,0 +1,49 @@
+[Unit]
+Description=Caixa dos agentes (boraguarda.com): responde aos pedidos do Emerson (utilizador agentes-ponte, sem root)
+Documentation=file:/opt/agentes-email/ponte.py
+
+# Ronda 2b (22/10/2026, revisão N5): a ponte deixou de correr como root.
+# - User=agentes-ponte (sistema, sem shell). Group=hermes-exec (gid 10000, o do contentor): as
+#   respostas nascem com esse grupo e 0640, o Emerson lê-as sem chown nenhum.
+# - A pasta-mãe /docker/hermes-agent-fvnc/data é 0700 e não se mexe nela: a pasta da caixa chega à
+#   unidade por BindPaths= (montada como /var/lib/agentes-ponte/caixa só dentro da unidade).
+# - A chave do servidor chega por LoadCredential= (ficheiro do host root:root 0600 com as 2 variáveis
+#   do Supabase); nunca vai para o contentor nem para ficheiros versionados.
+[Service]
+Type=oneshot
+User=agentes-ponte
+Group=hermes-exec
+UMask=0027
+ExecStart=/usr/bin/python3 -I /opt/agentes-email/ponte.py fila
+Environment=AGENTES_EMAIL_BASE=/var/lib/agentes-ponte/caixa
+Environment=AGENTES_EMAIL_LOG=/var/log/agentes-email-ponte.log
+LoadCredential=supabase:/etc/agentes-email-ponte/supabase.env
+BindPaths=/docker/hermes-agent-fvnc/data/agentes-email:/var/lib/agentes-ponte/caixa
+ReadWritePaths=/var/lib/agentes-ponte/caixa /var/log/agentes-email-ponte.log
+TimeoutStartSec=10min
+
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+ProcSubset=pid
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RemoveIPC=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources

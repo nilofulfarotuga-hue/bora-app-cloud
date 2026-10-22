@@ -25,7 +25,13 @@ import 'package:provider/provider.dart';
 import '../config/app_colors.dart';
 import '../services/limite_dinheiro_service.dart';
 import '../services/favor_definicoes.dart';
-import '../utils/favor_passos.dart' show textoPareceFarmacia;
+import '../utils/favor_passos.dart'
+    show
+        coordenadasDoLocalContinuam,
+        kPaletePellets,
+        pelletsAcimaDoLimite,
+        sacosDePelletsPedidos,
+        textoPareceFarmacia;
 import '../services/maior_18_service.dart';
 import '../services/auto_address.dart';
 import '../widgets/auto_address_hint.dart';
@@ -97,6 +103,9 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
 
   // Coordenadas REAIS — preenchidas pelo autocomplete ou geocode. NUNCA fixas.
   LatLng? _errandLocation;
+  // B1 (20/10): texto da sugestão a que [_errandLocation] pertence. Enquanto
+  // o campo mostrar este texto, as coordenadas da sugestão mandam na cotação.
+  String? _textoDoLocal;
   LatLng? _dropoff;
   LatLng? _home;
 
@@ -318,9 +327,23 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
   void _onErrandLocationSelected(String name, LatLng coords) {
     setState(() {
       _errandLocation = coords;
+      _textoDoLocal = name.trim();
       _geoError = null;
     });
     _recomputeDistanceAndQuote();
+  }
+
+  /// O cliente mexeu no texto do "Local do favor". B1 (20/10): um eco com o
+  /// mesmo texto da sugestão (teclado/IME a seguir à seleção) já não deita
+  /// fora as coordenadas certas; só um texto diferente o faz, e aí o local é
+  /// procurado de novo. O setState acontece sempre, para o "Próximo" acordar
+  /// com a morada escrita à mão.
+  void _onErrandLocationTyped(String texto) {
+    if (coordenadasDoLocalContinuam(_textoDoLocal, texto)) return;
+    setState(() {
+      _errandLocation = null;
+      _textoDoLocal = null;
+    });
   }
 
   void _onDropoffSelected(String address, LatLng? coords) {
@@ -387,7 +410,10 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
     final t = text.trim();
     if (t.isEmpty) return null;
     try {
-      return await _geocoder.geocodeAddress(t);
+      // Revisão B, ronda 1: a mesma procura da morada escrita do TVDE (melhor
+      // na Guarda + conferida com a sugestão quando fica longe do centro),
+      // nunca o 1.º resultado cru — era por aqui que os 11 km podiam voltar.
+      return (await _geocoder.procurarMoradaEscrita(t))?.coords;
     } catch (_) {
       return null;
     }
@@ -500,6 +526,9 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
     switch (_step) {
       case _ErrandStep.what:
         return _descCtrl.text.trim().isNotEmpty &&
+            // B1b (20/10): máximo de sacos de pellets por Favor (painel).
+            !pelletsAcimaDoLimite(_descCtrl.text,
+                max: FavorDefinicoes.pelletsMaxSacos) &&
             _purchaseAnswered &&
             (!_hasPurchase || _estimatedCents > 0) &&
             !_uploadingPhoto;
@@ -569,6 +598,16 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
     if (_errandLocation == null || _dropoff == null || (_homeActive && _home == null)) {
       final ok = await _ensureCoords();
       if (!ok || !mounted) return;
+    }
+    // B1b (20/10): o limite dos pellets vale também à saída — a descrição
+    // pode ter mudado (pedido anterior, atalho) depois do passo 1.
+    if (pelletsAcimaDoLimite(_descCtrl.text,
+        max: FavorDefinicoes.pelletsMaxSacos)) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Pellets: máximo {0} sacos por Favor. Pede o resto noutro Favor.'
+              .trArgs(['${FavorDefinicoes.pelletsMaxSacos}']))));
+      setState(() => _step = _ErrandStep.what);
+      return;
     }
     // D4: cash > €40 com compra adiantada sem paragem-dinheiro = forçar paragem.
     final customerCents =
@@ -708,6 +747,7 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
             _onWhatChanged();
           },
           onChanged: _onWhatChanged,
+          sacosPellets: sacosDePelletsPedidos(_descCtrl.text),
           pedeMaior18: _pedeMaior18,
           ajudaFarmacia: _pareceFarmacia,
         );
@@ -735,9 +775,7 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
             _refreshQuote();
           },
           onErrandLocationSelected: _onErrandLocationSelected,
-          onErrandLocationCleared: () {
-            if (_errandLocation != null) setState(() => _errandLocation = null);
-          },
+          onErrandLocationCleared: _onErrandLocationTyped,
           onDropoffSelected: _onDropoffSelected,
           onDropoffCleared: () {
             if (_dropoff != null) setState(() => _dropoff = null);
@@ -765,6 +803,57 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
   }
 }
 
+// ── B1b (20/10): limite dos pellets ────────────────────────────────────────
+/// Aparece quando a descrição fala de pellets. Dentro do limite é só a
+/// regra; acima dele fica vermelho e o "Próximo" não deixa seguir.
+class _AvisoPellets extends StatelessWidget {
+  const _AvisoPellets({required this.sacos, required this.max});
+
+  final int sacos;
+
+  /// Máximo de sacos (platform_settings.favor_pellets_max_sacos; recurso 2).
+  final int max;
+
+  @override
+  Widget build(BuildContext context) {
+    final acima = sacos > max;
+    final texto = acima
+        ? 'Pellets: máximo {0} sacos por Favor. Pede o resto noutro Favor.'
+            .trArgs(['$max'])
+        : 'Pellets: máximo {0} sacos por Favor.'.trArgs(['$max']);
+    // Uma palete não tem número de sacos que se mostre.
+    final pediste = acima && sacos < kPaletePellets
+        ? ' ${'Pediste {0} sacos.'.trArgs(['$sacos'])}'
+        : '';
+    return Container(
+      key: const ValueKey('aviso-pellets'),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: acima ? AppColors.error.withValues(alpha: 0.08) : AppColors.primaryWash,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: acima ? AppColors.error : AppColors.divider),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(acima ? Icons.error_outline : Icons.info_outline,
+              size: 18,
+              color: acima ? AppColors.error : AppColors.textSecondary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '$texto$pediste',
+              style: TextStyle(
+                  fontSize: 13,
+                  color: acima ? AppColors.error : AppColors.textPrimary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ── PASSO 1: O QUÊ ────────────────────────────────────────────────────────
 class _StepWhat extends StatelessWidget {
   const _StepWhat({
@@ -780,6 +869,7 @@ class _StepWhat extends StatelessWidget {
     required this.onRemovePhoto,
     required this.onHasPurchaseChanged,
     required this.onChanged,
+    this.sacosPellets,
     this.pedeMaior18 = false,
     this.ajudaFarmacia = false,
   });
@@ -796,6 +886,10 @@ class _StepWhat extends StatelessWidget {
   final VoidCallback onRemovePhoto;
   final ValueChanged<bool> onHasPurchaseChanged;
   final VoidCallback onChanged;
+
+  /// B1b (20/10): sacos de pellets que a descrição pede (null = não fala de
+  /// pellets; 0 = sem quantidade). Acima do máximo o "Próximo" fica desligado.
+  final int? sacosPellets;
 
   /// Missão maiores-18: a descrição fala de tabaco/álcool (servidor).
   final bool pedeMaior18;
@@ -852,6 +946,11 @@ class _StepWhat extends StatelessWidget {
             labelText: 'Descreve o favor'.tr,
           ),
         ),
+        if (sacosPellets != null) ...[
+          _AvisoPellets(
+              sacos: sacosPellets!, max: FavorDefinicoes.pelletsMaxSacos),
+          const SizedBox(height: 8),
+        ],
         if (pedeMaior18) ...[
           const Maior18Aviso(),
           const SizedBox(height: 8),
@@ -1027,7 +1126,7 @@ class _StepWhere extends StatelessWidget {
   final ValueChanged<bool> onHomeStopChanged;
   final ValueChanged<String> onReasonChanged;
   final void Function(String, LatLng) onErrandLocationSelected;
-  final VoidCallback onErrandLocationCleared;
+  final ValueChanged<String> onErrandLocationCleared;
   final void Function(String, LatLng?) onDropoffSelected;
   final VoidCallback onDropoffCleared;
   final void Function(String, LatLng?) onHomeSelected;
@@ -1050,7 +1149,7 @@ class _StepWhere extends StatelessWidget {
           prefixIcon: const Icon(Icons.place_outlined),
           includeAddresses: true,
           onSelected: onErrandLocationSelected,
-          onChanged: (_) => onErrandLocationCleared(),
+          onChanged: onErrandLocationCleared,
         ),
         const SizedBox(height: 12),
         AddressAutocompleteField(

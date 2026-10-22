@@ -1,0 +1,28 @@
+1. abrir https://app.boraguarda.com/
+[consola] [PushTokenService] autodetect skip — no auth user
+[consola] AuthStore: guest sign-in failed, trying signUp => AuthApiException(message: Invalid login credentials, statusCode: 400, code: invalid_credentials)
+[consola] AuthStore: guest session FAILED => AuthApiException(message: User already registered, statusCode: 422, code: user_already_exists)
+   main.dart.js carregado (bytes): []
+   foto: antes-01-inicio.png
+2. papel parceiro
+[consola] [Biometric] capability check failed: MissingPluginException(No implementation found for method isDeviceSupported on channel plugins.flutter.io/local_auth)
+   foto: antes-02-entrada-parceiro.png
+   no ecrã: ['Adicionar o Bora ao ecrã principal', 'Fechar', 'Aceder como parceiro\nUtilize o email registado para gerir o seu negócio.\nEntrar\nEsqueci-me da palavra-passe\nNão tens conta? Criar conta de parceiro\n← Voltar à escolha de perfil', 'Aceder como parceiro\nUtilize o email registado para gerir o seu negócio.\nEntrar\nEsqueci-me da palavra-passe\nNão tens conta? Criar conta de parceiro\n← Voltar à escolha de perfil', 'Aceder como parceiro\nUtilize o email registado para gerir o seu negócio.\nEntrar\nEsqueci-me da palavra-passe\nNão tens conta? Criar conta de parceiro\n← Voltar à escolha de perfil', 'Aceder como parceiro\nUtilize o email registado para gerir o seu negócio.\nEntrar\nEsqueci-me da palavra-passe\nNão tens conta? Criar conta de parceiro\n← Voltar à escolha de perfil', 'Aceder como parceiro', 'Aceder como parceiro', 'Utilize o email registado para gerir o seu negócio.\nEntrar\nEsqueci-me da palavra-passe\nNão tens conta? Criar conta de parceiro\n← Voltar à escolha de perfil', 'Utilize o email registado para gerir o seu negócio.', 'Email', 'Palavra-passe', 'Entrar', 'Esqueci-me da palavra-passe', 'Não tens conta? Criar conta de parceiro', '← Voltar à escolha de perfil']
+3. entrar com a conta de teste
+   campos de texto: 2
+   email escrito: demo-parceiro@bora.app
+[consola] [Biometric] capability check failed: MissingPluginException(No implementation found for method isDeviceSupported on channel plugins.flutter.io/local_auth)
+[consola] [Biometric] capability check failed: MissingPluginException(No implementation found for method isDeviceSupported on channel plugins.flutter.io/local_auth)
+   foto: antes-03-painel.png
+   no ecrã: ['Adicionar o Bora ao ecrã principal', 'Fechar', 'Loja Demo Bora (teste, nao e real)\nTrocar de perfil\nOFFLINE\nMudar modo\nA minha conta', 'Loja Demo Bora (teste, nao e real)\nTrocar de perfil\nOFFLINE\nMudar modo\nA minha conta', 'Trocar de perfil', 'OFFLINE', 'Mudar modo', 'A minha conta', 'Recebe os pedidos novos', 'Agora não', 'As notificações estão bloqueadas neste navegador. Ativa-as nas definições do site e volta a abrir a Bora.', 'Muito trabalho? Pausa a loja uns minutos.', 'Pausar', 'Ganhos hoje €0.00 0 pedidos entregues', 'Ganhos semana €0.00 0 pedidos entregues', 'Ganhos totais €0.00 0 pedidos entregues', 'Ver detalhe de ganhos', 'Receber pagamentos', 'Extrato', 'Horários de funcionamento', 'Resumo do catálogo 0 Total 0 Disponíveis 0 Indisponíveis', 'Aceitar reservas de mesa\nDesligado — reservas ocultas aos clientes. (BR §14.10)', 'Aceitar pedidos para levantamento (Takeaway)\nDesligado — só entrega. (BR §14.9)', 'Nenhum pedido pendente no momento.', 'Ações rápidas', 'Gerir produtos Atualiza o catálogo, marca produtos esgotados e mantém os itens organizados.', 'Chamar estafeta Cliente pediu ao balcão ou por telefone? Chama um estafeta para lhe levar a encomenda.', 'Suporte Bora']
+4. abrir um ecrã por cima do painel (produtos)
+   foto: antes-04-produtos.png
+   no ecrã: ['Adicionar o Bora ao ecrã principal', 'Fechar', 'Voltar\nProdutos de Loja Demo Bora (teste, nao e real)', 'Voltar\nProdutos de Loja Demo Bora (teste, nao e real)', 'Voltar', 'Suporte Bora', 'Ainda não existem produtos registados', 'Comece por adicionar o primeiro produto para Loja Demo Bora (teste, nao e real).', 'Adicionar produto']
+5. revogar no servidor as sessões da conta de TESTE
+   entrar: 200 papel: partner erro: None | sair-global: 204 
+6. adiantar o relógio do browser 65 min (o token expira e o SDK renova)
+   [rede] renovar sessão -> 400
+[consola] [InAppNotif] unread error: AuthApiException(message: Invalid Refresh Token: Refresh Token Not Found, statusCode: 400, code: refresh_token_not_found)
+   foto: antes-05-depois-da-sessao-cair.png
+   no ecrã: ['Adicionar o Bora ao ecrã principal', 'Fechar', 'Voltar\nProdutos de Loja Demo Bora (teste, nao e real)', 'Voltar\nProdutos de Loja Demo Bora (teste, nao e real)', 'Voltar', 'Suporte Bora', 'Ainda não existem produtos registados', 'Comece por adicionar o primeiro produto para Loja Demo Bora (teste, nao e real).', 'Adicionar produto']
+RESULTADO: {"aviso_sessao_terminou": false, "ecrã_de_entrada": false, "ainda_mostra_produtos": true}

@@ -7,6 +7,7 @@ import '../../../widgets/card_mandate_notice.dart';
 import '../../../models/cleaning_models.dart';
 import '../../../stores/cart_store.dart';
 import '../../../stores/cleaning_store.dart';
+import '../../../utils/hora_lisboa.dart';
 import '../../../widgets/bora/bora.dart';
 import '../../../widgets/checkout_legal_notice.dart';
 import 'cleaning_payment_flow.dart';
@@ -20,7 +21,12 @@ import '../../../l10n/tr.dart';
 ///   3. Profissional & Pagamento (lista disponível + resumo + confirmar)
 /// Preço SEMPRE server-side (RPC cleaning_quote); aqui só se mostra.
 class CleaningWizardScreen extends StatefulWidget {
-  const CleaningWizardScreen({super.key, this.repeatOf});
+  const CleaningWizardScreen({super.key, this.repeatOf, this.agora});
+
+  /// Relógio do ecrã — só os testes o trocam (para marcar no dia da mudança
+  /// de hora). Em produção é sempre o instante real do telemóvel.
+  @visibleForTesting
+  final DateTime Function()? agora;
 
   /// "Marcar de novo" (04/10/2026): começa com o mesmo serviço, a mesma
   /// morada e a mesma profissional (se estiver disponível) de uma limpeza
@@ -46,6 +52,10 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
   bool _quoteLoading = false;
 
   // Passo 2 — quando & onde
+  /// INSTANTE (UTC) em que o relógio de Lisboa marca a hora escolhida. A Bora
+  /// só opera em Portugal: o dia e a hora que o cliente vê e escolhe são os de
+  /// Lisboa, seja qual for o fuso do telemóvel (regra 1.27 do PADRAO_BORA).
+  /// O servidor guarda o mesmo instante (`scheduled_at` é timestamptz).
   DateTime? _scheduledAt;
   int _leadHours = 12;
   final _streetCtrl = TextEditingController();
@@ -147,8 +157,12 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
 
   // ── navegação entre passos ────────────────────────────────────────────────
 
+  DateTime _agora() => widget.agora?.call() ?? DateTime.now();
+
+  /// Instante mais cedo permitido (agora + antecedência). Compara-se sempre
+  /// instante com instante, por isso não depende do fuso do telemóvel.
   DateTime get _earliestAllowed =>
-      DateTime.now().add(Duration(hours: _leadHours));
+      _agora().add(Duration(hours: _leadHours));
 
   Future<void> _goNext() async {
     if (_avancando) return;
@@ -503,23 +517,31 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
   // ── Passo 2: quando & onde ────────────────────────────────────────────────
 
   Future<void> _pickDateTime() async {
+    // Os selectores trabalham com o relógio de Lisboa (paredeLisboa lê só dia
+    // e hora); o que se guarda é o instante correspondente (instanteDeLisboa).
     final earliest = _earliestAllowed;
     final initial = _scheduledAt ?? earliest.add(const Duration(hours: 1));
+    final primeiro = paredeLisboa(earliest);
+    final inicial = paredeLisboa(initial.isBefore(earliest) ? earliest : initial);
+    final horaInicial = paredeLisboa(initial);
+    final ultimo = paredeLisboa(_agora().add(const Duration(days: 60)));
     final date = await showDatePicker(
       context: context,
-      initialDate: initial.isBefore(earliest) ? earliest : initial,
-      firstDate: DateTime(earliest.year, earliest.month, earliest.day),
-      lastDate: DateTime.now().add(const Duration(days: 60)),
+      initialDate: DateTime(inicial.year, inicial.month, inicial.day),
+      firstDate: DateTime(primeiro.year, primeiro.month, primeiro.day),
+      lastDate: DateTime(ultimo.year, ultimo.month, ultimo.day),
     );
     if (date == null || !mounted) return;
     final time = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(initial),
+      initialTime:
+          TimeOfDay(hour: horaInicial.hour, minute: horaInicial.minute),
     );
     if (time == null || !mounted) return;
     setState(() {
-      _scheduledAt =
-          DateTime(date.year, date.month, date.day, time.hour, time.minute);
+      // DateTime.utc só para levar os campos: o fuso do telemóvel não entra.
+      _scheduledAt = instanteDeLisboa(
+          DateTime.utc(date.year, date.month, date.day, time.hour, time.minute));
     });
   }
 
@@ -834,7 +856,9 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
     );
   }
 
-  static String _fmtDateTime(DateTime d) {
+  /// Dia e hora em Lisboa de um instante (nunca a hora do telemóvel).
+  static String _fmtDateTime(DateTime instante) {
+    final d = paredeLisboa(instante);
     String two(int n) => n.toString().padLeft(2, '0');
     return '${two(d.day)}/${two(d.month)}/${d.year} às '
         '${two(d.hour)}:${two(d.minute)}';

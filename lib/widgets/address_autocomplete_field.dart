@@ -120,6 +120,10 @@ class AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
   /// Sobe a cada edição ou escolha: uma confirmação que acabe depois de o
   /// cliente ter escrito mais (ou escolhido uma sugestão) é descartada.
   int _seq = 0;
+
+  /// [_seq] da sugestão cujo Place Details ainda está a caminho (null se
+  /// nenhuma) — só essa desliga o "a procurar" quando acaba.
+  int? _escolhaEmCurso;
   Future<bool>? _confirmacaoEmCurso;
   String? _textoEmConfirmacao;
 
@@ -175,28 +179,11 @@ class AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
 
     MoradaGeocodificada? achada;
     try {
-      // 1) Geocoding tolerante (texto todo → sem nº de porta → abreviaturas
-      //    por extenso), com o melhor resultado na Guarda.
-      achada = await _service.geocodeTolerante(texto);
-      // 2) Comércio/POI que o Geocoding não conhece ("Continente", "Lavie"):
-      //    fica a 1.ª sugestão, que já vem com a Guarda à frente.
-      if (achada == null) {
-        final sugestoes = await _service.fetchPredictionsTolerante(texto);
-        // Quem escreveu "…, Guarda" não quer a mesma rua em Lisboa: só vale
-        // uma sugestão da Guarda (prova web 15/10, "Av. Rainha D. Amélia").
-        final pedeGuarda = textoPedeGuarda(texto);
-        final validas = sugestoes.predictions.where((p) {
-          final linha = '${p.description} ${p.secondaryText ?? ''}';
-          return (!pedeGuarda || textoPedeGuarda(linha)) &&
-              partilhaPalavra(texto, linha);
-        });
-        if (validas.isNotEmpty) {
-          final p = validas.first;
-          final c = await _service.resolvePlaceLocation(p.placeId) ??
-              await _service.geocodeAddress(p.description);
-          if (c != null) achada = MoradaGeocodificada(c, morada: p.description);
-        }
-      }
+      // Geocoding tolerante com o melhor resultado na Guarda; comércio/POI
+      // que o Geocoding não conhece pela 1.ª sugestão da Guarda; e resultado
+      // longe do centro conferido com a sugestão (o "Rua do Comércio" a 11 km).
+      // A mesma procura serve o Favor — ver procurarMoradaEscrita.
+      achada = await _service.procurarMoradaEscrita(texto);
     } catch (e) {
       debugPrint('AddressAutocomplete: confirmação do texto falhou => $e');
     }
@@ -604,7 +591,8 @@ class AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
     _focusLossTimer?.cancel();
     _debounce?.cancel();
     _removeOverlay();
-    _seq++;
+    final seq = ++_seq;
+    _escolhaEmCurso = seq;
     _textoPendente = false;
     setState(() {
       _predictions = const [];
@@ -629,29 +617,28 @@ class AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
     debugPrint(
         'AddressAutocomplete: SELECTED "${prediction.description}" placeId=${prediction.placeId}');
 
-    ll.LatLng? coords;
-    try {
-      coords = await _service.resolvePlaceLocation(prediction.placeId);
-    } catch (e) {
-      debugPrint('AddressAutocomplete: resolvePlaceLocation threw => $e');
-    }
-
-    // Fallback: if Place Details failed, try Geocoding API.
-    if (coords == null && prediction.description.isNotEmpty) {
-      debugPrint(
-          'AddressAutocomplete: Place Details returned null — trying Geocoding fallback');
-      try {
-        coords = await _service.geocodeAddress(prediction.description);
-      } catch (e) {
-        debugPrint('AddressAutocomplete: geocodeAddress threw => $e');
-      }
-    }
+    // B1 (20/10): a posição do sítio tocado (Place Details, 2 tentativas); o
+    // texto da sugestão só em último recurso, pelo geocode tolerante — ver
+    // PlaceAutocompleteService.coordenadasDaSugestao.
+    final ll.LatLng? coords = await _service.coordenadasDaSugestao(prediction);
 
     debugPrint('AddressAutocomplete: COORDS => $coords');
 
     _service.resetSession();
 
     if (!mounted) return;
+    // Revisão B, ronda 1: com rede lenta o cliente pode ter escrito ou
+    // escolhido outra sugestão entretanto — a resposta desta já não vale
+    // (seriam as coordenadas da anterior com o texto novo: km errado).
+    if (seq != _seq || widget.controller.text != prediction.description) {
+      if (_escolhaEmCurso == seq) {
+        _escolhaEmCurso = null;
+        _isSelecting = false;
+        setState(() => _resolving = false);
+      }
+      return;
+    }
+    _escolhaEmCurso = null;
     _isSelecting = false;
     setState(() => _resolving = false);
     widget.onSelected(prediction.description, coords);

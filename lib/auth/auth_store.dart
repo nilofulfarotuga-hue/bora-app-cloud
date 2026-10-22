@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/auth_links.dart';
+import '../l10n/tr.dart';
 import '../models/driver_model.dart';
 import '../models/restaurant_model.dart';
 import '../services/biometric_auth_service.dart';
@@ -133,8 +134,13 @@ class AuthStore extends ChangeNotifier {
     // contas REAIS no Supabase Auth, não hard-coded aqui:
     //   · guest@bora.com — modo convidado
     //   · demo@bora.app  — credencial de revisão da Google Play
-    _authSubscription =
-        _supabase.auth.onAuthStateChange.listen(_onAuthStateChange);
+    _authSubscription = _supabase.auth.onAuthStateChange.listen(
+      _onAuthStateChange,
+      // Quedas de rede chegam aqui como erro do stream (o SDK não termina a
+      // sessão por elas) — regista e segue, a sessão fica como estava.
+      onError: (Object e) =>
+          debugPrint('AuthStore: erro no stream de auth (ignorado) => $e'),
+    );
 
     _initFromPrefs();
     // Guest session is deferred — _initFromPrefs may re-auth as real user first.
@@ -400,14 +406,40 @@ class AuthStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  Timer? _sessaoCaidaTimer;
+
   void _onAuthStateChange(AuthState state) {
     final session = state.session;
 
     if (session == null) {
-      // Only clear local state if this is a real sign-out, not a token hiccup.
-      // _ensureGuestSession will re-establish a session immediately after.
+      // [15/10/2026 · Sabores de Casa] Sessão caída com a conta em memória
+      // deixava os ecrãs abertos como se estivesse ligado, e tudo o que se
+      // gravava ia sem login ("Não foi possível ler as percentagens").
+      //
+      // No gotrue 2.27.3 (supabase_flutter 2.18.3) o signedOut só chega em
+      // saída real: refresh token recusado pelo servidor (sessionExpired),
+      // sessão guardada sem dados (sessionMissing), uma saída noutro
+      // separador do browser (sem razão), ou o nosso próprio signOut()
+      // (userInitiated). Queda de rede nunca chega aqui — vai como erro do
+      // stream. O userInitiated é sempre da app (Sair, troca de papel, login,
+      // recuperação de palavra-passe): quem o chamou já tratou do ecrã.
+      //
+      // Espera 2 s antes de expulsar: noutro separador, um login novo chega
+      // primeiro como "saiu" e logo a seguir como "entrou" — se a sessão
+      // voltar entretanto, ninguém é expulso.
+      if (state.event == AuthChangeEvent.signedOut &&
+          state.signOutReason != SignOutReason.userInitiated &&
+          isLogged) {
+        _sessaoCaidaTimer?.cancel();
+        _sessaoCaidaTimer = Timer(const Duration(seconds: 2), () {
+          if (_supabase.auth.currentSession == null && isLogged) {
+            terminarSessaoCaida();
+          }
+        });
+      }
       return;
     }
+    _sessaoCaidaTimer?.cancel(); // a sessão voltou dentro da tolerância
 
     // Recuperação de palavra-passe: o Supabase cria uma sessão temporária ao
     // abrir o link do email. NÃO hidratar conta aqui — isso "logaria" o
@@ -1854,6 +1886,65 @@ class AuthStore extends ChangeNotifier {
     _signOutBackground(pararEstafeta: pararEstafeta);
   }
 
+  /// Sessão caída: limpa a conta como o "Sair", mas sem apagar a biometria
+  /// (L3) nem o papel escolhido — o [_RootNavigator] abre assim a entrada
+  /// certa (cliente, estafeta ou parceiro). Fecha os ecrãs abertos por cima
+  /// (ex.: "Editar produto") e avisa que a sessão terminou.
+  ///
+  /// Sem ciclo: o signOut() do logout chega como userInitiated, que o
+  /// [_onAuthStateChange] ignora, e a conta já está limpa.
+  void terminarSessaoCaida() {
+    _sessaoCaidaTimer?.cancel();
+    if (isLogged) logout(wipeBiometrics: false);
+    NotificationService.navigatorKey.currentState
+        ?.popUntil((route) => route.isFirst);
+    final ctx = NotificationService.navigatorKey.currentContext;
+    if (ctx == null) return;
+    ScaffoldMessenger.maybeOf(ctx)
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text('A tua sessão terminou. Entra outra vez.'.tr),
+        duration: const Duration(seconds: 8),
+      ));
+  }
+
+  /// Para os ecrãs que gravam: true quando a chamada falhou porque a sessão
+  /// caiu mesmo. Com a sessão ainda no aparelho, um 401 pode ser só o token
+  /// de acesso fora de prazo (ex.: relógio do aparelho atrasado) — tenta-se
+  /// renovar primeiro e só conta como caída se o servidor recusar.
+  static Future<bool> sessaoCaiu([Object? erro]) async {
+    if (!falhaPorSessao(erro)) return false;
+    final auth = Supabase.instance.client.auth;
+    if (auth.currentSession == null) return true;
+    try {
+      await auth.refreshSession();
+      return false; // renovou: era só o token, a sessão está viva
+    } on AuthRetryableFetchException {
+      return false; // rede — não é sessão caída
+    } catch (_) {
+      return true; // servidor recusou a renovação
+    }
+  }
+
+  /// true quando uma chamada falhou por causa da sessão: já não há sessão
+  /// no aparelho, ou o servidor recusou o login (401 / JWT inválido ou
+  /// expirado). Não tenta renovar — para isso, [sessaoCaiu].
+  static bool falhaPorSessao([Object? erro]) {
+    if (Supabase.instance.client.auth.currentSession == null) return true;
+    if (erro is PostgrestException) {
+      return const {'401', 'PGRST301', 'PGRST302', 'PGRST303'}
+              .contains(erro.code) ||
+          erro.message.contains('JWT expired');
+    }
+    if (erro is AuthException) return erro.statusCode == '401';
+    if (erro is StorageException) {
+      return erro.statusCode == '401' ||
+          erro.message.toLowerCase().contains('jwt');
+    }
+    if (erro is FunctionException) return erro.status == 401;
+    return false;
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // SharedPreferences persistence
   // ─────────────────────────────────────────────────────────────────────────
@@ -2144,6 +2235,7 @@ class AuthStore extends ChangeNotifier {
   @override
   void dispose() {
     _authSubscription?.cancel();
+    _sessaoCaidaTimer?.cancel();
     super.dispose();
   }
 }

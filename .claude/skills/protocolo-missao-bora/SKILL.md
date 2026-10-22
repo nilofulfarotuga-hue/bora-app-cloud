@@ -9,10 +9,10 @@ description: >
   redigir uma ordem de missão, arrancar uma janela nova, ou fechar uma missão (Bloco F).
 metadata:
   versao: 1.0
-  execucoes: 6
-  sucessos: 6
+  execucoes: 7
+  sucessos: 7
   falhas: 0
-  ultima_execucao: 2026-10-06
+  ultima_execucao: 2026-10-17
   criada_por: missão fable-13-09 (2026-09-13)
 ---
 
@@ -141,7 +141,9 @@ Antes de deduzir, **verifica**. Ler a base de dados é melhor do que adivinhar p
 - **LOGIN NO NAVEGADOR (regra do Danilo, 13/09/2026):** quando precisares de um site ou painel onde
   não há sessão, ou não conseguires abrir/entrar em alguma janela, não tentes senhas nem peças
   token a ninguém — abre a página de login no próprio Chrome do PC **no perfil CERTO para esse
-  site** (skill global `contas-e-navegadores` → `~/.claude/contas/abrir-site.ps1 <site>`; ChatGPT
+  site** (skill do repo `navegadores-e-contas` — perfil SEMPRE pelo `deviceId`, nunca por
+  "Browser 1/2", que trocam de nome; Cloudflare do domínio = perfil pessoal — e a skill global
+  `contas-e-navegadores` → `~/.claude/contas/abrir-site.ps1 <site>`; ChatGPT
   Plus = perfil Danilo/`Default`, conta nilofulfaro@gmail.com; Gemini AI Plus = perfil Bora/`Profile 1`),
   avisa o Danilo pelo Telegram numa linha e continua quando a sessão existir. Fica gravada no
   Chrome e serve para sempre. Uma vez por site. *(Corrigido 17/09: o texto antigo dizia "perfil
@@ -164,6 +166,10 @@ permissão, RAM (portão 400 MB leve / 800 MB para compilar — medir com
 `(Get-CimInstance Win32_PerfFormattedData_PerfOS_Memory).AvailableMBytes`), ferramenta que pode
 não existir (`gh`, Java certo, Flutter do CI ≠ Flutter do PC). Previsão de falha → muda a
 abordagem antes de agir. **Duas falhas iguais → muda de abordagem; nunca uma terceira igual.**
+**Emulador (regra do Danilo, 15/10/2026):** antes de abrir um emulador, **≥ 3 GB disponíveis**
+(medido como acima). Abaixo disso não se abre — regista-se no e2e_log e segue-se. Um emulador
+de cada vez, sempre `emulator -avd emdia35 -no-snapshot-save` (AVD de 2 GB); fechá-lo no fim.
+Cicatriz: a 15/10 às 06:56 o PC desceu a 470 MB, "System UI isn't responding" e o emulador caiu.
 Provas de dinheiro correm **primeiro em rollback** (`DO $$ … RAISE EXCEPTION 'RESULT %' … $$`)
 e só depois com pedido de teste real marcado `is_test_order`.
 

@@ -12,6 +12,7 @@
 // Quem pode: qualquer sessão — mas só toca nos aparelhos da própria conta.
 // Com a chave de serviço (prova técnica) pode indicar `userId` ou um `token`.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { secretKey } from '../_shared/keys.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -28,7 +29,7 @@ Deno.serve(async (req) => {
   const firebaseProjectId = Deno.env.get('FIREBASE_PROJECT_ID')
   const firebaseServiceAcct = Deno.env.get('FIREBASE_SERVICE_ACCOUNT')
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  const serviceKey = secretKey()!
   const supabase = createClient(supabaseUrl, serviceKey)
 
   const quem = await identificar(req, supabaseUrl, serviceKey, supabase)

@@ -52,6 +52,7 @@ import 'chat_screen.dart';
 import 'ganhos_screen.dart';
 import '../widgets/ganho_de_hoje_card.dart';
 import '../widgets/trocar_de_papel.dart';
+import '../widgets/aviso_atividade_banner.dart';
 import '../widgets/driver_fiscal_card.dart';
 import '../services/role_switch_helper.dart';
 import 'driver_map_screen.dart';
@@ -1056,6 +1057,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                 ),
               ),
             ] else ...[
+              // Comprovativo de atividade (20/10/2026): aviso que não bloqueia,
+              // numa linha só e com "×" (até reabrir a app) para não encurtar
+              // a lista de pedidos em ecrãs pequenos.
+              const AvisoAtividadeBanner(compacto: true, dispensavel: true),
               // Fecho mensal (2026-09-29): NIF/atividade + recibo verde do mês.
               const DriverFiscalCard(),
               const Text(

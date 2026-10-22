@@ -10,6 +10,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCancelFees, computeCancelFeeEur } from '../_shared/platform_settings.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 import { lerPagoDoPedido, repartirReembolso, type Pago } from '../_shared/cobranca_stripe.ts'; // v29 (ronda 04/10 A.2)
+import { secretKey } from '../_shared/keys.ts'
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   apiVersion: '2023-10-16',
@@ -45,7 +46,7 @@ Deno.serve(async (req: Request) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  const serviceKey = secretKey() ?? '';
   if (!supabaseUrl || !serviceKey || !anonKey) return jsonResponse({ error: 'server_misconfigured' }, 500);
 
   let orderId: string | undefined;

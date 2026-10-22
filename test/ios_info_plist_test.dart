@@ -56,6 +56,9 @@ void main() {
       'NSCameraUsageDescription',
       'NSPhotoLibraryUsageDescription',
     ],
+    // [20/10/2026] Seletor de ficheiros (comprovativo de atividade): o pod
+    // traz o seletor de fotos (DKImagePickerController) — mesma exigência.
+    'file_picker': ['NSPhotoLibraryUsageDescription'],
     // Localização: sem a chave o pedido de permissão nem aparece e o
     // estafeta fica sem GPS; com background precisa da "Always".
     'geolocator': [
@@ -88,6 +91,22 @@ void main() {
           reason: 'Plugins presentes sem a declaração que o iOS exige — o '
               'sistema MATA a app na primeira utilização: '
               '${faltam.join('; ')}');
+    });
+
+    test('file_picker sem seletor de áudio (ou com a frase da música)', () {
+      // [20/10/2026 · ronda 1 do Bloco C] O pod do file_picker compila por
+      // defeito o MPMediaPickerController; sem NSAppleMusicUsageDescription a
+      // App Store Connect recusa o envio (ITMS-90683). A app nunca escolhe
+      // áudio: desliga-se no Podfile (Pod::PICKER_AUDIO = false).
+      if (!usa('file_picker')) return;
+      final podfile = File('ios/Podfile').readAsStringSync();
+      final audioDesligado =
+          RegExp(r'^\s*Pod::PICKER_AUDIO\s*=\s*false', multiLine: true).hasMatch(podfile);
+      expect(
+          audioDesligado || plist.contains('<key>NSAppleMusicUsageDescription</key>'),
+          isTrue,
+          reason: 'file_picker com o seletor de áudio compilado e sem '
+              'NSAppleMusicUsageDescription → a Apple recusa o envio.');
     });
 
     test('os esquemas de URL que a app abre estão declarados', () {

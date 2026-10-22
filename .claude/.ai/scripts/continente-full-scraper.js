@@ -7,7 +7,7 @@ const zlib = require('zlib');
 const fs = require('fs');
 const path = require('path');
 
-const ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeWtwendxcnR1c2ZlYWt6cm5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwMDA3MjgsImV4cCI6MjA4ODU3NjcyOH0.-yrhHFZV4bfjBagI5W-c1AvmP8Xkzs1kf2xuxPwdBh4';
+const ANON = process.env.SUPABASE_ANON_KEY;
 const SB_HOST = 'ojykpzwqrtusfeakzrna.supabase.co';
 const LOG_FILE = path.resolve(__dirname, '..', 'tmp', 'scrape', 'progress.log');
 const STATE_FILE = path.resolve(__dirname, '..', 'tmp', 'scrape', 'state.json');

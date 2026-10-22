@@ -9,6 +9,7 @@ import '../../models/cleaning_models.dart';
 import '../../services/roles_service.dart';
 import '../../stores/cleaner_store.dart';
 import '../../stores/session_store.dart';
+import '../../widgets/aviso_atividade_banner.dart';
 import '../../widgets/aviso_toque_banner.dart';
 import '../../widgets/bora/bora.dart';
 import '../../widgets/bora_support_sheet.dart';
@@ -22,6 +23,7 @@ import 'cleaner_apply_screen.dart';
 import 'cleaner_availability_screen.dart';
 import '../ganhos_screen.dart';
 import '../../widgets/botao_rota.dart';
+import '../../widgets/guia_limpeza.dart';
 import '../../widgets/ganho_de_hoje_card.dart';
 import 'cleaner_history_screen.dart';
 
@@ -193,6 +195,10 @@ class _StatusView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // [20/10/2026] Candidatura nova: o comprovativo de atividade é o
+            // que falta para a aprovação andar (aviso com botão Enviar).
+            const AvisoAtividadeBanner(
+                margem: EdgeInsets.only(bottom: Spacing.lg), emCandidatura: true),
             Icon(icon, size: 64, color: color),
             const SizedBox(height: Spacing.lg),
             Text(title,
@@ -283,6 +289,8 @@ class _PanelView extends StatelessWidget {
             ativo: profile.isActive,
             margem: const EdgeInsets.only(bottom: Spacing.md),
           ),
+          // [20/10/2026] Falta o comprovativo de atividade — aviso, não bloqueia.
+          const AvisoAtividadeBanner(margem: EdgeInsets.only(bottom: Spacing.md)),
           // O total do dia de TUDO o que ela faz — o mesmo cartão dos ecrãs
           // do estafeta, do TVDE e da lavagem.
           GanhoDeHojeCard(recarregarQuando: store),
@@ -641,6 +649,8 @@ class _OfferCardState extends State<_OfferCard> {
               style: const TextStyle(
                   color: AppColors.textSecondary, height: 1.4),
             ),
+            // GUIA (15/10): o que fazer e o que levar, já antes de aceitar.
+            GuiaLimpezaCaixa(booking: b),
             if (minsLeft != null && minsLeft >= 0)
               Padding(
                 padding: const EdgeInsets.only(top: Spacing.xs),
@@ -783,6 +793,8 @@ class _AgendaCardState extends State<_AgendaCard> {
                     '${b.addressStreet}, ${b.addressCity} ${b.addressPostal}',
               ),
             ),
+            // GUIA (15/10): o que fazer e o que levar nesta limpeza.
+            GuiaLimpezaCaixa(booking: b),
             // Badge de cobrança UNIFICADO (mesmo widget do delivery/TVDE):
             // dinheiro → cobrar o total; card/MB Way → já pago (não cobrar).
             const SizedBox(height: 6),

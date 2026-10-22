@@ -69,6 +69,7 @@ class BusinessAutocompleteField extends StatefulWidget {
     this.validator,
     this.autofillNearestWithinKm,
     this.includeAddresses = false,
+    this.placesOverride,
   });
 
   final TextEditingController controller;
@@ -96,6 +97,11 @@ class BusinessAutocompleteField extends StatefulWidget {
   /// (ex.: "Leva a tua compra", onde a loja tem de ser real).
   final bool includeAddresses;
 
+  /// Só para testes: serviço de moradas falso (sem rede), como o
+  /// `serviceOverride` do [AddressAutocompleteField].
+  @visibleForTesting
+  final PlaceAutocompleteService? placesOverride;
+
   @override
   State<BusinessAutocompleteField> createState() =>
       _BusinessAutocompleteFieldState();
@@ -122,11 +128,17 @@ class _BusinessAutocompleteFieldState extends State<BusinessAutocompleteField> {
   bool _isProgrammaticChange = false;
   String? _lastSelectedText;
 
+  // Revisão B, ronda 1: cada escolha ou tecla do cliente invalida a resposta
+  // de uma sugestão anterior que ainda esteja a caminho (rede lenta).
+  int _escolhaSeq = 0;
+  int? _escolhaEmCurso;
+
   @override
   void initState() {
     super.initState();
     if (widget.includeAddresses) {
-      _places = createPlaceAutocompleteService(googleApiKey);
+      _places = widget.placesOverride ??
+          createPlaceAutocompleteService(googleApiKey);
     }
     _focusNode.addListener(_onFocusChanged);
     _initGps();
@@ -190,6 +202,7 @@ class _BusinessAutocompleteFieldState extends State<BusinessAutocompleteField> {
     if (_isProgrammaticChange) return;
     if (value == _lastSelectedText) return; // eco IME da seleção
     _lastSelectedText = null;
+    _escolhaSeq++;
     widget.onChanged?.call(value);
 
     _debounce?.cancel();
@@ -415,6 +428,8 @@ class _BusinessAutocompleteFieldState extends State<BusinessAutocompleteField> {
   /// Morada Google: resolve coords no tap (Place Details → geocode fallback).
   /// Se falhar, deixa o texto livre e o pai geocodifica antes de submeter.
   Future<void> _onSelectPlace(PlacePrediction prediction) async {
+    final seq = ++_escolhaSeq;
+    _escolhaEmCurso = seq;
     _isSelecting = true;
     _focusLossTimer?.cancel();
     _debounce?.cancel();
@@ -435,26 +450,35 @@ class _BusinessAutocompleteFieldState extends State<BusinessAutocompleteField> {
     final svc = _places;
     ll.LatLng? coords;
     if (svc != null) {
-      try {
-        coords = await svc.resolvePlaceLocation(prediction.placeId);
-      } catch (_) {}
-      if (coords == null && prediction.description.isNotEmpty) {
-        try {
-          coords = await svc.geocodeAddress(prediction.description);
-        } catch (_) {}
-      }
+      // B1 (20/10): a posição do sítio tocado (Details, 2 tentativas); o texto
+      // da sugestão só em último recurso — ver coordenadasDaSugestao.
+      coords = await svc.coordenadasDaSugestao(prediction);
       svc.resetSession();
     }
 
     if (!mounted) return;
+    // Só esta escolha (a mais recente) desliga o "a carregar".
+    if (_escolhaEmCurso == seq) {
+      _escolhaEmCurso = null;
+      _isSelecting = false;
+      setState(() => _loading = false);
+    }
+    // O cliente escreveu ou escolheu outra coisa entretanto: esta resposta já
+    // não vale (seriam as coordenadas da anterior com o texto novo).
+    if (seq != _escolhaSeq || widget.controller.text != prediction.description) {
+      return;
+    }
     _focusNode.unfocus();
-    _isSelecting = false;
-    setState(() => _loading = false);
     // onSelected exige coords reais; se nulas, o guard do pai geocodifica.
     if (coords != null) widget.onSelected(prediction.description, coords);
   }
 
   void _onSelectBusiness(BusinessPrediction prediction) {
+    _escolhaSeq++;
+    if (_escolhaEmCurso != null) {
+      _escolhaEmCurso = null;
+      _loading = false;
+    }
     _isSelecting = true;
     _focusLossTimer?.cancel();
     _debounce?.cancel();

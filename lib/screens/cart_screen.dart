@@ -14,6 +14,7 @@ import '../services/weight_portions.dart';
 import '../stores/cart_store.dart';
 import '../stores/order_store.dart';
 import '../stores/restaurant_store.dart';
+import '../widgets/checkin/premio_carrinho_banner.dart';
 import '../widgets/bora/bora.dart';
 import '../widgets/bora/maior_18.dart';
 import '../widgets/takeaway/curbside_inputs.dart';
@@ -49,6 +50,12 @@ class CartScreen extends StatelessWidget {
       appBar: BoraScreenAppBar(title: 'Carrinho'.tr),
       body: Column(
         children: [
+          // Prémio do check-in (21/10/2026): aparece para aplicar na loja certa.
+          if (cartStore.items.isNotEmpty)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(Spacing.lg, Spacing.md, Spacing.lg, 0),
+              child: PremioCarrinhoBanner(),
+            ),
           Expanded(
             child: cartStore.items.isEmpty
                 ? const _EmptyCart()

@@ -11,6 +11,7 @@ import '../widgets/bora/lista_estado.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import 'order_details_screen.dart';
+import 'shared/comprovativo_atividade_screen.dart';
 
 import '../l10n/tr.dart';
 
@@ -75,6 +76,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       }
     }
     if (!mounted) return;
+    // [20/10/2026] "Falta o comprovativo de atividade" → o ecrã de envio.
+    if (n['kind'] == 'provider_atividade') {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const ComprovativoAtividadeScreen()),
+      );
+      if (!mounted) return;
+      await _load();
+      return;
+    }
     final order = await _orderFor(n['related_id'] as String?);
     if (!mounted) return;
     if (order != null) {
@@ -119,6 +130,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         return Icons.local_offer;
       case 'admin':
         return Icons.campaign;
+      // [17/10/2026 · cancelamento tardio] "Corrida cancelada · recebes
+      // 3,75 €" — a compensação ao motorista quando o cliente cancela tarde.
+      case 'tvde_cancel_comp':
+        return Icons.euro;
+      // [20/10/2026] Comprovativo de atividade nas Finanças.
+      case 'provider_atividade':
+        return Icons.description_outlined;
       default:
         return Icons.notifications;
     }

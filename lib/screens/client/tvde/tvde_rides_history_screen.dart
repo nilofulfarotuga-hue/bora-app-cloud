@@ -14,6 +14,18 @@ import '../../../utils/hora_lisboa.dart';
 
 import '../../../l10n/tr.dart';
 
+/// [17/10/2026 · cancelamento tardio] Valor à direita de cada linha. Numa
+/// corrida cancelada é a taxa que o servidor REALMENTE cobrou ("Sem custo" se
+/// 0) — antes mostrava a tarifa inteira, como se a corrida tivesse sido paga.
+String valorNoHistorico(TvdeRide ride, {required int packageCents}) {
+  if (ride.isCancelled) {
+    return ride.cancelFeeCents > 0
+        ? '€${(ride.cancelFeeCents / 100).toStringAsFixed(2)}'
+        : 'Sem custo'.tr;
+  }
+  return '€${(TvdeFareView.of(ride, packageCents: packageCents).clientTotalCents / 100).toStringAsFixed(2)}';
+}
+
 /// TVDE — Histórico de corridas do passageiro.
 class TvdeRidesHistoryScreen extends StatefulWidget {
   const TvdeRidesHistoryScreen({super.key});
@@ -53,8 +65,14 @@ class _TvdeRidesHistoryScreenState extends State<TvdeRidesHistoryScreen> {
     } else {
       body = const _Empty();
     }
+    // N2 (21/10/2026): com encomendas na lista o título diz as duas coisas;
+    // só passageiros (todas as contas até hoje) = o título de sempre.
+    final temEncomendas = rides.any((r) => r.isEncomenda);
     return Scaffold(
-      appBar: BoraScreenAppBar(title: 'As minhas corridas'.tr),
+      appBar: BoraScreenAppBar(
+          title: temEncomendas
+              ? 'As minhas corridas e encomendas'.tr
+              : 'As minhas corridas'.tr),
       body: body,
     );
   }
@@ -106,7 +124,11 @@ class _RideTileState extends State<_RideTile> {
             child: Icon(
               ride.isFinished
                   ? Icons.check
-                  : (ride.isCancelled ? Icons.close : Icons.directions_car),
+                  : (ride.isCancelled
+                      ? Icons.close
+                      : (ride.isEncomenda
+                          ? Icons.inventory_2_outlined
+                          : Icons.directions_car)),
               color: AppColors.primary,
               size: 20,
             ),
@@ -116,6 +138,15 @@ class _RideTileState extends State<_RideTile> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // N2 (21/10/2026): encomenda diz-se na própria linha (como em
+                // "As minhas reservas"); passageiros: linha igual a antes.
+                if (ride.isEncomenda)
+                  Text('📦 Encomenda'.tr,
+                      key: const Key('historico_etiqueta_encomenda'),
+                      style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.primaryDark)),
                 Text(
                   '${ride.originLabel ?? 'Recolha'} → ${ride.destLabel ?? 'Destino'}',
                   maxLines: 1,
@@ -137,7 +168,7 @@ class _RideTileState extends State<_RideTile> {
                 // [Ficha legal · 23/09] Recibo com a taxa de intermediação.
                 if (ride.isFinished)
                   InkWell(
-                    onTap: () => abrirReciboViagem(context, ride.id),
+                    onTap: () => abrirReciboViagem(context, ride.id, rideKind: ride.rideKind),
                     child: Padding(
                       padding: const EdgeInsets.only(top: 4),
                       child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -155,8 +186,7 @@ class _RideTileState extends State<_RideTile> {
               ],
             ),
           ),
-          Text(
-              '€${(TvdeFareView.of(ride, packageCents: packageCents).clientTotalCents / 100).toStringAsFixed(2)}',
+          Text(valorNoHistorico(ride, packageCents: packageCents),
               style: const TextStyle(
                   fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
         ],

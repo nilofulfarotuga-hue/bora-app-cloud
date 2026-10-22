@@ -15,6 +15,7 @@ import '../../../widgets/tip_selector.dart';
 import '../../../widgets/tvde/tvde_roundtrip_driver_notice.dart';
 
 import '../../../l10n/tr.dart';
+import '../../../models/ride_kind.dart';
 
 /// TVDE — Avaliação do motorista pelo passageiro (tvde_rate, subject 'driver').
 class TvdeRateScreen extends StatefulWidget {
@@ -171,7 +172,7 @@ class _TvdeRateScreenState extends State<TvdeRateScreen> {
         unawaited(store.dismissRideAwaitingRating(widget.ride.id));
       },
       child: Scaffold(
-        appBar: BoraScreenAppBar(title: 'Avaliar viagem'.tr),
+        appBar: BoraScreenAppBar(title: 'Avaliar viagem'.trK(widget.ride.rideKind)),
         body: SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(Spacing.lg, Spacing.lg, Spacing.lg,
               BoraBottomActionBar.folgaInferior(context)),
@@ -182,7 +183,7 @@ class _TvdeRateScreenState extends State<TvdeRateScreen> {
               const Icon(Icons.check_circle,
                   size: 64, color: AppColors.primary),
               const SizedBox(height: Spacing.md),
-              Text('Viagem concluída'.tr,
+              Text('Viagem concluída'.trK(widget.ride.rideKind),
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w700,
@@ -192,12 +193,12 @@ class _TvdeRateScreenState extends State<TvdeRateScreen> {
                   covered
                       ? (widget.ride.isRoundtripLeg
                           ? 'Volta incluída no pacote — não pagaste nada.'.tr
-                          : 'Corrida incluída no teu plano — não pagaste nada.')
+                          : 'Corrida incluída no teu plano — não pagaste nada.'.rk(widget.ride.rideKind))
                       : 'Pagaste €{0}{1}'.trArgs([fare.toStringAsFixed(2), fareView.isPaidOnline ? ' no app.' : ' em dinheiro.']),
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: AppColors.textSecondary)),
               const SizedBox(height: Spacing.xl),
-              Text('Como foi o motorista?'.tr,
+              Text('Como foi o motorista?'.trK(widget.ride.rideKind),
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                       fontWeight: FontWeight.w600,
@@ -228,7 +229,7 @@ class _TvdeRateScreenState extends State<TvdeRateScreen> {
               ),
               if (_gorjetaLigada && widget.ride.isPaidOnline && !covered) ...[
                 const SizedBox(height: Spacing.lg),
-                Text('Queres deixar uma gorjeta ao motorista?'.tr,
+                Text('Queres deixar uma gorjeta ao motorista?'.trK(widget.ride.rideKind),
                     style: const TextStyle(color: AppColors.textSecondary)),
                 const SizedBox(height: Spacing.sm),
                 TipSelector(

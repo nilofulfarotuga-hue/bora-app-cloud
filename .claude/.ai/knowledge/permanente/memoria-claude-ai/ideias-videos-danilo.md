@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-14
+ultima_confirmacao: 2026-10-21
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-14T07:17:58.881658+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-21T20:01:31.144181+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -141,3 +141,114 @@ CTA: "Vê o preço da tua casa no link da bio" (link com marca própria, ex. ?de
 CONCORRÊNCIA (Biblioteca de Anúncios da Meta, 14/10): OSCAR (app de Lisboa) ~75 anúncios ativos, quase tudo preço fixo (T2 abaixo de 50 €, desde 8,99 €/h, mesmo profissional), vídeos curtos de telemóvel, botão instalar; WEGHO prova em números (+5000 serviços, 4,45/5) e imprensa, tom sério; pequenas empresas = texto longo e orçamento por WhatsApp.
 A CONFERIR ANTES DE PRODUZIR: cronometrar a marcação na app ("1 minuto" não foi medido); a marcação da limpeza NÃO tem campo de código/tokens, por isso não prometer BEMVINDO nem desconto; logo colado por script (marca a mudar para Já Está); se a profissional for personagem de IA, marcar como IA, se for a Mayra, só com o consentimento dela. Preços reais conferidos na base: T0/T1 35 €, T2 45 €, T3 55 €, T4+ 70 €, profunda +40 %, pós-obras +60 %, recorrente -10 %.
 
+
+14/10 RESULTADO reel "A casa estava assim" (Limpeza): publicado 13:05 na v2. IG https://www.instagram.com/reel/DeeV6SlE5vQ/ · FB https://www.facebook.com/reel/2376892836416049/ · story IG/FB. Fiscal 94/100 (20 s) e 95/100 (9 s); v1 (95/100 no fiscal) foi reprovada pelo Danilo por parecer artificial: lição = o fiscal não mede "humano"; fotos com zoom e personagem parada parecem anúncio de IA. O que humanizou: câmara à mão, ela a fazer o trabalho na própria sala, aceno, sem fala gerada, voz Kore. Grupos: à espera de clique humano (folha + fila prontas).
+
+## 14/10/2026 — radar diário
+32 vídeos revistos: 4 novos, 8 já temos, 20 rejeitados (14 por nota baixa). Nenhum do tema animacao_ia.
+- REELS (Bora e Em Dia, com pessoas reais): skill de corte automático que tira pausas, respirações e erros com ffmpeg (deteção de silêncio) antes da montagem. https://www.youtube.com/watch?v=61u9wOT-Cds
+- ROTEIROS (reels Em Dia e filme): medir cada fala a 2,5 palavras por segundo para caber no tempo e não cortar falas. https://www.youtube.com/watch?v=frfTrlAPy1M
+- SISTEMA: Gemini 4 Argon é mais forte em escrita longa e perde em multiagente — usar para roteiros/textos longos se o Google AI Plus der acesso; Claude continua motor dos agentes. https://www.youtube.com/watch?v=pxuGbwyxXU0
+- FILME: prompts de movimento só com 3 coisas (ver caminhos-animacao-filme). https://www.youtube.com/watch?v=vQvHauaboug
+- JÁ TEMOS: Free Claude Code (= OpenCode com GLM + Hermes no Telegram), REA (2 vídeos, registado 13/10), Claude Dashboards (11/10), executor+supervisor (= fiscal dos reels), Claude Design/sites com maquete, vídeos longos em blocos no Flow (caminhos 1/2/5).
+- RECUSADO: DeepSeek Harness/créditos promocionais, Golpo AI (paga), Seedance 2.5/Zooi, Blender 3D, geradores de vídeo genéricos de sites desconhecidos, bot de contas premium baratas pagas em cripto.
+
+## 15/10/2026 — radar diário
+20 vídeos revistos: 4 novos, 10 já temos, 6 rejeitados (3 por nota baixa). Nenhum do tema animacao_ia.
+- SISTEMA: OpenCode 2.0 — atualizar o OpenCode (GLM) e testar a sessão no telemóvel por QR + um subagente revisor fixo que revê o código antes de cada entrega. https://www.youtube.com/watch?v=uEzcR7M2RRw
+- SISTEMA (gastar menos): Free LLM API — um só endpoint que roda por ~34 fornecedores grátis; testar na VPS como reserva barata do Hermes/OpenCode só em tarefas sem dados de clientes e confirmar que nenhum pede cartão. https://www.youtube.com/watch?v=_OhfJUhmXY4
+- SISTEMA: skills de análise só leitura (sem ferramentas de escrita) para rever logs/código do Bora sem risco; scripts determinísticos dentro das skills para tarefas repetidas. https://www.youtube.com/watch?v=n9CSSSir3fE
+- BORA (Instagram): destaques fixos Como funciona / Opiniões de clientes / Zonas da Guarda servidas. https://www.youtube.com/watch?v=vuHBPE5McrU
+- JÁ TEMOS: mods do Claude Code (5 vídeos hoje; reforço: editar o .env por mod sem a chave passar pelo chat, e nunca instalar mods de terceiros sem ler o código), plan with files (= spec.md), Higgsfield/Genjutsu e imagem-antes-do-vídeo, sites com maquete (Crify), dores no gancho/perfil como página de vendas.
+- RECUSADO: Rigipo (Unreal), Quasimodo e Kimodo CPP (3D descartado), TikTok Shop afiliados, lista genérica de programas grátis.
+
+## 16/10/2026 — radar diário
+32 vídeos revistos: 6 novos, 10 já temos, 16 rejeitados (11 por nota baixa). Nenhum do tema animacao_ia. Proposta no Córtex: prop-ffb7bcaf.
+- SISTEMA: Hermes na VPS a vigiar (só leitura) queda de pedidos do Bora e erros/uptime do site e da app, alerta no Telegram. https://www.youtube.com/watch?v=VXUoi5V9J2o
+- SISTEMA: atualizar o Hermes na VPS para a 0.22 "Threshold" (bot screen, conectores, modelos locais); ler notas antes, sem cartão. https://www.youtube.com/watch?v=8Zxj1kTrkjo
+- EM DIA: vídeo/screenshot de 10 s com o momento mágico (recibo emitido) que se entende sem explicação; teste a frio com pessoas de fora antes de usar na loja e nos reels. https://www.youtube.com/watch?v=TsYgtI-b6n8
+- EM DIA / BORA: carrosséis com movimento feitos em código pelo Claude Code (sai vídeo), na linha dos explicativos animados. https://www.youtube.com/watch?v=TZg-PgSxm3M
+- EM DIA: topo do site com animação leve SVG/CSS que mostra a app em 3 s; mesma técnica nos sites de clientes. https://www.youtube.com/watch?v=26qvV5Yh1yE
+- BORA: logo animado no Google Flow para o fecho dos reels (esperar a marca nova). https://www.youtube.com/watch?v=5B7ITpqJKxw
+- JÁ TEMOS: Obsidian/memória+skills+agentes (= Córtex), REA (2 vídeos, 13/10), Claude Dashboards/Motion (11/10), mods do Claude Code (reforço: logs longos vão para ficheiro, só o essencial no contexto), Claude+Remotion e motion graphics com Opus 5.5 (= explicativos animados), plugin Superpowers (= plan mode/spec.md), ArtCraft, auto-verificação (= fiscal).
+- RECUSADO: DeepSeek Harness, Meta Muse Wonder (assinatura/API paga), vídeos "grátis ilimitados" com Filmora, clones do Office, Hypit/TikTok Shop, apps de partilha de internet, cripto Auria.
+- Radar aprende: 70 termos ativos (limite), nenhum para desligar; ficaram de fora REA (3 vídeos nota 9), Claude Code motion graphics e, das conversas, motores de boca para o filme (LivePortrait/LatentSync/MuseTalk).
+
+## 17/10/2026 — vídeo "clonar qualquer app com Claude + skill REA" (Danilo mandou)
+- ENGENHARIA REVERSA virou método fixo: sempre que algo é pago, tem limite ou trava, primeiro procurar no GitHub o que já existe grátis; se não existe, recriar as funções olhando por fora. Páginas: engenharia-reversa, engenharia-reversa-achados-2026-10-17 (REA, filme, navegador), paridade-mundo-e-lei-2026-10-17 (Uber/Glovo/iFood + lei PT, prazo 02/12/2026 da diretiva das plataformas).
+- REA só no NOSSO app; navegar apps no emulador = MCP do Maestro ou mobile-mcp.
+
+## 17/10/2026 — vídeo "vídeos longos de plano único com o MiniMax H3 no ComfyUI" (Danilo mandou a transcrição; criador brasileiro, guia próprio em HTML)
+- VEREDITO: FORA para o Danilo, por 3 razões. (1) LICENÇA, lida no texto original a 17/10: o território da licença é o mundo inteiro menos a UE, o Reino Unido, a Coreia e os EUA (cláusula II), e a cláusula V.4 proíbe também usar os VÍDEOS que o modelo gera dentro desses sítios — por isso nem no PC dele em Portugal, nem alugando placa noutro país (ele usaria o resultado cá). Vias: pedir licença à MiniMax (II, 2.º parágrafo) ou a licença comercial vendida pela Comfy (a partir de 5.000 USD por mês). O criador não avisa disto. (2) HARDWARE: o próprio vídeo pede placa NVIDIA de 12 GB no mínimo (16 GB recomendada) e 32 GB de RAM; a ficha do modelo dá 42,5 GB de ficheiros no mínimo e o guia 55 GB; o PC dele tem gráfica integrada Radeon 680M e 16 GB. (3) DINHEIRO: pela API de terceiros custa cerca de 0,14 USD por segundo a 2K, e a regra dele proíbe geração paga. O radar já tinha recusado outro vídeo de H3 (canal MDMZ) só por GPU; a razão forte é a licença.
+- O QUE PRESTA SEM O MODELO (ideias, nada testado ainda = PENDENTE):
+  a) Plano contínuo: cada pedaço novo recebe os ÚLTIMOS SEGUNDOS do anterior (imagem e som), não só o último fotograma (o guia chama-lhe modo "contexto"; o modo "corte" não mantém continuidade). Equivalente permitido: botão Extend do Flow (Veo 3.1 Lite), que parte do último segundo de um clipe Veo de 8 s, com som — fonte: blog de terceiros, por confirmar na conta dele (créditos gastos e se a personagem se mantém).
+  b) A ficha completa da personagem entra como imagem de referência nº 1 em TODOS os pedaços (no guia, shift+clique no elo). Confirma o princípio do projeto: identidade trava-se com IMAGEM.
+  c) Pedaços de 8 s no máximo (o modelo aguenta 15 s, mas 8 s sai mais perfeito); cerca de 720p (1 megapixel) e 8 passos como equilíbrio entre velocidade e qualidade.
+  d) Uma IA barata escreve os prompts de todos os pedaços de uma vez: recebe um "system prompt" fixo + o número de pedaços + a duração + o que é a imagem 1, 2, 3; devolve o plano e um prompt por pedaço. É o espírito da bíblia de continuidade e da decupagem do Bora Studio.
+- CUIDADO DE SEGURANÇA: o guia do criador manda correr PowerShell como administrador, git clone de nós de terceiros e pip install, a partir de um HTML num comentário fixado. Nunca correr isto no PC dele sem o executor ler primeiro o repositório, e só em ambiente isolado.
+- REGRA PARA O RADAR (aprendida 17/10): antes de propor ou recusar um modelo aberto, ler o ficheiro LICENSE (território e uso dos resultados), não só "open source" nem só a GPU; vídeos brasileiros raramente avisam da exclusão da UE. H3 fica na lista de REJEITADOS com o motivo certo (licença).
+- RESERVA GUARDADA (só se a MiniMax licenciar Portugal ou a licença mudar): ComfyUI portátil atualizado + nós Easy Media (Multitrack Editor) e KJNodes; modelos H3 (difusão ~21 GB podada, codificador de texto Qwen3-VL 32B, VAE de vídeo e de áudio, LoRA turbo de 4 passos, modelo de upscale); modo referência-para-vídeo com até 9 imagens; opção "match" para igualar a resolução das referências; sem placa NVIDIA, desligar (bypass) os nós de SageAttention e Triton.
+
+- CORREÇÃO (17/10, mesma sessão) à linha "Vias" do vídeo do H3: a licença comercial da Comfy NÃO está confirmada como via para a UE — a página diz só "disponível globalmente" e que serve para correr localmente com direitos comerciais; quem pode licenciar a UE é a MiniMax (cláusula II). Nenhuma via é grátis. O preço de 0,14 USD por segundo vem de um único fornecedor (Atlas Cloud): é só ordem de grandeza.
+
+## 17/10/2026 — radar diário (agente na nuvem)
+41 vídeos revistos: 10 novos, 15 PENDENTES (registados antes e ainda não feitos), 4 já temos (com prova), 12 rejeitados (6 por nota baixa). 1 do tema animacao_ia (sem nota).
+- MODA DA SEMANA (3+ vídeos nota>=8): REA 12 vídeos desde 13/10 — PENDENTE desde 13/10 (auditar o NOSSO APK/site; nada no e2e_log; missão do emulador também por correr). Hermes 5 vídeos — 0.22 PENDENTE desde 16/10. Google Flow vídeos longos 5 — ferramenta de cenas PENDENTE desde 10/10. Jev 3 hoje — PENDENTE desde 23/09 (pagamento). Mods do Claude Code 5 — FEITO (plugin bora-mods 02/10). Claude Dashboards/Motion 5 — registado 11/10, pendente. WhatsApp atendimento 7 — FEITO (Mister Navalha).
+- DINHEIRO: diagnóstico grátis "o ChatGPT recomenda o teu negócio na Guarda?" como porta de entrada para vender aos comerciantes parceiros do Bora. https://www.youtube.com/watch?v=YvFbpRJaIBU
+- DINHEIRO: rececionista de voz (pendente desde 13/10) — novo: número de demonstração que o cliente liga antes da reunião; post nos grupos com a dor "quem atende depois das 18h?". Vídeo cobra 497 USD/mês. Lente grátis: agentes de voz abertos (Pipecat/LiveKit Agents) em vez de plataforma paga, a confirmar. https://www.youtube.com/watch?v=Hx9XqH8Mv38
+- DINHEIRO / caça-clientes: extrator de leads do Google Maps (negócios da Guarda); o vídeo usa ScraperAPI paga — há extratores abertos no GitHub (ex. gosom/google-maps-scraper), a confirmar licença. https://www.youtube.com/watch?v=EFd3Sty9xUU
+- SISTEMA: Billion Context (proxy aberto que poupa contexto/tokens no Claude Code) e escrever regras dos agentes em inglês técnico simplificado (ASD). https://www.youtube.com/watch?v=3OgJo_Ni2Og
+- SISTEMA: Claude Code Projects (coordenador + vários Claudes em paralelo com memória partilhada) para missões longas. https://www.youtube.com/watch?v=ONqjaW38U14
+- SISTEMA / REDES: revisor que recusa texto genérico de IA ou sem dado real do negócio antes de publicar. https://www.youtube.com/watch?v=CmSJZ6rEM3w
+- BORA / EM DIA: Google Stitch (grátis) para prototipar ecrãs com design system e passar ao Claude Code por MCP. https://www.youtube.com/watch?v=HuGYy8oGyDM
+- EM DIA: reels "pagar-te primeiro"/reserva de emergência para recibos verdes (https://www.youtube.com/watch?v=jW3p50Kyoe8); anúncios em lotes de ~15 criativos com imagens reais, orçamento é do Danilo (https://www.youtube.com/watch?v=vyqUSCZxAqo).
+- FILME: Qwen como 3.º animador grátis; CapCut lip sync como reserva da boca (ver caminhos-animacao-filme).
+- PENDENTES revistos hoje: Orca (09/10), Haiku subagente (08/10), monitor de assinaturas Em Dia (09/10), AEO (08/10), Flow último frame/Extend (17/10).
+- RECUSADO: OpenAI Dots, Meta Muse, Blender 3D, várias contas grátis do Claude via Notion, stock em casa (Home Market).
+- Radar aprende: +5 termos (REA, rececionista de voz, Flow vídeo longo, alternativas open source a IA paga, LivePortrait/LatentSync); desligados 5 com 0 vídeos bons.
+
+## 18/10/2026 — radar diário (agente na nuvem)
+20 vídeos revistos (todos das sugestões do YouTube de 16-17/10): 5 novos, 6 PENDENTES, 4 já temos, 5 rejeitados. Nenhum do tema animacao_ia. A recolha das 02:00 de hoje ficou bloqueada (YouTube sem sessão no perfil, e2e_log radar-historico 18/10).
+- MODA DA SEMANA (3+ vídeos nota>=8): REA 12 — PENDENTE desde 13/10 (mais 3 hoje; nada no e2e_log). Claude Dashboards/Design/Motion 6 — PENDENTE desde 11/10. WhatsApp/CRM/voz 6 — atendente FEITO (Mister Navalha), rececionista de voz PENDENTE desde 13/10. Sites 5 — já temos (maquete). Hermes 4 — 0.22 PENDENTE desde 16/10. Flow 4 — PENDENTE desde 10/10. Jev 3 — PENDENTE desde 23/09 (pagamento). OpenCode 3 — instalado. DeepSeek 3 — recusado.
+- DINHEIRO: CRM + WhatsApp com IA de código aberto (Deskcom) numa VPS, vendido com a marca do cliente e mensalidade; encaixa no pacote do atendente WhatsApp. Confirmar repositório, licença e se usa número normal. https://www.youtube.com/watch?v=Wb70wA57KNo
+- DINHEIRO / BORA / EM DIA: sites e landings em Astro estático feitos pelo Claude Code e publicados grátis no Cloudflare Pages (em vez de Hostinger/WordPress/Base44). https://www.youtube.com/watch?v=xPboIzb69is
+- SISTEMA: em cada skill/prompt de agente, critério de pronto explícito (ex.: o ecrã X abre sem erros) e sem texto de cortesia. https://www.youtube.com/watch?v=b4DFYL3TtGc
+- SISTEMA (gastar menos): DeepSeek V4.1 Flash grátis dentro do OpenCode como reserva, só em tarefas sem dados de clientes; confirmar que não pede cartão. https://www.youtube.com/watch?v=v2kzG_B_1Rk
+- EM DIA: para os explicativos animados, fontes Fontshare e ícones LottieFiles grátis para não parecer IA (Claude Motion pendente desde 11/10). https://www.youtube.com/watch?v=XTtTBqECLPs ; guia grátis de recibos verdes (pendente desde 04/10) pode sair no Gamma ou em PDF do Claude: https://www.youtube.com/watch?v=R6F2G8eSdYU
+- FILME: Pippit (créditos grátis diários) como candidato a testar com a ficha da personagem (ver caminhos-animacao-filme). https://www.youtube.com/watch?v=iM4S6v1oMmM
+- RECUSADO: Base44 (créditos), Hostinger (pago), DeepSeek Harness (4.ª vez), Copilot grátis (não acrescenta), Nginx teórico.
+
+## 19/10/2026 — radar diário (agente na nuvem)
+24 vídeos revistos (vindos da pesquisa das 19:00 e das sugestões de 16/10): 2 novos, 14 PENDENTES, 1 já temos, 7 rejeitados (4 por nota baixa). Nenhum do tema animacao_ia. A recolha das 02:00 voltou a ficar bloqueada (2.º dia, YouTube sem sessão no perfil — e2e_log radar-historico 19/10).
+- MODA DA SEMANA (3+ vídeos nota>=8 em 7 dias): REA/clonar 17 — PENDENTE desde 13/10 (+4 hoje, nada no e2e_log). Claude Motion/Dashboards 5 — PENDENTE desde 11/10 (+3 hoje). Rececionista de voz 4 — PENDENTE desde 13/10 (+3 hoje). Hermes 3 — 0.22 PENDENTE desde 16/10. Google Flow 3 — PENDENTE desde 10/10. Jev 3 — PENDENTE desde 23/09 (pagamento). OpenCode 3 — instalado.
+- DINHEIRO / rececionista de voz (lente grátis): n8n + motor de voz aberto numa VPS própria ligado por SIP, sem pagar minutos (o vídeo diz "Dogora", provavelmente Dograh — confirmar repo e licença); regra de repetir nome/dia/hora e esperar um "sim" antes de gravar; recado humano quando não entende. https://www.youtube.com/watch?v=FRA4UBY332Q
+- SISTEMA (REA, novo ângulo): um agente chefe + vários Claude Code em paralelo, cada um preso a uma pasta, com contratos fixos entre ecrã e servidor antes de começar. https://www.youtube.com/watch?v=VgidwIHzeiU
+- SISTEMA (gastar menos): gateway aberto OmniRoute (um endpoint para vários modelos) como reserva do Hermes/OpenCode, junto com o Free LLM API pendente desde 15/10; confirmar nome e licença no GitHub. https://www.youtube.com/watch?v=5JJgfcJxyyg
+- SISTEMA (gastar menos): regra fixa de nível de esforço por tipo de tarefa nos agentes Claude Code (baixo/médio no simples), sem esperar pelo Jev. https://www.youtube.com/watch?v=5IXUKEHtyT0
+- REELS: trial reels (registado 04/10, sem prova de uso) — no máximo 5 por dia; só repetir como reel normal os que pegarem. https://www.youtube.com/watch?v=P4J1Zs8Jscc
+- PENDENTES revistos hoje: relatório Stripe+Supabase só leitura (07/10), Flow último fotograma/agente de cenas (10/10).
+- RECUSADO: LTX 2.5 lip sync em ComfyUI (GPU; já fora a 17/10), clone aberto do Lovable (pede chave paga da API), n8n básico, dicas genéricas de reels.
+- Radar aprende: +1 termo das conversas (divulgar limpeza doméstica por app), -1 (como crescer no instagram 2026, 0 vídeos bons); 70 ativos.
+
+## 20/10/2026 — radar diário (agente na nuvem)
+20 vídeos revistos (pesquisa das 19:00 de 19/10): 4 novos, 4 PENDENTES, 5 já temos, 7 rejeitados (2 por nota baixa). Nenhum do tema animacao_ia. A recolha das 02:00 ficou bloqueada pelo 3.º dia (YouTube sem sessão no perfil — e2e_log radar-historico 20/10).
+- MODA DA SEMANA (3+ vídeos nota>=8 em 7 dias): REA 17 — PENDENTE desde 13/10; entrou hoje na super-missão fechar-pendencias-20-10 como bloco E, ainda NÃO arrancou (sem pacote rea-agents). Claude Motion/Dashboards 9 — PENDENTE desde 11/10. Hermes 9 — 0.22 PENDENTE desde 16/10. OpenCode 8 — instalado. Rececionista de voz 5 — PENDENTE desde 13/10. WhatsApp 5 — atendente FEITO (Mister Navalha). Jev 4 — PENDENTE desde 23/09 (pagamento). Recibos verdes 4 — novo hoje. Flow 3 — PENDENTE desde 10/10.
+- EM DIA (URGENTE, prazo): declaração trimestral à Segurança Social dos recibos verdes até 31/10 — obrigatória mesmo com rendimento zero; define a base das contribuições seguintes. Lembrete por push/reel/post nos grupos esta semana. https://www.youtube.com/watch?v=ADubbJD0uf8
+- EM DIA (para março-junho): simulador IRS tributação conjunta vs separada + lembretes de prazos do e-fatura. https://www.youtube.com/watch?v=GDGg2iKra2A ; passo a passo fatura vs fatura-recibo e art. 53 para o guia grátis (pendente desde 04/10): https://www.youtube.com/watch?v=DrXMVaR4kEg
+- EM DIA (TikTok): playlists temáticas no perfil (Recibos verdes, IRS, Segurança Social) e palavra-chave no nome/bio (pendente desde 09/10). https://www.youtube.com/watch?v=UFwUu0Ysz4A
+- DINHEIRO / pacote PMEs: "chamada perdida → mensagem automática no WhatsApp a oferecer marcação" como porta de entrada mais barata que a rececionista de voz; vender com o número de marcações recuperadas; propostas Upwork com vídeo curto da automação a funcionar. https://www.youtube.com/watch?v=DSYlIeY17z4 ; filtrar no Google Maps negócios da Guarda que fecham cedo = alvo da rececionista (extrator pendente desde 17/10): https://www.youtube.com/watch?v=sNy7o_KSF44
+- BORA / Limpeza (lente grátis): em vez do vidIQ, script com yt-dlp que acha vídeos fora da curva (vistas muito acima da média do canal) de limpeza doméstica para inspirar os reels da Limpeza. https://www.youtube.com/watch?v=Pn1ll-ZzIMM
+- JÁ TEMOS: atendente WhatsApp com IA (3 vídeos Pabbly = Mister Navalha; Pabbly é pago, recusado 11/10; aproveitar só a palavra-chave que passa ao humano), gancho de 3 s (2 vídeos).
+- RECUSADO: personagem fictício nas redes, Victor/copiar posts virais alheios, Edits (não acrescenta), conteúdo genérico de crescer no Instagram, Hub Data, "botão secreto" do TikTok.
+
+## 21/10/2026 — radar diário (agente na nuvem)
+20 vídeos revistos (pesquisa das 19:00): 5 novos, 5 PENDENTES, 1 já temos, 9 rejeitados (3 por nota baixa). Nenhum do tema animacao_ia. Recolha das 02:00 bloqueada pelo 4.º dia (YouTube conta authuser=1 sem sessão — e2e_log radar-historico 21/10 e N7-radar).
+- MODA DA SEMANA (3+ vídeos nota>=8 em 7 dias): REA 20+ — PENDENTE desde 13/10; o agente-seguranca-n4 (passo N4 da missão geral-noite) arrancou hoje às 20:39, ainda em curso, sem resultado. Claude Motion/Dashboards — PENDENTE desde 11/10. Rececionista de voz — PENDENTE desde 13/10. WhatsApp atendente — FEITO (Mister Navalha). Hermes 0.22 — PENDENTE desde 16/10. Mods do Claude Code — FEITO. Recibos verdes 3 — prazo 31/10 da Segurança Social (prop-cb91e8c2). NOVO na moda: marketing orgânico de apps/UGC 4 vídeos nota>=8 hoje.
+- BORA / EM DIA: reels como laboratório — cruzar cada pico de vistas com pedidos/downloads do dia e repetir em série só o formato que trouxe instalações (sem contas em massa nem criadores pagos). https://www.youtube.com/watch?v=vhimc1ea7Fc
+- EM DIA: vídeos curtos no YouTube a responder 1 dúvida cada + página no site por dúvida com botão de instalar no topo (caso real: app de teleprompter 500 → 33 mil USD/mês sem anúncios). https://www.youtube.com/watch?v=wy3LQrzSKUU
+- EM DIA / BORA: medir em que ecrã do onboarding as pessoas desistem; lente grátis = eventos no próprio Supabase ou PostHog aberto em vez do Mixpanel. https://www.youtube.com/watch?v=gZnyPdVIKjQ
+- DINHEIRO / pacote PMEs: vídeo promocional curto para comércios da Guarda feito com o que já temos (Higgsfield/Claude Motion), vendido junto com o atendente WhatsApp; a Topview do vídeo é paga e não faz falta. https://www.youtube.com/watch?v=W3lqttAyZGE
+- BORA (reel): legenda "Guarda, quinta-feira, 18h" a mostrar a cidade a pedir; pedir resposta só com GIF. https://www.youtube.com/watch?v=Bd4zxSdueiE
+- PENDENTES revistos hoje: microinfluenciadores/UGC reais da Guarda (04/10, 2 vídeos), anúncios em lotes + hook rate (09/10 e 17/10), outliers com yt-dlp (20/10), Vibes com boca (ver caminhos-animacao-filme).
+- JÁ TEMOS: base de dados com o histórico do que funcionou para dar contexto à IA (= Córtex).
+- RECUSADO: troca de rosto em virais alheios/influencer IA, Thunder Core Max (postador em massa nos grupos), extensões de automação do Vibes de terceiros, tutorial de impulsionar post (gasto é do Danilo), dicas genéricas de Instagram.

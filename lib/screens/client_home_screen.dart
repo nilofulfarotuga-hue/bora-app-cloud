@@ -12,6 +12,7 @@ import '../models/client_address.dart';
 import '../models/order_model.dart';
 import '../models/rating_model.dart';
 import '../models/restaurant_model.dart';
+import '../models/ride_kind.dart';
 import '../services/client_address_service.dart';
 import '../services/location_service.dart';
 import '../stores/cart_store.dart';
@@ -25,6 +26,7 @@ import '../widgets/web_push_card.dart';
 import '../widgets/bora/bora.dart';
 import '../widgets/bora_assistant_fab.dart';
 import '../widgets/home/checkin_diario_card.dart';
+import '../widgets/home/receita_do_dia_card.dart';
 import '../widgets/home/home_feed.dart';
 import '../widgets/language_toggle.dart';
 import '../widgets/notification_bell.dart';
@@ -415,6 +417,11 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                   CheckinDiarioCard(
                     key: ValueKey('checkin-${authStore.userId ?? ''}'),
                   ),
+                  // Bora Todo Dia (15/10): receita do dia; some sozinha se o
+                  // servidor a tiver desligado.
+                  ReceitaDoDiaCard(
+                    key: ValueKey('receita-${authStore.userId ?? ''}'),
+                  ),
                   _buildCategoryGrid(context),
                   const SizedBox(height: Spacing.xl),
                   // FAIXAS DA HOME (05/10): carrossel lido de `home_banners`
@@ -515,9 +522,19 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
         gradient: AppColors.tileSendPackage,
         imageAsset: 'assets/categories/cat_encomenda.png',
         onTap: () => _navigateWithAddressGuard(() {
+          // 21/10/2026 (fechar-pendencias A1): com `tvde_encomendas_enabled`
+          // ligado, as encomendas correm no motor do Bora Motorista (mesmo
+          // preço, despacho e pagamentos; só mudam as palavras).
+          // N2 (21/10): e com a MESMA regra de acesso — passam pela porta do
+          // Bora Motorista (quem não tem acesso vê o "pedir acesso"; o servidor
+          // recusa `no_tvde_access` nos dois tipos). Desligado: o fluxo antigo.
+          final encomendasNovas = context.read<TvdeStore>().encomendasEnabled;
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const SendPackageFormScreen()),
+            MaterialPageRoute(
+                builder: (_) => encomendasNovas
+                    ? const TvdeEntradaScreen(rideKind: RideKind.encomendas)
+                    : const SendPackageFormScreen()),
           );
         }),
       ),

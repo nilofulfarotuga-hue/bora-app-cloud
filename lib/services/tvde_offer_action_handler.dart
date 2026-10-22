@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../models/ride_kind.dart';
 import '../stores/tvde_driver_store.dart';
 import '../widgets/tvde/tvde_offer_overlay_host.dart';
 import 'notification_service.dart';
@@ -65,17 +66,21 @@ Future<void> tvdeResponderOfertaGlobal(String rideId, String actionId) async {
         }
         return;
       }
+      // 21/10/2026 (A1): a oferta diz se é encomenda — a frase acompanha.
+      final tipo = store.offeredRide?.id == rideId
+          ? store.offeredRide!.rideKind
+          : RideKind.passageiros;
       try {
         final r = await store.acceptOffer(rideId);
         unawaited(cancelTvdeRideNotification(rideId));
         snack(r.isQueued
-            ? 'Corrida em fila — abre sozinha quando terminares esta.'
-            : 'Corrida aceite.');
+            ? 'Corrida em fila — abre sozinha quando terminares esta.'.rk(tipo)
+            : 'Corrida aceite.'.rk(tipo));
         if (!r.isQueued) await abrirCorridaActivaSeFechada();
       } catch (e) {
         store.clearOffer();
         unawaited(cancelTvdeRideNotification(rideId));
-        snack(mensagemDeOfertaFalhada(e));
+        snack(mensagemDeOfertaFalhada(e, rideKind: tipo));
         unawaited(store.reloadOffers());
       }
       return;

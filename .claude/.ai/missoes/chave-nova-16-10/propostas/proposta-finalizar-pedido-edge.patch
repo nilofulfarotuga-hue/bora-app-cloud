@@ -1,0 +1,30 @@
+Proposta (zona vermelha — a tranca bora-mods recusou a edição directa a 16/10/2026):
+a Edge Function que finaliza um pedido depois de a Stripe confirmar o pagamento
+(finalize-order-from-intent) passa a aceitar a chave secreta nova da Supabase. Hoje o
+stripe-webhook chama-a com Bearer ${SUPABASE_SERVICE_ROLE_KEY}, variável que a plataforma
+já enche com a sb_secret (não é JWT) — a função responde 401 "unauthorized: admin only".
+Ainda não apanhou ninguém porque payment_drafts tem 0 linhas (o modo rascunho→finalizar
+nunca foi usado), mas apanha o primeiro pagamento com cartão por rascunho.
+Aplicar com: git apply .claude/.ai/missoes/chave-nova-16-10/propostas/proposta-finalizar-pedido-edge.patch
+
+--- a/supabase/functions/finalize-order-from-intent/index.ts
++++ b/supabase/functions/finalize-order-from-intent/index.ts
+@@ -6,6 +6,7 @@
+ import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
+ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+ import { corsHeaders } from '../_shared/cors.ts';
++import { chamadaDoServidor } from '../_shared/chaves.ts';
+
+ const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
+   apiVersion: '2023-10-16',
+@@ -40,7 +41,9 @@
+   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+
+   const role = jwtRole(req.headers.get('authorization') ?? '');
+-  if (role !== 'service_role') return json({ error: 'unauthorized: admin only' }, 401);
++  // 16/10/2026 (chave nova): o stripe-webhook manda Bearer ${SUPABASE_SERVICE_ROLE_KEY}, que hoje já é
++  // a chave secreta nova (sb_secret, não é JWT) — validada em _shared/chaves.ts
++  if (role !== 'service_role' && !(await chamadaDoServidor(req))) return json({ error: 'unauthorized: admin only' }, 401);
+
+   // deno-lint-ignore no-explicit-any
+   let body: any;

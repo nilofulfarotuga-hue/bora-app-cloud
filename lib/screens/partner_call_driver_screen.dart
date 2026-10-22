@@ -427,7 +427,8 @@ class _PartnerCallDriverScreenState extends State<PartnerCallDriverScreen> {
       case 'forbidden':
         return 'Esta loja não pode chamar estafetas. Fala com a Bora.';
       // [05/10/2026] Interruptor `dispatch_parceiro_chama_estafeta_ligado`:
-      // desligado até o acerto destes pedidos estar certo.
+      // ligado a 15/10, com o acerto destes pedidos corrigido (regras 2.4.1).
+      // Só cai aqui se o desligarem outra vez no painel.
       case 'indisponivel':
         return 'Chamar estafeta por aqui ainda não está disponível. A Bora avisa-te quando abrir.';
       default:

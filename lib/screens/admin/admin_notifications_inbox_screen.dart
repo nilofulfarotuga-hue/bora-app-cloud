@@ -205,6 +205,12 @@ class _AdminNotificationsInboxScreenState
         return Icons.credit_card_off;
       case 'pedido_no_vermelho':
         return Icons.trending_down;
+      // [17/10/2026 · cancelamento tardio TVDE] os dois alertas da regra
+      // abrem /admin/tvde/cancelamentos (deep_link gravado pelo servidor).
+      case 'tvde_compensacao_falhou':
+        return Icons.money_off;
+      case 'tvde_cancel_fee_nao_cobrada':
+        return Icons.warning_amber;
       default:
         return Icons.notifications;
     }
@@ -234,6 +240,10 @@ class _AdminNotificationsInboxScreenState
         return '3+ falhas Stripe';
       case 'pedido_no_vermelho':
         return 'Pedido no vermelho';
+      case 'tvde_compensacao_falhou':
+        return 'Compensação ao motorista falhou';
+      case 'tvde_cancel_fee_nao_cobrada':
+        return 'Taxa de cancelamento não cobrada';
       default:
         return eventType;
     }

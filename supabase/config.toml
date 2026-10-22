@@ -1,0 +1,44 @@
+# supabase/config.toml — o que o `supabase functions deploy` precisa para NÃO mudar o estado de cada
+# função (missão chave-nova-16-10, 16/10/2026). Esta lista é a fotografia de produção a 16/10: estas
+# funções já corriam assim porque validam quem chama no próprio código (assinatura da Stripe,
+# chave secreta comparada byte a byte, utilizador confirmado no Auth, ou callerOk de _shared/keys.ts).
+# Tudo o que não está aqui fica com o valor por omissão (true). Sem este ficheiro, um deploy pela
+# CLI punha-as a true e partia, por exemplo, o webhook da Stripe.
+project_id = "bora"
+
+[functions.dispatch-engine]
+verify_jwt = false
+[functions.stripe-webhook]
+verify_jwt = false
+[functions.stripe-connect-webhook]
+verify_jwt = false
+[functions.create-payment-intent]
+verify_jwt = false
+[functions.create-mbway-payment-intent]
+verify_jwt = false
+[functions.notify-driver]
+verify_jwt = false
+[functions.support-password-reset]
+verify_jwt = false
+[functions.analyze-conversations]
+verify_jwt = false
+[functions.execute-broadcast]
+verify_jwt = false
+[functions.notify-admin-reimbursement]
+verify_jwt = false
+[functions.notify-purchase-finalized]
+verify_jwt = false
+[functions.admin-ai-assistant]
+verify_jwt = false
+[functions.register-partner]
+verify_jwt = false
+[functions.privacy-policy]
+verify_jwt = false
+[functions.update-products]
+verify_jwt = false
+[functions.testar-toque]
+verify_jwt = false
+[functions.aviso-conta-nova-em-dia]
+verify_jwt = false
+[functions.agentes-email-receber]
+verify_jwt = false

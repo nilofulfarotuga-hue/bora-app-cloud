@@ -5,6 +5,8 @@ import '../../../config/app_spacing.dart';
 import '../../../l10n/tr.dart';
 import '../../../models/tvde_dest_change.dart';
 import '../../../widgets/bora/bora.dart';
+import '../../../models/ride_kind.dart';
+import '../../../utils/ride_kind_context.dart';
 
 /// O que o cliente decidiu na folha "Mudar destino".
 class TvdeDestChangeDecision {
@@ -87,7 +89,7 @@ class _TvdeDestChangeSheetState extends State<TvdeDestChangeSheet> {
             .trArgs([v]);
       default:
         return 'Pagas {0} a mais ao motorista, em dinheiro, no fim da viagem.'
-            .trArgs([v]);
+            .trArgsK(context.tvdeKind, [v]);
     }
   }
 

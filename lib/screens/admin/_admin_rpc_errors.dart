@@ -40,10 +40,22 @@ String humanizeAdminRpcError(Object error) {
     if (msg.contains('conformidade_incompleta')) {
       return humanizeConformidadeIncompleta(msg);
     }
+    if (msg.contains('atividade_por_aprovar')) return kErroAtividadePorAprovar;
     return 'Erro do servidor: $msg';
   }
   return 'Erro inesperado: $error';
 }
+
+/// [20/10/2026] Gatilho `fn_atividade_antes_de_ativar`: candidatura nova sem o
+/// comprovativo de atividade aprovado não passa a "aprovada".
+const String kErroAtividadePorAprovar =
+    'Falta aprovar o comprovativo de atividade desta pessoa (menu Sistema → '
+    'Comprovativo de atividade). Desligar o interruptor '
+    '(provider_atividade_obrigatoria) também libera a aprovação.';
+
+/// O mesmo, para ecrãs que mostram o erro cru (`Erro: $e`).
+String? humanizeAtividadePorAprovar(Object error) =>
+    error.toString().contains('atividade_por_aprovar') ? kErroAtividadePorAprovar : null;
 
 /// Rótulos PT-BR dos campos legais que o servidor devolve em `falta` /
 /// `campos_em_falta` (`_conformidade_em_falta`, migration

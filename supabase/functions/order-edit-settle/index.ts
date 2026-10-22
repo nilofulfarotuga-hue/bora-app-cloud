@@ -33,6 +33,8 @@
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import { chamadaDoServidor } from '../_shared/chaves.ts';
+import { secretKey } from '../_shared/keys.ts';
 
 const STRIPE_MODE = (Deno.env.get('BORA_STRIPE_MODE') ?? 'live').toLowerCase();
 const stripeSecretKey = STRIPE_MODE === 'test'
@@ -45,7 +47,7 @@ const stripe = new Stripe(stripeSecretKey, {
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
 const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+const serviceKey = secretKey() ?? '';
 
 // deno-lint-ignore no-explicit-any
 const json = (body: any, status = 200) =>
@@ -57,6 +59,8 @@ const json = (body: any, status = 200) =>
 type Caller = { kind: 'service' } | { kind: 'user'; id: string; admin: boolean };
 
 async function whoCalls(req: Request): Promise<Caller | null> {
+  // 16/10/2026 (chave nova): a chave secreta nova (sb_secret) não é JWT — ver _shared/chaves.ts
+  if (await chamadaDoServidor(req)) return { kind: 'service' };
   const auth = req.headers.get('authorization') ?? '';
   if (!auth.startsWith('Bearer ')) return null;
   const token = auth.substring(7);

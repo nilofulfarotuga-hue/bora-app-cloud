@@ -32,6 +32,7 @@ import '../../utils/safe_image_picker.dart';
 import '../../widgets/bora/bora_primary_button.dart';
 import '../../widgets/services/staff_avatar.dart';
 import '../../widgets/services/weekly_hours_editor.dart';
+import '_admin_rpc_errors.dart';
 
 class AdminServiceProviderDetailScreen extends StatefulWidget {
   const AdminServiceProviderDetailScreen({
@@ -1993,7 +1994,7 @@ class _AdminServiceProviderDetailScreenState
       _toast('Prestador aprovado.');
       await _loadAll();
     } catch (e) {
-      _toast('Erro: $e');
+      _toast(humanizeAtividadePorAprovar(e) ?? 'Erro: $e');
     }
   }
 

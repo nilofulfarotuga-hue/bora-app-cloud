@@ -26,6 +26,8 @@
 //   { cron: true }         só corre se em Lisboa for dia 1 às 09h (o pg_cron dispara às 08 e 09 UTC)
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { secretKey } from '../_shared/keys.ts'
+import { chamadaDoServidor } from '../_shared/chaves.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -82,10 +84,14 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   const authHeader = req.headers.get('Authorization') ?? ''
+  // 16/10/2026: a chave secreta nova da Supabase (sb_secret) não é JWT; valida-se em _shared/chaves.ts
+  const chaveNovaOk = await chamadaDoServidor(req)
   try {
-    if (!authHeader.startsWith('Bearer ')) throw new Error('no bearer')
-    const payload = JSON.parse(atob(authHeader.substring(7).split('.')[1]))
-    if (payload.role !== 'service_role') throw new Error('role')
+    if (!chaveNovaOk && !authHeader.startsWith('Bearer ')) throw new Error('no bearer')
+    if (!chaveNovaOk) {
+      const payload = JSON.parse(atob(authHeader.substring(7).split('.')[1]))
+      if (payload.role !== 'service_role') throw new Error('role')
+    }
   } catch (_e) {
     return json({ ok: false, error: 'forbidden' }, 403)
   }
@@ -111,7 +117,7 @@ Deno.serve(async (req) => {
   const fazerLojas = !driverId
   const fazerEstafetas = !partnerId && (ano * 12 + mes) >= ESTAFETA_DESDE
 
-  const supabase = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'))
+  const supabase = createClient(Deno.env.get('SUPABASE_URL'), secretKey())
 
   let resendKey = Deno.env.get('RESEND_API_KEY') ?? null
   if (!resendKey) {

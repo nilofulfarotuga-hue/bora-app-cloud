@@ -2,8 +2,8 @@
 set -e
 
 SUPABASE_URL="https://ojykpzwqrtusfeakzrna.supabase.co"
-SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeWtwendxcnR1c2ZlYWt6cm5hIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzAwMDcyOCwiZXhwIjoyMDg4NTc2NzI4fQ.TFbiYG1SQEB5gNpUb1721mvkL5JU7hJaSsrru4KkE8A"
-ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeWtwendxcnR1c2ZlYWt6cm5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwMDA3MjgsImV4cCI6MjA4ODU3NjcyOH0.-yrhHFZV4bfjBagI5W-c1AvmP8Xkzs1kf2xuxPwdBh4"
+SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY:?defina SUPABASE_SERVICE_ROLE_KEY no ambiente (nunca no repo)}"
+ANON_KEY="${SUPABASE_ANON_KEY:?defina SUPABASE_ANON_KEY no ambiente}"
 
 admin() {
   curl -s -X "$1" "$SUPABASE_URL$2" \

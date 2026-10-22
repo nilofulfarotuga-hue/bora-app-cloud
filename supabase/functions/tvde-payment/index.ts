@@ -4,6 +4,15 @@
 // PADRAO UNICO (= delivery): cobra NA HORA e faz refund estilo
 // `client-cancel-order` (capado ao pago, menos a taxa). SEM authorize/capture.
 //
+// v19 (2026-10-10) — ALARME FALSO de "Reembolso FALHOU" (corrida do Ricardo,
+//   095e640d, 5 EUR MB Way). Ao cancelar, a APP chama `refund` e a BASE chama
+//   `auto_refund_ride` no mesmo segundo. O primeiro devolve; o segundo leva da
+//   Stripe "has already been refunded" e disparava o alarme ao Danilo e nao
+//   mandava o aviso "Dinheiro devolvido" ao cliente. Agora todo reembolso passa
+//   por `criarReembolso`: se a Stripe diz que ja foi devolvido, confirma na
+//   Stripe que o dinheiro voltou mesmo e trata como SUCESSO. So ha alarme quando
+//   o dinheiro nao voltou de verdade. Nada mais mudou.
+//
 // v18 (2026-10-04) — auditoria: `refund` pedido pelo cliente so de corrida
 //   cancelada/sem motorista/no-show (nunca de uma finalizada; o admin pode);
 //   `charge_roundtrip` calcula o preco do pacote com os km do servidor.
@@ -50,6 +59,7 @@
 
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { secretKey } from '../_shared/keys.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -75,7 +85,7 @@ const stripe = new Stripe(stripeSecretKey, {
 });
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
-const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+const SERVICE_KEY = secretKey() ?? '';
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 
 const admin = createClient(SUPABASE_URL, SERVICE_KEY);
@@ -86,6 +96,43 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 // cancelava a viagem a meio. Com este nome o webhook ignora-o; quem fecha
 // estes pagamentos é o confirm + o varrimento `sweep_dest_changes`.
 const DEST_KIND = 'bora_dest_change';
+
+// v19 — soma o que ja foi devolvido (nao falhado/cancelado) de um PI.
+async function totalDevolvido(piId: string): Promise<number> {
+  const l = await stripe.refunds.list({ payment_intent: piId, limit: 20 });
+  // deno-lint-ignore no-explicit-any
+  return (l?.data ?? []).filter((r: any) => r.status !== 'failed' && r.status !== 'canceled')
+    // deno-lint-ignore no-explicit-any
+    .reduce((t: number, r: any) => t + Number(r.amount ?? 0), 0);
+}
+
+// v19 — PEDE O REEMBOLSO SEM ALARME FALSO.
+// A app (`refund`) e a base (`auto_refund_ride`) pedem o reembolso ao mesmo
+// tempo quando o cliente cancela. O segundo leva da Stripe "already been
+// refunded". Aqui, se a Stripe recusar, pergunta-se a Stripe quanto ja voltou:
+// se ja voltou pelo menos o que se queria devolver, e SUCESSO (jaFeito=true).
+// So se o dinheiro nao voltou mesmo e que o erro sobe.
+async function criarReembolso(
+  piId: string, amount: number, key: string, jaAntes = 0,
+): Promise<{ jaFeito: boolean }> {
+  try {
+    await stripe.refunds.create(
+      { payment_intent: piId, amount },
+      { idempotencyKey: key },
+    );
+    return { jaFeito: false };
+  } catch (e) {
+    try {
+      const agora = await totalDevolvido(piId);
+      if (agora >= jaAntes + amount) {
+        console.log('[tvde-payment] reembolso ja feito por outro pedido (ok):', piId,
+          'pedido:', amount, 'devolvido_total:', agora);
+        return { jaFeito: true };
+      }
+    } catch (_) { /* se nem a lista der, o erro original sobe */ }
+    throw e;
+  }
+}
 
 /// Devolve à cliente o que a Stripe recebeu de um PI de mudança de destino
 /// (menos o que já foi devolvido) e marca a mudança como reembolsada.
@@ -146,7 +193,7 @@ async function getSettingBool(key: string): Promise<boolean> {
 }
 async function getSettingInt(key: string, fallback: number): Promise<number> {
   const { data } = await admin.rpc('get_setting', { p_key: key });
-  const v = Number(String(data ?? '').replace(/\"/g, ''));
+  const v = Number(String(data ?? '').replace(/"/g, ''));
   return Number.isFinite(v) && v > 0 ? v : fallback;
 }
 
@@ -217,10 +264,8 @@ Deno.serve(async (req) => {
       const paidCents = Number(ride.final_fare_cents ?? ride.est_fare_cents ?? 0);
       const refundCents = Math.max(0, Math.min(paidCents - feeCents, paidCents));
       if (refundCents >= 1) {
-        await stripe.refunds.create(
-          { payment_intent: ride.payment_intent_id, amount: refundCents },
-          { idempotencyKey: `resv-refund-${ride.payment_intent_id}-${refundCents}` },
-        );
+        await criarReembolso(ride.payment_intent_id, refundCents,
+          `resv-refund-${ride.payment_intent_id}-${refundCents}`);
       }
       const newStatus = refundCents <= 0
         ? 'kept_cancel_fee'
@@ -281,10 +326,8 @@ Deno.serve(async (req) => {
       const feeCents = Math.max(0, Number(ride.cancel_fee_cents ?? 0));
       const refundCents = Math.max(0, Math.min(paidCents - feeCents, paidCents));
       if (refundCents >= 1) {
-        await stripe.refunds.create(
-          { payment_intent: ride.payment_intent_id, amount: refundCents },
-          { idempotencyKey: `rt-resv-refund-${ride.payment_intent_id}-${refundCents}` },
-        );
+        await criarReembolso(ride.payment_intent_id, refundCents,
+          `rt-resv-refund-${ride.payment_intent_id}-${refundCents}`);
       }
       const newStatus = refundCents <= 0
         ? 'kept_cancel_fee'
@@ -348,10 +391,7 @@ Deno.serve(async (req) => {
       // IDEMPOTENCIA A SERIO: pergunta-se a Stripe se aquele pagamento ja levou
       // reembolso. O estado na nossa base pode ter ficado para tras (foi o que
       // aconteceu no caso da Izilda) e devolver duas vezes e dinheiro perdido.
-      const jaFeitos = await stripe.refunds.list({ payment_intent: pi, limit: 10 });
-      const jaDevolvido = (jaFeitos?.data ?? [])
-        .filter((r: any) => r.status !== 'failed' && r.status !== 'canceled')
-        .reduce((t: number, r: any) => t + Number(r.amount ?? 0), 0);
+      const jaDevolvido = await totalDevolvido(pi);
 
       const piObj = await stripe.paymentIntents.retrieve(pi);
       const recebido = Number(piObj.amount_received ?? 0);
@@ -377,12 +417,11 @@ Deno.serve(async (req) => {
       refundCents = Math.max(0, Math.min(refundCents, Math.max(0, recebido - jaDevolvido)));
 
       let erro: string | null = null;
+      let feitoPorOutro = false;
       if (refundCents >= 1) {
         try {
-          await stripe.refunds.create(
-            { payment_intent: pi, amount: refundCents },
-            { idempotencyKey: `ride-refund-${pi}-${refundCents}` },
-          );
+          const r = await criarReembolso(pi, refundCents, `ride-refund-${pi}-${refundCents}`, jaDevolvido);
+          feitoPorOutro = r.jaFeito;
         } catch (e) {
           erro = String((e as Error).message ?? e).slice(0, 300);
         }
@@ -426,6 +465,7 @@ Deno.serve(async (req) => {
         ride_id: ride.id, status: 'reembolso_feito', actor: 'system',
         meta: { motivo, payment_intent: pi, pago_cents: pagoCents, taxa_cents: feeCents,
                 devolvido_cents: refundCents, ja_devolvido_antes_cents: jaDevolvido,
+                feito_por_outro_pedido: feitoPorOutro,
                 vale: credit?.id ?? null, estado_pagamento: novoEstado },
       });
 
@@ -445,7 +485,7 @@ Deno.serve(async (req) => {
 
       console.log('[tvde-payment auto_refund_ride]', ride.id, 'pi:', pi,
         'pago:', pagoCents, 'taxa:', feeCents, 'devolvido:', refundCents,
-        'ja_devolvido:', jaDevolvido, 'motivo:', motivo, '->', novoEstado);
+        'ja_devolvido:', jaDevolvido, 'por_outro:', feitoPorOutro, 'motivo:', motivo, '->', novoEstado);
       return json({ ok: true, refundCents, feeCents, pagoCents, jaDevolvido, paymentStatus: novoEstado });
     }
 
@@ -1497,10 +1537,8 @@ Deno.serve(async (req) => {
       const paidCents = Number(ride.final_fare_cents ?? ride.est_fare_cents ?? 0);
       const refundCents = Math.max(0, Math.min(paidCents - feeCents, paidCents));
       if (refundCents >= 1) {
-        await stripe.refunds.create(
-          { payment_intent: ride.payment_intent_id, amount: refundCents },
-          { idempotencyKey: `refund-${ride.payment_intent_id}-${refundCents}` },
-        );
+        await criarReembolso(ride.payment_intent_id, refundCents,
+          `refund-${ride.payment_intent_id}-${refundCents}`);
       }
       const newStatus = refundCents <= 0
         ? 'kept_cancel_fee'

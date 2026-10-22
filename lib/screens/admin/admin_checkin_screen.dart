@@ -17,6 +17,7 @@ import '../../config/app_colors.dart';
 import '../../widgets/admin/admin_csv_button.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '_admin_rpc_errors.dart';
+import 'admin_checkin_premios_screen.dart';
 
 class AdminCheckinScreen extends StatefulWidget {
   const AdminCheckinScreen({super.key});
@@ -753,6 +754,14 @@ class _AdminCheckinScreenState extends State<AdminCheckinScreen> {
                       .replaceAll('.', ','),
                 },
             ],
+          ),
+          IconButton(
+            tooltip: 'Prêmios dos marcos (10, 15 e 30 dias)',
+            icon: const Icon(Icons.emoji_events_outlined),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AdminCheckinPremiosScreen()),
+            ),
           ),
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
         ],

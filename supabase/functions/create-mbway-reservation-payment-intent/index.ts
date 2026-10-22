@@ -11,6 +11,7 @@
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
+import { secretKey } from '../_shared/keys.ts'
   COMING_SOON_RESERVATION_MSG,
   comingSoonResponseBody,
   isRestaurantComingSoon,
@@ -44,7 +45,7 @@ Deno.serve(async (req: Request) => {
     const auth = req.headers.get('Authorization') ?? '';
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      secretKey() ?? '',
       { global: { headers: { Authorization: auth } } },
     );
 

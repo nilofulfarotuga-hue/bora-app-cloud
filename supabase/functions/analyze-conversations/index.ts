@@ -10,6 +10,8 @@
 
 // @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { chamadaDoServidor } from '../_shared/chaves.ts';
+import { secretKey } from '../_shared/keys.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -19,7 +21,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const SUPABASE_SERVICE_ROLE_KEY = secretKey()!;
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
 
 const SAFE_SETTING_KEYS = [
@@ -107,7 +109,10 @@ Deno.serve(async (req: Request) => {
 
   // v4: tentar service_role via decode JWT primeiro (cron usa este caminho)
   const jwtRole = decodeJwtRole(token);
-  if (jwtRole === 'service_role') {
+  // 16/10/2026 (chave nova): esta função está com verify_jwt=false desde a v3, por isso o papel lido do
+  // JWT sem validar a assinatura NÃO chega — só conta o servidor confirmado (chave secreta nova, ou a
+  // legada confirmada no Auth). Ver _shared/chaves.ts.
+  if (await chamadaDoServidor(req)) {
     isService = true;
   } else {
     const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {

@@ -518,6 +518,9 @@ class OrderStore extends ChangeNotifier {
     bool errandHasPurchase = false,
     int errandEstimatedPurchaseCents = 0,
     String? errandRequestPhotoUrl,
+    // 14/10/2026: desconto dos tokens (o servidor corta à regra e tira-o do
+    // valor do cartão; o create_order no finalize faz a mesma conta).
+    double tokenDiscountEur = 0.0,
   }) async {
     final liveUserId = supabase.auth.currentUser?.id;
     if (liveUserId == null ||
@@ -584,6 +587,8 @@ class OrderStore extends ChangeNotifier {
       if (deixarAPorta && serviceType != OrderServiceType.takeaway)
         'deixar_a_porta': true,
       'wallet_applied_cents': walletAppliedCents,
+      if (tokenDiscountEur > 0)
+        'token_discount_cents': (tokenDiscountEur * 100).round(),
       if (pickupLocation != null) 'pickup_lat': pickupLocation.latitude,
       if (pickupLocation != null) 'pickup_lng': pickupLocation.longitude,
       'dropoff_lat': destination.latitude,

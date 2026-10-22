@@ -9,17 +9,24 @@ import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../l10n/tr.dart';
 import '../models/restaurant_model.dart';
+import '../models/service_provider_model.dart';
+import '../services/registo_pesquisa.dart';
 import '../services/home_feed_service.dart';
 import '../services/pricing_service.dart';
 import '../stores/restaurant_store.dart';
+import '../stores/services_store.dart';
 import '../stores/tvde_store.dart';
 import '../utils/cozinhas.dart';
 import '../utils/home_destino.dart';
+import '../utils/pesquisa_atalhos.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora/coming_soon.dart';
+import 'client/services/provider_detail_screen.dart';
 import 'restaurants_screen.dart' show RestaurantTile;
 
 /// A lupa da home (05/10): acha lojas de todas as secções e produtos.
+/// Desde 15/10 é a pesquisa única: também leva ao motorista, à limpeza e às
+/// barbearias/salões (`service_providers`) — ver `utils/pesquisa_atalhos.dart`.
 ///
 /// Pesquisa no banco pela RPC `cliente_pesquisar` (ignora acentos e
 /// maiúsculas, tolera erros). O que o banco não liga ao termo — ex.
@@ -43,6 +50,10 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
   bool _falhou = false;
   List<RestaurantModel> _lojas = const [];
   List<Map<String, dynamic>> _produtos = const [];
+  List<String> _atalhos = const [];
+  // B2 (20/10): também regista a pesquisa que o cliente deixa parada sem
+  // tocar em nada — as que não deram resultado são as que o painel precisa.
+  final RegistoPesquisa _registo = RegistoPesquisa();
   List<String> _recentes = const [];
   int _pedido = 0; // descarta respostas antigas
 
@@ -56,12 +67,15 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
       if (!store.restaurantsLoadedOnce && !store.restaurantsLoading) {
         store.loadRestaurantsFromSupabase();
       }
+      final servicos = context.read<ServicesStore>();
+      if (servicos.providers.isEmpty) servicos.fetchProviders();
     });
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
+    _registo.dispose();
     _ctrl.dispose();
     super.dispose();
   }
@@ -95,8 +109,12 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
   }
 
   void _mudou(String v) {
-    setState(() => _q = v);
+    setState(() {
+      _q = v;
+      _atalhos = atalhosDaPesquisa(v);
+    });
     _debounce?.cancel();
+    _registo.aoEscrever(v);
     if (v.trim().length < 2) {
       setState(() {
         _lojas = const [];
@@ -107,6 +125,28 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
       return;
     }
     _debounce = Timer(const Duration(milliseconds: 300), () => _procurar(v));
+  }
+
+  /// Regista a pesquisa para o painel "KPIs de pesquisa" (client_search_history
+  /// estava a 0 linhas a 15/10: nada o escrevia). Já, quando o cliente escolhe
+  /// um resultado ou carrega em pesquisar; parado sem tocar, pelo [_registo]
+  /// ao fim de uns segundos. Sem sessão, o RPC recusa e ignora-se.
+  void _registar() => _registo.registarJa(_q);
+
+  /// Barbearias e salões: são poucos e já estão no [ServicesStore], por isso
+  /// filtram-se aqui, pelo nome, pela descrição e pelo tipo. Chamado no build
+  /// com a lista vista por `watch`: se os prestadores chegarem depois de o
+  /// cliente escrever, a secção aparece sozinha.
+  List<ServiceProviderModel> _servicosDaPesquisa(
+      String q, List<ServiceProviderModel> prestadores) {
+    final n = normalizarTexto(q);
+    if (n.length < 2) return const [];
+    const tipos = {'barbershop': 'barbearia barbeiro', 'beauty': 'beleza salao'};
+    return prestadores.where((p) {
+      final texto = normalizarTexto(
+          '${p.name} ${p.description ?? ''} ${tipos[p.category] ?? p.category ?? ''}');
+      return texto.contains(n);
+    }).toList();
   }
 
   void _usarTermo(String t) {
@@ -149,6 +189,9 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
       debugPrint('[pesquisa] $e');
       if (!mounted || n != _pedido) return;
       setState(() {
+        // Sem rede não ficam à vista os resultados da pesquisa anterior.
+        _lojas = const [];
+        _produtos = const [];
         _aProcurar = false;
         _falhou = true;
       });
@@ -187,10 +230,16 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
                       onChanged: _mudou,
                       onSubmitted: (v) {
                         _debounce?.cancel();
-                        if (v.trim().length >= 2) _procurar(v);
+                        if (v.trim().length >= 2) {
+                          _registar();
+                          _procurar(v);
+                        }
                       },
                       decoration: InputDecoration(
-                        hintText: 'Lojas, pratos, produtos…'.tr,
+                        // Bora Motorista so se anuncia a quem tem acesso (30/09).
+                        hintText: context.watch<TvdeStore>().tvdeAccess
+                            ? 'Lojas, produtos, serviços, motorista…'.tr
+                            : 'Lojas, produtos e serviços…'.tr,
                         border: InputBorder.none,
                         isDense: true,
                       ),
@@ -292,10 +341,16 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
   // ─── Resultados ────────────────────────────────────────────────────────
 
   Widget _resultados() {
-    if (_aProcurar && _lojas.isEmpty && _produtos.isEmpty) {
+    // Bora Motorista so aparece a quem tem acesso (regra 30/09).
+    final tvde = context.watch<TvdeStore>().tvdeAccess;
+    final atalhos = _atalhos.where((k) => k != 'motorista' || tvde).toList();
+    final prestadores = _servicosDaPesquisa(
+        _q, context.watch<ServicesStore>().providers);
+    final temExtra = atalhos.isNotEmpty || prestadores.isNotEmpty;
+    if (_aProcurar && _lojas.isEmpty && _produtos.isEmpty && !temExtra) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (_falhou) {
+    if (_falhou && !temExtra) {
       return _Vazio(
         texto: 'Não foi possível pesquisar agora. Verifica a ligação.'.tr,
         acao: TextButton(
@@ -304,7 +359,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
         ),
       );
     }
-    if (_lojas.isEmpty && _produtos.isEmpty) {
+    if (_lojas.isEmpty && _produtos.isEmpty && !temExtra) {
       return _Vazio(
         texto: 'Não encontrámos "{0}" — tenta pizza, sushi, açaí…'
             .trArgs([_q.trim()]),
@@ -337,20 +392,81 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
       padding: const EdgeInsets.fromLTRB(
           Spacing.lg, Spacing.sm, Spacing.lg, Spacing.xxxl),
       children: [
+        if (_falhou)
+          Padding(
+            padding: const EdgeInsets.only(bottom: Spacing.sm),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Não foi possível pesquisar agora. Verifica a ligação.'.tr,
+                    style: const TextStyle(
+                        fontSize: 13, color: AppColors.textSecondary),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => _procurar(_q),
+                  child: Text('Tentar outra vez'.tr),
+                ),
+              ],
+            ),
+          ),
+        if (atalhos.isNotEmpty) ...[
+          _Cabecalho(texto: 'Ir para'.tr),
+          const SizedBox(height: Spacing.sm),
+          Wrap(
+            spacing: Spacing.sm,
+            runSpacing: Spacing.sm,
+            children: [
+              for (final k in atalhos)
+                ActionChip(
+                  avatar: Icon(_iconeAtalho(k), size: 18),
+                  label: Text(categoriasDestino[k]!.tr),
+                  onPressed: () {
+                    _registar();
+                    abrirCategoria(context, k);
+                  },
+                ),
+            ],
+          ),
+          const SizedBox(height: Spacing.md),
+        ],
         ..._grupo('Restaurantes'.tr, restaurantes),
         ..._grupo('Supermercados'.tr, mercados),
         ..._grupo('Lojas'.tr, lojas),
         ..._grupo('Farmácia'.tr, farmacias),
         ..._grupo('Beleza'.tr, servicos),
+        if (prestadores.isNotEmpty) ...[
+          _Cabecalho(texto: 'Serviços'.tr),
+          const SizedBox(height: Spacing.sm),
+          for (final p in prestadores)
+            _ServicoLinha(provider: p, aoAbrir: _registar),
+          const SizedBox(height: Spacing.md),
+        ],
         if (_produtos.isNotEmpty) ...[
           _Cabecalho(texto: 'Produtos'.tr),
           const SizedBox(height: Spacing.sm),
           for (final p in _produtos)
-            _ProdutoLinha(produto: p, loja: porId[p['restaurant_id']]),
+            _ProdutoLinha(
+                produto: p,
+                loja: porId[p['restaurant_id']],
+                aoAbrir: _registar),
         ],
       ],
     );
   }
+
+  IconData _iconeAtalho(String chave) => switch (chave) {
+        'motorista' => Icons.local_taxi_outlined,
+        'limpeza' => Icons.cleaning_services_outlined,
+        'servicos' => Icons.content_cut,
+        'supermercados' => Icons.shopping_cart_outlined,
+        'farmacia' => Icons.local_pharmacy_outlined,
+        'festas' => Icons.celebration_outlined,
+        'sobremesas' => Icons.icecream_outlined,
+        'lojas' => Icons.storefront_outlined,
+        _ => Icons.restaurant_outlined,
+      };
 
   List<Widget> _grupo(String titulo, Iterable<RestaurantModel> lojas) {
     if (lojas.isEmpty) return const [];
@@ -358,7 +474,12 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
       _Cabecalho(texto: titulo),
       const SizedBox(height: Spacing.sm),
       for (final r in lojas)
-        RestaurantTile(business: r, onTap: () => abrirLoja(context, r)),
+        RestaurantTile(
+            business: r,
+            onTap: () {
+              _registar();
+              abrirLoja(context, r);
+            }),
       const SizedBox(height: Spacing.md),
     ];
   }
@@ -408,10 +529,12 @@ class _Vazio extends StatelessWidget {
 }
 
 class _ProdutoLinha extends StatelessWidget {
-  const _ProdutoLinha({required this.produto, required this.loja});
+  const _ProdutoLinha(
+      {required this.produto, required this.loja, required this.aoAbrir});
 
   final Map<String, dynamic> produto;
   final RestaurantModel? loja;
+  final VoidCallback aoAbrir;
 
   @override
   Widget build(BuildContext context) {
@@ -433,7 +556,10 @@ class _ProdutoLinha extends StatelessWidget {
         borderRadius: BorderRadius.circular(Radii.md),
         child: InkWell(
           borderRadius: BorderRadius.circular(Radii.md),
-          onTap: () => abrirProduto(context, (produto['id'] ?? '').toString()),
+          onTap: () {
+            aoAbrir();
+            abrirProduto(context, (produto['id'] ?? '').toString());
+          },
           child: Padding(
             padding: const EdgeInsets.all(Spacing.sm),
             child: Row(
@@ -487,6 +613,92 @@ class _ProdutoLinha extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 14, fontWeight: FontWeight.w700),
                   ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ServicoLinha extends StatelessWidget {
+  const _ServicoLinha({required this.provider, required this.aoAbrir});
+
+  final ServiceProviderModel provider;
+  final VoidCallback aoAbrir;
+
+  @override
+  Widget build(BuildContext context) {
+    final foto = (provider.photoUrl ?? '').trim();
+    final tipo = switch (provider.category) {
+      'barbershop' => 'Barbearia'.tr,
+      'beauty' => 'Beleza'.tr,
+      _ => 'Serviços'.tr,
+    };
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Spacing.sm),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(Radii.md),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(Radii.md),
+          onTap: () {
+            aoAbrir();
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => ProviderDetailScreen(provider: provider)),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(Spacing.sm),
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(Radii.sm),
+                  child: SizedBox(
+                    width: 56,
+                    height: 56,
+                    child: foto.isEmpty
+                        ? const ColoredBox(
+                            color: AppColors.surface2,
+                            child: Icon(Icons.content_cut,
+                                color: AppColors.textSubtle),
+                          )
+                        : CachedNetworkImage(
+                            imageUrl: foto,
+                            fit: BoxFit.cover,
+                            memCacheWidth: 168,
+                            errorWidget: (_, __, ___) =>
+                                const ColoredBox(color: AppColors.surface2),
+                          ),
+                  ),
+                ),
+                const SizedBox(width: Spacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(provider.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 2),
+                      Text(tipo,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 12, color: AppColors.textSecondary)),
+                      if (provider.comingSoon) ...[
+                        const SizedBox(height: 4),
+                        const ComingSoonChip(dense: true),
+                      ],
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right, color: AppColors.textSubtle),
               ],
             ),
           ),

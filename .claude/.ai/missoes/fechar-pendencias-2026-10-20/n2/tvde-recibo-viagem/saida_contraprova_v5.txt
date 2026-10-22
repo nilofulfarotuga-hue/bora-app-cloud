@@ -1,0 +1,24 @@
+[0m[32mCheck[0m simular_test.ts
+[0m[38;5;245mrunning 2 tests from ./simular_test.ts[0m
+passageiros: e-mail da v6 igual byte a byte ao da v5 (servidor e cliente) ...
+[0m[38;5;245m------- output -------[0m
+PASSAGEIROS assunto: Resumo da tua viagem Bora · 21/10/2026, 20:30
+[0m[38;5;245m----- output end -----[0m
+passageiros: e-mail da v6 igual byte a byte ao da v5 (servidor e cliente) ... [0m[32mok[0m [0m[38;5;245m(27ms)[0m
+encomendas: e-mail com entrega/estafeta, sem viagem/motorista, números iguais ... [0m[31mFAILED[0m [0m[38;5;245m(3ms)[0m
+
+[0m[1m[37m[41m ERRORS [0m
+
+encomendas: e-mail com entrega/estafeta, sem viagem/motorista, números iguais [0m[38;5;245m=> ./simular_test.ts:87:6[0m
+[0m[1m[31merror[0m: Error: assunto: Resumo da tua viagem Bora · 21/10/2026, 20:30
+  if (!e.subject.startsWith('Resumo da tua entrega Bora')) throw new Error('assunto: ' + e.subject)
+[0m[31m                                                                 ^[0m
+    at [0m[2m[38;5;245mfile:///C:/BoraLocal/wt-encomendas-n2-21-10/.claude/.ai/missoes/fechar-pendencias-2026-10-20/n2/tvde-recibo-viagem/[0m[0m[36msimular_test.ts[0m:[0m[33m91[0m:[0m[33m66[0m
+
+[0m[1m[37m[41m FAILURES [0m
+
+encomendas: e-mail com entrega/estafeta, sem viagem/motorista, números iguais [0m[38;5;245m=> ./simular_test.ts:87:6[0m
+
+[0m[31mFAILED[0m | 1 passed | 1 failed [0m[38;5;245m(36ms)[0m
+
+[0m[1m[31merror[0m: Test failed

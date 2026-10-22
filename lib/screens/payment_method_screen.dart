@@ -126,6 +126,11 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   // (platform_settings.token_payment_max_pct) com fallback 50 (BR §4.3).
   int _tokenMaxPct = 50;
 
+  // 14/10/2026 (regra do Danilo): por pedido o cliente só usa METADE do saldo
+  // de tokens — platform_settings.token_balance_max_use_pct (fallback 50).
+  // O servidor (create_order / quote_order_pricing) corta igual.
+  int _tokenBalanceMaxPct = 50;
+
   // BUG #1 frontend (§54 / 2026-05-12) — dívida wallet a cobrar neste checkout
   int _debtSettleCents = 0;
 
@@ -256,6 +261,20 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       } catch (e) {
         debugPrint('[PaymentMethodScreen] token_payment_max_pct fallback: $e');
       }
+      int balPct = _tokenBalanceMaxPct;
+      try {
+        final balRes = await Supabase.instance.client.rpc(
+          'get_setting',
+          params: {'p_key': 'token_balance_max_use_pct'},
+        );
+        if (balRes is num) {
+          balPct = balRes.toInt();
+        } else if (balRes is String) {
+          balPct = int.tryParse(balRes.replaceAll('"', '')) ?? balPct;
+        }
+      } catch (e) {
+        debugPrint('[PaymentMethodScreen] token_balance_max_use_pct fallback: $e');
+      }
       // Adendo2.3: conversão lida das settings (token_value_cents_x100=50
       // ⇒ 1 token = €0,005), nunca cravada.
       double tokenValue = _tokenValueEur;
@@ -275,6 +294,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         setState(() {
           _availableTokens = (response as num?)?.toInt() ?? 0;
           _tokenMaxPct = pct;
+          _tokenBalanceMaxPct = balPct;
           _tokenValueEur = tokenValue;
           _tokensLoaded = true;
         });
@@ -341,12 +361,19 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     // BUG 2: maxDiscountEuro calculado sobre totalToPay já SEM wallet.
     final double maxDiscountEuro = totalToPay * (_tokenMaxPct / 100.0);
     final int maxTokensUsable = (maxDiscountEuro / _tokenValueEur).floor();
+    // 14/10/2026 (regra do Danilo): só METADE dos tokens que o cliente tem.
+    final int maxTokensDoSaldo =
+        (_availableTokens * _tokenBalanceMaxPct / 100).floor();
     // FAVORES (§55.3) — cliente não usa/ganha tokens em favores → 0.
-    final int tokensToUse =
-        isErrand ? 0 : min(_availableTokens, maxTokensUsable);
+    final int tokensToUse = isErrand
+        ? 0
+        : min(maxTokensDoSaldo, maxTokensUsable).clamp(0, _availableTokens);
     // Adendo2.3: o slider decide QUANTOS (0..tokensToUse) — teto físico.
     final int tokensChosen = _tokensSelected.clamp(0, tokensToUse);
-    final double tokenDiscount = tokensChosen * _tokenValueEur;
+    // Cêntimos inteiros, arredondados para baixo — a mesma conta que o
+    // servidor faz (nunca mostrar um desconto maior do que o que se aplica).
+    final double tokenDiscount =
+        (tokensChosen * _tokenValueEur * 100).floor() / 100;
     final double debtEur = _debtSettleCents / 100.0;
     final double finalPrice =
         (totalToPay - tokenDiscount + debtEur).clamp(0.0, double.infinity);
@@ -588,7 +615,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                                     ],
                                   ),
                                   Text(
-                                    'Tens €{0} em tokens — podes usar até €{1} neste pedido (máx. {2}%).'.trArgs([(_availableTokens * _tokenValueEur).toStringAsFixed(2), (tokensToUse * _tokenValueEur).toStringAsFixed(2), _tokenMaxPct]),
+                                    'Tens €{0} em tokens — podes usar até €{1} neste pedido (no máximo metade dos teus tokens).'.trArgs([(_availableTokens * _tokenValueEur).toStringAsFixed(2), ((tokensToUse * _tokenValueEur * 100).floor() / 100).toStringAsFixed(2)]),
                                     style: TextStyle(
                                         fontSize: 12,
                                         color: Colors.amber.shade800),
@@ -1120,7 +1147,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                   ?.toDouble() ??
                   (cartStore.pricingBreakdown.customerTotal +
                       cartStore.smallOrderFee)) -
-              (cartStore.walletAppliedCents / 100.0);
+              (cartStore.walletAppliedCents / 100.0) -
+              // 14/10/2026: os tokens também descontam — se saldo + tokens
+              // cobrem tudo, não há nada a cobrar no cartão.
+              CartStore.tokenDiscountEurDe(tokensUsed);
       if (cartTotalAfterWallet <= 0) {
         debugPrint('[Checkout] wallet covers full order — using legacy path');
         // Use old finishOrder flow (cash-like) since no card charge needed.
@@ -1172,6 +1202,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           clientPhone: authStore.currentClient?.phone,
           customerName: authStore.currentClient?.name,
           savedPmId: _selectedSavedPmId,
+          tokensUsed: tokensUsed,
         );
       } catch (e) {
         // F4 (2026-08-16): log SEMPRE (era só kDebugMode — invisível no build

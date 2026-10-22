@@ -43,6 +43,7 @@ import 'dispatch/dispatch_engine.dart';
 import 'l10n/bora_lang.dart';
 import 'screens/admin/admin_crosstalk_screen.dart';
 import 'screens/admin/admin_whatsapp_screen.dart';
+import 'screens/admin/admin_agentes_email_screen.dart';
 import 'screens/admin/admin_decisoes_screen.dart';
 import 'screens/admin/admin_motores_screen.dart';
 import 'screens/admin/admin_maiores_18_screen.dart';
@@ -71,6 +72,7 @@ import 'screens/admin/admin_tvde_pagamentos_screen.dart';
 import 'screens/admin/admin_pendencias_operacao_screen.dart';
 import 'screens/admin/admin_web_health_screen.dart';
 import 'screens/admin/admin_motoristas_documentos_screen.dart';
+import 'screens/admin/admin_comprovativo_atividade_screen.dart';
 import 'screens/admin/admin_conformidade_legal_screen.dart';
 import 'screens/admin/admin_receipts_screen.dart';
 import 'screens/admin/admin_appointments_screen.dart';
@@ -91,6 +93,7 @@ import 'screens/admin/admin_partners_screen.dart';
 import 'screens/admin/admin_send_notification_screen.dart';
 import 'screens/restaurant_ratings_list_screen.dart';
 import 'screens/cleaner/cleaner_home_screen.dart';
+import 'screens/shared/comprovativo_atividade_screen.dart';
 import 'screens/washer/washer_home_screen.dart';
 import 'screens/client/assistant/assistant_chat_screen.dart';
 import 'screens/client_login_screen.dart';
@@ -524,9 +527,12 @@ Future<void> main() async {
     final nav = NotificationService.navigatorKey.currentState;
     if (nav == null) return;
     nav.push(MaterialPageRoute<void>(
-      builder: (_) => categoria == 'limpeza'
-          ? const CleanerHomeScreen()
-          : const WasherHomeScreen(),
+      builder: (_) => switch (categoria) {
+        'limpeza' => const CleanerHomeScreen(),
+        // [20/10/2026] Push "Falta o comprovativo de atividade" → ecrã de envio.
+        'atividade' => const ComprovativoAtividadeScreen(),
+        _ => const WasherHomeScreen(),
+      },
     ));
   };
 
@@ -990,6 +996,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           '/admin/crosstalk': (_) => const AdminCrosstalkScreen(),
           // Missão 02/09/2026 — WhatsApp da loja (bot que resolve)
           '/admin/whatsapp': (_) => const AdminWhatsappScreen(),
+          // Missão agentes-email-2026-10-21 — caixa de e-mail de cada agente @boraguarda.com
+          '/admin/agentes-email': (_) => const AdminAgentesEmailScreen(),
           // Missão 02/09/2026 (noite) — Motores: o roteador Motor Bora (quota, latência, pausar)
           '/admin/motores': (_) => const AdminMotoresScreen(),
           // Missão jev-decisor-2026-09-23 — Decisor (Jev/Gemini): lista, custo do dia, sombra/ativo.
@@ -1060,6 +1068,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           '/admin/motoristas-documentos': (_) =>
               const AdminMotoristasDocumentosScreen(),
           '/admin/conformidade': (_) => const AdminConformidadeLegalScreen(),
+          // [20/10/2026] deep link do aviso "Comprovativo de atividade para analisar".
+          '/admin/comprovativo-atividade': (_) =>
+              const AdminComprovativoAtividadeScreen(),
           '/admin/reembolsos': (_) => const AdminReceiptsScreen(),
           '/admin/tvde/ida-e-volta': (_) => const AdminTvdeRoundtripsScreen(),
           '/admin/tvde/pagos-sem-corrida': (_) =>

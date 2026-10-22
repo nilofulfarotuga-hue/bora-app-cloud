@@ -8,6 +8,12 @@ import '../../widgets/bora/bora_screen_app_bar.dart';
 
 /// Admin Platform Settings — edit configurable parameters in `platform_settings`.
 /// HIGH-RISK: changes propagate live; use with care. All changes audited.
+///
+/// 17/10/2026 (cancelamento tardio, "autorizo" do Danilo): a compensação ao
+/// motorista (`tvde_cancel_driver_fee_cents`) passa a editar-se aqui, com
+/// motivo e auditoria (`admin_update_cancel_setting` já a aceita), e as 4
+/// chaves da regra mostram etiquetas PT-BR locais — as descrições guardadas
+/// na base estão desatualizadas e não se mexem a partir da app.
 class AdminPlatformSettingsScreen extends StatefulWidget {
   const AdminPlatformSettingsScreen({super.key});
   @override
@@ -39,7 +45,14 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
       final by = <String, List<_Setting>>{};
       for (final s in list) {
         if (_obsoleteDepositKeys.contains(s.key)) continue;
-        by.putIfAbsent(s.category ?? 'other', () => []).add(s);
+        final rotulo = rotulosCancelamento[s.key];
+        by.putIfAbsent(s.category ?? 'other', () => []).add(rotulo == null
+            ? s
+            : _Setting(
+                key: s.key,
+                value: s.value,
+                description: rotulo,
+                category: s.category));
       }
       if (mounted) setState(() => _byCategory = by);
     } catch (e) {
@@ -58,8 +71,27 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
     'cancel_fee_after_accept_cents',
     'cancel_fee_after_accept_driver_cents',
     'cancel_fee_after_pickup_ratio',
+    // 17/10/2026 — compensação ao motorista no cancelamento tardio do
+    // cliente (375 = 3,75 €). O servidor já a aceita na mesma RPC auditada.
+    'tvde_cancel_driver_fee_cents',
   };
   bool _isCancelKey(String key) => _cancelKeys.contains(key);
+
+  /// 17/10/2026 — etiquetas PT-BR da regra do cancelamento TVDE. Substituem a
+  /// descrição da base só no ecrã (as da base estão desatualizadas).
+  static const rotulosCancelamento = <String, String>{
+    'cancel_grace_seconds':
+        'Janela grátis de cancelamento (segundos) — conta desde que o motorista aceita a corrida',
+    'tvde_cancel_full_after_grace':
+        'Cobrar a corrida inteira se o cliente cancelar depois da janela (ligado/desligado)',
+    'tvde_cancel_driver_fee_cents':
+        'Compensação ao motorista no cancelamento tardio (cêntimos; 375 = 3,75 €)',
+    // O pedido dizia "(blindada: só leitura)", mas desde 06/09 (autoridade
+    // total) as chaves de dinheiro editam-se aqui pelo caminho com motivo e
+    // auditoria — escrever "só leitura" seria mentir ao Danilo.
+    'tvde_cancel_fee_cents':
+        'Taxa fixa antiga de cancelamento (cêntimos) — hoje só vale em corridas de plano, pacote, marcadas, balcão, em fila ou com preço combinado (muda-se com motivo e fica auditada)',
+  };
 
   /// Whitelist operacional: só chaves de dispatch e operação de reservas são
   /// editáveis aqui. Tudo o resto (fees, comissões, markup, tokens, wallet,
@@ -78,6 +110,9 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
     // parados (interruptor, dias, texto). Operacionais: nenhuma mexe em valor
     // cobrado ou pago. As 4 dispatch_* novas já entram pelo prefixo acima.
     if (key == 'foto_entrega_obrigatoria') return true;
+    // GUIA DA LIMPEZA (15/10/2026) — textos que a profissional vê: o que
+    // fazer em cada tipo e o que levar. Só texto, não mexem em dinheiro.
+    if (key.startsWith('limpeza_guia_')) return true;
     if (key.startsWith('reativacao_')) return true;
     // [botoes-navbar-eta 31/08] As 3 chaves eta_* (velocidade média do
     // fallback + intervalo de compra não-parceiro) são OPERACIONAIS — afinam
@@ -113,6 +148,10 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
       // 50% CRAVADOS no SQL e ignorava esta chave — mexer aqui só afeta o TVDE
       // depois dessa migration estar aplicada.
       'token_payment_max_pct',
+      // 14/10/2026 (regra do Danilo): % do SALDO de tokens que o cliente pode
+      // usar num pedido/corrida (50 = metade). Lido pelo create_order,
+      // quote_order_pricing, tvde_request_ride e pelos ecrãs de pagamento.
+      'token_balance_max_use_pct',
     };
     if (tvdeOperational.contains(key)) return true;
     // BLOCO E (2026-07-28) — reagendamento de marcações. São chaves
@@ -180,6 +219,12 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
     // cêntimos: já caem no caminho auditado de dinheiro (_isMoneyKey), com
     // motivo obrigatório — é o dono a mexer no preço do seu produto.
     if (key == 'tvde_dest_change_enabled') return true;
+    // ENCOMENDAS NO MOTOR DO BORA MOTORISTA (21/10/2026 · A1): interruptor
+    // OPERACIONAL (o ladrilho "Enviar Encomenda" passa ao fluxo novo e o
+    // servidor aceita encomendas). Não mexe em preço: é o mesmo do TVDE.
+    // `tvde_passageiros_enabled` fica SÓ de leitura de propósito — nenhum
+    // código o lê ainda e a ordem é nunca fechar o Bora Motorista a clientes.
+    if (key == 'tvde_encomendas_enabled') return true;
     // TAXA DE PEDIDO PEQUENO (2026-08-27). Mesma regra do
     // `appointment_booking_fee_cents` e do `tvde_roundtrip_discount_pct`: e o
     // preco do PROPRIO produto da Bora (a taxa fica toda para a plataforma,
@@ -264,6 +309,11 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
       'map_route_line_width',
     };
     if (missao0310Operational.contains(key)) return true;
+    // FECHAR-PENDÊNCIAS (20/10/2026) — máximo de sacos de pellets num Favor
+    // (o estafeta vai de mota). OPERACIONAL: um limite de quantidade que a app
+    // impõe ao cliente, não um valor cobrado nem pago. Edita-se com a mesma
+    // auditoria das outras (admin_update_setting → log_admin_action).
+    if (key == 'favor_pellets_max_sacos') return true;
     // BLOCO 4E (2026-09-05) — ETA do TVDE mostrado ao cliente. Mesma regra
     // do `eta_*` genérico (linha ~75): afinam só o TEMPO MOSTRADO no ecrã,
     // nunca um valor cobrado ou pago. Usam o prefixo `tvde_eta_`, não
@@ -487,6 +537,10 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
             const SizedBox(height: 8),
             TextField(
               controller: ctrl,
+              // Textos longos (ex.: guia da limpeza, uma linha por item)
+              // precisam de várias linhas para se editarem.
+              minLines: s.value is String && (s.value as String).length > 60 ? 6 : 1,
+              maxLines: s.value is String && (s.value as String).length > 60 ? 14 : 1,
               decoration: const InputDecoration(
                 labelText: 'Valor (JSON)',
                 border: OutlineInputBorder(),
@@ -697,10 +751,15 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
                 controller: ctrl,
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Novo valor (número)',
-                  border: OutlineInputBorder(),
-                  hintText: 'ex: 180 (seg) · 250 (cêntimos) · 1.0 (rácio)',
+                  border: const OutlineInputBorder(),
+                  hintText: s.key == 'tvde_cancel_driver_fee_cents'
+                      ? 'em cêntimos: 375 = 3,75 €'
+                      : 'ex: 180 (seg) · 250 (cêntimos) · 1.0 (rácio)',
+                  helperText: s.key == 'tvde_cancel_driver_fee_cents'
+                      ? 'em cêntimos: 375 = 3,75 €'
+                      : null,
                 ),
               ),
               const SizedBox(height: 8),
@@ -740,6 +799,17 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Valor inválido — usa um número.')));
+      }
+      return;
+    }
+    // [17/10/2026] Chave em cêntimos só aceita número inteiro: "3.75" seria
+    // gravado como 4 cêntimos (o servidor arredonda) e a compensação ao
+    // motorista passava a 0,04 € sem ninguém dar por isso.
+    final erroCents = erroValorEmCentimos(s.key, value);
+    if (erroCents != null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(erroCents)));
       }
       return;
     }
@@ -839,7 +909,10 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
                                     size: 18, color: AppColors.textSubtle),
                             title: Text(s.key, style: const TextStyle(fontFamily: 'monospace')),
                             subtitle: s.description != null ? Text(s.description!) : null,
-                            trailing: Text(s.value.toString(),
+                            trailing: Text(
+                                s.value.toString().length > 40
+                                    ? '${s.value.toString().substring(0, 40)}…'
+                                    : s.value.toString(),
                                 style: const TextStyle(fontWeight: FontWeight.w600)),
                             // Dinheiro nunca passa pelo diálogo comum: vai
                             // sempre pelo caminho com motivo obrigatório e
@@ -873,4 +946,19 @@ class _Setting {
         description: j['description'] as String?,
         category: j['category'] as String?,
       );
+}
+
+/// [17/10/2026 · cancelamento tardio] Validação das chaves de cancelamento em
+/// cêntimos: só número inteiro (o servidor arredondaria "3.75" para 4
+/// cêntimos). A compensação ao motorista abaixo de 50 cêntimos (e não zero)
+/// quase de certeza foi escrita em euros. Devolve a mensagem de erro ou null.
+String? erroValorEmCentimos(String key, num valor) {
+  if (!key.endsWith('_cents')) return null;
+  if (valor != valor.roundToDouble()) {
+    return 'Em cêntimos, sem vírgula nem ponto: 375 = 3,75 €.';
+  }
+  if (key == 'tvde_cancel_driver_fee_cents' && valor > 0 && valor < 50) {
+    return 'Parece um valor em euros. Em cêntimos: 375 = 3,75 €.';
+  }
+  return null;
 }

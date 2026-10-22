@@ -1,5 +1,8 @@
+import 'ride_kind.dart';
+
 /// TVDE — Bora Motorista. Modelo de corrida de passageiros (read-only no app;
 /// as transições são sempre via RPC no backend). Espelha `public.tvde_rides`.
+/// Desde 21/10/2026 a mesma corrida pode ser uma ENCOMENDA ([rideKind]).
 class TvdeRide {
   TvdeRide({
     required this.id,
@@ -46,6 +49,8 @@ class TvdeRide {
     this.destChangeFeeCents = 0,
     this.destChangeDriverCents = 0,
     this.destChangeCashCents = 0,
+    this.cancelFeeCents = 0,
+    this.rideKind = RideKind.passageiros,
   });
 
   final String id;
@@ -165,6 +170,18 @@ class TvdeRide {
   /// Parte de [destChangeFeeCents] paga em dinheiro (o motorista recolhe).
   final int destChangeCashCents;
 
+  /// [17/10/2026 · cancelamento tardio] Taxa que o servidor REALMENTE cobrou
+  /// ao cancelar (`tvde_rides.cancel_fee_cents`). 0 se não houve taxa ou se o
+  /// mapa não a trouxe. O histórico mostra-a nas corridas canceladas.
+  final int cancelFeeCents;
+
+  /// [21/10/2026 · fechar-pendencias A1] Passageiros ou encomenda
+  /// (`tvde_rides.ride_kind`). Mesmo motor e mesmo dinheiro — só muda o texto
+  /// (ver `ride_kind.dart`). Sem a coluna na resposta = passageiros.
+  final RideKind rideKind;
+
+  bool get isEncomenda => rideKind == RideKind.encomendas;
+
   bool get hasDestChange => destChangeCount > 0;
 
   /// Corrida de balcão: cliente sem app, avisado por telefone.
@@ -243,6 +260,8 @@ class TvdeRide {
       destChangeDriverCents:
           (m['dest_change_driver_cents'] as num?)?.toInt() ?? 0,
       destChangeCashCents: (m['dest_change_cash_cents'] as num?)?.toInt() ?? 0,
+      cancelFeeCents: (m['cancel_fee_cents'] as num?)?.toInt() ?? 0,
+      rideKind: rideKindFromDb(m['ride_kind']),
     );
   }
 
@@ -369,32 +388,34 @@ class TvdeRide {
 
   bool get hasExtraStops => extraStopsCount > 0;
 
+  /// Estado em palavras. [21/10 · A1 r1] Numa encomenda as palavras são de
+  /// encomenda (mesmo mapa, `ride_kind_textos.dart`); passageiros igual a antes.
   String get statusLabel {
     switch (status) {
       case 'aguarda_pagamento':
         return 'A aguardar pagamento…';
       case 'solicitada':
-        return 'À procura de motorista…';
+        return 'À procura de motorista…'.rk(rideKind);
       case 'sem_motorista':
-        return 'Sem motoristas disponíveis';
+        return 'Sem motoristas disponíveis'.rk(rideKind);
       case 'motorista_atribuido':
         return isQueued
-            ? 'O teu motorista está a terminar uma viagem próxima'
-            : 'Motorista atribuído';
+            ? 'O teu motorista está a terminar uma viagem próxima'.rk(rideKind)
+            : 'Motorista atribuído'.rk(rideKind);
       case 'motorista_a_caminho':
-        return 'Motorista a caminho';
+        return 'Motorista a caminho'.rk(rideKind);
       case 'motorista_chegou':
-        return 'O motorista chegou';
+        return 'O motorista chegou'.rk(rideKind);
       case 'em_andamento':
-        return 'Viagem em curso';
+        return 'Viagem em curso'.rk(rideKind);
       case 'finalizada':
-        return 'Viagem concluída';
+        return 'Viagem concluída'.rk(rideKind);
       case 'cancelada_cliente':
         return 'Cancelada por si';
       case 'cancelada_motorista':
-        return 'Cancelada pelo motorista';
+        return 'Cancelada pelo motorista'.rk(rideKind);
       case 'no_show':
-        return 'Não compareceu';
+        return 'Não compareceu'.rk(rideKind);
       default:
         return status;
     }
@@ -411,12 +432,14 @@ class TvdeRide {
       return temNome ? 'A caminho da recolha · $nome' : 'A caminho da recolha';
     }
     if (hasArrived) {
-      return temNome ? 'À espera de $nome' : 'À espera do passageiro';
+      return temNome ? 'À espera de $nome' : 'À espera do passageiro'.rk(rideKind);
     }
     if (isInProgress) {
+      // [21/10 · A1 r1] Numa encomenda leva-se a encomenda, não o cliente.
+      if (isEncomenda) return 'A levar a encomenda ao destino';
       return 'A levar ${temNome ? nome : 'o passageiro'} ao destino';
     }
-    if (status == 'motorista_atribuido' && isQueued) return 'Próxima corrida';
+    if (status == 'motorista_atribuido' && isQueued) return 'Próxima corrida'.rk(rideKind);
     return 'A processar…';
   }
 }

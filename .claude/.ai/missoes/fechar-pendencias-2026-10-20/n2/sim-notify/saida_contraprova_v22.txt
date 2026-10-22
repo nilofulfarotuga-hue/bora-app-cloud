@@ -1,0 +1,135 @@
+[0m[32mCheck[0m simular_test.ts
+[0m[38;5;245mrunning 2 tests from ./simular_test.ts[0m
+passageiros: a nova manda EXACTAMENTE o mesmo que a v22 (15 kinds) ...
+[0m[38;5;245m------- output -------[0m
+[notify-tvde-driver] INVOKED (Firebase configured: true )
+[notify-tvde-driver v21] kind=offer aparelhos=1 enviados=1
+[notify-tvde-driver] Push sent to driver 00000000-0000-0000-0000-00000000d3e0 ride 11111111-2222-3333-4444-555555555555
+[notify-tvde-driver] INVOKED (Firebase configured: true )
+[notify-tvde-driver v21] kind=offer aparelhos=1 enviados=1
+[notify-tvde-driver] Push sent to driver 00000000-0000-0000-0000-00000000d3e0 ride 11111111-2222-3333-4444-555555555555
+[notify-tvde-driver] INVOKED (Firebase configured: true )
+[notify-tvde-driver v21] kind=ride_cancelled aparelhos=1 enviados=1
+[notify-tvde-driver] ride_cancelled push sent to driver 00000000-0000-0000-0000-00000000d3e0 ride 11111111-2222-3333-4444-555555555555
+[notify-tvde-driver] INVOKED (Firebase configured: true )
+[notify-tvde-driver v21] kind=ride_cancelled aparelhos=1 enviados=1
+[notify-tvde-driver] ride_cancelled push sent to driver 00000000-0000-0000-0000-00000000d3e0 ride 11111111-2222-3333-4444-555555555555
+[notify-tvde-driver] INVOKED (Firebase configured: true )
+[notify-tvde-driver v21] kind=queued_added aparelhos=1 enviados=1
+[notify-tvde-driver] queued_added push sent to driver 00000000-0000-0000-0000-00000000d3e0 ride 11111111-2222-3333-4444-555555555555
+[notify-tvde-driver] INVOKED (Firebase configured: true )
+[notify-tvde-driver v21] kind=queued_added aparelhos=1 enviados=1
+[notify-tvde-driver] queued_added push sent to driver 00000000-0000-0000-0000-00000000d3e0 ride 11111111-2222-3333-4444-555555555555
+[notify-tvde-driver] INVOKED (Firebase configured: true )
+[notify-tvde-driver v21] kind=ride_assigned aparelhos=1 enviados=1
+[notify-tvde-driver] ride_assigned push sent to driver 00000000-0000-0000-0000-00000000d3e0 ride 11111111-2222-3333-4444-555555555555
+[notify-tvde-driver] INVOKED (Firebase configured: true )
+[notify-tvde-driver v21] kind=ride_assigned aparelhos=1 enviados=1
+[notify-tvde-driver] ride_assigned push sent to driver 00000000-0000-0000-0000-00000000d3e0 ride 11111111-2222-3333-4444-555555555555
+[notify-tvde-driver] INVOKED (Firebase configured: true )
+[notify-tvde-driver v21] kind=ride_reassigned_away aparelhos=1 enviados=1
+[notify-tvde-driver] ride_reassigned_away push sent to driver 00000000-0000-0000-0000-00000000d3e0 ride 11111111-2222-3333-4444-555555555555
+[notify-tvde-driver] INVOKED (Firebase configured: true )
+[notify-tvde-driver v21] kind=ride_reassigned_away aparelhos=1 enviados=1
+[notify-tvde-driver] ride_reassigned_away push sent to driver 00000000-0000-0000-0000-00000000d3e0 ride 11111111-2222-3333-4444-555555555555
+[notify-tvde-driver] INVOKED (Firebase configured: true )
+[notify-tvde-driver v21] kind=reservation_offer aparelhos=1 enviados=1
+[notify-tvde-driver] reservation_offer push sent to driver 00000000-0000-0000-0000-00000000d3e0 ride 11111111-2222-3333-4444-555555555555
+[notify-tvde-driver] INVOKED (Firebase configured: true )
+[notify-tvde-driver v21] kind=reservation_offer aparelhos=1 enviados=1
+[notify-tvde-driver] reservation_offer push sent to driver 00000000-0000-0000-0000-00000000d3e0 ride 11111111-2222-3333-4444-555555555555
+[notify-tvde-driver] INVOKED (Firebase configured: true )
+[notify-tvde-driver v21] kind=reservation_assigned aparelhos=1 enviados=1
+[notify-tvde-driver] reservation_assigned push sent to driver 00000000-0000-0000-0000-00000000d3e0 ride 11111111-2222-3333-4444-555555555555
+[notify-tvde-driver] INVOKED (Firebase configured: true )
+[notify-tvde-driver v21] kind=reservation_assigned aparelhos=1 enviados=1
+[notify-tvde-driver] reservation_assigned push sent to driver 00000000-0000-0000-0000-00000000d3e0 ride 11111111-2222-3333-4444-555555555555
+[notify-tvde-driver] INVOKED (Firebase configured: true )
+[notify-tvde-driver v21] kind=reservation_reminder_early aparelhos=1 enviados=1
+[notify-tvde-driver] reservation_reminder_early push sent to driver 00000000-0000-0000-0000-00000000d3e0 ride 11111111-2222-3333-4444-555555555555
+[notify-tvde-driver] INVOKED (Firebase configured: true )
+[notify-tvde-driver v21] kind=reservation_reminder_early aparelhos=1 enviados=1
+[notify-tvde-driver] reservation_reminder_early push sent to driver 00000000-0000-0000-0000-00000000d3e0 ride 11111111-2222-3333-4444-555555555555
+[notify-tvde-driver] INVOKED (Firebase configured: true )
+[notify-tvde-driver v21] kind=reservation_start_now aparelhos=1 enviados=1
+[notify-tvde-driver] reservation_start_now push sent to driver 00000000-0000-0000-0000-00000000d3e0 ride 11111111-2222-3333-4444-555555555555
+[notify-tvde-driver] INVOKED (Firebase configured: true )
+[notify-tvde-driver v21] kind=reservation_start_now aparelhos=1 enviados=1
+[notify-tvde-driver] reservation_start_now push sent to driver 00000000-0000-0000-0000-00000000d3e0 ride 11111111-2222-3333-4444-555555555555
+[notify-tvde-driver] INVOKED (Firebase configured: true )
+[notify-tvde-driver v21] kind=reservation_cancelled aparelhos=1 enviados=1
+[notify-tvde-driver] reservation_cancelled push sent to driver 00000000-0000-0000-0000-00000000d3e0 ride 11111111-2222-3333-4444-555555555555
+[notify-tvde-driver] INVOKED (Firebase configured: true )
+[notify-tvde-driver v21] kind=reservation_cancelled aparelhos=1 enviados=1
+[notify-tvde-driver] reservation_cancelled push sent to driver 00000000-0000-0000-0000-00000000d3e0 ride 11111111-2222-3333-4444-555555555555
+[notify-tvde-driver] INVOKED (Firebase configured: true )
+[notify-tvde-driver v21] kind=reservation_lost aparelhos=1 enviados=1
+[notify-tvde-driver] reservation_lost push sent to driver 00000000-0000-0000-0000-00000000d3e0 ride 11111111-2222-3333-4444-555555555555
+[notify-tvde-driver] INVOKED (Firebase configured: true )
+[notify-tvde-driver v21] kind=reservation_lost aparelhos=1 enviados=1
+[notify-tvde-driver] reservation_lost push sent to driver 00000000-0000-0000-0000-00000000d3e0 ride 11111111-2222-3333-4444-555555555555
+[notify-tvde-driver] INVOKED (Firebase configured: true )
+[notify-tvde-driver v21] kind=reservation_rescheduled aparelhos=1 enviados=1
+[notify-tvde-driver] reservation_rescheduled push sent to driver 00000000-0000-0000-0000-00000000d3e0 ride 11111111-2222-3333-4444-555555555555
+[notify-tvde-driver] INVOKED (Firebase configured: true )
+[notify-tvde-driver v21] kind=reservation_rescheduled aparelhos=1 enviados=1
+[notify-tvde-driver] reservation_rescheduled push sent to driver 00000000-0000-0000-0000-00000000d3e0 ride 11111111-2222-3333-4444-555555555555
+[notify-tvde-driver] INVOKED (Firebase configured: true )
+[notify-tvde-driver v21] kind=reservation_rescheduled_lost aparelhos=1 enviados=1
+[notify-tvde-driver] reservation_rescheduled_lost push sent to driver 00000000-0000-0000-0000-00000000d3e0 ride 11111111-2222-3333-4444-555555555555
+[notify-tvde-driver] INVOKED (Firebase configured: true )
+[notify-tvde-driver v21] kind=reservation_rescheduled_lost aparelhos=1 enviados=1
+[notify-tvde-driver] reservation_rescheduled_lost push sent to driver 00000000-0000-0000-0000-00000000d3e0 ride 11111111-2222-3333-4444-555555555555
+[notify-tvde-driver] INVOKED (Firebase configured: true )
+[notify-tvde-driver v21] kind=stop_added aparelhos=1 enviados=1
+[notify-tvde-driver] stop_added push sent to driver 00000000-0000-0000-0000-00000000d3e0 ride 11111111-2222-3333-4444-555555555555
+[notify-tvde-driver] INVOKED (Firebase configured: true )
+[notify-tvde-driver v21] kind=stop_added aparelhos=1 enviados=1
+[notify-tvde-driver] stop_added push sent to driver 00000000-0000-0000-0000-00000000d3e0 ride 11111111-2222-3333-4444-555555555555
+[notify-tvde-driver] INVOKED (Firebase configured: true )
+[notify-tvde-driver v21] kind=dest_changed aparelhos=1 enviados=1
+[notify-tvde-driver] dest_changed push sent to driver 00000000-0000-0000-0000-00000000d3e0 ride 11111111-2222-3333-4444-555555555555
+[notify-tvde-driver] INVOKED (Firebase configured: true )
+[notify-tvde-driver v21] kind=dest_changed aparelhos=1 enviados=1
+[notify-tvde-driver] dest_changed push sent to driver 00000000-0000-0000-0000-00000000d3e0 ride 11111111-2222-3333-4444-555555555555
+PASSAGEIROS
+offer: igual · "🚗 Nova corrida!"
+ride_cancelled: igual · "Corrida cancelada"
+queued_added: igual · "🚗 Corrida em fila — depois desta"
+ride_assigned: igual · "🚗 Ficaste com uma corrida"
+ride_reassigned_away: igual · "Corrida passada a outro motorista"
+reservation_offer: igual · "📅 Reserva para aceitar"
+reservation_assigned: igual · "📅 Ficaste com uma reserva"
+reservation_reminder_early: igual · "⏰ Reserva daqui a uma hora"
+reservation_start_now: igual · "🚗 A tua reserva começa em 10 minutos"
+reservation_cancelled: igual · "Reserva cancelada"
+reservation_lost: igual · "Reserva passou a outro motorista"
+reservation_rescheduled: igual · "📅 A tua reserva mudou de hora"
+reservation_rescheduled_lost: igual · "Reserva passou a outro motorista"
+stop_added: igual · "📍 Paragem adicionada"
+dest_changed: igual · "📍 Novo destino"
+[0m[38;5;245m----- output end -----[0m
+passageiros: a nova manda EXACTAMENTE o mesmo que a v22 (15 kinds) ... [0m[32mok[0m [0m[38;5;245m(61ms)[0m
+encomendas: a nova não diz corrida/motorista/passageiro/viagem e a oferta diz Nova encomenda ...
+[0m[38;5;245m------- output -------[0m
+[notify-tvde-driver] INVOKED (Firebase configured: true )
+[notify-tvde-driver v21] kind=offer aparelhos=1 enviados=1
+[notify-tvde-driver] Push sent to driver 00000000-0000-0000-0000-00000000d3e0 ride 11111111-2222-3333-4444-555555555555
+[0m[38;5;245m----- output end -----[0m
+encomendas: a nova não diz corrida/motorista/passageiro/viagem e a oferta diz Nova encomenda ... [0m[31mFAILED[0m [0m[38;5;245m(7ms)[0m
+
+[0m[1m[37m[41m ERRORS [0m
+
+encomendas: a nova não diz corrida/motorista/passageiro/viagem e a oferta diz Nova encomenda [0m[38;5;245m=> ./simular_test.ts:131:6[0m
+[0m[1m[31merror[0m: Error: offer: palavra de passageiro numa encomenda: "🚗 Nova corrida!"
+      if (proibido.test(t)) throw new Error(`${kind}: palavra de passageiro numa encomenda: "${t}"`)
+[0m[31m                                  ^[0m
+    at [0m[2m[38;5;245mfile:///C:/BoraLocal/wt-encomendas-n2-21-10/.claude/.ai/missoes/fechar-pendencias-2026-10-20/n2/sim-notify/[0m[0m[36msimular_test.ts[0m:[0m[33m139[0m:[0m[33m35[0m
+
+[0m[1m[37m[41m FAILURES [0m
+
+encomendas: a nova não diz corrida/motorista/passageiro/viagem e a oferta diz Nova encomenda [0m[38;5;245m=> ./simular_test.ts:131:6[0m
+
+[0m[31mFAILED[0m | 1 passed | 1 failed [0m[38;5;245m(77ms)[0m
+
+[0m[1m[31merror[0m: Test failed

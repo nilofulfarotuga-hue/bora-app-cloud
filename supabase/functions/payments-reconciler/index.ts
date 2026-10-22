@@ -29,6 +29,8 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { lerPagoDoPedido } from '../_shared/cobranca_stripe.ts';
+import { chamadaDoServidor } from '../_shared/chaves.ts';
+import { secretKey } from '../_shared/keys.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -40,7 +42,7 @@ const json = (b: unknown, s = 200) =>
 
 const STRIPE_KEY = Deno.env.get('STRIPE_SECRET_KEY') ?? '';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
-const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+const SERVICE_KEY = secretKey() ?? '';
 const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
 interface Finding {
@@ -144,11 +146,14 @@ Deno.serve(async (req) => {
 
   // Auth: service_role apenas (mesmo padrao do notify-admin-urgent).
   const auth = req.headers.get('Authorization') ?? '';
-  try {
-    const payload = JSON.parse(atob(auth.replace(/^Bearer\s+/i, '').split('.')[1]));
-    if (payload.role !== 'service_role') return json({ ok: false, error: 'forbidden' }, 403);
-  } catch (_) {
-    return json({ ok: false, error: 'forbidden' }, 403);
+  // 16/10/2026 (chave nova): aceita também a chave secreta nova (sb_secret) em Bearer/apikey — ver _shared/chaves.ts
+  if (!(await chamadaDoServidor(req))) {
+    try {
+      const payload = JSON.parse(atob(auth.replace(/^Bearer\s+/i, '').split('.')[1]));
+      if (payload.role !== 'service_role') return json({ ok: false, error: 'forbidden' }, 403);
+    } catch (_) {
+      return json({ ok: false, error: 'forbidden' }, 403);
+    }
   }
 
   // Kill switch (fail-closed: setting em falta/false = nao corre).
@@ -305,7 +310,7 @@ Deno.serve(async (req) => {
       // mesma credencial passa o check identico do notify-admin-urgent.
       const res = await fetch(`${SUPABASE_URL}/functions/v1/notify-admin-urgent`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: auth },
+        headers: { 'Content-Type': 'application/json', Authorization: auth, apikey: secretKey() },
         body: JSON.stringify({
           kind: 'generic',
           title: `\u{1F4B0} Reconciliador: ${novos} divergencia(s) nova(s)`,

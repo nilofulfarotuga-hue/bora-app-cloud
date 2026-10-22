@@ -9,6 +9,7 @@
 // A mensagem tem de dizer isso, senao o cliente pensa que paga o total cheio.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { exigirCallerOk, secretKey } from '../_shared/keys.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,11 +19,15 @@ const corsHeaders = {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+  // 16/10/2026: verificação própria de quem chama — servidor com a chave secreta (ou a legada confirmada
+  // no Auth) ou utilizador com sessão válida. Antes esta função aceitava qualquer chamada. Ver _shared/keys.ts.
+  const bloqueio = await exigirCallerOk(req, corsHeaders)
+  if (bloqueio) return bloqueio
 
   const firebaseProjectId   = Deno.env.get('FIREBASE_PROJECT_ID')
   const firebaseServiceAcct = Deno.env.get('FIREBASE_SERVICE_ACCOUNT')
   const supabaseUrl         = Deno.env.get('SUPABASE_URL')!
-  const serviceKey          = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  const serviceKey          = secretKey()!
 
   if (!firebaseProjectId || !firebaseServiceAcct) {
     return json({ ok: false, reason: 'firebase_not_configured' })

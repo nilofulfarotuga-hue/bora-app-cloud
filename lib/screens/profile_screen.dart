@@ -38,6 +38,7 @@ import 'client_reservations_screen.dart';
 import 'orders_screen.dart';
 import 'client_addresses_screen.dart';
 import 'client_promo_code_screen.dart';
+import 'client/checkin_premios_screen.dart';
 import 'connect/connect_payments_screen.dart';
 import 'connect/connect_statement_screen.dart';
 import 'driver_permissions_screen.dart';
@@ -853,6 +854,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       context,
                       MaterialPageRoute(
                           builder: (_) => const ClientAddressesScreen()),
+                    ),
+                  ),
+                  // Bloco D (21/10/2026): os vales dos marcos do check-in.
+                  ListTile(
+                    key: const Key('perfil_os_meus_premios'),
+                    leading: const Icon(Icons.emoji_events_outlined,
+                        color: AppColors.primary),
+                    title: Text('Os meus prémios'.tr),
+                    subtitle: Text('Prémios do check-in diário'.tr),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const CheckinPremiosScreen()),
                     ),
                   ),
                   ListTile(

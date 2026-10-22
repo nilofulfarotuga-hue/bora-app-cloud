@@ -176,7 +176,7 @@ class CleaningStore extends ChangeNotifier {
   }
 
   /// A última leitura de [loadMyBookings] falhou (a lista é a anterior).
-  /// O separador Reserva usa isto para avisar em vez de dizer "nada marcado".
+  /// O separador Reservas usa isto para avisar em vez de dizer "nada marcado".
   bool _myBookingsFailed = false;
   bool get myBookingsFailed => _myBookingsFailed;
 

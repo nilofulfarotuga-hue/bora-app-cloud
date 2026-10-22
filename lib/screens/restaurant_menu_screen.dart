@@ -16,6 +16,7 @@ import '../models/partner_product.dart';
 import '../models/restaurant_model.dart';
 import '../services/order_eta_service.dart';
 import '../services/pricing_service.dart';
+import '../services/registo_pesquisa.dart';
 import '../stores/cart_store.dart';
 import '../stores/favorite_store.dart';
 import '../stores/restaurant_store.dart';
@@ -112,6 +113,8 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
   // ── Search state (2026-06-05 — RPC fuzzy igual ao padrão StoreProductsScreen)
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+  // B2 (20/10): o que se procura no menu também conta no painel "KPIs de pesquisa".
+  final RegistoPesquisa _registo = RegistoPesquisa();
   Timer? _rpcDebounce;
   List<Map<String, dynamic>> _rpcRows = const [];
   bool _rpcLoading = false;
@@ -134,6 +137,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
   @override
   void dispose() {
     _rpcDebounce?.cancel();
+    _registo.dispose();
     _searchController.dispose();
     _menuScroll.dispose();
     _sectionTabs?.dispose();
@@ -414,7 +418,9 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
               onChanged: (v) {
                 setState(() => _searchQuery = v);
                 _scheduleRpcSearch(v);
+                _registo.aoEscrever(v);
               },
+              onSubmitted: _registo.registarJa,
               decoration: InputDecoration(
                 hintText: 'Buscar no menu...'.tr,
                 hintStyle: TextStyle(color: Colors.grey.shade400),

@@ -17,6 +17,7 @@ import '../../../models/driver_model.dart';
 import '../../../services/driver_location_ping_service.dart';
 import '../../../services/heartbeat_service.dart';
 import '../../../services/localizacao_online.dart';
+import '../../../services/notification_service.dart';
 import '../../../services/papeis_de_trabalho.dart';
 import '../../../widgets/caixa_de_papeis.dart';
 import '../../../widgets/ganho_de_hoje_card.dart';
@@ -27,6 +28,7 @@ import '../../../services/push_token_service.dart';
 import '../../../stores/driver_store.dart';
 import '../../../stores/order_store.dart';
 import '../../../stores/tvde_driver_store.dart';
+import '../../../widgets/aviso_atividade_banner.dart';
 import '../../../widgets/aviso_toque_banner.dart';
 import '../../../widgets/background_location_disclosure.dart';
 import '../../../widgets/bora_support_sheet.dart';
@@ -39,6 +41,9 @@ import '../../../widgets/tvde/tvde_horas_servico_card.dart';
 import 'fiscalizacao_screen.dart';
 import 'ficha_legal_form_screen.dart';
 import 'tvde_conformidade_screen.dart';
+import '../../../stores/tvde_store.dart';
+import '../../../models/ride_kind.dart';
+import '../../../utils/ride_kind_context.dart';
 import 'tvde_driver_agenda_screen.dart';
 import 'tvde_offer_screen.dart';
 import 'tvde_ride_active_screen.dart';
@@ -47,6 +52,9 @@ import 'tvde_ride_active_screen.dart';
 /// roteado a partir do _RootNavigator quando vehicle_type='carro_passageiros').
 /// Reusa o MESMO mecanismo de is_online + heartbeat (90s) + GPS do delivery —
 /// não cria heartbeat novo. 100% isolado do dispatch de entregas.
+///
+/// 17/10/2026 (cancelamento tardio): liga também o toque das mensagens do
+/// painel (`setupBroadcastDeepLink`), para o aviso de compensação abrir o sino.
 class TvdeDriverHomeScreen extends StatefulWidget {
   const TvdeDriverHomeScreen({super.key});
 
@@ -97,11 +105,23 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
   /// mapa nunca aparece vazio/branco: renderiza sempre com câmara válida.
   static const gmaps.LatLng _guardaCenter = gmaps.LatLng(40.5373, -7.2657);
 
+  /// [21/10 · A1 r1] `tvde_encomendas_enabled` (lido ao abrir; falha = desligado).
+  bool _encomendasLigadas = false;
+
+  /// Frase geral: a de sempre, ou a que também fala de encomendas.
+  String _eEnc(String sem, String com) => _encomendasLigadas ? com : sem;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadDriverArrowIcon();
+    // [21/10 · A1 r1] Com as encomendas ligadas, o mesmo motorista recebe
+    // corridas E encomendas: as frases gerais dizem as duas coisas.
+    final tvdeCliente = context.read<TvdeStore>();
+    tvdeCliente.getSettingBool('tvde_encomendas_enabled', false).then((v) {
+      if (mounted && v != _encomendasLigadas) setState(() => _encomendasLigadas = v);
+    });
     // [Uma corrida = uma stream · 05/09] Enquanto o ecrã de corrida activa tiver
     // GPS próprio a dar posições, a stream desta home fica suspensa. Ver
     // `_onCorridaGpsChanged`.
@@ -549,8 +569,9 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     final ok = driverStore.toggleAvailability(id, value);
     if (!ok) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Conclui a corrida atual antes de ficar offline.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Conclui a corrida atual antes de ficar offline.'
+                .rk(context.tvdeDriverKind))));
       }
       return;
     }
@@ -616,10 +637,11 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     final enabled = await Geolocator.isLocationServiceEnabled();
     if (!enabled) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('GPS desativado. Ative a localização para receber corridas.'),
-          duration: Duration(seconds: 8),
-          action: SnackBarAction(
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(_eEnc('GPS desativado. Ative a localização para receber corridas.',
+              'GPS desativado. Ative a localização para receber corridas e encomendas.')),
+          duration: const Duration(seconds: 8),
+          action: const SnackBarAction(
             label: 'Ativar',
             onPressed: Geolocator.openLocationSettings,
           ),
@@ -662,7 +684,8 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     // saía do matching a conduzir com a app em fundo. Ver LocalizacaoOnline.
     final definicoes = await LocalizacaoOnline.definicoes(
       titulo: 'Bora — estás online',
-      texto: 'Recebes as corridas na hora, mesmo com a app em fundo.',
+      texto: _eEnc('Recebes as corridas na hora, mesmo com a app em fundo.',
+          'Recebes as corridas e encomendas na hora, mesmo com a app em fundo.'),
     );
     // [GPS órfão · 07/10] Só o arranque mais recente subscreve (dois arranques
     // sobrepostos deixavam uma subscrição sem dono a escrever posições).
@@ -710,10 +733,11 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
       if (!mounted) return;
       if (e is LocationServiceDisabledException) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('GPS desativado. Ative a localização para receber corridas.'),
-            duration: Duration(seconds: 8),
-            action: SnackBarAction(
+          SnackBar(
+            content: Text(_eEnc('GPS desativado. Ative a localização para receber corridas.',
+                'GPS desativado. Ative a localização para receber corridas e encomendas.')),
+            duration: const Duration(seconds: 8),
+            action: const SnackBarAction(
               label: 'Ativar',
               onPressed: Geolocator.openLocationSettings,
             ),
@@ -747,9 +771,10 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     if (!_heartbeat.serverAck.value) {
       messenger.showMaterialBanner(MaterialBanner(
         backgroundColor: Colors.red.shade700,
-        content: const Text(
-          'Sem ligação ao servidor — podes não estar a receber corridas.',
-          style: TextStyle(color: Colors.white),
+        content: Text(
+          _eEnc('Sem ligação ao servidor — podes não estar a receber corridas.',
+              'Sem ligação ao servidor — podes não estar a receber corridas nem encomendas.'),
+          style: const TextStyle(color: Colors.white),
         ),
         actions: [
           TextButton(
@@ -831,6 +856,11 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    // [17/10/2026 · cancelamento tardio] Toque numa mensagem do painel
+    // (push `admin_message`, ex.: compensação de cancelamento) abre o ecrã de
+    // notificações. Estava só nas homes da entrega e do parceiro — o motorista
+    // só de TVDE nunca o ligava. Idempotente.
+    NotificationService.setupBroadcastDeepLink(context);
     // Dispara a navegação reativa sempre que o store muda.
     context.watch<TvdeDriverStore>();
     // [Item F] Ofertas de entrega/favor (OrderStore) aparecem como overlay SOBRE
@@ -960,6 +990,12 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
             ativo: isOnline,
             margem: const EdgeInsets.fromLTRB(12, 8, 12, 4),
           ),
+          // [20/10/2026] Falta o comprovativo de atividade — aviso, não bloqueia
+          // (fora do Stack, como o de cima: nunca tapa a oferta).
+          const AvisoAtividadeBanner(
+              margem: EdgeInsets.fromLTRB(12, 4, 12, 4),
+              compacto: true,
+              dispensavel: true),
           Expanded(
             child: Stack(
               children: [
@@ -1041,6 +1077,7 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
                   child: SafeArea(
                     child: _OnlinePanel(
                       isOnline: isOnline,
+                      encomendasLigadas: _encomendasLigadas,
                       todayEarnCents:
                           context.read<TvdeDriverStore>().todayEarnCents,
                       avgRating: context
@@ -1123,6 +1160,7 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
 class _OnlinePanel extends StatelessWidget {
   const _OnlinePanel({
     required this.isOnline,
+    this.encomendasLigadas = false,
     required this.todayEarnCents,
     required this.avgRating,
     required this.ratingsCount,
@@ -1132,6 +1170,10 @@ class _OnlinePanel extends StatelessWidget {
     this.horasServico,
   });
   final bool isOnline;
+
+  /// [21/10 · A1 r1] Com as encomendas ligadas a frase diz "corridas e encomendas".
+  final bool encomendasLigadas;
+  String _eEnc(String sem, String com) => encomendasLigadas ? com : sem;
   final int todayEarnCents;
   final double? avgRating;
   final int ratingsCount;
@@ -1220,8 +1262,10 @@ class _OnlinePanel extends StatelessWidget {
                         color: AppColors.textPrimary)),
                 Text(
                   isOnline
-                      ? 'À espera de corridas de passageiros.'
-                      : 'Fica online para receber corridas.',
+                      ? _eEnc('À espera de corridas de passageiros.',
+                          'À espera de corridas e encomendas.')
+                      : _eEnc('Fica online para receber corridas.',
+                          'Fica online para receber corridas e encomendas.'),
                   style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
                 ),
               ],

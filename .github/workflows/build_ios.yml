@@ -144,6 +144,7 @@ jobs:
         run: |
           if [ -n "$DART_DEFINES_FILE_B64" ]; then
             echo "$DART_DEFINES_FILE_B64" | base64 --decode > .dart_defines
+            python3 .github/scripts/chave_publica_supabase.py .dart_defines  # chave publicável (15/10/2026)
             echo "dart-defines injetados ($(wc -l < .dart_defines) linhas)"
           else
             # Sem o segredo o build tem de continuar: as chaves só são lidas em
@@ -540,6 +541,7 @@ jobs:
           GOOGLE_SERVICE_INFO_PLIST_B64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_B64 }}
         run: |
           echo "$DART_DEFINES_FILE_B64" | base64 --decode > .dart_defines
+          python3 .github/scripts/chave_publica_supabase.py .dart_defines  # chave publicável (15/10/2026)
           echo "$GOOGLE_SERVICE_INFO_PLIST_B64" | base64 --decode > ios/Runner/GoogleService-Info.plist
 
           # A MESMA cicatriz do job A, e aqui e' que doi a serio: e' este o

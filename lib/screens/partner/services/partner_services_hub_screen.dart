@@ -8,6 +8,7 @@ import '../../../services/notification_service.dart';
 import '../../../stores/partner_appointments_store.dart';
 import '../../../stores/session_store.dart';
 import '../../../utils/staff_terminology.dart';
+import '../../../widgets/aviso_atividade_banner.dart';
 import '../../../widgets/biometric_login_tile.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
 import '../../../widgets/partner_weekly_closeout_card.dart';
@@ -93,6 +94,8 @@ class _PartnerServicesHubScreenState extends State<PartnerServicesHubScreen> {
           }
           return ListView(
             children: [
+              // [20/10/2026] Falta o comprovativo de atividade — aviso, não bloqueia.
+              const AvisoAtividadeBanner(),
               Container(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
                 color: AppColors.surface,

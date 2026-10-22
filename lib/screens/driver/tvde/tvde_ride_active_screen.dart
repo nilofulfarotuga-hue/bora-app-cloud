@@ -26,6 +26,7 @@ import '../../../services/navigation_service.dart';
 import '../../../services/localizacao_online.dart'
     show gpsLigadoSemServicoPorEstarEmFundo;
 import '../../../services/tvde_corrida_localizacao_service.dart';
+import '../../../services/tvde_posicao_ao_vivo.dart';
 import '../../../stores/driver_store.dart';
 import '../../../stores/tvde_chat_store.dart';
 import '../../../stores/tvde_driver_store.dart';
@@ -47,6 +48,8 @@ import '../../../widgets/tvde/tvde_sos_button.dart';
 import '../../../services/tvde_conformidade_service.dart';
 import '../../shared/tvde_chat_screen.dart';
 import 'tvde_driver_rate_screen.dart';
+import '../../../models/ride_kind.dart';
+import '../../../utils/ride_kind_context.dart';
 
 /// [Uma corrida = uma stream · 05/09] `true` enquanto o ecrã de corrida activa
 /// tiver GPS PRÓPRIO a funcionar. A home escuta isto e SUSPENDE a stream dela
@@ -62,9 +65,25 @@ import 'tvde_driver_rate_screen.dart';
 /// sempre esteve.
 final ValueNotifier<bool> tvdeCorridaControlaGps = ValueNotifier<bool>(false);
 
+/// [17/10/2026 · cancelamento tardio] Texto da SnackBar quando o cliente
+/// cancela: o da notificação de compensação (`tvde_cancel_comp`) se existir,
+/// senão o genérico. Função pura (teste em `test/aviso_mensagem_admin_test.dart`).
+String textoDoAvisoDeCancelamento(Map<String, dynamic>? aviso,
+    {RideKind rideKind = RideKind.passageiros}) {
+  final titulo = (aviso?['title'] as String?)?.trim() ?? '';
+  final corpo = (aviso?['body'] as String?)?.trim() ?? '';
+  if (titulo.isEmpty && corpo.isEmpty) return 'O cliente cancelou a corrida.'.rk(rideKind);
+  if (titulo.isEmpty) return corpo;
+  if (corpo.isEmpty) return titulo;
+  return '$titulo. $corpo';
+}
+
 /// TVDE — Corrida ativa do motorista: a caminho → cheguei → iniciar →
 /// finalizar. Reusa o stack de mapa do delivery (google_maps_flutter). A
 /// posição do motorista vem do DriverStore (GPS já a correr na home).
+///
+/// 17/10/2026 (cancelamento tardio): quando o cliente cancela, uma SnackBar
+/// diz porquê e, se houver, a compensação. Navegação e fila ficam iguais.
 class TvdeRideActiveScreen extends StatefulWidget {
   const TvdeRideActiveScreen({super.key});
 
@@ -80,6 +99,41 @@ class TvdeRideActiveScreen extends StatefulWidget {
 class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   static int _montados = 0;
   bool _navigatedToRate = false;
+
+  /// [17/10/2026 · cancelamento tardio] A SnackBar "o cliente cancelou" já foi
+  /// pedida para esta corrida (o build repete-se com a corrida cancelada).
+  bool _avisoClienteCancelou = false;
+
+  /// Lê o aviso de compensação desta corrida (`in_app_notifications`, kind
+  /// `tvde_cancel_comp`, o servidor escreve-o na mesma transação do
+  /// cancelamento) e mostra-o no messenger da raiz, que sobrevive ao pop.
+  /// Sem aviso legível → "O cliente cancelou a corrida.".
+  Future<void> _avisarClienteCancelou(
+      String rideId, ScaffoldMessengerState? messenger) async {
+    if (messenger == null) return;
+    final tipo = context.tvdeDriverKind; // antes do await: a corrida ainda está no store
+    Map<String, dynamic>? aviso;
+    try {
+      final sb = Supabase.instance.client;
+      if (sb.auth.currentUser != null) {
+        aviso = await sb
+            .from('in_app_notifications')
+            .select('title, body')
+            .eq('kind', 'tvde_cancel_comp')
+            .eq('related_id', rideId)
+            .order('created_at', ascending: false)
+            .limit(1)
+            .maybeSingle()
+            .timeout(const Duration(seconds: 5));
+      }
+    } catch (_) {
+      // Sem leitura (rede, sessão): fica o texto genérico.
+    }
+    messenger.showSnackBar(SnackBar(
+      content: Text(textoDoAvisoDeCancelamento(aviso, rideKind: tipo)),
+      duration: const Duration(seconds: 8),
+    ));
+  }
 
   /// [Ronda 2] Enquanto true, a corrida já está 'finalizada' mas o ecrã NÃO
   /// avança para a avaliação — falta o motorista ver o lembrete de cobrança.
@@ -269,6 +323,11 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   DateTime? _ultimoEnvioAoServidor;
   Position? _ultimaPosicaoLida;
   Timer? _feedTicker;
+
+  /// [A2 · 21/10] Carro a deslizar no mapa do cliente: a posição vai também
+  /// pelo canal PRIVADO da corrida (Realtime broadcast), de 2 em 2 s. Não
+  /// escreve no banco e não mexe no que vai para `driver_locations`.
+  PosicaoAoVivoEmissor? _emissorPos;
 
   /// [Pontinho azul · 07/10] O cliente a mexer-se enquanto o motorista chega
   /// — vem de `client_live_locations` (Realtime, só quando ele quis
@@ -468,6 +527,20 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   void _alimentarServidor(Position p) {
     if (!_donoDoGps || !mounted) return;
     _ultimaPosicaoLida = p;
+    // [A2 · 21/10] O canal da corrida tem o seu próprio travão (2 s); a
+    // cadência da base, abaixo, fica exactamente como estava.
+    final corridaPos = context.read<TvdeDriverStore>().activeRide;
+    if (RastreioSettings.posAoVivoEnabled &&
+        corridaPos != null &&
+        corridaPos.id == _rideId &&
+        tvdeCorridaComPosicao(corridaPos.status)) {
+      _emissorPos?.emitir(
+        lat: p.latitude,
+        lng: p.longitude,
+        heading: p.heading.isFinite ? p.heading : null,
+        speedKmh: p.speed.isFinite ? p.speed * 3.6 : null,
+      );
+    }
     final agora = DateTime.now();
     final intervalo = Duration(seconds: _intervaloFeedSegundos.clamp(1, 60));
     final ultimo = _ultimoEnvioAoServidor;
@@ -542,6 +615,9 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     _etaTicker?.cancel();
     _setaTimer?.cancel();
     _feedTicker?.cancel();
+    final emissor = _emissorPos;
+    _emissorPos = null;
+    if (emissor != null) unawaited(emissor.parar());
     _pontoCliente.dispose();
     final feed = _clienteFeed;
     _clienteFeed = null;
@@ -852,7 +928,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
           alpha: 0.85,
           infoWindow: InfoWindow(
               title: 'Próxima recolha',
-              snippet: queued.originLabel ?? 'Recolha da próxima corrida'),
+              snippet: queued.originLabel ?? 'Recolha da próxima corrida'.rk(queued.rideKind)),
         ),
         Marker(
           markerId: const MarkerId('queued_dest'),
@@ -861,7 +937,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
           alpha: 0.6,
           infoWindow: InfoWindow(
               title: 'Próximo destino',
-              snippet: queued.destLabel ?? 'Destino da próxima corrida'),
+              snippet: queued.destLabel ?? 'Destino da próxima corrida'.rk(queued.rideKind)),
         ),
       };
 
@@ -1049,6 +1125,17 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   void _onRideChanged(TvdeRide ride) {
     if (_rideId == ride.id) return;
     _rideId = ride.id;
+    // [A2 · 21/10] Um canal por corrida: troca de corrida → fecha o velho.
+    final emissorVelho = _emissorPos;
+    _emissorPos = null;
+    if (emissorVelho != null) unawaited(emissorVelho.parar());
+    if (RastreioSettings.posAoVivoEnabled && !kIsWeb) {
+      _emissorPos = PosicaoAoVivoEmissor(
+        rideId: ride.id,
+        intervalo: Duration(
+            seconds: RastreioSettings.posAoVivoIntervaloSeconds.clamp(1, 10)),
+      )..iniciar();
+    }
     // [Cartão preso · 06/10] O cartão global nunca desenha como oferta a
     // corrida que este ecrã está a mostrar.
     TvdeOfferPresentation.corridaMostrada.value = ride.id;
@@ -1109,7 +1196,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
         builder: (_) => TvdeChatScreen(
           rideId: ride.id,
           myRole: 'driver',
-          title: _passengerName ?? 'Passageiro',
+          title: _passengerName ?? 'Passageiro'.rk(context.tvdeDriverKind),
           otherPhone: _passengerPhone,
         ),
       ),
@@ -1529,10 +1616,9 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
       context: context,
       builder: (d) => AlertDialog(
         title: const Text('Devolver esta reserva?'),
-        content: const Text(
-            'A Bora procura outro motorista. Deixas de ficar com esta corrida '
-            'e não perdes nada por devolveres — vale mais avisares agora do que '
-            'o cliente ficar à espera.'),
+        content: Text(
+            'A Bora procura outro motorista. Deixas de ficar com esta corrida e não perdes nada por devolveres — vale mais avisares agora do que o cliente ficar à espera.'
+                .rk(ride.rideKind)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(d, false),
@@ -1547,11 +1633,11 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     try {
       final ok = await context
           .read<TvdeDriverStore>()
-          .releaseReservation(ride.id, motivo: 'o motorista devolveu a reserva');
+          .releaseReservation(ride.id, motivo: 'o motorista devolveu a reserva'.rk(context.tvdeDriverKind));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(ok
-              ? 'Reserva devolvida. A Bora procura outro motorista.'
+              ? 'Reserva devolvida. A Bora procura outro motorista.'.rk(context.tvdeDriverKind)
               : 'Não consegui devolver. Atualiza e tenta outra vez.')));
       if (!ok) await _recarregarDoServidor();
     } catch (e) {
@@ -1656,7 +1742,8 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
         final earn = (finished.netDriverEarnCents / 100).toStringAsFixed(2);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(
-                'Corrida finalizada — ganhaste €$earn. Próxima corrida ativada.')));
+                'Corrida finalizada — ganhaste €{0}. Próxima corrida ativada.'
+                    .rkArgs(ride.rideKind, [earn]))));
       }
     } catch (e) {
       if (mounted) setState(() => _collectReminderPending = false);
@@ -1694,10 +1781,10 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(noShow ? 'Passageiro não compareceu?' : 'Cancelar corrida?'),
+        title: Text(noShow ? 'Passageiro não compareceu?'.rk(context.tvdeDriverKind) : 'Cancelar corrida?'.rk(context.tvdeDriverKind)),
         content: Text(noShow
-            ? 'Marca como "não compareceu" se o passageiro não apareceu no local.'
-            : 'Tens a certeza que queres cancelar esta corrida?'),
+            ? 'Marca como "não compareceu" se o passageiro não apareceu no local.'.rk(context.tvdeDriverKind)
+            : 'Tens a certeza que queres cancelar esta corrida?'.rk(context.tvdeDriverKind)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -1717,16 +1804,16 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
       // de espera é creditada server-side (tvde_cancel_ride actor=no_show). Sem
       // hardcode do valor (a setting manda) — só informa que foi creditada.
       if (noShow) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(
-                'Registado: passageiro não compareceu. A taxa de espera foi creditada a ti.')));
+                'Registado: passageiro não compareceu. A taxa de espera foi creditada a ti.'.rk(context.tvdeDriverKind))));
       }
       // Back-to-back: se a fila foi ativada pelo cancelamento, fica no ecrã
       // (a corrida ativada é renderizada); caso contrário volta à home.
       final next = store.activeRide;
       if (next != null && next.id != ride.id && next.isLive) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Próxima corrida na fila ativada.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Próxima corrida na fila ativada.'.rk(context.tvdeDriverKind))));
         return;
       }
       store.clearActive();
@@ -1742,10 +1829,10 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Largar a próxima corrida?'),
+        title: Text('Largar a próxima corrida?'.rk(context.tvdeDriverKind)),
         content: Text(
-            'A corrida ${queued.originLabel ?? 'em fila'} volta para outros motoristas. '
-            'A corrida que estás a fazer continua igual.'),
+            '${'A corrida {0} volta para outros motoristas.'.rkArgs(queued.rideKind, [queued.originLabel ?? 'em fila'])} '
+            '${'A corrida que estás a fazer continua igual.'.rk(context.tvdeDriverKind)}'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -1760,8 +1847,8 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     try {
       await context.read<TvdeDriverStore>().releaseQueuedRide(queued.id);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Próxima corrida largada — voltou para a roda.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Próxima corrida largada — voltou para a roda.'.rk(context.tvdeDriverKind))));
     } catch (e) {
       await _falhouAcao(e, rideId: queued.id);
     }
@@ -1821,8 +1908,8 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     }
     if (!mounted) return;
     if (store.activeRide == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Já não tens nenhuma corrida a decorrer.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Já não tens nenhuma corrida a decorrer.'.rk(context.tvdeDriverKind))));
       Navigator.of(context).maybePop();
     }
   }
@@ -1920,6 +2007,14 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     if (ride.isFinished && !_collectReminderPending) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _goToRate(ride));
     } else if (ride.isCancelled) {
+      // [17/10/2026 · cancelamento tardio] O ecrã saía em silêncio quando o
+      // cliente cancelava. Agora diz-lhe porquê (e, se houve compensação, o
+      // valor), UMA só vez — o build repete-se. A navegação fica igual.
+      if (ride.status == 'cancelada_cliente' && !_avisoClienteCancelou) {
+        _avisoClienteCancelou = true;
+        unawaited(_avisarClienteCancelou(
+            ride.id, ScaffoldMessenger.maybeOf(context)));
+      }
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         store.clearActive();
@@ -1938,7 +2033,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
 
     return Scaffold(
       appBar: BoraScreenAppBar(
-        title: 'Corrida',
+        title: 'Corrida'.rk(context.tvdeDriverKind),
         actions: [
           if (ride.isOnTheWay || ride.hasArrived)
             PopupMenuButton<String>(
@@ -1947,14 +2042,14 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
                 if (v == 'no_show') _cancel(ride, noShow: true);
               },
               itemBuilder: (_) => [
-                const PopupMenuItem(value: 'cancel', child: Text('Cancelar corrida')),
+                PopupMenuItem(value: 'cancel', child: Text('Cancelar corrida'.rk(context.tvdeDriverKind))),
                 if (ride.hasArrived)
                   PopupMenuItem(
                       value: 'no_show',
                       // 4c — só habilita depois da janela de espera (padrão
                       // Uber; default 5 min, configurável no admin).
                       enabled: _noShowUnlocked(ride),
-                      child: const Text('Passageiro não compareceu')),
+                      child: Text('Passageiro não compareceu'.rk(context.tvdeDriverKind))),
               ],
             ),
         ],
@@ -2284,7 +2379,7 @@ class _DetalheDaCorrida extends StatelessWidget {
           // grande é a do alvo da fase, no cabeçalho.
           const SizedBox(height: Spacing.md),
           Text(
-              'Viagem: ${ride.originLabel ?? 'Recolha'} → '
+              '${'Viagem'.rk(ride.rideKind)}: ${ride.originLabel ?? 'Recolha'} → '
               '${ride.destLabel ?? 'Destino'}',
               style: const TextStyle(
                   color: AppColors.textSecondary, fontSize: 12.5)),
@@ -2452,6 +2547,7 @@ class TvdeCorridaCabecalho extends StatelessWidget {
               child: _WaitChip(
                 seconds: esperaSegundos ?? 0,
                 unlocked: naoCompareceuLiberto,
+                rideKind: ride.rideKind,
               ),
             ),
           ],
@@ -2606,15 +2702,15 @@ class TvdeCorridaBotaoPrincipal extends StatelessWidget {
     IconData icon;
     VoidCallback? accao;
     if (ride.isOnTheWay) {
-      label = 'Cheguei ao passageiro';
+      label = 'Cheguei ao passageiro'.rk(ride.rideKind);
       icon = Icons.where_to_vote;
       accao = onCheguei;
     } else if (ride.hasArrived) {
-      label = 'Iniciar viagem';
+      label = 'Iniciar viagem'.rk(ride.rideKind);
       icon = Icons.play_arrow;
       accao = onIniciar;
     } else if (ride.isInProgress) {
-      label = 'Finalizar viagem';
+      label = 'Finalizar viagem'.rk(ride.rideKind);
       icon = Icons.flag;
       accao = onFinalizar;
     } else if (ride.status == 'motorista_atribuido' && ride.isReservation) {
@@ -2628,7 +2724,7 @@ class TvdeCorridaBotaoPrincipal extends StatelessWidget {
     } else if (ride.status == 'motorista_atribuido' && ride.isQueued) {
       // Back-to-back: usa o mesmo estado, mas não há nada a confirmar — esta
       // arranca sozinha quando a viagem actual terminar.
-      label = 'Começa ao terminares esta viagem';
+      label = 'Começa ao terminares esta viagem'.rk(ride.rideKind);
       icon = Icons.queue;
       accao = null;
     } else {
@@ -3057,9 +3153,15 @@ class _StopTile extends StatelessWidget {
 /// 4c — chip do temporizador de espera no pickup. Depois da janela, avisa que
 /// o no-show ficou disponível (menu ⋮ no topo).
 class _WaitChip extends StatelessWidget {
-  const _WaitChip({required this.seconds, required this.unlocked});
+  const _WaitChip(
+      {required this.seconds,
+      required this.unlocked,
+      this.rideKind = RideKind.passageiros});
   final int seconds;
   final bool unlocked;
+
+  /// [21/10 · A1 r1] Numa encomenda espera-se pela recolha, não pelo passageiro.
+  final RideKind rideKind;
 
   @override
   Widget build(BuildContext context) {
@@ -3083,8 +3185,8 @@ class _WaitChip extends StatelessWidget {
           Flexible(
             child: Text(
               unlocked
-                  ? 'Espera $mm:$ss — podes marcar "não compareceu" (menu ⋮)'
-                  : 'À espera do passageiro · $mm:$ss',
+                  ? 'Espera {0} — podes marcar "não compareceu" (menu ⋮)'.rkArgs(rideKind, ['$mm:$ss'])
+                  : 'À espera do passageiro · {0}'.rkArgs(rideKind, ['$mm:$ss']),
               style: TextStyle(
                   color: unlocked ? AppColors.error : AppColors.primary,
                   fontSize: 12.5,
@@ -3138,9 +3240,9 @@ class _QueuedRideCard extends StatelessWidget {
             children: [
               const Icon(Icons.queue, size: 16, color: AppColors.primary),
               const SizedBox(width: 6),
-              const Expanded(
-                child: Text('Próxima corrida — depois desta',
-                    style: TextStyle(
+              Expanded(
+                child: Text('Próxima corrida — depois desta'.rk(queued.rideKind),
+                    style: const TextStyle(
                         color: AppColors.primary,
                         fontSize: 13,
                         fontWeight: FontWeight.w800)),
@@ -3164,9 +3266,11 @@ class _QueuedRideCard extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            'Recolha a ${ligacaoKm.toStringAsFixed(1)} km do destino desta corrida '
-            '· ${queued.estDistanceKm.toStringAsFixed(1)} km de viagem. '
-            'Abre sozinha quando terminares.',
+            'Recolha a {0} km do destino desta corrida · {1} km de viagem. Abre sozinha quando terminares.'
+                .rkArgs(queued.rideKind, [
+              ligacaoKm.toStringAsFixed(1),
+              queued.estDistanceKm.toStringAsFixed(1),
+            ]),
             style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
           ),
           Align(

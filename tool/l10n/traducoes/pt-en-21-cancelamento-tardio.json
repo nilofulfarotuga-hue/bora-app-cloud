@@ -1,0 +1,19 @@
+{
+  "Não foi possível confirmar agora o custo do cancelamento. Se o motorista já aceitou há mais de {0} min, cancelar custa o valor da corrida. Queres cancelar na mesma?": "We couldn't confirm the cancellation cost right now. If the driver accepted more than {0} min ago, cancelling costs the ride fare. Cancel anyway?",
+  "Cancelar na mesma": "Cancel anyway",
+  "Sim, cancelar": "Yes, cancel",
+  "Cancelar e pagar {0} €": "Cancel and pay {0} €",
+  "Ainda nenhum motorista aceitou. Cancelas sem custo.": "No driver has accepted yet. You can cancel free of charge.",
+  "Cancelamento grátis durante mais {0} (conta desde que o motorista aceitou).": "Free cancellation for {0} more (counted from when the driver accepted).",
+  "Passado esse tempo, cancelar passa a ter custo (até {0} €, o valor da corrida).": "After that, cancelling has a cost (up to {0} €, the ride fare).",
+  "Custo de cancelamento: {0} €": "Cancellation cost: {0} €",
+  "O motorista já aceitou há mais de {0} min. Cancelar agora custa o valor total da corrida.": "The driver accepted more than {0} min ago. Cancelling now costs the full ride fare.",
+  "Esta corrida já está paga: o valor pago fica retido.": "This ride is already paid: the amount paid is kept.",
+  "O valor é debitado da tua carteira Bora (se não tiveres saldo, fica como dívida).": "The amount is debited from your Bora wallet (if you don't have enough balance, it stays as a debt).",
+  "Cancelar agora tem uma taxa de {0} €.": "Cancelling now has a fee of {0} €.",
+  "Cancelamento sem custo.": "Free cancellation.",
+  "Corrida cancelada. Foram cobrados {0} €.": "Ride cancelled. You were charged {0} €.",
+  "Corrida cancelada. Sem custo.": "Ride cancelled. No charge.",
+  "A corrida já estava cancelada.": "The ride was already cancelled.",
+  "Sem custo": "No charge"
+}

@@ -9,6 +9,7 @@ import '../models/order_service_type.dart';
 import '../models/restaurant_model.dart';
 import '../services/order_eta_service.dart';
 import '../services/pricing_service.dart';
+import '../services/registo_pesquisa.dart';
 import '../stores/cart_store.dart';
 import '../stores/favorite_store.dart';
 import '../stores/restaurant_store.dart';
@@ -48,6 +49,8 @@ class _RestaurantsScreenState extends State<RestaurantsScreen> {
   /// ecrã — sem um campo aqui o cliente aterrava numa lista sem pesquisa.
   final TextEditingController _search = TextEditingController();
   String _query = '';
+  // B2 (20/10): o que se procura aqui também conta no painel "KPIs de pesquisa".
+  final RegistoPesquisa _registo = RegistoPesquisa();
 
   bool get reservationsOnly => widget.reservationsOnly;
 
@@ -67,6 +70,7 @@ class _RestaurantsScreenState extends State<RestaurantsScreen> {
 
   @override
   void dispose() {
+    _registo.dispose();
     _search.dispose();
     super.dispose();
   }
@@ -118,7 +122,11 @@ class _RestaurantsScreenState extends State<RestaurantsScreen> {
             child: BoraSearchField(
               controller: _search,
               hint: 'Pesquisar restaurantes'.tr,
-              onChanged: (v) => setState(() => _query = v),
+              onChanged: (v) {
+                setState(() => _query = v);
+                _registo.aoEscrever(v);
+              },
+              onSubmitted: _registo.registarJa,
             ),
           ),
           Expanded(

@@ -7,6 +7,15 @@
 
 platform :ios, '15.0'
 
+# [20/10/2026 · comprovativo de atividade] O file_picker só é usado no iPhone
+# para escolher o PDF (seletor de documentos). Por defeito o pod compila também
+# o seletor de áudio (MPMediaPickerController — a Apple exige então
+# NSAppleMusicUsageDescription, ITMS-90683) e o de fotos (DKImagePickerController
+# + pods extra). As fotos vêm do image_picker; a app nunca escolhe áudio.
+# Bandeiras oficiais do pacote (file_picker.podspec: Pod::PICKER_*).
+Pod::PICKER_AUDIO = false
+Pod::PICKER_MEDIA = false
+
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 

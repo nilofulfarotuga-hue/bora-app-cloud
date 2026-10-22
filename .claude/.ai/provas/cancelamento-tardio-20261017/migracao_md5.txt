@@ -1,0 +1,2 @@
+servidor: md5(statements[1]) = be14735358fc9f8dcfe659a8090bf350 · 25880 bytes · 488 linhas (SELECT em supabase_migrations.schema_migrations, versao 20261017143124)
+ficheiro: be14735358fc9f8dcfe659a8090bf350 *supabase/migrations/20261017143124_tvde_cancelamento_tardio_corrida_inteira.sql · 25880 bytes

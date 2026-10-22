@@ -1,0 +1,115 @@
+[0m[32mCheck[0m simular_test.ts
+[0m[38;5;245mrunning 2 tests from ./simular_test.ts[0m
+passageiros: v8 manda EXACTAMENTE o mesmo que a v7 (10 estados, com e sem estafeta, e com título próprio) ...
+[0m[38;5;245m------- output -------[0m
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=motorista_atribuido)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=motorista_atribuido)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=motorista_a_caminho)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=motorista_a_caminho)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=motorista_chegou)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=motorista_chegou)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=em_andamento)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=em_andamento)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=finalizada)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=finalizada)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=sem_motorista)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=sem_motorista)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=cancelada_motorista)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=cancelada_motorista)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=agendada)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=agendada)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=reserva_confirmar)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=reserva_confirmar)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=motorista_atribuido)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=motorista_atribuido)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=motorista_a_caminho)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=motorista_a_caminho)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=motorista_chegou)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=motorista_chegou)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=em_andamento)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=em_andamento)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=finalizada)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=finalizada)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=sem_motorista)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=sem_motorista)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=cancelada_motorista)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=cancelada_motorista)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=agendada)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=agendada)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=reserva_confirmar)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=reserva_confirmar)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=finalizada)
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=finalizada)
+PASSAGEIROS
+motorista_atribuido: igual · "🚗 Motorista a caminho"
+motorista_a_caminho: igual · "🚗 Motorista a caminho"
+motorista_chegou: igual · "📍 O motorista chegou"
+em_andamento: igual · "🛣️ Viagem iniciada"
+finalizada: igual · "✅ Viagem concluída"
+sem_motorista: igual · "😕 Sem motoristas disponíveis"
+cancelada_motorista: igual · "Corrida cancelada"
+agendada: igual · "Reserva marcada"
+reserva_confirmar: igual · "Ainda queres a tua viagem?"
+estado_que_nao_existe: igual · "status_not_notifiable"
+[0m[38;5;245m----- output end -----[0m
+passageiros: v8 manda EXACTAMENTE o mesmo que a v7 (10 estados, com e sem estafeta, e com título próprio) ... [0m[32mok[0m [0m[38;5;245m(106ms)[0m
+encomendas: frases de entrega em todos os estados (incl. reservas); título próprio manda ...
+[0m[38;5;245m------- output -------[0m
+[notify-tvde-client] aparelhos=1 enviados=1
+[notify-tvde-client] ✓ Push to client 00000000-0000-0000-0000-0000000c1e00 (status=motorista_atribuido)
+[0m[38;5;245m----- output end -----[0m
+encomendas: frases de entrega em todos os estados (incl. reservas); título próprio manda ... [0m[31mFAILED[0m [0m[38;5;245m(11ms)[0m
+
+[0m[1m[37m[41m ERRORS [0m
+
+encomendas: frases de entrega em todos os estados (incl. reservas); título próprio manda [0m[38;5;245m=> ./simular_test.ts:97:6[0m
+[0m[1m[31merror[0m: Error: motorista_atribuido: palavra de passageiro numa encomenda: "🚗 Motorista a caminho"
+      if (proibido.test(t)) throw new Error(`${st}: palavra de passageiro numa encomenda: "${t}"`)
+[0m[31m                                  ^[0m
+    at [0m[2m[38;5;245mfile:///C:/BoraLocal/wt-encomendas-n2-21-10/.claude/.ai/missoes/fechar-pendencias-2026-10-20/n2/notify-tvde-client/[0m[0m[36msimular_test.ts[0m:[0m[33m106[0m:[0m[33m35[0m
+
+[0m[1m[37m[41m FAILURES [0m
+
+encomendas: frases de entrega em todos os estados (incl. reservas); título próprio manda [0m[38;5;245m=> ./simular_test.ts:97:6[0m
+
+[0m[31mFAILED[0m | 1 passed | 1 failed [0m[38;5;245m(123ms)[0m
+
+[0m[1m[31merror[0m: Test failed

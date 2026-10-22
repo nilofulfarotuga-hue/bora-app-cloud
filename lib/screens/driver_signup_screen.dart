@@ -1,4 +1,3 @@
-import 'dart:convert';
 import '../utils/io_compat.dart';
 
 import 'package:flutter/material.dart';
@@ -12,6 +11,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../models/driver_model.dart';
+import '../services/driver_documentos.dart';
+import '../services/driver_foto_upload.dart';
 import '../services/legal_fields_service.dart';
 import '../services/multi_role_signup.dart';
 import '../stores/session_store.dart';
@@ -272,28 +273,21 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
     );
   }
 
-  Future<String?> _uploadPhoto(XFile file, String userId, String tag) async {
+  /// Fotos já enviadas nesta candidatura (`kind:caminho` → endereço), para um
+  /// segundo toque em "Enviar" não as mandar outra vez.
+  final Map<String, String> _fotosEnviadas = {};
+
+  /// 22/10/2026: o tipo vem dos bytes (antes: `image/$ext` → `image/jpg`,
+  /// recusado pelo bucket), 3 tentativas, e a falha sobe — nunca é engolida.
+  Future<String> _uploadPhoto(XFile file, String kind, String rotulo) async {
+    final chave = '$kind:${file.path}';
+    final jaFoi = _fotosEnviadas[chave];
+    if (jaFoi != null) return jaFoi;
     final bytes = await file.readAsBytes();
-    final ext = file.path.contains('.')
-        ? file.path.split('.').last.toLowerCase()
-        : 'jpg';
-    final response = await Supabase.instance.client.functions.invoke(
-      'upload-driver-document',
-      body: {
-        'kind': tag,
-        'fileBase64': base64Encode(bytes),
-        'contentType': 'image/$ext',
-      },
-    );
-    if (response.status != 200 || response.data is! Map) {
-      throw Exception(
-          'upload-driver-document HTTP ${response.status}: ${response.data}');
-    }
-    final data = Map<String, dynamic>.from(response.data as Map);
-    if (data['success'] != true) {
-      throw Exception('Upload falhou: ${data['error'] ?? 'unknown'}');
-    }
-    return (data['signed_url'] ?? data['url'] ?? data['path']) as String?;
+    final url = await DriverFotoUpload.enviar(
+        bytes: bytes, kind: kind, rotulo: rotulo);
+    _fotosEnviadas[chave] = url;
+    return url;
   }
 
   // ── Step 2: Create account ─────────────────────────────────────────────────
@@ -425,39 +419,57 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
       ).showSnackBar(SnackBar(content: Text('Falta: $falta')));
       return;
     }
+    // 22/10/2026 (Danilo: "tudo que é pra ele tirar foto tem que aparecer"):
+    // a selfie e a foto do documento são obrigatórias — sem elas a candidatura
+    // chegava ao painel vazia.
+    final fotosEmFalta = <String>[
+      if (_selfieFile == null) 'foto pessoal (selfie)',
+      if (_documentPhotoFile == null) 'foto do documento',
+    ];
+    if (fotosEmFalta.isNotEmpty) {
+      setState(() => _currentStep = 2);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Falta: ${juntarComE(fotosEmFalta)}.')));
+      return;
+    }
+    if (_isProcessing) return; // toque duplo
     setState(() => _isProcessing = true);
     FocusScope.of(context).unfocus();
 
     try {
       final supabase = Supabase.instance.client;
-      final userId = supabase.auth.currentUser?.id ?? '';
 
-      // Upload photos — falha de upload NUNCA bloqueia o submit.
-      // Se falhar, o campo fica null e o Danilo valida/pede a foto depois.
+      // Fotos primeiro. Cada uma tenta 3 vezes; se falhar, pára aqui com a
+      // frase certa e NÃO submete (antes o erro era engolido e o estafeta
+      // ficava sem fotos sem ninguém saber). A falha fica no e2e_log.
       String? selfieUrl;
-      if (_selfieFile != null) {
-        try {
-          selfieUrl = await _uploadPhoto(_selfieFile!, userId, 'selfie');
-        } catch (_) {}
-      }
       String? docUrl;
-      if (_documentPhotoFile != null) {
-        try {
-          docUrl = await _uploadPhoto(_documentPhotoFile!, userId, 'document');
-        } catch (_) {}
-      }
       String? vehicleDocUrl;
-      if (_vehicleDocFile != null) {
-        try {
-          vehicleDocUrl =
-              await _uploadPhoto(_vehicleDocFile!, userId, 'vehicle_doc');
-        } catch (_) {}
-      }
       String? vehicleUrl;
-      if (_vehiclePhotoFile != null) {
-        try {
-          vehicleUrl = await _uploadPhoto(_vehiclePhotoFile!, userId, 'vehicle');
-        } catch (_) {}
+      try {
+        selfieUrl =
+            await _uploadPhoto(_selfieFile!, 'selfie', 'foto pessoal (selfie)');
+        docUrl = await _uploadPhoto(
+            _documentPhotoFile!, 'document', 'foto do documento');
+        if (_vehicleDocFile != null) {
+          vehicleDocUrl = await _uploadPhoto(
+              _vehicleDocFile!, 'vehicle_doc', 'foto do documento do veículo');
+        }
+        if (_vehiclePhotoFile != null) {
+          vehicleUrl = await _uploadPhoto(
+              _vehiclePhotoFile!, 'vehicle', 'foto do veículo');
+        }
+      } on FotoEnvioException catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _isProcessing = false;
+          _currentStep = 2;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(e.mensagem),
+          duration: const Duration(seconds: 6),
+        ));
+        return;
       }
 
       final iban = _ibanController.text.replaceAll(' ', '').toUpperCase();
@@ -781,10 +793,10 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
                     ),
             ),
 
-            // ── STEP 3: Documentos (todos opcionais) ────────────────
+            // ── STEP 3: Documentos (selfie + documento obrigatórios) ─
             Step(
               title: const Text('Documentos & Fotos'),
-              subtitle: const Text('Todos opcionais'),
+              subtitle: const Text('Selfie e foto do documento obrigatórias'),
               isActive: _currentStep >= 2,
               state: _currentStep > 2 ? StepState.complete : StepState.indexed,
               content: Column(
@@ -821,7 +833,7 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
                                   Icon(Icons.camera_alt,
                                       size: 32, color: AppColors.accent),
                                   SizedBox(height: 4),
-                                  Text('Selfie (opcional)',
+                                  Text('Selfie (obrigatória)',
                                       style: TextStyle(
                                           fontSize: 11,
                                           color: AppColors.textSecondary)),
@@ -862,7 +874,7 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
                   ),
                   const SizedBox(height: 12),
                   _PhotoPicker(
-                    label: 'Foto do Cartão de Cidadão (frente) — opcional',
+                    label: 'Foto do documento de identificação (frente) — obrigatória',
                     file: _documentPhotoFile,
                     onTap: () =>
                         _showPhotoOptions((f) => _documentPhotoFile = f),

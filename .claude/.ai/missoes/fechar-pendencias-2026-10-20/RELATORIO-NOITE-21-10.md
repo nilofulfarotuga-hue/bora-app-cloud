@@ -38,15 +38,19 @@ entra na caixa, o Emerson lê e responde, e a resposta chega à caixa de entrada
 o Emerson ler e responder tinha um buraco (corria como dono da máquina e seguia atalhos numa pasta que o Emerson
 controla). Foi desligada às 04:37, corrigida (utilizador próprio sem poderes, caixa fechada pelo sistema, não
 segue atalhos, registo fora da pasta partilhada), testada com 8 testes (um atalho plantado é recusado) e
-religada às 05:05, com o caminho normal provado outra vez.
+religada às 05:05, com o caminho normal provado outra vez. **Revisor da 2.ª ronda: SIM (06:15).** Plantou 7
+armadilhas como se fosse o Emerson (atalhos para um ficheiro de teste, para um ficheiro do sistema e com o nome
+das respostas): a ponte recusou todas e nenhum ficheiro mudou. Deixou 3 achados baixos para uma próxima ronda
+(trocar a pasta inteira por um atalho, o número do utilizador repetido noutro programa, e um pedido mal feito
+que faz a ponte parar — só estraga a caixa do próprio Emerson).
 
 **Skill dos navegadores (N6) — feita e no repositório.**
 
 ## Falta isto (e porquê)
 
-1. **Revisor da 2.ª ronda da ponte do e-mail (N5).** A ponte foi religada às 05:05, antes de o revisor de
-   contexto limpo ver a correção (a ordem pedia o revisor primeiro). A sessão que tinha o N5 parou a seguir.
-   Os ficheiros estão no ramo `agentes-email-21-10`, por enviar.
+1. **Envio da correção da ponte (N5) para o GitHub.** O revisor da 2.ª ronda já disse SIM (às 06:15, lançado
+   por esta sessão porque a dona do N5 parou), mas a ponte tinha sido religada às 05:05, antes dele — a ordem
+   pedia o revisor primeiro. Os ficheiros estão no ramo `agentes-email-21-10`, por enviar.
 2. **Prova do N2 no Android e no iPhone** — builds ainda a correr às 05:58.
 3. **Primeira corrida real pela fila inteligente** — ainda não houve nenhuma corrida.
 4. **Chave nova (N9)** — parada à espera do Danilo: as 3 funções de pagamento (reembolso, fechar o pedido
@@ -87,5 +91,5 @@ religada às 05:05, com o caminho normal provado outra vez.
 
 ## Próximo passo
 
-A vigia da fila continua até às 12:00 (resumo no e2e_log, passo N1-vigia-fim). Lançar o revisor da 2.ª ronda da
-ponte do e-mail, confirmar os builds Android e iPhone do N2, e enviar o ramo do 3b.
+A vigia da fila continua até às 12:00 (resumo no e2e_log, passo N1-vigia-fim). Confirmar os builds Android e
+iPhone do N2, e enviar os ramos do 3b (`n3b-22-10`) e da ponte (`agentes-email-21-10`), um de cada vez.

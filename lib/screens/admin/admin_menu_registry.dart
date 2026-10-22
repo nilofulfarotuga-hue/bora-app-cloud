@@ -645,6 +645,18 @@ List<AdminMenuSection> adminMenuSections() => [
       builder: () => const AdminMotoristasDocumentosScreen(),
       keywords: const ['aprovar', 'carta', 'distico', 'documentos', 'fiscalizacao', 'imt', 'inspecao', 'motoristas', 'seguro', 'tvde', 'validade'],
     ),
+    // 22/10 (documentos de todos os papéis): saiu do arquivo — o ecrã
+    // "Conformidade" da app do motorista regista aqui o contrato, o
+    // certificado e o seguro. Era o único sítio onde se viam os ficheiros.
+    AdminMenuItem(
+      id: 'arquivado_documentos_tvde_ficheiros',
+      title: 'Documentos TVDE (ficheiros)',
+      subtitle: 'Fotos enviadas pelos motoristas (contrato, certificado, seguro): ver em grande, aprovar ou recusar',
+      icon: Icons.fact_check_outlined,
+      color: const Color(0xFF6366F1),
+      builder: () => const AdminTvdeDocsReviewScreen(),
+      keywords: const ['aprovar', 'contrato', 'certificado', 'ficheiros', 'documentos', 'seguro', 'tvde'],
+    ),
     // [Recibos · 24/09] paridade admin do recibo automático por viagem (23/09).
     AdminMenuItem(
       id: 'tvde_recibos_viagem',
@@ -1359,16 +1371,6 @@ List<AdminMenuSection> adminMenuSections() => [
     color: Colors.grey,
     archived: true,
     items: [
-    AdminMenuItem(
-      id: 'arquivado_documentos_tvde_ficheiros',
-      title: 'Documentos TVDE (ficheiros)',
-      subtitle: 'Fila antiga de aprovação de ficheiros — nenhum ecrã da app envia ficheiros para cá',
-      icon: Icons.badge_outlined,
-      color: const Color(0xFF6366F1),
-      builder: () => const AdminTvdeDocsReviewScreen(),
-      keywords: const ['aprovar', 'ficheiros', 'documentos', 'tvde'],
-      archivedReason: 'sem dados (0 linhas em tvde_driver_documents); o hub é Documentos dos motoristas',
-    ),
     AdminMenuItem(
       id: 'arquivado_pagamentos',
       title: 'Pagamentos',

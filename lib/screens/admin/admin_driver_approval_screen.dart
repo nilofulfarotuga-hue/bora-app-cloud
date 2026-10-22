@@ -5,6 +5,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../services/driver_documentos.dart';
+import '../../widgets/admin_documentos.dart';
+import '../../widgets/admin_ficha_tvde.dart';
 import '../../widgets/admin_other_role_badge.dart';
 import '../../widgets/private_bucket_image.dart';
 import '_admin_rpc_errors.dart';
@@ -41,7 +43,10 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
       'vehicle_photo_url, vehicle_doc_url, registration_selfie_url, nif, '
       'iban, mbway_phone, payment_method, work_mode, dsa_self_certified_at, '
       'dsa_self_cert_version, consent_accepted_at, consent_version, '
-      'approval_status, rejection_reason, submitted_at, reviewed_at, created_at';
+      'approval_status, rejection_reason, submitted_at, reviewed_at, created_at, '
+      // TVDE (motorista de passageiros) — 22/10, documentos de todos os papéis.
+      'tvde_cert_foto_path, tvde_contrato_operador_path, carta_b_emitida_em, '
+      'fala_portugues, tvde_curso_atualizacao_em, tvde_operator_id';
 
   @override
   void initState() {
@@ -69,7 +74,7 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
           .isFilter('deleted_at', null)
           .order('created_at', ascending: false);
       final list = List<Map<String, dynamic>>.from(all);
-      await _juntarAtividade(supabase, list);
+      await juntarAtividadeAdmin(supabase, list);
       if (mounted) {
         setState(() {
           _pending =
@@ -153,46 +158,6 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
         backgroundColor: AppColors.error,
         duration: const Duration(seconds: 5),
       ));
-    }
-  }
-
-  /// Comprovativo de atividade (bucket privado `provider-atividade`) e o
-  /// "tenho atividade aberta" (`driver_fiscal_status`) de cada candidato,
-  /// pendurados na linha como `_atividade` / `_fiscal`. Falha aberta: sem estas
-  /// tabelas o ecrã continua a funcionar com o resto.
-  Future<void> _juntarAtividade(
-      SupabaseClient supabase, List<Map<String, dynamic>> list) async {
-    final ids = list
-        .map((d) => d['user_id']?.toString())
-        .whereType<String>()
-        .toSet()
-        .toList();
-    if (ids.isEmpty) return;
-    try {
-      final at = await supabase
-          .from('provider_atividade')
-          .select('user_id, nif, documento_path, documento_tipo, '
-              'atividade_status, obrigatoria, enviado_em, decidido_em, motivo')
-          .inFilter('user_id', ids);
-      final porUser = {
-        for (final r in List<Map<String, dynamic>>.from(at))
-          r['user_id'].toString(): r
-      };
-      final fs = await supabase
-          .from('driver_fiscal_status')
-          .select('user_id, atividade_aberta, confirmado_em')
-          .inFilter('user_id', ids);
-      final fiscal = {
-        for (final r in List<Map<String, dynamic>>.from(fs))
-          r['user_id'].toString(): r
-      };
-      for (final d in list) {
-        final uid = d['user_id']?.toString();
-        d['_atividade'] = porUser[uid];
-        d['_fiscal'] = fiscal[uid];
-      }
-    } catch (e) {
-      debugPrint('[admin_driver_approval] atividade: $e');
     }
   }
 
@@ -486,92 +451,18 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
     );
   }
 
-  /// Frase que o estafeta recebe (PT-PT — é a app dele, não o painel).
-  static String _textoPedido(List<String> itens) =>
-      'Para aprovarmos a tua conta de estafeta falta: ${juntarComE(itens)}. '
-      'Abre a app Bora e envia no ecrã "Conta em análise".';
-
-  /// "Pedir documentos em falta": aviso na app + push ao estafeta com a lista
-  /// exata (RPC `admin_send_push_notification`, a porta única de mensagens do
-  /// painel, que já grava no log de ações do admin) e uma linha no e2e_log.
-  /// SMS automático não existe; depois do envio o painel oferece abrir o SMS
-  /// já escrito no telemóvel do admin.
+  /// "Pedir documentos em falta" — peça comum a todos os papéis.
   Future<void> _pedirDocumentos(BuildContext ctx,
       Map<String, dynamic> driver, List<String> itens) async {
     final userId = driver['user_id']?.toString();
-    if (userId == null || itens.isEmpty) return;
-    final texto = _textoPedido(itens);
-    final ok = await showDialog<bool>(
-      context: ctx,
-      builder: (dCtx) => AlertDialog(
-        title: const Text('Pedir documentos em falta'),
-        content: Text('O estafeta vai receber:\n\n$texto'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dCtx, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dCtx, true),
-            child: const Text('Enviar'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    final sb = Supabase.instance.client;
-    bool temAparelho = false;
-    try {
-      final r = await sb.rpc('admin_send_push_notification', params: {
-        'p_recipient_type': 'driver',
-        'p_recipient_id': userId,
-        'p_title': 'Faltam documentos na tua candidatura',
-        'p_body': texto,
-        'p_data': {'tipo': 'documentos_em_falta'},
-      });
-      temAparelho = r is Map && r['fcm_token_found'] == true;
-    } catch (e) {
-      if (!ctx.mounted) return;
-      ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-        content: Text(humanizeAdminRpcError(e)),
-        backgroundColor: AppColors.error,
-      ));
-      return;
-    }
-    try {
-      final id = driver['id']?.toString() ?? '';
-      await sb.from('e2e_log').insert({
-        'fluxo': 'cadastro-estafeta-fotos',
-        'passo': 'pedir-documentos',
-        'estado': 'ok',
-        'detalhe': 'driver=${id.length > 8 ? id.substring(0, 8) : id} '
-            'itens=${itens.join(', ')} aparelho=$temAparelho',
-        'device': 'painel-admin',
-      });
-    } catch (e) {
-      debugPrint('[admin_driver_approval] e2e_log: $e');
-    }
-    if (!ctx.mounted) return;
-    final phone = (driver['phone'] as String?)?.replaceAll(' ', '');
-    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-      duration: const Duration(seconds: 8),
-      content: Text(temAparelho
-          ? 'Pedido enviado (aviso na app + notificação).'
-          : 'Aviso gravado na app, mas este estafeta não tem notificações '
-              'ligadas. Manda também por SMS.'),
-      action: (phone == null || phone.isEmpty)
-          ? null
-          : SnackBarAction(
-              label: 'SMS',
-              // `query` à mão: queryParameters troca os espaços por '+',
-              // que a app de SMS mostra tal e qual.
-              onPressed: () => launchUrl(Uri(
-                scheme: 'sms',
-                path: phone,
-                query: 'body=${Uri.encodeComponent(texto)}',
-              )),
-            ),
-    ));
+    if (userId == null) return;
+    await pedirDocumentosEmFalta(ctx,
+        userId: userId,
+        tipoDestino: 'driver',
+        quem: 'estafeta',
+        itens: itens,
+        telefone: driver['phone'] as String?,
+        refId: driver['id']?.toString());
   }
 
   /// Aprova o comprovativo de atividade aqui mesmo (o servidor só deixa
@@ -581,50 +472,13 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
     final at = driver['_atividade'];
     final userId = driver['user_id']?.toString();
     if (at is! Map || userId == null) return;
-    final ok = await showDialog<bool>(
-      context: ctx,
-      builder: (dCtx) => AlertDialog(
-        title: const Text('Aprovar comprovativo?'),
-        content: Text('Confirmas que viste o comprovativo de '
-            '${driver['name'] ?? 'este estafeta'} e que a atividade está aberta '
-            'com o NIF ${at['nif'] ?? driver['nif'] ?? '—'}?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dCtx, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dCtx, true),
-            child: const Text('Aprovar'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    try {
-      await Supabase.instance.client
-          .rpc('admin_provider_atividade_decidir', params: {
-        'p_user_id': userId,
-        'p_acao': 'aprovar',
-        'p_motivo': null,
-        'p_avisar': true,
-      });
-      if (ctx.mounted) Navigator.of(ctx).maybePop();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Comprovativo aprovado (a pessoa foi avisada).'),
-        backgroundColor: AppColors.success,
-      ));
-      await _load();
-    } catch (e) {
-      if (!ctx.mounted) return;
-      ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-        content: Text(e.toString().contains('sem_documento')
-            ? 'Ainda não há comprovativo para aprovar.'
-            : humanizeAdminRpcError(e)),
-        backgroundColor: AppColors.error,
-      ));
-    }
+    final ok = await aprovarComprovativoAtividade(ctx,
+        userId: userId,
+        nome: driver['name']?.toString() ?? 'este estafeta',
+        nif: (at['nif'] ?? driver['nif'])?.toString());
+    if (!ok) return;
+    if (ctx.mounted) Navigator.of(ctx).maybePop();
+    if (mounted) await _load();
   }
 
   @override
@@ -737,6 +591,14 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
                 _DriverList(
                   drivers: _approved,
                   emptyMessage: 'Nenhum entregador aprovado.',
+                  // 22/10: aprovados também têm de ter tudo — a ficha com os
+                  // documentos (e o TVDE) abre por este botão.
+                  actions: (d) => IconButton(
+                    icon: const Icon(Icons.badge_outlined,
+                        color: AppColors.primary),
+                    tooltip: 'Documentos',
+                    onPressed: () => _showDetail(d),
+                  ),
                   onTap: (d) {
                     final id = d['id'] as String?;
                     if (id == null) return;
@@ -793,11 +655,9 @@ class _DriverList extends StatelessWidget {
         final d = drivers[i];
         // Pendentes: a selfie ainda está em registration_selfie_url (bucket
         // privado — o avatar volta a assinar o endereço).
-        final photoUrl = _texto(d['photo_url']) ??
-            _texto(d['registration_selfie_url']);
-        final falta = d['approval_status'] == 'approved'
-            ? const <DocEmFalta>[]
-            : _faltaDoCandidato(d);
+        final photoUrl = docTexto(d['photo_url']) ??
+            docTexto(d['registration_selfie_url']);
+        final falta = _faltaDoCandidato(d);
         final createdAt = DateTime.tryParse(d['created_at'] as String? ?? '');
         final id = d['id'] as String? ?? '';
         final isSelected = selectedIds?.contains(id) ?? false;
@@ -878,32 +738,8 @@ class _DriverList extends StatelessWidget {
 
 // ── Regra do que falta (mesma do ecrã "Conta em análise") ───────────────────
 
-String? _texto(Object? v) {
-  final s = v?.toString().trim();
-  return (s == null || s.isEmpty) ? null : s;
-}
-
-/// O comprovativo de atividade conta para esta candidatura e ainda não chegou
-/// (ou foi recusado). Para quem já trabalhava antes da data de corte
-/// (`obrigatoria = false`) nunca falta.
-bool _atividadeEmFaltaDoCandidato(Map<String, dynamic> d) {
-  final a = d['_atividade'];
-  if (a is! Map || a['obrigatoria'] != true) return false;
-  return _texto(a['documento_path']) == null ||
-      a['atividade_status'] == 'recusada';
-}
-
 List<DocEmFalta> _faltaDoCandidato(Map<String, dynamic> d) =>
-    documentosEmFaltaEstafeta(d,
-        atividadeEmFalta: _atividadeEmFaltaDoCandidato(d));
-
-String _data(Object? v, {bool hora = false}) {
-  final t = DateTime.tryParse(v?.toString() ?? '')?.toLocal();
-  if (t == null) return '—';
-  String dd(int n) => n.toString().padLeft(2, '0');
-  final d = '${dd(t.day)}/${dd(t.month)}/${t.year}';
-  return hora ? '$d ${dd(t.hour)}:${dd(t.minute)}' : d;
-}
+    documentosEmFaltaEstafeta(d, atividadeEmFalta: atividadeEmFaltaDe(d));
 
 // ── Driver detail bottom sheet ────────────────────────────────────────────────
 
@@ -926,16 +762,21 @@ class _DriverDetailSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final d = driver;
-    final aprovado = d['approval_status'] == 'approved';
-    final falta = aprovado ? const <DocEmFalta>[] : _faltaDoCandidato(d);
+    final falta = _faltaDoCandidato(d);
     final chavesEmFalta = falta.map((f) => f.chave).toSet();
     bool faltaItem(String chave) => chavesEmFalta.contains(chave);
 
-    final selfie = _texto(d['registration_selfie_url']) ?? _texto(d['photo_url']);
+    // O "trabalhar noutro papel" grava caminho solto no balde (sem
+    // `driver-documents/`) — sem o prefixo a foto saía partida.
+    final selfieBruta =
+        docTexto(d['registration_selfie_url']) ?? docTexto(d['photo_url']);
+    final selfie = selfieBruta == null
+        ? null
+        : withPrivateBucketPrefix('driver-documents', selfieBruta);
     final semMatricula = (d['vehicle_type'] ?? '') == 'bicycle';
     final nascimento = DateTime.tryParse(d['birth_date']?.toString() ?? '');
     final idade = idadeEmAnos(nascimento, DateTime.now());
-    final rejectionReason = _texto(d['rejection_reason']);
+    final rejectionReason = docTexto(d['rejection_reason']);
     final fiscal = d['_fiscal'];
     final atividadeAberta =
         fiscal is Map ? fiscal['atividade_aberta'] as bool? : null;
@@ -990,7 +831,7 @@ class _DriverDetailSheet extends StatelessWidget {
           const SizedBox(height: 10),
           Center(
             child: Text(
-              _texto(d['name']) ?? '—',
+              docTexto(d['name']) ?? '—',
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
             ),
           ),
@@ -999,40 +840,10 @@ class _DriverDetailSheet extends StatelessWidget {
 
           if (falta.isNotEmpty) ...[
             const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.red.shade50,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.red.shade200),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final f in falta)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Text(
-                        'Falta: ${f.rotulo.toLowerCase()}',
-                        style: const TextStyle(
-                            color: AppColors.error,
-                            fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.error),
-                      onPressed: () => onPedirDocumentos(
-                          falta.map((f) => f.rotulo.toLowerCase()).toList()),
-                      icon: const Icon(Icons.campaign_outlined),
-                      label: const Text('Pedir documentos em falta'),
-                    ),
-                  ),
-                ],
-              ),
+            DocFaltaCaixa(
+              falta: falta.map((f) => f.rotulo).toList(),
+              onPedir: () => onPedirDocumentos(
+                  falta.map((f) => f.rotulo.toLowerCase()).toList()),
             ),
           ],
 
@@ -1052,36 +863,37 @@ class _DriverDetailSheet extends StatelessWidget {
             ),
           ],
 
-          const _Seccao('Dados pessoais'),
-          _Campo('Nome que aparece', d['name']),
-          _Campo('Nome legal', d['legal_name']),
-          _Campo('Telefone', d['phone']),
-          _Campo('E-mail', d['email']),
-          _Campo(
+          const DocSeccao('Dados pessoais'),
+          DocCampo('Nome que aparece', d['name']),
+          DocCampo('Nome legal', d['legal_name']),
+          DocCampo('Telefone', d['phone']),
+          DocCampo('E-mail', d['email']),
+          DocCampo(
             'Data de nascimento',
             nascimento == null
                 ? null
-                : '${_data(d['birth_date'])}${idade == null ? '' : ' ($idade anos)'}',
+                : '${docData(d['birth_date'])}${idade == null ? '' : ' ($idade anos)'}',
           ),
-          _Campo('Morada', d['address']),
+          DocCampo('Morada', d['address']),
 
-          const _Seccao('Documento de identificação'),
-          _Campo('Tipo', d['document_type']),
-          _Campo('Número', d['document_number'],
+          const DocSeccao('Documento de identificação'),
+          DocCampo('Tipo', d['document_type']),
+          DocCampo('Número', d['document_number'],
               falta: faltaItem('document_number')),
-          _FotoDoc(
+          DocFoto(
             titulo: 'Foto do documento',
-            urlOrPath: _texto(d['document_photo_url']),
+            urlOrPath: docTexto(d['document_photo_url']),
             obrigatoria: true,
+            balde: 'driver-documents',
           ),
 
-          const _Seccao('Fiscal'),
-          _Campo('NIF', d['nif']),
-          _Campo(
+          const DocSeccao('Fiscal'),
+          DocCampo('NIF', d['nif']),
+          DocCampo(
             'Atividade aberta',
             atividadeAberta == null ? null : (atividadeAberta ? 'Sim' : 'Não'),
           ),
-          _ComprovativoAtividade(
+          DocComprovativoAtividade(
             atividade: d['_atividade'] is Map
                 ? Map<String, dynamic>.from(d['_atividade'] as Map)
                 : null,
@@ -1089,281 +901,56 @@ class _DriverDetailSheet extends StatelessWidget {
             onAprovar: onAprovarComprovativo,
           ),
 
-          const _Seccao('Veículo'),
-          _Campo('Tipo', veiculoEmPortugues(d['vehicle_type']?.toString())),
+          const DocSeccao('Veículo'),
+          DocCampo('Tipo', veiculoEmPortugues(d['vehicle_type']?.toString())),
           if (!semMatricula)
-            _Campo('Matrícula', d['license_plate'],
+            DocCampo('Matrícula', d['license_plate'],
                 falta: faltaItem('license_plate')),
-          _Campo('Marca e modelo', d['vehicle_make_model']),
-          _Campo('Cor', d['vehicle_color']),
-          _FotoDoc(
+          DocCampo('Marca e modelo', d['vehicle_make_model']),
+          DocCampo('Cor', d['vehicle_color']),
+          DocFoto(
             titulo: 'Foto do veículo',
-            urlOrPath: _texto(d['vehicle_photo_url']),
+            urlOrPath: docTexto(d['vehicle_photo_url']),
             obrigatoria: !semMatricula,
+            balde: 'driver-documents',
           ),
-          _FotoDoc(
+          DocFoto(
             titulo: 'Documento do veículo (carta ou livrete)',
-            urlOrPath: _texto(d['vehicle_doc_url']),
+            urlOrPath: docTexto(d['vehicle_doc_url']),
             obrigatoria: false,
+            balde: 'driver-documents',
           ),
 
-          const _Seccao('Pagamento'),
-          _Campo('IBAN', d['iban'], falta: faltaItem('iban')),
-          _Campo('MB Way', d['mbway_phone']),
-          _Campo('Forma de receber', switch (d['payment_method']) {
+          if (eMotoristaTvde(d)) FichaTvdeSecao(driver: d),
+
+          const DocSeccao('Pagamento'),
+          DocCampo('IBAN', d['iban'], falta: faltaItem('iban')),
+          DocCampo('MB Way', d['mbway_phone']),
+          DocCampo('Forma de receber', switch (d['payment_method']) {
             'mbway' => 'MB Way',
             'iban' || 'transfer' || 'bank_transfer' => 'Transferência (IBAN)',
-            final v => _texto(v),
+            final v => docTexto(v),
           }),
 
-          const _Seccao('Trabalho e termos'),
-          _Campo('Modo de trabalho',
+          const DocSeccao('Trabalho e termos'),
+          DocCampo('Modo de trabalho',
               modoDeTrabalhoEmPortugues(d['work_mode']?.toString())),
-          _Campo(
+          DocCampo(
             'Autocertificação DSA',
-            _texto(d['dsa_self_certified_at']) == null
+            docTexto(d['dsa_self_certified_at']) == null
                 ? null
-                : '${_data(d['dsa_self_certified_at'], hora: true)}'
-                    '${_texto(d['dsa_self_cert_version']) == null ? '' : ' · v${d['dsa_self_cert_version']}'}',
+                : '${docData(d['dsa_self_certified_at'], hora: true)}'
+                    '${docTexto(d['dsa_self_cert_version']) == null ? '' : ' · v${d['dsa_self_cert_version']}'}',
           ),
-          _Campo(
+          DocCampo(
             'Consentimento (termos)',
-            _texto(d['consent_accepted_at']) == null
+            docTexto(d['consent_accepted_at']) == null
                 ? null
-                : '${_data(d['consent_accepted_at'], hora: true)}'
-                    '${_texto(d['consent_version']) == null ? '' : ' · ${d['consent_version']}'}',
+                : '${docData(d['consent_accepted_at'], hora: true)}'
+                    '${docTexto(d['consent_version']) == null ? '' : ' · ${d['consent_version']}'}',
           ),
-          _Campo('Candidatura enviada', _data(d['submitted_at'], hora: true)),
+          DocCampo('Candidatura enviada', docData(d['submitted_at'], hora: true)),
           const SizedBox(height: 24),
-        ],
-      ),
-    );
-  }
-}
-
-class _Seccao extends StatelessWidget {
-  const _Seccao(this.titulo);
-  final String titulo;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 20, bottom: 8),
-      child: Text(
-        titulo.toUpperCase(),
-        style: const TextStyle(
-          fontSize: 12,
-          letterSpacing: 0.6,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textSecondary,
-        ),
-      ),
-    );
-  }
-}
-
-/// Uma linha "rótulo: valor". Vazio → "—"; vazio e obrigatório → "Falta" a
-/// vermelho.
-class _Campo extends StatelessWidget {
-  const _Campo(this.label, this.value, {this.falta = false});
-  final String label;
-  final Object? value;
-  final bool falta;
-
-  @override
-  Widget build(BuildContext context) {
-    final v = _texto(value);
-    final vazio = v == null || v == '—';
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 140,
-            child: Text(label,
-                style: const TextStyle(
-                    color: AppColors.textSecondary, fontSize: 13)),
-          ),
-          Expanded(
-            child: Text(
-              vazio ? (falta ? 'Falta' : '—') : v,
-              style: TextStyle(
-                fontWeight: FontWeight.w500,
-                color: vazio && falta ? AppColors.error : null,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Miniatura de uma foto do bucket privado (toca para ampliar com zoom) ou,
-/// sem foto, "Falta: …" a vermelho (obrigatória) / "Não enviada" (opcional).
-class _FotoDoc extends StatelessWidget {
-  const _FotoDoc({
-    required this.titulo,
-    required this.urlOrPath,
-    required this.obrigatoria,
-  });
-  final String titulo;
-  final String? urlOrPath;
-  final bool obrigatoria;
-
-  @override
-  Widget build(BuildContext context) {
-    final url = urlOrPath;
-    return Padding(
-      padding: const EdgeInsets.only(top: 4, bottom: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(titulo, style: const TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 6),
-          if (url != null)
-            PrivateBucketImage(
-              urlOrPath: url,
-              height: 170,
-              width: double.infinity,
-              borderRadius: BorderRadius.circular(10),
-              tituloAmpliada: titulo,
-            )
-          else
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
-              decoration: BoxDecoration(
-                color: obrigatoria ? Colors.red.shade50 : AppColors.surface,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                    color: obrigatoria
-                        ? Colors.red.shade300
-                        : AppColors.divider),
-              ),
-              child: Text(
-                obrigatoria
-                    ? 'Falta: ${titulo.toLowerCase()}'
-                    : 'Não enviada (opcional)',
-                style: TextStyle(
-                  color: obrigatoria ? AppColors.error : AppColors.textSecondary,
-                  fontWeight: obrigatoria ? FontWeight.w700 : FontWeight.w400,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Comprovativo de atividade (bucket privado `provider-atividade`): estado,
-/// miniatura (foto) ou botão para abrir o PDF, e "Aprovar comprovativo" quando
-/// está em análise.
-class _ComprovativoAtividade extends StatelessWidget {
-  const _ComprovativoAtividade({
-    required this.atividade,
-    required this.falta,
-    required this.onAprovar,
-  });
-  final Map<String, dynamic>? atividade;
-  final bool falta;
-  final VoidCallback onAprovar;
-
-  Future<void> _abrirPdf(BuildContext context, String path) async {
-    try {
-      final url = await Supabase.instance.client.storage
-          .from('provider-atividade')
-          .createSignedUrl(path, 120);
-      final ok =
-          await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-      if (!ok && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Não foi possível abrir o PDF neste aparelho.')));
-      }
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Não foi possível abrir o PDF: $e')));
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final a = atividade;
-    final path = _texto(a?['documento_path']);
-    final status = a?['atividade_status']?.toString();
-    final rotuloEstado = switch (status) {
-      'aprovada' => 'Aprovado',
-      'recusada' =>
-        'Recusado${_texto(a?['motivo']) == null ? '' : ': ${a!['motivo']}'}',
-      'em_analise' => path == null ? 'Falta enviar' : 'Em análise',
-      _ => a == null ? 'Sem registo' : 'Por enviar',
-    };
-    final pdf = (a?['documento_tipo']?.toString() ?? '') == 'pdf';
-    return Padding(
-      padding: const EdgeInsets.only(top: 4, bottom: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Comprovativo de atividade',
-              style: TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 4),
-          Text(
-            'Estado: $rotuloEstado'
-            '${_texto(a?['enviado_em']) == null ? '' : ' · enviado ${_data(a!['enviado_em'], hora: true)}'}',
-            style: TextStyle(
-              fontSize: 13,
-              color: status == 'aprovada'
-                  ? AppColors.success
-                  : AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 6),
-          if (path != null && !pdf)
-            PrivateBucketImage(
-              urlOrPath: withPrivateBucketPrefix('provider-atividade', path),
-              height: 170,
-              width: double.infinity,
-              borderRadius: BorderRadius.circular(10),
-              tituloAmpliada: 'Comprovativo de atividade',
-            )
-          else if (path != null && pdf)
-            OutlinedButton.icon(
-              onPressed: () => _abrirPdf(context, path),
-              icon: const Icon(Icons.picture_as_pdf_outlined),
-              label: const Text('Abrir comprovativo (PDF)'),
-            )
-          else
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
-              decoration: BoxDecoration(
-                color: falta ? Colors.red.shade50 : AppColors.surface,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                    color: falta ? Colors.red.shade300 : AppColors.divider),
-              ),
-              child: Text(
-                falta
-                    ? 'Falta: comprovativo de atividade'
-                    : 'Não enviado (não obrigatório para esta conta)',
-                style: TextStyle(
-                  color: falta ? AppColors.error : AppColors.textSecondary,
-                  fontWeight: falta ? FontWeight.w700 : FontWeight.w400,
-                ),
-              ),
-            ),
-          if (path != null && status == 'em_analise') ...[
-            const SizedBox(height: 8),
-            FilledButton.icon(
-              style: FilledButton.styleFrom(backgroundColor: AppColors.success),
-              onPressed: onAprovar,
-              icon: const Icon(Icons.verified_outlined),
-              label: const Text('Aprovar comprovativo'),
-            ),
-          ],
         ],
       ),
     );

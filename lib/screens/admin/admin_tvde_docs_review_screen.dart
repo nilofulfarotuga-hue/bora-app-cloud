@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '../../widgets/admin_ficha_tvde.dart' show kRotulosDocTvde;
 import '../../widgets/private_bucket_image.dart';
 import '../../utils/hora_lisboa_ext.dart';
 
@@ -22,14 +23,9 @@ class _AdminTvdeDocsReviewScreenState extends State<AdminTvdeDocsReviewScreen> {
   bool _loading = true;
   String? _error;
 
-  static const _docTypeLabels = <String, String>{
-    'carta_conducao': 'Carta de condução',
-    'certificado_tvde_imt': 'Certificado TVDE (IMT)',
-    'dut': 'Documento do veículo (DUT)',
-    'seguro': 'Seguro',
-    'inspecao': 'Inspeção periódica',
-    'registo_criminal': 'Registo criminal',
-  };
+  // 22/10: os mesmos rótulos da ficha (tinha só 6; 'contrato_operador'
+  // aparecia com o nome técnico).
+  static const _docTypeLabels = kRotulosDocTvde;
 
   @override
   void initState() {
@@ -211,10 +207,14 @@ class _AdminTvdeDocsReviewScreenState extends State<AdminTvdeDocsReviewScreen> {
             const SizedBox(height: 8),
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
+              // 22/10: a app grava caminho solto (`<uid>/tvde/…`) — sem o
+              // prefixo do balde a foto saía sempre partida.
               child: PrivateBucketImage(
-                urlOrPath: d.filePath,
+                urlOrPath:
+                    withPrivateBucketPrefix('driver-documents', d.filePath),
                 height: 220,
                 width: double.infinity,
+                tituloAmpliada: _docTypeLabels[d.docType] ?? d.docType,
               ),
             ),
             if (d.reviewNote != null && d.reviewNote!.isNotEmpty) ...[

@@ -12,6 +12,8 @@ const _privateBuckets = <String>{
   'restaurant-documents',
   // 22/10/2026: comprovativo de atividade (ecrã de aprovação do estafeta).
   'provider-atividade',
+  // 22/10/2026: documentos do lavador (painel não os conseguia abrir).
+  'washer-documents',
 };
 
 class _Resolved {

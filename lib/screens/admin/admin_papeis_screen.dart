@@ -4,6 +4,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/bora/bora.dart';
+import 'admin_carwash_screen.dart';
+import 'admin_cleaning_cleaners_screen.dart';
+import 'admin_driver_approval_screen.dart';
 
 /// PAINEL ADMIN — Papéis e candidaturas (PT-BR, só o Danilo).
 ///
@@ -218,6 +221,42 @@ class _AdminPapeisScreenState extends State<AdminPapeisScreen>
       motivo = ctrl.text.trim();
       ctrl.dispose();
       if (ok != true) return;
+    }
+    // 22/10: aprovar aqui era um toque sem ver documentos. Agora confirma e
+    // oferece abrir a ficha completa do papel (documentos + o que falta).
+    if (aprovar) {
+      if (!mounted) return;
+      final escolha = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Aprovar candidatura?'),
+          content: const Text('Confere primeiro os documentos e o que falta '
+              'na ficha completa do papel.'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, 'cancelar'),
+                child: const Text('Cancelar')),
+            OutlinedButton(
+                onPressed: () => Navigator.pop(ctx, 'ver'),
+                child: const Text('Ver documentos')),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, 'aprovar'),
+                child: const Text('Aprovar')),
+          ],
+        ),
+      );
+      if (!mounted || escolha == null || escolha == 'cancelar') return;
+      if (escolha == 'ver') {
+        await Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (_) => switch (tipo) {
+            'cleaner' => const AdminCleaningCleanersScreen(),
+            'washer' => const AdminCarwashScreen(),
+            _ => const AdminDriverApprovalScreen(),
+          },
+        ));
+        if (mounted) await _load();
+        return;
+      }
     }
 
     // Cada papel decide-se pela sua própria função, que já existia e já avisa

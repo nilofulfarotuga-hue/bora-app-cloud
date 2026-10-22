@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'admin_ficha_prestador.dart';
+import '../../widgets/admin_documentos.dart' show juntarAtividadeAdmin;
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../services/carwash_upload_service.dart';
@@ -664,11 +666,14 @@ class _AbaLavadoresState extends State<_AbaLavadores> {
     try {
       final res = await _sb
           .rpc('admin_list_washers', params: {'p_status': null, 'p_search': null});
+      final linhas = (res as List)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      // 22/10: comprovativo de atividade junto, para o "Falta:" ficar completo.
+      await juntarAtividadeAdmin(_sb, linhas);
       if (!mounted) return;
       setState(() {
-        _rows = (res as List)
-            .map((e) => Map<String, dynamic>.from(e as Map))
-            .toList();
+        _rows = linhas;
         _loading = false;
       });
     } catch (e) {
@@ -722,6 +727,43 @@ class _AbaLavadoresState extends State<_AbaLavadores> {
     await _patch(l['id'].toString(), {'service_radius_km': v});
   }
 
+  /// 22/10: aprovar pede confirmação e mostra a vermelho o que falta (antes
+  /// aprovava com um toque, até a partir de recusado/suspenso).
+  Future<void> _aprovar(Map<String, dynamic> l) async {
+    final falta =
+        faltaDoPrestador('washer', l).map((f) => f.rotulo).toList();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Aprovar lavador?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${l['name'] ?? 'Este lavador'} será notificado.'),
+            if (falta.isNotEmpty) ...[
+              const SizedBox(height: Spacing.md),
+              const Text('Ainda falta:',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+              for (final f in falta)
+                Text('• $f', style: const TextStyle(color: AppColors.error)),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(falta.isEmpty ? 'Aprovar' : 'Aprovar mesmo assim')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await _patch(l['id'].toString(), {'approval_status': 'approved'});
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
@@ -739,15 +781,21 @@ class _AbaLavadoresState extends State<_AbaLavadores> {
           final id = l['id'].toString();
           final status = l['approval_status'].toString();
           final banido = l['is_banned'] == true;
+          final falta = faltaDoPrestador('washer', l);
           return ExpansionTile(
             title: Text(l['name'].toString().isEmpty
                 ? '(sem nome)'
                 : l['name'].toString()),
-            subtitle: Text(
-                '$status${banido ? ' · BANIDO' : ''} · '
-                '${l['washes_done']} lavagens · '
-                'raio ${l['service_radius_km']} km · '
-                '${l['jobs_abertos']} em aberto'),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('$status${banido ? ' · BANIDO' : ''} · '
+                    '${l['washes_done']} lavagens · '
+                    'raio ${l['service_radius_km']} km · '
+                    '${l['jobs_abertos']} em aberto'),
+                LinhaFaltaPrestador(falta: falta),
+              ],
+            ),
             children: [
               Padding(
                 padding: const EdgeInsets.all(Spacing.md),
@@ -755,10 +803,14 @@ class _AbaLavadoresState extends State<_AbaLavadores> {
                   spacing: Spacing.sm,
                   runSpacing: Spacing.sm,
                   children: [
+                    FilledButton.icon(
+                        onPressed: () => abrirFichaPrestador(context,
+                            papel: 'washer', linha: l, aoMudar: _load),
+                        icon: const Icon(Icons.badge_outlined, size: 18),
+                        label: const Text('Ver ficha completa')),
                     if (status != 'approved')
                       FilledButton(
-                          onPressed: () =>
-                              _patch(id, {'approval_status': 'approved'}),
+                          onPressed: () => _aprovar(l),
                           child: const Text('Aprovar')),
                     if (status == 'approved')
                       OutlinedButton(

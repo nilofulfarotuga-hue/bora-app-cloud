@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'admin_ficha_prestador.dart';
+import '../../widgets/admin_documentos.dart' show juntarAtividadeAdmin;
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/admin/ofertas_limpeza_em_aberto.dart';
@@ -44,10 +46,13 @@ class _AdminCleaningCleanersScreenState
     final res = await Supabase.instance.client
         .rpc('admin_list_cleaners', params: {'p_status': _statusFilter});
     final list = (res as List?) ?? const [];
-    return list
+    final linhas = list
         .whereType<Map>()
         .map((e) => Map<String, dynamic>.from(e))
         .toList();
+    // 22/10: comprovativo de atividade junto, para o "Falta:" ficar completo.
+    await juntarAtividadeAdmin(Supabase.instance.client, linhas);
+    return linhas;
   }
 
   Future<void> _refresh() async {
@@ -67,14 +72,26 @@ class _AdminCleaningCleanersScreenState
       'suspend' => ('Suspender profissional?', 'Suspender'),
       _ => ('Reativar profissional?', 'Reativar'),
     };
+    // 22/10: ao aprovar, o que falta aparece a vermelho antes de confirmar.
+    final falta = action == 'approve'
+        ? faltaDoPrestador('cleaner', c).map((f) => f.rotulo).toList()
+        : const <String>[];
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(title),
         content: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('${c['name']} será notificada da decisão.'),
+            if (falta.isNotEmpty) ...[
+              const SizedBox(height: Spacing.md),
+              const Text('Ainda falta:',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+              for (final f in falta)
+                Text('• $f', style: const TextStyle(color: AppColors.error)),
+            ],
             if (needsReason) ...[
               const SizedBox(height: Spacing.md),
               TextField(
@@ -413,6 +430,7 @@ class _CleanerCard extends StatelessWidget {
                         color: AppColors.warning,
                         fontWeight: FontWeight.w700)),
               ),
+            LinhaFaltaPrestador(falta: faltaDoPrestador('cleaner', data)),
             _DocsRow(docs: data['docs']),
             _MaterialsRow(docs: data['docs']),
             _AvailabilityRow(cleanerId: data['id']?.toString() ?? ''),
@@ -467,6 +485,12 @@ class _CleanerCard extends StatelessWidget {
                     icon: const Icon(Icons.refresh, size: 18),
                     label: const Text('Reativar'),
                   ),
+                OutlinedButton.icon(
+                  onPressed: () => abrirFichaPrestador(context,
+                      papel: 'cleaner', linha: data, aoMudar: onPapeisMudaram),
+                  icon: const Icon(Icons.badge_outlined, size: 18),
+                  label: const Text('Ver ficha completa'),
+                ),
                 // Estafeta / limpeza / lavagem da mesma pessoa (user_id).
                 if ((data['user_id']?.toString() ?? '').isNotEmpty)
                   BotaoPapeisDaPessoa(
@@ -518,8 +542,10 @@ class _DocsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 22/10: `docs` também tem materials_ok (sim/não) e materials_list
+    // (lista) — o `as String?` rebentava o cartão. Só texto é documento.
     final entries = _map.entries
-        .where((e) => (e.value as String?)?.isNotEmpty == true)
+        .where((e) => e.value is String && (e.value as String).isNotEmpty)
         .toList();
     if (entries.isEmpty) {
       return const Padding(

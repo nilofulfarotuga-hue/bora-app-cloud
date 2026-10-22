@@ -6,6 +6,7 @@
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { secretKey } from '../_shared/keys.ts';
+import { chamadaDoServidor } from '../_shared/chaves.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   apiVersion: '2023-10-16',
@@ -23,7 +24,8 @@ function roleFromJwt(token: string): string | null {
 
 Deno.serve(async (req: Request) => {
   const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
-  if (roleFromJwt(token) !== 'service_role') return json({ error: 'forbidden' }, 403);
+  // 16/10/2026 (chave nova): a chave secreta nova (sb_secret) não é JWT — ver _shared/chaves.ts
+  if (roleFromJwt(token) !== 'service_role' && !(await chamadaDoServidor(req))) return json({ error: 'forbidden' }, 403);
 
   let orderId: string | undefined; let motivo = 'cancelado_pelo_sistema';
   try { const b = await req.json(); orderId = b?.order_id; motivo = b?.motivo ?? motivo; } catch (_) { return json({ error: 'invalid_body' }, 400); }

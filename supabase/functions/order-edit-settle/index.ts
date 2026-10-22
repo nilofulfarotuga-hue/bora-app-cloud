@@ -59,6 +59,8 @@ const json = (body: any, status = 200) =>
 type Caller = { kind: 'service' } | { kind: 'user'; id: string; admin: boolean };
 
 async function whoCalls(req: Request): Promise<Caller | null> {
+  // 16/10/2026 (chave nova): a chave secreta nova (sb_secret) não é JWT — ver _shared/chaves.ts
+  if (await chamadaDoServidor(req)) return { kind: 'service' };
   const auth = req.headers.get('authorization') ?? '';
   if (!auth.startsWith('Bearer ')) return null;
   const token = auth.substring(7);

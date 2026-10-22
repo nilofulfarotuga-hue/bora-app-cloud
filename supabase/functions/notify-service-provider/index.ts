@@ -12,6 +12,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { secretKey } from '../_shared/keys.ts'
+import { chamadaDoServidor } from '../_shared/chaves.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,12 +32,14 @@ Deno.serve(async (req) => {
   const serviceKey = secretKey() ?? ''
 
   const authHeader = req.headers.get('Authorization') ?? ''
-  if (!authHeader.startsWith('Bearer ')) {
+  // 16/10/2026: a chave secreta nova da Supabase (sb_secret) não é JWT; valida-se em _shared/chaves.ts
+  const chaveNovaOk = await chamadaDoServidor(req)
+  if (!chaveNovaOk && !authHeader.startsWith('Bearer ')) {
     return json({ ok: false, error: 'forbidden' }, 403)
   }
   try {
     const token = authHeader.substring(7)
-    const payload = JSON.parse(atob(token.split('.')[1]))
+    const payload = chaveNovaOk ? { role: 'service_role' } : JSON.parse(atob(token.split('.')[1]))
     if (payload.role !== 'service_role') {
       console.warn('[notify-service-provider] forbidden — role mismatch:', payload.role)
       return json({ ok: false, error: 'forbidden' }, 403)

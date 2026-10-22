@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-21
+ultima_confirmacao: 2026-10-22
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-21T20:01:31.144181+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-22T20:05:01.246703+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -252,3 +252,19 @@ A CONFERIR ANTES DE PRODUZIR: cronometrar a marcação na app ("1 minuto" não f
 - PENDENTES revistos hoje: microinfluenciadores/UGC reais da Guarda (04/10, 2 vídeos), anúncios em lotes + hook rate (09/10 e 17/10), outliers com yt-dlp (20/10), Vibes com boca (ver caminhos-animacao-filme).
 - JÁ TEMOS: base de dados com o histórico do que funcionou para dar contexto à IA (= Córtex).
 - RECUSADO: troca de rosto em virais alheios/influencer IA, Thunder Core Max (postador em massa nos grupos), extensões de automação do Vibes de terceiros, tutorial de impulsionar post (gasto é do Danilo), dicas genéricas de Instagram.
+
+## 22/10/2026 — radar diário (agente na nuvem)
+20 vídeos revistos (pesquisa das 19:00): 4 novos, 3 PENDENTES, 3 já temos, 10 rejeitados (3 por nota baixa). Nenhum do tema animacao_ia. Recolha das 02:00 bloqueada pelo 5.º dia (conta 1 do YouTube sem sessão — e2e_log radar-historico 22/10).
+- MODA DA SEMANA (3+ vídeos nota>=8 em 7 dias): REA — FEITO 21/10: auditoria de segurança do nosso app (agente N4), 4 falhas corrigidas e provadas (push de texto livre, fotos de perfil, 12 funções internas, aviso admin), empurrado 22/10 03:42; ficaram 3 propostas para o Danilo (platform_settings legível por qualquer conta com sessão — toca dinheiro; register-partner; trava do banco). Atendente WhatsApp — FEITO (Mister Navalha). Rececionista de voz — PENDENTE desde 13/10. Claude Motion/Dashboards — PENDENTE desde 11/10. Recibos verdes — prazo 31/10 (prop-cb91e8c2). Marketing orgânico de apps — registado 21/10. Prospeção automática de leads — extrator PENDENTE desde 17/10.
+- SISTEMA: Claude Duet (agente proativo da Anthropic numa máquina na nuvem, pede aprovação antes de ações críticas; 2 vídeos nota 8-9). Ver se vem no plano atual sem custo novo; se sim, testar a vigiar Gmail e Stripe só leitura. Lente grátis: o Hermes na VPS faz o mesmo (vigia pendente desde 16/10). https://www.youtube.com/watch?v=OFG_WbyRCkI , https://www.youtube.com/watch?v=5I0-TDVYal8
+- DINHEIRO / Upwork: Upwork MCP liga o Claude à conta para achar vagas recentes, pontuar contra o perfil e rascunhar a proposta (com a mini-amostra de 12/10). Confirmar que é grátis/oficial. https://www.youtube.com/watch?v=-Hqt35OTr_I
+- DINHEIRO / caça-clientes: playbook por nicho (persona, dores, benefícios, objeções) dado ao agente antes de cada campanha. https://www.youtube.com/watch?v=ZgWZZoexi8A
+- PENDENTES revistos hoje: extrator grátis de leads no Google Maps com aprovação antes da maquete (17/10; 2 vídeos: https://www.youtube.com/watch?v=qF0jSIkmCnY , https://www.youtube.com/watch?v=wJkbfFZL_z8), follow-up/resgate de orçamentos perdidos (13/10).
+- JÁ TEMOS: atendente WhatsApp com agendamento (3 vídeos = Mister Navalha).
+- RECUSADO: bypass total de permissões do Claude Code e "todos os domínios" (o certo é o modo auto, apurado 21/10), postadores em massa nos grupos (Publizo e extensão grátis), e-commerce de produtos físicos, vídeos de frases em massa, opinião "5 anos para enriquecer".
+- Radar aprende: +2 termos (Claude Duet; OmniVoice vozes grátis, das conversas de 21-22/10), -2 termos do filme sem vídeos bons; 70 ativos.
+
+## 22/10/2026 20:05 — REGRA NOVA do Danilo para o radar
+- "As decisões são tudo suas, faz tudo": o radar passa a APROVAR ele mesmo as propostas pequenas e seguras (cortex_aprovar_proposta) em vez de só propor. Dinheiro, preços, pagamentos, RLS/segurança e código grande continuam a ir para a fila vermelha (o sistema exige o vai humano).
+- 22/10 aprovadas 17 propostas antigas (04/10 a 22/10: regras dos reels, caça-clientes, Em Dia prazo 31/10, Hermes vigia, OpenCode 2.0, Haiku subagente, AEO, skills, corte de reels, filme). Não aprovadas: REA (já feito 21/10), código amigo (desconto = dinheiro), funções novas do Em Dia (código grande), auditoria TVDE (dinheiro), UGC Higgsfield (gasta créditos). Ordem vermelha prop-c253185d: fechar platform_settings + register-partner (precisa do vai).
+- YouTube 02:00: ordem-20261022200425-4083 — achar a causa da conta 1 deslogar, usar outra conta já com sessão (autorizado pelo Danilo) e, se nenhuma, pesquisa pública com yt-dlp. Nunca guardar palavras-passe.

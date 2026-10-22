@@ -60,9 +60,13 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
     setState(() => _loading = true);
     try {
       final supabase = Supabase.instance.client;
+      // 22/10/2026: contas encerradas pelo titular (delete-account anonimiza e
+      // marca deleted_at) não são candidaturas — saíam em "Pendentes" como
+      // "Conta eliminada" com tudo em falta.
       final all = await supabase
           .from('drivers')
           .select(_columns)
+          .isFilter('deleted_at', null)
           .order('created_at', ascending: false);
       final list = List<Map<String, dynamic>>.from(all);
       await _juntarAtividade(supabase, list);

@@ -138,7 +138,11 @@ Desvios ao desenho da ronda anterior (decididos e provados):
 - `BindPaths=` da pasta da caixa: `/docker/hermes-agent-fvnc/data` é `drwx------` (0700), o grupo não a
   atravessa; montar só a caixa dentro da unidade evita mexer nas permissões da pasta do Emerson.
 - Testes da fila correram em Linux (VPS, `/tmp`, utilizador `nobody`, sem rede nem chave): `dir_fd`,
-  `O_NOFOLLOW` e FIFO não existem no Windows. No PC correram os do `responder` (2 ok, 6 saltados).
+  `O_NOFOLLOW` e FIFO não existem no Windows. No PC correu a classe `Responder` (`Ran 2 tests … OK`).
+- Juiz: o chão anti-trapaça rejeitou a 1.ª versão dos testes (`TEST_SKIPPED 0→1`, por um
+  `@unittest.skipUnless(LINUX)`). Tirei o skip: fora de Linux a classe da fila falha em vez de se saltar.
+  Depois: `anti_trapaca.py --base origin/autonomous-night-2026-04-29` → `✅ CLEAN`, `Δ casos de teste: +8`,
+  exit 0; `zonas_diff.py` → `✅ CLEAN Nenhuma zona protegida no diff.`
 
 ### Verificações (saída literal)
 
@@ -204,7 +208,8 @@ Estado final: `agentes-email-ponte.path` **active / enabled**; `agentes-email-po
 ### Commits da ronda 2 (ramo agentes-email-21-10, rebase sobre origin 4e6030c1, sem push)
 
 - d57e1f83 fix(agentes-email): ponte da VPS sem root, sandbox systemd e fila lida sem seguir ligacoes
-- (este relatório) docs(relatorio): N5 ronda 2
+- fe3d7c61 docs(relatorio): N5 ronda 2 - ponte da VPS sem root, verificacoes 1-4
+- (a seguir) test(agentes-email): testes da fila sem skip + este relatório actualizado
 
 ## PARA O DANILO
 

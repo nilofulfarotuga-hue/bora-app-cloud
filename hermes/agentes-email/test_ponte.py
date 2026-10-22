@@ -2,8 +2,9 @@
 """Testes do ponte.py (ronda 2b, 22/10/2026).
 
 Correm numa pasta temporária, sem rede e sem chave: o `pedido()` ao Supabase é trocado por um falso.
-Os testes da fila precisam de Linux (dir_fd, O_NOFOLLOW, FIFO); no Windows só correm os do `responder`.
-Uso:  python3 -I test_ponte.py      (não como root)
+A classe Fila só funciona em Linux (dir_fd, O_NOFOLLOW, FIFO) — fora de Linux falha, não se salta.
+Uso:  python3 -I test_ponte.py              (Linux: tudo)
+      python -I -B test_ponte.py Responder  (Windows: só o responder)
 """
 import hashlib
 import json
@@ -19,7 +20,6 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ponte  # noqa: E402
 
-LINUX = sys.platform.startswith('linux')
 ID = '12345678-1234-1234-1234-123456789abc'
 
 
@@ -74,12 +74,9 @@ class Responder(ComFalso):
             self.assertTrue(self.enviou())
 
 
-@unittest.skipUnless(LINUX, 'a fila só existe em Linux (dir_fd, O_NOFOLLOW)')
 class Fila(ComFalso):
     def setUp(self):
         super().setUp()
-        if os.geteuid() == 0:
-            self.skipTest('não correr como root')
         self.tmp = tempfile.mkdtemp(prefix='ponte-teste-')
         self.caixa = os.path.join(self.tmp, 'caixa')
         for d in ('fila', 'respostas', 'tmp', 'recusados'):

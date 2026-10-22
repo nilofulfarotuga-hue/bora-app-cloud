@@ -1,9 +1,9 @@
 [Unit]
 Description=Caixa dos agentes (boraguarda.com): acorda a ponte quando o Emerson deixa um pedido
 
+# Sem MakeDirectory=: quem cria a fila é o instalar.sh, como o utilizador 10000 (o systemd criá-la-ia como root).
 [Path]
 DirectoryNotEmpty=/docker/hermes-agent-fvnc/data/agentes-email/fila
-MakeDirectory=yes
 
 [Install]
 WantedBy=multi-user.target

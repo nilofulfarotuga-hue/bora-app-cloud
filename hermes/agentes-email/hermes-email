@@ -30,7 +30,10 @@ pid = 'p' + uuid.uuid4().hex
 fila = os.path.join(BASE, 'fila')
 resp = os.path.join(BASE, 'respostas', pid + '.txt')
 tmp = os.path.join(BASE, 'tmp', pid + '.json')  # fora da fila: a fila só vê ficheiros completos
-with open(tmp, 'w', encoding='utf-8') as f:
+# 0640: a ponte do host já não é root — lê o pedido pelo grupo do contentor (hermes-exec)
+fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o640)
+os.fchmod(fd, 0o640)
+with os.fdopen(fd, 'w', encoding='utf-8') as f:
     json.dump({'cmd': sys.argv[1], 'args': sys.argv[2:], 'quem': os.environ.get('USER', 'hermes'),
                'criado': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}, f, ensure_ascii=False)
 os.replace(tmp, os.path.join(fila, pid + '.json'))

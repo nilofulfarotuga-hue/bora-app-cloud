@@ -2,7 +2,7 @@
 id: memoria-claude-ai-digest-2026-10-21-retoma-fable
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-21
+ultima_confirmacao: 2026-10-22
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Digest 21/10/2026 — retoma Fable do Ep1 perfeito (Claude Code no PC)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `digest-2026-10-21-retoma-fable`, origem `claude-code`, atualizada em 2026-10-21T20:37:47.621252+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `digest-2026-10-21-retoma-fable`, origem `claude-code`, atualizada em 2026-10-22T06:08:43.753583+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: digest 2026 10 21 retoma fable · memoria claude.ai · claude_ai_memoria
 
@@ -27,3 +27,5 @@ PARA O DANILO: voz do Davi (aceitar mista / outra voz / reescrever a gritada); a
 ACTUALIZAÇÃO 21:00: tema v6 instalado (tema_v6_4, 90,6 na régua maior; 6 sementes novas ficaram a 82–88) e a abertura passa a 60 s — o master v6 está renderizado mas o carimbo (fiscal de texto = juiz de visão) espera a quota de amanhã (tarefa abertura_carimbar 08:40). 3D: 32 sondas no Kaggle — a sessão cai 5–13 s depois de o Blender tocar na personagem, aleatório, não é nosso; COLAB pronto (receptor na VPS, notebook leve, motorista no Chrome do perfil Bora, notebook já no Drive da conta Bora) e PARADO no diálogo "Termos de Utilização do Colab": DECISÃO DO DANILO (sim/não), pedida por Telegram 19:41. InfiniteTalk lote 2 (prompt de cauda parada) entra às 21:30 pelo tique; colheita amanhã com juiz. Flow parado até 22/10 10:00. Amanhã pelo tique: 08:20 marioneta (bases neutras da Tailine), 08:30 elenco e escala (prova real do fiscal, lineup, re-julgar os 95, Telegram com números), 08:40 carimbo da abertura, 09:30 portão dos fotogramas (só abre com lineup + fiscal armado).
 
 21:40 — NOITE: o InfiniteTalk lote 2 nao arrancou porque todos os fotogramas estao em_revisao (so parte de aprovados) -> fica para depois do re-julgamento de 22/10; a colheita 3D do Kaggle esta estacionada (cena vai pelo Colab, termos pendentes). Esta noite so o relogio monta. Commits locais ate 296f309.
+
+22/10 07:20 — ADENDO 07:10 APLICADO: alturas no canone (vo 1,58 fica; Deus Pai 1,88 nunca gigante; Jesus 1,78; Espirito Santo 1,76; Sussurrador 1,90 so depois da queda; nome canonico espirito_santo, alias espirito, resolvido nos leitores de folhas); Davi: provisoria edge-tts ACEITE, gritada b2_m02_1 com direccao "a chamar alto, aflito (sem gritar)"; OmniVoice A/B em preparacao (kernel k_omnivoice_ab; push >= 09:15; juiz >= 11:00 para nao roubar quota ao re-julgamento do elenco); Termos do Colab: espero o sim do Danilo por aqui, nao aceito por conta propria. Manha pelo tique: 08:20 marioneta, 08:30 elenco e escala (prova real, lineup, re-julgar 95, Telegram), 08:40 carimbo da abertura, 09:30 portao dos fotogramas, 11:00 InfiniteTalk lote 2. CONTINUAR gravado (sessao a 86 % de contexto). Commits ate ad7e24b.

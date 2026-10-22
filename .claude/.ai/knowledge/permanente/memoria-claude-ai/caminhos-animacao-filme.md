@@ -2,7 +2,7 @@
 id: memoria-claude-ai-caminhos-animacao-filme
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-21
+ultima_confirmacao: 2026-10-22
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Filme das filhas — 5 caminhos grátis para o desenho (revisto 05/10 com os 50 vídeos)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-21T20:01:38.891233+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-22T07:08:33.559064+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: caminhos animacao filme · memoria claude.ai · claude_ai_memoria
 
@@ -86,3 +86,5 @@ Avisos: os juizes de topo (gemini-3.5-flash, 3-flash-preview) gastam 20 pedidos/
 
 ## 21/10/2026 — radar diário
 - VIBES DA META (boca): um vídeo de hoje diz que o Vibes, além de animar imagens grátis e sem limite, deixa juntar áudio e fazer sincronização labial, e estender clipes (5 s + 4 s). Já foi tentado e parou no botão de conta — só vale a pena se a conta passar; nesse caso testar a boca de uma personagem com a ficha como imagem. Extensões "Vibes Automation" de terceiros: não instalar sem ler o código. https://www.youtube.com/watch?v=M2sB-aveRDU
+
+[22/10 08:15] PROVA 3D DA TABITA (Colab, autorizacao do Danilo 07:09): a cadeia inteira correu de ponta a ponta de graca (malha -> rig -> cena -> boca -> 192 fotogramas Cycles CPU em 54 min -> zip pela VPS -> mp4 8 s com voz). Resultado REPROVADO a olho e pelo juiz: boca = bola rosa (a construcao da boca renderiza fora do rosto), cabelo cinzento e flores perdidas (cor por vertice a 100 k faces), luz estourada; coques e rosa presentes (identidade parcial); movimento com paralaxe real. Adendo D: nao passa -> via 3D continua EM PROVA (nao e caminho principal); InfiniteTalk (degrau 5) tambem reprovou 8/8 ontem; a marioneta 2D passou para Tabita e Gustavo. Proxima volta 3D (depois do elenco e escala): boca dentro da cabeca com labios da malha, cores por textura UV, exposicao, OptiX nos blocos do Colab, render de 1 fotograma antes dos 192.

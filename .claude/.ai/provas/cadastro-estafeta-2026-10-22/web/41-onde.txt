@@ -1,0 +1,9 @@
+- group:
+  - text: BORA Área do Estafeta Entrar como estafeta Use o email e palavra-passe da sua conta.
+  - textbox "Email"
+  - textbox "Palavra-passe"
+  - button
+  - button "Entrar"
+  - button "Criar conta"
+  - button "Esqueci-me da palavra-passe"
+  - button "← Voltar à escolha de perfil"

@@ -1,0 +1,5 @@
+- button "Voltar"
+- heading "Comprovativo de atividade" [level=2]
+- group:
+  - text: "Estado: Em análise Recebemos o teu comprovativo. Vamos ver e avisamos-te. Se enviaste o ficheiro errado, fala connosco no Suporte."
+  - button "Ainda não tens atividade aberta? Vê como se faz"

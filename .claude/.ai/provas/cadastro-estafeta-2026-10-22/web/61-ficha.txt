@@ -1,0 +1,11 @@
+- group:
+  - button "Ampliar foto"
+  - text: TESTE Cadastro Fotos 2210
+  - button "Ligar"
+  - button "SMS"
+  - text: DADOS PESSOAIS Nome que aparece TESTE Cadastro Fotos 2210 Nome legal Teste Cadastro Fotos Telefone +351900002210 E-mail — Data de nascimento 22/10/1990 (36 anos) Morada Rua de Teste 1, 6300-000 Guarda DOCUMENTO DE IDENTIFICAÇÃO Tipo Cartão Cidadão Número TESTE12345
+  - button "Foto do documento Ampliar foto"
+  - text: FISCAL NIF 215645154 Atividade aberta Sim
+  - 'button "Comprovativo de atividade Estado: Em análise · enviado 22/10/2026 18:27 Ampliar foto"':
+    - button "Aprovar comprovativo"
+  - text: VEÍCULO

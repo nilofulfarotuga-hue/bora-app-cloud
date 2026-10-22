@@ -1,0 +1,9 @@
+- button "Voltar"
+- heading "Candidatura de Estafeta" [level=2]
+- group:
+  - button "Dados Pessoais"
+  - group "Conta de Acesso Conta criada ✓ Conta criada com sucesso. Podes continuar a preencher os restantes dados.":
+    - button "Continuar"
+    - button "Voltar"
+  - button "3 Documentos & Fotos Selfie e foto do documento obrigatórias"
+  - button "4 Veículo, Pagamento & Dados fiscais"

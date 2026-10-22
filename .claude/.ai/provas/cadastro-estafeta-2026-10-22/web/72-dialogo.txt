@@ -1,0 +1,4 @@
+- alertdialog:
+  - text: "Pedir documentos em falta O estafeta vai receber: Para aprovarmos a tua conta de estafeta falta: número do documento e comprovativo de atividade. Abre a app Bora e envia no ecrã \"Conta em análise\"."
+  - button "Cancelar"
+  - button "Enviar"

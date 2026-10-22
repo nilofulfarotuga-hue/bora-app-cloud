@@ -1,0 +1,12 @@
+- button "Voltar"
+- heading "Aprovações de Entregadores" [level=2]
+- button
+- tablist:
+  - tab "Pendentes (1)" [selected]
+  - tab "Aprovados (0)"
+  - tab "Rejeitados (0)"
+- tabpanel:
+  - group:
+    - 'group "TESTE Reenvio Fotos 2210 +351900002211 22/10/2026 Falta: número do documento e comprovativo de atividade"':
+      - button "Aprovar"
+      - button "Rejeitar"

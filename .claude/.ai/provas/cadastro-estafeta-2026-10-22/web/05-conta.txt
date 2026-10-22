@@ -1,0 +1,14 @@
+- button "Voltar"
+- heading "Candidatura de Estafeta" [level=2]
+- group:
+  - button "Dados Pessoais"
+  - button "2 Conta de Acesso"
+  - textbox "Email *"
+  - textbox "Palavra-passe *"
+  - button
+  - textbox "Confirmar palavra-passe *"
+  - button
+  - checkbox "Aceito os Termos e a Política de Privacidade ."
+  - button "Criar Conta" [disabled]
+  - button "3 Documentos & Fotos Selfie e foto do documento obrigatórias"
+  - button "4 Veículo, Pagamento & Dados fiscais"

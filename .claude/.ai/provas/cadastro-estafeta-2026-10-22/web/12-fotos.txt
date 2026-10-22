@@ -1,0 +1,15 @@
+- heading "Candidatura de Estafeta" [level=2]
+- group:
+  - button "Dados Pessoais"
+  - button "Conta de Acesso Conta criada ✓"
+  - button "3 Documentos & Fotos Selfie e foto do documento obrigatórias"
+  - button
+  - button "Tipo de documento de identificação Cartão Cidadão"
+  - textbox "Número do documento (opcional)": TESTE12345
+  - text: Número do CC ou BI sem espaços
+  - button
+  - button
+  - button
+  - button "Continuar"
+  - button "Voltar"
+  - button "4 Veículo, Pagamento & Dados fiscais"

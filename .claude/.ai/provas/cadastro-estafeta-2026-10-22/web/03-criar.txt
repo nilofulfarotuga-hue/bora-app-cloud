@@ -1,0 +1,9 @@
+- button "Voltar"
+- heading "Trabalhar no Bora" [level=2]
+- group:
+  - text: Escolhe o que queres fazer. Podes fazer mais do que uma coisa — é a mesma conta, e os teus dados só se preenchem uma vez.
+  - button "Entregas Levar comida, compras e encomendas. De bicicleta, mota ou carro. Candidatar-me"
+  - button "Corridas de passageiros Levar pessoas de um lado ao outro. Precisas do certificado TVDE do IMT. Candidatar-me"
+  - button "Limpeza Limpezas de casas e escritórios. Recebes 85% de cada limpeza. Candidatar-me"
+  - button "Lavagem de carros Lavas o carro onde o cliente estiver e devolves. Candidatar-me"
+  - text: Tens um restaurante, uma loja ou um salão? Isso é uma parceria e faz-se pelo registo de parceiro.

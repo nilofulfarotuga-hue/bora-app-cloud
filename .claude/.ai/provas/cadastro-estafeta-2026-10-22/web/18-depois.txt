@@ -1,0 +1,8 @@
+- group:
+  - group "Falta o comprovativo de atividade Envia o NIF e uma foto ou PDF do comprovativo de atividade aberta nas Finanças. É o que falta para a tua candidatura seguir.":
+    - button "Enviar"
+  - img "BORA"
+  - img
+  - text: Candidatura em análise A tua candidatura foi submetida com sucesso. A nossa equipa irá rever os teus documentos e entrar em contacto em breve. Entretanto podes usar a app normalmente para fazer os teus pedidos. A analise continua na mesma.
+  - button "Usar a app como cliente"
+  - button "Sair"

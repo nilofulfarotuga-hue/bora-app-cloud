@@ -1,0 +1,11 @@
+- heading "BORA — Estafeta" [level=2]
+- button "Trabalhar noutra coisa"
+- button "Terminar sessão"
+- text: Termos e Condições do Estafeta — versão de 01/10/2026
+- group: "A partir de 1 de outubro de 2026 mudam as regras entre a Bora e os estafetas. O que muda para si: 1. É um profissional independente. Presta o serviço de entrega por sua conta, sem contrato de trabalho com a Bora. 2. O valor da entrega é seu. O que ganha em cada entrega (o número grande que vê na oferta) é pago pelo cliente a si. A Bora apenas o recebe em seu nome e por sua conta (agente de cobrança) e entrega-lho no acerto semanal, como já acontece hoje. 3. Tem de ter atividade aberta nas Finanças e indicar o seu NIF na app. Quem já trabalha com a Bora tem 14 dias (até 15/10/2026) para o fazer; depois disso não pode aceitar entregas enquanto não o fizer. 4. Uma vez por mês passa um recibo verde. No dia 1 de cada mês a app mostra-lhe o total do mês anterior e o texto pronto para o recibo (\"Serviços de entrega — N entregas intermediadas pela plataforma Bora\"), a consumidor final. Depois de o passar, toca em \"Já passei o recibo\" e indica o número. 5. O que ganha não muda. Os valores por entrega, os bónus e os tokens continuam iguais. 6. A Bora comunica às Finanças, uma vez por ano, o total que lhe pagou (obrigação DAC7 das plataformas digitais). Ao tocar em \"Aceito\" confirma que leu e aceita estes termos."
+- group:
+  - text: Conta em análise A sua conta está a ser verificada pela nossa equipa. Receberá uma notificação quando for aprovada. Falta enviar Sem isto não conseguimos aprovar a tua conta. Envia aqui mesmo. Comprovativo de atividade
+  - button "Enviar"
+  - text: Entretanto podes usar a app normalmente para fazer os teus pedidos. A análise continua na mesma.
+  - button "Usar a app como cliente"
+- button "Aceito"

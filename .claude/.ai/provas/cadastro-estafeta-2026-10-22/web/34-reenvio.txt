@@ -1,0 +1,24 @@
+- button "Voltar"
+- heading "Candidatura de Estafeta" [level=2]
+- group:
+  - button "Dados Pessoais"
+  - button "Conta de Acesso Conta criada ✓"
+  - button "Documentos & Fotos Selfie e foto do documento obrigatórias"
+  - button "4 Veículo, Pagamento & Dados fiscais"
+  - button "Moto"
+  - button "Carro"
+  - button "Bicicleta"
+  - button "Carro — Passageiros"
+  - textbox "Matrícula (opcional)"
+  - 'textbox "Marca e modelo (ex.: Renault Clio)"': "232844623"
+  - 'textbox "Cor do carro (ex.: Cinzento)"'
+  - textbox "Número MBWay para receber pagamentos (opcional)"
+  - text: Dados legais e fiscais (obrigatórios) A lei europeia (DSA, art. 30) e a DAC7 obrigam a Bora a recolher e confirmar estes dados antes de ativar a tua conta.
+  - textbox "Nome completo (como no documento) *"
+  - textbox "NIF *"
+  - textbox "Morada completa (rua, n.º, código postal, localidade) *"
+  - textbox "IBAN (PT + 23 dígitos) *"
+  - text: Para receberes os teus pagamentos.
+  - textbox "Data de nascimento *"
+  - checkbox "Declaro que os dados acima são verdadeiros e atuais, que exerço esta atividade por conta própria e que só forneço bens ou serviços conformes com a lei da União Europeia e portuguesa. Autorizo a Bora a comunicar os meus rendimentos na plataforma à Autoridade Tributária quando a lei o exigir (DAC7)." [checked]
+  - button "Enviar Candidatura"

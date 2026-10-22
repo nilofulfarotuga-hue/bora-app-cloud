@@ -1,0 +1,2 @@
+diff repo(normalizado) vs ar v3 — so a linha da chave difere:
+ar v3: verify_jwt=true, usa Deno.env SUPABASE_SERVICE_ROLE_KEY; repo: secretKey() de _shared/keys.ts; resto igual (kinds selfie/document/vehicle, mime = contentType cru)

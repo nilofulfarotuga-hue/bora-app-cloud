@@ -1,0 +1,84 @@
+{
+ "teste-estafeta-2210@boraguarda.com": {
+  "login": 200,
+  "delete_account_http": 200,
+  "ok": true,
+  "papeis": [
+   "cliente",
+   "estafeta"
+  ],
+  "drivers": {
+   "accao": "anonimizado",
+   "linhas": 1,
+   "campos": [
+    "nome",
+    "telefone",
+    "email",
+    "NIF",
+    "IBAN",
+    "morada",
+    "documentos",
+    "fotos",
+    "matricula"
+   ],
+   "mantido": "historico de acertos e transacoes, anonimizado"
+  },
+  "storage": {
+   "accao": "apagado",
+   "detalhe": {
+    "driver-documents": 4,
+    "avatars": 0,
+    "restaurant-documents": 0,
+    "cleaner-documents": 0,
+    "washer-documents": 0
+   }
+  },
+  "auth": {
+   "accao": "anonimizado_e_banido_para_sempre",
+   "detalhe": "email trocado, palavra-passe invalidada, metadados limpos, identidades removidas, banned_until=infinity"
+  },
+  "erro": null,
+  "bloqueios": null
+ },
+ "teste-estafeta-2210b@boraguarda.com": {
+  "login": 200,
+  "delete_account_http": 200,
+  "ok": true,
+  "papeis": [
+   "cliente",
+   "estafeta"
+  ],
+  "drivers": {
+   "accao": "anonimizado",
+   "linhas": 1,
+   "campos": [
+    "nome",
+    "telefone",
+    "email",
+    "NIF",
+    "IBAN",
+    "morada",
+    "documentos",
+    "fotos",
+    "matricula"
+   ],
+   "mantido": "historico de acertos e transacoes, anonimizado"
+  },
+  "storage": {
+   "accao": "apagado",
+   "detalhe": {
+    "driver-documents": 3,
+    "avatars": 0,
+    "restaurant-documents": 0,
+    "cleaner-documents": 0,
+    "washer-documents": 0
+   }
+  },
+  "auth": {
+   "accao": "anonimizado_e_banido_para_sempre",
+   "detalhe": "email trocado, palavra-passe invalidada, metadados limpos, identidades removidas, banned_until=infinity"
+  },
+  "erro": null,
+  "bloqueios": null
+ }
+}

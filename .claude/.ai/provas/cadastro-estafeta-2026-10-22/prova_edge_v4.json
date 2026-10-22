@@ -1,0 +1,26 @@
+{
+ "login": 200,
+ "uid_inicio": "dede0000",
+ "jpeg_bytes": 677,
+ "jpg_image_jpg": {
+  "http": 200,
+  "success": true,
+  "path": "dede0000-0000-4000-8000-000000000001/document_1792686468968.jpg",
+  "error": null,
+  "tem_signed_url": true
+ },
+ "vehicle_doc": {
+  "http": 200,
+  "success": true,
+  "path": "dede0000-0000-4000-8000-000000000001/vehicle_doc_1792686469711.jpg",
+  "error": null,
+  "tem_signed_url": true
+ },
+ "heic_falso": {
+  "http": 415,
+  "success": null,
+  "path": null,
+  "error": "heic_nao_suportado",
+  "tem_signed_url": false
+ }
+}

@@ -1,0 +1,3 @@
+- img
+- button "Fechar"
+- text: Foto do veículo Dois dedos ou dois toques para ampliar

@@ -1,0 +1,10 @@
+- heading "BORA — Estafeta" [level=2]
+- button "Trabalhar noutra coisa"
+- button "Terminar sessão"
+- group:
+  - text: Conta em análise A sua conta está a ser verificada pela nossa equipa. Receberá uma notificação quando for aprovada. Falta enviar Sem isto não conseguimos aprovar a tua conta. Envia aqui mesmo. Número do documento
+  - button "Escrever"
+  - text: Comprovativo de atividade
+  - button "Enviar"
+  - text: Entretanto podes usar a app normalmente para fazer os teus pedidos. A análise continua na mesma.
+  - button "Usar a app como cliente"

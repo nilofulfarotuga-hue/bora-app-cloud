@@ -1,0 +1,16 @@
+- button "Voltar"
+- heading "Candidatura de Estafeta" [level=2]
+- group:
+  - button "Dados Pessoais"
+  - button "Conta de Acesso Conta criada ✓"
+  - button "3 Documentos & Fotos Selfie e foto do documento obrigatórias"
+  - button "Selfie (obrigatória)"
+  - button "Tipo de documento de identificação Cartão Cidadão"
+  - textbox "Número do documento (opcional)"
+  - text: Número do CC ou BI sem espaços
+  - button "Foto do documento de identificação (frente) — obrigatória"
+  - button "Foto do documento do veículo (carta de condução ou livrete) — opcional"
+  - button "Foto do veículo (mota, bicicleta ou carro) — opcional"
+  - button "Continuar"
+  - button "Voltar"
+  - button "4 Veículo, Pagamento & Dados fiscais"

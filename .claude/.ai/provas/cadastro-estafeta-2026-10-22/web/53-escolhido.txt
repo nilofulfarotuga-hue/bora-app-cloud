@@ -1,0 +1,10 @@
+- button "Voltar"
+- heading "Comprovativo de atividade" [level=2]
+- group:
+  - text: "Estado: Por enviar Para trabalhares no Bora por conta própria precisas de atividade aberta nas Finanças. Envia o teu NIF e uma foto ou PDF do comprovativo."
+  - textbox "NIF (número de contribuinte)": "215645154"
+  - text: O mesmo NIF da atividade aberta nas Finanças. Comprovativo (foto ou PDF, até 10 MB)
+  - button "Escolher foto ou PDF"
+  - text: comprovativo_teste.jpg · 27 KB
+  - button "Enviar comprovativo"
+  - button "Ainda não tens atividade aberta? Vê como se faz"

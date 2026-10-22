@@ -1,0 +1,10 @@
+- group:
+  - button "Ampliar foto"
+  - text: TESTE Reenvio Fotos 2210
+  - button "Ligar"
+  - button "SMS"
+  - 'group "Falta: número do documento Falta: comprovativo de atividade"':
+    - button "Pedir documentos em falta"
+  - text: DADOS PESSOAIS Nome que aparece TESTE Reenvio Fotos 2210 Nome legal Teste Reenvio Fotos Telefone +351900002211 E-mail — Data de nascimento 22/10/1991 (35 anos) Morada Rua de Teste 2, 6300-000 Guarda DOCUMENTO DE IDENTIFICAÇÃO Tipo Cartão Cidadão Número Falta
+  - button "Foto do documento Ampliar foto"
+  - text: "FISCAL NIF 232844623 Atividade aberta — Comprovativo de atividade Estado: Por enviar Falta: comprovativo de atividade VEÍCULO Tipo Mota"

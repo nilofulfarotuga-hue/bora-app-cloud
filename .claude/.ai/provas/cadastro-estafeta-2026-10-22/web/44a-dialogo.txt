@@ -1,0 +1,5 @@
+- alertdialog:
+  - text: Matrícula
+  - textbox "AA-00-AA"
+  - button "Cancelar"
+  - button "Enviar"

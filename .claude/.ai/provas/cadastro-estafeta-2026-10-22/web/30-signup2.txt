@@ -1,0 +1,10 @@
+- button "Voltar"
+- heading "Candidatura de Estafeta" [level=2]
+- group:
+  - button "1 Dados Pessoais"
+  - textbox "Nome completo"
+  - textbox "Telefone (opcional)"
+  - button "Continuar"
+  - button "2 Conta de Acesso"
+  - button "3 Documentos & Fotos Selfie e foto do documento obrigatórias"
+  - button "4 Veículo, Pagamento & Dados fiscais"

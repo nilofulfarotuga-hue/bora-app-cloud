@@ -1,0 +1,36 @@
+# OmniRoute — roteador de IA com recuo entre fornecedores (missao omniroute-23-10).
+# Porta 20128 so em 127.0.0.1 do host e na rede docker do Hermes. Nunca 0.0.0.0.
+name: omniroute
+services:
+  omniroute:
+    image: diegosouzapw/omniroute:3.8.52
+    container_name: omniroute
+    restart: always
+    stop_grace_period: 40s
+    env_file: .env
+    environment:
+      - DATA_DIR=/app/data
+      - PORT=20128
+      - DASHBOARD_PORT=20128
+      - OMNIROUTE_MEMORY_MB=512
+      - OMNIROUTE_RSS_PRESSURE_MB=900
+      - REQUIRE_API_KEY=true
+      - AUTH_COOKIE_SECURE=false
+      - ENABLE_TLS_FINGERPRINT=false
+      - OMNIROUTE_NO_UPDATE_NOTIFIER=1
+      - OPENCODE_GO_USER_AGENT=bora-agentes/1.0
+      - OPENCODE_USER_AGENT=bora-agentes/1.0
+      - OPENCODE_CLIENT=bora-agentes
+      - OPENCODE_PROJECT=bora
+      - TZ=Europe/Lisbon
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "127.0.0.1:20128:20128"
+    mem_limit: 1g
+    networks:
+      - hermes
+networks:
+  hermes:
+    name: hermes-agent-fvnc_default
+    external: true

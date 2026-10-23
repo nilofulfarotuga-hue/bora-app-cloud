@@ -22,6 +22,10 @@ class _AdminMotoresScreenState extends State<AdminMotoresScreen> {
   final _supabase = Supabase.instance.client;
   List<Map<String, dynamic>> _motores = [];
   List<Map<String, dynamic>> _chamadas = [];
+  // 23/10/2026 (missão omniroute-23-10): o roteador OmniRoute da VPS. Uma linha só ('vps'),
+  // escrita de 10 em 10 min por /opt/omniroute/or_estado.py. Sem chaves.
+  Map<String, dynamic>? _omniroute;
+  DateTime? _omnirouteEm;
   bool _loading = false;
   String? _erro;
 
@@ -46,9 +50,16 @@ class _AdminMotoresScreenState extends State<AdminMotoresScreen> {
           .select('maquina, perfil, fornecedor, modelo, ok, latencia_ms, tokens, erro, created_at')
           .order('created_at', ascending: false)
           .limit(120);
+      final o = await _supabase
+          .from('omniroute_estado')
+          .select('dados, updated_at')
+          .eq('id', 'vps')
+          .maybeSingle();
       setState(() {
         _motores = List<Map<String, dynamic>>.from(m);
         _chamadas = List<Map<String, dynamic>>.from(c);
+        _omniroute = o == null ? null : Map<String, dynamic>.from((o['dados'] as Map?) ?? {});
+        _omnirouteEm = o == null ? null : DateTime.tryParse('${o['updated_at']}');
         _loading = false;
       });
     } catch (e) {
@@ -97,6 +108,8 @@ class _AdminMotoresScreenState extends State<AdminMotoresScreen> {
               : ListView(
                   padding: const EdgeInsets.all(12),
                   children: [
+                    _cartaoOmniroute(),
+                    const SizedBox(height: 8),
                     _resumo(),
                     const SizedBox(height: 8),
                     ..._motores.map(_cartao),
@@ -130,6 +143,90 @@ class _AdminMotoresScreenState extends State<AdminMotoresScreen> {
             _kv('Últimas chamadas OK', '$ok / ${_chamadas.length}'),
             _kv('Latência mediana', mediana),
             _kv('p95', p95),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _cartaoOmniroute() {
+    final d = _omniroute;
+    if (d == null) {
+      return const Card(
+        child: ListTile(
+          leading: Icon(Icons.alt_route, color: AppColors.textSubtle),
+          title: Text('OmniRoute', style: TextStyle(fontWeight: FontWeight.w700)),
+          subtitle: Text('Ainda sem estado. A VPS escreve de 10 em 10 minutos.'),
+        ),
+      );
+    }
+    final minutos = _omnirouteEm == null ? null : DateTime.now().toUtc().difference(_omnirouteEm!.toUtc()).inMinutes;
+    final parado = minutos == null || minutos > 25;
+    final consumo = Map<String, dynamic>.from((d['consumo_hoje'] as Map?) ?? {});
+    final combos = List<Map<String, dynamic>>.from(((d['combos'] as List?) ?? []).map((e) => Map<String, dynamic>.from(e as Map)));
+    final forn = List<Map<String, dynamic>>.from(((d['fornecedores'] as List?) ?? []).map((e) => Map<String, dynamic>.from(e as Map)));
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Icon(Icons.alt_route, color: parado ? AppColors.error : AppColors.primary),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text('OmniRoute (roteador da VPS)', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+              ),
+              Text(
+                parado ? 'sem notícias há ${minutos ?? '?'} min' : 'atualizado há $minutos min',
+                style: TextStyle(fontSize: 11, color: parado ? AppColors.error : AppColors.textSubtle),
+              ),
+            ]),
+            const SizedBox(height: 8),
+            Wrap(spacing: 18, runSpacing: 6, children: [
+              _kv('Fornecedores vivos', '${d['vivos'] ?? 0}'),
+              _kv('Mortos', '${d['mortos'] ?? 0}'),
+              _kv('Combo em uso', '${d['combo_em_uso'] ?? '—'}'),
+              _kv('Pedidos hoje', '${consumo['pedidos'] ?? 0} (${consumo['ok'] ?? 0} ok)'),
+              _kv('Recuos hoje', '${consumo['recuos'] ?? 0}'),
+              _kv('Tokens hoje', '${consumo['tokens'] ?? 0}'),
+            ]),
+            const SizedBox(height: 10),
+            const Text('Combos — quem está respondendo agora', style: TextStyle(fontWeight: FontWeight.w600)),
+            ...combos.map((c) {
+              final ativo = c['nivel_ativo'];
+              final usam = (c['agentes'] as List?)?.join(', ') ?? '';
+              return Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  '${c['nome']} (${c['niveis']} níveis): ${ativo ?? 'NENHUM nível vivo'}'
+                  '${ativo != null && ativo != c['primeiro_nivel'] ? ' — o 1.º nível (${c['primeiro_nivel']}) está fora' : ''}'
+                  '${usam.isNotEmpty ? '\n   usado por: $usam' : ''}',
+                  style: TextStyle(fontSize: 13, color: ativo == null ? AppColors.error : null),
+                ),
+              );
+            }),
+            const SizedBox(height: 10),
+            const Text('Fornecedores', style: TextStyle(fontWeight: FontWeight.w600)),
+            ...forn.map((f) {
+              final vivo = f['vivo'] == true;
+              return Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Icon(vivo ? Icons.check_circle_outline : Icons.cancel_outlined,
+                      size: 16, color: vivo ? AppColors.primary : AppColors.error),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      '${f['nome']} · ${vivo ? 'vivo' : 'morto'} · hoje ${f['pedidos_hoje'] ?? 0} pedidos '
+                      '(${f['ok_hoje'] ?? 0} ok, ${f['falhas_hoje'] ?? 0} falhas)'
+                      '${!vivo && f['erro'] != null ? '\n${f['erro']}' : ''}',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+                ]),
+              );
+            }),
           ],
         ),
       ),

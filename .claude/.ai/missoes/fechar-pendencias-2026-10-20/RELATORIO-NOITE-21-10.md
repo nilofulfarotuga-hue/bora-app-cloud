@@ -48,16 +48,15 @@ que faz a ponte parar — só estraga a caixa do próprio Emerson).
 
 ## Falta isto (e porquê)
 
-1. **Envio da correção da ponte (N5) para o GitHub.** O revisor da 2.ª ronda já disse SIM (às 06:15, lançado
-   por esta sessão porque a dona do N5 parou), mas a ponte tinha sido religada às 05:05, antes dele — a ordem
-   pedia o revisor primeiro. Os ficheiros estão no ramo `agentes-email-21-10`, por enviar.
-2. **Prova do N2 no Android e no iPhone** — builds ainda a correr às 05:58.
-3. **Primeira corrida real pela fila inteligente** — ainda não houve nenhuma corrida.
+1. ~~Envio da correção da ponte (N5)~~ — **feito** a 22/10 às 06:49 (3ea751d1) e provado nas 3 (ver
+   "Atualização da manhã"). Nota: a ponte tinha sido religada às 05:05, antes do revisor — a ordem pedia o
+   revisor primeiro; o revisor da 2.ª ronda disse SIM às 06:15.
+2. ~~Prova do N2 no Android e no iPhone~~ — **feita** (Android 685, iPhone build 202).
+3. ~~Primeira corrida real pela fila inteligente~~ — **aconteceu** a 22/10 às 21:27 (ver "Atualização de 23/10").
 4. **Chave nova (N9)** — parada à espera do Danilo: as 3 funções de pagamento (reembolso, fechar o pedido
    depois do cartão, cobrar extra) mexem na Stripe; e para passar a VPS e o CI para a chave nova é preciso um
    código de acesso novo do Supabase. As chaves antigas continuam ligadas, como mandado.
-5. **Envio dos ficheiros do 3b para o GitHub** — vão disparar um build Android e o site (a app sai igual, só com
-   número novo); combinado para ir depois do último envio da outra sessão.
+5. ~~Envio dos ficheiros do 3b para o GitHub~~ — **feito** a 23/10 (ver "Atualização de 23/10").
 6. **Prova no emulador do carro a deslizar** — não feita: o PC tinha 1,2 a 1,7 GB livres (regra: 3 GB) e uma
    corrida demo de noite pode tocar a um motorista real.
 
@@ -74,7 +73,7 @@ que faz a ponte parar — só estraga a caixa do próprio Emerson).
   cálculo do servidor (nenhuma app usa este caminho, mas está aberto).
 - O cliente ainda vê, na própria lavagem, quanto o lavador ganha e quanto fica para a Bora.
 - A tranca recusou, por engano, uma cópia de ficheiro do robô B (julgou ver uma chave) — falso positivo.
-- A sessão orquestradora parou duas vezes sem aviso (21:35→04:37 e desde as 05:08).
+- A sessão orquestradora parou duas vezes sem aviso (21:35→04:37 e 05:08→06:48), e esta sessão ficou presa num envio sem rede de 22/10 06:49 a 23/10 05:48.
 
 ## PARA O DANILO
 
@@ -86,10 +85,34 @@ que faz a ponte parar — só estraga a caixa do próprio Emerson).
    dinheiro? (mudança na app + publicar nas 3).
 4. **YouTube do radar:** deixei aberta no Chrome pessoal a página de entrada da conta 1 — entra tu, uma vez.
 5. **Permissões das sessões (N8):** é na app, em Definições do Claude Code → modo de permissões por omissão.
-6. **Teste do e-mail com o teu Gmail pessoal:** só com o teu sim na conversa.
-7. **Encomendas:** continuam desligadas até decidires (quem pode pedir, a lei TVDE para mercadoria, a foto).
+6. **Encomendas:** continuam desligadas até decidires (quem pode pedir, a lei TVDE para mercadoria, a foto).
 
 ## Próximo passo
 
-A vigia da fila continua até às 12:00 (resumo no e2e_log, passo N1-vigia-fim). Confirmar os builds Android e
-iPhone do N2, e enviar os ramos do 3b (`n3b-22-10`) e da ponte (`agentes-email-21-10`), um de cada vez.
+Só falta o que está à espera do Danilo (secção acima). A prova no emulador do carro a deslizar fica para quando o
+PC tiver 3 GB livres e houver forma de a corrida demo ir só ao estafeta demo.
+
+## Atualização da manhã (08:40 de 22/10, sessão local_6914492a)
+
+- N2 provado nas 3: Android 685 (= app_latest_version_code), web, iPhone build 202 enviado à Apple
+  (e2e N2-A1-publicado, 4359).
+- N5 enviado às 06:49 (3ea751d1) e provado nas 3: Android 686, web com o ecrã "E-mail dos agentes", iPhone build
+  203 enviado à Apple (e2e N5-email-provado, 4369). A volta de fora foi feita com o Gmail da EMPRESA
+  (boraappbora@gmail.com) às 21:23 de 21/10 — o teste com o Gmail pessoal do Danilo deixa de ser preciso.
+- N9: o repositório ficou igual ao que está no ar em 5 funções que já aceitam a chave nova (a98a0636, sem
+  compilar a app); o robot-b ficou de fora porque a tranca não deixou comparar.
+- N7: a conta do radar é nilofulfaro@gmail.com e o Google pede a palavra-passe dela no Chrome pessoal.
+
+## Atualização de 23/10 (05:50, sessão local_b16c6598)
+
+- **Primeira corrida real pela fila inteligente:** 22/10 às 21:27, cliente real. A fila calculou a lista e fez
+  a 1.ª oferta aos 29 segundos (regra: até 60). Havia 1 motorista; não aceitou em 40 s, a lista acabou, e o
+  cliente cancelou passados 3 minutos. A fila fez o que devia; faltou haver mais motoristas ligados.
+  (e2e N1-primeira-corrida-real, 4429). Antes disso só houve 3 reservas, que seguem outro caminho.
+- **Falha da vigia (digo-o claro):** a vigia de 15 em 15 minutos correu das 04:52 às 06:37 de 22/10. A partir das
+  06:49 esta sessão ficou presa num envio para o GitHub enquanto o PC estava sem rede, e só voltou a 23/10 às
+  05:48 — as vigias das 06:52 às 11:52 não correram. Verifiquei depois pela base: nesse intervalo houve só uma
+  reserva, com motorista, e nenhuma corrida sem oferta; a fila nunca precisou de ser desligada (e2e
+  N1-vigia-fim, 4430). A fila continua ligada.
+- **3b enviado para o GitHub** a 23/10, depois do "pode" da sessão local_6914492a (só migrações e documentos;
+  dispara build Android e site, a app sai igual).

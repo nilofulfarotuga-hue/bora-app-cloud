@@ -318,6 +318,43 @@ class CartStore extends ChangeNotifier {
       ? 0
       : smallOrderFeeConfig.faltaPara(_serviceType, subtotal);
 
+  // ── ENTREGA GRÁTIS POR LOJA (23/10/2026, ordem do Danilo) ────────────────
+  // McDonald's a partir de 20 €, Continente e Burger King a partir de 30 €
+  // (`restaurants.free_delivery_min_cents`). O servidor manda
+  // (`pricing_calculate_loja` no quote e no create_order); isto é só o que o
+  // ecrã mostra antes do quote chegar e o aviso "faltam X €".
+
+  /// Mínimo em euros para a entrega ser grátis nesta loja; `null` = sem oferta.
+  double? get entregaGratisMin {
+    if (!_ehPedidoNaoParceiro) return null;
+    final doServidor = (_quoteCache?['free_delivery_min_cents'] as num?);
+    final cents = doServidor?.toInt() ??
+        SmallOrderFeeService.entregaGratisMinCents(_vendorRestaurantId);
+    if (cents == null || cents <= 0) return null;
+    return cents / 100;
+  }
+
+  /// `true` quando o carrinho já chegou ao mínimo da entrega grátis.
+  bool get entregaGratis {
+    final min = entregaGratisMin;
+    return min != null && (subtotal * 100).round() >= (min * 100).round();
+  }
+
+  /// Quanto falta para a entrega ficar grátis. 0 quando já é ou não há oferta.
+  double get faltaParaEntregaGratis {
+    final min = entregaGratisMin;
+    if (min == null || entregaGratis || subtotal <= 0) return 0;
+    return ((min * 100).round() - (subtotal * 100).round()) / 100;
+  }
+
+  /// O preço normal da entrega, para mostrar riscado quando é grátis.
+  double? get entregaRiscada {
+    if (!entregaGratis) return null;
+    final local = pricingBreakdown;
+    final normal = local.deliveryFee - local.apartmentSurcharge;
+    return normal > 0 ? normal : null;
+  }
+
   OrderPricingBreakdown get pricingBreakdown {
     final base = PricingService.calculateBreakdown(
       serviceType: _serviceType,
@@ -577,7 +614,14 @@ class CartStore extends ChangeNotifier {
     final q = eFavor ? null : quoteDoCarrinho;
     double valor(String k, double l) => (q?[k] as num?)?.toDouble() ?? l;
     final apartamento = valor('apartment_surcharge', local.apartmentSurcharge);
-    final entrega = valor('delivery_fee', local.deliveryFee) - apartamento;
+    // Entrega grátis (23/10/2026): sem quote ainda, o cálculo local tira a
+    // entrega quando o carrinho chega ao mínimo da loja — igual ao servidor.
+    final gratisLocal = q == null && !eFavor && entregaGratis;
+    final entregaLocalPoupada =
+        gratisLocal ? local.deliveryFee - local.apartmentSurcharge : 0.0;
+    final entrega = gratisLocal
+        ? 0.0
+        : valor('delivery_fee', local.deliveryFee) - apartamento;
     final taxaPedidoPequeno = eFavor ? 0.0 : smallOrderFee;
     return ResumoDoCarrinho(
       subtotal: valor('subtotal', local.subtotal),
@@ -587,7 +631,7 @@ class CartStore extends ChangeNotifier {
       saco: valor('bag_fee', local.bagFee),
       taxaPedidoPequeno: taxaPedidoPequeno,
       total: (q?['customer_total'] as num?)?.toDouble() ??
-          (local.customerTotal + taxaPedidoPequeno),
+          (local.customerTotal + taxaPedidoPequeno - entregaLocalPoupada),
       doServidor: q != null,
     );
   }

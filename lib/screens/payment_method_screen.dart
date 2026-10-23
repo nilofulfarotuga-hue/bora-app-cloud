@@ -482,9 +482,14 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                         // "Ir buscar" não tem entrega — nem linha a 0.
                         if (!isErrand && !cartStore.isTakeaway)
                           _SummaryRow(
-                          label: 'Entrega'.tr,
+                          label: cartStore.entregaGratis
+                              ? 'Entrega grátis'.tr
+                              : 'Entrega'.tr,
                           value: baseDeliveryFee,
+                          // Entrega grátis (23/10/2026): preço normal riscado.
+                          riscado: cartStore.entregaRiscada,
                           subtitle: () {
+                            if (cartStore.entregaGratis) return null;
                             // Taxa base e €/km derivadas do PricingService (fonte
                             // única de verdade) — não hardcodear 6/2.50/0.50.
                             final st = cartStore.serviceType;

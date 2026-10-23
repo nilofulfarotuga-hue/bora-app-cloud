@@ -67,6 +67,15 @@ class SmallOrderFeeService {
   static final Map<String, SmallOrderFeeConfig> _porLoja = {};
   static bool _globalCarregado = false;
 
+  /// ENTREGA GRÁTIS POR LOJA (23/10/2026, ordem do Danilo): subtotal mínimo,
+  /// em cêntimos, a partir do qual a loja não cobra entrega
+  /// (`restaurants.free_delivery_min_cents`). Sem entrada = sem entrega grátis.
+  /// Espelho do `pricing_calculate_loja` do servidor.
+  static final Map<String, int> _entregaGratisMin = {};
+
+  static int? entregaGratisMinCents(String? restaurantId) =>
+      restaurantId == null ? null : _entregaGratisMin[restaurantId];
+
   static SmallOrderFeeConfig get global => _global;
 
   /// Configuração em vigor para uma loja: o override dela, se existir; senão
@@ -126,10 +135,17 @@ class SmallOrderFeeService {
     try {
       final linha = await Supabase.instance.client
           .from('restaurants')
-          .select('min_order_cents_override, small_order_fee_cents_override')
+          .select('min_order_cents_override, small_order_fee_cents_override, '
+              'free_delivery_min_cents')
           .eq('id', restaurantId)
           .maybeSingle();
       if (linha == null) return;
+      final gratis = (linha['free_delivery_min_cents'] as num?)?.toInt();
+      if (gratis != null) {
+        _entregaGratisMin[restaurantId] = gratis;
+      } else {
+        _entregaGratisMin.remove(restaurantId);
+      }
       final min = (linha['min_order_cents_override'] as num?)?.toInt();
       final fee = (linha['small_order_fee_cents_override'] as num?)?.toInt();
       if (min == null && fee == null) return; // herda o global
@@ -151,6 +167,7 @@ class SmallOrderFeeService {
   static void esquecerCache() {
     _globalCarregado = false;
     _porLoja.clear();
+    _entregaGratisMin.clear();
   }
 
   static int _comoInt(dynamic v) {

@@ -67,6 +67,8 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
   // Taxa de pedido pequeno — override desta loja (vazio = usa o valor global).
   final TextEditingController _minPedidoCtrl = TextEditingController();
   final TextEditingController _taxaPequenoCtrl = TextEditingController();
+  // Entrega grátis por loja (23/10/2026): restaurants.free_delivery_min_cents.
+  final TextEditingController _entregaGratisCtrl = TextEditingController();
   bool _savingPedidoMinimo = false;
   final TextEditingController _facebookCtrl = TextEditingController();
   final TextEditingController _instagramCtrl = TextEditingController();
@@ -103,6 +105,7 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
     _whatsappCtrl.dispose();
     _minPedidoCtrl.dispose();
     _taxaPequenoCtrl.dispose();
+    _entregaGratisCtrl.dispose();
     _facebookCtrl.dispose();
     _instagramCtrl.dispose();
     _aboutCtrl.dispose();
@@ -120,7 +123,7 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
               'takeaway_enabled, reservations_enabled, curbside_enabled, takeaway_default_prep_minutes, hero_image_url, photo_url, '
               'owner_doc_url, activity_doc_url, lat, lng, partner_commission_billing, user_id, '
               'whatsapp, social_facebook, social_instagram, about_text, extra_categories, '
-              'min_order_cents_override, small_order_fee_cents_override')
+              'min_order_cents_override, small_order_fee_cents_override, free_delivery_min_cents')
           .eq('id', widget.restaurantId)
           .single();
       final openData = await Supabase.instance.client.rpc('is_partner_open', params: {
@@ -146,6 +149,8 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
           _taxaPequenoCtrl.text =
               (r['small_order_fee_cents_override'] as num?)?.toInt().toString() ??
                   '';
+          _entregaGratisCtrl.text =
+              (r['free_delivery_min_cents'] as num?)?.toInt().toString() ?? '';
           _facebookCtrl.text = r['social_facebook'] as String? ?? '';
           _instagramCtrl.text = r['social_instagram'] as String? ?? '';
           _aboutCtrl.text = r['about_text'] as String? ?? '';
@@ -962,9 +967,19 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
   Future<void> _savePedidoMinimo() async {
     final minTxt = _minPedidoCtrl.text.trim();
     final taxaTxt = _taxaPequenoCtrl.text.trim();
+    final gratisTxt = _entregaGratisCtrl.text.trim();
 
     int? min;
     int? taxa;
+    int? gratis;
+    if (gratisTxt.isNotEmpty) {
+      gratis = int.tryParse(gratisTxt);
+      if (gratis == null || gratis < 0 || gratis > 100000) {
+        _aviso('Entrega grátis inválida. Use centavos inteiros, '
+            'de 0 a 100000 (= 1.000,00 €).');
+        return;
+      }
+    }
     if (minTxt.isNotEmpty) {
       min = int.tryParse(minTxt);
       if (min == null || min < 0 || min > 100000) {
@@ -986,6 +1001,7 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
       await Supabase.instance.client.from('restaurants').update({
         'min_order_cents_override': min,
         'small_order_fee_cents_override': taxa,
+        'free_delivery_min_cents': gratis,
       }).eq('id', widget.restaurantId);
       // O app do cliente tem estes valores em cache: força a releitura.
       SmallOrderFeeService.esquecerCache();
@@ -1070,6 +1086,20 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 12),
+            // Entrega grátis por loja (23/10/2026, padrão Glovo): a partir
+            // deste subtotal o cliente não paga entrega. Vazio = sem oferta.
+            // Só vale para loja NÃO-parceira (o servidor ignora nas parceiras).
+            TextField(
+              controller: _entregaGratisCtrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Entrega grátis a partir de (centavos)',
+                hintText: 'vazio = sem entrega grátis · 2000 = 20,00 €',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
             ),
             const SizedBox(height: 12),
             Row(

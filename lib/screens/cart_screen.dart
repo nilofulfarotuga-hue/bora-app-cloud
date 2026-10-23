@@ -454,10 +454,18 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                     _SummaryRow(
                       label: cartStore.isTakeaway
                           ? 'Entrega (takeaway)'.tr
-                          : 'Entrega',
+                          : cartStore.entregaGratis
+                              ? 'Entrega grátis'.tr
+                              : 'Entrega',
                       value: cartStore.isTakeaway ? 0.0 : baseDeliveryFee,
+                      // Entrega grátis (23/10/2026): o preço normal riscado,
+                      // como a Glovo mostra.
+                      riscado: cartStore.isTakeaway
+                          ? null
+                          : cartStore.entregaRiscada,
                       subtitle: () {
                         if (cartStore.isTakeaway) return null;
+                        if (cartStore.entregaGratis) return null;
                         final d = pricing.distanceKm;
                         if (d <= 4.0) return null;
                         final extra = d - 4.0;
@@ -480,6 +488,12 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                       ),
                     if (cartStore.faltaParaMinimo > 0)
                       _FaltaParaOMinimo(falta: cartStore.faltaParaMinimo),
+                    if (!cartStore.isTakeaway &&
+                        cartStore.faltaParaEntregaGratis > 0)
+                      _FaltaParaOMinimo(
+                        falta: cartStore.faltaParaEntregaGratis,
+                        texto: 'Faltam {0} € para a entrega grátis',
+                      ),
                     const SizedBox(height: Spacing.md),
                     if (_gorjetaLigada) ...[
                       TipSelector(
@@ -806,9 +820,16 @@ class _SummaryRow extends StatelessWidget {
 /// pequeno. E o que a Uber e a Glovo fazem — e o que faz o cliente juntar mais
 /// um item em vez de desistir do pedido.
 class _FaltaParaOMinimo extends StatelessWidget {
-  const _FaltaParaOMinimo({required this.falta});
+  const _FaltaParaOMinimo({
+    required this.falta,
+    this.texto = 'Faltam {0} € para evitar a taxa de pedido pequeno',
+  });
 
   final double falta;
+
+  /// Frase com {0} no lugar do valor (23/10/2026: também serve para a
+  /// entrega grátis).
+  final String texto;
 
   @override
   Widget build(BuildContext context) {
@@ -821,7 +842,7 @@ class _FaltaParaOMinimo extends StatelessWidget {
           const SizedBox(width: Spacing.xs),
           Expanded(
             child: Text(
-              'Faltam {0} € para evitar a taxa de pedido pequeno'.trArgs([falta.toStringAsFixed(2).replaceAll('.', ',')]),
+              texto.trArgs([falta.toStringAsFixed(2).replaceAll('.', ',')]),
               style: const TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w600,

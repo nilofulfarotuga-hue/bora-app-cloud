@@ -1685,6 +1685,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'There are less than {0} hours to the trip. A cancellation fee may apply.',
   'Faltam {0} € para evitar a taxa de pedido pequeno':
       '{0} € to go to avoid the small order fee',
+  'Faltam {0} € para a entrega grátis': '{0} € to go for free delivery',
+  'Entrega grátis': 'Free delivery',
   'Faltam {0}h para a marcação (mais de 24 horas).\n\nRegra: reembolso TOTAL de {1} de €{2} (5–10 dias úteis no cartão).':
       'There are {0}h to the appointment (more than 24 hours).\n\nRule: FULL refund of {1} of €{2} (5–10 business days on the card).',
   'Faltam {0}h para a marcação (menos de 24 horas).\n\nRegra: {1} de €{2} NÃO é reembolsado.':

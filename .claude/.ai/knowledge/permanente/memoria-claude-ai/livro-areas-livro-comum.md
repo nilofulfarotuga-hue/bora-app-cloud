@@ -10,11 +10,11 @@ estado: atual
 
 # "Livro comum" — o Danilo quer que Claude.ai, Hermes/Emerson, Claude Code e ChatGPT saibam todos o mesmo (tudo sobre ele e o Bora); ler antes de mexer em memória partilhada dos agentes
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-livro-comum`, origem `claude-ai`, atualizada em 2026-10-23T06:17:33.542935+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-livro-comum`, origem `claude-ai`, atualizada em 2026-10-23T07:17:55.66198+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas livro comum · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/livro-comum.md), copiada a 23/10/2026 07:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/livro-comum.md), copiada a 23/10/2026 08:17 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: livro-comum

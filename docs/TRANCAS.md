@@ -120,3 +120,10 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
 | `permissions.allow` | `mcp__*__execute_sql` | as leituras ao banco; as escritas perigosas continuam paradas pela tranca SQL |
 | `permissions.ask` | `Bash(git push*)` | push continua a pedir 1 toque (é publicação) |
 | `permissions.deny` | manter os atuais (`push --force`, `reset --hard`, `db reset`, ficheiros de dinheiro) | nada muda no que é perigo |
+
+## Registo de bloqueios em missões
+
+- **23/10/2026, missão `omniroute-23-10`** — a `bora-tranca` recusou `rm -rf ferramentas/omniroute` na árvore
+  principal ("apagar recursivo fora de build/"). Era uma cópia **minha**, por versionar, igual à que já estava
+  no servidor (commit 40c9c2ec). Não contornei. Ficam por apagar na árvore principal, antes de outra sessão
+  actualizar o ramo: `ferramentas/omniroute/` e `supabase/migrations/20261023060000_omniroute_estado.sql`.

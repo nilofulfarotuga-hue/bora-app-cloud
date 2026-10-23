@@ -51,3 +51,7 @@ correr `or_prova.py opencode-go/glm-5.2 opencode-go/qwen3.8-max` — o Go volta 
 - `or_descida.py` estraga de propósito as chaves do Gemini, mostra quem responde, e repõe-nas.
 - `or_estado.py` (cron `*/10`) escreve `public.omniroute_estado`, que o ecrã `/admin/motores` lê.
 - Desfazer o Hermes: `or_ligar_hermes.py --desfazer`; o Emerson: `or_patch_emerson.py --desfazer`.
+- **Cicatriz 23/10:** o gateway do Telegram (`hermes gateway run`) carrega o `.env` só ao arrancar; com uma
+  chave nova no `.env` dava `401` no OmniRoute e respondia pelo recuo antigo. Depois de mudar a chave,
+  reinicia-se com `relancar_gateway.sh` (espera que a conversa em curso acabe — matar a meio deixa a
+  mensagem do Danilo sem resposta, foi o que aconteceu às 06h22).

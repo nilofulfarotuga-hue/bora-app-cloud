@@ -10,11 +10,11 @@ estado: atual
 
 # [PESSOAL] Ioniq 5 (CH-90-PX) da Deutsmarkt/Credibom — DUA atrasado meses (interpelação, conservatória); a 13/10 ficou registado no nome dele; seguro com o Paulo da frota
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-ioniq5-documentos`, origem `claude-ai`, atualizada em 2026-10-23T05:36:14.453524+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-ioniq5-documentos`, origem `claude-ai`, atualizada em 2026-10-23T09:13:45.388874+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas ioniq5 documentos · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/ioniq5-documentos.md), copiada a 23/10/2026. A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/ioniq5-documentos.md), copiada a 2026-10-23 10:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: ioniq5-documentos
@@ -45,4 +45,4 @@ aliases: [documento do carro, matrícula do Ioniq, Deutsmarkt, Credibom, devolve
 - [stated] 13/10/2026: saiu a certidão — o carro já está registado no nome dele (com reserva de propriedade a favor da Credibom); o documento físico deve chegar a casa no máximo numa semana, e aí manda-o para a Uber. Tinha cancelado o seguro do carro e pediu ao Paulo (o rapaz da frota com quem trabalha) para ir adiantando nova cotação do seguro
 - [stated] 14/10/2026: enquanto o Ioniq estava parado, trabalhou com o carro de um colega (seguro na Una, tratado pelo Paulo da frota Prime Go). Usa-o muito pouco, porque nem sempre está disponível, e por isso não compensa: mandou deixar esse seguro expirar ou anular. O Paulo já pediu a cotação do seguro do Ioniq
 - [stated] 22/10/2026: diz ter agravante na carta de condução que encarece o seguro dele; para as cotações do seguro TVDE do Ioniq pensa usar a esposa ([[esposa]]: 30 anos, carta há 4 anos, nunca teve multa) como condutora
-
+- [stated] 23/10/2026: quer avançar com o seguro TVDE do Ioniq pela frota do Paulo e escolheu a opção mais barata, só contra terceiros (até 31/08/2027); a frota pede-lhe um contrato de comodato (empréstimo do carro à frota) para avançar

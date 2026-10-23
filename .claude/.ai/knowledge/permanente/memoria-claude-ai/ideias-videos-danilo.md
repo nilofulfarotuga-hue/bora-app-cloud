@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-22
+ultima_confirmacao: 2026-10-23
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-22T21:13:19.572936+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-23T19:59:03.45849+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -286,3 +286,18 @@ A CONFERIR ANTES DE PRODUZIR: cronometrar a marcação na app ("1 minuto" não f
 Estado: IDEIA (nada lançado).
 AEO (fonte youtube UWWfsvdu29U): não pagar inserções nem prometer "primeiro lugar" no ChatGPT. Ideia Bora/Em Dia: semanalmente perguntar ao ChatGPT, Gemini e Perplexity "melhor app de recibos verdes em Portugal" e "entregas ao domicílio na Guarda", registar se aparecem e que páginas são citadas (passo semanal possível do Hermes na VPS). Ideia para vender: serviço de AEO para PMEs da Guarda (preço só com decisão do Danilo).
 Filme caminho 4 (fontes htROyMzUbA8, rxZZ1xi81a4): no Google Flow (Omniflash 1.1) usar imagem da personagem + áudio da voz fixa (caminho 3) para sincronizar a boca. Reserva sem créditos: MuseTalk/Wav2Lip no Kaggle, áudio limpo, fala a fala.
+
+## 23/10/2026 — radar diário (agente na nuvem)
+60 vídeos revistos (46 com nota >= 6): 10 novos, 13 PENDENTES, 12 já temos, 25 rejeitados (14 por nota baixa). Nenhum do tema animacao_ia (há 8 do filme vindos de outras pesquisas). Recolha das 02:00: conta 1 do YouTube sem sessão pelo 6.º dia, mas o recurso yt-dlp gravou 20 vídeos (e2e_log radar-historico 23/10 01:45, ok-parcial).
+- MODA DA SEMANA (3+ vídeos nota>=8 em 7 dias): Claude Duet 3 (todos hoje) — PENDENTE desde 22/10 (vídeos dizem Pro/Max, EUA, lista de espera). Vender automação/agência de IA para PMEs 3+3 e sites com IA para negócios locais 3 — pacote PMEs PENDENTE desde 13/10 (só a Mister Navalha). Micro-SaaS 3 — página por dúvida do Em Dia PENDENTE desde 21/10. Atendente WhatsApp 4 — FEITO (Mister Navalha). Claude Motion/Dashboards 3 — PENDENTE desde 11/10. Rececionista de voz 3 — PENDENTE desde 13/10. Prospeção/extrator Google Maps 3 — PENDENTE desde 17/10. REA 3 — FEITO 21/10. Recibos verdes 3 — prazo 31/10 (prop-cb91e8c2).
+- EM DIA: calculadoras grátis no site (Segurança Social / IRS de recibos verdes), uma página cada com botão de instalar, como íman do Google (prop-9fb4a0a2). https://www.youtube.com/watch?v=FzxQXkBNKmU
+- EM DIA: roteiros no NotebookLM (grátis) a partir das fontes oficiais + mascote fixo no Flow. https://www.youtube.com/watch?v=IlXy-Njfgoo
+- EM DIA: crescer pela audiência de outros — parceria com contabilistas e criadores brasileiros em PT que já falam de recibos verdes (sem mensagens em massa). https://www.youtube.com/watch?v=ZfBkO_KaBzk
+- SISTEMA (lente grátis): classificador leve aberto (Laia; confirmar repo/licença) na VPS antes do OmniRoute/Jev para triar o simples sem gastar modelo grande (prop-c9a93ddc). https://www.youtube.com/watch?v=_E8fF2wRPgM
+- BORA: QR code físico em cafés/IPG/residências + nome na Play Store com a função principal (prop-09235e27). https://www.youtube.com/watch?v=DQ9B7ByhrKg
+- BORA (reels): áudio de 1 min do Danilo → roteiro no tom dele; público rejeita estética de IA. https://www.youtube.com/watch?v=wJz3KpYi7PU
+- DINHEIRO / pacote PMEs: placa física de QR para avaliações Google + mensalidade (preço do Danilo) https://www.youtube.com/watch?v=28F0Q2xyP4U ; leitura de faturas por foto/PDF com visão grátis como 2.º produto https://www.youtube.com/watch?v=H_eUiKC-j3U ; batedor semanal de dores pagas no Reddit/YouTube https://www.youtube.com/watch?v=8lmA9UgwNQs
+- PENDENTES revistos hoje: pacote PMEs/nicho (13/10, 4 vídeos), regra de passar ao humano no atendente (22/10), extrator Google Maps (17/10), Claude Duet (22/10, 3 vídeos), A/B OmniVoice (21/10, 3 vídeos), vídeo grátis da Meta (botão de conta, 04/10).
+- JÁ TEMOS: Gemini+Nano Banana+Veo (logo-reveal 22/10), personagem fixo no Flow, grupos do Facebook, explicativos animados, Higgsfield, orquestra de agentes (Hermes + combo privado OmniRoute), sites com Claude, Devin/Manus (pagos; Claude Code + Hermes fazem o mesmo).
+- RECUSADO: n8n básico, anúncios pagos de DM, LTX/ComfyUI (GPU), geradores de vídeo grátis genéricos, dicas genéricas de Instagram.
+- Nota: o passo 2 do radar ainda diz OpenCode plano Go — o Danilo decidiu NÃO renovar (digest 23/10 omniroute-ronda2); agora OpenCode Zen grátis + OmniRoute.

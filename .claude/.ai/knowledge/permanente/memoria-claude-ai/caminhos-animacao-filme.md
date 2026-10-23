@@ -2,7 +2,7 @@
 id: memoria-claude-ai-caminhos-animacao-filme
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-22
+ultima_confirmacao: 2026-10-23
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Filme das filhas — 5 caminhos grátis para o desenho (revisto 05/10 com os 50 vídeos)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-22T07:08:33.559064+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-23T19:59:09.931064+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: caminhos animacao filme · memoria claude.ai · claude_ai_memoria
 
@@ -88,3 +88,9 @@ Avisos: os juizes de topo (gemini-3.5-flash, 3-flash-preview) gastam 20 pedidos/
 - VIBES DA META (boca): um vídeo de hoje diz que o Vibes, além de animar imagens grátis e sem limite, deixa juntar áudio e fazer sincronização labial, e estender clipes (5 s + 4 s). Já foi tentado e parou no botão de conta — só vale a pena se a conta passar; nesse caso testar a boca de uma personagem com a ficha como imagem. Extensões "Vibes Automation" de terceiros: não instalar sem ler o código. https://www.youtube.com/watch?v=M2sB-aveRDU
 
 [22/10 08:15] PROVA 3D DA TABITA (Colab, autorizacao do Danilo 07:09): a cadeia inteira correu de ponta a ponta de graca (malha -> rig -> cena -> boca -> 192 fotogramas Cycles CPU em 54 min -> zip pela VPS -> mp4 8 s com voz). Resultado REPROVADO a olho e pelo juiz: boca = bola rosa (a construcao da boca renderiza fora do rosto), cabelo cinzento e flores perdidas (cor por vertice a 100 k faces), luz estourada; coques e rosa presentes (identidade parcial); movimento com paralaxe real. Adendo D: nao passa -> via 3D continua EM PROVA (nao e caminho principal); InfiniteTalk (degrau 5) tambem reprovou 8/8 ontem; a marioneta 2D passou para Tabita e Gustavo. Proxima volta 3D (depois do elenco e escala): boca dentro da cabeca com labios da malha, cores por textura UV, exposicao, OptiX nos blocos do Colab, render de 1 fotograma antes dos 192.
+
+## 23/10/2026 — radar diário (sem vídeos do tema animacao_ia; achados de outras pesquisas)
+- VOZES: 3 vídeos do OmniVoice (k2-fsa) mostram que o motor corre num PC sem placa (venv Python), além do Kaggle; o português continua por medir. O A/B do adendo 21/10 (voice design para Davi, Gustavo, Sussurrador, Tailine, Luara) AINDA NÃO correu (nada no e2e_log). https://www.youtube.com/watch?v=I2CzrS6SEnU , https://www.youtube.com/watch?v=ziIV4QQUOAA
+- VOZES (régua): teste às cegas de vários modelos de voz — os abertos ganham nos números de semelhança mas perdem na audição (ritmo, entonação). Juntar à régua do A/B uma audição às cegas pelo Representante, não só HNR/F0/WER. https://www.youtube.com/watch?v=ABeo1kKueRs
+- BOCA (reserva de closes, não testado): Dreamface (app) faz boca sincronizada sobre imagem animada no Flow; atrás do Pippit; confirmar se é grátis sem cartão. https://www.youtube.com/watch?v=EXMHiQF99TA
+- Rejeitados hoje: LTX 2.5/Alpha Gen (ComfyUI, GPU), geradores grátis genéricos sem personagem fixo provado, vídeo grátis da Meta (continua o botão de conta).

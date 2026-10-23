@@ -10,7 +10,7 @@ estado: atual
 
 # Índice do livro — todas as páginas de claude_ai_memoria (gerado)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-23T05:55:33.469211+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-23T06:17:44.407218+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
@@ -375,3 +375,4 @@ Páginas com título [PESSOAL] são da vida do Danilo: só se leem quando a tare
 - seguranca-auditoria-2026-10-21 — Auditoria de seguranca do app (21/10, agente N4) (21/10)
 - sistema-motores-e-portas — Quem faz o quê — uma porta só (atualizado 17/09/2026) (17/09)
 - tokens-metade-do-saldo-2026-10-14 — Tokens do cliente: metade do saldo + desconto chega à cobrança (14/10/2026) (14/10)
+- livro-areas-livro-comum — "Livro comum" — o Danilo quer que Claude.ai, Hermes/Emerson, Claude Code e ChatGPT saibam todos o mesmo (tudo sobre ele e o Bora); ler antes de mexer em memória partilhada dos agentes

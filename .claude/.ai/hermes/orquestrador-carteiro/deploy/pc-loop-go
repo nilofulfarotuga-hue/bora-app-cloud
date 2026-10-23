@@ -1,0 +1,21 @@
+#!/bin/sh
+# pc-loop-go — degrau de recurso do carteiro quando o plano Claude esgota.
+# 23/10/2026: o OpenCode Go saiu (o Danilo nao renova; a chave expirou). Agora corre o OpenCode
+# (programa gratis) no PC ACTUAL, com ferramentas, pelo alias bora-pc de /opt/data/.ssh/config:
+#   --modelo omniroute -> omniroute/agentes (OmniRoute da VPS pelo Tailscale)
+#   --modelo zen-glm   -> opencode/glm-5.3-flash-free (gratis, so dentro do OpenCode)
+# Caminho REAL no PC (C:\BoraLocal\Desktop-PC-antigo\...): o Desktop\produtividade-ia e' uma juncao
+# que o ssh do Windows recusa atravessar ("ponto de montagem nao fidedigno", medido 23/10).
+# Nao mexe no Claude Code (nada de ANTHROPIC_BASE_URL). Versao anterior: pc-loop-go.bak-go-20261023.
+MODELO=""
+case "$1" in
+  --modelo) MODELO="$2"; shift 2 ;;
+  --modelo=*) MODELO="${1#--modelo=}"; shift ;;
+esac
+case "$MODELO" in
+  omniroute|"") OC="omniroute/agentes" ;;
+  zen-glm)      OC="opencode/glm-5.3-flash-free" ;;
+  *) echo "pc-loop-go: degrau desconhecido '$MODELO'"; exit 2 ;;
+esac
+REMOTO="powershell -NoProfile -ExecutionPolicy Bypass -File C:\\BoraLocal\\Desktop-PC-antigo\\produtividade-ia\\hermes-bridge\\run-opencode-recurso.ps1 -Modelo $OC"
+printf '%s' "$*" | base64 | tr -d '\n=' | ssh -F /opt/data/.ssh/config -o BatchMode=yes -o ConnectTimeout=25 -o ServerAliveInterval=30 -o ServerAliveCountMax=6 bora-pc "$REMOTO"

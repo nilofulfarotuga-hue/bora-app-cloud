@@ -22,10 +22,15 @@ Cópia versionada. **O que corre é o da VPS**, em `/opt/omniroute/` (`srv178686
 
 - Só fornecedores por **chave de API**. Nada de contas Claude/ChatGPT/Gemini web, nada de
   revendedores (Kiro, Qoder, g4f), nada de "TLS stealth" (`ENABLE_TLS_FINGERPRINT=false`).
-- O OpenCode Go é chamado com identidade **própria e honesta** (`bora-agentes/1.0`, sessão por
-  conversa), como a documentação do Go pede a clientes que não são o OpenCode.
-- O OpenCode Zen grátis **não entra**: a OpenCode só o permite dentro do próprio OpenCode, e usá-lo
-  aqui obrigava a fingir ser o cliente deles.
+- **OpenCode Go: retirado a 23/10** (o Danilo decidiu não renovar; a chave tinha expirado). Se um dia
+  voltar, entra com identidade **própria e honesta** (`OPENCODE_GO_USER_AGENT=bora-agentes/1.0` no
+  `docker-compose.yml`, sessão por conversa), como a documentação do Go pede.
+- O OpenCode Zen grátis **não entra aqui**: a OpenCode só o permite dentro do próprio OpenCode, e
+  usá-lo atrás do OmniRoute obrigava a fingir ser o cliente deles. Usa-se **no OpenCode do PC**
+  (`opencode models opencode`; defeito `opencode/glm-5.3-flash-free`, que não treina com os dados).
+- **Nunca 3 níveis seguidos do mesmo fornecedor** num combo: com uma chave Gemini inválida o Google
+  responde 400 e o OmniRoute, ao ver 3 erros 400 iguais seguidos, desiste do combo em vez de descer
+  (provado 23/10 06:59).
 - Compressão (Caveman/RTK) desligada; cache de respostas desligada nas chaves (a cache, tal como o
   recuo, esconde um nível morto numa prova).
 - As chaves das máquinas (`agentes-bora`, `conselho-juiz`, `pc-opencode-danilo`) só podem pedir os
@@ -33,16 +38,21 @@ Cópia versionada. **O que corre é o da VPS**, em `/opt/omniroute/` (`srv178686
 
 ## Combos (estratégia `priority`: desce só quando o nível falha)
 
-Ver `or_combos.py`. `agentes` (Emerson e 5 bots, PC), `privado` (torre: só OpenCode Go, Cloudflare
-Workers AI e Groq, que não treinam com os dados), `rapido`, `volume`, `visao`, e as três vozes do
-Conselho (`voz-glm`, `voz-qwen`, `voz-minimax`). Os nomes antigos (`perfil:raciocinio`, `glm-5.2`, …)
-estão mapeados para os combos, por isso quem os pede continua a funcionar.
+Ver `or_combos.py`. `agentes` (Emerson e 5 bots, PC: Gemini, NVIDIA, OpenRouter, Groq, Cloudflare,
+Motor Bora), `privado` (torre: só Cloudflare Workers AI e Groq, que por escrito não treinam com os
+dados), `rapido`, `volume`, `visao`, e as três vozes do Conselho (`voz-glm`, `voz-qwen`,
+`voz-minimax`). Os nomes antigos (`perfil:raciocinio`, `glm-5.2`, …) estão mapeados para os combos,
+por isso quem os pede continua a funcionar. Depois de mudar combos: `or_chaves.py` (fecha as três
+chaves aos modelos que existem).
 
-## Quando a chave do OpenCode Go for renovada
+## Recurso do carteiro (quando o plano Claude esgota)
 
-A 23/10 a chave estava **expirada** (o próprio OpenCode do PC diz "This API key has expired").
-Com chave nova: actualizar a ligação `opencode-go-1` (`PUT /api/providers/<id>` com `apiKey`) e
-correr `or_prova.py opencode-go/glm-5.2 opencode-go/qwen3.8-max` — o Go volta ao topo sozinho.
+`GO_CADEIA="omniroute zen-glm"` no `carteiro.sh` (o nome "GO_" ficou por história). Cada degrau corre
+o `pc-loop-go` no contentor do Hermes → ssh `bora-pc` (PC actual, utilizador `danil`) →
+`run-opencode-recurso.ps1` (caminho **real** `C:\BoraLocal\Desktop-PC-antigo\...`: o
+`Desktop\produtividade-ia` é uma junção que o ssh do Windows recusa) → OpenCode com
+`omniroute/agentes` ou `opencode/glm-5.3-flash-free`. Nunca se redirecciona o Claude Code.
+Prova: `carteiro.sh --prova-cadeia "<tarefa>"`. Cópias em `.claude/.ai/hermes/orquestrador-carteiro/deploy/`.
 
 ## Provas e manutenção
 

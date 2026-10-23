@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Bloco 3 (omniroute-23-10): combos do melhor para o pior, estrategia "priority" (desce so quando falha).
+"""Combos do OmniRoute, do melhor para o pior, estrategia "priority" (desce so quando o nivel falha).
 
-So entram niveis provados um a um no dia 23/10 (logs/prova-nivel-*.jsonl). O OpenCode Go fica no topo
-do `agentes` e do `privado` porque e o melhor e o Danilo paga-o — mas a chave EXPIROU (provado 23/10:
-"This API key has expired"); enquanto nao houver chave nova o OmniRoute salta-o em ~0,2 s.
-O ultimo nivel de cada combo e o Motor Bora antigo (reserva 7 dias, decisao da missao).
+So entram niveis provados um a um (logs/prova-nivel-*.jsonl). 23/10/2026 (2.a ronda): o Danilo decidiu
+NAO renovar o OpenCode Go (chave expirada) — o fornecedor saiu de todos os combos. Ordem pedida por ele:
+Gemini, NVIDIA, OpenRouter, Groq, Cloudflare e o Motor Bora antigo como ultimo nivel (reserva).
+Os modelos gratis do OpenCode Zen NAO entram aqui: a OpenCode so os deixa usar dentro do programa dela.
 """
 import json
 import subprocess
@@ -13,29 +13,29 @@ MOTOR = "motor/"
 
 COMBOS = {
     "agentes": {
-        "description": "Agentes com ferramentas (Hermes/Emerson, 5 bots, juiz). Melhor -> pior.",
+        "description": "Agentes com ferramentas (Hermes/Emerson, 5 bots, juiz, OpenCode do PC). Gemini, NVIDIA, OpenRouter, Groq, Cloudflare, Motor Bora.",
+        # NUNCA 3 niveis seguidos do mesmo fornecedor: com uma chave Gemini invalida o Google responde 400
+        # (nao 401) e o OmniRoute, ao ver 3 erros 400 iguais seguidos, desiste do combo inteiro em vez de
+        # descer (provado 23/10 06:59 com gemini x3 no topo). Por isso so 2 Gemini no topo.
         "models": [
-            "opencode-go/glm-5.2",
-            "opencode-go/qwen3.8-max",
             "gemini/gemini-3.6-flash",
+            "gemini/gemini-3.7-flash",
             "nvidia/nvidia/nemotron-3-ultra-550b-a55b",
             "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
-            "opencode-go/hy3",
-            "cloudflare-ai/@cf/zai-org/glm-4.7-flash",
+            # O Groq gratis (8 mil tokens/min) recusa os pedidos grandes do Hermes (~11 mil) com 413 em
+            # ~0,3 s; serve os pedidos pequenos (despachante, Emerson a planear).
             "groq/openai/gpt-oss-120b",
-            "gemini/gemini-3.7-flash",
             "groq/qwen/qwen3.8-27b",
+            "cloudflare-ai/@cf/zai-org/glm-4.7-flash",
             "gemini/gemini-3.1-flash-lite",
             MOTOR + "perfil:raciocinio",
         ],
     },
     "privado": {
-        "description": "Para quem pode ver dados de clientes (torre). So fornecedores que nao treinam nem guardam: OpenCode Go, Groq, Cloudflare Workers AI.",
+        "description": "Para quem pode ver dados de clientes (torre). So fornecedores que por escrito nao treinam nem guardam: Cloudflare Workers AI e Groq.",
         "models": [
-            "opencode-go/glm-5.2",
-            "opencode-go/qwen3.8-max",
-            # Os pedidos do Hermes tem ~11 mil tokens: o Groq gratis (8 mil/min) recusa-os com 413,
-            # por isso o Cloudflare glm-4.7-flash (provado com pedido grande + ferramenta) vem antes.
+            # Os pedidos do Hermes tem ~11 mil tokens: o Groq gratis recusa-os com 413, por isso o
+            # Cloudflare glm-4.7-flash (provado com pedido grande + ferramenta) vem primeiro.
             "cloudflare-ai/@cf/zai-org/glm-4.7-flash",
             "cloudflare-ai/@cf/google/gemma-4-26b-a4b-it",
             "groq/openai/gpt-oss-120b",
@@ -73,23 +73,19 @@ COMBOS = {
             MOTOR + "perfil:visao",
         ],
     },
-}
-
-# O Conselho (a segunda opiniao do juiz) pede 3 vozes pelo nome dos modelos do plano Go. Cada voz
-# tem o seu combo, com um 2.o nivel DIFERENTE, para as 3 opinioes nao virem todas do mesmo modelo
-# enquanto o Go estiver em baixo.
-COMBOS.update({
-    "voz-glm": {"description": "Conselho: voz glm-5.2 (desce para nemotron/cloudflare).",
-                "models": ["opencode-go/glm-5.2", "nvidia/nvidia/nemotron-3-ultra-550b-a55b",
+    # O Conselho (a segunda opiniao do juiz) pede 3 vozes pelos nomes antigos do plano Go. Cada voz
+    # comeca num modelo DIFERENTE, para as 3 opinioes nao virem todas do mesmo.
+    "voz-glm": {"description": "Conselho: voz glm-5.2 (nemotron da NVIDIA primeiro).",
+                "models": ["nvidia/nvidia/nemotron-3-ultra-550b-a55b",
                            "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
                            "cloudflare-ai/@cf/zai-org/glm-4.7-flash", MOTOR + "perfil:raciocinio"]},
-    "voz-qwen": {"description": "Conselho: voz qwen (desce para gemini/groq).",
-                 "models": ["opencode-go/qwen3.8-max", "gemini/gemini-3.6-flash", "groq/openai/gpt-oss-120b",
+    "voz-qwen": {"description": "Conselho: voz qwen (gemini 3.6 primeiro).",
+                 "models": ["gemini/gemini-3.6-flash", "groq/openai/gpt-oss-120b",
                             "gemini/gemini-3.1-flash-lite", MOTOR + "perfil:raciocinio"]},
-    "voz-minimax": {"description": "Conselho: voz minimax (desce para cloudflare/gemini 3.7).",
-                    "models": ["opencode-go/minimax-m3", "cloudflare-ai/@cf/zai-org/glm-4.7-flash",
-                               "gemini/gemini-3.7-flash", "groq/qwen/qwen3.8-27b", MOTOR + "perfil:raciocinio"]},
-})
+    "voz-minimax": {"description": "Conselho: voz minimax (cloudflare glm-4.7 primeiro).",
+                    "models": ["cloudflare-ai/@cf/zai-org/glm-4.7-flash", "gemini/gemini-3.7-flash",
+                               "groq/qwen/qwen3.8-27b", MOTOR + "perfil:raciocinio"]},
+}
 
 MAPAS = {"perfil:raciocinio": "agentes", "perfil:chat-rapido": "rapido", "perfil:volume": "volume", "perfil:visao": "visao",
          "glm-5.2": "voz-glm", "glm-5.1": "voz-glm",
@@ -127,7 +123,7 @@ def main():
             print(f"mapa {padrao}: ja existia")
             continue
         st, r = admin("POST", "/api/model-combo-mappings", {"pattern": padrao, "comboId": ids[combo], "enabled": True,
-                                                             "description": f"nome antigo do Motor Bora -> combo {combo}"})
+                                                             "description": f"nome antigo -> combo {combo}"})
         print(f"mapa {padrao} -> {combo}: {st}" + ("" if st in (200, 201) else f" erro={json.dumps(r)[:300]}"))
     print(json.dumps(ids))
 

@@ -91,7 +91,9 @@ CONT_MAX="${CONT_MAX:-12}"
 # fornecedor como MOTOR de agente ("Endpoint is unavailable"), por isso o salto antigo só podia
 # produzir texto. O que corre COM FERRAMENTAS é o qwen3.7-max (ferramentas\motores\README.md,
 # testado 2026-08-10; reconfirmado ao vivo 2026-08-11 a criar ficheiro na conta `hermes`).
-GO_FAILOVER_MODELO="${GO_FAILOVER_MODELO:-qwen3.7-max}"
+# 23/10/2026: o Danilo NAO renova o OpenCode Go (chave expirada). O recurso passou a ser o OpenCode
+# (programa gratis) no PC, pelo OmniRoute da VPS; ver pc-loop-go e run-opencode-recurso.ps1.
+GO_FAILOVER_MODELO="${GO_FAILOVER_MODELO:-omniroute}"
 # ============================================================================================
 # FASE 1 MISSÃO DE FECHO (2026-08-11 23:xx) — A CADEIA NÃO PODE FICAR PRESA NUM DEGRAU
 # ============================================================================================
@@ -108,7 +110,9 @@ GO_FAILOVER_MODELO="${GO_FAILOVER_MODELO:-qwen3.7-max}"
 # baixo como MOTOR de agente ("Endpoint is unavailable"). Fica na cadeia porque foi o pedido e
 # porque cada degrau se AUTO-VERIFICA: se não devolver trabalho, é marcado indisponível por
 # COOLDOWN_FALHA e a cadeia desce sozinha. Não custa nada tentar; custava ficar preso.
-GO_CADEIA="${GO_CADEIA:-qwen3.8-max qwen3.7-max minimax-m3}"
+# 23/10/2026: degraus novos (o nome "GO_" ficou por historia): omniroute = OpenCode + combo agentes do
+# OmniRoute; zen-glm = OpenCode + modelo gratis do OpenCode Zen (glm-5.3-flash-free). Depois, o Hermes.
+GO_CADEIA="${GO_CADEIA:-omniroute zen-glm}"
 # Livro de esgotamentos POR MODELO: uma linha "modelo<TAB>epoch_do_reset". A hora vem lida da
 # própria mensagem ("Resets in 2hr 16min"), como já se fazia para o plano Claude.
 MOTORES_ESGOTADOS="${MOTORES_ESGOTADOS:-$FILA/.motores-esgotados}"
@@ -1111,7 +1115,7 @@ LIMITE-DE-PLANO-REAL: sim turns=1 custo=0'
     && ok "##BORA-RESET-MIN##: 99 -> 99 min" || bad "reset via marcador do parser"
   [ "$(motor_do_sinal "$_t429b")" = "qwen3.7-max" ] \
     && ok "atribuicao: o sinal diz QUAL motor se esgotou (qwen3.7-max)" || bad "motor_do_sinal"
-  eh_motor_go "qwen3.7-max" && ok "qwen3.7-max reconhecido como degrau da cadeia" || bad "eh_motor_go"
+  eh_motor_go "omniroute" && ok "omniroute reconhecido como degrau da cadeia" || bad "eh_motor_go"
   eh_motor_go "claude-opus" && bad "claude-opus nao pode contar como degrau Go" || ok "claude-opus NAO e degrau Go (plano Claude fica intacto)"
   # Livro de esgotamentos por modelo, em disco descartavel.
   _tdm=$(mktemp -d); MOTORES_ESGOTADOS="$_tdm/.motores-esgotados"
@@ -1123,9 +1127,9 @@ LIMITE-DE-PLANO-REAL: sim turns=1 custo=0'
   [ "$(motor_esgotado_ate qwen3.7-max)" = 0 ] && ok "hora do reset passou -> motor volta sozinho" || bad "motor nao volta apos reset"
   [ "$(cadeia_proximo_reset)" = 0 ] && ok "ha degrau vivo -> nao ha espera" || bad "cadeia_proximo_reset com degrau vivo"
   for _m in $GO_CADEIA; do motor_marcar_esgotado "$_m" "$((_now+7200))" "teste" >/dev/null 2>&1; done
-  motor_marcar_esgotado "minimax-m3" "$((_now+900))" "teste" >/dev/null 2>&1
+  motor_marcar_esgotado "zen-glm" "$((_now+900))" "teste" >/dev/null 2>&1
   [ "$(cadeia_proximo_reset)" = "$((_now+900))" ] \
-    && ok "cadeia toda esgotada -> espera pelo PRIMEIRO a repor (minimax-m3, +15min)" || bad "cadeia_proximo_reset primeiro"
+    && ok "cadeia toda esgotada -> espera pelo PRIMEIRO a repor (zen-glm, +15min)" || bad "cadeia_proximo_reset primeiro"
   rm -rf "$_tdm"
 
   [ "$fail" = 0 ] && echo "SELFTEST: TODOS OK" || echo "SELFTEST: HÁ FALHAS"

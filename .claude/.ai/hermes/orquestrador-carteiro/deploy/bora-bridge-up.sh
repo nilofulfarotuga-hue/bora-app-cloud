@@ -49,7 +49,9 @@ fi
 echo "[bridge-up] status:"
 docker exec "$C" sh -lc 'tailscale status | head -5'
 echo "[bridge-up] teste ao PC:"
-docker exec "$C" sh -lc 'ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 bora-pc "whoami" 2>&1' \
+# 23/10/2026: o alias bora-pc vive em /opt/data/.ssh/config (HOME do utilizador hermes). Corrido como
+# root (HOME=/root) o ssh nao o via e dizia "Could not resolve hostname bora-pc" - a ponte estava boa.
+docker exec -u hermes -e HOME=/opt/data "$C" sh -lc 'ssh -F /opt/data/.ssh/config -o BatchMode=yes -o ConnectTimeout=20 bora-pc "whoami" 2>&1' \
   && echo "[bridge-up] PONTE OK" || echo "[bridge-up] FALHOU a chegar ao PC"
 
 # Agent-Reach (canais keyless youtube/web/rss) — venv persistente em /opt/data/agent-reach-venv
@@ -75,3 +77,7 @@ docker exec -u hermes -e HOME=/opt/data "$C" sh -lc '
     || git config --global --add safe.directory /opt/data/cortex-brain
   echo "[bridge-up] sync por-tarefa do espelho re-garantido (remote SSH deploy key)"
 ' || true
+
+# ── [socio-hermes] re-garantir a HIERARQUIA no SOUL + a ligacao do Hermes ao Cortex (2026-08-11) ──
+# O guard e' idempotente: se estiver tudo no sitio nao escreve nada. Nunca imprime o token.
+[ -x /root/cortex-mcp/bora-socio-hermes-guard.sh ] && /root/cortex-mcp/bora-socio-hermes-guard.sh || true

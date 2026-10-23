@@ -1,0 +1,37 @@
+---
+id: memoria-claude-ai-livro-areas-regras-lancamento-categorias
+tipo: conceito
+origem: [claude-ai, public.claude_ai_memoria]
+ultima_confirmacao: 2026-10-23
+zona: verde
+confianca: alta
+estado: atual
+---
+
+# Regras fixas do Danilo para lançar QUALQUER categoria, loja ou serviço novo no Bora — ler ANTES de planear ou montar prompt de categoria/loja nova
+
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-regras-lancamento-categorias`, origem `claude-ai`, atualizada em 2026-10-23T05:43:47.297275+00:00).
+> Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
+> Palavras-chave: livro areas regras lancamento categorias · memoria claude.ai · claude_ai_memoria
+
+> Cópia da memória da Claude.ai (ficheiro /areas/regras-lancamento-categorias.md), copiada a 23/10/2026. A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+
+---
+name: regras-lancamento-categorias
+description: Regras fixas do Danilo para lançar QUALQUER categoria, loja ou serviço novo no Bora — ler ANTES de planear ou montar prompt de categoria/loja nova
+sources: [chat]
+aliases: [lançar categoria, categoria nova, loja nova, cartão desde o início, meios de pagamento novos]
+---
+
+- [stated] REGRA DE PAGAMENTO (27/08, ele disse que já tinha repetido isto várias vezes e mandou gravar): toda categoria, loja ou serviço NOVO do [[bora-app]] nasce com CARTÃO + MB WAY + DINHEIRO a funcionar a sério desde o início. Não se lança só com dinheiro, não se deixa o cartão "para a ordem seguinte", não se adia por prudência. Palavras dele: "não é você que decide isso, sou eu, e eu já estou decidindo"
+- [stated] Consequência prática: todo prompt de categoria/loja nova já leva o bloco dos três meios de pagamento dentro, com autorização expressa dele para a trava de dinheiro do PC; e todo teste ponta-a-ponta inclui um pagamento REAL de cartão e um de MB WAY, não só dinheiro
+- [stated] REGRA DA MORADA (27/08, ordem dele depois de ver a Lavagem Auto): em TODO o lado onde o cliente introduz morada — categoria nova ou já existente, delivery incluído — o campo tem de vir PREENCHIDO SOZINHO com a localização atual em segundos, igual ao que a app do motorista já faz ("estou em casa, já aparece; estou noutro sítio, já aparece"). Continua editável, e a regra antiga manda por cima: a localização NUNCA trava o pedido se o GPS falhar. Mandou fazer varredura geral a toda a app
+- [stated] TAXA DE PEDIDO PEQUENO (decisão dele, 27/08, vale para a app inteira e não só para uma loja): pedido mínimo de 12,00 € em produtos e taxa de 1,39 € abaixo disso. Ele escolheu 1,39 em vez dos 1,50 que eu tinha sugerido, para não parecer muito ao cliente. Gravado por MCP em `platform_settings`: `min_order_cents=1200` e `small_order_fee_cents=139` (antes disto não existia mínimo nenhum no banco). Regra que fica: estes valores lêem-se sempre das definições, nunca se cravam no código, e têm de ser editáveis no painel admin com override por loja
+- [stated] LADRILHO DA CATEGORIA (27/08, correção dele): os ícones das categorias na grelha inicial da app são ficheiros `cat_<nome>.png` com FUNDO CHEIO DE COR a ocupar o quadrado todo — nunca fundo transparente (o de Restaurantes é o prato de pizza/sushi/hambúrguer/batata sobre laranja-avermelhado). Eu escrevi "fundo transparente" nos prompts de Gemini e ele teve de mandar refazer. Ao pedir arte de categoria nova, exigir sempre fundo de cor cheio, quadrado 1024x1024, objeto centrado, mesmo estilo 3D cartoon dos existentes
+- [stated] PADRÃO ÚNICO DE CATEGORIA NOVA (28/08, ordem dele depois de um mês a corrigir sempre as mesmas coisas): ele quer dar UM prompt só e sair certo. Passa a existir um documento padrão no repositório que o Claude Code lê sozinho em toda missão, com a lista fechada do que uma categoria/papel novo tem de ter: os 3 meios de pagamento, morada automática, ladrilho `cat_<nome>.png` com fundo cheio, papel aceite em `user_roles` (o CHECK recusava 'washer' e ninguém se podia inscrever), registo de aparelho em `provider_push_tokens` por papel, toque persistente igual ao do parceiro, entrada visível para a pessoa se inscrever, interruptor no ecrã do prestador construído a partir dos papéis reais, acerto semanal único por pessoa com dívida abatida, correspondência no painel admin, e mini-site com vídeo. A regra dele: "se aparecer mais uma categoria, já tem que estar escrito, o sistema tem que ser automático"
+- [stated] LOJA FECHADA (27/08, ordem dele): a loja fora de horário NÃO pode ficar bloqueada ao clique. O cliente entra, vê capa, categorias, produtos, preços e opções normalmente; o travão acontece só ao adicionar ao carrinho, com aviso "loja fechada" e a hora a que abre. Fechada é diferente de "Em breve" (essa continua como está). PEDIDO AGENDADO (estilo Uber/Glovo) fica para uma missão própria, ele deixou a decisão comigo e concordou em adiar por ser cadeia inteira (janela de entrega, retenção do dinheiro, aviso ao parceiro e ao estafeta na hora certa, painel admin)
+- [stated] CARTÃO JÁ PROVADO — NÃO REPROVAR (28/08, correção dele à regra de pagamento acima): o cartão já está provado no delivery e no motorista, por isso categoria nova NÃO tem de o provar do zero — copia-se exatamente o mesmo caminho que já funciona lá. Os 3 meios de pagamento continuam obrigatórios; o que muda é que a prova passa a ser "é igual ao que já está provado", em vez de um teste novo por categoria. Palavras dele: "é só pegar esse mesmo padrão e fazer isso igual pra todos, que aí não precisa provar, daí já é certeiro". Vale para a limpeza e para a lavagem auto, que estavam na lista a precisar de prova de cartão
+- [stated] O DOCUMENTO PADRÃO JÁ EXISTE (28/08, feito pelo executor): chama-se `PADRAO_BORA.md`, está na raiz do repo do [[bora-app]] ao lado do CLAUDE.md, e está ligado em TRÊS sítios para ser lido no arranque de qualquer sessão — bloco no topo do CLAUDE.md, secção zero da skill CEO-AI, e o gancho de arranque (este é o único que também apanha o executor autónomo, que corre sem comandos nem skills). Contém a lista fechada dos 11 pontos, a regra dos gémeos, regras de prova/publicação/segredos, as zonas travadas, o inventário do que falta a cada categoria já existente, e no fim um modelo de prompt curto de 4 linhas para o Danilo lançar categoria nova. Ao montar qualquer prompt de categoria/loja nova, mandar o executor seguir este ficheiro em vez de repetir as regras à mão
+- [stated] MANTER O PADRAO_BORA.md VIVO (28/08, ordem dele): sempre que uma missão terminar e eu perceber que se aprendeu algo novo — um defeito novo, uma regra nova, uma cicatriz nova, ou uma peça que passou a ser padrão (ex.: a sobreposição a aparecer por cima em qualquer ecrã, a rotação de oferta entre prestadores, o valor certo dentro do aviso, o clique a abrir o ecrã da categoria certa) — eu mando por minha iniciativa um adendo ao executor para ele actualizar o `PADRAO_BORA.md`. Não espero que ele peça. O documento tem de crescer com o que se vai descobrindo, senão volta a ser ele a repetir tudo à mão
+- [stated] PROVA NA WEB, NÃO PELO CABO (28/08, correção dele, disse-me "você também é burro"): a app corre em `app.boraguarda.com` e tem TUDO o que o telemóvel tem. O executor NUNCA pode dizer que não consegue provar por falta de cabo/adb — entra pela web, faz login e testa lá. Eu deixei-o dizer isso três vezes sem o corrigir. Ao montar prompt, a prova de ecrãs é sempre pela web; o cabo só se for mesmo coisa de aparelho (som, ecrã bloqueado, app fechada)
+

@@ -1,0 +1,53 @@
+---
+id: memoria-claude-ai-livro-areas-ouro-e-prata
+tipo: conceito
+origem: [claude-ai, public.claude_ai_memoria]
+ultima_confirmacao: 2026-10-23
+zona: verde
+confianca: alta
+estado: atual
+---
+
+# Parceiro de Serviços Barbearia Ouro e Prata (Guarda) — perfil rico no app + mini-site cinematográfico externo
+
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-ouro-e-prata`, origem `claude-ai`, atualizada em 2026-10-23T05:37:43.314624+00:00).
+> Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
+> Palavras-chave: livro areas ouro e prata · memoria claude.ai · claude_ai_memoria
+
+> Cópia da memória da Claude.ai (ficheiro /areas/ouro-e-prata.md), copiada a 23/10/2026. A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+
+---
+name: ouro-e-prata
+description: Parceiro de Serviços Barbearia Ouro e Prata (Guarda) — perfil rico no app + mini-site cinematográfico externo
+sources: [chat]
+aliases: [Ouro e Prata, Ouro & Prata, Barbearia Ouro e Prata, Gilberto barbearia]
+---
+- [stated] Parceiro de Serviços (barbearia) já cadastrado e aprovado no app; 2º parceiro de Serviços depois da [[bora-app]] Barbearia Nobre. Dono/barbeiro: Gilberto.
+- [stated] Fica em service_providers (NÃO em restaurants), id 82e3162c-0560-443a-a44a-104dc71a95ef, category='barbershop', address "R. António Sérgio 52, CAVE, 6300-665 Guarda", rating 5.0/58. App cliente lê service_providers direto (RLS approved).
+- [stated] FEITO por MCP (2026-07-21): colunas novas em service_providers → about_text (história), gallery_urls jsonb default '[]', social_instagram, social_facebook. about_text já gravado com a história do Gilberto (versão levemente dramatizada, PT-PT). Antes criei essas colunas por engano em restaurants e depois removi.
+- [stated] Prompt Claude Code entregue (SONNET, ficheiro PROMPT_perfil_barbearia_sobre.md): perfil do app passa a ter foto/avatar circular maior BoxFit.cover (corrige "quadradinho branco"), secção Sobre (about_text), Galeria (gallery_urls, viewer fullscreen), ícones sociais; + painel admin (PT-BR) pra gerir tudo isto em qualquer parceiro de Serviços (editar about_text/sociais, upload+reordenar+apagar galeria no bucket restaurant-assets/{id}/gallery). Fotos reais sobem pelo painel; código só lê gallery_urls.
+- [stated] Presente pro Gilberto = mini-site cinematográfico standalone (HTML self-contained, tema preto+ouro+prata, fotos dele, CTA "Marcar pelo Bora App" → play.google.com/store/apps/details?id=pt.boraapp.bora). Ficheiro barbearia-ouro-e-prata.html.
+- [stated] QR code pra parede da loja é pra ficar mesmo (Danilo confirmou — não é pra tirar). Gerado: qrcode-ouro-e-prata-parede.png, cartaz A5 preto/dourado/prata aponta pro link do Play Store do Bora, cliente escaneia e marca.
+- [stated] PUBLICAÇÃO do site = MESMO método do bora-site: Cloudflare Pages upload direto, grátis, subdomínio .pages.dev (ex: ouro-e-prata.pages.dev), deploy via wrangler lendo CLOUDFLARE_API_TOKEN de bora-site/.env. Higgsfield descartado (pago). Domínio próprio fica pra depois (Danilo ainda não tem). Prompt de deploy entregue: PROMPT_publicar_site_ouro_e_prata.md (SONNET); Danilo só precisa salvar o HTML como C:\Users\danil\Desktop\ouro-e-prata\index.html e correr o prompt. Google só indexa depois de pôr no ar + Search Console.
+- [stated] SITE PUBLICADO (2026-07-21): https://ouro-e-prata.pages.dev/ — deploy Cloudflare Pages confirmado (HTTP 200, fetch fresco). Pendente: Danilo verificar propriedade no Google Search Console (meta tag) quando quiser indexar.
+- [stated] Pendente do Danilo: subir as ~11 fotos reais pela galeria (painel), passar handles de Instagram/Facebook, e melhorar o fundo da loja nas fotos via Gemini (ele faz).
+- [stated] Código de verificação Google recebido: [REMOVIDO]. Prompt entregue (PROMPT_google_verificacao.md, SONNET) pra inserir a meta tag no ouro-e-prata, republicar e submeter sitemap.
+- [stated] FECHOU com o Gilberto (2026-07-28): ele já vai começar a trabalhar no app. NÃO quer o sinal de €3 — quer cobrar o VALOR CHEIO do serviço no acto da marcação (ex: Degradê €15 → cobra €15; se o serviço for €3, cobra €3). Dinheiro vai 100% pro Bora App; acerto com ele é fora da app. Horário: 09h–20h, pausa almoço 13h–14h, segunda a sábado, domingo fechado — e ele tem de poder mudar o horário sozinho no app do parceiro.
+- [stated] FEITO por MCP (2026-07-28): coluna service_providers.booking_payment_mode ('deposit' default | 'full'), Ouro e Prata setado 'full'; business_hours regravado 09:00–20:00 seg–sáb com break_start/break_end 13:00–14:00, domingo fechado. Ver [[bora-app]] para o fix das notificações.
+- [stated] Perfil no app FEITO (2026-07-21): avatar maior/fix, secção Sobre, Galeria com viewer, redes sociais + painel admin completo. Ver detalhe técnico em [[bora-app]]. Falta rodar num device real pra conferir visualmente.
+- [stated] ZERADO "de fábrica" em 2026-07-31 a pedido do Danilo: todas as marcações, pagamentos de teste (cartão), payouts e reagendamentos apagados — Ouro e Prata começa do zero para valer. Mantidos: perfil, serviços (9, de €3 Sobrancelha a €20 PROMO Combo Completo), staff, horário do Gilberto e avg_rating 5.0/58 (vitrine, não é dado de teste). Fica coming_soon=false (pede/marca normal).
+- [stated] PROVADO por MCP (2026-07-31, simulação com rollback) que a agenda funciona como o Danilo quer: com um Corte de Cabelo de 30min marcado às 11:00 de seg 03/08, os slots livres saem 09:00 09:30 10:00 10:30 [11:00 bloqueado] 11:30 12:00 12:30 [13:00–13:30 pausa de almoço] 14:00 … 19:30. Ou seja: só o horário ocupado sai, a pausa é respeitada e o último slot é 19:30 porque o serviço tem de acabar às 20:00.
+- [stated] Flyer "MARCAÇÃO RÁPIDA E FÁCIL" (Ouro e Prata + Bora App) tem 2 QR: esquerdo = iPhone/Web, direito = Android/Play Store. O QR esquerdo do flyer original não era legível. Corrigido em 2026-08-01: flyer regerado a 3x (2529x3792) com o QR web refeito e testado — ficheiro ouro-prata-bora-QR-corrigido.jpg. O QR web aponta para https://bora-app-web.pages.dev/#/registo-cliente (cadastro cliente web).
+- [stated] TESTE REAL do Danilo (2026-08-03): marcação própria na Ouro e Prata às 11:00, pagou €12 de verdade (Stripe live, PI pi_3U0IxCGlT3R2jCYp0rX2OXBF) só pra ver se a notificação chegava ao Gilberto. Pediu para cancelar. FEITO por MCP: marcação 75cd9c86-db55-48a7-b3a9-e931645a7381 posta em cancelled + deposit_status='kept_test'. Não paga a taxa de €0,50 e não entra em nenhum repasse.
+- [stated] Marcação "Miguel" 03/08 17:30 foi o próprio Gilberto que criou (walk-in, sem sinal) — é para ficar, não é teste.
+- [stated] Os €12 do teste NÃO foram estornados — a pedido do Danilo o dinheiro fica com ele/Bora e não é repassado ao Gilberto. Marcação posta em deposit_status='kept_test' para nunca entrar em repasse.
+- [stated] REGRA NOVA DE SERVIÇOS/MARCAÇÕES (decidida 2026-08-03, aplicada por MCP): acabou o sinal de €3 — apagado geral. Cliente paga sempre o VALOR CHEIO do serviço na marcação; a Bora fica com €0,50 por marcação e repassa o resto ao parceiro semanalmente. Walk-in criado pelo parceiro também paga os €0,50. Por enquanto é POR MARCAÇÃO; o Danilo ainda vai combinar com o Gilberto se passa a mensal. (Isto é só Serviços — não mexe no pré-pagamento de €3 das Reservas de mesa.)
+- [stated] SUPERA a regra acima (14/09): acabaram os €0,50 por marcação e por walk-in. O Bora deixa de cobrar taxa ao parceiro de Serviços e fica APENAS com a taxa que a Stripe leva no pagamento — o barbeiro recebe o valor do serviço menos essa taxa (corte de €12 com taxa de €0,43 → €11,57). Fica assim, sem custo para ele, até o Danilo combinar uma mensalidade com o Gilberto daqui a ~1 mês. Aplicado por MCP: appointment_booking_fee_cents e appointment_walkin_fee_cents = 0.
+- [stated] FALTAS (decidido 2026-08-03): o cliente pode remarcar — limite posto em 3 vezes (appointment_reschedule_max_count=3, era 2). Se mesmo assim não aparecer, o dinheiro fica 100% na Bora por enquanto; o Danilo decide mais tarde se dá parte ao parceiro. Fica como está.
+- [stated] MCP da Stripe está ligado mas só com permissão de LEITURA — dá para consultar pagamentos, não dá para fazer estornos. Estorno tem de ser no dashboard da Stripe ou dando permissão de escrita ao conector.
+- [stated] Missão "fim do sinal" executada no Claude Code em 2026-08-03 (commit d2d4ee2, 17 ficheiros, flutter analyze 0 erros): apps e painel admin já sem a palavra "sinal"; taxa por marcação e taxa de walk-in ficaram editáveis no painel. Apanhou um bug real: o ecrã financeiro do parceiro lia chaves antigas da RPC e mostrava €0,00. Ficou pendente o BUG-1 — as Edge Functions create-appointment-payment-intent e create-mbway-appointment-payment-intent tinham fallback `?? 300` (cobrava €3 em silêncio). O default 300 da coluna appointments.deposit_cents foi morto por MCP (agora 0).
+- [stated] BUG-1 fechado em 2026-08-03 (commit b9ec428): create-appointment-payment-intent (v4) e create-mbway-appointment-payment-intent (v3) já não têm o fallback `?? 300` — deposit_cents inválido/null/<50 agora bloqueia a cobrança com erro explícito, sem cobrar nada. Deploy feito e ACTIVE. Fica em aberto sem bloquear: BUG-3 a BUG-7 (limpeza — coluna morta bora_deposit_cut_cents, setting órfão appointment_deposit_cents, drift de migrations, comentário stale, parceiro não ver que o walk-in custa €0,50). Missão "fim do sinal" está fechada.
+- [stated] 2026-08-13: Danilo diz que a parceria com o Gilberto ainda não está a funcionar direito — o parceiro ainda não está a cadastrar clientes. Só quando isso estiver a rodar é que vai lá cadastrá-lo na Stripe (Connect). Confirmado por MCP: continuam 0 contas Connect ligadas.
+- [stated] 25/09: Gilberto foi de férias sem data certa de volta — Danilo pediu para desligar a loja mas mantê-la visível pros clientes, só marcada como indisponível, e parar as publicações dele nas redes enquanto estiver fora. FEITO por MCP: service_providers.coming_soon=true, coming_soon_text='Indisponível no momento', is_online mantido true (loja continua na lista). Isso também tira o Ouro e Prata da rotação do robô das redes, que já salta lojas coming_soon (mesmo esquema do Mr Kebab). Zero marcações pendentes na altura. Reativar = pôr coming_soon=false quando ele voltar.
+- [stated] 05/10: Danilo mandou NÃO publicar mais nada do Gilberto/Ouro e Prata nas redes (tinha dito antes). Um story dela estava no Instagram da Bora (saiu ~11:40) mesmo com coming_soon=true — apaguei-o pelo Chrome (perfil Bora). Ordem ordem-20261005174207-432d aberta para o robô das redes ter bloqueio duro por id.
+

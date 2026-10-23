@@ -281,3 +281,8 @@ A CONFERIR ANTES DE PRODUZIR: cronometrar a marcação na app ("1 minuto" não f
 
 - 22/10 22:13 CORREÇÃO do Danilo à ideia do carro voador: NÃO é o saco a voar — é um CARRO DE DELIVERY com o logo do Bora a voar (só para apanhar o hype do Roadster). Carro de entregas pode aparecer; a proibição é só carro de passageiros/TVDE. Roteiro: carrinha/carro de entregas com a marca Bora pintada (logo real colado por script, a parecer impresso na chapa) levanta voo no trânsito da Guarda, passa sobre a Sé e aterra à porta do cliente; estafeta entrega o saco Bora. Texto: "O carro voador chega em 2028. O teu pedido já voa hoje." Sem nome/logo nem forma da Tesla. Orgânico, nos próximos dias.
 
+
+## 22/10/2026 — Radar de vídeos 08/10 (AEO + filme "A Semente da Luz")
+Estado: IDEIA (nada lançado).
+AEO (fonte youtube UWWfsvdu29U): não pagar inserções nem prometer "primeiro lugar" no ChatGPT. Ideia Bora/Em Dia: semanalmente perguntar ao ChatGPT, Gemini e Perplexity "melhor app de recibos verdes em Portugal" e "entregas ao domicílio na Guarda", registar se aparecem e que páginas são citadas (passo semanal possível do Hermes na VPS). Ideia para vender: serviço de AEO para PMEs da Guarda (preço só com decisão do Danilo).
+Filme caminho 4 (fontes htROyMzUbA8, rxZZ1xi81a4): no Google Flow (Omniflash 1.1) usar imagem da personagem + áudio da voz fixa (caminho 3) para sincronizar a boca. Reserva sem créditos: MuseTalk/Wav2Lip no Kaggle, áudio limpo, fala a fala.

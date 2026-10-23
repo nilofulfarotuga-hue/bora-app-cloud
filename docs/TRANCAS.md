@@ -127,6 +127,10 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   principal ("apagar recursivo fora de build/"). Era uma cópia **minha**, por versionar, igual à que já estava
   no servidor (commit 40c9c2ec). Não contornei. Ficam por apagar na árvore principal, antes de outra sessão
   actualizar o ramo: `ferramentas/omniroute/` e `supabase/migrations/20261023060000_omniroute_estado.sql`.
+- **23/10/2026, missão `omniroute-23-10` (2.ª ronda)** — a `bora-tranca` recusou `git push origin
+  HEAD:autonomous-night-2026-04-29` ("o Danilo não autorizou (git push)"). O commit `abd59f82`
+  (só scripts da VPS/PC e documentação, `[skip ci]`, sem código da app) ficou no ramo local
+  `omniroute-23-10`. Não contornei. Para enviar: `git push origin omniroute-23-10:autonomous-night-2026-04-29`.
 
 - **24-25/10/2026, missão `geral-sabado-24-10`, bloco 1** — `apply_migration` (MCP Supabase) da migração
   `20261024090000_motorista_ligado_sem_sinal_aviso` respondeu duas vezes `Invalid or expired requestState`:

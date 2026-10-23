@@ -46,8 +46,11 @@ de arranque diz "PONTE OK" e o PC respondeu com o teu utilizador. A voz chegou-t
 
 Quinto, as cópias por apagar. Confirmei que estão todas no servidor. A trava não deixa apagar pastas,
 por isso movi-as para C:\BoraLocal\_to_delete\omniroute-23-10-copias-20261023, onde as podes apagar.
-A pasta de trabalho C:\BoraLocal\wt-omniroute-23-10 tirei-a no fim, depois de guardar esta ronda no
-servidor.
+A pasta de trabalho C:\BoraLocal\wt-omniroute-23-10 tirei-a no fim. Os ficheiros desta segunda ronda
+(cópias dos scripts e este relatório, nada de código da app) ficaram guardados no PC no ramo
+omniroute-23-10, mas não foram para o servidor: a trava do PC recusou o envio ("o Danilo não autorizou
+o git push"). Não tentei outro caminho. O que está a correr na VPS e no PC já é a versão nova; falta só
+a cópia no servidor, e sai com o próximo envio que autorizares.
 
 Sexto, o painel. O cartão OmniRoute do ecrã Motores já não mostra o Go: lê as ligações do próprio
 OmniRoute e a do Go deixou de existir. Mostra sete vivos e os dois Cerebras desligados. Não foi preciso

@@ -10,11 +10,11 @@ estado: atual
 
 # [PESSOAL] Deslocações/favores que o Danilo fez para um jogador do Guarda FC, faturados ao [[jai-agarwal]] — semana 24-27/08 fechada em €285; ler antes de montar novo recibo destes serviços (parte 1 de 2 — continua em livro-areas-recibo-jogador-gfc-parte2)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-recibo-jogador-gfc`, origem `claude-ai`, atualizada em 2026-10-23T15:19:20.386916+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-recibo-jogador-gfc`, origem `claude-ai`, atualizada em 2026-10-23T16:18:21.559082+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas recibo jogador gfc · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/recibo-jogador-gfc.md), copiada a 2026-10-23 16:19 (hora de Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/recibo-jogador-gfc.md), copiada a 23/10/2026 17:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: recibo-jogador-gfc
@@ -85,4 +85,6 @@ aliases: [recibo do jogador, favores jogador Guarda FC, recibo Jai jogador]
 - [stated] 04/10: o Jai contestou os €15 do desalfandegamento porque a encomenda ainda está presa nos CTT. O Danilo diz que a parte dele está feita e que o processo não depende dele (está à espera da fatura da compra da Playermaker); decidiu manter os €15 mas tirá-los se o Jai insistir (aí a conta fica em €437,21). As 72 latas ainda NÃO foram entregues — o Jai estava em Salamanca e avisa quando voltar
 - [stated] 04/10: o Jai insistiu ("mais justo quando a encomenda chegar") e os €15 do desalfandegamento SAÍRAM da conta — total em aberto passa a **€437,21** (semana 21-27/09 fica €321,50). Os €15 voltam a cobrar-se quando a encomenda chegar. Extrato reenviado nesse valor
 - [stated] 04/10 à noite: a mãe do [[jai-agarwal]] já pagou os €94,96 das 72 latas (pagou ao Danilo) — total em aberto desce para **€342,25** (€321,50 semana 21-27/09 + €20,75 McDonald's 02/10). Os €15 do desalfandegamento continuam FORA até a encomenda chegar. O Jai tinha perguntado quanto devia, descontando o que a mãe já pagou; resposta em inglês entregue em cartão
-
+## 06/10 — molduras dos quadros do Jai + estado da conta
+- [stated] 06/10: emoldurar 5 quadros do [[jai-agarwal]] numa loja de molduras da Guarda — custo na loja 180 € (73+30+19+17+41), o Danilo cobra ao Jai com +30% = **234 €**; o Jai aprovou ("se conseguires desconto, avança") e a senhora já fez o mínimo. A loja exige pelo menos METADE adiantada para começar. O Jai pediu também para ir buscar 2 encomendas ao Gabriel e ver o preço da moldura delas
+- [stated] 06/10: os 300 € que o Jai combinou pagar a 05/10 de manhã NÃO chegaram; conta em aberto continuava 342,25 €. O Jai (em Madrid a apresentar a tese) ofereceu mandar 200 € pelo Revolut como adiantamento e pagar o resto na manhã de 07/10 — aceite. Na mensagem ao Jai não se fala de "o resto fica na conta": o resto é dívida dele, cobra-se

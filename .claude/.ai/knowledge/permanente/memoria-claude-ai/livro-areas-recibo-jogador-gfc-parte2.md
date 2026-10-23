@@ -10,15 +10,12 @@ estado: atual
 
 # [PESSOAL] Deslocações/favores que o Danilo fez para um jogador do Guarda FC, faturados ao [[jai-agarwal]] — semana 24-27/08 fechada em €285; ler antes de montar novo recibo destes serviços (parte 2 de 2)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-recibo-jogador-gfc-parte2`, origem `claude-ai`, atualizada em 2026-10-23T15:19:20.386916+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-recibo-jogador-gfc-parte2`, origem `claude-ai`, atualizada em 2026-10-23T16:18:21.559082+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas recibo jogador gfc parte2 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/recibo-jogador-gfc.md), copiada a 2026-10-23 16:19 (hora de Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/recibo-jogador-gfc.md), copiada a 23/10/2026 17:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos. Parte 2 de 2 (continuação de livro-areas-recibo-jogador-gfc).
 
-## 06/10 — molduras dos quadros do Jai + estado da conta
-- [stated] 06/10: emoldurar 5 quadros do [[jai-agarwal]] numa loja de molduras da Guarda — custo na loja 180 € (73+30+19+17+41), o Danilo cobra ao Jai com +30% = **234 €**; o Jai aprovou ("se conseguires desconto, avança") e a senhora já fez o mínimo. A loja exige pelo menos METADE adiantada para começar. O Jai pediu também para ir buscar 2 encomendas ao Gabriel e ver o preço da moldura delas
-- [stated] 06/10: os 300 € que o Jai combinou pagar a 05/10 de manhã NÃO chegaram; conta em aberto continuava 342,25 €. O Jai (em Madrid a apresentar a tese) ofereceu mandar 200 € pelo Revolut como adiantamento e pagar o resto na manhã de 07/10 — aceite. Na mensagem ao Jai não se fala de "o resto fica na conta": o resto é dívida dele, cobra-se
 - [stated] 06/10 à tarde: dos 2 quadros levantados ao Gabriel, o pequeno já tem moldura; o grande leva moldura de 62 € → molduras ao [[jai-agarwal]] passam a **296 €** (234 + 62), já mandadas avançar. Também 8 camisolas do clube (nome em cima + número em baixo) noutra gráfica a **12 €** cada = **96 €**, aprovadas pelo Jai; o Danilo avisou que não garante a qualidade porque não é ele que faz
 ## Semana de 06/10 — conta nova, EM ABERTO
 - [stated] 06/10 ele mandou pôr na conta desta semana do [[jai-agarwal]]: molduras dos quadros 296 € (5 quadros 234 € + quadro grande do Gabriel 62 €), 8 camisolas do clube com nome e número 96 € (12 € cada), viagem até ao Gabriel 5 €, viagem do jogador Reuel da rodoviária 5 € — **total da semana 402 €**. Conta separada do saldo antigo de 342,25 € (de onde sai o adiantamento de 200 € pelo Revolut, se tiver chegado)

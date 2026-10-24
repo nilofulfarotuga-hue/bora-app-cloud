@@ -10,7 +10,7 @@ estado: atual
 
 # Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-10-24T10:16:01.984533+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-10-24T21:13:38.198434+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: erros aprendidos · memoria claude.ai · claude_ai_memoria
 
@@ -75,4 +75,5 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - 22/10: Ouro e Prata nas ideias de vídeo → está fora; confirmar parceiros ativos antes.
 - 22/10: proibição de carro é só de passageiros/TVDE; carro de ENTREGAS com a marca pode.
 - 24/10 (quem errou: claude-ai): Stripe da empresa no mesmo login da Stripe pessoal, copiando cartões dos clientes → Stripe da empresa TOTALMENTE nova e separada (login/email próprio), sem histórico, clientes nem cartões da pessoal; começa do zero.
+- 24/10 (quem errou: claude-ai): vendedor a 10 € + 30 € e vaga de estafeta no plano de divulgação → angariador é 20 € à entrada + 20 € depois dos pedidos; 1.ª etapa é ter parceiros de TODAS as categorias (beleza incluída), com treino e texto para o parceiro explicar o Bora; ver o que já existe (indicar amigo, check-in) antes de propor.
 

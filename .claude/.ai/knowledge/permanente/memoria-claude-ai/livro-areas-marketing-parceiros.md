@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-marketing-parceiros
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-23
+ultima_confirmacao: 2026-10-24
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Propaganda do Bora com parceiros — recrutamento de parceiros e regra dos cartazes com QR para as lojas (Mister Navalha, Sabores de Casa)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-marketing-parceiros`, origem `claude-ai`, atualizada em 2026-10-23T05:36:53.523298+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-marketing-parceiros`, origem `claude-ai`, atualizada em 2026-10-24T21:13:38.198434+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas marketing parceiros · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/marketing-parceiros.md), copiada a 23/10/2026. A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/marketing-parceiros.md), copiada a 24/10/2026 22:12 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: marketing-parceiros
@@ -29,4 +29,7 @@ aliases: [propaganda parceiros, divulgação Bora, recrutamento parceiros, propa
 - [stated] Quer explicar que o objetivo do app é juntar todas as categorias que a Guarda precisa
 - [stated] Quer a imagem no estilo 3D cartoon, igual ao [[filme-animacao]] (referência visual já usada no projeto)
 - [stated] 30/09, REGRA DOS CARTAZES DE PARCEIRO (corrigiu-me no cartaz da [[mister-navalha]]): mesmo padrão dos já feitos (último foi o do [[sabores-de-casa]]) — a arte é feita pelo ChatGPT ou Gemini, não por mim; leva o logótipo do parceiro E o do Bora, como parceria; e UM QR Code só, que serve para iPhone e Android
+- [stated] 24/10/2026: diz que tem só UM parceiro ativo (o dono da [[goola-acai]] e do [[sabores-de-casa]]) mais a Keli (doceira, quase sem pedidos); a Ouro e Prata foi embora para o Brasil e a outra barbearia ([[mister-navalha]]) não fechou por causa de um colega do dono. Admite que é fraco a angariar parceiros e a apresentar o Bora; está a ponderar um vendedor à comissão (paga por parceiro conseguido, sem contratar) e anúncios pagos baratos. Quer ver e aprovar o anúncio/vídeo antes de ir para os grupos
+- [stated] 24/10/2026 DECIDIDO: plano "A Guarda tem tudo no Bora" — 1.ª etapa é ter um parceiro em cada categoria (beleza incluída); angariadores sem limite, 20 € quando a loja entra com cartaz + 20 € depois dos primeiros 5 pedidos; estafetas ficam com ele; treino e texto pronto para o parceiro explicar o Bora ao cliente. Aprovou ("pode postar") o texto da vaga de angariador (WhatsApp da Bora) e autorizou ligar os prémios do check-in e baixar o pedido mínimo da indicação de 20 € para 10 € (a mudança direta por MCP foi travada pelo sistema). Vídeo de 1 min do app para os angariadores: ele aprova antes de publicar
+- 24/10/2026 21:45: PROMPT entregue no chat para ele colar (Opus 5.5, app Claude no PC > Code > pasta bora-app-cloud, modo automático), fluxo e2e_log 'angariadores-2026-10-24' — bloco 1 as duas definições, bloco 2 vaga nos grupos (tecto 5/dia) + página e Instagram, bloco 3 vídeo de 1 min só para o Telegram. Estado: entregue a ele para colar
 

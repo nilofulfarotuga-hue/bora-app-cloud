@@ -10,11 +10,11 @@ estado: atual
 
 # Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 2 de 2)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte2`, origem `claude-ai`, atualizada em 2026-10-24T10:15:08.344117+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte2`, origem `claude-ai`, atualizada em 2026-10-24T21:13:38.198434+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro topics erros aprendidos parte2 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md), copiada a 24/10/2026 11:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md), copiada a 24/10/2026 22:12 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 - [stated] 19/10: no prompt do Mid-Day deixei a foto como opcional ("se não houver foto, publica só o link") → regra: matéria de imprensa no site do Jai entra SEMPRE com foto; o prompt manda o Claude Code ir buscá-la ele próprio (foto do artigo online, página do jornal digital/e-paper) — nunca depender de o Danilo arrastar ficheiros
 - [stated] 19/10: a 17/10 ele mandou pôr os 2,50 € do cancelamento na carteira do Ney e eu não pus (nada entrou no sistema) — o acerto saiu com 4,00 € em vez de 6,50 € e ele pagou 6,50 à mão → regra: ordem de mexer em dinheiro de alguém é feita na hora e provada por SELECT antes de dizer que está feita; se não der para fazer logo, dizer-lhe que ficou por fazer
@@ -29,3 +29,4 @@ estado: atual
 - [stated] 22/10: nas ideias de vídeos para as redes pus a Ouro e Prata entre os parceiros a promover; ele corrigiu "Ouro e Prata está fora" (loja coming_soon desde 25/09 e proibida nas redes desde 05/10) → regra: antes de listar parceiros para propaganda, confirmar na base quem está ativo (coming_soon=false) e o que está proibido nas redes; Ouro e Prata nunca entra
 - [stated] 22/10: na ideia do "carro voador" (hype do Roadster da Tesla) troquei o carro por um saco a voar por causa da regra "nada de motorista de carro"; ele corrigiu: "é um carro de delivery com o logo da Bora voando, só pra pegar o hype" → regra: a proibição é de carro de PASSAGEIROS/TVDE; carro de ENTREGAS com a marca Bora pode aparecer. Quando ele dá uma ideia, fazer a ideia dele, não trocá-la por outra
 - [stated] 24/10: para a Stripe da empresa propus abrir no MESMO login da Stripe pessoal e copiar os cartões guardados dos clientes → regra certa: Stripe da empresa TOTALMENTE nova e separada (login/email próprio), sem ligação nenhuma à conta pessoal e sem levar histórico, clientes ou cartões de lá; começa do zero
+- [stated] 24/10: no plano de divulgação propus vendedor a 10 € + 30 € e meter vaga de estafeta; ele corrigiu: estafeta não é problema (ele arranja quando houver pedidos) e por 10 € ninguém sai a bater porta → regra: comissão de angariador é 20 € à entrada + 20 € depois dos pedidos/instalação; a 1.ª etapa é ter parceiros de TODAS as categorias (beleza incluída) para o Bora poder dizer "tudo num sítio só", com treino e texto para o parceiro explicar o Bora; antes de propor ideia de indicar amigo ou check-in, ver primeiro o que já existe no sistema

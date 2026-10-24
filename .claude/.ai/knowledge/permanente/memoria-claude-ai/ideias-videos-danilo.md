@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-23
+ultima_confirmacao: 2026-10-24
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-23T19:59:03.45849+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-24T19:55:46.104412+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -301,3 +301,18 @@ Filme caminho 4 (fontes htROyMzUbA8, rxZZ1xi81a4): no Google Flow (Omniflash 1.1
 - JÁ TEMOS: Gemini+Nano Banana+Veo (logo-reveal 22/10), personagem fixo no Flow, grupos do Facebook, explicativos animados, Higgsfield, orquestra de agentes (Hermes + combo privado OmniRoute), sites com Claude, Devin/Manus (pagos; Claude Code + Hermes fazem o mesmo).
 - RECUSADO: n8n básico, anúncios pagos de DM, LTX/ComfyUI (GPU), geradores de vídeo grátis genéricos, dicas genéricas de Instagram.
 - Nota: o passo 2 do radar ainda diz OpenCode plano Go — o Danilo decidiu NÃO renovar (digest 23/10 omniroute-ronda2); agora OpenCode Zen grátis + OmniRoute.
+
+## 24/10/2026 — radar diário (agente na nuvem)
+40 vídeos revistos (pesquisa das 19:00 de 23/10 e recolha das 02:00 via yt-dlp): 8 novos, 10 PENDENTES, 10 já temos, 12 rejeitados (4 por nota baixa). Nenhum do tema animacao_ia (3 do filme vindos de outras pesquisas).
+- MODA DA SEMANA (3+ vídeos nota>=8 em 7 dias): OmniRoute 3 — FEITO 23/10 (Hermes e OpenCode já passam por ele). Animação/carrossel feito em código pelo Claude 3 (+1 Vox grátis) — PENDENTE desde 11/10. Claude Code novidades 3 — Haiku como executor PENDENTE desde 08/10 (aprovado 22/10, sem prova). Hermes 3 — já temos (VPS). Vender agentes/agência de IA 3 — pacote PMEs PENDENTE desde 13/10. Primeiros 1000 utilizadores 3 — novo hoje. Seguem da semana: REA FEITO 21/10; Claude Motion/Dashboards PENDENTE desde 11/10; Claude Duet PENDENTE desde 22/10; rececionista de voz PENDENTE desde 13/10; extrator de leads PENDENTE desde 17/10; recibos verdes prazo 31/10 (prop-cb91e8c2 aprovada 22/10); atendente WhatsApp FEITO.
+- DINHEIRO / pacote PMEs: guião de diagnóstico GPCT (objetivos, planos, desafios, prazo) e pergunta do orçamento com naturalidade antes de propor. https://www.youtube.com/watch?v=BYwYgDtrdlI
+- DINHEIRO (negócio novo): alerta diário de licenças de obra/editais públicos da Câmara da Guarda vendido por mensalidade a construtores, jardinagem, piscinas; confirmar primeiro se a Câmara publica os dados. https://www.youtube.com/watch?v=uobBWY8MAP0
+- SISTEMA (lente grátis): Photocraft/Filmcraft, alternativas abertas a Photoshop/Premiere que o Claude Code comanda (thumbnails, artes, cortes); confirmar repo e licença. https://www.youtube.com/watch?v=_ifTU7vk4rE
+- EM DIA: grupo WhatsApp com os primeiros utilizadores ativos para feedback rápido. https://www.youtube.com/watch?v=rmMo0upMF7s
+- EM DIA / BORA (reels): formato green screen — pessoa ou mascote à frente do print do app a explicar a função. https://www.youtube.com/watch?v=Tkff--8SuzU
+- EM DIA (grande, decisão do Danilo): categoria de despesa que aprende com a correção do utilizador. https://www.youtube.com/watch?v=Iqzg3R-DQCA
+- EM DIA / BORA: kit grátis de skill para carrossel animado (HTML para MP4) — é o pendente de 11/10, agora com kit pronto. https://www.youtube.com/watch?v=XwyyH0fddSY , https://www.youtube.com/watch?v=9pkNrHPWFMQ , Vox grátis https://www.youtube.com/watch?v=4-2FTdUn0iA
+- FILME: Wan 2.2 Animate com face video (boca 21% para 96%) a testar no Kaggle; boca por código reforça MuseTalk/Wav2Lip (ver caminhos-animacao-filme).
+- PENDENTES revistos hoje: Haiku executor (08/10), Jev (23/09, pagamento; Laia grátis 23/10), Claude Duet (22/10), micro-SaaS/parceiros (21-23/10), monitor de assinaturas Em Dia (09/10), carrossel/motion em código (11/10).
+- JÁ TEMOS: OmniRoute (3 vídeos), Hermes na VPS (3), Claude Code+skills+subagentes, Codex, mods (bora-mods), maquete antes de vender.
+- RECUSADO: Nous Portal/Ollama Cloud (pagos), mini apps pagos para revenda, ComfyUI/Lumens/troca de rosto (GPU), geradores grátis genéricos, preço de balcão (mexe em preços).

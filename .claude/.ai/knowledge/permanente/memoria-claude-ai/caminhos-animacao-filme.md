@@ -2,7 +2,7 @@
 id: memoria-claude-ai-caminhos-animacao-filme
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-23
+ultima_confirmacao: 2026-10-24
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Filme das filhas — 5 caminhos grátis para o desenho (revisto 05/10 com os 50 vídeos)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-23T19:59:09.931064+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-24T19:55:46.104412+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: caminhos animacao filme · memoria claude.ai · claude_ai_memoria
 
@@ -94,3 +94,8 @@ Avisos: os juizes de topo (gemini-3.5-flash, 3-flash-preview) gastam 20 pedidos/
 - VOZES (régua): teste às cegas de vários modelos de voz — os abertos ganham nos números de semelhança mas perdem na audição (ritmo, entonação). Juntar à régua do A/B uma audição às cegas pelo Representante, não só HNR/F0/WER. https://www.youtube.com/watch?v=ABeo1kKueRs
 - BOCA (reserva de closes, não testado): Dreamface (app) faz boca sincronizada sobre imagem animada no Flow; atrás do Pippit; confirmar se é grátis sem cartão. https://www.youtube.com/watch?v=EXMHiQF99TA
 - Rejeitados hoje: LTX 2.5/Alpha Gen (ComfyUI, GPU), geradores grátis genéricos sem personagem fixo provado, vídeo grátis da Meta (continua o botão de conta).
+
+## 24/10/2026 — radar diário
+- Boca sincronizada (caminho 4): Wan 2.2 Animate com um "face video" de entrada sobe a sincronia de 21% para 96%; no PC não (GPU 12 GB), mas é candidato a testar no Kaggle com GPU, fala a fala, com a ficha da personagem. https://www.youtube.com/watch?v=aqFdglMbcIU
+- Reserva sem créditos: boca por código (SyncNet + ffmpeg) e voz com Higgs Audio, no mesmo sentido do MuseTalk/Wav2Lip no Kaggle (registado 22/10, ainda não testado). https://www.youtube.com/watch?v=fo6WlfFUEY0
+- Fora: Lumens e ComfyUI local (GPU), troca de rosto, geradores grátis genéricos.

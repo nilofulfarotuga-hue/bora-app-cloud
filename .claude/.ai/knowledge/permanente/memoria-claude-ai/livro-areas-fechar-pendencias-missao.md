@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-fechar-pendencias-missao
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-23
+ultima_confirmacao: 2026-10-24
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Super-missão "fechar pendências" (20/10/2026) do bora-app — blocos 0,B,C,D,A1,A2,A3,E,H,I,J,G, o que já fechou e o prompt da noite de 21/10; ler antes de retomar pendências do Bora
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-fechar-pendencias-missao`, origem `claude-ai`, atualizada em 2026-10-23T05:40:25.497254+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-fechar-pendencias-missao`, origem `claude-ai`, atualizada em 2026-10-24T07:13:31.709358+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas fechar pendencias missao · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/fechar-pendencias-missao.md), copiada a 23/10/2026. A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/fechar-pendencias-missao.md), copiada a 24/10/2026 08:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: fechar-pendencias-missao
@@ -27,4 +27,4 @@ aliases: [fechar pendências, missão da noite, geral noite, super-missão 20/10
 - [stated] 21/10 20:15: "faça uma coisa que eu vou colar e vai acabar, que eu vou para trabalhar a noite toda aqui; geral para acabar tudo que nós já conversamos" — PROMPT REGISTADO: `PROMPT_geral_noite_2026-10-21.md` (MOTOR OPUS 5.5, app Claude no PC › Code › Este computador › pasta bora_app › Ignorar permissões, sessão nova; fluxo `fechar-pendencias-20-10` passos `N-`, run_id `geral-noite-2026-10-21`). Blocos: N0 estado · N1 fechar A2 (enviar, 3 plataformas, prova no emulador, ligar fila e vigiar 2 h) · N2 resto A1 (aviso "Nova encomenda" por cima da v22, palavras, decisões: mesmo acesso do Bora Motorista, planos cobrem, foto opcional, interruptor fica OFF) · N3 restos A3 · N4 segurança REA só no nosso app · N5 e-mail dos agentes (banco já feito por MCP; Cloudflare sem tocar no Resend) · N6 skill navegadores-e-contas · N7 radar YouTube (abrir login à frente dele no fim) · N8 permissões (settings só com factos) · N9 chave 03:00-06:00 sem desligar legadas · N10 registo. Estado: entregue a ele para colar
 - Verificado por SELECT 22/10 04:40: correram duas sessões. A sessão 1 publicou A2 (682, fila ligada 21/10 21:21, 0 corridas reais até 04:40) e A3 (683); Apple pôs a 1.0.23 à venda (B+C), 1.0.24 (D+A1+A2) em revisão. A sessão "Fechar pendências noite 21/10" (local_6914492a) fez N4 segurança (4 buracos fechados, revisor SIM), N6 skill, N5 e-mail dos agentes a funcionar de ponta a ponta, N2 pronto e revisto, e PAROU de escrever às 21:39 sem enviar o N2. O revisor do N5 disse NÃO: a ponte do e-mail na VPS corre como root (risco). N7 e N8 ficaram com ele (login YouTube authuser=1; modo automático e login do Córtex). Continuação entregue 22/10 04:40: `CONTINUA_noite_2026-10-22.md` (ponte primeiro, enviar N2, vigia da fila até 12:00, N9 só se der antes das 06:00, N10)
 - Verificado por SELECT 22/10 06:55: continuação correu (sessões local_6914492a + local_b16c6598). Enviados: N4, N2 (versão 685, 3 plataformas), N5 com a ponte corrigida sem root (revisor SIM), N9 só 5 funções iguais ao ar (sem deploy). N3b guardas aplicadas no banco (cliente não escreve loja/estafeta; lavagens), código no ramo n3b-22-10 sem enviar; leitura das colunas de dinheiro das lavagens precisa de mudar a app. N10 feito (relatório, digest, Telegram, página de login do YouTube aberta). Fila: 0 corridas reais até 06:55, vigia até 12:00. À espera do Danilo: "autorizo" para as 3 funções de pagamento (refund, finalize-order-from-intent, charge-extra); PAT novo do Supabase; falso positivo da bora-tranca no robot-b; login YouTube; QR WhatsApp
-
+- 24/10 08:30: varredura pedida por ele ("resolve tudo") — e-mails Bora e pessoal lidos (nada por responder; conta da empresa no Millennium aberta 23/10; Apple aprovou 3 envios; Uber recuperou acesso; VPS com disco quase cheio; Google Ads do Jai pausa a 01/11 sem verificação). Estado medido: sinal-fantasma só diagnóstico (Valdemir "online" sem sinal desde 20/10), documentos do painel em "plano", OmniRoute feito mas envio do ramo travado, firewall da VPS desligada com portas abertas, Hermes caçador por fazer, reel carro voador não correu. PROMPT REGISTADO: `PROMPT_geral_sabado_2026-10-24.md`, MOTOR OPUS 5.5, colado por mim às ~08:40 numa sessão nova Remote Control bora-app-cloud (session_01RAxRUvoWnWwJNoQncRfny6, "Modo Proteção Total — Estado e2e_log"), fluxo e2e_log `geral-sabado-24-10`; blocos 0 estado · 1 sinal fantasma · 2 firewall+disco VPS+envio omniroute · 3 documentos no painel · 4 restos (n3b, "não compareceu", olho-testlab-robo, agentes-email) · 5 Continente=Glovo só a subir · 6 Hermes caçador · 7 reel carro voador. Sessão ficou em modo Manual (o classificador não me deixou pôr Automático)

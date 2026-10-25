@@ -151,7 +151,7 @@ begin
   end if;
   if not coalesce(d.is_online, false) then
     return jsonb_build_object('ok', false,
-      'motivo', 'Está desligado (botão desligado) — não há aviso a mandar.');
+      'motivo', 'Está desligado (botão desligado) — não há aviso para enviar.');
   end if;
   v_req := public._enviar_aviso_sem_sinal(d.user_id, d.last_heartbeat_at, 'painel', auth.uid());
   insert into public.admin_audit_log (admin_id, action, entity_type, entity_id_text, details)

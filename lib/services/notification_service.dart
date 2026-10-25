@@ -1913,7 +1913,9 @@ Future<void> _showPersistentCategoryNotification(RemoteMessage message) async {
       // serviço outra vez, aqui mesmo, sem abrir a app. No Android o aviso vem
       // como notificação do sistema (o servidor manda-a para as apps antigas
       // também) — só se desenha uma local quando vem só com dados.
-      unawaited(BoraForegroundService.retomarSeLigado());
+      // `await`: o handler de fundo acaba quando esta função acaba — sem
+      // esperar, o arranque ficava fora da janela que o push dá ao Android.
+      await BoraForegroundService.retomarSeLigado();
       if (notif == null) {
         await _showPersistentStatusNotification(
           type: type,

@@ -177,6 +177,35 @@ class BoraForegroundService {
     }
   }
 
+  /// [24/10/2026] Ao abrir a app com o botão ligado e o serviço morto: religa
+  /// SEM pedir nada à pessoa (nem bateria, nem notificações, nem "sobrepor") —
+  /// esses pedidos são do momento em que ela liga o botão. Só no Android.
+  static Future<bool> religarSemPedidos(String driverId) async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return false;
+    if (driverId.isEmpty) return false;
+    try {
+      if (await FlutterForegroundTask.isRunningService) return true;
+      await saveDriverId(driverId);
+      return await _religarSemPedidos(driverId);
+    } catch (e) {
+      debugPrint('[BoraForegroundService] religarSemPedidos error: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> _religarSemPedidos(String driverId) async {
+    await init();
+    final result = await FlutterForegroundTask.startService(
+      serviceId: _serviceId,
+      notificationTitle: '🟢 Bora — estás online',
+      notificationText: 'Recebes as corridas e os pedidos na hora.',
+      callback: boraForegroundCallback,
+    );
+    final ok = _resultIsSuccess(result);
+    debugPrint('[BoraForegroundService] religar ($driverId) => $ok');
+    return ok;
+  }
+
   /// Inicia o serviço com a notificação fixa "Bora — estás online".
   /// Idempotente — se já estiver a correr, devolve `true` sem reiniciar.
   static Future<bool> startDriver() async {
@@ -275,10 +304,7 @@ class BoraForegroundService {
       final driverId =
           await FlutterForegroundTask.getData<String>(key: 'driverId');
       if (driverId == null || driverId.isEmpty) return false;
-      await init();
-      final ok = await startDriver();
-      debugPrint('[BoraForegroundService] retomarSeLigado => $ok');
-      return ok;
+      return await _religarSemPedidos(driverId);
     } catch (e) {
       debugPrint('[BoraForegroundService] retomarSeLigado error: $e');
       return false;

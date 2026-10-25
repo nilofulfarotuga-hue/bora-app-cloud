@@ -39,20 +39,25 @@ class LigadoSemSinalLinha extends StatelessWidget {
         crossAxisAlignment: WrapCrossAlignment.center,
         spacing: 6,
         children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.signal_wifi_bad, size: tamanho + 1, color: AppColors.error),
-              const SizedBox(width: 3),
-              Text(
-                ligadoSemSinalTexto(ultimoSinal),
-                style: TextStyle(
-                  fontSize: tamanho,
-                  color: AppColors.error,
-                  fontWeight: FontWeight.w600,
+          // Text.rich (não Row): numa lista estreita o texto parte em duas
+          // linhas em vez de transbordar.
+          Text.rich(
+            TextSpan(children: [
+              WidgetSpan(
+                alignment: PlaceholderAlignment.middle,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 3),
+                  child: Icon(Icons.signal_wifi_bad,
+                      size: tamanho + 1, color: AppColors.error),
                 ),
               ),
-            ],
+              TextSpan(text: ligadoSemSinalTexto(ultimoSinal)),
+            ]),
+            style: TextStyle(
+              fontSize: tamanho,
+              color: AppColors.error,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           if (userId != null && userId!.isNotEmpty)
             BotaoAvisarSemSinal(userId: userId!, nome: nome, compacto: compacto),

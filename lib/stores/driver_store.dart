@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -320,13 +320,17 @@ class DriverStore extends ChangeNotifier {
   /// toque no botão o ligava — o Valdemir ficou de 20/10 em diante "ligado"
   /// sem sinal porque o telemóvel matou o serviço e abrir a app não o religava.
   /// Nunca liga ninguém: só age se o botão já está ligado.
+  /// Silencioso: não pede autorizações (isso é do toque no botão). Só Android.
   Future<void> garantirServicoDeFundo() async {
-    if (kIsWeb) return;
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
     final driver = currentDriver;
     if (driver == null || !driver.isOnline) return;
     if (await BoraForegroundService.estaACorrer()) return;
+    final authId = _client.auth.currentUser?.id ?? '';
+    final id = (driver.id.isEmpty || driver.id == 'driver-main') ? authId : driver.id;
+    if (id.isEmpty || id == 'driver-main') return;
     debugPrint('[DriverStore] serviço de fundo parado com o botão ligado — religar');
-    await _syncForegroundService(true, driver.id);
+    await BoraForegroundService.religarSemPedidos(id);
   }
 
   /// Liga o foreground service quando driver vai Online; pára quando offline.

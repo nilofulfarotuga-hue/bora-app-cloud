@@ -2,7 +2,7 @@
 id: memoria-claude-ai-caminhos-animacao-filme
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-24
+ultima_confirmacao: 2026-10-25
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Filme das filhas — 5 caminhos grátis para o desenho (revisto 05/10 com os 50 vídeos)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-24T19:55:46.104412+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-25T20:56:20.492011+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: caminhos animacao filme · memoria claude.ai · claude_ai_memoria
 
@@ -99,3 +99,11 @@ Avisos: os juizes de topo (gemini-3.5-flash, 3-flash-preview) gastam 20 pedidos/
 - Boca sincronizada (caminho 4): Wan 2.2 Animate com um "face video" de entrada sobe a sincronia de 21% para 96%; no PC não (GPU 12 GB), mas é candidato a testar no Kaggle com GPU, fala a fala, com a ficha da personagem. https://www.youtube.com/watch?v=aqFdglMbcIU
 - Reserva sem créditos: boca por código (SyncNet + ffmpeg) e voz com Higgs Audio, no mesmo sentido do MuseTalk/Wav2Lip no Kaggle (registado 22/10, ainda não testado). https://www.youtube.com/watch?v=fo6WlfFUEY0
 - Fora: Lumens e ComfyUI local (GPU), troca de rosto, geradores grátis genéricos.
+
+
+## 25/10/2026 — radar diário
+- Caminho 3 (vozes): Voice Studio, alternativa aberta e grátis ao ElevenLabs (clonar voz, dobragem, português) — teste no Kaggle aprovado como reserva, ao lado do OmniVoice; confirmar se corre sem placa. https://www.youtube.com/watch?v=Chy5huRjFZM
+- Montagem: Concat, editor aberto tipo CapCut (beta), para montar episódios à mão. https://www.youtube.com/watch?v=GGhiOxoP1GY
+- Flow vídeo longo (cenas em sequência com OmniFlash) continua por testar desde 17/10; o vídeo mostra que parte o roteiro em clipes demasiado curtos. https://www.youtube.com/watch?v=G74ltLKqQi0
+- Vibes da Meta grátis: continua parado no botão de conta (04/10).
+

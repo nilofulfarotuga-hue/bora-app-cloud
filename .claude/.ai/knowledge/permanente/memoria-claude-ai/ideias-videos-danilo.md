@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-24
+ultima_confirmacao: 2026-10-25
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-24T19:55:46.104412+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-25T20:56:20.492011+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -316,3 +316,18 @@ Filme caminho 4 (fontes htROyMzUbA8, rxZZ1xi81a4): no Google Flow (Omniflash 1.1
 - PENDENTES revistos hoje: Haiku executor (08/10), Jev (23/09, pagamento; Laia grátis 23/10), Claude Duet (22/10), micro-SaaS/parceiros (21-23/10), monitor de assinaturas Em Dia (09/10), carrossel/motion em código (11/10).
 - JÁ TEMOS: OmniRoute (3 vídeos), Hermes na VPS (3), Claude Code+skills+subagentes, Codex, mods (bora-mods), maquete antes de vender.
 - RECUSADO: Nous Portal/Ollama Cloud (pagos), mini apps pagos para revenda, ComfyUI/Lumens/troca de rosto (GPU), geradores grátis genéricos, preço de balcão (mexe em preços).
+
+
+## 25/10/2026 — radar diário (agente na nuvem)
+40 vídeos revistos (35 com nota >= 6): 6 novos, 17 PENDENTES, 7 já temos, 10 rejeitados (5 por nota baixa). Nenhum do tema animacao_ia (3 do filme vindos de outras pesquisas).
+- MODA DA SEMANA (3+ vídeos nota>=8 em 7 dias): atendente WhatsApp 6+4 — FEITO (Mister Navalha); vender a outras PMEs/agência 5+3+3 — pacote PMEs PENDENTE desde 13/10. REA 6 — FEITO 21/10. Rececionista de voz 5 — PENDENTE desde 13/10. Vídeo/motion feito em código pelo Claude (Dashboards 4 + Vox 3 + minimalista 3) — PENDENTE desde 11/10 (ordem 24/10, sem prova). Memória partilhada 4 — já temos (Córtex). Alternativas grátis no GitHub 4 — novo hoje (Voice Studio, Open Shorts). Prospeção automática 3 — PENDENTE desde 17/10. Seguem: micro-SaaS (21/10), Claude Duet (22/10), recibos verdes prazo 31/10, OmniRoute FEITO, Hermes já temos.
+- FILME/REELS (lente grátis): Voice Studio, alternativa aberta ao ElevenLabs (clonar voz, PT) — teste no Kaggle aprovado (prop-2fb661c9). https://www.youtube.com/watch?v=Chy5huRjFZM
+- REELS (lente grátis): Open Shorts, tipo Opus Clip aberto, junta à skill de corte de 14/10 (prop-2fb661c9). https://www.youtube.com/watch?v=Q_QMdobAWWw ; Concat, editor aberto tipo CapCut (beta), só manual. https://www.youtube.com/watch?v=GGhiOxoP1GY
+- REELS/EM DIA: skill Vox grátis com FFmpeg + Edge TTS e banco de 86 estilos de animação em código — reforça o pendente de 11/10. https://www.youtube.com/watch?v=oTm-ayps_ow , https://www.youtube.com/watch?v=Ge1B-Ok1Pfk
+- BORA Limpeza (grande, prop-4499ca8a): orçamento instantâneo https://www.youtube.com/watch?v=mdBWDB3nekk ; página local "limpeza doméstica na Guarda" com avaliações https://www.youtube.com/watch?v=DTiWXP2bIG0
+- DINHEIRO (prop-4499ca8a): vídeos com personagens IA para psicólogos/nutricionistas que só postam carrossel https://www.youtube.com/watch?v=Fsn2rTbL5lc ; pacote PMEs: maquete por nicho + 3 níveis, 50/50 e mensalidade https://www.youtube.com/watch?v=Hz-dA9WLJ5o , https://www.youtube.com/watch?v=av5_J8YzYSg ; lente grátis Google Antigravity/AI Studio para atendente e prospeção https://www.youtube.com/watch?v=utl3hFiv6-g , https://www.youtube.com/watch?v=FzyC5cn66bg
+- SISTEMA: no Hermes não ligar dois plugins de memória ao mesmo tempo (conflito). https://www.youtube.com/watch?v=ko0tlSCZES8
+- JÁ TEMOS: REA (3), memória partilhada/segundo cérebro (Córtex + Obsidian, 4).
+- RECUSADO: Tiendanube, Sona e GoHighLevel (pagos — só com motor grátis), Runnable, dicas genéricas de Instagram e freelancing.
+- Radar aprende: +2 termos (Google Antigravity agente para negócios; angariadores de parceiros, da conversa 24-25/10), -2 sem vídeos bons; 70 ativos.
+

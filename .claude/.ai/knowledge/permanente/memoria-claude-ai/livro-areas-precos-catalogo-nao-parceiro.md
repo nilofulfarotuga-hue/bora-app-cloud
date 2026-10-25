@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-precos-catalogo-nao-parceiro
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-23
+ultima_confirmacao: 2026-10-25
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Regras que o Danilo fixou para o preço base dos produtos de lojas não-parceiras do [[bora-app]] (robot do talão + qual a fonte de preço válida)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-precos-catalogo-nao-parceiro`, origem `claude-ai`, atualizada em 2026-10-23T22:13:56.674853+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-precos-catalogo-nao-parceiro`, origem `claude-ai`, atualizada em 2026-10-25T22:13:47.441428+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas precos catalogo nao parceiro · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/precos-catalogo-nao-parceiro.md), copiada a 2026-10-23 23:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/precos-catalogo-nao-parceiro.md), copiada a 25/10/2026 22:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: precos-catalogo-nao-parceiro
@@ -41,3 +41,5 @@ aliases: [preço de balcão, robot do talão, correção de preço, catalog_pric
 FINAL WRITE
 - [stated] 11/10/2026: disse que hoje cobra 15% sobre o produto não-parceiro (+ 0,99 € de serviço + 2,50 € de entrega); quer pôr taxa de entrega e de serviço GRÁTIS nos mercados (embutindo no preço) para concorrer com Glovo/Uber e divulgar os mercados, sem ter prejuízo — ainda a decidir a combinação (percentagem, taxa mínima, valor mínimo)
 - [stated] 23/10/2026: decidiu igualar os preços de McDonald's, Burger King e Continente ao Glovo da Guarda — SÓ SUBIR o que estiver abaixo, nunca baixar nenhum preço; autorizou entrega grátis (McDonald's a partir de 20 €, Continente e Burger King a partir de 30 €; abaixo disso entrega normal e sem taxa de pedido pequeno), taxa de serviço 0,99 € mantém-se; Auchan, Intermarché e Pingo Doce ficam como estão
+- [stated] 25/10/2026: reafirmou, irritado: não-parceiro sem margem de erro nenhuma — o cliente paga o preço escrito na app; mais barato no balcão = lucro dele, mais caro = prejuízo dele; o estafeta não pode ver a linha "Cliente recebe X de reembolso". Feito por MCP: non_partner_payment_buffer_multiplier 1.15 → 1.0. Prompt colado na sessão "bora-app" do Claude Code (PC, session_015f5LNUcn5Ap5UbyuuhSX5C), run_id sem-margem-nao-parceiro-2026-10-25: tirar a linha do ecrã do estafeta, textos de margem no cliente, verificar Edge Function, publicar nas 3. Estado: a correr
+

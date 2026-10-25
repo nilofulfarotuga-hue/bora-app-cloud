@@ -10,7 +10,7 @@ estado: atual
 
 # Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-10-25T10:13:59.916134+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-10-25T22:14:10.838619+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: erros aprendidos · memoria claude.ai · claude_ai_memoria
 
@@ -77,4 +77,6 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - 24/10 (quem errou: claude-ai): Stripe da empresa no mesmo login da Stripe pessoal, copiando cartões dos clientes → Stripe da empresa TOTALMENTE nova e separada (login/email próprio), sem histórico, clientes nem cartões da pessoal; começa do zero.
 - 24/10 (quem errou: claude-ai): vendedor a 10 € + 30 € e vaga de estafeta no plano de divulgação → angariador é 20 € à entrada + 20 € depois dos pedidos; 1.ª etapa é ter parceiros de TODAS as categorias (beleza incluída), com treino e texto para o parceiro explicar o Bora; ver o que já existe (indicar amigo, check-in) antes de propor.
 - 25/10 (quem errou: claude-ai): tradução da mensagem da Myra misturada com explicações, a "boa notícia" da Brunel, mensagens antigas e [link] em vez dos links → só duas partes seguidas: "Ela falou: ..." (só o que disse hoje) e "O que eu estou a dizer: ..." (tradução completa igual ao cartão, com links), logo o cartão; comentários só depois do cartão.
+- 25/10 (quem errou: claude-ai): no plano de crescimento meti cartões no carro do TVDE e uma oferta só com o Goola → TVDE fica TODO fora (nem cartões nas corridas) até estar legalizado; a isca para trazer clientes são as não-parceiras grandes (McDonald's, Burger King, Continente); parceiros pequenos vêm depois.
+- 25/10 (quem errou: claude-ai): disse que a pré-autorização de +15% no pedido do McDonald's (29,89 em vez de 25,99) estava certa → não-parceiro cobra-se EXATAMENTE o preço da app, sem margem; mais barato = lucro da Bora, mais caro = prejuízo dele; estafeta não vê linha de "reembolso ao cliente"; non_partner_payment_buffer_multiplier = 1.0 desde 25/10.
 

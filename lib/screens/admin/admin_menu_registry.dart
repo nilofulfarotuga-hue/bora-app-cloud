@@ -48,6 +48,7 @@ import 'admin_dispatch_settings_screen.dart';
 import 'admin_driver_approval_screen.dart';
 import 'admin_drivers_screen.dart';
 import 'admin_edge_functions_screen.dart';
+import 'admin_embaixadores_screen.dart';
 import 'admin_errand_catalog_screen.dart';
 import 'admin_extrato_dono_screen.dart';
 import 'admin_extratos_pessoas_screen.dart';
@@ -473,6 +474,15 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.pinkAccent,
       builder: () => const AdminPromoCodesScreen(),
       keywords: const ['codes', 'codigos', 'criar', 'desligar', 'promo', 'promocionais'],
+    ),
+    AdminMenuItem(
+      id: 'dinheiro_embaixadores',
+      title: 'Embaixadores',
+      subtitle: 'Códigos IPG: clientes trazidos e quanto pagar por semana',
+      icon: Icons.school,
+      color: Colors.teal,
+      builder: () => const AdminEmbaixadoresScreen(),
+      keywords: const ['embaixador', 'embaixadores', 'estudantes', 'ipg', 'politecnico'],
     ),
       ],
     ),

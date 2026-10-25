@@ -180,7 +180,9 @@ class _S extends State<AdminPromoCodesScreen> {
                               ? '${((r['value_pct'] as num) * 100).toStringAsFixed(0)}% off'
                               : r['type'] == 'fixed_off'
                                 ? '€${((r['value_cents'] as num) / 100).toStringAsFixed(2)} off'
-                                : 'Entrega grátis';
+                                : r['type'] == 'tokens_grant'
+                                  ? '${r['value_cents']} tokens'
+                                  : 'Entrega grátis';
                             return ListTile(
                               title: Text(r['code'], style: const TextStyle(fontWeight: FontWeight.bold)),
                               subtitle: Text(

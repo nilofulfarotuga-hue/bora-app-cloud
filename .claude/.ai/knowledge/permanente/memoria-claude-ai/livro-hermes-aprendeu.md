@@ -10,7 +10,7 @@ estado: atual
 
 # O que o Hermes aprendeu sozinho (MEMORY.md + USER.md), cópia noturna
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-hermes-aprendeu`, origem `hermes`, atualizada em 2026-10-25T15:18:30.175036+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-hermes-aprendeu`, origem `hermes`, atualizada em 2026-10-25T15:35:28.887823+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro hermes aprendeu · memoria claude.ai · claude_ai_memoria
 

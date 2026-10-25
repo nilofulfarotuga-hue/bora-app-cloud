@@ -10,7 +10,7 @@ estado: atual
 
 # Skills do Hermes (as que criou + lista das de fábrica), cópia noturna
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-hermes-skills`, origem `hermes`, atualizada em 2026-10-25T15:18:30.689653+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-hermes-skills`, origem `hermes`, atualizada em 2026-10-25T15:35:29.107515+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro hermes skills · memoria claude.ai · claude_ai_memoria
 

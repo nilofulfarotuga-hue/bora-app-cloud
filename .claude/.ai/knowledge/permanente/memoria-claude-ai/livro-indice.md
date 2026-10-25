@@ -10,7 +10,7 @@ estado: atual
 
 # Índice do livro — todas as páginas de claude_ai_memoria (gerado)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-25T15:18:31.019211+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-25T15:35:29.611703+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
@@ -328,7 +328,9 @@ Gerado automaticamente (missão livro-comum-2026-10-23; regenerado todas as noit
 - livro-areas-tvde-vertical-parte3 — Bora App TVDE ride-hailing vertical — dispatch, pricing, UI, payments (parte 3 de 4) (2026-10-23)
 - livro-areas-tvde-vertical-parte4 — Bora App TVDE ride-hailing vertical — dispatch, pricing, UI, payments (parte 4 de 4) (2026-10-23)
 - livro-areas-whatsapp-loja — Regras fixas do Danilo para o atendimento automático do WhatsApp da loja — ler antes de mexer nesse atendimento (2026-10-23)
+- livro-claude-code-aprendeu — O que o Claude Code aprendeu sozinho (memória automática do PC), cópia (2026-10-25)
 - livro-claude-md-detalhe — Detalhe dos CLAUDE.md (repo e global) antes do corte de 23/10/2026 (2026-10-23)
+- livro-faxina-2026-10-25 — Faxina do livro 2026-10-25 (proposta do escriba + revisão do critico; nada apagado) (2026-10-25)
 - livro-hermes-aprendeu — O que o Hermes aprendeu sozinho (MEMORY.md + USER.md), cópia noturna (2026-10-25)
 - livro-hermes-skills — Skills do Hermes (as que criou + lista das de fábrica), cópia noturna (2026-10-25)
 - livro-hermes-soul-detalhe — Alma antiga do Hermes (SOUL.md de 611 linhas) antes do corte de 23/10/2026 (2026-10-23)

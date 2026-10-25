@@ -106,11 +106,55 @@ class _AdminCacaClientesScreenState extends State<AdminCacaClientesScreen> {
   Future<void> _interruptor(bool ligado) async {
     try {
       await _c.rpc('admin_caca_interruptor', params: {'p_ligado': ligado});
-      _aviso(ligado ? 'Carteiro ligado: envia até 5 emails novos por dia útil.' : 'Carteiro desligado: nada sai.');
+      _aviso(ligado ? 'Carteiro ligado: envia até ${_maxDia()} emails novos por dia útil.' : 'Carteiro desligado: nada sai.');
       await _carregar();
     } catch (e) {
       _aviso(_erroSimples(e), erro: true);
     }
+  }
+
+  int _maxDia() => (_resumo['max_dia'] as num?)?.toInt() ?? 5;
+
+  Future<void> _mudarMaxDia(int? v) async {
+    if (v == null || v == _maxDia()) return;
+    try {
+      final r = await _c.rpc('admin_caca_max_dia', params: {'p_max': v});
+      _aviso('Máximo por dia útil: $r emails novos.');
+      await _carregar();
+    } catch (e) {
+      _aviso(_erroSimples(e), erro: true);
+    }
+  }
+
+  Widget _funil() {
+    final etapas = <(String, Object?)>[
+      ('caçados', _resumo['com_email']),
+      ('contactados', _resumo['enviados']),
+      ('responderam', _resumo['respostas']),
+      ('esperando você', _resumo['espera_danilo']),
+      ('fechados', _resumo['fechados']),
+    ];
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Funil', style: TextStyle(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 4, runSpacing: 8, children: [
+            for (var i = 0; i < etapas.length; i++) ...[
+              _ficha(etapas[i].$1, etapas[i].$2),
+              if (i < etapas.length - 1) const Icon(Icons.chevron_right, size: 18, color: AppColors.textSecondary),
+            ],
+          ]),
+          const SizedBox(height: 6),
+          Text(
+            'Caçados = com email verificado. "Esperando você" = pediram preço ou reunião: o rascunho está no seu '
+            'Telegram e só sai quando você disser "manda". Hoje já saíram ${_resumo['enviados_hoje'] ?? 0}.',
+            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+        ]),
+      ),
+    );
   }
 
   Future<bool> _acao(Map<String, dynamic> p, String acao, {String? assunto, String? texto}) async {
@@ -340,13 +384,26 @@ class _AdminCacaClientesScreenState extends State<AdminCacaClientesScreen> {
                         value: ligado,
                         onChanged: _interruptor,
                         title: Text(ligado ? 'Carteiro ligado' : 'Carteiro desligado', style: const TextStyle(fontWeight: FontWeight.w800)),
-                        subtitle: const Text(
-                          'Ligado: envia até 5 emails novos por dia útil (09h30–11h30), em nome da Bora, e faz 2 seguimentos. '
+                        subtitle: Text(
+                          'Ligado: envia até ${_maxDia()} emails novos por dia útil (09h30–11h30), em nome da Bora, e faz 2 seguimentos. '
                           'Desligado: nada sai, nem o que você mandar enviar agora.',
-                          style: TextStyle(fontSize: 12),
+                          style: const TextStyle(fontSize: 12),
                         ),
                       ),
                     ),
+                    Card(
+                      child: ListTile(
+                        title: const Text('Máximo de emails novos por dia útil', style: TextStyle(fontWeight: FontWeight.w700)),
+                        subtitle: const Text('Os seguimentos (3 e 7 dias) não contam para este limite.', style: TextStyle(fontSize: 12)),
+                        trailing: DropdownButton<int>(
+                          value: const [0, 2, 3, 5, 8, 10, 15, 20].contains(_maxDia()) ? _maxDia() : 5,
+                          items: [for (final n in const [0, 2, 3, 5, 8, 10, 15, 20]) DropdownMenuItem(value: n, child: Text('$n'))],
+                          onChanged: _mudarMaxDia,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    _funil(),
                     const SizedBox(height: 12),
                     Wrap(spacing: 10, runSpacing: 6, children: [
                       _ficha('encontrados', _resumo['encontrados']),

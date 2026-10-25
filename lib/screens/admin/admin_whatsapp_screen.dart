@@ -56,7 +56,7 @@ class _AdminWhatsappScreenState extends State<AdminWhatsappScreen>
       final c = await _supabase
           .from('whatsapp_contacts')
           .select('numero, nome, papel, tratamento, lingua, bot_pausado, bot_pausado_ate, '
-              'assumido_por_danilo, ultima_msg_em, ultima_resposta_bot_em, prometido, notas')
+              'assumido_por_danilo, ultima_msg_em, ultima_resposta_bot_em, prometido, notas, tipo_conversa')
           .order('ultima_msg_em', ascending: false, nullsFirst: false)
           .limit(300);
       final l = await _supabase
@@ -136,6 +136,23 @@ class _AdminWhatsappScreenState extends State<AdminWhatsappScreen>
         'bot_pausado_por': null,
         'assumido_por_danilo': false,
       }).eq('numero', c['numero']);
+      await _carregar();
+    } catch (e) {
+      _aviso('Erro: $e');
+    }
+  }
+
+  // Livro-comum 25/10: de que tipo é a conversa (o número da loja também é do Danilo).
+  // Só "loja" poderá um dia ter rascunho automático; "pessoal" nunca. Por defeito: incerto.
+  static const _tiposConversa = {
+    'loja': 'Loja (cliente da Bora)',
+    'pessoal-danilo': 'Pessoal (do Danilo)',
+    'incerto': 'Incerto',
+  };
+
+  Future<void> _mudarTipoConversa(Map<String, dynamic> c, String tipo) async {
+    try {
+      await _supabase.from('whatsapp_contacts').update({'tipo_conversa': tipo}).eq('numero', c['numero']);
       await _carregar();
     } catch (e) {
       _aviso('Erro: $e');
@@ -270,10 +287,14 @@ class _AdminWhatsappScreenState extends State<AdminWhatsappScreen>
           ),
           title: Text(c['nome']?.toString().isNotEmpty == true ? '${c['nome']} · ${_mask(numero)}' : '+$numero'),
           subtitle: Text('${c['papel'] ?? 'desconhecido'} · ${c['lingua'] ?? ''} · $estado\n'
-              'última msg: ${dataHoraLisboa(c['ultima_msg_em'])}'),
+              '${_tiposConversa[c['tipo_conversa']] ?? 'Incerto'} · última msg: ${dataHoraLisboa(c['ultima_msg_em'])}'),
           isThreeLine: true,
           trailing: PopupMenuButton<String>(
             onSelected: (v) {
+              if (v.startsWith('tipo:')) {
+                _mudarTipoConversa(c, v.substring(5));
+                return;
+              }
               switch (v) {
                 case 'pausar1h':
                   _pausar(c, minutos: 60);
@@ -285,11 +306,18 @@ class _AdminWhatsappScreenState extends State<AdminWhatsappScreen>
                   _retomar(c);
               }
             },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'pausar1h', child: Text('Pausar bot 1 hora')),
-              PopupMenuItem(value: 'pausar', child: Text('Pausar bot neste contato')),
-              PopupMenuItem(value: 'assumir', child: Text('Assumir (eu respondo)')),
-              PopupMenuItem(value: 'retomar', child: Text('Retomar / Liberar bot')),
+            itemBuilder: (_) => [
+              const PopupMenuItem(value: 'pausar1h', child: Text('Pausar bot 1 hora')),
+              const PopupMenuItem(value: 'pausar', child: Text('Pausar bot neste contato')),
+              const PopupMenuItem(value: 'assumir', child: Text('Assumir (eu respondo)')),
+              const PopupMenuItem(value: 'retomar', child: Text('Retomar / Liberar bot')),
+              const PopupMenuDivider(),
+              for (final t in _tiposConversa.entries)
+                CheckedPopupMenuItem(
+                  value: 'tipo:${t.key}',
+                  checked: (c['tipo_conversa'] ?? 'incerto') == t.key,
+                  child: Text('Conversa: ${t.value}'),
+                ),
             ],
           ),
           onTap: () => Navigator.push(

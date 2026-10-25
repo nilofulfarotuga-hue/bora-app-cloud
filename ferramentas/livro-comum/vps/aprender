@@ -1,0 +1,28 @@
+#!/usr/bin/env python3
+"""aprender "<o que errei>" "<a regra certa>"  — grava uma correção do Danilo no livro.
+Corre dentro do contentor do Hermes (sem chaves). Deixa o pedido em /opt/data/livro-fila/
+e o HOST (unidade systemd livro-fila.path) chama public.livro_aprender com a chave dele.
+Missão livro-comum-2026-10-23."""
+import json, os, sys, time, uuid
+
+FILA = '/opt/data/livro-fila'
+if len(sys.argv) < 3 or not sys.argv[1].strip() or not sys.argv[2].strip():
+    print('uso: aprender "<o que errei>" "<a regra certa>"')
+    sys.exit(1)
+quem = os.environ.get('LIVRO_QUEM', 'hermes')
+pid = time.strftime('%Y%m%d%H%M%S') + '-' + uuid.uuid4().hex[:6]
+os.makedirs(FILA, exist_ok=True)
+tmp = os.path.join(FILA, '.%s.tmp' % pid)
+with open(tmp, 'w', encoding='utf-8') as f:
+    json.dump({'quem': quem, 'errei': sys.argv[1], 'regra': sys.argv[2]}, f, ensure_ascii=False)
+os.replace(tmp, os.path.join(FILA, pid + '.json'))
+resp = os.path.join(FILA, pid + '.resposta')
+for _ in range(60):
+    if os.path.exists(resp):
+        txt = open(resp, encoding='utf-8').read().strip()
+        os.remove(resp)
+        print(txt)
+        sys.exit(0 if txt.startswith('GRAVADO') else 2)
+    time.sleep(0.5)
+print('O host não respondeu em 30 s: o pedido ficou na fila (%s) e será gravado quando o host o ler. Avisa o Danilo se isto se repetir.' % pid)
+sys.exit(3)

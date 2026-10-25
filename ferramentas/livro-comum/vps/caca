@@ -1,0 +1,25 @@
+#!/usr/bin/env python3
+"""caca — o Danilo decide os rascunhos do caça-clientes (corre no contentor do Hermes, sem chaves).
+  caca lista                 → rascunhos à espera do "manda"
+  caca manda <id>            → envia o rascunho tal como está (SÓ depois de o Danilo dizer "manda")
+  caca muda <id> "<texto>"   → envia com o texto que o Danilo ditou
+O HOST envia (caca-fila.path). Missão livro-comum-2026-10-23."""
+import json, os, sys, time, uuid
+
+FILA = '/opt/data/caca-fila'
+a = sys.argv[1:]
+if not a or a[0] not in ('lista', 'manda', 'muda') or (a[0] in ('manda', 'muda') and len(a) < 2) or (a[0] == 'muda' and len(a) < 3):
+    print(__doc__); sys.exit(1)
+pedido = {'acao': a[0], 'id': a[1] if len(a) > 1 else '', 'texto': ' '.join(a[2:]) if a[0] == 'muda' else ''}
+pid = time.strftime('%Y%m%d%H%M%S') + '-' + uuid.uuid4().hex[:6]
+os.makedirs(FILA, exist_ok=True)
+tmp = os.path.join(FILA, '.%s.tmp' % pid)
+json.dump(pedido, open(tmp, 'w', encoding='utf-8'), ensure_ascii=False)
+os.replace(tmp, os.path.join(FILA, pid + '.json'))
+resp = os.path.join(FILA, pid + '.resposta')
+for _ in range(120):
+    if os.path.exists(resp):
+        t = open(resp, encoding='utf-8').read().strip(); os.remove(resp); print(t)
+        sys.exit(0 if t.startswith(('ENVIADO', 'RASCUNHOS')) else 2)
+    time.sleep(0.5)
+print('O host não respondeu em 60 s; o pedido ficou na fila (%s). Avisa o Danilo se se repetir.' % pid); sys.exit(3)

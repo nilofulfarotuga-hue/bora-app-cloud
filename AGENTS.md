@@ -1,147 +1,101 @@
-# BORA APP — CONTEXTO NUCLEAR (leia isto ANTES de qualquer tarefa)
+# AGENTS.md — o cartão comum de todos os agentes do Bora
 
-> Este ficheiro é o núcleo. O detalhe completo vive em `docs/contexto/` — o índice no fim diz onde está o quê. **Abra o capítulo relevante antes de mexer na área correspondente.** Nunca adivinhe: se a resposta não está aqui nem nos capítulos, investigue no código/DB.
+> Escrito 2026-10-23 (missão `livro-comum-2026-10-23`). Vale igual para Claude Code,
+> Hermes/Emerson, OpenCode, Codex, ChatGPT e Claude.ai. Máximo 150 linhas: o detalhe vive
+> no LIVRO, não aqui. O cartão antigo (contexto nuclear de 17/09) está em
+> `docs/contexto/00-contexto-nuclear.md`.
 
----
+## 1. AO ACORDAR — antes de qualquer tarefa, por esta ordem
 
-## 1. O QUE É O BORA
+O LIVRO é a tabela `public.claude_ai_memoria` (Supabase `ojykpzwqrtusfeakzrna`), espelhada no
+Córtex em `permanente/memoria-claude-ai/` de hora a hora. É a mesma verdade para todos.
 
-Plataforma multi-serviço para a **Guarda, Portugal**, construída por **um único fundador (Danilo)** com orquestração de IA. Verticais:
+1. `erros-aprendidos` — as correções do Danilo. Errou uma vez, nunca mais.
+2. `regras-do-danilo` — manda em tudo.
+3. `livro-indice` — o que existe no livro e onde.
+4. O `digest-*` mais recente — o que se fez nas últimas horas.
+5. Antes de mexer em pedidos, estafetas, dinheiro ou migrações: `regras-operacao-agentes`.
 
-- **Delivery** (restaurantes + mercados/supermercados + lojas + farmácias)
-- **TVDE** (ride-hailing tipo Uber/Bolt)
-- **Limpeza** (tipo Helpling)
-- **Reservas** (mesas com pré-pagamento €3)
-- **Favores/Errands** (compras por encomenda, OCR de talão)
-- **Serviços** (barbearias, salões de beleza — marcações)
+Como ler: MCP Supabase
+`select pagina, conteudo from claude_ai_memoria where pagina in ('erros-aprendidos','regras-do-danilo','livro-indice');`
+ou `cortex_buscar "erros-aprendidos"` / `cortex_ler`. No Claude Code o gancho de arranque já
+imprime as três páginas; no Hermes entram pelo ficheiro de contexto que o sync renova.
 
-Referências de mercado: **Glovo, Uber Eats, iFood, Uber, Bolt, Helpling**. Regra: nunca inventar padrão novo — copiar o que essas apps consagraram.
+## 2. QUANDO O DANILO TE CORRIGIR — grava NA HORA
 
-## 2. QUEM É DANILO (o dono)
+Uma linha no fim de `erros-aprendidos`, nunca por cima do que lá está:
 
-- Brasileiro a viver na Guarda, Portugal. Fundador solo. Motorista TVDE (Uber/Bolt) como renda atual — conhece os dois lados do negócio na pele.
-- Comunica em PT-BR informal, quase sempre por voz (voice-to-text — mensagens chegam fragmentadas; interpretar pela intenção).
-- Não é programador: **decide e aprova**; a execução é 100% dos agentes de IA. NUNCA pedir tarefa manual técnica a ele (exceção: decisões legais/financeiras e ações que as travas de segurança exigem que sejam humanas).
-- Estilo: respostas curtas e diretas; odeia repetição e enrolação.
+```sql
+select public.livro_aprender('claude-code', 'o que errei', 'a regra certa');
+```
 
-## 3. STACK E IDENTIFICADORES
+- Claude Code: skill `aprender` (`.claude/skills/aprender/`).
+- Hermes: comando `aprender "<errei>" "<regra>"` dentro do contentor.
+- `p_quem` é quem errou: `claude-code`, `hermes`, `claude-ai`, `chatgpt`, `opencode`.
+- Só a correção e a regra. Nunca segredos, nunca dados de clientes.
 
-| Item | Valor |
-|---|---|
-| Frontend | Flutter (app cliente + estafeta + parceiro + painel admin web) |
-| Backend | Supabase — Postgres, RLS, Edge Functions, pg_cron, Realtime, Storage |
-| Pagamentos | **Stripe LIVE** (cuidado: cobranças reais) + MB Way |
-| Push | Firebase FCM (`boraapp-d2bea`) |
-| Repo | `nilofulfarotuga-hue/bora-app-cloud`, branch `autonomous-night-2026-04-29` |
-| Supabase project | `ojykpzwqrtusfeakzrna` |
-| Package Android | `pt.boraapp.bora` |
-| Path local | `C:\Users\danil\Desktop\projetosflutter\bora_app\` |
-| Vault Obsidian | `C:\Users\danil\Desktop\Bora` |
-| Web app | bora-app-web.pages.dev (mesmo codebase, Cloudflare Pages) |
-| Site institucional | bora-site.pages.dev (repo público `bora-site`) |
-| PC do Danilo | Acer Celeron N4500, **4GB RAM** — gargalo permanente; nada pesado local |
+## 3. QUEM É O DANILO (10 linhas)
 
-## 4. REGRAS INVIOLÁVEIS (quebrar = falha grave)
+- Danilo Fulfaro da Silva, brasileiro, vive na Guarda (Portugal). Fundador sozinho do Bora.
+- Empresa: Danilo Fulfaro da Silva - Unipessoal Lda. Faz correio de manhã e TVDE.
+- Não é programador: decide e aprova. A execução é toda dos agentes.
+- Fala PT-BR informal, quase sempre por voz: mensagens partidas, ler a intenção.
+- Mensagem curta e ambígua: ler ao pé da letra antes de assumir um "sim".
+- Ouve as respostas em voz alta: texto corrido, curto, sem jargão, sem tabelas.
+- "Se eu pedir, já é porque estou a autorizar": não perguntar "aprovas?".
+- Não faz nada à mão. Só o fisicamente impossível, num passo, com a página à frente.
+- Uma coisa de cada vez. Não abrir frentes que ele não pediu.
+- Nunca o fazer repetir: o que já foi dito está no livro e no Córtex.
 
-1. **ZONAS PROTEGIDAS** — não tocar sem ordem explícita: `dispatch_engine`, `pricing_service.dart`, `finalizePurchase`, `bora_tokens`, Stripe webhook v17+, RLS de `orders`/`wallets`/`ledger`, `.claude/settings.json` (Trava protege-dinheiro).
-2. **versionCode**: o CI (`build_android.yml`) auto-incrementa. NUNCA incrementar no pubspec.
-3. **Push = publicação**: push na branch dispara build Android → Play alpha E deploy web. Commits só-`.md` ou só-`.claude/` não disparam (paths-ignore), MAS o paths-ignore avalia TODOS os commits do push — código pendente "pega boleia". Sempre verificar o que viaja junto antes de push.
-4. **Idiomas**: apps (cliente/estafeta/parceiro) = **PT-PT**; painel admin = **PT-BR** (só Danilo usa).
-5. **Design**: verde `#16A34A`, laranja `#F97316`, fonte Inter. NUNCA alterar fotos reais de produtos.
-6. **Painel admin**: toda feature nova/alterada exige perguntar se precisa de correspondência no painel admin (Danilo quer autoridade total: ver/editar/criar/banir/configurar/exportar/auditar).
-7. **Testes de pagamento**: sempre em DINHEIRO (Stripe é live — cartão cobra de verdade).
-8. **Web + Android saem juntos**: toda atualização que vai pro Play atualiza também o web app.
-9. **Fonte de verdade**: 1º `business_rules.md` (vault Obsidian), 2º código do app, 3º padrão Glovo/Uber Eats/iFood. Dúvida → investigar, nunca chutar.
-10. **CEO-AI**: todo prompt de missão invoca o orchestrator em `.claude/skills/ceo-ai/` primeiro.
+## 4. REGRAS DE OURO
 
-## 5. REGRAS DE DINHEIRO (resumo — detalhe no cap. 03)
+1. **Prova material.** "Feito" só com SELECT, log, ficheiro ou captura. Um 200 não prova o
+   trabalho de dentro. Nunca "deve estar", nunca confiar na palavra de outro agente.
+2. **Dinheiro trava.** Preços, comissões, ganhos, Stripe, tokens, carteira: prepara tudo,
+   não aplica sem o "autorizo" dele com data. Testes de pagamento sempre em dinheiro.
+3. **Zonas protegidas** só com ordem explícita: `dispatch_engine`, `pricing_service.dart`,
+   `finalizePurchase`, `bora_tokens`, `stripe-webhook`, RLS de `orders`/`wallets`/`ledger`.
+4. **Produção:** nada de UPDATE/INSERT/DELETE direto em `orders`, `drivers`, carteiras,
+   ledger, tokens. Pedidos a estafetas só por `ops_reassign_order`/`ops_release_order_driver`.
+   Nunca apagar dados de produção; correção só com backup `bkp_<nome>_AAAAMMDD`.
+5. **Migração aplicada em produção fica também no repo** (`supabase/migrations`).
+6. **Publicar = as 3:** Play Store, App Store, web. O CI sobe o versionCode; nunca à mão.
+   Ramo único: `autonomous-night-2026-04-29`. Enviar só os ficheiros da própria missão.
+7. **Segredos nunca em ficheiro versionado.** Chave exposta = trocada.
+8. **Idiomas:** apps cliente/estafeta/parceiro em PT-PT; painel admin em PT-BR.
+9. **Paridade admin:** toda feature nova tem ecrã no painel (ver, editar, ligar/desligar).
+10. **Erro encontrado pelo caminho:** reportar no e2e_log e no relatório, não corrigir calado.
+11. **Nunca inventar padrão:** Córtex/business_rules → código → Glovo/Uber Eats/iFood.
+12. **Design:** verde `#16A34A`, laranja `#F97316`, fonte Inter. Fotos reais intocáveis.
+13. **Fora em nome da Bora:** conta da Bora, nunca a pessoal, salvo quando ele já fala com a
+    pessoa. Ao cliente vai só o que ele manda dizer.
+14. **Privacidade:** páginas `[PESSOAL]` do livro e dados de clientes nunca vão para motores
+    grátis que treinam com o conteúdo.
 
-- **PARCEIRO** (só restaurantes): 10% comissão visível + 5% markup oculto + 5% taxa serviço. Estafeta €3,80 + €0,20/km.
-- **NÃO-PARCEIRO**: preço base + 15% fixo incluído; fee €2,50 fixo. Estafeta €3,80 + €0,20/km + €0,80 + 30% lucro líquido Bora. **TODOS os mercados são não-parceiros.**
-- Entrega €2,50 até 4km, +€0,50/km. Cash máx €40. Sacos: restaurante €0,30, mercado €0,10/saco.
-- Tokens: cliente ROUND(preço×3) mín 1; estafeta +40 normal / +50 parceiro.
-- Refund p/ wallet: split **80% saldo livre + 20% tokens (60d)**, configurável em `platform_settings`.
-- Reservas: pré-pagamento €3 (parceiro €2 / Bora €1; no-show e cancel <2h = Bora 100%).
-- TVDE ida-e-volta €8 = preço TOTAL do cliente; motorista da ida ganha €4, da volta €3,50, Bora ~€0,50 — acerto no fecho semanal. Payout é SEMANAL, nunca reembolso instantâneo.
-- Buffer MB Way: `payment_buffer_total = fees_total + round(estimativa × 1.2)` — NUNCA ×1.15.
+## 5. NAVEGADOR E CONTAS
 
-**Confundir parceiro/não-parceiro = erro grave.**
+Escolher sempre pelo `deviceId`, nunca pelo nome "Browser 1/2" (skill `navegadores-e-contas`):
 
-## 6. ÍNDICE DO CONTEXTO COMPLETO (`docs/contexto/`)
+- Bora (boraappbora) `d9e862e0-a5ea-486f-b054-f333ef51b46a` — Supabase, Play, Apple, Meta,
+  Instagram, Cloudflare, Resend, painel admin.
+- Pessoal (nilofulfarotuga) `5b260cdd-9d4f-49d6-842b-ebfbfea69c75` — GitHub, claude.ai/code,
+  Gemini, ChatGPT, DeepSeek.
+- Nunca sair de contas. Login só em último recurso, no perfil certo, com aviso no Telegram.
 
-| Capítulo | Quando abrir |
-|---|---|
-| `01-fundador-e-visao.md` | Decisões de produto/estratégia; entender "por quê" |
-| `02-arquitetura.md` | Mexer em estrutura, CI/CD, deploy, Edge Functions |
-| `03-regras-de-negocio.md` | QUALQUER coisa que toque preço, comissão, wallet, refund |
-| `04-verticais.md` | Trabalhar em delivery, TVDE, Limpeza, Reservas, Favores, Serviços |
-| `05-parceiros-reais.md` | Lojas reais: Sabores de Casa, Ouro e Prata, BeUnique, mini-sites |
-| `06-infra-automacao.md` | Hermes, Córtex, loop autônomo, robôs, motor de conhecimento |
-| `07-estado-atual.md` | Saber o que está pronto, pendente e em curso |
-| `08-licoes-aprendidas.md` | ANTES de repetir abordagem que já falhou (SSH, GPU, OOM...) |
+## 6. OS AGENTES
 
----
-*Mantido por Claude.ai a partir da memória persistente + Córtex Bora. Última consolidação: 2026-07-22.*
+- **Claude.ai** — o cérebro com quem ele fala. Decide e distribui.
+- **Hermes/Emerson** — funcionário 24h na VPS (Telegram, voz). Tarefas pela tabela `despacho`.
+- **Claude Code** — mãos no PC: código, Chrome, emulador, publicar.
+- **OpenCode/Codex** — trabalho pesado de código, chamado por dentro (`distribuir-trabalho`).
+- **ChatGPT** — conselho e segunda opinião; lê o `livro-resumo` do projeto "Bora".
+- Cadeia: Danilo → Claude.ai → Hermes → agentes. Tudo o que um aprende vai para o livro.
 
----
+## 7. ONDE ESTÁ O RESTO
 
-## REGRAS DE OPERAÇÃO EM PRODUÇÃO — para qualquer agente (ChatGPT, OpenCode, Hermes/Emerson, Claude Code, Claude.ai) · 16/09/2026
-
-> Fonte viva: página `regras-operacao-agentes` em `public.claude_ai_memoria` (espelho no Córtex:
-> `memoria-claude-ai-regras-operacao-agentes`). Antes de mexer em pedidos, estafetas, dinheiro ou
-> migrações em produção, lê-a e segue-a à letra. Esta cópia existe para nenhum agente arrancar cego.
-
-**Porque existe:** a 16/09 o ChatGPT pôs um pedido da Goola Açaí no nome do estafeta Ney com um
-UPDATE direto na tabela `orders`. O Ney usa a Bora pelo navegador do iPhone, estava desligado e sem
-notificações; como o pedido já tinha estafeta, o sistema deixou de chamar os outros e o pedido ficou
-preso 10 minutos depois de pronto, com a cliente à espera, até a Claude.ai o passar ao Danilo.
-
-### PODES, sem pedir
-
-1. Ler tudo (SELECT) para investigar e responder ao Danilo.
-2. Passar ou reservar um pedido a um estafeta **só assim**:
-   `select public.ops_reassign_order('<id do pedido>', '<user_id do estafeta>', '<motivo>', '<chatgpt|opencode|hermes|claude-code>');`
-   A função confirma que o estafeta está ligado, com sinal nos últimos 90 s e com notificações; se o
-   pedido ainda não estiver pronto fica **reservado** e vira oferta normal quando a loja o marcar pronto
-   (se ele não aceitar ou estiver desligado, o pedido segue para todos). Se devolver `ok=false`, **não
-   tentes outro caminho**: diz ao Danilo o motivo em palavras simples. Só repetes com `p_forcar => true`
-   se o Danilo mandar expressamente depois de saber o motivo.
-3. Devolver um pedido a todos (tirar o estafeta ou a reserva):
-   `select public.ops_release_order_driver('<id do pedido>', '<motivo>', '<agente>');`
-4. Ver quem está mesmo disponível:
-   `select user_id, name, phone, last_heartbeat_at, last_platform from drivers where is_online and last_heartbeat_at > now() - interval '90 seconds' and approval_status = 'approved' and coalesce(is_banned, false) = false;`
-   e preferir quem está mais perto da loja.
-5. Registar no Córtex o que fizeste (`cortex_reportar`: o quê, porquê, resultado).
-
-### NÃO PODES, nunca
-
-1. Fazer UPDATE, INSERT ou DELETE direto em `orders`, `tvde_rides`, `appointments`, `drivers`,
-   `client_wallets`, `wallets`, `ledger_entries`, `bora_tokens`, `driver_balances`, `payouts` ou
-   `platform_settings` de preços, comissões e taxas. Usa as funções próprias (`admin_*` e `ops_*`) ou
-   pede à Claude.ai. **Toda mudança de `assigned_driver_id`/`driver_id` feita por ligação SQL direta
-   fica registada em `order_driver_assignment_audit` e avisa o Danilo (Telegram + push); com a
-   barreira ligada (`platform_settings.orders_driver_direct_update_block`) é recusada com
-   "Usa public.ops_reassign_order".**
-2. Mexer em dinheiro real (reembolso, crédito, cobrança, Stripe) sem o "vai" do Danilo.
-3. Aplicar migrações ou fazer deploy nas zonas protegidas (`dispatch_engine`, `pricing`,
-   `finalizePurchase`, `bora_tokens`, `stripe-webhook`, RLS de `orders`/`wallets`/`ledger`): propõe com
-   `cortex_propor`. Qualquer outra migração aplicada em produção tem de ficar também no repo
-   `bora-app-cloud` (`supabase/migrations`).
-4. Atribuir um pedido a quem não vai receber (desligado, sem sinal, sem notificações, ou só no
-   navegador com a página fechada) sem o Danilo saber.
-5. Apagar dados. Correção de dados só com backup antes (`bkp_<nome>_AAAAMMDD`, com RLS ligada).
-6. Dizer "feito" sem prova (SELECT, registo ou ficheiro).
-
-### Identidade do estafeta (corrigida 3 vezes: Valdemir 16/08, Ney 16/09)
-
-`user_id` manda em tudo o que a app vê e aceita (`assigned_driver_id`, `current_driver_offer_id`,
-`driver_id`, créditos, tokens, saldo). `drivers.id` só para `tried_driver_ids` e matching interno.
-No Flutter: `drivers.update(...).eq('user_id', uid)` e upsert com `onConflict: 'user_id'`; nunca
-`.eq('id', <auth uid>)` em tabelas de papéis (verificador: `.claude/skills/identidade-estafeta`).
-
-**DEPOIS de agir:** confirma por SELECT que ficou como querias (status do pedido, `assigned_driver_id`,
-estafeta ligado) e diz ao Danilo o estado real numa frase curta, sem jargão.
-
-Caminho do Danilo: no painel admin, "Pedidos parados" e o botão "Escolher estafeta" (com aviso vermelho
-quando o estafeta não vai receber) e "Mandar para todos". O teu caminho: `ops_reassign_order` /
-`ops_release_order_driver`.
+- Lei da casa do repo: `PADRAO_BORA.md` (ler antes de planear trabalho de código).
+- Regras técnicas do repo: `CLAUDE.md`; detalhe antigo em `docs/contexto/claude-md-detalhe-2026-10-23.md`.
+- Regras de negócio: `docs/contexto/03-regras-de-negocio.md` e página `business-rules` do livro.
+- Skills: fonte única `.claude/skills/` deste repo (o Hermes lê o espelho da VPS).
+- Registo de cada passo: tabela `e2e_log` (fluxo = missão, passo = bloco).
+- No fim de cada sessão: `digest-AAAA-MM-DD-<sessao>` em `claude_ai_memoria`.

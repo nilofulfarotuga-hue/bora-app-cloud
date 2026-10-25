@@ -16,6 +16,7 @@ import '../../../config/app_spacing.dart';
 import '../../../models/driver_model.dart';
 import '../../../services/driver_location_ping_service.dart';
 import '../../../services/heartbeat_service.dart';
+import '../../../services/bateria_por_marca.dart';
 import '../../../services/localizacao_online.dart';
 import '../../../services/notification_service.dart';
 import '../../../services/papeis_de_trabalho.dart';
@@ -160,6 +161,11 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
         unawaited(_startGps());
         _startOfferPoll();
         _startOnlineClock();
+        // [24/10/2026] Botão ligado mas o serviço de fundo morreu (o
+        // telemóvel adormeceu a app): religa-o, e explica uma vez como tirar
+        // a Bora da poupança de bateria, conforme a marca do telemóvel.
+        unawaited(context.read<DriverStore>().garantirServicoDeFundo());
+        unawaited(BateriaPorMarca.pedirUmaVez(context));
       }
       // F4B: presença honesta — escuta as falhas de heartbeat para o banner.
       _heartbeat.serverAck.addListener(_onServerAckChanged);
@@ -178,6 +184,7 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
       final driverStore = context.read<DriverStore>();
       if (driverStore.currentDriver?.isOnline == true) {
         unawaited(_heartbeat.start());
+        unawaited(driverStore.garantirServicoDeFundo()); // [24/10/2026]
         // [GPS em fundo · 07/10] O GPS foi religado com a app em fundo (a
         // corrida acabou com ele noutra app) e ficou sem serviço: agora,
         // à frente, volta a ligar-se com serviço — senão ficava calado.
@@ -585,6 +592,8 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
       unawaited(OverlayPermissionGate.maybeOfferOnce(context));
       // [Oferta na hora · 23/09] uma vez: localização "sempre" + bateria.
       await LocalizacaoOnline.pedirUmaVez(context);
+      if (!mounted) return;
+      await BateriaPorMarca.pedirUmaVez(context); // [24/10/2026]
       if (!mounted) return;
       unawaited(_heartbeat.start());
       // F4B (2026-08-16): registar/renovar o token FCM SEMPRE ao ficar online

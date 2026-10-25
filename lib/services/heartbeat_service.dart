@@ -218,7 +218,15 @@ class HeartbeatService {
       // que bate (com auth.uid()=NULL ⇒ usa driver_heartbeat_by_id). Evita
       // duplo POST e mantém este serviço como fallback de foreground puro.
       // Na web não há FGS — e a chamada lançava (ver cabeçalho).
-      if (!kIsWeb && await FlutterForegroundTask.isRunningService) {
+      // [24/10/2026] Só no Android. No iPhone o "serviço" do plugin diz que
+      // corre mas o isolate dele não tem plugins (sem SharedPreferences não lê
+      // o driverId nem o segredo) — nunca bateu. Saltar aqui deixava o iPhone
+      // sem batimento nenhum (Ney: segredo criado a 13/10, nunca usado; o
+      // sinal só vinha da posição). No iPhone bate sempre daqui, com a sessão
+      // dele (`driver_heartbeat`, plataforma ios_app).
+      if (!kIsWeb &&
+          defaultTargetPlatform == TargetPlatform.android &&
+          await FlutterForegroundTask.isRunningService) {
         return;
       }
       final client = Supabase.instance.client;

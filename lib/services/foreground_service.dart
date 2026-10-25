@@ -236,13 +236,52 @@ class BoraForegroundService {
     }
   }
 
+  /// [24/10/2026] O plugin (v8) devolve `ServiceRequestSuccess` ou
+  /// `ServiceRequestFailure`. Antes lia-se `.success`, que a falha não tem:
+  /// a exceção caía no `catch` e uma falha contava como sucesso — o serviço
+  /// não arrancava e ninguém sabia.
+  @visibleForTesting
+  static bool resultIsSuccess(dynamic result) => _resultIsSuccess(result);
+
   static bool _resultIsSuccess(dynamic result) {
     if (result == null) return true;
     if (result is bool) return result;
+    if (result is ServiceRequestSuccess) return true;
+    if (result is ServiceRequestFailure) return false;
+    return false;
+  }
+
+  /// O serviço de fundo está a correr? Em erro (plugin indisponível) diz que
+  /// sim, para quem chama não tentar arrancar às cegas.
+  static Future<bool> estaACorrer() async {
     try {
-      return (result as dynamic).success as bool? ?? true;
-    } catch (_) {
+      return await FlutterForegroundTask.isRunningService;
+    } catch (e) {
+      debugPrint('[BoraForegroundService] isRunningService: $e');
       return true;
+    }
+  }
+
+  /// [24/10/2026] Religa o serviço de fundo de quem ficou LIGADO (botão
+  /// ligado) mas cujo serviço morreu — bateria, Samsung a "adormecer" a app.
+  /// Chamado ao receber o aviso "ligado sem sinal" (o push de alta prioridade
+  /// deixa o Android arrancar o serviço sem abrir a app) e ao abrir a app.
+  /// Só no Android. Só se ainda houver `driverId` guardado: o botão "Offline"
+  /// apaga-o (clearDriverId), por isso isto nunca liga ninguém que desligou.
+  static Future<bool> retomarSeLigado() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return false;
+    try {
+      if (await FlutterForegroundTask.isRunningService) return true;
+      final driverId =
+          await FlutterForegroundTask.getData<String>(key: 'driverId');
+      if (driverId == null || driverId.isEmpty) return false;
+      await init();
+      final ok = await startDriver();
+      debugPrint('[BoraForegroundService] retomarSeLigado => $ok');
+      return ok;
+    } catch (e) {
+      debugPrint('[BoraForegroundService] retomarSeLigado error: $e');
+      return false;
     }
   }
 }

@@ -5,6 +5,8 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../services/admin/admin_driver_service.dart';
 import '../../utils/gps_parado.dart';
+import '../../utils/sinal_motorista.dart';
+import '../../widgets/admin/ligado_sem_sinal.dart';
 import '../../widgets/admin/escolher_estafeta_sheet.dart'
     show plataformaLabel, haQuantoTempo;
 import '../../widgets/bora/bora_bottom_action_bar.dart';
@@ -538,7 +540,16 @@ class _Header extends StatelessWidget {
                       const SizedBox(height: 4),
                       Wrap(spacing: 8, runSpacing: 4, children: [
                         _StatusBadge(status: status),
-                        if (isOnline) _Pill(label: 'Online', color: AppColors.success),
+                        // [24/10/2026] Botão ligado sem sinal há >10 min não é "Online".
+                        if (isOnline &&
+                            driver.containsKey('last_heartbeat_at') &&
+                            ligadoSemSinal(
+                                ligado: true,
+                                ultimoSinal: DateTime.tryParse(
+                                    driver['last_heartbeat_at']?.toString() ?? '')))
+                          _Pill(label: 'Ligado sem sinal', color: AppColors.error)
+                        else if (isOnline)
+                          _Pill(label: 'Online', color: AppColors.success),
                         _Pill(label: 'Saldo €${balance.toStringAsFixed(2)}',
                             color: AppColors.info),
                       ]),
@@ -837,12 +848,22 @@ class _PerformanceCard extends StatelessWidget {
             ),
             _row(Icons.account_balance_wallet_outlined, 'Saldo',
                 '€${walletBalance.toStringAsFixed(2)}'),
-            _row(
-              isOnline ? Icons.circle : Icons.circle_outlined,
-              'Estado',
-              isOnline ? 'Online' : 'Offline',
-              color: isOnline ? AppColors.success : AppColors.textSecondary,
-            ),
+            // [24/10/2026] Botão ligado mas sem sinal: diz desde quando e
+            // deixa mandar o aviso ao telemóvel dele já.
+            if (driver.containsKey('last_heartbeat_at') &&
+                ligadoSemSinal(ligado: isOnline, ultimoSinal: heartbeat))
+              LigadoSemSinalLinha(
+                userId: driver['user_id']?.toString(),
+                ultimoSinal: heartbeat,
+                nome: driver['name'] as String?,
+              )
+            else
+              _row(
+                isOnline ? Icons.circle : Icons.circle_outlined,
+                'Estado',
+                isOnline ? 'Online' : 'Offline',
+                color: isOnline ? AppColors.success : AppColors.textSecondary,
+              ),
             _row(
               Icons.favorite_border,
               'Heartbeat',

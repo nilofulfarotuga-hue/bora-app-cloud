@@ -28,7 +28,7 @@ var configurado = cfg.apiKey && cfg.apiKey.charAt(0) !== '<';
 // partner | client) manda a seguir; só depois é que o tipo decide.
 var TIPOS_ESTAFETA = {
   new_order_offer: 1, order_reassigned: 1, order_preassigned: 1,
-  order_unassigned: 1, driver_offline: 1, new_tvde_ride_offer: 1,
+  order_unassigned: 1, driver_offline: 1, driver_wake: 1, new_tvde_ride_offer: 1,
   tvde_ride_offer: 1, tvde_reservation: 1, tvde_stop: 1
 };
 var TIPOS_PARCEIRO = {
@@ -85,6 +85,9 @@ if (configurado) {
     }
     if (t === 'driver_offline') {
       return { title: 'Ficaste desligado', body: 'Abre a Bora para voltares a receber pedidos.' };
+    }
+    if (t === 'driver_wake') {
+      return { title: 'Estás ligado, mas sem sinal', body: 'Toca aqui para voltares a receber pedidos.' };
     }
     return { title: d.title || 'Bora', body: d.body || '' };
   }

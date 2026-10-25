@@ -34,6 +34,7 @@ import '../models/order_model.dart';
 import '../services/driver_location_ping_service.dart';
 import '../services/navigation_service.dart';
 import '../services/heartbeat_service.dart';
+import '../services/bateria_por_marca.dart';
 import '../services/localizacao_online.dart';
 import '../services/notification_service.dart';
 import '../services/permission_gate_service.dart';
@@ -204,6 +205,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
           // Pre-inicializar overlay em foreground — o driver pode sair da app
           // imediatamente após abrir e receber ofertas em background.
           NotificationService.instance.initDriverStandbyOverlay().ignore();
+          // [24/10/2026] Botão ligado mas o serviço de fundo morreu (o
+          // telemóvel adormeceu a app): religa-o, e explica uma vez como tirar
+          // a Bora da poupança de bateria, conforme a marca do telemóvel.
+          unawaited(context.read<DriverStore>().garantirServicoDeFundo());
+          unawaited(BateriaPorMarca.pedirUmaVez(context));
         }
       });
 
@@ -350,6 +356,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       final driver = context.read<DriverStore>().currentDriver;
       if (driver?.isOnline == true) {
         unawaited(_heartbeatService.start());
+        unawaited(context.read<DriverStore>().garantirServicoDeFundo()); // [24/10/2026]
         // [GPS em fundo · 07/10] Ligado em fundo sem serviço → religa à frente.
         if (_gpsSemServicoPorFundo && _positionSubscription != null) {
           unawaited(_startIdleLocationTracking());
@@ -450,6 +457,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     _porCimaDoTvde = false;
     // [Oferta na hora · 23/09] uma vez: localização "sempre" + bateria.
     await LocalizacaoOnline.pedirUmaVez(context);
+    if (!mounted) return;
+    await BateriaPorMarca.pedirUmaVez(context); // [24/10/2026]
     if (!mounted) return;
     unawaited(_heartbeatService.start());
     // Start idle GPS now that driver is online.

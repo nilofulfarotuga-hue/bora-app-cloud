@@ -25,6 +25,7 @@ import '../screens/chat_screen.dart';
 import '../screens/notifications_screen.dart';
 import '../screens/partner/services/partner_agenda_screen.dart';
 import 'fcm_token_helper.dart';
+import 'foreground_service.dart' show BoraForegroundService;
 import 'incoming_job_alert.dart';
 import 'offer_presentation_gate.dart';
 import 'oferta_trabalho_aviso.dart';
@@ -1357,6 +1358,9 @@ const Set<String> _kPersistentCategoryTypes = <String>{
   'order_preassigned',
   'order_unassigned',
   'driver_offline',
+  // [24/10/2026] Ligado mas sem sinal: religa o serviço de fundo (ver o
+  // `case 'driver_wake'` em _showPersistentCategoryNotification).
+  'driver_wake',
 };
 
 /// [20/10/2026] `kind` do push "Falta o comprovativo de atividade" (enviado
@@ -1397,6 +1401,7 @@ const Set<String> _kDriverAssignmentTypes = <String>{
   'order_preassigned',
   'order_unassigned',
   'driver_offline',
+  'driver_wake',
 };
 
 // ══ RESERVA AGENDADA (2026-08-19) ═══════════════════════════════════════════
@@ -1900,6 +1905,28 @@ Future<void> _showPersistentCategoryNotification(RemoteMessage message) async {
         // (som em loop), igual ao delivery. Cancelamento é informativo.
         urgent: isNew,
       );
+      return;
+    case 'driver_wake':
+      // [24/10/2026] O servidor não recebe sinal deste telemóvel há 10 min ou
+      // mais (o serviço de fundo morreu: bateria, Samsung a "adormecer" a
+      // app). O push de alta prioridade dá licença ao Android para arrancar o
+      // serviço outra vez, aqui mesmo, sem abrir a app. No Android o aviso vem
+      // como notificação do sistema (o servidor manda-a para as apps antigas
+      // também) — só se desenha uma local quando vem só com dados.
+      unawaited(BoraForegroundService.retomarSeLigado());
+      if (notif == null) {
+        await _showPersistentStatusNotification(
+          type: type,
+          title: data['title']?.toString() ?? 'Estás ligado, mas sem sinal',
+          body: data['body']?.toString() ?? '',
+          notificationId: type.hashCode,
+          payload: {
+            'type': type,
+            'orderId': '',
+            'route': data['route']?.toString() ?? '/driver',
+          },
+        );
+      }
       return;
     case 'order_reassigned':
     case 'order_preassigned':

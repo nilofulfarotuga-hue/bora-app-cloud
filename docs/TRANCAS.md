@@ -127,3 +127,10 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   principal ("apagar recursivo fora de build/"). Era uma cópia **minha**, por versionar, igual à que já estava
   no servidor (commit 40c9c2ec). Não contornei. Ficam por apagar na árvore principal, antes de outra sessão
   actualizar o ramo: `ferramentas/omniroute/` e `supabase/migrations/20261023060000_omniroute_estado.sql`.
+
+- **24-25/10/2026, missão `geral-sabado-24-10`, bloco 1** — `apply_migration` (MCP Supabase) da migração
+  `20261024090000_motorista_ligado_sem_sinal_aviso` respondeu duas vezes `Invalid or expired requestState`:
+  a caixa de confirmação expirou sem ninguém à frente (a sessão esteve horas parada). Não insisti uma
+  terceira vez: o mesmo SQL (sem o `drop policy if exists`, a tabela era nova) foi aplicado por
+  `execute_sql` e a versão registada à mão em `supabase_migrations.schema_migrations` com o nome igual
+  ao ficheiro. Prova no e2e_log, passo `b1a-servidor-aviso`.

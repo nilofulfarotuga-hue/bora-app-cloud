@@ -5,7 +5,9 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../services/admin/admin_driver_service.dart';
 import '../../utils/gps_parado.dart';
+import '../../utils/sinal_motorista.dart';
 import '../../utils/tvde_sinal_motorista.dart' show segundosDesdeFix;
+import '../../widgets/admin/ligado_sem_sinal.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 
 /// Bora Motorista (TVDE) — Motoristas de passageiros (gerir / banir).
@@ -375,8 +377,16 @@ class _DriverCard extends StatelessWidget {
               _line(Icons.phone_outlined, phone),
             // G — carro visível no admin (marca/modelo · cor · matrícula).
             if (carLine.isNotEmpty) _line(Icons.directions_car_outlined, carLine),
-            _line(Icons.circle, online ? 'Online agora' : 'Offline',
-                color: online ? AppColors.primary : AppColors.textSubtle),
+            // [24/10/2026] Botão ligado sem sinal há >10 min não é "Online".
+            if (ligadoSemSinal(ligado: online, ultimoSinal: heartbeatAt))
+              LigadoSemSinalLinha(
+                userId: data['user_id']?.toString(),
+                ultimoSinal: heartbeatAt,
+                nome: name,
+              )
+            else
+              _line(Icons.circle, online ? 'Online agora' : 'Offline',
+                  color: online ? AppColors.primary : AppColors.textSubtle),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,

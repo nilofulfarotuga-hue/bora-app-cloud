@@ -315,6 +315,20 @@ class DriverStore extends ChangeNotifier {
     return true;
   }
 
+  /// [24/10/2026] Ao abrir a app (ou voltar a ela) com o botão LIGADO: se o
+  /// serviço de fundo morreu entretanto, arranca-o outra vez. Antes só o
+  /// toque no botão o ligava — o Valdemir ficou de 20/10 em diante "ligado"
+  /// sem sinal porque o telemóvel matou o serviço e abrir a app não o religava.
+  /// Nunca liga ninguém: só age se o botão já está ligado.
+  Future<void> garantirServicoDeFundo() async {
+    if (kIsWeb) return;
+    final driver = currentDriver;
+    if (driver == null || !driver.isOnline) return;
+    if (await BoraForegroundService.estaACorrer()) return;
+    debugPrint('[DriverStore] serviço de fundo parado com o botão ligado — religar');
+    await _syncForegroundService(true, driver.id);
+  }
+
   /// Liga o foreground service quando driver vai Online; pára quando offline.
   /// Pede POST_NOTIFICATIONS (Android 13+) se ainda não concedido.
   /// Sessão 2026-05-19 — também activa a floating bubble (Sistema B).

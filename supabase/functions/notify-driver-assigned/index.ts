@@ -18,6 +18,9 @@
 //       order_preassigned → orders.preassigned_driver_id = driverId
 //       order_unassigned  → sem validação (o pedido já não é dele)
 //       driver_offline    → sem pedido
+//       driver_wake       → sem pedido (24/10/2026: ligado mas sem sinal — o
+//                           banco chama-o aos 10 min, de 30 em 30 min até 6 h,
+//                           depois de 6 em 6 h; o painel tem "Enviar aviso agora")
 //   • identidade: driverId é o user_id (regra fixada a 16/08); aceita drivers.id
 //     por compatibilidade e resolve para user_id.
 //
@@ -43,7 +46,9 @@ const corsHeaders = {
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-const TYPES = new Set(['order_reassigned', 'order_preassigned', 'order_unassigned', 'driver_offline'])
+const TYPES = new Set(['order_reassigned', 'order_preassigned', 'order_unassigned', 'driver_offline', 'driver_wake'])
+// Avisos sem pedido: não exigem orderId e abrem o ecrã do estafeta.
+const SEM_PEDIDO = new Set(['driver_offline', 'driver_wake'])
 const WEB_URL = 'https://bora-app-web.pages.dev'
 
 function json(status: number, body: unknown) {
@@ -97,7 +102,7 @@ Deno.serve(async (req) => {
 
   if (!UUID_RE.test(driverId)) return json(400, { ok: false, error: 'driverId (uuid) is required' })
   if (!TYPES.has(type))        return json(400, { ok: false, error: `type must be one of ${[...TYPES].join(', ')}` })
-  if (type !== 'driver_offline' && !orderId) return json(400, { ok: false, error: 'orderId is required for this type' })
+  if (!SEM_PEDIDO.has(type) && !orderId) return json(400, { ok: false, error: 'orderId is required for this type' })
 
   const supabase = createClient(supabaseUrl, serviceKey)
 
@@ -188,6 +193,10 @@ Deno.serve(async (req) => {
         title    ||= 'Ficaste desligado'
         bodyText ||= 'Ficaste desligado. Abre a Bora para voltares a receber pedidos.'
         break
+      case 'driver_wake':
+        title    ||= 'Estás ligado, mas sem sinal'
+        bodyText ||= 'A Bora não recebe sinal do teu telemóvel. Toca aqui para voltares a receber pedidos.'
+        break
     }
   }
 
@@ -201,8 +210,13 @@ Deno.serve(async (req) => {
   }
 
   const fcmUrl = `https://fcm.googleapis.com/v1/projects/${firebaseProjectId}/messages:send`
-  const route  = type === 'driver_offline' ? '/driver' : `/driver/order/${orderId}`
-  const url    = type === 'driver_offline' ? `${WEB_URL}/#/driver` : `${WEB_URL}/#/driver?order=${orderId}`
+  const route  = SEM_PEDIDO.has(type) ? '/driver' : `/driver/order/${orderId}`
+  const url    = SEM_PEDIDO.has(type) ? `${WEB_URL}/#/driver` : `${WEB_URL}/#/driver?order=${orderId}`
+  // [24/10/2026] "Ligado sem sinal": no Android vai também como notificação do
+  // sistema — as versões antigas da app só desenham os tipos que conhecem e
+  // este aviso tem de aparecer sempre. A app nova só religa o serviço de fundo
+  // (não desenha outra). A mesma etiqueta faz cada aviso substituir o anterior.
+  const wake = type === 'driver_wake'
 
   const data: Record<string, string> = {
     type,
@@ -224,12 +238,17 @@ Deno.serve(async (req) => {
       message: {
         token: t.token,
         data,
-        android: { priority: 'high', ttl: '600s' },
+        android: wake
+          ? { priority: 'high', ttl: '600s',
+              notification: { title, body: bodyText, channel_id: 'bora_orders', tag: 'bora_sem_sinal' } }
+          : { priority: 'high', ttl: '600s' },
         // [iPhone 2026-09-21] 'alert' + som + texto: 'background' e' push SILENCIOSO
         // para a Apple (sem banner, sem som; prioridade obrigatoria 5) — com token,
         // o iPhone nunca tocava. content-available fica para acordar a app tambem.
         apns: {
-          headers: { 'apns-priority': '10', 'apns-push-type': 'alert' },
+          headers: wake
+            ? { 'apns-priority': '10', 'apns-push-type': 'alert', 'apns-collapse-id': 'bora_sem_sinal' }
+            : { 'apns-priority': '10', 'apns-push-type': 'alert' },
           payload: { aps: { alert: { title, body: bodyText }, 'content-available': 1, sound: 'bora_alert.wav', 'interruption-level': 'time-sensitive' } },
         },
         webpush: {

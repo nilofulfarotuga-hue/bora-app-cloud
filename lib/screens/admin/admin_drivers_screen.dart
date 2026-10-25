@@ -4,6 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../utils/gps_parado.dart';
+import '../../utils/sinal_motorista.dart';
+import '../../widgets/admin/ligado_sem_sinal.dart';
 import '../../widgets/admin/escolher_estafeta_sheet.dart' show haQuantoTempo;
 import 'admin_driver_detail_screen.dart';
 import '../../widgets/admin/admin_csv_button.dart';
@@ -61,7 +63,7 @@ class _AdminDriversScreenState extends State<AdminDriversScreen>
         final data = await Supabase.instance.client
             .from('drivers')
             .select(
-              'id, name, phone, vehicle_type, is_online, approval_status, rating, total_deliveries',
+              'id, user_id, name, phone, vehicle_type, is_online, approval_status, rating, total_deliveries, last_heartbeat_at',
             )
             .order('name');
         lista = List<Map<String, dynamic>>.from(data);
@@ -69,7 +71,7 @@ class _AdminDriversScreenState extends State<AdminDriversScreen>
         // Fallback se as colunas rating/total_deliveries não existirem.
         final data = await Supabase.instance.client
             .from('drivers')
-            .select('id, name, phone, vehicle_type, is_online, approval_status')
+            .select('id, user_id, name, phone, vehicle_type, is_online, approval_status, last_heartbeat_at')
             .order('name');
         lista = List<Map<String, dynamic>>.from(data);
       }
@@ -222,6 +224,14 @@ class _AdminDriversScreenState extends State<AdminDriversScreen>
           final isOnline = d['is_online'] as bool? ?? false;
           final rating = (d['rating'] as num?)?.toDouble();
           final totalDeliveries = (d['total_deliveries'] as num?)?.toInt();
+          // [24/10/2026] Botão ligado mas sem sinal há >10 min: não é "Online".
+          final pres = d['_presenca'] is Map
+              ? Map<String, dynamic>.from(d['_presenca'] as Map)
+              : const <String, dynamic>{};
+          final ultimoSinal = DateTime.tryParse(
+              (d['last_heartbeat_at'] ?? pres['last_heartbeat_at'])?.toString() ?? '');
+          final semSinal =
+              ligadoSemSinal(ligado: isOnline, ultimoSinal: ultimoSinal);
           return Card(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(Radii.lg),
@@ -248,7 +258,7 @@ class _AdminDriversScreenState extends State<AdminDriversScreen>
                         width: 12,
                         height: 12,
                         decoration: BoxDecoration(
-                          color: Colors.green,
+                          color: semSinal ? AppColors.error : Colors.green,
                           shape: BoxShape.circle,
                           border:
                               Border.all(color: Colors.white, width: 2),
@@ -265,6 +275,13 @@ class _AdminDriversScreenState extends State<AdminDriversScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(d['phone'] as String? ?? ''),
+                  if (semSinal)
+                    LigadoSemSinalLinha(
+                      userId: (d['user_id'] ?? pres['user_id'])?.toString(),
+                      ultimoSinal: ultimoSinal,
+                      nome: d['name'] as String?,
+                      compacto: true,
+                    ),
                   if (d['_presenca'] is Map)
                     _linhaPresenca(
                       Map<String, dynamic>.from(d['_presenca'] as Map),

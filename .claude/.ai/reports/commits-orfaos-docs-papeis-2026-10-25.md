@@ -86,7 +86,31 @@ e dos lavadores, e as fotos HEIC do iPhone continuam a ser recusadas no envio ou
 O que não consegui provar daqui: o ecrã a funcionar no ar com uma conta de admin. Isso só se vê
 depois do push, na web.
 
-## Comando de push (só depois do teu "vai")
+## Publicado (25/10, depois do teu "vai")
+
+Antes do push, o servidor tinha andado mais um espelho do Córtex (0148e700), que só mexe em
+`.claude/.ai/knowledge`. Pus os commits por cima outra vez, e o código ficou igual ao que foi
+testado. O push foi `0148e700..f2184563`.
+
+- Fotos dos ecrãs (golden): verde.
+- Web: verde. O `versao.json` em app.boraguarda.com e em bora-app-web.pages.dev diz
+  `f2184563`, e o bundle no ar tem frases que só estes commits trazem ("Ver ficha completa" e o
+  novo texto do menu "Documentos TVDE (ficheiros)").
+- Android: o autoteste dos 3 perfis passou, o versionCode subiu para 691 (67bb44ae), e a Play
+  aceitou o envio nas pistas internal, alpha e produção.
+- iOS: o simulador passou, o IPA foi enviado sem erros, e a versão 1.0.29 foi criada com o
+  build 208 e lançamento automático depois da aprovação. A Apple leu de volta "à espera de
+  revisão" (WAITING_FOR_REVIEW), às 15:45 UTC. Quando a Apple aprovar, sai sozinha.
+
+Uma coisa que encontrei e não corrigi: o texto "O que há de novo" da App Store sai sempre de
+`ios/notas_de_versao.json`, que não muda desde 17/10. A 1.0.29 diz "Cancelamento de corrida:
+agora vês o valor real antes de cancelar", o que não tem nada a ver com esta mudança. Não está
+errado, mas está velho. Se quiseres outro texto, basta mudar esse ficheiro antes do próximo push.
+
+Falta ver o ecrã novo a funcionar no ar com uma conta de admin, com os documentos de um
+motorista, de um lavador e de uma pessoa da limpeza.
+
+## Comando de push (já usado a 25/10)
 
 Corre na pasta de revisão. Se o servidor tiver andado entretanto (os espelhos entram de hora a
 hora), o rebase põe os commits por cima outra vez, sem conflito, porque os espelhos só mexem

@@ -162,6 +162,12 @@ ComoEnviar comoEnviarPrestador(String papel, String chave) {
     if (chave == 'id_doc' || chave == 'driving_license') return ComoEnviar.foto;
     if (chave == 'materials') return ComoEnviar.materiais;
   }
+  // [26/10/2026] Limpeza: documento e materiais pela RPC cleaner_reenviar_docs
+  // (só a linha pendente da própria pessoa; junta sem apagar os outros).
+  if (papel == 'cleaner') {
+    if (chave == 'id_doc') return ComoEnviar.foto;
+    if (chave == 'materials') return ComoEnviar.materiais;
+  }
   return ComoEnviar.suporte;
 }
 

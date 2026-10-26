@@ -37,12 +37,12 @@ void main() {
   });
 
   group('comoEnviarPrestador', () {
-    test('limpeza: foto e dados fiscais pela app; documento e materiais pelo '
-        'Suporte (cleaner_apply recusa pendentes, a tabela não deixa escrever)',
+    test('limpeza: tudo pela app — documento e materiais pela RPC '
+        'cleaner_reenviar_docs (26/10)',
         () {
       expect(comoEnviarPrestador('cleaner', 'photo'), ComoEnviar.foto);
-      expect(comoEnviarPrestador('cleaner', 'id_doc'), ComoEnviar.suporte);
-      expect(comoEnviarPrestador('cleaner', 'materials'), ComoEnviar.suporte);
+      expect(comoEnviarPrestador('cleaner', 'id_doc'), ComoEnviar.foto);
+      expect(comoEnviarPrestador('cleaner', 'materials'), ComoEnviar.materiais);
       expect(comoEnviarPrestador('cleaner', 'atividade'),
           ComoEnviar.comprovativo);
       for (final k in kChavesDadosLegais) {

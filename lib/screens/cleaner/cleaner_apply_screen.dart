@@ -30,6 +30,11 @@ class CleanerApplyScreen extends StatefulWidget {
   /// `RolesService.mySummary().driverProfile`.
   final Map<String, dynamic>? prefill;
 
+  /// A mesma lista do cadastro, para a profissional pendente confirmar os
+  /// materiais no ecrã principal sem a copiar (26/10/2026).
+  static const List<String> materiaisObrigatorios =
+      _CleanerApplyScreenState._requiredMaterials;
+
   @override
   State<CleanerApplyScreen> createState() => _CleanerApplyScreenState();
 }

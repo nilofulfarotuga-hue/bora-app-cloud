@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../screens/shared/comprovativo_atividade_screen.dart';
+import '../screens/cleaner/cleaner_apply_screen.dart';
 import '../screens/washer/washer_apply_screen.dart';
 import '../services/driver_documentos.dart' show DocEmFalta;
 import '../services/legal_fields_service.dart';
@@ -132,7 +133,9 @@ class _PrestadorDocumentosEmFaltaState
 
   Future<void> _confirmarMateriais(DocEmFalta item) async {
     if (_aEnviar != null) return;
-    const lista = WasherApplyScreen.materiaisObrigatorios;
+    final lista = widget.papel == 'cleaner'
+        ? CleanerApplyScreen.materiaisObrigatorios
+        : WasherApplyScreen.materiaisObrigatorios;
     final marcados = <String>{};
     final ok = await showDialog<bool>(
       context: context,
@@ -143,7 +146,9 @@ class _PrestadorDocumentosEmFaltaState
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Levas tudo isto contigo para cada lavagem?'),
+                Text(widget.papel == 'cleaner'
+                    ? 'Levas tudo isto contigo para cada limpeza?'
+                    : 'Levas tudo isto contigo para cada lavagem?'),
                 const SizedBox(height: Spacing.sm),
                 for (final m in lista)
                   CheckboxListTile(

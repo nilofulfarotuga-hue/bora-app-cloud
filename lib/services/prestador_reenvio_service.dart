@@ -105,7 +105,9 @@ class PrestadorReenvioService {
         final caminho = await ProviderUploadService.uploadDocument(
           ficheiro,
           item.chave,
-          bucket: ProviderUploadService.bucketLavador,
+          bucket: papel == 'cleaner'
+              ? ProviderUploadService.bucketFaxineiro
+              : ProviderUploadService.bucketLavador,
         );
         if (caminho == null || caminho.isEmpty) {
           throw StateError('not_authenticated');
@@ -177,6 +179,19 @@ class PrestadorReenvioService {
 
   static Future<void> _gravarDocs(String papel, Map<String, dynamic> linha,
       Map<String, dynamic> novos) async {
+    if (papel == 'cleaner') {
+      // [26/10/2026] RPC própria: a tabela não deixa a pessoa escrever em docs.
+      final res = await _sb.rpc('cleaner_reenviar_docs',
+          params: {'p_novos': novos}).timeout(_tecto);
+      final docs = res is Map && res['ok'] == true && res['docs'] is Map
+          ? Map<String, dynamic>.from(res['docs'] as Map)
+          : null;
+      if (docs == null ||
+          novos.keys.any((k) => docs[k]?.toString() != novos[k]?.toString())) {
+        throw const _NaoGravou();
+      }
+      return;
+    }
     if (papel != 'washer') throw const _NaoGravou();
     final r = await _sb
         .from('washers')

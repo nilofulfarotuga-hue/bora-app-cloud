@@ -104,7 +104,7 @@ void main() {
     expect(find.text('Confirma os teus materiais'), findsNothing);
   });
 
-  testWidgets('limpeza: documento e materiais pelo Suporte; o resto pela app',
+  testWidgets('limpeza: tudo pela app (documento e materiais pela RPC cleaner_reenviar_docs, 26/10)',
       (tester) async {
     final linha = <String, dynamic>{'approval_status': 'pending', 'docs': {}};
     await _montar(
@@ -113,14 +113,11 @@ void main() {
           papel: 'cleaner',
           carregar: () async => _estado('cleaner', linha),
         ));
-    expect(
-        find.text(
-            'Falta: documento de identificação — envia pelo Suporte'),
-        findsOneWidget);
-    expect(find.text('Falta: confirmação dos materiais — envia pelo Suporte'),
-        findsOneWidget);
-    expect(find.text('Suporte'), findsNWidgets(2));
-    expect(find.text('Enviar agora'), findsOneWidget); // foto de perfil
+    expect(find.text('Falta: documento de identificação'), findsOneWidget);
+    expect(find.text('Falta: confirmação dos materiais'), findsOneWidget);
+    expect(find.text('Suporte'), findsNothing);
+    // foto de perfil + documento + materiais
+    expect(find.text('Enviar agora'), findsNWidgets(3));
     expect(find.text('Preencher'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

@@ -138,3 +138,13 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   terceira vez: o mesmo SQL (sem o `drop policy if exists`, a tabela era nova) foi aplicado por
   `execute_sql` e a versão registada à mão em `supabase_migrations.schema_migrations` com o nome igual
   ao ficheiro. Prova no e2e_log, passo `b1a-servidor-aviso`.
+
+- **25-26/10/2026, missão `guarda-primeiro-2026-10-26`** — o classificador do modo automático recusou
+  lançar um executor `claude -p --chrome --dangerously-skip-permissions` ("Create Unsafe Agents"). Não
+  contornei. O caminho seguro que funcionou: `claude -p --chrome --model opus --allowedTools "ToolSearch"
+  "mcp__claude-in-chrome"` (só as ferramentas do Chrome, sem ignorar permissões), com a ordem por
+  stdin. Assim se gerou a arte no Gemini, se correu o fiscal e se tentou a campanha da Meta.
+- **26/10/2026, mesma missão** — a campanha paga parou na Meta, não numa tranca nossa: a conta de
+  anúncios `act_1105400138585537` tem 0,00 € e nenhum método de pagamento. Não se meteu cartão (regra).
+  Página de pagamento deixada aberta no Chrome da Bora; ordem pronta em
+  `C:\BoraLocal\tmp\guarda-primeiro\prompt-executor-meta.md`.

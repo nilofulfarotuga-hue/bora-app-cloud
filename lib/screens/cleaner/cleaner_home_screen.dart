@@ -17,6 +17,7 @@ import '../../widgets/payments/collect_badge.dart';
 import '../../widgets/cleaning_chat_button.dart';
 import '../../widgets/multirole_switch_card.dart';
 import '../../widgets/portao_do_prestador.dart';
+import '../../widgets/prestador_documentos_em_falta.dart';
 import '../../widgets/profile_switcher_button.dart';
 import '../driver/driver_role_apply_screen.dart';
 import 'cleaner_apply_screen.dart';
@@ -91,6 +92,9 @@ class _CleanerHomeScreenState extends State<CleanerHomeScreen> {
                       subtitle:
                           'A equipa Bora está a rever os teus dados. '
                           'Avisamos-te assim que estiver aprovada.',
+                      // [26/10/2026] O que falta, com um botão por item para
+                      // enviar aqui mesmo (mesma regra do painel).
+                      extra: PrestadorDocumentosEmFalta(papel: 'cleaner'),
                     ),
                   'suspended' => const _StatusView(
                       icon: Icons.pause_circle_outline,
@@ -181,16 +185,21 @@ class _StatusView extends StatelessWidget {
     required this.color,
     required this.title,
     required this.subtitle,
+    this.extra,
   });
   final IconData icon;
   final Color color;
   final String title;
   final String subtitle;
 
+  /// Por baixo do texto (a candidatura pendente mostra o que falta).
+  final Widget? extra;
+
   @override
   Widget build(BuildContext context) {
+    // Rola: a lista do que falta pode não caber num ecrã pequeno.
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(Spacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -212,6 +221,10 @@ class _StatusView extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                     color: AppColors.textSecondary, height: 1.4)),
+            if (extra != null) ...[
+              const SizedBox(height: Spacing.xl),
+              extra!,
+            ],
           ],
         ),
       ),

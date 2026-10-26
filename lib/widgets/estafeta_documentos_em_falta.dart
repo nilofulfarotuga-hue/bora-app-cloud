@@ -13,7 +13,11 @@ import '../utils/safe_image_picker.dart';
 /// A regra do que falta é a mesma do painel do admin
 /// ([documentosEmFaltaEstafeta]). Falha aberta: sem rede, não mostra nada.
 class EstafetaDocumentosEmFalta extends StatefulWidget {
-  const EstafetaDocumentosEmFalta({super.key});
+  const EstafetaDocumentosEmFalta({super.key, this.mostrarTudoEmOrdem = true});
+
+  /// false no motorista TVDE: o "Recebemos todos os teus documentos" não pode
+  /// aparecer ao lado da lista do que falta da conformidade TVDE.
+  final bool mostrarTudoEmOrdem;
 
   @override
   State<EstafetaDocumentosEmFalta> createState() =>
@@ -228,6 +232,7 @@ class _EstafetaDocumentosEmFaltaState extends State<EstafetaDocumentosEmFalta> {
     final falta = _falta;
     if (falta == null) return const SizedBox.shrink();
     if (falta.isEmpty) {
+      if (!widget.mostrarTudoEmOrdem) return const SizedBox.shrink();
       return Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(

@@ -12,6 +12,7 @@ import '../../widgets/aviso_toque_banner.dart';
 import '../../widgets/botao_rota.dart';
 import '../../widgets/ganho_de_hoje_card.dart';
 import '../../widgets/portao_do_prestador.dart';
+import '../../widgets/prestador_documentos_em_falta.dart';
 import '../../services/carwash_upload_service.dart';
 import '../../stores/washer_store.dart';
 import '../../utils/safe_image_picker.dart';
@@ -246,6 +247,12 @@ class _WasherHomeScreenState extends State<WasherHomeScreen> {
                   'Assim que for aprovada começas a receber pedidos.',
                 ),
               ),
+            // [26/10/2026] Candidatura pendente: o que falta, com um botão por
+            // item para enviar aqui mesmo (mesma regra do painel).
+            if (store.profile?.approvalStatus == 'pending') ...[
+              const PrestadorDocumentosEmFalta(papel: 'washer'),
+              const SizedBox(height: Spacing.lg),
+            ],
 
             if (store.offers.isNotEmpty) ...[
               const _Seccao('Pedidos para ti'),

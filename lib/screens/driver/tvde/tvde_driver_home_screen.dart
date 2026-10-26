@@ -33,6 +33,8 @@ import '../../../widgets/aviso_atividade_banner.dart';
 import '../../../widgets/aviso_toque_banner.dart';
 import '../../../widgets/background_location_disclosure.dart';
 import '../../../widgets/bora_support_sheet.dart';
+import '../../../widgets/estafeta_documentos_em_falta.dart';
+import '../../../widgets/tvde_conformidade_em_falta.dart';
 import '../../driver_home_screen.dart';
 import '../../ganhos_screen.dart';
 import '../../../widgets/trocar_de_papel.dart';
@@ -1341,42 +1343,58 @@ class _GateScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(Spacing.lg),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Icon(rejected ? Icons.cancel : Icons.hourglass_top,
-                  size: 72,
-                  color: rejected ? AppColors.error : AppColors.primary),
-              const SizedBox(height: Spacing.lg),
-              Text(
-                rejected ? 'Candidatura rejeitada' : 'Candidatura em análise',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800, color: AppColors.textPrimary),
-              ),
-              const SizedBox(height: Spacing.sm),
-              Text(
-                rejected
-                    ? 'A tua candidatura a motorista de passageiros foi rejeitada. Contacta o suporte.'
-                    : 'Vamos rever a tua candidatura a motorista de passageiros. Avisamos-te assim que for aprovada.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: Spacing.xl),
-              // [Ficha legal · 23/09] Adiantar a ficha enquanto espera: é o
-              // que vai mostrar à autoridade no primeiro dia de trabalho.
-              if (!rejected)
-                OutlinedButton.icon(
-                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => const FichaLegalFormScreen())),
-                  icon: const Icon(Icons.badge_outlined),
-                  label: const Text('Preencher a ficha legal (IMT, seguro, inspeção)'),
+        // [26/10/2026] Rola: a lista do que falta pode não caber no ecrã.
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(Spacing.lg),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Icon(rejected ? Icons.cancel : Icons.hourglass_top,
+                    size: 72,
+                    color: rejected ? AppColors.error : AppColors.primary),
+                const SizedBox(height: Spacing.lg),
+                Text(
+                  rejected ? 'Candidatura rejeitada' : 'Candidatura em análise',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary),
                 ),
-              TextButton(onPressed: onLogout, child: const Text('Sair')),
-            ],
+                const SizedBox(height: Spacing.sm),
+                Text(
+                  rejected
+                      ? 'A tua candidatura a motorista de passageiros foi rejeitada. Contacta o suporte.'
+                      : 'Vamos rever a tua candidatura a motorista de passageiros. Avisamos-te assim que for aprovada.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: Spacing.xl),
+                // [26/10/2026 · missão docs-reenvio-26-10] O que falta, com o
+                // envio ali mesmo: os documentos da conta (a mesma regra do
+                // painel do estafeta) e a conformidade TVDE (os impedimentos
+                // que o servidor calcula, com o botão para a Conformidade).
+                if (status == DriverStatus.pending) ...[
+                  const EstafetaDocumentosEmFalta(mostrarTudoEmOrdem: false),
+                  const SizedBox(height: Spacing.md),
+                  const TvdeConformidadeEmFalta(),
+                  const SizedBox(height: Spacing.xl),
+                ],
+                // [Ficha legal · 23/09] Adiantar a ficha enquanto espera: é o
+                // que vai mostrar à autoridade no primeiro dia de trabalho.
+                if (!rejected)
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (_) => const FichaLegalFormScreen())),
+                    icon: const Icon(Icons.badge_outlined),
+                    label: const Text(
+                        'Preencher a ficha legal (IMT, seguro, inspeção)'),
+                  ),
+                TextButton(onPressed: onLogout, child: const Text('Sair')),
+              ],
+            ),
           ),
         ),
       ),

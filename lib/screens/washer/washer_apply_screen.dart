@@ -35,6 +35,11 @@ class WasherApplyScreen extends StatefulWidget {
   /// papel que a pessoa já tenha, para não obrigar a reescrever tudo.
   final Map<String, dynamic>? prefill;
 
+  /// A mesma lista do cadastro, para o lavador pendente confirmar os
+  /// materiais no ecrã principal sem a copiar (missão docs-reenvio-26-10).
+  static const List<String> materiaisObrigatorios =
+      _WasherApplyScreenState._requiredMaterials;
+
   @override
   State<WasherApplyScreen> createState() => _WasherApplyScreenState();
 }

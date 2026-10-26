@@ -10,7 +10,7 @@ estado: atual
 
 # Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-10-26T09:17:32.037266+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-10-26T20:14:34.388479+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: erros aprendidos · memoria claude.ai · claude_ai_memoria
 
@@ -80,4 +80,8 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - 25/10 (quem errou: claude-ai): no plano de crescimento meti cartões no carro do TVDE e uma oferta só com o Goola → TVDE fica TODO fora (nem cartões nas corridas) até estar legalizado; a isca para trazer clientes são as não-parceiras grandes (McDonald's, Burger King, Continente); parceiros pequenos vêm depois.
 - 25/10 (quem errou: claude-ai): disse que a pré-autorização de +15% no pedido do McDonald's (29,89 em vez de 25,99) estava certa → não-parceiro cobra-se EXATAMENTE o preço da app, sem margem; mais barato = lucro da Bora, mais caro = prejuízo dele; estafeta não vê linha de "reembolso ao cliente"; non_partner_payment_buffer_multiplier = 1.0 desde 25/10.
 - 26/10 (quem errou: claude-ai): tratei o inglês como porém dele para vagas e clientes → com IA trabalha em qualquer língua (fechou o site do Jai e está a fechar com o Azhar, os dois sem português); nunca apresentar o inglês como impedimento; no currículo, nas candidaturas e nas propostas dizer que trabalha em qualquer língua com tradução por IA.
+- 26/10 (quem errou: claude-ai): fechei só a semana do Vansh e deixei o Jai "em aberto", apesar de ele ter ditado no mesmo recado a corrida do aeroporto e o McDonald's do Jai → quando manda fechar uma conta e no mesmo recado dita valores de outra, faço o PDF e o cartão das duas, cada uma no seu documento.
+- 26/10 (quem errou: claude-ai): na resposta do IMT dei análise curta sem partir do estudo antigo e repeti a recomendação de fechar o Bora Motorista → em assunto já estudado, ler primeiro as conversas antigas inteiras (15/10 estudo dos 9 caminhos + conselho; 20/10 defesa, acórdão TC 68/2024, 60-65% em tribunal, plano dos 500 €) e acrescentar só o novo; o fecho do Bora Motorista é decisão dele, não repetir a recomendação; risco novo numa linha.
+- 26/10 (quem errou: claude-ai): no reel do carro voador pus "carro genérico de entregas" e saiu uma carrinha feia → para apanhar o hype de um produto, o vídeo mostra ESSE produto (novo Roadster da Tesla) com a marca Bora por cima; não trocar por versão genérica.
+- 26/10 (quem errou: claude-ai): cartazes das vagas de angariador/embaixador pouco didáticos (só "Ganha 40 €" e QR sem legenda; contacto por DM do Instagram ou vendas@, que ele não lê) → toda a propaganda explica no cartaz, em passos numerados, o que é, quanto se ganha e como contactar, com o WhatsApp 937 501 673 por extenso ao lado do QR; contacto sempre num canal que o Danilo lê.
 

@@ -530,7 +530,7 @@ class _AdminTvdeReservasScreenState extends State<AdminTvdeReservasScreen> {
       case 'cancelada':
         return 'cancelada';
       case 'nao_compareceu':
-        return 'Não compareceu'; // [24/10/2026] antes saía "nao_compareceu" cru
+        return 'não compareceu'; // [24/10/2026] antes saía "nao_compareceu" cru
       default:
         return s ?? '—';
     }

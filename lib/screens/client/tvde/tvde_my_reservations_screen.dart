@@ -599,7 +599,10 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
 
   Widget _chipEstado(TvdeRide r, String estado) {
     Color cor;
-    switch (r.status == 'no_show' ? 'nao_compareceu' : r.reservationStatus) {
+    // Mesma regra do texto (estadoReservaPt): concluída manda sobre a reserva.
+    final naoVeio = !r.isFinished &&
+        (r.status == 'no_show' || r.reservationStatus == 'nao_compareceu');
+    switch (naoVeio ? 'nao_compareceu' : r.reservationStatus) {
       case 'atribuida':
       case 'ativada':
         cor = AppColors.primary;

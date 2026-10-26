@@ -176,7 +176,7 @@ class CarwashStore extends ChangeNotifier {
     try {
       final rows = await _sb
           .from('carwash_bookings')
-          .select()
+          .select(kCarwashColunasCliente)
           .eq('client_user_id', uid)
           .order('created_at', ascending: false)
           .timeout(kAcaoTimeout);
@@ -229,7 +229,7 @@ class CarwashStore extends ChangeNotifier {
     try {
       final row = await _sb
           .from('carwash_bookings')
-          .select()
+          .select(kCarwashColunasCliente)
           .eq('id', t.id)
           .maybeSingle()
           .timeout(kAcaoTimeout);

@@ -213,6 +213,23 @@ class CarwashQuote {
 // PEDIDO
 // ══════════════════════════════════════════════════════════════════════════
 
+// [24/10/2026 · geral-sabado-24-10, bloco 4a (N3b, achado 2)] Cada um lê só o
+// dinheiro que lhe diz respeito. O cliente não precisa de ver quanto o lavador
+// ganha nem quanto fica para a Bora; o lavador vê o seu ganho, não a parte da
+// Bora. Só muda o que a app PEDE — os valores na base não mudam. Fechar a
+// leitura na própria base fica para depois de a maioria atualizar a app (senão
+// as versões antigas, que pedem tudo, davam erro).
+const String _kCarwashColunasComuns =
+    'id, client_user_id, washer_id, requested_washer_id, service_type, plate, car_make_model, car_color, pickup_notes, client_phone, when_mode, scheduled_at, duration_min, eta_minutes, eta_at, address_street, address_city, address_postal, lat, lng, notes, status, payment_method, payment_status, stripe_payment_intent_id, base_cents, total_cents, photos_client, photos_before, photos_after, offer_washer_id, offer_expires_at, offered_washer_ids, accepted_at, on_the_way_at, picked_up_at, started_at, delivering_at, delivered_at, done_at, completed_at, cancelled_at, cancelled_by, cancel_reason, cancel_fee_cents, cancelled_late, no_show_client, rating, rating_comment, reminder_2h_sent_at, stuck_alerted_at, is_test_order, created_at, updated_at';
+
+/// Colunas que a app do CLIENTE lê de `carwash_bookings` (sem ganho do
+/// lavador nem parte da Bora).
+const String kCarwashColunasCliente = _kCarwashColunasComuns;
+
+/// Colunas que a app do LAVADOR lê (o seu ganho, sem a parte da Bora).
+const String kCarwashColunasLavador =
+    '$_kCarwashColunasComuns, washer_earnings_cents';
+
 @immutable
 class CarwashBooking {
   final String id;

@@ -137,7 +137,7 @@ class WasherStore extends ChangeNotifier {
     try {
       final rows = await _sb
           .from('carwash_bookings')
-          .select()
+          .select(kCarwashColunasLavador)
           .eq('offer_washer_id', w.id) // mesma chave da policy
           .eq('status', 'scheduled')
           .order('scheduled_at')
@@ -157,7 +157,7 @@ class WasherStore extends ChangeNotifier {
     try {
       final rows = await _sb
           .from('carwash_bookings')
-          .select()
+          .select(kCarwashColunasLavador)
           .eq('washer_id', w.id) // mesma chave da policy
           .order('scheduled_at', ascending: false)
           .limit(50)

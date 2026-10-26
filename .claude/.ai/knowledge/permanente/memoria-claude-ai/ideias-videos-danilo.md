@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-26T18:23:39.083707+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-26T20:57:10.041146+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -333,3 +333,18 @@ Filme caminho 4 (fontes htROyMzUbA8, rxZZ1xi81a4): no Google Flow (Omniflash 1.1
 
 - 26/10 18:16 CORREÇÃO do Danilo ao carro voador (SUPERA "sem forma da Tesla"): a versão carrinha feita a 26/10 (Telegram 10795/10796) está REPROVADA e não se publica. O carro é o NOVO ROADSTER DA TESLA (o carro voador apresentado a 15/10/2026) com o emblema da Bora no lugar do T e as cores Bora; sem o T nem o nome Tesla nas imagens e na legenda; só orgânico, nunca anúncio pago.
 
+
+## 26/10/2026 — radar diário (agente na nuvem)
+40 vídeos revistos (33 com nota >= 6): 5 novos, 11 PENDENTES, 10 já temos, 14 rejeitados (7 por nota baixa). Nenhum do tema animacao_ia.
+- MODA DA SEMANA (3+ vídeos nota>=8 em 7 dias): atendente WhatsApp 7 — FEITO (Mister Navalha); vender a outras PMEs/agência — pacote PMEs PENDENTE desde 13/10. Prospeção automática 7 — caça-clientes por email FEITO (5 novos/dia), extrator Google Maps PENDENTE desde 17/10. Sites com IA para negócios locais 6 — maquete por nicho PENDENTE desde 25/10. Micro-SaaS 6 — PENDENTE desde 21/10. Agente que trabalha sozinho 6 — já temos (Hermes+Claude Code+Córtex). Recibos verdes 4 — prazo 31/10 (prop-cb91e8c2). Postagem automática 3 — já temos. Antigravity 3 — lente grátis PENDENTE desde 25/10. Seguem: Claude Duet (22/10), animação em código Vox/minimalista (11/10), REA FEITO, OmniRoute FEITO.
+- EM DIA / BORA (reels, prop-c23e26bc): ganchos "troquei X por Y" e "4 verdades sobre..." https://www.youtube.com/watch?v=Mqj05tYuDI0 ; Reels de teste do Instagram + 5 temas fixos por semana https://www.youtube.com/watch?v=jc5VqKTdaA0
+- EM DIA (prop-757b1697): comparador contrato 14 meses vs recibos verdes + reel da isenção de SS no 1.º ano (confirmar regra oficial). https://www.youtube.com/watch?v=vYWSfKO1JHk
+- SISTEMA (prop-37efe6a9): hook PreToolUse nos executores claude -p a barrar comandos perigosos. https://www.youtube.com/watch?v=4c187sdMPbQ
+- GRUPOS (prop-6556a6cd): testar post sem link de fora, com chamada para comentar/WhatsApp. https://www.youtube.com/watch?v=42m0UEfZxWU
+- DINHEIRO / sites: checklist rápido do site do cliente (HTTPS, telemóvel, WhatsApp à vista, velocidade) junto ao gancho do livro de reclamações https://www.youtube.com/watch?v=MK5CDG6Xin4 ; maquete feita a partir do Perfil de Empresa no Google (lente grátis da Merchant Now, paga) https://www.youtube.com/watch?v=8aTzxacGCUw
+- DINHEIRO / atendente: follow-up em 3 tempos (1 h, 20 h, 3 dias) https://www.youtube.com/watch?v=Xk_TX-DLvbw ; CRM WhatsApp open source DeskC na VPS (confirmar repo/licença) https://www.youtube.com/watch?v=f0YclrLW6V0 ; pausa de 18-30 s antes de responder https://www.youtube.com/watch?v=V2mraY4auRI
+- SISTEMA: virality_predictor do conector Higgsfield pode ser 2.º juiz dos reels ao lado do fiscal_video.py. https://www.youtube.com/watch?v=BTwu43k1JhY
+- PENDENTES revistos hoje: pacote PMEs (13/10), extrator Google Maps (17/10), follow-up atendente (17/10), AEO (08/10, aprovado 22/10, sem prova), placa NFC de avaliações (23/10), maquete por nicho/Antigravity (25/10), primeiros 1000 utilizadores (24/10), cortes automáticos/Open Shorts (14/10 e 25/10).
+- JÁ TEMOS: atendente WhatsApp, robôs de redes, colmeia de agentes, Higgsfield, REA, CRM de leads (linha Propostas), caça-clientes.
+- RECUSADO: GoHighLevel, Mammouth AI, Litify, Muse AI, Autoflow (pagos), postadores em massa nos grupos.
+- Radar aprende: +4 termos (CRM WhatsApp open source; site a partir do Perfil Google; anúncios Meta com orçamento pequeno e embaixadores universitários, da conversa 25-26/10), -4 com pouco rendimento; 70 ativos.

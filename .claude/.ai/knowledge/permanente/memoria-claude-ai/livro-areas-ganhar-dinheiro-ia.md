@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-ganhar-dinheiro-ia
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-24
+ultima_confirmacao: 2026-10-26
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Objetivo do Danilo de ganhar dinheiro com IA em modo automático (ele só comanda) — o que quer, o que escolheu e o que ficou de fora; ler antes de propor novas fontes de rendimento
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-ganhar-dinheiro-ia`, origem `claude-ai`, atualizada em 2026-10-24T08:14:27.412828+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-ganhar-dinheiro-ia`, origem `claude-ai`, atualizada em 2026-10-26T09:15:21.03948+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas ganhar dinheiro ia · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/ganhar-dinheiro-ia.md), copiada a 2026-10-24 09:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/ganhar-dinheiro-ia.md), copiada a 26/10/2026 09:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: ganhar-dinheiro-ia
@@ -47,4 +47,5 @@ aliases: [agente que ganha dinheiro, dinheiro com IA, renda automática, avença
 - [stated] 03/10 noite: o Gmail da Bora ("Bora Carteiro") ficou autorizado e o carteiro ligado (primeira onda segunda 05/10). Quer vender também o "secretário virtual" (assistente de WhatsApp da [[mister-navalha]]) a negócios de TODO o Portugal que trabalham por pedidos/marcações no WhatsApp — a abordagem já tem de levar um número de teste para o negócio experimentar logo ("com a faca e o queijo na mão")
 - [stated] 24/10: mandou desligar a tarefa agendada "Propostas diárias — assistente de orçamentos" (28 empresas contactadas, zero respostas, envio travado 14 dias) e passar TUDO para o Emerson (repo propostas, contactados, leads, follow-ups, respostas). Passagem acrescentada ao bloco 6 da missão geral-sabado-24-10; desligar a tarefa ficou com ele (o sistema não me deixou)
 - [stated] 23/10: quer o Hermes em "modo loop" a ganhar dinheiro sozinho — procurar clientes, mandar propostas, responder aos emails dos clientes e fechar o cliente COM ele
+- [stated] 26/10: pediu o melhor caminho para ganhar dinheiro e mandou avançar com tudo: candidatura a emprego na área de IA/automação — enviada a 26/10 à vaga "Claude Specialist" da Wise Pirates (Porto, híbrido), com currículo em inglês — e quer também vender o serviço de publicar apps de outros na App Store e na Play Store ("pode ser que eu ganhe algum dinheiro")
 

@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-negocio-sites-portugal
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-23
+ultima_confirmacao: 2026-10-26
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Plano de dinheiro do negócio de sites em Portugal — preços reais do mercado PT, ganchos legais que só existem cá, nichos com dinheiro na Guarda, canais de clientes e modelo de avença; ler ANTES de prospectar ou orçamentar
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-negocio-sites-portugal`, origem `claude-ai`, atualizada em 2026-10-23T05:36:28.578267+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-negocio-sites-portugal`, origem `claude-ai`, atualizada em 2026-10-26T09:16:05.525936+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas negocio sites portugal · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/negocio-sites-portugal.md), copiada a 23/10/2026. A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/negocio-sites-portugal.md), copiada a 26/10/2026 09:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: negocio-sites-portugal
@@ -81,4 +81,5 @@ Conclusão para ele: o Guarda FC a 1.700€ com 70€/mês está DENTRO do merca
 - [stated] 31/08, VEREDITO dele sobre a maquete do Imoaugusto: PERDEU para o site real deles (imoaugusto.pt é bom); Imoaugusto SAI da fila de envio até existir uma peça mesmo especial — filme de imóvel (câmara a percorrer a casa, voz a ler a descrição da ficha) + ficha premium; método passa a "pegar o melhor do site do cliente + o melhor do mundo do nicho e fazer o melhor dos dois" (regra em [[metodo-sites]])
 - [stated] PROMPT REGISTADO: `PROMPT_imoaugusto_filme_2026-08-31.md`, entregue 31/08, MOTOR OPUS, janela Pro no PC novo, sessão `proposta-especial-imoaugusto`. Scope: teste dos 3 segundos no fiscal (site atual do cliente = referência nº1) aplicado às 3 maquetes; varredura total do Imoaugusto (site página a página, Facebook/Instagram, descarregar os vídeos de imóveis que eles publicam); filme de 2 imóveis reais (vídeo real deles primeiro, senão movimento suave nas fotos reais; IA paga proibida — Higgsfield sem créditos) com narração edge-tts PT-PT grátis e legendas; ficha premium por imóvel; home refeita "melhor dos dois"; peça de venda reescrita com o ângulo dos anúncios Google que eles já pagam. Estado: entregue como ficheiro; nada disparado, nada enviado
 - [stated] 31/08 (2.º veredito, depois da versão com filme): o Imoaugusto CONTINUA a perder para o site real deles e ele desanimou — "nem sei se estou mais afim", "como vamos oferecer um negócio pior que o nosso?". Queixas concretas: três links para a mesma proposta (confuso), e no telemóvel o vídeo aparece como uma linha fina e só toca o som. A minha recomendação, que ele ouviu: pôr o Imoaugusto de lado — têm site bom, agência eGO, Google Ads e ~110 mil seguidores; é o cliente mais difícil para começar. Levar o filme de imóvel a quem não tem nada
+- [stated] 26/10 (SUPERA o "por contactar POR OPÇÃO" de 29/08): mandou avançar com o canal 1 sem esperar pelo site do clube — mensagem de parceria (sites, apps, automações com IA) enviada ao gestor da agência do guardafc.pt pelo WhatsApp pessoal dele; à espera de resposta
 

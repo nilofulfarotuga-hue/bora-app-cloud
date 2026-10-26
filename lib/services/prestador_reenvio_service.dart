@@ -20,8 +20,8 @@
 /// candidaturas pendentes ('application_already_exists'); a linha é do
 /// próprio (RLS `washers_update_own`), por isso grava-se nela, só com a
 /// candidatura pendente e confirmando o que ficou gravado.
-/// Limpeza: `cleaners.docs` só a RPC do cadastro escreve (e recusa
-/// pendentes) — documento de identificação e materiais vão pelo Suporte.
+/// Limpeza: `cleaners.docs` só se escreve pela RPC `cleaner_reenviar_docs`
+/// (26/10/2026: só a linha pendente da própria pessoa; junta sem apagar).
 library;
 
 import 'dart:async';

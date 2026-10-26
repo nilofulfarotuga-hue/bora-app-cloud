@@ -128,10 +128,11 @@ const String kChaveDadosFiscais = 'dados_fiscais';
 
 /// Como o prestador envia cada item pela app.
 enum ComoEnviar {
-  /// Tirar/escolher foto e gravar (foto de perfil; documentos da lavagem).
+  /// Tirar/escolher foto e gravar (foto de perfil; documentos da lavagem e
+  /// da limpeza).
   foto,
 
-  /// Confirmar a lista de materiais (lavagem).
+  /// Confirmar a lista de materiais (lavagem e limpeza).
   materiais,
 
   /// Formulário dos dados legais e fiscais do cadastro.
@@ -147,9 +148,8 @@ enum ComoEnviar {
 /// Decide o botão de cada item.
 ///
 /// Limpeza: o documento de identificação e os materiais vivem em
-/// `cleaners.docs`, que só a RPC do cadastro (`cleaner_apply`) escreve — e
-/// ela recusa candidaturas pendentes; a tabela não deixa o próprio escrever.
-/// Esses dois vão pelo Suporte até haver uma RPC própria.
+/// `cleaners.docs`; a tabela não deixa o próprio escrever e a `cleaner_apply`
+/// recusa pendentes, por isso vão pela RPC `cleaner_reenviar_docs` (26/10).
 /// Lavagem: a linha é do próprio (`washers_update_own`), por isso os
 /// documentos e os materiais gravam-se aqui.
 ComoEnviar comoEnviarPrestador(String papel, String chave) {

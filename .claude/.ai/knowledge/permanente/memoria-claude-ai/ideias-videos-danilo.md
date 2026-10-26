@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-25
+ultima_confirmacao: 2026-10-26
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-25T20:56:20.492011+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-26T18:23:39.083707+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -330,4 +330,6 @@ Filme caminho 4 (fontes htROyMzUbA8, rxZZ1xi81a4): no Google Flow (Omniflash 1.1
 - JÁ TEMOS: REA (3), memória partilhada/segundo cérebro (Córtex + Obsidian, 4).
 - RECUSADO: Tiendanube, Sona e GoHighLevel (pagos — só com motor grátis), Runnable, dicas genéricas de Instagram e freelancing.
 - Radar aprende: +2 termos (Google Antigravity agente para negócios; angariadores de parceiros, da conversa 24-25/10), -2 sem vídeos bons; 70 ativos.
+
+- 26/10 18:16 CORREÇÃO do Danilo ao carro voador (SUPERA "sem forma da Tesla"): a versão carrinha feita a 26/10 (Telegram 10795/10796) está REPROVADA e não se publica. O carro é o NOVO ROADSTER DA TESLA (o carro voador apresentado a 15/10/2026) com o emblema da Bora no lugar do T e as cores Bora; sem o T nem o nome Tesla nas imagens e na legenda; só orgânico, nunca anúncio pago.
 

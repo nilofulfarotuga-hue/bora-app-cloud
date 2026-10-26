@@ -436,7 +436,10 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
   Widget _cartao(TvdeRide r, List<TvdeRide> todas) {
     final estado = estadoReservaPt(r);
     final preco = (r.estFareCents / 100).toStringAsFixed(2);
-    final podeCancelar = r.reservationStatus != 'cancelada';
+    // [24/10/2026] Reserva em que o cliente não apareceu já fechou: não se cancela.
+    final podeCancelar = r.reservationStatus != 'cancelada' &&
+        r.reservationStatus != 'nao_compareceu' &&
+        r.status != 'no_show';
     final etiqueta = _etiquetaPacote(r, todas);
     final aMexer = _aMudar == r.id;
     final podeMudar = _podeMudar(r) && !aMexer;
@@ -596,10 +599,13 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
 
   Widget _chipEstado(TvdeRide r, String estado) {
     Color cor;
-    switch (r.reservationStatus) {
+    switch (r.status == 'no_show' ? 'nao_compareceu' : r.reservationStatus) {
       case 'atribuida':
       case 'ativada':
         cor = AppColors.primary;
+        break;
+      case 'nao_compareceu':
+        cor = AppColors.warning; // [24/10/2026] cor própria
         break;
       case 'sem_motorista':
       case 'cancelada':

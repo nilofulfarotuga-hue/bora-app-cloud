@@ -529,6 +529,8 @@ class _AdminTvdeReservasScreenState extends State<AdminTvdeReservasScreen> {
         return 'sem motorista';
       case 'cancelada':
         return 'cancelada';
+      case 'nao_compareceu':
+        return 'Não compareceu'; // [24/10/2026] antes saía "nao_compareceu" cru
       default:
         return s ?? '—';
     }
@@ -544,6 +546,8 @@ class _AdminTvdeReservasScreenState extends State<AdminTvdeReservasScreen> {
         return AppColors.error;
       case 'aguarda_pagamento':
         return AppColors.accent;
+      case 'nao_compareceu':
+        return AppColors.warning; // [24/10/2026] cor própria
       default:
         return AppColors.textSecondary;
     }

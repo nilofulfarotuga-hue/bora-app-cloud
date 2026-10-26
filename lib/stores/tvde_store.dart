@@ -246,6 +246,10 @@ String estadoReservaPt(TvdeRide r) {
   // ficou 'ativada' — mostrava "a caminho" para sempre. O estado final da
   // corrida manda sobre o da reserva.
   if (r.isFinished) return 'concluída';
+  // [24/10/2026] O cliente não apareceu: não é uma cancelada qualquer.
+  if (r.status == 'no_show' || r.reservationStatus == 'nao_compareceu') {
+    return 'não compareceu';
+  }
   if (r.isCancelled) return 'cancelada';
   switch (r.reservationStatus) {
     case 'aguarda_pagamento':

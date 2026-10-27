@@ -2,7 +2,7 @@
 id: memoria-claude-ai-erros-aprendidos
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-26
+ultima_confirmacao: 2026-10-27
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-10-26T20:14:34.388479+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-10-27T13:19:49.300236+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: erros aprendidos · memoria claude.ai · claude_ai_memoria
 
@@ -84,4 +84,12 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - 26/10 (quem errou: claude-ai): na resposta do IMT dei análise curta sem partir do estudo antigo e repeti a recomendação de fechar o Bora Motorista → em assunto já estudado, ler primeiro as conversas antigas inteiras (15/10 estudo dos 9 caminhos + conselho; 20/10 defesa, acórdão TC 68/2024, 60-65% em tribunal, plano dos 500 €) e acrescentar só o novo; o fecho do Bora Motorista é decisão dele, não repetir a recomendação; risco novo numa linha.
 - 26/10 (quem errou: claude-ai): no reel do carro voador pus "carro genérico de entregas" e saiu uma carrinha feia → para apanhar o hype de um produto, o vídeo mostra ESSE produto (novo Roadster da Tesla) com a marca Bora por cima; não trocar por versão genérica.
 - 26/10 (quem errou: claude-ai): cartazes das vagas de angariador/embaixador pouco didáticos (só "Ganha 40 €" e QR sem legenda; contacto por DM do Instagram ou vendas@, que ele não lê) → toda a propaganda explica no cartaz, em passos numerados, o que é, quanto se ganha e como contactar, com o WhatsApp 937 501 673 por extenso ao lado do QR; contacto sempre num canal que o Danilo lê.
+- 26/10 (quem errou: claude-ai): na conta do Jai (171 €) esqueci os 15 € do desalfandegamento, que ficaram à espera "até a encomenda chegar" — e a encomenda já tinha saído da alfândega → antes de fechar uma conta, ver no recibo-jogador-gfc os valores à espera de uma condição e verificar (emails dos CTT, conversas) se já se cumpriu; se sim, entram na conta.
+- 27/10 (quem errou: claude-ai): na 1.ª resposta ao lojista que quer ser parceiro despejei tudo (condições, 10%, 20 €/mês, link, loja em 24 h, Instagram) e ficou "atacante" → com lojista novo, ir mais devagar, sem despejar condições e preços logo na 1.ª mensagem.
+- 27/10 (quem errou: claude-ai): pus os cartazes das vagas em 3 grupos de WhatsApp pelo número PESSOAL dele (931 992 662), achando que era o da Bora → nada da Bora sai do número pessoal; tudo pelo WhatsApp da Bora (937 501 673) e confirmar o número da conta aberta antes de enviar. No PC estão trocados: Chrome da Bora (d9e862e0) tem o WhatsApp pessoal; Chrome pessoal (5b260cdd) tem o da Bora.
+- 27/10 (quem errou: claude-ai): disse à Boom! Burger que nas reservas "o cliente deixa um pequeno sinal" como se fosse obrigatório → é o parceiro que decide se há sinal; sem sinal, a reserva fica feita na mesma.
+- 27/10 (quem errou: claude-ai): corrigi as fotos/documentos dos estafetas pendentes só no ecrã "Aprovações"; o ecrã "Entregadores" (lista e ficha) pedia colunas inexistentes (rating, total_deliveries) e mostrava calado a versão sem fotos → ao corrigir um ecrã do painel, verificar TODOS os caminhos para a mesma informação (lista, ficha, busca, aviso) e provar pelos edge_logs do telemóvel dele que dá 200.
+- 27/10 (quem errou: claude-ai): disse que a senha de parceiro da Boom! Burger não ia por WhatsApp → é para mandar: o login provisório (boomburger@bora.app) é só para teste, depois passa para o email do dono e ele troca a senha; mandar ao lojista o que já há e dizer o que falta, sem esperar que esteja tudo pronto.
+- 27/10 (quem errou: claude-ai): na resposta à Boom! Burger falei de cartaz com QR e autocolante → não falar de QR nem autocolante ao lojista; quando ele disser "pode abrir a loja", a loja abre logo e o Danilo leva autocolante e QR em mão.
+- 27/10 (quem errou: claude-ai): pus no cartão ao Jai "I'm coming to the stadium" sem saber se ele podia (estava a almoçar com a família) → quando o print pede que ele vá a algum lado e ele não disse se pode, perguntar numa linha "podes ir agora?" antes do cartão.
 

@@ -10,7 +10,7 @@ estado: atual
 
 # Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-10-27T16:14:11.730501+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-10-27T22:27:16.107191+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: erros aprendidos · memoria claude.ai · claude_ai_memoria
 
@@ -94,4 +94,5 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - 27/10 (quem errou: claude-ai): pus no cartão ao Jai "I'm coming to the stadium" sem saber se ele podia (estava a almoçar com a família) → quando o print pede que ele vá a algum lado e ele não disse se pode, perguntar numa linha "podes ir agora?" antes do cartão.
 - 27/10 (quem errou: claude-ai): achei um erro na app (painel do parceiro da Boom! Burger mostra "112" produtos quando são 56) e disse que "ficou anotado" para depois → erro que encontro é mandado consertar NA HORA (MCP já, ou prompt ao Claude Code), nunca fica "anotado para depois"; rever o que ficou para trás e mandar arrumar tudo.
 - 27/10 (claude-ai): 27/10: achei um erro na app (painel do parceiro da Boom! Burger mostra 112 produtos quando são 56) e disse ao Danilo que "ficou anotado" para depois → erro encontrado é mandado consertar NA HORA (MCP já, ou prompt ao Claude Code); nada fica "anotado para depois"; rever o que ficou para trás e mandar arrumar tudo
+- 27/10 (claude-ai): 27/10: ordem mandava publicar o video da Bora no grupo de WhatsApp "Brasileiros na Guarda" → Danilo 27/10 22:25: publicidade da Bora no WhatsApp so no grupo "Marketing, vendas e propaganda Guarda" (e no estado da Bora); no "Brasileiros na Guarda" nao se publica
 

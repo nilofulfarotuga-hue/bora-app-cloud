@@ -2,7 +2,7 @@
 id: memoria-claude-ai-caminhos-animacao-filme
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-25
+ultima_confirmacao: 2026-10-27
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Filme das filhas — 5 caminhos grátis para o desenho (revisto 05/10 com os 50 vídeos)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-25T20:56:20.492011+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-27T20:56:46.107459+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: caminhos animacao filme · memoria claude.ai · claude_ai_memoria
 
@@ -107,3 +107,11 @@ Avisos: os juizes de topo (gemini-3.5-flash, 3-flash-preview) gastam 20 pedidos/
 - Flow vídeo longo (cenas em sequência com OmniFlash) continua por testar desde 17/10; o vídeo mostra que parte o roteiro em clipes demasiado curtos. https://www.youtube.com/watch?v=G74ltLKqQi0
 - Vibes da Meta grátis: continua parado no botão de conta (04/10).
 
+
+
+## 27/10/2026 — radar diário (sem vídeos do tema animacao_ia; 6 do filme vindos de outras pesquisas)
+- Caminho 3 (vozes), lente grátis: Coqui TTS (o vídeo diz licença Apache 2.0 com uso comercial — confirmar) e Kokoro (leve, leitura rápida, sem clonar) como alternativas abertas à ElevenLabs, ao lado do OmniVoice (A/B 21/10) e do Voice Studio (teste Kaggle aprovado 25/10). https://www.youtube.com/watch?v=2Qys0NSa4qs
+- Caminho 3: ElevenLabs v4 (emoção, ritmo, editar só um pedaço sem regravar) — continua só como reserva grátis. https://www.youtube.com/watch?v=DtC2I7DhYvw
+- Caminho 1 (personagem fixo) + duração: Google Flow com imagem de referência + último fotograma para estender cenas — confirma o que já está; estender cenas registado 10/10, ainda não feito. https://www.youtube.com/watch?v=h6qp2pOiKxo
+- Vibes da Meta grátis: continua parado no botão de conta (04/10). https://www.youtube.com/watch?v=KCd337fyAFQ
+- Fora: Midjourney (pago), Camino Digital Studio e truques genéricos.

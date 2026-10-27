@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-26
+ultima_confirmacao: 2026-10-27
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-26T20:57:10.041146+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-27T20:56:40.002788+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -348,3 +348,17 @@ Filme caminho 4 (fontes htROyMzUbA8, rxZZ1xi81a4): no Google Flow (Omniflash 1.1
 - JÁ TEMOS: atendente WhatsApp, robôs de redes, colmeia de agentes, Higgsfield, REA, CRM de leads (linha Propostas), caça-clientes.
 - RECUSADO: GoHighLevel, Mammouth AI, Litify, Muse AI, Autoflow (pagos), postadores em massa nos grupos.
 - Radar aprende: +4 termos (CRM WhatsApp open source; site a partir do Perfil Google; anúncios Meta com orçamento pequeno e embaixadores universitários, da conversa 25-26/10), -4 com pouco rendimento; 70 ativos.
+
+
+## 27/10/2026 — radar diário (agente na nuvem)
+40 vídeos revistos (34 com nota >= 6): 6 novos, 14 PENDENTES, 5 já temos, 15 rejeitados (6 por nota baixa). Nenhum do tema animacao_ia (6 do filme vindos de outras pesquisas).
+- MODA DA SEMANA (3+ vídeos nota>=8 em 7 dias): atendente WhatsApp 7 — FEITO (Mister Navalha); prospeção 7 — caça-clientes FEITO, extrator Google Maps PENDENTE desde 17/10; vender a PMEs/agência 6+4+3 — pacote PMEs PENDENTE desde 13/10; sites com IA 6 — maquete por nicho PENDENTE desde 25/10; micro-SaaS 6 — PENDENTE desde 21/10; crescer app orgânico/UGC 6 — UGC reais da Guarda PENDENTE desde 04/10; CRM WhatsApp aberto Deskcom 3 (hoje) — PENDENTE desde 18/10. Seguem: REA FEITO, OmniRoute FEITO, Hermes e memória partilhada já temos, Antigravity pendente 25/10, Claude Duet 22/10, animação em código 11/10.
+- DINHEIRO (prop-507390d3): Deskcom CRM WhatsApp aberto (MIT segundo o vídeo, app de telemóvel, marca do cliente, ligações) — teste na VPS pendente; custos = VPS + domínio + API. https://www.youtube.com/watch?v=XJyy76c_ZJA , https://www.youtube.com/watch?v=1D69_O-ifkc , https://www.youtube.com/watch?v=3eM6RU6CDPw
+- DINHEIRO (prop-507390d3): relatório semanal de concorrência/avaliações para PMEs feito pelo Hermes com trava humana https://www.youtube.com/watch?v=MEdIZmzc1hk ; relatório SEO local a partir do Perfil Google (lente grátis: Claude Code lê a ficha pública) https://www.youtube.com/watch?v=lbbSq20gSJI
+- DINHEIRO: onboarding guiado/presencial reduz desistência — igual à demo Boom! Burger 28/10. https://www.youtube.com/watch?v=m5MU2ay9q7U
+- SISTEMA (prop-507390d3): automação nova só com métrica de sucesso escrita antes e ligada a dados reais. https://www.youtube.com/watch?v=RjJkiy-XW48
+- BORA/EM DIA (prop-a186818b): Biblioteca de Anúncios da Meta (grátis) para copiar só o formato dos concorrentes https://www.youtube.com/watch?v=AKA2uYgwUyI ; ficha das lojas com palavras locais e capturas de benefício https://www.youtube.com/watch?v=2_wvCAUvssY
+- BORA anúncios: 1 campanha CBO com 5 criativos e orçamento pelo custo por cliente — só quando a conta de anúncios tiver pagamento (parada desde 26/10). https://www.youtube.com/watch?v=z8dIYX6b5MM , https://www.youtube.com/watch?v=WN5WWMHT_oQ
+- FILME (lente grátis): Coqui TTS (vídeo diz Apache 2.0 — confirmar) e Kokoro como alternativas abertas à ElevenLabs https://www.youtube.com/watch?v=2Qys0NSa4qs
+- JÁ TEMOS: Hermes 24h na VPS, clone de IA com Claude Code + Córtex, Claude Code a substituir pagas, grupos do Facebook.
+- RECUSADO: GoHighLevel, Midjourney (pagos), n8n básico, UGC Higgsfield (créditos), geradores grátis genéricos (Camino), stickman, carreira de criador UGC.

@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-topics-erros-aprendidos-parte2
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-26
+ultima_confirmacao: 2026-10-27
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,9 @@ estado: atual
 
 # Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 2 de 2)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte2`, origem `claude-ai`, atualizada em 2026-10-26T20:14:34.388479+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte2`, origem `claude-ai`, atualizada em 2026-10-27T07:25:30.913206+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro topics erros aprendidos parte2 · memoria claude.ai · claude_ai_memoria
-
-> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 2 de 2), copiada a 26/10/2026 20:14 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 - [stated] 19/10: no prompt do Mid-Day deixei a foto como opcional ("se não houver foto, publica só o link") → regra: matéria de imprensa no site do Jai entra SEMPRE com foto; o prompt manda o Claude Code ir buscá-la ele próprio (foto do artigo online, página do jornal digital/e-paper) — nunca depender de o Danilo arrastar ficheiros
 - [stated] 19/10: a 17/10 ele mandou pôr os 2,50 € do cancelamento na carteira do Ney e eu não pus (nada entrou no sistema) — o acerto saiu com 4,00 € em vez de 6,50 € e ele pagou 6,50 à mão → regra: ordem de mexer em dinheiro de alguém é feita na hora e provada por SELECT antes de dizer que está feita; se não der para fazer logo, dizer-lhe que ficou por fazer
@@ -38,4 +36,7 @@ estado: atual
 - [stated] 26/10: na resposta do IMT (que manteve o não) dei uma análise curta, sem partir do estudo antigo, e voltei a pôr o fecho do Bora Motorista como recomendação; ele corrigiu: "não analisou a fundo, nós já conversamos, puxa as conversas" → regra: em assunto já estudado, ler primeiro as conversas antigas inteiras (aqui: 15/10 estudo dos 9 caminhos + conselho; 20/10 defesa, acórdão TC 68/2024, estimativa 60-65% em tribunal, plano dos 500 €) e partir do que lá ficou, acrescentando só o que é novo. O fecho do Bora Motorista é decisão dele (só está aberto a clientes conhecidos, Stripe no nome pessoal) e ele avisa quando; não repetir a mesma recomendação a cada resposta, e se houver risco novo dizê-lo numa linha. Ele não vai largar o volante agora; o plano dele é pagar os 500 € para testar e, se recusarem, ir a tribunal enquanto conduz na Uber
 - [stated] 26/10: no prompt do reel do carro voador (22/10) pus "carro genérico de entregas, sem forma da Tesla" e o Flow fez uma carrinha branca/verde, que ele achou feia; ele corrigiu: "não é carrinha, é o novo Tesla — pegar o novo Tesla e pôr o emblema da Bora" → regra: quando a ideia é apanhar o hype de um produto, o vídeo mostra ESSE produto (aqui o novo Roadster da Tesla) com a marca Bora por cima; não o trocar por uma versão genérica por cautela minha
 - [stated] 26/10: as vagas de angariador e de embaixador saíram com cartazes pouco didáticos — o do angariador só tinha "Ganha 40 €" e um QR sem legenda, o do embaixador mandava escrever por mensagem privada do Instagram ou para o email vendas@, que o Danilo não lê; ele reclamou que não via "entre em contacto" nem como funciona → regra: toda a propaganda explica no próprio cartaz, em passos numerados, o que é, quanto se ganha e como contactar, com o WhatsApp 937 501 673 escrito por extenso ao lado do QR; o contacto vai sempre para um canal que o Danilo lê
+- [stated] 26/10: na conta do Jai (171 €) esqueci os 15 € do desalfandegamento, que tinham saído a 04/10 só "até a encomenda chegar" — e a encomenda já tinha saído da alfândega → regra: antes de fechar uma conta, ver no [[recibo-jogador-gfc]] os valores que ficaram à espera de uma condição e verificar (emails dos CTT, conversas) se a condição já se cumpriu; se sim, entram na conta
+- [stated] 27/10: na resposta ao lojista que viu a Bora nas redes e quer ser parceiro, pus tudo na 1.ª mensagem (condições, 10%, 20 €/mês, link, loja montada em 24 h, pedir o Instagram); ele gostou mas achou "atacante" → regra: com lojista novo, ir mais devagar na conversa, sem despejar todas as condições e preços logo na 1.ª mensagem
+- [stated] 27/10: a 26/10 pus os cartazes das vagas nos 3 grupos de WhatsApp (Brasileiros na Guarda, Informações e comércio, Marketing e vendas) pelo WhatsApp Web do Chrome da Bora, achando que era o da Bora — era o PESSOAL dele (931 992 662), e ele não quer que ninguém saiba que é o dono da Bora → regra: nada da Bora sai do número pessoal; tudo vai pelo WhatsApp da Bora (937 501 673) e, antes de enviar, confirmo o número da conta aberta. No PC estão trocados: o Chrome da Bora (d9e862e0) tem o WhatsApp pessoal e o Chrome pessoal (5b260cdd) tem o da Bora
 

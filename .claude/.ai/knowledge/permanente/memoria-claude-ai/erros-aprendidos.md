@@ -10,7 +10,7 @@ estado: atual
 
 # Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-10-27T13:19:49.300236+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-10-27T16:14:11.730501+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: erros aprendidos · memoria claude.ai · claude_ai_memoria
 
@@ -92,4 +92,6 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - 27/10 (quem errou: claude-ai): disse que a senha de parceiro da Boom! Burger não ia por WhatsApp → é para mandar: o login provisório (boomburger@bora.app) é só para teste, depois passa para o email do dono e ele troca a senha; mandar ao lojista o que já há e dizer o que falta, sem esperar que esteja tudo pronto.
 - 27/10 (quem errou: claude-ai): na resposta à Boom! Burger falei de cartaz com QR e autocolante → não falar de QR nem autocolante ao lojista; quando ele disser "pode abrir a loja", a loja abre logo e o Danilo leva autocolante e QR em mão.
 - 27/10 (quem errou: claude-ai): pus no cartão ao Jai "I'm coming to the stadium" sem saber se ele podia (estava a almoçar com a família) → quando o print pede que ele vá a algum lado e ele não disse se pode, perguntar numa linha "podes ir agora?" antes do cartão.
+- 27/10 (quem errou: claude-ai): achei um erro na app (painel do parceiro da Boom! Burger mostra "112" produtos quando são 56) e disse que "ficou anotado" para depois → erro que encontro é mandado consertar NA HORA (MCP já, ou prompt ao Claude Code), nunca fica "anotado para depois"; rever o que ficou para trás e mandar arrumar tudo.
+- 27/10 (claude-ai): 27/10: achei um erro na app (painel do parceiro da Boom! Burger mostra 112 produtos quando são 56) e disse ao Danilo que "ficou anotado" para depois → erro encontrado é mandado consertar NA HORA (MCP já, ou prompt ao Claude Code); nada fica "anotado para depois"; rever o que ficou para trás e mandar arrumar tudo
 

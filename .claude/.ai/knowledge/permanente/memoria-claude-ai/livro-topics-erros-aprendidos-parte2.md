@@ -10,11 +10,11 @@ estado: atual
 
 # Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 2 de 2)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte2`, origem `claude-ai`, atualizada em 2026-10-27T13:19:35.428343+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte2`, origem `claude-ai`, atualizada em 2026-10-27T16:13:57.367085+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro topics erros aprendidos parte2 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 2 de 2), copiada a 27/10/2026 13:19 (hora de Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 2 de 2), copiada a 27/10/2026 16:13 (hora de Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 - [stated] 19/10: entreguei-lhe o prompt do Mid-Day para ele colar no Claude Code; ele corrigiu: "isso tudo quem vai fazer é você" — eu abro o Claude Code no navegador, escolho a pasta do Jai, ponho em automático, colo o prompt, arrasto a foto, e ele só carrega no botão. Se o sistema de segurança me travar a meio, digo-lhe em uma linha onde parou
 - [stated] 19/10: no prompt do Mid-Day deixei a foto como opcional ("se não houver foto, publica só o link") → regra: matéria de imprensa no site do Jai entra SEMPRE com foto; o prompt manda o Claude Code ir buscá-la ele próprio (foto do artigo online, página do jornal digital/e-paper) — nunca depender de o Danilo arrastar ficheiros
@@ -47,3 +47,4 @@ estado: atual
 - [stated] 27/10: eu disse-lhe que a senha de parceiro da Boom! Burger não ia por WhatsApp e que era melhor o dono criar a sua; ele corrigiu irritado: "não estou a perguntar se é para mandar, estou a falar que é para mandar" — o login provisório de parceiro (boomburger@bora.app) é só para teste, depois passa para o email do dono e ele troca a senha. Quer também que se mande ao lojista o que já temos e se diga o que falta ("tá assim, falta você me mandar"), em vez de esperar que esteja tudo pronto
 - [stated] 27/10: na resposta à Boom! Burger sobre "porque não fizeram publicidade pela cidade" pus "levamos o cartaz com QR para o balcão e o autocolante para a porta" → regra certa: não falar de QR nem de autocolante ao lojista; quando ele disser "pode abrir a loja", a loja abre logo e é o Danilo que vai lá levar o autocolante e o QR em mão
 - [stated] 27/10: ele mandou print do Jai a pedir para ir ao estádio e eu pus no cartão "I'm coming to the stadium" sem saber se ele podia; estava a almoçar com a família e mandou dizer que agora não estava disponível → regra: quando o print pede que ele vá a algum lado e ele não disse se pode, não decidir por ele; perguntar numa linha "podes ir agora?" antes de fazer o cartão
+- [stated] 27/10: achei um erro na app (o painel do parceiro da Boom! Burger mostra "112" produtos quando são 56) e disse-lhe que "ficou anotado" para depois; ele corrigiu: "sempre quando for achando problema, já tem que ir consertando, não pode ficar nada pra depois" → regra: erro que encontro é mandado consertar NA HORA (MCP já, ou prompt ao Claude Code), nunca fica "anotado para depois"; e rever o que já ficou para trás e mandar arrumar tudo

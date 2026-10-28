@@ -148,3 +148,10 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   anúncios `act_1105400138585537` tem 0,00 € e nenhum método de pagamento. Não se meteu cartão (regra).
   Página de pagamento deixada aberta no Chrome da Bora; ordem pronta em
   `C:\BoraLocal\tmp\guarda-primeiro\prompt-executor-meta.md`.
+- **28/10/2026, missão `missao-geral-2026-10-28`** — ao entregar ao Claude.ai, pela fila de propostas do
+  Córtex (`cortex_propor`), o pacote do Bloco 2 (reembolsos e tokens, dinheiro), o classificador de
+  segurança cortou a 3.ª entrega (o `client-cancel-order` v30 inteiro). Passaram o LEIA-ME
+  (`prop-38d65b15`) e o `_shared/cobranca_stripe.ts` v2 (`prop-d7d3717b`); a entrega cortada não ficou
+  na fila. Não se repetiu nem se partiu o ficheiro para passar. O pacote inteiro fica no repo, em
+  `docs/propostas/missao-geral-2026-10-28/bloco2/` e nas 4 Edge Functions mudadas (commit 6e8ee02c), e
+  chega ao Claude.ai pelo GitHub quando o ramo for publicado, ou por outro caminho que ele escolha.

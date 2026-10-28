@@ -82,6 +82,39 @@ void main() {
     expect(loja.faixaFechadaEm(_segunda1300), 'Fechado · volta às 15:30');
   });
 
+  // 28/10 (missao-geral): a app decide como o servidor (`is_partner_open`),
+  // que olha só ao horário do PRÓPRIO dia, também na madrugada. Se a app
+  // dissesse "aberto" e o servidor "fechado", o pedido caía no fim com
+  // STORE_CLOSED. Contar a madrugada pela véspera fica reportado como
+  // proposta para o servidor primeiro.
+  test('madrugada segue o servidor: conta o horário do próprio dia', () {
+    const noite = DayHours(open: '20:00', close: '02:00');
+    const fechado = DayHours(closed: true);
+    final kebab = _loja(
+      horario: const BusinessHours(
+          mon: fechado, tue: fechado, wed: fechado, thu: fechado, fri: fechado,
+          sat: noite, sun: fechado),
+    );
+    // Domingo 25/10/2026 01:00 em Lisboa (já em hora de inverno = UTC):
+    // domingo fecha, logo fechado — como o servidor.
+    expect(kebab.isOpenNow(DateTime.utc(2026, 10, 25, 1, 0)), isFalse);
+    expect(kebab.isOpenNow(DateTime.utc(2026, 10, 25, 2, 30)), isFalse);
+    // Sábado 01:30 em Lisboa (00:30 UTC, ainda hora de verão): o sábado
+    // é 20:00–02:00, logo aberto — como o servidor.
+    expect(kebab.isOpenNow(DateTime.utc(2026, 10, 24, 0, 30)), isTrue);
+    expect(kebab.isOpenNow(DateTime.utc(2026, 10, 24, 21, 0)), isTrue);
+  });
+
+  test('o travão diz "Abre amanhã às" depois de fechar e o dia num dia fechado', () {
+    expect(_loja().avisoLojaFechadaEm(_segunda2330), 'Loja bk está fechada agora. Abre amanhã às 11h00.');
+    const fechado = DayHours(closed: true);
+    final loja = _loja(
+      horario: const BusinessHours(
+          mon: fechado, tue: fechado, wed: _d, thu: _d, fri: _d, sat: _d, sun: _d),
+    );
+    expect(loja.avisoLojaFechadaEm(_segunda1300), 'Loja bk está fechada hoje. Abre quarta às 11h00.');
+  });
+
   test('lojas abertas parecidas: mesma secção, abertas, sem a própria', () {
     final bk = _loja();
     final aberta = _loja(id: 'mc', horario: const BusinessHours(

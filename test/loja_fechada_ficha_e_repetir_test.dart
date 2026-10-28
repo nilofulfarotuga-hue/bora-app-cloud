@@ -458,7 +458,8 @@ void main() {
             reason: '$caminho enche o carrinho sem ver se a loja está fechada');
         final travao = antes.substring(guarda);
         expect(travao,
-            contains('showLojaFechadaSnackBar(context, loja.avisoLojaFechada);'),
+            // 26/10 (adendo A3): a chamada passa também a loja que o cliente vê.
+            contains('showLojaFechadaSnackBar(context, loja.avisoLojaFechada, lojaId: loja.id);'),
             reason: '$caminho trava mas não diz porquê');
         expect(travao, contains('return;'),
             reason: '$caminho avisa mas enche o carrinho na mesma');

@@ -484,7 +484,7 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                           ? 'Entrega (takeaway)'.tr
                           : cartStore.entregaGratis
                               ? 'Entrega grátis'.tr
-                              : 'Entrega',
+                              : 'Entrega'.tr,
                       value: cartStore.isTakeaway ? 0.0 : baseDeliveryFee,
                       // Entrega grátis (23/10/2026): o preço normal riscado,
                       // como a Glovo mostra.
@@ -596,7 +596,7 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                           ? 'Total sem a taxa de serviço'.tr
                           : _useWalletBalance && walletAppliedCents > 0
                               ? 'Total a pagar (após saldo)'.tr
-                              : 'Total a pagar',
+                              : 'Total a pagar'.tr,
                       value: remainingToPay,
                       isStrong: true,
                     ),
@@ -676,7 +676,7 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
               // não paga uma taxa que o ecrã de pagamento ainda vai mostrar.
               label: (totalToPay - walletAppliedEur + settlementEur) <= 0
                   ? 'Pagar com saldo Bora'.tr
-                  : 'Finalizar pedido',
+                  : 'Finalizar pedido'.tr,
               icon: Icons.shopping_bag_outlined,
               onPressed: cartStore.items.isEmpty || _aAbrirPagamento
                   ? null

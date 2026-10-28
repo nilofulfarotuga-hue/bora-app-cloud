@@ -1344,6 +1344,9 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
               'Pagamento confirmado mas a criação do pedido demorou. Verifica o histórico em alguns segundos.'.tr),
           duration: const Duration(seconds: 6),
         ));
+        // Adendo C (26/10): a marca de morada trocada segue pelo rascunho.
+        // Sem esperar: numa rede lenta o cliente não fica preso depois de pagar.
+        unawaited(cartStore.registarMoradaTrocadaRascunho(draftId));
         // Clear cart anyway — order will appear via realtime when webhook completes.
         cartStore.clearCart();
         navigator.popUntil((route) => route.isFirst);

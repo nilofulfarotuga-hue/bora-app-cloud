@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -21,6 +23,9 @@ import 'cart_screen.dart';
 
 import '../l10n/tr.dart';
 import '../utils/euros.dart';
+
+/// 26/10 (item 13): largura máxima da ficha do produto em ecrãs largos.
+const double _larguraMaxFicha = 720;
 
 class ProductDetailScreen extends StatefulWidget {
   const ProductDetailScreen({
@@ -218,7 +223,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Column(
+      body: // 26/10 (item 13): no computador (1440 px) a foto tapava tudo — a ficha
+      // fica com largura máxima, centrada, como a Glovo e a Uber.
+      Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: _larguraMaxFicha),
+          child: Column(
         children: [
           Expanded(
             child: CustomScrollView(
@@ -226,7 +236,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               slivers: [
                 // ── Hero image SliverAppBar ──────────────────────────────────
                 SliverAppBar(
-                  expandedHeight: MediaQuery.of(context).size.width,
+                  expandedHeight: math.min(
+                      MediaQuery.of(context).size.width, _larguraMaxFicha),
                   pinned: true,
                   backgroundColor: Colors.white,
                   foregroundColor: Colors.black87,
@@ -461,6 +472,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           _buildBottomBar(context, variants, hasGroups),
         ],
       ),
+        ),
+      ),
     );
   }
 
@@ -518,7 +531,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       return wrap(BoraPrimaryButton(
         label: ok
             ? 'Adicionar ao carrinho · {0} €'.trArgs([unit.toStringAsFixed(2).replaceAll('.', ',')])
-            : 'Completa as escolhas obrigatórias',
+            : 'Completa as escolhas obrigatórias'.tr,
         icon: Icons.add_shopping_cart,
         onPressed: ok ? () => _addWithOptions(context) : null,
       ));
@@ -527,7 +540,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     return wrap(BoraAccentButton(
       label: widget.product.price > 0
           ? 'Adicionar ao carrinho · {0} €'.trArgs([PricingService.applyMarkup(widget.product.price, widget.isPartnerStore).toStringAsFixed(2).replaceAll('.', ',')])
-          : 'Preço indisponível',
+          : 'Preço indisponível'.tr,
       icon: Icons.add_shopping_cart,
       onPressed:
           widget.product.price > 0 ? () => _addNoVariantToCart(context) : null,

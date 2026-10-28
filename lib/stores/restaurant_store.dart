@@ -1467,7 +1467,13 @@ class RestaurantStore extends ChangeNotifier {
 
   // ─── Private helpers ──────────────────────────────────────────────────────
 
-  RestaurantModel _restaurantFromRecord(Map<String, dynamic> data) {
+  RestaurantModel _restaurantFromRecord(Map<String, dynamic> data) =>
+      lojaDaLinha(data);
+
+  /// A loja a partir de uma linha de `restaurants` (sem tocar no store).
+  /// 26/10 (adendo A5): o painel usa-a para "aberta agora?" em TODAS as lojas,
+  /// também as pendentes e desligadas que o store do cliente não carrega.
+  static RestaurantModel lojaDaLinha(Map<String, dynamic> data) {
     final categoryStr = data['category'] as String? ?? 'restaurant';
     final category = BusinessCategory.values.firstWhere(
       (e) => e.name == categoryStr,

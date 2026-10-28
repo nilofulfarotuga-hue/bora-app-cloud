@@ -98,7 +98,7 @@ class MarketReorderTab extends StatelessWidget {
     final loja = ReorderService.lojaDoPedido(
         order.vendorName, restaurantStore.restaurants);
     if (loja != null && ReorderService.lojaFechada(loja)) {
-      showLojaFechadaSnackBar(context, loja.avisoLojaFechada);
+      showLojaFechadaSnackBar(context, loja.avisoLojaFechada, lojaId: loja.id);
       return;
     }
 

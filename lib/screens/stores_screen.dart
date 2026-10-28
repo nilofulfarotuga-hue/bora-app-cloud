@@ -404,7 +404,8 @@ Future<void> openRetailBusiness(
     vendorComingSoonText: business.comingSoonLabel,
     vendorName: store.name,
     vendorRestaurantId: business.id,
-    vendorFechada: !business.isOpenNow(),
+    // 26/10 (adendo A4): a mesma regra de toda a app (pausa, Festas, "Em breve").
+    vendorFechada: business.fechadaParaCliente,
     vendorAvisoFechada: business.avisoLojaFechada,
     pickupLocation: pickupLocation,
     pickupStreet: business.address,

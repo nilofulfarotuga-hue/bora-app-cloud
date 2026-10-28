@@ -633,30 +633,15 @@ class RestaurantModel {
   String faixaFechadaEm(DateTime instante) {
     if (emPausa(instante)) return 'Fechado · volta às {0}'.trArgs([pausaVoltaAs]);
     if (!isOnline) return 'Fechado de momento'.tr;
-    final prox = _proximaAbertura(instante);
+    // A mesma próxima abertura do aviso e do servidor (dias especiais e
+    // pausa do dia incluídos).
+    final prox = proximaAbertura(instante);
     if (prox == null) return 'Fechado de momento'.tr;
-    final (d, weekday, abre) = prox;
+    final (:emDias, :weekday, hora: abre) = prox;
+    final d = emDias;
     if (d == 0) return 'Fechado · abre às {0}'.trArgs([abre]);
     if (d == 1) return 'Fechado · abre amanhã às {0}'.trArgs([abre]);
     return 'Fechado · abre {0} às {1}'.trArgs([_diasPt[weekday - 1].tr, abre]);
-  }
-
-  /// Próxima abertura pela hora de Lisboa: (dias a partir de hoje, dia da
-  /// semana 1-7, "HH:MM"). Vê até 7 dias à frente (inclui o mesmo dia da
-  /// semana seguinte, para lojas que abrem um dia só). `null` = nunca abre.
-  (int, int, String)? _proximaAbertura(DateTime instante) {
-    final agora = paredeLisboa(instante);
-    final nowMin = agora.hour * 60 + agora.minute;
-    for (var d = 0; d <= 7; d++) {
-      final weekday = ((agora.weekday - 1 + d) % 7) + 1;
-      final dia = businessHours.dayFor(weekday);
-      if (dia.closed) continue;
-      final abre = _parseMinutes(dia.open);
-      if (abre == null) continue;
-      if (d == 0 && abre <= nowMin) continue;
-      return (d, weekday, dia.open);
-    }
-    return null;
   }
 
   String get faixaFechada => faixaFechadaEm(DateTime.now());

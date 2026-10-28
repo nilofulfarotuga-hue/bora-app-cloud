@@ -3856,4 +3856,5 @@ const Map<String, String> kStringsEn = <String, String>{
   // 26/10/2026: chaves antigas com o euro à frente mantidas (outros ecrãs e testes ainda as pedem).
   'Pago: €{0} — valor total do serviço. Não há mais nada a pagar na loja.':
       'Paid: €{0} — full service amount. There is nothing else to pay at the store.',
+  'Preço indisponível': 'Price unavailable',
 };

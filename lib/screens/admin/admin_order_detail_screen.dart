@@ -120,12 +120,12 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
       // último ecrã antes de pagar? (tabela pedido_morada_trocada)
       Map<String, dynamic>? troca;
       try {
+        // Pelo pedido ou pelo rascunho do cartão que o criou (adendo C).
         final t = await Supabase.instance.client
-            .from('pedido_morada_trocada')
-            .select('morada_antes, morada_depois, criado_em')
-            .eq('order_id', widget.orderId)
-            .maybeSingle();
-        if (t != null) troca = Map<String, dynamic>.from(t);
+            .rpc('admin_morada_trocada', params: {'p_order_id': widget.orderId});
+        if (t is List && t.isNotEmpty) {
+          troca = Map<String, dynamic>.from(t.first as Map);
+        }
       } catch (e) {
         debugPrint('[AdminOrderDetail] pedido_morada_trocada: $e');
       }

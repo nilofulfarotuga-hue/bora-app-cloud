@@ -147,12 +147,16 @@ class LojaFechadaChip extends StatelessWidget {
 /// Diz a hora a que abre e (26/10, item 4) oferece "Ver lojas abertas
 /// parecidas" — da mesma secção, abertas agora. NÃO promete agendamento nem
 /// "avisar quando abrir": isso ainda não existe.
-void showLojaFechadaSnackBar(BuildContext context, String aviso) {
-  String? lojaId;
-  try {
-    lojaId = context.read<CartStore>().vendorRestaurantId;
-  } catch (_) {
-    lojaId = null; // fora da árvore do Provider (testes): só o aviso
+///
+/// [lojaId]: a loja que o cliente está a VER (26/10, adendo A3). Sem ele usa-se
+/// a do carrinho — que no "Pedir de novo" ainda é a loja anterior.
+void showLojaFechadaSnackBar(BuildContext context, String aviso, {String? lojaId}) {
+  if (lojaId == null) {
+    try {
+      lojaId = context.read<CartStore>().vendorRestaurantId;
+    } catch (_) {
+      lojaId = null; // fora da árvore do Provider (testes): só o aviso
+    }
   }
   final id = lojaId;
   ScaffoldMessenger.of(context)

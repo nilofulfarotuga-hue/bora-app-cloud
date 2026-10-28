@@ -94,7 +94,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
     }
     // Loja fechada: mesmo travão do "+" — avisa e não toca no carrinho.
     if (ReorderService.lojaFechada(loja)) {
-      showLojaFechadaSnackBar(context, loja.avisoLojaFechada);
+      showLojaFechadaSnackBar(context, loja.avisoLojaFechada, lojaId: loja.id);
       return;
     }
     // 26/10 (item 7): com artigos no carrinho, pergunta antes de substituir.

@@ -121,6 +121,7 @@ class CartStore extends ChangeNotifier {
         'serviceType': _serviceType.name,
         'isPartnerStore': _isPartnerStore,
         'vendorName': _vendorName,
+        'vendorRestaurantId': _vendorRestaurantId,
         'vendorComingSoon': _vendorComingSoon,
         'vendorComingSoonText': _vendorComingSoonText,
         'vendorIsFestas': _vendorIsFestas,
@@ -159,8 +160,12 @@ class CartStore extends ChangeNotifier {
         (e) => e.name == map['serviceType'],
         orElse: () => OrderServiceType.restaurant,
       );
-      _isPartnerStore = map['isPartnerStore'] as bool? ?? true;
+      // 26/10 (adendo B): nunca assumir parceira. Até à confirmação da loja,
+      // vale o que ficou guardado (ou "não parceira"); depois manda a loja.
+      // Só muda o que o cliente VÊ — o servidor calcula sempre pela loja.
+      _isPartnerStore = map['isPartnerStore'] as bool? ?? false;
       _vendorName = map['vendorName'] as String?;
+      _vendorRestaurantId = map['vendorRestaurantId'] as String?;
       _vendorComingSoon = map['vendorComingSoon'] as bool? ?? false;
       _vendorComingSoonText =
           map['vendorComingSoonText'] as String? ?? 'Em breve';
@@ -188,9 +193,54 @@ class CartStore extends ChangeNotifier {
           PricingService.defaultDistanceKm;
       _apartmentDelivery = map['apartmentDelivery'] as bool? ?? false;
       notifyListeners();
+      if (_items.isNotEmpty) unawaited(confirmarParceiraDaLoja());
     } catch (e) {
       debugPrint('CartStore._loadCart error: $e');
     }
+  }
+
+  /// Gancho de teste: devolve `restaurants.is_partner` da loja (por id, ou
+  /// pelo nome nas versões antigas que não guardavam o id).
+  @visibleForTesting
+  Future<bool?> Function(String? id, String? nome)? lerParceiraParaTeste;
+
+  /// 26/10 (adendo B): ao repor um carrinho guardado, pergunta à loja se é
+  /// parceira. Antes repunha-se `isPartnerStore ?? true` e um carrinho antigo
+  /// de loja NÃO parceira mostrava a taxa de 5% de parceiro (0,48 € num
+  /// cesto de 9,65 €). Nunca lança.
+  Future<void> confirmarParceiraDaLoja() async {
+    final id = _vendorRestaurantId;
+    final nome = _vendorName;
+    if (id == null && nome == null) return;
+    bool? parceira;
+    try {
+      final teste = lerParceiraParaTeste;
+      if (teste != null) {
+        parceira = await teste(id, nome);
+      } else {
+        final q = Supabase.instance.client.from('restaurants').select('id, is_partner');
+        final List<dynamic> linhas = id != null
+            ? await q.eq('id', id).limit(1)
+            : await q.eq('name', nome!).limit(2);
+        // Pelo nome só se houver UMA loja com esse nome (nunca adivinhar).
+        if (linhas.length == 1) {
+          final linha = linhas.first as Map;
+          parceira = linha['is_partner'] == true;
+          if (id == null && _vendorName == nome) {
+            _vendorRestaurantId ??= linha['id'] as String?;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('CartStore.confirmarParceiraDaLoja: $e');
+    }
+    // Entretanto o cliente pode ter aberto OUTRA loja: a resposta só vale se
+    // o carrinho ainda for da mesma (senão trocava a marca da loja nova).
+    if (_vendorName != nome || (id != null && _vendorRestaurantId != id)) return;
+    if (parceira == null || parceira == _isPartnerStore) return;
+    _isPartnerStore = parceira;
+    notifyListeners();
+    unawaited(_saveCart());
   }
 
   // ── Getters ───────────────────────────────────────────────────────────────
@@ -981,6 +1031,19 @@ class CartStore extends ChangeNotifier {
           params: {'p_order_id': orderId, 'p_morada_antes': antes});
     } catch (e) {
       debugPrint('CartStore: pedido_marcar_morada_trocada falhou (não-fatal): $e');
+    }
+  }
+
+  /// Adendo C (26/10): no cartão, quando o pedido demora a nascer, a marca
+  /// fica presa ao RASCUNHO do pagamento; o painel encontra-a depois.
+  Future<void> registarMoradaTrocadaRascunho(String? draftId) async {
+    final antes = _moradaAntesDaTroca;
+    if (draftId == null || antes == null || isTakeaway) return;
+    try {
+      await Supabase.instance.client.rpc('pedido_marcar_morada_trocada_rascunho',
+          params: {'p_draft_id': draftId, 'p_morada_antes': antes});
+    } catch (e) {
+      debugPrint('CartStore: marca por rascunho falhou (não-fatal): $e');
     }
   }
 

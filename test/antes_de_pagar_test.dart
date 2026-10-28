@@ -42,6 +42,8 @@ void main() {
         reason: 'a nota também segue no cartão');
     expect(ler('lib/stores/cart_store.dart').contains('customerNotes: notes,'), isTrue);
     expect(pag.contains('await cartStore.refreshRouteDistance();'), isTrue);
+    expect(pag.contains('cartStore.registarMoradaTrocadaRascunho(draftId)'), isTrue,
+        reason: 'adendo C: a marca segue no timeout do cartão');
     expect(ler('lib/screens/cart_screen.dart').contains('CustomerNoteField('), isTrue);
     expect(ler('lib/stores/cart_store.dart').contains('await registarMoradaTrocada(newOrderId);'),
         isTrue);

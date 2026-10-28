@@ -116,10 +116,24 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
           debugPrint('[AdminOrderDetail] order_age_checks: $e');
         }
       }
+      // 26/10 (melhorias-paridade, item 5): o cliente trocou a morada no
+      // último ecrã antes de pagar? (tabela pedido_morada_trocada)
+      Map<String, dynamic>? troca;
+      try {
+        final t = await Supabase.instance.client
+            .from('pedido_morada_trocada')
+            .select('morada_antes, morada_depois, criado_em')
+            .eq('order_id', widget.orderId)
+            .maybeSingle();
+        if (t != null) troca = Map<String, dynamic>.from(t);
+      } catch (e) {
+        debugPrint('[AdminOrderDetail] pedido_morada_trocada: $e');
+      }
       if (!mounted) return;
       setState(() {
         _order = Map<String, dynamic>.from(data);
         if (ageCheck != null) _order!['_age_check'] = ageCheck;
+        if (troca != null) _order!['_morada_trocada'] = troca;
         _loading = false;
       });
     } catch (e) {
@@ -309,6 +323,10 @@ class _SummaryTab extends StatelessWidget {
                     order['restaurant_id'] ?? '—'),
                 _row(Icons.location_on, 'Entrega',
                     order['dropoff_address'] ?? '—'),
+                // 26/10 (item 5): trocou a morada no ecrã de pagamento.
+                if (order['_morada_trocada'] is Map)
+                  _row(Icons.swap_horiz, 'Endereço trocado no final do pedido',
+                      'antes: ${(order['_morada_trocada'] as Map)['morada_antes'] ?? '—'}'),
                 _row(Icons.store_mall_directory, 'Recolha',
                     order['pickup_address'] ?? '—'),
                 _row(Icons.euro, 'Total', '€${_amount(order)}'),

@@ -148,6 +148,14 @@ class _PortaDoPerfil extends StatelessWidget {
     final authStore = context.read<AuthStore>();
     final sessionStore = context.read<SessionStore>();
 
+    // Visitante (26/10): pergunta-se já ao painel, em paralelo, para o toque
+    // não parecer morto numa rede lenta.
+    final podeVerSemConta = papel == UserRole.client
+        ? authStore.visitantesPodemVer()
+        : Future<bool>.value(false);
+    final tinhaSessao = Supabase.instance.client.auth.currentUser != null &&
+        !authStore.isGuestSession;
+
     // Com sessão aberta, troca-se por dentro: a mesma conta serve todos os
     // perfis e o JWT actual já vale para todos.
     if (Supabase.instance.client.auth.currentUser != null) {
@@ -159,6 +167,13 @@ class _PortaDoPerfil extends StatelessWidget {
 
     // L3 — troca de papel, não "Sair": preserva biometria.
     authStore.logout(wipeBiometrics: false);
+    // Visitante (26/10): "Sou Cliente" abre logo a página inicial; a conta só
+    // se pede ao finalizar. O painel pode desligar (visitantes_sem_conta).
+    // Só quem não tinha conta aberta: uma sessão real cujo perfil falhou
+    // continua a cair no ecrã de entrar, que explica o que falta.
+    if (!tinhaSessao && await podeVerSemConta) {
+      await authStore.entrarComoVisitante();
+    }
     await sessionStore.setRole(papel);
   }
 

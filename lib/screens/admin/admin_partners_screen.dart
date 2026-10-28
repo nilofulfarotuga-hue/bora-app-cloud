@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
@@ -9,6 +10,8 @@ import '../../widgets/admin/admin_coming_soon.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '../../services/admin_audit_service.dart';
 import '../../services/admin_export_service.dart';
+import '../../models/restaurant_model.dart';
+import '../../stores/restaurant_store.dart';
 import 'admin_partner_detail_screen.dart';
 
 class AdminPartnersScreen extends StatefulWidget {
@@ -37,6 +40,24 @@ class _AdminPartnersScreenState extends State<AdminPartnersScreen> {
   void initState() {
     super.initState();
     _load();
+    // 26/10 (item 4): "aberta agora?" usa a MESMA regra do app do cliente
+    // (horário, pausa, Festas, hora de Lisboa) — lida do RestaurantStore.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final store = context.read<RestaurantStore>();
+      if (!store.restaurantsLoadedOnce) store.loadRestaurantsFromSupabase();
+    });
+  }
+
+  /// "Aberta agora" ou o motivo de estar fechada, como o cliente vê.
+  /// `null` enquanto a loja não estiver carregada no RestaurantStore.
+  String? _abertaAgora(BuildContext context, String id) {
+    final loja = context.watch<RestaurantStore>().restaurantById(id);
+    if (loja == null) return null;
+    if (loja.comingSoon) return 'Em breve';
+    if (loja.fechadaParaCliente) return loja.faixaFechada;
+    // Festas vendem por encomenda: "aberta" a qualquer hora seria mentira.
+    if (loja.belongsTo(BusinessCategory.festas)) return 'Aceita encomendas';
+    return 'Aberta agora';
   }
 
   Future<void> _load() async {
@@ -255,10 +276,27 @@ class _AdminPartnersScreenState extends State<AdminPartnersScreen> {
                                       const AdminComingSoonBadge(),
                                   ],
                                 ),
-                                subtitle: Text(
-                                  '${_categoryLabel(category)} · ${r['address'] as String? ?? ''}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${_categoryLabel(category)} · ${r['address'] as String? ?? ''}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    if (_abertaAgora(context, r['id'] as String)
+                                        case final estado?)
+                                      Text(
+                                        'Aberta agora? $estado',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: estado == 'Aberta agora'
+                                              ? AppColors.primary
+                                              : AppColors.textSecondary,
+                                        ),
+                                      ),
+                                  ],
                                 ),
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,

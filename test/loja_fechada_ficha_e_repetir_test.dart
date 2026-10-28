@@ -272,7 +272,7 @@ void main() {
       await tester.ensureVisible(find.text('400 g'));
       await tester.tap(find.text('400 g'));
       await tester.pump();
-      final botao = find.textContaining('Adicionar ao carrinho · €');
+      final botao = find.textContaining('Adicionar ao carrinho · ');
       expect(botao, findsOneWidget);
       await tester.ensureVisible(botao);
       await tester.tap(botao);

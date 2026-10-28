@@ -24,6 +24,7 @@ import 'chat_screen.dart';
 import 'wallet_history_screen.dart';
 
 import '../l10n/tr.dart';
+import '../utils/euros.dart';
 
 class OrderDetailsScreen extends StatelessWidget {
   const OrderDetailsScreen({super.key, required this.order});
@@ -212,7 +213,7 @@ class _RefundBanner extends StatelessWidget {
     final border = isWallet ? Colors.green : Colors.amber.shade700;
     final icon = isWallet ? Icons.flash_on : Icons.access_time;
     final text = isWallet
-        ? '€{0} disponíveis no Saldo Bora — imediato.'.trArgs([refundEur.toStringAsFixed(2)])
+        ? '{0} € disponíveis no Saldo Bora — imediato.'.trArgs([refundEur.toStringAsFixed(2).replaceAll('.', ',')])
         : 'Reembolso em curso. Pode demorar 5-10 dias úteis a aparecer no cartão.';
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -271,7 +272,7 @@ class _CashbackBadge extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Recebeste €{0} de cashback no teu Saldo Bora!'.trArgs([(cents / 100).toStringAsFixed(2)]),
+                      'Recebeste {0} € de cashback no teu Saldo Bora!'.trArgs([(cents / 100).toStringAsFixed(2).replaceAll('.', ',')]),
                       style: const TextStyle(
                           fontSize: 13, fontWeight: FontWeight.w600),
                     ),
@@ -414,7 +415,7 @@ class _CancelOrderButtonState extends State<_CancelOrderButton> {
                   // Adendo2: sem taxa = mensagem limpa, nada de "€0,00".
                   _cancelFeeEur() <= 0.009
                       ? 'Pedido cancelado. Sem qualquer custo.'.tr
-                      : 'Pedido cancelado. Taxa de €{0} descontada na próxima compra.'.trArgs([_cancelFeeEur().toStringAsFixed(2)]),
+                      : 'Pedido cancelado. Taxa de {0} € descontada na próxima compra.'.trArgs([_cancelFeeEur().toStringAsFixed(2).replaceAll('.', ',')]),
                 ),
               ),
             );
@@ -482,7 +483,7 @@ Future<String?> _showCashCancelDialog(BuildContext context, double feeEur) async
                   // Adendo2 (2026-08-16): janela grátis NUNCA ameaça taxa.
                   feeEur <= 0.009
                       ? 'Pagamento em dinheiro: não há reembolso a fazer.\n\nCancelamento gratuito — ainda nenhum estafeta aceitou o teu pedido.'.tr
-                      : 'Pagamento em dinheiro: não há reembolso a fazer.\n\nA tua conta ficará com uma dívida de €{0} (taxa de cancelamento). O valor será descontado automaticamente na tua próxima compra.'.trArgs([feeEur.toStringAsFixed(2)]),
+                      : 'Pagamento em dinheiro: não há reembolso a fazer.\n\nA tua conta ficará com uma dívida de {0} € (taxa de cancelamento). O valor será descontado automaticamente na tua próxima compra.'.trArgs([feeEur.toStringAsFixed(2).replaceAll('.', ',')]),
                   style: const TextStyle(fontSize: 14),
                 ),
                 const SizedBox(height: 12),
@@ -786,16 +787,16 @@ class _OrderInfoCard extends StatelessWidget {
             _Row(
                 label: 'Dívida anterior'.tr,
                 value:
-                    '€${(order.debtCollectedCents / 100).toStringAsFixed(2)}'),
+                    eur((order.debtCollectedCents / 100))),
           _Row(
               label: 'Total'.tr,
               value: order.debtCollectedCents > 0
-                  ? '€${order.totalWithDebt.toStringAsFixed(2)}'
-                  : '€${(order.finalTotal ?? order.total).toStringAsFixed(2)}',
+                  ? eur(order.totalWithDebt)
+                  : eur((order.finalTotal ?? order.total)),
               bold: true),
           _Row(
               label: 'Taxa de entrega'.tr,
-              value: '€${order.deliveryFee.toStringAsFixed(2)}'),
+              value: eur(order.deliveryFee)),
           _Row(
               label: 'Pagamento'.tr,
               value: order.paymentMethod.name.toUpperCase()),
@@ -1167,7 +1168,7 @@ class _ItemsCard extends StatelessWidget {
                     )
                   else
                     Text(
-                      '€${(item.price * item.quantity).toStringAsFixed(2)}',
+                      eur((item.price * item.quantity)),
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
@@ -1193,7 +1194,7 @@ class _ItemsCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '€${order.bagFee.toStringAsFixed(2)}',
+                    eur(order.bagFee),
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
@@ -1221,7 +1222,7 @@ class _ItemsCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '€${order.smallOrderFee.toStringAsFixed(2)}',
+                    eur(order.smallOrderFee),
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
@@ -1398,11 +1399,11 @@ class _ErrandReceiptCardState extends State<_ErrandReceiptCard> {
                 if (estimated > 0)
                   _Row(
                       label: 'Orçado'.tr,
-                      value: '€${estimated.toStringAsFixed(2)}'),
+                      value: eur(estimated)),
                 if (real != null && real > 0)
                   _Row(
                     label: 'Valor do talão'.tr,
-                    value: '€${real.toStringAsFixed(2)}',
+                    value: eur(real),
                     bold: true,
                   ),
               ],
@@ -1548,12 +1549,12 @@ class _PurchaseV2CardState extends State<_PurchaseV2Card> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        '🛍️ Saco plástico — {0}× €{1}'.trArgs([widget.order.bagCount, (widget.order.bagFee / widget.order.bagCount).toStringAsFixed(2)]),
+                        '🛍️ Saco plástico — {0}× {1} €'.trArgs([widget.order.bagCount, (widget.order.bagFee / widget.order.bagCount).toStringAsFixed(2).replaceAll('.', ',')]),
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ),
                     Text(
-                      '€${widget.order.bagFee.toStringAsFixed(2)}',
+                      eur(widget.order.bagFee),
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ],
@@ -1604,7 +1605,7 @@ class _PurchaseV2CardState extends State<_PurchaseV2Card> {
                     ),
                   ),
                   Text(
-                    '€${(_purchasedItemsTotalCents() / 100).toStringAsFixed(2)}',
+                    eur((_purchasedItemsTotalCents() / 100)),
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ],

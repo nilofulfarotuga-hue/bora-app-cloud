@@ -22,7 +22,12 @@ import 'role_choice_screen.dart';
 import '../l10n/tr.dart';
 
 class ClientLoginScreen extends StatefulWidget {
-  const ClientLoginScreen({super.key});
+  const ClientLoginScreen({super.key, this.voltarAoChamador = false});
+
+  /// Aberto por cima de um ecrã (ex.: "Finalizar pedido" sem conta, 26/10):
+  /// mostra "Entrar ou criar conta", tem botão de voltar e, depois de entrar
+  /// ou criar conta, faz `pop(true)` — a pessoa volta ao MESMO carrinho.
+  final bool voltarAoChamador;
 
   @override
   State<ClientLoginScreen> createState() => _ClientLoginScreenState();
@@ -164,6 +169,13 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
     }
     return Scaffold(
       backgroundColor: AppColors.surface,
+      appBar: widget.voltarAoChamador
+          ? AppBar(
+              title: Text('Entrar ou criar conta'.tr),
+              backgroundColor: AppColors.surface,
+              elevation: 0,
+            )
+          : null,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(
@@ -178,7 +190,19 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
               child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 56),
+                SizedBox(height: widget.voltarAoChamador ? Spacing.lg : 56),
+                if (widget.voltarAoChamador) ...[
+                  Text(
+                    'Para finalizar o pedido, entra na tua conta ou cria uma — o teu carrinho fica guardado.'
+                        .tr,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: Spacing.lg),
+                ],
 
                 // ── Logo ──────────────────────────────────────────────
                 const Center(
@@ -319,24 +343,26 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                   width: double.infinity,
                   height: 52,
                   child: OutlinedButton(
-                    onPressed: _isProcessing
-                        ? null
-                        : () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const RegisterClientScreen(),
-                              ),
-                            ),
+                    onPressed: _isProcessing ? null : _criarConta,
                     child: Text('Criar conta'.tr),
                   ),
                 ),
 
                 const SizedBox(height: Spacing.lg),
-                Center(
-                  child: TextButton(
-                    onPressed: _isProcessing ? null : _backToRoles,
-                    child: Text('← Voltar à escolha de perfil'.tr),
+                if (!widget.voltarAoChamador) ...[
+                  Center(
+                    child: TextButton(
+                      onPressed: _isProcessing ? null : _verSemConta,
+                      child: Text('Ver a app sem conta'.tr),
+                    ),
                   ),
-                ),
+                  Center(
+                    child: TextButton(
+                      onPressed: _isProcessing ? null : _backToRoles,
+                      child: Text('← Voltar à escolha de perfil'.tr),
+                    ),
+                  ),
+                ],
               ],
               ),
             ),
@@ -344,6 +370,33 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _criarConta() async {
+    final criou = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) =>
+            RegisterClientScreen(voltarAoChamador: widget.voltarAoChamador),
+      ),
+    );
+    if (!mounted) return;
+    if (widget.voltarAoChamador && criou == true) {
+      Navigator.of(context).pop(true);
+    }
+  }
+
+  /// Visitante (26/10): sem conta, vê lojas e produtos; a conta pede-se ao
+  /// finalizar. Se o painel tiver desligado, avisa.
+  Future<void> _verSemConta() async {
+    final authStore = context.read<AuthStore>();
+    final messenger = ScaffoldMessenger.of(context);
+    if (!await authStore.visitantesPodemVer()) {
+      messenger.showSnackBar(SnackBar(
+        content: Text('De momento é preciso entrar para ver a app.'.tr),
+      ));
+      return;
+    }
+    await authStore.entrarComoVisitante();
   }
 
   void _backToRoles() {
@@ -409,6 +462,16 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
   /// em vez de entrar direto como cliente.
   Future<void> _finishClientLogin() async {
     final sessionStore = context.read<SessionStore>();
+
+    // Aberto a partir do carrinho: entra como cliente e volta lá. A escolha
+    // de perfil (multi-papel) fica para depois — quem está a pagar é cliente.
+    if (widget.voltarAoChamador) {
+      await sessionStore.setRole(UserRole.client);
+      if (!mounted) return;
+      setState(() => _isProcessing = false);
+      Navigator.of(context).pop(true);
+      return;
+    }
 
     final roles = await fetchUiRoles();
     if (!mounted) return;

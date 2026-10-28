@@ -84,6 +84,9 @@ class _ClientMainScreenState extends State<ClientMainScreen> {
 
   Future<void> _pedirContactoUmaVez() async {
     if (_contactoJaPerguntadoNesteArranque || !mounted) return;
+    // 26/10: com outro ecrã por cima (ex.: o visitante a entrar a partir do
+    // carrinho), não se empurra nada — o pop(true) do login fecharia este.
+    if (ModalRoute.of(context)?.isCurrent == false) return;
     final client = context.read<AuthStore>().currentClient;
     if (client == null) return;
     if (contactoDoClienteCompleto(
@@ -100,6 +103,8 @@ class _ClientMainScreenState extends State<ClientMainScreen> {
   }
 
   Future<void> _abrirDestinoPendente() async {
+    // 26/10: idem — não abrir por cima de um login em curso.
+    if (!mounted || ModalRoute.of(context)?.isCurrent == false) return;
     final destino = await DestinoPendente.consumir();
     if (destino == null || !mounted) return;
     await Navigator.of(context).push(

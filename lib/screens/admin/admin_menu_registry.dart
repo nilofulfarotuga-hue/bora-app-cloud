@@ -124,6 +124,7 @@ import 'admin_pendencias_operacao_screen.dart';
 import 'admin_conformidade_legal_screen.dart';
 import 'admin_comprovativo_atividade_screen.dart';
 import 'admin_fecho_mensal_screen.dart';
+import 'admin_alergenos_screen.dart';
 
 /// Registo ÚNICO do menu do painel admin (PT-BR).
 ///
@@ -1092,6 +1093,15 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.purple,
       builder: () => const AdminPartnersScreen(),
       keywords: const ['dados', 'desligar', 'editar', 'ligar', 'lojas', 'parceiros', 'restaurantes'],
+    ),
+    AdminMenuItem(
+      id: 'parceiros_alergenos',
+      title: 'Alergênicos',
+      subtitle: 'Os 14 alergênicos obrigatórios de cada produto: ver e corrigir',
+      icon: Icons.health_and_safety_outlined,
+      color: Colors.purple,
+      builder: () => const AdminAlergenosScreen(),
+      keywords: const ['alergenos', 'alergenicos', 'alergias', 'gluten', 'lei', 'produtos', 'ue'],
     ),
     AdminMenuItem(
       id: 'parceiros_aprovacao_de_parceiros',

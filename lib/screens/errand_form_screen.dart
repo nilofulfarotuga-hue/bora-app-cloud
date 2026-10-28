@@ -49,6 +49,7 @@ import 'orders_screen.dart';
 import 'payment_method_screen.dart';
 
 import '../l10n/tr.dart';
+import '../utils/euros.dart';
 
 enum _ErrandStep { what, where, when }
 
@@ -1421,7 +1422,7 @@ class _Row extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: style),
-          Text('€${value.toStringAsFixed(2)}', style: style),
+          Text(eur(value), style: style),
         ],
       ),
     );
@@ -1479,7 +1480,7 @@ class _PriceFooter extends StatelessWidget {
     final total = (quote?['customer_total'] as num?)?.toDouble();
     final priceLabel = total == null
         ? 'desde €6'.tr
-        : '${estimateApprox ? "~" : ""}€${total.toStringAsFixed(2)}';
+        : '${estimateApprox ? "~" : ""}${eur(total)}';
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.surface,

@@ -24,6 +24,7 @@ import 'cart_screen.dart';
 import 'product_detail_screen.dart';
 
 import '../l10n/tr.dart';
+import '../utils/euros.dart';
 
 class StoreProductsScreen extends StatefulWidget {
   final String restaurantId;
@@ -387,7 +388,7 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
                   ),
                   icon: const Icon(Icons.shopping_cart),
                   label: Text(
-                    'Ver carrinho · €{0}'.trArgs([cartStore.total.toStringAsFixed(2)]),
+                    'Ver carrinho · {0} €'.trArgs([cartStore.total.toStringAsFixed(2).replaceAll('.', ',')]),
                     style: const TextStyle(
                         fontWeight: FontWeight.w600, fontSize: 16),
                   ),
@@ -1233,8 +1234,8 @@ class _VariantMiniCard extends StatelessWidget {
     final markedPrice =
         PricingService.applyMarkup(variant.price, isPartnerStore);
     final priceLabel = showPerKg
-        ? '€${markedPrice.toStringAsFixed(2)}/kg'
-        : '€${markedPrice.toStringAsFixed(2)}';
+        ? '${eur(markedPrice)}/kg'
+        : eur(markedPrice);
 
     return Material(
       color: const Color(0xFFF7F7F7),
@@ -1667,7 +1668,7 @@ class _SuggestionsPanel extends StatelessWidget {
                         fontSize: 13, fontWeight: FontWeight.w600)),
                 subtitle: Text(
                     // B1: exibido = cobrado (markup runtime não-parceiro).
-                    '€${PricingService.applyMarkup(p.price, isPartnerStore).toStringAsFixed(2)}',
+                    eur(PricingService.applyMarkup(p.price, isPartnerStore)),
                     style: const TextStyle(fontSize: 12)),
                 onTap: () => onPickProduct(p),
               );
@@ -1697,7 +1698,7 @@ class _SuggestionsPanel extends StatelessWidget {
                         fontSize: 13, fontWeight: FontWeight.w600)),
                 subtitle: Text(
                     // B1: exibido = cobrado (markup runtime não-parceiro).
-                    '€${PricingService.applyMarkup(p.price, isPartnerStore).toStringAsFixed(2)}',
+                    eur(PricingService.applyMarkup(p.price, isPartnerStore)),
                     style: const TextStyle(fontSize: 12)),
                 onTap: () => onPickProduct(p),
               ),

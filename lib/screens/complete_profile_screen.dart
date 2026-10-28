@@ -7,6 +7,7 @@ import '../config/app_spacing.dart';
 import '../l10n/tr.dart';
 import '../utils/contact_validators.dart';
 import '../widgets/bora/bora_primary_button.dart';
+import 'client_login_screen.dart';
 
 /// Ecrã de completar contacto do cliente — nome e telemóvel.
 ///
@@ -180,8 +181,20 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
 /// reservas, a limpeza e as corridas chamam — uma porta só, para não haver
 /// quatro regras diferentes a divergir.
 Future<bool> garantirContactoDoCliente(BuildContext context) async {
-  final client = context.read<AuthStore>().currentClient;
-  if (client == null) return false;
+  var client = context.read<AuthStore>().currentClient;
+  if (client == null) {
+    // Sem conta (visitante, 26/10): nunca mais um botão mudo. Abre "Entrar ou
+    // criar conta" por cima e, no fim, volta-se aqui — ao mesmo carrinho.
+    final entrou = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => const ClientLoginScreen(voltarAoChamador: true),
+      ),
+    );
+    if (entrou != true || !context.mounted) return false;
+    client = context.read<AuthStore>().currentClient;
+    if (client == null) return false;
+  }
   if (contactoDoClienteCompleto(nome: client.name, telemovel: client.phone)) {
     return true;
   }

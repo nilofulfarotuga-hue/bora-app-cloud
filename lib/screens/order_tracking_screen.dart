@@ -37,6 +37,7 @@ import 'chat_screen.dart';
 import 'rating_screen.dart';
 
 import '../l10n/tr.dart';
+import '../utils/euros.dart';
 
 class OrderTrackingScreen extends StatefulWidget {
   const OrderTrackingScreen({super.key, required this.order});
@@ -1232,7 +1233,7 @@ class _BottomCardState extends State<_BottomCard> {
         return '€2,50';
       case OrderStatus.pickedUp:
       case OrderStatus.onTheWay:
-        return '100% (€${total.toStringAsFixed(2)})';
+        return '100% (${eur(total)})';
       case OrderStatus.readyForPickup:
         // Takeaway pronto não cancelável pelo cliente (suporte humano trata).
         return '—';
@@ -1394,7 +1395,7 @@ class _BottomCardState extends State<_BottomCard> {
       messenger.showSnackBar(
         SnackBar(
           content: Text(result.feeEur != null && result.feeEur! > 0
-              ? 'Pedido cancelado. Taxa: €{0}.'.trArgs([result.feeEur!.toStringAsFixed(2)])
+              ? 'Pedido cancelado. Taxa: {0} €.'.trArgs([result.feeEur!.toStringAsFixed(2).replaceAll('.', ',')])
               : 'Pedido cancelado.'),
         ),
       );
@@ -1644,8 +1645,8 @@ class _SummaryRow extends StatelessWidget {
       color: color,
     );
     final displayValue = isDiscount
-        ? '-€${value.abs().toStringAsFixed(2)}'
-        : '€${value.toStringAsFixed(2)}';
+        ? '-${eur(value.abs())}'
+        : eur(value);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),

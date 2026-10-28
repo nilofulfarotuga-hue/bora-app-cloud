@@ -159,7 +159,7 @@ void main() {
         sheetItem.displayOptions
             .firstWhere((o) => o.group == 'Complemento')
             .items,
-        ['Chicken McNuggets 4 (+€2.30)']);
+        ['Chicken McNuggets 4 (+2,30 €)']);
     expect(
         sheetItem.displayOptions.firstWhere((o) => o.group == 'Molho').items,
         ['Sem molho']);
@@ -204,7 +204,7 @@ void main() {
     expect(find.textContaining('Acompanhamento: Batata'), findsOneWidget);
     expect(find.textContaining('Molho: Sem molho'), findsOneWidget);
     expect(
-        find.textContaining('Complemento: Chicken McNuggets 4 (+€2.30)'),
+        find.textContaining('Complemento: Chicken McNuggets 4 (+2,30 €)'),
         findsOneWidget);
     expect(find.textContaining('Ketchup: Sem ketchup'), findsOneWidget);
     expect(
@@ -346,14 +346,14 @@ void main() {
       selectedOptionsPriced: const [
         SelectedOption(
           group: 'Complemento',
-          items: ['Chicken McNuggets 4 (+€2.30)'],
+          items: ['Chicken McNuggets 4 (+2,30 €)'],
         ),
       ],
     );
 
     final opts = optionsForDriver(item);
     expect(opts.map((o) => o.group), ['Complemento', 'Molho', 'Sem Big Mac']);
-    expect(opts[0].items, ['Chicken McNuggets 4 (+€2.30)']); // com preço
+    expect(opts[0].items, ['Chicken McNuggets 4 (+2,30 €)']); // com preço
     expect(opts[1].items, ['Sem molho']);
     expect(opts[2].items, ['Sem pickles', 'Sem cebola']);
 
@@ -375,14 +375,14 @@ void main() {
       selectedOptionsPriced: const [
         SelectedOption(
           group: WeightPortions.kGroupName,
-          items: ['500 g (meio quilo) (+€1.43)'],
+          items: ['500 g (meio quilo) (+1,43 €)'],
         ),
       ],
     );
     expect(optionsForDriver(aoPeso), isEmpty);
     expect(
       WeightPortions.displayName(aoPeso),
-      'Abóbora Cabotiá (ao peso) — 500 g (meio quilo) (+€1.43)',
+      'Abóbora Cabotiá (ao peso) — 500 g (meio quilo) (+1,43 €)',
     );
   });
 
@@ -428,7 +428,7 @@ void main() {
 
       // O extra pago, com o preço cobrado.
       expect(
-        find.textContaining('Complemento: Chicken McNuggets 4 (+€2.30)'),
+        find.textContaining('Complemento: Chicken McNuggets 4 (+2,30 €)'),
         findsOneWidget,
       );
       // As escolhas grátis que displayOptions escondia.

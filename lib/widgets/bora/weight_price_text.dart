@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/tr.dart';
 import '../../services/weight_portions.dart';
+import '../../utils/euros.dart';
 
 /// Preço de um produto no cartão/lista. Produto normal: "€1,14". Produto ao
 /// peso: "desde €1,14" (a porção de 200 g) e, por baixo, em pequeno, o preço
@@ -28,12 +29,12 @@ class WeightPriceText extends StatelessWidget {
   final String? unavailableLabel;
 
   static String priceLabel(double displayPrice, bool soldByWeight) {
-    final base = '€${displayPrice.toStringAsFixed(2)}';
+    final base = eur(displayPrice);
     return soldByWeight ? 'desde {0}'.trArgs([base]) : base;
   }
 
   static String perKgLabel(double displayPrice) =>
-      '€${WeightPortions.clientPerKgFromBase(displayPrice).toStringAsFixed(2)}/kg';
+      '${eur(WeightPortions.clientPerKgFromBase(displayPrice))}/kg';
 
   @override
   Widget build(BuildContext context) {

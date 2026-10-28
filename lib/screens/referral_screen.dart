@@ -10,6 +10,7 @@ import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 
 import '../l10n/tr.dart';
+import '../utils/euros.dart';
 
 /// Referral / Convite — Feature 10.
 /// Mostra código único do utilizador + botão Share + estatísticas.
@@ -206,7 +207,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
               _statRow('Convites enviados'.tr, '$invitesSent'),
               _statRow('Amigos que pediram'.tr, '$invitesCompleted'),
               _statRow('Total ganho'.tr,
-                  '€${(totalEarnedCents / 100).toStringAsFixed(2)}',
+                  eur((totalEarnedCents / 100)),
                   bold: true),
             ],
           ),

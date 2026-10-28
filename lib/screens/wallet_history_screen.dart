@@ -6,6 +6,7 @@ import '../widgets/bora_support_fab.dart';
 import '../widgets/pay_debt_modal.dart';
 
 import '../l10n/tr.dart';
+import '../utils/euros.dart';
 
 /// Wallet History — lista de transactions do utilizador (saldo livre + tokens).
 class WalletHistoryScreen extends StatefulWidget {
@@ -116,7 +117,7 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
                   }
                 },
                 icon: const Icon(Icons.payment),
-                label: Text('Pagar dívida agora (€{0})'.trArgs([(b.debtCents / 100).toStringAsFixed(2)])),
+                label: Text('Pagar dívida agora ({0} €)'.trArgs([(b.debtCents / 100).toStringAsFixed(2).replaceAll('.', ',')])),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
@@ -141,7 +142,7 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
           child: ListTile(
             leading: const Icon(Icons.toll, color: Colors.amber),
             title: Text('Tokens'.tr),
-            subtitle: Text('Até 50% desconto no checkout · ≈€{0}'.trArgs([(b.tokensValueCents / 100).toStringAsFixed(2)])),
+            subtitle: Text('Até 50% desconto no checkout · ≈{0} €'.trArgs([(b.tokensValueCents / 100).toStringAsFixed(2).replaceAll('.', ',')])),
             trailing: Text('${b.tokensBalance}',
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           ),
@@ -225,7 +226,7 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
         icon = tx.isCredit ? Icons.arrow_downward : Icons.arrow_upward;
     }
     final balanceLine = tx.balanceAfterCents != null
-        ? '\nSaldo após: €{0}'.trArgs([(tx.balanceAfterCents! / 100).toStringAsFixed(2)])
+        ? '\nSaldo após: {0} €'.trArgs([(tx.balanceAfterCents! / 100).toStringAsFixed(2).replaceAll('.', ',')])
         : '';
     return ListTile(
       leading: Icon(icon, color: iconCol),
@@ -236,7 +237,7 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
       ),
       isThreeLine: true,
       trailing: Text(
-        '$sign€${(tx.amountCents.abs() / 100).toStringAsFixed(2)}',
+        '$sign${eur((tx.amountCents.abs() / 100))}',
         style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 16),
       ),
     );

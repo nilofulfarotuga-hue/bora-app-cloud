@@ -9,6 +9,7 @@ import '../../models/order_edit.dart';
 import '../../models/order_model.dart';
 import '../../services/order_edit_service.dart';
 import '../../services/payment_service.dart';
+import '../../utils/euros.dart';
 
 /// Cliente vê o que a loja parceira mudou no pedido (PT-PT):
 ///   • "A loja quer acrescentar X (+€Y)" → Aceitar / Recusar (e paga a diferença
@@ -33,7 +34,7 @@ class _ClientOrderEditBannerState extends State<ClientOrderEditBanner> {
   /// Trava por proposta (nunca um "ocupado" global — PADRAO 3.13).
   final Set<String> _aTratar = {};
 
-  String _eur(double v) => '€${v.abs().toStringAsFixed(2)}';
+  String _eur(double v) => eur(v.abs());
 
   @override
   Widget build(BuildContext context) {

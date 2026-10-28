@@ -93,7 +93,7 @@ class _AppointmentMBWayWaitingDialogState
         children: [
           const SizedBox(height: 4),
           Text(
-            'Enviámos um pedido de €{0} para o teu telemóvel.\nAbre o MBWay e confirma.'.trArgs([widget.amount.toStringAsFixed(2)]),
+            'Enviámos um pedido de {0} € para o teu telemóvel.\nAbre o MBWay e confirma.'.trArgs([widget.amount.toStringAsFixed(2).replaceAll('.', ',')]),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),

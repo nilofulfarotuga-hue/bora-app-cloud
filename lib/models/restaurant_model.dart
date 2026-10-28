@@ -1,5 +1,6 @@
 import 'package:latlong2/latlong.dart';
 
+import '../l10n/tr.dart';
 import '../utils/hora_lisboa.dart';
 
 enum BusinessCategory {
@@ -606,6 +607,59 @@ class RestaurantModel {
     final prox = proximaAbertura(instante);
     return prox == null ? 'Fechada' : 'Fechada, abre ${_abreQuando(prox)}';
   }
+
+  /// 26/10 (melhorias-paridade, item 4 — regra do Danilo de 27/08): a loja
+  /// está fechada PARA O CLIENTE? Entra-se e vê-se tudo (capa, categorias,
+  /// produtos, preços, opções); só não se mete no carrinho. "Em breve" tem a
+  /// faixa dele e as Festas (fora de pausa) aceitam encomendas: não contam.
+  bool fechadaParaClienteEm(DateTime instante) {
+    if (comingSoon) return false;
+    if (emPausa(instante)) return true;
+    if (!isOnline) return true; // desligada pelo parceiro, Festas incluídas
+    if (belongsTo(BusinessCategory.festas)) return false;
+    return !isOpenNow(instante);
+  }
+
+  bool get fechadaParaCliente => fechadaParaClienteEm(DateTime.now());
+
+  static const _diasPt = [
+    'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo'
+  ];
+
+  /// Faixa curta (PT-PT) de loja fechada, com a próxima abertura pela hora de
+  /// Lisboa: "Fechado · abre às 11:00", "Fechado · abre amanhã às 11:00",
+  /// "Fechado · abre sábado às 10:00", "Fechado · volta às 15:30" (pausa).
+  /// Nunca um tempo de entrega numa loja fechada.
+  String faixaFechadaEm(DateTime instante) {
+    if (emPausa(instante)) return 'Fechado · volta às {0}'.trArgs([pausaVoltaAs]);
+    if (!isOnline) return 'Fechado de momento'.tr;
+    final prox = _proximaAbertura(instante);
+    if (prox == null) return 'Fechado de momento'.tr;
+    final (d, weekday, abre) = prox;
+    if (d == 0) return 'Fechado · abre às {0}'.trArgs([abre]);
+    if (d == 1) return 'Fechado · abre amanhã às {0}'.trArgs([abre]);
+    return 'Fechado · abre {0} às {1}'.trArgs([_diasPt[weekday - 1].tr, abre]);
+  }
+
+  /// Próxima abertura pela hora de Lisboa: (dias a partir de hoje, dia da
+  /// semana 1-7, "HH:MM"). Vê até 7 dias à frente (inclui o mesmo dia da
+  /// semana seguinte, para lojas que abrem um dia só). `null` = nunca abre.
+  (int, int, String)? _proximaAbertura(DateTime instante) {
+    final agora = paredeLisboa(instante);
+    final nowMin = agora.hour * 60 + agora.minute;
+    for (var d = 0; d <= 7; d++) {
+      final weekday = ((agora.weekday - 1 + d) % 7) + 1;
+      final dia = businessHours.dayFor(weekday);
+      if (dia.closed) continue;
+      final abre = _parseMinutes(dia.open);
+      if (abre == null) continue;
+      if (d == 0 && abre <= nowMin) continue;
+      return (d, weekday, dia.open);
+    }
+    return null;
+  }
+
+  String get faixaFechada => faixaFechadaEm(DateTime.now());
 
   static int? _parseMinutes(String hhmm) {
     final parts = hhmm.split(':');

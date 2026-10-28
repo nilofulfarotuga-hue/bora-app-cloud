@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/order_service_type.dart';
+import 'definicoes_publicas.dart';
 
 /// TAXA DE PEDIDO PEQUENO (2026-08-27).
 ///
@@ -89,17 +90,13 @@ class SmallOrderFeeService {
   static Future<void> carregarGlobal({bool forcar = false}) async {
     if (_globalCarregado && !forcar) return;
     try {
-      final linhas = await Supabase.instance.client
-          .from('platform_settings')
-          .select('key, value')
-          .inFilter('key', const [
+      // 26/10: sem sessão lê-se pela get_setting (aberta a anon).
+      final valores = await lerDefinicoesPublicas(const [
         'min_order_cents',
         'small_order_fee_cents',
         'small_order_fee_enabled',
       ]);
-
-      final lista = (linhas as List).cast<Map<String, dynamic>>();
-      if (lista.isEmpty) {
+      if (valores.isEmpty) {
         // `platform_settings` só se lê autenticado: sem sessão a resposta é
         // HTTP 200 com `[]` — não é erro, o `catch` nunca dispara. Marcar como
         // carregado aqui fechava a porta para o resto da sessão e deixava a
@@ -109,10 +106,6 @@ class SmallOrderFeeService {
             'tenta-se outra vez depois de entrar.');
         return;
       }
-
-      final valores = <String, dynamic>{
-        for (final l in lista) l['key'] as String: l['value'],
-      };
 
       _global = SmallOrderFeeConfig(
         enabled: _comoBool(valores['small_order_fee_enabled']),

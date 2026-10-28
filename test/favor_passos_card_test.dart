@@ -54,7 +54,7 @@ void main() {
     expect(find.text('Casa da cliente — Cristina'), findsOneWidget);
     expect(find.text('Rua Pedro Álvares Cabral 31, Guarda'), findsOneWidget);
     expect(find.text('Motivo: Buscar a receita médica'), findsOneWidget);
-    expect(find.text('Recebe €20.00 em dinheiro da cliente'), findsOneWidget);
+    expect(find.text('Recebe 20,00 € em dinheiro da cliente'), findsOneWidget);
     expect(find.textContaining('de ti'), findsOneWidget);
     expect(find.textContaining('Ferrinho'), findsNothing);
     expect(find.byKey(const Key('btn_navegar_passo')), findsOneWidget);
@@ -88,7 +88,7 @@ void main() {
     await tester.pumpWidget(
         _app(FavorPassosCard(order: _favor(passo: 2, finalizado: true))));
     expect(find.text('PASSO 3 DE 3'), findsOneWidget);
-    expect(find.text('Cobrar à cliente: €9.88'), findsOneWidget);
+    expect(find.text('Cobrar à cliente: 9,88 €'), findsOneWidget);
     expect(find.textContaining('12.00'), findsNothing);
   });
 

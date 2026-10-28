@@ -26,6 +26,7 @@ import 'restaurant_menu_screen.dart';
 import 'restaurant_options_screen.dart';
 
 import '../l10n/tr.dart';
+import '../utils/euros.dart';
 
 class RestaurantsScreen extends StatefulWidget {
   const RestaurantsScreen({
@@ -625,7 +626,13 @@ class _MetaRow extends StatelessWidget {
     final rating = store.avgRatingFor(business.id);
 
     final chips = <Widget>[];
-    if (window != null) {
+    // 26/10 (item 4): loja fechada nunca mostra tempo de entrega.
+    if (business.fechadaParaCliente) {
+      chips.add(_metaChip(
+        icon: Icons.schedule,
+        label: business.faixaFechada,
+      ));
+    } else if (window != null) {
       chips.add(_metaChip(
         icon: Icons.schedule,
         label: '{0}-{1} min'.trArgs([window.$1, window.$2]),
@@ -640,7 +647,7 @@ class _MetaRow extends StatelessWidget {
     if (fee != null) {
       chips.add(_metaChip(
         icon: Icons.delivery_dining,
-        label: '€${fee.toStringAsFixed(2)}',
+        label: eur(fee),
       ));
     }
     if (rating != null) {

@@ -20,6 +20,7 @@ import '../widgets/bora/weight_price_text.dart';
 import 'cart_screen.dart';
 
 import '../l10n/tr.dart';
+import '../utils/euros.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   const ProductDetailScreen({
@@ -499,7 +500,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       if (_selectedVariant == null) return const SizedBox.shrink();
       return wrap(BoraAccentButton(
         label:
-            'Adicionar ao carrinho · €{0}'.trArgs([PricingService.applyMarkup(_selectedVariant!.price, widget.isPartnerStore).toStringAsFixed(2)]),
+            'Adicionar ao carrinho · {0} €'.trArgs([PricingService.applyMarkup(_selectedVariant!.price, widget.isPartnerStore).toStringAsFixed(2).replaceAll('.', ',')]),
         icon: Icons.add_shopping_cart,
         onPressed: () => _addToCart(context, _selectedVariant!),
       ));
@@ -516,7 +517,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       // badge ("1 laranja por ecrã" — badge tem prioridade).
       return wrap(BoraPrimaryButton(
         label: ok
-            ? 'Adicionar ao carrinho · €{0}'.trArgs([unit.toStringAsFixed(2)])
+            ? 'Adicionar ao carrinho · {0} €'.trArgs([unit.toStringAsFixed(2).replaceAll('.', ',')])
             : 'Completa as escolhas obrigatórias',
         icon: Icons.add_shopping_cart,
         onPressed: ok ? () => _addWithOptions(context) : null,
@@ -525,7 +526,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
     return wrap(BoraAccentButton(
       label: widget.product.price > 0
-          ? 'Adicionar ao carrinho · €{0}'.trArgs([PricingService.applyMarkup(widget.product.price, widget.isPartnerStore).toStringAsFixed(2)])
+          ? 'Adicionar ao carrinho · {0} €'.trArgs([PricingService.applyMarkup(widget.product.price, widget.isPartnerStore).toStringAsFixed(2).replaceAll('.', ',')])
           : 'Preço indisponível',
       icon: Icons.add_shopping_cart,
       onPressed:
@@ -634,7 +635,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             ),
             if (it.priceAdd > 0)
               Text(
-                '+€${it.priceAdd.toStringAsFixed(2)}',
+                '+${eur(it.priceAdd)}',
                 style: const TextStyle(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w700,
@@ -772,7 +773,7 @@ class _VariantCard extends StatelessWidget {
                     _Badge(label: 'Premium'.tr, color: AppColors.info),
                   const SizedBox(height: 6),
                   Text(
-                    '€${displayPrice.toStringAsFixed(2)}',
+                    eur(displayPrice),
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,

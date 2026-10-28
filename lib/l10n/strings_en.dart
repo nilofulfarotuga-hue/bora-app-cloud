@@ -272,7 +272,7 @@ const Map<String, String> kStringsEn = <String, String>{
   'Escolhe o destino novo': 'Choose the new destination',
   // 13/10/2026: dívida anterior no cartão do pedido (Os meus pedidos)
   // (tool/l10n/traducoes/pt-en-16-divida-anterior.json).
-  'Inclui €{0} de dívida anterior': 'Includes €{0} of previous debt',
+  'Inclui {0} € de dívida anterior': 'Includes €{0} of previous debt',
   // 13/10/2026: cartão "Check-in diário" da home (Bora Todo Dia)
   // (tool/l10n/traducoes/pt-en-15-checkin-diario.json).
   'Check-in diário': 'Daily check-in',
@@ -594,7 +594,7 @@ const Map<String, String> kStringsEn = <String, String>{
   'Partilhar o seguimento':
       'Share tracking',
   // 04/10/2026 (checkout) — também em tool/l10n/traducoes/pt-en-10-checkout.json
-  'Pagamento em dinheiro só até {0}. Este pedido fica em €{1}. Escolhe Cartão ou MBWay.':
+  'Pagamento em dinheiro só até {0}. Este pedido fica em {1} €. Escolhe Cartão ou MBWay.':
       'Cash payment only up to {0}. This order comes to €{1}. Choose Card or MBWay.',
   'Pagamento em dinheiro só até {0}. Escolhe Cartão ou MBWay.':
       'Cash payment only up to {0}. Choose Card or MBWay.',
@@ -606,7 +606,7 @@ const Map<String, String> kStringsEn = <String, String>{
       '\nYou can no longer reschedule this appointment.',
   '\nPodes reagendar mais 1 vez.':
       '\nYou can reschedule 1 more time.',
-  '\nSaldo após: €{0}':
+  '\nSaldo após: {0} €':
       '\nBalance after: €{0}',
   '   • €1 taxa de serviço Bora App.':
       '   • €1 Bora App service fee.',
@@ -766,7 +766,7 @@ const Map<String, String> kStringsEn = <String, String>{
       'Add to calendar — coming soon.',
   'Adicionar ao carrinho':
       'Add to cart',
-  'Adicionar ao carrinho · €{0}':
+  'Adicionar ao carrinho · {0} €':
       'Add to cart · €{0}',
   'Adicionar foto do que comprar (opcional)':
       'Add a photo of what to buy (optional)',
@@ -913,7 +913,7 @@ const Map<String, String> kStringsEn = <String, String>{
       'Up to 3 hours',
   'Até 50% desconto no checkout':
       'Up to 50% off at checkout',
-  'Até 50% desconto no checkout · ≈€{0}':
+  'Até 50% desconto no checkout · ≈{0} €':
       'Up to 50% off at checkout · ≈€{0}',
   'Autorizar':
       'Authorise',
@@ -1337,7 +1337,7 @@ const Map<String, String> kStringsEn = <String, String>{
       'Cash',
   'Dinheiro (no local)':
       'Cash (on site)',
-  'Disponível: €{0}':
+  'Disponível: {0} €':
       'Available: €{0}',
   'Distância extra':
       'Extra distance',
@@ -1425,7 +1425,7 @@ const Map<String, String> kStringsEn = <String, String>{
       'Delivery not available. Maximum {0} km.',
   'Entrega: ':
       'Delivery: ',
-  'Entregar no apartamento (+€1.50)':
+  'Entregar no apartamento (+1,50 €)':
       'Deliver to the apartment (+€1.50)',
   'Entregar, fazer corridas, limpezas ou lavagens':
       'Deliver, drive, clean or wash',
@@ -1451,7 +1451,7 @@ const Map<String, String> kStringsEn = <String, String>{
       'We sent a request for {0} € to your MB WAY. Approve it to confirm the wash.',
   'Enviámos um pedido de €{0} para o teu telemóvel.\nAbre o MBWay e confirma para ativar o plano.':
       'We sent a request for €{0} to your phone.\nOpen MBWay and confirm to activate the plan.',
-  'Enviámos um pedido de €{0} para o teu telemóvel.\nAbre o MBWay e confirma.':
+  'Enviámos um pedido de {0} € para o teu telemóvel.\nAbre o MBWay e confirma.':
       'We sent a request for €{0} to your phone.\nOpen MBWay and confirm.',
   'Enviámos um pedido de €{0} para o teu telemóvel.\n{1}':
       'We sent a request for €{0} to your phone.\n{1}',
@@ -1795,7 +1795,7 @@ const Map<String, String> kStringsEn = <String, String>{
       'Round trip with a discount. You save €{0} compared to two separate rides.',
   'Ida + volta por €{0}':
       'Round trip for €{0}',
-  'Inclui €{0} de taxa base (até 4 km)':
+  'Inclui {0} € de taxa base (até 4 km)':
       'Includes €{0} base fee (up to 4 km)',
   'Incluída no plano':
       'Included in the plan',
@@ -1879,7 +1879,7 @@ const Map<String, String> kStringsEn = <String, String>{
       'Car Wash',
   'Lavagens anteriores':
       'Previous washes',
-  'Leva ~€{0} em dinheiro para a compra. O estafeta confirma o valor exato no talão.':
+  'Leva ~{0} € em dinheiro para a compra. O estafeta confirma o valor exato no talão.':
       'Bring ~€{0} in cash for the purchase. The courier confirms the exact amount on the receipt.',
   'Levar Compras':
       'Carry Groceries',
@@ -2385,7 +2385,7 @@ const Map<String, String> kStringsEn = <String, String>{
       'Appointment payment',
   'Pagamento devolvido — não foi possível adicionar a parada. {0}':
       'Payment refunded — the stop could not be added. {0}',
-  'Pagamento em dinheiro: não há reembolso a fazer.\n\nA tua conta ficará com uma dívida de €{0} (taxa de cancelamento). O valor será descontado automaticamente na tua próxima compra.':
+  'Pagamento em dinheiro: não há reembolso a fazer.\n\nA tua conta ficará com uma dívida de {0} € (taxa de cancelamento). O valor será descontado automaticamente na tua próxima compra.':
       'Cash payment: there is no refund to make.\n\nYour account will carry a debt of €{0} (cancellation fee). The amount will be deducted automatically on your next purchase.',
   'Pagamento em dinheiro: não há reembolso a fazer.\n\nCancelamento gratuito — ainda nenhum estafeta aceitou o teu pedido.':
       'Cash payment: there is no refund to make.\n\nFree cancellation — no courier has accepted your order yet.',
@@ -2423,7 +2423,7 @@ const Map<String, String> kStringsEn = <String, String>{
       'Pay debt',
   'Pagar dívida (€{0})':
       'Pay debt (€{0})',
-  'Pagar dívida agora (€{0})':
+  'Pagar dívida agora ({0} €)':
       'Pay debt now (€{0})',
   'Pagar mais (excedente vira saldo)':
       'Pay more (the surplus becomes balance)',
@@ -2443,7 +2443,7 @@ const Map<String, String> kStringsEn = <String, String>{
       'Paid, but activating the round trip failed. Contact support — nobody was called.',
   'Pago, mas falhou criar a corrida. Fala com o suporte.':
       'Paid, but creating the ride failed. Contact support.',
-  'Pago: €{0} — valor total do serviço. Não há mais nada a pagar na loja.':
+  'Pago: {0} € — valor total do serviço. Não há mais nada a pagar na loja.':
       'Paid: €{0} — full service amount. There is nothing else to pay at the store.',
   'Pague com cartão de crédito ou débito.':
       'Pay by credit or debit card.',
@@ -2457,7 +2457,7 @@ const Map<String, String> kStringsEn = <String, String>{
       'Password',
   'Palavra-passe alterada':
       'Password changed',
-  'Para a compra, o cartão pode segurar ~€{0} como garantia (estimativa ×1,2). Pagas só o valor do talão — o resto é libertado.':
+  'Para a compra, o cartão pode segurar ~{0} € como garantia (estimativa ×1,2). Pagas só o valor do talão — o resto é libertado.':
       'For the purchase, the card may hold ~€{0} as a guarantee (estimate ×1,2). You only pay the amount on the receipt — the rest is released.',
   'Para grupos com mais de 12 pessoas, contacta o restaurante directamente para garantir disponibilidade.':
       'For groups of more than 12 people, contact the restaurant directly to check availability.',
@@ -2499,9 +2499,9 @@ const Map<String, String> kStringsEn = <String, String>{
       'Request the ride again to choose the payment — the previous one never got a driver and was not charged.',
   'Pedido cancelado. Sem qualquer custo.':
       'Order cancelled. At no cost.',
-  'Pedido cancelado. Taxa de €{0} descontada na próxima compra.':
+  'Pedido cancelado. Taxa de {0} € descontada na próxima compra.':
       'Order cancelled. €{0} fee deducted on your next purchase.',
-  'Pedido cancelado. Taxa: €{0}.':
+  'Pedido cancelado. Taxa: {0} €.':
       'Order cancelled. Fee: €{0}.',
   'Pedido criado. A aguardar confirmação de pagamento.':
       'Order created. Awaiting payment confirmation.',
@@ -2714,7 +2714,7 @@ const Map<String, String> kStringsEn = <String, String>{
       'You get €{0} from this ride. The €{1} the customer pays is NOT yours — you collect it in cash on Bora\'s behalf, and Bora settles up with you at the end of the week.',
   'Recebeste {0} tokens (≈€{1}) — já estão na tua conta.':
       'You received {0} tokens (≈€{1}) — they are already in your account.',
-  'Recebeste €{0} de cashback no teu Saldo Bora!':
+  'Recebeste {0} € de cashback no teu Saldo Bora!':
       'You received €{0} cashback in your Bora Balance!',
   'Receita médica':
       'Prescription',
@@ -3051,7 +3051,7 @@ const Map<String, String> kStringsEn = <String, String>{
       'You have €{0} in tokens — you can use up to €{1} on this order (max. {2}%).',
   'Tens €{0} em tokens — podes usar até €{1} nesta corrida (no máximo metade dos teus tokens).':
       'You have €{0} in tokens — you can use up to €{1} on this ride (at most half of your tokens).',
-  'Tens €{0} em tokens — podes usar até €{1} neste pedido (no máximo metade dos teus tokens).':
+  'Tens {0} € em tokens — podes usar até {1} € neste pedido (no máximo metade dos teus tokens).':
       'You have €{0} in tokens — you can use up to €{1} on this order (at most half of your tokens).',
   'Tenta outra data ou junta-te à fila.':
       'Try another date or join the queue.',
@@ -3161,7 +3161,7 @@ const Map<String, String> kStringsEn = <String, String>{
       'We pick up the car and bring it back washed.',
   'Ver as minhas marcações':
       'See my appointments',
-  'Ver carrinho · €{0}':
+  'Ver carrinho · {0} €':
       'View cart · €{0}',
   'Ver detalhe':
       'See details',
@@ -3239,9 +3239,9 @@ const Map<String, String> kStringsEn = <String, String>{
       '{0}\nYou can reschedule 1 more time.',
   '{0}  ·  predefinido':
       '{0}  ·  default',
-  '{0} + €{1}/km acima de 4 km (€{2} por {3} km extra).':
+  '{0} + {1} €/km acima de 4 km ({2} € por {3} km extra).':
       '{0} + €{1}/km above 4 km (€{2} for {3} extra km).',
-  '{0} + €{1}/km acima de 4 km.':
+  '{0} + {1} €/km acima de 4 km.':
       '{0} + €{1}/km above 4 km.',
   '{0} chega em ~{1} min':
       '{0} arrives in ~{1} min',
@@ -3281,7 +3281,7 @@ const Map<String, String> kStringsEn = <String, String>{
       '{0} held',
   '{0} tokens':
       '{0} tokens',
-  '{0} tokens · -€{1}':
+  '{0} tokens · -{1} €':
       '{0} tokens · -€{1}',
   '{0} · {1} avaliações':
       '{0} · {1} reviews',
@@ -3301,13 +3301,13 @@ const Map<String, String> kStringsEn = <String, String>{
       'Customer Area',
   'É só uma estimativa — pagas o valor exato do talão.':
       'It is only an estimate — you pay the exact amount on the receipt.',
-  '€2.50 base + €{0} por {1}km extra':
+  '2,50 € base + {0} € por {1} km extra':
       '€2.50 base + €{0} for {1}km extra',
   '€3 retidos no cartão para garantir reserva.':
       '€3 held on the card to secure the booking.',
-  '€{0} base + €{1} por {2}km extra':
+  '{0} € base + {1} € por {2}km extra':
       '€{0} base + €{1} for {2}km extra',
-  '€{0} disponíveis no Saldo Bora — imediato.':
+  '{0} € disponíveis no Saldo Bora — imediato.':
       '€{0} available in your Bora Balance — instant.',
   '€{0} pré-pagamento':
       '€{0} prepayment',
@@ -3327,7 +3327,7 @@ const Map<String, String> kStringsEn = <String, String>{
       '📅 Order for {0}/{1} at {2}:{3}{4}',
   '🕐  Normal':
       '🕐  Normal',
-  '🛍️ Saco plástico — {0}× €{1}':
+  '🛍️ Saco plástico — {0}× {1} €':
       '🛍️ Plastic bag — {0}× €{1}',
   // Denunciar conteudo (2026-09-08, missao ios-lancamento) — directriz 1.2.
   'Denunciar':
@@ -3769,4 +3769,91 @@ const Map<String, String> kStringsEn = <String, String>{
   'Aceito chamadas de reforço quando estou desligado': 'I accept backup calls when I am offline',
   'Se nenhum estafeta ligado aceitar um pedido, a Bora pode chamar-te mesmo desligado, das 8h às 23h, no máximo 3 vezes por dia. Recusar nunca te prejudica.': 'If no online courier accepts an order, Bora may call you even when you are offline, between 8h and 23h, at most 3 times a day. Declining never counts against you.',
   'Não foi possível guardar. Tenta outra vez.': 'Could not save. Try again.',
+  // 26/10/2026: melhorias-paridade.
+  'Entrar ou criar conta': 'Sign in or create an account',
+  'Para finalizar o pedido, entra na tua conta ou cria uma — o teu carrinho fica guardado.': 'To finish your order, sign in or create an account — your cart is kept.',
+  'Ver a app sem conta': 'Browse without an account',
+  'De momento é preciso entrar para ver a app.': 'For now you need to sign in to browse the app.',
+  'calculada no fim': 'calculated at checkout',
+  'Total sem a taxa de serviço': 'Total without the service fee',
+  'Estás a ver a Bora sem conta.': 'You are browsing Bora without an account.',
+  'Entra para veres os teus pedidos, o saldo e as reservas.': 'Sign in to see your orders, balance and reservations.',
+  'Fechado · volta às {0}': 'Closed · back at {0}',
+  'Fechado de momento': 'Closed for now',
+  'Fechado · abre às {0}': 'Closed · opens at {0}',
+  'Fechado · abre amanhã às {0}': 'Closed · opens tomorrow at {0}',
+  'Fechado · abre {0} às {1}': 'Closed · opens {0} at {1}',
+  'segunda': 'Monday',
+  'terça': 'Tuesday',
+  'quarta': 'Wednesday',
+  'quinta': 'Thursday',
+  'sexta': 'Friday',
+  'sábado': 'Saturday',
+  'domingo': 'Sunday',
+  'Lojas abertas parecidas': 'Similar shops open now',
+  'De momento não há lojas parecidas abertas.': 'No similar shops are open right now.',
+  'Aberto': 'Open',
+  'Ver lojas abertas parecidas': 'See similar open shops',
+  'Entregar em': 'Deliver to',
+  'Escolhe a morada de entrega': 'Choose the delivery address',
+  'Nota para a loja ou o estafeta (opcional)': 'Note for the shop or the courier (optional)',
+  'Ex.: sem cebola; tocar no 2.º esquerdo': 'E.g.: no onion; ring 2nd floor left',
+  'Substituir o carrinho?': 'Replace your cart?',
+  'Já tens artigos no carrinho. Se continuares, são trocados pelos do pedido anterior.': 'You already have items in your cart. If you continue, they will be replaced by the previous order.',
+  'Já tens artigos de {0} no carrinho. Se continuares, são trocados pelos do pedido anterior.': 'You already have items from {0} in your cart. If you continue, they will be replaced by the previous order.',
+  'Manter o carrinho': 'Keep my cart',
+  'Substituir': 'Replace',
+  // 26/10/2026: chaves antigas com o euro à frente mantidas (outros ecrãs e testes ainda as pedem).
+  'Inclui €{0} de dívida anterior': 'Includes €{0} of previous debt',
+  'Pagamento em dinheiro só até {0}. Este pedido fica em €{1}. Escolhe Cartão ou MBWay.':
+      'Cash payment only up to {0}. This order comes to €{1}. Choose Card or MBWay.',
+  '\nSaldo após: €{0}':
+      '\nBalance after: €{0}',
+  'Adicionar ao carrinho · €{0}':
+      'Add to cart · €{0}',
+  'Até 50% desconto no checkout · ≈€{0}':
+      'Up to 50% off at checkout · ≈€{0}',
+  'Disponível: €{0}':
+      'Available: €{0}',
+  'Entregar no apartamento (+€1.50)':
+      'Deliver to the apartment (+€1.50)',
+  'Enviámos um pedido de €{0} para o teu telemóvel.\nAbre o MBWay e confirma.':
+      'We sent a request for €{0} to your phone.\nOpen MBWay and confirm.',
+  'Inclui €{0} de taxa base (até 4 km)':
+      'Includes €{0} base fee (up to 4 km)',
+  'Leva ~€{0} em dinheiro para a compra. O estafeta confirma o valor exato no talão.':
+      'Bring ~€{0} in cash for the purchase. The courier confirms the exact amount on the receipt.',
+  'Pagamento em dinheiro: não há reembolso a fazer.\n\nA tua conta ficará com uma dívida de €{0} (taxa de cancelamento). O valor será descontado automaticamente na tua próxima compra.':
+      'Cash payment: there is no refund to make.\n\nYour account will carry a debt of €{0} (cancellation fee). The amount will be deducted automatically on your next purchase.',
+  'Pagar dívida agora (€{0})':
+      'Pay debt now (€{0})',
+  'Para a compra, o cartão pode segurar ~€{0} como garantia (estimativa ×1,2). Pagas só o valor do talão — o resto é libertado.':
+      'For the purchase, the card may hold ~€{0} as a guarantee (estimate ×1,2). You only pay the amount on the receipt — the rest is released.',
+  'Pedido cancelado. Taxa de €{0} descontada na próxima compra.':
+      'Order cancelled. €{0} fee deducted on your next purchase.',
+  'Pedido cancelado. Taxa: €{0}.':
+      'Order cancelled. Fee: €{0}.',
+  'Recebeste €{0} de cashback no teu Saldo Bora!':
+      'You received €{0} cashback in your Bora Balance!',
+  'Tens €{0} em tokens — podes usar até €{1} neste pedido (no máximo metade dos teus tokens).':
+      'You have €{0} in tokens — you can use up to €{1} on this order (at most half of your tokens).',
+  'Ver carrinho · €{0}':
+      'View cart · €{0}',
+  '{0} + €{1}/km acima de 4 km (€{2} por {3} km extra).':
+      '{0} + €{1}/km above 4 km (€{2} for {3} extra km).',
+  '{0} + €{1}/km acima de 4 km.':
+      '{0} + €{1}/km above 4 km.',
+  '{0} tokens · -€{1}':
+      '{0} tokens · -€{1}',
+  '€2.50 base + €{0} por {1}km extra':
+      '€2.50 base + €{0} for {1}km extra',
+  '€{0} base + €{1} por {2}km extra':
+      '€{0} base + €{1} for {2}km extra',
+  '€{0} disponíveis no Saldo Bora — imediato.':
+      '€{0} available in your Bora Balance — instant.',
+  '🛍️ Saco plástico — {0}× €{1}':
+      '🛍️ Plastic bag — {0}× €{1}',
+  // 26/10/2026: chaves antigas com o euro à frente mantidas (outros ecrãs e testes ainda as pedem).
+  'Pago: €{0} — valor total do serviço. Não há mais nada a pagar na loja.':
+      'Paid: €{0} — full service amount. There is nothing else to pay at the store.',
 };

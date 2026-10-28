@@ -23,6 +23,7 @@ import '../services/navigation_service.dart';
 import '../utils/favor_passos.dart';
 import 'folha_favor.dart';
 import 'private_bucket_image.dart';
+import '../utils/euros.dart';
 
 const _corFavor = Color(0xFF14B8A6);
 const _corFavorEscura = Color(0xFF0F766E);
@@ -257,7 +258,7 @@ class _PassoAtual extends StatelessWidget {
             _Linha(
               icone: Icons.payments_outlined,
               texto:
-                  'Recebe €${(order.errandHomeStopCashCents! / 100).toStringAsFixed(2)} em dinheiro da cliente',
+                  'Recebe ${eur((order.errandHomeStopCashCents! / 100))} em dinheiro da cliente',
               destaque: true,
             ),
         ],
@@ -337,7 +338,7 @@ class _PassoAtual extends StatelessWidget {
                           ? Icons.currency_exchange
                           : Icons.payments_outlined,
                       texto:
-                          '${conta.rotulo}: €${conta.valor.toStringAsFixed(2)}',
+                          '${conta.rotulo}: ${eur(conta.valor)}',
                       destaque: true,
                     ),
             );

@@ -428,7 +428,8 @@ Future<void> main() async {
   // camada nunca poder tocar num pedido.
   unawaited(PlatformTagService.registar());
   Supabase.instance.client.auth.onAuthStateChange.listen((estado) {
-    if (estado.event == AuthChangeEvent.signedIn) {
+    if (estado.event == AuthChangeEvent.signedIn &&
+        estado.session?.user.email != 'guest@bora.com') {
       unawaited(PlatformTagService.registar());
     }
   });
@@ -460,7 +461,11 @@ Future<void> main() async {
     if (state.event == AuthChangeEvent.signedIn ||
         state.event == AuthChangeEvent.initialSession ||
         state.event == AuthChangeEvent.tokenRefreshed) {
-      unawaited(PushTokenService.registerCurrentDeviceAutoDetect());
+      // 26/10: a conta partilhada de convidado não regista aparelhos —
+      // juntaria os tokens de todos os visitantes num só utilizador.
+      if (state.session?.user.email != 'guest@bora.com') {
+        unawaited(PushTokenService.registerCurrentDeviceAutoDetect());
+      }
 
       // Reler as taxas **agora que ha sessao** (2026-09-08).
       //
@@ -1358,6 +1363,8 @@ class _RootNavigator extends StatelessWidget {
         if (client != null) {
           return const TermsGate(audience: 'cliente', child: ClientMainScreen());
         }
+        // Visitante (26/10): vê a app sem conta; a conta pede-se ao finalizar.
+        if (auth.isVisitante) return const ClientMainScreen();
         return const ClientLoginScreen();
 
       case UserRole.driver:

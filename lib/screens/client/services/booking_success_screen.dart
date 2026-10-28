@@ -69,7 +69,7 @@ class BookingSuccessScreen extends StatelessWidget {
               ),
               const SizedBox(height: Spacing.lg),
               Text(
-                'Pago: €{0} — valor total do serviço. Não há mais nada a pagar na loja.'.trArgs([(paidCents / 100).toStringAsFixed(2)]),
+                'Pago: {0} € — valor total do serviço. Não há mais nada a pagar na loja.'.trArgs([(paidCents / 100).toStringAsFixed(2).replaceAll('.', ',')]),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                     fontSize: 13, color: AppColors.textSubtle),

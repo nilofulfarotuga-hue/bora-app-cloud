@@ -24,6 +24,8 @@ import 'restaurants_screen.dart';
 import 'wallet_history_screen.dart';
 
 import '../l10n/tr.dart';
+import '../widgets/confirmar_substituir_carrinho.dart';
+import '../utils/euros.dart';
 
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
@@ -95,6 +97,11 @@ class _OrdersScreenState extends State<OrdersScreen> {
       showLojaFechadaSnackBar(context, loja.avisoLojaFechada);
       return;
     }
+    // 26/10 (item 7): com artigos no carrinho, pergunta antes de substituir.
+    if (!await confirmarSubstituirCarrinho(context, context.read<CartStore>())) {
+      return;
+    }
+    if (!mounted) return;
     final changed = ReorderService.applyTo(
       cart: context.read<CartStore>(),
       order: order,
@@ -318,10 +325,10 @@ class _OrderCard extends StatelessWidget {
     // número que o estafeta cobra) e uma linha pequena diz quanto é.
     final hasDebt = order.debtCollectedCents > 0;
     final totalLabel = hasDebt
-        ? '€${order.totalWithDebt.toStringAsFixed(2)}'
+        ? eur(order.totalWithDebt)
         : order.isPurchaseFinalized && order.finalTotal != null
-            ? '€${order.finalTotal!.toStringAsFixed(2)}'
-            : '€${order.total.toStringAsFixed(2)}';
+            ? eur(order.finalTotal!)
+            : eur(order.total);
     final hasWalletAdjust = walletTxs.isNotEmpty;
 
     return Material(
@@ -380,8 +387,8 @@ class _OrderCard extends StatelessWidget {
                       ),
                     if (hasDebt)
                       Text(
-                        'Inclui €{0} de dívida anterior'.trArgs([
-                          (order.debtCollectedCents / 100).toStringAsFixed(2)
+                        'Inclui {0} € de dívida anterior'.trArgs([
+                          (order.debtCollectedCents / 100).toStringAsFixed(2).replaceAll('.', ',')
                         ]),
                         style: const TextStyle(
                           fontSize: 12,

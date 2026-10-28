@@ -1,4 +1,5 @@
 import 'product_option.dart';
+import '../utils/euros.dart';
 
 class CartItem {
   final String productId;
@@ -151,7 +152,7 @@ class CartItem {
         if (it is Map) {
           final name = (it['name'] ?? '').toString();
           final add = (it['price_add'] as num?)?.toDouble() ?? 0;
-          return add > 0 ? '$name (+€${add.toStringAsFixed(2)})' : name;
+          return add > 0 ? '$name (+${eur(add)})' : name;
         }
         return it.toString();
       }).toList();

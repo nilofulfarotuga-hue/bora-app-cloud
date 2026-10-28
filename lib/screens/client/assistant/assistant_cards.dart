@@ -12,9 +12,10 @@ import '../../../l10n/tr.dart';
 import '../../../services/assistant_service.dart';
 import '../../../widgets/bora/bora_accent_button.dart';
 import '../../../widgets/bora/maior_18.dart';
+import '../../../utils/euros.dart';
 
-String _eur(double v) => '€${v.toStringAsFixed(2)}';
-String _eurCents(int c) => '€${(c / 100).toStringAsFixed(2)}';
+String _eur(double v) => eur(v);
+String _eurCents(int c) => eur((c / 100));
 
 /// Cartão de uma proposta de carrinho (uma loja).
 class AssistantProposalCard extends StatelessWidget {

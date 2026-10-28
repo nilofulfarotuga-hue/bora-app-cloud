@@ -60,11 +60,19 @@ class _AdminGorjetasScreenState extends State<AdminGorjetasScreen> {
     if (_aMudar) return;
     setState(() => _aMudar = true);
     try {
-      await _sb
-          .from('platform_settings')
-          .update({'value': v})
-          .eq('key', 'tips_enabled');
-      if (mounted) setState(() => _ligada = v);
+      // 26/10 (melhorias-paridade, item 18): antes era um UPDATE direto à
+      // tabela, que só tem política de leitura — mudava 0 linhas e o ecrã
+      // dizia que tinha gravado. Agora vai pela função de admin (auditada) e
+      // relê-se do servidor: o interruptor mostra o que ficou gravado.
+      await _sb.rpc('admin_update_setting',
+          params: {'p_key': 'tips_enabled', 'p_value': v});
+      final gravado =
+          await _sb.rpc('get_setting', params: {'p_key': 'tips_enabled'});
+      final ficou = gravado?.toString() == 'true';
+      if (mounted) setState(() => _ligada = ficou);
+      if (ficou != v) {
+        throw StateError('o servidor ficou com ${ficou ? 'ligadas' : 'desligadas'}');
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)

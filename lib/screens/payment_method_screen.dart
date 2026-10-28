@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -26,10 +27,12 @@ import '../widgets/bora/maior_18.dart';
 import '../widgets/card_mandate_notice.dart';
 import '../widgets/checkout_legal_notice.dart';
 import '../widgets/customer_note_field.dart';
+import 'client_home_screen.dart' show abrirSeletorDeMorada;
 import '../widgets/unified_checkout_button.dart';
 import '../widgets/valor_com_risco.dart';
 
 import '../l10n/tr.dart';
+import '../utils/euros.dart';
 
 /// Mensagem única do bloqueio de "Em breve" no pagamento (PT-PT).
 const String _kComingSoonPaymentMessage =
@@ -153,6 +156,12 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     _loadTokens();
     _loadDebt();
     _loadSavedCards();
+    // 26/10 (item 5): a nota escrita no carrinho aparece aqui outra vez, e o
+    // que se escrever aqui volta ao carrinho (o mesmo texto do pedido).
+    final cart = context.read<CartStore>();
+    _notesController.text = cart.notaCliente;
+    _notesController.addListener(
+        () => cart.setNotaCliente(_notesController.text));
     // Pre-fill with profile phone (digits-only) if available — user can override.
     final profilePhone = context.read<AuthStore>().currentClient?.phone;
     if (profilePhone != null && profilePhone.isNotEmpty) {
@@ -388,11 +397,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         LimiteDinheiroService.passaLimite(
             max(totalCashWithDebt, baseCustomerTotal));
     final String avisoLimiteDinheiro =
-        'Pagamento em dinheiro só até {0}. Este pedido fica em €{1}. Escolhe Cartão ou MBWay.'
+        'Pagamento em dinheiro só até {0}. Este pedido fica em {1} €. Escolhe Cartão ou MBWay.'
             .trArgs([
       LimiteDinheiroService.maxTexto,
-      max(totalCashWithDebt, baseCustomerTotal).toStringAsFixed(2),
-    ]);
+      max(totalCashWithDebt, baseCustomerTotal).toStringAsFixed(2).replaceAll('.', ',')]);
 
     // BUG fix pós-takeaway (2026-05-14): em takeaway, "Dinheiro" passa a
     // "Pagar na loja" (parceiro recebe directamente). Valor enviado ao
@@ -433,6 +441,24 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                 // que vai ter de mostrar documento ao estafeta.
                 if (cartStore.hasAgeRestricted)
                   const Maior18Aviso(margin: EdgeInsets.only(bottom: 12)),
+                // 26/10 (item 5): a morada à vista antes de pagar, com "Trocar".
+                if (!cartStore.isTakeaway)
+                  _EntregarEm(
+                    morada: [cartStore.dropoffStreet, cartStore.dropoffCity]
+                        .where((e) => e.trim().isNotEmpty)
+                        .join(', '),
+                    onTrocar: () async {
+                      cartStore.marcarTrocaDeMorada(
+                          antes: cartStore.dropoffStreet);
+                      await abrirSeletorDeMorada(context);
+                      cartStore.confirmarTrocaDeMorada();
+                      // Morada nova: distância pela ROTA (a mesma do
+                      // servidor) e dívida relidas — nunca um total velho.
+                      await cartStore.refreshRouteDistance();
+                      unawaited(_loadDebt());
+                      if (mounted) setState(() {});
+                    },
+                  ),
                 Container(
                   decoration: BoxDecoration(
                     color: AppColors.card,
@@ -515,14 +541,14 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                             // para o cliente perceber o acréscimo acima de 4 km.
                             if (isPackage) {
                               final base =
-                                  'Inclui €{0} de taxa base (até 4 km)'.trArgs([baseFee.toStringAsFixed(2)]);
+                                  'Inclui {0} € de taxa base (até 4 km)'.trArgs([baseFee.toStringAsFixed(2).replaceAll('.', ',')]);
                               if (extra > 0) {
-                                return '{0} + €{1}/km acima de 4 km (€{2} por {3} km extra).'.trArgs([base, perKm.toStringAsFixed(2), (perKm * extra).toStringAsFixed(2), extra.toStringAsFixed(1)]);
+                                return '{0} + {1} €/km acima de 4 km ({2} € por {3} km extra).'.trArgs([base, perKm.toStringAsFixed(2).replaceAll('.', ','), (perKm * extra).toStringAsFixed(2).replaceAll('.', ','), extra.toStringAsFixed(1)]);
                               }
-                              return '{0} + €{1}/km acima de 4 km.'.trArgs([base, perKm.toStringAsFixed(2)]);
+                              return '{0} + {1} €/km acima de 4 km.'.trArgs([base, perKm.toStringAsFixed(2).replaceAll('.', ',')]);
                             }
                             if (extra <= 0) return null;
-                            return '€{0} base + €{1} por {2}km extra'.trArgs([baseFee.toStringAsFixed(2), (perKm * extra).toStringAsFixed(2), extra.toStringAsFixed(1)]);
+                            return '{0} € base + {1} € por {2}km extra'.trArgs([baseFee.toStringAsFixed(2).replaceAll('.', ','), (perKm * extra).toStringAsFixed(2).replaceAll('.', ','), extra.toStringAsFixed(1)]);
                           }(),
                         ),
                         // B1 (2026-06-11): linha do saco visível também aqui
@@ -610,7 +636,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                                       ),
                                       Text(
                                         tokensChosen > 0
-                                            ? '{0} tokens · -€{1}'.trArgs([tokensChosen, tokenDiscount.toStringAsFixed(2)])
+                                            ? '{0} tokens · -{1} €'.trArgs([tokensChosen, tokenDiscount.toStringAsFixed(2).replaceAll('.', ',')])
                                             : 'não usar',
                                         style: TextStyle(
                                             fontSize: 13,
@@ -620,7 +646,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                                     ],
                                   ),
                                   Text(
-                                    'Tens €{0} em tokens — podes usar até €{1} neste pedido (no máximo metade dos teus tokens).'.trArgs([(_availableTokens * _tokenValueEur).toStringAsFixed(2), ((tokensToUse * _tokenValueEur * 100).floor() / 100).toStringAsFixed(2)]),
+                                    'Tens {0} € em tokens — podes usar até {1} € neste pedido (no máximo metade dos teus tokens).'.trArgs([(_availableTokens * _tokenValueEur).toStringAsFixed(2).replaceAll('.', ','), ((tokensToUse * _tokenValueEur * 100).floor() / 100).toStringAsFixed(2).replaceAll('.', ',')]),
                                     style: TextStyle(
                                         fontSize: 12,
                                         color: Colors.amber.shade800),
@@ -703,7 +729,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                               children: [
                                 Text('Dívida anterior'.tr,
                                     style: const TextStyle(color: AppColors.error)),
-                                Text('+€${debtEur.toStringAsFixed(2)}',
+                                Text('+${eur(debtEur)}',
                                     style: const TextStyle(
                                         color: AppColors.error,
                                         fontWeight: FontWeight.w600)),
@@ -722,7 +748,11 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                 ),
                 const SizedBox(height: 24),
                 // C1 — nota opcional para o estafeta (liga ao customerNotes).
-                CustomerNoteField(controller: _notesController),
+                CustomerNoteField(
+                  controller: _notesController,
+                  title: 'Nota para a loja ou o estafeta (opcional)',
+                  hint: 'Ex.: sem cebola; tocar no 2.º esquerdo',
+                ),
                 if (podeDeixarAPorta)
                   SwitchListTile.adaptive(
                     value: cartStore.deixarAPorta && !pagaEmDinheiro,
@@ -1204,6 +1234,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       try {
         draft = await cartStore.startCardPaymentDraft(
           orderStore,
+          notes: _orderNote,
           clientPhone: authStore.currentClient?.phone,
           customerName: authStore.currentClient?.name,
           savedPmId: _selectedSavedPmId,
@@ -1353,6 +1384,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           debugPrint('[Checkout] festas_set_schedule falhou (non-fatal): $e');
         }
       }
+      // 26/10 (item 5): morada trocada no último ecrã → o painel vê.
+      await cartStore.registarMoradaTrocada(orderId);
       cartStore.clearCart();
       await _consumeTokensAndNavigate(tokensUsed);
       return;
@@ -1630,8 +1663,8 @@ class _SummaryRow extends StatelessWidget {
 
     // value is already negative for discounts — show it with explicit sign.
     final valueText = isDiscount
-        ? '-€${value.abs().toStringAsFixed(2)}'
-        : '€${value.toStringAsFixed(2)}';
+        ? '-${eur(value.abs())}'
+        : eur(value);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -1675,8 +1708,8 @@ class _ErrandPaymentHint extends StatelessWidget {
     final isCash = method == PaymentMethod.cash;
     final guarantee = estimate * 1.2;
     final text = isCash
-        ? 'Leva ~€{0} em dinheiro para a compra. O estafeta confirma o valor exato no talão.'.trArgs([estimate.toStringAsFixed(2)])
-        : 'Para a compra, o cartão pode segurar ~€{0} como garantia (estimativa ×1,2). Pagas só o valor do talão — o resto é libertado.'.trArgs([guarantee.toStringAsFixed(2)]);
+        ? 'Leva ~{0} € em dinheiro para a compra. O estafeta confirma o valor exato no talão.'.trArgs([estimate.toStringAsFixed(2).replaceAll('.', ',')])
+        : 'Para a compra, o cartão pode segurar ~{0} € como garantia (estimativa ×1,2). Pagas só o valor do talão — o resto é libertado.'.trArgs([guarantee.toStringAsFixed(2).replaceAll('.', ',')]);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -1760,7 +1793,7 @@ class _MBWayWaitingDialogState extends State<_MBWayWaitingDialog> {
         children: [
           const SizedBox(height: 4),
           Text(
-            'Enviámos um pedido de €{0} para o teu telemóvel.\nAbre o MBWay e confirma.'.trArgs([widget.amount.toStringAsFixed(2)]),
+            'Enviámos um pedido de {0} € para o teu telemóvel.\nAbre o MBWay e confirma.'.trArgs([widget.amount.toStringAsFixed(2).replaceAll('.', ',')]),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
@@ -1781,6 +1814,45 @@ class _MBWayWaitingDialogState extends State<_MBWayWaitingDialog> {
           child: Text('Cancelar'.tr),
         ),
       ],
+    );
+  }
+}
+
+/// "Entregar em: <morada> · Trocar" (melhorias-paridade 26/10, item 5).
+/// A Glovo e a Uber mostram a morada no último ecrã; o Bora não mostrava.
+class _EntregarEm extends StatelessWidget {
+  const _EntregarEm({required this.morada, required this.onTrocar});
+
+  final String morada;
+  final VoidCallback onTrocar;
+
+  @override
+  Widget build(BuildContext context) {
+    final semMorada = morada.trim().isEmpty;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        boxShadow: AppColors.shadowCard,
+      ),
+      child: ListTile(
+        leading: const Icon(Icons.location_on, color: AppColors.primary),
+        title: Text(
+          'Entregar em'.tr,
+          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+        ),
+        subtitle: Text(
+          semMorada ? 'Escolhe a morada de entrega'.tr : morada,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        trailing: TextButton(onPressed: onTrocar, child: Text('Trocar'.tr)),
+        onTap: onTrocar,
+      ),
     );
   }
 }

@@ -9,6 +9,7 @@ import '../../../widgets/card_mandate_notice.dart';
 import '../../../widgets/checkout_legal_notice.dart';
 
 import '../../../l10n/tr.dart';
+import '../../../utils/euros.dart';
 
 /// Métodos de pagamento aceites para pré-pagamento de reserva.
 /// CASH é deliberadamente excluído — reserva exige pré-pagamento online.
@@ -154,7 +155,7 @@ class _ReservationPaymentMethodSheetState
                 ),
               ),
               Text(
-                '${widget.title.tr} — €${widget.amountEur.toStringAsFixed(2)}',
+                '${widget.title.tr} — ${eur(widget.amountEur)}',
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
@@ -221,7 +222,7 @@ class _ReservationPaymentMethodSheetState
               // DL 24/2014 (ronda-fecho 2026-09-22): valor numa linha, aviso
               // legal por baixo, e o botão diz "obrigação de pagar".
               Text(
-                'Pagar €{0}'.trArgs([widget.amountEur.toStringAsFixed(2)]),
+                'Pagar {0} €'.trArgs([widget.amountEur.toStringAsFixed(2).replaceAll('.', ',')]),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 15,

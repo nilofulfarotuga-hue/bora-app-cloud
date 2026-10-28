@@ -12,11 +12,13 @@ import '../../stores/cart_store.dart';
 import '../../stores/favorite_store.dart';
 import '../../stores/restaurant_store.dart';
 import '../bora/banner_pausa_loja.dart';
+import '../bora/loja_fechada.dart';
 import 'market_category_chip_large.dart';
 import 'market_product_card.dart';
 import '../valor_com_risco.dart';
 
 import '../../l10n/tr.dart';
+import '../../utils/euros.dart';
 
 /// Tab "Loja" do interior do mercado — padrão Glovo.
 ///
@@ -197,6 +199,9 @@ class MarketStoreTab extends StatelessWidget {
           ),
         ),
 
+        // 26/10 (item 4): faixa "Fechado · abre às …" logo abaixo da capa.
+        SliverToBoxAdapter(child: FaixaLojaFechada(loja: restaurant)),
+
         // ── 3. Stats row ──────────────────────────────────────────────────
         // Taxa de entrega pela MESMA fonte da lista de restaurantes
         // (PricingService.estimatedDeliveryFee) — antes era '€2,50' fixo no
@@ -205,9 +210,12 @@ class MarketStoreTab extends StatelessWidget {
           child: _StatsRow(
             avgRating: restaurant.avgRating,
             ratingsCount: restaurant.ratingsCount,
-            etaText: _etaText(cartStore.distanceKm),
+            // 26/10 (item 4): loja fechada nunca mostra tempo de entrega.
+            etaText: restaurant.fechadaParaCliente
+                ? restaurant.faixaFechada
+                : _etaText(cartStore.distanceKm),
             feeText:
-                '€${PricingService.estimatedDeliveryFee(distanceKm: cartStore.distanceKm, isPartner: isPartnerStore).toStringAsFixed(2)}',
+                eur(PricingService.estimatedDeliveryFee(distanceKm: cartStore.distanceKm, isPartner: isPartnerStore)),
           ),
         ),
 
@@ -289,7 +297,7 @@ class MarketStoreTab extends StatelessWidget {
         SliverToBoxAdapter(
           child: _Footer(
             feeLabel:
-                '€${PricingService.estimatedDeliveryFee(distanceKm: cartStore.distanceKm, isPartner: isPartnerStore).toStringAsFixed(2)}',
+                eur(PricingService.estimatedDeliveryFee(distanceKm: cartStore.distanceKm, isPartner: isPartnerStore)),
             // Loja sem contrato: a taxa de serviço é a parcela fixa que desceu
             // de 2,50 € para 0,99 €. Numa loja parceira continua a ser 5%
             // dentro do preço — daí ficar `null` e manter-se a frase antiga.

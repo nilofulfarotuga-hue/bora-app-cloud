@@ -452,6 +452,19 @@ class CartStore extends ChangeNotifier {
     return risco;
   }
 
+  /// 26/10 (melhorias-paridade, item 3): a taxa de serviço que o carrinho
+  /// mostra é um número REAL? Real = veio do quote do servidor, ou (no
+  /// não-parceiro) foi lida do servidor. Sem isso o ecrã escreve "calculada no
+  /// fim" — nunca um valor de recurso (o visitante via 5% num não-parceiro).
+  bool get taxaServicoConfirmada {
+    if (quoteDoCarrinho != null) return true;
+    if (_ehPedidoNaoParceiro) return RemoteFeesService.carregadoDoServidor;
+    // Parceiro: os 5% são a regra do contrato, não recurso.
+    return _isPartnerStore &&
+        (_serviceType == OrderServiceType.restaurant ||
+            _serviceType == OrderServiceType.storeShopping);
+  }
+
   /// `true` quando a taxa acima veio do quote do servidor, `false` quando é a
   /// leitura de `platform_settings`. Só serve para diagnóstico/testes.
   bool get taxaServicoVeioDoServidor =>
@@ -930,6 +943,47 @@ class CartStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ── ANTES DE PAGAR (melhorias-paridade 26/10, item 5) ────────────────────
+
+  String _notaCliente = '';
+
+  /// Nota para a loja/estafeta, escrita no carrinho e mostrada outra vez no
+  /// ecrã de pagamento (o mesmo texto vai para `customerNotes`).
+  String get notaCliente => _notaCliente;
+  void setNotaCliente(String v) => _notaCliente = v;
+
+  String? _moradaAntesDaTroca;
+
+  /// Morada que estava escolhida antes de o cliente carregar em "Trocar" no
+  /// ecrã de pagamento. `null` = não trocou no fim.
+  String? get moradaAntesDaTroca => _moradaAntesDaTroca;
+
+  /// Chamado pelo "Trocar" do ecrã de pagamento ANTES de abrir o seletor.
+  /// Guarda só a primeira (a de partida); se o cliente voltar à mesma, esquece.
+  void marcarTrocaDeMorada({required String antes}) {
+    _moradaAntesDaTroca ??= antes;
+  }
+
+  void confirmarTrocaDeMorada() {
+    final antes = _moradaAntesDaTroca;
+    if (antes != null && antes.trim() == _dropoffStreet.trim()) {
+      _moradaAntesDaTroca = null;
+    }
+  }
+
+  /// Avisa o servidor (para o painel) que a morada foi trocada no fim. Nunca
+  /// trava nem lança — o pedido já nasceu.
+  Future<void> registarMoradaTrocada(String? orderId) async {
+    final antes = _moradaAntesDaTroca;
+    if (orderId == null || antes == null || isTakeaway) return;
+    try {
+      await Supabase.instance.client.rpc('pedido_marcar_morada_trocada',
+          params: {'p_order_id': orderId, 'p_morada_antes': antes});
+    } catch (e) {
+      debugPrint('CartStore: pedido_marcar_morada_trocada falhou (não-fatal): $e');
+    }
+  }
+
   void updateDeliveryAddress({
     required String street,
     required String city,
@@ -1097,6 +1151,8 @@ class CartStore extends ChangeNotifier {
     // _apartmentDelivery; tip/wallet/takeaway/photoUrls ficavam stale ao
     // trocar de loja e davam erro "não foi possível finalizar".
     _items.clear();
+    _notaCliente = '';
+    _moradaAntesDaTroca = null;
     _apartmentDelivery = false;
     _deixarAPorta = false;
     _tipCents = 0;
@@ -1134,6 +1190,9 @@ class CartStore extends ChangeNotifier {
   /// (use [OrderStore.waitForOrderFromDraft]).
   Future<Map<String, dynamic>?> startCardPaymentDraft(
     OrderStore orderStore, {
+    // 26/10 (item 5): a nota do cliente também segue no cartão — antes só
+    // dinheiro e MB Way a levavam (e a data das Festas ia com ela).
+    String? notes,
     String? clientPhone,
     String? customerName,
     String? savedPmId,
@@ -1162,6 +1221,7 @@ class CartStore extends ChangeNotifier {
     final breakdown = pricingBreakdown;
 
     return orderStore.startCardPaymentDraft(
+      customerNotes: notes,
       serviceType: _serviceType,
       itemsSubtotal: breakdown.subtotal,
       // Em recolha o destino é a própria loja (pickup validado acima).
@@ -1338,6 +1398,8 @@ class CartStore extends ChangeNotifier {
     // assistente, marca-a como encomendada. Fire-and-forget: nunca trava o
     // checkout nem lança.
     unawaited(AssistantService.pedidoCriado(newOrderId));
+    // 26/10 (item 5): morada trocada no último ecrã → o painel vê.
+    await registarMoradaTrocada(newOrderId);
     if (reqPhoto != null && newOrderId != null) {
       try {
         await Supabase.instance.client.rpc(

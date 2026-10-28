@@ -83,9 +83,9 @@ void main() {
     await t.pump(const Duration(milliseconds: 200));
 
     expect(find.text('Dívida anterior'), findsOneWidget);
-    expect(find.text('€2.50'), findsOneWidget);
-    expect(find.text('€26.53'), findsOneWidget);
-    expect(find.text('€24.03'), findsNothing);
+    expect(find.text('2,50 €'), findsOneWidget);
+    expect(find.text('26,53 €'), findsOneWidget);
+    expect(find.text('24,03 €'), findsNothing);
   });
 }
 

@@ -764,6 +764,13 @@ class _TileData {
 
 // ─── Address picker screen ─────────────────────────────────────────────────
 
+/// 26/10 (melhorias-paridade, item 5): o MESMO seletor de morada da página
+/// inicial, aberto pelo "Trocar" do ecrã de pagamento.
+Future<void> abrirSeletorDeMorada(BuildContext context) => Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const _AddressPickerScreen()),
+    );
+
 class _AddressPickerScreen extends StatefulWidget {
   const _AddressPickerScreen();
 

@@ -123,11 +123,11 @@ void main() {
         ),
       ));
 
-      final antigo = tester.widget<Text>(find.text('€2.50'));
+      final antigo = tester.widget<Text>(find.text('2,50 €'));
       expect(antigo.style?.decoration, TextDecoration.lineThrough,
           reason: 'o valor antigo tem de aparecer riscado');
 
-      final actual = tester.widget<Text>(find.text('€0.99'));
+      final actual = tester.widget<Text>(find.text('0,99 €'));
       expect(actual.style?.color, const Color(0xFF16A34A),
           reason: 'o valor actual é verde Bora');
       expect(actual.style?.fontWeight, FontWeight.w800);
@@ -140,8 +140,8 @@ void main() {
       await tester.pumpWidget(const MaterialApp(
         home: Scaffold(body: ValorComRisco(valor: 0.99)),
       ));
-      expect(find.text('€0.99'), findsOneWidget);
-      expect(find.text('€2.50'), findsNothing);
+      expect(find.text('0,99 €'), findsOneWidget);
+      expect(find.text('2,50 €'), findsNothing);
     });
   });
 }

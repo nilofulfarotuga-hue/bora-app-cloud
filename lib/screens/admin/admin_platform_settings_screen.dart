@@ -45,7 +45,7 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
       final by = <String, List<_Setting>>{};
       for (final s in list) {
         if (_obsoleteDepositKeys.contains(s.key)) continue;
-        final rotulo = rotulosCancelamento[s.key];
+        final rotulo = rotulosCancelamento[s.key] ?? rotulosVitrineCliente[s.key];
         by.putIfAbsent(s.category ?? 'other', () => []).add(rotulo == null
             ? s
             : _Setting(
@@ -99,12 +99,25 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
         'Taxa fixa antiga de cancelamento (cêntimos) — hoje só vale em corridas de plano, pacote, marcadas, balcão, em fila ou com preço combinado (muda-se com motivo e fica auditada)',
   };
 
+  /// [melhorias-paridade 26/10] Interruptores da vitrine do cliente, com
+  /// etiqueta PT-BR. Estar aqui torna a chave editável (não são dinheiro).
+  static const rotulosVitrineCliente = <String, String>{
+    'visitantes_sem_conta':
+        'Visitantes podem ver o app sem conta (lojas, produtos e carrinho). A conta só é pedida ao finalizar o pedido.',
+    'sessao_convidado_ativa':
+        'Sessão de convidado (conta partilhada só de leitura). Ligar só depois de aplicada a proteção de pedidos (create_order) na publicação.',
+  };
+
   /// Whitelist operacional: só chaves de dispatch e operação de reservas são
   /// editáveis aqui. Tudo o resto (fees, comissões, markup, tokens, wallet,
   /// valores em cêntimos, Stripe) é READ-ONLY — alterar requer sessão dedicada.
   /// Fail-safe: chave nova/desconhecida nasce protegida.
   bool _isEditable(String key) {
     if (_isCancelKey(key)) return true; // Bloco 4 — editável com auditoria
+    // [melhorias-paridade 26/10] Interruptores da vitrine do cliente (ver sem
+    // conta, sessão de convidado, faixas da loja…). Nenhum mexe em valor
+    // cobrado ou pago.
+    if (rotulosVitrineCliente.containsKey(key)) return true;
     if (key.startsWith('robot_b_')) return true; // kill switches Robot B v4
     if (key.startsWith('dispatch_')) return true;
     // [fable-13-09] Minutos que o pedido de parceiro espera em 'preparing'

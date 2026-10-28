@@ -23,6 +23,7 @@ import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora/coming_soon.dart';
 import 'client/services/provider_detail_screen.dart';
 import 'restaurants_screen.dart' show RestaurantTile;
+import '../utils/euros.dart';
 
 /// A lupa da home (05/10): acha lojas de todas as secções e produtos.
 /// Desde 15/10 é a pesquisa única: também leva ao motorista, à limpeza e às
@@ -609,7 +610,7 @@ class _ProdutoLinha extends StatelessWidget {
                 ),
                 if (preco != null)
                   Text(
-                    '€${preco.toStringAsFixed(2)}',
+                    eur(preco),
                     style: const TextStyle(
                         fontSize: 14, fontWeight: FontWeight.w700),
                   ),

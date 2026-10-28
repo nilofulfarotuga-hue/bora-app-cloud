@@ -4,6 +4,13 @@
 // v18 (2026-10-05 — ronda 04/10 A.1/A.2/A.6): trava atómica contra duplo toque; o que se pagou lê-se
 //   da Stripe quando stripe_charge_cents está a 0; reembolso limitado ao pago e repartido por fonte
 //   (MB Way também volta pela Stripe; carteira/tokens voltam à carteira).
+// v19 (2026-10-28 — regra do Danilo 28/10 18:24, missao-geral-2026-10-28 bloco 2): por defeito o
+//   dinheiro volta ao MESMO meio (sem refund_method = 'stripe'); 'wallet' = 100% saldo (setting
+//   wallet_split_free_pct = 1). Os tokens gastos voltam como TOKENS pelo gatilho do banco
+//   (trg_orders_devolver_tokens), só quando o servidor registou quais (tokens_applied_count > 0):
+//   nesse caso a taxa sai do dinheiro e o valor dos tokens não entra no reembolso em dinheiro.
+//   Textos: MB Way volta na hora, cartão 5 a 10 dias úteis; nada de "saldo livre + tokens".
+//   PUBLICAR SÓ com o _shared/cobranca_stripe.ts novo (docs/propostas/missao-geral-2026-10-28/bloco2).
 
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -56,7 +63,8 @@ Deno.serve(async (req) => {
     const body = await req.json();
     orderId = body?.order_id;
     reason = typeof body?.reason === 'string' ? body.reason : undefined;
-    refundMethod = body?.refund_method;
+    // v19 (regra 28/10): sem escolha = volta ao meio original (cartão/MB Way)
+    refundMethod = body?.refund_method ?? 'stripe';
   } catch (_) {
     return json({ error: 'invalid_body' }, 400);
   }
@@ -84,7 +92,8 @@ Deno.serve(async (req) => {
     .select(
       'id, user_id, status, payment_method, payment_intent_id, payment_status, ' +
         'total, estimated_total, final_total, customer_total, refund_amount, ' +
-        'stripe_charge_cents, wallet_applied_cents, tokens_applied_value_cents, refund_status',
+        'stripe_charge_cents, wallet_applied_cents, tokens_applied_value_cents, tokens_applied_count, ' +
+        'refund_status',
     )
     .eq('id', orderId)
     .maybeSingle();
@@ -125,12 +134,20 @@ Deno.serve(async (req) => {
   catch (e) { await libertar(); return json({ error: 'paid_unknown', details: String(e) }, 502); }
   const paidCents = totalPago(pago);
   const nothingToRefund = paidCents === 0;
+  // v19 (regra 28/10): os tokens gastos voltam como TOKENS (gatilho do banco) quando o servidor
+  // registou quais (tokens_applied_count > 0). Então a taxa sai do dinheiro: o valor dos tokens
+  // tira-se da base do reembolso em dinheiro. Pedidos antigos (contagem 0) ficam como estavam.
+  const tokensDevolvidos = Math.max(0, Number(order.tokens_applied_count ?? 0));
+  const tokensVoltamCents = tokensDevolvidos > 0
+    ? Math.max(0, Number(order.tokens_applied_value_cents ?? 0)) : 0;
   // nunca devolve mais do que se pagou
-  const refundCents = Math.min(Math.max(0, Math.round((totalEur - fee) * 100)), paidCents);
+  const refundCents = Math.min(
+    Math.max(0, Math.round((totalEur - fee) * 100) - tokensVoltamCents), paidCents);
   const refundEur = refundCents / 100;
 
   let stripeRefundId: string | undefined;
   let devolvidoCents = 0;
+  let stripeDevolvidoCents = 0; // v19: parte que volta ao cartão/MB Way (para o texto)
   let walletResult: any = null;
   let refundExecuted = false;
   let chargeMissing = false;
@@ -202,6 +219,7 @@ Deno.serve(async (req) => {
           stripeRefundId = refund.id;
           refundExecuted = true;
           devolvidoCents += parte.stripeCents;
+          stripeDevolvidoCents = parte.stripeCents;
           // grava já o id: se o resto falhar, o banco sabe que o dinheiro saiu
           await admin.from('orders').update({ refund_id: refund.id }).eq('id', orderId);
         } catch (e) {
@@ -292,13 +310,26 @@ Deno.serve(async (req) => {
     } else if (chargeMissing) {
       title = 'Pedido cancelado';
       message =
-        'O pedido foi cancelado. Não houve cobrança no cartão, por isso não há reembolso a processar.';
+        'O pedido foi cancelado. Não houve cobrança no MB Way nem no cartão, por isso não há reembolso a processar.';
     } else if (stripeRefundId) {
-      message = `Reembolso de €${(devolvidoCents / 100).toFixed(2)} processado. Pode demorar 5-10 dias úteis a aparecer no cartão.`;
+      // v19 (regra 28/10): MB Way volta na hora; cartão 5 a 10 dias úteis.
+      const meio = order.payment_method === 'mbway'
+        ? `Devolvemos €${(stripeDevolvidoCents / 100).toFixed(2)} ao teu MB Way. Normalmente chega na hora.`
+        : `Devolvemos €${(stripeDevolvidoCents / 100).toFixed(2)} ao teu cartão. Pode demorar 5 a 10 dias úteis a aparecer no extrato.`;
+      const saldo = (walletResult && !walletResult.already_applied && Number(walletResult.free_cents ?? 0) > 0)
+        ? ` A parte que pagaste com saldo (€${(Number(walletResult.free_cents) / 100).toFixed(2)}) voltou ao teu saldo Bora.`
+        : '';
+      message = meio + saldo;
     } else if (walletResult) {
-      message = `€${(walletResult.free_cents / 100).toFixed(2)} creditados em saldo livre + ${walletResult.tokens_count} tokens (≈€${(walletResult.tokens_value_cents / 100).toFixed(2)}). Disponível imediatamente.`;
+      // v19 (regra 28/10): 100% em saldo, já disponível (sem "saldo livre + tokens").
+      const tokensSplit = Number(walletResult.tokens_count ?? 0);
+      message = `€${(Number(walletResult.free_cents ?? 0) / 100).toFixed(2)} no teu saldo Bora. Já podes usar.` +
+        (tokensSplit > 0 ? ` Mais ${tokensSplit} tokens.` : '');
     } else {
       message = 'Pedido cancelado.';
+    }
+    if (tokensDevolvidos > 0) {
+      message += ` Os ${tokensDevolvidos} tokens que usaste voltaram à tua conta, com a mesma validade.`;
     }
     await admin.functions.invoke('notify-client', {
       body: { user_id: user.id, title, body: message,
@@ -322,5 +353,6 @@ Deno.serve(async (req) => {
     cancel_fee_debited: cancelFeeDebited,
     cancel_fee_debit: cancelFeeDebitResult,
     wallet: walletResult,
+    tokens_devolvidos: tokensDevolvidos, // v19: tokens que voltam como tokens (gatilho do banco)
   });
 });

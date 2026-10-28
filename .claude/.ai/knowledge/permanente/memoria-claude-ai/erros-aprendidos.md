@@ -2,7 +2,7 @@
 id: memoria-claude-ai-erros-aprendidos
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-27
+ultima_confirmacao: 2026-10-28
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-10-27T22:27:16.107191+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-10-28T12:36:07.037224+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: erros aprendidos · memoria claude.ai · claude_ai_memoria
 
@@ -95,4 +95,5 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - 27/10 (quem errou: claude-ai): achei um erro na app (painel do parceiro da Boom! Burger mostra "112" produtos quando são 56) e disse que "ficou anotado" para depois → erro que encontro é mandado consertar NA HORA (MCP já, ou prompt ao Claude Code), nunca fica "anotado para depois"; rever o que ficou para trás e mandar arrumar tudo.
 - 27/10 (claude-ai): 27/10: achei um erro na app (painel do parceiro da Boom! Burger mostra 112 produtos quando são 56) e disse ao Danilo que "ficou anotado" para depois → erro encontrado é mandado consertar NA HORA (MCP já, ou prompt ao Claude Code); nada fica "anotado para depois"; rever o que ficou para trás e mandar arrumar tudo
 - 27/10 (claude-ai): 27/10: ordem mandava publicar o video da Bora no grupo de WhatsApp "Brasileiros na Guarda" → Danilo 27/10 22:25: publicidade da Bora no WhatsApp so no grupo "Marketing, vendas e propaganda Guarda" (e no estado da Bora); no "Brasileiros na Guarda" nao se publica
+- 28/10 (claude-ai): Na mensagem ao Emanuel (Boom! Burger) escrevi que ele fatura o preço de balcão "tal como já faz com a Glovo". Na Glovo ele fatura o preço da app porque a Glovo lhe cobra 30%; na Bora fatura só o balcão porque a Bora não lhe cobra comissão. Pus também a entrega grátis e "Equipa Bora". → Nunca dizer ao parceiro que a fatura na Bora é igual à da Glovo/Uber; se comparar, é para mostrar a diferença (lá fatura o preço da app e paga comissão; aqui fatura o balcão e não paga nada). Entrega grátis só quando o Danilo falar com o Emanuel (agora 30 €). O Emanuel já sabe que o Danilo é o dono: mensagens a ele vão do número pessoal do Danilo, na voz dele, naturais, sem "Equipa Bora".
 

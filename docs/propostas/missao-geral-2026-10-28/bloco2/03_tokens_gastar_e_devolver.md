@@ -23,12 +23,12 @@ com o `_shared/cobranca_stripe.ts` v2 (proposta 01).
   (`_consumeTokensAndNavigate` → `rpc('consume_tokens')`, erro "non-fatal"), chamado nas linhas
   1224, 1393, 1474 e 1527. Se o servidor cortou o desconto, a app gasta na mesma o número que pediu.
 - Dados: 21 pedidos com tokens nos últimos 60 dias, **0** com `tokens_applied_count > 0`. Pedido
-  6361fa99 (hoje 17:20, cancelado): 70 tokens gastos (linhas marcadas usadas = 156, sobra 86),
+  um pedido de 28/10 (17:20, cancelado): 70 tokens gastos (linhas marcadas usadas = 156, sobra 86),
   nada devolvido.
 - `fn_reembolso_cancelado_pelo_sistema` (gatilho BEFORE UPDATE OF status): devolve tokens
   "desmarcando" tudo o que o cliente usou entre `created_at − 2 min` e `+30 min`. Dois defeitos:
   apanha tokens de OUTRO pedido feito nessa meia hora, e desmarca a linha inteira que o
-  `consume_tokens` partiu (a sobra já existe noutra linha) → devolve A MAIS. No 6361fa99 teria
+  `consume_tokens` partiu (a sobra já existe noutra linha) → devolve A MAIS. Nesse pedido teria
   devolvido 156 em vez de 70.
 
 ## Recomendação para o passo (1) — quem gasta os tokens

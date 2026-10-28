@@ -12,7 +12,7 @@ import '../services/receipt_upload_service.dart';
 import '../services/weight_portions.dart';
 
 import 'package:flutter/foundation.dart'
-    show defaultTargetPlatform, kIsWeb, TargetPlatform;
+    show defaultTargetPlatform, kIsWeb, TargetPlatform, visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' hide LatLng;
@@ -43,6 +43,7 @@ import '../stores/restaurant_store.dart';
 import '../utils/constants.dart';
 import '../utils/map_marker_helper.dart';
 import '../utils/map_utils.dart';
+import '../utils/valor_em_centimos.dart';
 import '../widgets/address_text.dart';
 import '../widgets/cliente_nome_destaque.dart';
 import '../widgets/driver_chat_fab.dart';
@@ -935,6 +936,16 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       // paragem do favor na rota) maior e destacada.
       final passo = stop.passoFavor;
       final atual = passo != null && favoresComPassoAtual.add(stop.orderId);
+      // 28/10/2026 (Bloco B): o pino da recolha diz também o nome da loja.
+      var loja = '';
+      if (isPickup && passo == null) {
+        for (final o in myOrders) {
+          if (o.id == stop.orderId) {
+            loja = o.vendorName?.trim() ?? '';
+            break;
+          }
+        }
+      }
       markers.add(
         Marker(
           markerId: MarkerId('stop_${i}_${stop.orderId}'),
@@ -948,7 +959,9 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
           infoWindow: InfoWindow(
             title: passo != null
                 ? 'Passo $passo — ${stop.tituloPasso ?? ''}'
-                : (isPickup ? 'Recolha$stepLabel' : 'Entrega$stepLabel'),
+                : (isPickup
+                    ? 'Recolha$stepLabel${loja.isNotEmpty ? ' — $loja' : ''}'
+                    : 'Entrega$stepLabel'),
             snippet: stop.label,
           ),
           // Stop seguinte (i==0) tem zIndex maior para destaque.
@@ -1405,12 +1418,11 @@ class _BottomPanelState extends State<_BottomPanel> {
             order.serviceType == OrderServiceType.restaurant) &&
         !order.isPurchaseFinalized;
     if (motivo.$1 == 'produto_em_falta' && temListaDeCompras) {
-      _showShoppingListSheet(context, order);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Marca o produto em falta como "Não há" na lista — '
-            'sai do total do cliente.'),
-        duration: Duration(seconds: 5),
-      ));
+      // 28/10/2026: a explicação vai DENTRO da lista (por SnackBar ficava
+      // escondida atrás da folha que se acabou de abrir).
+      _showShoppingListSheet(context, order,
+          aviso: 'Marca o produto em falta como "Não há" na lista — '
+              'sai do total do cliente.');
       return;
     }
     final detalheCtrl = TextEditingController();
@@ -1598,7 +1610,8 @@ class _BottomPanelState extends State<_BottomPanel> {
     return true;
   }
 
-  void _showShoppingListSheet(BuildContext context, OrderModel order) {
+  void _showShoppingListSheet(BuildContext context, OrderModel order,
+      {String? aviso}) {
     final items = order.items;
     if (items.isEmpty) return;
 
@@ -1617,6 +1630,7 @@ class _BottomPanelState extends State<_BottomPanel> {
       builder: (_) => _ShoppingListSheetContent(
         order: order,
         initialItems: editableItems,
+        aviso: aviso,
       ),
     );
   }
@@ -1806,7 +1820,7 @@ class _BottomPanelState extends State<_BottomPanel> {
                     driverPosition: widget.driverPosition,
                   )
                 else
-                  _SingleOrderAddresses(order: focusOrder),
+                  SingleOrderAddresses(order: focusOrder),
 
                 const SizedBox(height: 16),
                 const Divider(height: 1),
@@ -2373,13 +2387,25 @@ class _StopRow extends StatelessWidget {
 
 // ─── Single-order address rows ────────────────────────────────────────────────
 
-class _SingleOrderAddresses extends StatelessWidget {
-  const _SingleOrderAddresses({required this.order});
+/// 28/10/2026 (Bloco B): como o [_StopRow] e como na Glovo/Uber Eats —
+/// "Recolha" + nome da loja a negrito + morada; "Entrega" + nome do cliente +
+/// morada. Antes só mostrava as moradas. Público só para o teste de widget.
+@visibleForTesting
+class SingleOrderAddresses extends StatelessWidget {
+  const SingleOrderAddresses({super.key, required this.order});
 
   final OrderModel order;
 
   @override
   Widget build(BuildContext context) {
+    final loja = order.vendorName?.trim() ?? '';
+    final cliente = ClienteNomeDestaque.limpo(order.customerName);
+    final etiqueta = TextStyle(
+      fontSize: 11,
+      color: Colors.grey.shade500,
+      fontWeight: FontWeight.w500,
+    );
+    const nome = TextStyle(fontSize: 14, fontWeight: FontWeight.w700);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -2387,10 +2413,25 @@ class _SingleOrderAddresses extends StatelessWidget {
           icon: Icons.circle,
           iconColor: Colors.orange.shade600,
           iconSize: 11,
-          child: AddressText(
-            rawAddress: order.pickupAddress,
-            coords: order.pickupLocation,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Recolha', style: etiqueta),
+              if (loja.isNotEmpty)
+                Text(
+                  loja,
+                  style: nome,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              AddressText(
+                rawAddress: order.pickupAddress,
+                coords: order.pickupLocation,
+                style:
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              ),
+            ],
           ),
         ),
         Padding(
@@ -2401,11 +2442,25 @@ class _SingleOrderAddresses extends StatelessWidget {
           icon: Icons.location_on_rounded,
           iconColor: const Color(0xFF1C6EF2),
           iconSize: 18,
-          child: AddressText(
-            rawAddress: order.dropoffAddress,
-            coords: order.destination,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-            prefix: 'Entrega: ',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Entrega', style: etiqueta),
+              if (cliente != null)
+                Text(
+                  cliente,
+                  style: nome,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              AddressText(
+                rawAddress: order.dropoffAddress,
+                coords: order.destination,
+                style:
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              ),
+            ],
           ),
         ),
       ],
@@ -2851,9 +2906,13 @@ class _ShoppingListSheetContent extends StatefulWidget {
   final OrderModel order;
   final List<CartItem> initialItems;
 
+  /// Explicação mostrada no topo da lista (ex.: "Falta um produto").
+  final String? aviso;
+
   const _ShoppingListSheetContent({
     required this.order,
     required this.initialItems,
+    this.aviso,
   });
 
   @override
@@ -2874,6 +2933,17 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
   /// de obrigar o estafeta a fotografar outra vez o talão.
   (File, int)? _talaoGuardado;
   String? _caminhoTalaoGuardado;
+
+  /// 28/10/2026: o aviso que trava a compra aparece DENTRO desta folha, por
+  /// cima do "Confirmar compra" (por SnackBar ficava escondido atrás dela).
+  String? _erroConfirmar;
+
+  /// 28/10/2026: ligação lenta não pode deixar o botão a rodar para sempre.
+  static const Duration _limiteEnvioFoto = Duration(seconds: 30);
+  static const Duration _limiteFechoTalao = Duration(seconds: 20);
+  static const String _avisoLigacaoLenta =
+      'A ligação está lenta. A foto ficou guardada: toca em '
+      '"Confirmar compra" para tentar de novo.';
 
   /// B3 (2026-06-11): fotos do catálogo por productId — o estafeta precisa de
   /// VER o produto para comprar o certo. URLs já existentes em products
@@ -3174,12 +3244,37 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                   fontWeight: FontWeight.w700,
                 ),
               ),
+              // 28/10/2026 (Bloco B): a morada da loja, como na Glovo/Uber
+              // Eats (há várias lojas com o mesmo nome na mesma cidade).
+              if ((order.pickupAddress ?? '').trim().isNotEmpty)
+                AddressText(
+                  rawAddress: order.pickupAddress,
+                  coords: order.pickupLocation,
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                ),
               const SizedBox(height: 8),
               ClienteNomeDestaque(
                 nome: order.customerName,
                 telefone: order.clientPhone,
                 compacto: true,
               ),
+              if (widget.aviso != null) ...[
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.amber.shade300),
+                  ),
+                  child: Text(
+                    widget.aviso!,
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
               const SizedBox(height: 6),
               // ── Progress text ──
               Text(
@@ -3694,6 +3789,19 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                   ),
                 ),
               const SizedBox(height: 16),
+              if (_erroConfirmar != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    _erroConfirmar!,
+                    key: const Key('erro_confirmar_compra'),
+                    style: TextStyle(
+                      color: Colors.red.shade700,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
               // ── Confirm button ──
               SizedBox(
                 width: double.infinity,
@@ -3701,7 +3809,10 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                   onPressed: allDecided && !_aConfirmar
                       ? () async {
                           if (_aConfirmar) return;
-                          setState(() => _aConfirmar = true);
+                          setState(() {
+                            _aConfirmar = true;
+                            _erroConfirmar = null;
+                          });
                           try {
                             await _confirmarCompra(
                                 order, extraItems, canonicalItems);
@@ -3802,8 +3913,14 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                     orderId: order.id,
                                     photoFile: photoFile,
                                     totalCents: totalCents,
-                                  );
+                                  ).timeout(_limiteEnvioFoto);
                               _caminhoTalaoGuardado = storagePath;
+                            } on TimeoutException {
+                              // A foto fica em _talaoGuardado: o próximo
+                              // toque reenvia-a sem pedir outra.
+                              if (!mounted) return;
+                              setState(() => _erroConfirmar = _avisoLigacaoLenta);
+                              return;
                             } catch (e) {
                               debugPrint(
                                   '[driver_map] receipt upload error: $e');
@@ -3821,15 +3938,24 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                             // deixava o McDonald's a voltar ao mesmo ecrã.
                             // O saco do restaurante fica o do checkout (€0,30);
                             // o do mercado vai por saco, como sempre.
-                            final resultado =
-                                await TalaoNaoParceiroService.finalizar(
-                              orderId: order.id,
-                              photoStoragePath: storagePath,
-                              driverTypedTotalCents: totalCents,
-                              items: canonicalItems,
-                              itemsAdded: itemsAdded,
-                              bagCount: _isRestaurant ? null : _bagCount,
-                            );
+                            final TalaoResultado resultado;
+                            try {
+                              resultado =
+                                  await TalaoNaoParceiroService.finalizar(
+                                orderId: order.id,
+                                photoStoragePath: storagePath,
+                                driverTypedTotalCents: totalCents,
+                                items: canonicalItems,
+                                itemsAdded: itemsAdded,
+                                bagCount: _isRestaurant ? null : _bagCount,
+                              ).timeout(_limiteFechoTalao);
+                            } on TimeoutException {
+                              // Foto e caminho ficam guardados; a função do
+                              // servidor aceita repetir (onTheWay incluído).
+                              if (!mounted) return;
+                              setState(() => _erroConfirmar = _avisoLigacaoLenta);
+                              return;
+                            }
                             if (!mounted) return;
                             if (!resultado.ok) {
                               // Erro REAL (texto PT-PT + código), nunca engolido.
@@ -3879,9 +4005,8 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                           );
                           if (!mounted) return;
                           if (reason != null) {
-                            messenger.showSnackBar(
-                              SnackBar(content: Text(reason)),
-                            );
+                            // A folha continua aberta: o aviso vai para ela.
+                            setState(() => _erroConfirmar = reason);
                           } else {
                             nav.pop();
                             messenger.showSnackBar(
@@ -3949,23 +4074,32 @@ Future<(File, int)?> _captureReceiptForV2(
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     builder: (sheetCtx) {
-      return _ReceiptCaptureSheet(isCash: isCash);
+      return ReceiptCaptureSheet(isCash: isCash);
     },
   );
 }
 
-class _ReceiptCaptureSheet extends StatefulWidget {
-  const _ReceiptCaptureSheet({required this.isCash});
+/// Folha "Quanto pagaste na caixa?" (foto + valor). Pública só para o teste
+/// de widget (28/10/2026): os avisos aparecem DENTRO dela.
+@visibleForTesting
+class ReceiptCaptureSheet extends StatefulWidget {
+  const ReceiptCaptureSheet({super.key, required this.isCash});
   final bool isCash;
 
   @override
-  State<_ReceiptCaptureSheet> createState() => _ReceiptCaptureSheetState();
+  State<ReceiptCaptureSheet> createState() => _ReceiptCaptureSheetState();
 }
 
-class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
+class _ReceiptCaptureSheetState extends State<ReceiptCaptureSheet> {
   File? _photo;
   final _totalCtrl = TextEditingController();
   bool _submitting = false;
+
+  /// 28/10/2026: os avisos ficam DENTRO da folha. Por SnackBar iam para o
+  /// ecrã de trás, escondidos pela própria folha, e o "Confirmar" parecia
+  /// não fazer nada (caso real "7. 88").
+  String? _erroValor;
+  String? _aviso;
 
   @override
   void initState() {
@@ -4015,37 +4149,34 @@ class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
         maxWidth: 1600,
       );
       if (picked != null && mounted) {
-        setState(() => _photo = File(picked.path));
+        setState(() {
+          _photo = File(picked.path);
+          _aviso = null;
+        });
       }
     } catch (e) {
       // F4 (2026-08-16): tag estável p/ adb logcat + mensagem com retry.
       debugPrint('[bora-talao] erro na câmara: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Não foi possível usar a câmara — tenta outra vez.'),
-            duration: const Duration(seconds: 5),
-          ),
-        );
+        setState(() =>
+            _aviso = 'Não foi possível usar a câmara — tenta outra vez.');
       }
     }
   }
 
   void _onSubmit() {
-    final eur = double.tryParse(_totalCtrl.text.replaceAll(',', '.'));
-    if (eur == null || eur <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Valor do talão inválido.')),
-      );
+    // 28/10/2026: leitura tolerante ("7. 88", "7,88 €") e em cêntimos
+    // inteiros — o double.tryParse falhava com o espaço.
+    final cents = valorEmCentimos(_totalCtrl.text);
+    if (cents == null) {
+      setState(() => _erroValor =
+          'Valor inválido. Escreve só o valor, por exemplo 7,88.');
       return;
     }
     if (_photo == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tira a foto (talão, conta ou saco) primeiro.')),
-      );
+      setState(() => _aviso = 'Tira a foto (talão, conta ou saco) primeiro.');
       return;
     }
-    final cents = (eur * 100).round();
     setState(() => _submitting = true);
     Navigator.of(context).pop<(File, int)>((_photo!, cents));
   }
@@ -4076,6 +4207,9 @@ class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
           borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
         ),
         padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + barra),
+        // 28/10/2026: rola quando não cabe (teclado aberto, ecrã pequeno,
+        // aviso a mais) — o "Confirmar" nunca fica cortado nem fora do toque.
+        child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -4132,16 +4266,37 @@ class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
             ),
             const SizedBox(height: 12),
             TextField(
+              key: const Key('fld_valor_talao'),
               controller: _totalCtrl,
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
+              // Só dígitos e UM separador (vírgula ou ponto), até 2 casas.
+              inputFormatters: const [ValorEmEurosInputFormatter()],
+              onChanged: (_) {
+                if (_erroValor != null) setState(() => _erroValor = null);
+              },
+              decoration: InputDecoration(
                 labelText: 'Valor que pagaste de facto (€)',
-                prefixIcon: Icon(Icons.euro),
-                border: OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.euro),
+                border: const OutlineInputBorder(),
+                errorText: _erroValor,
               ),
             ),
             const SizedBox(height: 16),
+            if (_aviso != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  _aviso!,
+                  key: const Key('aviso_talao'),
+                  style: TextStyle(
+                    color: Colors.red.shade700,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
             ElevatedButton.icon(
               // BUG I — disabled até foto + valor preenchidos
               onPressed: _canSubmit ? _onSubmit : null,
@@ -4183,7 +4338,7 @@ class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
               child: const Text('Cancelar'),
             ),
           ],
-        ),
+        )),
       ),
     );
   }

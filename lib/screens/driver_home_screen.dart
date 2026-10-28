@@ -2759,6 +2759,18 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
+                // 28/10/2026 (Bloco B): a morada da loja, como no cartão
+                // laranja e na Glovo/Uber Eats — só o nome não diz qual loja.
+                // Uma linha só: este diálogo não desliza.
+                if (!isErrand &&
+                    (order.pickupAddress ?? '').trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Recolha: ${order.pickupAddress!.trim()}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
                 // Favor: só a linha da rota — este diálogo não desliza e o
                 // cartão inteiro empurrava o ganho para fora do ecrã.
                 if (isErrand && FavorRota.de(order) != null) ...[
@@ -2773,7 +2785,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                 ] else if (dropoffText.isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Text(
-                    dropoffText,
+                    // 28/10/2026: com a linha "Recolha:" por cima, esta diz
+                    // o que é (igual ao cartão laranja).
+                    'Entrega: $dropoffText',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),

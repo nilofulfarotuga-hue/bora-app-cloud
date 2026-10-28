@@ -73,6 +73,7 @@ import 'admin_orders_screen.dart';
 import 'admin_stuck_orders_screen.dart';
 import 'admin_orphan_payments_screen.dart';
 import 'admin_papeis_screen.dart';
+import 'admin_parceiros_termos_screen.dart';
 import 'admin_partners_pending_screen.dart';
 import 'admin_partners_screen.dart';
 import 'admin_payments_cards_screen.dart';
@@ -1100,6 +1101,16 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.deepPurple,
       builder: () => const AdminPartnersPendingScreen(),
       keywords: const ['aprovacao', 'aprovadas', 'candidaturas', 'parceiros', 'pendentes', 'recusadas'],
+    ),
+    // [27/10/2026 · missão boom-burger F4] Regulamento UE 2019/1150.
+    AdminMenuItem(
+      id: 'parceiros_termos',
+      title: 'Termos dos parceiros',
+      subtitle: 'Quem aceitou os termos do parceiro (versão e data) e quem está pendente; registrar aceite recebido por WhatsApp ou email',
+      icon: Icons.description_outlined,
+      color: Colors.deepPurple,
+      builder: () => const AdminParceirosTermosScreen(),
+      keywords: const ['termos', 'condicoes', 'contrato', 'aceite', 'aceitou', 'parceiro', 'loja', 'whatsapp', 'email', '2019/1150', 'regulamento'],
     ),
     AdminMenuItem(
       id: 'parceiros_papeis_e_candidaturas',

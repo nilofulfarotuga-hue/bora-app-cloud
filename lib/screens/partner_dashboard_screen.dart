@@ -34,6 +34,7 @@ import 'connect/connect_payments_screen.dart';
 import 'connect/connect_statement_screen.dart';
 import 'partner/services/partner_services_hub_screen.dart';
 import 'partner_call_driver_screen.dart';
+import 'partner_dados_fiscais_screen.dart';
 import 'partner_earnings_screen.dart';
 import 'partner_hours_screen.dart';
 import 'partner_products_screen.dart';
@@ -1063,6 +1064,23 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                     ),
                     icon: const Icon(Icons.receipt_long_outlined),
                     label: const Text('Extrato'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // DAC7 (missão boom-burger 27/10): o que falta para a loja
+                // abrir ao público e o formulário para o completar.
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => PartnerDadosFiscaisScreen(
+                          restaurantId: widget.restaurant.id,
+                        ),
+                      ),
+                    ),
+                    icon: const Icon(Icons.verified_user_outlined),
+                    label: const Text('Dados fiscais'),
                   ),
                 ),
                 const SizedBox(height: 8),

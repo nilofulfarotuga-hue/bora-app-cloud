@@ -16,8 +16,10 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../models/restaurant_model.dart';
 import '../../stores/restaurant_store.dart';
+import '../../widgets/admin/admin_dados_fiscais_card.dart';
 import '../../widgets/admin/admin_user_roles_sheet.dart';
 import '../../widgets/bora/bora_primary_button.dart';
+import '../../widgets/pausa_do_dia_editor.dart';
 import '../../widgets/private_bucket_image.dart';
 import '_admin_partner_edit_dialog.dart';
 import 'admin_product_prices_dialog.dart';
@@ -435,6 +437,9 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
           if (r['is_partner'] == true) ...[
             const SizedBox(height: 24),
             _commissionBillingCard(),
+            // DAC7 (missão boom-burger 27/10): ver/corrigir os dados fiscais.
+            const SizedBox(height: 24),
+            AdminDadosFiscaisCard(restaurantId: widget.restaurantId),
           ],
           const SizedBox(height: 24),
           _pedidoMinimoCard(),
@@ -1272,6 +1277,15 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
   }
 
   Future<void> _saveHours() async {
+    // Pausa fora do horário ou invertida não é salva (27/10/2026).
+    for (final d in _days) {
+      final erro = _hours.dayFor(d.weekday).erroPausa(ptBr: true);
+      if (erro != null) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('${d.label}: $erro')));
+        return;
+      }
+    }
     setState(() => _savingHours = true);
     try {
       final store = context.read<RestaurantStore>();
@@ -1334,6 +1348,12 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
                       ),
                     ),
                   ]),
+                if (!dh.closed)
+                  PausaDoDiaEditor(
+                    day: dh,
+                    ptBr: true,
+                    onChanged: (v) => _updateDay(d.weekday, v),
+                  ),
               ]),
             ),
           );

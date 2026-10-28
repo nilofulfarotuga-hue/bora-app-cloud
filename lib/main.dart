@@ -1388,6 +1388,13 @@ class _RootNavigator extends StatelessWidget {
         return const DriverLoginScreen();
 
       case UserRole.partner:
+        // Termos do parceiro de 28/10/2026 (Regulamento UE 2019/1150): como no
+        // cliente e no estafeta, só com a conta já aberta — antes de entrar o
+        // TermsGate não tem a quem perguntar e não voltaria a perguntar.
+        if (auth.currentPartner != null) {
+          return const TermsGate(
+              audience: 'parceiro', child: PartnerEntryScreen());
+        }
         return const PartnerEntryScreen();
     }
   }

@@ -8,6 +8,7 @@ import '../stores/restaurant_store.dart';
 import '../utils/hora_lisboa.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
+import '../widgets/pausa_do_dia_editor.dart';
 
 class PartnerHoursScreen extends StatefulWidget {
   const PartnerHoursScreen({super.key, required this.restaurant});
@@ -142,6 +143,15 @@ class _PartnerHoursScreenState extends State<PartnerHoursScreen> {
 
   Future<void> _save() async {
     if (_saving) return;
+    // Pausa fora do horário ou ao contrário não se grava (27/10/2026).
+    for (final d in _days) {
+      final erro = _hours.dayFor(d.weekday).erroPausa();
+      if (erro != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${d.label}: $erro')));
+        return;
+      }
+    }
     setState(() => _saving = true);
     var ok = false;
     try {
@@ -200,6 +210,7 @@ class _PartnerHoursScreenState extends State<PartnerHoursScreen> {
                 ),
                 onTapOpen: () => _pickTime(context, d.weekday, true),
                 onTapClose: () => _pickTime(context, d.weekday, false),
+                onPausaChanged: (v) => _updateDay(d.weekday, v),
               ),
             const SizedBox(height: Spacing.xl),
             BoraPrimaryButton(
@@ -278,6 +289,7 @@ class _DayRow extends StatelessWidget {
     required this.onToggleClosed,
     required this.onTapOpen,
     required this.onTapClose,
+    required this.onPausaChanged,
   });
 
   final String label;
@@ -285,6 +297,7 @@ class _DayRow extends StatelessWidget {
   final ValueChanged<bool> onToggleClosed;
   final VoidCallback onTapOpen;
   final VoidCallback onTapClose;
+  final ValueChanged<DayHours> onPausaChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -296,47 +309,54 @@ class _DayRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.divider),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
+          Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      hours.closed ? 'Fechado' : '${hours.open} – ${hours.close}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: hours.closed
+                            ? Colors.red.shade400
+                            : AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  hours.closed ? 'Fechado' : '${hours.open} – ${hours.close}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: hours.closed
-                        ? Colors.red.shade400
-                        : AppColors.textSecondary,
-                  ),
-                ),
+              ),
+              if (!hours.closed) ...[
+                _TimePill(value: hours.open, onTap: onTapOpen),
+                const SizedBox(width: 6),
+                const Text('–', style: TextStyle(color: AppColors.textSecondary)),
+                const SizedBox(width: 6),
+                _TimePill(value: hours.close, onTap: onTapClose),
+                const SizedBox(width: 10),
               ],
-            ),
+              Switch(
+                value: !hours.closed,
+                onChanged: (open) => onToggleClosed(!open),
+                activeColor: AppColors.primary,
+              ),
+            ],
           ),
-          if (!hours.closed) ...[
-            _TimePill(value: hours.open, onTap: onTapOpen),
-            const SizedBox(width: 6),
-            const Text('–', style: TextStyle(color: AppColors.textSecondary)),
-            const SizedBox(width: 6),
-            _TimePill(value: hours.close, onTap: onTapClose),
-            const SizedBox(width: 10),
-          ],
-          Switch(
-            value: !hours.closed,
-            onChanged: (open) => onToggleClosed(!open),
-            activeColor: AppColors.primary,
-          ),
+          if (!hours.closed)
+            PausaDoDiaEditor(day: hours, onChanged: onPausaChanged),
         ],
       ),
     );

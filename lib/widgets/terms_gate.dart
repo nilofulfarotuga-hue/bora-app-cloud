@@ -6,7 +6,8 @@ import '../config/app_colors.dart';
 
 /// Termos e Condições com versão (missão fecho-mensal-2026-09, B6A).
 ///
-/// Embrulha o ecrã principal do cliente e do estafeta. No arranque pergunta ao
+/// Embrulha o ecrã principal do cliente, do estafeta e do parceiro (este desde
+/// 28/10/2026, Regulamento UE 2019/1150). No arranque pergunta ao
 /// servidor (`legal_terms_pending`) se há uma versão em vigor que este
 /// utilizador ainda não aceitou; se houver, põe por cima um ecrã com o texto e
 /// um único botão "Aceito" (`legal_terms_accept`). Sem aceitar não se passa.
@@ -16,7 +17,8 @@ import '../config/app_colors.dart';
 class TermsGate extends StatefulWidget {
   const TermsGate({super.key, required this.audience, required this.child});
 
-  /// 'cliente' ou 'estafeta' (igual a `legal_terms_versions.audience`).
+  /// 'cliente', 'estafeta' ou 'parceiro' (igual a
+  /// `legal_terms_versions.audience`).
   final String audience;
   final Widget child;
 

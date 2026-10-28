@@ -369,7 +369,17 @@ class RestaurantStore extends ChangeNotifier {
   bool get restaurantsLoadFailed => _restaurantsLoadFailed;
   bool get restaurantsLoadedOnce => _restaurantsLoadedOnce;
 
-  Future<void> loadRestaurantsFromSupabase() async {
+  // 27/10 (painel da Boom! dizia "112 Total" com 56 produtos): o ouvinte de
+  // sessão do construtor e o _init() chamavam estas cargas ao mesmo tempo.
+  // Chamadas em paralelo passam a partilhar a mesma carga em voo.
+  Future<void>? _restaurantsEmVoo;
+  Future<void>? _produtosEmVoo;
+
+  Future<void> loadRestaurantsFromSupabase() =>
+      _restaurantsEmVoo ??= _carregarRestaurantes()
+          .whenComplete(() => _restaurantsEmVoo = null);
+
+  Future<void> _carregarRestaurantes() async {
     _restaurantsLoading = true;
     _restaurantsLoadFailed = false;
     notifyListeners();
@@ -458,7 +468,11 @@ class RestaurantStore extends ChangeNotifier {
     debugPrint('RestaurantStore: no seed data configured, skipping seed');
   }
 
-  Future<void> loadProductsFromSupabase() async {
+  Future<void> loadProductsFromSupabase() =>
+      _produtosEmVoo ??= _carregarProdutos()
+          .whenComplete(() => _produtosEmVoo = null);
+
+  Future<void> _carregarProdutos() async {
     try {
       // Supabase returns max 1000 rows per query.
       // Paginate until all products are fetched.
@@ -500,15 +514,13 @@ class RestaurantStore extends ChangeNotifier {
         offset += pageSize;
       }
 
-      _productsByRestaurant.clear();
-      _storeFullyLoaded.clear();
-      _storeLoading.clear();
-
       // Which products have a required option group (is_required + min>=1).
       // Lightweight: fetch only the product_ids (paginated). The option items
       // themselves stay lazy-loaded by ProductDetailScreen. Drives the "+"
       // button: required-option products open detail instead of adding direct.
-      _requiredOptionProductIds.clear();
+      // 27/10: tudo se monta em coleções locais e só se troca no fim, sem
+      // awaits pelo meio (antes limpava-se aqui e outra carga enchia depois).
+      final obrigatorios = <String>{};
       try {
         int reqOffset = 0;
         while (true) {
@@ -520,7 +532,7 @@ class RestaurantStore extends ChangeNotifier {
               .range(reqOffset, reqOffset + pageSize - 1);
           for (final r in reqPage) {
             final pid = ((r as Map)['product_id'] ?? '').toString();
-            if (pid.isNotEmpty) _requiredOptionProductIds.add(pid);
+            if (pid.isNotEmpty) obrigatorios.add(pid);
           }
           if (reqPage.length < pageSize) break;
           reqOffset += pageSize;
@@ -529,14 +541,24 @@ class RestaurantStore extends ChangeNotifier {
         debugPrint('RestaurantStore: required-options flag load error => $e');
       }
 
+      final porLoja = <String, List<PartnerProduct>>{};
+      final vistos = <String>{};
       for (final record in allRecords) {
         final product = _productFromRow(record as Map<String, dynamic>);
-        if (product == null) continue;
-        _productsByRestaurant
+        if (product == null || !vistos.add(product.id)) continue;
+        porLoja
             .putIfAbsent(product.restaurantId, () => <PartnerProduct>[])
             .add(product);
       }
 
+      _productsByRestaurant
+        ..clear()
+        ..addAll(porLoja);
+      _storeFullyLoaded.clear();
+      _storeLoading.clear();
+      _requiredOptionProductIds
+        ..clear()
+        ..addAll(obrigatorios);
       notifyListeners();
       debugPrint(
           'RestaurantStore: loaded products for ${_productsByRestaurant.length} restaurants');

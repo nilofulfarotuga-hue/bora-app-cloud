@@ -42,7 +42,9 @@ void main() {
       final loja = _loja(_todosOsDias(_noveAsVinteDuas));
       final instante = DateTime.utc(2026, 10, 6, 21, 30);
       expect(loja.isOpenNow(instante), isFalse);
-      expect(loja.statusLabel(instante), 'Fechada, abre às 09h00');
+      // Já passou o fecho de hoje: a próxima abertura é amanhã (27/10/2026,
+      // o texto diz o dia como o `opens_dia` do servidor).
+      expect(loja.statusLabel(instante), 'Fechada, abre amanhã às 09h00');
     });
 
     test('verão: 08:30 em UTC já são 09:30 em Lisboa — aberta', () {
@@ -95,9 +97,10 @@ void main() {
       ));
       // Domingo 23:30 UTC = segunda 00:30 em Lisboa, e à segunda não abre.
       final instante = DateTime.utc(2026, 10, 4, 23, 30);
-      expect(loja.statusLabel(instante), 'Fechada hoje');
+      // Terça (horário por omissão, 09:00) é a próxima abertura: amanhã.
+      expect(loja.statusLabel(instante), 'Fechada hoje — abre amanhã às 09h00');
       expect(loja.avisoLojaFechadaEm(instante),
-          'Loja Teste está fechada hoje. Volta noutro dia para fazer o pedido.');
+          'Loja Teste está fechada hoje. Abre amanhã às 09h00.');
     });
 
     test('o aviso diz a hora de abrir do dia de Lisboa', () {
@@ -128,7 +131,8 @@ void main() {
       expect(saoPaulo, lisboa);
       for (final i in [saoPaulo, toquio, lisboa, saoPaulo.toLocal()]) {
         expect(loja.isOpenNow(i), isFalse, reason: '$i');
-        expect(loja.statusLabel(i), 'Fechada, abre às 09h00', reason: '$i');
+        expect(loja.statusLabel(i), 'Fechada, abre amanhã às 09h00',
+            reason: '$i');
       }
     });
   });

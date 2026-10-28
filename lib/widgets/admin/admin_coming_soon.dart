@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../services/admin_audit_service.dart';
+import '../../utils/conformidade_mensagem.dart';
 
 /// Painel admin (PT-BR) — controle do estado "Em breve" (`coming_soon`).
 ///
@@ -158,11 +159,14 @@ Future<bool> showAdminComingSoonDialog({
     }
     return true;
   } catch (e) {
+    // DAC7 (27/10): o portão do servidor recusa tirar o "Em breve" a uma loja
+    // parceira sem dados fiscais — diz-se o que falta, não o erro cru.
+    final conformidade = mensagemAbrirLojaConformidade(e);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Falha ao salvar "Em breve": $e'),
+        content: Text(conformidade ?? 'Falha ao salvar "Em breve": $e'),
         backgroundColor: AppColors.error,
-        duration: const Duration(seconds: 4),
+        duration: Duration(seconds: conformidade != null ? 8 : 4),
       ));
     }
     return false;

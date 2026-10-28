@@ -36,6 +36,10 @@ void main() {
   });
 
   test('o estafeta cobra em dinheiro o valor gravado pelo servidor', () {
-    expect(model, contains('(cashTotalDue ?? finalTotal ?? total) + debtCollectedCents / 100.0'));
+    // 28/10 (missao-geral, C3): o servidor (cash_total_due) continua a mandar;
+    // sem ele é o total menos saldo/tokens/crédito, nunca o total bruto
+    // (contas em test/valor_a_cobrar_saldo_tokens_test.dart).
+    expect(model, contains('var due = cashTotalDue ?? restante;'));
+    expect(model, contains('return due + debtCollectedCents / 100.0;'));
   });
 }

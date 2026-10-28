@@ -22,21 +22,33 @@
 # Canónico no repo: bora_app/.claude/scripts/. Instalado em /usr/local/bin/ no VPS.
 # Cron: */10 * * * * /usr/local/bin/hermes-cortex-proposals-sync.sh >> .../cortex-proposals-sync.log 2>&1
 set -u
+MODE="${1:-full}"  # full=Passo1+2 (default,cron */10) | --aprovacoes=so Passo2 barato (timer ~10s, latencia baixa)
 
 ENV=/docker/hermes-agent-fvnc/data/.env
+# 28/10/2026 (missao-geral, E1): as 4 RPC deste sync estao fechadas a anon desde 21/10
+# (seguranca_n4_funcoes_internas_so_servidor). Com a chave anon dava 401/42501 ~1.850 vezes por
+# hora e nada sincronizava. Usa a chave de servidor, lida em tempo de execucao de um .env do host
+# que so o root le (nunca escrita neste ficheiro nem no repo).
+SVC_ENV=/opt/assistente-negocio/.env
 SRC=/docker/hermes-agent-fvnc/data/cortex-brain/.claude/.ai/knowledge/inbox/_reports/proposals.jsonl
 FILA=/docker/hermes-agent-fvnc/data/cortex-brain/orquestracao
 LOG=/root/orquestracao/cortex-proposals-sync.log
+# Se a base recusar a chave, nao se insiste: espera 30 min (o timer corre de 10 em 10 s).
+RECUSA=/root/orquestracao/.cortex-sync-recusado
 
 ts(){ date -u +%FT%TZ; }
 log(){ echo "[$(ts)] $*" >> "$LOG"; }
+recusado(){ printf '%s' "$1" | grep -qE '42501|Invalid API key|"PGRST30[0-9]"|JWT'; }
+
+if [ -f "$RECUSA" ] && [ $(( $(date +%s) - $(stat -c %Y "$RECUSA") )) -lt 1800 ]; then exit 0; fi
 
 [ -f "$SRC" ] || { log "sem $SRC — nada a sincronizar"; exit 0; }
 
 URL=$(grep -E '^SUPABASE_URL=' "$ENV" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"'\''\r')
-KEY=$(grep -E '^SUPABASE_ANON_KEY=' "$ENV" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"'\''\r')
-[ -n "$URL" ] && [ -n "$KEY" ] || { log "sem SUPABASE_URL/ANON_KEY em $ENV — saio"; exit 0; }
+KEY=$(grep -E '^SUPABASE_SERVICE_ROLE_KEY=' "$SVC_ENV" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"'\''\r')
+[ -n "$URL" ] && [ -n "$KEY" ] || { log "sem SUPABASE_URL em $ENV ou sem chave de servidor em $SVC_ENV — saio sem chamar"; touch "$RECUSA"; exit 0; }
 
+if [ "$MODE" != "--aprovacoes" ]; then  # Passo 1 (espelho pesado, 57 HTTP) so no modo full
 sent=0
 fail=0
 while IFS= read -r line; do
@@ -72,6 +84,11 @@ print(json.dumps(out))
     -H "apikey: $KEY" -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
     -d "$payload")
 
+  if recusado "$resp"; then
+    touch "$RECUSA"
+    log "chave recusada pela base (paro e espero 30 min): $resp"
+    exit 0
+  fi
   if [ -n "$resp" ] && printf '%s' "$resp" | grep -q '"message"'; then
     fail=$((fail + 1))
     pid=$(printf '%s' "$line" | python3 -c 'import json,sys
@@ -86,6 +103,7 @@ except Exception:
 done < "$SRC"
 
 log "sync terminado: $sent linha(s) processada(s), $fail falha(s)"
+fi  # fim do Passo 1 condicional (--aprovacoes salta para o Passo 2 barato)
 
 # --- Passo 2: propostas aprovadas pelo Danilo (Central) -> ordem real na fila ---------------
 # Feito inteiramente em Python (nunca interpola $tarefa no shell) — o texto da tarefa é
@@ -93,6 +111,14 @@ log "sync terminado: $sent linha(s) processada(s), $fail falha(s)"
 # backticks, etc.; interpolar isso num heredoc de bash seria uma porta de injeção de comandos.
 approved=$(curl -s --max-time 15 -X POST "$URL/rest/v1/rpc/cortex_list_approved_pids" \
   -H "apikey: $KEY" -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" -d '{}')
+# So uma LISTA segue. Antes, a resposta de erro ({"code":..,"hint":..,"message":..}) era lida como
+# lista e cada chave virava um "pid" (pid=hint, pid=message no log, de 10 em 10 s).
+case "$approved" in
+  \[*) ;;
+  *) if recusado "$approved"; then touch "$RECUSA"; fi
+     log "lista de aprovadas sem resposta valida (paro): $(printf '%s' "$approved" | head -c 200)"
+     exit 0 ;;
+esac
 
 # "python3 - <<heredoc" consumiria o próprio stdin como código-fonte, colidindo com o
 # "$approved" que precisamos de lhe alimentar pelo stdin — por isso o script vai para um
@@ -133,6 +159,8 @@ def fetch_auth(pid):
 try:
     approved = json.loads(sys.stdin.read() or '[]')
 except Exception:
+    approved = []
+if not isinstance(approved, list):
     approved = []
 pids = [(p.get('pid') if isinstance(p, dict) else p) for p in (approved or [])]
 pids = [p for p in pids if p]

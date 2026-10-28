@@ -10,7 +10,7 @@ estado: atual
 
 # Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-10-28T17:16:46.038604+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-10-28T18:00:13.120022+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: erros aprendidos · memoria claude.ai · claude_ai_memoria
 
@@ -99,4 +99,5 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - 28/10 (claude-ai): Dei ao Danilo a mensagem para o Emanuel só num cartão de mensagem (widget); ele reclamou que queria ler no chat. → Mensagem para o Danilo ler ou rever vai sempre escrita no próprio chat, em texto corrido; cartão só se ele pedir, e nunca no lugar do texto.
 - 28/10 (claude-ai): Na mensagem para o Hugo no grupo da contabilidade, com a conversa já a decorrer, abri com "Obrigado, Hugo!". → Numa conversa já começada (grupo ou privado), a mensagem vai direta ao assunto, sem olá, boa tarde, obrigado nem o nome da pessoa.
 - 28/10 (claude-ai): O Danilo disse "o jeito vai ser isso aí mesmo" sobre subir o escondido dos parceiros de 5% para 10% e eu respondi que punha os 10% quando chegassem os preços; ele corrigiu: "não vai acrescentar os 10% ainda não, vamos ver". → Mudança de preço só com ordem clara dele para aplicar; concordar com uma ideia não é ordem para mudar preços — mostrar as contas e esperar.
+- 28/10 (claude-ai): 28/10: ao destravar o talão do Divan (Auchan) pus cash_total_due = total bruto (14,35) e disse ao Danilo para cobrar 14,35 €, sem ver que o cliente pagou 10,31 com saldo e 0,73 com tokens (devia 3,31) → antes de dizer quanto cobrar ou mexer num valor de pedido, ler wallet_applied_cents, tokens_applied_value_cents, debt_collected_cents e o cash_total_due que já lá está; nunca recalcular do total bruto
 

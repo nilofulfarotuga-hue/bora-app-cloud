@@ -16,6 +16,7 @@ import '../config/app_colors.dart';
 import '../config/business_rules.dart' show BRBusiness;
 import '../widgets/order_edit/driver_order_edit_notice.dart';
 import '../widgets/background_location_disclosure.dart';
+import '../widgets/cliente_nome_destaque.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/cancel_blocked_pickup_sheet.dart';
 import '../widgets/payments/collect_badge.dart';
@@ -2209,6 +2210,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
               ),
             ),
             const SizedBox(height: 6),
+            // 25/10/2026 (Danilo): nome do cliente em destaque.
+            ClienteNomeDestaque(nome: order.customerName, telefone: order.clientPhone, compacto: true),
+            const SizedBox(height: 4),
             Text(
               'Telefone do cliente: '
               '${(order.clientPhone ?? '').isNotEmpty ? order.clientPhone! : 'Não disponível'}',
@@ -2823,6 +2827,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   approx: true,
                   dense: true,
                 ),
+                // 25/10/2026: na oferta só o primeiro nome (ainda não é dele).
+                if (ClienteNomeDestaque.limpo(order.customerName) != null) ...[
+                  const SizedBox(height: 8),
+                  ClienteNomeDestaque(nome: order.customerName, soPrimeiroNome: true, compacto: true),
+                ],
                 if (hasActiveOrders) ...[
                   const SizedBox(height: 12),
                   Container(

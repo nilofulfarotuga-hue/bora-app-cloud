@@ -44,6 +44,7 @@ import '../utils/constants.dart';
 import '../utils/map_marker_helper.dart';
 import '../utils/map_utils.dart';
 import '../widgets/address_text.dart';
+import '../widgets/cliente_nome_destaque.dart';
 import '../widgets/driver_chat_fab.dart';
 import '../widgets/driver_item_options.dart';
 import 'driver_order_action_helper.dart';
@@ -2026,6 +2027,13 @@ class _BottomPanelState extends State<_BottomPanel> {
                 // soon as the driver had 2+ stacked orders. Now tied to
                 // focusOrder (the order with the next pending action).
                 const SizedBox(height: 12),
+                // 25/10/2026 (Danilo): nome do cliente em destaque em todas as
+                // fases do pedido, para o estafeta o chamar pelo nome.
+                ClienteNomeDestaque(
+                  nome: focusOrder.customerName,
+                  telefone: focusOrder.clientPhone,
+                ),
+                const SizedBox(height: 8),
                 Row(
                   children: [
                     Expanded(
@@ -3166,7 +3174,13 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 8),
+              ClienteNomeDestaque(
+                nome: order.customerName,
+                telefone: order.clientPhone,
+                compacto: true,
+              ),
+              const SizedBox(height: 6),
               // ── Progress text ──
               Text(
                 '$boughtCount de $totalCount comprados',
@@ -3647,15 +3661,25 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                         fontSize: 16,
                       ),
                     ),
+                    // 25/10/2026 (Danilo): o reembolso é o valor REAL pago na
+                    // caixa (escrito a seguir, com a foto), não o catálogo.
                     Text(
-                      '€${adjustedTotal.toStringAsFixed(2)}',
+                      'o que pagares na caixa',
                       style: TextStyle(
                         fontWeight: FontWeight.w800,
-                        fontSize: 16,
+                        fontSize: 15,
                         color: Colors.green.shade700,
                       ),
                     ),
                   ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    'Escreves o valor real no passo seguinte. Se pagares menos que o estimado, '
+                    'recebes só o que pagaste.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                  ),
                 ),
               ],
               if (unavailableCount > 0)
@@ -4017,7 +4041,7 @@ class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
     }
     if (_photo == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tira foto do talão primeiro.')),
+        const SnackBar(content: Text('Tira a foto (talão, conta ou saco) primeiro.')),
       );
       return;
     }
@@ -4037,9 +4061,13 @@ class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
     final barra = mq.viewPadding.bottom > bottomInset
         ? mq.viewPadding.bottom - bottomInset
         : 0.0;
+    // 25/10/2026 (Danilo): a Bora devolve o que pagaste DE FACTO na caixa,
+    // não o preço do catálogo. Sem talão (ex.: Fuku Sushi), fotografa a
+    // conta/o saco e escreve o valor real.
     final hint = widget.isCash
-        ? 'Foto guardada para registo Bora (auditoria).'
-        : 'Foto + valor permitem Bora reembolsar-te o valor correcto do talão.';
+        ? 'Foto guardada para registo Bora (auditoria). Escreve o valor que pagaste de facto.'
+        : 'A Bora devolve-te exatamente o valor que escreves: o que pagaste de facto na caixa, '
+            'não o preço da app. A loja não deu talão? Fotografa a conta ou o saco e escreve o valor real.';
     return Padding(
       padding: EdgeInsets.only(bottom: bottomInset),
       child: Container(
@@ -4062,7 +4090,7 @@ class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
               margin: const EdgeInsets.only(bottom: 16),
             ),
             const Text(
-              'Foto do talão + valor pago',
+              'Quanto pagaste na caixa?',
               style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
               textAlign: TextAlign.center,
             ),
@@ -4089,7 +4117,7 @@ class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
                           children: [
                             Icon(Icons.camera_alt, size: 36),
                             SizedBox(height: 8),
-                            Text('Tirar foto do talão'),
+                            Text('Foto do talão (ou da conta / do saco)'),
                           ],
                         ),
                       )
@@ -4108,7 +4136,7 @@ class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
               decoration: const InputDecoration(
-                labelText: 'Valor total no talão (€)',
+                labelText: 'Valor que pagaste de facto (€)',
                 prefixIcon: Icon(Icons.euro),
                 border: OutlineInputBorder(),
               ),
@@ -4139,8 +4167,8 @@ class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
                   _photo == null
-                      ? 'Tira foto do talão para continuar'
-                      : 'Digita o valor pago no talão',
+                      ? 'Tira a foto (talão, conta ou saco) para continuar'
+                      : 'Escreve o valor que pagaste de facto',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey.shade600,

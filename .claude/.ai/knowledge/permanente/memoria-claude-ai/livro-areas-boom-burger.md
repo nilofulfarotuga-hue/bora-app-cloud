@@ -10,11 +10,11 @@ estado: atual
 
 # Boom! Burger (hamburgueria artesanal da Guarda) — loja que o Danilo quer ganhar como parceira do Bora desde 27/10/2026; ler antes de falar dela, montar a loja ou listar parceiros
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-boom-burger`, origem `claude-ai`, atualizada em 2026-10-28T13:37:19.804528+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-boom-burger`, origem `claude-ai`, atualizada em 2026-10-28T14:19:14.456775+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas boom burger · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/boom-burger.md), copiada a 28/10/2026 13:36 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/boom-burger.md), copiada a 28/10/2026 14:18 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: boom-burger
@@ -28,4 +28,3 @@ aliases: [Boom Burger, Boom! Burger]
 - [stated] 28/10 11:18, depois de falar com o Emanuel: quer fatura com NIF do cliente ("a loja põe o NIF com o valor do balcão; o restante, quem faria nós"), cancelar só um produto em falta, entrega grátis acima de um valor (calcular se dá lucro) e a contabilidade toda certa. PROMPT REGISTADO: ADENDO 4 (texto no Córtex em `prompt-boom-burger-adendo4-2026-10-28`; pesquisa em `pesquisa-fatura-nif-2026-10-28`), colado às 11:53 na mesma sessão (session_01HPEpV8WXaQCL8BCB8FbFfe), MOTOR OPUS 5.5 — o Claude Code do PC pediu /login. 12:17: disse que o NIF tem de ser OPCIONAL para o cliente; aprovou entrega grátis acima de 30 € ("pode ser isso, é isso aí mesmo") — aplicada no servidor (Boom free_delivery_min_cents=3000, só sai a taxa base); e quer que o prompt lhe seja dado no chat para ele próprio colar no PC. Versão 2 do adendo 4 entregue no chat às 12:25 (NIF opcional, entrega grátis já no servidor, lado da app). Estado: à espera de ele colar
 - [stated] 28/10 12:45: o contrato/termos de parceiro o Emanuel aceita na própria app quando a abrir ("é uma assinatura por lá mesmo") — não é preciso falar-lhe disso nem pedir "Aceito" por mensagem
 - [stated] 28/10 12:55-13:20: quer um robô de pedidos pelo WhatsApp para a Boom (cliente sem app pede pelo WhatsApp, o pedido cai no painel do Emanuel, ir buscar ou entregar, estafeta chamado quando pronto ou daqui a 5-15 min); grátis para a Boom como teste, depois produto para vender a outros restaurantes. Mesmo preço da app; ir buscar sem taxa de entrega. Testar já com o sistema atual; a permissão oficial da Meta pede-se depois. Mandou tirar o teste da barbearia do Hernandes (tenant mister-navalha desligado às 12:59). Materiais: "peça pela app", "reserve a sua mesa pela app" e "peça pelo WhatsApp". PROMPT REGISTADO: missão assistente-whatsapp-boom-2026-10-28 (MOTOR OPUS 5.5, sessão NOVA do Claude Code no PC, pasta bora-app-cloud), entregue no chat às 13:30 para ele colar. Scope: tenant boom-burger em teste (allowlist só o 931), fluxo de pedido com preço da app, origem "WhatsApp" no painel e no admin, testes em modo demo, checklist da Meta só preparado. Estado: à espera de ele colar
-

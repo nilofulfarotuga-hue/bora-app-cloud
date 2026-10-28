@@ -2,7 +2,7 @@
 id: memoria-claude-ai-caminhos-animacao-filme
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-27
+ultima_confirmacao: 2026-10-28
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Filme das filhas — 5 caminhos grátis para o desenho (revisto 05/10 com os 50 vídeos)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-27T20:56:46.107459+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-28T20:57:34.511688+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: caminhos animacao filme · memoria claude.ai · claude_ai_memoria
 
@@ -115,3 +115,7 @@ Avisos: os juizes de topo (gemini-3.5-flash, 3-flash-preview) gastam 20 pedidos/
 - Caminho 1 (personagem fixo) + duração: Google Flow com imagem de referência + último fotograma para estender cenas — confirma o que já está; estender cenas registado 10/10, ainda não feito. https://www.youtube.com/watch?v=h6qp2pOiKxo
 - Vibes da Meta grátis: continua parado no botão de conta (04/10). https://www.youtube.com/watch?v=KCd337fyAFQ
 - Fora: Midjourney (pago), Camino Digital Studio e truques genéricos.
+
+## 28/10/2026 — radar diário (sem vídeos do tema animacao_ia)
+- Caminho 3 (vozes), lente grátis: Voicebox — aberto, clona voz e transcreve localmente, apresentado como alternativa à ElevenLabs; confirmar se corre sem placa gráfica (ou no Kaggle) antes de testar. https://www.youtube.com/watch?v=yATBEBRhxM8
+- Fora: ComfyUI/MiniMax H3/LoRA (precisam de RTX 3060), stickman.

@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-27
+ultima_confirmacao: 2026-10-28
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-27T20:56:40.002788+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-28T20:57:34.511688+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -362,3 +362,16 @@ Filme caminho 4 (fontes htROyMzUbA8, rxZZ1xi81a4): no Google Flow (Omniflash 1.1
 - FILME (lente grátis): Coqui TTS (vídeo diz Apache 2.0 — confirmar) e Kokoro como alternativas abertas à ElevenLabs https://www.youtube.com/watch?v=2Qys0NSa4qs
 - JÁ TEMOS: Hermes 24h na VPS, clone de IA com Claude Code + Córtex, Claude Code a substituir pagas, grupos do Facebook.
 - RECUSADO: GoHighLevel, Midjourney (pagos), n8n básico, UGC Higgsfield (créditos), geradores grátis genéricos (Camino), stickman, carreira de criador UGC.
+
+## 28/10/2026 — radar diário (agente na nuvem)
+40 vídeos revistos (31 com nota >= 6): 6 novos, 7 PENDENTES, 8 já temos, 19 rejeitados (9 por nota baixa). Nenhum do tema animacao_ia.
+- MODA DA SEMANA (3+ vídeos nota>=8 em 7 dias): Claude Duet 7 — PENDENTE desde 22/10 (Pro/Max EUA, lista de espera; lente grátis = vigia do Hermes, aprovada 22/10); OmniRoute 7 — FEITO 23/10; atendente WhatsApp 7 — FEITO (Mister Navalha); prospeção 7 — caça-clientes FEITO, extrator Google Maps PENDENTE desde 17/10; primeiros 1000 utilizadores 6 — PENDENTE desde 24/10; pacote PMEs PENDENTE desde 13/10; sites com IA PENDENTE desde 25/10; micro-SaaS PENDENTE desde 21/10; Hermes 5 — já temos; animação em código/Vox/Motion — PENDENTE desde 11/10; CRM WhatsApp aberto — PENDENTE desde 18/10.
+- SISTEMA (prop-a85fb216): Token Economizer (Microsoft, segundo o vídeo) — micro-skills contra erros repetidos, desliga ferramentas sem uso, deteta loops; confirmar repo aberto e testar nos executores claude -p da VPS. https://www.youtube.com/watch?v=1kQ_1_QL5Es
+- SISTEMA (prop-a85fb216): skill AR board (aprovar/rejeitar opções em lote) recriada como skill nossa para o Danilo escolher maquetes/ganchos com um toque. https://www.youtube.com/watch?v=Ckuo9Bvy3zk
+- BORA (prop-7731b2cb): botão “melhorar foto” no painel do parceiro que só retoca a foto REAL (nunca inventa o prato; clientes desconfiam de pratos feitos por IA). https://www.youtube.com/watch?v=7N6GJPmYXic , https://www.youtube.com/watch?v=r2Fi2hCOoHA
+- EM DIA (prop-7731b2cb): paywall depois do momento “uau”; 2,4%–3,7% pagam em apps de IA, finanças pagam mais — preços são do Danilo. https://www.youtube.com/watch?v=ZzHZqaf7wFw
+- EM DIA/BORA (prop-7731b2cb): Google Play pede 12 testadores fechados 14 dias; ficha = ícone + subtítulo com o problema + 3 capturas; queixas nas reviews dos concorrentes viram ganchos. https://www.youtube.com/watch?v=IkE_B0WP7yw , https://www.youtube.com/watch?v=TCRUvJ-Fq9U
+- LENTE GRÁTIS: Voicebox (aberto, clonar voz localmente, alternativa à ElevenLabs) e Postiz (agendador aberto, só se os robôs de redes falharem). https://www.youtube.com/watch?v=yATBEBRhxM8
+- JÁ TEMOS: OmniRoute (e 9Router faz o mesmo — não instalar segundo roteador), skills do Claude, Hermes na VPS.
+- RECUSADO: ComfyUI/LoRA/RTX 3060 (placa), Runway, Kling, Adobe Firefly, Final Cut (pagos), stickman, “Runway de graça” via Binance.
+- Radar aprende: +2 termos da conversa 28/10 (faturação automática por API certificada AT; entrega grátis acima de valor mínimo), -2 de animação sem rendimento; 70 ativos.

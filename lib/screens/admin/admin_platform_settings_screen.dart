@@ -80,6 +80,12 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
   /// 17/10/2026 — etiquetas PT-BR da regra do cancelamento TVDE. Substituem a
   /// descrição da base só no ecrã (as da base estão desatualizadas).
   static const rotulosCancelamento = <String, String>{
+    // 25/10/2026 — decisão do Danilo: loja não-parceira SEM margem. A descrição
+    // da base ainda fala em "o que sobra é devolvido"; no ecrã fica a regra certa.
+    'non_partner_payment_buffer_multiplier':
+        'Margem de pré-autorização das lojas NÃO-parceiras (cartão/MB Way). 1,0 = SEM margem: o cliente paga '
+            'exatamente o preço que vê no app (decisão do Danilo, 25/10/2026). Compra mais barata no balcão = lucro '
+            'da Bora; mais cara = prejuízo da Bora. Só produto em falta sai do total. Não aumentar sem ordem dele.',
     'cancel_grace_seconds':
         'Janela grátis de cancelamento (segundos) — conta desde que o motorista aceita a corrida',
     'tvde_cancel_full_after_grace':

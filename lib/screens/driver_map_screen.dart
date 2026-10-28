@@ -3115,13 +3115,14 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
             s + (i.price * (1 + BRBusiness.NON_PARTNER_MARKUP_RATIO) * i.quantity));
     final clientAdjustedTotal = clientBoughtTotal + _bagFee + clientAddedTotal;
 
-    final origTotal = order.paymentBufferTotal;
     // F2 (2026-08-16): o saco do Bora NÃO passa na caixa da loja — sai do
     // total do estafeta (fica só na conta do CLIENTE, clientAdjustedTotal).
     final adjustedTotal = boughtTotal + addedFinalTotal;
-    final diff = clientAdjustedTotal - origTotal;
-    // BUG 16+17 — extraToCharge/refundDue retirados; agora exibimos
-    // diff directo com texto explicativo distinto por payment_method.
+    // 25/10/2026 (Danilo): loja não-parceira = o cliente paga exatamente o
+    // preço da app, sem margem. Se a caixa sair mais barata ou mais cara, a
+    // diferença é da Bora — o estafeta não vê nada sobre reembolso ao cliente.
+    // (A linha "Cliente recebe € de reembolso" comparava só produtos com o
+    // total pago, que inclui entrega e taxa: mostrava 6,39 € em vez de 3,90 €.)
 
     final isCash = order.paymentMethod == PaymentMethod.cash;
 
@@ -3634,9 +3635,8 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                 }),
               ] else ...[
                 // BUG 16+17 fix — pedido MBWay/Stripe: cliente JÁ pagou na app.
-                // NÃO mostrar "Cliente pagou" (era confuso e usava field errado).
-                // Mostrar valor que Bora reembolsa ao estafeta + diferença vs
-                // estimativa.
+                // Mostra só o que a Bora reembolsa ao estafeta (25/10: nada
+                // sobre diferenças ou reembolsos ao cliente).
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -3657,22 +3657,6 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                     ),
                   ],
                 ),
-                if (diff.abs() > 0.01)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      diff < 0
-                          ? 'Cliente recebe €${(-diff).toStringAsFixed(2)} de reembolso (compras saíram mais baratas)'
-                          : 'Cliente será cobrado +€${diff.toStringAsFixed(2)} (compras saíram mais caras)',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: diff < 0
-                            ? Colors.green.shade700
-                            : Colors.orange.shade700,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ),
               ],
               if (unavailableCount > 0)
                 Padding(

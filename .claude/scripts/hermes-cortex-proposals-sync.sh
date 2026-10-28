@@ -51,6 +51,7 @@ KEY=$(grep -E '^SUPABASE_SERVICE_ROLE_KEY=' "$SVC_ENV" 2>/dev/null | head -1 | c
 if [ "$MODE" != "--aprovacoes" ]; then  # Passo 1 (espelho pesado, 57 HTTP) so no modo full
 sent=0
 fail=0
+ignored=0
 while IFS= read -r line; do
   [ -n "$line" ] || continue
 
@@ -63,6 +64,11 @@ except Exception:
 pid = d.get('pid')
 if not pid:
     sys.exit(1)
+# 28/10/2026: a RPC so aceita pid 'prop-' + 6 a 16 hex (pid_invalido = HTTP 400). As
+# outras linhas (rej-*, notas do carteiro) nao sao propostas: ficam de fora sem chamar.
+import re
+if not re.fullmatch(r'prop-[0-9a-f]{6,16}', str(pid)):
+    sys.exit(2)
 out = {
     'p_pid': pid,
     'p_ordem_id': d.get('id'),
@@ -75,6 +81,10 @@ out = {
 print(json.dumps(out))
 " 2>>"$LOG")
   rc=$?
+  if [ $rc -eq 2 ]; then
+    ignored=$((ignored + 1))
+    continue
+  fi
   if [ $rc -ne 0 ] || [ -z "$payload" ]; then
     fail=$((fail + 1))
     continue
@@ -102,7 +112,7 @@ except Exception:
   fi
 done < "$SRC"
 
-log "sync terminado: $sent linha(s) processada(s), $fail falha(s)"
+log "sync terminado: $sent linha(s) processada(s), $fail falha(s), $ignored nao-proposta(s) ignorada(s)"
 fi  # fim do Passo 1 condicional (--aprovacoes salta para o Passo 2 barato)
 
 # --- Passo 2: propostas aprovadas pelo Danilo (Central) -> ordem real na fila ---------------

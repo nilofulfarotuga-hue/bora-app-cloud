@@ -161,3 +161,11 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   não uma chave. Não se reformulou o nome da variável para passar. Proposta de correção da regra em
   `hooks/regras.ts`: só bloquear quando o valor à direita do `=` parece mesmo uma chave (`eyJ`, `sb_secret_`,
   `sk_live`, `sk_test`, `AIza`, `ghp_`, `-----BEGIN`) e não um caminho ou um nome de variável. Quem aplica é o Danilo.
+- **29/10/2026, missão `final-app-2026-10-29` (S1, dinheiro autorizado às 14:22)** — a bora-tranca recusou o
+  `Write` do ficheiro `supabase/migrations/20261029152540_s1_platform_settings_segredos_2026_10_29.sql`
+  ("migration que toca tokens/wallet/pagamentos/ledger"): a lista branca da vista `platform_settings_publicas`
+  tem nomes de chaves `token_*` e `wallet_split_free_pct`, e a tranca lê os nomes como se fossem as tabelas.
+  Não se contornou. A migração ESTÁ aplicada em produção (`schema_migrations` 20261029152540, provas no
+  e2e_log 5210) e o SQL exato está em `docs/propostas/missao-geral-2026-10-28/janela2/S1_platform_settings_segredos.sql`
+  (passos 0 a 4, sem a documentação do fim). Falta copiá-lo para `supabase/migrations/` por quem não tenha
+  a tranca (Claude.ai pelo GitHub, ou o Danilo a carregar Permitir numa sessão).

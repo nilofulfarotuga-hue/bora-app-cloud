@@ -1,34 +1,47 @@
 # CONTINUAR — missao-geral-2026-10-28
 
-Atualizado: 28/10/2026 21:20 UTC. Ler antes o ESPEC: `.claude/.ai/provas/missao-geral-2026-10-28/ESPEC.md`
+Atualizado: 29/10/2026 05:05 UTC. Ler antes o ESPEC: `.claude/.ai/provas/missao-geral-2026-10-28/ESPEC.md`
 e o e2e_log (fluxo missao-geral-2026-10-28, ids 5037 em diante).
 
 Cópia de trabalho: `C:\BoraLocal\wt-missao-geral-28-10`, ramo `missao-geral-2026-10-28`, base origin 9eed27ff.
 Nada foi enviado para o servidor git (sem push). Flutter do CI: `C:\BoraLocal\flutter-3.41.2\flutter\bin\flutter.bat`.
 
-## Feito e provado
-- Bloco 0: JANELA 1 aplicada (20261028203348 IVA normal; 20261028203353 apagar função de teste) e no repo;
-  5 ramos juntados sem histórico (7 commits); ESPEC; lista das migrações em falta (e2e 5043).
-- C1: 5 migrações de produção postas no repo com md5 igual; as que a guarda recusa estão em
-  `docs/propostas/missao-geral-2026-10-28/MIGRACOES-POR-POR-NO-REPO.md`.
-- C2, C6, E3, E4: reportados (e2e 5045, 5046, 5049, 5048).
-- A+B (talão e nome da loja): commit 3d42e87e. C3 modelo: commit 0ba9b9a0.
-- E1 (401 da VPS): consertado e provado (0 respostas 401 desde 20:56); E2 confirmado.
-- C5 vigia: SQL pronto em `docs/propostas/missao-geral-2026-10-28/janela2/C5_vigia_dinheiro_a_cobrar.sql` (por aplicar).
-- Pedido ao Claude.ai: conta de teste com saldo e tokens (cortex prop-76046159).
+## PORQUE PAROU
+29/10 ~04:58 UTC: limite semanal do motor Opus 5.5 atingido (volta 1/11 às 18:00 de Lisboa). Três agentes
+caíram a meio (revisor do Bloco 1, robô, cartazes); a sessão fechou registos e relatório noutro motor.
+Quando o motor voltar: sessão NOVA do Claude Code na pasta `C:\BoraLocal\wt-missao-geral-28-10`, com este
+ficheiro e o relatório `.claude/.ai/reports/OPUS-2026-10-28-missao-geral.md`.
 
-## Em curso quando isto foi escrito (agentes)
-- C3 ecrãs + C4 admin (driver_map, driver_home, favor_passos, ecrãs do cliente, admin_order_detail).
-- Bloco 2 servidor (propostas em docs/propostas/missao-geral-2026-10-28/bloco2/; mudanças em
-  supabase/functions/{cancel-order-with-choice,execute-cancellation,admin-cancel-order,auto-refund-order}).
-- Bloco 3 parte fiscal (H2, N4 fecho mensal, N6, F1-F3; SQL em docs/propostas/.../janela2/).
-- Bloco 4 robô (preparação; SQL W1 em janela2; tenant fora do repo em Desktop\Bora\prompts).
+## Feito e provado (commits no ramo, por ordem)
+- Bloco 0: JANELA 1 (IVA das faturas + apagar função de teste) aplicada e no repo; 5 ramos juntados sem
+  histórico; ESPEC; migrações em falta listadas (e2e 5043); 5 migrações de produção copiadas com md5 igual.
+- Bloco 1 A+B (3d42e87e), C3 modelo (0ba9b9a0), C3 ecrãs + C4 admin (60c4cbf4). 262 testes verdes.
+  Proposta de dinheiro para o Claude.ai: `docs/propostas/missao-geral-2026-10-28/bloco1/` (prop-9f87a6c6).
+  C5 vigia: SQL pronto em `janela2/C5_vigia_dinheiro_a_cobrar.sql` (por aplicar). C6 fora do repo.
+- Bloco 2 servidor (6e8ee02c, 08fe2ba0): 4 Edge mudadas no repo (NÃO publicadas) + pacote para o
+  Claude.ai em `docs/propostas/missao-geral-2026-10-28/bloco2/` (prop-38d65b15 e prop-d7d3717b entregues;
+  o resto foi cortado pelo classificador, ver docs/TRANCAS.md).
+- Bloco 3 (9b21efa0): fecho mensal consertado em produção (20261029045558), filtro semana + CSV, termos só
+  comida/mercado; F1/F2/F3 SQL em `janela2/` por aplicar.
+- Bloco 6: E1 consertado e provado (0x401 em 7,5 h; a9a3f38b); E2 confirmado; E3/E4 reportados; E6 feito
+  (PADRAO_BORA §3.15, skill mods-bora, erros-aprendidos).
 
 ## Falta (por ordem)
-1. Rever e fazer commit do C3/C4; revisor independente do Bloco 1; Juiz; pedir "publica" 1 (Telegram).
-2. Bloco 2 app (diálogo de cancelamento, refund_choice_dialog, strings_en, textos depois do cancelamento,
-   admin) — depois do C3, porque mexe nos mesmos ecrãs do cliente. Entregar ao Claude.ai o _shared e os tokens.
-3. Bloco 3 N1, N2, N3, N4 (detalhe do pedido), N5 (pagamento, carrinho, parceiro, estafeta, admin).
-4. JANELA 2 (C5, F1, F2, F3, W1 colunas + order_origem, Edge Functions não vermelhas) — Telegram antes.
-5. W5 testes do robô em modo demo; janela de 24 h só para o 931.
-6. Bloco 5 cartazes. 7. Bloco 6 E5/E6. 8. Bloco F.
+1. REVISOR INDEPENDENTE do Bloco 1 (dinheiro) — parou antes do veredito. Sem ele não se pede "publica".
+   Depois: Juiz (anti_trapaca já OK com olho humano conferido; analyze e bateria completa — ver e2e bF.a),
+   fiscal de segurança (protocolo §9), e pedir publica-1 pelo Telegram.
+2. Bloco 2 na APP: diálogo "Cancelar pedido" (order_tracking_screen ≈1303), refund_choice_dialog.dart,
+   strings_en.dart, textos depois do cancelamento (order_details_screen ≈216/443), admin (rótulo do
+   wallet_split_free_pct; detalhe do cancelamento: meio, valor, tokens). Procurar 80%/20%/pontos em lib/.
+   A frase "os tokens voltam como tokens" só entra quando o e2e_log mostrar (1) e (2) aplicados.
+   Reportado pelo agente: support-chatbot/index.ts:399 e 425-428 ainda dizem 80/20.
+3. Bloco 3 N1 (NIF opcional no pagamento/perfil/detalhe), N2 (parceiro), N3 (driver_fiscal_card), N4
+   detalhe do pedido/cliente no admin + ajuda em admin_partner_detail_screen ≈1093, N5 (entrega grátis
+   no carrinho/pagamento; a linha do quote_order_pricing é para o Claude.ai), F4 só confirmar.
+4. Bloco 4: acabar restaurante.py/rotinas (commit WIP 06ea24ec), testes Python, W4 admin, JANELA 2
+   (C5, F1, F2, F3, W1, Edge não vermelhas), instalar na VPS e reiniciar `assistente-negocio`, tenant
+   por SQL (ficheiro fora do repo: Desktop\Bora\prompts\missao-geral-2026-10-28-W1-tenant-boom.sql),
+   W5 em modo demo, janela de 24 h só para o 931, W6 checklist Meta.
+5. Bloco 5 cartazes (nada feito; brief completo no relatório).
+6. Bloco 6 E5 (lista dos "reportado" antigos — já recolhida no e2e: 4761, 4800, 4804, 4809, 4979, 4980).
+7. Bloco F: fiscal, digest, relatório final, publica-2.

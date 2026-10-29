@@ -77,6 +77,31 @@ class SmallOrderFeeService {
   static int? entregaGratisMinCents(String? restaurantId) =>
       restaurantId == null ? null : _entregaGratisMin[restaurantId];
 
+  /// TAXA BASE DA ENTREGA (`platform_settings.delivery_base_fee_cents`).
+  /// Numa loja PARCEIRA com entrega grátis (28/10/2026) só esta parcela sai —
+  /// os km a mais continuam a pagar-se. Espelho do ramo parceiro do
+  /// `pricing_calculate_loja`. `null` = ainda não lida (o carrinho usa então a
+  /// taxa base do `PricingService`, que é o mesmo número).
+  static int? _deliveryBaseFeeCents;
+
+  static int? get deliveryBaseFeeCents => _deliveryBaseFeeCents;
+
+  /// Só para testes: a entrega grátis desta loja (`null` = sem oferta).
+  @visibleForTesting
+  static void definirEntregaGratisParaTeste(String restaurantId, int? cents) {
+    if (cents == null) {
+      _entregaGratisMin.remove(restaurantId);
+    } else {
+      _entregaGratisMin[restaurantId] = cents;
+    }
+  }
+
+  /// Só para testes: a taxa base lida do servidor.
+  @visibleForTesting
+  static void definirTaxaBaseParaTeste(int? cents) {
+    _deliveryBaseFeeCents = cents;
+  }
+
   static SmallOrderFeeConfig get global => _global;
 
   /// Configuração em vigor para uma loja: o override dela, se existir; senão
@@ -95,6 +120,7 @@ class SmallOrderFeeService {
         'min_order_cents',
         'small_order_fee_cents',
         'small_order_fee_enabled',
+        'delivery_base_fee_cents',
       ]);
       if (valores.isEmpty) {
         // `platform_settings` só se lê autenticado: sem sessão a resposta é
@@ -112,6 +138,8 @@ class SmallOrderFeeService {
         minCents: _comoInt(valores['min_order_cents']),
         feeCents: _comoInt(valores['small_order_fee_cents']),
       );
+      final base = _comoInt(valores['delivery_base_fee_cents']);
+      _deliveryBaseFeeCents = base > 0 ? base : null;
       _globalCarregado = true;
       debugPrint('[SmallOrderFee] global: enabled=${_global.enabled} '
           'min=${_global.minCents} fee=${_global.feeCents}');

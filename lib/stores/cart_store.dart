@@ -194,6 +194,14 @@ class CartStore extends ChangeNotifier {
       _apartmentDelivery = map['apartmentDelivery'] as bool? ?? false;
       notifyListeners();
       if (_items.isNotEmpty) unawaited(confirmarParceiraDaLoja());
+      // 28/10/2026: o mínimo da entrega grátis (e o override do pedido pequeno)
+      // vêm da loja — num carrinho reposto ninguém passou por configureSession.
+      final lojaId = _vendorRestaurantId;
+      if (_items.isNotEmpty && lojaId != null) {
+        unawaited(SmallOrderFeeService.carregarLoja(lojaId).then((_) {
+          if (!_libertado) notifyListeners();
+        }));
+      }
     } catch (e) {
       debugPrint('CartStore._loadCart error: $e');
     }
@@ -373,10 +381,22 @@ class CartStore extends ChangeNotifier {
   // (`restaurants.free_delivery_min_cents`). O servidor manda
   // (`pricing_calculate_loja` no quote e no create_order); isto é só o que o
   // ecrã mostra antes do quote chegar e o aviso "faltam X €".
+  //
+  // 28/10/2026: passou a valer também para lojas PARCEIRAS (Boom! Burger, 30 €).
+  // Na parceira só sai a taxa base da entrega (`delivery_base_fee_cents`); os
+  // km a mais continuam a pagar-se. Na não parceira sai a entrega toda. O quote
+  // só devolve `free_delivery_min_cents` para não parceiras, por isso na
+  // parceira o mínimo vem da coluna da loja (`SmallOrderFeeService`).
+
+  /// Só as compras de loja com entrega têm entrega grátis (o servidor aplica
+  /// `pricing_calculate_loja` só a `restaurant` e `storeShopping`).
+  bool get _temEntregaDeLoja =>
+      _serviceType == OrderServiceType.storeShopping ||
+      _serviceType == OrderServiceType.restaurant;
 
   /// Mínimo em euros para a entrega ser grátis nesta loja; `null` = sem oferta.
   double? get entregaGratisMin {
-    if (!_ehPedidoNaoParceiro) return null;
+    if (!_temEntregaDeLoja) return null;
     final doServidor = (_quoteCache?['free_delivery_min_cents'] as num?);
     final cents = doServidor?.toInt() ??
         SmallOrderFeeService.entregaGratisMinCents(_vendorRestaurantId);
@@ -397,12 +417,37 @@ class CartStore extends ChangeNotifier {
     return ((min * 100).round() - (subtotal * 100).round()) / 100;
   }
 
-  /// O preço normal da entrega, para mostrar riscado quando é grátis.
-  double? get entregaRiscada {
-    if (!entregaGratis) return null;
+  /// O que a entrega grátis tira ao cálculo LOCAL (sem quote), em euros.
+  ///
+  /// Não parceira: a entrega toda (sem o apartamento, que tem linha própria).
+  /// Parceira: só a taxa base, e nunca mais do que a entrega que havia — o
+  /// mesmo `LEAST(entrega, taxa base)` do `pricing_calculate_loja`.
+  double get _entregaPoupadaLocal {
+    if (!entregaGratis) return 0;
     final local = pricingBreakdown;
-    final normal = local.deliveryFee - local.apartmentSurcharge;
-    return normal > 0 ? normal : null;
+    final semApartamento = local.deliveryFee - local.apartmentSurcharge;
+    if (semApartamento <= 0) return 0;
+    if (!_isPartnerStore) return semApartamento;
+    final lida = SmallOrderFeeService.deliveryBaseFeeCents;
+    final taxaBase = lida != null
+        ? lida / 100
+        // Ainda sem a leitura do servidor: a taxa base do PricingService
+        // (a entrega até 4 km), que é o mesmo número.
+        : PricingService.calculateBreakdown(
+            serviceType: OrderServiceType.restaurant,
+            subtotal: 0,
+            distanceKm: 4,
+            isPartnerStore: true,
+          ).deliveryFee;
+    return semApartamento < taxaBase ? semApartamento : taxaBase;
+  }
+
+  /// O preço normal da entrega, para mostrar riscado quando é grátis (ou
+  /// quando só a taxa base é grátis, na parceira).
+  double? get entregaRiscada {
+    if (_entregaPoupadaLocal <= 0) return null;
+    final local = pricingBreakdown;
+    return local.deliveryFee - local.apartmentSurcharge;
   }
 
   OrderPricingBreakdown get pricingBreakdown {
@@ -679,11 +724,11 @@ class CartStore extends ChangeNotifier {
     final apartamento = valor('apartment_surcharge', local.apartmentSurcharge);
     // Entrega grátis (23/10/2026): sem quote ainda, o cálculo local tira a
     // entrega quando o carrinho chega ao mínimo da loja — igual ao servidor.
+    // Na parceira só sai a taxa base: os km a mais ficam na linha da entrega.
     final gratisLocal = q == null && !eFavor && entregaGratis;
-    final entregaLocalPoupada =
-        gratisLocal ? local.deliveryFee - local.apartmentSurcharge : 0.0;
+    final entregaLocalPoupada = gratisLocal ? _entregaPoupadaLocal : 0.0;
     final entrega = gratisLocal
-        ? 0.0
+        ? local.deliveryFee - local.apartmentSurcharge - entregaLocalPoupada
         : valor('delivery_fee', local.deliveryFee) - apartamento;
     final taxaPedidoPequeno = eFavor ? 0.0 : smallOrderFee;
     return ResumoDoCarrinho(
@@ -1561,8 +1606,12 @@ class CartStore extends ChangeNotifier {
     }
   }
 
+  /// Já foi libertado (dispose): leituras que acabam depois não avisam ninguém.
+  bool _libertado = false;
+
   @override
   void dispose() {
+    _libertado = true;
     _retratoTimer?.cancel();
     super.dispose();
   }

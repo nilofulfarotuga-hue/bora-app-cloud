@@ -482,7 +482,7 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                     _SummaryRow(
                       label: cartStore.isTakeaway
                           ? 'Entrega (takeaway)'.tr
-                          : cartStore.entregaGratis
+                          : cartStore.entregaGratis && baseDeliveryFee <= 0
                               ? 'Entrega grátis'.tr
                               : 'Entrega'.tr,
                       value: cartStore.isTakeaway ? 0.0 : baseDeliveryFee,
@@ -493,7 +493,12 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                           : cartStore.entregaRiscada,
                       subtitle: () {
                         if (cartStore.isTakeaway) return null;
-                        if (cartStore.entregaGratis) return null;
+                        if (cartStore.entregaGratis) {
+                          // Loja parceira: só a taxa base sai (28/10/2026).
+                          return baseDeliveryFee > 0
+                              ? 'Taxa base grátis; pagas só os km a mais'.tr
+                              : null;
+                        }
                         final d = pricing.distanceKm;
                         if (d <= 4.0) return null;
                         final extra = d - 4.0;

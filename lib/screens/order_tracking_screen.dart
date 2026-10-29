@@ -16,6 +16,7 @@ import '../widgets/order_edit/client_order_edit_banner.dart';
 import '../widgets/address_text.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/errand_budget_banner.dart';
+import '../widgets/fatura_nif_pedido.dart';
 import '../widgets/partilhar_localizacao_card.dart';
 import '../widgets/partilhar_seguimento.dart';
 import '../widgets/takeaway/pickup_code_card.dart';
@@ -714,6 +715,8 @@ class _BottomCardState extends State<_BottomCard> {
                 ErrandBudgetBanner(order: order),
                 // ── Loja parceira mudou o pedido (acrescentar/em falta) ──
                 ClientOrderEditBanner(order: order),
+                // ── NIF que não ficou na fatura: "Tentar de novo" ────────
+                FaturaNifAviso(order: order),
                 // ── Order code + status ──────────────────────────────────
                 Row(
                   children: [

@@ -27,6 +27,7 @@ import '../widgets/bora/banner_pausa_loja.dart';
 import '../widgets/bora/loja_fechada.dart';
 import '../widgets/bora/weight_price_text.dart';
 import '../widgets/bora_assistant_fab.dart';
+import '../widgets/entrega_gratis_da_loja.dart';
 import 'cart_screen.dart';
 import 'client/reservation/reservation_availability_screen.dart';
 import 'product_detail_screen.dart';
@@ -819,6 +820,13 @@ class _StoreHeader extends StatelessWidget {
             ],
           ),
         ),
+        // Entrega grátis a partir de X € (28/10/2026): parceira ou não, quando
+        // a loja tem o mínimo. Quem vai buscar não paga entrega — não se mostra.
+        if (!cart.isTakeaway)
+          EntregaGratisDaLoja(
+            restaurantId: model?.id ?? cart.vendorRestaurantId,
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+          ),
         const SizedBox(height: 10),
       ],
     );

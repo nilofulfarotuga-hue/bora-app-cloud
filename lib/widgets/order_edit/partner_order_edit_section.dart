@@ -14,9 +14,17 @@ import '../../utils/search_text.dart';
 /// Só aparece com o interruptor `order_edit_enabled` ligado e enquanto o pedido
 /// ainda não saiu da loja. Os números vêm sempre do servidor (orçamento).
 class PartnerOrderEditSection extends StatefulWidget {
-  const PartnerOrderEditSection({super.key, required this.order});
+  const PartnerOrderEditSection({
+    super.key,
+    required this.order,
+    this.onEditado,
+  });
 
   final OrderModel order;
+
+  /// Chamado depois de a loja enviar uma alteração (em falta / acrescentar) —
+  /// o ecrã usa-o para voltar a pedir o que fatura e o que recebe (28/10/2026).
+  final VoidCallback? onEditado;
 
   /// Estados em que a loja ainda tem o pedido na mão (igual ao servidor).
   static bool podeEditar(OrderModel o) =>
@@ -175,6 +183,7 @@ class _PartnerOrderEditSectionState extends State<PartnerOrderEditSection> {
     if (ok != true || !context.mounted) return;
     try {
       await svc.propor(widget.order.id, r.alteracoes);
+      widget.onEditado?.call();
       messenger.showSnackBar(SnackBar(
         content: Text(tirar
             ? 'Feito. O cliente foi avisado e recebe a diferença.'

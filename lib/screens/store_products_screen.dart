@@ -20,6 +20,7 @@ import '../widgets/bora/weight_price_text.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora/coming_soon.dart';
 import '../widgets/bora_assistant_fab.dart';
+import '../widgets/entrega_gratis_da_loja.dart';
 import 'cart_screen.dart';
 import 'product_detail_screen.dart';
 
@@ -230,6 +231,13 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
           // continuam todos visíveis.
           if (cartStore.vendorComingSoon)
             ComingSoonBanner(text: cartStore.vendorComingSoonText),
+          // Entrega grátis a partir de X € (28/10/2026), quando a loja tem o mínimo.
+          if (!cartStore.isTakeaway)
+            EntregaGratisDaLoja(
+              restaurantId: widget.restaurantId,
+              fundo: Colors.white,
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            ),
           // ── Search bar ─────────────────────────────────────────────────────
           Container(
             color: Colors.white,

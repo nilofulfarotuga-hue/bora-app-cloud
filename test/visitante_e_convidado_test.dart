@@ -47,7 +47,7 @@ void main() {
   });
 
   test('migração: o convidado só vê (gatilho + políticas + interruptores)', () {
-    final m = ler('supabase/migrations/20261026090000_convidado_so_ve.sql');
+    final m = ler('supabase/migrations/20261029141912_convidado_so_ve_2026_10_26.sql');
     for (final t in ['tvde_rides', 'appointments', 'reservations', 'client_addresses']) {
       expect(m.contains("'$t'"), isTrue, reason: t);
     }

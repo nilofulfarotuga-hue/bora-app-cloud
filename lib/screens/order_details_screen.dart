@@ -18,6 +18,7 @@ import '../widgets/reportar_problema_pedido.dart';
 import '../widgets/order_edit/client_order_edit_banner.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/errand_budget_banner.dart';
+import '../widgets/fatura_nif_pedido.dart';
 import '../widgets/private_bucket_image.dart';
 import '../widgets/refund_choice_dialog.dart';
 import 'chat_screen.dart';
@@ -813,6 +814,8 @@ class _OrderInfoCard extends StatelessWidget {
           _Row(
               label: 'Pagamento'.tr,
               value: order.paymentMethod.name.toUpperCase()),
+          // Fatura com NIF (28/10/2026): só aparece se houver pedido de fatura.
+          FaturaNifLinha(orderId: order.id),
           if (order.vendorName != null)
             _Row(label: 'Estabelecimento'.tr, value: order.vendorName!),
         ],

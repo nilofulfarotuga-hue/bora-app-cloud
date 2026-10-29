@@ -38,6 +38,7 @@ import 'client_favorites_screen.dart';
 import 'client_reservations_screen.dart';
 import 'orders_screen.dart';
 import 'client_addresses_screen.dart';
+import 'client_billing_screen.dart';
 import 'client_promo_code_screen.dart';
 import 'client/checkin_premios_screen.dart';
 import 'connect/connect_payments_screen.dart';
@@ -859,6 +860,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       context,
                       MaterialPageRoute(
                           builder: (_) => const ClientAddressesScreen()),
+                    ),
+                  ),
+                  // Fatura com NIF (28/10/2026): ver, mudar e apagar.
+                  ListTile(
+                    key: const Key('perfil_dados_de_faturacao'),
+                    leading: const Icon(Icons.receipt_long_outlined,
+                        color: AppColors.primary),
+                    title: Text('Dados de faturação'.tr),
+                    subtitle: Text('NIF e nome para as tuas faturas'.tr),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ClientBillingScreen()),
                     ),
                   ),
                   // Bloco D (21/10/2026): os vales dos marcos do check-in.

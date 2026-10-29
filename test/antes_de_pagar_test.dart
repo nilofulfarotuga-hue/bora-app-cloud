@@ -49,7 +49,7 @@ void main() {
         isTrue);
     expect(ler('lib/screens/admin/admin_order_detail_screen.dart')
         .contains("'Endereço trocado no final do pedido'"), isTrue);
-    final m = ler('supabase/migrations/20261026091000_pedido_morada_trocada.sql');
+    final m = ler('supabase/migrations/20261029141901_pedido_morada_trocada_2026_10_26.sql');
     expect(m.contains('o.user_id::text = auth.uid()::text'), isTrue,
         reason: 'só o dono do pedido marca a troca');
     expect(m.contains('revoke all on function public.pedido_marcar_morada_trocada(text, text) from public, anon'),

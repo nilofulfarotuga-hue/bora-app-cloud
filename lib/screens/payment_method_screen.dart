@@ -19,6 +19,7 @@ import 'package:flutter_stripe/flutter_stripe.dart' show StripeException, Failur
 
 import '../models/saved_card.dart';
 import '../services/card_wallet_service.dart';
+import '../services/fatura_nif_service.dart';
 import '../services/limite_dinheiro_service.dart';
 import '../services/payment_service.dart';
 import '../utils/hora_lisboa.dart';
@@ -27,6 +28,8 @@ import '../widgets/bora/maior_18.dart';
 import '../widgets/card_mandate_notice.dart';
 import '../widgets/checkout_legal_notice.dart';
 import '../widgets/customer_note_field.dart';
+import '../widgets/falta_para_entrega_gratis.dart';
+import '../widgets/fatura_nif_card.dart';
 import 'client_home_screen.dart' show abrirSeletorDeMorada;
 import '../widgets/unified_checkout_button.dart';
 import '../widgets/valor_com_risco.dart';
@@ -112,6 +115,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   // C1 (2026-05-31) — nota opcional do cliente para o estafeta (customerNotes).
   final TextEditingController _notesController = TextEditingController();
 
+  // Fatura com NIF (28/10/2026): SEMPRE opcional, nasce desligada. Só se chama
+  // o servidor depois de o pedido ter id real, em segundo plano.
+  final FaturaNifController _faturaNif = FaturaNifController();
+
   // ── Token discount state ───────────────────────────────────────────────────
   int _availableTokens = 0;
   bool _tokensLoaded = false;
@@ -156,6 +163,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     _loadTokens();
     _loadDebt();
     _loadSavedCards();
+    // Já tem NIF guardado? Então o interruptor vem ligado com ele.
+    unawaited(_faturaNif.carregarPerfil(FaturaNifService.instance));
     // 26/10 (item 5): a nota escrita no carrinho aparece aqui outra vez, e o
     // que se escrever aqui volta ao carrinho (o mesmo texto do pedido).
     final cart = context.read<CartStore>();
@@ -175,6 +184,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   void dispose() {
     _mbwayPhoneController.dispose();
     _notesController.dispose();
+    _faturaNif.dispose();
     super.dispose();
   }
 
@@ -508,14 +518,20 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                         // "Ir buscar" não tem entrega — nem linha a 0.
                         if (!isErrand && !cartStore.isTakeaway)
                           _SummaryRow(
-                          label: cartStore.entregaGratis
+                          label: cartStore.entregaGratis &&
+                                  baseDeliveryFee <= 0
                               ? 'Entrega grátis'.tr
                               : 'Entrega'.tr,
                           value: baseDeliveryFee,
                           // Entrega grátis (23/10/2026): preço normal riscado.
                           riscado: cartStore.entregaRiscada,
                           subtitle: () {
-                            if (cartStore.entregaGratis) return null;
+                            if (cartStore.entregaGratis) {
+                              // Loja parceira: só a taxa base sai (28/10/2026).
+                              return baseDeliveryFee > 0
+                                  ? 'Taxa base grátis; pagas só os km a mais'.tr
+                                  : null;
+                            }
                             // Taxa base e €/km derivadas do PricingService (fonte
                             // única de verdade) — não hardcodear 6/2.50/0.50.
                             final st = cartStore.serviceType;
@@ -551,6 +567,12 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                             return '{0} € base + {1} € por {2}km extra'.trArgs([baseFee.toStringAsFixed(2).replaceAll('.', ','), (perKm * extra).toStringAsFixed(2).replaceAll('.', ','), extra.toStringAsFixed(1)]);
                           }(),
                         ),
+                        // Entrega grátis (28/10/2026): quanto falta, como no carrinho.
+                        if (!isErrand &&
+                            !cartStore.isTakeaway &&
+                            cartStore.faltaParaEntregaGratis > 0)
+                          FaltaParaEntregaGratis(
+                              falta: cartStore.faltaParaEntregaGratis),
                         // B1 (2026-06-11): linha do saco visível também aqui
                         // (€0,30 restaurante / €0,10×saco mercado) — era
                         // cobrada pelo servidor mas ausente deste resumo.
@@ -745,6 +767,13 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                       ],
                     ),
                   ),
+                ),
+                const SizedBox(height: 16),
+                // Fatura com NIF (28/10/2026) — opcional, desligada por defeito.
+                FaturaNifCard(
+                  controller: _faturaNif,
+                  serviceType: cartStore.serviceType,
+                  lojaParceira: cartStore.isPartnerStore,
                 ),
                 const SizedBox(height: 24),
                 // C1 — nota opcional para o estafeta (liga ao customerNotes).
@@ -1140,6 +1169,22 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       return;
     }
 
+    // Fatura com NIF ligada com um NIF que não vale: avisa-se ANTES de cobrar
+    // (o cliente corrige ou desliga). Nada disto toca no pedido em si.
+    if (_faturaNif.nifPorCorrigir) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+              'O NIF não é válido. Confere os 9 dígitos ou desliga a fatura com NIF.'
+                  .tr),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    // Guardado já: o que o cliente escrever daqui para a frente não muda isto.
+    final DadosFatura? faturaPedida = _faturaNif.pedido;
+
     setState(() => _isProcessing = true);
 
     final paymentService = PaymentService();
@@ -1218,6 +1263,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           return;
         }
         final saldoOrderId = orderStore.lastCreatedOrderId;
+        _pedirFaturaNif(saldoOrderId, faturaPedida);
         if (saldoOrderId != null) {
           await _persistErrandHomeStop(favorSaldo, saldoOrderId);
         }
@@ -1354,6 +1400,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       }
 
       // Step 4: success — clear cart + consume tokens + navigate
+      // O pedido já tem id: o NIF segue em segundo plano (nunca atrasa nada).
+      _pedirFaturaNif(orderId, faturaPedida);
       // 8.1 — persistir a foto do favor (errand via cartão) antes de limpar.
       final reqPhoto = cartStore.errandRequestPhotoUrl;
       if (reqPhoto != null) {
@@ -1440,6 +1488,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           ));
           return;
         }
+        _pedirFaturaNif(mbwayOrderId, faturaPedida);
         // Use the user-entered MBWay number (validated as 9 digits in pre-flight).
         // Edge Function handles E.164 conversion (prepends +351).
         final clientPhone =
@@ -1521,10 +1570,20 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     }
 
     final cashOrderId = orderStore.lastCreatedOrderId;
+    _pedirFaturaNif(cashOrderId, faturaPedida);
     if (cashOrderId != null) {
       await _persistErrandHomeStop(favorDinheiro, cashOrderId);
     }
     await _consumeTokensAndNavigate(tokensUsed);
+  }
+
+  /// Fatura com NIF (28/10/2026): depois de o pedido ter id real, regista o
+  /// NIF em segundo plano (3 tentativas). Não espera, não bloqueia e não
+  /// lança — se falhar, o acompanhamento mostra "tentar de novo".
+  void _pedirFaturaNif(String? orderId, DadosFatura? fatura) {
+    if (orderId == null || fatura == null) return;
+    FaturaNifService.instance
+        .pedirEmSegundoPlano(orderId, nif: fatura.nif, nome: fatura.nome);
   }
 
   /// Consumes loyalty tokens (non-fatal) and navigates back on success.

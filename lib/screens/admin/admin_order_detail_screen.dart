@@ -6,6 +6,7 @@ import 'admin_order_edits_screen.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/admin/escolher_estafeta_sheet.dart';
 import '../../widgets/private_bucket_image.dart';
+import '../../widgets/admin/admin_fatura_nif_section.dart';
 import '../../widgets/admin/admin_favor_passos_section.dart';
 import '../../widgets/admin/admin_ofertas_do_pedido_section.dart';
 import '../../utils/conta_do_dinheiro_admin.dart';
@@ -432,6 +433,9 @@ class _SummaryTab extends StatelessWidget {
               ]),
             ),
           ),
+          // Fatura com NIF (28/10/2026): ver e editar o NIF e o nome deste pedido.
+          const SizedBox(height: 12),
+          AdminFaturaNifSection.pedido(orderId: order['id'] as String),
           const SizedBox(height: 24),
           Text('Acções', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),

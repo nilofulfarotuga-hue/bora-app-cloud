@@ -1095,7 +1095,9 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
             const SizedBox(height: 12),
             // Entrega grátis por loja (23/10/2026, padrão Glovo): a partir
             // deste subtotal o cliente não paga entrega. Vazio = sem oferta.
-            // Só vale para loja NÃO-parceira (o servidor ignora nas parceiras).
+            // Vale para lojas parceiras e não parceiras (desde 28/10/2026):
+            // na parceira só sai a taxa base da entrega; na não parceira sai
+            // a entrega toda. O servidor aplica as duas regras.
             TextField(
               controller: _entregaGratisCtrl,
               keyboardType: TextInputType.number,
@@ -1104,6 +1106,15 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
                 hintText: 'vazio = sem entrega grátis · 2000 = 20,00 €',
                 border: OutlineInputBorder(),
                 isDense: true,
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.only(top: 4),
+              child: Text(
+                'Parceiros: sai só a taxa base de entrega; os km a mais '
+                'continuam sendo cobrados. Não parceiros: sai a entrega toda.',
+                key: Key('ajuda_entrega_gratis'),
+                style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
             ),
             const SizedBox(height: 12),

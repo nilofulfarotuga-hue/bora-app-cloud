@@ -166,6 +166,8 @@ def resumo_semanal(t, agora):
 
 def orcamento(t, agora):
     gasto, tecto = A.custo_mes(t), float(t["orcamento_mensal_eur"])
+    if tecto <= 0:  # sem orcamento pago (so motores gratis): nada a avisar (antes: divisao por zero de minuto a minuto)
+        return
     mes = agora.strftime("%Y-%m")
     if gasto >= 0.8 * tecto and t.get("aviso_orcamento_mes") != mes:
         if telegram(f"Assistente {t['nome']}: já gastou {gasto:.2f} € dos {tecto:.2f} € do mês ({gasto / tecto:.0%}). "

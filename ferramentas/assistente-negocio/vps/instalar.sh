@@ -27,6 +27,8 @@ shred -u /tmp/assistente-negocio/.chave-paga 2>/dev/null || true
 for k in SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY GEMINI_API_KEY GEMINI_API_KEY_2 GROQ_API_KEY OPENCODE_GO_KEY GEMINI_API_KEY_FATURACAO; do
   v=$(pega $D/.env $k); echo "$k: ${#v} caracteres"
 done
+# edge-tts: venv proprio (o do Hermes ficou velho: HTTP 403 da Microsoft a 29/10/2026), sempre a versao mais recente
+[ -x $D/.venv-tts/bin/edge-tts ] || { python3 -m venv $D/.venv-tts && $D/.venv-tts/bin/pip install -q -U edge-tts; }
 systemctl daemon-reload
 systemctl enable assistente-negocio >/dev/null 2>&1
 systemctl restart assistente-negocio

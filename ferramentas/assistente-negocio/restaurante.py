@@ -48,9 +48,28 @@ def euros(v):
     return f"{r2(v):.2f}".replace(".", ",") + " €"
 
 
+# O cliente quer MAIS do que ja esta no carrinho? (palavras que um motor fraco nao pode inventar)
+MAIS_RE = re.compile(r"\b(mais|outr[oa]s?|tamb[eé]m|acrescent\w*|junt\w*|adicion\w*|repet\w*|igual|iguais|extra|"
+                     r"dois|duas|tr[eê]s|quatro|cinco|seis)\b", re.I)
+SEM_NOME = {"boom", "de", "com", "o", "a", "um", "uma", "da", "do"}
+
+
 def e_sim(texto):
     t = (texto or "").strip()
     return bool(SIM_RE.search(t)) and not NAO_RE.search(t)
+
+
+# "Sim" e mais nada (so estas palavras, no maximo 6): confirma-se em codigo, sem esperar por um motor. "Sim, e com bacon" nao conta.
+_SIM_NUCLEO = {"sim", "s", "confirmo", "confirma", "confirmar", "confirmado", "pode", "ok", "okay", "fechado", "claro", "perfeito",
+               "exato", "exatamente", "isso", "certo", "correto", "bora", "vamos", "manda", "avance", "avanca", "siga", "quero"}
+_SIM_RESTO = _SIM_NUCLEO | {"ser", "esta", "bem", "ta", "mesmo", "obrigado", "obrigada", "por", "favor", "pedido", "encomenda", "o", "a"}
+
+
+def e_sim_puro(texto):
+    toks = re.sub(r"[^a-z0-9]+", " ", A.sem_acentos(texto or "").lower()).split()
+    if not (0 < len(toks) <= 6 and all(w in _SIM_RESTO for w in toks)):
+        return False
+    return any(w in _SIM_NUCLEO for w in toks) or ("bem" in toks and ("esta" in toks or "ta" in toks))  # "esta bem"
 
 
 def norm(s):
@@ -114,7 +133,7 @@ def max_km():
 
 def link_app(t):
     f = ((t.get("knowledge") or {}).get("ficha") or {})
-    return f.get("link_app") or f"https://www.boraguarda.com/baixar?de=whatsapp-{t.get('slug', 'loja')}"
+    return f.get("link_app") or f"https://www.boraguarda.com/baixar?de=whatsapp-{str(t.get('slug') or 'loja').split('-')[0]}"
 
 
 def conta_do_cliente(t, numero):
@@ -440,16 +459,68 @@ class TurnoRestaurante(A.Turno):
         self.inicio = A.agora()
         self._loja = None
         self._prods = None
+        self._juntados = set()   # o que ESTE turno ja juntou (um motor que repete a chamada nao duplica)
+        self._antes = None       # linhas que o carrinho ja tinha quando o turno comecou
 
     def executar(self, nome, args):
         """Uma ferramenta partida nunca pode deixar o cliente sem resposta (nem rebentar o /evento)."""
         try:
             return super().executar(nome, args)
         except Exception as e:  # noqa: BLE001
-            r = {"erro": "interno", "detalhe": f"{type(e).__name__}: {str(e)[:160]}",
+            r = {"ok": False, "erro": "interno", "detalhe": f"{type(e).__name__}: {str(e)[:160]}",
                  "instrucao": "Pede desculpa e diz que vais confirmar com a loja; não digas que o pedido foi feito."}
             self.usadas.append({"ferramenta": nome, "args": args, "resultado": r})
             return r
+
+    def passar_ao_dono(self, motivo):
+        """Dinheiro, reclamacoes e reembolsos vao para uma pessoa: a loja (WhatsApp) e o Telegram do Danilo."""
+        r = super().passar_ao_dono(motivo)
+        if not self.simular:
+            try:
+                import rotinas  # aqui e nao no topo: o rotinas importa este modulo a pedido
+                rotinas.telegram(f"{self.t['nome']} (robô de WhatsApp): cliente +{self.numero} precisa de uma pessoa — {motivo}")
+            except Exception:  # noqa: BLE001 — o aviso por Telegram nunca pode partir a conversa
+                pass
+        return r
+
+    def sim_direto(self, hist):
+        """O cliente respondeu so "sim" a um resumo que acabou de ver (a ultima mensagem do robo foi o resumo, ha menos de 30 min):
+        confirma-se aqui, em codigo (as mesmas verificacoes do confirmar_pedido), sem esperar por um motor — os motores de reserva
+        voltavam a mostrar o resumo em vez de confirmar. Devolve o texto a enviar, ou None (segue para o motor)."""
+        ult = hist[-1] if hist else None
+        if not ult or ult.get("r") != "assistant" or "Confirma a encomenda?" not in (ult.get("t") or ""):
+            return None
+        try:
+            if A.agora() - A.hora_local(ult["ts"]) > dt.timedelta(minutes=30):
+                return None
+        except (KeyError, ValueError, TypeError):
+            return None
+        if not e_sim_puro(self.texto_cliente):
+            return None
+        r = self.executar("confirmar_pedido", {})
+        if r.get("ok") and r.get("mensagem") and not r.get("ja_estava_feito"):
+            return r["mensagem"]
+        return None
+
+    def ajustar_resposta(self, resposta):
+        """Os numeros e o estado que o cliente le sao os do servidor, nunca os que um motor (de reserva) reescreveu.
+        Medido a 29/10: depois do pedido feito, um motor fraco escreveu 'ja esta a caminho'. Chamado por assistente._fechar."""
+        ult = {}
+        for u in self.usadas:
+            r = u.get("resultado") or {}
+            if u["ferramenta"] in ("adicionar_ao_pedido", "remover_do_pedido", "escolher_entrega", "esquecer_pedido"):
+                ult.pop("orcamento", None)  # o carrinho mexeu depois do resumo: o resumo ja nao vale
+            elif u["ferramenta"] in ("orcamento", "confirmar_pedido") and r.get("ok"):
+                ult[u["ferramenta"]] = r
+        c = ult.get("confirmar_pedido")
+        if c and c.get("mensagem") and not c.get("ja_estava_feito"):
+            fiel = c["pedido"] in resposta and c["total"] in resposta and not re.search(
+                r"a caminho|j[aá] saiu|entregue|a chegar|chega ", resposta, re.I)
+            return resposta if fiel else c["mensagem"]
+        o = ult.get("orcamento")
+        if o and o.get("resumo_texto") and o["resumo_texto"] not in resposta:
+            return o["resumo_texto"]
+        return resposta
 
     # --- dados
     def L(self):
@@ -532,6 +603,15 @@ class TurnoRestaurante(A.Turno):
         k = carrinho(self.t, self.numero, criar=True, simulado=self.simular)
         pl = dict(k.get("payload") or {"fase": "carrinho", "itens": []})
         itens = list(pl.get("itens") or [])
+        linha = json.dumps([p["id"], ops, nota or None], sort_keys=True, ensure_ascii=False)
+        if self._antes is None:
+            self._antes = {json.dumps([l["product_id"], l.get("opcoes") or [], l.get("nota") or None], sort_keys=True, ensure_ascii=False)
+                           for l in itens}
+        if self._repetido(p, linha, q, ops, nota):
+            return {"ok": True, "ja_estava": True, "pedido": linhas_do_carrinho(pl),
+                    "instrucao": "Isto JÁ estava no pedido: não juntes outra vez. Continua: se ainda não sabes, pergunta se vem buscar "
+                                 "ou é para entregar / pede a morada; senão chama orcamento."}
+        self._juntados.add(json.dumps([linha, q]))
         for l in itens:
             if l["product_id"] == p["id"] and (l.get("opcoes") or []) == ops and (l.get("nota") or None) == (nota or None):
                 l["quantidade"] += q
@@ -545,6 +625,22 @@ class TurnoRestaurante(A.Turno):
         return {"ok": True, "pedido": linhas_do_carrinho(pl),
                 "instrucao": "Confirma em 1 frase o que juntaste. Se ainda não sabes, pergunta se quer mais alguma coisa e depois "
                              "se vem buscar ou é para entregar."}
+
+    def _repetido(self, p, linha, q, ops, nota):
+        """Um motor de reserva (mais fraco) pode voltar a juntar o que o carrinho JA tem — medido a 29/10 (2+2 virou 4+4,
+        64,98 EUR). So se junta outra vez se o cliente o disse: nomeou o produto ou falou em 'mais/outro/...'.
+        Regras (em codigo, nao no modelo): (1) a mesma chamada repetida no mesmo turno nao conta; (2) uma linha que o
+        carrinho ja tinha antes deste turno so volta a somar se a mensagem do cliente a nomeia ou pede mais."""
+        texto = self.texto_cliente or ""
+        pede_mais = bool(MAIS_RE.search(texto))
+        if json.dumps([linha, q]) in self._juntados:
+            return not pede_mais
+        if linha in (self._antes or set()):
+            toks = [t for t in norm(p["name"]).split() if t not in SEM_NOME and len(t) >= 3]
+            palavras = norm(texto).split()
+            nomeou = any(t[:5] in w for t in toks for w in palavras)
+            return not (nomeou or pede_mais)
+        return False
 
     def remover_do_pedido(self, linha):
         k = carrinho(self.t, self.numero)
@@ -589,14 +685,14 @@ class TurnoRestaurante(A.Turno):
             if not g:
                 return {"ok": False, "erro": "morada_nao_encontrada",
                         "instrucao": "Diz que não encontraste a morada e pede rua, número e localidade (ex.: freguesia), ou um ponto de referência."}
-            km = M.haversine_km(float(L["lat"]), float(L["lng"]), g["lat"], g["lng"])
+            km, como = M.km_estrada(float(L["lat"]), float(L["lng"]), g["lat"], g["lng"])  # como a app: estrada, senao linha reta
             if km > max_km():
                 return {"ok": False, "erro": "fora_da_zona", "morada_encontrada": g["morada"], "distancia_km": round(km, 1),
                         "instrucao": "Diz com simpatia que essa morada fica fora da zona de entregas da loja e sugere vir buscar (se der)."}
             destino = {"lat": g["lat"], "lng": g["lng"], "morada": g["morada"], "rua": g.get("rua"),
                        "codigo_postal": g.get("codigo_postal"), "cidade": g.get("cidade") or "Guarda",
                        "escrita": morada, "complemento": complemento or None}
-            pl.update({"modo": "entrega", "destino": destino, "distancia_km": round(km, 2)})
+            pl.update({"modo": "entrega", "destino": destino, "distancia_km": round(km, 2), "distancia_como": como})
         pl.pop("orcamento", None)
         gravar(k, pl)
         r = {"ok": True, "modo": pl["modo"]}
@@ -853,7 +949,7 @@ REGRAS (inquebráveis):
 3. Alergénios: usa alergenios. Sem dados: diz que não tens a informação e oferece perguntar à loja (perguntar_ao_dono).
 4. Horário e se está aberta: ver_horario_loja.
 5. Fatura com NIF: por agora não dá para pôr o NIF por aqui; diz que pode pedi-la na app Bora.
-6. Onde está a minha encomenda: meu_pedido. Reclamações, um pedido já feito com problemas, descontos ou pedidos fora do menu: passar_ao_dono.
+6. Onde está a minha encomenda: meu_pedido. Dinheiro, reclamações, reembolsos, um pedido já feito com problemas, descontos ou pedidos fora do menu: passar_ao_dono (nunca prometas devolver dinheiro nem dar desconto).
 7. Não sabes e não está aqui? perguntar_ao_dono e diz que confirmas com a loja. É PROIBIDO dizer "vou verificar" sem chamar perguntar_ao_dono.
 8. Nunca fales de comissões, de quanto a loja recebe, nem de quem é o dono da Bora (se perguntarem: és o atendimento da {t['nome']} na Bora).
 9. Não digas que és uma IA a não ser que perguntem; se perguntarem, és o assistente da {t['nome']}.

@@ -650,6 +650,10 @@ def atender(ev, simular=False):
             turno.foi_audio = foi_audio
             return _fechar(t, numero, texto, entrada, turno, fechado, "loja-abre-em-breve", None, hist, simular)
         turno = restaurante.TurnoRestaurante(t, numero, ct, simular, texto)
+        turno.foi_audio = foi_audio
+        direto = turno.sim_direto(hist)
+        if direto:  # "sim" a um resumo que acabou de ser mostrado: pedido confirmado em codigo, sem motor
+            return _fechar(t, numero, texto, entrada, turno, direto, "pedido-confirmado-em-codigo", None, hist, simular)
         sistema = restaurante.prompt_restaurante(t, ct)
     else:
         turno = Turno(t, numero, ct, simular)
@@ -709,6 +713,11 @@ def _laco(t, turno, msgs, pode_pago):
 
 def _fechar(t, numero, texto, entrada, turno, resposta, acao, erro, hist, simular):
     resposta = re.sub(r"\s*\[(sistema|consultei|resultado)[^\]]*\]", "", resposta).strip() or resposta
+    ajustar = getattr(turno, "ajustar_resposta", None)  # restaurantes: os numeros que o cliente le sao os do servidor
+    if ajustar:
+        nova = ajustar(resposta)
+        if nova != resposta:
+            resposta, acao = nova, acao + " (texto do servidor)"
     if RACIOCINIO.search(resposta):
         resposta = "Desculpe, pode repetir a pergunta por outras palavras?"
         acao = "raciocinio-apanhado"

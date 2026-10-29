@@ -106,6 +106,35 @@ def _google(endereco):
     return [c for c in out if c["lat"] is not None]
 
 
+def _rota_google(o_lat, o_lng, d_lat, d_lng):
+    """Distancia de carro em km pelo Google Directions — a MESMA que a app usa ao criar o pedido
+    (lib/services/maps_service.dart + directions_service_io.dart: soma das pernas, mode=driving)."""
+    url = ("https://maps.googleapis.com/maps/api/directions/json?origin=" + f"{o_lat},{o_lng}" + "&destination=" + f"{d_lat},{d_lng}"
+           + "&mode=driving&key=" + _chave())
+    with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"}), timeout=12) as r:
+        j = json.load(r)
+    if j.get("status") != "OK":
+        raise RuntimeError("google directions " + str(j.get("status")))
+    metros = sum((leg.get("distance") or {}).get("value", 0)
+                 for rota in (j.get("routes") or [])[:1] for leg in rota.get("legs") or [])
+    if metros <= 0:
+        raise RuntimeError("google directions sem distancia")
+    return metros / 1000.0
+
+
+def km_estrada(o_lat, o_lng, d_lat, d_lng, rota=None):
+    """-> (km, origem). A app cobra pela distancia de ESTRADA (cai para a linha reta se o Google nao responder).
+    Nunca menos que a linha reta (o servidor recusa distancias abaixo dela: DISTANCE_MISMATCH)."""
+    reta = haversine_km(o_lat, o_lng, d_lat, d_lng)
+    try:
+        km = (rota or _rota_google)(o_lat, o_lng, d_lat, d_lng)
+        if km and km > 0:
+            return round(max(km, reta), 2), "estrada"
+    except Exception:
+        pass
+    return round(reta, 2), "linha-reta"
+
+
 def geocodificar(texto, pedir=None):
     """-> {lat, lng, morada, rua, codigo_postal, cidade} ou None. `pedir` substitui o Google nos testes."""
     pedir = pedir or _google

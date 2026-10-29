@@ -17,6 +17,7 @@ import '../services/offer_presentation_gate.dart';
 import '../services/push_token_service.dart';
 import '../services/web_presence.dart';
 import '../utils/constants.dart';
+import '../utils/reconexao_canal_ofertas.dart';
 
 class DriverStore extends ChangeNotifier {
   String _primaryDriverId = 'driver-main';
@@ -380,6 +381,9 @@ class DriverStore extends ChangeNotifier {
         await BoraForegroundService.clearDriverId();
         await BoraForegroundService.stop();
         await BoraBubbleService.setDriverOnline(false);
+        // Offline: nenhum reconnect pendente nem canal para reatar.
+        _reconnectTimer?.cancel();
+        _lastSubscribedDriverId = null;
         await _unsubscribeDriverOfferChannel();
       }
     } catch (e) {
@@ -405,6 +409,10 @@ class DriverStore extends ChangeNotifier {
   Timer? _reconnectTimer;
   int _reconnectAttempt = 0;
   static const _maxReconnectDelaySeconds = 30;
+  // 29/10/2026 (auditoria no emulador): só o canal atual, e só quando o fecho
+  // não foi pedido por nós, pode reagendar — senão o `closed` do nosso próprio
+  // removeChannel entrava em ciclo de 3 em 3 s.
+  final _reconexao = ReconexaoCanalOfertas();
 
   void _subscribeDriverOfferChannel(String driverId) {
     if (_driverOfferChannel != null) return;
@@ -452,10 +460,16 @@ class DriverStore extends ChangeNotifier {
         } else if (status == RealtimeSubscribeStatus.channelError ||
             status == RealtimeSubscribeStatus.closed ||
             status == RealtimeSubscribeStatus.timedOut) {
-          _scheduleReconnect();
+          if (_reconexao.deveReagendar(canal: ch, estadoDeFalha: true)) {
+            _scheduleReconnect();
+          } else {
+            debugPrint(
+                '[DriverStore] driver-offer $status ignorado (fecho pedido por mim ou canal antigo)');
+          }
         }
       });
       _driverOfferChannel = ch;
+      _reconexao.canalLigado(ch);
       debugPrint('[DriverStore] subscribed realtime driver-offer:$driverId');
     } catch (e) {
       debugPrint('[DriverStore] _attachOfferChannel error: $e');
@@ -474,6 +488,8 @@ class DriverStore extends ChangeNotifier {
     _reconnectTimer?.cancel();
     _reconnectTimer = Timer(Duration(seconds: delay), () async {
       await _unsubscribeDriverOfferChannel();
+      // Entretanto ficou offline (id limpo) ou mudou de estafeta: não religar.
+      if (_lastSubscribedDriverId != id) return;
       _attachOfferChannel(id);
     });
   }
@@ -485,6 +501,7 @@ class DriverStore extends ChangeNotifier {
     if (id == null || id.isEmpty) return;
     debugPrint('[DriverStore] CAMADA 4 forceResubscribeIfStale driverId=$id');
     await _unsubscribeDriverOfferChannel();
+    if (_lastSubscribedDriverId != id) return; // ficou offline entretanto
     _reconnectAttempt = 0;
     _attachOfferChannel(id);
   }
@@ -492,6 +509,7 @@ class DriverStore extends ChangeNotifier {
   Future<void> _unsubscribeDriverOfferChannel() async {
     final ch = _driverOfferChannel;
     if (ch == null) return;
+    _reconexao.vouFechar();
     try {
       await _client.removeChannel(ch);
       debugPrint('[DriverStore] unsubscribed realtime driver-offer');
@@ -499,6 +517,7 @@ class DriverStore extends ChangeNotifier {
       debugPrint('[DriverStore] _unsubscribeDriverOfferChannel error: $e');
     } finally {
       _driverOfferChannel = null;
+      _reconexao.fechoConcluido();
     }
   }
 

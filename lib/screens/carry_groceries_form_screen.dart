@@ -77,7 +77,10 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
     final t = text.trim();
     if (t.isEmpty) return null;
     try {
-      return await _geocoder.geocodeAddress(t);
+      // Revisão B (Favor): a mesma procura da morada escrita do TVDE e do
+      // Favor (melhor resultado na Guarda, conferido com a sugestão quando
+      // fica longe do centro) — nunca o 1.º resultado cru do geocode.
+      return (await _geocoder.procurarMoradaEscrita(t))?.coords;
     } catch (_) {
       return null;
     }
@@ -121,7 +124,7 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             content: Text(
-                'Não consegui localizar a loja ou a entrega. Escolhe uma sugestão da lista.'.tr)),
+                'Não consegui localizar a loja ou a entrega. Escolhe uma sugestão da lista ou acrescenta a cidade (ex.: Guarda).'.tr)),
       );
       return;
     }
@@ -206,6 +209,9 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
               controller: _dropoffController,
               labelText: 'Pesquisar morada de entrega'.tr,
               prefixIcon: const Icon(Icons.location_on_outlined),
+              // Sem coordenadas o "Continuar" barra: "Usar esta morada" procura
+              // no mapa e, se não achar, avisa no campo (que fica editável).
+              exigirCoordenadas: true,
               onSelected: (address, coords) {
                 setState(() => _dropoffLocation = coords);
               },

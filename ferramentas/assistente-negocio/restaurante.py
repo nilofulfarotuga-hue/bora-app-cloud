@@ -192,6 +192,53 @@ def resposta_fora_da_janela(t, numero):
     return None
 
 
+# ----------------------------------------------------------------------------- resposta rapida (sem motor)
+# Adendo 4 (29/10/2026): a primeira resposta tem de sair em menos de 5 s. Um pedido simples de menu/lista/precos
+# responde-se em codigo, da base, sem esperar por um motor. Tudo o que parece encomenda ou pergunta segue para o motor.
+MENU_RE = re.compile(r"\b(menu|lista|cardapio|ementa|carta|precos?|precario|hamburg\w*|burgu?er\w*|"
+                     r"o que (e que )?(tem|teem|ha|vendem|fazem|servem)|quais (sao )?(os|as))\b", re.I)
+PEDIDO_RE = re.compile(r"\b(quero|queria|queriamos|encomend\w*|pedir|peco|vou querer|\d+\s*x|dois|duas|tres|quatro|"
+                       r"opcoes|opcao|ingredientes|leva|tem (bacon|queijo|picante|cebola)|alerg\w*|entrega|morada|horario|"
+                       r"aberto|abrem|fecham|quanto (fica|custa|e))\b", re.I)
+
+
+def menu_texto(t, so_hamburgueres=False):
+    """Menu da base (o que a app mostra), por categoria, com precos; marca os produtos com opcoes."""
+    prods = produtos(t)
+    if not prods:
+        return None
+    if so_hamburgueres:
+        hb = [p for p in prods if re.search(r"hamb|burg", norm(p.get("category") or ""))]
+        prods = hb or prods
+    com_opcoes = set(grupos_de([p["id"] for p in prods]).keys())
+    linhas, cat = [], None
+    for p in prods:
+        if p.get("category") != cat:
+            cat = p.get("category")
+            linhas.append(f"\n*{cat or 'Outros'}*")
+        linhas.append(f"• {p['name']} — {euros(p['price'])}" + (" (com opções)" if p["id"] in com_opcoes else ""))
+    return "\n".join(linhas).strip()
+
+
+def resposta_rapida(t, ct, texto):
+    """Menu/lista/precos pedidos de forma simples -> texto pronto, da base. None = segue para o motor."""
+    tx = A.sem_acentos(texto or "")
+    if len(tx) > 120 or not MENU_RE.search(tx) or PEDIDO_RE.search(tx):
+        return None
+    L = loja(t) or {}
+    so_hb = bool(re.search(r"hamburg|burgu?er", tx)) and not re.search(r"\b(menu|carta|ementa|cardapio|tudo|completo)\b", tx)
+    corpo = menu_texto(t, so_hamburgueres=so_hb)
+    if not corpo:
+        return None
+    h = A.agora().hour
+    sauda = "Bom dia" if h < 12 else ("Boa tarde" if h < 20 else "Boa noite")
+    gratis = euros(D(L["free_delivery_min_cents"]) / 100) if L.get("free_delivery_min_cents") else None
+    rodape = ("Os hambúrgueres têm opções (pão, carne, extras, batata): diga-me o que quer e eu trato do resto. "
+              "Pagamento em dinheiro na entrega" + (f"; entrega grátis a partir de {gratis} em produtos." if gratis else "."))
+    cabeca = "a nossa lista de hambúrgueres" if so_hb else "o nosso menu"
+    return f"{sauda}! Aqui está {cabeca}:\n{corpo}\n\n{rodape}"
+
+
 # ----------------------------------------------------------------------------- produtos e opcoes
 def resolver_produto(nome, lista):
     """-> (produto, candidatos). Igual > contido > palavras em comum. Empate = pergunta ao cliente."""
@@ -930,6 +977,8 @@ MENU (da base de dados agora; é a verdade): {menu_txt}
 
 Morada da loja: {L.get('address')}. Ir buscar: {ir_buscar}. Pagamento: só dinheiro (na entrega ao estafeta, ou na loja).{nota_gratis}
 Notas da loja: {' '.join(f.get('notas') or [])}
+CONHECIMENTO DA CASA (ingredientes, história, perguntas frequentes; os preços são só os do MENU acima):
+{f.get('conhecimento') or '(sem ficha de conhecimento)'}
 Perguntas já respondidas pela loja:
 {aprendidas}
 

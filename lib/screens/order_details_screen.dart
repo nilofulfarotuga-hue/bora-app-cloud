@@ -442,13 +442,16 @@ class _CancelOrderButtonState extends State<_CancelOrderButton> {
           orderId: order.id,
           refundableEur: refundable,
           originalPaymentMethod: _paymentMethodStr(),
+          tokensEur: order.tokensAppliedValueCents / 100.0,
         );
         if (res != null && context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(res.refundMethod == 'wallet'
                   ? 'Cancelado. Saldo disponível imediatamente.'.tr
-                  : 'Cancelado. Reembolso ao cartão em 5-10 dias úteis.'),
+                  : (order.paymentMethod == PaymentMethod.mbway
+                      ? 'Cancelado. Devolução por MB Way, normalmente na hora.'.tr
+                      : 'Cancelado. Devolução ao cartão em 5 a 10 dias úteis.'.tr)),
             ),
           );
           // Trigger refresh do OrderStore (realtime channel também actualizará)

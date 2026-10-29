@@ -169,3 +169,7 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   e2e_log 5210) e o SQL exato está em `docs/propostas/missao-geral-2026-10-28/janela2/S1_platform_settings_segredos.sql`
   (passos 0 a 4, sem a documentação do fim). Falta copiá-lo para `supabase/migrations/` por quem não tenha
   a tranca (Claude.ai pelo GitHub, ou o Danilo a carregar Permitir numa sessão).
+- **29/10/2026, missão `publica-2026-10-29`, passo A.5** — 2.ª recusa do mesmo `Write`
+  (`supabase/migrations/20261029152540_s1_platform_settings_segredos.sql`, só os passos 0 a 4, com cabeçalho curto).
+  Mesma mensagem da tranca. Não se contornou (nem por `cp`). Registado no e2e_log (5274). Fica para a Claude.ai pelo
+  GitHub web depois do push de produção.

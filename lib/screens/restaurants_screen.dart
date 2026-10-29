@@ -355,7 +355,7 @@ Future<void> openRestaurantBusiness(
   if (reservationsOnly && business.isPartner && business.reservationsEnabled) {
     // "Em breve": a reserva cobra — não deixar entrar no fluxo.
     if (business.comingSoon) {
-      showComingSoonBlockedSnackBar(context);
+      showComingSoonBlockedSnackBar(context, reserva: true);
       return;
     }
     Navigator.push(

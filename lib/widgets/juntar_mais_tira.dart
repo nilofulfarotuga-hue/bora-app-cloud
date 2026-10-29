@@ -34,22 +34,17 @@ List<PartnerProduct> produtosParaJuntarMais(
   return lista.take(max).toList();
 }
 
-/// Frase por baixo do título: o que falta, e para quê.
-/// `null` quando não falta nada (a tira não aparece).
-String? subtituloJuntarMais({
+/// A tira só aparece quando ainda falta alguma coisa ao carrinho: gastar mais
+/// para a entrega grátis ou para deixar de pagar a taxa de pedido pequeno.
+///
+/// A frase de "quanto falta" NÃO é escrita aqui (29/10/2026): o resumo do
+/// carrinho já a mostra, mesmo por cima da tira, e o emulador apanhou-a
+/// repetida. Aqui só se decide se há razão para oferecer produtos.
+bool juntarMaisPrecisa({
   required double faltaEntregaGratis,
   required double faltaMinimo,
-}) {
-  String eur2(double v) => v.toStringAsFixed(2).replaceAll('.', ',');
-  if (faltaEntregaGratis > 0) {
-    return 'Faltam {0} € para a entrega grátis'.trArgs([eur2(faltaEntregaGratis)]);
-  }
-  if (faltaMinimo > 0) {
-    return 'Faltam {0} € para evitar a taxa de pedido pequeno'
-        .trArgs([eur2(faltaMinimo)]);
-  }
-  return null;
-}
+}) =>
+    faltaEntregaGratis > 0 || faltaMinimo > 0;
 
 /// "Juntar mais" no carrinho: 3 produtos baratos da mesma loja, para chegar
 /// à entrega grátis ou ao mínimo sem sair do carrinho. Só junta produtos pelo
@@ -104,12 +99,12 @@ class _JuntarMaisTiraState extends State<JuntarMaisTira> {
     if (cart.items.isEmpty || cart.isTakeaway && cart.faltaParaMinimo <= 0) {
       return const SizedBox.shrink();
     }
-    final sub = subtituloJuntarMais(
+    final precisa = juntarMaisPrecisa(
       faltaEntregaGratis: cart.isTakeaway ? 0 : cart.faltaParaEntregaGratis,
       faltaMinimo: cart.faltaParaMinimo,
     );
     final lojaId = cart.vendorRestaurantId;
-    if (sub == null || lojaId == null) return const SizedBox.shrink();
+    if (!precisa || lojaId == null) return const SizedBox.shrink();
     final store = context.watch<RestaurantStore>();
     final noCarrinho = {for (final i in cart.items) i.productId};
     final sugestoes = produtosParaJuntarMais(
@@ -127,13 +122,6 @@ class _JuntarMaisTiraState extends State<JuntarMaisTira> {
           Text(
             'Juntar mais'.tr,
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-          ),
-          Text(
-            sub,
-            style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: AppColors.primaryDark),
           ),
           const SizedBox(height: Spacing.sm),
           SizedBox(

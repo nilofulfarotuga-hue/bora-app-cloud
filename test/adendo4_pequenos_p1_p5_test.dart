@@ -7,6 +7,8 @@
 // Nada aqui toca em preço, taxa ou token: as linhas automáticas só entram na
 // nota do pedido e o "Juntar mais" só escolhe produtos que o carrinho depois
 // junta pelo método de sempre.
+import 'dart:io';
+
 import 'package:bora_app/l10n/bora_lang.dart';
 import 'package:bora_app/models/client_address.dart';
 import 'package:bora_app/models/order_service_type.dart';
@@ -369,13 +371,26 @@ void main() {
       expect(r.map((p) => p.id), ['ok']);
     });
 
-    test('o subtítulo diz o que falta, e para quê', () {
+    // 29/10/2026: a tira deixou de repetir "Faltam X € para…" (o resumo do
+    // carrinho já o diz por cima dela). Ficou só a decisão de aparecer ou não.
+    test('a tira só aparece quando falta alguma coisa (entrega grátis ou taxa)',
+        () {
+      expect(juntarMaisPrecisa(faltaEntregaGratis: 4.5, faltaMinimo: 2), isTrue);
+      expect(juntarMaisPrecisa(faltaEntregaGratis: 4.5, faltaMinimo: 0), isTrue);
+      expect(juntarMaisPrecisa(faltaEntregaGratis: 0, faltaMinimo: 1.3), isTrue);
+      expect(juntarMaisPrecisa(faltaEntregaGratis: 0, faltaMinimo: 0), isFalse);
+    });
+
+    test('a tira não escreve a frase "Faltam X €" (só o resumo a escreve)', () {
+      final tira = File('lib/widgets/juntar_mais_tira.dart').readAsStringSync();
+      expect(tira, isNot(contains('Faltam')));
+      final carrinho = File('lib/screens/cart_screen.dart').readAsStringSync();
       expect(
-          subtituloJuntarMais(faltaEntregaGratis: 4.5, faltaMinimo: 2),
-          'Faltam 4,50 € para a entrega grátis');
-      expect(subtituloJuntarMais(faltaEntregaGratis: 0, faltaMinimo: 1.3),
-          'Faltam 1,30 € para evitar a taxa de pedido pequeno');
-      expect(subtituloJuntarMais(faltaEntregaGratis: 0, faltaMinimo: 0), isNull);
+          RegExp("Faltam \\{0\\} € para evitar a taxa de pedido pequeno")
+              .allMatches(carrinho)
+              .length,
+          1,
+          reason: 'a frase da taxa tem de ter uma só origem no carrinho');
     });
   });
 

@@ -26,6 +26,7 @@ class AddressAutocompleteField extends StatefulWidget {
     this.validator,
     this.serviceOverride,
     this.confirmarAoSair = true,
+    this.exigirCoordenadas = false,
     this.helperText,
   });
 
@@ -42,6 +43,19 @@ class AddressAutocompleteField extends StatefulWidget {
   /// uma folha, abre um diálogo, escreve na base) — aí a confirmação fica
   /// para o toque numa sugestão ou para [AddressAutocompleteFieldState.confirmarTextoEscrito].
   final bool confirmarAoSair;
+
+  /// Para ecrãs cujo passo seguinte BARRA sem coordenadas (os Favores: sem
+  /// coordenadas não há distância nem preço). Com isto ligado, "Usar esta
+  /// morada" procura a morada escrita no mapa (a mesma procura do Favor e do
+  /// TVDE, [PlaceAutocompleteService.procurarMoradaEscrita]) e:
+  ///  - se encontra, segue com as coordenadas e mostra a morada encontrada;
+  ///  - se NÃO encontra, diz-o no próprio campo, NÃO chama [onSelected] com
+  ///    coordenadas vazias e o campo continua editável — antes, a morada seguia
+  ///    sem coordenadas e o passo seguinte recusava-a ("escolhe uma sugestão")
+  ///    quando já não havia sugestões para escolher: um beco sem saída.
+  /// Desligado (por defeito) mantém o comportamento de sempre: a morada escrita
+  /// segue mesmo sem coordenadas (ecrãs onde isso é aceite).
+  final bool exigirCoordenadas;
 
   /// Texto de ajuda por baixo do campo, vindo do ecrã (ex.: "Liga a
   /// localização ou escreve a morada" quando o GPS falhou). A confirmação da
@@ -554,6 +568,21 @@ class AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
     _removeOverlay();
     _seq++;
     _textoPendente = false;
+
+    if (widget.exigirCoordenadas) {
+      // Favores: sem coordenadas o passo seguinte barra. Procura a morada
+      // escrita como o resto da app (procurarMoradaEscrita) e, se falhar,
+      // mostra o aviso no campo — que fica editável (texto e sugestões) —
+      // em vez de deixar seguir uma morada que o ecrã vai recusar.
+      if (mounted) setState(() => _predictions = const []);
+      try {
+        await _confirmar(texto);
+      } finally {
+        _isSelecting = false;
+      }
+      return;
+    }
+
     setState(() {
       _predictions = const [];
       _resolving = true;

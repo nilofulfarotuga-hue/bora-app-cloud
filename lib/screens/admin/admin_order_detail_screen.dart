@@ -739,6 +739,9 @@ class _PaymentTab extends StatelessWidget {
     final pi = order['payment_intent_id'] as String?;
     final refundStatus = order['refund_status'] as String?;
     final refundId = order['refund_id'] as String?;
+    // 29/10/2026 (adendo 3): a escolha que o cliente fez ao cancelar
+    // (carteira Bora na hora, ou devolução à conta de origem).
+    final refundMethod = order['refund_method'] as String?;
     final refundAmount = (order['refund_amount'] as num?)?.toDouble();
     final refundedAt = DateTime.tryParse(order['refunded_at'] as String? ?? '');
 
@@ -891,6 +894,15 @@ class _PaymentTab extends StatelessWidget {
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
               _row('Estado', refundStatus ?? '—'),
+              if (refundMethod != null)
+                _row(
+                  'Escolha do cliente',
+                  refundMethod == 'wallet'
+                      ? 'Carteira Bora (saldo, na hora)'
+                      : refundMethod == 'stripe'
+                          ? 'Conta de origem (MB Way ou cartão)'
+                          : refundMethod,
+                ),
               if (refundAmount != null)
                 _row('Valor', '€${refundAmount.toStringAsFixed(2)}'),
               if (refundId != null) _row('Stripe Refund', refundId),

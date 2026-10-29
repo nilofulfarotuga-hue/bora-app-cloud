@@ -313,6 +313,23 @@ void main() {
       await _foto(t, '00-video-perfis');
       await _tocar(t, portaCliente);
 
+      // Visitante (26/10): com `visitantes_sem_conta` ligado no painel, "Sou
+      // Cliente" abre logo a página inicial sem conta, e a porta para entrar
+      // passou a ser o Perfil ("Entrar ou criar conta").
+      // CICATRIZ (corrida 40935856676, duas tentativas, 29/10/2026): o arnês
+      // ficou 30 s à espera do campo de e-mail com a página inicial à frente.
+      if (!await _esperar(t, _id('fld_email'), segundos: 12)) {
+        await _binding.takeScreenshot('zz-visitante-sem-login');
+        final tabPerfil = find.text('Perfil');
+        if (await _esperar(t, tabPerfil, segundos: 10)) {
+          await _tocar(t, tabPerfil.last);
+        }
+        final entrar = find.text('Entrar ou criar conta');
+        if (await _esperar(t, entrar, segundos: 10)) {
+          await _tocar(t, entrar);
+        }
+      }
+
       await _exigir(t, _id('fld_email'), 'campo-email');
       await t.enterText(_id('fld_email').first, _email);
       await _bombear(t, segundos: 0.6);
@@ -375,6 +392,14 @@ void main() {
     await _aceitarTermos(t);
 
     // ── Início: as categorias reais. Zero marcas de terceiros. ────────────
+    // Visitante (29/10): quem entrou pelo Perfil pode voltar a cair no Perfil;
+    // se a página inicial não estiver à frente, toca-se em "Início".
+    if (!await _esperar(t, find.text('Supermercados'), segundos: 10)) {
+      final tabInicio = find.text('Início');
+      if (tabInicio.evaluate().isNotEmpty) {
+        await _tocar(t, tabInicio.last);
+      }
+    }
     await _exigir(t, find.text('Supermercados'), 'ecra-inicial', segundos: 60);
     await _foto(t, '01-loja-categorias');
 

@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-29T14:32:47.636616+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-29T14:57:15.281743+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-29 14:32 UTC. Páginas listadas: 403.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-29 14:57 UTC. Páginas listadas: 405.
 
 ## O que é o Bora
 
@@ -392,7 +392,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - sql-modo-demo-2026-10-27 — SQL do modo demonstracao (Boom! Burger) para o Claude.ai aplicar (2026-10-27)
 
-## outras (78)
+## outras (80)
 
 - 00-LEIA-PRIMEIRO — Como usar esta memória (2026-10-23)
 - adendo-1-final-app-2026-10-29 — Adendo 1 da missão final-app-2026-10-29 (2026-10-29)
@@ -416,6 +416,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - estado-2026-09-13 — Estado do Bora a 13/09/2026 (auditoria da Claude.ai depois de 3-4 dias sem Claude) (2026-09-13)
 - fecho-2026-10-17-cancelamento-tardio — Fecho 17/10 — cancelamento tardio TVDE: publicado nas 3 plataformas (estado final do prompt prompt-cancelamento-tardio-2026-10-17) (2026-10-17)
 - habilidades-propostas — Habilidades propostas pelo vigia (dinheiro/publicacao) — a Claude.ai decide (2026-09-17)
+- ideias-pendentes-decisao-danilo — Ideias grandes à espera da decisão do Danilo (29/10/2026) (2026-10-29)
 - ideias-videos-danilo — Ideias tiradas dos vídeos que o Danilo manda (2026-10-28)
 - livro-claude-code-aprendeu — O que o Claude Code aprendeu sozinho (memória automática do PC), cópia (2026-10-25)
 - livro-claude-md-detalhe — Detalhe dos CLAUDE.md (repo e global) antes do corte de 23/10/2026 (2026-10-23)
@@ -441,6 +442,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - paridade-uber-ifood-2026-10-13 — Paridade Bora vs Uber/Uber Eats/iFood + REA (vídeos de 13/10) (2026-10-13)
 - perfil — Quem é o Danilo (2026-09-13)
 - plano-14-dias-dia6-a-14 — Plano de 14 dias: dia 6 a dia 14 (29/10 a 06/11) (2026-10-29)
+- plano-melhor-que-uber-glovo-2026-10-29 — Plano "100% melhor que a Uber e a Glovo" — volta ao mundo 29/10/2026 (2026-10-29)
 - playbook-redes-emdia — Playbook das redes — Em Dia (28/09) (2026-09-28)
 - radar-2026-10-05 — Radar de vídeos 05/10 — filme (5 caminhos) e negócio (2026-10-05)
 - radar-2026-10-06 — Radar de vídeos 06/10 — negócio e reforços para o filme (2026-10-06)
@@ -475,7 +477,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 ## Páginas pessoais
 
-33 páginas com título [PESSOAL] (vida do Danilo). Não se listam aqui nem vão para o espelho público nem para o LIVRO.md; só se leem quando a tarefa é dele, e nunca vão para motores grátis que treinam com o conteúdo.
+34 páginas com título [PESSOAL] (vida do Danilo). Não se listam aqui nem vão para o espelho público nem para o LIVRO.md; só se leem quando a tarefa é dele, e nunca vão para motores grátis que treinam com o conteúdo.
 
 ## Skills partilhadas (145 no repo + 8 só na VPS)
 

@@ -10,7 +10,7 @@ estado: atual
 
 # Livro — porta única: como ligar qualquer IA ao livro (MCP do Córtex ou LIVRO.md com senha)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-porta-unica`, origem `claude-code`, atualizada em 2026-10-29T14:29:11.17116+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-porta-unica`, origem `claude-code`, atualizada em 2026-10-29T14:57:01.895087+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro porta unica · memoria claude.ai · claude_ai_memoria
 
@@ -30,7 +30,7 @@ Missão final-app-2026-10-29, bloco 8. Vale para Claude.ai, Claude Code, Hermes,
 
 - Tudo (todas as páginas, cerca de 2,4 MB): `https://livro.srv1786862.hstgr.cloud/LIVRO.md`
 - Versão curta (índice, regras, erros e o último digest, cerca de 34 KB): `https://livro.srv1786862.hstgr.cloud/LIVRO-ESSENCIAL.md`
-- Acesso com Basic Auth: utilizador `livro`. A palavra-passe NÃO está aqui. Está em `/opt/data/livro/.senha` na VPS (só root lê, modo 600). Quem tem SSH à VPS (Claude Code) lê-a de lá e entrega-a à ferramenta; a ferramenta manda-a no cabeçalho `Authorization: Basic`. Nunca na barra de endereço.
+- Acesso com Basic Auth: utilizador `livro`. A palavra-passe NÃO está aqui. Está em `/opt/data/livro/.senha` na VPS (só root lê, modo 600). Quem tem SSH à VPS (Claude Code) lê-a de lá e entrega-a à ferramenta (está também na página à parte `livro-porta-unica-senha`, título [PESSOAL]: o sync não a põe no espelho público nem no `LIVRO.md`; lê-se pelo Supabase MCP no Claude.ai ou no Claude Code); a ferramenta manda-a no cabeçalho `Authorization: Basic`. Nunca na barra de endereço.
 - O ficheiro é regenerado pelo mesmo sync de 30 em 30 min. Fica de fora tudo o que tem título `[PESSOAL]`; as linhas com cara de segredo (chaves, tokens, senhas com valor) são retiradas; e-mails, telefones, IBAN e NIF aparecem mascarados. Nomes próprios de pessoas podem continuar nas páginas operacionais: por isso o `LIVRO.md` não vai para motores grátis que treinam com o conteúdo.
 - Só leitura. Quem lê não grava: se o Danilo corrigir a ferramenta, ela escreve "errei / regra certa" e o Claude Code grava com `select public.livro_aprender(...)`.
 

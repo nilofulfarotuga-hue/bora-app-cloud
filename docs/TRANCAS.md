@@ -155,3 +155,9 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   na fila. Não se repetiu nem se partiu o ficheiro para passar. O pacote inteiro fica no repo, em
   `docs/propostas/missao-geral-2026-10-28/bloco2/` e nas 4 Edge Functions mudadas (commit 6e8ee02c), e
   chega ao Claude.ai pelo GitHub quando o ramo for publicado, ou por outro caminho que ele escolha.
+- **29/10/2026, missão `final-app-2026-10-29`** — a bora-tranca bloqueou o `Write` de um script Python
+  (`vigia_pedidos.py`, vigia de pedidos presos e site em baixo para o Hermes) por "segredo no conteúdo
+  novo: ENV_KEY= com valor em texto claro". O valor era o CAMINHO de um ficheiro (`"/opt/assistente-negocio/.env"`),
+  não uma chave. Não se reformulou o nome da variável para passar. Proposta de correção da regra em
+  `hooks/regras.ts`: só bloquear quando o valor à direita do `=` parece mesmo uma chave (`eyJ`, `sb_secret_`,
+  `sk_live`, `sk_test`, `AIza`, `ghp_`, `-----BEGIN`) e não um caminho ou um nome de variável. Quem aplica é o Danilo.

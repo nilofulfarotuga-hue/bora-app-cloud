@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-29T18:07:08.531229+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-29T18:37:05.729074+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-29 17:39 UTC. Páginas listadas: 423.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-29 18:28 UTC. Páginas listadas: 425.
 
 ## O que é o Bora
 
@@ -274,7 +274,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-areas-filme-animacao-parte4 — Série cristã infantil "A Semente da Luz" — cânone, elenco, e estado da produção do Episódio 1 (parte 4 de 4) (2026-10-23)
 - livro-areas-filme-animacao-v3 — Continuação de filme-animacao a partir da 3.ª reprovação (31/08) — estado da produção v3 do Ep1 "A Semente da Luz", prompts entregues e o q… (2026-10-23)
 - livro-areas-ganhar-dinheiro-ia — Objetivo do Danilo de ganhar dinheiro com IA em modo automático (ele só comanda) — o que quer, o que escolheu e o que ficou de fora; ler an… (2026-10-26)
-- livro-areas-ganhos-prestador — Regra do Danilo para o ganho do dia do prestador no [[bora-app]] — total de todos os papéis em qualquer ecrã; estado da correção (2026-10-23)
+- livro-areas-ganhos-prestador — Ganhos do prestador no [[bora-app]] — total do dia em qualquer ecrã e a fórmula do estafeta em loja não-parceira (fica como está, 29/10) (2026-10-29)
 - livro-areas-gibi-biblia-criancas — Animated Bible storytelling project for Danilo's daughters (characters Tuca and Lumi), pivoting to comic book (Gibi) format (2026-10-23)
 - livro-areas-goola-acai — Goola Açaí (quiosque no La Vie Guarda) — parceiro fechado do Bora App; modelo de preço acordado, loja montada e categoria nova "Sobremesas" (2026-10-23)
 - livro-areas-gorjeta — Regra do Danilo para a gorjeta/gratificação no Bora (entregas e TVDE, copiar a Uber) — ler antes de mexer em gorjetas (2026-10-23)
@@ -364,7 +364,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - relatorio-boom-burger-2026-10-27 — Boom! Burger — demonstração e consertos (27/10/2026, noite) (2026-10-27)
 - relatorio-semanal-reels-2026-10-29 — Relatório semanal dos reels - 2026-10-29 (2026-10-29)
 
-## prompt (14)
+## prompt (16)
 
 - prompt-auditoria-3-plataformas-2026-10-06 — Prompt de missão: auditoria das 3 plataformas (06/10) (2026-10-06)
 - prompt-boom-burger-2026-10-27 — PROMPT Boom! Burger — loja parceira + site premium (27/10/2026) (2026-10-27)
@@ -378,6 +378,8 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - prompt-missao-geral-2026-10-28 — PROMPT missão geral 28/10 (Divan + Boom + robô WhatsApp + cartazes + erros), parte 1/2 (2026-10-28)
 - prompt-missao-geral-2026-10-28-parte2 — PROMPT missão geral 28/10, parte 2/2 (blocos 1 a F, resumo) (2026-10-28)
 - prompt-peso-variavel-2026-10-26 — PROMPT missão peso variável (26/10/2026) — para o Claude Code do PC (2026-10-26)
+- prompt-publica-e-fecha-2026-10-29 — Prompt: publicar hoje + arrumação + Bloco 11 + reembolsos (29/10 18:20) (2026-10-29)
+- prompt-publica-e-fecha-2026-10-29-adendo-1 — Adendo 1 ao prompt publica-e-fecha (29/10 18:40): motores do robô em grátis com rotação (2026-10-29)
 - prompt-talao-confirmar-loja-saldo-2026-10-28 — PROMPT 28/10 — Confirmar do talão, nome da loja, dinheiro a cobrar com saldo/tokens, reembolso no cancelamento (100% saldo ou meio original… (2026-10-28)
 - prompt-talao-confirmar-loja-saldo-2026-10-28-bloco-d — Adenda 18:30 ao prompt de 28/10 (talão Auchan/Divan): Bloco D novo — reembolso no cancelamento (2026-10-28)
 

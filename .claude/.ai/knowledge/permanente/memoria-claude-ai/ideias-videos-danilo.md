@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-28
+ultima_confirmacao: 2026-10-29
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-28T20:57:34.511688+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-29T20:54:54.614546+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -375,3 +375,15 @@ Filme caminho 4 (fontes htROyMzUbA8, rxZZ1xi81a4): no Google Flow (Omniflash 1.1
 - JÁ TEMOS: OmniRoute (e 9Router faz o mesmo — não instalar segundo roteador), skills do Claude, Hermes na VPS.
 - RECUSADO: ComfyUI/LoRA/RTX 3060 (placa), Runway, Kling, Adobe Firefly, Final Cut (pagos), stickman, “Runway de graça” via Binance.
 - Radar aprende: +2 termos da conversa 28/10 (faturação automática por API certificada AT; entrega grátis acima de valor mínimo), -2 de animação sem rendimento; 70 ativos.
+
+## 29/10/2026 — radar diário (agente na nuvem)
+20 vídeos revistos (17 com nota >= 6): 4 novos, 3 PENDENTES, 2 já temos, 11 rejeitados (3 por nota baixa). Nenhum do tema animacao_ia.
+- MODA DA SEMANA (3+ vídeos nota>=8 em 7 dias): OmniRoute 7 — FEITO 23/10; primeiros 1000 utilizadores 6 — PENDENTE desde 24/10; Claude Code novidades/Claude Duet — PENDENTE desde 22/10; Hermes 5 e memória partilhada 4 — já temos; prospeção 4 — caça-clientes FEITO, extrator Google Maps PENDENTE desde 17/10; alternativas abertas a pagas 4 — lente grátis ativa; vender automação/agência a PMEs — PENDENTE desde 13/10; sites com IA PENDENTE desde 25/10; micro-SaaS PENDENTE desde 21/10; animação Vox — PENDENTE desde 11/10; CRM WhatsApp aberto — PENDENTE desde 18/10; growth de apps (paywall) — PENDENTE desde 28/10.
+- BORA (prop nova): guia curto para lojas parceiras manterem o Perfil de Empresa no Google (horário, fotos reais, link do Bora), junto aos cartazes. https://www.youtube.com/watch?v=8xjNoe3xSH0 , https://www.youtube.com/watch?v=lvJjUyKnOl0
+- SISTEMA (prop nova): cada agente novo nasce com UM número de negócio a medir no e2e_log (redesenhar o processo, não só acelerar). https://www.youtube.com/watch?v=CKuGt5LWiSE
+- EM DIA (lente grátis): Bigcapital, contabilidade aberta tipo QuickBooks — referência para funções financeiras do Em Dia (confirmar licença). https://www.youtube.com/watch?v=CNDClJeLAbU
+- EM DIA: testes A/B no paywall (semanal vs anual) — reforça prop-7731b2cb de 28/10, ainda por fazer. https://www.youtube.com/watch?v=EidYLPez7b8
+- PENDENTE: Casa & Manutenção (modelo Bark/TaskRabbit) à espera da decisão do Danilo desde 29/10. https://www.youtube.com/watch?v=hXo0OhOK51E
+- JÁ TEMOS: IA local (Jan, LocalAI = Ollama), ComfyUI no Kaggle (Kaggle GPU).
+- RECUSADO: Pulso Social (4 vídeos de novo), Google Ads AI Max e afiliados com Google Ads (pago), segmentação de anúncios pagos.
+- Radar aprende: +1 termo da conversa 29/10 (Casa & Manutenção / marido de aluguer), -1 termo sem rendimento (Instagram seguidores→clientes); 70 ativos.

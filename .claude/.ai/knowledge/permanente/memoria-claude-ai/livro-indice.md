@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-29T15:37:06.719144+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-29T16:07:09.331777+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-29 15:26 UTC. Páginas listadas: 408.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-29 15:56 UTC. Páginas listadas: 420.
 
 ## O que é o Bora
 
@@ -358,9 +358,10 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-areas-tvde-vertical-parte4 — Bora App TVDE ride-hailing vertical — dispatch, pricing, UI, payments (parte 4 de 4) (2026-10-23)
 - livro-areas-whatsapp-loja — Regras fixas do Danilo para o atendimento automático do WhatsApp da loja — ler antes de mexer nesse atendimento (2026-10-23)
 
-## relatorio (1)
+## relatorio (2)
 
 - relatorio-boom-burger-2026-10-27 — Boom! Burger — demonstração e consertos (27/10/2026, noite) (2026-10-27)
+- relatorio-semanal-reels-2026-10-29 — Relatório semanal dos reels - 2026-10-29 (2026-10-29)
 
 ## prompt (14)
 
@@ -392,7 +393,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - sql-modo-demo-2026-10-27 — SQL do modo demonstracao (Boom! Burger) para o Claude.ai aplicar (2026-10-27)
 
-## outras (83)
+## outras (94)
 
 - 00-LEIA-PRIMEIRO — Como usar esta memória (2026-10-23)
 - adendo-1-final-app-2026-10-29 — Adendo 1 da missão final-app-2026-10-29 (2026-10-29)
@@ -402,6 +403,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - armadilha-ytdlp-cookies-chrome-windows — yt-dlp + cookies do Chrome no Windows: caminho morto (App-Bound Encryption) (2026-09-17)
 - arquivo-regras-do-danilo-2026-09-17 — ARQUIVO — regras do Danilo (versão de 17/09, substituída a 23/10) (2026-10-23)
 - auditoria-3-plataformas-fecho — Auditoria das 3 plataformas — fecho das pendências (07/10/2026 noite) (2026-10-07)
+- boom-precos-sql-2026-10-29 — boom-precos-sql-2026-10-29 (2026-10-29)
 - bora-assistente — Bora Assistente — assistente de compras do cliente (no ar desde 07/10/2026) (2026-10-07)
 - bora-todo-dia — Bora Todo Dia — 5 novidades para o cliente abrir a app todos os dias (n.º 1: check-in diário) (2026-10-13)
 - caminhos-animacao-filme — Filme das filhas — 5 caminhos grátis para o desenho (revisto 05/10 com os 50 vídeos) (2026-10-28)
@@ -469,6 +471,16 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - radar-2026-10-26 — Radar de vídeos 26/10/2026 — 40 revistos, 5 novos, 11 pendentes (2026-10-26)
 - radar-2026-10-27 — Radar de vídeos 27/10/2026 — 40 revistos, 6 novos, 14 pendentes (2026-10-27)
 - radar-2026-10-28 — Radar de vídeos 28/10/2026 — 40 revistos, 6 novos, 7 pendentes (2026-10-28)
+- reembolsos-b2-00-leia-me — reembolsos-b2-00-leia-me (2026-10-29)
+- reembolsos-b2-01-shared-cobranca — reembolsos-b2-01-shared-cobranca (2026-10-29)
+- reembolsos-b2-ef-admin-cancel-order — reembolsos-b2-ef-admin-cancel-order (2026-10-29)
+- reembolsos-b2-ef-auto-refund-order — reembolsos-b2-ef-auto-refund-order (2026-10-29)
+- reembolsos-b2-ef-cancel-order-with-choice — reembolsos-b2-ef-cancel-order-with-choice (2026-10-29)
+- reembolsos-b2-ef-client-cancel-order — reembolsos-b2-ef-client-cancel-order (2026-10-29)
+- reembolsos-b2-ef-execute-cancellation — reembolsos-b2-ef-execute-cancellation (2026-10-29)
+- reembolsos-b2-ef-reprocess-refund-e-refund — reembolsos-b2-ef-reprocess-refund-e-refund (2026-10-29)
+- reembolsos-b2-ordem — reembolsos-b2-ordem (2026-10-29)
+- reembolsos-b2-sql-tokens — reembolsos-b2-sql-tokens (2026-10-29)
 - resposta-contabilista-iva-2026-10-28 — Resposta do Hugo (DC Consultores): IVA normal trimestral, programa de faturação, modelo aceite — 28/10/2026 (2026-10-28)
 - resposta-contabilista-iva-parte2-2026-10-28 — Hugo (15:54-15:55): faturas emitidas pelo escritório, não ficar no art. 53.º, IVA não mexe na margem — e as contas de outubro com IVA (2026-10-28)
 - robo-documentos-2026-10-29 — Robô fiscal de documentos — relatório (adendo 3, 29/10/2026) (2026-10-29)

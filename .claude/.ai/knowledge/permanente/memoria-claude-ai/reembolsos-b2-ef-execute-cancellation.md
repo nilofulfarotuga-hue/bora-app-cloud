@@ -1,0 +1,281 @@
+---
+id: memoria-claude-ai-reembolsos-b2-ef-execute-cancellation
+tipo: conceito
+origem: [claude-ai, public.claude_ai_memoria]
+ultima_confirmacao: 2026-10-29
+zona: verde
+confianca: alta
+estado: atual
+---
+
+# reembolsos-b2-ef-execute-cancellation
+
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `reembolsos-b2-ef-execute-cancellation`, origem `claude-code`, atualizada em 2026-10-29T15:44:42.301747+00:00).
+> Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
+> Palavras-chave: reembolsos b2 ef execute cancellation · memoria claude.ai · claude_ai_memoria
+
+// supabase/functions/execute-cancellation/index.ts
+//
+// Executes a cancellation_request that was previously approved by admin.
+// Body: { request_id: string }
+// Auth: caller must be admin — public.is_admin() no servidor (v15, ronda 04/10 A.6).
+// v15: trava atómica contra duplo toque; reembolso limitado ao que foi pago, por fonte.
+// v16 (28/10/2026, regra do Danilo 28/10 18:24): 'wallet' = 100% saldo (wallet_split_free_pct = 1);
+//   tokens gastos voltam como TOKENS pelo gatilho do banco quando o servidor registou quais
+//   (tokens_applied_count > 0) — então a taxa sai do dinheiro. Textos: MB Way na hora, cartão 5 a 10
+//   dias úteis, sem "saldo livre + tokens". PUBLICAR SÓ com o _shared/cobranca_stripe.ts novo.
+//
+// Flow:
+//   1. Auth admin via JWT
+//   2. Load cancellation_request, validate status='approved' and refund_method set
+//   3. Load order (must not be already cancelled)
+//   4. Compute fee + refundable amount via tier (same as client-cancel-order)
+//   5. Branch by request.refund_method:
+//        - 'stripe' → stripe.refunds.create
+//        - 'wallet' → RPC wallet_credit_refund_split
+//        - 'none'   → skip
+//   6. Update orders SET status='cancelled', refund_*, cancelled_at, cancellation_initiator
+//   7. Notify client via notify-client
+//   8. Audit log
+
+import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getCancelFees, computeCancelFeeEur } from '../_shared/platform_settings.ts';
+import { corsHeaders } from '../_shared/cors.ts';
+import { lerPagoDoPedido, repartirReembolso, totalPago } from '../_shared/cobranca_stripe.ts';
+import { secretKey } from '../_shared/keys.ts';
+
+const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
+  apiVersion: '2023-10-16',
+  httpClient: Stripe.createFetchHttpClient(),
+});
+
+// deno-lint-ignore no-explicit-any
+const json = (body: any, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+
+type Tier = 'before_dispatch' | 'after_accept' | 'after_pickup' | 'invalid';
+function tier(status: string): Tier {
+  switch (status) {
+    case 'created': case 'preparing': case 'callingDriver': return 'before_dispatch';
+    case 'driverAccepted': return 'after_accept';
+    case 'pickedUp': case 'onTheWay': return 'after_pickup';
+    default: return 'invalid';
+  }
+}
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+  const serviceKey = secretKey() ?? '';
+  if (!supabaseUrl || !serviceKey || !anonKey) return json({ error: 'server_misconfigured' }, 500);
+
+  let requestId: string | undefined;
+  try {
+    const body = await req.json();
+    requestId = body?.request_id;
+  } catch (_) { return json({ error: 'invalid_body' }, 400); }
+  if (!requestId) return json({ error: 'request_id required' }, 400);
+
+  const authHeader = req.headers.get('Authorization') ?? '';
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+  if (!token) return json({ error: 'missing_token' }, 401);
+
+  const userClient = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+  const { data: userData, error: authError } = await userClient.auth.getUser();
+  const user = userData?.user;
+  if (authError || !user) return json({ error: 'unauthorized' }, 401);
+
+  // v15 (ronda 04/10 A.6): admin verificado NO SERVIDOR por public.is_admin().
+  // Antes aceitava user_metadata.bora_role, que o próprio utilizador pode editar.
+  const { data: eAdmin, error: adminErr } = await userClient.rpc('is_admin');
+  if (adminErr || eAdmin !== true) return json({ error: 'admin_required' }, 403);
+
+  const admin = createClient(supabaseUrl, serviceKey);
+
+  // Load cancellation_request
+  const { data: cReq, error: cErr } = await admin
+    .from('cancellation_requests')
+    .select('id, order_id, status, refund_method, requester_role, requester_id, reviewed_by_admin')
+    .eq('id', requestId)
+    .maybeSingle();
+  if (cErr || !cReq) return json({ error: 'cancellation_request_not_found' }, 404);
+  if (cReq.status !== 'approved') return json({ error: 'request_not_approved', status: cReq.status }, 409);
+  if (!cReq.refund_method) return json({ error: 'no_refund_method_set' }, 409);
+
+  // Load order
+  const { data: order, error: oErr } = await admin
+    .from('orders')
+    .select('id, user_id, status, payment_method, payment_intent_id, payment_status, total, estimated_total, final_total, customer_total, refund_amount, refund_method, refund_status, cancelled_at, tokens_applied_value_cents, tokens_applied_count')
+    .eq('id', cReq.order_id)
+    .maybeSingle();
+  if (oErr || !order) return json({ error: 'order_not_found' }, 404);
+
+  if (order.status === 'cancelled' && order.cancelled_at) {
+    return json({ ok: true, idempotent: true, message: 'order_already_cancelled' });
+  }
+
+  const t = tier(order.status);
+  if (t === 'invalid') return json({ error: 'cannot_cancel_at_status', status: order.status }, 409);
+
+  // v15 (ronda 04/10 A.6): trava contra duplo toque — reserva o pedido de forma atómica
+  // (refund_status -> 'processing' só se ainda não estiver). O segundo toque leva 409.
+  const refundStatusAntes = order.refund_status ?? null;
+  const { data: reservado, error: resErr } = await admin.from('orders')
+    .update({ refund_status: 'processing' })
+    .eq('id', order.id).neq('status', 'cancelled')
+    // 'needs_review' = já saiu dinheiro e falhou o resto: não se deixa tentar outra vez
+    .or('refund_status.is.null,refund_status.not.in.(processing,needs_review)')
+    .select('id');
+  if (resErr) return json({ error: 'db_reserve_failed', details: resErr.message }, 500);
+  if (!reservado || reservado.length === 0) return json({ error: 'cancellation_in_progress' }, 409);
+  const libertar = async () => {
+    await admin.from('orders').update({ refund_status: refundStatusAntes })
+      .eq('id', order.id).eq('refund_status', 'processing');
+  };
+
+  const totalEur = Number(order.customer_total ?? order.final_total ?? order.total ?? order.estimated_total ?? 0);
+  const fees = await getCancelFees();
+  const fee = Number(computeCancelFeeEur(t, totalEur, fees).toFixed(2));
+
+  // v15 (ronda 04/10 A.1/A.2): o que se devolve nunca passa do que foi pago, e cada parte
+  // volta pela fonte: Stripe até ao que a Stripe cobrou; carteira+tokens para a carteira.
+  let pago;
+  try { pago = await lerPagoDoPedido(admin, Deno.env.get('STRIPE_SECRET_KEY') ?? '', order.id); }
+  catch (e) { await libertar(); return json({ error: 'paid_unknown', details: String(e) }, 502); }
+  const pagoCents = totalPago(pago);
+  // v16 (regra 28/10): tokens registados pelo servidor voltam como TOKENS (gatilho do banco);
+  // a taxa sai do dinheiro, por isso o valor deles sai da base. Contagem 0 = como antes.
+  const tokensDevolvidos = Math.max(0, Number(order.tokens_applied_count ?? 0));
+  const tokensVoltamCents = tokensDevolvidos > 0
+    ? Math.max(0, Number(order.tokens_applied_value_cents ?? 0)) : 0;
+  const refundCents = Math.min(
+    Math.max(0, Math.round((totalEur - fee) * 100) - tokensVoltamCents), pagoCents);
+
+  const method = cReq.refund_method as 'stripe' | 'wallet' | 'none';
+  let stripeRefundId: string | undefined;
+  // deno-lint-ignore no-explicit-any
+  let walletResult: any = null;
+  let stripeCents = 0;
+  let carteiraCents = 0;
+
+  if (method !== 'none' && refundCents > 0) {
+    if (method === 'stripe') {
+      const parte = repartirReembolso(refundCents, pago);
+      if (parte.stripeCents <= 0 || !order.payment_intent_id) {
+        await libertar();
+        return json({ error: 'stripe_refund_unavailable',
+          details: 'Pedido sem cobrança na Stripe. Volta a aprovar com carteira.' }, 409);
+      }
+      try {
+        const refund = await stripe.refunds.create(
+          { payment_intent: order.payment_intent_id, amount: parte.stripeCents },
+          { idempotencyKey: `exec-cancel-${cReq.id}-${parte.stripeCents}` },
+        );
+        stripeRefundId = refund.id;
+        stripeCents = parte.stripeCents;
+        // grava já o id: se o resto falhar, o banco sabe que o dinheiro saiu
+        await admin.from('orders').update({ refund_id: refund.id }).eq('id', order.id);
+      } catch (e) {
+        console.error('[execute-cancellation] stripe failed:', e);
+        await libertar();
+        return json({ error: 'refund_failed', details: String(e) }, 502);
+      }
+      carteiraCents = parte.carteiraCents;
+    } else {
+      carteiraCents = refundCents;
+    }
+    if (carteiraCents > 0) {
+      const { data: walletRpc, error: walletErr } = await admin.rpc('wallet_credit_refund_split', {
+        p_order_id: order.id, p_user_id: order.user_id, p_total_cents: carteiraCents,
+        p_reason: `Aprovado por admin (req ${cReq.id}, ${cReq.requester_role})`,
+      });
+      if (walletErr) {
+        console.error('[execute-cancellation] wallet RPC failed:', walletErr);
+        if (!stripeRefundId) await libertar();
+        // a Stripe já devolveu: 'needs_review' (o Reprocessar só pega em 'failed')
+        else await admin.from('orders').update({ refund_status: 'needs_review' }).eq('id', order.id);
+        return json({ error: 'wallet_credit_failed', details: walletErr.message, stripe_refund_id: stripeRefundId ?? null }, 500);
+      }
+      walletResult = walletRpc;
+    }
+  }
+
+  // Update order — o que se devolveu mesmo (método 'none' = nada)
+  const devolvidoCents = method === 'none' ? 0 : stripeCents + carteiraCents;
+  const refundEur = devolvidoCents / 100;
+  const now = new Date().toISOString();
+  const newPaymentStatus = devolvidoCents <= 0
+    ? (method === 'none' ? (order.payment_status ?? 'refunded') : 'refunded')
+    : fee > 0 ? 'partial_refund' : 'refunded';
+  const { error: updateErr } = await admin.from('orders').update({
+    status: 'cancelled',
+    cancel_reason: `Cancelamento aprovado pelo admin (pedido por ${cReq.requester_role})`,
+    cancel_fee: fee, cancelled_at: now,
+    refund_amount: devolvidoCents > 0 ? refundEur : null,
+    refund_method: stripeCents > 0 ? 'stripe' : method,
+    refund_id: stripeRefundId ?? null,
+    refund_status: 'completed',
+    refunded_at: devolvidoCents > 0 ? now : null,
+    payment_status: newPaymentStatus,
+    cancellation_initiator: cReq.requester_role,
+  }).eq('id', order.id);
+  if (updateErr) {
+    console.error('[execute-cancellation] update failed:', updateErr);
+    if (devolvidoCents > 0) await admin.from('orders').update({ refund_status: 'needs_review' }).eq('id', order.id);
+    else await libertar();
+    return json({ error: 'db_update_failed', details: updateErr.message }, 500);
+  }
+
+  // Audit (admin context — RPC fails silent if guard rejects, so use direct insert via service)
+  try {
+    await admin.from('admin_audit_log').insert({
+      admin_id: cReq.reviewed_by_admin,
+      action: 'cancellation_executed',
+      entity_type: 'cancellation_request',
+      entity_id: cReq.id,
+      details: {
+        order_id: order.id,
+        refund_method: method,
+        refund_eur: refundEur,
+        fee_eur: fee,
+        stripe_refund_id: stripeRefundId ?? null,
+      },
+    });
+  } catch (e) { console.warn('[execute-cancellation] audit failed (non-fatal):', e); }
+
+  // Notify client
+  try {
+    // v16 (regra 28/10): MB Way volta na hora; cartão 5 a 10 dias úteis; saldo = 100% e já.
+    let message = 'Cancelamento aprovado.';
+    if (stripeCents > 0) {
+      message += order.payment_method === 'mbway'
+        ? ` Devolvemos €${(stripeCents / 100).toFixed(2)} ao teu MB Way. Normalmente chega na hora.`
+        : ` Devolvemos €${(stripeCents / 100).toFixed(2)} ao teu cartão. Pode demorar 5 a 10 dias úteis a aparecer no extrato.`;
+    }
+    if (carteiraCents > 0 && walletResult && !walletResult.already_applied) {
+      message += ` €${(carteiraCents / 100).toFixed(2)} no teu saldo Bora, já disponível.`;
+    }
+    if (tokensDevolvidos > 0) {
+      message += ` Os ${tokensDevolvidos} tokens que usaste voltaram à tua conta, com a mesma validade.`;
+    }
+    await admin.functions.invoke('notify-client', {
+      body: { user_id: order.user_id, title: 'Cancelamento aprovado', body: message,
+              data: { order_id: order.id, refund_method: method } },
+    });
+  } catch (e) { console.warn('[execute-cancellation] notify failed (non-fatal):', e); }
+
+  return json({ ok: true,
+    request_id: cReq.id, order_id: order.id, refund_method: method,
+    fee_eur: fee, refund_eur: refundEur,
+    stripe_refund_id: stripeRefundId ?? null, wallet: walletResult,
+    tokens_devolvidos: tokensDevolvidos, // v16: voltam como tokens (gatilho do banco)
+  });
+});
+

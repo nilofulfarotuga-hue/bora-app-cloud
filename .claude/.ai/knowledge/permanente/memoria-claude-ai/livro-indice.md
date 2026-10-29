@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-29T22:07:07.23639+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-29T22:37:06.748353+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-29 22:01 UTC. Páginas listadas: 442.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-29 22:22 UTC. Páginas listadas: 443.
 
 ## O que é o Bora
 
@@ -341,7 +341,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-areas-stripe-connect-parte2 — Stripe Connect Express no Bora — decisão do Danilo, estado real (conta dele de motorista já ATIVA, Goola e Ouro e Prata por preencher, repa… (2026-10-24)
 - livro-areas-stripe-connect-parte3 — Stripe Connect Express no Bora — decisão do Danilo, estado real (conta dele de motorista já ATIVA, Goola e Ouro e Prata por preencher, repa… (2026-10-24)
 - livro-areas-talao-nao-parceiro — Ecrã do talão do estafeta em pedidos não-parceiros do [[bora-app]] — o que o Danilo exige do fluxo e o prompt entregue a 10/09 para o corri… (2026-10-28)
-- livro-areas-taxa-cancelamento-pedido — Regras do Danilo para cancelamento de pedidos de entrega do bora-app — taxa de cancelamento, reembolso ao MB Way/cartão e chamada persisten… (2026-10-28)
+- livro-areas-taxa-cancelamento-pedido — Regras do Danilo para cancelamento de pedidos de entrega do bora-app — taxa de cancelamento, reembolso ao MB Way/cartão e chamada persisten… (2026-10-29)
 - livro-areas-tokens-cliente — Regras do Danilo para o cliente usar tokens a pagar pedidos no Bora — ler antes de mexer em desconto de tokens, checkout ou valor a cobrar (2026-10-23)
 - livro-areas-tvde-cancelamento-tardio — Regra do Danilo (17/10/2026) para o cliente que cancela uma corrida TVDE depois dos 3 minutos — cobra a corrida inteira e o motorista receb… (2026-10-23)
 - livro-areas-tvde-central-corridas — Central de corridas do Danilo para clientes que ligam por telefone (sem app) — regra de ficar no core do Bora, fila entre os colegas da Gua… (2026-10-23)
@@ -403,7 +403,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - sql-modo-demo-2026-10-27 — SQL do modo demonstracao (Boom! Burger) para o Claude.ai aplicar (2026-10-27)
 
-## outras (106)
+## outras (107)
 
 - 00-LEIA-PRIMEIRO — Como usar esta memória (2026-10-23)
 - adendo-1-final-app-2026-10-29 — Adendo 1 da missão final-app-2026-10-29 (2026-10-29)
@@ -413,6 +413,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - adendo-7-retomar-missao-2026-10-29 — ADENDO 7 (Claude.ai, 21:30) - RETOMAR a missao publica-2026-10-29 depois de a sessao ter perdido a ligacao ao PC (2026-10-29)
 - adendo-8-noite-automatica-2026-10-29 — ADENDO 8 (Claude.ai, 21:58) - noite automatica: no fim da missao da Bora, acordar a missao do Harness sem ninguem no PC (2026-10-29)
 - adendo-8-nota-telemovel-2026-10-29 — Nota ao adendo 8: o Enter na sessao do Harness e dado pelo Danilo no telemovel (2026-10-29)
+- adendo-9-checkin-escada-premios-2026-10-29 — ADENDO 9 (Danilo 22:20) - check-in diario: calendario de 30 dias e escada de premios "levanta ou continua" (um premio por sequencia) (2026-10-29)
 - adendo-harness-servidor-remote-control-2026-10-29 — ADENDO para a missao do Harness (sessao DeepSeek Harness installation): no fim, servidor de Remote Control para duas sessoes ao mesmo tempo (2026-10-29)
 - adendo-vozes-omnivoice-2026-10-22 — Adendo de vozes: A/B do motor OmniVoice (k2-fsa) no filme Ep1 (2026-10-22)
 - armadilha-ytdlp-cookies-chrome-windows — yt-dlp + cookies do Chrome no Windows: caminho morto (App-Bound Encryption) (2026-09-17)
@@ -514,7 +515,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 ## Páginas pessoais
 
-34 páginas com título [PESSOAL] (vida do Danilo). Não se listam aqui nem vão para o espelho público nem para o LIVRO.md; só se leem quando a tarefa é dele, e nunca vão para motores grátis que treinam com o conteúdo.
+35 páginas com título [PESSOAL] (vida do Danilo). Não se listam aqui nem vão para o espelho público nem para o LIVRO.md; só se leem quando a tarefa é dele, e nunca vão para motores grátis que treinam com o conteúdo.
 
 ## Skills partilhadas (145 no repo + 8 só na VPS)
 

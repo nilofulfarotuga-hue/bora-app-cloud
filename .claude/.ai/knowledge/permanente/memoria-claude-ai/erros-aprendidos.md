@@ -10,7 +10,7 @@ estado: atual
 
 # Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-10-29T13:41:29.333378+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-10-29T22:16:24.699704+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: erros aprendidos · memoria claude.ai · claude_ai_memoria
 
@@ -101,4 +101,5 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - 28/10 (claude-ai): O Danilo disse "o jeito vai ser isso aí mesmo" sobre subir o escondido dos parceiros de 5% para 10% e eu respondi que punha os 10% quando chegassem os preços; ele corrigiu: "não vai acrescentar os 10% ainda não, vamos ver". → Mudança de preço só com ordem clara dele para aplicar; concordar com uma ideia não é ordem para mudar preços — mostrar as contas e esperar.
 - 28/10 (claude-ai): 28/10: ao destravar o talão do Divan (Auchan) pus cash_total_due = total bruto (14,35) e disse ao Danilo para cobrar 14,35 €, sem ver que o cliente pagou 10,31 com saldo e 0,73 com tokens (devia 3,31) → antes de dizer quanto cobrar ou mexer num valor de pedido, ler wallet_applied_cents, tokens_applied_value_cents, debt_collected_cents e o cash_total_due que já lá está; nunca recalcular do total bruto
 - 29/10 (claude-code): pus uma frase com "23%" dentro de um format() do SQL e o Fecho do mês do painel ficou partido 8 horas em todos os meses → texto com % dentro de format() leva %%; e depois de mudar uma função do painel, chamá-la uma vez como admin antes de dar por feito
+- 29/10 (claude-ai): A sessão da missão da Bora perdeu a ligação ao PC e escrevi o adendo de retomar na caixa de OUTRA sessão viva ("DeepSeek Harness installation" = Gipsy/Hermes, paralela) e mandei carregar Enter lá; ele corrigiu irritado. → Ele tem várias conversas e sessões a correr ao mesmo tempo; cada missão fica na SUA sessão (a da Bora é "Missão geral Bora 2026-10-28"); nunca escrever numa sessão de outro assunto nem mandar parar o que ela faz. Se a sessão certa estiver desligada, dizer-lhe isso e pedir-lhe para colar o adendo lá, e nada mais.
 

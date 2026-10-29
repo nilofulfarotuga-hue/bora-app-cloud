@@ -198,10 +198,38 @@ Future<void> _aceitarTermos(WidgetTester t) async {
   }
 }
 
+/// Há dois campos de texto à frente (e-mail e palavra-passe)? Espera até
+/// [segundos]. Não se usa `campos.at(1)` na espera: com um só campo (a caixa
+/// de pesquisa da página inicial) o `at(1)` rebenta em vez de devolver vazio.
+Future<bool> _esperarEcraDeEntrar(WidgetTester t, {double segundos = 12}) async {
+  for (int i = 0; i < (segundos * 5).round(); i++) {
+    if (find.byType(TextField).evaluate().length >= 2) return true;
+    await t.pump(const Duration(milliseconds: 200));
+    await t
+        .runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
+  }
+  return false;
+}
+
 Future<void> _entrar(WidgetTester t, String email) async {
   _diz('a entrar com $email');
+  // Visitante (26/10): com `visitantes_sem_conta` ligado, "Sou Cliente" abre
+  // logo a página inicial sem conta e a porta para entrar é o Perfil
+  // ("Entrar ou criar conta"). CICATRIZ (build-ios 40935856722, 29/10/2026):
+  // o 1.º TextField era a caixa de pesquisa e o 2.º não existia.
+  if (!await _esperarEcraDeEntrar(t, segundos: 12)) {
+    _diz('sem ecrã de entrar à frente — a ir pelo Perfil');
+    final tabPerfil = find.text('Perfil');
+    if (await _esperar(t, tabPerfil, segundos: 10)) {
+      await _tocar(t, tabPerfil.last);
+    }
+    final entrar = find.text('Entrar ou criar conta');
+    if (await _esperar(t, entrar, segundos: 10)) {
+      await _tocar(t, entrar);
+    }
+    await _esperarEcraDeEntrar(t, segundos: 30);
+  }
   final campos = find.byType(TextField);
-  await _esperar(t, campos, segundos: 30);
   await t.enterText(campos.at(0), email);
   await _bombear(t, segundos: 0.5);
   await t.enterText(campos.at(1), _senha);
@@ -209,6 +237,15 @@ Future<void> _entrar(WidgetTester t, String email) async {
   await _tocar(t, find.text('Entrar'));
   await _bombear(t, segundos: 8);
   await _aceitarTermos(t);
+  // Quem entrou pelo Perfil pode voltar a cair no Perfil: a varredura começa
+  // na página inicial, por isso toca-se em "Início" se ela não estiver à frente.
+  if (!await _esperar(t, find.text('Supermercados'), segundos: 8)) {
+    final tabInicio = find.text('Início');
+    if (tabInicio.evaluate().isNotEmpty) {
+      await _tocar(t, tabInicio.last);
+      await _bombear(t, segundos: 2);
+    }
+  }
 }
 
 /// Sai da conta corrente. Cada perfil tem a sua porta de saída:

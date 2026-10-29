@@ -18,6 +18,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 ///     tocar grava com `legal_terms_accept('parceiro', '2026-10-28', ...)` e o
 ///     painel fica à vista;
 ///  3. erro do servidor ao perguntar → falha aberta (o painel aparece).
+///
+/// missao-geral-2026-10-28, F3 — os termos são só das lojas de comida e
+/// mercado APROVADAS. O portão lê primeiro as lojas do dono (`restaurants`):
+///  4. dono de serviços (sem loja), loja de beleza aprovada e loja por aprovar
+///     → nem pergunta pela versão, painel à vista mesmo havendo uma pendente;
+///  5. erro a ler as lojas → falha aberta, sem termos;
+///  6. [termosDoParceiroAplicam] linha a linha (categoria, extra, estado).
 
 const _json = {'content-type': 'application/json; charset=utf-8'};
 const _uid = '00000000-0000-4000-8000-000000002810';
@@ -27,6 +34,19 @@ const _uid = '00000000-0000-4000-8000-000000002810';
 Object? _pendente;
 bool _pendenteFalha = false;
 final List<Map<String, dynamic>> _chamadas = [];
+
+/// Loja de comida aprovada (o caso de quem TEM de aceitar).
+const _restauranteAprovado = {
+  'category': 'restaurant',
+  'extra_categories': <String>[],
+  'is_partner': true,
+  'approval_status': 'approved',
+};
+
+/// O que o servidor responde à leitura das lojas do dono (`restaurants`).
+List<Map<String, Object?>> _lojas = [_restauranteAprovado];
+bool _lojasFalha = false;
+final List<Uri> _consultasLojas = [];
 
 String _b64(Map<String, Object?> m) =>
     base64Url.encode(utf8.encode(jsonEncode(m))).replaceAll('=', '');
@@ -57,6 +77,15 @@ Future<http.Response> _servidor(http.Request req) async {
   final caminho = req.url.path;
   if (caminho.endsWith('/auth/v1/token')) {
     return http.Response(jsonEncode(_sessao()), 200, headers: _json, request: req);
+  }
+  if (caminho.endsWith('/rest/v1/restaurants')) {
+    _consultasLojas.add(req.url);
+    if (_lojasFalha) {
+      return http.Response(
+          jsonEncode({'message': 'boom', 'code': 'XX000'}), 500,
+          headers: _json, request: req);
+    }
+    return http.Response(jsonEncode(_lojas), 200, headers: _json, request: req);
   }
   if (caminho.endsWith('/rest/v1/rpc/legal_terms_pending')) {
     _chamadas.add({'rpc': 'legal_terms_pending', ...jsonDecode(req.body)});
@@ -113,6 +142,9 @@ void main() {
     _pendente = null;
     _pendenteFalha = false;
     _chamadas.clear();
+    _lojas = [_restauranteAprovado];
+    _lojasFalha = false;
+    _consultasLojas.clear();
   });
 
   testWidgets('sem versão pendente (null) → painel à vista, sem termos',
@@ -179,6 +211,102 @@ void main() {
         hasLength(1));
     expect(find.text('PAINEL DO PARCEIRO'), findsOneWidget);
     expect(find.text('Aceito'), findsNothing);
+  });
+
+  group('F3 — só lojas de comida e mercado aprovadas', () {
+    const versao = {
+      'version': '2026-10-28',
+      'audience': 'parceiro',
+      'title': 'Termos e Condições do Parceiro — versão de 28/10/2026',
+      'body': 'Estes são os termos entre a Bora e as lojas parceiras.',
+    };
+
+    testWidgets('lê as lojas do próprio dono (user_id ou user_)',
+        (tester) async {
+      _pendente = versao;
+      await tester.pumpWidget(_app());
+      await _servidorResponde(tester);
+      expect(_consultasLojas, hasLength(1));
+      final q = Uri.decodeQueryComponent(_consultasLojas.single.query);
+      expect(q, contains('user_id.eq.$_uid'));
+      expect(q, contains('user_.eq.$_uid'));
+      expect(find.text('Aceito'), findsOneWidget);
+    });
+
+    for (final caso in <String, List<Map<String, Object?>>>{
+      'parceiro de serviços (sem loja)': [],
+      'loja de beleza aprovada': [
+        {'category': 'beauty', 'extra_categories': <String>[], 'is_partner': true, 'approval_status': 'approved'},
+      ],
+      'restaurante por aprovar': [
+        {'category': 'restaurant', 'extra_categories': <String>[], 'is_partner': true, 'approval_status': 'pending'},
+      ],
+    }.entries) {
+      testWidgets('${caso.key} → não pergunta pela versão, painel à vista',
+          (tester) async {
+        _pendente = versao;
+        _lojas = caso.value;
+        await tester.pumpWidget(_app());
+        await _servidorResponde(tester);
+        expect(_consultasLojas, hasLength(1));
+        expect(_chamadas, isEmpty);
+        expect(find.text('PAINEL DO PARCEIRO'), findsOneWidget);
+        expect(find.text('Aceito'), findsNothing);
+      });
+    }
+
+    testWidgets('erro a ler as lojas → falha aberta, sem termos',
+        (tester) async {
+      _pendente = versao;
+      _lojasFalha = true;
+      final logs = await _comLogs(() async {
+        await tester.pumpWidget(_app());
+        await _servidorResponde(tester);
+      });
+      expect(logs.where((l) => l.contains('[TermsGate] lojas do parceiro')),
+          hasLength(1));
+      expect(_chamadas, isEmpty);
+      expect(find.text('PAINEL DO PARCEIRO'), findsOneWidget);
+      expect(find.text('Aceito'), findsNothing);
+    });
+
+    test('termosDoParceiroAplicam, caso a caso', () {
+      Map<String, Object?> loja(String cat,
+              {List<String> extra = const [],
+              bool parceira = true,
+              String estado = 'approved'}) =>
+          {
+            'category': cat,
+            'extra_categories': extra,
+            'is_partner': parceira,
+            'approval_status': estado,
+          };
+      for (final c in ['restaurant', 'sobremesa', 'festas', 'supermarket']) {
+        expect(termosDoParceiroAplicam([loja(c)]), isTrue, reason: c);
+      }
+      for (final c in ['beauty', 'pharmacy', 'store', '']) {
+        expect(termosDoParceiroAplicam([loja(c)]), isFalse, reason: c);
+      }
+      expect(termosDoParceiroAplicam([loja('beauty', extra: ['restaurant'])]),
+          isTrue);
+      expect(termosDoParceiroAplicam([loja('restaurant', estado: 'pending')]),
+          isFalse);
+      expect(termosDoParceiroAplicam([loja('restaurant', estado: 'rejected')]),
+          isFalse);
+      expect(termosDoParceiroAplicam([loja('restaurant', parceira: false)]),
+          isFalse);
+      expect(termosDoParceiroAplicam(const []), isFalse);
+      expect(
+          termosDoParceiroAplicam(
+              [loja('beauty'), loja('supermarket', estado: 'pending'), loja('festas')]),
+          isTrue);
+      // Sem extra_categories (null) não parte.
+      expect(
+          termosDoParceiroAplicam([
+            {'category': 'restaurant', 'extra_categories': null, 'is_partner': true, 'approval_status': 'approved'}
+          ]),
+          isTrue);
+    });
   });
 }
 

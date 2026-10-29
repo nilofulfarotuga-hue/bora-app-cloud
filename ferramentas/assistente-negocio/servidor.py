@@ -182,8 +182,21 @@ def laco_rotinas():
         time.sleep(60)
 
 
+def laco_pedidos():
+    """Restaurantes: estado dos pedidos feitos pelo WhatsApp -> avisos ao cliente (a cada 20 s)."""
+    while True:
+        try:
+            r = rotinas.ciclo_pedidos()
+            if any(str(k).endswith("_erro") for k in r) or any(isinstance(v, int) and v > 0 for v in r.values()):
+                log("pedidos", r)
+        except Exception as e:
+            log("pedidos falharam", e)
+        time.sleep(int(os.environ.get("ASSISTENTE_PEDIDOS_SEG", "20")))
+
+
 if __name__ == "__main__":
     if os.environ.get("ASSISTENTE_ROTINAS", "1") == "1":
         threading.Thread(target=laco_rotinas, daemon=True).start()
+        threading.Thread(target=laco_pedidos, daemon=True).start()
     log("ASSISTENTE no ar", PORTA, SESSAO)
     ThreadingHTTPServer(("127.0.0.1", PORTA), H).serve_forever()

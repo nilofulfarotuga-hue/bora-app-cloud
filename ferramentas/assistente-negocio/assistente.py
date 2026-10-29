@@ -83,7 +83,7 @@ def tenant_para(sessao, numero):
 # ----------------------------------------------------------------------------- Secretario Virtual: convite de teste
 # Missao 03/10 bloco 5 (04/10): o prospect recebe por email "escreva TESTE 1234 para o numero da Bora".
 # Numero desconhecido + codigo valido => entra na allowlist do tenant 'secretario-demo' por 7 dias
-# (RPC secretario_ativar, que recusa numeros de outros clientes: Mister Navalha/Ernando, dono, Danilo).
+# (RPC secretario_ativar, que recusa numeros que ja sao de outro cliente, do dono ou da Bora).
 CODIGO_TESTE_RE = re.compile(r"\bteste\s*[:#-]?\s*(\d{4})\b", re.I)
 BOAS_VINDAS_DEMO = ("Olá! Bem-vindo ao teste do Secretário Virtual da Bora App. "
                     "Durante 7 dias, este número faz de recepcionista da Barbearia Bora Demo (fictícia). "
@@ -111,6 +111,17 @@ def e_so_o_codigo(texto):
 def tenant_por_id(tid):
     r = db.ler("assistant_tenants", f"id=eq.{tid}")
     return r[0] if r else None
+
+
+def tipo_de(t):
+    """barbearia (marcacoes) | restaurante (encomendas). Sem a coluna (SQL W1 por aplicar) = barbearia."""
+    return (t or {}).get("tipo") or "barbearia"
+
+
+def dono_nome(t):
+    """Como o assistente se refere a quem manda no negocio. Vem do tenant (knowledge.ficha.dono), nunca escrito a mao."""
+    k = (t or {}).get("knowledge") or {}
+    return ((k.get("ficha") or {}).get("dono") or k.get("dono") or "o responsável").strip()
 
 
 def pode_escrever_a(t, numero):
@@ -410,7 +421,7 @@ class Turno:
         enfileirar(self.t, so_digitos(self.t["dono_destino"]), txt, f"pergunta_dono:{tk['id']}", self.simular)
         gravar_contacto(self.t, self.numero, {"a_espera_de": {"o_que": f"resposta do dono a: {pergunta}", "tarefa": tk["id"]}})
         return {"ok": True, "codigo": cod, "prazo_min": 30,
-                "instrucao": "Diz ao cliente que confirmas com o Ernando e voltas a falar com ele assim que tiveres a resposta."}
+                "instrucao": f"Diz ao cliente que confirmas com {dono_nome(self.t)} e voltas a falar com ele assim que tiveres a resposta."}
 
     def passar_ao_dono(self, motivo):
         self.tarefa_dono = True
@@ -421,7 +432,7 @@ class Turno:
         txt = (f"📲 {self.t['nome']} — um cliente precisa de ti: {motivo}\nCliente: {nome} (+{self.numero}).\n"
                f"Fala tu diretamente com ele.")
         enfileirar(self.t, so_digitos(self.t["dono_destino"]), txt, "passar_dono", self.simular)
-        return {"ok": True, "instrucao": "Diz ao cliente que isso é com o Ernando, que já lhe passaste o recado e ele fala consigo."}
+        return {"ok": True, "instrucao": f"Diz ao cliente que isso é com {dono_nome(self.t)}, que já passaste o recado e que vão falar consigo."}
 
     def guardar_nome(self, nome):
         gravar_contacto(self.t, self.numero, {"nome": nome.strip()[:60]})
@@ -432,9 +443,11 @@ class Turno:
         gravar_contacto(self.t, self.numero, {"a_espera_de": {"o_que": a_espera_de} if a_espera_de.strip() else None})
         return {"ok": True}
 
+    FERRAMENTAS = FERRAMENTAS
+
     def executar(self, nome, args):
         f = getattr(self, nome, None)
-        if nome.startswith("_") or not callable(f) or nome not in {x["function"]["name"] for x in FERRAMENTAS}:
+        if nome.startswith("_") or not callable(f) or nome not in {x["function"]["name"] for x in self.FERRAMENTAS}:
             return {"erro": "ferramenta_desconhecida"}
         try:
             r = f(**args)
@@ -503,11 +516,15 @@ def classificar(t, ct, texto, simular):
     """negocio | pessoal. Contexto curto; motor barato. Na duvida: negocio."""
     hist = ct.get("historico") or []
     recente = hist[-4:]
-    ctx = "\n".join(f"{'cliente' if h['r'] == 'user' else 'barbearia'}: {h['t']}" for h in recente)
+    restaurante = tipo_de(t) == "restaurante"
+    quem = "restaurante" if restaurante else "barbearia"
+    ctx = "\n".join(f"{'cliente' if h['r'] == 'user' else quem}: {h['t']}" for h in recente)
+    assuntos = ("encomendas, menu, hambúrgueres, bebidas, preços, horário, morada, entregas, ir buscar, alergénios"
+                if restaurante else "marcações, preços, horários, morada, serviços")
     msgs = [{"role": "system", "content": (
         f"Filtras mensagens que chegam ao WhatsApp de trabalho da {t['nome']}. Responde só JSON {{\"tipo\":\"negocio\"}} ou {{\"tipo\":\"pessoal\"}}.\n"
-        "negocio = cliente ou possível cliente: marcações, preços, horários, morada, serviços, agradecimentos e respostas curtas (ok, sim, obrigado, até amanhã) dentro de uma conversa de marcação, cumprimentos simples (olá, boa tarde).\n"
-        "pessoal = família, amigos, namoro, convites (jantar, futebol, copos), conversa privada, 'mano'/'bro' a falar de vida pessoal, assuntos que nada têm a ver com a barbearia.")},
+        f"negocio = cliente ou possível cliente: {assuntos}, agradecimentos e respostas curtas (ok, sim, obrigado, até já) dentro de uma conversa com o {quem}, cumprimentos simples (olá, boa tarde).\n"
+        f"pessoal = família, amigos, namoro, convites (jantar em casa, futebol, copos), conversa privada, 'mano'/'bro' a falar de vida pessoal, assuntos que nada têm a ver com o {quem}.")},
         {"role": "user", "content": (f"Conversa recente:\n{ctx}\n\n" if ctx else "") + f"Mensagem nova: {texto}"}]
     try:
         msg, meta = motores.conversar(["gemini:gemini-3.1-flash-lite", "gemini2:gemini-3.1-flash-lite",
@@ -544,13 +561,14 @@ def resposta_do_dono(t, ev, simular):
             texto = m.group(2).strip() or texto
     if not tk:
         return None
-    msgs = [{"role": "system", "content": "Reescreves a resposta do dono de uma barbearia para o cliente: português de Portugal, 1-2 frases, tratamento por você. Mantém as PALAVRAS do dono para os factos (se ele diz 'cartão', escreves 'cartão'); não acrescentes nem troques nada. Começa por 'Já falei com o Ernando:'."},
+    dono = dono_nome(t)
+    msgs = [{"role": "system", "content": f"Reescreves a resposta do dono de um negócio ({t['nome']}) para o cliente: português de Portugal, 1-2 frases, tratamento por você. Mantém as PALAVRAS do dono para os factos (se ele diz 'cartão', escreves 'cartão'); não acrescentes nem troques nada. Começa por 'Já falei com {dono}:'."},
             {"role": "user", "content": f"Pergunta do cliente: {tk['pergunta']}\nResposta do dono: {texto}"}]
     try:
         msg, meta = motores.conversar(cadeia_de(t), msgs, pode_pago=custo_mes(t) < float(t["orcamento_mensal_eur"]))
-        para_cliente = (msg.get("content") or "").strip() or f"Já falei com o Ernando: {texto}"
+        para_cliente = (msg.get("content") or "").strip() or f"Já falei com {dono}: {texto}"
     except motores.MotorFalhou:
-        para_cliente, meta = f"Já falei com o Ernando: {texto}", None
+        para_cliente, meta = f"Já falei com {dono}: {texto}", None
     enfileirar(t, tk["numero"], para_cliente, "resposta_dono", simular or tk.get("simulado"))
     db.atualizar("assistant_tasks", f"id=eq.{tk['id']}", {"estado": "cumprida", "resposta": texto, "cumprida_em": iso(agora())})
     k = t.get("knowledge") or {}
@@ -623,10 +641,21 @@ def atender(ev, simular=False):
         gravar_contacto(t, numero, {"pessoal": True})
         return {"tratado": True, "acao": "silencio-pessoal", "respostas": []}
 
-    turno = Turno(t, numero, ct, simular)
-    turno.foi_audio = foi_audio
     hist = ct.get("historico") or []
-    msgs = [{"role": "system", "content": prompt_sistema(t, ct)}]
+    if tipo_de(t) == "restaurante":
+        import restaurante  # aqui e nao no topo: o restaurante importa este modulo
+        fechado = restaurante.resposta_fora_da_janela(t, numero)
+        if fechado:  # loja "abre em breve" (ou sem conta ligada): resposta fixa, sem motor
+            turno = Turno(t, numero, ct, simular)
+            turno.foi_audio = foi_audio
+            return _fechar(t, numero, texto, entrada, turno, fechado, "loja-abre-em-breve", None, hist, simular)
+        turno = restaurante.TurnoRestaurante(t, numero, ct, simular, texto)
+        sistema = restaurante.prompt_restaurante(t, ct)
+    else:
+        turno = Turno(t, numero, ct, simular)
+        sistema = prompt_sistema(t, ct)
+    turno.foi_audio = foi_audio
+    msgs = [{"role": "system", "content": sistema}]
     for h in hist[-HIST_MAX:]:
         c = h["t"] + (f"\n[sistema: {h['feito']}]" if h.get("feito") else "")
         msgs.append({"role": "user" if h["r"] == "user" else "assistant", "content": c})
@@ -649,7 +678,7 @@ def atender(ev, simular=False):
         if not turno.tarefa_dono:
             ctx = " / ".join(h["t"] for h in hist[-3:] if h["r"] == "user")
             turno.perguntar_ao_dono(f"{texto}" + (f" (antes o cliente tinha dito: {ctx})" if ctx else ""))
-        resposta = "Recebi a sua mensagem. Vou confirmar com o Ernando e volto a falar consigo assim que tiver resposta."
+        resposta = f"Recebi a sua mensagem. Vou confirmar com {dono_nome(t)} e volto a falar consigo assim que tiver resposta."
         acao = "falha-motor-passou-ao-dono"
     return _fechar(t, numero, texto, entrada, turno, resposta, acao, erro, hist, simular)
 
@@ -658,7 +687,7 @@ def _laco(t, turno, msgs, pode_pago):
     """Motor + ferramentas ate haver texto final. `msgs` cresce no sitio: uma 2.a volta continua daqui
     (as ferramentas ja executadas — p.ex. uma marcacao feita — nao se repetem)."""
     for _ in range(MAX_VOLTAS):
-        msg, meta = motores.conversar(cadeia_de(t), msgs, FERRAMENTAS, pode_pago=pode_pago)
+        msg, meta = motores.conversar(cadeia_de(t), msgs, turno.FERRAMENTAS, pode_pago=pode_pago)
         turno.custo += meta["custo_eur"]; turno.tin += meta["tokens_in"]; turno.tout += meta["tokens_out"]
         turno.modelos.append(meta["motor"])
         chamadas = msg.get("tool_calls") or []
@@ -727,6 +756,10 @@ def resumo_acoes(turno):
             out.append(f"marcação MUDADA: {r['servico']} de {r['de']} para {r['para']}")
         elif u["ferramenta"] in ("perguntar_ao_dono", "passar_ao_dono") and r.get("ok"):
             out.append(f"{u['ferramenta']} feito")
+        elif u["ferramenta"] == "confirmar_pedido" and r.get("ok") and not r.get("ja_estava_feito"):
+            out.append(f"pedido FEITO: {r.get('pedido')} total {r.get('total')} — não voltar a criar")
+        elif u["ferramenta"] == "orcamento" and r.get("ok"):
+            out.append(f"resumo mostrado com total {r.get('total')} — à espera do sim do cliente")
     return "; ".join(out)
 
 

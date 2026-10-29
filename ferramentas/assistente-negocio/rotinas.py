@@ -122,7 +122,8 @@ def vigia_perguntas(t, agora):
             db.atualizar("assistant_tasks", f"id=eq.{k['id']}", {"tentativas": 1, "prazo": A.iso(agora + dt.timedelta(minutes=60))})
         elif k["tentativas"] == 1:
             tel = (t.get("knowledge") or {}).get("ficha", {}).get("telefone", "")
-            A.enfileirar(t, k["numero"], f"Ainda não tive resposta do Ernando à sua pergunta. Assim que tiver, digo-lhe. Se for urgente, pode ligar para {tel}.",
+            A.enfileirar(t, k["numero"], f"Ainda não tive resposta de {A.dono_nome(t)} à sua pergunta. Assim que tiver, digo-lhe."
+                                         + (f" Se for urgente, pode ligar para {tel}." if tel else ""),
                          f"pergunta_dono_ponto:{k['id']}", sim)
             db.atualizar("assistant_tasks", f"id=eq.{k['id']}", {"tentativas": 2, "prazo": A.iso(agora + dt.timedelta(hours=12))})
         else:
@@ -190,10 +191,31 @@ def ciclo():
         except Exception as e:
             feitos["limpar_vozes_erro"] = str(e)[:200]
     for t in db.ler("assistant_tenants", "mode=neq.desligado"):
-        for f in (lembretes, avaliacoes, reativacao, vigia_perguntas, resumo_semanal, orcamento):
+        rotinas = ROTINAS_RESTAURANTE if A.tipo_de(t) == "restaurante" else ROTINAS_BARBEARIA
+        for f in rotinas:
             try:
                 f(t, agora)
                 feitos[f.__name__] = feitos.get(f.__name__, 0) + 1
             except Exception as e:  # uma rotina partida nao pode parar as outras
                 feitos[f.__name__ + "_erro"] = str(e)[:200]
+    return feitos
+
+
+# marcacoes (lembrete, avaliacao, reativacao, resumo de marcacoes) so fazem sentido na barbearia
+ROTINAS_BARBEARIA = (lembretes, avaliacoes, reativacao, vigia_perguntas, resumo_semanal, orcamento)
+ROTINAS_RESTAURANTE = (vigia_perguntas, orcamento)
+
+
+def ciclo_pedidos():
+    """Restaurantes: avisos ao cliente sobre os pedidos feitos pelo WhatsApp (aceite, pronto, saiu, entregue,
+    produto em falta). Sondagem leve a cada ~20 s (servidor.py): 3 leituras por restaurante com pedidos abertos."""
+    import restaurante as R
+    feitos = {}
+    for t in db.ler("assistant_tenants", "mode=neq.desligado"):
+        if A.tipo_de(t) != "restaurante":
+            continue
+        try:
+            feitos[t.get("slug") or t["id"]] = R.avisos_pedidos(t)
+        except Exception as e:  # noqa: BLE001
+            feitos[(t.get("slug") or t["id"]) + "_erro"] = str(e)[:200]
     return feitos

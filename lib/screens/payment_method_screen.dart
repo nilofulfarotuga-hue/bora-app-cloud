@@ -18,9 +18,12 @@ import '../stores/order_store.dart';
 import 'package:flutter_stripe/flutter_stripe.dart' show StripeException, FailureCode;
 
 import '../models/saved_card.dart';
+import '../services/agendar_pedido_service.dart';
 import '../services/card_wallet_service.dart';
 import '../services/complemento_morada.dart';
 import '../services/fatura_nif_service.dart';
+import '../services/substituicao_service.dart';
+import '../widgets/substituicao_seletor.dart';
 import '../services/interruptores_app.dart';
 import '../services/limite_dinheiro_service.dart';
 import '../services/payment_service.dart';
@@ -256,6 +259,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       final hora = '${quando.hour.toString().padLeft(2, '0')}:00';
       marca = 'Encomenda para {0} às {1}'.trArgs([dia, hora]);
     }
+    // Agendar pedidos (C5, 29/10/2026): a hora escolhida também segue na nota,
+    // para o parceiro a ver mesmo que a gravação da hora falhe. Só com o
+    // interruptor ligado e uma escolha para esta loja.
+    marca ??= AgendarPedidoEstado.instance.notaParaLoja(cart.vendorRestaurantId);
     final troco = _mostraTroco(cart) &&
             _trocoPara != null &&
             _trocoPara! > _totalAtual
@@ -854,6 +861,13 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                   ),
                   const SizedBox(height: 16),
                 ],
+                // C7 (29/10/2026): "Se faltar um produto" — mercados não
+                // parceiros e Favores com compra; desligado por defeito.
+                SubstituicaoSeletor(
+                  serviceType: cartStore.serviceType,
+                  lojaParceira: cartStore.isPartnerStore,
+                  favorComLista: cartStore.errandSession?.hasPurchase ?? false,
+                ),
                 // C1 — nota opcional para o estafeta (liga ao customerNotes).
                 CustomerNoteField(
                   controller: _notesController,
@@ -1524,6 +1538,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       }
       // 26/10 (item 5): morada trocada no último ecrã → o painel vê.
       await cartStore.registarMoradaTrocada(orderId);
+      // Agendar pedidos (C5, 29/10/2026): grava a hora escolhida (só com o
+      // interruptor ligado e uma escolha para esta loja; não-fatal).
+      await AgendarPedidoEstado.instance
+          .gravarEscolha(orderId, restaurantId: cartStore.vendorRestaurantId);
       cartStore.clearCart();
       await _consumeTokensAndNavigate(tokensUsed);
       return;
@@ -1668,6 +1686,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   /// NIF em segundo plano (3 tentativas). Não espera, não bloqueia e não
   /// lança — se falhar, o acompanhamento mostra "tentar de novo".
   void _pedirFaturaNif(String? orderId, DadosFatura? fatura) {
+    // C7 (29/10/2026): o mesmo gancho (corre nos 4 caminhos de pagamento, só
+    // depois de o pedido ter id real) leva a escolha "se faltar um produto".
+    // Sem escolha, ou com o interruptor desligado, não faz nada.
+    SubstituicaoService.instance.gravarPendenteEmSegundoPlano(orderId);
     if (orderId == null || fatura == null) return;
     FaturaNifService.instance
         .pedirEmSegundoPlano(orderId, nif: fatura.nif, nome: fatura.nome);

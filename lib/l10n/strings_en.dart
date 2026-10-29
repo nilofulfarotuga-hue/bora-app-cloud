@@ -4025,4 +4025,55 @@ const Map<String, String> kStringsEn = <String, String>{
       'Cancelled. Refund via MB Way, usually immediately.',
   'Cancelado. Devolução ao cartão em 5 a 10 dias úteis.':
       'Cancelled. Refund to your card in 5 to 10 business days.',
+  'Tempo maior do que o normal: a loja está com muitos pedidos.':
+      'Longer than usual: the store is very busy.',
+  // 29/10/2026 (C7, adendo 5 item 7): "Se faltar um produto" no pagamento.
+  'Se faltar um produto':
+      'If a product is missing',
+  'Escolhe agora. Guardamos a tua escolha para a próxima vez.':
+      'Choose now. We will remember your choice for next time.',
+  'Trocar por um parecido':
+      'Swap it for a similar one',
+  'Tirar e devolver o valor':
+      'Remove it and refund the amount',
+  'Falar comigo no chat':
+      'Talk to me in the chat',
+  'O estafeta escolhe o produto mais parecido.':
+      'The courier picks the closest product.',
+  'O produto sai do pedido e não pagas por ele.':
+      'The product is taken off the order and you do not pay for it.',
+  'O estafeta escreve-te no chat, com foto, antes de decidir.':
+      'The courier messages you in the chat, with a photo, before deciding.',
+  'Se faltar um produto, o cliente quer: trocar por um parecido.':
+      'If a product is missing, the customer wants: swap it for a similar one.',
+  'Se faltar um produto, o cliente quer: tirar do pedido (marca "não há").':
+      'If a product is missing, the customer wants: take it off the order (mark "not available").',
+  'Se faltar um produto, o cliente quer: falar contigo no chat, com foto.':
+      'If a product is missing, the customer wants: talk to you in the chat, with a photo.',
+  'Quando queres receber?':
+      'When do you want it?',
+  'Entregar agora':
+      'Deliver now',
+  'Agendar':
+      'Schedule',
+  'A loja está fechada agora. Escolhe quando queres receber.':
+      'The store is closed right now. Choose when you want it delivered.',
+  'Esta loja não aceita pedidos agendados neste momento.':
+      'This store is not accepting scheduled orders right now.',
+  'A carregar horários…':
+      'Loading times…',
+  'Sem horários livres neste dia.':
+      'No free times on this day.',
+  'Escolhe uma hora para continuar.':
+      'Choose a time to continue.',
+  'Podes cancelar sem custo até 1 h antes.':
+      'You can cancel free of charge up to 1 h before.',
+  'Agendado para {0}, {1}':
+      'Scheduled for {0}, {1}',
+  'Amanhã':
+      'Tomorrow',
+  'Preço mais baixo dos últimos 30 dias: {0}':
+      'Lowest price in the last 30 days: {0}',
+  'Antes {0}':
+      'Was {0}',
 };

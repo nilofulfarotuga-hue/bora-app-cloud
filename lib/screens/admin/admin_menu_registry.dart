@@ -56,6 +56,7 @@ import 'admin_vigia_dinheiro_screen.dart';
 import 'admin_ganho_do_dia_screen.dart';
 import 'admin_gdpr_screen.dart';
 import 'admin_knowledge_screen.dart';
+import 'admin_lembretes_screen.dart';
 import 'admin_live_orders_map_screen.dart';
 import 'admin_marcacoes_confirmacao_screen.dart';
 import 'admin_decisoes_screen.dart';
@@ -331,6 +332,15 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.red.shade700,
       builder: () => const AdminPagamentosPresosScreen(),
       keywords: const ['pagamento', 'preso', 'cartao', 'stripe', 'falhou', 'iphone', 'requires_payment_method', 'rodar'],
+    ),
+    AdminMenuItem(
+      id: 'operacao_lembretes',
+      title: 'Lembretes',
+      subtitle: 'O que o robô lembra ao dono pelo WhatsApp todo dia às 9h30: criar, editar e marcar como feito',
+      icon: Icons.notifications_active_outlined,
+      color: Colors.teal,
+      builder: () => const AdminLembretesScreen(),
+      keywords: const ['lembrete', 'lembretes', 'whatsapp', 'aviso', 'tarefas', 'pendentes', 'diario'],
     ),
     ],
   ),

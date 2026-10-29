@@ -56,6 +56,7 @@ import 'admin_vigia_dinheiro_screen.dart';
 import 'admin_ganho_do_dia_screen.dart';
 import 'admin_gdpr_screen.dart';
 import 'admin_knowledge_screen.dart';
+import 'admin_lembretes_screen.dart';
 import 'admin_live_orders_map_screen.dart';
 import 'admin_marcacoes_confirmacao_screen.dart';
 import 'admin_decisoes_screen.dart';
@@ -73,6 +74,7 @@ import 'admin_orders_screen.dart';
 import 'admin_stuck_orders_screen.dart';
 import 'admin_orphan_payments_screen.dart';
 import 'admin_papeis_screen.dart';
+import 'admin_parceiros_termos_screen.dart';
 import 'admin_partners_pending_screen.dart';
 import 'admin_partners_screen.dart';
 import 'admin_payments_cards_screen.dart';
@@ -122,7 +124,9 @@ import 'admin_agentes_email_screen.dart';
 import 'admin_pendencias_operacao_screen.dart';
 import 'admin_conformidade_legal_screen.dart';
 import 'admin_comprovativo_atividade_screen.dart';
+import 'admin_robo_documentos_screen.dart';
 import 'admin_fecho_mensal_screen.dart';
+import 'admin_alergenos_screen.dart';
 
 /// Registo ÚNICO do menu do painel admin (PT-BR).
 ///
@@ -329,6 +333,15 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.red.shade700,
       builder: () => const AdminPagamentosPresosScreen(),
       keywords: const ['pagamento', 'preso', 'cartao', 'stripe', 'falhou', 'iphone', 'requires_payment_method', 'rodar'],
+    ),
+    AdminMenuItem(
+      id: 'operacao_lembretes',
+      title: 'Lembretes',
+      subtitle: 'O que o robô lembra ao dono pelo WhatsApp todo dia às 9h30: criar, editar e marcar como feito',
+      icon: Icons.notifications_active_outlined,
+      color: Colors.teal,
+      builder: () => const AdminLembretesScreen(),
+      keywords: const ['lembrete', 'lembretes', 'whatsapp', 'aviso', 'tarefas', 'pendentes', 'diario'],
     ),
     ],
   ),
@@ -1093,6 +1106,15 @@ List<AdminMenuSection> adminMenuSections() => [
       keywords: const ['dados', 'desligar', 'editar', 'ligar', 'lojas', 'parceiros', 'restaurantes'],
     ),
     AdminMenuItem(
+      id: 'parceiros_alergenos',
+      title: 'Alergênicos',
+      subtitle: 'Os 14 alergênicos obrigatórios de cada produto: ver e corrigir',
+      icon: Icons.health_and_safety_outlined,
+      color: Colors.purple,
+      builder: () => const AdminAlergenosScreen(),
+      keywords: const ['alergenos', 'alergenicos', 'alergias', 'gluten', 'lei', 'produtos', 'ue'],
+    ),
+    AdminMenuItem(
       id: 'parceiros_aprovacao_de_parceiros',
       title: 'Aprovação de parceiros',
       subtitle: 'Candidaturas de parceiros: pendentes, aprovadas, recusadas',
@@ -1100,6 +1122,16 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.deepPurple,
       builder: () => const AdminPartnersPendingScreen(),
       keywords: const ['aprovacao', 'aprovadas', 'candidaturas', 'parceiros', 'pendentes', 'recusadas'],
+    ),
+    // [27/10/2026 · missão boom-burger F4] Regulamento UE 2019/1150.
+    AdminMenuItem(
+      id: 'parceiros_termos',
+      title: 'Termos dos parceiros',
+      subtitle: 'Quem aceitou os termos do parceiro (versão e data) e quem está pendente; registrar aceite recebido por WhatsApp ou email',
+      icon: Icons.description_outlined,
+      color: Colors.deepPurple,
+      builder: () => const AdminParceirosTermosScreen(),
+      keywords: const ['termos', 'condicoes', 'contrato', 'aceite', 'aceitou', 'parceiro', 'loja', 'whatsapp', 'email', '2019/1150', 'regulamento'],
     ),
     AdminMenuItem(
       id: 'parceiros_papeis_e_candidaturas',
@@ -1182,6 +1214,16 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.blueGrey,
       builder: () => const AdminComprovativoAtividadeScreen(),
       keywords: const ['atividade', 'comprovativo', 'financas', 'nif', 'prestador', 'estafeta', 'limpeza', 'lavagem', 'tvde', 'cae', 'lembrete', 'documento'],
+    ),
+    // [29/10/2026 · Adendo 3] Robô fiscal de documentos dos candidatos (modo sombra por defeito).
+    AdminMenuItem(
+      id: 'sistema_robo_documentos',
+      title: 'Robô de documentos',
+      subtitle: 'Confere os documentos dos candidatos, avisa o que está errado. Liga/desliga, sombra, prontos para aprovar e histórico',
+      icon: Icons.smart_toy_outlined,
+      color: Colors.blueGrey,
+      builder: () => const AdminRoboDocumentosScreen(),
+      keywords: const ['robo', 'documentos', 'candidatos', 'comprovativo', 'fiscal', 'ia', 'sombra', 'aprovar', 'lembrar'],
     ),
     AdminMenuItem(
       id: 'sistema_historico_de_accoes',

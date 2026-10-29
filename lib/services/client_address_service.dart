@@ -33,6 +33,7 @@ class ClientAddressService {
     double? lat,
     double? lng,
     bool isDefault = false,
+    String? details,
   }) async {
     final uid = _supa.auth.currentUser!.id;
     if (isDefault) await _clearDefault(uid);
@@ -48,6 +49,7 @@ class ClientAddressService {
           if (lat != null) 'lat': lat,
           if (lng != null) 'lng': lng,
           'is_default': isDefault,
+          if (details != null && details.trim().isNotEmpty) 'details': details,
         })
         .select()
         .single();
@@ -64,6 +66,8 @@ class ClientAddressService {
     double? lat,
     double? lng,
     bool? isDefault,
+    String? details,
+    bool limparDetails = false,
   }) async {
     final uid = _supa.auth.currentUser!.id;
     if (isDefault == true) await _clearDefault(uid);
@@ -76,6 +80,9 @@ class ClientAddressService {
       if (lat != null) 'lat': lat,
       if (lng != null) 'lng': lng,
       if (isDefault != null) 'is_default': isDefault,
+      // Complemento: texto novo grava; `limparDetails` apaga (campo esvaziado).
+      if (details != null) 'details': details,
+      if (limparDetails && details == null) 'details': null,
     };
     final res = await _supa
         .from('client_addresses')

@@ -1,3 +1,4 @@
+import '../utils/euros.dart';
 /// Serviço oferecido por um prestador (vertical Serviços).
 ///
 /// Espelha a tabela `provider_services`. Preço em cêntimos
@@ -26,8 +27,8 @@ class ProviderServiceModel {
   final int sortOrder;
 
   /// Preço formatado em euros: '€12,00' → usa '.' por consistência com o
-  /// resto da app ('€${(cents/100).toStringAsFixed(2)}').
-  String get priceLabel => '€${(priceCents / 100).toStringAsFixed(2)}';
+  /// resto da app (eur((cents/100))).
+  String get priceLabel => eur((priceCents / 100));
 
   /// Duração legível: '45 min' ou '1h15'.
   String get durationLabel {

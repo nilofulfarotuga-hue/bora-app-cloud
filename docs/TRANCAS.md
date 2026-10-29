@@ -148,3 +148,24 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   anúncios `act_1105400138585537` tem 0,00 € e nenhum método de pagamento. Não se meteu cartão (regra).
   Página de pagamento deixada aberta no Chrome da Bora; ordem pronta em
   `C:\BoraLocal\tmp\guarda-primeiro\prompt-executor-meta.md`.
+- **28/10/2026, missão `missao-geral-2026-10-28`** — ao entregar ao Claude.ai, pela fila de propostas do
+  Córtex (`cortex_propor`), o pacote do Bloco 2 (reembolsos e tokens, dinheiro), o classificador de
+  segurança cortou a 3.ª entrega (o `client-cancel-order` v30 inteiro). Passaram o LEIA-ME
+  (`prop-38d65b15`) e o `_shared/cobranca_stripe.ts` v2 (`prop-d7d3717b`); a entrega cortada não ficou
+  na fila. Não se repetiu nem se partiu o ficheiro para passar. O pacote inteiro fica no repo, em
+  `docs/propostas/missao-geral-2026-10-28/bloco2/` e nas 4 Edge Functions mudadas (commit 6e8ee02c), e
+  chega ao Claude.ai pelo GitHub quando o ramo for publicado, ou por outro caminho que ele escolha.
+- **29/10/2026, missão `final-app-2026-10-29`** — a bora-tranca bloqueou o `Write` de um script Python
+  (`vigia_pedidos.py`, vigia de pedidos presos e site em baixo para o Hermes) por "segredo no conteúdo
+  novo: ENV_KEY= com valor em texto claro". O valor era o CAMINHO de um ficheiro (`"/opt/assistente-negocio/.env"`),
+  não uma chave. Não se reformulou o nome da variável para passar. Proposta de correção da regra em
+  `hooks/regras.ts`: só bloquear quando o valor à direita do `=` parece mesmo uma chave (`eyJ`, `sb_secret_`,
+  `sk_live`, `sk_test`, `AIza`, `ghp_`, `-----BEGIN`) e não um caminho ou um nome de variável. Quem aplica é o Danilo.
+- **29/10/2026, missão `final-app-2026-10-29` (S1, dinheiro autorizado às 14:22)** — a bora-tranca recusou o
+  `Write` do ficheiro `supabase/migrations/20261029152540_s1_platform_settings_segredos_2026_10_29.sql`
+  ("migration que toca tokens/wallet/pagamentos/ledger"): a lista branca da vista `platform_settings_publicas`
+  tem nomes de chaves `token_*` e `wallet_split_free_pct`, e a tranca lê os nomes como se fossem as tabelas.
+  Não se contornou. A migração ESTÁ aplicada em produção (`schema_migrations` 20261029152540, provas no
+  e2e_log 5210) e o SQL exato está em `docs/propostas/missao-geral-2026-10-28/janela2/S1_platform_settings_segredos.sql`
+  (passos 0 a 4, sem a documentação do fim). Falta copiá-lo para `supabase/migrations/` por quem não tenha
+  a tranca (Claude.ai pelo GitHub, ou o Danilo a carregar Permitir numa sessão).

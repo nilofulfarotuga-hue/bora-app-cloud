@@ -16,6 +16,7 @@ import '../stores/partner_product_store.dart';
 import '../stores/restaurant_store.dart';
 import '../stores/order_store.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
+import '../widgets/bora/skeleton_lista.dart';
 import '../widgets/bora/coming_soon.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/bora_foto_ecra_inteiro.dart';
@@ -24,6 +25,59 @@ import 'restaurants_screen.dart';
 import 'wallet_history_screen.dart';
 
 import '../l10n/tr.dart';
+import '../widgets/confirmar_substituir_carrinho.dart';
+import '../utils/conta_curta_dinheiro.dart';
+import '../utils/euros.dart';
+
+/// "Pedir de novo" de um pedido antigo (padrão Uber Eats/Glovo, 04/10): enche o
+/// carrinho com os mesmos produtos ao preço de hoje e abre o carrinho. Serve o
+/// botão da lista de pedidos e os "meus habituais" da página inicial
+/// (29/10/2026): é o mesmo fluxo, com as mesmas travas (loja fechada, loja que
+/// já não existe, carrinho com artigos de outra loja).
+Future<void> pedirDeNovoPedido(BuildContext context, OrderModel order) async {
+  final restaurantStore = context.read<RestaurantStore>();
+  if (!restaurantStore.restaurantsLoadedOnce) {
+    await restaurantStore.loadRestaurantsFromSupabase();
+    if (!context.mounted) return;
+  }
+  final loja = ReorderService.lojaDoPedido(
+      order.vendorName, restaurantStore.restaurants);
+  if (loja == null) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('Esta loja já não está disponível na Bora.'.tr),
+    ));
+    return;
+  }
+  // Loja fechada: mesmo travão do "+" — avisa e não toca no carrinho.
+  if (ReorderService.lojaFechada(loja)) {
+    showLojaFechadaSnackBar(context, loja.avisoLojaFechada, lojaId: loja.id);
+    return;
+  }
+  // 26/10 (item 7): com artigos no carrinho, pergunta antes de substituir.
+  if (!await confirmarSubstituirCarrinho(context, context.read<CartStore>())) {
+    return;
+  }
+  if (!context.mounted) return;
+  final changed = ReorderService.applyTo(
+    cart: context.read<CartStore>(),
+    order: order,
+    partnerStore: context.read<PartnerProductStore>(),
+    restaurantStore: restaurantStore,
+  );
+  final messenger = ScaffoldMessenger.of(context);
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => const CartScreen()),
+  );
+  if (changed.isNotEmpty) {
+    messenger.showSnackBar(SnackBar(
+      content: Text(
+        'Alguns preços foram atualizados: {0}.'.trArgs([changed.join(', ')]),
+      ),
+      duration: const Duration(seconds: 5),
+    ));
+  }
+}
 
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
@@ -76,45 +130,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
         order.status == OrderStatus.rejected;
   }
 
-  Future<void> _pedirDeNovo(OrderModel order) async {
-    final restaurantStore = context.read<RestaurantStore>();
-    if (!restaurantStore.restaurantsLoadedOnce) {
-      await restaurantStore.loadRestaurantsFromSupabase();
-      if (!mounted) return;
-    }
-    final loja = ReorderService.lojaDoPedido(
-        order.vendorName, restaurantStore.restaurants);
-    if (loja == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Esta loja já não está disponível na Bora.'.tr),
-      ));
-      return;
-    }
-    // Loja fechada: mesmo travão do "+" — avisa e não toca no carrinho.
-    if (ReorderService.lojaFechada(loja)) {
-      showLojaFechadaSnackBar(context, loja.avisoLojaFechada);
-      return;
-    }
-    final changed = ReorderService.applyTo(
-      cart: context.read<CartStore>(),
-      order: order,
-      partnerStore: context.read<PartnerProductStore>(),
-      restaurantStore: restaurantStore,
-    );
-    final messenger = ScaffoldMessenger.of(context);
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const CartScreen()),
-    );
-    if (changed.isNotEmpty) {
-      messenger.showSnackBar(SnackBar(
-        content: Text(
-          'Alguns preços foram atualizados: {0}.'.trArgs([changed.join(', ')]),
-        ),
-        duration: const Duration(seconds: 5),
-      ));
-    }
-  }
+  Future<void> _pedirDeNovo(OrderModel order) => pedirDeNovoPedido(context, order);
 
   @override
   void dispose() {
@@ -139,7 +155,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
       floatingActionButton: const BoraSupportFab(),
       appBar: BoraScreenAppBar(title: 'Pedidos'.tr),
       body: showInitialLoader
-          ? const Center(child: CircularProgressIndicator())
+          ? const SkeletonLista(comFoto: false)
           : RefreshIndicator(
               onRefresh: () => store.loadOrders(),
               color: AppColors.primary,
@@ -318,11 +334,12 @@ class _OrderCard extends StatelessWidget {
     // número que o estafeta cobra) e uma linha pequena diz quanto é.
     final hasDebt = order.debtCollectedCents > 0;
     final totalLabel = hasDebt
-        ? '€${order.totalWithDebt.toStringAsFixed(2)}'
+        ? eur(order.totalWithDebt)
         : order.isPurchaseFinalized && order.finalTotal != null
-            ? '€${order.finalTotal!.toStringAsFixed(2)}'
-            : '€${order.total.toStringAsFixed(2)}';
+            ? eur(order.finalTotal!)
+            : eur(order.total);
     final hasWalletAdjust = walletTxs.isNotEmpty;
+    final dinheiro = dinheiroDoCliente(order);
 
     return Material(
       color: Colors.white,
@@ -380,9 +397,21 @@ class _OrderCard extends StatelessWidget {
                       ),
                     if (hasDebt)
                       Text(
-                        'Inclui €{0} de dívida anterior'.trArgs([
-                          (order.debtCollectedCents / 100).toStringAsFixed(2)
+                        'Inclui {0} € de dívida anterior'.trArgs([
+                          (order.debtCollectedCents / 100).toStringAsFixed(2).replaceAll('.', ',')
                         ]),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    // 28/10/2026 (C3): o total fica em cima; quanto paga em
+                    // dinheiro (com saldo/tokens já descontados) vai à parte.
+                    if (dinheiro != null)
+                      Text(
+                        '${'Paga em dinheiro'.tr}: ${eur(dinheiro.emDinheiro)}'
+                        ' · ${'Já pago com saldo/tokens'.tr}: ${eur(dinheiro.jaPago)}',
+                        key: const Key('cliente_paga_em_dinheiro'),
                         style: const TextStyle(
                           fontSize: 12,
                           color: AppColors.textSecondary,

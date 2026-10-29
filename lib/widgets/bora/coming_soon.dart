@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../config/app_spacing.dart';
 
 
 import '../../l10n/tr.dart';
+import '../../stores/cart_store.dart';
+import 'loja_fechada.dart';
 /// Widgets partilhados do estado "Em breve" (`coming_soon`).
 ///
 /// A loja/parceiro continua visível, clicável e navegável — só não aceita
@@ -141,13 +144,35 @@ class LojaFechadaChip extends StatelessWidget {
 
 /// Mensagem única de bloqueio por loja fechada.
 ///
-/// Uma só, simples, sem ecrã novo. NÃO promete agendamento nem "avisar quando
-/// abrir" — isso ainda não existe, e um botão que não faz nada é pior do que
-/// nenhum.
-void showLojaFechadaSnackBar(BuildContext context, String aviso) {
+/// Diz a hora a que abre e (26/10, item 4) oferece "Ver lojas abertas
+/// parecidas" — da mesma secção, abertas agora. NÃO promete agendamento nem
+/// "avisar quando abrir": isso ainda não existe.
+///
+/// [lojaId]: a loja que o cliente está a VER (26/10, adendo A3). Sem ele usa-se
+/// a do carrinho — que no "Pedir de novo" ainda é a loja anterior.
+void showLojaFechadaSnackBar(BuildContext context, String aviso, {String? lojaId}) {
+  if (lojaId == null) {
+    try {
+      lojaId = context.read<CartStore>().vendorRestaurantId;
+    } catch (_) {
+      lojaId = null; // fora da árvore do Provider (testes): só o aviso
+    }
+  }
+  final id = lojaId;
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
     ..showSnackBar(
-      SnackBar(content: Text(aviso), duration: const Duration(seconds: 4)),
+      SnackBar(
+        content: Text(aviso),
+        duration: const Duration(seconds: 6),
+        action: id == null
+            ? null
+            : SnackBarAction(
+                label: 'Ver lojas abertas parecidas'.tr,
+                onPressed: () {
+                  if (context.mounted) mostrarLojasAbertasParecidas(context, id);
+                },
+              ),
+      ),
     );
 }

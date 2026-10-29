@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../config/app_colors.dart';
+import '../utils/euros.dart';
 
 /// Valor com o preço antigo RISCADO ao lado — o gesto que a Uber e a Glovo
 /// usam quando uma taxa desce (ordem do Danilo, 2026-09-08).
@@ -31,7 +32,7 @@ class ValorComRisco extends StatelessWidget {
   /// da coluna de preços.
   final TextStyle? style;
 
-  static String _eur(double v) => '€${v.toStringAsFixed(2)}';
+  static String _eur(double v) => eur(v);
 
   @override
   Widget build(BuildContext context) {

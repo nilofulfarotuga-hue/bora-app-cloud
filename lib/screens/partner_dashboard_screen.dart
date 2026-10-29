@@ -19,13 +19,19 @@ import '../stores/order_store.dart';
 import '../stores/partner_product_store.dart';
 import '../stores/restaurant_store.dart';
 import '../services/notification_service.dart';
+import '../services/partner_fatura_service.dart';
 import '../widgets/notification_bell.dart';
+import '../widgets/partner_fatura_linha.dart';
 import '../services/sound_service.dart';
 import '../services/incoming_job_alert.dart';
 import '../stores/session_store.dart';
 import '../utils/hora_lisboa.dart';
 import '../widgets/address_text.dart';
+import '../widgets/origem_whatsapp_chip.dart';
+import '../services/pedido_origem_service.dart';
 import '../widgets/web_push_card.dart';
+import '../widgets/partner/painel_avaliacoes_e_funil.dart';
+import '../utils/nota_do_pedido.dart';
 import '../widgets/biometric_login_tile.dart';
 import '../widgets/partner_weekly_closeout_card.dart';
 import '../widgets/profile_switcher_button.dart';
@@ -34,6 +40,7 @@ import 'connect/connect_payments_screen.dart';
 import 'connect/connect_statement_screen.dart';
 import 'partner/services/partner_services_hub_screen.dart';
 import 'partner_call_driver_screen.dart';
+import 'partner_dados_fiscais_screen.dart';
 import 'partner_earnings_screen.dart';
 import 'partner_hours_screen.dart';
 import 'partner_products_screen.dart';
@@ -81,6 +88,23 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
   final Map<String, int> _lojaRecebeCents = <String, int>{};
   final Set<String> _lojaRecebePedidos = <String>{};
 
+  // Origem do pedido (order_origem): 'whatsapp' = feito pelo robô de WhatsApp.
+  // Só leitura; se falhar, o ecrã fica igual (sem etiqueta, sem erro).
+  final Map<String, PedidoOrigem> _origemPorPedido = <String, PedidoOrigem>{};
+  // pedido -> última vez que perguntámos e NÃO havia linha (o robô grava a
+  // origem logo a seguir ao pedido; pedido recente volta a ser perguntado).
+  final Map<String, DateTime> _origemSemLinha = <String, DateTime>{};
+  final Set<String> _origemEmCurso = <String>{};
+  DateTime? _origemFalhouEm;
+
+  // Fatura ao cliente (28/10/2026): valor ao preço de balcão + NIF do pedido,
+  // ao dia por tempo real (order_invoice_requests).
+  final PartnerFaturaService _fatura = PartnerFaturaService();
+
+  void _aoMudarFatura() {
+    if (mounted) setState(() {});
+  }
+
   // A5: pausa da loja (restaurants.pausa_ate). Valor local depois de mudar.
   DateTime? _pausaAteLocal;
   bool _pausaLocalDefinida = false;
@@ -109,6 +133,8 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
           .ignore();
       unawaited(_checkServiceProvider());
       unawaited(_carregarGanhos());
+      _fatura.addListener(_aoMudarFatura);
+      _fatura.ouvir(widget.restaurant.id);
     });
   }
 
@@ -151,6 +177,44 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
     });
   }
 
+  /// Pede em lote a origem (app/whatsapp) dos pedidos que ainda não sabemos.
+  /// Falhar (tabela sem existir, sem permissão) não mostra nada: só debugPrint.
+  void _pedirOrigens(Iterable<OrderModel> orders) {
+    final agora = DateTime.now();
+    final falhou = _origemFalhouEm;
+    if (falhou != null && agora.difference(falhou) < const Duration(minutes: 1)) {
+      return;
+    }
+    final faltam = <String>[];
+    for (final o in orders) {
+      if (_origemPorPedido.containsKey(o.id)) continue;
+      if (_origemEmCurso.contains(o.id)) continue;
+      final tentou = _origemSemLinha[o.id];
+      if (tentou != null) {
+        final recente = agora.difference(o.createdAt) < const Duration(minutes: 15);
+        if (!recente || agora.difference(tentou) < const Duration(seconds: 30)) {
+          continue;
+        }
+      }
+      faltam.add(o.id);
+    }
+    if (faltam.isEmpty) return;
+    _origemEmCurso.addAll(faltam);
+    carregarOrigensPedidos(faltam).then((r) {
+      _origemEmCurso.removeAll(faltam);
+      if (r == null) {
+        _origemFalhouEm = DateTime.now();
+        return;
+      }
+      final quando = DateTime.now();
+      for (final id in faltam) {
+        if (!r.containsKey(id)) _origemSemLinha[id] = quando;
+      }
+      if (!mounted || r.isEmpty) return;
+      setState(() => _origemPorPedido.addAll(r));
+    });
+  }
+
   static String _hhmmLisboa(DateTime d) {
     final l = horaLisboa(d);
     String dd(int n) => n.toString().padLeft(2, '0');
@@ -160,6 +224,14 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
   double? _recebe(OrderModel o) {
     final c = _lojaRecebeCents[o.id];
     return c == null ? null : c / 100.0;
+  }
+
+  /// A loja mexeu no pedido ("marcar em falta"/acrescentar): o que fatura e o
+  /// que recebe mudam, por isso voltam a ser pedidos ao servidor.
+  void _refrescarPedido(OrderModel o) {
+    _lojaRecebePedidos.remove(o.id);
+    _pedirLojaRecebe([o]);
+    unawaited(_fatura.atualizar([o.id]));
   }
 
   DateTime? _pausaAte(RestaurantModel r) =>
@@ -356,6 +428,8 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
 
   @override
   void dispose() {
+    _fatura.removeListener(_aoMudarFatura);
+    _fatura.dispose();
     _reservationsChannel?.unsubscribe();
     _reservationsChannel = null;
     _dispatchDecisionChannel?.unsubscribe();
@@ -880,7 +954,13 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
       });
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _pedirLojaRecebe(partnerOrders);
+      if (mounted) {
+        _pedirLojaRecebe(partnerOrders);
+        unawaited(_fatura.carregar(partnerOrders.map((o) => o.id)));
+      }
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _pedirOrigens(partnerOrders);
     });
     double cents(String k) => ((_ganhos?[k] as num?) ?? 0) / 100.0;
     int n(String k) => (_ganhos?[k] as num?)?.toInt() ?? 0;
@@ -985,6 +1065,10 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                 // [Web 07/10/2026] Só no navegador e só até a permissão
                 // estar dada: regista o token em partner_push_tokens.
                 const WebPushCard(role: 'partner'),
+                // [29/10/2026 · adendo 4, item 8] resumo das avaliações e funil dos
+                // pratos (interruptores feature_resumo_avaliacoes_ia / feature_funil_pratos).
+                ResumoAvaliacoesCard(restaurantId: currentRestaurant.id),
+                FunilPratosCard(restaurantId: currentRestaurant.id),
                 if (currentRestaurant.reservationsEnabled &&
                     _pendingReservationsCount > 0) ...[
                   _PendingReservationsBadge(
@@ -1005,6 +1089,9 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                   ),
                   const SizedBox(height: 16),
                 ],
+                // 29/10 (auditoria 7.3): a pausa só faz sentido com a loja
+                // ONLINE; offline o cartão era ruído.
+                if (currentRestaurant.isOnline || emPausa)
                 _PausaLojaCard(
                   emPausa: emPausa,
                   voltaAs: emPausa ? _hhmmLisboa(pausaAte) : null,
@@ -1063,6 +1150,23 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                     ),
                     icon: const Icon(Icons.receipt_long_outlined),
                     label: const Text('Extrato'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // DAC7 (missão boom-burger 27/10): o que falta para a loja
+                // abrir ao público e o formulário para o completar.
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => PartnerDadosFiscaisScreen(
+                          restaurantId: widget.restaurant.id,
+                        ),
+                      ),
+                    ),
+                    icon: const Icon(Icons.verified_user_outlined),
+                    label: const Text('Dados fiscais'),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -1149,6 +1253,9 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                 _OrdersSection(
                   orders: activePartnerOrders,
                   recebe: _recebe,
+                  fatura: (o) => _fatura.de(o.id),
+                  onPedidoEditado: _refrescarPedido,
+                  origem: (o) => _origemPorPedido[o.id],
                   onAccept: (order) async {
                     // Festas: aceitar abre "Fica pronto em quanto tempo?"
                     // (RPC festas_accept + aviso ao cliente).
@@ -1357,12 +1464,24 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
-                                    '#$shortId',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      letterSpacing: 0.5,
-                                    ),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        '#$shortId',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                      if (origemEhWhatsApp(
+                                          _origemPorPedido[o.id]?.origem)) ...[
+                                        const SizedBox(width: 8),
+                                        OrigemWhatsAppChip(
+                                            origem:
+                                                _origemPorPedido[o.id]?.origem),
+                                      ],
+                                    ],
                                   ),
                                   Text(
                                     _recebe(o) == null
@@ -1373,6 +1492,12 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                                     ),
                                   ),
                                 ],
+                              ),
+                              // Fatura ao cliente + NIF (28/10/2026).
+                              ListenableBuilder(
+                                listenable: _fatura,
+                                builder: (_, __) =>
+                                    PartnerFaturaLinha(fatura: _fatura.de(o.id)),
                               ),
                               const SizedBox(height: 4),
                               Builder(
@@ -1448,6 +1573,9 @@ class _OrdersSection extends StatelessWidget {
   const _OrdersSection({
     required this.orders,
     required this.recebe,
+    required this.fatura,
+    required this.onPedidoEditado,
+    required this.origem,
     required this.onAccept,
     required this.onReject,
     required this.onCallDriver,
@@ -1455,6 +1583,9 @@ class _OrdersSection extends StatelessWidget {
 
   final List<OrderModel> orders;
   final double? Function(OrderModel) recebe;
+  final FaturaDoPedido? Function(OrderModel) fatura;
+  final void Function(OrderModel) onPedidoEditado;
+  final PedidoOrigem? Function(OrderModel) origem;
   final Future<void> Function(OrderModel) onAccept;
   final Future<void> Function(OrderModel) onReject;
   final Future<void> Function(OrderModel) onCallDriver;
@@ -1492,6 +1623,10 @@ class _OrdersSection extends StatelessWidget {
               child: _PartnerOrderCard(
                 order: order,
                 recebe: recebe(order),
+                fatura: fatura(order),
+                onPedidoEditado: onPedidoEditado,
+                origem: origem(order)?.origem,
+                origemTelefone: origem(order)?.clientPhone,
                 onAccept: onAccept,
                 onReject: onReject,
                 onCallDriver: onCallDriver,
@@ -1507,6 +1642,10 @@ class _PartnerOrderCard extends StatefulWidget {
   const _PartnerOrderCard({
     required this.order,
     required this.recebe,
+    required this.fatura,
+    required this.onPedidoEditado,
+    this.origem,
+    this.origemTelefone,
     required this.onAccept,
     required this.onReject,
     required this.onCallDriver,
@@ -1515,6 +1654,15 @@ class _PartnerOrderCard extends StatefulWidget {
   final OrderModel order;
   /// A4: o que a loja recebe deste pedido (servidor). null = a carregar.
   final double? recebe;
+
+  /// Fatura ao cliente deste pedido (valor de balcão + NIF). null = a carregar.
+  final FaturaDoPedido? fatura;
+  final void Function(OrderModel) onPedidoEditado;
+  /// Origem do pedido (order_origem): 'whatsapp' mostra a etiqueta e o
+  /// telefone do cliente. null/'app' = cartão como sempre.
+  final String? origem;
+  /// Telefone guardado em order_origem (usado se o pedido não trouxer um).
+  final String? origemTelefone;
   final Future<void> Function(OrderModel) onAccept;
   final Future<void> Function(OrderModel) onReject;
   final Future<void> Function(OrderModel) onCallDriver;
@@ -1654,25 +1802,18 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
             ),
           ],
         ),
+        // Fatura ao cliente + NIF, junto ao "Recebes" (28/10/2026).
+        PartnerFaturaLinha(fatura: widget.fatura),
         const SizedBox(height: 12),
         // ── Cliente ──────────────────────────────────────────────────────
         Row(
           children: [
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Cliente',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-                  Text(
-                    order.customerName ?? 'Cliente BORA',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ],
+              child: ClienteDoPedido(
+                nome: order.customerName,
+                origem: widget.origem,
+                telefonePedido: order.clientPhone,
+                telefoneOrigem: widget.origemTelefone,
               ),
             ),
             if ((order.clientPhone ?? '').isNotEmpty)
@@ -1845,6 +1986,11 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
             style: TextStyle(
               fontSize: 12.5,
               fontStyle: FontStyle.italic,
+              // [29/10/2026 · adendo 4, P1] nota a negrito quando traz a linha
+              // dos talheres, para o parceiro não a perder.
+              fontWeight: NotaDoPedido.temLinhaDeTalheres(order.customerNotes)
+                  ? FontWeight.bold
+                  : FontWeight.normal,
               color: Colors.grey.shade700,
             ),
           ),
@@ -1852,7 +1998,10 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
         // 2026-09-22 (parceiro-edita-pedido): acrescentar / marcar em falta,
         // com o estado de cada proposta. Esconde-se sozinho com o interruptor
         // order_edit_enabled desligado.
-        PartnerOrderEditSection(order: order),
+        PartnerOrderEditSection(
+          order: order,
+          onEditado: () => widget.onPedidoEditado(order),
+        ),
         const SizedBox(height: 16),
         Row(
           children: [

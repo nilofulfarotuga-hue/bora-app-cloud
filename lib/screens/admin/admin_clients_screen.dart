@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../services/admin_export_service.dart';
+import '../../widgets/admin/admin_fatura_nif_section.dart';
 import '../../widgets/admin/admin_user_roles_sheet.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '_admin_password_reset_dialog.dart';
@@ -806,6 +807,14 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
                                 onSelected: (action) {
                                   if (action == 'edit_contact') _editarContato(c);
                                   if (action == 'history') _showHistory(c);
+                                  if (action == 'faturacao') {
+                                    // Fatura com NIF (28/10/2026).
+                                    mostrarFaturacaoDoCliente(
+                                      context,
+                                      userId: c['user_id'] as String,
+                                      rotulo: _displayNameFor(c),
+                                    );
+                                  }
                                   if (action == 'reservas') {
                                     // 10/10/2026: mesas, corridas marcadas,
                                     // limpezas e marcações deste cliente.
@@ -849,6 +858,11 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
                                       value: 'edit_contact',
                                       child: Text('Editar nome e telefone')),
                                   const PopupMenuItem(value: 'history', child: Text('Histórico')),
+                                  if (userId.isNotEmpty)
+                                    const PopupMenuItem(
+                                        value: 'faturacao',
+                                        child: Text(
+                                            'Dados de faturação (NIF)')),
                                   const PopupMenuItem(
                                       value: 'reservas',
                                       child: Text(

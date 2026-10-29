@@ -9,6 +9,7 @@ import '../../../widgets/bora/bora_screen_app_bar.dart';
 import 'booking_flow_screen.dart';
 
 import '../../../l10n/tr.dart';
+import '../../../utils/euros.dart';
 
 /// Vertical Serviços — "As Minhas Marcações".
 /// 3 tabs: Próximas / Passadas / Canceladas. Cancelar com aviso se <24h.
@@ -736,7 +737,7 @@ class _AppointmentDetailSheet extends StatelessWidget {
           _DetailRow(
             icon: Icons.payments_outlined,
             label: 'Preço total'.tr,
-            value: '€${(a.servicePriceCents / 100).toStringAsFixed(2)}',
+            value: eur((a.servicePriceCents / 100)),
           ),
           _DetailRow(
             icon: Icons.savings_outlined,

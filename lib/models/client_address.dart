@@ -12,6 +12,10 @@ class ClientAddress {
   final double? lat;
   final double? lng;
   final bool isDefault;
+
+  /// Andar, porta ou código (opcional, até 80 caracteres). Vai na nota do
+  /// pedido. Coluna `client_addresses.details` (29/10/2026).
+  final String? details;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -26,6 +30,7 @@ class ClientAddress {
     this.lat,
     this.lng,
     required this.isDefault,
+    this.details,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -41,6 +46,7 @@ class ClientAddress {
         lat: (j['lat'] as num?)?.toDouble(),
         lng: (j['lng'] as num?)?.toDouble(),
         isDefault: (j['is_default'] as bool?) ?? false,
+        details: j['details'] as String?,
         createdAt: DateTime.parse(j['created_at'] as String),
         updatedAt: DateTime.parse(j['updated_at'] as String),
       );
@@ -54,6 +60,7 @@ class ClientAddress {
         if (lat != null) 'lat': lat,
         if (lng != null) 'lng': lng,
         'is_default': isDefault,
+        if (details != null && details!.trim().isNotEmpty) 'details': details,
       };
 
   ClientAddress copyWith({
@@ -65,6 +72,7 @@ class ClientAddress {
     double? lat,
     double? lng,
     bool? isDefault,
+    String? details,
   }) =>
       ClientAddress(
         id: id,
@@ -77,6 +85,7 @@ class ClientAddress {
         lat: lat ?? this.lat,
         lng: lng ?? this.lng,
         isDefault: isDefault ?? this.isDefault,
+        details: details ?? this.details,
         createdAt: createdAt,
         updatedAt: updatedAt,
       );

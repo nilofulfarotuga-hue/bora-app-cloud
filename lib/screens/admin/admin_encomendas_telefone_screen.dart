@@ -93,6 +93,53 @@ class _AdminEncomendasTelefoneScreenState
     }
   }
 
+  /// 25/10/2026 (Danilo): "tem um botão para mim chamar" — quando a loja diz
+  /// que fica pronto antes do atraso configurado, chama o entregador JÁ.
+  Future<void> _chamarJa(Map<String, dynamic> p) async {
+    if (_aGravar != null) return;
+    final orderId = p['order_id'] as String;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Chamar o entregador já?'),
+        content: Text('A loja ${p['loja'] ?? ''} disse que fica pronto antes? O pedido entra já na fila dos '
+            'entregadores, sem esperar os minutos configurados. Se ainda não marcou "Encomendado à loja", '
+            'fica marcado agora.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Chamar já')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    setState(() => _aGravar = orderId);
+    try {
+      final r = await _sb.rpc('admin_chamar_estafeta_ja', params: {'p_order_id': orderId});
+      final m = Map<String, dynamic>.from(r as Map);
+      const motivos = {
+        'estafeta_ja_chamado': 'O entregador já tinha sido chamado.',
+        'encomenda_cancelada': 'Este pedido foi cancelado.',
+        'pedido_nao_esta_em_preparacao': 'O pedido já não está em preparação.',
+        'nao_e_encomenda_por_telefone': 'Este pedido não é de encomenda por telefone.',
+      };
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(m['ok'] == true
+              ? 'Entregador chamado às ${m['chamado_as']}.'
+              : (motivos[m['motivo']] ?? 'Não deu: ${m['motivo']}'))));
+      await _carregar();
+    } catch (e) {
+      if (!mounted) return;
+      final t = e.toString();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(t.contains('admin_chamar_estafeta_ja') && (t.contains('PGRST202') || t.contains('Could not find'))
+              ? 'O botão ainda não está ligado no servidor (falta aplicar a função). Use "Encomendado à loja" por enquanto.'
+              : 'Erro: $t')));
+    } finally {
+      if (mounted) setState(() => _aGravar = null);
+    }
+  }
+
   Future<void> _editarLoja(Map<String, dynamic> l) async {
     var ligado = l['order_by_phone'] == true;
     final numero = TextEditingController(
@@ -221,6 +268,12 @@ class _AdminEncomendasTelefoneScreenState
                       icon: const Icon(Icons.check),
                       label: const Text('Encomendado à loja'),
                     ),
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(backgroundColor: AppColors.accent),
+                    onPressed: _aGravar != null ? null : () => _chamarJa(p),
+                    icon: const Icon(Icons.two_wheeler),
+                    label: const Text('Chamar entregador já'),
+                  ),
                 ],
               ),
             ],

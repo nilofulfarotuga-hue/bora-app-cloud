@@ -1,3 +1,4 @@
+import '../utils/euros.dart';
 // Marcação (vertical Serviços / Barbearias).
 //
 // Espelha a tabela `appointments`. O cliente vê as suas
@@ -120,7 +121,7 @@ class AppointmentModel {
 
   /// Preço total do serviço formatado: '€18,00'.
   String get servicePriceLabel =>
-      '€${(servicePriceCents / 100).toStringAsFixed(2)}';
+      eur((servicePriceCents / 100));
 
   factory AppointmentModel.fromSupabase(Map<String, dynamic> row) {
     DateTime? parseTs(Object? v) => v is String ? DateTime.parse(v) : null;

@@ -15,6 +15,7 @@ import '../../models/product_option.dart';
 import '../../services/checkin_premios_service.dart';
 import '../../services/pricing_service.dart';
 import '../../stores/cart_store.dart';
+import '../../utils/euros.dart';
 
 /// Abre a ficha; devolve `true` se o prémio entrou no carrinho.
 Future<bool> mostrarPremioOpcoes(
@@ -215,7 +216,7 @@ class _PremioOpcoesSheetState extends State<PremioOpcoesSheet> {
                               ChoiceChip(
                                 key: Key('premio_opcao_${it.id}'),
                                 label: Text(it.priceAdd > 0
-                                    ? '${it.name} (+€${PricingService.applyMarkup(it.priceAdd, widget.lojaParceira).toStringAsFixed(2)})'
+                                    ? '${it.name} (+${eur(PricingService.applyMarkup(it.priceAdd, widget.lojaParceira))})'
                                     : it.name),
                                 selected: _sel[g.id]?.contains(it.id) ?? false,
                                 onSelected: it.isAvailable ? (_) => _toca(g, it) : null,

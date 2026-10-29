@@ -45,7 +45,7 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
       final by = <String, List<_Setting>>{};
       for (final s in list) {
         if (_obsoleteDepositKeys.contains(s.key)) continue;
-        final rotulo = rotulosCancelamento[s.key];
+        final rotulo = rotulosCancelamento[s.key] ?? rotulosVitrineCliente[s.key];
         by.putIfAbsent(s.category ?? 'other', () => []).add(rotulo == null
             ? s
             : _Setting(
@@ -80,6 +80,12 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
   /// 17/10/2026 — etiquetas PT-BR da regra do cancelamento TVDE. Substituem a
   /// descrição da base só no ecrã (as da base estão desatualizadas).
   static const rotulosCancelamento = <String, String>{
+    // 25/10/2026 — decisão do Danilo: loja não-parceira SEM margem. A descrição
+    // da base ainda fala em "o que sobra é devolvido"; no ecrã fica a regra certa.
+    'non_partner_payment_buffer_multiplier':
+        'Margem de pré-autorização das lojas NÃO-parceiras (cartão/MB Way). 1,0 = SEM margem: o cliente paga '
+            'exatamente o preço que vê no app (decisão do Danilo, 25/10/2026). Compra mais barata no balcão = lucro '
+            'da Bora; mais cara = prejuízo da Bora. Só produto em falta sai do total. Não aumentar sem ordem dele.',
     'cancel_grace_seconds':
         'Janela grátis de cancelamento (segundos) — conta desde que o motorista aceita a corrida',
     'tvde_cancel_full_after_grace':
@@ -93,12 +99,26 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
         'Taxa fixa antiga de cancelamento (cêntimos) — hoje só vale em corridas de plano, pacote, marcadas, balcão, em fila ou com preço combinado (muda-se com motivo e fica auditada)',
   };
 
+  /// [melhorias-paridade 26/10] Interruptores da vitrine do cliente, com
+  /// etiqueta PT-BR. Estar aqui torna a chave editável (não são dinheiro).
+  static const rotulosVitrineCliente = <String, String>{
+    'visitantes_sem_conta':
+        'Visitantes podem ver o app sem conta (lojas, produtos e carrinho). A conta só é pedida ao finalizar o pedido.',
+    'sessao_convidado_ativa':
+        'Sessão de convidado (conta partilhada só de leitura). Ligar só depois de aplicada a proteção de pedidos (create_order) na publicação.',
+  };
+
   /// Whitelist operacional: só chaves de dispatch e operação de reservas são
   /// editáveis aqui. Tudo o resto (fees, comissões, markup, tokens, wallet,
   /// valores em cêntimos, Stripe) é READ-ONLY — alterar requer sessão dedicada.
   /// Fail-safe: chave nova/desconhecida nasce protegida.
   bool _isEditable(String key) {
     if (_isCancelKey(key)) return true; // Bloco 4 — editável com auditoria
+    if (kInterruptoresApp.contains(key)) return true; // adendo 4 (29/10/2026)
+    // [melhorias-paridade 26/10] Interruptores da vitrine do cliente (ver sem
+    // conta, sessão de convidado, faixas da loja…). Nenhum mexe em valor
+    // cobrado ou pago.
+    if (rotulosVitrineCliente.containsKey(key)) return true;
     if (key.startsWith('robot_b_')) return true; // kill switches Robot B v4
     if (key.startsWith('dispatch_')) return true;
     // [fable-13-09] Minutos que o pedido de parceiro espera em 'preparing'
@@ -392,6 +412,9 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
   /// perde a auditoria; uma comum classificada como dinheiro só ganha um
   /// diálogo mais exigente. O erro barato é o segundo.
   bool _isMoneyKey(String key) {
+    // Interruptores de ecrã não são dinheiro: `ask_cutlery` tem "_cut" no meio
+    // e caía no diálogo de motivo obrigatório (29/10/2026).
+    if (kInterruptoresApp.contains(key)) return false;
     // `_ratio` e não `ratio`: a palavra "duration" contém "ratio" lá dentro
     // (du-RATIO-n), e sem o underscore o `carwash_duration_min` passava a
     // exigir motivo escrito para se afinar a duração de uma lavagem.
@@ -525,39 +548,57 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
 
   Future<void> _editSetting(_Setting s) async {
     final ctrl = TextEditingController(text: s.value.toString());
+    // Interruptor (verdadeiro/falso): um botão de ligar em vez de escrever
+    // "true" à mão (29/10/2026).
+    final ehInterruptor = s.value is bool;
+    var ligado = s.value == true;
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text(s.key),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (s.description != null) Text(s.description!, style: const TextStyle(fontSize: 12)),
-            const SizedBox(height: 8),
-            TextField(
-              controller: ctrl,
-              // Textos longos (ex.: guia da limpeza, uma linha por item)
-              // precisam de várias linhas para se editarem.
-              minLines: s.value is String && (s.value as String).length > 60 ? 6 : 1,
-              maxLines: s.value is String && (s.value as String).length > 60 ? 14 : 1,
-              decoration: const InputDecoration(
-                labelText: 'Valor (JSON)',
-                border: OutlineInputBorder(),
-                hintText: 'ex: 250 ou 0.80 ou "abc"',
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          title: Text(s.key),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (s.description != null) Text(s.description!, style: const TextStyle(fontSize: 12)),
+              const SizedBox(height: 8),
+              if (ehInterruptor)
+                SwitchListTile(
+                  key: const Key('interruptor_definicao'),
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(ligado ? 'Ligado' : 'Desligado'),
+                  value: ligado,
+                  onChanged: (v) => setD(() {
+                    ligado = v;
+                    ctrl.text = v ? 'true' : 'false';
+                  }),
+                )
+              else
+                TextField(
+                  controller: ctrl,
+                  // Textos longos (ex.: guia da limpeza, uma linha por item)
+                  // precisam de várias linhas para se editarem.
+                  minLines: s.value is String && (s.value as String).length > 60 ? 6 : 1,
+                  maxLines: s.value is String && (s.value as String).length > 60 ? 14 : 1,
+                  decoration: const InputDecoration(
+                    labelText: 'Valor (JSON)',
+                    border: OutlineInputBorder(),
+                    hintText: 'ex: 250 ou 0.80 ou "abc"',
+                  ),
+                ),
+              const SizedBox(height: 8),
+              const Text(
+                '⚠️ Esta alteração propaga-se live. Tens a certeza?',
+                style: TextStyle(color: AppColors.error, fontSize: 12),
               ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              '⚠️ Esta alteração propaga-se live. Tens a certeza?',
-              style: TextStyle(color: AppColors.error, fontSize: 12),
-            ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Atualizar')),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Atualizar')),
-        ],
       ),
     );
     if (ok != true) return;
@@ -947,6 +988,29 @@ class _Setting {
         category: j['category'] as String?,
       );
 }
+
+/// [adendo 4 · 29/10/2026] Interruptores das funções novas das apps (talheres,
+/// troco, barra do pedido ativo, foto de entrega, habituais, etiquetas do menu,
+/// funil do parceiro, mapa de procura…). Ligam e desligam ecrãs: nenhum mexe em
+/// valor cobrado ou pago. A descrição em português vem da base.
+const Set<String> kInterruptoresApp = <String>{
+  'ask_cutlery',
+  'ask_cash_change',
+  'ask_address_details',
+  'cart_add_more_strip',
+  'feature_barra_pedido_ativo',
+  'feature_foto_entrega_cliente',
+  'feature_esgotado_aviso_cliente',
+  'feature_esgotado_minutos',
+  'feature_habituais_home',
+  'feature_avaliacao_com_foto',
+  'feature_etiquetas_menu',
+  'feature_etiquetas_menu_ia',
+  'feature_resumo_avaliacoes_ia',
+  'feature_funil_pratos',
+  'feature_oferta_ganho_visivel',
+  'feature_mapa_procura_estafeta',
+};
 
 /// [17/10/2026 · cancelamento tardio] Validação das chaves de cancelamento em
 /// cêntimos: só número inteiro (o servidor arredondaria "3.75" para 4

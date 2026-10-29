@@ -38,7 +38,7 @@ import assistente as A  # noqa: E402
 import db  # noqa: E402
 import rotinas  # noqa: E402
 
-SESSAO = os.environ.get("ASSISTENTE_SESSAO", "vps-baileys:351937501673")
+SESSAO = os.environ.get("ASSISTENTE_SESSAO", "vps-baileys:" + os.environ.get("BORA_WHATSAPP_NUMERO", ""))
 PORTA = int(os.environ.get("ASSISTENTE_PORT", "8795"))
 LOG = os.environ.get("ASSISTENTE_LOG", os.path.join(AQUI, "assistente.log"))
 _trancas, _tranca_geral = {}, threading.Lock()
@@ -59,7 +59,7 @@ def tranca_de(numero):
         return _trancas.setdefault(numero, threading.Lock())
 
 
-def pendentes():
+def _pendentes_assistentes():
     t_cache = {}
     linhas = db.ler("assistant_messages", "direcao=eq.saida&entrega_estado=eq.pendente&order=created_at.asc&limit=5",
                     "id,tenant_id,numero,texto,motivo,created_at,media_path")
@@ -84,7 +84,20 @@ def pendentes():
     return saida
 
 
+def pendentes():
+    saida = _pendentes_assistentes()
+    try:  # pista dos lembretes do dono (final-app-2026-10-29): nunca estraga a fila do assistente
+        import lembretes_lane
+        saida += lembretes_lane.pendentes()
+    except Exception as e:  # noqa: BLE001
+        log("lembretes_lane pendentes falhou", e)
+    return saida
+
+
 def enviado(d):
+    if str(d.get("id", "")).startswith("ld-"):
+        import lembretes_lane
+        return lembretes_lane.enviado(d)
     mid = int(str(d.get("id", "")).replace("an-", "") or 0)
     estado = d.get("estado") or ("entregue" if d.get("ok") else "falhou")
     campos = {"entrega_estado": estado, "entrega_erro": d.get("erro")}
@@ -182,8 +195,21 @@ def laco_rotinas():
         time.sleep(60)
 
 
+def laco_pedidos():
+    """Restaurantes: estado dos pedidos feitos pelo WhatsApp -> avisos ao cliente (a cada 20 s)."""
+    while True:
+        try:
+            r = rotinas.ciclo_pedidos()
+            if any(str(k).endswith("_erro") for k in r) or any(isinstance(v, int) and v > 0 for v in r.values()):
+                log("pedidos", r)
+        except Exception as e:
+            log("pedidos falharam", e)
+        time.sleep(int(os.environ.get("ASSISTENTE_PEDIDOS_SEG", "20")))
+
+
 if __name__ == "__main__":
     if os.environ.get("ASSISTENTE_ROTINAS", "1") == "1":
         threading.Thread(target=laco_rotinas, daemon=True).start()
+        threading.Thread(target=laco_pedidos, daemon=True).start()
     log("ASSISTENTE no ar", PORTA, SESSAO)
     ThreadingHTTPServer(("127.0.0.1", PORTA), H).serve_forever()

@@ -73,6 +73,7 @@ import 'screens/admin/admin_pendencias_operacao_screen.dart';
 import 'screens/admin/admin_web_health_screen.dart';
 import 'screens/admin/admin_motoristas_documentos_screen.dart';
 import 'screens/admin/admin_comprovativo_atividade_screen.dart';
+import 'screens/admin/admin_robo_documentos_screen.dart';
 import 'screens/admin/admin_conformidade_legal_screen.dart';
 import 'screens/admin/admin_receipts_screen.dart';
 import 'screens/admin/admin_appointments_screen.dart';
@@ -132,6 +133,7 @@ import 'config/app_theme.dart';
 import 'providers/support_settings_provider.dart';
 import 'stores/consent_store.dart';
 import 'stores/session_store.dart';
+import 'widgets/barra_pedido_ativo.dart';
 import 'widgets/consent_banner.dart';
 import 'widgets/portao_do_prestador.dart';
 import 'widgets/terms_gate.dart';
@@ -428,7 +430,8 @@ Future<void> main() async {
   // camada nunca poder tocar num pedido.
   unawaited(PlatformTagService.registar());
   Supabase.instance.client.auth.onAuthStateChange.listen((estado) {
-    if (estado.event == AuthChangeEvent.signedIn) {
+    if (estado.event == AuthChangeEvent.signedIn &&
+        estado.session?.user.email != 'guest@bora.com') {
       unawaited(PlatformTagService.registar());
     }
   });
@@ -460,7 +463,11 @@ Future<void> main() async {
     if (state.event == AuthChangeEvent.signedIn ||
         state.event == AuthChangeEvent.initialSession ||
         state.event == AuthChangeEvent.tokenRefreshed) {
-      unawaited(PushTokenService.registerCurrentDeviceAutoDetect());
+      // 26/10: a conta partilhada de convidado não regista aparelhos —
+      // juntaria os tokens de todos os visitantes num só utilizador.
+      if (state.session?.user.email != 'guest@bora.com') {
+        unawaited(PushTokenService.registerCurrentDeviceAutoDetect());
+      }
 
       // Reler as taxas **agora que ha sessao** (2026-09-08).
       //
@@ -983,7 +990,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           child: TvdeOfferOverlayHost(
             child: TrabalhoOfertaOverlayHost(
               key: trabalhoOfertaHostKey,
-              child: child ?? const SizedBox.shrink(),
+              // [29/10/2026 · adendo 4, item 1] barra do pedido ativo por cima de
+              // todos os ecrãs do cliente (interruptor feature_barra_pedido_ativo).
+              child: BarraPedidoAtivoHost(child: child ?? const SizedBox.shrink()),
             ),
           ),
         ),
@@ -1071,6 +1080,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           // [20/10/2026] deep link do aviso "Comprovativo de atividade para analisar".
           '/admin/comprovativo-atividade': (_) =>
               const AdminComprovativoAtividadeScreen(),
+          // [29/10/2026 · adendo 3] robô fiscal de documentos (deep link do aviso "tem tudo certo").
+          '/admin/documentos-robo': (_) => const AdminRoboDocumentosScreen(),
           '/admin/reembolsos': (_) => const AdminReceiptsScreen(),
           '/admin/tvde/ida-e-volta': (_) => const AdminTvdeRoundtripsScreen(),
           '/admin/tvde/pagos-sem-corrida': (_) =>
@@ -1358,6 +1369,8 @@ class _RootNavigator extends StatelessWidget {
         if (client != null) {
           return const TermsGate(audience: 'cliente', child: ClientMainScreen());
         }
+        // Visitante (26/10): vê a app sem conta; a conta pede-se ao finalizar.
+        if (auth.isVisitante) return const ClientMainScreen();
         return const ClientLoginScreen();
 
       case UserRole.driver:
@@ -1388,6 +1401,13 @@ class _RootNavigator extends StatelessWidget {
         return const DriverLoginScreen();
 
       case UserRole.partner:
+        // Termos do parceiro de 28/10/2026 (Regulamento UE 2019/1150): como no
+        // cliente e no estafeta, só com a conta já aberta — antes de entrar o
+        // TermsGate não tem a quem perguntar e não voltaria a perguntar.
+        if (auth.currentPartner != null) {
+          return const TermsGate(
+              audience: 'parceiro', child: PartnerEntryScreen());
+        }
         return const PartnerEntryScreen();
     }
   }

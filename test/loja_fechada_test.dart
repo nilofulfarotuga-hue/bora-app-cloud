@@ -70,7 +70,10 @@ void main() {
     test('a loja fechada continua a dizer a que horas abre', () {
       final loja = _loja(nome: 'Continente', horario: _fechadaAgora());
       expect(loja.isOpenNow(), isFalse);
-      expect(loja.statusLabel(), startsWith('Fechada, abre às '));
+      // A janela começa daqui a 3 h: depois das 21h de Lisboa isso já é
+      // amanhã, e o texto diz o dia (27/10/2026, como o `opens_dia`).
+      expect(loja.statusLabel(),
+          matches(RegExp(r'^Fechada, abre (amanhã )?às \d\dh\d\d$')));
       // Formato PT-PT com "h", não "10:00".
       expect(loja.statusLabel(), contains('h'));
       expect(loja.statusLabel(), isNot(contains(':')));
@@ -80,7 +83,7 @@ void main() {
       final loja = _loja(nome: 'Continente', horario: _fechadaAgora());
       expect(loja.avisoLojaFechada, contains('Continente'));
       expect(loja.avisoLojaFechada, contains('fechada'));
-      expect(loja.avisoLojaFechada, contains('Abre às '));
+      expect(loja.avisoLojaFechada, contains(RegExp('Abre (amanhã )?às ')));
     });
 
     test('o aviso NÃO promete agendamento nem aviso de reabertura', () {

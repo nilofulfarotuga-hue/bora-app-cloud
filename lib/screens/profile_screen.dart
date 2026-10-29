@@ -20,6 +20,7 @@ import '../services/roles_service.dart';
 import '../widgets/biometric_login_tile.dart';
 import '../widgets/chamada_reforco_tile.dart';
 import '../widgets/bora/bora_bottom_action_bar.dart';
+import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/profile_switcher_button.dart';
 import '../models/driver_model.dart';
@@ -37,6 +38,7 @@ import 'client_favorites_screen.dart';
 import 'client_reservations_screen.dart';
 import 'orders_screen.dart';
 import 'client_addresses_screen.dart';
+import 'client_billing_screen.dart';
 import 'client_promo_code_screen.dart';
 import 'client/checkin_premios_screen.dart';
 import 'connect/connect_payments_screen.dart';
@@ -51,6 +53,8 @@ import 'client/assistant/assistant_memory_screen.dart';
 import '../services/assistant_service.dart';
 
 import '../l10n/tr.dart';
+import 'client_login_screen.dart';
+import '../utils/euros.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -452,6 +456,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final authStore = context.watch<AuthStore>();
     final driverStore = context.watch<DriverStore>();
 
+    // Visitante (26/10): sem conta, o Perfil é a porta para entrar.
+    if (authStore.isVisitante) return const _PerfilDoVisitante();
     if (!authStore.isLogged) {
       return Center(child: Text('Sessão terminada.'.tr));
     }
@@ -854,6 +860,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       context,
                       MaterialPageRoute(
                           builder: (_) => const ClientAddressesScreen()),
+                    ),
+                  ),
+                  // Fatura com NIF (28/10/2026): ver, mudar e apagar.
+                  ListTile(
+                    key: const Key('perfil_dados_de_faturacao'),
+                    leading: const Icon(Icons.receipt_long_outlined,
+                        color: AppColors.primary),
+                    title: Text('Dados de faturação'.tr),
+                    subtitle: Text('NIF e nome para as tuas faturas'.tr),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ClientBillingScreen()),
                     ),
                   ),
                   // Bloco D (21/10/2026): os vales dos marcos do check-in.
@@ -1439,6 +1459,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
 // ─── Section card ──────────────────────────────────────────────────────────────
 
+/// Perfil de quem está a ver a app sem conta (melhorias-paridade 26/10).
+///
+/// Sem isto o visitante só conseguia entrar finalizando um pedido: "Sair"
+/// levava à escolha de perfil e "Sou Cliente" punha-o outra vez sem conta.
+class _PerfilDoVisitante extends StatelessWidget {
+  const _PerfilDoVisitante();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(title: 'Perfil'.tr),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(Spacing.xxl),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: Spacing.lg),
+            const Icon(Icons.person_outline, size: 64, color: AppColors.primary),
+            const SizedBox(height: Spacing.md),
+            Text(
+              'Estás a ver a Bora sem conta.'.tr,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: Spacing.sm),
+            Text(
+              'Entra para veres os teus pedidos, o saldo e as reservas.'.tr,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: Spacing.xl),
+            BoraPrimaryButton(
+              label: 'Entrar ou criar conta'.tr,
+              icon: Icons.login,
+              onPressed: () => Navigator.of(context).push<bool>(
+                MaterialPageRoute(
+                  builder: (_) => const ClientLoginScreen(voltarAoChamador: true),
+                ),
+              ),
+            ),
+            const SizedBox(height: Spacing.md),
+            TextButton(
+              onPressed: () {
+                context.read<AuthStore>().logout(wipeBiometrics: false);
+                context.read<SessionStore>().clearRole();
+              },
+              child: Text('← Voltar à escolha de perfil'.tr),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _SectionCard extends StatelessWidget {
   const _SectionCard({required this.children, this.header});
 
@@ -1613,7 +1689,7 @@ class _WalletCardsBlock extends StatelessWidget {
                 title: 'Tokens'.tr,
                 subtitle: loading
                     ? 'Até 50% desconto no checkout'.tr
-                    : 'Até 50% desconto · ≈€${((b?.tokensValueCents ?? 0) / 100).toStringAsFixed(2)}',
+                    : 'Até 50% desconto · ≈${eur(((b?.tokensValueCents ?? 0) / 100))}',
                 value: loading ? null : '${b?.tokensBalance ?? 0}',
               ),
               const SizedBox(height: 6),
@@ -1846,7 +1922,7 @@ class _AssistenteTileState extends State<_AssistenteTile> {
           title: Text('Bora Assistente'.tr),
           subtitle: Text(p == null
               ? 'A tua poupança e a tua memória'.tr
-              : 'Já poupaste {0}'.trArgs(['€${p.toStringAsFixed(2)}'])),
+              : 'Já poupaste {0}'.trArgs([eur(p)])),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => Navigator.push(
             context,

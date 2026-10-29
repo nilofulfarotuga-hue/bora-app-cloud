@@ -629,40 +629,72 @@ class AuthStore extends ChangeNotifier {
   // ── Guest session ─────────────────────────────────────────────────────────
 
   static const _guestEmail = 'guest@bora.com';
-  static const _guestPassword = '123456';
 
+  /// Sessão de convidado SEM palavra-passe na app (melhorias-paridade 26/10,
+  /// item 2). Até 01/09 a app entrava com uma palavra-passe escrita aqui; foi
+  /// mudada no servidor (a conta pedia corridas reais) e desde aí dava 400/422
+  /// em cada arranque. Agora a sessão vem da Edge `sessao-convidado`, que
+  /// guarda a palavra-passe só no servidor, e só existe quando a definição
+  /// `sessao_convidado_ativa` está ligada (as guardas do banco — o convidado
+  /// só VÊ — têm de estar aplicadas primeiro). Desligada, o visitante navega
+  /// sem sessão nenhuma e nada vai para a consola como erro.
   Future<void> _ensureGuestSession() async {
     if (_supabase.auth.currentUser != null) return;
-
     try {
-      await _supabase.auth.signInWithPassword(
-        email: _guestEmail,
-        password: _guestPassword,
-      );
-      debugPrint(
-          'AuthStore: guest session OK — uid=${_supabase.auth.currentUser?.id}');
-      return;
-    } catch (e) {
-      debugPrint('AuthStore: guest sign-in failed, trying signUp => $e');
-    }
-
-    try {
-      await _supabase.auth.signUp(
-        email: _guestEmail,
-        password: _guestPassword,
-      );
-      if (_supabase.auth.currentUser != null) {
-        debugPrint(
-            'AuthStore: guest account created — uid=${_supabase.auth.currentUser?.id}');
-        return;
+      final ativa = await _supabase
+          .rpc('get_setting', params: {'p_key': 'sessao_convidado_ativa'});
+      if (ativa != true) return;
+      final res = await _supabase.functions.invoke('sessao-convidado');
+      final data = res.data;
+      if (data is Map &&
+          data['ok'] == true &&
+          data['refresh_token'] is String) {
+        await _supabase.auth.setSession(data['refresh_token'] as String);
+        debugPrint('AuthStore: sessão de convidado OK');
       }
-      await _supabase.auth.signInWithPassword(
-        email: _guestEmail,
-        password: _guestPassword,
-      );
     } catch (e) {
-      debugPrint('AuthStore: guest session FAILED => $e');
+      debugPrint('AuthStore: sessão de convidado indisponível => $e');
     }
+  }
+
+  // ── Visitante (melhorias-paridade 26/10, item 2) ──────────────────────────
+  //
+  // "Sou Cliente" abre a página inicial sem pedir conta; a conta só se pede ao
+  // finalizar (garantirContactoDoCliente). O painel desliga isto com a
+  // definição `visitantes_sem_conta`.
+  static const _kVisitante = 'bora_visitante_cliente';
+  bool _visitante = false;
+
+  /// Cliente a ver a app sem conta (nunca verdadeiro com conta aberta).
+  bool get isVisitante => _visitante && _currentClient == null;
+
+  /// O painel deixa ver sem conta? Na dúvida (sem rede), deixa.
+  Future<bool> visitantesPodemVer() async {
+    try {
+      final v = await _supabase
+          .rpc('get_setting', params: {'p_key': 'visitantes_sem_conta'});
+      return v != false;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  Future<void> entrarComoVisitante() async {
+    _visitante = true;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_kVisitante, true);
+    } catch (_) {}
+    unawaited(_ensureGuestSession());
+  }
+
+  void _esquecerVisitante() {
+    if (!_visitante) return;
+    _visitante = false;
+    SharedPreferences.getInstance()
+        .then((p) => p.remove(_kVisitante))
+        .catchError((_) => false);
   }
 
   /// Public wrapper — ensures a valid Supabase session exists before order
@@ -1881,6 +1913,7 @@ class AuthStore extends ChangeNotifier {
     _currentPartner = null;
     _partnerRestaurant = null;
     _currentDriverStatus = DriverStatus.pending; // fail-safe default (anomalia #5)
+    _esquecerVisitante();
     notifyListeners();
     _clearPersistedAccounts();
     _signOutBackground(pararEstafeta: pararEstafeta);
@@ -1967,6 +2000,7 @@ class AuthStore extends ChangeNotifier {
     String? roleStr;
     try {
       final prefs = await SharedPreferences.getInstance();
+      _visitante = prefs.getBool(_kVisitante) ?? false;
 
       // ── Restore local account objects ─────────────────────────────────
       // SEC (2026-06-12) — a password vem do secure storage (Keystore);
@@ -2163,6 +2197,7 @@ class AuthStore extends ChangeNotifier {
   }
 
   void _persistClient(ClientAccount account) {
+    _esquecerVisitante(); // 26/10: com conta, deixa de ser visitante.
     // SEC — password no Keystore (write ignora vazias); JSON sem segredos.
     SecureCredentialsStore.write('client', account.password).ignore();
     SharedPreferences.getInstance().then((prefs) {

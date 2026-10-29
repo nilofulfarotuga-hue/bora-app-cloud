@@ -16,7 +16,9 @@ import uuid
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 PASTA_VOZ = os.environ.get("ASSISTENTE_VOZ_DIR", os.path.join(AQUI, "voz"))
-EDGE_TTS = os.environ.get("EDGE_TTS_BIN", "/opt/data/voz/.venv/bin/edge-tts")
+# edge-tts proprio e sempre recente: o do venv do Hermes (7.2.8) levou HTTP 403 da Microsoft a 29/10/2026 e a voz caia para texto.
+_EDGE_PROPRIO = os.path.join(AQUI, ".venv-tts", "bin", "edge-tts")
+EDGE_TTS = os.environ.get("EDGE_TTS_BIN") or (_EDGE_PROPRIO if os.path.exists(_EDGE_PROPRIO) else "/opt/data/voz/.venv/bin/edge-tts")
 WHISPER_PY = os.environ.get("WHISPER_PY", os.path.join(AQUI, ".venv-whisper", "bin", "python"))
 VOZ_PT = os.environ.get("ASSISTENTE_VOZ", "pt-PT-DuarteNeural")  # masculina: e uma barbearia (Danilo, 02/10)
 
@@ -93,7 +95,8 @@ def para_falar(texto):
     """Texto para a nota de voz. Conversa por audio = resposta SO em audio (adendo 3, 02/10): le-se TUDO,
     horas incluidas, e os enderecos dizem-se por palavras."""
     t = re.sub(r"https?://\S+", _endereco_falado, texto)
-    t = re.sub(r"[*_#\[\]]", "", t).strip()
+    t = re.sub(r"\s+—\s+", ", ", t)  # "1x Clássico — 12,72 €" (resumo do pedido do restaurante)
+    t = re.sub(r"[*_#\[\]•]", "", t).strip()
     t = re.sub(r"\b([01]?\d|2[0-3])[:h]([0-5]\d)\b", _hora_falada, t)
     return re.sub(r"\s*€", " euros", t)
 

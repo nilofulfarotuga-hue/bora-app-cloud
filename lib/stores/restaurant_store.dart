@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/etiquetas_dieta.dart';
 import '../models/order_model.dart';
 import '../models/partner_product.dart';
 import '../models/product_variant.dart';
@@ -176,7 +177,7 @@ class RestaurantStore extends ChangeNotifier {
   static const String _productProjection =
       'id,restaurant_id,name,description,price,price_low,partner_shelf_price,'
       'photo_url,is_available,category,category_root,is_popular,is_on_sale,'
-      'discount_price,allergens,sold_by_weight,shelf_price_per_kg';
+      'discount_price,allergens,sold_by_weight,shelf_price_per_kg,diet_tags';
 
   /// Um produto pelo id, com a mesma projecção e o mesmo parse do catálogo.
   /// Usado pelas faixas da home e pela pesquisa global (05/10) para abrir a
@@ -240,6 +241,7 @@ class RestaurantStore extends ChangeNotifier {
       shelfPricePerKg: _numFromRow(data, 'shelf_price_per_kg'),
       // Missão maiores-18: tolerante a null (coluna pode não existir ainda).
       ageRestricted: (data['age_restricted'] as bool?) ?? false,
+      dietTags: etiquetasDeLinha(data['diet_tags']),
     );
   }
 
@@ -369,7 +371,17 @@ class RestaurantStore extends ChangeNotifier {
   bool get restaurantsLoadFailed => _restaurantsLoadFailed;
   bool get restaurantsLoadedOnce => _restaurantsLoadedOnce;
 
-  Future<void> loadRestaurantsFromSupabase() async {
+  // 27/10 (painel da Boom! dizia "112 Total" com 56 produtos): o ouvinte de
+  // sessão do construtor e o _init() chamavam estas cargas ao mesmo tempo.
+  // Chamadas em paralelo passam a partilhar a mesma carga em voo.
+  Future<void>? _restaurantsEmVoo;
+  Future<void>? _produtosEmVoo;
+
+  Future<void> loadRestaurantsFromSupabase() =>
+      _restaurantsEmVoo ??= _carregarRestaurantes()
+          .whenComplete(() => _restaurantsEmVoo = null);
+
+  Future<void> _carregarRestaurantes() async {
     _restaurantsLoading = true;
     _restaurantsLoadFailed = false;
     notifyListeners();
@@ -458,7 +470,11 @@ class RestaurantStore extends ChangeNotifier {
     debugPrint('RestaurantStore: no seed data configured, skipping seed');
   }
 
-  Future<void> loadProductsFromSupabase() async {
+  Future<void> loadProductsFromSupabase() =>
+      _produtosEmVoo ??= _carregarProdutos()
+          .whenComplete(() => _produtosEmVoo = null);
+
+  Future<void> _carregarProdutos() async {
     try {
       // Supabase returns max 1000 rows per query.
       // Paginate until all products are fetched.
@@ -500,15 +516,13 @@ class RestaurantStore extends ChangeNotifier {
         offset += pageSize;
       }
 
-      _productsByRestaurant.clear();
-      _storeFullyLoaded.clear();
-      _storeLoading.clear();
-
       // Which products have a required option group (is_required + min>=1).
       // Lightweight: fetch only the product_ids (paginated). The option items
       // themselves stay lazy-loaded by ProductDetailScreen. Drives the "+"
       // button: required-option products open detail instead of adding direct.
-      _requiredOptionProductIds.clear();
+      // 27/10: tudo se monta em coleções locais e só se troca no fim, sem
+      // awaits pelo meio (antes limpava-se aqui e outra carga enchia depois).
+      final obrigatorios = <String>{};
       try {
         int reqOffset = 0;
         while (true) {
@@ -520,7 +534,7 @@ class RestaurantStore extends ChangeNotifier {
               .range(reqOffset, reqOffset + pageSize - 1);
           for (final r in reqPage) {
             final pid = ((r as Map)['product_id'] ?? '').toString();
-            if (pid.isNotEmpty) _requiredOptionProductIds.add(pid);
+            if (pid.isNotEmpty) obrigatorios.add(pid);
           }
           if (reqPage.length < pageSize) break;
           reqOffset += pageSize;
@@ -529,14 +543,24 @@ class RestaurantStore extends ChangeNotifier {
         debugPrint('RestaurantStore: required-options flag load error => $e');
       }
 
+      final porLoja = <String, List<PartnerProduct>>{};
+      final vistos = <String>{};
       for (final record in allRecords) {
         final product = _productFromRow(record as Map<String, dynamic>);
-        if (product == null) continue;
-        _productsByRestaurant
+        if (product == null || !vistos.add(product.id)) continue;
+        porLoja
             .putIfAbsent(product.restaurantId, () => <PartnerProduct>[])
             .add(product);
       }
 
+      _productsByRestaurant
+        ..clear()
+        ..addAll(porLoja);
+      _storeFullyLoaded.clear();
+      _storeLoading.clear();
+      _requiredOptionProductIds
+        ..clear()
+        ..addAll(obrigatorios);
       notifyListeners();
       debugPrint(
           'RestaurantStore: loaded products for ${_productsByRestaurant.length} restaurants');
@@ -647,6 +671,7 @@ class RestaurantStore extends ChangeNotifier {
             soldByWeight: (data['sold_by_weight'] as bool?) ?? false,
             shelfPricePerKg: _numFromRow(data, 'shelf_price_per_kg'),
             ageRestricted: (data['age_restricted'] as bool?) ?? false,
+            dietTags: etiquetasDeLinha(data['diet_tags']),
           );
           final list = _productsByRestaurant.putIfAbsent(
               restaurantId, () => <PartnerProduct>[]);
@@ -693,6 +718,9 @@ class RestaurantStore extends ChangeNotifier {
                 list[index].shelfPricePerKg,
             ageRestricted: (data['age_restricted'] as bool?) ??
                 list[index].ageRestricted,
+            dietTags: data.containsKey('diet_tags')
+                ? etiquetasDeLinha(data['diet_tags'])
+                : list[index].dietTags,
           );
           notifyListeners();
         },
@@ -986,8 +1014,50 @@ class RestaurantStore extends ChangeNotifier {
       allergens: current.allergens,
       soldByWeight: soldByWeight,
       shelfPricePerKg: soldByWeight ? shelfPricePerKg : null,
+      ageRestricted: current.ageRestricted,
+      dietTags: current.dietTags,
     );
     if (soldByWeight) _requiredOptionProductIds.add(productId);
+    notifyListeners();
+  }
+
+  /// Etiquetas do menu (29/10/2026): grava as escolhas do parceiro e espelha-as
+  /// na lista local para o cliente as ver logo. Só mexe nas colunas das
+  /// etiquetas — nunca em preço, nome nem alergénios. Devolve false se o
+  /// servidor recusar (a lista local fica como estava).
+  Future<bool> guardarEtiquetasDoProduto({
+    required String restaurantId,
+    required String productId,
+    required List<String> etiquetas,
+    String origem = 'parceiro',
+  }) async {
+    final limpas = normalizarEtiquetas(etiquetas);
+    try {
+      await supabase.from('products').update({
+        'diet_tags': limpas,
+        'diet_tags_source': origem,
+        'diet_tags_at': DateTime.now().toUtc().toIso8601String(),
+      }).eq('id', productId);
+    } catch (e) {
+      debugPrint('RestaurantStore: guardarEtiquetasDoProduto => $e');
+      return false;
+    }
+    aplicarEtiquetasLocalmente(
+        restaurantId: restaurantId, productId: productId, etiquetas: limpas);
+    return true;
+  }
+
+  /// Espelha na lista local etiquetas que acabaram de ser gravadas.
+  void aplicarEtiquetasLocalmente({
+    required String restaurantId,
+    required String productId,
+    required List<String> etiquetas,
+  }) {
+    final list = _productsByRestaurant[restaurantId];
+    if (list == null) return;
+    final index = list.indexWhere((item) => item.id == productId);
+    if (index == -1) return;
+    list[index] = list[index].copyWith(dietTags: normalizarEtiquetas(etiquetas));
     notifyListeners();
   }
 
@@ -1445,7 +1515,13 @@ class RestaurantStore extends ChangeNotifier {
 
   // ─── Private helpers ──────────────────────────────────────────────────────
 
-  RestaurantModel _restaurantFromRecord(Map<String, dynamic> data) {
+  RestaurantModel _restaurantFromRecord(Map<String, dynamic> data) =>
+      lojaDaLinha(data);
+
+  /// A loja a partir de uma linha de `restaurants` (sem tocar no store).
+  /// 26/10 (adendo A5): o painel usa-a para "aberta agora?" em TODAS as lojas,
+  /// também as pendentes e desligadas que o store do cliente não carrega.
+  static RestaurantModel lojaDaLinha(Map<String, dynamic> data) {
     final categoryStr = data['category'] as String? ?? 'restaurant';
     final category = BusinessCategory.values.firstWhere(
       (e) => e.name == categoryStr,

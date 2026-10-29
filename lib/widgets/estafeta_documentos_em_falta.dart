@@ -7,6 +7,7 @@ import '../services/driver_documentos.dart';
 import '../services/driver_foto_upload.dart';
 import '../services/estafeta_documentos_service.dart';
 import '../utils/safe_image_picker.dart';
+import 'robo_documentos_estado.dart';
 
 /// "Conta em análise": a lista do que falta, com um botão por item para tirar
 /// e enviar a foto (ou escrever o número) ali mesmo — sem refazer o cadastro.
@@ -218,8 +219,39 @@ class _EstafetaDocumentosEmFaltaState extends State<EstafetaDocumentosEmFalta> {
     );
   }
 
+  /// O robô de documentos pediu este documento de novo: envia só aquele.
+  Future<void> _reenviarCampo(String campo) async {
+    final item = switch (campo) {
+      'drivers.registration_selfie_url' => const DocEmFalta(
+          chave: 'selfie', rotulo: 'Foto pessoal (selfie)', kindFoto: 'selfie'),
+      'drivers.document_photo_url' => const DocEmFalta(
+          chave: 'document', rotulo: 'Foto do documento', kindFoto: 'document'),
+      'drivers.vehicle_photo_url' => const DocEmFalta(
+          chave: 'vehicle', rotulo: 'Foto do veículo', kindFoto: 'vehicle'),
+      'drivers.vehicle_doc_url' => const DocEmFalta(
+          chave: 'vehicle_doc', rotulo: 'Documento do veículo', kindFoto: 'vehicle_doc'),
+      _ => null,
+    };
+    if (item != null) {
+      await _enviarFoto(item);
+    } else if (campo == 'provider_atividade.documento_path') {
+      await _abrirComprovativo();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        RoboDocumentosEstadoCard(aoReenviar: _reenviarCampo),
+        _corpo(context),
+      ],
+    );
+  }
+
+  Widget _corpo(BuildContext context) {
     if (_carregando) {
       return const Padding(
         padding: EdgeInsets.all(12),

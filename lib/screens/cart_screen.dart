@@ -20,12 +20,15 @@ import '../widgets/bora/maior_18.dart';
 import '../widgets/takeaway/curbside_inputs.dart';
 import '../widgets/tip_selector.dart';
 import '../widgets/valor_com_risco.dart';
+import '../widgets/customer_note_field.dart';
+import '../widgets/juntar_mais_tira.dart';
 import 'complete_profile_screen.dart' show garantirContactoDoCliente;
 import 'festas_quando_screen.dart';
 import 'orders_screen.dart';
 import 'payment_method_screen.dart';
 
 import '../l10n/tr.dart';
+import '../utils/euros.dart';
 
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
@@ -200,7 +203,7 @@ class _CartItemTile extends StatelessWidget {
                 ],
                 const SizedBox(height: 2),
                 Text(
-                  '€${price.toStringAsFixed(2)}',
+                  eur(price),
                   style: const TextStyle(
                     fontSize: 14,
                     color: AppColors.textSecondary,
@@ -290,8 +293,15 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
     });
   }
 
+  /// 26/10 (item 5): nota para a loja/estafeta à vista no carrinho. Fica no
+  /// CartStore e o ecrã de pagamento mostra a mesma.
+  late final TextEditingController _nota =
+      TextEditingController(text: _cart.notaCliente)
+        ..addListener(() => _cart.setNotaCliente(_nota.text));
+
   @override
   void dispose() {
+    _nota.dispose();
     _cart.removeListener(_pedirQuoteComPausa);
     _quoteTimer?.cancel();
     super.dispose();
@@ -367,7 +377,14 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
     final settlementCents = _settlementCents();
     final settlementEur = settlementCents / 100.0;
     final isWalletBlocked = _wallet?.isBlocked ?? false;
-    final remainingToPay = (totalToPay - walletAppliedEur + settlementEur)
+    // 26/10 (item 3): taxa que a app não conseguiu ler do servidor → mostra
+    // "calculada no fim" e o total sai SEM ela. Nunca um valor de recurso.
+    final taxaPorConfirmar =
+        resumo.taxaServico > 0 && !cartStore.taxaServicoConfirmada;
+    final remainingToPay = (totalToPay -
+            (taxaPorConfirmar ? resumo.taxaServico : 0) -
+            walletAppliedEur +
+            settlementEur)
         .clamp(0.0, double.infinity);
 
     // [botoes-navbar-eta 31/08] SafeArea(minimum:16) dava max(sistema, 16) e,
@@ -436,13 +453,25 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                       contentPadding: EdgeInsets.zero,
                       activeColor: AppColors.primary,
                       title: Text(
-                        'Entregar no apartamento (+€1.50)'.tr,
+                        'Entregar no apartamento (+1,50 €)'.tr,
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ),
                     const SizedBox(height: Spacing.sm),
+                    CustomerNoteField(
+                      controller: _nota,
+                      title: 'Nota para a loja ou o estafeta (opcional)',
+                      hint: 'Ex.: sem cebola; tocar no 2.º esquerdo',
+                    ),
+                    const SizedBox(height: Spacing.md),
                     _SummaryRow(label: 'Subtotal'.tr, value: resumo.subtotal),
-                    if (resumo.taxaServico > 0)
+                    if (taxaPorConfirmar)
+                      _SummaryRow(
+                        label: 'Taxa de serviço'.tr,
+                        value: 0,
+                        valorTexto: 'calculada no fim'.tr,
+                      )
+                    else if (resumo.taxaServico > 0)
                       _SummaryRow(
                         label: 'Taxa de serviço'.tr,
                         value: resumo.taxaServico,
@@ -454,9 +483,9 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                     _SummaryRow(
                       label: cartStore.isTakeaway
                           ? 'Entrega (takeaway)'.tr
-                          : cartStore.entregaGratis
+                          : cartStore.entregaGratis && baseDeliveryFee <= 0
                               ? 'Entrega grátis'.tr
-                              : 'Entrega',
+                              : 'Entrega'.tr,
                       value: cartStore.isTakeaway ? 0.0 : baseDeliveryFee,
                       // Entrega grátis (23/10/2026): o preço normal riscado,
                       // como a Glovo mostra.
@@ -465,12 +494,17 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                           : cartStore.entregaRiscada,
                       subtitle: () {
                         if (cartStore.isTakeaway) return null;
-                        if (cartStore.entregaGratis) return null;
+                        if (cartStore.entregaGratis) {
+                          // Loja parceira: só a taxa base sai (28/10/2026).
+                          return baseDeliveryFee > 0
+                              ? 'Taxa base grátis; pagas só os km a mais'.tr
+                              : null;
+                        }
                         final d = pricing.distanceKm;
                         if (d <= 4.0) return null;
                         final extra = d - 4.0;
                         final extraCharge = baseDeliveryFee - 2.50;
-                        return '€2.50 base + €{0} por {1}km extra'.trArgs([extraCharge.toStringAsFixed(2), extra.toStringAsFixed(1)]);
+                        return '2,50 € base + {0} € por {1} km extra'.trArgs([extraCharge.toStringAsFixed(2).replaceAll('.', ','), extra.toStringAsFixed(1)]);
                       }(),
                     ),
                     if (resumo.apartamento > 0)
@@ -494,6 +528,10 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                         falta: cartStore.faltaParaEntregaGratis,
                         texto: 'Faltam {0} € para a entrega grátis',
                       ),
+                    // "Juntar mais" (29/10/2026): 3 produtos baratos da mesma
+                    // loja para chegar à entrega grátis. Interruptor
+                    // `cart_add_more_strip` no painel admin.
+                    const JuntarMaisTira(),
                     const SizedBox(height: Spacing.md),
                     if (_gorjetaLigada) ...[
                       TipSelector(
@@ -534,7 +572,7 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                         subtitle: Text(
-                          'Disponível: €{0}'.trArgs([(_wallet!.freeCents / 100).toStringAsFixed(2)]),
+                          'Disponível: {0} €'.trArgs([(_wallet!.freeCents / 100).toStringAsFixed(2).replaceAll('.', ',')]),
                           style: const TextStyle(fontSize: 12),
                         ),
                       ),
@@ -564,9 +602,11 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                     ],
                     const Divider(height: Spacing.xxl),
                     _SummaryRow(
-                      label: _useWalletBalance && walletAppliedCents > 0
-                          ? 'Total a pagar (após saldo)'.tr
-                          : 'Total a pagar',
+                      label: taxaPorConfirmar
+                          ? 'Total sem a taxa de serviço'.tr
+                          : _useWalletBalance && walletAppliedCents > 0
+                              ? 'Total a pagar (após saldo)'.tr
+                              : 'Total a pagar'.tr,
                       value: remainingToPay,
                       isStrong: true,
                     ),
@@ -642,9 +682,11 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
               // só CASH é disabled em payment_method_screen.dart (BUG #1 §54).
               // 4.1.D — CTA único laranja do ecrã (regra "1 elemento laranja
               // por ecrã"): substituído de BoraPrimaryButton para BoraAccentButton.
-              label: remainingToPay <= 0
+              // Rótulo pelo total COM a taxa (mesmo por confirmar): o saldo
+              // não paga uma taxa que o ecrã de pagamento ainda vai mostrar.
+              label: (totalToPay - walletAppliedEur + settlementEur) <= 0
                   ? 'Pagar com saldo Bora'.tr
-                  : 'Finalizar pedido',
+                  : 'Finalizar pedido'.tr,
               icon: Icons.shopping_bag_outlined,
               onPressed: cartStore.items.isEmpty || _aAbrirPagamento
                   ? null
@@ -705,6 +747,9 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                           builder: (_) => const PaymentMethodScreen(),
                         ),
                       );
+                      // 26/10 (item 5): o que se escreveu na nota no ecrã de
+                      // pagamento volta ao campo do carrinho.
+                      if (mounted) _nota.text = cartStore.notaCliente;
                       if (confirmed == true && context.mounted) {
                         await _tratarGorjetaDoCheckout(tipCents);
                         if (!context.mounted) return;
@@ -765,10 +810,15 @@ class _SummaryRow extends StatelessWidget {
     this.accent = false,
     this.subtitle,
     this.riscado,
+    this.valorTexto,
   });
 
   final String label;
   final double value;
+
+  /// Texto no lugar do valor (ex.: "calculada no fim"), quando o número não
+  /// é conhecido. Com ele, [value] e [riscado] são ignorados.
+  final String? valorTexto;
   final bool isStrong;
   final bool accent;
   final String? subtitle;
@@ -809,7 +859,10 @@ class _SummaryRow extends StatelessWidget {
               ],
             ),
           ),
-          ValorComRisco(valor: value, riscado: riscado, style: style),
+          if (valorTexto != null)
+            Text(valorTexto!, style: style.copyWith(fontStyle: FontStyle.italic))
+          else
+            ValorComRisco(valor: value, riscado: riscado, style: style),
         ],
       ),
     );

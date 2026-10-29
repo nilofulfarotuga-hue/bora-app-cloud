@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'definicoes_publicas.dart';
 
 /// TAXA DE SERVIÇO DAS LOJAS SEM CONTRATO (2026-09-08).
 ///
@@ -90,23 +90,16 @@ class RemoteFeesService {
   static Future<void> carregar({bool forcar = false}) async {
     if (_carregado && !forcar) return;
     try {
-      final linhas = await Supabase.instance.client
-          .from('platform_settings')
-          .select('key, value')
-          .inFilter('key', const [kAtual, kRisco]);
-
-      final lista = (linhas as List).cast<Map<String, dynamic>>();
-      if (lista.isEmpty) {
+      // 26/10: sem sessão lê-se pela get_setting (aberta a anon) — o
+      // visitante vê o valor real, não o de recurso.
+      final valores = await lerDefinicoesPublicas(const [kAtual, kRisco]);
+      if (valores.isEmpty) {
         // Sem sessão (RLS) ou chaves apagadas — não se marca como carregado
         // para se tentar outra vez depois de entrar.
         debugPrint('[RemoteFees] ainda não é legível (sem sessão?) — '
             'fica ${_taxa.atualCents}c / risco ${_taxa.riscoCents}c.');
         return;
       }
-
-      final valores = <String, dynamic>{
-        for (final l in lista) l['key'] as String: l['value'],
-      };
 
       _taxa = TaxaServicoNaoParceiro(
         atualCents: _comoCents(valores[kAtual], fallbackAtualCents),

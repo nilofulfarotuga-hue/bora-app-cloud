@@ -121,6 +121,7 @@ class CartStore extends ChangeNotifier {
         'serviceType': _serviceType.name,
         'isPartnerStore': _isPartnerStore,
         'vendorName': _vendorName,
+        'vendorRestaurantId': _vendorRestaurantId,
         'vendorComingSoon': _vendorComingSoon,
         'vendorComingSoonText': _vendorComingSoonText,
         'vendorIsFestas': _vendorIsFestas,
@@ -159,8 +160,12 @@ class CartStore extends ChangeNotifier {
         (e) => e.name == map['serviceType'],
         orElse: () => OrderServiceType.restaurant,
       );
-      _isPartnerStore = map['isPartnerStore'] as bool? ?? true;
+      // 26/10 (adendo B): nunca assumir parceira. Até à confirmação da loja,
+      // vale o que ficou guardado (ou "não parceira"); depois manda a loja.
+      // Só muda o que o cliente VÊ — o servidor calcula sempre pela loja.
+      _isPartnerStore = map['isPartnerStore'] as bool? ?? false;
       _vendorName = map['vendorName'] as String?;
+      _vendorRestaurantId = map['vendorRestaurantId'] as String?;
       _vendorComingSoon = map['vendorComingSoon'] as bool? ?? false;
       _vendorComingSoonText =
           map['vendorComingSoonText'] as String? ?? 'Em breve';
@@ -188,9 +193,62 @@ class CartStore extends ChangeNotifier {
           PricingService.defaultDistanceKm;
       _apartmentDelivery = map['apartmentDelivery'] as bool? ?? false;
       notifyListeners();
+      if (_items.isNotEmpty) unawaited(confirmarParceiraDaLoja());
+      // 28/10/2026: o mínimo da entrega grátis (e o override do pedido pequeno)
+      // vêm da loja — num carrinho reposto ninguém passou por configureSession.
+      final lojaId = _vendorRestaurantId;
+      if (_items.isNotEmpty && lojaId != null) {
+        unawaited(SmallOrderFeeService.carregarLoja(lojaId).then((_) {
+          if (!_libertado) notifyListeners();
+        }));
+      }
     } catch (e) {
       debugPrint('CartStore._loadCart error: $e');
     }
+  }
+
+  /// Gancho de teste: devolve `restaurants.is_partner` da loja (por id, ou
+  /// pelo nome nas versões antigas que não guardavam o id).
+  @visibleForTesting
+  Future<bool?> Function(String? id, String? nome)? lerParceiraParaTeste;
+
+  /// 26/10 (adendo B): ao repor um carrinho guardado, pergunta à loja se é
+  /// parceira. Antes repunha-se `isPartnerStore ?? true` e um carrinho antigo
+  /// de loja NÃO parceira mostrava a taxa de 5% de parceiro (0,48 € num
+  /// cesto de 9,65 €). Nunca lança.
+  Future<void> confirmarParceiraDaLoja() async {
+    final id = _vendorRestaurantId;
+    final nome = _vendorName;
+    if (id == null && nome == null) return;
+    bool? parceira;
+    try {
+      final teste = lerParceiraParaTeste;
+      if (teste != null) {
+        parceira = await teste(id, nome);
+      } else {
+        final q = Supabase.instance.client.from('restaurants').select('id, is_partner');
+        final List<dynamic> linhas = id != null
+            ? await q.eq('id', id).limit(1)
+            : await q.eq('name', nome!).limit(2);
+        // Pelo nome só se houver UMA loja com esse nome (nunca adivinhar).
+        if (linhas.length == 1) {
+          final linha = linhas.first as Map;
+          parceira = linha['is_partner'] == true;
+          if (id == null && _vendorName == nome) {
+            _vendorRestaurantId ??= linha['id'] as String?;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('CartStore.confirmarParceiraDaLoja: $e');
+    }
+    // Entretanto o cliente pode ter aberto OUTRA loja: a resposta só vale se
+    // o carrinho ainda for da mesma (senão trocava a marca da loja nova).
+    if (_vendorName != nome || (id != null && _vendorRestaurantId != id)) return;
+    if (parceira == null || parceira == _isPartnerStore) return;
+    _isPartnerStore = parceira;
+    notifyListeners();
+    unawaited(_saveCart());
   }
 
   // ── Getters ───────────────────────────────────────────────────────────────
@@ -323,10 +381,22 @@ class CartStore extends ChangeNotifier {
   // (`restaurants.free_delivery_min_cents`). O servidor manda
   // (`pricing_calculate_loja` no quote e no create_order); isto é só o que o
   // ecrã mostra antes do quote chegar e o aviso "faltam X €".
+  //
+  // 28/10/2026: passou a valer também para lojas PARCEIRAS (Boom! Burger, 30 €).
+  // Na parceira só sai a taxa base da entrega (`delivery_base_fee_cents`); os
+  // km a mais continuam a pagar-se. Na não parceira sai a entrega toda. O quote
+  // só devolve `free_delivery_min_cents` para não parceiras, por isso na
+  // parceira o mínimo vem da coluna da loja (`SmallOrderFeeService`).
+
+  /// Só as compras de loja com entrega têm entrega grátis (o servidor aplica
+  /// `pricing_calculate_loja` só a `restaurant` e `storeShopping`).
+  bool get _temEntregaDeLoja =>
+      _serviceType == OrderServiceType.storeShopping ||
+      _serviceType == OrderServiceType.restaurant;
 
   /// Mínimo em euros para a entrega ser grátis nesta loja; `null` = sem oferta.
   double? get entregaGratisMin {
-    if (!_ehPedidoNaoParceiro) return null;
+    if (!_temEntregaDeLoja) return null;
     final doServidor = (_quoteCache?['free_delivery_min_cents'] as num?);
     final cents = doServidor?.toInt() ??
         SmallOrderFeeService.entregaGratisMinCents(_vendorRestaurantId);
@@ -347,12 +417,37 @@ class CartStore extends ChangeNotifier {
     return ((min * 100).round() - (subtotal * 100).round()) / 100;
   }
 
-  /// O preço normal da entrega, para mostrar riscado quando é grátis.
-  double? get entregaRiscada {
-    if (!entregaGratis) return null;
+  /// O que a entrega grátis tira ao cálculo LOCAL (sem quote), em euros.
+  ///
+  /// Não parceira: a entrega toda (sem o apartamento, que tem linha própria).
+  /// Parceira: só a taxa base, e nunca mais do que a entrega que havia — o
+  /// mesmo `LEAST(entrega, taxa base)` do `pricing_calculate_loja`.
+  double get _entregaPoupadaLocal {
+    if (!entregaGratis) return 0;
     final local = pricingBreakdown;
-    final normal = local.deliveryFee - local.apartmentSurcharge;
-    return normal > 0 ? normal : null;
+    final semApartamento = local.deliveryFee - local.apartmentSurcharge;
+    if (semApartamento <= 0) return 0;
+    if (!_isPartnerStore) return semApartamento;
+    final lida = SmallOrderFeeService.deliveryBaseFeeCents;
+    final taxaBase = lida != null
+        ? lida / 100
+        // Ainda sem a leitura do servidor: a taxa base do PricingService
+        // (a entrega até 4 km), que é o mesmo número.
+        : PricingService.calculateBreakdown(
+            serviceType: OrderServiceType.restaurant,
+            subtotal: 0,
+            distanceKm: 4,
+            isPartnerStore: true,
+          ).deliveryFee;
+    return semApartamento < taxaBase ? semApartamento : taxaBase;
+  }
+
+  /// O preço normal da entrega, para mostrar riscado quando é grátis (ou
+  /// quando só a taxa base é grátis, na parceira).
+  double? get entregaRiscada {
+    if (_entregaPoupadaLocal <= 0) return null;
+    final local = pricingBreakdown;
+    return local.deliveryFee - local.apartmentSurcharge;
   }
 
   OrderPricingBreakdown get pricingBreakdown {
@@ -450,6 +545,19 @@ class CartStore extends ChangeNotifier {
     final risco = RemoteFeesService.taxaServicoNaoParceiroRiscadaEur;
     if (risco == null || risco <= atual) return null;
     return risco;
+  }
+
+  /// 26/10 (melhorias-paridade, item 3): a taxa de serviço que o carrinho
+  /// mostra é um número REAL? Real = veio do quote do servidor, ou (no
+  /// não-parceiro) foi lida do servidor. Sem isso o ecrã escreve "calculada no
+  /// fim" — nunca um valor de recurso (o visitante via 5% num não-parceiro).
+  bool get taxaServicoConfirmada {
+    if (quoteDoCarrinho != null) return true;
+    if (_ehPedidoNaoParceiro) return RemoteFeesService.carregadoDoServidor;
+    // Parceiro: os 5% são a regra do contrato, não recurso.
+    return _isPartnerStore &&
+        (_serviceType == OrderServiceType.restaurant ||
+            _serviceType == OrderServiceType.storeShopping);
   }
 
   /// `true` quando a taxa acima veio do quote do servidor, `false` quando é a
@@ -616,11 +724,11 @@ class CartStore extends ChangeNotifier {
     final apartamento = valor('apartment_surcharge', local.apartmentSurcharge);
     // Entrega grátis (23/10/2026): sem quote ainda, o cálculo local tira a
     // entrega quando o carrinho chega ao mínimo da loja — igual ao servidor.
+    // Na parceira só sai a taxa base: os km a mais ficam na linha da entrega.
     final gratisLocal = q == null && !eFavor && entregaGratis;
-    final entregaLocalPoupada =
-        gratisLocal ? local.deliveryFee - local.apartmentSurcharge : 0.0;
+    final entregaLocalPoupada = gratisLocal ? _entregaPoupadaLocal : 0.0;
     final entrega = gratisLocal
-        ? 0.0
+        ? local.deliveryFee - local.apartmentSurcharge - entregaLocalPoupada
         : valor('delivery_fee', local.deliveryFee) - apartamento;
     final taxaPedidoPequeno = eFavor ? 0.0 : smallOrderFee;
     return ResumoDoCarrinho(
@@ -930,6 +1038,60 @@ class CartStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ── ANTES DE PAGAR (melhorias-paridade 26/10, item 5) ────────────────────
+
+  String _notaCliente = '';
+
+  /// Nota para a loja/estafeta, escrita no carrinho e mostrada outra vez no
+  /// ecrã de pagamento (o mesmo texto vai para `customerNotes`).
+  String get notaCliente => _notaCliente;
+  void setNotaCliente(String v) => _notaCliente = v;
+
+  String? _moradaAntesDaTroca;
+
+  /// Morada que estava escolhida antes de o cliente carregar em "Trocar" no
+  /// ecrã de pagamento. `null` = não trocou no fim.
+  String? get moradaAntesDaTroca => _moradaAntesDaTroca;
+
+  /// Chamado pelo "Trocar" do ecrã de pagamento ANTES de abrir o seletor.
+  /// Guarda só a primeira (a de partida); se o cliente voltar à mesma, esquece.
+  void marcarTrocaDeMorada({required String antes}) {
+    _moradaAntesDaTroca ??= antes;
+  }
+
+  void confirmarTrocaDeMorada() {
+    final antes = _moradaAntesDaTroca;
+    if (antes != null && antes.trim() == _dropoffStreet.trim()) {
+      _moradaAntesDaTroca = null;
+    }
+  }
+
+  /// Avisa o servidor (para o painel) que a morada foi trocada no fim. Nunca
+  /// trava nem lança — o pedido já nasceu.
+  Future<void> registarMoradaTrocada(String? orderId) async {
+    final antes = _moradaAntesDaTroca;
+    if (orderId == null || antes == null || isTakeaway) return;
+    try {
+      await Supabase.instance.client.rpc('pedido_marcar_morada_trocada',
+          params: {'p_order_id': orderId, 'p_morada_antes': antes});
+    } catch (e) {
+      debugPrint('CartStore: pedido_marcar_morada_trocada falhou (não-fatal): $e');
+    }
+  }
+
+  /// Adendo C (26/10): no cartão, quando o pedido demora a nascer, a marca
+  /// fica presa ao RASCUNHO do pagamento; o painel encontra-a depois.
+  Future<void> registarMoradaTrocadaRascunho(String? draftId) async {
+    final antes = _moradaAntesDaTroca;
+    if (draftId == null || antes == null || isTakeaway) return;
+    try {
+      await Supabase.instance.client.rpc('pedido_marcar_morada_trocada_rascunho',
+          params: {'p_draft_id': draftId, 'p_morada_antes': antes});
+    } catch (e) {
+      debugPrint('CartStore: marca por rascunho falhou (não-fatal): $e');
+    }
+  }
+
   void updateDeliveryAddress({
     required String street,
     required String city,
@@ -1097,6 +1259,8 @@ class CartStore extends ChangeNotifier {
     // _apartmentDelivery; tip/wallet/takeaway/photoUrls ficavam stale ao
     // trocar de loja e davam erro "não foi possível finalizar".
     _items.clear();
+    _notaCliente = '';
+    _moradaAntesDaTroca = null;
     _apartmentDelivery = false;
     _deixarAPorta = false;
     _tipCents = 0;
@@ -1134,6 +1298,9 @@ class CartStore extends ChangeNotifier {
   /// (use [OrderStore.waitForOrderFromDraft]).
   Future<Map<String, dynamic>?> startCardPaymentDraft(
     OrderStore orderStore, {
+    // 26/10 (item 5): a nota do cliente também segue no cartão — antes só
+    // dinheiro e MB Way a levavam (e a data das Festas ia com ela).
+    String? notes,
     String? clientPhone,
     String? customerName,
     String? savedPmId,
@@ -1162,6 +1329,7 @@ class CartStore extends ChangeNotifier {
     final breakdown = pricingBreakdown;
 
     return orderStore.startCardPaymentDraft(
+      customerNotes: notes,
       serviceType: _serviceType,
       itemsSubtotal: breakdown.subtotal,
       // Em recolha o destino é a própria loja (pickup validado acima).
@@ -1338,6 +1506,8 @@ class CartStore extends ChangeNotifier {
     // assistente, marca-a como encomendada. Fire-and-forget: nunca trava o
     // checkout nem lança.
     unawaited(AssistantService.pedidoCriado(newOrderId));
+    // 26/10 (item 5): morada trocada no último ecrã → o painel vê.
+    await registarMoradaTrocada(newOrderId);
     if (reqPhoto != null && newOrderId != null) {
       try {
         await Supabase.instance.client.rpc(
@@ -1436,8 +1606,12 @@ class CartStore extends ChangeNotifier {
     }
   }
 
+  /// Já foi libertado (dispose): leituras que acabam depois não avisam ninguém.
+  bool _libertado = false;
+
   @override
   void dispose() {
+    _libertado = true;
     _retratoTimer?.cancel();
     super.dispose();
   }

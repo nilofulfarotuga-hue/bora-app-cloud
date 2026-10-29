@@ -50,7 +50,8 @@ class LegalFieldsService {
     required String nif,
     required String address,
     required String iban,
-    required DateTime birthDate,
+    // Null só com NIF de empresa (27/10/2026): o servidor mantém a que houver.
+    required DateTime? birthDate,
     required bool selfCertify,
   }) async {
     assert(roles.contains(role), 'papel desconhecido: $role');
@@ -60,7 +61,7 @@ class LegalFieldsService {
       'p_nif': nif.replaceAll(RegExp(r'\D'), ''),
       'p_address': address.trim(),
       'p_iban': iban.replaceAll(RegExp(r'\s'), '').toUpperCase(),
-      'p_birth_date': _isoDate(birthDate),
+      'p_birth_date': birthDate == null ? null : _isoDate(birthDate),
       'p_self_certify': selfCertify,
     };
     try {

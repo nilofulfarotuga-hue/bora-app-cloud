@@ -12,7 +12,7 @@ import '../services/receipt_upload_service.dart';
 import '../services/weight_portions.dart';
 
 import 'package:flutter/foundation.dart'
-    show defaultTargetPlatform, kIsWeb, TargetPlatform;
+    show defaultTargetPlatform, kIsWeb, TargetPlatform, visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' hide LatLng;
@@ -43,7 +43,9 @@ import '../stores/restaurant_store.dart';
 import '../utils/constants.dart';
 import '../utils/map_marker_helper.dart';
 import '../utils/map_utils.dart';
+import '../utils/valor_em_centimos.dart';
 import '../widgets/address_text.dart';
+import '../widgets/cliente_nome_destaque.dart';
 import '../widgets/driver_chat_fab.dart';
 import '../widgets/driver_item_options.dart';
 import 'driver_order_action_helper.dart';
@@ -53,6 +55,7 @@ import '../l10n/tr.dart';
 import '../utils/favor_passos.dart';
 import '../widgets/bora_foto_ecra_inteiro.dart';
 import '../widgets/favor_passos_card.dart';
+import '../widgets/payments/conta_curta_dinheiro_texto.dart';
 import '../widgets/bora/bora_bottom_action_bar.dart';
 
 // BUG 29: Google sobrepunha o nome da rua mais próxima (ex: "Alexandre
@@ -934,6 +937,16 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       // paragem do favor na rota) maior e destacada.
       final passo = stop.passoFavor;
       final atual = passo != null && favoresComPassoAtual.add(stop.orderId);
+      // 28/10/2026 (Bloco B): o pino da recolha diz também o nome da loja.
+      var loja = '';
+      if (isPickup && passo == null) {
+        for (final o in myOrders) {
+          if (o.id == stop.orderId) {
+            loja = o.vendorName?.trim() ?? '';
+            break;
+          }
+        }
+      }
       markers.add(
         Marker(
           markerId: MarkerId('stop_${i}_${stop.orderId}'),
@@ -947,7 +960,9 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
           infoWindow: InfoWindow(
             title: passo != null
                 ? 'Passo $passo — ${stop.tituloPasso ?? ''}'
-                : (isPickup ? 'Recolha$stepLabel' : 'Entrega$stepLabel'),
+                : (isPickup
+                    ? 'Recolha$stepLabel${loja.isNotEmpty ? ' — $loja' : ''}'
+                    : 'Entrega$stepLabel'),
             snippet: stop.label,
           ),
           // Stop seguinte (i==0) tem zIndex maior para destaque.
@@ -1404,12 +1419,11 @@ class _BottomPanelState extends State<_BottomPanel> {
             order.serviceType == OrderServiceType.restaurant) &&
         !order.isPurchaseFinalized;
     if (motivo.$1 == 'produto_em_falta' && temListaDeCompras) {
-      _showShoppingListSheet(context, order);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Marca o produto em falta como "Não há" na lista — '
-            'sai do total do cliente.'),
-        duration: Duration(seconds: 5),
-      ));
+      // 28/10/2026: a explicação vai DENTRO da lista (por SnackBar ficava
+      // escondida atrás da folha que se acabou de abrir).
+      _showShoppingListSheet(context, order,
+          aviso: 'Marca o produto em falta como "Não há" na lista — '
+              'sai do total do cliente.');
       return;
     }
     final detalheCtrl = TextEditingController();
@@ -1597,7 +1611,8 @@ class _BottomPanelState extends State<_BottomPanel> {
     return true;
   }
 
-  void _showShoppingListSheet(BuildContext context, OrderModel order) {
+  void _showShoppingListSheet(BuildContext context, OrderModel order,
+      {String? aviso}) {
     final items = order.items;
     if (items.isEmpty) return;
 
@@ -1616,6 +1631,7 @@ class _BottomPanelState extends State<_BottomPanel> {
       builder: (_) => _ShoppingListSheetContent(
         order: order,
         initialItems: editableItems,
+        aviso: aviso,
       ),
     );
   }
@@ -1805,7 +1821,7 @@ class _BottomPanelState extends State<_BottomPanel> {
                     driverPosition: widget.driverPosition,
                   )
                 else
-                  _SingleOrderAddresses(order: focusOrder),
+                  SingleOrderAddresses(order: focusOrder),
 
                 const SizedBox(height: 16),
                 const Divider(height: 1),
@@ -1819,10 +1835,26 @@ class _BottomPanelState extends State<_BottomPanel> {
                       icon: Icons.receipt_long_outlined,
                       label: 'Pedido',
                       // FAVOR-ESTAFETA (27/09): depois do talão o valor do pedido é o
-                      // total a cobrar (compra + taxa), não só a taxa (price).
+                      // total (compra + taxa), não só a taxa (price).
+                      // 28/10/2026 (C3): "Pedido" é o TOTAL do pedido; o que
+                      // se cobra em dinheiro vai à parte, em "Receber" (com
+                      // saldo/tokens o cash_total_due é menor que o total).
                       value:
-                          '€${(focusOrder.cashTotalDue ?? focusOrder.finalTotal ?? focusOrder.total).toStringAsFixed(2)}',
+                          '€${(focusOrder.finalTotal ?? focusOrder.total).toStringAsFixed(2)}',
                     ),
+                    // Favor: só no passo da entrega e sem o dinheiro de casa
+                    // (as mesmas regras da faixa laranja, abaixo).
+                    if (focusOrder.paymentMethod == PaymentMethod.cash &&
+                        (focusOrder.serviceType != OrderServiceType.errand ||
+                            (passoAtual(focusOrder) == 2 &&
+                                !favorComDinheiroDeCasa(focusOrder))))
+                      _InfoItem(
+                        icon: Icons.payments_outlined,
+                        label: 'Receber',
+                        value:
+                            '€${focusOrder.totalToCollectCash.toStringAsFixed(2)}',
+                        valueColor: Colors.orange.shade900,
+                      ),
                     _InfoItem(
                       icon: Icons.payments_outlined,
                       label: 'Ganhos',
@@ -1875,7 +1907,7 @@ class _BottomPanelState extends State<_BottomPanel> {
                             // Com o dinheiro levantado em casa o estafeta
                             // devolve o troco — a conta está no cartão.
                             !favorComDinheiroDeCasa(focusOrder)))) ...[
-                  _CashCollectBanner(order: focusOrder),
+                  CashCollectBanner(order: focusOrder),
                   const SizedBox(height: 16),
                 ],
                 // 2026-09-22: a loja parceira acrescentou/tirou produtos.
@@ -2026,6 +2058,13 @@ class _BottomPanelState extends State<_BottomPanel> {
                 // soon as the driver had 2+ stacked orders. Now tied to
                 // focusOrder (the order with the next pending action).
                 const SizedBox(height: 12),
+                // 25/10/2026 (Danilo): nome do cliente em destaque em todas as
+                // fases do pedido, para o estafeta o chamar pelo nome.
+                ClienteNomeDestaque(
+                  nome: focusOrder.customerName,
+                  telefone: focusOrder.clientPhone,
+                ),
+                const SizedBox(height: 8),
                 Row(
                   children: [
                     Expanded(
@@ -2365,13 +2404,25 @@ class _StopRow extends StatelessWidget {
 
 // ─── Single-order address rows ────────────────────────────────────────────────
 
-class _SingleOrderAddresses extends StatelessWidget {
-  const _SingleOrderAddresses({required this.order});
+/// 28/10/2026 (Bloco B): como o [_StopRow] e como na Glovo/Uber Eats —
+/// "Recolha" + nome da loja a negrito + morada; "Entrega" + nome do cliente +
+/// morada. Antes só mostrava as moradas. Público só para o teste de widget.
+@visibleForTesting
+class SingleOrderAddresses extends StatelessWidget {
+  const SingleOrderAddresses({super.key, required this.order});
 
   final OrderModel order;
 
   @override
   Widget build(BuildContext context) {
+    final loja = order.vendorName?.trim() ?? '';
+    final cliente = ClienteNomeDestaque.limpo(order.customerName);
+    final etiqueta = TextStyle(
+      fontSize: 11,
+      color: Colors.grey.shade500,
+      fontWeight: FontWeight.w500,
+    );
+    const nome = TextStyle(fontSize: 14, fontWeight: FontWeight.w700);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -2379,10 +2430,25 @@ class _SingleOrderAddresses extends StatelessWidget {
           icon: Icons.circle,
           iconColor: Colors.orange.shade600,
           iconSize: 11,
-          child: AddressText(
-            rawAddress: order.pickupAddress,
-            coords: order.pickupLocation,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Recolha', style: etiqueta),
+              if (loja.isNotEmpty)
+                Text(
+                  loja,
+                  style: nome,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              AddressText(
+                rawAddress: order.pickupAddress,
+                coords: order.pickupLocation,
+                style:
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              ),
+            ],
           ),
         ),
         Padding(
@@ -2393,11 +2459,25 @@ class _SingleOrderAddresses extends StatelessWidget {
           icon: Icons.location_on_rounded,
           iconColor: const Color(0xFF1C6EF2),
           iconSize: 18,
-          child: AddressText(
-            rawAddress: order.dropoffAddress,
-            coords: order.destination,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-            prefix: 'Entrega: ',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Entrega', style: etiqueta),
+              if (cliente != null)
+                Text(
+                  cliente,
+                  style: nome,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              AddressText(
+                rawAddress: order.dropoffAddress,
+                coords: order.destination,
+                style:
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              ),
+            ],
           ),
         ),
       ],
@@ -2655,8 +2735,11 @@ class _FinalizedBanner extends StatelessWidget {
 ///   - Parceiro: "RECEBER €X — entregar ao parceiro"
 ///   - Não-parceiro: "RECEBER €X EM DINHEIRO"
 /// Instanciado a partir de pickedUp (estafeta já recolheu o pedido).
-class _CashCollectBanner extends StatelessWidget {
-  const _CashCollectBanner({required this.order});
+/// 28/10/2026 (C3): com saldo/tokens leva a "conta curta" por baixo. Público
+/// só para o teste de widget.
+@visibleForTesting
+class CashCollectBanner extends StatelessWidget {
+  const CashCollectBanner({super.key, required this.order});
 
   final OrderModel order;
 
@@ -2725,6 +2808,9 @@ class _CashCollectBanner extends StatelessWidget {
                     ),
                   ),
                 ],
+                // 28/10/2026 (C3): parte já paga com saldo/tokens.
+                ContaCurtaDinheiroTexto(
+                    order: order, cor: Colors.white, tamanho: 13),
               ],
             ),
           ),
@@ -2843,9 +2929,13 @@ class _ShoppingListSheetContent extends StatefulWidget {
   final OrderModel order;
   final List<CartItem> initialItems;
 
+  /// Explicação mostrada no topo da lista (ex.: "Falta um produto").
+  final String? aviso;
+
   const _ShoppingListSheetContent({
     required this.order,
     required this.initialItems,
+    this.aviso,
   });
 
   @override
@@ -2866,6 +2956,17 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
   /// de obrigar o estafeta a fotografar outra vez o talão.
   (File, int)? _talaoGuardado;
   String? _caminhoTalaoGuardado;
+
+  /// 28/10/2026: o aviso que trava a compra aparece DENTRO desta folha, por
+  /// cima do "Confirmar compra" (por SnackBar ficava escondido atrás dela).
+  String? _erroConfirmar;
+
+  /// 28/10/2026: ligação lenta não pode deixar o botão a rodar para sempre.
+  static const Duration _limiteEnvioFoto = Duration(seconds: 30);
+  static const Duration _limiteFechoTalao = Duration(seconds: 20);
+  static const String _avisoLigacaoLenta =
+      'A ligação está lenta. A foto ficou guardada: toca em '
+      '"Confirmar compra" para tentar de novo.';
 
   /// B3 (2026-06-11): fotos do catálogo por productId — o estafeta precisa de
   /// VER o produto para comprar o certo. URLs já existentes em products
@@ -3115,13 +3216,14 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
             s + (i.price * (1 + BRBusiness.NON_PARTNER_MARKUP_RATIO) * i.quantity));
     final clientAdjustedTotal = clientBoughtTotal + _bagFee + clientAddedTotal;
 
-    final origTotal = order.paymentBufferTotal;
     // F2 (2026-08-16): o saco do Bora NÃO passa na caixa da loja — sai do
     // total do estafeta (fica só na conta do CLIENTE, clientAdjustedTotal).
     final adjustedTotal = boughtTotal + addedFinalTotal;
-    final diff = clientAdjustedTotal - origTotal;
-    // BUG 16+17 — extraToCharge/refundDue retirados; agora exibimos
-    // diff directo com texto explicativo distinto por payment_method.
+    // 25/10/2026 (Danilo): loja não-parceira = o cliente paga exatamente o
+    // preço da app, sem margem. Se a caixa sair mais barata ou mais cara, a
+    // diferença é da Bora — o estafeta não vê nada sobre reembolso ao cliente.
+    // (A linha "Cliente recebe € de reembolso" comparava só produtos com o
+    // total pago, que inclui entrega e taxa: mostrava 6,39 € em vez de 3,90 €.)
 
     final isCash = order.paymentMethod == PaymentMethod.cash;
 
@@ -3165,7 +3267,38 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 4),
+              // 28/10/2026 (Bloco B): a morada da loja, como na Glovo/Uber
+              // Eats (há várias lojas com o mesmo nome na mesma cidade).
+              if ((order.pickupAddress ?? '').trim().isNotEmpty)
+                AddressText(
+                  rawAddress: order.pickupAddress,
+                  coords: order.pickupLocation,
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                ),
+              const SizedBox(height: 8),
+              ClienteNomeDestaque(
+                nome: order.customerName,
+                telefone: order.clientPhone,
+                compacto: true,
+              ),
+              if (widget.aviso != null) ...[
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.amber.shade300),
+                  ),
+                  child: Text(
+                    widget.aviso!,
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 6),
               // ── Progress text ──
               Text(
                 '$boughtCount de $totalCount comprados',
@@ -3604,13 +3737,31 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                 _SummaryRow(
                     label: 'Taxa de serviço', value: order.serviceFee),
                 _SummaryRow(label: 'Entrega', value: order.deliveryFee),
+                // 28/10/2026 (C3): o que o cliente já pagou com saldo/tokens/
+                // crédito de menu sai do que ele paga à porta (antes esta
+                // previsão mostrava o total bruto).
+                if (order.jaPagoSemDinheiro > 0)
+                  _SummaryRow(
+                      label: 'Já pago com saldo/tokens',
+                      value: order.jaPagoSemDinheiro,
+                      color: Colors.green.shade700),
                 const Divider(height: 12),
                 Builder(builder: (_) {
                   // B4: o cliente paga preços COM markup — usar o total do
                   // lado do cliente, não o total de caixa do estafeta.
-                  final cashTotal = clientAdjustedTotal +
+                  // 29/10 (auditoria 7.2): a taxa de pedido pequeno também é
+                  // do cliente — faltava aqui e a folha dizia 5,78 com a
+                  // faixa (servidor) a dizer 7,17.
+                  final bruto = clientAdjustedTotal +
                       order.serviceFee +
-                      order.deliveryFee;
+                      order.deliveryFee +
+                      order.smallOrderFee -
+                      order.jaPagoSemDinheiro;
+                  // 29/10 (revisor): a dívida anterior soma-se por cima, como
+                  // na faixa laranja (totalToCollectCash) — senão a lista
+                  // dizia um número e a faixa outro.
+                  final cashTotal = (bruto < 0 ? 0.0 : bruto) +
+                      order.debtCollectedCents / 100.0;
                   return Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -3634,9 +3785,8 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                 }),
               ] else ...[
                 // BUG 16+17 fix — pedido MBWay/Stripe: cliente JÁ pagou na app.
-                // NÃO mostrar "Cliente pagou" (era confuso e usava field errado).
-                // Mostrar valor que Bora reembolsa ao estafeta + diferença vs
-                // estimativa.
+                // Mostra só o que a Bora reembolsa ao estafeta (25/10: nada
+                // sobre diferenças ou reembolsos ao cliente).
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -3647,32 +3797,26 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                         fontSize: 16,
                       ),
                     ),
+                    // 25/10/2026 (Danilo): o reembolso é o valor REAL pago na
+                    // caixa (escrito a seguir, com a foto), não o catálogo.
                     Text(
-                      '€${adjustedTotal.toStringAsFixed(2)}',
+                      'o que pagares na caixa',
                       style: TextStyle(
                         fontWeight: FontWeight.w800,
-                        fontSize: 16,
+                        fontSize: 15,
                         color: Colors.green.shade700,
                       ),
                     ),
                   ],
                 ),
-                if (diff.abs() > 0.01)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      diff < 0
-                          ? 'Cliente recebe €${(-diff).toStringAsFixed(2)} de reembolso (compras saíram mais baratas)'
-                          : 'Cliente será cobrado +€${diff.toStringAsFixed(2)} (compras saíram mais caras)',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: diff < 0
-                            ? Colors.green.shade700
-                            : Colors.orange.shade700,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    'Escreves o valor real no passo seguinte. Se pagares menos que o estimado, '
+                    'recebes só o que pagaste.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
                   ),
+                ),
               ],
               if (unavailableCount > 0)
                 Padding(
@@ -3686,6 +3830,19 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                   ),
                 ),
               const SizedBox(height: 16),
+              if (_erroConfirmar != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    _erroConfirmar!,
+                    key: const Key('erro_confirmar_compra'),
+                    style: TextStyle(
+                      color: Colors.red.shade700,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
               // ── Confirm button ──
               SizedBox(
                 width: double.infinity,
@@ -3693,7 +3850,10 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                   onPressed: allDecided && !_aConfirmar
                       ? () async {
                           if (_aConfirmar) return;
-                          setState(() => _aConfirmar = true);
+                          setState(() {
+                            _aConfirmar = true;
+                            _erroConfirmar = null;
+                          });
                           try {
                             await _confirmarCompra(
                                 order, extraItems, canonicalItems);
@@ -3794,8 +3954,14 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                     orderId: order.id,
                                     photoFile: photoFile,
                                     totalCents: totalCents,
-                                  );
+                                  ).timeout(_limiteEnvioFoto);
                               _caminhoTalaoGuardado = storagePath;
+                            } on TimeoutException {
+                              // A foto fica em _talaoGuardado: o próximo
+                              // toque reenvia-a sem pedir outra.
+                              if (!mounted) return;
+                              setState(() => _erroConfirmar = _avisoLigacaoLenta);
+                              return;
                             } catch (e) {
                               debugPrint(
                                   '[driver_map] receipt upload error: $e');
@@ -3813,15 +3979,24 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                             // deixava o McDonald's a voltar ao mesmo ecrã.
                             // O saco do restaurante fica o do checkout (€0,30);
                             // o do mercado vai por saco, como sempre.
-                            final resultado =
-                                await TalaoNaoParceiroService.finalizar(
-                              orderId: order.id,
-                              photoStoragePath: storagePath,
-                              driverTypedTotalCents: totalCents,
-                              items: canonicalItems,
-                              itemsAdded: itemsAdded,
-                              bagCount: _isRestaurant ? null : _bagCount,
-                            );
+                            final TalaoResultado resultado;
+                            try {
+                              resultado =
+                                  await TalaoNaoParceiroService.finalizar(
+                                orderId: order.id,
+                                photoStoragePath: storagePath,
+                                driverTypedTotalCents: totalCents,
+                                items: canonicalItems,
+                                itemsAdded: itemsAdded,
+                                bagCount: _isRestaurant ? null : _bagCount,
+                              ).timeout(_limiteFechoTalao);
+                            } on TimeoutException {
+                              // Foto e caminho ficam guardados; a função do
+                              // servidor aceita repetir (onTheWay incluído).
+                              if (!mounted) return;
+                              setState(() => _erroConfirmar = _avisoLigacaoLenta);
+                              return;
+                            }
                             if (!mounted) return;
                             if (!resultado.ok) {
                               // Erro REAL (texto PT-PT + código), nunca engolido.
@@ -3836,7 +4011,11 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                             _caminhoTalaoGuardado = null;
                             // Estado local imediato; o realtime confirma a seguir.
                             order.isPurchaseFinalized = true;
-                            order.cashTotalDue = null;
+                            // 28/10/2026 (C3): o valor a cobrar é o que o
+                            // servidor acabou de gravar (já sem saldo/tokens/
+                            // crédito de menu). Sem ele fica null e o getter
+                            // usa final/total − já pago, nunca o bruto.
+                            order.cashTotalDue = resultado.cashTotalDueEur;
                             order.status = OrderStatus.onTheWay;
                             orderStore.refresh();
                             nav.pop();
@@ -3871,9 +4050,8 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                           );
                           if (!mounted) return;
                           if (reason != null) {
-                            messenger.showSnackBar(
-                              SnackBar(content: Text(reason)),
-                            );
+                            // A folha continua aberta: o aviso vai para ela.
+                            setState(() => _erroConfirmar = reason);
                           } else {
                             nav.pop();
                             messenger.showSnackBar(
@@ -3941,23 +4119,32 @@ Future<(File, int)?> _captureReceiptForV2(
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     builder: (sheetCtx) {
-      return _ReceiptCaptureSheet(isCash: isCash);
+      return ReceiptCaptureSheet(isCash: isCash);
     },
   );
 }
 
-class _ReceiptCaptureSheet extends StatefulWidget {
-  const _ReceiptCaptureSheet({required this.isCash});
+/// Folha "Quanto pagaste na caixa?" (foto + valor). Pública só para o teste
+/// de widget (28/10/2026): os avisos aparecem DENTRO dela.
+@visibleForTesting
+class ReceiptCaptureSheet extends StatefulWidget {
+  const ReceiptCaptureSheet({super.key, required this.isCash});
   final bool isCash;
 
   @override
-  State<_ReceiptCaptureSheet> createState() => _ReceiptCaptureSheetState();
+  State<ReceiptCaptureSheet> createState() => _ReceiptCaptureSheetState();
 }
 
-class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
+class _ReceiptCaptureSheetState extends State<ReceiptCaptureSheet> {
   File? _photo;
   final _totalCtrl = TextEditingController();
   bool _submitting = false;
+
+  /// 28/10/2026: os avisos ficam DENTRO da folha. Por SnackBar iam para o
+  /// ecrã de trás, escondidos pela própria folha, e o "Confirmar" parecia
+  /// não fazer nada (caso real "7. 88").
+  String? _erroValor;
+  String? _aviso;
 
   @override
   void initState() {
@@ -4007,37 +4194,34 @@ class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
         maxWidth: 1600,
       );
       if (picked != null && mounted) {
-        setState(() => _photo = File(picked.path));
+        setState(() {
+          _photo = File(picked.path);
+          _aviso = null;
+        });
       }
     } catch (e) {
       // F4 (2026-08-16): tag estável p/ adb logcat + mensagem com retry.
       debugPrint('[bora-talao] erro na câmara: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Não foi possível usar a câmara — tenta outra vez.'),
-            duration: const Duration(seconds: 5),
-          ),
-        );
+        setState(() =>
+            _aviso = 'Não foi possível usar a câmara — tenta outra vez.');
       }
     }
   }
 
   void _onSubmit() {
-    final eur = double.tryParse(_totalCtrl.text.replaceAll(',', '.'));
-    if (eur == null || eur <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Valor do talão inválido.')),
-      );
+    // 28/10/2026: leitura tolerante ("7. 88", "7,88 €") e em cêntimos
+    // inteiros — o double.tryParse falhava com o espaço.
+    final cents = valorEmCentimos(_totalCtrl.text);
+    if (cents == null) {
+      setState(() => _erroValor =
+          'Valor inválido. Escreve só o valor, por exemplo 7,88.');
       return;
     }
     if (_photo == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tira foto do talão primeiro.')),
-      );
+      setState(() => _aviso = 'Tira a foto (talão, conta ou saco) primeiro.');
       return;
     }
-    final cents = (eur * 100).round();
     setState(() => _submitting = true);
     Navigator.of(context).pop<(File, int)>((_photo!, cents));
   }
@@ -4053,9 +4237,13 @@ class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
     final barra = mq.viewPadding.bottom > bottomInset
         ? mq.viewPadding.bottom - bottomInset
         : 0.0;
+    // 25/10/2026 (Danilo): a Bora devolve o que pagaste DE FACTO na caixa,
+    // não o preço do catálogo. Sem talão (ex.: Fuku Sushi), fotografa a
+    // conta/o saco e escreve o valor real.
     final hint = widget.isCash
-        ? 'Foto guardada para registo Bora (auditoria).'
-        : 'Foto + valor permitem Bora reembolsar-te o valor correcto do talão.';
+        ? 'Foto guardada para registo Bora (auditoria). Escreve o valor que pagaste de facto.'
+        : 'A Bora devolve-te exatamente o valor que escreves: o que pagaste de facto na caixa, '
+            'não o preço da app. A loja não deu talão? Fotografa a conta ou o saco e escreve o valor real.';
     return Padding(
       padding: EdgeInsets.only(bottom: bottomInset),
       child: Container(
@@ -4064,6 +4252,9 @@ class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
           borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
         ),
         padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + barra),
+        // 28/10/2026: rola quando não cabe (teclado aberto, ecrã pequeno,
+        // aviso a mais) — o "Confirmar" nunca fica cortado nem fora do toque.
+        child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -4078,7 +4269,7 @@ class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
               margin: const EdgeInsets.only(bottom: 16),
             ),
             const Text(
-              'Foto do talão + valor pago',
+              'Quanto pagaste na caixa?',
               style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
               textAlign: TextAlign.center,
             ),
@@ -4105,7 +4296,7 @@ class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
                           children: [
                             Icon(Icons.camera_alt, size: 36),
                             SizedBox(height: 8),
-                            Text('Tirar foto do talão'),
+                            Text('Foto do talão (ou da conta / do saco)'),
                           ],
                         ),
                       )
@@ -4120,16 +4311,37 @@ class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
             ),
             const SizedBox(height: 12),
             TextField(
+              key: const Key('fld_valor_talao'),
               controller: _totalCtrl,
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                labelText: 'Valor total no talão (€)',
-                prefixIcon: Icon(Icons.euro),
-                border: OutlineInputBorder(),
+              // Só dígitos e UM separador (vírgula ou ponto), até 2 casas.
+              inputFormatters: const [ValorEmEurosInputFormatter()],
+              onChanged: (_) {
+                if (_erroValor != null) setState(() => _erroValor = null);
+              },
+              decoration: InputDecoration(
+                labelText: 'Valor que pagaste de facto (€)',
+                prefixIcon: const Icon(Icons.euro),
+                border: const OutlineInputBorder(),
+                errorText: _erroValor,
               ),
             ),
             const SizedBox(height: 16),
+            if (_aviso != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  _aviso!,
+                  key: const Key('aviso_talao'),
+                  style: TextStyle(
+                    color: Colors.red.shade700,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
             ElevatedButton.icon(
               // BUG I — disabled até foto + valor preenchidos
               onPressed: _canSubmit ? _onSubmit : null,
@@ -4155,8 +4367,8 @@ class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
                   _photo == null
-                      ? 'Tira foto do talão para continuar'
-                      : 'Digita o valor pago no talão',
+                      ? 'Tira a foto (talão, conta ou saco) para continuar'
+                      : 'Escreve o valor que pagaste de facto',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey.shade600,
@@ -4171,7 +4383,7 @@ class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
               child: const Text('Cancelar'),
             ),
           ],
-        ),
+        )),
       ),
     );
   }

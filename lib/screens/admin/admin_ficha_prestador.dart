@@ -14,7 +14,9 @@ import '../../config/app_colors.dart';
 import '../../services/driver_documentos.dart'
     show DocEmFalta, idadeEmAnos;
 import '../../services/prestador_documentos.dart';
+import '../../services/robo_documentos.dart';
 import '../../widgets/admin_documentos.dart';
+import '../../widgets/admin_robo_documentos.dart';
 import '../../widgets/private_bucket_image.dart';
 
 /// 'cleaner' (limpeza) ou 'washer' (lavagem).
@@ -195,11 +197,16 @@ class _FichaPrestador extends StatelessWidget {
           DocCampo('Morada', l['address'], falta: faltaItem('address')),
 
           const DocSeccao('Documentos'),
+          if (l['_robo'] != null) RoboResumoLinha(linha: l),
+          if (avisosParaAprovar(l).isNotEmpty) RoboAvisoAprovar(linha: l),
           DocFoto(
             titulo: 'Documento de identificação',
             urlOrPath: docCaminho(l, 'id_doc'),
             obrigatoria: true,
             balde: balde,
+            veredito: vereditoDe(l, papel == 'washer' ? 'washers.docs.id_doc' : 'cleaners.docs.id_doc',
+                ficheiro: docCaminho(l, 'id_doc')),
+            onDesfazer: (v) => desfazerDecisaoDoRobo(context, v),
           ),
           if (papel == 'washer')
             DocFoto(
@@ -207,6 +214,9 @@ class _FichaPrestador extends StatelessWidget {
               urlOrPath: docCaminho(l, 'driving_license'),
               obrigatoria: true,
               balde: balde,
+              veredito: vereditoDe(l, 'washers.docs.driving_license',
+                  ficheiro: docCaminho(l, 'driving_license')),
+              onDesfazer: (v) => desfazerDecisaoDoRobo(context, v),
             ),
           if (docCaminho(l, 'address_proof') != null)
             DocFoto(
@@ -225,6 +235,9 @@ class _FichaPrestador extends StatelessWidget {
                 ? Map<String, dynamic>.from(l['_atividade'] as Map)
                 : null,
             falta: faltaItem('atividade'),
+            veredito: vereditoDe(l, 'provider_atividade.documento_path',
+                ficheiro: docTexto((l['_atividade'] as Map?)?['documento_path'])),
+            onDesfazer: (v) => desfazerDecisaoDoRobo(context, v),
             onAprovar: userId == null
                 ? null
                 : () async {

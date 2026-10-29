@@ -1,5 +1,6 @@
 import 'package:latlong2/latlong.dart';
 
+import '../l10n/tr.dart';
 import '../utils/hora_lisboa.dart';
 
 enum BusinessCategory {
@@ -53,11 +54,22 @@ class DayHours {
     this.open = '09:00',
     this.close = '22:00',
     this.closed = false,
+    this.breakStart,
+    this.breakEnd,
   });
 
   final String open;
   final String close;
   final bool closed;
+
+  /// Pausa do dia (27/10/2026, Boom! Burger: 14:30–19:00), 'HH:MM'. Os dois a
+  /// null = sem pausa. Dentro da pausa a loja está fechada — igual ao
+  /// `is_partner_open` do servidor (chaves `break_start`/`break_end`).
+  final String? breakStart;
+  final String? breakEnd;
+
+  /// True quando o dia tem pausa (as duas horas preenchidas).
+  bool get temPausa => breakStart != null && breakEnd != null;
 
   factory DayHours.fromJson(Map<String, dynamic>? json) {
     if (json == null) return const DayHours();
@@ -65,17 +77,89 @@ class DayHours {
       open: (json['open'] as String?) ?? '09:00',
       close: (json['close'] as String?) ?? '22:00',
       closed: (json['closed'] as bool?) ?? false,
+      breakStart: _horaOuNull(json['break_start']),
+      breakEnd: _horaOuNull(json['break_end']),
     );
   }
 
-  Map<String, dynamic> toJson() =>
-      {'open': open, 'close': close, 'closed': closed};
+  static String? _horaOuNull(dynamic v) {
+    if (v is! String) return null;
+    final t = v.trim();
+    return t.isEmpty ? null : t;
+  }
 
-  DayHours copyWith({String? open, String? close, bool? closed}) => DayHours(
+  /// `break_start`/`break_end` vão SEMPRE (a null quando não há pausa): o
+  /// gatilho `trg_business_hours_guarda_pausa` mantém a pausa antiga quando o
+  /// dia novo chega sem estas chaves — só com elas a null é que a pausa sai.
+  Map<String, dynamic> toJson() => {
+        'open': open,
+        'close': close,
+        'closed': closed,
+        'break_start': breakStart,
+        'break_end': breakEnd,
+      };
+
+  /// [semPausa] tira a pausa (os dois a null).
+  DayHours copyWith({
+    String? open,
+    String? close,
+    bool? closed,
+    String? breakStart,
+    String? breakEnd,
+    bool semPausa = false,
+  }) =>
+      DayHours(
         open: open ?? this.open,
         close: close ?? this.close,
         closed: closed ?? this.closed,
+        breakStart: semPausa ? null : (breakStart ?? this.breakStart),
+        breakEnd: semPausa ? null : (breakEnd ?? this.breakEnd),
       );
+
+  /// Valida a pausa do dia. Null quando está bem (ou não há pausa, ou o dia
+  /// está fechado); senão a frase do erro — PT-PT, ou PT-BR com [ptBr]
+  /// (painel admin). A pausa tem de começar antes de acabar e ficar dentro
+  /// do horário aberto.
+  String? erroPausa({bool ptBr = false}) {
+    if (closed) return null;
+    if (breakStart == null && breakEnd == null) return null;
+    final bs = RestaurantModel._minutosOuNull(breakStart);
+    final be = RestaurantModel._minutosOuNull(breakEnd);
+    if (bs == null || be == null) {
+      return ptBr
+          ? 'Preencha o início e o fim da pausa.'
+          : 'Preenche o início e o fim da pausa.';
+    }
+    if (be <= bs) {
+      return ptBr
+          ? 'O fim da pausa precisa ser depois do início.'
+          : 'O fim da pausa tem de ser depois do início.';
+    }
+    final o = RestaurantModel._parseMinutes(open);
+    final c = RestaurantModel._parseMinutes(close);
+    if (o == null || c == null) return null;
+    // Horário que passa a meia-noite (ex.: 20:00–02:00): a pausa fica na
+    // parte de antes da meia-noite, a única que o servidor lê nesse dia.
+    final dentro = c > o ? (bs >= o && be <= c) : bs >= o;
+    if (!dentro) {
+      return ptBr
+          ? 'A pausa precisa ficar dentro do horário de funcionamento.'
+          : 'A pausa tem de ficar dentro do horário aberto.';
+    }
+    return null;
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is DayHours &&
+      other.open == open &&
+      other.close == close &&
+      other.closed == closed &&
+      other.breakStart == breakStart &&
+      other.breakEnd == breakEnd;
+
+  @override
+  int get hashCode => Object.hash(open, close, closed, breakStart, breakEnd);
 }
 
 class BusinessHours {
@@ -87,7 +171,13 @@ class BusinessHours {
     this.fri = const DayHours(),
     this.sat = const DayHours(),
     this.sun = const DayHours(),
+    this.specialDates = const <String, DayHours>{},
   });
+
+  /// Dias especiais (feriados, dias fechados, horário diferente) por data
+  /// 'AAAA-MM-DD' de Lisboa: substituem o dia da semana, como `special_dates`
+  /// no `is_partner_open` do servidor (27/10/2026).
+  final Map<String, DayHours> specialDates;
 
   final DayHours mon;
   final DayHours tue;
@@ -110,7 +200,20 @@ class BusinessHours {
       fri: DayHours.fromJson(m['fri'] as Map<String, dynamic>?),
       sat: DayHours.fromJson(m['sat'] as Map<String, dynamic>?),
       sun: DayHours.fromJson(m['sun'] as Map<String, dynamic>?),
+      specialDates: _lerDiasEspeciais(m['special_dates']),
     );
+  }
+
+  static Map<String, DayHours> _lerDiasEspeciais(dynamic raw) {
+    if (raw is! List) return const <String, DayHours>{};
+    final out = <String, DayHours>{};
+    for (final e in raw) {
+      if (e is! Map) continue;
+      final data = e['date']?.toString() ?? '';
+      if (!RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(data)) continue;
+      out[data] = DayHours.fromJson(Map<String, dynamic>.from(e));
+    }
+    return out;
   }
 
   Map<String, dynamic> toJson() => {
@@ -121,7 +224,20 @@ class BusinessHours {
         'fri': fri.toJson(),
         'sat': sat.toJson(),
         'sun': sun.toJson(),
+        if (specialDates.isNotEmpty)
+          'special_dates': [
+            for (final e in specialDates.entries) {'date': e.key, ...e.value.toJson()},
+          ],
       };
+
+  /// O horário de um dia de calendário de Lisboa ([parede] vem de
+  /// `paredeLisboa`): o dia especial dessa data, se houver, senão o da semana.
+  DayHours diaEm(DateTime parede) {
+    final chave = '${parede.year.toString().padLeft(4, '0')}-'
+        '${parede.month.toString().padLeft(2, '0')}-'
+        '${parede.day.toString().padLeft(2, '0')}';
+    return specialDates[chave] ?? dayFor(parede.weekday);
+  }
 
   DayHours dayFor(int weekday) {
     // DateTime.weekday: Mon=1 .. Sun=7
@@ -153,6 +269,7 @@ class BusinessHours {
       fri: weekday == DateTime.friday ? hours : fri,
       sat: weekday == DateTime.saturday ? hours : sat,
       sun: weekday == DateTime.sunday ? hours : sun,
+      specialDates: specialDates,
     );
   }
 
@@ -160,6 +277,23 @@ class BusinessHours {
     final i = (weekday - 1).clamp(0, 6);
     return _defaultKeys[i];
   }
+
+  @override
+  bool operator ==(Object other) =>
+      other is BusinessHours &&
+      other.mon == mon &&
+      other.tue == tue &&
+      other.wed == wed &&
+      other.thu == thu &&
+      other.fri == fri &&
+      other.sat == sat &&
+      other.sun == sun &&
+      other.specialDates.length == specialDates.length &&
+      specialDates.entries.every((e) => other.specialDates[e.key] == e.value);
+
+  @override
+  int get hashCode => Object.hash(mon, tue, wed, thu, fri, sat, sun,
+      Object.hashAllUnordered(specialDates.entries.map((e) => Object.hash(e.key, e.value))));
 }
 
 class RestaurantModel {
@@ -337,11 +471,58 @@ class RestaurantModel {
     if (emPausa(instante)) {
       return '$name está fechada temporariamente. Volta às $pausaVoltaAs.';
     }
-    final day = businessHours.dayFor(paredeLisboa(instante).weekday);
+    final day = businessHours.diaEm(paredeLisboa(instante));
+    final prox = proximaAbertura(instante);
     if (day.closed) {
-      return '$name está fechada hoje. Volta noutro dia para fazer o pedido.';
+      if (prox == null) {
+        return '$name está fechada hoje. Volta noutro dia para fazer o pedido.';
+      }
+      return '$name está fechada hoje. Abre ${_abreQuando(prox)}.';
     }
-    return '$name está fechada agora. Abre às ${_horaBonita(day.open)}.';
+    if (prox == null) return '$name está fechada agora.';
+    return '$name está fechada agora. Abre ${_abreQuando(prox)}.';
+  }
+
+  static const _nomesDias = [
+    'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo',
+  ];
+
+  /// "às 19h00" (hoje), "amanhã às 12h00" ou "segunda às 19h00" — as mesmas
+  /// palavras do `opens_dia` do servidor.
+  static String _abreQuando(({int emDias, int weekday, String hora}) p) {
+    final h = _horaBonita(p.hora);
+    if (p.emDias == 0) return 'às $h';
+    if (p.emDias == 1) return 'amanhã às $h';
+    return '${_nomesDias[p.weekday - 1]} às $h';
+  }
+
+  /// Próxima abertura da loja a partir de [instante] (relógio de Lisboa),
+  /// pela mesma regra do `is_partner_open` do servidor: hoje mais tarde
+  /// (antes de abrir, ou no fim da pausa) ou o primeiro dia aberto dos 7
+  /// seguintes. [emDias] 0 = hoje, 1 = amanhã; [weekday] como `DateTime`;
+  /// [hora] 'HH:MM'. Null quando nenhum dia abre. Respeita os dias especiais
+  /// (`special_dates`), como o servidor; não olha à pausa do parceiro
+  /// (`pausa_ate`).
+  ({int emDias, int weekday, String hora})? proximaAbertura(DateTime instante) {
+    final agora = paredeLisboa(instante);
+    final agoraMin = agora.hour * 60 + agora.minute;
+    for (var i = 0; i <= 7; i++) {
+      final data = DateTime.utc(agora.year, agora.month, agora.day + i);
+      final weekday = data.weekday;
+      final d = businessHours.diaEm(data);
+      if (d.closed) continue;
+      final o = _parseMinutes(d.open);
+      if (o == null) continue;
+      if (i > 0) return (emDias: i, weekday: weekday, hora: d.open);
+      if (agoraMin < o) return (emDias: 0, weekday: weekday, hora: d.open);
+      final bs = _minutosOuNull(d.breakStart);
+      final be = _minutosOuNull(d.breakEnd);
+      if (bs != null && be != null && bs < be &&
+          agoraMin >= bs && agoraMin < be) {
+        return (emDias: 0, weekday: weekday, hora: d.breakEnd!);
+      }
+    }
+    return null;
   }
 
   /// Converte o array `extra_categories` do Supabase em categorias válidas
@@ -380,17 +561,25 @@ class RestaurantModel {
     final instante = nowOverride ?? DateTime.now();
     if (emPausa(instante)) return false;
     final now = paredeLisboa(instante);
-    final day = businessHours.dayFor(now.weekday);
+    final day = businessHours.diaEm(now);
     if (day.closed) return false;
     final openMin = _parseMinutes(day.open);
     final closeMin = _parseMinutes(day.close);
     final nowMin = now.hour * 60 + now.minute;
     if (openMin == null || closeMin == null) return true;
-    if (closeMin <= openMin) {
-      // Overnight schedule (e.g. 20:00 → 02:00): open window spans midnight.
-      return nowMin >= openMin || nowMin < closeMin;
+    final dentroDoHorario = closeMin <= openMin
+        // Overnight schedule (e.g. 20:00 → 02:00): open window spans midnight.
+        ? nowMin >= openMin || nowMin < closeMin
+        : nowMin >= openMin && nowMin < closeMin;
+    if (!dentroDoHorario) return false;
+    // Pausa do dia (27/10/2026): fechada de break_start (inclusive) a
+    // break_end (exclusive), como o `is_partner_open`.
+    final bs = _minutosOuNull(day.breakStart);
+    final be = _minutosOuNull(day.breakEnd);
+    if (bs != null && be != null && bs < be && nowMin >= bs && nowMin < be) {
+      return false;
     }
-    return nowMin >= openMin && nowMin < closeMin;
+    return true;
   }
 
   /// Human-readable label for the client UI.
@@ -403,11 +592,59 @@ class RestaurantModel {
     // "fechadas" para encomendar — o horário é de levantamento/entrega.
     if (belongsTo(BusinessCategory.festas)) return 'Aceita encomendas';
     final instante = nowOverride ?? DateTime.now();
-    final day = businessHours.dayFor(paredeLisboa(instante).weekday);
-    if (day.closed) return 'Fechada hoje';
+    final day = businessHours.diaEm(paredeLisboa(instante));
+    // Diz a próxima abertura com o dia, como o `opens_dia` do servidor:
+    // "Fechada, abre às 19h00" (pausa ou antes de abrir), "Fechada, abre
+    // amanhã às 12h00" (depois do fecho), "Fechada hoje — abre segunda às
+    // 19h00" (dia fechado).
+    if (day.closed) {
+      final prox = proximaAbertura(instante);
+      return prox == null
+          ? 'Fechada hoje'
+          : 'Fechada hoje — abre ${_abreQuando(prox)}';
+    }
     if (isOpenNow(instante)) return 'Aberto';
-    return 'Fechada, abre às ${_horaBonita(day.open)}';
+    final prox = proximaAbertura(instante);
+    return prox == null ? 'Fechada' : 'Fechada, abre ${_abreQuando(prox)}';
   }
+
+  /// 26/10 (melhorias-paridade, item 4 — regra do Danilo de 27/08): a loja
+  /// está fechada PARA O CLIENTE? Entra-se e vê-se tudo (capa, categorias,
+  /// produtos, preços, opções); só não se mete no carrinho. "Em breve" tem a
+  /// faixa dele e as Festas (fora de pausa) aceitam encomendas: não contam.
+  bool fechadaParaClienteEm(DateTime instante) {
+    if (comingSoon) return false;
+    if (emPausa(instante)) return true;
+    if (!isOnline) return true; // desligada pelo parceiro, Festas incluídas
+    if (belongsTo(BusinessCategory.festas)) return false;
+    return !isOpenNow(instante);
+  }
+
+  bool get fechadaParaCliente => fechadaParaClienteEm(DateTime.now());
+
+  static const _diasPt = [
+    'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo'
+  ];
+
+  /// Faixa curta (PT-PT) de loja fechada, com a próxima abertura pela hora de
+  /// Lisboa: "Fechado · abre às 11:00", "Fechado · abre amanhã às 11:00",
+  /// "Fechado · abre sábado às 10:00", "Fechado · volta às 15:30" (pausa).
+  /// Nunca um tempo de entrega numa loja fechada.
+  String faixaFechadaEm(DateTime instante) {
+    if (emPausa(instante)) return 'Fechado · volta às {0}'.trArgs([pausaVoltaAs]);
+    if (!isOnline) return 'Fechado de momento'.tr;
+    // A mesma próxima abertura do aviso e do servidor (dias especiais e
+    // pausa do dia incluídos).
+    final prox = proximaAbertura(instante);
+    if (prox == null) return 'Fechado de momento'.tr;
+    final (:emDias, :weekday, hora: abre) = prox;
+    final d = emDias;
+    if (d == 0) return 'Fechado · abre às {0}'.trArgs([abre]);
+    if (d == 1) return 'Fechado · abre amanhã às {0}'.trArgs([abre]);
+    return 'Fechado · abre {0} às {1}'.trArgs([_diasPt[weekday - 1].tr, abre]);
+  }
+
+  String get faixaFechada => faixaFechadaEm(DateTime.now());
 
   static int? _parseMinutes(String hhmm) {
     final parts = hhmm.split(':');
@@ -417,6 +654,9 @@ class RestaurantModel {
     if (h == null || m == null) return null;
     return h * 60 + m;
   }
+
+  static int? _minutosOuNull(String? hhmm) =>
+      hhmm == null ? null : _parseMinutes(hhmm);
 
   /// ⚠️ Campo novo no modelo entra TAMBÉM aqui, senão desaparece em silêncio
   /// a cada `copyWith`. Já aconteceu com o `ownerId`, que é justamente o que

@@ -32,6 +32,7 @@ import '../../wallet_history_screen.dart';
 import '../tvde/tvde_entrada_screen.dart';
 import 'assistant_cards.dart';
 import 'assistant_encher_carrinho.dart';
+import '../../../utils/euros.dart';
 
 class AssistantChatScreen extends StatefulWidget {
   const AssistantChatScreen({
@@ -563,7 +564,7 @@ class _AssistantChatScreenState extends State<AssistantChatScreen> {
     final partes = <String>[];
     if (_poupancaCents > 0) {
       partes.add('Já poupaste {0}'
-          .trArgs(['€${(_poupancaCents / 100).toStringAsFixed(2)}']));
+          .trArgs([eur((_poupancaCents / 100))]));
     }
     if (_restantesHoje != null) {
       partes.add('Restam {0} mensagens hoje'.trArgs([_restantesHoje]));

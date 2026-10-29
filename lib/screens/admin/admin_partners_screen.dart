@@ -9,6 +9,8 @@ import '../../widgets/admin/admin_coming_soon.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '../../services/admin_audit_service.dart';
 import '../../services/admin_export_service.dart';
+import '../../models/restaurant_model.dart';
+import '../../stores/restaurant_store.dart';
 import 'admin_partner_detail_screen.dart';
 
 class AdminPartnersScreen extends StatefulWidget {
@@ -39,6 +41,23 @@ class _AdminPartnersScreenState extends State<AdminPartnersScreen> {
     _load();
   }
 
+  /// "Aberta agora" ou o motivo de estar fechada, como o cliente vê.
+  /// `null` enquanto a loja não estiver carregada no RestaurantStore.
+  /// Mesma regra do app do cliente (horário, pausa, Festas, hora de Lisboa).
+  String? _abertaAgora(Map<String, dynamic> linha) {
+    final RestaurantModel loja;
+    try {
+      loja = RestaurantStore.lojaDaLinha(linha);
+    } catch (_) {
+      return null;
+    }
+    if (loja.comingSoon) return 'Em breve';
+    if (loja.fechadaParaCliente) return loja.faixaFechada;
+    // Festas vendem por encomenda: "aberta" a qualquer hora seria mentira.
+    if (loja.belongsTo(BusinessCategory.festas)) return 'Aceita encomendas';
+    return 'Aberta agora';
+  }
+
   Future<void> _load() async {
     setState(() {
       _loading = true;
@@ -47,8 +66,9 @@ class _AdminPartnersScreenState extends State<AdminPartnersScreen> {
     try {
       final data = await Supabase.instance.client
           .from('restaurants')
-          .select(
-              'id, name, category, address, is_active_admin, coming_soon, coming_soon_text')
+          // 26/10 (adendo A5): a linha inteira — "aberta agora?" calcula-se
+          // daqui, para TODAS as lojas (pendentes e desligadas incluídas).
+          .select()
           .order('name');
       if (mounted) {
         setState(() {
@@ -255,10 +275,27 @@ class _AdminPartnersScreenState extends State<AdminPartnersScreen> {
                                       const AdminComingSoonBadge(),
                                   ],
                                 ),
-                                subtitle: Text(
-                                  '${_categoryLabel(category)} · ${r['address'] as String? ?? ''}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${_categoryLabel(category)} · ${r['address'] as String? ?? ''}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    if (_abertaAgora(r)
+                                        case final estado?)
+                                      Text(
+                                        'Aberta agora? $estado',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: estado == 'Aberta agora'
+                                              ? AppColors.primary
+                                              : AppColors.textSecondary,
+                                        ),
+                                      ),
+                                  ],
                                 ),
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,

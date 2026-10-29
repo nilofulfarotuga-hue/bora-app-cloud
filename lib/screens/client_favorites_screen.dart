@@ -6,6 +6,7 @@ import '../config/app_colors.dart';
 import '../l10n/tr.dart';
 import '../stores/favorite_store.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
+import '../widgets/bora/skeleton_lista.dart';
 import '../widgets/bora_support_fab.dart';
 import 'deep_link_store_screen.dart';
 
@@ -129,7 +130,7 @@ class _ClientFavoritesScreenState extends State<ClientFavoritesScreen> {
   Widget build(BuildContext context) {
     final Widget body;
     if (_loading) {
-      body = const Center(child: CircularProgressIndicator());
+      body = const SkeletonLista();
     } else if (_failed) {
       body = _message(
         'Não foi possível carregar os teus favoritos.'.tr,

@@ -4,6 +4,10 @@
 // Body: { request_id: string }
 // Auth: caller must be admin — public.is_admin() no servidor (v15, ronda 04/10 A.6).
 // v15: trava atómica contra duplo toque; reembolso limitado ao que foi pago, por fonte.
+// v16 (28/10/2026, regra do Danilo 28/10 18:24): 'wallet' = 100% saldo (wallet_split_free_pct = 1);
+//   tokens gastos voltam como TOKENS pelo gatilho do banco quando o servidor registou quais
+//   (tokens_applied_count > 0) — então a taxa sai do dinheiro. Textos: MB Way na hora, cartão 5 a 10
+//   dias úteis, sem "saldo livre + tokens". PUBLICAR SÓ com o _shared/cobranca_stripe.ts novo.
 //
 // Flow:
 //   1. Auth admin via JWT
@@ -92,7 +96,7 @@ Deno.serve(async (req) => {
   // Load order
   const { data: order, error: oErr } = await admin
     .from('orders')
-    .select('id, user_id, status, payment_method, payment_intent_id, payment_status, total, estimated_total, final_total, customer_total, refund_amount, refund_method, refund_status, cancelled_at')
+    .select('id, user_id, status, payment_method, payment_intent_id, payment_status, total, estimated_total, final_total, customer_total, refund_amount, refund_method, refund_status, cancelled_at, tokens_applied_value_cents, tokens_applied_count')
     .eq('id', cReq.order_id)
     .maybeSingle();
   if (oErr || !order) return json({ error: 'order_not_found' }, 404);
@@ -130,7 +134,13 @@ Deno.serve(async (req) => {
   try { pago = await lerPagoDoPedido(admin, Deno.env.get('STRIPE_SECRET_KEY') ?? '', order.id); }
   catch (e) { await libertar(); return json({ error: 'paid_unknown', details: String(e) }, 502); }
   const pagoCents = totalPago(pago);
-  const refundCents = Math.min(Math.max(0, Math.round((totalEur - fee) * 100)), pagoCents);
+  // v16 (regra 28/10): tokens registados pelo servidor voltam como TOKENS (gatilho do banco);
+  // a taxa sai do dinheiro, por isso o valor deles sai da base. Contagem 0 = como antes.
+  const tokensDevolvidos = Math.max(0, Number(order.tokens_applied_count ?? 0));
+  const tokensVoltamCents = tokensDevolvidos > 0
+    ? Math.max(0, Number(order.tokens_applied_value_cents ?? 0)) : 0;
+  const refundCents = Math.min(
+    Math.max(0, Math.round((totalEur - fee) * 100) - tokensVoltamCents), pagoCents);
 
   const method = cReq.refund_method as 'stripe' | 'wallet' | 'none';
   let stripeRefundId: string | undefined;
@@ -226,11 +236,19 @@ Deno.serve(async (req) => {
 
   // Notify client
   try {
-    const message = method === 'stripe'
-      ? `Cancelamento aprovado. Reembolso de €${refundEur.toFixed(2)} processado. Pode demorar 5-10 dias úteis a aparecer no cartão.`
-      : method === 'wallet' && walletResult
-      ? `Cancelamento aprovado. €${(walletResult.free_cents / 100).toFixed(2)} em saldo livre + ${walletResult.tokens_count} tokens (≈€${(walletResult.tokens_value_cents / 100).toFixed(2)}) — disponíveis imediatamente.`
-      : `Cancelamento aprovado.`;
+    // v16 (regra 28/10): MB Way volta na hora; cartão 5 a 10 dias úteis; saldo = 100% e já.
+    let message = 'Cancelamento aprovado.';
+    if (stripeCents > 0) {
+      message += order.payment_method === 'mbway'
+        ? ` Devolvemos €${(stripeCents / 100).toFixed(2)} ao teu MB Way. Normalmente chega na hora.`
+        : ` Devolvemos €${(stripeCents / 100).toFixed(2)} ao teu cartão. Pode demorar 5 a 10 dias úteis a aparecer no extrato.`;
+    }
+    if (carteiraCents > 0 && walletResult && !walletResult.already_applied) {
+      message += ` €${(carteiraCents / 100).toFixed(2)} no teu saldo Bora, já disponível.`;
+    }
+    if (tokensDevolvidos > 0) {
+      message += ` Os ${tokensDevolvidos} tokens que usaste voltaram à tua conta, com a mesma validade.`;
+    }
     await admin.functions.invoke('notify-client', {
       body: { user_id: order.user_id, title: 'Cancelamento aprovado', body: message,
               data: { order_id: order.id, refund_method: method } },
@@ -241,5 +259,6 @@ Deno.serve(async (req) => {
     request_id: cReq.id, order_id: order.id, refund_method: method,
     fee_eur: fee, refund_eur: refundEur,
     stripe_refund_id: stripeRefundId ?? null, wallet: walletResult,
+    tokens_devolvidos: tokensDevolvidos, // v16: voltam como tokens (gatilho do banco)
   });
 });

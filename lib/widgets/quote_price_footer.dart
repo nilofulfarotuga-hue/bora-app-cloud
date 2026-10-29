@@ -20,6 +20,7 @@ import '../services/directions_service.dart';
 import '../services/payment_service.dart';
 
 import '../l10n/tr.dart';
+import '../utils/euros.dart';
 
 class QuotePriceFooter extends StatefulWidget {
   const QuotePriceFooter({
@@ -117,7 +118,7 @@ class _QuotePriceFooterState extends State<QuotePriceFooter> {
     final double bottomInset = math.min(mq.viewPadding.bottom, 56.0);
     final total = (_quote?['customer_total'] as num?)?.toDouble();
     final label =
-        total != null ? '€${total.toStringAsFixed(2)}' : widget.fallbackLabel.tr;
+        total != null ? eur(total) : widget.fallbackLabel.tr;
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.surface,
@@ -216,7 +217,7 @@ class _QuotePriceFooterState extends State<QuotePriceFooter> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: style),
-          Text('€${value.toStringAsFixed(2)}', style: style),
+          Text(eur(value), style: style),
         ],
       ),
     );

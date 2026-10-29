@@ -21,11 +21,13 @@ import '../widgets/bora/bora_search_field.dart';
 import '../widgets/bora/coming_soon.dart';
 import '../widgets/bora/lista_estado.dart';
 import '../widgets/bora_assistant_fab.dart';
+import '../widgets/filtros_rapidos_lojas.dart';
 import 'client/reservation/reservation_availability_screen.dart';
 import 'restaurant_menu_screen.dart';
 import 'restaurant_options_screen.dart';
 
 import '../l10n/tr.dart';
+import '../utils/euros.dart';
 
 class RestaurantsScreen extends StatefulWidget {
   const RestaurantsScreen({
@@ -54,9 +56,27 @@ class _RestaurantsScreenState extends State<RestaurantsScreen> {
 
   bool get reservationsOnly => widget.reservationsOnly;
 
+  // Filtros rápidos (29/10/2026): "Aberto agora", "Ir buscar", "Entrega grátis".
+  // Só aparecem os que o admin ligou em "Filtros de Descoberta".
+  ConfigFiltrosLojas _cfgFiltros = ConfigFiltrosLojas.desligada;
+  FiltrosAtivos _filtros = const FiltrosAtivos();
+  Set<String> _lojasComEntregaGratis = const <String>{};
+
+  Future<void> _carregarFiltros() async {
+    final cfg = await ConfigFiltrosLojas.carregar();
+    final gratis =
+        cfg.entregaGratis ? await carregarLojasComEntregaGratis() : <String>{};
+    if (!mounted) return;
+    setState(() {
+      _cfgFiltros = cfg;
+      _lojasComEntregaGratis = gratis;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
+    _carregarFiltros();
     // Se ninguém carregou ainda a lista (entrada directa), carrega aqui —
     // senão o ecrã ficava eternamente "a carregar".
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -98,11 +118,18 @@ class _RestaurantsScreenState extends State<RestaurantsScreen> {
       });
 
     final query = _query.trim().toLowerCase();
-    final visible = query.isEmpty
+    final porNome = query.isEmpty
         ? restaurants
         : restaurants
             .where((b) => b.name.toLowerCase().contains(query))
             .toList();
+    final visible = aplicarFiltrosRapidos(
+      porNome,
+      ativos: _filtros,
+      config: _cfgFiltros,
+      comEntregaGratis: _lojasComEntregaGratis,
+    );
+    final filtrosEmUso = _filtros.algum && _cfgFiltros.algumLigado;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -129,6 +156,11 @@ class _RestaurantsScreenState extends State<RestaurantsScreen> {
               onSubmitted: _registo.registarJa,
             ),
           ),
+          FiltrosRapidosLojas(
+            config: _cfgFiltros,
+            ativos: _filtros,
+            onChanged: (f) => setState(() => _filtros = f),
+          ),
           Expanded(
             child: restaurants.isEmpty &&
                     (restaurantStore.restaurantsLoading ||
@@ -143,7 +175,9 @@ class _RestaurantsScreenState extends State<RestaurantsScreen> {
                 : restaurants.isEmpty
                 ? const _EmptyState()
                 : visible.isEmpty
-                    ? const _NoResults()
+                    ? (filtrosEmUso && porNome.isNotEmpty
+                        ? const _SemLojasComFiltros()
+                        : const _NoResults())
                     : ListView.builder(
                         padding: const EdgeInsets.fromLTRB(
                             Spacing.lg, Spacing.md, Spacing.lg, Spacing.xxl),
@@ -163,6 +197,26 @@ class _RestaurantsScreenState extends State<RestaurantsScreen> {
                       ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Os filtros rápidos escondem tudo: diz-se o que fazer.
+class _SemLojasComFiltros extends StatelessWidget {
+  const _SemLojasComFiltros();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: Spacing.xxxl),
+        child: Text(
+          'Nenhuma loja com estes filtros. Tira um filtro para ver mais.'.tr,
+          key: const Key('sem_lojas_com_filtros'),
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 16, color: AppColors.textSecondary),
+        ),
       ),
     );
   }
@@ -625,7 +679,13 @@ class _MetaRow extends StatelessWidget {
     final rating = store.avgRatingFor(business.id);
 
     final chips = <Widget>[];
-    if (window != null) {
+    // 26/10 (item 4): loja fechada nunca mostra tempo de entrega.
+    if (business.fechadaParaCliente) {
+      chips.add(_metaChip(
+        icon: Icons.schedule,
+        label: business.faixaFechada,
+      ));
+    } else if (window != null) {
       chips.add(_metaChip(
         icon: Icons.schedule,
         label: '{0}-{1} min'.trArgs([window.$1, window.$2]),
@@ -640,7 +700,7 @@ class _MetaRow extends StatelessWidget {
     if (fee != null) {
       chips.add(_metaChip(
         icon: Icons.delivery_dining,
-        label: '€${fee.toStringAsFixed(2)}',
+        label: eur(fee),
       ));
     }
     if (rating != null) {

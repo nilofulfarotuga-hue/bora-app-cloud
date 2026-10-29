@@ -839,6 +839,27 @@ Claude Code em emulação de telemóvel, que mede `scrollWidth` a sério.
 > **Cicatriz (14/09, Leonidas):** três capturas "com overflow" que não existiam;
 > `document.documentElement.scrollWidth` em emulação real dava 375 = `innerWidth`.
 
+### 3.15 Seis regras de código que custaram um pedido real (28/10/2026)
+
+1. **O valor a cobrar em dinheiro vem SEMPRE do servidor** (`orders.cash_total_due`), que já
+   desconta o saldo Bora, os tokens e o crédito de menu. Nunca do total bruto. Sem esse valor,
+   a app faz total − saldo − tokens − crédito (mínimo 0); a dívida antiga soma-se por cima.
+2. **O aviso de erro fica dentro da folha** (texto do campo ou vermelho por cima do botão),
+   nunca num SnackBar do ecrã de trás: a folha tapa-o e o botão "parece não fazer nada".
+3. **Toda a recolha mostra o nome da loja e a morada** (pedido único, lista, oferta, pino), como
+   na Glovo e na Uber Eats.
+4. **Os tokens gravam-se no momento em que se gastam** — quantos (`tokens_applied_count`) e
+   quais — e num cancelamento voltam como TOKENS, com a validade que tinham. Nunca viram saldo.
+5. **Toda a chamada a um serviço externo ou RPC tem tempo limite** (`.timeout(...)`), com uma
+   mensagem clara e o trabalho guardado para tentar de novo.
+6. **Links e QR sempre para `https://www.boraguarda.com`**, com `www`: o apex não conta visitas.
+
+> **Cicatriz (28/10, pedido Auchan):** o estafeta escreveu "7. 88" (o teclado meteu um espaço),
+> o `double.tryParse` falhou e o aviso ficou atrás da folha — o Confirmar "não fazia nada". Depois
+> de destravado, o valor a cobrar saiu cheio (14,35 €) quando o cliente já tinha pago 11,04 € com
+> saldo e tokens. Seis pedidos antigos tinham o mesmo erro (09/09 a 14/10), e quem cancelava
+> perdia os tokens porque a contagem nunca era gravada.
+
 
 ## 4. PUBLICAÇÃO E SEGREDOS
 
@@ -989,7 +1010,7 @@ aparelho; registo de ofertas com painel.
 **Falta:**
 
 1. **Pagamentos:** **cartão** provado até ao PaymentIntent — o PaymentSheet exige dados de
-   cartão e é acto do Danilo. **MB Way** recusado pelo provedor; confirmar se o 937501673
+   cartão e é acto do Danilo. **MB Way** recusado pelo provedor; confirmar se o número da Bora
    tem MB Way associado.
 2. **Rotação:** faltam **expirar sem ninguém** e **lembretes** (as funções não existem).
 3. **Tokens de fidelização:** a migration `20260827102000_PROPOSTA_carwash_tokens.sql`

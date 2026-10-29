@@ -119,7 +119,7 @@ void main() {
       await tester.ensureVisible(alvo);
       await tester.tap(alvo);
       await tester.pump();
-      expect(find.textContaining('Adicionar ao carrinho · €${e.value}'),
+      expect(find.textContaining('Adicionar ao carrinho · ${e.value.replaceAll('.', ',')} €'),
           findsOneWidget,
           reason: '${e.key} devia dar €${e.value}');
     }
@@ -128,7 +128,7 @@ void main() {
     await tester.ensureVisible(find.text('500 g (meio quilo)'));
     await tester.tap(find.text('500 g (meio quilo)'));
     await tester.pump();
-    final botao = find.textContaining('Adicionar ao carrinho · €4.38');
+    final botao = find.textContaining('Adicionar ao carrinho · 4,38 €');
     await tester.ensureVisible(botao);
     await tester.tap(botao);
     await tester.pump();

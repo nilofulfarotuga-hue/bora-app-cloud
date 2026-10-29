@@ -26,6 +26,7 @@ import '../widgets/web_push_card.dart';
 import '../widgets/bora/bora.dart';
 import '../widgets/bora_assistant_fab.dart';
 import '../widgets/home/checkin_diario_card.dart';
+import '../widgets/home/meus_habituais.dart';
 import '../widgets/home/receita_do_dia_card.dart';
 import '../widgets/home/home_feed.dart';
 import '../widgets/language_toggle.dart';
@@ -412,6 +413,10 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                     },
                   ),
                   const SizedBox(height: Spacing.xl),
+                  // Os meus habituais (adendo 4 · item 6, 29/10/2026): os
+                  // últimos pedidos, repetidos num toque. Some sozinho sem
+                  // pedidos entregues ou com o interruptor desligado.
+                  const MeusHabituais(),
                   // Bora Todo Dia (13/10): check-in diário com sequência de 7
                   // dias. Some sozinho se o servidor o tiver desligado.
                   CheckinDiarioCard(
@@ -763,6 +768,13 @@ class _TileData {
 }
 
 // ─── Address picker screen ─────────────────────────────────────────────────
+
+/// 26/10 (melhorias-paridade, item 5): o MESMO seletor de morada da página
+/// inicial, aberto pelo "Trocar" do ecrã de pagamento.
+Future<void> abrirSeletorDeMorada(BuildContext context) => Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const _AddressPickerScreen()),
+    );
 
 class _AddressPickerScreen extends StatefulWidget {
   const _AddressPickerScreen();

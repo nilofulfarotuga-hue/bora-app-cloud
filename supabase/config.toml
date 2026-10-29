@@ -42,3 +42,5 @@ verify_jwt = false
 verify_jwt = false
 [functions.agentes-email-receber]
 verify_jwt = false
+[functions.sessao-convidado]
+verify_jwt = false

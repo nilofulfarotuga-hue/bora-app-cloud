@@ -190,19 +190,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   @override
   Widget build(BuildContext context) {
     if (!_isAuthorized) {
-      return const Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: BoraScreenAppBar(title: 'Painel Admin'),
-        body: Center(
-          child: Padding(
-            padding: EdgeInsets.all(24),
-            child: Text(
-              'Acesso negado.\nO seu email não está na lista de admins.',
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ),
-      );
+      return const AdminAcessoNegado();
     }
 
     return Scaffold(
@@ -297,6 +285,29 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               ],
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+/// O que vê quem abre o painel sem ser administrador. Em PT-BR (o painel é
+/// brasileiro). Fora do `build` do painel para se poder testar sem rede.
+class AdminAcessoNegado extends StatelessWidget {
+  const AdminAcessoNegado({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(title: 'Painel Admin'),
+      body: Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text(
+            'Acesso negado.\nSeu e-mail não está na lista de administradores.',
+            textAlign: TextAlign.center,
+          ),
         ),
       ),
     );

@@ -81,7 +81,7 @@ void main() {
 
     // O cartão mostra "desde" e o preço por quilo ao cliente (5 × 1,14).
     expect(find.textContaining('desde'), findsOneWidget);
-    expect(find.text('€5.70/kg'), findsOneWidget);
+    expect(find.text('5,70 €/kg'), findsOneWidget);
 
     final pushesBefore = observer.pushes;
     await tester.tap(find.byIcon(Icons.add));

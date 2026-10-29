@@ -42,6 +42,15 @@ class TalaoResultado {
   /// Resposta do servidor em sucesso (status, cash_total_due_cents, ...).
   final Map<String, dynamic>? dados;
 
+  /// 28/10/2026 (missao-geral, C3): o dinheiro a cobrar à porta que o
+  /// servidor gravou depois do talão, em EUR — já sem o saldo, os tokens e o
+  /// crédito de menu (e sem a dívida antiga, que a app soma por cima). null
+  /// quando a resposta não o traz (ex.: cartão/MB Way).
+  double? get cashTotalDueEur {
+    final v = dados?['cash_total_due_cents'];
+    return v is num ? v / 100.0 : null;
+  }
+
   /// Código em maiúsculas (ex.: NOT_ASSIGNED_DRIVER, INVALID_STATUS).
   final String? codigo;
 

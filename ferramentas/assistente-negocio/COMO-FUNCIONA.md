@@ -54,6 +54,34 @@ grátis: Gemini 3 Flash (dois projetos) → Flash-Lite → Groq.
 
 Lembrete na véspera às 18:00 (ou 2 h antes se marcada depois disso) · pedido de avaliação 1 h depois do fim · reativação aos 35 dias · lista de espera (vaga oferecida quando alguém desmarca/remarca) · resumo ao dono ao domingo 20:00 · aviso de orçamento.
 
+## Restaurantes (1.º cliente: Boom! Burger, modo teste) — `restaurante.py`
+
+Tenant com `tipo = 'restaurante'` + `restaurant_id` (a loja da app). Mesma porta, mesma fila, mesma voz; muda o prompt e as ferramentas.
+
+- **Menu, opções, preços, horário e morada: sempre da base, ao vivo** (`products`, `product_option_*`, `is_partner_open`).
+- **Contas: sempre do servidor.** O `quote_order_pricing` da app exige sessão de cliente (`auth.uid()`) e recusa a chave de serviço;
+  o robô chama as mesmas peças que o `create_order` usa (`pricing_calculate_loja`, `small_order_fee_calc`, `order_line_options_extras`) pela
+  mesma ordem, e depois de criar compara com o `customer_total` devolvido. Provado a 29/10: total do robô = `quote_order_pricing` = pedido
+  nos 3 pedidos de teste. Ir buscar: sem entrega nem taxa (só produtos). Entrega grátis a partir do mínimo da loja: do servidor.
+- **Só dinheiro** (tecto `max_cash_amount_cents` na entrega; ir buscar paga-se na loja). MB Way e cartão: "por aqui só dinheiro; na app pode
+  pagar de outras formas". NIF na fatura: o `client_set_order_invoice` exige a sessão do cliente (`auth.uid()` = dono do pedido), por isso o
+  robô manda para a app.
+- **Só cria depois de um "sim"** a um resumo mostrado numa mensagem anterior e se o carrinho/morada/preço não mudaram desde então
+  (verificado em código, não pelo modelo). O texto do resumo e do "pedido feito" que o cliente lê é sempre o do servidor
+  (`ajustar_resposta`): um motor de reserva que o reescreva é corrigido antes de enviar.
+- **Motor de reserva que repete `adicionar_ao_pedido`** (medido 29/10: 2+2 virou 4+4): a mesma chamada repetida no turno, ou uma linha que o
+  carrinho já tinha e que o cliente não voltou a pedir, não soma outra vez.
+- **O pedido é um pedido normal** (`create_order` com `p_input.user_id` da conta ligada ao número, `knowledge.contas_clientes` ou
+  `ASSISTENTE_CONTAS_CLIENTES`; nunca por procura do telefone) e a origem fica em `order_origem` (`whatsapp` + telefone + tenant): o parceiro e o
+  admin veem a etiqueta "WhatsApp" na lista de pedidos.
+- **Avisos** (a cada 20 s, `rotinas.ciclo_pedidos`): recebido, aceite (com o tempo de preparação), pronto para levantar (com código), saiu, entregue,
+  produto em falta com o novo total, cancelado; no fim, uma só vez, o link `…/baixar?de=whatsapp-boom`. Modo demonstração: a entrega simulada
+  termina em "cancelado sem custo" e o aviso diz "entregue".
+- **Fora da janela demo** (`platform_settings.modo_demo_loja`) com a loja a "abrir em breve": resposta fixa "abre em breve", sem gastar motor.
+- Dinheiro, reclamações e reembolsos vão para uma pessoa (`passar_ao_dono` → loja + Telegram do Danilo). O dono da Bora nunca é nomeado.
+- Testes: `python -m unittest -v test_restaurante` (base falsa, sem rede). Conversas simuladas na VPS: `python3 simular_boom.py B1-ir-buscar B2-entrega-dinheiro
+  B3-entrega-acima-30-mbway` (o número de teste vem da allowlist do tenant; as mensagens de saída ficam `simulado`, nunca vão para o telemóvel).
+
 ## Comandos (na VPS)
 
 ```
@@ -62,7 +90,7 @@ tail -f /opt/assistente-negocio/assistente.log
 cd /opt/assistente-negocio && python3 simular.py            # conversas simuladas (não sai nada)
 python3 simular.py --limpar                                   # cancela marcações de teste + esquece respostas simuladas
 python3 sonda_motores.py                                      # que motores respondem agora
-python3 prova_real.py 351931992662 "texto"                    # 1 mensagem real + espera pelo aviso de entrega
+python3 prova_real.py <numero-de-teste> "texto"                    # 1 mensagem real + espera pelo aviso de entrega
 ```
 
 Instalar/atualizar: copiar a pasta para `/tmp/assistente-negocio` e `bash /tmp/assistente-negocio/vps/instalar.sh`

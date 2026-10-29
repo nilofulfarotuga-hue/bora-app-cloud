@@ -4,6 +4,7 @@ import '../../config/app_colors.dart';
 import '../../models/order_edit.dart';
 import '../../models/order_model.dart';
 import '../../services/order_edit_service.dart';
+import '../../utils/conta_curta_dinheiro.dart';
 
 /// Estafeta: a loja parceira mudou a lista do pedido que ele leva (PT-PT).
 /// A lista e o valor a cobrar já chegam actualizados pelo tempo real de
@@ -48,8 +49,12 @@ class _DriverOrderEditNoticeState extends State<DriverOrderEditNotice> {
         final linhas = aplicados
             .map((g) => '${g.eTirar ? 'Saiu' : 'Entrou'}: ${g.resumo}')
             .join('\n');
+        // 28/10/2026 (C3): com saldo/tokens, a conta curta diz de onde vem o
+        // valor (a mesma linha dos cartões e da faixa laranja).
+        final curta = contaCurtaDinheiro(order);
         final cobrar = order.paymentMethod == PaymentMethod.cash
             ? '\nCobra ${order.totalToCollectCash.toStringAsFixed(2).replaceAll('.', ',')} € na entrega.'
+                '${curta != null ? '\n$curta' : ''}'
             : '';
         return Container(
           width: double.infinity,

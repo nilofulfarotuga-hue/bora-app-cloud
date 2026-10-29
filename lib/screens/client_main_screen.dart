@@ -6,6 +6,7 @@ import '../models/order_model.dart';
 import '../services/destino_pendente.dart';
 import '../stores/order_store.dart';
 import '../utils/contact_validators.dart';
+import '../widgets/barra_pedido_ativo.dart';
 import '../widgets/bora/bora.dart';
 import 'complete_profile_screen.dart';
 import 'client_reservations_screen.dart';
@@ -84,6 +85,9 @@ class _ClientMainScreenState extends State<ClientMainScreen> {
 
   Future<void> _pedirContactoUmaVez() async {
     if (_contactoJaPerguntadoNesteArranque || !mounted) return;
+    // 26/10: com outro ecrã por cima (ex.: o visitante a entrar a partir do
+    // carrinho), não se empurra nada — o pop(true) do login fecharia este.
+    if (ModalRoute.of(context)?.isCurrent == false) return;
     final client = context.read<AuthStore>().currentClient;
     if (client == null) return;
     if (contactoDoClienteCompleto(
@@ -100,6 +104,8 @@ class _ClientMainScreenState extends State<ClientMainScreen> {
   }
 
   Future<void> _abrirDestinoPendente() async {
+    // 26/10: idem — não abrir por cima de um login em curso.
+    if (!mounted || ModalRoute.of(context)?.isCurrent == false) return;
     final destino = await DestinoPendente.consumir();
     if (destino == null || !mounted) return;
     await Navigator.of(context).push(
@@ -156,9 +162,18 @@ class _ClientMainScreenState extends State<ClientMainScreen> {
             ativo: _currentTab == BoraNavTab.reservation),
         const ProfileScreen(),
       ]),
-      bottomNavigationBar: BoraBottomNavV2(
-        current: _currentTab,
-        onTabChanged: (tab) => setState(() => _currentTab = tab),
+      // Barra fixa do pedido em curso (adendo 4 · item 1, 29/10/2026). Só se
+      // desenha aqui enquanto não houver a barra global à volta do Navigator
+      // (BarraPedidoAtivoHost, ligada em main.dart).
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const BarraPedidoAtivoNoSeparador(),
+          BoraBottomNavV2(
+            current: _currentTab,
+            onTabChanged: (tab) => setState(() => _currentTab = tab),
+          ),
+        ],
       ),
     );
   }

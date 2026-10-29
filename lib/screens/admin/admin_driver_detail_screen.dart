@@ -10,6 +10,9 @@ import '../../widgets/admin/ligado_sem_sinal.dart';
 import '../../widgets/admin/escolher_estafeta_sheet.dart'
     show plataformaLabel, haQuantoTempo;
 import '../../widgets/bora/bora_bottom_action_bar.dart';
+import '../../services/robo_documentos.dart';
+import '../../services/robo_documentos_service.dart';
+import '../../widgets/admin_robo_documentos.dart';
 import '../../widgets/private_bucket_image.dart';
 import '_admin_password_reset_dialog.dart';
 import 'admin_papeis_screen.dart';
@@ -113,6 +116,9 @@ class _AdminDriverDetailScreenState extends State<AdminDriverDetailScreen>
         }
         return;
       }
+
+      // Adendo 3: o veredito do robô junto a cada documento (`_robo`). Falha aberta.
+      await juntarVereditosRobo(client, [driver]);
 
       final status = await client
           .rpc('driver_effective_status', params: {'p_driver_id': widget.driverId});
@@ -736,6 +742,11 @@ class _DocumentsCard extends StatelessWidget {
                       fontSize: 12)),
               const SizedBox(height: 6),
               _ZoomableImage(url: docPhoto),
+              if (vereditoDe(driver, 'drivers.document_photo_url', ficheiro: docPhoto) != null)
+                RoboVereditoChip(
+                  veredito: vereditoDe(driver, 'drivers.document_photo_url', ficheiro: docPhoto)!,
+                  onDesfazer: (v) => desfazerDecisaoDoRobo(context, v),
+                ),
             ],
             if (vehicleDocPhoto != null && vehicleDocPhoto.isNotEmpty) ...[
               const SizedBox(height: 12),
@@ -746,6 +757,11 @@ class _DocumentsCard extends StatelessWidget {
                       fontSize: 12)),
               const SizedBox(height: 6),
               _ZoomableImage(url: vehicleDocPhoto),
+              if (vereditoDe(driver, 'drivers.vehicle_doc_url', ficheiro: vehicleDocPhoto) != null)
+                RoboVereditoChip(
+                  veredito: vereditoDe(driver, 'drivers.vehicle_doc_url', ficheiro: vehicleDocPhoto)!,
+                  onDesfazer: (v) => desfazerDecisaoDoRobo(context, v),
+                ),
             ],
             if (vehiclePhoto != null && vehiclePhoto.isNotEmpty) ...[
               const SizedBox(height: 12),
@@ -756,6 +772,11 @@ class _DocumentsCard extends StatelessWidget {
                       fontSize: 12)),
               const SizedBox(height: 6),
               _ZoomableImage(url: vehiclePhoto),
+              if (vereditoDe(driver, 'drivers.vehicle_photo_url', ficheiro: vehiclePhoto) != null)
+                RoboVereditoChip(
+                  veredito: vereditoDe(driver, 'drivers.vehicle_photo_url', ficheiro: vehiclePhoto)!,
+                  onDesfazer: (v) => desfazerDecisaoDoRobo(context, v),
+                ),
             ],
             if (selfiePhoto != null && selfiePhoto.isNotEmpty) ...[
               const SizedBox(height: 12),
@@ -766,6 +787,11 @@ class _DocumentsCard extends StatelessWidget {
                       fontSize: 12)),
               const SizedBox(height: 6),
               _ZoomableImage(url: selfiePhoto),
+              if (vereditoDe(driver, 'drivers.registration_selfie_url', ficheiro: selfiePhoto) != null)
+                RoboVereditoChip(
+                  veredito: vereditoDe(driver, 'drivers.registration_selfie_url', ficheiro: selfiePhoto)!,
+                  onDesfazer: (v) => desfazerDecisaoDoRobo(context, v),
+                ),
             ],
           ],
         ),

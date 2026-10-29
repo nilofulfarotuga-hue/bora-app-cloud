@@ -35,7 +35,7 @@ void main() {
     await abrir(tester, state: CollectState.collectCash, amountCents: 1000);
 
     expect(find.text('COBRAR EM DINHEIRO'), findsOneWidget);
-    expect(find.text('€10.00'), findsOneWidget);
+    expect(find.text('10,00 €'), findsOneWidget);
 
     // Grande de propósito — é o ponto todo do lembrete.
     final valor = tester.widget<Text>(find.byKey(const Key(
@@ -90,11 +90,11 @@ void main() {
     // prestador recebe); o que cobra continua grande, como lembrete; e o que
     // entrega à Bora está escrito, para nunca mais pensar que o total é dele.
     expect(find.text('Fica para ti'), findsOneWidget);
-    expect(find.text('€22.00'), findsOneWidget);
+    expect(find.text('22,00 €'), findsOneWidget);
     expect(find.text('Recebes do passageiro'), findsOneWidget);
-    expect(find.text('€25.00'), findsOneWidget);
+    expect(find.text('25,00 €'), findsOneWidget);
     expect(find.byKey(const Key('collect_reminder_bora')), findsOneWidget);
-    expect(find.text('Entregas à Bora no acerto: €3.00'), findsOneWidget);
+    expect(find.text('Entregas à Bora no acerto: 3,00 €'), findsOneWidget);
     final ganho = t.widget<Text>(find.byKey(const Key('collect_reminder_earned')));
     final cobra = t.widget<Text>(find.byKey(const Key('collect_reminder_amount')));
     expect(ganho.style!.fontSize, greaterThan(cobra.style!.fontSize!));
@@ -104,7 +104,7 @@ void main() {
     await abrir(t, state: CollectState.collectCash, amountCents: 2500);
 
     expect(find.byKey(const Key('collect_reminder_earned')), findsNothing);
-    expect(find.text('€25.00'), findsOneWidget);
+    expect(find.text('25,00 €'), findsOneWidget);
   });
 
   testWidgets('ganho a zero não desenha a linha (evita "ganhaste €0.00")',

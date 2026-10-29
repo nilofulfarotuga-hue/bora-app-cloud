@@ -16,8 +16,10 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../models/restaurant_model.dart';
 import '../../stores/restaurant_store.dart';
+import '../../widgets/admin/admin_dados_fiscais_card.dart';
 import '../../widgets/admin/admin_user_roles_sheet.dart';
 import '../../widgets/bora/bora_primary_button.dart';
+import '../../widgets/pausa_do_dia_editor.dart';
 import '../../widgets/private_bucket_image.dart';
 import '_admin_partner_edit_dialog.dart';
 import 'admin_product_prices_dialog.dart';
@@ -435,6 +437,9 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
           if (r['is_partner'] == true) ...[
             const SizedBox(height: 24),
             _commissionBillingCard(),
+            // DAC7 (missão boom-burger 27/10): ver/corrigir os dados fiscais.
+            const SizedBox(height: 24),
+            AdminDadosFiscaisCard(restaurantId: widget.restaurantId),
           ],
           const SizedBox(height: 24),
           _pedidoMinimoCard(),
@@ -1090,7 +1095,9 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
             const SizedBox(height: 12),
             // Entrega grátis por loja (23/10/2026, padrão Glovo): a partir
             // deste subtotal o cliente não paga entrega. Vazio = sem oferta.
-            // Só vale para loja NÃO-parceira (o servidor ignora nas parceiras).
+            // Vale para lojas parceiras e não parceiras (desde 28/10/2026):
+            // na parceira só sai a taxa base da entrega; na não parceira sai
+            // a entrega toda. O servidor aplica as duas regras.
             TextField(
               controller: _entregaGratisCtrl,
               keyboardType: TextInputType.number,
@@ -1099,6 +1106,15 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
                 hintText: 'vazio = sem entrega grátis · 2000 = 20,00 €',
                 border: OutlineInputBorder(),
                 isDense: true,
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.only(top: 4),
+              child: Text(
+                'Parceiros: sai só a taxa base de entrega; os km a mais '
+                'continuam sendo cobrados. Não parceiros: sai a entrega toda.',
+                key: Key('ajuda_entrega_gratis'),
+                style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
             ),
             const SizedBox(height: 12),
@@ -1272,6 +1288,15 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
   }
 
   Future<void> _saveHours() async {
+    // Pausa fora do horário ou invertida não é salva (27/10/2026).
+    for (final d in _days) {
+      final erro = _hours.dayFor(d.weekday).erroPausa(ptBr: true);
+      if (erro != null) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('${d.label}: $erro')));
+        return;
+      }
+    }
     setState(() => _savingHours = true);
     try {
       final store = context.read<RestaurantStore>();
@@ -1334,6 +1359,12 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
                       ),
                     ),
                   ]),
+                if (!dh.closed)
+                  PausaDoDiaEditor(
+                    day: dh,
+                    ptBr: true,
+                    onChanged: (v) => _updateDay(d.weekday, v),
+                  ),
               ]),
             ),
           );

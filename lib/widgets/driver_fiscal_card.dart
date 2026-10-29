@@ -54,11 +54,6 @@ class _DriverFiscalCardState extends State<DriverFiscalCard> {
     _carregar();
   }
 
-  static double _n(dynamic v) =>
-      v is num ? v.toDouble() : double.tryParse('${v ?? ''}') ?? 0;
-  static String _eur(dynamic v) =>
-      '${_n(v).toStringAsFixed(2).replaceAll('.', ',')} €';
-
   Future<void> _carregar() async {
     if (_sb.auth.currentUser == null) return;
     try {
@@ -227,52 +222,114 @@ class _DriverFiscalCardState extends State<DriverFiscalCard> {
             ),
           ),
         if (mostrarRecibo)
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Recibo verde do mês passado',
-                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
-                  const SizedBox(height: 4),
-                  Text(_eur(r['total_a_faturar']),
-                      style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.primary)),
-                  Text('${r['entregas']} entregas · cliente: consumidor final · ${r['iva']}',
-                      style: const TextStyle(fontSize: 12, color: Colors.black54)),
-                  const SizedBox(height: 8),
-                  SelectableText('${r['texto_recibo']}',
-                      style: const TextStyle(fontSize: 13)),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      OutlinedButton.icon(
-                        onPressed: () {
-                          Clipboard.setData(
-                              ClipboardData(text: '${r['texto_recibo']}'));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Texto copiado.')));
-                        },
-                        icon: const Icon(Icons.copy, size: 18),
-                        label: const Text('Copiar texto'),
-                      ),
-                      FilledButton(
-                        onPressed: _marcarRecibo,
-                        style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.primary),
-                        child: const Text('Já passei o recibo'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
+          DriverReciboCard(recibo: r, onMarcar: _marcarRecibo),
       ],
+    );
+  }
+}
+
+/// Cartão do recibo verde do mês passado.
+///
+/// O cliente do recibo vem do servidor (`cliente` / `cliente_nif` do
+/// `driver_monthly_invoice_summary`): "Consumidor final" até outubro; a partir
+/// do recibo de novembro, a Bora — e então mostra-se "Passa o recibo à Bora,
+/// NIF …" com copiar. O NIF nunca está escrito na app, e o estafeta nunca vê o
+/// NIF de nenhum cliente: este é o da própria Bora.
+class DriverReciboCard extends StatelessWidget {
+  const DriverReciboCard({
+    super.key,
+    required this.recibo,
+    required this.onMarcar,
+  });
+
+  final Map<String, dynamic> recibo;
+  final VoidCallback onMarcar;
+
+  static String _eur(dynamic v) {
+    final n = v is num ? v.toDouble() : double.tryParse('${v ?? ''}') ?? 0;
+    return '${n.toStringAsFixed(2).replaceAll('.', ',')} €';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final r = recibo;
+    final cliente = (r['cliente'] ?? 'Consumidor final').toString();
+    final clienteNif = (r['cliente_nif'] ?? '').toString().trim();
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Recibo verde do mês passado',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+            const SizedBox(height: 4),
+            Text(_eur(r['total_a_faturar']),
+                style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.primary)),
+            Text('${r['entregas']} entregas · cliente: $cliente · ${r['iva']}',
+                style: const TextStyle(fontSize: 12, color: Colors.black54)),
+            if (clienteNif.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                key: const Key('recibo_nif_bora'),
+                padding: const EdgeInsets.fromLTRB(10, 4, 4, 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Passa o recibo à Bora, NIF $clienteNif',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    IconButton(
+                      key: const Key('recibo_copiar_nif'),
+                      tooltip: 'Copiar NIF',
+                      icon: const Icon(Icons.copy, size: 18),
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: clienteNif));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('NIF copiado.')));
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 8),
+            SelectableText('${r['texto_recibo']}',
+                style: const TextStyle(fontSize: 13)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Clipboard.setData(
+                        ClipboardData(text: '${r['texto_recibo']}'));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Texto copiado.')));
+                  },
+                  icon: const Icon(Icons.copy, size: 18),
+                  label: const Text('Copiar texto'),
+                ),
+                FilledButton(
+                  onPressed: onMarcar,
+                  style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primary),
+                  child: const Text('Já passei o recibo'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

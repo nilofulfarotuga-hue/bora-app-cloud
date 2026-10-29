@@ -6,17 +6,22 @@ import '../../config/app_colors.dart';
 import '../../services/admin_export_service.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import 'admin_order_detail_screen.dart';
+import 'faturas_bora_semana.dart';
 
 /// Painel admin "Fecho do mês" (PT-BR, só o Danilo) — missão fecho-mensal-2026-09.
 ///
 /// Tudo o que aparece vem do servidor; o Dart não soma dinheiro:
 ///  - `admin_monthly_closeout(ano, mes)` (B1): totais, parceiros, serviços,
 ///    estafetas, pedidos no prejuízo, TVDE de outros motoristas e o bloco
-///    "para as Finanças" (faturas-recibo a emitir + texto corrido).
+///    "para as Finanças" (faturas-recibo a emitir + texto corrido + a nota do
+///    IVA, lida do servidor).
 ///  - `admin_resend_monthly_statement` (B3): reenviar o extrato mensal.
 ///  - `driver_monthly_invoice_summary` (B6A): recibos verdes dos estafetas.
 ///  - `admin_bora_invoices_month` / `admin_mark_bora_invoice` (B6B): faturas
-///    da Bora por pedido (a partir de 01/10/2026), a lançar no Portal.
+///    da Bora por pedido (a partir de 01/10/2026), a lançar no Portal — com
+///    NIF e nome, as taxas de cancelamento, filtro por semana e CSV com base e
+///    IVA 23% (missao-geral-2026-10-28, H2/N4; contas em
+///    [FaturasBoraSemana], por linha, sem somar nada).
 ///  - `admin_dac7_report` (B6C): exportar DAC7 (só prepara, não envia).
 class AdminFechoMensalScreen extends StatefulWidget {
   const AdminFechoMensalScreen({super.key, this.mesInicial});
@@ -37,6 +42,11 @@ class _AdminFechoMensalScreenState extends State<AdminFechoMensalScreen> {
   Map<String, dynamic>? _fecho;
   List<Map<String, dynamic>> _recibos = [];
   Map<String, dynamic>? _faturas;
+
+  /// Semana escolhida nas faturas da Bora (a segunda-feira); null = mês inteiro.
+  DateTime? _semana;
+  List<Map<String, dynamic>> _linhasSemana = [];
+  bool _aCarregarSemana = false;
 
   static const _meses = [
     'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho',
@@ -92,10 +102,83 @@ class _AdminFechoMensalScreenState extends State<AdminFechoMensalScreen> {
         _recibos = _lista(_mapa(r)['estafetas']);
         _faturas = fat;
       });
+      final s = _semana;
+      if (s != null) await _carregarSemana(s);
     } catch (e) {
       if (mounted) setState(() => _erro = 'Não consegui carregar o fecho: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  /// As faturas da Bora que o ecrã mostra e exporta: as da semana escolhida
+  /// ou as do mês inteiro.
+  List<Map<String, dynamic>> get _linhasFaturas =>
+      _semana == null ? _lista(_faturas?['linhas']) : _linhasSemana;
+
+  /// Junta as linhas do mês aberto com as do outro mês por onde a semana
+  /// passa (lidas pelo mesmo `admin_bora_invoices_month`) e fica com as da
+  /// semana.
+  Future<void> _carregarSemana(DateTime segunda) async {
+    setState(() {
+      _semana = segunda;
+      _aCarregarSemana = true;
+    });
+    try {
+      final todas = <Map<String, dynamic>>[..._lista(_faturas?['linhas'])];
+      for (final (a, m) in FaturasBoraSemana.mesesDaSemana(segunda)) {
+        if (a == _ano && m == _mes) continue;
+        if (!DateTime(a, m).isAfter(DateTime(2026, 9))) continue;
+        final r = _mapa(await _sb.rpc('admin_bora_invoices_month',
+            params: {'p_year': a, 'p_month': m}));
+        todas.addAll(_lista(r['linhas']));
+      }
+      if (!mounted) return;
+      setState(() =>
+          _linhasSemana = FaturasBoraSemana.daSemana(todas, segunda));
+    } catch (e) {
+      _aviso('Não consegui carregar a semana: $e', erro: true);
+    } finally {
+      if (mounted) setState(() => _aCarregarSemana = false);
+    }
+  }
+
+  Future<void> _escolherSemana() async {
+    final semanas = FaturasBoraSemana.semanasDoMes(_ano, _mes);
+    final escolha = await showModalBottomSheet<Object>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            ListTile(
+              title: Text('Mês inteiro (${_meses[_mes - 1]})'),
+              trailing: _semana == null
+                  ? const Icon(Icons.check, color: AppColors.primary)
+                  : null,
+              onTap: () => Navigator.pop(ctx, 'mes'),
+            ),
+            for (final s in semanas)
+              ListTile(
+                title: Text('Semana de ${FaturasBoraSemana.rotuloSemana(s)}'),
+                subtitle: const Text('segunda a domingo'),
+                trailing: _semana == s
+                    ? const Icon(Icons.check, color: AppColors.primary)
+                    : null,
+                onTap: () => Navigator.pop(ctx, s),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (escolha == null || !mounted) return;
+    if (escolha is DateTime) {
+      await _carregarSemana(escolha);
+    } else {
+      setState(() {
+        _semana = null;
+        _linhasSemana = [];
+      });
     }
   }
 
@@ -132,6 +215,8 @@ class _AdminFechoMensalScreenState extends State<AdminFechoMensalScreen> {
     setState(() {
       _ano = escolhido.year;
       _mes = escolhido.month;
+      _semana = null;
+      _linhasSemana = [];
     });
     _carregar();
   }
@@ -196,6 +281,11 @@ class _AdminFechoMensalScreenState extends State<AdminFechoMensalScreen> {
           'entregas ${e['entregas']} · em mão ${_n(e['dinheiro_recebido_em_mao']).toStringAsFixed(2)} · talões ${_n(e['taloes_adiantados']).toStringAsFixed(2)}'],
       for (final p in _lista(f['pedidos_no_prejuizo']))
         ['Prejuízo', '${p['loja']} ${p['data']}', _n(p['resultado']).toStringAsFixed(2), '${p['motivo']} · ${p['order_id']}'],
+      for (final l in FaturasBoraSemana.comValor(_lista(_faturas?['linhas'])))
+        ['Fatura Bora',
+          '${l['data']} · pedido ${FaturasBoraSemana.idCurto(l['order_id'])} · ${FaturasBoraSemana.cliente(l)}',
+          _n(l['valor']).toStringAsFixed(2),
+          '${FaturasBoraSemana.nif(l) != null ? 'NIF ${FaturasBoraSemana.nif(l)}' : 'sem NIF'} · ${l['descricao'] ?? ''} · ${FaturasBoraSemana.estado(l['estado'])}'],
     ];
     await AdminExportService.instance.exportCsv(
       filename: 'fecho-$_ano-${_mes.toString().padLeft(2, '0')}.csv',
@@ -203,6 +293,28 @@ class _AdminFechoMensalScreenState extends State<AdminFechoMensalScreen> {
       rows: rows,
       subject: 'Fecho de ${_meses[_mes - 1]} $_ano',
     );
+  }
+
+  /// CSV só das faturas da Bora (semana escolhida ou mês inteiro): data,
+  /// pedido, cliente, NIF, valor, base, IVA 23% e regime. Só gera o ficheiro.
+  Future<void> _exportarFaturasCsv() async {
+    final s = _semana;
+    final mm = _mes.toString().padLeft(2, '0');
+    final nome = s == null
+        ? 'faturas-bora-$_ano-$mm.csv'
+        : 'faturas-bora-semana-${s.year}-${s.month.toString().padLeft(2, '0')}-${s.day.toString().padLeft(2, '0')}.csv';
+    try {
+      await AdminExportService.instance.exportCsvText(
+        filename: nome,
+        csv: FaturasBoraSemana.csv(_linhasFaturas),
+        subject: s == null
+            ? 'Faturas da Bora — ${_meses[_mes - 1]} $_ano'
+            : 'Faturas da Bora — semana de ${FaturasBoraSemana.rotuloSemana(s)}',
+      );
+      _aviso('CSV gerado (só o arquivo; não foi enviado a ninguém).');
+    } catch (e) {
+      _aviso('CSV falhou: $e', erro: true);
+    }
   }
 
   Future<void> _exportarPdf() async {
@@ -371,6 +483,18 @@ class _AdminFechoMensalScreenState extends State<AdminFechoMensalScreen> {
       _secao('Para as Finanças', [
         Text((fin['regime'] ?? '').toString(),
             style: const TextStyle(fontSize: 12, color: Colors.black54)),
+        if (FaturasBoraSemana.notaIva(fin) != null)
+          Container(
+            key: const ValueKey('fecho_nota_iva'),
+            margin: const EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(FaturasBoraSemana.notaIva(fin)!,
+                style: const TextStyle(fontSize: 13, height: 1.35)),
+          ),
         const SizedBox(height: 8),
         for (final e in _mapa(fin['rubricas']).entries)
           _linha(_nomeRubrica(e.key), _eur(e.value)),
@@ -474,21 +598,65 @@ class _AdminFechoMensalScreenState extends State<AdminFechoMensalScreen> {
           _nota('Começa em 01/10/2026. Setembro foi declarado à mão (4 faturas-recibo).')
         else ...[
           _nota((_faturas?['nota'] ?? '').toString()),
-          for (final d in _lista(_faturas?['por_dia']))
-            ListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              title: Text('${d['data']} · ${d['documentos']} documento(s)'),
-              subtitle: Text(_n(d['por_lancar']) > 0
-                  ? '${d['por_lancar']} por lançar no Portal'
-                  : 'Tudo lançado'),
-              trailing: Text(_eur(d['total']),
-                  style: const TextStyle(fontWeight: FontWeight.w700)),
-              onTap: _n(d['por_lancar']) > 0
-                  ? () => _marcarDia(d['data'].toString())
-                  : null,
-            ),
-          if (_lista(_faturas?['por_dia']).isEmpty) _nota('Ainda sem pedidos entregues neste mês.'),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton.icon(
+                key: const ValueKey('faturas_semana'),
+                onPressed: _aCarregarSemana ? null : _escolherSemana,
+                icon: const Icon(Icons.date_range_outlined),
+                label: Text(_semana == null
+                    ? 'Semana: mês inteiro'
+                    : 'Semana: ${FaturasBoraSemana.rotuloSemana(_semana!)}'),
+              ),
+              OutlinedButton.icon(
+                key: const ValueKey('faturas_csv'),
+                onPressed: _aCarregarSemana ||
+                        FaturasBoraSemana.comValor(_linhasFaturas).isEmpty
+                    ? null
+                    : _exportarFaturasCsv,
+                icon: const Icon(Icons.download_outlined),
+                label: const Text('Exportar CSV (planilha)'),
+              ),
+            ],
+          ),
+          _nota('CSV (planilha para Excel): data, pedido, cliente, NIF, valor, base e IVA 23%. '
+              'Até outubro o IVA é 0 (isenção); de novembro em diante a base é o valor ÷ 1,23.'),
+          if (_aCarregarSemana) const LinearProgressIndicator(),
+          if (_semana == null) ...[
+            for (final d in _lista(_faturas?['por_dia']))
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: Text('${d['data']} · ${d['documentos']} documento(s)'),
+                subtitle: Text(_n(d['por_lancar']) > 0
+                    ? '${d['por_lancar']} por lançar no Portal'
+                    : 'Tudo lançado'),
+                trailing: Text(_eur(d['total']),
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
+                onTap: _n(d['por_lancar']) > 0
+                    ? () => _marcarDia(d['data'].toString())
+                    : null,
+              ),
+            if (_lista(_faturas?['por_dia']).isEmpty) _nota('Ainda sem pedidos entregues neste mês.'),
+          ] else
+            _nota('Para marcar faturas como lançadas no Portal, escolha "mês inteiro".'),
+          ExpansionTile(
+            key: const ValueKey('faturas_uma_a_uma'),
+            tilePadding: EdgeInsets.zero,
+            title: Text(
+                'Faturas uma a uma (${FaturasBoraSemana.comValor(_linhasFaturas).length})',
+                style: const TextStyle(fontWeight: FontWeight.w700)),
+            children: [
+              for (final l in FaturasBoraSemana.comValor(_linhasFaturas))
+                _faturaLinha(l),
+              if (FaturasBoraSemana.comValor(_linhasFaturas).isEmpty)
+                _nota(_semana == null
+                    ? 'Nenhuma fatura neste mês.'
+                    : 'Nenhuma fatura nesta semana.'),
+            ],
+          ),
         ],
       ]),
       _secao('Modelo novo (a partir de 01/10/2026)', [
@@ -555,6 +723,28 @@ class _AdminFechoMensalScreenState extends State<AdminFechoMensalScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  /// Uma fatura da Bora: data, pedido, nome da fatura, NIF e se é taxa de
+  /// cancelamento (`_bora_invoice_cancel_fees`).
+  Widget _faturaLinha(Map<String, dynamic> l) {
+    final nif = FaturasBoraSemana.nif(l);
+    final canc = FaturasBoraSemana.ehTaxaCancelamento(l);
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(canc ? Icons.cancel_outlined : Icons.receipt_long_outlined,
+          size: 20, color: canc ? Colors.orange.shade800 : AppColors.primary),
+      title: Text(
+          '${l['data']} · pedido ${FaturasBoraSemana.idCurto(l['order_id'])} · ${FaturasBoraSemana.cliente(l)}'),
+      subtitle: Text([
+        nif != null ? 'NIF $nif' : 'sem NIF (consumidor final)',
+        canc ? 'Taxa de cancelamento' : 'Serviço da plataforma',
+        FaturasBoraSemana.estado(l['estado']),
+      ].join(' · ')),
+      trailing: Text(_eur(l['valor']),
+          style: const TextStyle(fontWeight: FontWeight.w700)),
     );
   }
 

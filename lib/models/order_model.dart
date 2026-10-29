@@ -147,6 +147,10 @@ class OrderModel {
   /// (cliente arrived at a previous reservation). Stripe charge subtracts it.
   int menuCreditAppliedCents;
 
+  /// Cents pagos com tokens no create_order (`tokens_applied_value_cents`).
+  /// 28/10 (missao-geral, C3): entra na conta do que o estafeta cobra.
+  final int tokensAppliedValueCents;
+
   /// BUG #1 frontend (§54 / 2026-05-12) — cents da dívida prévia da wallet
   /// do cliente que é cobrada via este pedido. Populado pela RPC create_order
   /// quando v_wallet_balance_pre<0. Default 0. Driver UI em CASH cobra:
@@ -354,6 +358,7 @@ class OrderModel {
     this.refundMethod,
     this.walletAppliedCents = 0,
     this.menuCreditAppliedCents = 0,
+    this.tokensAppliedValueCents = 0,
     this.debtCollectedCents = 0,
     this.extraChargeAmount,
     this.cashTotalDue,
@@ -400,34 +405,67 @@ class OrderModel {
         triedDriverIds = triedDriverIds ?? <String>[];
 
   // BUG #1 frontend (§54 / 2026-05-12) — Driver UI helpers em CASH
-  /// Total a cobrar do cliente em dinheiro: pedido + dívida prévia (se houver).
-  /// Hierarquia: cashTotalDue (set pelo finalize_storeshopping_purchase para sacos)
-  /// → finalTotal (set pelo finalize quando há reconcile) → total (price original).
-  /// + dívida em cents convertida a EUR.
+  /// Total a cobrar do cliente em dinheiro: o que falta pagar + dívida
+  /// prévia (se houver), em EUR.
   ///
   /// É A conta do "Cobrar ao cliente" — a faixa laranja, os cartões do
-  /// estafeta e o passo da entrega do favor usam todos esta. Favor (08/10,
-  /// pedido 74dd4ecc): depois do talão manda o `final_total` (taxa + talão),
-  /// o mesmo valor que o acerto do estafeta usa; antes do talão, o `price`.
+  /// estafeta e o passo da entrega do favor usam todos esta.
+  ///
+  /// 28/10 (missao-geral, C3): o valor vem SEMPRE do servidor
+  /// (`cash_total_due`), que já desconta o saldo, os tokens e o crédito de
+  /// menu — também nos Favores depois do talão (o finalize grava-o). Sem ele
+  /// (ex.: limpo localmente depois do talão), é o total (`final_total` ou
+  /// `price`) menos o que o cliente já pagou, nunca o total bruto: a 28/10
+  /// um pedido de 14,35 € pago quase todo com saldo saiu a cobrar 14,35 € em
+  /// vez de 3,31 €. A dívida antiga continua a somar-se por cima, como no
+  /// create_order.
+  ///
+  /// Depois da compra (talão/Favor) o servidor grava exatamente
+  /// final_total − já pago; um valor maior só pode ser a cópia local de
+  /// antes da compra (Favor 08/10: ficava o price). Nesse caso manda o
+  /// final_total − já pago — nunca se cobra a mais.
   double get totalToCollectCash {
-    if (serviceType == OrderServiceType.errand &&
-        isPurchaseFinalized &&
-        finalTotal != null) {
-      return finalTotal! + debtCollectedCents / 100.0;
+    final semServidor = (finalTotal ?? total) - jaPagoSemDinheiro;
+    final restante = semServidor < 0 ? 0.0 : semServidor;
+    var due = cashTotalDue ?? restante;
+    // 29/10 (revisor): o teto só vale quando o final_total já foi
+    // recalculado pelo servidor (difere do price). Se ainda for igual ao
+    // price, é a cópia local de antes da compra e o cash_total_due acabado
+    // de chegar do talão (itens a mais incluídos) é o número certo.
+    if (isPurchaseFinalized &&
+        finalTotal != null &&
+        finalTotal != total &&
+        due > restante) {
+      due = restante;
     }
-    return (cashTotalDue ?? finalTotal ?? total) + debtCollectedCents / 100.0;
+    return due + debtCollectedCents / 100.0;
   }
+
+  /// O que o cliente já pagou antes da porta: saldo Bora, tokens e crédito
+  /// de menu (EUR).
+  double get jaPagoSemDinheiro =>
+      (walletAppliedCents + tokensAppliedValueCents + menuCreditAppliedCents) /
+      100.0;
 
   /// True se este pedido inclui cobrança de dívida prévia da wallet do cliente.
   bool get hasCashDebt => debtCollectedCents > 0;
 
   /// Total com a dívida anterior incluída, para os ecrãs do cliente e do
-  /// painel quando [debtCollectedCents] > 0 (13/10). Em dinheiro é o mesmo
-  /// número que o estafeta cobra ([totalToCollectCash]); em cartão/MB Way a
-  /// dívida soma-se ao total do pedido. Só leitura — não muda o que se cobra.
-  double get totalWithDebt => paymentMethod == PaymentMethod.cash
-      ? totalToCollectCash
-      : (finalTotal ?? total) + debtCollectedCents / 100.0;
+  /// painel quando [debtCollectedCents] > 0 (13/10). Só leitura — não muda o
+  /// que se cobra.
+  ///
+  /// 28/10/2026 (missao-geral, C3): é sempre o TOTAL do pedido (talão quando
+  /// há) + a dívida. Em dinheiro sem nada pago antes continua a ser o mesmo
+  /// número que o estafeta cobra ([totalToCollectCash], o servidor manda);
+  /// com saldo/tokens/crédito de menu o cliente vê este total e, à parte,
+  /// quanto paga em dinheiro (antes via só o valor já descontado como
+  /// "Total").
+  double get totalWithDebt {
+    if (paymentMethod == PaymentMethod.cash && jaPagoSemDinheiro <= 0) {
+      return totalToCollectCash;
+    }
+    return (finalTotal ?? total) + debtCollectedCents / 100.0;
+  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // FIX (CRITICAL): Previously fromSupabase hardcoded
@@ -586,6 +624,8 @@ class OrderModel {
       walletAppliedCents: (data['wallet_applied_cents'] as num?)?.toInt() ?? 0,
       menuCreditAppliedCents:
           (data['menu_credit_applied_cents'] as num?)?.toInt() ?? 0,
+      tokensAppliedValueCents:
+          (data['tokens_applied_value_cents'] as num?)?.toInt() ?? 0,
       debtCollectedCents:
           (data['debt_collected_cents'] as num?)?.toInt() ?? 0,
       extraChargeAmount: (data['extra_charge_amount'] as num?)?.toDouble(),
@@ -691,6 +731,8 @@ class OrderModel {
       if (walletAppliedCents > 0) 'wallet_applied_cents': walletAppliedCents,
       if (menuCreditAppliedCents > 0)
         'menu_credit_applied_cents': menuCreditAppliedCents,
+      if (tokensAppliedValueCents > 0)
+        'tokens_applied_value_cents': tokensAppliedValueCents,
       if (debtCollectedCents > 0) 'debt_collected_cents': debtCollectedCents,
       if (extraChargeAmount != null) 'extra_charge_amount': extraChargeAmount,
       if (cashTotalDue != null) 'cash_total_due': cashTotalDue,

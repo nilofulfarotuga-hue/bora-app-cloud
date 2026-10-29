@@ -19,6 +19,8 @@ import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../widgets/legal_fields_section.dart' show LegalFieldsValidators;
+import 'robo_documentos.dart' show mensagemDaPrevia;
+import 'robo_documentos_service.dart' show RoboDocumentosApp;
 
 /// Os quatro estados, tal como vivem na coluna `atividade_status`.
 enum AtividadeStatus { porEnviar, emAnalise, aprovada, recusada }
@@ -214,11 +216,29 @@ class AtividadeEstado {
 
 /// Resultado de um envio.
 class EnvioAtividade {
-  const EnvioAtividade.ok(this.estado) : erro = null;
-  const EnvioAtividade.falhou(this.erro) : estado = null;
+  const EnvioAtividade.ok(this.estado)
+      : erro = null,
+        avisoRobo = null,
+        caminho = null;
+  const EnvioAtividade.falhou(this.erro)
+      : estado = null,
+        avisoRobo = null,
+        caminho = null;
+
+  /// O robô de documentos diz, com confiança, que o ficheiro parece não ser o
+  /// comprovativo. Nada foi enviado ainda: a app mostra [avisoRobo] e deixa a
+  /// pessoa escolher outro ficheiro ou enviar mesmo assim (o ficheiro já está
+  /// no balde, em [caminho]).
+  const EnvioAtividade.avisoDoRobo({required this.avisoRobo, required this.caminho})
+      : estado = null,
+        erro = null;
+
   final AtividadeEstado? estado;
   final String? erro;
+  final String? avisoRobo;
+  final String? caminho;
   bool get ok => estado != null;
+  bool get eAvisoDoRobo => avisoRobo != null;
 }
 
 /// Traduz o erro do servidor para PT-PT (função pura, testada).
@@ -283,6 +303,7 @@ class AtividadeService {
   static Future<EnvioAtividade> enviar({
     required String nif,
     required Uint8List bytes,
+    bool ignorarRobo = false,
   }) async {
     final uid = _sb.auth.currentUser?.id;
     if (uid == null) {
@@ -309,18 +330,52 @@ class AtividadeService {
           .uploadBinary(path, bytes,
               fileOptions: FileOptions(contentType: mime))
           .timeout(const Duration(seconds: 60));
-      final r = await _sb.rpc('provider_atividade_enviar', params: {
-        'p_nif': nifLimpo,
-        'p_documento_path': path,
-      }).timeout(_tecto);
-      if (r is Map) {
-        return EnvioAtividade.ok(
-            AtividadeEstado.fromJson(Map<String, dynamic>.from(r)));
+      // Verificação na hora (adendo 3): o robô olha para o ficheiro ANTES de ele
+      // ser enviado. Só avisa quando está a agir e tem a certeza de que está
+      // errado; sem rede ou com qualquer problema, segue como dantes.
+      if (!ignorarRobo) {
+        final p = await RoboDocumentosApp.previa(
+            campo: 'provider_atividade.documento_path', path: path, nif: nifLimpo);
+        if (p != null && p.avisar) {
+          return EnvioAtividade.avisoDoRobo(
+            avisoRobo: mensagemDaPrevia(
+                campo: 'provider_atividade.documento_path',
+                tipoDetetado: p.tipoDetetado),
+            caminho: path,
+          );
+        }
       }
-      return const EnvioAtividade.falhou(
-          'Não foi possível enviar. Verifica a ligação e tenta outra vez.');
+      return _registar(nifLimpo, path);
     } catch (e) {
       return EnvioAtividade.falhou(mensagemDoErroAtividade(e));
     }
+  }
+
+  /// "Enviar mesmo assim": o ficheiro já está no balde; só falta registar o envio.
+  static Future<EnvioAtividade> enviarCaminho({
+    required String nif,
+    required String caminho,
+  }) async {
+    final nifLimpo = LegalFieldsValidators.normalizeNif(nif);
+    final erroNif = validarNifAtividade(nifLimpo);
+    if (erroNif != null) return EnvioAtividade.falhou(erroNif);
+    try {
+      return await _registar(nifLimpo, caminho);
+    } catch (e) {
+      return EnvioAtividade.falhou(mensagemDoErroAtividade(e));
+    }
+  }
+
+  static Future<EnvioAtividade> _registar(String nifLimpo, String path) async {
+    final r = await _sb.rpc('provider_atividade_enviar', params: {
+      'p_nif': nifLimpo,
+      'p_documento_path': path,
+    }).timeout(_tecto);
+    if (r is Map) {
+      return EnvioAtividade.ok(
+          AtividadeEstado.fromJson(Map<String, dynamic>.from(r)));
+    }
+    return const EnvioAtividade.falhou(
+        'Não foi possível enviar. Verifica a ligação e tenta outra vez.');
   }
 }

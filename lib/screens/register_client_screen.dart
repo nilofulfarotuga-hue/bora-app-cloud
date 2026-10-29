@@ -24,7 +24,11 @@ import '../l10n/tr.dart';
 /// - Apple/Google Sign-In skeleton atrás de feature flag SOCIAL_AUTH_ENABLED.
 /// - Após signup OK → navega para WelcomeAddressScreen (morada opcional).
 class RegisterClientScreen extends StatefulWidget {
-  const RegisterClientScreen({super.key});
+  const RegisterClientScreen({super.key, this.voltarAoChamador = false});
+
+  /// Aberto a partir do carrinho (26/10): no fim faz `pop(true)` em vez de
+  /// abrir a morada de boas-vindas — a pessoa volta ao MESMO carrinho.
+  final bool voltarAoChamador;
 
   @override
   State<RegisterClientScreen> createState() => _RegisterClientScreenState();
@@ -293,11 +297,14 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
                     Text('Já tenho conta?'.tr,
                         style: TextStyle(color: Colors.grey.shade600)),
                     TextButton(
-                      onPressed: () => Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(
-                          builder: (_) => const ClientLoginScreen(),
-                        ),
-                      ),
+                      onPressed: () => widget.voltarAoChamador
+                          // Veio do "Entrar ou criar conta": volta a ele.
+                          ? Navigator.of(context).pop(false)
+                          : Navigator.of(context).pushReplacement(
+                              MaterialPageRoute(
+                                builder: (_) => const ClientLoginScreen(),
+                              ),
+                            ),
                       child: Text(
                         'Iniciar sessão'.tr,
                         style: const TextStyle(
@@ -433,6 +440,10 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
     // Navega para WelcomeAddressScreen — morada opcional + onboarding tooltip.
     // Após WelcomeAddressScreen, _RootNavigator detecta currentClient != null
     // e renderiza ClientMainScreen.
+    if (widget.voltarAoChamador) {
+      Navigator.of(context).pop(true);
+      return;
+    }
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const WelcomeAddressScreen()),
     );

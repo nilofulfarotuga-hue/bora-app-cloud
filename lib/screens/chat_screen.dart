@@ -15,6 +15,7 @@ import '../services/bloqueio_service.dart';
 import '../widgets/bora_denunciar.dart';
 
 import '../l10n/tr.dart';
+import '../utils/euros.dart';
 
 enum ChatTarget { client, driver, partner }
 
@@ -566,7 +567,7 @@ class _SubstitutionCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   _SubRow(
                       label: 'Preço'.tr,
-                      value: '€${sub.price.toStringAsFixed(2)}'),
+                      value: eur(sub.price)),
                   const SizedBox(height: 12),
                   if (response != null)
                     _ResponseBadge(approved: response)

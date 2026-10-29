@@ -7,8 +7,10 @@ import '../../widgets/bora/bora_screen_app_bar.dart';
 /// Item 30 (paridade-admin-360): config dos filtros de descoberta do cliente
 /// ("aberto agora", dietético). Lê/escreve a chave NÃO-financeira
 /// platform_settings.discovery_filters via admin_update_setting.
-/// Nota: o lado cliente ainda não consome estes filtros — a config nasce
-/// desligada e é o interruptor para quando a feature de cliente ligar.
+/// 29/10/2026: a app do cliente já mostra os 3 filtros rápidos da lista de
+/// restaurantes ("Aberto agora", "Ir buscar", "Entrega grátis") quando estes
+/// interruptores estão ligados. Os filtros dietéticos continuam sem efeito
+/// (precisam de etiqueta por produto).
 class AdminDiscoveryFiltersScreen extends StatefulWidget {
   const AdminDiscoveryFiltersScreen({super.key});
   @override
@@ -19,6 +21,8 @@ class AdminDiscoveryFiltersScreen extends StatefulWidget {
 class _AdminDiscoveryFiltersScreenState
     extends State<AdminDiscoveryFiltersScreen> {
   bool _openNow = false;
+  bool _takeaway = false;
+  bool _freeDelivery = false;
   bool _dietary = false;
   List<String> _tags = const [];
   bool _loading = true;
@@ -46,6 +50,8 @@ class _AdminDiscoveryFiltersScreenState
       if (mounted) {
         setState(() {
           _openNow = (v['open_now_enabled'] as bool?) ?? false;
+          _takeaway = (v['takeaway_enabled'] as bool?) ?? false;
+          _freeDelivery = (v['free_delivery_enabled'] as bool?) ?? false;
           _dietary = (v['dietary_enabled'] as bool?) ?? false;
           _tags = ((v['dietary_tags'] as List?) ?? const [])
               .map((e) => e.toString())
@@ -66,6 +72,8 @@ class _AdminDiscoveryFiltersScreenState
         'p_key': 'discovery_filters',
         'p_value': {
           'open_now_enabled': _openNow,
+          'takeaway_enabled': _takeaway,
+          'free_delivery_enabled': _freeDelivery,
           'dietary_enabled': _dietary,
           'dietary_tags': _tags,
         },
@@ -140,6 +148,28 @@ class _AdminDiscoveryFiltersScreenState
                       ),
                     ),
                     Card(
+                      child: SwitchListTile(
+                        key: const Key('filtro_ir_buscar_admin'),
+                        title: const Text('Filtro "Ir buscar"'),
+                        subtitle: const Text(
+                            'Cliente pode ver só as lojas que têm retirada no balcão (takeaway)'),
+                        value: _takeaway,
+                        activeThumbColor: AppColors.primary,
+                        onChanged: (v) => setState(() => _takeaway = v),
+                      ),
+                    ),
+                    Card(
+                      child: SwitchListTile(
+                        key: const Key('filtro_entrega_gratis_admin'),
+                        title: const Text('Filtro "Entrega grátis"'),
+                        subtitle: const Text(
+                            'Cliente pode ver só as lojas com entrega grátis configurada'),
+                        value: _freeDelivery,
+                        activeThumbColor: AppColors.primary,
+                        onChanged: (v) => setState(() => _freeDelivery = v),
+                      ),
+                    ),
+                    Card(
                       child: Column(
                         children: [
                           SwitchListTile(
@@ -176,9 +206,10 @@ class _AdminDiscoveryFiltersScreenState
                     ),
                     const SizedBox(height: 12),
                     const Text(
-                      'Nota: a app do cliente ainda não consome estes filtros — '
-                      'esta config fica pronta para quando a funcionalidade de '
-                      'descoberta ligar do lado do cliente.',
+                      'Os filtros "Aberto agora", "Ir buscar" e "Entrega grátis" '
+                      'aparecem na lista de restaurantes da app do cliente quando '
+                      'ligados. Os filtros dietéticos ainda não têm efeito: '
+                      'precisam de etiqueta por produto.',
                       style: TextStyle(
                           color: AppColors.textSecondary, fontSize: 12),
                     ),

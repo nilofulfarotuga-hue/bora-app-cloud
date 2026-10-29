@@ -3,7 +3,6 @@ import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/order_model.dart';
-import '../models/order_service_type.dart';
 
 /// Computes a rough ETA (minutes remaining) until the client receives the
 /// order. Uses haversine distance + average speed. Not meant to be precise —
@@ -74,6 +73,21 @@ class OrderEtaService {
   /// accounts for parking + picking up the bag.
   static const int pickupBufferMin = 2;
 
+  /// Distância máxima (km) a que a posição do estafeta pode estar do ponto de
+  /// referência (loja ou cliente) para entrar no ETA. Acima disto é uma posição
+  /// velha ou de outro sítio, não uma deslocação a sério: visto a 29/10/2026 na
+  /// auditoria, com a conta demo do estafeta gravada na Califórnia o cliente via
+  /// "Entrega estimada: 19580–19600 min". Sem posição fiável, o ETA cai para o
+  /// cálculo sem estafeta (o mesmo de quando ainda não há ninguém atribuído).
+  static const double maxDriverDistanceKm = 60;
+
+  /// [driver] se for plausível em relação a [referencia]; senão null.
+  static LatLng? _driverPlausivel(LatLng? driver, LatLng? referencia) {
+    if (driver == null || referencia == null) return driver;
+    final km = _distance.as(LengthUnit.Kilometer, driver, referencia);
+    return km > maxDriverDistanceKm ? null : driver;
+  }
+
   /// Returns estimated minutes remaining, rounded up to the nearest 5 min
   /// (minimum 5). Returns null when we cannot compute a meaningful value.
   ///
@@ -100,8 +114,9 @@ class OrderEtaService {
             (order.prepTimeMinutes ?? prepBufferMin));
       case OrderStatus.driverAccepted:
         // Driver moving to pickup → then pickup → drop.
-        final driver = driverPos ?? _driverLatLng(order);
         final pickup = order.pickupLocation;
+        final driver =
+            _driverPlausivel(driverPos ?? _driverLatLng(order), pickup);
         final drop = order.destination;
         if (driver == null || pickup == null || drop == null) {
           final km = _fullTripKm(order);
@@ -117,8 +132,9 @@ class OrderEtaService {
       case OrderStatus.onTheWay:
         // Driver heading to the client — only the last leg matters. Vivo:
         // recalculado a cada posição nova do estafeta que o ecrã passar.
-        final driver = driverPos ?? _driverLatLng(order);
         final drop = order.destination;
+        final driver =
+            _driverPlausivel(driverPos ?? _driverLatLng(order), drop);
         if (driver == null || drop == null) return null;
         final km = _distance.as(LengthUnit.Kilometer, driver, drop);
         return _round5((km / avgSpeedKmh) * 60);
@@ -149,7 +165,7 @@ class OrderEtaService {
     final pickup = order.pickupLocation;
     final drop = order.destination;
     if (pickup == null || drop == null) return null;
-    final driver = driverPos ?? _driverLatLng(order);
+    final driver = _driverPlausivel(driverPos ?? _driverLatLng(order), pickup);
     final toStoreMin = (driver != null && order.status == OrderStatus.driverAccepted)
         ? (_distance.as(LengthUnit.Kilometer, driver, pickup) / avgSpeedKmh) *
             60

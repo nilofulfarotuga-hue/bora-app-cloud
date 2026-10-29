@@ -76,8 +76,8 @@ void main() {
     expect(find.text('Continente Guarda'), findsOneWidget);
     expect(find.text('Mercado'), findsOneWidget, reason: 'não-parceiro');
     expect(find.text('Total'), findsOneWidget);
-    expect(find.text('€11.57'), findsOneWidget, reason: 'o total do servidor');
-    expect(find.text('Poupas €1.20 face à loja mais cara'), findsOneWidget);
+    expect(find.text('11,57 €'), findsOneWidget, reason: 'o total do servidor');
+    expect(find.text('Poupas 1,20 € face à loja mais cara'), findsOneWidget);
     expect(find.text('+18: o estafeta pede documento na entrega.'),
         findsOneWidget);
     expect(find.text('Parecido — confirma'), findsOneWidget);

@@ -16,9 +16,11 @@ import '../config/app_colors.dart';
 import '../config/business_rules.dart' show BRBusiness;
 import '../widgets/order_edit/driver_order_edit_notice.dart';
 import '../widgets/background_location_disclosure.dart';
+import '../widgets/cliente_nome_destaque.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/cancel_blocked_pickup_sheet.dart';
 import '../widgets/payments/collect_badge.dart';
+import '../widgets/payments/conta_curta_dinheiro_texto.dart';
 import '../utils/favor_passos.dart';
 import '../widgets/favor_passos_card.dart';
 import '../widgets/bora/bora_bottom_action_bar.dart';
@@ -52,6 +54,8 @@ import '../widgets/chat_bubble_button.dart';
 import 'chat_screen.dart';
 import 'ganhos_screen.dart';
 import '../widgets/ganho_de_hoje_card.dart';
+import '../widgets/oferta_resumo_estafeta.dart';
+import 'driver/mapa_procura_estafeta_screen.dart' show BotaoMapaProcuraEstafeta;
 import '../widgets/trocar_de_papel.dart';
 import '../widgets/aviso_atividade_banner.dart';
 import '../widgets/driver_fiscal_card.dart';
@@ -1450,7 +1454,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
               elevation: 2,
               borderRadius: BorderRadius.circular(12),
               clipBehavior: Clip.antiAlias,
-              child: GanhoDeHojeCard(recarregarQuando: orderStore),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  GanhoDeHojeCard(recarregarQuando: orderStore),
+                  // Mapa simples de procura (adendo 4 · item 10, 29/10/2026):
+                  // só leitura; some com o interruptor desligado.
+                  const BotaoMapaProcuraEstafeta(),
+                ],
+              ),
             ),
           ),
 
@@ -1832,7 +1844,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                     _InfoChip(
                       icon: Icons.euro,
                       label: "Pedido",
-                      value: "€${order.total.toStringAsFixed(2)}",
+                      // 28/10/2026 (C3): o total do pedido (talão quando há),
+                      // o mesmo "Total" da conta curta abaixo.
+                      value:
+                          "€${(order.finalTotal ?? order.total).toStringAsFixed(2)}",
                     ),
                     _InfoChip(
                       icon: Icons.payments,
@@ -1858,6 +1873,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                       : CollectState.paidOnline,
                   amountCents: (order.totalToCollectCash * 100).round(),
                 ),
+                // 28/10/2026 (C3): parte já paga com saldo/tokens.
+                ContaCurtaDinheiroTexto(order: order),
                 // 2026-09-22: a loja parceira acrescentou/tirou produtos.
                 DriverOrderEditNotice(order: order),
                 // BUG #1 frontend (§54) — linha extra se inclui dívida prévia
@@ -2209,6 +2226,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
               ),
             ),
             const SizedBox(height: 6),
+            // 25/10/2026 (Danilo): nome do cliente em destaque.
+            ClienteNomeDestaque(nome: order.customerName, telefone: order.clientPhone, compacto: true),
+            const SizedBox(height: 4),
             Text(
               'Telefone do cliente: '
               '${(order.clientPhone ?? '').isNotEmpty ? order.clientPhone! : 'Não disponível'}',
@@ -2755,6 +2775,18 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
+                // 28/10/2026 (Bloco B): a morada da loja, como no cartão
+                // laranja e na Glovo/Uber Eats — só o nome não diz qual loja.
+                // Uma linha só: este diálogo não desliza.
+                if (!isErrand &&
+                    (order.pickupAddress ?? '').trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Recolha: ${order.pickupAddress!.trim()}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
                 // Favor: só a linha da rota — este diálogo não desliza e o
                 // cartão inteiro empurrava o ganho para fora do ecrã.
                 if (isErrand && FavorRota.de(order) != null) ...[
@@ -2769,7 +2801,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                 ] else if (dropoffText.isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Text(
-                    dropoffText,
+                    // 28/10/2026: com a linha "Recolha:" por cima, esta diz
+                    // o que é (igual ao cartão laranja).
+                    'Entrega: $dropoffText',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -2804,6 +2838,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   ),
                 ),
                 const SizedBox(height: 8),
+                OfertaResumoEstafeta(
+                  order: order,
+                  ganho: stackedEarnings,
+                  driverLocation: driverLoc,
+                ),
+                const SizedBox(height: 8),
                 Row(
                   children: [
                     const Icon(Icons.account_balance_wallet, size: 16),
@@ -2823,6 +2863,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   approx: true,
                   dense: true,
                 ),
+                // 25/10/2026: na oferta só o primeiro nome (ainda não é dele).
+                if (ClienteNomeDestaque.limpo(order.customerName) != null) ...[
+                  const SizedBox(height: 8),
+                  ClienteNomeDestaque(nome: order.customerName, soPrimeiroNome: true, compacto: true),
+                ],
                 if (hasActiveOrders) ...[
                   const SizedBox(height: 12),
                   Container(
@@ -3331,6 +3376,8 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
                           : CollectState.paidOnline,
                       amountCents: (order.totalToCollectCash * 100).round(),
                     ),
+                    // 28/10/2026 (C3): parte já paga com saldo/tokens.
+                    ContaCurtaDinheiroTexto(order: order),
                     // [Bloco 6 · 04/10] Loja não-parceira (ex.: encomendada por
                     // telefone pela Bora): o estafeta paga ao balcão o preço
                     // da LOJA (sem os 15%). Só leitura — nada de preços muda.
@@ -3405,7 +3452,15 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          // Adendo 4 · item 3 (29/10/2026): o que ganha, quantos km e quantas
+          // paragens, antes de aceitar. Interruptor feature_oferta_ganho_visivel.
+          const SizedBox(height: 12),
+          OfertaResumoEstafeta(
+            order: order,
+            ganho: order.driverEarnings,
+            driverLocation: widget.driverLocation,
+          ),
+          const SizedBox(height: 12),
           _CountdownBar(
               secondsLeft: _secondsLeft, totalSeconds: _totalSeconds),
           const SizedBox(height: 12),
@@ -3574,6 +3629,8 @@ class _AvailableOrderCardState extends State<_AvailableOrderCard> {
                 amountCents: (order.totalToCollectCash * 100).round(),
               ),
             ),
+            // 28/10/2026 (C3): parte já paga com saldo/tokens.
+            ContaCurtaDinheiroTexto(order: order),
             // Favor (08/10): a rota toda, nunca o pickup_address herdado.
             if (order.serviceType == OrderServiceType.errand) ...[
               const SizedBox(height: 8),

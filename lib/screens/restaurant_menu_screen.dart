@@ -24,13 +24,17 @@ import '../utils/cart_feedback.dart';
 import '../widgets/bora/bora.dart';
 import '../widgets/bora/maior_18.dart';
 import '../widgets/bora/banner_pausa_loja.dart';
+import '../widgets/bora/loja_fechada.dart';
 import '../widgets/bora/weight_price_text.dart';
+import '../widgets/etiquetas_dieta_chips.dart';
 import '../widgets/bora_assistant_fab.dart';
+import '../widgets/entrega_gratis_da_loja.dart';
 import 'cart_screen.dart';
 import 'client/reservation/reservation_availability_screen.dart';
 import 'product_detail_screen.dart';
 
 import '../l10n/tr.dart';
+import '../utils/euros.dart';
 
 class RestaurantMenuScreen extends StatefulWidget {
   final Restaurant restaurant;
@@ -394,6 +398,10 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
             ComingSoonBanner(text: cart.vendorComingSoonText),
           // Pausa do parceiro (04/10): "Fechada temporariamente — volta às".
           BannerPausaLoja(restaurantId: widget.restaurantId),
+          // 26/10 (item 4): fora de horário, "Fechado · abre às …" no topo.
+          if (context.watch<RestaurantStore>().restaurantById(widget.restaurantId)
+              case final loja?)
+            FaixaLojaFechada(loja: loja),
           // Festas: aviso prévio das encomendas, sempre visível na loja.
           if (cart.vendorIsFestas)
             Container(
@@ -503,7 +511,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
                                   // Ao peso: "desde €X · €Y/kg".
                                   p.soldByWeight
                                       ? '${WeightPriceText.priceLabel(PricingService.applyMarkup(p.price, widget.restaurant.isPartner), true)} · ${WeightPriceText.perKgLabel(PricingService.applyMarkup(p.price, widget.restaurant.isPartner))}'
-                                      : '€${PricingService.applyMarkup(p.price, widget.restaurant.isPartner).toStringAsFixed(2)}',
+                                      : eur(PricingService.applyMarkup(p.price, widget.restaurant.isPartner)),
                                   style: const TextStyle(fontSize: 13)),
                               onTap: () => Navigator.push(
                                 context,
@@ -628,7 +636,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
               minimum: const EdgeInsets.fromLTRB(
                   Spacing.lg, Spacing.sm, Spacing.lg, Spacing.lg),
               child: BoraPrimaryButton(
-                label: 'Ver carrinho · €{0}'.trArgs([cart.total.toStringAsFixed(2)]),
+                label: 'Ver carrinho · {0} €'.trArgs([cart.total.toStringAsFixed(2).replaceAll('.', ',')]),
                 icon: Icons.shopping_cart,
                 onPressed: () => Navigator.push(
                   context,
@@ -794,7 +802,13 @@ class _StoreHeader extends StatelessWidget {
                   label: rating.toStringAsFixed(1),
                   iconColor: Colors.amber.shade700,
                 ),
-              if (window != null)
+              // 26/10 (item 4): loja fechada nunca mostra tempo de entrega.
+              if (model?.fechadaParaCliente ?? false)
+                _HeaderChip(
+                  icon: Icons.schedule,
+                  label: model!.faixaFechada,
+                )
+              else if (window != null)
                 _HeaderChip(
                   icon: Icons.schedule,
                   label: '{0}-{1} min'.trArgs([window.$1, window.$2]),
@@ -802,11 +816,18 @@ class _StoreHeader extends StatelessWidget {
               if (fee != null)
                 _HeaderChip(
                   icon: Icons.delivery_dining,
-                  label: '€${fee.toStringAsFixed(2)}',
+                  label: eur(fee),
                 ),
             ],
           ),
         ),
+        // Entrega grátis a partir de X € (28/10/2026): parceira ou não, quando
+        // a loja tem o mínimo. Quem vai buscar não paga entrega — não se mostra.
+        if (!cart.isTakeaway)
+          EntregaGratisDaLoja(
+            restaurantId: model?.id ?? cart.vendorRestaurantId,
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+          ),
         const SizedBox(height: 10),
       ],
     );
@@ -1267,7 +1288,7 @@ class _SectionProductsScreen extends StatelessWidget {
               minimum: const EdgeInsets.fromLTRB(
                   Spacing.lg, Spacing.sm, Spacing.lg, Spacing.lg),
               child: BoraPrimaryButton(
-                label: 'Ver carrinho · €{0}'.trArgs([cart.total.toStringAsFixed(2)]),
+                label: 'Ver carrinho · {0} €'.trArgs([cart.total.toStringAsFixed(2).replaceAll('.', ',')]),
                 icon: Icons.shopping_cart,
                 onPressed: () => Navigator.push(
                   context,
@@ -1357,6 +1378,9 @@ class _SectionProductCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
+                      // Etiquetas do menu (adendo 4 · item 5).
+                      EtiquetasDietaChips(
+                          etiquetas: product.dietTags, compacto: true),
                       const SizedBox(height: 4),
                       // B1: fonte única applyMarkup (exibido = cobrado).
                       WeightPriceText(
@@ -1524,7 +1548,7 @@ class _LegacyMenuItemCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '€${displayPrice.toStringAsFixed(2)}',
+                        eur(displayPrice),
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 14,

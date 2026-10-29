@@ -15,7 +15,10 @@ import '../models/rating_model.dart';
 import '../widgets/order_edit/client_order_edit_banner.dart';
 import '../widgets/address_text.dart';
 import '../widgets/bora_support_fab.dart';
+import '../widgets/barra_pedido_ativo.dart' show BarraPedidoAtivoEstado;
 import '../widgets/errand_budget_banner.dart';
+import '../widgets/foto_prova_entrega.dart';
+import '../widgets/fatura_nif_pedido.dart';
 import '../widgets/partilhar_localizacao_card.dart';
 import '../widgets/partilhar_seguimento.dart';
 import '../widgets/takeaway/pickup_code_card.dart';
@@ -37,6 +40,8 @@ import 'chat_screen.dart';
 import 'rating_screen.dart';
 
 import '../l10n/tr.dart';
+import '../utils/conta_curta_dinheiro.dart';
+import '../utils/euros.dart';
 
 class OrderTrackingScreen extends StatefulWidget {
   const OrderTrackingScreen({super.key, required this.order});
@@ -100,6 +105,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   @override
   void initState() {
     super.initState();
+    // A barra do pedido em curso esconde-se aqui: o acompanhamento já é isto.
+    BarraPedidoAtivoEstado.pedidoAVer.value = widget.order.id;
     MapMarkerHelper.preload();
     // [31/08] carrega as chaves eta_* das definições (uma vez, best-effort).
     OrderEtaService.ensureConfigured();
@@ -190,6 +197,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
   @override
   void dispose() {
+    final idAVer = widget.order.id;
+    scheduleMicrotask(() {
+      if (BarraPedidoAtivoEstado.pedidoAVer.value == idAVer) {
+        BarraPedidoAtivoEstado.pedidoAVer.value = null;
+      }
+    });
     _directionsService.dispose();
     _followResumeTimer?.cancel();
     _programmaticMoveTimer?.cancel();
@@ -712,6 +725,11 @@ class _BottomCardState extends State<_BottomCard> {
                 ErrandBudgetBanner(order: order),
                 // ── Loja parceira mudou o pedido (acrescentar/em falta) ──
                 ClientOrderEditBanner(order: order),
+                // ── Foto de prova da entrega (adendo 4 · item 2) ─────────
+                FotoProvaEntregaCliente(
+                    orderId: order.id, status: order.status),
+                // ── NIF que não ficou na fatura: "Tentar de novo" ────────
+                FaturaNifAviso(order: order),
                 // ── Order code + status ──────────────────────────────────
                 Row(
                   children: [
@@ -1173,15 +1191,27 @@ class _BottomCardState extends State<_BottomCard> {
                             label: 'Dívida anterior'.tr,
                             value: order.debtCollectedCents / 100),
                       Divider(color: Colors.grey.shade300, height: 16),
+                      // 28/10/2026 (C3): total do pedido (talão quando há) +
+                      // dívida; com saldo/tokens, o que se paga em dinheiro
+                      // vai à parte (antes o total era só o `price`).
                       _SummaryRow(
                         label: order.debtCollectedCents > 0
                             ? 'Total a pagar'.tr
                             : 'Total do pedido'.tr,
                         value: order.debtCollectedCents > 0
                             ? order.totalWithDebt
-                            : order.total,
+                            : (order.finalTotal ?? order.total),
                         isStrong: true,
                       ),
+                      if (dinheiroDoCliente(order) case final d?) ...[
+                        _SummaryRow(
+                            label: 'Já pago com saldo/tokens'.tr,
+                            value: d.jaPago),
+                        _SummaryRow(
+                            label: 'Paga em dinheiro'.tr,
+                            value: d.emDinheiro,
+                            isStrong: true),
+                      ],
                     ],
                   ),
                 ),
@@ -1232,7 +1262,7 @@ class _BottomCardState extends State<_BottomCard> {
         return '€2,50';
       case OrderStatus.pickedUp:
       case OrderStatus.onTheWay:
-        return '100% (€${total.toStringAsFixed(2)})';
+        return '100% (${eur(total)})';
       case OrderStatus.readyForPickup:
         // Takeaway pronto não cancelável pelo cliente (suporte humano trata).
         return '—';
@@ -1394,7 +1424,7 @@ class _BottomCardState extends State<_BottomCard> {
       messenger.showSnackBar(
         SnackBar(
           content: Text(result.feeEur != null && result.feeEur! > 0
-              ? 'Pedido cancelado. Taxa: €{0}.'.trArgs([result.feeEur!.toStringAsFixed(2)])
+              ? 'Pedido cancelado. Taxa: {0} €.'.trArgs([result.feeEur!.toStringAsFixed(2).replaceAll('.', ',')])
               : 'Pedido cancelado.'),
         ),
       );
@@ -1644,8 +1674,8 @@ class _SummaryRow extends StatelessWidget {
       color: color,
     );
     final displayValue = isDiscount
-        ? '-€${value.abs().toStringAsFixed(2)}'
-        : '€${value.toStringAsFixed(2)}';
+        ? '-${eur(value.abs())}'
+        : eur(value);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),

@@ -574,6 +574,13 @@ class _BoraTaskHandler extends TaskHandler {
       if (res.statusCode >= 200 && res.statusCode < 300) {
         await prefs.setInt(
             'bora_ultima_posicao_ts', DateTime.now().millisecondsSinceEpoch);
+      } else if (res.statusCode == 401) {
+        // 29/10/2026: sessão expirada (o token guardado dura 1 h). Sem isto o
+        // serviço insistia de minuto a minuto com o mesmo token morto
+        // (1.956 respostas 401 em 3 dias, 26-29/10). Tira o token: volta a
+        // mandar quando a app principal guardar um novo (onAuthStateChange).
+        await FlutterForegroundTask.removeData(key: 'fgs_access_token');
+        debugPrint('[FGS_POLL] token expirado — paro até a app renovar');
       }
     } catch (e) {
       debugPrint('[FGS_POLL] posição de reserva falhou: $e');

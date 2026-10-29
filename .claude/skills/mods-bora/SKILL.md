@@ -56,6 +56,19 @@ Linha nova em `zonas-vermelhas.json` (regex sobre o caminho com `/` + motivo PT)
 - O motor entrega caminhos com `\` aos dublês de `fs.write` nos testes.
 - O `$.prompt.submit` de um mod só sai quando a sessão fica parada.
 
+## Armadilhas da missão de 28/10 (missao-geral-2026-10-28)
+
+- O `git-guardrails.py` só deixa enviar para `autonomous-night-2026-04-29`. Um ramo de missão
+  fica no PC (caminho e último commit no e2e_log); levar para o servidor = juntar por
+  `git merge --squash` no ramo de produção, e esse envio é publicar.
+- O `protege-banco.sh` lê o texto TODO de cada chamada ao Supabase, aspas e comentários
+  incluídos: "create or replace"/"drop"/"alter" + o nome de uma função de dinheiro na mesma
+  chamada é recusado, mesmo dentro de uma string, do corpo de uma função nova ou de uma linha
+  do e2e_log. Para ler uma função de dinheiro, um SELECT sem essas palavras passa.
+- O regex de `SUPABASE_SQL` da tranca procura "supabase" no nome da ferramenta; o MCP com nome
+  de UUID (`mcp__<uuid>__execute_sql`) não bate nele. Isso NÃO é licença: as regras aplicam-se
+  na mesma, à mão.
+
 ## Regra
 
 **Só mods nossos.** Nunca instalar mod de terceiros (marketplace incluído): corre com as

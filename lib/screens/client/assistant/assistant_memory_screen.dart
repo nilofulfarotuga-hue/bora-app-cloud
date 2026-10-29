@@ -9,6 +9,7 @@ import '../../../l10n/tr.dart';
 import '../../../services/assistant_service.dart';
 import '../../../widgets/bora/bora_empty_placeholder.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
+import '../../../utils/euros.dart';
 
 class AssistantMemoryScreen extends StatefulWidget {
   const AssistantMemoryScreen({super.key});
@@ -188,7 +189,7 @@ class _AssistantMemoryScreenState extends State<AssistantMemoryScreen> {
                                 children: [
                                   Text(
                                     'Já poupaste {0}'.trArgs(
-                                        ['€${reais.toStringAsFixed(2)}']),
+                                        [eur(reais)]),
                                     style: const TextStyle(
                                       fontSize: 20,
                                       fontWeight: FontWeight.w800,
@@ -198,7 +199,7 @@ class _AssistantMemoryScreenState extends State<AssistantMemoryScreen> {
                                   Text(
                                     'Poupança proposta: {0} · pedidos pelo assistente: {1}'
                                         .trArgs([
-                                      '€${mostrados.toStringAsFixed(2)}',
+                                      eur(mostrados),
                                       (s?['orders_count'] as num?)?.toInt() ?? 0,
                                     ]),
                                     style: const TextStyle(

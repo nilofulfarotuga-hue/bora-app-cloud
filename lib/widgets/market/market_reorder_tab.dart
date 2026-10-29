@@ -13,6 +13,8 @@ import '../../stores/restaurant_store.dart';
 import '../bora/coming_soon.dart';
 
 import '../../l10n/tr.dart';
+import '../confirmar_substituir_carrinho.dart';
+import '../../utils/euros.dart';
 
 /// Tab "Pedir de novo" — lista os pedidos anteriores do cliente nesta loja e
 /// permite reordenar com um toque (Glovo/Uber "order again"). A lógica vive em
@@ -96,31 +98,35 @@ class MarketReorderTab extends StatelessWidget {
     final loja = ReorderService.lojaDoPedido(
         order.vendorName, restaurantStore.restaurants);
     if (loja != null && ReorderService.lojaFechada(loja)) {
-      showLojaFechadaSnackBar(context, loja.avisoLojaFechada);
+      showLojaFechadaSnackBar(context, loja.avisoLojaFechada, lojaId: loja.id);
       return;
     }
 
-    // Reconstrói o carrinho a partir do pedido (preço atual). Devolve os nomes
-    // dos itens cujo preço/disponibilidade mudou (parceiros).
-    final changed = ReorderService.applyTo(
-      cart: cart,
-      order: order,
-      partnerStore: isPartnerStore ? partnerStore : null,
-      restaurantStore: isPartnerStore ? restaurantStore : null,
-    );
-
-    navigator.push(MaterialPageRoute(builder: (_) => const CartScreen()));
-
-    if (changed.isNotEmpty) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            'Alguns preços foram atualizados: {0}.'.trArgs([changed.join(', ')]),
-          ),
-          duration: const Duration(seconds: 5),
-        ),
+    // 26/10 (item 7): com artigos no carrinho, pergunta antes de substituir.
+    confirmarSubstituirCarrinho(context, cart).then((ok) {
+      if (!ok) return;
+      // Reconstrói o carrinho a partir do pedido (preço atual). Devolve os
+      // nomes dos itens cujo preço/disponibilidade mudou (parceiros).
+      final changed = ReorderService.applyTo(
+        cart: cart,
+        order: order,
+        partnerStore: isPartnerStore ? partnerStore : null,
+        restaurantStore: isPartnerStore ? restaurantStore : null,
       );
-    }
+
+      navigator.push(MaterialPageRoute(builder: (_) => const CartScreen()));
+
+      if (changed.isNotEmpty) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              'Alguns preços foram atualizados: {0}.'.trArgs([changed.join(', ')]),
+            ),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    });
   }
 }
 
@@ -165,7 +171,7 @@ class _ReorderCard extends StatelessWidget {
               ),
               const Spacer(),
               Text(
-                '€${total.toStringAsFixed(2)}',
+                eur(total),
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,

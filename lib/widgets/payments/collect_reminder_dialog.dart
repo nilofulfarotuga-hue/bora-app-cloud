@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import 'collect_badge.dart';
+import '../../utils/euros.dart';
 
 /// Lembrete GRANDE de cobrança, mostrado no momento em que o trabalho fecha.
 ///
@@ -22,8 +23,8 @@ Future<void> showCollectReminderDialog(
 }) {
   final collect = state == CollectState.collectCash;
   final color = collect ? Colors.orange.shade900 : AppColors.primary;
-  final eur = '€${(amountCents / 100).toStringAsFixed(2)}';
-  final ganhoEur = '€${(earnedCents / 100).toStringAsFixed(2)}';
+  final valorEur = eur((amountCents / 100));
+  final ganhoEur = eur((earnedCents / 100));
 
   final String title;
   final String subtitle;
@@ -85,7 +86,7 @@ Future<void> showCollectReminderDialog(
                     style: TextStyle(
                         color: AppColors.textSecondary, fontSize: 12.5)),
               Text(
-                eur,
+                valorEur,
                 key: const Key('collect_reminder_amount'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
@@ -118,7 +119,7 @@ Future<void> showCollectReminderDialog(
               ),
               if (collect && amountCents >= earnedCents)
                 Text(
-                  'Entregas à Bora no acerto: €${((amountCents - earnedCents) / 100).toStringAsFixed(2)}',
+                  'Entregas à Bora no acerto: ${eur(((amountCents - earnedCents) / 100))}',
                   key: const Key('collect_reminder_bora'),
                   textAlign: TextAlign.center,
                   style: TextStyle(

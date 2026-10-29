@@ -1,10 +1,16 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_colors.dart';
 import '../models/order_model.dart';
 import '../models/rating_model.dart';
+import '../services/foto_avaliacao_service.dart';
+import '../services/interruptores_app.dart';
 import '../services/tip_service.dart';
+import '../utils/safe_image_picker.dart';
 import '../widgets/bora/bora_accent_button.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/tip_selector.dart';
@@ -47,12 +53,44 @@ class _RatingScreenState extends State<RatingScreen> {
   /// Gorjeta ligada no servidor (`tips_enabled`)? Até sabermos, não se mostra.
   bool _gorjetaLigada = false;
 
+  /// Foto do prato (adendo 4 · item 7): interruptor `feature_avaliacao_com_foto`,
+  /// só ao avaliar a loja. Sem prémio nenhum por enviar foto.
+  bool _fotoLigada = false;
+  Uint8List? _fotoBytes;
+
+  bool get _avaliaLoja =>
+      widget.subjectType == RatingSubjectType.partner ||
+      widget.subjectType == RatingSubjectType.restaurant;
+
   @override
   void initState() {
     super.initState();
     TipService.ligada().then((v) {
       if (mounted) setState(() => _gorjetaLigada = v);
     });
+    InterruptoresApp.instance
+        .ligado(InterruptoresApp.avaliacaoComFoto)
+        .then((v) {
+      if (mounted && v != _fotoLigada) setState(() => _fotoLigada = v);
+    });
+  }
+
+  Future<void> _escolherFoto(ImageSource origem) async {
+    try {
+      final f = await SafeImagePicker.pickImage(
+        source: origem,
+        imageQuality: 80,
+        maxWidth: 1400,
+      );
+      if (f == null) return;
+      final bytes = await f.readAsBytes();
+      if (mounted) setState(() => _fotoBytes = bytes);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Não foi possível abrir a foto.'.tr)),
+      );
+    }
   }
 
   @override
@@ -92,7 +130,7 @@ class _RatingScreenState extends State<RatingScreen> {
           widget.subjectType == RatingSubjectType.driver;
       // Sessão 6: server-side RPC valida order ownership + status='delivered'
       // + idempotência (UNIQUE INDEX parcial em order_id+subject_type+rater).
-      await client.rpc('submit_rating', params: {
+      final resposta = await client.rpc('submit_rating', params: {
         'p_order_id': widget.order.id,
         'p_subject_type':
             widget.subjectType == RatingSubjectType.driver ? 'driver' : 'partner',
@@ -104,6 +142,23 @@ class _RatingScreenState extends State<RatingScreen> {
         'p_tags': _selectedTags.toList(),
         'p_is_private': _isPrivate,
       });
+
+      // Foto do prato (adendo 4 · item 7): depois de a avaliação estar
+      // gravada. Se a foto falhar, a avaliação fica e avisa-se.
+      String? avisoFoto;
+      final fotoParaEnviar = _fotoBytes;
+      if (fotoParaEnviar != null && _fotoLigada && _avaliaLoja) {
+        final ratingId = FotoAvaliacaoService.idDaAvaliacao(resposta);
+        final ok = ratingId != null &&
+            await FotoAvaliacaoService.enviar(
+              orderId: widget.order.id,
+              ratingId: ratingId,
+              bytes: fotoParaEnviar,
+            );
+        if (!ok) {
+          avisoFoto = 'Avaliação gravada, mas a foto não seguiu.'.tr;
+        }
+      }
 
       // Gorjeta (missão 03/10 · bloco 3): até 04/10 aqui só se escrevia um
       // número no pedido, sem cobrar nada — e nunca ficou nenhuma gravada.
@@ -122,8 +177,8 @@ class _RatingScreenState extends State<RatingScreen> {
 
       if (!mounted) return;
       messenger.showSnackBar(
-        avisoGorjeta != null
-            ? SnackBar(content: Text(avisoGorjeta))
+        avisoGorjeta != null || avisoFoto != null
+            ? SnackBar(content: Text(avisoGorjeta ?? avisoFoto!))
             : SnackBar(content: Text('Obrigado pela tua avaliação!'.tr)),
       );
       navigator.pop(true);
@@ -204,6 +259,16 @@ class _RatingScreenState extends State<RatingScreen> {
                   border: const OutlineInputBorder(),
                 ),
               ),
+              // Foto do prato (opcional).
+              if (_fotoLigada && _avaliaLoja) ...[
+                const SizedBox(height: 16),
+                _FotoDoPrato(
+                  bytes: _fotoBytes,
+                  desativada: _submitting,
+                  aoEscolher: _escolherFoto,
+                  aoRemover: () => setState(() => _fotoBytes = null),
+                ),
+              ],
               // BUG 9 — esconder gorjeta em CASH. Em CASH não há como cobrar
               // gorjeta extra (cliente já entregou dinheiro exacto no balcão).
               if (_gorjetaLigada &&
@@ -247,6 +312,82 @@ class _RatingScreenState extends State<RatingScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// "Foto do prato (opcional)": tirar ou escolher, ver e tirar. Sem prémio.
+class _FotoDoPrato extends StatelessWidget {
+  const _FotoDoPrato({
+    required this.bytes,
+    required this.desativada,
+    required this.aoEscolher,
+    required this.aoRemover,
+  });
+
+  final Uint8List? bytes;
+  final bool desativada;
+  final void Function(ImageSource origem) aoEscolher;
+  final VoidCallback aoRemover;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const Key('avaliacao_foto_do_prato'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Foto do prato (opcional)'.tr,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 8),
+        if (bytes != null)
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.memory(bytes!,
+                    height: 160, width: double.infinity, fit: BoxFit.cover),
+              ),
+              Positioned(
+                top: 4,
+                right: 4,
+                child: IconButton.filled(
+                  key: const Key('avaliacao_foto_remover'),
+                  tooltip: 'Tirar a foto'.tr,
+                  onPressed: desativada ? null : aoRemover,
+                  icon: const Icon(Icons.close),
+                ),
+              ),
+            ],
+          )
+        else
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  key: const Key('avaliacao_foto_camara'),
+                  style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
+                  onPressed:
+                      desativada ? null : () => aoEscolher(ImageSource.camera),
+                  icon: const Icon(Icons.photo_camera_outlined),
+                  label: Text('Tirar foto'.tr),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  key: const Key('avaliacao_foto_galeria'),
+                  style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
+                  onPressed:
+                      desativada ? null : () => aoEscolher(ImageSource.gallery),
+                  icon: const Icon(Icons.photo_library_outlined),
+                  label: Text('Galeria'.tr),
+                ),
+              ),
+            ],
+          ),
+      ],
     );
   }
 }

@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_colors.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
+import '../widgets/private_bucket_image.dart';
 
 import '../l10n/tr.dart';
 
@@ -326,6 +327,7 @@ class _RatingCard extends StatelessWidget {
     final comment = (data['comment'] as String?) ?? '';
     final tags = (data['tags'] as List?)?.cast<String>() ?? const [];
     final response = (data['response_text'] as String?) ?? '';
+    final fotoDoPrato = ((data['photo_url'] as String?) ?? '').trim();
     return Card(
       elevation: 1,
       margin: const EdgeInsets.only(bottom: 10),
@@ -356,6 +358,20 @@ class _RatingCard extends StatelessWidget {
             if (comment.isNotEmpty) ...[
               const SizedBox(height: 6),
               Text(comment),
+            ],
+            // Foto do prato (adendo 4 · item 7, 29/10/2026).
+            if (fotoDoPrato.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              ClipRRect(
+                key: const Key('avaliacao_foto_do_prato_lista'),
+                borderRadius: BorderRadius.circular(10),
+                child: PrivateBucketImage(
+                  urlOrPath: fotoDoPrato,
+                  height: 160,
+                  width: double.infinity,
+                  tituloAmpliada: 'Foto do prato'.tr,
+                ),
+              ),
             ],
             if (tags.isNotEmpty) ...[
               const SizedBox(height: 6),

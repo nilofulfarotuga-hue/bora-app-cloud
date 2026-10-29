@@ -20,6 +20,7 @@ import 'appointment_mbway_waiting_dialog.dart';
 import 'booking_success_screen.dart';
 
 import '../../../l10n/tr.dart';
+import '../../../utils/euros.dart';
 
 /// Vertical Serviços — fluxo de marcação em 6 passos (PageView):
 /// 1) serviço  2) profissional (com "Qualquer disponível")  3) dia
@@ -334,7 +335,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
   /// cobra esse valor.
   double get _amountDueEur => (_service?.priceCents ?? 0) / 100.0;
 
-  String get _amountDueLabel => '€${_amountDueEur.toStringAsFixed(2)}';
+  String get _amountDueLabel => eur(_amountDueEur);
 
   Future<void> _confirmAndPay() async {
     if (_booking || _slot == null || _service == null) return;

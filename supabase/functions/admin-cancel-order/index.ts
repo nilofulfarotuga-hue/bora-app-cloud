@@ -2,6 +2,10 @@
 // FASE 4 BUG 3 M3 — Admin order cancellation orchestrator.
 // v14 (ronda 04/10 A.2, 05/10/2026): reembolsa o valor realmente cobrado pela Stripe e devolve
 // à carteira a parte paga com carteira/tokens (_shared/cobranca_stripe.ts).
+// v15 (28/10/2026, regra do Danilo 28/10 18:24): a parte paga com saldo volta 100% ao saldo
+// (wallet_split_free_pct = 1); os tokens gastos voltam como TOKENS pelo gatilho do banco
+// (trg_orders_devolver_tokens), nunca como saldo. Texto ao cliente diz o meio: MB Way na hora,
+// cartão 5 a 10 dias úteis. PUBLICAR SÓ com o _shared/cobranca_stripe.ts novo.
 
 // @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
@@ -30,16 +34,28 @@ function jsonResponse(body, status = 200) {
   });
 }
 
-function refundClause(refundEur, status) {
-  if (status === 'not_applicable') return '';
-  if (refundEur && refundEur > 0) {
-    return ` Reembolso de €${refundEur.toFixed(2)} em curso (3-5 dias úteis).`;
+// v15 (regra 28/10): o texto diz para onde volta cada parte — MB Way na hora, cartão 5 a 10 dias
+// úteis, saldo já — e se os tokens usados voltaram (como tokens).
+function refundClause(refundEur, status, d = null) {
+  let txt = '';
+  if (status !== 'not_applicable') {
+    if (d && (d.stripeEur > 0 || d.saldoEur > 0)) {
+      if (d.stripeEur > 0) {
+        txt += d.metodo === 'mbway'
+          ? ` Devolvemos €${d.stripeEur.toFixed(2)} ao teu MB Way (normalmente na hora).`
+          : ` Devolvemos €${d.stripeEur.toFixed(2)} ao teu cartão (pode demorar 5 a 10 dias úteis).`;
+      }
+      if (d.saldoEur > 0) txt += ` €${d.saldoEur.toFixed(2)} voltaram ao teu saldo Bora.`;
+    } else if (refundEur && refundEur > 0) {
+      txt += ` Reembolso de €${refundEur.toFixed(2)} em curso.`;
+    }
   }
-  return '';
+  if (d && d.tokens > 0) txt += ` Os ${d.tokens} tokens que usaste voltaram à tua conta.`;
+  return txt;
 }
 
-function mapClientMessage(code, refundEur, refundStatus, freeReason) {
-  const r = refundClause(refundEur, refundStatus);
+function mapClientMessage(code, refundEur, refundStatus, freeReason, d = null) {
+  const r = refundClause(refundEur, refundStatus, d);
   switch (code) {
     case 'client_request':
       return { title: 'Pedido cancelado', body: `O teu pedido foi cancelado conforme pedido.${r}` };
@@ -197,16 +213,17 @@ Deno.serve(async (req) => {
   catch (e) { stripeError = `pago_nao_lido: ${String(e?.message ?? e)}`; }
 
   const { data: orderNow } = await admin.from('orders')
-    .select('refund_status, refund_id, payment_method').eq('id', orderId).maybeSingle();
+    .select('refund_status, refund_id, payment_method, tokens_applied_count').eq('id', orderId).maybeSingle();
 
+  let stripeCentsFeitos = 0; // v15: hoisted para o texto ao cliente
   if (orderNow?.refund_status === 'succeeded') {
     refundResult = 'skipped';
     stripeRefundId = orderNow.refund_id ?? null;
   } else if (pago) {
-    // Tudo o que foi pago (nunca acima do preço), repartido: Stripe até ao que ainda se pode
-    // devolver lá; o resto (carteira/tokens) volta à carteira.
+    // Tudo o que foi pago em DINHEIRO (nunca acima do preço), repartido: Stripe até ao que ainda
+    // se pode devolver lá; o resto (a parte paga com saldo) volta ao saldo. Os tokens não entram
+    // aqui: voltam como tokens pelo gatilho do banco (v15, regra 28/10).
     const parte = repartirReembolso(totalPago(pago), pago);
-    let stripeCentsFeitos = 0;
     // 1) cartão / MB Way
     if (paymentPI && parte.stripeCents > 0) {
       try {
@@ -225,7 +242,7 @@ Deno.serve(async (req) => {
         console.error('[admin-cancel-order] stripe refund failed:', stripeError);
       }
     }
-    // 2) carteira + tokens: volta à carteira (80/20 como todos os reembolsos para a carteira).
+    // 2) parte paga com saldo: volta ao saldo, 100% (wallet_split_free_pct = 1, regra 28/10).
     //    A chave é o id do pedido: se outro caminho já devolveu, não devolve outra vez.
     //    Independente da Stripe: se a Stripe falhar, a carteira devolve-se na mesma.
     if (parte.carteiraCents > 0 && r.user_id) {
@@ -269,7 +286,12 @@ Deno.serve(async (req) => {
   const { data: orderRow } = await admin.from('orders').select('restaurant_id').eq('id', orderId).maybeSingle();
   resolvedRestaurantId = orderRow?.restaurant_id ?? null;
 
-  const clientMsg = mapClientMessage(reasonCode, refundAmountEur ?? 0, refundAmountEur ? 'pending' : refundInit, reason);
+  const clientMsg = mapClientMessage(reasonCode, refundAmountEur ?? 0, refundAmountEur ? 'pending' : refundInit, reason, {
+    stripeEur: refundAmountEur ? stripeCentsFeitos / 100 : 0,
+    saldoEur: refundAmountEur ? carteiraCents / 100 : 0,
+    metodo: orderNow?.payment_method ?? r.payment_method ?? null,
+    tokens: Math.max(0, Number(orderNow?.tokens_applied_count ?? 0)),
+  });
   const driverShort = mapDriverMessage(reasonCode);
 
   const notifyTasks = [];

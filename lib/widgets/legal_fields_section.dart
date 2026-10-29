@@ -107,8 +107,18 @@ class LegalFieldsValidators {
     return null;
   }
 
-  static String? birthDate(DateTime? d, {DateTime? now}) {
-    if (d == null) return 'Indica a data de nascimento.';
+  /// NIF de pessoa coletiva (empresa): começa por 5, 6, 7 ou 9 — a mesma regra
+  /// do `_conformidade_em_falta` do servidor, que só pede a data de nascimento
+  /// a pessoa singular (1, 2, 3, 45, 8).
+  static bool isNifEmpresa(String raw) =>
+      RegExp(r'^[5679]\d{8}$').hasMatch(normalizeNif(raw));
+
+  /// Obrigatória para pessoa singular; opcional quando [nif] é de empresa
+  /// (27/10/2026). Se vier preenchida, tem de ser de maior de idade.
+  static String? birthDate(DateTime? d, {DateTime? now, String? nif}) {
+    if (d == null) {
+      return isNifEmpresa(nif ?? '') ? null : 'Indica a data de nascimento.';
+    }
     if (!isAdult(d, now: now)) return 'Tens de ter pelo menos 18 anos.';
     return null;
   }
@@ -182,8 +192,10 @@ class LegalFieldsController {
         LegalField.nif => LegalFieldsValidators.nif(nif.text),
         LegalField.address => LegalFieldsValidators.address(address.text),
         LegalField.iban => LegalFieldsValidators.iban(iban.text),
-        LegalField.birthDate =>
-          LegalFieldsValidators.birthDate(birthDate.value, now: now),
+        LegalField.birthDate => LegalFieldsValidators.birthDate(
+            birthDate.value,
+            now: now,
+            nif: nif.text),
         LegalField.selfCertify =>
           LegalFieldsValidators.selfCertify(selfCertified.value),
       };
@@ -236,7 +248,7 @@ class LegalFieldsController {
   /// Lança [LegalFieldsException] com mensagem PT-PT quando não grava.
   Future<Map<String, dynamic>> save(String role) {
     final d = birthDate.value;
-    if (d == null) {
+    if (d == null && !LegalFieldsValidators.isNifEmpresa(nif.text)) {
       throw const LegalFieldsException('Indica a data de nascimento.',
           code: 'data_nascimento');
     }
@@ -470,21 +482,27 @@ class _LegalFieldsSectionState extends State<LegalFieldsSection> {
             validator: LegalFieldsValidators.iban,
           ),
           const SizedBox(height: Spacing.md),
-          TextFormField(
-            key: _c.fieldKeys[LegalField.birthDate],
-            controller: _birthTextCtrl,
-            focusNode: _c.focusNodes[LegalField.birthDate],
-            enabled: enabled,
-            readOnly: true,
-            onTap: enabled ? _pickBirthDate : null,
-            decoration: const InputDecoration(
-              labelText: 'Data de nascimento *',
-              hintText: 'dd/mm/aaaa',
-              prefixIcon: Icon(Icons.cake_outlined),
-              suffixIcon: Icon(Icons.calendar_month_outlined),
+          ListenableBuilder(
+            listenable: _c.nif,
+            builder: (context, _) => TextFormField(
+              key: _c.fieldKeys[LegalField.birthDate],
+              controller: _birthTextCtrl,
+              focusNode: _c.focusNodes[LegalField.birthDate],
+              enabled: enabled,
+              readOnly: true,
+              onTap: enabled ? _pickBirthDate : null,
+              decoration: InputDecoration(
+                labelText: LegalFieldsValidators.isNifEmpresa(_c.nif.text)
+                    ? 'Data de nascimento (opcional para empresas)'
+                    : 'Data de nascimento *',
+                hintText: 'dd/mm/aaaa',
+                prefixIcon: const Icon(Icons.cake_outlined),
+                suffixIcon: const Icon(Icons.calendar_month_outlined),
+              ),
+              validator: (_) => LegalFieldsValidators.birthDate(
+                  _c.birthDate.value,
+                  nif: _c.nif.text),
             ),
-            validator: (_) =>
-                LegalFieldsValidators.birthDate(_c.birthDate.value),
           ),
           const SizedBox(height: Spacing.md),
           FormField<bool>(

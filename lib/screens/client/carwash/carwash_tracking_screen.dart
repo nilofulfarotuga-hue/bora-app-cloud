@@ -277,7 +277,7 @@ class _CarwashTrackingScreenState extends State<CarwashTrackingScreen>
                         style: FilledButton.styleFrom(
                             backgroundColor: AppColors.primary),
                         child: Text(
-                            'Pagar {0} €'.trArgs([b.totalEur.toStringAsFixed(2)])),
+                            'Pagar {0} €'.trArgs([b.totalEur.toStringAsFixed(2).replaceAll('.', ',')])),
                       ),
                     ),
                   ],

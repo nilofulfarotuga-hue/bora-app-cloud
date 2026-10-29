@@ -4,7 +4,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '../../widgets/origem_whatsapp_chip.dart';
 import '../../services/admin_export_service.dart';
+import '../../services/pedido_origem_service.dart';
 import '../../widgets/admin/test_order_badge.dart';
 import '_admin_cancel_order_dialog.dart';
 import 'admin_order_detail_screen.dart';
@@ -33,6 +35,11 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   // Ronda 04/10 — encomendas de festa (pedidos com data marcada) filtradas
   // pelo DIA da festa em hora de Lisboa. Null = todas as datas.
   DateTime? _festaDia;
+  // Origem do pedido (tabela order_origem): 'all' | 'app' | 'whatsapp'.
+  // _origens == null = a leitura falhou ou ainda não chegou: sem filtro e sem
+  // linha "Origem" (a lista fica igual ao que era). Pedido sem linha = "App".
+  String _origemFiltro = kFiltroOrigemTodas;
+  Map<String, PedidoOrigem>? _origens;
 
   // Bulk cancel state
   final Set<String> _selectedIds = {};
@@ -66,6 +73,12 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     ('takeaway', 'Takeaway'),
     ('errand', 'Favores'),
     ('festa', 'Festas (com data)'),
+  ];
+
+  static const _origemOptions = <(String, String)>[
+    (kFiltroOrigemTodas, 'Todas'),
+    (kOrigemApp, 'App'),
+    (kOrigemWhatsApp, 'WhatsApp'),
   ];
 
   static const _testOptions = <(String, String)>[
@@ -135,9 +148,16 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
       final data = _serviceTypeFilter == 'festa'
           ? await query.order('scheduled_for', ascending: true).limit(200)
           : await query.order('created_at', ascending: false).limit(100);
+      final lista = List<Map<String, dynamic>>.from(data);
+      // Origem (app/whatsapp) dos pedidos visíveis, em lote. Se falhar
+      // (tabela sem existir, sem permissão) devolve null e a lista fica como
+      // sempre foi: sem linha "Origem" e sem filtro.
+      final origens = await carregarOrigensPedidos(
+          lista.map((o) => o['id']?.toString() ?? ''));
       if (mounted) {
         setState(() {
-          _orders = List<Map<String, dynamic>>.from(data);
+          _orders = lista;
+          _origens = origens;
           _loading = false;
         });
       }
@@ -375,6 +395,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final visiveis = filtrarPedidosPorOrigem(_orders, _origens, _origemFiltro);
     final hasCancelableSelected = _selectedIds.any((id) {
       final o = _orders.firstWhere(
           (o) => o['id'] == id,
@@ -523,6 +544,41 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
               }).toList(),
             ),
           ),
+          // Origem do pedido: Todas | App | WhatsApp (só quando a leitura de
+          // order_origem funcionou; senão a lista fica igual a antes).
+          if (_origens != null)
+            SizedBox(
+              height: 44,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                children: [
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.only(right: 8),
+                      child: Text('Origem:',
+                          style: TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                  ..._origemOptions.map((opt) {
+                    final isSelected = _origemFiltro == opt.$1;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: FilterChip(
+                        label: Text(opt.$2,
+                            style: const TextStyle(fontSize: 12)),
+                        selected: isSelected,
+                        selectedColor: AppColors.success.withValues(alpha: 0.18),
+                        checkmarkColor: AppColors.success,
+                        onSelected: (_) =>
+                            setState(() => _origemFiltro = opt.$1),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
           if (_serviceTypeFilter == 'festa')
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -567,17 +623,17 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
                     ? Center(child: Text('Erro: $_error'))
-                    : _orders.isEmpty
+                    : visiveis.isEmpty
                         ? const Center(child: Text('Nenhum pedido'))
                         : RefreshIndicator(
                             onRefresh: _load,
                             child: ListView.separated(
                               padding: const EdgeInsets.all(12),
-                              itemCount: _orders.length,
+                              itemCount: visiveis.length,
                               separatorBuilder: (_, __) =>
                                   const SizedBox(height: 8),
                               itemBuilder: (_, i) {
-                                final o = _orders[i];
+                                final o = visiveis[i];
                                 final status = o['status'] as String? ?? '';
                                 final canCancel =
                                     !['delivered', 'rejected'].contains(status);
@@ -688,6 +744,14 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                                               color: AppColors.textSecondary,
                                               fontSize: 12),
                                         ),
+                                        // Origem do pedido (App / WhatsApp).
+                                        if (_origens != null)
+                                          Padding(
+                                            padding:
+                                                const EdgeInsets.only(top: 2),
+                                            child: OrigemPedidoLinha(
+                                                origem: _origens![id]?.origem),
+                                          ),
                                         if (canCancel) ...[
                                           const SizedBox(height: 10),
                                           Align(

@@ -15,6 +15,7 @@ import '../services/place_autocomplete_service.dart';
 import '../services/pricing_service.dart';
 import '../stores/order_store.dart';
 import '../utils/map_utils.dart';
+import '../utils/euros.dart';
 
 enum _LocationField { pickup, destination }
 
@@ -846,13 +847,13 @@ class _MapScreenState extends State<MapScreen> {
                   if (pricingBreakdown != null) ...[
                     const SizedBox(height: 8),
                     Text(
-                      'Entrega: €${pricingBreakdown!.deliveryFee.toStringAsFixed(2)}',
+                      'Entrega: ${eur(pricingBreakdown!.deliveryFee)}',
                       style: const TextStyle(fontSize: 16),
                     ),
                   ],
                   const SizedBox(height: 8),
                   Text(
-                    'Total: €${price!.toStringAsFixed(2)}',
+                    'Total: ${eur(price!)}',
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,

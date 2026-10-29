@@ -583,7 +583,7 @@ def resposta_do_dono(t, ev, simular):
 def atender(ev, simular=False):
     """ev = {sessao, numero, texto, msg_id, grupo, quoted_id, push_name, ts}.
     Devolve {"tratado": bool, "acao": str, "respostas": [...]}. tratado=False -> a porta segue o caminho antigo."""
-    sessao = ev.get("sessao") or "vps-baileys:351937501673"
+    sessao = ev.get("sessao") or "vps-baileys:" + os.environ.get("BORA_WHATSAPP_NUMERO", "")
     numero = so_digitos(ev.get("numero"))
     if ev.get("grupo") or "@g.us" in str(ev.get("msg_id") or ""):
         return {"tratado": False, "acao": "ignorar-grupo"}

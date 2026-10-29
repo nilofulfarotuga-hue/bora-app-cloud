@@ -1010,7 +1010,7 @@ aparelho; registo de ofertas com painel.
 **Falta:**
 
 1. **Pagamentos:** **cartão** provado até ao PaymentIntent — o PaymentSheet exige dados de
-   cartão e é acto do Danilo. **MB Way** recusado pelo provedor; confirmar se o 937501673
+   cartão e é acto do Danilo. **MB Way** recusado pelo provedor; confirmar se o número da Bora
    tem MB Way associado.
 2. **Rotação:** faltam **expirar sem ninguém** e **lembretes** (as funções não existem).
 3. **Tokens de fidelização:** a migration `20260827102000_PROPOSTA_carwash_tokens.sql`

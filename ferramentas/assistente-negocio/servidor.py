@@ -38,7 +38,7 @@ import assistente as A  # noqa: E402
 import db  # noqa: E402
 import rotinas  # noqa: E402
 
-SESSAO = os.environ.get("ASSISTENTE_SESSAO", "vps-baileys:351937501673")
+SESSAO = os.environ.get("ASSISTENTE_SESSAO", "vps-baileys:" + os.environ.get("BORA_WHATSAPP_NUMERO", ""))
 PORTA = int(os.environ.get("ASSISTENTE_PORT", "8795"))
 LOG = os.environ.get("ASSISTENTE_LOG", os.path.join(AQUI, "assistente.log"))
 _trancas, _tranca_geral = {}, threading.Lock()

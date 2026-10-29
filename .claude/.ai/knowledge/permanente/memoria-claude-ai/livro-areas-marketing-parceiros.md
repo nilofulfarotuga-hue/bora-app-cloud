@@ -10,11 +10,11 @@ estado: atual
 
 # Propaganda do Bora com parceiros — recrutamento de parceiros e regra dos cartazes com QR para as lojas (Mister Navalha, Sabores de Casa)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-marketing-parceiros`, origem `claude-ai`, atualizada em 2026-10-29T19:17:52.210181+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-marketing-parceiros`, origem `claude-ai`, atualizada em 2026-10-29T20:15:55.882378+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas marketing parceiros · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/marketing-parceiros.md), copiada a 29/10/2026 19:16 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/marketing-parceiros.md), copiada a 29/10/2026 20:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: marketing-parceiros

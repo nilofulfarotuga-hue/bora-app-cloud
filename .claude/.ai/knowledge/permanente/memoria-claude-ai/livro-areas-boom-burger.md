@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-boom-burger
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-28
+ultima_confirmacao: 2026-10-29
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Boom! Burger (hamburgueria artesanal da Guarda) — loja que o Danilo quer ganhar como parceira do Bora desde 27/10/2026; ler antes de falar dela, montar a loja ou listar parceiros
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-boom-burger`, origem `claude-ai`, atualizada em 2026-10-28T20:14:32.882065+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-boom-burger`, origem `claude-ai`, atualizada em 2026-10-29T14:31:17.861791+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas boom burger · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/boom-burger.md), copiada a 2026-10-28 20:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/boom-burger.md), copiada a 29/10/2026 14:30 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: boom-burger
@@ -29,3 +29,4 @@ aliases: [Boom Burger, Boom! Burger]
 - [stated] 28/10 12:45: o contrato/termos de parceiro o Emanuel aceita na própria app quando a abrir ("é uma assinatura por lá mesmo") — não é preciso falar-lhe disso nem pedir "Aceito" por mensagem
 - [stated] 28/10 12:55-13:20: quer um robô de pedidos pelo WhatsApp para a Boom (cliente sem app pede pelo WhatsApp, o pedido cai no painel do Emanuel, ir buscar ou entregar, estafeta chamado quando pronto ou daqui a 5-15 min); grátis para a Boom como teste, depois produto para vender a outros restaurantes. Mesmo preço da app; ir buscar sem taxa de entrega. Testar já com o sistema atual; a permissão oficial da Meta pede-se depois. Mandou tirar o teste da barbearia do Hernandes (tenant mister-navalha desligado às 12:59). Materiais: "peça pela app", "reserve a sua mesa pela app" e "peça pelo WhatsApp". PROMPT REGISTADO: missão assistente-whatsapp-boom-2026-10-28 (MOTOR OPUS 5.5, sessão NOVA do Claude Code no PC, pasta bora-app-cloud), entregue no chat às 13:30 para ele colar. Scope: tenant boom-burger em teste (allowlist só o 931), fluxo de pedido com preço da app, origem "WhatsApp" no painel e no admin, testes em modo demo, checklist da Meta só preparado. Estado: à espera de ele colar
 - [stated] 28/10 18:46: pediu UM prompt grande e revisto que junte a missão do Divan, tudo o que falta da Boom, o robô do WhatsApp e os cartazes ("com o logo do Bomburg, com o meu, estilo que nós já fizemos"), mais todos os erros abertos, para ele próprio colar no Claude Code do PC. PROMPT REGISTADO: missão missao-geral-2026-10-28 (MOTOR Opus 5.5, sessão NOVA do Claude Code no PC, pasta bora-app-cloud), entregue no chat às ~19:50; substitui o adendo 4 v2 e a missão assistente-whatsapp-boom-2026-10-28, que nunca correram. Scope: etapa 3 Boom (NIF opcional, entrega grátis no ecrã, painéis, IVA das faturas, restos do adendo 3), etapa 4 robô em teste (allowlist só o 931), etapa 5 cartazes "Peça pela app Bora", "Reserve a sua mesa pela app", "Faça o seu pedido pelo WhatsApp" (não imprimir até o número responder sozinho) e autocolante da porta, só para ele aprovar. Estado: à espera de ele colar
+- [stated] 29/10: o Emanuel respondeu que começam segunda ou terça (02-03/11) e que "vai vir algumas coisas"; o Danilo quer ir lá talvez antes, para deixar as plaquinhas/material; quer o WhatsApp da Boom "super inteligente" (com toda a informação do Facebook e Instagram dele) para testarem juntos, e o assistente virtual dele

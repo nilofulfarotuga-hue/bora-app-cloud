@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-29T14:30:13.057897+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-29T14:32:47.636616+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-29 14:29 UTC. Páginas listadas: 400.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-29 14:32 UTC. Páginas listadas: 403.
 
 ## O que é o Bora
 
@@ -225,7 +225,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - digest-2026-09-13-janela-4-ux-portao — Janela 4 13/09 — ordem UX OpenCode chegou ao Claude Code e parou no portão (2026-09-13)
 - digest-2026-09-13-janela-3 — Janela 3 13/09 — portas (correu em Fable, não Opus) (2026-09-13)
 
-## livro-areas (128)
+## livro-areas (130)
 
 - livro-areas-alertas-notificacoes — Alertas do Bora para o Danilo (Telegram + push admin persistente) — o que já dispara, por que caminho, e o que falta (2026-10-23)
 - livro-areas-analise-apps-emulador — Ideia do Danilo (08/10/2026) de usar emulador Android + agente de IA para testar bugs do Bora e comparar com iFood/Uber/Glovo; adiada para… (2026-10-26)
@@ -237,7 +237,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-areas-auditoria-pagamentos-parte3 — Missão "auditoria geral" pedida 15/08 — unificar pagamentos num jeito só; achados da Fase 1 (dados MCP) e estado das fases (parte 3 de 4) (2026-10-23)
 - livro-areas-auditoria-pagamentos-parte4 — Missão "auditoria geral" pedida 15/08 — unificar pagamentos num jeito só; achados da Fase 1 (dados MCP) e estado das fases (parte 4 de 4) (2026-10-23)
 - livro-areas-beunique — BeUnique Beauty & Academy (salão beleza, Guarda) — negócio NÃO fechou; loja desligada do app a 28/08. Histórico do que chegou a ser montado (2026-10-23)
-- livro-areas-boom-burger — Boom! Burger (hamburgueria artesanal da Guarda) — loja que o Danilo quer ganhar como parceira do Bora desde 27/10/2026; ler antes de falar… (2026-10-28)
+- livro-areas-boom-burger — Boom! Burger (hamburgueria artesanal da Guarda) — loja que o Danilo quer ganhar como parceira do Bora desde 27/10/2026; ler antes de falar… (2026-10-29)
 - livro-areas-bora-app — Bora App multi-vertical platform — architecture, verticals, business rules, and protected zones (parte 1 de 4 — continua em livro-areas-bor… (2026-10-23)
 - livro-areas-bora-app-parte2 — Bora App multi-vertical platform — architecture, verticals, business rules, and protected zones (parte 2 de 4) (2026-10-23)
 - livro-areas-bora-app-parte3 — Bora App multi-vertical platform — architecture, verticals, business rules, and protected zones (parte 3 de 4) (2026-10-23)
@@ -247,6 +247,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-areas-bora-todo-dia — Ideia do Danilo (10/10/2026) para fazer os clientes abrirem o Bora App todos os dias — receitas, notificação diária, jogos simples com toke… (2026-10-23)
 - livro-areas-buzz-conselho-modelos — Conselho de modelos (local e remoto), motores do plano Go, app Buzz e robôs Gemini do app — estado atual e regras (2026-10-23)
 - livro-areas-carteiro-e-juiz — Como o loop funciona hoje (carteiro, juiz, cadeia de motores, rotina de despertar) e as armadilhas provadas — ler ANTES de mandar mexer no… (2026-10-23)
+- livro-areas-casa-manutencao — Ideia do Danilo (29/10/2026) de uma categoria "Casa & Manutenção" / marido de aluguel no Bora App (eletricista, pladur, reparações) — o que… (2026-10-29)
 - livro-areas-catalogo-restaurantes-glovo — Regra do Danilo para o catálogo das cadeias não-parceiras (Burger King, McDonald's, KFC…) no Bora — espelhar o Glovo; ler antes de mexer em… (2026-10-23)
 - livro-areas-chamada-estafeta-rotacao — Regra do Danilo (10/10/2026) para a chamada de pedidos ao estafeta no Bora — toque que grita sempre e ordem de rotação/chamada forçada; ler… (2026-10-23)
 - livro-areas-conectores-claude-ai — Conectores MCP da Claude.ai do Danilo — estado, senhas, e a REGRA de verificar o conselho antes de responder (2026-10-23)
@@ -314,6 +315,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-areas-negocio-sites-portugal — Plano de dinheiro do negócio de sites em Portugal — preços reais do mercado PT, ganchos legais que só existem cá, nichos com dinheiro na Gu… (2026-10-26)
 - livro-areas-nunca-mais-travar — Missões "nunca-mais-travar" e "paridade-auto-vs-manual" (2026-07-31) — por que o loop travava e o que já foi provado; ler antes de mexer no… (2026-10-23)
 - livro-areas-olho-automatico — Os 3 "olhos" que veem as telas do Bora sem humano (golden tests, juiz de visão Gemini, Firebase Test Lab) — estado, armadilhas e o que falta (2026-10-23)
+- livro-areas-onboarding-estafetas — Regras do Danilo para candidatos a prestador do Bora (estafeta, limpeza, lavagem): aprovação, documentos em falta, fila de espera, o que di… (2026-10-29)
 - livro-areas-orchestration-loop — Autonomous orchestration loop — Claude.ai → Córtex → carteiro → Claude Code PC → Juiz → Telegram (2026-10-23)
 - livro-areas-ouro-e-prata — Parceiro de Serviços Barbearia Ouro e Prata (Guarda) — perfil rico no app + mini-site cinematográfico externo (2026-10-23)
 - livro-areas-pagamento-cartao-cliente — Regras do Danilo para o pagamento com cartão do lado do cliente no [[bora-app]] — escolher/trocar de cartão antes de pagar (padrão Uber/Glo… (2026-10-23)
@@ -390,10 +392,11 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - sql-modo-demo-2026-10-27 — SQL do modo demonstracao (Boom! Burger) para o Claude.ai aplicar (2026-10-27)
 
-## outras (77)
+## outras (78)
 
 - 00-LEIA-PRIMEIRO — Como usar esta memória (2026-10-23)
 - adendo-1-final-app-2026-10-29 — Adendo 1 da missão final-app-2026-10-29 (2026-10-29)
+- adendo-3-final-app-2026-10-29 — Adendo 3 da missão final-app-2026-10-29 — robô de documentos (2026-10-29)
 - adendo-vozes-omnivoice-2026-10-22 — Adendo de vozes: A/B do motor OmniVoice (k2-fsa) no filme Ep1 (2026-10-22)
 - armadilha-ytdlp-cookies-chrome-windows — yt-dlp + cookies do Chrome no Windows: caminho morto (App-Bound Encryption) (2026-09-17)
 - arquivo-regras-do-danilo-2026-09-17 — ARQUIVO — regras do Danilo (versão de 17/09, substituída a 23/10) (2026-10-23)
@@ -426,7 +429,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-topics-erros-aprendidos — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (par… (2026-10-28)
 - livro-topics-erros-aprendidos-parte2 — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (par… (2026-10-28)
 - livro-topics-erros-aprendidos-parte3 — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (par… (2026-10-28)
-- livro-topics-prioridades — Como o Danilo decide prioridades no negócio — foco dos próximos meses e regras de desempate quando duas coisas competem ao mesmo tempo (2026-10-23)
+- livro-topics-prioridades — Como o Danilo decide prioridades no negócio — foco dos próximos meses e regras de desempate quando duas coisas competem ao mesmo tempo (2026-10-29)
 - livro-topics-regras-motores-e-prompts — Regras do Danilo sobre que motor/ferramenta usar (Fable, Opus, ChatGPT, GLM, Gemini, OpenCode) e sessões no Chrome — ler antes de montar pr… (2026-10-23)
 - maiores-18-verificacao-idade — Maiores de 18 — tabaco e álcool com verificação de idade na entrega (aplicado 07/10/2026) (2026-10-07)
 - mapa-sessoes-contas — Mapa de sessões e contas — que conta está em que sítio (provado no ecrã a 17/09/2026) (2026-09-18)

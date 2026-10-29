@@ -1,14 +1,3 @@
--- 20261026091000_pedido_morada_trocada.sql
--- Missão melhorias-paridade-2026-10-26, item 5 — o painel vê se o cliente trocou a morada
--- no último ecrã antes de pagar ("Entregar em: … · Trocar").
---
--- Não toca no create_order nem na tabela orders (zona protegida): mesmo desenho da foto do
--- favor e da data das Festas — uma RPC dedicada, chamada pela app DEPOIS de o pedido nascer.
--- Adendo C (26/10): no cartão, quando o pedido demora a nascer (webhook), a app só tem o
--- RASCUNHO do pagamento (payment_drafts.id); a marca fica presa ao rascunho e o painel
--- encontra-a pelo payment_intent_id do pedido (o rascunho é limpo por cron depois de usado).
--- Só aditivo. Reverter: fim do ficheiro.
-
 create table if not exists public.pedido_morada_trocada (
   id            uuid primary key default gen_random_uuid(),
   order_id      text unique,
@@ -20,7 +9,6 @@ create table if not exists public.pedido_morada_trocada (
   constraint pedido_morada_trocada_alvo check (order_id is not null or draft_id is not null)
 );
 alter table public.pedido_morada_trocada enable row level security;
-
 do $$
 begin
   if not exists (select 1 from pg_policies
@@ -30,8 +18,6 @@ begin
       for select to authenticated using (public.is_admin());
   end if;
 end $$;
-
--- O dono do pedido marca que trocou a morada no fim. Só lê orders (não escreve lá).
 create or replace function public.pedido_marcar_morada_trocada(p_order_id text, p_morada_antes text)
 returns boolean
 language plpgsql
@@ -54,8 +40,6 @@ begin
 end $$;
 revoke all on function public.pedido_marcar_morada_trocada(text, text) from public, anon;
 grant execute on function public.pedido_marcar_morada_trocada(text, text) to authenticated;
-
--- Adendo C: o mesmo, pelo rascunho do pagamento por cartão (pedido ainda a nascer).
 create or replace function public.pedido_marcar_morada_trocada_rascunho(p_draft_id uuid, p_morada_antes text)
 returns boolean
 language plpgsql
@@ -80,8 +64,6 @@ begin
 end $$;
 revoke all on function public.pedido_marcar_morada_trocada_rascunho(uuid, text) from public, anon;
 grant execute on function public.pedido_marcar_morada_trocada_rascunho(uuid, text) to authenticated;
-
--- Painel: a marca de um pedido, pelo id do pedido OU pelo rascunho que o criou.
 create or replace function public.admin_morada_trocada(p_order_id text)
 returns table (morada_antes text, morada_depois text, criado_em timestamptz)
 language sql
@@ -100,9 +82,3 @@ as $$
 $$;
 revoke all on function public.admin_morada_trocada(text) from public, anon;
 grant execute on function public.admin_morada_trocada(text) to authenticated;
-
--- REVERTER:
---   drop function if exists public.admin_morada_trocada(text);
---   drop function if exists public.pedido_marcar_morada_trocada_rascunho(uuid, text);
---   drop function if exists public.pedido_marcar_morada_trocada(text, text);
---   drop table if exists public.pedido_morada_trocada;

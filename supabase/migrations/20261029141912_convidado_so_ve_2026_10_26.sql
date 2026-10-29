@@ -1,20 +1,3 @@
--- 20261026090000_convidado_so_ve.sql
--- Missão melhorias-paridade-2026-10-26, item 2 — a conta partilhada guest@bora.com só VÊ.
---
--- Porquê: a conta de convidado é partilhada por todos os visitantes. A 31/08/2026 pediu corridas
--- TVDE reais e todos os convidados viam as linhas uns dos outros (mesmo auth.uid()). A partir de
--- agora a sessão volta (Edge sessao-convidado, palavra-passe só no servidor), mas o banco recusa
--- ao convidado:
---   · ler, criar, mudar ou apagar dados de cliente (moradas, favoritos, avaliações, corridas…);
---   · criar corridas, marcações, reservas e lavagens/limpezas, mesmo pelas funções SECURITY DEFINER
---     (gatilho BEFORE INSERT, que corre sempre).
--- Os pedidos (orders/create_order) ficam no pacote da publicação: zona protegida, só se prepara
--- (.claude/.ai/reports/melhorias-paridade-2026-10-26/pendente_create_order.sql).
---
--- Só aditivo: uma função, um gatilho, políticas RESTRICTIVE (só tiram acesso ao convidado) e duas
--- definições novas. Não muda dados. Reverter: ver o bloco REVERTER no fim.
-
--- 1. Quem é o convidado (pelo email, sem ids escritos à mão).
 create or replace function public.is_conta_convidado()
 returns boolean
 language sql
@@ -29,8 +12,6 @@ as $$
 $$;
 revoke all on function public.is_conta_convidado() from public, anon;
 grant execute on function public.is_conta_convidado() to authenticated, service_role;
-
--- 2. Gatilho: o convidado não cria nem muda linhas destas tabelas (corre também dentro de RPCs).
 create or replace function public.trg_convidado_so_ve()
 returns trigger
 language plpgsql
@@ -45,7 +26,6 @@ begin
   return new;
 end $$;
 revoke all on function public.trg_convidado_so_ve() from public, anon;
-
 do $$
 declare t text;
 begin
@@ -62,9 +42,6 @@ begin
     end if;
   end loop;
 end $$;
-
--- 3. Políticas RESTRICTIVE: o convidado não lê nem escreve dados de cliente pela API.
---    (Só se aplicam a tabelas com RLS ligada; para os outros papéis não muda nada.)
 do $$
 declare t text;
 begin
@@ -86,8 +63,6 @@ begin
     end if;
   end loop;
 end $$;
-
--- 4. Definições (texto, não dinheiro). Ficam visíveis a anon pela get_setting (is_secret=false).
 insert into public.platform_settings (key, value, description, category, is_secret)
 values
   ('visitantes_sem_conta', 'true'::jsonb,
@@ -97,13 +72,3 @@ values
    'Sessão de convidado (guest@bora.com) pela Edge sessao-convidado. Ligar só depois de aplicada a guarda de pedidos (create_order).',
    'cliente', false)
 on conflict (key) do nothing;
-
--- REVERTER (à mão, se preciso):
---   do $$ declare t text; begin foreach t in array array[<lista do passo 2>] loop
---     if to_regclass('public.'||t) is not null then
---       execute format('drop trigger if exists trg_convidado_so_ve on public.%I', t); end if; end loop; end $$;
---   do $$ declare t text; begin foreach t in array array[<lista do passo 3>] loop
---     if to_regclass('public.'||t) is not null then
---       execute format('drop policy if exists convidado_so_ve on public.%I', t); end if; end loop; end $$;
---   drop function if exists public.trg_convidado_so_ve(); drop function if exists public.is_conta_convidado();
---   delete from public.platform_settings where key in ('visitantes_sem_conta','sessao_convidado_ativa');

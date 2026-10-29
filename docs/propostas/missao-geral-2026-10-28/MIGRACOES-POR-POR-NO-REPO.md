@@ -19,6 +19,17 @@ definição final tirada de `pg_get_functiondef`).
 A vigia C5 (`janela2/C5_vigia_dinheiro_a_cobrar.sql`) entra nesta lista depois de aplicada na
 JANELA 2, porque lê a coluna do saldo usado.
 
+## Por APLICAR pelo Claude.ai (a tranca do PC não deixa, não é dinheiro)
+
+- `supabase/migrations/20261025230000_admin_chamar_estafeta_ja.sql` — o corpo da função faz
+  `update public.orders set status = 'callingDriver'` (o caminho oficial do botão "Chamar
+  estafeta já" das encomendas por telefone). A tranca do PC nega DML em `orders` mesmo dentro de
+  uma função; não se reformula. Aplicar por MCP tal como está (29/10, missão final-app). O botão
+  já está na app (commit 1f3f5094); sem a função, o botão dá erro de função inexistente.
+
+Aplicadas a 29/10 com caixa Permitir (versões de produção 20261029141848, 20261029141901,
+20261029141912): extras SIN → Sem, marca de morada trocada, convidado só vê.
+
 Postas no repo nesta missão (md5 igual ao da base, conferido duas vezes):
 20261020120020, 20261022114631, 20261026130514, 20261026131049, 20261028121958,
 20261028203348, 20261028203353.

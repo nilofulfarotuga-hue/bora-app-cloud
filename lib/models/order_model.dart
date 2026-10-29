@@ -428,7 +428,14 @@ class OrderModel {
     final semServidor = (finalTotal ?? total) - jaPagoSemDinheiro;
     final restante = semServidor < 0 ? 0.0 : semServidor;
     var due = cashTotalDue ?? restante;
-    if (isPurchaseFinalized && finalTotal != null && due > restante) {
+    // 29/10 (revisor): o teto só vale quando o final_total já foi
+    // recalculado pelo servidor (difere do price). Se ainda for igual ao
+    // price, é a cópia local de antes da compra e o cash_total_due acabado
+    // de chegar do talão (itens a mais incluídos) é o número certo.
+    if (isPurchaseFinalized &&
+        finalTotal != null &&
+        finalTotal != total &&
+        due > restante) {
       due = restante;
     }
     return due + debtCollectedCents / 100.0;
@@ -724,6 +731,8 @@ class OrderModel {
       if (walletAppliedCents > 0) 'wallet_applied_cents': walletAppliedCents,
       if (menuCreditAppliedCents > 0)
         'menu_credit_applied_cents': menuCreditAppliedCents,
+      if (tokensAppliedValueCents > 0)
+        'tokens_applied_value_cents': tokensAppliedValueCents,
       if (debtCollectedCents > 0) 'debt_collected_cents': debtCollectedCents,
       if (extraChargeAmount != null) 'extra_charge_amount': extraChargeAmount,
       if (cashTotalDue != null) 'cash_total_due': cashTotalDue,

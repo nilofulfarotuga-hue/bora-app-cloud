@@ -44,6 +44,9 @@ String? contaCurtaDinheiro(OrderModel o) {
 /// há nada pago antes (aí o "Total" já é o que paga).
 ({double emDinheiro, double jaPago})? dinheiroDoCliente(OrderModel o) {
   if (o.paymentMethod != PaymentMethod.cash) return null;
+  // 29/10 (revisor): Favor com o dinheiro levado de casa é a conta do troco,
+  // não um "paga em dinheiro" — como no contaCurtaDinheiro.
+  if (favorComDinheiroDeCasa(o)) return null;
   final jaPago = o.jaPagoSemDinheiro;
   if (jaPago <= 0) return null;
   return (emDinheiro: o.totalToCollectCash, jaPago: jaPago);

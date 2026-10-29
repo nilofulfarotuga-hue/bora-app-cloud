@@ -3753,7 +3753,11 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                       order.serviceFee +
                       order.deliveryFee -
                       order.jaPagoSemDinheiro;
-                  final cashTotal = bruto < 0 ? 0.0 : bruto;
+                  // 29/10 (revisor): a dívida anterior soma-se por cima, como
+                  // na faixa laranja (totalToCollectCash) — senão a lista
+                  // dizia um número e a faixa outro.
+                  final cashTotal = (bruto < 0 ? 0.0 : bruto) +
+                      order.debtCollectedCents / 100.0;
                   return Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [

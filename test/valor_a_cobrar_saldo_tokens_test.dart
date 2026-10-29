@@ -105,6 +105,26 @@ void main() {
     expect(o.totalToCollectCash, closeTo(7.88, 0.001));
   });
 
+  test('talão com itens a mais: o valor do servidor manda sobre o price antigo',
+      () {
+    // Revisor 29/10: preço 20, saldo 5, talão com +5 de itens. O servidor
+    // devolve 20 (25 − 5); o final_total local ainda é o price (20).
+    final o = OrderModel.fromSupabase(_pedido(
+        price: 20.00,
+        finalTotal: 20.00,
+        cashTotalDue: 20.00,
+        saldo: 500,
+        finalizado: true));
+    expect(o.totalToCollectCash, closeTo(20.00, 0.001));
+  });
+
+  test('toSupabase leva os tokens (cópia local não perde a conta)', () {
+    final o = OrderModel.fromSupabase(_pedido(saldo: 1031, tokens: 73));
+    final copia = OrderModel.fromSupabase(o.toSupabase());
+    expect(copia.tokensAppliedValueCents, 73);
+    expect(copia.totalToCollectCash, closeTo(o.totalToCollectCash, 0.001));
+  });
+
   test('crédito de menu também desconta', () {
     final o = OrderModel.fromSupabase(
         _pedido(price: 20.00, credito: 500, tokens: 200));

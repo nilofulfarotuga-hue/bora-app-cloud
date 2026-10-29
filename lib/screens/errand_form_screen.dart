@@ -423,7 +423,8 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
   bool _failGeo(String what) {
     if (mounted) {
       setState(() => _geoError =
-          'Não consegui localizar {0}. Escolhe uma sugestão da lista.'.trArgs([what]));
+          'Não consegui localizar {0}. Escolhe uma sugestão da lista ou acrescenta a cidade (ex.: Guarda).'
+              .trArgs([what]));
     }
     return false;
   }
@@ -1157,6 +1158,9 @@ class _StepWhere extends StatelessWidget {
           controller: dropoffCtrl,
           labelText: 'Onde entregar'.tr,
           prefixIcon: const Icon(Icons.home_outlined),
+          // Sem coordenadas o passo seguinte barra: "Usar esta morada" procura
+          // no mapa e, se não achar, avisa aqui (não deixa seguir às cegas).
+          exigirCoordenadas: true,
           onSelected: onDropoffSelected,
           onChanged: (_) => onDropoffCleared(),
         ),
@@ -1209,6 +1213,7 @@ class _StepWhere extends StatelessWidget {
             controller: homeCtrl,
             labelText: 'Morada da paragem em casa'.tr,
             prefixIcon: const Icon(Icons.house_outlined),
+            exigirCoordenadas: true,
             onSelected: onHomeSelected,
             onChanged: (_) => onHomeCleared(),
           ),

@@ -84,6 +84,18 @@ class DriverLocationPingService {
       } catch (_) {/* só serve para o serviço não duplicar */}
     } catch (e) {
       debugPrint('[DriverLocationPing] failed: $e');
+      // 29/10/2026: com a sessão expirada a RPC devolve 401 (PGRST301) e
+      // cada ping repetia o erro. Pede uma renovação da sessão UMA vez; se
+      // não der, o próximo ping volta a tentar (sem avalanche: há o travão
+      // de 14 s).
+      if (e is PostgrestException &&
+          (e.code == '401' || e.code == 'PGRST301')) {
+        try {
+          await Supabase.instance.client.auth.refreshSession();
+        } catch (e2) {
+          debugPrint('[DriverLocationPing] renovar sessão falhou: $e2');
+        }
+      }
     } finally {
       _inFlight = false;
     }

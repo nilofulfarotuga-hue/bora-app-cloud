@@ -237,18 +237,20 @@ Deno.serve(async (req) => {
         } else if (ride.roundtrip_credit_id) {
           // Perna do pacote €8 — ver se o vale e dinheiro ou online
           const { data: credit } = await supabase
-            .from('tvde_roundtrip_credits').select('payment_intent_id')
+            .from('tvde_roundtrip_credits').select('payment_intent_id, paid_cents')
             .eq('id', ride.roundtrip_credit_id).maybeSingle()
           const creditCash = credit && credit.payment_intent_id == null
           if (creditCash && !ride.is_return_leg) {
-            let rtPrice = 800
-            try {
-              const { data: p } = await supabase.from('platform_settings')
-                .select('value').eq('key', 'tvde_roundtrip_price_cents').maybeSingle()
-              const v = Number(String(p?.value ?? '800').replace(/\"/g, ''))
-              if (Number.isFinite(v) && v > 0) rtPrice = v
-            } catch (_e) { /* default */ }
-            body = `Nova paragem (+€${eur(stopFeeCents)}). Total a cobrar em dinheiro: €${eur(rtPrice + stopsFee)}.`
+            // v24 (2026-10-29, AUTORIZO do Danilo 14:22, prop-3b74506b item 1): o que o
+            // motorista e mandado cobrar e o que FOI PAGO NAQUELE VALE (paid_cents), nao
+            // a chave do piso (800). Ler tvde_roundtrip_price_cents mandava cobrar 8 EUR
+            // num vale de 30,40. Sem valor de confianca nao inventa um numero.
+            const rtPrice = Number(credit?.paid_cents)
+            if (!Number.isFinite(rtPrice) || rtPrice <= 0) {
+              body = `Nova paragem (+€${eur(stopFeeCents)} em dinheiro). Paragens a cobrar: €${eur(stopsFee)}.`
+            } else {
+              body = `Nova paragem (+€${eur(stopFeeCents)}). Total a cobrar em dinheiro: €${eur(rtPrice + stopsFee)}.`
+            }
           } else {
             body = `Nova paragem (+€${eur(stopFeeCents)} em dinheiro). Paragens a cobrar: €${eur(stopsFee)}.`
           }

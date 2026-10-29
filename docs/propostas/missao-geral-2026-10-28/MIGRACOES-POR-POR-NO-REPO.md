@@ -19,6 +19,12 @@ definição final tirada de `pg_get_functiondef`).
 A vigia C5 (`janela2/C5_vigia_dinheiro_a_cobrar.sql`) entra nesta lista depois de aplicada na
 JANELA 2, porque lê a coluna do saldo usado.
 
+## Aplicadas a 29/10 com AUTORIZO do Danilo (14:22) — por pôr no repo (a guarda recusa o texto)
+
+| Versão | Nome | O que é |
+|---|---|---|
+| (ver schema_migrations) | acerto_estafeta_dinheiro_recebido_2026_10_29 | as duas funções do acerto do estafeta a dinheiro passam a contar o dinheiro recebido na porta (prop-9f87a6c6); backups bkp_fn_*_20261029 |
+
 ## Por APLICAR pelo Claude.ai (a tranca do PC não deixa, não é dinheiro)
 
 - `supabase/migrations/20261025230000_admin_chamar_estafeta_ja.sql` — o corpo da função faz

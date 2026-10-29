@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-29T21:37:05.523388+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-29T22:07:07.23639+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-29 21:26 UTC. Páginas listadas: 439.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-29 22:01 UTC. Páginas listadas: 442.
 
 ## O que é o Bora
 
@@ -403,7 +403,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - sql-modo-demo-2026-10-27 — SQL do modo demonstracao (Boom! Burger) para o Claude.ai aplicar (2026-10-27)
 
-## outras (103)
+## outras (106)
 
 - 00-LEIA-PRIMEIRO — Como usar esta memória (2026-10-23)
 - adendo-1-final-app-2026-10-29 — Adendo 1 da missão final-app-2026-10-29 (2026-10-29)
@@ -411,6 +411,9 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - adendo-5-final-app-2026-10-29 — Adendo 5 — decisão do Danilo sobre o plano melhor-que-Uber-Glovo (itens 4,5,6,7,8) (2026-10-29)
 - adendo-6-publica-2026-10-29 — ADENDO 6 (Claude.ai, 20:25) - robo nao recebeu a mensagem das 19:41 + fotos Letra para o Storage (2026-10-29)
 - adendo-7-retomar-missao-2026-10-29 — ADENDO 7 (Claude.ai, 21:30) - RETOMAR a missao publica-2026-10-29 depois de a sessao ter perdido a ligacao ao PC (2026-10-29)
+- adendo-8-noite-automatica-2026-10-29 — ADENDO 8 (Claude.ai, 21:58) - noite automatica: no fim da missao da Bora, acordar a missao do Harness sem ninguem no PC (2026-10-29)
+- adendo-8-nota-telemovel-2026-10-29 — Nota ao adendo 8: o Enter na sessao do Harness e dado pelo Danilo no telemovel (2026-10-29)
+- adendo-harness-servidor-remote-control-2026-10-29 — ADENDO para a missao do Harness (sessao DeepSeek Harness installation): no fim, servidor de Remote Control para duas sessoes ao mesmo tempo (2026-10-29)
 - adendo-vozes-omnivoice-2026-10-22 — Adendo de vozes: A/B do motor OmniVoice (k2-fsa) no filme Ep1 (2026-10-22)
 - armadilha-ytdlp-cookies-chrome-windows — yt-dlp + cookies do Chrome no Windows: caminho morto (App-Bound Encryption) (2026-09-17)
 - arquivo-regras-do-danilo-2026-09-17 — ARQUIVO — regras do Danilo (versão de 17/09, substituída a 23/10) (2026-10-23)

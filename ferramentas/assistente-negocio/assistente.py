@@ -14,6 +14,7 @@ import json
 import os
 import re
 import secrets
+import threading
 import time
 import unicodedata
 
@@ -31,6 +32,13 @@ DIAS = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"]
 DIAS_BH = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 HIST_MAX = 10
 MAX_VOLTAS = 6
+# Adendo 4 (29/10/2026): o cliente nunca fica a espera sem saber; se o motor passar destes segundos,
+# sai ja um "um momento" (a porta vps-baileys envia as pendentes de 3 em 3 s).
+AVISO_SEG = float(os.environ.get("ASSISTENTE_AVISO_SEG", "3.5"))
+# Restaurantes: mensagem obviamente de negocio nao passa pelo classificador (um motor a mais = segundos a mais).
+NEGOCIO_OBVIO_RE = re.compile(r"\b(menu|lista|cardapio|ementa|carta|precos?|hamburg\w*|burgu?er\w*|pedido|encomend\w*|"
+                              r"entrega\w*|quero|queria|pedir|horario|aberto|abrem|fecham|morada|quanto|batata|bebida\w*|"
+                              r"sobremesa\w*|entrada\w*|molho\w*|opcoes|opcao|alerg\w*|boom)\b", re.I)
 
 
 # ----------------------------------------------------------------------------- utilitarios
@@ -527,8 +535,10 @@ def classificar(t, ct, texto, simular):
         f"pessoal = família, amigos, namoro, convites (jantar em casa, futebol, copos), conversa privada, 'mano'/'bro' a falar de vida pessoal, assuntos que nada têm a ver com o {quem}.")},
         {"role": "user", "content": (f"Conversa recente:\n{ctx}\n\n" if ctx else "") + f"Mensagem nova: {texto}"}]
     try:
-        msg, meta = motores.conversar(["gemini:gemini-3.1-flash-lite", "gemini2:gemini-3.1-flash-lite",
-                                       "groq:openai/gpt-oss-20b", "groq:qwen/qwen3.8-27b"], msgs)
+        # 29/10 (A.7/B.2j): so motores gratis; Groq a frente (3/3 certas, ~0,3 s) porque o Gemini gratis tem
+        # 20 pedidos por modelo e por dia e este classificador corre em quase todas as mensagens.
+        msg, meta = motores.conversar(["groq:openai/gpt-oss-20b", "groq:qwen/qwen3.8-27b",
+                                       "gemini:gemini-3.1-flash-lite"], msgs)
         m = re.search(r'"tipo"\s*:\s*"(\w+)"', msg.get("content") or "")
         return (m.group(1) if m else "negocio"), meta
     except motores.MotorFalhou:
@@ -631,8 +641,9 @@ def atender(ev, simular=False):
 
     hist0 = ct.get("historico") or []
     em_conversa = bool(hist0) and hist0[-1]["r"] == "assistant" and (agora() - hora_local(hist0[-1]["ts"])) < dt.timedelta(minutes=30)
-    if em_conversa and not PESSOAL_RE.search(sem_acentos(texto)):
-        tipo, meta_c = "negocio", None  # a meio de uma conversa de marcacao: nao se gasta motor a classificar
+    obvio = tipo_de(t) == "restaurante" and NEGOCIO_OBVIO_RE.search(sem_acentos(texto))
+    if (em_conversa or obvio) and not PESSOAL_RE.search(sem_acentos(texto)):
+        tipo, meta_c = "negocio", None  # a meio de uma conversa (ou pedido obvio de menu/encomenda): nao se gasta motor a classificar
     else:
         tipo, meta_c = classificar(t, ct, texto, simular)
     if tipo == "pessoal":
@@ -654,6 +665,9 @@ def atender(ev, simular=False):
         direto = turno.sim_direto(hist)
         if direto:  # "sim" a um resumo que acabou de ser mostrado: pedido confirmado em codigo, sem motor
             return _fechar(t, numero, texto, entrada, turno, direto, "pedido-confirmado-em-codigo", None, hist, simular)
+        rapida = restaurante.resposta_rapida(t, ct, texto)
+        if rapida:  # adendo 4 (29/10): menu/lista/precos saem em codigo, da base, sem esperar pelo motor (< 5 s)
+            return _fechar(t, numero, texto, entrada, turno, rapida, "resposta-rapida", None, hist, simular)
         sistema = restaurante.prompt_restaurante(t, ct)
     else:
         turno = Turno(t, numero, ct, simular)
@@ -666,6 +680,13 @@ def atender(ev, simular=False):
     msgs.append({"role": "user", "content": texto})
     pode_pago = custo_mes(t) < float(t["orcamento_mensal_eur"])
     resposta, erro = None, None
+    aviso = None
+    if tipo_de(t) == "restaurante" and AVISO_SEG > 0:
+        # adendo 4 (29/10): se o motor demorar, o cliente recebe ja "um momento" enquanto se pensa
+        aviso = threading.Timer(AVISO_SEG, enfileirar,
+                                args=(t, numero, "Só um momento, já lhe respondo.", "aviso-rapido", simular))
+        aviso.daemon = True
+        aviso.start()
     try:
         resposta = _laco(t, turno, msgs, pode_pago)
     except motores.MotorFalhou as e:
@@ -675,6 +696,8 @@ def atender(ev, simular=False):
             resposta = _laco(t, turno, msgs, pode_pago)
         except motores.MotorFalhou as e2:
             erro = f"{e} || 2.a volta: {e2}"
+    if aviso:
+        aviso.cancel()
 
     acao = "respondeu"
     if not resposta:
@@ -814,9 +837,13 @@ def apos_marcacao(t, numero, turno, simular):
 
 def dono_falou(sessao, numero):
     """Alguem escreveu a mao (do telemovel do negocio) nesta conversa: o robo cala-se 12 h."""
-    t, _ = tenant_para(sessao, numero)
+    t, porque = tenant_para(sessao, numero)
     if not t:
         return {"ok": False}
+    if t["mode"] == "teste" and porque == "allowlist":
+        # adendo 4 (29/10): em teste, o numero da allowlist e quem TESTA o robo (o dono da Bora); uma mensagem
+        # enviada a mao para ele nao pode calar o robo 12 h (foi o que aconteceu as 18:47 de 29/10).
+        return {"ok": False, "motivo": "numero de teste da allowlist: nao se silencia"}
     contacto(t, so_digitos(numero))
     ate = agora() + dt.timedelta(hours=12)
     gravar_contacto(t, so_digitos(numero), {"silenciado_ate": iso(ate), "silenciado_motivo": "o dono escreveu nesta conversa"})

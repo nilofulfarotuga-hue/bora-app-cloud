@@ -10,7 +10,7 @@ estado: atual
 
 # Candidatos e documentos — 29/10 (Claude.ai)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `digest-2026-10-29-candidatos-documentos`, origem `claude-ai`, atualizada em 2026-10-29T14:19:23.545758+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `digest-2026-10-29-candidatos-documentos`, origem `claude-ai`, atualizada em 2026-10-29T16:12:38.634486+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: digest 2026 10 29 candidatos documentos · memoria claude.ai · claude_ai_memoria
 
@@ -45,3 +45,5 @@ Robô "fiscal de documentos" — Edge Function nova chamada a cada documento env
 - Primeira volta sobre os pendentes atuais. Custo: menos de 1 cêntimo por documento.
 - Depois: validade da carta/cartão com aviso 30 dias antes; linha na política de privacidade sobre verificação automática de documentos.
 Como os grandes fazem (Uber/Glovo/Bolt): verificação no momento do envio, estado por documento à vista do candidato com motivo e reenvio só daquele, push+email+SMS com o que falta e lembretes, validade com aviso antes de expirar, humano só no sim final.
+
+ATUALIZAÇÃO 29/10 16:12 (Claude.ai): o "Valdemir" da ordem de 14:28 é o colega Valdemir Vasconcelos (motorista/estafeta já aprovado, comprovativo de atividade por_enviar) — avisado na app/push (admin_provider_atividade_lembrar, 2.º lembrete) e por email da conta Bora. O Waldyr Ramos Junior (candidato de 25/08) fica DE LADO por ordem do Danilo ("depois vamos ver"): não lhe mandar nada, nem à mão nem pelo robô.

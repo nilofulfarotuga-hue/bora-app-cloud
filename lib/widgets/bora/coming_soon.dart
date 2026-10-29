@@ -18,8 +18,16 @@ import 'loja_fechada.dart';
 const Color kComingSoonOrange = Color(0xFFF97316);
 
 /// Mensagem única usada em todos os bloqueios do cliente.
-const String kComingSoonBlockedMessage =
-    'Esta loja ainda não está a aceitar pedidos.';
+///
+/// Getter (e não `const`) para passar pelo `.tr` (29/10/2026): em inglês
+/// aparecia em português. O texto PT é o mesmo de sempre.
+String get kComingSoonBlockedMessage =>
+    'Esta loja ainda não está a aceitar pedidos.'.tr;
+
+/// A mesma recusa, mas para quem tenta RESERVAR MESA (29/10/2026): ninguém
+/// "faz um pedido" numa reserva, por isso o aviso diz reservas.
+String get kComingSoonReservationBlockedMessage =>
+    'Esta loja ainda não está a aceitar reservas.'.tr;
 
 /// Selo compacto "Em breve" para o canto de um card de loja/parceiro.
 class ComingSoonChip extends StatelessWidget {
@@ -92,13 +100,19 @@ class ComingSoonBanner extends StatelessWidget {
 }
 
 /// Mostra a mensagem única de bloqueio "Em breve".
-void showComingSoonBlockedSnackBar(BuildContext context) {
+///
+/// [reserva]: `true` quando o cliente tentava reservar mesa — o aviso diz
+/// "reservas" em vez de "pedidos". As entregas e compras não passam nada.
+void showComingSoonBlockedSnackBar(BuildContext context,
+    {bool reserva = false}) {
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
     ..showSnackBar(
-      const SnackBar(
-        content: Text(kComingSoonBlockedMessage),
-        duration: Duration(seconds: 3),
+      SnackBar(
+        content: Text(reserva
+            ? kComingSoonReservationBlockedMessage
+            : kComingSoonBlockedMessage),
+        duration: const Duration(seconds: 3),
       ),
     );
 }

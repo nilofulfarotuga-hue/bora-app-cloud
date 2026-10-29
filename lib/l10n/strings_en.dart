@@ -3999,4 +3999,30 @@ const Map<String, String> kStringsEn = <String, String>{
       'Spicy',
   'Sem glúten':
       'Gluten-free',
+  'Não consegui localizar a loja ou a entrega. Escolhe uma sugestão da lista ou acrescenta a cidade (ex.: Guarda).':
+      'I could not locate the store or the delivery. Choose a suggestion from the list or add the city (e.g.: Guarda).',
+  'Não consegui localizar {0}. Escolhe uma sugestão da lista ou acrescenta a cidade (ex.: Guarda).':
+      'I could not locate {0}. Choose a suggestion from the list or add the city (e.g.: Guarda).',
+  'Esta loja ainda não está a aceitar reservas.':
+      'This store is not accepting reservations yet.',
+  'Esta loja ainda não está a aceitar pedidos.':
+      'This store is not accepting orders yet.',
+  'Carteira Bora':
+      'Bora wallet',
+  'Fica já disponível: podes usar na mesma hora no próximo pedido.':
+      'Available right away: you can use it on your next order immediately.',
+  'Devolver para a minha conta':
+      'Refund to my account',
+  'MB Way: chega normalmente na hora.':
+      'MB Way: usually arrives immediately.',
+  'Cartão: 5 a 10 dias úteis.':
+      'Card: 5 to 10 business days.',
+  'Recebes €{0}':
+      'You get €{0}',
+  'Os teus tokens (€{0}) voltam como tokens, com a mesma validade.':
+      'Your tokens (€{0}) come back as tokens, with the same expiry.',
+  'Cancelado. Devolução por MB Way, normalmente na hora.':
+      'Cancelled. Refund via MB Way, usually immediately.',
+  'Cancelado. Devolução ao cartão em 5 a 10 dias úteis.':
+      'Cancelled. Refund to your card in 5 to 10 business days.',
 };

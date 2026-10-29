@@ -59,7 +59,7 @@ class RestaurantOptionsScreen extends StatelessWidget {
   void _openReservation(BuildContext context) {
     // "Em breve": a reserva cobra €3 de sinal — não entrar no fluxo.
     if (business.comingSoon) {
-      showComingSoonBlockedSnackBar(context);
+      showComingSoonBlockedSnackBar(context, reserva: true);
       return;
     }
     Navigator.push(

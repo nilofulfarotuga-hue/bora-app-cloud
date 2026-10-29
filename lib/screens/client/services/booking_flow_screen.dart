@@ -838,7 +838,8 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     // "Em breve": não deixa escolher horário nem avançar para pagamento.
     // (O reagendamento de uma marcação já paga não passa por aqui.)
     if (widget.provider.comingSoon && !_isReschedule) {
-      return const _EmptyStep(
+      // Sem `const`: a mensagem passa pelo `.tr` (é um getter).
+      return _EmptyStep(
         icon: Icons.schedule,
         text: kComingSoonBlockedMessage,
       );

@@ -546,16 +546,24 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
                 child: SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ReservationAvailabilityScreen(
-                          restaurantId: model.id,
-                          restaurantName: model.name,
-                          restaurantPhotoUrl: model.photoUrl,
+                    onPressed: () {
+                      // "Em breve": a reserva cobra €3 de sinal — não entrar no
+                      // fluxo (o mesmo guarda das opções e da lista).
+                      if (model.comingSoon) {
+                        showComingSoonBlockedSnackBar(context, reserva: true);
+                        return;
+                      }
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ReservationAvailabilityScreen(
+                            restaurantId: model.id,
+                            restaurantName: model.name,
+                            restaurantPhotoUrl: model.photoUrl,
+                          ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
                     icon: const Icon(Icons.event_seat_outlined),
                     label: Text('Reservar mesa'.tr),
                     style: OutlinedButton.styleFrom(

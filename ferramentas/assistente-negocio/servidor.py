@@ -59,7 +59,7 @@ def tranca_de(numero):
         return _trancas.setdefault(numero, threading.Lock())
 
 
-def pendentes():
+def _pendentes_assistentes():
     t_cache = {}
     linhas = db.ler("assistant_messages", "direcao=eq.saida&entrega_estado=eq.pendente&order=created_at.asc&limit=5",
                     "id,tenant_id,numero,texto,motivo,created_at,media_path")
@@ -84,7 +84,20 @@ def pendentes():
     return saida
 
 
+def pendentes():
+    saida = _pendentes_assistentes()
+    try:  # pista dos lembretes do dono (final-app-2026-10-29): nunca estraga a fila do assistente
+        import lembretes_lane
+        saida += lembretes_lane.pendentes()
+    except Exception as e:  # noqa: BLE001
+        log("lembretes_lane pendentes falhou", e)
+    return saida
+
+
 def enviado(d):
+    if str(d.get("id", "")).startswith("ld-"):
+        import lembretes_lane
+        return lembretes_lane.enviado(d)
     mid = int(str(d.get("id", "")).replace("an-", "") or 0)
     estado = d.get("estado") or ("entregue" if d.get("ok") else "falhou")
     campos = {"entrega_estado": estado, "entrega_erro": d.get("erro")}

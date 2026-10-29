@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-29T19:07:10.232122+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-29T19:37:06.126163+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-29 18:45 UTC. Páginas listadas: 429.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-29 19:35 UTC. Páginas listadas: 435.
 
 ## O que é o Bora
 
@@ -304,7 +304,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-areas-lojas-takeaway-guarda — Restaurantes da Guarda (sushi, pizzarias, churrasqueira) que o Danilo quer montar no Bora como lojas não-parceiras de takeaway por telefone… (2026-10-25)
 - livro-areas-luan-pladur — Luan Almeida (pladur/obras, Guarda) — prospect que chegou pelo WhatsApp a 04/10; Danilo ofereceu site grátis e pensar numa área de obras no… (2026-10-23)
 - livro-areas-marca-ja-esta — Nome novo da marca da app do Danilo ("Já Está", substitui "Bora") — ler antes de falar de nome, marca, logótipo, domínio ou registo no INPI (2026-10-23)
-- livro-areas-marketing-parceiros — Propaganda do Bora com parceiros — recrutamento de parceiros e regra dos cartazes com QR para as lojas (Mister Navalha, Sabores de Casa) (2026-10-26)
+- livro-areas-marketing-parceiros — Propaganda do Bora com parceiros — recrutamento de parceiros e regra dos cartazes com QR para as lojas (Mister Navalha, Sabores de Casa) (2026-10-29)
 - livro-areas-mercadona-reabrir-loja — Plano do Danilo de reabrir a loja Mercadona no Bora só com perfumaria/cosmética/higiene — o que ele mandou guardar e onde estão os preços l… (2026-10-23)
 - livro-areas-metodo-sites — Método obrigatório para construir QUALQUER site (referência → design system → prompt → build → prémio) + agente classificador por nicho, pú… (2026-10-23)
 - livro-areas-mini-site-business — Parallel mini-site web-dev business for local clients using a cinematic HTML/Cloudflare Pages workflow (2026-10-23)
@@ -358,14 +358,14 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-areas-tvde-vertical-parte2 — Bora App TVDE ride-hailing vertical — dispatch, pricing, UI, payments (parte 2 de 4) (2026-10-23)
 - livro-areas-tvde-vertical-parte3 — Bora App TVDE ride-hailing vertical — dispatch, pricing, UI, payments (parte 3 de 4) (2026-10-23)
 - livro-areas-tvde-vertical-parte4 — Bora App TVDE ride-hailing vertical — dispatch, pricing, UI, payments (parte 4 de 4) (2026-10-23)
-- livro-areas-whatsapp-loja — Regras fixas do Danilo para o atendimento automático do WhatsApp da loja — ler antes de mexer nesse atendimento (2026-10-23)
+- livro-areas-whatsapp-loja — Regras fixas do Danilo para o atendimento automático do WhatsApp da loja — ler antes de mexer nesse atendimento (2026-10-29)
 
 ## relatorio (2)
 
 - relatorio-boom-burger-2026-10-27 — Boom! Burger — demonstração e consertos (27/10/2026, noite) (2026-10-27)
 - relatorio-semanal-reels-2026-10-29 — Relatório semanal dos reels - 2026-10-29 (2026-10-29)
 
-## prompt (18)
+## prompt (20)
 
 - prompt-auditoria-3-plataformas-2026-10-06 — Prompt de missão: auditoria das 3 plataformas (06/10) (2026-10-06)
 - prompt-boom-burger-2026-10-27 — PROMPT Boom! Burger — loja parceira + site premium (27/10/2026) (2026-10-27)
@@ -383,6 +383,8 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - prompt-publica-e-fecha-2026-10-29-adendo-1 — Adendo 1 ao prompt publica-e-fecha (29/10 18:40): motores do robô em grátis com rotação (2026-10-29)
 - prompt-publica-e-fecha-2026-10-29-adendo-2 — Adendo 2 ao prompt publica-e-fecha (29/10 18:55): motores grátis do OpenCode em rotação + link /pedir/boom do site (2026-10-29)
 - prompt-publica-e-fecha-2026-10-29-adendo-3 — Adendo 3 (29/10 19:08): escolha do reembolso bem clara para o cliente na app (2026-10-29)
+- prompt-publica-e-fecha-2026-10-29-adendo-4 — Adendo 4 (29/10 19:10): robô WhatsApp da Boom AO VIVO para o teste do Danilo, resposta na hora, super inteligente (2026-10-29)
+- prompt-publica-e-fecha-2026-10-29-adendo-5 — Adendo 5 (29/10 19:18): revisão da conversa do dia — o que ainda faltava (2026-10-29)
 - prompt-talao-confirmar-loja-saldo-2026-10-28 — PROMPT 28/10 — Confirmar do talão, nome da loja, dinheiro a cobrar com saldo/tokens, reembolso no cancelamento (100% saldo ou meio original… (2026-10-28)
 - prompt-talao-confirmar-loja-saldo-2026-10-28-bloco-d — Adenda 18:30 ao prompt de 28/10 (talão Auchan/Divan): Bloco D novo — reembolso no cancelamento (2026-10-28)
 
@@ -400,7 +402,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - sql-modo-demo-2026-10-27 — SQL do modo demonstracao (Boom! Burger) para o Claude.ai aplicar (2026-10-27)
 
-## outras (96)
+## outras (100)
 
 - 00-LEIA-PRIMEIRO — Como usar esta memória (2026-10-23)
 - adendo-1-final-app-2026-10-29 — Adendo 1 da missão final-app-2026-10-29 (2026-10-29)
@@ -411,7 +413,9 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - arquivo-regras-do-danilo-2026-09-17 — ARQUIVO — regras do Danilo (versão de 17/09, substituída a 23/10) (2026-10-23)
 - auditoria-3-plataformas-fecho — Auditoria das 3 plataformas — fecho das pendências (07/10/2026 noite) (2026-10-07)
 - boom-cartazes-canva-2026-10-29 — Cartazes da Boom! Burger no Canva (29/10/2026) (2026-10-29)
+- boom-post-lancamento — Boom! Burger chegou à Bora — post de lançamento (rascunho, NÃO publicado) (2026-10-29)
 - boom-precos-sql-2026-10-29 — boom-precos-sql-2026-10-29 (2026-10-29)
+- boom-robo-conhecimento — Boom! Burger — base de conhecimento do robô de WhatsApp (29/10/2026) (2026-10-29)
 - bora-assistente — Bora Assistente — assistente de compras do cliente (no ar desde 07/10/2026) (2026-10-07)
 - bora-todo-dia — Bora Todo Dia — 5 novidades para o cliente abrir a app todos os dias (n.º 1: check-in diário) (2026-10-13)
 - caminhos-animacao-filme — Filme das filhas — 5 caminhos grátis para o desenho (revisto 05/10 com os 50 vídeos) (2026-10-28)
@@ -440,7 +444,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-topics-communication — How Danilo communicates and the language conventions across his tools (2026-10-23)
 - livro-topics-erros-aprendidos — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (par… (2026-10-29)
 - livro-topics-erros-aprendidos-parte2 — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (par… (2026-10-29)
-- livro-topics-erros-aprendidos-parte3 — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (par… (2026-10-28)
+- livro-topics-erros-aprendidos-parte3 — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (par… (2026-10-29)
 - livro-topics-prioridades — Como o Danilo decide prioridades no negócio — foco dos próximos meses e regras de desempate quando duas coisas competem ao mesmo tempo (2026-10-29)
 - livro-topics-regras-motores-e-prompts — Regras do Danilo sobre que motor/ferramenta usar (Fable, Opus, ChatGPT, GLM, Gemini, OpenCode) e sessões no Chrome — ler antes de montar pr… (2026-10-23)
 - lojas-takeaway-precos — Lojas de takeaway por telefone: Bora (não-parceiro) contra Glovo e Uber Eats, Guarda, 29/10/2026 (2026-10-29)
@@ -448,6 +452,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - mapa-sessoes-contas — Mapa de sessões e contas — que conta está em que sítio (provado no ecrã a 17/09/2026) (2026-09-18)
 - mensagem-hugo-pendente-2026-10-29 — Mensagem para o Hugo (grupo Contabilidade) preparada 29/10 17:40 — por enviar quando o Danilo disser (2026-10-29)
 - mercadona-reabrir-loja — Mercadona Guarda — reabrir só com perfumaria/cosmética/higiene (preparado 14-15/10/2026) (2026-10-15)
+- motores-rotacao-2026-10-29 — Motores gratis em rotacao - medicoes e cadeias (29/10/2026) (2026-10-29)
 - paridade-mundo-2026-10-29 — Paridade do mundo, segunda volta (Rappi, DoorDash, Zomato, Meituan) 29/10/2026 (2026-10-29)
 - paridade-mundo-e-lei-2026-10-17 — Bora vs Uber/Glovo/iFood/Bolt/Grab/Meituan + obrigações da lei em Portugal (pesquisa 17/10/2026) (2026-10-17)
 - paridade-rea-2026-10-26 — Paridade REA 26/10 — Glovo, Uber Eats, iFood e Bora vistos de fora (resumo) (2026-10-26)
@@ -490,6 +495,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - reembolsos-b2-ef-reprocess-refund-e-refund — reembolsos-b2-ef-reprocess-refund-e-refund (2026-10-29)
 - reembolsos-b2-ordem — reembolsos-b2-ordem (2026-10-29)
 - reembolsos-b2-sql-tokens — reembolsos-b2-sql-tokens (2026-10-29)
+- reembolsos-dashboard-passos — Reembolsos (Bloco 2) — passos para publicar pelo painel do Supabase (29/10/2026) (2026-10-29)
 - resposta-contabilista-iva-2026-10-28 — Resposta do Hugo (DC Consultores): IVA normal trimestral, programa de faturação, modelo aceite — 28/10/2026 (2026-10-28)
 - resposta-contabilista-iva-parte2-2026-10-28 — Hugo (15:54-15:55): faturas emitidas pelo escritório, não ficar no art. 53.º, IVA não mexe na margem — e as contas de outubro com IVA (2026-10-28)
 - robo-documentos-2026-10-29 — Robô fiscal de documentos — relatório (adendo 3, 29/10/2026) (2026-10-29)

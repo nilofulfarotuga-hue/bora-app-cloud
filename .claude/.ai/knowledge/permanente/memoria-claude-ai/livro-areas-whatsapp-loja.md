@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-whatsapp-loja
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-23
+ultima_confirmacao: 2026-10-29
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Regras fixas do Danilo para o atendimento automático do WhatsApp da loja — ler antes de mexer nesse atendimento
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-whatsapp-loja`, origem `claude-ai`, atualizada em 2026-10-23T05:43:30.768226+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-whatsapp-loja`, origem `claude-ai`, atualizada em 2026-10-29T19:17:52.210181+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas whatsapp loja · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/whatsapp-loja.md), copiada a 23/10/2026. A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/whatsapp-loja.md), copiada a 29/10/2026 19:16 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: whatsapp-loja
@@ -50,3 +50,6 @@ COBRADOR DAS 09:30 (aviso diário de "mensagens sem resposta")
 PAUSA GERAL DO ENVIO (13/09)
 - [stated] Danilo mandou pausar o atendimento automático antes de ele próprio escrever pelo WhatsApp da loja (razão dele: "não está muito bom, tenho que consertar"). Fica pausado até ele mandar ligar outra vez — a ordem de religar é dele.
 - FEITO por MCP (Claude.ai, sem executor): `whatsapp_settings.envio_ligado=false`, mais `envio_desligado_em` e `envio_desligado_motivo`. É AQUI que vive o interruptor geral do envio (tabela `whatsapp_settings`, chave `envio_ligado`), vale para as duas portas. PROVADO: a mensagem que entrou 4 segundos depois (whatsapp_messages id 866) ficou com `decisao='silencio-missao'` e não saiu resposta nenhuma. Consequência avisada a ele: com isto desligado NENHUM cliente recebe resposta automática nesse número.
+- [stated] 23/10: o WhatsApp da loja NÃO é só da loja — é também dele, as pessoas falam com ele lá; o bot antigo não sabia distinguir o que é da loja do que é pessoal. Antes de ligar qualquer resposta automática quer discutir com calma como responder; por agora só o esqueleto, nada ligado. Gostava também que um agente respondesse por ele no WhatsApp (ideia em aberto)
+- [stated] 29/10/2026 (robô da loja parceira, caso [[boom-burger]]): a resposta tem de ser NA HORA — o cliente manda e o WhatsApp já responde, sem ficar à espera; e o robô tem de ser "super inteligente": saber tudo da app e tudo da loja (menu, preços, horário, morada), e pedir ao cliente todas as informações do pedido (morada, etc.). Ele testa pelo telemóvel pessoal e quer resposta imediata
+

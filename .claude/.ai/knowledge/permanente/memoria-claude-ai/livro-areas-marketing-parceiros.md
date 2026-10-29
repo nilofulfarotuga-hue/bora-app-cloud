@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-marketing-parceiros
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-26
+ultima_confirmacao: 2026-10-29
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Propaganda do Bora com parceiros — recrutamento de parceiros e regra dos cartazes com QR para as lojas (Mister Navalha, Sabores de Casa)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-marketing-parceiros`, origem `claude-ai`, atualizada em 2026-10-26T21:24:06.961263+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-marketing-parceiros`, origem `claude-ai`, atualizada em 2026-10-29T19:17:52.210181+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas marketing parceiros · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/marketing-parceiros.md), copiada a 26/10/2026 21:15 (hora de Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/marketing-parceiros.md), copiada a 29/10/2026 19:16 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: marketing-parceiros
@@ -33,4 +33,5 @@ aliases: [propaganda parceiros, divulgação Bora, recrutamento parceiros, propa
 - [stated] 24/10/2026 DECIDIDO: plano "A Guarda tem tudo no Bora" — 1.ª etapa é ter um parceiro em cada categoria (beleza incluída); angariadores sem limite, 20 € quando a loja entra com cartaz + 20 € depois dos primeiros 5 pedidos; estafetas ficam com ele; treino e texto pronto para o parceiro explicar o Bora ao cliente. Aprovou ("pode postar") o texto da vaga de angariador (WhatsApp da Bora) e autorizou ligar os prémios do check-in e baixar o pedido mínimo da indicação de 20 € para 10 € (a mudança direta por MCP foi travada pelo sistema). Vídeo de 1 min do app para os angariadores: ele aprova antes de publicar
 - 24/10/2026 21:45: PROMPT entregue no chat para ele colar (Opus 5.5, app Claude no PC > Code > pasta bora-app-cloud, modo automático), fluxo e2e_log 'angariadores-2026-10-24' — bloco 1 as duas definições, bloco 2 vaga nos grupos (tecto 5/dia) + página e Instagram, bloco 3 vídeo de 1 min só para o Telegram. Estado: entregue a ele para colar
 - [stated] 26/10/2026: parceiros de beleza (barbearias, salões) pagam 20 € por mês; o Danilo dá o site e o apoio
+- [stated] 29/10/2026, plaquinha "pede por WhatsApp" do parceiro: o QR aponta para um link nosso que se pode trocar depois para o número do parceiro sem reimprimir (por agora o número da Bora, para teste; ele diz "troca" quando for); a plaquinha leva o logo do WhatsApp e um espaço EM BRANCO para o número, que será o do parceiro, para quem não usa o QR o guardar no telemóvel. Impressão: é ele que imprime; eu só mando à [[grafica-a3]] quando ele aprovar e disser a quantidade
 

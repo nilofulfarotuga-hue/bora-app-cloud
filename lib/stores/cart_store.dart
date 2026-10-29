@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/cart_item.dart';
 import '../models/order_model.dart';
 import '../config/business_rules.dart' show BRTokens;
+import '../services/agendar_pedido_service.dart';
 import '../services/assistant_service.dart';
 import '../services/checkin_premios_service.dart';
 import '../services/maps_service.dart';
@@ -108,6 +109,13 @@ class CartStore extends ChangeNotifier {
 
   CartStore() {
     _loadCart();
+    // Agendar pedidos (C5, 29/10/2026): se a configuração ou a escolha mudar, o
+    // carrinho refaz-se (botões, aviso de "escolhe uma hora").
+    AgendarPedidoEstado.instance.addListener(_aoMudarAgendamento);
+  }
+
+  void _aoMudarAgendamento() {
+    if (!_libertado) notifyListeners();
   }
 
   // ── Persistence ──────────────────────────────────────────────────────────
@@ -338,7 +346,36 @@ class CartStore extends ChangeNotifier {
   /// Ao contrario do "Em breve", isto BLOQUEIA mesmo o adicionar ao carrinho:
   /// a loja ja trabalha connosco, so nao esta a servir agora. Navegar,
   /// espreitar o menu e ver precos continua tudo livre.
-  bool get lojaFechada => _vendorFechada;
+  ///
+  /// Agendar pedidos (C5, 29/10/2026): com o interruptor LIGADO e uma loja de
+  /// restaurante parceiro com entrega, a loja fechada deixa de travar o
+  /// carrinho — o cliente agenda (ver [agendamentoObrigatorio]). Desligado,
+  /// isto é exatamente o `_vendorFechada` de sempre.
+  bool get lojaFechada => _vendorFechada && !agendamentoDisponivel;
+
+  /// A loja está fechada AGORA (sem contar com o agendamento).
+  bool get lojaFechadaAgora => _vendorFechada;
+
+  /// Esta loja pode receber pedidos agendados (restaurante parceiro, entrega,
+  /// não festas, não "em breve")?
+  bool get lojaAgendavel =>
+      _isPartnerStore &&
+      _serviceType == OrderServiceType.restaurant &&
+      !_vendorIsFestas &&
+      !_vendorComingSoon &&
+      _vendorRestaurantId != null;
+
+  /// Interruptor ligado E loja que aceita agendamento.
+  bool get agendamentoDisponivel =>
+      lojaAgendavel && AgendarPedidoEstado.instance.ligado;
+
+  /// Loja fechada agora + agendamento ligado: o cliente TEM de escolher uma hora.
+  bool get agendamentoObrigatorio => _vendorFechada && agendamentoDisponivel;
+
+  /// Falta escolher a janela (o "Finalizar pedido" espera).
+  bool get agendamentoEmFalta =>
+      agendamentoObrigatorio &&
+      !AgendarPedidoEstado.instance.escolhaPara(_vendorRestaurantId);
 
   /// Mensagem unica do bloqueio (PT-PT), com a hora a que abre.
   String get avisoLojaFechada => _vendorAvisoFechada;
@@ -996,6 +1033,10 @@ class CartStore extends ChangeNotifier {
     _vendorRestaurantId = vendorRestaurantId;
     _vendorFechada = vendorFechada;
     _vendorAvisoFechada = vendorAvisoFechada;
+    // Agendar pedidos (C5): a configuração pode ainda não ter sido lida.
+    if (!AgendarPedidoEstado.instance.ligado) {
+      unawaited(AgendarPedidoEstado.instance.carregarConfig());
+    }
     // Minimo/taxa proprios desta loja, se os tiver. Falhar aqui nunca trava o
     // carrinho: sem leitura, fica o valor global (ou taxa nenhuma).
     if (vendorRestaurantId != null) {
@@ -1184,7 +1225,7 @@ class CartStore extends ChangeNotifier {
     // encher o carrinho para depois recusar seria pior. Navegar e ver precos
     // continua livre; e so o adicionar que para. Quem chama mostra
     // `avisoLojaFechada` (a UI usa showLojaFechadaSnackBar).
-    if (_vendorFechada) {
+    if (lojaFechada) {
       debugPrint(
         'CartStore.addItem: BLOQUEADO — "$_vendorName" está fechada.',
       );
@@ -1538,6 +1579,13 @@ class CartStore extends ChangeNotifier {
         debugPrint('CartStore.finishOrder: festas_set_schedule falhou: $e');
       }
     }
+    // Agendar pedidos (C5, 29/10/2026): grava a hora escolhida no pedido já
+    // criado (RPC dedicada, sem tocar create_order). Atrás do interruptor,
+    // não-fatal: se falhar, a hora segue na nota do pedido para o parceiro ver.
+    if (newOrderId != null) {
+      await AgendarPedidoEstado.instance
+          .gravarEscolha(newOrderId, restaurantId: _vendorRestaurantId);
+    }
     _festasQuando = null;
     _packagePhotoUrl = null;
     _groceriesPhotoUrl = null;
@@ -1613,6 +1661,7 @@ class CartStore extends ChangeNotifier {
   void dispose() {
     _libertado = true;
     _retratoTimer?.cancel();
+    AgendarPedidoEstado.instance.removeListener(_aoMudarAgendamento);
     super.dispose();
   }
 }

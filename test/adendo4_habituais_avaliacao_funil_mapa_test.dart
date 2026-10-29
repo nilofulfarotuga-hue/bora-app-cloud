@@ -445,6 +445,8 @@ void main() {
         InterruptoresApp.funilPratos,
         InterruptoresApp.ofertaGanhoVisivel,
         InterruptoresApp.mapaProcuraEstafeta,
+        // Bloco C (29/10/2026): modo ocupado do parceiro, desligado por defeito.
+        InterruptoresApp.modoOcupadoParceiro,
       };
       expect(kInterruptoresApp, doCodigo);
     });

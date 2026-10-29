@@ -98,7 +98,9 @@ String? etaDoPedido(OrderModel o, {Duration naFase = Duration.zero, LatLng? driv
   final base = OrderEtaService.minutesRemaining(o, driverPos: driverPos);
   if (base == null) return null;
   var minutos = base;
-  if (_descontaTempoDaFase(o.status)) {
+  // C6: com "fica pronto às HH:MM" o `base` já vem descontado do que passou
+  // (conta desde agora até à hora prometida): não se desconta duas vezes.
+  if (_descontaTempoDaFase(o.status) && o.readyAtPromised == null) {
     minutos = base - naFase.inMinutes;
   }
   if (minutos < 5) minutos = 5;

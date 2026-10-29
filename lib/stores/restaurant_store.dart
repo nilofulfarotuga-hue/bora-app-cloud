@@ -1562,6 +1562,9 @@ class RestaurantStore extends ChangeNotifier {
       appMarkupPct: double.tryParse(data['app_markup_pct']?.toString() ?? ''),
       // 04/10: pausa do parceiro — tolerante se a coluna ainda não existir.
       pausaAte: RestaurantModel.parsePausaAte(data['pausa_ate']),
+      // C6 (29/10): modo ocupado — tolerante se as colunas ainda não existirem.
+      busyExtraMinutes: (data['busy_extra_minutes'] as num?)?.toInt() ?? 0,
+      busyUntil: RestaurantModel.parseBusyUntil(data['busy_until']),
     );
   }
 

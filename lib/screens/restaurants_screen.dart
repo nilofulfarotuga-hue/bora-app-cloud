@@ -22,6 +22,7 @@ import '../widgets/bora/coming_soon.dart';
 import '../widgets/bora/lista_estado.dart';
 import '../widgets/bora_assistant_fab.dart';
 import '../widgets/filtros_rapidos_lojas.dart';
+import '../widgets/modo_ocupado_ligado.dart';
 import 'client/reservation/reservation_availability_screen.dart';
 import 'restaurant_menu_screen.dart';
 import 'restaurant_options_screen.dart';
@@ -661,6 +662,14 @@ class _MetaRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // C6 (29/10/2026): o modo ocupado do parceiro só soma tempo com o interruptor
+    // ligado; desligado (de fábrica) o corpo é exatamente o de sempre.
+    return ModoOcupadoLigado(
+      builder: (context, ocupadoLigado) => _corpo(context, ocupadoLigado),
+    );
+  }
+
+  Widget _corpo(BuildContext context, bool ocupadoLigado) {
     final cart = context.watch<CartStore>();
     final store = context.watch<RestaurantStore>();
     final client = cart.deliveryLocation;
@@ -669,6 +678,8 @@ class _MetaRow extends StatelessWidget {
     final window = OrderEtaService.deliveryWindowMinutes(
       clientLocation: client,
       restaurantLocation: pickup,
+      extraMinutes:
+          ocupadoLigado ? business.extraOcupadoEm(DateTime.now()) : 0,
     );
     final fee = distanceKm == null
         ? null

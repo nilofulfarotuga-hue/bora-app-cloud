@@ -15,6 +15,7 @@ import '../bora/banner_pausa_loja.dart';
 import '../bora/loja_fechada.dart';
 import 'market_category_chip_large.dart';
 import 'market_product_card.dart';
+import '../preco_com_promocao.dart';
 import '../valor_com_risco.dart';
 
 import '../../l10n/tr.dart';
@@ -748,8 +749,10 @@ class _HorizontalSection extends StatelessWidget {
             ],
           ),
         ),
-        SizedBox(
-          height: 220,
+        AlturaCarrosselPromocao(
+          restaurantId: restaurantId,
+          produtosIds: [for (final p in products) p.id],
+          altura: 220,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),

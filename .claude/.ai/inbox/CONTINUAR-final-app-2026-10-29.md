@@ -101,6 +101,30 @@ Bloco D bloqueado (sem token do CLI; passos na página `reembolsos-dashboard-pas
 - 17 fotos da Boom no Storage (e2e 5319); página boom-robo-conhecimento corrigida; política tmp dos cartazes apagada;
   NIF opcional confirmado (e2e 5323).
 
+## ADENDO 9 — check-in: calendário de 30 dias + escada de prémios (Danilo 29/10 22:20) — POR FAZER, sessão nova
+Página do livro `adendo-9-checkin-escada-premios-2026-10-29` (ler inteira por SQL). Resumo:
+1. Cartão do check-in na home: faixa de 7 dias da semana corrente da sequência (no dia 12 mostra 8-14) e seta
+   "ver o mês" que expande no próprio cartão o calendário dos 30 dias (feitos, hoje, marcos 7/10/15/30 com ícone).
+2. Escada de prémios (regra nova: "se escolher algum prémio volta do zero, senão vou falir"): os tokens diários
+   (5,5,10,10,15,15,40) continuam a acumular; os prémios de produto/serviço (10 salgados, 15 açaí, 30
+   limpeza/lavagem) passam a ser UM por sequência. No marco: festa (confetti, som curto, vibração) e duas escolhas
+   "Levantar agora (a sequência volta ao dia 1)" ou "Continuar (no dia 15/30 trocas por …)"; no 30 só levanta. Vale
+   pendente único, TROCADO (nunca somado) ao continuar; levantar cria o vale (validade checkin_marco_validade_dias)
+   e reinicia a sequência no momento; falhar um dia guarda o patamar já garantido. Tecto mensal e pedido pago
+   continuam. Quem já tem mais de um vale fica com eles (hoje 1 cliente nessa situação, SELECT 29/10 22:25).
+   Interruptor novo `checkin_escada_ativa` (nasce ligado). Painel admin: sequência, marco, vale pendente,
+   levantados, textos editáveis, custo por mês.
+3. Provas: emulador Android (cartão fechado/aberto, festa no 10, levantar vs continuar, vale trocado no 15,
+   reinício), testes das funções do servidor (máx. 1 vale pendente; levantar reinicia; falhar guarda o patamar),
+   e2e_log fluxo publica-2026-10-29 passo G-checkin-escada, publicação nas 3 lojas, /ctx doctor e /ctx stats.
+Onde vive hoje: lib/services/checkin_service.dart, checkin_premios_service.dart, lib/screens/client_home_screen.dart
+(cartão), lib/screens/client/checkin_premios_screen.dart e checkin_premio_servico_screen.dart,
+lib/screens/admin/admin_checkin_screen.dart e admin_checkin_premios_screen.dart; servidor client_daily_checkin,
+_checkin_sequencia, _checkin_marcos_apos_checkin, _checkin_vale_emitir, client_checkin_premios,
+client_checkin_premio_escolher; migrações supabase/migrations/20261021*_d_checkin_marcos_*.sql; testes
+test/checkin_premios_test.dart e checkin_premios_ecras_test.dart. Atenção: o check-in mexe em bora_tokens
+(dinheiro) — os tokens diários NÃO mudam; o iPhone continua parado no contrato da Apple por aceitar.
+
 ## Falta (por ordem)
 1. Danilo: aceitar o contrato da Apple → relançar o iPhone; mandar a mensagem de teste ao robô da Boom.
    Claude.ai: copiar para `supabase/migrations/` pelo GitHub a S1 e a dos tokens (a tranca recusa no PC). A do NIF

@@ -1089,6 +1089,9 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                   ),
                   const SizedBox(height: 16),
                 ],
+                // 29/10 (auditoria 7.3): a pausa só faz sentido com a loja
+                // ONLINE; offline o cartão era ruído.
+                if (currentRestaurant.isOnline || emPausa)
                 _PausaLojaCard(
                   emPausa: emPausa,
                   voltaAs: emPausa ? _hhmmLisboa(pausaAte) : null,

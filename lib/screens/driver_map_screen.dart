@@ -3749,9 +3749,13 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                 Builder(builder: (_) {
                   // B4: o cliente paga preços COM markup — usar o total do
                   // lado do cliente, não o total de caixa do estafeta.
+                  // 29/10 (auditoria 7.2): a taxa de pedido pequeno também é
+                  // do cliente — faltava aqui e a folha dizia 5,78 com a
+                  // faixa (servidor) a dizer 7,17.
                   final bruto = clientAdjustedTotal +
                       order.serviceFee +
-                      order.deliveryFee -
+                      order.deliveryFee +
+                      order.smallOrderFee -
                       order.jaPagoSemDinheiro;
                   // 29/10 (revisor): a dívida anterior soma-se por cima, como
                   // na faixa laranja (totalToCollectCash) — senão a lista

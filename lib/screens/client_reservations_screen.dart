@@ -677,7 +677,7 @@ class _VazioProximas extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              atalho(Icons.restaurant, 'Restaurantes'.tr, 'restaurantes'),
+              atalho(Icons.restaurant, 'Restaurantes'.tr, 'mesa'),
               atalho(Icons.local_taxi_outlined, 'Motorista'.tr, 'motorista'),
               atalho(Icons.cleaning_services_outlined, 'Limpeza'.tr,
                   'limpeza'),

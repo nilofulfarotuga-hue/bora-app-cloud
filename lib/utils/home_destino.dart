@@ -114,11 +114,24 @@ const Map<String, String> categoriasDestino = {
   'motorista': 'Bora Motorista',
 };
 
+/// Só para testes: o ecrã que [abrirCategoria] abriria para [categoria], sem
+/// navegar. Null se a chave não existir.
+@visibleForTesting
+Widget? ecraDaCategoriaParaTeste(String categoria) =>
+    _ecraCategoria(normalizarTexto(categoria));
+
 Widget? _ecraCategoria(String chave) {
   switch (chave) {
     case 'restaurantes':
     case 'restaurant':
       return const RestaurantsScreen();
+    case 'mesa':
+    case 'reservar mesa':
+      // Atalho "Restaurantes" do separador Reservas (29/10/2026): marcar mesa,
+      // não pedir comida — a mesma lista do mosaico "Reservar Mesa" da home
+      // (só as lojas que aceitam reservas). Não está em [categoriasDestino]:
+      // as faixas da home continuam a falar de entrega.
+      return const RestaurantsScreen(reservationsOnly: true);
     case 'supermercados':
     case 'supermercado':
     case 'mercados':

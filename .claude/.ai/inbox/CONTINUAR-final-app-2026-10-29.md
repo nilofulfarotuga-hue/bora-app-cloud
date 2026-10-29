@@ -58,19 +58,35 @@ Cópia de trabalho `C:\BoraLocal\wt-missao-geral-28-10`, ramo `missao-geral-2026
   na segunda); takeaway_enabled da Boom = false (dono liga no painel); chave OpenCode Go expirada (401) e
   Gemini pago sem créditos (402) — precisam do Danilo; gatilho de tvde_driver_documents não feito.
 
-## A correr (agentes; se esta sessão cair, ver o que ficou em disco/e2e_log e relançar NOVOS com a lista)
-2 robô WhatsApp da Boom (migração 20261029141906 aplicada; cérebro em disco; partner_dashboard_screen e
-admin_orders_screen por commitar) · 6.c auditoria + S1 · adendo 3 robô de documentos (R1-R7 com migrações
-20261029144139/144631/144737/150322 aplicadas; main.dart, admin_* de prestadores e atividade_service em disco) ·
-adendo 4 (10 itens + 5 pequenos) · C2 Receita do dia.
+## Fechados às 17:30 UTC (commits f0c7021b reels, a85b5585 tvde, 6294e7ea adendo 4 + Boom Flutter)
+- Adendo 4: os 10 itens e os 5 pequenos em código, cada um com interruptor em platform_settings (ask_*, cart_*,
+  feature_*; os de IA desligados até teste com sessão de parceiro/admin); 6 migrações aplicadas; 101 testes novos;
+  as 3 ligações (BarraPedidoAtivoHost no main.dart, cards no painel do parceiro, nota a negrito) feitas por mim.
+  Item 9 só em parte (124 de 179 tamanhos de letra < 16 px nos ecrãs antigos; contraste do branco sobre verde 3,3:1).
+- Relatório semanal dos reels no livro (cron segundas 09:00 Lisboa; só gostos/comentários — faltam permissões
+  instagram_manage_insights e read_insights no token). Biblioteca de Anúncios: bloqueado (sem ads_read; e2e 5224).
+- Nada a correr. Só os registrants gerados (linux/macos/windows) ficam por commitar, de propósito.
+
+## Bloco 7 feito (19:00 UTC; e2e 5249-5260; 67 capturas em .claude/.ai/provas/final-app-2026-10-29/, fora do repo)
+- Delivery cliente demo e estafeta demo de ponta a ponta a dinheiro (7,17 = 7,17; ledger 3 linhas; tokens certos).
+  Parceiro demo online/offline; admin sem sessão nega; Favores/Limpeza/Reservas até ao confirmar; Motorista sem regressão.
+- Consertado (commit a seguir): ETA ignora posição do estafeta > 60 km; atalho "Restaurantes" das reservas abre mesas;
+  "acesso negado" do painel em PT-BR.
+- Só reportado (dinheiro/despacho ou sem conta): folha "Ver compras" do estafeta mostra "cliente paga na entrega" sem a
+  taxa de pedido pequeno (driver_map_screen ~3730; a faixa está certa); canal driver-offer reabre de 3 em 3 s
+  (driver_store _attachOfferChannel/_scheduleReconnect, hipótese); gatilho demo atribui por drivers.id (conhecido);
+  legal_terms_pending ordena do mais novo para o mais velho (termos novos não cobrem os antigos); "Faltam X €" duas
+  vezes no carrinho; cartão "Pausa a loja" com a loja offline; Maps/Waze abre sozinho depois de "Confirmar compra".
+- Por ver (precisa de conta/chave/pessoa): oferta+aceitar pelo despacho normal; pedido novo no painel do parceiro;
+  painel admin com dados (sem conta de admin em ficheiros); Favor a partir da morada (GOOGLE_MAPS_API_KEY no
+  .dart_defines do emulador); Limpeza confirmada (iria a profissional real).
 
 ## Falta (por ordem)
-1. Rever/commitar por caminho o que os agentes deixarem; aplicar S1 (dinheiro autorizado) com backup e prova.
-2. Bloco 7 (depois do delivery): ADENDO 4 (10 itens, interruptor no admin); 5 pequenos da paridade; C2 Receita
-   do dia; C4 takeaway por telefone (só registar); C5 Stripe Connect (só preparar + roll secret); adendo 1 E
-   (vigia de queda de pedidos/erros no Hermes; relatório semanal dos reels; biblioteca de anúncios).
-   Auditoria total por prioridade (cliente delivery → estafeta → parceiro → painel → Favores → Limpeza →
-   Reservas → Bora Motorista só regressões), com Maestro no emulador (RAM ≥ 3 GB).
+1. Consertos pequenos da auditoria que ficaram só reportados (acima), fora de dinheiro/despacho.
+2. Bloco 11 (adendo 5, só depois dos Blocos 1-8): itens 4, 5, 6, 7, 8 da página plano-melhor-que-uber-glovo,
+   desenho em adendo-5-final-app-2026-10-29; 5 e 6 mexem no despacho (revisor independente + interruptor
+   desligado); 7 pelo caminho de reembolso do Bloco 2; 4 confirma no relatório "comissão sobre o preço
+   promocional"; 8 por último.
 3. Bloco 10: Juiz (anti_trapaca, analyze, bateria), fiscal de segurança, relatório
    `.claude/.ai/reports/FABLE-2026-10-29-final-app.md` + cópia em Desktop\Bora\prompts, digest
    `digest-2026-10-29-final-app`, Telegram, e2e `fecho`, /ctx doctor + /ctx stats.

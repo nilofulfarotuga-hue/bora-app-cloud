@@ -6,6 +6,8 @@ import 'package:bora_app/models/reservation_model.dart';
 import 'package:bora_app/models/tvde_ride.dart';
 import 'package:bora_app/screens/client/services/booking_success_screen.dart';
 import 'package:bora_app/screens/client_reservations_screen.dart';
+import 'package:bora_app/screens/restaurants_screen.dart';
+import 'package:bora_app/utils/home_destino.dart';
 import 'package:bora_app/stores/cleaning_store.dart';
 import 'package:bora_app/stores/reservation_store.dart';
 import 'package:bora_app/stores/services_store.dart';
@@ -164,6 +166,16 @@ Widget _ecraComUmaDeCada({bool limpezaFalha = false}) {
   );
 }
 
+
+/// Guarda a última rota empurrada (sem a construir de verdade).
+class _GuardaRota extends NavigatorObserver {
+  Route<dynamic>? ultima;
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    ultima = route;
+  }
+}
+
 Widget _ecraVazio() => MultiProvider(
       providers: [
         ChangeNotifierProvider<ReservationStore>(create: (_) => _Mesas([])),
@@ -205,6 +217,41 @@ void main() {
     expect(y('Corrida marcada') < y('Limpeza'), isTrue);
     expect(y('Limpeza') < y('Marcação'), isTrue);
     expect(y('Marcação') < y('Mesa'), isTrue);
+  });
+
+  test('o atalho "mesa" abre a lista de reservas de mesa, "restaurantes" a de '
+      'entrega', () {
+    final mesa = ecraDaCategoriaParaTeste('mesa');
+    expect(mesa, isA<RestaurantsScreen>());
+    expect((mesa! as RestaurantsScreen).reservationsOnly, isTrue);
+    final entrega = ecraDaCategoriaParaTeste('restaurantes');
+    expect(entrega, isA<RestaurantsScreen>());
+    expect((entrega! as RestaurantsScreen).reservationsOnly, isFalse);
+  });
+
+  testWidgets(
+      'Reservas vazio: o atalho Restaurantes leva à lista de MESAS, não à de '
+      'entrega (auditoria 29/10)', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(400, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final obs = _GuardaRota();
+    await tester.pumpWidget(
+        MaterialApp(navigatorObservers: [obs], home: _ecraVazio()));
+    await tester.pumpAndSettle();
+
+    obs.ultima = null;
+    await tester.tap(find.text('Restaurantes'));
+    await tester.pump();
+    // O ecrã novo precisa do RestaurantStore (não há aqui): o erro de
+    // construção é esperado e não interessa — interessa a rota empurrada.
+    tester.takeException();
+
+    final rota = obs.ultima;
+    expect(rota, isA<MaterialPageRoute<dynamic>>());
+    final contexto = tester.element(find.byType(ClientReservationsScreen));
+    final ecra = (rota! as MaterialPageRoute<dynamic>).builder(contexto);
+    expect(ecra, isA<RestaurantsScreen>());
+    expect((ecra as RestaurantsScreen).reservationsOnly, isTrue);
   });
 
   testWidgets('sem nada marcado: texto genérico e atalhos', (tester) async {

@@ -89,3 +89,6 @@ confianca: auto
 | prompt-blindado-validator | 2026-10-29 | missao-geral-2026-10-28 | 1 prompt | ok (6 blocos) |
 | ceo-ai | 2026-10-29 | missao-geral-2026-10-28 | 9 blocos, 22 commits | parcial (motor parado ate 1/11) |
 | protocolo-missao-bora | 2026-10-29 | missao-geral-2026-10-28 | e2e 5037-5095, digest, relatorio | ok |
+| ceo-ai | 2026-10-29 | final-app-2026-10-29 (Fable) | 10 blocos + 5 adendos, 42 commits, e2e 5099-5260 | ok (publicacao e reembolsos esperam o Danilo) |
+| protocolo-missao-bora | 2026-10-29 | final-app-2026-10-29 | relatorio FABLE-2026-10-29-final-app.md, digest, CONTINUAR | ok |
+| prompt-blindado-validator | 2026-10-29 | final-app-2026-10-29 | 1 prompt + 5 adendos | ok |

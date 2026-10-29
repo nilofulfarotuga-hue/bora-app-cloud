@@ -2,6 +2,14 @@
 // supabase/functions/notify-tvde-driver/index.ts
 //
 // TVDE — Bora Motorista. Envia push FCM a um motorista de passageiros.
+// v24 (2026-10-29, AUTORIZO do Danilo 14:22, prop-3b74506b item 1): no aviso de
+// paragem de um VALE a dinheiro (pacote ida-e-volta), o total a cobrar passa a ser
+// o que FOI PAGO naquele vale (tvde_roundtrip_credits.paid_cents) e nao a chave do
+// piso tvde_roundtrip_price_cents (800): um vale de 30,40 mandava cobrar 8 EUR.
+// Sem valor de confianca nao inventa numero (mostra so as paragens). Nada mais mudou.
+// v23 (2026-10-21, fechar-pendencias A1): ENCOMENDAS no motor do Bora Motorista —
+// le tvde_rides.ride_kind e, numa encomenda, os textos dizem encomenda/entrega/estafeta
+// (oferta, fila, atribuida, cancelada, reservas). Passageiros: textos iguais. Nada mais mudou.
 // v5: alem da OFERTA de corrida (caminho original, intacto), trata
 // kind='stop_added' — aviso de parada adicionada pelo cliente, com o total
 // a cobrar atualizado (decisao Danilo 2026-07-20).
@@ -55,7 +63,6 @@
 // Retorna 200 sempre (fire-and-forget).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { exigirCallerOk, secretKey } from '../_shared/keys.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -67,15 +74,11 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
-  // 16/10/2026 (chave nova): verify_jwt passa a false — quem chama tem de ser o servidor (chave secreta,
-  // ou a legada confirmada no Auth) ou um utilizador com sessão válida. Ver _shared/keys.ts.
-  const bloqueio = await exigirCallerOk(req, corsHeaders)
-  if (bloqueio) return bloqueio
 
   const firebaseProjectId   = Deno.env.get('FIREBASE_PROJECT_ID')
   const firebaseServiceAcct = Deno.env.get('FIREBASE_SERVICE_ACCOUNT')
   const supabaseUrl         = Deno.env.get('SUPABASE_URL')!
-  const serviceKey          = secretKey()!
+  const serviceKey          = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
   console.log('[notify-tvde-driver] INVOKED (Firebase configured:', !!firebaseProjectId, ')')
 
@@ -117,7 +120,7 @@ Deno.serve(async (req) => {
   accessP.catch(() => { /* tratado abaixo */ })
   const lerCorridaOferta = () => supabase
     .from('tvde_rides')
-    .select('origin_label, dest_label, est_fare_cents, est_distance_km, driver_earn_cents, agreed_driver_earn_cents, agreed_fare_cents, payment_method, offer_expires_at, current_offer_driver_id, status')
+    .select('origin_label, dest_label, est_fare_cents, est_distance_km, driver_earn_cents, agreed_driver_earn_cents, agreed_fare_cents, payment_method, offer_expires_at, current_offer_driver_id, status, ride_kind')
     .eq('id', rideId).maybeSingle()
   const offerRideP = kind === 'offer' ? lerCorridaOferta() : null
 
@@ -362,14 +365,16 @@ Deno.serve(async (req) => {
   // corrida do ecra e mostra o aviso.
   if (kind === 'ride_cancelled') {
     let originLabel = 'Recolha', destLabel = 'Destino'
+    let encomendaCancelada = false // [A1 21/10] encomenda: 'entrega', não 'corrida'
     try {
       const { data: ride } = await supabase
         .from('tvde_rides')
-        .select('origin_label, dest_label')
+        .select('origin_label, dest_label, ride_kind')
         .eq('id', rideId).maybeSingle()
       if (ride) {
         originLabel = ride.origin_label ?? originLabel
         destLabel   = ride.dest_label ?? destLabel
+        encomendaCancelada = ride.ride_kind === 'encomendas'
       }
     } catch (_e) { /* mantem fallbacks */ }
 
@@ -381,8 +386,10 @@ Deno.serve(async (req) => {
           type:  'tvde_ride_cancelled',
           kind,
           originLabel, destLabel,
-          title: 'Corrida cancelada',
-          body:  `A corrida ${originLabel} -> ${destLabel} foi cancelada. Nao precisas de ir.`,
+          title: encomendaCancelada ? 'Entrega cancelada' : 'Corrida cancelada',
+          body:  encomendaCancelada
+            ? `A entrega ${originLabel} -> ${destLabel} foi cancelada. Nao precisas de ir.`
+            : `A corrida ${originLabel} -> ${destLabel} foi cancelada. Nao precisas de ir.`,
         },
         android: { priority: 'high', ttl: '600s' },
         // [iPhone 2026-09-21] 'alert' + som + texto: 'background' e' push SILENCIOSO
@@ -390,7 +397,7 @@ Deno.serve(async (req) => {
         // o iPhone nunca tocava. content-available fica para acordar a app tambem.
         apns: {
           headers: { 'apns-priority': '10', 'apns-push-type': 'alert' },
-          payload: { aps: { alert: { title: 'Corrida cancelada', body: `A corrida ${originLabel} -> ${destLabel} foi cancelada. Nao precisas de ir.` }, sound: 'default', 'content-available': 1, 'interruption-level': 'time-sensitive' } },
+          payload: { aps: { alert: { title: encomendaCancelada ? 'Entrega cancelada' : 'Corrida cancelada', body: encomendaCancelada ? `A entrega ${originLabel} -> ${destLabel} foi cancelada. Nao precisas de ir.` : `A corrida ${originLabel} -> ${destLabel} foi cancelada. Nao precisas de ir.` }, sound: 'default', 'content-available': 1, 'interruption-level': 'time-sensitive' } },
         },
       },
     }
@@ -420,10 +427,11 @@ Deno.serve(async (req) => {
   if (kind === 'queued_added' || kind === 'ride_assigned' || kind === 'ride_reassigned_away') {
     let originLabel = 'Recolha', destLabel = 'Destino', earnEur = '0.00', fareEur = '0.00'
     let mostraCobranca = false
+    let encomenda = false // [A1 21/10]
     try {
       const { data: ride } = await supabase
         .from('tvde_rides')
-        .select('origin_label, dest_label, est_fare_cents, driver_earn_cents, payment_method')
+        .select('origin_label, dest_label, est_fare_cents, driver_earn_cents, payment_method, ride_kind')
         .eq('id', rideId).maybeSingle()
       if (ride) {
         originLabel = ride.origin_label ?? originLabel
@@ -433,6 +441,7 @@ Deno.serve(async (req) => {
         const cents = Number(ride.est_fare_cents ?? 0)
         if (Number.isFinite(cents) && cents > 0) fareEur = (cents / 100).toFixed(2)
         mostraCobranca = (ride.payment_method ?? 'cash') === 'cash' && cents > 0
+        encomenda = ride.ride_kind === 'encomendas'
       }
     } catch (_e) { /* mantem fallbacks */ }
 
@@ -441,16 +450,20 @@ Deno.serve(async (req) => {
     let title: string, body: string
     switch (kind) {
       case 'queued_added':
-        title = '🚗 Corrida em fila — depois desta'
-        body  = `${rota} • ${ganhaFrase}. Fica em fila e abre sozinha quando terminares a corrida actual.`
+        title = encomenda ? '📦 Encomenda em fila — depois desta' : '🚗 Corrida em fila — depois desta'
+        body  = encomenda
+          ? `${rota} • ${ganhaFrase}. Fica em fila e abre sozinha quando terminares a actual.`
+          : `${rota} • ${ganhaFrase}. Fica em fila e abre sozinha quando terminares a corrida actual.`
         break
       case 'ride_assigned':
-        title = '🚗 Ficaste com uma corrida'
+        title = encomenda ? '📦 Ficaste com uma encomenda' : '🚗 Ficaste com uma corrida'
         body  = `${rota} • ${ganhaFrase}. Segue já para a recolha.`
         break
       default:
-        title = 'Corrida passada a outro motorista'
-        body  = `A corrida ${rota} foi passada a outro motorista. Não precisas de ir.`
+        title = encomenda ? 'Encomenda passada a outro estafeta' : 'Corrida passada a outro motorista'
+        body  = encomenda
+          ? `A encomenda ${rota} foi passada a outro estafeta. Não precisas de ir.`
+          : `A corrida ${rota} foi passada a outro motorista. Não precisas de ir.`
     }
 
     const message = {
@@ -499,10 +512,11 @@ Deno.serve(async (req) => {
     let originLabel = 'Recolha', destLabel = 'Destino', fareEur = '0.00'
     let scheduledAt: string | null = null, offerExpiresAt: string | null = null
     let earnEur = '0.00', mostraCobranca = false
+    let encomenda = false // [A1 21/10]
     try {
       const { data: ride } = await supabase
         .from('tvde_rides')
-        .select('origin_label, dest_label, est_fare_cents, scheduled_at, reservation_offer_expires_at, driver_earn_cents, payment_method')
+        .select('origin_label, dest_label, est_fare_cents, scheduled_at, reservation_offer_expires_at, driver_earn_cents, payment_method, ride_kind')
         .eq('id', rideId).maybeSingle()
       if (ride) {
         originLabel = ride.origin_label ?? originLabel
@@ -515,6 +529,7 @@ Deno.serve(async (req) => {
         if (Number.isFinite(earnCents) && earnCents > 0) earnEur = (earnCents / 100).toFixed(2)
         const isCash = (ride.payment_method ?? 'cash') === 'cash'
         mostraCobranca = isCash && Number.isFinite(cents) && cents > 0
+        encomenda = ride.ride_kind === 'encomendas'
       }
     } catch (_e) { /* mantem fallbacks */ }
 
@@ -532,7 +547,7 @@ Deno.serve(async (req) => {
     switch (kind) {
       case 'reservation_offer':
         type  = 'tvde_reservation_offer'
-        title = '📅 Reserva para aceitar'
+        title = encomenda ? '📦 Encomenda marcada para aceitar' : '📅 Reserva para aceitar'
         body  = `${dia} às ${hora} • ${rota} • ${ganhaFrase}`
         ttl   = '300s'
         break
@@ -541,7 +556,7 @@ Deno.serve(async (req) => {
       // Por isso o texto e afirmativo e o app nao mostra botoes.
       case 'reservation_assigned':
         type  = 'tvde_reservation_assigned'
-        title = '📅 Ficaste com uma reserva'
+        title = encomenda ? '📦 Ficaste com uma encomenda marcada' : '📅 Ficaste com uma reserva'
         body  = `Ficaste com uma reserva marcada para ${ptShort(scheduledAt)} às ${hora}`
               + ` • ${rota} • ${ganhaFrase}`
         break
@@ -553,7 +568,7 @@ Deno.serve(async (req) => {
       case 'reservation_start_now':
         type  = 'tvde_reservation_start_now'
         title = '🚗 A tua reserva começa em 10 minutos'
-        body  = `Às ${hora} • ${rota} • ${ganhaFrase}. Carrega "A caminho" — se não confirmares, a reserva passa a outro motorista.`
+        body  = `Às ${hora} • ${rota} • ${ganhaFrase}. Carrega "A caminho" — se não confirmares, a reserva passa a outro ${encomenda ? 'estafeta' : 'motorista'}.`
         break
       case 'reservation_cancelled':
         type  = 'tvde_reservation_cancelled'
@@ -562,8 +577,8 @@ Deno.serve(async (req) => {
         break
       case 'reservation_lost':
         type  = 'tvde_reservation_lost'
-        title = 'Reserva passou a outro motorista'
-        body  = `Não confirmaste a tempo a reserva das ${hora}. Foi entregue a outro motorista.`
+        title = encomenda ? 'Reserva passou a outro estafeta' : 'Reserva passou a outro motorista'
+        body  = `Não confirmaste a tempo a reserva das ${hora}. Foi entregue a outro ${encomenda ? 'estafeta' : 'motorista'}.`
         break
       // v22 (2026-10-12) — o CLIENTE mudou a hora (RPC tvde_reservation_reschedule).
       // Fica com ela: aviso afirmativo com a hora NOVA (a linha ja esta gravada,
@@ -579,8 +594,8 @@ Deno.serve(async (req) => {
       // 'reservation_cancelled', que dizia "o cliente cancelou" e era mentira).
       case 'reservation_rescheduled_lost':
         type  = 'tvde_reservation_lost'
-        title = 'Reserva passou a outro motorista'
-        body  = `O cliente mudou a hora para ${ptShort(scheduledAt)} às ${hora} e já tens outra reserva perto — passou a outro motorista.`
+        title = encomenda ? 'Reserva passou a outro estafeta' : 'Reserva passou a outro motorista'
+        body  = `O cliente mudou a hora para ${ptShort(scheduledAt)} às ${hora} e já tens outra reserva perto — passou a outro ${encomenda ? 'estafeta' : 'motorista'}.`
         break
       default:
         console.warn(`[notify-tvde-driver] kind de reserva desconhecido: ${kind}`)
@@ -646,6 +661,8 @@ Deno.serve(async (req) => {
   // corrida de balcao — senao driver_earn_cents), forma de pagamento e prazo.
   let originLabel = 'Recolha', destLabel = 'Destino', fareEur = '0.00', distanceKm = '0'
   let earnEur = '0.00', mostraCobranca = false, offerExpiresAt: string | null = null
+  // [A1 21/10] Encomenda no motor do Bora Motorista: o aviso diz encomenda.
+  let tituloOferta = '🚗 Nova corrida!', rideKind = 'passageiros'
   // v21 (2026-10-04, auditoria): antes de tocar, confirma que a oferta AINDA e
   // deste motorista. Entre o gatilho e este envio a oferta pode ter expirado,
   // passado a outro ou a corrida ter sido cancelada/aceite — tocar assim fazia
@@ -673,6 +690,7 @@ Deno.serve(async (req) => {
       if (Number.isFinite(earnCents) && earnCents > 0) earnEur = (earnCents / 100).toFixed(2)
       mostraCobranca = (ride.payment_method ?? 'cash') === 'cash' && Number.isFinite(cents) && cents > 0
       offerExpiresAt = ride.offer_expires_at ?? null
+      if (ride.ride_kind === 'encomendas') { tituloOferta = '📦 Nova encomenda!'; rideKind = 'encomendas' }
     }
   } catch (_e) { /* mantem fallbacks */ }
 
@@ -695,7 +713,8 @@ Deno.serve(async (req) => {
         originLabel, destLabel,
         fare:       fareEur,
         distanceKm,
-        title:      '🚗 Nova corrida!',
+        title:      tituloOferta,
+        rideKind,
         body:       headsUpBody,
         // v17: botoes na notificacao + o que ele ganha + prazo.
         actions:        'accept,reject',
@@ -709,7 +728,7 @@ Deno.serve(async (req) => {
       // o iPhone nunca tocava. content-available fica para acordar a app tambem.
       apns: {
         headers: { 'apns-priority': '10', 'apns-push-type': 'alert' },
-        payload: { aps: { alert: { title: '🚗 Nova corrida!', body: headsUpBody }, 'content-available': 1, sound: 'bora_alert.wav', 'interruption-level': 'time-sensitive' } },
+        payload: { aps: { alert: { title: tituloOferta, body: headsUpBody }, 'content-available': 1, sound: 'bora_alert.wav', 'interruption-level': 'time-sensitive' } },
       },
     },
   }

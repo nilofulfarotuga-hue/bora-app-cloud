@@ -8,9 +8,9 @@ confianca: alta
 estado: atual
 ---
 
-# Plano de 14 dias: dia 6 a dia 14 (29/10 a 06/11)
+# Plano de 14 dias — do dia 6 ao dia 14 (29/10 a 06/11/2026)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `plano-14-dias-dia6-a-14`, origem `claude-code`, atualizada em 2026-10-29T14:26:59.637227+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `plano-14-dias-dia6-a-14`, origem `claude-code`, atualizada em 2026-10-29T15:05:29.373061+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: plano 14 dias dia6 a 14 · memoria claude.ai · claude_ai_memoria
 
@@ -29,11 +29,11 @@ PRECISA DO DANILO = só ele pode (rua, decidir, aprovar, pagar, dar o "autorizo"
 
 | Dia | Data | Automático | Precisa do Danilo |
 |---|---|---|---|
-| 6 | qui 29/10 | 9 | 3 |
+| 6 | qui 29/10 | 9 | 2 |
 | 7 | sex 30/10 | 9 | 1 |
 | 8 | sáb 31/10 | 8 | 2 |
 | 9 | dom 01/11 | 6 | 3 |
-| 10 | seg 02/11 | 8 | 3 |
+| 10 | seg 02/11 | 8 | 4 |
 | 11 | ter 03/11 | 8 | 2 |
 | 12 | qua 04/11 | 8 | 1 |
 | 13 | qui 05/11 | 8 | 1 |
@@ -49,16 +49,19 @@ Só nos dias certos: cobrador 09:30 de segunda a sexta; loja do dia 12:00 de ter
 (o script publica a próxima linha "por publicar" da rotação e só com lojas abertas);
 reel 18:00 segunda, quarta e sexta; carrossel 18:00 terça, quinta e sábado;
 grelha da semana domingo 11:00; relatório curto de segunda 09:00.
-Anúncio da Meta (25 € no total, destino `boraguarda.com/baixar?de=pago-fastfood`): corre na Meta até 31/10.
-Atenção: a 29/10 o ficheiro da campanha ainda diz `a_espera_de_fundos` e `campanha_id` vazio; não está provado que esteja no ar.
+Anúncio da Meta (25 € no total, 5 € por dia, botão para `boraguarda.com/entregas`, link do download no texto da publicação):
+corre na Meta de 26/10 a 31/10 (campanha publicada a 26/10 20:18, registo e2e_log 4849).
+Corrigido a 29/10: o ficheiro `campanha-pago-fastfood.json` da VPS ainda dizia `a_espera_de_fundos` e `campanha_id` vazio,
+por isso o resumo das 21:30 contava que a campanha "não arrancou". Passou a `ativa`, id 52679193515474, 26/10 a 31/10
+(cópia do antigo: `.bak-20261029`). Limite: gasto e cliques só se leem com `META_ADS_TOKEN`, que não existe (ver abaixo).
 
 ## Dia a dia
 
 **Dia 6, quinta 29/10.** Plano: angariadores na rua; cada loja que fecha fica montada com cartaz, código e treino.
 - Automático (9): lembrete 09:30, cobrador 09:30, story 10:00, loja do dia 12:00, carrossel 18:00,
   resumo dos grupos 18:30, story 19:30, resumo do dia 21:30, anúncio da Meta.
-- Precisa do Danilo (3): angariadores na rua; aprovar os cartazes da Boom; dar o "autorizo" aos 4 itens de dinheiro
-  (acerto do estafeta a dinheiro, reembolsos ao meio original, tokens que voltam como tokens, aviso ao motorista do vale).
+- Precisa do Danilo (2): angariadores na rua; aprovar os cartazes da Boom (a Claude.ai desenha-os).
+  O "autorizo" aos 4 itens de dinheiro já foi dado hoje às 14:22, por isso saiu da lista (o lembrete das 14:31 ainda o levava).
 
 **Dia 7, sexta 30/10.** Plano: contador "A Guarda tem tudo" nas redes.
 - Automático (9): lembrete, cobrador, o contador no story das 10:00 (NOVO, ver abaixo; substitui a pergunta desse dia),
@@ -78,8 +81,9 @@ Atenção: a 29/10 o ficheiro da campanha ainda diz `a_espera_de_fundos` e `camp
 **Dia 10, segunda 02/11.** Último dia de angariadores na rua.
 - Automático (8): lembrete, cobrador, relatório de segunda 09:00, story 10:00, reel 18:00, resumo dos grupos,
   story 19:30, resumo do dia.
-- Precisa do Danilo (3): angariadores na rua; prémio do check-in se houver parceiro novo;
-  ir à Boom (segunda ou terça) testar o robô com o dono.
+- Precisa do Danilo (4): angariadores na rua; prémio do check-in se houver parceiro novo;
+  ir à Boom (segunda ou terça) testar o robô com o dono; mudar o login da loja Boom para o email do dono dela
+  (a conta de login só muda quando ele entra, por isso fica para segunda).
 
 **Dia 11, terça 03/11.**
 - Automático (8): lembrete, cobrador, story 10:00, loja do dia, carrossel, resumo dos grupos, story 19:30, resumo do dia.
@@ -102,13 +106,18 @@ Atenção: a 29/10 o ficheiro da campanha ainda diz `a_espera_de_fundos` e `camp
 
 1. Contador "A Guarda tem tudo" do dia 7 (30/10). O story das 10:00 desse dia usa uma frase calculada na hora
    com a base: lojas aprovadas, abertas, ativas e fora da lista de exclusão, e o número de categorias.
-   Hoje daria "A Guarda tem tudo: 22 lojas em 5 categorias. O que pedes hoje?".
-   Passa pelos mesmos portões do story normal (regra das lojas permitidas, portão do parceiro, design kit).
+   Hoje daria "A Guarda tem tudo: 22 lojas em 5 categorias. O que pedes hoje?" (22 e 5 conferem com um SELECT à base).
+   Prova (ensaio a seco do `social-story.sh`, nada publicado): com a data 30/10 escolhe a frase do contador; com 31/10
+   volta à pergunta normal. Passa pelos mesmos portões do story normal (regra das lojas permitidas, portão do parceiro).
    Se a base não responder, sai a pergunta normal e nunca um número inventado.
    O fiscal de arte deu 78/100 a uma peça só de texto como esta (feitura 42/60); o story diário normal
    não passa pelo fiscal, por isso não trava a publicação.
-2. Relatório dos 3 números do anúncio da Meta no resumo das 21:30: NÃO feito. Não existe `META_ADS_TOKEN`
-   no `.env` da VPS. Falta um token com permissão de ler anúncios (Business Manager no Chrome): precisa do Danilo
-   ou do Claude.ai, noutro bloco.
-3. Lembretes diários ao Danilo pelo WhatsApp da Bora, às 09:30, com os itens do dia que só ele pode fazer.
+2. Os 3 números do anúncio da Meta no resumo das 21:30: sem token; precisa do Danilo/Claude.ai. Não existe
+   `META_ADS_TOKEN` no `.env` da VPS (só `META_PAGE_TOKEN`, que não lê anúncios). Falta um token com permissão de ler
+   anúncios (Business Manager no Chrome). Enquanto isso o resumo diz isso mesmo, e dá as visitas ao link e os
+   primeiros pedidos da base (hoje: "dia 4 de 6", 4 visitas pelo link, 0 primeiros pedidos, 16 contas novas).
+3. Lembretes diários ao Danilo pelo WhatsApp da Bora, às 09:30 de Lisboa, com os itens do dia que só ele pode fazer.
+   Rotina `lembretes_danilo.py` (cron root, urgentes de 10 em 10 minutos); itens na tabela `lembretes_danilo`
+   e no ecrã "Lembretes" do painel admin. Se a máquina falhar às 09:30, os itens dos 7 dias anteriores que ficaram
+   por enviar saem no dia seguinte, com "(do dia dd/mm)". Primeiro envio provado a 29/10 14:31 (entregue).
 

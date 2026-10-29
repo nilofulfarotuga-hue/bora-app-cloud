@@ -35,6 +35,7 @@ FILA=/docker/hermes-agent-fvnc/data/cortex-brain/orquestracao
 LOG=/root/orquestracao/cortex-proposals-sync.log
 # Se a base recusar a chave, nao se insiste: espera 30 min (o timer corre de 10 em 10 s).
 RECUSA=/root/orquestracao/.cortex-sync-recusado
+ENVIADOS=/root/orquestracao/.cortex-sync-enviados
 
 ts(){ date -u +%FT%TZ; }
 log(){ echo "[$(ts)] $*" >> "$LOG"; }
@@ -52,6 +53,7 @@ if [ "$MODE" != "--aprovacoes" ]; then  # Passo 1 (espelho pesado, 57 HTTP) so n
 sent=0
 fail=0
 ignored=0
+already=0
 while IFS= read -r line; do
   [ -n "$line" ] || continue
 
@@ -90,6 +92,14 @@ print(json.dumps(out))
     continue
   fi
 
+  # 29/10/2026: a RPC faz ON CONFLICT DO NOTHING, por isso reenviar o mesmo pid nunca muda nada.
+  # Guarda os pids ja aceites e so envia os novos (antes eram ~1.000 pedidos por hora iguais).
+  pidp=${payload#*\"p_pid\": \"}; pidp=${pidp%%\"*}
+  if [ -n "$pidp" ] && [ -f "$ENVIADOS" ] && grep -qxF "$pidp" "$ENVIADOS"; then
+    already=$((already + 1))
+    continue
+  fi
+
   resp=$(curl -s --max-time 15 -X POST "$URL/rest/v1/rpc/cortex_proposal_sync_upsert" \
     -H "apikey: $KEY" -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
     -d "$payload")
@@ -109,10 +119,11 @@ except Exception:
     log "falhou pid=$pid: $resp"
   else
     sent=$((sent + 1))
+    [ -n "$pidp" ] && printf '%s\n' "$pidp" >> "$ENVIADOS"
   fi
 done < "$SRC"
 
-log "sync terminado: $sent linha(s) processada(s), $fail falha(s), $ignored nao-proposta(s) ignorada(s)"
+log "sync terminado: $sent linha(s) enviada(s), $already ja enviada(s) antes, $fail falha(s), $ignored nao-proposta(s) ignorada(s)"
 fi  # fim do Passo 1 condicional (--aprovacoes salta para o Passo 2 barato)
 
 # --- Passo 2: propostas aprovadas pelo Danilo (Central) -> ordem real na fila ---------------

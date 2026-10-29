@@ -5,7 +5,9 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../services/driver_documentos.dart';
+import '../../services/robo_documentos.dart';
 import '../../widgets/admin_documentos.dart';
+import '../../widgets/admin_robo_documentos.dart';
 import '../../widgets/admin_ficha_tvde.dart';
 import '../../widgets/admin_other_role_badge.dart';
 import '../../widgets/private_bucket_image.dart';
@@ -109,6 +111,10 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
       orElse: () => <String, dynamic>{},
     );
     final missing = _missingDocs(driver);
+    // Adendo 3: o servidor só aprova depois do comprovativo aprovado. Avisa já, com
+    // mensagem clara, em vez de deixar a chamada falhar com 400.
+    if (!await avisarSeAtividadePorAprovar(context, driver)) return;
+    final avisosRobo = avisosParaAprovar(driver);
 
     bool force = false;
     String? justification;
@@ -116,9 +122,10 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
     if (missing.isEmpty) {
       final ok = await _confirmSimple(
         title: 'Aprovar entregador?',
-        body: 'Vais aprovar ${driver['name'] ?? 'este estafeta'}.',
-        confirmLabel: 'Aprovar',
-        confirmColor: AppColors.success,
+        body: 'Vais aprovar ${driver['name'] ?? 'este estafeta'}.'
+            '${_textoAvisoRobo(avisosRobo)}',
+        confirmLabel: avisosRobo.isEmpty ? 'Aprovar' : 'Aprovar mesmo assim',
+        confirmColor: avisosRobo.isEmpty ? AppColors.success : AppColors.error,
       );
       if (ok != true) return;
     } else {
@@ -159,6 +166,13 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
         duration: const Duration(seconds: 5),
       ));
     }
+  }
+
+  /// O que o robô viu de errado, para o diálogo de aprovar (vazio se não viu nada).
+  String _textoAvisoRobo(List<String> avisos) {
+    if (avisos.isEmpty) return '';
+    final linhas = avisos.map((a) => '• $a').join('\n');
+    return '\n\nATENÇÃO — o robô diz que há documento errado:\n$linhas';
   }
 
   /// Mesma regra que o estafeta vê no ecrã "Conta em análise".
@@ -226,6 +240,7 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
                             style: const TextStyle(color: AppColors.error),
                           ),
                         )),
+                    RoboAvisoAprovar(linha: driver),
                     const SizedBox(height: 12),
                     TextField(
                       controller: controller,
@@ -716,6 +731,7 @@ class _DriverList extends StatelessWidget {
                                   fontWeight: FontWeight.w600),
                             ),
                           ),
+                        RoboResumoLinha(linha: d),
                         _DriverWarningChips(driver: d),
                         // MULTI-PAPEL: sinaliza se já é profissional de limpeza.
                         AdminOtherRoleBadge(
@@ -837,6 +853,11 @@ class _DriverDetailSheet extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Center(child: _ContactButtons(phone: d['phone'] as String?)),
+          if (vereditoDe(d, 'drivers.registration_selfie_url', ficheiro: selfieBruta) != null)
+            RoboVereditoChip(
+              veredito: vereditoDe(d, 'drivers.registration_selfie_url', ficheiro: selfieBruta)!,
+              onDesfazer: (v) => desfazerDecisaoDoRobo(context, v),
+            ),
 
           if (falta.isNotEmpty) ...[
             const SizedBox(height: 14),
@@ -863,6 +884,9 @@ class _DriverDetailSheet extends StatelessWidget {
             ),
           ],
 
+          if (d['_robo'] != null) RoboResumoLinha(linha: d),
+          if (avisosParaAprovar(d).isNotEmpty) RoboAvisoAprovar(linha: d),
+
           const DocSeccao('Dados pessoais'),
           DocCampo('Nome que aparece', d['name']),
           DocCampo('Nome legal', d['legal_name']),
@@ -885,6 +909,9 @@ class _DriverDetailSheet extends StatelessWidget {
             urlOrPath: docTexto(d['document_photo_url']),
             obrigatoria: true,
             balde: 'driver-documents',
+            veredito: vereditoDe(d, 'drivers.document_photo_url',
+                ficheiro: docTexto(d['document_photo_url'])),
+            onDesfazer: (v) => desfazerDecisaoDoRobo(context, v),
           ),
 
           const DocSeccao('Fiscal'),
@@ -899,6 +926,9 @@ class _DriverDetailSheet extends StatelessWidget {
                 : null,
             falta: faltaItem('atividade'),
             onAprovar: onAprovarComprovativo,
+            veredito: vereditoDe(d, 'provider_atividade.documento_path',
+                ficheiro: docTexto((d['_atividade'] as Map?)?['documento_path'])),
+            onDesfazer: (v) => desfazerDecisaoDoRobo(context, v),
           ),
 
           const DocSeccao('Veículo'),
@@ -913,12 +943,18 @@ class _DriverDetailSheet extends StatelessWidget {
             urlOrPath: docTexto(d['vehicle_photo_url']),
             obrigatoria: !semMatricula,
             balde: 'driver-documents',
+            veredito: vereditoDe(d, 'drivers.vehicle_photo_url',
+                ficheiro: docTexto(d['vehicle_photo_url'])),
+            onDesfazer: (v) => desfazerDecisaoDoRobo(context, v),
           ),
           DocFoto(
             titulo: 'Documento do veículo (carta ou livrete)',
             urlOrPath: docTexto(d['vehicle_doc_url']),
             obrigatoria: false,
             balde: 'driver-documents',
+            veredito: vereditoDe(d, 'drivers.vehicle_doc_url',
+                ficheiro: docTexto(d['vehicle_doc_url'])),
+            onDesfazer: (v) => desfazerDecisaoDoRobo(context, v),
           ),
 
           if (eMotoristaTvde(d)) FichaTvdeSecao(driver: d),

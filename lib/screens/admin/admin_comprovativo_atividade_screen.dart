@@ -18,6 +18,10 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/app_colors.dart';
 import '../../services/admin_export_service.dart';
+import '../../services/robo_documentos.dart';
+import '../../services/robo_documentos_service.dart';
+import '../../widgets/admin_robo_documentos.dart';
+import 'admin_robo_documentos_screen.dart';
 import '../../utils/hora_lisboa_ext.dart';
 import '_admin_rpc_errors.dart';
 
@@ -145,16 +149,19 @@ class _AdminComprovativoAtividadeScreenState
       final r = await _sb.rpc('admin_provider_atividade_listar',
           params: {'p_filtro': _filtro}).timeout(const Duration(seconds: 15));
       final m = r is Map ? Map<String, dynamic>.from(r) : <String, dynamic>{};
+      final linhasCarregadas = ((m['linhas'] as List?) ?? const [])
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+      // Adendo 3: o veredito do robô junto a cada pessoa (`_robo`).
+      await juntarVereditosRobo(_sb, linhasCarregadas);
       if (!mounted) return;
       setState(() {
         _interruptor = m['interruptor'] == true;
         _corte = m['corte'] == null
             ? null
             : DateTime.tryParse(m['corte'].toString());
-        _linhas = ((m['linhas'] as List?) ?? const [])
-            .whereType<Map>()
-            .map((e) => Map<String, dynamic>.from(e))
-            .toList();
+        _linhas = linhasCarregadas;
         _carregando = false;
       });
     } catch (e) {
@@ -475,6 +482,24 @@ class _AdminComprovativoAtividadeScreenState
               if (l['motivo'] != null) Text('Motivo/nota: ${l['motivo']}'),
               Text(
                   'Lembretes: ${l['lembretes_enviados'] ?? 0} · último: ${_data(l['lembrete_enviado_em'])}'),
+              if (vereditoDe(l, 'provider_atividade.documento_path') != null)
+                RoboVereditoChip(
+                  veredito: vereditoDe(l, 'provider_atividade.documento_path')!,
+                  onDesfazer: (v) async {
+                    final fez = await desfazerDecisaoDoRobo(ctx, v);
+                    if (fez && mounted) _carregar();
+                  },
+                ),
+              if (vereditoDe(l, 'provider_atividade.documento_path')?.errado == true)
+                const Padding(
+                  padding: EdgeInsets.only(top: 4),
+                  child: Text(
+                    'Atenção: o robô diz que este ficheiro NÃO é o comprovativo. Confere antes de aprovar.',
+                    key: Key('robo-aviso-botao-aprovar'),
+                    style: TextStyle(
+                        color: AppColors.error, fontWeight: FontWeight.w800, fontSize: 13),
+                  ),
+                ),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
@@ -486,11 +511,17 @@ class _AdminComprovativoAtividadeScreenState
                     label: const Text('Ver documento'),
                   ),
                   FilledButton.icon(
+                    key: const Key('aprovar-comprovativo-lista'),
+                    style: vereditoDe(l, 'provider_atividade.documento_path')?.errado == true
+                        ? FilledButton.styleFrom(backgroundColor: AppColors.error)
+                        : null,
                     onPressed: temDoc && estado != 'aprovada'
                         ? () => _decidir(l, 'aprovar')
                         : null,
                     icon: const Icon(Icons.check),
-                    label: const Text('Aprovar'),
+                    label: Text(vereditoDe(l, 'provider_atividade.documento_path')?.errado == true
+                        ? 'Aprovar (o robô diz errado)'
+                        : 'Aprovar'),
                   ),
                   OutlinedButton.icon(
                     onPressed: temDoc && estado != 'recusada'
@@ -573,6 +604,17 @@ class _AdminComprovativoAtividadeScreenState
               ),
             ),
             const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                key: const Key('admin-atividade-abrir-robo'),
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => const AdminRoboDocumentosScreen())),
+                icon: const Icon(Icons.smart_toy_outlined),
+                label: const Text('Robô de documentos (ligar, ver e desfazer)'),
+              ),
+            ),
+            const SizedBox(height: 8),
             Wrap(
               spacing: 6,
               runSpacing: 6,
@@ -621,14 +663,20 @@ class _AdminComprovativoAtividadeScreenState
                   child: ListTile(
                     onTap: () => _abrirPessoa(l),
                     title: Text('${l['nome']}'),
-                    subtitle: Text([
-                      ((l['papeis'] as List?) ?? const [])
-                          .map((e) => rotuloPapelAtividade('$e'))
-                          .join(' + '),
-                      'NIF ${l['nif'] ?? '—'}',
-                      if (l['enviado_em'] != null)
-                        'enviado ${_data(l['enviado_em'])}',
-                    ].join(' · ')),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text([
+                          ((l['papeis'] as List?) ?? const [])
+                              .map((e) => rotuloPapelAtividade('$e'))
+                              .join(' + '),
+                          'NIF ${l['nif'] ?? '—'}',
+                          if (l['enviado_em'] != null)
+                            'enviado ${_data(l['enviado_em'])}',
+                        ].join(' · ')),
+                        RoboResumoLinha(linha: l),
+                      ],
+                    ),
                     trailing: Chip(
                       label: Text(
                         rotuloEstadoAtividade('${l['atividade_status']}',

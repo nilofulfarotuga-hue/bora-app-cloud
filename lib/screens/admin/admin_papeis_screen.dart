@@ -3,6 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../widgets/admin_documentos.dart' show juntarAtividadeAdmin;
+import '../../widgets/admin_robo_documentos.dart' show avisarSeAtividadePorAprovar;
 import '../../widgets/bora/bora.dart';
 import 'admin_carwash_screen.dart';
 import 'admin_cleaning_cleaners_screen.dart';
@@ -225,6 +227,11 @@ class _AdminPapeisScreenState extends State<AdminPapeisScreen>
     // 22/10: aprovar aqui era um toque sem ver documentos. Agora confirma e
     // oferece abrir a ficha completa do papel (documentos + o que falta).
     if (aprovar) {
+      // Adendo 3: avisa com mensagem clara (e o que o robô viu) se falta aprovar o
+      // comprovativo, em vez de deixar a chamada falhar com 400.
+      await juntarAtividadeAdmin(Supabase.instance.client, [c]);
+      if (!mounted) return;
+      if (!await avisarSeAtividadePorAprovar(context, c)) return;
       if (!mounted) return;
       final escolha = await showDialog<String>(
         context: context,

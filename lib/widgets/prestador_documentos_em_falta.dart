@@ -14,6 +14,7 @@ import '../utils/safe_image_picker.dart';
 import 'bora/bora.dart';
 import 'bora_support_sheet.dart';
 import 'legal_fields_section.dart';
+import 'robo_documentos_estado.dart';
 
 /// "Candidatura em análise" da limpeza e da lavagem: o que falta, com um botão
 /// por item para enviar ali mesmo — sem refazer o cadastro (missão
@@ -273,8 +274,35 @@ class _PrestadorDocumentosEmFaltaState
     );
   }
 
+  /// O robô de documentos pediu este documento de novo: envia só aquele.
+  Future<void> _reenviarCampo(String campo) async {
+    final item = switch (campo) {
+      'cleaners.docs.id_doc' || 'washers.docs.id_doc' => const DocEmFalta(
+          chave: 'id_doc', rotulo: 'Documento de identificação', kindFoto: 'id_doc'),
+      'washers.docs.driving_license' => const DocEmFalta(
+          chave: 'driving_license', rotulo: 'Carta de condução', kindFoto: 'driving_license'),
+      _ => null,
+    };
+    if (item != null) {
+      await _enviarFoto(item);
+    } else if (campo == 'provider_atividade.documento_path') {
+      await _abrirComprovativo();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        RoboDocumentosEstadoCard(aoReenviar: _reenviarCampo),
+        _corpo(context),
+      ],
+    );
+  }
+
+  Widget _corpo(BuildContext context) {
     if (_carregando) {
       return const Padding(
         padding: EdgeInsets.all(12),

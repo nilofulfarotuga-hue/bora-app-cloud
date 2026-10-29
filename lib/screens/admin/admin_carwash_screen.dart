@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'admin_ficha_prestador.dart';
 import '../../widgets/admin_documentos.dart' show juntarAtividadeAdmin;
+import '../../widgets/admin_robo_documentos.dart' show RoboAvisoAprovar, avisarSeAtividadePorAprovar;
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../services/carwash_upload_service.dart';
@@ -730,6 +731,9 @@ class _AbaLavadoresState extends State<_AbaLavadores> {
   /// 22/10: aprovar pede confirmação e mostra a vermelho o que falta (antes
   /// aprovava com um toque, até a partir de recusado/suspenso).
   Future<void> _aprovar(Map<String, dynamic> l) async {
+    // Adendo 3: avisa com mensagem clara (e o que o robô viu) se falta aprovar o comprovativo.
+    if (!await avisarSeAtividadePorAprovar(context, l)) return;
+    if (!mounted) return;
     final falta =
         faltaDoPrestador('washer', l).map((f) => f.rotulo).toList();
     final ok = await showDialog<bool>(
@@ -741,6 +745,7 @@ class _AbaLavadoresState extends State<_AbaLavadores> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('${l['name'] ?? 'Este lavador'} será notificado.'),
+            RoboAvisoAprovar(linha: l),
             if (falta.isNotEmpty) ...[
               const SizedBox(height: Spacing.md),
               const Text('Ainda falta:',

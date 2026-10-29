@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'admin_ficha_prestador.dart';
 import '../../widgets/admin_documentos.dart' show juntarAtividadeAdmin;
+import '../../widgets/admin_robo_documentos.dart' show RoboAvisoAprovar, avisarSeAtividadePorAprovar;
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/admin/ofertas_limpeza_em_aberto.dart';
@@ -64,6 +65,10 @@ class _AdminCleaningCleanersScreenState
   }
 
   Future<void> _review(Map<String, dynamic> c, String action) async {
+    // Adendo 3: se o servidor ia recusar por falta do comprovativo aprovado, avisa já, com
+    // mensagem clara (e o que o robô viu), em vez de deixar a chamada falhar com 400.
+    if (action == 'approve' && !await avisarSeAtividadePorAprovar(context, c)) return;
+    if (!mounted) return;
     final needsReason = action == 'reject' || action == 'suspend';
     final reasonCtrl = TextEditingController();
     final (title, verb) = switch (action) {
@@ -85,6 +90,7 @@ class _AdminCleaningCleanersScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('${c['name']} será notificada da decisão.'),
+            if (action == 'approve') RoboAvisoAprovar(linha: c),
             if (falta.isNotEmpty) ...[
               const SizedBox(height: Spacing.md),
               const Text('Ainda falta:',

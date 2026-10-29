@@ -28,6 +28,8 @@ import '../../utils/safe_image_picker.dart';
 typedef CarregarAtividade = Future<AtividadeEstado?> Function();
 typedef EnviarAtividade = Future<EnvioAtividade> Function(
     {required String nif, required Uint8List bytes});
+typedef ConfirmarEnvioAtividade = Future<EnvioAtividade> Function(
+    {required String nif, required String caminho});
 
 class ComprovativoAtividadeScreen extends StatefulWidget {
   const ComprovativoAtividadeScreen({
@@ -35,6 +37,8 @@ class ComprovativoAtividadeScreen extends StatefulWidget {
     this.modoCadastro = false,
     this.carregar,
     this.enviar,
+    this.confirmarEnvio,
+    this.ficheiroInicial,
   });
 
   /// Último passo da candidatura: mostra "Fazer depois".
@@ -43,6 +47,11 @@ class ComprovativoAtividadeScreen extends StatefulWidget {
   /// Injeção para os testes (por defeito, o servidor).
   final CarregarAtividade? carregar;
   final EnviarAtividade? enviar;
+  final ConfirmarEnvioAtividade? confirmarEnvio;
+
+  /// Só para testes: ficheiro já "escolhido" (os seletores de ficheiros não correm em testes).
+  @visibleForTesting
+  final Uint8List? ficheiroInicial;
 
   /// Depois de uma candidatura nova: se o comprovativo conta para a aprovação
   /// e ainda falta, abre este ecrã como último passo. Sem rede, segue em frente
@@ -76,6 +85,10 @@ class _ComprovativoAtividadeScreenState
   @override
   void initState() {
     super.initState();
+    if (widget.ficheiroInicial != null) {
+      _bytes = widget.ficheiroInicial;
+      _nomeFicheiro = 'comprovativo.pdf';
+    }
     _carregar();
   }
 
@@ -210,6 +223,12 @@ class _ComprovativoAtividadeScreenState
       r = EnvioAtividade.falhou(mensagemDoErroAtividade(e));
     }
     if (!mounted) return;
+    // Verificação na hora: o robô acha que isto não é o comprovativo.
+    if (r.eAvisoDoRobo) {
+      setState(() => _enviando = false);
+      await _avisoDoRobo(r);
+      return;
+    }
     setState(() {
       _enviando = false;
       if (r.ok) {
@@ -221,6 +240,65 @@ class _ComprovativoAtividadeScreenState
       }
     });
     if (r.ok) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Comprovativo enviado. Vamos ver e avisamos-te. 💚')));
+    }
+  }
+
+  /// "Isto parece um cartão de cidadão, não o comprovativo das Finanças. Escolhe
+  /// outro ficheiro." — e, se a pessoa insistir, envia mesmo assim (decide o Danilo).
+  Future<void> _avisoDoRobo(EnvioAtividade r) async {
+    final insistir = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        key: const Key('atividade-aviso-robo'),
+        title: const Text('Este ficheiro parece não ser o certo'),
+        content: Text(r.avisoRobo ?? ''),
+        actions: [
+          TextButton(
+            key: const Key('atividade-enviar-mesmo-assim'),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Enviar mesmo assim'),
+          ),
+          FilledButton(
+            key: const Key('atividade-escolher-outro'),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Escolher outro ficheiro'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (insistir != true) {
+      setState(() {
+        _bytes = null;
+        _nomeFicheiro = null;
+      });
+      return;
+    }
+    setState(() {
+      _enviando = true;
+      _aviso = null;
+    });
+    EnvioAtividade c;
+    try {
+      c = await (widget.confirmarEnvio ?? AtividadeService.enviarCaminho)(
+          nif: _nifCtrl.text, caminho: r.caminho ?? '');
+    } catch (e) {
+      c = EnvioAtividade.falhou(mensagemDoErroAtividade(e));
+    }
+    if (!mounted) return;
+    setState(() {
+      _enviando = false;
+      if (c.ok) {
+        _estado = c.estado;
+        _bytes = null;
+        _nomeFicheiro = null;
+      } else {
+        _aviso = c.erro;
+      }
+    });
+    if (c.ok) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Comprovativo enviado. Vamos ver e avisamos-te. 💚')));
     }

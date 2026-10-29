@@ -73,6 +73,7 @@ import 'screens/admin/admin_pendencias_operacao_screen.dart';
 import 'screens/admin/admin_web_health_screen.dart';
 import 'screens/admin/admin_motoristas_documentos_screen.dart';
 import 'screens/admin/admin_comprovativo_atividade_screen.dart';
+import 'screens/admin/admin_robo_documentos_screen.dart';
 import 'screens/admin/admin_conformidade_legal_screen.dart';
 import 'screens/admin/admin_receipts_screen.dart';
 import 'screens/admin/admin_appointments_screen.dart';
@@ -1076,6 +1077,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           // [20/10/2026] deep link do aviso "Comprovativo de atividade para analisar".
           '/admin/comprovativo-atividade': (_) =>
               const AdminComprovativoAtividadeScreen(),
+          // [29/10/2026 · adendo 3] robô fiscal de documentos (deep link do aviso "tem tudo certo").
+          '/admin/documentos-robo': (_) => const AdminRoboDocumentosScreen(),
           '/admin/reembolsos': (_) => const AdminReceiptsScreen(),
           '/admin/tvde/ida-e-volta': (_) => const AdminTvdeRoundtripsScreen(),
           '/admin/tvde/pagos-sem-corrida': (_) =>

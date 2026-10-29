@@ -13,6 +13,9 @@ import 'package:url_launcher/url_launcher.dart';
 import '../config/app_colors.dart';
 import '../screens/admin/_admin_rpc_errors.dart';
 import '../services/driver_documentos.dart' show juntarComE;
+import '../services/robo_documentos.dart';
+import '../services/robo_documentos_service.dart';
+import 'admin_robo_documentos.dart';
 import 'private_bucket_image.dart';
 
 /// Texto limpo ou null (vazio / só espaços contam como em falta).
@@ -71,6 +74,8 @@ Future<void> juntarAtividadeAdmin(
   } catch (e) {
     debugPrint('[admin_documentos] atividade: $e');
   }
+  // Robô fiscal de documentos (adendo 3): o veredito de cada documento, junto à linha (`_robo`).
+  await juntarVereditosRobo(sb, linhas, chaveUser: chaveUser);
 }
 
 /// O comprovativo conta para esta pessoa e ainda não chegou (ou foi
@@ -177,6 +182,8 @@ class DocFoto extends StatelessWidget {
     required this.obrigatoria,
     this.balde,
     this.detalhe,
+    this.veredito,
+    this.onDesfazer,
   });
   final String titulo;
   final String? urlOrPath;
@@ -185,6 +192,10 @@ class DocFoto extends StatelessWidget {
 
   /// Linha pequena por baixo do título (validade, estado…).
   final String? detalhe;
+
+  /// O que o robô diz deste ficheiro (null = não viu, ou o ficheiro mudou).
+  final VereditoRobo? veredito;
+  final Future<void> Function(VereditoRobo)? onDesfazer;
 
   @override
   Widget build(BuildContext context) {
@@ -204,6 +215,8 @@ class DocFoto extends StatelessWidget {
                 style: const TextStyle(
                     fontSize: 13, color: AppColors.textSecondary)),
           ],
+          if (veredito != null && url != null)
+            RoboVereditoChip(veredito: veredito!, onDesfazer: onDesfazer),
           const SizedBox(height: 6),
           if (url != null && _ePdf(url))
             OutlinedButton.icon(
@@ -255,10 +268,17 @@ class DocComprovativoAtividade extends StatelessWidget {
     required this.atividade,
     required this.falta,
     this.onAprovar,
+    this.veredito,
+    this.onDesfazer,
   });
   final Map<String, dynamic>? atividade;
   final bool falta;
   final VoidCallback? onAprovar;
+
+  /// O que o robô diz do comprovativo. Se disser "errado", o botão Aprovar
+  /// fica a vermelho com o aviso (a decisão continua a ser só do Danilo).
+  final VereditoRobo? veredito;
+  final Future<void> Function(VereditoRobo)? onDesfazer;
 
   @override
   Widget build(BuildContext context) {
@@ -293,6 +313,8 @@ class DocComprovativoAtividade extends StatelessWidget {
                   : AppColors.textSecondary,
             ),
           ),
+          if (veredito != null && completo != null)
+            RoboVereditoChip(veredito: veredito!, onDesfazer: onDesfazer),
           const SizedBox(height: 6),
           if (completo != null && !pdf)
             PrivateBucketImage(
@@ -330,11 +352,29 @@ class DocComprovativoAtividade extends StatelessWidget {
             ),
           if (completo != null && status == 'em_analise' && onAprovar != null) ...[
             const SizedBox(height: 8),
+            if (veredito != null && veredito!.errado && !veredito!.desfeito)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 6),
+                child: Text(
+                  'Atenção: o robô diz que este ficheiro NÃO é o comprovativo. '
+                  'Confere antes de aprovar.',
+                  key: Key('robo-aviso-botao-aprovar'),
+                  style: TextStyle(
+                      color: AppColors.error, fontWeight: FontWeight.w800, fontSize: 13),
+                ),
+              ),
             FilledButton.icon(
-              style: FilledButton.styleFrom(backgroundColor: AppColors.success),
+              key: const Key('aprovar-comprovativo'),
+              style: FilledButton.styleFrom(
+                backgroundColor: (veredito != null && veredito!.errado && !veredito!.desfeito)
+                    ? AppColors.error
+                    : AppColors.success,
+              ),
               onPressed: onAprovar,
               icon: const Icon(Icons.verified_outlined),
-              label: const Text('Aprovar comprovativo'),
+              label: Text((veredito != null && veredito!.errado && !veredito!.desfeito)
+                  ? 'Aprovar mesmo assim (o robô diz errado)'
+                  : 'Aprovar comprovativo'),
             ),
           ],
         ],

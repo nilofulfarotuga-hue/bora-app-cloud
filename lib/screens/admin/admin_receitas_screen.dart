@@ -17,6 +17,7 @@ import '_admin_rpc_errors.dart';
 const _kLigada = 'receita_do_dia_enabled';
 const _kAviso = 'receita_do_dia_push_enabled';
 const _kHora = 'receita_do_dia_push_hour';
+const _kAlargado = 'receita_do_dia_push_alargado';
 
 Future<void> _logReceita(
     String acao, String id, Map<String, dynamic> detalhes) async {
@@ -51,6 +52,7 @@ class _AdminReceitasScreenState extends State<AdminReceitasScreen> {
 
   bool _ligada = true;
   bool _aviso = true;
+  bool _alargado = true;
   int _hora = 10;
 
   @override
@@ -91,6 +93,8 @@ class _AdminReceitasScreenState extends State<AdminReceitasScreen> {
       setState(() {
         _ligada = mapa[_kLigada] != false && '${mapa[_kLigada]}' != 'false';
         _aviso = mapa[_kAviso] != false && '${mapa[_kAviso]}' != 'false';
+        _alargado =
+            mapa[_kAlargado] != false && '${mapa[_kAlargado]}' != 'false';
         _hora = (int.tryParse('${mapa[_kHora] ?? 10}') ?? 10).clamp(0, 23);
         _resumo = resumo;
         _receitas = (lista as List)
@@ -116,6 +120,8 @@ class _AdminReceitasScreenState extends State<AdminReceitasScreen> {
           params: {'p_key': _kLigada, 'p_value': _ligada});
       await supa.rpc('admin_update_setting',
           params: {'p_key': _kAviso, 'p_value': _aviso});
+      await supa.rpc('admin_update_setting',
+          params: {'p_key': _kAlargado, 'p_value': _alargado});
       await supa.rpc('admin_update_setting',
           params: {'p_key': _kHora, 'p_value': _hora});
       _msg('Gravado.');
@@ -242,50 +248,21 @@ class _AdminReceitasScreenState extends State<AdminReceitasScreen> {
   }
 
   Widget _cartaoDefinicoes() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(4, 4, 4, 12),
-        child: Column(
-          children: [
-            SwitchListTile(
-              value: _ligada,
-              onChanged: (v) => setState(() => _ligada = v),
-              title: const Text('Receita do dia ligada'),
-              subtitle: const Text('Mostra o cartão na home do cliente.'),
-            ),
-            SwitchListTile(
-              value: _aviso,
-              onChanged: (v) => setState(() => _aviso = v),
-              title: const Text('Aviso diário ligado'),
-              subtitle: const Text(
-                  'Só chega a quem pediu o aviso no ecrã da receita (opt-in).'),
-            ),
-            ListTile(
-              title: const Text('Hora do aviso (Lisboa)'),
-              trailing: DropdownButton<int>(
-                value: _hora,
-                items: [
-                  for (var h = 0; h < 24; h++)
-                    DropdownMenuItem(
-                        value: h,
-                        child: Text('${h.toString().padLeft(2, '0')}:00')),
-                ],
-                onChanged: (v) => setState(() => _hora = v ?? _hora),
-              ),
-            ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: FilledButton(
-                  onPressed: _salvando ? null : _salvarDefinicoes,
-                  child: Text(_salvando ? 'Salvando…' : 'Salvar'),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+    final s = _resumo ?? const {};
+    return AdminReceitaAvisoCard(
+      ligada: _ligada,
+      aviso: _aviso,
+      alargado: _alargado,
+      hora: _hora,
+      salvando: _salvando,
+      destinatarios: int.tryParse('${s['destinatarios_hoje'] ?? ''}'),
+      avisoTitulo: s['aviso_titulo'] as String?,
+      avisoCorpo: s['aviso_corpo'] as String?,
+      onLigada: (v) => setState(() => _ligada = v),
+      onAviso: (v) => setState(() => _aviso = v),
+      onAlargado: (v) => setState(() => _alargado = v),
+      onHora: (v) => setState(() => _hora = v),
+      onSalvar: _salvarDefinicoes,
     );
   }
 
@@ -564,6 +541,159 @@ class _EditorReceitaScreenState extends State<_EditorReceitaScreen> {
             child: Text(_salvando ? 'Salvando…' : 'Salvar receita'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Definições do aviso diário + pré-visualização do que vai sair (Bora Todo Dia,
+/// 29/10/2026). Sem rede: recebe os valores e devolve as mudanças, por isso
+/// testa-se sozinho. O texto do aviso vem do servidor (`_receita_aviso_corpo`),
+/// nunca é reescrito aqui.
+class AdminReceitaAvisoCard extends StatelessWidget {
+  const AdminReceitaAvisoCard({
+    super.key,
+    required this.ligada,
+    required this.aviso,
+    required this.alargado,
+    required this.hora,
+    required this.salvando,
+    required this.onLigada,
+    required this.onAviso,
+    required this.onAlargado,
+    required this.onHora,
+    required this.onSalvar,
+    this.destinatarios,
+    this.avisoTitulo,
+    this.avisoCorpo,
+  });
+
+  final bool ligada;
+  final bool aviso;
+  final bool alargado;
+  final int hora;
+  final bool salvando;
+
+  /// Quantas pessoas o aviso de hoje alcança (do servidor); `null` = desconhecido.
+  final int? destinatarios;
+
+  /// Título e texto exatos do aviso de hoje (do servidor); `null` = sem receita.
+  final String? avisoTitulo;
+  final String? avisoCorpo;
+
+  final ValueChanged<bool> onLigada;
+  final ValueChanged<bool> onAviso;
+  final ValueChanged<bool> onAlargado;
+  final ValueChanged<int> onHora;
+  final VoidCallback onSalvar;
+
+  String get _horaTexto => '${hora.toString().padLeft(2, '0')}:00';
+
+  @override
+  Widget build(BuildContext context) {
+    final temTexto = avisoCorpo != null && avisoCorpo!.isNotEmpty;
+    final n = destinatarios;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(4, 4, 4, 12),
+        child: Column(
+          children: [
+            SwitchListTile(
+              key: const Key('receita_admin_ligada'),
+              value: ligada,
+              onChanged: onLigada,
+              title: const Text('Receita do dia ligada'),
+              subtitle: const Text('Mostra o cartão na home do cliente.'),
+            ),
+            SwitchListTile(
+              key: const Key('receita_admin_aviso'),
+              value: aviso,
+              onChanged: onAviso,
+              title: const Text('Aviso diário ligado'),
+              subtitle: Text(alargado
+                  ? 'Chega a quem pediu, a quem tem sequência de check-in ativa e a quem aceitou promoções. Quem desligar no ecrã da receita nunca recebe.'
+                  : 'Só chega a quem pediu o aviso no ecrã da receita (opt-in).'),
+            ),
+            SwitchListTile(
+              key: const Key('receita_admin_alargado'),
+              value: alargado,
+              onChanged: aviso ? onAlargado : null,
+              title: const Text('Alargar a quem tem sequência ou aceitou promoções'),
+              subtitle: const Text(
+                  'Desligado: só recebe quem ligou o aviso. Contas demo e de teste nunca recebem.'),
+            ),
+            ListTile(
+              title: const Text('Hora do aviso (Lisboa)'),
+              subtitle: const Text(
+                  'O check-in avisa às 11:00: manter a receita noutra hora evita duas notificações seguidas.'),
+              trailing: DropdownButton<int>(
+                key: const Key('receita_admin_hora'),
+                value: hora,
+                items: [
+                  for (var h = 0; h < 24; h++)
+                    DropdownMenuItem(
+                        value: h,
+                        child: Text('${h.toString().padLeft(2, '0')}:00')),
+                ],
+                onChanged: (v) => onHora(v ?? hora),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: Container(
+                key: const Key('receita_admin_previa'),
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.surface2,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.divider),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Pré-visualização do aviso de hoje',
+                        style: TextStyle(
+                            fontSize: 11, color: AppColors.textSecondary)),
+                    const SizedBox(height: 6),
+                    if (temTexto) ...[
+                      Text(avisoTitulo ?? 'Receita do dia',
+                          style: const TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 2),
+                      Text(avisoCorpo!, style: const TextStyle(fontSize: 13)),
+                    ] else
+                      const Text(
+                          'Não há receita ativa para hoje: o aviso não sai.',
+                          style: TextStyle(fontSize: 13)),
+                    if (n != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        !ligada || !aviso
+                            ? 'O aviso está desligado: não sai a ninguém.'
+                            : 'Chega a $n ${n == 1 ? 'pessoa' : 'pessoas'} às $_horaTexto (os valores gravados; carrega em Salvar para aplicar mudanças).',
+                        key: const Key('receita_admin_destinatarios'),
+                        style: const TextStyle(
+                            fontSize: 12, color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: FilledButton(
+                  key: const Key('receita_admin_salvar'),
+                  onPressed: salvando ? null : onSalvar,
+                  child: Text(salvando ? 'Salvando…' : 'Salvar'),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -32,6 +32,8 @@ import '../../utils/safe_image_picker.dart';
 import '../../widgets/bora/bora_primary_button.dart';
 import '../../widgets/services/staff_avatar.dart';
 import '../../widgets/services/weekly_hours_editor.dart';
+import '../../widgets/admin_documentos.dart' show juntarAtividadeAdmin;
+import '../../widgets/admin_robo_documentos.dart' show avisarSeAtividadePorAprovar;
 import '_admin_rpc_errors.dart';
 
 class AdminServiceProviderDetailScreen extends StatefulWidget {
@@ -1969,6 +1971,16 @@ class _AdminServiceProviderDetailScreenState
   // ─── ESTADO / AÇÕES ─────────────────────────────────────────────────────────
 
   Future<void> _approve() async {
+    // Adendo 3: se falta aprovar o comprovativo de atividade, avisa já com mensagem clara
+    // (e o que o robô viu) em vez de deixar a chamada falhar.
+    final uid = _provider?['user_id']?.toString();
+    if (uid != null) {
+      final linha = <String, dynamic>{'user_id': uid};
+      await juntarAtividadeAdmin(_supabase, [linha]);
+      if (!mounted) return;
+      if (!await avisarSeAtividadePorAprovar(context, linha)) return;
+      if (!mounted) return;
+    }
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(

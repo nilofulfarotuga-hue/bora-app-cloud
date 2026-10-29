@@ -17,7 +17,7 @@ Deno.serve(async (_req: Request) => {
 <body>
   <h1>Política de Privacidade</h1>
   <p><strong>Bora App</strong> — pt.boraapp.bora</p>
-  <p><em>Última atualização: 17 de junho de 2026</em></p>
+  <p><em>Última atualização: 29 de outubro de 2026</em></p>
 
   <h2>1. Informações que Recolhemos</h2>
   <p>A Bora App recolhe as seguintes informações quando utiliza a nossa aplicação:</p>
@@ -37,7 +37,9 @@ Deno.serve(async (_req: Request) => {
     <li>Melhorar os nossos serviços</li>
     <li>Cumprir obrigações legais e fiscais</li>
     <li>Comunicar promoções e novidades (apenas com o seu consentimento)</li>
+    <li>Verificar automaticamente, com inteligência artificial, os documentos enviados por quem se candidata a estafeta, limpeza, lavagem ou serviços</li>
   </ul>
+  <p><strong>Verificação automática de documentos.</strong> Os documentos que os candidatos enviam (por exemplo, o comprovativo de atividade nas Finanças, o documento de identificação, a carta de condução, os documentos e fotografias do veículo e a selfie) são analisados automaticamente por inteligência artificial (Google Gemini, em conta paga e sem utilização dos dados para treino de modelos), apenas para confirmar que o ficheiro é o documento pedido. Não fazemos comparação nem reconhecimento facial. A decisão final de aprovar ou recusar uma candidatura é sempre tomada por uma pessoa.</p>
 
   <h2>3. Partilha de Dados</h2>
   <p>Os seus dados são partilhados apenas com:</p>
@@ -46,6 +48,7 @@ Deno.serve(async (_req: Request) => {
     <li><strong>Stripe</strong> — processamento seguro de pagamentos</li>
     <li><strong>Google Firebase</strong> — notificações push</li>
     <li><strong>Supabase</strong> — armazenamento seguro de dados</li>
+    <li><strong>Google (Gemini)</strong> — verificação automática de documentos de candidatos (conta paga, sem treino com os dados)</li>
   </ul>
   <p>Nunca vendemos os seus dados a terceiros.</p>
 

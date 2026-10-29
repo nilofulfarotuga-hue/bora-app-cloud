@@ -13,6 +13,7 @@ import 'package:provider/provider.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../l10n/tr.dart';
+import '../../services/assistant_service.dart';
 import '../../services/receita_service.dart';
 import '../../stores/cart_store.dart';
 import '../../stores/restaurant_store.dart';
@@ -20,9 +21,23 @@ import '../../widgets/bora/bora_screen_app_bar.dart';
 import 'assistant/assistant_encher_carrinho.dart';
 
 class ReceitaDoDiaScreen extends StatefulWidget {
-  const ReceitaDoDiaScreen({super.key, required this.hoje});
+  const ReceitaDoDiaScreen({
+    super.key,
+    required this.hoje,
+    this.cotar,
+    this.encher,
+  });
 
   final ReceitaHoje hoje;
+
+  /// Cota os ingredientes. Por omissão: supermercados não-parceiros abertos +
+  /// morada do carrinho (`ReceitaService.cotarCesto`). Existe para os testes.
+  final Future<ReceitaCesto> Function(ReceitaDoDia receita)? cotar;
+
+  /// Enche o carrinho com a proposta escolhida. Por omissão:
+  /// `encherCarrinhoDaProposta`. Existe para os testes.
+  final Future<bool> Function(BuildContext context, AssistantProposal proposta)?
+      encher;
 
   @override
   State<ReceitaDoDiaScreen> createState() => _ReceitaDoDiaScreenState();
@@ -60,25 +75,30 @@ class _ReceitaDoDiaScreenState extends State<ReceitaDoDiaScreen> {
     }
   }
 
+  /// O caminho normal: supermercados não-parceiros + a morada escolhida no
+  /// carrinho, como o Bora Assistente faz.
+  Future<ReceitaCesto> _cotarPorOmissao(ReceitaDoDia receita) async {
+    final store = context.read<RestaurantStore>();
+    final cart = context.read<CartStore>();
+    if (!store.restaurantsLoadedOnce) {
+      await store.loadRestaurantsFromSupabase();
+    }
+    final mercados = ReceitaService.mercadosNaoParceiros(store.restaurants);
+    final entrega = cart.deliveryLocation;
+    return ReceitaService.instance.cotarCesto(
+      receita,
+      mercados,
+      lat: entrega?.latitude,
+      lng: entrega?.longitude,
+      apartamento: cart.apartmentDelivery,
+    );
+  }
+
   Future<void> _porNoCarrinho() async {
     if (_aMontar) return;
     setState(() => _aMontar = true);
     try {
-      final store = context.read<RestaurantStore>();
-      // A morada escolhida no carrinho, como o Bora Assistente faz.
-      final cart = context.read<CartStore>();
-      if (!store.restaurantsLoadedOnce) {
-        await store.loadRestaurantsFromSupabase();
-      }
-      final mercados = ReceitaService.mercadosNaoParceiros(store.restaurants);
-      final entrega = cart.deliveryLocation;
-      final cesto = await ReceitaService.instance.cotarCesto(
-        _hoje.receita,
-        mercados,
-        lat: entrega?.latitude,
-        lng: entrega?.longitude,
-        apartamento: cart.apartmentDelivery,
-      );
+      final cesto = await (widget.cotar ?? _cotarPorOmissao)(_hoje.receita);
       if (!mounted) return;
       final p = cesto.proposta;
       if (p == null) {
@@ -131,7 +151,7 @@ class _ReceitaDoDiaScreenState extends State<ReceitaDoDiaScreen> {
         ),
       );
       if (seguir != true || !mounted) return;
-      await encherCarrinhoDaProposta(context, p);
+      await (widget.encher ?? encherCarrinhoDaProposta)(context, p);
     } catch (e) {
       debugPrint('[Receita] carrinho: $e');
       if (mounted) {

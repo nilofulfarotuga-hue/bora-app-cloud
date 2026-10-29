@@ -124,6 +124,7 @@ import 'admin_agentes_email_screen.dart';
 import 'admin_pendencias_operacao_screen.dart';
 import 'admin_conformidade_legal_screen.dart';
 import 'admin_comprovativo_atividade_screen.dart';
+import 'admin_robo_documentos_screen.dart';
 import 'admin_fecho_mensal_screen.dart';
 import 'admin_alergenos_screen.dart';
 
@@ -1213,6 +1214,16 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.blueGrey,
       builder: () => const AdminComprovativoAtividadeScreen(),
       keywords: const ['atividade', 'comprovativo', 'financas', 'nif', 'prestador', 'estafeta', 'limpeza', 'lavagem', 'tvde', 'cae', 'lembrete', 'documento'],
+    ),
+    // [29/10/2026 · Adendo 3] Robô fiscal de documentos dos candidatos (modo sombra por defeito).
+    AdminMenuItem(
+      id: 'sistema_robo_documentos',
+      title: 'Robô de documentos',
+      subtitle: 'Confere os documentos dos candidatos, avisa o que está errado. Liga/desliga, sombra, prontos para aprovar e histórico',
+      icon: Icons.smart_toy_outlined,
+      color: Colors.blueGrey,
+      builder: () => const AdminRoboDocumentosScreen(),
+      keywords: const ['robo', 'documentos', 'candidatos', 'comprovativo', 'fiscal', 'ia', 'sombra', 'aprovar', 'lembrar'],
     ),
     AdminMenuItem(
       id: 'sistema_historico_de_accoes',

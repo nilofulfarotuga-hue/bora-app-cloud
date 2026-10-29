@@ -56,6 +56,7 @@ import '../utils/favor_passos.dart';
 import '../widgets/bora_foto_ecra_inteiro.dart';
 import '../widgets/favor_passos_card.dart';
 import '../widgets/payments/conta_curta_dinheiro_texto.dart';
+import '../widgets/substituicao_seletor.dart';
 import '../widgets/bora/bora_bottom_action_bar.dart';
 
 // BUG 29: Google sobrepunha o nome da rua mais próxima (ex: "Alexandre
@@ -1823,6 +1824,12 @@ class _BottomPanelState extends State<_BottomPanel> {
                 else
                   SingleOrderAddresses(order: focusOrder),
 
+                // C7 (29/10/2026): Favor com compra — o que o cliente escolheu
+                // para quando faltar algo. Sem escolha não desenha nada.
+                if (focusOrder.serviceType == OrderServiceType.errand)
+                  SubstituicaoLinhaEstafeta(
+                      preferencia: focusOrder.substitutionPreference),
+
                 const SizedBox(height: 16),
                 const Divider(height: 1),
                 const SizedBox(height: 14),
@@ -3298,6 +3305,10 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                   ),
                 ),
               ],
+              // C7 (29/10/2026): o que o cliente escolheu para quando faltar um
+              // produto. Sem escolha não desenha nada.
+              SubstituicaoLinhaEstafeta(
+                  preferencia: order.substitutionPreference),
               const SizedBox(height: 6),
               // ── Progress text ──
               Text(

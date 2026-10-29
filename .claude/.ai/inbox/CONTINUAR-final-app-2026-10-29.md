@@ -81,12 +81,24 @@ Cópia de trabalho `C:\BoraLocal\wt-missao-geral-28-10`, ramo `missao-geral-2026
   painel admin com dados (sem conta de admin em ficheiros); Favor a partir da morada (GOOGLE_MAPS_API_KEY no
   .dart_defines do emulador); Limpeza confirmada (iria a profissional real).
 
+## Missão publica-2026-10-29 (29/10 noite; relatório `.claude/.ai/reports/FABLE-2026-10-29-publica.md`)
+Feito: Bloco A (push, junção em produção ×2, web no ar; A.6 /pedir/boom; A.7 robô da Boom ao vivo; A.9 post da Boom
+preparado; A.10 plano de 14 dias conferido), Bloco B inteiro (a-k; o c ficou de propósito, ver e2e 5291), Bloco C
+(itens 6, 5, 4, 7 em código, interruptores desligados; migrações C6 e C7 aplicadas; C5 e C4 no repo por aplicar),
+Bloco D bloqueado (sem token do CLI; passos na página `reembolsos-dashboard-passos`).
+
 ## Falta (por ordem)
-1. Consertos pequenos da auditoria que ficaram só reportados (acima), fora de dinheiro/despacho.
-2. Bloco 11 (adendo 5, só depois dos Blocos 1-8): itens 4, 5, 6, 7, 8 da página plano-melhor-que-uber-glovo,
-   desenho em adendo-5-final-app-2026-10-29; 5 e 6 mexem no despacho (revisor independente + interruptor
-   desligado); 7 pelo caminho de reembolso do Bloco 2; 4 confirma no relatório "comissão sobre o preço
-   promocional"; 8 por último.
-3. Bloco 10: Juiz (anti_trapaca, analyze, bateria), fiscal de segurança, relatório
-   `.claude/.ai/reports/FABLE-2026-10-29-final-app.md` + cópia em Desktop\Bora\prompts, digest
-   `digest-2026-10-29-final-app`, Telegram, e2e `fecho`, /ctx doctor + /ctx stats.
+1. Claude.ai: aplicar por MCP `20261029200700_c5_agendar_pedidos.sql` e `20261029200800_c4_promocoes.sql`; copiar a
+   S1 para `supabase/migrations/` pelo GitHub; publicar as 6 funções de reembolso quando o Danilo disser "autorizo".
+2. Revisor independente das propostas de despacho (`docs/propostas/missao-geral-2026-10-28/C5_agendar/01_*` e
+   `C6_modo_ocupado/01_*`) e do create_order com loja fechada (`C5_agendar/04_*`); só depois `scheduled_orders_revisor_ok`
+   e os interruptores.
+3. Danilo: regra de dinheiro das promoções (`C4_promocoes/00_LEIA-ME.md`) → depois `C4_promocoes/01_servidor_precos_proposta.sql`.
+4. Item 8, pedido em grupo: desenho na página `adendo-5-final-app-2026-10-29`; não começado.
+5. Robô da Boom: baixar o timeout de 45 s do `motores.py` (VPS) para ~20 s numa janela sem conversa; a 1.ª mensagem
+   do dia pode ir ao Gemini (quota 20/dia) — ver página `motores-rotacao-2026-10-29`. Hermes/OmniRoute/motor-bora
+   ainda têm go/zen mortos nas cadeias (reinício pode parar o Telegram).
+6. Pequenos reportados pelos agentes: `send_package_form_screen` aceita morada sem coordenadas; `GanhoDeHojeCard`
+   mostra 0,00 em vez de "—" quando o papel falha; serviços (booking_flow) ainda dizem "pedidos" numa loja Em breve;
+   `store_products_screen`/pesquisa global/carrinho não mostram o preço promocional (o servidor cobra o certo).
+7. Prova no emulador do canal de ofertas (deve aparecer "ignorado (fecho pedido por mim)", nenhum reconnect de 3 em 3 s).

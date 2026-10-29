@@ -17,6 +17,7 @@ import '../stores/restaurant_store.dart';
 import '../widgets/checkin/premio_carrinho_banner.dart';
 import '../widgets/bora/bora.dart';
 import '../widgets/bora/maior_18.dart';
+import '../widgets/agendar_pedido_seletor.dart';
 import '../widgets/takeaway/curbside_inputs.dart';
 import '../widgets/tip_selector.dart';
 import '../widgets/valor_com_risco.dart';
@@ -457,6 +458,8 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ),
+                    // Agendar pedidos (C5, 29/10/2026): só aparece com o interruptor ligado.
+                    const AgendarPedidoNoCarrinho(),
                     const SizedBox(height: Spacing.sm),
                     CustomerNoteField(
                       controller: _nota,
@@ -688,7 +691,9 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                   ? 'Pagar com saldo Bora'.tr
                   : 'Finalizar pedido'.tr,
               icon: Icons.shopping_bag_outlined,
-              onPressed: cartStore.items.isEmpty || _aAbrirPagamento
+              onPressed: cartStore.items.isEmpty ||
+                      _aAbrirPagamento ||
+                      cartStore.agendamentoEmFalta
                   ? null
                   : () => _comTravaPagamento(() async {
                       // BLOCO C.3 (2026-09-05) — porta única de contacto: sem

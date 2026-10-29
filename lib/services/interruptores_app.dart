@@ -35,6 +35,10 @@ class InterruptoresApp {
   static const ofertaGanhoVisivel = 'feature_oferta_ganho_visivel';
   static const mapaProcuraEstafeta = 'feature_mapa_procura_estafeta';
 
+  // C6 (29/10/2026): modo ocupado do parceiro (+10 / +20 / +30 min). Nasce
+  // DESLIGADO: sem resposta do servidor a app comporta-se como se não existisse.
+  static const modoOcupadoParceiro = 'partner_busy_mode_enabled';
+
   /// Valor de recurso quando o servidor não responde.
   static const Map<String, Object> _recurso = <String, Object>{
     talheres: true,
@@ -53,6 +57,7 @@ class InterruptoresApp {
     funilPratos: true,
     ofertaGanhoVisivel: true,
     mapaProcuraEstafeta: true,
+    modoOcupadoParceiro: false,
   };
 
   final Map<String, Object?> _cache = <String, Object?>{};

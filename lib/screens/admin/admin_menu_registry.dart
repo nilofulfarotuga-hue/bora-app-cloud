@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../config/app_colors.dart';
 
 import 'admin_order_edits_screen.dart';
+import 'admin_pedidos_agendados_screen.dart';
 import 'admin_acerto_unificado_screen.dart';
 import 'admin_menu_sub_screen.dart';
 import 'admin_acertos_semana_screen.dart';
@@ -125,6 +126,8 @@ import 'admin_pendencias_operacao_screen.dart';
 import 'admin_conformidade_legal_screen.dart';
 import 'admin_comprovativo_atividade_screen.dart';
 import 'admin_robo_documentos_screen.dart';
+import 'admin_promocoes_screen.dart';
+import 'admin_modo_ocupado_screen.dart';
 import 'admin_fecho_mensal_screen.dart';
 import 'admin_alergenos_screen.dart';
 
@@ -1178,6 +1181,16 @@ List<AdminMenuSection> adminMenuSections() => [
       builder: () => const AdminWhatsappScreen(),
       keywords: const ['assumir', 'conversas', 'espera', 'lista', 'loja', 'pausar', 'robo', 'whatsapp'],
     ),
+    // [29/10/2026 · C6 · adendo 5] Modo ocupado dos parceiros (busy mode): +10/+20/+30 min.
+    AdminMenuItem(
+      id: 'parceiros_modo_ocupado',
+      title: 'Modo ocupado',
+      subtitle: 'Parceiros com muitos pedidos: quem está ocupado, quantos minutos e até quando. Liga/desliga para todos e desliga uma loja',
+      icon: Icons.hourglass_top,
+      color: Colors.amber,
+      builder: () => const AdminModoOcupadoScreen(),
+      keywords: const ['ocupado', 'ocupada', 'busy', 'muitos', 'pedidos', 'tempo', 'demora', 'parceiro', 'loja', 'minutos', 'desligar'],
+    ),
     ],
   ),
   AdminMenuSection(
@@ -1224,6 +1237,26 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.blueGrey,
       builder: () => const AdminRoboDocumentosScreen(),
       keywords: const ['robo', 'documentos', 'candidatos', 'comprovativo', 'fiscal', 'ia', 'sombra', 'aprovar', 'lembrar'],
+    ),
+    // [29/10/2026 · Adendo 5, item 4] Promoções com preço riscado (Diretiva Omnibus). Desligado por defeito.
+    AdminMenuItem(
+      id: 'sistema_promocoes',
+      title: 'Promoções',
+      subtitle: 'Preço riscado nos produtos: interruptor geral, lista de ativas e agendadas, ligar/desligar cada uma e auditoria',
+      icon: Icons.local_offer_outlined,
+      color: Colors.blueGrey,
+      builder: () => const AdminPromocoesScreen(),
+      keywords: const ['promocoes', 'promoção', 'preco', 'riscado', 'desconto', 'omnibus', 'oferta', 'parceiro', 'agendada'],
+    ),
+    // [29/10/2026 · Adendo 5, item 5] Pedidos agendados: o cliente marca dia e janela, mesmo com a loja fechada (desligado por defeito).
+    AdminMenuItem(
+      id: 'sistema_pedidos_agendados',
+      title: 'Pedidos agendados',
+      subtitle: 'Liga/desliga o agendamento, define dias e antecedência, e vê os pedidos marcados para mais tarde',
+      icon: Icons.event_available,
+      color: Colors.blueGrey,
+      builder: () => const AdminPedidosAgendadosScreen(),
+      keywords: const ['agendar', 'agendado', 'agendados', 'pedidos', 'janela', 'loja fechada', 'horario', 'interruptor', 'estafeta'],
     ),
     AdminMenuItem(
       id: 'sistema_historico_de_accoes',

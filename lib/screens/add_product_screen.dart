@@ -19,6 +19,7 @@ import '../services/weight_portions.dart';
 import '../stores/partner_product_store.dart';
 import '../stores/restaurant_store.dart';
 import '../widgets/etiquetas_menu_editor.dart';
+import '../widgets/promocao_parceiro_form.dart';
 
 /// Sentinel do dropdown de categoria — seleciona-lo abre o campo livre para
 /// criar uma categoria nova (BUG 1, 2026-07-17).
@@ -1015,6 +1016,15 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     value: _isAvailable,
                     onChanged: (value) => setState(() => _isAvailable = value),
                   ),
+                  // Promoção com preço riscado (adendo 5 · item 4): só com o
+                  // interruptor ligado no painel, num produto já criado e que
+                  // não seja vendido ao peso. Tem os seus próprios botões.
+                  if (widget.isEditing && !_soldByWeight)
+                    PromocaoParceiroForm(
+                      product: widget.product!,
+                      lojaParceira: _isPartnerStore,
+                      regras: _rules,
+                    ),
                   const SizedBox(height: 24),
                   SizedBox(
                     width: double.infinity,

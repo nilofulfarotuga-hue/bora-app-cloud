@@ -16,6 +16,7 @@ import '../models/partner_product.dart';
 import '../models/restaurant_model.dart';
 import '../services/order_eta_service.dart';
 import '../services/pricing_service.dart';
+import '../services/promocoes_service.dart';
 import '../services/registo_pesquisa.dart';
 import '../stores/cart_store.dart';
 import '../stores/favorite_store.dart';
@@ -29,6 +30,8 @@ import '../widgets/bora/weight_price_text.dart';
 import '../widgets/etiquetas_dieta_chips.dart';
 import '../widgets/bora_assistant_fab.dart';
 import '../widgets/entrega_gratis_da_loja.dart';
+import '../widgets/modo_ocupado_ligado.dart';
+import '../widgets/preco_com_promocao.dart';
 import 'cart_screen.dart';
 import 'client/reservation/reservation_availability_screen.dart';
 import 'product_detail_screen.dart';
@@ -268,12 +271,15 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
   /// arredonda a soma no fim — round unitário divergia ±1 cêntimo com
   /// quantidade > 1). basePrice = puro (product_lines.unit_price).
   void _addToCart(PartnerProduct product) {
+    // Promoção ativa (adendo 5 · item 4): o preço de catálogo é o promocional,
+    // o mesmo que o servidor cobra. Sem promoção é product.price, como sempre.
+    final catalogo = PromocoesLoja.instance
+        .precoDeCatalogo(product.restaurantId, product.id, product.price);
     context.read<CartStore>().addItem(CartItem(
           productId: product.id,
           name: product.name,
-          price: PricingService.applyMarkup(
-              product.price, widget.restaurant.isPartner),
-          basePrice: product.price,
+          price: PricingService.applyMarkup(catalogo, widget.restaurant.isPartner),
+          basePrice: catalogo,
           ageRestricted: product.ageRestricted,
         ));
     showAddedToCartSnack(context, '{0} no carrinho'.trArgs([product.name]));
@@ -506,13 +512,22 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
                                   style: const TextStyle(
                                       fontWeight: FontWeight.w600,
                                       fontSize: 14)),
-                              subtitle: Text(
-                                  // B1: exibido = cobrado (markup runtime).
-                                  // Ao peso: "desde €X · €Y/kg".
-                                  p.soldByWeight
-                                      ? '${WeightPriceText.priceLabel(PricingService.applyMarkup(p.price, widget.restaurant.isPartner), true)} · ${WeightPriceText.perKgLabel(PricingService.applyMarkup(p.price, widget.restaurant.isPartner))}'
-                                      : eur(PricingService.applyMarkup(p.price, widget.restaurant.isPartner)),
-                                  style: const TextStyle(fontSize: 13)),
+                              subtitle: PrecoComPromocao(
+                                restaurantId: widget.restaurantId,
+                                productId: p.id,
+                                isPartnerStore: widget.restaurant.isPartner,
+                                estiloPreco: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.primary),
+                                semPromocao: Text(
+                                    // B1: exibido = cobrado (markup runtime).
+                                    // Ao peso: "desde €X · €Y/kg".
+                                    p.soldByWeight
+                                        ? '${WeightPriceText.priceLabel(PricingService.applyMarkup(p.price, widget.restaurant.isPartner), true)} · ${WeightPriceText.perKgLabel(PricingService.applyMarkup(p.price, widget.restaurant.isPartner))}'
+                                        : eur(PricingService.applyMarkup(p.price, widget.restaurant.isPartner)),
+                                    style: const TextStyle(fontSize: 13)),
+                              ),
                               onTap: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -715,6 +730,14 @@ class _StoreHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // C6 (29/10/2026): o modo ocupado do parceiro só soma tempo (e mostra o aviso)
+    // com o interruptor ligado; desligado (de fábrica) o corpo é o de sempre.
+    return ModoOcupadoLigado(
+      builder: (context, ocupadoLigado) => _corpo(context, ocupadoLigado),
+    );
+  }
+
+  Widget _corpo(BuildContext context, bool ocupadoLigado) {
     final cart = context.watch<CartStore>();
     final store = context.watch<RestaurantStore>();
 
@@ -725,9 +748,12 @@ class _StoreHeader extends StatelessWidget {
     final client = cart.deliveryLocation;
     final pickup = model?.location;
     final distanceKm = OrderEtaService.distanceKmBetween(client, pickup);
+    final extraOcupado =
+        ocupadoLigado ? (model?.extraOcupadoEm(DateTime.now()) ?? 0) : 0;
     final window = OrderEtaService.deliveryWindowMinutes(
       clientLocation: client,
       restaurantLocation: pickup,
+      extraMinutes: extraOcupado,
     );
     final fee = distanceKm == null
         ? null
@@ -829,6 +855,12 @@ class _StoreHeader extends StatelessWidget {
             ],
           ),
         ),
+        // C6: loja em modo ocupado → o tempo de cima já vem maior; avisa porquê.
+        if (extraOcupado > 0 && !(model?.fechadaParaCliente ?? false))
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 6, 16, 0),
+            child: AvisoTempoMaior(),
+          ),
         // Entrega grátis a partir de X € (28/10/2026): parceira ou não, quando
         // a loja tem o mínimo. Quem vai buscar não paga entrega — não se mostra.
         if (!cart.isTakeaway)
@@ -1014,8 +1046,10 @@ class _MenuSection extends StatelessWidget {
             ],
           ),
         ),
-        SizedBox(
-          height: 210,
+        AlturaCarrosselPromocao(
+          restaurantId: products.isEmpty ? '' : products.first.restaurantId,
+          produtosIds: [for (final p in products) p.id],
+          altura: 210,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -1135,17 +1169,27 @@ class _GlovoProductCard extends StatelessWidget {
                           Row(
                             children: [
                               Expanded(
-                                child: WeightPriceText(
-                                  displayPrice:
-                                      product.price > 0 ? displayPrice : 0,
-                                  soldByWeight: product.soldByWeight,
-                                  unavailableLabel: 'Sem preço',
-                                  style: TextStyle(
+                                child: PrecoComPromocao(
+                                  restaurantId: product.restaurantId,
+                                  productId: product.id,
+                                  isPartnerStore: isPartnerStore,
+                                  estiloPreco: const TextStyle(
                                     fontSize: 13.5,
                                     fontWeight: FontWeight.w700,
-                                    color: product.price > 0
-                                        ? AppColors.primary
-                                        : Colors.grey,
+                                    color: AppColors.primary,
+                                  ),
+                                  semPromocao: WeightPriceText(
+                                    displayPrice:
+                                        product.price > 0 ? displayPrice : 0,
+                                    soldByWeight: product.soldByWeight,
+                                    unavailableLabel: 'Sem preço',
+                                    style: TextStyle(
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: product.price > 0
+                                          ? AppColors.primary
+                                          : Colors.grey,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -1233,12 +1277,14 @@ class _SectionProductsScreen extends StatelessWidget {
     void addToCart(PartnerProduct product) {
       // B1 (2026-06-11): fonte única applyMarkup (sem round unitário) +
       // basePrice puro para product_lines.unit_price.
+      // Promoção ativa (adendo 5 · item 4): catálogo = preço promocional.
+      final catalogo = PromocoesLoja.instance
+          .precoDeCatalogo(product.restaurantId, product.id, product.price);
       context.read<CartStore>().addItem(CartItem(
             productId: product.id,
             name: product.name,
-            price: PricingService.applyMarkup(
-                product.price, restaurant.isPartner),
-            basePrice: product.price,
+            price: PricingService.applyMarkup(catalogo, restaurant.isPartner),
+            basePrice: catalogo,
             ageRestricted: product.ageRestricted,
           ));
       showAddedToCartSnack(context, '{0} no carrinho'.trArgs([product.name]));
@@ -1391,17 +1437,29 @@ class _SectionProductCard extends StatelessWidget {
                           etiquetas: product.dietTags, compacto: true),
                       const SizedBox(height: 4),
                       // B1: fonte única applyMarkup (exibido = cobrado).
-                      WeightPriceText(
-                        displayPrice: product.price > 0
-                            ? PricingService.applyMarkup(
-                                product.price, isPartnerStore)
-                            : 0,
-                        soldByWeight: product.soldByWeight,
-                        unavailableLabel: 'Preço indisponível',
-                        style: TextStyle(
+                      PrecoComPromocao(
+                        restaurantId: product.restaurantId,
+                        productId: product.id,
+                        isPartnerStore: isPartnerStore,
+                        compacto: false,
+                        estiloPreco: TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
-                          color: product.price > 0 ? primaryColor : Colors.grey,
+                          color: primaryColor,
+                        ),
+                        semPromocao: WeightPriceText(
+                          displayPrice: product.price > 0
+                              ? PricingService.applyMarkup(
+                                  product.price, isPartnerStore)
+                              : 0,
+                          soldByWeight: product.soldByWeight,
+                          unavailableLabel: 'Preço indisponível',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color:
+                                product.price > 0 ? primaryColor : Colors.grey,
+                          ),
                         ),
                       ),
                     ],

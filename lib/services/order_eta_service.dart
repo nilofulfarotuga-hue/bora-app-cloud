@@ -93,7 +93,11 @@ class OrderEtaService {
   ///
   /// [driverPos] — posição VIVA do estafeta (realtime do DriverStore), quando
   /// o ecrã a tem: mais fresca do que a gravada na linha do pedido.
-  static int? minutesRemaining(OrderModel order, {LatLng? driverPos}) {
+  ///
+  /// [now] só serve aos testes (C6): o relógio com que se mede a promessa
+  /// "fica pronto às HH:MM" do parceiro.
+  static int? minutesRemaining(OrderModel order,
+      {LatLng? driverPos, DateTime? now}) {
     switch (order.status) {
       case OrderStatus.delivered:
       case OrderStatus.rejected:
@@ -110,6 +114,14 @@ class OrderEtaService {
         // buffer fixo de sempre.
         final km = _fullTripKm(order);
         if (km == null) return null;
+        // C6: a loja prometeu "fica pronto às HH:MM" → espera-se até essa hora
+        // (recalculada a cada chamada: já descontada do que passou) e depois a viagem.
+        final pronto = order.readyAtPromised;
+        if (pronto != null) {
+          final espera = pronto.difference(now ?? DateTime.now()).inSeconds / 60.0;
+          return _round5(
+              (km / avgSpeedKmh) * 60 + (espera > 0 ? espera : 0));
+        }
         return _round5((km / avgSpeedKmh) * 60 +
             (order.prepTimeMinutes ?? prepBufferMin));
       case OrderStatus.driverAccepted:
@@ -183,14 +195,22 @@ class OrderEtaService {
   /// Delivery window (min,max) minutes for a restaurant card preview.
   /// Uses haversine client↔restaurant distance + prep buffer. Returns null
   /// when we don't have enough coords to guess.
+  ///
+  /// [extraMinutes] — C6 (29/10/2026), modo ocupado do parceiro: minutos a somar
+  /// à preparação. Quem chama só passa um valor > 0 com o interruptor
+  /// `partner_busy_mode_enabled` ligado e a loja ocupada; 0 (por defeito) dá a
+  /// janela de sempre. Negativo conta como 0.
   static (int, int)? deliveryWindowMinutes({
     required LatLng? clientLocation,
     required LatLng? restaurantLocation,
+    int extraMinutes = 0,
   }) {
     if (clientLocation == null || restaurantLocation == null) return null;
     final km = _distance.as(
         LengthUnit.Kilometer, clientLocation, restaurantLocation);
-    final base = (km / avgSpeedKmh) * 60 + prepBufferMin;
+    final base = (km / avgSpeedKmh) * 60 +
+        prepBufferMin +
+        (extraMinutes > 0 ? extraMinutes : 0);
     final minMin = _round5Floor(base);
     final maxMin = minMin + 10;
     return (minMin, maxMin);

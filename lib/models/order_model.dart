@@ -213,6 +213,11 @@ class OrderModel {
   /// Escrito server-side por festas_accept. NULL até aceitar.
   final int? prepTimeMinutes;
 
+  /// C6 (29/10/2026): "fica pronto às HH:MM" — hora que a loja prometeu num pedido
+  /// já aceite (`orders.ready_at_promised`, posta por `partner_set_ready_at`).
+  /// NULL = sem promessa (é sempre assim com o modo ocupado desligado).
+  final DateTime? readyAtPromised;
+
   /// FAVORES (errand) — campos do pedido de favor. Todos NULL/default para
   /// service_types diferentes de errand. Backend valida no branch errand de
   /// create_order. Ver business_rules §55.
@@ -294,6 +299,13 @@ class OrderModel {
   /// Key = original product name; value = true (approved) / false (rejected).
   final Map<String, bool> substitutionResponses;
 
+  /// C7 (adendo 5, 29/10/2026): o que o cliente escolheu ANTES de pagar para
+  /// quando faltar um produto — `trocar`, `tirar_devolver` ou `ligar`
+  /// (`orders.substitution_preference`). NULL = não escolheu. Só leitura aqui:
+  /// grava-se pela função `client_set_substitution_preference`, nunca no
+  /// `toSupabase` (a coluna só existe depois da migração).
+  final String? substitutionPreference;
+
   OrderStatus status;
 
   OrderModel({
@@ -372,6 +384,7 @@ class OrderModel {
     this.takeawayCurbsideInfo,
     this.scheduledFor,
     this.prepTimeMinutes,
+    this.readyAtPromised,
     // FAVORES (errand) — defaults seguros para outros service_types
     this.errandDescription,
     this.errandLocation,
@@ -394,6 +407,7 @@ class OrderModel {
     this.errandBudgetStatus,
     this.errandBudgetRequestedCents,
     Map<String, bool>? substitutionResponses,
+    this.substitutionPreference,
   })  : estimatedTotal = estimatedTotal ?? total,
         paymentBufferTotal = paymentBufferTotal ?? total,
         itemsAdded = itemsAdded ?? <Map<String, dynamic>>[],
@@ -646,6 +660,9 @@ class OrderModel {
           ? DateTime.tryParse(data['scheduled_for'].toString())?.toLocal()
           : null,
       prepTimeMinutes: (data['prep_time_minutes'] as num?)?.toInt(),
+      readyAtPromised: data['ready_at_promised'] != null
+          ? DateTime.tryParse(data['ready_at_promised'].toString())?.toLocal()
+          : null,
       errandDescription: data['errand_description'] as String?,
       errandLocation: data['errand_location'] as String?,
       errandLocationLat: (data['errand_location_lat'] as num?)?.toDouble(),
@@ -677,6 +694,7 @@ class OrderModel {
       substitutionResponses:
           (data['substitution_responses'] as Map<String, dynamic>?)
               ?.map((k, v) => MapEntry(k, v == true)),
+      substitutionPreference: data['substitution_preference'] as String?,
     );
   }
 

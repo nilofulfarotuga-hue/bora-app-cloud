@@ -31,6 +31,9 @@ import '../widgets/origem_whatsapp_chip.dart';
 import '../services/pedido_origem_service.dart';
 import '../widgets/web_push_card.dart';
 import '../widgets/partner/painel_avaliacoes_e_funil.dart';
+import '../widgets/partner/partner_agendados_atalho.dart';
+import '../widgets/partner/cartao_modo_ocupado.dart';
+import '../services/modo_ocupado_service.dart';
 import '../utils/nota_do_pedido.dart';
 import '../widgets/biometric_login_tile.dart';
 import '../widgets/partner_weekly_closeout_card.dart';
@@ -1099,6 +1102,16 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                   onPausar: _escolherPausa,
                   onRetomar: () => _mudarPausa(0),
                 ),
+                // C6 (29/10/2026): modo ocupado +10/+20/+30 min. Só se desenha com o
+                // interruptor partner_busy_mode_enabled ligado e a loja online.
+                if (currentRestaurant.isOnline && !emPausa)
+                  CartaoModoOcupado(
+                    restaurantId: currentRestaurant.id,
+                    inicial: EstadoOcupado(
+                      extraMinutos: currentRestaurant.busyExtraMinutes,
+                      ate: currentRestaurant.busyUntil,
+                    ),
+                  ),
                 const SizedBox(height: 16),
                 _EarningsSummary(
                   todayAmount: todayEarnings,
@@ -1355,6 +1368,8 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                     );
                   },
                 ),
+                // Agendar pedidos (C5, 29/10/2026): só aparece com o interruptor ligado.
+                PartnerAgendadosAtalho(restaurant: widget.restaurant),
                 // Vertical Serviços / Barbearias — atalho aditivo, só visível
                 // quando esta conta tem um service_provider associado.
                 if (_hasServiceProvider) ...[
@@ -2058,6 +2073,10 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
             ],
           ],
         ),
+        // C6 (29/10/2026): "Fica pronto às…" num pedido de entrega já aceite. Só se
+        // desenha com o interruptor do modo ocupado ligado.
+        if (order.status == OrderStatus.preparing && !order.isTakeaway)
+          BotaoFicaProntoAs(orderId: order.id, atual: order.readyAtPromised),
       ],
     );
   }

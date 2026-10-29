@@ -324,6 +324,8 @@ class RestaurantModel {
     this.ownerId,
     this.appMarkupPct,
     this.pausaAte,
+    this.busyExtraMinutes = 0,
+    this.busyUntil,
   });
 
   final String id;
@@ -424,6 +426,27 @@ class RestaurantModel {
 
   /// Lê `pausa_ate` de forma tolerante (coluna pode ainda não existir).
   static DateTime? parsePausaAte(dynamic raw) {
+    if (raw == null) return null;
+    return DateTime.tryParse(raw.toString());
+  }
+
+  /// C6 (29/10/2026) — modo ocupado do parceiro: `restaurants.busy_extra_minutes`
+  /// e `restaurants.busy_until`. Campos opcionais: sem as colunas (migração por
+  /// aplicar) ficam 0 / null e a loja segue como sempre.
+  final int busyExtraMinutes;
+  final DateTime? busyUntil;
+
+  /// Minutos a somar ao tempo de entrega em [agora]: 0 se não há modo ocupado ou
+  /// se já expirou. NÃO olha para o interruptor `partner_busy_mode_enabled` — quem
+  /// desenha é que decide se o soma (ver `ModoOcupadoLigado`).
+  int extraOcupadoEm(DateTime agora) {
+    final ate = busyUntil;
+    if (busyExtraMinutes <= 0 || ate == null || !ate.isAfter(agora)) return 0;
+    return busyExtraMinutes;
+  }
+
+  /// Lê `busy_until` de forma tolerante (coluna pode ainda não existir).
+  static DateTime? parseBusyUntil(dynamic raw) {
     if (raw == null) return null;
     return DateTime.tryParse(raw.toString());
   }
@@ -710,6 +733,8 @@ class RestaurantModel {
       ownerId: ownerId,
       appMarkupPct: appMarkupPct,
       pausaAte: pausaAte ?? this.pausaAte,
+      busyExtraMinutes: busyExtraMinutes,
+      busyUntil: busyUntil,
     );
   }
 }

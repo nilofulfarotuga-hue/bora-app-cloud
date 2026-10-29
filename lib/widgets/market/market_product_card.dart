@@ -7,12 +7,14 @@ import '../../models/cart_item.dart';
 import '../../models/partner_product.dart';
 import '../../screens/product_detail_screen.dart';
 import '../../services/pricing_service.dart';
+import '../../services/promocoes_service.dart';
 import '../../stores/cart_store.dart';
 import '../../stores/restaurant_store.dart';
 import '../../utils/cart_feedback.dart';
 import '../bora/coming_soon.dart';
 import '../bora/maior_18.dart';
 import '../bora/weight_price_text.dart';
+import '../preco_com_promocao.dart';
 
 import '../../l10n/tr.dart';
 
@@ -38,6 +40,11 @@ class MarketProductCard extends StatelessWidget {
 
   static const double _cardWidth = 160;
   static const double _imageHeight = 120;
+  static const TextStyle _estiloPreco = TextStyle(
+    fontSize: 13,
+    fontWeight: FontWeight.bold,
+    color: AppColors.textPrimary,
+  );
 
   void _handleAdd(BuildContext context) {
     final variants =
@@ -59,11 +66,15 @@ class MarketProductCard extends StatelessWidget {
     }
     // B1 (2026-06-11): price = exibido/cobrado (markup não-parceiro);
     // basePrice = puro de catálogo (vai em product_lines.unit_price).
+    // Com promoção ativa o preço de catálogo é o promocional (o que o
+    // servidor cobra); sem promoção é product.price, como sempre.
+    final catalogo = PromocoesLoja.instance
+        .precoDeCatalogo(restaurantId, product.id, product.price);
     context.read<CartStore>().addItem(CartItem(
           productId: product.id,
           name: product.name,
-          price: PricingService.applyMarkup(product.price, isPartnerStore),
-          basePrice: product.price,
+          price: PricingService.applyMarkup(catalogo, isPartnerStore),
+          basePrice: catalogo,
           quantity: 1,
           ageRestricted: product.ageRestricted,
         ));
@@ -113,19 +124,20 @@ class MarketProductCard extends StatelessWidget {
                   children: [
                     // B1 (2026-06-11): preço exibido = preço COBRADO =
                     // products.price com markup runtime (applyMarkup;
-                    // parceiro = puro). O servidor NÃO honra discount_price
-                    // na cobrança — exibir o desconto riscado cobrando o
-                    // preço cheio era enganoso (14 produtos Lidl afetados;
-                    // decisão sobre honrar promoções reportada ao Danilo).
+                    // parceiro = puro). Só se risca o preço (adendo 5 · item 4)
+                    // quando o servidor já aplica a promoção: PrecoComPromocao
+                    // não mostra nada de novo com o interruptor desligado.
                     Expanded(
-                      child: WeightPriceText(
-                        displayPrice: PricingService.applyMarkup(
-                            product.price, isPartnerStore),
-                        soldByWeight: product.soldByWeight,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
+                      child: PrecoComPromocao(
+                        restaurantId: restaurantId,
+                        productId: product.id,
+                        isPartnerStore: isPartnerStore,
+                        estiloPreco: _estiloPreco,
+                        semPromocao: WeightPriceText(
+                          displayPrice: PricingService.applyMarkup(
+                              product.price, isPartnerStore),
+                          soldByWeight: product.soldByWeight,
+                          style: _estiloPreco,
                         ),
                       ),
                     ),

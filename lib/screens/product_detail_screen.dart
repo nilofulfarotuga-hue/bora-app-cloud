@@ -12,6 +12,7 @@ import '../models/product_option.dart';
 import '../models/product_variant.dart';
 import '../services/prato_visitas_service.dart';
 import '../services/pricing_service.dart';
+import '../services/promocoes_service.dart';
 import '../stores/cart_store.dart';
 import '../stores/restaurant_store.dart';
 import '../utils/cart_feedback.dart';
@@ -21,6 +22,7 @@ import '../widgets/bora/coming_soon.dart';
 import '../widgets/bora/maior_18.dart';
 import '../widgets/bora/weight_price_text.dart';
 import '../widgets/etiquetas_dieta_chips.dart';
+import '../widgets/preco_com_promocao.dart';
 import 'cart_screen.dart';
 
 import '../l10n/tr.dart';
@@ -55,9 +57,27 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   List<ProductOptionGroup> _groups = const [];
   final Map<String, Set<String>> _sel = {};
 
+  // Promoções com preço riscado (adendo 5 · item 4): o preço de catálogo que o
+  // servidor cobra é o promocional quando há promoção ativa; senão product.price.
+  final PromocoesLoja _promocoes = PromocoesLoja.instance;
+  void _aoMudarPromocoes() {
+    if (mounted) setState(() {});
+  }
+
+  double get _precoCatalogo => _promocoes.precoDeCatalogo(
+      widget.product.restaurantId, widget.product.id, widget.product.price);
+
+  @override
+  void dispose() {
+    _promocoes.removeListener(_aoMudarPromocoes);
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
+    _promocoes.addListener(_aoMudarPromocoes);
+    _promocoes.garantir(widget.product.restaurantId);
     _loadGroups();
     // Funil do parceiro (adendo 4 · item 8): conta quem abriu a ficha do prato.
     PratoVisitasService.registarAbertura(widget.product.id);
@@ -171,8 +191,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           productId: widget.product.id,
           name: widget.product.name,
           price: PricingService.applyMarkup(
-              widget.product.price, widget.isPartnerStore),
-          basePrice: widget.product.price,
+              _precoCatalogo, widget.isPartnerStore),
+          basePrice: _precoCatalogo,
           quantity: _quantity,
           ageRestricted: widget.product.ageRestricted,
         ));
@@ -195,12 +215,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     // opções ao preço base ANTES do ×1.15 não-parceiro — (base + extras) ×1.15.
     // O display aplica o mesmo markup a base + extras (parceiro: identidade).
     final unit = PricingService.applyMarkup(
-        widget.product.price + _optionsPrice, widget.isPartnerStore);
+        _precoCatalogo + _optionsPrice, widget.isPartnerStore);
     context.read<CartStore>().addItem(CartItem(
           productId: widget.product.id,
           name: widget.product.name,
           price: unit,
-          basePrice: widget.product.price,
+          basePrice: _precoCatalogo,
           quantity: _quantity,
           selectedOptions: selected,
           ageRestricted: widget.product.ageRestricted,
@@ -307,6 +327,24 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             ),
                           ),
                         ],
+                        // Promoção ativa (adendo 5 · item 4): preço riscado + preço
+                        // novo + a linha dos 30 dias. Sem promoção não desenha nada.
+                        if (!widget.product.soldByWeight && variants.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: PrecoComPromocao(
+                              restaurantId: widget.product.restaurantId,
+                              productId: widget.product.id,
+                              isPartnerStore: widget.isPartnerStore,
+                              compacto: false,
+                              estiloPreco: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.primary,
+                              ),
+                              semPromocao: const SizedBox.shrink(),
+                            ),
+                          ),
                         if (widget.product.description.isNotEmpty) ...[
                           const SizedBox(height: 8),
                           Text(
@@ -532,7 +570,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       // Antes as opções ficavam de fora do markup e o rótulo divergia do
       // cobrado em não-parceiro com opções.
       final unit = PricingService.applyMarkup(
-          widget.product.price + _optionsPrice, widget.isPartnerStore);
+          _precoCatalogo + _optionsPrice, widget.isPartnerStore);
       final ok = widget.product.price > 0 && _requiredOk;
       // Green primary button keeps the single orange element = the required
       // badge ("1 laranja por ecrã" — badge tem prioridade).
@@ -547,7 +585,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
     return wrap(BoraAccentButton(
       label: widget.product.price > 0
-          ? 'Adicionar ao carrinho · {0} €'.trArgs([PricingService.applyMarkup(widget.product.price, widget.isPartnerStore).toStringAsFixed(2).replaceAll('.', ',')])
+          ? 'Adicionar ao carrinho · {0} €'.trArgs([PricingService.applyMarkup(_precoCatalogo, widget.isPartnerStore).toStringAsFixed(2).replaceAll('.', ',')])
           : 'Preço indisponível'.tr,
       icon: Icons.add_shopping_cart,
       onPressed:

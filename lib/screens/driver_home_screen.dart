@@ -54,6 +54,8 @@ import '../widgets/chat_bubble_button.dart';
 import 'chat_screen.dart';
 import 'ganhos_screen.dart';
 import '../widgets/ganho_de_hoje_card.dart';
+import '../widgets/oferta_resumo_estafeta.dart';
+import 'driver/mapa_procura_estafeta_screen.dart' show BotaoMapaProcuraEstafeta;
 import '../widgets/trocar_de_papel.dart';
 import '../widgets/aviso_atividade_banner.dart';
 import '../widgets/driver_fiscal_card.dart';
@@ -1452,7 +1454,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
               elevation: 2,
               borderRadius: BorderRadius.circular(12),
               clipBehavior: Clip.antiAlias,
-              child: GanhoDeHojeCard(recarregarQuando: orderStore),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  GanhoDeHojeCard(recarregarQuando: orderStore),
+                  // Mapa simples de procura (adendo 4 · item 10, 29/10/2026):
+                  // só leitura; some com o interruptor desligado.
+                  const BotaoMapaProcuraEstafeta(),
+                ],
+              ),
             ),
           ),
 
@@ -2828,6 +2838,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   ),
                 ),
                 const SizedBox(height: 8),
+                OfertaResumoEstafeta(
+                  order: order,
+                  ganho: stackedEarnings,
+                  driverLocation: driverLoc,
+                ),
+                const SizedBox(height: 8),
                 Row(
                   children: [
                     const Icon(Icons.account_balance_wallet, size: 16),
@@ -3436,7 +3452,15 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          // Adendo 4 · item 3 (29/10/2026): o que ganha, quantos km e quantas
+          // paragens, antes de aceitar. Interruptor feature_oferta_ganho_visivel.
+          const SizedBox(height: 12),
+          OfertaResumoEstafeta(
+            order: order,
+            ganho: order.driverEarnings,
+            driverLocation: widget.driverLocation,
+          ),
+          const SizedBox(height: 12),
           _CountdownBar(
               secondsLeft: _secondsLeft, totalSeconds: _totalSeconds),
           const SizedBox(height: 12),

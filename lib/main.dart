@@ -133,6 +133,7 @@ import 'config/app_theme.dart';
 import 'providers/support_settings_provider.dart';
 import 'stores/consent_store.dart';
 import 'stores/session_store.dart';
+import 'widgets/barra_pedido_ativo.dart';
 import 'widgets/consent_banner.dart';
 import 'widgets/portao_do_prestador.dart';
 import 'widgets/terms_gate.dart';
@@ -989,7 +990,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           child: TvdeOfferOverlayHost(
             child: TrabalhoOfertaOverlayHost(
               key: trabalhoOfertaHostKey,
-              child: child ?? const SizedBox.shrink(),
+              // [29/10/2026 · adendo 4, item 1] barra do pedido ativo por cima de
+              // todos os ecrãs do cliente (interruptor feature_barra_pedido_ativo).
+              child: BarraPedidoAtivoHost(child: child ?? const SizedBox.shrink()),
             ),
           ),
         ),

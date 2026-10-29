@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../config/app_colors.dart';
 import '../../l10n/tr.dart';
+import 'skeleton_lista.dart';
 
 /// Estados de uma lista do cliente (04/10/2026): enquanto carrega e quando
 /// falha não se mostra "vazio" — mostra-se o que está a acontecer, com
@@ -9,15 +10,10 @@ import '../../l10n/tr.dart';
 class ListaACarregar extends StatelessWidget {
   const ListaACarregar({super.key});
 
+  /// 29/10/2026 (adendo 4 · item 9): esqueleto a pulsar em vez de um círculo
+  /// no meio do ecrã. Todas as listas que já usavam este widget ganham-no.
   @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(32),
-        child: CircularProgressIndicator(color: AppColors.primary),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => const SkeletonLista();
 }
 
 class ListaComErro extends StatelessWidget {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../config/app_colors.dart';
 import '../services/wallet_service.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
+import '../widgets/bora/skeleton_lista.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/pay_debt_modal.dart';
 
@@ -57,7 +58,7 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
       body: RefreshIndicator(
         onRefresh: _load,
         child: _loading
-            ? const Center(child: CircularProgressIndicator())
+            ? const SkeletonLista(comFoto: false)
             : _error != null
                 ? ListView(children: [
                     const SizedBox(height: 80),

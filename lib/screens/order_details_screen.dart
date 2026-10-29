@@ -18,6 +18,7 @@ import '../widgets/reportar_problema_pedido.dart';
 import '../widgets/order_edit/client_order_edit_banner.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/errand_budget_banner.dart';
+import '../widgets/foto_prova_entrega.dart';
 import '../widgets/fatura_nif_pedido.dart';
 import '../widgets/private_bucket_image.dart';
 import '../widgets/refund_choice_dialog.dart';
@@ -68,6 +69,10 @@ class OrderDetailsScreen extends StatelessWidget {
 
           // ── Loja parceira mudou o pedido (acrescentar/em falta) ───────
           ClientOrderEditBanner(order: liveOrder),
+
+          // ── Foto de prova da entrega (adendo 4 · item 2) ──────────────
+          FotoProvaEntregaCliente(
+              orderId: liveOrder.id, status: liveOrder.status),
 
           // ── Refund banner (F2 — clareza método de reembolso) ─────────
           if (liveOrder.status == OrderStatus.cancelled)

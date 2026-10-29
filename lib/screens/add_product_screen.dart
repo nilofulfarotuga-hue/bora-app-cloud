@@ -1,5 +1,6 @@
 import '../utils/io_compat.dart';
 
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -10,12 +11,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../auth/auth_store.dart';
 import '../config/allergens.dart';
 import '../config/app_colors.dart';
+import '../models/etiquetas_dieta.dart';
 import '../models/partner_product.dart';
 import '../models/restaurant_model.dart';
 import '../services/partner_price_rules.dart';
 import '../services/weight_portions.dart';
 import '../stores/partner_product_store.dart';
 import '../stores/restaurant_store.dart';
+import '../widgets/etiquetas_menu_editor.dart';
 
 /// Sentinel do dropdown de categoria — seleciona-lo abre o campo livre para
 /// criar uma categoria nova (BUG 1, 2026-07-17).
@@ -67,6 +70,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
   // B6 (2026-06-12): alergénios UE 1169/2011 selecionados pelo parceiro.
   final Set<String> _selectedAllergens = {};
+  // Adendo 4 · item 5 (29/10/2026): etiquetas do menu (vegetariano, picante,
+  // sem glúten). `_dietTagsInicial` serve para só gravar se o parceiro mexeu.
+  List<String> _dietTags = const [];
+  List<String> _dietTagsInicial = const [];
   // Parte 5 (rodada 2) — farmácia: produto exige receita médica.
   bool _requiresPrescription = false;
 
@@ -96,6 +103,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
       _isAvailable = product.isAvailable;
       _soldByWeight = product.soldByWeight;
       _selectedAllergens.addAll(product.allergens);
+      _dietTags = List<String>.of(product.dietTags);
+      _dietTagsInicial = List<String>.of(product.dietTags);
       if (product.photoUrl.trim().isNotEmpty) {
         _existingImageUrl = product.photoUrl;
       }
@@ -318,6 +327,22 @@ class _AddProductScreenState extends State<AddProductScreen> {
           price: (res['price'] as num?)?.toDouble(),
           partnerShelfPrice: (res['partner_shelf_price'] as num?)?.toDouble(),
         );
+      }
+      // Etiquetas do menu: só grava se o parceiro mexeu nelas. Uma falha aqui
+      // não desfaz o produto (preço e nome já ficaram guardados): avisa-se.
+      if (widget.restaurant.category == BusinessCategory.restaurant &&
+          !listEquals(normalizarEtiquetas(_dietTags),
+              normalizarEtiquetas(_dietTagsInicial))) {
+        final ok = await restaurantStore.guardarEtiquetasDoProduto(
+          restaurantId: widget.restaurant.id,
+          productId: savedProductId,
+          etiquetas: _dietTags,
+        );
+        if (!ok && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text(
+                  'O produto ficou guardado, mas não foi possível guardar as etiquetas.')));
+        }
       }
     } catch (error) {
       if (mounted && await AuthStore.sessaoCaiu(error)) {
@@ -952,6 +977,16 @@ class _AddProductScreenState extends State<AddProductScreen> {
                             }),
                           ),
                       ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  // Etiquetas do menu (adendo 4 · item 5): só restaurantes.
+                  if (widget.restaurant.category ==
+                      BusinessCategory.restaurant) ...[
+                    EtiquetasMenuEditor(
+                      inicial: _dietTags,
+                      productId: widget.product?.id,
+                      aoMudar: (v) => _dietTags = v,
                     ),
                     const SizedBox(height: 16),
                   ],

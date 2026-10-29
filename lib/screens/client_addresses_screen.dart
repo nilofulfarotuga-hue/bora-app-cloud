@@ -7,9 +7,12 @@ import '../config/app_spacing.dart';
 import '../config/maps_config.dart';
 import '../models/client_address.dart';
 import '../services/client_address_service.dart';
+import '../services/complemento_morada.dart';
+import '../services/interruptores_app.dart';
 import '../services/google_places_service.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
+import '../widgets/bora/skeleton_lista.dart';
 
 import '../l10n/tr.dart';
 
@@ -122,7 +125,7 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
       body: RefreshIndicator(
         onRefresh: _load,
         child: _loading
-            ? const Center(child: CircularProgressIndicator())
+            ? const SkeletonLista(comFoto: false, linhas: 3)
             : _error != null
                 ? ListView(children: [
                     const SizedBox(height: 80),
@@ -203,8 +206,21 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
             ],
           ],
         ),
-        subtitle: Text(a.address,
-            maxLines: 2, overflow: TextOverflow.ellipsis),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(a.address, maxLines: 2, overflow: TextOverflow.ellipsis),
+            if ((a.details ?? '').trim().isNotEmpty)
+              Text(
+                a.details!.trim(),
+                key: const Key('morada_complemento'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    fontSize: 16, color: AppColors.textSecondary),
+              ),
+          ],
+        ),
         onTap: widget.selectMode
             ? () => Navigator.pop(context, a)
             : () => _openForm(edit: a),
@@ -246,6 +262,7 @@ class _AddressFormSheet extends StatefulWidget {
 class _AddressFormSheetState extends State<_AddressFormSheet> {
   final _labelCtrl = TextEditingController();
   final _addressCtrl = TextEditingController();
+  final _detailsCtrl = TextEditingController();
   final _places = GooglePlacesService(googleApiKey);
   Timer? _debounce;
   List<dynamic> _predictions = const [];
@@ -257,13 +274,22 @@ class _AddressFormSheetState extends State<_AddressFormSheet> {
   bool _saving = false;
   String? _error;
 
+  /// Interruptor `ask_address_details` (painel admin). Ligado por defeito.
+  bool _mostrarComplemento = true;
+
   @override
   void initState() {
     super.initState();
+    InterruptoresApp.instance.ligado(InterruptoresApp.detalhesMorada).then((v) {
+      if (mounted && v != _mostrarComplemento) {
+        setState(() => _mostrarComplemento = v);
+      }
+    });
     final e = widget.edit;
     if (e != null) {
       _labelCtrl.text = e.label;
       _addressCtrl.text = e.address;
+      _detailsCtrl.text = e.details ?? '';
       _lat = e.lat;
       _lng = e.lng;
       _city = e.city;
@@ -276,6 +302,7 @@ class _AddressFormSheetState extends State<_AddressFormSheet> {
   void dispose() {
     _labelCtrl.dispose();
     _addressCtrl.dispose();
+    _detailsCtrl.dispose();
     _debounce?.cancel();
     super.dispose();
   }
@@ -348,6 +375,11 @@ class _AddressFormSheetState extends State<_AddressFormSheet> {
           lat: _lat,
           lng: _lng,
           isDefault: _isDefault,
+          details: ComplementoMorada.normalizar(_detailsCtrl.text),
+          // Campo esvaziado numa morada que tinha complemento → apaga-o.
+          limparDetails: _mostrarComplemento &&
+              ComplementoMorada.normalizar(_detailsCtrl.text) == null &&
+              (widget.edit!.details ?? '').trim().isNotEmpty,
         );
       } else {
         await svc.create(
@@ -358,6 +390,7 @@ class _AddressFormSheetState extends State<_AddressFormSheet> {
           lat: _lat,
           lng: _lng,
           isDefault: _isDefault,
+          details: ComplementoMorada.normalizar(_detailsCtrl.text),
         );
       }
       if (mounted) Navigator.pop(context, true);
@@ -439,6 +472,21 @@ class _AddressFormSheetState extends State<_AddressFormSheet> {
                     }).toList(),
                   ),
                 ),
+              if (_mostrarComplemento) ...[
+                const SizedBox(height: 12),
+                TextField(
+                  key: const Key('campo_complemento_morada'),
+                  controller: _detailsCtrl,
+                  maxLength: ComplementoMorada.maxCaracteres,
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(
+                    labelText: 'Andar, porta ou código (opcional)'.tr,
+                    hintText: 'Ex.: 2.º Dto · porta azul · código 1234'.tr,
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.apartment),
+                  ),
+                ),
+              ],
               const SizedBox(height: 12),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,

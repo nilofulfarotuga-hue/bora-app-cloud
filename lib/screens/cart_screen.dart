@@ -21,6 +21,7 @@ import '../widgets/takeaway/curbside_inputs.dart';
 import '../widgets/tip_selector.dart';
 import '../widgets/valor_com_risco.dart';
 import '../widgets/customer_note_field.dart';
+import '../widgets/juntar_mais_tira.dart';
 import 'complete_profile_screen.dart' show garantirContactoDoCliente;
 import 'festas_quando_screen.dart';
 import 'orders_screen.dart';
@@ -527,6 +528,10 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                         falta: cartStore.faltaParaEntregaGratis,
                         texto: 'Faltam {0} € para a entrega grátis',
                       ),
+                    // "Juntar mais" (29/10/2026): 3 produtos baratos da mesma
+                    // loja para chegar à entrega grátis. Interruptor
+                    // `cart_add_more_strip` no painel admin.
+                    const JuntarMaisTira(),
                     const SizedBox(height: Spacing.md),
                     if (_gorjetaLigada) ...[
                       TipSelector(

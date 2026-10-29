@@ -6,6 +6,7 @@ import '../models/order_model.dart';
 import '../services/destino_pendente.dart';
 import '../stores/order_store.dart';
 import '../utils/contact_validators.dart';
+import '../widgets/barra_pedido_ativo.dart';
 import '../widgets/bora/bora.dart';
 import 'complete_profile_screen.dart';
 import 'client_reservations_screen.dart';
@@ -161,9 +162,18 @@ class _ClientMainScreenState extends State<ClientMainScreen> {
             ativo: _currentTab == BoraNavTab.reservation),
         const ProfileScreen(),
       ]),
-      bottomNavigationBar: BoraBottomNavV2(
-        current: _currentTab,
-        onTabChanged: (tab) => setState(() => _currentTab = tab),
+      // Barra fixa do pedido em curso (adendo 4 · item 1, 29/10/2026). Só se
+      // desenha aqui enquanto não houver a barra global à volta do Navigator
+      // (BarraPedidoAtivoHost, ligada em main.dart).
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const BarraPedidoAtivoNoSeparador(),
+          BoraBottomNavV2(
+            current: _currentTab,
+            onTabChanged: (tab) => setState(() => _currentTab = tab),
+          ),
+        ],
       ),
     );
   }

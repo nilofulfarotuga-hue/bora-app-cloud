@@ -21,6 +21,7 @@ import '../widgets/bora/bora_search_field.dart';
 import '../widgets/bora/coming_soon.dart';
 import '../widgets/bora/lista_estado.dart';
 import '../widgets/bora_assistant_fab.dart';
+import '../widgets/filtros_rapidos_lojas.dart';
 import 'client/reservation/reservation_availability_screen.dart';
 import 'restaurant_menu_screen.dart';
 import 'restaurant_options_screen.dart';
@@ -55,9 +56,27 @@ class _RestaurantsScreenState extends State<RestaurantsScreen> {
 
   bool get reservationsOnly => widget.reservationsOnly;
 
+  // Filtros rápidos (29/10/2026): "Aberto agora", "Ir buscar", "Entrega grátis".
+  // Só aparecem os que o admin ligou em "Filtros de Descoberta".
+  ConfigFiltrosLojas _cfgFiltros = ConfigFiltrosLojas.desligada;
+  FiltrosAtivos _filtros = const FiltrosAtivos();
+  Set<String> _lojasComEntregaGratis = const <String>{};
+
+  Future<void> _carregarFiltros() async {
+    final cfg = await ConfigFiltrosLojas.carregar();
+    final gratis =
+        cfg.entregaGratis ? await carregarLojasComEntregaGratis() : <String>{};
+    if (!mounted) return;
+    setState(() {
+      _cfgFiltros = cfg;
+      _lojasComEntregaGratis = gratis;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
+    _carregarFiltros();
     // Se ninguém carregou ainda a lista (entrada directa), carrega aqui —
     // senão o ecrã ficava eternamente "a carregar".
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -99,11 +118,18 @@ class _RestaurantsScreenState extends State<RestaurantsScreen> {
       });
 
     final query = _query.trim().toLowerCase();
-    final visible = query.isEmpty
+    final porNome = query.isEmpty
         ? restaurants
         : restaurants
             .where((b) => b.name.toLowerCase().contains(query))
             .toList();
+    final visible = aplicarFiltrosRapidos(
+      porNome,
+      ativos: _filtros,
+      config: _cfgFiltros,
+      comEntregaGratis: _lojasComEntregaGratis,
+    );
+    final filtrosEmUso = _filtros.algum && _cfgFiltros.algumLigado;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -130,6 +156,11 @@ class _RestaurantsScreenState extends State<RestaurantsScreen> {
               onSubmitted: _registo.registarJa,
             ),
           ),
+          FiltrosRapidosLojas(
+            config: _cfgFiltros,
+            ativos: _filtros,
+            onChanged: (f) => setState(() => _filtros = f),
+          ),
           Expanded(
             child: restaurants.isEmpty &&
                     (restaurantStore.restaurantsLoading ||
@@ -144,7 +175,9 @@ class _RestaurantsScreenState extends State<RestaurantsScreen> {
                 : restaurants.isEmpty
                 ? const _EmptyState()
                 : visible.isEmpty
-                    ? const _NoResults()
+                    ? (filtrosEmUso && porNome.isNotEmpty
+                        ? const _SemLojasComFiltros()
+                        : const _NoResults())
                     : ListView.builder(
                         padding: const EdgeInsets.fromLTRB(
                             Spacing.lg, Spacing.md, Spacing.lg, Spacing.xxl),
@@ -164,6 +197,26 @@ class _RestaurantsScreenState extends State<RestaurantsScreen> {
                       ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Os filtros rápidos escondem tudo: diz-se o que fazer.
+class _SemLojasComFiltros extends StatelessWidget {
+  const _SemLojasComFiltros();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: Spacing.xxxl),
+        child: Text(
+          'Nenhuma loja com estes filtros. Tira um filtro para ver mais.'.tr,
+          key: const Key('sem_lojas_com_filtros'),
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 16, color: AppColors.textSecondary),
+        ),
       ),
     );
   }

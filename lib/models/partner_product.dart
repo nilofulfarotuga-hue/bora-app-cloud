@@ -21,6 +21,7 @@ class PartnerProduct {
     this.soldByWeight = false,
     this.shelfPricePerKg,
     this.ageRestricted = false,
+    this.dietTags = const [],
   });
 
   final String id;
@@ -71,6 +72,11 @@ class PartnerProduct {
   /// false — a coluna pode ainda não existir numa base antiga.
   final bool ageRestricted;
 
+  /// `products.diet_tags` (29/10/2026): etiquetas do menu (vegetariano, picante,
+  /// sem glúten). Sugeridas pela IA a partir da descrição e corrigidas pelo
+  /// parceiro. Ver `lib/models/etiquetas_dieta.dart`.
+  final List<String> dietTags;
+
   PartnerProduct copyWith({
     String? name,
     String? description,
@@ -89,6 +95,7 @@ class PartnerProduct {
     bool? soldByWeight,
     double? shelfPricePerKg,
     bool? ageRestricted,
+    List<String>? dietTags,
   }) {
     return PartnerProduct(
       id: id,
@@ -110,6 +117,7 @@ class PartnerProduct {
       soldByWeight: soldByWeight ?? this.soldByWeight,
       shelfPricePerKg: shelfPricePerKg ?? this.shelfPricePerKg,
       ageRestricted: ageRestricted ?? this.ageRestricted,
+      dietTags: dietTags ?? this.dietTags,
     );
   }
 }

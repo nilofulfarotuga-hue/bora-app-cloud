@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -6,7 +8,9 @@ import '../../models/order_edit.dart';
 import '../../models/order_model.dart';
 import '../../models/product_option.dart';
 import '../../services/order_edit_service.dart';
+import '../../services/interruptores_app.dart';
 import '../../utils/search_text.dart';
+import 'janela_troca_em_falta.dart';
 
 /// Loja PARCEIRA mexe num pedido já feito (PT-PT):
 ///   • "Acrescentar produto" — o cliente pediu mais; fica à espera dele aceitar.
@@ -166,6 +170,10 @@ class _PartnerOrderEditSectionState extends State<PartnerOrderEditSection> {
     final antes = (orc['total_antes'] as num?)?.toDouble() ?? 0;
     final depois = (orc['total_depois'] as num?)?.toDouble() ?? 0;
     final dif = (orc['diferenca'] as num?)?.toDouble() ?? (depois - antes);
+    final linhasTxt = ((orc['linhas'] as List?) ?? const [])
+        .whereType<Map>()
+        .map((l) => '${l['quantidade']}× ${l['nome']}')
+        .toList();
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => _ResumoDialog(
@@ -173,10 +181,7 @@ class _PartnerOrderEditSectionState extends State<PartnerOrderEditSection> {
         totalAntes: antes,
         totalDepois: depois,
         diferenca: dif,
-        linhas: ((orc['linhas'] as List?) ?? const [])
-            .whereType<Map>()
-            .map((l) => '${l['quantidade']}× ${l['nome']}')
-            .toList(),
+        linhas: linhasTxt,
         pagamento: widget.order.paymentMethod,
       ),
     );
@@ -184,6 +189,19 @@ class _PartnerOrderEditSectionState extends State<PartnerOrderEditSection> {
     try {
       await svc.propor(widget.order.id, r.alteracoes);
       widget.onEditado?.call();
+      // Adendo 4 · item 4: aviso ao cliente com a janela para pedir troca.
+      if (tirar) {
+        final cfg = InterruptoresApp.instance;
+        if (await cfg.ligado(InterruptoresApp.esgotadoAviso)) {
+          final min = await cfg.inteiro(InterruptoresApp.esgotadoMinutos);
+          unawaited(avisarClienteDeProdutoEmFalta(
+            order: widget.order,
+            resumo: linhasTxt.isEmpty ? 'Produto em falta' : linhasTxt.join(', '),
+            minutos: min > 0 ? min : JanelaTroca.minutosPorDefeito,
+          ));
+        }
+      }
+      if (!context.mounted) return;
       messenger.showSnackBar(SnackBar(
         content: Text(tirar
             ? 'Feito. O cliente foi avisado e recebe a diferença.'
@@ -217,21 +235,29 @@ class _EstadoGrupo extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: cor.withValues(alpha: 0.35)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(grupo.eTirar ? Icons.remove_circle_outline : Icons.add_circle_outline,
-              size: 18, color: cor),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              '${grupo.eTirar ? 'Em falta' : 'Acrescentar'}: ${grupo.resumo} '
-              '($sinal${_eur(grupo.diferenca)})',
-              style: const TextStyle(fontSize: 12.5),
-            ),
+          Row(
+            children: [
+              Icon(grupo.eTirar ? Icons.remove_circle_outline : Icons.add_circle_outline,
+                  size: 18, color: cor),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '${grupo.eTirar ? 'Em falta' : 'Acrescentar'}: ${grupo.resumo} '
+                  '($sinal${_eur(grupo.diferenca)})',
+                  style: const TextStyle(fontSize: 12.5),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(orderEditEstadoTexto(grupo),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: cor)),
+            ],
           ),
-          const SizedBox(width: 6),
-          Text(orderEditEstadoTexto(grupo),
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: cor)),
+          // Adendo 4 · item 4: quanto tempo o cliente ainda tem para pedir troca.
+          if (grupo.eTirar && grupo.estado == OrderEditEstado.aplicado)
+            AvisoTrocaParceiro(grupo: grupo),
         ],
       ),
     );

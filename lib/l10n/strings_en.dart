@@ -3919,4 +3919,84 @@ const Map<String, String> kStringsEn = <String, String>{
   'Pago: €{0} — valor total do serviço. Não há mais nada a pagar na loja.':
       'Paid: €{0} — full service amount. There is nothing else to pay at the store.',
   'Preço indisponível': 'Price unavailable',
+  // 29/10/2026 (missao-geral, adendo 4 + paridade pequena):
+  // tool/l10n/traducoes/pt-en-27-adendo-4-paridade-pequenos.json.
+  'Talheres e guardanapos':
+      'Cutlery and napkins',
+  'Preciso de talheres e guardanapos':
+      'I need cutlery and napkins',
+  'Se não precisares, poupas plástico e ajudas a loja. Só enviamos se pedires.':
+      'If you don\'t need them, you save plastic and help the store. We only send them if you ask.',
+  'Com que nota vais pagar?':
+      'Which note will you pay with?',
+  'Valor certo':
+      'Exact amount',
+  'Avisamos o estafeta, mas o troco depende dele. Se puderes, paga com o valor certo.':
+      'We let the courier know, but the change is up to them. If you can, pay the exact amount.',
+  'Andar, porta ou código (opcional)':
+      'Floor, door or code (optional)',
+  'Ex.: 2.º Dto · porta azul · código 1234':
+      'E.g. 2nd floor right · blue door · code 1234',
+  'Aberto agora':
+      'Open now',
+  'Nenhuma loja com estes filtros. Tira um filtro para ver mais.':
+      'No store matches these filters. Remove a filter to see more.',
+  'Juntar mais':
+      'Add more',
+  'Juntar {0}':
+      'Add {0}',
+  'Pedido recebido':
+      'Order received',
+  'Pedido enviado à loja':
+      'Order sent to the store',
+  'A preparar o teu pedido':
+      'Preparing your order',
+  'A loja está a preparar':
+      'The store is preparing it',
+  'Pronto para levantares':
+      'Ready for pickup',
+  'O estafeta vai às compras':
+      'The courier is shopping',
+  'Estafeta a caminho da loja':
+      'Courier on the way to the store',
+  'O estafeta já tem o teu pedido':
+      'The courier has your order',
+  'O estafeta vai a caminho':
+      'The courier is on the way',
+  'Pedido entregue':
+      'Order delivered',
+  'Pedido recusado':
+      'Order declined',
+  'Pedido cancelado':
+      'Order cancelled',
+  'Tirada às {0}':
+      'Taken at {0}',
+  'Foto da entrega':
+      'Delivery photo',
+  'Tens {0} min para pedir uma troca à loja. Se preferires ficar sem ele, não precisas de fazer nada.':
+      'You have {0} min to ask the store for a swap. If you\'d rather go without it, you don\'t have to do anything.',
+  'Faltam {0}':
+      '{0} left',
+  'Pedir troca':
+      'Ask for a swap',
+  'Ficar sem ele':
+      'Go without it',
+  'Os meus habituais':
+      'My regulars',
+  'Repetir':
+      'Repeat',
+  'Foto do prato (opcional)':
+      'Photo of the dish (optional)',
+  'Não foi possível abrir a foto.':
+      'Couldn\'t open the photo.',
+  'Avaliação gravada, mas a foto não seguiu.':
+      'Rating saved, but the photo wasn\'t sent.',
+  'Foto do prato':
+      'Photo of the dish',
+  'Vegetariano':
+      'Vegetarian',
+  'Picante':
+      'Spicy',
+  'Sem glúten':
+      'Gluten-free',
 };

@@ -19,10 +19,13 @@ import 'package:flutter_stripe/flutter_stripe.dart' show StripeException, Failur
 
 import '../models/saved_card.dart';
 import '../services/card_wallet_service.dart';
+import '../services/complemento_morada.dart';
 import '../services/fatura_nif_service.dart';
+import '../services/interruptores_app.dart';
 import '../services/limite_dinheiro_service.dart';
 import '../services/payment_service.dart';
 import '../utils/hora_lisboa.dart';
+import '../utils/nota_do_pedido.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora/maior_18.dart';
 import '../widgets/card_mandate_notice.dart';
@@ -30,6 +33,7 @@ import '../widgets/checkout_legal_notice.dart';
 import '../widgets/customer_note_field.dart';
 import '../widgets/falta_para_entrega_gratis.dart';
 import '../widgets/fatura_nif_card.dart';
+import '../widgets/talheres_troco_cards.dart';
 import 'client_home_screen.dart' show abrirSeletorDeMorada;
 import '../widgets/unified_checkout_button.dart';
 import '../widgets/valor_com_risco.dart';
@@ -119,6 +123,18 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   // o servidor depois de o pedido ter id real, em segundo plano.
   final FaturaNifController _faturaNif = FaturaNifController();
 
+  // Talheres, troco e complemento da morada (29/10/2026): três linhas
+  // automáticas no princípio da nota do pedido (ver NotaDoPedido). Os dois
+  // primeiros têm interruptor no painel admin (ask_cutlery, ask_cash_change).
+  bool _perguntarTalheres = true;
+  bool _perguntarTroco = true;
+  bool _precisaTalheres = false;
+  int? _trocoPara;
+  // Total do pedido na última construção do ecrã: o troco só vale se a nota
+  // for MAIOR que ele (muda quando o cliente usa tokens ou saldo).
+  double _totalAtual = 0;
+  String? _complementoMorada;
+
   // ── Token discount state ───────────────────────────────────────────────────
   int _availableTokens = 0;
   bool _tokensLoaded = false;
@@ -165,6 +181,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     _loadSavedCards();
     // Já tem NIF guardado? Então o interruptor vem ligado com ele.
     unawaited(_faturaNif.carregarPerfil(FaturaNifService.instance));
+    unawaited(_carregarExtrasDaNota());
     // 26/10 (item 5): a nota escrita no carrinho aparece aqui outra vez, e o
     // que se escrever aqui volta ao carrinho (o mesmo texto do pedido).
     final cart = context.read<CartStore>();
@@ -188,21 +205,69 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     super.dispose();
   }
 
-  /// C1 — nota opcional do cliente para o estafeta (null se vazia).
+  /// Lê os interruptores do painel e o complemento da morada escolhida.
+  Future<void> _carregarExtrasDaNota() async {
+    final cfg = InterruptoresApp.instance;
+    final talheres = await cfg.ligado(InterruptoresApp.talheres);
+    final troco = await cfg.ligado(InterruptoresApp.troco);
+    final compl = await _complementoDaMoradaAtual();
+    if (!mounted) return;
+    setState(() {
+      _perguntarTalheres = talheres;
+      _perguntarTroco = troco;
+      _complementoMorada = compl;
+    });
+  }
+
+  Future<String?> _complementoDaMoradaAtual() async {
+    if (!await InterruptoresApp.instance.ligado(InterruptoresApp.detalhesMorada)) {
+      return null;
+    }
+    if (!mounted) return null;
+    final cart = context.read<CartStore>();
+    if (cart.isTakeaway) return null;
+    return ComplementoMorada.paraMorada(cart.dropoffStreet);
+  }
+
+  /// A pergunta dos talheres aparece neste pedido?
+  bool _mostraTalheres(CartStore cart) =>
+      _perguntarTalheres && NotaDoPedido.perguntaTalheres(cart.serviceType);
+
+  /// A pergunta do troco aparece neste pedido (dinheiro, com estafeta)?
+  bool _mostraTroco(CartStore cart) =>
+      _perguntarTroco &&
+      _selectedMethod == PaymentMethod.cash &&
+      !cart.isTakeaway &&
+      cart.serviceType != OrderServiceType.errand &&
+      NotaDoPedido.notasParaTroco(_totalAtual).isNotEmpty;
+
+  /// C1 — nota do pedido: linhas automáticas (talheres, troco, morada) e, a
+  /// seguir, o texto opcional do cliente (null se não houver nada).
   /// Festas: a data agendada entra SEMPRE à cabeça das observações — assim a
   /// loja vê a data mesmo que a gravação de scheduled_for falhe (o cartão
   /// cria a ordem no webhook, sem o cliente presente).
   String? get _orderNote {
-    final t = _notesController.text.trim();
-    final quando = context.read<CartStore>().festasQuando;
+    final cart = context.read<CartStore>();
+    final quando = cart.festasQuando;
+    String? marca;
     if (quando != null) {
       final dia = '${quando.day.toString().padLeft(2, '0')}/'
           '${quando.month.toString().padLeft(2, '0')}';
       final hora = '${quando.hour.toString().padLeft(2, '0')}:00';
-      final marca = 'Encomenda para {0} às {1}'.trArgs([dia, hora]);
-      return t.isEmpty ? marca : '$marca · $t';
+      marca = 'Encomenda para {0} às {1}'.trArgs([dia, hora]);
     }
-    return t.isEmpty ? null : t;
+    final troco = _mostraTroco(cart) &&
+            _trocoPara != null &&
+            _trocoPara! > _totalAtual
+        ? _trocoPara
+        : null;
+    return NotaDoPedido.compor(
+      textoDoCliente: _notesController.text,
+      marcaFestas: marca,
+      precisaTalheres: _mostraTalheres(cart) ? _precisaTalheres : null,
+      trocoPara: troco,
+      detalhesMorada: cart.isTakeaway ? null : _complementoMorada,
+    );
   }
 
   /// BUG #1 frontend (§54 / 2026-05-12) — busca debt_settle_cents do quote authoritative.
@@ -402,6 +467,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     // (a mesma chave do gatilho do servidor), e conta também o total do pedido
     // sem tokens — é esse que o gatilho `enforce_cash_payment_limit` compara.
     // Takeaway ("Pagar na loja") não tem limite, aqui e no servidor.
+    _totalAtual = max(finalPrice, baseCustomerTotal);
     final double totalCashWithDebt = finalPrice; // já inclui dívida + após desconto tokens
     final bool cashBlockedByLimit = !cartStore.isTakeaway &&
         LimiteDinheiroService.passaLimite(
@@ -457,6 +523,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                     morada: [cartStore.dropoffStreet, cartStore.dropoffCity]
                         .where((e) => e.trim().isNotEmpty)
                         .join(', '),
+                    complemento: _complementoMorada,
                     onTrocar: () async {
                       cartStore.marcarTrocaDeMorada(
                           antes: cartStore.dropoffStreet);
@@ -466,6 +533,9 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                       // servidor) e dívida relidas — nunca um total velho.
                       await cartStore.refreshRouteDistance();
                       unawaited(_loadDebt());
+                      unawaited(_complementoDaMoradaAtual().then((c) {
+                        if (mounted) setState(() => _complementoMorada = c);
+                      }));
                       if (mounted) setState(() {});
                     },
                   ),
@@ -776,6 +846,14 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                   lojaParceira: cartStore.isPartnerStore,
                 ),
                 const SizedBox(height: 24),
+                // Talheres e guardanapos (29/10/2026): desligado por defeito.
+                if (_mostraTalheres(cartStore)) ...[
+                  TalheresCard(
+                    precisa: _precisaTalheres,
+                    onChanged: (v) => setState(() => _precisaTalheres = v),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 // C1 — nota opcional para o estafeta (liga ao customerNotes).
                 CustomerNoteField(
                   controller: _notesController,
@@ -837,6 +915,15 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                       style: const TextStyle(
                           fontSize: 12.5, color: AppColors.textSecondary),
                     ),
+                  ),
+                // Troco (29/10/2026): só acrescenta uma linha à nota do pedido.
+                if (_mostraTroco(cartStore))
+                  TrocoCard(
+                    notas: NotaDoPedido.notasParaTroco(_totalAtual),
+                    escolhida: _trocoPara != null && _trocoPara! > _totalAtual
+                        ? _trocoPara
+                        : null,
+                    onChanged: (n) => setState(() => _trocoPara = n),
                   ),
                 // FAVORES (§55.4) — clareza cartão (garantia ×1,2) vs dinheiro.
                 if (isErrand && errPurchase > 0) ...[
@@ -1883,10 +1970,17 @@ class _MBWayWaitingDialogState extends State<_MBWayWaitingDialog> {
 /// "Entregar em: <morada> · Trocar" (melhorias-paridade 26/10, item 5).
 /// A Glovo e a Uber mostram a morada no último ecrã; o Bora não mostrava.
 class _EntregarEm extends StatelessWidget {
-  const _EntregarEm({required this.morada, required this.onTrocar});
+  const _EntregarEm({
+    required this.morada,
+    required this.onTrocar,
+    this.complemento,
+  });
 
   final String morada;
   final VoidCallback onTrocar;
+
+  /// Andar, porta ou código da morada guardada (a cinzento, por baixo).
+  final String? complemento;
 
   @override
   Widget build(BuildContext context) {
@@ -1904,13 +1998,25 @@ class _EntregarEm extends StatelessWidget {
           'Entregar em'.tr,
           style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
         ),
-        subtitle: Text(
-          semMorada ? 'Escolhe a morada de entrega'.tr : morada,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
-          ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              semMorada ? 'Escolhe a morada de entrega'.tr : morada,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            if ((complemento ?? '').trim().isNotEmpty && !semMorada)
+              Text(
+                complemento!.trim(),
+                key: const Key('entregar_em_complemento'),
+                style: const TextStyle(
+                    fontSize: 14, color: AppColors.textSecondary),
+              ),
+          ],
         ),
         trailing: TextButton(onPressed: onTrocar, child: Text('Trocar'.tr)),
         onTap: onTrocar,

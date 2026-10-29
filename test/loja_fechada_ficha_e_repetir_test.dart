@@ -441,11 +441,21 @@ void main() {
           contains('if (liveProducts != null && it.selectedOptions.isEmpty) {'));
     });
 
+    test('o botão "Pedir de novo" da lista e os habituais usam a mesma função', () {
+      expect(_ler('lib/screens/orders_screen.dart'),
+          contains('Future<void> _pedirDeNovo(OrderModel order) => pedirDeNovoPedido(context, order);'));
+      expect(_ler('lib/widgets/home/meus_habituais.dart'),
+          contains('pedirDeNovoPedido(context, p);'));
+    });
+
     test('os dois ecrãs perguntam ANTES de mexer no carrinho, e saem', () {
       // Os ecrãs não se montam num teste (precisam da lista de pedidos e da
       // conta): a ligação fica guardada pela fonte, a regra pelos testes acima.
       for (final (caminho, cabecalho) in [
-        ('lib/screens/orders_screen.dart', 'Future<void> _pedirDeNovo(OrderModel order) async {'),
+        // 29/10/2026 (adendo 4 · item 6): o corpo passou a uma função de topo,
+        // `pedirDeNovoPedido`, partilhada com os "meus habituais" da home — as
+        // mesmas travas, uma só cópia. O botão da lista chama-a.
+        ('lib/screens/orders_screen.dart', 'Future<void> pedirDeNovoPedido(BuildContext context, OrderModel order) async {'),
         ('lib/widgets/market/market_reorder_tab.dart', 'void _reorder(BuildContext context, OrderModel order) {'),
       ]) {
         final antes = _troco(_ler(caminho), cabecalho, 'ReorderService.applyTo(');

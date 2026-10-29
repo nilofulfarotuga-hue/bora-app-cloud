@@ -15,7 +15,9 @@ import '../models/rating_model.dart';
 import '../widgets/order_edit/client_order_edit_banner.dart';
 import '../widgets/address_text.dart';
 import '../widgets/bora_support_fab.dart';
+import '../widgets/barra_pedido_ativo.dart' show BarraPedidoAtivoEstado;
 import '../widgets/errand_budget_banner.dart';
+import '../widgets/foto_prova_entrega.dart';
 import '../widgets/fatura_nif_pedido.dart';
 import '../widgets/partilhar_localizacao_card.dart';
 import '../widgets/partilhar_seguimento.dart';
@@ -103,6 +105,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   @override
   void initState() {
     super.initState();
+    // A barra do pedido em curso esconde-se aqui: o acompanhamento já é isto.
+    BarraPedidoAtivoEstado.pedidoAVer.value = widget.order.id;
     MapMarkerHelper.preload();
     // [31/08] carrega as chaves eta_* das definições (uma vez, best-effort).
     OrderEtaService.ensureConfigured();
@@ -193,6 +197,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
   @override
   void dispose() {
+    final idAVer = widget.order.id;
+    scheduleMicrotask(() {
+      if (BarraPedidoAtivoEstado.pedidoAVer.value == idAVer) {
+        BarraPedidoAtivoEstado.pedidoAVer.value = null;
+      }
+    });
     _directionsService.dispose();
     _followResumeTimer?.cancel();
     _programmaticMoveTimer?.cancel();
@@ -715,6 +725,9 @@ class _BottomCardState extends State<_BottomCard> {
                 ErrandBudgetBanner(order: order),
                 // ── Loja parceira mudou o pedido (acrescentar/em falta) ──
                 ClientOrderEditBanner(order: order),
+                // ── Foto de prova da entrega (adendo 4 · item 2) ─────────
+                FotoProvaEntregaCliente(
+                    orderId: order.id, status: order.status),
                 // ── NIF que não ficou na fatura: "Tentar de novo" ────────
                 FaturaNifAviso(order: order),
                 // ── Order code + status ──────────────────────────────────

@@ -10,6 +10,7 @@ import '../../models/order_model.dart';
 import '../../services/order_edit_service.dart';
 import '../../services/payment_service.dart';
 import '../../utils/euros.dart';
+import 'janela_troca_em_falta.dart';
 
 /// Cliente vê o que a loja parceira mudou no pedido (PT-PT):
 ///   • "A loja quer acrescentar X (+€Y)" → Aceitar / Recusar (e paga a diferença
@@ -77,6 +78,8 @@ class _ClientOrderEditBannerState extends State<ClientOrderEditBanner> {
         icone: Icons.remove_shopping_cart_outlined,
         titulo: 'Produto em falta'.tr,
         texto: '${g.resumo}. $comoVolta',
+        // Adendo 4 · item 4: contagem e pedido de troca (só aviso e chat).
+        extra: JanelaTrocaCliente(grupo: g, order: widget.order),
       );
     }
 
@@ -200,6 +203,7 @@ class _Caixa extends StatelessWidget {
     required this.titulo,
     required this.texto,
     this.acoes = const [],
+    this.extra,
   });
 
   final Color cor;
@@ -207,6 +211,9 @@ class _Caixa extends StatelessWidget {
   final String titulo;
   final String texto;
   final List<Widget> acoes;
+
+  /// Conteúdo extra por baixo do texto (ex.: a janela de troca).
+  final Widget? extra;
 
   @override
   Widget build(BuildContext context) {
@@ -234,6 +241,7 @@ class _Caixa extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(texto, style: const TextStyle(fontSize: 13, height: 1.35)),
+          if (extra != null) extra!,
           if (acoes.isNotEmpty) ...[
             const SizedBox(height: 8),
             Row(mainAxisAlignment: MainAxisAlignment.end, children: acoes),

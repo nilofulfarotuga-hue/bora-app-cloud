@@ -10,6 +10,7 @@ import '../models/cart_item.dart';
 import '../models/partner_product.dart';
 import '../models/product_option.dart';
 import '../models/product_variant.dart';
+import '../services/prato_visitas_service.dart';
 import '../services/pricing_service.dart';
 import '../stores/cart_store.dart';
 import '../stores/restaurant_store.dart';
@@ -19,6 +20,7 @@ import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/bora/coming_soon.dart';
 import '../widgets/bora/maior_18.dart';
 import '../widgets/bora/weight_price_text.dart';
+import '../widgets/etiquetas_dieta_chips.dart';
 import 'cart_screen.dart';
 
 import '../l10n/tr.dart';
@@ -57,6 +59,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   void initState() {
     super.initState();
     _loadGroups();
+    // Funil do parceiro (adendo 4 · item 8): conta quem abriu a ficha do prato.
+    PratoVisitasService.registarAbertura(widget.product.id);
   }
 
   Future<void> _loadGroups() async {
@@ -314,6 +318,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             ),
                           ),
                         ],
+                        // Etiquetas do menu (adendo 4 · item 5).
+                        EtiquetasDietaChips(
+                            etiquetas: widget.product.dietTags,
+                            margem: const EdgeInsets.only(top: 8)),
                         // Missão maiores-18 (07/10/2026): tabaco/álcool —
                         // o estafeta pede documento na entrega.
                         if (widget.product.ageRestricted) ...[

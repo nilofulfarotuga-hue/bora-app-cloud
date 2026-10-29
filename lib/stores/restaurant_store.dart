@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/etiquetas_dieta.dart';
 import '../models/order_model.dart';
 import '../models/partner_product.dart';
 import '../models/product_variant.dart';
@@ -176,7 +177,7 @@ class RestaurantStore extends ChangeNotifier {
   static const String _productProjection =
       'id,restaurant_id,name,description,price,price_low,partner_shelf_price,'
       'photo_url,is_available,category,category_root,is_popular,is_on_sale,'
-      'discount_price,allergens,sold_by_weight,shelf_price_per_kg';
+      'discount_price,allergens,sold_by_weight,shelf_price_per_kg,diet_tags';
 
   /// Um produto pelo id, com a mesma projecção e o mesmo parse do catálogo.
   /// Usado pelas faixas da home e pela pesquisa global (05/10) para abrir a
@@ -240,6 +241,7 @@ class RestaurantStore extends ChangeNotifier {
       shelfPricePerKg: _numFromRow(data, 'shelf_price_per_kg'),
       // Missão maiores-18: tolerante a null (coluna pode não existir ainda).
       ageRestricted: (data['age_restricted'] as bool?) ?? false,
+      dietTags: etiquetasDeLinha(data['diet_tags']),
     );
   }
 
@@ -669,6 +671,7 @@ class RestaurantStore extends ChangeNotifier {
             soldByWeight: (data['sold_by_weight'] as bool?) ?? false,
             shelfPricePerKg: _numFromRow(data, 'shelf_price_per_kg'),
             ageRestricted: (data['age_restricted'] as bool?) ?? false,
+            dietTags: etiquetasDeLinha(data['diet_tags']),
           );
           final list = _productsByRestaurant.putIfAbsent(
               restaurantId, () => <PartnerProduct>[]);
@@ -715,6 +718,9 @@ class RestaurantStore extends ChangeNotifier {
                 list[index].shelfPricePerKg,
             ageRestricted: (data['age_restricted'] as bool?) ??
                 list[index].ageRestricted,
+            dietTags: data.containsKey('diet_tags')
+                ? etiquetasDeLinha(data['diet_tags'])
+                : list[index].dietTags,
           );
           notifyListeners();
         },
@@ -1008,8 +1014,50 @@ class RestaurantStore extends ChangeNotifier {
       allergens: current.allergens,
       soldByWeight: soldByWeight,
       shelfPricePerKg: soldByWeight ? shelfPricePerKg : null,
+      ageRestricted: current.ageRestricted,
+      dietTags: current.dietTags,
     );
     if (soldByWeight) _requiredOptionProductIds.add(productId);
+    notifyListeners();
+  }
+
+  /// Etiquetas do menu (29/10/2026): grava as escolhas do parceiro e espelha-as
+  /// na lista local para o cliente as ver logo. Só mexe nas colunas das
+  /// etiquetas — nunca em preço, nome nem alergénios. Devolve false se o
+  /// servidor recusar (a lista local fica como estava).
+  Future<bool> guardarEtiquetasDoProduto({
+    required String restaurantId,
+    required String productId,
+    required List<String> etiquetas,
+    String origem = 'parceiro',
+  }) async {
+    final limpas = normalizarEtiquetas(etiquetas);
+    try {
+      await supabase.from('products').update({
+        'diet_tags': limpas,
+        'diet_tags_source': origem,
+        'diet_tags_at': DateTime.now().toUtc().toIso8601String(),
+      }).eq('id', productId);
+    } catch (e) {
+      debugPrint('RestaurantStore: guardarEtiquetasDoProduto => $e');
+      return false;
+    }
+    aplicarEtiquetasLocalmente(
+        restaurantId: restaurantId, productId: productId, etiquetas: limpas);
+    return true;
+  }
+
+  /// Espelha na lista local etiquetas que acabaram de ser gravadas.
+  void aplicarEtiquetasLocalmente({
+    required String restaurantId,
+    required String productId,
+    required List<String> etiquetas,
+  }) {
+    final list = _productsByRestaurant[restaurantId];
+    if (list == null) return;
+    final index = list.indexWhere((item) => item.id == productId);
+    if (index == -1) return;
+    list[index] = list[index].copyWith(dietTags: normalizarEtiquetas(etiquetas));
     notifyListeners();
   }
 

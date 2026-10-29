@@ -26,6 +26,7 @@ import '../widgets/bora/maior_18.dart';
 import '../widgets/bora/banner_pausa_loja.dart';
 import '../widgets/bora/loja_fechada.dart';
 import '../widgets/bora/weight_price_text.dart';
+import '../widgets/etiquetas_dieta_chips.dart';
 import '../widgets/bora_assistant_fab.dart';
 import '../widgets/entrega_gratis_da_loja.dart';
 import 'cart_screen.dart';
@@ -1377,6 +1378,9 @@ class _SectionProductCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
+                      // Etiquetas do menu (adendo 4 · item 5).
+                      EtiquetasDietaChips(
+                          etiquetas: product.dietTags, compacto: true),
                       const SizedBox(height: 4),
                       // B1: fonte única applyMarkup (exibido = cobrado).
                       WeightPriceText(

@@ -42,6 +42,22 @@ Cópia de trabalho `C:\BoraLocal\wt-missao-geral-28-10`, ramo `missao-geral-2026
 - Dinheiro autorizado: (1) acerto do estafeta APLICADO (20261029143048); (2) reembolsos → Claude.ai (push do ramo
   recusado pela tranca); (3) TVDE vale no repo, deploy pendente; (4) S1 a preparar pelo agente de segurança.
 
+## Fechados às 16:45 UTC (commits no ramo: ea108022, 2dc1d47f, 7c2602ff + o do notify-tvde-driver)
+- S1 platform_settings segredos APLICADO (migração 20261029152540, e2e 5210): cliente comum 0 secretas,
+  anon só a vista pública (87), admin vê tudo, preços iguais antes/depois (md5). A cópia para
+  supabase/migrations foi recusada pela tranca (TRANCAS.md); o SQL está em docs/propostas/.../janela2/.
+- TVDE vale a dinheiro: notify-tvde-driver v24 NO AR (e2e 5221). Armadilha: o repo estava atrás do ar
+  (v23 nunca entrou); o repo ficou igual ao ar.
+- Pacote dos reembolsos + SQL da Boom entregues ao Claude.ai em claude_ai_memoria (11 páginas
+  reembolsos-b2-* e boom-precos-sql-2026-10-29, md5 provado; e2e 5222). Ele aplica por MCP.
+- Robô de documentos (adendo 3) em modo sombra, com entrada no menu do painel; Receita do dia alvo
+  alargado; robô WhatsApp da Boom ponta a ponta em teste (63 testes; janela demo até 30/10 15:36Z).
+- Adendo 5 lido (e2e 5211): BLOCO 11 = itens 4, 5, 6, 7, 8 do plano-melhor-que-uber-glovo, só depois dos
+  Blocos 1-8; desenho de cada um na página adendo-5-final-app-2026-10-29.
+- Reportado pelos agentes, por fazer: estafeta demo a 23 km da Boom (oferta não chega; telemóvel em Guarda
+  na segunda); takeaway_enabled da Boom = false (dono liga no painel); chave OpenCode Go expirada (401) e
+  Gemini pago sem créditos (402) — precisam do Danilo; gatilho de tvde_driver_documents não feito.
+
 ## A correr (agentes; se esta sessão cair, ver o que ficou em disco/e2e_log e relançar NOVOS com a lista)
 2 robô WhatsApp da Boom (migração 20261029141906 aplicada; cérebro em disco; partner_dashboard_screen e
 admin_orders_screen por commitar) · 6.c auditoria + S1 · adendo 3 robô de documentos (R1-R7 com migrações

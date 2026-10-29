@@ -37,6 +37,7 @@ import 'chat_screen.dart';
 import 'rating_screen.dart';
 
 import '../l10n/tr.dart';
+import '../utils/conta_curta_dinheiro.dart';
 import '../utils/euros.dart';
 
 class OrderTrackingScreen extends StatefulWidget {
@@ -1174,15 +1175,27 @@ class _BottomCardState extends State<_BottomCard> {
                             label: 'Dívida anterior'.tr,
                             value: order.debtCollectedCents / 100),
                       Divider(color: Colors.grey.shade300, height: 16),
+                      // 28/10/2026 (C3): total do pedido (talão quando há) +
+                      // dívida; com saldo/tokens, o que se paga em dinheiro
+                      // vai à parte (antes o total era só o `price`).
                       _SummaryRow(
                         label: order.debtCollectedCents > 0
                             ? 'Total a pagar'.tr
                             : 'Total do pedido'.tr,
                         value: order.debtCollectedCents > 0
                             ? order.totalWithDebt
-                            : order.total,
+                            : (order.finalTotal ?? order.total),
                         isStrong: true,
                       ),
+                      if (dinheiroDoCliente(order) case final d?) ...[
+                        _SummaryRow(
+                            label: 'Já pago com saldo/tokens'.tr,
+                            value: d.jaPago),
+                        _SummaryRow(
+                            label: 'Paga em dinheiro'.tr,
+                            value: d.emDinheiro,
+                            isStrong: true),
+                      ],
                     ],
                   ),
                 ),

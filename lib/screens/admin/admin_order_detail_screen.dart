@@ -8,6 +8,7 @@ import '../../widgets/admin/escolher_estafeta_sheet.dart';
 import '../../widgets/private_bucket_image.dart';
 import '../../widgets/admin/admin_favor_passos_section.dart';
 import '../../widgets/admin/admin_ofertas_do_pedido_section.dart';
+import '../../utils/conta_do_dinheiro_admin.dart';
 import '../../utils/hora_lisboa.dart';
 import '_admin_cancel_order_dialog.dart';
 import 'admin_chat_viewer_screen.dart';
@@ -89,7 +90,9 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
               // Missão maiores-18 (07/10/2026)
               'has_age_restricted, '
               // 13/10: dívida anterior do cliente cobrada neste pedido
-              'debt_collected_cents')
+              'debt_collected_cents, '
+              // 28/10 (C4): crédito de menu, para a conta do dinheiro
+              'menu_credit_applied_cents')
           .eq('id', widget.orderId)
           .maybeSingle();
 
@@ -901,6 +904,7 @@ class _PaymentTab extends StatelessWidget {
         _CashBreakdownCard(
           orderId: order['id'] as String,
           paymentMethod: method,
+          order: order,
         ),
       ],
     );
@@ -922,11 +926,17 @@ class _PaymentTab extends StatelessWidget {
 
 // Bloco "Acerto de Caixa" — chama admin_order_cash_breakdown(p_order_id) e só
 // aparece para pagamento em dinheiro ou quando há talão de loja (>0).
+// 28/10/2026 (C4): por cima, sempre, a "Conta do dinheiro (linha a linha)"
+// com as colunas do próprio pedido + o talão que este RPC devolve.
 class _CashBreakdownCard extends StatefulWidget {
-  const _CashBreakdownCard(
-      {required this.orderId, required this.paymentMethod});
+  const _CashBreakdownCard({
+    required this.orderId,
+    required this.paymentMethod,
+    required this.order,
+  });
   final String orderId;
   final String? paymentMethod;
+  final Map<String, dynamic> order;
 
   @override
   State<_CashBreakdownCard> createState() => _CashBreakdownCardState();
@@ -981,7 +991,20 @@ class _CashBreakdownCardState extends State<_CashBreakdownCard> {
   @override
   Widget build(BuildContext context) {
     if (_loading) return const SizedBox.shrink();
+    final conta = contaDoDinheiroAdmin(
+      widget.order,
+      talaoLoja: _data == null ? null : _num('talao_loja'),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ContaDoDinheiroCard(conta: conta),
+        _acertoDeCaixa(context),
+      ],
+    );
+  }
 
+  Widget _acertoDeCaixa(BuildContext context) {
     final isCash = widget.paymentMethod == 'cash';
 
     if (_permissionError) {
@@ -1076,6 +1099,85 @@ class _CashBreakdownCardState extends State<_CashBreakdownCard> {
                   color: valueColor)),
         ),
       ]),
+    );
+  }
+}
+
+/// 28/10/2026 (missao-geral, C4): "Conta do dinheiro (linha a linha)" — total,
+/// saldo, tokens, crédito de menu, dívida, dinheiro a cobrar na porta e talão,
+/// com aviso vermelho quando o dinheiro a cobrar passa do que o cliente deve.
+/// As linhas vêm de [contaDoDinheiroAdmin]. Público só para o teste.
+@visibleForTesting
+class ContaDoDinheiroCard extends StatelessWidget {
+  const ContaDoDinheiroCard({super.key, required this.conta});
+
+  final ContaDoDinheiroAdmin conta;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Card(
+        key: const Key('admin_conta_do_dinheiro'),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(Radii.lg)),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(children: [
+                Icon(Icons.calculate_outlined,
+                    size: 18, color: AppColors.primary),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text('Conta do dinheiro (linha a linha)',
+                      style: TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w700)),
+                ),
+              ]),
+              const SizedBox(height: 8),
+              for (final l in conta.linhas)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(children: [
+                    Expanded(
+                      child: Text(l.rotulo,
+                          style: const TextStyle(
+                              color: AppColors.textSecondary, fontSize: 13)),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(l.valor,
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight:
+                                l.destaque ? FontWeight.w700 : FontWeight.w500)),
+                  ]),
+                ),
+              if (conta.aviso != null) ...[
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.error),
+                  ),
+                  child: Text(
+                    conta.aviso!,
+                    key: const Key('admin_conta_do_dinheiro_aviso'),
+                    style: const TextStyle(
+                        color: AppColors.error,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

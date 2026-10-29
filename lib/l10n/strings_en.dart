@@ -16,6 +16,12 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 28/10/2026 (missao-geral, C3): pedido a dinheiro com saldo/tokens — o
+  // cliente vê o total e, à parte, quanto paga em dinheiro (à mão).
+  'Paga em dinheiro':
+      'To pay in cash',
+  'Já pago com saldo/tokens':
+      'Already paid with balance/tokens',
   // 21/10/2026: encomendas no motor do Bora Motorista (etiqueta nas reservas)
   // (tool/l10n/traducoes/pt-en-25-encomendas.json). O resto das palavras de
   // encomenda vive em lib/models/ride_kind_textos.dart (PT e EN juntos).

@@ -25,6 +25,7 @@ import 'wallet_history_screen.dart';
 
 import '../l10n/tr.dart';
 import '../widgets/confirmar_substituir_carrinho.dart';
+import '../utils/conta_curta_dinheiro.dart';
 import '../utils/euros.dart';
 
 class OrdersScreen extends StatefulWidget {
@@ -330,6 +331,7 @@ class _OrderCard extends StatelessWidget {
             ? eur(order.finalTotal!)
             : eur(order.total);
     final hasWalletAdjust = walletTxs.isNotEmpty;
+    final dinheiro = dinheiroDoCliente(order);
 
     return Material(
       color: Colors.white,
@@ -390,6 +392,18 @@ class _OrderCard extends StatelessWidget {
                         'Inclui {0} € de dívida anterior'.trArgs([
                           (order.debtCollectedCents / 100).toStringAsFixed(2).replaceAll('.', ',')
                         ]),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    // 28/10/2026 (C3): o total fica em cima; quanto paga em
+                    // dinheiro (com saldo/tokens já descontados) vai à parte.
+                    if (dinheiro != null)
+                      Text(
+                        '${'Paga em dinheiro'.tr}: ${eur(dinheiro.emDinheiro)}'
+                        ' · ${'Já pago com saldo/tokens'.tr}: ${eur(dinheiro.jaPago)}',
+                        key: const Key('cliente_paga_em_dinheiro'),
                         style: const TextStyle(
                           fontSize: 12,
                           color: AppColors.textSecondary,

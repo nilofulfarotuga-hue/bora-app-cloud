@@ -20,6 +20,7 @@ import '../widgets/cliente_nome_destaque.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/cancel_blocked_pickup_sheet.dart';
 import '../widgets/payments/collect_badge.dart';
+import '../widgets/payments/conta_curta_dinheiro_texto.dart';
 import '../utils/favor_passos.dart';
 import '../widgets/favor_passos_card.dart';
 import '../widgets/bora/bora_bottom_action_bar.dart';
@@ -1833,7 +1834,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                     _InfoChip(
                       icon: Icons.euro,
                       label: "Pedido",
-                      value: "€${order.total.toStringAsFixed(2)}",
+                      // 28/10/2026 (C3): o total do pedido (talão quando há),
+                      // o mesmo "Total" da conta curta abaixo.
+                      value:
+                          "€${(order.finalTotal ?? order.total).toStringAsFixed(2)}",
                     ),
                     _InfoChip(
                       icon: Icons.payments,
@@ -1859,6 +1863,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                       : CollectState.paidOnline,
                   amountCents: (order.totalToCollectCash * 100).round(),
                 ),
+                // 28/10/2026 (C3): parte já paga com saldo/tokens.
+                ContaCurtaDinheiroTexto(order: order),
                 // 2026-09-22: a loja parceira acrescentou/tirou produtos.
                 DriverOrderEditNotice(order: order),
                 // BUG #1 frontend (§54) — linha extra se inclui dívida prévia
@@ -3354,6 +3360,8 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
                           : CollectState.paidOnline,
                       amountCents: (order.totalToCollectCash * 100).round(),
                     ),
+                    // 28/10/2026 (C3): parte já paga com saldo/tokens.
+                    ContaCurtaDinheiroTexto(order: order),
                     // [Bloco 6 · 04/10] Loja não-parceira (ex.: encomendada por
                     // telefone pela Bora): o estafeta paga ao balcão o preço
                     // da LOJA (sem os 15%). Só leitura — nada de preços muda.
@@ -3597,6 +3605,8 @@ class _AvailableOrderCardState extends State<_AvailableOrderCard> {
                 amountCents: (order.totalToCollectCash * 100).round(),
               ),
             ),
+            // 28/10/2026 (C3): parte já paga com saldo/tokens.
+            ContaCurtaDinheiroTexto(order: order),
             // Favor (08/10): a rota toda, nunca o pickup_address herdado.
             if (order.serviceType == OrderServiceType.errand) ...[
               const SizedBox(height: 8),

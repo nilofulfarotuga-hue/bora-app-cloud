@@ -22,6 +22,7 @@ import '../models/order_model.dart';
 import '../services/navigation_service.dart';
 import '../utils/favor_passos.dart';
 import 'folha_favor.dart';
+import 'payments/conta_curta_dinheiro_texto.dart';
 import 'private_bucket_image.dart';
 import '../utils/euros.dart';
 
@@ -333,13 +334,23 @@ class _PassoAtual extends StatelessWidget {
                       icone: Icons.check_circle_outline,
                       texto: 'Já pago na app — não cobres nada.',
                     )
-                  : _Linha(
-                      icone: conta.devolver
-                          ? Icons.currency_exchange
-                          : Icons.payments_outlined,
-                      texto:
-                          '${conta.rotulo}: ${eur(conta.valor)}',
-                      destaque: true,
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _Linha(
+                          icone: conta.devolver
+                              ? Icons.currency_exchange
+                              : Icons.payments_outlined,
+                          texto: '${conta.rotulo}: ${eur(conta.valor)}',
+                          destaque: true,
+                        ),
+                        // 28/10/2026 (C3): parte já paga com saldo/tokens
+                        // (some sozinha no troco do dinheiro de casa).
+                        Padding(
+                          padding: const EdgeInsets.only(left: 24),
+                          child: ContaCurtaDinheiroTexto(order: order),
+                        ),
+                      ],
                     ),
             );
           }),

@@ -444,12 +444,21 @@ class OrderModel {
   bool get hasCashDebt => debtCollectedCents > 0;
 
   /// Total com a dívida anterior incluída, para os ecrãs do cliente e do
-  /// painel quando [debtCollectedCents] > 0 (13/10). Em dinheiro é o mesmo
-  /// número que o estafeta cobra ([totalToCollectCash]); em cartão/MB Way a
-  /// dívida soma-se ao total do pedido. Só leitura — não muda o que se cobra.
-  double get totalWithDebt => paymentMethod == PaymentMethod.cash
-      ? totalToCollectCash
-      : (finalTotal ?? total) + debtCollectedCents / 100.0;
+  /// painel quando [debtCollectedCents] > 0 (13/10). Só leitura — não muda o
+  /// que se cobra.
+  ///
+  /// 28/10/2026 (missao-geral, C3): é sempre o TOTAL do pedido (talão quando
+  /// há) + a dívida. Em dinheiro sem nada pago antes continua a ser o mesmo
+  /// número que o estafeta cobra ([totalToCollectCash], o servidor manda);
+  /// com saldo/tokens/crédito de menu o cliente vê este total e, à parte,
+  /// quanto paga em dinheiro (antes via só o valor já descontado como
+  /// "Total").
+  double get totalWithDebt {
+    if (paymentMethod == PaymentMethod.cash && jaPagoSemDinheiro <= 0) {
+      return totalToCollectCash;
+    }
+    return (finalTotal ?? total) + debtCollectedCents / 100.0;
+  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // FIX (CRITICAL): Previously fromSupabase hardcoded

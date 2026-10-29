@@ -24,6 +24,7 @@ import 'chat_screen.dart';
 import 'wallet_history_screen.dart';
 
 import '../l10n/tr.dart';
+import '../utils/conta_curta_dinheiro.dart';
 import '../utils/euros.dart';
 
 class OrderDetailsScreen extends StatelessWidget {
@@ -776,6 +777,9 @@ class _OrderInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 28/10/2026 (C3): com saldo/tokens, o "Total" é o do pedido e o que se
+    // paga em dinheiro à porta vai numa linha à parte.
+    final dinheiro = dinheiroDoCliente(order);
     return _Card(
       title: 'Resumo do pedido'.tr,
       child: Column(
@@ -794,6 +798,15 @@ class _OrderInfoCard extends StatelessWidget {
                   ? eur(order.totalWithDebt)
                   : eur((order.finalTotal ?? order.total)),
               bold: true),
+          if (dinheiro != null) ...[
+            _Row(
+                label: 'Já pago com saldo/tokens'.tr,
+                value: eur(dinheiro.jaPago)),
+            _Row(
+                label: 'Paga em dinheiro'.tr,
+                value: eur(dinheiro.emDinheiro),
+                bold: true),
+          ],
           _Row(
               label: 'Taxa de entrega'.tr,
               value: eur(order.deliveryFee)),

@@ -55,6 +55,7 @@ import '../l10n/tr.dart';
 import '../utils/favor_passos.dart';
 import '../widgets/bora_foto_ecra_inteiro.dart';
 import '../widgets/favor_passos_card.dart';
+import '../widgets/payments/conta_curta_dinheiro_texto.dart';
 import '../widgets/bora/bora_bottom_action_bar.dart';
 
 // BUG 29: Google sobrepunha o nome da rua mais próxima (ex: "Alexandre
@@ -1834,10 +1835,26 @@ class _BottomPanelState extends State<_BottomPanel> {
                       icon: Icons.receipt_long_outlined,
                       label: 'Pedido',
                       // FAVOR-ESTAFETA (27/09): depois do talão o valor do pedido é o
-                      // total a cobrar (compra + taxa), não só a taxa (price).
+                      // total (compra + taxa), não só a taxa (price).
+                      // 28/10/2026 (C3): "Pedido" é o TOTAL do pedido; o que
+                      // se cobra em dinheiro vai à parte, em "Receber" (com
+                      // saldo/tokens o cash_total_due é menor que o total).
                       value:
-                          '€${(focusOrder.cashTotalDue ?? focusOrder.finalTotal ?? focusOrder.total).toStringAsFixed(2)}',
+                          '€${(focusOrder.finalTotal ?? focusOrder.total).toStringAsFixed(2)}',
                     ),
+                    // Favor: só no passo da entrega e sem o dinheiro de casa
+                    // (as mesmas regras da faixa laranja, abaixo).
+                    if (focusOrder.paymentMethod == PaymentMethod.cash &&
+                        (focusOrder.serviceType != OrderServiceType.errand ||
+                            (passoAtual(focusOrder) == 2 &&
+                                !favorComDinheiroDeCasa(focusOrder))))
+                      _InfoItem(
+                        icon: Icons.payments_outlined,
+                        label: 'Receber',
+                        value:
+                            '€${focusOrder.totalToCollectCash.toStringAsFixed(2)}',
+                        valueColor: Colors.orange.shade900,
+                      ),
                     _InfoItem(
                       icon: Icons.payments_outlined,
                       label: 'Ganhos',
@@ -1890,7 +1907,7 @@ class _BottomPanelState extends State<_BottomPanel> {
                             // Com o dinheiro levantado em casa o estafeta
                             // devolve o troco — a conta está no cartão.
                             !favorComDinheiroDeCasa(focusOrder)))) ...[
-                  _CashCollectBanner(order: focusOrder),
+                  CashCollectBanner(order: focusOrder),
                   const SizedBox(height: 16),
                 ],
                 // 2026-09-22: a loja parceira acrescentou/tirou produtos.
@@ -2718,8 +2735,11 @@ class _FinalizedBanner extends StatelessWidget {
 ///   - Parceiro: "RECEBER €X — entregar ao parceiro"
 ///   - Não-parceiro: "RECEBER €X EM DINHEIRO"
 /// Instanciado a partir de pickedUp (estafeta já recolheu o pedido).
-class _CashCollectBanner extends StatelessWidget {
-  const _CashCollectBanner({required this.order});
+/// 28/10/2026 (C3): com saldo/tokens leva a "conta curta" por baixo. Público
+/// só para o teste de widget.
+@visibleForTesting
+class CashCollectBanner extends StatelessWidget {
+  const CashCollectBanner({super.key, required this.order});
 
   final OrderModel order;
 
@@ -2788,6 +2808,9 @@ class _CashCollectBanner extends StatelessWidget {
                     ),
                   ),
                 ],
+                // 28/10/2026 (C3): parte já paga com saldo/tokens.
+                ContaCurtaDinheiroTexto(
+                    order: order, cor: Colors.white, tamanho: 13),
               ],
             ),
           ),
@@ -3714,13 +3737,23 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                 _SummaryRow(
                     label: 'Taxa de serviço', value: order.serviceFee),
                 _SummaryRow(label: 'Entrega', value: order.deliveryFee),
+                // 28/10/2026 (C3): o que o cliente já pagou com saldo/tokens/
+                // crédito de menu sai do que ele paga à porta (antes esta
+                // previsão mostrava o total bruto).
+                if (order.jaPagoSemDinheiro > 0)
+                  _SummaryRow(
+                      label: 'Já pago com saldo/tokens',
+                      value: order.jaPagoSemDinheiro,
+                      color: Colors.green.shade700),
                 const Divider(height: 12),
                 Builder(builder: (_) {
                   // B4: o cliente paga preços COM markup — usar o total do
                   // lado do cliente, não o total de caixa do estafeta.
-                  final cashTotal = clientAdjustedTotal +
+                  final bruto = clientAdjustedTotal +
                       order.serviceFee +
-                      order.deliveryFee;
+                      order.deliveryFee -
+                      order.jaPagoSemDinheiro;
+                  final cashTotal = bruto < 0 ? 0.0 : bruto;
                   return Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -3970,7 +4003,11 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                             _caminhoTalaoGuardado = null;
                             // Estado local imediato; o realtime confirma a seguir.
                             order.isPurchaseFinalized = true;
-                            order.cashTotalDue = null;
+                            // 28/10/2026 (C3): o valor a cobrar é o que o
+                            // servidor acabou de gravar (já sem saldo/tokens/
+                            // crédito de menu). Sem ele fica null e o getter
+                            // usa final/total − já pago, nunca o bruto.
+                            order.cashTotalDue = resultado.cashTotalDueEur;
                             order.status = OrderStatus.onTheWay;
                             orderStore.refresh();
                             nav.pop();

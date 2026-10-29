@@ -123,6 +123,132 @@ void main() {
       expect(mensagemErroPremio('qualquer'), 'Não foi possível usar o prémio. Tenta de novo.');
     });
 
+    test('escada (29/10/2026): lê a resposta real do servidor', () {
+      // Exemplo real de client_checkin_premios() a 29/10/2026.
+      final j = _marcos(dias: 15)
+        ..['ciclo_inicio'] = '2026-10-15'
+        ..['escada'] = {
+          'ativa': true,
+          'texto': 'Em cada sequência levas UM prémio: o mais alto a que chegares. Se levantares, a sequência volta ao dia 1. Se continuares, trocas por um prémio maior.',
+          'decisao': null,
+          'guardado': null,
+          'levantados': 0,
+          'ultimo_dia': 30,
+          'proximo_maior': {'dia': 30, 'chave': 'mes', 'faltam': 15, 'titulo': '2 horas de limpeza ou uma lavagem exterior do carro', 'descricao': '...'},
+          'pode_continuar': false,
+          'pendente_decisao': false,
+        };
+      final e = CheckinPremiosEstado.fromJson(j);
+      expect(e.diaMarco, 15);
+      expect(e.hojeFeito, isTrue);
+      expect(e.diaDeHoje, 15);
+      expect(e.cicloInicio, DateTime(2026, 10, 15));
+      expect(e.escadaAtiva, isTrue);
+      final esc = e.escada!;
+      expect(esc.texto, startsWith('Em cada sequência levas UM prémio'));
+      expect(esc.guardado, isNull);
+      expect(esc.decisao, isNull);
+      expect(esc.pendenteDecisao, isFalse);
+      expect(esc.podeContinuar, isFalse);
+      expect(esc.ultimoDia, 30);
+      expect(esc.levantados, 0);
+      expect(esc.proximoMaior!.dia, 30);
+      expect(esc.proximoMaior!.chave, 'mes');
+      expect(esc.proximoMaior!.faltam, 15);
+      expect(esc.temGuardadoSemEscolha, isFalse);
+    });
+
+    test('escada: prémio guardado à espera da escolha e depois de continuar', () {
+      Map<String, dynamic> com(String decisao, bool pendente) => _marcos()
+        ..['escada'] = {
+          'ativa': true,
+          'texto': 't',
+          'guardado': {
+            'chave': 'salgados', 'dia': 10, 'titulo': '2 salgados da Keli', 'tipo': 'produto', 'descricao': 'd',
+            'guardado_em': '2026-10-29T10:00:00+00:00', 'garantido_ate': '2026-11-28T10:00:00+00:00',
+          },
+          'decisao': decisao,
+          'pendente_decisao': pendente,
+          'pode_continuar': true,
+          'proximo_maior': {'chave': 'acai', 'dia': 15, 'titulo': 'um açaí do Goola', 'descricao': '', 'faltam': 5},
+          'ultimo_dia': 30,
+          'levantados': 2,
+          'reinicio_data': '2026-10-01',
+          'ultimo_vale_id': 'aaaaaaaa-0000-0000-0000-000000000001',
+        };
+      final p = CheckinPremiosEstado.fromJson(com('pendente', true)).escada!;
+      expect(p.pendenteDecisao, isTrue);
+      expect(p.decisao, 'pendente');
+      expect(p.guardado!.chave, 'salgados');
+      expect(p.guardado!.dia, 10);
+      expect(p.guardado!.tipo, 'produto');
+      expect(p.guardado!.guardadoEmTexto, '2026-10-29T10:00:00+00:00');
+      expect(p.guardado!.garantidoAte!.toUtc(), DateTime.utc(2026, 11, 28, 10));
+      expect(p.temGuardadoSemEscolha, isFalse);
+      expect(p.levantados, 2);
+      expect(p.reinicioData, DateTime(2026, 10, 1));
+      expect(p.ultimoValeId, 'aaaaaaaa-0000-0000-0000-000000000001');
+      final c = CheckinPremiosEstado.fromJson(com('continuar', false)).escada!;
+      expect(c.decisao, 'continuar');
+      expect(c.temGuardadoSemEscolha, isTrue);
+    });
+
+    test('sem escada (servidor antigo, null ou lixo): desligada e sem rebentar', () {
+      final antigo = CheckinPremiosEstado.fromJson(_marcos());
+      expect(antigo.escada, isNull);
+      expect(antigo.escadaAtiva, isFalse);
+      expect(antigo.cicloInicio, isNull);
+      expect(CheckinPremiosEstado.fromJson(_marcos()..['escada'] = null).escada, isNull);
+      expect(CheckinPremiosEstado.fromJson(_marcos()..['escada'] = 'x').escada, isNull);
+      final semCampos = CheckinPremiosEstado.fromJson(_marcos()..['escada'] = <String, dynamic>{});
+      expect(semCampos.escadaAtiva, isFalse);
+      expect(semCampos.escada!.guardado, isNull);
+      expect(semCampos.escada!.proximoMaior, isNull);
+    });
+
+    test('levantou hoje depois do check-in: dia_marco 0 com hoje feito, amanhã é o Dia 1', () {
+      final e = CheckinPremiosEstado.fromJson(_marcos()
+        ..['dia_marco'] = 0
+        ..['hoje_feito'] = true);
+      expect(e.diaDeHoje, 0);
+      final porFazer = CheckinPremiosEstado.fromJson(_marcos()
+        ..['dia_marco'] = 11
+        ..['hoje_feito'] = false);
+      expect(porFazer.diaDeHoje, 12);
+      final fimDoCiclo = CheckinPremiosEstado.fromJson(_marcos()
+        ..['dia_marco'] = 30
+        ..['hoje_feito'] = false);
+      expect(fimDoCiclo.diaDeHoje, 1, reason: 'depois do dia 30 vem o Dia 1, nunca o "dia 31 de 30"');
+    });
+
+    test('Levantar / Continuar: resultado tipado, erros em PT-PT e estado junto', () {
+      final ok = CheckinEscadaResultado.fromJson({
+        'ok': true,
+        'vale': _marcos()['vales'][0],
+        'estado': {'marcos_ativos': true, 'ciclo_dias': 30, 'dias_seguidos': 0, 'dia_marco': 0, 'hoje_feito': true,
+                   'marcos': <Map<String, dynamic>>[], 'escada': {'ativa': true, 'texto': 'x', 'guardado': null}},
+      });
+      expect(ok.ok, isTrue);
+      expect(ok.vale!.titulo, '2 salgados da Keli');
+      expect(ok.estado!.diaDeHoje, 0);
+      final junto = CheckinPremiosEstado.fromJson(_marcos()).juntar(ok.estado!);
+      expect(junto.diaMarco, 0);
+      expect(junto.vales.single.id, 'v-salgados', reason: 'os vales e o texto ficam');
+      expect(junto.texto, 'Faz o check-in todos os dias.');
+      expect(junto.marcos.length, 4, reason: 'resposta sem marcos mantém os de antes');
+      expect(junto.escada!.guardado, isNull);
+
+      final nao = CheckinEscadaResultado.fromJson({'ok': false, 'reason': 'ultimo_degrau'});
+      expect(nao.ok, isFalse);
+      expect(nao.reason, 'ultimo_degrau');
+      expect(nao.vale, isNull);
+      expect(mensagemErroEscada('expirado'), 'Este prémio já expirou.');
+      expect(mensagemErroEscada('ja_levantado'), 'Este prémio já foi levantado.');
+      expect(mensagemErroEscada('sem_premio'), 'Já não tens nenhum prémio guardado.');
+      expect(mensagemErroEscada('ultimo_degrau'), contains('prémio maior'));
+      expect(mensagemErroEscada('sem_rede'), 'Não foi possível. Tenta de novo.');
+    });
+
     test('reserva: o artigo-prémio vem a 0 € com a loja', () {
       final r = ReservaPremio.fromJson({
         'ok': true,

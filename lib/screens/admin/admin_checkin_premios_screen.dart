@@ -11,6 +11,11 @@
 //  - lista os vales, anula, marca "entregue à mão", dá um vale à mão, exporta CSV.
 // Servidor: admin_checkin_premios_resumo, admin_checkin_premios_lista,
 // admin_checkin_premio_anular / _dar / _marcar_usado, admin_checkin_premios_pagar_loja.
+//
+// Escada de prêmios (29/10/2026): um prêmio por sequência, o mais alto a que o
+// cliente chegar (levantar agora ou continuar para um maior). Aqui: liga/desliga
+// (checkin_escada_ativa), o texto que o cliente lê (checkin_escada_texto), o
+// resumo (admin_checkin_escada_resumo) e os clientes (admin_checkin_escada_clientes).
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -64,6 +69,13 @@ class _AdminCheckinPremiosScreenState extends State<AdminCheckinPremiosScreen> {
   final Map<String, Map<String, TextEditingController>> _marcoCampos = {};
   final Map<String, bool> _marcoAtivo = {};
 
+  // Escada de prêmios.
+  bool _escadaAtiva = true;
+  final _escadaTexto = TextEditingController();
+  Map<String, dynamic>? _escadaResumo;
+  List<Map<String, dynamic>> _escadaClientes = [];
+  String? _escadaErro;
+
   @override
   void initState() {
     super.initState();
@@ -72,7 +84,7 @@ class _AdminCheckinPremiosScreenState extends State<AdminCheckinPremiosScreen> {
 
   @override
   void dispose() {
-    for (final c in [_teto, _validade, _ciclo, _pedidoDias, _lembreteDias, _busca]) {
+    for (final c in [_teto, _validade, _ciclo, _pedidoDias, _lembreteDias, _busca, _escadaTexto]) {
       c.dispose();
     }
     for (final m in _marcoCampos.values) {
@@ -98,7 +110,7 @@ class _AdminCheckinPremiosScreenState extends State<AdminCheckinPremiosScreen> {
       for (final r in (defs as List)) {
         final row = Map<String, dynamic>.from(r as Map);
         final k = '${row['key']}';
-        if (k.startsWith('checkin_marco_')) mapa[k] = row['value'];
+        if (k.startsWith('checkin_marco_') || k.startsWith('checkin_escada_')) mapa[k] = row['value'];
       }
       final resumo = await _db.rpc('admin_checkin_premios_resumo');
       _defs = mapa;
@@ -111,6 +123,8 @@ class _AdminCheckinPremiosScreenState extends State<AdminCheckinPremiosScreen> {
       _ciclo.text = '${_int('checkin_marco_ciclo_dias', 30)}';
       _pedidoDias.text = '${_int('checkin_marco_pedido_pago_dias', 30)}';
       _lembreteDias.text = '${_int('checkin_marco_lembrete_dias', 3)}';
+      _escadaAtiva = _bool('checkin_escada_ativa', true);
+      _escadaTexto.text = _v('checkin_escada_texto') is String ? _v('checkin_escada_texto') as String : '';
       for (final c in _chavesMarcos) {
         final m = _v('checkin_marco_$c');
         if (m is! Map) continue;
@@ -129,6 +143,7 @@ class _AdminCheckinPremiosScreenState extends State<AdminCheckinPremiosScreen> {
         campos['custo_cents']!.text = '${m['custo_cents'] ?? ''}';
       }
       await _loadVales();
+      await _loadEscada();
       if (!mounted) return;
       setState(() => _loading = false);
     } catch (e) {
@@ -148,6 +163,25 @@ class _AdminCheckinPremiosScreenState extends State<AdminCheckinPremiosScreen> {
     });
     _vales = [for (final x in (r as List)) Map<String, dynamic>.from(x as Map)];
     if (mounted) setState(() {});
+  }
+
+  /// Resumo e clientes da escada. Falha à parte: o resto do ecrã continua.
+  Future<void> _loadEscada() async {
+    try {
+      final r = await _db.rpc('admin_checkin_escada_resumo');
+      final c = await _db.rpc('admin_checkin_escada_clientes', params: {'p_limite': 100});
+      _escadaResumo = r is Map ? Map<String, dynamic>.from(r) : null;
+      _escadaClientes = [
+        if (c is List)
+          for (final x in c)
+            if (x is Map) Map<String, dynamic>.from(x),
+      ];
+      _escadaErro = null;
+    } catch (e) {
+      _escadaResumo = null;
+      _escadaClientes = [];
+      _escadaErro = humanizeAdminRpcError(e);
+    }
   }
 
   Future<void> _salvar() async {
@@ -178,6 +212,9 @@ class _AdminCheckinPremiosScreenState extends State<AdminCheckinPremiosScreen> {
       }
       mudancas['checkin_marco_$c'] = novo;
     }
+    // Escada: só as chaves que já existem no servidor.
+    if (_defs.containsKey('checkin_escada_ativa')) mudancas['checkin_escada_ativa'] = _escadaAtiva;
+    if (_defs.containsKey('checkin_escada_texto')) mudancas['checkin_escada_texto'] = _escadaTexto.text.trim();
     final messenger = ScaffoldMessenger.of(context);
     var n = 0;
     try {
@@ -347,16 +384,47 @@ class _AdminCheckinPremiosScreenState extends State<AdminCheckinPremiosScreen> {
                         for (final c in _chavesMarcos)
                           if (_marcoCampos[c] != null) _marcoEditor(c),
                       ]),
+                      _secao('Escada de prêmios', [
+                        const Text(
+                          'Um prêmio por sequência: o mais alto a que o cliente chegar. Ao chegar a um degrau ele escolhe '
+                          '"Levantar agora" (o vale é criado e a sequência volta ao dia 1) ou "Continuar" (troca por um '
+                          'prêmio maior no degrau seguinte). No último degrau o servidor levanta sozinho. Os tokens diários não mudam.',
+                          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        ),
+                        SwitchListTile(
+                          value: _escadaAtiva,
+                          onChanged: _defs.containsKey('checkin_escada_ativa')
+                              ? (v) => setState(() => _escadaAtiva = v)
+                              : null,
+                          title: const Text('Escada ligada (checkin_escada_ativa)'),
+                          subtitle: Text(_defs.containsKey('checkin_escada_ativa')
+                              ? 'Desligada: volta a regra antiga (um prêmio em cada marco).'
+                              : 'Definição ainda não existe no servidor.'),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          child: TextField(
+                            controller: _escadaTexto,
+                            enabled: _defs.containsKey('checkin_escada_texto'),
+                            maxLines: 3,
+                            decoration: const InputDecoration(
+                              labelText: 'Texto que o cliente lê (checkin_escada_texto)',
+                              helperText: 'Em português de Portugal. Salva com o botão abaixo.',
+                            ),
+                          ),
+                        ),
+                      ]),
                       Padding(
                         padding: const EdgeInsets.only(bottom: 16),
                         child: FilledButton.icon(
                           onPressed: _salvando ? null : _salvar,
                           icon: const Icon(Icons.save_outlined),
-                          label: Text(_salvando ? 'Salvando…' : 'Salvar regras e marcos'),
+                          label: Text(_salvando ? 'Salvando…' : 'Salvar regras, marcos e escada'),
                           style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
                         ),
                       ),
                       _secao('Resumo', [_resumoView()]),
+                      _secao('Escada de prêmios — situação', [_escadaView()]),
                       _secao('A pagar às lojas', [_lojasView()]),
                       _secao('Vales', [_valesView()]),
                     ],
@@ -443,6 +511,66 @@ class _AdminCheckinPremiosScreenState extends State<AdminCheckinPremiosScreen> {
           Text('Dia ${m['marco']} (${m['chave']}): emitidos ${m['emitidos']} · usados ${m['usados']} · '
               'custo ${_euros(m['custo_usados_cents'])} · este mês ${m['emitidos_mes']} emitidos / ${m['ativados_mes']} liberados'),
       ],
+    );
+  }
+
+  String _decisao(dynamic d) => switch ('${d ?? ''}') {
+        'pendente' => 'aguardando decisão',
+        'continuar' => 'escolheu continuar',
+        _ => '—',
+      };
+
+  Widget _escadaView() {
+    if (_escadaErro != null) return Text('Não foi possível ler a escada: $_escadaErro');
+    final r = _escadaResumo ?? const <String, dynamic>{};
+    final degraus = ((r['degraus'] as List?) ?? const []).whereType<Map>().toList();
+    final guardadosPor = (r['guardados_por_degrau'] as Map?) ?? const {};
+    final levantadosPor = (r['levantados_mes_por_degrau'] as Map?) ?? const {};
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(r['ativa'] == true ? 'Escada ligada.' : 'Escada desligada.',
+            style: const TextStyle(fontWeight: FontWeight.w700)),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            Chip(label: Text('Prêmios guardados: ${r['guardados'] ?? 0}')),
+            Chip(label: Text('Aguardando decisão: ${r['pendentes_decisao'] ?? 0}')),
+            Chip(label: Text('Levantados no mês: ${r['levantados_mes'] ?? 0}')),
+            Chip(label: Text('Levantados no total: ${r['levantados_total'] ?? 0}')),
+            Chip(label: Text('Custo do mês: ${_euros(r['custo_levantados_mes_cents'])}')),
+            Chip(label: Text('Clientes com mais de um vale: ${r['clientes_com_mais_de_um_vale'] ?? 0}')),
+          ],
+        ),
+        const SizedBox(height: 6),
+        for (final d in degraus)
+          Text('Dia ${d['dia']} (${d['chave']}) — ${d['titulo'] ?? ''}: '
+              'guardados agora ${guardadosPor['${d['chave']}'] ?? 0} · levantados no mês ${levantadosPor['${d['chave']}'] ?? 0}'),
+        const SizedBox(height: 10),
+        Text('Clientes (${_escadaClientes.length})', style: const TextStyle(fontWeight: FontWeight.w700)),
+        if (_escadaClientes.isEmpty) const Text('Nenhum cliente na escada.'),
+        for (final c in _escadaClientes) _escadaClienteLinha(c),
+      ],
+    );
+  }
+
+  Widget _escadaClienteLinha(Map<String, dynamic> c) {
+    final g = c['guardado'];
+    final guardado = g is Map
+        ? 'guardado: ${g['titulo'] ?? g['chave']} até ${_dataCurta(g['garantido_ate'])}'
+        : 'nada guardado';
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      title: Text('${c['nome'] ?? c['email'] ?? c['user_id']}'),
+      subtitle: Text(
+        'sequência: dia ${c['dia_marco'] ?? 0} (${c['dias_seguidos'] ?? 0} seguidos'
+        '${c['hoje_feito'] == true ? ', hoje feito' : ''}) · $guardado'
+        ' · decisão: ${_decisao(c['decisao'])} · levantados ${c['levantados'] ?? 0}'
+        ' · vales ativos ${c['vales_ativos'] ?? 0}',
+      ),
     );
   }
 

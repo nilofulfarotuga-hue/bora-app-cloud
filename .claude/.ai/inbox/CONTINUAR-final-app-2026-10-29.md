@@ -101,7 +101,15 @@ Bloco D bloqueado (sem token do CLI; passos na página `reembolsos-dashboard-pas
 - 17 fotos da Boom no Storage (e2e 5319); página boom-robo-conhecimento corrigida; política tmp dos cartazes apagada;
   NIF opcional confirmado (e2e 5323).
 
-## ADENDO 9 — check-in: calendário de 30 dias + escada de prémios (Danilo 29/10 22:20) — POR FAZER, sessão nova
+## ADENDO 9 — check-in: calendário de 30 dias + escada de prémios (Danilo 29/10 22:20) — EM CURSO na mesma sessão
+Estado 29/10 ~22:50 (a sessão nova não abriu: por Remote Control só se abre sessão a partir de mensagem escrita
+no PC). FEITO: servidor aplicado e lido de volta (migração 20261029233000_checkin_escada_premios, commit a0cb6c32;
+tabela checkin_escada, checkin_escada_ativa=true, checkin_escada_texto, RPCs client_checkin_escada_levantar /
+_continuar e admin_checkin_escada_resumo / _clientes; prova em rollback 10/10 em supabase/tests/checkin_escada_prova.sql;
+e2e_log 5331; regra no livro, página livro-areas-bora-todo-dia). EM CURSO: app e painel por um agente (serviço,
+cartão com semana da sequência e mês dentro do cartão, festa com Levantar/Continuar, ecrã dos prémios, painel).
+FALTA: juiz + commits, prova no emulador (`integration_test/checkin_escada_prova_test.dart` + guião
+`.claude/.ai/provas/checkin-escada-2026-10-29/capturar.ps1`), publicação nas 3, e2e G-checkin-escada, relatório.
 Página do livro `adendo-9-checkin-escada-premios-2026-10-29` (ler inteira por SQL). Resumo:
 1. Cartão do check-in na home: faixa de 7 dias da semana corrente da sequência (no dia 12 mostra 8-14) e seta
    "ver o mês" que expande no próprio cartão o calendário dos 30 dias (feitos, hoje, marcos 7/10/15/30 com ícone).

@@ -87,9 +87,24 @@ preparado; A.10 plano de 14 dias conferido), Bloco B inteiro (a-k; o c ficou de 
 (itens 6, 5, 4, 7 em código, interruptores desligados; migrações C6 e C7 aplicadas; C5 e C4 no repo por aplicar),
 Bloco D bloqueado (sem token do CLI; passos na página `reembolsos-dashboard-passos`).
 
+## Retoma do adendo 7 (21:30–22:15, Opus 5.5) — feito
+- Android: publicação 2 = versionCode 697 (21:10), publicação 3 = 698 (21:56, faixas interna, alfa e produção).
+- iPhone: autoteste no simulador OK; envio parado pela Apple "PLA Update available" (contrato por aceitar pelo
+  Danilo em developer.apple.com, página aberta no Chrome Bora). Depois: rerun-failed-jobs do run 40951317148.
+- Reembolsos: 7 funções publicadas pela CLI (login com o código do Danilo) e lidas de volta iguais; SQL dos tokens
+  aplicado (20261029215542) e provado em rollback (pontos 2 a 6). Nada de ontem para trás (0 reembolsos pendentes,
+  0 pedidos por fechar). e2e 5324, 5325.
+- C4 partes 2 e 3 aplicadas (20261029214954, 20261029215028); C5 aplicada pela Claude.ai às 21:15.
+- Robô da Boom: causa da mensagem das 19:41 = sessões Signal estragadas (Bad MAC) do Danilo e do Emanuel depois da
+  queda das 19:36; registo de erros ligado (baileys-erros.log), sessões postas de lado em auth-bkp-20261029, ponte
+  reiniciada 21:48. Falta a mensagem de teste real do Danilo. e2e 5322.
+- 17 fotos da Boom no Storage (e2e 5319); página boom-robo-conhecimento corrigida; política tmp dos cartazes apagada;
+  NIF opcional confirmado (e2e 5323).
+
 ## Falta (por ordem)
-1. Claude.ai: aplicar por MCP `20261029200700_c5_agendar_pedidos.sql` e `20261029200800_c4_promocoes.sql`; copiar a
-   S1 para `supabase/migrations/` pelo GitHub; publicar as 6 funções de reembolso quando o Danilo disser "autorizo".
+1. Danilo: aceitar o contrato da Apple → relançar o iPhone; mandar a mensagem de teste ao robô da Boom.
+   Claude.ai: copiar para `supabase/migrations/` pelo GitHub a S1 e a dos tokens (a tranca recusa no PC). A do NIF
+   de 28/10 (20261028114641) não pode ir para o repo público tal como está: tem o NIF da empresa.
 2. Revisor independente das propostas de despacho (`docs/propostas/missao-geral-2026-10-28/C5_agendar/01_*` e
    `C6_modo_ocupado/01_*`) e do create_order com loja fechada (`C5_agendar/04_*`); só depois `scheduled_orders_revisor_ok`
    e os interruptores.

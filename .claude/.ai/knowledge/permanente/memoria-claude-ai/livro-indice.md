@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-29T18:37:05.729074+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-29T19:07:10.232122+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-29 18:28 UTC. Páginas listadas: 425.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-29 18:45 UTC. Páginas listadas: 429.
 
 ## O que é o Bora
 
@@ -34,7 +34,7 @@ Quer respostas curtas, em texto corrido e sem jargão, e que o trabalho se faça
 
 1. `erros-aprendidos` — as correções do Danilo; errou uma vez, nunca mais (atualizada 2026-10-29).
 2. `regras-do-danilo` — as regras dele; mandam em tudo (atualizada 2026-10-23).
-3. Estado vivo: `digest-2026-10-29-final-app` (2026-10-29).
+3. Estado vivo: `digest-2026-10-29-telegram-robo-login` (2026-10-29).
 4. Antes de mexer em pedidos, estafetas, dinheiro ou migrações: `regras-operacao-agentes`.
 5. Ferramenta nova sem MCP? `livro-porta-unica` explica como ligar (Córtex por MCP, ou o ficheiro plano LIVRO.md com senha).
 
@@ -50,8 +50,9 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - erros-aprendidos — Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige) (2026-10-29)
 
-## digest (173)
+## digest (174)
 
+- digest-2026-10-29-telegram-robo-login — Avisos "travou de vez" no Telegram (29/10) — causa, o que foi arrumado e o que falta (2026-10-29)
 - digest-2026-10-29-final-app — Digest 29/10/2026 — missão final-app (Fable 5.1) (2026-10-29)
 - digest-2026-10-29-candidatos-documentos — Candidatos e documentos — 29/10 (Claude.ai) (2026-10-29)
 - digest-2026-10-28-missao-geral — Missão geral 28/10 (estafeta, reembolsos, Boom, robô, erros) — parcial, parada pelo limite do motor (2026-10-29)
@@ -364,7 +365,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - relatorio-boom-burger-2026-10-27 — Boom! Burger — demonstração e consertos (27/10/2026, noite) (2026-10-27)
 - relatorio-semanal-reels-2026-10-29 — Relatório semanal dos reels - 2026-10-29 (2026-10-29)
 
-## prompt (16)
+## prompt (18)
 
 - prompt-auditoria-3-plataformas-2026-10-06 — Prompt de missão: auditoria das 3 plataformas (06/10) (2026-10-06)
 - prompt-boom-burger-2026-10-27 — PROMPT Boom! Burger — loja parceira + site premium (27/10/2026) (2026-10-27)
@@ -380,6 +381,8 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - prompt-peso-variavel-2026-10-26 — PROMPT missão peso variável (26/10/2026) — para o Claude Code do PC (2026-10-26)
 - prompt-publica-e-fecha-2026-10-29 — Prompt: publicar hoje + arrumação + Bloco 11 + reembolsos (29/10 18:20) (2026-10-29)
 - prompt-publica-e-fecha-2026-10-29-adendo-1 — Adendo 1 ao prompt publica-e-fecha (29/10 18:40): motores do robô em grátis com rotação (2026-10-29)
+- prompt-publica-e-fecha-2026-10-29-adendo-2 — Adendo 2 ao prompt publica-e-fecha (29/10 18:55): motores grátis do OpenCode em rotação + link /pedir/boom do site (2026-10-29)
+- prompt-publica-e-fecha-2026-10-29-adendo-3 — Adendo 3 (29/10 19:08): escolha do reembolso bem clara para o cliente na app (2026-10-29)
 - prompt-talao-confirmar-loja-saldo-2026-10-28 — PROMPT 28/10 — Confirmar do talão, nome da loja, dinheiro a cobrar com saldo/tokens, reembolso no cancelamento (100% saldo ou meio original… (2026-10-28)
 - prompt-talao-confirmar-loja-saldo-2026-10-28-bloco-d — Adenda 18:30 ao prompt de 28/10 (talão Auchan/Divan): Bloco D novo — reembolso no cancelamento (2026-10-28)
 
@@ -397,7 +400,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - sql-modo-demo-2026-10-27 — SQL do modo demonstracao (Boom! Burger) para o Claude.ai aplicar (2026-10-27)
 
-## outras (95)
+## outras (96)
 
 - 00-LEIA-PRIMEIRO — Como usar esta memória (2026-10-23)
 - adendo-1-final-app-2026-10-29 — Adendo 1 da missão final-app-2026-10-29 (2026-10-29)
@@ -407,6 +410,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - armadilha-ytdlp-cookies-chrome-windows — yt-dlp + cookies do Chrome no Windows: caminho morto (App-Bound Encryption) (2026-09-17)
 - arquivo-regras-do-danilo-2026-09-17 — ARQUIVO — regras do Danilo (versão de 17/09, substituída a 23/10) (2026-10-23)
 - auditoria-3-plataformas-fecho — Auditoria das 3 plataformas — fecho das pendências (07/10/2026 noite) (2026-10-07)
+- boom-cartazes-canva-2026-10-29 — Cartazes da Boom! Burger no Canva (29/10/2026) (2026-10-29)
 - boom-precos-sql-2026-10-29 — boom-precos-sql-2026-10-29 (2026-10-29)
 - bora-assistente — Bora Assistente — assistente de compras do cliente (no ar desde 07/10/2026) (2026-10-07)
 - bora-todo-dia — Bora Todo Dia — 5 novidades para o cliente abrir a app todos os dias (n.º 1: check-in diário) (2026-10-13)

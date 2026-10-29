@@ -86,3 +86,6 @@ confianca: auto
 | ceo-ai | 2026-10-26 | guarda-primeiro (Meta + embaixador IPG) | 3 blocos, 20 passos e2e_log | sucesso parcial — embaixador e publicação nas 3 feitos; anúncio parado por falta de fundos na Meta |
 | ceo-ai | 2026-10-26 | missao geral-sabado-24-10 (PC, Opus 5.5): 7 blocos por ordem, um de cada vez, com prova; sub-agentes para reenvio de documentos, revisoes e reel | 13 commits app + 4 de scripts, 10 migracoes, 4 Edge/RPC, VPS firewall+disco, 1888 precos, 29+18 prospects | sucesso (bloco 7 ver relatorio; 3 erros meus corrigidos e registados) |
 | protocolo-missao-bora | 2026-10-26 | geral-sabado-24-10: worktree propria, e2e_log por bloco, maker/checker antes de cada envio (3 revisores), provas nas 3 plataformas, quarentena com md5 | 1 sessao PC (com pausas longas a 24-25/10) | sucesso (licao: apply_migration expira com a sessao parada; ufw nao fecha portas do Docker) |
+| prompt-blindado-validator | 2026-10-29 | missao-geral-2026-10-28 | 1 prompt | ok (6 blocos) |
+| ceo-ai | 2026-10-29 | missao-geral-2026-10-28 | 9 blocos, 22 commits | parcial (motor parado ate 1/11) |
+| protocolo-missao-bora | 2026-10-29 | missao-geral-2026-10-28 | e2e 5037-5095, digest, relatorio | ok |

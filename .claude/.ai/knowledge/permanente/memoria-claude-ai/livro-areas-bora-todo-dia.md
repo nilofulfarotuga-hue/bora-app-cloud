@@ -2,23 +2,23 @@
 id: memoria-claude-ai-livro-areas-bora-todo-dia
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-29
+ultima_confirmacao: 2026-10-30
 zona: verde
 confianca: alta
 estado: atual
 ---
 
-# Ideia do Danilo (10/10/2026) para fazer os clientes abrirem o Bora App todos os dias — receitas, notificação diária, jogos simples com tokens; execução marcada para segunda-feira
+# Check-in diário e "Bora Todo Dia" do Bora App — tokens por dia, marcos com prémios de parceiros (10/15/30 dias) e a regra de 29/10 de um prémio por sequência; ler antes de mexer no check-in ou nos prémios
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-bora-todo-dia`, origem `claude-ai`, atualizada em 2026-10-29T22:45:59.771344+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-bora-todo-dia`, origem `claude-ai`, atualizada em 2026-10-30T22:13:47.855192+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas bora todo dia · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/bora-todo-dia.md), copiada a 23/10/2026. A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/bora-todo-dia.md), copiada a 2026-10-30 22:12 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: bora-todo-dia
-description: Ideia do Danilo (10/10/2026) para fazer os clientes abrirem o Bora App todos os dias — receitas, notificação diária, jogos simples com tokens; execução marcada para segunda-feira
+description: Check-in diário e "Bora Todo Dia" do Bora App — tokens por dia, marcos com prémios de parceiros (10/15/30 dias) e a regra de 29/10 de um prémio por sequência; ler antes de mexer no check-in ou nos prémios
 sources: [chat]
 aliases: [Bora Todo Dia, uso diário, jogos com tokens, receitas diárias, hábito diário, retenção]
 ---
@@ -33,5 +33,6 @@ aliases: [Bora Todo Dia, uso diário, jogos com tokens, receitas diárias, hábi
 - [stated] 15/10: ideia dele de marcos mensais do check-in com prémios de parceiros — completou 1 semana → algo; 10 dias → 2 coxinhas da Keli (Sabores do Brasil); 15 dias → um açaí do Goola; 1 mês → algo maior. Pediu-me ideias para não perder tanto dinheiro com isso; ainda não decidido, não implementar sem ele escolher os prémios
 - [stated] 18/10/2026: lembretes do check-in vão a toda a gente com sequência a correr (fez o 1.º e tem de fazer o 2.º, 3.º...), já sem a regra de só quem aceitou promoções; quem esquecer um dia deixa de receber até voltar a fazer sozinho
 - [stated] 20/10/2026 DECIDIDO (supera "ainda não decidido" de 15/10): marcos do check-in por dias seguidos — 10 dias = 2 salgados da Keli (coxinha ou esfirra), 15 dias = o açaí mais barato do Goola, 1 mês sem falhar = escolhe 2 h de limpeza ou uma lavagem do carro só por fora; grátis só o produto/serviço, taxas, entrega e pedido mínimo pagos. No ecrã fica a semana normal e uma seta abre a vista do mês. Aprovou também tecto de 10 prémios de 30 dias por mês e exigir 1 pedido pago no mês para o prémio de 30 dias. Vai na missão `PROMPT_fechar_pendencias_2026-10-20.md` (Opus 5.5, Claude Code no PC, fluxo e2e_log fechar-pendencias-20-10), entregue a ele para colar
-- [stated] 29/10/2026 22:20 DECIDIDO (supera o de 20/10 quanto a acumular prémios): ESCADA DE PRÉMIOS do check-in — "se ele escolher algum desses prémios, volta do zero; não vai acumular todos senão eu vou falir". Os tokens diários (5,5,10,10,15,15,40) continuam a acumular como antes. Os prémios de produto/serviço (dia 10 salgados, dia 15 açaí, dia 30 limpeza/lavagem) são UMA escada: um prémio por sequência, o mais alto a que o cliente chegar. Em cada degrau escolhe LEVANTAR (vale criado, a sequência volta ao dia 1) ou CONTINUAR (troca pelo prémio maior no degrau seguinte; o guardado é substituído, nunca somado). No dia 30 levanta sozinho e o ciclo recomeça. Falhar um dia recomeça a sequência mas o prémio guardado fica até checkin_marco_validade_dias. Tecto mensal e pedido pago continuam. No cartão: semana atual da sequência (no dia 12 mostra 8-14) e seta que abre o mês de 30 dias dentro do cartão. Aplicado pela Claude Code a 29/10 (migração 20261029233000_checkin_escada_premios, interruptor checkin_escada_ativa, ligado; e2e_log 5331). O 1 cliente que já tinha salgados+açaí do ciclo de 15/10 fica com eles.
+- [stated] 29/10/2026 22:20 (regra nova dos prémios do check-in, "senão eu vou falir"): o cliente NÃO acumula os prémios dos marcos (10, 15, 30 dias) — em cada sequência leva UM só, o mais alto a que chegar; se escolher levantar um prémio (ex.: os salgados da Keli no dia 10), a sequência volta a zero; se não levantar, continua e no marco seguinte troca pelo prémio maior, até ao prémio máximo. Isto tem de estar explicado ao cliente no ecrã, com uma "festa" (efeito/explosão) ao chegar a cada marco. No cartão da home fica a faixa de 7 dias e uma seta abre o calendário do mês inteiro (sem cobrir o ecrã todo), com os dias feitos marcados. Deixou comigo o desenho final ("como os grandes fazem")
+- [stated] 30/10 20:23-21:38 (regras novas, "vai"): cada conta tem direito a UMA escada grande (ideia dele: até 45 dias; primeira semana só tokens; depois prémios das lojas do mais barato para o mais caro, os mais vendidos de cada loja; o prémio grande, limpeza ou carro, só no fim); para avançar o cliente tem de estar elegível (ter comprado algo na app); regras não podem ser difíceis. Depois da grande, escada pequena de 30 dias que repete: aos 15 dias um prémio de pouco valor e aos 30 um pouco maior mas barato, também só com compra. Regras fechadas por mim na página claude_ai_memoria `regras-checkin-v2-2026-10-30`; implementação na missão da semana seguinte
 

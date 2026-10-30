@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-divulgacao-bora
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-26
+ultima_confirmacao: 2026-10-30
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Divulgação do Bora App ao público — site oficial (bora-site, agora um só, a crescer para várias páginas), vídeos de apresentação e código promocional BEMVINDO (parte 1 de 4 — continua em livro-areas-divulgacao-bora-parte2…)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-divulgacao-bora`, origem `claude-ai`, atualizada em 2026-10-26T21:21:32.459163+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-divulgacao-bora`, origem `claude-ai`, atualizada em 2026-10-30T22:14:54.423737+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas divulgacao bora · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/divulgacao-bora.md), copiada a 26/10/2026 21:15 (hora de Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/divulgacao-bora.md), copiada a 2026-10-30 22:12 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: divulgacao-bora
@@ -50,4 +50,5 @@ Estado (23/08)
 - [stated] 03/09, CAMPANHA CORREU (sessão `redes-uma-loja-por-dia` + 2 adendos: imagens de cinema e calendário de crescimento): os 3 parceiros publicados no feed e story das duas redes, marcados no Instagram — handles reais: Goola `@goolaacai.pt`, Ouro e Prata `@ouroepratabarbeariaguarda`, Sabores do Brasil `@sabores_do_brasil.pt` (o Facebook ignora marcação de páginas em fotos pela API). Primeiro reel publicado. Desde 04/09 corre sozinho no cron da VPS: loja do dia 12:00, story 19:30, reel seg/qua/sex 18:00, grelha ao domingo, relatório à segunda no Telegram; rotação de 14 dias em `rotacao.md`. Imagens: Gemini web pelo clique (API no 429), texto/logos por script. Vídeos servidos por nginx em `social.srv1786862.hstgr.cloud` (o Instagram não descarrega do URL do Facebook). Ele mandou aos 3 parceiros a mensagem "publiquei a tua loja, partilha aí". POR FAZER: interação (seguir/comentar contas da Guarda) pelo clique = ordem própria; instalações e resgates BEMVINDO no relatório de segunda precisam de chave. Tráfego pago: recomendei NÃO agora — só testar ~€50 quando houver 20 publicações e pedidos reais; decisão de dinheiro dele
 - [stated] 03/09, FILME DO BORA: ele tem um ecrã no carro (TVDE) e quer um filme em loop para os passageiros verem todas as categorias durante a corrida, também para YouTube e Instagram; viu num supermercado um painel com café a pingar em câmara lenta e quer esse nível; perguntou cartoon vs realista — decidido REALISTA (cartoon do Bora só como assinatura 2 s). PROMPT REGISTADO: `PROMPT_filme_bora_carro_2026-09-03.md`, MOTOR OPUS, janela Pro, sessão `filme-bora-carro` — 90 s 16:9 com música da biblioteca do YouTube para carro/YouTube + 4 reels 15 s 9:16 sem música e sem TVDE; cenas geradas por Veo/Sora pelo clique, telas reais e logos por script. Estado: entregue como ficheiro; nada disparado
 - [stated] 03/09, CARTAZ GRANDE DO BORA (todas as categorias): referência antiga em Downloads (~08:15); ele quer melhor — captura real da tela principal no telemóvel, parceiros reais em destaque, marcas grandes só em faixa secundária, ícones 3D reais do app em tudo, cartões de serviço com ícone em cima e texto em baixo, "Bora Boleia" no cartaz (no app fica "Bora Motorista"), mais comida, QR pelo método do Goola. Continuação entregue como texto na sessão do cartaz do Goola
+- 03-04/09, ESTADO (supera "nada disparado" acima): FILME correu — `bora-filme-90s-carro.mp4` + 4 reels em `Desktop\Bora\filme\`, 6 correções dele aplicadas (Mr Kebab fora por ser coming_soon, emblema da barbearia inteiro, tela das 14 categorias, mochila do estafeta com marca Bora); o executor tapou a MORADA DE CASA dele que aparecia nos ecrãs do app dentro do filme (regra que fica: desfocar moradas pessoais em vídeo público). Bug do app achado pelo filme: selo "Frescura garantida" era texto fixo no Flutter em qualquer loja — corrigido no modelo (`podeAnunciarFrescura`, só Restaurantes/Supermercados/Sobremesas), 360 testes verdes, **commit local `bb17585f` SEM push** no bora_app. Reels por publicar até ele aprovar o filme. AUTOCOLANTES genéricos: ele aprovou as DUAS famílias (escura e clara) com a Guarda ao fundo, em `Desktop\Bora\autocolantes-bora\` — escura para lojas escuras, clara para paredes/vidros claros. CARTAZ GRANDE: feito em `Desktop\Bora\cartaz-bora\`, mas o executor esqueceu a Ouro e Prata no destaque (parceiro de SERVIÇOS, não está na tabela restaurants — lição: parceiros vivem em duas tabelas) e a tela do telemóvel tinha o Sobremesas a laranja; correção entregue como texto, por confirmar
 

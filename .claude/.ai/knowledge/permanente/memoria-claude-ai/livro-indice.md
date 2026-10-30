@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-30T22:07:10.055438+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-30T22:37:07.283403+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-30 22:01 UTC. Páginas listadas: 458.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-30 22:21 UTC. Páginas listadas: 458.
 
 ## O que é o Bora
 
@@ -253,10 +253,10 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-areas-bora-app-parte4 — Bora App multi-vertical platform — architecture, verticals, business rules, and protected zones (parte 4 de 4) (2026-10-23)
 - livro-areas-bora-compras-online — Categoria nova no Bora com lojas externas "Bora China" (AliExpress) e "Bora Europa" — o que o Danilo quer (out/2026) (2026-10-23)
 - livro-areas-bora-studio-agentes — Sistema de fiscais/agentes do Bora Studio — estado, falhas descobertas e método de validação (continuação de filme-animacao) (2026-10-23)
-- livro-areas-bora-todo-dia — Ideia do Danilo (10/10/2026) para fazer os clientes abrirem o Bora App todos os dias — receitas, notificação diária, jogos simples com toke… (2026-10-29)
+- livro-areas-bora-todo-dia — Check-in diário e "Bora Todo Dia" do Bora App — tokens por dia, marcos com prémios de parceiros (10/15/30 dias) e a regra de 29/10 de um pr… (2026-10-30)
 - livro-areas-buzz-conselho-modelos — Conselho de modelos (local e remoto), motores do plano Go, app Buzz e robôs Gemini do app — estado atual e regras (2026-10-23)
 - livro-areas-carteiro-e-juiz — Como o loop funciona hoje (carteiro, juiz, cadeia de motores, rotina de despertar) e as armadilhas provadas — ler ANTES de mandar mexer no… (2026-10-23)
-- livro-areas-casa-manutencao — Ideia do Danilo (29/10/2026) de uma categoria "Casa & Manutenção" / marido de aluguel no Bora App (eletricista, pladur, reparações) — o que… (2026-10-29)
+- livro-areas-casa-manutencao — Ideia do Danilo (29/10/2026) de uma categoria "Casa & Manutenção" / marido de aluguel no Bora App (eletricista, pladur, reparações) — o que… (2026-10-30)
 - livro-areas-catalogo-restaurantes-glovo — Regra do Danilo para o catálogo das cadeias não-parceiras (Burger King, McDonald's, KFC…) no Bora — espelhar o Glovo; ler antes de mexer em… (2026-10-23)
 - livro-areas-chamada-estafeta-rotacao — Regra do Danilo (10/10/2026) para a chamada de pedidos ao estafeta no Bora — toque que grita sempre e ordem de rotação/chamada forçada; ler… (2026-10-23)
 - livro-areas-conectores-claude-ai — Conectores MCP da Claude.ai do Danilo — estado, senhas, e a REGRA de verificar o conselho antes de responder (2026-10-23)
@@ -264,10 +264,10 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-areas-contas-claras — Missão "contas claras" (20/09) — extratos de dinheiro compreensíveis para estafetas, motoristas, parceiros e o Danilo, estilo Uber/Glovo; e… (2026-10-23)
 - livro-areas-contas-parceiros — Como se calcula e se paga o dinheiro das lojas parceiras do Bora (ledger vs registo do pedido), erros corrigidos a 22/09 e a decisão em abe… (2026-10-23)
 - livro-areas-cortex-bora — Córtex Bora orchestration system — MCP-connected knowledge base + autonomous loop (carteiro/Claude Code/Juiz/Telegram) (2026-10-23)
-- livro-areas-divulgacao-bora — Divulgação do Bora App ao público — site oficial (bora-site, agora um só, a crescer para várias páginas), vídeos de apresentação e código p… (2026-10-26)
-- livro-areas-divulgacao-bora-parte2 — Divulgação do Bora App ao público — site oficial (bora-site, agora um só, a crescer para várias páginas), vídeos de apresentação e código p… (2026-10-26)
-- livro-areas-divulgacao-bora-parte3 — Divulgação do Bora App ao público — site oficial (bora-site, agora um só, a crescer para várias páginas), vídeos de apresentação e código p… (2026-10-26)
-- livro-areas-divulgacao-bora-parte4 — Divulgação do Bora App ao público — site oficial (bora-site, agora um só, a crescer para várias páginas), vídeos de apresentação e código p… (2026-10-26)
+- livro-areas-divulgacao-bora — Divulgação do Bora App ao público — site oficial (bora-site, agora um só, a crescer para várias páginas), vídeos de apresentação e código p… (2026-10-30)
+- livro-areas-divulgacao-bora-parte2 — Divulgação do Bora App ao público — site oficial (bora-site, agora um só, a crescer para várias páginas), vídeos de apresentação e código p… (2026-10-30)
+- livro-areas-divulgacao-bora-parte3 — Divulgação do Bora App ao público — site oficial (bora-site, agora um só, a crescer para várias páginas), vídeos de apresentação e código p… (2026-10-30)
+- livro-areas-divulgacao-bora-parte4 — Divulgação do Bora App ao público — site oficial (bora-site, agora um só, a crescer para várias páginas), vídeos de apresentação e código p… (2026-10-30)
 - livro-areas-em-dia-app — Nova app do Danilo "Em Dia" (assistente do trabalhador independente a recibos verdes + carro + organizador entra/sai dinheiro, clone melhor… (2026-10-23)
 - livro-areas-empresa-agentes — Missão "empresa de agentes" (07/09) — o que o Danilo pediu depois do vídeo do Grok Bot (mais agentes, melhor que o vídeo, um prompt só), ve… (2026-10-23)
 - livro-areas-encomendas-festa — Categoria nova "Encomendas para Festa" (bolos, salgados, doces por encomenda com data marcada) + abordagem à doceira da Guarda (Keli Barbos… (2026-10-23)
@@ -290,11 +290,11 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-areas-guarda-fc-monetizacao — Intenção do Danilo de monetizar o Guarda FC para além do site — pedido de análise 18/08 e ideias que ele próprio pôs em cima da mesa; nada… (2026-10-23)
 - livro-areas-guarda-fc-site-historico — Histórico técnico da construção do site do Guarda FC (v1 a v6) e do sistema de agentes de Telegram — ler antes de mandar mexer no site ou n… (2026-10-23)
 - livro-areas-habilidades-claude-code — Sistema de habilidades formais (.claude/skills/) do Danilo nos repos do Bora — quais existem, onde vivem, e o histórico de criação/reforço (2026-10-23)
-- livro-areas-happy-site — Site pessoal do Jai Agarwal (jaiagarwala.com) — NO AR desde 15/08; regras vivas, estado atual e pendências; histórico técnico em happy-site… (2026-10-26)
+- livro-areas-happy-site — Site pessoal do Jai Agarwal (jaiagarwala.com) — NO AR desde 15/08; regras vivas, estado atual e pendências; histórico técnico em happy-site… (2026-10-30)
 - livro-areas-happy-site-historico — Histórico técnico da construção do site pessoal do Jai (v1→ronda1, 11-16/08) — ler antes de mexer a fundo no jai-site (2026-10-23)
-- livro-areas-happy-site-parte2 — Site pessoal do Jai Agarwal (jaiagarwala.com) — NO AR desde 15/08; regras vivas, estado atual e pendências; histórico técnico em happy-site… (2026-10-26)
-- livro-areas-happy-site-parte3 — Site pessoal do Jai Agarwal (jaiagarwala.com) — NO AR desde 15/08; regras vivas, estado atual e pendências; histórico técnico em happy-site… (2026-10-26)
-- livro-areas-happy-site-parte4 — Site pessoal do Jai Agarwal (jaiagarwala.com) — NO AR desde 15/08; regras vivas, estado atual e pendências; histórico técnico em happy-site… (2026-10-26)
+- livro-areas-happy-site-parte2 — Site pessoal do Jai Agarwal (jaiagarwala.com) — NO AR desde 15/08; regras vivas, estado atual e pendências; histórico técnico em happy-site… (2026-10-30)
+- livro-areas-happy-site-parte3 — Site pessoal do Jai Agarwal (jaiagarwala.com) — NO AR desde 15/08; regras vivas, estado atual e pendências; histórico técnico em happy-site… (2026-10-30)
+- livro-areas-happy-site-parte4 — Site pessoal do Jai Agarwal (jaiagarwala.com) — NO AR desde 15/08; regras vivas, estado atual e pendências; histórico técnico em happy-site… (2026-10-30)
 - livro-areas-henrique-esfihas — Henrique (esfihas, Guarda) — prospect novo do [[bora-app]], abordagem para entrar como parceiro de comida com loja montada pelo Danilo + si… (2026-10-23)
 - livro-areas-hermes-agent — Hermes Agent infrastructure — VPS, PC bridge, ferramentas reais, e cadeia de modelos (migrado para o plano Go em 2026-08-10) (2026-10-23)
 - livro-areas-historia-dinossauros-lucifer — História infantil nova (dinossauros + guerra no céu/queda de Lúcifer + criação/Adão e Eva) que o Danilo quer transformar num gibi gerado vi… (2026-10-23)

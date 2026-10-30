@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-30T23:07:09.073316+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-30T23:37:06.17115+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-30 23:00 UTC. Páginas listadas: 458.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-30 23:24 UTC. Páginas listadas: 461.
 
 ## O que é o Bora
 
@@ -34,7 +34,7 @@ Quer respostas curtas, em texto corrido e sem jargão, e que o trabalho se faça
 
 1. `erros-aprendidos` — as correções do Danilo; errou uma vez, nunca mais (atualizada 2026-10-30).
 2. `regras-do-danilo` — as regras dele; mandam em tudo (atualizada 2026-10-23).
-3. Estado vivo: `digest-2026-10-30-conta-vansh-jai` (2026-10-30).
+3. Estado vivo: `digest-2026-10-30-gorjetas-taxa` (2026-10-30).
 4. Antes de mexer em pedidos, estafetas, dinheiro ou migrações: `regras-operacao-agentes`.
 5. Ferramenta nova sem MCP? `livro-porta-unica` explica como ligar (Córtex por MCP, ou o ficheiro plano LIVRO.md com senha).
 
@@ -51,8 +51,10 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - erros-aprendidos — Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige) (2026-10-30)
 
-## digest (180)
+## digest (182)
 
+- digest-2026-10-30-gorjetas-taxa — Claude Code 30/10 — gorjetas com a taxa, robô da Boom e publicação 7 (2026-10-30)
+- digest-2026-10-30-jai-kalinga — Claude Code 30/10 — entrevista do Jai no canal Professor Kalinga no site do Jai (2026-10-30)
 - digest-2026-10-30-conta-vansh-jai — Contas de 30/10 — Vansh, Jai e Ricardo (juntar à memória) (2026-10-30)
 - digest-2026-10-30-gorjetas-claude-ai — Digest 30/10 — gorjetas: taxa da Stripe e gorjeta junto da compra (Claude.ai) (2026-10-30)
 - digest-2026-10-30-adendo-13-ios — Missão publica 30/10 — adendo 13: iPhone relançado, cérebro do WhatsApp alinhado (2026-10-30)
@@ -414,7 +416,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - sql-modo-demo-2026-10-27 — SQL do modo demonstracao (Boom! Burger) para o Claude.ai aplicar (2026-10-27)
 
-## outras (111)
+## outras (112)
 
 - 00-LEIA-PRIMEIRO — Como usar esta memória (2026-10-23)
 - adendo-1-final-app-2026-10-29 — Adendo 1 da missão final-app-2026-10-29 (2026-10-29)
@@ -454,6 +456,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - habilidades-propostas — Habilidades propostas pelo vigia (dinheiro/publicacao) — a Claude.ai decide (2026-09-17)
 - ideias-pendentes-decisao-danilo — Ideias grandes à espera da decisão do Danilo (29/10/2026) (2026-10-29)
 - ideias-videos-danilo — Ideias tiradas dos vídeos que o Danilo manda (2026-10-30)
+- jai-entrevista-kalinga-mensagem — Mensagem ao Jai — entrevista do Professor Kalinga já no site (30/10/2026) (2026-10-30)
 - livro-claude-code-aprendeu — O que o Claude Code aprendeu sozinho (memória automática do PC), cópia (2026-10-25)
 - livro-claude-md-detalhe — Detalhe dos CLAUDE.md (repo e global) antes do corte de 23/10/2026 (2026-10-23)
 - livro-faxina-2026-10-25 — Faxina do livro 2026-10-25 (proposta do escriba + revisão do critico; nada apagado) (2026-10-25)

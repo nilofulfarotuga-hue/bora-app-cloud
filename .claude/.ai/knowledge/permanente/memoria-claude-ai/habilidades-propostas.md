@@ -14,6 +14,30 @@ estado: atual
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: habilidades propostas · memoria claude.ai · claude_ai_memoria
 
+PROPOSTAS DO VIGIA 2026-10-30 22:30 (nao ativadas: tocam dinheiro, dispatch, wallet, RLS ou publicacao; quem decide e a Claude.ai)
+
+### criar ler-pagamento-do-pedido-antes-de-cobrar — Ler o que o cliente já pagou antes de dizer quanto cobrar ou mexer num valor de pedido
+Falas: 2026-10-28 17:47: depois você investiga direito, tem muita coisa errada | 2026-10-10: (livro, erros-aprendidos) mexer em valor/meio de pagamento sem ver o que o cliente pagou → ver primeiro; se escolheu dinheiro, não se muda nada
+Descricao proposta: Usa SEMPRE antes de dizer ao Danilo, a um estafeta ou a um cliente QUANTO COBRAR, ou antes de mexer no valor ou no meio de pagamento de um pedido. Lê primeiro wallet_applied_cents, tokens_applied_value_cents, debt_collected_cents e cash_total_due do próprio pedido. Nunca recalcules a partir do total bruto. Errado já em 10/10 e 28/10.
+Corpo proposto:
+# Ler o pagamento do pedido antes de cobrar
+
+## Origem
+- 10/10: mudei o pagamento de um Favor do Divan para MB Way sem ver o que ele já tinha pago e escolhido. Era 18 € de compra + 6 € do Favor = 24 €.
+- 28/10 17:47: para destravar o talão do Divan (Auchan) pus o dinheiro a cobrar igual ao total bruto (14,35 €). O cliente já tinha pago 10,31 € com saldo e 0,73 € com tokens; o certo era 3,31 €. Ele disse: "depois você investiga direito, tem muita coisa errada".
+
+## Passos (só leitura, por SELECT)
+1. Lê o pedido: `total`, `wallet_applied_cents`, `tokens_applied_value_cents`, `debt_collected_cents`, `cash_total_due`, `payment_method`.
+2. Conta linha a linha e mostra a conta: total − saldo − tokens − dívida cobrada = a cobrar. Confere com o `cash_total_due` que já lá está.
+3. Se o cliente escolheu dinheiro, o Danilo recebe em mão e **não se muda o meio de pagamento**.
+4. Só depois dizes o valor, e dizes de onde vem.
+
+## Limites
+- Esta skill só LÊ e CONFERE. Alterar valores, preços, comissões, carteiras ou tokens continua a exigir o "autorizo" dele e as funções próprias (`admin_*`, `ops_*`).
+- Concordar com uma ideia dele ("o jeito vai ser esse") não é ordem para mudar preços: mostra as contas e espera.
+
+
+---- anteriores ----
 PROPOSTAS DO VIGIA 2026-10-09 23:30 (nao ativadas: tocam dinheiro, dispatch, wallet, RLS ou publicacao; quem decide e a Claude.ai)
 
 ### criar bora-tranca-bloqueio-migration — Tranca bloqueia migration que toca tokens/wallet/pagamentos/ledger

@@ -5,6 +5,7 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../l10n/tr.dart';
 import '../../models/restaurant_model.dart';
+import '../../stores/cart_store.dart';
 import '../../stores/restaurant_store.dart';
 import '../../utils/home_destino.dart';
 
@@ -22,22 +23,40 @@ class FaixaLojaFechada extends StatelessWidget {
   Widget build(BuildContext context) {
     // A pausa do parceiro já tem o BannerPausaLoja: não duplicar.
     if (!loja.fechadaParaCliente || loja.emPausa()) return const SizedBox.shrink();
+    // Agendar (30/10/2026): se o servidor dá janelas a esta loja, o cliente
+    // pode encomendar já, para quando abrir (só com "Agendar").
+    final cart = context.watch<CartStore?>();
+    final agenda = cart != null &&
+        cart.vendorRestaurantId == loja.id &&
+        cart.agendamentoObrigatorio;
     return Container(
       width: double.infinity,
       color: AppColors.textPrimary.withValues(alpha: 0.85),
       padding: const EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: Spacing.sm),
       child: Row(
         children: [
-          const Icon(Icons.schedule, color: Colors.white, size: 18),
+          Icon(agenda ? Icons.event : Icons.schedule, color: Colors.white, size: 18),
           const SizedBox(width: Spacing.sm),
           Expanded(
-            child: Text(
-              loja.faixaFechada,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-                fontSize: 14,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  loja.faixaFechada,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+                if (agenda)
+                  Text(
+                    'Loja fechada: agenda para quando abrir'.tr,
+                    key: const Key('faixa-fechada-agendar'),
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                  ),
+              ],
             ),
           ),
         ],

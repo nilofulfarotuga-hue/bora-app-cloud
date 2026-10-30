@@ -48,6 +48,7 @@ import '../widgets/address_text.dart';
 import '../widgets/cliente_nome_destaque.dart';
 import '../widgets/driver_chat_fab.dart';
 import '../widgets/driver_item_options.dart';
+import '../widgets/entrega_marcada_estafeta.dart';
 import 'driver_order_action_helper.dart';
 import '../widgets/bora/maior_18.dart';
 import '../widgets/verificacao_idade_sheet.dart';
@@ -2247,6 +2248,12 @@ class _BottomPanelState extends State<_BottomPanel> {
                   focusOrder.apartmentDelivery) ...[
                 const SizedBox(height: 12),
                 const _ApartmentDeliveryBanner(),
+              ],
+
+              // Pedido agendado (30/10/2026): a hora marcada em destaque.
+              if (focusOrder != null && focusOrder.scheduledFor != null) ...[
+                const SizedBox(height: 12),
+                EntregaMarcadaEstafeta(order: focusOrder),
               ],
             ],
           ),

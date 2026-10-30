@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-30T06:37:03.607428+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-30T07:07:08.196687+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-30 06:20 UTC. Páginas listadas: 446.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-30 06:57 UTC. Páginas listadas: 448.
 
 ## O que é o Bora
 
@@ -34,7 +34,7 @@ Quer respostas curtas, em texto corrido e sem jargão, e que o trabalho se faça
 
 1. `erros-aprendidos` — as correções do Danilo; errou uma vez, nunca mais (atualizada 2026-10-29).
 2. `regras-do-danilo` — as regras dele; mandam em tudo (atualizada 2026-10-23).
-3. Estado vivo: `digest-2026-10-30-dsh-harness` (2026-10-30).
+3. Estado vivo: `digest-2026-10-30-remote-control-e-dsh-fecho` (2026-10-30).
 4. Antes de mexer em pedidos, estafetas, dinheiro ou migrações: `regras-operacao-agentes`.
 5. Ferramenta nova sem MCP? `livro-porta-unica` explica como ligar (Córtex por MCP, ou o ficheiro plano LIVRO.md com senha).
 
@@ -50,8 +50,9 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - erros-aprendidos — Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige) (2026-10-29)
 
-## digest (176)
+## digest (177)
 
+- digest-2026-10-30-remote-control-e-dsh-fecho — Claude Code 30/10 — Remote Control caído desde 28/10 e fecho do dsh (2026-10-30)
 - digest-2026-10-30-dsh-harness — Claude Code 30/10 — DeepSeek Harness (dsh) instalado com o mesmo livro do Claude Code (2026-10-30)
 - digest-2026-10-29-publica — Digest — missão publica-2026-10-29 (29/10 noite, Fable 5.1) (2026-10-29)
 - digest-2026-10-29-telegram-robo-login — Avisos "travou de vez" no Telegram (29/10) — causa, o que foi arrumado e o que falta (2026-10-29)
@@ -405,11 +406,12 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - sql-modo-demo-2026-10-27 — SQL do modo demonstracao (Boom! Burger) para o Claude.ai aplicar (2026-10-27)
 
-## outras (108)
+## outras (109)
 
 - 00-LEIA-PRIMEIRO — Como usar esta memória (2026-10-23)
 - adendo-1-final-app-2026-10-29 — Adendo 1 da missão final-app-2026-10-29 (2026-10-29)
 - adendo-12-robo-boom-revisao-2026-10-30 — ADENDO 12 (Claude.ai, 30/10 06:25) - robo da Boom, revisor diario do WhatsApp da loja e fotos do Emanuel (2026-10-30)
+- adendo-13-ios-fotos-vps-2026-10-30 — ADENDO 13 (Claude.ai, 30/10 07:00) - teste do iPhone da publicacao 5, fotos do Emanuel, memoria do whatsapp-cerebro, copias do servidor_cer… (2026-10-30)
 - adendo-3-final-app-2026-10-29 — Adendo 3 da missão final-app-2026-10-29 — robô de documentos (2026-10-29)
 - adendo-5-final-app-2026-10-29 — Adendo 5 — decisão do Danilo sobre o plano melhor-que-Uber-Glovo (itens 4,5,6,7,8) (2026-10-29)
 - adendo-6-publica-2026-10-29 — ADENDO 6 (Claude.ai, 20:25) - robo nao recebeu a mensagem das 19:41 + fotos Letra para o Storage (2026-10-29)
@@ -520,7 +522,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 35 páginas com título [PESSOAL] (vida do Danilo). Não se listam aqui nem vão para o espelho público nem para o LIVRO.md; só se leem quando a tarefa é dele, e nunca vão para motores grátis que treinam com o conteúdo.
 
-## Skills partilhadas (146 no repo + 8 só na VPS)
+## Skills partilhadas (148 no repo + 8 só na VPS)
 
 Fonte única: `.claude/skills/` do repo (o Hermes lê o espelho em `/opt/data/cortex-brain/.claude/skills`). Diferenças VPS ↔ repo: `/opt/data/livro/skills/DIFERENCA.md`.
 
@@ -611,6 +613,7 @@ Fonte única: `.claude/skills/` do repo (o Hermes lê o espelho em `/opt/data/co
 - lancar-missao-claude-code — Procedimento certo para lançar uma missão grande no Claude Code do navegador para o Danilo — e como chegar ao PC dele por Controlo Remoto quando uma…
 - learning_engine — This skill should be used when the user says "SKILL: learning_engine", asks what patterns have been detected in the project, what mistakes keep recur…
 - ler-antes-de-escrever — Usa SEMPRE antes de Edit ou Write num ficheiro que já existe. Se aparecer 'File has not been read yet. Read it first before writing to it', faz Read…
+- livro-comum — Antes de qualquer tarefa do Bora, dos sites, do Studio ou do Danilo, consultar o livro comum (Córtex e AGENTS.md): o que o Danilo falou com a Claude.…
 - manage-promo-codes — Cria/lista/desativa códigos promocionais via RPCs admin existentes (admin_create_promo_code / admin_list_promo_codes / admin_deactivate_promo_code).…
 - market-data-cleaner — Limpa o catálogo de produtos por mercado (Continente, Lidl, Auchan, Pingo Doce, Intermarché, Mercadona). Trata 5 critérios de qualidade: (a) produtos…
 - market-data-sync — Skill universal para sincronizar catálogo de produtos de qualquer loja (supermercados, farmácias, restaurantes) para a base de dados Bora. Recebe nom…
@@ -638,6 +641,7 @@ Fonte única: `.claude/skills/` do repo (o Hermes lê o espelho em `/opt/data/co
 - prova-fix-cenario-real — Usa esta skill SEMPRE que vais declarar 'corrigido', 'pronto' ou 'fechado' um bug relatado pelo Danilo. Gatilho: a prova de fecho é um teste diferent…
 - python-nao-encontrado-windows — Usa esta skill sempre que um comando ou script invocar `python`/`python3` no PC do Danilo (Windows) e devolver 'Exit code 49 ... Python was not found…
 - refund-assistant — SHADOW MODE — prepara uma PROPOSTA de refund para aprovação humana. Lê o pedido, calcula refund elegível (cancel_fee_* por escalão) e split wallet 80…
+- remote-control-duas-sessoes — Como ligar, retomar e vigiar o servidor de Remote Control do Claude Code no PC do Danilo para duas ou mais missões ao mesmo tempo sem se derrubarem (…
 - reservation-ops — Operações sobre reservas — listar (por restaurante/data/estado) e marcar chegada via RPC partner_mark_arrival (que aplica o desconto €2 internamente)…
 - return-refund — Help return an item or request a refund from any retailer. Identifies the item, finds the return policy, navigates the process, and handles shipping…
 - ripgrep-timeout-estreitar — Usa quando a pesquisa Grep/Ripgrep devolve 'Ripgrep search timed out after 20 seconds'. Não repitas a mesma pesquisa larga: restringe path e glob, ex…

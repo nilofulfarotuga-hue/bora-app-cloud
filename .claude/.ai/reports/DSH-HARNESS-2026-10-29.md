@@ -44,13 +44,15 @@ sessões a usar Dart, ffmpeg e Chrome); em RAM folgada foi ~11 s.
 ## Instalado e provado
 Motor (3 vias com `OK`): Kilo Nemotron 11 s, `kilo-auto` 11 s, Gemini grátis 13 s · livro, CLAUDE.md global, skills e
 agentes · Córtex por MCP · plugin `dsh-session-search` (`agent_session_search` devolveu 1 sessão com caminho; promovido ao
-`headless` e ao `web`) · lançadores e teste ponta a ponta · servidor Google com 17 ferramentas: rascunho SIM, enviar NÃO.
+`headless` e ao `web`) · lançadores e teste ponta a ponta · servidor Google com 17 ferramentas: rascunho SIM, enviar NÃO · servidor de Remote
+Control levantado pela tarefa agendada `Bora Remote Control` (filho do PowerShell escondido) e reiniciado sozinho depois de
+morto (06:53:18 morto, 06:58:22 de pé), depois do login do Danilo às 06:48.
 
 ## Instalado sem prova
 No perfil `lab` (ativam sem avisos, não estão no `headless` nem no `web`): `dsh-memento`, `dsh-auto-continue`,
 `dsh-notify-windows`, `dsh-tokenledger`, `dsh-taskfold`, `dsh-chat-import`, `dsh-sentinel` · Supabase em só leitura (montado,
-sem token) · servidor Google (montado, sem Permitir) · tarefa agendada `Bora Remote Control` e `PC-DO-DANILO.cmd` (sem
-login do `claude`).
+sem token) · servidor Google (montado, sem Permitir) · `PC-DO-DANILO.cmd` (visível; já não é preciso, a
+tarefa levanta o servidor).
 
 ## Não deu (erro literal)
 - `dsh-claude-compat`: **não instalar — travado pelo filtro de segurança** (por ordem da retoma, sem repetir).
@@ -62,7 +64,9 @@ login do `claude`).
   services: webServer, connection…)` no `headless`; só ativam no perfil `web`. Removidos do `lab`.
 - `omdsh-dev/dsh-security-scan` e `dsh-external/official-plugins-port`: `Repository not found`.
 - Nano Banana: montado e desligado (chave grátis sem imagens; os processos `npx` ficaram pendurados).
-- Servidor de controlo remoto (S.3): não provei duas sessões, porque o `claude` está sem sessão (ver abaixo).
+- Servidor de controlo remoto (S.3): duas sessões ao mesmo tempo por provar (só vi 1 sessão anexada, vazia; falta o Danilo
+  abrir duas em claude.ai/code). A opção "reiniciar em caso de falha" do Agendador não levantou o servidor (219 s sem
+  reinício); troquei por repetição de 3 em 3 minutos, que funcionou.
 - REA, olhos, Telegram, ponte, agendamento: não feitos (ver provas 6 a 10).
 
 ## Fica para a próxima (com o comando pronto)
@@ -79,9 +83,11 @@ login do `claude`).
 - `agent-bridge` (ponte com o Claude Code): rever o código por inteiro antes de instalar.
 
 ## Erros que encontrei pelo caminho (reportados, não corrigidos)
-1. **O `claude` deste PC está sem sessão desde a noite de 28/10** (`claude auth status` → `"loggedIn": false`). O vigia
+1. **(Resolvido às 06:48 de 30/10 pelo login do Danilo.) O `claude` deste PC esteve sem sessão desde a noite de 28/10** (`claude auth status` → `"loggedIn": false`). O vigia
    `ClaudeRC-bora` viu o controlo remoto "em execução" até 28/10 21:01 UTC e desde então só regista "não encontrado" e
-   `claude rc` falha com "You must be logged in to use Remote Control". Os controlos remotos da Bora e do Em Dia estão caídos.
+   `claude rc` falha com "You must be logged in to use Remote Control". Os controlos remotos da Bora e do Em Dia estiveram caídos. A Bora é agora servida pelo servidor novo: o `claude rc`
+   antigo falha na mesma pasta com "This folder is already served by a terminal `claude remote-control` on this device. Stop
+   it first." O do Em Dia (pasta `em_dia`) deve voltar no próximo ciclo do vigia (não confirmado).
 2. O `build-ios` falhou no commit `26ab6a7b` (não é meu) e outro corria em `58eb26f8`.
 3. A voz da ponte do Telegram cai do `edge-tts` (traceback) para o `piper` e demora 54 s.
 4. O token do Supabase local (`.supabase-token.env`) caducou: dá 401 desde 21/09.
@@ -98,8 +104,9 @@ login do `claude`).
 
 ## Para o Danilo decidir (só estas)
 1. **"autorizo carregar 5 € na DeepSeek"** — só se quiser o motor pago; até lá tudo é grátis.
-2. **Um clique no `claude auth login`** (abrir `PC-DO-DANILO.cmd` resolve): sem isto o controlo remoto da Bora e do Em Dia
-   não sobe e não se prova o servidor de duas sessões.
+2. **Desligar ou não o vigia `ClaudeRC-bora`** (tarefa agendada que corre `claude rc --name bora-app`): já não serve, porque
+   o servidor ocupa a pasta, e falha de 30 em 30 minutos. Não lhe toquei. E abrir duas sessões em claude.ai/code para
+   provar o S.3.
 3. **Colar o token novo do Supabase** no `COLAR-TOKEN-SUPABASE.cmd` (o dsh lê o mesmo ficheiro).
 4. **Permitir do Google** nas duas contas, e decidir se aceita que o email seja lido por um modelo grátis que pode guardar
    os pedidos (regra 14 do AGENTS.md). O dsh nunca envia: só lê e faz rascunhos.

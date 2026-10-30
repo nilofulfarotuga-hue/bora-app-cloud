@@ -167,12 +167,21 @@ def demo_ativo(rid, uid=None):
         return d.get("restaurant_id") == rid and dentro and (not uid or d.get("cliente_user_id") == uid)
 
 
-def estado_loja(t, uid=None):
+def testa_com_loja_aberta(t, numero):
+    """Ordem do Danilo 30/10 20:23: em modo teste, os numeros da allowlist (quem testa o robo) sao atendidos como se a
+    loja ja estivesse aberta, mesmo com coming_soon na base (lista, pedido, reserva, tudo). Qualquer outro numero continua
+    a ouvir "abre em breve". Nao mexe em coming_soon: o horario e a pausa da loja continuam a contar."""
+    if not numero or t.get("mode") != "teste":
+        return False
+    return A.so_digitos(numero) in {A.so_digitos(x) for x in (t.get("allowlist") or [])}
+
+
+def estado_loja(t, uid=None, numero=None):
     """{pode, motivo, loja, demo, aberta}. motivo: em_breve | pausa | fechada | sem_loja."""
     L = loja(t)
     if not L:
         return {"pode": False, "motivo": "sem_loja"}
-    if L.get("coming_soon"):
+    if L.get("coming_soon") and not testa_com_loja_aberta(t, numero):
         if demo_ativo(L["id"], uid):
             return {"pode": True, "demo": True, "loja": L}  # o servidor deixa passar o pedido demo mesmo de caixa fechada
         return {"pode": False, "motivo": "em_breve", "loja": L}
@@ -191,7 +200,7 @@ def resposta_fora_da_janela(t, numero, texto=None, ct=None):
         res = reserva_de(ct) or {}
         if RESERVA_RE.search(A.sem_acentos(texto)) or res.get("estado") in ("a_recolher", "proposta"):
             return None
-    e = estado_loja(t, conta_do_cliente(t, numero))
+    e = estado_loja(t, conta_do_cliente(t, numero), numero)
     if e.get("motivo") == "em_breve":
         return (f"Olá! A {t['nome']} abre em breve na Bora. Assim que abrir, pode fazer a sua encomenda aqui "
                 f"pelo WhatsApp. Obrigado pela paciência!")
@@ -1123,7 +1132,7 @@ class TurnoRestaurante(A.Turno):
             return {"ok": False, "erro": "sem_conta", "link_app": link_app(self.t),
                     "instrucao": "Diz que, por agora, as encomendas pelo WhatsApp são só para clientes com conta na app Bora "
                                  "e deixa o link da app. Ainda NÃO há pedido."}
-        e = estado_loja(self.t, uid)
+        e = estado_loja(self.t, uid, self.numero)
         if not e["pode"]:
             return {"ok": False, "erro": "loja_" + e.get("motivo", "fechada"), "abertura": e.get("abertura"),
                     "instrucao": "Diz que a loja não está a aceitar pedidos agora e, se souberes, quando abre. Ainda NÃO há pedido."}

@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-boom-burger
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-29
+ultima_confirmacao: 2026-10-30
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Boom! Burger (hamburgueria artesanal da Guarda) — loja que o Danilo quer ganhar como parceira do Bora desde 27/10/2026; ler antes de falar dela, montar a loja ou listar parceiros
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-boom-burger`, origem `claude-ai`, atualizada em 2026-10-29T21:15:44.696971+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-boom-burger`, origem `claude-ai`, atualizada em 2026-10-30T07:21:17.445187+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas boom burger · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/boom-burger.md), copiada a 29/10/2026 21:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/boom-burger.md), copiada a 30/10/2026 07:21 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: boom-burger
@@ -31,4 +31,5 @@ aliases: [Boom Burger, Boom! Burger]
 - [stated] 28/10 18:46: pediu UM prompt grande e revisto que junte a missão do Divan, tudo o que falta da Boom, o robô do WhatsApp e os cartazes ("com o logo do Bomburg, com o meu, estilo que nós já fizemos"), mais todos os erros abertos, para ele próprio colar no Claude Code do PC. PROMPT REGISTADO: missão missao-geral-2026-10-28 (MOTOR Opus 5.5, sessão NOVA do Claude Code no PC, pasta bora-app-cloud), entregue no chat às ~19:50; substitui o adendo 4 v2 e a missão assistente-whatsapp-boom-2026-10-28, que nunca correram. Scope: etapa 3 Boom (NIF opcional, entrega grátis no ecrã, painéis, IVA das faturas, restos do adendo 3), etapa 4 robô em teste (allowlist só o 931), etapa 5 cartazes "Peça pela app Bora", "Reserve a sua mesa pela app", "Faça o seu pedido pelo WhatsApp" (não imprimir até o número responder sozinho) e autocolante da porta, só para ele aprovar. Estado: à espera de ele colar
 - [stated] 29/10 19:53: mandou ver as mensagens do Emanuel (menu de bebidas com preços, 6 fotos das cervejas Letra, "também podem colocar à venda os vinhos"; às 20:07 "33cl" em cada Letra) e responder curto. PROMPT REGISTADO: adendo 6 da missão publica-2026-10-29 (página claude_ai_memoria `adendo-6-publica-2026-10-29`, sessão session_01HPEpVCfPzS9j8Nzb5E1fRc "Missão geral Bora 2026-10-28", MOTOR Fable 5.1). Scope: a mensagem dele das 19:41 ao robô ("Posso reserva mesa por aqui?") não entrou no assistente; subir ao Storage as 17 fotos (6 Letra + 11 vinhos) que estão provisórias no jsDelivr. Estado: texto escrito na caixa da sessão, à espera do Enter dele
 - [stated] 29/10: o Emanuel respondeu que começam segunda ou terça (02-03/11) e que "vai vir algumas coisas"; o Danilo quer ir lá talvez antes, para deixar as plaquinhas/material; quer o WhatsApp da Boom "super inteligente" (com toda a informação do Facebook e Instagram dele) para testarem juntos, e o assistente virtual dele
-
+- [stated] 30/10 06:06: mandou a revisão diária do WhatsApp da loja (robô da Boom: reserva sem resposta clara, "Quero vinho" sem lista direta, mensagem cortada) para ser consertado. PROMPT REGISTADO: adendo 12 (página claude_ai_memoria `adendo-12-robo-boom-revisao-2026-10-30`, sessão session_01HPEpVCfPzS9j8Nzb5E1fRc "Missão geral Bora 2026-10-28", MOTOR Opus 5.5), enviado 06:25. Scope: código do robô (listas por categoria completas, limpeza de formato, reservas com confirmação explícita, carrinho velho), revisor diário (lê também as respostas do robô, não corta mensagens), fotos que o Emanuel mandou a 29/10 22:07–22:18. Estado: a correr
+- [stated] 30/10 07:00 (seguimento da revisão do WhatsApp): adendo 12 fechou o robô da Boom em código (listas por categoria, formato, pedir_reserva, carrinho velho; VPS reiniciada 06:49) e o revisor diário (uma só revisão por dia, lê as respostas do robô). PROMPT REGISTADO: adendo 13 (página claude_ai_memoria `adendo-13-ios-fotos-vps-2026-10-30`, mesma sessão, MOTOR Opus 5.5). Scope: 1 teste a falhar no iPhone da publicação 5 (agendar nos mercados), fotos do Emanuel, memória do whatsapp-cerebro na VPS (388/400 MB), cópias divergentes do servidor_cerebro.py. Estado: a correr

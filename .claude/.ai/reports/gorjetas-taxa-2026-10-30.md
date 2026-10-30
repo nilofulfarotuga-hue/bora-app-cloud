@@ -63,7 +63,9 @@ O modo "junto" fica desligado até isso estar no ar e provado. A app nova entra 
 
 ## Próximo passo
 
-A Claude.ai, pelo GitHub, copia as migrações e aplica as funções pela ordem do `pagamentos_LEIA-ME.md`. Corre a
+Primeiro, o ramo tem de ir para o servidor. O envio foi recusado e está só no PC; basta um envio autorizado (é um
+ramo à parte, não publica nada). Depois, a Claude.ai, pelo GitHub, copia as migrações e aplica as funções pela
+ordem do `pagamentos_LEIA-ME.md`. Corre a
 prova em rollback e só depois liga o modo "junto" no painel. A app entra na publicação do fim de semana.
 
 ## Para a Claude.ai (técnico)

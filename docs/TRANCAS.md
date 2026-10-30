@@ -210,3 +210,7 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   Functions da zona vermelha (`create-payment-intent`, `create-mbway-payment-intent`, `stripe-webhook`,
   `client-cancel-order`) ficam como diffs contra a versão no ar em `docs/propostas/gorjetas-taxa-2026-10-30/pagamentos_*.md`.
   Nada aplicado em produção.
+- **30/10/2026, missão `gorjetas-taxa-2026-10-30`, fecho** — `git push -u origin gorjetas-taxa-2026-10-30` (ramo da
+  missão, não o de produção; só o `olho-golden` correria) recusado: "o Danilo não autorizou (git push)". Não se
+  contornou. O ramo (`fb7b524f`, `7208023a`, `8e2d8ae9` e o commit deste registo) fica só no PC, no worktree
+  `C:\BoraLocal\wt-gorjetas-30-10`, à espera de um push autorizado. Registado no e2e_log (G-fecho-push).

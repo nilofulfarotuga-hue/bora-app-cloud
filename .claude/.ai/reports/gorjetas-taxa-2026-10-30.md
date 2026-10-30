@@ -69,7 +69,9 @@ prova em rollback e só depois liga o modo "junto" no painel. A app entra na pub
 ## Para a Claude.ai (técnico)
 
 - Ramo `gorjetas-taxa-2026-10-30` (commits `fb7b524f` app/painel, `7208023a` servidor + propostas), a partir de
-  `origin/autonomous-night-2026-04-29` 9330e66d. Enviado para o servidor (ramo próprio, não produção).
+  `origin/autonomous-night-2026-04-29` 9330e66d, mais `8e2d8ae9` (capturas e este relatório). O envio do ramo para
+  o servidor (`git push -u origin gorjetas-taxa-2026-10-30`, que não é o ramo de produção) foi recusado pela tranca
+  a 30/10. O ramo está só no PC, no worktree `C:\BoraLocal\wt-gorjetas-30-10`, à espera de um push autorizado.
 - Migrações a copiar para `supabase/migrations/` (a tranca recusou no PC):
   - `00_bloco0_migracao_20261030134938.md` (a tua de hoje, com definições completas);
   - `pagamentos_20261030145000_gorjeta_checkout_junto_pagamento.sql`;

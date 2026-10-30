@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-topics-erros-aprendidos-parte2
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-29
+ultima_confirmacao: 2026-10-30
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 2 de 3)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte2`, origem `claude-ai`, atualizada em 2026-10-29T22:16:24.699704+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte2`, origem `claude-ai`, atualizada em 2026-10-30T15:15:54.302199+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro topics erros aprendidos parte2 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 2 de 3), copiada a 29/10/2026 22:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 2 de 3), copiada a 30/10/2026 15:15 (hora de Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 
 - [stated] 19/10: a 17/10 ele mandou pôr os 2,50 € do cancelamento na carteira do Ney e eu não pus (nada entrou no sistema) — o acerto saiu com 4,00 € em vez de 6,50 € e ele pagou 6,50 à mão → regra: ordem de mexer em dinheiro de alguém é feita na hora e provada por SELECT antes de dizer que está feita; se não der para fazer logo, dizer-lhe que ficou por fazer

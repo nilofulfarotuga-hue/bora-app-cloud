@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-topics-erros-aprendidos-parte3
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-29
+ultima_confirmacao: 2026-10-30
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 3 de 3)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte3`, origem `claude-ai`, atualizada em 2026-10-29T22:16:24.699704+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte3`, origem `claude-ai`, atualizada em 2026-10-30T15:15:54.302199+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro topics erros aprendidos parte3 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 3 de 3), copiada a 29/10/2026 22:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 3 de 3), copiada a 30/10/2026 15:15 (hora de Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 s senhas das contas de demonstração estavam no Telegram e não lhas dei; ele não as tinha à mão e reclamou "você tem que me dar a senha" → regra: quando ele pede o login de uma conta de teste/demonstração, dou-lho logo aqui na conversa (e se eu não tiver a senha, reponho uma nova pelo servidor, testo e dou-a); nunca o mandar procurar no Telegram
 - [stated] 28/10 12:34: na mensagem ao Emanuel (Boom! Burger) escrevi que ele fatura o preço de balcão "tal como já faz com a Glovo"; ele corrigiu: na Glovo o Emanuel fatura o preço que aparece ao cliente na app, porque a Glovo lhe cobra 30%; na Bora fatura só o preço de balcão, porque a Bora não lhe cobra comissão → regra: nunca dizer ao parceiro que a fatura na Bora é igual à da Glovo/Uber; se comparar, é para mostrar essa diferença. Também tirou da mensagem a entrega grátis (ele próprio conversa com o Emanuel: tinha-lhe dito acima de 20 €, agora é 30 €) e mandou tirar o "Equipa Bora": o Emanuel já sabe que ele é o dono e a mensagem vai do número pessoal dele, na voz dele, natural
@@ -27,4 +27,6 @@ s senhas das contas de demonstração estavam no Telegram e não lhas dei; ele n
 - [stated] 29/10 18:34: fiz os cartazes da Boom! Burger no Claude Design como cartaz plano (blocos de cor, só o logo da Boom, QR da página /baixar), ignorando a regra de 30/09; ele reprovou irritado ("não tem nada a ver com o que eu quero... presta atenção") → regra (repete a de 30/09, agora reforçada): a ARTE é gerada pelo ChatGPT ou Gemini (imagem bonita, chamativa, de cinema), nunca cartaz plano meu; leva o logo do parceiro E o logo da Bora; UM QR só que manda iPhone para a App Store e Android para a Play Store; frases convincentes que criem curiosidade no cliente, com roteiro/ideia de campanha; o Claude Design serve só para montar texto e QR por cima da imagem gerada. Antes de fazer propaganda, puxar sempre o contexto dos cartazes já feitos (Sabores de Casa, Mister Navalha)
 - [stated] 29/10 18:34: expliquei o pacote de reembolsos como "por defeito volta ao mesmo meio" → regra dele: a escolha é do CLIENTE e tem de aparecer bem clara na app: "Carteira Bora (podes usar já, na hora)" ou "Reembolso para a tua conta (MB Way/cartão)"; nunca escolher por ele por defeito escondido
 - [stated] 29/10 21:25: a sessão da missão da Bora perdeu a ligação ao PC e eu escrevi o adendo de retomar a missão na caixa de OUTRA sessão viva ("DeepSeek Harness installation" = o Gipsy/Hermes, que corre em paralelo noutra conversa dele) e mandei-o carregar Enter lá; ele corrigiu irritado ("não é essa sessão, Gipsy é outra coisa, é paralelo") → regra: ele tem várias conversas e sessões a correr ao mesmo tempo; cada missão fica na SUA sessão (a da Bora é "Missão geral Bora 2026-10-28"); nunca escrever numa sessão de outro assunto nem mandar parar o que ela faz. Se a sessão certa estiver desligada, digo-lhe isso e peço-lhe para colar o adendo lá, e nada mais
+- [stated] 30/10 14:52: no token do Supabase do Dipsy escolhi por ele 90 dias e só leitura com escrita em 4 áreas; ele corrigiu: quer acesso total (Full access) e para sempre (Never), "não quero ficar renovando nem apertando permitir, não quero passar raiva" → regra: quando ele pede acesso para os agentes dele (Dipsy, Claude Code), configura-se total e sem validade; o risco explico-o uma vez, numa linha, e a escolha é dele
+- [stated] 30/10 15:06: dei-lhe a lista do que escolher no formulário do token do Supabase (validade, organização, preset) para ele preencher; ele reclamou irritado: "eu não faço nada, não preencho nada, quem preenche é você ou um agente, eu só aceito e clico no verde" → regra (repete as de 23/09 e 28/08): formulário de painel web (Supabase, Google, Apple…) preenche-o eu pelo Chrome ou o Claude Code no PC; a ele só fica o botão verde final, com a página já preenchida à frente dele
 

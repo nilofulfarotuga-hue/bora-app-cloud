@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-30T14:37:05.378697+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-30T15:37:06.807113+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-30 14:14 UTC. Páginas listadas: 451.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-30 15:15 UTC. Páginas listadas: 452.
 
 ## O que é o Bora
 
@@ -32,7 +32,7 @@ Quer respostas curtas, em texto corrido e sem jargão, e que o trabalho se faça
 
 ## Por onde começar (por esta ordem)
 
-1. `erros-aprendidos` — as correções do Danilo; errou uma vez, nunca mais (atualizada 2026-10-29).
+1. `erros-aprendidos` — as correções do Danilo; errou uma vez, nunca mais (atualizada 2026-10-30).
 2. `regras-do-danilo` — as regras dele; mandam em tudo (atualizada 2026-10-23).
 3. Estado vivo: `digest-2026-10-30-gorjetas-claude-ai` (2026-10-30).
 4. Antes de mexer em pedidos, estafetas, dinheiro ou migrações: `regras-operacao-agentes`.
@@ -48,7 +48,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 ## erros (1)
 
-- erros-aprendidos — Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige) (2026-10-29)
+- erros-aprendidos — Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige) (2026-10-30)
 
 ## digest (179)
 
@@ -232,7 +232,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - digest-2026-09-13-janela-4-ux-portao — Janela 4 13/09 — ordem UX OpenCode chegou ao Claude Code e parou no portão (2026-09-13)
 - digest-2026-09-13-janela-3 — Janela 3 13/09 — portas (correu em Fable, não Opus) (2026-09-13)
 
-## livro-areas (131)
+## livro-areas (132)
 
 - livro-areas-alertas-notificacoes — Alertas do Bora para o Danilo (Telegram + push admin persistente) — o que já dispara, por que caminho, e o que falta (2026-10-23)
 - livro-areas-analise-apps-emulador — Ideia do Danilo (08/10/2026) de usar emulador Android + agente de IA para testar bugs do Bora e comparar com iFood/Uber/Glovo; adiada para… (2026-10-26)
@@ -337,6 +337,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-areas-prospecao-sites-clubes — Campanha de venda de sites a clubes de futebol portugueses (a partir do caso Guarda FC) — o que o Danilo pediu, critérios de alvo, e regist… (2026-10-23)
 - livro-areas-radar-ia — Radar semanal de novidades de IA (bot batedor do Hermes) + vereditos sobre ferramentas (DeepSeek Harness, Jev/TypeSafe) — ler antes de mand… (2026-10-30)
 - livro-areas-radar-ia-parte2 — Radar semanal de novidades de IA (bot batedor do Hermes) + vereditos sobre ferramentas (DeepSeek Harness, Jev/TypeSafe) — ler antes de mand… (2026-10-30)
+- livro-areas-radar-ia-parte3 — Radar semanal de novidades de IA (bot batedor do Hermes) + vereditos sobre ferramentas (DeepSeek Harness, Jev/TypeSafe) — ler antes de mand… (2026-10-30)
 - livro-areas-recibo-cliente-produto-falta — Regras que o Danilo fixou para mexer no conteúdo de um pedido já feito (produto em falta, acrescentar produto) e para o recibo do cliente —… (2026-10-23)
 - livro-areas-regras-lancamento-categorias — Regras fixas do Danilo para lançar QUALQUER categoria, loja ou serviço novo no Bora — ler ANTES de planear ou montar prompt de categoria/lo… (2026-10-23)
 - livro-areas-sabores-de-casa — Sabores de Casa Açaí (mercado BR + açaí, Guarda) — parceiro no app + mini-site cinematográfico de presente (esquema Ouro e Prata) (2026-10-23)
@@ -457,9 +458,9 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-porta-unica — Livro — porta única: como ligar qualquer IA ao livro (MCP do Córtex ou LIVRO.md com senha) (2026-10-29)
 - livro-resumo — Livro do Bora — resumo para o ChatGPT (regras + erros + índice, sem pessoais), gerado (2026-10-29)
 - livro-topics-communication — How Danilo communicates and the language conventions across his tools (2026-10-23)
-- livro-topics-erros-aprendidos — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (par… (2026-10-29)
-- livro-topics-erros-aprendidos-parte2 — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (par… (2026-10-29)
-- livro-topics-erros-aprendidos-parte3 — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (par… (2026-10-29)
+- livro-topics-erros-aprendidos — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (par… (2026-10-30)
+- livro-topics-erros-aprendidos-parte2 — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (par… (2026-10-30)
+- livro-topics-erros-aprendidos-parte3 — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (par… (2026-10-30)
 - livro-topics-prioridades — Como o Danilo decide prioridades no negócio — foco dos próximos meses e regras de desempate quando duas coisas competem ao mesmo tempo (2026-10-29)
 - livro-topics-regras-motores-e-prompts — Regras do Danilo sobre que motor/ferramenta usar (Fable, Opus, ChatGPT, GLM, Gemini, OpenCode) e sessões no Chrome — ler antes de montar pr… (2026-10-23)
 - lojas-takeaway-precos — Lojas de takeaway por telefone: Bora (não-parceiro) contra Glovo e Uber Eats, Guarda, 29/10/2026 (2026-10-29)

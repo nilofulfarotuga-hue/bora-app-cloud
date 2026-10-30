@@ -2,7 +2,7 @@
 id: memoria-claude-ai-erros-aprendidos
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-29
+ultima_confirmacao: 2026-10-30
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-10-29T22:16:24.699704+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-10-30T15:15:54.302199+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: erros aprendidos · memoria claude.ai · claude_ai_memoria
 
@@ -102,4 +102,6 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - 28/10 (claude-ai): 28/10: ao destravar o talão do Divan (Auchan) pus cash_total_due = total bruto (14,35) e disse ao Danilo para cobrar 14,35 €, sem ver que o cliente pagou 10,31 com saldo e 0,73 com tokens (devia 3,31) → antes de dizer quanto cobrar ou mexer num valor de pedido, ler wallet_applied_cents, tokens_applied_value_cents, debt_collected_cents e o cash_total_due que já lá está; nunca recalcular do total bruto
 - 29/10 (claude-code): pus uma frase com "23%" dentro de um format() do SQL e o Fecho do mês do painel ficou partido 8 horas em todos os meses → texto com % dentro de format() leva %%; e depois de mudar uma função do painel, chamá-la uma vez como admin antes de dar por feito
 - 29/10 (claude-ai): A sessão da missão da Bora perdeu a ligação ao PC e escrevi o adendo de retomar na caixa de OUTRA sessão viva ("DeepSeek Harness installation" = Gipsy/Hermes, paralela) e mandei carregar Enter lá; ele corrigiu irritado. → Ele tem várias conversas e sessões a correr ao mesmo tempo; cada missão fica na SUA sessão (a da Bora é "Missão geral Bora 2026-10-28"); nunca escrever numa sessão de outro assunto nem mandar parar o que ela faz. Se a sessão certa estiver desligada, dizer-lhe isso e pedir-lhe para colar o adendo lá, e nada mais.
+- 30/10 (claude-ai): No token do Supabase do Dipsy escolhi por ele 90 dias e só leitura com escrita em 4 áreas; ele corrigiu: quer acesso total (Full access) e para sempre (Never), "não quero ficar renovando nem apertando permitir, não quero passar raiva". → Quando ele pede acesso para os agentes dele (Dipsy, Claude Code), configura-se total e sem validade; o risco explica-se uma vez, numa linha, e a escolha é dele.
+- 30/10 (claude-ai): Dei-lhe a lista do que escolher no formulário do token do Supabase (validade, organização, preset) para ele preencher; ele reclamou irritado: "eu não faço nada, não preencho nada, quem preenche é você ou um agente, eu só aceito e clico no verde". → (repete as de 23/09 e 28/08) Formulário de painel web (Supabase, Google, Apple…) preenche-o o Claude pelo Chrome ou o Claude Code no PC; a ele só fica o botão verde final, com a página já preenchida à frente dele.
 

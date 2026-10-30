@@ -79,8 +79,19 @@ Tenant com `tipo = 'restaurante'` + `restaurant_id` (a loja da app). Mesma porta
   termina em "cancelado sem custo" e o aviso diz "entregue".
 - **Fora da janela demo** (`platform_settings.modo_demo_loja`) com a loja a "abrir em breve": resposta fixa "abre em breve", sem gastar motor.
 - Dinheiro, reclamações e reembolsos vão para uma pessoa (`passar_ao_dono` → loja + Telegram do Danilo). O dono da Bora nunca é nomeado.
+- **Listas por categoria (30/10)**: mensagem curta que nomeia vinho/cerveja/sidra/bebida/refrigerante/água/sobremesa/entrada e nenhum
+  produto → `lista_categoria`, sem motor: a categoria inteira da base pelo `sort_order` (vinhos em Tintos/Brancos/Rosés), "Qual quer e
+  quantos?" e "(só para maiores de 18)" se tiver álcool.
+- **Formato (30/10)**: `enfileirar` passa todo o texto por `limpar_formato` (`**`→`*`, linhas `* `/`- `→`• `, sem `#`).
+- **Reservas de mesa (30/10)**: ferramenta `pedir_reserva` + passos em código (`reserva_em_codigo`); `passar_ao_dono`/`perguntar_ao_dono`
+  sobre reservas são desviados para ela. Reservas abertas na app → link; fechadas → pessoas, dia, hora, nome (uma pergunta de cada vez),
+  pedido à loja com código `R123` (tarefa `pergunta_dono` com `payload.reserva`; citar ou "R123 sim / R123 21:30 / R123 não"),
+  lembrete aos 15 min, confirmação ao cliente. Nunca entra em `perguntas_aprendidas`. Estado no contacto: `a_espera_de.reserva`.
+- **Carrinho parado há mais de 2 h (30/10)**: fica suspenso (prompt e ferramentas não o veem) e a resposta pergunta "Ainda quer o X de
+  há pouco?"; sim → volta, não → fica sem efeito.
 - Testes: `python -m unittest -v test_restaurante` (base falsa, sem rede). Conversas simuladas na VPS: `python3 simular_boom.py B1-ir-buscar B2-entrega-dinheiro
   B3-entrega-acima-30-mbway` (o número de teste vem da allowlist do tenant; as mensagens de saída ficam `simulado`, nunca vão para o telemóvel).
+  Cenários fixos de 30/10: `C1-quero-vinho C2-cervejas C3-reserva-confirmada C4-reserva-outra-hora C5-formato`.
 
 ## Comandos (na VPS)
 

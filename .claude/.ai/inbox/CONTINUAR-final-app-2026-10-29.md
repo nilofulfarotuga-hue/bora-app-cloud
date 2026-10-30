@@ -101,7 +101,23 @@ Bloco D bloqueado (sem token do CLI; passos na página `reembolsos-dashboard-pas
 - 17 fotos da Boom no Storage (e2e 5319); página boom-robo-conhecimento corrigida; política tmp dos cartazes apagada;
   NIF opcional confirmado (e2e 5323).
 
-## ADENDO 9 — check-in: calendário de 30 dias + escada de prémios (Danilo 29/10 22:20) — EM CURSO na mesma sessão
+## ADENDOS 11 e 12 (30/10) — FEITOS
+11: agendar nos mercados (servidor a151c2a2 com migrações 20261030060000/061500; app a5222784), promoções no
+servidor (230a9bba, migração 20261030063000, promotions_enabled=true, 0 promoções ativas); publicação 5 = merge
+0c85e0e4 (06:29). Falta: prova na web com sessão (não se escrevem palavras-passe em produção); parceiro fechado
+recusado no order_store.dart (zona vermelha); "Pedir de novo" com loja fechada.
+12: robô da Boom (ad9bdf3d, no ar 06:49), revisor diário (1c119898, VPS+PC), 10 fotos da Boom (e2e 5381).
+e2e 5365/5366/5380/5381/5394/5395.
+
+## ADENDO 10 (30/10 05:05) — Harness: NÃO é falta de Enter
+`local_93bf776b-…` "DeepSeek Harness installation": Remote Control "on", parada desde 29/10 21:36Z porque a
+resposta dela (com o adendo dsh-harness já entregue a meio do turno) foi travada pelo filtro de segurança da
+Anthropic ("stopped by a safety classifier … do not produce that content again"). Não a forcei a retomar (seria
+contornar a guarda sem saber o que foi travado). e2e 5358 (corrige o 5326, que dizia "à espera do Enter").
+WhatsApp ao Danilo (lembretes_danilo 21). Decisão da Claude.ai/Danilo: rever o adendo e só depois retomar.
+
+## ADENDO 9 — check-in: calendário de 30 dias + escada de prémios (Danilo 29/10 22:20) — FEITO, publicado 30/10 (58eb26f8)
+Feito: servidor (a0cb6c32), app+painel (0802425f), prova emulador 7/7 (296ed9bc), testes 2400/2400, e2e 5331/5336.
 Estado 29/10 ~22:50 (a sessão nova não abriu: por Remote Control só se abre sessão a partir de mensagem escrita
 no PC). FEITO: servidor aplicado e lido de volta (migração 20261029233000_checkin_escada_premios, commit a0cb6c32;
 tabela checkin_escada, checkin_escada_ativa=true, checkin_escada_texto, RPCs client_checkin_escada_levantar /

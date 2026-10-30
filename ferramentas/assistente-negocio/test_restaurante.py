@@ -9,6 +9,7 @@ import copy
 import datetime as dt
 import json
 import os
+import re
 import sys
 import time
 import unittest
@@ -252,13 +253,14 @@ class Guiao:
     """Modelo falso: devolve as mensagens do guiao por ordem. Sem ferramentas pedidas = classificador."""
 
     def __init__(self):
-        self.passos, self.chamadas = [], 0
+        self.passos, self.chamadas, self.sistema = [], 0, None
 
     def __call__(self, cadeia, mensagens, ferramentas=None, pode_pago=True):
         meta = {"motor": "falso:guiao", "custo_eur": 0.0, "tokens_in": 1, "tokens_out": 1}
         if ferramentas is None:
             return {"content": '{"tipo":"negocio"}'}, meta
         self.chamadas += 1
+        self.sistema = mensagens[0]["content"]  # o prompt que o motor viu (para os testes do carrinho antigo)
         if not self.passos:
             return {"content": "ok"}, meta
         p = self.passos.pop(0)
@@ -967,6 +969,372 @@ class TestOutros(Base):
         finally:
             db.ler = self.f.ler
         self.assertEqual((r["ok"], r["erro"]), (False, "interno"))
+
+
+# ============================================================================= 30/10/2026: mensagens 333 a 338
+def com_bebidas(f):
+    """Vinhos, cervejas, sidras, sobremesas, entradas e agua como os da Boom (nomes e sort_order reais; metidos na base
+    fora de ordem de proposito, para provar que a lista sai pela ordem do sort_order)."""
+    linhas = [  # (id, nome, preco, categoria, sort_order)
+        ("v-incantum-meia", "Incantum Tinto Douro Meia Garrafa 375ml", 6.88, "Vinhos", 60),
+        ("v-caiado-t", "Caiado Tinto", 11.20, "Vinhos", 61),
+        ("v-mayor-res-t", "Adega Mayor Reserva Tinto", 19.25, "Vinhos", 63),
+        ("v-caiado-b", "Caiado Branco", 11.20, "Vinhos", 69),
+        ("v-mayor-arinto", "Adega Mayor Arinto Branco", 21.00, "Vinhos", 72),
+        ("v-caiado-r", "Caiado Rosé", 11.20, "Vinhos", 75),
+        ("v-mayor-tn-r", "Adega Mayor Touriga Nacional Rosé", 21.00, "Vinhos", 76),
+        ("c-bandida", "Bandida Pomar Maçã Sidra", 3.03, "Cervejas e sidras", 31),
+        ("c-super", "Super Bock 0,33 L", 2.22, "Cervejas e sidras", 42),
+        ("c-letra-a", "Cerveja Letra A 33cl", 3.85, "Cervejas e sidras", 46),
+        ("s-cheesecake", "Cheesecake de frutos vermelhos", 7.12, "Sobremesas", 24),
+        ("e-asas", "Asas de frango com molho BBQ", 9.10, "Entradas", 14),
+        ("b-agua", "Água 0,33 L", 1.40, "Bebidas", 44),
+    ]
+    for pid, nome, preco, cat, ordem in reversed(linhas):
+        f.t["products"].append({"id": pid, "name": nome, "price": preco, "category": cat, "description": "", "allergens": [],
+                                "is_available": True, "esgotado_ate": None, "sort_order": ordem, "restaurant_id": "boom-burger-guarda"})
+
+
+def ev_de(numero, texto):
+    return {"sessao": SESSAO, "numero": numero, "texto": texto, "msg_id": "m" + str(time.time())}
+
+
+class TestListasPorCategoria(Base):
+    """(a) 'Quero vinho' saiu com 3 vinhos do motor. Agora: lista completa da base, sem motor."""
+
+    def setUp(self):
+        super().setUp()
+        com_bebidas(self.f)
+
+    def da_base(self, categoria):
+        ps = [p for p in self.f.t["products"] if p["category"] == categoria]
+        return sorted(ps, key=lambda p: p["sort_order"])
+
+    def test_quero_vinho_lista_completa_agrupada_por_cor(self):
+        txt = R.resposta_rapida(self.t, {}, "Quero vinho")
+        vinhos = self.da_base("Vinhos")
+        for p in vinhos:
+            self.assertIn(f"• {p['name']} — {R.euros(p['price'])}", txt)
+        self.assertEqual(txt.count("• "), len(vinhos))
+        pos = [txt.index(x) for x in ("*Tintos*", "Incantum Tinto Douro Meia", "Caiado Tinto", "Adega Mayor Reserva Tinto",
+                                      "*Brancos*", "Caiado Branco", "Adega Mayor Arinto Branco", "*Rosés*", "Caiado Rosé")]
+        self.assertEqual(pos, sorted(pos))  # grupos Tintos > Brancos > Roses e, dentro, a ordem do sort_order
+        self.assertTrue(txt.endswith("Qual quer e quantos? (só para maiores de 18)"), txt)
+        self.assertNotIn("**", txt)
+        print("\n--- Quero vinho ---\n" + txt)
+
+    def test_pelo_atender_sem_motor(self):
+        r = A.atender(ev_de(DANILO, "Quero vinho"))
+        self.assertEqual(r["acao"], "resposta-rapida")
+        self.assertEqual(self.guiao.chamadas, 0)
+        saida = [m for m in self.f.t["assistant_messages"] if m["direcao"] == "saida"][-1]["texto"]
+        self.assertEqual(saida.count("• "), 7)
+
+    def test_cervejas_sobremesas_bebidas_plural_sem_acento(self):
+        cerv = R.resposta_rapida(self.t, {}, "que cervejas têm")
+        for p in self.da_base("Cervejas e sidras"):
+            self.assertIn(f"• {p['name']} — {R.euros(p['price'])}", cerv)
+        self.assertIn("(só para maiores de 18)", cerv)
+        self.assertNotIn("Caiado", cerv)
+        self.assertLess(cerv.index("Bandida"), cerv.index("Super Bock"))
+        doce = R.resposta_rapida(self.t, {}, "Têm sobremesas?")
+        self.assertIn("• Cheesecake de frutos vermelhos — 7,12 €", doce)
+        self.assertNotIn("maiores de 18", doce)
+        agua = R.resposta_rapida(self.t, {}, "queria uma agua")
+        self.assertIn("• Água 0,33 L — 1,40 €", agua)
+        self.assertIn("• Coca-Cola — 2,68 €", agua)  # a agua esta na categoria Bebidas: vai a categoria toda
+        self.assertIn("• Asas de frango com molho BBQ — 9,10 €", R.resposta_rapida(self.t, {}, "Quais são as entradas?"))
+        self.assertIn("Bandida", R.resposta_rapida(self.t, {}, "Têm sidra?"))
+        print("\n--- que cervejas têm ---\n" + cerv)
+
+    def test_vinho_tinto_so_os_tintos(self):
+        txt = R.resposta_rapida(self.t, {}, "Queria um vinho tinto")
+        self.assertIn("Caiado Tinto", txt)
+        self.assertNotIn("Caiado Branco", txt)
+        self.assertNotIn("Rosé", txt)
+
+    def test_produto_concreto_ou_outra_coisa_vai_para_o_motor(self):
+        for x in ("Quero um Caiado Tinto", "quero uma super bock", "Onde é a entrada?", "Quero um Boom! Clássico e uma bebida",
+                  "Posso reservar mesa?", "Boa noite"):
+            self.assertIsNone(R.lista_categoria(self.t, x), x)
+
+    def test_prompt_diz_que_o_limite_de_6_nao_vale_para_listas_pedidas(self):
+        p = R.prompt_restaurante(self.t, {"numero": DANILO})
+        self.assertIn("o limite de 6 não vale para listas pedidas", p)
+        self.assertIn("nunca ** nem #", p)
+
+
+MOTOR_COM_MARKDOWN = ("Temos várias opções de vinho. Prefere tinto, branco ou rosé?\n\nAqui estão algumas das nossas opções:\n"
+                      "*   **Caiado** (Tinto, Branco ou Rosé) — 11,20 €\n*   **Adega Mayor Reserva** (Tinto ou Branco) — 19,25 €\n"
+                      "  - Incantum — 12,60 €\n## Vinhos da casa\n***Boa escolha!*** Diga-me qual prefere.")
+
+
+class TestFormato(Base):
+    """(b) Mensagem 338: '*   **Caiado**' (markdown que o WhatsApp nao mostra). Limpa-se no ponto de saida (enfileirar)."""
+
+    def test_limpar_formato(self):
+        s = A.limpar_formato(MOTOR_COM_MARKDOWN)
+        self.assertNotIn("**", s)
+        self.assertNotIn("#", s)
+        self.assertNotRegex(s, r"(?m)^\s*[*-]\s")
+        self.assertIn("• *Caiado* (Tinto, Branco ou Rosé) — 11,20 €", s)
+        self.assertIn("• *Adega Mayor Reserva* (Tinto ou Branco) — 19,25 €", s)
+        self.assertIn("• Incantum — 12,60 €", s)
+        self.assertIn("\nVinhos da casa\n", s)
+        self.assertIn("*Boa escolha!* Diga-me qual prefere.", s)
+
+        def so_letras(x):
+            return re.sub(r"[*#•\s-]", "", x)
+        self.assertEqual(so_letras(s), so_letras(MOTOR_COM_MARKDOWN))  # nada cortado
+        print("\n--- texto do motor ---\n" + MOTOR_COM_MARKDOWN + "\n--- sai assim ---\n" + s)
+
+    def test_texto_sem_markdown_fica_igual(self):
+        for x in ("Resumo do pedido:\n• 1x Boom! Clássico — 11,55 €\nTotal: 11,55 €\nConfirma a encomenda?",
+                  "*Tintos*\n• Caiado Tinto — 11,20 €", "Pedido #ABC123 feito! A Boom! Burger já o recebeu.", "2 - 1 = 1", ""):
+            self.assertEqual(A.limpar_formato(x), x)
+
+    def test_enfileirar_grava_o_texto_limpo(self):
+        A.enfileirar(self.t, DANILO, MOTOR_COM_MARKDOWN, "resposta", simulado=True)
+        m = self.f.t["assistant_messages"][-1]
+        self.assertNotIn("**", m["texto"])
+        self.assertIn("• *Caiado*", m["texto"])
+        self.assertEqual(m["entrega_estado"], "simulado")
+
+    def test_resposta_do_motor_sai_limpa_pelo_atender(self):
+        self.guiao.passos = [MOTOR_COM_MARKDOWN]
+        A.atender(ev_de(DANILO, "Boa noite, que me aconselha?"))
+        saida = [m for m in self.f.t["assistant_messages"] if m["direcao"] == "saida"][-1]["texto"]
+        self.assertNotIn("**", saida)
+        self.assertNotRegex(saida, r"(?m)^\s*[*-]\s")
+
+
+class TestReservas(Base):
+    """(c) Mensagens 333-335: reserva foi para passar_ao_dono ('isso e com a loja'). Agora: pedir_reserva."""
+
+    def setUp(self):
+        super().setUp()
+        self.dia = A.agora().date() + dt.timedelta(days=3)
+
+    def diz(self, texto):
+        _DORMIR(0.02)
+        return A.atender(ev_de(DANILO, texto))
+
+    def tarefas_reserva(self):
+        return [k for k in self.f.t["assistant_tasks"] if (k.get("payload") or {}).get("reserva")]
+
+    def a_loja(self):
+        return [m for m in self.f.t["assistant_messages"] if m["direcao"] == "saida" and m["numero"] == DANILO
+                and str(m.get("motivo") or "").startswith(("pergunta_dono:", "dono_ack", "reserva_dono", "pergunta_dono_lembrete"))]
+
+    def pedir_tudo(self, pessoas=2, hora="20h", nome="Rui"):
+        r = self.diz(f"Queria reservar mesa para {pessoas} pessoas no dia {self.dia:%d/%m} às {hora} em nome de {nome}")
+        self.assertEqual(r["acao"], "reserva-em-codigo")
+        self.assertIn(R.MSG_RESERVA_PEDIDA, r["respostas"][0])
+        return self.tarefas_reserva()[-1]
+
+    def test_conversa_inteira_uma_pergunta_de_cada_vez_e_confirmacao_da_loja(self):
+        passos = [("Posso reservar mesa por aqui?", "Claro! Para quantas pessoas é a mesa?"),
+                  ("Somos 4", "Para que dia?"),
+                  (f"{self.dia:%d/%m}", "A que horas?"),
+                  ("às 20h", "Em que nome fica a reserva?")]
+        for cliente, robo in passos:
+            r = self.diz(cliente)
+            self.assertEqual((r["acao"], r["respostas"][0]), ("reserva-em-codigo", robo))
+            print(f"cliente> {cliente}\nrobo   < {r['respostas'][0]}")
+        r = self.diz("Ana")
+        print(f"cliente> Ana\nrobo   < {r['respostas'][0]}")
+        quando = R.dia_cliente(self.dia)
+        self.assertEqual(r["respostas"][0], f"Pedido de reserva: 4 pessoas, {quando} às 20:00, em nome de Ana. {R.MSG_RESERVA_PEDIDA}")
+        self.assertEqual(self.guiao.chamadas, 0)  # nada disto precisou de motor
+        self.assertEqual([m for m in self.f.t["assistant_messages"] if m.get("motivo") == "passar_dono"], [])
+        tk = self.tarefas_reserva()[-1]
+        self.assertEqual(tk["tipo"], "pergunta_dono")
+        self.assertRegex(tk["codigo"], r"^R\d{3}$")
+        self.assertEqual(tk["payload"]["reserva"], {"pessoas": 4, "dia": self.dia.isoformat(), "hora": "20:00", "nome": "Ana",
+                                                    "estado": "pedida"})
+        prazo = (A.hora_local(tk["prazo"]) - A.agora()).total_seconds() / 60
+        self.assertTrue(14 < prazo <= 15, prazo)
+        loja = [m for m in self.a_loja() if m["motivo"] == f"pergunta_dono:{tk['id']}"]
+        self.assertEqual(len(loja), 1)
+        self.assertIn(tk["codigo"], loja[0]["texto"])
+        self.assertIn("4 pessoas", loja[0]["texto"])
+        print("loja   < " + loja[0]["texto"].replace("\n", "\n         "))
+        # a loja responde "R123 sim" (em teste o dono_destino e o numero de teste)
+        r = self.diz(f"{tk['codigo']} sim")
+        print(f"loja  > {tk['codigo']} sim\nrobo   < {r['respostas'][0]}")
+        self.assertEqual(r["acao"], "reserva-confirmada")
+        self.assertEqual(r["respostas"][0], f"A sua mesa para 4 pessoas, {quando} às 20:00, está confirmada. Em nome de Ana.")
+        self.assertEqual(self.tarefas_reserva()[-1]["estado"], "cumprida")
+        self.assertEqual(self.t["knowledge"]["perguntas_aprendidas"], [])
+        self.assertEqual(self.f.t["assistant_tenants"][0]["knowledge"]["perguntas_aprendidas"], [])
+        self.assertIsNone(self.f.t["assistant_contacts"][0]["a_espera_de"])
+
+    def test_loja_propoe_outra_hora_e_o_cliente_aceita(self):
+        tk = self.pedir_tudo()
+        r = self.diz(f"{tk['codigo']} só às 21:30")
+        self.assertEqual(r["acao"], "reserva-outra-hora-proposta")
+        self.assertIn("não tem mesa às 20:00, mas tem às 21:30", r["respostas"][0])
+        self.assertTrue(r["respostas"][0].endswith("Pode ser às 21:30?"))
+        r = self.diz("Sim, pode ser")
+        self.assertEqual(r["respostas"][0], f"A sua mesa para 2 pessoas, {R.dia_cliente(self.dia)} às 21:30, está confirmada. Em nome de Rui.")
+        self.assertIn(f"{tk['codigo']}: o cliente aceitou as 21:30", self.a_loja()[-1]["texto"])
+        self.assertIsNone(self.f.t["assistant_contacts"][0]["a_espera_de"])
+
+    def test_loja_diz_que_nao_ha_mesa_e_o_cliente_tenta_outra_hora(self):
+        tk = self.pedir_tudo()
+        r = self.diz(f"{tk['codigo']} não, estamos cheios")
+        self.assertEqual(r["acao"], "reserva-sem-mesa")
+        self.assertIn("não tem mesa para", r["respostas"][0])
+        self.assertIn("«não, estamos cheios»", r["respostas"][0])
+        r = self.diz("Então às 22h")
+        novo = self.tarefas_reserva()[-1]
+        self.assertNotEqual(novo["id"], tk["id"])
+        self.assertEqual(novo["payload"]["reserva"]["hora"], "22:00")
+        self.assertEqual(novo["payload"]["reserva"]["pessoas"], 2)
+        self.assertIn(R.MSG_RESERVA_PEDIDA, r["respostas"][0])
+
+    def test_reservas_abertas_na_app_da_o_link(self):
+        self.f.t["restaurants"][0].update(reservations_enabled=True, coming_soon=False)
+        r = self.diz("Posso reservar mesa por aqui?")
+        self.assertIn("«Reservar mesa»", r["respostas"][0])
+        self.assertIn("https://www.boraguarda.com/baixar?de=whatsapp-boom", r["respostas"][0])
+        self.assertEqual(self.tarefas_reserva(), [])
+
+    def test_app_em_breve_fora_da_janela_ainda_trata_da_reserva(self):
+        self.f.t["restaurants"][0]["coming_soon"] = True
+        janela_demo(self.f, ativa=False)
+        r = self.diz("Posso reservar mesa por aqui?")
+        self.assertEqual(r["acao"], "reserva-em-codigo")
+        r = self.diz("4")
+        self.assertEqual(r["respostas"][0], "Para que dia?")
+        # a meio da reserva, outra conversa nao leva o "abre em breve" (vai ao motor, que tem a ferramenta da reserva)
+        self.assertNotEqual(self.diz("Boa tarde, queria fazer uma encomenda")["acao"], "loja-abre-em-breve")
+
+    def test_motor_que_chama_passar_ao_dono_e_desviado_para_a_reserva(self):
+        self.guiao.passos = [[("passar_ao_dono", {"motivo": "pedido de reserva de mesa"})], "Isso é com a loja, já passei o seu pedido."]
+        r = self.diz("Dá para marcar um jantar de grupo?")
+        self.assertEqual(r["respostas"][0], "Claro! Para quantas pessoas é a mesa?")
+        self.assertEqual([m for m in self.f.t["assistant_messages"] if m.get("motivo") == "passar_dono"], [])
+        self.assertEqual(R.reserva_de(self.f.t["assistant_contacts"][0])["estado"], "a_recolher")
+
+    def test_motor_que_chama_perguntar_ao_dono_com_a_reserva_toda(self):
+        pergunta = f"Reserva de mesa: 4 pessoas, {A.DIAS[self.dia.weekday()]} {self.dia:%d/%m} às 20:00, em nome de Ana"
+        r = self.turno("então é isso").executar("perguntar_ao_dono", {"pergunta": pergunta})
+        self.assertRegex(r["codigo"], r"^R\d{3}$")
+        self.assertEqual(self.tarefas_reserva()[-1]["payload"]["reserva"],
+                         {"pessoas": 4, "dia": self.dia.isoformat(), "hora": "20:00", "nome": "Ana", "estado": "pedida"})
+        self.assertFalse(any((k.get("codigo") or "").startswith("P") for k in self.f.t["assistant_tasks"]))
+
+    def test_lembrete_a_loja_aos_15_min(self):
+        import rotinas
+        tk = self.pedir_tudo()
+        rotinas.vigia_perguntas(self.t, A.agora() + dt.timedelta(minutes=10))
+        self.assertFalse(any(str(m.get("motivo")).startswith("pergunta_dono_lembrete") for m in self.f.t["assistant_messages"]))
+        rotinas.vigia_perguntas(self.t, A.agora() + dt.timedelta(minutes=16))
+        lembrete = [m for m in self.f.t["assistant_messages"] if m.get("motivo") == f"pergunta_dono_lembrete:{tk['id']}"]
+        self.assertEqual(len(lembrete), 1)
+        self.assertIn(f"reserva {tk['codigo']}", lembrete[0]["texto"])
+
+    def test_desistir_a_meio(self):
+        self.diz("Posso reservar uma mesa?")
+        r = self.diz("Afinal esquece")
+        self.assertIn("fica sem reserva", r["respostas"][0])
+        self.assertIsNone(self.f.t["assistant_contacts"][0]["a_espera_de"])
+
+    def test_pergunta_normal_continua_a_aprender_e_reserva_nao(self):
+        r = self.turno("têm estacionamento?").executar("perguntar_ao_dono", {"pergunta": "Têm estacionamento?"})
+        self.assertRegex(r["codigo"], r"^P\d{3}$")
+        self.diz(f"{r['codigo']} Sim, à porta")
+        self.assertEqual(len(self.f.t["assistant_tenants"][0]["knowledge"]["perguntas_aprendidas"]), 1)
+        tk = self.pedir_tudo()
+        self.diz(f"{tk['codigo']} ok")
+        self.assertEqual(len(self.f.t["assistant_tenants"][0]["knowledge"]["perguntas_aprendidas"]), 1)
+
+    def test_ler_o_que_o_cliente_escreve(self):
+        sexta = dt.date(2026, 10, 30)
+        for txt, d in (("sábado", "2026-10-31"), ("amanhã", "2026-10-31"), ("dia 2", "2026-11-02"), ("01/11", "2026-11-01"),
+                       ("2026-11-05", "2026-11-05"), ("domingo", "2026-11-01"), ("sexta", "2026-10-30"), ("próxima sexta", "2026-11-06")):
+            self.assertEqual(R.ler_dia(txt, sexta).isoformat(), d, txt)
+        for txt, h in (("20h", "20:00"), ("às 8 da noite", "20:00"), ("20:30", "20:30"), ("20h30", "20:30"), ("às 9", "21:00"),
+                       ("às 10 da manhã", "10:00"), ("meio-dia", "12:00")):
+            self.assertEqual(R.ler_hora(txt), h, txt)
+        self.assertEqual(R.ler_hora("20", solto=True), "20:00")
+        self.assertIsNone(R.ler_hora("4 pessoas", solto=True))
+        for txt, n in (("Somos 4", 4), ("para quatro pessoas", 4), ("2 adultos e 2 crianças", 4)):
+            self.assertEqual(R.ler_pessoas(txt), n, txt)
+        self.assertIsNone(R.ler_pessoas("Queria reservar para uma mesa"))
+        self.assertEqual(R.ler_pessoas("4", solto=True), 4)
+        self.assertIsNone(R.ler_pessoas("sábado às 20h", solto=True))
+        self.assertEqual(R.ler_nome("Ana", solto=True), "Ana")
+        self.assertEqual(R.ler_nome("em nome de Ana Silva"), "Ana Silva")
+        self.assertEqual(R.ler_nome("o meu nome é rui"), "Rui")
+        for txt in ("sábado", "sim", "Somos 4", "Pode ser", "ok obrigado"):
+            self.assertIsNone(R.ler_nome(txt, solto=True), txt)
+
+
+class TestCarrinhoVelho(Base):
+    """(d) Mensagem 335: as 22:35 o robo retomou o carrinho das 19:31 (pediu a morada para o Kamikaze)."""
+
+    def carrinho_antigo(self, horas=3):
+        self.turno("quero um kamikaze").executar("adicionar_ao_pedido", {"produto": "Kamikaze"})
+        k = self.f.t["assistant_tasks"][-1]
+        antes = (A.agora() - dt.timedelta(hours=horas)).isoformat()
+        k["created_at"] = antes
+        k["payload"]["mexido_em"] = antes
+        A.contacto(self.t, DANILO)
+        self.f.t["assistant_contacts"][0]["historico"] = [{"r": "user", "t": "Só isso", "ts": antes},
+                                                          {"r": "assistant", "t": "Qual é a morada de entrega?", "ts": antes}]
+        return k
+
+    def diz(self, texto):
+        _DORMIR(0.02)
+        return A.atender(ev_de(DANILO, texto))
+
+    def test_reserva_depois_de_3_h_nao_retoma_o_carrinho(self):
+        k = self.carrinho_antigo()
+        r = self.diz("Posso reserva mesa por aqui?")
+        self.assertEqual(r["respostas"][0], "Claro! Para quantas pessoas é a mesa?")
+        self.assertTrue(k["payload"].get("suspenso"))
+        self.assertIsNone(R.carrinho(self.t, DANILO))
+
+    def test_motor_nao_ve_o_carrinho_e_o_cliente_e_perguntado(self):
+        self.carrinho_antigo()
+        self.guiao.passos = ["Boa noite! Em que posso ajudar?"]
+        r = self.diz("Boa noite")
+        self.assertIn("Pedido em curso: nenhum.", self.guiao.sistema)
+        self.assertEqual(r["respostas"][0], "Boa noite! Em que posso ajudar?\n\nAinda quer o Boom! Kamikaze de há pouco?")
+        r = self.diz("Sim")
+        self.assertEqual(r["acao"], "carrinho-antigo")
+        self.assertEqual(r["respostas"][0], "Está bem, o Boom! Kamikaze continua no seu pedido. Mais alguma coisa?")
+        k = R.carrinho(self.t, DANILO)
+        self.assertEqual([l["nome"] for l in k["payload"]["itens"]], ["Boom! Kamikaze"])
+
+    def test_cliente_ja_nao_quer(self):
+        k = self.carrinho_antigo()
+        self.guiao.passos = ["Boa noite!"]
+        self.diz("Boa noite")
+        r = self.diz("Não, obrigado")
+        self.assertIn("fica sem efeito", r["respostas"][0])
+        self.assertEqual(k["estado"], "cancelada")
+        self.assertIsNone(R.carrinho(self.t, DANILO))
+
+    def test_pergunta_espera_pelo_fim_da_reserva_e_vai_na_resposta_seguinte(self):
+        self.carrinho_antigo()
+        r = self.diz("Posso reservar mesa?")
+        self.assertNotIn("de há pouco", r["respostas"][0])
+        com_bebidas(self.f)
+        r = self.diz("Quero vinho")  # a meio da reserva, mas nao responde a pergunta: lista dos vinhos + a pergunta do carrinho
+        self.assertEqual(r["acao"].split(" ")[0], "resposta-rapida")
+        self.assertIn("• Caiado Tinto — 11,20 €", r["respostas"][0])
+        self.assertTrue(r["respostas"][0].endswith("Ainda quer o Boom! Kamikaze de há pouco?"))
+
+    def test_carrinho_recente_continua_como_estava(self):
+        k = self.carrinho_antigo(horas=1)
+        self.guiao.passos = ["Boa noite!"]
+        r = self.diz("Boa noite")
+        self.assertNotIn("de há pouco", r["respostas"][0])
+        self.assertIn("Pedido em curso: 1. 1x Boom! Kamikaze", self.guiao.sistema)
+        self.assertFalse(k["payload"].get("suspenso"))
 
 
 if __name__ == "__main__":

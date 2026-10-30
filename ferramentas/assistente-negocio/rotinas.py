@@ -115,14 +115,20 @@ def reativacao(t, agora):
 def vigia_perguntas(t, agora):
     for k in db.ler("assistant_tasks", f"tenant_id=eq.{t['id']}&tipo=eq.pergunta_dono&estado=eq.aberta&prazo=lt.{db.q(A.iso(agora))}"):
         sim = bool(k.get("simulado"))
+        # reserva de mesa (restaurante.pedir_reserva): o prazo do 1.o lembrete e de 15 min e o texto fala da reserva
+        reserva = bool((k.get("payload") or {}).get("reserva"))
+        cod = k["codigo"]
         if k["tentativas"] == 0:
-            A.enfileirar(t, A.so_digitos(t["dono_destino"]),
-                         f"⏰ Ainda à espera da tua resposta ({k['codigo']}): «{k['pergunta']}». Responde a citar a pergunta ou com {k['codigo']} e a resposta.",
-                         f"pergunta_dono_lembrete:{k['id']}", sim)
+            txt = (f"⏰ Ainda à espera da tua resposta à reserva {cod}: «{k['pergunta']}». Responde a citar o pedido, ou com "
+                   f"{cod} sim, {cod} e outra hora, ou {cod} não." if reserva else
+                   f"⏰ Ainda à espera da tua resposta ({cod}): «{k['pergunta']}». Responde a citar a pergunta ou com {cod} e a resposta.")
+            A.enfileirar(t, A.so_digitos(t["dono_destino"]), txt, f"pergunta_dono_lembrete:{k['id']}", sim)
             db.atualizar("assistant_tasks", f"id=eq.{k['id']}", {"tentativas": 1, "prazo": A.iso(agora + dt.timedelta(minutes=60))})
         elif k["tentativas"] == 1:
             tel = (t.get("knowledge") or {}).get("ficha", {}).get("telefone", "")
-            A.enfileirar(t, k["numero"], f"Ainda não tive resposta de {A.dono_nome(t)} à sua pergunta. Assim que tiver, digo-lhe."
+            A.enfileirar(t, k["numero"], ("Ainda não tive resposta do restaurante sobre a sua reserva. Assim que tiver, digo-lhe."
+                                          if reserva else
+                                          f"Ainda não tive resposta de {A.dono_nome(t)} à sua pergunta. Assim que tiver, digo-lhe.")
                                          + (f" Se for urgente, pode ligar para {tel}." if tel else ""),
                          f"pergunta_dono_ponto:{k['id']}", sim)
             db.atualizar("assistant_tasks", f"id=eq.{k['id']}", {"tentativas": 2, "prazo": A.iso(agora + dt.timedelta(hours=12))})

@@ -21,6 +21,7 @@ import hashlib
 import json
 import os
 import re
+import secrets
 from decimal import ROUND_HALF_UP, Decimal
 
 import assistente as A
@@ -183,8 +184,13 @@ def estado_loja(t, uid=None):
     return {"pode": True, "loja": L, "aberta": ab}
 
 
-def resposta_fora_da_janela(t, numero):
-    """Loja ainda 'abre em breve' (coming_soon) e fora da janela demo: resposta fixa, sem motor."""
+def resposta_fora_da_janela(t, numero, texto=None, ct=None):
+    """Loja ainda 'abre em breve' (coming_soon) e fora da janela demo: resposta fixa, sem motor.
+    Reservas de mesa nao: tratam-se com o restaurante mesmo com a app em 'abre em breve' (30/10)."""
+    if texto is not None:
+        res = reserva_de(ct) or {}
+        if RESERVA_RE.search(A.sem_acentos(texto)) or res.get("estado") in ("a_recolher", "proposta"):
+            return None
     e = estado_loja(t, conta_do_cliente(t, numero))
     if e.get("motivo") == "em_breve":
         return (f"Olá! A {t['nome']} abre em breve na Bora. Assim que abrir, pode fazer a sua encomenda aqui "
@@ -220,8 +226,87 @@ def menu_texto(t, so_hamburgueres=False):
     return "\n".join(linhas).strip()
 
 
+# 30/10/2026: "Quero vinho" foi ao motor (PEDIDO_RE apanha "quero") e o prompt dizia "no maximo 6 produtos": sairam 3,
+# com markdown. Mensagem curta que nomeia uma CATEGORIA e nenhum produto: lista COMPLETA dessa categoria, da base, sem motor.
+CATEGORIAS = (  # (palavras do cliente, sem acentos; categoria da base, em norm())
+    (r"vinhos?", r"vinho"),
+    (r"cervejas?", r"cervej"),
+    (r"sidras?", r"sidra"),
+    (r"bebidas?|refrigerantes?|aguas?", r"^bebida|refrigerante|^agua"),
+    (r"sobremesas?", r"sobremesa"),
+    (r"entradas?", r"^entrada"),
+)
+ALCOOL_RE = re.compile(r"vinho|cervej|sidra|espumante|licor|whisk")
+CORES_VINHO = (("Tintos", r"\btinto"), ("Brancos", r"\bbranco"), ("Rosés", r"\brose"))
+NAO_E_LISTA_RE = re.compile(r"\b(onde|porta|morada|fica|reserv\w*|mesa)\b")  # "onde e a entrada?" nao e o menu
+# palavras dos nomes dos produtos que NAO identificam um produto (categoria, cor, tamanho)
+_GENERICAS = {"boom", "vinho", "vinhos", "cerveja", "cervejas", "sidra", "sidras", "agua", "aguas", "bebida", "bebidas",
+              "refrigerante", "refrigerantes", "sobremesa", "sobremesas", "entrada", "entradas", "tinto", "tintos", "branco",
+              "brancos", "rose", "roses", "meia", "garrafa", "dose", "alcool"}
+
+
+def _palavras_de_produtos(prods):
+    out = set()
+    for p in prods:
+        for w in norm(p["name"]).split():
+            if len(w) >= 4 and w not in _GENERICAS and not re.match(r"\d", w):
+                out.add(w)
+    return out
+
+
+def _grupos_vinho(ps, tx):
+    """Vinhos em Tintos / Brancos / Roses (pela palavra no nome); se o cliente disse a cor, so essa."""
+    grupos = [(nome, [p for p in ps if re.search(rx, norm(p["name"]))]) for nome, rx in CORES_VINHO]
+    resto = [p for p in ps if not any(re.search(rx, norm(p["name"])) for _, rx in CORES_VINHO)]
+    grupos = [(n, lst) for n, lst in grupos if lst]
+    if not grupos:
+        return [(None, ps)]
+    if resto:
+        grupos.append(("Outros", resto))
+    pedidas = [(n, lst) for n, lst in grupos if re.search(dict(CORES_VINHO).get(n, r"$^"), tx)]
+    return pedidas or grupos
+
+
+def lista_categoria(t, texto):
+    """-> texto com a lista completa da(s) categoria(s) pedida(s), ou None (segue para o motor)."""
+    tx = A.sem_acentos(texto or "")
+    if len(tx) > 80 or len(tx.split()) > 10 or NAO_E_LISTA_RE.search(tx):
+        return None
+    pedidas = [rx_base for rx_cli, rx_base in CATEGORIAS if re.search(rf"\b({rx_cli})\b", tx)]
+    if not pedidas:
+        return None
+    prods = produtos(t)
+    nomes = _palavras_de_produtos(prods)
+    if any(w in nomes or (w.endswith("s") and w[:-1] in nomes) for w in norm(tx).split()):
+        return None  # nomeou um produto concreto: e encomenda, vai para o motor
+    cats = []
+    for p in prods:
+        c = p.get("category") or ""
+        if c and c not in cats and any(re.search(rx, norm(c)) for rx in pedidas):
+            cats.append(c)
+    if not cats:
+        return None
+    corpo = []
+    for c in cats:
+        ps = [p for p in prods if (p.get("category") or "") == c]  # produtos() ja vem por sort_order
+        if len(cats) > 1:
+            corpo.append(f"*{c}*")
+        grupos = _grupos_vinho(ps, tx) if re.search(r"vinho", norm(c)) else [(None, ps)]
+        for nome_g, lst in grupos:
+            if nome_g:
+                corpo.append(f"*{nome_g}*")
+            corpo += [f"• {p['name']} — {euros(p['price'])}" for p in lst]
+            corpo.append("")
+    cabeca = f"Aqui está a nossa lista de {cats[0].lower()}:" if len(cats) == 1 else "Aqui está a nossa lista:"
+    fim = "Qual quer e quantos?" + (" (só para maiores de 18)" if any(ALCOOL_RE.search(norm(c)) for c in cats) else "")
+    return cabeca + "\n\n" + "\n".join(corpo).strip() + "\n\n" + fim
+
+
 def resposta_rapida(t, ct, texto):
     """Menu/lista/precos pedidos de forma simples -> texto pronto, da base. None = segue para o motor."""
+    lista = lista_categoria(t, texto)
+    if lista:
+        return lista
     tx = A.sem_acentos(texto or "")
     if len(tx) > 120 or not MENU_RE.search(tx) or PEDIDO_RE.search(tx):
         return None
@@ -426,8 +511,11 @@ def _tarefas_pedido(t, numero):
 
 
 def carrinho(t, numero, criar=False, simulado=False):
+    """O carrinho em curso. Um carrinho SUSPENSO (parado ha mais de 2 h, ver carrinho_velho) nao conta ate o cliente
+    dizer que ainda o quer."""
     for k in _tarefas_pedido(t, numero):
-        if (k.get("payload") or {}).get("fase") == "carrinho":
+        pl = k.get("payload") or {}
+        if pl.get("fase") == "carrinho" and not pl.get("suspenso"):
             return k
     if not criar:
         return None
@@ -435,9 +523,29 @@ def carrinho(t, numero, criar=False, simulado=False):
                                           "payload": {"fase": "carrinho", "itens": []}, "simulado": simulado})
 
 
+def carrinho_suspenso(t, numero):
+    for k in _tarefas_pedido(t, numero):
+        pl = k.get("payload") or {}
+        if pl.get("fase") == "carrinho" and pl.get("suspenso"):
+            return k
+    return None
+
+
 def gravar(tarefa, payload, **campos):
+    if payload.get("fase") == "carrinho":
+        payload["mexido_em"] = A.iso(A.agora())  # para saber ha quanto tempo o carrinho esta parado
     tarefa["payload"] = payload
     db.atualizar("assistant_tasks", f"id=eq.{tarefa['id']}", dict(campos, payload=payload))
+
+
+# 30/10/2026: as 22:35 o robo retomou um carrinho das 19:31 (pediu a morada para o Kamikaze a quem so perguntava por uma
+# mesa). Carrinho parado ha mais de 2 h: fica suspenso e so volta se o cliente disser que ainda o quer.
+CARRINHO_VELHO_H = 2
+
+
+def pergunta_retoma(k):
+    itens = (k.get("payload") or {}).get("itens") or [{}]
+    return f"Ainda quer o {itens[0].get('nome') or 'pedido'} de há pouco?"
 
 
 def linhas_do_carrinho(payload):
@@ -476,8 +584,13 @@ FERRAMENTAS_R = [
     _f("meu_pedido", "Estado da última encomenda deste cliente."),
     _f("perguntar_ao_dono", "Quando não sabes (e não está na ficha): cria uma pergunta à loja com prazo; a resposta chega ao cliente.",
        {"pergunta": {"type": "string"}}, ["pergunta"]),
-    _f("passar_ao_dono", "Reclamações, problemas com um pedido já feito, descontos, pedidos fora do menu: a loja fala com o cliente.",
+    _f("passar_ao_dono", "Reclamações, problemas com um pedido já feito, descontos, pedidos fora do menu: a loja fala com o cliente. "
+                         "NUNCA para reservas de mesa (essas são pedir_reserva).",
        {"motivo": {"type": "string"}}, ["motivo"]),
+    _f("pedir_reserva", "Reserva de mesa no restaurante. Chama-a logo que o cliente fala em reservar mesa, com o que ele já disse; "
+                        "ela diz o que falta perguntar (uma coisa de cada vez) e pede a mesa à loja. Responde com a mensagem que devolver.", {
+        "pessoas": {"type": "integer"}, "dia": {"type": "string", "description": "AAAA-MM-DD (ou hoje, amanhã, sábado...)"},
+        "hora": {"type": "string", "description": "HH:MM"}, "nome": {"type": "string", "description": "Nome para a reserva"}}),
     _f("guardar_nome", "Guarda o nome SÓ quando a própria pessoa o disse.", {"nome": {"type": "string"}}, ["nome"]),
     _f("guardar_fio", "Guarda o que ficou pendente na conversa. Vazio = nada pendente.", {"a_espera_de": {"type": "string"}}, ["a_espera_de"]),
 ]
@@ -508,6 +621,8 @@ class TurnoRestaurante(A.Turno):
         self._prods = None
         self._juntados = set()   # o que ESTE turno ja juntou (um motor que repete a chamada nao duplica)
         self._antes = None       # linhas que o carrinho ja tinha quando o turno comecou
+        self._retoma = None      # carrinho suspenso cuja pergunta "ainda quer o X?" vai no fim desta resposta
+        self.turno_de_reserva = False
 
     def executar(self, nome, args):
         """Uma ferramenta partida nunca pode deixar o cliente sem resposta (nem rebentar o /evento)."""
@@ -519,8 +634,21 @@ class TurnoRestaurante(A.Turno):
             self.usadas.append({"ferramenta": nome, "args": args, "resultado": r})
             return r
 
+    def _e_reserva(self, txt):
+        tx = A.sem_acentos(txt)
+        return bool(RESERVA_RE.search(tx)) and not re.search(r"reclam|queixa|reembols|dinheiro|pagament|cancel", tx)
+
+    def perguntar_ao_dono(self, pergunta):
+        """Reserva de mesa nao e uma pergunta: vai para pedir_reserva (e nunca para as perguntas_aprendidas)."""
+        if self._e_reserva(pergunta):
+            return dict(self.pedir_reserva(**extrair_reserva(pergunta)), redirecionado_de="perguntar_ao_dono")
+        return super().perguntar_ao_dono(pergunta)
+
     def passar_ao_dono(self, motivo):
-        """Dinheiro, reclamacoes e reembolsos vao para uma pessoa: a loja (WhatsApp) e o Telegram do Danilo."""
+        """Dinheiro, reclamacoes e reembolsos vao para uma pessoa: a loja (WhatsApp) e o Telegram do Danilo.
+        Reservas de mesa NUNCA (30/10, mensagem 334: "isso e com a loja" sem canal): vao para pedir_reserva."""
+        if self._e_reserva(motivo):
+            return dict(self.pedir_reserva(**extrair_reserva(motivo + " \n " + self.texto_cliente)), redirecionado_de="passar_ao_dono")
         r = super().passar_ao_dono(motivo)
         if not self.simular:
             try:
@@ -551,7 +679,11 @@ class TurnoRestaurante(A.Turno):
 
     def ajustar_resposta(self, resposta):
         """Os numeros e o estado que o cliente le sao os do servidor, nunca os que um motor (de reserva) reescreveu.
-        Medido a 29/10: depois do pedido feito, um motor fraco escreveu 'ja esta a caminho'. Chamado por assistente._fechar."""
+        Medido a 29/10: depois do pedido feito, um motor fraco escreveu 'ja esta a caminho'. Chamado por assistente._fechar.
+        No fim, a pergunta sobre um carrinho antigo suspenso (uma vez)."""
+        return self._com_pergunta_retoma(self._texto_do_servidor(resposta))
+
+    def _texto_do_servidor(self, resposta):
         ult = {}
         for u in self.usadas:
             r = u.get("resultado") or {}
@@ -559,6 +691,8 @@ class TurnoRestaurante(A.Turno):
                 ult.pop("orcamento", None)  # o carrinho mexeu depois do resumo: o resumo ja nao vale
             elif u["ferramenta"] in ("orcamento", "confirmar_pedido") and r.get("ok"):
                 ult[u["ferramenta"]] = r
+            if (u["ferramenta"] == "pedir_reserva" or r.get("redirecionado_de")) and r.get("mensagem"):
+                ult["reserva"] = r
         c = ult.get("confirmar_pedido")
         if c and c.get("mensagem") and not c.get("ja_estava_feito"):
             fiel = c["pedido"] in resposta and c["total"] in resposta and not re.search(
@@ -567,7 +701,202 @@ class TurnoRestaurante(A.Turno):
         o = ult.get("orcamento")
         if o and o.get("resumo_texto") and o["resumo_texto"] not in resposta:
             return o["resumo_texto"]
+        rs = ult.get("reserva")
+        if rs:  # reserva: o texto e o do codigo (uma pergunta de cada vez; nunca "confirmada" antes de a loja responder)
+            if rs["mensagem"] in resposta or (rs.get("pergunta") and rs["pergunta"] in resposta and resposta.count("?") == 1):
+                return resposta
+            return rs["mensagem"]
         return resposta
+
+    def _com_pergunta_retoma(self, resposta):
+        k = self._retoma
+        if not k or self.turno_de_reserva:
+            return resposta  # a meio de uma reserva nao se mistura: pergunta-se na resposta seguinte
+        self._retoma = None
+        pl = dict(k.get("payload") or {})
+        pl["retoma_perguntada"] = A.iso(A.agora())
+        gravar(k, pl)
+        q = pergunta_retoma(k)
+        return resposta if q in resposta else resposta.rstrip() + "\n\n" + q
+
+    # --- (d) carrinho antigo
+    def carrinho_velho(self):
+        """Chamado no inicio de cada turno. Carrinho parado ha mais de CARRINHO_VELHO_H horas: fica suspenso (o prompt e as
+        ferramentas deixam de o ver) e esta resposta acaba com 'Ainda quer o X de ha pouco?'."""
+        self._retoma = None
+        for k in _tarefas_pedido(self.t, self.numero):
+            pl = dict(k.get("payload") or {})
+            if pl.get("fase") != "carrinho" or not pl.get("itens"):
+                continue
+            if pl.get("suspenso"):
+                if not pl.get("retoma_perguntada"):
+                    self._retoma = k
+                continue
+            try:
+                parado = A.agora() - A.hora_local(pl.get("mexido_em") or k["created_at"])
+            except (KeyError, ValueError, TypeError):
+                continue
+            if parado > dt.timedelta(hours=CARRINHO_VELHO_H):
+                pl["suspenso"] = A.iso(A.agora())
+                pl.pop("orcamento", None)
+                gravar(k, pl)
+                self._retoma = k
+        return self._retoma
+
+    def resposta_retoma(self, hist=None):
+        """O cliente responde a 'Ainda quer o X de ha pouco?'. sim -> o carrinho volta; nao -> fica sem efeito.
+        Outra coisa -> segue (o carrinho continua suspenso e expira sozinho)."""
+        ult = hist[-1] if hist else None
+        if not ult or ult.get("r") != "assistant" or "de há pouco?" not in (ult.get("t") or ""):
+            return None
+        k = carrinho_suspenso(self.t, self.numero)
+        if not k:
+            return None
+        txt = (self.texto_cliente or "").strip()
+        nome = ((k["payload"].get("itens") or [{}])[0]).get("nome") or "pedido"
+        if re.match(r"^\W*n[aã]o\b", txt, re.I):
+            db.atualizar("assistant_tasks", f"id=eq.{k['id']}", {"estado": "cancelada", "cumprida_em": A.iso(A.agora()),
+                                                                  "resposta": "cliente já não quis o carrinho antigo"})
+            return "Está bem, esse pedido fica sem efeito. Em que mais posso ajudar?"
+        if e_sim_puro(txt) or re.match(r"^\W*(sim|ainda quero|quero sim|claro)\b", A.sem_acentos(txt)):
+            self._retomar(k)
+            if e_sim_puro(txt):
+                return f"Está bem, o {nome} continua no seu pedido. Mais alguma coisa?"
+        return None  # "sim, e junta uma coca": o carrinho ja voltou e o motor trata do resto
+
+    def _retomar(self, k):
+        cur = carrinho(self.t, self.numero)
+        velho = dict(k["payload"])
+        if cur and cur["id"] != k["id"]:  # entretanto comecou outro carrinho: as linhas antigas juntam-se a esse
+            pl = dict(cur.get("payload") or {})
+            pl["itens"] = list(pl.get("itens") or []) + list(velho.get("itens") or [])
+            pl.pop("orcamento", None)
+            gravar(cur, pl)
+            db.atualizar("assistant_tasks", f"id=eq.{k['id']}", {"estado": "cancelada", "cumprida_em": A.iso(A.agora()),
+                                                                  "resposta": "linhas passadas para o carrinho novo"})
+            return
+        for c in ("suspenso", "retoma_perguntada", "orcamento"):
+            velho.pop(c, None)
+        gravar(k, velho)
+
+    # --- (c) reservas de mesa
+    def _gravar_reserva(self, res, o_que=""):
+        v = {"o_que": o_que, "reserva": res} if res else None
+        A.gravar_contacto(self.t, self.numero, {"a_espera_de": v})
+        self.ct["a_espera_de"] = v
+
+    def guardar_fio(self, a_espera_de):
+        """Como o do assistente, mas sem apagar uma reserva a meio (o motor chama guardar_fio a toda a hora)."""
+        res = reserva_de(self.ct)
+        if res and res.get("estado") in ("a_recolher", "pedida", "proposta"):
+            self._gravar_reserva(res, a_espera_de)
+            return {"ok": True}
+        return super().guardar_fio(a_espera_de)
+
+    def reserva_em_codigo(self, hist=None):
+        """Reservas sem esperar por um motor: (1) resposta a uma hora proposta pela loja; (2) reserva a meio: a resposta traz
+        o que faltava; (3) pedido novo ("posso reservar mesa?"). Devolve o texto, ou None (segue para o motor)."""
+        tx = A.sem_acentos(self.texto_cliente)
+        res = reserva_de(self.ct) or {}
+        est = res.get("estado")
+        if est == "proposta":
+            return self._resposta_a_proposta(res, tx)
+        if est == "a_recolher":
+            if DESISTE_RE.search(tx):
+                self._gravar_reserva(None)
+                self.turno_de_reserva = True
+                return "Está bem, fica sem reserva. Se precisar de mais alguma coisa, diga-me."
+            args = extrair_reserva(self.texto_cliente, falta=falta_reserva(res))
+            if not args:
+                return None  # o cliente falou de outra coisa: o motor responde (e tem a ferramenta)
+            return self.executar("pedir_reserva", args).get("mensagem")
+        if INICIO_RESERVA_RE.search(tx) and not OUTRA_COISA_RESERVA_RE.search(tx):
+            return self.executar("pedir_reserva", extrair_reserva(self.texto_cliente)).get("mensagem")
+        return None
+
+    def _resposta_a_proposta(self, res, tx):
+        hp, cod = res.get("hora_proposta"), res.get("codigo")
+        h = ler_hora(self.texto_cliente)
+        if h and h != hp:  # quer outra hora: pedido novo a loja
+            return self.executar("pedir_reserva", dict(extrair_reserva(self.texto_cliente), hora=h)).get("mensagem")
+        if re.match(r"^\W*nao\b", tx):
+            self.turno_de_reserva = True
+            self._gravar_reserva({"estado": "a_recolher", "pessoas": res.get("pessoas"), "dia": res.get("dia"), "nome": res.get("nome")},
+                                 "reserva de mesa a meio: o cliente não quis a hora proposta pela loja; falta a hora")
+            A.enfileirar(self.t, A.so_digitos(self.t["dono_destino"]), f"ℹ️ {cod}: o cliente não pode às {hp}.", "reserva_dono", self.simular)
+            return "Está bem. A que horas prefere? (Ou diga-me outro dia.)"
+        if h == hp or (e_sim(self.texto_cliente) and not re.search(r"\boutr[oa]s?\b|\bmais (cedo|tarde)\b", tx)):
+            self.turno_de_reserva = True
+            final = dict(res, hora=hp, estado="confirmada")
+            self._gravar_reserva(None)
+            A.enfileirar(self.t, A.so_digitos(self.t["dono_destino"]),
+                         f"✅ {cod}: o cliente aceitou as {hp}. Mesa confirmada: {resumo_reserva(final, para_loja=True)}.",
+                         "reserva_dono", self.simular)
+            return texto_confirmada(final)
+        return None
+
+    def pedir_reserva(self, pessoas=None, dia=None, hora=None, nome=None):
+        self.turno_de_reserva = True
+        L = self.L()
+        loja_nome = self.t["nome"]
+        if L.get("reservations_enabled") and not L.get("coming_soon"):  # reservas abertas na app: e la que se confirma
+            self._gravar_reserva(None)
+            link = link_reservas(self.t)
+            msg = (f"As reservas de mesa da {loja_nome} fazem-se na app Bora e ficam confirmadas lá: abra a {loja_nome} "
+                   f"e toque em «Reservar mesa». {link}")
+            return {"ok": True, "reservas_na_app": True, "link": link, "mensagem": msg,
+                    "instrucao": "Responde com a mensagem (com o link). Não peças mais dados."}
+        atual = reserva_de(self.ct) or {}
+        base = {k: atual.get(k) for k in CAMPOS_RESERVA} if atual.get("estado") in ("a_recolher", "pedida", "proposta") else {}
+        novo = dict(base)
+        p = ler_pessoas(str(pessoas), solto=True) if pessoas not in (None, "") else None
+        d = ler_dia(str(dia)) if dia else None
+        h = ler_hora(str(hora), solto=True) if hora else None
+        n = ler_nome(str(nome), solto=True) if nome else None
+        novo.update({k: v for k, v in (("pessoas", p), ("dia", d and d.isoformat()), ("hora", h), ("nome", n)) if v})
+        aviso = ""
+        if novo.get("dia") and novo.get("hora"):
+            quando = dt.datetime.combine(dt.date.fromisoformat(novo["dia"]), dt.time(*map(int, novo["hora"].split(":"))), A.LX)
+            if quando < A.agora() + dt.timedelta(minutes=10):
+                novo.pop("hora", None)
+                if dt.date.fromisoformat(novo["dia"]) < A.agora().date():
+                    novo.pop("dia", None)
+                aviso = "Essa hora já passou. "
+        falta = falta_reserva(novo)
+        if falta:
+            primeira = not any(novo.get(k) for k in CAMPOS_RESERVA) and not atual
+            q = PERGUNTAS_RESERVA[falta]
+            self._gravar_reserva(dict(novo, estado="a_recolher"),
+                                 f"reserva de mesa a meio: falta {falta} (usar pedir_reserva; nunca passar_ao_dono)")
+            return {"ok": False, "falta": falta, "pergunta": q, "mensagem": ("Claro! " if primeira else aviso) + q,
+                    "instrucao": f"Pergunta SÓ isto ao cliente: «{q}». Não passes ao dono; a mesa ainda não foi pedida."}
+        if atual.get("estado") == "pedida" and all(str(novo.get(k)) == str(atual.get(k)) for k in CAMPOS_RESERVA):
+            return {"ok": True, "ja_pedida": True, "codigo": atual.get("codigo"),
+                    "mensagem": f"O seu pedido de reserva ({resumo_reserva(novo)}) já seguiu para o restaurante. {MSG_RESERVA_PEDIDA}",
+                    "instrucao": "Responde com a mensagem. A mesa ainda NÃO está confirmada."}
+        if atual.get("tarefa") and atual.get("estado") in ("pedida", "proposta"):  # mudou de ideias: o pedido antigo deixa de valer
+            db.atualizar("assistant_tasks", f"id=eq.{atual['tarefa']}&estado=eq.aberta",
+                         {"estado": "cancelada", "cumprida_em": A.iso(A.agora()), "resposta": "cliente mudou o pedido de reserva"})
+        return self._enviar_reserva(novo)
+
+    def _enviar_reserva(self, res):
+        cod = "R" + str(secrets.randbelow(900) + 100)
+        para_loja = resumo_reserva(res, para_loja=True)
+        tk = db.inserir("assistant_tasks", {
+            "tenant_id": self.t["id"], "numero": self.numero, "tipo": "pergunta_dono", "codigo": cod,
+            "pergunta": f"Reserva de mesa: {para_loja}", "payload": {"reserva": dict(res, estado="pedida")},
+            "prazo": A.iso(A.agora() + dt.timedelta(minutes=RESERVA_PRAZO_MIN)), "simulado": self.simular})
+        txt = (f"🍽️ {self.t['nome']} — pedido de reserva de mesa ({cod})\n\n{para_loja}.\nCliente: +{self.numero}.\n\n"
+               f"Responde a citar esta mensagem, ou escreve:\n• {cod} sim — confirmas\n• {cod} 21:30 — propões outra hora\n"
+               f"• {cod} não — não há mesa")
+        # motivo pergunta_dono:<id>: o servidor guarda o id da mensagem na tarefa e a resposta a citar funciona (servidor.enviado)
+        A.enfileirar(self.t, A.so_digitos(self.t["dono_destino"]), txt, f"pergunta_dono:{tk['id']}", self.simular)
+        self.tarefa_dono = True
+        self._gravar_reserva(dict(res, estado="pedida", codigo=cod, tarefa=tk["id"]),
+                             f"pedido de reserva {cod} enviado à loja; à espera da resposta (a mesa ainda NÃO está confirmada)")
+        return {"ok": True, "codigo": cod, "pedido": resumo_reserva(res),
+                "mensagem": f"Pedido de reserva: {resumo_reserva(res)}. {MSG_RESERVA_PEDIDA}",
+                "instrucao": "Responde com a mensagem TAL E QUAL. A mesa ainda NÃO está confirmada."}
 
     # --- dados
     def L(self):
@@ -939,6 +1268,229 @@ def montar_p_input(L, pl, uid, numero, nome, notas=None):
     return p
 
 
+# ----------------------------------------------------------------------------- reservas de mesa
+# 30/10/2026: "Posso reserva mesa por aqui?" foi para passar_ao_dono ("isso e com a loja, ja passei") sem canal nem
+# confirmacao. Agora: ferramenta propria (pedir_reserva), com estes passos em codigo:
+#   - reservas abertas na app (reservations_enabled e nao coming_soon, lidos ao vivo): link da app; fica confirmada la;
+#   - fechadas (a Boom a 30/10): pessoas, dia, hora e nome, UMA pergunta de cada vez; depois o pedido vai a loja
+#     (dono_destino) com um codigo R123, pelo mesmo canal do perguntar_ao_dono (tarefa pergunta_dono com payload.reserva:
+#     citar a mensagem ou "R123 ..."); lembrete a loja aos 15 min (rotinas.vigia_perguntas); quando a loja responde,
+#     o cliente recebe "A sua mesa ... esta confirmada" ou a outra hora proposta. Nunca entra em perguntas_aprendidas.
+# O estado da reserva a meio vive no contacto (a_espera_de.reserva): a_recolher -> pedida -> (proposta) -> fim.
+RESERVA_RE = re.compile(r"\b(reserv\w*|mesa)\b")
+INICIO_RESERVA_RE = re.compile(r"\breserv\w*|\bmesa\b.*\b(para|pessoas?|livre|hoje|amanha)\b|"
+                               r"\b(tem|teem|ha|arranj\w*|queria|quero|posso|podia)\b.*\bmesa\b")
+OUTRA_COISA_RESERVA_RE = re.compile(r"\b(cancel\w*|desmarc\w*|anul\w*|alter\w*|mud\w*|reclam\w*|confirmad\w*)\b|"
+                                    r"minha reserva|ja (tenho|fiz)")
+DESISTE_RE = re.compile(r"\b(esquece|esqueca|desisto|cancela|cancelar|nao quero|ja nao|deixa estar)\b")
+RESERVA_PRAZO_MIN = 15
+CAMPOS_RESERVA = ("pessoas", "dia", "hora", "nome")
+PERGUNTAS_RESERVA = {"pessoas": "Para quantas pessoas é a mesa?", "dia": "Para que dia?", "hora": "A que horas?",
+                     "nome": "Em que nome fica a reserva?"}
+MSG_RESERVA_PEDIDA = "Ainda não está confirmada: já pedi ao restaurante e confirmo-lhe aqui assim que responderem."
+_NUM = {"um": 1, "uma": 1, "dois": 2, "duas": 2, "tres": 3, "quatro": 4, "cinco": 5, "seis": 6, "sete": 7, "oito": 8,
+        "nove": 9, "dez": 10, "onze": 11, "doze": 12, "treze": 13, "catorze": 14, "quinze": 15, "vinte": 20}
+_NUM_RX = r"(\d{1,2}|" + "|".join(_NUM) + r")"
+_NUM_RX2 = r"(\d{1,2}|" + "|".join(k for k in _NUM if k not in ("um", "uma")) + r")"  # "para uma mesa" nao e 1 pessoa
+_SEMANA = ("segunda", "terca", "quarta", "quinta", "sexta", "sabado", "domingo")
+_NAO_NOMES = {"sim", "nao", "ok", "okay", "obrigado", "obrigada", "claro", "certo", "pode ser", "bom dia", "boa tarde",
+              "boa noite", "ola", "ainda nao", "mesa", "reserva"}
+
+
+def reserva_de(ct):
+    a = (ct or {}).get("a_espera_de")
+    return a.get("reserva") if isinstance(a, dict) and isinstance(a.get("reserva"), dict) else None
+
+
+def falta_reserva(res):
+    return next((k for k in CAMPOS_RESERVA if not (res or {}).get(k)), None)
+
+
+def _n(x):
+    return int(x) if x.isdigit() else _NUM[x]
+
+
+def ler_pessoas(texto, solto=False):
+    """'4 pessoas', 'somos 4', 'para quatro', '2 adultos e 2 criancas'. solto=True: um numero sozinho ('4')."""
+    s = A.sem_acentos(texto)
+    tot = [_n(m.group(1)) for m in re.finditer(rf"\b{_NUM_RX}\s*(?:pessoas?|pax|lugares|adultos?|criancas?|miudos?)\b", s)]
+    m = re.search(rf"\b(?:somos|para|mesa de|mesa para)\s+{_NUM_RX2}\b(?!\s*(?:h\b|:|/|horas?|e meia))", s)
+    if tot:
+        n = sum(tot)
+    elif m:
+        n = _n(m.group(1))
+    elif re.search(r"\bcasal\b", s):
+        n = 2
+    elif solto:
+        nums = re.findall(rf"(?<![\d/:])\b{_NUM_RX2}\b(?!\s*(?:h\b|:|/|horas?|\d))", s)
+        n = _n(nums[0]) if len(nums) == 1 else None
+    else:
+        n = None
+    return n if n and 1 <= n <= 60 else None
+
+
+def ler_dia(texto, hoje=None):
+    """'2026-10-31', '31/10', 'hoje', 'amanha', 'sabado', 'dia 2' -> date (nunca no passado)."""
+    s = A.sem_acentos(texto)
+    hoje = hoje or A.agora().date()
+    try:
+        m = re.search(r"\b(20\d\d)-(\d{1,2})-(\d{1,2})\b", s)
+        if m:
+            return dt.date(int(m[1]), int(m[2]), int(m[3]))
+        m = re.search(r"\b(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))?\b", s)
+        if m:
+            ano = int(m[3]) if m[3] else hoje.year
+            d = dt.date(ano + 2000 if ano < 100 else ano, int(m[2]), int(m[1]))
+            return d if m[3] or d >= hoje else d.replace(year=d.year + 1)
+    except ValueError:
+        return None
+    if re.search(r"\bdepois de amanha\b", s):
+        return hoje + dt.timedelta(days=2)
+    if re.search(r"\bamanha\b", s):
+        return hoje + dt.timedelta(days=1)
+    if re.search(r"\b(hoje|esta noite|logo a noite)\b", s):
+        return hoje
+    for i, nome in enumerate(_SEMANA):
+        if re.search(rf"\b{nome}\b", s):
+            dias = (i - hoje.weekday()) % 7
+            return hoje + dt.timedelta(days=7 if dias == 0 and re.search(r"\bproxim", s) else dias)
+    m = re.search(r"\bdia (\d{1,2})\b(?!\s*[/:h])", s)
+    if m:
+        dd = int(m[1])
+        for mes in (hoje.replace(day=1), (hoje.replace(day=1) + dt.timedelta(days=32)).replace(day=1)):
+            try:
+                d = mes.replace(day=dd)
+            except ValueError:
+                continue
+            if d >= hoje:
+                return d
+    return None
+
+
+def ler_hora(texto, solto=False):
+    """'20h', '20:30', '20h30', 'as 8 da noite' -> 'HH:MM'. Sem 'manha', 1-10 h e de tarde/noite (e um restaurante).
+    solto=True: um numero sozinho tambem conta ('20')."""
+    s = A.sem_acentos(texto)
+    if re.search(r"\bmeio[- ]dia\b", s):
+        return "12:00"
+    m = (re.search(r"\b(\d{1,2})\s*(?::|h(?![a-z])|horas?\b)\s*(\d{2})?", s)
+         or re.search(r"\bas\s+(\d{1,2})(?:[.:](\d{2}))?\b(?!\s*(?:/|pessoas?|pax))", s))
+    if m:
+        h, mm = int(m.group(1)), int(m.group(2) or 0)
+    elif solto:
+        nums = re.findall(r"(?<![\d/:])\b(\d{1,2})\b(?!\s*(?:/|pessoas?|pax))", s)
+        if len(nums) != 1:
+            return None
+        h, mm = int(nums[0]), 0
+    else:
+        return None
+    if h < 12 and re.search(r"\b(noite|tarde|jantar)\b", s):
+        h += 12
+    elif 1 <= h <= 10 and not re.search(r"\bmanha\b", s):
+        h += 12
+    return f"{h:02d}:{mm:02d}" if h <= 23 and mm <= 59 else None
+
+
+_NOME_PREF = r"(?:(?:fica\s+)?(?:em|no)\s+nome\s+d[eoa]|o\s+(?:meu\s+)?nome\s+(?:e|é)|nome\s*:|chamo-me|sou\s+(?:o|a))\s+"
+
+
+def ler_nome(texto, solto=False):
+    """'em nome de Ana', 'o meu nome e Ana'. solto=True (a pergunta foi o nome): 'Ana', 'Ana Silva'."""
+    t = (texto or "").strip()
+    m = re.search(_NOME_PREF + r"([^\W\d_][^\d,.;:!?\n]{0,40})", t, re.I)
+    cand = m.group(1) if m else (t if solto else "")
+    cand = re.split(r"\s+(?:para|às|as|no|na|com|dia|ao|por favor)\b", cand, flags=re.I)[0]
+    cand = re.sub(r"^(?:é|e|fica|pode ser|nome)\s+", "", cand.strip(), flags=re.I).strip(" .,!;:-'\"")
+    if not re.fullmatch(r"[^\W\d_]+(?:[ '-][^\W\d_]+){0,4}", cand) or len(cand) < 2:
+        return None
+    if A.sem_acentos(cand) in _NAO_NOMES or e_sim_puro(cand) or ler_dia(cand) or re.search(r"\b(mesa|reserv\w*)\b", A.sem_acentos(cand)):
+        return None
+    return " ".join(w[:1].upper() + w[1:] for w in cand.split())
+
+
+def extrair_reserva(texto, falta=None):
+    """O que o texto diz sobre a reserva. falta = o campo que se acabou de perguntar (aceita-se mais solto)."""
+    out = {}
+    for campo, v in (("pessoas", ler_pessoas(texto, solto=falta == "pessoas")), ("dia", ler_dia(texto)),
+                     ("hora", ler_hora(texto, solto=falta == "hora")), ("nome", ler_nome(texto, solto=falta == "nome"))):
+        if v:
+            out[campo] = v.isoformat() if isinstance(v, dt.date) else v
+    return out
+
+
+def dia_cliente(d):
+    hoje = A.agora().date()
+    if d == hoje:
+        return "hoje"
+    if d == hoje + dt.timedelta(days=1):
+        return "amanhã"
+    return f"{A.DIAS[d.weekday()]} dia {d.day}"
+
+
+def dia_loja(d):
+    pre = {0: "hoje, ", 1: "amanhã, "}.get((d - A.agora().date()).days, "")
+    return f"{pre}{A.DIAS[d.weekday()]} {d.day:02d}/{d.month:02d}"
+
+
+def resumo_reserva(res, para_loja=False):
+    n, d = int(res["pessoas"]), dt.date.fromisoformat(res["dia"])
+    return f"{n} pessoa{'s' if n != 1 else ''}, {(dia_loja if para_loja else dia_cliente)(d)} às {res['hora']}, em nome de {res['nome']}"
+
+
+def texto_confirmada(res):
+    n, d = int(res["pessoas"]), dt.date.fromisoformat(res["dia"])
+    return (f"A sua mesa para {n} pessoa{'s' if n != 1 else ''}, {dia_cliente(d)} às {res['hora']}, está confirmada. "
+            f"Em nome de {res['nome']}.")
+
+
+def link_reservas(t):
+    """A app nao tem rota direta para 'Reservar mesa' (o /#/loja/<id> abre a loja sem o botao): vai o link da app."""
+    f = ((t.get("knowledge") or {}).get("ficha") or {})
+    return f.get("link_reservas") or link_app(t)
+
+
+SIM_LOJA_RE = re.compile(r"\b(sim|ok|okay|confirm\w*|pode|esta bem|ta bem|combinado|feito|reservad\w*|marcad\w*|certo|"
+                         r"claro|tudo bem|perfeito|fechado|positivo|temos|ha mesa)\b")
+NAO_LOJA_RE = re.compile(r"\b(nao|cheio|cheia|lotad\w*|esgotad\w*|impossivel|sem mesas?)\b")
+
+
+def resposta_reserva_do_dono(t, tk, texto, simular):
+    """A loja respondeu ao pedido de reserva R123 (chamado por assistente.resposta_do_dono). Sem motor e sem
+    perguntas_aprendidas: confirma, propoe a outra hora que a loja disse, ou diz que nao ha mesa."""
+    res = dict((tk.get("payload") or {}).get("reserva") or {})
+    sim = bool(simular or tk.get("simulado"))
+    cod, loja_nome, agora = tk.get("codigo"), t["nome"], A.iso(A.agora())
+    tx = A.sem_acentos(re.sub(r"\b(n[aã]o h[aá] problema|sem problema)\b", "ok", texto or "", flags=re.I))
+    h = ler_hora(texto, solto=True)
+    d = dt.date.fromisoformat(res["dia"])
+    novo, o_que = None, ""
+    if h and h != res.get("hora"):
+        novo = dict(res, estado="proposta", hora_proposta=h, codigo=cod, tarefa=tk["id"])
+        o_que = f"a loja propôs as {h} (em vez das {res['hora']}) para a reserva {cod}; à espera do sim do cliente"
+        msg = f"A {loja_nome} não tem mesa às {res['hora']}, mas tem às {h} ({dia_cliente(d)}). Pode ser às {h}?"
+        ack, acao = f"✅ {cod}: perguntei ao cliente se pode às {h}; digo-te quando responder.", "reserva-outra-hora-proposta"
+    elif h == res.get("hora") or (SIM_LOJA_RE.search(tx) and not NAO_LOJA_RE.search(tx)):
+        msg = texto_confirmada(res)
+        ack, acao = f"✅ {cod}: o cliente já sabe que a mesa está confirmada ({resumo_reserva(res, para_loja=True)}).", "reserva-confirmada"
+    elif NAO_LOJA_RE.search(tx):
+        resto = (texto or "").strip()
+        novo = {"estado": "a_recolher", "pessoas": res.get("pessoas"), "dia": res.get("dia"), "nome": res.get("nome")}
+        o_que = "reserva de mesa a meio: a loja não tinha mesa à hora pedida; falta a nova hora (ou outro dia)"
+        msg = (f"A {loja_nome} não tem mesa para {dia_cliente(d)} às {res['hora']}."
+               + (f" Disseram: «{resto}»." if len(resto.split()) > 1 else "") + " Quer tentar outra hora ou outro dia?")
+        ack, acao = f"✅ {cod}: o cliente já sabe que não há mesa a essa hora.", "reserva-sem-mesa"
+    else:  # resposta que o codigo nao percebe: vai tal e qual, sem inventar
+        msg = f"Sobre a sua reserva ({dia_cliente(d)} às {res['hora']}), a {loja_nome} respondeu: «{(texto or '').strip()}»."
+        ack, acao = f"✅ {cod}: resposta entregue ao cliente.", "reserva-resposta-entregue"
+    A.enfileirar(t, tk["numero"], msg, f"reserva:{tk['id']}", sim)
+    db.atualizar("assistant_tasks", f"id=eq.{tk['id']}", {"estado": "cumprida", "resposta": texto, "cumprida_em": agora})
+    c = db.ler("assistant_contacts", f"tenant_id=eq.{t['id']}&numero=eq.{db.q(tk['numero'])}", "historico")
+    hist = (((c[0].get("historico") if c else None) or []) + [{"r": "assistant", "t": msg, "ts": agora}])[-A.HIST_MAX:]
+    A.gravar_contacto(t, tk["numero"], {"a_espera_de": {"o_que": o_que, "reserva": novo} if novo else None, "historico": hist})
+    A.enfileirar(t, A.so_digitos(t["dono_destino"]), ack, "dono_ack", sim)
+    return {"acao": acao, "tarefa": tk["id"], "para_cliente": msg}
+
+
 # ----------------------------------------------------------------------------- prompt
 def prompt_restaurante(t, ct):
     L = loja(t) or {}
@@ -967,11 +1519,14 @@ def prompt_restaurante(t, ct):
     em_curso_txt = "; ".join(em_curso) if em_curso else "nenhum"
     cliente_txt = ("chama-se " + ct["nome"]) if ct.get("nome") else "nome desconhecido (não inventes)"
     fio_txt = ("FIO DA CONVERSA: " + fio) if fio else ""
+    semana = ", ".join(f"{A.DIAS[(agora_.date() + dt.timedelta(days=i)).weekday()]} {(agora_.date() + dt.timedelta(days=i)).isoformat()}"
+                       for i in range(8))
     return f"""És a pessoa que atende o WhatsApp da {t['nome']} (restaurante na Guarda, Portugal). As encomendas são feitas pela Bora: entrega por estafeta ou ir buscar à loja.
-Agora: {A.DIAS[agora_.weekday()]}, {agora_.strftime('%Y-%m-%d %H:%M')} (hora de Lisboa).
+Agora: {A.DIAS[agora_.weekday()]}, {agora_.strftime('%Y-%m-%d %H:%M')} (hora de Lisboa). Próximos dias: {semana}.
 
 Tom: {t.get('tom') or 'Português de Portugal, curto, simpático e despachado.'}
-Escreves SEMPRE em português de Portugal (nunca do Brasil): "encomenda", "telemóvel", "está bem". Tratas o cliente por "você". 1 a 3 frases (o resumo do pedido é a exceção). Nada de listas longas: no máximo 6 produtos de cada vez.
+Escreves SEMPRE em português de Portugal (nunca do Brasil): "encomenda", "telemóvel", "está bem". Tratas o cliente por "você". 1 a 3 frases (o resumo do pedido e as listas pedidas são a exceção). Sem o cliente pedir uma lista, no máximo 6 produtos de cada vez; quando ele PEDE uma categoria (vinhos, cervejas, bebidas, sobremesas, entradas...), dás a lista COMPLETA dessa categoria do MENU, um produto por linha «• Nome — preço» (o limite de 6 não vale para listas pedidas).
+Formato do WhatsApp: negrito com UM asterisco de cada lado (*assim*); nunca ** nem # nem listas começadas por * ou -; listas com «• » no início da linha.
 
 MENU (da base de dados agora; é a verdade): {menu_txt}
 
@@ -999,6 +1554,7 @@ REGRAS (inquebráveis):
 4. Horário e se está aberta: ver_horario_loja.
 5. Fatura com NIF: por agora não dá para pôr o NIF por aqui; diz que pode pedi-la na app Bora.
 6. Onde está a minha encomenda: meu_pedido. Dinheiro, reclamações, reembolsos, um pedido já feito com problemas, descontos ou pedidos fora do menu: passar_ao_dono (nunca prometas devolver dinheiro nem dar desconto).
+6b. RESERVAS DE MESA: chama SEMPRE pedir_reserva (NUNCA passar_ao_dono nem perguntar_ao_dono; nunca digas "isso é com a loja"). Pergunta só o que a ferramenta disser que falta, uma coisa de cada vez, e responde com a mensagem que ela devolver. A mesa só está confirmada quando a loja responder: até lá, nunca digas que está confirmada.
 7. Não sabes e não está aqui? perguntar_ao_dono e diz que confirmas com a loja. É PROIBIDO dizer "vou verificar" sem chamar perguntar_ao_dono.
 8. Nunca fales de comissões, de quanto a loja recebe, nem de quem é o dono da Bora (se perguntarem: és o atendimento da {t['nome']} na Bora).
 9. Não digas que és uma IA a não ser que perguntem; se perguntarem, és o assistente da {t['nome']}.

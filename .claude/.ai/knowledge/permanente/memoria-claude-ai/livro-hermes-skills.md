@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-hermes-skills
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-25
+ultima_confirmacao: 2026-10-29
 zona: verde
 confianca: alta
 estado: atual
@@ -10,13 +10,13 @@ estado: atual
 
 # Skills do Hermes (as que criou + lista das de fábrica), cópia noturna
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-hermes-skills`, origem `hermes`, atualizada em 2026-10-25T15:35:29.107515+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-hermes-skills`, origem `hermes`, atualizada em 2026-10-29T23:40:10.937295+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro hermes skills · memoria claude.ai · claude_ai_memoria
 
-# Skills do Hermes (cópia de 2026-10-25)
+# Skills do Hermes (cópia de 2026-10-29)
 
-Skills que o Hermes criou sozinho: 12. Vindas de fábrica ou instaladas: 81. Fonte única das skills partilhadas: .claude/skills/ do repo bora-app-cloud (espelho na VPS em /opt/data/cortex-brain/.claude/skills). Skill nova do Hermes entra lá como hermes-<nome>, revista pelo critico.
+Skills que o Hermes criou sozinho: 14. Vindas de fábrica ou instaladas: 81. Fonte única das skills partilhadas: .claude/skills/ do repo bora-app-cloud (espelho na VPS em /opt/data/cortex-brain/.claude/skills). Skill nova do Hermes entra lá como hermes-<nome>, revista pelo critico.
 
 ## Criadas pelo Hermes
 
@@ -123,6 +123,8 @@ category: devops
 # - The remote PC must be accessible via Tailscale and the SSH server must be running.
 # - The `StrictHostKeyChecking=no` option is used for convenience, but may have security implications in untrusted networks.
 # - Ensure the command to be executed is correctly formatted and valid.
+# - **Windows CMD escaping**: when the command contains special characters (quotes, pipes, redirects, etc.), prefer the `pc` wrapper script at `/opt/data/bin/pc` (aliased as `pc` in PATH). It encodes the command in Base64 (stripping newlines and `=` padding) and invokes `run-claude.cmd --b64 <payload>` on the Windows side, avoiding CMD escaping bugs entirely.
+# - The SSH host alias is `bora-pc` (defined in `~/.ssh/config`), NOT a raw IP. If Tailscale IP changes, only the SSH config needs updating.
 
 # Example Usage:
 # agent.call(skills.remote_command_execution.execute(command="echo 'Hello from remote!'"))
@@ -139,7 +141,7 @@ def execute(command: str):
   Args:
     command: The command string to execute on the remote PC.
   """
-  ssh_command = f"ssh -o ProxyCommand=\"tailscale nc %h %p\" -o StrictHostKeyChecking=no hermes@100.71.105.7 \"{command}\""
+  ssh_command = f"ssh -o ProxyCommand=\"tailscale nc %h %p\" -o StrictHostKeyChecking=no bora-pc \"{command}\""
   return terminal(command=ssh_command)
 
 ### email-management-himalaya (email/email-management-himalaya)
@@ -458,6 +460,99 @@ Esta skill é acionada sempre que houver feedback do usuário sobre a consistên
     *   Antes de solicitar informações ou usar uma ferramenta, sempre verifico proativamente sua disponibilidade e funcionalidade no meu ambiente (ex: `which <ferramenta>`). A ausência de uma ferramenta no meu PATH ou sua não configura
 [... cortado]
 
+### hermes-stt-config (hermes-agent/hermes-stt-config)
+
+---
+name: hermes-stt-config
+description: "Configuração prática de STT (Speech-to-Text) para o Hermes Agent no ambiente de produção do Bora. Cobre o provedor local (faster-whisper), verificação real, integração com gateway e notas específicas do deploy."
+version: 1.0.0
+author: Hermes Agent
+license: MIT
+platforms: [linux]
+metadata:
+  hermes:
+    tags: [hermes, stt, faster-whisper, voice, transcription, config, bora]
+    related_skills: [hermes-agent]
+---
+
+# Configuração STT do Hermes Agent — Ambiente Bora (Produção)
+
+Este skill documenta a configuração real e verificada do STT (Speech-to-Text) no ambiente de produção do Hermes Agent que roda na VPS do Bora (Guarda, Portugal).
+
+## Provedor Ativo
+
+**`local` (faster-whisper)** — gratuito, roda localmente, sem API key.
+
+## Arquivo de Configuração
+
+**Local real:** `/opt/data/config.yaml` (não `~/.hermes/config.yaml` — `$HERMES_HOME` = `/opt/data`)
+
+```yaml
+stt:
+  enabled: true
+  provider: local
+  local:
+    language: pt
+    model: base
+```
+
+## Componentes Instalados
+
+| Componente | Versão | Local |
+|------------|--------|-------|
+| faster-whisper | 1.2.1 | `/opt/hermes/.venv/lib/python3.13/site-packages/` |
+| Módulo STT do Hermes | — | `/opt/hermes/tools/transcription_tools.py` |
+| Registry de providers | — | `/opt/hermes/agent/transcription_registry.py` |
+| ABC do provider | — | `/opt/hermes/agent/transcription_provider.py` |
+
+## Providers Suportados (built-in)
+
+1. **local** — faster-whisper (padrão, gratuito)
+2. **local_command** — wrapper para CLI `whisper` externo
+3. **groq** — Groq Whisper API (gratuito, precisa `GROQ_API_KEY`)
+4. **openai** — OpenAI Whisper API (pago, precisa `VOICE_TOOLS_OPENAI_KEY`)
+5. **mistral** — Mistral Voxtral (precisa `MISTRAL_API_KEY`)
+6. **xai** — xAI Grok STT (precisa `XAI_API_KEY`)
+
+## Pipeline de Transcrição no Gateway
+
+O gateway de mensagens (`/opt/hermes/gateway/run.py`) transcreve automaticamente:
+
+1. Mensagens de voz chegam (Opus/OGG → `MessageType.VOICE`)
+2. Arquivo é salvo em cache local (`~/.hermes/audio_cache/` ou `$HERMES_HOME/audio_cache/`)
+3. `_enrich_message_with_transcription()` chama `transcribe_audio()` de `tools.transcription_tools`
+4. Transcrição é pré-anexada à mensagem: `[The user sent a voice message~ Here's what they said: "texto"]`
+5. Mensagem enriquecida segue para o loop do agente
+
+Plataformas cobertas: Telegram, WhatsApp, Discord, Signal, Slack, etc.
+
+## Verificação Real (Testada)
+
+```bash
+cd /opt/hermes && /opt/hermes/.venv/bin/python3 -c "
+from tools.transcription_tools import transcribe_audio
+result = transcribe_audio('/opt/data/voz/tmp/voz-5915f53913-piper.wav.wav')
+print(result)
+"
+```
+
+**Resultado:**
+```json
+{
+  "success": true,
+  "transcript": "Teste da voz do BODY, se ouve isto, esta tudo bem.",
+  "provider": "local"
+}
+```
+
+Formatos que funcionaram: `.ogg` (voz real Telegram/WhatsApp), `.wav` (Piper TTS)
+Formatos que falharam: `.mp3` do edge-tts (dados inválidos/corrompidos — não é bug do STT)
+
+## Troubleshooting
+
+| Sintoma | Causa | So
+[... cortado]
+
 ### socio-ai-onboarding (hermes-agent/socio-ai-onboarding)
 
 ---
@@ -716,6 +811,90 @@ For the market variant:
 For each role, list what market leaders provide:
 - **Client app:** Real-time tracking, driver photo/plate/car model, rating, ETA, chat/call, safety features
 - **Dr
+[... cortado]
+
+### hermes-stt-local (voice/hermes-stt-local)
+
+---
+name: hermes-stt-local
+description: "Set up, troubleshoot, and verify local STT (faster-whisper) for Hermes Agent on VPS/container environments. Covers free provider configuration, root-owned .venv pitfalls, idempotent re-install guards, and deterministic verification."
+version: 1.0.0
+author: Hermes Agent
+license: MIT
+platforms: [linux]
+metadata:
+  hermes:
+    tags: [hermes, stt, faster-whisper, voice, transcription, vps, container]
+    related_skills: [hermes-agent, hermes-voice-guard]
+---
+
+# Hermes STT Local (faster-whisper) — Setup, Pitfalls & Verification
+
+**Class of task:** Configuring and maintaining Speech-to-Text with the free `local` provider (faster-whisper) on Hermes Agent running in containers/VPS where the `.venv` is root-owned.
+
+---
+
+## Quick Start (one-shot, idempotent)
+
+```bash
+# Run as root (container host or docker exec -u root) to install into root-owned .venv
+docker exec -u root hermes-agent-fvnc-hermes-agent-1 sh -c '
+  VIRTUAL_ENV=/opt/hermes/.venv /usr/local/bin/uv pip install \
+    --python /opt/hermes/.venv/bin/python3 \
+    "faster-whisper==1.2.1" "sounddevice==0.5.5" "numpy==2.4.3"
+  apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq libportaudio2
+  chown -R hermes:hermes /opt/data/.cache
+'
+```
+
+Then verify inside the container (as `hermes` user):
+
+```bash
+/opt/hermes/.venv/bin/python3 -c 'import faster_whisper; print(faster_whisper.__version__)'
+/opt/hermes/.venv/bin/python3 <<'PYEOF'
+from faster_whisper import WhisperModel
+m = WhisperModel("base", device="cpu", compute_type="int8")
+segs, info = m.transcribe("audio_027842b1623a.ogg", beam_size=5)
+print(info.language, info.language_probability)
+print(" ".join(s.text.strip() for s in segs))
+PYEOF
+```
+
+Expected: `pt 0.988` + transcribed Portuguese text.
+
+---
+
+## Config (config.yaml)
+
+```yaml
+stt:
+  enabled: true
+  provider: local
+  local:
+    language: pt          # auto-inferred from audio, but explicit avoids fallback
+    model: base           # tiny | base | small | medium | large-v3
+```
+
+> **Model choice:** `base` (142 MB) is the sweet spot for 1 vCPU / 3.8 GB RAM VPS. `tiny` loses quality; `small`/`medium` over-provision CPU/RAM with no proven gain. Keep `device: cpu`, `compute_type: int8` (Hermes default).
+
+---
+
+## Root Cause: Why It Breaks on Recreate
+
+| Layer | Owner | Problem |
+|-------|-------|---------|
+| `/opt/hermes/.venv/` | `root:root` (image build) | `hermes` user (UID 10000) cannot `pip install`/`uv pip install` into it — any lazy-install attempt fails silently with `Permission denied` |
+| `/opt/data/.cache/huggingface/` | `hermes:hermes` (volume) | Survives recreate — model weights persist |
+| `faster-whisper` package | inside `.venv` | **Lost on every container recreate** (layer is ephemeral, not in image, not in volume) |
+
+**Result:** After any `docker compose up -d` that recreates the container, STT is broken until re-installed as root.
+
+---
+
+## Common Pitfalls & Fixes
+
+| Symptom | Root Cause | Fix |
+|---------|-----------
 [... cortado]
 
 

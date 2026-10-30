@@ -16,6 +16,14 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 30/10/2026 (gorjetas-taxa): gorjeta do carrinho junto da compra e o que o
+  // estafeta recebe (tool/l10n/traducoes/pt-en-30-gorjetas-taxa.json).
+  'A gorjeta vai toda para o estafeta.':
+      'The whole tip goes to the courier.',
+  'Gorjeta {0} · taxa do pagamento −{1} · recebes {2}':
+      'Tip {0} · payment fee −{1} · you get {2}',
+  'As de cartão e MB WAY entram no acerto da semana. Nas dadas depois, sai a taxa do pagamento.':
+      'Card and MB WAY tips go into your weekly settlement. Tips given afterwards have the payment fee taken off.',
   // 29/10/2026 (missao-geral): escada de premios do check-in — levantar agora
   // ou continuar (tool/l10n/traducoes/pt-en-28-checkin-escada.json).
   'Entra na tua conta para escolher o prémio.':
@@ -1849,8 +1857,6 @@ const Map<String, String> kStringsEn = <String, String>{
       'The whole tip goes to the courier and is charged separately.',
   'Gorjetas (últimos 30 dias)':
       'Tips (last 30 days)',
-  'São todas tuas. As de cartão e MB WAY entram no acerto da semana.':
-      'They are all yours. Card and MB WAY tips are added to your weekly settlement.',
   'corrida':
       'ride',
   'entrega':

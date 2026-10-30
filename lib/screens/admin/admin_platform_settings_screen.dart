@@ -5,6 +5,8 @@ import '../../services/remote_fees_service.dart';
 import '../../services/small_order_fee.dart';
 import '../../config/app_colors.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import 'admin_gorjetas_screen.dart'
+    show kChaveGorjetaJunto, kExplicacaoGorjetaJunto;
 
 /// Admin Platform Settings — edit configurable parameters in `platform_settings`.
 /// HIGH-RISK: changes propagate live; use with care. All changes audited.
@@ -45,7 +47,9 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
       final by = <String, List<_Setting>>{};
       for (final s in list) {
         if (_obsoleteDepositKeys.contains(s.key)) continue;
-        final rotulo = rotulosCancelamento[s.key] ?? rotulosVitrineCliente[s.key];
+        final rotulo = rotulosCancelamento[s.key] ??
+            rotulosVitrineCliente[s.key] ??
+            rotulosGorjetas[s.key];
         by.putIfAbsent(s.category ?? 'other', () => []).add(rotulo == null
             ? s
             : _Setting(
@@ -108,6 +112,13 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
         'Sessão de convidado (conta partilhada só de leitura). Ligar só depois de aplicada a proteção de pedidos (create_order) na publicação.',
   };
 
+  /// [gorjetas-taxa 30/10/2026] Gorjeta do carrinho cobrada junto com a compra
+  /// (um pagamento só) ou à parte. É um interruptor: não muda o valor de nada,
+  /// só se a gorjeta vai no mesmo pagamento. Também está no ecrã Gorjetas.
+  static const rotulosGorjetas = <String, String>{
+    kChaveGorjetaJunto: kExplicacaoGorjetaJunto,
+  };
+
   /// Whitelist operacional: só chaves de dispatch e operação de reservas são
   /// editáveis aqui. Tudo o resto (fees, comissões, markup, tokens, wallet,
   /// valores em cêntimos, Stripe) é READ-ONLY — alterar requer sessão dedicada.
@@ -119,6 +130,7 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
     // conta, sessão de convidado, faixas da loja…). Nenhum mexe em valor
     // cobrado ou pago.
     if (rotulosVitrineCliente.containsKey(key)) return true;
+    if (rotulosGorjetas.containsKey(key)) return true; // gorjetas-taxa 30/10
     if (key.startsWith('robot_b_')) return true; // kill switches Robot B v4
     if (key.startsWith('dispatch_')) return true;
     // [fable-13-09] Minutos que o pedido de parceiro espera em 'preparing'

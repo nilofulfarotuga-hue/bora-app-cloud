@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:bora_app/models/cart_item.dart';
 import 'package:bora_app/models/order_model.dart' show PaymentMethod;
 import 'package:bora_app/models/order_service_type.dart';
+import 'package:bora_app/services/tip_service.dart';
 import 'package:bora_app/stores/cart_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
@@ -17,7 +18,10 @@ import 'package:latlong2/latlong.dart';
 ///  2. O quote guardado só vale para o carrinho com que foi pedido. Antes
 ///     durava 30 s fosse qual fosse o carrinho: mudar um item e olhar outra
 ///     vez mostrava a taxa e o total do carrinho ANTERIOR.
-///  3. A gorjeta não entra no "Total a pagar" (é cobrada à parte).
+///  3. A gorjeta não entra no "Total a pagar" (é cobrada à parte) — com o
+///     interruptor `tips_checkout_junto_pagamento` desligado. Ligado (30/10),
+///     vai no mesmo pagamento: soma-se SÓ à linha mostrada; a cotação e o
+///     `resumo` continuam sem ela.
 ///  4. "Deixar à porta" segue no pedido — nunca com pagamento em dinheiro.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -111,6 +115,34 @@ void main() {
 
       final ecra = File('lib/screens/cart_screen.dart').readAsStringSync();
       expect(ecra, contains('final totalToPay = resumo.total;'));
+    });
+
+    test('gorjeta junto da compra (30/10): só com o interruptor ligado o total '
+        'mostrado a leva; a cotação nunca', () async {
+      final cart = comCesto();
+      cart.setTipCents(200);
+      cart.chamarQuoteParaTeste = (_) async => quoteDe(cart);
+      await cart.quoteOrderPricing();
+      // A cotação e o resumo continuam sem a gorjeta, ligado ou desligado.
+      expect(cart.resumo.total, 7.87);
+
+      double mostrado({required bool junto, required double resto}) {
+        final vai = TipService.vaiJuntoDaCompra(junto: junto, restoAPagarEur: resto);
+        return vai ? TipService.totalComGorjeta(resto, cart.tipCents) : resto;
+      }
+
+      // Desligado: exatamente como antes — a gorjeta fica fora do total.
+      expect(mostrado(junto: false, resto: cart.resumo.total), 7.87);
+      // Ligado e com algo a pagar por cartão/MB Way: 7,87 € + 2,00 €.
+      expect(mostrado(junto: true, resto: cart.resumo.total), closeTo(9.87, 0.001));
+      // Ligado mas pago todo com saldo: a gorjeta segue à parte, fora do total.
+      expect(mostrado(junto: true, resto: 0), 0);
+
+      final ecra = File('lib/screens/cart_screen.dart').readAsStringSync();
+      expect(ecra, contains('value: totalAPagarMostrado,'));
+      final pay =
+          File('lib/screens/payment_method_screen.dart').readAsStringSync();
+      expect(pay, contains('TipService.totalComGorjeta(finalPrice, gorjetaNoTotalCents)'));
     });
 
     test('o ecrã de pagamento lê o mesmo resumo', () {

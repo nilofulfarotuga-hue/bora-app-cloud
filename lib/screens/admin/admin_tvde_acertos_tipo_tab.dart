@@ -13,12 +13,20 @@ import '../../widgets/tvde/filtro_tipo_tvde.dart';
 /// semana, ganho do motorista, dinheiro em mão, pago online, compensações de
 /// cancelamento) + as gorjetas online das corridas (ronda 1 do revisor, 21/10). O acerto oficial continua a ser o "Acerto da semana" — este
 /// separador só mostra de onde vem o dinheiro.
+///
+/// 30/10/2026 (gorjetas-taxa): as gorjetas vêm do servidor já líquidas
+/// (`tips.liquido_prestador_cents`), ver [kRotuloGorjetasLiquidas].
 class AdminTvdeAcertosTipoTab extends StatefulWidget {
   const AdminTvdeAcertosTipoTab({super.key});
 
   @override
   State<AdminTvdeAcertosTipoTab> createState() => _AdminTvdeAcertosTipoTabState();
 }
+
+/// Rótulo das gorjetas no acerto (30/10/2026, regra do Danilo): a gorjeta paga
+/// depois com cartão/MB Way chega ao motorista sem a taxa exata da Stripe desse
+/// pagamento; a do carrinho e a em dinheiro vêm inteiras.
+const String kRotuloGorjetasLiquidas = 'Gorjetas (já sem a taxa da Stripe)';
 
 /// Soma por tipo das linhas do RPC (função pura, testada).
 /// `ganho` já inclui compensações e gorjetas online (vem assim do servidor).
@@ -110,7 +118,7 @@ class _AdminTvdeAcertosTipoTabState extends State<AdminTvdeAcertosTipoTab>
         'Dinheiro em mão (€)',
         'Pago online (€)',
         'Compensações (€)',
-        'Gorjetas online (€)',
+        '$kRotuloGorjetasLiquidas (€)',
       ],
       rows: [
         for (final l in linhas)
@@ -161,7 +169,9 @@ class _AdminTvdeAcertosTipoTabState extends State<AdminTvdeAcertosTipoTab>
                   style: const TextStyle(fontWeight: FontWeight.w800)),
               const SizedBox(height: 4),
               Text('${s?.corridas ?? 0} corridas · ganho ${_eur(s?.ganho ?? 0)}'),
-              Text('em mão ${_eur(s?.dinheiro ?? 0)} · online ${_eur(s?.online ?? 0)} · gorjetas ${_eur(s?.gorjetas ?? 0)}',
+              Text('em mão ${_eur(s?.dinheiro ?? 0)} · online ${_eur(s?.online ?? 0)}',
+                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+              Text('$kRotuloGorjetasLiquidas: ${_eur(s?.gorjetas ?? 0)}',
                   style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
             ]),
           ),
@@ -225,7 +235,7 @@ class _AdminTvdeAcertosTipoTabState extends State<AdminTvdeAcertosTipoTab>
                       ' · em mão ${_eur((l['dinheiro_em_mao_cents'] as num?)?.toInt() ?? 0)}'
                       ' · online ${_eur((l['online_cents'] as num?)?.toInt() ?? 0)}'
                       '${((l['compensacao_cents'] as num?)?.toInt() ?? 0) > 0 ? ' · compensações ${_eur((l['compensacao_cents'] as num).toInt())}' : ''}'
-                      '${((l['gorjetas_online_cents'] as num?)?.toInt() ?? 0) > 0 ? ' · gorjetas ${_eur((l['gorjetas_online_cents'] as num).toInt())}' : ''}'),
+                      '${((l['gorjetas_online_cents'] as num?)?.toInt() ?? 0) > 0 ? ' · $kRotuloGorjetasLiquidas: ${_eur((l['gorjetas_online_cents'] as num).toInt())}' : ''}'),
                   trailing: Text(_eur((l['ganho_cents'] as num?)?.toInt() ?? 0),
                       style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
                 ),

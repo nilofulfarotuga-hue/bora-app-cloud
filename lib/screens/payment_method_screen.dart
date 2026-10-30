@@ -27,6 +27,7 @@ import '../widgets/substituicao_seletor.dart';
 import '../services/interruptores_app.dart';
 import '../services/limite_dinheiro_service.dart';
 import '../services/payment_service.dart';
+import '../services/tip_service.dart';
 import '../utils/hora_lisboa.dart';
 import '../utils/nota_do_pedido.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
@@ -106,7 +107,13 @@ class _ComingSoonPaymentNotice extends StatelessWidget {
 }
 
 class PaymentMethodScreen extends StatefulWidget {
-  const PaymentMethodScreen({super.key});
+  const PaymentMethodScreen({super.key, this.gorjetaJuntoCents = 0});
+
+  /// Gorjeta do carrinho que vai no MESMO pagamento da compra (30/10/2026):
+  /// o carrinho marcou-a no servidor antes de abrir este ecrã, e o servidor
+  /// soma-a ao pagamento. Aqui só se MOSTRA (linha "Gorjeta" e total com ela);
+  /// 0 = como antes (gorjeta à parte, fora do total).
+  final int gorjetaJuntoCents;
 
   @override
   State<PaymentMethodScreen> createState() => _PaymentMethodScreenState();
@@ -468,6 +475,13 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     final double debtEur = _debtSettleCents / 100.0;
     final double finalPrice =
         (totalToPay - tokenDiscount + debtEur).clamp(0.0, double.infinity);
+    // Gorjeta junto da compra (30/10/2026): só para MOSTRAR — quem a soma ao
+    // pagamento é o servidor. Limites de dinheiro, tokens e troco continuam a
+    // contar só a compra. Pedido pago todo com saldo → a gorjeta segue à parte.
+    final int gorjetaNoTotalCents =
+        isErrand || finalPrice <= 0 ? 0 : widget.gorjetaJuntoCents;
+    final double totalMostrado =
+        TipService.totalComGorjeta(finalPrice, gorjetaNoTotalCents);
 
     // BUG #1 frontend (§54) — CASH disabled se total_pedido + dívida passa o
     // limite. 04/10/2026: o limite é platform_settings.max_cash_amount_cents
@@ -836,9 +850,14 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                             ),
                           ),
 
+                        if (gorjetaNoTotalCents > 0)
+                          _SummaryRow(
+                            label: 'Gorjeta'.tr,
+                            value: gorjetaNoTotalCents / 100,
+                          ),
                         _SummaryRow(
                           label: 'Total a pagar'.tr,
-                          value: finalPrice,
+                          value: totalMostrado,
                           isStrong: true,
                         ),
                       ],
@@ -1102,16 +1121,18 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                       const SizedBox(height: Spacing.sm),
                       UnifiedCheckoutButton(
                         label: 'Encomenda com obrigação de pagar'.tr,
-                        amount: finalPrice,
+                        amount: totalMostrado,
                         busy: _isProcessing,
                         showSavedCard: false,
                         useOverride: true,
                         savedPmIdOverride: _selectedMethod == PaymentMethod.card
                             ? _selectedSavedPmId
                             : null,
+                        // O valor só se MOSTRA (diálogo do MB WAY); o que se
+                        // cobra decide-o o servidor.
                         onPay: (_) => _confirmPayment(
                           context,
-                          finalPrice,
+                          totalMostrado,
                           tokensUsed: tokensChosen,
                         ),
                       ),

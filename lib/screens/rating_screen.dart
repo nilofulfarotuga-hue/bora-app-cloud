@@ -162,7 +162,9 @@ class _RatingScreenState extends State<RatingScreen> {
 
       // Gorjeta (missão 03/10 · bloco 3): até 04/10 aqui só se escrevia um
       // número no pedido, sem cobrar nada — e nunca ficou nenhuma gravada.
-      // Agora é cobrada à parte (charge-tip, 100% para o estafeta). A
+      // Agora é cobrada à parte (charge-tip). Regra de 30/10/2026: paga
+      // depois, por cartão/MB Way, o estafeta recebe-a menos a taxa exata que
+      // a Stripe cobrou neste pagamento; a Bora não fica com nada. A
       // avaliação já está gravada; a gorjeta falhar não a desfaz.
       String? avisoGorjeta;
       if (_tipCents > 0 && isDriverSubject && _gorjetaLigada) {

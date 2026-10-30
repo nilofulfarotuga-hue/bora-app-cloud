@@ -285,7 +285,12 @@ Pré-autorização de **+15% a mais** do valor estimado.
 ### 4.5 Gorjetas (Tips)
 - Cliente pode dar gorjeta na altura de pagar **ou** depois da entrega (ao avaliar)
 - Valores sugeridos: **1€ · 2€ · 3€ · 5€** + campo livre
-- Divisão: **80% estafeta, 20% Bora**
+- Regra do Danilo de **30/10/2026** (substitui a "divisão 80% estafeta, 20% Bora" de abril, que já não valia desde 03/10):
+  1. Gorjeta dada **no carrinho** com cartão ou MB Way → vai no **mesmo pagamento** da compra; não há taxa à parte, por isso chega **inteira** ao estafeta.
+  2. Gorjeta paga **depois** (ecrã de avaliação da entrega ou da corrida TVDE) com cartão ou MB Way → é um pagamento à parte; o estafeta/motorista recebe a gorjeta **menos a taxa exata que a Stripe cobrou nesse pagamento** (ex.: 2,00 € − 0,28 € = 1,72 €). Enquanto a taxa real não chega, conta a estimativa 0,25 € + 1,5 % (coluna `tips.liquido_prestador_cents`).
+  3. Gorjeta em **dinheiro** → inteira (não passa pela Stripe).
+  4. A Bora **não ganha nada** em cima de gorjeta. Pedido cancelado → a gorjeta volta **inteira** ao cliente.
+- Interruptor `platform_settings.tips_checkout_junto_pagamento` (ponto 1); desligado = gorjeta do carrinho cobrada à parte, inteira para o estafeta. Pedido pago todo com saldo Bora: a gorjeta do carrinho continua à parte.
 
 ---
 
@@ -634,7 +639,7 @@ Ver secção 7.7.
 
 ### 13.4 Gorjeta Associada
 - No ecrã de avaliação, cliente pode dar gorjeta (se ainda não deu no pagamento)
-- Ver divisão em secção 4.5
+- É um pagamento à parte: o estafeta/motorista recebe-a menos a taxa exata da Stripe desse pagamento (regra de 30/10/2026, secção 4.5)
 
 ---
 

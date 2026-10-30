@@ -10,7 +10,7 @@ estado: atual
 
 # Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-10-30T15:15:54.302199+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-10-30T21:13:51.742238+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: erros aprendidos · memoria claude.ai · claude_ai_memoria
 
@@ -104,4 +104,5 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - 29/10 (claude-ai): A sessão da missão da Bora perdeu a ligação ao PC e escrevi o adendo de retomar na caixa de OUTRA sessão viva ("DeepSeek Harness installation" = Gipsy/Hermes, paralela) e mandei carregar Enter lá; ele corrigiu irritado. → Ele tem várias conversas e sessões a correr ao mesmo tempo; cada missão fica na SUA sessão (a da Bora é "Missão geral Bora 2026-10-28"); nunca escrever numa sessão de outro assunto nem mandar parar o que ela faz. Se a sessão certa estiver desligada, dizer-lhe isso e pedir-lhe para colar o adendo lá, e nada mais.
 - 30/10 (claude-ai): No token do Supabase do Dipsy escolhi por ele 90 dias e só leitura com escrita em 4 áreas; ele corrigiu: quer acesso total (Full access) e para sempre (Never), "não quero ficar renovando nem apertando permitir, não quero passar raiva". → Quando ele pede acesso para os agentes dele (Dipsy, Claude Code), configura-se total e sem validade; o risco explica-se uma vez, numa linha, e a escolha é dele.
 - 30/10 (claude-ai): Dei-lhe a lista do que escolher no formulário do token do Supabase (validade, organização, preset) para ele preencher; ele reclamou irritado: "eu não faço nada, não preencho nada, quem preenche é você ou um agente, eu só aceito e clico no verde". → (repete as de 23/09 e 28/08) Formulário de painel web (Supabase, Google, Apple…) preenche-o o Claude pelo Chrome ou o Claude Code no PC; a ele só fica o botão verde final, com a página já preenchida à frente dele.
+- 30/10 (claude-ai): Na resposta ao Jai sobre a entrevista dele no canal de YouTube do Professor Kalinga (10 mil visualizações em menos de 12 h) escrevi "Great talk with Ranjit" só porque o título do vídeo dizia "Ranjit & Jai"; o Jai corrigiu: a conversa é com o Professor Kalinga, e a do Ranjit é a que já está no site dele. → Regra do Danilo (30/10 21:11): antes de escrever sobre um vídeo ou de o pôr no site, primeiro pôr o agente que vê os vídeos a vê-lo e ler o que ele diz (quem fala, de que se fala); nunca escrever só pelo título.
 

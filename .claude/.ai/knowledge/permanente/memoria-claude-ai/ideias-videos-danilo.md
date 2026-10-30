@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-30T20:55:32.569371+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-30T21:27:39.238514+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -400,3 +400,18 @@ Filme caminho 4 (fontes htROyMzUbA8, rxZZ1xi81a4): no Google Flow (Omniflash 1.1
 - JÁ TEMOS: atendente WhatsApp (2 vídeos Pabbly, pago), memória partilhada (AI Memory do Akita, Azure Cosmos = Córtex), quadro de tarefas/multiagente (loop de ordens do Córtex + OmniRoute).
 - RECUSADO: Abiva + anúncios pagos, influenciador fictício com IA, white-label de delivery pago, AliExpress.
 - Radar aprende: sem termos novos (nenhum assunto novo em 2+ vídeos nota>=7; conversas das últimas 48 h sem assunto novo de negócio); 70 ativos.
+
+## 30/10/2026 (noite) — pedido do Danilo: ver ~50 vídeos do Dipsy (DeepSeek Harness, instalado no PC hoje) e o que falta
+- Fila: 43 vídeos novos em radar_videos (pesquisa='fila-dipsy 2026-10-30'), mais 6 antigos já resumidos; ordem ordem-20261030212650-5b4e para o PC tirar legendas e resumir (a nuvem não abre o YouTube). +3 termos no radar (plugins, Dipsy vs Hermes, grátis/automação), peso 3.
+- O QUE FALTA no Dipsy (comparado com artigos públicos de 30/10 e com e2e_log dsh-harness-2026-10-29; os vídeos ainda vão confirmar):
+  1) Tarefas agendadas/automação (dsh-automation, dsh-loop) — não provado, só funciona na página web.
+  2) Subagente oficial do Claude Code (subagent-claude-code) — não instalado; deixava o Dipsy passar o trabalho difícil ao Claude Code.
+  3) Equipa de agentes com quadro de tarefas partilhado (experimental) — não testado.
+  4) Memória própria (dsh-memento, aprova antes de gravar) — ativa no lab sem prova; usar só UMA memória.
+  5) Telegram — ponte pronta, falta só o Danilo criar o bot no BotFather.
+  6) App de computador para Windows (abre Word/Excel/PowerPoint) — estamos a usar a página web.
+  7) Creator Mode — o Dipsy escreve e instala plugins pedidos em conversa.
+  8) Conferir privacidade: no motor oficial DeepSeek os registos de sessão sobem por omissão e o app de computador pode ter telemetria ligada.
+  9) A caixa de areia só trava escrita: leitura e rede ficam livres — a nossa guarda cobre os comandos, confirmar a rede.
+  10) Engenharia reversa (C2) e ferramentas extra (C10) quase nada feito.
+- Fontes: https://www.eesel.ai/blog/deepseek-harness , https://deepinfra.com/blog/deepseek-harness-review , https://composio.dev/content/best-deepseek-harness-plugins , https://dsh-plugin.org/tutorials/dsh-memory-plugins

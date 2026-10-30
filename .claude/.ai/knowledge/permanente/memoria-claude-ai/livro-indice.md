@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-30T14:07:06.684428+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-30T14:37:05.378697+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-30 14:01 UTC. Páginas listadas: 451.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-30 14:14 UTC. Páginas listadas: 451.
 
 ## O que é o Bora
 
@@ -283,7 +283,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-areas-ganhos-prestador — Ganhos do prestador no [[bora-app]] — total do dia em qualquer ecrã e a fórmula do estafeta em loja não-parceira (fica como está, 29/10) (2026-10-29)
 - livro-areas-gibi-biblia-criancas — Animated Bible storytelling project for Danilo's daughters (characters Tuca and Lumi), pivoting to comic book (Gibi) format (2026-10-23)
 - livro-areas-goola-acai — Goola Açaí (quiosque no La Vie Guarda) — parceiro fechado do Bora App; modelo de preço acordado, loja montada e categoria nova "Sobremesas" (2026-10-23)
-- livro-areas-gorjeta — Regra do Danilo para a gorjeta/gratificação no Bora (entregas e TVDE, copiar a Uber) — ler antes de mexer em gorjetas (2026-10-23)
+- livro-areas-gorjeta — Regras do Danilo para a gorjeta no Bora (entregas e TVDE): no carrinho vai junto do pagamento, paga depois desconta a taxa da Stripe — ler… (2026-10-30)
 - livro-areas-guarda-fc — Guarda FC — negócio do site fechado (clube com loja €1.700 + site pessoal €250; pago €1.550, falta €400), contrato, domínio, estado atual d… (2026-10-23)
 - livro-areas-guarda-fc-monetizacao — Intenção do Danilo de monetizar o Guarda FC para além do site — pedido de análise 18/08 e ideias que ele próprio pôs em cima da mesa; nada… (2026-10-23)
 - livro-areas-guarda-fc-site-historico — Histórico técnico da construção do site do Guarda FC (v1 a v6) e do sistema de agentes de Telegram — ler antes de mandar mexer no site ou n… (2026-10-23)

@@ -18,7 +18,7 @@ import re
 import threading
 import time
 
-from . import ferramentas_bot as FB
+from . import ferramentas_bot as FB, lojas
 from . import fichas, fio, identidade, manual, modelos, supa, tarefas, telegram, verdades
 
 OWN = "351937501673"
@@ -31,7 +31,11 @@ RE_ACK = re.compile(r"^(?:\W*(?:ok+|okay|okey|blz|blza|beleza|certo|combinado|�
 # FERRAMENTA -> RESPOSTA, garantido em codigo para a intencao mais importante: quem fala de um pedido
 # tem os dados verificados ANTES de o modelo escrever (o 7b prometia "vou verificar" sem chamar nada).
 RE_PEDIDO = re.compile(r"\bpedido|\bencomenda\b|onde est[aá]|cad[eê]\b|demora|atras|chega quando|quanto tempo|a caminho|n[aã]o chegou|ainda n[aã]o (chegou|veio)|est[aá] a demorar|t[aá] demorando", re.I)
-RE_DINHEIRO = re.compile(r"reembols|estorno|devolv\w* (o )?dinheiro|desconto|cupão|cupao|cobra\w+ (a mais|errad|duas vezes)|cobrança|cobranca|pagamento (nao|não) (saiu|foi)|\bmb ?way\b.*(nao|não)|fatura|preç\w+ (errad|diferente)|quanto (é|e|custa|fica)|valor|\beuro|€", re.I)
+# DINHEIRO: so escala o que e PROBLEMA de dinheiro. "Quanto custa a entrega?" e uma pergunta com
+# resposta conhecida -- mandar essa pessoa telefonar e a resposta oca que o Danilo apanhou a 04/09.
+RE_DINHEIRO_PROBLEMA = re.compile(r"reembols|estorno|devolv\w* (o )?dinheiro|cobra\w+ (a mais|errad|duas vezes)|cobrad[oa] (a mais|duas|2)|cobrança|cobranca|pagamento (nao|não) (saiu|foi|passou)|\bmb ?way\b.{0,20}(nao|não)|fatura|recibo|preç\w+ (errad|diferente)|valor (errad|a mais|diferente)|paguei (a mais|duas)|debitad|descontaram|tiraram.{0,15}dinheiro", re.I)
+# Mantido para quem o usa noutro sitio, mas passa a valer o mesmo criterio.
+RE_DINHEIRO = RE_DINHEIRO_PROBLEMA
 RE_RECLAMA = re.compile(r"reclam|péssimo|pessimo|horr[ií]vel|nojo|(chegou|veio) (frio|errad|estragad|aberto|partid)|faltou|nunca mais|processar|denunc|inaceit|revoltad|indignad|absurdo|vergonha", re.I)
 RE_FALTA = re.compile(r"estafeta.{0,25}(nao|não|sem|falta|desapareceu|sumiu|não apareceu|nao apareceu)|parceiro.{0,20}(nao|não|fechad)|ninguém (veio|apareceu|responde)|ninguem (veio|apareceu|responde)|(nao|não) apareceu|(loja|restaurante).{0,15}(nao|não) (responde|atende)", re.I)
 RE_GRUPO_HINT = re.compile(r"@g\.us", re.I)
@@ -45,8 +49,10 @@ RE_CUMPRIMENTO = re.compile(r"^(olá|ola|oi|bom dia|boa tarde|boa noite|hey|hi|h
 RE_HORARIO = re.compile(r"que horas|a que hora|hor[aá]ri|\bhoras?\b.*(abre|fecha|funciona|aberto)|(abre|fecha|funciona|aberto|abrem|fecham).*horas?|quando (abre|fecha|abrem|fecham)|que dias?.*(abre|aberto|funciona)|est[aã]o abertos|at[eé] que horas|a partir de que horas", re.I)
 RE_DISPONIBILIDADE = re.compile(r"(entregam|entrega|trabalham|trabalha|funciona|funcionam|abrem|abre|est[aã]o|fazem|h[aá]|tem|d[aá])\b.{0,30}\b(domingo|s[aá]bado|feriado|natal|ano novo|p[aá]scoa|de noite|à noite|a noite|madrugada|24 ?horas|agora|neste momento|hoje [aà] noite)|\b(ao|no|neste|este|aos|nos)\s+(domingo|s[aá]bado|feriado)s?\b", re.I)
 RE_OUTRA_INTENCAO = re.compile(r"pedido|encomenda|reembols|parceir|estafeta|reserv|limpeza|lavagem|boleia|tvde|pre[cç]o|quanto|custa|€", re.I)
-HORARIO_FIXO = ("O Bora não tem horário próprio — cada loja e restaurante tem o seu, e vê-o na app, na página da loja. "
-                "Assim sabe logo quem está aberto agora.")
+# O horario nao acaba num facto: acaba num passo. Se a pessoa disser a loja, o horario REAL vem do
+# Supabase (`lojas.horario_texto`) na mensagem seguinte.
+HORARIO_FIXO = ("Trabalhamos todos os dias, incluindo domingos e feriados — o horário é o de cada loja. "
+                "Diga-me qual a loja e digo-lhe já a que horas abre.")
 # iPHONE (facto do Danilo, 04/09/2026): NAO ha app para iPhone. Quem tem iPhone pede pela web.
 # Vale por texto fixo (pergunta directa) E por rede de seguranca no pos-processamento: o modelo ja
 # respondeu "Sim, temos! Podes descarregar na App Store" numa prova a 02/09 -- isso nao pode sair.
@@ -82,7 +88,33 @@ RE_RACIOCINIO_CRU = re.compile(
     r"^\s*(the user|user (wants|is asking|asked)|we (need|should)|i (need|should|will|must)\b|okay,? (so|let)|let'?s |"
     r"first,? (i|we|let)|assistant:|system:|thinking:|analysis:|reasoning:|resposta:|o utilizador (quer|pergunta)|"
     r"a pessoa (quer|pergunta|esta a perguntar))", re.I)
-RE_MUITO_INGLES = re.compile(r"\b(the|and|with|about|delivery|courier|should|would|because|however)\b", re.I)
+RE_MUITO_INGLES = re.compile(r"\b(the|and|with|about|delivery|deliveries|courier|should|would|because|however|user|asking|need|check|looking|answer|response|question|section|since|there|they|this|that)\b", re.I)
+
+
+# Quem esta a pensar alto comeca sempre da mesma maneira, e fala DO cliente em vez de falar
+# COM ele. Tambem cita as pecas internas (folha de verdades, SERVICOS, prompt).
+RE_PENSA_ALTO = re.compile(
+    r"^\W*(okay|ok|so|alright|first|let me|let's|i need to|i should|we should|the user|"
+    r"o utilizador|o cliente (est[aá]|quer|pergunta)|vou pensar|pensando|analisando|"
+    r"primeiro,? (preciso|tenho|vou)|deixa-me (ver|pensar))\b", re.I)
+RE_CITA_INTERNO = re.compile(
+    r"\b(facts? sheet|folha de verdades|SERVICOS section|sec[çc][ãa]o SERVICOS|system prompt|"
+    r"as minhas instru[çc][õo]es|o meu prompt|according to the (sheet|facts))\b", re.I)
+
+
+def _raciocinio_a_escapar(texto):
+    """True se isto e o modelo a pensar alto e nao uma resposta ao cliente. Corre na ultima
+    porta, para nenhum fornecedor conseguir mandar isto a uma pessoa (05/09/2026)."""
+    t = (texto or "").strip()
+    if len(t) < 12:
+        return False
+    if RE_CITA_INTERNO.search(t):
+        return True
+    if RE_PENSA_ALTO.match(t):
+        return True
+    ingles = len(RE_MUITO_INGLES.findall(t))
+    tem_pt = bool(re.search(r"[ãõçáéíóúâêô]", t))
+    return ingles >= 2 and not tem_pt
 
 
 def _parece_raciocinio(texto):
@@ -255,6 +287,34 @@ def _resumo_pedidos(res):
     return "Vi agora: o seu último pedido%s ficou %s%s. Se for outro pedido, diga-me qual." % (loja, p.get("estado"), quando)
 
 
+ESPERA_LOJA_MIN = 30
+
+
+def _esperar_loja(f):
+    """Ficou por saber qual a loja: a proxima mensagem e lida como o nome dela (30 min)."""
+    extra = f.get("extra") if isinstance(f.get("extra"), dict) else {}
+    extra["espera_loja"] = fichas.agora()
+    f["extra"] = extra
+
+
+def _espera_loja_viva(f):
+    extra = f.get("extra") if isinstance(f.get("extra"), dict) else {}
+    quando = extra.get("espera_loja")
+    if not quando:
+        return False
+    try:
+        t = datetime.datetime.fromisoformat(str(quando).replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        return False
+    agora = datetime.datetime.now(t.tzinfo) if t.tzinfo else datetime.datetime.now()
+    return (agora - t).total_seconds() < ESPERA_LOJA_MIN * 60
+
+
+def _limpar_espera_loja(f):
+    if isinstance(f.get("extra"), dict):
+        f["extra"].pop("espera_loja", None)
+
+
 def _pos_processar(texto, f, tratamento, cumprimentou_hoje, msg=None):
     t = (texto or "").strip()
     # A FOLHA DE VERDADES verifica AQUI, porque todos os caminhos (facto fixo, fio, rapido, escalar)
@@ -268,6 +328,18 @@ def _pos_processar(texto, f, tratamento, cumprimentou_hoje, msg=None):
     t = re.sub(r"VERIFICADO AGORA[^\n]*", "", t, flags=re.I)
     if RE_IPHONE_MENTIRA.search(t):              # 04/09: nunca sai "há app para iPhone"/"App Store"
         t = IPHONE_FIXO
+    # RESPOSTA OCA (04/09, ordem do Danilo): "Em que posso ajudar?" so na primeira mensagem de uma
+    # conversa. Se a pessoa escreveu outra coisa e o modelo devolveu uma frase generica, vai no lugar
+    # uma pergunta concreta sobre o que ela escreveu.
+    # RACIOCINIO CRU (05/09): nenhum modelo manda o seu proprio pensamento a um cliente.
+    if _raciocinio_a_escapar(t):
+        t = verdades.FRASE_NAO_SEI
+    if msg and RESPOSTA_OCA.match(t) and not RE_SO_CUMPRIMENTO.match((msg or "").strip()):
+        t = _pergunta_concreta(msg)
+    elif msg and RESPOSTA_OCA_FIM.search(t) and not RE_SO_CUMPRIMENTO.match((msg or "").strip()):
+        # o facto fica; so a cauda generica e' trocada pelo passo seguinte
+        corpo = RESPOSTA_OCA_FIM.sub("", t).strip()
+        t = (corpo + " " + PASSO_CONCRETO).strip() if len(corpo) > 12 else _pergunta_concreta(msg)
     t = identidade.limpar_tratamento(t, tratamento, f)
     if cumprimentou_hoje:
         t = RE_CUMPRIMENTO.sub("", t, count=1).strip()
@@ -329,6 +401,54 @@ def _executar_com_orcamento(c, ctx, t0, dec, emitir):
 #     Danilo entra -- nunca uma promessa vazia, nunca silencio.
 # Meta medida: resposta em menos de 10 s em 9 de cada 10 mensagens.
 RAPIDO = os.environ.get("CEREBRO_RAPIDO", "1") != "0"
+# RESPOSTA_OCA: frases que nao dizem nada. So podem sair na PRIMEIRA mensagem de uma conversa.
+# A CAUDA generica: "... Em que posso ajudar?" no fim de uma resposta com conteudo. O facto fica,
+# a cauda e trocada por um passo que leva a pessoa a algum lado (04/09/2026).
+RESPOSTA_OCA_FIM = re.compile(r"(?:^|(?<=[.!?]))\s*(?:e\s+)?(?:diga|ent[ãa]o|mas)?[,\s]*(?:em que|no que|como|em qu[êe])\s+(?:lhe\s+|te\s+|o\s+|a\s+)?(?:posso|podemos)\s+(?:ajudar|ser [úu]til|servir)[^.!?]*[.!?]*\s*$", re.I)
+PASSO_CONCRETO = "Diga-me o que precisa: fazer um pedido, o horário de uma loja, ou ver onde está um pedido que já fez."
+RESPOSTA_OCA = re.compile(
+    r"^\W*(ol[áa]|oi|bom dia|boa tarde|boa noite|viva)?[\s,!.]*"
+    r"((diga|então|pois|claro|com certeza)[\s,!.]*)?"
+    r"((em que|no que|como|em quê)\s+(lhe\s+|te\s+|o\s+|a\s+)?(posso|podemos)\s+(ajudar|ser útil|servir)"
+    r"|posso ajudar em (alguma coisa|quê)"
+    r"|precisa de (alguma coisa|ajuda)"
+    r"|estou (aqui|ao dispor) para (ajudar|o que precisar)"
+    r"|(diga|fale)[\s,!.]*(o que precisa)?"
+    r"|como (posso|podemos) ajudar)"
+    r"[\s?!.]*$", re.I)
+# Mensagens curtas e vagas: nao sao cumprimento, mas tambem nao dizem o que a pessoa quer. Cada uma
+# leva FACTO + PASSO, nunca uma frase generica.
+VAGAS = [
+    (re.compile(r"^\W*(ok+|okay|okey|certo|est[áa] bem|ta bem|tá bem|blz|beleza|entendi|percebi|combinado|fixe)\W*$", re.I),
+     "Fico por aqui então. Se quiser, digo-lhe o horário de uma loja, ajudo-o a fazer um pedido, "
+     "ou vejo onde está um pedido que já fez — é só dizer qual."),
+    (re.compile(r"est[áa] (a )?funcion|t[áa] funcionando|ta funcionando|funciona\?|est[áa] (tudo )?(a trabalhar|on|ativo|activo)"
+                r"|tem algu[ée]m (a[í i]|online)|est[áa]s? a[í i]|voc[ê e]s? est[ãa]o a[í i]|ol[áa]\?\?+", re.I),
+     "Está tudo a funcionar, sim — estou aqui e a app está no ar. Diga-me o que precisa: comida, "
+     "compras no supermercado, farmácia, limpeza ou uma entrega?"),
+    (re.compile(r"^\W*(e ent[ãa]o|ent[ãa]o|e a[í i]|e agora|e depois|novidades|alguma novidade|alguma coisa)\W*\?*\W*$", re.I),
+     "Da minha parte não ficou nada pendente. Diga-me só o que quer tratar: um pedido novo, "
+     "o horário de uma loja, ou uma coisa que já tenha em curso."),
+    (re.compile(r"^\W*(obrigad[oa]|valeu|thanks|brigad[oa])\W*$", re.I),
+     "De nada! Se precisar de mais alguma coisa — um pedido, o horário de uma loja ou uma entrega — "
+     "é só escrever aqui."),
+]
+
+
+def _pergunta_concreta(msg):
+    """Quando nao se percebe a mensagem, pergunta-se sobre O QUE ELA ESCREVEU. Nunca uma frase feita."""
+    m = (msg or "").strip()
+    for padrao, resposta in VAGAS:
+        if padrao.search(m):
+            return resposta
+    curto = m if len(m) <= 60 else m[:57].rstrip() + "..."
+    if len(m) < 3:
+        return ("Não apanhei o que escreveu. Diga-me o que precisa: fazer um pedido, saber o horário "
+                "de uma loja, ou ver onde está um pedido que já fez?")
+    return ('Só para não lhe responder ao lado: quando diz "%s", é sobre um pedido que já fez, '
+            'sobre uma loja em concreto, ou é uma coisa nova que quer pedir?' % curto)
+
+
 RE_SO_CUMPRIMENTO = re.compile(
     r"^\W*(olá|ola|oi+|oie|bom dia|boa tarde|boa noite|boas|hey|hi|hello|e a[ií]|eai|opa)"
     r"(\W+(tudo bem|td bem|tudo bom|tudo certo|como (est[aá]|vai)|blz|beleza|bom dia|boa tarde|boa noite))*\W*$", re.I)
@@ -452,6 +572,40 @@ def _fechar(dec, f, ctx, texto, tratamento, prova, lingua_, cumprimentou_hoje, m
     return dec
 
 
+def _retomar_fio(f, lingua_="pt-PT"):
+    """Um 'oi' a meio de uma conversa nao leva uma frase feita: retoma-se o que ficou por fechar, ou
+    dao-se opcoes concretas. Nunca sai daqui uma resposta sem conteudo."""
+    if lingua_ == "en":
+        return ("Hi again! Tell me what you need: an order, a shop's opening hours, or the status of "
+                "an order you already placed.")
+    extra = f.get("extra") if isinstance(f.get("extra"), dict) else {}
+    if extra.get("espera_loja"):
+        nomes = lojas.sugestoes(3)
+        exemplo = (" Por exemplo: " + ", ".join(nomes) + ".") if nomes else ""
+        return "Ficou a faltar dizer-me qual a loja, para eu ver o horário.%s" % exemplo
+    # NUNCA se cita `prometido`: esse campo guarda o texto de SAIDA do proprio bot, e a 04/09 saiu
+    # "Ainda tenho em maos o que falamos: Vou confirmar isso com o meu superior...". O assunto e o
+    # que o CLIENTE escreveu. E nao se comeca por saudacao: quando ja se cumprimentou hoje, o
+    # pos-processamento corta-a e ficava um "De novo!" pendurado.
+    ultimo = None
+    for t in reversed(f.get("ultimas_trocas") or []):
+        corpo_t = str(t.get("texto") or "").strip()
+        if (t.get("dir") == "entrada" and len(corpo_t) > 6
+                and not RE_SO_CUMPRIMENTO.match(corpo_t) and not RE_ACK.match(corpo_t)):
+            ultimo = corpo_t[:70]
+            break
+    if not ultimo:
+        for p in reversed(f.get("o_que_pediu") or []):
+            corpo = str(p).split("—", 1)[-1].strip()
+            if len(corpo) > 6:
+                ultimo = corpo[:70]
+                break
+    if ultimo:
+        return ('Diga. Da última vez falou-me de "%s" — quer continuar por aí, ou hoje é outra coisa?' % ultimo)
+    return ("Diga-me o que precisa: comida ou compras entregues em casa, farmácia, limpeza, "
+            "ou o horário de uma loja.")
+
+
 def _rapido(ctx, f, msg, tratamento, prova, lingua_, registo_, cumprimentou_hoje, t0, dec, registar, emitir):
     numero = ctx["numero"]
     ctx["msg_actual"] = msg
@@ -461,10 +615,13 @@ def _rapido(ctx, f, msg, tratamento, prova, lingua_, registo_, cumprimentou_hoje
 
     # a) cumprimento puro: sem modelo, sem ferramenta
     if len(msg) <= 40 and RE_SO_CUMPRIMENTO.match(msg):
+        # PRIMEIRA mensagem da conversa: cumprimenta-se e oferece-se. A partir da segunda, um "oi"
+        # solto tem de trazer conteudo -- retoma-se o fio ou dao-se opcoes concretas.
+        primeira = not (f.get("ultimas_trocas") or f.get("o_que_pediu"))
         if lingua_ == "en":
-            texto = "Hi! How can I help?" if not cumprimentou_hoje else "Tell me — how can I help?"
+            texto = "Hi! How can I help?" if primeira else _retomar_fio(f, lingua_)
         else:
-            texto = identidade.saudacao(tratamento, f, lingua_) if not cumprimentou_hoje else "Diga, em que posso ajudar?"
+            texto = identidade.saudacao(tratamento, f, lingua_) if primeira else _retomar_fio(f, lingua_)
         return _fechar(dec, f, ctx, prefixo + texto, tratamento, prova, lingua_, cumprimentou_hoje, "cumprimento-fixo", [], None, t0, registar, msg=msg)
 
     # b) o que precisa de dados verifica-se ANTES do modelo, em codigo
@@ -546,7 +703,7 @@ def _rapido(ctx, f, msg, tratamento, prova, lingua_, registo_, cumprimentou_hoje
             caixa["rejeitada"] = texto[:160]
             r = _chamar("chat-rapido", "PROIBIDO prometer ('vou ver', 'vou verificar', 'ja lhe digo', 'um momento', 'dou-lhe resposta'): nao "
                                        "tens nada para ir ver. Responde AGORA com o que esta no manual e nos factos, ou diz numa frase que nao "
-                                       "tens essa informacao e que o Danilo responde por aqui.")
+                                       "tens essa informacao e que alguem da equipa responde por aqui.")
             caixa["modelo"] = r.get("modelo") or caixa["modelo"]
             texto = (r.get("texto") or "").strip()
             if texto and RE_PROMESSA.search(texto):
@@ -709,8 +866,22 @@ def atender(evento, registar=None, modo_prova=False, emitir=None):
         return dec
     so_ack = all(RE_ACK.match(t) for t in textos if not t.startswith("[")) and "?" not in msg
     if so_ack and len(msg) <= 40:
+        # Ate 04/09 isto era SILENCIO. Ordem nova do Danilo: so o cumprimento pode levar uma frase
+        # de cortesia; tudo o resto leva conteudo. Um "ok" leva o fecho com o passo seguinte, e se
+        # ja se tiver fechado assim uma vez seguida, leva a versao curta -- para nao andar em circulos.
+        extra_ack = f.get("extra") if isinstance(f.get("extra"), dict) else {}
+        repetido = bool(extra_ack.get("ack_respondido"))
+        extra_ack["ack_respondido"] = not repetido
+        f["extra"] = extra_ack
+        texto_ack = ("Fico por aqui. Quando precisar, é só escrever." if repetido else _pergunta_concreta(msg))
+        cumprimentou_hoje = fichas.cumprimentado_hoje(f)
+        bolhas = _pos_processar(texto_ack, f, tratamento, cumprimentou_hoje, msg)
+        fichas.marcar_cumprimento(f)
+        f["ultima_resposta_bot_em"] = fichas.agora()
         fichas.guardar(f)
-        dec.update(acao="ignorar-ack", motivo="so agradecimento/ok")
+        dec.update(acao="responder", textos=bolhas, modelo="fecho-com-passo", ferramentas=[],
+                   motivo="agradecimento/ok: fecha com o passo seguinte, nunca em silencio",
+                   segundos=round(time.time() - t0, 1), tratamento=tratamento, prova_tratamento=prova, lingua=lingua_)
         return dec
 
     # 3a. O FIO (falha G): se o bot pediu algo, a mensagem e lida PRIMEIRO como resposta a isso -- em codigo, sem modelo
@@ -740,7 +911,7 @@ def atender(evento, registar=None, modo_prova=False, emitir=None):
             registar({"evento": "fio", "numero": numero, "novos": r_fio.get("novos"), "falta": r_fio.get("falta"), "adiou": r_fio.get("adiou")})
             return _fechar(dec, f, ctx, r_fio["texto"], tratamento, prova, lingua_, cumprimentou_hoje, "fio", ferramentas_fio, None, t0, registar, msg=msg)
 
-    motivo_escalar = ("dinheiro" if RE_DINHEIRO.search(msg) else ("reclamacao" if RE_RECLAMA.search(msg) else
+    motivo_escalar = ("dinheiro" if RE_DINHEIRO_PROBLEMA.search(msg) else ("reclamacao" if RE_RECLAMA.search(msg) else
                       ("falta" if RE_FALTA.search(msg) else ("urgente" if (RE_URGENTE.search(msg) or verdades.urgente(msg)) else None))))
     if motivo_escalar:
         textos_out = _escalar_texto(motivo_escalar, tratamento, f, lingua_)
@@ -771,12 +942,33 @@ def atender(evento, registar=None, modo_prova=False, emitir=None):
 
     # 3b. FACTOS DA OPERACAO por texto fixo: horario / dias / estafeta livre, quando e so isso que se pergunta.
     cumprimentou_hoje = fichas.cumprimentado_hoje(f)
+    if isinstance(f.get("extra"), dict):
+        f["extra"].pop("ack_respondido", None)     # a pessoa voltou a falar a serio: o contador do "ok" reinicia
+    # A PESSOA ESTA A RESPONDER "QUAL A LOJA?" -- vai-se buscar o horario de verdade (04/09).
+    if _espera_loja_viva(f):
+        _loja = lojas.procurar(msg)
+        if _loja:
+            _limpar_espera_loja(f)
+            bolhas = _pos_processar(lojas.horario_texto(_loja), f, tratamento, cumprimentou_hoje, msg)
+            fichas.marcar_cumprimento(f)
+            f["ultima_resposta_bot_em"] = fichas.agora()
+            fichas.guardar(f)
+            dec.update(acao="responder", textos=bolhas, modelo="horario-loja",
+                       ferramentas=[{"nome": "lojas", "args": {"loja": _loja.get("name")}, "ok": True}],
+                       motivo="horario real da loja " + str(_loja.get("name")), segundos=round(time.time() - t0, 1),
+                       tratamento=tratamento, prova_tratamento=prova, lingua=lingua_)
+            return dec
     facto = None
     if RE_IPHONE.search(msg) and len(msg) < 220:
         facto = IPHONE_FIXO                      # antes de tudo: o iPhone responde-se por texto fixo, sempre
     elif len(msg) < 220 and not RE_OUTRA_INTENCAO.search(msg):
         if RE_HORARIO.search(msg):
-            facto = HORARIO_FIXO
+            loja = lojas.procurar(msg)
+            if loja:
+                facto = lojas.horario_texto(loja)     # o horario REAL, do Supabase
+            else:
+                facto = HORARIO_FIXO                  # facto + passo, e fica a espera do nome da loja
+                _esperar_loja(f)
         elif RE_DISPONIBILIDADE.search(msg):
             facto = DISPONIBILIDADE_FIXA
     if facto:
@@ -900,7 +1092,7 @@ def atender(evento, registar=None, modo_prova=False, emitir=None):
             t = tarefas.criar(numero, "facto por confirmar: " + msg[:100], 3, "agente-guarda")
             dec["tarefas"].append(t["id"])
             telegram.enviar("WhatsApp da loja — %s perguntou \"%s\" e o modelo inventou um numero; precisa de ti." % (numero, msg[:160]), registar)
-            texto_final = "Deixe-me confirmar isso com o Danilo e já lhe digo, em poucos minutos."
+            texto_final = "Deixe-me confirmar isso internamente e já lhe digo, em poucos minutos."
             fichas.anotar_promessa(f, "confirmar: " + msg[:60], "aberta", t["id"])
 
     if not texto_final and tipo_lead == "estafeta":

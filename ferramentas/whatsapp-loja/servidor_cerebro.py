@@ -43,7 +43,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
-from cerebro import agente, fichas, manual, modelos, supa, tarefas, telegram  # noqa: E402
+from cerebro import agente, fichas, manual, modelos, supa, tarefas, telegram, verdades  # noqa: E402
 
 LOG = os.path.join(BASE, "atendimento-log.jsonl")
 AUDIOS = os.path.join(BASE, "audios")
@@ -91,6 +91,19 @@ _ultimo_envio = 0.0
 def emitir(numero, texto, motivo):
     if not texto:
         return None
+    # PORTA UNICA DO ANONIMATO (04/09): a vigia e os avisos proactivos NAO passavam pela
+    # folha de verdades -- so o caminho do modelo passava. Foi por aqui que saiu, as 07:40,
+    # "ja passei ao Danilo". Uma frase PRONTA com o nome do dono e um bug do codigo:
+    # recusa-se e avisa-se, em vez de remendar o texto e criar frankensteins.
+    if verdades.RE_DONO.search(texto or ""):
+        registar({"evento": "anonimato-bloqueou-saida", "numero": numero, "motivo": motivo,
+                  "texto": texto[:300]})
+        try:
+            telegram.enviar("WhatsApp da loja — uma frase PRONTA tentou sair com o teu nome e foi travada. "
+                            "Motivo: %s. Texto: %s" % (motivo, texto[:200]), registar)
+        except Exception:
+            pass
+        return None
     if envio_desligado():
         registar({"evento": "saida-suprimida", "numero": numero, "texto": texto[:300], "motivo": motivo, "envio_desligado": True})
         return None
@@ -113,6 +126,9 @@ _norm = lambda t: re.sub(r"\s+", " ", (t or "").strip().lower())[:200]
 def emitir_e_registar(numero, texto, motivo, modelo=None):
     """Poe na fila E escreve a linha em whatsapp_messages com msg_id = id da fila: e por esse id que o
     /enviado marca a entrega (a v2 procurava pelo texto -- virgulas e parenteses partem o filtro)."""
+    if not numero_real(numero):
+        registar({"evento": "numero-de-prova-ignorado", "numero": numero, "motivo": motivo})
+        return None
     mid = emitir(numero, texto, motivo)
     if mid:
         try:
@@ -192,8 +208,68 @@ _vistos = set()
 _vistos_lock = threading.Lock()
 
 
+_ultimo_ponto = 0.0
+_vps_visto = (0.0, False)
+VPS_MUDA_S = 300          # 5 minutos sem sinal da VPS = o PC assume
+
+
+def bater_ponto():
+    """A VPS carimba a hora no banco, no maximo de 30 em 30 s. E o unico sinal que o PC tem
+    de que a porta principal esta viva -- ver `vps_a_servir`."""
+    global _ultimo_ponto
+    agora = time.time()
+    if agora - _ultimo_ponto < 30:
+        return
+    _ultimo_ponto = agora
+    try:
+        supa.definir("vps_visto_em", datetime.datetime.now(datetime.timezone.utc).isoformat())
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def sou_a_porta_principal():
+    """Quem pode INICIAR conversa. A VPS manda; o PC so fala sozinho quando a VPS esta calada ha
+    mais de 5 minutos. Sem isto, as duas portas mandam o mesmo lembrete ao mesmo cliente."""
+    if PORTA == "vps-baileys":
+        return True
+    return not vps_a_servir()
+
+
+def numero_real(numero):
+    """Numeros de PROVA (351 900 000 xxx e afins) nunca existiram no WhatsApp: a extensao tenta,
+    falha com 'nao consegui abrir a conversa', volta a tentar, e enche o banco de falhas que nao
+    sao falhas nenhumas. Movel portugues e 351 9[1236]xxxxxxx."""
+    n = re.sub(r"\D", "", str(numero or ""))
+    if n.startswith("351"):
+        return bool(re.match(r"^351 ?9[1236]\d{7}$", n))
+    return len(n) >= 9
+
+
+def vps_a_servir():
+    """True se a VPS deu sinal ha menos de 5 minutos. Le do banco no maximo de 20 em 20 s."""
+    global _vps_visto
+    agora = time.time()
+    if agora - _vps_visto[0] < 20:
+        return _vps_visto[1]
+    viva = False
+    try:
+        v = supa.definicao("vps_visto_em")
+        if v:
+            t = datetime.datetime.fromisoformat(str(v).replace("Z", "+00:00"))
+            viva = (datetime.datetime.now(datetime.timezone.utc) - t).total_seconds() < VPS_MUDA_S
+    except Exception:  # noqa: BLE001
+        viva = False
+    _vps_visto = (agora, viva)
+    return viva
+
+
 def tranca(msg_id):
     """True se esta porta ficou com a mensagem; False se ja foi vista (aqui ou pela outra porta)."""
+    if PORTA == "pc-extensao" and vps_a_servir():
+        # A porta principal e a VPS. O PC fica de reserva: nem sequer pega na mensagem, para
+        # nunca haver duas respostas a mesma pessoa (a tranca por msg_id e a segunda rede).
+        registar({"evento": "em-reserva", "msg_id": msg_id, "porta": PORTA})
+        return False
     if not msg_id:
         return True
     with _vistos_lock:
@@ -382,7 +458,7 @@ def _cron():
                 if not envio_desligado():
                     from cerebro import ferramentas_bot as FB
                     media, n = FB._media_entrega_min()
-                    for o in tarefas.pedidos_atrasados(media if n >= 3 else 45):
+                    for o in (tarefas.pedidos_atrasados(media if n >= 3 else 45) if sou_a_porta_principal() else []):
                         emitir_e_registar(fichas.so_digitos(o["client_phone"]),
                                "Olá! O seu pedido está a demorar mais do que o normal — peço desculpa. Estamos a tratar dele e "
                                "aviso-o assim que sair. Se preferir, é só dizer.", "cron:atraso-pedido")
@@ -390,7 +466,7 @@ def _cron():
                             o["id"][:8], o.get("vendor_name"), o.get("minutos"), round(media)))
             if agora - ultimo_seguimentos > 600:
                 ultimo_seguimentos = agora
-                if not envio_desligado():
+                if not envio_desligado() and sou_a_porta_principal():
                     for l in tarefas.seguimentos_24h():
                         emitir_e_registar(l["numero"], "Olá! Continuo por aqui para montar a sua loja no Bora, sem pressa nenhuma. "
                                             "Quando quiser retomar, é só responder por aqui.", "cron:seguimento-24h")
@@ -402,22 +478,51 @@ def _cron():
             # FILA PARTILHADA (02/09 noite): o que a outra porta nao conseguiu entregar sai por esta
             if not envio_desligado():
                 for s in supa.select("whatsapp_saida", select="id,numero,texto,motivo", porta_destino="eq." + PORTA, estado="eq.pendente", order="created_at.asc", limit="10"):
-                    emitir_e_registar(s["numero"], s["texto"], "fila-partilhada:" + (s.get("motivo") or ""))
-                    supa.update("whatsapp_saida", {"estado": "emitida", "emitida_em": datetime.datetime.now(datetime.timezone.utc).isoformat()}, id="eq." + str(s["id"]))
-                    registar({"evento": "fila-partilhada-emitida", "numero": s["numero"], "id": s["id"]})
+                    mid = emitir_e_registar(s["numero"], s["texto"], "fila-partilhada:" + (s.get("motivo") or ""))
+                    # se a trava do anonimato a recusou, `emitir` devolve None. Marcar como `emitida`
+                    # era mentir ao registo -- fica `cancelada-anonimato`, com o motivo a' vista.
+                    novo = {"estado": "emitida" if mid else "cancelada-anonimato",
+                            "emitida_em": datetime.datetime.now(datetime.timezone.utc).isoformat()}
+                    supa.update("whatsapp_saida", novo, id="eq." + str(s["id"]))
+                    registar({"evento": "fila-partilhada-emitida" if mid else "fila-partilhada-travada",
+                              "numero": s["numero"], "id": s["id"]})
             # PORTA MUDA (04/09): a extensao pede /pendentes de 2 em 2 s. Se ha mensagens na fila e ninguem
             # as vem buscar ha mais de 90 s, a porta morreu (o separador do WhatsApp Web fechou-se as 05:30 de
             # hoje e ninguem deu por isso). Isto e o mesmo buraco da falha F, visto do outro lado: o cerebro
             # decidiu, a mensagem ficou na fila e o cliente nunca soube.
             porta_muda(agora)
+            vigiar_entregas_falhadas(agora)
             # VAGA ABERTA (02/09 noite): o Danilo abre a vaga no painel; o bot avisa a lista de espera pela ordem
             if agora - ultimo_vaga > 300:
                 ultimo_vaga = agora
-                if not envio_desligado():
+                if not envio_desligado() and sou_a_porta_principal():
                     threading.Thread(target=avisar_lista_de_espera, daemon=True).start()
         except Exception as e:  # noqa: BLE001
             registar({"evento": "cron-erro", "erro": str(e)[:200]})
         time.sleep(20)
+
+
+_avisou_falhas = 0.0
+
+
+def vigiar_entregas_falhadas(agora):
+    """Falharam entregas nesta porta e ninguem deu por isso (05/09: 6 falhas durante a noite).
+    Tres ou mais na ultima hora -> o Danilo sabe, uma vez por hora."""
+    global _avisou_falhas
+    if agora - _avisou_falhas < 3600:
+        return
+    limite = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=1)).isoformat()
+    try:
+        r = supa.select("whatsapp_messages", select="numero,texto,created_at", porta="eq." + PORTA,
+                        direcao="eq.saida", entrega_estado="eq.falhou", created_at="gte." + limite, limit="20")
+    except Exception:  # noqa: BLE001
+        return
+    if len(r) < 3:
+        return
+    _avisou_falhas = agora
+    avisar("WhatsApp da loja — a porta %s tem %d mensagens que NAO foram entregues na ultima hora. "
+           "Ultima para %s. Se esta porta e a reserva, isto e' ruido; se e' a principal, os clientes "
+           "nao estao a receber." % (PORTA, len(r), (r[0] or {}).get("numero")))
 
 
 def porta_muda(agora):
@@ -461,7 +566,7 @@ def avisar_lista_de_espera():
     if not isinstance(vaga, dict) or not vaga.get("aberta"):
         return
     texto = vaga.get("texto") or ("Olá! Abriu uma vaga de estafeta no Bora e você está na nossa lista de espera. "
-                                  "Ainda tem interesse? Responda por aqui e eu passo ao Danilo.")
+                                  "Ainda tem interesse? Responda por aqui e eu trato disso.")
     leads = supa.select("whatsapp_leads", select="id,numero,dados,created_at", tipo="eq.estafeta", estado="neq.fechado", order="created_at.asc", limit="100")
     por_avisar = [l for l in leads if not (l.get("dados") or {}).get("vaga_avisada_em")]
     for l in por_avisar[: int(vaga.get("max") or 5)]:
@@ -529,6 +634,8 @@ class H(BaseHTTPRequestHandler):
         if self.path.startswith("/pendentes"):
             global _ultimo_envio, _ultimo_pendentes
             _ultimo_pendentes = time.time()          # a porta esta viva: e ela que vem buscar a fila
+            if PORTA == "vps-baileys":
+                bater_ponto()                        # o PC ve por aqui que a porta principal esta de pe
             if envio_desligado():
                 with _saida_lock:
                     _saida.clear()
@@ -538,6 +645,27 @@ class H(BaseHTTPRequestHandler):
                     return self._json(200, {"mensagens": []})
                 item = _saida.pop(0)
                 _ultimo_envio = time.time()
+            # TRAVA DO ANONIMATO NO MOMENTO DO ENVIO (04/09, remate 3). A trava do `emitir()` corre
+            # na CRIACAO; uma mensagem escrita antes da correccao ja estava na fila e passava por
+            # baixo dela. Aqui e' a ultima porta antes de sair mesmo. Nao se apaga nem se marca como
+            # enviada: fica `cancelada-anonimato` com o motivo, para se poder auditar.
+            if verdades.RE_DONO.search(item.get("texto") or ""):
+                registar({"evento": "anonimato-travou-no-envio", "numero": item.get("numero"),
+                          "motivo": item.get("motivo"), "texto": (item.get("texto") or "")[:300]})
+                try:
+                    supa.update("whatsapp_messages",
+                                {"entrega_estado": "cancelada-anonimato",
+                                 "entrega_erro": "travada a saida: frase pronta com o nome do dono"},
+                                msg_id="eq." + str(item.get("id")))
+                except Exception:
+                    pass
+                try:
+                    telegram.enviar("WhatsApp da loja — uma mensagem que JA estava na fila trazia o teu nome "
+                                    "e foi travada a' saida (%s, para %s). Nao foi enviada."
+                                    % (item.get("motivo"), item.get("numero")), registar)
+                except Exception:
+                    pass
+                return self._json(200, {"mensagens": []})
             return self._json(200, {"mensagens": [item]})
         if self.path.startswith("/lembretes"):
             return self._json(200, {"lembretes": []})
@@ -566,7 +694,7 @@ class H(BaseHTTPRequestHandler):
                 ok = bool(d.get("ok"))
                 registar({"evento": "enviado" if ok else "entrega-falhou-extensao", "id": d.get("id"), "numero": numero, "estado": d.get("estado"),
                           "tentativas": d.get("tentativas"), "msg_id": d.get("msg_id"), "erro": d.get("erro")})
-                patch = {"entrega_estado": (d.get("estado") or "visto") if ok else "falhou", "entrega_tentativas": int(d.get("tentativas") or 0),
+                patch = {"entrega_estado": (d.get("estado") or "visto") if ok else (d.get("estado") or "falhou"), "entrega_tentativas": int(d.get("tentativas") or 0),
                          "entrega_erro": None if ok else str(d.get("erro") or "sem bolha")[:200], "msg_id_saida": d.get("msg_id")}
                 if ok:
                     patch.update({"enviada": True, "enviada_em": datetime.datetime.now(datetime.timezone.utc).isoformat()})

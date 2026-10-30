@@ -25,8 +25,17 @@ def _ssh_exe():
 
 
 def _remoto(msg):
+    """O comando que corre NA VPS.
+
+    Passou a ser o servico `voz` (bloco VOZ, 04/09), por duas razoes:
+    (1) o Danilo nao le, ouve — tudo o que se escala chega como nota de voz e o texto vai a seguir;
+    (2) o caminho antigo era `docker exec ... /opt/hermes/bin/hermes send`, dentro do container,
+        e foi por ai que a voz morreu quando a imagem foi recriada. O `voz` corre no HOST.
+    Se o `voz` nao existir, cai no caminho antigo — nunca ficar sem avisar.
+    """
     m = (msg or "").replace("'", "'\"'\"'")
-    return "docker exec -u hermes %s /opt/hermes/bin/hermes send -t telegram '%s'" % (HERMES_C, m)
+    antigo = "docker exec -u hermes %s /opt/hermes/bin/hermes send -t telegram '%s'" % (HERMES_C, m)
+    return "if [ -x /usr/local/bin/voz ]; then /usr/local/bin/voz '%s'; else %s; fi" % (m, antigo)
 
 
 SILENCIO = False      # modo prova: nao se incomoda o Danilo; fica no log o que se TERIA enviado
@@ -47,7 +56,9 @@ def enviar(msg, registar=None, tentativas=2):
             else:
                 cmd = [_ssh_exe(), "-i", VPS_KEY, "-o", "BatchMode=yes", "-o", "ConnectTimeout=12",
                        "-o", "StrictHostKeyChecking=accept-new", "root@" + VPS_HOST, _remoto(msg)]
-            r = subprocess.run(cmd, capture_output=True, text=True, timeout=25)
+            # 25 s chegava para o `hermes send`; a voz precisa de mais (gerar + converter + subir).
+            # O Piper leva ~7 s, e quem chama isto ja o faz em thread — nao atrasa o atendimento.
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
             saida = (r.stdout or "") + (r.stderr or "")
             if r.returncode == 0:
                 if registar:

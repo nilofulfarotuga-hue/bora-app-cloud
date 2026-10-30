@@ -86,7 +86,7 @@ def _chamar_ollama(mensagens, tools, max_tokens, temperatura, timeout):
     # num_ctx EXPLICITO: por omissao o Ollama usa uma janela pequena e, se o prompt nao cabe, corta o
     # INICIO -- que e o system prompt inteiro. O prompt do agente anda nos 3 mil tokens.
     corpo = {"model": MODELO_LOCAL, "messages": _to_ollama(mensagens), "stream": False,
-             "keep_alive": "30m", "options": {"num_predict": max_tokens, "temperature": temperatura, "num_ctx": 8192}}
+             "keep_alive": "2m", "options": {"num_predict": max_tokens, "temperature": temperatura, "num_ctx": 8192}}
     if tools:
         corpo["tools"] = [{"type": "function", "function": t} for t in tools]
     d = _post(OLLAMA + "/api/chat", corpo, timeout)

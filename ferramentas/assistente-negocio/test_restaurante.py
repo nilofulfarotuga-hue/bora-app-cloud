@@ -602,12 +602,24 @@ class TestSoCriaDepoisDoSim(Base):
         self.assertEqual(self.f.criados, [])
 
     def test_loja_em_breve_fora_da_janela_nao_cria(self):
+        # robo ligado para toda a gente: quem nao testa ouve "abre em breve" e nao ha pedido
+        self.t["mode"] = "ligado"
         self.encher([("Clássico", 1, [])])
         self.orcar()
         self.f.t["restaurants"][0]["coming_soon"] = True
         r = self.confirmar()
         self.assertEqual(r["erro"], "loja_em_breve")
         self.assertEqual(self.f.criados, [])
+
+    def test_loja_em_breve_numero_de_teste_cria(self):
+        # ordem do Danilo 30/10 20:23: em modo teste, a allowlist e atendida como se a loja estivesse aberta
+        self.assertEqual(self.t["mode"], "teste")
+        self.encher([("Clássico", 1, [])])
+        self.orcar()
+        self.f.t["restaurants"][0]["coming_soon"] = True
+        janela_demo(self.f, ativa=False)
+        self.assertTrue(self.confirmar()["ok"])
+        self.assertEqual(len(self.f.criados), 1)
 
     def test_loja_em_breve_dentro_da_janela_demo_cria(self):
         self.f.t["restaurants"][0]["coming_soon"] = True
@@ -672,14 +684,27 @@ class TestAtender(Base):
         self.assertFalse(r["tratado"])
 
     def test_fora_da_janela_diz_que_abre_em_breve_sem_gastar_motor(self):
+        # robo ligado para toda a gente: um cliente qualquer ouve "abre em breve"
+        self.t["mode"] = "ligado"
         self.f.t["restaurants"][0]["coming_soon"] = True
         janela_demo(self.f, ativa=False)
-        r = A.atender(self.ev(DANILO, "Boa tarde, queria fazer uma encomenda"))
+        r = A.atender(self.ev(ESTRANHO, "Boa tarde, queria fazer uma encomenda"))
         self.assertTrue(r["tratado"])
         self.assertEqual(r["acao"], "loja-abre-em-breve")
         self.assertIn("abre em breve", r["respostas"][0])
         self.assertEqual(self.guiao.chamadas, 0)
         self.assertEqual(self.f.t["assistant_messages"][-1]["entrega_estado"], "pendente")
+
+    def test_numero_de_teste_e_atendido_com_a_loja_em_breve(self):
+        # 30/10 20:08 o Danilo escreveu "Quero vinho" e so ouviu "abre em breve": em modo teste isso ja nao acontece
+        self.assertEqual(self.t["mode"], "teste")
+        self.f.t["restaurants"][0]["coming_soon"] = True
+        janela_demo(self.f, ativa=False)
+        self.guiao.passos = ["Olá! Diga-me o que quer."]
+        r = A.atender(self.ev(DANILO, "Boa tarde"))
+        self.assertEqual(r["acao"], "respondeu")
+        self.assertNotIn("abre em breve", " ".join(r["respostas"]))
+        self.assertEqual(self.guiao.chamadas, 1)
 
     def test_dentro_da_janela_demo_o_robo_atende(self):
         self.f.t["restaurants"][0]["coming_soon"] = True

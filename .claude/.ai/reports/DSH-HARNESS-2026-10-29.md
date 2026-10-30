@@ -75,10 +75,10 @@ tarefa levanta o servidor).
 - Plugins só-web no perfil web: `dsh plugin --profile web add file:C:/Users/danil/ferramentas/dsh-plugins/weibaohui__dsh-tasks`
   (e `titanwings__dsh-automation`, `weibaohui__dsh-continue`, `vlln__dsh-loop`, `weibaohui__hermes-loop`, `HuanLinOTO__dsh-plugin-mineru`).
 - Provar os 7 do `lab` um a um e promover com `C:\Users\danil\.dsh\lab-promover.ps1 -Dir <pasta>`.
-- Google, uma vez por conta (o Danilo carrega em Permitir):
+- Google: **feito a 30/10 às 19:51** nas duas contas (ver a atualização no fim). Para reautorizar, uma vez por conta (o Danilo
+  carrega em Permitir):
   `python C:\Users\danil\.dsh\google-autorizar.py boraappbora@gmail.com "Profile 1" 8772` e
   `python C:\Users\danil\.dsh\google-autorizar.py nilofulfarotuga@gmail.com Default 8773`.
-  A conta pessoal pode precisar de ser adicionada como utilizador de teste no cliente OAuth.
 - Os 20 que precisam de compilação (por exemplo `dsh-ssh`, `dsh-rewind`, `dsh-genui`, `dsh-auto-review`, `dsh-advisor`):
   clonados e auditados em `C:\Users\danil\ferramentas\dsh-plugins\`, por compilar e rever.
 - Telegram: criar o bot no BotFather e usar `LoserFox/telegram` com lista de permitidos só do chat do Danilo.
@@ -110,8 +110,8 @@ tarefa levanta o servidor).
    o servidor ocupa a pasta, e falha de 30 em 30 minutos. Não lhe toquei. E abrir duas sessões em claude.ai/code para
    provar o S.3.
 3. Token novo do Supabase: **feito a 30/10 às 15:41** (ver a atualização no fim).
-4. **Permitir do Google** nas duas contas, e decidir se aceita que o email seja lido por um modelo grátis que pode guardar
-   os pedidos (regra 14 do AGENTS.md). O dsh nunca envia: só lê e faz rascunhos.
+4. Permitir do Google: **feito a 30/10 às 19:51** nas duas contas. Fica a aceitar que o email seja lido por um modelo grátis
+   que pode guardar os pedidos (regra 14 do AGENTS.md). O dsh nunca envia: só lê e faz rascunhos.
 5. Se aceita o token estático do Córtex copiado da VPS para `~/.dsh/secrets` (revogável trocando o `CORTEX_TOKEN` do servidor).
 
 ## Atualização de 30/10, tarde (decisões do Danilo e o que ficou)
@@ -130,4 +130,18 @@ tarefa levanta o servidor).
   app, Permitir). Ao relançar as páginas, o PowerShell partiu `"Profile 1"` em dois argumentos e a da Bora abriu no perfil
   antigo `Profile`, com a porta 1: erro meu, corrigi às 15:49 (relançada no `Profile 1`, porta 8772). Ficou uma página de
   entrada solta na janela desse perfil antigo, sem recetor e inofensiva.
-- Por provar: Permitir das duas contas e as provas do Gmail (3 últimos emails da Bora e 1 rascunho sem enviar).
+- Por provar (à data deste parágrafo): Permitir das duas contas e as provas do Gmail.
+
+## Atualização de 30/10, noite (Google feito)
+- **Permitir das duas contas.** O Danilo carregou em Permitir às 19:51 (pessoal 19:51:21, Bora 19:51:55, pelo log do
+  `google-autorizar`). A conta pessoal **não** foi recusada: a app está Em produção e não precisou de ser utilizador de
+  teste. Nada foi mudado na consola da Google. Cada credencial foi confirmada na Google (`userinfo`: HTTP 200, o email é o do
+  ficheiro). Âmbitos: Gmail ler, etiquetas, modificar e compor, Drive e Calendar só leitura, **sem** enviar.
+- **Prova no dsh (headless, 65 s, rc=0).** A ferramenta `search_gmail_messages` listou 3 emails da caixa de entrada da Bora
+  (pedi só cabeçalhos, o corpo não foi lido) e `draft_gmail_message` criou 1 rascunho para a própria Bora
+  (id `r3849196807106371061`). Li o rascunho de volta pela API do Gmail: existe só com a etiqueta DRAFT; a pesquisa de
+  enviados com esse assunto devolve 0 e a das últimas 2 horas também 0. Nada foi enviado. Saída literal em
+  `C:\BoraLocal\QG\provas\dsh-harness-2026-10-29\f-google-bora-emails-rascunho.jsonl`; `e2e_log` 5484 (`F-google`).
+- **O que fica.** O rascunho de teste continua na conta Bora (apagar é com o Danilo). O email das duas contas passa agora por
+  um modelo grátis quando o dsh o lê. A conta pessoal ficou autorizada mas sem prova funcional (só a Bora foi provada, como
+  combinado).

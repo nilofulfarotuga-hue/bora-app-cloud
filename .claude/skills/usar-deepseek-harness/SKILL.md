@@ -45,7 +45,7 @@ O cartão "DeepSeek" existe, SEM chave e sem pagar nada. Só se liga com **"auto
 | 42 agentes | skill `agentes-claude-code` | "usa o agente X" |
 | Córtex (MCP) | MCP `cortex`, token estático | `cortex_buscar`, `cortex_ler` — **provado** |
 | Supabase (conector Claude.ai) | MCP `supabase` **com escrita** (token da organização Bora app, acesso total, sem validade; 22 ferramentas, incluindo `apply_migration` e `deploy_edge_function`) | pelo nome da ferramenta; regras em `~/.agents/AGENTS.md`. **Provado a 30/10:** `SELECT count(*) FROM orders` = 89, igual ao Claude Code |
-| Gmail, Drive, Calendar (conectores) | MCP `google` (workspace-mcp 2.2.1): Gmail leitura e **rascunhos, sem enviar**, Drive e Calendar só leitura | falta o Permitir de cada conta (`~/.dsh/google-autorizar.py`) |
+| Gmail, Drive, Calendar (conectores) | MCP `google` (workspace-mcp 2.2.1): Gmail leitura e **rascunhos, sem enviar**, Drive e Calendar só leitura; as duas contas (Bora e pessoal) autorizadas a 30/10 | `user_google_email` = a conta; ferramentas `search_gmail_messages` e `draft_gmail_message`. **Provado a 30/10:** 3 emails da Bora listados (só cabeçalhos) e 1 rascunho criado e lido de volta pela API, nada enviado. Reautorizar: `~/.dsh/google-autorizar.py` |
 | Nano Banana (MCP) | montado e DESLIGADO (chave grátis sem imagens) | `disabled: true` no patch |
 | REA (≈300 ferramentas MCP) | NÃO como MCP; pela shell (`npx rea-agents`) | só no NOSSO APK e sites; comando não provado |
 | Hooks e tranca `bora-tranca` | **NÃO tem** | a única tranca são as regras escritas em `~/.agents/AGENTS.md` (secção "Supabase com escrita") |
@@ -96,6 +96,6 @@ Depois correr `DSH-MISSAO.cmd` com uma tarefa pequena. Plugins: `dsh plugin --pr
 `headless`).
 
 ## Falta para ser igual ou melhor que o Claude Code
-Permitir do Google nas duas contas; conector do Conselho; olhos (visão: nenhum plugin instalado);
+Conector do Conselho; olhos (visão: nenhum plugin instalado);
 Telegram (precisa de um bot novo do BotFather); controlo remoto (login do `claude`, ver `remote-control-duas-sessoes`);
 tranca e hooks (o dsh não tem; só o Claude Code).

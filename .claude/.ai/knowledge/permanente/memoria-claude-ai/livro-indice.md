@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-30T15:37:06.807113+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-30T16:37:06.78206+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-30 15:15 UTC. Páginas listadas: 452.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-30 16:26 UTC. Páginas listadas: 453.
 
 ## O que é o Bora
 
@@ -34,7 +34,7 @@ Quer respostas curtas, em texto corrido e sem jargão, e que o trabalho se faça
 
 1. `erros-aprendidos` — as correções do Danilo; errou uma vez, nunca mais (atualizada 2026-10-30).
 2. `regras-do-danilo` — as regras dele; mandam em tudo (atualizada 2026-10-23).
-3. Estado vivo: `digest-2026-10-30-gorjetas-claude-ai` (2026-10-30).
+3. Estado vivo: `digest-2026-10-30-conta-vansh-jai` (2026-10-30).
 4. Antes de mexer em pedidos, estafetas, dinheiro ou migrações: `regras-operacao-agentes`.
 5. Ferramenta nova sem MCP? `livro-porta-unica` explica como ligar (Córtex por MCP, ou o ficheiro plano LIVRO.md com senha).
 
@@ -50,8 +50,9 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - erros-aprendidos — Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige) (2026-10-30)
 
-## digest (179)
+## digest (180)
 
+- digest-2026-10-30-conta-vansh-jai — Conta do Vansh e do Jai — 30/10 (juntar ao recibo-jogador-gfc) (2026-10-30)
 - digest-2026-10-30-gorjetas-claude-ai — Digest 30/10 — gorjetas: taxa da Stripe e gorjeta junto da compra (Claude.ai) (2026-10-30)
 - digest-2026-10-30-adendo-13-ios — Missão publica 30/10 — adendo 13: iPhone relançado, cérebro do WhatsApp alinhado (2026-10-30)
 - digest-2026-10-30-remote-control-e-dsh-fecho — Claude Code 30/10 — Remote Control caído desde 28/10 e fecho do dsh (2026-10-30)

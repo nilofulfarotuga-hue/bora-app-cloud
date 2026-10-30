@@ -10,11 +10,11 @@ estado: atual
 
 # Radar semanal de novidades de IA (bot batedor do Hermes) + vereditos sobre ferramentas (DeepSeek Harness, Jev/TypeSafe) — ler antes de mandar instalar frameworks ou modelos novos (parte 1 de 3 — continua em livro-areas-radar-ia-parte2…)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-radar-ia`, origem `claude-ai`, atualizada em 2026-10-30T15:15:54.302199+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-radar-ia`, origem `claude-ai`, atualizada em 2026-10-30T16:16:23.791961+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas radar ia · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/radar-ia.md), copiada a 30/10/2026 15:15 (hora de Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/radar-ia.md), copiada a 30/10/2026 16:15 (hora de Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: radar-ia

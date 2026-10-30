@@ -1,0 +1,27 @@
+MIGRAÇÃO: aplicada sem erros no PGlite
+ok  desligado → junto_desligado 
+ok  0,30 € recusado 
+ok  marca 200 
+ok  para_cobrar = 200 
+ok  dinheiro e Favor: marcação intacta, sem gorjeta 
+ok  MB Way: gorjeta pending junto 200, marcação gasta 
+ok  mbway_valor = 200 
+ok  mbway_pi grava 
+ok  MB Way pago com o PI → succeeded, espelho 200 
+ok  sem PI gravado e sem valor: fica pending 
+ok  cobrado = buffer + gorjeta → succeeded 
+ok  falhado → failed; valor 0 
+ok  nova tentativa (pending) → volta a ir 250 
+ok  cartão → succeeded junto 150, líquido 150 
+ok  pedido "pago" criado pelo cliente não cria gorjeta 
+ok  conferência NÃO regista o pedido "pago" do cliente (rascunho não fechado) {"ok":true,"erro_passo_1":null,"pedidos_enviados":0,"cartao_registadas":0,"pagas_ha_mais_de_2h":0}
+ok  conferência regista a gorjeta de cartão em falta (c3) {"ok":true,"erro_passo_1":null,"pedidos_enviados":0,"cartao_registadas":1,"pagas_ha_mais_de_2h":0}
+ok  cancelado: MB Way com PI fica pending; sem PI → cancelled 
+ok  conferência: cartão pago + MB Way com PI, o mais antigo primeiro (mb4 → c1) {"ok":true,"erro_passo_1":null,"pedidos_enviados":2,"cartao_registadas":0,"pagas_ha_mais_de_2h":0}
+ok  com 2 tentativas falhadas não volta a pedir (só mb4) {"ok":true,"erro_passo_1":null,"pedidos_enviados":1,"cartao_registadas":0,"pagas_ha_mais_de_2h":0}
+ok  aviso ao admin (pagas há > 2 h) {"ok":true,"erro_passo_1":null,"pedidos_enviados":1,"cartao_registadas":0,"pagas_ha_mais_de_2h":1}
+ok  não repete o aviso nas voltas seguintes {"ok":true,"erro_passo_1":null,"pedidos_enviados":1,"cartao_registadas":0,"pagas_ha_mais_de_2h":0}
+ok  crons 
+ok  taxas_em_falta → pedido http 
+ok  sem erros registados nos gatilhos []
+FIM: falhas=0

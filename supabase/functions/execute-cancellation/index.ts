@@ -8,6 +8,11 @@
 //   tokens gastos voltam como TOKENS pelo gatilho do banco quando o servidor registou quais
 //   (tokens_applied_count > 0) — então a taxa sai do dinheiro. Textos: MB Way na hora, cartão 5 a 10
 //   dias úteis, sem "saldo livre + tokens". PUBLICAR SÓ com o _shared/cobranca_stripe.ts novo.
+// v17 (30/10/2026, missão gorjetas-taxa-2026-10-30, autorização do Danilo 30/10 13:40): a gorjeta do
+//   pedido volta INTEIRA, fora da taxa — também com 'none' (a taxa/retenção é só da compra) — para o
+//   saldo se o método aprovado foi 'wallet', senão ao meio original (_shared/gorjeta_devolver.ts).
+//   PUBLICAR com _shared/cobranca_stripe.ts v3 + _shared/gorjeta_devolver.ts, depois da migração
+//   20261030145000 (tips.cobrada_junto).
 //
 // Flow:
 //   1. Auth admin via JWT
@@ -28,6 +33,7 @@ import { getCancelFees, computeCancelFeeEur } from '../_shared/platform_settings
 import { corsHeaders } from '../_shared/cors.ts';
 import { lerPagoDoPedido, repartirReembolso, totalPago } from '../_shared/cobranca_stripe.ts';
 import { secretKey } from '../_shared/keys.ts';
+import { devolverGorjetasDoPedido } from '../_shared/gorjeta_devolver.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   apiVersion: '2023-10-16',
@@ -217,6 +223,13 @@ Deno.serve(async (req) => {
     return json({ error: 'db_update_failed', details: updateErr.message }, 500);
   }
 
+  // v17 (gorjetas 30/10): a gorjeta volta INTEIRA, fora da taxa, pelo caminho aprovado.
+  const gorjeta = await devolverGorjetasDoPedido(
+    admin, Deno.env.get('STRIPE_SECRET_KEY') ?? '', order.id,
+    method === 'wallet' ? 'carteira' : 'meio', `cancelamento aprovado (req ${cReq.id})`, user.id,
+  );
+  if (gorjeta.erros > 0) console.error('[execute-cancellation] gorjeta por devolver (a conferência tenta outra vez):', JSON.stringify(gorjeta.itens));
+
   // Audit (admin context — RPC fails silent if guard rejects, so use direct insert via service)
   try {
     await admin.from('admin_audit_log').insert({
@@ -230,6 +243,7 @@ Deno.serve(async (req) => {
         refund_eur: refundEur,
         fee_eur: fee,
         stripe_refund_id: stripeRefundId ?? null,
+        gorjeta_devolvida_cents: gorjeta.devolvidaCents,
       },
     });
   } catch (e) { console.warn('[execute-cancellation] audit failed (non-fatal):', e); }
@@ -249,6 +263,10 @@ Deno.serve(async (req) => {
     if (tokensDevolvidos > 0) {
       message += ` Os ${tokensDevolvidos} tokens que usaste voltaram à tua conta, com a mesma validade.`;
     }
+    if (gorjeta.devolvidaCents > 0) {
+      message += ` A gorjeta (€${(gorjeta.devolvidaCents / 100).toFixed(2)}) também voltou` +
+        (gorjeta.carteiraCents > 0 ? ' ao teu saldo Bora.' : ', inteira.');
+    }
     await admin.functions.invoke('notify-client', {
       body: { user_id: order.user_id, title: 'Cancelamento aprovado', body: message,
               data: { order_id: order.id, refund_method: method } },
@@ -260,5 +278,6 @@ Deno.serve(async (req) => {
     fee_eur: fee, refund_eur: refundEur,
     stripe_refund_id: stripeRefundId ?? null, wallet: walletResult,
     tokens_devolvidos: tokensDevolvidos, // v16: voltam como tokens (gatilho do banco)
+    gorjeta_devolvida_cents: gorjeta.devolvidaCents, // v17: gorjeta inteira, fora da taxa
   });
 });

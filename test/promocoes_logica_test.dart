@@ -284,7 +284,11 @@ void main() {
           1);
     });
 
-    test('a proposta de dinheiro não está em supabase/migrations', () {
+    // 30/10/2026: a troca do preço no checkout foi aplicada com a autorização do
+    // Danilo (adendo 11). A guarda passa a ser: só a migração autorizada a tem,
+    // ela regista a autorização e converte o preço promocional para numeric
+    // (discount_price é double precision na base).
+    test('a troca do preço no checkout só está na migração autorizada', () {
       final dir = Directory('supabase/migrations');
       final pelaTroca = dir
           .listSync()
@@ -293,8 +297,13 @@ void main() {
           .where((f) =>
               f.readAsStringSync().contains('product_promocao_ativa(p.id)'))
           .toList();
-      expect(pelaTroca, isEmpty,
-          reason: 'a troca do preço no checkout só vive em docs/propostas');
+      expect(pelaTroca.map((f) => f.uri.pathSegments.last).toList(),
+          ['20261030063000_c4_promocoes_servidor.sql'],
+          reason: 'a troca do preço no checkout só entra pela migração autorizada');
+      final sql = pelaTroca.single.readAsStringSync();
+      expect(sql, contains('eu autorizo tudo'));
+      expect(sql, contains('round(p.discount_price::numeric, 2)'));
+      expect(sql, contains('bkp_fn_create_order_20261029'));
       expect(
           File('docs/propostas/missao-geral-2026-10-28/C4_promocoes/01_servidor_precos_proposta.sql')
               .existsSync(),

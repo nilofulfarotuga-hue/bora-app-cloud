@@ -183,3 +183,39 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   A tranca pergunta Permitir/Recusar em cada push; a Claude.ai escolheu Recusar (não publicar nada sem ordem do Danilo).
   Não se contornou. O commit `821968d3` (só documentos) entra na publicação do fim de semana (31/10–01/11), a partir
   do ramo `missao-geral-2026-10-28`. Registado no e2e_log (A13-push-docs).
+- **30/10/2026, missão `gorjetas-taxa-2026-10-30`, Bloco 0** — `Write` de
+  `supabase/migrations/20261030134938_gorjeta_paga_depois_desconta_taxa_stripe_2026_10_30.sql` (cópia no repo da
+  migração que a Claude.ai aplicou às ~13:50) recusado: "migration que toca tokens/wallet/pagamentos/ledger". Não se
+  contornou. O SQL exato está em `docs/propostas/gorjetas-taxa-2026-10-30/00_bloco0_migracao_20261030134938.md`; a
+  cópia para `supabase/migrations/` fica para a Claude.ai pelo GitHub web. Registado no e2e_log (G0-migracao-repo).
+- **30/10/2026, missão `gorjetas-taxa-2026-10-30`, Bloco E (painel admin)** — `Write` de
+  `supabase/migrations/20261030151000_admin_listar_gorjetas_taxa.sql` (nova `admin_listar_gorjetas` com taxa da Stripe,
+  líquido para o prestador, quem pagou a taxa e como foi paga; DROP + CREATE com as permissões de antes) recusado:
+  "migration que toca tokens/wallet/pagamentos/ledger". Não se contornou nem se reescreveu para passar. O SQL exato
+  está em `docs/propostas/gorjetas-taxa-2026-10-30/admin_listar_gorjetas.sql.md`; a cópia para `supabase/migrations/`
+  e a aplicação (depois da migração do servidor que cria `tips.cobrada_junto`) ficam para a Claude.ai pelo GitHub web.
+  O ecrã de gorjetas do painel já funciona com a função antiga até lá.
+- **30/10/2026, missão `gorjetas-taxa-2026-10-30`, Bloco D (app, extrato do prestador)** — `Write` de
+  `supabase/migrations/20261030150000_gorjetas_extrato_prestador.sql` (nova `_prestador_trabalhos`: a linha
+  "Gorjeta do cliente" passa a mostrar o que o estafeta recebe e a taxa da Stripe, e a gorjeta das corridas TVDE
+  passa a aparecer no extrato do motorista) recusado: "migration que toca tokens/wallet/pagamentos/ledger" (a função
+  lê `bora_tokens`, `ledger_entries` e `driver_transactions`, como já lia). Não se contornou nem se reescreveu para
+  passar. O SQL exato está em `docs/propostas/gorjetas-taxa-2026-10-30/extrato_prestador.sql.md`; a cópia para
+  `supabase/migrations/` e a aplicação ficam para a Claude.ai pelo GitHub web. Não está aplicada em produção.
+- **30/10/2026, missão `gorjetas-taxa-2026-10-30`, Blocos A/B/C (servidor das gorjetas)** — `Write` de
+  `supabase/migrations/20261030145000_gorjeta_checkout_junto_pagamento.sql` (coluna `tips.cobrada_junto` e
+  `devolvida_para`, marcação `gorjeta_checkout_pendente` + `client_preparar_gorjeta_checkout`, funções para os patches
+  do cartão e do MB Way, gatilhos `trg_zz_gorjeta_checkout_na_criacao`/`_pagamento`, gorjeta por pagar morre com o
+  pedido cancelado, conferência de 15 em 15 min e cron das taxas ao domingo) recusado: "migration que toca
+  tokens/wallet/pagamentos/ledger" (o texto fala da Stripe). Não se contornou nem se reescreveu para passar. O SQL
+  exato está em `docs/propostas/gorjetas-taxa-2026-10-30/pagamentos_20261030145000_gorjeta_checkout_junto_pagamento.sql`
+  (provado num Postgres local PGlite: 25/25 cenários, depois da revisão independente) e a prova em rollback em
+  `supabase/tests/gorjetas_taxa_prova.sql`.
+  A migração do interruptor (`20261030144900_gorjeta_checkout_interruptor.sql`) passou e está no repo. As Edge
+  Functions da zona vermelha (`create-payment-intent`, `create-mbway-payment-intent`, `stripe-webhook`,
+  `client-cancel-order`) ficam como diffs contra a versão no ar em `docs/propostas/gorjetas-taxa-2026-10-30/pagamentos_*.md`.
+  Nada aplicado em produção.
+- **30/10/2026, missão `gorjetas-taxa-2026-10-30`, fecho** — `git push -u origin gorjetas-taxa-2026-10-30` (ramo da
+  missão, não o de produção; só o `olho-golden` correria) recusado: "o Danilo não autorizou (git push)". Não se
+  contornou. O ramo (`fb7b524f`, `7208023a`, `8e2d8ae9` e o commit deste registo) fica só no PC, no worktree
+  `C:\BoraLocal\wt-gorjetas-30-10`, à espera de um push autorizado. Registado no e2e_log (G-fecho-push).

@@ -6,6 +6,10 @@
 // (wallet_split_free_pct = 1); os tokens gastos voltam como TOKENS pelo gatilho do banco
 // (trg_orders_devolver_tokens), nunca como saldo. Texto ao cliente diz o meio: MB Way na hora,
 // cartão 5 a 10 dias úteis. PUBLICAR SÓ com o _shared/cobranca_stripe.ts novo.
+// v16 (30/10/2026, missão gorjetas-taxa-2026-10-30, autorização do Danilo 30/10 13:40): a gorjeta do
+// pedido volta inteira ao meio original (_shared/gorjeta_devolver.ts); a gorjeta cobrada no mesmo
+// pagamento já não entra no reembolso da compra (cobranca_stripe v3). PUBLICAR com os dois _shared,
+// depois da migração 20261030145000 (tips.cobrada_junto).
 
 // @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
@@ -13,6 +17,7 @@ import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { corsHeaders } from '../_shared/cors.ts';
 import { lerPagoDoPedido, repartirReembolso, totalPago } from '../_shared/cobranca_stripe.ts';
 import { secretKey } from '../_shared/keys.ts';
+import { devolverGorjetasDoPedido } from '../_shared/gorjeta_devolver.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   apiVersion: '2023-10-16',
@@ -278,6 +283,12 @@ Deno.serve(async (req) => {
     }
   }
 
+  // v16 (gorjetas 30/10): a gorjeta do pedido volta INTEIRA ao meio original (o cancelamento pelo
+  // admin devolve tudo ao meio). O reembolso acima já não a conta (_shared/cobranca_stripe.ts v3).
+  const gorjeta = await devolverGorjetasDoPedido(admin, stripeKey, orderId, 'meio',
+    `cancelado pela administração (${reasonCode})`, adminId);
+  if (gorjeta.erros > 0) console.error('[admin-cancel-order] gorjeta por devolver (a conferência tenta outra vez):', JSON.stringify(gorjeta.itens));
+
   const userId       = r.user_id ?? null;
   const driverId     = r.assigned_driver_id ?? null;
   const vendorName   = r.vendor_name ?? '';
@@ -292,6 +303,9 @@ Deno.serve(async (req) => {
     metodo: orderNow?.payment_method ?? r.payment_method ?? null,
     tokens: Math.max(0, Number(orderNow?.tokens_applied_count ?? 0)),
   });
+  if (gorjeta.devolvidaCents > 0) {
+    clientMsg.body += ` A gorjeta (€${(gorjeta.devolvidaCents / 100).toFixed(2)}) também voltou, inteira.`;
+  }
   const driverShort = mapDriverMessage(reasonCode);
 
   const notifyTasks = [];
@@ -331,6 +345,7 @@ Deno.serve(async (req) => {
         refund_amount: refundAmountEur, refund_status_initial: refundInit,
         stripe_error: stripeError, notifications: notifySummary,
         carteira_result: carteiraResult, carteira_cents: carteiraCents,
+        gorjeta_devolvida_cents: gorjeta.devolvidaCents, gorjeta_itens: gorjeta.itens,
         pago: pago ? { stripe_cents: pago.stripeCents, stripe_disponivel_cents: pago.stripeDisponivelCents, wallet_cents: pago.walletCents, tokens_cents: pago.tokensCents, total_cents: pago.totalCents } : null,
         total: totalNum, payment_method: r.payment_method,
         payment_intent_id: paymentPI,
@@ -342,6 +357,7 @@ Deno.serve(async (req) => {
     success: true, idempotent: false, order_id: orderId,
     previous_status: r.previous_status,
     refund: { result: refundResult, stripe_id: stripeRefundId, amount: refundAmountEur, error: stripeError },
+    gorjeta_devolvida_cents: gorjeta.devolvidaCents,
     notifications: notifySummary,
   });
 });

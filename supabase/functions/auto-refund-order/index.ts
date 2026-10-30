@@ -7,10 +7,16 @@
 // pelo meio com que foi paga. A parte paga com SALDO (wallet_applied_cents) volta ao saldo (100%,
 // wallet_split_free_pct = 1, chave = id do pedido → não duplica). Antes ficava perdida quando o
 // sistema cancelava um pedido pago em parte com saldo. Os tokens voltam pelo gatilho do banco.
+// v5 (30/10/2026, missão gorjetas-taxa-2026-10-30, autorização do Danilo 30/10 13:40): a gorjeta do
+// pedido volta inteira ao meio original (_shared/gorjeta_devolver.ts). O reembolso TOTAL do PI já leva
+// a gorjeta cobrada junto com a compra (fn_reembolso_cancelado_pelo_sistema usa stripe_charge_cents,
+// que a inclui): essa só fica marcada 'refunded' (marcarGorjetaJuntoNoReembolsoTotal, depois de a
+// Stripe confirmar o reembolso total). PUBLICAR depois da migração 20261030145000.
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { secretKey } from '../_shared/keys.ts';
 import { chamadaDoServidor } from '../_shared/chaves.ts';
+import { devolverGorjetasDoPedido, marcarGorjetaJuntoNoReembolsoTotal } from '../_shared/gorjeta_devolver.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   apiVersion: '2023-10-16',
@@ -102,8 +108,18 @@ Deno.serve(async (req: Request) => {
       refund_amount: totalDevolvidoCents > 0 ? totalDevolvidoCents / 100 : o.refund_amount,
       payment_status: 'refunded',
     }).eq('id', o.id);
-    await log('ok', { resultado, refund_id: refundId, cents: devolvidoCents, saldo_cents: saldoCents, motivo, update_error: uErr?.message ?? null });
-    return json({ ok: true, order_id: o.id, resultado, refund_id: refundId, cents: devolvidoCents, saldo_cents: saldoCents, update_error: uErr?.message ?? null });
+    // v5 (gorjetas 30/10): a gorjeta volta inteira ao meio original. A do carrinho cobrada no mesmo
+    // pagamento voltou no reembolso TOTAL acima (sem amount = tudo): só se marca 'refunded'. A cobrada à
+    // parte devolve-se a seguir, pelo PI dela.
+    let gorjetaJuntoMarcadas = 0;
+    if (refundId && o.payment_intent_id) {
+      gorjetaJuntoMarcadas = await marcarGorjetaJuntoNoReembolsoTotal(admin, String(o.id), String(o.payment_intent_id),
+        `cancelado pelo sistema: ${motivo}`);
+    }
+    const gorjeta = await devolverGorjetasDoPedido(admin, Deno.env.get('STRIPE_SECRET_KEY') ?? '', String(o.id),
+      'meio', `cancelado pelo sistema: ${motivo}`.slice(0, 150));
+    await log('ok', { resultado, refund_id: refundId, cents: devolvidoCents, saldo_cents: saldoCents, motivo, update_error: uErr?.message ?? null, gorjeta_junto_marcadas: gorjetaJuntoMarcadas, gorjeta });
+    return json({ ok: true, order_id: o.id, resultado, refund_id: refundId, cents: devolvidoCents, saldo_cents: saldoCents, update_error: uErr?.message ?? null, gorjeta_devolvida_cents: gorjeta.devolvidaCents, gorjeta_junto_marcadas: gorjetaJuntoMarcadas });
   } catch (e) {
     await admin.from('orders').update({ refund_status: 'failed' }).eq('id', o.id);
     await log('erro', String(e));

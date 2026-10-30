@@ -23,6 +23,12 @@
 //     Corpo {"modo":"cobrancas"} corre so a D (cron de 10 em 10 min).
 //  D2) pedidos com refund_status 'needs_review' (Stripe devolveu, resto falhou)
 //     -> achado 'reembolso_por_rever' + alerta.
+//  v7 (30/10/2026, missão gorjetas-taxa-2026-10-30): em A, PI da compra com metadata gorjeta_cents
+//     (gorjeta do carrinho no mesmo pagamento) tem de ter a linha em tips (cobrada_junto, paga, mesmo
+//     valor) — senão achado CRÍTICO 'gorjeta_cobrada_sem_registo'. PI de gorjeta à parte (kind=tip) sem
+//     linha paga → achado só 'info' (como antes, quando caía em pi_metadata_desconhecida).
+//     Nenhuma conta compara o PI com o total do pedido.
+//     Publicar com _shared/cobranca_stripe.ts v3 (o do ar ainda é o de antes de 28/10).
 //
 // Auth: verify_jwt=true + role service_role. Kill switch:
 // platform_settings.payments_reconciler_enabled. Cron: run_payments_reconciler().
@@ -126,6 +132,28 @@ async function entityConfirmed(pi: any, out: Finding[]): Promise<void> {
     return;
   }
   if (md.standalone_debt_settle === 'true') return; // settle idempotente no webhook
+  // v7 (gorjetas 30/10): gorjeta paga à parte (charge-tip). Paga e gravada → nada. Senão fica como
+  // antes desta versão: só informação (severidade info), nunca crítico.
+  if (k === 'tip') {
+    const tid = String(md.tip_id ?? '');
+    const { data } = await admin.from('tips').select('status, stripe_payment_intent_id').eq('id', tid).maybeSingle();
+    const ok = data && ['succeeded', 'refunded'].includes(String(data.status)) && data.stripe_payment_intent_id === pi.id;
+    if (!ok) add('pi_sem_entidade', 'info', 'tip', tid || null, { status: data?.status ?? 'gorjeta_nao_encontrada' });
+    return;
+  }
+  // v7 (gorjetas 30/10): o pagamento da compra levou a gorjeta do carrinho (metadata gorjeta_cents,
+  // posta pelo create-payment-intent / create-mbway-payment-intent) — tem de haver a linha em tips
+  // com este PI, paga. O valor do PI = compra + gorjeta: isto NÃO é diferença a reembolsar.
+  const gorjetaCents = Number(md.gorjeta_cents ?? 0);
+  if (gorjetaCents > 0) {
+    const { data: g } = await admin.from('tips').select('id, status, amount_cents')
+      .eq('stripe_payment_intent_id', pi.id).eq('cobrada_junto', true).maybeSingle();
+    const ok = g && ['succeeded', 'refunded'].includes(String(g.status)) && Number(g.amount_cents) === gorjetaCents;
+    if (!ok) {
+      add('gorjeta_cobrada_sem_registo', 'critical', 'order', String(md.order_id ?? md.draft_id ?? '') || null,
+        { gorjeta_cents: gorjetaCents, tip_status: g?.status ?? 'sem_linha_em_tips', tip_cents: g?.amount_cents ?? null });
+    }
+  }
   if (md.draft_id) {
     const { data } = await admin.from('payment_drafts').select('used_at').eq('id', String(md.draft_id)).maybeSingle();
     const ok = data && data.used_at != null;

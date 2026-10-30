@@ -44,9 +44,10 @@ class CartScreen extends StatelessWidget {
     final resumo = cartStore.resumo;
 
     final apartmentEnabled = cartStore.apartmentDelivery;
-    // A gorjeta fica FORA do total: é cobrada à parte, depois do pedido, e o
-    // ecrã de pagamento nunca a somou — os dois totais diferiam e o saldo
-    // Bora era calculado sobre um valor com gorjeta.
+    // A gorjeta fica FORA deste total (o da compra): o saldo Bora e os tokens
+    // nunca se calculam sobre um valor com gorjeta. Com o interruptor
+    // `tips_checkout_junto_pagamento` (30/10/2026) o painel soma-a só à linha
+    // "Total a pagar", porque vai no mesmo pagamento da compra.
     final totalToPay = resumo.total;
 
     return Scaffold(
@@ -322,15 +323,25 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
       if (!v) context.read<CartStore>().setTipCents(0);
       setState(() => _gorjetaLigada = v);
     });
+    TipService.juntoDoPagamento().then((v) {
+      if (mounted) setState(() => _gorjetaJunto = v);
+    });
   }
 
   /// Gorjeta ligada no servidor (`tips_enabled`)? Até sabermos, não se mostra.
   bool _gorjetaLigada = false;
 
+  /// Gorjeta no mesmo pagamento da compra (`tips_checkout_junto_pagamento`,
+  /// 30/10/2026)? Até sabermos (ou em erro), fica como antes: à parte.
+  bool _gorjetaJunto = false;
+
   /// Gorjeta do checkout (missão 03/10 · bloco 3): até 04/10 só existia no
   /// ecrã — a `create_order` nunca a recebia e nunca foi cobrada. Agora, com o
-  /// pedido já criado e pago, cobra-se à parte (cartão/MB Way) ou fica
-  /// registada para entregar em mão (dinheiro). 100% para o estafeta.
+  /// pedido já criado: dinheiro → fica registada para entregar em mão;
+  /// cartão/MB Way → `charge-tip` (o servidor responde `already_exists` sem
+  /// cobrar quando já foi junto da compra, e cobra à parte quando não foi —
+  /// ex.: pedido pago só com saldo). Regra de 30/10: a do carrinho chega
+  /// inteira ao estafeta (sem taxa à parte, porque vai junto da compra).
   Future<void> _tratarGorjetaDoCheckout(int tipCents) async {
     if (tipCents <= 0 || !_gorjetaLigada) return;
     final orderStore = context.read<OrderStore>();
@@ -387,6 +398,16 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
             walletAppliedEur +
             settlementEur)
         .clamp(0.0, double.infinity);
+    // Gorjeta junto da compra (30/10/2026): com o interruptor ligado e algo a
+    // pagar por cartão/MB Way, a gorjeta vai no mesmo pagamento e o "Total a
+    // pagar" já a mostra. Pago todo com saldo → continua à parte, como antes.
+    final restoSemGorjeta = totalToPay - walletAppliedEur + settlementEur;
+    final gorjetaJunto = _gorjetaLigada && _gorjetaJunto;
+    final gorjetaVaiJunto = TipService.vaiJuntoDaCompra(
+        junto: gorjetaJunto, restoAPagarEur: restoSemGorjeta);
+    final totalAPagarMostrado = gorjetaVaiJunto
+        ? TipService.totalComGorjeta(remainingToPay, cartStore.tipCents)
+        : remainingToPay;
 
     // [botoes-navbar-eta 31/08] SafeArea(minimum:16) dava max(sistema, 16) e,
     // com o padding do MediaQuery consumido por um SafeArea acima, o
@@ -543,8 +564,7 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                         onChanged: (cents) => cartStore.setTipCents(cents),
                       ),
                       Text(
-                        'A gorjeta vai toda para o estafeta e é cobrada à parte.'
-                            .tr,
+                        TipService.textoDoCarrinho(vaiJunto: gorjetaVaiJunto),
                         style: const TextStyle(
                             fontSize: 12, color: AppColors.textSecondary),
                       ),
@@ -610,7 +630,7 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                           : _useWalletBalance && walletAppliedCents > 0
                               ? 'Total a pagar (após saldo)'.tr
                               : 'Total a pagar'.tr,
-                      value: remainingToPay,
+                      value: totalAPagarMostrado,
                       isStrong: true,
                     ),
                     if (isWalletBlocked) ...[
@@ -746,10 +766,22 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
 
                       // O carrinho limpa-se ao criar o pedido: guarda-se já.
                       final tipCents = cartStore.tipCents;
+                      // Gorjeta junto da compra (30/10/2026): com o
+                      // interruptor ligado, o servidor fica a saber a gorjeta
+                      // ANTES do pagamento e soma-a ao mesmo pagamento.
+                      // Desligado → nenhuma chamada, como antes.
+                      final gorjetaMarcada =
+                          await TipService.marcarAntesDoPagamento(
+                        junto: gorjetaJunto,
+                        tipCents: tipCents,
+                        restoAPagarEur: restoSemGorjeta,
+                      );
+                      if (!context.mounted) return;
                       final confirmed = await Navigator.push<bool>(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => const PaymentMethodScreen(),
+                          builder: (_) => PaymentMethodScreen(
+                              gorjetaJuntoCents: gorjetaMarcada),
                         ),
                       );
                       // 26/10 (item 5): o que se escreveu na nota no ecrã de
@@ -757,7 +789,13 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                       if (mounted) _nota.text = cartStore.notaCliente;
                       if (confirmed == true && context.mounted) {
                         await _tratarGorjetaDoCheckout(tipCents);
-                        if (!context.mounted) return;
+                      }
+                      // A marcação já serviu (ou não houve pagamento): limpa-se
+                      // para não ir parar a um pagamento seguinte.
+                      if (gorjetaJunto) {
+                        unawaited(TipService.prepararCheckout(0));
+                      }
+                      if (confirmed == true && context.mounted) {
                         Navigator.of(context)
                             .popUntil((route) => route.isFirst);
                         Navigator.of(context).push(

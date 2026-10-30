@@ -61,8 +61,10 @@ class _TvdeRateScreenState extends State<TvdeRateScreen> {
 
   /// Gorjeta ao motorista (missão 03/10 · bloco 3), igual à Uber: no mesmo
   /// ecrã da avaliação, valores rápidos + outro valor + sem gorjeta. Cobrada à
-  /// parte no cartão/MB Way da corrida; 100% para o motorista. Só aparece se
-  /// `tips_enabled` estiver ligado e a corrida tiver sido paga na app.
+  /// parte no cartão/MB Way da corrida; regra de 30/10/2026: o motorista
+  /// recebe-a menos a taxa exata que a Stripe cobrou nesse pagamento (a Bora
+  /// não fica com nada). Só aparece se `tips_enabled` estiver ligado e a
+  /// corrida tiver sido paga na app.
   bool _gorjetaLigada = false;
   int _tipCents = 0;
 

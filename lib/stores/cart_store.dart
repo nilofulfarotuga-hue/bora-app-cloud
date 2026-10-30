@@ -783,7 +783,9 @@ class CartStore extends ChangeNotifier {
   /// (`customer_total` — a mesma conta do `create_order`, já com a taxa de
   /// pedido pequeno) e o cálculo local até lá.
   ///
-  /// A gorjeta NÃO entra: é cobrada à parte, depois do pedido.
+  /// A gorjeta NÃO entra (nunca entra na cotação nem nos preços). Com o
+  /// interruptor `tips_checkout_junto_pagamento` (30/10/2026) os ecrãs somam-na
+  /// só à linha "Total a pagar", porque o servidor a junta ao pagamento.
   ResumoDoCarrinho get resumo {
     final local = pricingBreakdown;
     // Favores têm quote próprio (`errandSession.quote`), não este.

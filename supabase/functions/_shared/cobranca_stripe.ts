@@ -20,6 +20,14 @@
 //     stripe + wallet + tokens à mão). O valor e a contagem vêm em tokensValorCents/tokensCount,
 //     só para informação e para o index.ts tirar o valor dos tokens da base do reembolso
 //     quando eles voltam (tokensCount > 0).
+//
+// v3 (30/10/2026 — missão gorjetas-taxa-2026-10-30, autorização do Danilo 30/10 13:40):
+//   • A gorjeta do carrinho pode ir no MESMO pagamento da compra (tips.cobrada_junto). Essa parte NÃO
+//     é compra: stripeCents passa a ser só a compra (cobrado − gorjeta) e stripeDisponivelCents tira a
+//     gorjeta que ainda está por devolver na Stripe. Assim nenhum reembolso da compra (cancelamento,
+//     taxa, diferenças) mexe na gorjeta; a gorjeta volta à parte, inteira (_shared/gorjeta_devolver.ts).
+//   • Gravar a cobrança (registar_cobranca_stripe) continua com o valor TOTAL que a Stripe cobrou.
+//   • Se a coluna tips.cobrada_junto ainda não existir (migração por aplicar), conta como 0.
 
 // deno-lint-ignore no-explicit-any
 type Cliente = any;
@@ -42,6 +50,31 @@ export interface Pago {
   totalCents: number;
   /** estado do PI na Stripe (null se não há PI) */
   piStatus: string | null;
+  /** v3: gorjeta do carrinho cobrada neste mesmo PI (fora de stripeCents; volta à parte, inteira) */
+  gorjetaJuntoCents: number;
+}
+
+interface GorjetaJunto { amount_cents: number; status: string; stripe_payment_intent_id: string | null; devolvida_para: string | null }
+
+/**
+ * v3: quanto do PI do pedido é gorjeta do carrinho. `total` = toda a gorjeta cobrada junto (nunca é
+ * compra); `porDevolverNaStripe` = a parte que ainda está na Stripe (não devolvida, ou devolvida ao
+ * saldo Bora — aí o dinheiro ficou na Stripe e não pode ir para a compra).
+ */
+export function gorjetaNoPagamento(gorjetas: GorjetaJunto[], piId: string | null): { total: number; porDevolverNaStripe: number } {
+  let total = 0;
+  let porDevolverNaStripe = 0;
+  for (const g of gorjetas) {
+    const cents = Math.max(0, Number(g.amount_cents ?? 0));
+    const paga = g.status === 'succeeded' || g.status === 'refunded';
+    // por pagar só conta se já leva o PI deste pedido (o pagamento que entrou incluía-a)
+    const vaiNestePi = (g.status === 'pending' || g.status === 'requires_action') &&
+      !!g.stripe_payment_intent_id && g.stripe_payment_intent_id === piId;
+    if (!paga && !vaiNestePi) continue;
+    total += cents;
+    if (g.status !== 'refunded' || g.devolvida_para === 'carteira') porDevolverNaStripe += cents;
+  }
+  return { total, porDevolverNaStripe };
 }
 
 /** soma do que foi pago em DINHEIRO (Stripe + saldo), nunca acima do preço do pedido */
@@ -65,6 +98,7 @@ export async function lerPagoDoPedido(admin: Cliente, stripeKey: string, orderId
     tokensCount: Math.max(0, Number(o.tokens_applied_count ?? 0)),
     totalCents: Math.max(0, Math.round(Number(o.customer_total ?? o.total ?? 0) * 100)),
     piStatus: null,
+    gorjetaJuntoCents: 0,
   };
   if (!pago.piId) return pago;
   if (!stripeKey) throw new Error('stripe_key_em_falta');
@@ -95,8 +129,17 @@ export async function lerPagoDoPedido(admin: Cliente, stripeKey: string, orderId
       }
     }
   }
-  pago.stripeCents = recebido;
-  pago.stripeDisponivelCents = Math.max(0, recebido - devolvido);
+  // v3: a gorjeta do carrinho cobrada neste PI fica fora das contas da compra.
+  let gorjeta = { total: 0, porDevolverNaStripe: 0 };
+  const { data: gs, error: gErr } = await admin.from('tips')
+    .select('amount_cents, status, stripe_payment_intent_id, devolvida_para')
+    .eq('order_id', orderId).eq('cobrada_junto', true)
+    .in('status', ['pending', 'requires_action', 'succeeded', 'refunded']);
+  if (gErr) console.warn('[cobranca_stripe] gorjeta do pedido não lida (conta 0):', gErr.message, orderId);
+  else gorjeta = gorjetaNoPagamento((gs ?? []) as GorjetaJunto[], pago.piId);
+  pago.gorjetaJuntoCents = gorjeta.total;
+  pago.stripeCents = Math.max(0, recebido - gorjeta.total);
+  pago.stripeDisponivelCents = Math.max(0, recebido - devolvido - gorjeta.porDevolverNaStripe);
   return pago;
 }
 

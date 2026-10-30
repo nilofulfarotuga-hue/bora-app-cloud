@@ -173,3 +173,8 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   (`supabase/migrations/20261029152540_s1_platform_settings_segredos.sql`, só os passos 0 a 4, com cabeçalho curto).
   Mesma mensagem da tranca. Não se contornou (nem por `cp`). Registado no e2e_log (5274). Fica para a Claude.ai pelo
   GitHub web depois do push de produção.
+- **30/10/2026, missão `publica-2026-10-29`, complemento do adendo 13** — `Edit` de `.github/workflows/build_ios.yml`
+  (acrescentar `"test/**"` aos `paths` do `push`, para uma correção só de testes relançar o iPhone) recusado:
+  "zona vermelha: .github/workflows". Não se contornou. O caminho usado foi o script `.claude/scripts/relancar_ios.py`
+  e a regra na skill `protocolo-missao-bora` §9. A mudança de uma linha no workflow fica proposta para a Claude.ai pelo
+  GitHub web (ou o Danilo a carregar Permitir). Registado no e2e_log (A13-ios-relancado).

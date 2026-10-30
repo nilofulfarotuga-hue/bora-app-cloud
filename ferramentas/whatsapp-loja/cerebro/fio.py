@@ -7,6 +7,8 @@ fluxo normal. Tudo deterministico (zero modelos): "Danilo" depois de "preciso do
 Os campos sao os do cartao de estafeta/parceiro (ferramentas_bot.registar_lead usa os mesmos nomes).
 """
 import datetime
+
+from . import verdades
 import re
 
 from . import identidade
@@ -25,7 +27,9 @@ PERGUNTAS = {
     "morada": "Qual é a morada?",
     "horario": "Qual é o horário de funcionamento?",
     "redes_ou_fotos": "Tem Instagram ou Facebook? Ou pode mandar fotos e a lista de produtos com preços.",
-    "contacto": "Qual é o melhor telefone ou email para o Danilo falar consigo?",
+    "contacto": "Qual é o melhor telefone ou email para falarmos consigo?",   # 04/09: NAO por aqui o nome do dono — a folha de verdades bloqueia a saida
+    #        inteira (motivo "nome-do-dono") e o cliente recebia "vou confirmar com o
+    #        meu superior" em vez da pergunta. O ultimo campo do cartao nunca se recolhia.
 }
 RE_ADIAR = re.compile(r"amanh[ãa]|depois|mais tarde|\blogo\b|vou mandar|vou enviar|envio (depois|amanh|logo)|mando (depois|amanh|logo)|quando puder|daqui a|\bespera\b|aguarda|assim que (puder|conseguir)", re.I)
 RE_VEICULO = re.compile(r"\b(mota|moto|motorizada|scooter|carro|carrinha|bicicleta|bike|trotinete|a p[eé])\b", re.I)
@@ -161,7 +165,10 @@ def responder_ao_que_se_pediu(f, msg, dados_lead):
     if novos.get("nome") and not f.get("nome"):
         f["nome"], f["nome_fonte"] = novos["nome"][:80], "disse"
     primeiro = (novos.get("nome") or dados.get("nome") or f.get("nome") or "").split()
-    agradece = ("Obrigado, %s. " % primeiro[0]) if primeiro and f.get("nome_fonte") in ("disse", "contacto_guardado", "supabase", "danilo") else "Obrigado. "
+    # o nome do contacto so entra se a folha de verdades o deixar passar: se o cliente se chamar
+    # como o dono, tratar pelo nome dispara a trava e apaga a resposta toda (visto a 04/09).
+    _pode_nomear = bool(primeiro) and not verdades.RE_DONO.search(primeiro[0])
+    agradece = ("Obrigado, %s. " % primeiro[0]) if _pode_nomear and f.get("nome_fonte") in ("disse", "contacto_guardado", "supabase", "danilo") else "Obrigado. "
     falta = [c for c in campos if not dados.get(c)]
     if tipo == "estafeta" and "nome" in novos:
         # a lista de espera fecha-se JA com o nome (o que o Danilo pediu); o cartao completa-se ao ritmo da conversa
@@ -179,7 +186,7 @@ def responder_ao_que_se_pediu(f, msg, dados_lead):
         fechou = False
     else:
         texto = agradece + ("Fica na nossa lista de espera e avisamos assim que abrir vaga." if tipo == "estafeta"
-                            else "Já tenho tudo para o Danilo montar a sua loja no Bora; ele fala consigo por aqui para a aprovar.")
+                            else "Já tenho tudo para montarmos a sua loja no Bora; falamos consigo por aqui para a aprovar.")
         f["a_espera_de"], f["falta_recolher"] = None, []
         fechou = True
     return {"texto": texto, "novos": novos, "todos": dados, "falta": falta, "fechou": fechou, "tipo": tipo, "adiou": False}

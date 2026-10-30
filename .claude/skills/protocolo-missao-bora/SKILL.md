@@ -219,6 +219,14 @@ on conflict (pagina) do update set conteudo = excluded.conteudo, atualizado_em =
   Play). **Sem verde, nada é publicado.** Prova do build: `app_latest_version_code` subiu.
 - iOS: parte-se sempre de `origin/ios-lancamento` (a linha da build aprovada). Portões iOS:
   varredura de ecrãs + teste do `Info.plist` antes de qualquer build.
+- iOS no ramo de produção (30/10/2026): o `build_ios.yml` só arranca com push em `lib/**`, `ios/**`,
+  `integration_test/**`, `pubspec.yaml` ou no próprio workflow. Uma correção **só em `test/`** (por exemplo
+  depois de o job A falhar num teste) NÃO relança o iPhone, e ele fica na publicação anterior. Por isso,
+  **depois de cada push de produção** corre-se `TOKEN=… python .claude/scripts/relancar_ios.py`. Se o último
+  `build-ios` do ramo falhou, ou há código novo que o push não lançou, ele faz `workflow_dispatch` com
+  `enviar=true` e `submeter_revisao=true`; o `ios_publicar.py` já deixa o IPA no TestFlight se houver uma
+  versão em revisão. Não se dá a publicação por feita sem os jobs A e B do iPhone verdes. Pôr `test/**` nos
+  paths do workflow é zona vermelha (a tranca recusa): fica para quem pode mexer lá (`docs/TRANCAS.md`).
 - Web: sai junto com o Android (mesmo push). bora-site: `wrangler` (`deploy-cloudflare.sh`), não push.
 - Local ≠ CI: o CI corre Flutter 3.41.2 / Java 17; o PC pode ter outro Flutter e outro Java —
   quando o build local falha por ferramenta, corrige-se a ferramenta do PC (JDK portátil,

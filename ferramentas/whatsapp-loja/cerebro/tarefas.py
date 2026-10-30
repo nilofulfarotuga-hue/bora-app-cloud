@@ -146,7 +146,7 @@ class Vigia(threading.Thread):
                 recente = False
             if (t.get("criada_por") or "").startswith("danilo-"):
                 # o Danilo nao respondeu em 30 min -> volta-se a pessoa (uma vez)
-                texto = "Ainda estou a tratar do seu assunto com o Danilo — não me esqueci. Assim que tiver novidade, digo-lhe aqui."
+                texto = "Ainda estou a tratar do seu assunto — não me esqueci. Assim que tiver novidade, digo-lhe aqui."
                 fechar(t["id"], "expirada", "danilo sem resposta; cliente avisado" if not recente else "danilo sem resposta; cliente ja tinha a frase de espera")
                 if not recente:
                     self.emitir(numero, texto, "vigia:danilo-sem-resposta")
@@ -161,7 +161,7 @@ class Vigia(threading.Thread):
                 # recebeu isso no numero de teste. Regra: uma promessa vencida NAO gera outra promessa. Diz-se a
                 # verdade (o Danilo entra) e abre-se UMA tarefa do Danilo; se ele nao responder em 30 min, o ramo
                 # de cima fala uma vez ("nao me esqueci") e acaba.
-                texto = "Não consegui fechar isto sozinho — já passei ao Danilo e ele responde-lhe por aqui."
+                texto = "Não consegui fechar isto sozinho — já passei ao responsável e respondemos-lhe por aqui."
                 fechar(t["id"], "expirada", "prazo venceu; cliente avisado; passou ao Danilo")
                 self.emitir(numero, texto, "vigia:prazo-vencido")
                 self.avisar("WhatsApp da loja — prometi verificar a %s (%s) e não consegui a tempo. Responde-lhe por aqui." % (numero, motivo[:100]))

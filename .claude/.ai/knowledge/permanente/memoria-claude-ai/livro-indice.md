@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-30T00:07:10.864486+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-30T06:07:13.378226+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-29 23:40 UTC. Páginas listadas: 443.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-30 06:04 UTC. Páginas listadas: 444.
 
 ## O que é o Bora
 
@@ -34,7 +34,7 @@ Quer respostas curtas, em texto corrido e sem jargão, e que o trabalho se faça
 
 1. `erros-aprendidos` — as correções do Danilo; errou uma vez, nunca mais (atualizada 2026-10-29).
 2. `regras-do-danilo` — as regras dele; mandam em tudo (atualizada 2026-10-23).
-3. Estado vivo: `digest-2026-10-29-publica` (2026-10-29).
+3. Estado vivo: `digest-2026-10-30-dsh-harness` (2026-10-30).
 4. Antes de mexer em pedidos, estafetas, dinheiro ou migrações: `regras-operacao-agentes`.
 5. Ferramenta nova sem MCP? `livro-porta-unica` explica como ligar (Córtex por MCP, ou o ficheiro plano LIVRO.md com senha).
 
@@ -50,8 +50,9 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - erros-aprendidos — Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige) (2026-10-29)
 
-## digest (175)
+## digest (176)
 
+- digest-2026-10-30-dsh-harness — Claude Code 30/10 — DeepSeek Harness (dsh) instalado com o mesmo livro do Claude Code (2026-10-30)
 - digest-2026-10-29-publica — Digest — missão publica-2026-10-29 (29/10 noite, Fable 5.1) (2026-10-29)
 - digest-2026-10-29-telegram-robo-login — Avisos "travou de vez" no Telegram (29/10) — causa, o que foi arrumado e o que falta (2026-10-29)
 - digest-2026-10-29-final-app — Digest 29/10/2026 — missão final-app (Fable 5.1) (2026-10-29)

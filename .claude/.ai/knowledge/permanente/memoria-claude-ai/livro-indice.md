@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-30T16:37:06.78206+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-30T17:07:08.600987+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-30 16:26 UTC. Páginas listadas: 453.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-30 17:05 UTC. Páginas listadas: 453.
 
 ## O que é o Bora
 
@@ -52,7 +52,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 ## digest (180)
 
-- digest-2026-10-30-conta-vansh-jai — Conta do Vansh e do Jai — 30/10 (juntar ao recibo-jogador-gfc) (2026-10-30)
+- digest-2026-10-30-conta-vansh-jai — Contas de 30/10 — Vansh, Jai e Ricardo (juntar à memória) (2026-10-30)
 - digest-2026-10-30-gorjetas-claude-ai — Digest 30/10 — gorjetas: taxa da Stripe e gorjeta junto da compra (Claude.ai) (2026-10-30)
 - digest-2026-10-30-adendo-13-ios — Missão publica 30/10 — adendo 13: iPhone relançado, cérebro do WhatsApp alinhado (2026-10-30)
 - digest-2026-10-30-remote-control-e-dsh-fecho — Claude Code 30/10 — Remote Control caído desde 28/10 e fecho do dsh (2026-10-30)

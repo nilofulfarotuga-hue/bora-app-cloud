@@ -25,8 +25,9 @@ pode mandar uma tarefa ao dsh em vez de ao Claude Code, com um motor GRÁTIS. In
 ## Motor (o que é grátis e os limites)
 - Padrão: **Nemotron 3 Ultra** pela piscina grátis da **Kilo** (sem conta). Reserva 1: `kilo-auto/free`. Reserva 2: **Gemini
   grátis** (chave do juiz, sem faturação: 20 pedidos por dia e por modelo). Os lançadores tentam por esta ordem.
-- ⚠️ **A Kilo pode guardar os pedidos.** O Gemini grátis também pode treinar com eles. Nunca meter segredos, chaves, dados
-  de clientes nem conversas pessoais. **Isto inclui o email:** o Gmail ligado ao dsh é lido por um destes modelos.
+- ⚠️ **A Kilo pode guardar os pedidos.** O Gemini grátis também pode treinar com eles. Nunca meter segredos nem chaves.
+  Dados pessoais de clientes (nomes, telefones, moradas): só quando a tarefa precisar deles e nunca em massa (ordem do
+  Danilo, 30/10). **Isto inclui o email:** o Gmail ligado ao dsh é lido por um destes modelos.
 - 429 é abuso de quota: esperar. 403: região recusada.
 - O plugin comunitário `dsh-our-free-model` NÃO foi instalado (copia cabeçalhos do OpenCode, tem login de contas e
   atualizador próprio). Kilo e Gemini foram ligados à mão.
@@ -43,11 +44,11 @@ O cartão "DeepSeek" existe, SEM chave e sem pagar nada. Só se liga com **"auto
 | Skills que o dsh recusa (YAML estrito) | 9 pontes em `~/.dsh/skills-ponte` | pelo nome |
 | 42 agentes | skill `agentes-claude-code` | "usa o agente X" |
 | Córtex (MCP) | MCP `cortex`, token estático | `cortex_buscar`, `cortex_ler` — **provado** |
-| Supabase (conector Claude.ai) | MCP `supabase` **só leitura** | falta token novo (`COLAR-TOKEN-SUPABASE.cmd`) |
+| Supabase (conector Claude.ai) | MCP `supabase` **com escrita** (token da organização Bora app, acesso total, sem validade; 22 ferramentas, incluindo `apply_migration` e `deploy_edge_function`) | pelo nome da ferramenta; regras em `~/.agents/AGENTS.md`. **Provado a 30/10:** `SELECT count(*) FROM orders` = 89, igual ao Claude Code |
 | Gmail, Drive, Calendar (conectores) | MCP `google` (workspace-mcp 2.2.1): Gmail leitura e **rascunhos, sem enviar**, Drive e Calendar só leitura | falta o Permitir de cada conta (`~/.dsh/google-autorizar.py`) |
 | Nano Banana (MCP) | montado e DESLIGADO (chave grátis sem imagens) | `disabled: true` no patch |
 | REA (≈300 ferramentas MCP) | NÃO como MCP; pela shell (`npx rea-agents`) | só no NOSSO APK e sites; comando não provado |
-| Hooks e tranca `bora-tranca` | **NÃO tem** | por isso o dsh só lê a base |
+| Hooks e tranca `bora-tranca` | **NÃO tem** | a única tranca são as regras escritas em `~/.agents/AGENTS.md` (secção "Supabase com escrita") |
 | Pesquisa nas sessões antigas | plugin `dsh-session-search` (dsh + Claude Code, só leitura) | `agent_session_search` — **provado** |
 | Chrome (extensão) | nada ainda (`dsh-browser` por compilar) | usar o Claude Code |
 
@@ -67,7 +68,10 @@ O cartão "DeepSeek" existe, SEM chave e sem pagar nada. Só se liga com **"auto
 ## Regras que nunca se quebram
 1. **Nunca** apontar o Claude Code para o dsh como proxy/router (regra de 13/09 e termos da Anthropic de 04/04/2026).
 2. **Nunca** meter contas Claude, ChatGPT/Codex, Gemini por cookie nem OpenCode por login no dsh.
-3. Dinheiro, dispatch, carteira, RLS, push e publicação **nunca** se delegam ao dsh. Escrever na base é do Claude Code.
+3. Dinheiro, dispatch, carteira, RLS, push e publicação **nunca** se delegam ao dsh: ele prepara e não aplica sem o
+   "autorizo" do Danilo. Desde 30/10 o dsh ESCREVE na base (ordem do Danilo), com as regras de `~/.agents/AGENTS.md`:
+   nunca apagar dados de produção, nunca reescrever histórico git publicado, pedidos só por `ops_*`, correção só com
+   backup, dados pessoais de clientes só quando a tarefa precisar e nunca em massa, segredos nunca.
 4. Engenharia reversa **só** no nosso APK (`pt.boraapp.bora`) e nos nossos sites; apps de terceiros só para comparar o que
    o utilizador vê (regra do Danilo de 13/10).
 5. Sem app desktop do Harness. Só `dsh` por npm. Não ligar o encaminhamento local (portas 18899/18900) nem relé de rede.
@@ -76,8 +80,12 @@ O cartão "DeepSeek" existe, SEM chave e sem pagar nada. Só se liga com **"auto
 ## Segurança, sem fingir
 - O dsh **lê qualquer ficheiro** do utilizador: o fence só trava escrita. "Não ler `.env*`, `*.pem`, `~/.claude.json`…" está
   só escrito nas instruções, não é tranca. O dsh também tem `bash`/PowerShell.
-- Mitigações reais: modelo pago sem chave, Supabase só leitura, Gmail sem permissão de enviar, tokens em `~/.dsh/secrets`
-  só com permissão do utilizador, plugins só por cópia de commit auditado.
+- **Supabase com escrita e acesso total sem validade (decisão do Danilo, 30/10):** o token está em
+  `.supabase-token.env` e o dsh corre como o utilizador, por isso consegue lê-lo; o que o protege são as regras escritas,
+  não uma tranca. A Kilo e o Gemini grátis podem guardar o que lhes chega. O MCP não expõe `pause_project` nem
+  segredos das Edge Functions, mas o token, usado por fora do MCP, pode tudo o que a organização pode.
+- Mitigações reais: modelo pago sem chave, Gmail sem permissão de enviar, tokens só com permissão do utilizador, plugins
+  só por cópia de commit auditado.
 - Telemetria do dsh: modo `FEEDBACK_ONLY` para `dsh-otel-collector.deepseeksvc.com`.
 
 ## Atualizar
@@ -88,6 +96,6 @@ Depois correr `DSH-MISSAO.cmd` com uma tarefa pequena. Plugins: `dsh plugin --pr
 `headless`).
 
 ## Falta para ser igual ou melhor que o Claude Code
-Token novo do Supabase; Permitir do Google nas duas contas; conector do Conselho; olhos (visão: nenhum plugin instalado);
+Permitir do Google nas duas contas; conector do Conselho; olhos (visão: nenhum plugin instalado);
 Telegram (precisa de um bot novo do BotFather); controlo remoto (login do `claude`, ver `remote-control-duas-sessoes`);
 tranca e hooks (o dsh não tem; só o Claude Code).

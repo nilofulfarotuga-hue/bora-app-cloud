@@ -25,7 +25,10 @@ cerca de compatibilidade do dsh os candidatos limpos. Só um ficou provado e pro
    "PARCEIRO = 20% total (10% comissão + 5% markup escondido + 5% taxa serviço); NÃO-PARCEIRO = 15%". 43 s, motor Kilo.
 2. **Skills — provado.** 146 de 146 visíveis ao modelo (145 listadas + 2 carregadas à prova); mais 5 escondidas por
    `disable-model-invocation` (grill-me, grill-with-docs, handoff, improve-codebase-architecture, setup-matt-pocock-skills).
-3. **Supabase — NÃO deu.** `mcp-client(supabase): server is disconnected`. O token `sbp_` local é de 20/08 e dá 401.
+3. **Supabase — provado a 30/10 às 15:46 (atualização).** De manhã não deu: `mcp-client(supabase): server is disconnected`,
+   porque o token `sbp_` local era de 20/08 e dava 401. Com o token novo da organização Bora app, o dsh correu
+   `mcp__supabase__execute_sql` com `SELECT count(*) FROM orders` e devolveu 89; o Claude Code, à mesma hora, também 89.
+   Saída literal em `provas/dsh-harness-2026-10-29/f-supabase-count.jsonl`.
 4. **Córtex — provado.** `cortex_buscar harness` = 20 resultados, com id.
 5. **Livro comum — provado.** "Quem é o Danilo e o que é o Bora" respondido a partir de `AGENTS.md`/`CLAUDE.md`; o erro de
    25/10 da Myra citado certo a partir de `erros.md`.
@@ -50,8 +53,7 @@ morto (06:53:18 morto, 06:58:22 de pé), depois do login do Danilo às 06:48.
 
 ## Instalado sem prova
 No perfil `lab` (ativam sem avisos, não estão no `headless` nem no `web`): `dsh-memento`, `dsh-auto-continue`,
-`dsh-notify-windows`, `dsh-tokenledger`, `dsh-taskfold`, `dsh-chat-import`, `dsh-sentinel` · Supabase em só leitura (montado,
-sem token) · servidor Google (montado, sem Permitir) · `PC-DO-DANILO.cmd` (visível; já não é preciso, a
+`dsh-notify-windows`, `dsh-tokenledger`, `dsh-taskfold`, `dsh-chat-import`, `dsh-sentinel` · servidor Google (montado, sem Permitir) · `PC-DO-DANILO.cmd` (visível; já não é preciso, a
 tarefa levanta o servidor).
 
 ## Não deu (erro literal)
@@ -90,7 +92,7 @@ tarefa levanta o servidor).
    it first." O do Em Dia (pasta `em_dia`) deve voltar no próximo ciclo do vigia (não confirmado).
 2. O `build-ios` falhou no commit `26ab6a7b` (não é meu) e outro corria em `58eb26f8`.
 3. A voz da ponte do Telegram cai do `edge-tts` (traceback) para o `piper` e demora 54 s.
-4. O token do Supabase local (`.supabase-token.env`) caducou: dá 401 desde 21/09.
+4. O token do Supabase local (`.supabase-token.env`) caducou: dava 401 desde 21/09. (Resolvido a 30/10 às 15:41 com o token novo.)
 5. O dsh deixa os processos MCP filhos pendurados ao sair (vi 8 de `nano-banana`; matei-os).
 6. A ferramenta `Edit` parte hardlinks: partiu o do CLAUDE.md; os lançadores já o recompõem.
 7. Nove skills do Claude Code têm cabeçalho YAML inválido para um parser estrito (`ask-knowledge-base`, `daily-pulse`,
@@ -107,7 +109,25 @@ tarefa levanta o servidor).
 2. **Desligar ou não o vigia `ClaudeRC-bora`** (tarefa agendada que corre `claude rc --name bora-app`): já não serve, porque
    o servidor ocupa a pasta, e falha de 30 em 30 minutos. Não lhe toquei. E abrir duas sessões em claude.ai/code para
    provar o S.3.
-3. **Colar o token novo do Supabase** no `COLAR-TOKEN-SUPABASE.cmd` (o dsh lê o mesmo ficheiro).
+3. Token novo do Supabase: **feito a 30/10 às 15:41** (ver a atualização no fim).
 4. **Permitir do Google** nas duas contas, e decidir se aceita que o email seja lido por um modelo grátis que pode guardar
    os pedidos (regra 14 do AGENTS.md). O dsh nunca envia: só lê e faz rascunhos.
 5. Se aceita o token estático do Córtex copiado da VPS para `~/.dsh/secrets` (revogável trocando o `CORTEX_TOKEN` do servidor).
+
+## Atualização de 30/10, tarde (decisões do Danilo e o que ficou)
+- **Supabase com escrita.** Por ordem do Danilo, o token é da organização Bora app, com acesso total e sem validade, e o
+  MCP do dsh deixou de ser só leitura (tirei `read_only=true`). Prova: o dsh passou a listar 22 ferramentas, com
+  `apply_migration`, `deploy_edge_function`, `delete_branch`, `merge_branch` e `reset_branch`; não executei nenhuma de
+  escrita. O MCP não tem `pause_project` nem escrita de segredos. A única tranca são as regras escritas em
+  `~/.agents/AGENTS.md`: nunca apagar dados de produção, nunca reescrever histórico git publicado, pedidos só por `ops_*`,
+  dinheiro só com "autorizo", correção só com backup, dados pessoais de clientes só quando a tarefa precisar e nunca em
+  massa, segredos nunca. Risco que fica dito: o dsh corre como o utilizador e lê o ficheiro do token; a Kilo e o Gemini
+  grátis podem guardar os pedidos.
+- **Lembrete de renovação.** Montei um aviso para 21/01/2027 (job `pg_cron` 114 e tarefa do Windows) e apaguei os dois a
+  pedido do Danilo, porque o token deixou de ter validade. Já não existe nenhum.
+- **Google.** O ecrã de consentimento do projeto `gen-lang-client-0806232393` está **Em produção** (Externo, 1 utilizador de
+  100): a autorização não caduca de 7 em 7 dias, mas aparece o aviso "A Google não validou esta app" (Avançadas, Ir para a
+  app, Permitir). Ao relançar as páginas, o PowerShell partiu `"Profile 1"` em dois argumentos e a da Bora abriu no perfil
+  antigo `Profile`, com a porta 1: erro meu, corrigi às 15:49 (relançada no `Profile 1`, porta 8772). Ficou uma página de
+  entrada solta na janela desse perfil antigo, sem recetor e inofensiva.
+- Por provar: Permitir das duas contas e as provas do Gmail (3 últimos emails da Bora e 1 rascunho sem enviar).

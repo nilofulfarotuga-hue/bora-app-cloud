@@ -38,7 +38,10 @@ AVISO_SEG = float(os.environ.get("ASSISTENTE_AVISO_SEG", "3.5"))
 # Restaurantes: mensagem obviamente de negocio nao passa pelo classificador (um motor a mais = segundos a mais).
 NEGOCIO_OBVIO_RE = re.compile(r"\b(menu|lista|cardapio|ementa|carta|precos?|hamburg\w*|burgu?er\w*|pedido|encomend\w*|"
                               r"entrega\w*|quero|queria|pedir|horario|aberto|abrem|fecham|morada|quanto|batata|bebida\w*|"
-                              r"sobremesa\w*|entrada\w*|molho\w*|opcoes|opcao|alerg\w*|boom)\b", re.I)
+                              r"sobremesa\w*|entrada\w*|molho\w*|opcoes|opcao|alerg\w*|boom|vinhos?|cervejas?|sidras?|"
+                              r"aguas?|refrigerantes?|reserv\w*|mesa)\b", re.I)
+# Restaurantes: pedido de reserva e negocio mesmo com "jantar" (que o PESSOAL_RE apanha).
+RESERVA_OBVIA_RE = re.compile(r"\b(reserv\w*|mesa)\b")
 
 
 # ----------------------------------------------------------------------------- utilitarios
@@ -198,9 +201,24 @@ def registar(t, numero, direcao, texto, **extra):
     return db.inserir("assistant_messages", linha)
 
 
+_LISTA_MD_RE = re.compile(r"^[ \t]*[*-][ \t]+", re.M)
+_TITULO_MD_RE = re.compile(r"^[ \t]*#{1,6}[ \t]+", re.M)
+
+
+def limpar_formato(texto):
+    """O WhatsApp nao mostra markdown (30/10, mensagem 338: '*   **Caiado**'). '**' passa a '*' (negrito do WhatsApp),
+    linhas que comecam por '* ' ou '- ' passam a '• ', '#' dos titulos sai. Nao corta nem muda mais nada."""
+    if not texto:
+        return texto
+    s = _LISTA_MD_RE.sub("• ", str(texto))
+    s = _TITULO_MD_RE.sub("", s)
+    return re.sub(r"\*{2,}", "*", s)
+
+
 def enfileirar(t, numero, texto, motivo, simulado=False, media_path=None):
     """Poe uma mensagem na fila de saida. A porta vem buscar; aqui nunca se envia nada directamente.
-    media_path = nota de voz (.ogg opus) que a porta envia como audio PTT."""
+    media_path = nota de voz (.ogg opus) que a porta envia como audio PTT. TODO o texto que sai passa por limpar_formato."""
+    texto = limpar_formato(texto)
     if not pode_escrever_a(t, numero):
         registar(t, numero, "saida", texto, motivo=motivo, decisao="bloqueado-fora-da-allowlist",
                  entrega_estado="bloqueado", simulado=simulado, media_path=media_path)
@@ -565,12 +583,15 @@ def resposta_do_dono(t, ev, simular):
     if ev.get("quoted_id"):
         tk = next((k for k in abertas if k.get("msg_id_wa") == ev["quoted_id"]), None)
     if not tk:
-        m = re.match(r"^\s*(P\d{3})\b[\s:,.-]*(.*)$", texto, re.I | re.S)
+        m = re.match(r"^\s*([PR]\d{3})\b[\s:,.-]*(.*)$", texto, re.I | re.S)  # P123 pergunta; R123 reserva de mesa
         if m:
             tk = next((k for k in abertas if (k.get("codigo") or "").upper() == m.group(1).upper()), None)
             texto = m.group(2).strip() or texto
     if not tk:
         return None
+    if (tk.get("payload") or {}).get("reserva"):  # reserva de mesa: confirma ou propoe outra hora; nao e pergunta aprendida
+        import restaurante
+        return restaurante.resposta_reserva_do_dono(t, tk, texto, simular)
     dono = dono_nome(t)
     msgs = [{"role": "system", "content": f"Reescreves a resposta do dono de um negócio ({t['nome']}) para o cliente: português de Portugal, 1-2 frases, tratamento por você. Mantém as PALAVRAS do dono para os factos (se ele diz 'cartão', escreves 'cartão'); não acrescentes nem troques nada. Começa por 'Já falei com {dono}:'."},
             {"role": "user", "content": f"Pergunta do cliente: {tk['pergunta']}\nResposta do dono: {texto}"}]
@@ -642,7 +663,8 @@ def atender(ev, simular=False):
     hist0 = ct.get("historico") or []
     em_conversa = bool(hist0) and hist0[-1]["r"] == "assistant" and (agora() - hora_local(hist0[-1]["ts"])) < dt.timedelta(minutes=30)
     obvio = tipo_de(t) == "restaurante" and NEGOCIO_OBVIO_RE.search(sem_acentos(texto))
-    if (em_conversa or obvio) and not PESSOAL_RE.search(sem_acentos(texto)):
+    reserva = tipo_de(t) == "restaurante" and RESERVA_OBVIA_RE.search(sem_acentos(texto))
+    if reserva or ((em_conversa or obvio) and not PESSOAL_RE.search(sem_acentos(texto))):
         tipo, meta_c = "negocio", None  # a meio de uma conversa (ou pedido obvio de menu/encomenda): nao se gasta motor a classificar
     else:
         tipo, meta_c = classificar(t, ct, texto, simular)
@@ -655,16 +677,20 @@ def atender(ev, simular=False):
     hist = ct.get("historico") or []
     if tipo_de(t) == "restaurante":
         import restaurante  # aqui e nao no topo: o restaurante importa este modulo
-        fechado = restaurante.resposta_fora_da_janela(t, numero)
+        fechado = restaurante.resposta_fora_da_janela(t, numero, texto, ct)
         if fechado:  # loja "abre em breve" (ou sem conta ligada): resposta fixa, sem motor
             turno = Turno(t, numero, ct, simular)
             turno.foi_audio = foi_audio
             return _fechar(t, numero, texto, entrada, turno, fechado, "loja-abre-em-breve", None, hist, simular)
         turno = restaurante.TurnoRestaurante(t, numero, ct, simular, texto)
         turno.foi_audio = foi_audio
-        direto = turno.sim_direto(hist)
-        if direto:  # "sim" a um resumo que acabou de ser mostrado: pedido confirmado em codigo, sem motor
-            return _fechar(t, numero, texto, entrada, turno, direto, "pedido-confirmado-em-codigo", None, hist, simular)
+        turno.carrinho_velho()  # carrinho parado ha mais de 2 h: suspenso ate o cliente dizer que ainda o quer
+        for passo, acao_direta in ((turno.resposta_retoma, "carrinho-antigo"),     # "ainda quer o X de ha pouco?" -> sim/nao
+                                   (turno.reserva_em_codigo, "reserva-em-codigo"),  # reservas de mesa, passo a passo
+                                   (turno.sim_direto, "pedido-confirmado-em-codigo")):  # "sim" ao resumo que acabou de ver
+            direto = passo(hist)
+            if direto:  # respondido em codigo, sem motor
+                return _fechar(t, numero, texto, entrada, turno, direto, acao_direta, None, hist, simular)
         rapida = restaurante.resposta_rapida(t, ct, texto)
         if rapida:  # adendo 4 (29/10): menu/lista/precos saem em codigo, da base, sem esperar pelo motor (< 5 s)
             return _fechar(t, numero, texto, entrada, turno, rapida, "resposta-rapida", None, hist, simular)
@@ -786,6 +812,9 @@ def resumo_acoes(turno):
             out.append(f"marcação DESMARCADA: {r['servico']} {r['era']}")
         elif u["ferramenta"] == "remarcar" and r.get("ok"):
             out.append(f"marcação MUDADA: {r['servico']} de {r['de']} para {r['para']}")
+        elif u["ferramenta"] == "pedir_reserva" or r.get("redirecionado_de"):
+            if r.get("ok") and r.get("codigo") and not r.get("ja_pedida"):
+                out.append(f"pedido de reserva {r['codigo']} enviado à loja — a mesa ainda NÃO está confirmada")
         elif u["ferramenta"] in ("perguntar_ao_dono", "passar_ao_dono") and r.get("ok"):
             out.append(f"{u['ferramenta']} feito")
         elif u["ferramenta"] == "confirmar_pedido" and r.get("ok") and not r.get("ja_estava_feito"):

@@ -6,7 +6,12 @@ O "cliente" responde sozinho a perguntas previsiveis (opcoes? mais alguma coisa?
 andar ate ao fim; o texto de cada passo fica no relatorio JSON.
 
 Uso (na VPS, em /opt/assistente-negocio):   python3 simular_boom.py B2-entrega-dinheiro [B1-ir-buscar ...]
+                                            python3 simular_boom.py C1-quero-vinho C2-cervejas C3-reserva-confirmada C5-formato
                                             python3 simular_boom.py --limpar     (cancela carrinhos simulados abertos)
+
+Cenarios C (30/10/2026, mensagens 333-338): mensagens FIXAS (GUIOES). "DONO:<texto>" e a resposta simulada da loja ao ultimo
+pedido de reserva (o codigo R123 junta-se sozinho), pelo mesmo atender; tudo o que sai (ao cliente e a loja) fica 'simulado'.
+C5-formato poe na fila (simulado) um texto de motor com markdown e mostra-o como ficou gravado.
 """
 import json
 import os
@@ -61,6 +66,73 @@ def limpar_memoria(t, numero):
     A.gravar_contacto(t, numero, {"historico": [], "a_espera_de": None, "silenciado_ate": None, "pessoal": False})
     db.atualizar("assistant_tasks", f"tenant_id=eq.{t['id']}&numero=eq.{numero}&tipo=eq.pedido&estado=eq.aberta&simulado=eq.true&payload->>fase=eq.carrinho",
                  {"estado": "cancelada", "resposta": "limpeza antes de simulacao"})
+    db.atualizar("assistant_tasks", f"tenant_id=eq.{t['id']}&numero=eq.{numero}&tipo=eq.pergunta_dono&estado=eq.aberta&simulado=eq.true",
+                 {"estado": "cancelada", "resposta": "limpeza antes de simulacao"})
+
+
+GUIOES = {
+    "C1-quero-vinho": ["Quero vinho"],
+    "C2-cervejas": ["que cervejas têm"],
+    "C3-reserva-confirmada": ["Posso reservar mesa por aqui?", "Somos 4", "Sábado", "Às 20h", "Ana", "DONO:sim"],
+    "C4-reserva-outra-hora": ["Queria reservar mesa para 2 pessoas amanhã às 20h", "Rui", "DONO:só temos às 21:30", "Sim, pode ser"],
+}
+# a forma da mensagem 338 (29/10, 22:36): o que um motor escreve quando lhe sai markdown
+MOTOR_COM_MARKDOWN = ("Temos várias opções de vinho (lembrando que bebidas alcoólicas são apenas para maiores de 18 anos). "
+                      "Prefere tinto, branco ou rosé?\n\nAqui estão algumas das nossas opções:\n"
+                      "*   **Caiado** (Tinto, Branco ou Rosé) — 11,20 €\n*   **Adega Mayor Reserva** (Tinto ou Branco) — 19,25 €\n"
+                      "*   **Adega Mayor Comendador** (Tinto ou Branco) — 28,00 € a 32,67 €\n## Mais opções\n"
+                      "Diga-me qual prefere ou se quer ver mais opções de uma categoria específica.")
+PARA_A_LOJA = ("pergunta_dono:", "pergunta_dono_lembrete", "dono_ack", "reserva_dono")
+
+
+def _teste(t):
+    return A.so_digitos(os.environ.get("BOOM_NUMERO_TESTE") or t["allowlist"][0])
+
+
+def correr_guiao(nome):
+    t = db.ler("assistant_tenants", "slug=eq.boom-burger")[0]
+    numero, dono = _teste(t), A.so_digitos(t["dono_destino"])
+    limpar_memoria(t, numero)
+    passos = []
+    for i, msg in enumerate(GUIOES[nome], 1):
+        antes = db.ler("assistant_messages", "order=id.desc&limit=1", "id")
+        id0 = antes[0]["id"] if antes else 0
+        quem, texto = (dono, msg[5:]) if msg.startswith("DONO:") else (numero, msg)
+        if msg.startswith("DONO:"):
+            tk = db.ler("assistant_tasks", f"tenant_id=eq.{t['id']}&numero=eq.{numero}&tipo=eq.pergunta_dono&estado=eq.aberta"
+                                           f"&simulado=eq.true&order=created_at.desc&limit=1", "codigo")
+            texto = f"{tk[0]['codigo']} {texto}" if tk else texto
+        ev = {"sessao": SESSAO, "numero": quem, "texto": texto, "msg_id": f"simboom_{nome}_{i}_{time.time()}"}
+        t0 = time.time()
+        r = A.atender(ev, simular=True)
+        if quem == dono and not r.get("tratado"):  # dono fora da allowlist do teste: o mesmo tratamento, direto
+            r = A.resposta_do_dono(t, ev, True) or {}
+        seg = round(time.time() - t0, 1)
+        saidas = db.ler("assistant_messages", f"id=gt.{id0}&tenant_id=eq.{t['id']}&direcao=eq.saida&order=id.asc",
+                        "texto,motivo,entrega_estado")
+        print(f"[{nome}] #{i} {'LOJA' if msg.startswith('DONO:') else 'cliente'}> {texto}\n"
+              f"   acao={r.get('acao')} ferr={r.get('ferramentas')} mod={r.get('modelos')} {seg}s")
+        for s in saidas:
+            para = "loja" if str(s["motivo"] or "").startswith(PARA_A_LOJA) else "cliente"
+            print(f"   robo->{para} ({s['motivo']}, {s['entrega_estado']}):\n      " + s["texto"].replace("\n", "\n      "))
+        passos.append({"de": "loja" if msg.startswith("DONO:") else "cliente", "texto": texto, "acao": r.get("acao"),
+                       "ferramentas": r.get("ferramentas"), "modelos": r.get("modelos"), "segundos": seg,
+                       "saidas": [{"texto": s["texto"], "motivo": s["motivo"], "estado": s["entrega_estado"]} for s in saidas]})
+        nao_simuladas = [s for s in saidas if s["entrega_estado"] != "simulado"]
+        if nao_simuladas:
+            print("   !!! SAIDA NAO SIMULADA:", nao_simuladas)
+        time.sleep(1)
+    limpar_memoria(t, numero)  # o robo verdadeiro nao continua a partir desta conversa simulada
+    return {"cenario": nome, "passos": passos}
+
+
+def correr_formato():
+    t = db.ler("assistant_tenants", "slug=eq.boom-burger")[0]
+    linha = A.enfileirar(t, _teste(t), MOTOR_COM_MARKDOWN, "simulacao-formato", simulado=True)
+    gravada = db.ler("assistant_messages", f"id=eq.{linha['id']}", "texto,entrega_estado")[0]
+    print("[C5-formato] texto do motor:\n      " + MOTOR_COM_MARKDOWN.replace("\n", "\n      "))
+    print(f"   gravado na fila ({gravada['entrega_estado']}):\n      " + gravada["texto"].replace("\n", "\n      "))
+    return {"cenario": "C5-formato", "motor": MOTOR_COM_MARKDOWN, "fila": gravada["texto"], "estado": gravada["entrega_estado"]}
 
 
 def correr(nome):
@@ -136,9 +208,15 @@ if __name__ == "__main__":
         sys.exit(0)
     rel = {"quando": A.iso(A.agora()), "cenarios": []}
     for nome in sys.argv[1:] or list(CENARIOS):
-        rel["cenarios"].append(correr(nome))
+        if nome == "C5-formato":
+            rel["cenarios"].append(correr_formato())
+        elif nome in GUIOES:
+            rel["cenarios"].append(correr_guiao(nome))
+        else:
+            rel["cenarios"].append(correr(nome))
     f = os.path.join(AQUI, f"simulacao-boom-{A.agora().strftime('%Y%m%d-%H%M')}.json")
     json.dump(rel, open(f, "w", encoding="utf-8"), ensure_ascii=False, indent=1, default=str)
     print("RELATORIO", f)
     for c in rel["cenarios"]:
-        print("PEDIDO", c["cenario"], c["order_id"])
+        if "order_id" in c:
+            print("PEDIDO", c["cenario"], c["order_id"])

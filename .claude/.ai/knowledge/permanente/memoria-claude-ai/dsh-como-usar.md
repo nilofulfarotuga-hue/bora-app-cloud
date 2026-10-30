@@ -10,7 +10,7 @@ estado: atual
 
 # Como usar o Dipsy (dsh)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `dsh-como-usar`, origem `claude-code`, atualizada em 2026-10-30T21:10:29.93081+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `dsh-como-usar`, origem `claude-code`, atualizada em 2026-10-30T21:37:27.787231+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: dsh como usar · memoria claude.ai · claude_ai_memoria
 
@@ -25,7 +25,7 @@ e, no navegador, a página do Dipsy.
 
 ## Como falar com ele
 - **No teclado:** na página que abriu, escreve o que queres, como falas com uma pessoa.
-- **No Telegram:** escreve ao bot do Dipsy. O nome dele aparece na janela preta. Só tu consegues falar com ele, mais
+- **No Telegram:** escreve ao bot do Dipsy. É o @dipsy_bora_bot (o nome também aparece na janela preta). Só tu consegues falar com ele, mais
   ninguém. Podes mandar também uma foto, e ele vê-a. No Telegram há um menu com botões para tocares: o que está a
   fazer, parar o pedido, o que sabe fazer, e desligar.
 - As respostas vêm em português simples, curtas, para ouvires em voz alta.

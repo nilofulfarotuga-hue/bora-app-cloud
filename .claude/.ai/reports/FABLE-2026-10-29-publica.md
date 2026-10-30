@@ -87,6 +87,118 @@ base). A prova 7 dos tokens (saldo devolvido num cancelamento do sistema) não d
 4. "Pode postar" ao post de lançamento da Boom (página `boom-post-lancamento`), com a loja aberta a 02 ou 03/11.
 5. Decidir se o robô pode correr em motores grátis que treinam com as conversas (regra 14).
 
+## Adendo 9 — calendário do check-in e escada de prémios (noite de 29 para 30/10)
+
+Fiz isto. A regra nova está no servidor, aplicada e lida de volta. Em cada sequência de check-ins o cliente leva
+um prémio só, o mais alto a que chegar. No dia 10 os salgados ficam guardados e ele escolhe: levantar agora (o vale
+é criado e a sequência volta ao dia 1) ou continuar (no dia 15 os salgados são trocados pelo açaí, nunca somados).
+No dia 30 o prémio levanta-se sozinho e o ciclo recomeça. Se falhar um dia, a sequência recomeça mas o prémio
+guardado fica guardado durante 30 dias. Os tokens de todos os dias continuam exatamente como estavam. O tecto
+mensal e a exigência de um pedido pago continuam a valer. Há um interruptor no painel ("Escada de prêmios"), que
+nasce ligado. Se for desligado, volta a regra antiga de um vale em cada marco.
+
+Antes de aplicar, provei tudo numa transação desfeita, com 10 casos certos em 10:
+- no dia 10 fica guardado e não sai vale;
+- continuar troca o prémio e fica sempre só um guardado;
+- levantar cria um vale e a sequência volta a zero, e amanhã é o Dia 1;
+- falhar um dia não tira o açaí, e um novo dia 10 também não;
+- no dia 30 sai um vale só;
+- com o interruptor desligado funciona como antes.
+
+Os ecrãs do painel respondem e recusam quem não é admin.
+
+Na app, o cartão da página inicial mostra a semana atual da sequência: no dia 12 mostra os dias 8 a 14. Tem também
+uma seta que abre o mês de 30 dias dentro do próprio cartão, com os dias feitos, o de hoje e os prémios dos dias 7,
+10, 15 e 30. Quando o cliente chega a um prémio há festa (confete, som curto e vibração) e os dois botões. Depois de
+escolher continuar aparece "Tens guardado: … até …" com o botão Levantar. "Os meus prémios" explica a regra e
+mostra os degraus. No painel há o interruptor, o texto editável, o resumo com o custo do mês e a lista por cliente.
+
+Testei tudo:
+- os testes do check-in passam, 67 em 67;
+- a bateria toda passa, 229 ficheiros e 2400 casos, nenhum falhou;
+- o juiz anti-batota está limpo;
+- a prova no emulador Android 15, com dados de exemplo e sem entrar em conta nenhuma, deu 7 capturas em
+  `.claude/.ai/provas/checkin-escada-2026-10-29/capturas`.
+
+Publicação 4: juntei no ramo de produção às ~00:45 (58eb26f8).
+
+Erros que encontrei. Há 1 cliente que já tinha dois vales do mesmo ciclo (salgados e açaí, ciclo de 15/10). Fica com
+eles, como mandaste, e se chegar ao dia 30 sem falhar recebe também o do mês, porque esses dois foram dados pela
+regra antiga. O som da festa é o mesmo do alerta do estafeta, porque era o único som que a app tinha. O ecrã do
+painel não tem teste de ecrã próprio, só passou na verificação do código.
+
+## Adendo 10 — sessão do Harness (30/10, madrugada)
+
+A sessão do Harness não estava à espera de um Enter. A conversa dela mostra que o adendo já tinha sido entregue
+e que a resposta foi travada às 21:36 (29/10) pelo filtro de segurança da Anthropic. Não a forcei a repetir;
+contei-te pelo WhatsApp numa frase. O registo das 22:02, que dizia "à espera do Enter", estava errado e ficou
+corrigido no e2e_log. Às 06:04 a sessão voltou a correr sem eu lhe tocar e juntou um commit com o inventário dela.
+
+## Adendo 11 — agendar nos mercados e promoções a funcionar (30/10)
+
+Fiz isto.
+
+Agendar nos mercados e lojas que não são parceiras: o servidor já deixa escolher o dia e a janela de meia hora
+também no Continente, Lidl e restantes. A app marca a hora antes de criar o pedido e o servidor grava-a no
+próprio pedido, mesmo com a loja fechada. O pedido fica guardado, sem chamar estafeta, até meia hora antes da
+hora, e um relógio de minuto a minuto chama o estafeta nessa altura. O cliente vê "Agendado para…", o estafeta
+vê "Entrega marcada", e o painel tem o filtro parceiros e não parceiros.
+
+O caminho do dinheiro ficou intocado: preços, taxas, o `create_order`, o ficheiro do carrinho que cria o pedido
+e a Stripe. Provei no servidor, numa transação desfeita com o Continente fechado: a hora das 03:00 é recusada;
+o pedido para amanhã às 10:00 nasce com a hora marcada; o estafeta não é chamado antes da hora; o relógio
+chama-o na hora. Os testes da app passam (577 nos ficheiros ligados), e a web nova está no ar desde as 06:33.
+
+Promoções: o servidor passa a cobrar o preço promocional, e o que o cliente vê é o que paga. Usei a tua
+autorização de 29/10 às 18:02 ("eu autorizo tudo") e a ordem de hoje às 05:22 ("tudo o que falámos tem de estar
+pronto e a funcionar"). Antes de aplicar encontrei um erro: o preço promocional está guardado num formato de
+número diferente do preço normal, o que dava cêntimos errados. Corrigi a troca para arredondar a 2 casas e só
+depois apliquei. Provas:
+- 12 produtos sem promoção dão exatamente o mesmo que antes;
+- um pedido de teste da Boom com promoção grava 5,00 € e total 8,05 €, igual ao que se mostra.
+O interruptor está ligado, mas hoje nenhum produto tem promoção ativa (as 14 antigas não têm datas), por isso
+ninguém vê preços diferentes até alguém criar uma.
+
+Falta isto:
+- Não fiz a prova na web com sessão iniciada, porque não escrevo palavras-passe no site a sério. Como visitante,
+  o Continente aparece "Fechado, abre às 08:00" e o carrinho pede sessão. Quando entrares com a tua conta, o
+  Continente fechado deve mostrar "Loja fechada: agenda para quando abrir".
+- Restaurante parceiro fechado: o agendar ainda é recusado no telemóvel, por uma trava no ficheiro do carrinho
+  que é zona vermelha. Não lhe mexi.
+- "Pedir de novo" ainda recusa a loja fechada.
+
+## Adendo 12 — robô da Boom, revisão diária e fotos (30/10)
+
+Robô da Boom, já no servidor desde as 06:49:
+- "Quero vinho" responde logo com os 17 vinhos, separados em tintos, brancos e rosés, com preços.
+- "Que cervejas têm" dá as 13 cervejas.
+- Os asteriscos duplos e os títulos que o WhatsApp não mostra são limpos antes de sair.
+- A reserva de mesa pergunta quantas pessoas, o dia, a hora e o nome, e manda o pedido ao restaurante com um
+  código. Ao cliente diz que ainda não está confirmada e, quando o restaurante responde, confirma sem rodeios ou
+  propõe outra hora.
+- Um carrinho com mais de duas horas é perguntado antes de ser retomado.
+- Os 89 testes passam e a simulação com dados reais não enviou nada a ninguém.
+
+Revisão diária: estava a correr em dois sítios (no PC e no servidor) e por isso chegavam-te duas por dia. Agora
+sai uma só. Passa a ver as respostas do robô, não corta mensagens e deixa de fora os teus lembretes e as
+conversas com parceiros. Na revisão de 29/10, refeita em ensaio, os dois falsos alarmes desaparecem.
+
+Fotos da Boom: tirei do WhatsApp as fotos que o Emanuel mandou e pus 10 produtos com foto:
+- os 3 Incantum;
+- a Heineken sem álcool;
+- 3 Adega Mayor (Touriga Rosé, Arinto, Trincadeira);
+- a Super Bock Stout;
+- a Sidra Bandida Manga e a Água Tónica (eram as fotos sem legenda).
+As sobremesas ficam à espera dele.
+
+Erros que encontrei e não corrigi:
+- a ponte do WhatsApp não guarda as imagens recebidas;
+- a Água das Pedras tem foto mas está marcada "precisa de foto";
+- a nota das reservas do robô ainda diz "pergunta ao dono", mas o código já desvia para a reserva;
+- há três cópias diferentes do programa da revisão (repositório, servidor, PC);
+- esse programa no servidor está perto do limite de memória;
+- um ficheiro de serviço no repositório público tem o número do WhatsApp da Bora.
+
 ## Para a Claude.ai
 
 Pôr no repositório, pelo GitHub, as migrações S1 (`docs/propostas/missao-geral-2026-10-28/janela2/S1_*`, passos 0 a 4)

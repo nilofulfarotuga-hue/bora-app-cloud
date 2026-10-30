@@ -60,6 +60,12 @@ O cartão "DeepSeek" existe, SEM chave e sem pagar nada. Só se liga com **"auto
 | Olhos (ver imagens e o ecrã) | plugin nosso `dsh-bora`: ferramentas `captura_ecra` (PowerShell) e `ver_imagem` (Gemini) | `ver_imagem` com `origem: "ecra"` ou o caminho de uma imagem. **Provado a 30/10:** descreveu um ecrã de teste com a palavra secreta. A imagem vai para a Google (plano grátis) |
 | Auditoria de segurança (skills de segurança) | skill nossa `auditoria-seguranca-bora` (base: Cloudflare `security-audit`) + `auditar-site.mjs` + REA | só nosso site, APK e Edge Functions, só leitura. **Provado a 30/10:** 6 achados em boraguarda.com, 3 registados no `e2e_log` |
 | Telegram (canal) | ponte nossa `~/.dsh/telegram/ponte.py` (API oficial, só o chat do Danilo) | o Danilo escreve ao `@dipsy_bora_bot` e o dsh responde; fotos vão para o `ver_imagem`. **Provado a 30/10:** `/start` e "olá" enviados em nome dele, resposta do dsh no Telegram em ~54 s |
+| Voz (ouvir e falar) | `voz_dipsy.py` na ponte: `faster-whisper` small em CPU (reserva Gemini) para ouvir; `edge-tts` pt-BR-Francisca para falar (reserva Gemini TTS); tudo em texto E áudio inteiro | **Provado a 30/10:** áudio do Danilo → "Ouvi: …" → resposta em texto e áudio; 3 tamanhos (88, 328 e 1.156 letras) com a duração conferida (mais de 2 s por 100 letras) |
+| Tarefas em horário marcado | ferramentas nossas `agendar_tarefa`, `listar_agenda`, `cancelar_tarefa` + relógio na ponte (`~/.dsh/agenda/agenda.json`) | **Provado a 30/10:** o dsh agendou para as 22:29; a ponte disparou às 22:29:07 sozinha e entregou em texto e voz |
+| Passar trabalho ao Claude Code | ferramenta nossa `passar_ao_claude_code` (CLI oficial `claude -p`, sem proxy): `so_ler` ou `editar` (cópia nova do repo, sem push) | **Provado a 30/10:** dentro do dsh, 68 s; modo editar num repo de teste, confirmado por `git diff` |
+| Equipa de agentes + quadro de tarefas | bundle OFICIAL `@deepseek-ai/dsh-experimental-agent-team-profile` (experimental), nos perfis headless e web | **Provado a 30/10:** `spawn_teammate`, `team_task_create`, `wait_agent`, `team_task_list`; 2 colegas leram partes diferentes. Armadilha: `dsh plugin add` do bundle traz uma versão incompatível; pôr o NOME em `dsh.profile.bundles` |
+| Memória própria entre sessões | ferramentas nossas `memorizar`, `lembrar`, `esquecer` + secção no prompt do arranque (`~/.dsh/memoria/memoria.jsonl`) | **Provado a 30/10** no headless: guardar, procurar numa sessão nova e lembrar sem ferramentas |
+| Telemetria e saídas de rede | telemetria oficial DESLIGADA (patch comum e do web); guarda de `web_fetch`/`web_search` | **Medido a 30/10:** num pedido com Córtex, Supabase e agenda só 3 ligações (Kilo, Supabase, Córtex); o collector da DeepSeek não apareceu |
 | Chrome (extensão) | nada (`dsh-browser` por compilar) | usar o Claude Code |
 
 ## Plugins (auditados com análise estática; nada corre sem passar pelo perfil `lab`)
@@ -89,6 +95,19 @@ O cartão "DeepSeek" existe, SEM chave e sem pagar nada. Só se liga com **"auto
 5. Sem app desktop do Harness. Só `dsh` por npm. Não ligar o encaminhamento local (portas 18899/18900) nem relé de rede.
 6. Email para fora sai SEMPRE da conta Bora, e nunca pelo dsh (não tem a permissão de enviar).
 
+## Voz: texto E áudio, sempre (regra do Danilo, 30/10/2026)
+- **Dipsy (PC):** um único caminho de envio, `Ponte.dizer` em `~/.dsh/telegram/ponte.py`: texto completo logo + áudio do
+  texto inteiro por pedaços de até 900 letras em frases inteiras (`partir()` prova que nada se perde), duração conferida
+  antes de enviar, fila de áudio em série (ordem certa), registo em `~/.dsh/telegram/voz-dipsy.log.jsonl`. Duração lida no
+  próprio OGG (sem `ffprobe`, que com o PC aflito de memória passava do tempo).
+- **Hermes (VPS):** `/opt/data/voz/voz.py` v2 é o caminho único (`voz "texto"`, `voz --so-audio`, fila em
+  `/opt/data/voz/fila`, trabalhador no cron, servidor `voz-servidor` para o TTS do agente). Os scripts que mandam texto direto
+  chamam `audio-add.sh` a seguir (16 foram passados). O agente (BoraHermesbot) fala por `tts.provider: voz`.
+- **Causa raiz do áudio pela metade:** regra de "um áudio com resumo de 3 frases" acima de 900 letras no `voz.py` v1; `edge-tts`
+  7.2.x recusado pela Microsoft (403) a cair no Piper sem aviso; guarda da voz que contava qualquer nível como OK; TTS do agente
+  fixado a `edge-tts==7.2.7` (não subir: a verificação do dsh falha). Limite que fica: o gateway corta o texto do áudio aos 4.000
+  caracteres (biblioteca).
+
 ## Segurança, sem fingir
 - O dsh **lê qualquer ficheiro** do utilizador: o sandbox (workspace-write) só trava escrita. Desde 30/10 a **guarda do
   plugin `dsh-bora`** também barra a leitura e a escrita de segredos pelas ferramentas `read`, `grep`, `pwsh` e `bash`,
@@ -113,5 +132,5 @@ Depois correr o `DSH-MISSAO.cmd` (em `~/.dsh/lancadores-antigos`) com uma tarefa
 `headless`).
 
 ## Falta para ser igual ou melhor que o Claude Code
-Conector do Conselho; controlo remoto (login do
+Conector do Conselho; a prova da voz com um áudio REAL do Danilo; o corte aos 4.000 caracteres do gateway do Hermes; controlo remoto (login do
 `claude`, ver `remote-control-duas-sessoes`); os hooks do Claude Code (o dsh só tem a guarda do plugin `dsh-bora`).

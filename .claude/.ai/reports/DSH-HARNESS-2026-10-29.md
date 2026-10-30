@@ -194,3 +194,24 @@ autonomia e segurança, tudo com código escrito por nós e sem os plugins de te
 commits de documentação para o servidor segue na publicação desta noite, pela sessão da Bora.
 
 **Atualização 21:37:** o Danilo disse que eu fizesse tudo; o bot @dipsy_bora_bot existe, a ponte está ligada e o olá foi respondido pelo dsh no Telegram. O primeiro aviso da ponte deu HTTP 400 (o bot ainda não tinha conversa iniciada): sem importância.
+
+
+## Atualização de 30/10, noite tardia (C5c-voz e o resto da lista do Dipsy)
+**Voz (ordem do Danilo 21:41 e 21:55).** Texto completo E áudio do texto inteiro, sempre, no Dipsy e no Hermes.
+- *Dipsy:* ouve (faster-whisper local, "Ouvi: …") e fala (edge-tts, por partes de até 900 letras em frases inteiras, duração
+  conferida). Prova com 3 tamanhos (88, 328 e 1.156 letras): chegaram em texto e em áudio, 1.155 letras lidas em 71 s.
+- *Hermes:* causa raiz do áudio pela metade encontrada e corrigida (ver a skill, secção Voz). Prova com 3 tamanhos
+  (89, 353 e 1.278 letras): 6,5 s, 22,3 s e 78,3 s (duas partes), tudo pelo edge-tts. 16 scripts e o agente do Hermes passaram a
+  falar pela voz única; o gritar.sh cobre os avisos do Em Dia. A resposta do agente a uma pergunta minha chegou em voz e em texto.
+- *Falta:* a prova com um áudio REAL do Danilo (a minha foi uma mensagem de voz sintetizada metida na mesma função); o corte
+  aos 4.000 caracteres do gateway do Hermes (biblioteca); radar-jai, bora_trader e WhatsApp ficaram de fora (outros canais).
+**Os cinco itens seguintes, por ordem do Danilo:** tarefas em horário marcado (provada), ponte para o Claude Code (provada,
+dentro do dsh), equipa de agentes com quadro de tarefas (provada no lab e promovida), memória própria (provada no headless)
+e nada sai para fora (telemetria oficial desligada; só 3 ligações medidas). Pormenores nas linhas do `e2e_log`
+(C5c-voz-*, C-agenda-horario-marcado, C-ponte-claude-code, C-equipa-de-agentes, C-memoria-propria, C-nada-sai-para-fora).
+**Erros que encontrei (não corrigidos calados):** (1) o `dsh plugin add` da equipa instalou uma versão incompatível e a 1.ª prova
+deu um quadro inventado pelo modelo, que NÃO aceitei; corrigi pondo o nome do bundle no perfil. (2) Subir o `edge-tts` do contentor
+partia a verificação do dsh: repus a 7.2.7. (3) A tarefa agendada de teste mostrou que o Dipsy não lê disco nem RAM (sandbox) e
+demorou 9 minutos. (4) Com o PC aflito de memória (300 MB livres) o `ffprobe` passou do tempo e a voz caiu uma vez para o Gemini:
+passei a ler a duração do próprio ficheiro. (5) O `dsh-memento` (terceiros) exige aprovação humana para escrever: não serve sem
+canal de aprovação; fiz a memória própria.

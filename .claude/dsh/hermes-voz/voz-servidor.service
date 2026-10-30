@@ -1,0 +1,13 @@
+[Unit]
+Description=Servidor de voz do Hermes (texto inteiro em audio inteiro) - 127.0.0.1 e a ponte do contentor
+After=network-online.target docker.service
+Wants=docker.service
+
+[Service]
+ExecStartPre=/bin/sleep 3
+ExecStart=/usr/bin/python3 /opt/data/voz/voz.py --servir 127.0.0.1 172.16.1.1
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

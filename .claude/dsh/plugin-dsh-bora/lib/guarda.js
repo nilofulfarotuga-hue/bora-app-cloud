@@ -191,6 +191,28 @@ function avaliarMcp(servidor, ferramenta, args) {
   return null
 }
 
+// ---------- saídas para a web (web_fetch, web_search): nada de levar dados para fora no endereço ----------
+const SUMIDOUROS = /(^|\.)(api\.telegram\.org|graph\.facebook\.com|pastebin\.com|webhook\.site|requestbin\.[a-z]+|ngrok(-free)?\.(app|io|dev)|transfer\.sh|file\.io|0x0\.st|hooks\.slack\.com|discord(app)?\.com|ifttt\.com|pipedream\.net|burpcollaborator\.net|oast\.[a-z]+|interact\.sh)$/i
+function avaliarSaidaWeb(args) {
+  for (const s of strings(args)) {
+    if (/(sbp_[A-Za-z0-9_-]{12,}|eyJ[A-Za-z0-9_-]{15,}|AIza[0-9A-Za-z_-]{20,}|\bsk-[A-Za-z0-9]{20,}|\b\d{8,10}:[A-Za-z0-9_-]{30,}|-----BEGIN)/.test(s)) {
+      return { regra: 'saida-web', porque: 'isto parece uma chave ou um segredo: não sai para a internet.' }
+    }
+    for (const m of s.matchAll(/https?:\/\/[^\s"'<>]+/gi)) {
+      let u
+      try { u = new URL(m[0]) } catch { continue }
+      if (SUMIDOUROS.test(u.hostname)) return { regra: 'saida-web', porque: `${u.hostname} é um sítio onde se despejam dados ou se mandam mensagens; o Dipsy não lhe fala.` }
+      if (/^(169\.254\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(u.hostname) || u.hostname === 'metadata.google.internal') {
+        return { regra: 'saida-web', porque: 'endereços da rede interna ou de metadados da cloud não se visitam.' }
+      }
+      if ((u.search ?? '').length > 160 || /[A-Za-z0-9+/=_-]{60,}/.test(u.search ?? '')) {
+        return { regra: 'saida-web', porque: 'o endereço leva dados a mais (uma pergunta comprida ou um bloco codificado): é assim que se tira informação para fora.' }
+      }
+    }
+  }
+  return null
+}
+
 // ---------- entrada principal ----------
 const FERRAMENTAS_FS_ESCRITA = new Set(['write'])
 const EDITOR_ESCRITA = new Set(['create', 'str_replace', 'insert'])
@@ -234,7 +256,8 @@ export function avaliar(nome, argumentos) {
     }
     return null
   }
-  if (n === 'captura_ecra' || n === 'web_search' || n === 'working_directory') return null
+  if (n === 'web_fetch' || n === 'web_search') return avaliarSaidaWeb(args)
+  if (n === 'captura_ecra' || n === 'working_directory') return null
 
   // qualquer outra ferramenta (run_code, etc.): lê todos os textos como se fossem comandos
   for (const s of strings(args)) {

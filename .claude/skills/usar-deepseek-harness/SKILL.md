@@ -10,10 +10,16 @@ pode mandar uma tarefa ao dsh em vez de ao Claude Code, com um motor GRÁTIS. In
 `dsh-harness-2026-10-29`), versão 0.2.1-rc.5.
 
 ## Como lançar
-- **Tarefa sem conversa:** escrever a tarefa em `Desktop\Bora\prompt-dsh.md` e abrir `DSH-MISSAO.cmd` (parâmetro opcional:
-  `bora_app`, `BoraStudio`, `jai-site`, `bora-site`; sem parâmetro = `bora_app`). A resposta fica em
-  `Desktop\Bora\dsh-saidas\AAAA-MM-DD_HHMM.md`.
-- **Conversar:** `DSH-ABRIR.cmd` e usar `http://127.0.0.1:3080` (só neste PC).
+- **Normal (o Danilo): `DIPSY.cmd`** no Ambiente de Trabalho, duplo clique. Abre a página de conversa no navegador (porta
+  3080, só neste PC, o próprio dsh abre o navegador com a chave) e liga a ponte do Telegram. Para parar: uma tecla na
+  janela. Guia dele: `~/.dsh/COMO-USAR.md` e página `dsh-como-usar` do livro.
+- **Telegram:** a ponte `~/.dsh/telegram/ponte.py` (código nosso, Python, API oficial, só o chat do Danilo) transforma cada
+  mensagem dele num pedido ao dsh headless e devolve a resposta. Arranca no login (tarefa `Dipsy-Telegram`) e pelo `DIPSY.cmd`.
+  Fotos que ele mande vão para o `ver_imagem`.
+- **Tarefa sem conversa (relés do Claude.ai):** escrever a tarefa em `Desktop\Bora\prompt-dsh.md` e correr
+  `C:\Users\danil\.dsh\lancadores-antigos\DSH-MISSAO.cmd` (parâmetro opcional: `bora_app`, `BoraStudio`, `jai-site`,
+  `bora-site`; sem parâmetro = `bora_app`). A resposta fica em `Desktop\Bora\dsh-saidas\AAAA-MM-DD_HHMM.md`.
+  (`DSH-ABRIR.cmd`, o antigo, também está em `lancadores-antigos`; o `DIPSY.cmd` substitui-o.)
 - **À mão (PowerShell):** primeiro `[Environment]::SetEnvironmentVariable('KILO_ANON_KEY', (Get-Content "$HOME\.dsh\kilo-anonima.txt" -Raw).Trim(), 'Process')`,
   depois `dsh --profile headless "tarefa"`. Os lançadores fazem isto sozinhos.
 - Tudo vive em `~/.dsh` (fora do repo): `cordis.patch.yml` (motores e MCP), `secrets/` (tokens, só o utilizador lê),
@@ -47,13 +53,19 @@ O cartão "DeepSeek" existe, SEM chave e sem pagar nada. Só se liga com **"auto
 | Supabase (conector Claude.ai) | MCP `supabase` **com escrita** (token da organização Bora app, acesso total, sem validade; 22 ferramentas, incluindo `apply_migration` e `deploy_edge_function`) | pelo nome da ferramenta; regras em `~/.agents/AGENTS.md`. **Provado a 30/10:** `SELECT count(*) FROM orders` = 89, igual ao Claude Code |
 | Gmail, Drive, Calendar (conectores) | MCP `google` (workspace-mcp 2.2.1): Gmail leitura e **rascunhos, sem enviar**, Drive e Calendar só leitura; as duas contas (Bora e pessoal) autorizadas a 30/10 | `user_google_email` = a conta; ferramentas `search_gmail_messages` e `draft_gmail_message`. **Provado a 30/10:** 3 emails da Bora listados (só cabeçalhos) e 1 rascunho criado e lido de volta pela API, nada enviado. Reautorizar: `~/.dsh/google-autorizar.py` |
 | Nano Banana (MCP) | montado e DESLIGADO (chave grátis sem imagens) | `disabled: true` no patch |
-| REA (≈300 ferramentas MCP) | NÃO como MCP; pela shell (`npx rea-agents`) | só no NOSSO APK e sites; comando não provado |
-| Hooks e tranca `bora-tranca` | **NÃO tem** | a única tranca são as regras escritas em `~/.agents/AGENTS.md` (secção "Supabase com escrita") |
+| REA (≈300 ferramentas MCP) | NÃO como MCP; pela shell, com o envólucro `~/.dsh/rea-bora.ps1` (corre o REA 6.8.0 já instalado, sem npm) | só no NOSSO APK, sites e Edge Functions; a guarda recusa alvos de terceiros e o `setup`. **Provado a 30/10:** `doctor` corre dentro do dsh; `capture-web-screenshot` do iFood foi barrado |
+| Hooks e tranca `bora-tranca` | **Guarda própria** (plugin nosso `dsh-bora`, `ctx.tools.guard`): barra push, apagar em massa, segredos, SQL perigoso, escrita nas regras/Juiz/CI, funções de dinheiro; 121 testes offline | automática antes de cada ferramenta; registo em `~/.dsh/guarda.log`. **Provado a 30/10:** `git push`, ler um segredo e `DELETE FROM` foram barrados no dsh. Não tem os hooks do Claude Code (só isto) |
+| Juiz anti-trapaça antes do commit | `~/.dsh/dsh-commit.ps1` + skill `juiz-dsh` (a guarda barra `git commit` à mão) | corre `anti_trapaca.py` e `zonas_diff.py`; recusa se falharem; nunca faz push. **Provado a 30/10** (batota, zona protegida e segredo recusados; commit limpo passou) |
 | Pesquisa nas sessões antigas | plugin `dsh-session-search` (dsh + Claude Code, só leitura) | `agent_session_search` — **provado** |
-| Chrome (extensão) | nada ainda (`dsh-browser` por compilar) | usar o Claude Code |
+| Olhos (ver imagens e o ecrã) | plugin nosso `dsh-bora`: ferramentas `captura_ecra` (PowerShell) e `ver_imagem` (Gemini) | `ver_imagem` com `origem: "ecra"` ou o caminho de uma imagem. **Provado a 30/10:** descreveu um ecrã de teste com a palavra secreta. A imagem vai para a Google (plano grátis) |
+| Auditoria de segurança (skills de segurança) | skill nossa `auditoria-seguranca-bora` (base: Cloudflare `security-audit`) + `auditar-site.mjs` + REA | só nosso site, APK e Edge Functions, só leitura. **Provado a 30/10:** 6 achados em boraguarda.com, 3 registados no `e2e_log` |
+| Telegram (canal) | ponte nossa `~/.dsh/telegram/ponte.py` (API oficial, só o chat do Danilo) | o Danilo escreve ao bot e o dsh responde; fotos vão para o `ver_imagem`. Falta ele criar o bot no BotFather (ver o relatório) |
+| Chrome (extensão) | nada (`dsh-browser` por compilar) | usar o Claude Code |
 
 ## Plugins (auditados com análise estática; nada corre sem passar pelo perfil `lab`)
-- **Provado e promovido (headless + web):** `Tieboyh/dsh-session-search` (sha na auditoria).
+- **Provado e promovido (headless + web):** `Tieboyh/dsh-session-search` (sha na auditoria) e o **nosso** `dsh-bora`
+  (olhos + guarda; código em `ferramentas/dsh-plugins/bora__dsh-bora` e espelho em `.claude/dsh/plugin-dsh-bora`; ao
+  editá-lo, copiar os ficheiros para `~/.dsh/profiles/{headless,web,lab}/node_modules/dsh-bora`).
 - **Instalados no `lab`, ativam sem avisos, SEM prova funcional:** `dsh-memento`, `dsh-auto-continue`, `dsh-notify-windows`,
   `dsh-tokenledger`, `dsh-taskfold`, `dsh-chat-import`, `dsh-sentinel`. Não estão no `headless` nem no `web`.
 - **Só funcionam no perfil `web` (esperam webServer/connection), por provar lá:** `dsh-automation`, `dsh-continue`,
@@ -78,8 +90,13 @@ O cartão "DeepSeek" existe, SEM chave e sem pagar nada. Só se liga com **"auto
 6. Email para fora sai SEMPRE da conta Bora, e nunca pelo dsh (não tem a permissão de enviar).
 
 ## Segurança, sem fingir
-- O dsh **lê qualquer ficheiro** do utilizador: o fence só trava escrita. "Não ler `.env*`, `*.pem`, `~/.claude.json`…" está
-  só escrito nas instruções, não é tranca. O dsh também tem `bash`/PowerShell.
+- O dsh **lê qualquer ficheiro** do utilizador: o sandbox (workspace-write) só trava escrita. Desde 30/10 a **guarda do
+  plugin `dsh-bora`** também barra a leitura e a escrita de segredos pelas ferramentas `read`, `grep`, `pwsh` e `bash`,
+  mas lê o TEXTO do comando: quem o esconde (junta letras, codifica) pode escapar. Por isso o sandbox e as regras
+  escritas continuam por baixo. O dsh também tem `bash`/PowerShell.
+- A ponte do Telegram dá a quem controlar o Telegram do Danilo a mesma força que ele tem no dsh: por isso só aceita o
+  chat id dele, em conversa privada, e redige segredos nas respostas. Se o telemóvel dele for comprometido, desligar
+  a ponte (`/desligar` ou tecla no DIPSY) e revogar o bot no BotFather.
 - **Supabase com escrita e acesso total sem validade (decisão do Danilo, 30/10):** o token está em
   `.supabase-token.env` e o dsh corre como o utilizador, por isso consegue lê-lo; o que o protege são as regras escritas,
   não uma tranca. A Kilo e o Gemini grátis podem guardar o que lhes chega. O MCP não expõe `pause_project` nem
@@ -92,10 +109,9 @@ O cartão "DeepSeek" existe, SEM chave e sem pagar nada. Só se liga com **"auto
 ```bash
 npm i -g @deepseek-ai/dsh@latest
 ```
-Depois correr `DSH-MISSAO.cmd` com uma tarefa pequena. Plugins: `dsh plugin --profile lab add file:<pasta>` (nunca direto no
+Depois correr o `DSH-MISSAO.cmd` (em `~/.dsh/lancadores-antigos`) com uma tarefa pequena. Plugins: `dsh plugin --profile lab add file:<pasta>` (nunca direto no
 `headless`).
 
 ## Falta para ser igual ou melhor que o Claude Code
-Conector do Conselho; olhos (visão: nenhum plugin instalado);
-Telegram (precisa de um bot novo do BotFather); controlo remoto (login do `claude`, ver `remote-control-duas-sessoes`);
-tranca e hooks (o dsh não tem; só o Claude Code).
+Conector do Conselho; a criação do bot do Telegram pelo Danilo (BotFather) e a prova do "olá"; controlo remoto (login do
+`claude`, ver `remote-control-duas-sessoes`); os hooks do Claude Code (o dsh só tem a guarda do plugin `dsh-bora`).

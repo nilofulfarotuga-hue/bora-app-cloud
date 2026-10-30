@@ -1,0 +1,39 @@
+{
+  "name": "dsh-bora",
+  "description": "Plugin do Bora para o dsh (Dipsy): olhos (captura_ecra, ver_imagem) e a guarda que barra comandos perigosos antes de correrem. Codigo nosso, sem dependencias de terceiros.",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "scripts"
+  ],
+  "license": "UNLICENSED",
+  "engines": {
+    "dsh": ">=0.0.1"
+  },
+  "dshx": {
+    "contributes": {
+      "tools": [
+        "captura_ecra",
+        "ver_imagem"
+      ],
+      "skills": []
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-system-prompt": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-tools": "^0.1.0-rc.6",
+    "@deepseek-ai/cordis": "^4.0.1"
+  },
+  "scripts": {
+    "test": "node --test test/"
+  }
+}

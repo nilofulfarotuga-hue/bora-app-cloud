@@ -145,3 +145,50 @@ tarefa levanta o servidor).
 - **O que fica.** O rascunho de teste continua na conta Bora (apagar é com o Danilo). O email das duas contas passa agora por
   um modelo grátis quando o dsh o lê. A conta pessoal ficou autorizada mas sem prova funcional (só a Bora foi provada, como
   combinado).
+
+
+## Atualização de 30/10, noite (C-liga: o Dipsy completo, com código nosso)
+Ordem do Danilo (20:23): quer o Dipsy completo, com olhos, auditoria das nossas apps, Telegram e juiz automático, com
+autonomia e segurança, tudo com código escrito por nós e sem os plugins de terceiros que tinham sido rejeitados.
+
+**Fiz isto (com prova, saídas literais em `C:\BoraLocal\QG\provas\dsh-harness-2026-10-29\c-liga-*.jsonl`):**
+- **Olhos (C3b).** Plugin nosso `dsh-bora` (`.claude/dsh/plugin-dsh-bora`): ferramentas `captura_ecra` e `ver_imagem`
+  (Gemini, chave lida do ambiente). Prova: com um ecrã de teste cheio com a palavra secreta AZULEJO-4417, o dsh
+  descreveu o texto e a palavra. A imagem vai para a Google (plano grátis).
+- **Guarda (C-seguranca).** O mesmo plugin regista `ctx.tools.guard`, o gancho do dsh que corre antes de cada ferramenta.
+  121 testes offline. Prova no dsh: `git push`, ler um ficheiro de segredos e um `DELETE FROM` foram barrados; um
+  `git status` passou. Limite: lê o texto do comando.
+- **Juiz (C8b).** `~/.dsh/dsh-commit.ps1` e a skill `juiz-dsh`. Corre o anti-trapaça e as zonas protegidas sobre os
+  ficheiros pedidos e recusa o commit se falharem. Prova: commit limpo passou (também no repo verdadeiro, commit de teste
+  `69a10fc8`, depois apagado); apagar um teste, mexer no `pricing_service.dart`, segredos e asteriscos foram recusados.
+- **Auditoria (C2b).** Skill nossa `auditoria-seguranca-bora` (método da Cloudflare, só texto) e `auditar-site.mjs`.
+  O dsh auditou boraguarda.com em leitura e achou 6 pontos; 3 registados no `e2e_log`: falta HSTS, falta CSP (com scripts
+  de 3 CDNs sem SRI) e a página pode ser posta dentro de outra. Nada exposto (`.env`, `.git`, mapas), TLS 1.3 válido até
+  24/01/2027. O REA corre dentro do dsh pelo envólucro `rea-bora.ps1`; o alvo de terceiros (iFood) foi barrado.
+- **Guia e lançador (C-guia).** `DIPSY.cmd` no Ambiente de Trabalho (o único), `~/.dsh/COMO-USAR.md` e a página
+  `dsh-como-usar` do livro. Os antigos `DSH-ABRIR.cmd` e `DSH-MISSAO.cmd` foram movidos para `~/.dsh/lancadores-antigos`.
+- **Telegram (C5b), pronto a ligar.** Ponte nossa `~/.dsh/telegram/ponte.py` (API oficial, só o chat do Danilo, redige
+  segredos), testada com um pedido real ao dsh sem Telegram (33 s). Tarefa `Dipsy-Telegram` no login.
+
+**Falta isto (e porquê):**
+- **O bot do Telegram.** Só o Danilo pode criá-lo no BotFather. Deixei o Telegram do PC aberto na conversa com o
+  `/newbot` escrito e um vigia que escreve o nome e o utilizador e lê o token por código (nunca o mostra), valida-o,
+  guarda-o em `~/.dsh/secrets` e liga a ponte. Ele só tem de carregar em Enviar (no PC) ou escrever no telemóvel. A prova do
+  "olá" depende disso.
+- O REA `doctor` dá `healthy=false` por faltarem motores opcionais (Hopper, Ghidra, JADX): é igual no Claude Code.
+
+**Erros que encontrei (reportados, não corrigidos calados):**
+1. O Telegram Web do Chrome pessoal não tem sessão (pede QR); usei o app do PC, que tem. O ecrã mostrou, sem eu procurar,
+   um token antigo de outro bot na conversa do BotFather: não o usei nem o guardei. Vale como aviso: uma captura pode
+   mostrar segredos.
+2. O sandbox do dsh não deixa o `npm` escrever na cache, por isso `npx rea-agents` falha lá dentro. O envólucro `rea-bora.ps1`
+   corre o REA já instalado e resolve. Nessa tentativa o modelo tentou `npm cache clean` e `npm config set`: acrescentei essas
+   duas ações à guarda.
+3. A tranca recusou apagar a pasta de teste `C:\BoraLocal\_juiz-teste-dsh` (apagar recursivo). Não contornei: fica por
+   apagar (é pequena). Registado em `docs/TRANCAS.md`.
+4. O pnpm liga os ficheiros do plugin por hardlink; editar a origem parte a ligação. Para atualizar o plugin, copiar os
+   ficheiros para `~/.dsh/profiles/{headless,web,lab}/node_modules/dsh-bora`.
+5. `dsh web` abre sozinho o navegador com uma chave nova (sem ela dá 401); o `DIPSY.cmd` reinicia sempre o servidor.
+
+**Próximo passo:** o Danilo cria o bot (um clique) e o vigia liga tudo; depois ele manda "olá" no Telegram. O envio dos
+commits de documentação para o servidor segue na publicação desta noite, pela sessão da Bora.

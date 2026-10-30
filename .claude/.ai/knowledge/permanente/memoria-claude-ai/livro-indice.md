@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-30T06:07:13.378226+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-30T06:37:03.607428+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-30 06:04 UTC. Páginas listadas: 444.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-30 06:20 UTC. Páginas listadas: 446.
 
 ## O que é o Bora
 
@@ -229,7 +229,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - digest-2026-09-13-janela-4-ux-portao — Janela 4 13/09 — ordem UX OpenCode chegou ao Claude Code e parou no portão (2026-09-13)
 - digest-2026-09-13-janela-3 — Janela 3 13/09 — portas (correu em Fable, não Opus) (2026-09-13)
 
-## livro-areas (130)
+## livro-areas (131)
 
 - livro-areas-alertas-notificacoes — Alertas do Bora para o Danilo (Telegram + push admin persistente) — o que já dispara, por que caminho, e o que falta (2026-10-23)
 - livro-areas-analise-apps-emulador — Ideia do Danilo (08/10/2026) de usar emulador Android + agente de IA para testar bugs do Bora e comparar com iFood/Uber/Glovo; adiada para… (2026-10-26)
@@ -332,7 +332,8 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-areas-precos-catalogo-nao-parceiro — Regras que o Danilo fixou para o preço base dos produtos de lojas não-parceiras do [[bora-app]] (robot do talão + qual a fonte de preço vál… (2026-10-25)
 - livro-areas-produtos-peso-variavel — Regra do Danilo (26/10/2026) para produtos ao quilo nos mercados do [[bora-app]] — o estafeta troca o preço e o cliente paga o valor final (2026-10-26)
 - livro-areas-prospecao-sites-clubes — Campanha de venda de sites a clubes de futebol portugueses (a partir do caso Guarda FC) — o que o Danilo pediu, critérios de alvo, e regist… (2026-10-23)
-- livro-areas-radar-ia — Radar semanal de novidades de IA (bot batedor do Hermes) + vereditos sobre ferramentas (DeepSeek Harness, Jev/TypeSafe) — ler antes de mand… (2026-10-23)
+- livro-areas-radar-ia — Radar semanal de novidades de IA (bot batedor do Hermes) + vereditos sobre ferramentas (DeepSeek Harness, Jev/TypeSafe) — ler antes de mand… (2026-10-30)
+- livro-areas-radar-ia-parte2 — Radar semanal de novidades de IA (bot batedor do Hermes) + vereditos sobre ferramentas (DeepSeek Harness, Jev/TypeSafe) — ler antes de mand… (2026-10-30)
 - livro-areas-recibo-cliente-produto-falta — Regras que o Danilo fixou para mexer no conteúdo de um pedido já feito (produto em falta, acrescentar produto) e para o recibo do cliente —… (2026-10-23)
 - livro-areas-regras-lancamento-categorias — Regras fixas do Danilo para lançar QUALQUER categoria, loja ou serviço novo no Bora — ler ANTES de planear ou montar prompt de categoria/lo… (2026-10-23)
 - livro-areas-sabores-de-casa — Sabores de Casa Açaí (mercado BR + açaí, Guarda) — parceiro no app + mini-site cinematográfico de presente (esquema Ouro e Prata) (2026-10-23)
@@ -404,10 +405,11 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - sql-modo-demo-2026-10-27 — SQL do modo demonstracao (Boom! Burger) para o Claude.ai aplicar (2026-10-27)
 
-## outras (107)
+## outras (108)
 
 - 00-LEIA-PRIMEIRO — Como usar esta memória (2026-10-23)
 - adendo-1-final-app-2026-10-29 — Adendo 1 da missão final-app-2026-10-29 (2026-10-29)
+- adendo-12-robo-boom-revisao-2026-10-30 — ADENDO 12 (Claude.ai, 30/10 06:25) - robo da Boom, revisor diario do WhatsApp da loja e fotos do Emanuel (2026-10-30)
 - adendo-3-final-app-2026-10-29 — Adendo 3 da missão final-app-2026-10-29 — robô de documentos (2026-10-29)
 - adendo-5-final-app-2026-10-29 — Adendo 5 — decisão do Danilo sobre o plano melhor-que-Uber-Glovo (itens 4,5,6,7,8) (2026-10-29)
 - adendo-6-publica-2026-10-29 — ADENDO 6 (Claude.ai, 20:25) - robo nao recebeu a mensagem das 19:41 + fotos Letra para o Storage (2026-10-29)
@@ -518,7 +520,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 35 páginas com título [PESSOAL] (vida do Danilo). Não se listam aqui nem vão para o espelho público nem para o LIVRO.md; só se leem quando a tarefa é dele, e nunca vão para motores grátis que treinam com o conteúdo.
 
-## Skills partilhadas (145 no repo + 8 só na VPS)
+## Skills partilhadas (146 no repo + 8 só na VPS)
 
 Fonte única: `.claude/skills/` do repo (o Hermes lê o espelho em `/opt/data/cortex-brain/.claude/skills`). Diferenças VPS ↔ repo: `/opt/data/livro/skills/DIFERENCA.md`.
 
@@ -664,6 +666,7 @@ Fonte única: `.claude/skills/` do repo (o Hermes lê o espelho em `/opt/data/co
 - update-bora-knowledge — Deteta drift entre a skill bora-knowledge e a realidade do repo (Edge Functions em supabase/functions vs 08-edge-functions.md; pastas de skill vs IND…
 - update-design-token — Gera o diff (Modo A) para alterar um token de cor global em app_theme.dart/app_colors.dart + lista os ecrãs afetados (grep). NÃO toca lib/ sem --appl…
 - update-platform-setting — Altera UMA chave de platform_settings com segurança — dry-run gera SQL + impacto + chaves dependentes; --commit aplica + admin_audit_log + cria nota…
+- usar-deepseek-harness — Como usar o DeepSeek Harness (dsh) no PC do Danilo: lançar uma tarefa ou uma conversa, que motor grátis usa e os seus limites, a frase que liga o mot…
 - using-agent-skills — Discovers and invokes agent skills. Use when starting a session or when you need to discover which skill applies to the current task. This is the met…
 - web-artifacts-builder — Suite of tools for creating elaborate, multi-component claude.ai HTML artifacts using modern frontend web technologies (React, Tailwind CSS, shadcn/u…
 - weekly-market-prices — Orquestra o update semanal de preços de mercado. Verifica saúde dos pg_cron de preços, corre o update do Continente (Product-Show + JSON-LD, 3.5s/req…

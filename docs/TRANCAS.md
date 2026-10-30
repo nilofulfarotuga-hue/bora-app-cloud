@@ -178,3 +178,8 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   "zona vermelha: .github/workflows". Não se contornou. O caminho usado foi o script `.claude/scripts/relancar_ios.py`
   e a regra na skill `protocolo-missao-bora` §9. A mudança de uma linha no workflow fica proposta para a Claude.ai pelo
   GitHub web (ou o Danilo a carregar Permitir). Registado no e2e_log (A13-ios-relancado).
+- **30/10/2026, missão `publica-2026-10-29`, fecho do adendo 13** — `git push origin HEAD:autonomous-night-2026-04-29`
+  do merge que só levava o relatório e o CONTINUAR (`[skip ci]`) foi recusado: "o Danilo não autorizou (git push)".
+  A tranca pergunta Permitir/Recusar em cada push; desta vez a resposta foi Recusar, ou a pergunta ficou sem resposta.
+  Não se contornou. O commit `821968d3` (só documentos) fica no ramo `missao-geral-2026-10-28` à espera do próximo
+  push autorizado. Registado no e2e_log (A13-push-docs).

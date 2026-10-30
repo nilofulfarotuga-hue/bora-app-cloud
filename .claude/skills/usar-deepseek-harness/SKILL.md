@@ -59,7 +59,7 @@ O cartão "DeepSeek" existe, SEM chave e sem pagar nada. Só se liga com **"auto
 | Pesquisa nas sessões antigas | plugin `dsh-session-search` (dsh + Claude Code, só leitura) | `agent_session_search` — **provado** |
 | Olhos (ver imagens e o ecrã) | plugin nosso `dsh-bora`: ferramentas `captura_ecra` (PowerShell) e `ver_imagem` (Gemini) | `ver_imagem` com `origem: "ecra"` ou o caminho de uma imagem. **Provado a 30/10:** descreveu um ecrã de teste com a palavra secreta. A imagem vai para a Google (plano grátis) |
 | Auditoria de segurança (skills de segurança) | skill nossa `auditoria-seguranca-bora` (base: Cloudflare `security-audit`) + `auditar-site.mjs` + REA | só nosso site, APK e Edge Functions, só leitura. **Provado a 30/10:** 6 achados em boraguarda.com, 3 registados no `e2e_log` |
-| Telegram (canal) | ponte nossa `~/.dsh/telegram/ponte.py` (API oficial, só o chat do Danilo) | o Danilo escreve ao bot e o dsh responde; fotos vão para o `ver_imagem`. Falta ele criar o bot no BotFather (ver o relatório) |
+| Telegram (canal) | ponte nossa `~/.dsh/telegram/ponte.py` (API oficial, só o chat do Danilo) | o Danilo escreve ao `@dipsy_bora_bot` e o dsh responde; fotos vão para o `ver_imagem`. **Provado a 30/10:** `/start` e "olá" enviados em nome dele, resposta do dsh no Telegram em ~54 s |
 | Chrome (extensão) | nada (`dsh-browser` por compilar) | usar o Claude Code |
 
 ## Plugins (auditados com análise estática; nada corre sem passar pelo perfil `lab`)
@@ -113,5 +113,5 @@ Depois correr o `DSH-MISSAO.cmd` (em `~/.dsh/lancadores-antigos`) com uma tarefa
 `headless`).
 
 ## Falta para ser igual ou melhor que o Claude Code
-Conector do Conselho; a criação do bot do Telegram pelo Danilo (BotFather) e a prova do "olá"; controlo remoto (login do
+Conector do Conselho; controlo remoto (login do
 `claude`, ver `remote-control-duas-sessoes`); os hooks do Claude Code (o dsh só tem a guarda do plugin `dsh-bora`).

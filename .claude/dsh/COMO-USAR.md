@@ -9,7 +9,7 @@ e, no navegador, a página do Dipsy.
 
 ## Como falar com ele
 - **No teclado:** na página que abriu, escreve o que queres, como falas com uma pessoa.
-- **No Telegram:** escreve ao bot do Dipsy. O nome dele aparece na janela preta. Só tu consegues falar com ele, mais
+- **No Telegram:** escreve ao bot do Dipsy. É o @dipsy_bora_bot (o nome também aparece na janela preta). Só tu consegues falar com ele, mais
   ninguém. Podes mandar também uma foto, e ele vê-a. No Telegram há um menu com botões para tocares: o que está a
   fazer, parar o pedido, o que sabe fazer, e desligar.
 - As respostas vêm em português simples, curtas, para ouvires em voz alta.

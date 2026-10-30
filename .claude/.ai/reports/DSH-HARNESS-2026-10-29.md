@@ -167,11 +167,11 @@ autonomia e segurança, tudo com código escrito por nós e sem os plugins de te
   24/01/2027. O REA corre dentro do dsh pelo envólucro `rea-bora.ps1`; o alvo de terceiros (iFood) foi barrado.
 - **Guia e lançador (C-guia).** `DIPSY.cmd` no Ambiente de Trabalho (o único), `~/.dsh/COMO-USAR.md` e a página
   `dsh-como-usar` do livro. Os antigos `DSH-ABRIR.cmd` e `DSH-MISSAO.cmd` foram movidos para `~/.dsh/lancadores-antigos`.
-- **Telegram (C5b), pronto a ligar.** Ponte nossa `~/.dsh/telegram/ponte.py` (API oficial, só o chat do Danilo, redige
+- **Telegram (C5b), ligado e provado.** Bot `@dipsy_bora_bot` criado às 21:34 (o Danilo mandou eu fazer tudo, por isso o vigia carregou em Enviar só nas 3 mensagens da criação), token lido por código e guardado sem o mostrar, ponte a correr. Prova: `/start` e "olá" enviados em nome dele e resposta do dsh no Telegram (~54 s). Ponte nossa `~/.dsh/telegram/ponte.py` (API oficial, só o chat do Danilo, redige
   segredos), testada com um pedido real ao dsh sem Telegram (33 s). Tarefa `Dipsy-Telegram` no login.
 
 **Falta isto (e porquê):**
-- **O bot do Telegram.** Só o Danilo pode criá-lo no BotFather. Deixei o Telegram do PC aberto na conversa com o
+- ~~O bot do Telegram~~ (feito às 21:34, ver acima). Antes disto: só o Danilo podia criá-lo no BotFather. Deixei o Telegram do PC aberto na conversa com o
   `/newbot` escrito e um vigia que escreve o nome e o utilizador e lê o token por código (nunca o mostra), valida-o,
   guarda-o em `~/.dsh/secrets` e liga a ponte. Ele só tem de carregar em Enviar (no PC) ou escrever no telemóvel. A prova do
   "olá" depende disso.
@@ -192,3 +192,5 @@ autonomia e segurança, tudo com código escrito por nós e sem os plugins de te
 
 **Próximo passo:** o Danilo cria o bot (um clique) e o vigia liga tudo; depois ele manda "olá" no Telegram. O envio dos
 commits de documentação para o servidor segue na publicação desta noite, pela sessão da Bora.
+
+**Atualização 21:37:** o Danilo disse que eu fizesse tudo; o bot @dipsy_bora_bot existe, a ponte está ligada e o olá foi respondido pelo dsh no Telegram. O primeiro aviso da ponte deu HTTP 400 (o bot ainda não tinha conversa iniciada): sem importância.

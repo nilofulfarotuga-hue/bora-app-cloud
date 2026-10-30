@@ -3,7 +3,7 @@
 # ~/.dsh/secrets/telegram-dipsy.token (so o utilizador le) e NUNCA o escreve em ecra, log ou chat.
 # Enquanto espera, escreve (sem enviar) o nome e o utilizador do bot no campo de mensagem, para o Danilo so ter de carregar
 # em Enviar. Codigo nosso, missao C-liga (30/10/2026).
-param([int]$EsperaMin = 180)
+param([int]$EsperaMin = 180, [switch]$Enviar)   # -Enviar: o Danilo mandou fazer tudo (31/10 21:3x): o vigia tambem carrega em Enviar, so nas 3 mensagens da criacao do bot
 $ErrorActionPreference = 'Continue'
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, System.Windows.Forms
 Add-Type @"
@@ -66,6 +66,24 @@ function Escreve([string]$texto, $janela) {
   return $true
 }
 
+function ComposerTem([string]$esperado, $janela) {
+  $condE = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit)
+  foreach ($e in $janela.FindAll([System.Windows.Automation.TreeScope]::Descendants, $condE)) {
+    if ($e.Current.Name -match 'Escrever') {
+      try { $v = $e.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value } catch { $v = $null }
+      if ($v -eq $esperado) { return $true }
+    }
+  }
+  return $false
+}
+function Envia([string]$esperado, $janela) {      # so carrega em Enter se o campo tem EXATAMENTE o texto esperado
+  if (-not (ComposerTem $esperado $janela)) { return $false }
+  if (-not (PoeAFrente $janela)) { return $false }
+  [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
+  Start-Sleep -Milliseconds 800
+  return $true
+}
+
 if (Test-Path $ficheiroToken) { Log 'ja existe um token guardado; nada a fazer'; exit 0 }
 $jan = JanelaTelegram
 if (-not $jan) { Log 'sem janela do Telegram'; exit 2 }
@@ -74,7 +92,7 @@ foreach ($m in (MensagensDaConversa $jan)) { foreach ($x in [regex]::Matches($m.
 Log "arrancou; tokens antigos na conversa: $($antigos.Count) (ignorados); espera ate $EsperaMin min"
 
 $nomes = @('dipsy_bora_bot', 'dipsy_boraapp_bot', 'dipsy_guarda_bot', 'dipsy_bora_pc_bot', 'dipsy_bora_1030_bot')
-$tentativa = 0; $jaEscreveu = @{}
+$tentativa = 0; $jaEscreveu = @{}; $enviouNewbot = $false
 $limite = (Get-Date).AddMinutes($EsperaMin)
 while ((Get-Date) -lt $limite) {
   Start-Sleep -Seconds 3
@@ -99,6 +117,10 @@ while ((Get-Date) -lt $limite) {
         } else { Log "token novo rejeitado pela API (HTTP $codigo); continuo a esperar"; [void]$antigos.Add($x.Value) }
       }
     }
+    # 1b) com -Enviar: manda o /newbot que ja esta escrito no campo
+    if ($Enviar -and -not $enviouNewbot -and [FrenteTg]::OciosoSeg() -ge 4 -and (ComposerTem '/newbot' $jan)) {
+      if (Envia '/newbot' $jan) { $enviouNewbot = $true; Log 'enviei /newbot (ordem do Danilo)'; continue }
+    }
     # 2) o que pede o BotFather agora? (ultima mensagem da conversa)
     $ultima = $msgs[$msgs.Count - 1].Current.Name
     $chave = $ultima.Substring(0, [Math]::Min(80, $ultima.Length))
@@ -108,7 +130,10 @@ while ((Get-Date) -lt $limite) {
     elseif ($ultima -match 'choose a username for your bot|pick a username|Now let.s find a good name') { $texto = $nomes[[Math]::Min($tentativa, $nomes.Count - 1)] }
     elseif ($ultima -match 'already taken|username is invalid|must end in') { $tentativa++; $texto = $nomes[[Math]::Min($tentativa, $nomes.Count - 1)] }
     if ($texto -and -not $jaEscreveu.ContainsKey($chave)) {
-      if (Escreve $texto $jan) { $jaEscreveu[$chave] = 1; Log "escrevi (sem enviar) no campo de mensagem: '$texto'" }
+      if (Escreve $texto $jan) {
+        $jaEscreveu[$chave] = 1
+        if ($Enviar -and (Envia $texto $jan)) { Log "escrevi e enviei: '$texto' (ordem do Danilo)" } else { Log "escrevi (sem enviar) no campo de mensagem: '$texto'" }
+      }
     }
   } catch { Log ("erro no ciclo: " + $_.Exception.Message.Substring(0, [Math]::Min(120, $_.Exception.Message.Length))) }
 }

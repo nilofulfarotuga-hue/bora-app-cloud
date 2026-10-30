@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-29
+ultima_confirmacao: 2026-10-30
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-29T20:54:54.614546+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-30T20:55:32.569371+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -387,3 +387,16 @@ Filme caminho 4 (fontes htROyMzUbA8, rxZZ1xi81a4): no Google Flow (Omniflash 1.1
 - JÁ TEMOS: IA local (Jan, LocalAI = Ollama), ComfyUI no Kaggle (Kaggle GPU).
 - RECUSADO: Pulso Social (4 vídeos de novo), Google Ads AI Max e afiliados com Google Ads (pago), segmentação de anúncios pagos.
 - Radar aprende: +1 termo da conversa 29/10 (Casa & Manutenção / marido de aluguer), -1 termo sem rendimento (Instagram seguidores→clientes); 70 ativos.
+
+## 30/10/2026 — radar diário (agente na nuvem)
+20 vídeos revistos (17 com nota >= 6): 3 novos, 6 PENDENTES, 5 já temos, 6 rejeitados (3 por nota baixa). Nenhum do tema animacao_ia.
+- MODA DA SEMANA (3+ vídeos nota>=8 em 7 dias): OmniRoute 7 — FEITO 23/10; memória partilhada 7 — já temos (Córtex); vender automação a PMEs 6 (+3 hoje) — PENDENTE desde 13/10; atendente WhatsApp 6 — FEITO (Mister Navalha), CRM WhatsApp aberto PENDENTE desde 18/10; primeiros 1000 utilizadores 6 — PENDENTE desde 24/10; Hermes 5 — já temos; Claude Duet — PENDENTE desde 22/10; prospeção — extrator Google Maps PENDENTE desde 17/10; sites com IA PENDENTE desde 25/10; micro-SaaS PENDENTE desde 21/10; animação Vox/minimalista PENDENTE desde 11/10; growth de apps PENDENTE desde 28/10; marketing de delivery em cidade pequena 4.
+- DINHEIRO (prop-2f8e76dc): pacote PMEs ganha peça nova — respostas a avaliações do Google redigidas pela IA e aprovadas pelo dono, + resposta imediata e lembretes; feito com Claude Code + Hermes (Make/Zapier pagos). https://www.youtube.com/watch?v=6bheRG72L3M
+- DINHEIRO / Upwork (prop-2f8e76dc): filtrar vagas antes de rascunhar, segunda opinião de modelo pequeno, nunca enviar sozinho; perfil em micro-nicho. Pendente desde 12/10 e 22/10. https://www.youtube.com/watch?v=ON0uCc40Y3s , https://www.youtube.com/watch?v=5ruuXCQ_DKc
+- EM DIA (prop-2f8e76dc): comentário com palavra-chave → DM (pendente desde 09/10); GoHighLevel pago, lente grátis = resposta privada pela API oficial do Instagram, confirmar. https://www.youtube.com/watch?v=L2MRHcqJdh0
+- BORA (prop-55177d4c): lista de compras que compara preços entre os mercados do catálogo. https://www.youtube.com/watch?v=bYI0uPjrIqI
+- BORA (prop-55177d4c): extras pagos na personalização dos pratos; preço mais baixo no app próprio que no Glovo/Uber. https://www.youtube.com/watch?v=EiRFDEAsvV4
+- BORA (prop-55177d4c): testar agente nativo do WhatsApp Business com o catálogo (confirmar Portugal/grátis). https://www.youtube.com/watch?v=sAVu7qqfPBU
+- JÁ TEMOS: atendente WhatsApp (2 vídeos Pabbly, pago), memória partilhada (AI Memory do Akita, Azure Cosmos = Córtex), quadro de tarefas/multiagente (loop de ordens do Córtex + OmniRoute).
+- RECUSADO: Abiva + anúncios pagos, influenciador fictício com IA, white-label de delivery pago, AliExpress.
+- Radar aprende: sem termos novos (nenhum assunto novo em 2+ vídeos nota>=7; conversas das últimas 48 h sem assunto novo de negócio); 70 ativos.

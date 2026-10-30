@@ -4,6 +4,9 @@
 // Por usar → "Usar" (produto: abre a loja certa com o prémio no carrinho) ou
 // "Escolher" (30 dias: limpeza de 2 h ou lavagem exterior). Guardado (tecto do
 // mês) e "Falta 1 pedido" dizem o que falta. Usados/expirados ficam por baixo.
+// Escada de prémios (29/10/2026): com a escada ligada, o texto da regra em
+// destaque, o prémio guardado com "Levantar" e os degraus (10, 15, 30) a dizer
+// qual está guardado e qual é o próximo.
 import 'package:flutter/material.dart';
 
 import '../../config/app_colors.dart';
@@ -14,11 +17,20 @@ import '../../widgets/checkin/checkin_mes_sheet.dart';
 import 'checkin_premio_servico_screen.dart';
 
 class CheckinPremiosScreen extends StatefulWidget {
-  const CheckinPremiosScreen({super.key, this.carregar, this.usarProduto, this.escolherServico});
+  const CheckinPremiosScreen({
+    super.key,
+    this.carregar,
+    this.usarProduto,
+    this.escolherServico,
+    this.levantarEscada,
+  });
 
   final Future<CheckinPremiosEstado?> Function()? carregar;
   final Future<void> Function(BuildContext context, CheckinVale vale)? usarProduto;
   final Future<void> Function(BuildContext context, CheckinVale vale)? escolherServico;
+
+  /// Escada: "Levantar". Por omissão, `CheckinPremiosService.instance.levantar`.
+  final Future<CheckinEscadaResultado> Function()? levantarEscada;
 
   @override
   State<CheckinPremiosScreen> createState() => _CheckinPremiosScreenState();
@@ -28,6 +40,7 @@ class _CheckinPremiosScreenState extends State<CheckinPremiosScreen> {
   CheckinPremiosEstado? _estado;
   bool _aCarregar = true;
   String? _aUsar;
+  bool _aLevantar = false;
 
   @override
   void initState() {
@@ -65,6 +78,18 @@ class _CheckinPremiosScreenState extends State<CheckinPremiosScreen> {
     }
   }
 
+  Future<void> _levantar() async {
+    if (_aLevantar) return;
+    setState(() => _aLevantar = true);
+    final r = await (widget.levantarEscada ?? CheckinPremiosService.instance.levantar)();
+    if (!mounted) return;
+    setState(() => _aLevantar = false);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(r.ok ? 'Prémio levantado! Já está em "Por usar".'.tr : mensagemErroEscada(r.reason)),
+    ));
+    await _ler();
+  }
+
   @override
   Widget build(BuildContext context) {
     final e = _estado;
@@ -92,6 +117,10 @@ class _CheckinPremiosScreenState extends State<CheckinPremiosScreen> {
                             : 'Os marcos do check-in'.tr),
                       ),
                     const SizedBox(height: 12),
+                    if (e.escadaAtiva) ...[
+                      _EscadaCartao(estado: e, aLevantar: _aLevantar, onLevantar: _levantar),
+                      const SizedBox(height: 12),
+                    ],
                     if (e.porUsar.isEmpty && e.historico.isEmpty)
                       _vazio('Ainda não tens prémios. Faz o check-in todos os dias: aos 10 dias seguidos ganhas o primeiro.'.tr),
                     if (e.porUsar.isNotEmpty) ...[
@@ -206,6 +235,135 @@ class _ValeCartao extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Escada de prémios: a regra em destaque, o prémio guardado com "Levantar" e
+/// os degraus a dizer qual está guardado e qual é o próximo.
+class _EscadaCartao extends StatelessWidget {
+  const _EscadaCartao({required this.estado, required this.aLevantar, required this.onLevantar});
+
+  final CheckinPremiosEstado estado;
+  final bool aLevantar;
+  final VoidCallback onLevantar;
+
+  @override
+  Widget build(BuildContext context) {
+    final esc = estado.escada!;
+    final g = esc.guardado;
+    final prox = esc.proximoMaior;
+    final degraus = estado.marcos.where((m) => m.tipo != 'tokens').toList()
+      ..sort((a, b) => a.dia.compareTo(b.dia));
+    return Container(
+      key: const Key('premios_escada'),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0FDF4),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.primary),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (esc.texto.isNotEmpty)
+            Text(
+              esc.texto.tr,
+              key: const Key('premios_escada_texto'),
+              style: const TextStyle(
+                  fontSize: 14, fontWeight: FontWeight.w700, height: 1.35, color: AppColors.primaryDark),
+            ),
+          if (g != null) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                const Icon(Icons.bookmark_added_outlined, color: AppColors.primaryDark, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    g.garantidoAte == null
+                        ? 'Tens guardado: {0}'.trArgs([g.titulo.tr])
+                        : 'Tens guardado: {0} até {1}'.trArgs([g.titulo.tr, _data(g.garantidoAte)]),
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(
+                  key: const Key('btn_escada_levantar_ecra'),
+                  onPressed: aLevantar ? null : onLevantar,
+                  style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+                  child: Text(aLevantar ? '…' : 'Levantar'.tr),
+                ),
+              ],
+            ),
+          ],
+          if (degraus.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            for (final m in degraus)
+              _DegrauLinha(
+                marco: m,
+                guardado: g?.chave == m.chave,
+                proximo: prox?.chave == m.chave ? prox : null,
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DegrauLinha extends StatelessWidget {
+  const _DegrauLinha({required this.marco, required this.guardado, this.proximo});
+
+  final CheckinMarco marco;
+  final bool guardado;
+  final CheckinDegrau? proximo;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = proximo;
+    final String? etiqueta = guardado
+        ? 'Guardado'.tr
+        : (p == null
+            ? null
+            : (p.faltam == 1 ? 'Próximo · falta 1 dia'.tr : 'Próximo · faltam {0} dias'.trArgs([p.faltam])));
+    return Padding(
+      key: Key('degrau_${marco.dia}'),
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: guardado ? AppColors.primary : Colors.white,
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(color: guardado || p != null ? AppColors.primary : const Color(0xFFE5E7EB)),
+            ),
+            child: Text(
+              '${marco.dia}',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: guardado ? Colors.white : AppColors.primaryDark,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(marco.titulo.tr, style: const TextStyle(fontSize: 13, height: 1.3)),
+          ),
+          if (etiqueta != null) ...[
+            const SizedBox(width: 8),
+            Text(
+              etiqueta,
+              key: Key('degrau_${marco.dia}_etiqueta'),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+            ),
+          ],
+        ],
       ),
     );
   }

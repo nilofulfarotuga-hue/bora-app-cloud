@@ -16,6 +16,42 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 29/10/2026 (missao-geral): escada de premios do check-in — levantar agora
+  // ou continuar (tool/l10n/traducoes/pt-en-28-checkin-escada.json).
+  'Entra na tua conta para escolher o prémio.':
+      'Sign in to choose your prize.',
+  'Já não tens nenhum prémio guardado.':
+      'You no longer have a saved prize.',
+  'Este prémio já foi levantado.':
+      'This prize has already been claimed.',
+  'Este já é o prémio maior: só dá para levantar.':
+      'This is already the biggest prize: you can only claim it.',
+  'Não foi possível. Tenta de novo.':
+      'That didn\'t work. Try again.',
+  'Fechar o mês':
+      'Close the month',
+  'Amanhã começa a tua sequência no Dia 1.':
+      'Tomorrow your streak starts on Day 1.',
+  'Dia {0}: {1}':
+      'Day {0}: {1}',
+  'Chegaste ao dia {0}: ganhaste {1}!':
+      'You reached day {0}: you won {1}!',
+  'Levantar agora: {0} (a tua sequência volta ao dia 1)':
+      'Claim now: {0} (your streak goes back to day 1)',
+  'Continuar: no dia {0} trocas por {1}':
+      'Continue: on day {0} you swap it for {1}',
+  'Tens guardado: {0}':
+      'Saved for you: {0}',
+  'Tens guardado: {0} até {1}':
+      'Saved for you: {0} until {1}',
+  'Levantar':
+      'Claim',
+  'Prémio levantado! Já está em "Por usar".':
+      'Prize claimed! It\'s now under "Ready to use".',
+  'Próximo · falta 1 dia':
+      'Next · 1 day to go',
+  'Próximo · faltam {0} dias':
+      'Next · {0} days to go',
   // 28/10/2026 (missao-geral, final-app 1.b): fatura com NIF e entrega gratis
   // tambem nas lojas parceiras (tool/l10n/traducoes/pt-en-26-fatura-nif.json).
   'A Bora fatura em seu nome; os produtos vão com o talão da loja.':

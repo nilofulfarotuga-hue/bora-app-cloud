@@ -14,6 +14,13 @@
 //  - `client_checkin_premio_marcar_limpeza/lavagem(...)` → vale dos 30 dias.
 // O vale só fica "usado" quando o pedido é criado (gatilho no servidor), por isso
 // a app nunca decide sozinha se um prémio vale ou não.
+//
+// Escada de prémios (29/10/2026): os prémios de produto/serviço passam a ser UM
+// por sequência, o mais alto a que o cliente chegar. Ao chegar a um degrau o
+// prémio fica guardado; o cliente escolhe "Levantar agora" (vale criado, a
+// sequência volta ao dia 1) ou "Continuar" (troca por um maior no degrau
+// seguinte). Vem em `client_checkin_premios().escada`; os botões chamam
+// `client_checkin_escada_levantar()` e `client_checkin_escada_continuar()`.
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -164,6 +171,159 @@ class CheckinVale {
       );
 }
 
+/// Um degrau da escada: o prémio guardado ou o próximo maior.
+class CheckinDegrau {
+  const CheckinDegrau({
+    required this.chave,
+    required this.dia,
+    required this.titulo,
+    this.tipo = '',
+    this.descricao = '',
+    this.faltam = 0,
+    this.guardadoEm,
+    this.guardadoEmTexto = '',
+    this.garantidoAte,
+  });
+
+  final String chave;
+  final int dia;
+  final String titulo;
+
+  /// 'produto' | 'servico' (só no guardado).
+  final String tipo;
+  final String descricao;
+
+  /// Só no próximo maior: check-ins que faltam até lá.
+  final int faltam;
+
+  /// Só no guardado: quando chegou ao degrau e até quando fica garantido.
+  final DateTime? guardadoEm;
+  final DateTime? garantidoAte;
+
+  /// `guardado_em` tal como veio do servidor (marca da festa, uma por degrau).
+  final String guardadoEmTexto;
+
+  static CheckinDegrau? fromJson(dynamic v) {
+    if (v is! Map) return null;
+    final m = v.cast<String, dynamic>();
+    return CheckinDegrau(
+      chave: '${m['chave'] ?? ''}',
+      dia: _int(m['dia']),
+      titulo: '${m['titulo'] ?? ''}',
+      tipo: '${m['tipo'] ?? ''}',
+      descricao: '${m['descricao'] ?? ''}',
+      faltam: _int(m['faltam']),
+      guardadoEm: _data(m['guardado_em']),
+      guardadoEmTexto: '${m['guardado_em'] ?? ''}',
+      garantidoAte: _data(m['garantido_ate']),
+    );
+  }
+}
+
+/// A escada de prémios (29/10/2026). `null`/ausente no JSON = desligada.
+class CheckinEscada {
+  const CheckinEscada({
+    required this.ativa,
+    required this.texto,
+    this.guardado,
+    this.decisao,
+    this.pendenteDecisao = false,
+    this.podeContinuar = false,
+    this.proximoMaior,
+    this.ultimoDia = 0,
+    this.levantados = 0,
+    this.reinicioData,
+    this.ultimoValeId,
+  });
+
+  final bool ativa;
+  final String texto;
+  final CheckinDegrau? guardado;
+
+  /// `null` | 'pendente' | 'continuar'.
+  final String? decisao;
+
+  /// Chegou a um degrau e ainda não escolheu (mostra os dois botões).
+  final bool pendenteDecisao;
+  final bool podeContinuar;
+  final CheckinDegrau? proximoMaior;
+
+  /// Dia do degrau mais alto (no último não há "continuar").
+  final int ultimoDia;
+  final int levantados;
+  final DateTime? reinicioData;
+  final String? ultimoValeId;
+
+  /// Tem um prémio guardado e já não está à espera da escolha
+  /// (escolheu continuar, ou falhou um dia com o prémio ainda garantido).
+  bool get temGuardadoSemEscolha => ativa && guardado != null && !pendenteDecisao;
+
+  static CheckinEscada? fromJson(dynamic v) {
+    if (v is! Map) return null;
+    final m = v.cast<String, dynamic>();
+    final d = m['decisao'];
+    return CheckinEscada(
+      ativa: m['ativa'] == true,
+      texto: '${m['texto'] ?? ''}',
+      guardado: CheckinDegrau.fromJson(m['guardado']),
+      decisao: d == null ? null : '$d',
+      pendenteDecisao: m['pendente_decisao'] == true,
+      podeContinuar: m['pode_continuar'] == true,
+      proximoMaior: CheckinDegrau.fromJson(m['proximo_maior']),
+      ultimoDia: _int(m['ultimo_dia']),
+      levantados: _int(m['levantados']),
+      reinicioData: _data(m['reinicio_data']),
+      ultimoValeId: m['ultimo_vale_id'] == null ? null : '${m['ultimo_vale_id']}',
+    );
+  }
+}
+
+/// Resposta de "Levantar agora" / "Continuar".
+class CheckinEscadaResultado {
+  const CheckinEscadaResultado({required this.ok, this.reason, this.vale, this.estado});
+
+  final bool ok;
+
+  /// Só quando `ok == false`: 'sem_sessao' | 'sem_premio' | 'expirado' |
+  /// 'ja_levantado' | 'ultimo_degrau' | 'sem_rede'.
+  final String? reason;
+
+  /// Só no "Levantar": o vale criado.
+  final CheckinVale? vale;
+
+  /// O estado dos marcos depois da escolha (sem texto, vales nem novos).
+  final CheckinPremiosEstado? estado;
+
+  factory CheckinEscadaResultado.fromJson(Map<String, dynamic> m) {
+    final v = m['vale'];
+    final e = m['estado'];
+    return CheckinEscadaResultado(
+      ok: m['ok'] == true,
+      reason: m['reason'] == null ? null : '${m['reason']}',
+      vale: v is Map ? CheckinVale.fromJson(v.cast<String, dynamic>()) : null,
+      estado: e is Map ? CheckinPremiosEstado.fromJson(e.cast<String, dynamic>()) : null,
+    );
+  }
+}
+
+/// Mensagem curta em PT-PT quando "Levantar" ou "Continuar" não deu.
+String mensagemErroEscada(String? reason) {
+  switch (reason) {
+    case 'sem_sessao':
+      return 'Entra na tua conta para escolher o prémio.'.tr;
+    case 'sem_premio':
+      return 'Já não tens nenhum prémio guardado.'.tr;
+    case 'expirado':
+      return 'Este prémio já expirou.'.tr;
+    case 'ja_levantado':
+      return 'Este prémio já foi levantado.'.tr;
+    case 'ultimo_degrau':
+      return 'Este já é o prémio maior: só dá para levantar.'.tr;
+    default:
+      return 'Não foi possível. Tenta de novo.'.tr;
+  }
+}
+
 /// Estado dos marcos + os vales da pessoa.
 class CheckinPremiosEstado {
   const CheckinPremiosEstado({
@@ -177,6 +337,8 @@ class CheckinPremiosEstado {
     required this.vales,
     required this.novos,
     this.proximo,
+    this.cicloInicio,
+    this.escada,
   });
 
   final bool marcosAtivos;
@@ -195,6 +357,41 @@ class CheckinPremiosEstado {
 
   /// Vales que ainda não tiveram festa no ecrã.
   final List<String> novos;
+
+  /// Dia 1 da sequência atual (null sem sequência).
+  final DateTime? cicloInicio;
+
+  /// A escada de prémios; `null` = servidor antigo (sem escada).
+  final CheckinEscada? escada;
+
+  /// A escada está ligada para esta pessoa.
+  bool get escadaAtiva => escada?.ativa == true;
+
+  /// O dia de hoje na sequência: `dia_marco` se já fez o check-in de hoje,
+  /// senão o seguinte (depois do último dia do ciclo vem o Dia 1).
+  /// 0 = levantou hoje depois do check-in (amanhã é o Dia 1).
+  int get diaDeHoje {
+    if (hojeFeito) return diaMarco;
+    final ciclo = cicloDias <= 0 ? 30 : cicloDias;
+    return diaMarco >= ciclo ? 1 : diaMarco + 1;
+  }
+
+  /// Junta a resposta de "Levantar"/"Continuar" (sem texto, vales nem novos)
+  /// a este estado: fica a sequência e a escada novas, o resto mantém-se.
+  CheckinPremiosEstado juntar(CheckinPremiosEstado parcial) => CheckinPremiosEstado(
+        marcosAtivos: parcial.marcosAtivos,
+        cicloDias: parcial.cicloDias,
+        diasSeguidos: parcial.diasSeguidos,
+        diaMarco: parcial.diaMarco,
+        hojeFeito: parcial.hojeFeito,
+        marcos: parcial.marcos.isEmpty ? marcos : parcial.marcos,
+        proximo: parcial.proximo ?? proximo,
+        texto: texto,
+        vales: vales,
+        novos: novos,
+        cicloInicio: parcial.cicloInicio,
+        escada: parcial.escada ?? escada,
+      );
 
   List<CheckinVale> get porUsar => vales.where((v) => v.ativo).toList();
   List<CheckinVale> get historico => vales.where((v) => !v.ativo).toList();
@@ -247,6 +444,8 @@ class CheckinPremiosEstado {
               .toList()
           : const [],
       novos: (m['novos'] is List) ? (m['novos'] as List).map((e) => '$e').toList() : const [],
+      cicloInicio: _data(m['ciclo_inicio']),
+      escada: CheckinEscada.fromJson(m['escada']),
     );
   }
 }
@@ -333,6 +532,25 @@ class CheckinPremiosService {
     } catch (e) {
       debugPrint('[CheckinPremios] estado: $e');
       return null;
+    }
+  }
+
+  /// Escada: "Levantar agora" — cria o vale do prémio guardado e a sequência
+  /// volta ao dia 1. Nunca rebenta: sem rede devolve `ok: false`.
+  Future<CheckinEscadaResultado> levantar() => _escada('client_checkin_escada_levantar');
+
+  /// Escada: "Continuar" — fica com o prémio guardado e troca por um maior
+  /// no degrau seguinte.
+  Future<CheckinEscadaResultado> continuar() => _escada('client_checkin_escada_continuar');
+
+  Future<CheckinEscadaResultado> _escada(String funcao) async {
+    try {
+      final res = await _db.rpc(funcao).timeout(_limite);
+      if (res is! Map) return const CheckinEscadaResultado(ok: false);
+      return CheckinEscadaResultado.fromJson(res.cast<String, dynamic>());
+    } catch (e) {
+      debugPrint('[CheckinPremios] $funcao: $e');
+      return const CheckinEscadaResultado(ok: false, reason: 'sem_rede');
     }
   }
 

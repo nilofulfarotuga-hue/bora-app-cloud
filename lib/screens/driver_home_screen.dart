@@ -55,6 +55,7 @@ import 'chat_screen.dart';
 import 'ganhos_screen.dart';
 import '../widgets/ganho_de_hoje_card.dart';
 import '../widgets/oferta_resumo_estafeta.dart';
+import '../widgets/entrega_marcada_estafeta.dart';
 import 'driver/mapa_procura_estafeta_screen.dart' show BotaoMapaProcuraEstafeta;
 import '../widgets/trocar_de_papel.dart';
 import '../widgets/aviso_atividade_banner.dart';
@@ -1955,6 +1956,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   const SizedBox(height: 12),
                   const _ApartmentDeliveryBanner(),
                 ],
+                // Pedido agendado (30/10/2026): a hora marcada em destaque.
+                if (order.scheduledFor != null) ...[
+                  const SizedBox(height: 12),
+                  EntregaMarcadaEstafeta(order: order),
+                ],
                 const SizedBox(height: 16),
                 Text("Status atual: ${order.status.label}"),
                 if (order.isPurchaseFinalized) ...[
@@ -2843,6 +2849,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   ganho: stackedEarnings,
                   driverLocation: driverLoc,
                 ),
+                if (order.scheduledFor != null) ...[
+                  const SizedBox(height: 8),
+                  EntregaMarcadaEstafeta(order: order),
+                ],
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -3460,6 +3470,11 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
             ganho: order.driverEarnings,
             driverLocation: widget.driverLocation,
           ),
+          // Pedido agendado (30/10/2026): a hora marcada antes de aceitar.
+          if (order.scheduledFor != null) ...[
+            const SizedBox(height: 8),
+            EntregaMarcadaEstafeta(order: order),
+          ],
           const SizedBox(height: 12),
           _CountdownBar(
               secondsLeft: _secondsLeft, totalSeconds: _totalSeconds),
@@ -3672,6 +3687,11 @@ class _AvailableOrderCardState extends State<_AvailableOrderCard> {
             if (order.apartmentDelivery) ...[
               const SizedBox(height: 8),
               const _ApartmentDeliveryBanner(compact: true),
+            ],
+            // Pedido agendado (30/10/2026): a hora marcada na lista.
+            if (order.scheduledFor != null) ...[
+              const SizedBox(height: 8),
+              EntregaMarcadaEstafeta(order: order, compacto: true),
             ],
             const SizedBox(height: 12),
             Row(

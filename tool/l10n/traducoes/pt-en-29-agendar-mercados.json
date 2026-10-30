@@ -1,0 +1,18 @@
+{
+  "Quando queres receber?": "When do you want it?",
+  "Entregar agora": "Deliver now",
+  "Agendar": "Schedule",
+  "Esta loja não aceita pedidos agendados neste momento.": "This store is not accepting scheduled orders right now.",
+  "A carregar horários…": "Loading times…",
+  "Sem horários livres neste dia.": "No free times on this day.",
+  "Escolhe uma hora para continuar.": "Choose a time to continue.",
+  "Podes cancelar sem custo até 1 h antes.": "You can cancel free of charge up to 1 h before.",
+  "Agendado para {0}, {1}": "Scheduled for {0}, {1}",
+  "Amanhã": "Tomorrow",
+  "Loja fechada: agenda para quando abrir": "Store closed: schedule for when it opens",
+  "Pedido agendado": "Order scheduled",
+  "Chamamos o estafeta perto da hora marcada.": "We call the courier close to the scheduled time.",
+  "A hora escolhida já não está livre. Volta ao carrinho e escolhe outra.": "The chosen time is no longer available. Go back to the cart and choose another one.",
+  "Os pedidos agendados não estão disponíveis agora.": "Scheduled orders are not available right now.",
+  "Não foi possível marcar a hora do pedido. Verifica a ligação e tenta de novo.": "We couldn't book the order time. Check your connection and try again."
+}

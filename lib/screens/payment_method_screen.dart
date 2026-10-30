@@ -1126,6 +1126,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   /// B1 (2026-06-12): traduz códigos de erro conhecidos da RPC create_order
   /// para PT-PT. Fallback = mensagem genérica existente.
   String _createOrderErrorMessage(OrderStore orderStore) {
+    // Agendar (30/10/2026): a hora marcada não ficou no servidor e o pedido
+    // nem chegou a ser criado.
+    final agendar = _mensagemErroAgendamento(context.read<CartStore>());
+    if (agendar != null) return agendar;
     final err = orderStore.lastCreateOrderError ?? '';
     if (err.contains('delivery_distance_exceeded')) {
       final m = RegExp(r'>\s*(\d+(?:[.,]\d+)?)\s*km').firstMatch(err);
@@ -1149,6 +1153,21 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       return 'Esta loja não aceita "Ir buscar". Escolhe entrega.'.tr;
     }
     return 'Não foi possível criar o pedido. Tente novamente.'.tr;
+  }
+
+  /// A frase para o cliente quando a hora marcada foi recusada antes de criar
+  /// o pedido (`CartStore.erroAgendamento`); `null` se não foi isso.
+  String? _mensagemErroAgendamento(CartStore cart) {
+    switch (cart.erroAgendamento) {
+      case null:
+        return null;
+      case 'schedule_window_invalid':
+        return 'A hora escolhida já não está livre. Volta ao carrinho e escolhe outra.'.tr;
+      case 'scheduled_orders_disabled':
+        return 'Os pedidos agendados não estão disponíveis agora.'.tr;
+      default:
+        return 'Não foi possível marcar a hora do pedido. Verifica a ligação e tenta de novo.'.tr;
+    }
   }
 
   /// Forces exit from payment screen to home root after a post-createOrder
@@ -1404,8 +1423,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       if (draft == null) {
         setState(() => _isProcessing = false);
         messenger.showSnackBar(SnackBar(
-            content:
-                Text('Não foi possível iniciar o pagamento. Tente novamente.'.tr)));
+            content: Text(_mensagemErroAgendamento(cartStore) ??
+                'Não foi possível iniciar o pagamento. Tente novamente.'.tr)));
         return;
       }
 

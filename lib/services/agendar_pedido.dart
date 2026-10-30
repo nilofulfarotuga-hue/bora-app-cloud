@@ -18,6 +18,7 @@ library;
 
 import '../l10n/bora_lang.dart';
 import '../l10n/tr.dart';
+import '../models/order_model.dart';
 import '../models/restaurant_model.dart';
 import '../utils/hora_lisboa.dart';
 
@@ -32,6 +33,10 @@ const int kAgendarAntecedenciaPadraoMin = 60;
 
 /// Aviso ao parceiro: quantos minutos antes da hora marcada.
 const int kAgendarAvisoParceiroMin = 30;
+
+/// Quantos minutos antes da hora marcada o servidor chama o estafeta num
+/// pedido agendado (`dispatch_antecedencia_agendado_minutos`, 30 de origem).
+const int kAgendarChamaEstafetaMin = 30;
 
 /// Uma janela de entrega de 30 minutos.
 class JanelaAgendada {
@@ -198,9 +203,60 @@ String textoAgendadoPara(JanelaAgendada j) => 'Agendado para {0}, {1}'
 
 /// A mesma frase em português de Portugal, sem tradução: é a que segue na nota
 /// do pedido para o parceiro ler ("Pedido AGENDADO para sáb 01/11, 19:30–20:00").
-String notaAgendadoParaParceiro(JanelaAgendada j) {
-  final sem = _diasPt[j.dia.weekday - 1];
-  return 'Pedido AGENDADO para $sem ${dataCurta(j.dia)}, ${j.horas}';
+String notaAgendadoParaParceiro(JanelaAgendada j) =>
+    'Pedido AGENDADO para ${diaComDataPt(j.dia)}, ${j.horas}';
+
+/// "sáb 01/11" sempre em português (estafeta, parceiro e painel não mudam de
+/// idioma).
+String diaComDataPt(DateTime dia) => '${_diasPt[dia.weekday - 1]} ${dataCurta(dia)}';
+
+/// A janela de 30 minutos que começa no instante [inicio] (o `scheduled_for`
+/// de um pedido), lida no relógio de Lisboa.
+JanelaAgendada janelaDoInstante(DateTime inicio) {
+  final p = paredeLisboa(inicio);
+  final ini = DateTime.utc(p.year, p.month, p.day, p.hour, p.minute);
+  return JanelaAgendada(
+    inicio: ini,
+    fim: ini.add(const Duration(minutes: kAgendarJanelaMinutos)),
+  );
+}
+
+// ── Seguimento do pedido agendado (30/10/2026) ──────────────────────────────
+
+/// O pedido tem hora marcada e ainda está à espera dela (sem estafeta)?
+///
+/// * À espera da loja ou "a preparar" (`created`/`preparing`): sim, até ao fim
+///   da janela marcada. É onde o servidor segura um pedido não parceiro
+///   agendado até [kAgendarChamaEstafetaMin] minutos antes da hora.
+/// * `callingDriver` antes dessa altura: sim. A app do cliente tenta avançar o
+///   estado como sempre e o servidor segura-o em `preparing`; o que a app tem
+///   em memória por um instante não é "À procura de estafeta".
+/// * Tudo o resto (estafeta já aceitou, entregue, cancelado): não.
+bool aEsperaDaHoraMarcada(OrderModel o, DateTime agora) {
+  final quando = o.scheduledFor;
+  if (quando == null) return false;
+  switch (o.status) {
+    case OrderStatus.created:
+    case OrderStatus.preparing:
+      return agora.isBefore(
+          quando.add(const Duration(minutes: kAgendarJanelaMinutos)));
+    case OrderStatus.callingDriver:
+      return agora.isBefore(
+          quando.subtract(const Duration(minutes: kAgendarChamaEstafetaMin)));
+    default:
+      return false;
+  }
+}
+
+/// "Entrega marcada: 10:00–10:30" para o estafeta (português, sem tradução).
+/// Noutro dia que não hoje (Lisboa) leva o dia: "Entrega marcada: sáb 01/11,
+/// 10:00–10:30". `null` sem hora marcada.
+String? textoEntregaMarcada(DateTime? scheduledFor, DateTime agora) {
+  if (scheduledFor == null) return null;
+  final j = janelaDoInstante(scheduledFor);
+  final hoje = _soDia(paredeLisboa(agora));
+  if (j.dia == hoje) return 'Entrega marcada: ${j.horas}';
+  return 'Entrega marcada: ${diaComDataPt(j.dia)}, ${j.horas}';
 }
 
 // ── Contas de tempo do parceiro (português simples, sem tradução) ───────────

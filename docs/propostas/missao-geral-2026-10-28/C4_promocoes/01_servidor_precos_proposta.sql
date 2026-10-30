@@ -37,7 +37,9 @@ language plpgsql
 as $t$
 declare
   a1 text := '(SELECT p.price FROM products p WHERE p.id = (v_line->>''product_id'') LIMIT 1),';
-  b1 text := '(SELECT p.discount_price FROM products p WHERE p.id = (v_line->>''product_id'') AND public.product_promocao_ativa(p.id) LIMIT 1),'
+  -- 30/10/2026: discount_price é double precision e price é numeric na base; converte-se para numeric com
+  -- 2 casas para o COALESCE continuar numeric (sem vírgula flutuante nas contas do dinheiro).
+  b1 text := '(SELECT round(p.discount_price::numeric, 2) FROM products p WHERE p.id = (v_line->>''product_id'') AND public.product_promocao_ativa(p.id) LIMIT 1),'
              || chr(10) || '            ' || a1;
   n integer;
 begin
@@ -80,10 +82,11 @@ begin
     from information_schema.columns
    where table_schema = 'public' and table_name = 'products' and column_name in ('price', 'discount_price');
   v_rep := v_rep || 'Tipos: ' || v_tipos || E'\n';
-  if (select count(distinct data_type) from information_schema.columns
-       where table_schema = 'public' and table_name = 'products'
-         and column_name in ('price', 'discount_price')) <> 1 then
-    raise exception 'FALHOU: price e discount_price têm tipos diferentes (%): rever antes de trocar', v_tipos;
+  -- 30/10/2026: os tipos diferem (discount_price double, price numeric); a troca converte com
+  -- round(discount_price::numeric, 2), por isso só se exige que price seja numeric.
+  if (select data_type from information_schema.columns
+       where table_schema = 'public' and table_name = 'products' and column_name = 'price') <> 'numeric' then
+    raise exception 'FALHOU: price não é numeric (%): rever antes de trocar', v_tipos;
   end if;
 
   -- Simular um utilizador autenticado (o quote exige auth.uid()).

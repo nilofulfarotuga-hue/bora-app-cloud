@@ -1,11 +1,14 @@
 /// AGENDAR PEDIDOS (item 5 do adendo 5, 29/10/2026) — o seletor do cliente no
 /// carrinho: "Entregar agora" ou "Agendar" (dia + janela de 30 min, até 7 dias).
 ///
-/// Só aparece com o interruptor `scheduled_orders_enabled` ligado. Com a loja
-/// FECHADA agora, "Entregar agora" fica desligado e a primeira janela livre
-/// vem já escolhida (o cliente só confirma ou troca). A hora fica em
-/// [AgendarPedidoEstado]; o carrinho grava-a no pedido depois de ele existir
-/// (ver `CartStore.finishOrder` e o ecrã de pagamento).
+/// Só aparece com o interruptor `scheduled_orders_enabled` ligado e numa loja
+/// a que o servidor dá janelas (desde 30/10 também mercados e lojas não
+/// parceiras; nunca favores, envios nem festas). Com a loja FECHADA agora,
+/// "Entregar agora" fica desligado ("Loja fechada: agenda para quando abrir")
+/// e a primeira janela livre vem já escolhida (o cliente só confirma ou
+/// troca). A hora fica em [AgendarPedidoEstado]; o carrinho marca-a no
+/// servidor ANTES de criar o pedido (`client_preparar_agendamento`) e
+/// confirma-a depois (ver `CartStore.finishOrder` e o ecrã de pagamento).
 library;
 
 import 'dart:async';
@@ -42,17 +45,34 @@ class _AgendarPedidoNoCarrinhoState extends State<AgendarPedidoNoCarrinho> {
   Widget build(BuildContext context) {
     final cart = context.watch<CartStore>();
     if (!cart.agendamentoDisponivel) return const SizedBox.shrink();
-    final loja = context.watch<RestaurantStore>().restaurantById(cart.vendorRestaurantId);
-    if (loja == null) return const SizedBox.shrink();
+    final id = cart.vendorRestaurantId;
+    if (id == null) return const SizedBox.shrink();
+    // A loja ainda pode não estar na lista (mercado aberto por outro caminho):
+    // o servidor já disse que tem janelas, por isso o seletor aparece na mesma
+    // — os dias vêm então só do servidor. Sem isto, numa loja fechada o
+    // "Finalizar pedido" ficava à espera de uma hora que não dava para escolher.
+    final loja = context.watch<RestaurantStore>().restaurantById(id);
     return AgendarPedidoSeletor(
-      key: ValueKey('agendar-${loja.id}'),
-      restaurantId: loja.id,
-      horas: loja.businessHours,
-      pausaAte: loja.pausaAte,
+      key: ValueKey('agendar-$id'),
+      restaurantId: id,
+      horas: loja?.businessHours ?? _semHorario,
+      pausaAte: loja?.pausaAte,
       lojaFechadaAgora: cart.lojaFechadaAgora,
     );
   }
 }
+
+/// Horário desconhecido: nenhum dia local (os dias vêm só do servidor).
+const DayHours _diaFechado = DayHours(closed: true);
+const BusinessHours _semHorario = BusinessHours(
+  mon: _diaFechado,
+  tue: _diaFechado,
+  wed: _diaFechado,
+  thu: _diaFechado,
+  fri: _diaFechado,
+  sat: _diaFechado,
+  sun: _diaFechado,
+);
 
 class AgendarPedidoSeletor extends StatefulWidget {
   const AgendarPedidoSeletor({
@@ -92,13 +112,21 @@ class _AgendarPedidoSeletorState extends State<AgendarPedidoSeletor> {
 
   DateTime _agora() => (widget.relogio ?? DateTime.now)();
 
-  List<DateTime> get _dias => diasComJanelas(
-        horas: widget.horas,
-        agora: _agora(),
-        maxDias: _estado.config.maxDias,
-        antecedenciaMin: _estado.config.antecedenciaMin,
-        pausaAte: widget.pausaAte,
-      );
+  /// Os dias que o horário da loja deixa, mais o primeiro dia em que o
+  /// servidor deu janelas (30/10/2026: mercados e lojas não parceiras podem
+  /// ter o horário só do lado do servidor). O servidor valida sempre.
+  List<DateTime> get _dias {
+    final locais = diasComJanelas(
+      horas: widget.horas,
+      agora: _agora(),
+      maxDias: _estado.config.maxDias,
+      antecedenciaMin: _estado.config.antecedenciaMin,
+      pausaAte: widget.pausaAte,
+    );
+    final doServidor = _estado.primeiroDiaComJanelas(widget.restaurantId);
+    if (doServidor == null || locais.contains(doServidor)) return locais;
+    return [...locais, doServidor]..sort();
+  }
 
   @override
   void initState() {
@@ -108,9 +136,11 @@ class _AgendarPedidoSeletorState extends State<AgendarPedidoSeletor> {
     _agendar = widget.lojaFechadaAgora || jaEscolheu;
     if (_agendar) {
       final escolha = _estado.escolha;
+      // Loja fechada: abre no 1.º dia com janelas que o servidor deu.
+      final primeiro = _estado.primeiroDiaComJanelas(widget.restaurantId);
       _dia = jaEscolheu && escolha != null
           ? escolha.dia
-          : (_dias.isEmpty ? null : _dias.first);
+          : (primeiro ?? (_dias.isEmpty ? null : _dias.first));
       if (_dia != null) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted && _dia != null) unawaited(_carregarJanelas(_dia!));
@@ -229,9 +259,12 @@ class _AgendarPedidoSeletorState extends State<AgendarPedidoSeletor> {
           if (widget.lojaFechadaAgora) ...[
             const SizedBox(height: 6),
             Text(
-              'A loja está fechada agora. Escolhe quando queres receber.'.tr,
+              'Loja fechada: agenda para quando abrir'.tr,
               key: const Key('agendar-fechada'),
-              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary),
             ),
           ],
           if (_agendar) ...[

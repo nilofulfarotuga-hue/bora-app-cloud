@@ -9,6 +9,7 @@ import '../config/app_colors.dart';
 import '../l10n/tr.dart';
 import '../models/order_model.dart';
 import '../screens/order_tracking_screen.dart';
+import '../services/agendar_pedido.dart';
 import '../services/interruptores_app.dart';
 import '../services/notification_service.dart';
 import '../services/order_eta_service.dart';
@@ -39,7 +40,11 @@ OrderModel? escolherPedidoAtivo(List<OrderModel> pedidosDoCliente) {
 }
 
 /// O estado em palavras de pessoa (PT-PT). Curto: cabe numa linha.
-String tituloDoEstado(OrderModel o) {
+/// [agora] só para testes (relógio fixo).
+String tituloDoEstado(OrderModel o, {DateTime? agora}) {
+  // Agendado (30/10/2026): à espera da hora marcada, nunca "À procura de
+  // estafeta" (o servidor segura o pedido até 30 min antes).
+  if (aEsperaDaHoraMarcada(o, agora ?? DateTime.now())) return 'Pedido agendado';
   final compras = o.serviceType == OrderServiceType.storeShopping;
   switch (o.status) {
     case OrderStatus.created:
@@ -84,6 +89,11 @@ bool _descontaTempoDaFase(OrderStatus s) =>
 /// estado, sem inventar um número.
 String? etaDoPedido(OrderModel o, {Duration naFase = Duration.zero, LatLng? driverPos}) {
   if (!pedidoEmCurso(o)) return null;
+  // Agendado (30/10/2026): a hora marcada, não um "chega em ~20 min".
+  final marcado = o.scheduledFor;
+  if (marcado != null && aEsperaDaHoraMarcada(o, DateTime.now())) {
+    return textoAgendadoPara(janelaDoInstante(marcado));
+  }
   if (o.serviceType == OrderServiceType.takeaway) {
     final pronto = o.takeawayReadyAt?.toLocal();
     if (pronto == null) return null;

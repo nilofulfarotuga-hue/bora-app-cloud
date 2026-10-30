@@ -12,6 +12,7 @@ import '../models/chat_message.dart';
 import '../models/driver_model.dart';
 import '../models/order_model.dart';
 import '../models/rating_model.dart';
+import '../models/restaurant_model.dart' show BusinessCategory;
 import '../widgets/order_edit/client_order_edit_banner.dart';
 import '../widgets/address_text.dart';
 import '../widgets/bora_support_fab.dart';
@@ -21,6 +22,7 @@ import '../widgets/foto_prova_entrega.dart';
 import '../widgets/fatura_nif_pedido.dart';
 import '../widgets/partilhar_localizacao_card.dart';
 import '../widgets/partilhar_seguimento.dart';
+import '../widgets/pedido_agendado_aviso.dart';
 import '../widgets/takeaway/pickup_code_card.dart';
 import '../widgets/takeaway/preparing_countdown_banner.dart';
 import '../services/directions_service.dart';
@@ -28,6 +30,7 @@ import '../services/driver_live_feed.dart';
 import '../services/order_eta_service.dart';
 import '../stores/driver_store.dart';
 import '../stores/order_store.dart';
+import '../stores/restaurant_store.dart';
 import '../utils/constants.dart';
 import '../utils/map_marker_helper.dart';
 import '../utils/map_utils.dart';
@@ -661,6 +664,15 @@ class _BottomCardState extends State<_BottomCard> {
       widget.order.status != OrderStatus.rejected &&
       widget.order.status != OrderStatus.cancelled;
 
+  /// Encomenda de uma loja de Festas (a data vem do `festas_set_schedule` e
+  /// tem o aviso próprio). Loja desconhecida conta como não-Festas.
+  bool _ehDeFestas(BuildContext context, OrderModel order) =>
+      context
+          .read<RestaurantStore?>()
+          ?.restaurantById(order.restaurantId)
+          ?.belongsTo(BusinessCategory.festas) ??
+      false;
+
   /// Client can cancel from any non-terminal state (BR §8.3).
   /// Fee tier is decided server-side based on current status.
   bool get _canCancel =>
@@ -738,7 +750,9 @@ class _BottomCardState extends State<_BottomCard> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            order.status.label,
+                            // Agendado (30/10): "Pedido agendado" enquanto
+                            // espera pela hora, nunca "À procura de estafeta".
+                            tituloDoSeguimento(order, DateTime.now()),
                             style: theme.textTheme.titleLarge?.copyWith(
                               fontWeight: FontWeight.w800,
                               letterSpacing: -0.3,
@@ -778,8 +792,14 @@ class _BottomCardState extends State<_BottomCard> {
                   ],
                 ),
 
+                // ── Pedido agendado (30/10/2026): restaurantes, mercados e
+                // lojas não parceiras — "Agendado para sáb 01/11, 10:00–10:30".
+                if (order.scheduledFor != null && !_ehDeFestas(context, order)) ...[
+                  const SizedBox(height: 14),
+                  AvisoPedidoAgendado(order: order),
+                ],
                 // ── Festas: encomenda agendada + tempo anunciado ──────────
-                if (order.scheduledFor != null) ...[
+                if (order.scheduledFor != null && _ehDeFestas(context, order)) ...[
                   const SizedBox(height: 14),
                   Container(
                     width: double.infinity,

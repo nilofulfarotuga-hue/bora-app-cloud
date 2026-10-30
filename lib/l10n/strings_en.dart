@@ -4092,8 +4092,6 @@ const Map<String, String> kStringsEn = <String, String>{
       'Deliver now',
   'Agendar':
       'Schedule',
-  'A loja está fechada agora. Escolhe quando queres receber.':
-      'The store is closed right now. Choose when you want it delivered.',
   'Esta loja não aceita pedidos agendados neste momento.':
       'This store is not accepting scheduled orders right now.',
   'A carregar horários…':
@@ -4112,4 +4110,16 @@ const Map<String, String> kStringsEn = <String, String>{
       'Lowest price in the last 30 days: {0}',
   'Antes {0}':
       'Was {0}',
+  'Loja fechada: agenda para quando abrir':
+      'Store closed: schedule for when it opens',
+  'Pedido agendado':
+      'Order scheduled',
+  'Chamamos o estafeta perto da hora marcada.':
+      'We call the courier close to the scheduled time.',
+  'A hora escolhida já não está livre. Volta ao carrinho e escolhe outra.':
+      'The chosen time is no longer available. Go back to the cart and choose another one.',
+  'Os pedidos agendados não estão disponíveis agora.':
+      'Scheduled orders are not available right now.',
+  'Não foi possível marcar a hora do pedido. Verifica a ligação e tenta de novo.':
+      "We couldn't book the order time. Check your connection and try again.",
 };

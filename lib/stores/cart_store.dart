@@ -115,7 +115,28 @@ class CartStore extends ChangeNotifier {
   }
 
   void _aoMudarAgendamento() {
-    if (!_libertado) notifyListeners();
+    if (_libertado) return;
+    // A configuração chegou (ou mudou) e ainda não se sabe se esta loja tem
+    // janelas: pergunta-se agora (30/10/2026).
+    final e = AgendarPedidoEstado.instance;
+    final id = _vendorRestaurantId;
+    if (e.ligado && _lojaPodeAgendar && id != null && e.lojaTemJanelas(id) == null) {
+      unawaited(e.verificarLoja(id));
+    }
+    notifyListeners();
+  }
+
+  /// Agendar pedidos (30/10/2026): pergunta ao servidor se a loja desta sessão
+  /// tem janelas. Nunca trava nem lança; a resposta chega pelo
+  /// [_aoMudarAgendamento].
+  void _verificarAgendamento() {
+    final e = AgendarPedidoEstado.instance;
+    final id = _vendorRestaurantId;
+    if (_lojaPodeAgendar && id != null) {
+      unawaited(e.verificarLoja(id));
+    } else if (!e.ligado) {
+      unawaited(e.carregarConfig());
+    }
   }
 
   // ── Persistence ──────────────────────────────────────────────────────────
@@ -202,6 +223,8 @@ class CartStore extends ChangeNotifier {
       _apartmentDelivery = map['apartmentDelivery'] as bool? ?? false;
       notifyListeners();
       if (_items.isNotEmpty) unawaited(confirmarParceiraDaLoja());
+      // Carrinho reposto: a loja pode aceitar pedidos agendados.
+      if (_items.isNotEmpty) _verificarAgendamento();
       // 28/10/2026: o mínimo da entrega grátis (e o override do pedido pequeno)
       // vêm da loja — num carrinho reposto ninguém passou por configureSession.
       final lojaId = _vendorRestaurantId;
@@ -347,23 +370,32 @@ class CartStore extends ChangeNotifier {
   /// a loja ja trabalha connosco, so nao esta a servir agora. Navegar,
   /// espreitar o menu e ver precos continua tudo livre.
   ///
-  /// Agendar pedidos (C5, 29/10/2026): com o interruptor LIGADO e uma loja de
-  /// restaurante parceiro com entrega, a loja fechada deixa de travar o
-  /// carrinho — o cliente agenda (ver [agendamentoObrigatorio]). Desligado,
-  /// isto é exatamente o `_vendorFechada` de sempre.
+  /// Agendar pedidos (C5, 29/10/2026; mercados e não parceiras a 30/10): com
+  /// o interruptor LIGADO e uma loja com janelas no servidor, a loja fechada
+  /// deixa de travar o carrinho — o cliente agenda para quando abrir (ver
+  /// [agendamentoObrigatorio]). Sem janelas, ou desligado, isto é exatamente
+  /// o `_vendorFechada` de sempre.
   bool get lojaFechada => _vendorFechada && !agendamentoDisponivel;
 
   /// A loja está fechada AGORA (sem contar com o agendamento).
   bool get lojaFechadaAgora => _vendorFechada;
 
-  /// Esta loja pode receber pedidos agendados (restaurante parceiro, entrega,
-  /// não festas, não "em breve")?
-  bool get lojaAgendavel =>
-      _isPartnerStore &&
-      _serviceType == OrderServiceType.restaurant &&
+  /// O tipo de compra que PODE ter agendamento: entrega de restaurante ou de
+  /// loja/mercado (parceira ou não), nunca festas, "em breve", favores,
+  /// envios nem recolha. Quem decide se há mesmo é o servidor (janelas).
+  bool get _lojaPodeAgendar =>
+      (_serviceType == OrderServiceType.restaurant ||
+          _serviceType == OrderServiceType.storeShopping) &&
       !_vendorIsFestas &&
       !_vendorComingSoon &&
       _vendorRestaurantId != null;
+
+  /// Esta loja recebe pedidos agendados? Só quando o servidor deu janelas
+  /// para ela nos próximos dias (`scheduled_windows_for_store`) — a regra não
+  /// sai do `isPartner` (30/10/2026).
+  bool get lojaAgendavel =>
+      _lojaPodeAgendar &&
+      AgendarPedidoEstado.instance.lojaTemJanelas(_vendorRestaurantId) == true;
 
   /// Interruptor ligado E loja que aceita agendamento.
   bool get agendamentoDisponivel =>
@@ -1033,10 +1065,9 @@ class CartStore extends ChangeNotifier {
     _vendorRestaurantId = vendorRestaurantId;
     _vendorFechada = vendorFechada;
     _vendorAvisoFechada = vendorAvisoFechada;
-    // Agendar pedidos (C5): a configuração pode ainda não ter sido lida.
-    if (!AgendarPedidoEstado.instance.ligado) {
-      unawaited(AgendarPedidoEstado.instance.carregarConfig());
-    }
+    // Agendar pedidos (C5 + 30/10): a configuração pode ainda não ter sido
+    // lida, e quem diz se esta loja tem janelas é o servidor.
+    _verificarAgendamento();
     // Minimo/taxa proprios desta loja, se os tiver. Falhar aqui nunca trava o
     // carrinho: sem leitura, fica o valor global (ou taxa nenhuma).
     if (vendorRestaurantId != null) {
@@ -1349,6 +1380,7 @@ class CartStore extends ChangeNotifier {
     // total cheio e a app gastava os tokens na mesma.
     int tokensUsed = 0,
   }) async {
+    _erroAgendamento = null;
     final isShoppingOrder = _serviceType == OrderServiceType.restaurant ||
         _serviceType == OrderServiceType.storeShopping;
     if (isShoppingOrder && _items.isEmpty) return null;
@@ -1368,6 +1400,10 @@ class CartStore extends ChangeNotifier {
     }
 
     final breakdown = pricingBreakdown;
+
+    // Agendar (30/10/2026): a hora marcada vai para o servidor ANTES do
+    // rascunho; o pedido nasce no webhook e o servidor aplica-a sozinho.
+    if (!await _prepararAgendamento()) return null;
 
     return orderStore.startCardPaymentDraft(
       customerNotes: notes,
@@ -1422,6 +1458,28 @@ class CartStore extends ChangeNotifier {
     );
   }
 
+  String? _erroAgendamento;
+
+  /// Porque é que o último [finishOrder]/[startCardPaymentDraft] não criou o
+  /// pedido do lado do agendamento: `schedule_window_invalid`,
+  /// `scheduled_orders_disabled`, `auth_required`, `rede`… `null` = não foi
+  /// por isso. O ecrã de pagamento mostra a frase certa.
+  String? get erroAgendamento => _erroAgendamento;
+
+  /// Marca a hora no servidor antes de criar o pedido. false = não criar (a
+  /// hora escolhida não ficou marcada; o pedido nasceria "para agora").
+  Future<bool> _prepararAgendamento() async {
+    _erroAgendamento = await AgendarPedidoEstado.instance.prepararAntesDeCriar(
+      restaurantId: _vendorRestaurantId,
+      tipo: _serviceType,
+    );
+    if (_erroAgendamento != null) {
+      debugPrint('CartStore: hora marcada recusada ($_erroAgendamento) — pedido NÃO criado');
+      return false;
+    }
+    return true;
+  }
+
   Future<bool> finishOrder(
     OrderStore orderStore, {
     required PaymentMethod paymentMethod,
@@ -1434,6 +1492,7 @@ class CartStore extends ChangeNotifier {
     // phase (FIFO) — not yet deducted from bora_tokens table.
     int tokensUsed = 0,
   }) async {
+    _erroAgendamento = null;
     // Items are required for shopping-type orders; logistics orders (carry
     // groceries, send package) have no cart items by design.
     final isShoppingOrder = _serviceType == OrderServiceType.restaurant ||
@@ -1476,6 +1535,10 @@ class CartStore extends ChangeNotifier {
     // pré-verificação do limite do dinheiro tem de comparar — o cálculo local
     // do `createOrder` não conhece a taxa de pedido pequeno.
     final resumoMostrado = resumo;
+
+    // Agendar (30/10/2026): a hora marcada (ou "Entregar agora") vai para o
+    // servidor ANTES de criar o pedido; o `create_order` de sempre aplica-a.
+    if (!await _prepararAgendamento()) return false;
 
     final success = await orderStore.createOrder(
       serviceType: _serviceType,

@@ -101,6 +101,21 @@ Bloco D bloqueado (sem token do CLI; passos na página `reembolsos-dashboard-pas
 - 17 fotos da Boom no Storage (e2e 5319); página boom-robo-conhecimento corrigida; política tmp dos cartazes apagada;
   NIF opcional confirmado (e2e 5323).
 
+## ADENDO 13 (30/10 07:00 + complemento 07:35) — FEITO
+- Teste da guarda das promoções atualizado (a4553416); publicação 6 = merge 43a015a2: web e Android verdes.
+- Só mexeu em test/, por isso o build-ios não arrancou. Foi lançado à mão: corrida 41020771645
+  (enviar=true, submeter_revisao=true), e2e 5407. Jobs A e B success às 09:18; IPA 1.0.32 build 219 VALID.
+  A 1.0.31 está WAITING_FOR_REVIEW, por isso a 219 ficou no TestFlight.
+  DEPOIS DE A APPLE APROVAR A 1.0.31: relançar o build-ios à mão ou fazer um push com lib/, para submeter a 219.
+  O relancar_ios.py não o vê, porque o último build acabou em success.
+- A tranca recusou pôr `test/**` nos paths do `build_ios.yml` (TRANCAS.md). Em vez disso há
+  `.claude/scripts/relancar_ios.py`, a correr depois de cada envio para produção (skill protocolo-missao-bora §9).
+  A linha no workflow fica para a Claude.ai pelo GitHub.
+- Cérebro do WhatsApp: repo = VPS = PC (374275d3), e2e 5406.
+- Memória: 15 MB estável, MemoryHigh 500M / MemoryMax 800M, registo em `/var/log/whatsapp-cerebro-mem.log`
+  (cron */10), e2e 5409.
+- Fotos reconfirmadas (e2e 5401).
+
 ## ADENDOS 11 e 12 (30/10) — FEITOS
 11: agendar nos mercados (servidor a151c2a2 com migrações 20261030060000/061500; app a5222784), promoções no
 servidor (230a9bba, migração 20261030063000, promotions_enabled=true, 0 promoções ativas); publicação 5 = merge
@@ -150,13 +165,13 @@ test/checkin_premios_test.dart e checkin_premios_ecras_test.dart. Atenção: o c
 (dinheiro) — os tokens diários NÃO mudam; o iPhone continua parado no contrato da Apple por aceitar.
 
 ## Falta (por ordem)
-1. Danilo: aceitar o contrato da Apple → relançar o iPhone; mandar a mensagem de teste ao robô da Boom.
+1. Danilo: mandar a mensagem de teste ao robô da Boom. Claude.ai: `test/**` nos paths do push do `build_ios.yml`.
    Claude.ai: copiar para `supabase/migrations/` pelo GitHub a S1 e a dos tokens (a tranca recusa no PC). A do NIF
    de 28/10 (20261028114641) não pode ir para o repo público tal como está: tem o NIF da empresa.
 2. Revisor independente das propostas de despacho (`docs/propostas/missao-geral-2026-10-28/C5_agendar/01_*` e
    `C6_modo_ocupado/01_*`) e do create_order com loja fechada (`C5_agendar/04_*`); só depois `scheduled_orders_revisor_ok`
    e os interruptores.
-3. Danilo: regra de dinheiro das promoções (`C4_promocoes/00_LEIA-ME.md`) → depois `C4_promocoes/01_servidor_precos_proposta.sql`.
+3. Promoções no servidor: FEITO a 30/10 (230a9bba). Falta só a app mostrar o preço promocional (ver 6).
 4. Item 8, pedido em grupo: desenho na página `adendo-5-final-app-2026-10-29`; não começado.
 5. Robô da Boom: baixar o timeout de 45 s do `motores.py` (VPS) para ~20 s numa janela sem conversa; a 1.ª mensagem
    do dia pode ir ao Gemini (quota 20/dia) — ver página `motores-rotacao-2026-10-29`. Hermes/OmniRoute/motor-bora

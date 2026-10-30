@@ -199,7 +199,42 @@ Erros que encontrei e não corrigi:
 - esse programa no servidor está perto do limite de memória;
 - um ficheiro de serviço no repositório público tem o número do WhatsApp da Bora.
 
-## Para a Claude.ai
+## Adendo 13 — iPhone, fotos, memória e cópias do cérebro (30/10, manhã)
+
+O iPhone da 5.ª publicação falhou num teste, não no código da app. Era o teste que guardava a troca de preço das
+promoções. Ele dizia "só pode existir na proposta" e, depois de tu autorizares e eu aplicar a migração, a troca
+passou a existir também na migração aplicada. Mudei o teste para exigir que a troca esteja só na migração
+autorizada, com a tua frase e a cópia de segurança. Não enfraqueci nada: o Juiz, comparado com antes da migração,
+deu limpo, com mais 62 casos.
+
+Isso foi a 6.ª publicação, que só mexeu em testes, e por isso o build do iPhone não arrancou sozinho. Lancei-o à
+mão às 07:33 (corrida 41020771645), com envio e submissão ligados. Os dois blocos acabaram bem: compilar e
+testar às 08:55, e o IPA assinado às 09:18. A Apple recebeu a versão 1.0.32 (build 219) e marcou-a como válida.
+
+A versão da 4.ª publicação (1.0.31) ainda está à espera de revisão, e a Apple só aceita uma de cada vez. Por isso
+a build nova ficou no TestFlight e a submissão da 1.0.31 não foi tocada, como o programa de publicar já prevê. No
+mesmo envio, o Android e a web também ficaram verdes.
+
+Atenção: quando a Apple aprovar a 1.0.31, a build 219 (com o agendar nos mercados) só segue para revisão no
+próximo envio com código da app, ou relançando o iPhone à mão. O passo novo de relançar não dá por isso sozinho,
+porque o último build do iPhone acabou bem.
+
+Para não voltar a acontecer, eu queria acrescentar a pasta dos testes ao arranque do iPhone, mas esse ficheiro
+está na zona vermelha e a tranca recusou. Não contornei: ficou registado nas trancas. Fiz um passo que relança o
+iPhone quando o último build falhou ou ficou para trás (`.claude/scripts/relancar_ios.py`), e a skill de publicar
+manda corrê-lo depois de cada envio. A linha no ficheiro do CI é uma mudança de uma linha que a Claude.ai pode
+fazer pelo GitHub.
+
+As fotos da Boom estão lá, vi-as de novo no banco às 07:15: as 8 pedidas e mais as duas sem legenda.
+
+A memória do cérebro do WhatsApp: os 388 MB eram o pico de toda a vida do processo antigo, não o uso de agora. O
+processo novo está em 15 MB e ficou parado nesse valor em duas medições de 10 minutos, sem desligar o serviço.
+Subi a margem de 400 MB para 500 MB, com o máximo duro em 800 MB. Pus também um registo da memória de 10 em 10
+minutos, para se ver se volta a crescer e quando. Não sei porque é que o antigo chegou aos 388 MB.
+
+As três cópias do cérebro (repositório, servidor e PC) estão iguais. O servidor e o PC já corriam o mesmo código,
+e o repositório estava atrás, por isso trouxe para lá o que corria. O serviço está ativo.
+
 
 Pôr no repositório, pelo GitHub, as migrações S1 (`docs/propostas/missao-geral-2026-10-28/janela2/S1_*`, passos 0 a 4)
 e dos tokens (`bloco2/03_tokens_gastar_e_devolver.md`, blocos 1 a 6, aplicada como 20261029215542). Revisor

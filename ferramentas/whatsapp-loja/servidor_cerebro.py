@@ -475,51 +475,21 @@ def avisar_lista_de_espera():
 
 
 def auto_revisao():
-    """Rele as conversas do dia, classifica cada resposta do bot e escreve as licoes; digest ao Danilo."""
-    ontem = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=24)).isoformat(timespec="seconds")
-    try:
-        rows = supa.select("whatsapp_messages", select="numero,direcao,texto,decisao,created_at", created_at="gt." + ontem,
-                           order="created_at.asc", limit="400")
-    except Exception as e:  # noqa: BLE001
-        registar({"evento": "auto-revisao-erro", "erro": str(e)[:200]})
+    """Revisao diaria do atendimento (06:00). Desde 30/10/2026 vive em cerebro/revisor.py: junta as
+    respostas dos robos dos parceiros (assistant_messages), deixa de fora os lembretes ao Danilo e as
+    conversas com parceiros e com o dono, e ja nao corta mensagens. O modulo recarrega-se a cada dia:
+    mexer no revisor nao obriga a reiniciar o cerebro. As duas portas (VPS e PC) leem o mesmo banco e
+    corriam as duas -> o Danilo recebia duas revisoes; a tranca deixa sair uma por dia."""
+    dia = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
+    if not tranca("revisao-diaria-" + dia):
+        registar({"evento": "auto-revisao-saltada", "motivo": "a outra porta ja fez a revisao de " + dia})
         return
-    if not rows:
-        avisar("WhatsApp da loja — revisão diária: nenhuma conversa nas últimas 24 h.")
-        return
-    conversas = {}
-    for r in rows:
-        conversas.setdefault(r["numero"], []).append(("BOT" if r["direcao"] == "saida" else "PESSOA") + ": " + (r.get("texto") or "")[:200])
-    texto = "\n\n".join("### %s\n%s" % (n[-3:], "\n".join(ls[-14:])) for n, ls in list(conversas.items())[:12])
-    r = modelos.chat([{"role": "system", "content": "Es o revisor do atendimento do Bora. Para cada resposta do BOT diz: boa / fraca / errada + uma linha porque. No fim, 3 licoes curtas e accionaveis. Portugues, sem markdown."},
-                      {"role": "user", "content": texto[:9000]}], max_tokens=700)
-    saida = r.get("texto") or ("(revisor sem resposta: %s)" % r.get("erro"))
-    for ln in [l.strip("-• ").strip() for l in saida.split("\n") if l.strip()][-3:]:
-        manual.registar_licao(ln[:220])
-    rep = manual.perguntas_repetidas(2)
-    # SOMBRA DO DANILO: das comparacoes do dia sai UMA proposta de regra de tom, para ele aprovar
-    proposta = ""
+    import importlib
+    from cerebro import revisor
     try:
-        sombras = []
-        if os.path.exists(agente.SOMBRAS):
-            for ln in open(agente.SOMBRAS, encoding="utf-8"):
-                try:
-                    s = json.loads(ln)
-                    if s.get("ts", "") > ontem and s.get("regra"):
-                        sombras.append(s)
-                except Exception:
-                    pass
-        if sombras:
-            r2 = modelos.chat([{"role": "system", "content": "Destas comparacoes entre o dono (Danilo) e o bot, escolhe ou funde UMA regra de tom, curta (max 160 caracteres), a mais util. So a regra."},
-                               {"role": "user", "content": "\n".join("DONO: %s | BOT: %s | REGRA: %s" % (s["danilo"][:150], s["bot"][:150], s["regra"]) for s in sombras[-12:])}],
-                              max_tokens=120, perfil="raciocinio")
-            proposta = (r2.get("texto") or "").strip().split("\n")[0][:160]
+        importlib.reload(revisor).correr(avisar=avisar, registar=registar)
     except Exception as e:  # noqa: BLE001
-        registar({"evento": "sombra-proposta-erro", "erro": str(e)[:120]})
-    digest = "Revisão diária do WhatsApp da loja: %d conversas, %d mensagens. %s%s%s" % (
-        len(conversas), len(rows), saida[-600:], ("\n\nPerguntas que se repetem e precisam de ti: " + "; ".join(p for _n, p in rep[:5])) if rep else "",
-        ("\n\nPERGUNTAR AO DANILO — regra de tom proposta pela sombra (%d comparações de hoje): \"%s\". Responde 'aprovo regra' para entrar no manual." % (len(sombras), proposta)) if proposta else "")
-    avisar(digest)
-    registar({"evento": "auto-revisao", "conversas": len(conversas), "mensagens": len(rows)})
+        registar({"evento": "auto-revisao-erro", "erro": "%s: %s" % (type(e).__name__, str(e)[:300])})
 
 
 # --- HTTP -------------------------------------------------------------------------

@@ -269,7 +269,8 @@ class LinhaGorjetaAdmin extends StatelessWidget {
             '${l['alvo'] == 'tvde' ? 'Corrida' : 'Pedido'} '
             '${(l['pedido'] ?? l['corrida'] ?? '').toString().split('-').first}'
             ' · ${rotuloMetodoGorjeta(l['metodo'])}'
-            ' · ${rotulosComoFoiPaga[como] ?? como}'
+            // em dinheiro o método e o estado já o dizem: não repetir
+            '${como == 'dinheiro' ? '' : ' · ${rotulosComoFoiPaga[como] ?? como}'}'
             ' · ${rotuloEstadoGorjeta(l['estado'])}'
             '\n${linhaTaxaGorjeta(l)}'
             '\n${dataHoraLisboa(l['criada_em'])}'),

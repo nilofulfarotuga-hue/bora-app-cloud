@@ -31,8 +31,8 @@ Map<String, dynamic> _antiga({
       'criada_em': '2026-10-29T18:00:00+00:00',
       'alvo': 'order',
       'pedido': 'abc12345-0000',
-      'cliente_nome': 'Elisabete',
-      'prestador_nome': 'Danilo',
+      'cliente_nome': 'Ana',
+      'prestador_nome': 'Bruno',
       'valor_cents': valor,
       'metodo': metodo,
       'momento': momento,
@@ -247,7 +247,8 @@ void main() {
       expect(find.textContaining('Corrida b36ecbb4 · MB Way · depois (na avaliação) · paga'),
           findsOneWidget);
       expect(find.textContaining('Taxa da Stripe € 0.28, paga pelo prestador'), findsOneWidget);
-      expect(find.textContaining('em dinheiro · em dinheiro (entregue)'), findsOneWidget);
+      expect(find.textContaining(' · dinheiro · em dinheiro (entregue)'), findsOneWidget);
+      expect(find.textContaining('em dinheiro · em dinheiro'), findsNothing);
       expect(find.text('Reembolsar'), findsOneWidget,
           reason: 'só a gorjeta paga por cartão/MB Way se reembolsa');
       await tester.tap(find.text('Reembolsar'));

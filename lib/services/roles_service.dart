@@ -20,6 +20,11 @@ class RolesSummary {
     required this.driverProfile,
     required this.cleanerProfile,
     required this.washerProfile,
+    // CASA (31/10): opcionais com valor por omissão, para os resumos já
+    // escritos (testes, ecrãs) continuarem a compilar sem a Casa.
+    this.hasHandyman = false,
+    this.handymanStatus,
+    this.handymanProfile,
   });
 
   final bool hasDriver;
@@ -28,19 +33,24 @@ class RolesSummary {
   final String? cleanerStatus;
   final bool hasWasher;
   final String? washerStatus;
+  final bool hasHandyman; // Casa e manutenção (papel técnico 'handyman')
+  final String? handymanStatus;
   final Map<String, dynamic>? driverProfile; // name/phone/email/nif/photo_url
   final Map<String, dynamic>? cleanerProfile;
   final Map<String, dynamic>? washerProfile;
+  final Map<String, dynamic>? handymanProfile;
 
   bool get driverApproved => driverStatus == 'approved';
   bool get cleanerApproved => cleanerStatus == 'approved';
   bool get washerApproved => washerStatus == 'approved';
+  bool get handymanApproved => handymanStatus == 'approved';
   bool get driverPending => driverStatus == 'pending';
   bool get cleanerPending => cleanerStatus == 'pending';
   bool get washerPending => washerStatus == 'pending';
+  bool get handymanPending => handymanStatus == 'pending';
 
   /// A pessoa já é alguma coisa no Bora além de cliente?
-  bool get temAlgumPapel => hasDriver || hasCleaner || hasWasher;
+  bool get temAlgumPapel => hasDriver || hasCleaner || hasWasher || hasHandyman;
 
   /// Os dados comuns (nome, telemóvel, email, NIF, foto) de QUALQUER papel que
   /// a pessoa já tenha — para pré-preencher a candidatura seguinte.
@@ -49,7 +59,7 @@ class RolesSummary {
   /// completo (passou por documentos e veículo), depois os outros. Devolve
   /// null se não houver nada — e aí a candidatura pede tudo, como a primeira.
   Map<String, dynamic>? get dadosJaConhecidos =>
-      driverProfile ?? cleanerProfile ?? washerProfile;
+      driverProfile ?? cleanerProfile ?? washerProfile ?? handymanProfile;
 
   factory RolesSummary.fromJson(Map<String, dynamic> j) => RolesSummary(
         hasDriver: j['has_driver'] == true,
@@ -58,9 +68,13 @@ class RolesSummary {
         cleanerStatus: j['cleaner_status'] as String?,
         hasWasher: j['has_washer'] == true,
         washerStatus: j['washer_status'] as String?,
+        hasHandyman: j['has_handyman'] == true,
+        handymanStatus: j['handyman_status'] as String?,
         driverProfile: (j['driver_profile'] as Map?)?.cast<String, dynamic>(),
         cleanerProfile: (j['cleaner_profile'] as Map?)?.cast<String, dynamic>(),
         washerProfile: (j['washer_profile'] as Map?)?.cast<String, dynamic>(),
+        handymanProfile:
+            (j['handyman_profile'] as Map?)?.cast<String, dynamic>(),
       );
 
   static RolesSummary empty() => RolesSummary(
@@ -70,25 +84,31 @@ class RolesSummary {
         cleanerStatus: null,
         hasWasher: false,
         washerStatus: null,
+        hasHandyman: false,
+        handymanStatus: null,
         driverProfile: null,
         cleanerProfile: null,
         washerProfile: null,
+        handymanProfile: null,
       );
 }
 
 /// [09/10 · Mayra] Há trabalho à espera em cada papel aprovado? (RPC
-/// `my_trabalho_pendente`): estafeta ligado ou com entrega em curso; limpeza
-/// ou lavagem com oferta viva, trabalho em curso ou aceite para hoje (Lisboa).
+/// `my_trabalho_pendente`): estafeta ligado ou com entrega em curso; limpeza,
+/// lavagem ou Casa com oferta viva, trabalho em curso ou aceite para hoje
+/// (Lisboa).
 class TrabalhoPendente {
   const TrabalhoPendente({
     this.estafeta = false,
     this.limpeza = false,
     this.lavagem = false,
+    this.casa = false,
   });
 
   final bool estafeta;
   final bool limpeza;
   final bool lavagem;
+  final bool casa;
 
   static const TrabalhoPendente nenhum = TrabalhoPendente();
 
@@ -96,6 +116,7 @@ class TrabalhoPendente {
         estafeta: j['estafeta'] == true,
         limpeza: j['limpeza'] == true,
         lavagem: j['lavagem'] == true,
+        casa: j['casa'] == true,
       );
 }
 
@@ -152,7 +173,7 @@ CrossRoleCardState crossRoleStateFor(String? otherStatus) {
 // ════════════════════════════════════════════════════════════════════════════
 
 /// Em que ecrã de trabalho a pessoa entra pela porta "Sou Estafeta".
-enum EntradaDoPrestador { estafeta, limpeza, lavagem, nenhuma }
+enum EntradaDoPrestador { estafeta, limpeza, lavagem, casa, nenhuma }
 
 /// Entra quem tiver QUALQUER papel aprovado; um papel pendente nunca bloqueia
 /// outro já aprovado. Função pura → testável sem Supabase.
@@ -167,9 +188,9 @@ enum EntradaDoPrestador { estafeta, limpeza, lavagem, nenhuma }
 /// [09/10 · Mayra] Quem tem vários papéis entra pela ordem:
 ///  1. o papel com TRABALHO À ESPERA ([pendente]) — o estafeta ligado ou com
 ///     entrega em curso nunca é tirado do ecrã dele;
-///  2. o ÚLTIMO MODO usado ([ultimoModo]: 'estafeta' | 'limpeza' | 'lavagem'),
-///     se esse papel continuar aprovado;
-///  3. a ordem de sempre (estafeta, limpeza, lavagem).
+///  2. o ÚLTIMO MODO usado ([ultimoModo]: 'estafeta' | 'limpeza' | 'lavagem'
+///     | 'casa'), se esse papel continuar aprovado;
+///  3. a ordem de sempre (estafeta, limpeza, lavagem, casa).
 EntradaDoPrestador entradaDoPrestador(
   RolesSummary r, {
   String? ultimoModo,
@@ -178,6 +199,7 @@ EntradaDoPrestador entradaDoPrestador(
   if (pendente.estafeta && r.driverApproved) return EntradaDoPrestador.estafeta;
   if (pendente.limpeza && r.cleanerApproved) return EntradaDoPrestador.limpeza;
   if (pendente.lavagem && r.washerApproved) return EntradaDoPrestador.lavagem;
+  if (pendente.casa && r.handymanApproved) return EntradaDoPrestador.casa;
   switch (ultimoModo) {
     case 'estafeta' when r.driverApproved:
       return EntradaDoPrestador.estafeta;
@@ -185,19 +207,23 @@ EntradaDoPrestador entradaDoPrestador(
       return EntradaDoPrestador.limpeza;
     case 'lavagem' when r.washerApproved:
       return EntradaDoPrestador.lavagem;
+    case 'casa' when r.handymanApproved:
+      return EntradaDoPrestador.casa;
   }
   if (r.driverApproved) return EntradaDoPrestador.estafeta;
   if (r.cleanerApproved) return EntradaDoPrestador.limpeza;
   if (r.washerApproved) return EntradaDoPrestador.lavagem;
+  if (r.handymanApproved) return EntradaDoPrestador.casa;
   return EntradaDoPrestador.nenhuma;
 }
 
-/// O modo de trabalho guardado ('estafeta' | 'limpeza' | 'lavagem') para uma
-/// entrada; null para [EntradaDoPrestador.nenhuma].
+/// O modo de trabalho guardado ('estafeta' | 'limpeza' | 'lavagem' | 'casa')
+/// para uma entrada; null para [EntradaDoPrestador.nenhuma].
 String? modoDaEntrada(EntradaDoPrestador e) => switch (e) {
       EntradaDoPrestador.estafeta => 'estafeta',
       EntradaDoPrestador.limpeza => 'limpeza',
       EntradaDoPrestador.lavagem => 'lavagem',
+      EntradaDoPrestador.casa => 'casa',
       EntradaDoPrestador.nenhuma => null,
     };
 
@@ -206,6 +232,7 @@ EntradaDoPrestador? entradaDoModo(String? modo) => switch (modo) {
       'estafeta' => EntradaDoPrestador.estafeta,
       'limpeza' => EntradaDoPrestador.limpeza,
       'lavagem' => EntradaDoPrestador.lavagem,
+      'casa' => EntradaDoPrestador.casa,
       _ => null,
     };
 
@@ -226,7 +253,7 @@ class AtividadeDeTrabalho {
     required this.estado,
   });
 
-  final String papel; // 'driver' | 'delivery' | 'cleaner' | 'washer'
+  final String papel; // 'driver' | 'delivery' | 'cleaner' | 'washer' | 'handyman'
   final String titulo;
   final String descricao;
   final CrossRoleCardState estado;
@@ -242,7 +269,7 @@ class AtividadeDeTrabalho {
       };
 }
 
-/// As quatro actividades, na ordem em que se lêem, com o estado real de cada
+/// As cinco actividades, na ordem em que se lêem, com o estado real de cada
 /// uma. Função pura → testável sem Supabase.
 ///
 /// `driver` e `delivery` partilham a mesma candidatura (a tabela `drivers`) e
@@ -276,5 +303,12 @@ List<AtividadeDeTrabalho> atividadesDisponiveis(RolesSummary r) => [
         titulo: 'Lavagem de carros',
         descricao: 'Lavas o carro onde o cliente estiver e devolves.',
         estado: crossRoleStateFor(r.washerStatus),
+      ),
+      AtividadeDeTrabalho(
+        papel: 'handyman',
+        titulo: 'Casa e manutenção',
+        descricao: 'Montar móveis, pendurar, pequenas reparações, jardim e '
+            'pequenas mudanças.',
+        estado: crossRoleStateFor(r.handymanStatus),
       ),
     ];

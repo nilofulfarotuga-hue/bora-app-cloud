@@ -7,6 +7,7 @@ import '../services/roles_service.dart';
 import '../widgets/bora/bora.dart';
 import 'cleaner/cleaner_apply_screen.dart';
 import 'driver_signup_screen.dart';
+import 'handyman/handyman_apply_screen.dart';
 import 'login_screen.dart';
 import 'washer/washer_apply_screen.dart';
 
@@ -19,7 +20,7 @@ import '../l10n/tr.dart';
 /// profundidade, e portanto inútil para quem ainda não era nada. A da Lavagem
 /// não existia de todo. É a cicatriz do PADRAO_BORA §1.7.
 ///
-/// Este ecrã é a entrada única: mostra as quatro actividades, o estado real de
+/// Este ecrã é a entrada única: mostra as cinco actividades, o estado real de
 /// cada uma para esta pessoa, e leva à candidatura certa com os dados que já
 /// conhecemos dela pré-preenchidos.
 class TrabalharNoBoraScreen extends StatefulWidget {
@@ -71,9 +72,13 @@ class _TrabalharNoBoraScreenState extends State<TrabalharNoBoraScreen> {
       return;
     }
 
-    // A limpeza e a lavagem candidatam-se com a conta já autenticada (a função
-    // da base recusa sem sessão). O estafeta tem fluxo próprio que cria conta.
-    final precisaDeConta = a.papel == 'cleaner' || a.papel == 'washer';
+    // A limpeza, a lavagem e a Casa candidatam-se com a conta já autenticada
+    // (a função da base recusa sem sessão). O estafeta tem fluxo próprio que
+    // cria conta.
+    final precisaDeConta = switch (a.papel) {
+      'cleaner' || 'washer' || 'handyman' => true,
+      _ => false,
+    };
     if (precisaDeConta && !_temSessao) {
       final entrar = await _perguntarSeEntra();
       if (entrar != true || !mounted) return;
@@ -90,6 +95,7 @@ class _TrabalharNoBoraScreenState extends State<TrabalharNoBoraScreen> {
     final destino = switch (a.papel) {
       'cleaner' => CleanerApplyScreen(prefill: prefill),
       'washer' => WasherApplyScreen(prefill: prefill),
+      'handyman' => HandymanApplyScreen(prefill: prefill),
       _ => const DriverSignupScreen(),
     };
     if (!mounted) return;
@@ -159,6 +165,7 @@ class _CartaoAtividade extends StatelessWidget {
         'driver' => Icons.local_taxi_outlined,
         'cleaner' => Icons.cleaning_services_outlined,
         'washer' => Icons.local_car_wash_outlined,
+        'handyman' => Icons.handyman_outlined,
         _ => Icons.work_outline,
       };
 

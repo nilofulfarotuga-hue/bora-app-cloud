@@ -32,6 +32,8 @@ String rotuloPapelAtividade(String p) => switch (p) {
       'limpeza' => 'Limpeza',
       'lavagem' => 'Lavagem de carros',
       'servicos' => 'Serviços',
+      // 31/10/2026: Casa e manutenção (papel técnico handyman).
+      'casa' => 'Casa (faz-tudo)',
       _ => 'Outro trabalho',
     };
 

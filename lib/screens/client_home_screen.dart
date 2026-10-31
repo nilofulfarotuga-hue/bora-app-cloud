@@ -17,6 +17,7 @@ import '../services/client_address_service.dart';
 import '../services/location_service.dart';
 import '../stores/cart_store.dart';
 import '../stores/carwash_store.dart';
+import '../stores/casa_store.dart';
 import '../stores/order_store.dart';
 import '../stores/restaurant_store.dart';
 import '../stores/session_store.dart';
@@ -33,6 +34,7 @@ import '../widgets/language_toggle.dart';
 import '../widgets/notification_bell.dart';
 import 'carry_groceries_screen.dart';
 import 'client/carwash/carwash_service_screen.dart';
+import 'client/casa/casa_categoria_screen.dart';
 import 'client/cleaning/cleaning_bookings_screen.dart';
 import 'client/services/services_category_screen.dart';
 import 'client_addresses_screen.dart';
@@ -81,6 +83,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
       // Lavagem Auto: saber se a categoria esta aberta antes de
       // desenhar o ladrilho (ver _buildCategoryGrid).
       context.read<CarwashStore>().refreshSettings();
+      // Casa (31/10): o mesmo para a Casa e manutenção (casa_config().visivel).
+      context.read<CasaStore>().refreshSettings();
       // Bora Motorista so para quem tem acesso (regra 30/09, caso Beatriz 06/10).
       context.read<TvdeStore>().refreshAccess();
       _detectLocation();
@@ -604,6 +608,26 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
           MaterialPageRoute(builder: (_) => const CleaningBookingsScreen()),
         ),
       ),
+      // Casa e manutenção (2026-10-31) — faz-tudo: montagens, reparações,
+      // jardim, pequenas mudanças. Logo a seguir à Limpeza (antes da Lavagem
+      // Auto). Só aparece com a categoria aberta (casa_config().visivel, que
+      // nasce desligada) — no molde da Lavagem: mostrar o ladrilho com o
+      // serviço fechado só daria erro ao toque. Sem guarda de morada: a
+      // morada pede-se dentro do próprio fluxo.
+      // TODO(catalogo-visual): trocar o ícone por
+      // imageAsset: 'assets/categories/cat_casa.png' quando o PNG 3D existir
+      // (a geração por IA falhou a 31/10 por falta de quota). Um asset em
+      // falta mostraria uma imagem partida, por isso fica o ícone até lá.
+      if (context.watch<CasaStore>().enabled)
+        _TileData(
+          label: 'Casa',
+          gradient: AppColors.tileCasa,
+          iconData: Icons.handyman_rounded,
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CasaCategoriaScreen()),
+          ),
+        ),
     ];
 
     // TVDE — categoria por descobrir (regra do Danilo 30/09, caso Beatriz 06/10).
@@ -715,6 +739,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
           'Supermercados': 'tile_supermercados',
           'Favores': 'tile_favores',
           'Limpeza': 'tile_limpeza',
+          'Casa': 'tile_casa',
         };
         final Widget card;
         if (t.imageAsset != null) {

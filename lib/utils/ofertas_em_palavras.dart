@@ -122,6 +122,9 @@ String categoriaEmPalavras(Object? categoria) {
       return 'Limpeza';
     case 'lavagem':
       return 'Lavagem';
+    // 31/10/2026: Casa e manutenção (faz-tudo), papel técnico handyman.
+    case 'casa':
+      return 'Casa (faz-tudo)';
     case '':
       return '—';
     default:

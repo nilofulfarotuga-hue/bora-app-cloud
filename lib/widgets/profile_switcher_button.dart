@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../screens/cleaner/cleaner_home_screen.dart';
+import '../screens/handyman/handyman_home_screen.dart';
 import '../screens/washer/washer_home_screen.dart';
 import '../services/role_switch_helper.dart';
 import '../services/roles_service.dart';
@@ -29,7 +30,7 @@ class ProfileSwitcherButton extends StatefulWidget {
   const ProfileSwitcherButton({super.key, this.modoAtual, this.comTexto = false});
 
   /// O modo em que a pessoa está AGORA: 'client' | 'driver' | 'partner' |
-  /// 'cleaner' | 'washer'. Null = o papel do SessionStore.
+  /// 'cleaner' | 'washer' | 'handyman'. Null = o papel do SessionStore.
   final String? modoAtual;
 
   /// true → botão com texto "Mudar de modo" (sempre visível, para quem não
@@ -65,7 +66,8 @@ class _ProfileSwitcherButtonState extends State<ProfileSwitcherButton> {
   int get _total =>
       _roles.length +
       (_trabalho.cleanerApproved ? 1 : 0) +
-      (_trabalho.washerApproved ? 1 : 0);
+      (_trabalho.washerApproved ? 1 : 0) +
+      (_trabalho.handymanApproved ? 1 : 0);
 
   @override
   Widget build(BuildContext context) {
@@ -103,12 +105,18 @@ class _ProfileSwitcherButtonState extends State<ProfileSwitcherButton> {
       // [09/10 · Mayra] Grava o modo: ao reabrir a app entra-se nele. Abre-se
       // SEMPRE por cima — o ecrã do estafeta fica montado por baixo (batimento,
       // GPS e ofertas de entrega continuam vivos).
-      sessionStore
-          .setUltimoModoTrabalho(papel == 'washer' ? 'lavagem' : 'limpeza');
+      // Regra 1.18: um caso por papel, sem "o resto é limpeza".
+      sessionStore.setUltimoModoTrabalho(switch (papel) {
+        'washer' => 'lavagem',
+        'handyman' => 'casa',
+        _ => 'limpeza',
+      });
       nav.push(MaterialPageRoute<void>(
-        builder: (_) => papel == 'washer'
-            ? const WasherHomeScreen()
-            : const CleanerHomeScreen(),
+        builder: (_) => switch (papel) {
+          'washer' => const WasherHomeScreen(),
+          'handyman' => const HandymanHomeScreen(),
+          _ => const CleanerHomeScreen(),
+        },
       ));
     }
 
@@ -199,6 +207,8 @@ class _ProfileSwitcherButtonState extends State<ProfileSwitcherButton> {
               linhaTrabalho('cleaner', 'Limpeza', Icons.cleaning_services_outlined),
             if (_trabalho.washerApproved)
               linhaTrabalho('washer', 'Lavagem de carros', Icons.local_car_wash_outlined),
+            if (_trabalho.handymanApproved)
+              linhaTrabalho('handyman', 'Casa e manutenção', Icons.handyman_outlined),
             const SizedBox(height: Spacing.sm),
           ],
         ),

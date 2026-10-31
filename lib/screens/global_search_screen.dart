@@ -13,6 +13,7 @@ import '../models/service_provider_model.dart';
 import '../services/registo_pesquisa.dart';
 import '../services/home_feed_service.dart';
 import '../services/pricing_service.dart';
+import '../stores/casa_store.dart';
 import '../stores/restaurant_store.dart';
 import '../stores/services_store.dart';
 import '../stores/tvde_store.dart';
@@ -311,8 +312,10 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
           children: [
             for (final e in categoriasDestino.entries)
               // Bora Motorista so aparece a quem tem acesso (regra 30/09).
-              if (e.key != 'motorista' ||
-                  context.watch<TvdeStore>().tvdeAccess)
+              // Casa (31/10) so com a categoria aberta (nasce desligada).
+              if ((e.key != 'motorista' ||
+                      context.watch<TvdeStore>().tvdeAccess) &&
+                  (e.key != 'casa' || context.watch<CasaStore>().enabled))
               ActionChip(
                 label: Text(e.value.tr),
                 onPressed: () => abrirCategoria(context, e.key),
@@ -344,7 +347,11 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
   Widget _resultados() {
     // Bora Motorista so aparece a quem tem acesso (regra 30/09).
     final tvde = context.watch<TvdeStore>().tvdeAccess;
-    final atalhos = _atalhos.where((k) => k != 'motorista' || tvde).toList();
+    // Casa (31/10): só com a categoria aberta, como o ladrilho da home.
+    final casa = context.watch<CasaStore>().enabled;
+    final atalhos = _atalhos
+        .where((k) => (k != 'motorista' || tvde) && (k != 'casa' || casa))
+        .toList();
     final prestadores = _servicosDaPesquisa(
         _q, context.watch<ServicesStore>().providers);
     final temExtra = atalhos.isNotEmpty || prestadores.isNotEmpty;
@@ -460,6 +467,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
   IconData _iconeAtalho(String chave) => switch (chave) {
         'motorista' => Icons.local_taxi_outlined,
         'limpeza' => Icons.cleaning_services_outlined,
+        'casa' => Icons.handyman_outlined,
         'servicos' => Icons.content_cut,
         'supermercados' => Icons.shopping_cart_outlined,
         'farmacia' => Icons.local_pharmacy_outlined,

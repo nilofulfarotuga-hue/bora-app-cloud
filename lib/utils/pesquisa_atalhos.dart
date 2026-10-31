@@ -17,6 +17,14 @@ const Map<String, List<String>> _palavrasAtalho = {
     'limpeza', 'limpar', 'empregada', 'faxina', 'diarista', 'arrumar casa',
     'passar a ferro', 'engomar',
   ],
+  // Casa e manutenção (31/10): os ofícios da fase 1 (montagem, pendurar,
+  // pequenas reparações, canalização à vista, jardim, pequenas mudanças).
+  'casa': [
+    'casa', 'faz tudo', 'marido de aluguer', 'montagem', 'moveis', 'ikea',
+    'pendurar', 'televisao', 'quadros', 'prateleira', 'reparacao',
+    'torneira', 'autoclismo', 'sifao', 'jardim', 'jardinagem', 'relva',
+    'mudancas', 'carrinha',
+  ],
   'servicos': [
     'beleza', 'barbearia', 'barbeiro', 'cabeleireiro', 'cabelo', 'corte',
     'barba', 'unhas', 'manicure', 'pedicure', 'salao', 'estetica',

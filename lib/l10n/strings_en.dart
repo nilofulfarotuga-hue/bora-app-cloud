@@ -16,6 +16,875 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 31/10/2026 (casa-manutencao, retoma-geral-2026-10-31): app cliente e profissional da Casa
+  // (tool/l10n/traducoes/pt-en-31..33-casa-*.json). Acrescentado a mao: o gerador com --write
+  // apaga entradas que so existem aqui.
+  '1 móvel':
+      '1 piece of furniture',
+  'A Casa está temporariamente indisponível. Tenta mais tarde.':
+      'Home services are temporarily unavailable. Try again later.',
+  'A câmara não respondeu. Tenta outra vez ou escolhe da galeria.':
+      'The camera did not respond. Try again or choose from the gallery.',
+  'A garantia deste trabalho já terminou.':
+      'The guarantee for this job has ended.',
+  'A mensagem está vazia ou é demasiado comprida.':
+      'The message is empty or too long.',
+  'A tua avaliação: {0} de 5':
+      'Your rating: {0} out of 5',
+  'Aceitar com obrigação de pagar':
+      'Accept with obligation to pay',
+  'Aceitar este orçamento':
+      'Accept this quote',
+  'Aceitar mais {0}?':
+      'Accept {0} more?',
+  'Aceitar o orçamento de {0}':
+      'Accept the {0} quote',
+  'Aceite':
+      'Accepted',
+  'Acima de {0} só cartão ou MB Way, que chegam brevemente. Por agora, reduz a quantidade ou divide em dois pedidos.':
+      'Above {0} only card or MB Way, which are coming soon. For now, lower the quantity or split it into two requests.',
+  'Acima de {0} só cartão ou MB Way.':
+      'Above {0} only card or MB Way.',
+  'Ainda não chegou nenhum orçamento. Avisamos-te assim que chegar — até {0} profissionais podem responder.':
+      'No quotes yet. We will let you know as soon as one arrives — up to {0} professionals can reply.',
+  'Ainda não há trabalhos disponíveis. Volta daqui a pouco.':
+      'No jobs available yet. Come back in a little while.',
+  'Ainda sem fotos. Uma foto ajuda o profissional a vir preparado.':
+      'No photos yet. A photo helps the professional come prepared.',
+  'Ainda sem mensagens. Combina aqui os pormenores do trabalho.':
+      'No messages yet. Sort out the details of the job here.',
+  'Algo correu mal? Pedir para refazer':
+      'Something went wrong? Ask for it to be redone',
+  'Algo correu mal? Pedir para refazer (garantia até {0})':
+      'Something went wrong? Ask for it to be redone (guarantee until {0})',
+  'Antes':
+      'Before',
+  'As mensagens e o telefone aparecem quando o trabalho estiver aceite e pago.':
+      'Messages and the phone number appear once the job is accepted and paid.',
+  'As mensagens só abrem depois de o trabalho estar aceite e pago.':
+      'Messages only open once the job is accepted and paid.',
+  'As tuas fotos':
+      'Your photos',
+  'Avaliar o profissional':
+      'Rate the professional',
+  'Brevemente':
+      'Coming soon',
+  'Cancelamento: grátis até {0} h antes · 50% entre {0} h e {1} h · 100% a menos de {1} h.':
+      'Cancellation: free up to {0} h before · 50% between {0} h and {1} h · 100% under {1} h.',
+  'Cancelar o pedido?':
+      'Cancel the request?',
+  'Cartão e MB Way chegam brevemente. Por agora, paga em dinheiro.':
+      'Card and MB Way are coming soon. For now, pay in cash.',
+  'Cartão — brevemente':
+      'Card — coming soon',
+  'Certificado DGEG':
+      'DGEG certified',
+  'Certificado IMPIC':
+      'IMPIC certified',
+  'Com fotos os profissionais dão um preço mais certo.':
+      'With photos, professionals give a more accurate price.',
+  'Com seguro':
+      'Insured',
+  'Como correu o trabalho?':
+      'How did the job go?',
+  'Como falta pouco tempo, cancelar custa {0}.':
+      'As it is close to the time, cancelling costs {0}.',
+  'Como já está muito perto da hora, cancelar custa o valor total: {0}.':
+      'As it is very close to the time, cancelling costs the full amount: {0}.',
+  'Concluído':
+      'Done',
+  'Concluído — confirma':
+      'Done — please confirm',
+  'Confirma depois de ver o trabalho. Se algo não estiver bem, pede para refazer.':
+      'Confirm after checking the work. If something is not right, ask for it to be redone.',
+  'Confirmado por ti':
+      'Confirmed by you',
+  'Confirmar que está tudo bem':
+      'Confirm everything is fine',
+  'Conta em poucas palavras o que é preciso fazer — ajuda os profissionais a dar o preço certo.':
+      'Tell us in a few words what needs doing — it helps professionals give the right price.',
+  'Depois':
+      'After',
+  'Descreve o trabalho':
+      'Describe the job',
+  'Dia e hora':
+      'Day and time',
+  'Dinheiro — só até {0}':
+      'Cash — only up to {0}',
+  'Diz o que ficou mal. O profissional volta sem custo dentro da garantia, e a equipa do Bora acompanha.':
+      'Tell us what went wrong. The professional comes back at no cost within the guarantee, and the Bora team follows up.',
+  'Do que precisas em casa?':
+      'What do you need at home?',
+  'Documentos verificados':
+      'Documents verified',
+  'Em dinheiro só até {0}. Acima disso, só cartão ou MB Way.':
+      'Cash only up to {0}. Above that, only card or MB Way.',
+  'Escolhe como queres pagar.':
+      'Choose how you want to pay.',
+  'Escolhe como vais pagar. Os outros orçamentos ficam recusados.':
+      'Choose how you will pay. The other quotes will be declined.',
+  'Escolhe de 1 a 5 estrelas.':
+      'Choose from 1 to 5 stars.',
+  'Escolhe o trabalho. Nos de preço fixo vês já o valor; nos outros pedes orçamento grátis e escolhes o profissional.':
+      'Pick the job. Fixed-price jobs show the price right away; for the others you ask for a free quote and choose the professional.',
+  'Escolhe uma hora com mais antecedência.':
+      'Choose a time further ahead.',
+  'Escolhe uma hora com pelo menos {0} h de antecedência.':
+      'Choose a time at least {0} h ahead.',
+  'Escolhe uma quantidade entre {0} e {1}.':
+      'Choose a quantity between {0} and {1}.',
+  'Escolhe uma quantidade válida.':
+      'Choose a valid quantity.',
+  'Esta conta não é de profissional.':
+      'This is not a professional account.',
+  'Este orçamento já não é válido. Escolhe outro ou espera por novos.':
+      'This quote is no longer valid. Choose another one or wait for new ones.',
+  'Este pedido já recebeu todos os orçamentos.':
+      'This request has already received all its quotes.',
+  'Este pedido não é teu ou já não podes mexer nele.':
+      'This request is not yours or you can no longer change it.',
+  'Este profissional já não está livre nessa hora. Escolhe outro orçamento.':
+      'This professional is no longer free at that time. Choose another quote.',
+  'Este serviço ainda não está disponível para marcar. Tenta mais tarde ou pede um orçamento.':
+      'This service cannot be booked yet. Try later or ask for a quote.',
+  'Este serviço já não está disponível. Escolhe outro.':
+      'This service is no longer available. Choose another one.',
+  'Este valor passa o limite para pagar em dinheiro.':
+      'This amount is over the limit for paying in cash.',
+  'Ex.: o móvel está na sala, 2.º andar sem elevador, há estacionamento à porta…':
+      'E.g.: the furniture is in the living room, 2nd floor with no lift, parking at the door…',
+  'Extras aceites':
+      'Accepted extras',
+  'Falta a foto do trabalho feito.':
+      'The photo of the finished work is missing.',
+  'Falta a localidade.':
+      'The town is missing.',
+  'Falta a morada. Escreve a rua e a localidade.':
+      'The address is missing. Write the street and the town.',
+  'Falta a rua e o número.':
+      'The street and number are missing.',
+  'Falta responder: {0}':
+      'Still to answer: {0}',
+  'Foto enviada.':
+      'Photo sent.',
+  'Fotos':
+      'Photos',
+  'Fotos ({0} de {1})':
+      'Photos ({0} of {1})',
+  'Garantia até':
+      'Guarantee until',
+  'Inclui':
+      'Includes',
+  'Incluídos no preço':
+      'Included in the price',
+  'Incluídos: {0}':
+      'Included: {0}',
+  'Já avaliaste este trabalho.':
+      'You have already rated this job.',
+  'Já chegaste ao limite de fotos deste pedido.':
+      'You have reached the photo limit for this request.',
+  'Já tens {0} fotos — é o máximo.':
+      'You already have {0} photos — that is the maximum.',
+  'Localidade':
+      'Town',
+  'MB Way':
+      'MB Way',
+  'MB Way — brevemente':
+      'MB Way — coming soon',
+  'Mais':
+      'More',
+  'Mais alguma coisa? (opcional)':
+      'Anything else? (optional)',
+  'Manter o pedido':
+      'Keep the request',
+  'Materiais':
+      'Materials',
+  'Menos':
+      'Less',
+  'Mensagens':
+      'Messages',
+  'Montagem de móveis, pequenas reparações, jardim e mais — feitos por profissionais da tua zona. Estamos quase a abrir.':
+      'Furniture assembly, small repairs, garden work and more — done by professionals in your area. We are almost open.',
+  'Motivo (opcional)':
+      'Reason (optional)',
+  'Novo no Bora':
+      'New on Bora',
+  'Não consegui abrir as fotos. Tenta outra vez.':
+      'I couldn\'t open your photos. Try again.',
+  'Não consegui abrir o telefone. O número é {0}.':
+      'I couldn\'t open the phone app. The number is {0}.',
+  'Não consegui enviar {0} foto(s). Podes juntá-las no ecrã do pedido.':
+      'I couldn\'t send {0} photo(s). You can add them on the request screen.',
+  'Não consegui guardar a foto. Tenta outra vez.':
+      'I couldn\'t save the photo. Try again.',
+  'Não encontrámos profissional disponível para esta hora. Experimenta marcar outra hora.':
+      'We couldn\'t find a professional available at this time. Try booking another time.',
+  'Não foi possível carregar as mensagens. Verifica a ligação.':
+      'The messages could not be loaded. Check your connection.',
+  'Não incluídos':
+      'Not included',
+  'O pedido de orçamento é grátis e sem compromisso. Até {0} profissionais respondem com o preço, o prazo e o que inclui; tu comparas, escolhes e só aí decides como pagar.':
+      'Asking for a quote is free and with no commitment. Up to {0} professionals reply with the price, the timing and what is included; you compare, choose, and only then decide how to pay.',
+  'O pedido já mudou entretanto. Atualiza para veres como está agora.':
+      'The request has changed in the meantime. Refresh to see how it is now.',
+  'O profissional não juntou fotos.':
+      'The professional did not add photos.',
+  'O profissional pede mais {0}':
+      'The professional is asking for {0} more',
+  'O profissional só vê a rua e o número depois de aceitar o trabalho.':
+      'The professional only sees the street and number after accepting the job.',
+  'O que correu mal?':
+      'What went wrong?',
+  'O que escreveste':
+      'What you wrote',
+  'O teu pedido':
+      'Your request',
+  'O teu profissional':
+      'Your professional',
+  'O total passa a {0}. Motivo: {1}':
+      'The total becomes {0}. Reason: {1}',
+  'O trabalho':
+      'The job',
+  'O trabalho feito':
+      'The work done',
+  'Obrigado pela avaliação!':
+      'Thanks for your rating!',
+  'Obrigado! Trabalho confirmado.':
+      'Thank you! Job confirmed.',
+  'Ofício':
+      'Trade',
+  'Orçamento aceite. O profissional já foi avisado.':
+      'Quote accepted. The professional has been notified.',
+  'Orçamentos recebidos ({0})':
+      'Quotes received ({0})',
+  'Os meus pedidos':
+      'My requests',
+  'Outras':
+      'Others',
+  'Pedido cancelado.':
+      'Request cancelled.',
+  'Pedido cancelado. Taxa de cancelamento: {0}.':
+      'Request cancelled. Cancellation fee: {0}.',
+  'Pedido de orçamento enviado! Avisamos-te quando chegarem respostas.':
+      'Quote request sent! We will let you know when replies arrive.',
+  'Pedido feito! Estamos a procurar um profissional para ti.':
+      'Request placed! We are looking for a professional for you.',
+  'Pedido para refazer':
+      'Redo requested',
+  'Pedido para refazer enviado.':
+      'Redo request sent.',
+  'Pedir orçamento — grátis, até {0} profissionais respondem':
+      'Ask for a quote — free, up to {0} professionals reply',
+  'Pedir orçamentos grátis':
+      'Ask for free quotes',
+  'Pedir para refazer':
+      'Ask for a redo',
+  'Pediste para refazer. O profissional e a equipa do Bora já foram avisados.':
+      'You asked for a redo. The professional and the Bora team have been notified.',
+  'Podes cancelar sem pagar nada.':
+      'You can cancel without paying anything.',
+  'Prazo':
+      'Timing',
+  'Precisa da tua resposta':
+      'Needs your answer',
+  'Preço a confirmar':
+      'Price to be confirmed',
+  'Profissional a caminho':
+      'Professional on the way',
+  'Profissional chegou':
+      'Professional has arrived',
+  'Profissional confirmado':
+      'Professional confirmed',
+  'Quando e onde':
+      'When and where',
+  'Quando pedires um trabalho para casa, acompanhas tudo aqui.':
+      'When you request a home job, you follow everything here.',
+  'Quantas horas?':
+      'How many hours?',
+  'Quantidade':
+      'Quantity',
+  'Quantos móveis?':
+      'How many pieces of furniture?',
+  'Recusado':
+      'Declined',
+  'Retirado pelo profissional':
+      'Withdrawn by the professional',
+  'Sem acesso à câmara. Autoriza nas definições do telemóvel, ou escolhe da galeria.':
+      'No camera access. Allow it in your phone settings, or choose from the gallery.',
+  'Sem acesso às fotos. Autoriza nas definições do telemóvel.':
+      'No access to photos. Allow it in your phone settings.',
+  'Sem custo de cancelamento.':
+      'No cancellation fee.',
+  'Só é cobrado se aceitares.':
+      'Only charged if you accept.',
+  'Taxa de cancelamento: {0}.':
+      'Cancellation fee: {0}.',
+  'Tens orçamentos para ver':
+      'You have quotes to see',
+  'Total (indicativo)':
+      'Total (estimate)',
+  'Trabalho concluído':
+      'Job done',
+  'Trabalho em curso':
+      'Work in progress',
+  'Valor extra aceite.':
+      'Extra amount accepted.',
+  'Valor extra recusado. O profissional já foi avisado.':
+      'Extra amount declined. The professional has been notified.',
+  'Valor indicativo — o valor final é calculado pelo Bora quando confirmas.':
+      'Estimate — the final amount is calculated by Bora when you confirm.',
+  'Válido até':
+      'Valid until',
+  'desde {0} por hora':
+      'from {0} per hour',
+  'desde {0} por móvel':
+      'from {0} per piece',
+  '{0} de {1} · {2}':
+      '{0} of {1} · {2}',
+  '{0} estrelas':
+      '{0} stars',
+  '{0} h':
+      '{0} h',
+  '{0} móveis':
+      '{0} pieces of furniture',
+  '{0} trabalhos feitos':
+      '{0} jobs done',
+  '{0}/{1}/{2} às {3}:{4}':
+      '{0}/{1}/{2} at {3}:{4}',
+  'À espera de orçamentos':
+      'Waiting for quotes',
+  'À espera do pagamento':
+      'Waiting for payment',
+  'À parte: {0}':
+      'Extra: {0}',
+  'À procura de profissional':
+      'Looking for a professional',
+  '× {0}':
+      '× {0}',
+  '≈ {0} h':
+      '≈ {0} h',
+  '≈ {0} h {1} min':
+      '≈ {0} h {1} min',
+  '≈ {0} min':
+      '≈ {0} min',
+  '★ {0} ({1}) · {2} trabalhos':
+      '★ {0} ({1}) · {2} jobs',
+  'A Casa ainda não está ligada. Avisamos-te quando abrir.':
+      'Home services aren\'t switched on yet. We\'ll let you know when they open.',
+  'A cobrar ao cliente em dinheiro: {0}':
+      'To collect from the customer in cash: {0}',
+  'A comissão só conta nos trabalhos concluídos. O que recebes em dinheiro abate no acerto da semana.':
+      'Commission only applies to completed jobs. Cash you receive is deducted in the weekly settlement.',
+  'A câmara não respondeu. Fecha-a e tenta outra vez.':
+      'The camera didn\'t respond. Close it and try again.',
+  'A enviar…':
+      'Sending…',
+  'A equipa Bora está a rever os teus dados e cada ofício. Avisamos-te assim que estiver aprovado.':
+      'The Bora team is reviewing your details and each trade. We\'ll let you know as soon as you\'re approved.',
+  'A minha disponibilidade':
+      'My availability',
+  'A receber no acerto':
+      'To receive in the settlement',
+  'A receber ofertas':
+      'Receiving offers',
+  'A trabalhar':
+      'Working',
+  'A tua conta da Casa está em revisão pela equipa Bora. Contacta o suporte para saberes mais.':
+      'Your Home services account is being reviewed by the Bora team. Contact support to find out more.',
+  'A tua conta de profissional da Casa não está ativa.':
+      'Your Home services professional account isn\'t active.',
+  'A tua disponibilidade':
+      'Your availability',
+  'A tua sessão expirou. Volta a entrar e tenta de novo.':
+      'Your session has expired. Sign in again and try once more.',
+  'Aceita ou recusa.':
+      'Accept or decline.',
+  'Aceite pelo cliente':
+      'Accepted by the customer',
+  'Aceite — prepara-te':
+      'Accepted — get ready',
+  'Acertos semanais':
+      'Weekly settlements',
+  'Adiciona uma foto de perfil — os clientes escolhem pela foto.':
+      'Add a profile photo — customers choose by the photo.',
+  'Adicionar janela':
+      'Add time slot',
+  'Ainda não':
+      'Not yet',
+  'Ainda não enviaste nenhum documento.':
+      'You haven\'t sent any documents yet.',
+  'Ainda não enviaste.':
+      'Not sent yet.',
+  'Ainda não há acertos.':
+      'No settlements yet.',
+  'Ainda não há mensagens.':
+      'No messages yet.',
+  'Ainda não marcaste a tua disponibilidade — sem ela não recebes ofertas. Toca aqui.':
+      'You haven\'t set your availability yet — without it you won\'t get offers. Tap here.',
+  'Ainda não marcaste nada. Toca no + de um dia para adicionar um horário.':
+      'Nothing set yet. Tap the + on a day to add a time slot.',
+  'Ainda não tens ofícios.':
+      'You don\'t have any trades yet.',
+  'Ainda não tens trabalhos pagos.':
+      'You don\'t have any paid jobs yet.',
+  'Anexa a apólice do seguro de acidentes de trabalho.':
+      'Attach your work accident insurance policy.',
+  'Anexa a apólice. Pedimos o número e a validade para te avisar antes de caducar.':
+      'Attach the policy. We ask for the number and expiry date so we can warn you before it expires.',
+  'Anexa o cartão de cidadão.':
+      'Attach your citizen card.',
+  'Apresentação (opcional)':
+      'About you (optional)',
+  'Aprovado':
+      'Approved',
+  'Apólice do seguro *':
+      'Insurance policy *',
+  'Avaliar depois':
+      'Rate later',
+  'Avaliar o cliente':
+      'Rate the customer',
+  'Berbequim, chaves, nível, escada…':
+      'Drill, spanners, spirit level, ladder…',
+  'Cada ofício é aprovado à parte. Só recebes trabalhos dos ofícios aprovados.':
+      'Each trade is approved separately. You only get jobs for approved trades.',
+  'Caduca daqui a {0} dias.':
+      'Expires in {0} days.',
+  'Caduca hoje.':
+      'Expires today.',
+  'Caducado':
+      'Expired',
+  'Caducou. Envia o documento novo.':
+      'It has expired. Send the new document.',
+  'Candidatar de novo':
+      'Apply again',
+  'Candidatura em análise':
+      'Application under review',
+  'Candidatura enviada! Vamos rever os teus dados e cada ofício.':
+      'Application sent! We\'ll review your details and each trade.',
+  'Candidatura recusada':
+      'Application declined',
+  'Cartão de cidadão':
+      'Citizen card',
+  'Cartão de cidadão *':
+      'Citizen card *',
+  'Certificado DGEG (eletricidade)':
+      'DGEG certificate (electrical)',
+  'Certificado DGEG (gás)':
+      'DGEG certificate (gas)',
+  'Cheguei':
+      'I\'ve arrived',
+  'Comissão do Bora':
+      'Bora commission',
+  'Como correu com o cliente?':
+      'How did it go with the customer?',
+  'Comprovativo de atividade':
+      'Proof of self-employment',
+  'Concluir':
+      'Finish',
+  'Concluir o trabalho?':
+      'Finish the job?',
+  'Concluir trabalho':
+      'Finish job',
+  'Concluído e confirmado':
+      'Finished and confirmed',
+  'Concluído — à espera do cliente':
+      'Finished — waiting for the customer',
+  'Conta desativada':
+      'Account deactivated',
+  'Conta suspensa para revisão':
+      'Account suspended for review',
+  'Depois de aprovado, ligas e desligas cada ofício no teu painel.':
+      'Once approved, you switch each trade on and off in your dashboard.',
+  'Desistir':
+      'Give up',
+  'Desistir deste trabalho':
+      'Give up this job',
+  'Desistir deste trabalho?':
+      'Give up this job?',
+  'Desististe do trabalho.':
+      'You gave up the job.',
+  'Desligado — sem ofertas':
+      'Off — no offers',
+  'Disponibilidade':
+      'Availability',
+  'Disponibilidade guardada.':
+      'Availability saved.',
+  'Diz o que está incluído no preço.':
+      'Say what\'s included in the price.',
+  'Documento enviado. Vamos rever em breve.':
+      'Document sent. We\'ll review it soon.',
+  'Documentos':
+      'Documents',
+  'Documentos e validades':
+      'Documents and expiry dates',
+  'Documentos enviados':
+      'Documents sent',
+  'Domingo':
+      'Sunday',
+  'Duração estimada':
+      'Estimated duration',
+  'Em análise (precisa de documento DGEG/IMPIC)':
+      'Under review (needs a DGEG/IMPIC document)',
+  'Envia o teu preço':
+      'Send your price',
+  'Enviar candidatura':
+      'Send application',
+  'Enviar de novo':
+      'Send again',
+  'Enviar orçamento':
+      'Send quote',
+  'Enviar orçamento de {0}?':
+      'Send a quote of {0}?',
+  'Equipa Bora':
+      'Bora team',
+  'Escolhe pelo menos um ofício.':
+      'Choose at least one trade.',
+  'Escolhe uma sugestão para te mostrarmos trabalhos perto de ti.':
+      'Pick a suggestion so we can show you jobs near you.',
+  'Escolher a validade':
+      'Choose the expiry date',
+  'Escolher a validade *':
+      'Choose the expiry date *',
+  'Escreve uma mensagem':
+      'Write a message',
+  'Esta semana':
+      'This week',
+  'Esta semana ({0} a {1})':
+      'This week ({0} to {1})',
+  'Este trabalho já mudou de estado. Atualiza a lista.':
+      'This job has already changed status. Refresh the list.',
+  'Este trabalho já não está disponível.':
+      'This job is no longer available.',
+  'Este valor passa o limite do pagamento em dinheiro.':
+      'This amount is over the cash payment limit.',
+  'Estou a caminho':
+      'I\'m on my way',
+  'Ex.: 10 anos a montar cozinhas, tenho escada e berbequim…':
+      'E.g. 10 years fitting kitchens, I have a ladder and a drill…',
+  'Ex.: buchas e parafusos; o sifão novo é do cliente.':
+      'E.g. wall plugs and screws; the new trap is the customer\'s.',
+  'Ex.: montar o roupeiro de 3 portas e fixar à parede.':
+      'E.g. assemble the 3-door wardrobe and fix it to the wall.',
+  'Ex.: o sifão estava partido, tive de pôr um novo.':
+      'E.g. the trap was broken, I had to fit a new one.',
+  'Ex.: posso ir no dia marcado de manhã.':
+      'E.g. I can come on the booked day in the morning.',
+  'Falha ao enviar a foto{0}. Tenta escolher ou tirar a foto de novo.':
+      'Couldn\'t send the photo{0}. Try choosing or taking the photo again.',
+  'Falta a morada.':
+      'The address is missing.',
+  'Falta o documento de {0}.':
+      'The document for {0} is missing.',
+  'Falta: {0}':
+      'Missing: {0}',
+  'Faz pequenos trabalhos de casa perto de ti: montar móveis, pendurar e fixar, pequenas reparações, jardim e pequenas mudanças. Tu escolhes os ofícios, os dias e a zona.':
+      'Do small home jobs near you: furniture assembly, hanging and mounting, small repairs, garden work and small moves. You choose the trades, the days and the area.',
+  'Fim da janela':
+      'End of time slot',
+  'Foi recusado. Envia outra vez.':
+      'It was declined. Send it again.',
+  'Foi recusado: {0}':
+      'It was declined: {0}',
+  'Foto de perfil *':
+      'Profile photo *',
+  'Fotos do trabalho':
+      'Job photos',
+  'Ganha com trabalhos de casa':
+      'Earn with home jobs',
+  'Ganhas':
+      'You earn',
+  'Ganhas (estimado para {0})':
+      'You earn (estimated for {0})',
+  'Ganhas {0}':
+      'You earn {0}',
+  'Ganhaste':
+      'You earned',
+  'Ganhaste esta semana':
+      'You earned this week',
+  'Ganhos':
+      'Earnings',
+  'Guardar disponibilidade':
+      'Save availability',
+  'Indica o número e a validade do documento.':
+      'Enter the document number and expiry date.',
+  'Indica o teu nome.':
+      'Enter your name.',
+  'Indica o valor e o motivo.':
+      'Enter the amount and the reason.',
+  'Indica um preço válido (ex.: 45 ou 45,50).':
+      'Enter a valid price (e.g. 45 or 45.50).',
+  'Indica um telemóvel válido.':
+      'Enter a valid mobile number.',
+  'Iniciar trabalho':
+      'Start job',
+  'Início da janela':
+      'Start of time slot',
+  'Já caducou. Envia o novo.':
+      'It has already expired. Send the new one.',
+  'Já chegaste ao limite de fotos deste trabalho.':
+      'You\'ve reached the photo limit for this job.',
+  'Já enviaste o teu orçamento.':
+      'You\'ve already sent your quote.',
+  'Já enviaste o teu orçamento. Avisamos-te se o cliente o escolher.':
+      'You\'ve already sent your quote. We\'ll let you know if the customer picks it.',
+  'Já está tudo guardado.':
+      'Everything is already saved.',
+  'Já falta pouco para a hora marcada.':
+      'It\'s too close to the booked time.',
+  'Já preenchemos os teus dados a partir do teu outro perfil. Só falta o que é da Casa.':
+      'We\'ve filled in your details from your other profile. Only the Home services part is left.',
+  'Liga pelo menos um ofício para receberes ofertas.':
+      'Switch on at least one trade to get offers.',
+  'Marca os dias e as horas em que aceitas trabalhos. Só recebes ofertas que cabem numa janela que marcaste.':
+      'Set the days and hours when you take jobs. You only get offers that fit in a slot you set.',
+  'Montar móveis, pendurar e fixar, pequenas reparações, jardim e pequenas mudanças. Tu escolhes os ofícios, os dias e a zona.':
+      'Furniture assembly, hanging and mounting, small repairs, garden work and small moves. You choose the trades, the days and the area.',
+  'Motivo':
+      'Reason',
+  'Motivo: {0}':
+      'Reason: {0}',
+  'No local':
+      'On site',
+  'Nome completo *':
+      'Full name *',
+  'Novo trabalho de casa':
+      'New home job',
+  'Não conseguimos ligar ao Bora. Verifica a rede.':
+      'We couldn\'t connect to Bora. Check your connection.',
+  'Não foi possível abrir a câmara. Tenta outra vez.':
+      'Couldn\'t open the camera. Try again.',
+  'Não foi possível abrir o telefone.':
+      'Couldn\'t open the phone app.',
+  'Não foi possível carregar os ofícios.':
+      'Couldn\'t load the trades.',
+  'Não foi possível guardar.':
+      'Couldn\'t save.',
+  'Não foi possível ler a imagem. Tira ou escolhe a foto de novo.':
+      'Couldn\'t read the image. Take or choose the photo again.',
+  'Não me interessa':
+      'Not interested',
+  'Não tens permissão para fazer isto.':
+      'You\'re not allowed to do this.',
+  'Número da apólice':
+      'Policy number',
+  'Número do certificado':
+      'Certificate number',
+  'Número do documento (opcional)':
+      'Document number (optional)',
+  'O Bora fica com {0}% de cada trabalho concluído. O resto é teu.':
+      'Bora keeps {0}% of each completed job. The rest is yours.',
+  'O cliente confirma na app. O pagamento entra no acerto da semana.':
+      'The customer confirms in the app. The payment goes into the weekly settlement.',
+  'O cliente confirma na app. Recebe agora em dinheiro: {0}.':
+      'The customer confirms in the app. Collect it now in cash: {0}.',
+  'O cliente pediu para refazer':
+      'The customer asked for it to be redone',
+  'O cliente pediu para refazer. Combina com ele pelas mensagens o dia para voltar.':
+      'The customer asked for it to be redone. Agree a day to come back through the messages.',
+  'O cliente tem de aceitar na app. Só faças o trabalho extra depois de ele aceitar.':
+      'The customer has to accept in the app. Only do the extra work after they accept.',
+  'O contacto do cliente aparece quando o pedido estiver confirmado e pago.':
+      'The customer\'s contact appears once the booking is confirmed and paid.',
+  'O fim tem de ser depois do início.':
+      'The end has to be after the start.',
+  'O pagamento com cartão ainda não está disponível.':
+      'Card payment isn\'t available yet.',
+  'O pedido volta a ser oferecido a outro profissional. Desistir muitas vezes conta na tua avaliação.':
+      'The booking will be offered to another professional. Giving up often counts against your rating.',
+  'O que falta':
+      'What\'s missing',
+  'O que inclui *':
+      'What\'s included *',
+  'O que o cliente paga pelo trabalho todo.':
+      'What the customer pays for the whole job.',
+  'O que o cliente pediu':
+      'What the customer asked for',
+  'O telemóvel não deixou o Bora usar a câmara. Abre as Definições do telemóvel, vai a Apps, Bora, Permissões, e ativa a Câmara (e as Fotos). Depois tenta outra vez.':
+      'Your phone didn\'t let Bora use the camera. Open your phone\'s Settings, go to Apps, Bora, Permissions, and turn on Camera (and Photos). Then try again.',
+  'Obrigado pela avaliação.':
+      'Thanks for the rating.',
+  'Ofertas para ti':
+      'Offers for you',
+  'Orçamento':
+      'Quote',
+  'Orçamento enviado. Avisamos-te se o cliente aceitar.':
+      'Quote sent. We\'ll let you know if the customer accepts.',
+  'Orçamento retirado.':
+      'Quote withdrawn.',
+  'Os materiais estão incluídos no preço':
+      'Materials are included in the price',
+  'Os meus ofícios':
+      'My trades',
+  'Os meus papéis':
+      'My roles',
+  'Os meus trabalhos':
+      'My jobs',
+  'Os teus ofícios':
+      'Your trades',
+  'Os teus ofícios *':
+      'Your trades *',
+  'Os valores da Casa ainda estão a ser aprovados.':
+      'Home services rates are still being approved.',
+  'Os valores da Casa ainda estão a ser aprovados. Tenta mais tarde.':
+      'Home services rates are still being approved. Try again later.',
+  'Outro documento':
+      'Other document',
+  'Para concluir, tira pelo menos uma foto de como ficou (depois).':
+      'To finish, take at least one photo of how it turned out (after).',
+  'Para pequenas mudanças e transporte de móveis.':
+      'For small moves and carrying furniture.',
+  'Passa ao profissional seguinte.':
+      'It goes to the next professional.',
+  'Pedido de orçamento':
+      'Quote request',
+  'Pedido de orçamento — {0} de {1} já orçaram':
+      'Quote request — {0} of {1} have already quoted',
+  'Pedido de orçamento — {0} já orçaram':
+      'Quote request — {0} have already quoted',
+  'Pedido enviado ao cliente. Espera que ele aceite.':
+      'Request sent to the customer. Wait for them to accept.',
+  'Pedir ao cliente':
+      'Ask the customer',
+  'Pedir valor extra':
+      'Ask for an extra amount',
+  'Percebi':
+      'Got it',
+  'Precisa de documento DGEG/IMPIC.':
+      'Needs a DGEG/IMPIC document.',
+  'Preço fechado *':
+      'Fixed price *',
+  'Preço fixo':
+      'Fixed price',
+  'Quarta':
+      'Wednesday',
+  'Quero candidatar-me':
+      'I want to apply',
+  'Quinta':
+      'Thursday',
+  'Raio de serviço: {0} km':
+      'Service radius: {0} km',
+  'Recebido em mão':
+      'Received in hand',
+  'Recusado pelo cliente':
+      'Declined by the customer',
+  'Recusado: {0}':
+      'Declined: {0}',
+  'Recusar este trabalho?':
+      'Decline this job?',
+  'Registo IMPIC':
+      'IMPIC registration',
+  'Responde até {0}':
+      'Reply by {0}',
+  'Retirar orçamento':
+      'Withdraw quote',
+  'Rever':
+      'Review',
+  'Segunda':
+      'Monday',
+  'Seguro de acidentes de trabalho':
+      'Work accident insurance',
+  'Seguro de acidentes de trabalho *':
+      'Work accident insurance *',
+  'Seguro de responsabilidade civil':
+      'Liability insurance',
+  'Sem acesso à câmara':
+      'No camera access',
+  'Sem comissão até {0}. Depois, o Bora fica com {1}% de cada trabalho concluído.':
+      'No commission until {0}. After that, Bora keeps {1}% of each completed job.',
+  'Sem disponibilidade marcada não recebes ofertas. Podes mudar depois.':
+      'Without availability set you won\'t get offers. You can change it later.',
+  'Sem ofertas agora. Quando houver, tocamos e aparecem aqui.':
+      'No offers right now. When there are, we\'ll ring and they\'ll show up here.',
+  'Sem rede. Tenta outra vez.':
+      'No connection. Try again.',
+  'Sem trabalhos marcados.':
+      'No jobs booked.',
+  'Semana de {0} a {1}':
+      'Week of {0} to {1}',
+  'Ser profissional de Casa':
+      'Become a Home services pro',
+  'Sexta':
+      'Friday',
+  'Suspenso':
+      'Suspended',
+  'Sábado':
+      'Saturday',
+  'Telemóvel *':
+      'Mobile *',
+  'Tenho as minhas ferramentas':
+      'I have my own tools',
+  'Tenho carrinha':
+      'I have a van',
+  'Tens alterações por guardar.':
+      'You have unsaved changes.',
+  'Tens documentos a caducar. Toca para enviar os novos.':
+      'You have documents about to expire. Tap to send the new ones.',
+  'Tens documentos em falta ou recusados. Toca para enviar.':
+      'You have missing or declined documents. Tap to send them.',
+  'Terça':
+      'Tuesday',
+  'Tira pelo menos uma foto de como ficou antes de concluir.':
+      'Take at least one photo of how it turned out before finishing.',
+  'Trabalho aceite — está nos teus trabalhos.':
+      'Job accepted — it\'s in your jobs.',
+  'Trabalhos':
+      'Jobs',
+  'Valor':
+      'Amount',
+  'Valor extra':
+      'Extra amount',
+  'Ver e orçar':
+      'View and quote',
+  'Válido até {0}':
+      'Valid until {0}',
+  'Vê as fotos e orça.':
+      'See the photos and quote.',
+  'Zona base (morada ou localidade)':
+      'Base area (address or town)',
+  'a {0} km':
+      '{0} km away',
+  'comissão {0}':
+      'commission {0}',
+  'em dinheiro':
+      'in cash',
+  'o Bora paga-te':
+      'Bora pays you',
+  'pago em {0}':
+      'paid on {0}',
+  'por pagar':
+      'unpaid',
+  'tu pagas ao Bora':
+      'you pay Bora',
+  '{0} A candidatura já ficou registada — toca em "Enviar candidatura" para enviar os documentos que faltam.':
+      '{0} Your application is already registered — tap "Send application" to send the missing documents.',
+  '{0} A candidatura já ficou registada — toca em "Enviar candidatura" para gravar os dados fiscais.':
+      '{0} Your application is already registered — tap "Send application" to save your tax details.',
+  '{0} de {1} orçamentos recebidos':
+      '{0} of {1} quotes received',
+  '{0} fotos':
+      '{0} photos',
+  '{0} orçamentos recebidos':
+      '{0} quotes received',
+  '{0} trabalhos':
+      '{0} jobs',
+  '{0} — anexado':
+      '{0} — attached',
+  'À espera do cliente':
+      'Waiting for the customer',
+  'À hora':
+      'Hourly',
+  'É um preço fechado: se o cliente aceitar, o trabalho é teu por este valor.':
+      'It\'s a fixed price: if the customer accepts, the job is yours at this amount.',
+  '🔧 Novo trabalho de casa!':
+      '🔧 New home job!',
+  '🔧 Pedido de orçamento!':
+      '🔧 Quote request!',
+  'Casa e manutenção':
+      'Home & maintenance',
+  'A minha Casa':
+      'My Home jobs',
+  'Vê e aceita trabalhos perto de ti':
+      'See and accept jobs near you',
   // 30/10/2026 (gorjetas-taxa): gorjeta do carrinho junto da compra e o que o
   // estafeta recebe (tool/l10n/traducoes/pt-en-30-gorjetas-taxa.json).
   'A gorjeta vai toda para o estafeta.':

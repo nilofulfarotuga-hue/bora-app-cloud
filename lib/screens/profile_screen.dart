@@ -30,6 +30,7 @@ import '../stores/driver_store.dart';
 import '../stores/session_store.dart';
 import 'cleaner/cleaner_home_screen.dart';
 import 'ganhos_screen.dart';
+import 'handyman/handyman_home_screen.dart';
 import 'trabalhar_no_bora_screen.dart';
 import 'washer/washer_home_screen.dart';
 import 'client/reservation/my_reservation_lists_screen.dart';
@@ -666,7 +667,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         : 'Quero trabalhar no Bora'),
                     subtitle: Text(_roles.temAlgumPapel
                         ? 'Vê o que já fazes e acrescenta actividades'.tr
-                        : 'Entregas, corridas, limpeza ou lavagem de carros'),
+                        : 'Entregas, corridas, limpeza, lavagem de carros ou Casa'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.push(
                       context,
@@ -722,6 +723,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         context,
                         MaterialPageRoute(
                             builder: (_) => const WasherHomeScreen()),
+                      ).then((_) {
+                        if (mounted) _loadRoles();
+                      }),
+                    ),
+                  // CASA (31/10): o atalho do profissional da Casa e
+                  // manutenção, no molde da Lavagem.
+                  if (_roles.hasHandyman)
+                    ListTile(
+                      leading: const Icon(Icons.handyman_outlined,
+                          color: AppColors.primary),
+                      title: Text('A minha Casa'.tr),
+                      subtitle: Text('Vê e aceita trabalhos perto de ti'.tr),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const HandymanHomeScreen()),
                       ).then((_) {
                         if (mounted) _loadRoles();
                       }),
@@ -925,7 +943,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         : 'Quero trabalhar no Bora'),
                     subtitle: Text(_roles.temAlgumPapel
                         ? 'Vê o que já fazes e acrescenta actividades'.tr
-                        : 'Entregas, corridas, limpeza ou lavagem de carros'),
+                        : 'Entregas, corridas, limpeza, lavagem de carros ou Casa'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.push(
                       context,
@@ -981,6 +999,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         context,
                         MaterialPageRoute(
                             builder: (_) => const WasherHomeScreen()),
+                      ).then((_) {
+                        if (mounted) _loadRoles();
+                      }),
+                    ),
+                  // CASA (31/10): o atalho do profissional da Casa e
+                  // manutenção, no molde da Lavagem.
+                  if (_roles.hasHandyman)
+                    ListTile(
+                      leading: const Icon(Icons.handyman_outlined,
+                          color: AppColors.primary),
+                      title: Text('A minha Casa'.tr),
+                      subtitle: Text('Vê e aceita trabalhos perto de ti'.tr),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const HandymanHomeScreen()),
                       ).then((_) {
                         if (mounted) _loadRoles();
                       }),

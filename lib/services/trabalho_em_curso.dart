@@ -21,23 +21,33 @@ class TrabalhoEmCurso {
     required this.ganhoCents,
   });
 
-  /// 'limpeza' ou 'lavagem'.
+  /// 'limpeza', 'lavagem' ou 'casa'.
   final String categoria;
   final String bookingId;
   final String estado;
   final String morada;
   final int ganhoCents;
 
-  String get titulo =>
-      categoria == 'lavagem' ? 'Lavagem a decorrer' : 'Limpeza a decorrer';
+  // Regra 1.18: um caso por categoria, sem "o resto é limpeza" para a Casa.
+  String get titulo => switch (categoria) {
+        'lavagem' => 'Lavagem a decorrer',
+        'casa' => 'Trabalho da Casa a decorrer',
+        _ => 'Limpeza a decorrer',
+      };
 
   /// O que a pessoa está a fazer agora, em PT-PT e sem nome técnico.
+  /// A Casa usa estados em português (casa_pedidos.estado): aceite,
+  /// a_caminho, chegou, em_curso.
   String get passo => switch (estado) {
         'accepted' => 'aceite — a caminho',
         'on_the_way' => 'a caminho',
         'picked_up' => 'carro recolhido',
         'in_progress' => 'a trabalhar',
         'delivering' => 'a devolver o carro',
+        'aceite' => 'aceite',
+        'a_caminho' => 'a caminho',
+        'chegou' => 'no local',
+        'em_curso' => 'a trabalhar',
         _ => 'a decorrer',
       };
 

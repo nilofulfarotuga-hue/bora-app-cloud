@@ -38,6 +38,8 @@ const _categorias = <String, String>{
   'sobremesas': 'Sobremesas',
   'servicos': 'Serviços',
   'limpeza': 'Limpeza',
+  // 31/10/2026 (missão casa-manutencao): Casa e manutenção (faz-tudo).
+  'casa': 'Casa',
   'motorista': 'Bora Motorista',
 };
 

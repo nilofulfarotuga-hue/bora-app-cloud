@@ -1,0 +1,91 @@
+CARREGOU stubs
+CARREGOU 20261031060526_casa_01_papel_e_tabelas.sql
+CARREGOU 20261031062027_casa_01b_definicoes.sql
+CARREGOU 20261031064129_casa_02a_definicoes_leitura.sql
+CARREGOU 20261031064504_casa_02b_funcoes_base.sql
+CARREGOU 20261031065206_casa_03_cliente.sql
+CARREGOU casa_04 (pendente)
+CARREGOU casa_05 (pendente)
+ESTRUTURA {"crons":2,"baldes":2,"admin_fns":27,"oficios":"montagem:1:true,fixacao:1:true,reparacoes:1:true,canalizacao:1:true,jardinagem:1:true,mudancas:1:true,eletricidade:2:false,gas:2:false,pladur:2:false,pintura:2:false"}
+OK   grants admin_casa_* (anon nao, authenticated sim) => {"anon_pode":false,"auth_pode":true,"n":27}
+SERVICOS fixo {"id":"60fc4948-9411-43fc-a80e-c82d235c6d56","oficio":"montagem","preco_cents":2500} orcamento {"id":"556ac218-db33-4e68-9ac3-45cf55df53ee","oficio":"montagem"}
+OK   cliente chama admin_casa_resumo => ERRO sem_permissao
+OK   admin_casa_resumo => {"enabled":false,"disputas":0,"pedidos_ativos":0,"pedidos_procura":0,"oficios_pendentes":0,"orcamentos_abertos":0,"valores_autorizados":{"em":null,"texto":null,"autorizado":false},"documentos_pendentes":0,"reembolsos_pen
+OK   candidatura p1 => {"perfil":{"id":"ab1f096b-d755-4770-8866-ad66d590f414","bio":"bio","nif":"123456789","name":"Pro p1","email":"p1@exemplo.pt","phone":"+35191","has_van":true,"base_lat":40.537,"base_lng":-7.267,"has_tools":true,"is_active
+OK   candidatura p2 => {"perfil":{"id":"50a16d6a-5991-4188-ba63-3bd0d4c7b40c","bio":"bio","nif":"123456789","name":"Pro p2","email":"p2@exemplo.pt","phone":"+35191","has_van":true,"base_lat":40.537,"base_lng":-7.267,"has_tools":true,"is_active
+OK   documento p1 => {"id":"e1a88631-8974-4ef8-b3bd-ae73f1e66f74"}
+OK   admin_casa_profissionais(pending) => [{"id":"50a16d6a-5991-4188-ba63-3bd0d4c7b40c","name":"Pro p2","email":"p2@exemplo.pt","phone":"+35191","oficios":[{"nome":"Montagem de móveis","codigo":"montagem","estado":"pending","ligado":true}],"user_id":"00000000-00
+OK   admin_casa_profissional(p1) => {"perfil":{"id":"ab1f096b-d755-4770-8866-ad66d590f414","bio":"bio","nif":"123456789","docs":{},"iban":null,"name":"Pro p1","email":"p1@exemplo.pt","phone":"+35191","address":null,"has_van":true,"user_id":"00000000-0000-4
+OK   recusar sem motivo => ERRO motivo_obrigatorio
+OK   aprovar p1 => {"ok":true,"antes":"pending","depois":"approved","sem_comissao_ate":"2026-12-31"}
+OK   aprovar oficio montagem p1 => {"ok":true,"antes":"pending","depois":"approved"}
+OK   aprovar p2 => {"ok":true,"antes":"pending","depois":"approved","sem_comissao_ate":"2026-12-31"}
+OK   aprovar oficio montagem p2 => {"ok":true,"antes":"pending","depois":"approved"}
+OK   aprovar documento => {"ok":true}
+OK   documento validade passada => ERRO validade_passada
+OK   editar profissional => {"ok":true}
+OK   editar profissional raio invalido => ERRO valor_invalido
+OK   aprovar oficio fase 2 sem documento => ERRO documento_em_falta
+OK   catalogo => {"oficios":[{"fase":1,"nome":"Montagem de móveis","ativo":true,"ordem":10,"codigo":"montagem","descricao":"Móveis IKEA e outros, em casa do cliente.","updated_at":"2026-10-31T11:10:22.209+00:00","updated_by":null,"docume
+OK   definicoes => [{"key":"casa_auto_confirm_hours","value":24,"updated_at":"2026-10-31T11:10:22.298+00:00","description":"Horas depois de concluído em que o trabalho fica confirmado se o cliente não responder."},{"key":"casa_bora_pct","v
+OK   guardar casa_enabled pela definicao => ERRO usar_interruptor
+OK   guardar tipo errado => ERRO valor_invalido
+OK   testadores => {"ok":true,"valores_reabertos":false}
+OK   testador: pedido de teste corre antes do autorizo => {"id":"b61b6af9-eeef-4ff2-a6df-74f92b2d6300","modo":"fixo","fotos":[],"estado":"procura","extras":[],"morada":{"lat":40.54,"lng":-7.27,"city":"Guarda","postal":"6300-000","street":"Rua A 1"},"oficio":"montagem","done_at"
+OK   cliente normal com a Casa desligada => ERRO casa_desligada
+OK   interruptor ligar (provas) => {"ok":true,"enabled":true}
+OK   pedido real antes do autorizo => ERRO valores_por_autorizar
+OK   autorizo sem a palavra => ERRO texto_sem_autorizo
+OK   autorizo => {"em":"2026-10-31T11:10:22.529+00:00","ok":true}
+OK   pedido fixo real => {"id":"43c376f1-cf9a-4a23-95a6-26f3f40db5ac","modo":"fixo","fotos":[],"estado":"procura","extras":[],"morada":{"lat":40.54,"lng":-7.27,"city":"Guarda","postal":"6300-000","street":"Rua A 1"},"oficio":"montagem","done_at"
+OK   ofertas p1 (meu_orcamento_id presente) => [{"modo":"fixo","tipo":"oferta","fotos":[],"oficio":"montagem","ja_orcei":false,"descricao":"montar","expira_em":"2026-10-31T11:25:22.493+00:00","pedido_id":"b61b6af9-eeef-4ff2-a6df-74f92b2d6300","respostas":{},"localida
+OK   aceitar oferta p1 => {"id":"43c376f1-cf9a-4a23-95a6-26f3f40db5ac","modo":"fixo","fotos":[],"estado":"aceite","extras":[],"morada":{"lat":40.54,"lng":-7.27,"city":"Guarda","postal":"6300-000","street":"Rua A 1"},"oficio":"montagem","cliente":
+OK   reatribuir a p2 => {"id":"43c376f1-cf9a-4a23-95a6-26f3f40db5ac","modo":"fixo","fotos":[],"estado":"aceite","extras":[],"morada":{"lat":40.54,"lng":-7.27,"city":"Guarda","postal":"6300-000","street":"Rua A 1"},"oficio":"montagem","cliente":
+OK   suspender p2 com trabalho => ERRO tem_trabalhos_ativos
+OK   reatribuir de volta a p1 => {"id":"43c376f1-cf9a-4a23-95a6-26f3f40db5ac","modo":"fixo","fotos":[],"estado":"aceite","extras":[],"morada":{"lat":40.54,"lng":-7.27,"city":"Guarda","postal":"6300-000","street":"Rua A 1"},"oficio":"montagem","cliente":
+OK   avancar a_caminho => {"id":"43c376f1-cf9a-4a23-95a6-26f3f40db5ac","modo":"fixo","fotos":[],"estado":"a_caminho","extras":[],"morada":{"lat":40.54,"lng":-7.27,"city":"Guarda","postal":"6300-000","street":"Rua A 1"},"oficio":"montagem","client
+OK   avancar chegou => {"id":"43c376f1-cf9a-4a23-95a6-26f3f40db5ac","modo":"fixo","fotos":[],"estado":"chegou","extras":[],"morada":{"lat":40.54,"lng":-7.27,"city":"Guarda","postal":"6300-000","street":"Rua A 1"},"oficio":"montagem","cliente":
+OK   avancar em_curso => {"id":"43c376f1-cf9a-4a23-95a6-26f3f40db5ac","modo":"fixo","fotos":[],"estado":"em_curso","extras":[],"morada":{"lat":40.54,"lng":-7.27,"city":"Guarda","postal":"6300-000","street":"Rua A 1"},"oficio":"montagem","cliente
+OK   concluir sem foto => ERRO foto_depois_em_falta
+OK   foto depois => {"id":"1e13644f-2407-431a-bcf5-b9f3a4634faa"}
+OK   concluir => {"id":"43c376f1-cf9a-4a23-95a6-26f3f40db5ac","modo":"fixo","fotos":[{"id":"1e13644f-2407-431a-bcf5-b9f3a4634faa","tipo":"depois","created_at":"2026-10-31T11:10:22.593+00:00","storage_path":"00000000-0000-4000-8000-000000
+OK   foto visivel ao cliente => true
+OK   foto invisivel a estranho => false
+OK   pedir refazer => {"id":"43c376f1-cf9a-4a23-95a6-26f3f40db5ac","modo":"fixo","fotos":[{"id":"1e13644f-2407-431a-bcf5-b9f3a4634faa","tipo":"depois","created_at":"2026-10-31T11:10:22.593+00:00","storage_path":"00000000-0000-4000-8000-000000
+OK   resumo com disputa => {"enabled":true,"disputas":1,"pedidos_ativos":0,"pedidos_procura":1,"oficios_pendentes":1,"orcamentos_abertos":0,"valores_autorizados":{"em":"2026-10-31T11:10:22.529+00:00","texto":"Eu autorizo os valores da Casa 31/10/2
+OK   resolver disputa => {"ok":true,"resolucao":"sem_razao"}
+OK   pedido confirmado => {"id":"43c376f1-cf9a-4a23-95a6-26f3f40db5ac","modo":"fixo","fotos":[{"id":"1e13644f-2407-431a-bcf5-b9f3a4634faa","tipo":"depois","created_at":"2026-10-31T11:10:22.593+00:00","storage_path":"00000000-0000-4000-8000-000000
+OK   pedidos lista => [{"id":"43c376f1-cf9a-4a23-95a6-26f3f40db5ac","modo":"fixo","fotos":[{"id":"1e13644f-2407-431a-bcf5-b9f3a4634faa","tipo":"depois","created_at":"2026-10-31T11:10:22.593+00:00","storage_path":"00000000-0000-4000-8000-00000
+OK   pedido orcamento => {"id":"527eb1d6-49d3-4f9a-9abc-8e23126a5d79","modo":"orcamento","fotos":[],"estado":"orcamentos","extras":[],"morada":{"lat":40.54,"lng":-7.27,"city":"Guarda","postal":"6300-000","street":"Rua A 1"},"oficio":"montagem","
+OK   enviar orcamento p2 => {"id":"5abe48d1-ae30-40b4-94f4-c2e603e7a66d"}
+OK   ofertas p2 com meu_orcamento_id => [{"modo":"orcamento","tipo":"convite_orcamento","fotos":[],"oficio":"montagem","ja_orcei":true,"descricao":"montar","expira_em":"2026-11-02T11:10:22.63+00:00","pedido_id":"527eb1d6-49d3-4f9a-9abc-8e23126a5d79","respostas
+OK   admin orcamentos => [{"id":"5abe48d1-ae30-40b4-94f4-c2e603e7a66d","estado":"enviado","ganhou":false,"expira_em":"2026-11-03T11:10:22.642+00:00","pedido_id":"527eb1d6-49d3-4f9a-9abc-8e23126a5d79","created_at":"2026-10-31T11:10:22.642+00:00",
+OK   aceitar orcamento => {"id":"527eb1d6-49d3-4f9a-9abc-8e23126a5d79","modo":"orcamento","fotos":[],"estado":"aceite","extras":[],"morada":{"lat":40.54,"lng":-7.27,"city":"Guarda","postal":"6300-000","street":"Rua A 1"},"oficio":"montagem","done
+OK   marcar teste => {"ok":true,"is_test":true}
+OK   forcar conclusao => {"id":"527eb1d6-49d3-4f9a-9abc-8e23126a5d79","modo":"orcamento","fotos":[],"estado":"confirmado","extras":[],"morada":{"lat":40.54,"lng":-7.27,"city":"Guarda","postal":"6300-000","street":"Rua A 1"},"oficio":"montagem","
+OK   cancelar confirmado => ERRO estado_invalido
+OK   cancelar pelo admin => {"ok":true,"reembolso_pendente":false}
+OK   ofertas admin => [{"id":5,"tipo":"oferta","ronda":1,"resposta":"expirada","expira_em":"2026-10-31T11:25:22.67+00:00","pedido_id":"06d7fd0f-7d1a-45c7-922f-3dc825e3c20a","enviada_em":"2026-10-31T11:10:22.67+00:00","respondida_em":"2026-10-
+OK   registo de ofertas com casa => 5
+OK   mudar preco => {"id":"60fc4948-9411-43fc-a80e-c82d235c6d56","valor_mudou":true,"valores_reabertos":true}
+OK   valores reabertos => {"enabled":true,"disputas":0,"pedidos_ativos":0,"pedidos_procura":1,"oficios_pendentes":1,"orcamentos_abertos":0,"valores_autorizados":{"em":null,"texto":null,"autorizado":false},"documentos_pendentes":0,"reembolsos_pend
+OK   servico novo => {"id":"35b1504a-a5be-45e9-9306-b889106c4848","valor_mudou":false,"valores_reabertos":false}
+OK   servico invalido => ERRO valor_invalido
+OK   calcular acertos sem autorizo => ERRO valores_por_autorizar
+OK   calcular acertos => {"semana":"2026-10-26T00:00:00+00:00","criados":1,"calculados":1}
+OK   listar acertos => [{"id":"ab7f8658-11ed-49f8-8801-00914b2ee3a3","notes":null,"status":"pending","paid_at":null,"paid_by":null,"user_id":"00000000-0000-4000-8000-0000000000b1","direction":"zero","created_at":"2026-10-31T11:10:22.702+00:00"
+OK   marcar acerto pago => {"ok":true}
+OK   marcar estado invalido => ERRO acao_invalida
+OK   exportar pedidos => [{"id":"b61b6af9-eeef-4ff2-a6df-74f92b2d6300","lat":40.54,"lng":-7.27,"modo":"fixo","estado":"procura","oficio":"montagem","done_at":null,"descricao":"montar","arrived_at":null,"created_at":"2026-10-31T11:10:22.493+00:00
+OK   exportar ganhos => [{"oficio":"montagem","is_test":false,"pedido_id":"43c376f1-cf9a-4a23-95a6-26f3f40db5ac","ganho_cents":2500,"total_cents":2500,"comissao_pct":0,"servico_nome":"Montar um móvel","confirmado_em":"2026-10-31T11:10:22.614+00
+OK   exportar profissionais => [{"id":"ab1f096b-d755-4770-8866-ad66d590f414","bio":"bio","nif":"123456789","name":"Pro p1","email":"p1@exemplo.pt","phone":"+35191","address":null,"has_van":false,"oficios":"eletricidade:pending, montagem:approved","use
+OK   exportar tipo errado => ERRO acao_invalida
+OK   interruptor ligar => {"ok":true,"enabled":true}
+OK   interruptor desligar => {"ok":true,"enabled":false}
+OK   suspender p2 sem trabalho => {"ok":true,"antes":"approved","depois":"suspended","sem_comissao_ate":null}
+OK   reativar p2 => {"ok":true,"antes":"suspended","depois":"approved","sem_comissao_ate":null}
+OK   casa_tick => {"expirados":0,"novas_tentativas":0,"ofertas_esgotadas":0,"confirmados_sozinhos":0}
+OK   meus ganhos p1 => {"semana":{"fim":"2026-11-02T00:00:00+00:00","inicio":"2026-10-26T00:00:00+00:00","trabalhos":1,"bruto_cents":2500,"ganho_cents":2500,"comissao_cents":0,"a_receber_cents":0,"recebido_em_mao_cents":2500},"acertos":[{"id":
+AUDITORIA linhas 27 acoes distintas 20
+AVISOS (net.http_post) registados 39
+RESULTADO TUDO VERDE

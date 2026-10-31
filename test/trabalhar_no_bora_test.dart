@@ -13,9 +13,11 @@ RolesSummary resumo({
   String? driver,
   String? cleaner,
   String? washer,
+  String? handyman,
   Map<String, dynamic>? perfilDriver,
   Map<String, dynamic>? perfilCleaner,
   Map<String, dynamic>? perfilWasher,
+  Map<String, dynamic>? perfilHandyman,
 }) =>
     RolesSummary(
       hasDriver: driver != null,
@@ -24,18 +26,23 @@ RolesSummary resumo({
       cleanerStatus: cleaner,
       hasWasher: washer != null,
       washerStatus: washer,
+      hasHandyman: handyman != null,
+      handymanStatus: handyman,
       driverProfile: perfilDriver,
       cleanerProfile: perfilCleaner,
       washerProfile: perfilWasher,
+      handymanProfile: perfilHandyman,
     );
 
 void main() {
-  group('a porta mostra sempre as quatro actividades', () {
-    test('quem não é nada vê as quatro, todas por candidatar', () {
+  // CASA 31/10: eram quatro actividades; a Casa e manutenção ('handyman') é a
+  // quinta, no fim da lista.
+  group('a porta mostra sempre as cinco actividades', () {
+    test('quem não é nada vê as cinco, todas por candidatar', () {
       final a = atividadesDisponiveis(RolesSummary.empty());
-      expect(a.length, 4);
+      expect(a.length, 5);
       expect(a.map((x) => x.papel).toList(),
-          ['delivery', 'driver', 'cleaner', 'washer']);
+          ['delivery', 'driver', 'cleaner', 'washer', 'handyman']);
       expect(a.every((x) => x.estado == CrossRoleCardState.invite), isTrue);
       expect(a.every((x) => x.rotuloDeEstado == 'Candidatar-me'), isTrue);
     });
@@ -143,7 +150,43 @@ void main() {
       });
       expect(r.hasWasher, isFalse);
       expect(r.washerStatus, isNull);
-      expect(atividadesDisponiveis(r).length, 4);
+      expect(r.hasHandyman, isFalse);
+      expect(r.handymanStatus, isNull);
+      expect(atividadesDisponiveis(r).length, 5);
+    });
+
+    test('a Casa chega do JSON da RPC', () {
+      final r = RolesSummary.fromJson({
+        'has_handyman': true,
+        'handyman_status': 'approved',
+        'handyman_profile': {'name': 'Rui'},
+      });
+      expect(r.hasHandyman, isTrue);
+      expect(r.handymanApproved, isTrue);
+      expect(r.handymanPending, isFalse);
+      expect(r.temAlgumPapel, isTrue);
+      expect(r.dadosJaConhecidos?['name'], 'Rui');
+    });
+  });
+
+  group('a Casa e manutenção', () {
+    test('tem nome de gente e começa por candidatar', () {
+      final casa = atividadesDisponiveis(RolesSummary.empty())
+          .firstWhere((x) => x.papel == 'handyman');
+      expect(casa.titulo, 'Casa e manutenção');
+      expect(casa.descricao, isNotEmpty);
+      expect(casa.estado, CrossRoleCardState.invite);
+    });
+
+    test('pendente lê-se "Em análise"', () {
+      final a = atividadesDisponiveis(resumo(handyman: 'pending'));
+      expect(a.firstWhere((x) => x.papel == 'handyman').emAnalise, isTrue);
+    });
+
+    test('quem só faz Casa leva os dados da Casa', () {
+      const perfil = {'name': 'Rui', 'phone': '910000001'};
+      final r = resumo(handyman: 'approved', perfilHandyman: perfil);
+      expect(r.dadosJaConhecidos, perfil);
     });
   });
 }

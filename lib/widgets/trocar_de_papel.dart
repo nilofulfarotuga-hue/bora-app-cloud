@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../screens/cleaner/cleaner_home_screen.dart';
+import '../screens/handyman/handyman_home_screen.dart';
 import '../screens/trabalhar_no_bora_screen.dart';
 import '../screens/washer/washer_home_screen.dart';
 import '../services/papeis_de_trabalho.dart';
@@ -27,6 +28,8 @@ Future<void> abrirTrocaDePapel(BuildContext context) async {
       const _Destino('cleaner', 'Limpeza', Icons.cleaning_services_outlined),
     if (resumo.washerApproved)
       const _Destino('washer', 'Lavagem de carros', Icons.local_car_wash_outlined),
+    if (resumo.handymanApproved)
+      const _Destino('handyman', 'Casa e manutenção', Icons.handyman_outlined),
   ];
 
   await showModalBottomSheet<void>(
@@ -58,8 +61,8 @@ Future<void> abrirTrocaDePapel(BuildContext context) async {
             const Padding(
               padding: EdgeInsets.all(Spacing.lg),
               child: Text(
-                'Por agora só fazes entregas e corridas. Podes juntar limpeza '
-                'ou lavagem de carros à mesma conta.',
+                'Por agora só fazes entregas e corridas. Podes juntar limpeza, '
+                'lavagem de carros ou Casa e manutenção à mesma conta.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppColors.textSecondary),
               ),
@@ -74,9 +77,12 @@ Future<void> abrirTrocaDePapel(BuildContext context) async {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => d.papel == 'washer'
-                        ? const WasherHomeScreen()
-                        : const CleanerHomeScreen(),
+                    // Regra 1.18: um caso por papel, sem "o resto é limpeza".
+                    builder: (_) => switch (d.papel) {
+                      'washer' => const WasherHomeScreen(),
+                      'handyman' => const HandymanHomeScreen(),
+                      _ => const CleanerHomeScreen(),
+                    },
                   ),
                 );
               },
@@ -85,7 +91,7 @@ Future<void> abrirTrocaDePapel(BuildContext context) async {
             leading: const Icon(Icons.add_circle_outline,
                 color: AppColors.textSecondary),
             title: const Text('Juntar outra actividade'),
-            subtitle: const Text('Entregas, corridas, limpeza ou lavagem'),
+            subtitle: const Text('Entregas, corridas, limpeza, lavagem ou Casa'),
             onTap: () {
               Navigator.pop(ctx);
               Navigator.push(
@@ -105,7 +111,7 @@ Future<void> abrirTrocaDePapel(BuildContext context) async {
 /// Quantos papéis de trabalho a pessoa tem — decide se o botão sequer aparece.
 /// Quem só faz uma coisa não precisa de um botão para saltar para lado nenhum.
 int quantosPapeisDeTrabalho(RolesSummary r) =>
-    [r.hasDriver, r.cleanerApproved, r.washerApproved]
+    [r.hasDriver, r.cleanerApproved, r.washerApproved, r.handymanApproved]
         .where((x) => x)
         .length;
 
@@ -120,7 +126,7 @@ class _Destino {
 /// reais. Se alguém acrescentar um papel novo em `PapelDeTrabalho.conhecidos`
 /// sem lhe dar destino aqui, o teste rebenta em vez de o Danilo descobrir no
 /// telemóvel que o botão não o leva a lado nenhum.
-const papeisComEcraDeTrabalho = <String>{'cleaner', 'washer'};
+const papeisComEcraDeTrabalho = <String>{'cleaner', 'washer', 'handyman'};
 
 bool todosOsPapeisComEcraSaoConhecidos() =>
     papeisComEcraDeTrabalho.every(PapelDeTrabalho.conhecidos.contains);

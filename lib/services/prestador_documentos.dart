@@ -1,5 +1,5 @@
-/// O QUE FALTA A CADA PRESTADOR — limpeza e lavagem (missão
-/// documentos-todos-papeis-22-10). Mesma ideia do estafeta
+/// O QUE FALTA A CADA PRESTADOR — limpeza, lavagem e Casa (missão
+/// documentos-todos-papeis-22-10; Casa a 31/10). Mesma ideia do estafeta
 /// ([documentosEmFaltaEstafeta]): uma regra pura, testada, usada pelo painel e
 /// pela app do prestador, para nunca dizerem coisas diferentes.
 ///
@@ -96,21 +96,64 @@ List<DocEmFalta> documentosEmFaltaLavagem(
             chave: 'atividade', rotulo: 'Comprovativo de atividade'),
     ];
 
+/// Tipos de documento da Casa que contam como "enviado": está à espera de
+/// decisão ou foi aprovado. Recusado ou caducado volta a faltar.
+bool _casaTemDocumento(Map<String, dynamic> p, String tipo) {
+  final docs = p['documentos'];
+  if (docs is! List) return false;
+  return docs.whereType<Map>().any((d) =>
+      d['tipo']?.toString() == tipo &&
+      const {'pending', 'approved'}.contains(d['estado']?.toString()));
+}
+
+/// Profissional da Casa e manutenção (31/10): foto de perfil, documento de
+/// identificação (cartão de cidadão), dados legais e o comprovativo.
+///
+/// Os documentos da Casa NÃO vivem em `docs`: são linhas de `casa_documentos`
+/// (tipo + estado), gravadas pela RPC `casa_registar_documento`. Quem chama
+/// junta-as em `p['documentos']` (lista de {tipo, estado}), como devolvem
+/// `casa_meu_perfil` e `admin_casa_profissional`. Os documentos de ofício da
+/// fase 2 (DGEG, IMPIC) decidem-se ofício a ofício e não entram aqui.
+List<DocEmFalta> documentosEmFaltaCasa(
+  Map<String, dynamic> p, {
+  bool atividadeEmFalta = false,
+}) =>
+    [
+      if (_t(p['photo_url']) == null)
+        const DocEmFalta(
+            chave: 'photo', rotulo: 'Foto de perfil', kindFoto: 'photo'),
+      if (!_casaTemDocumento(p, 'cartao_cidadao'))
+        const DocEmFalta(
+            chave: 'cartao_cidadao',
+            rotulo: 'Documento de identificação',
+            kindFoto: 'cartao_cidadao'),
+      ..._legaisEmFalta(p),
+      if (atividadeEmFalta)
+        const DocEmFalta(
+            chave: 'atividade', rotulo: 'Comprovativo de atividade'),
+    ];
+
 // ── Reenvio pela app do prestador (missão docs-reenvio-26-10) ────────────────
 // O Danilo, 22/10: cada prestador PENDENTE vê o que falta e envia ali mesmo,
 // sem refazer o cadastro — como o estafeta. A lista é a mesma do painel (as
 // funções acima); aqui só se decide COMO cada item se envia.
 
-/// [papel] é 'cleaner' (limpeza) ou 'washer' (lavagem), como em
-/// `provider_update_legal_fields`.
+/// [papel] é 'cleaner' (limpeza), 'washer' (lavagem) ou 'handyman' (Casa),
+/// como em `provider_update_legal_fields`.
+///
+/// Regra 1.18: um caso por papel — a Casa nunca cai na regra da limpeza.
 List<DocEmFalta> documentosEmFaltaPrestador(
   String papel,
   Map<String, dynamic> linha, {
   bool atividadeEmFalta = false,
 }) =>
-    papel == 'washer'
-        ? documentosEmFaltaLavagem(linha, atividadeEmFalta: atividadeEmFalta)
-        : documentosEmFaltaLimpeza(linha, atividadeEmFalta: atividadeEmFalta);
+    switch (papel) {
+      'washer' =>
+        documentosEmFaltaLavagem(linha, atividadeEmFalta: atividadeEmFalta),
+      'handyman' =>
+        documentosEmFaltaCasa(linha, atividadeEmFalta: atividadeEmFalta),
+      _ => documentosEmFaltaLimpeza(linha, atividadeEmFalta: atividadeEmFalta),
+    };
 
 /// Os seis dados legais (DSA + DAC7). Gravam-se juntos, pelo mesmo formulário
 /// e a mesma RPC do cadastro (`provider_update_legal_fields`).
@@ -157,6 +200,14 @@ ComoEnviar comoEnviarPrestador(String papel, String chave) {
     return ComoEnviar.dadosFiscais;
   }
   if (chave == 'atividade') return ComoEnviar.comprovativo;
+  // [31/10/2026] Casa: os documentos vão ao balde `handyman-documents` e
+  // gravam-se pela RPC `casa_registar_documento` (também serve para reenviar).
+  // A foto de perfil da Casa ainda não tem RPC própria de reenvio (a tabela
+  // não deixa o próprio escrever): vai pelo Suporte até haver.
+  if (papel == 'handyman') {
+    if (chave == 'cartao_cidadao') return ComoEnviar.foto;
+    return ComoEnviar.suporte;
+  }
   if (chave == 'photo') return ComoEnviar.foto;
   if (papel == 'washer') {
     if (chave == 'id_doc' || chave == 'driving_license') return ComoEnviar.foto;

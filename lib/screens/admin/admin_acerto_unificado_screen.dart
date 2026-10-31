@@ -276,6 +276,8 @@ class _LinhaPessoa extends StatelessWidget {
     'driver': 'Entregas e corridas',
     'cleaner': 'Limpeza',
     'washer': 'Lavagem',
+    // 31/10: só rótulo da Casa (faz-tudo); o cálculo é do servidor.
+    'handyman': 'Casa (faz-tudo)',
   };
 
   @override

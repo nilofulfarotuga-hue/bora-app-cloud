@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../auth/auth_store.dart';
 import '../screens/cleaner/cleaner_home_screen.dart';
+import '../screens/handyman/handyman_home_screen.dart';
 import '../screens/washer/washer_home_screen.dart';
 import '../services/role_switch_helper.dart';
 import '../services/roles_service.dart';
@@ -101,6 +102,7 @@ class _PortaoDoPrestadorState extends State<PortaoDoPrestador>
         widget.estafetaAprovado || (r?.driverApproved ?? false),
       EntradaDoPrestador.limpeza => r?.cleanerApproved ?? false,
       EntradaDoPrestador.lavagem => r?.washerApproved ?? false,
+      EntradaDoPrestador.casa => r?.handymanApproved ?? false,
       EntradaDoPrestador.nenhuma => false,
     };
   }
@@ -166,6 +168,7 @@ class _PortaoDoPrestadorState extends State<PortaoDoPrestador>
       null => const Scaffold(body: Center(child: CircularProgressIndicator())),
       EntradaDoPrestador.limpeza => const CleanerHomeScreen(comoEntrada: true),
       EntradaDoPrestador.lavagem => const WasherHomeScreen(comoEntrada: true),
+      EntradaDoPrestador.casa => const HandymanHomeScreen(comoEntrada: true),
       _ => widget.semOutroPapel,
     };
   }

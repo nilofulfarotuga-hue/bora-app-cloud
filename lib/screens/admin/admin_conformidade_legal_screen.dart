@@ -94,6 +94,10 @@ const List<(String, String)> kTiposPrestador = [
   ('partner', 'Parceiros'),
   ('cleaner', 'Faxineiros'),
   ('washer', 'Lavadores'),
+  // 31/10/2026 (missão casa-manutencao): a linha só traz números quando o
+  // servidor (admin_conformidade_legal) contar casa_profissionais; até lá
+  // aparece a zeros, como qualquer tipo ausente no resumo.
+  ('handyman', 'Profissionais Casa'),
   ('provider', 'Prestadores de serviços'),
 ];
 

@@ -38,6 +38,10 @@ String rotuloPapelPessoa(String papel) => switch (papel) {
       'estafeta' => 'Estafeta (entregas)',
       'limpeza' => 'Limpeza',
       'lavagem' => 'Lavagem de carros',
+      // 31/10/2026 (missão casa-manutencao): só rótulo. O servidor
+      // (admin_set_user_role) ainda não aceita 'casa', por isso não entra em
+      // kPapeisDaPessoa; liga-se e desliga-se no hub Casa do painel.
+      'casa' || 'handyman' => 'Casa (faz-tudo)',
       _ => 'Outro papel',
     };
 
@@ -311,6 +315,7 @@ class _PapeisDaPessoaState extends State<PapeisDaPessoa> {
         'estafeta' => Icons.delivery_dining,
         'limpeza' => Icons.cleaning_services_outlined,
         'lavagem' => Icons.local_car_wash_outlined,
+        'casa' || 'handyman' => Icons.handyman_outlined,
         _ => Icons.badge_outlined,
       };
 

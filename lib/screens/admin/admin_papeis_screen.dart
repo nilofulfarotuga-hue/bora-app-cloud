@@ -7,6 +7,7 @@ import '../../widgets/admin_documentos.dart' show juntarAtividadeAdmin;
 import '../../widgets/admin_robo_documentos.dart' show avisarSeAtividadePorAprovar;
 import '../../widgets/bora/bora.dart';
 import 'admin_carwash_screen.dart';
+import 'admin_casa_screen.dart';
 import 'admin_cleaning_cleaners_screen.dart';
 import 'admin_driver_approval_screen.dart';
 
@@ -258,6 +259,8 @@ class _AdminPapeisScreenState extends State<AdminPapeisScreen>
           builder: (_) => switch (tipo) {
             'cleaner' => const AdminCleaningCleanersScreen(),
             'washer' => const AdminCarwashScreen(),
+            // 31/10: Casa (faz-tudo) abre o hub já na ficha do profissional.
+            'handyman' => AdminCasaScreen(profissionalId: '${c['id']}'),
             _ => const AdminDriverApprovalScreen(),
           },
         ));
@@ -295,6 +298,16 @@ class _AdminPapeisScreenState extends State<AdminPapeisScreen>
           'p_accao': aprovar ? 'approve' : 'reject',
           'p_motivo': motivo,
         }, aprovar ? 'Lavador aprovado.' : 'Lavador recusado.');
+      case 'handyman':
+        // 31/10: Casa e manutenção. Aprovar a pessoa não aprova os ofícios:
+        // cada ofício decide-se na ficha (hub Casa → Profissionais).
+        await _chamar('admin_casa_decidir_profissional', {
+          'p_id': c['id'],
+          'p_acao': aprovar ? 'aprovar' : 'recusar',
+          'p_motivo': motivo,
+        }, aprovar
+            ? 'Profissional da Casa aprovado. Falta aprovar cada ofício na ficha.'
+            : 'Profissional da Casa recusado.');
       default:
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Tipo desconhecido: $tipo')));
@@ -308,6 +321,7 @@ class _AdminPapeisScreenState extends State<AdminPapeisScreen>
         'partner' => 'Parceiro',
         'cleaner' => 'Limpeza',
         'washer' => 'Lavagem de carros',
+        'handyman' => 'Casa (faz-tudo)',
         'admin' => 'Admin',
         _ => papel,
       };
@@ -448,7 +462,12 @@ class _AdminPapeisScreenState extends State<AdminPapeisScreen>
                             // já aprovado: aprovar a Limpeza basta para a
                             // pessoa entrar e trabalhar na limpeza.
                             for (final tipo in _tiposDeCandidatura)
-                              _linhaDoPapel(p, tipo),
+                              // 31/10: a linha da Casa só aparece quando o
+                              // servidor já manda `estado_handyman` (senão
+                              // dizia "não inscrito" a toda a gente).
+                              if (tipo != 'handyman' ||
+                                  p.containsKey('estado_handyman'))
+                                _linhaDoPapel(p, tipo),
                           ],
                         ),
                       );
@@ -458,12 +477,13 @@ class _AdminPapeisScreenState extends State<AdminPapeisScreen>
         ],
       );
 
-  static const _tiposDeCandidatura = ['driver', 'cleaner', 'washer'];
+  static const _tiposDeCandidatura = ['driver', 'cleaner', 'washer', 'handyman'];
 
   static String _rotuloDaCandidatura(String tipo) => switch (tipo) {
         'driver' => 'Estafeta',
         'cleaner' => 'Limpeza',
         'washer' => 'Lavagem de carros',
+        'handyman' => 'Casa (faz-tudo)',
         _ => tipo,
       };
 

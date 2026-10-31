@@ -42,6 +42,7 @@ class PapelDeTrabalho {
         'delivery' => 'Entregas',
         'cleaner' => 'Limpeza',
         'washer' => 'Lavagem de carros',
+        'handyman' => 'Casa e manutenção',
         // NUNCA devolver o nome técnico. Foi assim que apareceu "delivery",
         // em inglês e minúsculas, no ecrã do Danilo a 2026-08-28: o papel
         // entrou na base antes de alguém lhe dar nome. Um papel novo sem
@@ -54,6 +55,7 @@ class PapelDeTrabalho {
         'delivery' => 'Levar comida, compras e encomendas.',
         'cleaner' => 'Limpezas de casas e escritórios.',
         'washer' => 'Lavagens de carro onde o cliente estiver.',
+        'handyman' => 'Montagens, reparações, jardim e pequenas mudanças.',
         _ => '',
       };
 
@@ -64,7 +66,13 @@ class PapelDeTrabalho {
 
   /// Todos os papéis de trabalho que a base pode devolver. Papel novo entra
   /// aqui E nas duas traduções acima, ou o teste apanha.
-  static const List<String> conhecidos = ['driver', 'delivery', 'cleaner', 'washer'];
+  static const List<String> conhecidos = [
+    'driver',
+    'delivery',
+    'cleaner',
+    'washer',
+    'handyman',
+  ];
 
   PapelDeTrabalho copyWith({bool? aceita}) =>
       PapelDeTrabalho(papel: papel, aceita: aceita ?? this.aceita);

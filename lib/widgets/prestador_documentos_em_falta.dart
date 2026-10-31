@@ -16,7 +16,7 @@ import 'bora_support_sheet.dart';
 import 'legal_fields_section.dart';
 import 'robo_documentos_estado.dart';
 
-/// "Candidatura em análise" da limpeza e da lavagem: o que falta, com um botão
+/// "Candidatura em análise" da limpeza, da lavagem e da Casa: o que falta, com um botão
 /// por item para enviar ali mesmo — sem refazer o cadastro (missão
 /// docs-reenvio-26-10; o mesmo que o estafeta tem desde 22/10).
 /// A regra do que falta é a do painel do admin. Falha aberta: sem rede, não
@@ -25,7 +25,8 @@ class PrestadorDocumentosEmFalta extends StatefulWidget {
   const PrestadorDocumentosEmFalta(
       {super.key, required this.papel, this.carregar});
 
-  /// 'cleaner' (limpeza) ou 'washer' (lavagem).
+  /// 'cleaner' (limpeza), 'washer' (lavagem) ou 'handyman' (Casa e
+  /// manutenção, 31/10).
   final String papel;
 
   /// Só para testes: substitui a leitura da base.
@@ -134,9 +135,14 @@ class _PrestadorDocumentosEmFaltaState
 
   Future<void> _confirmarMateriais(DocEmFalta item) async {
     if (_aEnviar != null) return;
-    final lista = widget.papel == 'cleaner'
-        ? CleanerApplyScreen.materiaisObrigatorios
-        : WasherApplyScreen.materiaisObrigatorios;
+    // Regra 1.18: um caso por papel. A Casa não tem lista de materiais
+    // (comoEnviarPrestador nunca lhe devolve "materiais"): nada a confirmar.
+    final List<String> lista = switch (widget.papel) {
+      'cleaner' => CleanerApplyScreen.materiaisObrigatorios,
+      'washer' => WasherApplyScreen.materiaisObrigatorios,
+      _ => const <String>[],
+    };
+    if (lista.isEmpty) return;
     final marcados = <String>{};
     final ok = await showDialog<bool>(
       context: context,
@@ -147,9 +153,11 @@ class _PrestadorDocumentosEmFaltaState
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(widget.papel == 'cleaner'
-                    ? 'Levas tudo isto contigo para cada limpeza?'
-                    : 'Levas tudo isto contigo para cada lavagem?'),
+                Text(switch (widget.papel) {
+                  'cleaner' => 'Levas tudo isto contigo para cada limpeza?',
+                  'washer' => 'Levas tudo isto contigo para cada lavagem?',
+                  _ => 'Levas tudo isto contigo para cada trabalho?',
+                }),
                 const SizedBox(height: Spacing.sm),
                 for (final m in lista)
                   CheckboxListTile(

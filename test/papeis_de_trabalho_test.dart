@@ -59,7 +59,13 @@ void main() {
 
   group('os nomes que a pessoa lê', () {
     test('cada papel tem título e descrição em português', () {
-      for (final papel in const ['driver', 'delivery', 'cleaner', 'washer']) {
+      for (final papel in const [
+        'driver',
+        'delivery',
+        'cleaner',
+        'washer',
+        'handyman',
+      ]) {
         final x = p(papel);
         expect(x.titulo, isNotEmpty, reason: papel);
         expect(x.descricao, isNotEmpty, reason: papel);
@@ -84,11 +90,18 @@ void main() {
           reason: 'o papel de corridas não pode dizer que faz entregas');
     });
 
-    test('os quatro trabalhos existem e são distintos', () {
-      final titulos = const ['driver', 'delivery', 'cleaner', 'washer']
+    test('os cinco trabalhos existem e são distintos', () {
+      // CASA 31/10: era 4 (sem 'handyman'); a Casa é o quinto papel.
+      final titulos = const ['driver', 'delivery', 'cleaner', 'washer', 'handyman']
           .map((x) => p(x).titulo)
           .toSet();
-      expect(titulos.length, 4, reason: 'dois papéis com o mesmo nome');
+      expect(titulos.length, 5, reason: 'dois papéis com o mesmo nome');
+    });
+
+    test('a Casa tem nome próprio, não é "outro"', () {
+      expect(p('handyman').titulo, 'Casa e manutenção');
+      expect(p('handyman').temNomeProprio, isTrue);
+      expect(PapelDeTrabalho.conhecidos, contains('handyman'));
     });
 
     test('um papel sem tradução NUNCA mostra o nome técnico', () {

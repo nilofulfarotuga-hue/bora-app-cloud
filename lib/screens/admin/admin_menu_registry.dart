@@ -18,6 +18,7 @@ import 'admin_cancellation_requests_screen.dart';
 import 'admin_carrinhos_abandonados_screen.dart';
 import 'admin_cancellations_screen.dart';
 import 'admin_carwash_screen.dart';
+import 'admin_casa_screen.dart';
 import 'admin_cashbacks_screen.dart';
 import 'admin_catalog_screen.dart';
 import 'admin_category_mapping_screen.dart';
@@ -832,9 +833,11 @@ List<AdminMenuSection> adminMenuSections() => [
     ],
   ),
   AdminMenuSection(
+    // 31/10/2026: a Casa (faz-tudo) entra nesta secção. O id 'limpeza' fica
+    // igual (favoritos e test/painel_admin_limpo_test.dart dependem dele).
     id: 'limpeza',
-    title: 'Limpeza e Lavagem',
-    subtitle: 'Limpeza doméstica e lavagem de carros.',
+    title: 'Limpeza, Lavagem e Casa',
+    subtitle: 'Limpeza doméstica, lavagem de carros e Casa e manutenção (faz-tudo).',
     icon: Icons.cleaning_services_outlined,
     color: const Color(0xFF14B8A6),
     items: [
@@ -864,6 +867,15 @@ List<AdminMenuSection> adminMenuSections() => [
       color: const Color(0xFF0891B2),
       builder: () => const AdminCarwashScreen(),
       keywords: const ['acerto', 'auto', 'carro', 'lavadores', 'lavagem', 'lavagens', 'pedidos'],
+    ),
+    AdminMenuItem(
+      id: 'limpeza_casa',
+      title: 'Casa e manutenção',
+      subtitle: 'Faz-tudo: profissionais, pedidos, orçamentos, catálogo, configurações e acertos',
+      icon: Icons.handyman,
+      color: const Color(0xFF0F766E),
+      builder: () => const AdminCasaScreen(),
+      keywords: const ['casa', 'faz-tudo', 'faz tudo', 'handyman', 'manutencao', 'montagem', 'moveis', 'reparacoes', 'jardinagem', 'mudancas', 'orcamentos', 'oficios'],
     ),
     ],
   ),

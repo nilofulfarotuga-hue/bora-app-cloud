@@ -44,6 +44,7 @@ enum TrabalhoEmCurso {
   marcacao, // serviços / barbearias
   reserva,
   lavagem, // Lavagem Auto
+  casa, // Casa e manutenção (2026-10-31)
 }
 
 extension _Nomes on TrabalhoEmCurso {
@@ -55,6 +56,7 @@ extension _Nomes on TrabalhoEmCurso {
         TrabalhoEmCurso.marcacao => 'Esta marcação',
         TrabalhoEmCurso.reserva => 'Esta reserva',
         TrabalhoEmCurso.lavagem => 'Esta lavagem',
+        TrabalhoEmCurso.casa => 'Este trabalho',
       };
 
   /// "a corrida", "o pedido", … (para o meio de uma frase)
@@ -65,11 +67,15 @@ extension _Nomes on TrabalhoEmCurso {
         TrabalhoEmCurso.marcacao => 'a marcação',
         TrabalhoEmCurso.reserva => 'a reserva',
         TrabalhoEmCurso.lavagem => 'a lavagem',
+        TrabalhoEmCurso.casa => 'o trabalho',
       };
 
-  /// Concordância: "atribuída" / "atribuído".
-  String get atribuido =>
-      this == TrabalhoEmCurso.pedido ? 'atribuído' : 'atribuída';
+  /// Concordância: "atribuída" / "atribuído". Regra 1.18: um caso por valor
+  /// masculino, em vez de "só o pedido é masculino".
+  String get atribuido => switch (this) {
+        TrabalhoEmCurso.pedido || TrabalhoEmCurso.casa => 'atribuído',
+        _ => 'atribuída',
+      };
 }
 
 /// Marcas que o servidor levanta quando a coisa simplesmente já não existe.
@@ -253,6 +259,9 @@ class JaFicouCriado implements Exception {
         TrabalhoEmCurso.pedido =>
           'O pedido já ficou feito — não fizeste dois. Confirma nos teus '
               'pedidos.',
+        TrabalhoEmCurso.casa =>
+          'O pedido da Casa já ficou feito — não fizeste dois. Confirma nos '
+              'teus pedidos da Casa.',
       };
 
   @override

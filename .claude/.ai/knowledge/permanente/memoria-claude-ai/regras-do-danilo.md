@@ -2,7 +2,7 @@
 id: memoria-claude-ai-regras-do-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-23
+ultima_confirmacao: 2026-10-31
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Regras do Danilo — versão 23/10/2026 (vale para Claude.ai, Hermes/Emerson, Claude Code, ChatGPT, OpenCode)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `regras-do-danilo`, origem `claude-ai`, atualizada em 2026-10-23T05:20:13.144219+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `regras-do-danilo`, origem `claude-ai`, atualizada em 2026-10-31T06:45:10.899685+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: regras do danilo · memoria claude.ai · claude_ai_memoria
 
@@ -72,7 +72,7 @@ Danilo Fulfaro da Silva, Guarda (Portugal), brasileiro. Fundador sozinho do Bora
 - NÃO-PARCEIRO (todos os mercados e restaurantes não-parceiros): preço base + 15% incluído, taxa €2,50 fixa. Estafeta €3,80 + €0,20/km + €0,80 + 30% do lucro líquido Bora.
 - Entrega €2,50 até 4 km, +€0,50/km. Dinheiro máximo €40. Sacos: restaurante €0,30 fixo, mercado €0,10/saco.
 - Tokens cliente ROUND(preço×3), mínimo 1; o cliente só usa METADE do valor dos tokens que tem. Tokens estafeta +40 normal, +50 parceiro.
-- Reembolso de cancelamento para a carteira: 80% saldo + 20% tokens (60 dias).
+- Reembolso de cancelamento (regra de 29/10, confirmada 31/10 06:44, substitui a antiga de 80% saldo + 20% tokens): a ESCOLHA é do CLIENTE, bem clara na app: (a) "Carteira Bora" → 100% do valor vai para a carteira como saldo livre, para comprar o que quiser (sem parte em tokens); (b) "Reembolso para a tua conta (MB Way/cartão)" → estorno total pelo mesmo meio. Nunca escolher por ele por defeito escondido. A antiga divisão 80/20 (platform_settings) deixa de valer; a implementação entra na fila das missões.
 - Reservas: €3 pré-pago; chega → parceiro desconta €2, Bora €1; não aparece ou cancela <2h → Bora 100%; cancela >2h → reembolso total.
 - Dinheiro: tudo até à semana passada está pago; só a semana corrente conta. Ordem de mexer em dinheiro de alguém: fazer na hora e provar por SELECT.
 - Ouro e Prata está FORA (não promover). Antes de promover parceiro, confirmar coming_soon=false.

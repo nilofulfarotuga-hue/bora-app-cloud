@@ -2,7 +2,7 @@
 id: memoria-claude-ai-meta-anuncios-2026-10-30-textos
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-30
+ultima_confirmacao: 2026-10-31
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Textos finais dos 2 anúncios Meta de 30/10/2026 (Instala e pede + Check-in diário)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `meta-anuncios-2026-10-30-textos`, origem `claude-code`, atualizada em 2026-10-30T23:57:38.86667+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `meta-anuncios-2026-10-30-textos`, origem `claude-code`, atualizada em 2026-10-31T06:43:05.366772+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: meta anuncios 2026 10 30 textos · memoria claude.ai · claude_ai_memoria
 
@@ -39,3 +39,30 @@ Valores confirmados na base a 30/10 21:50: checkin_rewards [5,5,10,10,15,15,40];
 Medição: a contagem é pelo de= (link_clicks / site_visits). O apex boraguarda.com/baixar sem www NÃO conta (regra da Cloudflare), por isso os links levam www.
 
 ATUALIZAÇÃO 31/10 00:00 (publicado): a Meta recusa a /baixar como destino de Tráfego ("URL da app", #1487810, por causa da meta apple-itunes-app da página). Destinos finais: Anúncio 1 → https://www.boraguarda.com/entregas ; carrossel → https://www.boraguarda.com/ ; utm_source=meta&utm_medium=pago&utm_campaign=instala-e-pede / checkin-diario / checkin-ipg nos Parâmetros de URL. Descrição do anúncio 1: "Entrega desde 2,50 € na Guarda"; botão "Descarregar". IDs: campanha 52680337414474 (conjunto 52680337414874, anúncio 52680337414674, 2,50 €/dia); campanha 52680349790474 (conjunto Guarda 52680349790874 1,00 €/dia + anúncio 52680349790674; conjunto IPG 52680351300874 1,50 €/dia, 18-26, interesses Na faculdade/Higher education/Estudante/Universidade + anúncio 52680351301074 com o texto para estudantes). Todos de 31/10 08:00 a 04/11 23:59, Praça Velha +8 km, anúncios DESLIGADOS até os fundos chegarem a 25 €.
+
+=== VERSÃO G (31/10 ~07:00, criativos refeitos depois da reprovação do Danilo às 05:50/05:59) ===
+Correções confirmadas na base antes de escrever: Lidl está DESLIGADO na app (is_active_admin=false) → fica fora. Lojas abertas: McDonald's, Burger King, Continente, Pingo Doce, Wells (farmácia). BEMVINDO = 1000 tokens = 5 €, mas em cada pedido só se usa até metade dos tokens (create_order: token_balance_max_use_pct=50) → o 1.º pedido desconta no máximo 2,50 €; por isso NUNCA "5 € no 1.º pedido", sempre "começas com 5 € em tokens". Dia 1 a 7 = 5+5+10+10+15+15+40 = 100 tokens = 0,50 €.
+
+ANÚNCIO 1 "Instala e pede" (marcas grandes)
+Texto principal:
+McDonald's, Burger King, Continente e Pingo Doce, entregues em casa na Guarda.
+Escolhes na app do Bora e um estafeta da Guarda leva-te tudo a casa. Entrega desde 2,50 €.
+Instala hoje com o código BEMVINDO e começas com 5 € em tokens.
+Título: McDonald's, Burger King e Continente em casa
+Descrição: Bora: a app de entregas da Guarda
+Botão: Descarregar · UTM utm_campaign=instala-e-pede · 2,00 €/dia
+
+CARROSSEL DIDÁTICO "O que é o Bora?" (Guarda)
+O Bora é a app de entregas da Guarda: McDonald's, Burger King, Continente, Pingo Doce, farmácia e favores, tudo entregue em casa.
+Tokens são dinheiro para gastar na app (1000 tokens = 5 €) e ganhas só por fazeres o check-in todos os dias; aos 10, 15 e 30 dias seguidos há prémios: 2 salgados da Keli, um açaí do Goola, 2 h de limpeza ou lavagem do carro.
+Instala com o código BEMVINDO e começas já com 5 € em tokens.
+(versão IPG, 1.ª linha) Estudas no Politécnico da Guarda? O Bora é a app de entregas da cidade: McDonald's, Burger King, Continente e farmácia, entregues onde estiveres.
+Cartões: 1 O que é o Bora? · 2 O que são tokens? · 3 O teu mês no Bora · 4 O que ganhas · 5 Começa hoje. Rodapé dos prémios: 1 prémio por sequência · pedido pago nos últimos 30 dias · pagas só a entrega e as taxas · telemóvel confirmado. 1,00 €/dia Guarda + 1,00 €/dia IPG.
+
+ANÚNCIO 3 "Favores - vídeo (31/10)"
+Precisas de algo da farmácia e não podes sair? Pede um Favor no Bora.
+Um estafeta da Guarda vai buscar e leva-te a casa; ele adianta o valor e tu pagas-lhe na entrega.
+Instala com o código BEMVINDO e começas com 5 € em tokens.
+Cenas e personagens criadas com IA. Os ecrãs são da app verdadeira.
+Título: Favores na Guarda, entregues em casa · Botão: Descarregar · UTM utm_campaign=favores-video · 1,00 €/dia · vídeo reel-favores-30s.mp4 (9:16, legendas já gravadas, aprovado a 17/10).
+Nota: o prompt da Claude.ai dizia "pagas em dinheiro ou MB Way" e "tens 5 € no 1.º pedido"; nenhum dos dois ficou porque não se confirmou o MB Way nos Favores e o 1.º pedido só usa até metade dos tokens.

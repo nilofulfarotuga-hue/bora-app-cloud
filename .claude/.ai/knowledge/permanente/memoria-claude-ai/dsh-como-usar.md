@@ -58,6 +58,8 @@ Antes de cada coisa que ele faz, uma guarda confere se pode. Se a guarda barrar,
 ## Cuidados
 - O motor é grátis e pode guardar o que lhe mandas. Não lhe mandes palavras-passe nem chaves.
 - Quando ele vê o ecrã ou uma foto, a imagem vai para a Google (plano grátis). Evita janelas de banco ou de palavras-passe abertas.
+- A voz que mandas é percebida no PC. Só quando o PC está com pouca memória (ou o reconhecimento demora mais de 45
+  segundos) o áudio vai à Google (plano grátis) para ser percebido, e o registo diz quando isso aconteceu.
 - O Dipsy não consegue ler o espaço do disco nem a memória do PC (o sandbox não deixa). Para isso pede ao Claude Code.
 
 ## Como parar

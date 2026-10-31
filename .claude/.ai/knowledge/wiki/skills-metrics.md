@@ -93,3 +93,5 @@ confianca: auto
 | protocolo-missao-bora | 2026-10-29 | final-app-2026-10-29 | relatorio FABLE-2026-10-29-final-app.md, digest, CONTINUAR | ok |
 | prompt-blindado-validator | 2026-10-29 | final-app-2026-10-29 | 1 prompt + 5 adendos | ok |
 | ceo-ai | 2026-10-31 | publicar-retoma-2026-10-31 (Opus 5.5) | 5 partes SQL, notify-admin-urgent v22, push e91b1d22 [skip ci], e2e 5754+ | ok |
+| ceo-ai | 2026-10-31 | fecho-pendentes-2026-10-31 (Opus 5.5) | 4 blocos: peso ao quilo (app+painel+5 migracoes), support-chatbot v30, cobrar-diferenca-peso v1 desligada, porteiro, limpeza; e2e 5794+ | ok |
+| protocolo-missao-bora | 2026-10-31 | fecho-pendentes-2026-10-31 | relatorio fecho-pendentes-2026-10-31.md, digest, prompt no Obsidian | ok |

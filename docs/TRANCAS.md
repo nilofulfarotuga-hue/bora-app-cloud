@@ -225,3 +225,7 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   no worktree `.claude/worktrees/publicar-2026-10-31`, à espera de um push autorizado. Registado no e2e_log.
 - **31/10/2026, mesma missão** — Write de uma nota de memória recusado por ter o prefixo das chaves da Anthropic
   escrito por extenso (só o formato, nenhuma chave): falso positivo; a nota foi reescrita a descrever o formato.
+- **31/10/2026, missão `fecho-pendentes-2026-10-31`** — `rm -rf` de uma pasta de rascunho da própria sessão
+  (scratchpad, cópia de `_shared` para verificar tipos com o Deno) recusado pela bora-tranca: "apagar recursivo
+  fora de build/, .dart_tool/ ou node_modules/". Não se apagou nada: a verificação correu numa pasta nova
+  (`denochk2`). A pasta antiga fica no temporário da sessão. Registado no e2e_log.

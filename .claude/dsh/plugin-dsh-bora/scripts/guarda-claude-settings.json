@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell|Write|Edit|MultiEdit|NotebookEdit|Read|Grep|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"C:/Users/danil/ferramentas/dsh-plugins/bora__dsh-bora/scripts/guarda-claude-hook.mjs\"",
+            "timeout": 20
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -10,6 +10,8 @@ import { capturarEcra, verImagem } from './olhos.js'
 import { agendar, listar, cancelar, descrever } from './agenda.js'
 import { passarAoClaudeCode } from './claude.js'
 import * as mem from './memoria.js'
+import * as criador from './criador.js'
+import { libertarMemoria } from './ram.js'
 
 export const name = 'dsh-bora'
 export const inject = ['tools', 'systemPrompt']
@@ -28,6 +30,21 @@ const PROMPT = [
   'Todo o commit passa pelo Juiz: usa o script C:\\Users\\danil\\.dsh\\dsh-commit.ps1 (nunca git commit à mão) e nunca git push.',
   'Podes agendar tarefas para uma hora marcada com agendar_tarefa (listar_agenda e cancelar_tarefa também existem): a ponte do',
   'Telegram executa-as sozinha e manda o resultado ao Danilo em texto e em voz.',
+  'CREATOR MODE: quando o Danilo pedir "faz-me/cria uma ferramenta que...", cria-a tu com criar_ferramenta (uma receita:',
+  'consulta_sql = um SELECT só de leitura à base do Bora; leitura_web = um GET a um sítio nosso). Ela nasce no laboratório e é',
+  'testada logo; se o teste passar, promove-a com promover_ferramenta, usa-a com usar_ferramenta_criada para responder ao',
+  'pedido, e explica ao Danilo numa frase o que criaste. Se o teste falhar, corrige a receita. listar_ferramentas_criadas',
+  'mostra as que existem; as promovidas aparecem como fc_<nome> nos pedidos seguintes.',
+  'Se o Danilo pedir para libertar memória do PC (o PC está lento ou sem memória), usa libertar_memoria.',
+  'A rede tem uma lista branca: só sítios do Bora (boraguarda.com, o nosso Supabase, o Córtex, o nosso GitHub). Outros sítios',
+  'são barrados pela guarda; para pesquisar na internet, passa ao Claude Code.',
+].join(' ')
+
+const PROMPT_PLANEAR = [
+  'MODO PLANEAR (o Danilo mandou /planear): agora NÃO mudes nada. Lê, procura e investiga o que precisares (ficheiros, SELECT,',
+  'Córtex) e devolve UM plano numerado, curto, em português simples: o que vais fazer, por que ordem, que ficheiros ou tabelas',
+  'tocas, o que pode correr mal, e como provas que ficou feito. A guarda barra qualquer escrita neste modo. Acaba com a frase:',
+  '"Se aprovares, manda /aprovar; para mudar o plano, manda /corrigir e o que queres diferente."',
 ].join(' ')
 
 function redigir(s) {
@@ -41,8 +58,18 @@ function registar(nomeFerramenta, r, args) {
   } catch { /* o registo nunca pode parar a guarda */ }
 }
 
+function lerValores(v) {
+  if (v && typeof v === 'object') return v
+  const s = String(v ?? '').trim()
+  if (!s) return {}
+  try { const o = JSON.parse(s); return o && typeof o === 'object' ? o : {} } catch { throw new Error('valores tem de ser JSON, por exemplo {"dia":"2026-10-31"}.') }
+}
+const erroEmTexto = (f) => async (...a) => { try { return await f(...a) } catch (e) { return `Não deu: ${String(e?.message ?? e)}` } }
+
 export function apply(ctx) {
+  const MODO = String(process.env.DIPSY_MODO ?? '').toLowerCase()
   ctx.systemPrompt.section({ name: 'bora:dipsy', order: 116, text: PROMPT })
+  if (MODO === 'planear') ctx.systemPrompt.section({ name: 'bora:planear', order: 118, text: PROMPT_PLANEAR })
 
   ctx.tools.register(defineTool({
     name: 'captura_ecra',
@@ -139,9 +166,96 @@ export function apply(ctx) {
     execute: async (args, exec) => passarAoClaudeCode(args, exec.signal),
   }))
 
+  // ---------- Creator Mode (31/10): o Dipsy cria, testa e promove as próprias ferramentas (receitas, não código) ----------
+  ctx.tools.register(defineTool({
+    name: 'criar_ferramenta',
+    description: 'CREATOR MODE: cria uma ferramenta nova do Dipsy a partir de um pedido do Danilo. É uma receita, não código: tipo consulta_sql (UM SELECT só de leitura à base do Bora; corre numa transação só de leitura) ou leitura_web (UM GET a um sítio nosso da lista branca). Parâmetros opcionais entram no SQL ou no endereço como {{nome}}. Nasce no laboratório e é TESTADA logo (devolve o resultado do teste). Exemplo: nome pedidos_hoje, tipo consulta_sql, sql: select count(*) as pedidos from public.orders where (created_at at time zone \'Europe/Lisbon\')::date = (now() at time zone \'Europe/Lisbon\')::date',
+    parameters: {
+      nome: { type: 'string', required: true, description: '3 a 40 letras minúsculas, números ou _ (ex.: pedidos_hoje).' },
+      descricao: { type: 'string', required: true, description: 'O que a ferramenta faz, numa frase (8 a 300 letras).' },
+      tipo: { type: 'string', enum: ['consulta_sql', 'leitura_web'], required: true, description: 'consulta_sql ou leitura_web.' },
+      sql: { type: 'string', description: 'Para consulta_sql: UM SELECT (ou WITH ... SELECT), sem ponto e vírgula no meio.' },
+      url: { type: 'string', description: 'Para leitura_web: endereço https de um sítio nosso.' },
+      parametros: {
+        type: 'array',
+        description: 'Até 5 parâmetros (opcional).',
+        items: {
+          type: 'object',
+          properties: {
+            nome: { type: 'string', description: 'Nome do parâmetro (minúsculas).' },
+            tipo: { type: 'string', enum: ['texto', 'numero', 'data'], description: 'texto, numero ou data (AAAA-MM-DD).' },
+            descricao: { type: 'string', description: 'Para que serve.' },
+            padrao: { type: 'string', description: 'Valor por omissão (opcional).' },
+          },
+          additionalProperties: false,
+        },
+      },
+      valores_teste: { type: 'string', description: 'JSON com os valores dos parâmetros para o teste (opcional), ex.: {"dia":"2026-10-31"}.' },
+    },
+    output: TEXTO,
+    execute: erroEmTexto(async (args, exec) => criador.criar({ ...args, valores_teste: lerValores(args.valores_teste) }, exec.signal)),
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'promover_ferramenta',
+    description: 'Promove uma ferramenta criada (que já passou no teste do laboratório) para os perfis do dia a dia (Telegram e página): a partir do pedido seguinte aparece como fc_<nome>.',
+    parameters: { nome: { type: 'string', required: true, description: 'O nome da ferramenta criada.' } },
+    output: TEXTO,
+    execute: erroEmTexto(async (args) => criador.promover(args.nome)),
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'usar_ferramenta_criada',
+    description: 'Corre uma ferramenta criada pelo Dipsy (ativa, ou do laboratório com o teste a passar) e devolve o resultado. valores = JSON com os parâmetros (opcional).',
+    parameters: {
+      nome: { type: 'string', required: true, description: 'O nome da ferramenta criada.' },
+      valores: { type: 'string', description: 'JSON com os valores dos parâmetros, ex.: {"dia":"2026-10-31"}.' },
+    },
+    output: TEXTO,
+    execute: erroEmTexto(async (args, exec) => criador.usar(args.nome, lerValores(args.valores), exec.signal)),
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'listar_ferramentas_criadas',
+    description: 'Lista as ferramentas que o Dipsy criou (ativas e do laboratório, com o estado do teste).',
+    parameters: {},
+    output: TEXTO,
+    execute: async () => criador.listar(),
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'apagar_ferramenta',
+    description: 'Retira UMA ferramenta criada pelo Dipsy (o ficheiro fica guardado com o sufixo .retirada). Só se estiver errada ou o Danilo pedir.',
+    parameters: { nome: { type: 'string', required: true, description: 'O nome da ferramenta criada.' } },
+    output: TEXTO,
+    execute: erroEmTexto(async (args) => criador.apagar(args.nome)),
+  }))
+
+  for (const r of criador.carregar(criador.perfilAtual())) {
+    const params = {}
+    for (const p of r.parametros) params[p.nome] = { type: p.tipo === 'numero' ? 'number' : 'string', required: p.padrao === undefined, description: p.descricao || p.tipo }
+    try {
+      ctx.tools.register(defineTool({
+        name: `fc_${r.nome}`,
+        description: `[ferramenta criada pelo Dipsy] ${r.descricao}`,
+        parameters: params,
+        output: TEXTO,
+        execute: erroEmTexto(async (args, exec) => criador.usar(r.nome, args, exec.signal)),
+      }))
+    } catch { /* uma receita má nunca impede o arranque do Dipsy */ }
+  }
+
+  ctx.tools.register(defineTool({
+    name: 'libertar_memoria',
+    description: 'Liberta memória (RAM) do PC do Danilo: corre o script seguro ~/.dsh/limpar-ram.ps1 em modo normal (só atua quando a memória está mesmo baixa e nunca fecha o Remote Control, as sessões do Claude, o Chrome, a ponte do Telegram nem os pythonw). Devolve os MB livres antes e depois.',
+    parameters: {},
+    output: TEXTO,
+    execute: async (_args, exec) => libertarMemoria(exec.signal),
+  }))
+
   ctx.tools.guard((execucao) => {
     try {
-      const r = avaliar(execucao.name, execucao.arguments)
+      const r = avaliar(execucao.name, execucao.arguments, { modo: MODO })
       if (!r) return undefined
       registar(execucao.name, r, execucao.arguments)
       return mensagem(r)

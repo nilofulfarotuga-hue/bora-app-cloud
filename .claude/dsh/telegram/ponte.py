@@ -12,6 +12,12 @@ Ponte Telegram <-> Dipsy (dsh). Codigo nosso, missao C-liga / C5c-voz (30/10/202
   Um unico caminho de envio (Ponte.dizer): texto logo, e o audio por pedacos de ate 900 letras em frases inteiras, por
   ordem, com a duracao conferida antes de mandar (ver voz_dipsy.py). Nada sai por outro caminho.
 - Comandos: /ajuda  /estado  /parar (cancela o pedido atual)  /desligar (fecha esta ponte).
+- 31/10 (retoma-geral b3): CONVERSA SEGUIDA (o dsh continua a mesma sessao, --session-id, se a ultima mensagem foi ha
+  menos de 30 min; /nova recomeca), /planear + /aprovar (modo Planear com a guarda a barrar escritas), /objetivo
+  (trabalha sozinho, ronda a ronda, ate cumprir; max 6 rondas), /corrigir (muda o rumo a meio: para e continua a mesma
+  sessao com a correcao), /voltar (esquece o ultimo pedido: conversa nova com o contexto dos pedidos anteriores),
+  /libertar (corre ~/.dsh/limpar-ram.ps1 em modo normal). Se a guarda dsh-bora nao ligar, a ponte NAO deixa o dsh
+  trabalhar (falha fechada). Audio: "Estou a pensar" se o dsh demorar mais de 20 s.
 - Tudo o que sai passa por um redator que tapa chaves e segredos conhecidos.
 - A credencial do bot vive em ~/.dsh/secrets/telegram-dipsy.token (so o utilizador le). Nunca e escrita em log nem em mensagem.
 
@@ -61,6 +67,12 @@ LIMITE_MINUTOS = 25
 MAX_MENSAGENS_HORA = 40
 MAX_AUDIO_SEGUNDOS = 300
 NO_WINDOW = 0x08000000
+JANELA_CONVERSA_MIN = 30        # mensagens com menos de 30 min de intervalo continuam a mesma conversa do dsh
+MAX_RONDAS_OBJETIVO = 6
+MAX_CORRECOES = 3
+SCRIPT_RAM = os.path.join(DSH, "limpar-ram.ps1")
+GUARDA_FALHOU = re.compile(r"dsh-bora \(dsh-bora\):|failed to import[^\n]*dsh-bora")
+MARCA_OBJETIVO = re.compile(r"OBJETIVO\s+(CUMPRIDO|EM\s+CURSO|BLOQUEADO)\s*:?\s*(.*)", re.I)
 
 TENTATIVAS = [
     ("kilo nemotron (padrao)", None),
@@ -222,22 +234,31 @@ def matar(proc):
             pass
 
 
-def correr_dsh(pedido, estado):
-    """Corre UM pedido no dsh headless (com reservas). Devolve (texto, motor) ou (None, motivo)."""
+def correr_dsh(pedido, estado, sid=None, modo=None):
+    """Corre UM pedido no dsh headless (com reservas). Devolve (texto, motor) ou (None, motivo).
+    sid: continua essa sessao do dsh (--session-id). modo: 'planear' liga o modo Planear da guarda (DIPSY_MODO).
+    Guarda o id da sessao usada em estado['sid']. Se a guarda dsh-bora nao ligar, para o dsh logo (falha fechada)."""
     curar_agents_md()
     dsh = shutil.which("dsh") or os.path.join(os.environ.get("APPDATA", ""), "npm", "dsh.cmd")
     ultimo_erro = "nenhum motor respondeu"
+    env = ambiente()
+    if modo:
+        env["DIPSY_MODO"] = modo
+    else:
+        env.pop("DIPSY_MODO", None)
     for nome, patch in TENTATIVAS:
-        if estado.get("cancelado"):
+        if estado.get("cancelado") or estado.get("correcao"):
             return None, "cancelado"
         args = [dsh, "--profile", "headless"]
         if patch:
             args += ["--patch", patch]
+        if sid:
+            args += ["--session-id", sid]
         args += ["--json", "-"]
         try:
             proc = subprocess.Popen(
-                args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                cwd=REPO, env=ambiente(), creationflags=NO_WINDOW,
+                args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                cwd=REPO, env=env, creationflags=NO_WINDOW,
             )
         except Exception as e:
             ultimo_erro = f"nao consegui arrancar o dsh ({type(e).__name__})"
@@ -250,6 +271,7 @@ def correr_dsh(pedido, estado):
             pass
         final = None
         textos = []
+        erros = []
         limite = time.time() + LIMITE_MINUTOS * 60
 
         def vigia():
@@ -260,28 +282,89 @@ def correr_dsh(pedido, estado):
                     return
                 time.sleep(2)
 
+        def ler_erros():   # le o stderr (diagnosticos do dsh): se a guarda nao ligou, para tudo antes de o dsh agir
+            try:
+                for b in proc.stderr:
+                    l = b.decode("utf-8", "replace")
+                    if GUARDA_FALHOU.search(l):
+                        estado["guarda_falhou"] = l.strip()[:200]
+                        log(f"GUARDA dsh-bora NAO LIGOU: {l.strip()[:160]}; dsh parado")
+                        matar(proc)
+                        return
+            except Exception:
+                pass
+
         threading.Thread(target=vigia, daemon=True).start()
+        threading.Thread(target=ler_erros, daemon=True).start()
         for linha in proc.stdout:
             try:
                 ev = json.loads(linha.decode("utf-8", "replace"))
             except Exception:
                 continue
-            if ev.get("type") == "final":
+            t = ev.get("type")
+            if t == "session" and ev.get("sessionId"):
+                estado["sid"] = ev["sessionId"]
+            elif t == "final":
                 final = ev.get("text")
-            elif ev.get("type") == "text" and ev.get("text"):
+            elif t == "text" and ev.get("text"):
                 textos.append(ev["text"])
+            elif t == "error":
+                erros.append(str(ev.get("message", ""))[:200])
         proc.wait()
         estado["proc"] = None
+        if estado.get("guarda_falhou"):
+            return None, "a guarda do Dipsy não ligou, por isso não trabalhei (pede ao Claude Code para ver o plugin dsh-bora)"
         if estado.get("excedeu"):
             return None, f"passou o limite de {LIMITE_MINUTOS} minutos"
-        if estado.get("cancelado"):
+        if estado.get("cancelado") or estado.get("correcao"):
             return None, "cancelado"
         resposta = final or ("\n".join(textos) if textos else None)
         if proc.returncode == 0 and resposta:
             return resposta, nome
+        if sid and any(re.search(r"does not exist|cannot be adopted|was recorded in|is live in this process|cannot be driven", e) for e in erros):
+            log(f"sessao {sid} ja nao se pode continuar ({erros[0][:120]}); passo a conversa nova")
+            estado["sid_perdida"] = True
+            sid = None
+            continue
         ultimo_erro = f"{nome} falhou (codigo {proc.returncode})"
-        log(ultimo_erro)
+        log(ultimo_erro + (f": {erros[0]}" if erros else ""))
     return None, ultimo_erro
+
+
+def git_mudados():
+    """Ficheiros com alteracoes na arvore do repo (para dizer o que um pedido mudou). Conjunto vazio se falhar."""
+    try:
+        r = subprocess.run(["git", "-C", REPO, "status", "--porcelain"], capture_output=True, timeout=25, creationflags=NO_WINDOW)
+        return {l[3:].strip() for l in r.stdout.decode("utf-8", "replace").splitlines() if len(l) > 3}
+    except Exception:
+        return set()
+
+
+def libertar_ram():
+    """Corre ~/.dsh/limpar-ram.ps1 em modo normal (sem -Forcar, sem -Sessoes). Devolve o texto para o Danilo."""
+    if not os.path.exists(SCRIPT_RAM):
+        return "Não encontrei o script de limpeza da memória. Pede ao Claude Code."
+    reg = os.path.join(DSH, "limpar-ram.log")
+    try:
+        antes_b = os.path.getsize(reg)
+    except Exception:
+        antes_b = 0
+    antes = vz._ram_livre_mb()
+    try:
+        subprocess.run(["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", SCRIPT_RAM],
+                       capture_output=True, timeout=120, creationflags=NO_WINDOW)
+    except Exception as e:
+        return f"A limpeza da memória não correu ({type(e).__name__})."
+    depois = vz._ram_livre_mb()
+    novas = ""
+    try:
+        with open(reg, "rb") as f:
+            f.seek(antes_b)
+            novas = " | ".join(l.strip() for l in f.read().decode("utf-8", "replace").splitlines() if l.strip())[-400:]
+    except Exception:
+        pass
+    log(f"libertar memoria: {antes} -> {depois} MB")
+    return f"Memória livre antes: {antes} MB. Depois: {depois} MB." + (f" O que a limpeza fez: {novas}" if novas else "")
 
 
 AGENDA = os.path.join(DSH, "agenda", "agenda.json")
@@ -308,6 +391,21 @@ PREFIXO = (
     "em texto corrido, sem tabelas nem jargão. Se uma guarda barrar algo, diz-lho numa frase e segue com o resto. "
     "Pasta de trabalho: C:\\BoraLocal\\projetosflutter\\bora_app.\n\nPedido: "
 )
+PREFIXO_CORRECAO = ("CORREÇÃO DO DANILO A MEIO DO TRABALHO (ele mandou /corrigir enquanto trabalhavas; o que estavas a fazer "
+                    "foi interrompido): ")
+SUFIXO_CORRECAO = ("\nContinua o trabalho a partir de onde ficaste, já com esta correção. Não repitas o que já estava bem. "
+                   "Responde em português simples, curto, em texto corrido.")
+PEDIDO_PLANEAR = ("Pedido do Danilo pelo Telegram, em MODO PLANEAR (/planear): ainda NÃO mudes nada; investiga só o "
+                  "necessário e devolve o plano numerado, curto, em português simples, para ele aprovar. Pedido: ")
+PEDIDO_APROVAR = ("O Danilo APROVOU o plano que fizeste (mandou /aprovar). Faz agora o plano, passo a passo, com as regras de "
+                  "sempre, e no fim diz em texto corrido e curto o que ficou feito e como o provaste.")
+OBJETIVO_INICIO = ("OBJETIVO DO DANILO (/objetivo): {meta}\nTrabalha sozinho para o cumprir; tens até {max} rondas e esta é a 1.ª. "
+                   "Em cada ronda faz uma parte real do trabalho e prova-a. A ÚLTIMA linha da tua resposta tem de ser exatamente "
+                   "uma destas: OBJETIVO CUMPRIDO: <prova> | OBJETIVO EM CURSO: <o que falta> | OBJETIVO BLOQUEADO: <porquê>. "
+                   "Se precisares de uma decisão do Danilo, de dinheiro ou de algo que a guarda barrou, é BLOQUEADO.")
+OBJETIVO_CONTINUA = ("Continua o objetivo (ronda {ronda} de {max}): {meta}\nFaz a parte seguinte do que faltava, prova-a, e acaba "
+                     "outra vez com UMA destas linhas: OBJETIVO CUMPRIDO: <prova> | OBJETIVO EM CURSO: <o que falta> | "
+                     "OBJETIVO BLOQUEADO: <porquê>.")
 
 
 # --------------------------------------------------------------------------- a ponte
@@ -322,6 +420,10 @@ class Ponte:
         self.inicio = time.time()
         self.fila_audio = queue.Queue()
         self.resultados_envio = []      # so para --provar-envio: (letras, ids de texto, partes de voz)
+        self.conversa = {"sid": None, "ultimo": 0.0, "turnos": []}   # a conversa seguida com o dsh
+        self.semente = None             # contexto a dar a uma conversa nova depois de /voltar
+        self.plano = None               # plano a espera de /aprovar: {"sid", "pedido"}
+        self.objetivo = None            # {"meta", "ronda", "parar", "estado"}
         threading.Thread(target=self._trabalhador_audio, daemon=True).start()
 
     # ---- O UNICO CAMINHO DE ENVIO: texto completo logo + audio do texto inteiro, por pedacos, por ordem ----
@@ -370,9 +472,45 @@ class Ponte:
     # ---- comandos ----
     def ajuda(self):
         return ("Sou o Dipsy. Escreve-me o que queres, ou manda um áudio, como falas com uma pessoa, e eu faço no PC. "
-                "Podes mandar também uma foto, e eu vejo-a. Respondo sempre em texto e em áudio, com tudo por inteiro.\n"
+                "Podes mandar também uma foto, e eu vejo-a. Respondo sempre em texto e em áudio, com tudo por inteiro. "
+                "Lembro-me da conversa enquanto falamos (até 30 minutos de pausa).\n"
+                "/planear e o pedido: faço primeiro o plano, sem mexer em nada; se gostares, mandas /aprovar e eu faço.\n"
+                "/objetivo e a meta: trabalho sozinho, ronda a ronda, até a meta estar cumprida (no máximo 6 rondas).\n"
+                "/corrigir e a correção: mudo o rumo a meio do trabalho, sem começar do zero.\n"
+                "/voltar: esqueço o último pedido, como se não o tivesses feito (os ficheiros que mudei não voltam atrás; eu digo quais).\n"
+                "/nova: começo uma conversa nova. /libertar: liberto memória do PC.\n"
                 "/estado diz o que estou a fazer. /parar cancela o que estou a fazer. "
                 "/desligar fecha esta ligação ao Telegram (volta a ligar com o DIPSY no ambiente de trabalho).")
+
+    def texto_objetivo(self):
+        o = self.objetivo
+        if not o:
+            return "Não há nenhum objetivo. Para dar um, escreve /objetivo e a meta."
+        return f"Objetivo: {o['meta'][:200]}. Ronda {o['ronda']} de {MAX_RONDAS_OBJETIVO}. Estado: {o['estado']}."
+
+    def voltar_atras(self):
+        with self.trinco:
+            ocupado = self.trabalho is not None
+        if ocupado:
+            return "Estou a meio de um trabalho. Manda /parar primeiro, e depois /voltar."
+        turnos = self.conversa["turnos"]
+        if not turnos:
+            return "Não há nenhum pedido nesta conversa para esquecer."
+        ultimo = turnos.pop()
+        self.plano = None
+        self.conversa["sid"] = None              # a proxima mensagem abre uma conversa nova do dsh...
+        if turnos:                                # ...com o contexto dos pedidos de antes deste
+            linhas = [f"{i}) Pedido: {t['pedido'][:300]} | Resposta: {t['resposta'][:400]}" for i, t in enumerate(turnos[-4:], 1)]
+            self.semente = ("Contexto da conversa: o Danilo voltou atrás e pediu para esquecer o último pedido que fez. "
+                            "Antes disso, nesta conversa, tinha sido isto:\n" + "\n".join(linhas) + "\n\n")
+        else:
+            self.semente = None
+        ficheiros = ultimo.get("ficheiros") or []
+        aviso = (f" Os ficheiros que esse pedido mudou não voltaram atrás: {', '.join(ficheiros[:8])}"
+                 + (f" e mais {len(ficheiros) - 8}" if len(ficheiros) > 8 else "") + ". Se quiseres, pede ao Claude Code para os repor."
+                 ) if ficheiros else " Esse pedido não mudou ficheiros no projeto."
+        log(f"voltar atras: esquecido o pedido '{ultimo['pedido'][:60]}' ({len(ficheiros)} ficheiros mudados)")
+        return f"Voltei atrás: esqueci o pedido \"{ultimo['pedido'][:120]}\".{aviso}"
 
     def estado(self):
         with self.trinco:
@@ -457,10 +595,16 @@ class Ponte:
             log(f"agenda: a correr {t['id']} ({titulo})")
             pedido = ("Tarefa agendada pelo Danilo, a correr sozinha à hora marcada (ele não está a escrever agora). "
                       "Responde em português simples e curto, texto corrido, sem tabelas.\n\nPedido: " + t["pedido"])
-            threading.Thread(target=self.trabalhar, args=(self.autorizado, pedido, t["pedido"][:70], titulo), daemon=True).start()
+            threading.Thread(target=self.trabalhar, args=(self.autorizado, pedido, t["pedido"][:70], titulo),
+                             kwargs={"continuar": False}, daemon=True).start()
             return
 
-    def trabalhar(self, chat_id, pedido, resumo, titulo=None):
+    def trabalhar(self, chat_id, pedido, resumo, titulo=None, modo=None, continuar=True, pensar=False,
+                  enviar=True, sid_forcado=None, pedido_danilo=None):
+        """Corre um pedido no dsh e (por omissao) manda a resposta ao Danilo. Devolve (texto, motor).
+        continuar: segue a conversa do dsh (se a ultima mensagem foi ha menos de 30 min) e regista o turno para /voltar.
+        modo='planear': a guarda barra escritas. pensar: diz "Estou a pensar" se passar de ~20 s. A meio, /corrigir
+        para o dsh e continua a MESMA sessao com a correcao (ate 3 vezes)."""
         estado = {"cancelado": False, "proc": None}
         with self.trinco:
             self.trabalho = {"inicio": time.time(), "resumo": resumo, "estado": estado}
@@ -471,24 +615,100 @@ class Ponte:
             while not parar_aviso.wait(4.5):
                 self.tg.a_escrever(chat_id)
                 n += 1
+                if pensar and n == 5:                                # ~22 s sem resposta
+                    self.dizer(chat_id, "Estou a pensar, já te respondo.")
                 if n in (40, 40 + 66, 40 + 132, 40 + 198):          # ~3 min e depois de 5 em 5
-                    self.dizer(chat_id, "Ainda estou a trabalhar nisto. Escreve /parar se quiseres cancelar.")
+                    self.dizer(chat_id, "Ainda estou a trabalhar nisto. Escreve /parar para cancelar, ou /corrigir e o que queres diferente.")
 
         threading.Thread(target=avisos, daemon=True).start()
+        sid = sid_forcado
+        if sid is None and continuar and self.conversa["sid"] and time.time() - self.conversa["ultimo"] < JANELA_CONVERSA_MIN * 60:
+            sid = self.conversa["sid"]
+        texto_pedido = pedido
+        if sid is None and continuar and self.semente:
+            texto_pedido = self.semente + pedido
+            self.semente = None
+        antes = git_mudados() if continuar else set()
+        texto, motor = None, "cancelado"
         try:
-            texto, motor = correr_dsh(pedido, estado)
+            for _ in range(MAX_CORRECOES + 1):
+                texto, motor = correr_dsh(texto_pedido, estado, sid=sid, modo=modo)
+                correcao = estado.pop("correcao", None)
+                if not correcao or estado.get("cancelado"):
+                    break
+                sid = estado.get("sid") or sid
+                log(f"correcao a meio: continuo a sessao {sid or '(nova)'}")
+                texto_pedido = (PREFIXO_CORRECAO + correcao + SUFIXO_CORRECAO) if sid else (pedido + "\n\nCORREÇÃO DO DANILO: " + correcao)
         finally:
             parar_aviso.set()
             with self.trinco:
                 self.trabalho = None
+        if continuar and estado.get("sid"):
+            self.conversa["sid"] = estado["sid"]
+            self.conversa["ultimo"] = time.time()
         if estado["cancelado"]:
-            return
+            return None, "cancelado"
         if texto is None:
-            self.dizer(chat_id, f"Não consegui fazer isto: {motor}. Tenta outra vez daqui a pouco.")
-            return
-        rodape = "" if motor.startswith("kilo nemotron") else f"\n\n(motor de reserva: {motor})"
-        cabeca = f"{titulo}.\n\n" if titulo else ""
-        self.dizer(chat_id, cabeca + texto + rodape, falado=cabeca + texto)
+            if enviar:
+                self.dizer(chat_id, f"Não consegui fazer isto: {motor}. Tenta outra vez daqui a pouco.")
+            return None, motor
+        if continuar:
+            mudados = sorted(git_mudados() - antes)
+            self.conversa["turnos"].append({"pedido": (pedido_danilo or resumo), "resposta": texto[:1500], "ficheiros": mudados})
+            self.conversa["turnos"] = self.conversa["turnos"][-12:]
+        if enviar:
+            rodape = "" if motor.startswith("kilo nemotron") else f"\n\n(motor de reserva: {motor})"
+            cabeca = f"{titulo}.\n\n" if titulo else ""
+            self.dizer(chat_id, cabeca + texto + rodape, falado=cabeca + texto)
+        return texto, motor
+
+    def _objetivo(self, meta):
+        """/objetivo: o Dipsy trabalha sozinho, ronda a ronda (mesma sessao do dsh), ate a meta estar cumprida."""
+        chat = self.autorizado
+        self.objetivo = {"meta": meta, "ronda": 0, "parar": False, "estado": "a começar"}
+        sid = None
+        texto = ""
+        for ronda in range(1, MAX_RONDAS_OBJETIVO + 1):
+            o = self.objetivo
+            if not o or o["parar"]:
+                break
+            o["ronda"] = ronda
+            o["estado"] = "a trabalhar"
+            pedido = PREFIXO + (OBJETIVO_INICIO.format(meta=meta, max=MAX_RONDAS_OBJETIVO) if ronda == 1
+                                else OBJETIVO_CONTINUA.format(ronda=ronda, max=MAX_RONDAS_OBJETIVO, meta=meta))
+            texto, motor = self.trabalhar(chat, pedido, f"objetivo, ronda {ronda}: {meta[:50]}", enviar=False,
+                                          sid_forcado=sid, pedido_danilo=f"/objetivo {meta}" if ronda == 1 else f"(objetivo, ronda {ronda})")
+            if texto is None:
+                o["estado"] = "parado" if motor == "cancelado" else f"falhou: {motor}"
+                if motor != "cancelado":
+                    self.dizer(chat, f"O objetivo parou na ronda {ronda}: {motor}.")
+                break
+            sid = self.conversa["sid"]
+            marca = None
+            for linha in reversed(texto.strip().splitlines()[-6:]):
+                marca = MARCA_OBJETIVO.search(linha)
+                if marca:
+                    break
+            tipo = re.sub(r"\s+", " ", marca.group(1).upper()) if marca else "EM CURSO"
+            resto = (marca.group(2).strip() if marca else "")[:300]
+            log(f"objetivo ronda {ronda}: {tipo} {resto[:80]}")
+            if tipo == "CUMPRIDO":
+                o["estado"] = "cumprido"
+                self.dizer(chat, f"Objetivo cumprido (ronda {ronda} de {MAX_RONDAS_OBJETIVO}).\n\n{texto}")
+                break
+            if tipo == "BLOQUEADO":
+                o["estado"] = f"bloqueado: {resto}"
+                self.dizer(chat, f"Objetivo bloqueado na ronda {ronda}.\n\n{texto}")
+                break
+            o["estado"] = f"em curso, falta: {resto}" if resto else "em curso"
+            if ronda == MAX_RONDAS_OBJETIVO:
+                self.dizer(chat, f"Fiz as {MAX_RONDAS_OBJETIVO} rondas e o objetivo ainda não está cumprido. Onde fiquei:\n\n{texto}")
+            elif not o["parar"]:
+                self.dizer(chat, f"Ronda {ronda} feita. Falta: {resto or 'continuar'}. Sigo para a ronda {ronda + 1} (para parar: /objetivo parar).")
+        if self.objetivo and self.objetivo.get("parar"):
+            self.dizer(chat, f"Parei o objetivo na ronda {self.objetivo['ronda']}, como pediste.")
+        if self.objetivo:
+            self.objetivo["fim"] = True
 
     def _ouvir(self, m):
         """Descarrega e transcreve uma mensagem de voz. Devolve o texto ou levanta."""
@@ -520,7 +740,7 @@ class Ponte:
             self.dizer(chat, "Não ouvi nada no áudio. Tenta outra vez.")
             return
         self.dizer(chat, f"Ouvi: {texto}")
-        self.trabalhar(chat, PREFIXO + texto, texto[:70])
+        self.trabalhar(chat, PREFIXO + texto, texto[:70], pensar=True, pedido_danilo=texto)
 
     def tratar(self, u):
         m = u.get("message")
@@ -546,17 +766,106 @@ class Ponte:
             self.dizer(self.autorizado, f"Recebi isto com {int(atraso / 60)} min de atraso (estava desligado). Se ainda interessa, repete.")
             return
         cmd = texto.split()[0].lower().split("@")[0] if texto.startswith("/") else ""
+        partes = texto.split(None, 1)
+        resto = partes[1].strip() if cmd and len(partes) > 1 else ""
+        quem = self.autorizado
+        with self.trinco:
+            ocupado = self.trabalho is not None or bool(self.objetivo and not self.objetivo.get("fim"))
+        ocupado_msg = "Ainda estou a trabalhar no pedido anterior. Escreve /parar para o cancelar, ou /corrigir e o que queres diferente."
         if cmd in ("/start", "/ajuda", "/help"):
-            self.dizer(self.autorizado, self.ajuda())
+            self.dizer(quem, self.ajuda())
             return
         if cmd == "/estado":
-            self.dizer(self.autorizado, self.estado())
+            extra = ("\n" + self.texto_objetivo()) if self.objetivo and not self.objetivo.get("fim") else ""
+            extra += "\nHá um plano à espera do teu /aprovar." if self.plano else ""
+            self.dizer(quem, self.estado() + extra)
             return
         if cmd == "/agenda":
-            self.dizer(self.autorizado, self.texto_agenda())
+            self.dizer(quem, self.texto_agenda())
             return
         if cmd == "/parar":
-            self.dizer(self.autorizado, self.parar())
+            if self.objetivo and not self.objetivo.get("fim"):
+                self.objetivo["parar"] = True
+            self.dizer(quem, self.parar())
+            return
+        if cmd == "/libertar":
+            self.dizer(quem, "Vou libertar memória do PC (só fecho o que é seguro). Um momento.")
+            threading.Thread(target=lambda: self.dizer(quem, libertar_ram()), daemon=True).start()
+            return
+        if cmd == "/voltar":
+            self.dizer(quem, self.voltar_atras())
+            return
+        if cmd == "/corrigir":
+            if not resto:
+                self.dizer(quem, "Escreve /corrigir e, a seguir, o que queres diferente.")
+                return
+            with self.trinco:
+                t = self.trabalho
+            if t:
+                t["estado"]["correcao"] = resto
+                p = t["estado"].get("proc")
+                if p:
+                    matar(p)
+                log("correcao a meio pedida pelo Danilo")
+                self.dizer(quem, "Recebi a correção. Paro o que estava a fazer e continuo já com ela, sem começar do zero.")
+                return
+            if self.plano:
+                self.dizer(quem, "Recebi. Vou mudar o plano, ainda sem mexer em nada.")
+                threading.Thread(target=self._planear, args=(PEDIDO_PLANEAR + "muda o plano que fizeste assim: " + resto, "/corrigir " + resto[:60]),
+                                 kwargs={"sid": self.plano.get("sid")}, daemon=True).start()
+            else:
+                self.dizer(quem, "Recebi a correção. Vou refazer o último trabalho com ela.")
+                threading.Thread(target=self.trabalhar, args=(quem, PREFIXO + "Correção ao teu último trabalho: " + resto, resto[:70]),
+                                 kwargs={"pedido_danilo": "/corrigir " + resto}, daemon=True).start()
+            return
+        if cmd == "/objetivo":
+            if not resto:
+                self.dizer(quem, self.texto_objetivo())
+                return
+            if resto.lower() in ("parar", "pausa", "pausar", "cancelar", "limpar", "acabar"):
+                if self.objetivo and not self.objetivo.get("fim"):
+                    self.objetivo["parar"] = True
+                    self.dizer(quem, "Paro o objetivo no fim desta ronda. Para parar já, manda /parar.")
+                else:
+                    self.dizer(quem, "Não há nenhum objetivo a correr.")
+                return
+            if ocupado:
+                self.dizer(quem, ocupado_msg)
+                return
+            self.dizer(quem, f"Objetivo recebido: {resto[:160]}. Vou trabalhar sozinho, ronda a ronda (no máximo {MAX_RONDAS_OBJETIVO}), e digo-te como vai.")
+            threading.Thread(target=self._objetivo, args=(resto,), daemon=True).start()
+            return
+        if cmd == "/planear":
+            if not resto:
+                self.dizer(quem, "Escreve /planear e, a seguir, o que queres. Eu faço só o plano; depois mandas /aprovar.")
+                return
+            if ocupado:
+                self.dizer(quem, ocupado_msg)
+                return
+            self.dizer(quem, "Vou planear, sem mexer em nada. Já te mando o plano.")
+            threading.Thread(target=self._planear, args=(PEDIDO_PLANEAR + resto, "/planear " + resto[:60]), daemon=True).start()
+            return
+        if cmd == "/aprovar":
+            if not self.plano:
+                self.dizer(quem, "Não há nenhum plano à espera. Para fazer um, escreve /planear e o pedido.")
+                return
+            if ocupado:
+                self.dizer(quem, ocupado_msg)
+                return
+            plano, self.plano = self.plano, None
+            self.dizer(quem, "Aprovado. Vou fazer o plano agora.")
+            threading.Thread(target=self.trabalhar, args=(quem, PEDIDO_APROVAR, "plano aprovado: " + plano["pedido"][:50]),
+                             kwargs={"sid_forcado": plano.get("sid"), "pedido_danilo": "/aprovar (" + plano["pedido"][:60] + ")"},
+                             daemon=True).start()
+            return
+        if cmd == "/nova":
+            if ocupado:
+                self.dizer(quem, ocupado_msg)
+                return
+            self.conversa = {"sid": None, "ultimo": 0.0, "turnos": []}
+            self.semente = None
+            self.plano = None
+            self.dizer(quem, "Começámos uma conversa nova: esqueci o contexto anterior.")
             return
         if cmd == "/desligar":
             item = self.dizer(self.autorizado, "Desligado. Para me voltares a ligar, abre o DIPSY no ambiente de trabalho do PC.")
@@ -564,10 +873,8 @@ class Ponte:
                 item["feito"].wait(timeout=90)
             log("desligado a pedido do Danilo")
             os._exit(0)
-        with self.trinco:
-            ocupado = self.trabalho is not None
         if ocupado:
-            self.dizer(self.autorizado, "Ainda estou a trabalhar no pedido anterior. Escreve /parar para o cancelar.")
+            self.dizer(self.autorizado, ocupado_msg)
             return
         if eh_voz:      # a transcricao demora: trata-se noutra linha para o polling continuar
             threading.Thread(target=self._tratar_voz, args=(m,), daemon=True).start()
@@ -587,7 +894,15 @@ class Ponte:
             return
         self.dizer(self.autorizado, "Recebi. Estou a tratar disto.")
         resumo = (texto or "(foto)")[:70]
-        threading.Thread(target=self.trabalhar, args=(self.autorizado, PREFIXO + pedido, resumo), daemon=True).start()
+        threading.Thread(target=self.trabalhar, args=(self.autorizado, PREFIXO + pedido, resumo),
+                         kwargs={"pedido_danilo": texto or "(foto)"}, daemon=True).start()
+
+    def _planear(self, pedido, resumo, sid=None):
+        """/planear: corre o dsh com a guarda em modo Planear e guarda o plano a espera de /aprovar."""
+        texto, _ = self.trabalhar(self.autorizado, pedido, resumo, modo="planear", sid_forcado=sid, pedido_danilo=resumo)
+        if texto is not None:
+            self.plano = {"sid": self.conversa["sid"], "pedido": resumo, "quando": time.time()}
+            log(f"plano pronto, a espera de /aprovar (sessao {self.conversa['sid']})")
 
     def correr(self):
         offset = 0
@@ -607,6 +922,13 @@ class Ponte:
         try:   # menu de botoes no Telegram: o Danilo toca, nao escreve
             self.tg.chamar("setMyCommands", commands=json.dumps([
                 {"command": "estado", "description": "O que estou a fazer"},
+                {"command": "planear", "description": "Planear: faço o plano e só mexo depois de aprovares"},
+                {"command": "aprovar", "description": "Aprovar o plano e fazer"},
+                {"command": "objetivo", "description": "Objetivo: trabalho sozinho até cumprir"},
+                {"command": "corrigir", "description": "Corrigir: mudo o rumo a meio do trabalho"},
+                {"command": "voltar", "description": "Voltar atrás: esqueço o último pedido"},
+                {"command": "nova", "description": "Conversa nova"},
+                {"command": "libertar", "description": "Libertar memória do PC"},
                 {"command": "agenda", "description": "As tarefas marcadas para uma hora"},
                 {"command": "parar", "description": "Cancelar o pedido atual"},
                 {"command": "ajuda", "description": "O que sei fazer"},

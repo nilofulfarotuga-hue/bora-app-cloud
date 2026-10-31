@@ -65,8 +65,18 @@ O cartão "DeepSeek" existe, SEM chave e sem pagar nada. Só se liga com **"auto
 | Passar trabalho ao Claude Code | ferramenta nossa `passar_ao_claude_code` (CLI oficial `claude -p`, sem proxy): `so_ler` ou `editar` (cópia nova do repo, sem push) | **Provado a 30/10:** dentro do dsh, 68 s; modo editar num repo de teste, confirmado por `git diff` |
 | Equipa de agentes + quadro de tarefas | bundle OFICIAL `@deepseek-ai/dsh-experimental-agent-team-profile` (experimental), nos perfis headless e web | **Provado a 30/10:** `spawn_teammate`, `team_task_create`, `wait_agent`, `team_task_list`; 2 colegas leram partes diferentes. Armadilha: `dsh plugin add` do bundle traz uma versão incompatível; pôr o NOME em `dsh.profile.bundles` |
 | Memória própria entre sessões | ferramentas nossas `memorizar`, `lembrar`, `esquecer` + secção no prompt do arranque (`~/.dsh/memoria/memoria.jsonl`) | **Provado a 30/10** no headless: guardar, procurar numa sessão nova e lembrar sem ferramentas |
-| Telemetria e saídas de rede | telemetria oficial DESLIGADA (patch comum e do web); guarda de `web_fetch`/`web_search` | **Medido a 30/10:** num pedido com Córtex, Supabase e agenda só 3 ligações (Kilo, Supabase, Córtex); o collector da DeepSeek não apareceu |
+| Telemetria e saídas de rede | telemetria oficial DESLIGADA (patch comum e do web); **lista branca da rede** (31/10) na guarda: `web_fetch` e comandos de rede na shell só para sítios nossos (boraguarda.com, `bora-app-web.pages.dev`, o nosso Supabase, o Córtex/VPS, o nosso GitHub, lojas Play/Apple); `web_search` sempre barrado; extra em `~/.dsh/rede-permitida.txt` (o Dipsy não o escreve) | **Medido a 30/10:** só 3 ligações (Kilo, Supabase, Córtex). **Provado a 31/10 no lab:** `web_fetch https://example.com/` e `curl.exe -s https://example.com` BARRADOS (regra `rede-fora-da-lista`) |
+| `/plan` (modo plano) | `/planear` + `/aprovar` no Telegram: o dsh corre com `DIPSY_MODO=planear` e a guarda BARRA escritas (o `/plan` oficial do `dsh-plan-mode` só existe na página e não restringe nada) | **Provado a 31/10:** `write` barrado com a regra `modo-planear`; `/aprovar` continua a mesma sessão |
+| `/goal` (objetivo) | `/objetivo` no Telegram: rondas na mesma sessão até a última linha dizer `OBJETIVO CUMPRIDO` / `BLOQUEADO` (máx. 6) | **Provado a 31/10:** cumprido na ronda 1 ("hoje 0, ontem 1", conferido por SELECT) |
+| Steer (corrigir a meio) | `/corrigir`: a ponte para o dsh e continua a MESMA sessão (`--session-id`) com a correção | **Provado a 31/10:** poema de 12 versos → "só 2 versos, sobre o Bora" → 2 versos sobre o Bora |
+| Rewind (voltar atrás) | `/voltar`: esquece o último pedido (conversa nova com o contexto dos anteriores) e diz que ficheiros esse pedido mudou (não os desfaz) | **Provado a 31/10:** esqueceu "TIJOLO-12" e respondeu "AZULEJO-77" |
+| Conversa contínua | a ponte continua a sessão do dsh (`--session-id`) se a última mensagem foi há < 30 min; `/nova` recomeça | **Provado a 31/10:** a mesma sessão nas 2 mensagens |
+| Criar as próprias ferramentas | **Creator Mode** (nosso, `lib/criador.js`): `criar_ferramenta` faz uma RECEITA (`consulta_sql` = 1 SELECT corrido com `read_only=true` na API do Supabase; `leitura_web` = 1 GET a sítio nosso), nasce no lab em `~/.dsh/ferramentas/lab`, é testada logo, `promover_ferramenta` só com o teste a passar → `fc_<nome>` | **Provado a 31/10:** "cria uma ferramenta que me diz quantos pedidos houve hoje" → criada, testada `[{"pedidos":0}]`, promovida, `fc_pedidos_hoje` no headless |
+| Libertar memória | ferramenta `libertar_memoria` e botão `/libertar`: correm `~/.dsh/limpar-ram.ps1` em modo normal | **Provado a 31/10:** "antes 2910 MB, depois 2924 MB, nada a fazer (>= 500)" |
+| Hooks nos executores `claude -p` | `passar_ao_claude_code` passa `--settings` com o hook `scripts/guarda-claude-hook.mjs` (`avaliarExecutor`: apagar em massa, DROP/TRUNCATE/DELETE, push forçado, histórico, matar processos, segredos, hooks/definições) | **Provado a 31/10:** `taskkill` e `Write` em `.dsh/agenda` BARRADOS; `git --version` passou. Limite: no `Read` o deny é ignorado (o hook do context-mode deixa passar) |
+| Falha fechada | se o stderr do dsh mostrar que o `dsh-bora` não ligou, a ponte para o dsh (sem guarda não trabalha) | testado offline com a linha real do erro de 31/10 |
 | Chrome (extensão) | nada (`dsh-browser` por compilar) | usar o Claude Code |
+| App de computador (Electron) | NÃO instalada: o canal oficial (GitHub releases) não publica instalador; só se compila do código | — |
 
 ## Plugins (auditados com análise estática; nada corre sem passar pelo perfil `lab`)
 - **Provado e promovido (headless + web):** `Tieboyh/dsh-session-search` (sha na auditoria) e o **nosso** `dsh-bora`
@@ -132,5 +142,11 @@ Depois correr o `DSH-MISSAO.cmd` (em `~/.dsh/lancadores-antigos`) com uma tarefa
 `headless`).
 
 ## Falta para ser igual ou melhor que o Claude Code
-Conector do Conselho; a prova da voz com um áudio REAL do Danilo; o corte aos 4.000 caracteres do gateway do Hermes; controlo remoto (login do
-`claude`, ver `remote-control-duas-sessoes`); os hooks do Claude Code (o dsh só tem a guarda do plugin `dsh-bora`).
+Conector do Conselho; o corte aos 4.000 caracteres do gateway do Hermes; controlo remoto (login do `claude`, ver
+`remote-control-duas-sessoes`); os hooks do Claude Code (o dsh só tem a guarda do plugin `dsh-bora`); o Read barrado nos
+executores `claude -p` (o hook do context-mode deixa passar); o motor grátis erra contas (31/10 disse 228 tabelas, eram 433).
+Voz (31/10): com < 1,5 GB livres vai direto ao Gemini; o whisper local deste PC levou 76 s e errou com 1,55 GB livres.
+Armadilha (31/10): o lab apanhou um erro de esquema (`items.required` não existe no DSL do `dsh-tools`) que DESLIGOU o
+`dsh-bora` inteiro, e com ele a guarda; validar os esquemas antes de promover (carregar o `index.js` com o `dsh-tools` real)
+e o `pnpm add` do mesmo `file:` com a mesma versão não copia nada: copiar à mão para cada perfil (apagar e copiar, para
+não partilhar o inode entre lab e headless).

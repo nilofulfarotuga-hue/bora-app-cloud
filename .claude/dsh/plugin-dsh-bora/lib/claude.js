@@ -11,6 +11,18 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { spawn, execFileSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
+
+// Guarda dos executores (decisão 11, 31/10): cada claude -p chamado daqui leva um hook PreToolUse que barra comandos
+// destrutivos e segredos antes de correrem (scripts/guarda-claude-hook.mjs, a mesma lista da guarda do Dipsy).
+const HOOK = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'guarda-claude-hook.mjs')
+function ficheiroDefinicoesGuarda() {
+  const f = path.join(os.homedir(), '.dsh', 'delegado', 'guarda-settings.json')
+  const conteudo = JSON.stringify({ hooks: { PreToolUse: [{ matcher: 'Bash|PowerShell|Write|Edit|MultiEdit|NotebookEdit|Read|Grep|Glob', hooks: [{ type: 'command', command: `node "${HOOK.replace(/\\/g, '/')}"`, timeout: 20 }] }] } }, null, 2)
+  fs.mkdirSync(path.dirname(f), { recursive: true })
+  if (!fs.existsSync(f) || fs.readFileSync(f, 'utf8') !== conteudo) fs.writeFileSync(f, conteudo, 'utf8')
+  return f
+}
 
 const REPO = 'C:\\BoraLocal\\projetosflutter\\bora_app'
 const PASTA_REGISTO = path.join(os.homedir(), '.dsh', 'delegado')
@@ -51,7 +63,7 @@ export async function passarAoClaudeCode({ pedido, modo, pasta, modelo }, sinal)
     cwd = criarWorktree(id)
     extra = ` Estás numa cópia de trabalho nova (${cwd}, ramo dsh-delegado-${id}); não toques fora dela.`
   }
-  const args = ['-p', '--output-format', 'json', '--max-turns', '30', '--model', modelo]
+  const args = ['-p', '--output-format', 'json', '--max-turns', '30', '--model', modelo, '--settings', ficheiroDefinicoesGuarda()]
   if (modo === 'so_ler') {
     args.push('--allowedTools', 'Read', 'Grep', 'Glob')
   } else {

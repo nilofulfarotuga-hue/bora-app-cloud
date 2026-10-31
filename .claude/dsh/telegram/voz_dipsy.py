@@ -24,6 +24,7 @@ import shutil
 import subprocess
 import sys
 import time
+import urllib.error
 import urllib.request
 import uuid
 from datetime import datetime
@@ -44,6 +45,12 @@ VOZ_EDGE = "pt-BR-FranciscaNeural"
 NO_WINDOW = 0x08000000
 MODELOS_GEMINI_TTS = ["gemini-3.8-flash-tts", "gemini-2.5-flash-preview-tts"]
 MODELOS_GEMINI_STT = ["gemini-3.1-flash-lite", "gemini-3.6-flash"]
+# 31/10 (retoma-geral b3): medido neste PC com 1553 MB livres, o whisper small levou 76 s e errou o texto
+# ("Vou incitar no vinho." em vez de "Oi, voce esta me ouvindo?"). Regra nova: abaixo de 1,5 GB vai direto ao Gemini;
+# com mais RAM o PC ainda tenta, mas so 10 s, para o "Ouvi:" chegar em menos de 15 s.
+RAM_MINIMA_WHISPER_MB = 1500 # abaixo disto o audio vai direto ao Gemini (antes 700)
+ORCAMENTO_LOCAL_S = 10       # tempo maximo do whisper local antes de passar ao Gemini (antes 45)
+ESPERA_FINAL_LOCAL_S = 200   # se o Gemini tambem falhar, espera-se mais pelo local (a ponte corta aos 300 s)
 
 
 def registar(**o):
@@ -272,27 +279,82 @@ def _transcrever_gemini(ficheiro):
     corpo = json.dumps({"contents": [{"parts": [
         {"text": "Transcreve fielmente, em português, o que a pessoa diz neste áudio. Devolve só a transcrição."},
         {"inline_data": {"mime_type": "audio/ogg", "data": dados}}]}]}).encode("utf-8")
-    for modelo in MODELOS_GEMINI_STT:
-        req = urllib.request.Request(
-            f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent",
-            data=corpo, headers={"content-type": "application/json", "x-goog-api-key": chave})
-        try:
-            with urllib.request.urlopen(req, timeout=120) as r:
-                j = json.loads(r.read().decode("utf-8"))
-            texto = "".join(p.get("text", "") for p in j["candidates"][0]["content"]["parts"]).strip()
-            if texto:
-                return texto, f"gemini {modelo}"
-        except Exception:
-            continue
-    raise RuntimeError("gemini: sem transcricao")
+    ultimo = "sem resposta"
+    for ronda in range(2):   # uma segunda volta: o 1.o pedido ja falhou uma vez por limite passageiro (31/10)
+        for modelo in MODELOS_GEMINI_STT:
+            req = urllib.request.Request(
+                f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent",
+                data=corpo, headers={"content-type": "application/json", "x-goog-api-key": chave})
+            try:
+                with urllib.request.urlopen(req, timeout=45) as r:
+                    j = json.loads(r.read().decode("utf-8"))
+                texto = "".join(p.get("text", "") for p in j["candidates"][0]["content"]["parts"]).strip()
+                if texto:
+                    return texto, f"gemini {modelo}"
+                ultimo = f"{modelo}: resposta vazia"
+            except urllib.error.HTTPError as e:
+                ultimo = f"{modelo}: HTTP {e.code}"
+            except Exception as e:
+                ultimo = f"{modelo}: {type(e).__name__}"
+        if ronda == 0:
+            time.sleep(3)
+    raise RuntimeError(f"gemini: sem transcricao ({ultimo})")
+
+
+def _ram_livre_mb():
+    """RAM fisica livre em MB (Windows). -1 se nao der para medir."""
+    try:
+        import ctypes
+
+        class MS(ctypes.Structure):
+            _fields_ = [("dwLength", ctypes.c_ulong), ("dwMemoryLoad", ctypes.c_ulong),
+                        ("ullTotalPhys", ctypes.c_ulonglong), ("ullAvailPhys", ctypes.c_ulonglong),
+                        ("ullTotalPageFile", ctypes.c_ulonglong), ("ullAvailPageFile", ctypes.c_ulonglong),
+                        ("ullTotalVirtual", ctypes.c_ulonglong), ("ullAvailVirtual", ctypes.c_ulonglong),
+                        ("ullAvailExtendedVirtual", ctypes.c_ulonglong)]
+        s = MS()
+        s.dwLength = ctypes.sizeof(MS)
+        ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(s))
+        return int(s.ullAvailPhys // (1024 * 1024))
+    except Exception:
+        return -1
 
 
 def transcrever(ficheiro):
+    """Local primeiro (a voz fica no PC). Se a RAM esta curta ou o whisper nao acaba no orcamento, passa ao Gemini
+    em vez de deixar a ponte esperar 300 s e dar erro (31/10: o 1.o audio real do Danilo morreu assim)."""
+    import threading
+    res = {}
+
+    def local():
+        try:
+            res["ok"] = _transcrever_local(ficheiro)
+        except Exception as e:
+            res["erro"] = e
+
+    ram = _ram_livre_mb()
+    fio = threading.Thread(target=local, daemon=True)
+    if 0 <= ram < RAM_MINIMA_WHISPER_MB:
+        registar(evento="whisper-saltado", motivo="pouca-ram", ram_livre_mb=ram)
+    else:
+        fio.start()
+        fio.join(ORCAMENTO_LOCAL_S)
+        if "ok" in res:
+            return res["ok"]
+        registar(evento="whisper-falhou" if "erro" in res else "whisper-lento",
+                 erro=str(res.get("erro", ""))[:160], orcamento_s=ORCAMENTO_LOCAL_S, ram_livre_mb=ram)
     try:
-        return _transcrever_local(ficheiro)
-    except Exception as e1:
-        registar(evento="whisper-falhou", erro=str(e1)[:160])
-        return _transcrever_gemini(ficheiro)
+        t, motor = _transcrever_gemini(ficheiro)
+        registar(evento="transcrito-gemini", letras=len(t), ram_livre_mb=ram)
+        return t, motor
+    except Exception as e2:
+        registar(evento="gemini-stt-falhou", erro=str(e2)[:160])
+        if not fio.is_alive() and "ok" not in res and "erro" not in res:
+            fio.start()
+        fio.join(ESPERA_FINAL_LOCAL_S)
+        if "ok" in res:
+            return res["ok"]
+        raise RuntimeError("nem o whisper local nem o Gemini transcreveram") from e2
 
 
 def main():
@@ -300,7 +362,8 @@ def main():
     if len(a) >= 2 and a[0] == "--transcrever":
         t, motor = transcrever(a[1])
         print(json.dumps({"texto": t, "motor": motor}, ensure_ascii=False))
-        return 0
+        sys.stdout.flush()
+        os._exit(0)  # o fio do whisper pode ainda estar a carregar; nao esperar por ele
     if len(a) >= 2 and a[0] == "--partir":
         for i, p in enumerate(partir(limpar_para_voz(a[1])), 1):
             print(f"[{i}] ({len(p)}) {p}")

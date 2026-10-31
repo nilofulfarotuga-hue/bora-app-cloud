@@ -4,6 +4,7 @@
 // Limite honesto: lê o TEXTO do comando. Quem esconde o comando (junta letras, codifica) pode escapar; por isso o
 // Dipsy também corre com o sandbox de escrita do dsh e com as regras escritas em ~/.agents/AGENTS.md.
 
+import fs from 'node:fs'
 import os from 'node:os'
 
 const HOME = os.homedir().replace(/\\/g, '/').toLowerCase()
@@ -119,6 +120,8 @@ function avaliarTextoDeComando(texto) {
   const rea = avaliarRea(t)
   if (rea) return rea
   for (const [id, re, porque] of SHELL) if (testa(re, t)) return { regra: id, porque }
+  const rede = avaliarRedeShell(t)
+  if (rede) return rede
   const s = segredo(t)
   if (s) return { regra: 'segredos', porque: `${s} é segredo: o Dipsy não o lê nem o escreve.` }
   const p = protegidoEscrita(t2)
@@ -191,8 +194,59 @@ function avaliarMcp(servidor, ferramenta, args) {
   return null
 }
 
+// ---------- rede: LISTA BRANCA (decisão do Danilo de 31/10, "2 sim"): o Dipsy só fala com sítios nossos ----------
+// Fora desta lista nada sai pelo web_fetch nem por comandos de rede na shell (curl, iwr, fetch, git clone...).
+// Para acrescentar um sítio: uma linha (dominio ou dominio/caminho) em ~/.dsh/rede-permitida.txt — ficheiro na casa do
+// Dipsy, que ele próprio não pode escrever (regra 'ficheiro-protegido'). Quem acrescenta é o Claude Code ou o Danilo.
+const REDE_HOSTS = [
+  /^(www\.)?boraguarda\.com$/, /^[a-z0-9-]+\.boraguarda\.com$/,
+  /^bora-app-web\.pages\.dev$/, /^[a-z0-9-]+\.bora-app-web\.pages\.dev$/,
+  /^ojykpzwqrtusfeakzrna\.supabase\.co$/, /^(api\.|www\.)?supabase\.com$/,
+  /^srv1786862\.hstgr\.cloud$/, /^[a-z0-9-]+\.srv1786862\.hstgr\.cloud$/,
+  /^play\.google\.com$/, /^(apps|itunes)\.apple\.com$/,
+  /^localhost$/, /^127\.0\.0\.1$/,
+]
+// GitHub: só o nosso repositório
+const REDE_CAMINHOS = [
+  [/^(www\.)?github\.com$/, /^\/nilofulfarotuga-hue\//i],
+  [/^raw\.githubusercontent\.com$/, /^\/nilofulfarotuga-hue\//i],
+  [/^api\.github\.com$/, /^\/repos\/nilofulfarotuga-hue\//i],
+]
+const REDE_EXTRA = `${HOME}/.dsh/rede-permitida.txt`
+function redeExtra() {
+  try {
+    return fs.readFileSync(REDE_EXTRA, 'utf8').split(/\r?\n/).map((l) => l.trim().toLowerCase()).filter((l) => l && !l.startsWith('#'))
+  } catch { return [] }
+}
+export function urlPermitida(texto) {
+  let u
+  try { u = new URL(String(texto)) } catch { return false }
+  if (!/^https?:$/.test(u.protocol)) return false
+  const h = u.hostname.toLowerCase().replace(/\.$/, '')
+  if (REDE_HOSTS.some((re) => re.test(h))) return true
+  if (REDE_CAMINHOS.some(([hre, pre]) => hre.test(h) && pre.test(u.pathname))) return true
+  for (const e of redeExtra()) {
+    const [eh, ...resto] = e.split('/')
+    const ep = resto.length ? '/' + resto.join('/') : ''
+    if ((h === eh || h.endsWith('.' + eh)) && (!ep || u.pathname.toLowerCase().startsWith(ep))) return true
+  }
+  return false
+}
+const REDE_VERBO = /\b(curl|wget|iwr|irm|invoke-webrequest|invoke-restmethod|start-bitstransfer|certutil|bitsadmin|downloadstring|downloadfile|net\.webclient|httpclient|urllib|requests\.(get|post|put)|httpx|aiohttp|fetch\s*\(|axios|https?\.(get|request)\s*\(|git\s+(clone|fetch|pull|ls-remote|remote\s+add|submodule)|npx|pip3?\s+install|python\s+-m\s+pip)\b/
+function avaliarRedeShell(t) {
+  if (!REDE_VERBO.test(t)) return null
+  for (const m of t.matchAll(/https?:\/\/[^\s"'<>`|;)]+/gi)) {
+    if (!urlPermitida(m[0])) {
+      let h = m[0]
+      try { h = new URL(m[0]).hostname } catch { /* fica o texto */ }
+      return { regra: 'rede-fora-da-lista', porque: `${h} não está na lista dos sítios do Bora; o Dipsy só fala com sítios nossos (para abrir outro, o Claude Code acrescenta-o a ~/.dsh/rede-permitida.txt).` }
+    }
+  }
+  return null
+}
+
 // ---------- saídas para a web (web_fetch, web_search): nada de levar dados para fora no endereço ----------
-const SUMIDOUROS = /(^|\.)(api\.telegram\.org|graph\.facebook\.com|pastebin\.com|webhook\.site|requestbin\.[a-z]+|ngrok(-free)?\.(app|io|dev)|transfer\.sh|file\.io|0x0\.st|hooks\.slack\.com|discord(app)?\.com|ifttt\.com|pipedream\.net|burpcollaborator\.net|oast\.[a-z]+|interact\.sh)$/i
+const SUMIDOUROS =/(^|\.)(api\.telegram\.org|graph\.facebook\.com|pastebin\.com|webhook\.site|requestbin\.[a-z]+|ngrok(-free)?\.(app|io|dev)|transfer\.sh|file\.io|0x0\.st|hooks\.slack\.com|discord(app)?\.com|ifttt\.com|pipedream\.net|burpcollaborator\.net|oast\.[a-z]+|interact\.sh)$/i
 function avaliarSaidaWeb(args) {
   for (const s of strings(args)) {
     if (/(sbp_[A-Za-z0-9_-]{12,}|eyJ[A-Za-z0-9_-]{15,}|AIza[0-9A-Za-z_-]{20,}|\bsk-[A-Za-z0-9]{20,}|\b\d{8,10}:[A-Za-z0-9_-]{30,}|-----BEGIN)/.test(s)) {
@@ -208,7 +262,55 @@ function avaliarSaidaWeb(args) {
       if ((u.search ?? '').length > 160 || /[A-Za-z0-9+/=_-]{60,}/.test(u.search ?? '')) {
         return { regra: 'saida-web', porque: 'o endereço leva dados a mais (uma pergunta comprida ou um bloco codificado): é assim que se tira informação para fora.' }
       }
+      if (!urlPermitida(m[0])) {
+        return { regra: 'rede-fora-da-lista', porque: `${u.hostname} não está na lista dos sítios do Bora; o Dipsy só fala com sítios nossos (para abrir outro, o Claude Code acrescenta-o a ~/.dsh/rede-permitida.txt).` }
+      }
     }
+  }
+  // o próprio endereço pedido tem de estar na lista (apanha também ftp:, file:, endereços sem esquema...)
+  const alvo = args.url ?? args.uri ?? args.href
+  if (alvo !== undefined && !urlPermitida(alvo)) {
+    return { regra: 'rede-fora-da-lista', porque: 'esse endereço não está na lista dos sítios do Bora (só https/http para sítios nossos).' }
+  }
+  return null
+}
+
+// ---------- SQL só de leitura (Creator Mode e modo Planear) ----------
+export function sqlSoLeitura(sql) {
+  const q = String(sql ?? '').replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/--[^\n]*/g, ' ').replace(/'(?:[^']|'')*'/g, "''").replace(/"(?:[^"]|"")*"/g, '"x"').toLowerCase().replace(/\s+/g, ' ').trim().replace(/;\s*$/, '')
+  if (!q) return 'a consulta está vazia.'
+  if (!/^(select|with|explain(?!\s+analy[sz]e))\b/.test(q)) return 'só se aceitam consultas de leitura (SELECT ou WITH ... SELECT).'
+  if (q.includes(';')) return 'uma consulta só: nada de vários comandos separados por ponto e vírgula.'
+  if (/\b(insert|update|delete|merge|upsert|create|alter|drop|truncate|grant|revoke|copy|call|do|perform|vacuum|analy[sz]e|refresh|lock|listen|notify|comment|security|prepare|execute|set_config|nextval|setval|pg_sleep|dblink|lo_\w+)\b/.test(q)) {
+    return 'a consulta tem uma palavra de escrita ou de sistema: só se aceita leitura.'
+  }
+  return sqlRisco(q)
+}
+export function temSegredo(texto) {
+  return segredo(textoLimpo(texto))
+}
+
+// ---------- modo Planear (/planear no Telegram): só se lê e se planeia; mexer só depois do /aprovar ----------
+const PLANEAR_FERRAMENTAS_ESCRITA = new Set(['write', 'run_code', 'agendar_tarefa', 'cancelar_tarefa', 'memorizar', 'esquecer', 'criar_ferramenta', 'promover_ferramenta', 'apagar_ferramenta', 'libertar_memoria'])
+const PLANEAR_SHELL = /\b(git\s+(commit|add|checkout|switch|branch|stash|merge|apply|am|restore|reset|rm|mv|tag|worktree)|dsh-commit\.ps1|npm|pnpm|yarn|pip3?|flutter\s+(pub|create|build|clean)|dart\s+(fix|format))\b/
+function avaliarPlanear(n, args) {
+  const nao = (o) => ({ regra: 'modo-planear', porque: `estás em modo Planear: agora só se lê e se faz o plano (${o} fica para depois de o Danilo mandar /aprovar).` })
+  if (PLANEAR_FERRAMENTAS_ESCRITA.has(n)) return nao(`a ferramenta ${n}`)
+  if (n === 'str_replace_editor' && EDITOR_ESCRITA.has(String(args.command))) return nao('editar ficheiros')
+  if (n === 'passar_ao_claude_code' && String(args.modo) === 'editar') return nao('pôr o Claude Code a editar')
+  if (n === 'pwsh' || n === 'bash') {
+    const t = textoLimpo(args.command)
+    const t2 = t.replace(/\d?>\s*&\d|\d>\s*(\$null|\/dev\/null|nul)\b/g, ' ')
+    if (VERBO_ESCRITA.test(t2) || PLANEAR_SHELL.test(t)) return nao('este comando, que muda coisas')
+    return null
+  }
+  const m = /^mcp__([^_]+(?:_[^_]+)*?)__(.+)$/.exec(n)
+  if (m) {
+    const [, servidor, f] = m
+    if (servidor === 'supabase' && (f === 'apply_migration' || f === 'deploy_edge_function' || /^(create_|update_|delete_)/.test(f))) return nao(`a ferramenta ${f}`)
+    if (servidor === 'supabase' && f === 'execute_sql' && sqlSoLeitura(args.query ?? args.sql)) return nao('SQL que não é só de leitura')
+    if (servidor === 'google' && /(draft|create|update|modify|label)/.test(f)) return nao(`a ferramenta ${f}`)
+    if (servidor === 'cortex' && /(escrever|propor|memorizar|reportar|nova_ordem)/.test(f)) return nao(`a ferramenta ${f}`)
   }
   return null
 }
@@ -217,9 +319,14 @@ function avaliarSaidaWeb(args) {
 const FERRAMENTAS_FS_ESCRITA = new Set(['write'])
 const EDITOR_ESCRITA = new Set(['create', 'str_replace', 'insert'])
 
-export function avaliar(nome, argumentos) {
+export function avaliar(nome, argumentos, opcoes = {}) {
   const n = String(nome ?? '')
   const args = argumentos && typeof argumentos === 'object' ? argumentos : {}
+
+  if (opcoes.modo === 'planear') {
+    const p = avaliarPlanear(n, args)
+    if (p) return p
+  }
 
   const m = /^mcp__([^_]+(?:_[^_]+)*?)__(.+)$/.exec(n)
   if (m) return avaliarMcp(m[1], m[2], args)
@@ -256,7 +363,10 @@ export function avaliar(nome, argumentos) {
     }
     return null
   }
-  if (n === 'web_fetch' || n === 'web_search') return avaliarSaidaWeb(args)
+  if (n === 'web_search') {
+    return { regra: 'rede-fora-da-lista', porque: 'a pesquisa na internet vai a um motor de terceiros, fora da lista dos sítios do Bora; para pesquisar, pede ao Claude Code.' }
+  }
+  if (n === 'web_fetch') return avaliarSaidaWeb(args)
   if (n === 'captura_ecra' || n === 'working_directory') return null
 
   // qualquer outra ferramenta (run_code, etc.): lê todos os textos como se fossem comandos
@@ -268,6 +378,48 @@ export function avaliar(nome, argumentos) {
 }
 
 export const FERRAMENTAS_DE_RISCO = new Set(['pwsh', 'bash', 'write', 'str_replace_editor', 'run_code'])
+
+// ---------- guarda dos EXECUTORES automáticos do Claude Code (claude -p): decisão 11 do Danilo, 31/10 ----------
+// Mais estreita do que a do Dipsy (os executores fazem trabalho real: editam, correm testes, falam com APIs): só barra o
+// que é destrutivo ou mexe em segredos — apagar em massa, apagar tabelas, push forçado, reescrever histórico, git add de
+// tudo, sistema, código remoto, matar processos, .env e segredos, e as definições/hooks do próprio Claude Code.
+const EXEC_SHELL = new Set(['historia', 'git-add-tudo', 'apagar', 'sistema', 'codigo-remoto', 'matar-processos'])
+const PUSH_FORCADO = /\bgit\b[^|;&\n]*\bpush\b[^|;&\n]*(\s--force(-with-lease)?\b|\s-f(?=\s|$)|\s\+\S+:)/
+const APAGAR_TABELAS = /\b(drop\s+(table|schema|database|view|function|policy|trigger)\b|truncate\s+(table\s+)?["\w]|delete\s+from\b)/
+const EXEC_PROTEGIDO = [
+  [/[\\/]\.claude[\\/](hooks|settings[^\\/]*\.json|juiz)/, 'hooks e definições do Claude Code'],
+  [/(^|[\\/])\.git[\\/](hooks|config|refs|head)/, 'o interior do git'],
+  [/[\\/]\.dsh[\\/](secrets|telegram|agenda|ferramentas|cordis)/, 'a casa do Dipsy'],
+  [/bora__dsh-bora|[\\/]dsh-bora[\\/]/, 'a guarda (plugin dsh-bora)'],
+]
+export function avaliarExecutor(nome, argumentos) {
+  const n = String(nome ?? '')
+  const a = argumentos && typeof argumentos === 'object' ? argumentos : {}
+  if (n === 'Bash' || n === 'PowerShell') {
+    const t = textoLimpo(a.command)
+    if (!t) return null
+    if (testa(PUSH_FORCADO, t)) return { regra: 'push-forcado', porque: 'push forçado reescreve o histórico publicado: nunca.' }
+    for (const [id, re, porque] of SHELL) if (EXEC_SHELL.has(id) && testa(re, t)) return { regra: id, porque }
+    if (APAGAR_TABELAS.test(t)) return { regra: 'apagar-tabelas', porque: 'apagar tabelas ou dados (DROP, TRUNCATE, DELETE FROM) não se faz por um executor automático.' }
+    const s = segredo(t)
+    if (s) return { regra: 'segredos', porque: `${s} é segredo: um executor automático não lhe mexe.` }
+    const t2 = t.replace(/\d?>\s*&\d|\d>\s*(\$null|\/dev\/null|nul)\b/g, ' ')
+    for (const [re, nomeP] of EXEC_PROTEGIDO) if (re.test(t2) && VERBO_ESCRITA.test(t2)) return { regra: 'ficheiro-protegido', porque: `${nomeP} não se escreve por um executor automático.` }
+    return null
+  }
+  const caminho = textoLimpo(a.file_path ?? a.path ?? a.notebook_path ?? '')
+  if (['Read', 'Grep', 'Glob'].includes(n)) {
+    const s = segredo(textoLimpo([a.file_path, a.path, a.pattern, a.glob].filter(Boolean).join(' ')))
+    return s ? { regra: 'segredos', porque: `${s} é segredo: um executor automático não o lê.` } : null
+  }
+  if (['Write', 'Edit', 'MultiEdit', 'NotebookEdit'].includes(n)) {
+    const s = segredo(caminho)
+    if (s) return { regra: 'segredos', porque: `${s} é segredo: um executor automático não o escreve.` }
+    for (const [re, nomeP] of EXEC_PROTEGIDO) if (re.test(caminho)) return { regra: 'ficheiro-protegido', porque: `${nomeP} não se escreve por um executor automático.` }
+    return null
+  }
+  return null
+}
 
 export function mensagem(r) {
   return `BLOQUEADO pela guarda do Dipsy (regra ${r.regra}): ${r.porque} Não tentes outro caminho nem contornes: diz ao Danilo o que querias fazer e segue com o resto.`

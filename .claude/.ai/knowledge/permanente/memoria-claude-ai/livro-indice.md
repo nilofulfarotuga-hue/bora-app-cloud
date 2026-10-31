@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-31T13:37:08.866577+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-31T14:07:08.607663+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-31 13:26 UTC. Páginas listadas: 472.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-31 14:01 UTC. Páginas listadas: 474.
 
 ## O que é o Bora
 
@@ -34,7 +34,7 @@ Quer respostas curtas, em texto corrido e sem jargão, e que o trabalho se faça
 
 1. `erros-aprendidos` — as correções do Danilo; errou uma vez, nunca mais (atualizada 2026-10-31).
 2. `regras-do-danilo` — as regras dele; mandam em tudo (atualizada 2026-10-31).
-3. Estado vivo: `digest-2026-10-31-meta-anuncios-g4` (2026-10-31).
+3. Estado vivo: `digest-2026-10-31-jai-sportsdunia` (2026-10-31).
 4. Antes de mexer em pedidos, estafetas, dinheiro ou migrações: `regras-operacao-agentes`.
 5. Ferramenta nova sem MCP? `livro-porta-unica` explica como ligar (Córtex por MCP, ou o ficheiro plano LIVRO.md com senha).
 
@@ -51,8 +51,9 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - erros-aprendidos — Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige) (2026-10-31)
 
-## digest (184)
+## digest (185)
 
+- digest-2026-10-31-jai-sportsdunia — Digest 31/10/2026 — artigo da SportsDunia no site do Jai (2026-10-31)
 - digest-2026-10-31-meta-anuncios-g4 — Meta anúncios 31/10 — criativos refeitos, juiz ≥ 9, 4 anúncios LIGADOS (2026-10-31)
 - digest-2026-10-30-meta-anuncios — Meta anúncios 30/10 (Claude Code, Opus) — 2 campanhas publicadas e desligadas à espera dos 25 € (2026-10-30)
 - digest-2026-10-30-gorjetas-taxa — Claude Code 30/10 — gorjetas com a taxa, robô da Boom e publicação 7 (2026-10-30)
@@ -423,7 +424,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - sql-modo-demo-2026-10-27 — SQL do modo demonstracao (Boom! Burger) para o Claude.ai aplicar (2026-10-27)
 
-## outras (116)
+## outras (117)
 
 - 00-LEIA-PRIMEIRO — Como usar esta memória (2026-10-23)
 - adendo-1-final-app-2026-10-29 — Adendo 1 da missão final-app-2026-10-29 (2026-10-29)
@@ -450,7 +451,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - caminhos-animacao-filme — Filme das filhas — 5 caminhos grátis para o desenho (revisto 05/10 com os 50 vídeos) (2026-10-28)
 - casa-manutencao-pesquisa-2026-10-29 — Casa & Manutencao — pesquisa das 10 apps do mundo e burocracia em Portugal (29/10/2026) (2026-10-29)
 - casa-manutencao-proposta — Casa & Manutenção — proposta para o Danilo decidir (29/10/2026) (2026-10-29)
-- dsh-como-usar — Como usar o Dipsy (dsh) (2026-10-30)
+- dsh-como-usar — Como usar o Dipsy (dsh) (2026-10-31)
 - dsh-como-usar-novidades-2026-10-31 — Dipsy: o que ficou novo a 31/10 (complemento da pagina dsh-como-usar) (2026-10-31)
 - em-dia-ios-copiar-pipeline-bora — Em Dia / iOS: nao escrever o CI do zero, copiar o da Bora que ja funciona (2026-09-22)
 - em-dia-iphone-identificador — Em Dia / iPhone: identificadores da Apple (bundle id, app id, SKU) (2026-09-22)
@@ -465,6 +466,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - ideias-pendentes-decisao-danilo — Ideias grandes à espera da decisão do Danilo (29/10/2026) (2026-10-29)
 - ideias-videos-danilo — Ideias tiradas dos vídeos que o Danilo manda (2026-10-31)
 - jai-entrevista-kalinga-mensagem — Mensagem ao Jai — entrevista do Professor Kalinga já no site (30/10/2026) (2026-10-30)
+- jai-sportsdunia-mensagem — Confirmação para o Jai — artigo da SportsDunia no site (31/10/2026) (2026-10-31)
 - livro-claude-code-aprendeu — O que o Claude Code aprendeu sozinho (memória automática do PC), cópia (2026-10-25)
 - livro-claude-md-detalhe — Detalhe dos CLAUDE.md (repo e global) antes do corte de 23/10/2026 (2026-10-23)
 - livro-faxina-2026-10-25 — Faxina do livro 2026-10-25 (proposta do escriba + revisão do critico; nada apagado) (2026-10-25)

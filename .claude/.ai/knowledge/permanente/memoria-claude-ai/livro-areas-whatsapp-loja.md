@@ -10,11 +10,11 @@ estado: atual
 
 # Regras fixas do Danilo para o atendimento automático do WhatsApp da loja — ler antes de mexer nesse atendimento
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-whatsapp-loja`, origem `claude-ai`, atualizada em 2026-10-31T10:15:56.822048+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-whatsapp-loja`, origem `claude-ai`, atualizada em 2026-10-31T11:14:08.884293+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas whatsapp loja · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/whatsapp-loja.md), copiada a 31/10/2026 10:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/whatsapp-loja.md), copiada a 31/10/2026 11:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: whatsapp-loja

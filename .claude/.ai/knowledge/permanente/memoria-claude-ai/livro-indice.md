@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-31T11:07:10.300408+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-31T11:37:07.365429+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-31 10:47 UTC. Páginas listadas: 469.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-31 11:18 UTC. Páginas listadas: 470.
 
 ## O que é o Bora
 
@@ -422,7 +422,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - sql-modo-demo-2026-10-27 — SQL do modo demonstracao (Boom! Burger) para o Claude.ai aplicar (2026-10-27)
 
-## outras (114)
+## outras (115)
 
 - 00-LEIA-PRIMEIRO — Como usar esta memória (2026-10-23)
 - adendo-1-final-app-2026-10-29 — Adendo 1 da missão final-app-2026-10-29 (2026-10-29)
@@ -485,6 +485,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - meta-anuncios-2026-10-30-textos — Textos finais dos 2 anúncios Meta de 30/10/2026 (Instala e pede + Check-in diário) (2026-10-31)
 - meta-anuncios-2026-10-31-adendo-revisao — Adendo G-REVISÃO dos anúncios Meta (31/10 06:52) — correções do Danilo + juiz visual (2026-10-31)
 - meta-anuncios-2026-10-31-criativos — Anúncios Meta 31/10 — criativos finais (juiz ≥ 9) e porque o anúncio antigo não deu pedidos (2026-10-31)
+- motor-claude-2026-10-31 — Motor Claude 31/10 - estado final (Bloco 2 da retoma-geral) (2026-10-31)
 - motores-rotacao-2026-10-29 — Motores gratis em rotacao - medicoes e cadeias (29/10/2026) (2026-10-29)
 - paridade-mundo-2026-10-29 — Paridade do mundo, segunda volta (Rappi, DoorDash, Zomato, Meituan) 29/10/2026 (2026-10-29)
 - paridade-mundo-e-lei-2026-10-17 — Bora vs Uber/Glovo/iFood/Bolt/Grab/Meituan + obrigações da lei em Portugal (pesquisa 17/10/2026) (2026-10-17)

@@ -14,8 +14,16 @@ Ciclo de vida da linha em whatsapp_saida:
 Quando sai: escreve uma linha direcao='saida' em whatsapp_messages (msg_id = 'ld-<id>') e marca
 enviado_em nos itens de lembretes_danilo citados em 'ids=' no motivo. Os avisos 'entregue'/'visto'
 da WhatsApp atualizam essa linha.
+
+VOZ (31/10/2026, missao retoma-geral-2026-10-31, bloco 4): regra do Danilo "tudo o que chega em texto chega em voz".
+Se o motivo levar ':voz=<chave>' e existir /opt/data/voz/lembretes/<chave>.ogg (feito pela rotina antes de criar a
+linha), sai logo a seguir ao texto uma nota de voz (PTT) com o texto inteiro, com id 'ld-<id>~voz'. Os avisos dessa
+nota (a-caminho / entregue / visto / falhou) ficam em /opt/data/voz/lembretes/enviados.jsonl; o estado da linha de
+texto em whatsapp_saida nao muda por causa da voz.
 """
 import datetime
+import json
+import os
 import re
 
 import db
@@ -23,9 +31,11 @@ import db
 ENV = "/opt/whatsapp-bora/.env"
 PREFIXO = "lembrete-danilo"
 IDADE_MAX_S = 1800
+VOZ_DIR = "/opt/data/voz/lembretes"
+SUF_VOZ = "~voz"
 def _re_dono():
-    """Nomes que nunca podem sair numa mensagem (anonimato do dono). Vêm do .env
-    (LEMBRETES_NOMES_DONO=nome1,nome2), nunca do código: o repositório é público."""
+    """Nomes que nunca podem sair numa mensagem (anonimato do dono). Vem do .env
+    (LEMBRETES_NOMES_DONO=nome1,nome2), nunca do codigo: o repositorio e publico."""
     nomes = []
     try:
         with open(ENV, encoding="utf-8") as fh:
@@ -93,7 +103,31 @@ def pendentes():
         if not db.atualizar("whatsapp_saida", "id=eq.%s&estado=eq.pendente" % rid, {"estado": "a-enviar"}):
             continue
         saida.append({"id": "ld-" + str(r["id"]), "numero": r["numero"], "texto": r["texto"], "motivo": r.get("motivo")})
+        mv = re.search(r":voz=([0-9a-f]{8,32})", r.get("motivo") or "")
+        if mv:
+            p = os.path.join(VOZ_DIR, mv.group(1) + ".ogg")
+            if os.path.exists(p):
+                saida.append({"id": "ld-%s%s" % (r["id"], SUF_VOZ), "numero": r["numero"], "texto": r["texto"],
+                              "motivo": (r.get("motivo") or "") + " (voz)", "audio_path": p})
+            else:
+                _registar_voz({"linha": str(r["id"]), "estado": "sem-ficheiro", "ficheiro": p})
     return saida
+
+
+def _registar_voz(o):
+    try:
+        os.makedirs(VOZ_DIR, exist_ok=True)
+        o["ts"] = _iso()
+        with open(os.path.join(VOZ_DIR, "enviados.jsonl"), "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(o, ensure_ascii=False) + "\n")
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _enviado_voz(d, rid):
+    _registar_voz({"linha": rid, "estado": d.get("estado") or ("entregue" if d.get("ok") else "falhou"),
+                   "ok": bool(d.get("ok")), "msg_id": d.get("msg_id"), "erro": (str(d.get("erro"))[:200] if d.get("erro") else None)})
+    return {"ok": True}
 
 
 def _garantir_emitida(r, rid, d, agora):
@@ -109,7 +143,10 @@ def _garantir_emitida(r, rid, d, agora):
 
 
 def enviado(d):
-    rid = db.q(str(d.get("id") or "")[3:])
+    bruto = str(d.get("id") or "")
+    if bruto.endswith(SUF_VOZ):
+        return _enviado_voz(d, bruto[3:-len(SUF_VOZ)])
+    rid = db.q(bruto[3:])
     estado = d.get("estado") or ("entregue" if d.get("ok") else "falhou")
     linhas = db.ler("whatsapp_saida", "id=eq." + rid, "id,numero,texto,motivo,estado")
     if not linhas:

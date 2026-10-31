@@ -1,0 +1,14 @@
+[Unit]
+Description=Porteiro do Telegram do Danilo (unica porta para o chat dele no BoraHermesbot: triagem, anti-duplicado, texto + voz) - 127.0.0.1/172.16.1.1:8796 e 127.0.0.1:8797
+After=network-online.target docker.service voz-servidor.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/data/voz
+ExecStart=/usr/bin/python3 /opt/data/voz/porteiro.py --servir
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

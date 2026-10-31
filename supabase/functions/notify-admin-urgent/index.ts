@@ -1,6 +1,9 @@
 // @ts-nocheck
 // supabase/functions/notify-admin-urgent/index.ts
 //
+// v16 (2026-10-31) — TELEGRAM PELO PORTEIRO: o aviso ao Danilo vai para a fila
+// public.porteiro_entrada; o porteiro da VPS manda texto + voz (ver sendTelegramBestEffort).
+//
 // v15 (2026-07-31) — DATA-ONLY: removido o bloco `notification` do payload FCM.
 // Com ele, o Android desenhava a notificação pelo tray e o handler Flutter não
 // corria → notificação efémera (sumia sozinha) e nada visível em foreground.
@@ -293,11 +296,31 @@ Deno.serve(async (req) => {
 
 /// Envia o mesmo aviso para o Telegram do Danilo. NUNCA lança: qualquer falha
 /// (credenciais em falta, rede, API) é registada e devolve false.
+///
+/// v16 (2026-10-31, retoma-geral bloco 6 — ordem do Danilo das 10:07): o aviso passa
+/// pelo PORTEIRO da VPS, a única porta para o chat dele (triagem, anti-repetidos e
+/// SEMPRE texto + voz). A função escreve em public.porteiro_entrada (só service_role)
+/// e o porteiro lê de 10 em 10 s; alertas da base são URGENTE por regra dele.
+/// Só se essa escrita falhar (tabela ainda não criada, base em baixo) é que volta ao
+/// envio direto antigo, para o aviso nunca se perder.
 async function sendTelegramBestEffort(
   supabase: any,
   title: string,
   body: string,
 ): Promise<boolean> {
+  try {
+    const texto = `${title}\n${body}`.trim().slice(0, 4000)
+    const { error: errPorteiro } = await supabase
+      .from('porteiro_entrada')
+      .insert({ origem: 'notify-admin-urgent', nivel: 'URGENTE', texto })
+    if (!errPorteiro) {
+      console.log('[notify-admin-urgent] entregue ao porteiro (porteiro_entrada)')
+      return true
+    }
+    console.error('[notify-admin-urgent] porteiro_entrada falhou, vai pelo caminho antigo:', errPorteiro.message)
+  } catch (e) {
+    console.error('[notify-admin-urgent] porteiro_entrada exception, vai pelo caminho antigo:', e)
+  }
   try {
     const { data, error } = await supabase.rpc('get_telegram_config')
     if (error) {

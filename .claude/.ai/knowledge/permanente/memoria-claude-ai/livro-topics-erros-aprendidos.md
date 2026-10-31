@@ -10,11 +10,11 @@ estado: atual
 
 # Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 1 de 3 — continua em livro-topics-erros-aprendidos-parte2…)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos`, origem `claude-ai`, atualizada em 2026-10-31T06:13:15.875486+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos`, origem `claude-ai`, atualizada em 2026-10-31T07:17:29.650484+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro topics erros aprendidos · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md), copiada a 31/10/2026 06:12 (hora de Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 1 de 3), copiada a 2026-10-31 07:14 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: erros-aprendidos
@@ -64,4 +64,4 @@ aliases: [erros, erros corrigidos, nunca mais errar, lições aprendidas, caminh
 - [stated] 19/10: no cartão ao Jai perguntei "foi domingo 11 de outubro?" sem verificar — a data estava na conversa de 17/10 (o Jai mandou a página no sábado 17/10 às 12:13, a dizer que tinha saído "hoje") → regra: nunca pôr data a adivinhar nem perguntá-la ao cliente; procurar primeiro nas conversas antigas quando a coisa chegou
 - [stated] 19/10: disse ao Jai (pelo Danilo) que a matéria do Mid-Day "não está online" só porque a minha busca não a achou — estava online ("Mumbai-born Jai Agarwal never let his Guarda down!") e o Jai respondeu "It's there bro"; e insisti que era sábado quando o Jai disse domingo → regra: a busca não achar ≠ não existir (artigo novo demora a aparecer na busca); dizer "não encontrei ainda, tens o link?" e nunca afirmar que não está online; sobre a data de algo do cliente, vale o que o cliente diz
 - [stated] 19/10: entreguei-lhe o prompt do Mid-Day para ele colar no Claude Code; ele corrigiu: "isso tudo quem vai fazer é você" — eu abro o Claude Code no navegador, escolho a pasta do Jai, ponho em automático, colo o prompt, arrasto a foto, e ele só carrega no botão. Se o sistema de segurança me travar a meio, digo-lhe em uma linha onde parou
-- [stated] 19/10: no prompt do Mid-Day deixei a foto como opcional ("se não houver foto, publica só o link") → regra: matéria de imprensa no site do Jai entra SEMPRE com foto; o prompt manda o Claude Code ir buscá-la ele próprio (foto do artigo online, página do jornal digital/e-paper) — nunca depender de o Danilo arrastar ficheiros
+

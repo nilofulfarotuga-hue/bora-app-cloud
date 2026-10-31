@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-31T07:07:15.266252+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-31T07:37:06.397992+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-31 06:58 UTC. Páginas listadas: 465.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-31 07:17 UTC. Páginas listadas: 466.
 
 ## O que é o Bora
 
@@ -237,7 +237,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - digest-2026-09-13-janela-4-ux-portao — Janela 4 13/09 — ordem UX OpenCode chegou ao Claude Code e parou no portão (2026-09-13)
 - digest-2026-09-13-janela-3 — Janela 3 13/09 — portas (correu em Fable, não Opus) (2026-09-13)
 
-## livro-areas (132)
+## livro-areas (133)
 
 - livro-areas-alertas-notificacoes — Alertas do Bora para o Danilo (Telegram + push admin persistente) — o que já dispara, por que caminho, e o que falta (2026-10-23)
 - livro-areas-analise-apps-emulador — Ideia do Danilo (08/10/2026) de usar emulador Android + agente de IA para testar bugs do Bora e comparar com iFood/Uber/Glovo; adiada para… (2026-10-26)
@@ -249,7 +249,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-areas-auditoria-pagamentos-parte3 — Missão "auditoria geral" pedida 15/08 — unificar pagamentos num jeito só; achados da Fase 1 (dados MCP) e estado das fases (parte 3 de 4) (2026-10-23)
 - livro-areas-auditoria-pagamentos-parte4 — Missão "auditoria geral" pedida 15/08 — unificar pagamentos num jeito só; achados da Fase 1 (dados MCP) e estado das fases (parte 4 de 4) (2026-10-23)
 - livro-areas-beunique — BeUnique Beauty & Academy (salão beleza, Guarda) — negócio NÃO fechou; loja desligada do app a 28/08. Histórico do que chegou a ser montado (2026-10-23)
-- livro-areas-boom-burger — Boom! Burger (hamburgueria artesanal da Guarda) — loja que o Danilo quer ganhar como parceira do Bora desde 27/10/2026; ler antes de falar… (2026-10-30)
+- livro-areas-boom-burger — Boom! Burger (hamburgueria artesanal da Guarda) — loja que o Danilo quer ganhar como parceira do Bora desde 27/10/2026; ler antes de falar… (2026-10-31)
 - livro-areas-bora-app — Bora App multi-vertical platform — architecture, verticals, business rules, and protected zones (parte 1 de 4 — continua em livro-areas-bor… (2026-10-23)
 - livro-areas-bora-app-parte2 — Bora App multi-vertical platform — architecture, verticals, business rules, and protected zones (parte 2 de 4) (2026-10-23)
 - livro-areas-bora-app-parte3 — Bora App multi-vertical platform — architecture, verticals, business rules, and protected zones (parte 3 de 4) (2026-10-23)
@@ -299,7 +299,8 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-areas-happy-site-parte3 — Site pessoal do Jai Agarwal (jaiagarwala.com) — NO AR desde 15/08; regras vivas, estado atual e pendências; histórico técnico em happy-site… (2026-10-30)
 - livro-areas-happy-site-parte4 — Site pessoal do Jai Agarwal (jaiagarwala.com) — NO AR desde 15/08; regras vivas, estado atual e pendências; histórico técnico em happy-site… (2026-10-30)
 - livro-areas-henrique-esfihas — Henrique (esfihas, Guarda) — prospect novo do [[bora-app]], abordagem para entrar como parceiro de comida com loja montada pelo Danilo + si… (2026-10-23)
-- livro-areas-hermes-agent — Hermes Agent infrastructure — VPS, PC bridge, ferramentas reais, e cadeia de modelos (migrado para o plano Go em 2026-08-10) (2026-10-23)
+- livro-areas-hermes-agent — Hermes Agent infrastructure — VPS, PC bridge, ferramentas reais, e cadeia de modelos (migrado para o plano Go em 2026-08-10) (parte 1 de 2… (2026-10-31)
+- livro-areas-hermes-agent-parte2 — Hermes Agent infrastructure — VPS, PC bridge, ferramentas reais, e cadeia de modelos (migrado para o plano Go em 2026-08-10) (parte 2 de 2) (2026-10-31)
 - livro-areas-historia-dinossauros-lucifer — História infantil nova (dinossauros + guerra no céu/queda de Lúcifer + criação/Adão e Eva) que o Danilo quer transformar num gibi gerado vi… (2026-10-23)
 - livro-areas-home-cliente-faixas — Home do app cliente do Bora — faixas de propaganda clicáveis, mais pedidos e lupa que acha tudo (pedido do Danilo, 05/10/2026) (2026-10-23)
 - livro-areas-jai-agarwal-site — Jai Agarwal's personal brand site (jaiagarwala.com) — multilingual EN/PT/HI/ES site with gallery, press wall, streaming interview, SEO (2026-10-23)
@@ -340,9 +341,9 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-areas-precos-catalogo-nao-parceiro — Regras que o Danilo fixou para o preço base dos produtos de lojas não-parceiras do [[bora-app]] (robot do talão + qual a fonte de preço vál… (2026-10-25)
 - livro-areas-produtos-peso-variavel — Regra do Danilo (26/10/2026) para produtos ao quilo nos mercados do [[bora-app]] — o estafeta troca o preço e o cliente paga o valor final (2026-10-26)
 - livro-areas-prospecao-sites-clubes — Campanha de venda de sites a clubes de futebol portugueses (a partir do caso Guarda FC) — o que o Danilo pediu, critérios de alvo, e regist… (2026-10-23)
-- livro-areas-radar-ia — Radar semanal de novidades de IA (bot batedor do Hermes) + vereditos sobre ferramentas (DeepSeek Harness, Jev/TypeSafe) — ler antes de mand… (2026-10-30)
-- livro-areas-radar-ia-parte2 — Radar semanal de novidades de IA (bot batedor do Hermes) + vereditos sobre ferramentas (DeepSeek Harness, Jev/TypeSafe) — ler antes de mand… (2026-10-30)
-- livro-areas-radar-ia-parte3 — Radar semanal de novidades de IA (bot batedor do Hermes) + vereditos sobre ferramentas (DeepSeek Harness, Jev/TypeSafe) — ler antes de mand… (2026-10-30)
+- livro-areas-radar-ia — Radar semanal de novidades de IA (bot batedor do Hermes) + vereditos sobre ferramentas (DeepSeek Harness, Jev/TypeSafe) — ler antes de mand… (2026-10-31)
+- livro-areas-radar-ia-parte2 — Radar semanal de novidades de IA (bot batedor do Hermes) + vereditos sobre ferramentas (DeepSeek Harness, Jev/TypeSafe) — ler antes de mand… (2026-10-31)
+- livro-areas-radar-ia-parte3 — Radar semanal de novidades de IA (bot batedor do Hermes) + vereditos sobre ferramentas (DeepSeek Harness, Jev/TypeSafe) — ler antes de mand… (2026-10-31)
 - livro-areas-recibo-cliente-produto-falta — Regras que o Danilo fixou para mexer no conteúdo de um pedido já feito (produto em falta, acrescentar produto) e para o recibo do cliente —… (2026-10-23)
 - livro-areas-regras-lancamento-categorias — Regras fixas do Danilo para lançar QUALQUER categoria, loja ou serviço novo no Bora — ler ANTES de planear ou montar prompt de categoria/lo… (2026-10-23)
 - livro-areas-sabores-de-casa — Sabores de Casa Açaí (mercado BR + açaí, Guarda) — parceiro no app + mini-site cinematográfico de presente (esquema Ouro e Prata) (2026-10-23)
@@ -352,7 +353,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-areas-stripe-connect-parte2 — Stripe Connect Express no Bora — decisão do Danilo, estado real (conta dele de motorista já ATIVA, Goola e Ouro e Prata por preencher, repa… (2026-10-24)
 - livro-areas-stripe-connect-parte3 — Stripe Connect Express no Bora — decisão do Danilo, estado real (conta dele de motorista já ATIVA, Goola e Ouro e Prata por preencher, repa… (2026-10-24)
 - livro-areas-talao-nao-parceiro — Ecrã do talão do estafeta em pedidos não-parceiros do [[bora-app]] — o que o Danilo exige do fluxo e o prompt entregue a 10/09 para o corri… (2026-10-28)
-- livro-areas-taxa-cancelamento-pedido — Regras do Danilo para cancelamento de pedidos de entrega do bora-app — taxa de cancelamento, reembolso ao MB Way/cartão e chamada persisten… (2026-10-29)
+- livro-areas-taxa-cancelamento-pedido — Regras do Danilo para cancelamento de pedidos de entrega do bora-app — taxa de cancelamento, reembolso ao MB Way/cartão e chamada persisten… (2026-10-31)
 - livro-areas-tokens-cliente — Regras do Danilo para o cliente usar tokens a pagar pedidos no Bora — ler antes de mexer em desconto de tokens, checkout ou valor a cobrar (2026-10-23)
 - livro-areas-tvde-cancelamento-tardio — Regra do Danilo (17/10/2026) para o cliente que cancela uma corrida TVDE depois dos 3 minutos — cobra a corrida inteira e o motorista receb… (2026-10-23)
 - livro-areas-tvde-central-corridas — Central de corridas do Danilo para clientes que ligam por telefone (sem app) — regra de ficar no core do Bora, fila entre os colegas da Gua… (2026-10-23)
@@ -473,7 +474,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-topics-erros-aprendidos-parte2 — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (par… (2026-10-31)
 - livro-topics-erros-aprendidos-parte3 — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (par… (2026-10-31)
 - livro-topics-prioridades — Como o Danilo decide prioridades no negócio — foco dos próximos meses e regras de desempate quando duas coisas competem ao mesmo tempo (2026-10-29)
-- livro-topics-regras-motores-e-prompts — Regras do Danilo sobre que motor/ferramenta usar (Fable, Opus, ChatGPT, GLM, Gemini, OpenCode) e sessões no Chrome — ler antes de montar pr… (2026-10-23)
+- livro-topics-regras-motores-e-prompts — Regras do Danilo sobre que motor/ferramenta usar (Fable, Opus, ChatGPT, GLM, Gemini, OpenCode) e sessões no Chrome — ler antes de montar pr… (2026-10-31)
 - lojas-takeaway-precos — Lojas de takeaway por telefone: Bora (não-parceiro) contra Glovo e Uber Eats, Guarda, 29/10/2026 (2026-10-29)
 - maiores-18-verificacao-idade — Maiores de 18 — tabaco e álcool com verificação de idade na entrega (aplicado 07/10/2026) (2026-10-07)
 - mapa-sessoes-contas — Mapa de sessões e contas — que conta está em que sítio (provado no ecrã a 17/09/2026) (2026-09-18)

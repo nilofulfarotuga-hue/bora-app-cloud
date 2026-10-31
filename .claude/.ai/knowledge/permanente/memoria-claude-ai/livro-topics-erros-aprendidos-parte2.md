@@ -10,13 +10,13 @@ estado: atual
 
 # Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 2 de 3)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte2`, origem `claude-ai`, atualizada em 2026-10-31T06:13:15.875486+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte2`, origem `claude-ai`, atualizada em 2026-10-31T07:17:29.650484+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro topics erros aprendidos parte2 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 2 de 3), copiada a 31/10/2026 06:12 (hora de Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 2 de 3), copiada a 2026-10-31 07:14 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
-
+- [stated] 19/10: no prompt do Mid-Day deixei a foto como opcional ("se não houver foto, publica só o link") → regra: matéria de imprensa no site do Jai entra SEMPRE com foto; o prompt manda o Claude Code ir buscá-la ele próprio (foto do artigo online, página do jornal digital/e-paper) — nunca depender de o Danilo arrastar ficheiros
 - [stated] 19/10: a 17/10 ele mandou pôr os 2,50 € do cancelamento na carteira do Ney e eu não pus (nada entrou no sistema) — o acerto saiu com 4,00 € em vez de 6,50 € e ele pagou 6,50 à mão → regra: ordem de mexer em dinheiro de alguém é feita na hora e provada por SELECT antes de dizer que está feita; se não der para fazer logo, dizer-lhe que ficou por fazer
 - [stated] 20/10: o sistema travou-me o envio das cartas ao IMT e ao Provedor e eu deixei-as nos rascunhos para ele carregar em Enviar; ele não conseguiu e disse "eu autorizo você enviar" → regra: quando um envio for travado, pedir-lhe só "autorizas o envio?" numa linha e enviar eu, em vez de lhe passar rascunhos
 - [stated] 20/10: no resumo das pendências pus "o Divan tem dois MB Way por pagar" e "o Valdemir deve 1,92 €" sem puxar o contexto — ele já tinha dito que o Divan pagou a de 19/10 e que o Valdemir já pagou → regra: antes de listar dívidas de alguém, procurar nas conversas do próprio dia o que ele já disse estar pago, e só listar o que o banco E a conversa confirmam em aberto
@@ -48,5 +48,4 @@ estado: atual
 - [stated] 27/10: ele mandou print do Jai a pedir para ir ao estádio e eu pus no cartão "I'm coming to the stadium" sem saber se ele podia; estava a almoçar com a família e mandou dizer que agora não estava disponível → regra: quando o print pede que ele vá a algum lado e ele não disse se pode, não decidir por ele; perguntar numa linha "podes ir agora?" antes de fazer o cartão
 - [stated] 27/10: achei um erro na app (o painel do parceiro da Boom! Burger mostra "112" produtos quando são 56) e disse-lhe que "ficou anotado" para depois; ele corrigiu: "sempre quando for achando problema, já tem que ir consertando, não pode ficar nada pra depois" → regra: erro que encontro é mandado consertar NA HORA (MCP já, ou prompt ao Claude Code), nunca fica "anotado para depois"; e rever o que já ficou para trás e mandar arrumar tudo
 - [stated] 27/10 22:18: insisti duas vezes (de manhã e à noite) para ele apagar dos 3 grupos os cartazes das vagas que saíram do número pessoal; ele não quer: "deixa lá, já pôs isso, agora deixa" → regra: não voltar a pedir para apagar esses cartazes; daqui para a frente, tudo o que se publicar em grupos sai sempre pelo WhatsApp da Bora
-- [stated] 27/10 22:25: mandei publicar o reel do Tesla no grupo "Brasileiros na Guarda" e no "Marketing, vendas e propaganda Guarda"; ele corrigiu: "o brasileiro agora só pode no marketing" → regra: propaganda da Bora em grupos de WhatsApp só no "Marketing, vendas e propaganda Guarda"; no "Brasileiros na Guarda" não se publica
-- [stated] 28/10 10:33 (na hora da demonstração da Boom): disse-lhe que a
+

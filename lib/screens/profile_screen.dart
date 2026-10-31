@@ -464,7 +464,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     final role = authStore.role;
-    final user = Supabase.instance.client.auth.currentUser;
     final displayName = authStore.displayName ?? 'Utilizador';
     final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U';
 

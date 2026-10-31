@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-happy-site
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-30
+ultima_confirmacao: 2026-10-31
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Site pessoal do Jai Agarwal (jaiagarwala.com) — NO AR desde 15/08; regras vivas, estado atual e pendências; histórico técnico em happy-site-historico (parte 1 de 4 — continua em livro-areas-happy-site-parte2…)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-happy-site`, origem `claude-ai`, atualizada em 2026-10-30T22:18:48.623344+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-happy-site`, origem `claude-ai`, atualizada em 2026-10-31T23:14:08.012335+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas happy site · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/happy-site.md), copiada a 2026-10-30 22:12 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/happy-site.md), copiada a 2026-10-31 23:12 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: happy-site
@@ -61,6 +61,3 @@ Histórico técnico completo (v1→ronda1, lições e apanhados): [[happy-site-h
 - [stated] 17/08 10:19-24: teaser fechado entre eles — versão da Myra aprovada ("Yes, looks nice"), o Amaan fez a VERSÃO EM VÍDEO (domínio certo) e a Gehna sugeriu efeito "typewriter" no story (aplicação deles no IG, não nossa); as piadas 🤖 eram o Jai a gozar com o teaser de IA da Gehna. O Jai pediu o GO ao Danilo ("This is good can we post @Danilo?") → GO dado. E o Jai ofereceu um QUESTIONÁRIO autobiográfico com a história de infância/superação dele ("I don't know if we want to include this but I thought we should give it a think") — resposta enviada: material poderoso e liga à narrativa da Guarda, mas por ser história pessoal/de saúde entra só como passagem CURTA e bem escrita na secção da história, com o nível de detalhe à escolha dele e RASCUNHO aprovado por ele antes de publicar. Danilo desistiu do monograma do ChatGPT (não gostou, não vai propor — assunto morreu sozinho, a Myra seguiu sem monograma)
 - [stated] 17/08 10:26-29: DIANA RODRIGUES entrou no grupo — o Jai diz que "está a ajudar-nos com a Guarda" (sem obrigações, pode silenciar o grupo); ela fez um VÍDEO PROMO do site (15s, estilo "escrever o endereço na barra de pesquisa") que o Jai adorou e marcou toda a gente incluindo o Danilo a pedir opinião; Amaan: "aparar o finzinho"; Gehna: "lovely"; Jai pediu o ficheiro por WeTransfer. Mensagem única refeita para o Danilo enviar (a anterior nunca foi enviada): GO do teaser + elogio/boas-vindas à Diana + aparar o fim + CONFERIR que o endereço no vídeo é jaiagarwala.com + proposta do rascunho da história do questionário
 - [stated] 17/08 RONDA 2 CONCLUÍDA e provada em produção: wordmark "J" resolvido com método (17 serifas testadas com linha de base; escolhida LORA — J assente, harmoniza com a Fraunces que fica no resto; a inconsistência do HI que o Danilo viu era real — fallback Noto Sans Devanagari; regra explícita para HI + favicons regenerados); concertos agora 30 vividos/15 na lista com nomes oficiais verificados (Stella Lefty confirmada — country-pop viral 2026 "Boston"; Lauren Spencer-Smith, HUGEL, Mumford & Sons, Shankar-Ehsaan-Loy corrigidos; "AP" ficou como o Jai escreveu — ambíguo, provável AP Dhillon, na lista para ELE confirmar); deploy 10 ficheiros/4,8s. EXPORTS prontos em Downloads: jai-site-home-desktop-1440-EN.png + captura mobile página inteira + jai-wordmark-para-fundo-escuro/claro.png (Lora, transparente) + jai-paleta.png (#C9A227 dourado, #0A0A0C fundo, #F4F0E8 marfim, #A7A093 cinza) — para o Danilo mandar à equipa de design
-- [stated] 17/08 10:28-33: Diana mandou o WeTransfer do vídeo promo (we.tl/t-BpN0qtaFEgfZPufw); o Jai agradeceu e pôs a Myra a descarregar e subir. MENSAGEM FINAL do Danilo enviada ao grupo cobrindo tudo: GO do teaser + boas-vindas/aviso do domínio no vídeo da Diana + ronda 2 anunciada (J reto nos 4 idiomas + favicon, nomes completos, 30/15, Stella Lefty) + pergunta ao Jai se "AP" = AP Dhillon + materiais de design (wordmark claro/escuro + paleta + 2 capturas, nos Downloads) a enviar a seguir + oferta do rascunho da história mantida
-- [stated] 17/08 ~10:40: Jai confirmou "AP" = AP DHILLON (snippet de correção entregue) e disse SIM ao rascunho da história ("yes pls — if you need more quotes let me know"). Rascunho "The Underdog Years" escrito e entregue ao Danilo para enviar ao Jai (aprovação obrigatória antes de publicar; pedida 1 citação extra: o que os anos de underdog lhe ensinaram como CEO). J do wordmark confirmado OK pelo Danilo no separador privado (o que ele via era cache). Falta: Danilo enviar os 5 ficheiros de design no grupo (passos dados)
-

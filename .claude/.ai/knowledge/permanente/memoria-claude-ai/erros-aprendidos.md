@@ -10,7 +10,7 @@ estado: atual
 
 # Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-10-31T17:13:52.710803+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-10-31T18:19:05.338059+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: erros aprendidos · memoria claude.ai · claude_ai_memoria
 
@@ -114,4 +114,5 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - 31/10 (claude-ai): Na resposta ao Jai sobre a notícia da Minerva (ele só reencaminhou o link da SportsDunia, sem texto) escrevi "Big news bro 🔥 I'll add this one to the press section of your website", no mesmo tom da mensagem de 06:07 ("10k+ views already, that's huge 🔥 ... says it all 👏"). O Danilo reprovou: não é natural, é exagerado. → Mensagem ao Jai é curta e direta, como o Danilo fala ("ok, isso é legal" + o que vai fazer): sem "big news", "that's huge", elogios nem emojis de festa. Antes de escrever, ver no WhatsApp como os dois falam e seguir esse estilo.
 31/10 (quem errou: claude-ai): a melancia do Continente estava na app por unidade (7,14 €) e saiu 9,06 € na balança; o estafeta não conseguiu trocar o preço. Eu tinha dado o peso variável por arrumado a 26/10, mas só o servidor estava feito: o ecrã do estafeta nunca foi feito (o prompt ficou "à espera" e nunca foi colado) e a regra de nomes deixou de fora tudo com "semente" e fruta noutras secções → funcionalidade com servidor + app só está feita quando a parte da app está publicada e provada nas 3; prompt que fica "à espera" é verificado no e2e_log até correr, nunca esquecido; marcar produtos por regra de nomes = rever por amostra o que ficou de fora (fruta, legumes, talho) antes de dar por feito.
 31/10 (quem errou: claude-ai): ao marcar a limpeza do Divan para as 18h copiei a tentativa que ele tinha cancelado na app (pacote T2, 4 horas, 45 €) em vez das 3 horas de sempre; o Divan cancelou e a app registou-lhe 45 € de taxa → a limpeza do Divan é de 3 horas por hora (produtos dele, 2 gatos), não o pacote T2; ao marcar uma limpeza por um cliente, seguir o formato das marcações habituais dele, nunca uma tentativa cancelada.
+30/10 (quem errou: claude-ai): na mensagem ao Ricardo (cliente Uber, a quem faltava pagar um pouco) escrevi um limite duro ("até uma semana, não deixo acumular mais de 20 €, senão fica pesado para mim"); ele achou grosso → com cliente que deve pouco, a mensagem é leve — diz quanto falta e pergunta quando consegue pagar; o limite vai só como ajuda futura ("se um dia precisares outra vez, posso ajudar, só não com um valor muito alto"), sem números, prazos nem queixas.
 

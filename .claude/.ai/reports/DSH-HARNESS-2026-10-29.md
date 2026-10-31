@@ -25,7 +25,10 @@ cerca de compatibilidade do dsh os candidatos limpos. Só um ficou provado e pro
    "PARCEIRO = 20% total (10% comissão + 5% markup escondido + 5% taxa serviço); NÃO-PARCEIRO = 15%". 43 s, motor Kilo.
 2. **Skills — provado.** 146 de 146 visíveis ao modelo (145 listadas + 2 carregadas à prova); mais 5 escondidas por
    `disable-model-invocation` (grill-me, grill-with-docs, handoff, improve-codebase-architecture, setup-matt-pocock-skills).
-3. **Supabase — NÃO deu.** `mcp-client(supabase): server is disconnected`. O token `sbp_` local é de 20/08 e dá 401.
+3. **Supabase — provado a 30/10 às 15:46 (atualização).** De manhã não deu: `mcp-client(supabase): server is disconnected`,
+   porque o token `sbp_` local era de 20/08 e dava 401. Com o token novo da organização Bora app, o dsh correu
+   `mcp__supabase__execute_sql` com `SELECT count(*) FROM orders` e devolveu 89; o Claude Code, à mesma hora, também 89.
+   Saída literal em `provas/dsh-harness-2026-10-29/f-supabase-count.jsonl`.
 4. **Córtex — provado.** `cortex_buscar harness` = 20 resultados, com id.
 5. **Livro comum — provado.** "Quem é o Danilo e o que é o Bora" respondido a partir de `AGENTS.md`/`CLAUDE.md`; o erro de
    25/10 da Myra citado certo a partir de `erros.md`.
@@ -50,8 +53,7 @@ morto (06:53:18 morto, 06:58:22 de pé), depois do login do Danilo às 06:48.
 
 ## Instalado sem prova
 No perfil `lab` (ativam sem avisos, não estão no `headless` nem no `web`): `dsh-memento`, `dsh-auto-continue`,
-`dsh-notify-windows`, `dsh-tokenledger`, `dsh-taskfold`, `dsh-chat-import`, `dsh-sentinel` · Supabase em só leitura (montado,
-sem token) · servidor Google (montado, sem Permitir) · `PC-DO-DANILO.cmd` (visível; já não é preciso, a
+`dsh-notify-windows`, `dsh-tokenledger`, `dsh-taskfold`, `dsh-chat-import`, `dsh-sentinel` · servidor Google (montado, sem Permitir) · `PC-DO-DANILO.cmd` (visível; já não é preciso, a
 tarefa levanta o servidor).
 
 ## Não deu (erro literal)
@@ -73,10 +75,10 @@ tarefa levanta o servidor).
 - Plugins só-web no perfil web: `dsh plugin --profile web add file:C:/Users/danil/ferramentas/dsh-plugins/weibaohui__dsh-tasks`
   (e `titanwings__dsh-automation`, `weibaohui__dsh-continue`, `vlln__dsh-loop`, `weibaohui__hermes-loop`, `HuanLinOTO__dsh-plugin-mineru`).
 - Provar os 7 do `lab` um a um e promover com `C:\Users\danil\.dsh\lab-promover.ps1 -Dir <pasta>`.
-- Google, uma vez por conta (o Danilo carrega em Permitir):
+- Google: **feito a 30/10 às 19:51** nas duas contas (ver a atualização no fim). Para reautorizar, uma vez por conta (o Danilo
+  carrega em Permitir):
   `python C:\Users\danil\.dsh\google-autorizar.py boraappbora@gmail.com "Profile 1" 8772` e
   `python C:\Users\danil\.dsh\google-autorizar.py nilofulfarotuga@gmail.com Default 8773`.
-  A conta pessoal pode precisar de ser adicionada como utilizador de teste no cliente OAuth.
 - Os 20 que precisam de compilação (por exemplo `dsh-ssh`, `dsh-rewind`, `dsh-genui`, `dsh-auto-review`, `dsh-advisor`):
   clonados e auditados em `C:\Users\danil\ferramentas\dsh-plugins\`, por compilar e rever.
 - Telegram: criar o bot no BotFather e usar `LoserFox/telegram` com lista de permitidos só do chat do Danilo.
@@ -90,7 +92,7 @@ tarefa levanta o servidor).
    it first." O do Em Dia (pasta `em_dia`) deve voltar no próximo ciclo do vigia (não confirmado).
 2. O `build-ios` falhou no commit `26ab6a7b` (não é meu) e outro corria em `58eb26f8`.
 3. A voz da ponte do Telegram cai do `edge-tts` (traceback) para o `piper` e demora 54 s.
-4. O token do Supabase local (`.supabase-token.env`) caducou: dá 401 desde 21/09.
+4. O token do Supabase local (`.supabase-token.env`) caducou: dava 401 desde 21/09. (Resolvido a 30/10 às 15:41 com o token novo.)
 5. O dsh deixa os processos MCP filhos pendurados ao sair (vi 8 de `nano-banana`; matei-os).
 6. A ferramenta `Edit` parte hardlinks: partiu o do CLAUDE.md; os lançadores já o recompõem.
 7. Nove skills do Claude Code têm cabeçalho YAML inválido para um parser estrito (`ask-knowledge-base`, `daily-pulse`,
@@ -107,7 +109,109 @@ tarefa levanta o servidor).
 2. **Desligar ou não o vigia `ClaudeRC-bora`** (tarefa agendada que corre `claude rc --name bora-app`): já não serve, porque
    o servidor ocupa a pasta, e falha de 30 em 30 minutos. Não lhe toquei. E abrir duas sessões em claude.ai/code para
    provar o S.3.
-3. **Colar o token novo do Supabase** no `COLAR-TOKEN-SUPABASE.cmd` (o dsh lê o mesmo ficheiro).
-4. **Permitir do Google** nas duas contas, e decidir se aceita que o email seja lido por um modelo grátis que pode guardar
-   os pedidos (regra 14 do AGENTS.md). O dsh nunca envia: só lê e faz rascunhos.
+3. Token novo do Supabase: **feito a 30/10 às 15:41** (ver a atualização no fim).
+4. Permitir do Google: **feito a 30/10 às 19:51** nas duas contas. Fica a aceitar que o email seja lido por um modelo grátis
+   que pode guardar os pedidos (regra 14 do AGENTS.md). O dsh nunca envia: só lê e faz rascunhos.
 5. Se aceita o token estático do Córtex copiado da VPS para `~/.dsh/secrets` (revogável trocando o `CORTEX_TOKEN` do servidor).
+
+## Atualização de 30/10, tarde (decisões do Danilo e o que ficou)
+- **Supabase com escrita.** Por ordem do Danilo, o token é da organização Bora app, com acesso total e sem validade, e o
+  MCP do dsh deixou de ser só leitura (tirei `read_only=true`). Prova: o dsh passou a listar 22 ferramentas, com
+  `apply_migration`, `deploy_edge_function`, `delete_branch`, `merge_branch` e `reset_branch`; não executei nenhuma de
+  escrita. O MCP não tem `pause_project` nem escrita de segredos. A única tranca são as regras escritas em
+  `~/.agents/AGENTS.md`: nunca apagar dados de produção, nunca reescrever histórico git publicado, pedidos só por `ops_*`,
+  dinheiro só com "autorizo", correção só com backup, dados pessoais de clientes só quando a tarefa precisar e nunca em
+  massa, segredos nunca. Risco que fica dito: o dsh corre como o utilizador e lê o ficheiro do token; a Kilo e o Gemini
+  grátis podem guardar os pedidos.
+- **Lembrete de renovação.** Montei um aviso para 21/01/2027 (job `pg_cron` 114 e tarefa do Windows) e apaguei os dois a
+  pedido do Danilo, porque o token deixou de ter validade. Já não existe nenhum.
+- **Google.** O ecrã de consentimento do projeto `gen-lang-client-0806232393` está **Em produção** (Externo, 1 utilizador de
+  100): a autorização não caduca de 7 em 7 dias, mas aparece o aviso "A Google não validou esta app" (Avançadas, Ir para a
+  app, Permitir). Ao relançar as páginas, o PowerShell partiu `"Profile 1"` em dois argumentos e a da Bora abriu no perfil
+  antigo `Profile`, com a porta 1: erro meu, corrigi às 15:49 (relançada no `Profile 1`, porta 8772). Ficou uma página de
+  entrada solta na janela desse perfil antigo, sem recetor e inofensiva.
+- Por provar (à data deste parágrafo): Permitir das duas contas e as provas do Gmail.
+
+## Atualização de 30/10, noite (Google feito)
+- **Permitir das duas contas.** O Danilo carregou em Permitir às 19:51 (pessoal 19:51:21, Bora 19:51:55, pelo log do
+  `google-autorizar`). A conta pessoal **não** foi recusada: a app está Em produção e não precisou de ser utilizador de
+  teste. Nada foi mudado na consola da Google. Cada credencial foi confirmada na Google (`userinfo`: HTTP 200, o email é o do
+  ficheiro). Âmbitos: Gmail ler, etiquetas, modificar e compor, Drive e Calendar só leitura, **sem** enviar.
+- **Prova no dsh (headless, 65 s, rc=0).** A ferramenta `search_gmail_messages` listou 3 emails da caixa de entrada da Bora
+  (pedi só cabeçalhos, o corpo não foi lido) e `draft_gmail_message` criou 1 rascunho para a própria Bora
+  (id `r3849196807106371061`). Li o rascunho de volta pela API do Gmail: existe só com a etiqueta DRAFT; a pesquisa de
+  enviados com esse assunto devolve 0 e a das últimas 2 horas também 0. Nada foi enviado. Saída literal em
+  `C:\BoraLocal\QG\provas\dsh-harness-2026-10-29\f-google-bora-emails-rascunho.jsonl`; `e2e_log` 5484 (`F-google`).
+- **O que fica.** O rascunho de teste continua na conta Bora (apagar é com o Danilo). O email das duas contas passa agora por
+  um modelo grátis quando o dsh o lê. A conta pessoal ficou autorizada mas sem prova funcional (só a Bora foi provada, como
+  combinado).
+
+
+## Atualização de 30/10, noite (C-liga: o Dipsy completo, com código nosso)
+Ordem do Danilo (20:23): quer o Dipsy completo, com olhos, auditoria das nossas apps, Telegram e juiz automático, com
+autonomia e segurança, tudo com código escrito por nós e sem os plugins de terceiros que tinham sido rejeitados.
+
+**Fiz isto (com prova, saídas literais em `C:\BoraLocal\QG\provas\dsh-harness-2026-10-29\c-liga-*.jsonl`):**
+- **Olhos (C3b).** Plugin nosso `dsh-bora` (`.claude/dsh/plugin-dsh-bora`): ferramentas `captura_ecra` e `ver_imagem`
+  (Gemini, chave lida do ambiente). Prova: com um ecrã de teste cheio com a palavra secreta AZULEJO-4417, o dsh
+  descreveu o texto e a palavra. A imagem vai para a Google (plano grátis).
+- **Guarda (C-seguranca).** O mesmo plugin regista `ctx.tools.guard`, o gancho do dsh que corre antes de cada ferramenta.
+  121 testes offline. Prova no dsh: `git push`, ler um ficheiro de segredos e um `DELETE FROM` foram barrados; um
+  `git status` passou. Limite: lê o texto do comando.
+- **Juiz (C8b).** `~/.dsh/dsh-commit.ps1` e a skill `juiz-dsh`. Corre o anti-trapaça e as zonas protegidas sobre os
+  ficheiros pedidos e recusa o commit se falharem. Prova: commit limpo passou (também no repo verdadeiro, commit de teste
+  `69a10fc8`, depois apagado); apagar um teste, mexer no `pricing_service.dart`, segredos e asteriscos foram recusados.
+- **Auditoria (C2b).** Skill nossa `auditoria-seguranca-bora` (método da Cloudflare, só texto) e `auditar-site.mjs`.
+  O dsh auditou boraguarda.com em leitura e achou 6 pontos; 3 registados no `e2e_log`: falta HSTS, falta CSP (com scripts
+  de 3 CDNs sem SRI) e a página pode ser posta dentro de outra. Nada exposto (`.env`, `.git`, mapas), TLS 1.3 válido até
+  24/01/2027. O REA corre dentro do dsh pelo envólucro `rea-bora.ps1`; o alvo de terceiros (iFood) foi barrado.
+- **Guia e lançador (C-guia).** `DIPSY.cmd` no Ambiente de Trabalho (o único), `~/.dsh/COMO-USAR.md` e a página
+  `dsh-como-usar` do livro. Os antigos `DSH-ABRIR.cmd` e `DSH-MISSAO.cmd` foram movidos para `~/.dsh/lancadores-antigos`.
+- **Telegram (C5b), ligado e provado.** Bot `@dipsy_bora_bot` criado às 21:34 (o Danilo mandou eu fazer tudo, por isso o vigia carregou em Enviar só nas 3 mensagens da criação), token lido por código e guardado sem o mostrar, ponte a correr. Prova: `/start` e "olá" enviados em nome dele e resposta do dsh no Telegram (~54 s). Ponte nossa `~/.dsh/telegram/ponte.py` (API oficial, só o chat do Danilo, redige
+  segredos), testada com um pedido real ao dsh sem Telegram (33 s). Tarefa `Dipsy-Telegram` no login.
+
+**Falta isto (e porquê):**
+- ~~O bot do Telegram~~ (feito às 21:34, ver acima). Antes disto: só o Danilo podia criá-lo no BotFather. Deixei o Telegram do PC aberto na conversa com o
+  `/newbot` escrito e um vigia que escreve o nome e o utilizador e lê o token por código (nunca o mostra), valida-o,
+  guarda-o em `~/.dsh/secrets` e liga a ponte. Ele só tem de carregar em Enviar (no PC) ou escrever no telemóvel. A prova do
+  "olá" depende disso.
+- O REA `doctor` dá `healthy=false` por faltarem motores opcionais (Hopper, Ghidra, JADX): é igual no Claude Code.
+
+**Erros que encontrei (reportados, não corrigidos calados):**
+1. O Telegram Web do Chrome pessoal não tem sessão (pede QR); usei o app do PC, que tem. O ecrã mostrou, sem eu procurar,
+   um token antigo de outro bot na conversa do BotFather: não o usei nem o guardei. Vale como aviso: uma captura pode
+   mostrar segredos.
+2. O sandbox do dsh não deixa o `npm` escrever na cache, por isso `npx rea-agents` falha lá dentro. O envólucro `rea-bora.ps1`
+   corre o REA já instalado e resolve. Nessa tentativa o modelo tentou `npm cache clean` e `npm config set`: acrescentei essas
+   duas ações à guarda.
+3. A tranca recusou apagar a pasta de teste `C:\BoraLocal\_juiz-teste-dsh` (apagar recursivo). Não contornei: fica por
+   apagar (é pequena). Registado em `docs/TRANCAS.md`.
+4. O pnpm liga os ficheiros do plugin por hardlink; editar a origem parte a ligação. Para atualizar o plugin, copiar os
+   ficheiros para `~/.dsh/profiles/{headless,web,lab}/node_modules/dsh-bora`.
+5. `dsh web` abre sozinho o navegador com uma chave nova (sem ela dá 401); o `DIPSY.cmd` reinicia sempre o servidor.
+
+**Próximo passo:** o Danilo cria o bot (um clique) e o vigia liga tudo; depois ele manda "olá" no Telegram. O envio dos
+commits de documentação para o servidor segue na publicação desta noite, pela sessão da Bora.
+
+**Atualização 21:37:** o Danilo disse que eu fizesse tudo; o bot @dipsy_bora_bot existe, a ponte está ligada e o olá foi respondido pelo dsh no Telegram. O primeiro aviso da ponte deu HTTP 400 (o bot ainda não tinha conversa iniciada): sem importância.
+
+
+## Atualização de 30/10, noite tardia (C5c-voz e o resto da lista do Dipsy)
+**Voz (ordem do Danilo 21:41 e 21:55).** Texto completo E áudio do texto inteiro, sempre, no Dipsy e no Hermes.
+- *Dipsy:* ouve (faster-whisper local, "Ouvi: …") e fala (edge-tts, por partes de até 900 letras em frases inteiras, duração
+  conferida). Prova com 3 tamanhos (88, 328 e 1.156 letras): chegaram em texto e em áudio, 1.155 letras lidas em 71 s.
+- *Hermes:* causa raiz do áudio pela metade encontrada e corrigida (ver a skill, secção Voz). Prova com 3 tamanhos
+  (89, 353 e 1.278 letras): 6,5 s, 22,3 s e 78,3 s (duas partes), tudo pelo edge-tts. 16 scripts e o agente do Hermes passaram a
+  falar pela voz única; o gritar.sh cobre os avisos do Em Dia. A resposta do agente a uma pergunta minha chegou em voz e em texto.
+- *Falta:* a prova com um áudio REAL do Danilo (a minha foi uma mensagem de voz sintetizada metida na mesma função); o corte
+  aos 4.000 caracteres do gateway do Hermes (biblioteca); radar-jai, bora_trader e WhatsApp ficaram de fora (outros canais).
+**Os cinco itens seguintes, por ordem do Danilo:** tarefas em horário marcado (provada), ponte para o Claude Code (provada,
+dentro do dsh), equipa de agentes com quadro de tarefas (provada no lab e promovida), memória própria (provada no headless)
+e nada sai para fora (telemetria oficial desligada; só 3 ligações medidas). Pormenores nas linhas do `e2e_log`
+(C5c-voz-*, C-agenda-horario-marcado, C-ponte-claude-code, C-equipa-de-agentes, C-memoria-propria, C-nada-sai-para-fora).
+**Erros que encontrei (não corrigidos calados):** (1) o `dsh plugin add` da equipa instalou uma versão incompatível e a 1.ª prova
+deu um quadro inventado pelo modelo, que NÃO aceitei; corrigi pondo o nome do bundle no perfil. (2) Subir o `edge-tts` do contentor
+partia a verificação do dsh: repus a 7.2.7. (3) A tarefa agendada de teste mostrou que o Dipsy não lê disco nem RAM (sandbox) e
+demorou 9 minutos. (4) Com o PC aflito de memória (300 MB livres) o `ffprobe` passou do tempo e a voz caiu uma vez para o Gemini:
+passei a ler a duração do próprio ficheiro. (5) O `dsh-memento` (terceiros) exige aprovação humana para escrever: não serve sem
+canal de aprovação; fiz a memória própria.

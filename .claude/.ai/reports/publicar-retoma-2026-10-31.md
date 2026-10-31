@@ -98,7 +98,11 @@ minha captura seguinte voltou a apanhar a janela com a chave nova à vista: o me
 Já deixei escrita a regra para não se repetir: o formulário fica todo pronto antes de to pôr à frente,
 digo-te "pronto" só no fim, e não olho para o ecrã até carregares em "Concluído".
 
-Disseste que a validade não tem de mudar: a "robos-vps-2" fica até 30/11/2026, como está.
+Depois disseste que a validade tinha de mudar (eu primeiro li ao contrário e corrigi). Como a consola
+não muda a validade de uma chave que já existe, criaste a "robos-vps-3", que está agora na VPS (testada,
+impressão digital nova, motor dos robôs com chave), e eu apaguei a "robos-vps-2". Esta nunca apareceu em
+captura nenhuma. Mas saiu sem data de fim, e não até 31/01/2027 como o formulário mostrava: o campo da
+data não gravou o que lá escrevi.
 
 ## Próximo passo
 

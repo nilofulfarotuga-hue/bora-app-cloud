@@ -11,7 +11,6 @@
 --   5. assistant_tenants: cadeias com o porteiro (Claude) a frente e so motores gratis vivos atras
 -- Nada aqui mexe em precos, comissoes, ganhos, Stripe, carteira, tokens, pedidos nem estafetas.
 
-begin;
 
 -- 1. Livro de gastos ----------------------------------------------------------------------------
 create table if not exists public.ia_gastos (
@@ -155,9 +154,10 @@ update public.assistant_tenants
                                'gemini:gemini-3.5-flash-lite', 'groq:openai/gpt-oss-20b', 'gemini:gemini-3-flash-preview']
  where slug in ('boom-burger', 'secretario-demo', 'mister-navalha');
 
-commit;
 
 -- Prova depois de aplicar (so leitura):
 --   select public.ia_claude_pode(1, 'claude-cliente');   -- pode=true enquanto houver credito
 --   select public.ia_claude_pode(3, 'claude-agente');    -- pode=false se o gasto de hoje passar metade da parte do dia
 --   select slug, mode, motor, motores_reserva from public.assistant_tenants;  -- modos iguais (teste/teste/desligado)
+
+-- =====================================================================

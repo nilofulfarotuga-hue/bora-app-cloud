@@ -728,3 +728,5 @@ DROP POLICY IF EXISTS casa_fotos_ler ON storage.objects;
 CREATE POLICY casa_fotos_ler ON storage.objects FOR SELECT TO authenticated
   USING (bucket_id = 'casa-fotos'
          AND ((storage.foldername(name))[1] = auth.uid()::text OR public._casa_foto_visivel(name)));
+
+-- =====================================================================

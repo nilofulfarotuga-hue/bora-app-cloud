@@ -963,3 +963,5 @@ GRANT EXECUTE ON FUNCTION public.admin_casa_acertos(date) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_casa_calcular_acertos(date) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_casa_acerto_marcar(uuid, text, text, text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_casa_exportar(text, date, date) TO authenticated;
+
+-- =====================================================================

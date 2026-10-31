@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-31T20:07:07.346334+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-31T20:37:06.173454+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-31 20:04 UTC. Páginas listadas: 476.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-31 20:21 UTC. Páginas listadas: 478.
 
 ## O que é o Bora
 
@@ -34,7 +34,7 @@ Quer respostas curtas, em texto corrido e sem jargão, e que o trabalho se faça
 
 1. `erros-aprendidos` — as correções do Danilo; errou uma vez, nunca mais (atualizada 2026-10-31).
 2. `regras-do-danilo` — as regras dele; mandam em tudo (atualizada 2026-10-31).
-3. Estado vivo: `digest-2026-10-31-conta-vansh` (2026-10-31).
+3. Estado vivo: `digest-2026-10-31-publicar-retoma` (2026-10-31).
 4. Antes de mexer em pedidos, estafetas, dinheiro ou migrações: `regras-operacao-agentes`.
 5. Ferramenta nova sem MCP? `livro-porta-unica` explica como ligar (Córtex por MCP, ou o ficheiro plano LIVRO.md com senha).
 
@@ -51,8 +51,10 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - erros-aprendidos — Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige) (2026-10-31)
 
-## digest (186)
+## digest (188)
 
+- digest-2026-10-31-publicar-retoma — Claude Code 31/10 — publicar a retoma (base, alertas, envio) (2026-10-31)
+- digest-2026-10-31-jai-sportsdunia-e-fatura-139 — Jai 31/10: SportsDunia, estilo das mensagens e fatura dos 139 (2026-10-31)
 - digest-2026-10-31-conta-vansh — Conta do Vansh — compra no Continente 31/10 (2026-10-31)
 - digest-2026-10-31-jai-sportsdunia — Digest 31/10/2026 — artigo da SportsDunia no site do Jai (2026-10-31)
 - digest-2026-10-31-meta-anuncios-g4 — Meta anúncios 31/10 — criativos refeitos, juiz ≥ 9, 4 anúncios LIGADOS (2026-10-31)
@@ -550,7 +552,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 36 páginas com título [PESSOAL] (vida do Danilo). Não se listam aqui nem vão para o espelho público nem para o LIVRO.md; só se leem quando a tarefa é dele, e nunca vão para motores grátis que treinam com o conteúdo.
 
-## Skills partilhadas (148 no repo + 8 só na VPS)
+## Skills partilhadas (151 no repo + 8 só na VPS)
 
 Fonte única: `.claude/skills/` do repo (o Hermes lê o espelho em `/opt/data/cortex-brain/.claude/skills`). Diferenças VPS ↔ repo: `/opt/data/livro/skills/DIFERENCA.md`.
 
@@ -568,6 +570,7 @@ Fonte única: `.claude/skills/` do repo (o Hermes lê o espelho em `/opt/data/co
 - audit-orange-rule — Verifica a regra "1 elemento laranja por ecrã" em lib/screens/ — conta usos de laranja (AppColors.accent/secondary, #F97316/#FB923C/#EA580C) por fich…
 - audit-partner-application — Revê candidatura de parceiro (restaurants.approval_status='pending') — valida NIF/IBAN/business_hours/lat-lng/categoria/assets, gera relatório PT-BR…
 - audit-protected-zones — Meta-skill de segurança read-only — verifica que as zonas protegidas continuam intactas (pricing_service, dispatch, bora_tokens triggers, Stripe, fic…
+- auditoria-seguranca-bora — Auditoria de segurança, só de leitura, às NOSSAS coisas: o site boraguarda.com, o APK pt.boraapp.bora e as Edge Functions do Bora. Método da skill se…
 - auto-rules-sync — Sincroniza regras de negócio do Bora App entre três fontes: código/docs (CLAUDE.md, PROJECT_CONTEXT.md, enums em lib/models/), a skill CEO-AI (.claud…
 - backup-restore-table — Backup (read-only, sempre seguro) e restore (UPSERT) de tabelas-chave para JSON em .claude/.ai/backups/. Restore em tabelas financeiras (bora_tokens/…
 - ban-or-reactivate-entity — Bane ou reativa cliente, estafeta ou parceiro, com auditoria (quem/quando/razão/código). Driver via colunas ban; parceiro via is_active_admin; client…
@@ -608,6 +611,7 @@ Fonte única: `.claude/skills/` do repo (o Hermes lê o espelho em `/opt/data/co
 - driver-earnings-validator — Valida driver_earnings de um pedido contra fórmula pricing_service. Detecta discrepâncias, identifica root cause (distance errada vs markup errado vs…
 - engenharia-reversa-metodo — Usa SEMPRE que uma ferramenta for paga, tiver limite de créditos/quota, ou bloquear o trabalho (filme, Bora App, qualquer ferramenta do dia a dia), e…
 - evolution-engine — Meta-skill de evolução GOVERNADA de skills — lê a telemetria (frontmatter + skills-metrics.md) e o histórico (reports, git) e gera PROPOSTAS de criar…
+- falar-com-o-danilo — Usa SEMPRE que fores mandar alguma coisa ao Danilo pelo Telegram (BoraHermesbot) — fim de missão, pedido de clique/autorizo, alerta, relatório — a pa…
 - file-form — Handle small bureaucratic tasks — jury duty responses, parking tickets, passport renewals, DMV forms, permit applications, and other government or ad…
 - financial-calculator — Run financial calculations and scenario comparisons — tax estimates, loan comparisons, retirement projections, rent vs. buy, investment scenarios, an…
 - force-driver-logout — Força logout de um estafeta via Edge Fn admin-force-driver-logout (revoga sessões, limpa fcm_token, is_online=false, audita). Operação atómica de eme…
@@ -637,6 +641,7 @@ Fonte única: `.claude/skills/` do repo (o Hermes lê o espelho em `/opt/data/co
 - improve-codebase-architecture — Scan a codebase for deepening opportunities, present them as a visual HTML report, then grill through whichever one you pick.
 - incremental-implementation — Delivers changes incrementally. Use when implementing any feature or change that touches more than one file. Use when you're about to write a large a…
 - interview-me — Extracts what the user actually wants instead of what they think they should want. Achieves this through one-question-at-a-time interview until ~95%…
+- juiz-dsh — Como o Dipsy (dsh) faz commits: todo o commit passa pelo Juiz anti-trapaça do repo antes de existir, através do script dsh-commit.ps1, e é recusado s…
 - juiz-revisor-inexistente — Usa quando for chamar o agente 'juiz-revisor' e o Agent tool devolver "Agent type 'juiz-revisor' not found" (visto 2x em 2 sessões/2 dias, 15-17/10/2…
 - lancar-missao-claude-code — Procedimento certo para lançar uma missão grande no Claude Code do navegador para o Danilo — e como chegar ao PC dele por Controlo Remoto quando uma…
 - learning_engine — This skill should be used when the user says "SKILL: learning_engine", asks what patterns have been detected in the project, what mistakes keep recur…

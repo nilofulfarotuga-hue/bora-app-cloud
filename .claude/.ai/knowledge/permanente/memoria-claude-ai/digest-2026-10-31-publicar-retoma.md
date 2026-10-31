@@ -1,0 +1,17 @@
+---
+id: memoria-claude-ai-digest-2026-10-31-publicar-retoma
+tipo: conceito
+origem: [claude-ai, public.claude_ai_memoria]
+ultima_confirmacao: 2026-10-31
+zona: verde
+confianca: alta
+estado: atual
+---
+
+# Claude Code 31/10 — publicar a retoma (base, alertas, envio)
+
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `digest-2026-10-31-publicar-retoma`, origem `claude-code`, atualizada em 2026-10-31T20:21:20.482299+00:00).
+> Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
+> Palavras-chave: digest 2026 10 31 publicar retoma · memoria claude.ai · claude_ai_memoria
+
+A missao publicar-retoma-2026-10-31 (autorizacao do Danilo 31/10 19:53 "Eu autorizo de 1 a 8", itens 2, 3 e 4) acabou o que as sessoes Retoma geral e Varredura chaves deixaram presas em pedidos de Permitir. Base: as 5 partes do ficheiro retoma_geral_2026_10_31.sql foram aplicadas a partir do ficheiro com supabase db query --linked -f (CLI 2.122 ja autenticado no PC), cada uma com o INSERT em schema_migrations no mesmo envio, entre 20:03 e 20:05 UTC (versoes 20261031200358 casa_04, 200444 casa_05, 200511 motor_claude_porteiro, 200533 decisoes_motor_claude, 200546 porteiro_entrada). Provas por SELECT: 23+32 funcoes da Casa, nenhuma executavel por anon, admin_casa_* todas com is_admin(), baldes handyman-documents e casa-fotos privados, cron casa_tick e casa_acertos_semanais a correr sem erro, casa_enabled=false. notify-admin-urgent v22 publicada (verify_jwt=true): v21 do ar mais o porteiro (porteiro_entrada) mais nivel opcional em kind=generic; com nivel INFO nao ha push FCM nem envio direto ao Telegram. Ping do banco 200 pong; aviso INFO tratado pelo porteiro da VPS em 5 s com destino=registo. Codigo: ramo publicar-2026-10-31 juntou chaves-varredura (conflitos so de importacoes em decidir e robot-b) e o origin; 17 migracoes que so estavam no banco foram escritas da coluna statements; push a7de18a4..5454b52a com [skip ci] no topo e zero corridas de CI. Por publicar: decidir e robot-b com o Claude primeiro (no ar esta a versao das chaves). Achados: dispatch-engine, finalize-order-from-intent e refund ainda leem o papel do JWT a mao (zona protegida, propostas em docs/propostas/chaves-2026-10-31); as taxas do Divan nao estao em schema_migrations; a pasta principal bora_app tem 3 commits locais fora do servidor (beac89d3, 8a5f3ab0, bdfbf1d6). Relatorio: .claude/.ai/reports/publicar-retoma-2026-10-31.md. e2e_log fluxo publicar-retoma-2026-10-31. ADENDO 20:20: com o "Sim, publica" do Danilo foram publicadas decidir v9 e robot-b v18 (ar das chaves + motor-claude 02fc6aa0, verify_jwt true), lidas de volta iguais, ping 200 pong, decisao de teste 200 pelo Gemini sem gravar, decisor-varrer 200 depois, robot-b cycle dry_run 200. O CLAUDE AINDA NAO E USADO: nao ha segredo ANTHROPIC_API_KEY nas Edge Functions nem chave criada (falta 1 clique do Danilo em Criar workspace Robos Bora + Criar chave na Console, perfil Danilo; vigia ferramentas/vps/porteiro/vigia_chave_claude.ps1). Sem chave seguem pelo Gemini; com chave passam ao Claude sem novo deploy. Achados: robot-b gemini-3.6-flash 429 quota (diagnostico vazio); varios cron "connection failed" hoje 12:00/13:00/15:30/18:00; support-chatbot e admin-ai-assistant com motor-claude por publicar. Relatorio atualizado e enviado (a0d82759 [skip ci]).

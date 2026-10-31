@@ -3,11 +3,20 @@
 // latência mediana, castigado, último erro) e `motor_chamadas` (o log). O botão "Pausar" escreve
 // `motor_estado.pausado` — o roteador lê a coluna no próximo ciclo e deixa de usar o fornecedor.
 // Chaves NUNCA aparecem aqui (só "tem chave: sim/não").
+//
+// 31/10/2026 (missão motor-claude-2026-10-31, Bloco 5): no topo, o motor Claude primeiro —
+// cartão "Crédito Claude" (resta, vence, próximo crédito, gasto de hoje/mês/por robô, parte do dia),
+// interruptores por robô (claude_robos), exportar o livro de gastos (ia_gastos) e as lições dos
+// robôs (licoes_robos). Model → Store → Screen: credito_claude_model.dart → CreditoClaudeStore.
+// Enquanto a migração 20261031_motor_claude_porteiro.sql não for aplicada, mostra "ainda não ativado".
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../models/credito_claude_model.dart';
+import '../../services/admin_export_service.dart';
+import '../../stores/credito_claude_store.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '../../utils/hora_lisboa.dart';
 
@@ -28,6 +37,7 @@ class _AdminMotoresScreenState extends State<AdminMotoresScreen> {
   DateTime? _omnirouteEm;
   bool _loading = false;
   String? _erro;
+  final _claude = CreditoClaudeStore();
 
   @override
   void initState() {
@@ -35,7 +45,14 @@ class _AdminMotoresScreenState extends State<AdminMotoresScreen> {
     _carregar();
   }
 
+  @override
+  void dispose() {
+    _claude.dispose();
+    super.dispose();
+  }
+
   Future<void> _carregar() async {
+    _claude.carregar();
     setState(() {
       _loading = true;
       _erro = null;
@@ -96,7 +113,7 @@ class _AdminMotoresScreenState extends State<AdminMotoresScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: BoraScreenAppBar(
-        title: 'Motores (roteador grátis)',
+        title: 'Motores (Claude primeiro, depois o grátis)',
         actions: [
           IconButton(onPressed: _carregar, icon: const Icon(Icons.refresh), tooltip: 'Atualizar'),
         ],
@@ -108,6 +125,8 @@ class _AdminMotoresScreenState extends State<AdminMotoresScreen> {
               : ListView(
                   padding: const EdgeInsets.all(12),
                   children: [
+                    _SeccaoClaude(store: _claude),
+                    const SizedBox(height: 8),
                     _cartaoOmniroute(),
                     const SizedBox(height: 8),
                     _resumo(),
@@ -286,5 +305,482 @@ class _AdminMotoresScreenState extends State<AdminMotoresScreen> {
       title: Text('${c['fornecedor']}:${c['modelo']} · ${c['perfil'] ?? '—'} · ${c['latencia_ms'] ?? 0} ms · ${c['maquina'] ?? ''}'),
       subtitle: Text('${_quando(c['created_at'])}${c['erro'] != null ? ' · ${c['erro']}' : ''}', maxLines: 2, overflow: TextOverflow.ellipsis),
     );
+  }
+}
+
+// ══ Motor Claude (31/10/2026) ═══════════════════════════════════════════════
+
+String _usd(double v) {
+  final casas = (v != 0 && v.abs() < 1) ? 4 : 2;
+  return 'US\$ ${v.toStringAsFixed(casas).replaceAll('.', ',')}';
+}
+
+String _dia(DateTime? d) {
+  if (d == null) return '—';
+  String dd(int n) => n.toString().padLeft(2, '0');
+  return '${dd(d.day)}/${dd(d.month)}/${d.year}';
+}
+
+String _prioridade(int p) => switch (p) {
+      1 => 'P1 (clientes: usa enquanto houver crédito)',
+      2 => 'P2 (decisões: até a parte do dia)',
+      _ => 'P$p (agentes e volume: até metade da parte do dia)',
+    };
+
+/// Cartão do crédito, interruptores por robô e lições dos robôs. Lê tudo do [CreditoClaudeStore].
+class _SeccaoClaude extends StatelessWidget {
+  const _SeccaoClaude({required this.store});
+
+  final CreditoClaudeStore store;
+
+  void _snack(BuildContext context, String texto) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(texto)));
+
+  Future<void> _tentar(BuildContext context, Future<void> Function() acao, String ok) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await acao();
+      messenger.showSnackBar(SnackBar(content: Text(ok)));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Não foi possível salvar: $e')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: store,
+      builder: (context, _) {
+        final e = store.estado;
+        if (e == null) {
+          return Card(
+            child: ListTile(
+              leading: const Icon(Icons.auto_awesome, color: AppColors.textSubtle),
+              title: const Text('Crédito Claude', style: TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: Text(store.carregando
+                  ? 'Carregando…'
+                  : (store.erro != null ? 'Erro ao ler: ${store.erro}' : 'Sem dados.')),
+            ),
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (store.erro != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text('A última leitura falhou (mostrando a anterior): ${store.erro}',
+                    style: const TextStyle(fontSize: 12, color: AppColors.error)),
+              ),
+            _cartaoCredito(context, e),
+            if (e.settingsAtivos) ...[
+              const SizedBox(height: 8),
+              _cartaoRobos(context, e),
+            ],
+            const SizedBox(height: 8),
+            _cartaoLicoes(context),
+          ],
+        );
+      },
+    );
+  }
+
+  // ── a) Crédito ───────────────────────────────────────────────────────────
+
+  Widget _cartaoCredito(BuildContext context, EstadoCreditoClaude e) {
+    final cabecalho = Row(children: [
+      Icon(Icons.auto_awesome, color: e.ativado ? AppColors.primary : AppColors.textSubtle),
+      const SizedBox(width: 8),
+      const Expanded(
+        child: Text('Crédito Claude (saldo da API da Anthropic)',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+      ),
+      if (store.gravando || store.carregando)
+        const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+      if (e.settingsAtivos)
+        IconButton(
+          tooltip: 'Atualizar o crédito lido na Console',
+          icon: const Icon(Icons.edit_outlined),
+          onPressed: store.gravando ? null : () => _dialogoCredito(context, e),
+        ),
+    ]);
+
+    if (!e.ativado) {
+      final falta = [
+        if (!e.settingsAtivos) 'as chaves claude_* em platform_settings',
+        if (!e.livroAtivo) 'o livro de gastos (tabela ia_gastos)',
+      ].join(' e ');
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            cabecalho,
+            const SizedBox(height: 6),
+            const Text('Ainda não ativado', style: TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 4),
+            Text(
+              'Falta no servidor: $falta. A migração 20261031_motor_claude_porteiro está por aplicar. '
+              'Quando for aplicada, este cartão passa a mostrar o crédito e o gasto sozinho.',
+              style: const TextStyle(fontSize: 13, color: AppColors.textSubtle),
+            ),
+          ]),
+        ),
+      );
+    }
+
+    final r = e.ritmo;
+    final resta = r.restaUsd;
+    final parte = r.parteDoDiaUsd;
+    final primeiroLote = e.lotes.isEmpty ? null : e.lotes.first;
+
+    final String aviso;
+    final Color corAviso;
+    if (!e.ligado) {
+      aviso = 'Claude desligado no interruptor geral: todos os robôs estão usando só a rotação grátis.';
+      corAviso = AppColors.textSubtle;
+    } else if (resta <= 0) {
+      aviso = 'Crédito acabado: todos os robôs foram para a rotação grátis até o próximo crédito.';
+      corAviso = AppColors.error;
+    } else if (e.gastoHojeUsd >= parte) {
+      aviso = 'Parte do dia esgotada: só P1 (clientes) continua no Claude hoje; P2 e P3 foram para a rotação grátis.';
+      corAviso = AppColors.accent;
+    } else if (e.gastoHojeUsd >= parte * 0.5) {
+      aviso = 'Passou de metade da parte do dia: P3 (agentes e volume) foi para a rotação grátis hoje.';
+      corAviso = AppColors.accent;
+    } else {
+      aviso = 'Dentro do ritmo: todos os robôs ligados podem usar o Claude.';
+      corAviso = AppColors.primary;
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          cabecalho,
+          const SizedBox(height: 8),
+          Wrap(spacing: 18, runSpacing: 8, children: [
+            _kv('Resta (crédito lido − gasto desde a leitura)', _usd(resta)),
+            _kv('Vence (o lote que expira primeiro)',
+                primeiroLote == null ? '—' : '${_dia(primeiroLote.expira)} · ${_usd(primeiroLote.usd)}'),
+            _kv('Próximo crédito (mensal do plano)',
+                '${e.mensalUsd == null ? '—' : _usd(e.mensalUsd!)} em ${_dia(e.proximoCredito)} · faltam ${e.diasAteProximo} d'),
+            _kv('Gasto de hoje (dia de Lisboa)', '${_usd(e.gastoHojeUsd)} · ${e.chamadasHoje} chamadas'),
+            _kv('Gasto do mês', _usd(e.gastoMesUsd)),
+            _kv('Parte do dia (quanto dá para gastar por dia até o próximo crédito)', _usd(parte)),
+          ]),
+          const SizedBox(height: 8),
+          Text(aviso, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: corAviso)),
+          const SizedBox(height: 6),
+          Text(
+            'Lido na Console em ${dataHoraLisboa(e.lidoEm?.toIso8601String())}: ${_usd(r.creditoLidoUsd)}. '
+            'Gasto desde a leitura: ${_usd(r.gastoDesdeLeituraUsd)}. '
+            'Parte do dia = (resta + gasto de hoje) ÷ dias até o próximo crédito.',
+            style: const TextStyle(fontSize: 12, color: AppColors.textSubtle),
+          ),
+          if (e.lotes.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            const Text('Lotes de crédito (validade de cada um)', style: TextStyle(fontWeight: FontWeight.w600)),
+            ...e.lotes.map((l) => Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text('${_usd(l.usd)} · vence ${_dia(l.expira)}${l.origem.isEmpty ? '' : ' · ${l.origem}'}',
+                      style: const TextStyle(fontSize: 13)),
+                )),
+          ],
+          const SizedBox(height: 10),
+          const Text('Gasto por robô (este mês)', style: TextStyle(fontWeight: FontWeight.w600)),
+          if (e.gastoPorRobo.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 2),
+              child: Text('Nenhuma chamada ao Claude este mês.', style: TextStyle(fontSize: 13, color: AppColors.textSubtle)),
+            ),
+          ...e.gastoPorRobo.map((g) => Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  '${g.robo}: mês ${_usd(g.mesUsd)} (${g.chamadasMes} chamadas) · hoje ${_usd(g.hojeUsd)} (${g.chamadasHoje})',
+                  style: const TextStyle(fontSize: 13),
+                ),
+              )),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: () => _exportar(context),
+              icon: const Icon(Icons.download),
+              label: const Text('Exportar livro de gastos (CSV)'),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _kv(String k, String v) => ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 260),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(k, style: const TextStyle(fontSize: 11, color: AppColors.textSubtle)),
+            Text(v, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+          ],
+        ),
+      );
+
+  Future<void> _exportar(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final linhas = await store.linhasDoLivro();
+      if (linhas.isEmpty) {
+        messenger.showSnackBar(const SnackBar(content: Text('O livro de gastos ainda está vazio.')));
+        return;
+      }
+      await AdminExportService.instance.exportCsv(
+        filename: 'livro_gastos_claude_${DateTime.now().millisecondsSinceEpoch}.csv',
+        headers: CreditoClaudeStore.colunasLivro,
+        rows: linhas,
+      );
+      messenger.showSnackBar(SnackBar(content: Text('CSV com ${linhas.length} chamadas baixado.')));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Não consegui exportar: $e')));
+    }
+  }
+
+  Future<void> _dialogoCredito(BuildContext context, EstadoCreditoClaude e) async {
+    final valor = TextEditingController(
+        text: e.creditoLidoUsd == null ? '' : e.ritmo.restaUsd.toStringAsFixed(2).replaceAll('.', ','));
+    var proximo = e.proximoCredito ?? DateTime.now().add(const Duration(days: 30));
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          title: const Text('Atualizar crédito Claude'),
+          content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text(
+              'Leia o valor em console.anthropic.com > Billing (Créditos promocionais). '
+              'A hora da leitura fica "agora" e o gasto passa a contar daqui.',
+              style: TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: valor,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(labelText: 'Crédito que resta (US\$)'),
+            ),
+            const SizedBox(height: 10),
+            Row(children: [
+              Expanded(child: Text('Próximo crédito: ${_dia(proximo)}')),
+              TextButton(
+                onPressed: () async {
+                  final d = await showDatePicker(
+                    context: ctx,
+                    initialDate: proximo,
+                    firstDate: DateTime.now().subtract(const Duration(days: 1)),
+                    lastDate: DateTime.now().add(const Duration(days: 400)),
+                  );
+                  if (d != null) setD(() => proximo = d);
+                },
+                child: const Text('Mudar'),
+              ),
+            ]),
+          ]),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Salvar')),
+          ],
+        ),
+      ),
+    );
+    // Sem dispose() aqui: a animação de saída do diálogo ainda desenha o campo.
+    final usd = double.tryParse(valor.text.trim().replaceAll(',', '.'));
+    if (ok != true || !context.mounted) return;
+    if (usd == null || usd < 0) {
+      _snack(context, 'Valor inválido.');
+      return;
+    }
+    await _tentar(context, () => store.atualizarCredito(usd: usd, proximoCredito: proximo),
+        'Crédito atualizado: ${_usd(usd)}, próximo em ${_dia(proximo)}.');
+  }
+
+  // ── b) Interruptores por robô ────────────────────────────────────────────
+
+  Widget _cartaoRobos(BuildContext context, EstadoCreditoClaude e) {
+    final bloqueado = store.gravando;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          SwitchListTile(
+            value: e.ligado,
+            onChanged: bloqueado
+                ? null
+                : (v) => _tentar(context, () => store.gravarLigado(v),
+                    v ? 'Claude ligado para os robôs.' : 'Claude desligado: todos vão para a rotação grátis.'),
+            title: const Text('Claude ligado (interruptor geral)', style: TextStyle(fontWeight: FontWeight.w700)),
+            subtitle: const Text('Desligado = nenhum robô usa o Claude; todos usam só a rotação grátis.'),
+          ),
+          const Divider(height: 1),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Text('Por robô: "usar Claude" e modelo (Haiku ou Sonnet; Opus nunca é automático)',
+                style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
+          ...e.robos.map((r) => ListTile(
+                enabled: e.ligado,
+                title: Text(r.nome),
+                subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('${_prioridade(r.prioridade)} · ${r.chave}', style: const TextStyle(fontSize: 12)),
+                  DropdownButton<String>(
+                    isDense: true,
+                    value: r.modeloEscolhivel,
+                    hint: Text(r.modelo.isEmpty
+                        ? 'escolher modelo'
+                        : (r.modelo.contains('opus') ? '${r.modelo} (o porteiro usa Sonnet)' : r.modelo)),
+                    items: [
+                      for (final m in kModelosClaude.entries)
+                        DropdownMenuItem(value: m.key, child: Text(m.value, style: const TextStyle(fontSize: 13))),
+                    ],
+                    onChanged: bloqueado
+                        ? null
+                        : (m) {
+                            if (m == null || m == r.modelo) return;
+                            _tentar(context, () => store.gravarRobo(r.chave, modelo: m),
+                                '${r.nome}: agora usa ${kModelosClaude[m]}.');
+                          },
+                  ),
+                ]),
+                trailing: Switch(
+                  value: r.usar,
+                  onChanged: bloqueado
+                      ? null
+                      : (v) => _tentar(context, () => store.gravarRobo(r.chave, usar: v),
+                          v ? '${r.nome}: usa o Claude primeiro.' : '${r.nome}: só a rotação grátis.'),
+                ),
+              )),
+        ]),
+      ),
+    );
+  }
+
+  // ── d) Lições dos robôs ──────────────────────────────────────────────────
+
+  Widget _cartaoLicoes(BuildContext context) {
+    final String resumo;
+    if (!store.licoesAtivas) {
+      resumo = 'Ainda não ativado (tabela licoes_robos por criar).';
+    } else if (store.erroLicoes != null) {
+      resumo = 'Erro ao ler: ${store.erroLicoes}';
+    } else {
+      resumo = '${store.licoes.length} ${store.verArquivadas ? 'arquivadas' : 'ativas'} · '
+          'o que os robôs erraram e a regra certa (todos os robôs leem as ativas)';
+    }
+    return Card(
+      child: ExpansionTile(
+        leading: const Icon(Icons.menu_book_outlined, color: AppColors.primary),
+        title: const Text('Lições dos robôs', style: TextStyle(fontWeight: FontWeight.w700)),
+        subtitle: Text(resumo, style: const TextStyle(fontSize: 12)),
+        childrenPadding: const EdgeInsets.only(bottom: 8),
+        children: !store.licoesAtivas
+            ? const []
+            : [
+                SwitchListTile(
+                  dense: true,
+                  value: store.verArquivadas,
+                  onChanged: (v) => store.mostrarArquivadas(v),
+                  title: const Text('Ver arquivadas'),
+                ),
+                if (store.licoes.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Text(store.verArquivadas ? 'Nenhuma lição arquivada.' : 'Nenhuma lição ativa.',
+                        style: const TextStyle(color: AppColors.textSubtle)),
+                  ),
+                ...store.licoes.map((l) => _linhaLicao(context, l)),
+              ],
+      ),
+    );
+  }
+
+  Widget _linhaLicao(BuildContext context, LicaoRobo l) {
+    final data = l.ativa
+        ? 'criada ${dataHoraLisboa(l.criadaEm?.toIso8601String())}'
+            '${l.editadaEm != null ? ' · editada ${dataHoraLisboa(l.editadaEm!.toIso8601String())}' : ''}'
+        : 'arquivada ${dataHoraLisboa(l.arquivadaEm?.toIso8601String())}${l.arquivadaPor != null ? ' por ${l.arquivadaPor}' : ''}';
+    return ListTile(
+      isThreeLine: true,
+      title: Text('${l.robo} · ${l.vezes}x', style: const TextStyle(fontWeight: FontWeight.w600)),
+      subtitle: Text('Errou: ${l.errou}\nRegra: ${l.regra}\n${l.origem} · $data'),
+      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+        if (l.ativa)
+          IconButton(
+            tooltip: 'Editar',
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: () => _dialogoLicao(context, l),
+          ),
+        IconButton(
+          tooltip: l.ativa ? 'Arquivar (os robôs deixam de ler)' : 'Reativar',
+          icon: Icon(l.ativa ? Icons.archive_outlined : Icons.unarchive_outlined),
+          onPressed: () => _confirmarArquivo(context, l),
+        ),
+      ]),
+    );
+  }
+
+  Future<void> _dialogoLicao(BuildContext context, LicaoRobo l) async {
+    final errou = TextEditingController(text: l.errou);
+    final regra = TextEditingController(text: l.regra);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Editar lição · ${l.robo}'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(
+            controller: errou,
+            minLines: 2,
+            maxLines: 5,
+            decoration: const InputDecoration(labelText: 'O que o robô errou'),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: regra,
+            minLines: 2,
+            maxLines: 5,
+            decoration: const InputDecoration(labelText: 'A regra certa'),
+          ),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Salvar')),
+        ],
+      ),
+    );
+    // Sem dispose() aqui: a animação de saída do diálogo ainda desenha os campos.
+    final e = errou.text.trim();
+    final r = regra.text.trim();
+    if (ok != true || !context.mounted) return;
+    if (e.isEmpty || r.isEmpty) {
+      _snack(context, 'Os dois campos são obrigatórios.');
+      return;
+    }
+    await _tentar(context, () => store.editarLicao(l, errou: e, regra: r), 'Lição salva.');
+  }
+
+  Future<void> _confirmarArquivo(BuildContext context, LicaoRobo l) async {
+    final arquivar = l.ativa;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(arquivar ? 'Arquivar esta lição?' : 'Reativar esta lição?'),
+        content: Text(arquivar
+            ? 'Os robôs deixam de a ler. Fica guardada em "Ver arquivadas".'
+            : 'Os robôs voltam a ler esta lição.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(arquivar ? 'Arquivar' : 'Reativar')),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+    await _tentar(context, () => store.arquivarLicao(l, arquivar: arquivar),
+        arquivar ? 'Lição arquivada.' : 'Lição reativada.');
   }
 }

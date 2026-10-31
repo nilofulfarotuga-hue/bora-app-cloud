@@ -22,10 +22,19 @@ void main() {
     test('esta lista tem de bater certo com a RPC register_push_token', () {
       // Se divergirem, um lado rejeita em silêncio e ninguém dá por isso —
       // foi assim que o faxineiro ficou mudo durante meses. A migration
-      // 20260828120000 aceita exactamente estes cinco.
+      // 20260828120000 aceitava estes cinco; a casa_01 (31/10) junta o sexto,
+      // 'handyman' (Casa e manutenção). Era {client, driver, partner,
+      // cleaner, washer}.
       expect(
         PushTokenService.papeisComPush,
-        equals(<String>{'client', 'driver', 'partner', 'cleaner', 'washer'}),
+        equals(<String>{
+          'client',
+          'driver',
+          'partner',
+          'cleaner',
+          'washer',
+          'handyman',
+        }),
       );
     });
 
@@ -48,6 +57,8 @@ void main() {
           'provider_push_tokens (role=cleaner)');
       expect(PushTokenService.tabelaDoPapel('washer'),
           'provider_push_tokens (role=washer)');
+      expect(PushTokenService.tabelaDoPapel('handyman'),
+          'provider_push_tokens (role=handyman)');
     });
 
     test('nenhum papel com push fica sem destino escrito', () {

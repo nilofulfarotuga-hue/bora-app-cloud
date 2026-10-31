@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../config/app_colors.dart';
 import '../screens/cleaner/cleaner_home_screen.dart';
+import '../screens/handyman/handyman_home_screen.dart';
 import '../screens/washer/washer_home_screen.dart';
 import '../services/notification_service.dart';
 import '../services/trabalho_em_curso.dart';
@@ -74,9 +75,12 @@ class _AtalhoTrabalhoEmCursoState extends State<AtalhoTrabalhoEmCurso>
     final nav = NotificationService.navigatorKey.currentState;
     if (nav == null) return;
     nav.push(MaterialPageRoute(
-      builder: (_) => t.categoria == 'lavagem'
-          ? const WasherHomeScreen()
-          : const CleanerHomeScreen(),
+      // Regra 1.18: um caso por categoria, sem "o resto é limpeza".
+      builder: (_) => switch (t.categoria) {
+        'lavagem' => const WasherHomeScreen(),
+        'casa' => const HandymanHomeScreen(),
+        _ => const CleanerHomeScreen(),
+      },
     ))
         // Ao fechar o ecrã do trabalho, reconfirma com o servidor: se acabou,
         // a barra desaparece sem ninguém ter de a mandar embora.

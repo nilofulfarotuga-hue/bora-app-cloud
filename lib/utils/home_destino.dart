@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../l10n/tr.dart';
 import '../models/restaurant_model.dart';
 import '../screens/client/assistant/assistant_chat_screen.dart';
+import '../screens/client/casa/casa_categoria_screen.dart';
 import '../screens/client/cleaning/cleaning_bookings_screen.dart';
 import '../screens/client/services/services_category_screen.dart';
 import '../screens/client/tvde/tvde_entrada_screen.dart';
@@ -111,6 +112,7 @@ const Map<String, String> categoriasDestino = {
   'sobremesas': 'Sobremesas',
   'servicos': 'Beleza',
   'limpeza': 'Limpeza',
+  'casa': 'Casa',
   'motorista': 'Bora Motorista',
 };
 
@@ -155,6 +157,10 @@ Widget? _ecraCategoria(String chave) {
       return const ServicesCategoryScreen();
     case 'limpeza':
       return const CleaningBookingsScreen();
+    case 'casa':
+      // Casa e manutenção (31/10). Com a categoria desligada o próprio ecrã
+      // diz que ainda não está disponível.
+      return const CasaCategoriaScreen();
     case 'motorista':
     case 'tvde':
       // Passa pela porta: sem acesso mostra a categoria por descobrir.

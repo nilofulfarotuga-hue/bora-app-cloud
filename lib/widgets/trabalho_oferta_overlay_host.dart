@@ -6,14 +6,28 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_colors.dart';
+import '../l10n/tr.dart';
+import '../models/casa_models.dart';
+import '../screens/handyman/handyman_orcamento_screen.dart';
 import '../services/incoming_job_alert.dart';
 import '../services/notification_service.dart';
 import '../services/oferta_trabalho_aviso.dart';
 import '../services/roles_service.dart';
 import '../services/sound_service.dart';
 import '../stores/cleaner_store.dart';
+import '../stores/handyman_store.dart';
 import '../stores/washer_store.dart';
 import '../utils/hora_lisboa.dart';
+
+/// [31/10/2026 · Casa] O store da Casa pode não estar na árvore (testes
+/// antigos montam só limpeza e lavagem): nesse caso a Casa fica de fora.
+HandymanStore? _casaDe(BuildContext context, {bool ouvir = false}) {
+  try {
+    return Provider.of<HandymanStore>(context, listen: ouvir);
+  } on ProviderNotFoundException {
+    return null;
+  }
+}
 
 /// [09/10/2026 · Mayra] A oferta de LIMPEZA e de LAVAGEM por cima de qualquer
 /// ecrã — igual à do estafeta/TVDE (que não se mexe; só se copia o padrão).
@@ -67,7 +81,7 @@ class TrabalhoOfertaOverlayHost extends StatefulWidget {
       _TrabalhoOfertaOverlayHostState();
 }
 
-/// O que o cartão está a mostrar: uma oferta de limpeza ou de lavagem.
+/// O que o cartão está a mostrar: uma oferta de limpeza, de lavagem ou da Casa.
 class OfertaDeTrabalhoVista {
   const OfertaDeTrabalhoVista({
     required this.categoria,
@@ -76,21 +90,31 @@ class OfertaDeTrabalhoVista {
     required this.marcadaPara,
     required this.morada,
     required this.expiraEm,
+    this.convite = false,
+    this.titulo,
   });
 
-  final String categoria; // 'limpeza' | 'lavagem'
+  final String categoria; // 'limpeza' | 'lavagem' | 'casa'
   final String bookingId;
   final int ganhoCents;
   final DateTime marcadaPara;
   final String morada;
   final DateTime? expiraEm;
+
+  /// Casa: convite para orçar (sem ganho fixo — o profissional dá o preço).
+  final bool convite;
+
+  /// Casa: o nome do serviço (ex.: "Montar móvel").
+  final String? titulo;
 }
 
-/// A primeira oferta viva para mostrar (a limpeza primeiro), sem as que já
-/// foram respondidas neste aparelho. Função pura → testável.
+/// A primeira oferta viva para mostrar (a limpeza primeiro, depois a lavagem,
+/// depois a Casa), sem as que já foram respondidas neste aparelho. Função pura
+/// → testável. [casa] é opcional: sem o store da Casa na árvore fica de fora.
 OfertaDeTrabalhoVista? ofertaDeTrabalhoParaMostrar({
   required CleanerStore limpeza,
   required WasherStore lavagem,
+  HandymanStore? casa,
   required Set<String> respondidas,
   required DateTime agora,
 }) {
@@ -114,6 +138,24 @@ OfertaDeTrabalhoVista? ofertaDeTrabalhoParaMostrar({
       marcadaPara: b.scheduledAt,
       morada: b.addressLine,
       expiraEm: b.offerExpiresAt,
+    );
+  }
+  for (final o in casa?.ofertasParaAviso(agora: agora) ?? const <CasaOferta>[]) {
+    if (respondidas.contains(o.pedidoId)) continue;
+    final km = o.distanciaKm;
+    return OfertaDeTrabalhoVista(
+      categoria: 'casa',
+      bookingId: o.pedidoId,
+      ganhoCents: o.ganhoCents ?? 0,
+      marcadaPara: o.scheduledAt ?? agora,
+      // Zona e distância, nunca a porta (a morada só depois de aceitar).
+      morada: [
+        if (o.localidade.trim().isNotEmpty) o.localidade.trim(),
+        if (km != null) '${km.toStringAsFixed(1).replaceAll('.', ',')} km',
+      ].join(' · '),
+      expiraEm: o.expiraEm,
+      convite: o.convite,
+      titulo: o.servicoNome.isNotEmpty ? o.servicoNome : o.oficioNome,
     );
   }
   return null;
@@ -184,6 +226,8 @@ class _TrabalhoOfertaOverlayHostState extends State<TrabalhoOfertaOverlayHost>
       if (!mounted) return;
       unawaited(context.read<CleanerStore>().loadProfile());
       unawaited(context.read<WasherStore>().loadProfile());
+      final casa = _casaDe(context);
+      if (casa != null) unawaited(casa.loadProfile());
     });
   }
 
@@ -202,14 +246,23 @@ class _TrabalhoOfertaOverlayHostState extends State<TrabalhoOfertaOverlayHost>
       if (!mounted) return;
       context.read<CleanerStore>().reset();
       context.read<WasherStore>().reset();
+      _casaDe(context)?.reset();
     });
   }
 
-  /// Relê as ofertas dos dois papéis (barato: só quem tem perfil).
+  /// Relê as ofertas dos três papéis (barato: só quem tem perfil).
   void _reler() {
     if (!mounted) return;
     final limpeza = context.read<CleanerStore>();
     final lavagem = context.read<WasherStore>();
+    final casa = _casaDe(context);
+    if (casa != null) {
+      if (casa.profile == null) {
+        if (_uidCarregado != null) unawaited(casa.loadProfile());
+      } else if (casa.isApproved) {
+        unawaited(casa.loadOffers());
+      }
+    }
     // Perfil por carregar (ex.: o arranque falhou sem rede): carrega-o — o
     // loadProfile já lê as ofertas de quem está aprovado.
     if (limpeza.profile == null) {
@@ -311,21 +364,53 @@ class _TrabalhoOfertaOverlayHostState extends State<TrabalhoOfertaOverlayHost>
         ?.showSnackBar(SnackBar(content: Text(texto), action: accao));
   }
 
+  /// [31/10 · Casa] Convite para orçar: não se "aceita" — abre o ecrã do
+  /// orçamento (preço, o que inclui, prazo). O cartão sai e o aviso cala.
+  void _abrirOrcamento(OfertaDeTrabalhoVista o) {
+    setState(() => _respondidas.add(o.bookingId));
+    unawaited(marcarOfertaTrabalhoTratada(o.bookingId));
+    unawaited(IncomingJobAlert.dismiss(o.bookingId));
+    final oferta = _casaDe(context)?.ofertaPorId(o.bookingId);
+    final nav = NotificationService.navigatorKey.currentState;
+    if (oferta == null || nav == null) {
+      NotificationService.abrirTrabalho?.call('casa', o.bookingId);
+      return;
+    }
+    nav.push(MaterialPageRoute<bool>(
+      builder: (_) => HandymanOrcamentoScreen(oferta: oferta),
+    ));
+  }
+
   Future<void> _aceitar(OfertaDeTrabalhoVista o) async {
-    final limpeza = o.categoria == 'limpeza';
+    if (o.categoria == 'casa' && o.convite) {
+      _abrirOrcamento(o);
+      return;
+    }
     try {
-      if (limpeza) {
-        await context.read<CleanerStore>().acceptBooking(o.bookingId);
-      } else {
-        final ok = await context.read<WasherStore>().accept(o.bookingId);
-        if (!ok) throw StateError('washer_accept_falhou');
+      switch (o.categoria) {
+        case 'limpeza':
+          await context.read<CleanerStore>().acceptBooking(o.bookingId);
+        case 'casa':
+          final casa = _casaDe(context);
+          if (casa == null) throw StateError('casa_sem_store');
+          final ok = await casa.accept(o.bookingId);
+          if (!ok) {
+            throw casa.ultimaFalhaFoiDeRede
+                ? TimeoutException('casa_accept')
+                : StateError('casa_accept_falhou');
+          }
+        default:
+          final ok = await context.read<WasherStore>().accept(o.bookingId);
+          if (!ok) throw StateError('washer_accept_falhou');
       }
       if (!mounted) return;
       setState(() => _respondidas.add(o.bookingId));
       _snack(
-        limpeza
-            ? 'Limpeza aceite — está na tua agenda.'
-            : 'Lavagem aceite — está nos teus trabalhos.',
+        switch (o.categoria) {
+          'limpeza' => 'Limpeza aceite — está na tua agenda.',
+          'casa' => 'Trabalho aceite — está nos teus trabalhos.'.tr,
+          _ => 'Lavagem aceite — está nos teus trabalhos.',
+        },
         accao: SnackBarAction(
           label: 'Ver',
           onPressed: () =>
@@ -342,9 +427,11 @@ class _TrabalhoOfertaOverlayHostState extends State<TrabalhoOfertaOverlayHost>
       }
       setState(() => _respondidas.add(o.bookingId));
       _reler();
-      _snack(limpeza
-          ? 'Esta limpeza já não está disponível.'
-          : 'Esta lavagem já não está disponível.');
+      _snack(switch (o.categoria) {
+        'limpeza' => 'Esta limpeza já não está disponível.',
+        'casa' => 'Este trabalho já não está disponível.'.tr,
+        _ => 'Esta lavagem já não está disponível.',
+      });
     }
   }
 
@@ -352,10 +439,13 @@ class _TrabalhoOfertaOverlayHostState extends State<TrabalhoOfertaOverlayHost>
     // Sai do ecrã JÁ; a recusa segue em fundo (o servidor passa à seguinte).
     setState(() => _respondidas.add(o.bookingId));
     try {
-      if (o.categoria == 'limpeza') {
-        await context.read<CleanerStore>().rejectBooking(o.bookingId);
-      } else {
-        await context.read<WasherStore>().reject(o.bookingId);
+      switch (o.categoria) {
+        case 'limpeza':
+          await context.read<CleanerStore>().rejectBooking(o.bookingId);
+        case 'casa':
+          await _casaDe(context)?.reject(o.bookingId);
+        default:
+          await context.read<WasherStore>().reject(o.bookingId);
       }
     } catch (e) {
       debugPrint('[BORA-TRABALHO] recusa falhou (o prazo trata dela): $e');
@@ -366,9 +456,11 @@ class _TrabalhoOfertaOverlayHostState extends State<TrabalhoOfertaOverlayHost>
   Widget build(BuildContext context) {
     final limpeza = context.watch<CleanerStore>();
     final lavagem = context.watch<WasherStore>();
+    final casa = _casaDe(context, ouvir: true);
     final oferta = ofertaDeTrabalhoParaMostrar(
       limpeza: limpeza,
       lavagem: lavagem,
+      casa: casa,
       respondidas: _respondidas,
       agora: _now,
     );
@@ -508,7 +600,20 @@ class _TrabalhoOfertaCartaoState extends State<TrabalhoOfertaCartao> {
   @override
   Widget build(BuildContext context) {
     final o = widget.oferta;
-    final limpeza = o.categoria == 'limpeza';
+    final icone = switch (o.categoria) {
+      'limpeza' => Icons.cleaning_services_rounded,
+      'casa' => Icons.handyman_rounded,
+      _ => Icons.local_car_wash_rounded,
+    };
+    final tituloCartao = switch (o.categoria) {
+      'limpeza' => 'Nova limpeza',
+      'casa' => o.convite ? 'Pedido de orçamento'.tr : 'Novo trabalho de casa'.tr,
+      _ => 'Nova lavagem',
+    };
+    // Casa: o convite não tem ganho fixo — o profissional é que dá o preço.
+    final semGanho = o.categoria == 'casa' && o.convite;
+    final rotuloAceitar =
+        semGanho ? 'Ver e orçar'.tr : 'Aceitar';
     final ganho = (o.ganhoCents / 100).toStringAsFixed(2).replaceAll('.', ',');
     final quando = dataHoraLisboa(o.marcadaPara.toUtc().toIso8601String());
     final resto = o.expiraEm?.difference(widget.agora);
@@ -530,12 +635,7 @@ class _TrabalhoOfertaCartaoState extends State<TrabalhoOfertaCartao> {
           padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
           child: Row(
             children: [
-              Icon(
-                  limpeza
-                      ? Icons.cleaning_services_rounded
-                      : Icons.local_car_wash_rounded,
-                  color: Colors.white,
-                  size: 22),
+              Icon(icone, color: Colors.white, size: 22),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -543,7 +643,7 @@ class _TrabalhoOfertaCartaoState extends State<TrabalhoOfertaCartao> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${limpeza ? 'Nova limpeza' : 'Nova lavagem'} · €$ganho',
+                      semGanho ? tituloCartao : '$tituloCartao · €$ganho',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -573,7 +673,7 @@ class _TrabalhoOfertaCartaoState extends State<TrabalhoOfertaCartao> {
                 style: FilledButton.styleFrom(
                     backgroundColor: AppColors.accent,
                     padding: const EdgeInsets.symmetric(horizontal: 14)),
-                child: const Text('Aceitar'),
+                child: Text(rotuloAceitar),
               ),
             ],
           ),
@@ -605,16 +705,11 @@ class _TrabalhoOfertaCartaoState extends State<TrabalhoOfertaCartao> {
                   children: [
                     Row(
                       children: [
-                        Icon(
-                            limpeza
-                                ? Icons.cleaning_services_rounded
-                                : Icons.local_car_wash_rounded,
-                            color: Colors.white,
-                            size: 26),
+                        Icon(icone, color: Colors.white, size: 26),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            limpeza ? 'Nova limpeza' : 'Nova lavagem',
+                            tituloCartao,
                             style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 20,
@@ -630,17 +725,36 @@ class _TrabalhoOfertaCartaoState extends State<TrabalhoOfertaCartao> {
                                   fontWeight: FontWeight.w700)),
                       ],
                     ),
+                    if ((o.titulo ?? '').isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(o.titulo!,
+                          key: const Key('trabalho_oferta_titulo'),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 15.5)),
+                    ],
                     const SizedBox(height: 14),
-                    Text('€$ganho',
-                        key: const Key('trabalho_oferta_ganho'),
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 44,
-                            height: 1.0,
-                            fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 2),
-                    const Text('o teu ganho',
-                        style: TextStyle(color: Colors.white70, fontSize: 13)),
+                    if (semGanho)
+                      Text('Envia o teu preço'.tr,
+                          key: const Key('trabalho_oferta_convite'),
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 30,
+                              height: 1.1,
+                              fontWeight: FontWeight.w800))
+                    else ...[
+                      Text('€$ganho',
+                          key: const Key('trabalho_oferta_ganho'),
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 44,
+                              height: 1.0,
+                              fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 2),
+                      const Text('o teu ganho',
+                          style: TextStyle(color: Colors.white70, fontSize: 13)),
+                    ],
                     const SizedBox(height: 14),
                     Row(children: [
                       const Icon(Icons.event, color: Colors.white70, size: 18),
@@ -704,8 +818,8 @@ class _TrabalhoOfertaCartaoState extends State<TrabalhoOfertaCartao> {
                                     child: CircularProgressIndicator(
                                         strokeWidth: 2, color: Colors.white),
                                   )
-                                : const Text('Aceitar',
-                                    style: TextStyle(
+                                : Text(rotuloAceitar,
+                                    style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w800)),
                           ),
@@ -772,26 +886,49 @@ Future<void> responderOfertaDeTrabalhoGlobal(
         'próxima repetição do toque');
     return;
   }
-  final limpeza = categoria == 'limpeza';
   final cleaner = ctx.read<CleanerStore>();
   final washer = ctx.read<WasherStore>();
+  final casa = _casaDe(ctx);
   try {
     if (accao == kTrabalhoRecusarAction) {
-      if (limpeza) {
-        await cleaner.rejectBooking(bookingId);
-      } else {
-        await washer.reject(bookingId);
+      switch (categoria) {
+        case 'limpeza':
+          await cleaner.rejectBooking(bookingId);
+        case 'casa':
+          await casa?.reject(bookingId);
+        default:
+          await washer.reject(bookingId);
       }
       return;
     }
     // Aceitar: o store pode ainda não ter o perfil (arranque a frio).
-    if (limpeza) {
-      if (cleaner.profile == null) await cleaner.loadProfile();
-      await cleaner.acceptBooking(bookingId);
-    } else {
-      if (washer.profile == null) await washer.loadProfile();
-      final ok = await washer.accept(bookingId);
-      if (!ok) throw StateError('washer_accept_falhou');
+    switch (categoria) {
+      case 'limpeza':
+        if (cleaner.profile == null) await cleaner.loadProfile();
+        await cleaner.acceptBooking(bookingId);
+      case 'casa':
+        if (casa == null) throw StateError('casa_sem_store');
+        if (casa.profile == null) await casa.loadProfile();
+        if (casa.ofertaPorId(bookingId) == null) await casa.loadOffers();
+        // Convite para orçar: "Aceitar" na notificação abre o orçamento.
+        final oferta = casa.ofertaPorId(bookingId);
+        if (oferta != null && oferta.convite) {
+          unawaited(marcarOfertaTrabalhoTratada(bookingId));
+          unawaited(NotificationService.navigatorKey.currentState?.push(
+              MaterialPageRoute<bool>(
+                  builder: (_) => HandymanOrcamentoScreen(oferta: oferta))));
+          return;
+        }
+        final ok = await casa.accept(bookingId);
+        if (!ok) {
+          throw casa.ultimaFalhaFoiDeRede
+              ? TimeoutException('casa_accept')
+              : StateError('casa_accept_falhou');
+        }
+      default:
+        if (washer.profile == null) await washer.loadProfile();
+        final ok = await washer.accept(bookingId);
+        if (!ok) throw StateError('washer_accept_falhou');
     }
     NotificationService.abrirTrabalho?.call(categoria, bookingId);
   } catch (e) {
@@ -801,9 +938,11 @@ Future<void> responderOfertaDeTrabalhoGlobal(
       ScaffoldMessenger.maybeOf(c2)?.showSnackBar(SnackBar(
           content: Text(falhaDeRede(e)
               ? 'Sem rede — não consegui responder. Tenta outra vez.'
-              : limpeza
-                  ? 'Esta limpeza já não está disponível.'
-                  : 'Esta lavagem já não está disponível.')));
+              : switch (categoria) {
+                  'limpeza' => 'Esta limpeza já não está disponível.',
+                  'casa' => 'Este trabalho já não está disponível.'.tr,
+                  _ => 'Esta lavagem já não está disponível.',
+                })));
     }
   }
 }

@@ -396,6 +396,7 @@ class _GanhosScreenState extends State<GanhosScreen> {
   static IconData _iconeDoPapel(String papel) => switch (papel) {
         'cleaner' => Icons.cleaning_services_outlined,
         'washer' => Icons.local_car_wash_outlined,
+        'handyman' => Icons.handyman_outlined,
         _ => Icons.delivery_dining_outlined,
       };
 
@@ -403,6 +404,8 @@ class _GanhosScreenState extends State<GanhosScreen> {
         'driver' => 'Entregas e corridas',
         'cleaner' => 'Limpeza',
         'washer' => 'Lavagem de carros',
+        // Casa e manutenção (31/10): nunca o nome técnico no ecrã.
+        'handyman' => 'Casa e manutenção',
         _ => papel,
       };
 

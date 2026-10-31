@@ -514,6 +514,10 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
       'provider': 'Barbearias',
       'cleaner': 'Limpeza',
       'washer': 'Lavagem',
+      // 31/10: Casa (faz-tudo). Só rótulo: as linhas aparecem quando o
+      // servidor do hub juntar casa_acertos_semanais (type 'handyman').
+      // Até lá o separador mostra 0 — zero é zero e aparece.
+      'handyman': 'Casa',
     };
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -594,6 +598,7 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
         'provider' => 'barbearias',
         'cleaner' => 'limpeza',
         'washer' => 'lavagem',
+        'handyman' => 'casa',
         _ => 'todos',
       };
 
@@ -1000,6 +1005,7 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
         'provider' => 'Serviços',
         'partner' => 'Parceiro',
         'washer' => 'Lavagem',
+        'handyman' => 'Casa (faz-tudo)',
         _ => t ?? '',
       };
 

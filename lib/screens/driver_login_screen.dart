@@ -517,7 +517,9 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
     if (estafetaPorAprovar) {
       final papeis = await RolesService.mySummary();
       if (!mounted) return;
-      if (papeis.cleanerApproved || papeis.washerApproved) {
+      if (papeis.cleanerApproved ||
+          papeis.washerApproved ||
+          papeis.handymanApproved) {
         // Põe o estado do estafeta no valor real (sem linha conta como
         // pendente) para o `_RootNavigator` passar pelo portão.
         await authStore.refreshApprovalStatus();
@@ -531,12 +533,22 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
       }
       // Sem linha em `drivers` e com outra candidatura em análise: diz-se
       // qual, em vez de mandar a pessoa candidatar-se a estafeta.
-      if (driverRow == null && (papeis.cleanerPending || papeis.washerPending)) {
+      if (driverRow == null &&
+          (papeis.cleanerPending ||
+              papeis.washerPending ||
+              papeis.handymanPending)) {
         setState(() => _isProcessing = false);
+        // Regra 1.18: um caso por papel, sem "o resto é a lavagem".
+        final aviso = switch (papeis) {
+          RolesSummary(cleanerPending: true) =>
+            'A tua candidatura à limpeza está em análise. Avisamos-te assim que estiver decidida.',
+          RolesSummary(washerPending: true) =>
+            'A tua candidatura à lavagem de carros está em análise. Avisamos-te assim que estiver decidida.',
+          _ =>
+            'A tua candidatura à Casa e manutenção está em análise. Avisamos-te assim que estiver decidida.',
+        };
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(papeis.cleanerPending
-              ? 'A tua candidatura à limpeza está em análise. Avisamos-te assim que estiver decidida.'
-              : 'A tua candidatura à lavagem de carros está em análise. Avisamos-te assim que estiver decidida.'),
+          content: Text(aviso),
           duration: const Duration(seconds: 8),
         ));
         return;

@@ -40,6 +40,9 @@ class PushTokenService {
     'partner',
     'cleaner',
     'washer',
+    // CASA (31/10): o profissional da Casa e manutenção. A base aceita-o em
+    // provider_push_tokens (CHECK da migração casa_01).
+    'handyman',
   };
 
   /// Onde é que o token deste papel vai parar.
@@ -49,10 +52,11 @@ class PushTokenService {
   /// onde o papel é uma coluna — foi assim de propósito, para o papel seguinte
   /// não obrigar a mais uma tabela, mais políticas e mais um ramo em cada
   /// função que envia. Serve para o registo dizer a verdade.
-  static String tabelaDoPapel(String role) =>
-      (role == 'cleaner' || role == 'washer')
-          ? 'provider_push_tokens (role=$role)'
-          : '${role}_push_tokens';
+  static String tabelaDoPapel(String role) => switch (role) {
+        'cleaner' || 'washer' || 'handyman' =>
+          'provider_push_tokens (role=$role)',
+        _ => '${role}_push_tokens',
+      };
 
   static StreamSubscription<String>? _refreshSub;
   static bool _registering = false;

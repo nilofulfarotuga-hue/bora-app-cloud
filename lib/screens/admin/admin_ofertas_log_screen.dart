@@ -203,6 +203,9 @@ class _AdminOfertasLogScreenState extends State<AdminOfertasLogScreen> {
                                   DropdownMenuItem(
                                       value: 'lavagem',
                                       child: Text('Lavagem')),
+                                  DropdownMenuItem(
+                                      value: 'casa',
+                                      child: Text('Casa')),
                                 ],
                                 onChanged: (v) {
                                   setState(() => _categoria = v);

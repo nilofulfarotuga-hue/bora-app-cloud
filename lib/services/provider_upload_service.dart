@@ -19,9 +19,12 @@ import 'driver_foto_upload.dart' show FotoPronta, prepararFotoParaEnvio;
 /// rotulada `image/jpeg` e o painel não a conseguia mostrar). Sem sessão já
 /// não devolve null em silêncio — a candidatura gravava-se sem o documento.
 class ProviderUploadService {
-  /// Baldes privados por papel. Ambos com as MESMAS quatro políticas.
+  /// Baldes privados por papel. Todos com as MESMAS quatro políticas.
   static const bucketFaxineiro = 'cleaner-documents';
   static const bucketLavador = 'washer-documents';
+  /// Casa e manutenção (31/10): `<uid>/<tag>_<ms>.<ext>`, como os outros.
+  /// O caminho grava-se depois pela RPC `casa_registar_documento`.
+  static const bucketCasa = 'handyman-documents';
 
   static SupabaseClient get _sb => Supabase.instance.client;
 

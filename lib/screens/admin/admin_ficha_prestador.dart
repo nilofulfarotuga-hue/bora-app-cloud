@@ -1,4 +1,4 @@
-/// FICHA COMPLETA DO PRESTADOR (limpeza e lavagem) no painel — missão
+/// FICHA COMPLETA DO PRESTADOR (limpeza, lavagem e Casa) no painel — missão
 /// documentos-todos-papeis-22-10. Mostra tudo o que o cadastro pede, pela
 /// mesma ordem: foto de perfil, dados pessoais, documento de identificação,
 /// carta de condução (lavagem), NIF, comprovativo de atividade, IBAN,
@@ -18,23 +18,79 @@ import '../../services/robo_documentos.dart';
 import '../../widgets/admin_documentos.dart';
 import '../../widgets/admin_robo_documentos.dart';
 import '../../widgets/private_bucket_image.dart';
+import 'admin_casa_comum.dart'
+    show casaDocumentoEstadoPtBr, casaDocumentoTipoPtBr;
 
-/// 'cleaner' (limpeza) ou 'washer' (lavagem).
+/// 'cleaner' (limpeza), 'washer' (lavagem) ou 'handyman' (Casa e manutenção,
+/// 31/10/2026 — linha de `casa_profissionais`).
 typedef PapelPrestador = String;
 
-String _baldeDe(PapelPrestador p) =>
-    p == 'washer' ? 'washer-documents' : 'cleaner-documents';
+String _baldeDe(PapelPrestador p) => switch (p) {
+      'washer' => 'washer-documents',
+      'handyman' => 'handyman-documents',
+      _ => 'cleaner-documents',
+    };
 
-String _quemDe(PapelPrestador p) =>
-    p == 'washer' ? 'lavador' : 'profissional de limpeza';
+String _quemDe(PapelPrestador p) => switch (p) {
+      'washer' => 'lavador',
+      'handyman' => 'profissional da Casa',
+      _ => 'profissional de limpeza',
+    };
+
+String _papelEmPalavras(PapelPrestador p) => switch (p) {
+      'washer' => 'Lavagem',
+      'handyman' => 'Casa (faz-tudo)',
+      _ => 'Limpeza',
+    };
+
+/// Tabela de onde vem a linha (para o veredito do robô dos documentos).
+String _tabelaDe(PapelPrestador p) => switch (p) {
+      'washer' => 'washers',
+      'handyman' => 'casa_profissionais',
+      _ => 'cleaners',
+    };
+
+/// Casa (31/10/2026): os documentos vivem em `casa_documentos` (lista em
+/// `l['_casa_documentos']`, quando quem chama a junta), não em `docs`. Falta:
+/// foto, cartão de cidadão (enviado e não recusado), dados legais e o
+/// comprovativo. Sem materiais (as ferramentas são uma pergunta da ficha).
+List<DocEmFalta> documentosEmFaltaCasa(
+  Map<String, dynamic> l, {
+  bool atividadeEmFalta = false,
+}) {
+  final base = documentosEmFaltaLimpeza(l, atividadeEmFalta: atividadeEmFalta)
+      .where((f) => f.chave != 'materials' && f.chave != 'id_doc')
+      .toList();
+  final docs = l['_casa_documentos'];
+  final temCc = (docs is List &&
+          docs.any((d) =>
+              d is Map &&
+              d['tipo'] == 'cartao_cidadao' &&
+              d['estado'] != 'rejected' &&
+              d['estado'] != 'expired')) ||
+      docCaminho(l, 'id_doc') != null;
+  if (!temCc) {
+    final i = base.indexWhere((f) => f.chave == 'photo') + 1;
+    base.insert(
+        i,
+        const DocEmFalta(
+            chave: 'id_doc', rotulo: 'Cartão de cidadão (identificação)'));
+  }
+  return base;
+}
 
 /// O que falta (mesma regra da app do prestador), com o comprovativo.
 List<DocEmFalta> faltaDoPrestador(PapelPrestador papel, Map<String, dynamic> l) =>
-    papel == 'washer'
-        ? documentosEmFaltaLavagem(l, atividadeEmFalta: atividadeEmFaltaDe(l))
-        : documentosEmFaltaLimpeza(l, atividadeEmFalta: atividadeEmFaltaDe(l));
+    switch (papel) {
+      'washer' =>
+        documentosEmFaltaLavagem(l, atividadeEmFalta: atividadeEmFaltaDe(l)),
+      'handyman' =>
+        documentosEmFaltaCasa(l, atividadeEmFalta: atividadeEmFaltaDe(l)),
+      _ => documentosEmFaltaLimpeza(l, atividadeEmFalta: atividadeEmFaltaDe(l)),
+    };
 
-/// Abre a ficha. [linha] é a linha de `cleaners`/`washers` (to_jsonb).
+/// Abre a ficha. [linha] é a linha de `cleaners`/`washers`/`casa_profissionais`
+/// (to_jsonb).
 Future<void> abrirFichaPrestador(
   BuildContext context, {
   required PapelPrestador papel,
@@ -151,11 +207,12 @@ class _FichaPrestador extends StatelessWidget {
           ),
           Center(
             child: Text(
-              '${papel == 'washer' ? 'Lavagem' : 'Limpeza'} · ${switch (l['approval_status']) {
+              '${_papelEmPalavras(papel)} · ${switch (l['approval_status']) {
                 'approved' => 'aprovado',
                 'pending' => 'pendente',
                 'rejected' => 'recusado',
                 'suspended' => 'suspenso',
+                'banned' => 'banido',
                 final s => s?.toString() ?? '—',
               }}',
               style: const TextStyle(color: AppColors.textSecondary),
@@ -199,12 +256,28 @@ class _FichaPrestador extends StatelessWidget {
           const DocSeccao('Documentos'),
           if (l['_robo'] != null) RoboResumoLinha(linha: l),
           if (avisosParaAprovar(l).isNotEmpty) RoboAvisoAprovar(linha: l),
+          // Casa: os documentos vêm de casa_documentos, um por linha (o
+          // balde handyman-documents tem de estar na lista dos privados do
+          // PrivateBucketImage para a foto abrir aqui).
+          if (papel == 'handyman')
+            for (final d in (l['_casa_documentos'] is List
+                    ? (l['_casa_documentos'] as List).whereType<Map>()
+                    : const <Map>[]))
+              DocFoto(
+                titulo: '${casaDocumentoTipoPtBr(d['tipo']?.toString())}'
+                    '${d['oficio'] == null ? '' : ' · ${d['oficio']}'}'
+                    ' · ${casaDocumentoEstadoPtBr(d['estado']?.toString())}',
+                urlOrPath: docTexto(d['storage_path']),
+                obrigatoria: d['tipo'] == 'cartao_cidadao',
+                balde: balde,
+              ),
+          if (papel != 'handyman')
           DocFoto(
             titulo: 'Documento de identificação',
             urlOrPath: docCaminho(l, 'id_doc'),
             obrigatoria: true,
             balde: balde,
-            veredito: vereditoDe(l, papel == 'washer' ? 'washers.docs.id_doc' : 'cleaners.docs.id_doc',
+            veredito: vereditoDe(l, '${_tabelaDe(papel)}.docs.id_doc',
                 ficheiro: docCaminho(l, 'id_doc')),
             onDesfazer: (v) => desfazerDecisaoDoRobo(context, v),
           ),
@@ -258,6 +331,12 @@ class _FichaPrestador extends StatelessWidget {
           DocCampo('MB Way', l['mbway_phone']),
 
           const DocSeccao('Trabalho'),
+          if (papel == 'handyman') ...[
+            DocCampo('Carrinha', l['has_van'] == true ? 'Sim' : 'Não'),
+            DocCampo('Ferramentas próprias',
+                l['has_tools'] == true ? 'Sim' : 'Não'),
+          ],
+          if (papel != 'handyman')
           DocCampo(
             'Materiais',
             docs['materials_ok'] == true

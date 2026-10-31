@@ -94,6 +94,7 @@ import 'screens/admin/admin_partners_screen.dart';
 import 'screens/admin/admin_send_notification_screen.dart';
 import 'screens/restaurant_ratings_list_screen.dart';
 import 'screens/cleaner/cleaner_home_screen.dart';
+import 'screens/handyman/handyman_home_screen.dart';
 import 'screens/shared/comprovativo_atividade_screen.dart';
 import 'screens/washer/washer_home_screen.dart';
 import 'screens/client/assistant/assistant_chat_screen.dart';
@@ -120,9 +121,11 @@ import 'stores/reservation_store.dart';
 import 'stores/restaurant_store.dart';
 import 'stores/services_store.dart';
 import 'stores/carwash_store.dart';
+import 'stores/casa_store.dart';
 import 'stores/cleaner_store.dart';
 import 'stores/cleaning_chat_store.dart';
 import 'stores/cleaning_store.dart';
+import 'stores/handyman_store.dart';
 import 'stores/washer_store.dart';
 import 'stores/tvde_store.dart';
 import 'stores/tvde_driver_store.dart';
@@ -524,7 +527,8 @@ Future<void> main() async {
     unawaited(tvdeResponderOfertaGlobal(rideId, actionId));
   };
 
-  // Tocar num aviso de limpeza ou de lavagem abre o ecrã dessa categoria.
+  // Tocar num aviso de limpeza, de lavagem ou da Casa abre o ecrã dessa
+  // categoria.
   //
   // Fica AQUI, ao nível da app, e não dentro de um ecrã — é a lição de
   // 2026-08-20 com o "A caminho" da reserva, que estava preso ao initState de
@@ -536,6 +540,9 @@ Future<void> main() async {
     nav.push(MaterialPageRoute<void>(
       builder: (_) => switch (categoria) {
         'limpeza' => const CleanerHomeScreen(),
+        // [31/10/2026] CASA: caso explícito — o ramo por omissão é a Lavagem
+        // e um aviso da Casa não pode cair lá.
+        'casa' => const HandymanHomeScreen(),
         // [20/10/2026] Push "Falta o comprovativo de atividade" → ecrã de envio.
         'atividade' => const ComprovativoAtividadeScreen(),
         _ => const WasherHomeScreen(),
@@ -908,6 +915,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ),
         ChangeNotifierProvider<WasherStore>(
           create: (_) => WasherStore(),
+        ),
+        // CASA (31/10): o cliente (CasaStore) e o profissional (HandymanStore)
+        // da Casa e manutenção, no molde da limpeza e da lavagem.
+        ChangeNotifierProvider<CasaStore>(
+          create: (_) => CasaStore(),
+        ),
+        ChangeNotifierProvider<HandymanStore>(
+          create: (_) => HandymanStore(),
         ),
         ChangeNotifierProvider<PartnerReservasStore>(
           create: (_) => PartnerReservasStore(),
@@ -1307,6 +1322,7 @@ class _ServerMirrorOnResumeState extends State<_ServerMirrorOnResume>
     context.read<TvdeStore>().refreshActiveRide();
     context.read<CleaningStore>().refreshTracked();
     context.read<CarwashStore>().refreshTracked();
+    context.read<CasaStore>().refreshTracked();
     // Lei da casa (varredura 2026-08-17): reservas e marcações não têm canal
     // realtime — sem este refetch, quem esperava a confirmação só a via ao
     // navegar à mão. Best-effort: as duas re-buscam do servidor no foreground.

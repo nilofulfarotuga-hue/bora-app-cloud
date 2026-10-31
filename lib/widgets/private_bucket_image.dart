@@ -14,6 +14,10 @@ const _privateBuckets = <String>{
   'provider-atividade',
   // 22/10/2026: documentos do lavador (painel não os conseguia abrir).
   'washer-documents',
+  // 31/10/2026: Casa e manutenção — documentos do profissional e fotos do
+  // pedido (problema, antes, depois, extra).
+  'handyman-documents',
+  'casa-fotos',
 };
 
 class _Resolved {

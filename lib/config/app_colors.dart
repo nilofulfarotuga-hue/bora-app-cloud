@@ -139,4 +139,13 @@ class AppColors {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
+  // Casa e manutenção (2026-10-31) — castanho-madeira → areia (caixa de
+  // ferramentas, móveis). Tom de madeira, não laranja: não acrescenta um
+  // segundo laranja ao ecrã (regra "1 elemento laranja por ecrã") e não
+  // colide com o cinzento das Lojas nem com os verdes da marca.
+  static const LinearGradient tileCasa = LinearGradient(
+    colors: [Color(0xFF6B4F3A), Color(0xFFA68A6D)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 }

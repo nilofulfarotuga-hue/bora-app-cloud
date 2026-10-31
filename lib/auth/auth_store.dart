@@ -1854,14 +1854,18 @@ class AuthStore extends ChangeNotifier {
     }
   }
 
-  /// Conta de trabalho para quem tem a limpeza ou a lavagem aprovada e não
-  /// tem perfil de estafeta. Devolve null a quem não tem nenhuma aprovada.
+  /// Conta de trabalho para quem tem a limpeza, a lavagem ou a Casa aprovada e
+  /// não tem perfil de estafeta. Devolve null a quem não tem nenhuma aprovada.
   Future<DriverAccount?> _contaDePrestadorSemEstafeta(
     String email,
     Map<String, dynamic> meta,
   ) async {
     final papeis = await RolesService.mySummary();
-    if (!papeis.cleanerApproved && !papeis.washerApproved) return null;
+    if (!papeis.cleanerApproved &&
+        !papeis.washerApproved &&
+        !papeis.handymanApproved) {
+      return null;
+    }
     // Sem linha em `drivers` o estado do estafeta é "por aprovar" — é isso
     // que faz o `_RootNavigator` passar pelo portão por papel.
     _currentDriverStatus = DriverStatus.pending;

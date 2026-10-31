@@ -698,6 +698,8 @@ void _onLocalNotifTap(NotificationResponse response) {
       'cleaning_status': 'limpeza',
       'carwash_offer': 'lavagem',
       'carwash_status': 'lavagem',
+      'casa_offer': 'casa',
+      'casa_status': 'casa',
     };
     final categoria = ofertasDeCategoria[data['type']?.toString()];
     if (categoria != null) {
@@ -823,8 +825,9 @@ Future<void> onBackgroundNotificationAction(NotificationResponse response) async
       final bookingId = data['bookingId']?.toString() ?? '';
       if (categoria == null || bookingId.isEmpty) return;
       await marcarOfertaTrabalhoTratada(bookingId);
-      final ok = await _rpcHeadless(
-          rpcRecusarOfertaDeTrabalho(categoria), {'p_booking_id': bookingId});
+      // A Casa recebe `p_pedido_id`; limpeza e lavagem `p_booking_id`.
+      final ok = await _rpcHeadless(rpcRecusarOfertaDeTrabalho(categoria),
+          paramsRecusarOfertaDeTrabalho(categoria, bookingId));
       try {
         await FlutterLocalNotificationsPlugin().cancel(bookingId.hashCode);
       } catch (_) {}
@@ -1319,6 +1322,10 @@ const Set<String> _kPersistentCategoryTypes = <String>{
   // tem de ser chamado com a mesma insistência do faxineiro e do parceiro.
   'carwash_offer',
   'carwash_status',
+  // [31/10/2026] Casa e manutenção (papel 'handyman'): oferta/convite para
+  // orçar (data-only) e mudanças de estado — mesma insistência da limpeza.
+  'casa_offer',
+  'casa_status',
   'tvde_chat',
   'admin_generic',
   'crosstalk_critical',
@@ -1469,6 +1476,7 @@ void _abrirTrabalhoDoPush(RemoteMessage msg) {
       switch (type) {
         'cleaning_status' => 'limpeza',
         'carwash_status' => 'lavagem',
+        'casa_status' => 'casa',
         _ => null,
       };
   if (categoria == null) return;
@@ -1797,6 +1805,35 @@ Future<void> _showPersistentCategoryNotification(RemoteMessage message) async {
         type: type,
         title: textoLavagem.titulo,
         body: textoLavagem.corpo,
+        notificationId: bookingId.isNotEmpty ? bookingId.hashCode : type.hashCode,
+        payload: {'bookingId': bookingId},
+      );
+      return;
+    // [31/10/2026] Casa e manutenção (papel 'handyman', Edge `notify-handyman`,
+    // sempre data-only: {type, title, body, bookingId = id do pedido, kind}).
+    // A oferta (ou o convite para orçar) toca como a da limpeza.
+    case 'casa_offer':
+    case 'casa_status':
+      final bookingId = data['bookingId']?.toString() ?? '';
+      final textoCasa = textoDoAvisoDeTrabalho(
+        data: data,
+        notifTitle: notif?.title,
+        notifBody: notif?.body,
+        tituloDeRecurso: '🔧 Bora Casa',
+      );
+      if (type == 'casa_offer') {
+        await mostrarOfertaDeTrabalho(
+          categoria: 'casa',
+          bookingId: bookingId,
+          titulo: textoCasa.titulo,
+          corpo: textoCasa.corpo,
+        );
+        return;
+      }
+      await _showPersistentStatusNotification(
+        type: type,
+        title: textoCasa.titulo,
+        body: textoCasa.corpo,
         notificationId: bookingId.isNotEmpty ? bookingId.hashCode : type.hashCode,
         payload: {'bookingId': bookingId},
       );

@@ -36,20 +36,37 @@ const Duration _kTratadaValidade = Duration(minutes: 30);
 /// pessoa) as repetições param e o aviso sai sozinho, sem ficar fantasma.
 const Duration kOfertaTrabalhoTimeout = Duration(minutes: 3);
 
-/// 'cleaning_offer' → 'limpeza'; 'carwash_offer' → 'lavagem'; o resto → null.
+/// 'cleaning_offer' → 'limpeza'; 'carwash_offer' → 'lavagem';
+/// 'casa_offer' → 'casa' (31/10/2026, Casa e manutenção); o resto → null.
 String? categoriaDaOfertaDeTrabalho(String? type) => switch (type) {
       'cleaning_offer' => 'limpeza',
       'carwash_offer' => 'lavagem',
+      'casa_offer' => 'casa',
       _ => null,
     };
 
 /// O `type` do push/payload para a categoria.
-String tipoDaOfertaDeTrabalho(String categoria) =>
-    categoria == 'lavagem' ? 'carwash_offer' : 'cleaning_offer';
+String tipoDaOfertaDeTrabalho(String categoria) => switch (categoria) {
+      'lavagem' => 'carwash_offer',
+      'casa' => 'casa_offer',
+      _ => 'cleaning_offer',
+    };
 
 /// A RPC que recusa a oferta, por categoria (a mesma que os stores chamam).
-String rpcRecusarOfertaDeTrabalho(String categoria) =>
-    categoria == 'lavagem' ? 'washer_reject_booking' : 'cleaner_reject_booking';
+String rpcRecusarOfertaDeTrabalho(String categoria) => switch (categoria) {
+      'lavagem' => 'washer_reject_booking',
+      'casa' => 'casa_recusar_oferta',
+      _ => 'cleaner_reject_booking',
+    };
+
+/// Os parâmetros dessa RPC. A da Casa recebe `p_pedido_id`; as da limpeza e
+/// da lavagem `p_booking_id`.
+Map<String, dynamic> paramsRecusarOfertaDeTrabalho(
+        String categoria, String bookingId) =>
+    switch (categoria) {
+      'casa' => <String, dynamic>{'p_pedido_id': bookingId},
+      _ => <String, dynamic>{'p_booking_id': bookingId},
+    };
 
 /// [4.C · lavagem sem texto] Título e corpo de um aviso de limpeza/lavagem.
 /// O push de oferta é DATA-ONLY (sem bloco `notification`): o texto vem dentro
@@ -151,8 +168,9 @@ DateTime? _quandoDaLinha(String linha) {
 
 // ── a notificação ──────────────────────────────────────────────────────────
 
-/// Mostra (ou renova) a notificação de oferta de [categoria] ('limpeza' ou
-/// 'lavagem') para [bookingId]: ecrã inteiro, som em ciclo, Aceitar/Recusar.
+/// Mostra (ou renova) a notificação de oferta de [categoria] ('limpeza',
+/// 'lavagem' ou 'casa') para [bookingId]: ecrã inteiro, som em ciclo,
+/// Aceitar/Recusar.
 /// Não mostra nada se a oferta já foi respondida neste aparelho.
 @pragma('vm:entry-point')
 Future<void> mostrarOfertaDeTrabalho({

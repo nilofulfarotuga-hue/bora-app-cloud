@@ -14,7 +14,7 @@ class SessionStore extends ChangeNotifier {
   static const _driverDraftNameKey = 'bora_app.signup_draft.driver.name';
 
   /// [09/10 · Mayra] O último MODO DE TRABALHO usado por quem tem vários
-  /// papéis: 'estafeta' | 'limpeza' | 'lavagem'. Ao reabrir a app entra-se
+  /// papéis: 'estafeta' | 'limpeza' | 'lavagem' | 'casa'. Ao reabrir a app entra-se
   /// nele (o portão do prestador decide; trabalho pendente noutro papel manda).
   static const _ultimoModoKey = 'bora_app.ultimo_modo_trabalho';
 
@@ -54,9 +54,10 @@ class SessionStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Guarda o modo de trabalho em uso ('estafeta' | 'limpeza' | 'lavagem').
+  /// Guarda o modo de trabalho em uso ('estafeta' | 'limpeza' | 'lavagem' |
+  /// 'casa').
   Future<void> setUltimoModoTrabalho(String modo) async {
-    if (!const {'estafeta', 'limpeza', 'lavagem'}.contains(modo)) return;
+    if (!const {'estafeta', 'limpeza', 'lavagem', 'casa'}.contains(modo)) return;
     if (_ultimoModoTrabalho == modo) return;
     _ultimoModoTrabalho = modo;
     notifyListeners();

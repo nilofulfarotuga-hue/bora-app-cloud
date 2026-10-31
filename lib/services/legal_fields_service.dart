@@ -36,6 +36,7 @@ class LegalFieldsService {
     'partner',
     'cleaner',
     'washer',
+    'handyman', // Casa e manutenção (31/10)
     'provider',
   };
 
@@ -175,6 +176,7 @@ class LegalFieldsService {
         'partner' => 'parceiro',
         'cleaner' => 'profissional de limpeza',
         'washer' => 'lavador',
+        'handyman' => 'profissional da Casa',
         'provider' => 'prestador de serviços',
         _ => 'prestador',
       };

@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-resumo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-29
+ultima_confirmacao: 2026-10-30
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Livro do Bora — resumo para o ChatGPT (regras + erros + índice, sem pessoais), gerado
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-resumo`, origem `claude-code`, atualizada em 2026-10-29T23:40:13.102491+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-resumo`, origem `claude-code`, atualizada em 2026-10-30T23:40:14.759264+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro resumo · memoria claude.ai · claude_ai_memoria
 
-# Livro do Bora — resumo para o ChatGPT (2026-10-29)
+# Livro do Bora — resumo para o ChatGPT (2026-10-30)
 
 Lê isto antes de responder ao Danilo. É a mesma verdade que a Claude.ai, o Hermes, o Claude Code e o OpenCode leem (tabela public.claude_ai_memoria). Gerado todas as noites pela VPS; páginas pessoais ficam de fora.
 
@@ -181,12 +181,17 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - 28/10 (claude-ai): 28/10: ao destravar o talão do Divan (Auchan) pus cash_total_due = total bruto (14,35) e disse ao Danilo para cobrar 14,35 €, sem ver que o cliente pagou 10,31 com saldo e 0,73 com tokens (devia 3,31) → antes de dizer quanto cobrar ou mexer num valor de pedido, ler wallet_applied_cents, tokens_applied_value_cents, debt_collected_cents e o cash_total_due que já lá está; nunca recalcular do total bruto
 - 29/10 (claude-code): pus uma frase com "23%" dentro de um format() do SQL e o Fecho do mês do painel ficou partido 8 horas em todos os meses → texto com % dentro de format() leva %%; e depois de mudar uma função do painel, chamá-la uma vez como admin antes de dar por feito
 - 29/10 (claude-ai): A sessão da missão da Bora perdeu a ligação ao PC e escrevi o adendo de retomar na caixa de OUTRA sessão viva ("DeepSeek Harness installation" = Gipsy/Hermes, paralela) e mandei carregar Enter lá; ele corrigiu irritado. → Ele tem várias conversas e sessões a correr ao mesmo tempo; cada missão fica na SUA sessão (a da Bora é "Missão geral Bora 2026-10-28"); nunca escrever numa sessão de outro assunto nem mandar parar o que ela faz. Se a sessão certa estiver desligada, dizer-lhe isso e pedir-lhe para colar o adendo lá, e nada mais.
+- 30/10 (claude-ai): No token do Supabase do Dipsy escolhi por ele 90 dias e só leitura com escrita em 4 áreas; ele corrigiu: quer acesso total (Full access) e para sempre (Never), "não quero ficar renovando nem apertando permitir, não quero passar raiva". → Quando ele pede acesso para os agentes dele (Dipsy, Claude Code), configura-se total e sem validade; o risco explica-se uma vez, numa linha, e a escolha é dele.
+- 30/10 (claude-ai): Dei-lhe a lista do que escolher no formulário do token do Supabase (validade, organização, preset) para ele preencher; ele reclamou irritado: "eu não faço nada, não preencho nada, quem preenche é você ou um agente, eu só aceito e clico no verde". → (repete as de 23/09 e 28/08) Formulário de painel web (Supabase, Google, Apple…) preenche-o o Claude pelo Chrome ou o Claude Code no PC; a ele só fica o botão verde final, com a página já preenchida à frente dele.
+- 30/10 (claude-ai): Na resposta ao Jai sobre a entrevista dele no canal de YouTube do Professor Kalinga (10 mil visualizações em menos de 12 h) escrevi "Great talk with Ranjit" só porque o título do vídeo dizia "Ranjit & Jai"; o Jai corrigiu: a conversa é com o Professor Kalinga, e a do Ranjit é a que já está no site dele. → Regra do Danilo (30/10 21:11): antes de escrever sobre um vídeo ou de o pôr no site, primeiro pôr o agente que vê os vídeos a vê-lo e ler o que ele diz (quem fala, de que se fala); nunca escrever só pelo título.
 
 
 ## Índice do livro (sem páginas pessoais)
 
 - 00-LEIA-PRIMEIRO — Como usar esta memória
 - adendo-1-final-app-2026-10-29 — Adendo 1 da missão final-app-2026-10-29
+- adendo-12-robo-boom-revisao-2026-10-30 — ADENDO 12 (Claude.ai, 30/10 06:25) - robo da Boom, revisor diario do WhatsApp da loja e fotos do Emanuel
+- adendo-13-ios-fotos-vps-2026-10-30 — ADENDO 13 (Claude.ai, 30/10 07:00) - teste do iPhone da publicacao 5, fotos do Emanuel, memoria do whatsapp-cerebro, cop
 - adendo-3-final-app-2026-10-29 — Adendo 3 da missão final-app-2026-10-29 — robô de documentos
 - adendo-5-final-app-2026-10-29 — Adendo 5 — decisão do Danilo sobre o plano melhor-que-Uber-Glovo (itens 4,5,6,7,8)
 - adendo-6-publica-2026-10-29 — ADENDO 6 (Claude.ai, 20:25) - robo nao recebeu a mensagem das 19:41 + fotos Letra para o Storage
@@ -385,6 +390,14 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - digest-2026-10-29-final-app — Digest 29/10/2026 — missão final-app (Fable 5.1)
 - digest-2026-10-29-publica — Digest — missão publica-2026-10-29 (29/10 noite, Fable 5.1)
 - digest-2026-10-29-telegram-robo-login — Avisos "travou de vez" no Telegram (29/10) — causa, o que foi arrumado e o que falta
+- digest-2026-10-30-adendo-13-ios — Missão publica 30/10 — adendo 13: iPhone relançado, cérebro do WhatsApp alinhado
+- digest-2026-10-30-conta-vansh-jai — Contas de 30/10 — Vansh, Jai e Ricardo (juntar à memória)
+- digest-2026-10-30-dsh-harness — Claude Code 30/10 — DeepSeek Harness (dsh) instalado com o mesmo livro do Claude Code
+- digest-2026-10-30-gorjetas-claude-ai — Digest 30/10 — gorjetas: taxa da Stripe e gorjeta junto da compra (Claude.ai)
+- digest-2026-10-30-gorjetas-taxa — Claude Code 30/10 — gorjetas com a taxa, robô da Boom e publicação 7
+- digest-2026-10-30-jai-kalinga — Claude Code 30/10 — entrevista do Jai no canal Professor Kalinga no site do Jai
+- digest-2026-10-30-remote-control-e-dsh-fecho — Claude Code 30/10 — Remote Control caído desde 28/10 e fecho do dsh
+- dsh-como-usar — Como usar o Dipsy (dsh)
 - em-dia-ios-copiar-pipeline-bora — Em Dia / iOS: nao escrever o CI do zero, copiar o da Bora que ja funciona
 - em-dia-iphone-identificador — Em Dia / iPhone: identificadores da Apple (bundle id, app id, SKU)
 - em-dia-play-classificacao-conteudo — Em Dia / Play: respostas da classificacao IARC e o que muda quando as assinaturas abrirem
@@ -398,6 +411,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - habilidades-propostas — Habilidades propostas pelo vigia (dinheiro/publicacao) — a Claude.ai decide
 - ideias-pendentes-decisao-danilo — Ideias grandes à espera da decisão do Danilo (29/10/2026)
 - ideias-videos-danilo — Ideias tiradas dos vídeos que o Danilo manda
+- jai-entrevista-kalinga-mensagem — Mensagem ao Jai — entrevista do Professor Kalinga já no site (30/10/2026)
 - livro-areas-alertas-notificacoes — Alertas do Bora para o Danilo (Telegram + push admin persistente) — o que já dispara, por que caminho, e o que falta
 - livro-areas-analise-apps-emulador — Ideia do Danilo (08/10/2026) de usar emulador Android + agente de IA para testar bugs do Bora e comparar com iFood/Uber/
 - livro-areas-arandelas-quadros-jai — Trabalho de montar as arandelas de vidro e pendurar os quadros em casa do [[jai-agarwal]] — e o material que ficou a fal
@@ -415,7 +429,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - livro-areas-bora-app-parte4 — Bora App multi-vertical platform — architecture, verticals, business rules, and protected zones (parte 4 de 4)
 - livro-areas-bora-compras-online — Categoria nova no Bora com lojas externas "Bora China" (AliExpress) e "Bora Europa" — o que o Danilo quer (out/2026)
 - livro-areas-bora-studio-agentes — Sistema de fiscais/agentes do Bora Studio — estado, falhas descobertas e método de validação (continuação de filme-anima
-- livro-areas-bora-todo-dia — Ideia do Danilo (10/10/2026) para fazer os clientes abrirem o Bora App todos os dias — receitas, notificação diária, jog
+- livro-areas-bora-todo-dia — Check-in diário e "Bora Todo Dia" do Bora App — tokens por dia, marcos com prémios de parceiros (10/15/30 dias) e a regr
 - livro-areas-buzz-conselho-modelos — Conselho de modelos (local e remoto), motores do plano Go, app Buzz e robôs Gemini do app — estado atual e regras
 - livro-areas-carteiro-e-juiz — Como o loop funciona hoje (carteiro, juiz, cadeia de motores, rotina de despertar) e as armadilhas provadas — ler ANTES 
 - livro-areas-casa-manutencao — Ideia do Danilo (29/10/2026) de uma categoria "Casa & Manutenção" / marido de aluguel no Bora App (eletricista, pladur, 
@@ -447,7 +461,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - livro-areas-ganhos-prestador — Ganhos do prestador no [[bora-app]] — total do dia em qualquer ecrã e a fórmula do estafeta em loja não-parceira (fica c
 - livro-areas-gibi-biblia-criancas — Animated Bible storytelling project for Danilo's daughters (characters Tuca and Lumi), pivoting to comic book (Gibi) for
 - livro-areas-goola-acai — Goola Açaí (quiosque no La Vie Guarda) — parceiro fechado do Bora App; modelo de preço acordado, loja montada e categori
-- livro-areas-gorjeta — Regra do Danilo para a gorjeta/gratificação no Bora (entregas e TVDE, copiar a Uber) — ler antes de mexer em gorjetas
+- livro-areas-gorjeta — Regras do Danilo para a gorjeta no Bora (entregas e TVDE): no carrinho vai junto do pagamento, paga depois desconta a ta
 - livro-areas-guarda-fc — Guarda FC — negócio do site fechado (clube com loja €1.700 + site pessoal €250; pago €1.550, falta €400), contrato, domí
 - livro-areas-guarda-fc-monetizacao — Intenção do Danilo de monetizar o Guarda FC para além do site — pedido de análise 18/08 e ideias que ele próprio pôs em 
 - livro-areas-guarda-fc-site-historico — Histórico técnico da construção do site do Guarda FC (v1 a v6) e do sistema de agentes de Telegram — ler antes de mandar
@@ -500,6 +514,8 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - livro-areas-produtos-peso-variavel — Regra do Danilo (26/10/2026) para produtos ao quilo nos mercados do [[bora-app]] — o estafeta troca o preço e o cliente 
 - livro-areas-prospecao-sites-clubes — Campanha de venda de sites a clubes de futebol portugueses (a partir do caso Guarda FC) — o que o Danilo pediu, critério
 - livro-areas-radar-ia — Radar semanal de novidades de IA (bot batedor do Hermes) + vereditos sobre ferramentas (DeepSeek Harness, Jev/TypeSafe) 
+- livro-areas-radar-ia-parte2 — Radar semanal de novidades de IA (bot batedor do Hermes) + vereditos sobre ferramentas (DeepSeek Harness, Jev/TypeSafe) 
+- livro-areas-radar-ia-parte3 — Radar semanal de novidades de IA (bot batedor do Hermes) + vereditos sobre ferramentas (DeepSeek Harness, Jev/TypeSafe) 
 - livro-areas-recibo-cliente-produto-falta — Regras que o Danilo fixou para mexer no conteúdo de um pedido já feito (produto em falta, acrescentar produto) e para o 
 - livro-areas-regras-lancamento-categorias — Regras fixas do Danilo para lançar QUALQUER categoria, loja ou serviço novo no Bora — ler ANTES de planear ou montar pro
 - livro-areas-sabores-de-casa — Sabores de Casa Açaí (mercado BR + açaí, Guarda) — parceiro no app + mini-site cinematográfico de presente (esquema Ouro
@@ -547,6 +563,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - mapa-sessoes-contas — Mapa de sessões e contas — que conta está em que sítio (provado no ecrã a 17/09/2026)
 - mensagem-hugo-pendente-2026-10-29 — Mensagem para o Hugo (grupo Contabilidade) preparada 29/10 17:40 — por enviar quando o Danilo disser
 - mercadona-reabrir-loja — Mercadona Guarda — reabrir só com perfumaria/cosmética/higiene (preparado 14-15/10/2026)
+- meta-anuncios-2026-10-30-textos — Textos finais dos 2 anúncios Meta de 30/10/2026 (Instala e pede + Check-in diário)
 - motores-rotacao-2026-10-29 — Motores gratis em rotacao - medicoes e cadeias (29/10/2026)
 - paridade-mundo-2026-10-29 — Paridade do mundo, segunda volta (Rappi, DoorDash, Zomato, Meituan) 29/10/2026
 - paridade-mundo-e-lei-2026-10-17 — Bora vs Uber/Glovo/iFood/Bolt/Grab/Meituan + obrigações da lei em Portugal (pesquisa 17/10/2026)
@@ -565,8 +582,11 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - prompt-boom-burger-adendo3-2026-10-27 — Prompt ADENDO 3 Boom! Burger (27/10 17:06) — consertar já o que ficou para trás
 - prompt-boom-burger-adendo4-2026-10-28 — PROMPT Boom! Burger — adendo 4 (fatura com NIF + entrega grátis preparada), 28/10/2026
 - prompt-cancelamento-tardio-2026-10-17 — Prompt: cancelamento tardio TVDE — app, painel e publicação nas 3 plataformas (17/10) — estado: a correr
+- prompt-casa-manutencao-2026-10-30 — Prompt: missão Casa & Manutenção (categoria nova, decisões do Danilo 30/10/2026)
 - prompt-final-app-2026-10-29 — Prompt missao final-app-2026-10-29
+- prompt-gorjetas-taxa-2026-10-30 — Prompt — gorjetas: taxa da Stripe na gorjeta paga depois e gorjeta do carrinho junto da compra (30/10/2026)
 - prompt-maiores-18-2026-10-07 — Prompt: verificação de idade +18 (tabaco/álcool) — estado: PRONTO, NÃO LANÇADO (bloqueado: publica nas lojas, falta o Da
+- prompt-meta-anuncios-2026-10-30 — Prompt: 2 anúncios novos da Meta (instalar app + carrossel do check-in) e dados da empresa na Meta (30/10/2026)
 - prompt-missao-da-noite-2026-10-07 — Prompt MISSÃO DA NOITE 07/10 (FABLE) — Bora Assistente (prioridade) + fechar +18 + Gmail caça-clientes + Apple Foco + GP
 - prompt-missao-geral-2026-10-28 — PROMPT missão geral 28/10 (Divan + Boom + robô WhatsApp + cartazes + erros), parte 1/2
 - prompt-missao-geral-2026-10-28-parte2 — PROMPT missão geral 28/10, parte 2/2 (blocos 1 a F, resumo)
@@ -614,6 +634,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - reembolsos-b2-ordem — reembolsos-b2-ordem
 - reembolsos-b2-sql-tokens — reembolsos-b2-sql-tokens
 - reembolsos-dashboard-passos — Reembolsos (Bloco 2) — passos para publicar pelo painel do Supabase (29/10/2026)
+- regras-checkin-v2-2026-10-30 — Check-in v2 — regras decididas pelo Danilo a 30/10/2026 (escada grande única + escada pequena mensal, só com compra)
 - regras-do-danilo — Regras do Danilo — versão 23/10/2026 (vale para Claude.ai, Hermes/Emerson, Claude Code, ChatGPT, OpenCode)
 - regras-operacao-agentes — O que podes e o que não podes fazer no Bora em produção (ChatGPT, OpenCode, Hermes, Claude Code)
 - regras-reels-radar-2026-10-04 — Regras de reels Em Dia e Bora (radar 04/10)

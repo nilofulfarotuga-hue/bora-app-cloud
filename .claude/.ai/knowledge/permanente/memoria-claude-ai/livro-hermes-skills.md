@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-hermes-skills
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-29
+ultima_confirmacao: 2026-10-30
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Skills do Hermes (as que criou + lista das de fábrica), cópia noturna
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-hermes-skills`, origem `hermes`, atualizada em 2026-10-29T23:40:10.937295+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-hermes-skills`, origem `hermes`, atualizada em 2026-10-30T23:40:12.748061+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro hermes skills · memoria claude.ai · claude_ai_memoria
 
-# Skills do Hermes (cópia de 2026-10-29)
+# Skills do Hermes (cópia de 2026-10-30)
 
 Skills que o Hermes criou sozinho: 14. Vindas de fábrica ou instaladas: 81. Fonte única das skills partilhadas: .claude/skills/ do repo bora-app-cloud (espelho na VPS em /opt/data/cortex-brain/.claude/skills). Skill nova do Hermes entra lá como hermes-<nome>, revista pelo critico.
 

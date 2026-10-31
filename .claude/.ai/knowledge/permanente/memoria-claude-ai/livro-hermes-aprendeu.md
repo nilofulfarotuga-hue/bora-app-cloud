@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-hermes-aprendeu
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-29
+ultima_confirmacao: 2026-10-30
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # O que o Hermes aprendeu sozinho (MEMORY.md + USER.md), cópia noturna
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-hermes-aprendeu`, origem `hermes`, atualizada em 2026-10-29T23:40:08.932402+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-hermes-aprendeu`, origem `hermes`, atualizada em 2026-10-30T23:40:11.513825+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro hermes aprendeu · memoria claude.ai · claude_ai_memoria
 
-# O que o Hermes aprendeu sozinho (cópia de 2026-10-29)
+# O que o Hermes aprendeu sozinho (cópia de 2026-10-30)
 
 Gerado todas as noites por /opt/data/bin/livro_noite.py. A Claude.ai lê e funde no livro o que valer; contradições vão para a faxina de domingo.
 

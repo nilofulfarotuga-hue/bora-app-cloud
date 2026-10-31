@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-30
+ultima_confirmacao: 2026-10-31
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-30T21:27:39.238514+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-31T00:00:11.387056+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -415,3 +415,10 @@ Filme caminho 4 (fontes htROyMzUbA8, rxZZ1xi81a4): no Google Flow (Omniflash 1.1
   9) A caixa de areia só trava escrita: leitura e rede ficam livres — a nossa guarda cobre os comandos, confirmar a rede.
   10) Engenharia reversa (C2) e ferramentas extra (C10) quase nada feito.
 - Fontes: https://www.eesel.ai/blog/deepseek-harness , https://deepinfra.com/blog/deepseek-harness-review , https://composio.dev/content/best-deepseek-harness-plugins , https://dsh-plugin.org/tutorials/dsh-memory-plugins
+
+## 31/10/2026 (madrugada) — os 43 vídeos do Dipsy vistos (PC, ordem-20261030212650-5b4e, 33 com legenda)
+43 revistos: 15 PENDENTES, 12 já temos, 16 rejeitados (14 por nota baixa). 29 com nota >= 6. Proposta prop-671278ee.
+- O QUE FALTA, confirmado pelos vídeos: (1) Creator Mode — 8 vídeos — o Dipsy cria plugins conversando; (2) tarefas agendadas — 6 vídeos; (3) equipa de subagentes, que agora conversam nos dois sentidos — 5 vídeos; (4) Claude Code como subagente; (5) SEGURANÇA: web fetch passou a vir ligado por omissão (NE2EWP7ZoaE) — confirmar a guarda dsh-bora; (6) /plan, /goal, steer, rewind, app de computador.
+- Dipsy vs Hermes (7 vídeos): usar os dois — Dipsy a programar no PC, Hermes a pesquisar em segundo plano = já temos; falta o bot do Dipsy no BotFather.
+- Itens da lista de 30/10 sem novidade nos vídeos: privacidade dos registos (nenhum vídeo fala), memória própria (só 1 vídeo, rewind).
+- Links: https://www.youtube.com/watch?v=Zdcx_VHAREI , https://www.youtube.com/watch?v=KjV7DVSDzhg , https://www.youtube.com/watch?v=t9OSYThsn_c , https://www.youtube.com/watch?v=NE2EWP7ZoaE , https://www.youtube.com/watch?v=w17qTh6aqMQ , https://www.youtube.com/watch?v=vNxODnjHIk0

@@ -10,7 +10,7 @@ estado: atual
 
 # Textos finais dos 2 anúncios Meta de 30/10/2026 (Instala e pede + Check-in diário)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `meta-anuncios-2026-10-30-textos`, origem `claude-code`, atualizada em 2026-10-30T22:01:08.870069+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `meta-anuncios-2026-10-30-textos`, origem `claude-code`, atualizada em 2026-10-30T23:57:38.86667+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: meta anuncios 2026 10 30 textos · memoria claude.ai · claude_ai_memoria
 
@@ -37,3 +37,5 @@ Link IPG: https://www.boraguarda.com/baixar?de=meta-checkin-ipg&utm_source=meta&
 Valores confirmados na base a 30/10 21:50: checkin_rewards [5,5,10,10,15,15,40]; checkin_marco_salgados dia 10, checkin_marco_acai dia 15, checkin_marco_mes dia 30 (limpeza 2 h ou lavagem exterior); exige telemóvel e pedido pago nos últimos 30 dias; escada ativa (um prémio por sequência). Goola e Sabores do Brasil coming_soon=false.
 
 Medição: a contagem é pelo de= (link_clicks / site_visits). O apex boraguarda.com/baixar sem www NÃO conta (regra da Cloudflare), por isso os links levam www.
+
+ATUALIZAÇÃO 31/10 00:00 (publicado): a Meta recusa a /baixar como destino de Tráfego ("URL da app", #1487810, por causa da meta apple-itunes-app da página). Destinos finais: Anúncio 1 → https://www.boraguarda.com/entregas ; carrossel → https://www.boraguarda.com/ ; utm_source=meta&utm_medium=pago&utm_campaign=instala-e-pede / checkin-diario / checkin-ipg nos Parâmetros de URL. Descrição do anúncio 1: "Entrega desde 2,50 € na Guarda"; botão "Descarregar". IDs: campanha 52680337414474 (conjunto 52680337414874, anúncio 52680337414674, 2,50 €/dia); campanha 52680349790474 (conjunto Guarda 52680349790874 1,00 €/dia + anúncio 52680349790674; conjunto IPG 52680351300874 1,50 €/dia, 18-26, interesses Na faculdade/Higher education/Estudante/Universidade + anúncio 52680351301074 com o texto para estudantes). Todos de 31/10 08:00 a 04/11 23:59, Praça Velha +8 km, anúncios DESLIGADOS até os fundos chegarem a 25 €.

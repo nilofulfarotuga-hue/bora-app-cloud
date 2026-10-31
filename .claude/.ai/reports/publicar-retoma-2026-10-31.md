@@ -69,11 +69,27 @@ O chat de ajuda e o assistente do painel também têm a mudança do motor Claude
 publicar; não estavam no teu "sim", e o assistente do painel tem a versão 13 da Claude.ai, que não se
 mexe.
 
+## As chaves do Claude (21:30 a 21:45)
+
+Criaste o espaço "Robos Bora" e duas chaves nele, válidas até 31/01/2027: a "robos-vps", que ficou na
+VPS para o motor dos robôs, e a "app-supabase", que ficou nos segredos das funções do servidor (com uma
+cópia guardada na VPS). As duas são diferentes e nenhuma foi escrita em ficheiro do repositório. Provas:
+o porteiro da VPS diz que tem chave; o decidir respondeu pelo Claude (Sonnet) em modo automático; o
+robot-b fez o diagnóstico pelo Claude (Haiku) e deixou de dar o erro de quota do Gemini; os três pedidos
+ficaram no livro de gastos, cerca de 0,0016 dólares ao todo.
+
+Pelo caminho corrigi o vigia: a consola nova dá chaves que começam por "sk-ant-usr" e ele só conhecia
+"sk-ant-api"; o teste passou a usar o mínimo de 1024 tokens que as funções usam; e só apaga a área de
+transferência quando a chave é mesmo recusada, para não perder uma chave boa por um erro do pedido.
+
+Um erro meu: uma captura de ecrã apanhou a janela da chave "robos-vps" ainda aberta. Não a escrevi em
+lado nenhum, mas a imagem ficou numa pasta interna do Claude Code no teu PC. Pela regra da casa ("chave
+exposta, chave trocada"), proponho trocar essa chave.
+
 ## Próximo passo
 
-Criar a chave do Claude: eu deixo a página da consola aberta à tua frente e tu carregas em Criar espaço
-e depois em Criar chave; o resto faço eu. E, quando decidires, autorizar os valores da Casa no painel e
-ligá-la.
+Trocar a chave "robos-vps" (dois cliques teus, o resto faço eu). E, quando decidires, autorizar os
+valores da Casa no painel e ligá-la.
 
 ---
 

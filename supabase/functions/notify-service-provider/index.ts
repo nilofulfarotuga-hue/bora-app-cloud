@@ -12,7 +12,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { secretKey } from '../_shared/keys.ts'
-import { chamadaDoServidor } from '../_shared/chaves.ts'
+import { chamadaDoServidor, respostaAoPing } from '../_shared/chaves.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,22 +31,14 @@ Deno.serve(async (req) => {
 
   const serviceKey = secretKey() ?? ''
 
-  const authHeader = req.headers.get('Authorization') ?? ''
-  // 16/10/2026: a chave secreta nova da Supabase (sb_secret) não é JWT; valida-se em _shared/chaves.ts
-  const chaveNovaOk = await chamadaDoServidor(req)
-  if (!chaveNovaOk && !authHeader.startsWith('Bearer ')) {
+  // 31/10/2026 (chaves-varredura): só o servidor, pela regra da casa (_shared/chaves.ts) — sem ler o
+  // papel do JWT à mão; a service_role legada do banco passa confirmada no Auth.
+  if (!(await chamadaDoServidor(req))) {
+    console.warn('[notify-service-provider] forbidden — quem chama não é o servidor')
     return json({ ok: false, error: 'forbidden' }, 403)
   }
-  try {
-    const token = authHeader.substring(7)
-    const payload = chaveNovaOk ? { role: 'service_role' } : JSON.parse(atob(token.split('.')[1]))
-    if (payload.role !== 'service_role') {
-      console.warn('[notify-service-provider] forbidden — role mismatch:', payload.role)
-      return json({ ok: false, error: 'forbidden' }, 403)
-    }
-  } catch (_e) {
-    return json({ ok: false, error: 'forbidden' }, 403)
-  }
+  const pong = await respostaAoPing(req, corsHeaders)
+  if (pong) return pong
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
   const firebaseProjectId = Deno.env.get('FIREBASE_PROJECT_ID') ?? ''

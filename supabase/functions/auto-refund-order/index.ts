@@ -24,18 +24,10 @@ const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
 });
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { 'Content-Type': 'application/json' } });
 
-function roleFromJwt(token: string): string | null {
-  try {
-    const p = token.split('.')[1];
-    const s = atob(p.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (p.length % 4)) % 4));
-    return JSON.parse(s)?.role ?? null;
-  } catch (_) { return null; }
-}
-
 Deno.serve(async (req: Request) => {
-  const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
-  // 16/10/2026 (chave nova): a chave secreta nova (sb_secret) não é JWT — ver _shared/chaves.ts
-  if (roleFromJwt(token) !== 'service_role' && !(await chamadaDoServidor(req))) return json({ error: 'forbidden' }, 403);
+  // 31/10/2026 (chaves-varredura): só o servidor, pela regra da casa (_shared/chaves.ts) — sem ler o
+  // papel do JWT à mão; a service_role legada do banco passa confirmada no Auth.
+  if (!(await chamadaDoServidor(req))) return json({ error: 'forbidden' }, 403);
 
   let orderId: string | undefined; let motivo = 'cancelado_pelo_sistema';
   try { const b = await req.json(); orderId = b?.order_id; motivo = b?.motivo ?? motivo; } catch (_) { return json({ error: 'invalid_body' }, 400); }

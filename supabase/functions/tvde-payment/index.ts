@@ -60,6 +60,7 @@
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { secretKey } from '../_shared/keys.ts';
+import { chamadaDoServidor } from '../_shared/chaves.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -205,34 +206,18 @@ async function callerIsAdmin(
   return data === true;
 }
 
-// v11 — Autorizacao das chamadas do SERVIDOR (base -> Edge).
-// A funcao corre com verify_jwt=true: a porta da Supabase so deixa passar
-// pedidos com um JWT de assinatura valida — um JWT forjado nunca chega aqui.
-// Aqui confirma-se o PAPEL desse JWT ja verificado: tem de ser 'service_role'
-// (a chave anon tem 'anon'; um cliente com sessao tem 'authenticated').
-// NUNCA se aceita por cabecalho proprio, por campo do corpo, ou so por o
-// token existir. So vale enquanto verify_jwt=true — se alguem o desligar,
-// esta funcao deixa de ser segura (ver aviso no deploy).
-function jwtServiceRoleVerificadoPelaPorta(token: string): boolean {
-  try {
-    const partes = token.split('.');
-    if (partes.length !== 3) return false;
-    const b64 = partes[1].replace(/-/g, '+').replace(/_/g, '/');
-    const payload = JSON.parse(atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4)));
-    if (payload?.role !== 'service_role') return false;
-    if (payload?.iss !== undefined && payload.iss !== 'supabase') return false;
-    const agora = Math.floor(Date.now() / 1000);
-    if (typeof payload?.exp === 'number' && payload.exp <= agora) return false;
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
+// v20 (31/10/2026, chaves-varredura) — Autorizacao das chamadas do SERVIDOR (base -> Edge).
+// Regra da casa (_shared/chaves.ts): chave secreta nova em apikey ou Bearer (qualquer nome), ou a
+// service_role legada CONFIRMADA no Auth. Antes: igualdade com a variavel de ambiente ou o papel
+// lido do JWT a mao (so seguro com verify_jwt=true). NUNCA se aceita por campo do corpo.
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
+    const servidor = await chamadaDoServidor(req);
     const body = await req.json().catch(() => ({}));
+    // Vigia diario das chaves (Bloco D): o banco manda {"ping":true} com a chave de servidor.
+    if (servidor && body?.ping === true) return json({ pong: true });
     const action = String(body.action ?? '');
 
     const token = (req.headers.get('Authorization') ?? '')
@@ -243,7 +228,7 @@ Deno.serve(async (req) => {
     // Fica ANTES do kill switch de proposito: devolver dinheiro tem de funcionar
     // mesmo com os pagamentos online desligados.
     if (action === 'auto_refund_reservation') {
-      if (!(SERVICE_KEY && token === SERVICE_KEY) && !jwtServiceRoleVerificadoPelaPorta(token)) {
+      if (!servidor) {
         return json({ error: 'not_service_role' }, 403);
       }
       const rideId = String(body.ride_id ?? '');
@@ -291,7 +276,7 @@ Deno.serve(async (req) => {
       // da Edge — a comparacao de texto recusava sempre (403 not_service_role).
       // Com verify_jwt=true a porta ja validou a assinatura; aqui basta ler o
       // papel do JWT.
-      if (!(SERVICE_KEY && token === SERVICE_KEY) && !jwtServiceRoleVerificadoPelaPorta(token)) {
+      if (!servidor) {
         return json({ error: 'not_service_role' }, 403);
       }
       const rideId = String(body.ride_id ?? '');
@@ -352,7 +337,7 @@ Deno.serve(async (req) => {
     // proposito, como as outras duas: devolver dinheiro tem de funcionar mesmo
     // com os pagamentos online desligados.
     if (action === 'auto_refund_ride') {
-      if (!(SERVICE_KEY && token === SERVICE_KEY) && !jwtServiceRoleVerificadoPelaPorta(token)) {
+      if (!servidor) {
         return json({ error: 'not_service_role' }, 403);
       }
       const rideId = String(body.ride_id ?? '');
@@ -473,7 +458,7 @@ Deno.serve(async (req) => {
         try {
           await fetch(`${SUPABASE_URL}/functions/v1/notify-tvde-client`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${SERVICE_KEY}` },
+            headers: { 'Content-Type': 'application/json', apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` },
             body: JSON.stringify({
               rideId: ride.id, status: 'reembolso_feito',
               titulo: 'Dinheiro devolvido',
@@ -498,7 +483,7 @@ Deno.serve(async (req) => {
     //  · aplicada numa corrida CANCELADA → devolve a diferença (a viagem não se fez).
     // Antes do kill switch: devolver dinheiro funciona com os pagamentos desligados.
     if (action === 'sweep_dest_changes') {
-      if (!(SERVICE_KEY && token === SERVICE_KEY) && !jwtServiceRoleVerificadoPelaPorta(token)) {
+      if (!servidor) {
         return json({ error: 'not_service_role' }, 403);
       }
       const { data: pend, error: pendErr } = await admin.rpc('tvde_dest_change_pendentes');

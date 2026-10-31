@@ -61,13 +61,10 @@ type Caller = { kind: 'service' } | { kind: 'user'; id: string; admin: boolean }
 async function whoCalls(req: Request): Promise<Caller | null> {
   // 16/10/2026 (chave nova): a chave secreta nova (sb_secret) não é JWT — ver _shared/chaves.ts
   if (await chamadaDoServidor(req)) return { kind: 'service' };
+  // 31/10/2026 (chaves-varredura): sem ler o papel do JWT à mão — a service_role legada já passa
+  // por chamadaDoServidor (confirmada no Auth).
   const auth = req.headers.get('authorization') ?? '';
   if (!auth.startsWith('Bearer ')) return null;
-  const token = auth.substring(7);
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    if (payload.role === 'service_role') return { kind: 'service' };
-  } catch (_) { /* segue para utilizador */ }
   const userClient = createClient(supabaseUrl, anonKey, {
     global: { headers: { Authorization: auth } },
   });

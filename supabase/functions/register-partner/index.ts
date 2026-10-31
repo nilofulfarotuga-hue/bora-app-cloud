@@ -1,5 +1,6 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { secretKey } from "../_shared/keys.ts";
+import { tokenBearer, utilizadorDoPedido } from "../_shared/chaves.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
 const serviceRoleKey = secretKey() || "";
@@ -61,39 +62,23 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Extract user_id from Authorization header JWT
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    // 31/10/2026 (chaves-varredura) — FALHA DE SEGURANÇA FECHADA: com verify_jwt=false a porta não
+    // verifica a assinatura, e esta função lia o `sub` do JWT à confiança — qualquer pessoa forjava um
+    // `sub` e registava uma loja em nome de outro utilizador. Agora a sessão é confirmada no Auth.
+    if (!tokenBearer(req)) {
       return new Response(
         JSON.stringify({ error: "Authorization header obrigatório" }),
         { status: 401, headers: { "Content-Type": "application/json" } }
       );
     }
-
-    const token = authHeader.substring(7);
-    const parts = token.split(".");
-    if (parts.length !== 3) {
+    const utilizador = await utilizadorDoPedido(req);
+    if (!utilizador) {
       return new Response(
-        JSON.stringify({ error: "Token JWT inválido" }),
+        JSON.stringify({ error: "Sessão inválida" }),
         { status: 401, headers: { "Content-Type": "application/json" } }
       );
     }
-
-    const payload = JSON.parse(
-      new TextDecoder().decode(
-        Uint8Array.from(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")), (c) =>
-          c.charCodeAt(0)
-        )
-      )
-    );
-
-    const userId = payload.sub; // sub = user.id em Supabase JWT
-    if (!userId) {
-      return new Response(
-        JSON.stringify({ error: "user_id não encontrado no token" }),
-        { status: 401, headers: { "Content-Type": "application/json" } }
-      );
-    }
+    const userId = utilizador.id;
 
     const body = (await req.json()) as RegisterPartnerRequest;
 

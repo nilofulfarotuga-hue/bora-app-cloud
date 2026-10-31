@@ -44,13 +44,9 @@ Deno.serve(async (req) => {
   const rideId = String(body?.rideId ?? '')
   if (!/^[0-9a-f-]{36}$/i.test(rideId)) return json({ ok: false, error: 'rideId_invalido' }, 400)
 
-  let isService = false
-  try {
-    const p = JSON.parse(atob(authHeader.substring(7).split('.')[1]))
-    isService = p.role === 'service_role'
-  } catch (_e) {}
-  // 16/10/2026 (chave nova): aceita também a chave secreta nova (sb_secret) em Bearer/apikey — ver _shared/chaves.ts
-  if (!isService) isService = await chamadaDoServidor(req)
+  // 31/10/2026 (chaves-varredura): servidor só pela regra da casa (_shared/chaves.ts) — sem ler o
+  // papel do JWT à mão; a service_role legada passa confirmada no Auth.
+  const isService = await chamadaDoServidor(req)
 
   const admin = createClient(supabaseUrl, serviceKey)
   let recibo: any = null

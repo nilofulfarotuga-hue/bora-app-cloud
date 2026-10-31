@@ -9,7 +9,7 @@
 // Body: { user_ids: string[], title: string, body: string, type?: string }
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { chamadaDoServidor } from '../_shared/chaves.ts'
+import { chamadaDoServidor, respostaAoPing } from '../_shared/chaves.ts'
 import { secretKey } from '../_shared/keys.ts'
 
 const cors = {
@@ -27,16 +27,11 @@ Deno.serve(async (req) => {
   const fbSa = Deno.env.get('FIREBASE_SERVICE_ACCOUNT')
   if (!fbProject || !fbSa) return json({ ok: false, error: 'firebase_not_configured' }, 500)
 
-  const auth = req.headers.get('Authorization') ?? ''
-  // 16/10/2026 (chave nova): aceita também a chave secreta nova (sb_secret) em Bearer/apikey — ver _shared/chaves.ts
-  if (!(await chamadaDoServidor(req))) {
-    try {
-      const p = JSON.parse(atob(auth.substring(7).split('.')[1]))
-      if (p.role !== 'service_role') throw new Error('role')
-    } catch (_e) {
-      return json({ ok: false, error: 'forbidden' }, 403)
-    }
-  }
+  // 31/10/2026 (chaves-varredura): só o servidor, pela regra da casa (_shared/chaves.ts) — sem ler o
+  // papel do JWT à mão; a service_role legada passa confirmada no Auth.
+  if (!(await chamadaDoServidor(req))) return json({ ok: false, error: 'forbidden' }, 403)
+  const pong = await respostaAoPing(req, cors)
+  if (pong) return pong
 
   const b = await req.json().catch(() => ({}))
   const userIds: string[] = Array.isArray(b?.user_ids) ? b.user_ids : []

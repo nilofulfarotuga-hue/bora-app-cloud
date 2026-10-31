@@ -23,6 +23,7 @@ import { corsHeaders } from '../_shared/cors.ts';
 import { lerPagoDoPedido, repartirReembolso, totalPago } from '../_shared/cobranca_stripe.ts';
 import { secretKey } from '../_shared/keys.ts';
 import { devolverGorjetasDoPedido } from '../_shared/gorjeta_devolver.ts';
+import { chamarFuncao } from '../_shared/chamadas.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   apiVersion: '2023-10-16',
@@ -180,18 +181,15 @@ Deno.serve(async (req) => {
       if (debitErr) {
         // Hard floor excedido → cancelar SEM débito + alertar (não bloquear cancelamento)
         console.error('[cancel-with-choice] wallet_debit_cancel_fee failed:', debitErr);
-        try {
-          await admin.functions.invoke('notify-admin-urgent', {
-            body: {
-              kind: 'wallet_cancel_floor_exceeded',
-              order_id: orderId,
-              user_id: user.id,
-              fee_cents: Math.round(fee * 100),
-              tier: t,
-              error: debitErr.message,
-            },
-          });
-        } catch (_) { /* fire-and-forget */ }
+        // 31/10/2026 (A10): a falha fica em e2e_log (edge-chamada-falhou), nunca em silêncio.
+        await chamarFuncao(admin, 'cancel-order-with-choice', 'notify-admin-urgent', {
+          kind: 'wallet_cancel_floor_exceeded',
+          order_id: orderId,
+          user_id: user.id,
+          fee_cents: Math.round(fee * 100),
+          tier: t,
+          error: debitErr.message,
+        });
         chargeMissing = true; // fallback comportamento legado
       } else {
         cancelFeeDebited = true;
@@ -349,11 +347,12 @@ Deno.serve(async (req) => {
       message += ` A gorjeta (€${(gorjeta.devolvidaCents / 100).toFixed(2)}) também voltou` +
         (gorjeta.carteiraCents > 0 ? ' ao teu saldo Bora.' : ', inteira.');
     }
-    await admin.functions.invoke('notify-client', {
-      body: { user_id: user.id, title, body: message,
-              data: { order_id: orderId, refund_method: refundExecuted ? refundMethod : null,
-                      charge_missing: chargeMissing,
-                      cancel_fee_debited: cancelFeeDebited } },
+    // 31/10/2026 (A10): notify-client lê `clientId` (com `user_id` dava 400 calado); falha → e2e_log.
+    await chamarFuncao(admin, 'cancel-order-with-choice', 'notify-client', {
+      clientId: user.id, user_id: user.id, orderId, title, body: message,
+      data: { order_id: orderId, refund_method: refundExecuted ? refundMethod : null,
+              charge_missing: chargeMissing,
+              cancel_fee_debited: cancelFeeDebited },
     });
   } catch (e) {
     console.warn('[cancel-with-choice] notify failed (non-fatal):', e);

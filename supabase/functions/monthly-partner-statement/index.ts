@@ -27,7 +27,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { secretKey } from '../_shared/keys.ts'
-import { chamadaDoServidor } from '../_shared/chaves.ts'
+import { chamadaDoServidor, respostaAoPing } from '../_shared/chaves.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -83,18 +83,11 @@ function agoraLisboa() {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
-  const authHeader = req.headers.get('Authorization') ?? ''
-  // 16/10/2026: a chave secreta nova da Supabase (sb_secret) não é JWT; valida-se em _shared/chaves.ts
-  const chaveNovaOk = await chamadaDoServidor(req)
-  try {
-    if (!chaveNovaOk && !authHeader.startsWith('Bearer ')) throw new Error('no bearer')
-    if (!chaveNovaOk) {
-      const payload = JSON.parse(atob(authHeader.substring(7).split('.')[1]))
-      if (payload.role !== 'service_role') throw new Error('role')
-    }
-  } catch (_e) {
-    return json({ ok: false, error: 'forbidden' }, 403)
-  }
+  // 31/10/2026 (chaves-varredura): só o servidor, pela regra da casa (_shared/chaves.ts) — a
+  // service_role legada passa confirmada no Auth; sem ler o papel do JWT à mão.
+  if (!(await chamadaDoServidor(req))) return json({ ok: false, error: 'forbidden' }, 403)
+  const pong = await respostaAoPing(req, corsHeaders)
+  if (pong) return pong
 
   let b = {}
   try { b = await req.json() } catch (_e) {}

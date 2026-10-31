@@ -13,6 +13,7 @@
 // Com a chave de serviço (prova técnica) pode indicar `userId` ou um `token`.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { secretKey } from '../_shared/keys.ts'
+import { chamadaDoServidor, respostaAoPing, utilizadorDoPedido } from '../_shared/chaves.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -37,6 +38,8 @@ Deno.serve(async (req) => {
     console.warn(`[testar-toque v1] 403 motivo=${quem.reason}`)
     return json({ ok: false, error: 'forbidden' }, 403)
   }
+  const pong = await respostaAoPing(req, corsHeaders)
+  if (pong) return pong
   if (!firebaseProjectId || !firebaseServiceAcct) return json({ ok: false, reason: 'firebase_not_configured' })
 
   let body: any = {}
@@ -121,33 +124,15 @@ Deno.serve(async (req) => {
 })
 
 // ── Quem chama ────────────────────────────────────────────────────────────
-const servicoOk = new Set<string>()
-function lerPayload(token: string): any {
-  try {
-    let b = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
-    while (b.length % 4) b += '='
-    return JSON.parse(atob(b))
-  } catch (_) { return null }
-}
-async function identificar(req: Request, supabaseUrl: string, serviceKey: string, supabase: any):
+// 31/10/2026 (chaves-varredura): regra da casa (_shared/chaves.ts) — servidor = chave secreta nova
+// em apikey ou Bearer, ou a service_role legada confirmada no Auth; utilizador = sessão confirmada
+// no Auth. Antes comparava com a variável de ambiente e lia o papel do JWT à mão.
+async function identificar(req: Request, _supabaseUrl: string, _serviceKey: string, _supabase: any):
   Promise<{ ok: boolean, reason?: string, uid?: string, servico?: boolean }> {
-  const h = req.headers.get('authorization') ?? ''
-  if (!h.toLowerCase().startsWith('bearer ')) return { ok: false, reason: 'sem_token' }
-  const token = h.slice(7).trim()
-  if (!token) return { ok: false, reason: 'sem_token' }
-  if (token === serviceKey || servicoOk.has(token)) return { ok: true, servico: true }
-  const p = lerPayload(token)
-  if (p?.role === 'service_role') {
-    try {
-      const r = await fetch(`${supabaseUrl}/auth/v1/admin/users?per_page=1`, { headers: { apikey: token, Authorization: `Bearer ${token}` } })
-      if (r.ok) { servicoOk.add(token); return { ok: true, servico: true } }
-    } catch (_) {}
-    return { ok: false, reason: 'service_invalido' }
-  }
-  if (p?.role !== 'authenticated') return { ok: false, reason: `papel_${p?.role ?? 'desconhecido'}` }
-  const { data: u, error } = await supabase.auth.getUser(token)
-  if (error || !u?.user) return { ok: false, reason: 'jwt_invalido' }
-  return { ok: true, uid: String(u.user.id), servico: false }
+  if (await chamadaDoServidor(req)) return { ok: true, servico: true }
+  const u = await utilizadorDoPedido(req)
+  if (!u) return { ok: false, reason: 'sem_sessao_valida' }
+  return { ok: true, uid: String(u.id), servico: false }
 }
 
 function json(obj: any, status = 200): Response {

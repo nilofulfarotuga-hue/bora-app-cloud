@@ -29,6 +29,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { secretKey } from '../_shared/keys.ts';
 import { claudePrimeiro, extrairJson } from '../_shared/claude.ts';
+import { chamadaDoServidor, respostaAoPing } from '../_shared/chaves.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -57,14 +58,6 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-function decodeJwtRole(token: string): string | null {
-  try {
-    const p = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-    return JSON.parse(atob(p + '==='.slice(0, (4 - p.length % 4) % 4))).role ?? null;
-  } catch {
-    return null;
-  }
-}
 
 // ── Contrato ────────────────────────────────────────────────────────────────
 type Tipo = 'choice' | 'score' | 'noul';
@@ -457,7 +450,9 @@ Deno.serve(async (req: Request) => {
 
   const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
-  const isService = token === SUPABASE_SERVICE_ROLE_KEY || decodeJwtRole(token) === 'service_role';
+  // 31/10/2026 (chaves-varredura): servidor pela regra da casa (_shared/chaves.ts), não pela
+  // igualdade com a variável de ambiente nem pelo papel lido do JWT sem assinatura.
+  const isService = await chamadaDoServidor(req);
   if (!isService) {
     const user = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false },
@@ -465,6 +460,8 @@ Deno.serve(async (req: Request) => {
     const { data: ok } = await user.rpc('is_admin');
     if (ok !== true) return json({ error: 'forbidden' }, 403);
   }
+  const pong = await respostaAoPing(req, corsHeaders);
+  if (pong) return pong;
 
   let body: any;
   try {

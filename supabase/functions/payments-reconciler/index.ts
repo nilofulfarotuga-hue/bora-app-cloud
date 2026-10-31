@@ -35,7 +35,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { lerPagoDoPedido } from '../_shared/cobranca_stripe.ts';
-import { chamadaDoServidor } from '../_shared/chaves.ts';
+import { chamadaDoServidor, respostaAoPing } from '../_shared/chaves.ts';
 import { secretKey } from '../_shared/keys.ts';
 
 const corsHeaders = {
@@ -172,17 +172,14 @@ async function entityConfirmed(pi: any, out: Finding[]): Promise<void> {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
-  // Auth: service_role apenas (mesmo padrao do notify-admin-urgent).
-  const auth = req.headers.get('Authorization') ?? '';
-  // 16/10/2026 (chave nova): aceita também a chave secreta nova (sb_secret) em Bearer/apikey — ver _shared/chaves.ts
-  if (!(await chamadaDoServidor(req))) {
-    try {
-      const payload = JSON.parse(atob(auth.replace(/^Bearer\s+/i, '').split('.')[1]));
-      if (payload.role !== 'service_role') return json({ ok: false, error: 'forbidden' }, 403);
-    } catch (_) {
-      return json({ ok: false, error: 'forbidden' }, 403);
-    }
-  }
+  // Auth: só o servidor. 31/10/2026 (chaves-varredura): regra da casa (_shared/chaves.ts) sem ler o
+  // papel do JWT à mão — a service_role legada passa confirmada no Auth.
+  if (!(await chamadaDoServidor(req))) return json({ ok: false, error: 'forbidden' }, 403);
+  // Vigia diário das chaves: o ping responde antes do kill switch e antes de correr a conferência.
+  const pong = await respostaAoPing(req, corsHeaders);
+  if (pong) return pong;
+  // O aviso ao admin vai com a chave de servidor DESTA função (Bearer + apikey).
+  const auth = `Bearer ${secretKey()}`;
 
   // Kill switch (fail-closed: setting em falta/false = nao corre).
   const { data: ks } = await admin.from('platform_settings').select('value').eq('key', 'payments_reconciler_enabled').maybeSingle();

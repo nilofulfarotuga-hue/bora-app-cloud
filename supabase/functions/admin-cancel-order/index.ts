@@ -18,6 +18,7 @@ import { corsHeaders } from '../_shared/cors.ts';
 import { lerPagoDoPedido, repartirReembolso, totalPago } from '../_shared/cobranca_stripe.ts';
 import { secretKey } from '../_shared/keys.ts';
 import { devolverGorjetasDoPedido } from '../_shared/gorjeta_devolver.ts';
+import { chamarFuncao } from '../_shared/chamadas.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   apiVersion: '2023-10-16',
@@ -101,30 +102,18 @@ function mapDriverMessage(code) {
 
 const PARTNER_MESSAGE = 'Pedido cancelado pelo administrador.';
 
-async function callNotifyClient(client, payload) {
-  try {
-    const { data, error } = await client.functions.invoke('notify-client', { body: payload });
-    if (error) return { ok: false, reason: String(error?.message ?? error) };
-    if (data?.ok === false) return { ok: false, reason: data.reason ?? 'unknown' };
-    return { ok: true };
-  } catch (e) { return { ok: false, reason: String(e) }; }
+// 31/10/2026 (A10): as três chamadas passam por chamarFuncao — uma resposta não-2xx ou uma exceção
+// fica em e2e_log (edge-chamada-falhou) em vez de só voltar no JSON desta função.
+async function chamarAviso(client, destino, payload) {
+  const r = await chamarFuncao(client, 'admin-cancel-order', destino, payload);
+  if (!r.ok) return { ok: false, reason: r.erro ?? 'erro' };
+  const data = r.dados as { ok?: boolean; reason?: string } | null;
+  if (data?.ok === false) return { ok: false, reason: data.reason ?? 'unknown' };
+  return { ok: true };
 }
-async function callNotifyDriver(client, payload) {
-  try {
-    const { data, error } = await client.functions.invoke('notify-driver', { body: payload });
-    if (error) return { ok: false, reason: String(error?.message ?? error) };
-    if (data?.ok === false) return { ok: false, reason: data.reason ?? 'unknown' };
-    return { ok: true };
-  } catch (e) { return { ok: false, reason: String(e) }; }
-}
-async function callNotifyPartner(client, payload) {
-  try {
-    const { data, error } = await client.functions.invoke('notify-partner', { body: payload });
-    if (error) return { ok: false, reason: String(error?.message ?? error) };
-    if (data?.ok === false) return { ok: false, reason: data.reason ?? 'unknown' };
-    return { ok: true };
-  } catch (e) { return { ok: false, reason: String(e) }; }
-}
+const callNotifyClient = (client, payload) => chamarAviso(client, 'notify-client', payload);
+const callNotifyDriver = (client, payload) => chamarAviso(client, 'notify-driver', payload);
+const callNotifyPartner = (client, payload) => chamarAviso(client, 'notify-partner', payload);
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });

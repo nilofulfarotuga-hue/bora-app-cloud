@@ -20,7 +20,7 @@
 // Returns 200 always (FCM failures logged, not thrown).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { chamadaDoServidor } from '../_shared/chaves.ts'
+import { exigirServidor, respostaAoPing } from '../_shared/chaves.ts'
 import { secretKey } from '../_shared/keys.ts'
 
 const corsHeaders = {
@@ -37,32 +37,13 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const serviceKey  = secretKey()!
 
-  // Auth — verify_jwt=true valida signature; aqui confirma role
-  const authHeader = req.headers.get('Authorization') ?? ''
-  // 16/10/2026 (chave nova): aceita também a chave secreta nova (sb_secret) em Bearer/apikey — ver _shared/chaves.ts
-  if (!(await chamadaDoServidor(req))) {
-    if (!authHeader.startsWith('Bearer ')) {
-      return new Response(
-        JSON.stringify({ ok: false, error: 'forbidden' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
-    }
-    try {
-      const token   = authHeader.substring(7)
-      const payload = JSON.parse(atob(token.split('.')[1]))
-      if (payload.role !== 'service_role') {
-        return new Response(
-          JSON.stringify({ ok: false, error: 'forbidden' }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-        )
-      }
-    } catch (_e) {
-      return new Response(
-        JSON.stringify({ ok: false, error: 'forbidden' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
-    }
-  }
+  // Auth — só o servidor (gatilho do banco). 31/10/2026 (chaves-varredura): regra da casa
+  // (_shared/chaves.ts) sem o recurso de ler o papel do JWT à mão — a service_role legada do banco
+  // passa por chamadaDoServidor (confirmada no Auth).
+  const bloqueio = await exigirServidor(req, corsHeaders)
+  if (bloqueio) return bloqueio
+  const pong = await respostaAoPing(req, corsHeaders)
+  if (pong) return pong
 
   let ratingId: string
   let restaurantId: string

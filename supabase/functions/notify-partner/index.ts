@@ -11,6 +11,7 @@
 // v21 fix: partner_push_tokens usa 'partner_id' nao 'user_id'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { secretKey } from '../_shared/keys.ts'
+import { chamadaDoServidor, respostaAoPing, tokenBearer, utilizadorDoPedido } from '../_shared/chaves.ts'
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -19,15 +20,6 @@ const corsHeaders = {
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
-function jwtRole(token: string): string | null {
-  try {
-    const p = token.split('.')[1]
-    if (!p) return null
-    const s = atob(p.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (p.length % 4)) % 4))
-    return JSON.parse(s)?.role ?? null
-  } catch (_) { return null }
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   const firebaseProjectId = Deno.env.get('FIREBASE_PROJECT_ID')
@@ -35,7 +27,15 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const serviceKey = secretKey()!
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
-  console.log('[notify-partner] v24 INVOKED')
+  console.log('[notify-partner] v25 INVOKED')
+  // v25 (31/10/2026, chaves-varredura): servidor pela regra da casa (_shared/chaves.ts) — chave
+  // secreta nova em apikey ou Bearer (qualquer nome) ou a service_role legada confirmada no Auth.
+  // Antes comparava o Bearer só com a chave do ambiente e lia o papel do JWT sem assinatura.
+  const servidor = await chamadaDoServidor(req)
+  if (servidor) {
+    const pong = await respostaAoPing(req, corsHeaders)
+    if (pong) return pong
+  }
   let restaurantId, orderId, items, total, customerName, kind, customTitle, customBody
   try {
     const body = await req.json()
@@ -56,11 +56,11 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, serviceKey)
 
   // ── Quem pede ────────────────────────────────────────────────────────────
-  const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').trim()
+  const token = tokenBearer(req)
   const { data: restaurant } = await supabase.from('restaurants')
     .select('fcm_token, name, user_, user_id').eq('id', restaurantId).maybeSingle()
   if (!restaurant) return json({ ok: false, reason: 'restaurant_not_found' })
-  let autorizado = token === serviceKey || jwtRole(token) === 'service_role'
+  let autorizado = servidor
   let order = null
   if (orderId) {
     const { data } = await supabase.from('orders')
@@ -68,8 +68,8 @@ Deno.serve(async (req) => {
     order = data
   }
   if (!autorizado && token) {
-    const { data: u } = await supabase.auth.getUser(token)
-    const uid = u?.user?.id ?? null
+    const u = await utilizadorDoPedido(req)
+    const uid = u?.id ?? null
     if (uid) {
       if (uid === restaurant.user_ || uid === restaurant.user_id) autorizado = true
       else if (order && order.restaurant_id === restaurantId && order.user_id === uid) autorizado = true

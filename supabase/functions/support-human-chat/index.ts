@@ -9,6 +9,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { secretKey } from '../_shared/keys.ts';
+import { chamarFuncao } from '../_shared/chamadas.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -201,19 +202,14 @@ Deno.serve(async (req: Request) => {
     await adminClient.from('support_chatbot_sessions')
       .update({ escalated_pending: true }).eq('id', sessionId);
 
-    try {
-      await adminClient.functions.invoke('notify-admin-urgent', {
-        body: {
-          kind: 'generic',
-          title: '💬 Cliente precisa de ti — suporte',
-          body: userMessage.length > 150 ? userMessage.slice(0, 150) + '…' : userMessage,
-          route: '/admin/support-escalations',
-          ref: escalationId ?? 'support_escalation',
-        },
-      });
-    } catch (e) {
-      console.warn('[support-human-chat] notify-admin-urgent failed:', (e as Error).message);
-    }
+    // 31/10/2026 (A10): a falha fica em e2e_log (edge-chamada-falhou), nunca em silêncio.
+    await chamarFuncao(adminClient, 'support-human-chat', 'notify-admin-urgent', {
+      kind: 'generic',
+      title: '💬 Cliente precisa de ti — suporte',
+      body: userMessage.length > 150 ? userMessage.slice(0, 150) + '…' : userMessage,
+      route: '/admin/support-escalations',
+      ref: escalationId ?? 'support_escalation',
+    });
   } else {
     await adminClient.from('support_chatbot_sessions')
       .update({ messages_count: (history.length ?? 0) + 1 }).eq('id', sessionId);

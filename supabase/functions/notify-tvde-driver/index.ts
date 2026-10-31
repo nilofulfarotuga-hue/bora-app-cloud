@@ -63,6 +63,7 @@
 // Retorna 200 sempre (fire-and-forget).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { exigirServidor, respostaAoPing } from '../_shared/chaves.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -81,6 +82,18 @@ Deno.serve(async (req) => {
   const serviceKey          = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
   console.log('[notify-tvde-driver] INVOKED (Firebase configured:', !!firebaseProjectId, ')')
+
+  // 31/10/2026 (chaves-varredura) — FALHA FECHADA: esta função não verificava quem chama; com
+  // verify_jwt=true a porta deixa passar a chave PÚBLICA da app, e qualquer pessoa podia mandar
+  // ofertas falsas a qualquer motorista. Quem a chama é só o banco (fn_notify_tvde_driver_on_offer,
+  // tvde_add_stop, tvde_reservation_push, _dispatch_jwt = chave de servidor): fica só servidor.
+  const bloqueio = await exigirServidor(req, corsHeaders)
+  if (bloqueio) {
+    console.warn('[notify-tvde-driver] 403 — quem chama não é o servidor')
+    return bloqueio
+  }
+  const pong = await respostaAoPing(req, corsHeaders)
+  if (pong) return pong
 
   if (!firebaseProjectId || !firebaseServiceAcct) {
     console.warn('[notify-tvde-driver] Firebase env vars not set — skipping push')

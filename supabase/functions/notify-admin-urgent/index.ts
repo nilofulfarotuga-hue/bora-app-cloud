@@ -1,6 +1,10 @@
 // @ts-nocheck
 // supabase/functions/notify-admin-urgent/index.ts
 //
+// v17 (2026-10-31) — NÍVEL: kind=generic aceita `nivel` (URGENTE | RESULTADO | INFO;
+// sem ele fica URGENTE, como antes). INFO não toca no Danilo: sem push FCM e sem envio
+// direto ao Telegram; só entra na fila do porteiro, que o guarda nos bastidores.
+//
 // v16 (2026-10-31) — TELEGRAM PELO PORTEIRO: o aviso ao Danilo vai para a fila
 // public.porteiro_entrada; o porteiro da VPS manda texto + voz (ver sendTelegramBestEffort).
 //
@@ -36,7 +40,7 @@
 //   RESEND_API_KEY              — OPTIONAL; if missing, email is skipped
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { chamadaDoServidor } from '../_shared/chaves.ts'
+import { exigirServidor, respostaAoPing } from '../_shared/chaves.ts'
 import { secretKey } from '../_shared/keys.ts'
 
 const corsHeaders = {
@@ -51,6 +55,9 @@ const ADMIN_EMAIL = 'boraappbora@gmail.com'
 // de onde saem os recibos e a ficha de fiscalizacao.
 const EMAIL_FROM  = 'Bora <avisos@boraguarda.com>'
 
+// Os mesmos três níveis da tabela porteiro_entrada (check nivel) e do porteiro da VPS.
+const NIVEIS = ['URGENTE', 'RESULTADO', 'INFO']
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -59,33 +66,16 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const serviceKey  = secretKey()!
 
-  // ─── Auth: verify_jwt=true valida signature; aqui confirma role ───────────
-  const authHeader = req.headers.get('Authorization') ?? ''
-  // 16/10/2026: a chave secreta nova da Supabase (sb_secret) não é JWT; valida-se em _shared/chaves.ts
-  // (comparação em tempo constante; a legada só passa confirmada no Auth)
-  const chaveNovaOk = await chamadaDoServidor(req)
-  if (!chaveNovaOk && !authHeader.startsWith('Bearer ')) {
-    return new Response(
-      JSON.stringify({ ok: false, error: 'forbidden' }),
-      { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    )
+  // ─── Auth: só o servidor ──────────────────────────────────────────────────
+  // 31/10/2026 (chaves-varredura): regra da casa (_shared/chaves.ts) — chave secreta nova em apikey
+  // ou Bearer, ou a service_role legada confirmada no Auth. Sem ler o papel do JWT à mão.
+  const bloqueio = await exigirServidor(req, corsHeaders)
+  if (bloqueio) {
+    console.warn('[notify-admin-urgent] forbidden — quem chama não é o servidor')
+    return bloqueio
   }
-  try {
-    const token = authHeader.substring(7)
-    const payload = chaveNovaOk ? { role: 'service_role' } : JSON.parse(atob(token.split('.')[1]))
-    if (payload.role !== 'service_role') {
-      console.warn('[notify-admin-urgent] forbidden — role mismatch:', payload.role)
-      return new Response(
-        JSON.stringify({ ok: false, error: 'forbidden' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
-    }
-  } catch (_e) {
-    return new Response(
-      JSON.stringify({ ok: false, error: 'forbidden' }),
-      { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    )
-  }
+  const pong = await respostaAoPing(req, corsHeaders)
+  if (pong) return pong
 
   // ─── Parse body ───────────────────────────────────────────────────────────
   let kind = 'crosstalk'
@@ -95,12 +85,15 @@ Deno.serve(async (req) => {
   let pushTitle = '🔴 URGENTE — Bora App'
   let pushBody = ''
   let pushData: Record<string, string> = {}
+  let nivel = 'URGENTE'
   try {
     const body = await req.json()
     kind = String(body.kind ?? 'crosstalk')
     if (kind === 'generic') {
       pushTitle = String(body.title ?? '').trim()
       pushBody  = String(body.body ?? '').trim()
+      const n = String(body.nivel ?? 'URGENTE').trim().toUpperCase()
+      nivel = NIVEIS.includes(n) ? n : 'URGENTE'
       const route = String(body.route ?? '/admin')
       const ref   = String(body.ref ?? 'generic')
       pushData = { type: 'admin_generic', ref, route }
@@ -153,7 +146,9 @@ Deno.serve(async (req) => {
   let pushSuccess   = 0
   let pushCleaned   = 0
 
-  if (firebaseProjectId && firebaseServiceAcct && tokenList.length > 0) {
+  if (nivel === 'INFO') {
+    console.log('[notify-admin-urgent] nivel INFO — sem push (so a fila do porteiro)')
+  } else if (firebaseProjectId && firebaseServiceAcct && tokenList.length > 0) {
     let accessToken: string | null = null
     try {
       const sa = JSON.parse(firebaseServiceAcct)
@@ -273,12 +268,13 @@ Deno.serve(async (req) => {
   //
   // Credenciais: vault do Supabase (telegram_bot_token / telegram_admin_chat_id)
   // lidas pela RPC get_telegram_config(), restrita a service_role.
-  const telegramSent = await sendTelegramBestEffort(supabase, pushTitle, pushBody)
+  const telegramSent = await sendTelegramBestEffort(supabase, pushTitle, pushBody, nivel)
 
   return new Response(
     JSON.stringify({
       ok:             true,
       kind,
+      nivel,
       ref:            crosstalkId || pushData.ref,
       push_attempted: pushAttempted,
       push_success:   pushSuccess,
@@ -302,25 +298,28 @@ Deno.serve(async (req) => {
 /// SEMPRE texto + voz). A função escreve em public.porteiro_entrada (só service_role)
 /// e o porteiro lê de 10 em 10 s; alertas da base são URGENTE por regra dele.
 /// Só se essa escrita falhar (tabela ainda não criada, base em baixo) é que volta ao
-/// envio direto antigo, para o aviso nunca se perder.
+/// envio direto antigo, para o aviso nunca se perder. Um INFO nunca vai pelo caminho
+/// antigo (não é para o chat dele).
 async function sendTelegramBestEffort(
   supabase: any,
   title: string,
   body: string,
+  nivel = 'URGENTE',
 ): Promise<boolean> {
   try {
     const texto = `${title}\n${body}`.trim().slice(0, 4000)
     const { error: errPorteiro } = await supabase
       .from('porteiro_entrada')
-      .insert({ origem: 'notify-admin-urgent', nivel: 'URGENTE', texto })
+      .insert({ origem: 'notify-admin-urgent', nivel, texto })
     if (!errPorteiro) {
-      console.log('[notify-admin-urgent] entregue ao porteiro (porteiro_entrada)')
+      console.log(`[notify-admin-urgent] entregue ao porteiro (porteiro_entrada, ${nivel})`)
       return true
     }
     console.error('[notify-admin-urgent] porteiro_entrada falhou, vai pelo caminho antigo:', errPorteiro.message)
   } catch (e) {
     console.error('[notify-admin-urgent] porteiro_entrada exception, vai pelo caminho antigo:', e)
   }
+  if (nivel === 'INFO') return false
   try {
     const { data, error } = await supabase.rpc('get_telegram_config')
     if (error) {

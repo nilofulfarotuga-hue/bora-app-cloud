@@ -86,10 +86,24 @@ Um erro meu: uma captura de ecrã apanhou a janela da chave "robos-vps" ainda ab
 lado nenhum, mas a imagem ficou numa pasta interna do Claude Code no teu PC. Pela regra da casa ("chave
 exposta, chave trocada"), proponho trocar essa chave.
 
+## A troca da chave da VPS (21:47 a 21:52)
+
+Criaste a "robos-vps-2", que já está na VPS: testada, motor dos robôs ativo e com chave, e confirmei
+pela impressão digital que a chave em uso mudou. Apaguei a "robos-vps" antiga na consola. A chave das
+funções do servidor ("app-supabase") não mexeu e nunca apareceu em captura nenhuma.
+
+Correram mal duas coisas. Carregaste em "Criar chave" enquanto eu ainda estava a preencher, por isso a
+"robos-vps-2" ficou com a validade que vinha por omissão, até 30/11/2026, e não até 31/01/2027. E a
+minha captura seguinte voltou a apanhar a janela com a chave nova à vista: o mesmo erro da primeira vez.
+Já deixei escrita a regra para não se repetir: o formulário fica todo pronto antes de to pôr à frente,
+digo-te "pronto" só no fim, e não olho para o ecrã até carregares em "Concluído".
+
+Disseste que a validade não tem de mudar: a "robos-vps-2" fica até 30/11/2026, como está.
+
 ## Próximo passo
 
-Trocar a chave "robos-vps" (dois cliques teus, o resto faço eu). E, quando decidires, autorizar os
-valores da Casa no painel e ligá-la.
+Quando decidires, autorizar os valores da Casa no painel e ligá-la. Este relatório ficou gravado só no
+PC: a tranca recusou o envio para o servidor (o push não estava autorizado).
 
 ---
 

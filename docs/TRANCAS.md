@@ -219,3 +219,9 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   missão, não o de produção; só o `olho-golden` correria) recusado: "o Danilo não autorizou (git push)". Não se
   contornou. O ramo (`fb7b524f`, `7208023a`, `8e2d8ae9` e o commit deste registo) fica só no PC, no worktree
   `C:\BoraLocal\wt-gorjetas-30-10`, à espera de um push autorizado. Registado no e2e_log (G-fecho-push).
+- **31/10/2026, missão `publicar-retoma-2026-10-31`, 4.º envio** — `git push origin HEAD:autonomous-night-2026-04-29`
+  (só o relatório, `[skip ci]`) recusado pela bora-tranca: "o Danilo não autorizou (git push)". Os três envios
+  anteriores da mesma sessão tinham passado. Não se contornou. O commit do relatório e deste registo fica só no PC,
+  no worktree `.claude/worktrees/publicar-2026-10-31`, à espera de um push autorizado. Registado no e2e_log.
+- **31/10/2026, mesma missão** — Write de uma nota de memória recusado por ter o prefixo das chaves da Anthropic
+  escrito por extenso (só o formato, nenhuma chave): falso positivo; a nota foi reescrita a descrever o formato.

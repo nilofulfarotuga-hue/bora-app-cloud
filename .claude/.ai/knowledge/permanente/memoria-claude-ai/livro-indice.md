@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-31T21:37:06.858691+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-10-31T22:07:10.995141+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-31 21:17 UTC. Páginas listadas: 481.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-31 22:05 UTC. Páginas listadas: 482.
 
 ## O que é o Bora
 
@@ -34,7 +34,7 @@ Quer respostas curtas, em texto corrido e sem jargão, e que o trabalho se faça
 
 1. `erros-aprendidos` — as correções do Danilo; errou uma vez, nunca mais (atualizada 2026-10-31).
 2. `regras-do-danilo` — as regras dele; mandam em tudo (atualizada 2026-10-31).
-3. Estado vivo: `digest-2026-10-31-jai-sportsdunia-e-fatura-139` (2026-10-31).
+3. Estado vivo: `digest-2026-10-31-publicar-retoma` (2026-10-31).
 4. Antes de mexer em pedidos, estafetas, dinheiro ou migrações: `regras-operacao-agentes`.
 5. Ferramenta nova sem MCP? `livro-porta-unica` explica como ligar (Córtex por MCP, ou o ficheiro plano LIVRO.md com senha).
 
@@ -53,8 +53,8 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 ## digest (188)
 
-- digest-2026-10-31-jai-sportsdunia-e-fatura-139 — Jai 31/10: SportsDunia, estilo das mensagens e fatura dos 139 (2026-10-31)
 - digest-2026-10-31-publicar-retoma — Claude Code 31/10 — publicar a retoma (base, alertas, envio) (2026-10-31)
+- digest-2026-10-31-jai-sportsdunia-e-fatura-139 — Jai 31/10: SportsDunia, estilo das mensagens e fatura dos 139 (2026-10-31)
 - digest-2026-10-31-conta-vansh — Conta do Vansh — compra no Continente 31/10 (2026-10-31)
 - digest-2026-10-31-jai-sportsdunia — Digest 31/10/2026 — artigo da SportsDunia no site do Jai (2026-10-31)
 - digest-2026-10-31-meta-anuncios-g4 — Meta anúncios 31/10 — criativos refeitos, juiz ≥ 9, 4 anúncios LIGADOS (2026-10-31)
@@ -385,7 +385,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - relatorio-boom-burger-2026-10-27 — Boom! Burger — demonstração e consertos (27/10/2026, noite) (2026-10-27)
 - relatorio-semanal-reels-2026-10-29 — Relatório semanal dos reels - 2026-10-29 (2026-10-29)
 
-## prompt (28)
+## prompt (29)
 
 - prompt-auditoria-3-plataformas-2026-10-06 — Prompt de missão: auditoria das 3 plataformas (06/10) (2026-10-06)
 - prompt-boom-burger-2026-10-27 — PROMPT Boom! Burger — loja parceira + site premium (27/10/2026) (2026-10-27)
@@ -395,6 +395,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - prompt-cancelamento-tardio-2026-10-17 — Prompt: cancelamento tardio TVDE — app, painel e publicação nas 3 plataformas (17/10) — estado: a correr (2026-10-17)
 - prompt-casa-manutencao-2026-10-30 — Prompt: missão Casa & Manutenção (categoria nova, decisões do Danilo 30/10/2026) (2026-10-30)
 - prompt-dipsy-melhor-2026-10-31 — Missão Dipsy "melhor que o Claude Code" (31/10/2026) — decisões do Danilo 06:31 (2026-10-31)
+- prompt-fecho-pendentes-2026-10-31 — Prompt "fecho-pendentes" (31/10 22:10) — peso ao quilo, suporte com Claude, 4 pagamentos, 3 commits antigos, limpeza 5 min, painel do porte… (2026-10-31)
 - prompt-final-app-2026-10-29 — Prompt missao final-app-2026-10-29 (2026-10-29)
 - prompt-gorjetas-taxa-2026-10-30 — Prompt — gorjetas: taxa da Stripe na gorjeta paga depois e gorjeta do carrinho junto da compra (30/10/2026) (2026-10-30)
 - prompt-jai-site-sportsdunia-2026-10-31 — Prompt jai-site SportsDunia 31/10 (2026-10-31)

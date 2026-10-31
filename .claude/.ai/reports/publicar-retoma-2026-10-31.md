@@ -45,10 +45,35 @@ que não estão no servidor, os dois commits órfãos dos documentos de 25/10 e 
 (bdfbf1d6); não mexi, porque essa pasta tem trabalho de outras sessões por gravar. Quarto: a tranca
 recusou apagar uma pasta temporária minha; não era preciso, segui sem apagar.
 
+## Depois do teu "Sim, publica" (20:19)
+
+Publiquei o decidir e o robot-b com o Claude primeiro. Parti da versão que estava no ar e juntei só a
+mudança do motor Claude, sem perder nada. Provas: lidas de volta iguais ao que publiquei; de fora, sem
+chave, a porta recusa; o ping respondeu pong; uma decisão de teste respondeu bem sem gravar nada; as
+decisões automáticas de 30 em 30 segundos continuam a correr; e uma volta de ensaio do robot-b correu
+sem escrever nada.
+
+Mas atenção: o Claude ainda não está a ser usado, porque ainda não existe a chave da API do Claude. De
+manhã, criar o espaço "Robos Bora" na consola do Claude foi recusado pelo sistema e ficou à espera de um
+clique teu. Sem a chave, as duas funções seguem pelo Gemini como antes; quando a chave existir, passam
+ao Claude sozinhas, sem publicar de novo.
+
+Achei mais dois problemas, que não corrigi. O robot-b está a bater no limite grátis do Gemini (erro 429
+às 19:07 e agora; às 20:07 foi um 503), por isso o diagnóstico dele sai vazio; a chave do Claude
+resolve isto. E várias tarefas agendadas da base falharam hoje com "connection failed" às 12:00, 13:00,
+15:30 e 18:00 (pedidos agendados dos não parceiros, ofertas da lavagem, pedidos órfãos, créditos TVDE,
+relógio das encomendas por telefone, conferência de cobranças, lembretes da limpeza). Correram bem
+noutras horas, mas merece ser visto.
+
+O chat de ajuda e o assistente do painel também têm a mudança do motor Claude no código e continuam por
+publicar; não estavam no teu "sim", e o assistente do painel tem a versão 13 da Claude.ai, que não se
+mexe.
+
 ## Próximo passo
 
-Publicar o decidir e o robot-b do motor Claude quando quiseres que os robôs usem primeiro o crédito do
-Claude. E, quando decidires, autorizar os valores da Casa no painel e ligá-la.
+Criar a chave do Claude: eu deixo a página da consola aberta à tua frente e tu carregas em Criar espaço
+e depois em Criar chave; o resto faço eu. E, quando decidires, autorizar os valores da Casa no painel e
+ligá-la.
 
 ---
 

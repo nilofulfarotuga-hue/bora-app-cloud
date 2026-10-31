@@ -17,18 +17,32 @@ em LEMBRETES_DESTINO e nao obedece ao interruptor ENVIO_DESLIGADO (que continua 
 os outros). O numero de destino vive so no .env da VPS (chmod 600), nunca no repo.
 
 A primeira mensagem de sempre abre com a linha que explica o que e. O texto nunca leva o nome do dono
-(a trava do anonimato recusava-o); se algum item o tiver, a mensagem NAO sai e fica em erros.log.
+(a trava do anonimato recusava-o).
+
+CONSERTO 31/10/2026 (missao retoma-geral-2026-10-31, bloco 4) — causa raiz medida no erros.log:
+  o item urgente 21 (30/10 05:01) comecava por "<nome do dono>, ..." e a trava recusava a MENSAGEM INTEIRA.
+  Como o diario junta os itens dos 7 dias anteriores que ficaram por enviar, o 21 entrou no diario de 30/10
+  (ids 21,4) e no de 31/10 (ids 21,4,5,6) e travou-os todos; os urgentes travavam de 10 em 10 min (179 linhas).
+  Agora: (1) o vocativo do inicio ("<nome>, ...") tira-se sozinho (a mensagem e para o proprio dono);
+  (2) se o nome ainda la estiver, SO esse item fica de fora (registado uma vez em .lembretes-travados.json
+  e no erros.log) e os outros seguem; (3) itens dados como perdidos em .lembretes-perdidos.json nunca saem
+  (ex.: 4 e 21, de 30/10, que ja nao servem); (4) cada mensagem leva tambem a VOZ do texto inteiro (servidor
+  de voz do host 127.0.0.1:8794) — a pista manda a nota de voz logo a seguir ao texto. Se a voz falhar, o
+  texto sai na mesma (e fica registado).
 
 ENSAIO: --seco mostra a mensagem e nao escreve nada.
 """
 import argparse
 import datetime
 import json
+import os
 import re
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 from zoneinfo import ZoneInfo
 
 sys.path.insert(0, "/opt/data/rotinas")
@@ -43,6 +57,86 @@ _NOMES = [n.strip() for n in (E.get("LEMBRETES_NOMES_DONO") or "").split(",") if
 RE_DONO = re.compile(r"(?i)\b(" + "|".join(re.escape(n) for n in _NOMES) + r")\b") if _NOMES else None
 INTRO = "Olá, este é o lembrete diário do Bora: todos os dias às 9h30 recebes aqui o que precisa de ti."
 ESTADOS_MORTOS = "(falhou,cancelada-anonimato,cancelada-fora-da-allowlist,cancelada-expirada)"
+PERDIDOS = "/opt/data/rotinas/.lembretes-perdidos.json"     # {"id": {"porque": ..., "em": ...}} -> nunca sai
+TRAVADOS = "/opt/data/rotinas/.lembretes-travados.json"     # itens com o nome do dono ja registados (uma vez)
+VOZ_LEMBRETES = "/opt/data/voz/lembretes"                   # <chave>.ogg; a pista le-o pelo 'voz=<chave>' do motivo
+VOZ_URL = "http://127.0.0.1:8794/sintetizar"                # voz.py --servir (systemd voz-servidor)
+
+
+def _ler_json(p):
+    try:
+        with open(p, encoding="utf-8") as fh:
+            v = json.load(fh)
+            return v if isinstance(v, dict) else {}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def _gravar_json(p, v):
+    tmp = p + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(v, fh, ensure_ascii=False, indent=1)
+    os.replace(tmp, p)
+
+
+def sem_nome(texto):
+    """Tira o vocativo do inicio ('<nome>, ...'): a mensagem vai para o proprio dono. Devolve (texto, ainda_tem_nome)."""
+    texto = (texto or "").strip()
+    if RE_DONO is None:
+        return texto, False
+    t = re.sub(r"(?i)^\s*(?:%s)\s*[,:;!.\-—–]+\s*" % "|".join(re.escape(n) for n in _NOMES), "", texto)
+    if t != texto and t:
+        t = t[0].upper() + t[1:]
+    return t, bool(RE_DONO.search(t))
+
+
+def filtrar(itens, seco=False):
+    """Tira os perdidos; os que ainda levam o nome do dono ficam de fora SO ELES (os outros seguem)."""
+    perd = set(_ler_json(PERDIDOS).keys())
+    trav = _ler_json(TRAVADOS)
+    bons, mudou = [], False
+    for it in itens:
+        sid = str(it["id"])
+        if sid in perd:
+            continue
+        t, tem = sem_nome(it.get("texto"))
+        if tem or (RE_DONO is not None and RE_DONO.search(it.get("link") or "")):
+            if sid not in trav:
+                trav[sid] = datetime.datetime.now(UTC).isoformat()
+                mudou = True
+                registar_erro("lembretes_danilo", RuntimeError("item %s leva o nome do dono; fica de fora, os outros seguem" % sid))
+                print("TRAVADO so o item %s (leva o nome do dono); os outros seguem" % sid, file=sys.stderr)
+            continue
+        bons.append(dict(it, texto=t))
+    if mudou and not seco:
+        _gravar_json(TRAVADOS, trav)
+    return bons
+
+
+def gravar_voz(texto):
+    """Audio do texto INTEIRO pelo servidor de voz do host. Devolve a chave do ficheiro ou None (o texto sai na mesma)."""
+    try:
+        req = urllib.request.Request(VOZ_URL, data=json.dumps({"texto": texto}).encode("utf-8"),
+                                     headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=175) as r:
+            dados = r.read()
+            dur = r.headers.get("X-Duracao")
+        if not dados:
+            raise RuntimeError("o servidor de voz devolveu vazio")
+        os.makedirs(VOZ_LEMBRETES, exist_ok=True)
+        for f in os.listdir(VOZ_LEMBRETES):          # arruma notas com mais de 7 dias
+            p = os.path.join(VOZ_LEMBRETES, f)
+            if f.endswith(".ogg") and time.time() - os.path.getmtime(p) > 7 * 86400:
+                os.remove(p)
+        chave = uuid.uuid4().hex[:16]
+        with open(os.path.join(VOZ_LEMBRETES, chave + ".ogg"), "wb") as fh:
+            fh.write(dados)
+        print(json.dumps({"voz": chave, "bytes": len(dados), "duracao_s": dur}))
+        return chave
+    except Exception as e:  # noqa: BLE001
+        registar_erro("lembretes_danilo voz", e)
+        print("AVISO: a voz falhou (%s); o texto segue sozinho" % e, file=sys.stderr)
+        return None
 
 
 def destino():
@@ -105,6 +199,9 @@ def enfileirar(texto, motivo, ids, seco):
     if seco:
         print("--- ENSAIO (nada escrito) ---\nmotivo: %s\n%s" % (motivo, texto))
         return 0
+    chave = gravar_voz(texto)   # a voz faz-se ANTES de a linha existir: a pista apanha-a em 3 s
+    if chave:
+        motivo = "%s:voz=%s" % (motivo, chave)
     row = pedir("POST", "whatsapp_saida", {
         "numero": destino(), "texto": texto, "porta_destino": "vps-baileys",
         "motivo": "%s:ids=%s" % (motivo, ",".join(ids)), "origem": "lembretes_danilo.py", "estado": "pendente"},
@@ -128,7 +225,7 @@ def diario(dia, seco):
     itens = pedir("GET", "lembretes_danilo?select=id,texto,link,quando&feito_em=is.null&enviado_em=is.null"
                   "&quando=gte.%s&quando=lt.%s&order=quando.asc,id.asc" % (iso_utc(desde), iso_utc(fim))) or []
     voo = ids_em_voo()
-    itens = [i for i in itens if str(i["id"]) not in voo]
+    itens = filtrar([i for i in itens if str(i["id"]) not in voo], seco)
     if not itens:
         print("SALTA: nenhum lembrete por enviar em %s" % dia)
         return 0
@@ -143,7 +240,7 @@ def urgentes(seco):
     itens = pedir("GET", "lembretes_danilo?select=id,texto,link,quando&urgente=is.true&feito_em=is.null&enviado_em=is.null"
                   "&quando=lte.%s&order=quando.asc,id.asc" % iso_utc(agora)) or []
     voo = ids_em_voo()
-    itens = [i for i in itens if str(i["id"]) not in voo]
+    itens = filtrar([i for i in itens if str(i["id"]) not in voo], seco)
     if not itens:
         if seco:
             print("SALTA: nenhum urgente por enviar")

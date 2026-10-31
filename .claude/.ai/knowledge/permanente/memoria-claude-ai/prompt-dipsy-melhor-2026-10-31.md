@@ -10,7 +10,7 @@ estado: atual
 
 # Missão Dipsy "melhor que o Claude Code" (31/10/2026) — decisões do Danilo 06:31
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `prompt-dipsy-melhor-2026-10-31`, origem `claude-ai`, atualizada em 2026-10-31T06:48:08.483802+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `prompt-dipsy-melhor-2026-10-31`, origem `claude-ai`, atualizada em 2026-10-31T07:51:54.852658+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: prompt dipsy melhor 2026 10 31 · memoria claude.ai · claude_ai_memoria
 
@@ -31,3 +31,5 @@ BLOCO 5 — APP DE COMPUTADOR DO DSH PARA WINDOWS (o Danilo disse SIM): instala 
 BLOCO 6 — GUARDA NOS EXECUTORES AUTOMÁTICOS DO CLAUDE CODE (decisão 11): nos executores claude -p do PC e da VPS (carteiro/loop e a ponte passar_ao_claude_code), hook PreToolUse que barra comandos Bash perigosos antes de correrem (rm -rf, apagar tabelas, push forçado, reescrever histórico, mexer em .env/segredos, matar processos), reaproveitando a lista da guarda do dsh-bora; só configuração do Claude Code (.claude/settings e hooks), nada no app. Prova com um comando proibido a ser barrado e um normal a passar.
 
 FECHO: atualiza ~/.dsh/COMO-USAR.md e a página dsh-como-usar com o que ficou novo em português simples; skill usar-deepseek-harness com a tabela "o que o Claude Code tem → o que o Dipsy tem"; relatório .claude/.ai/reports/dipsy-melhor-2026-10-31.md; digest no Córtex; cada bloco no e2e_log; mensagem final ao Danilo pelo Telegram do Dipsy em texto e áudio. Commits só no worktree (push só na publicação semanal). Termina com /ctx doctor e /ctx stats.
+
+BLOCO 7 (acrescentado 07:55) — LEMBRETES DO DANILO NA VPS: a rotina /opt/data/rotinas/lembretes_danilo.py (cron root "30 8,9 * * *" com guarda da hora de Lisboa + "*/10" para urgentes) NÃO enviou o lembrete diário de 30/10 09:30 (lembretes_danilo id 4, enviado_em null) nem o urgente id 21 (30/10 05:01); o id 20 (29/10 22:10) saiu. Ver os logs da rotina e do cron na VPS (pelo Hermes/ssh já configurado), achar a causa raiz (guarda da hora, erro do script, destino LEMBRETES_DESTINO, duplicados), corrigir, provar com os de hoje (ids 5 e 6, 09:30) e registar no e2e_log (fluxo dipsy-melhor-2026-10-31, passo lembretes-vps).

@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-31T00:00:11.387056+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-31T20:56:22.062273+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -422,3 +422,14 @@ Filme caminho 4 (fontes htROyMzUbA8, rxZZ1xi81a4): no Google Flow (Omniflash 1.1
 - Dipsy vs Hermes (7 vídeos): usar os dois — Dipsy a programar no PC, Hermes a pesquisar em segundo plano = já temos; falta o bot do Dipsy no BotFather.
 - Itens da lista de 30/10 sem novidade nos vídeos: privacidade dos registos (nenhum vídeo fala), memória própria (só 1 vídeo, rewind).
 - Links: https://www.youtube.com/watch?v=Zdcx_VHAREI , https://www.youtube.com/watch?v=KjV7DVSDzhg , https://www.youtube.com/watch?v=t9OSYThsn_c , https://www.youtube.com/watch?v=NE2EWP7ZoaE , https://www.youtube.com/watch?v=w17qTh6aqMQ , https://www.youtube.com/watch?v=vNxODnjHIk0
+
+## 31/10/2026 — radar diário (agente na nuvem)
+40 vídeos revistos (38 com nota >= 6): 3 novos, 14 PENDENTES, 9 já temos, 14 rejeitados (2 por nota baixa). Nenhum do tema animacao_ia. Proposta prop-0489f766.
+- MODA DA SEMANA (3+ vídeos nota>=8 em 7 dias): Dipsy/DeepSeek Harness 12+7 — FEITO 29-30/10 (falta app de computador, pendente desde 30/10); prospeção 7 — caça-clientes FEITO, extrator Google Maps PENDENTE desde 17/10; agente que dá dinheiro/vender serviço a PMEs 7+3 — PENDENTE desde 13/10; memória partilhada 7 — já temos; WhatsApp 6 — FEITO (Mister Navalha); animação Vox 5 — PENDENTE desde 11/10; modo auto do Claude Code 5 — já temos (21/10); Jev 3 — PENDENTE desde 23/09 (pagamento).
+- DINHEIRO: vender resultado, não software — fazer a amostra (site express/catálogo) ANTES de abordar o negócio (método MAPA). https://www.youtube.com/watch?v=6D2YRbuFXNg , https://www.youtube.com/watch?v=61BGGjE-tVg , https://www.youtube.com/watch?v=hqrtzTX4yYg
+- DINHEIRO (lente grátis): extrator Google Maps aberto, instala pelo Claude Code — PENDENTE desde 17/10; Prospect AI (GoHighLevel) e Aisa One/Apollo são pagos. https://www.youtube.com/watch?v=YFSUASAKMO8
+- SISTEMA (novo): Hermes confere atualizações de segurança da VPS (Linux/Nginx/PHP) e avisa. https://www.youtube.com/watch?v=Xl3OdsvEyqI
+- EM DIA (novo): vídeo "como instalar e encontrar o Em Dia". https://www.youtube.com/watch?v=1SMdA1yGmKk ; gancho "raio-x dos 30 dias" reforça monitor de assinaturas (pendente 09/10). https://www.youtube.com/watch?v=gbdxwMbCgzA ; explicativos Vox com Google Flow + voz grátis do AI Studio (pendente 11/10). https://www.youtube.com/watch?v=ZNrAo_6nkBk
+- BORA (novo): post automático quando entra loja parceira nova, com aprovação. https://www.youtube.com/watch?v=-gyMQpHU2AI
+- JÁ TEMOS: Dipsy (5 vídeos), modo auto/permissões do Claude Code, Claude na nuvem com tarefas, robôs de redes (Hermes+Composio).
+- RECUSADO: OpenAI Dots (Pro), AutoAgência (paga), TurboFlow e FB Auto Post (postadores em massa), Comfy Agent/ComfyUI (GPU), HeyGen/Hedra/MiniMax H3 para boca (pagos/licença UE), plugin WordPress pago.

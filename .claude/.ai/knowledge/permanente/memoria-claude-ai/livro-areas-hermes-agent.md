@@ -10,11 +10,11 @@ estado: atual
 
 # Hermes Agent infrastructure — VPS, PC bridge, ferramentas reais, e cadeia de modelos (migrado para o plano Go em 2026-08-10) (parte 1 de 2 — continua em livro-areas-hermes-agent-parte2)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-hermes-agent`, origem `claude-ai`, atualizada em 2026-10-31T11:14:52.499439+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-hermes-agent`, origem `claude-ai`, atualizada em 2026-10-31T12:17:00.11108+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas hermes agent · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/hermes-agent.md), copiada a 31/10/2026 11:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/hermes-agent.md), copiada a 31/10/2026 12:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: hermes-agent
@@ -47,6 +47,3 @@ aliases: [Hermes, BoraHermesbot, Emerson, Motor Bora, roteador de motores]
 - 19/08 PUSH RETIDO, e bem: a branch atual do repo é `autonomous-night/fase2-cortex-tasks` (não a `autonomous-night-2026-04-29`) e havia 106 ficheiros alterados por outros processos, incluindo migrations `PROPOSTA_tvde_*` que mexem em tokens e pagamentos. MINHA DECISÃO: nada de push global — o ecrã do admin sai por cherry-pick do commit dea9b5d para a branch certa
 - 19/08 ✅ ROBOT B RESOLVIDO — causa real: `cron.job_run_details` com 823 MIL linhas sem limpeza desde março; a consulta da fase observe levava 9,4s contra um teto de 8s. Depois da limpeza: `robot_observe` de 5.553 ms → 146 ms, e limpeza diária criada. Primeira sugestão nova às 11:18 de 19/08, a 1ª desde 11/08. O sinal falso também foi corrigido: passa a devolver ERRO 500 em vez de 200 mudo (se aparecerem 500 no log, é o sinal honesto novo, não avaria nova)
 - 19/08 ✅ PAINEL ADMIN publicado em segurança: só o commit do ecrã foi para o ar (b9b6656, 2 ficheiros) — nenhuma migration nem nada de pagamentos viajou junto, como decidido
-- [stated] 31/08 O QUE O DANILO EXIGE DA CADEIA (disse chateado, "já mandei arrumar isso"): cadeia ordenada do MELHOR para o PIOR, todos os níveis com contexto suficiente, e NUNCA falhar — acabou uma API, salta para a seguinte, e para a seguinte; verificar sempre quais estão a funcionar e quais não. Mandou resolver por MCP/loop e disse explicitamente para NÃO lhe mandar prompt
-- 31/08 CADEIA DECIDIDA POR MIM e mandada aplicar (`ordem-20260831134713-0470`, zona verde, confirmada em `executando`): glm-5.2 → qwen3.8-max (Go) → gemini-3.6-flash → nemotron-3-ultra-free → hy3-free (Zen) → Ollama local do PC por Tailscale com modelo de contexto real ≥64k; regra dura de nunca morrer (429/403/404/timeout/erro de contexto descem de nível) + livro de esgotamentos por modelo com hora de reset; prova nível a nível com fallback vazio e teste final no Telegram real
-- 31/08 FALHA E ESTADO PROVADOS POR MIM VIA MCP: o Telegram rebentou com `ValueError` porque a cadeia caiu no `qwen2.5:7b-instruct` do Ollama (32.768 de contexto contra o mínimo 64.000 que o Hermes exige) e MORREU em vez de descer de nível — o problema não é falta de modelos, é a cadeia não descer sozinha. Plano Go continua 429 "Monthly usage limit reached. Resets in 8" nos três (glm-5.2, qwen3.8-max, minimax-m3) → volta ~08/09; o Hermes em oneshot respondeu vivo em `gemini-3.6-flash`

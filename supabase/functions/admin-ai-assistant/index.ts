@@ -1,7 +1,14 @@
-// admin-ai-assistant — chat IA do painel admin com Gemini Flash Lite + function calling
-// Requer secret no Supabase: GEMINI_API_KEY (já configurado para Robot B)
+// admin-ai-assistant — chat IA do painel admin: Claude PRIMEIRO, Gemini Flash Lite de reserva.
+// Secrets no Supabase: ANTHROPIC_API_KEY (Claude) e/ou GEMINI_API_KEY (reserva, já existia).
+// Basta um dos dois; com os dois, o Claude responde e o Gemini só entra quando o Claude falha.
 //
-// Modelo: gemini-3.1-flash-lite (tier gratuito).
+// 2026-10-31 (missão motor-claude-2026-10-31): Claude via _shared/claude.ts, robô 'edge-admin',
+// prioridade 2 (o modelo vem do porteiro ia_claude_pode; Opus nunca). Mesmas tools, mesmo formato
+// de resposta ({session_id, reply, actions, model}); "model" diz qual modelo respondeu.
+// Portão de admin: app_metadata.role = 'admin' ou is_admin() no banco. Deixou de valer o
+// user_metadata.role, que qualquer utilizador consegue escrever na própria conta.
+//
+// Modelo de reserva: gemini-3.1-flash-lite (tier gratuito).
 // 2026-08-12: era gemini-2.5-flash — retirado para projectos novos (404 "no longer
 // available to new users") após mover a GEMINI_API_KEY para um projecto sem faturação.
 // Tools v1 (read-only):
@@ -10,11 +17,21 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { secretKey } from "../_shared/keys.ts";
+import {
+  claudePrimeiro,
+  conversaParaClaude,
+  ferramentasParaClaude,
+  type BlocoClaude,
+  type MensagemClaude,
+  type ModeloClaude,
+} from "../_shared/claude.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = secretKey()!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") ?? "";
+// Só se guarda SE existe a chave do Claude (quem a lê e usa é _shared/claude.ts).
+const TEM_CLAUDE = Boolean(Deno.env.get("ANTHROPIC_API_KEY"));
 const MODEL = "gemini-3.1-flash-lite";
 const MAX_TOOL_ITERS = 4;
 const MAX_OUTPUT_TOKENS = 2048;
@@ -99,10 +116,14 @@ function isDangerousSQL(q: string): boolean {
   return banned.some((b) => upper.includes(b)) || !upper.trim().startsWith("SELECT");
 }
 
+// Só para o Claude, depois do SYSTEM_PROMPT em cache (regra dos modelos com thinking desligado).
+const NOTA_CLAUDE =
+  "Quando usares uma ferramenta, podes dizer uma frase curta antes. Se nenhuma ferramenta serve para o que foi pedido, diz isso em vez de adivinhar. Não escrevas etiquetas XML internas nem de sistema na resposta.";
+
 async function execTool(
   fnName: string,
   fnArgs: Record<string, unknown>,
-  sb: ReturnType<typeof createClient>,
+  sb: Json,
 ): Promise<{ ok: boolean; result?: unknown; error?: string }> {
   try {
     if (fnName === "sql_select") {
@@ -114,7 +135,7 @@ async function execTool(
       const { data, error } = await sb.rpc("admin_run_select", { p_query: limited });
       if (error) return { ok: false, error: `SQL: ${error.message}` };
       // Trim para 6KB para não estourar o token budget
-      let trimmed = data ?? [];
+      let trimmed: Json = data ?? [];
       if (Array.isArray(trimmed) && JSON.stringify(trimmed).length > 6000) {
         trimmed = trimmed.slice(0, 50);
       }
@@ -196,8 +217,8 @@ Deno.serve(async (req) => {
     return new Response("Method not allowed", { status: 405, headers: cors });
 
   try {
-    if (!GEMINI_API_KEY) {
-      return new Response(JSON.stringify({ error: "GEMINI_API_KEY missing in secrets" }), {
+    if (!GEMINI_API_KEY && !TEM_CLAUDE) {
+      return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY e GEMINI_API_KEY em falta nos secrets" }), {
         status: 500,
         headers: { ...cors, "content-type": "application/json" },
       });
@@ -215,10 +236,15 @@ Deno.serve(async (req) => {
     if (userErr || !userData?.user) {
       return new Response("invalid jwt", { status: 401, headers: cors });
     }
-    const role =
-      (userData.user.app_metadata as Record<string, unknown>)?.["role"] ??
-      (userData.user.user_metadata as Record<string, unknown>)?.["role"];
-    if (role !== "admin") {
+    // app_metadata só o servidor escreve; is_admin() é a mesma regra do banco (RLS do painel).
+    // O user_metadata.role deixou de contar: o próprio utilizador consegue escrevê-lo.
+    let ehAdmin =
+      (userData.user.app_metadata as Record<string, unknown>)?.["role"] === "admin";
+    if (!ehAdmin) {
+      const { data: adminRpc } = await userClient.rpc("is_admin");
+      ehAdmin = adminRpc === true;
+    }
+    if (!ehAdmin) {
       return new Response("forbidden — admin only", { status: 403, headers: cors });
     }
 
@@ -245,9 +271,67 @@ Deno.serve(async (req) => {
     const contents: Json[] = toGeminiContents(incomingMessages);
     let finalText = "";
     let geminiError: string | null = null;
+    let modeloUsado: string = MODEL;
+
+    // ── Claude primeiro (robô edge-admin, P2). null em qualquer volta → Gemini abaixo. ──
+    let claudeTerminou = false;
+    if (TEM_CLAUDE) {
+      const claudeMsgs: MensagemClaude[] = conversaParaClaude(
+        incomingMessages
+          .filter((m) => m.role === "user" || m.role === "assistant")
+          .map((m) => ({
+            role: m.role as "user" | "assistant",
+            texto: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+          })),
+      );
+      const claudeTools = ferramentasParaClaude(TOOLS);
+      let modeloClaude: ModeloClaude | undefined;
+      let voltas = 0;
+      while (voltas <= MAX_TOOL_ITERS) {
+        const r = await claudePrimeiro({
+          robo: "edge-admin",
+          prioridade: 2,
+          system: [SYSTEM_PROMPT, NOTA_CLAUDE],
+          messages: claudeMsgs,
+          tools: claudeTools,
+          maxTokens: MAX_OUTPUT_TOKENS,
+          modelo: modeloClaude,
+        });
+        if (!r) break;
+        modeloClaude = r.modelo;
+        modeloUsado = r.modelo;
+        if (r.toolUses.length > 0) {
+          // Devolve o conteúdo do Claude tal e qual e TODOS os resultados numa só mensagem.
+          claudeMsgs.push({ role: "assistant", content: r.conteudo });
+          const resultados: BlocoClaude[] = [];
+          for (const tu of r.toolUses) {
+            const res = await execTool(tu.name, tu.input, sbAdmin);
+            actionsLog.push({ tool: tu.name, input: tu.input, ok: res.ok, ts: new Date().toISOString() });
+            resultados.push({
+              type: "tool_result",
+              tool_use_id: tu.id,
+              content: JSON.stringify(res.ok ? { result: res.result } : { error: res.error }),
+              is_error: !res.ok,
+            });
+          }
+          claudeMsgs.push({ role: "user", content: resultados });
+          voltas++;
+          continue;
+        }
+        finalText = r.texto.trim();
+        claudeTerminou = true;
+        break;
+      }
+      // Gastou as voltas todas a chamar ferramentas: acaba como o Gemini acabaria (sem texto).
+      if (voltas > MAX_TOOL_ITERS) claudeTerminou = true;
+    }
+    if (!claudeTerminou && !GEMINI_API_KEY) {
+      geminiError = "claude indisponivel e GEMINI_API_KEY em falta";
+    }
 
     let toolIters = 0;
-    while (toolIters <= MAX_TOOL_ITERS) {
+    while (!claudeTerminou && !geminiError && toolIters <= MAX_TOOL_ITERS) {
+      modeloUsado = MODEL;
       const gemRes = await callGemini(SYSTEM_PROMPT, contents, TOOLS);
       if (!gemRes.ok) {
         geminiError = gemRes.error ?? "gemini unknown error";
@@ -332,7 +416,7 @@ Deno.serve(async (req) => {
         session_id: savedSessionId,
         reply: finalText,
         actions: actionsLog,
-        model: MODEL,
+        model: modeloUsado,
       }),
       { headers: { ...cors, "content-type": "application/json" } },
     );

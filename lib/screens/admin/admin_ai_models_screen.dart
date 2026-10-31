@@ -2,6 +2,10 @@
 // Lê/escreve support_settings (id=1): gemini_model (suporte) e gemini_model_robot_b (Robot B).
 // Motivo: o Robot B corria de hora a hora num modelo *preview*; o Danilo passa a poder
 // trocar o modelo sem depender de ninguém.
+// 31/10/2026 (missão motor-claude-2026-10-31): os robôs tentam primeiro o Claude e o Gemini
+// daqui fica de reserva. No Robot B dá para escolher claude-haiku-5-5 / claude-sonnet-5-5
+// (fixa esse modelo Claude; Opus nunca). O campo do suporte só aceita Gemini, porque também
+// é lido por outras funções que só falam Gemini (análise de conversas, chat humano).
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -26,6 +30,13 @@ class _AdminAiModelsScreenState extends State<AdminAiModelsScreen> {
     'gemini-3.5-flash-lite',
     'gemini-3.1-flash-lite',
     'gemini-3-flash-preview',
+  ];
+
+  // Modelos Claude aceitos pelas Edge Functions (_shared/claude.ts). Gastam o crédito da API;
+  // o orçamento do dia e o interruptor ficam no painel Motores. Opus nunca.
+  static const _sugestoesClaude = <String>[
+    'claude-haiku-5-5',
+    'claude-sonnet-5-5',
   ];
 
   final _suporteCtrl = TextEditingController();
@@ -83,6 +94,19 @@ class _AdminAiModelsScreenState extends State<AdminAiModelsScreen> {
       setState(() => _error = 'Os dois campos são obrigatórios.');
       return;
     }
+    if (suporte.startsWith('claude')) {
+      setState(() => _error =
+          'O campo do suporte só aceita Gemini: ele também é lido pela análise de '
+          'conversas e pelo chat humano, que só falam Gemini. O chat de ajuda já '
+          'tenta o Claude primeiro (painel Motores).');
+      return;
+    }
+    if (robotB.startsWith('claude') && !_sugestoesClaude.contains(robotB)) {
+      setState(() => _error =
+          'Modelo Claude não aceito. Use claude-haiku-5-5 ou claude-sonnet-5-5 '
+          '(Opus nunca é automático).');
+      return;
+    }
     setState(() {
       _saving = true;
       _error = null;
@@ -137,21 +161,27 @@ class _AdminAiModelsScreenState extends State<AdminAiModelsScreen> {
                         style: const TextStyle(color: AppColors.error)),
                   ),
                 const Text(
-                  'Qual modelo Gemini cada robô usa. Vale na próxima execução — '
-                  'o Robot B roda de hora em hora, no minuto 7.',
+                  'Os robôs tentam primeiro o Claude (crédito da API; orçamento e '
+                  'interruptor no painel Motores). Se o Claude falhar ou o orçamento '
+                  'do dia acabar, usam o Gemini escolhido aqui. No Robot B, escolher um '
+                  'modelo Claude fixa esse modelo; o Gemini de reserva passa a ser o do '
+                  'suporte. Vale na próxima execução — o Robot B roda de hora em hora, '
+                  'no minuto 7.',
                   style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
                 ),
                 const SizedBox(height: 20),
                 _campo(
                   rotulo: 'Robot B (roda de hora em hora)',
                   ctrl: _robotBCtrl,
-                  dica: 'Ex.: gemini-3.6-flash',
+                  dica: 'Ex.: gemini-3.6-flash ou claude-haiku-5-5',
+                  sugestoes: const [..._sugestoes, ..._sugestoesClaude],
                 ),
                 const SizedBox(height: 20),
                 _campo(
-                  rotulo: 'Suporte / chatbot (volume)',
+                  rotulo: 'Suporte / chatbot (volume) — reserva Gemini',
                   ctrl: _suporteCtrl,
                   dica: 'Ex.: gemini-3.5-flash-lite',
+                  sugestoes: _sugestoes,
                 ),
                 if (_temPreview) ...[
                   const SizedBox(height: 16),
@@ -201,6 +231,7 @@ class _AdminAiModelsScreenState extends State<AdminAiModelsScreen> {
     required String rotulo,
     required TextEditingController ctrl,
     required String dica,
+    required List<String> sugestoes,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -225,7 +256,7 @@ class _AdminAiModelsScreenState extends State<AdminAiModelsScreen> {
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
-          children: _sugestoes
+          children: sugestoes
               .map((m) => ActionChip(
                     label: Text(m, style: const TextStyle(fontSize: 11)),
                     onPressed: () {

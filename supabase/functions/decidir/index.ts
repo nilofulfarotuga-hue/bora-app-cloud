@@ -5,10 +5,14 @@
 // Devolve sempre o mesmo contrato: resposta + confiança + probabilidades + motor + latência.
 //
 // Motores:
+//   0. Claude PRIMEIRO (missão motor-claude-2026-10-31): _shared/claude.ts, robô 'edge-decidir',
+//      prioridade 2, modelo dado pelo porteiro (ia_claude_pode). Mesmo contrato do Gemini (pede as
+//      probabilidades em JSON). Sem chave, sem crédito, fora do orçamento do dia ou erro → segue.
 //   1. Jev (POST https://api.typesafe.ai/v1/systemone, modelo jev-latest). Chave: env
 //      TYPESAFE_API_KEY ou Vault `typesafe_api_key` (RPC decisor_chave_typesafe, só serviço).
 //   2. Reserva: Gemini (3.5-flash-lite → 3.1-flash-lite → 3-flash-preview) com o MESMO
 //      contrato — pede-lhe as probabilidades e calcula resposta/confiança igual ao Jev.
+//   motor: "claude" no pedido = só o Claude (diagnóstico, como "jev" e "gemini").
 //
 // Dois modos de chamada (verify_jwt = true; só service_role ou admin):
 //   { acao: "varrer" }  — a tarefa agendada (30 s): preenche resultados reais, pega no que
@@ -24,6 +28,7 @@
 // @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { secretKey } from '../_shared/keys.ts';
+import { claudePrimeiro, extrairJson } from '../_shared/claude.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -75,11 +80,12 @@ interface Resultado {
   resposta: string;
   confianca: number;
   probabilidades: Record<string, number>;
-  motor: 'jev' | 'gemini' | 'fallback' | 'nenhum';
+  motor: 'claude' | 'jev' | 'gemini' | 'fallback' | 'nenhum';
   modelo: string | null;
   latencia_ms: number;
   tokens_entrada: number | null;
   tokens_saida: number | null;
+  custo_usd?: number | null;   // só o Claude: custo pelos preços oficiais (o mesmo de ia_gastos)
   erro?: string | null;
 }
 
@@ -225,7 +231,8 @@ async function viaGemini(p: Pedido, modelos: string[] = GEMINI_MODELOS, chave: s
   throw new Error(erros.join(' | '));
 }
 
-async function viaGeminiModelo(p: Pedido, modelo: string, chave: string): Promise<Resultado> {
+// O texto da pergunta (estado + pergunta + formato da resposta) — o mesmo para o Gemini e o Claude.
+function montarPergunta(p: Pedido): string {
   let formato: string;
   if (p.tipo === 'choice') {
     const m = opcoesMapa(p);
@@ -240,7 +247,38 @@ async function viaGeminiModelo(p: Pedido, modelo: string, chave: string): Promis
     formato = `Yes means: ${c.true ?? 'yes'}. No means: ${c.false ?? 'no'}.\n` +
       'Return {"yes": <probability 0..1 that the answer is yes>}.';
   }
-  const texto = `STATE:\n${typeof p.estado === 'string' ? p.estado : JSON.stringify(p.estado)}\n\nQUESTION: ${p.pergunta}\n\n${formato}`;
+  return `STATE:\n${typeof p.estado === 'string' ? p.estado : JSON.stringify(p.estado)}\n\nQUESTION: ${p.pergunta}\n\n${formato}`;
+}
+
+// ── Motor 0: Claude (primeiro) ──────────────────────────────────────────────
+// null = o Claude não serve agora (sem chave, porteiro, crédito, erro, JSON inválido) → segue a cadeia.
+async function viaClaude(p: Pedido): Promise<Resultado | null> {
+  const t0 = Date.now();
+  const r = await claudePrimeiro({
+    robo: 'edge-decidir',
+    prioridade: 2,
+    system: SISTEMA_GEMINI + ' Reply with the JSON object only.',
+    messages: [{ role: 'user', content: montarPergunta(p) }],
+    maxTokens: 1024,
+  });
+  if (!r) return null;
+  try {
+    const o = extrairJson(r.texto);
+    const probs = p.tipo === 'noul' ? { sim: Number(o.yes ?? o.sim) } : (o.probabilities ?? o);
+    const f = fechar(p, probs);
+    return {
+      ...f, motor: 'claude', modelo: r.modelo, latencia_ms: Date.now() - t0,
+      tokens_entrada: r.usage.input_tokens + r.usage.cache_creation_input_tokens + r.usage.cache_read_input_tokens,
+      tokens_saida: r.usage.output_tokens, custo_usd: r.custoUsd,
+    };
+  } catch (e) {
+    console.log('claude resposta invalida, reserva:', (e as Error).message, '| raw:', r.texto.slice(0, 120));
+    return null;
+  }
+}
+
+async function viaGeminiModelo(p: Pedido, modelo: string, chave: string): Promise<Resultado> {
+  const texto = montarPergunta(p);
   // Uma decisão de "System One" não precisa de raciocínio longo: a 23/09 o 3.5-flash-lite
   // levou 19,6 s a pensar num sim/não. thinkingLevel "minimal" corta isso; se o modelo não
   // aceitar o campo (400), repete-se uma vez sem ele.
@@ -282,11 +320,20 @@ async function viaGeminiModelo(p: Pedido, modelo: string, chave: string): Promis
   };
 }
 
-// ── Orquestração: Jev primeiro, Gemini de reserva, regra determinística no fim ──
+// ── Orquestração: Claude primeiro, Jev, Gemini de reserva, regra determinística no fim ──
 // chaveGemini: só em modo teste (body.chave_gemini_teste) — para provar o fallback com
-// uma chave inválida de propósito sem tocar no segredo do projeto.
-async function decidir(admin: any, p: Pedido, motor: 'auto' | 'jev' | 'gemini' = 'auto',
+// uma chave inválida de propósito sem tocar no segredo do projeto (aí o Claude salta-se,
+// para a prova continuar a ser do fallback do Gemini).
+async function decidir(admin: any, p: Pedido, motor: 'auto' | 'claude' | 'jev' | 'gemini' = 'auto',
     modelosGemini?: string[], usadoPor = '', chaveGemini?: string): Promise<Resultado> {
+  if ((motor === 'auto' && !chaveGemini) || motor === 'claude') {
+    const rc = await viaClaude(p);
+    if (rc) return { ...rc, erro: null };
+    if (motor === 'claude') {
+      return { resposta: '', confianca: 0, probabilidades: {}, motor: 'nenhum', modelo: null, latencia_ms: 0,
+        tokens_entrada: null, tokens_saida: null, erro: 'claude_indisponivel (sem chave, porteiro, credito ou erro: ver ia_gastos e o log)' };
+    }
+  }
   let erroJev: string | null = null;
   if (motor !== 'gemini') {
     const chave = await chaveJev(admin);
@@ -329,6 +376,7 @@ async function precos(admin: any): Promise<{ jev: number; gemini: number }> {
 }
 
 function custo(r: Resultado, pr: { jev: number; gemini: number }): number | null {
+  if (r.motor === 'claude') return r.custo_usd ?? null;
   if (r.motor === 'jev') return r.tokens_entrada == null ? null : (r.tokens_entrada * pr.jev) / 1e6; // saída grátis
   if (r.motor === 'gemini') return ((r.tokens_entrada ?? 0) + (r.tokens_saida ?? 0)) * pr.gemini / 1e6;
   return 0;
@@ -338,14 +386,23 @@ async function gravar(admin: any, p: Pedido, r: Resultado, meta: {
   usado_por: string; contexto_id: string | null; modo: string; mapa_opcoes?: unknown; acao_tomada?: string | null;
 }, pr: { jev: number; gemini: number }): Promise<string | null> {
   const estadoTxt = typeof p.estado === 'string' ? p.estado : JSON.stringify(p.estado);
-  const { data, error } = await admin.from('decisoes').insert({
+  const linha = {
     tipo: p.tipo, pergunta: p.pergunta, estado_resumo: estadoTxt.slice(0, 1500),
     resposta: r.resposta || null, confianca: (r.motor === 'nenhum' || r.motor === 'fallback') ? null : r.confianca,
     probabilidades: r.probabilidades, motor: r.motor, modelo: r.modelo, latencia_ms: r.latencia_ms,
     tokens_entrada: r.tokens_entrada, tokens_saida: r.tokens_saida, custo_usd: custo(r, pr),
     usado_por: meta.usado_por, contexto_id: meta.contexto_id, modo: meta.modo,
     mapa_opcoes: meta.mapa_opcoes ?? null, acao_tomada: meta.acao_tomada ?? null, erro: r.erro ?? null,
-  }).select('id').single();
+  };
+  let { data, error } = await admin.from('decisoes').insert(linha).select('id').single();
+  if (error?.code === '23514' && r.motor === 'claude') {
+    // O check antigo de decisoes.motor ainda não conhece 'claude' (migração pendente
+    // 20261031_decisoes_motor_claude.sql). Grava-se como motor de LLM ('gemini') com o modelo
+    // verdadeiro e a nota no erro — senão a varredura voltava a pedir a mesma decisão de 30 em 30 s.
+    ({ data, error } = await admin.from('decisoes').insert({
+      ...linha, motor: 'gemini', erro: 'motor real: claude (check de decisoes.motor por atualizar)',
+    }).select('id').single());
+  }
   if (error) {
     if (error.code === '23505') return null; // já decidido por uma varredura sobreposta
     console.log('insert decisoes erro:', error.message);
@@ -378,7 +435,7 @@ async function varrer(admin: any) {
     let acao: string | null = null;
     // Única ação real: Robot B em modo ativo arquiva a sugestão nova que não vale a pena.
     // Só um motor a sério arquiva; o fallback nunca age (é a regra de hoje, não uma decisão).
-    if (it.usado_por === 'robotb' && it.modo === 'ativo' && (r.motor === 'jev' || r.motor === 'gemini') && r.probabilidades.sim < limiar) {
+    if (it.usado_por === 'robotb' && it.modo === 'ativo' && (r.motor === 'claude' || r.motor === 'jev' || r.motor === 'gemini') && r.probabilidades.sim < limiar) {
       const { data: upd, error: eUpd } = await admin.from('robot_suggestions')
         .update({ status: 'rejeitada', motivo_rejeicao: `Decisor: não vale a pena abrir (sim=${r.probabilidades.sim}, limiar=${limiar})`, reviewed_at: new Date().toISOString() })
         .eq('id', it.contexto_id).eq('status', 'nova').select('id');
@@ -440,7 +497,7 @@ Deno.serve(async (req: Request) => {
   }
   if (tipo === 'noul' && body.criterios) p.criterios_noul = body.criterios;
 
-  const motor = ['jev', 'gemini'].includes(body.motor) ? body.motor : 'auto';
+  const motor = ['claude', 'jev', 'gemini'].includes(body.motor) ? body.motor : 'auto';
   const modelos = Array.isArray(body.modelos_gemini)
     ? body.modelos_gemini.map(String).filter((m: string) => /^gemini-[a-z0-9.\-]+$/.test(m)).slice(0, 4)
     : undefined;

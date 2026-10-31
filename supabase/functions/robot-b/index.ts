@@ -15,12 +15,19 @@
 //   - Limites duros (máx 10 auto-exec/ciclo, máx 15 sugestões abertas, whitelists,
 //     benchmark obrigatório) vivem nas RPCs SQL — o robô NUNCA os altera.
 //
+// v5 (2026-10-31, missão motor-claude-2026-10-31): o CLAUDE responde primeiro (diagnóstico do ciclo e
+//   crosstalk) — _shared/claude.ts, robô 'edge-robos', prioridade 3 (o porteiro ia_claude_pode só deixa
+//   até metade da parte do dia; enquanto a RPC não existir, P3 não passa e fica tudo no Gemini).
+//   No painel "Modelos de IA", o campo do Robot B aceita claude-haiku-5-5 / claude-sonnet-5-5: fixa
+//   esse modelo Claude, e o Gemini de reserva passa a ser o gemini_model do suporte (ou o padrão).
+//   Com um modelo Gemini no campo: Claude com o modelo do porteiro e, se falhar, esse Gemini.
 // v3: gemini-2.5-flash (modelo lido de support_settings.gemini_model).
 // v2: auth via decode JWT (role claim) em vez de string match.
 
 // @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { secretKey } from '../_shared/keys.ts';
+import { claudePrimeiro, ehModeloClaude } from '../_shared/claude.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -36,6 +43,8 @@ const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
 // 2026-08-12: era gemini-2.5-flash — retirado para projectos novos (404) depois de a
 // GEMINI_API_KEY passar para um projecto sem faturação. Só usado se a BD não responder.
 const DEFAULT_MODEL = 'gemini-3.1-flash-lite';
+// Só se guarda SE existe a chave do Claude (quem a lê e usa é _shared/claude.ts).
+const TEM_CLAUDE = Boolean(Deno.env.get('ANTHROPIC_API_KEY'));
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -99,6 +108,33 @@ async function callGemini(model: string, systemPrompt: string, userPrompt: strin
   } catch (e) {
     return { raw: null, error: 'fetch_fail: ' + (e as Error).message };
   }
+}
+
+// v5: Claude primeiro (robô edge-robos, P3); se devolver null, o callGemini de sempre.
+// modeloPainel: o que está no campo do Robot B (se for claude-*, fixa esse modelo Claude).
+// modeloGemini: o Gemini de reserva (nunca um nome claude-*).
+async function callIA(modeloPainel: string, modeloGemini: string, systemPrompt: string, userPrompt: string,
+    generationOverrides: Record<string, unknown> = {}):
+    Promise<{ raw: string | null; error: string | null; modelo: string }> {
+  const r = await claudePrimeiro({
+    robo: 'edge-robos',
+    prioridade: 3,
+    system: systemPrompt,
+    messages: [{ role: 'user', content: userPrompt }],
+    maxTokens: 8192,
+    modelo: ehModeloClaude(modeloPainel) ? modeloPainel : undefined,
+  });
+  if (r && r.texto) {
+    // Mesmo tratamento do Gemini (sem cercas) e, se o Claude escrever uma frase à volta, só o objeto JSON.
+    let raw = r.texto.trim().replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+    const a = raw.indexOf('{');
+    const b = raw.lastIndexOf('}');
+    if (a >= 0 && b > a) raw = raw.slice(a, b + 1);
+    return { raw, error: null, modelo: r.modelo };
+  }
+  if (!GEMINI_API_KEY) return { raw: null, error: 'claude_indisponivel e gemini_key_missing', modelo: modeloGemini };
+  const g = await callGemini(modeloGemini, systemPrompt, userPrompt, generationOverrides);
+  return { ...g, modelo: modeloGemini };
 }
 
 async function getBoolSetting(admin: any, key: string): Promise<boolean> {
@@ -183,7 +219,7 @@ const DEDUP_KEYS_CANONICAS = [
   'sem-chave',
 ];
 
-async function runCycle(admin: any, geminiModel: string, dryRun: boolean): Promise<any> {
+async function runCycle(admin: any, geminiModel: string, dryRun: boolean, modeloGemini: string = geminiModel): Promise<any> {
   // KILL SWITCH geral
   if (!(await getBoolSetting(admin, 'robot_b_enabled'))) {
     const { data: runId } = await admin.rpc('robot_start_run', { p_mode: 'cycle', p_dry_run: dryRun });
@@ -278,7 +314,7 @@ async function runCycle(admin: any, geminiModel: string, dryRun: boolean): Promi
   // ── 4. DIAGNOSTICAR + CLASSIFICAR (Gemini) ─────────────────────────────────
   let gemSuggestions: any[] = [];
   let geminiError: string | null = null;
-  if (GEMINI_API_KEY) {
+  if (GEMINI_API_KEY || TEM_CLAUDE) {
     const userPrompt = `OBSERVAÇÕES DO CICLO (robot_observe):
 ${JSON.stringify(obs)}
 
@@ -305,7 +341,7 @@ Analisa como o Danilo analisaria e retorna JSON.`;
     // (gemini-3.6-flash e gemini-3.5-flash-lite dão 400; gemini-3-flash-preview e
     // gemini-3.1-flash-lite aceitavam). O maxOutputTokens de 16384 já dá folga para o
     // raciocínio + JSON, por isso a razão original deixou de se aplicar.
-    const { raw, error } = await callGemini(geminiModel, CYCLE_SYSTEM_PROMPT, userPrompt, {
+    const { raw, error } = await callIA(geminiModel, modeloGemini, CYCLE_SYSTEM_PROMPT, userPrompt, {
       maxOutputTokens: 16384,
       responseMimeType: 'application/json',
     });
@@ -427,7 +463,8 @@ async function runDigest(admin: any): Promise<any> {
 // CROSSTALK (v3 — intacto): perguntas do Robot A em robot_crosstalk
 // ═════════════════════════════════════════════════════════════════════════════
 
-async function processCrosstalk(admin: any, geminiModel: string, limit: number, dryRun: boolean): Promise<any> {
+async function processCrosstalk(admin: any, geminiModel: string, limit: number, dryRun: boolean,
+    modeloGemini: string = geminiModel): Promise<any> {
   const { data: pendingRows, error: pendingErr } = await admin
     .from('robot_crosstalk')
     .select('id, question, question_context, urgency, skill_triggered, session_id, created_at')
@@ -537,7 +574,7 @@ Analisa e retorna JSON.`;
 
     let answer = '';
     let suggestion: any = null;
-    const { raw, error: gemErr } = await callGemini(geminiModel, systemPrompt, userPrompt);
+    const { raw, error: gemErr, modelo: modeloResposta } = await callIA(geminiModel, modeloGemini, systemPrompt, userPrompt);
     let geminiError: string | null = gemErr;
 
     if (!geminiError && raw) {
@@ -594,7 +631,7 @@ Analisa e retorna JSON.`;
           message_count: 1,
           suggested_playbook_md: String(suggestion.suggested_playbook_md ?? ''),
           pattern_hash: hash,
-          gemini_model: geminiModel,
+          gemini_model: modeloResposta,
           analysis_window_start: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
           analysis_window_end: new Date().toISOString(),
         };
@@ -700,6 +737,10 @@ Deno.serve(async (req: Request) => {
   const geminiModel = (settingsRow?.gemini_model_robot_b as string)
     || (settingsRow?.gemini_model as string)
     || DEFAULT_MODEL;
+  // v5: se o campo do Robot B tiver um modelo Claude, o Gemini de reserva é o do suporte (ou o padrão).
+  const modeloGemini = !ehModeloClaude(geminiModel)
+    ? geminiModel
+    : ((settingsRow?.gemini_model && !ehModeloClaude(settingsRow.gemini_model)) ? settingsRow.gemini_model as string : DEFAULT_MODEL);
 
   const triggeredBy = isService ? 'service' : 'admin';
 
@@ -709,7 +750,7 @@ Deno.serve(async (req: Request) => {
   }
 
   if (mode === 'cycle') {
-    const cycle = await runCycle(admin, geminiModel, dryRun);
+    const cycle = await runCycle(admin, geminiModel, dryRun, modeloGemini);
     const resposta = { mode, triggered_by: triggeredBy, model: geminiModel, cycle };
     return cycle?.error ? failedResponse(resposta, cycle.error) : jsonResponse(resposta);
   }
@@ -718,8 +759,8 @@ Deno.serve(async (req: Request) => {
     if (!(await getBoolSetting(admin, 'robot_b_enabled'))) {
       return jsonResponse({ mode, skipped: 'kill_switch', triggered_by: triggeredBy });
     }
-    if (!GEMINI_API_KEY) return jsonResponse({ error: 'gemini_key_missing' }, 503);
-    const crosstalk = await processCrosstalk(admin, geminiModel, limit, dryRun);
+    if (!GEMINI_API_KEY && !TEM_CLAUDE) return jsonResponse({ error: 'gemini_key_missing' }, 503);
+    const crosstalk = await processCrosstalk(admin, geminiModel, limit, dryRun, modeloGemini);
     return jsonResponse({ mode, triggered_by: triggeredBy, model: geminiModel, ...crosstalk });
   }
 
@@ -734,10 +775,10 @@ Deno.serve(async (req: Request) => {
     }
     return jsonResponse({ mode: 'full', skipped: 'kill_switch', triggered_by: triggeredBy, run_id: runId ?? null });
   }
-  const crosstalk = GEMINI_API_KEY
-    ? await processCrosstalk(admin, geminiModel, limit, dryRun)
+  const crosstalk = (GEMINI_API_KEY || TEM_CLAUDE)
+    ? await processCrosstalk(admin, geminiModel, limit, dryRun, modeloGemini)
     : { error: 'gemini_key_missing' };
-  const cycle = await runCycle(admin, geminiModel, dryRun);
+  const cycle = await runCycle(admin, geminiModel, dryRun, modeloGemini);
   const resposta = { mode: 'full', triggered_by: triggeredBy, model: geminiModel, crosstalk, cycle };
   // O ciclo é o trabalho real; se ele falha a função falha, mesmo que o crosstalk tenha corrido.
   // Um erro só de crosstalk fica registado mas não derruba a corrida.

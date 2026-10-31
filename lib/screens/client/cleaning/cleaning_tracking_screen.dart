@@ -39,6 +39,7 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
   Map<String, dynamic>? _cleanerProfile;
   int _cancelFreeHours = 24;
   int _cancelHalfHours = 2;
+  int _cancelGraceMinutes = 5;
   bool _rated = false;
 
   /// Trava de re-entrada LOCAL deste ecrã (PADRAO_BORA 3.13).
@@ -82,10 +83,13 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
       store.trackBooking(widget.booking);
       final free = await store.getSettingInt('cleaning_cancel_free_hours', 24);
       final half = await store.getSettingInt('cleaning_cancel_half_hours', 2);
+      final graca =
+          await store.getSettingInt('cleaning_cancel_grace_minutes', 5);
       if (!mounted) return;
       setState(() {
         _cancelFreeHours = free;
         _cancelHalfHours = half;
+        _cancelGraceMinutes = graca;
       });
       _loadCleanerProfile();
     });
@@ -125,6 +129,12 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
   /// Pré-visualização da taxa de cancelamento (janelas do backend; o valor
   /// final é SEMPRE decidido server-side).
   String _cancelFeePreview(CleaningBooking b) {
+    // 31/10/2026: nos primeiros minutos depois de marcar não há taxa
+    // (cleaning_cancel_grace_minutes, já no servidor).
+    if (b.cancelaSemTaxaPorAcabarDeMarcar(DateTime.now(), _cancelGraceMinutes)) {
+      return 'Cancelamento sem taxa: marcaste há menos de {0} minutos.'
+          .trArgs([_cancelGraceMinutes]);
+    }
     final hours =
         b.scheduledAt.difference(DateTime.now()).inMinutes / 60.0;
     if (hours >= _cancelFreeHours) return 'Cancelamento grátis.'.tr;

@@ -137,6 +137,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       // [20/10/2026] Comprovativo de atividade nas Finanças.
       case 'provider_atividade':
         return Icons.description_outlined;
+      // [31/10/2026] "Preço ajustado ao peso" (produto ao quilo pesado pelo
+      // estafeta). Tocar abre o pedido, como as outras de pedido.
+      case 'order_weight_adjusted':
+        return Icons.scale_outlined;
       default:
         return Icons.notifications;
     }

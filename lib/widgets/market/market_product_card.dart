@@ -13,6 +13,7 @@ import '../../stores/restaurant_store.dart';
 import '../../utils/cart_feedback.dart';
 import '../bora/coming_soon.dart';
 import '../bora/maior_18.dart';
+import '../bora/peso_variavel_nota.dart';
 import '../bora/weight_price_text.dart';
 import '../preco_com_promocao.dart';
 
@@ -77,6 +78,7 @@ class MarketProductCard extends StatelessWidget {
           basePrice: catalogo,
           quantity: 1,
           ageRestricted: product.ageRestricted,
+          variableWeight: product.variableWeight,
         ));
     showAddedToCartSnack(context, '{0} no carrinho'.trArgs([product.name]));
   }
@@ -198,6 +200,14 @@ class _ProductImage extends StatelessWidget {
             bottom: 6,
             left: 6,
             child: Maior18Badge(),
+          ),
+        // 31/10/2026: produto ao quilo (mercado não-parceiro) — selo
+        // "Preço aproximado" por cima da foto, sem mexer na altura do cartão.
+        if (product.variableWeight)
+          const Positioned(
+            bottom: 6,
+            right: 6,
+            child: PesoVariavelNota(variableWeight: true, compacta: true),
           ),
       ],
     );

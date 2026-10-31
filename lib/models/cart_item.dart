@@ -45,6 +45,13 @@ class CartItem {
   /// pelo servidor (trigger trg_orders_maior_18_criacao), nunca pela app.
   final bool ageRestricted;
 
+  /// 31/10/2026: produto ao quilo de mercado não-parceiro
+  /// (`products.variable_weight`). Copiado de `PartnerProduct.variableWeight`
+  /// ao adicionar; serve só para a nota "Preço aproximado" no carrinho. O
+  /// ajuste real é do servidor (`estafeta_ajustar_peso`). Gravado como chave
+  /// opcional `variable_weight` (só quando true); sem a chave → false.
+  final bool variableWeight;
+
   // Sessão 4C (2026-05-04): defesa run-time em release.
   // Asserts (4B5) STRIP em release → asserts são detectores dev. Validação
   // crítica usa `if-throw` no body do constructor (executa também em release).
@@ -62,6 +69,7 @@ class CartItem {
     this.selectedOptions = const [],
     this.selectedOptionsPriced = const [],
     this.ageRestricted = false,
+    this.variableWeight = false,
   })  : assert(productId.isNotEmpty, 'CartItem.productId vazio'),
         assert(!productId.contains(' '),
             'CartItem.productId com espaço — parece nome ($productId)'),
@@ -95,6 +103,7 @@ class CartItem {
     this.selectedOptions = const [],
     this.selectedOptionsPriced = const [],
     this.ageRestricted = false,
+    this.variableWeight = false,
   });
 
   /// Cart dedup key. Two lines with different option selections are distinct.
@@ -113,6 +122,7 @@ class CartItem {
         if (actualPrice != null) 'actualPrice': actualPrice,
         if (basePrice != null) 'basePrice': basePrice,
         if (ageRestricted) 'age_restricted': true,
+        if (variableWeight) 'variable_weight': true,
         if (selectedOptions.isNotEmpty)
           'selected_options':
               selectedOptions.map((o) => o.toJson()).toList(),
@@ -132,6 +142,7 @@ class CartItem {
       actualPrice: (json['actualPrice'] as num?)?.toDouble(),
       basePrice: (json['basePrice'] as num?)?.toDouble(),
       ageRestricted: json['age_restricted'] == true,
+      variableWeight: json['variable_weight'] == true,
       selectedOptions: rawOpts == null
           ? const []
           : rawOpts

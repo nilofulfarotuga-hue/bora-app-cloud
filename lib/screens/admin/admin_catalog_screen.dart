@@ -8,6 +8,7 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import 'admin_product_prices_dialog.dart';
+import 'admin_product_variable_weight_dialog.dart';
 import 'admin_product_weight_dialog.dart';
 
 class AdminCatalogScreen extends StatefulWidget {
@@ -140,6 +141,10 @@ class _AdminCatalogProductsScreenState extends State<_AdminCatalogProductsScreen
   bool _onlyInactive = false;
   // Venda ao peso (2026-09-18): filtro "vendidos ao peso".
   bool _onlyByWeight = false;
+  // Peso variável (31/10/2026): mercados não-parceiros, preço pela balança.
+  // NÃO é o "Ao peso" de cima (sold_by_weight = porções de 200 g dos parceiros).
+  bool _onlyVariableWeight = false;
+  Set<String> _variableWeightIds = <String>{};
   bool _loading = true;
   List<Map<String, dynamic>> _products = [];
 
@@ -162,15 +167,34 @@ class _AdminCatalogProductsScreenState extends State<_AdminCatalogProductsScreen
       // app_markup_pct (migration 20260914170000_admin_precos_parceiro_balcao_e_app).
       // 2026-09-18: v3 = v2 + sold_by_weight/shelf_price_per_kg + filtro ao peso
       // (migration 20260918211000_admin_list_products_by_partner_v3).
-      final res = await Supabase.instance.client.rpc('admin_list_products_by_partner_v3', params: {
-        'p_restaurant_id': widget.restaurantId,
-        'p_search': _search.text.isEmpty ? null : _search.text.trim(),
-        'p_only_inactive': _onlyInactive,
-        'p_only_by_weight': _onlyByWeight,
-        'p_limit': 200, 'p_offset': 0,
-      });
-      if (mounted) setState(() {
-        _products = List<Map<String, dynamic>>.from(res as List);
+      // 31/10/2026: a v3 não traz variable_weight nem filtra por ele. Com o
+      // filtro "Peso variável" a lista lê a tabela products direto (leitura
+      // pública); sem ele, continua a v3 e marca-se o peso variável à parte.
+      final List<Map<String, dynamic>> rows;
+      if (_onlyVariableWeight) {
+        rows = await _loadOnlyVariableWeight();
+      } else {
+        final res = await Supabase.instance.client.rpc('admin_list_products_by_partner_v3', params: {
+          'p_restaurant_id': widget.restaurantId,
+          'p_search': _search.text.isEmpty ? null : _search.text.trim(),
+          'p_only_inactive': _onlyInactive,
+          'p_only_by_weight': _onlyByWeight,
+          'p_limit': 200, 'p_offset': 0,
+        });
+        rows = List<Map<String, dynamic>>.from(res as List);
+      }
+      final vwIds = await _loadVariableWeightIds();
+      if (!mounted) return;
+      setState(() {
+        _variableWeightIds = vwIds;
+        _products = [
+          for (final p in rows)
+            {
+              ...p,
+              'variable_weight':
+                  p['variable_weight'] == true || vwIds.contains(p['id']),
+            },
+        ];
         _loading = false;
       });
     } catch (e) {
@@ -324,6 +348,84 @@ class _AdminCatalogProductsScreenState extends State<_AdminCatalogProductsScreen
     if (saved) _load();
   }
 
+  /// Peso variável (31/10/2026): os ids dos produtos desta loja com
+  /// `variable_weight = true` (só ids, leitura pública da tabela products).
+  /// Se falhar, a lista abre na mesma, só sem a marca.
+  Future<Set<String>> _loadVariableWeightIds() async {
+    try {
+      final rows = await Supabase.instance.client
+          .from('products')
+          .select('id')
+          .eq('restaurant_id', widget.restaurantId)
+          .eq('variable_weight', true)
+          .limit(5000);
+      return {for (final r in rows) r['id'].toString()};
+    } catch (e) {
+      debugPrint('[AdminCatalog] peso variável não lido: $e');
+      return <String>{};
+    }
+  }
+
+  /// Filtro "Peso variável": as mesmas colunas da v3, lidas direto da tabela
+  /// products (a v3 não filtra por variable_weight). is_partner e
+  /// app_markup_pct vêm da loja, como na v3.
+  Future<List<Map<String, dynamic>>> _loadOnlyVariableWeight() async {
+    final sb = Supabase.instance.client;
+    var q = sb
+        .from('products')
+        .select('id, name, description, price, partner_shelf_price, photo_url, '
+            'is_available, is_popular, category, category_root, '
+            'taxonomy_section, sold_by_weight, shelf_price_per_kg, '
+            'variable_weight')
+        .eq('restaurant_id', widget.restaurantId)
+        .eq('variable_weight', true);
+    // Vírgulas, parênteses e curingas partem o filtro "or" do PostgREST.
+    final termo = _search.text.replaceAll(RegExp(r'[,()*%\\]'), ' ').trim();
+    if (termo.isNotEmpty) {
+      q = q.or('name.ilike.%$termo%,description.ilike.%$termo%');
+    }
+    if (_onlyInactive) q = q.eq('is_available', false);
+    if (_onlyByWeight) q = q.eq('sold_by_weight', true);
+    final rows = await q
+        .order('is_available', ascending: false)
+        .order('name', ascending: true)
+        .limit(200);
+    final loja = await sb
+        .from('restaurants')
+        .select('is_partner, app_markup_pct')
+        .eq('id', widget.restaurantId)
+        .maybeSingle();
+    return [
+      for (final r in rows)
+        {
+          ...r,
+          'is_partner': loja?['is_partner'] == true,
+          'app_markup_pct': loja?['app_markup_pct'],
+        },
+    ];
+  }
+
+  /// Liga/desliga o peso variável do produto (RPC admin_set_variable_weight,
+  /// motivo obrigatório, fica no admin_audit_log).
+  Future<void> _editVariableWeight(Map<String, dynamic> p) async {
+    final on = p['variable_weight'] == true;
+    final saved = await showAdminProductVariableWeightDialog(
+      context,
+      productId: p['id'] as String,
+      productName: (p['name'] as String?) ?? '—',
+      variableWeight: on,
+      isPartner: p['is_partner'] == true,
+    );
+    if (!saved) return;
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(on
+          ? 'Peso variável desligado em "${p['name']}".'
+          : 'Peso variável ligado em "${p['name']}".'),
+    ));
+    _load();
+  }
+
   Widget _buildProductImage(Map<String, dynamic> product) {
     final photoUrl = product['photo_url'] as String?;
     if (photoUrl == null || photoUrl.isEmpty) {
@@ -375,6 +477,31 @@ class _AdminCatalogProductsScreenState extends State<_AdminCatalogProductsScreen
             ),
           ]),
         ),
+        // Peso variável (31/10/2026): linha própria para a fila de filtros de
+        // cima não estourar no telemóvel.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+          child: Row(children: [
+            FilterChip(
+              label: const Text('Peso variável'),
+              tooltip: 'Só produtos de peso variável (mercados não-parceiros: '
+                  'o estafeta escreve o valor da balança)',
+              selected: _onlyVariableWeight,
+              onSelected: (v) {
+                setState(() => _onlyVariableWeight = v);
+                _load();
+              },
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '${_variableWeightIds.length} produto(s) desta loja com preço pela balança',
+                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ]),
+        ),
         Expanded(
           child: _loading
               ? const Center(child: CircularProgressIndicator())
@@ -397,7 +524,8 @@ class _AdminCatalogProductsScreenState extends State<_AdminCatalogProductsScreen
                                 color: available ? null : Colors.grey,
                                 decoration: available ? null : TextDecoration.lineThrough)),
                         subtitle: Text(
-                            '${_priceLabel(p)} · ${p['taxonomy_section'] ?? p['category_root'] ?? p['category'] ?? "—"}'),
+                            '${_priceLabel(p)} · ${p['taxonomy_section'] ?? p['category_root'] ?? p['category'] ?? "—"}'
+                            '${p['variable_weight'] == true ? ' · Peso variável' : ''}'),
                         trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                           IconButton(
                             icon: Icon(available ? Icons.toggle_on : Icons.toggle_off,
@@ -415,6 +543,15 @@ class _AdminCatalogProductsScreenState extends State<_AdminCatalogProductsScreen
                                     ? AppColors.primary
                                     : AppColors.textSubtle),
                             onPressed: () => _editWeight(p),
+                          ),
+                          IconButton(
+                            tooltip: 'Peso variável (preço pela balança)',
+                            visualDensity: VisualDensity.compact,
+                            icon: Icon(Icons.monitor_weight_outlined,
+                                color: p['variable_weight'] == true
+                                    ? AppColors.primary
+                                    : AppColors.textSubtle),
+                            onPressed: () => _editVariableWeight(p),
                           ),
                           IconButton(
                             tooltip: 'Resetar foto',

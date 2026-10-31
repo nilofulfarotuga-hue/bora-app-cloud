@@ -23,7 +23,9 @@ import '../models/chat_message.dart';
 import '../models/order_model.dart';
 import '../screens/chat_screen.dart';
 import '../screens/notifications_screen.dart';
+import '../screens/order_details_screen.dart';
 import '../screens/partner/services/partner_agenda_screen.dart';
+import 'ajustes_peso_service.dart';
 import 'fcm_token_helper.dart';
 import 'foreground_service.dart' show BoraForegroundService;
 import 'incoming_job_alert.dart';
@@ -1465,6 +1467,17 @@ Future<void> _entregarAccaoTvdeAFrio(String rideId, String accao) async {
 /// ou Android com o aviso do próprio FCM): abre o trabalho dessa categoria.
 void _abrirTrabalhoDoPush(RemoteMessage msg) {
   final type = msg.data['type']?.toString();
+  // [31/10/2026] Toque no push "Preço ajustado ao peso" (notify-client,
+  // `order_weight_adjusted`, com orderId): abre o pedido do cliente.
+  if (type == kTipoAjustePeso) {
+    final orderId = msg.data['orderId']?.toString() ?? '';
+    if (orderId.isNotEmpty) {
+      AjustesPesoService.avisarNovoAjuste(orderId);
+      unawaited(NotificationService.instance
+          .openClientOrderFromNotification(orderId));
+    }
+    return;
+  }
   // [20/10/2026] Toque no push "Falta o comprovativo de atividade" aberto pelo
   // sistema: abre o ecrã de envio, pelo mesmo gancho.
   if (type == 'admin_message' &&
@@ -2729,6 +2742,15 @@ class NotificationService {
         trabalhoOfertaReload?.call();
         return;
       }
+      // [31/10/2026] Ajuste ao peso com a app aberta: a tabela não está no
+      // realtime, por isso os ecrãs do pedido abertos voltam a ler já. O
+      // sino (in_app_notifications) já traz a linha; aqui só o som curto.
+      if (type == kTipoAjustePeso) {
+        AjustesPesoService.avisarNovoAjuste(
+            msg.data['orderId']?.toString() ?? '');
+        _sound.playOnce();
+        return;
+      }
       if (_kPersistentCategoryTypes.contains(type)) {
         unawaited(_showPersistentCategoryNotification(msg));
         return;
@@ -3588,6 +3610,37 @@ class NotificationService {
     }
     debugPrint('[NotificationService] openInboxFromNotification DESISTIU — '
         'role/navigator nunca ficaram prontos');
+  }
+
+  /// [31/10/2026] Toque num push de pedido do cliente (hoje:
+  /// `order_weight_adjusted`): abre o pedido (`OrderDetailsScreen`, o mesmo
+  /// ecrã que o sino abre para as notificações de pedido). Arranque a frio:
+  /// espera pelo papel e pelo navegador como o chat (~5 s) e desiste calado.
+  Future<void> openClientOrderFromNotification(String orderId) async {
+    if (orderId.isEmpty) return;
+    for (var attempt = 0; attempt < 6; attempt++) {
+      if (_boundRole != null && navigatorKey.currentState != null) {
+        try {
+          final data = await Supabase.instance.client
+              .from('orders')
+              .select()
+              .eq('id', orderId)
+              .maybeSingle();
+          final nav = navigatorKey.currentState;
+          if (data == null || nav == null) return;
+          final order = OrderModel.fromSupabase(data);
+          nav.push(MaterialPageRoute<void>(
+              builder: (_) => OrderDetailsScreen(order: order)));
+        } catch (e) {
+          debugPrint(
+              '[NotificationService] openClientOrderFromNotification error: $e');
+        }
+        return;
+      }
+      await Future.delayed(const Duration(milliseconds: 900));
+    }
+    debugPrint('[NotificationService] openClientOrderFromNotification '
+        'DESISTIU — role/navigator nunca ficaram prontos (order=$orderId)');
   }
 
   Future<void> openChatFromNotification(

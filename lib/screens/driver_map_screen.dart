@@ -38,6 +38,8 @@ import '../widgets/bora_support_fab.dart';
 import '../services/route_optimizer.dart';
 import '../stores/driver_store.dart';
 import '../services/talao_nao_parceiro_service.dart';
+import '../services/peso_variavel_estafeta_service.dart';
+import '../widgets/peso_variavel_sheet.dart';
 import '../stores/order_store.dart';
 import '../stores/restaurant_store.dart';
 import '../utils/constants.dart';
@@ -2987,6 +2989,12 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
   /// (zero storage extra); 1 query ao abrir o sheet, best-effort.
   final Map<String, String> _photoUrls = <String, String>{};
 
+  /// 31/10/2026 (peso variável): productIds ao quilo (products.variable_weight)
+  /// e os ajustes já gravados no servidor (repõe o estado ao reabrir a lista).
+  final Set<String> _pesoVariavel = <String>{};
+  final Map<String, AjustePesoEstafeta> _ajustesPeso =
+      <String, AjustePesoEstafeta>{};
+
   bool get _isRestaurant =>
       widget.order.serviceType == OrderServiceType.restaurant;
 
@@ -3009,6 +3017,41 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
         ? widget.order.bagCount
         : (_isRestaurant ? 1 : 1);
     _loadProductPhotos();
+    if (!_isPartnerStore) _loadAjustesPeso();
+  }
+
+  Future<void> _loadAjustesPeso() async {
+    final ajustes =
+        await PesoVariavelEstafetaService.ajustesDoPedido(widget.order.id);
+    if (!mounted || ajustes.isEmpty) return;
+    setState(() => _ajustesPeso.addAll(ajustes));
+  }
+
+  bool _temPesoVariavel(CartItem i) =>
+      !_isPartnerStore &&
+      !_isExtraItem(i) &&
+      _pesoVariavel.contains(i.productId);
+
+  /// Toque no preço de um produto ao quilo: o estafeta escreve o total da
+  /// etiqueta da balança; o servidor valida (±30 %) e avisa o cliente.
+  Future<void> _abrirPeso(CartItem item, int estimadoCaixaCents) async {
+    final atual = _ajustesPeso[item.productId];
+    final ajuste = await PesoVariavelSheet.abrir(
+      context,
+      nomeLinha: '${WeightPortions.displayName(item)} × ${item.quantity}',
+      estimadoCaixaCents: atual?.estimadoCaixaCents ?? estimadoCaixaCents,
+      valorAtualCents: atual?.realCaixaCents,
+      enviar: (cents) => PesoVariavelEstafetaService.ajustar(
+        orderId: widget.order.id,
+        productId: item.productId,
+        realCaixaCents: cents,
+      ),
+    );
+    if (ajuste == null || !mounted) return;
+    setState(() {
+      _ajustesPeso[item.productId] = ajuste;
+      item.purchaseStatus = 'bought';
+    });
   }
 
   Future<void> _loadProductPhotos() async {
@@ -3021,7 +3064,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
     try {
       final rows = await Supabase.instance.client
           .from('products')
-          .select('id, photo_url')
+          .select('id, photo_url, variable_weight')
           .inFilter('id', ids);
       if (!mounted) return;
       setState(() {
@@ -3029,6 +3072,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
           final m = Map<String, dynamic>.from(r as Map);
           final url = (m['photo_url'] as String?) ?? '';
           if (url.isNotEmpty) _photoUrls[m['id'] as String] = url;
+          if (m['variable_weight'] == true) _pesoVariavel.add(m['id'] as String);
         }
       });
     } catch (e) {
@@ -3211,9 +3255,25 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
           100;
     }
 
+    // 31/10/2026 (peso variável): linha ajustada = o total da etiqueta.
+    double caixaDaLinha(CartItem i) {
+      final a = _temPesoVariavel(i) ? _ajustesPeso[i.productId] : null;
+      return a != null ? a.realCaixaCents / 100.0 : baseOf(i) * i.quantity;
+    }
+
     final boughtTotal = canonicalItems
         .where((i) => i.purchaseStatus == 'bought')
-        .fold<double>(0, (s, i) => s + baseOf(i) * i.quantity);
+        .fold<double>(0, (s, i) => s + caixaDaLinha(i));
+
+    // Diferença do lado do cliente (mesma margem da linha; o servidor aplica-a
+    // no talão — aqui é só a previsão da conta a dinheiro).
+    final ajustePesoCliente = canonicalItems
+            .where((i) => i.purchaseStatus == 'bought' && _temPesoVariavel(i))
+            .fold<int>(
+                0,
+                (s, i) =>
+                    s + (_ajustesPeso[i.productId]?.diferencaClienteCents ?? 0)) /
+        100.0;
 
     final addedFinalTotal =
         extraItems.fold<double>(0, (s, i) => s + i.price * i.quantity);
@@ -3228,7 +3288,8 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
         0,
         (s, i) =>
             s + (i.price * (1 + BRBusiness.NON_PARTNER_MARKUP_RATIO) * i.quantity));
-    final clientAdjustedTotal = clientBoughtTotal + _bagFee + clientAddedTotal;
+    final clientAdjustedTotal =
+        clientBoughtTotal + _bagFee + clientAddedTotal + ajustePesoCliente;
 
     // F2 (2026-08-16): o saco do Bora NÃO passa na caixa da loja — sai do
     // total do estafeta (fica só na conta do CLIENTE, clientAdjustedTotal).
@@ -3474,26 +3535,105 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                       // copyOrderItemsForDriverSheet) descartava
                                       // as opções.
                                       DriverItemOptions(item: item),
+                                      if (_temPesoVariavel(item))
+                                        Padding(
+                                          padding:
+                                              const EdgeInsets.only(top: 3),
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.scale_outlined,
+                                                  size: 13,
+                                                  color: Colors.green.shade700),
+                                              const SizedBox(width: 3),
+                                              Flexible(
+                                                child: Text(
+                                                  _ajustesPeso.containsKey(
+                                                          item.productId)
+                                                      ? 'ajustado ao peso'
+                                                      : 'peso variável · toca no preço',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color:
+                                                        Colors.green.shade700,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                     ],
                                   ),
                                 ),
-                                Text(
+                                Builder(builder: (_) {
                                   // B4 (2026-06-12): o estafeta vê o preço
                                   // que paga na CAIXA (base, sem +15%).
                                   // Canónicos: basePrice (pré-B1: price já
                                   // era base). Extras: preço digitado.
-                                  '€${((_isExtraItem(item) ? item.price : (item.basePrice ?? item.price)) * item.quantity).toStringAsFixed(2)}',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                    decoration: isUnavailable
-                                        ? TextDecoration.lineThrough
-                                        : null,
-                                    color: isUnavailable
-                                        ? Colors.grey
-                                        : Colors.black87,
-                                  ),
-                                ),
+                                  final caixa = (_isExtraItem(item)
+                                          ? item.price
+                                          : (item.basePrice ?? item.price)) *
+                                      item.quantity;
+                                  final ajuste = _temPesoVariavel(item)
+                                      ? _ajustesPeso[item.productId]
+                                      : null;
+                                  final preco = Text(
+                                    '€${(ajuste != null ? ajuste.realCaixaCents / 100.0 : caixa).toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                      decoration: isUnavailable
+                                          ? TextDecoration.lineThrough
+                                          : null,
+                                      color: isUnavailable
+                                          ? Colors.grey
+                                          : (ajuste != null
+                                              ? Colors.green.shade800
+                                              : Colors.black87),
+                                    ),
+                                  );
+                                  if (!_temPesoVariavel(item) || isUnavailable) {
+                                    return preco;
+                                  }
+                                  // 31/10/2026: produto ao quilo — tocar no
+                                  // preço abre a folha da balança.
+                                  return InkWell(
+                                    key: Key('peso_preco_${item.productId}'),
+                                    borderRadius: BorderRadius.circular(8),
+                                    onTap: () => _abrirPeso(
+                                        item, (caixa * 100).round()),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 4, vertical: 2),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.end,
+                                        children: [
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              preco,
+                                              const SizedBox(width: 4),
+                                              Icon(Icons.edit,
+                                                  size: 16,
+                                                  color: Colors.green.shade700),
+                                            ],
+                                          ),
+                                          if (ajuste != null)
+                                            Text(
+                                              '€${(ajuste.estimadoCaixaCents / 100.0).toStringAsFixed(2)}',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: Colors.grey.shade600,
+                                                decoration:
+                                                    TextDecoration.lineThrough,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                }),
                               ],
                             ),
                             // Partner stores: read-only list (driver only picks up).
@@ -3752,6 +3892,9 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                 // adicionados + taxa serviço + entrega.
                 // F2: a linha "Sacos" vive AQUI (conta do cliente), não na caixa.
                 _SummaryRow(label: 'Sacos', value: _bagFee),
+                if (ajustePesoCliente != 0)
+                  _SummaryRow(
+                      label: 'Ajuste de peso', value: ajustePesoCliente),
                 _SummaryRow(
                     label: 'Taxa de serviço', value: order.serviceFee),
                 _SummaryRow(label: 'Entrega', value: order.deliveryFee),

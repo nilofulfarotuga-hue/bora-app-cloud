@@ -16,6 +16,7 @@ import '../stores/restaurant_store.dart';
 import '../utils/cart_feedback.dart';
 import '../widgets/bora/bora_product_card.dart';
 import '../widgets/bora/maior_18.dart';
+import '../widgets/bora/peso_variavel_nota.dart';
 import '../widgets/bora/weight_price_text.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora/coming_soon.dart';
@@ -926,6 +927,7 @@ class _BoraProductCardTile extends StatelessWidget {
               price: PricingService.applyMarkup(product.price, isPartnerStore),
               basePrice: product.price,
               ageRestricted: product.ageRestricted,
+              variableWeight: product.variableWeight,
             ));
         showAddedToCartSnack(context, '{0} no carrinho'.trArgs([product.name]));
       },
@@ -1094,6 +1096,11 @@ class _ProductCardState extends State<_ProductCard>
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
+                // 31/10/2026: produto ao quilo — "Preço aproximado · …".
+                PesoVariavelNota(
+                  variableWeight: widget.product.variableWeight,
+                  margem: const EdgeInsets.only(top: 4),
+                ),
                 // ── Base price (no variants) ───────────────────────────────
                 if (variants.isEmpty) ...[
                   const SizedBox(height: 8),
@@ -1147,6 +1154,7 @@ class _ProductCardState extends State<_ProductCard>
                                     widget.isPartnerStore),
                                 basePrice: widget.product.price,
                                 ageRestricted: widget.product.ageRestricted,
+                                variableWeight: widget.product.variableWeight,
                               ));
                           showAddedToCartSnack(
                               context, '{0} no carrinho'.trArgs([widget.product.name]));
@@ -1597,6 +1605,7 @@ class _SuggestionsPanel extends StatelessWidget {
       category: (row['category'] ?? '').toString(),
       categoryRoot: (row['category_root'] ?? '').toString(),
       ageRestricted: row['age_restricted'] == true,
+      variableWeight: pesoVariavelDaLinha(row),
     );
   }
 

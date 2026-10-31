@@ -88,6 +88,7 @@ class _JuntarMaisTiraState extends State<JuntarMaisTira> {
       price: PricingService.applyMarkup(p.price, cart.isPartnerStore),
       basePrice: p.price,
       ageRestricted: p.ageRestricted,
+      variableWeight: p.variableWeight,
     ));
     showAddedToCartSnack(context, '{0} no carrinho'.trArgs([p.name]));
   }

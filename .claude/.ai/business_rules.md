@@ -4133,8 +4133,9 @@ pro carrinho."
    detalhe — nunca adiciona directo (senão levava 1 kg ao preço de 200 g). No carrinho, na
    lista de compras do estafeta e no detalhe do pedido a linha diz a porção por extenso:
    "Abóbora Cabotiá — 500 g (meio quilo)".
-6. **Balança diferente do pedido:** segue a regra que já existe para produto em falta /
-   preço do talão (§ storeShopping v2) — não há regra nova para o peso.
+6. **Balança diferente do pedido:** nos parceiros segue a regra que já existe para produto em
+   falta / preço do talão (§ storeShopping v2). Nos mercados NÃO-parceiros manda a §59
+   (peso variável, 26/10/2026).
 7. **Loja nova com hortifrúti entra já assim:** todo o produto vendido a peso é criado com o
    interruptor "Vendido ao peso" ligado e o preço por quilo; nunca se cria "1 kg" como
    produto solto nem se pede ao parceiro para fazer contas.
@@ -4192,3 +4193,44 @@ cliente). O Ney foi o caso que originou a regra; no sistema vale para qualquer m
 *Caso de origem (17/10):* o cliente cancelou depois dos 3 min com o Ney já a caminho; não se
 cobrou nada ao cliente e o Danilo mandou pôr 2,50 € na carteira do Ney à mão. A regra fecha o
 buraco para os próximos.
+
+---
+
+## §59 — PESO VARIÁVEL NOS MERCADOS NÃO-PARCEIROS (26/10/2026; app a 31/10/2026)
+
+*Autorização do Danilo:* 26/10/2026 10:16 (Lisboa), "Autorizo." à proposta; missão
+`fecho-pendentes-2026-10-31` (31/10 22:08, "autorizo publicar e fazer tudo o que tem que fazer aí").
+Não é a §57 (porções de 200 g dos parceiros, `sold_by_weight`): aqui é `products.variable_weight`.
+
+1. **Quais produtos:** fruta e legumes avulsos, talho e peixaria frescos, charcutaria ao corte,
+   nomes com "aprox" ou "unidade N kg". Regra em `public.produto_sugere_peso_variavel(nome, secção)`;
+   produtos NOVOS do Continente, Auchan, Intermarché e Pingo Doce nascem marcados pelo gatilho
+   `trg_products_zzz_peso_variavel_novo` (só no INSERT: o admin desliga à mão e fica desligado).
+   Lidl e Mercadona ficam de fora até as secções desses catálogos estarem certas.
+2. **O estafeta** toca no preço da linha na lista de compras e escreve o TOTAL da etiqueta da
+   balança dessa linha (ex.: as 4 bananas juntas). RPC `estafeta_ajustar_peso`. Pode corrigir
+   (substitui).
+3. **Limite:** ±30 % do previsto (`weight_adjust_max_pct`). Fora disso é recusado: pesa outra vez
+   (tira ou põe uma peça) ou marca "Não há".
+4. **Preço novo ao cliente** = real × (preço ao cliente previsto ÷ preço de caixa previsto): a mesma
+   margem da linha. Mais leve paga menos; mais pesado paga mais. O cliente recebe aviso (sino e push
+   `order_weight_adjusted`) e vê "Ajustado ao peso: 1,12 € → 1,40 €" no pedido e no recibo.
+5. **Como se acerta** (no talão, `finalizar_talao_nao_parceiro`): dinheiro → entra no valor a cobrar
+   à porta; cartão/MB Way mais barato → a diferença vai para a carteira; mais caro → cobra no cartão
+   guardado SÓ se `weight_adjust_card_charge_enabled` (desligado de propósito), senão a Bora assume.
+   MB Way a subir: a Bora assume. Produto ajustado e depois "Não há": ignorado.
+6. **Produtos que o estafeta acrescenta** vão ao cliente com a margem de não-parceiro
+   (`non_partner_markup_pct`).
+7. **Peças vendidas ao quilo** (melancias, melões, meloas da Auchan e do Intermarché, 31/10):
+   `products.preco_kg` + `products.peso_medio_kg`; o gatilho `trg_products_zzz_peca_ao_quilo` guarda
+   `price = preco_kg × peso_medio_kg` e o nome acaba em "(~N kg)". Quem escreve o preço destes
+   produtos escreve o preço do QUILO (como no site da loja); para escrever já o preço da peça:
+   `SET LOCAL app.preco_por_peca = 'on'`. Pesos médios: melancia 4 kg, mini e metade 2 kg, melão
+   2 kg, metade 1 kg, meloa 1 kg, metade 0,5 kg.
+8. **Painel admin:** Operação do dia → "Ajustes de peso" (lista, filtro, CSV); catálogo com
+   interruptor e filtro "Peso variável" (`admin_set_variable_weight`, com motivo); detalhe do pedido
+   com os ajustes; Definições com as três chaves explicadas.
+
+*Cicatrizes:* pedido 11926093 (26/10, Continente, 4 bananas — o estafeta não tinha como trocar o
+preço); pedido 48669acf (31/10, Continente, melancia 7,14 € na app e 9,06 € na balança, 4,136 kg a
+2,19 €/kg). Em 31/10 a app ainda não tinha nada disto: o prompt de 26/10 nunca tinha sido colado.

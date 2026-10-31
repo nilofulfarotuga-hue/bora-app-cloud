@@ -583,13 +583,16 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
             ),
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.only(top: Spacing.xs),
-          child: Text(
-            'Antecedência mínima: {0} h.'.trArgs([_leadHours]),
-            style: const TextStyle(color: AppColors.textSubtle, fontSize: 12),
+        // 31/10/2026: mínimo zero (cleaning_min_lead_hours = 0) não mostra
+        // "Antecedência mínima: 0 h".
+        if (_leadHours > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: Spacing.xs),
+            child: Text(
+              'Antecedência mínima: {0} h.'.trArgs([_leadHours]),
+              style: const TextStyle(color: AppColors.textSubtle, fontSize: 12),
+            ),
           ),
-        ),
         const SizedBox(height: Spacing.lg),
         _sectionTitle('Morada da limpeza'.tr),
         TextField(

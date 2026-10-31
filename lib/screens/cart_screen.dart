@@ -17,6 +17,7 @@ import '../stores/restaurant_store.dart';
 import '../widgets/checkin/premio_carrinho_banner.dart';
 import '../widgets/bora/bora.dart';
 import '../widgets/bora/maior_18.dart';
+import '../widgets/bora/peso_variavel_nota.dart';
 import '../widgets/agendar_pedido_seletor.dart';
 import '../widgets/takeaway/curbside_inputs.dart';
 import '../widgets/tip_selector.dart';
@@ -96,6 +97,7 @@ class CartScreen extends StatelessWidget {
                         onDecrease: () => cartStore.decreaseQuantity(item),
                         onIncrease: () => cartStore.increaseQuantity(item),
                         onRemove: () => cartStore.removeItem(item),
+                        variableWeight: item.variableWeight,
                       );
                     },
                   ),
@@ -158,6 +160,7 @@ class _CartItemTile extends StatelessWidget {
     required this.onDecrease,
     required this.onIncrease,
     required this.onRemove,
+    this.variableWeight = false,
   });
 
   final String name;
@@ -167,6 +170,9 @@ class _CartItemTile extends StatelessWidget {
   final VoidCallback onDecrease;
   final VoidCallback onIncrease;
   final VoidCallback onRemove;
+
+  /// 31/10/2026: produto ao quilo — nota "Preço aproximado · …".
+  final bool variableWeight;
 
   @override
   Widget build(BuildContext context) {
@@ -211,6 +217,10 @@ class _CartItemTile extends StatelessWidget {
                     color: AppColors.textSecondary,
                     fontWeight: FontWeight.w500,
                   ),
+                ),
+                PesoVariavelNota(
+                  variableWeight: variableWeight,
+                  margem: const EdgeInsets.only(top: 2),
                 ),
               ],
             ),

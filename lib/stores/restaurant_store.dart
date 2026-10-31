@@ -177,7 +177,8 @@ class RestaurantStore extends ChangeNotifier {
   static const String _productProjection =
       'id,restaurant_id,name,description,price,price_low,partner_shelf_price,'
       'photo_url,is_available,category,category_root,is_popular,is_on_sale,'
-      'discount_price,allergens,sold_by_weight,shelf_price_per_kg,diet_tags';
+      'discount_price,allergens,sold_by_weight,shelf_price_per_kg,diet_tags,'
+      'variable_weight';
 
   /// Um produto pelo id, com a mesma projecção e o mesmo parse do catálogo.
   /// Usado pelas faixas da home e pela pesquisa global (05/10) para abrir a
@@ -242,6 +243,8 @@ class RestaurantStore extends ChangeNotifier {
       // Missão maiores-18: tolerante a null (coluna pode não existir ainda).
       ageRestricted: (data['age_restricted'] as bool?) ?? false,
       dietTags: etiquetasDeLinha(data['diet_tags']),
+      // 31/10/2026: produto ao quilo de mercado não-parceiro (preço aproximado).
+      variableWeight: pesoVariavelDaLinha(data),
     );
   }
 
@@ -672,6 +675,7 @@ class RestaurantStore extends ChangeNotifier {
             shelfPricePerKg: _numFromRow(data, 'shelf_price_per_kg'),
             ageRestricted: (data['age_restricted'] as bool?) ?? false,
             dietTags: etiquetasDeLinha(data['diet_tags']),
+            variableWeight: pesoVariavelDaLinha(data),
           );
           final list = _productsByRestaurant.putIfAbsent(
               restaurantId, () => <PartnerProduct>[]);
@@ -721,6 +725,9 @@ class RestaurantStore extends ChangeNotifier {
             dietTags: data.containsKey('diet_tags')
                 ? etiquetasDeLinha(data['diet_tags'])
                 : list[index].dietTags,
+            variableWeight: data.containsKey('variable_weight')
+                ? pesoVariavelDaLinha(data)
+                : list[index].variableWeight,
           );
           notifyListeners();
         },
@@ -1016,6 +1023,7 @@ class RestaurantStore extends ChangeNotifier {
       shelfPricePerKg: soldByWeight ? shelfPricePerKg : null,
       ageRestricted: current.ageRestricted,
       dietTags: current.dietTags,
+      variableWeight: current.variableWeight,
     );
     if (soldByWeight) _requiredOptionProductIds.add(productId);
     notifyListeners();

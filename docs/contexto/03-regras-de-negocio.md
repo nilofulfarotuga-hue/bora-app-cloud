@@ -22,9 +22,13 @@ Mercados não-parceiros: Continente, Lidl, Auchan, Pingo Doce, Mercadona, Interm
 - Buffer MB Way: `payment_buffer_total = fees_total + round(estimativa × 1.2)` — **NUNCA ×1.15**.
 - Payout a motoristas/estafetas é **SEMANAL** (acerto de contas), nunca reembolso instantâneo. Saldo negativo = Bora deve ao motorista.
 
-## Wallet — split de reembolso
+## Wallet — reembolso (desde 31/10/2026)
 
-Cancelamento com refund pra wallet → **80% saldo livre** (sem restrição) + **20% tokens** (expiram em 60 dias). Percentagens em `platform_settings`. Cliente escolhe entre refund Stripe ou wallet.
+O cliente **escolhe**: carteira Bora (o valor todo, pode usar logo) **ou** devolução para o cartão/MB Way (o valor todo, 5 a 10 dias úteis). A divisão antiga 80% saldo + 20% tokens **acabou** (ordem do Danilo, 31/10/2026 06:44). Tokens numa compra: no máximo **metade do valor** dos tokens que o cliente tem.
+
+## Peso variável nos mercados não-parceiros (26/10/2026; app 31/10/2026)
+
+Produtos ao quilo (`products.variable_weight`): o estafeta toca no preço e escreve o total da etiqueta da balança; limite ±30%; o cliente paga o valor final com a mesma margem e recebe aviso; dinheiro → no valor à porta; cartão/MB Way mais barato → carteira; mais caro → cartão guardado só se `weight_adjust_card_charge_enabled` (DESLIGADO), senão a Bora assume. Melancias e melões vendidos à peça têm `preco_kg` × `peso_medio_kg`. Regra completa: `business_rules.md` §59.
 
 ## Cancelamento de pedidos (motor em 5 estágios — EF `client-cancel-order` v26)
 
@@ -54,7 +58,7 @@ RPC `request_order_cancel` é ÓRFÃ — ignorar. Admin: histórico, reprocessar
 
 ## Limpeza
 
-Preços fixos T0–T4+, split **85/15**, materiais +€3, recorrência –10%, agendado (lead time mínimo removido). KYC + dupla avaliação.
+Preços fixos T0–T4+, split **85/15**, materiais +€3, recorrência –10%, agendado (lead time mínimo removido: `cleaning_min_lead_hours=0`, a app não mostra "0 h"). Cancelar nos primeiros **5 minutos** depois de marcar não tem taxa (`cleaning_cancel_grace_minutes`, 31/10/2026). KYC + dupla avaliação.
 
 ## Favores (Errands) v3
 

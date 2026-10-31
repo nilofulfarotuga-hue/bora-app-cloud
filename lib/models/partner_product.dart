@@ -22,6 +22,7 @@ class PartnerProduct {
     this.shelfPricePerKg,
     this.ageRestricted = false,
     this.dietTags = const [],
+    this.variableWeight = false,
   });
 
   final String id;
@@ -77,6 +78,13 @@ class PartnerProduct {
   /// parceiro. Ver `lib/models/etiquetas_dieta.dart`.
   final List<String> dietTags;
 
+  /// `products.variable_weight` (31/10/2026): produto ao quilo dos mercados
+  /// NÃO-parceiros (fruta, legumes, talho, peixaria). O cliente pede por
+  /// unidades, o preço mostrado é aproximado e o estafeta pesa e escreve o
+  /// valor da balança (`estafeta_ajustar_peso`). Não é o mesmo que
+  /// [soldByWeight] (porções de 200 g dos parceiros). Default false.
+  final bool variableWeight;
+
   PartnerProduct copyWith({
     String? name,
     String? description,
@@ -96,6 +104,7 @@ class PartnerProduct {
     double? shelfPricePerKg,
     bool? ageRestricted,
     List<String>? dietTags,
+    bool? variableWeight,
   }) {
     return PartnerProduct(
       id: id,
@@ -118,6 +127,12 @@ class PartnerProduct {
       shelfPricePerKg: shelfPricePerKg ?? this.shelfPricePerKg,
       ageRestricted: ageRestricted ?? this.ageRestricted,
       dietTags: dietTags ?? this.dietTags,
+      variableWeight: variableWeight ?? this.variableWeight,
     );
   }
 }
+
+/// `products.variable_weight` lido de uma linha do banco (ou de uma RPC).
+/// Sem a chave, ou com null, dá false — nunca parte um produto antigo.
+bool pesoVariavelDaLinha(Map<String, dynamic> row) =>
+    row['variable_weight'] == true;

@@ -127,6 +127,10 @@ class CleaningBooking {
   final DateTime? doneAt;
   final DateTime? completedAt;
 
+  /// Quando a marcação foi feita — os primeiros minutos
+  /// (`cleaning_cancel_grace_minutes`) cancelam sem taxa (31/10/2026).
+  final DateTime? createdAt;
+
   const CleaningBooking({
     required this.id,
     required this.clientUserId,
@@ -161,6 +165,7 @@ class CleaningBooking {
     this.offerExpiresAt,
     this.doneAt,
     this.completedAt,
+    this.createdAt,
   });
 
   factory CleaningBooking.fromSupabase(Map<String, dynamic> m) {
@@ -201,6 +206,7 @@ class CleaningBooking {
       offerExpiresAt: ts(m['offer_expires_at']),
       doneAt: ts(m['done_at']),
       completedAt: ts(m['completed_at']),
+      createdAt: ts(m['created_at']),
     );
   }
 
@@ -211,6 +217,14 @@ class CleaningBooking {
   String get recurrenceLabel =>
       CleaningLabels.recurrences[recurrence] ?? recurrence;
   bool get isRecurring => recurrence != 'single';
+
+  /// Cancelar nos primeiros [minutos] depois de marcar não tem taxa — a mesma
+  /// conta do servidor (`now() - created_at <= cleaning_cancel_grace_minutes`).
+  bool cancelaSemTaxaPorAcabarDeMarcar(DateTime agora, int minutos) {
+    final c = createdAt;
+    if (c == null || minutos <= 0) return false;
+    return agora.difference(c).inSeconds <= minutos * 60;
+  }
 }
 
 /// Orçamento devolvido pela RPC cleaning_quote (preço live no wizard).

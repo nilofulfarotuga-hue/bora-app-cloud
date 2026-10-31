@@ -13,6 +13,7 @@ import '../../widgets/admin/admin_ofertas_do_pedido_section.dart';
 import '../../utils/conta_do_dinheiro_admin.dart';
 import '../../utils/hora_lisboa.dart';
 import '_admin_cancel_order_dialog.dart';
+import 'admin_ajustes_peso_screen.dart';
 import 'admin_chat_viewer_screen.dart';
 
 /// Full-screen admin detail for an order. Pushed from `admin_orders_screen`
@@ -440,6 +441,9 @@ class _SummaryTab extends StatelessWidget {
           // C7 (29/10/2026): a escolha "se faltar produto" e as devoluções por
           // produto em falta. Sem nada para mostrar não desenha nada.
           AdminSubstituicaoSection(order: order),
+          // 31/10/2026: peso variável dos mercados não-parceiros — o valor da
+          // balança que o estafeta escreveu. Sem ajustes não desenha nada.
+          AdminAjustesPesoSection(orderId: order['id'] as String),
           const SizedBox(height: 24),
           Text('Acções', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),

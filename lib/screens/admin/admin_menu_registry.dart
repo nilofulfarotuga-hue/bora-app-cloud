@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../config/app_colors.dart';
 
 import 'admin_order_edits_screen.dart';
+import 'admin_ajustes_peso_screen.dart';
+import 'admin_porteiro_screen.dart';
 import 'admin_pedidos_agendados_screen.dart';
 import 'admin_acerto_unificado_screen.dart';
 import 'admin_menu_sub_screen.dart';
@@ -283,6 +285,17 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.teal,
       builder: () => const AdminOrderEditsScreen(),
       keywords: const ['editar', 'edicao', 'acrescentar', 'falta', 'em falta', 'produto', 'parceiro', 'loja', 'estorno', 'reembolso', 'diferenca'],
+    ),
+    // [fecho-pendentes 31/10] Peso variável dos mercados não-parceiros: o
+    // gémeo das "Edições de pedidos" para as lojas sem contrato.
+    AdminMenuItem(
+      id: 'operacao_ajustes_peso',
+      title: 'Ajustes de peso',
+      subtitle: 'Mercados não-parceiros: produtos ao quilo em que o estafeta escreveu o valor da balança — previsto → real, diferença para o cliente, como foi acertado e exportar CSV',
+      icon: Icons.scale_outlined,
+      color: Colors.teal,
+      builder: () => const AdminAjustesPesoScreen(),
+      keywords: const ['peso', 'peso variavel', 'balanca', 'quilo', 'kg', 'ajuste', 'etiqueta', 'diferenca', 'mercado', 'nao parceiro', 'continente', 'auchan'],
     ),
     AdminMenuItem(
       id: 'operacao_pedidos_de_cancelamento',
@@ -1352,6 +1365,16 @@ List<AdminMenuSection> adminMenuSections() => [
       color: AppColors.primary,
       builder: () => const AdminAgentesEmailScreen(),
       keywords: const ['email', 'e-mail', 'agentes', 'caixa', 'emerson', 'suporte', 'vendas', 'parceiros', 'radar', 'responder', 'boraguarda'],
+    ),
+    // [fecho-pendentes 31/10] Fila porteiro_entrada (RPCs admin_porteiro_*).
+    AdminMenuItem(
+      id: 'robos_porteiro_telegram',
+      title: 'Porteiro do Telegram',
+      subtitle: 'Fila de avisos da base que o porteiro da VPS manda para o Telegram do Danilo (texto e voz): nível, destino, tratado ou por tratar, reenviar',
+      icon: Icons.mark_chat_unread_outlined,
+      color: AppColors.primary,
+      builder: () => const AdminPorteiroScreen(),
+      keywords: const ['porteiro', 'telegram', 'avisos', 'fila', 'voz', 'vps', 'reenviar', 'urgente', 'resultado', 'notificacao', 'alerta'],
     ),
     AdminMenuItem(
       id: 'robos_decisoes_jev',

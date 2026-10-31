@@ -15,6 +15,7 @@ import '../models/rating_model.dart';
 import '../models/restaurant_model.dart' show BusinessCategory;
 import '../widgets/order_edit/client_order_edit_banner.dart';
 import '../widgets/address_text.dart';
+import '../widgets/ajustes_peso_pedido.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/barra_pedido_ativo.dart' show BarraPedidoAtivoEstado;
 import '../widgets/errand_budget_banner.dart';
@@ -740,6 +741,8 @@ class _BottomCardState extends State<_BottomCard> {
                 // ── Foto de prova da entrega (adendo 4 · item 2) ─────────
                 FotoProvaEntregaCliente(
                     orderId: order.id, status: order.status),
+                // ── Ajustado ao peso (31/10/2026): "1,12 € → 1,40 €" ─────
+                AjustesPesoPedido(orderId: order.id, status: order.status),
                 // ── NIF que não ficou na fatura: "Tentar de novo" ────────
                 FaturaNifAviso(order: order),
                 // ── Order code + status ──────────────────────────────────

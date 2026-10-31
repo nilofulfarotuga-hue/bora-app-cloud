@@ -16,6 +16,18 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 31/10/2026 (fecho-pendentes, peso variavel): produtos ao quilo dos mercados nao-parceiros
+  // (tool/l10n/traducoes/pt-en-34-peso-variavel.json). Acrescentado a mao.
+  'Preço aproximado · o valor final depende do peso':
+      'Approximate price · the final amount depends on the weight',
+  'Preço aproximado':
+      'Approximate price',
+  'Ajustado ao peso: {0}':
+      'Adjusted to weight: {0}',
+  // 31/10/2026 (fecho-pendentes, limpeza): 5 min sem taxa depois de marcar
+  // (tool/l10n/traducoes/pt-en-35-limpeza-sem-taxa.json). Acrescentado a mao.
+  'Cancelamento sem taxa: marcaste há menos de {0} minutos.':
+      'No fee to cancel: you booked less than {0} minutes ago.',
   // 31/10/2026 (casa-manutencao, retoma-geral-2026-10-31): app cliente e profissional da Casa
   // (tool/l10n/traducoes/pt-en-31..33-casa-*.json). Acrescentado a mao: o gerador com --write
   // apaga entradas que so existem aqui.

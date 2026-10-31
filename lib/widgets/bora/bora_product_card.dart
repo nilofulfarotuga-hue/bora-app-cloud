@@ -7,6 +7,7 @@ import '../../models/partner_product.dart';
 import '../../stores/cart_store.dart';
 import 'coming_soon.dart';
 import 'maior_18.dart';
+import 'peso_variavel_nota.dart';
 import 'weight_price_text.dart';
 
 import '../../l10n/tr.dart';
@@ -114,6 +115,15 @@ class BoraProductCard extends StatelessWidget {
                       bottom: 8,
                       left: 8,
                       child: Maior18Badge(),
+                    ),
+                  // 31/10/2026: produto ao quilo (mercado não-parceiro) —
+                  // selo "Preço aproximado" no canto inferior direito da foto.
+                  if (product.variableWeight)
+                    const Positioned(
+                      bottom: 8,
+                      right: 8,
+                      child: PesoVariavelNota(
+                          variableWeight: true, compacta: true),
                     ),
                   if (onFavoriteToggle != null)
                     Positioned(

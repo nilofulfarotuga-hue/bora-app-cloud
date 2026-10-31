@@ -49,7 +49,8 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
         if (_obsoleteDepositKeys.contains(s.key)) continue;
         final rotulo = rotulosCancelamento[s.key] ??
             rotulosVitrineCliente[s.key] ??
-            rotulosGorjetas[s.key];
+            rotulosGorjetas[s.key] ??
+            rotulosPesoVariavel[s.key];
         by.putIfAbsent(s.category ?? 'other', () => []).add(rotulo == null
             ? s
             : _Setting(
@@ -117,6 +118,22 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
   /// só se a gorjeta vai no mesmo pagamento. Também está no ecrã Gorjetas.
   static const rotulosGorjetas = <String, String>{
     kChaveGorjetaJunto: kExplicacaoGorjetaJunto,
+  };
+
+  /// [fecho-pendentes 31/10/2026] Peso variável dos mercados NÃO-parceiros
+  /// (categoria 'storeshopping'). Só a explicação em PT-BR: estar aqui NÃO
+  /// torna a chave editável (o _isEditable decide isso à parte).
+  static const rotulosPesoVariavel = <String, String>{
+    'weight_adjust_enabled':
+        'Peso variável (mercados não-parceiros): o estafeta escreve o valor da etiqueta da balança '
+            'nos produtos ao quilo e o cliente paga o valor final, com a mesma margem do produto '
+            '(ligado/desligado). Lista em Operação do dia → Ajustes de peso.',
+    'weight_adjust_max_pct':
+        'Peso variável: diferença máxima aceite por produto, para cima ou para baixo (0.30 = 30%). '
+            'Fora disto a app do estafeta não aceita: pesa outra vez ou marca "Não há".',
+    'weight_adjust_card_charge_enabled':
+        'Cobrar a diferença no cartão guardado (DESLIGADO de propósito — ligar só com ordem do Danilo). '
+            'Desligado = a Bora assume a diferença a mais nos pedidos pagos com cartão.',
   };
 
   /// Whitelist operacional: só chaves de dispatch e operação de reservas são

@@ -13,6 +13,7 @@ import '../services/wallet_service.dart';
 import '../services/weight_portions.dart';
 import '../stores/driver_store.dart';
 import '../stores/order_store.dart';
+import '../widgets/ajustes_peso_pedido.dart';
 import '../widgets/bora/bora_bottom_action_bar.dart';
 import '../widgets/reportar_problema_pedido.dart';
 import '../widgets/order_edit/client_order_edit_banner.dart';
@@ -133,6 +134,14 @@ class OrderDetailsScreen extends StatelessWidget {
             const SizedBox(height: 16),
             _PurchaseV2Card(order: liveOrder),
           ],
+
+          // ── Ajustado ao peso (31/10/2026): produtos ao quilo de mercado
+          // não-parceiro pesados pelo estafeta. Sem ajustes não desenha nada.
+          AjustesPesoPedido(
+            orderId: liveOrder.id,
+            status: liveOrder.status,
+            margem: const EdgeInsets.only(top: 16),
+          ),
 
           const SizedBox(height: 16),
 

@@ -20,6 +20,7 @@ import '../widgets/bora/bora_accent_button.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/bora/coming_soon.dart';
 import '../widgets/bora/maior_18.dart';
+import '../widgets/bora/peso_variavel_nota.dart';
 import '../widgets/bora/weight_price_text.dart';
 import '../widgets/etiquetas_dieta_chips.dart';
 import '../widgets/preco_com_promocao.dart';
@@ -181,6 +182,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           basePrice: v.price,
           quantity: _quantity,
           ageRestricted: widget.product.ageRestricted,
+          variableWeight: widget.product.variableWeight,
         ));
     _snackEFecha('{0} × {1} adicionado ao carrinho'.trArgs([v.brandName, _quantity]));
   }
@@ -195,6 +197,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           basePrice: _precoCatalogo,
           quantity: _quantity,
           ageRestricted: widget.product.ageRestricted,
+          variableWeight: widget.product.variableWeight,
         ));
     _snackEFecha('{0} × {1} adicionado ao carrinho'.trArgs([widget.product.name, _quantity]));
   }
@@ -224,6 +227,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           quantity: _quantity,
           selectedOptions: selected,
           ageRestricted: widget.product.ageRestricted,
+          variableWeight: widget.product.variableWeight,
         ));
     _snackEFecha('{0} × {1} adicionado ao carrinho'.trArgs([widget.product.name, _quantity]));
   }
@@ -345,6 +349,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               semPromocao: const SizedBox.shrink(),
                             ),
                           ),
+                        // 31/10/2026: produto ao quilo de mercado não-parceiro
+                        // — o estafeta pesa e o valor final segue a balança.
+                        PesoVariavelNota(
+                          variableWeight: widget.product.variableWeight,
+                          margem: const EdgeInsets.only(top: 8),
+                        ),
                         if (widget.product.description.isNotEmpty) ...[
                           const SizedBox(height: 8),
                           Text(

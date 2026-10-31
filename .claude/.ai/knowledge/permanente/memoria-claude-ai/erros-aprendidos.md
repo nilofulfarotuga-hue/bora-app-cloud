@@ -10,7 +10,7 @@ estado: atual
 
 # Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-10-31T19:14:25.271492+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-10-31T20:04:09.189743+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: erros aprendidos · memoria claude.ai · claude_ai_memoria
 
@@ -116,4 +116,5 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 31/10 (quem errou: claude-ai): ao marcar a limpeza do Divan para as 18h copiei a tentativa que ele tinha cancelado na app (pacote T2, 4 horas, 45 €) em vez das 3 horas de sempre; o Divan cancelou e a app registou-lhe 45 € de taxa → a limpeza do Divan é de 3 horas por hora (produtos dele, 2 gatos), não o pacote T2; ao marcar uma limpeza por um cliente, seguir o formato das marcações habituais dele, nunca uma tentativa cancelada.
 30/10 (quem errou: claude-ai): na mensagem ao Ricardo (cliente Uber, a quem faltava pagar um pouco) escrevi um limite duro ("até uma semana, não deixo acumular mais de 20 €, senão fica pesado para mim"); ele achou grosso → com cliente que deve pouco, a mensagem é leve — diz quanto falta e pergunta quando consegue pagar; o limite vai só como ajuda futura ("se um dia precisares outra vez, posso ajudar, só não com um valor muito alto"), sem números, prazos nem queixas.
 31/10 18:29 (quem errou: claude-ai): na resposta ao Ricardo ("o que disseste ontem?") escrevi seco — só "não dá para fazer fiado", a conta e "quando consegues mandar?"; ele achou grosso outra vez (repete o de 30/10) → reto sem ser grosso — lembrar com calma que ajudou porque o cliente pediu e achou que era só até lhe sair o pagamento; dizer que uma vez ou outra ajuda, mas fiado não consegue nem deixa passar de 20 €; a conta vai no fim, sem frase seca de cobrança.
+- 31/10 (claude-ai): 31/10: as missões no PC ficaram ~7 h paradas à espera de um Permitir que nunca apareceu ao Danilo; a Claude.ai só registava e voltava a ver de hora a hora. → Pedido de Permitir sem resposta em 15 min = a Claude.ai leva logo ao chat a lista numerada do que falta autorizar e faz por MCP com o "autorizo" dele; o que só o PC faz vai num prompt para ele colar numa sessão nova com "Ignorar permissões".
 

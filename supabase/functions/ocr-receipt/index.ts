@@ -23,6 +23,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { exigirCallerOk, secretKey } from '../_shared/keys.ts'
+import { respostaAoPing } from '../_shared/chaves.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -39,6 +40,8 @@ Deno.serve(async (req) => {
   // ou a legada confirmada no Auth) ou um utilizador com sessão válida. Ver _shared/keys.ts.
   const bloqueio = await exigirCallerOk(req, corsHeaders)
   if (bloqueio) return bloqueio
+  const pong = await respostaAoPing(req, corsHeaders) // vigia diário das chaves (31/10/2026)
+  if (pong) return pong
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const serviceKey = secretKey()!

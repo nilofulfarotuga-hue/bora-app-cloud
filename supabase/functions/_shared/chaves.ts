@@ -213,6 +213,32 @@ export async function exigirServidorOuUtilizador(
 }
 
 /**
+ * Vigia diário das chaves (missão chaves-varredura-2026-10-31, Bloco D): o banco manda
+ * `{"ping":true}` com a chave de servidor e a função responde 200 `{"pong":true}` sem fazer mais
+ * nada. Chamar SEMPRE logo DEPOIS de confirmar quem chama: assim o 200 prova que a chave do
+ * servidor passa a porta desta função, e um 401/403 avisa que deixou de passar. Lê uma cópia do
+ * corpo (req.clone()), por isso a função continua a poder ler o corpo a seguir. null = não é ping.
+ */
+export async function respostaAoPing(
+  req: Request,
+  cors: Record<string, string> = {},
+): Promise<Response | null> {
+  if (req.method !== 'POST') return null;
+  try {
+    const corpo = (await req.clone().json()) as { ping?: unknown } | null;
+    if (corpo && typeof corpo === 'object' && corpo.ping === true) {
+      return new Response(JSON.stringify({ pong: true }), {
+        status: 200,
+        headers: { ...cors, 'Content-Type': 'application/json' },
+      });
+    }
+  } catch {
+    // corpo vazio ou não-JSON: não é ping
+  }
+  return null;
+}
+
+/**
  * 403 pronto quando quem chama não é o servidor nem um admin (app_metadata.role = 'admin');
  * null quando pode seguir. Auditoria de segurança 21/10/2026: as funções que mandam push com
  * título e texto livres a qualquer pessoa (notify-admin-message, notify-cleaner, notify-washer)

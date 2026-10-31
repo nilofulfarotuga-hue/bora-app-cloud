@@ -35,11 +35,9 @@ async function embeddings(texts: string[], taskType: 'RETRIEVAL_DOCUMENT' | 'RET
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return reply({ error: 'method_not_allowed' }, 405);
-  const bearer = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
-  let role = '';
-  try { role = JSON.parse(atob((bearer.split('.')[1] || '').replace(/-/g, '+').replace(/_/g, '/'))).role || ''; } catch { /* gateway also validates JWT */ }
-  // 16/10/2026 (chave nova): aceita também a chave secreta nova (sb_secret) em Bearer/apikey — ver _shared/chaves.ts
-  if (!SERVICE_KEY || (role !== 'service_role' && !(await chamadaDoServidor(req)))) return reply({ error: 'forbidden' }, 403);
+  // 31/10/2026 (chaves-varredura): só o servidor, pela regra da casa (_shared/chaves.ts); sem ler o
+  // papel do JWT à mão (a service_role legada passa confirmada no Auth).
+  if (!SERVICE_KEY || !(await chamadaDoServidor(req))) return reply({ error: 'forbidden' }, 403);
   if (!GEMINI_KEY) return reply({ error: 'embedding_not_configured' }, 503);
   let body: { action?: string; texts?: string[]; query?: string; limit?: number } = {};
   try { body = await req.json(); } catch { return reply({ error: 'bad_json' }, 400); }

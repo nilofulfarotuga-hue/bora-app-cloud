@@ -1,5 +1,6 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { secretKey } from "../_shared/keys.ts";
+import { chamadaDoServidor, tokenBearer, utilizadorDoPedido } from "../_shared/chaves.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
 const serviceRoleKey = secretKey() || "";
@@ -41,13 +42,14 @@ function json(body: unknown, status = 200) {
  *  - qualquer outro id → recusado.
  */
 async function quemPede(req: Request): Promise<{ uid: string | null; admin: boolean; service: boolean }> {
-  const auth = req.headers.get("Authorization") || "";
-  const token = auth.replace(/^Bearer\s+/i, "").trim();
+  // 31/10/2026 (chaves-varredura): servidor pela regra da casa (_shared/chaves.ts) — antes só a
+  // igualdade com a variável de ambiente; utilizador confirmado no Auth.
+  if (await chamadaDoServidor(req)) return { uid: null, admin: true, service: true };
+  const token = tokenBearer(req);
   if (!token) return { uid: null, admin: false, service: false };
-  if (serviceRoleKey && token === serviceRoleKey) return { uid: null, admin: true, service: true };
-  const { data, error } = await supabase.auth.getUser(token);
-  if (error || !data?.user) return { uid: null, admin: false, service: false };
-  const uid = data.user.id;
+  const u = await utilizadorDoPedido(req);
+  if (!u) return { uid: null, admin: false, service: false };
+  const uid = u.id;
   let admin = false;
   try {
     const userClient = createClient(supabaseUrl, anonKey, {

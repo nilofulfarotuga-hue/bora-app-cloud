@@ -36,7 +36,7 @@
 // SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { chamadaDoServidor } from '../_shared/chaves.ts'
+import { chamadaDoServidor, respostaAoPing } from '../_shared/chaves.ts'
 import { secretKey } from '../_shared/keys.ts'
 
 const corsHeaders = {
@@ -66,22 +66,14 @@ Deno.serve(async (req) => {
   const supabaseUrl         = Deno.env.get('SUPABASE_URL')!
   const serviceKey          = secretKey()!
 
-  // ── Auth interna: só service_role (banco via pg_net). verify_jwt=true já
-  //    validou a assinatura; aqui confirma-se o papel no payload.
-  const auth = req.headers.get('authorization') ?? ''
-  // 16/10/2026 (chave nova): aceita também a chave secreta nova (sb_secret) em Bearer/apikey — ver _shared/chaves.ts
+  // ── Auth interna: só o servidor (banco via pg_net). 31/10/2026 (chaves-varredura): regra da
+  //    casa (_shared/chaves.ts) — a service_role legada passa confirmada no Auth; sem ler o JWT à mão.
   if (!(await chamadaDoServidor(req))) {
-    if (!auth.startsWith('Bearer ')) return json(403, { ok: false, error: 'forbidden' })
-    try {
-      const payload = JSON.parse(atob(auth.substring(7).split('.')[1]))
-      if (payload.role !== 'service_role') {
-        console.warn('[notify-driver-assigned] 403 — role no JWT:', payload.role)
-        return json(403, { ok: false, error: 'forbidden' })
-      }
-    } catch (_) {
-      return json(403, { ok: false, error: 'forbidden' })
-    }
+    console.warn('[notify-driver-assigned] 403 — quem chama não é o servidor')
+    return json(403, { ok: false, error: 'forbidden' })
   }
+  const pong = await respostaAoPing(req, corsHeaders)
+  if (pong) return pong
 
   if (!firebaseProjectId || !firebaseServiceAcct) {
     console.warn('[notify-driver-assigned] Firebase env vars em falta — no-op')

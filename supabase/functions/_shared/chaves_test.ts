@@ -9,6 +9,7 @@ import {
   chavesSecretas,
   iguais,
   papelNoJwtSemValidar,
+  respostaAoPing,
   tokenBearer,
   utilizadorDoPedido,
 } from './chaves.ts';
@@ -136,6 +137,21 @@ Deno.test('tokenBearer, iguais e papelNoJwtSemValidar', async () => {
   if (papelNoJwtSemValidar(LEGADA) !== 'service_role') throw new Error('papel');
   if (papelNoJwtSemValidar(NOVA) !== null) throw new Error('sb_ nao tem papel');
   if (papelNoJwtSemValidar('a.b') !== null) throw new Error('duas partes');
+});
+
+Deno.test('respostaAoPing: so {"ping":true} em POST, e o corpo continua legivel', async () => {
+  const post = (corpo: string) => new Request('https://x.test/f', { method: 'POST', body: corpo });
+  const r = await respostaAoPing(post('{"ping":true}'), { 'X-Cors': '1' });
+  if (!r || r.status !== 200) throw new Error('ping devia dar 200');
+  if ((await r.json()).pong !== true) throw new Error('devia responder pong');
+  if (r.headers.get('X-Cors') !== '1') throw new Error('devia levar os cabecalhos CORS');
+  if (await respostaAoPing(post('{"ping":"true"}'))) throw new Error('so o booleano true conta');
+  if (await respostaAoPing(post('{}'))) throw new Error('corpo vazio nao e ping');
+  if (await respostaAoPing(post('nao e json'))) throw new Error('lixo nao e ping');
+  if (await respostaAoPing(new Request('https://x.test/f'))) throw new Error('GET nao e ping');
+  const normal = post('{"orderId":"x"}');
+  await respostaAoPing(normal);
+  if ((await normal.json()).orderId !== 'x') throw new Error('o corpo devia continuar legivel depois');
 });
 
 Deno.test('utilizadorDoPedido recusa chaves e tokens de servico sem ir a rede', async () => {

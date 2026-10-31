@@ -34,6 +34,7 @@ import { corsHeaders } from '../_shared/cors.ts';
 import { lerPagoDoPedido, repartirReembolso, totalPago } from '../_shared/cobranca_stripe.ts';
 import { secretKey } from '../_shared/keys.ts';
 import { devolverGorjetasDoPedido } from '../_shared/gorjeta_devolver.ts';
+import { chamarFuncao } from '../_shared/chamadas.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   apiVersion: '2023-10-16',
@@ -267,9 +268,11 @@ Deno.serve(async (req) => {
       message += ` A gorjeta (€${(gorjeta.devolvidaCents / 100).toFixed(2)}) também voltou` +
         (gorjeta.carteiraCents > 0 ? ' ao teu saldo Bora.' : ', inteira.');
     }
-    await admin.functions.invoke('notify-client', {
-      body: { user_id: order.user_id, title: 'Cancelamento aprovado', body: message,
-              data: { order_id: order.id, refund_method: method } },
+    // 31/10/2026 (A10): notify-client lê `clientId` (com `user_id` dava 400 calado); falha → e2e_log.
+    await chamarFuncao(admin, 'execute-cancellation', 'notify-client', {
+      clientId: order.user_id, user_id: order.user_id, orderId: order.id,
+      title: 'Cancelamento aprovado', body: message,
+      data: { order_id: order.id, refund_method: method },
     });
   } catch (e) { console.warn('[execute-cancellation] notify failed (non-fatal):', e); }
 

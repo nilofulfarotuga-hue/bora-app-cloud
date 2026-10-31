@@ -33,7 +33,7 @@
 //   RESEND_API_KEY              — OPTIONAL; if missing, email is skipped
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { chamadaDoServidor } from '../_shared/chaves.ts'
+import { exigirServidor, respostaAoPing } from '../_shared/chaves.ts'
 import { secretKey } from '../_shared/keys.ts'
 
 const corsHeaders = {
@@ -56,33 +56,16 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const serviceKey  = secretKey()!
 
-  // ─── Auth: verify_jwt=true valida signature; aqui confirma role ───────────
-  const authHeader = req.headers.get('Authorization') ?? ''
-  // 16/10/2026: a chave secreta nova da Supabase (sb_secret) não é JWT; valida-se em _shared/chaves.ts
-  // (comparação em tempo constante; a legada só passa confirmada no Auth)
-  const chaveNovaOk = await chamadaDoServidor(req)
-  if (!chaveNovaOk && !authHeader.startsWith('Bearer ')) {
-    return new Response(
-      JSON.stringify({ ok: false, error: 'forbidden' }),
-      { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    )
+  // ─── Auth: só o servidor ──────────────────────────────────────────────────
+  // 31/10/2026 (chaves-varredura): regra da casa (_shared/chaves.ts) — chave secreta nova em apikey
+  // ou Bearer, ou a service_role legada confirmada no Auth. Sem ler o papel do JWT à mão.
+  const bloqueio = await exigirServidor(req, corsHeaders)
+  if (bloqueio) {
+    console.warn('[notify-admin-urgent] forbidden — quem chama não é o servidor')
+    return bloqueio
   }
-  try {
-    const token = authHeader.substring(7)
-    const payload = chaveNovaOk ? { role: 'service_role' } : JSON.parse(atob(token.split('.')[1]))
-    if (payload.role !== 'service_role') {
-      console.warn('[notify-admin-urgent] forbidden — role mismatch:', payload.role)
-      return new Response(
-        JSON.stringify({ ok: false, error: 'forbidden' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
-    }
-  } catch (_e) {
-    return new Response(
-      JSON.stringify({ ok: false, error: 'forbidden' }),
-      { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    )
-  }
+  const pong = await respostaAoPing(req, corsHeaders)
+  if (pong) return pong
 
   // ─── Parse body ───────────────────────────────────────────────────────────
   let kind = 'crosstalk'

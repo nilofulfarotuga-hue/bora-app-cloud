@@ -10,7 +10,7 @@
 
 // @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
-import { chamadaDoServidor } from '../_shared/chaves.ts';
+import { chamadaDoServidor, respostaAoPing, utilizadorDoPedido } from '../_shared/chaves.ts';
 import { secretKey } from '../_shared/keys.ts';
 
 const corsHeaders = {
@@ -69,20 +69,6 @@ function isObject(o: unknown): o is Record<string, unknown> {
   return o !== null && typeof o === 'object' && !Array.isArray(o);
 }
 
-// v4: decode JWT payload sem validar assinatura (basta role claim)
-function decodeJwtRole(token: string): string | null {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-    const padded = payload + '==='.slice(0, (4 - payload.length % 4) % 4);
-    const decoded = JSON.parse(atob(padded));
-    return decoded.role ?? null;
-  } catch {
-    return null;
-  }
-}
-
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST')   return jsonResponse({ error: 'method_not_allowed' }, 405);
@@ -91,15 +77,8 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'server_misconfigured' }, 500);
   }
 
-  const authHeader = req.headers.get('Authorization') ?? '';
-  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
-  if (!token) {
-    console.warn('[analyze v4] missing_token');
-    return jsonResponse({ error: 'missing_token' }, 401);
-  }
-
   let body: { scheduled?: boolean; days_back?: number; dry_run?: boolean } = {};
-  try { body = await req.json(); } catch { /* default empty */ }
+  try { body = await req.clone().json(); } catch { /* default empty */ }
   const scheduled = body.scheduled === true;
   const daysBack  = Math.max(1, Math.min(30, Number(body.days_back ?? 7) | 0));
   const dryRun    = body.dry_run === true;
@@ -107,24 +86,22 @@ Deno.serve(async (req: Request) => {
   let isService = false;
   let isAdmin = false;
 
-  // v4: tentar service_role via decode JWT primeiro (cron usa este caminho)
-  const jwtRole = decodeJwtRole(token);
-  // 16/10/2026 (chave nova): esta função está com verify_jwt=false desde a v3, por isso o papel lido do
-  // JWT sem validar a assinatura NÃO chega — só conta o servidor confirmado (chave secreta nova, ou a
-  // legada confirmada no Auth). Ver _shared/chaves.ts.
+  // verify_jwt=false: o papel lido do JWT sem validar a assinatura NÃO conta — só o servidor
+  // confirmado (chave secreta nova em apikey ou Bearer, ou a legada confirmada no Auth) ou um admin
+  // com sessão confirmada no Auth. 31/10/2026 (chaves-varredura): a chave nova só em apikey também
+  // passa (antes caía em missing_token).
   if (await chamadaDoServidor(req)) {
     isService = true;
   } else {
-    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      global: { headers: { Authorization: `Bearer ${token}` } },
-    });
-    const { data: userData, error: authErr } = await userClient.auth.getUser();
-    if (authErr || !userData?.user) {
-      console.warn('[analyze v4] invalid_token scheduled=' + scheduled + ' jwt_role=' + jwtRole);
-      return jsonResponse({ error: 'unauthorized', jwt_role: jwtRole }, 401);
+    const u = await utilizadorDoPedido(req);
+    if (!u) {
+      console.warn('[analyze v4] invalid_token scheduled=' + scheduled);
+      return jsonResponse({ error: 'unauthorized' }, 401);
     }
-    isAdmin = userData.user.app_metadata?.role === 'admin';
+    isAdmin = u.app_metadata?.role === 'admin';
   }
+  const pong = await respostaAoPing(req, corsHeaders);
+  if (pong) return pong;
 
   if (!isService && !isAdmin) {
     return jsonResponse({ error: 'admin_required' }, 403);

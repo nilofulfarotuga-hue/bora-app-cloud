@@ -31,7 +31,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { secretKey } from '../_shared/keys.ts'
-import { chamadaDoServidor } from '../_shared/chaves.ts'
+import { exigirServidor, respostaAoPing } from '../_shared/chaves.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -95,19 +95,15 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const serviceKey = secretKey()
 
-  const authHeader = req.headers.get('Authorization') ?? ''
-  // 16/10/2026: a chave secreta nova da Supabase (sb_secret) não é JWT; valida-se em _shared/chaves.ts
-  const chaveNovaOk = await chamadaDoServidor(req)
-  try {
-    if (!chaveNovaOk && !authHeader.startsWith('Bearer ')) throw new Error('no bearer')
-    if (!chaveNovaOk) {
-      const payload = JSON.parse(atob(authHeader.substring(7).split('.')[1]))
-      if (payload.role !== 'service_role') throw new Error('role')
-    }
-  } catch (_e) {
-    return new Response(JSON.stringify({ ok: false, error: 'forbidden' }),
-      { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-  }
+  // 31/10/2026 (chaves-varredura): só o servidor, pela regra da casa (_shared/chaves.ts) — a
+  // service_role legada passa confirmada no Auth; sem ler o papel do JWT à mão.
+  const bloqueio = await exigirServidor(req, corsHeaders)
+  if (bloqueio) return bloqueio
+  // Um corpo vazio manda o resumo a sério: o ping do vigia responde antes de tudo.
+  const pong = await respostaAoPing(req, corsHeaders)
+  if (pong) return pong
+  // O aviso ao admin (notify-admin-urgent) vai com a chave de servidor DESTA função (Bearer + apikey).
+  const authHeader = `Bearer ${serviceKey}`
 
   let weekStart = null
   let force = false

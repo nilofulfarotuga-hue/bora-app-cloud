@@ -22,7 +22,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { secretKey } from '../_shared/keys.ts'
-import { exigirServidorOuAdmin } from '../_shared/chaves.ts'
+import { exigirServidorOuAdmin, respostaAoPing } from '../_shared/chaves.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -37,6 +37,8 @@ Deno.serve(async (req) => {
   // mandar um push com texto livre a qualquer pessoa. Ver _shared/chaves.ts.
   const bloqueio = await exigirServidorOuAdmin(req, corsHeaders)
   if (bloqueio) return bloqueio
+  const pong = await respostaAoPing(req, corsHeaders) // vigia diário das chaves (31/10/2026)
+  if (pong) return pong
 
   const firebaseProjectId   = Deno.env.get('FIREBASE_PROJECT_ID')
   const firebaseServiceAcct = Deno.env.get('FIREBASE_SERVICE_ACCOUNT')

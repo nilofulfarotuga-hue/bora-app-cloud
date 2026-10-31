@@ -21,6 +21,7 @@
 // @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { secretKey } from '../_shared/keys.ts';
+import { chamadaDoServidor, utilizadorDoPedido } from '../_shared/chaves.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -59,19 +60,6 @@ async function sha256Hex(s: string): Promise<string> {
   return Array.from(new Uint8Array(buf))
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
-}
-
-function decodeJwtRole(token: string): string | null {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-    const padded = payload + '==='.slice(0, (4 - payload.length % 4) % 4);
-    const decoded = JSON.parse(atob(padded));
-    return decoded.role ?? null;
-  } catch {
-    return null;
-  }
 }
 
 async function callGemini(model: string, systemPrompt: string, userPrompt: string,
@@ -656,26 +644,21 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'server_misconfigured' }, 500);
   }
 
-  const authHeader = req.headers.get('Authorization') ?? '';
-  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
-  if (!token) return jsonResponse({ error: 'missing_token' }, 401);
-
   let isService = false;
   let isAdmin = false;
 
-  const jwtRole = decodeJwtRole(token);
-  if (jwtRole === 'service_role') {
+  // 31/10/2026 (chaves-varredura): regra da casa (_shared/chaves.ts) — servidor = chave secreta nova
+  // em apikey ou Bearer, ou a service_role legada confirmada no Auth; senão admin com sessão
+  // confirmada no Auth. Sem ler o papel do JWT à mão.
+  if (await chamadaDoServidor(req)) {
     isService = true;
   } else {
-    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      global: { headers: { Authorization: `Bearer ${token}` } },
-    });
-    const { data: userData } = await userClient.auth.getUser();
-    isAdmin = userData?.user?.app_metadata?.role === 'admin';
+    const u = await utilizadorDoPedido(req);
+    isAdmin = u?.app_metadata?.role === 'admin';
   }
 
   if (!isService && !isAdmin) {
-    return jsonResponse({ error: 'unauthorized', jwt_role: jwtRole }, 401);
+    return jsonResponse({ error: 'unauthorized' }, 401);
   }
 
   let body: { mode?: string; limit?: number; dry_run?: boolean } = {};

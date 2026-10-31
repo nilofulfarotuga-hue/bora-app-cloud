@@ -20,9 +20,8 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { secretKey } from '../_shared/keys.ts';
-// CORS inline (em vez de ../_shared/cors.ts): esta funcao e' deployada
-// isoladamente pelo MCP, que nao resolve dependencias relativas. Valores
-// identicos aos de _shared/cors.ts.
+import { chamadaDoServidor, respostaAoPing, utilizadorDoPedido } from '../_shared/chaves.ts';
+// CORS inline (valores identicos aos de _shared/cors.ts). Publicar pela CLI, que leva o _shared.
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -50,35 +49,32 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return jsonResponse({ error: 'method not allowed' }, 405);
 
-  const authHeader = req.headers.get('Authorization') ?? '';
-  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
-  if (!token) return jsonResponse({ error: 'unauthorized' }, 401);
-
   const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   // ── Quem está a chamar ────────────────────────────────────────────────────
+  // 31/10/2026 (chaves-varredura): regra da casa (_shared/chaves.ts). Antes comparava o Bearer com
+  // a variável de ambiente (que desde 16/10 é a sb_secret) e o banco manda a service_role legada:
+  // o pedido de admin_approve_action caía no getUser e dava 401.
   let callerKind: 'service_role' | 'admin';
   let callerId: string | null = null;
   let callerEmail: string | null = null;
 
-  if (token === SUPABASE_SERVICE_ROLE_KEY) {
+  if (await chamadaDoServidor(req)) {
     callerKind = 'service_role';
   } else {
-    const { data: callerData, error: callerErr } =
-      await adminClient.auth.getUser(token);
-    if (callerErr || !callerData?.user) {
-      return jsonResponse({ error: 'unauthorized' }, 401);
-    }
-    // deno-lint-ignore no-explicit-any
-    const role = (callerData.user.app_metadata as any)?.role;
-    if (role !== 'admin') {
-      console.warn('[support-password-reset] nao-admin tentou aceder:', callerData.user.id);
+    const caller = await utilizadorDoPedido(req);
+    if (!caller) return jsonResponse({ error: 'unauthorized' }, 401);
+    if (caller.app_metadata?.role !== 'admin') {
+      console.warn('[support-password-reset] nao-admin tentou aceder:', caller.id);
       return jsonResponse({ error: 'forbidden: admin only' }, 403);
     }
     callerKind = 'admin';
-    callerId = callerData.user.id;
-    callerEmail = callerData.user.email ?? null;
+    callerId = caller.id;
+    callerEmail = caller.email ?? null;
   }
+
+  const pong = await respostaAoPing(req, corsHeaders);
+  if (pong) return pong;
 
   let payload: { user_id?: string; email?: string };
   try {

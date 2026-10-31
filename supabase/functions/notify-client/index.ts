@@ -22,6 +22,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { exigirCallerOk, secretKey } from '../_shared/keys.ts'
+import { respostaAoPing } from '../_shared/chaves.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -46,6 +47,8 @@ Deno.serve(async (req) => {
   // ou a legada confirmada no Auth) ou um utilizador com sessão válida. Ver _shared/keys.ts.
   const bloqueio = await exigirCallerOk(req, corsHeaders)
   if (bloqueio) return bloqueio
+  const pong = await respostaAoPing(req, corsHeaders) // vigia diário das chaves (31/10/2026)
+  if (pong) return pong
 
   const firebaseProjectId   = Deno.env.get('FIREBASE_PROJECT_ID')
   const firebaseServiceAcct = Deno.env.get('FIREBASE_SERVICE_ACCOUNT')
@@ -64,8 +67,11 @@ Deno.serve(async (req) => {
     return json({ ok: false, error: 'Invalid JSON body' }, 400)
   }
 
-  const clientId       = payload.clientId      as string | undefined
-  const orderId        = payload.orderId       as string | undefined
+  // 31/10/2026 (chaves-varredura): refund, cancel-order-with-choice e execute-cancellation mandam
+  // `user_id` (e o pedido em data.order_id) — davam SEMPRE 400 "clientId is required" e o cliente
+  // nunca sabia do reembolso/cancelamento. Aceitam-se os dois nomes.
+  const clientId       = (payload.clientId ?? payload.user_id ?? payload.userId) as string | undefined
+  const orderId        = (payload.orderId ?? payload.order_id ?? payload.data?.order_id) as string | undefined
   const reservationId  = payload.reservationId as string | undefined
   const appointmentId  = payload.appointmentId as string | undefined
   const status         = payload.status        as string | undefined

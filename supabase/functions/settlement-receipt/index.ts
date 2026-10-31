@@ -30,7 +30,7 @@
 // pelo tray e o handler Flutter nao corre (cicatriz de 31/07 e 04/09).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { chamadaDoServidor } from '../_shared/chaves.ts'
+import { exigirServidor, respostaAoPing } from '../_shared/chaves.ts'
 import { secretKey } from '../_shared/keys.ts'
 
 const corsHeaders = {
@@ -69,20 +69,16 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const serviceKey = secretKey()
 
-  const authHeader = req.headers.get('Authorization') ?? ''
-  // 16/10/2026: a chave secreta nova da Supabase (sb_secret) não é JWT; valida-se em _shared/chaves.ts
-  // (comparação em tempo constante; a legada só passa confirmada no Auth)
-  const chaveNovaOk = await chamadaDoServidor(req)
-  try {
-    if (!chaveNovaOk && !authHeader.startsWith('Bearer ')) throw new Error('no bearer')
-    if (!chaveNovaOk) {
-      const payload = JSON.parse(atob(authHeader.substring(7).split('.')[1]))
-      if (payload.role !== 'service_role') throw new Error('role')
-    }
-  } catch (_e) {
-    return new Response(JSON.stringify({ ok: false, error: 'forbidden' }),
-      { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-  }
+  // 31/10/2026 (chaves-varredura): só o servidor, pela regra da casa (_shared/chaves.ts) — a
+  // service_role legada passa confirmada no Auth; sem ler o papel do JWT à mão.
+  const bloqueio = await exigirServidor(req, corsHeaders)
+  if (bloqueio) return bloqueio
+  // O ping do vigia tem de responder ANTES de tudo: um corpo vazio manda os recibos a sério.
+  const pong = await respostaAoPing(req, corsHeaders)
+  if (pong) return pong
+  // Avisos ao admin (notify-admin-urgent) vão com a chave de servidor DESTA função, em Bearer e em
+  // apikey — antes reencaminhava o cabeçalho de quem chamou.
+  const authHeader = `Bearer ${serviceKey}`
 
   let modo = 'receipts'
   let ensaio = false

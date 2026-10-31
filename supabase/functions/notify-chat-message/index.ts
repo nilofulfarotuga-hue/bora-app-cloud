@@ -19,6 +19,7 @@
 // flutter_local_notifications (BigText + som bora_alert).
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { exigirCallerOk, secretKey } from '../_shared/keys.ts'
+import { respostaAoPing } from '../_shared/chaves.ts'
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -30,6 +31,8 @@ Deno.serve(async (req) => {
   // no Auth) ou utilizador com sessão válida. Ver _shared/keys.ts.
   const bloqueio = await exigirCallerOk(req, corsHeaders)
   if (bloqueio) return bloqueio
+  const pong = await respostaAoPing(req, corsHeaders) // vigia diário das chaves (31/10/2026)
+  if (pong) return pong
   const firebaseProjectId = Deno.env.get('FIREBASE_PROJECT_ID')
   const firebaseServiceAcct = Deno.env.get('FIREBASE_SERVICE_ACCOUNT')
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!

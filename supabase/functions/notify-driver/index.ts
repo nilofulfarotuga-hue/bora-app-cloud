@@ -37,6 +37,7 @@
 // v39 2026-09-12 — stale-offer guard + legacy driver identity fix.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { secretKey } from '../_shared/keys.ts'
+import { chamadaDoServidor, respostaAoPing, utilizadorDoPedido } from '../_shared/chaves.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -61,6 +62,8 @@ Deno.serve(async (req) => {
     console.warn(`[notify-driver v43] 403 motivo=${autorizado.reason}`)
     return json({ ok:false, error:'forbidden' }, 403)
   }
+  const pong = await respostaAoPing(req, corsHeaders)
+  if (pong) return pong
 
   console.log('[notify-driver v43] INVOKED firebase=', !!firebaseProjectId)
   if (!firebaseProjectId || !firebaseServiceAcct) return json({ ok:false, reason:'firebase_not_configured' })
@@ -264,37 +267,17 @@ Deno.serve(async (req) => {
   return json({ ok:true, tokens:flat.length, sent, detail:flat })
 })
 
-// ── Autenticação (v42) ─────────────────────────────────────────────────────
-const servicoOk = new Set<string>()
+// ── Autenticação (v44, 31/10/2026 chaves-varredura) ────────────────────────
+// Regra da casa (_shared/chaves.ts): servidor = chave secreta nova em apikey ou Bearer, ou a
+// service_role legada confirmada no Auth; senão só um admin com sessão confirmada no Auth.
+// Antes comparava o Bearer com a variável de ambiente e lia o papel do JWT à mão: recusava a
+// chave nova vinda só em apikey e qualquer chave secreta com outro nome.
 const ADMIN_EMAILS = ['nilofulfarotuga@gmail.com', 'nilofulfaro@gmail.com']
-function lerPayload(token:string): any {
-  try {
-    let b = token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')
-    while (b.length % 4) b += '='
-    return JSON.parse(atob(b))
-  } catch (_) { return null }
-}
-async function autorizar(req:Request, supabaseUrl:string, serviceKey:string): Promise<{ ok:boolean, reason?:string }> {
-  const h = req.headers.get('authorization') ?? ''
-  if (!h.toLowerCase().startsWith('bearer ')) return { ok:false, reason:'sem_token' }
-  const token = h.slice(7).trim()
-  if (!token) return { ok:false, reason:'sem_token' }
-  if (token === serviceKey || servicoOk.has(token)) return { ok:true }
-  const p = lerPayload(token)
-  if (p?.role === 'service_role') {
-    // Chave de serviço do cofre do banco (pode não ser igual à do ambiente):
-    // só passa se a Auth a aceitar como admin.
-    try {
-      const r = await fetch(`${supabaseUrl}/auth/v1/admin/users?per_page=1`, { headers:{ apikey:token, Authorization:`Bearer ${token}` } })
-      if (r.ok) { servicoOk.add(token); return { ok:true } }
-    } catch (_) {}
-    return { ok:false, reason:'service_invalido' }
-  }
-  if (p?.role !== 'authenticated') return { ok:false, reason:`papel_${p?.role ?? 'desconhecido'}` }
-  const admin = createClient(supabaseUrl, serviceKey)
-  const { data:u, error } = await admin.auth.getUser(token)
-  if (error || !u?.user) return { ok:false, reason:'jwt_invalido' }
-  if (u.user.app_metadata?.role === 'admin' || ADMIN_EMAILS.includes(String(u.user.email ?? '').toLowerCase())) return { ok:true }
+async function autorizar(req:Request, _supabaseUrl:string, _serviceKey:string): Promise<{ ok:boolean, reason?:string }> {
+  if (await chamadaDoServidor(req)) return { ok:true }
+  const u = await utilizadorDoPedido(req)
+  if (!u) return { ok:false, reason:'sem_sessao_valida' }
+  if (u.app_metadata?.role === 'admin' || ADMIN_EMAILS.includes(String(u.email ?? '').toLowerCase())) return { ok:true }
   return { ok:false, reason:'papel_sem_permissao' }
 }
 

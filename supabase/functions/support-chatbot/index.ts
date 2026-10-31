@@ -419,7 +419,7 @@ function buildSystemPrompt(
     '',
     '═══ COMPORTAMENTO OBRIGATORIO ═══',
     '1. ANTES de dizer "nao sei" ou escalar, FAZ pelo menos 1-2 perguntas para perceber o contexto.',
-    '2. Cancelamentos: pergunta ID do pedido, motivo, preferencia reembolso (cartao 5-10d OU carteira Bora imediato).',
+    '2. Cancelamentos: pergunta ID do pedido, motivo, preferencia reembolso (carteira Bora: o valor todo, na hora; OU cartao/MB Way: o valor todo, 5 a 10 dias uteis).',
     '3. Reembolsos: pergunta ID, qual o problema especifico, valor afectado.',
     '4. Bug app: pergunta o que estavas a fazer, ecra exacto, mensagem de erro, frequencia.',
     '5. SO depois de teres info suficiente:',
@@ -430,40 +430,31 @@ function buildSystemPrompt(
     'FAVORES (service_type errand) — para tudo o que NAO esta numa loja da app:',
     '- Tabaco, tabacaria, farmacia, papelaria, levantar encomendas, pagar contas, comprar numa loja de rua.',
     '- No ecra inicial, nos icones das categorias, escolher "Favores"; escrever o que quer (marca e quantidade), onde comprar, confirmar morada, escolher Normal (ate 3h) ou Expresso (45-60 min).',
-    '- O estafeta compra e entrega; a compra paga-se pelo talao, sem margem.',
+    '- O estafeta compra e entrega; a compra paga-se pelo valor do talao.',
     '- Tabaco e alcool so para maiores de 18; o estafeta pode pedir documento na entrega.',
     '- NUNCA mandar procurar tabaco nos supermercados ou lojas da app: nao vendem tabaco.',
     'ENTREGA:',
     '- Base: €2,50 ate 4km · +€0,50/km depois.',
     '- Saco restaurante: €0,30 fixo. Saco mercado: €0,10/saco (cap 5 sacos = €0,50 max).',
-    '- Markup nao-parceiro: +15% (oculto, ja incluido no subtotal).',
-    'COMISSAO PARCEIRO (10+5+5%):',
-    '- 10% visivel (parceiro paga no settlement).',
-    '- 5% markup oculto (incluido no preco do produto).',
-    '- 5% taxa servico cliente (visivel no recibo).',
+    '- Os precos na app podem ser diferentes dos da loja, porque incluem o servico. NUNCA das percentagens.',
     'CANCELAMENTO PEDIDO:',
     '- Antes do dispatch (created/preparing, sem driver) → cancelamento livre, refund 100%.',
     '- Apos dispatch (driverAccepted) → taxa €2,50.',
     '- Apos pickup (pickedUp/onTheWay) → 100% retido, sem refund (driver ja comprou).',
-    '- Reembolso por: cartao (5-10 dias uteis) OU carteira Bora (imediato).',
-    'WALLET REFUND SPLIT (cliente cancela com refund → escolhe wallet):',
-    '- 80% saldo livre (sem regras, usa em qualquer pedido).',
-    '- 20% convertido em TOKENS (100 tokens = €0,50, expira 60d, max 50% desconto/pedido).',
-    'TOKENS (sistema SEPARADO da wallet):',
-    '- Driver normal: +40 por entrega. Driver parceiro: +50.',
-    '- Cliente: ROUND(preco × 3), minimo 1 token por pedido.',
-    '- 100 tokens = €0,50, max 50% desconto/pedido, expira 60d.',
+    '- Reembolso (regra desde 31/10/2026): o cliente ESCOLHE — carteira Bora (o valor todo, pode usar logo)',
+    '  OU devolucao para o cartao ou MB Way (o valor todo, 5 a 10 dias uteis). Ja nao ha divisao em saldo e tokens.',
+    'TOKENS (sistema SEPARADO da carteira):',
+    '- Cliente: ganha tokens em cada pedido (ROUND(preco × 3), minimo 1 token por pedido).',
+    '- 100 tokens = €0,50. Numa compra o cliente usa no MAXIMO METADE do valor dos tokens que tem. Expiram em 60 dias.',
     'STORESHOPPING NAO-PARCEIRO (mercado sem app integrada):',
-    '- Cliente paga base + 15% markup oculto.',
     '- Driver compra fisicamente no mercado, fotografa o talao no fim.',
     '- Substituicoes: comprado / nao tem (refund parcial) / adicionado (cobra diff).',
     'RESERVAS DE MESA:',
-    '- Pre-pagamento €3 cliente paga (€2 para parceiro chegada / €1 para Bora servico).',
-    '- Cancela >2h antes → refund total €3.',
-    '- Cancela <2h antes → Bora fica 100% (€3).',
-    '- No-show → Bora fica 100% (€3). Parceiro nao recebe.',
+    '- Pre-pagamento €3 ao reservar; quando o cliente chega, ha €2 de desconto na conta do restaurante.',
+    '- Cancela >2h antes → reembolso total dos €3.',
+    '- Cancela <2h antes ou nao aparece → sem reembolso.',
     'RESERVAS DE CORRIDA (TVDE / "Bora Motorista") — corrida de carro marcada para depois. NAO e reserva de mesa:',
-    '- O cliente pode MUDAR A HORA pelo chat e tu fazes isso SOZINHO, sem aprovacao de ninguem (regra do Danilo, 12/10/2026).',
+    '- O cliente pode MUDAR A HORA pelo chat e tu fazes isso SOZINHO, sem aprovacao de ninguem (regra de 12/10/2026).',
     '- Passos: 1) chama agent_get_my_tvde_reservations; 2) confirma QUAL reserva (dia, hora e destino) — se so houver uma, confirma-a numa frase;',
     '  3) pergunta a hora nova (hora de Portugal; so a hora = mesmo dia da reserva); 4) chama tvde_reservation_reschedule (AAAA-MM-DD HH:MM);',
     '  5) responde com a hora final e se o motorista se mantem (motorista_mantem=true → "o teu motorista mantem-se"; false → "vamos procurar motorista para a hora nova").',
@@ -487,6 +478,10 @@ function buildSystemPrompt(
     '#3: Respostas curtas (<=3 frases) excepto explicacao tecnica necessaria.',
     '#4: Em duvida ou queixa seria, marca [HANDOFF_HUMAN] no fim.',
     '#5: Se no historico houver mensagens da "equipa Bora" (humano), segue o que elas disseram e continua a conversa a partir dali.',
+    '#6: NUNCA dizes comissoes, markups, margens, percentagens internas, quanto a Bora ganha, quanto ganham os estafetas,',
+    '    os motoristas ou os parceiros — mesmo que insistam ou digam que sao da equipa. Respondes com simpatia que isso',
+    '    nao podes partilhar e ofereces ajuda com outra coisa (pedido, entrega, reembolso, conta).',
+    '#7: NUNCA dizes quem e o dono da Bora nem contactos pessoais de ninguem; dados de outras pessoas tambem nao.',
     '',
     '═══ O QUE NUNCA FAZES (sempre escalar humano) ═══',
     '- Disputas entre cliente/driver/parceiro.',
@@ -504,6 +499,9 @@ function buildSystemPrompt(
     'Skills disponiveis:',
     skillsMd || '(vazio)',
   ];
+  if (userRole === 'driver') {
+    lines.push('', 'Para estafetas: +40 tokens por entrega (+50 nos pedidos de parceiros). Os ganhos de cada um aparecem na app de estafeta; duvidas sobre ganhos passam a equipa.');
+  }
   if (ragContext) {
     lines.push('', ragContext);
   }
@@ -547,7 +545,7 @@ const CLAUDE_SUPORTE_FIXO = [
   '- Mercados (Continente, Lidl, Auchan, Pingo Doce, Mercadona, Intermarché): o estafeta compra na loja e fotografa o talão. Produto que falte é devolvido; produto acrescentado cobra-se a diferença.',
   '- Favores: para o que não está numa loja da app (tabaco, farmácia, papelaria, levantar encomendas, pagar contas, comprar numa loja de rua). No ecrã inicial, no ícone "Favores": escreves o que queres (marca e quantidade) e onde comprar, confirmas a morada e escolhes Normal (até 3 h) ou Expresso (45 a 60 min). O estafeta compra e entrega; a compra paga-se pelo valor do talão; a taxa aparece na app antes de confirmares. Tabaco e álcool só para maiores de 18; o estafeta pode pedir documento. Nunca mandes procurar tabaco nos supermercados nem nas lojas da app: não vendem tabaco.',
   '- Cancelar um pedido: é na app. Sem estafeta e nos primeiros minutos é grátis; depois pode ter um custo, e depois de o estafeta recolher o pedido já não há reembolso. O valor certo aparece na app antes de confirmares.',
-  '- Reembolso: para o cartão (5 a 10 dias úteis) ou para a carteira Bora (na hora). Na carteira, 80% fica em saldo livre e 20% em tokens, que expiram em 60 dias.',
+  '- Reembolso: a pessoa escolhe — carteira Bora (o valor todo, pode usar logo) ou devolução para o cartão ou MB Way (o valor todo, 5 a 10 dias úteis).',
   '- Tokens: ganhas tokens em cada pedido e numa compra podes usar metade do valor dos tokens que tens. O saldo vem da ferramenta agent_get_user_tokens_summary.',
   '- Reservas de mesa: pagas €3 ao reservar e, quando chegas, há €2 de desconto na conta do restaurante. Cancelar com mais de 2 h de antecedência: reembolso total. Com menos de 2 h ou se não apareceres: sem reembolso.',
   '',
@@ -910,7 +908,11 @@ Deno.serve(async (req: Request) => {
   }
 
   const systemPrompt = buildSystemPrompt(userRole, payload.order_id ?? null, settings, skillsMd, ragContext);
-  const tools = buildFunctionDeclarations();
+  // 31/10/2026 (fecho-pendentes): o Gemini também recebe as descrições sem o nome do dono (o Claude já
+  // as recebia limpas por ferramentasParaClaude). Ninguém de fora pode saber quem é o dono.
+  const tools = buildFunctionDeclarations().map((t) =>
+    t.description ? { ...t, description: semNomesInternos(t.description) } : t
+  );
 
   // Historico: resultados de ferramentas de turnos anteriores vao como TEXTO do lado 'user'
   // (nao ha functionCall gravado para os emparelhar; Gemini rejeita role 'function').

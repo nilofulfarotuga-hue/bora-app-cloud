@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-01T21:37:12.482512+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-01T22:07:12.271473+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-01 21:34 UTC. Páginas listadas: 498.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-01 22:02 UTC. Páginas listadas: 498.
 
 ## O que é o Bora
 
@@ -570,7 +570,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 ## Páginas pessoais
 
-36 páginas com título [PESSOAL] (vida do Danilo). Não se listam aqui nem vão para o espelho público nem para o LIVRO.md; só se leem quando a tarefa é dele, e nunca vão para motores grátis que treinam com o conteúdo.
+37 páginas com título [PESSOAL] (vida do Danilo). Não se listam aqui nem vão para o espelho público nem para o LIVRO.md; só se leem quando a tarefa é dele, e nunca vão para motores grátis que treinam com o conteúdo.
 
 ## Skills partilhadas (151 no repo + 8 só na VPS)
 

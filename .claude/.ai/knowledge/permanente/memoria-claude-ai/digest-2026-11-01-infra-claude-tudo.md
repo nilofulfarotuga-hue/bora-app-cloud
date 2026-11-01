@@ -10,7 +10,7 @@ estado: atual
 
 # Digest 01/11/2026: Claude sem ração em todos os robôs, Dipsy pelo porteiro, VPS arrumada, Bora Bastidores
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `digest-2026-11-01-infra-claude-tudo`, origem `claude-code`, atualizada em 2026-11-01T22:20:19.115503+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `digest-2026-11-01-infra-claude-tudo`, origem `claude-code`, atualizada em 2026-11-01T22:54:46.74882+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: digest 2026 11 01 infra claude tudo · memoria claude.ai · claude_ai_memoria
 
@@ -20,3 +20,4 @@ Dipsy sabe tudo: ~/.dsh/MAPA-DANILO.md e pagina dipsy-mapa-danilo ([PESSOAL]: o 
 Hermes: Emerson/torre/critico/vendedor no Sonnet pelo OmniRoute, restantes no Haiku; batedor passou ao Haiku; perfis escriba e fiscal tinham YAML partido desde 31/10 (consertado). Prova Telegram ROTA-CLAUDE-OK texto+voz.
 VPS: de fora so 22/80/443; fail2ban no ssh; DOCKER-USER tambem no IPv6 (estava vazia); disco 69,5% -> 68,9%; compose do Hermes com 4860 so local (vale no proximo recriar; nao recriado por ter ~11 500 alteracoes feitas em funcionamento). docs/vps/rede-2026-11-01.md. Grupo "Bora Bastidores" criado pela app Telegram do PC (Web sem sessao), id -5541278366, ligado ao porteiro (INFO vai para la). Token dos bots nao rodado (sem exposicao registada). Site do Jai sem o nome (deploy bdc9dab6). Recibo do Vansh enviado; o do Jai NAO (dizia 186 € em aberto que o Jai ja pagou a 27/10; PDF corrigido de 28 € em Downloads, espera o "envia" do Danilo). B8 stories em breve: proposta chegou as 22:07, aplicada em ensaio por ajudante (fluxo stories-em-breve-2026-11-01). Commit 634ba274 [skip ci]. Relatorio .claude/.ai/reports/infra-claude-tudo-2026-11-01.md; e2e_log fluxo infra-claude-tudo-2026-11-01.
 
+ADENDO 22:45: B8 feito na VPS (lojas_permitidas.py pela RPC social_lojas_permitidas, --verifica/--lista, perguntas fixas sem nomes de lojas, grupos sem pecas de barbearia com o logotipo do Ouro e Prata, carrossel sem a pagina beleza); provas so em ensaio (23 lojas iguais a RPC; Boom/Amaya/Lidl/Ouro e Prata barrados, KFC passa; Mercadona passa porque reabriu hoje). Incidente: na 1.a prova saiu por engano um alarme para o Telegram do Danilo (e2e 6070), nada publicado. Copias em ferramentas/vps/social; commit 11995efd [skip ci] (por cima de 280e50db de outra sessao, cujas compilacoes ja corriam).

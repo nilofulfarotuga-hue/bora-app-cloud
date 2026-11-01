@@ -8,10 +8,10 @@ metadata:
   uses_edge_fns: []
   version: 1.0.0
   versao: 1.0
-  execucoes: 0
-  sucessos: 0
+  execucoes: 1
+  sucessos: 1
   falhas: 0
-  ultima_execucao: null
+  ultima_execucao: 2026-11-01
   criada_por: pre-telemetria (rollout 2026-07-10)
 ---
 

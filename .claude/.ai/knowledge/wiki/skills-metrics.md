@@ -95,3 +95,5 @@ confianca: auto
 | ceo-ai | 2026-10-31 | publicar-retoma-2026-10-31 (Opus 5.5) | 5 partes SQL, notify-admin-urgent v22, push e91b1d22 [skip ci], e2e 5754+ | ok |
 | ceo-ai | 2026-10-31 | fecho-pendentes-2026-10-31 (Opus 5.5) | 4 blocos: peso ao quilo (app+painel+5 migracoes), support-chatbot v30, cobrar-diferenca-peso v1 desligada, porteiro, limpeza; e2e 5794+ | ok |
 | protocolo-missao-bora | 2026-10-31 | fecho-pendentes-2026-10-31 | relatorio fecho-pendentes-2026-10-31.md, digest, prompt no Obsidian | ok |
+| dedupe-market-products | 2026-11-01 | catalogo-2026-11-01 (Fable 5.1, SQL por MCP) | Continente 2975 escondidos (2760 pares cnt/cont + nome), Intermarché 87, Lidl 67, Pingo Doce 17, Auchan 2, Mercadona 875; 0 repetidos nas lojas vivas; trigger trg_products_catalogo_guard | ok |
+| category-mapper-v2 | 2026-11-01 | catalogo-2026-11-01 (dry-run) | classificador não fiável (choco→Peixaria, fruta→gomas, bebida vegetal→Bebidas): não aplicado; secções corrigidas por regras curadas em SQL + mapa no gatilho fn_products_set_category_root | falha |

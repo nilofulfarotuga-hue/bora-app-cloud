@@ -1,15 +1,61 @@
+// v38 (01/11/2026, missão zona-vermelha-2026-11-01, autorização do Danilo 01/11 19:56):
+//   (a) chaves — as 4 chamadas a outras funções (notify-partner ×2, finalize-order-from-intent,
+//       dispatch-engine) mandam a chave de servidor (secretKey()) em `apikey` E em
+//       `Authorization: Bearer` (padrão da Supabase; as funções de destino aceitam os dois);
+//   (b) finalize recusado = pedido perdido: 401/403 do finalize contam como falha → 500 para a
+//       Stripe repetir (o finalize é idempotente pelo rascunho; o vigia _cron_vigia_pago_sem_pedido
+//       cura e avisa em 3–8 min se ainda assim falhar). Caso de 31/10 11:41 (18,41 €) passou como "ok";
+//   (c) pagamento sem etiqueta (sem draft_id nem order_id): além do log, aviso no sininho do
+//       painel (admin_notifications, event_type pagamento_sem_etiqueta) — um erro no insert
+//       nunca parte o webhook;
+//   (d) gorjetas (missão gorjetas-taxa-2026-10-30, Bloco C, autorização 30/10 13:40): com a
+//       gorjeta já 'succeeded' e a taxa da Stripe por gravar, grava SÓ a taxa (nunca fica vazia;
+//       o cron de domingo charge-tip taxas_em_falta apanha o resto).
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { secretKey } from '../_shared/keys.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   apiVersion: '2023-10-16',
   httpClient: Stripe.createFetchHttpClient(),
 });
 
+// v38: chave de servidor (sb_secret nova; recurso = variável antiga). Usada no cliente admin
+// e nas chamadas a outras funções (apikey + Bearer).
+const SERVER_KEY = secretKey() || (Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
+const serverHeaders = {
+  'Content-Type': 'application/json',
+  'apikey': SERVER_KEY,
+  'Authorization': `Bearer ${SERVER_KEY}`,
+};
+
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+  SERVER_KEY,
 );
+
+// v38 (c) — pagamento que chegou à Stripe sem etiqueta nenhuma (nem draft_id nem order_id):
+// grava o aviso no sininho do painel. Nunca rebenta o webhook.
+async function avisarPagamentoSemEtiqueta(intent: Stripe.PaymentIntent, eventType: string, eventId: string) {
+  try {
+    const sucesso = eventType === 'payment_intent.succeeded';
+    const valor = (Number(intent.amount_received ?? intent.amount ?? 0) / 100).toFixed(2);
+    await supabase.from('admin_notifications').insert({
+      event_type: 'pagamento_sem_etiqueta',
+      severity: sucesso ? 'high' : 'medium',
+      entity_type: 'payment_intent',
+      entity_id: intent.id,
+      summary: sucesso
+        ? `Pagamento de ${valor} € sem pedido nem rascunho (${intent.description ?? 'sem descrição'})`
+        : `Pagamento de ${valor} € ${eventType.replace('payment_intent.', '')} sem pedido nem rascunho (${intent.description ?? 'sem descrição'})`,
+      payload: { pi: intent.id, amount: intent.amount, amount_received: intent.amount_received,
+                 description: intent.description ?? null, customer: intent.customer ?? null,
+                 metadata: intent.metadata ?? {}, livemode: intent.livemode, evento: eventId,
+                 event_type: eventType },
+      deep_link: '/admin/orphans',
+    });
+  } catch (_) { /* o aviso é melhor-esforço */ }
+}
 
 // v36 (ronda 04/10 A.3) — falha REAL (RPC/UPDATE com erro): sobe até ao Deno.serve,
 // que grava last_error em stripe_webhook_events e devolve 500 para a Stripe repetir.
@@ -66,7 +112,7 @@ async function tipGravarEstado(intent: Stripe.PaymentIntent) {
       // deno-lint-ignore no-explicit-any
       const fee = (full.latest_charge as any)?.balance_transaction?.fee;
       if (typeof fee === 'number') patch.stripe_fee_cents = fee;
-    } catch (_) { /* taxa é informativa */ }
+    } catch (_) { /* v38: sem taxa agora → o cron de domingo (charge-tip taxas_em_falta) vai buscá-la */ }
   }
   if (intent.last_payment_error?.message) {
     patch.failure_reason = String(intent.last_payment_error.message).slice(0, 300);
@@ -74,6 +120,14 @@ async function tipGravarEstado(intent: Stripe.PaymentIntent) {
   const { error } = await supabase.from('tips').update(patch).eq('id', tipId)
     .not('status', 'in', '(succeeded,refunded)');
   if (error) falha(`tips update: ${error.message} (${tipId})`);
+  // v38 (gorjetas 30/10, Bloco C): a taxa conta dinheiro — o prestador recebe a gorjeta paga depois
+  // MENOS a taxa exata (tips.liquido_prestador_cents). Se a gorjeta já estava 'succeeded' (o confirm
+  // da charge-tip chegou primeiro) com a taxa por gravar, grava-se SÓ a taxa.
+  if (typeof patch.stripe_fee_cents === 'number') {
+    const { error: feeErr } = await supabase.from('tips').update({ stripe_fee_cents: patch.stripe_fee_cents })
+      .eq('id', tipId).is('stripe_fee_cents', null);
+    if (feeErr) console.error('[stripe-webhook] tip: taxa não gravada (fica para o cron de domingo):', feeErr.message, tipId);
+  }
   console.log('[stripe-webhook] tip', tipId, '->', status, intent.id);
 }
 
@@ -500,10 +554,7 @@ Deno.serve(async (req: Request) => {
               const notifyUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/notify-partner`;
               fetch(notifyUrl, {
                 method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-                },
+                headers: serverHeaders, // v38: apikey + Bearer
                 body: JSON.stringify({
                   orderId: reservationId,
                   restaurantId: resRow.restaurant_id,
@@ -667,10 +718,7 @@ Deno.serve(async (req: Request) => {
           const finalizeUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/finalize-order-from-intent`;
           const res = await fetch(finalizeUrl, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-            },
+            headers: serverHeaders, // v38: apikey + Bearer
             body: JSON.stringify({ payment_intent_id: intent.id }),
           });
           const resBody = await res.text();
@@ -678,7 +726,11 @@ Deno.serve(async (req: Request) => {
             'status:', res.status, 'body:', resBody);
           // v36 (ronda 04/10 A.3) — finalize com 5xx = pedido NÃO criado com dinheiro cobrado:
           // 500 para a Stripe repetir (finalize é idempotente pelo draft).
-          if (res.status >= 500) falha(`finalize-order-from-intent ${res.status}: ${resBody.slice(0, 300)}`);
+          // v38 (b) — 401/403 do finalize também é pedido perdido (31/10 11:41 passou como "ok"):
+          // conta como falha → 500 → a Stripe repete.
+          if (res.status >= 500 || res.status === 401 || res.status === 403) {
+            falha(`finalize-order-from-intent ${res.status}: ${resBody.slice(0, 300)}`);
+          }
           // v36 (ronda 04/10 A.1) — cobrança registada também aqui (redundante com o
           // finalize v14; cobre o caso de o finalize no ar ainda ser o v13).
           let finalOrderId = '';
@@ -694,6 +746,7 @@ Deno.serve(async (req: Request) => {
       // ── Mode A (LEGACY): existing order → mark paid + dispatch ─────────
       if (!order_id) {
         console.error('[stripe-webhook] payment_intent.succeeded missing metadata.draft_id and order_id:', intent.id);
+        await avisarPagamentoSemEtiqueta(intent, event.type, event.id); // v38 (c)
         break;
       }
 
@@ -752,10 +805,7 @@ Deno.serve(async (req: Request) => {
         const notifyUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/notify-partner`;
         fetch(notifyUrl, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-          },
+          headers: serverHeaders, // v38: apikey + Bearer
           body: JSON.stringify({
             orderId: order_id,
             restaurantId: orderRow.restaurant_id,
@@ -784,10 +834,7 @@ Deno.serve(async (req: Request) => {
         const dispatchUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/dispatch-engine`;
         const dispatchRes = await fetch(dispatchUrl, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-          },
+          headers: serverHeaders, // v38: apikey + Bearer
           body: JSON.stringify({ orderId: order_id }),
         });
         console.log('[stripe-webhook] dispatch-engine invoked for order:', order_id,
@@ -895,6 +942,7 @@ Deno.serve(async (req: Request) => {
 
       if (!order_id) {
         console.error('[stripe-webhook]', event.type, 'missing metadata.draft_id and order_id:', intent.id);
+        await avisarPagamentoSemEtiqueta(intent, event.type, event.id); // v38 (c)
         break;
       }
 

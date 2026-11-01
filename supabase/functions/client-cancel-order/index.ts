@@ -4,6 +4,20 @@
 // sempre a 0 → pedidos pagos a cartão/MB Way cancelavam SEM reembolso) e o reembolso
 // reparte-se por fonte com repartirReembolso: Stripe até ao que a Stripe cobrou, o resto
 // à carteira (wallet_credit_refund_split, chave = id do pedido).
+// v30 (28/10/2026, regra do Danilo 28/10 18:24 — missao-geral-2026-10-28 bloco 2): por defeito
+// volta ao meio original (cartão/MB Way); 'wallet' = 100% saldo (wallet_split_free_pct = 1).
+// Os tokens gastos voltam como TOKENS pelo gatilho do banco (trg_orders_devolver_tokens) quando
+// o servidor registou quais (tokens_applied_count > 0): então a taxa sai do dinheiro e o valor
+// dos tokens sai da base do reembolso. PUBLICAR com o _shared/cobranca_stripe.ts v2.
+// v32 (01/11/2026, missão zona-vermelha-2026-11-01, autorização do Danilo 01/11 19:56):
+//   (a) chaves — as duas chamadas a notify-admin-urgent deixam de falhar em silêncio: passam por
+//       chamarFuncao (_shared/chamadas.ts), que escreve a falha em e2e_log (fluxo edge-chamada-falhou);
+//   (b) gorjetas (missão gorjetas-taxa-2026-10-30, Bloco B, autorização 30/10 13:40): a gorjeta do
+//       pedido volta INTEIRA, fora da taxa de cancelamento, pelo caminho que o cliente escolheu para o
+//       resto (refund_target: saldo Bora ou cartão/MB Way) — _shared/gorjeta_devolver.ts. A gorjeta
+//       cobrada no mesmo pagamento da compra já não entra no reembolso da compra
+//       (_shared/cobranca_stripe.ts v3). PUBLICAR com os _shared do repo, DEPOIS da migração
+//       20261030145000 (tips.cobrada_junto).
 // ============================================================================
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -11,6 +25,8 @@ import { getCancelFees, computeCancelFeeEur } from '../_shared/platform_settings
 import { corsHeaders } from '../_shared/cors.ts';
 import { lerPagoDoPedido, repartirReembolso, type Pago } from '../_shared/cobranca_stripe.ts'; // v29 (ronda 04/10 A.2)
 import { secretKey } from '../_shared/keys.ts'
+import { chamarFuncao } from '../_shared/chamadas.ts'; // v32 (a)
+import { devolverGorjetasDoPedido } from '../_shared/gorjeta_devolver.ts'; // v32 (b) (gorjetas 30/10)
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   apiVersion: '2023-10-16',
@@ -51,7 +67,7 @@ Deno.serve(async (req: Request) => {
 
   let orderId: string | undefined;
   let reason: string | undefined;
-  let refundTarget: 'card' | 'wallet' = 'card';
+  let refundTarget: 'card' | 'wallet' = 'card'; // regra 28/10: por defeito volta ao meio original
   try {
     const body = await req.json();
     orderId = body?.order_id;
@@ -79,7 +95,7 @@ Deno.serve(async (req: Request) => {
 
   const { data: order, error: orderErr } = await admin
     .from('orders')
-    .select('id, user_id, status, payment_method, payment_intent_id, payment_status, total, estimated_total, final_total, customer_total, refund_amount, stripe_charge_cents, wallet_applied_cents, tokens_applied_value_cents, created_at, assigned_driver_id, service_type, is_purchase_finalized, driver_earnings')
+    .select('id, user_id, status, payment_method, payment_intent_id, payment_status, total, estimated_total, final_total, customer_total, refund_amount, stripe_charge_cents, wallet_applied_cents, tokens_applied_value_cents, tokens_applied_count, created_at, assigned_driver_id, service_type, is_purchase_finalized, driver_earnings')
     .eq('id', orderId).maybeSingle();
   if (orderErr || !order) return jsonResponse({ error: 'order_not_found' }, 404);
   if (order.user_id !== user.id) return jsonResponse({ error: 'not_your_order' }, 403);
@@ -112,10 +128,16 @@ Deno.serve(async (req: Request) => {
     console.error('[client-cancel] lerPagoDoPedido falhou:', e);
     return jsonResponse({ error: 'payment_read_failed', retry: true }, 503);
   }
+  // v30: com o _shared v2, pago.tokensCents é sempre 0 (tokens não são dinheiro)
   const paidCents = pago.stripeCents + pago.walletCents + pago.tokensCents;
   const nothingToRefund = paidCents === 0;
+  // v30 (regra 28/10): tokens registados pelo servidor voltam como TOKENS (gatilho do banco);
+  // a taxa sai do dinheiro, por isso o valor deles sai da base. Contagem 0 = como antes.
+  const tokensDevolvidos = Math.max(0, Number(order.tokens_applied_count ?? 0));
+  const tokensVoltamEur = tokensDevolvidos > 0
+    ? Math.max(0, Number(order.tokens_applied_value_cents ?? 0)) / 100 : 0;
   const refundEur = Math.max(0, Math.min(
-    Number((totalEur - feeEur).toFixed(2)),
+    Number((totalEur - feeEur - tokensVoltamEur).toFixed(2)),
     paidCents / 100,
   ));
 
@@ -154,7 +176,7 @@ Deno.serve(async (req: Request) => {
       });
       if (debitErr) {
         console.error('[client-cancel] wallet_debit_cancel_fee failed:', debitErr);
-        try { await admin.functions.invoke('notify-admin-urgent', { body: { kind: 'wallet_cancel_floor_exceeded', order_id: orderId, user_id: user.id, fee_cents: Math.round(feeEur * 100), tier, error: debitErr.message } }); } catch (_) {}
+        await chamarFuncao(admin, 'client-cancel-order', 'notify-admin-urgent', { kind: 'wallet_cancel_floor_exceeded', order_id: orderId, user_id: user.id, fee_cents: Math.round(feeEur * 100), tier, error: debitErr.message }); // v32 (a): falha fica em e2e_log
         chargeMissing = true;
       } else { cancelFeeDebited = true; cancelFeeDebitResult = debitRpc; }
     } else { chargeMissing = true; }
@@ -171,7 +193,7 @@ Deno.serve(async (req: Request) => {
       else { walletCredited = true; refundCarteiraCents = Math.round(refundEur * 100); }
     } else {
       // v29 (ronda 04/10 A.2) — reparte por fonte (cartão E MB Way vão à Stripe até ao
-      // que a Stripe cobrou; o resto — carteira/tokens/dinheiro — vai à carteira).
+      // que a Stripe cobrou; o resto — só a parte paga com saldo — vai à carteira).
       const parte = repartirReembolso(Math.round(refundEur * 100), pago);
       if (parte.stripeCents > 0 && pago.piId) {
         let piStatus: string | undefined; let piLatestCharge: string | null | undefined;
@@ -191,9 +213,10 @@ Deno.serve(async (req: Request) => {
         }
       }
       if (parte.carteiraCents > 0) {
-        // v29 (Claude.ai 05/10, regra do Danilo): na graça a parte da carteira volta 100% ao
-        // saldo livre, como no v28 (wallet_credit_refund_full); fora da graça, split 80/20 com
-        // chave = id do pedido. O 2.º toque já é travado pelo UPDATE atómico do estado (409).
+        // v30 (regra 28/10): a parte paga com saldo volta 100% ao saldo. Na graça
+        // wallet_credit_refund_full; fora da graça wallet_credit_refund_split (100% saldo com
+        // wallet_split_free_pct = 1) com chave = id do pedido. O 2.º toque já é travado pelo
+        // UPDATE atómico do estado (409).
         const graca = tier === 'grace';
         const cArgs: Record<string, unknown> = {
           p_order_id: orderId, p_user_id: user.id, p_total_cents: parte.carteiraCents,
@@ -209,7 +232,7 @@ Deno.serve(async (req: Request) => {
   }
 
   if (refundFailed) {
-    try { await admin.functions.invoke('notify-admin-urgent', { body: { kind: 'cancel_refund_failed', order_id: orderId, user_id: user.id, refund_cents: Math.round(refundEur * 100), tier } }); } catch (_) {}
+    await chamarFuncao(admin, 'client-cancel-order', 'notify-admin-urgent', { kind: 'cancel_refund_failed', order_id: orderId, user_id: user.id, refund_cents: Math.round(refundEur * 100), tier }); // v32 (a): falha fica em e2e_log
   }
 
   const driverShareCents = await getIntSetting(admin, 'cancel_fee_after_accept_driver_cents', 150);
@@ -246,17 +269,35 @@ Deno.serve(async (req: Request) => {
   const movidoEur = (refundStripeCents + refundCarteiraCents) / 100;
   if (walletCredited) { patch.refund_amount = movidoEur; patch.refund_method = 'wallet'; patch.refund_status = 'completed'; }
   if (refundExecuted) { patch.refund_amount = movidoEur; patch.refund_method = 'stripe'; patch.refund_status = 'pending'; }
-  if (refundFailed) { patch.refund_amount = refundEur; patch.refund_status = 'failed'; }
+  if (refundFailed) {
+    patch.refund_amount = refundEur;
+    // v30: diz ao Reprocessar para onde vai (o que o cliente escolheu); se a Stripe já devolveu
+    // e só a carteira falhou → 'needs_review' (o Reprocessar só pega em 'failed' e não repete a Stripe)
+    patch.refund_method = refundTarget === 'wallet' ? 'wallet' : 'stripe';
+    patch.refund_status = refundExecuted ? 'needs_review' : 'failed';
+  }
   if (chargeMissing && nothingToRefund) { patch.cancel_fee = 0; }
 
   const { error: updateErr } = await admin.from('orders').update(patch).eq('id', orderId).eq('user_id', user.id);
   if (updateErr) return jsonResponse({ error: 'db_update_failed', details: updateErr.message }, 500);
+
+  // v32 (b) (gorjetas 30/10): a gorjeta volta INTEIRA, fora da taxa, pelo caminho escolhido. Nunca falha
+  // o cancelamento: o que ficar por devolver a conferência de 15 em 15 min volta a tentar.
+  const gorjeta = await devolverGorjetasDoPedido(
+    admin, Deno.env.get('STRIPE_SECRET_KEY') ?? '', orderId,
+    refundTarget === 'wallet' ? 'carteira' : 'meio', `cancelado pelo cliente (${tier})`, user.id,
+  );
+  if (gorjeta.erros > 0) console.error('[client-cancel] gorjeta por devolver:', JSON.stringify(gorjeta.itens));
 
   return jsonResponse({
     ok: true, tier, fee_eur: (cancelFeeDebited || !nothingToRefund) ? feeEur : 0,
     refund_eur: (refundExecuted || walletCredited) ? (refundStripeCents + refundCarteiraCents) / 100 : 0,
     refund_target: (walletCredited && refundExecuted) ? 'card+wallet' : walletCredited ? 'wallet' : (refundExecuted ? 'card' : 'none'),
     refund_card_eur: refundStripeCents / 100, refund_wallet_eur: refundCarteiraCents / 100, // v29 (ronda 04/10 A.2)
+    refund_meio: order.payment_method ?? null, // v30: 'mbway' = na hora; 'card' = 5 a 10 dias úteis
+    tokens_devolvidos: tokensDevolvidos,      // v30: voltam como tokens (gatilho do banco)
+    gorjeta_devolvida_cents: gorjeta.devolvidaCents, // v32: gorjeta inteira, fora da taxa
+    gorjeta_carteira_cents: gorjeta.carteiraCents,   // v32: parte que foi para o saldo
     refund_pending: refundFailed,
     refund_id: refundId ?? null, charge_missing: chargeMissing,
     nothing_to_refund: nothingToRefund, cancel_fee_debited: cancelFeeDebited, cancel_fee_debit: cancelFeeDebitResult,

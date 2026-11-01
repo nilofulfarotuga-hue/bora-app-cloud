@@ -1,34 +1,35 @@
+// supabase/functions/refund/index.ts — reembolso genérico na Stripe (painel admin + funções SQL).
+//
+// v28 (01/11/2026, missão zona-vermelha-2026-11-01, autorização do Danilo 01/11 19:56
+//   "Acertar as três funções. As três você vai consertar e eu autorizo."):
+//   Desde a chave nova (16/10) o admin-payments chama esta função com a sb_secret (secretKey()),
+//   que NÃO é um JWT: o jwtRole(...) antigo lia o "role" de dentro do token e respondia
+//   401 "admin only" → os reembolsos pedidos no painel davam refund_failed.
+//   CORREÇÃO: autenticação pela regra da casa (_shared/chaves.ts):
+//   chamadaDoServidor (sb_secret em apikey/Bearer, ou service_role legada confirmada no Auth)
+//   OU admin com sessão válida. Cliente admin com secretKey(). Ping do vigia diário
+//   ({"ping":true} → {"pong":true}). Nada mais mudou.
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import { chamadaDoServidor, chamadaDeAdmin, respostaAoPing } from '../_shared/chaves.ts';
+import { secretKey } from '../_shared/keys.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   apiVersion: '2023-10-16',
   httpClient: Stripe.createFetchHttpClient(),
 });
 
-function jwtRole(authHeader: string): string | null {
-  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
-  const parts = token.split('.');
-  if (parts.length !== 3) return null;
-  try {
-    const pad = parts[1] + '==='.slice((parts[1].length + 3) % 4);
-    const json = atob(pad.replace(/-/g, '+').replace(/_/g, '/'));
-    const claims = JSON.parse(json);
-    return typeof claims.role === 'string' ? claims.role : null;
-  } catch {
-    return null;
-  }
-}
-
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
-  const role = jwtRole(req.headers.get('authorization') ?? '');
-  if (role !== 'service_role') {
+  const autorizado = (await chamadaDoServidor(req)) || (await chamadaDeAdmin(req));
+  if (!autorizado) {
     return new Response(JSON.stringify({ error: 'unauthorized: admin only' }),
       { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
+  const pong = await respostaAoPing(req, corsHeaders);
+  if (pong) return pong;
 
   try {
     const { paymentIntentId, amount, userId, orderId } = await req.json() as {
@@ -75,10 +76,10 @@ Deno.serve(async (req: Request) => {
     if (userId) {
       try {
         const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-        const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+        const serviceKey = secretKey() || (Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
         if (supabaseUrl && serviceKey) {
           const sb = createClient(supabaseUrl, serviceKey);
-          const message = `Reembolso de €${amount.toFixed(2)} processado. Pode demorar 5-10 dias úteis a aparecer no cartão. Para crédito instantâneo, escolhe wallet da próxima vez.`;
+          const message = `Reembolso de €${amount.toFixed(2)} processado. No MB Way chega normalmente na hora; no cartão pode demorar 5 a 10 dias úteis a aparecer no extrato.`;
           await sb.functions.invoke('notify-client', {
             body: { user_id: userId, title: 'Reembolso processado', body: message,
                     data: { order_id: orderId ?? null, refund_method: 'stripe', refund_id: refund.id } },

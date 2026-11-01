@@ -1,6 +1,31 @@
+// supabase/functions/update-products/index.ts  v24 (segurança 01/11/2026)
+//
+// Robô que reescreve o catálogo dos mercados (Mercadona, Continente, Auchan, Pingo Doce,
+// Lidl, Intermarché) na tabela `products`, com cliente admin (salta RLS).
+//
+// 01/11/2026 (missão seguranca-05): a v23 no ar estava ABERTA — verify_jwt=false e sem
+// exigir chave nenhuma. Qualquer pessoa na internet podia chamar
+// POST /functions/v1/update-products {"market":"continente"} e reescrever preços/fotos de
+// 1000+ produtos à vontade (e martelar a Mercadona/Continente a partir do nosso IP).
+// Agora: só o servidor (pg_cron/banco com a chave secreta, ou a service_role legada
+// confirmada no Auth) ou um admin com sessão (app_metadata.role='admin'). Padrão de
+// _shared/chaves.ts, o mesmo de notify-washer / notify-cleaner (21/10/2026).
+//
+// Quem chama (levantamento 01/11/2026): só os cron jobs 20 `update-products-continente`
+// (seg 03:00) e 21 `update-products-auchan` (ter 03:00). Ambos mandavam SÓ Content-Type —
+// têm de passar a mandar `Authorization: Bearer <chave do servidor>` como os outros 70 jobs
+// (migração 20261101_update_products_cron_com_chave.sql). Nada no lib/, sites, ferramentas/,
+// scripts/ ou .github/ chama esta função.
+//
+// Publicar com verify_jwt=false (como está): o portão da plataforma só aceita JWT legados e
+// recusaria a sb_secret nova no cron; quem valida é esta função, via chaves.ts.
+// Responde ao ping do vigia das chaves ({"ping":true} → {"pong":true}) sem mexer em nada.
+
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { secretKey } from '../_shared/keys.ts';
+import { exigirServidorOuAdmin, respostaAoPing } from '../_shared/chaves.ts';
+import { corsHeaders } from '../_shared/cors.ts';
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -433,6 +458,12 @@ async function updateCrossMatch(market: string): Promise<{ message: string }> {
 // ─── Main handler ────────────────────────────────────────────────────────────
 
 serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  // Porta fechada (01/11/2026): servidor (chave secreta / legada confirmada no Auth) ou admin.
+  const bloqueio = await exigirServidorOuAdmin(req, corsHeaders);
+  if (bloqueio) return bloqueio;
+  const pong = await respostaAoPing(req, corsHeaders); // vigia diário das chaves (31/10/2026)
+  if (pong) return pong;
   try {
     const body = await req.json().catch(() => ({}));
     const market: string = body.market ?? 'mercadona';

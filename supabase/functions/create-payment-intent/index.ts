@@ -7,6 +7,11 @@
 //
 // CRITICAL: getOrCreateCustomer usa service-role admin client para SELECT/UPDATE
 // em users (RLS bloqueia user-side updates a stripe_customer_id). Falha = non-blocking.
+//
+// v29 (30/10/2026, missão gorjetas-taxa-2026-10-30, autorização do Danilo 30/10 13:40; publicada
+//   01/11/2026 na missão zona-vermelha-2026-11-01, autorização 01/11 19:56 "na 38 você faz"):
+//   Mode B soma ao valor do PaymentIntent a gorjeta do carrinho marcada antes de pagar
+//   (gorjeta_checkout_para_cobrar); guarda-a no rascunho e na metadata (gorjeta_cents). Mode A intacto.
 
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -168,13 +173,29 @@ async function modeNew(req: Request, cart: Record<string, any>): Promise<Respons
   const admin = createClient(supabaseUrl, serviceKey);
   const customerId = await getOrCreateCustomer(admin, user.id);
 
+  // v29 (gorjetas 30/10, autorização do Danilo 30/10 13:40): a gorjeta do carrinho vai no MESMO
+  // pagamento. Lê a marcação que a app fez antes de abrir o pagamento (client_preparar_gorjeta_checkout):
+  // 0 se não há, se o interruptor tips_checkout_junto_pagamento está desligado ou se não é pedido do
+  // carrinho (Favores/envios). Soma-se DEPOIS da cotação: nunca entra em margens, buffers, comissões
+  // nem taxas. Fica no rascunho (payload.gorjeta_checkout_cents): quando o pedido nascer, o gatilho
+  // trg_zz_gorjeta_checkout_na_criacao cria a linha em tips (paga, cobrada_junto). Erro a ler = sem gorjeta.
+  let gorjetaCents = 0;
+  if (['restaurant', 'storeShopping', 'takeaway'].includes(String(cart.service_type ?? ''))) {
+    const { data: g, error: gErr } = await admin.rpc('gorjeta_checkout_para_cobrar', { p_user_id: user.id });
+    if (gErr) console.error('[create-payment-intent new] gorjeta não lida (segue sem gorjeta):', gErr.message);
+    else gorjetaCents = Math.max(0, Math.round(Number(g ?? 0)));
+  }
+  const totalCents = amountCents + gorjetaCents;
+  const payload = gorjetaCents > 0 ? { ...cart, gorjeta_checkout_cents: gorjetaCents } : cart;
+  const metaGorjeta = gorjetaCents > 0 ? { gorjeta_cents: String(gorjetaCents) } : {};
+
   const { data: draftRow, error: insertErr } = await admin
     .from('payment_drafts')
     .insert({
       payment_intent_id: 'pending_' + crypto.randomUUID(),
       user_id: user.id,
-      payload: cart,
-      amount_cents: amountCents,
+      payload,
+      amount_cents: totalCents,
       wallet_applied_cents: walletCents,
     })
     .select('id').single();
@@ -188,18 +209,18 @@ async function modeNew(req: Request, cart: Record<string, any>): Promise<Respons
   try {
     if (savedPmId && customerId) {
       paymentIntent = await stripe.paymentIntents.create({
-        amount: amountCents, currency: 'eur',
+        amount: totalCents, currency: 'eur',
         customer: customerId, payment_method: savedPmId,
         confirm: true, off_session: true,
         automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
-        metadata: { draft_id: draftId, user_id: user.id },
+        metadata: { draft_id: draftId, user_id: user.id, ...metaGorjeta },
       });
     } else {
       paymentIntent = await stripe.paymentIntents.create({
-        amount: amountCents, currency: 'eur',
+        amount: totalCents, currency: 'eur',
         ...(customerId ? { customer: customerId, setup_future_usage: 'off_session' as const } : {}),
         automatic_payment_methods: { enabled: true },
-        metadata: { draft_id: draftId, user_id: user.id },
+        metadata: { draft_id: draftId, user_id: user.id, ...metaGorjeta },
       });
     }
   } catch (e) {
@@ -217,15 +238,17 @@ async function modeNew(req: Request, cart: Record<string, any>): Promise<Respons
     return json({ error: 'draft_update_failed', details: updateErr.message }, 500);
   }
 
-  console.log('[create-payment-intent new v28] PI=', paymentIntent.id, 'draft=', draftId,
+  console.log('[create-payment-intent new v29] PI=', paymentIntent.id, 'draft=', draftId,
     'customer=', customerId ?? 'none', 'savedPm=', savedPmId ?? 'none',
-    'status=', paymentIntent.status, 'amount=€', (amountCents / 100).toFixed(2));
+    'status=', paymentIntent.status, 'amount=€', (totalCents / 100).toFixed(2),
+    'gorjeta=€', (gorjetaCents / 100).toFixed(2));
 
   return json({
     clientSecret: paymentIntent.client_secret,
     paymentIntentId: paymentIntent.id,
     draftId,
-    amountCents,
+    amountCents: totalCents,   // v29: o que se cobra (compra + gorjeta do carrinho)
+    gorjetaCents,              // v29: 0 = sem gorjeta no mesmo pagamento
     status: paymentIntent.status,
     requiresAction: paymentIntent.status === 'requires_action',
   });

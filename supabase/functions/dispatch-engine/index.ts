@@ -1,4 +1,11 @@
 // @ts-nocheck
+// dispatch-engine v64 (01/11/2026, missão zona-vermelha-2026-11-01, autorização do Danilo
+//   01/11 19:56) — SÓ a porta de entrada (autorizar): quem é servidor passa a ser decidido por
+//   _shared/chaves.ts (chamadaDoServidor: sb_secret em `apikey` OU em Bearer, qualquer chave
+//   secreta conhecida, ou a service_role legada confirmada no Auth) e o utilizador por
+//   utilizadorDoPedido (sessão confirmada no Auth, nunca o papel lido à mão do JWT).
+//   Mesmo desenho do notify-driver v44. Ping do vigia diário ({"ping":true} → {"pong":true}).
+//   Admin / estafeta / cliente / parceiro ficam IGUAIS. Ofertas, TTL, claim, redispatch IGUAIS.
 // dispatch-engine v62 (ronda 04/10/2026) — duas mudanças, mais nada:
 //   (1) QUEM PODE CHAMAR. Até aqui qualquer pessoa na internet podia acordar o
 //       motor (verify_jwt=false e nenhuma verificação). Agora só passa: a chave
@@ -14,37 +21,15 @@
 //       já ordenados (mesma loja primeiro, depois o mais perto).
 //   Ofertas, TTL, claim, redispatch e identidade (v59) ficam IGUAIS.
 // dispatch-engine v59 (2026-08-16) — FIX identidade do estafeta (drivers.id vs drivers.user_id).
-//   PROBLEMA PROVADO: a app do estafeta consulta ofertas/pedidos por auth.uid()
-//   (= drivers.user_id), mas o engine gravava drivers.id em current_driver_offer_id.
-//   Para estafetas em que id <> user_id (ex: Valdemir) a oferta NUNCA aparecia no
-//   ecra e driver_accept_offer (que exige current_driver_offer_id = auth.uid())
-//   rejeitava sempre. So funcionava para as contas em que id == user_id.
 //   v59: current_driver_offer_id passa a levar drivers.user_id (fallback id);
 //   toda a exclusao/contagem passa a aceitar OS DOIS formatos (legado incluido).
-// dispatch-engine v58 — work_mode + dual-driver (AUTORIZADO Danilo 2026-07-02):
-//   • filtro work_mode: 'rides_only' fica fora do matching de entregas
-//     (padrão defensivo work_mode IS NULL OR <> 'rides_only'; default 'everything');
-//   • dual-driver: 'carro_passageiros' elegível para entregas (conta como carro
-//     nos serviços que exigem carro) MAS excluído enquanto tem corrida TVDE ativa.
-//   Nada mais mudou: ofertas, timeouts, rotação e pricing intactos.
+// dispatch-engine v58 — work_mode + dual-driver (AUTORIZADO Danilo 2026-07-02).
 // dispatch-engine v57 — TTL honrado em TODOS os caminhos + claim anti-duplicação de cadeias.
-//
-// ROOT CAUSE do loop 5M+ invocações (corrigido aqui + bora_dispatch_maintenance v2):
-//   (1) decideRedispatch caso "pendente sem oferta" reagendava a cada 10s SEM TTL;
-//   (2) sem oferta ativa não havia deteção de dono da cadeia → cada invocação externa
-//       (trigger, maintenance, manual) criava uma cadeia self-sustaining NOVA;
-//   (3) dispatch_max_total_seconds_with_drivers_online nunca era aplicado e o safety
-//       só corria com drivers online.
-// v57:
-//   • loadDispatchSettings lê também dispatch_max_total_seconds_with_drivers_online
-//     e dispatch_auto_cancel_safety_seconds;
-//   • TTL excedido → RPC dispatch_cancel_expired_order (cancel + alerta admin +
-//     push cliente) e a cadeia TERMINA;
-//   • claim atómico em orders.dispatch_next_retry_at: só a cadeia que ganha o
-//     UPDATE condicional agenda o próximo retry — N cadeias colapsam em 1.
 // v56 — notify-driver movido para DB trigger tr_notify_driver_on_offer.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { chamadaDoServidor, utilizadorDoPedido, respostaAoPing } from '../_shared/chaves.ts'
+import { secretKey } from '../_shared/keys.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -115,16 +100,18 @@ function sleep(ms: number): Promise<void> { return new Promise(r => setTimeout(r
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  const serviceKey = secretKey() || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   const supabase = createClient(supabaseUrl, serviceKey)
   let orderId: string | null = null
-  try { const b = await req.json(); orderId = b?.orderId ?? null } catch (_) {}
-  const autorizado = await autorizar(req, supabase, supabaseUrl, serviceKey, orderId)
+  try { const b = await req.clone().json(); orderId = b?.orderId ?? null } catch (_) {}
+  const autorizado = await autorizar(req, supabase, orderId)
   if (!autorizado.ok) {
-    console.warn(`[dispatch-engine] v62 403 motivo=${autorizado.reason} orderId=${orderId ?? 'ALL'}`)
+    console.warn(`[dispatch-engine] v64 403 motivo=${autorizado.reason} orderId=${orderId ?? 'ALL'}`)
     return new Response(JSON.stringify({ ok: false, error: 'forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
-  console.log(`[dispatch-engine] v62 INVOKED orderId=${orderId ?? 'ALL'}`)
+  const pong = await respostaAoPing(req, corsHeaders)
+  if (pong) return pong
+  console.log(`[dispatch-engine] v64 INVOKED orderId=${orderId ?? 'ALL'}`)
   const settings = await loadDispatchSettings(supabase)
   console.log(`[dispatch-engine] settings: offerTimeout=${settings.offerTimeoutS}s retryNoDriver=${settings.retryNoDriverS}s maxTotal=${settings.maxTotalS}s safety=${settings.safetyS}s`)
   let redispatchPromise: Promise<void> | null = null
@@ -161,7 +148,6 @@ async function decideRedispatch(supabase: any, orderId: string, assigned: boolea
   }
 
   // TTL HARD STOP — honra platform_settings em TODOS os caminhos.
-  // Sem isto, um pedido sem drivers online era reagendado a cada 10s para sempre.
   const callingSinceMs = peek.dispatch_calling_since ? Date.parse(peek.dispatch_calling_since) : null
   const safetyExceeded = callingSinceMs != null && (Date.now() - callingSinceMs) >= settings.safetyS * 1000
   const maxTotalExceeded = (peek.dispatch_online_attempt_seconds ?? 0) >= settings.maxTotalS
@@ -190,7 +176,6 @@ async function decideRedispatch(supabase: any, orderId: string, assigned: boolea
   }
 
   // CLAIM atómico anti-cadeias-múltiplas: só quem ganha este UPDATE agenda retry.
-  // Quem perde (0 rows) sabe que outra cadeia viva é dona — termina sem duplicar.
   const nowIso = new Date().toISOString()
   const retryAtIso = new Date(Date.now() + settings.retryNoDriverS * 1000).toISOString()
   const { data: claimed, error: claimErr } = await supabase.from('orders')
@@ -320,38 +305,17 @@ async function scheduleRedispatch(supabaseUrl: string, serviceKey: string, order
   }
 }
 
-// ── Autenticação (v62) — a do notify-driver v42, mais os papéis da app ────────
-const servicoOk = new Set<string>()
+// ── Autenticação (v64) — regra da casa (_shared/chaves.ts), mais os papéis da app ────────
 const ADMIN_EMAILS = ['nilofulfarotuga@gmail.com', 'nilofulfaro@gmail.com']
-function lerPayload(token: string): any {
-  try {
-    let b = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
-    while (b.length % 4) b += '='
-    return JSON.parse(atob(b))
-  } catch (_) { return null }
-}
-async function autorizar(req: Request, supabase: any, supabaseUrl: string, serviceKey: string, orderId: string | null): Promise<{ ok: boolean, reason?: string }> {
-  const h = req.headers.get('authorization') ?? ''
-  if (!h.toLowerCase().startsWith('bearer ')) return { ok: false, reason: 'sem_token' }
-  const token = h.slice(7).trim()
-  if (!token) return { ok: false, reason: 'sem_token' }
-  // Gatilhos, cron, webhooks e o próprio motor (redispatch) mandam a chave de serviço.
-  if (token === serviceKey || servicoOk.has(token)) return { ok: true }
-  const p = lerPayload(token)
-  if (p?.role === 'service_role') {
-    // Chave de serviço do cofre do banco (pode não ser igual à do ambiente):
-    // só passa se a Auth a aceitar como admin.
-    try {
-      const r = await fetch(`${supabaseUrl}/auth/v1/admin/users?per_page=1`, { headers: { apikey: token, Authorization: `Bearer ${token}` } })
-      if (r.ok) { servicoOk.add(token); return { ok: true } }
-    } catch (_) {}
-    return { ok: false, reason: 'service_invalido' }
-  }
-  if (p?.role !== 'authenticated') return { ok: false, reason: `papel_${p?.role ?? 'desconhecido'}` }
-  const { data: u, error } = await supabase.auth.getUser(token)
-  if (error || !u?.user) return { ok: false, reason: 'jwt_invalido' }
-  const uid = String(u.user.id)
-  if (u.user.app_metadata?.role === 'admin' || ADMIN_EMAILS.includes(String(u.user.email ?? '').toLowerCase())) return { ok: true }
+async function autorizar(req: Request, supabase: any, orderId: string | null): Promise<{ ok: boolean, reason?: string }> {
+  // Gatilhos, cron, webhooks, outras funções e o próprio motor (redispatch) mandam a chave
+  // de servidor: sb_secret (apikey ou Bearer) ou a service_role legada confirmada no Auth.
+  if (await chamadaDoServidor(req)) return { ok: true }
+  // Utilizador com sessão válida (confirmada no Auth) — nunca o papel lido à mão do JWT.
+  const u = await utilizadorDoPedido(req)
+  if (!u) return { ok: false, reason: 'sem_sessao_valida' }
+  const uid = String(u.id)
+  if (u.app_metadata?.role === 'admin' || ADMIN_EMAILS.includes(String(u.email ?? '').toLowerCase())) return { ok: true }
   // Estafeta aprovado: a app dele acorda o motor ao ficar online (por pedido pendente).
   const { data: d } = await supabase.from('drivers').select('id').eq('user_id', uid).eq('approval_status', 'approved').limit(1)
   if (d?.length) return { ok: true }

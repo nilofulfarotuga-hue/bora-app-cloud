@@ -13,10 +13,10 @@ description: >
   "dry-run Continente/Pingo Doce/Auchan/Mercadona/Lidl/Intermarché".
 metadata:
   versao: 1.0
-  execucoes: 0
+  execucoes: 1
   sucessos: 0
-  falhas: 0
-  ultima_execucao: null
+  falhas: 1
+  ultima_execucao: 2026-11-01
   criada_por: pre-telemetria (rollout 2026-07-10)
 ---
 

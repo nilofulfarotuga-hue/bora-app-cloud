@@ -18,6 +18,13 @@ import { secretKey } from '../_shared/keys.ts';
 //      Se o PI anterior ainda está vivo (à espera da app MB WAY), devolve-se
 //      esse em vez de mandar um segundo pedido ao telemóvel.
 //   Resposta igual à v29 ({ok, paymentIntentId, status, mode}) — compatível.
+// v31 (2026-10-30, missão gorjetas-taxa-2026-10-30, autorização do Danilo 30/10 13:40; publicada
+//   01/11/2026 na missão zona-vermelha-2026-11-01, autorização 01/11 19:56 "na 38 você faz")
+//   A gorjeta do carrinho vai no MESMO pagamento MB Way: o gatilho trg_zz_gorjeta_checkout_na_criacao
+//   criou-a 'pending' ao nascer o pedido; aqui soma-se ao valor (gorjeta_checkout_mbway_valor) e grava-se
+//   nela o PaymentIntent (gorjeta_checkout_mbway_pi). Fica 'succeeded' quando o webhook marca o pedido
+//   pago (gatilho trg_zz_gorjeta_checkout_pagamento) — o webhook não muda. Sem gorjeta = como a v30.
+//   Resposta: + amountCents, gorjetaCents.
 
 // BUG 13 — Stripe mode toggle. Default 'live'.
 const STRIPE_MODE = (Deno.env.get('BORA_STRIPE_MODE') ?? 'live').toLowerCase();
@@ -126,7 +133,15 @@ Deno.serve(async (req: Request) => {
       return json({ error: 'Order already processed' }, 409);
     }
 
-    const amountCents = Math.round((order.payment_buffer_total as number) * 100);
+    // v31 (gorjetas 30/10): a gorjeta do carrinho deste pedido vai no mesmo pagamento.
+    // Erro a ler (ex.: migração por aplicar) = sem gorjeta, como a v30.
+    let gorjetaCents = 0;
+    {
+      const { data: g, error: gErr } = await supabase.rpc('gorjeta_checkout_mbway_valor', { p_order_id: order_id });
+      if (gErr) console.error('[create-mbway-payment-intent] gorjeta não lida (segue sem gorjeta):', gErr.message);
+      else gorjetaCents = Math.max(0, Math.round(Number(g ?? 0)));
+    }
+    const amountCents = Math.round((order.payment_buffer_total as number) * 100) + gorjetaCents;
     if (amountCents < 50) {
       return json({ error: 'Amount too small (min 0.50 EUR)' }, 400);
     }
@@ -172,8 +187,17 @@ Deno.serve(async (req: Request) => {
         billing_details: { phone: e164 },
       },
       confirm: true,
-      metadata: { order_id },
+      metadata: { order_id, ...(gorjetaCents > 0 ? { gorjeta_cents: String(gorjetaCents) } : {}) },
     }, { idempotencyKey: `mbway_${order_id}_${anterior ?? 'primeiro'}` });
+
+    // v31: a gorjeta fica a saber qual é o pagamento que a leva. Se falhar, o gatilho reconhece-a na
+    // mesma quando o valor cobrado = buffer + gorjeta.
+    if (gorjetaCents > 0) {
+      const { error: gpErr } = await supabase.rpc('gorjeta_checkout_mbway_pi', {
+        p_order_id: order_id, p_payment_intent: intent.id,
+      });
+      if (gpErr) console.error('[create-mbway-payment-intent] gorjeta sem PI gravado:', gpErr.message, intent.id);
+    }
 
     console.log('[create-mbway-payment-intent] intent confirmed (server-side):',
       intent.id, `order=${order_id}`, `phone=${e164}`, `status=${intent.status}`,
@@ -196,6 +220,8 @@ Deno.serve(async (req: Request) => {
       paymentIntentId: intent.id,
       status: intent.status,
       mode: STRIPE_MODE,
+      amountCents,   // v31: compra + gorjeta do carrinho
+      gorjetaCents,  // v31
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

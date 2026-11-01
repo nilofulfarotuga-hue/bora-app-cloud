@@ -2,10 +2,25 @@
 // Service-role only. Invoked by stripe-webhook on payment_intent.succeeded
 // (when metadata.draft_id present) to atomically create the order from the
 // payment_drafts payload after Stripe charge confirmed.
+//
+// v15 (31/10/2026, Claude.ai via MCP) — PAGOU E FICOU SEM PEDIDO.
+//   Desde a chave nova (16/10) o SUPABASE_SERVICE_ROLE_KEY das funções é a
+//   sb_secret, que NÃO é um JWT. Esta função lia o "role" de dentro do JWT e
+//   recusava tudo o resto com 401 "admin only" — o stripe-webhook chama-a com
+//   Bearer sb_secret, por isso TODOS os pagamentos pelo caminho do rascunho
+//   (metadata.draft_id) ficavam cobrados e sem pedido.
+//   PROVA: 31/10 11:41:50 UTC, cliente Dayane Lima, 18,41 EUR cobrados, finalize → 401.
+//   Pedido recuperado à mão: 48669acf-dbe3-4592-a5f4-f659fe670cf1.
+//   CORREÇÃO: autenticação pela regra da casa (_shared/chaves.ts):
+//   chamadaDoServidor (sb_secret ou service_role legada confirmada no Auth)
+//   OU admin com sessão válida. Cliente admin com secretKey(). Nada mais mudou.
+//   (v16 no ar = v15; espelhado no repo a 01/11/2026, missão zona-vermelha-2026-11-01.)
 
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import { chamadaDoServidor, chamadaDeAdmin } from '../_shared/chaves.ts';
+import { secretKey } from '../_shared/keys.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   apiVersion: '2023-10-16',
@@ -13,7 +28,7 @@ const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
 });
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+const serviceKey = secretKey() || (Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
 
 // deno-lint-ignore no-explicit-any
 const json = (body: any, status = 200) =>
@@ -22,25 +37,11 @@ const json = (body: any, status = 200) =>
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 
-function jwtRole(authHeader: string): string | null {
-  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
-  const parts = token.split('.');
-  if (parts.length !== 3) return null;
-  try {
-    const pad = parts[1] + '==='.slice((parts[1].length + 3) % 4);
-    const claimsJson = atob(pad.replace(/-/g, '+').replace(/_/g, '/'));
-    const claims = JSON.parse(claimsJson);
-    return typeof claims.role === 'string' ? claims.role : null;
-  } catch {
-    return null;
-  }
-}
-
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
-  const role = jwtRole(req.headers.get('authorization') ?? '');
-  if (role !== 'service_role') return json({ error: 'unauthorized: admin only' }, 401);
+  const autorizado = (await chamadaDoServidor(req)) || (await chamadaDeAdmin(req));
+  if (!autorizado) return json({ error: 'unauthorized: admin only' }, 401);
 
   // deno-lint-ignore no-explicit-any
   let body: any;

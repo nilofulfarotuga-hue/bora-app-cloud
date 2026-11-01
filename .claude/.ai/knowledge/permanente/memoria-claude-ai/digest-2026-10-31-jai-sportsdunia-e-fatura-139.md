@@ -2,7 +2,7 @@
 id: memoria-claude-ai-digest-2026-10-31-jai-sportsdunia-e-fatura-139
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-31
+ultima_confirmacao: 2026-11-01
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Jai 31/10: SportsDunia, estilo das mensagens e fatura dos 139
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `digest-2026-10-31-jai-sportsdunia-e-fatura-139`, origem `claude-ai`, atualizada em 2026-10-31T21:15:16.807058+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `digest-2026-10-31-jai-sportsdunia-e-fatura-139`, origem `claude-ai`, atualizada em 2026-11-01T11:26:11.538075+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: digest 2026 10 31 jai sportsdunia e fatura 139 · memoria claude.ai · claude_ai_memoria
 
@@ -20,3 +20,4 @@ estado: atual
 (4) REGRA do Danilo (31/10 20:16): o resumo mensal do trabalho do Jai NÃO vai para o Jai — vai só para o Danilo, aqui na conversa.
 (5) 31/10 ~21:00 FATURAS-RECIBO EMITIDAS no Portal das Finanças (atividade individual do Danilo, NIF 322151171), todas ao Jai Rahul Agarwal NIF 337732400, 139,00 € cada, "Gestão da presença digital na Google ... e atualização do site jaiagarwala.com", IVA 0% isenção art. 53.º n.º 1 CIVA, sem retenção IRS (art. 101.º n.º 1), pago com cartão de débito, atividade "Outros prestadores de serviços": FR ATSIRE01FR/60 (31/10, ATCUD JJRZGPVH-60, emitida pelo Danilo), FR ATSIRE01FR/61 (30/09, ATCUD JJRZGPVH-61) e FR ATSIRE01FR/62 (31/08, ATCUD JJRZGPVH-62), emitidas por mim com ordem dele. Ordem dele: ao Jai vai SÓ a de outubro (a que ele pediu). PDF da FR/60 descarregado no Chrome pessoal (5b260cdd) como Invoice_October_2026_Jai_Agarwal.pdf (139 913 bytes); para o anexar no WhatsApp pessoal (Chrome d9e862e0) pedi acesso à pasta Transferências do PC e o classificador recusou — à espera do "autorizo" do Danilo. Nas próximas, a fatura de cada mês emite-se no dia da cobrança (dia 30/31).
 (6) 31/10 21:14 ENVIADO ao Jai, do WhatsApp pessoal do Danilo (Chrome d9e862e0), com o "autorizo" dele: PDF oficial da FR ATSIRE01FR/60 (Invoice_October_2026_Jai_Agarwal.pdf, 137 kB) + "Yes bro, that's the monthly 139 for your website updates. Here's the invoice." Regra do Danilo (21:11): nas mensagens ao Jai sobre os 139 NÃO se fala da Google — fala-se das atualizações do site, sem descrever o serviço. As faturas de agosto e setembro (FR/62 e FR/61) NÃO foram mandadas ao Jai, por ordem dele. Acesso à pasta Transferências do PC concedido a 31/10 (pedido aprovado depois do "autorizo"); ficou lá também um duplicado documento.pdf do 1.º clique em Imprimir.
+(7) 31/10 23:24 o Jai respondeu "Okay Danilo" + "But if we want to do this every month, it would be very expensive for us. Can you help us? We are spending a lot with you?" (pedido de desconto nos 139). 01/11 DECISÃO DO DANILO: NÃO baixa o preço — convencer que não dá (tem custos com ferramentas, sobra quase nada; comparado com o mercado está quase de graça). 01/11 11:25 ENVIADO do WhatsApp pessoal, com o "manda" dele e o bom dia que ele pediu: "Good morning bro, have a blessed day today." + "I understand, but I really can't lower it. From the 139 I pay for the tools I use for your site, so very little is left for me. In October alone I put 5 new things on your site, all in 4 languages: your graduation, Mid-Day, Brunel, the Kalinga interview and SportsDunia. To compare, PR agencies in India charge ₹50,000 to ₹1.2 lakh a month, and in London a website plan with just 1 hour of work a month costs €160. Honestly, at 139 it's almost free. I only keep it at this price because it's you, bro." Fontes dos números: Kolonell 06/10/2026 (Londres: Essential 49 €, Pro 160 € com 1 h/mês + relatório, Premium 390 € com 3 h), DEV Community 2025 (agências de PR na Índia ₹50K-1,2L/mês para startups), Brainguru 2026 (conteúdo ₹25K-1L/mês, SEO ₹15K-1,5L/mês). À espera da resposta do Jai.

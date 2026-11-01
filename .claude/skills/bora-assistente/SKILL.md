@@ -68,6 +68,33 @@ A resposta estruturada fica em `assistant_chat_messages.structured` para redesen
 - Fora do âmbito → educado, volta ao assunto. Produto inexistente → "não encontrei", nunca preço inventado.
 - Pagamento nos testes: dinheiro; apagar pedidos de teste no fim.
 
+## v8/v9 (01/11/2026, missão assistente-cliente-2026-11-01) — Claude primeiro + as 3 melhorias de 10/10
+- **Motor**: Claude primeiro (robô `edge-assistente`, P1, `platform_settings.claude_robos`) pelo
+  `_shared/claude.ts`; quando `claudePrimeiro` devolve null (sem crédito, porteiro `ia_claude_pode`
+  diz não, 429/5xx, timeout 20 s) o Gemini de sempre continua com as mesmas ferramentas, e as
+  ferramentas já corridas pelo Claude passam como notas ⟦⟧ (nunca se repetem). Gastos em `ia_gastos`.
+  `assistant_model_primary`/`_fallback` continuam a ser os modelos Gemini de reserva (se o painel puser
+  um `claude-*` em `assistant_model_primary`, força esse modelo no Claude).
+- **Várias fotos**: pedido aceita `images: [{base64, mime}]` (até 6, 6M chars cada, 16M no total) além
+  de `image_base64`. Uma leitura só (Claude visão → Gemini de reserva).
+- **Compara com a Glovo/Uber**: a visão devolve `origem: 'carrinho_outra_app'`, `app`, `total_outra_app_eur`;
+  o servidor corre `basket_quote` logo e devolve `comparacao` {app, total_outra_app_cents,
+  total_bora_cents, loja_bora, diferenca_cents, bora_mais_barato, em_falta}. A diferença é feita em
+  código; o texto da resposta é um molde fixo (nunca o modelo). Sem morada → `comparacao_pendente`
+  fica no `structured` e fecha-se na volta seguinte (depois do "Está certo, compara as lojas").
+- **Aprende**: ferramentas `search_help(question)` (RAG do suporte `match_knowledge`; o que encontra
+  fica em `assistant_learned` kind=resposta) e `learn_lesson(what_went_wrong, rule)` (kind=licao, sem
+  dinheiro). O bloco "LIÇÕES E PERGUNTAS JÁ APRENDIDAS" entra no prompt (20 lições + 15 respostas).
+  Tabela `assistant_learned`: migração `20261101210000_assistente_aprende_2026_11_01.sql` (DDL ficou
+  na gaveta `platform_settings.staged_assistant_learned_20261101` — o conector cancelou a confirmação;
+  a função ignora a tabela enquanto não existir).
+- **Prefácio**: texto que o modelo escreve no mesmo turno em que só chama ferramentas leves
+  (`suggest_action`, `remember`, `forget`, `learn_lesson`, `report_gap`) junta-se à resposta final
+  (v9: antes perdia-se a 1.ª frase de "onde está o meu pedido").
+- **App (por fazer no Flutter)**: seletor de várias fotos (`SafeImagePicker.pickMultiImage`, mandar
+  `images[]`), cartão `comparacao` no chat, cartão `lista_extraida` já existe; painel admin
+  `/admin/assistente` ganha separador "Aprendidas" (ler/desligar `assistant_learned`, RLS `is_admin()`).
+
 ## Armadilhas já vistas (07/10/2026)
 - O conector "claude ai Supabase" (apply_migration/execute_sql) prendeu 3× nesse dia: SQL vai pela
   gaveta `platform_settings.staged_<nome>_<data>` (JSON com sql/estado/motivo/prova) e a Claude.ai aplica.

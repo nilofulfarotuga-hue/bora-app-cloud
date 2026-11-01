@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-01T20:07:10.402265+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-01T20:37:07.857919+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-01 20:01 UTC. Páginas listadas: 485.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-01 20:36 UTC. Páginas listadas: 491.
 
 ## O que é o Bora
 
@@ -324,7 +324,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-areas-luan-pladur — Luan Almeida (pladur/obras, Guarda) — prospect que chegou pelo WhatsApp a 04/10; Danilo ofereceu site grátis e pensar numa área de obras no… (2026-10-23)
 - livro-areas-marca-ja-esta — Nome novo da marca da app do Danilo ("Já Está", substitui "Bora") — ler antes de falar de nome, marca, logótipo, domínio ou registo no INPI (2026-10-23)
 - livro-areas-marketing-parceiros — Propaganda do Bora com parceiros — recrutamento de parceiros e regra dos cartazes com QR para as lojas (Mister Navalha, Sabores de Casa) (2026-10-29)
-- livro-areas-mercadona-reabrir-loja — Plano do Danilo de reabrir a loja Mercadona no Bora só com perfumaria/cosmética/higiene — o que ele mandou guardar e onde estão os preços l… (2026-10-23)
+- livro-areas-mercadona-reabrir-loja — Plano do Danilo de reabrir a loja Mercadona no Bora só com perfumaria/cosmética/higiene — o que ele mandou guardar e onde estão os preços l… (2026-11-01)
 - livro-areas-metodo-sites — Método obrigatório para construir QUALQUER site (referência → design system → prompt → build → prémio) + agente classificador por nicho, pú… (2026-10-23)
 - livro-areas-mini-site-business — Parallel mini-site web-dev business for local clients using a cinematic HTML/Cloudflare Pages workflow (2026-10-23)
 - livro-areas-missao-fable-13-09 — Auditoria de 13/09 depois de 3-4 dias sem Claude (limite esgotado) — o que se achou (Apple aprovou, 2 pedidos com problema, 6 migrações do… (2026-10-23)
@@ -351,7 +351,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-areas-prospecao-sites-clubes — Campanha de venda de sites a clubes de futebol portugueses (a partir do caso Guarda FC) — o que o Danilo pediu, critérios de alvo, e regist… (2026-10-23)
 - livro-areas-radar-ia — Radar semanal de novidades de IA (bot batedor do Hermes) + vereditos sobre ferramentas (DeepSeek Harness, Jev/TypeSafe) — ler antes de mand… (2026-10-31)
 - livro-areas-radar-ia-parte2 — Radar semanal de novidades de IA (bot batedor do Hermes) + vereditos sobre ferramentas (DeepSeek Harness, Jev/TypeSafe) — ler antes de mand… (2026-10-31)
-- livro-areas-radar-ia-parte3 — Radar semanal de novidades de IA (bot batedor do Hermes) + vereditos sobre ferramentas (DeepSeek Harness, Jev/TypeSafe) — ler antes de mand… (2026-10-31)
+- livro-areas-radar-ia-parte3 — Radar semanal de novidades de IA (bot batedor do Hermes) + vereditos sobre ferramentas (DeepSeek Harness, Jev/TypeSafe) — ler antes de mand… (2026-11-01)
 - livro-areas-recibo-cliente-produto-falta — Regras que o Danilo fixou para mexer no conteúdo de um pedido já feito (produto em falta, acrescentar produto) e para o recibo do cliente —… (2026-10-23)
 - livro-areas-regras-lancamento-categorias — Regras fixas do Danilo para lançar QUALQUER categoria, loja ou serviço novo no Bora — ler ANTES de planear ou montar prompt de categoria/lo… (2026-10-23)
 - livro-areas-sabores-de-casa — Sabores de Casa Açaí (mercado BR + açaí, Guarda) — parceiro no app + mini-site cinematográfico de presente (esquema Ouro e Prata) (2026-10-23)
@@ -432,7 +432,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - sql-modo-demo-2026-10-27 — SQL do modo demonstracao (Boom! Burger) para o Claude.ai aplicar (2026-10-27)
 
-## outras (120)
+## outras (126)
 
 - 00-LEIA-PRIMEIRO — Como usar esta memória (2026-10-23)
 - adendo-1-final-app-2026-10-29 — Adendo 1 da missão final-app-2026-10-29 (2026-10-29)
@@ -459,6 +459,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - caminhos-animacao-filme — Filme das filhas — 5 caminhos grátis para o desenho (revisto 05/10 com os 50 vídeos) (2026-10-28)
 - casa-manutencao-pesquisa-2026-10-29 — Casa & Manutencao — pesquisa das 10 apps do mundo e burocracia em Portugal (29/10/2026) (2026-10-29)
 - casa-manutencao-proposta — Casa & Manutenção — proposta para o Danilo decidir (29/10/2026) (2026-10-29)
+- diretiva-plataformas-2024-2831 — Diretiva (UE) 2024/2831 trabalho em plataformas — o que obriga o Bora, estado em Portugal, o que está feito e checklist para 02/12/2026 (2026-11-01)
 - dsh-como-usar — Como usar o Dipsy (dsh) (2026-10-31)
 - dsh-como-usar-novidades-2026-10-31 — Dipsy: o que ficou novo a 31/10 (complemento da pagina dsh-como-usar) (2026-10-31)
 - em-dia-ios-copiar-pipeline-bora — Em Dia / iOS: nao escrever o CI do zero, copiar o da Bora que ja funciona (2026-09-22)
@@ -470,11 +471,14 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - engenharia-reversa-achados-2026-10-17 — Engenharia reversa — achados da pesquisa mundial de 17/10/2026 (REA, filme, navegador) (2026-10-17)
 - estado-2026-09-13 — Estado do Bora a 13/09/2026 (auditoria da Claude.ai depois de 3-4 dias sem Claude) (2026-09-13)
 - fecho-2026-10-17-cancelamento-tardio — Fecho 17/10 — cancelamento tardio TVDE: publicado nas 3 plataformas (estado final do prompt prompt-cancelamento-tardio-2026-10-17) (2026-10-17)
+- fecho-outubro-2026 — Fecho de outubro/2026 (em nome individual) — por prestador, o que cada um faz, email corrigido (2026-11-01)
 - habilidades-propostas — Habilidades propostas pelo vigia (dinheiro/publicacao) — a Claude.ai decide (2026-09-17)
 - ideias-pendentes-decisao-danilo — Ideias grandes à espera da decisão do Danilo (29/10/2026) (2026-10-29)
 - ideias-videos-danilo — Ideias tiradas dos vídeos que o Danilo manda (2026-10-31)
 - jai-entrevista-kalinga-mensagem — Mensagem ao Jai — entrevista do Professor Kalinga já no site (30/10/2026) (2026-10-30)
 - jai-sportsdunia-mensagem — Confirmação para o Jai — artigo da SportsDunia no site (31/10/2026) (2026-10-31)
+- legal-gestao-algoritmica-prestadores — Como o Bora decide — informação sobre sistemas automáticos (Diretiva 2024/2831, art. 9.º-11.º) — texto para a app, v2026-11-01 (2026-11-01)
+- legal-politica-suspensao-revisao-humana — Política de suspensão e revisão humana (nenhuma suspensão automática; motivo+quem+data; revisão por pessoa em 7 dias) — v2026-11-01 (2026-11-01)
 - livro-claude-code-aprendeu — O que o Claude Code aprendeu sozinho (memória automática do PC), cópia (2026-10-25)
 - livro-claude-md-detalhe — Detalhe dos CLAUDE.md (repo e global) antes do corte de 23/10/2026 (2026-10-23)
 - livro-faxina-2026-10-25 — Faxina do livro 2026-10-25 (proposta do escriba + revisão do critico; nada apagado) (2026-10-25)
@@ -492,6 +496,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - lojas-takeaway-precos — Lojas de takeaway por telefone: Bora (não-parceiro) contra Glovo e Uber Eats, Guarda, 29/10/2026 (2026-10-29)
 - maiores-18-verificacao-idade — Maiores de 18 — tabaco e álcool com verificação de idade na entrega (aplicado 07/10/2026) (2026-10-07)
 - mapa-sessoes-contas — Mapa de sessões e contas — que conta está em que sítio (provado no ecrã a 17/09/2026) (2026-09-18)
+- mensagem-hugo-2026-11-01 — Mensagem ao Hugo (WhatsApp, grupo Contabilidade) — fecho de outubro e Stripe desde o início (2026-11-01)
 - mensagem-hugo-pendente-2026-10-29 — Mensagem para o Hugo (grupo Contabilidade) preparada 29/10 17:40 — por enviar quando o Danilo disser (2026-10-29)
 - mercadona-reabrir-loja — Mercadona Guarda — reabrir só com perfumaria/cosmética/higiene (preparado 14-15/10/2026) (2026-10-15)
 - meta-anuncios-2026-10-30-textos — Textos finais dos 2 anúncios Meta de 30/10/2026 (Instala e pede + Check-in diário) (2026-10-31)
@@ -552,6 +557,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - seguranca-auditoria-2026-10-21 — Auditoria de seguranca do app (21/10, agente N4) (2026-10-21)
 - sistema-motores-e-portas — Quem faz o quê — uma porta só (atualizado 17/09/2026) (2026-09-17)
 - skills-indice — Índice das skills da pasta comum (Claude Code, Hermes, Claude.ai) — uma linha cada (2026-10-25)
+- stripe-declaracao-2026-11-01 — Stripe do Bora desde o início — extrato para o contabilista (01/11/2026) (2026-11-01)
 - tokens-metade-do-saldo-2026-10-14 — Tokens do cliente: metade do saldo + desconto chega à cobrança (14/10/2026) (2026-10-14)
 - whatsapp-a-discutir — WhatsApp — o que ainda está por discutir com o Danilo (esqueleto desligado) (2026-10-25)
 

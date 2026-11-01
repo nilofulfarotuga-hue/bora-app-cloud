@@ -1,0 +1,5 @@
+# Reserva 2 do lançador DSH-MISSAO.cmd: Gemini grátis (20 pedidos por dia e por modelo).
+- id: agent-default-model
+  config:
+    provider: gemini-free
+    model: gemini-3.1-flash-lite

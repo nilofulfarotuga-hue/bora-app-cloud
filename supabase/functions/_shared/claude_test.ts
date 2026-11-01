@@ -103,12 +103,14 @@ Deno.test('custo pelos preços oficiais', () => {
   assertEquals(custoClaudeUsd('claude-haiku-5-5', longo), Math.round((100_001 * 0.5 + 1000 * 2.5)) / 1e6);
 });
 
-Deno.test('porteiro inexistente: P3 não passa (sem chamada à API)', async () => {
+Deno.test('porteiro inexistente: P3 também passa (sem ração desde 01/11/2026) e usa o Haiku', async () => {
   preparar(true);
   const f = fetchFalso({ api: sucesso([{ type: 'text', text: 'oi' }]) });
   try {
-    assertEquals(await claudePrimeiro({ ...PEDIDO, prioridade: 3 }), null);
-    assert(!f.chamadas.some((c) => c.url.includes('anthropic')));
+    const r = await claudePrimeiro({ ...PEDIDO, prioridade: 3 });
+    assert(r);
+    assertEquals(r.modelo, 'claude-haiku-5-5');
+    assert(f.chamadas.some((c) => c.url.includes('anthropic')));
   } finally { f.restaurar(); }
 });
 

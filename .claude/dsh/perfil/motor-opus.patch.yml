@@ -1,0 +1,5 @@
+# /opus (01/11/2026): o Claude Opus 5.5 pelo porteiro da VPS, só quando o Danilo pede "com o melhor".
+- id: agent-default-model
+  config:
+    provider: porteiro
+    model: perfil:claude-opus

@@ -1,6 +1,6 @@
 ---
 name: usar-deepseek-harness
-description: "Como usar o DeepSeek Harness (dsh) no PC do Danilo: lançar uma tarefa ou uma conversa, que motor grátis usa e os seus limites, a frase que liga o motor pago, o que o dsh sabe do Claude Code (CLAUDE.md, skills, livro, Córtex, Google), que plugins estão provados, o que ele NÃO pode fazer e como se atualiza. Usar sempre que o Danilo falar em dsh, harness, Dipsy ou pedir uma tarefa para o motor grátis."
+description: "Como usar o DeepSeek Harness (dsh) no PC do Danilo: lançar uma tarefa ou uma conversa, o motor (Claude pelo porteiro da VPS desde 01/11, reservas grátis) e os seus limites, a frase que liga o motor pago, o que o dsh sabe do Claude Code (CLAUDE.md, skills, livro, Córtex, Google), que plugins estão provados, o que ele NÃO pode fazer e como se atualiza. Usar sempre que o Danilo falar em dsh, harness, Dipsy ou pedir uma tarefa para o motor grátis."
 ---
 
 # Usar o DeepSeek Harness (dsh)
@@ -20,18 +20,34 @@ pode mandar uma tarefa ao dsh em vez de ao Claude Code, com um motor GRÁTIS. In
   `C:\Users\danil\.dsh\lancadores-antigos\DSH-MISSAO.cmd` (parâmetro opcional: `bora_app`, `BoraStudio`, `jai-site`,
   `bora-site`; sem parâmetro = `bora_app`). A resposta fica em `Desktop\Bora\dsh-saidas\AAAA-MM-DD_HHMM.md`.
   (`DSH-ABRIR.cmd`, o antigo, também está em `lancadores-antigos`; o `DIPSY.cmd` substitui-o.)
-- **À mão (PowerShell):** primeiro `[Environment]::SetEnvironmentVariable('KILO_ANON_KEY', (Get-Content "$HOME\.dsh\kilo-anonima.txt" -Raw).Trim(), 'Process')`,
-  depois `dsh --profile headless "tarefa"`. Os lançadores fazem isto sozinhos.
+- **À mão (PowerShell):** primeiro `[Environment]::SetEnvironmentVariable('DIPSY_PORTEIRO', ([IO.File]::ReadAllText("$HOME\.dsh\secrets\porteiro.token")).Trim(), 'Process')`
+  (senha do porteiro; e `KILO_ANON_KEY` de `kilo-anonima.txt` para as reservas), depois `dsh --profile headless "tarefa"`.
+  Os lançadores e a ponte fazem isto sozinhos. Pasta: o dsh só ESCREVE na pasta onde arranca (lê tudo);
+  `dsh-missao.ps1 <pasta>` aceita as 16 pastas de `~/.dsh/pastas-dipsy.json`; no Telegram `/pasta <nome>`.
 - Tudo vive em `~/.dsh` (fora do repo): `cordis.patch.yml` (motores e MCP), `secrets/` (tokens, só o utilizador lê),
   `skills-ponte/` (pontes das skills que o dsh recusa), `AGENTS.md` (hardlink do CLAUDE.md global; o `Edit` parte-o, os
   lançadores voltam a ligá-lo), `profiles/lab` (onde cada plugin entra primeiro).
 - O arranque do `headless` demorou 30 a 55 s nas últimas medições, com a RAM livre entre 600 e 1350 MB por causa de outras
   sessões. Em RAM folgada foi ~11 s. O dsh também deixa processos MCP filhos pendurados ao sair.
 
-## Motor (o que é grátis e os limites)
-- Padrão: **Nemotron 3 Ultra** pela piscina grátis da **Kilo** (sem conta). Reserva 1: `kilo-auto/free`. Reserva 2: **Gemini
-  grátis** (chave do juiz, sem faturação: 20 pedidos por dia e por modelo). Os lançadores tentam por esta ordem.
-- ⚠️ **A Kilo pode guardar os pedidos.** O Gemini grátis também pode treinar com eles. Nunca meter segredos nem chaves.
+## Motor (desde 01/11/2026: o Claude primeiro, sem limite, nunca sem motor)
+- **Padrão: Claude Sonnet 5.5 pelo PORTEIRO da VPS** (missão infra-claude-tudo; ordem do Danilo 01/11 19:56). Provider
+  `porteiro` em `~/.dsh/cordis.patch.yml`: `baseURL http://100.120.181.115:8792/v1` (Tailscale; o `tailscale serve` do
+  contentor do Hermes encaminha para a porta fechada `172.16.1.1:8793` do Motor Bora), `apiKeyEnv DIPSY_PORTEIRO` (senha em
+  `~/.dsh/secrets/porteiro.token`; na VPS em `/opt/segredos/porteiro.env`). Modelos: `perfil:claude-dipsy` (Sonnet, padrão,
+  150 s, 8000 tokens, esforço medium, cache automática da conversa), `perfil:claude-opus` (Opus 5.5, só a pedido:
+  `motor-opus.patch.yml` / `/opus` no Telegram), `perfil:claude-volume` (Haiku). **No PC não há chave da Anthropic.**
+  **Nunca** o login do plano Claude no dsh.
+- **Sem ração:** o porteiro só larga o Claude quando a API diz "sem crédito" (402); aí desce a cadeia grátis da VPS e volta
+  sozinho (sonda de 6 em 6 h; crédito novo a 30/11). 429 → 2 min; 401/403 → 6 h.
+- **Reservas do PC** (só se a VPS não responder em 8 s): Kilo Nemotron (`reserva-kilo-nemotron.patch.yml`) → `kilo-auto/free`
+  → **Gemini grátis** (20 pedidos por dia e por modelo). Provado 01/11: VPS "morta" → Kilo respondeu em 58 s.
+- Gastos: cada chamada fica em `public.ia_gastos` (robo `dipsy`). Estado e crédito: `GET http://100.120.181.115:8792/porteiro`
+  com o cabeçalho `X-Porteiro-Token` (ou `/motor` no Telegram). A lista branca da guarda tem o IP Tailscale da VPS
+  (`~/.dsh/rede-permitida.txt`).
+- Contexto ao acordar: a ponte escreve de hora a hora em `~/.agents/AGENTS.md` (marcas LIVRO-DIPSY) o `MAPA-DANILO.md` +
+  regras-do-danilo + erros-aprendidos + início do livro-indice; `agent-instructions maxBytes 131072`.
+- ⚠️ **Nas reservas (Kilo, Gemini) os pedidos podem ficar guardados.** Nunca meter segredos nem chaves.
   Dados pessoais de clientes (nomes, telefones, moradas): só quando a tarefa precisar deles e nunca em massa (ordem do
   Danilo, 30/10). **Isto inclui o email:** o Gmail ligado ao dsh é lido por um destes modelos.
 - 429 é abuso de quota: esperar. 403: região recusada.

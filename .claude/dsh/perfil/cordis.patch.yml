@@ -1,0 +1,157 @@
+# Casa do dsh do Danilo — camada comum aos perfis web e headless.
+# Missão dsh-harness-2026-10-29 (Claude Code, 29/10/2026). Explicação: skill usar-deepseek-harness.
+#
+# Motores (sem plugin de terceiros):
+#   kilo-free   — piscina grátis da Kilo, sem conta. A Kilo pode guardar os pedidos:
+#                 NUNCA segredos nem dados de clientes (regra 14 do AGENTS.md).
+#   gemini-free — chave grátis do juiz (variável GOOGLE_AI_API_KEY do Windows; o valor não vive aqui).
+#                 20 pedidos por dia e por modelo.
+#   deepseek-official — o pago, já vem com o dsh. Fica sem chave até o Danilo dizer
+#                 "autorizo carregar 5 € na DeepSeek".
+#   porteiro    — 01/11/2026 (missão infra-claude-tudo, ordem do Danilo "Claude em primeiro, sem limite, nunca
+#                 ficar sem"): o Claude da conta Robos Bora pelo PORTEIRO da VPS, pela Tailscale. O PC não guarda
+#                 chave da Anthropic: só a senha do porteiro (ficheiro ~/.dsh/secrets/porteiro.token). Sonnet 5.5 por
+#                 defeito, Opus 5.5 a pedido (/opus), Haiku para volume. O porteiro já cai sozinho no grátis da VPS se
+#                 o crédito acabar; as reservas do PC (Kilo, Gemini) só entram se a VPS não responder.
+# Cadeia de reserva: os lançadores e a ponte tentam porteiro → kilo nemotron → kilo-auto → gemini flash-lite
+# (ficheiros reserva-*.patch.yml ao lado deste).
+- id: llm-pi-ai
+  config:
+    providers:
+      porteiro:
+        displayName: Claude pelo porteiro da VPS (Sonnet; Opus a pedido)
+        # a senha vive em ~/.dsh/secrets/porteiro.token; os lançadores (DIPSY, DSH-MISSAO, ponte do Telegram,
+        # ~/.dsh/dsh-porteiro.ps1) põem-na na variável DIPSY_PORTEIRO só na memória do processo (nunca escrita aqui)
+        apiKeyEnv: DIPSY_PORTEIRO
+        api: openai-completions
+        baseURL: http://100.120.181.115:8792/v1
+        compat:
+          supportsStore: false
+        models:
+          - id: perfil:claude-dipsy
+            name: Claude Sonnet 5.5 (porteiro)
+            input: [text, image]
+            contextWindow: 200000
+            maxTokens: 8000
+          - id: perfil:claude-opus
+            name: Claude Opus 5.5 (porteiro, a pedido)
+            input: [text, image]
+            contextWindow: 200000
+            maxTokens: 8000
+          - id: perfil:claude-volume
+            name: Claude Haiku 5.5 (porteiro, volume)
+            input: [text, image]
+            contextWindow: 200000
+            maxTokens: 4000
+      kilo-free:
+        displayName: Kilo grátis (sem conta, nunca segredos)
+        apiKeyEnv: KILO_ANON_KEY
+        api: openai-completions
+        baseURL: https://api.kilo.ai/api/gateway
+        models:
+          - id: nvidia/nemotron-3-ultra-550b-a55b:free
+            name: Nemotron 3 Ultra (grátis)
+          - id: kilo-auto/free
+            name: Kilo Auto (grátis)
+          - id: poolside/laguna-s-2.1:free
+            name: Laguna S 2.1 (grátis)
+      gemini-free:
+        displayName: Gemini grátis (chave do juiz, 20 pedidos/dia)
+        apiKeyEnv: GOOGLE_AI_API_KEY
+        api: openai-completions
+        baseURL: https://generativelanguage.googleapis.com/v1beta/openai/
+        # O endpoint OpenAI do Google recusa o campo "store" (400 INVALID_ARGUMENT).
+        compat:
+          supportsStore: false
+        models:
+          - id: gemini-3.1-flash-lite
+            name: Gemini 3.1 Flash Lite (grátis)
+            input: [text, image]
+          - id: gemini-3.6-flash
+            name: Gemini 3.6 Flash (grátis)
+            input: [text, image]
+          - id: gemini-3.8-flash
+            name: Gemini 3.8 Flash (grátis)
+            input: [text, image]
+# 01/11/2026 (missão infra-claude-tudo, B4): o Dipsy acorda a saber tudo do Danilo. A ponte do Telegram escreve de hora
+# a hora, em ~/.agents/AGENTS.md, o MAPA-DANILO + regras-do-danilo + erros-aprendidos + início do livro-indice (~40 KB).
+# Com o CLAUDE.md global, o AGENTS.md comum e os da pasta passa os 64 KB da base: sobe-se para 128 KB.
+- id: agent-instructions
+  config:
+    maxBytes: 131072
+# Pontes das 3 skills com nome fora do padrão (decision_engine, decision_registry, learning_engine).
+- id: skill-filesystem
+  config:
+    customSkillDirs:
+      - C:/Users/danil/.dsh/skills-ponte
+- id: agent-default-model
+  config:
+    provider: porteiro
+    model: perfil:claude-dipsy
+
+# Servidores MCP do Claude Code que o dsh também usa. Segredos: nunca aqui, só lidos de ficheiros fora do repo.
+# Não montados de propósito: rea (cerca de 300 ferramentas, rebentava o contexto; vai pela shell), context-mode
+# (grava na pasta do Claude Code), claude-in-chrome (é a extensão do Claude Code), conectores da Claude.ai.
+- insert:
+    - id: mcp-cortex
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: cortex
+        transport: streamable-http
+        url: https://cortex.srv1786862.hstgr.cloud/
+        headers:
+          Authorization: !!js "(() => { try { return 'Bearer ' + process.getBuiltinModule('node:fs').readFileSync('C:/Users/danil/.dsh/secrets/cortex.token', 'utf8').trim() } catch { return 'Bearer ' } })()"
+    # Supabase COM ESCRITA (ordem do Danilo, 30/10/2026): a tranca bora-tranca protege o Claude Code, não o dsh.
+    # As regras do que NUNCA se faz estão em ~/.agents/AGENTS.md (secção "Supabase com escrita").
+    # O token (organização Bora app, acesso total, sem validade) é o que o vigia supabase-token-do-clipboard.ps1 grava.
+    - id: mcp-supabase
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: supabase
+        transport: streamable-http
+        url: https://mcp.supabase.com/mcp?project_ref=ojykpzwqrtusfeakzrna
+        headers:
+          Authorization: !!js "(() => { try { const linha = process.getBuiltinModule('node:fs').readFileSync('C:/BoraLocal/projetosflutter/bora_app/.supabase-token.env', 'utf8').split(/\\r?\\n/)[0]; return 'Bearer ' + linha.slice(linha.indexOf('=') + 1).trim() } catch { return 'Bearer ' } })()"
+        reconnect:
+          enabled: false
+    # Gmail, Drive e Calendar das duas contas (Bora e pessoal). Permissões mínimas, SEM a de enviar: o dsh lê e faz
+    # rascunhos; enviar é do Danilo ou do Claude Code, e sai SEMPRE da conta Bora (regra de 21/09 e 27/10).
+    # Credenciais por conta em ~/.dsh/secrets/google (script google-autorizar.py). Servidor workspace-mcp 2.2.1 (MIT),
+    # sem telemetria por omissão, só fala com a Google.
+    - id: mcp-google
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: google
+        transport: stdio
+        command: C:/Users/danil/.local/bin/workspace-mcp.exe
+        args: ['--permissions', 'gmail:drafts', 'drive:readonly', 'calendar:readonly', '--tool-tier', 'extended']
+        env:
+          GOOGLE_OAUTH_CLIENT_ID: !!js "(() => { try { return JSON.parse(process.getBuiltinModule('node:fs').readFileSync('C:/BoraLocal/_segredos/avenca/gmail_bora_oauth_client.json', 'utf8')).installed.client_id } catch { return '' } })()"
+          GOOGLE_OAUTH_CLIENT_SECRET: !!js "(() => { try { return JSON.parse(process.getBuiltinModule('node:fs').readFileSync('C:/BoraLocal/_segredos/avenca/gmail_bora_oauth_client.json', 'utf8')).installed.client_secret } catch { return '' } })()"
+          GOOGLE_MCP_CREDENTIALS_DIR: C:/Users/danil/.dsh/secrets/google
+          WORKSPACE_MCP_PORT: '8779'
+        reconnect:
+          enabled: false
+    # Nano Banana DESLIGADO (30/10): a chave é do nível grátis sem geração de imagens e o dsh deixa os processos npx
+    # pendurados ao sair. Para voltar a ligar: tirar a linha "disabled: true".
+    - id: mcp-nano-banana
+      name: '@deepseek-ai/dsh-mcp-client'
+      disabled: true
+      config:
+        serverName: nano-banana
+        transport: stdio
+        command: cmd
+        args: ['/c', 'npx', '-y', '@ycse/nanobanana-mcp']
+        env:
+          GOOGLE_AI_API_KEY: !!js process.env.GOOGLE_AI_API_KEY
+        reconnect:
+          enabled: false
+
+# 30/10/2026 — telemetria oficial do dsh DESLIGADA (ordem do Danilo: nada sai para fora, só para os serviços que usamos).
+# O que ia para dsh-otel-collector.deepseeksvc.com (modo FEEDBACK_ONLY por omissão) e as analíticas de produto do web.
+- id: session-telemetry-otel
+  disabled: true
+- id: otel
+  disabled: true
+- id: command-feedback
+  disabled: true

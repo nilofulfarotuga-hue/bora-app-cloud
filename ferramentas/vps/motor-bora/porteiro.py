@@ -27,6 +27,16 @@ Cache: o texto fixo (system + ferramentas) vai com cache_control (API nativa Mes
 A chave vem da variavel CLAUDE_ROBOS_API_KEY (ficheiro /opt/segredos/claude.env, 600, root).
 Nome proprio de proposito: nunca ANTHROPIC_API_KEY, para nenhum Claude Code a apanhar sem querer.
 Nunca se imprime nem se grava em log.
+
+01/11/2026 (missao infra-claude-tudo, ordem do Danilo 19:56 "sem limite, nunca ficar sem"): SEM RACAO.
+Enquanto houver credito TUDO passa pelo Claude (P1, P2 e P3), sem parte do dia nem conta local: quem
+diz que o credito acabou e a API (402 / 400 "credit balance"). Ai o Claude fica dormido ate ao credito
+novo (30/11) e tudo cai na rotacao gratis do Motor, do melhor para o pior; volta sozinho. 401/403 ->
+pausa 6 h; 429 -> tenta de novo daqui a 2 min; 529/5xx/timeout -> 60 s. A racao antiga continua no
+codigo e liga-se com cfg["racao"]=true (POST /porteiro/recarregar {"config":{"racao":true}}).
+Perfis novos: claude-dipsy (Sonnet, o Dipsy do PC pela Tailscale) e claude-opus (Opus 5.5, so a pedido:
+Dipsy /opus e decisoes que o Danilo pede "com o melhor"). As falhas de saldo/chave tambem vao para o
+livro (ok=false) para a RPC ia_claude_pode das Edge Functions saber que o credito acabou.
 """
 import collections
 import datetime
@@ -47,6 +57,9 @@ API = "https://api.anthropic.com/v1/messages"
 VERSAO_API = "2023-06-01"
 VAR_CHAVE = "CLAUDE_ROBOS_API_KEY"
 TIMEOUT_S = 20
+# o Dipsy e o Opus trabalham com contextos grandes e respostas longas (codigo): mais tempo antes de cair
+TIMEOUT_POR_PERFIL = {"claude-dipsy": 150, "claude-opus": 180}
+PAUSA_429_S = 120            # 01/11: "429 -> tenta de novo em 2 min"
 
 # USD por milhao de tokens: (entrada, saida, escrita de cache 5 min = 1,25x, leitura de cache)
 PRECOS = {
@@ -69,13 +82,26 @@ PERFIS_CLAUDE = {
     # manda pedidos grandes e privados que a cauda gratis do Motor nao serve -> 87 s em vez de ~7 s).
     "claude-so-decisao":  (2, "claude-sonnet-5-5"),
     "claude-so-volume":   (3, "claude-haiku-5-5"),
+    # 01/11/2026: o Dipsy (PC, pela Tailscale com X-Porteiro-Token) e o Opus a pedido
+    "claude-dipsy":       (1, "claude-sonnet-5-5"),
+    "claude-opus":        (1, "claude-opus-5-5"),
 }
+# so estes perfis podem usar o Opus (nunca automatico nos outros)
+PERFIS_OPUS = ("claude-opus",)
+# perfis que trazem o seu proprio sistema (o Dipsy carrega o mapa, as regras e os erros no arranque):
+# nao levam o bloco comum dos robos que falam com clientes
+PERFIS_SEM_COMUM = ("claude-dipsy", "claude-opus")
+# esforco por perfil (o resto fica em "low", como a 31/10)
+ESFORCO_POR_PERFIL = {"claude-dipsy": "medium", "claude-opus": "medium"}
+# sem max_tokens no pedido: o agente do PC escreve codigo e relatorios (1024 cortava a meio)
+MAX_TOKENS_POR_PERFIL = {"claude-dipsy": 8000, "claude-opus": 8000}
 
 CONFIG_INICIAL = {
     # Lido na Console (platform.claude.com > Billing) a 31/10/2026 10:45 UTC, perfil Chrome do Danilo:
     # creditos promocionais 100,00 (Max, expira 28/11) + 111,82 (Ultra, expira 02/12); recarga automatica
     # desligada; claude.ai > Cobranca: credito mensal 200 US$, proximo a 30/11/2026.
     "ligado": True,
+    "racao": False,              # 01/11: sem racao (a API diz quando acaba)
     "credito_usd": 211.82,
     "credito_lido_em": "2026-10-31T10:45:00+00:00",
     "proximo_credito": "2026-11-30",
@@ -257,6 +283,24 @@ def para_openai(r, modelo):
                       "custo_usd": custo_usd(modelo, ent, sai, ce, cl)}}
 
 
+def _tem_thinking(msgs):
+    return any(isinstance(b, dict) and b.get("type") in ("thinking", "redacted_thinking")
+               for m in msgs or [] if isinstance(m.get("content"), list) for b in m["content"])
+
+
+def _sem_thinking(msgs):
+    out = []
+    for m in msgs or []:
+        c = m.get("content")
+        if isinstance(c, list):
+            c = [b for b in c if not (isinstance(b, dict) and b.get("type") in ("thinking", "redacted_thinking"))]
+            if not c:
+                continue
+            m = dict(m, content=c)
+        out.append(m)
+    return out
+
+
 # ------------------------------------------------------------------ o porteiro
 class Porteiro:
     def __init__(self, env, pasta, registar=None, supa=None, http=None):
@@ -382,9 +426,10 @@ class Porteiro:
         robo = (self.cfg.get("robos") or {}).get(perfil) or {}
         modelo = robo.get("modelo") or modelo
         pr = int(robo.get("prioridade") or pr)
-        if modelo_pedido and modelo_pedido in MODELOS_AUTOMATICOS:
+        permitidos = MODELOS_AUTOMATICOS + (("claude-opus-5-5",) if perfil in PERFIS_OPUS else ())
+        if modelo_pedido and modelo_pedido in permitidos:
             modelo = modelo_pedido
-        if modelo not in MODELOS_AUTOMATICOS:
+        if modelo not in permitidos:
             modelo = "claude-sonnet-5-5" if pr <= 2 else "claude-haiku-5-5"   # Opus nunca automatico
         if not self.cfg.get("ligado", True):
             return False, "Claude desligado no painel", modelo, pr
@@ -399,6 +444,9 @@ class Porteiro:
             return False, "Claude dormido (sem credito) ate %s" % self.dormido_ate, modelo, pr
         if self.castigo_ate > time.time():
             return False, "Claude em pausa: %s" % (self.castigo_motivo or "erro"), modelo, pr
+        if not self.cfg.get("racao", False):
+            # 01/11/2026: sem racao. Quem diz que o credito acabou e a API (402), nao a conta local.
+            return True, "sem racao: Claude enquanto houver credito (P%d)" % pr, modelo, pr
         c = self.contas()
         if c["resta_usd"] <= 0:
             return False, "credito do mes acabado", modelo, pr
@@ -448,23 +496,37 @@ class Porteiro:
             self.ultimas.append(dict(info, quando=_agora().isoformat(timespec="seconds")))
             return None, info
         system, msgs, ferramentas = para_anthropic(mensagens, tools, self.blocos)
-        comum = self.contexto_comum(pr, perfil)
+        comum = "" if perfil in PERFIS_SEM_COMUM else self.contexto_comum(pr, perfil)
         if comum:   # bloco comum PRIMEIRO e com a sua propria marca de cache (o resto do system varia por pessoa)
             system = [{"type": "text", "text": comum, "cache_control": {"type": "ephemeral"}}] + (system or [])
-        corpo = {"model": modelo, "max_tokens": max(int(max_tokens or 0), 1024), "messages": msgs,
-                 "output_config": {"effort": "low"}}
+        corpo = {"model": modelo, "max_tokens": max(int(max_tokens or MAX_TOKENS_POR_PERFIL.get(perfil, 0)), 1024), "messages": msgs,
+                 "output_config": {"effort": ESFORCO_POR_PERFIL.get(perfil, "low")}}
         # sem raciocinio visivel: respostas rapidas e sem blocos thinking para repor (Sonnet 5.5 nao aceita
-        # "disabled": usa "between_tools"; Haiku 5.5 aceita "disabled" com effort ate high)
-        corpo["thinking"] = {"type": "between_tools"} if modelo == "claude-sonnet-5-5" else {"type": "disabled"}
+        # "disabled": usa "between_tools"; Haiku 5.5 aceita "disabled" com effort ate high). O Opus 5.5 nao
+        # deixa desligar o raciocinio (400 com qualquer "thinking" que nao seja adaptive): vai sem o campo.
+        if modelo == "claude-sonnet-5-5":
+            corpo["thinking"] = {"type": "between_tools"}
+        elif modelo == "claude-haiku-5-5":
+            corpo["thinking"] = {"type": "disabled"}
         if system:
             corpo["system"] = system
         if ferramentas:
             corpo["tools"] = ferramentas
             corpo["tool_choice"] = {"type": "auto"}
+        if perfil in PERFIS_SEM_COMUM:
+            # o Dipsy trabalha em voltas (ferramentas): cache automatica tambem na conversa, para a volta seguinte
+            # ler da cache o que ja foi mandado (medido 01/11: 37 mil tokens por pedido fora da cache)
+            corpo["cache_control"] = {"type": "ephemeral"}
         t0 = time.time()
-        st, d, h = self.http(corpo, TIMEOUT_S)
-        ms = int((time.time() - t0) * 1000)
+        espera = TIMEOUT_POR_PERFIL.get(perfil, TIMEOUT_S)
+        st, d, h = self.http(corpo, espera)
         erro_txt = json.dumps((d or {}).get("error") or (d or {}).get("_erro") or "", ensure_ascii=False)[:300]
+        if st == 400 and "thinking" in erro_txt.lower() and _tem_thinking(corpo["messages"]):
+            # blocos thinking repostos de memoria ja nao batem com a conversa: tenta uma vez sem eles
+            corpo["messages"] = _sem_thinking(corpo["messages"])
+            st, d, h = self.http(corpo, espera)
+            erro_txt = json.dumps((d or {}).get("error") or (d or {}).get("_erro") or "", ensure_ascii=False)[:300]
+        ms = int((time.time() - t0) * 1000)
         if st == 200 and isinstance(d, dict) and d.get("stop_reason") != "refusal" and (d.get("content") is not None):
             r = para_openai(d, modelo)
             u = r["usage"]
@@ -487,7 +549,8 @@ class Porteiro:
                 return r, info
         # falhou: classificar e mandar para o gratis
         txt = erro_txt.lower()
-        if st == 402 or (st == 400 and ("credit balance" in txt or "billing" in txt)):
+        sem_saldo = st == 402 or (st == 400 and ("credit balance" in txt or "billing" in txt))
+        if sem_saldo:
             self._dormir("sem saldo: HTTP %s %s" % (st, erro_txt[:120]))
         elif st in (401, 403):
             self._pausar(6 * 3600, "chave recusada HTTP %s" % st)
@@ -495,12 +558,19 @@ class Porteiro:
             self._pausar(6 * 3600, "modelo %s nao encontrado" % modelo)
         elif st == 429:
             try:
-                seg = max(60, int(float((h or {}).get("retry-after") or (h or {}).get("Retry-After") or 60)))
+                seg = max(PAUSA_429_S, int(float((h or {}).get("retry-after") or (h or {}).get("Retry-After") or PAUSA_429_S)))
             except Exception:  # noqa: BLE001
-                seg = 60
+                seg = PAUSA_429_S
             self._pausar(seg, "429 limite de pedidos")
         elif st == 0 or st >= 500 or st == 529:
             self._pausar(60, "HTTP %s %s" % (st, erro_txt[:80]))
+        if st != -1:
+            # tambem as falhas vao para o livro (custo 0): a RPC ia_claude_pode das Edge Functions le daqui
+            # que o credito acabou ("sem credito") e as Edge param de tentar ate o erro passar
+            self._livro({"quando": _agora().isoformat(timespec="seconds"), "maquina": "vps", "robo": (origem or "")[:60] or None,
+                         "perfil": perfil, "prioridade": pr, "modelo": modelo, "tokens_entrada": 0, "tokens_saida": 0,
+                         "tokens_cache_escrita": 0, "tokens_cache_leitura": 0, "custo_usd": 0.0, "ms": ms, "ok": False,
+                         "erro": ("http %s%s: %s" % (st, " (sem credito)" if sem_saldo else "", erro_txt))[:500]})
         info.update(decisao="gratis", porque="Claude falhou: HTTP %s %s" % (st, erro_txt[:160]), ms=ms)
         self.ultimas.append(dict(info, quando=_agora().isoformat(timespec="seconds")))
         self.registar({"evento": "claude-falhou", "perfil": perfil, "status": st, "ms": ms, "erro": erro_txt[:200]})
@@ -510,8 +580,11 @@ class Porteiro:
     def talvez_acordar(self):
         if not self.dormido_ate or not self.chave():
             return None
-        if (_iso(self.dormido_ate) or _agora()) > _agora():
+        # 01/11: alem do dia do credito novo, sonda de 6 em 6 h (1 token no Haiku): se o Danilo carregar
+        # credito antes de 30/11, os robos voltam ao Claude sem esperar
+        if (_iso(self.dormido_ate) or _agora()) > _agora() and time.time() - getattr(self, "_ult_sonda", 0) < 6 * 3600:
             return None
+        self._ult_sonda = time.time()
         corpo = {"model": "claude-haiku-5-5", "max_tokens": 1, "thinking": {"type": "disabled"},
                  "output_config": {"effort": "low"}, "messages": [{"role": "user", "content": "ok"}]}
         st, d, _ = self.http(corpo, TIMEOUT_S)
@@ -628,6 +701,7 @@ class Porteiro:
         if isinstance(v.get("claude_robos"), dict):
             rb = v["claude_robos"]
             novo["ligado"] = rb.get("ligado", True)
+            novo["racao"] = bool(rb.get("racao", False))     # 01/11: o mesmo interruptor serve a RPC ia_claude_pode
             novo["robos"] = {k: x for k, x in rb.items() if isinstance(x, dict)}
         # so mexe se mudou alguma coisa (evita reescrever o ficheiro a cada volta)
         if any(self.cfg.get(k) != x for k, x in novo.items()):
@@ -637,7 +711,11 @@ class Porteiro:
         return False
 
     def estado(self):
-        return {"ligado": self.cfg.get("ligado", True), "tem_chave": bool(self.chave()), "dormido_ate": self.dormido_ate,
+        racao = bool(self.cfg.get("racao", False))
+        return {"ligado": self.cfg.get("ligado", True), "racao": racao,
+                "regra": ("racao por dia (P2 ate a parte do dia, P3 ate metade)" if racao else
+                          "sem racao: tudo pelo Claude enquanto houver credito; sem saldo/erro -> rotacao gratis e volta sozinho"),
+                "tem_chave": bool(self.chave()), "dormido_ate": self.dormido_ate,
                 "pausa_ate": datetime.datetime.fromtimestamp(self.castigo_ate, datetime.timezone.utc).isoformat(timespec="seconds") if self.castigo_ate > time.time() else None,
                 "pausa_motivo": self.castigo_motivo if self.castigo_ate > time.time() or self.dormido_ate else None,
                 "simular": self.simular, "contas": self.contas(), "robos": self.cfg.get("robos"),

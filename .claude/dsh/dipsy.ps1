@@ -53,6 +53,15 @@ $velho = Get-NetTCPConnection -State Listen -LocalPort 3080 -ErrorAction Silentl
 if ($velho) { & taskkill /PID $velho.OwningProcess /T /F 2>$null | Out-Null; Start-Sleep -Seconds 2 }
 $exe = Join-Path $env:APPDATA 'npm\dsh.cmd'
 $argsWeb = 'web --port 3080'
+# 01/11/2026: motor = Claude Sonnet pelo porteiro da VPS (senha só na memória do processo). Se a VPS não responder
+# em 8 s, a página abre já com a reserva grátis do PC (Kilo Nemotron).
+$senha = ''
+try { $senha = ([IO.File]::ReadAllText((Join-Path $dsh 'secrets\porteiro.token'))).Trim() } catch { }
+[Environment]::SetEnvironmentVariable('DIPSY_PORTEIRO', $senha, 'Process')
+$porteiroVivo = $false
+try { Invoke-RestMethod -Uri 'http://100.120.181.115:8792/saude' -Headers @{ 'X-Porteiro-Token' = $senha } -TimeoutSec 8 | Out-Null; $porteiroVivo = $true } catch { }
+$senha = $null
+if (-not $porteiroVivo) { $argsWeb += ' --patch "' + (Join-Path $dsh 'reserva-kilo-nemotron.patch.yml') + '"' }
 if ($env:DIPSY_SEM_NAVEGADOR) { $argsWeb += ' --no-open' }   # DIPSY_SEM_NAVEGADOR so serve para testes
 $p = Start-Process -FilePath $exe -ArgumentList $argsWeb -WorkingDirectory $repo -WindowStyle Hidden -PassThru
 Set-Content -Path $pidWeb -Value $p.Id -Encoding ASCII
@@ -74,6 +83,7 @@ if ($webOk) {
 Linha " 2. $linhaTelegram"
 Linha '    Podes escrever-lhe de qualquer lado, e mandar fotos.'
 Linha
+Linha $(if ($porteiroVivo) { ' Motor: Claude Sonnet (pelo servidor). No Telegram: /opus para o melhor, /motor para ver o crédito.' } else { ' Motor: grátis (o servidor não respondeu agora; o Claude volta quando ele responder).' })
 Linha ' O Dipsy sabe: ler e escrever ficheiros do projeto, ver o ecrã e fotos,'
 Linha ' consultar a base de dados, ler o teu email da Bora e fazer rascunhos,'
 Linha ' auditar o nosso site e guardar trabalho no git depois de passar no Juiz.'

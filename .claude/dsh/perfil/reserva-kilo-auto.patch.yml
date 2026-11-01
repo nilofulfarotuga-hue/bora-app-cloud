@@ -1,0 +1,5 @@
+# Reserva 1 do lançador DSH-MISSAO.cmd: quando o Nemotron da Kilo falha.
+- id: agent-default-model
+  config:
+    provider: kilo-free
+    model: kilo-auto/free

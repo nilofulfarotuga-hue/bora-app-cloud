@@ -74,11 +74,164 @@ SCRIPT_RAM = os.path.join(DSH, "limpar-ram.ps1")
 GUARDA_FALHOU = re.compile(r"dsh-bora \(dsh-bora\):|failed to import[^\n]*dsh-bora")
 MARCA_OBJETIVO = re.compile(r"OBJETIVO\s+(CUMPRIDO|EM\s+CURSO|BLOQUEADO)\s*:?\s*(.*)", re.I)
 
-TENTATIVAS = [
-    ("kilo nemotron (padrao)", None),
-    ("kilo-auto (reserva 1)", os.path.join(DSH, "reserva-kilo-auto.patch.yml")),
-    ("gemini gratis (reserva 2)", os.path.join(DSH, "reserva-gemini.patch.yml")),
+# 01/11/2026 (missao infra-claude-tudo): o Claude PRIMEIRO, pelo porteiro da VPS (Tailscale), sem chave da Anthropic no PC.
+# O porteiro ja cai sozinho no gratis da VPS quando o credito acaba; as reservas do PC so entram se a VPS nao responder.
+PORTEIRO_URL = "http://100.120.181.115:8792"
+FICH_PORTEIRO = os.path.join(DSH, "secrets", "porteiro.token")
+VAR_PORTEIRO = "DIPSY_PORTEIRO"           # o dsh le a senha desta variavel (cordis.patch.yml, provider porteiro)
+FICH_MOTOR = os.path.join(PASTA, "motor.txt")   # sonnet | opus | gratis (escolhido no Telegram com /sonnet /opus /gratis)
+PATCH_OPUS = os.path.join(DSH, "motor-opus.patch.yml")
+NOMES_MOTOR = {"sonnet": "Claude Sonnet 5.5", "opus": "Claude Opus 5.5", "gratis": "motores grátis (Kilo e Gemini)"}
+
+RESERVAS_PC = [
+    ("kilo nemotron (reserva 1)", os.path.join(DSH, "reserva-kilo-nemotron.patch.yml")),
+    ("kilo-auto (reserva 2)", os.path.join(DSH, "reserva-kilo-auto.patch.yml")),
+    ("gemini gratis (reserva 3)", os.path.join(DSH, "reserva-gemini.patch.yml")),
 ]
+
+
+def motor_escolhido():
+    try:
+        with open(FICH_MOTOR, encoding="utf-8") as f:
+            m = f.read().strip().lower()
+        return m if m in NOMES_MOTOR else "sonnet"
+    except Exception:
+        return "sonnet"
+
+
+def senha_porteiro():
+    try:
+        with open(FICH_PORTEIRO, encoding="utf-8") as f:
+            return f.read().strip()
+    except Exception:
+        return ""
+
+
+def porteiro_estado(espera=8):
+    """GET /porteiro pela Tailscale (8 s). Devolve o dict do estado, ou None se a VPS nao responder."""
+    import urllib.request
+    try:
+        req = urllib.request.Request(PORTEIRO_URL + "/porteiro", headers={"X-Porteiro-Token": senha_porteiro()})
+        with urllib.request.urlopen(req, timeout=espera) as r:
+            return json.loads(r.read().decode("utf-8"))
+    except Exception:
+        return None
+
+
+# ---- 01/11/2026 (B4): o Dipsy acorda a saber tudo do Danilo ----
+# De hora a hora a ponte escreve em ~/.agents/AGENTS.md (que o dsh carrega no arranque de cada conversa), entre marcas,
+# o MAPA-DANILO + regras-do-danilo + erros-aprendidos (as mais recentes) + inicio do livro-indice, lidos do Supabase
+# pela API de gestao (a credencial do MCP do Supabase do Dipsy, so em memoria). O resto do ficheiro nao se toca.
+AGENTS_COMUM = os.path.join(HOME, ".agents", "AGENTS.md")
+MAPA = os.path.join(DSH, "MAPA-DANILO.md")
+FICH_CRED_SUPABASE = r"C:\BoraLocal\projetosflutter\bora_app\.supabase-token.env"
+MARCA_INICIO = "<!-- INICIO LIVRO-DIPSY (gerado pela ponte do Telegram de hora a hora; nao editar a mao) -->"
+MARCA_FIM = "<!-- FIM LIVRO-DIPSY -->"
+CACHE_LIVRO = os.path.join(PASTA, "livro-dipsy.txt")
+PAGINAS_PASTAS = os.path.join(DSH, "pastas-dipsy.json")
+FICH_PASTA = os.path.join(PASTA, "pasta.txt")
+
+
+def _ler_livro():
+    import urllib.request
+    with open(FICH_CRED_SUPABASE, encoding="utf-8") as f:
+        credencial = f.readline().split("=", 1)[1].strip()
+    q = ("select pagina, conteudo from claude_ai_memoria "
+         "where pagina in ('regras-do-danilo','erros-aprendidos','livro-indice')")
+    req = urllib.request.Request("https://api.supabase.com/v1/projects/ojykpzwqrtusfeakzrna/database/query",
+                                 data=json.dumps({"query": q}).encode("utf-8"), method="POST",
+                                 headers={"Authorization": "Bearer " + credencial, "Content-Type": "application/json",
+                                          "User-Agent": "bora-ponte-dipsy/1"})
+    credencial = None
+    with urllib.request.urlopen(req, timeout=20) as r:
+        return {x["pagina"]: x.get("conteudo") or "" for x in json.loads(r.read().decode("utf-8"))}
+
+
+def renovar_contexto_livro(forcar=False):
+    """Uma vez por hora (ou forcado): reescreve a secao LIVRO-DIPSY de ~/.agents/AGENTS.md. Nunca rebenta a ponte."""
+    try:
+        if not forcar and time.time() - os.path.getmtime(CACHE_LIVRO) < 3600:
+            return False
+    except Exception:
+        pass
+    try:
+        pag = _ler_livro()
+        with open(MAPA, encoding="utf-8") as f:
+            mapa = f.read().strip()
+        erros = pag.get("erros-aprendidos", "")
+        if len(erros) > 12000:
+            erros = "(só as correções mais recentes; a página inteira lê-se por SQL)\n...\n" + erros[-12000:]
+        indice = pag.get("livro-indice", "")
+        if len(indice) > 5000:
+            indice = indice[:5000] + "\n...\n(o resto do índice lê-se por SQL: select pagina, titulo from claude_ai_memoria)"
+        secao = "\n".join([
+            MARCA_INICIO,
+            f"# O que o Dipsy sabe ao acordar (renovado {datetime.now().strftime('%d/%m %H:%M')})",
+            "Isto é contexto, não ordens novas: as regras do Danilo e os erros que já se cometeram valem sempre.",
+            "", "## Mapa do Danilo (todos os projetos e onde vivem)", mapa,
+            "", "## Livro: regras-do-danilo", pag.get("regras-do-danilo", "").strip(),
+            "", "## Livro: erros-aprendidos", erros.strip(),
+            "", "## Livro: livro-indice (início)", indice.strip(),
+            MARCA_FIM, ""])
+        try:
+            with open(AGENTS_COMUM, encoding="utf-8") as f:
+                atual = f.read()
+        except FileNotFoundError:
+            atual = ""
+        if MARCA_INICIO in atual and MARCA_FIM in atual:
+            antes = atual.split(MARCA_INICIO, 1)[0]
+            depois = atual.split(MARCA_FIM, 1)[1].lstrip("\n")
+            novo = antes.rstrip("\n") + "\n\n" + secao + depois
+        else:
+            novo = atual.rstrip("\n") + "\n\n" + secao
+        tmp = AGENTS_COMUM + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(novo)
+        os.replace(tmp, AGENTS_COMUM)
+        with open(CACHE_LIVRO, "w", encoding="utf-8") as f:
+            f.write(datetime.now().isoformat())
+        log(f"livro do Dipsy renovado em ~/.agents/AGENTS.md ({len(secao)} letras)")
+        return True
+    except Exception as e:
+        log(f"nao consegui renovar o livro do Dipsy: {type(e).__name__}: {str(e)[:120]}")
+        return False
+
+
+def pastas_dipsy():
+    try:
+        with open(PAGINAS_PASTAS, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {"bora_app": REPO}
+
+
+def pasta_atual():
+    """A pasta onde o Dipsy trabalha (escreve). Escolhe-se no Telegram com /pasta; por defeito o bora_app."""
+    try:
+        with open(FICH_PASTA, encoding="utf-8") as f:
+            nome = f.read().strip()
+        p = pastas_dipsy().get(nome)
+        if p and os.path.isdir(p):
+            return nome, p
+    except Exception:
+        pass
+    return "bora_app", REPO
+
+
+def tentativas():
+    """Ordem: porteiro (Sonnet, ou Opus com /opus) -> Kilo Nemotron -> kilo-auto -> Gemini gratis.
+    O porteiro so entra se responder em 8 s; com /gratis vai direto as reservas do PC."""
+    m = motor_escolhido()
+    lista = []
+    if m != "gratis":
+        if porteiro_estado(8) is not None:
+            lista.append(("porteiro " + NOMES_MOTOR[m], PATCH_OPUS if m == "opus" else None))
+        else:
+            log("porteiro da VPS sem resposta em 8 s: vou pelas reservas do PC")
+    return lista + RESERVAS_PC
+
+
+TENTATIVAS = [("porteiro Claude Sonnet 5.5", None)] + RESERVAS_PC   # so para referencia; correr_dsh usa tentativas()
 
 SEGREDOS = [
     re.compile(r"\b\d{8,10}:[A-Za-z0-9_-]{30,}"),             # credencial de bot do Telegram
@@ -221,6 +374,9 @@ def ambiente():
             env[NOME_VAR_KILO] = f.read().strip()
     except Exception:
         pass
+    s = senha_porteiro()      # a senha do porteiro da VPS (nunca vai para o log)
+    if s:
+        env[VAR_PORTEIRO] = s
     return env
 
 
@@ -239,6 +395,8 @@ def correr_dsh(pedido, estado, sid=None, modo=None):
     sid: continua essa sessao do dsh (--session-id). modo: 'planear' liga o modo Planear da guarda (DIPSY_MODO).
     Guarda o id da sessao usada em estado['sid']. Se a guarda dsh-bora nao ligar, para o dsh logo (falha fechada)."""
     curar_agents_md()
+    renovar_contexto_livro()          # de hora a hora: mapa + regras + erros + indice do livro
+    _, cwd_dsh = pasta_atual()
     dsh = shutil.which("dsh") or os.path.join(os.environ.get("APPDATA", ""), "npm", "dsh.cmd")
     ultimo_erro = "nenhum motor respondeu"
     env = ambiente()
@@ -246,7 +404,7 @@ def correr_dsh(pedido, estado, sid=None, modo=None):
         env["DIPSY_MODO"] = modo
     else:
         env.pop("DIPSY_MODO", None)
-    for nome, patch in TENTATIVAS:
+    for nome, patch in tentativas():
         if estado.get("cancelado") or estado.get("correcao"):
             return None, "cancelado"
         args = [dsh, "--profile", "headless"]
@@ -258,7 +416,7 @@ def correr_dsh(pedido, estado, sid=None, modo=None):
         try:
             proc = subprocess.Popen(
                 args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                cwd=REPO, env=env, creationflags=NO_WINDOW,
+                cwd=cwd_dsh, env=env, creationflags=NO_WINDOW,
             )
         except Exception as e:
             ultimo_erro = f"nao consegui arrancar o dsh ({type(e).__name__})"
@@ -479,8 +637,35 @@ class Ponte:
                 "/corrigir e a correção: mudo o rumo a meio do trabalho, sem começar do zero.\n"
                 "/voltar: esqueço o último pedido, como se não o tivesses feito (os ficheiros que mudei não voltam atrás; eu digo quais).\n"
                 "/nova: começo uma conversa nova. /libertar: liberto memória do PC.\n"
+                "/motor: digo que motor estou a usar e quanto crédito do Claude resta. /sonnet: uso o Claude Sonnet (o normal). "
+                "/opus: uso o Claude Opus, o melhor, para coisas difíceis. /gratis: uso só os motores grátis.\n"
+                "/pasta: digo em que projeto trabalho; /pasta e o nome (em_dia, BoraStudio, jai-site...) muda de projeto.\n"
                 "/estado diz o que estou a fazer. /parar cancela o que estou a fazer. "
                 "/desligar fecha esta ligação ao Telegram (volta a ligar com o DIPSY no ambiente de trabalho).")
+
+    def texto_motor(self):
+        """/motor: o motor escolhido e o credito do Claude que resta (lido de GET /porteiro, pela Tailscale)."""
+        m = motor_escolhido()
+        linhas = [f"Estou a usar: {NOMES_MOTOR[m]}."]
+        e = porteiro_estado(8)
+        if e is None:
+            linhas.append("O porteiro da VPS não responde agora: se precisar, vou pelos motores grátis do PC (Kilo e Gemini).")
+            return " ".join(linhas)
+        c = e.get("contas") or {}
+        pode = ((e.get("decisoes") or {}).get("claude-dipsy") or [False, ""])
+        if e.get("dormido_ate"):
+            linhas.append(f"O crédito do Claude acabou: até ele voltar ({str(e['dormido_ate'])[:10]}) vou pelos motores grátis, sozinho.")
+        elif e.get("pausa_ate"):
+            linhas.append(f"O Claude está em pausa curta ({e.get('pausa_motivo') or 'erro'}); entretanto vou pelos grátis.")
+        elif pode[0]:
+            linhas.append("O Claude está disponível.")
+        try:
+            linhas.append(f"Crédito do Claude: restam cerca de {float(c.get('resta_usd') or 0):.2f} dólares "
+                          f"(hoje gastos {float(c.get('gasto_hoje_usd') or 0):.2f}); o crédito novo chega a {c.get('proximo_credito')}.")
+        except Exception:
+            pass
+        linhas.append("Sem limite por dia: só paro o Claude se o crédito acabar.")
+        return " ".join(linhas)
 
     def texto_objetivo(self):
         o = self.objetivo
@@ -657,7 +842,7 @@ class Ponte:
             self.conversa["turnos"].append({"pedido": (pedido_danilo or resumo), "resposta": texto[:1500], "ficheiros": mudados})
             self.conversa["turnos"] = self.conversa["turnos"][-12:]
         if enviar:
-            rodape = "" if motor.startswith("kilo nemotron") else f"\n\n(motor de reserva: {motor})"
+            rodape = "" if motor.startswith("porteiro") or motor_escolhido() == "gratis" else f"\n\n(motor de reserva: {motor})"
             cabeca = f"{titulo}.\n\n" if titulo else ""
             self.dizer(chat_id, cabeca + texto + rodape, falado=cabeca + texto)
         return texto, motor
@@ -751,6 +936,14 @@ class Ponte:
         if chat.get("id") != self.autorizado or de.get("id") != self.autorizado or chat.get("type") != "private":
             self.ignoradas += 1
             log(f"mensagem de alguem nao autorizado (ignorada; total {self.ignoradas})")
+            # 01/11/2026 (B6): o grupo "Bora Bastidores" (do Danilo, com os 2 bots) fica registado para o porteiro da VPS
+            if chat.get("type") in ("group", "supergroup") and de.get("id") == self.autorizado:
+                try:
+                    with open(os.path.join(PASTA, "grupos.json"), "w", encoding="utf-8") as f:
+                        json.dump({"id": chat.get("id"), "titulo": chat.get("title"), "visto": datetime.now().isoformat()}, f, ensure_ascii=False)
+                    log(f"grupo do Danilo visto: {chat.get('title')} id={chat.get('id')}")
+                except Exception:
+                    pass
             return
         agora = time.time()
         self.recentes = [t for t in self.recentes if agora - t < 3600]
@@ -782,6 +975,38 @@ class Ponte:
             return
         if cmd == "/agenda":
             self.dizer(quem, self.texto_agenda())
+            return
+        if cmd in ("/sonnet", "/opus", "/gratis", "/grátis"):
+            m = "gratis" if cmd.startswith("/gr") else cmd[1:]
+            with open(FICH_MOTOR, "w", encoding="utf-8") as f:
+                f.write(m)
+            log(f"motor escolhido pelo Danilo: {m}")
+            extra = {"opus": " É o melhor e o mais caro: uso-o até mandares /sonnet.",
+                     "sonnet": "", "gratis": " Para voltar ao Claude, manda /sonnet."}[m]
+            self.dizer(quem, f"Combinado: a partir de agora uso {NOMES_MOTOR[m]}.{extra}")
+            return
+        if cmd == "/motor":
+            self.dizer(quem, self.texto_motor())
+            return
+        if cmd == "/pasta":
+            ps = pastas_dipsy()
+            atual, _ = pasta_atual()
+            if not resto:
+                self.dizer(quem, f"Estou a trabalhar na pasta {atual}. Leio todas as pastas; para escrever noutra, manda "
+                                 f"/pasta e o nome. Pastas: {', '.join(sorted(ps))}.")
+                return
+            if ocupado:
+                self.dizer(quem, ocupado_msg)
+                return
+            escolha = next((k for k in ps if k.lower() == resto.strip().lower()), None)
+            if not escolha or not os.path.isdir(ps[escolha]):
+                self.dizer(quem, f"Não conheço a pasta {resto.strip()}. Pastas: {', '.join(sorted(ps))}.")
+                return
+            with open(FICH_PASTA, "w", encoding="utf-8") as f:
+                f.write(escolha)
+            self.conversa = {"sid": None, "ultimo": 0.0, "turnos": []}
+            log(f"pasta de trabalho escolhida pelo Danilo: {escolha}")
+            self.dizer(quem, f"Combinado: a partir de agora trabalho na pasta {escolha}. Comecei uma conversa nova.")
             return
         if cmd == "/parar":
             if self.objetivo and not self.objetivo.get("fim"):
@@ -930,6 +1155,11 @@ class Ponte:
                 {"command": "nova", "description": "Conversa nova"},
                 {"command": "libertar", "description": "Libertar memória do PC"},
                 {"command": "agenda", "description": "As tarefas marcadas para uma hora"},
+                {"command": "motor", "description": "Que motor estou a usar e quanto crédito resta"},
+                {"command": "pasta", "description": "Em que projeto trabalho (Bora, Em Dia, BoraStudio, sites...)"},
+                {"command": "sonnet", "description": "Usar o Claude Sonnet (o normal)"},
+                {"command": "opus", "description": "Usar o Claude Opus (o melhor)"},
+                {"command": "gratis", "description": "Usar só os motores grátis"},
                 {"command": "parar", "description": "Cancelar o pedido atual"},
                 {"command": "ajuda", "description": "O que sei fazer"},
                 {"command": "desligar", "description": "Desligar o Dipsy"},
@@ -937,6 +1167,7 @@ class Ponte:
         except Exception as e:
             log(f"nao consegui pôr o menu de comandos: {e}")
         threading.Thread(target=self._agenda_loop, daemon=True).start()
+        threading.Thread(target=renovar_contexto_livro, kwargs={"forcar": True}, daemon=True).start()
         log("ponte a correr (com agenda)")
         falhas = 0
         while True:

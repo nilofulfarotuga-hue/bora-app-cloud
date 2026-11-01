@@ -1,0 +1,5 @@
+# Reserva 1 (01/11/2026): Kilo Nemotron grátis, quando o porteiro da VPS não responde. Nunca segredos.
+- id: agent-default-model
+  config:
+    provider: kilo-free
+    model: nvidia/nemotron-3-ultra-550b-a55b:free

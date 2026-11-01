@@ -7,9 +7,9 @@
 //   400/401/402/403/404/429/529/5xx · timeout de 20 s · recusa (stop_reason "refusal") · resposta vazia.
 // Com null, quem chama segue o caminho Gemini que já tinha, sem erro para ninguém.
 //
-// Porteiro: public.ia_claude_pode(p_prioridade, p_robo) — a mesma regra do porteiro da VPS
-// (supabase/migrations_pendentes/20261031_motor_claude_porteiro.sql). Enquanto a RPC não existir
-// (migração por aplicar) ou o banco não responder, passam só P1 e P2; P3 não.
+// Porteiro: public.ia_claude_pode(p_prioridade, p_robo) — a mesma regra do porteiro da VPS. Desde 01/11/2026
+// SEM RAÇÃO (migração 20261101204928): tudo pelo Claude até a API dizer "sem crédito" (falha em ia_gastos nas
+// últimas 6 h). Se o banco não responder, passam todos.
 // Cada chamada (boa ou falhada) fica em public.ia_gastos; se a tabela ainda não existir, ignora-se.
 //
 // Regras da API para claude-haiku-5-5 e claude-sonnet-5-5 (dão 400 se forem quebradas):
@@ -151,8 +151,9 @@ async function perguntarPorteiro(prioridade: number, robo: string): Promise<Port
     if (!j || typeof j.pode !== 'boolean') throw new Error('resposta sem "pode"');
     return { pode: j.pode, modelo: ehModeloClaude(j.modelo) ? j.modelo : padrao, motivo: String(j.motivo ?? '') };
   } catch (e) {
-    // RPC ainda não existe (migração por aplicar) ou o banco não respondeu: P1 e P2 passam, P3 não.
-    return { pode: prioridade <= 2, modelo: padrao, motivo: `sem porteiro: ${(e as Error).message}` };
+    // O banco não respondeu: desde 01/11/2026 (sem ração, ordem do Danilo) todos passam; se o crédito tiver
+    // acabado, a própria API responde "sem crédito" e a função segue o Gemini.
+    return { pode: true, modelo: padrao, motivo: `sem porteiro: ${(e as Error).message}` };
   }
 }
 

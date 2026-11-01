@@ -79,6 +79,8 @@ verifica("historico: assistente com blocos originais e tool_result numa mensagem
          m[1]["role"] == "assistant" and m[1]["content"][1]["type"] == "tool_use" and m[2]["content"][0]["type"] == "tool_result" and m[-1]["role"] == "user")
 
 # 4. P3 com parte do dia esgotada -> gratis, enquanto P1 continua no Claude
+#    (desde 01/11/2026 a racao vem DESLIGADA; aqui liga-se so para provar a regra antiga, que continua no codigo)
+por.cfg["racao"] = True
 cont = por.contas()
 por.simular["gasto_hoje_extra_usd"] = cont["parte_do_dia_usd"] * 0.6
 pode3, motivo3, _, _ = por.decidir("claude-agente")
@@ -90,6 +92,7 @@ verifica("parte do dia a 60%: P1 continua no Claude", pode1, motivo1)
 por.simular["gasto_hoje_extra_usd"] = cont["parte_do_dia_usd"] * 1.1
 verifica("parte do dia passada: P2 vai ao gratis e P1 continua", (not por.decidir("claude-decisao")[0]) and por.decidir("claude-cliente")[0])
 por.simular["gasto_hoje_extra_usd"] = 0
+por.cfg["racao"] = False
 
 # 5. sem saldo (400 credit balance) -> dormido ate ao proximo credito, tudo gratis, sem erro
 falsa.respostas.append((400, {"type": "error", "error": {"type": "invalid_request_error", "message": "Your credit balance is too low to access the Anthropic API."}}, {}))

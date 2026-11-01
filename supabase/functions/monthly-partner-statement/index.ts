@@ -466,12 +466,13 @@ function htmlAdmin(f, resultados, estafetas) {
     '<p>Pedidos entregues: <b>' + t.pedidos_entregues + '</b> · Pago pelos clientes: <b>' + eur(t.pago_pelos_clientes) + '</b><br>' +
     'Mercadoria: ' + eur(t.custo_mercadoria) + ' · Receita própria: <b>' + eur(t.receita_propria_bora) + '</b><br>' +
     'Estafetas: ' + eur(t.pago_a_estafetas) + ' · Lucro: <b>' + eur(t.lucro) + '</b><br>' +
-    'TVDE de outros motoristas (parte Bora): <b>' + eur(fin.parte_bora_tvde_outros) + '</b></p>' +
+    'Limpezas: ' + eur((f.limpeza_totais ?? {}).pago_pelos_clientes) + ' · Taxa Bora limpezas: <b>' + eur(fin.receita_limpeza) + '</b><br>' +
+    'TVDE de outros motoristas (parte Bora, fora da declaração): ' + eur(fin.parte_bora_tvde_outros) + '</p>' +
     '<h3>Para as Finanças</h3><p style="line-height:1.5">' + esc(fin.texto) + '</p>' +
     '<p>Total a declarar: <b>' + eur(fin.total_a_declarar) + '</b></p>' +
     '<h3>Faturas-recibo a emitir</h3><ul>' + fat + '</ul>' +
     (prej ? '<h3 style="color:#B45309">Pedidos no prejuízo</h3><ul>' + prej + '</ul>' : '') +
     (ext ? '<h3>Extratos às lojas</h3><ul>' + ext + '</ul>' : '') +
-    (est ? '<h3>Recibos verdes aos estafetas</h3><ul>' + est + '</ul>' : '') +
+    (est ? '<h3>Recibos verdes aos prestadores (estafetas e limpeza)</h3><ul>' + est + '</ul>' : '') +
     '<p style="font-size:11px;color:#999">Bora App · fecho mensal · detalhe em /admin/fecho-mensal</p></div>'
 }

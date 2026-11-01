@@ -1,6 +1,7 @@
 // @ts-nocheck
 // supabase/functions/fecho-mensal-contabilista/index.ts — v1 (01/11/2026, missão contabilista-2026-11-01)
-// AINDA NÃO PUBLICADA NEM AGENDADA. Vai junto com supabase/migrations/PROPOSTA_20261101_fecho_mensal_contabilista.sql.
+// Publicada e agendada a 01/11/2026 (cron 125 'fecho-mensal-contabilista', 07 e 08 UTC do dia 1).
+// Migração: supabase/migrations/20261101215000_fecho_mensal_contabilista_2026_11_01.sql.
 //
 // O QUE FAZ: no dia 1 de cada mês às 08:00 de Lisboa (cron 'fecho-mensal-contabilista', 07 e 08 UTC;
 // a função só age quando em Lisboa for dia 1 às 08h) fecha o mês anterior para o contabilista:
@@ -12,8 +13,9 @@
 //   4) regista em fecho_mensal_contabilista_log (ano, mes) — idempotente: não repete sem force:true.
 // Primeiro disparo previsto: 01/12/2026 (fecha novembro/2026).
 //
-// GATES (platform_settings): fecho_contabilista_ativo=true, fecho_contabilista_email preenchido,
-// weekly_digest_emails_enabled=true (o mesmo portão dos outros fechos). Sem isto, não envia e diz porquê.
+// GATES (platform_settings): fecho_contabilista_ativo=true e weekly_digest_emails_enabled=true (o mesmo
+// portão dos outros fechos). Sem fecho_contabilista_email o fecho vai SÓ ao Danilo, com aviso
+// "falta email do contabilista" no assunto, no corpo e no log.
 // NÃO calcula dinheiro: só lê. Regra do Danilo: o TVDE de passageiros aparece como informativo, fora
 // da declaração; a mercadoria das lojas não é receita da Bora.
 //
@@ -111,21 +113,30 @@ Deno.serve(async (req) => {
   const assunto = `Bora — fecho de ${NOMES[mes]} de ${ano} (comissões, prestadores e Stripe)`
 
   // ── 3) envia (ou explica porque não) ─────────────────────────────────
+  // Sem email do contabilista: vai só ao Danilo, com aviso no assunto e no log ("falta email do
+  // contabilista"); o Danilo reencaminha. Com email: ao contabilista com cópia ao Danilo.
   let estado = 'skipped'; let erro = null; let resendId = null
+  const faltaEmail = !toHugo
+  const destinatarios = faltaEmail ? [ADMIN_EMAIL] : [toHugo]
+  const copias = faltaEmail ? [] : [ADMIN_EMAIL]
+  const assuntoFinal = faltaEmail ? assunto + ' — FALTA EMAIL DO CONTABILISTA (reencaminhar)' : assunto
+  const htmlFinal = faltaEmail
+    ? html.replace('<p>' + esc(nomeHugo) + ',', '<p style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:10px">Falta o email do contabilista em platform_settings (fecho_contabilista_email): este fecho veio só para o Danilo. Reencaminhe ao ' + esc(nomeHugo) + ' e grave o email no painel.</p><p>' + esc(nomeHugo) + ',')
+    : html
   if (!ativo) erro = 'fecho_contabilista_ativo=false'
-  else if (!toHugo) erro = 'fecho_contabilista_email vazio'
   else if (!emailsEnabled) erro = 'weekly_digest_emails_enabled=false'
   else {
     let resendKey = Deno.env.get('RESEND_API_KEY') ?? null
     if (!resendKey) {
       try { const { data } = await supabase.rpc('get_resend_key'); if (data) resendKey = String(data).trim() } catch (_e) {}
     }
-    const r = await sendResend(resendKey, [toHugo], [ADMIN_EMAIL], assunto, html)
-    estado = r.ok ? 'sent' : 'failed'; erro = r.error; resendId = r.id
+    const r = await sendResend(resendKey, destinatarios, copias, assuntoFinal, htmlFinal)
+    estado = r.ok ? 'sent' : 'failed'; resendId = r.id
+    erro = r.ok ? (faltaEmail ? 'falta email do contabilista: enviado só ao Danilo' : null) : r.error
   }
 
   await supabase.from('fecho_mensal_contabilista_log').upsert({
-    ano, mes, email_to: toHugo || null, email_cc: ADMIN_EMAIL, email_status: estado, email_error: erro,
+    ano, mes, email_to: destinatarios.join(','), email_cc: copias.join(',') || null, email_status: estado, email_error: erro,
     resend_id: resendId, resumo, sent_at: estado === 'sent' ? new Date().toISOString() : (logRow?.sent_at ?? null),
     updated_at: new Date().toISOString(),
   }, { onConflict: 'ano,mes' })
@@ -133,12 +144,12 @@ Deno.serve(async (req) => {
   try {
     await supabase.from('e2e_log').insert({
       fluxo: 'fecho-mensal-contabilista', passo: mesTxt, estado: estado === 'failed' ? 'erro' : 'ok',
-      detalhe: `estado=${estado}${erro ? ' · ' + erro : ''} · para=${toHugo || '-'} cc=${ADMIN_EMAIL} · stripe_refresh=${stripeRefresh.ok}`.slice(0, 1000),
+      detalhe: `estado=${estado}${erro ? ' · ' + erro : ''} · para=${destinatarios.join(',')} cc=${copias.join(',') || '-'} · stripe_refresh=${stripeRefresh.ok}`.slice(0, 1000),
       device: 'edge',
     })
   } catch (_e) {}
 
-  return json({ ok: estado !== 'failed', ano, mes, estado, erro, para: toHugo || null, cc: ADMIN_EMAIL, stripe_refresh: stripeRefresh.ok, resumo })
+  return json({ ok: estado !== 'failed', ano, mes, estado, erro, para: destinatarios, cc: copias, falta_email_contabilista: faltaEmail, stripe_refresh: stripeRefresh.ok, resumo })
 })
 
 function montarResumo(ano, mes, fecho, prest, stripeRes) {
@@ -256,7 +267,7 @@ async function sendResend(key, to, cc, subject, html) {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: EMAIL_FROM, to, cc, subject, html }),
+      body: JSON.stringify({ from: EMAIL_FROM, to, ...(cc && cc.length ? { cc } : {}), subject, html }),
     })
     const txt = await res.text().catch(() => '')
     if (res.ok) { let id = null; try { id = JSON.parse(txt)?.id ?? null } catch (_e) {} return { ok: true, error: null, id } }

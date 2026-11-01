@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-31
+ultima_confirmacao: 2026-11-01
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-10-31T20:56:22.062273+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-11-01T20:56:08.366891+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -433,3 +433,17 @@ Filme caminho 4 (fontes htROyMzUbA8, rxZZ1xi81a4): no Google Flow (Omniflash 1.1
 - BORA (novo): post automático quando entra loja parceira nova, com aprovação. https://www.youtube.com/watch?v=-gyMQpHU2AI
 - JÁ TEMOS: Dipsy (5 vídeos), modo auto/permissões do Claude Code, Claude na nuvem com tarefas, robôs de redes (Hermes+Composio).
 - RECUSADO: OpenAI Dots (Pro), AutoAgência (paga), TurboFlow e FB Auto Post (postadores em massa), Comfy Agent/ComfyUI (GPU), HeyGen/Hedra/MiniMax H3 para boca (pagos/licença UE), plugin WordPress pago.
+
+## 01/11/2026 — radar diário (agente na nuvem)
+40 vídeos revistos (36 com nota >= 6): 2 novos, 21 PENDENTES, 5 já temos, 12 rejeitados (4 por nota baixa). Nenhum do tema animacao_ia. Proposta prop-dd280617.
+- MODA DA SEMANA (3+ vídeos nota>=8 em 7 dias): Dipsy 12 — FEITO 29-30/10 (Creator Mode, agendadas, subagentes ainda por fazer desde 30/10); vender automação/agente a PMEs 6+7 (+5 hoje) — PENDENTE desde 13/10; atendente WhatsApp 6 (+3 hoje) — FEITO (Mister Navalha), CRM WhatsApp aberto PENDENTE desde 18/10; prospeção 7 — extrator Google Maps PENDENTE desde 17/10; sites com IA 5 (+2) — PENDENTE desde 25/10; anúncios Meta 5 (+3) — PENDENTE, conta sem pagamento desde 26/10; micro-SaaS 5 (+3) — PENDENTE desde 21/10; VoiceStudio/voz grátis 4 (+3) — teste Kaggle aprovado (prop-2fb661c9), sem prova; Claude Motion/Dashboards 3 — PENDENTE desde 11/10; rececionista de voz 3 — PENDENTE desde 13/10; REA 3 — FEITO 21/10 e 26/10, mas o plano de 15 itens de 26/10 está PARADO à espera de revisão.
+- DINHEIRO (novo, prop-dd280617): concierge de IA no WhatsApp para alojamento local da Guarda/Serra da Estrela (manual da casa em PDF), base Mister Navalha; vídeo fala em 2000 $ por instalação. https://www.youtube.com/watch?v=35_yoOS0fPE
+- BORA (novo, prop-dd280617): QR na mesa dos restaurantes parceiros → contacto em troca de oferta → campanhas; lente grátis = formulário + Supabase (vídeo usa CRM pago a 399 $/mês). https://www.youtube.com/watch?v=mfQGBFzQ_Qc
+- DINHEIRO: guião de venda pelos 4 problemas que o dono paga (perde dinheiro, perde follow-up, trabalho manual, erros). https://www.youtube.com/watch?v=Y9h3figbNb0
+- FILME/REELS (lente grátis): VoiceStudio — usar o modelo Vox CPM2 (licença comercial, segundo o vídeo) no teste Kaggle. https://www.youtube.com/watch?v=18gWl9KQAJ4 , https://www.youtube.com/watch?v=cA-lyUAsku4
+- EM DIA/REELS: Claude Motion (animação em código, já na conta Claude) para explicativos; estilo talking-head minimalista planeado com Claude. https://www.youtube.com/watch?v=Eg08Lr3zqdw , https://www.youtube.com/watch?v=g9xoKm5DEeU
+- EM DIA: NotebookLM passou a Gemini Notebook (grátis no Google AI Plus) — roteiros a partir das fontes oficiais, ainda não feito. https://www.youtube.com/watch?v=XtrZzfPwCyE
+- SISTEMA: vídeo diz que o Jev instala grátis no Antigravity — confirmar plano grátis antes de pagar (pendente desde 23/09). https://www.youtube.com/watch?v=nO0wSP7sahk
+- JÁ TEMOS: secretária/bot de marcações no WhatsApp (Mister Navalha), REA (3 vídeos).
+- RECUSADO: Openbot.run (abordagens automáticas por WhatsApp Web), CloudTalk e ElevenLabs Reception (pagos), Abacus AI, canais faceless.
+- Radar aprende: +2 termos da conversa (Diretiva europeia das plataformas; gerir Perfil Google de clientes como mensalidade), -2 termos sem rendimento (embaixadores universitários — só trazia notícias; angariadores de parceiros); 70 ativos.

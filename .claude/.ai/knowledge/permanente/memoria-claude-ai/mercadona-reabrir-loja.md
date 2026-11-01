@@ -2,7 +2,7 @@
 id: memoria-claude-ai-mercadona-reabrir-loja
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-15
+ultima_confirmacao: 2026-11-01
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Mercadona Guarda — reabrir só com perfumaria/cosmética/higiene (preparado 14-15/10/2026)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `mercadona-reabrir-loja`, origem `claude-ai`, atualizada em 2026-10-15T03:42:21.220778+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `mercadona-reabrir-loja`, origem `claude-ai`, atualizada em 2026-11-01T20:54:58.014131+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: mercadona reabrir loja · memoria claude.ai · claude_ai_memoria
 
@@ -54,3 +54,21 @@ PREÇOS DE PRATELEIRA LIDOS (216):
 - unhas / utensílios: Escova de unhas 1,90; Taco polidor 1,90; Corta cutículas 2,10; Corta-unhas 1,90; Tesoura de unhas 4,20; Alicate de unhas 4,90; Lima raspadeira pés 3,10; Pedra-pomes 2,90; Lima fibra de vidro 1,00
 - lábios: Batom bálsamo brilho 4,50; Batom mate 4,50; Batom cremoso brilho 4,65; Batom fluido mate 4,50; Barra mate longa duração 12H 5,00; Volumizer gloss 5,00; Lápis lábios 2,50; Lápis aut. lábios 2,50; Caramel Kiss lip oil 4,25 (provável)
 - unhas / vernizes-tratamentos: Verniz (cada) 2,50; Verniz bandeja rosa 01/03/05 2,75; Verniz base 3 em 1 3,50; Base branqueadora 3,50; Esmalte brilho secagem rápida 3,50; Endurecedor 3,50; SOS sérum unhas 3,50; Sérum cutículas Fortalece 2,50; Nail & Cuticle Serum Double Action 3,50; Removedor com acetona 1,20; Acetona pura 1,70
+
+
+## 01/11/2026 — LOJA REABERTA SÓ COM BELEZA E HIGIENE (Claude, sessão na nuvem)
+Pedido do Danilo (01/11): reabrir a Mercadona só com os cosméticos fotografados nas prateleiras (fotos de 14/10 + 10 fotos de 01/11); o resto do catálogo fica escondido, não apagado.
+- Loja: restaurants.id=mercadona-guarda, nome "Mercadona · Beleza e Higiene" (palavra escolhida: Beleza e Higiene, como o Continente chama a secção), is_active_admin=true, is_online=true, about_text novo. Logótipo: favicon de mercadona.es (o de mercadona.pt dava 502 no proxy /img e aparecia um M verde).
+- Catálogo visível: 543 produtos = 525 linhas que já existiam (atualizadas) + 18 novas com foto oficial da loja online espanhola (image_source='mercadona-online-oficial'). Marca de origem: products.source = 'prateleira_mercadona_guarda_2026-10-14' ou 'prateleira_mercadona_guarda_2026-11-01'. price = preço da etiqueta, SEM margem (a app e o servidor somam 15%); partner_shelf_price = o mesmo valor; price_low vazio.
+- Secções (category = category_root): Perfumes 66, Rosto 44, Maquilhagem 149, Unhas 35, Cabelo 111, Corpo e banho 35, Higiene oral 47, Higiene íntima 31, Bebé 18, Homem 5, Solares 2. Ordem: sort_order = secção×1000 + n; o 1.º de cada secção dá a foto do mosaico.
+- Escondidos: 6.744 produtos (is_available=false, removal_reason "01/11/2026 Danilo: Mercadona reabre só com beleza e higiene fotografada na prateleira; este produto não foi fotografado"). Nada apagado. Backups: bkp_products_mercadona_reabertura_20261101 (8.115 linhas) e bkp_restaurants_mercadona_20261101.
+- Prova (app web, conta do Danilo): pesquisa "Celestial Night" → etiqueta 11,00 aparece 12,65 € com foto; "Peach Bloom" (novo) 3,90 → 4,48 €; "arroz agulha" já não mostra Mercadona; lista Supermercados mostra a loja com o logótipo. Não abri a loja na conta dele porque tem um carrinho do Auchan (abrir obrigava a apagá-lo).
+- Um id errado no ficheiro dos perfumes (My Soul Soirée mulher): corrigido para 6ec5692e-8391-457e-a100-f8728e272591 (12,00).
+- Para pôr mais produtos: UPDATE com preço da etiqueta + source marcador + is_available=true; nunca reativar em massa.
+- FALTA FOTOGRAFAR DE NOVO (etiqueta ilegível, cortada ou tamanho em dúvida):
+  cabelo e banho (01/11): champô Natural, champô Detox, champô antiqueda, Ultrex anticaspa menta, champô Repair & Nutrition, champô Plex Repair, champô Hydra, champô Liss, máscara Color Protect, amaciador 1 L e champô 1 L (expositor de chão), esponja vegetal, gel de banho Aveia 750 ml;
+  íntima e bebé (01/11): gel íntimo dos frascos azuis, toalhitas íntimas (2), protegeslips Dry Normal e Dry Maxi, pensos de incontinência Normal e Maxi, Tampax Compak Super Plus 26, Tampax Pearl 34 e o do chão, tampões Deliplus Super Plus, Pants 5/L e XL, fraldas-cueca de noite 8-15 anos, fraldas T2, Dodot Sensitive T1 a T3 (falta o n.º de unidades); lidos mas sem par na base: T3 3x40 a 15,30, T3 pacote pequeno 5,30, T5 caixa 15,35, pacotes azul-noite 2,30;
+  perfumes: Frescor Azul;
+  de 14/10: fotocorretor unificador, caixa preta do topo da P01, produto "Q10" a 7,70, Gold Flash 2,75, Creme Esferas 6,50, sérum péptidos e colagénio 7,00, lote sérum Glow 6,00, adesivos do expositor bege 2,30, spray solar FPS 50 7,50, 3.º fixador de sobrancelhas, Caramel Kiss, verniz 157, Licopeno, fixador transparente, base brilho 67.
+- RISCOS ENCONTRADOS (só reportados): (1) Edge Function update-products: sem body.market cai na Mercadona e volta a pôr ~8 mil produtos merc-* visíveis com preços por litro — nunca a chamar sem market; não há cron da Mercadona (só Continente seg. 03:00 e Auchan ter. 03:00). (2) Arredondamento: a app (pricing_service.dart, applyMarkup em double) mostra 1 cêntimo a menos do que o servidor (quote_order_pricing em numeric) quando preço×1,15 cai em meio cêntimo: 3,90 → app 4,48 / servidor 4,49. Afeta 110 produtos da Mercadona e ~1.180 no total (Continente 252, Intermarché 165, Zippy 142, Auchan 98…). Zona protegida: não mexi.
+

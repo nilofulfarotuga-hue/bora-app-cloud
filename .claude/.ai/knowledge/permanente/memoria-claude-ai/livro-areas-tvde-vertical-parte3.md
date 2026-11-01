@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-tvde-vertical-parte3
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-23
+ultima_confirmacao: 2026-11-01
 zona: verde
 confianca: alta
 estado: atual
@@ -10,14 +10,12 @@ estado: atual
 
 # Bora App TVDE ride-hailing vertical — dispatch, pricing, UI, payments (parte 3 de 4)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-tvde-vertical-parte3`, origem `claude-ai`, atualizada em 2026-10-23T05:50:33.36373+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-tvde-vertical-parte3`, origem `claude-ai`, atualizada em 2026-11-01T21:17:04.245456+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas tvde vertical parte3 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/tvde-vertical.md, parte 3 de 4), copiada a 23/10/2026. A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/tvde-vertical.md), copiada a 01/11/2026 21:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
-- ⚠️ ARMADILHA DE DINHEIRO a não esquecer: `tvde_finish_ride` RECALCULA tudo pela fórmula a partir da distância final e ignora o driver_earn_cents gravado. Aos 25 km dá cliente 24,00 e motorista 19,20 (Bora 4,80), não os 25/22/3 combinados. Numa corrida combinada à mão é preciso corrigir final_fare/driver_earn/bora_cut E `tvde_driver_balances` por MCP DEPOIS de o motorista finalizar
-- Estado da Érika ao criar: drivers.id b44cc4cd, user_id fdbc749d, aprovada, com token FCM, mas `is_online=false` e último heartbeat 18:44 UTC (2 h antes) — avisado ao Danilo
 - Evento de registo saiu com o motivo falso "aguarda payment_status=succeeded" (ramo else do `fn_tvde_dispatch_on_request`, mesmo defeito já corrigido em 20/08 para o caso 'agendada'). Não afeta nada, mas o ramo devia conhecer também a corrida atribuída à mão
 - ⚠️ CORRECÇÃO no mesmo dia: a corrida NÃO era para agora — o Danilo disse a seguir que é para **21/08 às 06:50**. Eu tinha assumido imediata e já tinha disparado o push "🚗 Nova corrida!" (22:09), que pode ter feito a Érika pensar que havia passageiro à espera. LIÇÃO: numa corrida de balcão perguntar/confirmar a HORA antes de criar; "toca direto pra X" não quer dizer agora
 - Convertida por MCP para reserva a sério: status='agendada', scheduled_at 21/08 06:50 (Europe/Lisbon), reservation_status='atribuida', reservation_driver_id=Érika, driver_id=NULL (o passo F do sweep é que o preenche aos 20 min). Push correcto `reservation_assigned` enviado 22:14:53, aceite pelo FCM
@@ -67,4 +65,5 @@ PACOTE 30/08 — corrida real (cliente Sandra) cobrou €16 num pacote de €8 +
 - ✅ driver_earnings_summary passou a somar driver_earn_cents (mostrava o preço do cliente).
 - ✅ Saldo motorista Danilo: −8,00 (f7c7ebb6: pacote MBWay pago mas acerto assumiu recolha em mão) e +7,00 (testes 30/08 anulados) → −22,60.
 - FLUXO ONLINE REAL do pacote = Edge `tvde-plan-payment` v7 (create_roundtrip / create_roundtrip_mbway / activate_roundtrip) — NÃO a tvde-payment v6. ✅ CORRECÇÃO 30/08 (li o AR por MCP): a versão deployada JÁ cobra por km (tvde_roundtrip_price_for_km; €8 só como piso ou sem distance_km). O tal bug aberto era o FICHEIRO DO REPO 2 gerações atrás; o executor puxou ar→repo em vez de deployar (evitou retrocesso em produção). Falso alarme retirado ao Danilo. Risco residual: build velho que não manda distance_km paga €8 em corrida longa.
+- Dispatch provado nos eventos: pago→oferta no MESMO segundo; a "demora" é a confirmação do MB Way (falta estado "A confirmar pagamento" no app).
 

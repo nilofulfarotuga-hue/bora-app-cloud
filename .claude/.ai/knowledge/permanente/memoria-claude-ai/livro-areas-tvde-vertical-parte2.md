@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-tvde-vertical-parte2
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-23
+ultima_confirmacao: 2026-11-01
 zona: verde
 confianca: alta
 estado: atual
@@ -10,13 +10,12 @@ estado: atual
 
 # Bora App TVDE ride-hailing vertical — dispatch, pricing, UI, payments (parte 2 de 4)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-tvde-vertical-parte2`, origem `claude-ai`, atualizada em 2026-10-23T05:49:38.933132+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-tvde-vertical-parte2`, origem `claude-ai`, atualizada em 2026-11-01T21:16:12.907884+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas tvde vertical parte2 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/tvde-vertical.md, parte 2 de 4), copiada a 23/10/2026. A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/tvde-vertical.md), copiada a 01/11/2026 21:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
-- [stated] ✅ FEITO no Flutter (commit `63aa33e`, 12 ficheiros, push HTTPS confirmado por API, só 1 commit viajou): cliente chama `tvde_quote_roundtrip` quando a distância real da rota é conhecida e mostra "Ida + volta por €X · poupas €Y"; toggle DESACTIVADO enquanto não houver cotação (nunca cai para €8); motorista lê `paid_cents` do vale no badge e no aviso. `grep tvde_roundtrip_price_cents lib/` = 0 ocorrências. flutter analyze 0 erros/0 warnings; 45/45 testes TVDE.
 - [stated] ACHADOS do executor nessa ronda: `TvdeRoundtripPrice` tinha CACHE ESTÁTICO por sessão (fazia sentido com preço global, mostraria o preço do pacote anterior com preço dinâmico) — removido; o ecrã de histórico tinha `_packageCents` preso ao fallback €8 — passou a ler o vale de cada corrida.
 - [stated] DECISÃO da Claude.ai (o executor parou a pedir autorização; o Danilo não quer decidir isto): o campo `tvde_roundtrip_discount_pct` DEVE ficar editável no painel admin — autoridade total no painel é regra dele e o dono mexer no próprio preço não é a mesma coisa que um agente mexer. Instrução dada para acrescentar a chave à whitelist de `admin_platform_settings_screen.dart`.
 - [stated] FEITO por MCP: `platform_settings.description` do `tvde_roundtrip_discount_pct` preenchida ("Desconto % aplicado sobre ida+volta no pacote (20% = os EUR 8 classicos numa corrida de 6 km)") + category='tvde'.
@@ -51,4 +50,6 @@ CORRIDA DE BALCÃO — cliente sem app, motorista escolhida à mão (20/08/2026,
 - 🔑 RECEITA que funciona para atribuir uma corrida a UM motorista escolhido, sem o dispatch a roubar: inserir já em `status='motorista_a_caminho'` com `driver_id` = **user_id** do motorista (a RLS de SELECT é `driver_id = auth.uid()`), e deixar `current_offer_driver_id`, `offer_expires_at` e `no_driver_since` a NULL. `tvde_dispatch_sweep` só mexe em status='solicitada', logo ignora-a; `fn_tvde_dispatch_on_request` só oferece em 'solicitada'+cash; `tr_notify_tvde_driver_on_offer` é AFTER UPDATE OF current_offer_driver_id, portanto não dispara no INSERT
 - ⛔ NÃO usar a via da oferta travada (solicitada + current_offer_driver_id só nela): o notify-tvde-driver reancora `offer_expires_at` para +40 s no fim do envio, e depois o sweep passa a corrida ao motorista online seguinte. Foi por isso que escolhi o caminho acima
 - Push disparado por `net.http_post` para notify-tvde-driver com o JWT de `public._dispatch_jwt()` (só driverId+rideId, sem kind = cartão "🚗 Nova corrida!"). Evento `push_enviado` 21:09:35 UTC = FCM aceitou
+- ⚠️ ARMADILHA DE DINHEIRO a não esquecer: `tvde_finish_ride` RECALCULA tudo pela fórmula a partir da distância final e ignora o driver_earn_cents gravado. Aos 25 km dá cliente 24,00 e motorista 19,20 (Bora 4,80), não os 25/22/3 combinados. Numa corrida combinada à mão é preciso corrigir final_fare/driver_earn/bora_cut E `tvde_driver_balances` por MCP DEPOIS de o motorista finalizar
+- Estado da Érika ao criar: drivers.id b44cc4cd, user_id fdbc749d, aprovada, com token FCM, mas `is_online=false` e último heartbeat 18:44 UTC (2 h antes) — avisado ao Danilo
 

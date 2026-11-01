@@ -10,7 +10,7 @@ estado: atual
 
 # Stripe do Bora desde o início — extrato para o contabilista (01/11/2026)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `stripe-declaracao-2026-11-01`, origem `claude-ai`, atualizada em 2026-11-01T20:31:55.893313+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `stripe-declaracao-2026-11-01`, origem `claude-ai`, atualizada em 2026-11-01T21:34:41.424403+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: stripe declaracao 2026 11 01 · memoria claude.ai · claude_ai_memoria
 
@@ -45,3 +45,13 @@ Pedido do Danilo: resumo de tudo o que passou pela conta Stripe do Bora (acct_1T
 ## Cuidados
 - O cruzamento com a base só apanha 20 cobranças (os pedidos antigos não guardavam payment_intent_id; o TVDE grava-o). 43 cobranças ficaram sem cruzamento mas classificadas pela metadata.
 - A conta Stripe nova da empresa começa do zero (regra de 24/10); este extrato é só da conta pessoal.
+
+## Correções de 01/11 à noite (autorização do Danilo: "ver tudinho para o mês que vem não dar erro")
+- Aplicadas em produção: _fecho_limites corrigida (31/10 entrava em nenhum mês); admin_monthly_closeout com TVDE fora, limpeza dentro e IVA conforme a entidade; driver_monthly_invoice_summary com o adquirente certo (individual até out/2026, sociedade desde nov/2026); RPC fecho_mensal_prestadores; tabelas fecho_mensal_contabilista_log e cleaner_monthly_statement_log; cron 125 'fecho-mensal-contabilista' (07 e 08 UTC do dia 1; a função age às 08h de Lisboa; 1.º disparo 01/12/2026); Edge Function fecho-mensal-contabilista publicada; fecho_contabilista_ativo=true. Sem email do Hugo (fecho_contabilista_email vazio) o fecho automático vai só ao Danilo com "FALTA EMAIL DO CONTABILISTA" no assunto.
+- Outubro certo: receita própria 159,95 (entregas 130,34 + limpeza 29,61); Mayra 167,79; Danilo 87,56 (17 entregas); Valdemir 16,08.
+- Por fazer: publicar monthly-partner-statement v3 (classificador travou a publicação por MCP) e depois reenviar o fecho de outubro com force:true (SQL na página fecho-outubro-2026).
+
+## CORREÇÃO 01/11 21:30 (Claude.ai) — os 2.717 € NÃO eram todos do site
+Revisto com o livro (recibo-jogador-gfc, guarda-fc) e as conversas de 14/09, 20/09 e 22/09: os 2×750 € de 15/09 (Espy Costa, LeninV Godinho) foram dinheiro do Jai para a conta das corridas — pagaram a conta A 447,15 € + conta B 40 €, e os outros 974,85 € foram devolvidos ao Jai e ao Vansh pelo Revolut da Letícia a 22/09 (fora da Stripe). Os 200 € de 11/09 (Ruchi Saha) abateram na conta das corridas (conta corrigida de 14/09: "pagamento recebido −200"). Os 500 € de agosto (100 a 04/08, 400 a 10/08) não batem com o site (a 24/08 o site tinha 650 € pagos, nenhum por esta Stripe) — provável avença de 100 €/semana do transporte do Jai, por confirmar com o Danilo. categoria_manual/nota_manual atualizadas nas 5 linhas.
+Totais certos (SELECT 01/11 21:30): sites e mensalidade do Jai 1.017 € (300 Ruchi 02/09 + 300 Jai 10/09 + 3×139); contas Jai/Vansh 2.177,53 € (200 + 750 + 750 + 186 + 291,53; 974,85 devolvidos fora da Stripe → ficou 1.202,68); TVDE 843,43 € (156 cobranças, 185,19 devolvidos); Bora 412,41 € (entregas/mercados 330,01 com 54,82 devolvidos, limpeza 32,40, reservas 48, gorjeta 2); por identificar 613 € (500 de agosto + 12 pequenos = 113). Total 5.063,37; taxas 160,38 + 4,61 outras = 164,99; reembolsos 240,01; banco 4.435,06; fica na Stripe 223,31.
+Faturas: a do site ao clube ficou preparada a 17-18/09 e não emitida; a da mensalidade o Jai pediu-a a 31/10 — não dizer ao Hugo que já está faturado.

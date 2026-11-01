@@ -2,7 +2,7 @@
 id: memoria-claude-ai-digest-2026-10-30-conta-vansh-jai
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-31
+ultima_confirmacao: 2026-11-01
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Contas de 30/10 — Vansh, Jai e Ricardo (juntar à memória)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `digest-2026-10-30-conta-vansh-jai`, origem `claude.ai 31/10 18:10`, atualizada em 2026-10-31T18:09:17.685609+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `digest-2026-10-30-conta-vansh-jai`, origem `claude.ai 31/10 18:10`, atualizada em 2026-11-01T20:52:05.056371+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: digest 2026 10 30 conta vansh jai · memoria claude.ai · claude_ai_memoria
 
@@ -34,3 +34,5 @@ RICARDO "CLIENTE UBER" (WhatsApp pessoal, 960 386 302; na app é a conta "Ricard
 - 30/10 16:38: pagou 20 € por MB Way à Letícia Cosmo → falta 5 €. Pediu corrida para sábado 31/10 à mesma hora (sem resposta às 16:55). Disse que este mês lhe vão descontar dinheiro.
 
 ERRO APRENDIDO (já passado para erros-aprendidos a 31/10) — 30/10 17:04: na mensagem ao Ricardo (cliente Uber, 5 € em falta) escrevi um limite duro ("até uma semana, não deixo acumular mais de 20 €, senão fica pesado para mim") e ainda confirmei a corrida de amanhã sem ele mandar; ele achou grosso. Regra: com cliente que deve pouco, a mensagem é leve — diz quanto falta e pergunta quando consegue pagar; o limite vai só como ajuda futura ("se um dia precisares outra vez, posso ajudar, só não com um valor muito alto"), sem números, prazos nem queixas, e sem acrescentar o que ele não mandou dizer.
+
+CORREÇÃO 01/11 (Danilo + Stripe): os 186 € da conta de 24/10 do Jai (aeroporto 150 + McDonald's 21 + desalfandegamento 15) foram PAGOS a 27/10 no cartão (Stripe 27/10 16:50, 186,00 €). A semana de 26/10 do Jai é só 28 €.

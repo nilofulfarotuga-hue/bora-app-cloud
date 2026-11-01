@@ -2,19 +2,19 @@
 id: memoria-claude-ai-livro-areas-tvde-vertical
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-23
+ultima_confirmacao: 2026-11-01
 zona: verde
 confianca: alta
 estado: atual
 ---
 
-# Bora App TVDE ride-hailing vertical — dispatch, pricing, UI, payments (parte 1 de 4 — continua em livro-areas-tvde-vertical-parte2, -parte3, -parte4)
+# Bora App TVDE ride-hailing vertical — dispatch, pricing, UI, payments (parte 1 de 4 — continua em livro-areas-tvde-vertical-parte2…)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-tvde-vertical`, origem `claude-ai`, atualizada em 2026-10-23T05:51:23.729253+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-tvde-vertical`, origem `claude-ai`, atualizada em 2026-11-01T21:15:20.659007+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas tvde vertical · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/tvde-vertical.md), copiada a 23/10/2026. A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/tvde-vertical.md), copiada a 01/11/2026 21:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: tvde-vertical
@@ -92,4 +92,5 @@ BURACO DO PACOTE €8 — sem limite de distância (2026-08-01, 1ª corrida real
 - [stated] FEITO por MCP (migration tvde_finish_ride_usa_valor_real_do_vale_2026_08_01): o acerto do motorista da ida lia o setting FIXO de €8 — passa a ler `tvde_roundtrip_credits.paid_cents` (valor real recolhido em mão). Também grava roundtrip_price_cents no evento.
 - [stated] MATEMÁTICA PROVADA no DB (3/6/10/18,29/25 km): motorista da ida = 4,00+0,80/km extra; motorista da volta = 3,50+0,80/km extra; **sobra da Bora = €0,50 fixos em qualquer distância** (o desconto de 20% dá exactamente isso). AVISO por decidir do Danilo: aos 25 km a Bora move €38,40 e fica com €0,50 — se quiser margem proporcional, mexe-se em `tvde_roundtrip_discount_pct` (menos %) ou no `tvde_roundtrip_return_driver_cents`.
 - [stated] ⚠️ RISCO DE TRANSIÇÃO: o APK/web antigo mostra €8 hardcoded (lê `tvde_roundtrip_price_cents`), enquanto o servidor já grava o preço real → cliente vê €8, vale vale €28,80 e o acerto cobra a diferença ao motorista. Até o build novo estar no telemóvel, viagens longas devem ir em corrida NORMAL, sem pacote.
+- [stated] ✅ FEITO no Flutter (commit `63aa33e`, 12 ficheiros, push HTTPS confirmado por API, só 1 commit viajou): cliente chama `tvde_quote_roundtrip` quando a distância real da rota é conhecida e mostra "Ida + volta por €X · poupas €Y"; toggle DESACTIVADO enquanto não houver cotação (nunca cai para €8); motorista lê `paid_cents` do vale no badge e no aviso. `grep tvde_roundtrip_price_cents lib/` = 0 ocorrências. flutter analyze 0 erros/0 warnings; 45/45 testes TVDE.
 

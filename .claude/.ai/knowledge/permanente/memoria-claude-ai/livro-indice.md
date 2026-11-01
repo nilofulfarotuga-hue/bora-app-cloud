@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-01T00:07:10.461878+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-01T09:07:11.170461+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-10-31 23:40 UTC. Páginas listadas: 482.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-01 08:49 UTC. Páginas listadas: 483.
 
 ## O que é o Bora
 
@@ -34,7 +34,7 @@ Quer respostas curtas, em texto corrido e sem jargão, e que o trabalho se faça
 
 1. `erros-aprendidos` — as correções do Danilo; errou uma vez, nunca mais (atualizada 2026-10-31).
 2. `regras-do-danilo` — as regras dele; mandam em tudo (atualizada 2026-10-31).
-3. Estado vivo: `digest-2026-10-31-publicar-retoma` (2026-10-31).
+3. Estado vivo: `digest-2026-11-01-fecho-pendentes` (2026-11-01).
 4. Antes de mexer em pedidos, estafetas, dinheiro ou migrações: `regras-operacao-agentes`.
 5. Ferramenta nova sem MCP? `livro-porta-unica` explica como ligar (Córtex por MCP, ou o ficheiro plano LIVRO.md com senha).
 
@@ -51,8 +51,9 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - erros-aprendidos — Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige) (2026-10-31)
 
-## digest (188)
+## digest (189)
 
+- digest-2026-11-01-fecho-pendentes — Digest 01/11 — fecho dos pendentes (peso ao quilo, robô v30, limpeza, porteiro) publicado nas 3 (2026-11-01)
 - digest-2026-10-31-publicar-retoma — Claude Code 31/10 — publicar a retoma (base, alertas, envio) (2026-10-31)
 - digest-2026-10-31-jai-sportsdunia-e-fatura-139 — Jai 31/10: SportsDunia, estilo das mensagens e fatura dos 139 (2026-10-31)
 - digest-2026-10-31-conta-vansh — Conta do Vansh — compra no Continente 31/10 (2026-10-31)

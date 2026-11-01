@@ -14,6 +14,7 @@ import '../../../auth/auth_store.dart';
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../models/driver_model.dart';
+import '../../../utils/mensagem_online_recusado.dart';
 import '../../../services/driver_location_ping_service.dart';
 import '../../../services/heartbeat_service.dart';
 import '../../../services/bateria_por_marca.dart';
@@ -37,6 +38,7 @@ import '../../../widgets/estafeta_documentos_em_falta.dart';
 import '../../../widgets/tvde_conformidade_em_falta.dart';
 import '../../driver_home_screen.dart';
 import '../../ganhos_screen.dart';
+import '../../prestador/conta_suspensa_screen.dart';
 import '../../../widgets/trocar_de_papel.dart';
 import '../../../services/ficha_legal_service.dart';
 import '../../../services/tvde_conformidade_service.dart';
@@ -143,6 +145,10 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
       // o gate em build() reage via context.watch<AuthStore>()).
       await context.read<AuthStore>().refreshApprovalStatus();
       if (!mounted) return;
+      // [01/11/2026 · B8] Conta suspensa/banida/removida: este ecrã não o
+      // verificava. Mostra "A minha conta" (motivo + Pedir revisão) e termina
+      // a sessão ao sair — igual ao DriverHomeScreen.
+      unawaited(verificarContaDoMotorista(context));
       await context.read<TvdeDriverStore>().start();
       if (!mounted) return;
       // Dual-driver: espelha o work_mode carregado no modelo local do delivery
@@ -557,10 +563,10 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
       }
       // [Conformidade TVDE · Lei 59/2026] Pré-verificação no servidor. Com os
       // interruptores desligados devolve sempre ok=true (e em erro de rede
-      // também): só pára aqui quando o SERVIDOR diz que não. O
-      // toggleAvailability do DriverStore grava em segundo plano e engole o
-      // erro do gatilho — por isso pergunta-se antes, para não haver
-      // "verdinho" local com o servidor a recusar.
+      // também): só pára aqui quando o SERVIDOR diz que não. Desde 01/11 o
+      // alternarOnline do DriverStore também confirma no servidor antes de
+      // ficar verde; esta pré-verificação fica porque dá os motivos TVDE um
+      // a um (diálogo de impedimentos).
       final pode = await TvdeConformidadeService.instance.podeFicarOnline();
       if (!mounted) return;
       if (pode['ok'] == false) {
@@ -575,12 +581,26 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
       }
     }
     if (!mounted) return;
-    final ok = driverStore.toggleAvailability(id, value);
-    if (!ok) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Conclui a corrida atual antes de ficar offline.'
-                .rk(context.tvdeDriverKind))));
+    // [B4 · 01/11/2026] Ao ligar, o servidor decide ANTES de o botão mudar
+    // (`prestador_pode_ficar_online` + gatilho `trg_online_so_aprovado`):
+    // recusado = frase única, fica offline, sem batimento nem GPS.
+    final r = await driverStore.alternarOnline(id, value);
+    if (!mounted) return;
+    if (!r.ok) {
+      if (r.codigo == CodigoOnline.emCurso) return;
+      if (r.codigo == CodigoOnline.tvdeBloqueado && r.motivos.isNotEmpty) {
+        await _avisarImpedimentos(r.motivos);
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          duration: const Duration(seconds: 6),
+          content: Text(r.codigo == CodigoOnline.pedidosAtivos
+              ? 'Conclui a corrida atual antes de ficar offline.'
+                  .rk(context.tvdeDriverKind)
+              : (r.mensagem ?? mensagemOnlineRecusado(r.codigo)))));
+      // A cache dizia "aprovado" e o servidor não: relê para o portão certo.
+      if (r.recusaDaConta) {
+        unawaited(context.read<AuthStore>().refreshApprovalStatus());
       }
       return;
     }
@@ -588,7 +608,7 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
       // [A] 2026-06-30 — gate MÍNIMO partilhado com o estafeta. Antes o TVDE
       // não tinha gate nenhum. Garante a notificação persistente (best-effort)
       // e oferece o overlay no máximo uma vez. NUNCA bloqueia ir online — o
-      // toggleAvailability acima já passou; overlay é só um bónus.
+      // alternarOnline acima já passou; overlay é só um bónus.
       await PermissionGateService.ensureMinimumOnlinePermissions(context);
       if (!mounted) return;
       unawaited(OverlayPermissionGate.maybeOfferOnce(context));
@@ -884,7 +904,9 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     });
 
     final status = context.watch<AuthStore>().currentDriverStatus;
-    if (status != DriverStatus.approved) {
+    // [O4 · 01/11/2026] A mesma regra do ecrã das entregas: sem aprovação,
+    // nenhum botão Online.
+    if (!mostraInterruptorOnline(status)) {
       return _GateScreen(status: status, onLogout: _logout);
     }
 

@@ -330,3 +330,95 @@ class EstadoDocumentosApp {
 
   List<DocumentoEstadoApp> get aCorrigir => itens.where((i) => i.precisaDeNovo).toList();
 }
+
+/// Um aviso de "faltam documentos" que saiu (uma linha do RPC
+/// `admin_documentos_avisos`, tabela `documentos_lembretes_enviados`). Missão
+/// app-fechar 01/11/2026, bloco B7. `quem`: 'robo' (email automático do robô),
+/// 'cron' (lembrete dos dias 1/3/7) ou 'painel' ("Lembrar este").
+class AvisoDocumentosEnviado {
+  const AvisoDocumentosEnviado({
+    required this.id,
+    required this.quem,
+    this.userId,
+    this.nome,
+    this.dia,
+    this.faltas = const [],
+    this.assunto,
+    this.emailPara,
+    this.emailPedido,
+    this.enviadoEm,
+    this.emailEstado,
+  });
+
+  factory AvisoDocumentosEnviado.fromMap(Map<String, dynamic> m) {
+    int? inteiro(Object? v) => v is num ? v.toInt() : int.tryParse('${v ?? ''}');
+    String? texto(Object? v) {
+      final s = v?.toString().trim();
+      return (s == null || s.isEmpty) ? null : s;
+    }
+
+    final f = m['faltas'];
+    return AvisoDocumentosEnviado(
+      id: inteiro(m['id']) ?? 0,
+      quem: texto(m['quem']) ?? 'robo',
+      userId: texto(m['user_id']),
+      nome: texto(m['nome']),
+      dia: inteiro(m['dia']),
+      faltas: f is List ? f.map((e) => '$e').where((e) => e.trim().isNotEmpty).toList() : const [],
+      assunto: texto(m['assunto']),
+      emailPara: texto(m['email_para']),
+      emailPedido: inteiro(m['email_pedido']),
+      enviadoEm: DateTime.tryParse('${m['enviado_em'] ?? ''}'),
+      emailEstado: texto(m['email_estado']),
+    );
+  }
+
+  final int id;
+  final String quem;
+  final String? userId;
+  final String? nome;
+  final int? dia;
+  final List<String> faltas;
+  final String? assunto;
+  final String? emailPara;
+  final int? emailPedido;
+  final DateTime? enviadoEm;
+
+  /// Estado do email em `agentes_email` ('enviado', 'falhou'…); null = não
+  /// achado (ou aviso sem email).
+  final String? emailEstado;
+
+  /// Quem mandou, em PT-BR.
+  String get quemRotulo {
+    switch (quem) {
+      case 'robo':
+        return 'Robô (email automático)';
+      case 'cron':
+        return dia != null && dia! > 0 ? 'Lembrete do dia $dia' : 'Lembrete automático';
+      case 'painel':
+        return 'Você (Lembrar este)';
+    }
+    return quem;
+  }
+
+  /// O estado do email, em PT-BR.
+  String get estadoRotulo {
+    if (emailPara == null && emailEstado == null) return 'sem email (só aviso na app)';
+    switch (emailEstado) {
+      case 'enviado':
+        return 'email enviado';
+      case 'falhou':
+        return 'email FALHOU';
+      case null:
+        return 'email por confirmar';
+    }
+    return 'email: $emailEstado';
+  }
+
+  bool get falhou => emailEstado == 'falhou';
+}
+
+/// Lê a lista devolvida por `admin_documentos_avisos` (jsonb array).
+List<AvisoDocumentosEnviado> avisosDocumentosDaResposta(Object? r) => r is List
+    ? r.whereType<Map>().map((e) => AvisoDocumentosEnviado.fromMap(Map<String, dynamic>.from(e))).toList()
+    : const [];

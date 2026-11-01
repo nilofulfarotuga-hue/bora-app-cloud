@@ -237,3 +237,32 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   `BINDS_FECHADOS` e `DIPSY_PORTEIRO` (nenhum valor secreto em nenhum ficheiro). Registado no e2e_log (B1, B3).
 - **01/11/2026, mesma missão** — o Telegram Web não tem sessão em nenhum dos dois perfis do Chrome (pede QR); não se fez
   login. O grupo "Bora Bastidores" foi criado pela aplicação Telegram do PC (que tem a sessão do Danilo). Registado (B6).
+- **01/11/2026, missão `app-fechar-2026-11-01`, B6/B5** — aplicar em produção (CLI `supabase db query --linked -f`)
+  a migração da auditoria das "Aprendidas" do assistente (gatilho `trg_assistant_learned_audita` → `admin_audit_log`,
+  sem `TRUNCATE` para `authenticated`) e da guarda de `cleaning_series_next_at` (só cliente/profissional da série
+  ou admin; `anon` sem execução) recusado pelo classificador do modo automático: "Modify Shared Resources". As
+  migrações C1/C3, B5 (leitura de `cleaning_recurrence_stops`) e P2 (texto do aviso de peso) da mesma sessão tinham
+  passado pelo mesmo caminho. Não se contornou nem se tentou por outra ferramenta. O SQL exato ficou em
+  `supabase/migrations/PROPOSTA_20261101_assistente_aprendidas_auditoria_e_serie_proxima_guarda.sql`. Não está
+  aplicado. Risco de não aplicar: baixo (ligar/desligar uma Aprendida não fica auditado; a próxima data de uma
+  série é legível por qualquer conta com o id da série). Registado no e2e_log.
+- **01/11/2026, missão `app-fechar-2026-11-01`, B4 (estafeta não aprovado)** — o agente executor tentou editar
+  `lib/stores/order_store.dart` (para `OrderStore.toggleDriverAvailability` devolver o motivo da recusa) e a
+  bora-tranca recusou: o ficheiro é zona vermelha por conter o `finalizePurchase`. Não se contornou: o
+  `OrderStore` ficou igual (continua a devolver `bool`) e a porta do online passou para o `DriverStore`
+  (`alternarOnline` → `OnlineResultado`), que os ecrãs do estafeta e do TVDE chamam diretamente. Registado no e2e_log.
+- **01/11/2026, missão `app-fechar-2026-11-01`, B8** — aplicar em produção a correção de `admin_set_user_role`
+  (desligar limpeza/lavagem passa a levar o motivo, mínimo 10 letras, para o gatilho `trg_suspensao_so_com_humano`)
+  e o gatilho `trg_suspensao_fecha_ao_reativar` (reativar por botões antigos fecha o registo em
+  `prestador_suspensoes`) recusado pelo classificador do modo automático: "Modify Shared Resources". Não se
+  contornou. SQL exato em `supabase/migrations/PROPOSTA_20261101_suspensao_motivo_papel_e_fecho_ao_reativar.sql`.
+  EFEITO ATÉ SER APLICADO: no painel, "Papéis da pessoa" → desligar limpeza ou lavagem é recusado pelo servidor
+  (SUSPENSAO_SEM_MOTIVO); usar "Suspender com motivo" na ficha (admin_suspender_prestador), que funciona.
+- **01/11/2026, missão `app-fechar-2026-11-01`, B8 (revisão independente)** — aplicar a correção de
+  `prestador_suspensoes_manutencao` (a suspensão temporária de um estafeta passa a levantar `drivers.is_banned`
+  quando a data acaba) e de `admin_suspender_prestador` (a guarda "pedido em curso" procura também o `user_id`)
+  recusado pelo classificador do modo automático: "Modify Shared Resources". Não se contornou. SQL exato (só as
+  duas linhas mudadas sobre a versão no ar) em
+  `supabase/migrations/PROPOSTA_20261101_suspensao_temporaria_estafeta_expira_e_guarda_pedido.sql`.
+  PROTEÇÃO ATÉ SER APLICADO: o painel deixou de oferecer "suspensão temporária" a estafetas (só sem data, reativar
+  em Revisões). ATENÇÃO: qualquer `banned_until` antigo de estafeta também não levanta o `is_banned` (hoje 0 casos).

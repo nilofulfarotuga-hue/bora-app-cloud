@@ -282,6 +282,26 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
   /// dois ecrãs de pagamento (há um await de contacto antes do push).
   bool _aAbrirPagamento = false;
 
+  /// [G4 · 01/11/2026] O cartão "Agendar" — o "Finalizar" rola até ele quando
+  /// falta escolher a hora (antes ficava cinzento sem dizer porquê).
+  final GlobalKey _agendarKey = GlobalKey();
+
+  /// "Finalizar" com o agendamento por escolher: leva o cliente ao cartão e
+  /// diz-lhe o que falta (PADRAO 1.2 — botão nunca mudo).
+  void _mostrarAgendamentoEmFalta() {
+    final alvo = _agendarKey.currentContext;
+    if (alvo != null) {
+      unawaited(Scrollable.ensureVisible(
+        alvo,
+        duration: const Duration(milliseconds: 300),
+        alignment: 0.1,
+      ));
+    }
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text('Escolhe a hora da entrega'.tr)));
+  }
+
   Future<void> _comTravaPagamento(Future<void> Function() accao) async {
     if (_aAbrirPagamento) return;
     setState(() => _aAbrirPagamento = true);
@@ -490,7 +510,10 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                       ),
                     ),
                     // Agendar pedidos (C5, 29/10/2026): só aparece com o interruptor ligado.
-                    const AgendarPedidoNoCarrinho(),
+                    KeyedSubtree(
+                      key: _agendarKey,
+                      child: const AgendarPedidoNoCarrinho(),
+                    ),
                     const SizedBox(height: Spacing.sm),
                     CustomerNoteField(
                       controller: _nota,
@@ -721,10 +744,13 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                   ? 'Pagar com saldo Bora'.tr
                   : 'Finalizar pedido'.tr,
               icon: Icons.shopping_bag_outlined,
-              onPressed: cartStore.items.isEmpty ||
-                      _aAbrirPagamento ||
-                      cartStore.agendamentoEmFalta
+              // [G4 · 01/11/2026] Agendamento por escolher já não deixa o
+              // botão cinzento e mudo: fica ativo, rola até ao cartão
+              // "Agendar" e diz "Escolhe a hora da entrega".
+              onPressed: cartStore.items.isEmpty || _aAbrirPagamento
                   ? null
+                  : cartStore.agendamentoEmFalta
+                  ? _mostrarAgendamentoEmFalta
                   : () => _comTravaPagamento(() async {
                       // BLOCO C.3 (2026-09-05) — porta única de contacto: sem
                       // nome/telemóvel válidos, o cliente é bloqueado aqui

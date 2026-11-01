@@ -20,6 +20,7 @@ import '../../widgets/admin_robo_documentos.dart';
 import '../../widgets/private_bucket_image.dart';
 import 'admin_casa_comum.dart'
     show casaDocumentoEstadoPtBr, casaDocumentoTipoPtBr;
+import 'admin_suspensao_comum.dart';
 
 /// 'cleaner' (limpeza), 'washer' (lavagem) ou 'handyman' (Casa e manutenção,
 /// 31/10/2026 — linha de `casa_profissionais`).
@@ -237,6 +238,25 @@ class _FichaPrestador extends StatelessWidget {
             const SizedBox(height: 12),
             Text('Motivo de recusa: ${l['rejection_reason']}',
                 style: const TextStyle(color: AppColors.error)),
+          ],
+          // [01/11/2026 · B8] Suspensão com registo legal (Diretiva
+          // 2024/2831): motivo escrito, até quando, revisão em 7 dias.
+          if (l['id'] != null &&
+              l['approval_status'] == 'approved' &&
+              l['is_banned'] != true) ...[
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: BotaoSuspenderComMotivo(
+                tabela: _tabelaDe(papel),
+                entidadeId: l['id'].toString(),
+                nome: nome,
+                onFeito: () {
+                  Navigator.of(context).maybePop();
+                  aoMudar?.call();
+                },
+              ),
+            ),
           ],
 
           const DocSeccao('Dados pessoais'),

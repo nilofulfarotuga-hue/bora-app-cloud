@@ -73,6 +73,7 @@ import 'screens/admin/admin_pendencias_operacao_screen.dart';
 import 'screens/admin/admin_web_health_screen.dart';
 import 'screens/admin/admin_motoristas_documentos_screen.dart';
 import 'screens/admin/admin_comprovativo_atividade_screen.dart';
+import 'screens/admin/admin_revisoes_screen.dart';
 import 'screens/admin/admin_robo_documentos_screen.dart';
 import 'screens/admin/admin_conformidade_legal_screen.dart';
 import 'screens/admin/admin_receipts_screen.dart';
@@ -1092,6 +1093,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           '/admin/motoristas-documentos': (_) =>
               const AdminMotoristasDocumentosScreen(),
           '/admin/conformidade': (_) => const AdminConformidadeLegalScreen(),
+          // [01/11/2026 · B8] "Painel > Revisões" dos avisos de revisão pedida.
+          '/admin/revisoes': (_) => const AdminRevisoesScreen(),
           // [20/10/2026] deep link do aviso "Comprovativo de atividade para analisar".
           '/admin/comprovativo-atividade': (_) =>
               const AdminComprovativoAtividadeScreen(),

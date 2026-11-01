@@ -13,6 +13,7 @@ import '../../config/app_spacing.dart';
 import '../../services/legal_fields_service.dart';
 import '../../widgets/bora/bora.dart';
 import '../../widgets/legal_fields_section.dart';
+import '../prestador/como_o_bora_decide_screen.dart';
 import '../shared/comprovativo_atividade_screen.dart';
 
 /// MULTI-PAPEL — candidatura a estafeta/motorista para um utilizador JÁ
@@ -276,7 +277,9 @@ class _DriverRoleApplyScreenState extends State<DriverRoleApplyScreen> {
               onTap: () => _pick(false),
               preview: _selfie,
             ),
-            const SizedBox(height: Spacing.lg),
+            const SizedBox(height: Spacing.md),
+            // [01/11/2026 · B8] Diretiva 2024/2831: como a app decide.
+            const LigacaoComoOBoraDecide(),
             BoraPrimaryButton(
               label: _busy ? 'A enviar…' : 'Enviar candidatura',
               icon: Icons.send,

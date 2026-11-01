@@ -4,7 +4,8 @@
 // Separadores: Visão geral (interruptor + números do RPC
 // admin_assistant_overview) · Conversas (com as mensagens) · Propostas ·
 // Conhecimento (assistant_knowledge) · Lacunas (assistant_gaps) ·
-// Correspondências (product_matches + canonical_products).
+// Correspondências (product_matches + canonical_products) · Aprendidas
+// (assistant_learned, 01/11/2026 — admin_assistente_aprendidas.dart).
 //
 // O interruptor grava por `admin_update_setting('assistant_enabled', bool)`
 // — o mesmo caminho das outras configurações do painel.
@@ -14,6 +15,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import 'admin_assistente_aprendidas.dart';
 
 class AdminAssistenteScreen extends StatelessWidget {
   const AdminAssistenteScreen({super.key});
@@ -21,7 +23,7 @@ class AdminAssistenteScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const DefaultTabController(
-      length: 6,
+      length: 7,
       child: Scaffold(
         backgroundColor: AppColors.background,
         appBar: BoraScreenAppBar(
@@ -38,6 +40,7 @@ class AdminAssistenteScreen extends StatelessWidget {
               Tab(text: 'Conhecimento'),
               Tab(text: 'Lacunas'),
               Tab(text: 'Correspondências'),
+              Tab(text: 'Aprendidas'),
             ],
           ),
         ),
@@ -49,6 +52,7 @@ class AdminAssistenteScreen extends StatelessWidget {
             _ConhecimentoTab(),
             _LacunasTab(),
             _CorrespondenciasTab(),
+            AdminAssistenteAprendidasTab(),
           ],
         ),
       ),

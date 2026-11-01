@@ -125,13 +125,38 @@ class PesoVariavelEstafetaService {
     return negativo ? '-$txt' : txt;
   }
 
+  /// Peso médio previsto de uma peça ao quilo, lido do nome que o gatilho
+  /// `trg_products_zzz_peca_ao_quilo` escreve ("Melancia (~4 kg)" → 4).
+  /// Null quando o nome não o traz (produtos ao quilo à unidade, ex.: banana).
+  static double? pesoMedioDoNome(String nome) {
+    final m = RegExp(r'\(\s*~\s*(\d+(?:[.,]\d+)?)\s*kg\s*\)',
+            caseSensitive: false)
+        .firstMatch(nome);
+    if (m == null) return null;
+    final kg = double.tryParse(m.group(1)!.replaceAll(',', '.'));
+    return (kg == null || kg <= 0) ? null : kg;
+  }
+
+  /// "4" / "2,5" — quilos sem zeros a mais, vírgula decimal.
+  static String kgTexto(double kg) => kg
+      .toStringAsFixed(2)
+      .replaceFirst(RegExp(r'\.?0+$'), '')
+      .replaceAll('.', ',');
+
   static String mensagemErro(String codigo,
-      {int? minimoCents, int? maximoCents}) {
+      {int? minimoCents, int? maximoCents, double? pesoMedioKg}) {
     switch (codigo) {
       case 'fora_do_limite':
         final faixa = (minimoCents != null && maximoCents != null)
             ? ' Aceite: ${euros(minimoCents)} a ${euros(maximoCents)}.'
             : '';
+        // P5 (01/11/2026): numa peça única (melancia ~4 kg) não dá para
+        // "tirar uma peça" — diz-se o peso a procurar. O limite não muda.
+        if (pesoMedioKg != null && pesoMedioKg > 0) {
+          return 'Diferença grande. Escolhe uma peça mais perto de '
+              '${kgTexto(pesoMedioKg)} kg e pesa outra vez, ou marca "Não há".'
+              '$faixa';
+        }
         return 'Diferença grande. Pesa outra vez (tira ou põe uma peça) '
             'ou marca "Não há".$faixa';
       case 'valor_invalido':

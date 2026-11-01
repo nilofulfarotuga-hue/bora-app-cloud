@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/falha_de_acao.dart' show kAcaoTimeout;
+import '../utils/mensagem_online_recusado.dart';
 
 /// Conformidade TVDE (Lei 45/2018 na versão da Lei 59/2026).
 ///
@@ -173,6 +174,14 @@ class TvdeConformidadeService {
 /// Tradução das exceções do servidor para texto que se lê (PT-PT).
 String mensagemErroConformidade(Object e) {
   final s = e.toString();
+  // [B4 · 01/11/2026] Conta por aprovar / recusada / bloqueada / apagada: o
+  // gatilho `trg_online_so_aprovado` levanta estes códigos. A frase é a
+  // mesma do botão Online (uma porta só: mensagemOnlineRecusado).
+  final codigoConta = codigoOnlineNoErro(s);
+  if (codigoConta != null && CodigoOnline.daConta.contains(codigoConta)) {
+    return mensagemOnlineRecusado(codigoConta,
+        mensagemServidor: mensagemDoServidorNoErro(s, codigoConta));
+  }
   if (s.contains('TVDE_BLOQUEADO')) {
     final i = s.indexOf('TVDE_BLOQUEADO:');
     final motivos = i >= 0 ? s.substring(i + 15).split('\n').first.trim() : '';

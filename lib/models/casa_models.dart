@@ -31,6 +31,27 @@ List<Map<String, dynamic>> _lista(dynamic v) => v is List
 String casaEuro(int cents) =>
     '${(cents / 100).toStringAsFixed(2).replaceAll('.', ',')} €';
 
+/// Extensão e tipo MIME de uma foto da Casa, a partir do que a app sabe dela
+/// ('png', 'image/webp', 'JPEG', 'heic'…). Só há três no balde `casa-fotos`:
+/// png, webp e jpg (o HEIC do iPhone sobe convertido em JPEG). C14 da revisão
+/// de 01/11: o caminho leva a extensão real, não sempre `.jpg`.
+({String ext, String mime}) casaExtensaoFoto(String extensaoOuMime) {
+  final e = extensaoOuMime.trim().toLowerCase();
+  if (e == 'png' || e == 'image/png' || e.endsWith('.png')) {
+    return (ext: 'png', mime: 'image/png');
+  }
+  if (e == 'webp' || e == 'image/webp' || e.endsWith('.webp')) {
+    return (ext: 'webp', mime: 'image/webp');
+  }
+  return (ext: 'jpg', mime: 'image/jpeg');
+}
+
+/// `<uid>/<pedido_id>/problema_<ms>.<ext>` — foto do problema enviada pelo
+/// cliente (o servidor só exige o prefixo `<uid>/<pedido_id>/`).
+String casaCaminhoFotoProblema(
+        String uid, String pedidoId, String extensao, int ms) =>
+    '$uid/$pedidoId/problema_$ms.${casaExtensaoFoto(extensao).ext}';
+
 /// Estado do pedido (espelha o CHECK de casa_pedidos.estado).
 enum CasaEstado {
   aguardaPagamento,

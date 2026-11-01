@@ -352,6 +352,147 @@ class _Parcela extends StatelessWidget {
   }
 }
 
+/// Nome da outra app como aparece no ecrã ("outra app" também se traduz).
+String _nomeApp(AssistantComparacao c) =>
+    c.app == 'outra app' ? 'outra app'.tr : c.app;
+
+/// A frase do cartão de comparação, numa linha: "Na Glovo deu 25,40 €; no
+/// Bora, Continente Guarda dá 21,10 € — mais barato 4,30 €." Só junta os
+/// números que o servidor mandou (`comparacao`); não faz contas.
+String textoComparacao(AssistantComparacao c) {
+  final args = <Object?>[
+    _nomeApp(c),
+    _eurCents(c.totalOutraAppCents),
+    _eurCents(c.totalBoraCents),
+    c.lojaBora,
+    _eurCents(c.diferencaCents.abs()),
+  ];
+  if (c.igual) {
+    return 'Na {0} deu {1}; no Bora, {3} dá {2} — fica igual.'.trArgs(args);
+  }
+  if (c.boraMaisBarato) {
+    return 'Na {0} deu {1}; no Bora, {3} dá {2} — mais barato {4}.'
+        .trArgs(args);
+  }
+  return 'Na {0} deu {1}; no Bora, {3} dá {2} — desta vez a {0} fica {4} mais barata.'
+      .trArgs(args);
+}
+
+/// Cartão "Comparação com a Glovo/Uber": o total que estava no print da outra
+/// app ao lado do total mais barato do Bora (entrega e taxas incluídas).
+/// Missão app-fechar 01/11/2026 (servidor `client-assistant` v10).
+class AssistantComparacaoCard extends StatelessWidget {
+  const AssistantComparacaoCard({super.key, required this.comparacao});
+
+  final AssistantComparacao comparacao;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = comparacao;
+    final app = _nomeApp(c);
+    final ganha = c.boraMaisBarato && !c.igual;
+    final cor = ganha ? AppColors.primaryDark : AppColors.textSecondary;
+    return Container(
+      key: const Key('assistente-comparacao'),
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: ganha ? AppColors.primaryWash : AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+            color: ganha ? AppColors.primaryLight : AppColors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.compare_arrows, color: cor),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Comparação com a {0}'.trArgs([app]),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            textoComparacao(c),
+            key: const Key('assistente-comparacao-frase'),
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: cor,
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _LinhaComparacao(
+            rotulo: 'Total na {0} (do print)'.trArgs([app]),
+            cents: c.totalOutraAppCents,
+          ),
+          _LinhaComparacao(
+            rotulo: 'Total no Bora · {0}'.trArgs([c.lojaBora]),
+            cents: c.totalBoraCents,
+          ),
+          if (c.emFalta.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                '{0} não tem: {1}'
+                    .trArgs([c.lojaBora, c.emFalta.take(5).join(', ')]),
+                style: const TextStyle(fontSize: 13, color: AppColors.error),
+              ),
+            ),
+          const SizedBox(height: 6),
+          Text(
+            'No Bora já conta a entrega e as taxas; o total da {0} é o que estava escrito no print.'
+                .trArgs([app]),
+            style: const TextStyle(fontSize: 12, color: AppColors.textSubtle),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Linha "rótulo ........ valor" que aguenta nomes de loja compridos.
+class _LinhaComparacao extends StatelessWidget {
+  const _LinhaComparacao({required this.rotulo, required this.cents});
+  final String rotulo;
+  final int cents;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(rotulo,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    fontSize: 13, color: AppColors.textSecondary)),
+          ),
+          const SizedBox(width: 8),
+          Text(_eurCents(cents),
+              style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary)),
+        ],
+      ),
+    );
+  }
+}
+
 /// Cartão "Dividir em 2 lojas".
 class AssistantDivisaoCard extends StatelessWidget {
   const AssistantDivisaoCard({

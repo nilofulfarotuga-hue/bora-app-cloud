@@ -91,9 +91,13 @@ A resposta estruturada fica em `assistant_chat_messages.structured` para redesen
 - **Prefácio**: texto que o modelo escreve no mesmo turno em que só chama ferramentas leves
   (`suggest_action`, `remember`, `forget`, `learn_lesson`, `report_gap`) junta-se à resposta final
   (v9: antes perdia-se a 1.ª frase de "onde está o meu pedido").
-- **App (por fazer no Flutter)**: seletor de várias fotos (`SafeImagePicker.pickMultiImage`, mandar
-  `images[]`), cartão `comparacao` no chat, cartão `lista_extraida` já existe; painel admin
-  `/admin/assistente` ganha separador "Aprendidas" (ler/desligar `assistant_learned`, RLS `is_admin()`).
+- **App (feito 01/11/2026, missão app-fechar B6)**: galeria escolhe até 4 fotos
+  (`SafeImagePicker.pickMultiImage`, `kAssistantMaxFotos`); `montarCorpoAssistente` manda 1 foto por
+  `image_base64` e 2+ por `images[]` (tipo pelos bytes, `mimeDaImagem`); cartão
+  `AssistantComparacaoCard` ("Na Glovo deu X; no Bora, <loja> dá Y — mais barato Z"); painel
+  `/admin/assistente` separador "Aprendidas" (`admin_assistente_aprendidas.dart`: lista e liga/desliga
+  `assistant_learned` direto pela RLS `is_admin()`). Testes: `test/assistente_fotos_comparacao_test.dart`,
+  `test/admin_assistente_aprendidas_test.dart`.
 
 ## Armadilhas já vistas (07/10/2026)
 - O conector "claude ai Supabase" (apply_migration/execute_sql) prendeu 3× nesse dia: SQL vai pela

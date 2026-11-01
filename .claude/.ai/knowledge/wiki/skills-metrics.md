@@ -97,3 +97,4 @@ confianca: auto
 | protocolo-missao-bora | 2026-10-31 | fecho-pendentes-2026-10-31 | relatorio fecho-pendentes-2026-10-31.md, digest, prompt no Obsidian | ok |
 | dedupe-market-products | 2026-11-01 | catalogo-2026-11-01 (Fable 5.1, SQL por MCP) | Continente 2975 escondidos (2760 pares cnt/cont + nome), Intermarché 87, Lidl 67, Pingo Doce 17, Auchan 2, Mercadona 875; 0 repetidos nas lojas vivas; trigger trg_products_catalogo_guard | ok |
 | category-mapper-v2 | 2026-11-01 | catalogo-2026-11-01 (dry-run) | classificador não fiável (choco→Peixaria, fruta→gomas, bebida vegetal→Bebidas): não aplicado; secções corrigidas por regras curadas em SQL + mapa no gatilho fn_products_set_category_root | falha |
+| identidade-estafeta | 2026-11-01 | app-fechar-2026-11-01 (B4 online só aprovado) | verificar.py lib: 830 ficheiros OK; DriverStore grava is_online por user_id com .select(is_online).maybeSingle() | ok |

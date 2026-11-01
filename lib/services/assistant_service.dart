@@ -265,6 +265,145 @@ class AssistantFavorPreco {
       );
 }
 
+/// Comparação com o carrinho de outra app (Glovo, Uber Eats…), lida de um
+/// print. Missão app-fechar 01/11/2026. Todos os números vêm do servidor
+/// (`client-assistant` v10, `montarComparacao`): a diferença é calculada lá,
+/// em código, nunca aqui nem pelo modelo.
+class AssistantComparacao {
+  const AssistantComparacao({
+    required this.app,
+    required this.totalOutraAppCents,
+    required this.totalBoraCents,
+    required this.lojaBora,
+    required this.restaurantId,
+    required this.coberturaPct,
+    required this.emFalta,
+    required this.diferencaCents,
+    required this.boraMaisBarato,
+    required this.nota,
+  });
+
+  /// Nome da outra app ("Glovo", "Uber Eats") ou "outra app".
+  final String app;
+
+  /// Total que estava escrito no print da outra app.
+  final int totalOutraAppCents;
+
+  /// Total da loja mais barata do Bora, com entrega e taxas incluídas.
+  final int totalBoraCents;
+  final String lojaBora;
+  final String? restaurantId;
+  final double coberturaPct;
+
+  /// Artigos que a loja do Bora não tem.
+  final List<String> emFalta;
+
+  /// total da outra app − total do Bora (positivo = o Bora é mais barato).
+  final int diferencaCents;
+  final bool boraMaisBarato;
+  final String? nota;
+
+  /// Igual nos dois lados (diferença zero).
+  bool get igual => diferencaCents == 0;
+
+  factory AssistantComparacao.fromJson(Map<String, dynamic> j) {
+    final falta = j['em_falta'];
+    final app = _str(j['app']).trim();
+    return AssistantComparacao(
+      app: app.isEmpty ? 'outra app' : app,
+      totalOutraAppCents: _int(j['total_outra_app_cents']),
+      totalBoraCents: _int(j['total_bora_cents']),
+      lojaBora: _str(j['loja_bora']),
+      restaurantId: j['restaurant_id']?.toString(),
+      coberturaPct: _num(j['cobertura_pct'], 100),
+      emFalta: falta is List
+          ? falta
+              .where((e) => e != null && e.toString().trim().isNotEmpty)
+              .map((e) => e.toString())
+              .toList(growable: false)
+          : const [],
+      diferencaCents: _int(j['diferenca_cents']),
+      boraMaisBarato: _bool(j['bora_mais_barato']),
+      nota: j['nota']?.toString(),
+    );
+  }
+}
+
+/// Uma foto a mandar ao assistente (já reduzida e em base64).
+class AssistantFotoEnvio {
+  const AssistantFotoEnvio({required this.base64, this.mime = 'image/jpeg'});
+  final String base64;
+  final String mime;
+}
+
+/// Tipo da imagem pelos primeiros bytes. O Claude recusa uma foto PNG
+/// anunciada como JPEG, e na web (ou com fotos pequenas) a app manda os bytes
+/// tal como vieram do seletor.
+String mimeDaImagem(List<int> b) {
+  bool comeca(List<int> assinatura, [int desde = 0]) {
+    if (b.length < desde + assinatura.length) return false;
+    for (var i = 0; i < assinatura.length; i++) {
+      if (b[desde + i] != assinatura[i]) return false;
+    }
+    return true;
+  }
+
+  if (comeca(const [0x89, 0x50, 0x4E, 0x47])) return 'image/png';
+  if (comeca(const [0x47, 0x49, 0x46, 0x38])) return 'image/gif';
+  if (comeca(const [0x52, 0x49, 0x46, 0x46]) &&
+      comeca(const [0x57, 0x45, 0x42, 0x50], 8)) {
+    return 'image/webp';
+  }
+  return 'image/jpeg';
+}
+
+/// Máximo de fotos por mensagem na app (o servidor aceita até 6, com 16 M de
+/// caracteres no total; 4 fotos de ~1,2 MB ficam bem abaixo disso).
+const int kAssistantMaxFotos = 4;
+
+/// Corpo do pedido à Edge Function `client-assistant` (função pura, testada
+/// sem rede).
+///
+/// Uma foto vai pelos campos antigos `image_base64`/`image_mime` (funciona com
+/// qualquer versão do servidor). Duas ou mais vão em `images: [{base64, mime}]`
+/// (servidor v8+), e os campos antigos ficam vazios para a mesma foto não ser
+/// lida duas vezes. Nunca manda mais de [kAssistantMaxFotos].
+Map<String, dynamic> montarCorpoAssistente({
+  required String? conversationId,
+  String? message,
+  String? imageBase64,
+  String? imageMime,
+  List<AssistantFotoEnvio> imagens = const [],
+  required String platform,
+  double? dropoffLat,
+  double? dropoffLng,
+  bool apartmentDelivery = false,
+}) {
+  final todas = <AssistantFotoEnvio>[
+    if (imageBase64 != null && imageBase64.isNotEmpty)
+      AssistantFotoEnvio(base64: imageBase64, mime: imageMime ?? 'image/jpeg'),
+    ...imagens.where((f) => f.base64.isNotEmpty),
+  ];
+  final fotos = todas.length > kAssistantMaxFotos
+      ? todas.sublist(0, kAssistantMaxFotos)
+      : todas;
+  final uma = fotos.length == 1 ? fotos.first : null;
+  return {
+    'conversation_id': conversationId,
+    'message': message,
+    'image_base64': uma?.base64,
+    'image_mime': uma?.mime,
+    if (fotos.length > 1)
+      'images': [
+        for (final f in fotos) {'base64': f.base64, 'mime': f.mime},
+      ],
+    'platform': platform,
+    'dropoff_lat': dropoffLat,
+    'dropoff_lng': dropoffLng,
+    'apartment_delivery': apartmentDelivery,
+  };
+}
+
 /// Chip de acção que o assistente sugere.
 class AssistantAcao {
   const AssistantAcao({required this.tipo, required this.rotulo, this.destino});
@@ -295,6 +434,7 @@ class AssistantReply {
     required this.ticketId,
     required this.messagesRemainingToday,
     required this.poupancaAcumuladaCents,
+    this.comparacao,
   });
 
   final String? conversationId;
@@ -310,18 +450,26 @@ class AssistantReply {
   final int? messagesRemainingToday;
   final int poupancaAcumuladaCents;
 
+  /// Comparação com o carrinho de outra app (null quando não houve print).
+  final AssistantComparacao? comparacao;
+
   bool get temCartoes =>
       propostas.isNotEmpty ||
       divisao != null ||
       favores.isNotEmpty ||
       (listaExtraida?.isNotEmpty ?? false) ||
-      acoes.isNotEmpty;
+      acoes.isNotEmpty ||
+      comparacao != null;
 
   factory AssistantReply.fromJson(Map<String, dynamic> j) {
     final div = j['divisao'];
     final fp = j['favor_preco'];
     final le = j['lista_extraida'];
+    final cmp = j['comparacao'];
     return AssistantReply(
+      comparacao: cmp is Map
+          ? AssistantComparacao.fromJson(Map<String, dynamic>.from(cmp))
+          : null,
       conversationId: j['conversation_id']?.toString(),
       texto: _str(j['texto']),
       propostas: _lista(j['propostas']).map(AssistantProposal.fromJson).toList(),
@@ -399,12 +547,15 @@ class AssistantService {
     return defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android';
   }
 
-  /// Envia uma mensagem (texto e/ou foto) e devolve a resposta estruturada.
+  /// Envia uma mensagem (texto e/ou uma ou várias fotos) e devolve a resposta
+  /// estruturada. [imageBase64] continua a servir para uma foto só; [imagens]
+  /// leva várias (até [kAssistantMaxFotos]) — ver [montarCorpoAssistente].
   static Future<AssistantReply> enviar({
     required String? conversationId,
     String? message,
     String? imageBase64,
     String? imageMime,
+    List<AssistantFotoEnvio> imagens = const [],
     double? dropoffLat,
     double? dropoffLng,
     bool apartmentDelivery = false,
@@ -412,16 +563,17 @@ class AssistantService {
     try {
       final res = await _c.functions.invoke(
         'client-assistant',
-        body: {
-          'conversation_id': conversationId,
-          'message': message,
-          'image_base64': imageBase64,
-          'image_mime': imageMime,
-          'platform': plataforma,
-          'dropoff_lat': dropoffLat,
-          'dropoff_lng': dropoffLng,
-          'apartment_delivery': apartmentDelivery,
-        },
+        body: montarCorpoAssistente(
+          conversationId: conversationId,
+          message: message,
+          imageBase64: imageBase64,
+          imageMime: imageMime,
+          imagens: imagens,
+          platform: plataforma,
+          dropoffLat: dropoffLat,
+          dropoffLng: dropoffLng,
+          apartmentDelivery: apartmentDelivery,
+        ),
       );
       final data = res.data;
       if (data is! Map) {

@@ -81,7 +81,7 @@ class _AdminCasaResumoTabState extends State<AdminCasaResumoTab> {
                   ),
                   title: Text(
                     ligado
-                        ? 'Casa LIGADA — os clientes veem o ladrilho'
+                        ? 'Casa LIGADA — os clientes veem o atalho'
                         : 'Casa DESLIGADA — só os testadores veem',
                     style: const TextStyle(fontWeight: FontWeight.w800),
                   ),

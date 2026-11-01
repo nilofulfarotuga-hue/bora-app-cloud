@@ -4,10 +4,10 @@ description: Regra fixa da identidade do estafeta (e dos outros papéis) — use
 metadata:
   type: guardrail
   zona: verde
-  execucoes: 1
-  sucessos: 1
+  execucoes: 2
+  sucessos: 2
   falhas: 0
-  ultima_execucao: 2026-09-16
+  ultima_execucao: 2026-11-01
 ---
 
 # identidade-estafeta — `user_id` manda; `drivers.id` só para `tried_driver_ids`

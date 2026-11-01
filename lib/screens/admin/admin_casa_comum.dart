@@ -517,7 +517,7 @@ const Map<String, String> kCasaErrosPtBr = {
   'atividade_por_aprovar':
       'Falta aprovar o comprovativo de atividade (Finanças) desta pessoa.',
   'conformidade_incompleta':
-      'Faltam dados legais (nome, NIF, morada, IBAN, nascimento) para ativar.',
+      'Faltam dados legais (nome, NIF, endereço, IBAN, nascimento) para ativar.',
   'profissional_ocupado': 'O profissional já tem trabalho nesse horário.',
   'profissional_sem_oficio':
       'O profissional não está aprovado (ou ativo) neste ofício.',
@@ -526,6 +526,8 @@ const Map<String, String> kCasaErrosPtBr = {
   'chave_invalida': 'Essa configuração não existe na Casa.',
   'valor_invalido': 'Valor inválido para esta configuração.',
   'acao_invalida': 'Ação inválida.',
+  // 01/11 (revisão C16): o único código das admin_casa_* que faltava aqui.
+  'oficio_invalido': 'Esse ofício não existe (ou está desativado) na Casa.',
 };
 
 String casaErroPtBr(Object e) {

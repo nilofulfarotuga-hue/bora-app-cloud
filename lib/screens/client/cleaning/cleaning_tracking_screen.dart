@@ -10,6 +10,7 @@ import '../../../stores/cleaning_store.dart';
 import '../../../utils/hora_lisboa.dart';
 import '../../../widgets/bora/bora.dart';
 import '../../../widgets/cleaning_chat_button.dart';
+import '../../../widgets/selo_serie_limpeza.dart';
 import '../../../widgets/ver_nas_minhas_reservas.dart';
 import 'cleaning_payment_flow.dart';
 
@@ -81,6 +82,7 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
       if (!mounted) return;
       final store = context.read<CleaningStore>();
       store.trackBooking(widget.booking);
+      _carregarSerie();
       final free = await store.getSettingInt('cleaning_cancel_free_hours', 24);
       final half = await store.getSettingInt('cleaning_cancel_half_hours', 2);
       final graca =
@@ -106,6 +108,18 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
   // store diretamente e rebuilda quando o realtime substitui a reserva.
   CleaningBooking get _booking =>
       context.read<CleaningStore>().tracked ?? widget.booking;
+
+  /// S1 (01/11/2026): estado da série (parada? próxima data?). Só nas
+  /// marcações recorrentes; o resultado fica no store e o build observa-o.
+  Future<void> _carregarSerie() async {
+    final gid = _booking.recurrenceGroupId;
+    if (!_booking.isRecurring || gid == null) return;
+    final store = context.read<CleaningStore>();
+    // A "próxima" prefere a irmã já marcada: sem a lista (ecrã aberto de
+    // fora), carrega-a antes.
+    if (store.bookings.isEmpty) await store.loadMyBookings();
+    await store.estadoDaSerie(gid);
+  }
 
   /// Perfil público da profissional atribuída (RPC própria — RLS não expõe
   /// a tabela cleaners a clientes).
@@ -149,25 +163,61 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
   Future<void> _cancelarReserva() async {
     final b = _booking;
     final store = context.read<CleaningStore>();
-    final confirmed = await showDialog<bool>(
+    // S2 (01/11/2026): numa série, cancelar é SÓ esta limpeza — a série
+    // continua (o servidor já não a mata). Para acabar com ela, o segundo
+    // botão leva ao "Parar a série toda".
+    final emSerie = b.isRecurring &&
+        b.recurrenceGroupId != null &&
+        store.serieEmCache(b.recurrenceGroupId!)?.parada != true;
+    final escolha = await showDialog<_EscolhaCancelar>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('Cancelar limpeza?'.tr),
-        content: Text(_cancelFeePreview(b)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (emSerie) ...[
+              Text(
+                'Cancelas só esta limpeza. A série continua na próxima data.'
+                    .tr,
+                key: const Key('limpeza_cancelar_so_esta'),
+                style: const TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: Spacing.sm),
+            ],
+            Text(_cancelFeePreview(b)),
+          ],
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () => Navigator.pop(ctx, _EscolhaCancelar.manter),
             child: Text('Manter'.tr),
           ),
+          if (emSerie)
+            TextButton(
+              key: const Key('limpeza_cancelar_parar_serie'),
+              onPressed: () => Navigator.pop(ctx, _EscolhaCancelar.serie),
+              child: Text('Parar a série toda'.tr,
+                  style: const TextStyle(color: AppColors.error)),
+            ),
           TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
+            onPressed: () => Navigator.pop(ctx, _EscolhaCancelar.esta),
             child: Text('Cancelar limpeza'.tr,
                 style: const TextStyle(color: AppColors.error)),
           ),
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (!mounted) return;
+    if (escolha == _EscolhaCancelar.serie) {
+      // Já dentro da trava do _cancel: chama o fluxo direto (o _cancelSeries
+      // voltaria para trás por a trava estar fechada).
+      await _pararSerie();
+      return;
+    }
+    if (escolha != _EscolhaCancelar.esta) return;
     try {
       await store.cancelBooking(b.id);
       // Liberta a retenção do cartão / estorna MB Way (no-op sem PI).
@@ -179,6 +229,8 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Limpeza cancelada.'.tr)),
       );
+      // A série continua: volta a ler a próxima data.
+      _carregarSerie();
     } catch (_) {
       if (!mounted) return;
       // Nunca deixar o botão "mudo" (2026-08-16): ressincroniza com o
@@ -235,8 +287,12 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('Parar a recorrência?'.tr),
+        // Texto igual ao que o cancel_cleaning_series faz (01/11/2026): o
+        // anterior dizia "a limpeza atual mantém-se", mas a atual também é
+        // cancelada quando faltam mais de 24 h.
         content: Text(
-            'As próximas limpezas desta série deixam de ser agendadas. A limpeza atual mantém-se.'.tr),
+            'Não se marcam mais limpezas desta série. As já marcadas para daqui a mais de 24 h são canceladas; as das próximas 24 h mantêm-se.'
+                .tr),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -253,6 +309,8 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
     if (confirmed != true || !mounted) return;
     try {
       await store.cancelSeries(groupId);
+      // Esta limpeza pode ter sido cancelada pelo servidor (mais de 24 h).
+      await store.refreshTracked();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Recorrência cancelada.'.tr)),
@@ -362,6 +420,10 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
   Widget build(BuildContext context) {
     final store = context.watch<CleaningStore>();
     final b = store.tracked ?? widget.booking;
+    final emSerie = b.isRecurring && b.recurrenceGroupId != null;
+    final serie = emSerie
+        ? (store.serieEmCache(b.recurrenceGroupId!) ?? SerieEstado.desconhecido)
+        : SerieEstado.desconhecido;
     // Recarrega o perfil quando a profissional é atribuída via realtime.
     if (b.cleanerId != null && _cleanerProfile == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -423,6 +485,25 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
             ],
             _DetailsCard(booking: b),
             const SizedBox(height: Spacing.lg),
+            // S1 (01/11/2026): "Semanal · próxima: 08/11 10:00" ou "Série
+            // parada" (cleaning_recurrence_stops / cleaning_series_next_at).
+            if (emSerie) ...[
+              Align(
+                alignment: Alignment.centerLeft,
+                child: SeloLimpeza(
+                  serie.parada
+                      ? 'Série parada'.tr
+                      : linhaSerieLimpeza(
+                          b,
+                          b.proximaDaSerie(store.bookings, serie.proxima,
+                              agora: DateTime.now())),
+                  key: const Key('limpeza_serie_linha'),
+                  icone: serie.parada ? Icons.event_busy : Icons.repeat,
+                  apagado: serie.parada,
+                ),
+              ),
+              const SizedBox(height: Spacing.lg),
+            ],
             if (b.status == CleaningStatus.done) ...[
               BoraPrimaryButton(
                 label: 'Confirmar limpeza concluída'.tr,
@@ -455,10 +536,13 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
                     style: const TextStyle(color: AppColors.error)),
               ),
             ],
-            if (b.isRecurring && b.status.isActive)
+            // S1: a série continua mesmo com esta limpeza cancelada ou feita —
+            // o botão fica enquanto a série não estiver parada.
+            if (emSerie && !serie.parada)
               TextButton(
+                key: const Key('limpeza_parar_serie'),
                 onPressed: _acaoEmCurso ? null : _cancelSeries,
-                child: Text('Parar recorrência ({0})'.trArgs([b.recurrenceLabel]),
+                child: Text('Parar a série toda'.tr,
                     style: const TextStyle(color: AppColors.textSecondary)),
               ),
           ],
@@ -469,6 +553,10 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
 }
 
 // ─── widgets internos ────────────────────────────────────────────────────────
+
+/// Resposta do diálogo "Cancelar limpeza?" (S2): manter, cancelar só esta,
+/// ou parar a série toda.
+enum _EscolhaCancelar { manter, esta, serie }
 
 class _StatusTimeline extends StatelessWidget {
   const _StatusTimeline({required this.status});

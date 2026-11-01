@@ -130,6 +130,9 @@ class _CasaPedidoScreenState extends State<CasaPedidoScreen>
     final config = _store.config;
     var metodo =
         casaMetodoPorDefeito(totalCents: o.precoCents, config: config);
+    // Regra 1.2: o botão nunca fica mudo — sem método possível, o toque diz
+    // porquê (hoje: dinheiro acima do limite e cartão/MB Way por ligar).
+    String? aviso;
     final escolhido = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
@@ -160,16 +163,35 @@ class _CasaPedidoScreenState extends State<CasaPedidoScreen>
                 totalCents: o.precoCents,
                 config: config,
                 metodo: metodo,
-                onEscolher: (m) => setSheet(() => metodo = m),
+                onEscolher: (m) => setSheet(() {
+                  metodo = m;
+                  aviso = null;
+                }),
               ),
               const SizedBox(height: Spacing.md),
               const CheckoutLegalNotice(kind: CheckoutLegalKind.servico),
               const SizedBox(height: Spacing.sm),
+              if (aviso != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: Spacing.sm),
+                  child: Text(
+                    aviso!,
+                    key: const Key('casa_aceitar_orcamento_aviso'),
+                    style: const TextStyle(
+                        color: AppColors.error, fontWeight: FontWeight.w600),
+                  ),
+                ),
               BoraPrimaryButton(
+                key: const Key('casa_aceitar_orcamento_confirmar'),
                 label: 'Aceitar com obrigação de pagar'.tr,
-                onPressed: metodo == null
-                    ? null
-                    : () => Navigator.pop(ctx, metodo),
+                onPressed: () {
+                  final m = metodo;
+                  if (m == null) {
+                    setSheet(() => aviso = casaExplicacaoDinheiro(config));
+                    return;
+                  }
+                  Navigator.pop(ctx, m);
+                },
               ),
               TextButton(
                 onPressed: () => Navigator.pop(ctx),

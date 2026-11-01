@@ -32,7 +32,9 @@ import 'support_chat_screen.dart';
 import '../models/falha_de_acao.dart';
 import '../models/chat_message.dart';
 import '../models/driver_model.dart';
+import '../models/online_resultado.dart';
 import '../models/order_model.dart';
+import '../utils/mensagem_online_recusado.dart';
 import '../services/driver_location_ping_service.dart';
 import '../services/navigation_service.dart';
 import '../services/heartbeat_service.dart';
@@ -67,6 +69,7 @@ import 'driver_order_action_helper.dart';
 import '../widgets/bora/maior_18.dart';
 import '../widgets/verificacao_idade_sheet.dart';
 import '../l10n/tr.dart';
+import 'prestador/conta_suspensa_screen.dart';
 import 'profile_screen.dart';
 
 class DriverHomeScreen extends StatefulWidget {
@@ -435,7 +438,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       if (!await _garantirLocalizacaoWeb()) return;
       if (!mounted) return;
       unawaited(_soundService.desbloquearAudioAposToque());
-      final okWeb = orderStore.toggleDriverAvailability(true);
+      // [B4 · 01/11/2026] O servidor decide: conta por aprovar não liga.
+      final okWeb = await _ficarOnlineNoServidor();
       if (!okWeb || !mounted) return;
       _porCimaDoTvde = false;
       unawaited(_heartbeatService.start());
@@ -456,7 +460,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     // o background "o tempo todo" nunca é exigido.
     await PermissionGateService.ensureMinimumOnlinePermissions(context);
     if (!mounted) return;
-    final success = orderStore.toggleDriverAvailability(true);
+    // [B4 · 01/11/2026] Só com o servidor a confirmar: recusado = mensagem,
+    // botão fica offline, sem batimento nem serviço em segundo plano.
+    final success = await _ficarOnlineNoServidor();
     if (!success || !mounted) return;
     // Ficou online AQUI: o fluxo de GPS é deste ecrã (ver _porCimaDoTvde).
     _porCimaDoTvde = false;
@@ -475,6 +481,36 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     // fiabilidade (overlay/ecrã-inteiro/bateria), oferecer corrigir — sem
     // impedir o estafeta de já estar online a receber pedidos.
     unawaited(_offerReliabilityEnhancements());
+  }
+
+  /// [B4 · 01/11/2026] Pede ao servidor para ficar online. Recusado (conta por
+  /// aprovar, recusada, bloqueada…) → a frase única de
+  /// [mensagemOnlineRecusado], o botão fica offline e devolve `false`.
+  Future<bool> _ficarOnlineNoServidor() async {
+    final driverStore = context.read<DriverStore>();
+    final r =
+        await driverStore.alternarOnline(driverStore.currentDriverId, true);
+    if (!mounted) return false;
+    if (r.ok) return true;
+    _mostrarRecusaOnline(r);
+    return false;
+  }
+
+  void _mostrarRecusaOnline(OnlineResultado r) {
+    // Segundo toque enquanto o primeiro ainda espera pelo servidor: o
+    // primeiro já vai dar a resposta.
+    if (r.codigo == CodigoOnline.emCurso) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(r.mensagem ?? mensagemOnlineRecusado(r.codigo)),
+        duration: const Duration(seconds: 6),
+      ),
+    );
+    // A cache local dizia "aprovado" e o servidor não: relê o estado para o
+    // ecrã passar ao portão certo (em análise / recusado).
+    if (r.recusaDaConta) {
+      unawaited(context.read<AuthStore>().refreshApprovalStatus());
+    }
   }
 
   /// Oferta NÃO bloqueante das permissões de fiabilidade (overlay / ecrã-
@@ -550,33 +586,18 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
 
     if (status == null || status == 'active' || status == 'pending') return;
 
-    final message = switch (status) {
-      'banned'    => 'A tua conta foi suspensa. Contacta o suporte.',
-      'deleted'   => 'A tua conta foi removida. Contacta o suporte se precisares.',
-      'suspended' => bannedUntil != null
-          ? 'Conta suspensa até ${bannedUntil.toLocal().toString().split(".").first}. Contacta o suporte.'
-          : 'A tua conta foi suspensa. Contacta o suporte.',
-      'rejected'  => 'A tua candidatura foi rejeitada. Contacta o suporte.',
-      _           => 'A tua conta não está activa. Contacta o suporte.',
-    };
-
     if (!mounted) return;
     final authStore = context.read<AuthStore>();
 
-    // Show dialog and log out regardless of user dismissing it.
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Sessão terminada'),
-        content: Text(message),
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
+    // [01/11/2026 · B8, Diretiva 2024/2831 art. 11.º] Em vez do diálogo
+    // "Sessão terminada — Contacta o suporte": o ecrã "A minha conta" com o
+    // motivo, a data, até quando, quem decidiu e o botão "Pedir revisão".
+    // A sessão termina na mesma quando a pessoa sai desse ecrã.
+    await abrirContaSuspensa(
+      context,
+      textoSemRegisto:
+          textoContaEstafetaSemRegisto(status, ate: bannedUntil),
+      tiposConta: const {'estafeta', 'motorista'},
     );
     if (!mounted) return;
     authStore.logout();
@@ -901,7 +922,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
   Widget build(BuildContext context) {
     // ── Approval gate — block non-approved drivers ─────────────────────────
     final driverStatus = context.watch<AuthStore>().currentDriverStatus;
-    if (driverStatus != DriverStatus.approved) {
+    // [O4 · 01/11/2026] Pendente/recusado: ecrã de espera, SEM o interruptor
+    // `driver_online_toggle` (uma regra só: mostraInterruptorOnline).
+    if (!mostraInterruptorOnline(driverStatus)) {
       return _buildPendingScreen(context, driverStatus);
     }
 

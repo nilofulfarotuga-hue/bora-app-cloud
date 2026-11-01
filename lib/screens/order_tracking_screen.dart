@@ -742,7 +742,10 @@ class _BottomCardState extends State<_BottomCard> {
                 FotoProvaEntregaCliente(
                     orderId: order.id, status: order.status),
                 // ── Ajustado ao peso (31/10/2026): "1,12 € → 1,40 €" ─────
-                AjustesPesoPedido(orderId: order.id, status: order.status),
+                AjustesPesoPedido(
+                    orderId: order.id,
+                    status: order.status,
+                    metodoPagamento: order.paymentMethod),
                 // ── NIF que não ficou na fatura: "Tentar de novo" ────────
                 FaturaNifAviso(order: order),
                 // ── Order code + status ──────────────────────────────────

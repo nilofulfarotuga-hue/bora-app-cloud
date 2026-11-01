@@ -10,6 +10,7 @@ import 'partner/services/partner_services_hub_screen.dart';
 import 'partner_dashboard_screen.dart';
 import 'partner_login_screen.dart';
 import 'pending_approval_screen.dart';
+import 'prestador/conta_suspensa_screen.dart';
 import 'register_partner_screen.dart';
 
 class PartnerEntryScreen extends StatelessWidget {
@@ -25,7 +26,15 @@ class PartnerEntryScreen extends StatelessWidget {
 
     if (partner != null) {
       if (partnerRestaurant != null) {
-        return PartnerDashboardScreen(restaurant: partnerRestaurant);
+        // [01/11/2026 · B8] Loja desligada pela equipa (is_active_admin=false):
+        // mostra o motivo e "Pedir revisão" antes do painel, com um botão
+        // para entrar na mesma (o estado muda o que vê, nunca se entra).
+        return PortaoContaSuspensa(
+          key: ValueKey('portao-loja-${partnerRestaurant.id}'),
+          lerDesligado:
+              PortaoContaSuspensa.lerDe('restaurants', partnerRestaurant.id),
+          child: PartnerDashboardScreen(restaurant: partnerRestaurant),
+        );
       }
 
       // A REGRA (2026-08-27): se existe uma loja cujo DONO é o utilizador
@@ -131,7 +140,12 @@ class _PartnerNoRestaurantRouterState
           // ecrã de análise se essa mesma linha tivesse sido lida antes da
           // aprovação. Agora o gate é sempre o status fresco.
           if (provider.approvalStatus == 'approved') {
-            return const PartnerServicesHubScreen();
+            // [01/11/2026 · B8] Barbearia desligada pela equipa: motivo +
+            // "Pedir revisão", com botão para entrar no painel na mesma.
+            return PortaoContaSuspensa(
+              desligado: !provider.isActiveAdmin,
+              child: const PartnerServicesHubScreen(),
+            );
           }
           if (provider.approvalStatus == 'pending') {
             return PendingApprovalScreen(categoryName: provider.category);

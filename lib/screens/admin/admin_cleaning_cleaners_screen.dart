@@ -6,6 +6,7 @@ import '../../widgets/admin_documentos.dart' show juntarAtividadeAdmin;
 import '../../widgets/admin_robo_documentos.dart' show RoboAvisoAprovar, avisarSeAtividadePorAprovar;
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../services/prestador_suspensao_service.dart';
 import '../../widgets/admin/ofertas_limpeza_em_aberto.dart';
 import '../../widgets/admin/papeis_da_pessoa.dart';
 import '../../widgets/admin_other_role_badge.dart';
@@ -77,6 +78,30 @@ class _AdminCleaningCleanersScreenState
       'suspend' => ('Suspender profissional?', 'Suspender'),
       _ => ('Reativar profissional?', 'Reativar'),
     };
+    // [01/11/2026 · B8] Suspender (ou recusar quem já estava aprovada =
+    // encerrar) exige motivo escrito com 10 letras: o gatilho do servidor
+    // recusa sem ele e a profissional recebe-o (Diretiva 2024/2831).
+    if (action == 'suspend' ||
+        (action == 'reject' && c['approval_status'] == 'approved')) {
+      final motivo = await pedirMotivoAdmin(
+        context,
+        titulo: title,
+        explicacao: '${c['name']} recebe o motivo por escrito e pode pedir '
+            'revisão (uma pessoa responde em 7 dias).',
+        confirmar: verb,
+        perigoso: true,
+        minimo: kMinLetrasMotivoSuspensao,
+      );
+      if (motivo == null || !mounted) return;
+      await _run(
+          () => Supabase.instance.client.rpc('admin_review_cleaner', params: {
+                'p_cleaner_id': c['id'],
+                'p_action': action,
+                'p_reason': motivo,
+              }),
+          'Decisão registrada.');
+      return;
+    }
     // 22/10: ao aprovar, o que falta aparece a vermelho antes de confirmar.
     final falta = action == 'approve'
         ? faltaDoPrestador('cleaner', c).map((f) => f.rotulo).toList()
@@ -122,13 +147,20 @@ class _AdminCleaningCleanersScreenState
       ),
     );
     if (confirmed != true || !mounted) return;
-    await _run(
-        () => Supabase.instance.client.rpc('admin_review_cleaner', params: {
-              'p_cleaner_id': c['id'],
-              'p_action': action,
-              'p_reason': reasonCtrl.text,
-            }),
-        'Decisão registrada.');
+    await _run(() async {
+      final r = await Supabase.instance.client
+          .rpc('admin_review_cleaner', params: {
+        'p_cleaner_id': c['id'],
+        'p_action': action,
+        'p_reason': reasonCtrl.text,
+      });
+      // [01/11/2026 · B8] Reativar fecha também o registo legal da suspensão.
+      if (action == 'reactivate') {
+        await PrestadorSuspensaoService.fecharRegistoAberto('cleaners',
+            '${c['id']}', 'Reativada no painel (Limpeza)');
+      }
+      return r;
+    }, 'Decisão registrada.');
   }
 
   Future<void> _editCleaner(Map<String, dynamic> c) async {

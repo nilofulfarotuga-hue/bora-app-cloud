@@ -1,5 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../services/prestador_suspensao_service.dart';
+
 /// Translates server-side `RAISE EXCEPTION` messages from `admin_*` RPCs
 /// into user-facing Portuguese strings. Shared by every admin screen that
 /// calls those RPCs so error wording stays consistent.
@@ -41,6 +43,14 @@ String humanizeAdminRpcError(Object error) {
       return humanizeConformidadeIncompleta(msg);
     }
     if (msg.contains('atividade_por_aprovar')) return kErroAtividadePorAprovar;
+    // [01/11/2026 · B8] Gatilho `fn_suspensao_so_com_humano` e
+    // `admin_suspender_prestador` (Diretiva 2024/2831): motivo ≥ 10 letras,
+    // decisão de uma pessoa, sem pedido em curso.
+    if (msg.contains('SUSPENSAO_') ||
+        msg.contains('prestador_com_pedido_em_curso')) {
+      final t = traduzirErroSuspensaoOuNull(error);
+      if (t != null) return t;
+    }
     return 'Erro do servidor: $msg';
   }
   return 'Erro inesperado: $error';

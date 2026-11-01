@@ -9,15 +9,24 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../dispatch/driver_capacity_service.dart';
 import '../models/driver_model.dart';
+import '../models/falha_de_acao.dart' show kAcaoTimeout;
+import '../models/online_resultado.dart';
 import '../models/order_model.dart';
 import '../services/fcm_token_helper.dart';
 import '../services/floating_bubble_service.dart';
 import '../services/foreground_service.dart';
 import '../services/offer_presentation_gate.dart';
+import '../services/porta_online_service.dart';
 import '../services/push_token_service.dart';
 import '../services/web_presence.dart';
 import '../utils/constants.dart';
+import '../utils/mensagem_online_recusado.dart' show CodigoOnline;
 import '../utils/reconexao_canal_ofertas.dart';
+
+/// Grava `drivers.is_online` da linha do próprio (por `user_id`) e devolve a
+/// linha como ficou no servidor (`null` = nenhuma linha). Troca-se nos testes.
+typedef GravarOnline = Future<Map<String, dynamic>?> Function(
+    String userId, bool online);
 
 class DriverStore extends ChangeNotifier {
   String _primaryDriverId = 'driver-main';
@@ -30,16 +39,26 @@ class DriverStore extends ChangeNotifier {
   /// de context (Provider). Provider já garante única instância via app tree.
   static DriverStore? instance;
 
-  DriverStore({DriverCapacityService? capacityService})
-      : _capacityService = capacityService ?? DriverCapacityService() {
+  /// [ligarAoServidor] = false e [gravarOnline] só servem os testes (sem
+  /// canais em tempo real nem escuta da sessão; gravação falsa).
+  DriverStore({
+    DriverCapacityService? capacityService,
+    GravarOnline? gravarOnline,
+    bool ligarAoServidor = true,
+  })  : _capacityService = capacityService ?? DriverCapacityService(),
+        _gravarOnlineTeste = gravarOnline {
     instance = this;
+    if (!ligarAoServidor) return;
     _initialiseRealtimeDriverTracking();
     _listenAuthChanges();
   }
 
   final DriverCapacityService _capacityService;
+  final GravarOnline? _gravarOnlineTeste;
   final List<DriverModel> _drivers = [];
-  final SupabaseClient _client = Supabase.instance.client;
+  // `late`: só se vai buscar ao primeiro uso (o construtor de teste, com
+  // ligarAoServidor=false, já não toca no Supabase).
+  late final SupabaseClient _client = Supabase.instance.client;
 
   // _trackingTimer / _trackedOrderId are kept for API compatibility with
   // OrderStore callers (startTracking / stopTracking / updateTrackingTarget),
@@ -155,6 +174,8 @@ class DriverStore extends ChangeNotifier {
         // Without this, the previous driver's data leaks into the next session.
         _drivers.clear();
         _primaryDriverId = 'driver-main';
+        // [B4 · 01/11] a resposta "pode ficar online" era do estafeta que saiu.
+        PortaOnline.esquecer();
         // [ronda 04/10 #1] o canal de ofertas do estafeta que saiu fecha-se
         // também (antes ficava aberto e a reconectar sozinho).
         _lastSubscribedDriverId = null;
@@ -302,18 +323,91 @@ class DriverStore extends ChangeNotifier {
     }
   }
 
+  /// Há um "ficar online" a meio (pergunta + gravação no servidor).
+  bool _aLigar = false;
+
+  /// Assinatura antiga (`bool`), mantida porque o `OrderStore` (zona
+  /// protegida, não se mexe) ainda a chama em `toggleDriverAvailability`.
+  ///
+  /// OFFLINE: igual a [alternarOnline] (muda já e devolve true; false com
+  /// pedidos em curso). ONLINE: [B4 · 01/11/2026] já NÃO liga o botão antes
+  /// do servidor — arranca o [alternarOnline] e devolve `false` ("ainda não
+  /// está online"); o botão fica verde sozinho quando o servidor confirmar.
+  /// Os ecrãs chamam [alternarOnline] para ter o motivo de uma recusa.
   bool toggleAvailability(String driverId, bool value) {
     final driver = getDriverById(driverId);
     if (driver == null) return false;
     if (!value && driver.activeAssignments.isNotEmpty) return false;
     if (driver.isOnline == value) return true;
-    driver.isOnline = value;
-    notifyListeners();
-    unawaited(updateDriverOnlineStatus(driverId, value));
-    // Sessão 2026-05-17 — foreground service: notificação persistente +
-    // processo activo enquanto driver está Online (padrão Glovo/Uber).
-    unawaited(_syncForegroundService(value, driverId));
-    return true;
+    if (!value) {
+      // Sem awaits antes de mudar o estado: o efeito é imediato.
+      unawaited(alternarOnline(driverId, false));
+      return true;
+    }
+    unawaited(alternarOnline(driverId, true));
+    return false;
+  }
+
+  /// [B4 · 01/11/2026] Liga/desliga o botão Online.
+  ///
+  /// OFFLINE: muda já no telemóvel (é a vontade dele) e grava em segundo plano.
+  ///
+  /// ONLINE: 1) pergunta ao servidor (`prestador_pode_ficar_online`) ANTES de
+  /// mexer no estado local — conta por aprovar, recusada ou bloqueada não
+  /// liga; 2) grava `is_online=true` e lê a linha devolvida (o gatilho
+  /// `trg_online_so_aprovado` ainda pode recusar); 3) só com o servidor a
+  /// confirmar o botão fica verde e o serviço de fundo arranca. Antes o botão
+  /// ficava verde primeiro e a gravação engolia o erro — o estafeta via
+  /// "Online" e nunca recebia nada.
+  Future<OnlineResultado> alternarOnline(String driverId, bool value) async {
+    final driver = getDriverById(driverId);
+    if (driver == null) {
+      return OnlineResultado.recusado(CodigoOnline.semConta);
+    }
+    if (!value && driver.activeAssignments.isNotEmpty) {
+      return OnlineResultado.recusado(CodigoOnline.pedidosAtivos);
+    }
+    if (driver.isOnline == value) return const OnlineResultado.ok();
+
+    if (!value) {
+      driver.isOnline = false;
+      notifyListeners();
+      unawaited(updateDriverOnlineStatus(driverId, false));
+      // Sessão 2026-05-17 — foreground service: pára a notificação
+      // persistente e o processo ativo ao ficar Offline.
+      unawaited(_syncForegroundService(false, driverId));
+      return const OnlineResultado.ok();
+    }
+
+    if (_aLigar) return OnlineResultado.recusado(CodigoOnline.emCurso);
+    _aLigar = true;
+    try {
+      // 1) Pode? (falha aberta em erro de rede — o gatilho é o travão final)
+      final porta = await PortaOnline.verificar();
+      if (!porta.ok) {
+        debugPrint('[DriverStore] online recusado pelo servidor: ${porta.codigo}');
+        return porta;
+      }
+      // 2) Grava e confirma pela linha devolvida.
+      final gravado = await updateDriverOnlineStatus(driverId, true);
+      if (!gravado.ok) return gravado;
+      // 3) Confirmado: agora sim, o botão fica verde.
+      final atual = getDriverById(driverId);
+      // Saiu da conta entretanto: não se arranca o serviço de fundo.
+      if (atual == null) {
+        return OnlineResultado.recusado(CodigoOnline.semConta);
+      }
+      if (!atual.isOnline) {
+        atual.isOnline = true;
+        notifyListeners();
+      }
+      // Sessão 2026-05-17 — foreground service: notificação persistente +
+      // processo activo enquanto driver está Online (padrão Glovo/Uber).
+      unawaited(_syncForegroundService(true, driverId));
+      return const OnlineResultado.ok();
+    } finally {
+      _aLigar = false;
+    }
   }
 
   /// [24/10/2026] Ao abrir a app (ou voltar a ela) com o botão LIGADO: se o
@@ -521,35 +615,97 @@ class DriverStore extends ChangeNotifier {
     }
   }
 
-  Future<void> updateDriverOnlineStatus(String driverId, bool isOnline) async {
+  /// Grava `drivers.is_online` e confirma pela linha devolvida.
+  ///
+  /// [B4 · 01/11/2026] Já não engole o erro: o gatilho
+  /// `trg_online_so_aprovado` levanta `"CONTA_NAO_APROVADA: …"` (e afins)
+  /// quando a conta não pode ficar online, ou deixa a linha com
+  /// `is_online=false`. Se, ao ligar, o servidor não confirmar, o estado local
+  /// volta a offline e devolve-se o motivo.
+  Future<OnlineResultado> updateDriverOnlineStatus(
+      String driverId, bool isOnline) async {
+    // IDENTIDADE (16/09): user_id manda. Por `id` o PATCH devolvia 200 com
+    // 0 linhas e o estafeta nunca ficava online no servidor. 'driver-main' é
+    // um marcador local: resolve-se para o auth uid (como o serviço de fundo).
+    final userId = (driverId.isEmpty || driverId == 'driver-main')
+        ? (_client.auth.currentUser?.id ?? '')
+        : driverId;
+    if (userId.isEmpty) {
+      if (isOnline) _reverterOnlineLocal(driverId);
+      return OnlineResultado.recusado(CodigoOnline.semConta);
+    }
     try {
-      // IDENTIDADE (16/09): user_id manda. Por `id` o PATCH devolvia 200 com
-      // 0 linhas e o estafeta nunca ficava online no servidor.
-      await _client
-          .from('drivers')
-          .update({'is_online': isOnline}).eq('user_id', driverId);
-
-      // Trigger dispatch imediato para pedidos pendentes sem driver
-      if (isOnline) {
-        try {
-          final pendingOrders = await _client
-              .from('orders')
-              .select('id')
-              .eq('status', 'callingDriver')
-              .isFilter('assigned_driver_id', null)
-              .isFilter('current_driver_offer_id', null);
-          for (final order in List<Map<String, dynamic>>.from(pendingOrders)) {
-            await _client.functions.invoke(
-              'dispatch-engine',
-              body: {'orderId': order['id'] as String},
-            );
-          }
-        } catch (e) {
-          debugPrint('[DriverStore] dispatch trigger on online error: $e');
-        }
+      final gravar = _gravarOnlineTeste ?? _gravarOnlineNoServidor;
+      final linha = await gravar(userId, isOnline).timeout(kAcaoTimeout);
+      if (linha == null) {
+        // 0 linhas: não há ficha de estafeta para este utilizador.
+        debugPrint('[DriverStore] updateDriverOnlineStatus: 0 linhas ($userId)');
+        if (isOnline) _reverterOnlineLocal(driverId);
+        return OnlineResultado.recusado(CodigoOnline.semConta);
       }
+      if (linha['is_online'] != isOnline) {
+        // O servidor ficou com outro valor (o gatilho pôs offline).
+        debugPrint('[DriverStore] updateDriverOnlineStatus: servidor ficou '
+            'is_online=${linha['is_online']} (pedido $isOnline)');
+        if (isOnline) _reverterOnlineLocal(driverId);
+        return OnlineResultado.recusado(CodigoOnline.naoConfirmado);
+      }
+      // Trigger dispatch imediato para pedidos pendentes sem driver.
+      if (isOnline) unawaited(_chamarDispatchParaPendentes());
+      return const OnlineResultado.ok();
+    } on PostgrestException catch (e) {
+      debugPrint('DriverStore: updateDriverOnlineStatus recusado => ${e.message}');
+      if (isOnline) _reverterOnlineLocal(driverId);
+      return OnlineResultado.doErro(e.message);
     } catch (e) {
       debugPrint('DriverStore: updateDriverOnlineStatus error => $e');
+      if (isOnline) _reverterOnlineLocal(driverId);
+      // O gatilho também pode chegar por outro tipo de erro com o código no
+      // texto; sem código é falta de ligação (não se fica online às escuras).
+      final r = OnlineResultado.doErro(e);
+      return r.codigo == CodigoOnline.naoConfirmado
+          ? OnlineResultado.recusado(CodigoOnline.semLigacao)
+          : r;
+    }
+  }
+
+  Future<Map<String, dynamic>?> _gravarOnlineNoServidor(
+      String userId, bool online) async {
+    final linha = await _client
+        .from('drivers')
+        .update({'is_online': online})
+        .eq('user_id', userId)
+        .select('is_online')
+        .maybeSingle();
+    return linha;
+  }
+
+  /// O servidor não confirmou o "online": o botão volta a offline e o
+  /// serviço de fundo (se arrancou) pára.
+  void _reverterOnlineLocal(String driverId) {
+    final driver = getDriverById(driverId);
+    if (driver == null || !driver.isOnline) return;
+    driver.isOnline = false;
+    notifyListeners();
+    unawaited(_syncForegroundService(false, driverId));
+  }
+
+  Future<void> _chamarDispatchParaPendentes() async {
+    try {
+      final pendingOrders = await _client
+          .from('orders')
+          .select('id')
+          .eq('status', 'callingDriver')
+          .isFilter('assigned_driver_id', null)
+          .isFilter('current_driver_offer_id', null);
+      for (final order in List<Map<String, dynamic>>.from(pendingOrders)) {
+        await _client.functions.invoke(
+          'dispatch-engine',
+          body: {'orderId': order['id'] as String},
+        );
+      }
+    } catch (e) {
+      debugPrint('[DriverStore] dispatch trigger on online error: $e');
     }
   }
 

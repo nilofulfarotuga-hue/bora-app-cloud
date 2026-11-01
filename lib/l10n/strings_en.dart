@@ -16,6 +16,95 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 01/11/2026 (app-fechar B1, Casa): erros do profissional (C9), acerto da
+  // semana (C8) e aviso sem horarios (C10)
+  // (tool/l10n/traducoes/pt-en-37-casa-fecho-b1.json). Acrescentado a mao.
+  'Esta oferta já expirou. Fica atento às próximas.':
+      'This offer has already expired. Keep an eye out for the next ones.',
+  'Já tens outro trabalho marcado a essa hora.':
+      'You already have another job booked at that time.',
+  'O cliente ainda não respondeu ao valor extra. Espera pela resposta.':
+      'The customer has not answered the extra amount yet. Wait for the reply.',
+  'Este ofício ainda não foi aprovado pela equipa Bora.':
+      'This trade has not been approved by the Bora team yet.',
+  'Este ofício não existe ou já não está disponível.':
+      'This trade does not exist or is no longer available.',
+  'Escreve um preço válido, maior do que zero.':
+      'Enter a valid price, greater than zero.',
+  'Escreve o motivo antes de enviar.':
+      'Write the reason before sending.',
+  'A tua conta está bloqueada. Fala com o suporte do Bora.':
+      'Your account is blocked. Talk to Bora support.',
+  'Falta o teu nome.':
+      'Your name is missing.',
+  'A tua conta ainda não tem este papel ativo. Fala com o suporte do Bora.':
+      'Your account does not have this role active yet. Talk to Bora support.',
+  'O NIF não é válido. Confirma os 9 dígitos.':
+      'The tax number (NIF) is not valid. Check the 9 digits.',
+  'O IBAN não é válido. Confirma que começa por PT50 e tem 25 caracteres.':
+      'The IBAN is not valid. Check that it starts with PT50 and has 25 characters.',
+  'Tens de ter pelo menos 18 anos para trabalhar no Bora.':
+      'You must be at least 18 years old to work with Bora.',
+  'Este tipo de foto ou documento não é aceite aqui.':
+      'This type of photo or document is not accepted here.',
+  'Não foi possível guardar a imagem. Tenta outra vez.':
+      'The image could not be saved. Try again.',
+  'Já deixaste a tua avaliação.':
+      'You have already left your rating.',
+  'Este orçamento já expirou.':
+      'This quote has already expired.',
+  'A pagar ao Bora':
+      'To pay Bora',
+  'nada a acertar':
+      'nothing to settle',
+  'Sem horários não recebes trabalhos. Define os teus horários.':
+      'Without working hours you will not get jobs. Set your hours.',
+  'Definir horários':
+      'Set hours',
+  'Vê o pedido e orça.':
+      'See the request and send a quote.',
+  // 01/11/2026 (app-fechar B5/B2): serie de limpeza (so esta / parar a serie,
+  // proxima data) e diferenca do peso ao quilo
+  // (tool/l10n/traducoes/pt-en-36-serie-limpeza-peso.json). Acrescentado a mao.
+  'Cancelas só esta limpeza. A série continua na próxima data.':
+      'You are cancelling only this cleaning. The series continues on the next date.',
+  'Parar a série toda':
+      'Stop the whole series',
+  'Não se marcam mais limpezas desta série. As já marcadas para daqui a mais de 24 h são canceladas; as das próximas 24 h mantêm-se.':
+      'No more cleanings will be booked in this series. Those already booked more than 24 h from now are cancelled; those in the next 24 h stay.',
+  'Série parada':
+      'Series stopped',
+  '{0} · próxima: {1}':
+      '{0} · next: {1}',
+  'Semanal':
+      'Weekly',
+  'Quinzenal':
+      'Every two weeks',
+  'Diferença: {0}':
+      'Difference: {0}',
+  'Pagas o valor final ao estafeta na entrega.':
+      'You pay the final amount to the courier on delivery.',
+  'O peso real saiu mais caro; a diferença fica por conta do Bora.':
+      'The real weight came out more expensive; Bora covers the difference.',
+  'Saiu mais barato: a diferença vai para a tua carteira Bora no fim.':
+      'It came out cheaper: the difference goes to your Bora wallet at the end.',
+  // 01/11/2026 (app-fechar B6, assistente): varias fotos e cartao de comparacao
+  // com a Glovo/Uber. Acrescentado a mao.
+  'outra app': 'the other app',
+  'Na {0} deu {1}; no Bora, {3} dá {2} — fica igual.':
+      'On {0} it came to {1}; on Bora, {3} comes to {2} — the same.',
+  'Na {0} deu {1}; no Bora, {3} dá {2} — mais barato {4}.':
+      'On {0} it came to {1}; on Bora, {3} comes to {2} — {4} cheaper.',
+  'Na {0} deu {1}; no Bora, {3} dá {2} — desta vez a {0} fica {4} mais barata.':
+      'On {0} it came to {1}; on Bora, {3} comes to {2} — this time {0} is {4} cheaper.',
+  'Comparação com a {0}': 'Comparison with {0}',
+  'Total na {0} (do print)': 'Total on {0} (from the screenshot)',
+  'Total no Bora · {0}': 'Total on Bora · {0}',
+  '{0} não tem: {1}': '{0} doesn\'t have: {1}',
+  'No Bora já conta a entrega e as taxas; o total da {0} é o que estava escrito no print.':
+      'On Bora, delivery and fees are already included; the {0} total is what was written in the screenshot.',
+  'Escolher da galeria (até {0} fotos)': 'Choose from gallery (up to {0} photos)',
+  'Mando só as primeiras {0} fotos.': 'I\'ll only send the first {0} photos.',
   // 31/10/2026 (fecho-pendentes, peso variavel): produtos ao quilo dos mercados nao-parceiros
   // (tool/l10n/traducoes/pt-en-34-peso-variavel.json). Acrescentado a mao.
   'Preço aproximado · o valor final depende do peso':
@@ -2484,6 +2573,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'Choose the date and time of the cleaning.',
   'Escolhe a hora':
       'Choose the time',
+  'Escolhe a hora da entrega':
+      'Choose the delivery time',
   'Escolhe até {0}':
       'Choose up to {0}',
   'Escolhe de onde sais na lista de sugestões.':

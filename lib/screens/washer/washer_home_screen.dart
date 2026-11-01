@@ -16,6 +16,7 @@ import '../../widgets/prestador_documentos_em_falta.dart';
 import '../../services/carwash_upload_service.dart';
 import '../../stores/washer_store.dart';
 import '../../utils/safe_image_picker.dart';
+import '../prestador/conta_suspensa_screen.dart';
 import '../shared/carwash_chat_screen.dart';
 import 'washer_pickup_photos_screen.dart';
 
@@ -196,6 +197,33 @@ class _WasherHomeScreenState extends State<WasherHomeScreen> {
               style: TextStyle(color: AppColors.textSecondary),
             ),
           ),
+        ),
+      );
+    }
+
+    // [01/11/2026 · B8] Banido ou suspenso: antes via "ainda está por
+    // aprovar" (enganador). Agora vê o motivo, até quando, quem decidiu e
+    // pode pedir revisão (Diretiva 2024/2831 art. 11.º).
+    final perfil = store.profile;
+    if (perfil != null &&
+        (perfil.isBanned ||
+            perfil.approvalStatus == 'suspended' ||
+            perfil.approvalStatus == 'banned')) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          title: const Text('Lavagem Auto'),
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          actions: widget.comoEntrada
+              ? acoesDaEntradaDoPrestador(context, modoAtual: 'washer')
+              : null,
+        ),
+        body: const ContaSuspensaView(
+          tiposConta: {'lavagem'},
+          tituloSemRegisto: 'Conta suspensa',
+          textoSemRegisto: 'A tua conta de lavador está suspensa pela equipa '
+              'Bora. Fala connosco para saberes o motivo.',
         ),
       );
     }

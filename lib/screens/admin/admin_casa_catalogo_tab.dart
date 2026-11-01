@@ -167,7 +167,7 @@ class _AdminCasaCatalogoTabState extends State<AdminCasaCatalogoTab> {
         titulo: 'Isto mexe no preço',
         texto: '$kCasaAvisoMudarPreco\n\nO servidor recusa pedidos reais de '
             'preço fixo até lá. Continuar?',
-        botao: 'Guardar como proposta',
+        botao: 'Salvar como proposta',
         perigo: true,
       );
       if (ok == null) return;
@@ -175,7 +175,7 @@ class _AdminCasaCatalogoTabState extends State<AdminCasaCatalogoTab> {
     await _correr('admin_casa_guardar_servico', {
       'p_id': s?['id'],
       'p_dados': dados,
-    }, s == null ? 'Serviço criado.' : 'Serviço guardado.');
+    }, s == null ? 'Serviço criado.' : 'Serviço salvo.');
   }
 
   @override
@@ -557,7 +557,7 @@ class _EditarServicoDialogState extends State<_EditarServicoDialog> {
         TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancelar')),
-        FilledButton(onPressed: _guardar, child: const Text('Guardar')),
+        FilledButton(onPressed: _guardar, child: const Text('Salvar')),
       ],
     );
   }

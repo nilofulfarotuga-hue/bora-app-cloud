@@ -76,6 +76,10 @@ bool motivoValido(String motivo) => motivo.trim().length >= 3;
 
 /// Diálogo que pede o motivo. Devolve `null` se cancelar; senão o texto (já
 /// sem espaços nas pontas). Com [obrigatorio], não fecha sem 3 letras.
+///
+/// [01/11/2026 · B8] [minimo]: suspender/banir/desligar um prestador exige 10
+/// letras (gatilho `fn_suspensao_so_com_humano`, Diretiva 2024/2831 — o
+/// prestador recebe o motivo por escrito). O resto continua com 3.
 Future<String?> pedirMotivoAdmin(
   BuildContext context, {
   required String titulo,
@@ -83,6 +87,7 @@ Future<String?> pedirMotivoAdmin(
   required String confirmar,
   bool obrigatorio = true,
   bool perigoso = false,
+  int minimo = 3,
 }) {
   return showDialog<String>(
     context: context,
@@ -92,6 +97,7 @@ Future<String?> pedirMotivoAdmin(
       confirmar: confirmar,
       obrigatorio: obrigatorio,
       perigoso: perigoso,
+      minimo: minimo,
     ),
   );
 }
@@ -103,6 +109,7 @@ class _DialogoMotivo extends StatefulWidget {
     required this.confirmar,
     required this.obrigatorio,
     required this.perigoso,
+    this.minimo = 3,
   });
 
   final String titulo;
@@ -110,6 +117,7 @@ class _DialogoMotivo extends StatefulWidget {
   final String confirmar;
   final bool obrigatorio;
   final bool perigoso;
+  final int minimo;
 
   @override
   State<_DialogoMotivo> createState() => _DialogoMotivoState();
@@ -127,8 +135,10 @@ class _DialogoMotivoState extends State<_DialogoMotivo> {
 
   void _confirmar() {
     final texto = _ctrl.text.trim();
-    if (widget.obrigatorio && !motivoValido(texto)) {
-      setState(() => _erro = 'Escreva o motivo (mínimo 3 letras).');
+    if (widget.obrigatorio &&
+        (!motivoValido(texto) || texto.length < widget.minimo)) {
+      setState(() =>
+          _erro = 'Escreva o motivo (mínimo ${widget.minimo < 3 ? 3 : widget.minimo} letras).');
       return;
     }
     Navigator.pop(context, texto);
@@ -265,6 +275,9 @@ class _PapeisDaPessoaState extends State<PapeisDaPessoa> {
       explicacao: efeito,
       confirmar: ativo ? 'Ligar' : 'Desligar',
       perigoso: !ativo,
+      // [01/11/2026 · B8] Desligar limpeza/lavagem = suspender: o servidor
+      // exige motivo escrito com 10 letras (o prestador recebe-o).
+      minimo: (!ativo && papel != 'estafeta') ? 10 : 3,
     );
     if (motivo == null || !mounted) return;
 

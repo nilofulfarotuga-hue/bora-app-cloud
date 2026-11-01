@@ -141,6 +141,7 @@ class OrderDetailsScreen extends StatelessWidget {
             orderId: liveOrder.id,
             status: liveOrder.status,
             margem: const EdgeInsets.only(top: 16),
+            metodoPagamento: liveOrder.paymentMethod,
           ),
 
           const SizedBox(height: 16),

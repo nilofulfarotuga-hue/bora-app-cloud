@@ -12,6 +12,8 @@ import '../../services/admin_export_service.dart';
 import '../../models/restaurant_model.dart';
 import '../../stores/restaurant_store.dart';
 import 'admin_partner_detail_screen.dart';
+import '../../services/prestador_suspensao_service.dart';
+import '../../widgets/admin/papeis_da_pessoa.dart' show pedirMotivoAdmin;
 
 class AdminPartnersScreen extends StatefulWidget {
   const AdminPartnersScreen({super.key});
@@ -90,29 +92,40 @@ class _AdminPartnersScreenState extends State<AdminPartnersScreen> {
     final newActive = !currentActive;
     // Ronda 04/10: desativar uma loja tira-a da app dos clientes — pede
     // confirmação (reativar não precisa).
+    // [01/11/2026 · B8] Desativar = suspender: o gatilho do servidor recusa o
+    // UPDATE direto sem motivo escrito (Diretiva 2024/2831; Reg. 2019/1150).
+    // Agora pede o motivo (mín. 10 letras) e chama admin_suspender_prestador,
+    // que grava o registo, desliga a loja e avisa o dono.
+    String? motivo;
     if (!newActive) {
-      final ok = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Desativar esta loja?'),
-          content: const Text(
-              'A loja deixa de aparecer aos clientes até você a reativar.'),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancelar')),
-            FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Desativar')),
-          ],
-        ),
+      motivo = await pedirMotivoAdmin(
+        context,
+        titulo: 'Desativar esta loja?',
+        explicacao: 'A loja deixa de aparecer aos clientes até você a '
+            'reativar. O dono recebe o motivo por escrito e pode pedir '
+            'revisão (uma pessoa responde em 7 dias).',
+        confirmar: 'Desativar',
+        perigoso: true,
+        minimo: kMinLetrasMotivoSuspensao,
       );
-      if (ok != true || !mounted) return;
+      if (motivo == null || !mounted) return;
     }
     try {
-      await Supabase.instance.client
-          .from('restaurants')
-          .update({'is_active_admin': newActive}).eq('id', id);
+      if (!newActive) {
+        await PrestadorSuspensaoService.suspender(
+          tabela: 'restaurants',
+          entidadeId: id,
+          tipo: 'suspensao',
+          motivo: motivo!,
+        );
+      } else {
+        await Supabase.instance.client
+            .from('restaurants')
+            .update({'is_active_admin': newActive}).eq('id', id);
+        // Fecha o registo legal da suspensão (se houver).
+        await PrestadorSuspensaoService.fecharRegistoAberto(
+            'restaurants', id, 'Loja reativada no painel');
+      }
 
       // Best-effort audit (never blocks UX). entity_id stays null because
       // restaurants.id is TEXT, not UUID — the textual id travels in details.
@@ -123,6 +136,7 @@ class _AdminPartnersScreenState extends State<AdminPartnersScreen> {
           'restaurant_id': id,
           'old': currentActive,
           'new': newActive,
+          if (motivo != null) 'motivo': motivo,
         },
       ));
 
@@ -130,7 +144,7 @@ class _AdminPartnersScreenState extends State<AdminPartnersScreen> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(newActive
             ? 'Parceiro reactivado.'
-            : 'Parceiro desactivado pelo admin.'),
+            : 'Parceiro desactivado pelo admin. O dono recebe o motivo.'),
         backgroundColor:
             newActive ? AppColors.success : AppColors.warning,
         duration: const Duration(seconds: 2),
@@ -139,7 +153,8 @@ class _AdminPartnersScreenState extends State<AdminPartnersScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Falhou actualizar parceiro: $e'),
+        content: Text('Falhou actualizar parceiro: '
+            '${traduzirErroSuspensaoOuNull(e) ?? e}'),
         backgroundColor: AppColors.error,
         duration: const Duration(seconds: 4),
       ));

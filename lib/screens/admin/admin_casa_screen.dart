@@ -3,7 +3,8 @@
 /// painel-admin-limpo): tudo da Casa vive aqui, em separadores.
 ///
 ///  1. Resumo · 2. Profissionais · 3. Pedidos · 4. Orçamentos ·
-///  5. Catálogo e preços · 6. Configurações · 7. Acertos semanais · 8. Exportar
+///  5. Catálogo e preços · 6. Configurações · 7. Acertos semanais · 8. Exportar ·
+///  9. Ofertas (rotação de todos os pedidos — `admin_casa_ofertas`, 01/11)
 ///
 /// Tudo por funções `admin_casa_*` do servidor (contrato no ESPEC da missão);
 /// o painel não calcula dinheiro, só mostra e pede confirmação antes de cada
@@ -18,6 +19,7 @@ import 'admin_casa_catalogo_tab.dart';
 import 'admin_casa_comum.dart';
 import 'admin_casa_definicoes_tab.dart';
 import 'admin_casa_exportar_tab.dart';
+import 'admin_casa_ofertas_tab.dart';
 import 'admin_casa_orcamentos_tab.dart';
 import 'admin_casa_pedidos_tab.dart';
 import 'admin_casa_profissionais_tab.dart';
@@ -26,7 +28,9 @@ import 'admin_casa_resumo_tab.dart';
 export 'admin_casa_pedidos_tab.dart' show AdminCasaPedidoScreen;
 export 'admin_casa_profissionais_tab.dart' show AdminCasaProfissionalScreen;
 
-/// Separadores, pela ordem (o índice é o que `separadorInicial` usa).
+/// Separadores, pela ordem (o índice é o que `separadorInicial` usa). As
+/// "Ofertas" entraram no FIM (01/11) para não mudar os índices que o Resumo
+/// já usa para saltar de aba.
 const List<String> kCasaSeparadores = [
   'Resumo',
   'Profissionais',
@@ -36,6 +40,7 @@ const List<String> kCasaSeparadores = [
   'Configurações',
   'Acertos semanais',
   'Exportar',
+  'Ofertas',
 ];
 
 class AdminCasaScreen extends StatefulWidget {
@@ -128,6 +133,7 @@ class _AdminCasaScreenState extends State<AdminCasaScreen>
           AdminCasaDefinicoesTab(rpc: rpc),
           AdminCasaAcertosTab(rpc: rpc),
           AdminCasaExportarTab(rpc: rpc),
+          AdminCasaOfertasTab(rpc: rpc),
         ],
       ),
     );

@@ -2,6 +2,8 @@
 // Model → Store → Screen. Todos os valores monetários em cents (int),
 // calculados SEMPRE server-side (RPC cleaning_quote / create_cleaning_booking).
 
+import '../utils/hora_lisboa.dart';
+
 /// Estado da reserva de limpeza (espelha o CHECK de cleaning_bookings.status).
 enum CleaningStatus {
   scheduled,
@@ -89,6 +91,30 @@ class CleaningLabels {
 
   static String euro(int cents) =>
       '€${(cents / 100).toStringAsFixed(2).replaceAll('.', ',')}';
+
+  /// "08/11 10:00" — dia/mês e hora de LISBOA de um instante (nunca o fuso
+  /// do telemóvel). Para as linhas curtas da série ("próxima: …").
+  static String diaHoraLisboa(DateTime instante) {
+    final d = paredeLisboa(instante);
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${two(d.day)}/${two(d.month)} ${two(d.hour)}:${two(d.minute)}';
+  }
+}
+
+/// Estado de uma série de limpezas recorrentes (S1, 01/11/2026).
+///
+/// [parada]: o cliente parou a série (`cleaning_recurrence_stops`).
+/// [proxima]: a próxima limpeza que o servidor vai gerar
+/// (`cleaning_series_next_at`; null se a série não for recorrente).
+/// Sem leitura (erro, sem rede) vale [desconhecido]: "não parada, sem data" —
+/// nunca se diz ao cliente que a série parou sem o servidor o dizer.
+class SerieEstado {
+  const SerieEstado({this.parada = false, this.proxima});
+
+  static const desconhecido = SerieEstado();
+
+  final bool parada;
+  final DateTime? proxima;
 }
 
 /// Reserva de limpeza (linha de cleaning_bookings).
@@ -96,6 +122,10 @@ class CleaningBooking {
   final String id;
   final String clientUserId;
   final String? cleanerId;
+
+  /// A profissional que o cliente escolheu ao marcar (favorita / "marcar de
+  /// novo"). A série repete-a (`generate_recurring_bookings`).
+  final String? requestedCleanerId;
   final String? recurrenceGroupId;
   final String recurrence;
   final String cleaningType;
@@ -135,6 +165,7 @@ class CleaningBooking {
     required this.id,
     required this.clientUserId,
     this.cleanerId,
+    this.requestedCleanerId,
     this.recurrenceGroupId,
     required this.recurrence,
     required this.cleaningType,
@@ -176,6 +207,7 @@ class CleaningBooking {
       id: m['id'] as String,
       clientUserId: m['client_user_id'] as String? ?? '',
       cleanerId: m['cleaner_id'] as String?,
+      requestedCleanerId: m['requested_cleaner_id'] as String?,
       recurrenceGroupId: m['recurrence_group_id'] as String?,
       recurrence: m['recurrence'] as String? ?? 'single',
       cleaningType: m['cleaning_type'] as String? ?? 'standard',
@@ -217,6 +249,36 @@ class CleaningBooking {
   String get recurrenceLabel =>
       CleaningLabels.recurrences[recurrence] ?? recurrence;
   bool get isRecurring => recurrence != 'single';
+
+  /// O cliente pediu esta profissional pelo nome (S4): "Cliente habitual".
+  bool pedidaPor(String? cleanerId) =>
+      cleanerId != null &&
+      cleanerId.isNotEmpty &&
+      requestedCleanerId == cleanerId;
+
+  /// Próxima limpeza da série DEPOIS desta (S1): a irmã ainda ativa mais
+  /// cedo já marcada; se não houver, a data que o servidor vai gerar
+  /// ([doServidor], `cleaning_series_next_at`). As canceladas não contam — a
+  /// série continua depois delas. Null se não for recorrente ou sem data.
+  /// Uma data do servidor já passada ([agora]) não se mostra: o gerador não
+  /// cria limpezas para trás (`generate_recurring_bookings`).
+  DateTime? proximaDaSerie(
+      Iterable<CleaningBooking> irmas, DateTime? doServidor,
+      {DateTime? agora}) {
+    if (!isRecurring || recurrenceGroupId == null) return null;
+    DateTime? melhor;
+    for (final o in irmas) {
+      if (o.id == id || o.recurrenceGroupId != recurrenceGroupId) continue;
+      if (!o.status.isActive || !o.scheduledAt.isAfter(scheduledAt)) continue;
+      if (melhor == null || o.scheduledAt.isBefore(melhor)) {
+        melhor = o.scheduledAt;
+      }
+    }
+    if (melhor != null) return melhor;
+    if (doServidor == null || !doServidor.isAfter(scheduledAt)) return null;
+    if (agora != null && doServidor.isBefore(agora)) return null;
+    return doServidor;
+  }
 
   /// Cancelar nos primeiros [minutos] depois de marcar não tem taxa — a mesma
   /// conta do servidor (`now() - created_at <= cleaning_cancel_grace_minutes`).

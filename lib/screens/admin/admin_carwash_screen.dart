@@ -15,6 +15,7 @@ import '../../widgets/admin/papeis_da_pessoa.dart';
 import '../../widgets/bora/bora_bottom_action_bar.dart';
 import '../../widgets/bora_foto_ecra_inteiro.dart';
 import '_admin_rpc_errors.dart';
+import '../../services/prestador_suspensao_service.dart';
 
 /// LAVAGEM AUTO — painel admin (PT-BR, só o Danilo usa).
 /// Autoridade total: ver, criar, editar, cancelar, reagendar, reatribuir,
@@ -684,18 +685,50 @@ class _AbaLavadoresState extends State<_AbaLavadores> {
     }
   }
 
-  Future<void> _patch(String id, Map<String, dynamic> patch) async {
+  Future<void> _patch(String id, Map<String, dynamic> patch,
+      {bool fecharRegisto = false}) async {
     try {
       await _sb.rpc('admin_update_washer', params: {'p_id': id, 'p_patch': patch});
+      // [01/11/2026 · B8] Reativar (aprovar de novo / tirar o banimento) fecha
+      // também o registo legal da suspensão em prestador_suspensoes.
+      if (fecharRegisto) {
+        await PrestadorSuspensaoService.fecharRegistoAberto(
+            'washers', id, 'Reativado no painel (Lavagem)');
+      }
       if (mounted) _msg(context, 'Atualizado.');
       _load();
     } catch (e) {
       if (mounted) {
         _msg(context, e.toString().contains('washer_has_open_jobs')
             ? 'Este lavador tem pedidos em aberto. Reatribua-os primeiro.'
-            : humanizeAtividadePorAprovar(e) ?? 'Erro: $e');
+            : humanizeAtividadePorAprovar(e) ??
+                traduzirErroSuspensaoOuNull(e) ??
+                'Erro: $e');
       }
     }
+  }
+
+  /// [01/11/2026 · B8] Suspender/banir pede o motivo (mínimo 10 letras): o
+  /// gatilho do servidor recusa sem ele e o lavador recebe-o por escrito
+  /// (Diretiva 2024/2831). Vai em `rejection_reason` (suspender) ou
+  /// `ban_reason` (banir), as colunas que o gatilho lê.
+  Future<void> _suspenderComMotivoAntigo(
+      Map<String, dynamic> l, {required bool banir}) async {
+    final motivo = await pedirMotivoAdmin(
+      context,
+      titulo: banir ? 'Banir lavador?' : 'Suspender lavador?',
+      explicacao: '${l['name'] ?? 'O lavador'} recebe o motivo por escrito e '
+          'pode pedir revisão (uma pessoa responde em 7 dias).',
+      confirmar: banir ? 'Banir' : 'Suspender',
+      perigoso: true,
+      minimo: kMinLetrasMotivoSuspensao,
+    );
+    if (motivo == null || !mounted) return;
+    await _patch(
+        l['id'].toString(),
+        banir
+            ? {'is_banned': true, 'ban_reason': motivo}
+            : {'approval_status': 'suspended', 'rejection_reason': motivo});
   }
 
   Future<void> _editarRaio(Map<String, dynamic> l) async {
@@ -766,7 +799,8 @@ class _AbaLavadoresState extends State<_AbaLavadores> {
       ),
     );
     if (ok != true) return;
-    await _patch(l['id'].toString(), {'approval_status': 'approved'});
+    await _patch(l['id'].toString(), {'approval_status': 'approved'},
+        fecharRegisto: l['approval_status'] == 'suspended');
   }
 
   @override
@@ -820,7 +854,7 @@ class _AbaLavadoresState extends State<_AbaLavadores> {
                     if (status == 'approved')
                       OutlinedButton(
                           onPressed: () =>
-                              _patch(id, {'approval_status': 'suspended'}),
+                              _suspenderComMotivoAntigo(l, banir: false),
                           child: const Text('Suspender')),
                     OutlinedButton(
                         onPressed: () => _editarRaio(l),
@@ -832,7 +866,10 @@ class _AbaLavadoresState extends State<_AbaLavadores> {
                             ? 'Desativar'
                             : 'Ativar')),
                     OutlinedButton(
-                        onPressed: () => _patch(id, {'is_banned': !banido}),
+                        onPressed: () => banido
+                            ? _patch(id, {'is_banned': false},
+                                fecharRegisto: true)
+                            : _suspenderComMotivoAntigo(l, banir: true),
                         child: Text(banido ? 'Remover banimento' : 'Banir')),
                     // Estafeta / limpeza / lavagem da mesma pessoa (user_id).
                     if ((l['user_id']?.toString() ?? '').isNotEmpty)

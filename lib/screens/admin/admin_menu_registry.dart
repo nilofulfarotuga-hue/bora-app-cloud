@@ -127,6 +127,7 @@ import 'admin_whatsapp_screen.dart';
 import 'admin_agentes_email_screen.dart';
 import 'admin_pendencias_operacao_screen.dart';
 import 'admin_conformidade_legal_screen.dart';
+import 'admin_revisoes_screen.dart';
 import 'admin_comprovativo_atividade_screen.dart';
 import 'admin_robo_documentos_screen.dart';
 import 'admin_promocoes_screen.dart';
@@ -1243,6 +1244,17 @@ List<AdminMenuSection> adminMenuSections() => [
       builder: () => const AdminConformidadeLegalScreen(),
       keywords: const ['conformidade', 'legal', 'dac7', 'dsa', 'nif', 'iban', 'morada', 'autocertificacao', 'opt-in', 'marketing', 'csv', 'financas', 'at'],
     ),
+    // [01/11/2026 · B8] Diretiva (UE) 2024/2831, art. 11.º: revisão humana das
+    // suspensões, resposta por escrito em 7 dias.
+    AdminMenuItem(
+      id: 'sistema_revisoes_suspensao',
+      title: 'Revisões de suspensão',
+      subtitle: 'Prestadores que pediram revisão de uma suspensão (prazo de 7 dias) e propostas automáticas: responder, decidir, registrar pedido do WhatsApp e reativar',
+      icon: Icons.rate_review_outlined,
+      color: Colors.deepPurple,
+      builder: () => const AdminRevisoesScreen(),
+      keywords: const ['revisao', 'revisoes', 'suspensao', 'suspenso', 'suspender', 'banido', 'banir', 'recurso', 'contestar', 'diretiva', 'gestao algoritmica', 'prestador', 'estafeta', 'limpeza', 'lavagem', 'casa', 'parceiro', 'whatsapp', 'prazo'],
+    ),
     // [20/10/2026 · Bloco C] Comprovativo de atividade nas Finanças dos prestadores.
     AdminMenuItem(
       id: 'sistema_comprovativo_atividade',
@@ -1257,11 +1269,11 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'sistema_robo_documentos',
       title: 'Robô de documentos',
-      subtitle: 'Confere os documentos dos candidatos, avisa o que está errado. Liga/desliga, sombra, prontos para aprovar e histórico',
+      subtitle: 'Confere os documentos dos candidatos, avisa o que está errado. Liga/desliga, sombra, prontos para aprovar, histórico, avisos enviados e emails automáticos',
       icon: Icons.smart_toy_outlined,
       color: Colors.blueGrey,
       builder: () => const AdminRoboDocumentosScreen(),
-      keywords: const ['robo', 'documentos', 'candidatos', 'comprovativo', 'fiscal', 'ia', 'sombra', 'aprovar', 'lembrar'],
+      keywords: const ['robo', 'documentos', 'candidatos', 'comprovativo', 'fiscal', 'ia', 'sombra', 'aprovar', 'lembrar', 'avisos', 'email', 'emails automaticos'],
     ),
     // [29/10/2026 · Adendo 5, item 4] Promoções com preço riscado (Diretiva Omnibus). Desligado por defeito.
     AdminMenuItem(
@@ -1439,11 +1451,11 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'robos_bora_assistente_cliente',
       title: 'Bora Assistente (cliente)',
-      subtitle: 'O assistente de compras do app: ligar/desligar, conversas, propostas, custo, conhecimento e lacunas',
+      subtitle: 'O assistente de compras do app: ligar/desligar, conversas, propostas, custo, conhecimento, lacunas e o que ele aprendeu',
       icon: Icons.auto_awesome,
       color: AppColors.primary,
       builder: () => const AdminAssistenteScreen(),
-      keywords: const ['assistente', 'bora assistente', 'compras', 'cliente', 'chat', 'propostas', 'carrinho', 'poupanca', 'conhecimento', 'lacunas', 'gaps', 'custo', 'gemini'],
+      keywords: const ['assistente', 'bora assistente', 'compras', 'cliente', 'chat', 'propostas', 'carrinho', 'poupanca', 'conhecimento', 'lacunas', 'gaps', 'custo', 'gemini', 'aprendidas', 'licoes'],
     ),
     AdminMenuItem(
       id: 'robos_assistente_ia_admin',

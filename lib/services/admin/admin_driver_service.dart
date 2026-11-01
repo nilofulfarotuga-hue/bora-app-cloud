@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../prestador_suspensao_service.dart';
+
 /// Thrown by [AdminDriverService] when an admin RPC / Edge Function fails.
 /// Carries the canonical [code] (parsed from the server's `RAISE EXCEPTION`)
 /// and a Portuguese [message] suitable for direct display in a toast/snackbar.
@@ -276,6 +278,12 @@ class AdminDriverService {
     if (msg.startsWith('missing_docs:')) {
       return _ParsedError('missing_docs',
           'Documentos em falta: ${msg.substring("missing_docs:".length).trim()}');
+    }
+    // [01/11/2026 · B8] Gatilho `fn_suspensao_so_com_humano` (Diretiva
+    // 2024/2831): banir/suspender/remover exige motivo com 10 letras.
+    if (msg.contains('SUSPENSAO_')) {
+      final t = traduzirErroSuspensaoOuNull(msg);
+      if (t != null) return _ParsedError('suspensao_recusada', t);
     }
     return _ParsedError('server_error', 'Erro do servidor: $msg');
   }

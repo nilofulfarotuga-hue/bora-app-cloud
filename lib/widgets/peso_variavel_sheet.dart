@@ -104,7 +104,17 @@ class _PesoVariavelSheetState extends State<PesoVariavelSheet> {
     }
     setState(() {
       _aEnviar = false;
-      _erro = r.mensagem;
+      // P5 (01/11/2026): peça ao quilo ("Melancia (~4 kg)") recusada pelo
+      // limite → a mensagem diz o peso a procurar. Só texto.
+      final pesoMedio = r.codigo == 'fora_do_limite'
+          ? PesoVariavelEstafetaService.pesoMedioDoNome(widget.nomeLinha)
+          : null;
+      _erro = pesoMedio == null
+          ? r.mensagem
+          : PesoVariavelEstafetaService.mensagemErro('fora_do_limite',
+              minimoCents: r.minimoCents,
+              maximoCents: r.maximoCents,
+              pesoMedioKg: pesoMedio);
       if (r.minimoCents != null && r.maximoCents != null) {
         _minimo = r.minimoCents!;
         _maximo = r.maximoCents!;

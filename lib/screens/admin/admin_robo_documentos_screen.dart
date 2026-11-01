@@ -8,6 +8,11 @@
 /// O robô NUNCA aprova nada: quem aprova é só o Danilo, nos ecrãs de cada papel.
 /// Ligar o robô pede confirmação — passa a recusar documentos errados e a avisar
 /// os candidatos (app, push e e-mail).
+///
+/// Separador "Avisos enviados" (missão app-fechar 01/11/2026, B7): a lista do RPC
+/// `admin_documentos_avisos` (nome, o que falta, email, estado, data em Lisboa) e
+/// o interruptor "Emails automáticos" (`robo_documentos_avisos_ativo`, gravado
+/// por `admin_robo_documentos_definir`).
 library;
 
 import 'package:flutter/material.dart';
@@ -15,6 +20,7 @@ import 'package:flutter/material.dart';
 import '../../config/app_colors.dart';
 import '../../services/robo_documentos.dart';
 import '../../services/robo_documentos_service.dart';
+import '../../utils/hora_lisboa.dart';
 import '../../widgets/admin_robo_documentos.dart';
 import '_admin_rpc_errors.dart';
 
@@ -33,6 +39,8 @@ class _AdminRoboDocumentosScreenState extends State<AdminRoboDocumentosScreen> {
   Map<String, dynamic> _cfg = const {};
   List<Map<String, dynamic>> _prontos = const [];
   List<VereditoRobo> _hist = const [];
+  List<AvisoDocumentosEnviado> _avisos = const [];
+  String? _erroAvisos;
   bool _carregando = true;
   bool _ocupado = false;
   String? _erro;
@@ -63,11 +71,21 @@ class _AdminRoboDocumentosScreenState extends State<AdminRoboDocumentosScreen> {
       final cfg = await _api.config();
       final prontos = await _api.prontos();
       final hist = await _api.historico(limite: 100);
+      // Os avisos falham à parte: sem eles o resto do ecrã continua a servir.
+      var avisos = const <AvisoDocumentosEnviado>[];
+      String? erroAvisos;
+      try {
+        avisos = await _api.avisos(limite: 200);
+      } catch (e) {
+        erroAvisos = humanizeAdminRpcError(e);
+      }
       if (!mounted) return;
       setState(() {
         _cfg = cfg;
         _prontos = prontos;
         _hist = hist;
+        _avisos = avisos;
+        _erroAvisos = erroAvisos;
         _carregando = false;
       });
     } catch (e) {
@@ -128,6 +146,21 @@ class _AdminRoboDocumentosScreenState extends State<AdminRoboDocumentosScreen> {
     await _definir('robo_documentos_ativo', ligar);
   }
 
+  /// Interruptor "Emails automáticos" (`robo_documentos_avisos_ativo`). Ligar
+  /// volta a mandar emails a pessoas reais, por isso pede confirmação.
+  Future<void> _ligarAvisos(bool ligar) async {
+    if (ligar &&
+        !await _confirmar(
+          'Ligar os emails automáticos?',
+          'O robô volta a mandar, de manhã, um email a quem tem documentos em falta ou errados, '
+              'com a lista exata do que falta. O mesmo aviso não se repete antes de 7 dias.',
+          ok: 'Ligar',
+        )) {
+      return;
+    }
+    await _definir('robo_documentos_avisos_ativo', ligar);
+  }
+
   Future<void> _mudarModo(String modo) async {
     if (modo == 'ativo' &&
         !await _confirmar(
@@ -185,48 +218,152 @@ class _AdminRoboDocumentosScreenState extends State<AdminRoboDocumentosScreen> {
     }
   }
 
-  String _data(DateTime? d) {
-    if (d == null) return '';
-    final l = d.toLocal();
-    String two(int n) => n.toString().padLeft(2, '0');
-    return '${two(l.day)}/${two(l.month)} ${two(l.hour)}:${two(l.minute)}';
-  }
+  /// "29/10 15:00" na hora de Lisboa (regra do painel: nunca o fuso do navegador).
+  String _data(DateTime? d) => d == null ? '' : dataHoraLisboa(d.toUtc().toIso8601String());
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Robô de documentos')),
-      body: _carregando
-          ? const Center(child: CircularProgressIndicator())
-          : _erro != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(_erro!, style: const TextStyle(color: AppColors.error)),
-                        const SizedBox(height: 12),
-                        FilledButton(onPressed: _carregar, child: const Text('Tentar outra vez')),
-                      ],
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Robô de documentos'),
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Robô'),
+              Tab(key: Key('robo-aba-avisos'), text: 'Avisos enviados'),
+            ],
+          ),
+        ),
+        body: _carregando
+            ? const Center(child: CircularProgressIndicator())
+            : _erro != null
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(_erro!, style: const TextStyle(color: AppColors.error)),
+                          const SizedBox(height: 12),
+                          FilledButton(onPressed: _carregar, child: const Text('Tentar outra vez')),
+                        ],
+                      ),
                     ),
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _carregar,
-                  child: ListView(
-                    padding: const EdgeInsets.all(12),
+                  )
+                : TabBarView(
                     children: [
-                      _cartaoEstado(),
-                      const SizedBox(height: 8),
-                      _cartaoControlos(),
-                      const SizedBox(height: 8),
-                      _seccaoProntos(),
-                      const SizedBox(height: 8),
-                      _seccaoHistorico(),
+                      RefreshIndicator(
+                        onRefresh: _carregar,
+                        child: ListView(
+                          padding: const EdgeInsets.all(12),
+                          children: [
+                            _cartaoEstado(),
+                            const SizedBox(height: 8),
+                            _cartaoControlos(),
+                            const SizedBox(height: 8),
+                            _seccaoProntos(),
+                            const SizedBox(height: 8),
+                            _seccaoHistorico(),
+                          ],
+                        ),
+                      ),
+                      _abaAvisos(),
                     ],
                   ),
-                ),
+      ),
+    );
+  }
+
+  // ── Separador "Avisos enviados" ─────────────────────────────────────────
+
+  Widget _abaAvisos() {
+    // Sem a chave na base, o servidor considera ligado (coalesce ... true).
+    final ligado = _cfg['avisos_ativo'] != false;
+    return RefreshIndicator(
+      onRefresh: _carregar,
+      child: ListView(
+        padding: const EdgeInsets.all(12),
+        children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SwitchListTile(
+                    key: const Key('robo-avisos-interruptor'),
+                    title: const Text('Emails automáticos'),
+                    subtitle: const Text(
+                      'Ligado: de manhã o robô manda um email a quem tem documentos em falta ou '
+                      'errados, com a lista exata do que falta (o mesmo aviso não se repete antes '
+                      'de 7 dias). Desligado: esses emails param; o "Lembrar este" continua funcionando.',
+                    ),
+                    value: ligado,
+                    onChanged: _ocupado ? null : _ligarAvisos,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: Text(
+                      'Emails do robô nas últimas 24 h: ${_cfg['avisos_24h'] ?? 0}',
+                      style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            key: const Key('robo-avisos'),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Avisos enviados (${_avisos.length})',
+                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Cada aviso de "faltam documentos" que saiu: do robô, dos lembretes dos dias 1, 3 e 7, '
+                    'ou seu ("Lembrar este"). Hora de Lisboa.',
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                  ),
+                  if (_erroAvisos != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text('Não deu para carregar os avisos: $_erroAvisos',
+                          style: const TextStyle(color: AppColors.error)),
+                    )
+                  else if (_avisos.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8),
+                      child: Text('Ainda não saiu nenhum aviso.',
+                          style: TextStyle(color: AppColors.textSecondary)),
+                    ),
+                  for (final a in _avisos)
+                    ListTile(
+                      key: Key('robo-aviso-${a.id}'),
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(
+                        a.falhou ? Icons.error_outline : Icons.mark_email_read_outlined,
+                        color: a.falhou ? AppColors.error : AppColors.success,
+                      ),
+                      title: Text(a.nome ?? '—'),
+                      subtitle: Text(
+                        'Falta: ${a.faltas.isEmpty ? '—' : a.faltas.join(' · ')}\n'
+                        '${a.emailPara ?? 'sem email'} · ${a.estadoRotulo}\n'
+                        '${_data(a.enviadoEm)} · ${a.quemRotulo}',
+                      ),
+                      isThreeLine: true,
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

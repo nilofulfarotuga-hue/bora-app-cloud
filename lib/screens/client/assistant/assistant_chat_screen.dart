@@ -52,18 +52,20 @@ class AssistantChatScreen extends StatefulWidget {
 }
 
 class _Msg {
-  _Msg.utilizador(this.texto, {this.imagem, this.imageUrl})
+  _Msg.utilizador(this.texto, {this.imagens = const [], this.imageUrl})
       : deUtilizador = true,
         reply = null;
   _Msg.assistente(this.reply)
       : deUtilizador = false,
         texto = reply?.texto ?? '',
-        imagem = null,
+        imagens = const [],
         imageUrl = null;
 
   final bool deUtilizador;
   final String texto;
-  final Uint8List? imagem;
+
+  /// Fotos enviadas nesta mensagem (uma ou várias, até [kAssistantMaxFotos]).
+  final List<Uint8List> imagens;
   final String? imageUrl;
   final AssistantReply? reply;
 }
@@ -190,14 +192,15 @@ class _AssistantChatScreenState extends State<AssistantChatScreen> {
 
   // ── Enviar ────────────────────────────────────────────────────────────
 
-  Future<void> _enviar(String texto, {Uint8List? imagem}) async {
+  Future<void> _enviar(String texto,
+      {List<Uint8List> imagens = const []}) async {
     final t = texto.trim();
-    if ((t.isEmpty && imagem == null) || _aPensar) return;
+    if ((t.isEmpty && imagens.isEmpty) || _aPensar) return;
     if (_aOuvir) await _pararVoz();
     if (!mounted) return;
 
     setState(() {
-      _msgs.add(_Msg.utilizador(t, imagem: imagem));
+      _msgs.add(_Msg.utilizador(t, imagens: imagens));
       _aPensar = true;
       _banner = null;
       _input.clear();
@@ -210,8 +213,12 @@ class _AssistantChatScreenState extends State<AssistantChatScreen> {
       final reply = await AssistantService.enviar(
         conversationId: _conversationId,
         message: t.isEmpty ? null : t,
-        imageBase64: imagem == null ? null : base64Encode(imagem),
-        imageMime: imagem == null ? null : 'image/jpeg',
+        // Uma foto vai por image_base64, várias por images[] (ver
+        // montarCorpoAssistente). O tipo sai dos bytes (PNG da web ≠ JPEG).
+        imagens: [
+          for (final b in imagens)
+            AssistantFotoEnvio(base64: base64Encode(b), mime: mimeDaImagem(b)),
+        ],
         dropoffLat: entrega?.latitude,
         dropoffLng: entrega?.longitude,
         apartmentDelivery: cart.apartmentDelivery,
@@ -282,7 +289,8 @@ class _AssistantChatScreenState extends State<AssistantChatScreen> {
               ),
               ListTile(
                 leading: const Icon(Icons.photo_library_outlined),
-                title: Text('Escolher da galeria'.tr),
+                title: Text('Escolher da galeria (até {0} fotos)'
+                    .trArgs([kAssistantMaxFotos])),
                 onTap: () => Navigator.pop(ctx, ImageSource.gallery),
               ),
             ],
@@ -292,20 +300,43 @@ class _AssistantChatScreenState extends State<AssistantChatScreen> {
     }
     if (fonte == null || !mounted) return;
     try {
-      final x = await SafeImagePicker.pickImage(
-        source: fonte,
-        maxWidth: 1280,
-        maxHeight: 1280,
-        imageQuality: 80,
-      );
-      if (x == null || !mounted) return;
-      var bytes = await x.readAsBytes();
-      // O seletor já reduz na maioria dos aparelhos; isto garante o tecto.
-      if (bytes.length > 1200 * 1024) {
-        bytes = await compute(_reencodar, bytes);
+      // Câmara: uma foto. Galeria (e web): várias de uma vez — a lista em
+      // várias fotos, ou os prints do carrinho da Glovo/Uber para comparar.
+      final List<XFile> escolhidas;
+      if (fonte == ImageSource.camera) {
+        final x = await SafeImagePicker.pickImage(
+          source: fonte,
+          maxWidth: 1280,
+          maxHeight: 1280,
+          imageQuality: 80,
+        );
+        escolhidas = x == null ? const [] : [x];
+      } else {
+        escolhidas = await SafeImagePicker.pickMultiImage(
+          maxWidth: 1280,
+          maxHeight: 1280,
+          imageQuality: 80,
+          limit: kAssistantMaxFotos,
+        );
       }
-      if (!mounted) return;
-      await _enviar(_input.text, imagem: bytes);
+      if (escolhidas.isEmpty || !mounted) return;
+      final aUsar = escolhidas.length > kAssistantMaxFotos
+          ? escolhidas.sublist(0, kAssistantMaxFotos)
+          : escolhidas;
+      if (escolhidas.length > kAssistantMaxFotos) {
+        _snack('Mando só as primeiras {0} fotos.'.trArgs([kAssistantMaxFotos]));
+      }
+      final fotos = <Uint8List>[];
+      for (final x in aUsar) {
+        var bytes = await x.readAsBytes();
+        // O seletor já reduz na maioria dos aparelhos; isto garante o tecto.
+        if (bytes.length > 1200 * 1024) {
+          bytes = await compute(_reencodar, bytes);
+        }
+        fotos.add(bytes);
+      }
+      if (!mounted || fotos.isEmpty) return;
+      await _enviar(_input.text, imagens: fotos);
     } catch (e) {
       debugPrint('[Assistente] foto: $e');
       if (mounted) _snack('Não consegui ler a foto.'.tr);
@@ -609,7 +640,7 @@ class _BalaoUtilizador extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imagem = msg.imagem;
+    final imagens = msg.imagens;
     final url = msg.imageUrl;
     return Align(
       alignment: Alignment.centerRight,
@@ -630,15 +661,36 @@ class _BalaoUtilizador extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             // Toque → foto inteira (visualizador comum, 08/10/2026).
-            if (imagem != null)
+            // Várias fotos (01/11/2026): miniaturas lado a lado.
+            if (imagens.length == 1)
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () => BoraFotoEcraInteiro.abrir(context,
-                    imagem: MemoryImage(imagem)),
+                    imagem: MemoryImage(imagens.first)),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(10),
-                  child: Image.memory(imagem, width: 180, fit: BoxFit.cover),
+                  child: Image.memory(imagens.first,
+                      width: 180, fit: BoxFit.cover),
                 ),
+              )
+            else if (imagens.length > 1)
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                alignment: WrapAlignment.end,
+                children: [
+                  for (final b in imagens)
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => BoraFotoEcraInteiro.abrir(context,
+                          imagem: MemoryImage(b)),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.memory(b,
+                            width: 84, height: 84, fit: BoxFit.cover),
+                      ),
+                    ),
+                ],
               )
             else if (url != null && url.isNotEmpty)
               GestureDetector(
@@ -657,7 +709,7 @@ class _BalaoUtilizador extends StatelessWidget {
                 ),
               ),
             if (msg.texto.isNotEmpty) ...[
-              if (imagem != null || (url != null && url.isNotEmpty))
+              if (imagens.isNotEmpty || (url != null && url.isNotEmpty))
                 const SizedBox(height: 6),
               Text(msg.texto,
                   style: const TextStyle(color: Colors.white, fontSize: 15)),
@@ -712,6 +764,8 @@ class _BalaoAssistente extends StatelessWidget {
                   style: const TextStyle(
                       fontSize: 15, color: AppColors.textPrimary, height: 1.35)),
             ),
+          if (r.comparacao != null)
+            AssistantComparacaoCard(comparacao: r.comparacao!),
           if (lista != null && lista.isNotEmpty)
             AssistantListaExtraidaCard(
                 itens: lista, onConfirmar: onConfirmarLista),

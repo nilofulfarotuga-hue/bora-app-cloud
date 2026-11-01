@@ -638,7 +638,16 @@ class AuthStore extends ChangeNotifier {
   /// `sessao_convidado_ativa` está ligada (as guardas do banco — o convidado
   /// só VÊ — têm de estar aplicadas primeiro). Desligada, o visitante navega
   /// sem sessão nenhuma e nada vai para a consola como erro.
+  ///
+  /// [G3 · 01/11/2026] A Edge `sessao-convidado` NÃO está publicada no
+  /// servidor (confirmado: `get_edge_function` → "Function not found"). Até
+  /// estar, nem se pergunta o interruptor nem se chama a função — ligá-lo no
+  /// painel dava um 404 em cada arranque. O painel mostra o interruptor
+  /// trancado com a explicação. Publicada a função: pôr isto a `true`.
+  static const bool edgeSessaoConvidadoPublicada = false;
+
   Future<void> _ensureGuestSession() async {
+    if (!edgeSessaoConvidadoPublicada) return;
     if (_supabase.auth.currentUser != null) return;
     try {
       final ativa = await _supabase
@@ -651,6 +660,11 @@ class AuthStore extends ChangeNotifier {
           data['refresh_token'] is String) {
         await _supabase.auth.setSession(data['refresh_token'] as String);
         debugPrint('AuthStore: sessão de convidado OK');
+      }
+    } on FunctionException catch (e) {
+      // 404 = função não publicada: sem ruído (o visitante navega sem sessão).
+      if (e.status != 404) {
+        debugPrint('AuthStore: sessão de convidado indisponível => $e');
       }
     } catch (e) {
       debugPrint('AuthStore: sessão de convidado indisponível => $e');
@@ -2004,7 +2018,9 @@ class AuthStore extends ChangeNotifier {
     String? roleStr;
     try {
       final prefs = await SharedPreferences.getInstance();
-      _visitante = prefs.getBool(_kVisitante) ?? false;
+      // 01/11/2026: não apaga um "Sou Cliente" sem conta tocado enquanto
+      // esta leitura ainda corria (entrarComoVisitante já pôs true).
+      _visitante = _visitante || (prefs.getBool(_kVisitante) ?? false);
 
       // ── Restore local account objects ─────────────────────────────────
       // SEC (2026-06-12) — a password vem do secure storage (Keystore);

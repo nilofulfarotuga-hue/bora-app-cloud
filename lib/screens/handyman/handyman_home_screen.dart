@@ -17,6 +17,7 @@ import '../../widgets/bora_support_sheet.dart';
 import '../../widgets/caixa_de_papeis.dart';
 import '../../widgets/portao_do_prestador.dart';
 import '../../widgets/profile_switcher_button.dart';
+import '../prestador/conta_suspensa_screen.dart';
 import '../shared/comprovativo_atividade_screen.dart';
 import 'casa_profissional_ui.dart';
 import 'handyman_apply_screen.dart';
@@ -256,14 +257,21 @@ class _HandymanHomeScreenState extends State<HandymanHomeScreen> {
                       onAbrir: _abrir,
                       onPapeis: _abrirPapeis,
                     ),
-                  'pending' => _EmAnalise(perfil: perfil, onRefresh: _recarregar),
-                  'suspended' || 'banned' => _Estado(
-                      icone: Icons.pause_circle_outline,
-                      cor: AppColors.error,
-                      titulo: perfil.approvalStatus == 'banned'
+                  'pending' => _EmAnalise(
+                      perfil: perfil,
+                      semHorarios: store.slots.isEmpty,
+                      onRefresh: _recarregar,
+                      onDefinirHorarios: () =>
+                          _abrir(const HandymanDisponibilidadeScreen()),
+                    ),
+                  // [01/11/2026 · B8] Motivo, até quando, quem decidiu e
+                  // "Pedir revisão" (Diretiva 2024/2831 art. 11.º).
+                  'suspended' || 'banned' => ContaSuspensaView(
+                      tiposConta: const {'casa'},
+                      tituloSemRegisto: perfil.approvalStatus == 'banned'
                           ? 'Conta desativada'.tr
                           : 'Conta suspensa para revisão'.tr,
-                      texto:
+                      textoSemRegisto:
                           'A tua conta da Casa está em revisão pela equipa Bora. Contacta o suporte para saberes mais.'.tr,
                     ),
                   _ => _Recusada(
@@ -354,43 +362,6 @@ class _Convite extends StatelessWidget {
   }
 }
 
-class _Estado extends StatelessWidget {
-  const _Estado({
-    required this.icone,
-    required this.cor,
-    required this.titulo,
-    required this.texto,
-  });
-  final IconData icone;
-  final Color cor;
-  final String titulo;
-  final String texto;
-
-  @override
-  Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(Spacing.xl),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icone, size: 64, color: cor),
-              const SizedBox(height: Spacing.lg),
-              Text(titulo,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary)),
-              const SizedBox(height: Spacing.sm),
-              Text(texto,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      color: AppColors.textSecondary, height: 1.4)),
-            ],
-          ),
-        ),
-      );
-}
 
 class _Recusada extends StatelessWidget {
   const _Recusada({required this.motivo, required this.onReapply});
@@ -433,9 +404,16 @@ class _Recusada extends StatelessWidget {
 
 /// Pendente: o que falta, com envio aqui mesmo (sem refazer a candidatura).
 class _EmAnalise extends StatelessWidget {
-  const _EmAnalise({required this.perfil, required this.onRefresh});
+  const _EmAnalise({
+    required this.perfil,
+    required this.semHorarios,
+    required this.onRefresh,
+    required this.onDefinirHorarios,
+  });
   final CasaPerfil perfil;
+  final bool semHorarios;
   final Future<void> Function() onRefresh;
+  final VoidCallback onDefinirHorarios;
 
   @override
   Widget build(BuildContext context) {
@@ -461,6 +439,9 @@ class _EmAnalise extends StatelessWidget {
             style: const TextStyle(color: AppColors.textSecondary, height: 1.4),
           ),
           const SizedBox(height: Spacing.xl),
+          // C10: aprovado sem horários não recebe nada — dizer já, enquanto
+          // espera pela análise.
+          if (semHorarios) CasaAvisoSemHorarios(onDefinir: onDefinirHorarios),
           if (perfil.oficios.isNotEmpty) ...[
             CasaSeccao('Os teus ofícios'.tr),
             for (final o in perfil.oficios)
@@ -493,6 +474,9 @@ class _EmAnalise extends StatelessWidget {
     );
   }
 }
+
+// C10 (revisão 01/11): o aviso "Sem horários não recebes trabalhos" é o
+// [CasaAvisoSemHorarios] de casa_profissional_ui.dart (pendente e aprovado).
 
 /// Estado de um ofício do profissional em PT-PT.
 String casaEstadoOficioTexto(CasaOficioDoProfissional o) => switch (o.estado) {
@@ -650,31 +634,8 @@ class _Painel extends StatelessWidget {
           ),
           _OficiosCard(store: store),
           if (store.slots.isEmpty)
-            InkWell(
-              onTap: () => onAbrir(const HandymanDisponibilidadeScreen()),
-              borderRadius: BorderRadius.circular(Radii.lg),
-              child: Container(
-                margin: const EdgeInsets.only(bottom: Spacing.md),
-                padding: const EdgeInsets.all(Spacing.md),
-                decoration: BoxDecoration(
-                  color: AppColors.warning.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(Radii.lg),
-                  border:
-                      Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.info_outline, color: AppColors.warning),
-                    const SizedBox(width: Spacing.md),
-                    Expanded(
-                      child: Text(
-                        'Ainda não marcaste a tua disponibilidade — sem ela não recebes ofertas. Toca aqui.'.tr,
-                        style: const TextStyle(color: AppColors.textPrimary),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            CasaAvisoSemHorarios(
+              onDefinir: () => onAbrir(const HandymanDisponibilidadeScreen()),
             ),
           Wrap(
             spacing: Spacing.sm,

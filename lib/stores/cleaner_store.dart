@@ -41,6 +41,11 @@ class CleanerStore extends ChangeNotifier {
   List<CleaningBooking> _agenda = const [];
   List<CleaningBooking> get agenda => _agenda;
 
+  /// S4 (01/11/2026): o cliente pediu-me pelo nome (favorita, "marcar de
+  /// novo" ou série que me repete — `generate_recurring_bookings` grava
+  /// `requested_cleaner_id = COALESCE(cleaner_id, requested_cleaner_id)`).
+  bool clienteHabitual(CleaningBooking b) => b.pedidaPor(_profile?.id);
+
   List<CleanerSlot> _slots = const [];
   List<CleanerSlot> get slots => _slots;
 

@@ -19,7 +19,10 @@ import '../models/falha_de_acao.dart';
 /// categoria nunca ficam presas — regra 1.27). As AÇÕES (criar, aceitar,
 /// confirmar…) lançam, e o ecrã mostra [casaMensagemDeErro].
 class CasaStore extends ChangeNotifier {
-  CasaStore() : _semRede = false;
+  CasaStore()
+      : _semRede = false,
+        _rpcDeTeste = null,
+        _uidDeTeste = null;
 
   /// Store sem rede, só para testes de ecrã: começa já com dados e nenhuma
   /// leitura sai para o servidor.
@@ -28,7 +31,9 @@ class CasaStore extends ChangeNotifier {
     CasaConfig config = CasaConfig.vazia,
     List<CasaPedido> pedidos = const [],
     Map<String, List<CasaMensagem>> mensagens = const {},
-  }) : _semRede = true {
+  })  : _semRede = true,
+        _rpcDeTeste = null,
+        _uidDeTeste = null {
     _config = config;
     _configCarregada = true;
     _pedidos = pedidos;
@@ -36,15 +41,45 @@ class CasaStore extends ChangeNotifier {
     _mensagens.addAll(mensagens);
   }
 
+  /// SÓ PARA TESTES: o "servidor" é uma função (sem Supabase, sem tempo real
+  /// nem Storage). As ações correm de verdade contra um servidor falso — serve
+  /// para provar o fluxo pedir → aceitar → … → confirmar sem rede.
+  @visibleForTesting
+  CasaStore.comServidor({
+    required Future<dynamic> Function(String fn, Map<String, dynamic> params)
+        rpc,
+    CasaConfig config = CasaConfig.vazia,
+    String uid = 'u-cliente-teste',
+  })  : _semRede = false,
+        _rpcDeTeste = rpc,
+        _uidDeTeste = uid {
+    _config = config;
+    _configCarregada = true;
+  }
+
   final bool _semRede;
+  final Future<dynamic> Function(String fn, Map<String, dynamic> params)?
+      _rpcDeTeste;
+  final String? _uidDeTeste;
+
+  /// Sem tempo real nem Storage (servidor falso dos testes).
+  bool get _semCanais => _semRede || _rpcDeTeste != null;
 
   SupabaseClient get _sb => Supabase.instance.client;
   String? get _uid {
+    if (_uidDeTeste != null) return _uidDeTeste;
     try {
       return _sb.auth.currentUser?.id;
     } catch (_) {
       return null;
     }
+  }
+
+  /// Todas as funções do servidor passam por aqui (a de teste, se houver).
+  Future<dynamic> _rpc(String fn, [Map<String, dynamic>? params]) {
+    final f = _rpcDeTeste;
+    if (f != null) return f(fn, params ?? const <String, dynamic>{});
+    return _sb.rpc(fn, params: params);
   }
 
   static const _balde = 'casa-fotos';
@@ -74,7 +109,7 @@ class CasaStore extends ChangeNotifier {
   Future<void> refreshSettings() async {
     if (_semRede) return;
     try {
-      final res = await _sb.rpc('casa_config').timeout(kAcaoTimeout);
+      final res = await _rpc('casa_config').timeout(kAcaoTimeout);
       _config = CasaConfig.fromJson(_asMap(res));
       _configCarregada = true;
       _configFalhou = false;
@@ -123,7 +158,7 @@ class CasaStore extends ChangeNotifier {
     if (_semRede) return;
     if (_uid == null) return;
     try {
-      final res = await _sb.rpc('casa_meus_pedidos').timeout(kAcaoTimeout);
+      final res = await _rpc('casa_meus_pedidos').timeout(kAcaoTimeout);
       final lista = _lista(res).map(CasaPedido.fromJson).toList();
       _pedidos = _ordenar(lista);
       _pedidosCarregados = true;
@@ -164,7 +199,7 @@ class CasaStore extends ChangeNotifier {
   /// Tempo real da lista: qualquer mudança num pedido meu recarrega a lista
   /// (e o pedido aberto, se for esse).
   void _ouvirMeusPedidos() {
-    if (_canalLista != null) return;
+    if (_semCanais || _canalLista != null) return;
     final uid = _uid;
     if (uid == null) return;
     try {
@@ -225,7 +260,7 @@ class CasaStore extends ChangeNotifier {
   }
 
   void _ouvirPedido(String id) {
-    if (_semRede) return;
+    if (_semCanais) return;
     if (_canalAbertoId == id && _canalAberto != null) return;
     _largarCanalAberto();
     try {
@@ -301,8 +336,8 @@ class CasaStore extends ChangeNotifier {
   Future<CasaPedido?> pedido(String id) async {
     if (_semRede) return null;
     try {
-      final res = await _sb
-          .rpc('casa_pedido', params: {'p_pedido_id': id}).timeout(kAcaoTimeout);
+      final res =
+          await _rpc('casa_pedido', {'p_pedido_id': id}).timeout(kAcaoTimeout);
       if (res == null) return null;
       return CasaPedido.fromJson(_asMap(res));
     } catch (e) {
@@ -355,7 +390,7 @@ class CasaStore extends ChangeNotifier {
     dynamic res;
     try {
       res = await criarComTectoSeguro(
-        () => _sb.rpc('casa_criar_pedido', params: params),
+        () => _rpc('casa_criar_pedido', params),
         trabalho: TrabalhoEmCurso.casa,
       );
     } catch (e) {
@@ -375,8 +410,9 @@ class CasaStore extends ChangeNotifier {
   }
 
   /// Sobe uma foto do problema para o balde privado `casa-fotos`
-  /// (`<uid>/<pedido_id>/problema_<ms>.jpg`) e regista-a (casa_adicionar_foto).
-  /// Lança em erro real; o assistente segue na mesma (a foto é um extra).
+  /// (`<uid>/<pedido_id>/problema_<ms>.<ext>`, com a extensão real — C14) e
+  /// regista-a (casa_adicionar_foto). Lança em erro real; o assistente segue
+  /// na mesma (a foto é um extra).
   Future<String> adicionarFoto(
     String pedidoId,
     Uint8List bytes, {
@@ -386,19 +422,19 @@ class CasaStore extends ChangeNotifier {
     final uid = _uid;
     if (uid == null) throw StateError('not_authenticated');
     if (bytes.isEmpty) throw StateError('empty_file');
-    final mime = switch (extensao.toLowerCase()) {
-      'png' => 'image/png',
-      'webp' => 'image/webp',
-      _ => 'image/jpeg',
-    };
-    final caminho =
-        '$uid/$pedidoId/problema_${DateTime.now().millisecondsSinceEpoch}.jpg';
-    // Sem upsert: o caminho leva a hora, nunca há conflito.
-    await _sb.storage
-        .from(_balde)
-        .uploadBinary(caminho, bytes, fileOptions: FileOptions(contentType: mime))
-        .timeout(const Duration(seconds: 40));
-    await _sb.rpc('casa_adicionar_foto', params: {
+    final mime = casaExtensaoFoto(extensao).mime;
+    final caminho = casaCaminhoFotoProblema(
+        uid, pedidoId, extensao, DateTime.now().millisecondsSinceEpoch);
+    // Sem upsert: o caminho leva a hora, nunca há conflito. O servidor falso
+    // dos testes não tem Storage: só regista a foto.
+    if (_rpcDeTeste == null) {
+      await _sb.storage
+          .from(_balde)
+          .uploadBinary(caminho, bytes,
+              fileOptions: FileOptions(contentType: mime))
+          .timeout(const Duration(seconds: 40));
+    }
+    await _rpc('casa_adicionar_foto', {
       'p_pedido_id': pedidoId,
       'p_tipo': 'problema',
       'p_storage_path': caminho,
@@ -410,7 +446,7 @@ class CasaStore extends ChangeNotifier {
 
   /// URL assinado (1 h) de uma foto do balde privado. null em erro.
   Future<String?> urlFoto(String storagePath) async {
-    if (_semRede || storagePath.isEmpty) return null;
+    if (_semCanais || storagePath.isEmpty) return null;
     final guardado = _urls[storagePath];
     if (guardado != null && DateTime.now().isBefore(guardado.ate)) {
       return guardado.url;
@@ -460,7 +496,7 @@ class CasaStore extends ChangeNotifier {
   /// Avalia o profissional (1–5). Só depois de confirmado e pago.
   Future<void> avaliar(String pedidoId, int nota, {String comentario = ''}) async {
     _semRedeFalha();
-    await _sb.rpc('casa_avaliar', params: {
+    await _rpc('casa_avaliar', {
       'p_pedido_id': pedidoId,
       'p_nota': nota,
       'p_comentario': comentario,
@@ -471,15 +507,15 @@ class CasaStore extends ChangeNotifier {
   /// Quanto custa cancelar agora (o valor final é sempre do servidor).
   Future<CasaSimulacaoCancelamento> simularCancelamento(String pedidoId) async {
     _semRedeFalha();
-    final res = await _sb.rpc('casa_cancelar_simulacao',
-        params: {'p_pedido_id': pedidoId}).timeout(kAcaoTimeout);
+    final res = await _rpc('casa_cancelar_simulacao',
+        {'p_pedido_id': pedidoId}).timeout(kAcaoTimeout);
     return CasaSimulacaoCancelamento.fromJson(_asMap(res));
   }
 
   /// Cancela. Devolve a taxa cobrada (cêntimos).
   Future<int> cancelar(String pedidoId, {String motivo = ''}) async {
     _semRedeFalha();
-    final res = await _sb.rpc('casa_cancelar', params: {
+    final res = await _rpc('casa_cancelar', {
       'p_pedido_id': pedidoId,
       'p_motivo': motivo,
     }).timeout(kAcaoTimeout);
@@ -492,7 +528,7 @@ class CasaStore extends ChangeNotifier {
   Future<CasaPedido> _acaoQueDevolvePedido(
       String rpc, Map<String, dynamic> params) async {
     _semRedeFalha();
-    final res = await _sb.rpc(rpc, params: params).timeout(kAcaoTimeout);
+    final res = await _rpc(rpc, params).timeout(kAcaoTimeout);
     final p = CasaPedido.fromJson(_asMap(res));
     _aplicar(p);
     return p;
@@ -521,8 +557,8 @@ class CasaStore extends ChangeNotifier {
   Future<void> carregarMensagens(String pedidoId) async {
     if (_semRede) return;
     try {
-      final res = await _sb.rpc('casa_mensagens',
-          params: {'p_pedido_id': pedidoId}).timeout(kAcaoTimeout);
+      final res = await _rpc('casa_mensagens',
+          {'p_pedido_id': pedidoId}).timeout(kAcaoTimeout);
       final lista = _lista(res).map(CasaMensagem.fromJson).toList()
         ..sort((a, b) => (a.createdAt ?? DateTime(0))
             .compareTo(b.createdAt ?? DateTime(0)));
@@ -538,7 +574,7 @@ class CasaStore extends ChangeNotifier {
   /// Liga o chat: lê as mensagens e ouve as novas em tempo real.
   void ouvirMensagens(String pedidoId) {
     unawaited(carregarMensagens(pedidoId));
-    if (_semRede || _canaisMensagens.containsKey(pedidoId)) return;
+    if (_semCanais || _canaisMensagens.containsKey(pedidoId)) return;
     try {
       _canaisMensagens[pedidoId] = _sb.channel('casa_mensagens_$pedidoId')
         ..onPostgresChanges(
@@ -580,7 +616,7 @@ class CasaStore extends ChangeNotifier {
     _semRedeFalha();
     final limpo = texto.trim();
     if (limpo.isEmpty) return;
-    await _sb.rpc('casa_enviar_mensagem', params: {
+    await _rpc('casa_enviar_mensagem', {
       'p_pedido_id': pedidoId,
       'p_texto': limpo,
     }).timeout(kAcaoTimeout);

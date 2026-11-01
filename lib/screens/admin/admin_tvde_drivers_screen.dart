@@ -76,7 +76,7 @@ class _AdminTvdeDriversScreenState extends State<AdminTvdeDriversScreen> {
               minLines: 1,
               maxLines: 3,
               decoration: const InputDecoration(
-                hintText: 'Motivo (mínimo 3 caracteres)',
+                hintText: 'Motivo (mínimo 10 letras — o motorista recebe por escrito)',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -96,8 +96,10 @@ class _AdminTvdeDriversScreenState extends State<AdminTvdeDriversScreen> {
       ),
     );
     if (reason == null) return;
-    if (reason.length < 3) {
-      _toast('Motivo tem de ter pelo menos 3 caracteres.', AppColors.warning);
+    // [01/11/2026 · B8] O gatilho do servidor exige 10 letras (Diretiva
+    // 2024/2831: o motorista recebe o motivo por escrito).
+    if (reason.length < 10) {
+      _toast('Motivo tem de ter pelo menos 10 letras.', AppColors.warning);
       return;
     }
     setState(() => _busy = true);

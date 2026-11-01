@@ -6,6 +6,7 @@ import '../config/app_spacing.dart';
 import '../config/legal_identity.dart';
 import '../services/app_update_service.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
+import 'prestador/como_o_bora_decide_screen.dart';
 
 /// "Sobre / Informação legal" — quem opera a Bora, contactos, resolução
 /// alternativa de litígios, Livro de Reclamações e ligações aos termos e à
@@ -265,6 +266,37 @@ class LegalInfoScreen extends StatelessWidget {
                   subtitulo: _semEsquema(LegalIdentity.privacidadeUrl),
                   onTap: () =>
                       _abrir(context, Uri.parse(LegalIdentity.privacidadeUrl)),
+                ),
+              ],
+            ),
+
+            // ── (g) Como o Bora decide (prestadores) ─────────────────────
+            // [01/11/2026 · B8] Diretiva (UE) 2024/2831, art. 9.º: informação
+            // escrita sobre os sistemas automáticos, sempre à mão na app.
+            _Cartao(
+              titulo: 'Para quem trabalha com a Bora',
+              children: [
+                ListTile(
+                  key: const ValueKey('legal-como-o-bora-decide'),
+                  leading:
+                      const Icon(Icons.policy_outlined, color: AppColors.primary),
+                  title: const Text(
+                    'Como o Bora decide',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  subtitle: const Text(
+                    'O que a app faz sozinha, o que é sempre decidido por uma '
+                    'pessoa e como pedir revisão',
+                    style:
+                        TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                  trailing: const Icon(Icons.chevron_right,
+                      color: AppColors.textSubtle),
+                  onTap: () => ComoOBoraDecideScreen.abrir(context),
                 ),
               ],
             ),

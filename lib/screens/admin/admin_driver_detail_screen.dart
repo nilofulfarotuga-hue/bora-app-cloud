@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../services/admin/admin_driver_service.dart';
+import '../../services/prestador_suspensao_service.dart';
 import '../../utils/gps_parado.dart';
 import '../../utils/sinal_motorista.dart';
 import '../../widgets/admin/ligado_sem_sinal.dart';
@@ -16,6 +17,7 @@ import '../../widgets/admin_robo_documentos.dart';
 import '../../widgets/private_bucket_image.dart';
 import '_admin_password_reset_dialog.dart';
 import 'admin_papeis_screen.dart';
+import 'admin_suspensao_comum.dart';
 import '../../utils/hora_lisboa_ext.dart';
 import '../../utils/hora_lisboa.dart';
 
@@ -308,6 +310,15 @@ class _OverviewTab extends StatelessWidget {
             enabled: !isDeleted && !isBanned,
             onTap: () => onAction(_runBan),
           ),
+          // [01/11/2026 · B8] Registo legal completo (Diretiva 2024/2831):
+          // temporária, sem data, encerramento ou restrição, com motivo.
+          _ActionButton(
+            icon: Icons.gavel,
+            label: 'Suspender com motivo',
+            color: AppColors.error,
+            enabled: !isDeleted && !isBanned,
+            onTap: () => onAction(_runSuspenderComMotivo),
+          ),
           if (showReactivate)
             _ActionButton(
               icon: Icons.refresh,
@@ -408,6 +419,24 @@ class _OverviewTab extends StatelessWidget {
     }
   }
 
+  Future<void> _runSuspenderComMotivo(
+    AdminDriverService svc,
+    Map<String, dynamic> driver,
+    void Function(String, {bool isError}) toast,
+  ) async {
+    final ctx = _AdminDriverDetailScreenContext.of();
+    if (ctx == null) return;
+    await suspenderComMotivo(
+      ctx,
+      tabela: 'drivers',
+      entidadeId: driver['id'].toString(),
+      nome: driver['name'] as String?,
+      // Sem a temporária para estafetas até à correção do servidor
+      // (ver kTiposSuspensaoEstafeta).
+      tipos: kTiposSuspensaoEstafeta,
+    );
+  }
+
   Future<void> _runReactivate(
     AdminDriverService svc,
     Map<String, dynamic> driver,
@@ -433,6 +462,10 @@ class _OverviewTab extends StatelessWidget {
         driverId: driver['id'] as String,
         note: 'Reactivado via AdminDriverDetailScreen',
       );
+      // [01/11/2026 · B8] Fecha também o registo legal da suspensão (senão
+      // fica "ativa" no histórico e na fila de revisões).
+      await PrestadorSuspensaoService.fecharRegistoAberto('drivers',
+          driver['id'].toString(), 'Reativado no painel (ficha do entregador)');
       final cleared = (r['cleared_states'] as List?)?.join(', ') ?? '';
       toast('Reactivado (limpo: $cleared).');
     } on AdminDriverException catch (e) {
@@ -1536,9 +1569,14 @@ class _BanDialogState extends State<_BanDialog> {
               onChanged: (v) => setState(() => _code = v ?? 'misconduct'),
             ),
             const SizedBox(height: 12),
+            // [01/11/2026 · B8] O gatilho do servidor exige 10 letras: o
+            // entregador recebe o motivo por escrito (Diretiva 2024/2831).
             TextField(
               controller: _reason,
-              decoration: const InputDecoration(labelText: 'Motivo (≥3 chars)'),
+              decoration: const InputDecoration(
+                labelText: 'Motivo (mín. $kMinLetrasMotivoSuspensao letras — '
+                    'o entregador recebe por escrito)',
+              ),
               minLines: 2, maxLines: 4,
               onChanged: (_) => setState(() {}),
             ),
@@ -1570,7 +1608,7 @@ class _BanDialogState extends State<_BanDialog> {
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
         ElevatedButton(
-          onPressed: _reason.text.trim().length < 3
+          onPressed: _reason.text.trim().length < kMinLetrasMotivoSuspensao
               ? null
               : () => Navigator.pop(
                     context,
@@ -1646,7 +1684,8 @@ class _SoftDeleteDialogState extends State<_SoftDeleteDialog> {
   @override
   Widget build(BuildContext context) {
     final nameOk = _name.text.trim() == widget.expectedName.trim();
-    final reasonOk = _reason.text.trim().length >= 3;
+    // [01/11/2026 · B8] Remover = encerrar a conta: 10 letras (servidor).
+    final reasonOk = _reason.text.trim().length >= kMinLetrasMotivoSuspensao;
     return AlertDialog(
       title: const Text('Remover entregador'),
       content: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -1665,7 +1704,9 @@ class _SoftDeleteDialogState extends State<_SoftDeleteDialog> {
         ),
         TextField(
           controller: _reason,
-          decoration: const InputDecoration(labelText: 'Motivo (≥3 chars)'),
+          decoration: const InputDecoration(
+              labelText: 'Motivo (mín. $kMinLetrasMotivoSuspensao letras — '
+                  'o entregador recebe por escrito)'),
           minLines: 1, maxLines: 3,
           onChanged: (_) => setState(() {}),
         ),

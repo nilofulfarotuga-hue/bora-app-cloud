@@ -5,7 +5,9 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../models/online_resultado.dart';
 import 'driver_location_ping_service.dart';
+import 'porta_online_service.dart';
 import 'web_presence.dart';
 
 /// Mantém `drivers.last_heartbeat_at` actualizado a cada 30s enquanto o
@@ -82,10 +84,22 @@ class HeartbeatService {
   /// Há um relógio de batimento a correr (sair da conta usa isto).
   static bool get relogioAtivo => _relogio != null;
 
+  /// [O3 · 01/11/2026] Quem pergunta se a conta pode ficar online antes de
+  /// começar a bater. Por defeito a [PortaOnline] (resposta guardada até 60 s,
+  /// partilhada com o toque no botão). Os testes trocam isto.
+  @visibleForTesting
+  static Future<OnlineResultado> Function() verificarConta =
+      () => PortaOnline.verificar(forcar: false);
+
+  /// Sobe a cada [pararTodos]: um arranque que ainda esperava pela resposta
+  /// do servidor já não liga o relógio depois de tudo parado.
+  static int _paragens = 0;
+
   /// Pára TODOS os batimentos da app (sair da conta / ficar offline). Sem
   /// isto, um ecrã por baixo (TVDE) continuava a bater e o servidor voltava
   /// a pôr o estafeta online (driver_heartbeat põe online com GPS vivo).
   static Future<void> pararTodos() async {
+    _paragens++;
     for (final s in _ativas.toList()) {
       await s.stop();
     }
@@ -126,6 +140,24 @@ class HeartbeatService {
   Future<void> start() async {
     if (_running) return;
     _running = true;
+    // [O3 · 01/11/2026] Conta por aprovar não bate: o `driver_heartbeat` (e a
+    // posição web com `p_is_online:true`) põe online quem bate com GPS vivo —
+    // era uma segunda porta para ficar online sem o botão. Pergunta-se ao
+    // servidor (`prestador_pode_ficar_online`); sem resposta deixa bater (o
+    // gatilho `trg_online_so_aprovado` continua a travar no servidor).
+    final paragensAntes = _paragens;
+    final conta = await verificarConta();
+    if (!_running || paragensAntes != _paragens) {
+      // Parou entretanto (botão Offline / sair da conta).
+      _running = false;
+      return;
+    }
+    if (!conta.ok) {
+      debugPrint('[HeartbeatService] não bate: conta não pode ficar online '
+          '(${conta.codigo})');
+      _running = false;
+      return;
+    }
     _pausedAwaitingUser = false;
     serverMarkedOffline.value = false;
     if (kIsWeb) {

@@ -11,8 +11,10 @@
 // persistente da oferta). Diferença: o servidor diz o papel do destinatário, por isso o cliente
 // recebe nos aparelhos dele (client_push_tokens) e o profissional nos do papel handyman.
 //
-// ESTADO: ficheiro novo, NÃO publicado. Vai para o passo PUBLICAR (deploy da função). Até lá os
-// avisos da Casa ficam só dentro da app (o _casa_notificar também grava o aviso in-app).
+// ESTADO: PUBLICADO a 01/11/2026 (missão app-fechar-2026-11-01, achado C4) pelo CLI
+// `supabase functions deploy notify-handyman --use-api`, verify_jwt=true. Prova: sem chave → 401;
+// chamada pelo servidor com a chave do vault → 200 (e2e_log 6035). O _casa_notificar também grava
+// o aviso dentro da app.
 // Secrets: FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT (os mesmos das outras notify-*).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'

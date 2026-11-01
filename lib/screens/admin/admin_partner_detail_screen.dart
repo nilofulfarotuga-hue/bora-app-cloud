@@ -23,6 +23,7 @@ import '../../widgets/pausa_do_dia_editor.dart';
 import '../../widgets/private_bucket_image.dart';
 import '_admin_partner_edit_dialog.dart';
 import 'admin_product_prices_dialog.dart';
+import 'admin_suspensao_comum.dart';
 import '../../utils/hora_lisboa.dart';
 
 class AdminPartnerDetailScreen extends StatefulWidget {
@@ -434,6 +435,18 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
               r['is_partner'] == true ? 'Parceiro' : 'Não-parceiro', ''),
           _infoRow(Icons.toggle_on,
               r['is_active_admin'] != false ? 'Activo no admin' : 'DESACTIVADO', ''),
+          // [01/11/2026 · B8] Suspender com motivo escrito (Diretiva
+          // 2024/2831 / Reg. 2019/1150): o dono recebe-o e pode pedir revisão.
+          if (r['is_active_admin'] != false)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: BotaoSuspenderComMotivo(
+                tabela: 'restaurants',
+                entidadeId: widget.restaurantId,
+                nome: r['name'] as String?,
+                onFeito: _loadAll,
+              ),
+            ),
           if (r['is_partner'] == true) ...[
             const SizedBox(height: 24),
             _commissionBillingCard(),

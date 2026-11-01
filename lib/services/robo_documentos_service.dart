@@ -60,6 +60,9 @@ abstract class RoboAdminApi {
   Future<void> desfazer(int id);
   Future<Map<String, dynamic>> lembrar(String userId);
   Future<Map<String, dynamic>> analisarPendentes();
+
+  /// Avisos de "faltam documentos" que já saíram (RPC `admin_documentos_avisos`).
+  Future<List<AvisoDocumentosEnviado>> avisos({String? userId, int limite = 200});
 }
 
 class RoboAdminSupabase implements RoboAdminApi {
@@ -111,6 +114,12 @@ class RoboAdminSupabase implements RoboAdminApi {
   @override
   Future<Map<String, dynamic>> analisarPendentes() async =>
       _mapa(await _sb.rpc('admin_robo_documentos_varrer'));
+
+  @override
+  Future<List<AvisoDocumentosEnviado>> avisos({String? userId, int limite = 200}) async =>
+      avisosDocumentosDaResposta(await _sb
+          .rpc('admin_documentos_avisos', params: {'p_user_id': userId, 'p_limite': limite})
+          .timeout(const Duration(seconds: 15)));
 }
 
 // ── A app do candidato ───────────────────────────────────────────────────────────

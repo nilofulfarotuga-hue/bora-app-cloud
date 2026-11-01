@@ -96,7 +96,11 @@ class CasaGanhosConteudo extends StatelessWidget {
               const SizedBox(height: Spacing.sm),
               _Par('Trabalhos'.tr, '${g.trabalhos}'),
               _Par('Recebido em mão'.tr, casaEuro(g.recebidoEmMaoCents)),
-              _Par('A receber no acerto'.tr, casaEuro(g.aReceberCents)),
+              Builder(builder: (_) {
+                final a = casaAcertoDaSemana(g.aReceberCents);
+                return _Par(a.rotulo, a.valor,
+                    key: const Key('casa_ganhos_acerto_semana'));
+              }),
               _Par('Comissão do Bora'.tr, casaEuro(g.comissaoCents)),
             ],
           ),
@@ -159,9 +163,7 @@ class CasaGanhosConteudo extends StatelessWidget {
                         Text(
                           [
                             '{0} trabalhos'.trArgs([a.trabalhos]),
-                            a.aReceber
-                                ? 'o Bora paga-te'.tr
-                                : 'tu pagas ao Bora'.tr,
+                            casaDirecaoAcertoTexto(a),
                             a.pago
                                 ? 'pago em {0}'.trArgs([_data(a.pagoEm)])
                                 : 'por pagar'.tr,
@@ -172,7 +174,8 @@ class CasaGanhosConteudo extends StatelessWidget {
                       ],
                     ),
                   ),
-                  Text(casaEuro(a.liquidoCents),
+                  Text(casaEuro(a.liquidoCents.abs()),
+                      key: ValueKey('casa_acerto_valor_${a.id}'),
                       style: TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 16,
@@ -232,23 +235,54 @@ class CasaGanhosConteudo extends StatelessWidget {
   }
 }
 
+/// A linha do acerto da semana (C8): `a_receber_cents` do servidor é negativo
+/// quando o profissional recebeu em dinheiro e deve a comissão ao Bora. Nunca
+/// se mostra o sinal menos: negativo → "A pagar ao Bora: 3,00 €"; zero ou
+/// positivo → "A receber no acerto: X".
+({String rotulo, String valor, bool aPagar, String frase}) casaAcertoDaSemana(
+    int aReceberCents) {
+  final aPagar = aReceberCents < 0;
+  final rotulo = aPagar ? 'A pagar ao Bora'.tr : 'A receber no acerto'.tr;
+  final valor = casaEuro(aReceberCents.abs());
+  return (
+    rotulo: rotulo,
+    valor: valor,
+    aPagar: aPagar,
+    frase: '$rotulo: $valor',
+  );
+}
+
+/// Quem paga a quem num acerto semanal fechado (C8).
+String casaDirecaoAcertoTexto(CasaAcerto a) {
+  if (a.aReceber) return 'o Bora paga-te'.tr;
+  if (a.aPagar) return 'tu pagas ao Bora'.tr;
+  return 'nada a acertar'.tr;
+}
+
 class _Par extends StatelessWidget {
-  const _Par(this.rotulo, this.valor);
+  const _Par(this.rotulo, this.valor, {super.key});
   final String rotulo;
   final String valor;
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(top: 2),
-        child: Row(
-          children: [
-            Expanded(
-                child: Text(rotulo,
-                    style: const TextStyle(color: AppColors.textSecondary))),
-            Text(valor,
-                style: const TextStyle(
-                    fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-          ],
+  Widget build(BuildContext context) => Semantics(
+        // Lido de uma vez: "A pagar ao Bora: 3,00 €".
+        container: true,
+        label: '$rotulo: $valor',
+        excludeSemantics: true,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Row(
+            children: [
+              Expanded(
+                  child: Text(rotulo,
+                      style: const TextStyle(color: AppColors.textSecondary))),
+              Text(valor,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary)),
+            ],
+          ),
         ),
       );
 }

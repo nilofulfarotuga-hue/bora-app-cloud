@@ -7,6 +7,8 @@ import '../../config/app_spacing.dart';
 import '../../widgets/admin/admin_coming_soon.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import 'admin_service_provider_detail_screen.dart';
+import 'admin_suspensao_comum.dart';
+import '../../services/prestador_suspensao_service.dart';
 import '../../utils/hora_lisboa_ext.dart';
 
 /// Admin — Barbearias / Prestadores de serviços (vertical Serviços).
@@ -190,10 +192,27 @@ class _AdminServiceProvidersScreenState
   Future<void> _toggleActive(Map<String, dynamic> r) async {
     final current = (r['is_active_admin'] as bool?) ?? true;
     final next = !current;
+    // [01/11/2026 · B8] Desativar = suspender com motivo escrito (o gatilho do
+    // servidor recusa o UPDATE direto sem ele — Diretiva 2024/2831).
+    if (!next) {
+      final ok = await suspenderComMotivo(
+        context,
+        tabela: 'service_providers',
+        entidadeId: r['id'].toString(),
+        nome: r['name'] as String?,
+        tipos: kTipoDesativar,
+        titulo: 'Desativar prestador?',
+        rotuloConfirmar: 'Desativar',
+      );
+      if (ok) _load();
+      return;
+    }
     try {
       await Supabase.instance.client
           .from('service_providers')
           .update({'is_active_admin': next}).eq('id', r['id']);
+      await PrestadorSuspensaoService.fecharRegistoAberto(
+          'service_providers', r['id'].toString(), 'Prestador reativado no painel');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

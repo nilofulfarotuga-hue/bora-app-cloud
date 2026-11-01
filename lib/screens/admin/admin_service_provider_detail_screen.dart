@@ -35,6 +35,8 @@ import '../../widgets/services/weekly_hours_editor.dart';
 import '../../widgets/admin_documentos.dart' show juntarAtividadeAdmin;
 import '../../widgets/admin_robo_documentos.dart' show avisarSeAtividadePorAprovar;
 import '_admin_rpc_errors.dart';
+import 'admin_suspensao_comum.dart';
+import '../../services/prestador_suspensao_service.dart';
 
 class AdminServiceProviderDetailScreen extends StatefulWidget {
   const AdminServiceProviderDetailScreen({
@@ -2059,14 +2061,32 @@ class _AdminServiceProviderDetailScreenState
   }
 
   Future<void> _setActiveAdmin(bool value) async {
+    // [01/11/2026 · B8] Desativar = suspender: o gatilho do servidor recusa o
+    // UPDATE direto sem motivo escrito (Diretiva 2024/2831; Reg. 2019/1150).
+    // Pede o motivo (mín. 10 letras) e chama admin_suspender_prestador.
+    if (!value) {
+      final ok = await suspenderComMotivo(
+        context,
+        tabela: 'service_providers',
+        entidadeId: widget.providerId,
+        nome: _provider?['name'] as String?,
+        tipos: kTipoDesativar,
+        titulo: 'Desativar prestador?',
+        rotuloConfirmar: 'Desativar',
+      );
+      if (ok) await _loadAll();
+      return;
+    }
     try {
       await _supabase
           .from('service_providers')
           .update({'is_active_admin': value}).eq('id', widget.providerId);
-      _toast(value ? 'Prestador activado.' : 'Prestador desactivado.');
+      await PrestadorSuspensaoService.fecharRegistoAberto('service_providers',
+          widget.providerId, 'Prestador reativado no painel');
+      _toast('Prestador activado.');
       await _loadAll();
     } catch (e) {
-      _toast('Erro: $e');
+      _toast('Erro: ${traduzirErroSuspensaoOuNull(e) ?? e}');
     }
   }
 
@@ -2138,12 +2158,22 @@ class _AdminServiceProviderDetailScreenState
           .eq('provider_id', widget.providerId)
           .limit(1);
       if ((appts as List).isNotEmpty || (payouts as List).isNotEmpty) {
-        await _supabase
-            .from('service_providers')
-            .update({'is_active_admin': false, 'is_online': false}).eq(
-                'id', widget.providerId);
+        // [01/11/2026 · B8] Com histórico não se apaga: encerra-se com motivo
+        // escrito (o gatilho do servidor recusa desativar sem ele).
         if (!mounted) return;
         setState(() => _deleting = false);
+        final ok = await suspenderComMotivo(
+          context,
+          tabela: 'service_providers',
+          entidadeId: widget.providerId,
+          nome: _provider?['name'] as String?,
+          tipos: const [
+            ('encerramento', 'Encerrar (tem histórico, não se apaga)'),
+          ],
+          titulo: 'Tem histórico: encerrar em vez de apagar',
+          rotuloConfirmar: 'Encerrar',
+        );
+        if (!ok) return;
         _toast(
             'Prestador tem histórico (agendamentos/pagamentos) — foi DESACTIVADO em vez de apagado.');
         await _loadAll();

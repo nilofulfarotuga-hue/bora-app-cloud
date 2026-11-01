@@ -19,6 +19,7 @@ import '../../utils/safe_image_picker.dart';
 import '../../widgets/address_autocomplete_field.dart';
 import '../../widgets/bora/bora.dart';
 import '../../widgets/legal_fields_section.dart';
+import '../prestador/como_o_bora_decide_screen.dart';
 
 /// LIMPEZA — candidatura a profissional de limpeza (cleaner_apply).
 /// A aprovação é feita pelo admin no painel (paridade F5).
@@ -487,7 +488,9 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
                 controlAffinity: ListTileControlAffinity.leading,
                 activeColor: AppColors.primary,
               ),
-            const SizedBox(height: Spacing.lg),
+            const SizedBox(height: Spacing.md),
+            // [01/11/2026 · B8] Diretiva 2024/2831: como a app decide.
+            const LigacaoComoOBoraDecide(),
             BoraPrimaryButton(
               label: _uploading ? 'A enviar…' : 'Enviar candidatura',
               icon: Icons.send,

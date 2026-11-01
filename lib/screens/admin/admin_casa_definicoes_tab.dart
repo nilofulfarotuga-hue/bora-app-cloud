@@ -135,7 +135,7 @@ class _AdminCasaDefinicoesTabState extends State<AdminCasaDefinicoesTab> {
         ? await casaConfirmar(
             context,
             titulo: 'LIGAR a Casa para todos os clientes?',
-            texto: 'Todos os clientes passam a ver o ladrilho "Casa" e podem '
+            texto: 'Todos os clientes passam a ver o atalho "Casa" na tela inicial e podem '
                 'fazer pedidos reais. Confira antes: profissionais aprovados, '
                 'ofícios aprovados e os valores AUTORIZADOS pelo Danilo.\n\n'
                 'Para confirmar, escreva LIGAR.',
@@ -173,15 +173,15 @@ class _AdminCasaDefinicoesTabState extends State<AdminCasaDefinicoesTab> {
   Future<void> _guardarTestadores(List<String> lista) async {
     final ok = await casaConfirmar(
       context,
-      titulo: 'Guardar testadores?',
+      titulo: 'Salvar testadores?',
       texto: '${lista.length} testador${lista.length == 1 ? '' : 'es'}. Os '
           'testadores veem a Casa mesmo com o interruptor desligado e os '
           'pedidos deles ficam marcados como teste.',
-      botao: 'Guardar',
+      botao: 'Salvar',
     );
     if (ok == null) return;
     await _correr('admin_casa_guardar_definicao',
-        {'p_key': 'casa_testadores', 'p_value': lista}, 'Testadores guardados.');
+        {'p_key': 'casa_testadores', 'p_value': lista}, 'Testadores salvos.');
   }
 
   // ── Definição genérica ──────────────────────────────────────────────────
@@ -196,7 +196,7 @@ class _AdminCasaDefinicoesTabState extends State<AdminCasaDefinicoesTab> {
       texto: '${proposta ? '$kCasaTextoProposta.\nMudar isto volta a pôr os '
               'valores como PROPOSTA até o Danilo dizer autorizo.\n\n' : ''}'
           'Chave técnica: $key',
-      botao: 'Guardar',
+      botao: 'Salvar',
       perigo: proposta,
       pedirTexto: true,
       // O tipo confere-se depois (casaLerValorDefinicao); "60" tem só 2
@@ -215,7 +215,7 @@ class _AdminCasaDefinicoesTabState extends State<AdminCasaDefinicoesTab> {
       return;
     }
     await _correr('admin_casa_guardar_definicao', {'p_key': key, 'p_value': valor},
-        'Configuração guardada.');
+        'Configuração salva.');
   }
 
   @override
@@ -446,7 +446,7 @@ class _EditorTestadoresState extends State<_EditorTestadores> {
             FilledButton(
               onPressed:
                   widget.busy || !mudou ? null : () => widget.onGuardar(_lista),
-              child: const Text('Guardar testadores'),
+              child: const Text('Salvar testadores'),
             ),
           ],
         ),

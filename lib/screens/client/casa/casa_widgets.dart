@@ -85,11 +85,15 @@ class CasaOpcaoPagamento extends StatelessWidget {
     required this.metodo,
     required this.selecionado,
     required this.onTap,
+    this.onTapIndisponivel,
   });
 
   final CasaMetodoPagamento metodo;
   final bool selecionado;
   final VoidCallback onTap;
+
+  /// Toque numa opção cinzenta: explica porquê (regra 1.2 — nunca mudo).
+  final VoidCallback? onTapIndisponivel;
 
   IconData get _icone => switch (metodo.codigo) {
         'card' => Icons.credit_card,
@@ -107,8 +111,9 @@ class CasaOpcaoPagamento extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: Spacing.sm),
       child: InkWell(
+        key: ValueKey('casa_pagamento_${metodo.codigo}'),
         borderRadius: BorderRadius.circular(Radii.md),
-        onTap: ativo ? onTap : null,
+        onTap: ativo ? onTap : onTapIndisponivel,
         child: Container(
           padding: const EdgeInsets.all(Spacing.md),
           decoration: BoxDecoration(
@@ -143,7 +148,10 @@ class CasaOpcaoPagamento extends StatelessWidget {
 }
 
 /// Lista das três opções de pagamento + a explicação do limite do dinheiro.
-class CasaEscolhaPagamento extends StatelessWidget {
+/// Tocar numa opção cinzenta ("Cartão — brevemente") diz porquê, por baixo
+/// da lista (funciona dentro da folha de baixo, onde um SnackBar ficava
+/// escondido).
+class CasaEscolhaPagamento extends StatefulWidget {
   const CasaEscolhaPagamento({
     super.key,
     required this.totalCents,
@@ -158,25 +166,57 @@ class CasaEscolhaPagamento extends StatelessWidget {
   final ValueChanged<String> onEscolher;
 
   @override
+  State<CasaEscolhaPagamento> createState() => _CasaEscolhaPagamentoState();
+}
+
+class _CasaEscolhaPagamentoState extends State<CasaEscolhaPagamento> {
+  String? _porque;
+
+  @override
   Widget build(BuildContext context) {
-    final metodos = casaMetodosPagamento(totalCents: totalCents, config: config);
-    final dinheiro = casaDinheiroPermitido(totalCents, config.maxCashCents);
+    final config = widget.config;
+    final metodos =
+        casaMetodosPagamento(totalCents: widget.totalCents, config: config);
+    final dinheiro =
+        casaDinheiroPermitido(widget.totalCents, config.maxCashCents);
+    final explicacaoDinheiro = casaExplicacaoDinheiro(config);
+    final porque = _porque;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (final m in metodos)
           CasaOpcaoPagamento(
             metodo: m,
-            selecionado: metodo == m.codigo,
-            onTap: () => onEscolher(m.codigo),
+            selecionado: widget.metodo == m.codigo,
+            onTap: () {
+              if (_porque != null) setState(() => _porque = null);
+              widget.onEscolher(m.codigo);
+            },
+            onTapIndisponivel: () => setState(() => _porque =
+                casaPorqueIndisponivel(m.codigo,
+                    totalCents: widget.totalCents, config: config)),
           ),
-        if (!dinheiro)
+        // A frase do limite fica à vista; depois de um toque numa opção
+        // cinzenta passa a destacada (sem aparecer duas vezes).
+        if (!dinheiro && porque != explicacaoDinheiro)
           Padding(
             padding: const EdgeInsets.only(top: Spacing.xs),
             child: Text(
-              casaExplicacaoDinheiro(config),
+              explicacaoDinheiro,
               style: const TextStyle(
                   color: AppColors.textSecondary, fontSize: 13),
+            ),
+          ),
+        if (porque != null)
+          Padding(
+            padding: const EdgeInsets.only(top: Spacing.xs),
+            child: Text(
+              porque,
+              key: const Key('casa_pagamento_porque'),
+              style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600),
             ),
           ),
       ],

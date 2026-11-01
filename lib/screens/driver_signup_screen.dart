@@ -21,6 +21,7 @@ import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/legal_fields_section.dart';
 import '../widgets/terms_link_text.dart';
 import 'driver_pending_screen.dart';
+import 'prestador/como_o_bora_decide_screen.dart';
 import 'shared/comprovativo_atividade_screen.dart';
 
 class DriverSignupScreen extends StatefulWidget {
@@ -627,11 +628,18 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
             if (_currentStep == 3) {
               return Padding(
                 padding: const EdgeInsets.only(top: 16),
-                child: BoraPrimaryButton(
-                  label: 'Enviar Candidatura',
-                  loading: _isProcessing,
-                  color: AppColors.primary,
-                  onPressed: _submitFinal,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // [01/11/2026 · B8] Diretiva 2024/2831: como a app decide.
+                    const LigacaoComoOBoraDecide(),
+                    BoraPrimaryButton(
+                      label: 'Enviar Candidatura',
+                      loading: _isProcessing,
+                      color: AppColors.primary,
+                      onPressed: _submitFinal,
+                    ),
+                  ],
                 ),
               );
             }

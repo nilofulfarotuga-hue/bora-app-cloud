@@ -25,12 +25,40 @@ import '../services/oferta_trabalho_aviso.dart';
 ///
 /// Ofertas: a RLS de `casa_pedidos` só deixa ver o pedido a quem já está
 /// atribuído, por isso o tempo real NÃO traz ofertas novas. Chegam pelo push
-/// `casa_offer` (que pede releitura) e por uma releitura a cada 30 s enquanto o
-/// profissional estiver aprovado. O tempo real de `casa_pedidos` serve para os
-/// trabalhos já aceites.
+/// `casa_offer` (que pede releitura) e por uma releitura periódica enquanto o
+/// profissional estiver aprovado: a cada 10 s enquanto há ofertas por
+/// responder, a cada 30 s sem nenhuma ([casaIntervaloSondagem], C5 da revisão
+/// de 01/11). O tempo real de `casa_pedidos` serve para os trabalhos já
+/// aceites.
 class HandymanStore extends ChangeNotifier {
+  HandymanStore()
+      : _rpcDeTeste = null,
+        _uidDeTeste = null;
+
+  /// SÓ PARA TESTES: o "servidor" é uma função (sem Supabase, sem tempo real
+  /// nem Storage). Serve para provar o fluxo inteiro com um servidor falso.
+  @visibleForTesting
+  HandymanStore.comServidor({
+    required Future<dynamic> Function(String fn, Map<String, dynamic> params)
+        rpc,
+    String uid = 'u-profissional-teste',
+  })  : _rpcDeTeste = rpc,
+        _uidDeTeste = uid;
+
+  final Future<dynamic> Function(String fn, Map<String, dynamic> params)?
+      _rpcDeTeste;
+  final String? _uidDeTeste;
+  bool get _deTeste => _rpcDeTeste != null;
+
   SupabaseClient get _sb => Supabase.instance.client;
-  String? get _uid => _sb.auth.currentUser?.id;
+  String? get _uid => _uidDeTeste ?? _sb.auth.currentUser?.id;
+
+  /// Todas as funções do servidor passam por aqui (a de teste, se houver).
+  Future<dynamic> _rpc(String fn, [Map<String, dynamic>? params]) {
+    final f = _rpcDeTeste;
+    if (f != null) return f(fn, params ?? const <String, dynamic>{});
+    return _sb.rpc(fn, params: params);
+  }
 
   // ══════════════════════════════════════════════════════════════════════════
   // ESTADO
@@ -163,7 +191,7 @@ class HandymanStore extends ChangeNotifier {
         notifyListeners();
         return;
       }
-      final res = await _sb.rpc('casa_meu_perfil').timeout(kAcaoTimeout);
+      final res = await _rpc('casa_meu_perfil').timeout(kAcaoTimeout);
       _aplicarPerfil(res);
       _profileLoaded = true;
       _perfilFalhou = false;
@@ -195,7 +223,7 @@ class HandymanStore extends ChangeNotifier {
   /// candidatura e mostrar as perguntas do serviço no trabalho).
   Future<void> loadConfig() async {
     try {
-      final res = await _sb.rpc('casa_config').timeout(kAcaoTimeout);
+      final res = await _rpc('casa_config').timeout(kAcaoTimeout);
       final m = _mapaOuNulo(res);
       if (m != null) _config = CasaConfig.fromJson(m);
       _configCarregada = true;
@@ -225,7 +253,7 @@ class HandymanStore extends ChangeNotifier {
   }) async {
     _setBusy(true);
     try {
-      final res = await _sb.rpc('casa_candidatura', params: {
+      final res = await _rpc('casa_candidatura', {
         'p_name': nome,
         'p_phone': telefone,
         'p_email': email,
@@ -270,7 +298,7 @@ class HandymanStore extends ChangeNotifier {
       caminho: (uid, ext, ms) => casaCaminhoDocumento(
           uid, oficio == null ? tipo : '${tipo}_$oficio', ext, ms),
     );
-    final res = await _sb.rpc('casa_registar_documento', params: {
+    final res = await _rpc('casa_registar_documento', {
       'p_tipo': tipo,
       'p_oficio': oficio,
       'p_storage_path': path,
@@ -317,7 +345,7 @@ class HandymanStore extends ChangeNotifier {
   Future<void> loadOffers() async {
     try {
       if (!isApproved) return;
-      final res = await _sb.rpc('casa_minhas_ofertas').timeout(kAcaoTimeout);
+      final res = await _rpc('casa_minhas_ofertas').timeout(kAcaoTimeout);
       final linhas = _listaDeMapas(res);
       for (final l in linhas) {
         final id = (l['meu_orcamento_id'] ??
@@ -334,6 +362,8 @@ class HandymanStore extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('HandymanStore.loadOffers => $e');
+    } finally {
+      _ajustarSondagem();
     }
   }
 
@@ -341,7 +371,7 @@ class HandymanStore extends ChangeNotifier {
   Future<void> loadJobs() async {
     try {
       if (_perfil == null) return;
-      final res = await _sb.rpc('casa_meus_trabalhos').timeout(kAcaoTimeout);
+      final res = await _rpc('casa_meus_trabalhos').timeout(kAcaoTimeout);
       _trabalhos = _listaDeMapas(res).map(CasaPedido.fromJson).toList();
       notifyListeners();
     } catch (e) {
@@ -352,8 +382,7 @@ class HandymanStore extends ChangeNotifier {
   /// Relê um pedido (`casa_pedido`) e substitui-o na lista.
   Future<CasaPedido?> pedido(String pedidoId) async {
     try {
-      final res = await _sb
-          .rpc('casa_pedido', params: {'p_pedido_id': pedidoId})
+      final res = await _rpc('casa_pedido', {'p_pedido_id': pedidoId})
           .timeout(kAcaoTimeout);
       final m = _mapaOuNulo(res);
       if (m == null) return null;
@@ -394,7 +423,8 @@ class HandymanStore extends ChangeNotifier {
           'Ganhas {0}'.trArgs([casaEuro(ganho)]),
         if (o.convite) 'Envia o teu preço'.tr,
         if (o.localidade.trim().isNotEmpty) o.localidade.trim(),
-        o.convite ? 'Vê as fotos e orça.'.tr : 'Aceita ou recusa.'.tr,
+        // C15: as fotos do cliente podem ainda estar a subir — não prometer.
+        o.convite ? 'Vê o pedido e orça.'.tr : 'Aceita ou recusa.'.tr,
       ].join(' · '),
     ));
   }
@@ -479,8 +509,9 @@ class HandymanStore extends ChangeNotifier {
     return r.ok;
   }
 
-  /// Foto do trabalho: balde `casa-fotos`, `<uid>/<pedido_id>/<tipo>_<ms>.jpg`,
-  /// e depois `casa_adicionar_foto`. Tipos do profissional: antes|depois|extra.
+  /// Foto do trabalho: balde `casa-fotos`, `<uid>/<pedido_id>/<tipo>_<ms>.<ext>`
+  /// (a extensão é a do tipo real — PNG/WebP não sobem como `.jpg`, C14), e
+  /// depois `casa_adicionar_foto`. Tipos do profissional: antes|depois|extra.
   Future<bool> adicionarFoto(String pedidoId, String tipo, XFile ficheiro) async {
     _setBusy(true);
     _lastError = null;
@@ -489,9 +520,10 @@ class HandymanStore extends ChangeNotifier {
       final path = await _subir(
         ficheiro,
         balde: kCasaBaldeFotos,
-        caminho: (uid, _, ms) => casaCaminhoFoto(uid, pedidoId, tipo, ms),
+        caminho: (uid, ext, ms) =>
+            casaCaminhoFoto(uid, pedidoId, tipo, ms, ext: ext),
       );
-      await _sb.rpc('casa_adicionar_foto', params: {
+      await _rpc('casa_adicionar_foto', {
         'p_pedido_id': pedidoId,
         'p_tipo': tipo,
         'p_storage_path': path,
@@ -539,8 +571,7 @@ class HandymanStore extends ChangeNotifier {
 
   /// Só com `pode_contactar` (o servidor recusa antes disso).
   Future<List<Map<String, dynamic>>> mensagens(String pedidoId) async {
-    final res = await _sb
-        .rpc('casa_mensagens', params: {'p_pedido_id': pedidoId})
+    final res = await _rpc('casa_mensagens', {'p_pedido_id': pedidoId})
         .timeout(kAcaoTimeout);
     return _listaDeMapas(res);
   }
@@ -555,7 +586,7 @@ class HandymanStore extends ChangeNotifier {
   /// URL assinado (1 h) de uma foto do balde privado `casa-fotos`. null se
   /// o Storage recusar (ver lacuna no relatório).
   Future<String?> urlDaFoto(String storagePath) async {
-    if (storagePath.isEmpty) return null;
+    if (storagePath.isEmpty || _deTeste) return null;
     try {
       return await _sb.storage
           .from(kCasaBaldeFotos)
@@ -569,7 +600,7 @@ class HandymanStore extends ChangeNotifier {
 
   Future<void> carregarGanhos() async {
     try {
-      final res = await _sb.rpc('casa_meus_ganhos').timeout(kAcaoTimeout);
+      final res = await _rpc('casa_meus_ganhos').timeout(kAcaoTimeout);
       final m = _mapaOuNulo(res);
       _ganhos = m == null ? CasaGanhos.vazio : CasaGanhos.fromJson(m);
       notifyListeners();
@@ -592,7 +623,7 @@ class HandymanStore extends ChangeNotifier {
     _lastError = null;
     _falhaDeRede = false;
     try {
-      final res = await _sb.rpc(fn, params: params).timeout(kAcaoTimeout);
+      final res = await _rpc(fn, params).timeout(kAcaoTimeout);
       if (recarregar) await refreshAll();
       return (ok: true, dados: res);
     } catch (e) {
@@ -618,12 +649,10 @@ class HandymanStore extends ChangeNotifier {
     // uploads da app).
     final foto = await prepararFotoParaEnvio(bytes);
     if (foto == null) throw StateError('empty_file: formato ilegivel');
-    final ext = switch (foto.mime) {
-      'image/png' => 'png',
-      'image/webp' => 'webp',
-      _ => 'jpg',
-    };
+    final ext = casaExtensaoFoto(foto.mime).ext;
     final path = caminho(uid, ext, DateTime.now().millisecondsSinceEpoch);
+    // O servidor falso dos testes não tem Storage: só devolve o caminho.
+    if (_deTeste) return path;
     try {
       await _sb.storage.from(balde).uploadBinary(
             path,
@@ -649,24 +678,49 @@ class HandymanStore extends ChangeNotifier {
   void _ligar() {
     final p = _perfil;
     if (p == null) return;
-    // Sem filtro: a RLS já limita aos pedidos onde sou o profissional.
-    _channel ??= _sb.channel('casa_profissional_${p.id}')
-      ..onPostgresChanges(
-        event: PostgresChangeEvent.all,
-        schema: 'public',
-        table: 'casa_pedidos',
-        callback: (_) => refreshAll(),
-      )
-      ..subscribe();
-    _relogioOfertas ??= Timer.periodic(
-      const Duration(seconds: 30),
-      (_) => loadOffers(),
-    );
+    // Sem filtro: a RLS já limita aos pedidos onde sou o profissional (ou o
+    // cliente). A OFERTA não passa aqui (vive em offer_profissional_id): para
+    // isso há a sondagem abaixo (C5).
+    if (!_deTeste) {
+      _channel ??= _sb.channel('casa_profissional_${p.id}')
+        ..onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'casa_pedidos',
+          callback: (_) => refreshAll(),
+        )
+        ..subscribe();
+    }
+    if (_relogioOfertas == null) {
+      _intervaloSondagem =
+          casaIntervaloSondagem(ofertasParaAviso().length);
+      _relogioOfertas =
+          Timer.periodic(_intervaloSondagem!, (_) => loadOffers());
+    }
+  }
+
+  Duration? _intervaloSondagem;
+
+  /// De quanto em quanto tempo se relêem as ofertas agora (null = parado).
+  @visibleForTesting
+  Duration? get intervaloSondagem =>
+      _relogioOfertas == null ? null : _intervaloSondagem;
+
+  /// Depois de cada leitura: 10 s com ofertas por responder, 30 s sem
+  /// nenhuma. Só mexe se a sondagem estiver ligada e o ritmo mudar.
+  void _ajustarSondagem() {
+    if (_relogioOfertas == null) return;
+    final novo = casaIntervaloSondagem(ofertasParaAviso().length);
+    if (novo == _intervaloSondagem) return;
+    _relogioOfertas!.cancel();
+    _intervaloSondagem = novo;
+    _relogioOfertas = Timer.periodic(novo, (_) => loadOffers());
   }
 
   void _desligar() {
     _relogioOfertas?.cancel();
     _relogioOfertas = null;
+    _intervaloSondagem = null;
     final ch = _channel;
     _channel = null;
     if (ch != null) {
@@ -693,6 +747,7 @@ class HandymanStore extends ChangeNotifier {
     if (perfil != null) {
       _perfil = perfil;
       _profileLoaded = true;
+      _slots = perfil.disponibilidade.map(CasaSlot.fromJson).toList();
     }
     if (ofertas != null) _ofertas = List.of(ofertas);
     if (trabalhos != null) _trabalhos = List.of(trabalhos);
@@ -744,9 +799,20 @@ const Set<String> kCasaPassosValidos = {
 String casaCaminhoDocumento(String uid, String tag, String ext, int ms) =>
     '$uid/${tag}_$ms.$ext';
 
-/// `<uid>/<pedido_id>/<tipo>_<ms>.jpg` (contrato do balde `casa-fotos`).
-String casaCaminhoFoto(String uid, String pedidoId, String tipo, int ms) =>
-    '$uid/$pedidoId/${tipo}_$ms.jpg';
+/// `<uid>/<pedido_id>/<tipo>_<ms>.<ext>` (contrato do balde `casa-fotos`: o
+/// servidor só exige o prefixo `<uid>/<pedido_id>/`). A extensão segue o tipo
+/// real da imagem (C14); sem ela fica `.jpg`.
+String casaCaminhoFoto(String uid, String pedidoId, String tipo, int ms,
+        {String ext = 'jpg'}) =>
+    '$uid/$pedidoId/${tipo}_$ms.${casaExtensaoFoto(ext).ext}';
+
+/// C5 (revisão 01/11): o tempo real não traz ofertas (RLS), por isso a app
+/// relê-as. Com ofertas por responder relê a cada 10 s (a oferta dura poucos
+/// minutos); sem nenhuma, a cada 30 s.
+Duration casaIntervaloSondagem(int ofertasPorResponder) =>
+    ofertasPorResponder > 0
+        ? const Duration(seconds: 10)
+        : const Duration(seconds: 30);
 
 /// '2026-11-03' para colunas `date`.
 String casaDataIso(DateTime d) => '${d.year.toString().padLeft(4, '0')}-'
@@ -822,11 +888,141 @@ String casaErroTexto(Object erro) {
   if (raw.contains('empty_file')) {
     return 'Não foi possível ler a imagem. Tira ou escolhe a foto de novo.'.tr;
   }
-  if (raw.contains('not_authenticated') || raw.contains('42501')) {
+  // C9 (revisão 01/11): os outros códigos que as funções casa_* (e os dados
+  // fiscais/papéis) levantam — lista tirada do servidor com
+  // pg_get_functiondef. Nenhum pode cair na frase genérica.
+  if (raw.contains('oferta_expirada')) {
+    return 'Esta oferta já expirou. Fica atento às próximas.'.tr;
+  }
+  if (raw.contains('profissional_ocupado')) {
+    return 'Já tens outro trabalho marcado a essa hora.'.tr;
+  }
+  if (raw.contains('extra_por_responder')) {
+    return 'O cliente ainda não respondeu ao valor extra. Espera pela resposta.'.tr;
+  }
+  if (raw.contains('oficio_por_aprovar')) {
+    return 'Este ofício ainda não foi aprovado pela equipa Bora.'.tr;
+  }
+  if (raw.contains('oficio_invalido')) {
+    return 'Este ofício não existe ou já não está disponível.'.tr;
+  }
+  if (raw.contains('oficios_em_falta')) {
+    return 'Escolhe pelo menos um ofício.'.tr;
+  }
+  if (raw.contains('preco_invalido')) {
+    return 'Escreve um preço válido, maior do que zero.'.tr;
+  }
+  if (raw.contains('motivo_em_falta') || raw.contains('motivo_obrigatorio')) {
+    return 'Escreve o motivo antes de enviar.'.tr;
+  }
+  if (raw.contains('conta_bloqueada')) {
+    return 'A tua conta está bloqueada. Fala com o suporte do Bora.'.tr;
+  }
+  if (raw.contains('nome_em_falta')) {
+    return 'Falta o teu nome.'.tr;
+  }
+  if (raw.contains('invalid_role') || raw.contains('PAPEL_NAO_ATRIBUIDO')) {
+    return 'A tua conta ainda não tem este papel ativo. Fala com o suporte do Bora.'.tr;
+  }
+  if (raw.contains('nif_invalido')) {
+    return 'O NIF não é válido. Confirma os 9 dígitos.'.tr;
+  }
+  if (raw.contains('iban_invalido')) {
+    return 'O IBAN não é válido. Confirma que começa por PT50 e tem 25 caracteres.'.tr;
+  }
+  if (raw.contains('menor_de_idade')) {
+    return 'Tens de ter pelo menos 18 anos para trabalhar no Bora.'.tr;
+  }
+  if (raw.contains('tipo_invalido')) {
+    return 'Este tipo de foto ou documento não é aceite aqui.'.tr;
+  }
+  if (raw.contains('caminho_invalido')) {
+    return 'Não foi possível guardar a imagem. Tenta outra vez.'.tr;
+  }
+  if (raw.contains('contacto_fechado')) {
+    return 'As mensagens só abrem depois de o trabalho estar aceite e pago.'.tr;
+  }
+  if (raw.contains('mensagem_invalida')) {
+    return 'A mensagem está vazia ou é demasiado comprida.'.tr;
+  }
+  if (raw.contains('ja_avaliado')) {
+    return 'Já deixaste a tua avaliação.'.tr;
+  }
+  if (raw.contains('nota_invalida')) {
+    return 'Escolhe de 1 a 5 estrelas.'.tr;
+  }
+  if (raw.contains('orcamento_expirado')) {
+    return 'Este orçamento já expirou.'.tr;
+  }
+  if (raw.contains('garantia_terminou')) {
+    return 'A garantia deste trabalho já terminou.'.tr;
+  }
+  if (raw.contains('metodo_invalido')) {
+    return 'Escolhe como queres pagar.'.tr;
+  }
+  if (raw.contains('quantidade_invalida')) {
+    return 'Escolhe uma quantidade válida.'.tr;
+  }
+  if (raw.contains('servico_indisponivel')) {
+    return 'Este serviço já não está disponível. Escolhe outro.'.tr;
+  }
+  if (raw.contains('not_authenticated') ||
+      raw.toLowerCase().contains('unauthenticated') ||
+      raw.contains('42501')) {
     return 'A tua sessão expirou. Volta a entrar e tenta de novo.'.tr;
   }
   return 'Não foi possível concluir. Tenta outra vez.'.tr;
 }
+
+/// Os códigos curtos que o servidor da Casa pode devolver ao profissional
+/// (RAISE EXCEPTION das funções `casa_*`, `_casa_*`, `provider_update_legal_fields`
+/// e `definir_preferencia_papel`, lidos com pg_get_functiondef a 01/11/2026).
+/// O teste garante que nenhum cai na frase genérica de [casaErroTexto].
+const List<String> kCasaCodigosDeErro = [
+  'antecedencia_minima',
+  'caminho_invalido',
+  'casa_desligada',
+  'conta_bloqueada',
+  'contacto_fechado',
+  'dinheiro_acima_do_limite',
+  'estado_invalido',
+  'extra_por_responder',
+  'foto_depois_em_falta',
+  'garantia_terminou',
+  'ja_avaliado',
+  'limite_fotos',
+  'mensagem_invalida',
+  'metodo_invalido',
+  'morada_em_falta',
+  'motivo_em_falta',
+  'motivo_obrigatorio',
+  'nao_e_profissional',
+  'nome_em_falta',
+  'not_authenticated',
+  'nota_invalida',
+  'oferta_expirada',
+  'oficio_invalido',
+  'oficio_por_aprovar',
+  'oficios_em_falta',
+  'orcamento_expirado',
+  'orcamentos_completos',
+  'pagamento_cartao_indisponivel',
+  'preco_invalido',
+  'profissional_ocupado',
+  'quantidade_invalida',
+  'sem_permissao',
+  'servico_indisponivel',
+  'tipo_invalido',
+  'valores_por_autorizar',
+  // Dados fiscais e papéis (chamados no fim da candidatura).
+  'invalid_role',
+  'unauthenticated',
+  'nif_invalido',
+  'iban_invalido',
+  'menor_de_idade',
+  'UNAUTHENTICATED',
+  'PAPEL_NAO_ATRIBUIDO',
+];
 
 /// Concluir só com pelo menos uma foto 'depois'.
 bool casaPodeConcluir(CasaPedido p) => p.fotosDe('depois').isNotEmpty;
@@ -1072,9 +1268,18 @@ class CasaAcerto {
   final String estado;
   final DateTime? pagoEm;
 
-  /// O valor vai do Bora para o profissional? (direção por confirmar no
-  /// servidor: tudo o que não fale em pagar ao Bora conta como a receber.)
-  bool get aReceber => !direcao.contains('bora') && !direcao.contains('to_platform');
+  /// O valor vai do Bora para o profissional? As direções do servidor
+  /// (`casa_acertos_semanais.direction`) são `bora_to_handyman`,
+  /// `handyman_to_bora` e `zero` — as duas primeiras contêm "bora", por isso
+  /// compara-se o valor inteiro (C8, revisão 01/11). O valor
+  /// (`net_payout_cents`) vem sempre sem sinal.
+  bool get aReceber => direcao == 'bora_to_handyman';
+
+  /// O profissional paga ao Bora (recebeu em dinheiro mais do que ganhou).
+  bool get aPagar => direcao == 'handyman_to_bora';
+
+  /// Semana sem nada a acertar.
+  bool get semAcerto => !aReceber && !aPagar;
 
   bool get pago => pagoEm != null || estado == 'paid' || estado == 'pago';
 

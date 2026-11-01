@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../auth/auth_store.dart' show AuthStore;
 import '../../services/remote_fees_service.dart';
 import '../../services/small_order_fee.dart';
 import '../../config/app_colors.dart';
@@ -109,8 +110,16 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
   static const rotulosVitrineCliente = <String, String>{
     'visitantes_sem_conta':
         'Visitantes podem ver o app sem conta (lojas, produtos e carrinho). A conta só é pedida ao finalizar o pedido.',
-    'sessao_convidado_ativa':
-        'Sessão de convidado (conta partilhada só de leitura). Ligar só depois de aplicada a proteção de pedidos (create_order) na publicação.',
+    'sessao_convidado_ativa': AuthStore.edgeSessaoConvidadoPublicada
+        ? 'Sessão de convidado (conta partilhada só de leitura). Ligar só depois de aplicada a proteção de pedidos (create_order) na publicação.'
+        : kNotaSessaoConvidadoDesligada,
+  };
+
+  /// [G3 · 01/11/2026] Chaves trancadas porque a função do servidor de que
+  /// dependem ainda não está publicada (ligar só dava erro em cada arranque).
+  /// Destrancam sozinhas quando o app passar a chamar a função.
+  static const chavesSemFuncaoNoServidor = <String>{
+    if (!AuthStore.edgeSessaoConvidadoPublicada) 'sessao_convidado_ativa',
   };
 
   /// [gorjetas-taxa 30/10/2026] Gorjeta do carrinho cobrada junto com a compra
@@ -141,6 +150,8 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
   /// valores em cêntimos, Stripe) é READ-ONLY — alterar requer sessão dedicada.
   /// Fail-safe: chave nova/desconhecida nasce protegida.
   bool _isEditable(String key) {
+    // [G3 · 01/11/2026] Primeiro: sem a função no servidor, não se liga.
+    if (chavesSemFuncaoNoServidor.contains(key)) return false;
     if (_isCancelKey(key)) return true; // Bloco 4 — editável com auditoria
     if (kInterruptoresApp.contains(key)) return true; // adendo 4 (29/10/2026)
     // [melhorias-paridade 26/10] Interruptores da vitrine do cliente (ver sem
@@ -525,6 +536,10 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
   /// saber que existiam. Continuam em leitura: mexer nelas é decisão do dono,
   /// não de um agente.
   String _protectedNote(String key) {
+    if (chavesSemFuncaoNoServidor.contains(key)) {
+      return '🔒 Trancado até a função "sessao-convidado" ser publicada no '
+          'servidor. O visitante já vê o app sem conta (visitantes_sem_conta).';
+    }
     switch (key) {
       case 'tvde_reservation_driver_tokens':
         return '🔒 Somente leitura — mexe em DINHEIRO.\n'
@@ -1017,6 +1032,14 @@ class _Setting {
         category: j['category'] as String?,
       );
 }
+
+/// [G3 · 01/11/2026] Etiqueta (PT-BR) do interruptor `sessao_convidado_ativa`
+/// enquanto a Edge `sessao-convidado` não estiver publicada no servidor.
+const String kNotaSessaoConvidadoDesligada =
+    'Desligado: a função do servidor ainda não está publicada. '
+    'Sessão de convidado (conta partilhada só de leitura): ligar agora só '
+    'daria erro a cada abertura do app, por isso fica trancado até a função '
+    '"sessao-convidado" ir para o ar.';
 
 /// [adendo 4 · 29/10/2026] Interruptores das funções novas das apps (talheres,
 /// troco, barra do pedido ativo, foto de entrega, habituais, etiquetas do menu,

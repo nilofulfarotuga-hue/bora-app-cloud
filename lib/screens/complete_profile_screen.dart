@@ -7,6 +7,7 @@ import '../config/app_spacing.dart';
 import '../l10n/tr.dart';
 import '../utils/contact_validators.dart';
 import '../widgets/bora/bora_primary_button.dart';
+import '../widgets/terms_gate.dart';
 import 'client_login_screen.dart';
 
 /// Ecrã de completar contacto do cliente — nome e telemóvel.
@@ -195,6 +196,14 @@ Future<bool> garantirContactoDoCliente(BuildContext context) async {
     client = context.read<AuthStore>().currentClient;
     if (client == null) return false;
   }
+  // [G2 · 01/11/2026] Termos antes de pagar. Quem acabou de entrar/criar conta
+  // aqui tem o TermsGate da raiz POR BAIXO do carrinho e pagava sem os ver.
+  // O mesmo portão (TermsGate.garantirAceite): pergunta ao servidor uma vez
+  // por sessão; sem termos por aceitar (ou sem rede) segue logo.
+  if (!await TermsGate.garantirAceite(context, audience: 'cliente')) {
+    return false;
+  }
+  if (!context.mounted) return false;
   if (contactoDoClienteCompleto(nome: client.name, telemovel: client.phone)) {
     return true;
   }

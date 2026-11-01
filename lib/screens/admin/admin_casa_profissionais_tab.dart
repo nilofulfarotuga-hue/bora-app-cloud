@@ -13,6 +13,9 @@ import '_admin_rpc_errors.dart' show rotuloCampoLegal;
 import 'admin_casa_comum.dart';
 import 'admin_casa_pedidos_tab.dart' show AdminCasaPedidoScreen;
 import 'admin_ficha_prestador.dart' show abrirFichaPrestador;
+import 'admin_suspensao_comum.dart';
+import '../../services/prestador_suspensao_service.dart';
+import '../../widgets/admin/papeis_da_pessoa.dart' show pedirMotivoAdmin;
 
 /// Ações possíveis sobre a pessoa, conforme o estado da aprovação.
 List<String> casaAcoesProfissional(String? estado) => switch (estado) {
@@ -264,14 +267,15 @@ class _AdminCasaProfissionalScreenState
     await _future;
   }
 
-  Future<void> _correr(
+  Future<bool> _correr(
       String fn, Map<String, dynamic> params, String sucesso) async {
-    if (_busy) return;
+    if (_busy) return false;
     setState(() => _busy = true);
     final ok = await casaExecutar(context, () => _rpc(fn, params), sucesso);
-    if (!mounted) return;
+    if (!mounted) return ok;
     setState(() => _busy = false);
     if (ok) await _refresh();
+    return ok;
   }
 
   // ── Pessoa ──────────────────────────────────────────────────────────────
@@ -287,23 +291,45 @@ class _AdminCasaProfissionalScreenState
         ? '\n\nAprovar a pessoa não aprova os ofícios: cada ofício aprova-se '
             'abaixo, um a um.'
         : '';
-    final motivo = await casaConfirmar(
-      context,
-      titulo: '$rotulo $nome?',
-      texto: 'A pessoa é avisada da decisão e fica no registro de auditoria.'
-          '$avisoOficios$avisoFalta',
-      botao: rotulo,
-      perigo: acao != 'aprovar' && acao != 'reativar',
-      pedirTexto: true,
-      textoObrigatorio: casaAcaoPedeMotivo(acao),
-      rotuloTexto: 'Motivo',
-    );
-    if (motivo == null) return;
-    await _correr('admin_casa_decidir_profissional', {
+    // [01/11/2026 · B8] Suspender/banir = decisão sobre a conta: motivo com
+    // 10 letras (o gatilho do servidor recusa sem ele e o profissional
+    // recebe-o por escrito — Diretiva 2024/2831).
+    final String? motivo;
+    if (acao == 'suspender' || acao == 'banir') {
+      motivo = await pedirMotivoAdmin(
+        context,
+        titulo: '$rotulo $nome?',
+        explicacao: 'A pessoa recebe o motivo por escrito, pode pedir '
+            'revisão (uma pessoa responde em 7 dias) e fica no registro '
+            'de auditoria.',
+        confirmar: rotulo,
+        perigoso: true,
+        minimo: kMinLetrasMotivoSuspensao,
+      );
+    } else {
+      motivo = await casaConfirmar(
+        context,
+        titulo: '$rotulo $nome?',
+        texto: 'A pessoa é avisada da decisão e fica no registro de '
+            'auditoria.$avisoOficios$avisoFalta',
+        botao: rotulo,
+        perigo: acao != 'aprovar' && acao != 'reativar',
+        pedirTexto: true,
+        textoObrigatorio: casaAcaoPedeMotivo(acao),
+        rotuloTexto: 'Motivo',
+      );
+    }
+    if (motivo == null || !mounted) return;
+    final ok = await _correr('admin_casa_decidir_profissional', {
       'p_id': widget.id,
       'p_acao': acao,
       'p_motivo': motivo,
     }, 'Decisão registrada: $rotulo.');
+    // Reativar fecha também o registo legal da suspensão.
+    if (ok && acao == 'reativar') {
+      await PrestadorSuspensaoService.fecharRegistoAberto('casa_profissionais',
+          widget.id, 'Reativado no painel (Casa)');
+    }
   }
 
   // ── Ofícios ─────────────────────────────────────────────────────────────
@@ -394,7 +420,7 @@ class _AdminCasaProfissionalScreenState
     await _correr('admin_casa_editar_profissional', {
       'p_id': widget.id,
       'p_dados': dados,
-    }, 'Dados do profissional guardados.');
+    }, 'Dados do profissional salvos.');
   }
 
   @override
@@ -478,6 +504,15 @@ class _AdminCasaProfissionalScreenState
               icon: const Icon(Icons.edit_outlined, size: 18),
               label: const Text('Editar raio, carrinha, ferramentas e bio'),
             ),
+            // [01/11/2026 · B8] Registo legal completo (temporária, sem data,
+            // encerramento ou restrição) com motivo escrito.
+            if (estado == 'approved')
+              BotaoSuspenderComMotivo(
+                tabela: 'casa_profissionais',
+                entidadeId: widget.id,
+                nome: nome,
+                onFeito: _refresh,
+              ),
           ]),
 
           const CasaSeccao('Conformidade e atividade'),
@@ -517,7 +552,7 @@ class _AdminCasaProfissionalScreenState
           CasaLinha('E-mail', perfil['email']),
           CasaLinha('NIF', perfil['nif']),
           CasaLinha('Nome legal', perfil['legal_name']),
-          CasaLinha('Morada fiscal', perfil['address']),
+          CasaLinha('Endereço fiscal', perfil['address']),
           CasaLinha('IBAN', perfil['iban']),
           CasaLinha('Zona base', perfil['base_address']),
           CasaLinha('Raio', perfil['service_radius_km'] == null
@@ -843,7 +878,7 @@ class _EditarProfissionalDialogState extends State<_EditarProfissionalDialog> {
         TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancelar')),
-        FilledButton(onPressed: _guardar, child: const Text('Guardar')),
+        FilledButton(onPressed: _guardar, child: const Text('Salvar')),
       ],
     );
   }

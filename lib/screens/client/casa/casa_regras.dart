@@ -163,6 +163,19 @@ String casaExplicacaoDinheiro(CasaConfig config) {
   return 'Acima de {0} só cartão ou MB Way, que chegam brevemente. Por agora, reduz a quantidade ou divide em dois pedidos.'.trArgs([limite]);
 }
 
+/// Porque é que um método de pagamento está cinzento (PADRAO_BORA 1.2 — o
+/// toque nunca fica mudo). A Casa não tem carteira: só dinheiro, cartão e
+/// MB Way, e estes dois só quando `pagamento_cartao` estiver ligado.
+String casaPorqueIndisponivel(
+  String codigo, {
+  required int totalCents,
+  required CasaConfig config,
+}) {
+  final dinheiro = casaDinheiroPermitido(totalCents, config.maxCashCents);
+  if (codigo == 'cash' || !dinheiro) return casaExplicacaoDinheiro(config);
+  return 'Cartão e MB Way chegam brevemente. Por agora, paga em dinheiro.'.tr;
+}
+
 /// "Aceite e pago" — decisão 4: cartão/MB Way = pagamento retido; dinheiro =
 /// trabalho confirmado (paga-se em mão, não há pré-pagamento).
 bool casaPedidoPago(CasaPedido p) {

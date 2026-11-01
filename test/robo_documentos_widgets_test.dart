@@ -49,19 +49,36 @@ void ecraAlto(WidgetTester t) {
 Widget app(Widget filho) => MaterialApp(home: Scaffold(body: SingleChildScrollView(child: filho)));
 
 class ApiFalsa implements RoboAdminApi {
-  ApiFalsa({this.cfg = const {}, this.prontosLista = const [], this.hist = const []});
+  ApiFalsa({
+    this.cfg = const {},
+    this.prontosLista = const [],
+    this.hist = const [],
+    this.avisosLista = const [],
+  });
   Map<String, dynamic> cfg;
   List<Map<String, dynamic>> prontosLista;
   List<VereditoRobo> hist;
+
+  /// Linhas cruas como o RPC `admin_documentos_avisos` as devolve.
+  List<Map<String, dynamic>> avisosLista;
   final List<String> chamadas = [];
 
   @override
   Future<Map<String, dynamic>> config() async => cfg;
 
   @override
+  Future<List<AvisoDocumentosEnviado>> avisos({String? userId, int limite = 200}) async =>
+      avisosDocumentosDaResposta(avisosLista);
+
+  @override
   Future<Map<String, dynamic>> definir(String chave, Object valor) async {
     chamadas.add('definir:$chave=$valor');
-    cfg = {...cfg, if (chave == 'robo_documentos_ativo') 'ativo': valor, if (chave == 'robo_documentos_modo') 'modo': valor};
+    cfg = {
+      ...cfg,
+      if (chave == 'robo_documentos_ativo') 'ativo': valor,
+      if (chave == 'robo_documentos_modo') 'modo': valor,
+      if (chave == 'robo_documentos_avisos_ativo') 'avisos_ativo': valor,
+    };
     cfg = {...cfg, 'a_agir': cfg['ativo'] == true && cfg['modo'] == 'ativo'};
     return cfg;
   }
@@ -272,6 +289,95 @@ void main() {
       await t.tap(find.text('Desfazer'));
       await t.pumpAndSettle();
       expect(api.chamadas, ['desfazer:5']);
+    });
+
+    // Missão app-fechar 01/11/2026 (B7): separador "Avisos enviados".
+    final avisosFalsos = <Map<String, dynamic>>[
+      {
+        'id': 9,
+        'user_id': 'u1',
+        'nome': 'Maria Teste Silva',
+        'quem': 'robo',
+        'dia': -1,
+        'faltas': ['Falta enviar: foto do veículo.', 'Falta enviar: matrícula.'],
+        'assunto': 'Bora: faltam documentos na tua candidatura',
+        'email_para': 'maria.teste@exemplo.pt',
+        'email_pedido': 93037,
+        // 15:00 UTC no fim de outubro (já inverno) = 15:00 em Lisboa;
+        // 31/07 14:00 UTC (verão) = 15:00 em Lisboa.
+        'enviado_em': '2026-10-29T15:00:00+00:00',
+        'email_estado': 'enviado',
+      },
+      {
+        'id': 3,
+        'user_id': 'u2',
+        'nome': 'Rui Teste Pinto',
+        'quem': 'painel',
+        'dia': 0,
+        'faltas': ['comprovativo de atividade'],
+        'email_para': null,
+        'email_pedido': null,
+        'enviado_em': '2026-07-31T14:00:00Z',
+        'email_estado': null,
+      },
+    ];
+
+    testWidgets('"Avisos enviados" mostra nome, o que falta, email, estado e a hora de Lisboa', (t) async {
+      ecraAlto(t);
+      final api = ApiFalsa(cfg: {...cfgBase, 'avisos_ativo': true, 'avisos_24h': 1}, avisosLista: avisosFalsos);
+      await t.pumpWidget(MaterialApp(home: AdminRoboDocumentosScreen(api: api)));
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const Key('robo-aba-avisos')));
+      await t.pumpAndSettle();
+      expect(find.text('Avisos enviados (2)'), findsOneWidget);
+      expect(find.text('Maria Teste Silva'), findsOneWidget);
+      expect(find.textContaining('Falta: Falta enviar: foto do veículo. · Falta enviar: matrícula.'), findsOneWidget);
+      expect(find.textContaining('maria.teste@exemplo.pt · email enviado'), findsOneWidget);
+      expect(find.textContaining('29/10 15:00 · Robô (email automático)'), findsOneWidget);
+      expect(find.text('Rui Teste Pinto'), findsOneWidget);
+      expect(find.textContaining('sem email · sem email (só aviso na app)'), findsOneWidget);
+      expect(find.textContaining('31/07 15:00 · Você (Lembrar este)'), findsOneWidget);
+      expect(find.text('Emails do robô nas últimas 24 h: 1'), findsOneWidget);
+    });
+
+    testWidgets('"Emails automáticos": desligar grava logo a chave certa; ligar pede confirmação', (t) async {
+      ecraAlto(t);
+      final api = ApiFalsa(cfg: {...cfgBase, 'avisos_ativo': true});
+      await t.pumpWidget(MaterialApp(home: AdminRoboDocumentosScreen(api: api)));
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const Key('robo-aba-avisos')));
+      await t.pumpAndSettle();
+      expect(find.text('Ainda não saiu nenhum aviso.'), findsOneWidget);
+      await t.tap(find.byKey(const Key('robo-avisos-interruptor')));
+      await t.pumpAndSettle();
+      expect(api.chamadas, ['definir:robo_documentos_avisos_ativo=false']);
+      expect(t.widget<SwitchListTile>(find.byKey(const Key('robo-avisos-interruptor'))).value, isFalse);
+
+      await t.tap(find.byKey(const Key('robo-avisos-interruptor')));
+      await t.pumpAndSettle();
+      expect(find.text('Ligar os emails automáticos?'), findsOneWidget);
+      await t.tap(find.text('Ligar'));
+      await t.pumpAndSettle();
+      expect(api.chamadas, [
+        'definir:robo_documentos_avisos_ativo=false',
+        'definir:robo_documentos_avisos_ativo=true',
+      ]);
+    });
+  });
+
+  group('aviso enviado (leitura do RPC admin_documentos_avisos)', () {
+    test('lê as linhas e diz o estado do email em PT-BR', () {
+      final l = avisosDocumentosDaResposta([
+        {'id': 1, 'quem': 'cron', 'dia': 3, 'faltas': ['selfie'], 'email_para': 'a@b.pt', 'email_estado': 'falhou'},
+        {'id': 2, 'quem': 'robo', 'faltas': [], 'email_para': 'c@d.pt', 'email_estado': null},
+        'lixo',
+      ]);
+      expect(l, hasLength(2));
+      expect(l[0].quemRotulo, 'Lembrete do dia 3');
+      expect(l[0].estadoRotulo, 'email FALHOU');
+      expect(l[0].falhou, isTrue);
+      expect(l[1].estadoRotulo, 'email por confirmar');
+      expect(avisosDocumentosDaResposta(null), isEmpty);
     });
   });
 

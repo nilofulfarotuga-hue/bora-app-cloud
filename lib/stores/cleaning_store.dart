@@ -16,10 +16,13 @@ class CleaningStore extends ChangeNotifier {
   List<CleaningBooking> _bookings = const [];
   List<CleaningBooking> get bookings => _bookings;
 
+  /// Ativas pela ordem em que acontecem (a mais próxima primeiro — S3,
+  /// 01/11/2026). O histórico fica do mais recente para o mais antigo.
   List<CleaningBooking> get activeBookings =>
-      _bookings.where((b) => b.status.isActive).toList();
+      bookings.where((b) => b.status.isActive).toList()
+        ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
   List<CleaningBooking> get pastBookings =>
-      _bookings.where((b) => !b.status.isActive).toList();
+      bookings.where((b) => !b.status.isActive).toList();
 
   /// Reserva aberta no ecrã de acompanhamento (atualizada por realtime).
   CleaningBooking? _tracked;
@@ -308,17 +311,78 @@ class CleaningStore extends ChangeNotifier {
     }
   }
 
-  /// Cancela a série de recorrência inteira (só as futuras por agendar).
+  /// Pára a série inteira: não se geram mais limpezas e as já marcadas para
+  /// daqui a mais de 24 h são canceladas sem taxa (`cancel_cleaning_series`).
   Future<void> cancelSeries(String groupId) async {
     _setBusy(true);
     try {
       await _sb.rpc('cancel_cleaning_series', params: {'p_group_id': groupId}).timeout(kAcaoTimeout);
+      // O servidor gravou a paragem: o ecrã mostra "Série parada" já, mesmo
+      // que a leitura de cleaning_recurrence_stops ainda não chegue.
+      _series[groupId] = const SerieEstado(parada: true);
       await loadMyBookings();
     } catch (e) {
       debugPrint('CleaningStore.cancelSeries error => $e');
       rethrow;
     } finally {
       _setBusy(false);
+    }
+  }
+
+  // ── Série de recorrência (S1/S3, 01/11/2026) ──────────────────────────────
+  // A app só LÊ: a série é gerida no servidor (generate_recurring_bookings,
+  // cancel_cleaning_series). Cancelar UMA limpeza não pára a série.
+
+  final Map<String, SerieEstado> _series = <String, SerieEstado>{};
+
+  /// O último estado lido da série [groupId] (null se ainda não se leu).
+  SerieEstado? serieEmCache(String groupId) => _series[groupId];
+
+  /// Lê se a série está parada (`cleaning_recurrence_stops`, RLS: o cliente e
+  /// a profissional da série) e a próxima data (`cleaning_series_next_at`).
+  /// Erro ou vazio = "não parada"; sem data = null. Nunca lança.
+  Future<SerieEstado> estadoDaSerie(String groupId) async {
+    var parada = false;
+    DateTime? proxima;
+    try {
+      final rows = await _sb
+          .from('cleaning_recurrence_stops')
+          .select('group_id')
+          .eq('group_id', groupId)
+          .limit(1)
+          .timeout(kAcaoTimeout);
+      parada = rows.isNotEmpty;
+    } catch (e) {
+      debugPrint('CleaningStore.estadoDaSerie(stops) error => $e');
+    }
+    if (!parada) {
+      try {
+        final res = await _sb.rpc('cleaning_series_next_at',
+            params: {'p_gid': groupId}).timeout(kAcaoTimeout);
+        proxima = res == null ? null : DateTime.tryParse(res.toString());
+      } catch (e) {
+        debugPrint('CleaningStore.estadoDaSerie(next_at) error => $e');
+      }
+    }
+    // Uma paragem já confirmada por esta app não volta atrás por uma leitura
+    // que falhou.
+    if (!parada && _series[groupId]?.parada == true) {
+      return _series[groupId]!;
+    }
+    final estado = SerieEstado(parada: parada, proxima: proxima);
+    _series[groupId] = estado;
+    notifyListeners();
+    return estado;
+  }
+
+  /// Lê o estado das séries das limpezas ativas (lista "Os meus pedidos").
+  Future<void> carregarSeries() async {
+    final grupos = <String>{
+      for (final b in activeBookings)
+        if (b.isRecurring && b.recurrenceGroupId != null) b.recurrenceGroupId!,
+    };
+    for (final g in grupos) {
+      await estadoDaSerie(g);
     }
   }
 

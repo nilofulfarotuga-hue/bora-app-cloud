@@ -47,6 +47,36 @@ class SafeImagePicker {
     }
   }
 
+  /// Igual a [ImagePicker.pickMultiImage] (várias fotos da galeria de uma
+  /// vez), com a mesma guarda contra toques repetidos: se já houver um pick em
+  /// curso devolve uma lista vazia. [limit] é o máximo de fotos que o seletor
+  /// nativo deixa escolher; a web e os Android antigos ignoram-no, por isso
+  /// QUEM CHAMA tem de cortar o resultado (e pode avisar a pessoa).
+  /// Missão app-fechar 01/11/2026 (assistente do cliente: várias fotos da
+  /// lista ou do carrinho da Glovo/Uber).
+  static Future<List<XFile>> pickMultiImage({
+    double? maxWidth,
+    double? maxHeight,
+    int? imageQuality,
+    int? limit,
+    bool requestFullMetadata = true,
+  }) async {
+    if (_isPicking) return const <XFile>[];
+    _isPicking = true;
+    try {
+      return await _picker.pickMultiImage(
+        maxWidth: maxWidth,
+        maxHeight: maxHeight,
+        imageQuality: imageQuality,
+        // limit < 1 rebenta com ArgumentError; sem limite útil, não se passa.
+        limit: (limit != null && limit >= 2) ? limit : null,
+        requestFullMetadata: requestFullMetadata,
+      );
+    } finally {
+      _isPicking = false;
+    }
+  }
+
   /// Passthrough para [ImagePicker.retrieveLostData] (Android pode matar a
   /// activity durante a câmara e devolver o resultado só depois).
   ///

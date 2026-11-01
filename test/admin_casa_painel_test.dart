@@ -636,7 +636,8 @@ void main() {
       expect(find.byIcon(Icons.emoji_events), findsOneWidget);
     });
 
-    testWidgets('Hub: 8 separadores e abre a ficha pedida', (tester) async {
+    testWidgets('Hub: 9 separadores (Ofertas desde 01/11) e abre a ficha pedida',
+        (tester) async {
       _ecraGrande(tester);
       final rpc = _Rpc({
         'admin_casa_resumo': {'enabled': false, 'valores_autorizados': {'autorizado': false}},
@@ -654,7 +655,7 @@ void main() {
       ]);
       await tester.pageBack();
       await tester.pumpAndSettle();
-      expect(kCasaSeparadores, hasLength(8));
+      expect(kCasaSeparadores, hasLength(9));
       for (final t in kCasaSeparadores) {
         expect(find.text(t), findsOneWidget, reason: t);
       }

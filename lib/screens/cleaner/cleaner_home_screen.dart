@@ -20,12 +20,15 @@ import '../../widgets/portao_do_prestador.dart';
 import '../../widgets/prestador_documentos_em_falta.dart';
 import '../../widgets/profile_switcher_button.dart';
 import '../driver/driver_role_apply_screen.dart';
+import '../prestador/conta_suspensa_screen.dart';
 import 'cleaner_apply_screen.dart';
 import 'cleaner_availability_screen.dart';
 import '../ganhos_screen.dart';
 import '../../widgets/botao_rota.dart';
 import '../../widgets/guia_limpeza.dart';
 import '../../widgets/ganho_de_hoje_card.dart';
+import '../../widgets/selo_serie_limpeza.dart';
+import '../../utils/hora_lisboa.dart';
 import 'cleaner_history_screen.dart';
 
 /// LIMPEZA — painel da profissional. Router por estado da candidatura:
@@ -96,13 +99,14 @@ class _CleanerHomeScreenState extends State<CleanerHomeScreen> {
                       // enviar aqui mesmo (mesma regra do painel).
                       extra: PrestadorDocumentosEmFalta(papel: 'cleaner'),
                     ),
-                  'suspended' => const _StatusView(
-                      icon: Icons.pause_circle_outline,
-                      color: AppColors.error,
-                      title: 'Conta suspensa para revisão',
-                      subtitle:
+                  // [01/11/2026 · B8] Motivo, até quando, quem decidiu e
+                  // "Pedir revisão" (Diretiva 2024/2831 art. 11.º).
+                  'suspended' => const ContaSuspensaView(
+                      tiposConta: {'limpeza'},
+                      tituloSemRegisto: 'Conta suspensa para revisão',
+                      textoSemRegisto:
                           'A tua conta está em revisão pela equipa Bora. '
-                          'Contacta o suporte para mais detalhes.',
+                          'Fala connosco para saberes mais.',
                     ),
                   _ => _RejectedView(
                       reason: profile.rejectionReason,
@@ -599,9 +603,47 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-String _fmtWhen(DateTime d) {
+/// Dia e hora de LISBOA (01/11/2026: estava no fuso do telemóvel, ao
+/// contrário do acompanhamento do cliente e do painel).
+String _fmtWhen(DateTime instante) {
+  final d = paredeLisboa(instante);
   String two(int n) => n.toString().padLeft(2, '0');
   return '${two(d.day)}/${two(d.month)} às ${two(d.hour)}:${two(d.minute)}';
+}
+
+/// S4 (01/11/2026): "Semanal"/"Quinzenal" e "Cliente habitual" na oferta e
+/// na agenda — a profissional percebe que é uma série que se repete com ela.
+class _SelosDaSerie extends StatelessWidget {
+  const _SelosDaSerie({required this.booking, required this.habitual});
+  final CleaningBooking booking;
+  final bool habitual;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!booking.isRecurring && !habitual) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: Spacing.xs),
+      child: Wrap(
+        spacing: Spacing.xs,
+        runSpacing: Spacing.xs,
+        children: [
+          if (booking.isRecurring)
+            SeloLimpeza(
+              booking.recurrenceLabel,
+              key: Key('cleaner_selo_serie_${booking.id}'),
+              tamanho: 13,
+            ),
+          if (habitual)
+            SeloLimpeza(
+              'Cliente habitual',
+              key: Key('cleaner_selo_habitual_${booking.id}'),
+              icone: Icons.favorite,
+              tamanho: 13,
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 class _OfferCard extends StatefulWidget {
@@ -657,11 +699,11 @@ class _OfferCardState extends State<_OfferCard> {
             Text(
               '${_fmtWhen(b.scheduledAt)} · ${b.addressCity}\n'
               'Ganhas ${CleaningLabels.euro(b.cleanerEarningsCents)}'
-              '${b.productsBy == 'cleaner' ? ' (produtos incluídos)' : ''}'
-              '${b.isRecurring ? ' · ${b.recurrenceLabel}' : ''}',
+              '${b.productsBy == 'cleaner' ? ' (produtos incluídos)' : ''}',
               style: const TextStyle(
                   color: AppColors.textSecondary, height: 1.4),
             ),
+            _SelosDaSerie(booking: b, habitual: store.clienteHabitual(b)),
             // GUIA (15/10): o que fazer e o que levar, já antes de aceitar.
             GuiaLimpezaCaixa(booking: b),
             if (minsLeft != null && minsLeft >= 0)
@@ -795,6 +837,7 @@ class _AgendaCardState extends State<_AgendaCard> {
               style: const TextStyle(
                   color: AppColors.textSecondary, height: 1.4),
             ),
+            _SelosDaSerie(booking: b, habitual: store.clienteHabitual(b)),
             // ABRIR A ROTA (2026-08-29): o motorista tem mapa, quem limpa
             // tinha a morada escrita e copiava-a a mao.
             Align(

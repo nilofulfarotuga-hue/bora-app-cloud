@@ -19,6 +19,7 @@ import '../../widgets/address_autocomplete_field.dart';
 import '../../widgets/bora/bora.dart';
 import '../../widgets/legal_fields_section.dart';
 import '../shared/comprovativo_atividade_screen.dart';
+import '../prestador/como_o_bora_decide_screen.dart';
 import 'casa_camara.dart';
 import 'handyman_disponibilidade_screen.dart';
 import 'handyman_documentos_screen.dart' show pedirNumeroEValidade;
@@ -600,7 +601,9 @@ class _HandymanApplyScreenState extends State<HandymanApplyScreen> {
               enabled: !_uploading && !_candidaturaFeita,
               onChanged: (s) => setState(() => _slots = s),
             ),
-            const SizedBox(height: Spacing.lg),
+            const SizedBox(height: Spacing.md),
+            // [01/11/2026 · B8] Diretiva 2024/2831: como a app decide.
+            const LigacaoComoOBoraDecide(),
             BoraPrimaryButton(
               label: _uploading ? 'A enviar…'.tr : 'Enviar candidatura'.tr,
               icon: Icons.send,

@@ -270,3 +270,55 @@ class CasaSeccao extends StatelessWidget {
                 color: AppColors.textPrimary)),
       );
 }
+
+/// C10 (revisão 01/11): sem horários gravados (`casa_disponibilidade`) o
+/// servidor nunca escolhe o profissional (`_casa_elegiveis` →
+/// `_casa_disponivel`). Aviso com botão, no ecrã pendente e no aprovado.
+class CasaAvisoSemHorarios extends StatelessWidget {
+  const CasaAvisoSemHorarios({super.key, required this.onDefinir});
+  final VoidCallback onDefinir;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        key: const Key('casa_aviso_sem_horarios'),
+        margin: const EdgeInsets.only(bottom: Spacing.md),
+        padding: const EdgeInsets.all(Spacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.warning.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(Radii.lg),
+          border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.event_busy, color: AppColors.warning),
+                const SizedBox(width: Spacing.md),
+                Expanded(
+                  child: Text(
+                    'Sem horários não recebes trabalhos. Define os teus horários.'.tr,
+                    style: const TextStyle(color: AppColors.textPrimary),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: Spacing.sm),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton.icon(
+                key: const Key('casa_definir_horarios'),
+                onPressed: onDefinir,
+                icon: const Icon(Icons.event_available, size: 18),
+                label: Text('Definir horários'.tr),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primaryDark,
+                  side: const BorderSide(color: AppColors.primary),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+}

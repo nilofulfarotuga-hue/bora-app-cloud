@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-jai-google-presenca-parte2
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-31
+ultima_confirmacao: 2026-11-01
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Mensalidade fechada com o Jai (139€/mês) para gerir a presença dele na Google — termos acordados, o que está incluído e o que fica à parte (parte 2 de 3)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-jai-google-presenca-parte2`, origem `claude-ai`, atualizada em 2026-10-31T21:17:15.889436+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-jai-google-presenca-parte2`, origem `claude-ai`, atualizada em 2026-11-01T19:13:47.888289+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas jai google presenca parte2 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/jai-google-presenca.md), copiada a 31/10/2026 21:16 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/jai-google-presenca.md), copiada a 01/11/2026 19:14 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 - [stated] 01/09 à noite, INSTAGRAM DO JAI: a bio nova foi aplicada por ele (CEO & majority shareholder @guarda_fc_sad · Indian entrepreneur in Portugal · Building the India–Europe football pathway) e o site jaiagarwala.com está no campo Website. CONSTRANGIMENTO A CONTAR PARA SEMPRE: a conta dele é VERIFICADA e por isso o campo "Nome" está bloqueado pelo Instagram — não se muda, nem vale a pena voltar a tentar; em contrapartida a verificação é prova de identidade forte para a Google. Números dele: ~1.400 seguidores para ~711 mil visualizações em 30 dias. Ele perguntou se devia COMPRAR seguidores e foi aconselhado a não o fazer (contas falsas baixam o alcance real, contas verificadas arriscam perder o selo, e qualquer jornalista nota o desequilíbrio) — mesma linha da recusa do "hypar" automático
 - [stated] 01-02/09 PROCESSO VRT DO COMMONS (foto `File:Jai_Agarwal_in_2026.jpg`): o [[jai-agarwal]] mandou a declaração formal a permissions-commons@wikimedia.org — processo **[Ticket#2026083110015863]** (responder sempre no mesmo fio, com esse número no assunto). A Wikimedia respondeu que o dono dos direitos é quem TIRA a foto, não quem aparece; o Jai primeiro disse que fora a ex-namorada com o telemóvel dele, depois corrigiu-se (confundiu fotos) e confirmou por escrito que a foto do rosto de camisa vermelha foi tirada por ele próprio — mandou a clarificação. Recusei escrever a versão "fui eu" enquanto ele dizia o contrário: declaração falsa num processo com nome dele não se redige. 02/09 01:13 a Wikimedia pediu agora a FOTO ORIGINAL sem edições em resolução completa: o Jai tem de anexar ao email o ficheiro original do retrato de camisa vermelha diretamente da galeria (via WhatsApp chega comprimido e não serve) — ele quase mandou a antiga do restaurante com o copo, que já foi substituída. Enquanto isto não fecha a foto continua no ar e no Wikidata

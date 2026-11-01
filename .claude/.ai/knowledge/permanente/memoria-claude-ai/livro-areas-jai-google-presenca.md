@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-jai-google-presenca
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-31
+ultima_confirmacao: 2026-11-01
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Mensalidade fechada com o Jai (139€/mês) para gerir a presença dele na Google — termos acordados, o que está incluído e o que fica à parte (parte 1 de 3 — continua em livro-areas-jai-google-presenca-parte2…)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-jai-google-presenca`, origem `claude-ai`, atualizada em 2026-10-31T21:17:15.889436+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-jai-google-presenca`, origem `claude-ai`, atualizada em 2026-11-01T19:13:47.888289+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas jai google presenca · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/jai-google-presenca.md), copiada a 31/10/2026 21:16 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/jai-google-presenca.md), copiada a 01/11/2026 19:14 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: jai-google-presenca

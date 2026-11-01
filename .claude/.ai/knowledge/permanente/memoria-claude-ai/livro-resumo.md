@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-resumo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-30
+ultima_confirmacao: 2026-10-31
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Livro do Bora — resumo para o ChatGPT (regras + erros + índice, sem pessoais), gerado
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-resumo`, origem `claude-code`, atualizada em 2026-10-30T23:40:14.759264+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-resumo`, origem `claude-code`, atualizada em 2026-10-31T23:40:16.662445+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro resumo · memoria claude.ai · claude_ai_memoria
 
-# Livro do Bora — resumo para o ChatGPT (2026-10-30)
+# Livro do Bora — resumo para o ChatGPT (2026-10-31)
 
 Lê isto antes de responder ao Danilo. É a mesma verdade que a Claude.ai, o Hermes, o Claude Code e o OpenCode leem (tabela public.claude_ai_memoria). Gerado todas as noites pela VPS; páginas pessoais ficam de fora.
 
@@ -78,7 +78,7 @@ Danilo Fulfaro da Silva, Guarda (Portugal), brasileiro. Fundador sozinho do Bora
 - NÃO-PARCEIRO (todos os mercados e restaurantes não-parceiros): preço base + 15% incluído, taxa €2,50 fixa. Estafeta €3,80 + €0,20/km + €0,80 + 30% do lucro líquido Bora.
 - Entrega €2,50 até 4 km, +€0,50/km. Dinheiro máximo €40. Sacos: restaurante €0,30 fixo, mercado €0,10/saco.
 - Tokens cliente ROUND(preço×3), mínimo 1; o cliente só usa METADE do valor dos tokens que tem. Tokens estafeta +40 normal, +50 parceiro.
-- Reembolso de cancelamento para a carteira: 80% saldo + 20% tokens (60 dias).
+- Reembolso de cancelamento (regra de 29/10, confirmada 31/10 06:44, substitui a antiga de 80% saldo + 20% tokens): a ESCOLHA é do CLIENTE, bem clara na app: (a) "Carteira Bora" → 100% do valor vai para a carteira como saldo livre, para comprar o que quiser (sem parte em tokens); (b) "Reembolso para a tua conta (MB Way/cartão)" → estorno total pelo mesmo meio. Nunca escolher por ele por defeito escondido. A antiga divisão 80/20 (platform_settings) deixa de valer; a implementação entra na fila das missões.
 - Reservas: €3 pré-pago; chega → parceiro desconta €2, Bora €1; não aparece ou cancela <2h → Bora 100%; cancela >2h → reembolso total.
 - Dinheiro: tudo até à semana passada está pago; só a semana corrente conta. Ordem de mexer em dinheiro de alguém: fazer na hora e provar por SELECT.
 - Ouro e Prata está FORA (não promover). Antes de promover parceiro, confirmar coming_soon=false.
@@ -184,6 +184,19 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - 30/10 (claude-ai): No token do Supabase do Dipsy escolhi por ele 90 dias e só leitura com escrita em 4 áreas; ele corrigiu: quer acesso total (Full access) e para sempre (Never), "não quero ficar renovando nem apertando permitir, não quero passar raiva". → Quando ele pede acesso para os agentes dele (Dipsy, Claude Code), configura-se total e sem validade; o risco explica-se uma vez, numa linha, e a escolha é dele.
 - 30/10 (claude-ai): Dei-lhe a lista do que escolher no formulário do token do Supabase (validade, organização, preset) para ele preencher; ele reclamou irritado: "eu não faço nada, não preencho nada, quem preenche é você ou um agente, eu só aceito e clico no verde". → (repete as de 23/09 e 28/08) Formulário de painel web (Supabase, Google, Apple…) preenche-o o Claude pelo Chrome ou o Claude Code no PC; a ele só fica o botão verde final, com a página já preenchida à frente dele.
 - 30/10 (claude-ai): Na resposta ao Jai sobre a entrevista dele no canal de YouTube do Professor Kalinga (10 mil visualizações em menos de 12 h) escrevi "Great talk with Ranjit" só porque o título do vídeo dizia "Ranjit & Jai"; o Jai corrigiu: a conversa é com o Professor Kalinga, e a do Ranjit é a que já está no site dele. → Regra do Danilo (30/10 21:11): antes de escrever sobre um vídeo ou de o pôr no site, primeiro pôr o agente que vê os vídeos a vê-lo e ler o que ele diz (quem fala, de que se fala); nunca escrever só pelo título.
+- 31/10 (claude-ai): Os 2 anúncios da Meta (instalar + carrossel do check-in) foram montados por script (fotos + texto plano) e publicados prontos a ligar sem o Danilo os ver; o carrossel só mostrava 5 cartões e ele leu "40" como se fosse só 40 dias; reprovou ("negócio amador não; tem que ver como os grandes fazem; e me manda aqui antes de aprovar"). → Regra: anúncio pago da Meta nunca liga sem ele ver e aprovar no chat as imagens e os textos; antes de criar, estudar os anúncios dos grandes (Uber Eats, Glovo, Bolt, Too Good To Go) e seguir esse padrão; o carrossel do check-in mostra os 30 dias todos (calendário) e cada prémio com nome e foto (2 salgados da Keli ao dia 10, açaí do Goola ao dia 15, limpeza ou lavagem ao dia 30), nunca um número solto que se confunda com dias.
+- 31/10 (claude-ai): o livro comum e o resumo dos agentes ainda diziam que o reembolso de cancelamento para a carteira era 80% saldo + 20% tokens → Regra atual (Danilo 29/10 e 31/10 06:44): a escolha e do CLIENTE e tem de estar clara na app: Carteira Bora = 100% saldo livre para comprar o que quiser; MB Way/cartao = estorno total pelo mesmo meio. A divisao 80/20 deixou de valer. Toda pagina, prompt ou resumo que a cite esta desatualizado.
+- [stated] 19/10: no prompt do Mid-Day deixei a foto como opcional ("se não houver foto, publica só o link") → regra: matéria de imprensa no site do Jai entra SEMPRE com foto; o prompt manda o Claude Code ir buscá-la ele próprio (foto do artigo online, página do jornal digital/e-paper) — nunca depender de o Danilo arrastar ficheiros
+- [stated] 28/10 10:33 (na hora da demonstração da Boom): disse-lhe que as senhas das contas de demonstração estavam no Telegram e não lhas dei; ele não as tinha à mão e reclamou "você tem que me dar a senha" → regra: quando ele pede o login de uma conta de teste/demonstração, dou-lho logo aqui na conversa (e se eu não tiver a senha, reponho uma nova pelo servidor, testo e dou-a); nunca o mandar procurar no Telegram
+- [stated] 31/10 06:32: disse-lhe que a voz do Dipsy estava "completa e provada" — a prova de 30/10 foi com um áudio gravado pelo próprio bot; o primeiro áudio real dele (iPhone, 11 s, 06:24) demorou 7 min e o Dipsy respondeu que não entendeu → regra: prova de voz/áudio só conta com um áudio REAL do telemóvel dele (ou, sem ele, um ficheiro de voz do Telegram gravado por telemóvel), medido do fim ao fim; nunca dar por provado o que só passou em teste sintético
+- [stated] 31/10 06:47: as peças novas da Meta foram-lhe mostradas sem juiz visual e ele apanhou 3 erros à vista ("o juiz tinha que pegar isso"): metade de outro hambúrguer por baixo do hambúrguer; morango a representar supermercado (mercado = saco/cesto de compras com o nome Continente, nunca uma fruta solta) e colado ao telemóvel; "Restaurantes da Guarda" ilustrado com salgados; calendário com dias 8, 9, 11, 12… em branco quando os tokens continuam todos os dias (ciclo 5,5,10,10,15,15,40 recomeça depois do dia 7) → regra: toda peça de propaganda passa por um juiz com visão (lista: nada cortado/sobreposto, cada imagem = o que a legenda diz, nenhum dia/valor em branco, legível a 200 px) antes de lhe ser mostrada; e um calendário de prémios mostra o que se ganha em TODOS os dias
+- 31/10 (claude-ai): Na resposta ao Jai sobre a notícia da Minerva (ele só reencaminhou o link da SportsDunia, sem texto) escrevi "Big news bro 🔥 I'll add this one to the press section of your website", no mesmo tom da mensagem de 06:07 ("10k+ views already, that's huge 🔥 ... says it all 👏"). O Danilo reprovou: não é natural, é exagerado. → Mensagem ao Jai é curta e direta, como o Danilo fala ("ok, isso é legal" + o que vai fazer): sem "big news", "that's huge", elogios nem emojis de festa. Antes de escrever, ver no WhatsApp como os dois falam e seguir esse estilo.
+31/10 (quem errou: claude-ai): a melancia do Continente estava na app por unidade (7,14 €) e saiu 9,06 € na balança; o estafeta não conseguiu trocar o preço. Eu tinha dado o peso variável por arrumado a 26/10, mas só o servidor estava feito: o ecrã do estafeta nunca foi feito (o prompt ficou "à espera" e nunca foi colado) e a regra de nomes deixou de fora tudo com "semente" e fruta noutras secções → funcionalidade com servidor + app só está feita quando a parte da app está publicada e provada nas 3; prompt que fica "à espera" é verificado no e2e_log até correr, nunca esquecido; marcar produtos por regra de nomes = rever por amostra o que ficou de fora (fruta, legumes, talho) antes de dar por feito.
+31/10 (quem errou: claude-ai): ao marcar a limpeza do Divan para as 18h copiei a tentativa que ele tinha cancelado na app (pacote T2, 4 horas, 45 €) em vez das 3 horas de sempre; o Divan cancelou e a app registou-lhe 45 € de taxa → a limpeza do Divan é de 3 horas por hora (produtos dele, 2 gatos), não o pacote T2; ao marcar uma limpeza por um cliente, seguir o formato das marcações habituais dele, nunca uma tentativa cancelada.
+30/10 (quem errou: claude-ai): na mensagem ao Ricardo (cliente Uber, a quem faltava pagar um pouco) escrevi um limite duro ("até uma semana, não deixo acumular mais de 20 €, senão fica pesado para mim"); ele achou grosso → com cliente que deve pouco, a mensagem é leve — diz quanto falta e pergunta quando consegue pagar; o limite vai só como ajuda futura ("se um dia precisares outra vez, posso ajudar, só não com um valor muito alto"), sem números, prazos nem queixas.
+31/10 18:29 (quem errou: claude-ai): na resposta ao Ricardo ("o que disseste ontem?") escrevi seco — só "não dá para fazer fiado", a conta e "quando consegues mandar?"; ele achou grosso outra vez (repete o de 30/10) → reto sem ser grosso — lembrar com calma que ajudou porque o cliente pediu e achou que era só até lhe sair o pagamento; dizer que uma vez ou outra ajuda, mas fiado não consegue nem deixa passar de 20 €; a conta vai no fim, sem frase seca de cobrança.
+- 31/10 (claude-ai): 31/10: as missões no PC ficaram ~7 h paradas à espera de um Permitir que nunca apareceu ao Danilo; a Claude.ai só registava e voltava a ver de hora a hora. → Pedido de Permitir sem resposta em 15 min = a Claude.ai leva logo ao chat a lista numerada do que falta autorizar e faz por MCP com o "autorizo" dele; o que só o PC faz vai num prompt para ele colar numa sessão nova com "Ignorar permissões".
+- 31/10 (claude-code): li "n tem q muar a validade da chave" como "nao tem de mudar" e ate gravei aqui a regra ao contrario; ele queria "nao, TEM QUE mudar a validade" → mensagem curta comecada por "n": ler como "nao, ..." e confirmar o sentido antes de gravar regra; a chave da VPS dos robos (robos-vps-3) fica SEM data de fim, escolha dele
 
 
 ## Índice do livro (sem páginas pessoais)
@@ -396,8 +409,15 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - digest-2026-10-30-gorjetas-claude-ai — Digest 30/10 — gorjetas: taxa da Stripe e gorjeta junto da compra (Claude.ai)
 - digest-2026-10-30-gorjetas-taxa — Claude Code 30/10 — gorjetas com a taxa, robô da Boom e publicação 7
 - digest-2026-10-30-jai-kalinga — Claude Code 30/10 — entrevista do Jai no canal Professor Kalinga no site do Jai
+- digest-2026-10-30-meta-anuncios — Meta anúncios 30/10 (Claude Code, Opus) — 2 campanhas publicadas e desligadas à espera dos 25 €
 - digest-2026-10-30-remote-control-e-dsh-fecho — Claude Code 30/10 — Remote Control caído desde 28/10 e fecho do dsh
+- digest-2026-10-31-conta-vansh — Conta do Vansh — compra no Continente 31/10
+- digest-2026-10-31-jai-sportsdunia — Digest 31/10/2026 — artigo da SportsDunia no site do Jai
+- digest-2026-10-31-jai-sportsdunia-e-fatura-139 — Jai 31/10: SportsDunia, estilo das mensagens e fatura dos 139
+- digest-2026-10-31-meta-anuncios-g4 — Meta anúncios 31/10 — criativos refeitos, juiz ≥ 9, 4 anúncios LIGADOS
+- digest-2026-10-31-publicar-retoma — Claude Code 31/10 — publicar a retoma (base, alertas, envio)
 - dsh-como-usar — Como usar o Dipsy (dsh)
+- dsh-como-usar-novidades-2026-10-31 — Dipsy: o que ficou novo a 31/10 (complemento da pagina dsh-como-usar)
 - em-dia-ios-copiar-pipeline-bora — Em Dia / iOS: nao escrever o CI do zero, copiar o da Bora que ja funciona
 - em-dia-iphone-identificador — Em Dia / iPhone: identificadores da Apple (bundle id, app id, SKU)
 - em-dia-play-classificacao-conteudo — Em Dia / Play: respostas da classificacao IARC e o que muda quando as assinaturas abrirem
@@ -412,6 +432,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - ideias-pendentes-decisao-danilo — Ideias grandes à espera da decisão do Danilo (29/10/2026)
 - ideias-videos-danilo — Ideias tiradas dos vídeos que o Danilo manda
 - jai-entrevista-kalinga-mensagem — Mensagem ao Jai — entrevista do Professor Kalinga já no site (30/10/2026)
+- jai-sportsdunia-mensagem — Confirmação para o Jai — artigo da SportsDunia no site (31/10/2026)
 - livro-areas-alertas-notificacoes — Alertas do Bora para o Danilo (Telegram + push admin persistente) — o que já dispara, por que caminho, e o que falta
 - livro-areas-analise-apps-emulador — Ideia do Danilo (08/10/2026) de usar emulador Android + agente de IA para testar bugs do Bora e comparar com iFood/Uber/
 - livro-areas-arandelas-quadros-jai — Trabalho de montar as arandelas de vidro e pendurar os quadros em casa do [[jai-agarwal]] — e o material que ficou a fal
@@ -473,10 +494,13 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - livro-areas-happy-site-parte4 — Site pessoal do Jai Agarwal (jaiagarwala.com) — NO AR desde 15/08; regras vivas, estado atual e pendências; histórico té
 - livro-areas-henrique-esfihas — Henrique (esfihas, Guarda) — prospect novo do [[bora-app]], abordagem para entrar como parceiro de comida com loja monta
 - livro-areas-hermes-agent — Hermes Agent infrastructure — VPS, PC bridge, ferramentas reais, e cadeia de modelos (migrado para o plano Go em 2026-08
+- livro-areas-hermes-agent-parte2 — Hermes Agent infrastructure — VPS, PC bridge, ferramentas reais, e cadeia de modelos (migrado para o plano Go em 2026-08
 - livro-areas-historia-dinossauros-lucifer — História infantil nova (dinossauros + guerra no céu/queda de Lúcifer + criação/Adão e Eva) que o Danilo quer transformar
 - livro-areas-home-cliente-faixas — Home do app cliente do Bora — faixas de propaganda clicáveis, mais pedidos e lupa que acha tudo (pedido do Danilo, 05/10
 - livro-areas-jai-agarwal-site — Jai Agarwal's personal brand site (jaiagarwala.com) — multilingual EN/PT/HI/ES site with gallery, press wall, streaming 
 - livro-areas-jai-google-presenca — Mensalidade fechada com o Jai (139€/mês) para gerir a presença dele na Google — termos acordados, o que está incluído e 
+- livro-areas-jai-google-presenca-parte2 — Mensalidade fechada com o Jai (139€/mês) para gerir a presença dele na Google — termos acordados, o que está incluído e 
+- livro-areas-jai-google-presenca-parte3 — Mensalidade fechada com o Jai (139€/mês) para gerir a presença dele na Google — termos acordados, o que está incluído e 
 - livro-areas-lacunas-sistema — Estado das lacunas do loop autónomo — quase tudo fechado em 2026-08-01; ler antes de decidir a próxima ordem
 - livro-areas-lancamento-ios — Lançamento do Bora no iPhone/App Store — decisão e autorização total do Danilo (07/09), o caminho escolhido (conta indiv
 - livro-areas-lavagem-auto — Serviço próprio de lavagem de carros com recolha e entrega dentro do Bora App — modelo, serviços e preços que o Danilo d
@@ -564,6 +588,9 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - mensagem-hugo-pendente-2026-10-29 — Mensagem para o Hugo (grupo Contabilidade) preparada 29/10 17:40 — por enviar quando o Danilo disser
 - mercadona-reabrir-loja — Mercadona Guarda — reabrir só com perfumaria/cosmética/higiene (preparado 14-15/10/2026)
 - meta-anuncios-2026-10-30-textos — Textos finais dos 2 anúncios Meta de 30/10/2026 (Instala e pede + Check-in diário)
+- meta-anuncios-2026-10-31-adendo-revisao — Adendo G-REVISÃO dos anúncios Meta (31/10 06:52) — correções do Danilo + juiz visual
+- meta-anuncios-2026-10-31-criativos — Anúncios Meta 31/10 — criativos finais (juiz ≥ 9) e porque o anúncio antigo não deu pedidos
+- motor-claude-2026-10-31 — Motor Claude 31/10 - estado final (Bloco 2 da retoma-geral)
 - motores-rotacao-2026-10-29 — Motores gratis em rotacao - medicoes e cadeias (29/10/2026)
 - paridade-mundo-2026-10-29 — Paridade do mundo, segunda volta (Rappi, DoorDash, Zomato, Meituan) 29/10/2026
 - paridade-mundo-e-lei-2026-10-17 — Bora vs Uber/Glovo/iFood/Bolt/Grab/Meituan + obrigações da lei em Portugal (pesquisa 17/10/2026)
@@ -583,13 +610,17 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - prompt-boom-burger-adendo4-2026-10-28 — PROMPT Boom! Burger — adendo 4 (fatura com NIF + entrega grátis preparada), 28/10/2026
 - prompt-cancelamento-tardio-2026-10-17 — Prompt: cancelamento tardio TVDE — app, painel e publicação nas 3 plataformas (17/10) — estado: a correr
 - prompt-casa-manutencao-2026-10-30 — Prompt: missão Casa & Manutenção (categoria nova, decisões do Danilo 30/10/2026)
+- prompt-dipsy-melhor-2026-10-31 — Missão Dipsy "melhor que o Claude Code" (31/10/2026) — decisões do Danilo 06:31
+- prompt-fecho-pendentes-2026-10-31 — Prompt "fecho-pendentes" (31/10 22:10) — peso ao quilo, suporte com Claude, 4 pagamentos, 3 commits antigos, limpeza 5 m
 - prompt-final-app-2026-10-29 — Prompt missao final-app-2026-10-29
 - prompt-gorjetas-taxa-2026-10-30 — Prompt — gorjetas: taxa da Stripe na gorjeta paga depois e gorjeta do carrinho junto da compra (30/10/2026)
+- prompt-jai-site-sportsdunia-2026-10-31 — Prompt jai-site SportsDunia 31/10
 - prompt-maiores-18-2026-10-07 — Prompt: verificação de idade +18 (tabaco/álcool) — estado: PRONTO, NÃO LANÇADO (bloqueado: publica nas lojas, falta o Da
 - prompt-meta-anuncios-2026-10-30 — Prompt: 2 anúncios novos da Meta (instalar app + carrossel do check-in) e dados da empresa na Meta (30/10/2026)
 - prompt-missao-da-noite-2026-10-07 — Prompt MISSÃO DA NOITE 07/10 (FABLE) — Bora Assistente (prioridade) + fechar +18 + Gmail caça-clientes + Apple Foco + GP
 - prompt-missao-geral-2026-10-28 — PROMPT missão geral 28/10 (Divan + Boom + robô WhatsApp + cartazes + erros), parte 1/2
 - prompt-missao-geral-2026-10-28-parte2 — PROMPT missão geral 28/10, parte 2/2 (blocos 1 a F, resumo)
+- prompt-motor-claude-2026-10-31 — Prompt Motor Claude 31/10: robôs usam primeiro o crédito da API do Claude (plano Ultra) e depois a rotação grátis
 - prompt-peso-variavel-2026-10-26 — PROMPT missão peso variável (26/10/2026) — para o Claude Code do PC
 - prompt-publica-e-fecha-2026-10-29 — Prompt: publicar hoje + arrumação + Bloco 11 + reembolsos (29/10 18:20)
 - prompt-publica-e-fecha-2026-10-29-adendo-1 — Adendo 1 ao prompt publica-e-fecha (29/10 18:40): motores do robô em grátis com rotação
@@ -597,6 +628,8 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - prompt-publica-e-fecha-2026-10-29-adendo-3 — Adendo 3 (29/10 19:08): escolha do reembolso bem clara para o cliente na app
 - prompt-publica-e-fecha-2026-10-29-adendo-4 — Adendo 4 (29/10 19:10): robô WhatsApp da Boom AO VIVO para o teste do Danilo, resposta na hora, super inteligente
 - prompt-publica-e-fecha-2026-10-29-adendo-5 — Adendo 5 (29/10 19:18): revisão da conversa do dia — o que ainda faltava
+- prompt-publicar-retoma-2026-10-31 — Prompt PUBLICAR da retoma (31/10 20:00) — itens 2, 3 e 4 autorizados pelo Danilo 19:53
+- prompt-retoma-geral-2026-10-31 — PROMPT ÚNICO 31/10/2026 — parar, limpar a RAM e retomar todas as missões (Casa, motor Claude, Dipsy, lembretes)
 - prompt-talao-confirmar-loja-saldo-2026-10-28 — PROMPT 28/10 — Confirmar do talão, nome da loja, dinheiro a cobrar com saldo/tokens, reembolso no cancelamento (100% sal
 - prompt-talao-confirmar-loja-saldo-2026-10-28-bloco-d — Adenda 18:30 ao prompt de 28/10 (talão Auchan/Divan): Bloco D novo — reembolso no cancelamento
 - radar-2026-10-05 — Radar de vídeos 05/10 — filme (5 caminhos) e negócio
@@ -623,6 +656,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - radar-2026-10-27 — Radar de vídeos 27/10/2026 — 40 revistos, 6 novos, 14 pendentes
 - radar-2026-10-28 — Radar de vídeos 28/10/2026 — 40 revistos, 6 novos, 7 pendentes
 - radar-2026-10-29 — Radar de vídeos 29/10/2026 — 20 revistos, 4 novos, 3 pendentes
+- radar-2026-10-31 — Radar de vídeos 31/10/2026 — 40 revistos, 3 novos, 14 pendentes
 - reembolsos-b2-00-leia-me — reembolsos-b2-00-leia-me
 - reembolsos-b2-01-shared-cobranca — reembolsos-b2-01-shared-cobranca
 - reembolsos-b2-ef-admin-cancel-order — reembolsos-b2-ef-admin-cancel-order

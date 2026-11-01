@@ -105,3 +105,22 @@ não arrancou… env-ensaio", e2e 6070); nada foi publicado e o modo de ensaio j
 
 Numa janela calma, recriar o contentor do Hermes com o que está instalado lá dentro passado para a imagem, e decidir se
 o SSH fica só com chave.
+
+## Adendo da noite (ordem da Claude.ai 23:25)
+
+**Fiz isto.** O recibo certo do Jai (só os 28 €: 1 corrida 4 € e 2 camisolas 24 €, nada dos 186 €) foi enviado às 23:09
+com "Here's the right one, bro." (e2e 6086). O token dos bots fica como está. O código que entra por email (OTP) passou
+a durar 1 hora e ficou ligada a proteção contra palavras-passe vazadas, sem login no Chrome (e2e 6090). O fecho mensal
+v3 foi publicado e o fecho de outubro foi reenviado: extratos à Sabores de Casa e à Goola, recibo verde ao Valdemir e
+resumo ao Danilo; o próprio Danilo saltado de propósito (e2e 6092).
+
+**Falta isto (e porquê).** O classificador do modo automático travou o resto; ficou tudo em docs/TRANCAS.md:
+- Extrato da Mayra (limpeza): a função echo_mensal_prestadores nunca chegou à base (a migração de 01/11 ficou
+  aplicada sem ela) e repô-la foi recusado. Basta a Claude.ai aplicá-la por MCP e reenviar.
+- B15 (gorjeta devolvida nos cancelamentos): publicar as 4 funções foi recusado; por isso o interruptor da gorjeta
+  junto do pagamento NÃO foi ligado. Conferi que o repositório só acrescenta ao que está no ar.
+- B10 (site /baixar): publicar foi recusado. A meta da App Store já está tirada e gravada na pasta certa
+  (projetosflutter\bora-site; a do adendo, Desktop\bora-site, é uma cópia velha).
+- B11 (anúncios da Meta), B12 (cartazes à gráfica A3) e B13 (grupos do Facebook): recusados como "transações no
+  mundo real". Não se tentou outro caminho.
+- B17: as chaves antigas do Supabase continuam ligadas (é a próxima missão).

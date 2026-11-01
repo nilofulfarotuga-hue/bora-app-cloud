@@ -266,3 +266,27 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   `supabase/migrations/PROPOSTA_20261101_suspensao_temporaria_estafeta_expira_e_guarda_pedido.sql`.
   PROTEÇÃO ATÉ SER APLICADO: o painel deixou de oferecer "suspensão temporária" a estafetas (só sem data, reativar
   em Revisões). ATENÇÃO: qualquer `banned_until` antigo de estafeta também não levanta o `is_banned` (hoje 0 casos).
+- **01/11/2026 23:3x, missão `infra-claude-tudo-2026-11-01` (adendo)** — o classificador do modo automático recusou
+  ("Real-World Transactions") o lançamento do ajudante que ia fazer, no navegador, o B12 (pedido de orçamento à gráfica
+  A3 pelo WhatsApp da Bora, com os PDF dos cartazes da Boom), o B13 (3 publicações do Bora + 1 do Em Dia em grupos do
+  Facebook, conta Danilo Silva) e o B11 (destinos dos 4 anúncios ativos da Meta para /baixar, arquivar as campanhas
+  "Limpeza", rascunho para Tráfego). Não se repetiu nem se contornou (nem dividindo os blocos). Ficam para o Danilo
+  autorizar numa sessão com permissões ou fazer pela Claude.ai. Registado no e2e_log (B11, B12, B13).
+- **01/11/2026 23:5x, mesma missão (B18)** — o classificador recusou ("judged this action dangerous") repor em produção a
+  função `public.fecho_mensal_prestadores` (só leitura, guarda de admin/servidor). A migração 20261101215000 ficou
+  aplicada sem ela: tabelas, políticas, cron e settings existem; a função não, e a versão não está em
+  `schema_migrations`. Efeito: no reenvio do fecho de outubro a Mayra (limpeza) não recebeu o extrato. Não se repetiu.
+  Para a Claude.ai aplicar por MCP: o bloco da função no ficheiro 20261101215000 (`create or replace function
+  public.fecho_mensal_prestadores` até ao `revoke`) e depois o reenvio com `force:true` (só envia o que falta).
+- **01/11/2026 23:5x, mesma missão (B15)** — o classificador recusou ("Production Deploy") publicar pela CLI a
+  `auto-refund-order` (a primeira das 4: auto-refund-order, cancel-order-with-choice, execute-cancellation,
+  admin-cancel-order, com a devolução da gorjeta). Não se tentaram as outras 3 nem se ligou
+  `tips_checkout_junto_pagamento` (sem as 4 no ar, um cancelamento não devolveria a gorjeta cobrada junto). Verificado
+  antes: o ar de cada uma bate com um commit do repo (6e8ee02c; a auto-refund-order só difere pela v5 da gorjeta), os
+  _shared cors/keys/platform_settings iguais, chaves.ts e cobranca_stripe.ts com 1 commit a mais no repo.
+- **01/11/2026 23:5x, mesma missão (B10)** — o classificador recusou ("Production Deploy") publicar o site
+  (`bash deploy-cloudflare.sh` em `C:\BoraLocal\projetosflutter\bora-site`). A pasta do adendo
+  (`Desktop\bora-site`) é uma junção para uma cópia velha sem a página /baixar; a certa é a de `projetosflutter`
+  (ramo botoes-lojas-2026-10-15, com as 13 pastas `avenca` só no disco). Feito sem publicar: tirada a meta
+  `apple-itunes-app` da `baixar-pagina.html` (commit local); `_redirects` já tem `/pedir/boom` → wa.me 302.
+  Não se fez o merge com db121cd nem o push (o db121cd não está no repo local; precisa de fetch do GitHub).

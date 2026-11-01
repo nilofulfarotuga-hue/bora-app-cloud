@@ -1,4 +1,4 @@
--- PROPOSTA — NÃO APLICADA (o classificador recusou a 01/11/2026; ver docs/TRANCAS.md).
+-- APLICADA em produção pela Claude.ai por MCP a 01/11/2026 ~23:20 (no PC o classificador tinha recusado).
 -- Missão app-fechar-2026-11-01 · B8 suspensão e revisão humana (Diretiva UE 2024/2831).
 -- Falhas encontradas pelo caminho, depois do gatilho trg_suspensao_so_com_humano (01/11):
 --

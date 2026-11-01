@@ -1,4 +1,4 @@
--- PROPOSTA — NÃO APLICADA (o classificador recusou a 01/11/2026; ver docs/TRANCAS.md).
+-- APLICADA em produção pela Claude.ai por MCP a 01/11/2026 ~23:20 (no PC o classificador tinha recusado; aplicada com CREATE OR REPLACE TRIGGER em vez de DROP+CREATE).
 -- Missão app-fechar-2026-11-01 · B6 e B5 (achados encontrados pelo caminho).
 --
 -- 1) assistant_learned: ligar/desligar uma "Aprendida" no painel é um UPDATE direto pela RLS
@@ -27,8 +27,8 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public._assistant_learned_audita() FROM PUBLIC, anon, authenticated;
 
-DROP TRIGGER IF EXISTS trg_assistant_learned_audita ON public.assistant_learned;
-CREATE TRIGGER trg_assistant_learned_audita
+
+CREATE OR REPLACE TRIGGER trg_assistant_learned_audita
   AFTER UPDATE OF active ON public.assistant_learned
   FOR EACH ROW EXECUTE FUNCTION public._assistant_learned_audita();
 

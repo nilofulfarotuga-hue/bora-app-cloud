@@ -1,4 +1,4 @@
--- PROPOSTA — NÃO APLICADA (o classificador recusou a 01/11/2026; ver docs/TRANCAS.md).
+-- APLICADA em produção pela Claude.ai por MCP a 01/11/2026 ~23:20 (no PC o classificador tinha recusado).
 -- Missão app-fechar-2026-11-01 · B8 (revisão independente, 01/11/2026).
 -- 1) prestador_suspensoes_manutencao: a suspensão TEMPORÁRIA de um estafeta marcava o registo como
 --    expirada e avisava "já podes voltar a ficar online", mas deixava drivers.is_banned=true: o

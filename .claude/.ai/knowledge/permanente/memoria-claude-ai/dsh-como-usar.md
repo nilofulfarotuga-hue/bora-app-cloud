@@ -2,7 +2,7 @@
 id: memoria-claude-ai-dsh-como-usar
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-31
+ultima_confirmacao: 2026-11-01
 zona: verde
 confianca: alta
 estado: atual
@@ -10,14 +10,26 @@ estado: atual
 
 # Como usar o Dipsy (dsh)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `dsh-como-usar`, origem `claude-code`, atualizada em 2026-10-31T14:01:28.114189+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `dsh-como-usar`, origem `claude-code`, atualizada em 2026-11-01T22:09:03.680399+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: dsh como usar · memoria claude.ai · claude_ai_memoria
 
 # Como usar o Dipsy
 
-O Dipsy é o segundo ajudante do teu PC, ao lado do Claude Code. Trabalha com um motor grátis. Não precisas de escrever
-nenhum comando: falas com ele como falas com uma pessoa.
+O Dipsy é o segundo ajudante do teu PC, ao lado do Claude Code. Desde 01/11 pensa com o **Claude** (o mesmo crédito
+dos robôs), e nunca fica sem motor. Não precisas de escrever nenhum comando: falas com ele como falas com uma pessoa.
+
+## O motor dele (desde 01/11)
+- **Normalmente usa o Claude Sonnet**, pelo servidor da Bora (a VPS). O PC não guarda nenhuma chave da Anthropic: só uma
+  senha que abre o servidor.
+- **Sem limite por dia.** Só deixa de usar o Claude se o crédito acabar; aí passa sozinho para os motores grátis e volta
+  ao Claude sozinho quando o crédito novo chegar (30/11) ou se carregares crédito antes.
+- **Se o servidor não responder** (8 segundos), usa os grátis do PC: Kilo, e depois o Gemini. Nunca fica sem resposta.
+- **No Telegram:** /motor diz que motor está a usar e quanto crédito resta. /opus passa para o Claude Opus, o melhor, para
+  coisas difíceis (mais caro; fica até mandares /sonnet). /sonnet volta ao normal. /gratis usa só os motores grátis.
+- **Ele sabe tudo de ti:** todos os projetos e onde vivem (Bora, painel, sites, Em Dia, BoraStudio e as coisas das
+  meninas, o vault, a VPS, o livro). Lê qualquer pasta; para trabalhar noutro projeto manda /pasta e o nome (por exemplo
+  /pasta em_dia). /pasta sozinho diz em que projeto está.
 
 ## Como abrir
 Faz duplo clique em **DIPSY**, no Ambiente de Trabalho. Espera uns 30 segundos. Abre uma janela preta (deixa-a aberta)
@@ -31,7 +43,9 @@ e, no navegador, a página do Dipsy.
   depois trata do pedido.
 - **Fotos:** manda uma foto e ele vê-a.
 - No Telegram há um menu com botões para tocares: Estado, Planear, Aprovar, Objetivo, Corrigir, Voltar atrás, Conversa
-  nova, Libertar memória, Agenda, Parar, Ajuda e Desligar.
+  nova, Libertar memória, Agenda, Motor, Pasta, Sonnet, Opus, Grátis, Parar, Ajuda e Desligar.
+- **Grupo "Bora Bastidores"** (01/11): é onde os robôs deixam os avisos que não são urgentes nem resultados (radar,
+  repetidos, estados). Abres se quiseres; o que precisa de ti continua a chegar na tua conversa com o Hermes.
 - **Ele lembra-se da conversa.** Enquanto falam (com pausas de menos de 30 minutos), o Dipsy continua a mesma conversa, como
   o Claude Code. Para começar do zero, toca em "Conversa nova".
 
@@ -90,7 +104,8 @@ não ligar por algum erro, o Dipsy recusa-se a trabalhar e diz-te. E quando o Di
 Claude Code também leva uma guarda que barra apagar em massa, apagar tabelas, push forçado, matar processos e segredos.
 
 ## Cuidados
-- O motor é grátis e pode guardar o que lhe mandas. Não lhe mandes palavras-passe nem chaves.
+- O motor normal é o Claude (não treina com o que lhe mandas). Os de reserva (Kilo, Gemini) são grátis e podem
+  guardar o que lhe mandas. Em qualquer caso, não lhe mandes palavras-passe nem chaves.
 - Quando ele vê o ecrã ou uma foto, a imagem vai para a Google (plano grátis). Evita ter janelas de banco ou de
   palavras-passe abertas quando lhe pedires para ver o ecrã.
 - A voz que mandas vai sempre à Google (plano grátis) para ser percebida: foi a tua escolha a 31/10, porque assim o

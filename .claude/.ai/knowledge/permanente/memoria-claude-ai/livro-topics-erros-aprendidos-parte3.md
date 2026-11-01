@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-topics-erros-aprendidos-parte3
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-31
+ultima_confirmacao: 2026-11-01
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 3 de 3)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte3`, origem `claude-ai`, atualizada em 2026-10-31T21:17:15.889436+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte3`, origem `claude-ai`, atualizada em 2026-11-01T22:18:42.931844+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro topics erros aprendidos parte3 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md), copiada a 31/10/2026 21:16 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md), copiada a 01/11/2026 22:14 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos. Parte 3 de 3.
 
 - [stated] 27/10 22:25: mandei publicar o reel do Tesla no grupo "Brasileiros na Guarda" e no "Marketing, vendas e propaganda Guarda"; ele corrigiu: "o brasileiro agora só pode no marketing" → regra: propaganda da Bora em grupos de WhatsApp só no "Marketing, vendas e propaganda Guarda"; no "Brasileiros na Guarda" não se publica
 - [stated] 28/10 10:33 (na hora da demonstração da Boom): disse-lhe que as senhas das contas de demonstração estavam no Telegram e não lhas dei; ele não as tinha à mão e reclamou "você tem que me dar a senha" → regra: quando ele pede o login de uma conta de teste/demonstração, dou-lho logo aqui na conversa (e se eu não tiver a senha, reponho uma nova pelo servidor, testo e dou-a); nunca o mandar procurar no Telegram
@@ -39,4 +39,5 @@ estado: atual
 - [stated] 31/10 18:29: na resposta ao Ricardo ("o que disseste ontem?") escrevi seco — só "não dá para fazer fiado", a conta e "quando consegues mandar?"; ele achou grosso outra vez (repete o de 30/10) → regra: reto sem ser grosso — lembrar com calma que ajudou porque o cliente pediu e achou que era só até lhe sair o pagamento; dizer que uma vez ou outra ajuda, mas fiado não consegue nem deixa passar de 20 €; a conta vai no fim, sem frase seca de cobrança
 - [stated] 31/10 19:53: as missões no PC (retoma geral e chaves) ficaram ~7 h paradas à espera de um "Permitir" que nunca lhe apareceu, e eu só registava e voltava a ver de hora a hora; ele irritou-se ("eu dou a missão e vocês não conseguem") → regra: pedido de Permitir sem resposta em 15 min = trazer logo aqui ao chat a lista numerada do que falta autorizar e fazer eu por MCP com o "autorizo" dele; o que só o PC consegue fazer vai num prompt para ELE colar numa sessão nova com "Ignorar permissões" (foi ele que propôs, 31/10)
 - [stated] 31/10 10:35: na resposta ao Jai sobre o artigo da Minerva (link que ele reencaminhou sem texto) escrevi "Big news bro 🔥 I'll add this one to the press section of your website", no mesmo tom de festa da mensagem de 06:07 ("that's huge 🔥… says it all 👏"); ele reprovou: "seja mais natural, mais direto", nada de "boa notícia" → regra: mensagem ao Jai é curta e direta, como o Danilo fala ("ok, isso é legal" + o que vai fazer), sem elogios, sem "big news/that's huge" e sem emojis de festa; antes de escrever, ver como os dois já falam no WhatsApp e seguir esse tom
+- [stated] 01/11 21:20: no relatório final disse-lhe que a mensagem para o Hugo e o resumo da Stripe estavam "numa página do livro", em vez de os escrever aqui; ele reclamou "eu não falei pra você deixar guardar, me traz aqui detalhado" → regra: relatório, resumo ou mensagem que ele pede para conferir vai sempre escrito por inteiro aqui no chat, detalhado; o livro é só cópia para os agentes
 

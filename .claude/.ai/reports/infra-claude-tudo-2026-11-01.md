@@ -50,6 +50,19 @@ informação; prova: um aviso de teste foi para o grupo e não para a conversa d
 **Site do Jai sem o nome do Danilo (B7).** Tirei a nota interna do `index.html` e publiquei (deploy bdc9dab6). Em
 jaiagarwala.com e nas versões pt/es/hi aparece zero vezes "Danilo". e2e 5987.
 
+**Stories "em breve" (B8).** A proposta chegou ao ramo às 22:07 e foi aplicada na VPS (cópias de segurança de cada
+ficheiro, nada publicado nas redes). As stories de hoje não mostravam nenhuma loja em breve: eram a pergunta fixa "Qual
+é a loja da Guarda que querias ver no Bora?" (é provavelmente isso que o Danilo leu como "em breve"; não dá para provar).
+Mas havia buracos reais e ficaram fechados: as perguntas fixas ainda tinham o Ouro e Prata e o Sabores do Brasil pelo
+nome; o plano dos grupos do Facebook escolhia peças de barbearia com o logótipo do Ouro e Prata (22 vezes em 400 sorteios;
+agora 0); o carrossel tinha a página "beleza" com barbearias, todas em breve. Agora tudo escolhe as lojas pela mesma
+lista da base (`social_lojas_permitidas`), e a última verificação antes de publicar barra o resto. Provas em ensaio: a
+lista do robô é igual à da base (23 lojas); Amaya, Boom, Mr Kebab, Lidl, Pizza Hut, Demo, Ouro e Prata e Mister Navalha
+são barrados; KFC passa; com a base em baixo não sai peça; a loja do dia com uma fila de ensaio que começava no Boom
+saltou as quatro barradas e escolheu o KFC. A Mercadona passa porque foi reaberta hoje às 20:55 ("Beleza e Higiene").
+**Incidente:** na primeira prova em ensaio saiu por engano um alarme para o Telegram do Danilo ("social-loja-do-dia.sh
+não arrancou… env-ensaio", e2e 6070); nada foi publicado e o modo de ensaio já não manda esse alarme. e2e 6066–6079.
+
 **Recibo do Vansh (B9).** O PDF (286,21 €, igual à conta das 20:20) foi enviado ao Vansh pelo WhatsApp às 21:19 com
 "Here's the PDF.". e2e 6036.
 
@@ -67,8 +80,10 @@ jaiagarwala.com e nas versões pt/es/hi aparece zero vezes "Danilo". e2e 5987.
 - **Porta do painel do Hermes só local**: mudei o ficheiro do Hermes, mas só vale quando o contentor for recriado; não o
   recriei porque tem cerca de 11 500 coisas instaladas lá dentro que se perdiam. A porta já está fechada de fora.
 - **Trader (8090)** não mexido: é dinheiro; a porta já está fechada de fora.
-- **Stories "em breve" (B8)**: a proposta só chegou ao ramo às 22:07; o ajudante está a aplicá-la na VPS em ensaio (sem
-  publicar nada). Resultado no e2e_log, fluxo `stories-em-breve-2026-11-01`.
+- **Robô das redes, por decidir:** a fila de lojas do dia está uns 6 dias atrasada (não deixa passar lojas em breve, só
+  atrasa); o `proxima_loja.py` põe por último as lojas nunca usadas (o contrário do que o comentário diz); o
+  `contador_guarda.py` ainda conta pelas tabelas e não pela lista da base (hoje dá o mesmo). Não mexidos para não mudar
+  que lojas saem sem ordem.
 - **A página do Dipsy no navegador** que estava aberta desde ontem ainda usa o motor antigo; muda sozinha quando o DIPSY
   for aberto outra vez. O Telegram do Dipsy já usa o Claude.
 
@@ -88,5 +103,5 @@ jaiagarwala.com e nas versões pt/es/hi aparece zero vezes "Danilo". e2e 5987.
 
 ## Próximo passo
 
-Fechar o B8 quando o ajudante acabar; depois, numa janela calma, recriar o contentor do Hermes com o que está instalado
-lá dentro passado para a imagem, e decidir se o SSH fica só com chave.
+Numa janela calma, recriar o contentor do Hermes com o que está instalado lá dentro passado para a imagem, e decidir se
+o SSH fica só com chave.

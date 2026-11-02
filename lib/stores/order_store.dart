@@ -656,7 +656,7 @@ class OrderStore extends ChangeNotifier {
     try {
       final response = await supabase.functions.invoke(
         'create-payment-intent',
-        body: {'cart_input': cartInput},
+        body: {'cart_input': cartInput, 'stripe_contas_v2': true}, // duas contas Stripe (02/11/2026)
       );
       final body = response.data as Map<String, dynamic>?;
       if (body == null ||
@@ -2009,7 +2009,7 @@ class OrderStore extends ChangeNotifier {
     if (amount <= 0) return false;
 
     try {
-      await _paymentService.chargeExtra(amount: amount);
+      await _paymentService.chargeExtra(amount: amount, orderId: order.id); // duas contas
     } catch (e) {
       debugPrint('OrderStore.processExtraCharge error => $e');
       return false;

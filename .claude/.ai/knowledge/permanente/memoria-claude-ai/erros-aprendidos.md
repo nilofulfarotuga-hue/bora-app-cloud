@@ -10,7 +10,7 @@ estado: atual
 
 # Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-02T15:09:38.520648+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-02T18:27:32.192706+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: erros aprendidos · memoria claude.ai · claude_ai_memoria
 
@@ -125,4 +125,5 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - 01/11 (claude-ai): 01/11 21:10: no relatório final disse que a mensagem para o Hugo e o resumo da Stripe estavam "na página mensagem-hugo-2026-11-01 do livro", em vez de os escrever aqui no chat; ele tinha pedido o relatório detalhado da Stripe e a mensagem ao Hugo para conferir → quando ele pede relatório, resumo ou mensagem para conferir, vai SEMPRE escrito por inteiro aqui no chat, detalhado; o livro e o Córtex são só cópia para os agentes, nunca o sítio para onde o mando ler
 - 02/11 (claude-ai): (não é erro) registo: Bora Motorista fechado a 02/11/2026 06:00 por ordem do Danilo → TVDE de passageiros está DESLIGADO desde 02/11/2026 06:00 (tvde_passageiros_enabled=false). Só volta a ligar com ordem dele.
 - 02/11 (claude-ai): 02/11 14:55: disse ao Danilo que a Casa estava desligada (casa_enabled=false) sem ver que a conta dele boraappbora estava na lista de testadores; ele abriu a web e viu a Casa publicada, mal acabada → antes de dizer que uma categoria está desligada, ver também quem a vê por exceção (casa_testadores, contas demo) e dizer isso; quando ele quer desligar, desligar para todos, incluindo os testadores
+- 02/11 (claude-ai): 02/11 17:57 (pedido da Dona Isabel, Continente): o pão avulso da padaria (Pão Bola de Mistura) estava por unidade sem opção de trocar o preço na balança — a marcação ao quilo de 26/10 e 31/10 só apanhou fruta, legumes e talho → pão avulso da padaria dos mercados (bolas, bijou, pão do dia sem embalagem) também é ao quilo; ao marcar produtos ao quilo, rever TODAS as secções de balcão (fruta, legumes, talho, peixaria, padaria, charcutaria ao corte), não só a fruta
 

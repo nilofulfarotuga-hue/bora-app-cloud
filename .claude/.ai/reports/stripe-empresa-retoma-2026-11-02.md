@@ -67,4 +67,12 @@ Revisão independente (contexto limpo) do código novo do admin-payments: ver se
 
 ## Revisão independente
 
-(preenchido no fim da sessão)
+Revisor com contexto limpo (só leitura) ao commit 52fa3f91 do `admin-payments`: **OK**. Sem forma
+de quem não é administrador nem servidor chegar às ações novas (anon e sessão normal recusados;
+provado também por pedido real: 401), a prova não consegue cobrar (sem confirm, sem cliente, sem
+cartão, o client_secret nunca é devolvido), a leitura antecipada do corpo não parte as ações antigas
+e `webhooks` não mostra segredos. Notas baixas: (1) cada prova gera um aviso "pagamento sem pedido"
+no painel — já não, porque o webhook da empresa deixou de ouvir "cancelado"; (2) se o cancelamento
+falhasse, o id do pagamento perdia-se — **corrigido**, admin-payments v13 (07:14, a tranca perguntou
+e foi permitido); (3) informativo, de antes desta missão: `confirmadaNoAuth` guarda em memória as
+chaves antigas aprovadas sem prazo — uma chave revogada continua aceite até a função reiniciar.

@@ -52,6 +52,7 @@ async function provaConta(admin: any, body: any, quem: string): Promise<Response
   const conta: ContaStripe = body?.conta === 'pessoal' ? 'pessoal' : 'empresa';
   if (!temChaveSecreta(conta)) return json({ ok: false, error: 'stripe_chave_em_falta', conta }, 409);
   let r: Record<string, unknown>;
+  let piCriado: string | null = null; // se o cancelamento falhar, o id não se perde
   try {
     const stripe = stripePara(conta);
     const pi = await stripe.paymentIntents.create({
@@ -61,13 +62,14 @@ async function provaConta(admin: any, body: any, quem: string): Promise<Response
       description: 'Prova Bora duas contas (criado e cancelado logo, sem cobrança)',
       metadata: { kind: 'prova_conta', bora_conta: conta, origem: 'admin-payments', quem },
     });
+    piCriado = pi.id;
     const cancelado = await stripe.paymentIntents.cancel(pi.id, { cancellation_reason: 'abandoned' });
     r = {
       ok: cancelado.status === 'canceled', conta, payment_intent_id: pi.id, valor_cents: pi.amount,
       estado_criado: pi.status, estado_final: cancelado.status, livemode: pi.livemode,
     };
   } catch (e) {
-    r = { ok: false, conta, error: e instanceof Error ? e.message : String(e) };
+    r = { ok: false, conta, payment_intent_id: piCriado, error: e instanceof Error ? e.message : String(e) };
   }
   try {
     await admin.from('e2e_log').insert({

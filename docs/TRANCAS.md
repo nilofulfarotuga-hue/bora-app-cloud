@@ -290,3 +290,10 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   (ramo botoes-lojas-2026-10-15, com as 13 pastas `avenca` só no disco). Feito sem publicar: tirada a meta
   `apple-itunes-app` da `baixar-pagina.html` (commit local); `_redirects` já tem `/pedir/boom` → wa.me 302.
   Não se fez o merge com db121cd nem o push (o db121cd não está no repo local; precisa de fetch do GitHub).
+- **01/11/2026 ~23:03, fecho das três recusas acima (`app-fechar-2026-11-01`)** — as três PROPOSTA_ foram aplicadas
+  pela Claude.ai por MCP (commit `f62a9cf3`, registos em `schema_migrations` 20261101230323, 20261101230359 e
+  20261101230415). Provado por SELECT às 23:45: `admin_suspender_prestador` procura o pedido por `drivers.id` e
+  `user_id`, a manutenção levanta o `is_banned` do estafeta, `admin_set_user_role` passa o motivo, 6 gatilhos
+  `trg_suspensao_fecha_ao_reativar`, gatilho de auditoria das Aprendidas, `anon` sem `cleaning_series_next_at`.
+  Os ficheiros no repo passaram a ter esses números de versão. A proteção da app (painel sem "suspensão
+  temporária" para estafetas) já pode sair na próxima publicação.

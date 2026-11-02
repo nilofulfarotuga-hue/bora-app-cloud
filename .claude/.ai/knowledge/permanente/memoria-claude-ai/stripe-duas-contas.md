@@ -10,7 +10,7 @@ estado: atual
 
 # Duas contas Stripe — empresa e pessoal (01/11/2026)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `stripe-duas-contas`, origem `claude.ai + claude-code 02/11`, atualizada em 2026-11-02T06:15:59.837089+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `stripe-duas-contas`, origem `claude.ai + claude-code 02/11`, atualizada em 2026-11-02T06:40:41.036983+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: stripe duas contas · memoria claude.ai · claude_ai_memoria
 
@@ -39,3 +39,5 @@ Código pronto no PC (ramo stripe-empresa-2026-11-01, commit 171733e8, sem push)
 02/11 05:55 — o Danilo entrou na Stripe (disse "entrei" na sessão); a sessão criou a chave restrita e o webhook da empresa (we_1UXDJtGWwQxC9wR2CbwB2BH7) e gravou os segredos no servidor. Depois ficou 30+ min presa a aplicar a migração stripe_extrato_resumo_por_conta: o MCP do Supabase pede confirmação para DROP e essa caixa não aparece no Claude Code pela web. A Claude.ai aplicou-a por MCP sem DROP (função antiga renomeada para stripe_extrato_resumo_antes_20261102, nova stripe_extrato_resumo(p_desde,p_ate,p_conta) com as mesmas permissões, testada) e mandou a sessão seguir sem usar DROP e com regra de 5 min para tudo o que ficar parado. LIÇÃO: migração com DROP pelo Claude Code na web fica presa para sempre; usar RENAME ou CREATE OR REPLACE.
 
 02/11/2026 06:20 — RETOMA: a sessão antiga (session_01HPEpV8TqbMGfAxZbZkrQhU, Fable) parou e ficou parada. O Danilo mandou continuar numa janela nova com o Opus. Nova sessão: https://claude.ai/code/session_01HPEpVCiQJz5VkNWpbqKu2X (Opus 5.5, ambiente bora-app-cloud · Danilo). Prompt de retoma com: passo 0 = guardar em commit o que ficou na worktree antiga; regras novas = nunca DROP, parado mais de 5 min interrompe e regista; interruptor fica em pessoal até as provas F6; lojas só com ordem do Danilo. A sessão antiga só é arquivada depois de a nova confirmar o passo 0.
+
+02/11/2026 06:40 — ponto da retoma (Opus): passo 0 ok (worktree antiga limpa, HEAD 43dec99f). Proposta 05 aplicada sem DROP (admin_list_payments com coluna stripe_account; antiga renomeada admin_list_payments_antes_20261102). Achou e corrigiu erro antigo: admin_list_payments falhava sempre (todos.entity_id), por isso o painel Pagamentos/Cartões dizia "falta aplicar a migration" — corrigido em 20261102062623. 24 funções publicadas no servidor (lotes 1 a 4, incluindo as 4 de cancelamento com devolução de gorjeta), verify_jwt igual ao que estava, zero erros 5xx desde 06:30. Pendente menor: copiar as migrações aplicadas para supabase/migrations (a tranca recusou; o SQL está em docs/propostas/stripe-duas-contas/aplicadas/). Em curso: provas F6 (ação de prova no admin-payments: PaymentIntent 0,50 € criado e cancelado na empresa, sem cartão). Interruptor continua pessoal.

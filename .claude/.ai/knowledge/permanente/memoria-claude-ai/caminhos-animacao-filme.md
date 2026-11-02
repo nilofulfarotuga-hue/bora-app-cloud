@@ -2,7 +2,7 @@
 id: memoria-claude-ai-caminhos-animacao-filme
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-28
+ultima_confirmacao: 2026-11-02
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Filme das filhas — 5 caminhos grátis para o desenho (revisto 05/10 com os 50 vídeos)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-10-28T20:57:34.511688+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-11-02T20:56:22.269253+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: caminhos animacao filme · memoria claude.ai · claude_ai_memoria
 
@@ -119,3 +119,9 @@ Avisos: os juizes de topo (gemini-3.5-flash, 3-flash-preview) gastam 20 pedidos/
 ## 28/10/2026 — radar diário (sem vídeos do tema animacao_ia)
 - Caminho 3 (vozes), lente grátis: Voicebox — aberto, clona voz e transcreve localmente, apresentado como alternativa à ElevenLabs; confirmar se corre sem placa gráfica (ou no Kaggle) antes de testar. https://www.youtube.com/watch?v=yATBEBRhxM8
 - Fora: ComfyUI/MiniMax H3/LoRA (precisam de RTX 3060), stickman.
+
+## 02/11/2026 — radar diário
+Nenhum vídeo novo do tema animacao_ia. Do termo "desenho animado grátis sem placa" vieram 3 achados menores:
+- Subir clipes a 4K e suavizar movimento (o vídeo usa VideoProc, pago): lente grátis = Real-ESRGAN + RIFE no Kaggle com GPU. https://www.youtube.com/watch?v=w-2EyWLnxyc
+- Agnes AI (créditos grátis diários, instável, filas) e Roar.art (ilimitado, espera longa) para imagem→vídeo — testar com a personagem; o vídeo não fala de consistência. https://www.youtube.com/watch?v=9JLOaVRkHW0
+- Animação de bonecos em SVG feita pelo Claude + HyperFrames (aberto) — simples demais para o filme, serve para explicativos. https://www.youtube.com/watch?v=BttMI1uDOMU

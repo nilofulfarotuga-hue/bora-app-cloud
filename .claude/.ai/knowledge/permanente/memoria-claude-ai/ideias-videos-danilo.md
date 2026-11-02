@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-01
+ultima_confirmacao: 2026-11-02
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-11-01T20:56:08.366891+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-11-02T20:56:22.269253+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -447,3 +447,18 @@ Filme caminho 4 (fontes htROyMzUbA8, rxZZ1xi81a4): no Google Flow (Omniflash 1.1
 - JÁ TEMOS: secretária/bot de marcações no WhatsApp (Mister Navalha), REA (3 vídeos).
 - RECUSADO: Openbot.run (abordagens automáticas por WhatsApp Web), CloudTalk e ElevenLabs Reception (pagos), Abacus AI, canais faceless.
 - Radar aprende: +2 termos da conversa (Diretiva europeia das plataformas; gerir Perfil Google de clientes como mensalidade), -2 termos sem rendimento (embaixadores universitários — só trazia notícias; angariadores de parceiros); 70 ativos.
+
+## 02/11/2026 — radar diário (agente na nuvem)
+40 vídeos revistos (31 com nota >= 6): 9 novos, 10 PENDENTES, 7 já temos, 14 rejeitados (9 por nota baixa). Nenhum do tema animacao_ia (3 do termo do desenho animado). Proposta prop-2f407c9c.
+- MODA DA SEMANA (3+ vídeos nota>=8 em 7 dias): Dipsy 12 — FEITO 29-30/10 (Creator Mode, agendadas, subagentes por fazer desde 30/10); CRM de WhatsApp aberto 7 (+4 hoje: Waziper, Deskcom/DeskCRM) — PENDENTE desde 18/10; Claude Duet 7 (+3 hoje) — PENDENTE desde 22/10 (lista de espera EUA); OmniRoute/9Router 6 (+2) — FEITO 23/10; vender automação a PMEs 6 — PENDENTE desde 13/10; anúncios Meta 5 — PENDENTE, conta sem pagamento desde 26/10; Hermes 5 (+3) — já temos; voz grátis OmniVoice 4 — teste Kaggle sem prova; sites a partir da ficha Google 4 (+3) — PENDENTE desde 25/10; gerir Perfil Google como mensalidade 3 — FEITO (Jai, 139 €/mês, 01/11).
+- SISTEMA (novo): Hermes delega subtarefas por 3 níveis (rápido/equilibrado/profundo) com modelos grátis do OmniRoute. https://www.youtube.com/watch?v=CtnwJp6MyUc
+- DINHEIRO: CRM de WhatsApp aberto — Waziper (usa Supabase) como alternativa ao Deskcom; teste parado desde 18/10. https://www.youtube.com/watch?v=0dH-peuXhuY , https://www.youtube.com/watch?v=muU-Qbusk8c , https://www.youtube.com/watch?v=HruptAK5gLI
+- DINHEIRO (novo): otimizar só a ficha Google virou commodity — vender resultado (ficha + site + avaliações + WhatsApp). https://www.youtube.com/watch?v=6838Mn8_nwE ; perguntas e respostas frequentes na ficha do Jai e próximos clientes. https://www.youtube.com/watch?v=ey9HtOInjyk
+- EM DIA (novo): explicativos animados grátis — Claude gera SVG animado + HyperFrames (aberto) faz o vídeo, sem placa. https://www.youtube.com/watch?v=BttMI1uDOMU
+- REELS (novo): checklist SHARE (Simples, Gancho, Autêntico, Relatável, Entretenimento). https://www.youtube.com/watch?v=v8Hf-MudckE ; BORA: mini-dramas com entregadores/clientes no TikTok. https://www.youtube.com/watch?v=IGDcKSdJEuo
+- BORA (novo): cardápios dos parceiros com fotos reais, não fotos de comida feitas por IA. https://www.youtube.com/watch?v=HCAHqRVO8c8
+- BORA (pendente): impulsionar só posts com muitos salvamentos/partilhas, quando a conta de anúncios tiver pagamento. https://www.youtube.com/watch?v=Q9luwrYuQpY
+- FILME (lente grátis): Real-ESRGAN + RIFE no Kaggle em vez do VideoProc pago; testar Agnes AI / Roar.art. https://www.youtube.com/watch?v=w-2EyWLnxyc , https://www.youtube.com/watch?v=9JLOaVRkHW0
+- JÁ TEMOS: 9Router (= OmniRoute), Hermes na VPS, ganchos dos reels, Higgsfield, presença Google (Jai).
+- RECUSADO: canais dark/faceless (2), tablet stream deck, história da Nous.
+- Radar aprende: sem termos novos (nenhum assunto novo em 2+ vídeos nota>=7; conversas de 48 h — limpeza, casa, TVDE, Stripe — já cobertas ou fora do radar); nenhum termo desligado; 70 ativos.

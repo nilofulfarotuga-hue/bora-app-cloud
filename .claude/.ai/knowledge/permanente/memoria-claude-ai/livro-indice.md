@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-02T20:37:06.064817+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-02T21:07:07.262991+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-02 20:12 UTC. Páginas listadas: 511.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-02 20:56 UTC. Páginas listadas: 512.
 
 ## O que é o Bora
 
@@ -447,7 +447,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - sql-modo-demo-2026-10-27 — SQL do modo demonstracao (Boom! Burger) para o Claude.ai aplicar (2026-10-27)
 
-## outras (131)
+## outras (132)
 
 - 00-LEIA-PRIMEIRO — Como usar esta memória (2026-10-23)
 - adendo-1-final-app-2026-10-29 — Adendo 1 da missão final-app-2026-10-29 (2026-10-29)
@@ -472,7 +472,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - boom-robo-conhecimento — Boom! Burger — base de conhecimento do robô de WhatsApp (29/10/2026) (2026-10-29)
 - bora-assistente — Bora Assistente — assistente de compras do cliente (no ar desde 07/10/2026) (2026-10-07)
 - bora-todo-dia — Bora Todo Dia — 5 novidades para o cliente abrir a app todos os dias (n.º 1: check-in diário) (2026-10-13)
-- caminhos-animacao-filme — Filme das filhas — 5 caminhos grátis para o desenho (revisto 05/10 com os 50 vídeos) (2026-10-28)
+- caminhos-animacao-filme — Filme das filhas — 5 caminhos grátis para o desenho (revisto 05/10 com os 50 vídeos) (2026-11-02)
 - casa-manutencao-pesquisa-2026-10-29 — Casa & Manutencao — pesquisa das 10 apps do mundo e burocracia em Portugal (29/10/2026) (2026-10-29)
 - casa-manutencao-proposta — Casa & Manutenção — proposta para o Danilo decidir (29/10/2026) (2026-10-29)
 - diretiva-plataformas-2024-2831 — Diretiva (UE) 2024/2831 trabalho em plataformas — o que obriga o Bora, estado em Portugal, o que está feito e checklist para 02/12/2026 (2026-11-01)
@@ -491,7 +491,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - fecho-outubro-2026 — Fecho de outubro/2026 (em nome individual) — por prestador, o que cada um faz, email corrigido (2026-11-01)
 - habilidades-propostas — Habilidades propostas pelo vigia (dinheiro/publicacao) — a Claude.ai decide (2026-09-17)
 - ideias-pendentes-decisao-danilo — Ideias grandes à espera da decisão do Danilo (29/10/2026) (2026-10-29)
-- ideias-videos-danilo — Ideias tiradas dos vídeos que o Danilo manda (2026-11-01)
+- ideias-videos-danilo — Ideias tiradas dos vídeos que o Danilo manda (2026-11-02)
 - jai-entrevista-kalinga-mensagem — Mensagem ao Jai — entrevista do Professor Kalinga já no site (30/10/2026) (2026-10-30)
 - jai-sportsdunia-mensagem — Confirmação para o Jai — artigo da SportsDunia no site (31/10/2026) (2026-10-31)
 - legal-gestao-algoritmica-prestadores — Como o Bora decide — informação sobre sistemas automáticos (Diretiva 2024/2831, art. 9.º-11.º) — texto para a app, v2026-11-01 (2026-11-01)
@@ -558,6 +558,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - radar-2026-10-29 — Radar de vídeos 29/10/2026 — 20 revistos, 4 novos, 3 pendentes (2026-10-29)
 - radar-2026-10-31 — Radar de vídeos 31/10/2026 — 40 revistos, 3 novos, 14 pendentes (2026-10-31)
 - radar-2026-11-01 — Radar de vídeos 01/11/2026 — 40 revistos, 2 novos, 21 pendentes (2026-11-01)
+- radar-2026-11-02 — Radar de vídeos 02/11/2026 — 40 revistos, 9 novos, 10 pendentes (2026-11-02)
 - reembolsos-b2-00-leia-me — reembolsos-b2-00-leia-me (2026-10-29)
 - reembolsos-b2-01-shared-cobranca — reembolsos-b2-01-shared-cobranca (2026-10-29)
 - reembolsos-b2-ef-admin-cancel-order — reembolsos-b2-ef-admin-cancel-order (2026-10-29)

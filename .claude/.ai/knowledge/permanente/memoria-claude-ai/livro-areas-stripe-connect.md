@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-stripe-connect
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-24
+ultima_confirmacao: 2026-11-02
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Stripe Connect Express no Bora — decisão do Danilo, estado real (conta dele de motorista já ATIVA, Goola e Ouro e Prata por preencher, repasse automático ainda desligado), como gerar o link de cadastro, taxas por parceiro e plano por fases (parte 1 de 3 — continua em livro-areas-stripe-connect-parte2…)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-stripe-connect`, origem `claude-ai`, atualizada em 2026-10-24T10:15:08.344117+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-stripe-connect`, origem `claude-ai`, atualizada em 2026-11-02T07:24:14.434813+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas stripe connect · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/stripe-connect.md), copiada a 24/10/2026 11:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/stripe-connect.md), copiada a 2026-11-02 07:25 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos. (parte 1 de 3 — continua em livro-areas-stripe-connect-parte2)
 
 ---
 name: stripe-connect
@@ -82,17 +82,4 @@ Investigação "não passa o cartão" (2026-08-13)
 - [stated] BUG NOVO achado nos logs: `stripe-webhook` regista "payment_intent.succeeded missing metadata.draft_id and order_id" nos PaymentIntents de TVDE — os pagamentos de corrida não levam metadata que os ligue ao ride. O reembolso funcionou à mesma, mas o webhook não consegue casar pagamento↔corrida.
 - [stated] O conector Stripe da Claude.ai perdeu o acesso à conta LIVE — só expõe a sandbox acct_1U1... "Área restrita de bora app". Enquanto não for religado (OAuth), não dá para ler pagamentos/requisitos da conta live por MCP.
 - [stated] `tvde_card_payments_enabled`=true e `cleaning_stripe_enabled`=true em platform_settings — cartão não está desligado por definição.
-
-CAUSA RAIZ ACHADA (2026-08-13, verificada por MCP) — TVDE MB Way não chama motorista
-- [stated] `stripe-webhook` (v32) NÃO tem ramo para corridas: PIs com metadata.kind='tvde_ride'/'tvde_roundtrip'/'tvde_stop' caem no else e só registam "missing metadata.draft_id and order_id". Logo `tvde_rides.payment_status` nunca passa a 'succeeded' pelo servidor.
-- [stated] Cadeia de despacho (lida do banco): trigger `tr_tvde_dispatch_on_request` só despacha CASH no insert; `tr_tvde_dispatch_on_paid` só corre quando payment_status vira 'succeeded' → `tvde_offer_to_next` → `tr_notify_tvde_driver_on_offer` → Edge Fn `notify-tvde-driver`. Como o 'succeeded' só vem do poll do cliente (confirm_ride_payment, 3s/120s), se o MB Way demorar mais de 2 min ou a app fechar, NENHUM motorista é chamado. Todas as corridas têm tried_driver_ids=[] e current_offer_driver_id=null.
-- [stated] O motorista não é o problema: Danilo estava online, com token FCM, coordenadas e heartbeat fresco em drivers + driver_locations.
-- [stated] CLIENTE REAL PERDIDO: users e99d105d-f6e9-40a3-b809-0981c31235b0 (jvillarroeltrm@gmail.com, sem nome nem telefone gravados, registado 07/08) — 3 corridas: 12/08 14:37 e 13/08 12:41 pagou €5 por MB Way, esperou ~2 min sem motorista, cancelou e foi reembolsado; 12/08 15:00 fez uma em dinheiro que essa sim terminou.
-- [stated] Danilo (13/08): o "passar o cartão por aproximação no telemóvel" é a máquina dele fora do app (ele mesmo mete o valor e o cliente aproxima) — NÃO tem a ver com o Bora App. O problema do app é o MB Way não chamar o motorista.
-- [stated] Ordem criada para corrigir (zona vermelha, à espera do "vai" do Danilo): prop-98c2fc14 "tvde-mbway-nao-chama-motorista" — ramo TVDE no webhook, ecrã "à espera da confirmação MB Way" + poll 300s, auditar o mesmo buraco nas entregas, lista admin de corridas presas no pagamento, e limpar a corrida presa e3a6cc36 (PI pi_3U43bSGlT3R2jCYp1WuEIVxZ).
-- [stated] BONIFICAÇÃO FEITA por MCP a pedido do Danilo (2026-08-13): 1.000 tokens (=€5, `token_value_cents_x100`=50 → 0,5 cêntimos/token) creditados ao cliente e99d105d, válidos 60 dias (bora_tokens id eed4bc09-3162-44d2-8dd5-e768ea00f3a2, expira 12/10/2026), com linha em admin_audit_log. O RPC `admin_grant_tokens` exige `_admin_op_guard()` (JWT de admin), por isso não corre por MCP — foi INSERT direto + auditoria à mão. Guardar esta nota.
-- [stated] LIMITE A TER EM CONTA: `token_payment_max_pct`=50 — tokens só pagam até 50% de cada pedido/corrida. Logo os €5 de tokens não pagam uma corrida de €5 inteira; dão desconto de €2,50 em duas corridas de €5. Danilo foi avisado.
-- [stated] Email de desculpas ao cliente ficou em RASCUNHO no Gmail do Danilo (draft r-4592156499866028835) — o conector Gmail da Claude.ai só cria rascunhos, não envia. É o Danilo que carrega em Enviar.
-
-TESTE DO DANILO 13/08 19:01 — mais 3 bugs provados por MCP (corrida 09c01c88-cc50-419d-951e-15c7afc6b033, PI pi_3U43sVGlT3R2jCYp0fulK3tK)
 

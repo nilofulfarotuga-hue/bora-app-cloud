@@ -6,6 +6,7 @@ import '../config/ios_launch_flags.dart';
 
 import '../models/saved_card.dart';
 import 'folha_cartao.dart';
+import 'stripe_contas.dart';
 import 'web_checkout.dart';
 
 /// Chave pública do Stripe usada pelo checkout web (`web/pay.html`).
@@ -57,9 +58,11 @@ class PaymentService {
     // Web (2026-07-20): sem guard. Isto é só um invoke da Edge Function, que
     // continua a fechar o preço server-side — o browser recebe exactamente o
     // mesmo PaymentIntent que o telemóvel recebe.
+    // Duas contas (02/11/2026): a bandeira diz ao servidor que esta app sabe
+    // abrir a folha na conta que ele devolver (publishable_key / stripe_account).
     final response = await Supabase.instance.client.functions.invoke(
       'create-payment-intent',
-      body: {'order_id': orderId, 'amount': amount},
+      body: StripeContas.marcar({'order_id': orderId, 'amount': amount}),
     );
 
     final body = response.data as Map<String, dynamic>?;
@@ -87,6 +90,9 @@ class PaymentService {
     String vertical = 'desconhecida',
     String? referenciaId,
     String? paymentIntentId,
+    /// Duas contas Stripe (02/11/2026): a chave publicável devolvida pelo
+    /// servidor com este pagamento. null = a do arranque (pessoal).
+    String? publishableKey,
   }) async {
     // Web (2026-07-20) — o PaymentSheet nativo não é fiável no browser, por
     // isso a web usa o Payment Element do Stripe.js em `web/pay.html`. Mesmo
@@ -104,7 +110,9 @@ class PaymentService {
       }
       await startWebCardCheckout(
         clientSecret: clientSecret,
-        publishableKey: _webPublishableKey,
+        publishableKey: (publishableKey != null && publishableKey.startsWith('pk_'))
+            ? publishableKey
+            : _webPublishableKey,
         label: 'Pagamento Bora',
         vertical: vertical,
         referenciaId: referenciaId,
@@ -147,6 +155,7 @@ class PaymentService {
       ),
       vertical: vertical,
       referenciaId: referenciaId,
+      publishableKey: publishableKey,
     );
     debugPrint('[PaymentService] payment sheet completed successfully');
   }
@@ -177,9 +186,16 @@ class PaymentService {
   Future<String> chargeExtra({
     required double amount,
     String? customerId,
+    /// Duas contas Stripe (02/11/2026): com o pedido, o extra sai na conta onde
+    /// o pedido foi pago (o cartão guardado só existe lá).
+    String? orderId,
   }) async {
-    final payload = <String, dynamic>{'amount': amount};
+    final payload = <String, dynamic>{
+      'amount': amount,
+      StripeContas.campoBandeira: true,
+    };
     if (customerId != null) payload['customerId'] = customerId;
+    if (orderId != null) payload['order_id'] = orderId;
 
     final response = await Supabase.instance.client.functions.invoke(
       'charge-extra',
@@ -314,6 +330,7 @@ class PaymentService {
       final body = <String, dynamic>{
         'amount_cents': amountCents,
         'payment_method': paymentMethod,
+        StripeContas.campoBandeira: true, // duas contas (02/11/2026)
       };
       if (paymentMethod == 'mbway' && mbwayPhone != null) {
         body['mbway_phone'] = mbwayPhone;
@@ -331,8 +348,13 @@ class PaymentService {
       if (paymentMethod == 'mbway') {
         return data['paymentIntentId'] as String?;
       }
-      // Card: abre Stripe sheet.
-      await processPayment(data['clientSecret'] as String);
+      // Card: abre Stripe sheet (na conta que o servidor devolveu).
+      await processPayment(
+        data['clientSecret'] as String,
+        vertical: 'divida',
+        paymentIntentId: data['paymentIntentId'] as String?,
+        publishableKey: StripeContas.chaveDaResposta(data),
+      );
       return data['paymentIntentId'] as String?;
     } on StripeException catch (e) {
       debugPrint('[PaymentService] payDebt cancelled/declined: ${e.error.localizedMessage}');
@@ -347,12 +369,18 @@ class PaymentService {
 
   /// Lista cartoes guardados do user actual via Edge Fn list-saved-cards.
   /// Retorna [] se user ainda nao tem stripe_customer_id (nunca pagou com cartao).
-  Future<List<SavedCard>> fetchSavedCards() async {
+  Future<List<SavedCard>> fetchSavedCards({String? kind}) async {
     if (kIsWeb) return const [];
     try {
-      final res = await Supabase.instance.client.functions
-          .invoke('list-saved-cards');
+      // Duas contas (02/11/2026): o servidor devolve os cartões da conta em que
+      // o próximo pagamento deste fluxo vai sair (mesma regra do create-*).
+      final res = await Supabase.instance.client.functions.invoke(
+        'list-saved-cards',
+        body: StripeContas.marcar({if (kind != null) 'kind': kind}),
+      );
       final data = res.data as Map<String, dynamic>?;
+      final conta = data?['stripe_account'];
+      if (conta is String && conta.isNotEmpty) StripeContas.ultimaConta = conta;
       final raw = (data?['cards'] as List?) ?? const [];
       return raw
           .map((m) => SavedCard.fromMap(Map<String, dynamic>.from(m as Map)))
@@ -369,11 +397,14 @@ class PaymentService {
   Future<bool> confirmSavedCardPayment({
     required String clientSecret,
     required bool requiresAction,
+    /// Duas contas Stripe (02/11/2026): chave publicável devolvida pelo servidor.
+    String? publishableKey,
   }) async {
     if (kIsWeb) throw StateError('Card payments are only supported on mobile.');
     if (!requiresAction) return true;
     try {
       await apresentarFolhaCartao(
+        publishableKey: publishableKey,
         SetupPaymentSheetParameters(
           paymentIntentClientSecret: clientSecret,
           merchantDisplayName: 'BORA APP',

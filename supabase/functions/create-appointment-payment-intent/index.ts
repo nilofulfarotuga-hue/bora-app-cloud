@@ -26,11 +26,12 @@
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
-import { secretKey } from '../_shared/keys.ts'
   COMING_SOON_BOOKING_MSG,
   comingSoonResponseBody,
   isProviderComingSoon,
 } from '../_shared/coming_soon.ts';
+import { secretKey } from '../_shared/keys.ts';
+import { respostaConta, stripeParaNovoPagamento } from '../_shared/stripe_contas.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -38,10 +39,8 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
-  apiVersion: '2023-10-16',
-  httpClient: Stripe.createFetchHttpClient(),
-});
+// Duas contas Stripe (missão stripe-empresa-2026-11-01): a conta decide-se por pagamento em
+// _shared/stripe_contas.ts (marcações = NÃO TVDE; app antiga → pessoal; interruptor → empresa).
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -60,7 +59,7 @@ Deno.serve(async (req: Request) => {
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const body = await req.json() as { appointment_id?: string; idempotency_key?: string };
+    const body = await req.json() as { appointment_id?: string; idempotency_key?: string; stripe_contas_v2?: boolean | string };
     if (!body.appointment_id) {
       return new Response(JSON.stringify({ error: 'missing appointment_id' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -112,6 +111,8 @@ Deno.serve(async (req: Request) => {
     }
 
     const idempotencyKey = body.idempotency_key ?? `appt_${appt.id}`;
+    // Duas contas: a conta deste sinal.
+    const { stripe, conta } = await stripeParaNovoPagamento(supabase, { body, origem: 'create-appointment-payment-intent' });
     const intent = await stripe.paymentIntents.create({
       amount: cents,
       currency: 'eur',
@@ -121,16 +122,18 @@ Deno.serve(async (req: Request) => {
         appointment_id: appt.id,
         provider_id: appt.provider_id,
         purpose: 'appointment_deposit',
+        bora_conta: conta,
       },
     }, { idempotencyKey });
 
-    await supabase.from('appointments').update({ deposit_pi: intent.id }).eq('id', appt.id);
+    await supabase.from('appointments').update({ deposit_pi: intent.id, stripe_account: conta }).eq('id', appt.id);
 
     return new Response(JSON.stringify({
       appointment_id: appt.id,
       paymentIntentId: intent.id,
       clientSecret: intent.client_secret,
       amount_cents: cents,
+      ...respostaConta(conta), // duas contas: stripe_account + publishable_key
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

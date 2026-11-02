@@ -1,4 +1,9 @@
 // reprocess-refund — Bloco 4 (recuperacao de reembolso falhado). Admin-only, idempotente.
+// v4 (28/10/2026, regra do Danilo 28/10 18:24 — missao-geral-2026-10-28 bloco 2): o reembolso
+// volta pelo MEIO ORIGINAL. Antes, tudo o que não era payment_method = 'card' (o MB Way!) ia para
+// a carteira, mesmo com refund_method = 'stripe'. Agora: cartão E MB Way com PaymentIntent voltam
+// à Stripe (no máximo o que ainda se pode devolver lá); saldo só com refund_method = 'wallet'
+// (escolha do cliente/admin) ou quando não há Stripe (pedido a dinheiro com saldo).
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
@@ -46,23 +51,33 @@ Deno.serve(async (req: Request) => {
 
   const o = claimed[0];
   const refundCents = Math.round(Number(o.refund_amount ?? 0) * 100);
+  const meioStripe = o.payment_method === 'card' || o.payment_method === 'mbway';
+  const vaiStripe = o.refund_method !== 'wallet' && !!o.payment_intent_id && meioStripe;
   let outcome = '';
   let newStatus = 'failed';
 
   try {
     if (refundCents <= 0) {
       newStatus = 'refunded'; outcome = 'zero';
-    } else if (o.refund_method === 'wallet' || o.payment_method !== 'card') {
+    } else if (!vaiStripe) {
+      // saldo: escolha 'wallet' ou pedido sem Stripe. 100% saldo (wallet_split_free_pct = 1).
       const { data: cr } = await admin.from('cancellation_requests').select('cancel_stage').eq('order_id', orderId).maybeSingle();
       const rpcName = cr?.cancel_stage === 'grace' ? 'wallet_credit_refund_full' : 'wallet_credit_refund_split';
       const { error: wErr } = await admin.rpc(rpcName, { p_order_id: orderId, p_user_id: o.user_id, p_total_cents: refundCents, p_reason: 'reprocess_cancel_refund' });
       if (wErr) throw new Error('wallet: ' + wErr.message);
       newStatus = 'completed'; outcome = 'wallet';
     } else {
-      if (!o.payment_intent_id) throw new Error('no_payment_intent');
-      const idem = `refund-${o.payment_intent_id}-${refundCents}`;
-      const r = await stripe.refunds.create({ payment_intent: o.payment_intent_id, amount: refundCents }, { idempotencyKey: idem });
-      newStatus = 'pending'; outcome = 'stripe:' + r.id;
+      // cartão OU MB Way: volta ao meio original, no máximo o que ainda se pode devolver na Stripe
+      const pi = await stripe.paymentIntents.retrieve(o.payment_intent_id, { expand: ['latest_charge'] });
+      if (pi.status !== 'succeeded') throw new Error('pi_sem_cobranca:' + pi.status);
+      // deno-lint-ignore no-explicit-any
+      const charge: any = pi.latest_charge;
+      const disponivel = Math.max(0, Number(pi.amount_received ?? 0) - Number(charge?.amount_refunded ?? 0));
+      const valor = Math.min(refundCents, disponivel);
+      if (valor <= 0) throw new Error('nada_por_devolver_na_stripe');
+      const idem = `refund-${o.payment_intent_id}-${valor}`;
+      const r = await stripe.refunds.create({ payment_intent: o.payment_intent_id, amount: valor }, { idempotencyKey: idem });
+      newStatus = 'pending'; outcome = `stripe:${r.id}:${valor}`;
     }
   } catch (e) {
     await admin.from('orders').update({ refund_status: 'failed' }).eq('id', orderId);

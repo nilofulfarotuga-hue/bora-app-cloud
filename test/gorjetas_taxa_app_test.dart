@@ -249,6 +249,7 @@ void main() {
         'id': 'pedido-1',
         'amountCents': 200,
         'moment': 'checkout',
+        'stripe_contas_v2': true, // duas contas Stripe (02/11/2026): a app diz que sabe lidar com elas
       });
     });
   });

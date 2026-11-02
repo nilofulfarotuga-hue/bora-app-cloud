@@ -9,6 +9,7 @@ import '../../models/order_edit.dart';
 import '../../models/order_model.dart';
 import '../../services/order_edit_service.dart';
 import '../../services/payment_service.dart';
+import '../../services/stripe_contas.dart';
 import '../../utils/euros.dart';
 import 'janela_troca_em_falta.dart';
 
@@ -180,7 +181,8 @@ class _ClientOrderEditBannerState extends State<ClientOrderEditBanner> {
       final secret = c['client_secret'] as String?;
       if (secret == null) return;
       await PaymentService().processPayment(secret,
-          vertical: 'order_edit', referenciaId: widget.order.id, paymentIntentId: pi);
+          vertical: 'order_edit', referenciaId: widget.order.id, paymentIntentId: pi,
+          publishableKey: StripeContas.chaveDaResposta(c)); // duas contas
       final r = await svc.confirmarPagamento(g.grupoId, pi);
       messenger.showSnackBar(SnackBar(
           content: Text(r['pago'] == true

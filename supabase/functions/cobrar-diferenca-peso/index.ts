@@ -29,17 +29,15 @@ import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { secretKey } from '../_shared/keys.ts';
 import { exigirServidor, respostaAoPing } from '../_shared/chaves.ts';
+import { stripeDaLinha } from '../_shared/stripe_contas.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const STRIPE_MODE = (Deno.env.get('BORA_STRIPE_MODE') ?? 'live').toLowerCase();
-const stripeKey = STRIPE_MODE === 'test'
-  ? (Deno.env.get('STRIPE_TEST_SECRET_KEY') ?? '')
-  : (Deno.env.get('STRIPE_SECRET_KEY') ?? '');
-const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' });
+// Duas contas Stripe (missão stripe-empresa-2026-11-01): a diferença de peso cobra-se na conta
+// onde o pedido foi pago (orders.stripe_account) — o cartão guardado só existe lá.
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
 const MAX_CENTS = 5000;
@@ -103,7 +101,7 @@ Deno.serve(async (req) => {
   }
 
   const { data: o, error: oe } = await admin.from('orders')
-    .select('id, user_id, payment_method, payment_intent_id, is_purchase_finalized, extra_charge_amount, extra_charge_settled_at, final_total, status')
+    .select('id, user_id, payment_method, payment_intent_id, is_purchase_finalized, extra_charge_amount, extra_charge_settled_at, final_total, status, stripe_account')
     .eq('id', orderId).maybeSingle();
   if (oe || !o) return json({ ok: false, error: 'pedido_nao_encontrado' }, 404);
   if (o.extra_charge_settled_at) return json({ ok: true, note: 'ja_acertado' });
@@ -117,6 +115,15 @@ Deno.serve(async (req) => {
     return json({ ok: false, error: 'valor_diferente_do_talao', gravado_cents: gravado }, 400);
   }
 
+  // duas contas: a Stripe da conta onde o pedido foi pago (sem chave = a Bora assume, como sem cartão)
+  let stripe: Stripe;
+  let conta = 'pessoal';
+  try {
+    ({ stripe, conta } = stripeDaLinha(o));
+  } catch (e) {
+    await boraAssume(admin, orderId, `sem chave Stripe da conta ${o.stripe_account ?? 'pessoal'}: ${String(e)}`, amountCents);
+    return json({ ok: false, error: 'sem_chave_stripe', settled_via: 'bora_assume' });
+  }
   // Cartão e Customer do pagamento original.
   let pmId: string | null = null;
   let customerId: string | null = null;
@@ -142,7 +149,7 @@ Deno.serve(async (req) => {
       off_session: true,
       automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
       description: `Bora — diferença de peso do pedido ${orderId.slice(0, 8)}`,
-      metadata: { kind: 'peso_variavel', order_id: orderId },
+      metadata: { kind: 'peso_variavel', order_id: orderId, bora_conta: conta },
     }, { idempotencyKey: `peso_${orderId}` });
 
     if (pi.status !== 'succeeded') {

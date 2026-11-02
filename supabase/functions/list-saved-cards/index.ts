@@ -13,6 +13,7 @@
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { secretKey } from '../_shared/keys.ts';
+import { type ContaStripe, colunaClienteStripe, contaGravada, contaParaNovoPagamento, stripePara } from '../_shared/stripe_contas.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,14 +21,9 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
 };
 
-const STRIPE_MODE = (Deno.env.get('BORA_STRIPE_MODE') ?? 'live').toLowerCase();
-const stripeSecretKey = STRIPE_MODE === 'test'
-  ? (Deno.env.get('STRIPE_TEST_SECRET_KEY') ?? '')
-  : (Deno.env.get('STRIPE_SECRET_KEY') ?? '');
-const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: '2023-10-16',
-  httpClient: Stripe.createFetchHttpClient(),
-});
+// Duas contas Stripe (missão stripe-empresa-2026-11-01): os cartões guardados vivem no Customer de
+// UMA conta. O corpo diz qual (`stripe_account`) ou deixa o servidor decidir pela mesma regra dos
+// pagamentos novos (`stripe_contas_v2`, `kind`); sem nada = pessoal (apps antigas).
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
 const anonKey     = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
@@ -57,9 +53,15 @@ Deno.serve(async (req: Request) => {
 
     // Service role: ler stripe_customer_id (admin-only column).
     const admin = createClient(supabaseUrl, serviceKey);
+    const body = await req.json().catch(() => ({})) as Record<string, unknown>;
+    const conta: ContaStripe = (body?.stripe_account === 'pessoal' || body?.stripe_account === 'empresa')
+      ? contaGravada(body.stripe_account)
+      : (await contaParaNovoPagamento(admin, { kind: body?.kind, body, origem: 'list-saved-cards' })).conta;
+    const coluna = colunaClienteStripe(conta);
+    const stripe = stripePara(conta);
     const { data: row, error: selErr } = await admin
       .from('users')
-      .select('stripe_customer_id')
+      .select(coluna)
       .eq('id', user.id)
       .maybeSingle();
 
@@ -68,8 +70,8 @@ Deno.serve(async (req: Request) => {
       return json({ error: 'db_error', details: selErr.message }, 500);
     }
 
-    const customerId = row?.stripe_customer_id as string | undefined;
-    if (!customerId) return json({ cards: [] });
+    const customerId = (row as Record<string, unknown> | null)?.[coluna] as string | undefined;
+    if (!customerId) return json({ cards: [], stripe_account: conta });
 
     const [pmList, customer] = await Promise.all([
       stripe.paymentMethods.list({ customer: customerId, type: 'card', limit: 10 }),
@@ -92,7 +94,7 @@ Deno.serve(async (req: Request) => {
       is_default: pm.id === defaultPmId,
     }));
 
-    return json({ cards });
+    return json({ cards, stripe_account: conta });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[list-saved-cards] error:', msg);

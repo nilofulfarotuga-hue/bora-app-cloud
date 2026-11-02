@@ -40,6 +40,11 @@ class _AdminPaymentsCardsScreenState extends State<AdminPaymentsCardsScreen>
   bool _carregando = true;
   String? _erro;
   String? _vertical;
+  /// Duas contas Stripe (02/11/2026): filtro local por conta ('pessoal' | 'empresa' | null = todas).
+  String? _contaStripe;
+  List<AdminPaymentRow> get _pagamentosFiltrados => _contaStripe == null
+      ? _pagamentos
+      : _pagamentos.where((p) => p.stripeAccount == _contaStripe).toList();
   final _buscaCtrl = TextEditingController();
 
   // Aba Travados
@@ -145,7 +150,7 @@ class _AdminPaymentsCardsScreenState extends State<AdminPaymentsCardsScreen>
       filename: 'bora_pagamentos.csv',
       headers: const [
         'Vertical', 'ID', 'Cliente', 'PaymentIntent',
-        'Valor (EUR)', 'Status', 'Método', 'Data',
+        'Valor (EUR)', 'Status', 'Método', 'Data', 'Conta Stripe',
       ],
       rows: _pagamentos
           .map((p) => <dynamic>[
@@ -157,6 +162,7 @@ class _AdminPaymentsCardsScreenState extends State<AdminPaymentsCardsScreen>
                 p.status ?? '',
                 p.paymentMethod ?? '',
                 p.createdAt?.toIso8601String() ?? '',
+                p.contaStripeRotulo,
               ])
           .toList(),
       subject: 'Pagamentos Bora',
@@ -236,6 +242,7 @@ class _AdminPaymentsCardsScreenState extends State<AdminPaymentsCardsScreen>
         userId: p.userId,
         entityId: p.entityId,
         vertical: p.vertical,
+        stripeAccount: p.stripeAccount, // duas contas: o estorno sai pela conta onde entrou
         motivo: motivoCtrl.text.trim().isEmpty ? null : motivoCtrl.text.trim(),
       );
       if (!mounted) return;
@@ -326,6 +333,17 @@ class _AdminPaymentsCardsScreenState extends State<AdminPaymentsCardsScreen>
               ),
               const SizedBox(width: Spacing.sm),
               DropdownButton<String?>(
+                value: _contaStripe,
+                hint: const Text('Conta: todas'),
+                items: const [
+                  DropdownMenuItem(value: null, child: Text('Conta: todas')),
+                  DropdownMenuItem(value: 'pessoal', child: Text('Conta: Pessoal')),
+                  DropdownMenuItem(value: 'empresa', child: Text('Conta: Empresa')),
+                ],
+                onChanged: (v) => setState(() => _contaStripe = v),
+              ),
+              const SizedBox(width: Spacing.sm),
+              DropdownButton<String?>(
                 value: _vertical,
                 hint: const Text('Todas'),
                 items: <DropdownMenuItem<String?>>[
@@ -353,10 +371,10 @@ class _AdminPaymentsCardsScreenState extends State<AdminPaymentsCardsScreen>
                           onRefresh: _carregar,
                           child: ListView.separated(
                             padding: const EdgeInsets.all(Spacing.md),
-                            itemCount: _pagamentos.length,
+                            itemCount: _pagamentosFiltrados.length,
                             separatorBuilder: (_, __) =>
                                 const SizedBox(height: Spacing.sm),
-                            itemBuilder: (_, i) => _cardPagamento(_pagamentos[i]),
+                            itemBuilder: (_, i) => _cardPagamento(_pagamentosFiltrados[i]),
                           ),
                         ),
         ),
@@ -390,6 +408,13 @@ class _AdminPaymentsCardsScreenState extends State<AdminPaymentsCardsScreen>
                   p.paymentIntentId ?? 'sem PaymentIntent',
                   style: const TextStyle(
                       fontSize: 11, color: AppColors.textSubtle),
+                ),
+                Text(
+                  'Conta Stripe: ${p.contaStripeRotulo}',
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: p.stripeAccount == 'empresa' ? AppColors.primary : AppColors.textSubtle),
                 ),
               ],
             ),

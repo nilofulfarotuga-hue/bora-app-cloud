@@ -46,7 +46,11 @@ const corsHeaders = {
 const json = (b: unknown, s = 200) =>
   new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-const STRIPE_KEY = Deno.env.get('STRIPE_SECRET_KEY') ?? '';
+// Duas contas Stripe (missão stripe-empresa-2026-11-01): a conferência varre AS DUAS contas; cada
+// pedido/gorjeta é lido na conta gravada na linha (os _shared escolhem pela linha).
+import { type ContaStripe, CONTAS_STRIPE, chaveSecreta, temChaveSecreta } from '../_shared/stripe_contas.ts';
+const STRIPE_KEY = chaveSecreta('pessoal'); // recurso para lerPagoDoPedido (que escolhe pela linha)
+const contasComChave = (): ContaStripe[] => CONTAS_STRIPE.filter((c) => temChaveSecreta(c));
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SERVICE_KEY = secretKey() ?? '';
 const admin = createClient(SUPABASE_URL, SERVICE_KEY);
@@ -61,11 +65,11 @@ interface Finding {
   details: Record<string, unknown>;
 }
 
-async function stripeGet(path: string): Promise<any> {
+async function stripeGet(path: string, conta: ContaStripe = 'pessoal'): Promise<any> {
   const res = await fetch(`https://api.stripe.com/v1${path}`, {
-    headers: { Authorization: `Bearer ${STRIPE_KEY}` },
+    headers: { Authorization: `Bearer ${chaveSecreta(conta)}` },
   });
-  if (!res.ok) throw new Error(`stripe ${res.status} em ${path}`);
+  if (!res.ok) throw new Error(`stripe(${conta}) ${res.status} em ${path}`);
   return res.json();
 }
 
@@ -229,10 +233,11 @@ Deno.serve(async (req) => {
   // ── A) PIs succeeded das ultimas 48h sem entidade confirmada ─────────────
   if (!soCobrancas) try {
     const since = Math.floor(Date.now() / 1000) - 48 * 3600;
+    for (const conta of contasComChave()) { // duas contas: varre cada uma
     let url = `/payment_intents?limit=100&created[gte]=${since}`;
     let pages = 0;
     while (url && pages < 5) {
-      const page = await stripeGet(url);
+      const page = await stripeGet(url, conta);
       for (const pi of page.data ?? []) {
         if (pi.status !== 'succeeded') continue;
         try { await entityConfirmed(pi, findings); } catch (e) { errors.push(`pi ${pi.id}: ${e}`); }
@@ -242,6 +247,7 @@ Deno.serve(async (req) => {
         ? `/payment_intents?limit=100&created[gte]=${since}&starting_after=${page.data[page.data.length - 1].id}`
         : '';
     }
+    } // fim por conta
   } catch (e) { errors.push(`sweep_stripe: ${e}`); }
 
   if (!soCobrancas) {

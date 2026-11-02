@@ -20,8 +20,15 @@
 // aviso ao admin. Se falhar, volta a 'succeeded' e soma tips.devolucao_tentativas; à 2.ª falha avisa o
 // admin UMA vez e a conferência de 15 em 15 min deixa de tentar (fica para o painel).
 
+import { chaveSecreta, contaGravada } from './stripe_contas.ts'; // duas contas (02/11/2026)
+
 // deno-lint-ignore no-explicit-any
 type Cliente = any;
+
+/** Duas contas Stripe: a gorjeta devolve-se pela conta onde foi paga (tips.stripe_account); recurso = chave do chamador. */
+function chaveDaGorjeta(t: { stripe_account?: string | null }, chamador: string): string {
+  return chaveSecreta(contaGravada(t.stripe_account)) || chamador;
+}
 
 export type DestinoGorjeta = 'meio' | 'carteira';
 
@@ -36,6 +43,7 @@ export interface GorjetaParaDevolver {
   status: string;
   stripe_payment_intent_id: string | null;
   cobrada_junto: boolean | null;
+  stripe_account?: string | null; // duas contas (02/11/2026)
   failure_reason: string | null;
   devolucao_tentativas?: number | null;
 }
@@ -56,7 +64,7 @@ export interface ResultadoGorjetas {
 }
 
 export const COLUNAS_GORJETA =
-  'id, order_id, tvde_ride_id, client_user_id, amount_cents, method, moment, status, stripe_payment_intent_id, cobrada_junto, failure_reason, devolucao_tentativas';
+  'id, order_id, tvde_ride_id, client_user_id, amount_cents, method, moment, status, stripe_payment_intent_id, cobrada_junto, failure_reason, devolucao_tentativas, stripe_account';
 
 /**
  * charge-tip `create` (moment checkout): a gorjeta do carrinho já foi no pagamento do cartão?
@@ -207,7 +215,7 @@ export async function devolverGorjetasDoPedido(
       if (t.method !== 'card' && t.method !== 'mbway') continue; // dinheiro: o gatilho do banco cancela-a
       if (t.status !== 'succeeded') {
         let estado: 'paga' | 'a_espera' | 'cancelada';
-        try { estado = await gorjetaPorPagar(admin, stripeKey, t); } catch (e) {
+        try { estado = await gorjetaPorPagar(admin, chaveDaGorjeta(t, stripeKey), t); } catch (e) {
           out.erros++;
           out.itens.push({ tipId: t.id, acao: 'erro', cents: 0, erro: e instanceof Error ? e.message : String(e) });
           continue;
@@ -215,7 +223,7 @@ export async function devolverGorjetasDoPedido(
         if (estado !== 'paga') { out.itens.push({ tipId: t.id, acao: estado, cents: 0 }); continue; }
         t = { ...t, status: 'succeeded' };
       }
-      const r = await devolverUmaGorjeta(admin, stripeKey, t, destino, motivo, quem);
+      const r = await devolverUmaGorjeta(admin, chaveDaGorjeta(t, stripeKey), t, destino, motivo, quem);
       out.itens.push(r);
       if (r.acao === 'erro') out.erros++;
       if (r.cents > 0) {

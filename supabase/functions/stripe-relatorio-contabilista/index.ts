@@ -28,17 +28,19 @@ import { secretKey } from '../_shared/keys.ts';
 import { exigirServidorOuAdmin, respostaAoPing } from '../_shared/chaves.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 
-const STRIPE_MODE = (Deno.env.get('BORA_STRIPE_MODE') ?? 'live').toLowerCase();
-const STRIPE_KEY = STRIPE_MODE === 'test'
-  ? (Deno.env.get('STRIPE_TEST_SECRET_KEY') ?? '')
-  : (Deno.env.get('STRIPE_SECRET_KEY') ?? '');
+// Duas contas Stripe (missão stripe-empresa-2026-11-01): o extrato lê AS DUAS contas (ou só a pedida
+// em `conta`) e grava cada linha com stripe_account. A sociedade (Hugo) só leva a EMPRESA (desde
+// 01/11/2026); o TVDE (pessoal) nunca entra no relatório da empresa — o filtro é feito no resumo
+// (stripe_extrato_resumo p_conta) e no fecho-mensal-contabilista.
+import { type ContaStripe, CONTAS_STRIPE, STRIPE_MODE, chaveSecreta, temChaveSecreta } from '../_shared/stripe_contas.ts';
 
 type Categoria =
   | 'entregas_mercados' | 'tvde' | 'limpeza' | 'reservas' | 'lavagem' | 'gorjetas'
   | 'servicos_site' | 'outros' | 'payout' | 'taxa_stripe';
 
 type Linha = {
-  bt_id: string; tipo_stripe: string; objeto_id: string | null; payment_intent: string | null;
+  bt_id: string;
+  stripe_account: string; /* duas contas */ tipo_stripe: string; objeto_id: string | null; payment_intent: string | null;
   criado_em: string; disponivel_em: string | null; mes: string; categoria: Categoria;
   categoria_fonte: string; descricao: string | null; cliente_nome: string | null;
   cliente_email: string | null; moeda: string; bruto_cents: number; taxa_cents: number;
@@ -56,14 +58,14 @@ function mesLisboa(unixSeconds: number): string {
   return `${g('year')}-${g('month')}`;
 }
 
-async function stripeGet(path: string, params: Record<string, string | string[]>): Promise<Record<string, unknown>> {
+async function stripeGet(path: string, params: Record<string, string | string[]>, chave: string): Promise<Record<string, unknown>> {
   const q = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
     if (Array.isArray(v)) v.forEach((x) => q.append(k, x));
     else q.append(k, v);
   }
   const r = await fetch(`https://api.stripe.com/v1/${path}?${q.toString()}`, {
-    headers: { Authorization: `Bearer ${STRIPE_KEY}`, 'Stripe-Version': '2023-10-16' },
+    headers: { Authorization: `Bearer ${chave}`, 'Stripe-Version': '2023-10-16' },
   });
   const txt = await r.text();
   if (!r.ok) throw new Error(`stripe ${r.status} em ${path}: ${txt.slice(0, 300)}`);
@@ -109,7 +111,7 @@ Deno.serve(async (req: Request) => {
   if (proibido) return proibido;
   const pong = await respostaAoPing(req, corsHeaders);
   if (pong) return pong;
-  if (!STRIPE_KEY) return json({ ok: false, error: 'stripe_key_missing', modo: STRIPE_MODE }, 500);
+  if (!temChaveSecreta('pessoal')) return json({ ok: false, error: 'stripe_key_missing', modo: STRIPE_MODE }, 500);
 
   // deno-lint-ignore no-explicit-any
   let b: any = {};
@@ -118,6 +120,10 @@ Deno.serve(async (req: Request) => {
   const ate = typeof b?.ate === 'string' && /^\d{4}-\d{2}$/.test(b.ate) ? b.ate : null;
   const guardar = b?.guardar !== false;
   const maxPaginas = Math.min(Math.max(Number(b?.max_paginas ?? 200), 1), 1000);
+  // duas contas: 'pessoal' | 'empresa' | (vazio = todas as que têm chave)
+  const contas: ContaStripe[] = (b?.conta === 'pessoal' || b?.conta === 'empresa')
+    ? [b.conta as ContaStripe]
+    : CONTAS_STRIPE.filter((c) => temChaveSecreta(c));
 
   const admin = createClient(Deno.env.get('SUPABASE_URL') ?? '', secretKey());
 
@@ -128,11 +134,11 @@ Deno.serve(async (req: Request) => {
   const contagemTipos: Record<string, number> = {};
   const clientesVistos = new Map<string, { nome: string; email: string }>();
 
-  async function dadosCliente(customerId: string): Promise<{ nome: string; email: string }> {
+  async function dadosCliente(customerId: string, chave: string): Promise<{ nome: string; email: string }> {
     const c = clientesVistos.get(customerId);
     if (c) return c;
     try {
-      const cu = await stripeGet(`customers/${customerId}`, {});
+      const cu = await stripeGet(`customers/${customerId}`, {}, chave);
       const d = { nome: String(cu.name ?? ''), email: String(cu.email ?? '') };
       clientesVistos.set(customerId, d);
       return d;
@@ -143,10 +149,13 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  for (const conta of contas) { // duas contas: uma passagem por conta
+  const chaveAtual = chaveSecreta(conta);
+  startingAfter = null;
   while (paginas < maxPaginas) {
     const params: Record<string, string | string[]> = { limit: '100', 'expand[]': ['data.source'] };
     if (startingAfter) params.starting_after = startingAfter;
-    const page = await stripeGet('balance_transactions', params);
+    const page = await stripeGet('balance_transactions', params, chaveAtual);
     const data = (page.data ?? []) as Array<Record<string, unknown>>;
     paginas++;
     for (const bt of data) {
@@ -160,7 +169,7 @@ Deno.serve(async (req: Request) => {
       let clienteEmail = String(bd.email ?? fonte?.receipt_email ?? '');
       const customerId = typeof fonte?.customer === 'string' ? fonte.customer : null;
       if (customerId && (!clienteNome || !clienteEmail) && (tipo === 'charge' || tipo === 'payment')) {
-        const c = await dadosCliente(customerId);
+        const c = await dadosCliente(customerId, chaveAtual);
         clienteNome = clienteNome || c.nome;
         clienteEmail = clienteEmail || c.email;
       }
@@ -169,7 +178,7 @@ Deno.serve(async (req: Request) => {
       let fonteParaClassificar = fonte;
       if ((tipo === 'refund' || tipo === 'payment_refund') && fonte && typeof fonte.charge === 'string') {
         try {
-          const ch = await stripeGet(`charges/${fonte.charge}`, {});
+          const ch = await stripeGet(`charges/${fonte.charge}`, {}, chaveAtual);
           fonteParaClassificar = ch;
           pi = typeof ch.payment_intent === 'string' ? ch.payment_intent : pi;
           if (!clienteNome) clienteNome = String((ch.billing_details as Record<string, unknown>)?.name ?? '');
@@ -184,7 +193,7 @@ Deno.serve(async (req: Request) => {
 
       const criado = Number(bt.created ?? 0);
       linhas.push({
-        bt_id: String(bt.id), tipo_stripe: tipo, objeto_id: fonteId, payment_intent: pi,
+        bt_id: String(bt.id), stripe_account: conta, tipo_stripe: tipo, objeto_id: fonteId, payment_intent: pi,
         criado_em: new Date(criado * 1000).toISOString(),
         disponivel_em: bt.available_on ? new Date(Number(bt.available_on) * 1000).toISOString() : null,
         mes: mesLisboa(criado), categoria, categoria_fonte: catFonte,
@@ -197,6 +206,7 @@ Deno.serve(async (req: Request) => {
     if (!page.has_more || data.length === 0) break;
     startingAfter = String(data[data.length - 1].id);
   }
+  } // fim por conta
 
   // 2) Guarda (idempotente) e cruza com a base.
   let guardadas = 0; let cruzadas: number | null = null; let erroGravacao: string | null = null;
@@ -216,7 +226,14 @@ Deno.serve(async (req: Request) => {
   // 3) Agregados por mês e por tipo (da tabela, para incluir o cruzamento com a base).
   let resumo: unknown = null; let erroResumo: string | null = null;
   if (guardar && !erroGravacao) {
-    const { data, error } = await admin.rpc('stripe_extrato_resumo', { p_desde: desde, p_ate: ate });
+    // duas contas: resumo só da conta pedida (p_conta). Se a RPC ainda não tiver p_conta (proposta SQL
+    // por aplicar), volta a chamar sem ele (tudo junto, como antes).
+    const pConta = (b?.conta === 'pessoal' || b?.conta === 'empresa') ? b.conta : null;
+    let { data, error } = await admin.rpc('stripe_extrato_resumo', { p_desde: desde, p_ate: ate, p_conta: pConta });
+    if (error && /p_conta|does not exist|No function matches/i.test(error.message)) {
+      console.warn('[stripe-relatorio] stripe_extrato_resumo sem p_conta ainda; a chamar sem conta');
+      ({ data, error } = await admin.rpc('stripe_extrato_resumo', { p_desde: desde, p_ate: ate }));
+    }
     if (error) erroResumo = error.message; else resumo = data;
   } else {
     // sem gravar: agrega em memória, sem cruzamento
@@ -244,7 +261,7 @@ Deno.serve(async (req: Request) => {
   } catch { /* registo é melhor-esforço */ }
 
   return json({
-    ok: !erroGravacao && !erroResumo, modo: STRIPE_MODE, paginas, linhas: linhas.length, guardadas, cruzadas,
+    ok: !erroGravacao && !erroResumo, modo: STRIPE_MODE, contas, paginas, linhas: linhas.length, guardadas, cruzadas,
     tipos_stripe: contagemTipos, desde, ate, resumo,
     erro: erroGravacao ?? erroResumo ?? null,
   });

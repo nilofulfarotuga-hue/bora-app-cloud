@@ -11,11 +11,12 @@
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
-import { secretKey } from '../_shared/keys.ts'
   COMING_SOON_RESERVATION_MSG,
   comingSoonResponseBody,
   isRestaurantComingSoon,
 } from '../_shared/coming_soon.ts';
+import { secretKey } from '../_shared/keys.ts';
+import { STRIPE_MODE, stripeParaNovoPagamento } from '../_shared/stripe_contas.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,14 +24,8 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const STRIPE_MODE = (Deno.env.get('BORA_STRIPE_MODE') ?? 'live').toLowerCase();
-const stripeSecretKey = STRIPE_MODE === 'test'
-  ? (Deno.env.get('STRIPE_TEST_SECRET_KEY') ?? '')
-  : (Deno.env.get('STRIPE_SECRET_KEY') ?? '');
-const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: '2023-10-16',
-  httpClient: Stripe.createFetchHttpClient(),
-});
+// Duas contas Stripe (missão stripe-empresa-2026-11-01): a conta decide-se por pagamento em
+// _shared/stripe_contas.ts (STRIPE_MODE vem de lá; TVDE nunca passa aqui).
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -92,10 +87,14 @@ Deno.serve(async (req: Request) => {
       return json({ error: 'prepayment too small (Stripe min 0.50 EUR)' }, 400);
     }
 
+    // Duas contas: a conta deste pré-pagamento (reserva de mesa = NÃO TVDE).
+    const { stripe, conta } = await stripeParaNovoPagamento(supabase, { body, origem: 'create-mbway-reservation-payment-intent' });
+
     // INSERT reserva pending_payment.
     const { data: rsv, error: rsvErr } = await supabase
       .from('reservations')
       .insert({
+        stripe_account: conta,
         client_user_id: user.id,
         restaurant_id: body.restaurant_id,
         people: body.people,
@@ -130,6 +129,7 @@ Deno.serve(async (req: Request) => {
           reservation_id: rsv.id,
           restaurant_id: body.restaurant_id,
           purpose: 'reservation_prepayment',
+          bora_conta: conta,
         },
       }, { idempotencyKey });
     } catch (stripeErr) {
@@ -160,6 +160,7 @@ Deno.serve(async (req: Request) => {
       status: intent.status,
       amount_cents: cents,
       mode: STRIPE_MODE,
+      stripe_account: conta, // duas contas
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

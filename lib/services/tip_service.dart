@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../l10n/tr.dart';
 import 'payment_service.dart';
+import 'stripe_contas.dart';
 
 /// Resultado de uma tentativa de gorjeta, já em palavras para o cliente (PT-PT).
 class TipResult {
@@ -158,6 +159,7 @@ class TipService {
         'id': id,
         'amountCents': cents,
         'moment': moment,
+        'stripe_contas_v2': true, // duas contas Stripe (02/11/2026)
       });
       final m = Map<String, dynamic>.from(r.data as Map);
       if (m['error'] != null) return TipResult(false, _motivo(m['error'].toString()));
@@ -175,6 +177,7 @@ class TipService {
           vertical: 'gorjeta',
           referenciaId: tipId,
           paymentIntentId: m['paymentIntentId'] as String?,
+          publishableKey: StripeContas.chaveDaResposta(m), // duas contas
         );
         status = await _confirmar(tipId, cliente);
       } else if (status != 'succeeded' && m['method'] == 'mbway') {

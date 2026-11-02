@@ -16,6 +16,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { secretKey } from '../_shared/keys.ts';
+import { stripeDaLinha } from '../_shared/stripe_contas.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,10 +24,8 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
-  apiVersion: '2023-10-16',
-  httpClient: Stripe.createFetchHttpClient(),
-});
+// Duas contas Stripe (missão stripe-empresa-2026-11-01): o reembolso sai pela conta onde o
+// pré-pagamento entrou (reservations.stripe_account) — _shared/stripe_contas.ts.
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -44,7 +43,6 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
   const anonKey     = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
   const serviceKey  = secretKey() ?? '';
-  const stripeKey   = Deno.env.get('STRIPE_SECRET_KEY') ?? '';
   if (!supabaseUrl || !anonKey || !serviceKey) {
     return jsonResponse({ error: 'server_misconfigured' }, 500);
   }
@@ -117,8 +115,13 @@ Deno.serve(async (req) => {
   let stripeError    = null;
   let refundAmountEur = null;
 
-  if (willRefund && prepaymentPi && prepaymentCents > 0 && stripeKey) {
+  let contaStripe = 'pessoal';
+  if (willRefund && prepaymentPi && prepaymentCents > 0) {
     try {
+      // duas contas: a conta onde a reserva foi paga
+      const { data: rsvRow } = await admin.from('reservations').select('stripe_account').eq('id', reservationId).maybeSingle();
+      const { stripe, conta } = stripeDaLinha(rsvRow);
+      contaStripe = conta;
       const refund = await stripe.refunds.create(
         { payment_intent: prepaymentPi, amount: prepaymentCents },
         { idempotencyKey: `admin-cancel-rsv-${reservationId}` },
@@ -149,6 +152,7 @@ Deno.serve(async (req) => {
         new_status: r.status,
         will_refund: willRefund,
         refund_result: refundResult,
+        stripe_account: contaStripe,
         refund_id: stripeRefundId,
         refund_amount: refundAmountEur,
         stripe_error: stripeError,

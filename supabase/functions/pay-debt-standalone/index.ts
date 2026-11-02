@@ -11,11 +11,10 @@ import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 import { secretKey } from '../_shared/keys.ts';
+import { respostaConta, stripeParaNovoPagamento } from '../_shared/stripe_contas.ts';
 
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
-  apiVersion: '2023-10-16',
-  httpClient: Stripe.createFetchHttpClient(),
-});
+// Duas contas Stripe (missão stripe-empresa-2026-11-01): dívida/carteira é NÃO TVDE — a conta
+// decide-se por pagamento em _shared/stripe_contas.ts (app antiga → pessoal; interruptor → empresa).
 
 const json = (body: any, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -34,8 +33,10 @@ Deno.serve(async (req) => {
   let amountCents: number | undefined;
   let paymentMethod: 'card' | 'mbway' = 'card';
   let mbwayPhone: string | undefined;
+  let corpo: unknown = null;
   try {
     const body = await req.json();
+    corpo = body;
     amountCents = Number(body?.amount_cents);
     if (body?.payment_method === 'mbway') paymentMethod = 'mbway';
     mbwayPhone = body?.mbway_phone;
@@ -84,11 +85,14 @@ Deno.serve(async (req) => {
       ? '+' + mbwayPhone
       : mbwayPhone;
 
+    // duas contas: a conta desta cobrança
+    const { stripe, conta } = await stripeParaNovoPagamento(admin, { body: corpo, origem: 'pay-debt-standalone' });
     const piParams: Stripe.PaymentIntentCreateParams = {
       amount: amountCents!,
       currency: 'eur',
       payment_method_types: paymentMethod === 'mbway' ? ['mb_way'] : ['card'],
       metadata: {
+        bora_conta: conta,
         standalone_debt_settle: 'true',
         debt_settle_cents: String(amountCents),
         user_id: user.id,
@@ -114,6 +118,7 @@ Deno.serve(async (req) => {
       mode: paymentMethod,
       debt_cents: debtAbs,
       amount_cents: amountCents,
+      ...respostaConta(conta), // duas contas: stripe_account + publishable_key
     });
   } catch (e: any) {
     console.error('[pay-debt-standalone] stripe failed:', e);

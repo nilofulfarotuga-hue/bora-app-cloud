@@ -53,11 +53,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const STRIPE_MODE = (Deno.env.get('BORA_STRIPE_MODE') ?? 'live').toLowerCase();
-const stripeKey = STRIPE_MODE === 'test'
-  ? (Deno.env.get('STRIPE_TEST_SECRET_KEY') ?? '')
-  : (Deno.env.get('STRIPE_SECRET_KEY') ?? '');
-const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' });
+// Duas contas Stripe (missão stripe-empresa-2026-11-01): gorjeta de corrida TVDE → pessoal; gorjeta
+// de entrega → a conta do pedido (se já pago) ou a regra geral dos pagamentos novos. Reembolsos e
+// taxas usam a conta gravada em cada gorjeta (tips.stripe_account) — _shared/stripe_contas.ts.
+import { type ContaStripe, chaveSecreta, contaGravada, obterOuCriarClienteStripe, respostaConta, stripeDaLinha, stripePara, stripeParaNovoPagamento } from '../_shared/stripe_contas.ts';
+const stripeKey = chaveSecreta('pessoal'); // recurso para os _shared: cada gorjeta escolhe a sua conta
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
 const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
@@ -92,38 +92,10 @@ async function registar(admin: any, passo: string, estado: string, detalhe: unkn
   } catch (_) { /* o registo é extra */ }
 }
 
-// Igual ao cleaning-checkout: Stripe Customer idempotente por utilizador.
-// deno-lint-ignore no-explicit-any
-async function getOrCreateCustomer(admin: any, userId: string): Promise<string | null> {
-  try {
-    const { data: u } = await admin.from('users')
-      .select('stripe_customer_id, email, name').eq('id', userId).maybeSingle();
-    if (u?.stripe_customer_id) return u.stripe_customer_id as string;
-    const c = await stripe.customers.create({
-      email: (u?.email as string | undefined) ?? undefined,
-      name: (u?.name as string | undefined) ?? undefined,
-      metadata: { supabase_uid: userId },
-    });
-    const { error } = await admin.from('users').update({ stripe_customer_id: c.id })
-      .eq('id', userId).is('stripe_customer_id', null);
-    if (error) {
-      const { data: again } = await admin.from('users')
-        .select('stripe_customer_id').eq('id', userId).maybeSingle();
-      const winner = again?.stripe_customer_id as string | undefined;
-      if (winner && winner !== c.id) {
-        try { await stripe.customers.del(c.id); } catch (_) { /* swallow */ }
-        return winner;
-      }
-    }
-    return c.id;
-  } catch (e) {
-    console.error('[charge-tip] customer:', e);
-    return null;
-  }
-}
+// getOrCreateCustomer passou para _shared/stripe_contas.ts (obterOuCriarClienteStripe): Customer na conta certa.
 
 /** Taxa exata que a Stripe cobrou neste pagamento (balance_transaction.fee), ou null se ainda não há. */
-async function taxaDoPagamento(piId: string): Promise<number | null> {
+async function taxaDoPagamento(stripe: Stripe, piId: string): Promise<number | null> {
   const full = await stripe.paymentIntents.retrieve(piId, {
     expand: ['latest_charge.balance_transaction'],
   });
@@ -148,7 +120,7 @@ async function gravarEstado(admin: any, tipId: string, pi: any): Promise<string>
   if (status === 'succeeded') {
     patch.paid_at = new Date().toISOString();
     try {
-      fee = await taxaDoPagamento(pi.id);
+      fee = await taxaDoPagamento(stripePara(contaGravada(pi.metadata?.bora_conta)), pi.id); // duas contas: a do PI
       if (fee !== null) patch.stripe_fee_cents = fee;
     } catch (e) {
       console.warn('[charge-tip] taxa ainda por ler (fica para o cron de domingo):', tipId, String(e));
@@ -194,7 +166,7 @@ async function taxasEmFalta(admin: any): Promise<Response> {
   // Gorjetas pagas à parte (as do mesmo pagamento da compra não têm taxa própria) dos últimos 60 dias.
   const desde = new Date(Date.now() - 60 * 24 * 3600 * 1000).toISOString();
   const { data: tips, error } = await admin.from('tips')
-    .select('id, stripe_payment_intent_id')
+    .select('id, stripe_payment_intent_id, stripe_account')
     .in('status', ['succeeded', 'refunded'])
     .in('method', ['card', 'mbway'])
     .eq('cobrada_junto', false)
@@ -209,9 +181,9 @@ async function taxasEmFalta(admin: any): Promise<Response> {
   let gravadas = 0;
   let semTaxa = 0;
   const erros: string[] = [];
-  for (const t of (tips ?? []) as { id: string; stripe_payment_intent_id: string }[]) {
+  for (const t of (tips ?? []) as { id: string; stripe_payment_intent_id: string; stripe_account?: string | null }[]) {
     try {
-      const fee = await taxaDoPagamento(t.stripe_payment_intent_id);
+      const fee = await taxaDoPagamento(stripeDaLinha(t).stripe, t.stripe_payment_intent_id); // duas contas
       if (fee === null) { semTaxa++; continue; }
       const { data: up, error: ue } = await admin.from('tips').update({ stripe_fee_cents: fee })
         .eq('id', t.id).is('stripe_fee_cents', null).select('id');
@@ -268,7 +240,7 @@ Deno.serve(async (req: Request) => {
       if (tip.client_user_id !== user.id) return json({ error: 'tip_not_yours' }, 403);
       if (!tip.stripe_payment_intent_id) return json({ status: tip.status });
       if (tip.cobrada_junto === true) return json({ status: tip.status }); // PI do pedido, não da gorjeta
-      const pi = await stripe.paymentIntents.retrieve(tip.stripe_payment_intent_id);
+      const pi = await stripeDaLinha(tip).stripe.paymentIntents.retrieve(tip.stripe_payment_intent_id); // duas contas
       if (pi.metadata?.kind !== 'tip' || pi.metadata?.tip_id !== tipId) {
         return json({ error: 'payment_kind_mismatch' }, 400);
       }
@@ -320,10 +292,12 @@ Deno.serve(async (req: Request) => {
     let provider = SEM_PRESTADOR;
     let method: string;
     let originalPi: string | null = null;
+    let contaAlvo: ContaStripe | null = null; // duas contas: fixa pelo alvo (TVDE ou pedido já pago)
     if (target === 'order') {
       const { data: o } = await admin.from('orders')
-        .select('id, user_id, status, payment_method, payment_intent_id, assigned_driver_id')
+        .select('id, user_id, status, payment_method, payment_intent_id, assigned_driver_id, stripe_account')
         .eq('id', id).maybeSingle();
+      if (o?.payment_intent_id) contaAlvo = contaGravada(o.stripe_account); // o cartão guardado só existe lá
 
       // v2 (30/10): cartão — a gorjeta pode ter ido no pagamento do pedido. Pedido que existe: só
       // conta o rascunho do PI DESTE pedido ("tentou cartão, desistiu, pagou com saldo" → o pedido não
@@ -386,13 +360,20 @@ Deno.serve(async (req: Request) => {
       method = r.payment_method;
       originalPi = r.payment_intent_id ?? null;
       provider = r.driver_id;
+      contaAlvo = 'pessoal'; // TVDE fica SEMPRE na conta pessoal
     }
     if (method !== 'card' && method !== 'mbway') {
       // Dinheiro: depois não se oferece; no checkout é a RPC tip_registar_dinheiro.
       return json({ error: 'cash_not_supported_here' }, 400);
     }
 
+    // duas contas: alvo fixo → essa conta; senão a regra geral dos pagamentos novos
+    const { stripe, conta } = contaAlvo
+      ? stripeDaLinha({ stripe_account: contaAlvo })
+      : await stripeParaNovoPagamento(admin, { body, kind: 'tip', target, origem: 'charge-tip' });
+
     const { data: tip, error: insErr } = await admin.from('tips').insert({
+      stripe_account: conta,
       target,
       order_id: target === 'order' ? id : null,
       tvde_ride_id: target === 'tvde' ? id : null,
@@ -406,7 +387,7 @@ Deno.serve(async (req: Request) => {
       return json({ error: dup ? 'already_tipped' : 'tip_insert_failed', details: insErr?.message }, dup ? 409 : 500);
     }
     const tipId = tip.id as string;
-    const meta = { kind: 'tip', tip_id: tipId, target, target_id: id, user_id: user.id, provider_user_id: provider };
+    const meta = { kind: 'tip', tip_id: tipId, target, target_id: id, user_id: user.id, provider_user_id: provider, bora_conta: conta };
     const desc = `Gorjeta Bora (${target === 'tvde' ? 'corrida' : 'pedido'} ${id.slice(0, 8)})`;
 
     // MB Way: pedido novo ao telemóvel do cliente.
@@ -438,7 +419,7 @@ Deno.serve(async (req: Request) => {
 
     // Cartão: 1) cartão escolhido; 2) o cartão do próprio pedido, se ficou no Customer;
     // 3) folha da Stripe (clientSecret).
-    const customerId = await getOrCreateCustomer(admin, user.id);
+    const customerId = await obterOuCriarClienteStripe(admin, conta, user.id);
     let pmId: string | null = typeof body?.saved_pm_id === 'string' ? body.saved_pm_id : null;
     let pmCustomer: string | null = customerId;
     if (!pmId && originalPi) {
@@ -473,6 +454,7 @@ Deno.serve(async (req: Request) => {
         tipId, paymentIntentId: pi.id, status, method,
         clientSecret: status === 'succeeded' ? null : pi.client_secret,
         requiresAction: status !== 'succeeded',
+        ...respostaConta(conta), // duas contas: stripe_account + publishable_key
       });
     } catch (err) {
       // Cartão guardado pediu 3DS: devolve o PI para autenticar no telemóvel.
@@ -482,7 +464,7 @@ Deno.serve(async (req: Request) => {
       if (authPi?.id) {
         await admin.from('tips').update({ status: 'requires_action', stripe_payment_intent_id: authPi.id }).eq('id', tipId);
         return json({ tipId, paymentIntentId: authPi.id, status: 'requires_action',
-          clientSecret: authPi.client_secret, requiresAction: true, method });
+          clientSecret: authPi.client_secret, requiresAction: true, method, ...respostaConta(conta) });
       }
       const m = err instanceof Error ? err.message : String(err);
       await admin.from('tips').update({ status: 'failed', failure_reason: m.slice(0, 300) }).eq('id', tipId);

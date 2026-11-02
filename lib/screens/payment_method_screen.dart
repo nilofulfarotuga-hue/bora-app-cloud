@@ -27,6 +27,7 @@ import '../widgets/substituicao_seletor.dart';
 import '../services/interruptores_app.dart';
 import '../services/limite_dinheiro_service.dart';
 import '../services/payment_service.dart';
+import '../services/stripe_contas.dart';
 import '../services/tip_service.dart';
 import '../utils/hora_lisboa.dart';
 import '../utils/nota_do_pedido.dart';
@@ -1463,6 +1464,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           final ok = await paymentService.confirmSavedCardPayment(
             clientSecret: clientSecret,
             requiresAction: requiresAction,
+            publishableKey: StripeContas.chaveDaResposta(draft), // duas contas
           );
           if (!ok) {
             if (!mounted) return;
@@ -1473,7 +1475,12 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
             return;
           }
         } else {
-          await paymentService.processPayment(clientSecret);
+          await paymentService.processPayment(
+            clientSecret,
+            vertical: 'pedido',
+            referenciaId: draftId,
+            publishableKey: StripeContas.chaveDaResposta(draft), // duas contas
+          );
         }
       } on StripeException catch (e) {
         if (!mounted) return;

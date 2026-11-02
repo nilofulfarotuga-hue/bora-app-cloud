@@ -92,13 +92,26 @@ Deno.serve(async (req) => {
 
   // ── 1) actualiza o extrato da Stripe (não trava se falhar: usa o que já está guardado) ──
   const stripeRefresh = await chamarFuncao(supabase, 'fecho-mensal-contabilista', 'stripe-relatorio-contabilista',
-    { desde: mesTxt, ate: mesTxt, guardar: true })
+    { desde: mesTxt, ate: mesTxt, guardar: true }) // duas contas: actualiza as duas; o resumo abaixo filtra
+
+  // Duas contas Stripe (missão stripe-empresa-2026-11-01): a sociedade (Hugo) só leva a EMPRESA; o TVDE
+  // (conta pessoal) nunca entra aqui. Se a RPC ainda não aceitar p_conta (proposta SQL por aplicar),
+  // volta a chamar sem conta e marca o relatório como 'contas juntas'.
+  async function resumoStripeEmpresa() {
+    let r = await supabase.rpc('stripe_extrato_resumo', { p_desde: mesTxt, p_ate: mesTxt, p_conta: 'empresa' })
+    if (r.error && /p_conta|does not exist|No function matches/i.test(r.error.message)) {
+      console.warn('[fecho-mensal] stripe_extrato_resumo sem p_conta ainda; contas juntas')
+      r = await supabase.rpc('stripe_extrato_resumo', { p_desde: mesTxt, p_ate: mesTxt })
+      if (r.data && typeof r.data === 'object') r.data.conta = 'juntas'
+    }
+    return r
+  }
 
   // ── 2) lê tudo ───────────────────────────────────────────────────────
   const [{ data: fecho, error: e1 }, { data: prest, error: e2 }, { data: stripeRes, error: e3 }] = await Promise.all([
     supabase.rpc('admin_monthly_closeout', { p_year: ano, p_month: mes }),
     supabase.rpc('fecho_mensal_prestadores', { p_year: ano, p_month: mes }),
-    supabase.rpc('stripe_extrato_resumo', { p_desde: mesTxt, p_ate: mesTxt }),
+    resumoStripeEmpresa(),
   ])
   const erros = [e1, e2, e3].filter(Boolean).map((e) => e.message)
   if (erros.length) {

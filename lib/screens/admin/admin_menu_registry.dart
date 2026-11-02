@@ -72,6 +72,7 @@ import 'admin_assistente_screen.dart';
 import 'admin_motores_screen.dart';
 import 'admin_crash_logs_screen.dart';
 import 'admin_pagamentos_presos_screen.dart';
+import 'admin_stripe_contas_screen.dart';
 import 'admin_notification_failures_screen.dart';
 import 'admin_ofertas_log_screen.dart';
 import 'admin_orders_screen.dart';
@@ -342,6 +343,15 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.red.shade700,
       builder: () => const AdminCrashLogsScreen(),
       keywords: const ['crash', 'crashes', 'erros', 'android', 'iphone', 'ios', 'web', 'versao', 'aparelho', 'modelo'],
+    ),
+    AdminMenuItem(
+      id: 'operacao_stripe_contas',
+      title: 'Stripe — duas contas',
+      subtitle: 'Que conta Stripe usa cada fluxo (TVDE na Pessoal, o resto na Empresa), o interruptor, as chaves e os webhooks',
+      icon: Icons.account_balance_outlined,
+      color: AppColors.primary,
+      builder: () => const AdminStripeContasScreen(),
+      keywords: const ['stripe', 'conta', 'empresa', 'pessoal', 'unipessoal', 'webhook', 'chave', 'interruptor', 'tvde'],
     ),
     AdminMenuItem(
       id: 'operacao_pagamentos_presos',

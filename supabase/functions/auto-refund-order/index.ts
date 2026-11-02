@@ -17,11 +17,10 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { secretKey } from '../_shared/keys.ts';
 import { chamadaDoServidor } from '../_shared/chaves.ts';
 import { devolverGorjetasDoPedido, marcarGorjetaJuntoNoReembolsoTotal } from '../_shared/gorjeta_devolver.ts';
+import { chaveSecreta, stripeDaLinha } from '../_shared/stripe_contas.ts';
 
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
-  apiVersion: '2023-10-16',
-  httpClient: Stripe.createFetchHttpClient(),
-});
+// Duas contas Stripe (missão stripe-empresa-2026-11-01): o reembolso sai pela conta onde o pedido
+// foi pago (orders.stripe_account) — _shared/stripe_contas.ts.
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { 'Content-Type': 'application/json' } });
 
 Deno.serve(async (req: Request) => {
@@ -42,13 +41,15 @@ Deno.serve(async (req: Request) => {
   const { data: claimed, error: cErr } = await admin.from('orders')
     .update({ refund_status: 'processing' })
     .eq('id', orderId).in('refund_status', ['failed', 'pending_auto'])
-    .select('id, user_id, payment_method, payment_intent_id, refund_amount, wallet_applied_cents');
+    .select('id, user_id, payment_method, payment_intent_id, refund_amount, wallet_applied_cents, stripe_account');
   if (cErr) { await log('erro', cErr.message); return json({ error: 'claim_failed', details: cErr.message }, 500); }
   if (!claimed || claimed.length === 0) return json({ ok: true, idempotent: true });
   const o = claimed[0];
   const walletCents = Math.max(0, Number(o.wallet_applied_cents ?? 0)); // v4: parte paga com saldo
 
   try {
+    // duas contas: a Stripe da conta onde este pedido foi pago
+    const { stripe, conta } = stripeDaLinha(o);
     let resultado = '';
     let refundId: string | null = null;
     let devolvidoCents = 0;
@@ -108,7 +109,7 @@ Deno.serve(async (req: Request) => {
       gorjetaJuntoMarcadas = await marcarGorjetaJuntoNoReembolsoTotal(admin, String(o.id), String(o.payment_intent_id),
         `cancelado pelo sistema: ${motivo}`);
     }
-    const gorjeta = await devolverGorjetasDoPedido(admin, Deno.env.get('STRIPE_SECRET_KEY') ?? '', String(o.id),
+    const gorjeta = await devolverGorjetasDoPedido(admin, chaveSecreta(conta), String(o.id),
       'meio', `cancelado pelo sistema: ${motivo}`.slice(0, 150));
     await log('ok', { resultado, refund_id: refundId, cents: devolvidoCents, saldo_cents: saldoCents, motivo, update_error: uErr?.message ?? null, gorjeta_junto_marcadas: gorjetaJuntoMarcadas, gorjeta });
     return json({ ok: true, order_id: o.id, resultado, refund_id: refundId, cents: devolvidoCents, saldo_cents: saldoCents, update_error: uErr?.message ?? null, gorjeta_devolvida_cents: gorjeta.devolvidaCents, gorjeta_junto_marcadas: gorjetaJuntoMarcadas });

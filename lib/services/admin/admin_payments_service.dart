@@ -14,6 +14,7 @@ class AdminPaymentRow {
     required this.status,
     required this.paymentMethod,
     required this.createdAt,
+    this.stripeAccount = 'pessoal',
   });
 
   final String vertical;
@@ -24,6 +25,9 @@ class AdminPaymentRow {
   final String? status;
   final String? paymentMethod;
   final DateTime? createdAt;
+
+  /// Duas contas Stripe (02/11/2026): 'pessoal' (TVDE e cobranças antigas) ou 'empresa'.
+  final String stripeAccount;
 
   factory AdminPaymentRow.fromMap(Map<String, dynamic> m) => AdminPaymentRow(
         vertical: (m['vertical'] as String?) ?? '?',
@@ -36,6 +40,7 @@ class AdminPaymentRow {
         createdAt: m['created_at'] != null
             ? DateTime.tryParse(m['created_at'].toString())
             : null,
+        stripeAccount: (m['stripe_account'] as String?) == 'empresa' ? 'empresa' : 'pessoal',
       );
 
   /// Só faz sentido estornar o que foi mesmo cobrado no cartão.
@@ -55,6 +60,9 @@ class AdminPaymentRow {
   };
 
   String get verticalRotulo => rotulosVertical[vertical] ?? vertical;
+
+  /// Rótulo da conta Stripe (painel em PT-BR).
+  String get contaStripeRotulo => stripeAccount == 'empresa' ? 'Empresa' : 'Pessoal';
 }
 
 /// PaymentIntent parado à espera de autenticação 3DS.
@@ -167,11 +175,13 @@ class AdminPaymentsService {
     String? entityId,
     String? vertical,
     String? motivo,
+    String? stripeAccount,
   }) async {
     final data = await _invoke({
       'action': 'refund',
       'payment_intent_id': paymentIntentId,
       'amount_cents': amountCents,
+      if (stripeAccount != null) 'stripe_account': stripeAccount, // duas contas
       if (userId != null) 'user_id': userId,
       if (entityId != null) 'entity_id': entityId,
       if (vertical != null) 'vertical': vertical,

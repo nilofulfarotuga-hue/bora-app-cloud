@@ -24,11 +24,10 @@ import { lerPagoDoPedido, repartirReembolso, totalPago } from '../_shared/cobran
 import { secretKey } from '../_shared/keys.ts';
 import { devolverGorjetasDoPedido } from '../_shared/gorjeta_devolver.ts';
 import { chamarFuncao } from '../_shared/chamadas.ts';
+import { chaveSecreta, stripeDaLinha } from '../_shared/stripe_contas.ts';
 
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
-  apiVersion: '2023-10-16',
-  httpClient: Stripe.createFetchHttpClient(),
-});
+// Duas contas Stripe (missão stripe-empresa-2026-11-01): o reembolso sai pela conta onde o pedido
+// foi pago (orders.stripe_account) — _shared/stripe_contas.ts.
 
 const json = (body: any, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -96,7 +95,7 @@ Deno.serve(async (req) => {
   const { data: order, error: orderErr } = await admin
     .from('orders')
     .select(
-      'id, user_id, status, payment_method, payment_intent_id, payment_status, ' +
+      'id, user_id, status, payment_method, payment_intent_id, payment_status, stripe_account, ' +
         'total, estimated_total, final_total, customer_total, refund_amount, ' +
         'stripe_charge_cents, wallet_applied_cents, tokens_applied_value_cents, tokens_applied_count, ' +
         'refund_status',
@@ -135,8 +134,10 @@ Deno.serve(async (req) => {
 
   // FIX 2026-05-12: Calcular quanto cliente REALMENTE pagou
   // v18 (ronda 04/10 A.1): stripe_charge_cents vem da Stripe quando está a 0 (lerPagoDoPedido).
+  // duas contas: a Stripe da conta onde este pedido foi pago
+  const { stripe, conta } = stripeDaLinha(order);
   let pago;
-  try { pago = await lerPagoDoPedido(admin, Deno.env.get('STRIPE_SECRET_KEY') ?? '', orderId); }
+  try { pago = await lerPagoDoPedido(admin, chaveSecreta(conta), orderId); }
   catch (e) { await libertar(); return json({ error: 'paid_unknown', details: String(e) }, 502); }
   const paidCents = totalPago(pago);
   const nothingToRefund = paidCents === 0;
@@ -303,7 +304,7 @@ Deno.serve(async (req) => {
   // de cancelamento, pelo caminho que o cliente escolheu para o resto (saldo Bora ou meio original).
   // O reembolso da compra acima já não a conta (_shared/cobranca_stripe.ts v3). Nunca falha o pedido.
   const gorjeta = await devolverGorjetasDoPedido(
-    admin, Deno.env.get('STRIPE_SECRET_KEY') ?? '', orderId,
+    admin, chaveSecreta(conta), orderId,
     refundMethod === 'wallet' ? 'carteira' : 'meio', `cancelado pelo cliente: ${reason}`.slice(0, 150), user.id,
   );
   if (gorjeta.erros > 0) console.error('[cancel-with-choice] gorjeta por devolver (a conferência tenta outra vez):', JSON.stringify(gorjeta.itens));

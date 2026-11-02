@@ -35,15 +35,11 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 import { chamadaDoServidor } from '../_shared/chaves.ts';
 import { secretKey } from '../_shared/keys.ts';
+import { type ContaStripe, respostaConta, stripeDaLinha } from '../_shared/stripe_contas.ts';
 
-const STRIPE_MODE = (Deno.env.get('BORA_STRIPE_MODE') ?? 'live').toLowerCase();
-const stripeSecretKey = STRIPE_MODE === 'test'
-  ? (Deno.env.get('STRIPE_TEST_SECRET_KEY') ?? '')
-  : (Deno.env.get('STRIPE_SECRET_KEY') ?? '');
-const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: '2023-10-16',
-  httpClient: Stripe.createFetchHttpClient(),
-});
+// Duas contas Stripe (missão stripe-empresa-2026-11-01): reembolso e cobrança da edição saem pela
+// conta onde o pedido foi pago (orders.stripe_account). O cliente Stripe vai por parâmetro (sc).
+type ContaStripeCtx = { stripe: Stripe; conta: ContaStripe };
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
 const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
@@ -100,10 +96,11 @@ Deno.serve(async (req: Request) => {
 
   const { data: order } = await admin
     .from('orders')
-    .select('id, user_id, payment_method, payment_intent_id, client_phone')
+    .select('id, user_id, payment_method, payment_intent_id, client_phone, stripe_account')
     .eq('id', edit.order_id)
     .maybeSingle();
   if (!order) return json({ ok: false, error: 'pedido_nao_existe' }, 404);
+  const sc: ContaStripeCtx = stripeDaLinha(order); // duas contas: a conta onde o pedido foi pago
 
   const isService = caller.kind === 'service';
   const isAdmin = caller.kind === 'user' && caller.admin;
@@ -114,11 +111,11 @@ Deno.serve(async (req: Request) => {
   try {
     if (action === 'refund') {
       if (!isService && !isAdmin) return json({ ok: false, error: 'forbidden' }, 403);
-      return await refund(admin, grupoId, order, liq);
+      return await refund(sc, admin, grupoId, order, liq);
     }
     if (!isService && !isAdmin && !isOwner) return json({ ok: false, error: 'forbidden' }, 403);
-    if (action === 'charge') return await charge(admin, grupoId, edit.estado, order, liq);
-    return await confirm(admin, grupoId, String(body?.payment_intent_id ?? ''), liq);
+    if (action === 'charge') return await charge(sc, admin, grupoId, edit.estado, order, liq);
+    return await confirm(sc, admin, grupoId, String(body?.payment_intent_id ?? ''), liq);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error(`[order-edit-settle] ${action} ${grupoId}:`, msg);
@@ -129,7 +126,8 @@ Deno.serve(async (req: Request) => {
 
 // ── Reembolso parcial no mesmo pagamento ───────────────────────────────────
 // deno-lint-ignore no-explicit-any
-async function refund(admin: any, grupoId: string, order: any, liq: any): Promise<Response> {
+async function refund(sc: ContaStripeCtx, admin: any, grupoId: string, order: any, liq: any): Promise<Response> {
+  const { stripe } = sc;
   if (liq.metodo !== 'cartao') return json({ ok: false, error: 'nao_e_cartao', liquidacao: liq }, 409);
   if (liq.estado === 'feito') return json({ ok: true, ja_feito: true });
   const devolver = Number(liq.devolver_cents ?? 0);
@@ -167,12 +165,13 @@ async function refund(admin: any, grupoId: string, order: any, liq: any): Promis
 
 // ── Cobrar a diferença (cliente aceitou acrescentar) ───────────────────────
 // deno-lint-ignore no-explicit-any
-async function charge(admin: any, grupoId: string, estado: string, order: any, liq: any): Promise<Response> {
+async function charge(sc: ContaStripeCtx, admin: any, grupoId: string, estado: string, order: any, liq: any): Promise<Response> {
+  const { stripe, conta } = sc;
   if (estado === 'aplicado') return json({ ok: true, ja_aplicado: true });
   if (estado !== 'aceite' || liq.estado !== 'a_cobrar') return json({ ok: false, error: 'nada_a_cobrar', estado, liquidacao: liq }, 409);
   const cents = Number(liq.cobrar_cents ?? 0);
   if (cents < 50) return json({ ok: false, error: 'valor_minimo_stripe' }, 409);
-  const metadata = { purpose: 'order_edit', edit_order_id: order.id, order_edit_group: grupoId, user_id: String(order.user_id ?? '') };
+  const metadata = { purpose: 'order_edit', edit_order_id: order.id, order_edit_group: grupoId, user_id: String(order.user_id ?? ''), bora_conta: conta };
 
   // Nunca cobrar duas vezes: se uma tentativa anterior já foi paga (ex.: o
   // MB Way confirmado depois de a app fechar), aplica-se essa e acabou.
@@ -241,12 +240,13 @@ async function charge(admin: any, grupoId: string, estado: string, order: any, l
     automatic_payment_methods: { enabled: true },
     metadata,
   }, { idempotencyKey: `order-edit-sheet-${grupoId}-${tentativa}` });
-  return json({ ok: true, metodo: 'cartao', pago: false, precisa_ecra: true, client_secret: sheet.client_secret, payment_intent_id: sheet.id });
+  return json({ ok: true, metodo: 'cartao', pago: false, precisa_ecra: true, client_secret: sheet.client_secret, payment_intent_id: sheet.id, ...respostaConta(conta) });
 }
 
 // ── Confirmar o PI da diferença e aplicar ──────────────────────────────────
 // deno-lint-ignore no-explicit-any
-async function confirm(admin: any, grupoId: string, piId: string, liq: any): Promise<Response> {
+async function confirm(sc: ContaStripeCtx, admin: any, grupoId: string, piId: string, liq: any): Promise<Response> {
+  const { stripe } = sc;
   if (!piId) return json({ ok: false, error: 'sem_payment_intent' }, 400);
   const pi = await stripe.paymentIntents.retrieve(piId);
   if (pi.metadata?.order_edit_group !== grupoId) return json({ ok: false, error: 'pi_de_outro_grupo' }, 409);

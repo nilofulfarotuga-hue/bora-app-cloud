@@ -8,6 +8,7 @@ import '../../../config/ios_launch_flags.dart';
 
 import '../../../config/app_colors.dart';
 import '../../../services/folha_cartao.dart';
+import '../../../services/stripe_contas.dart';
 import '../../../services/payment_service.dart';
 import '../../../services/saved_card_checkout.dart';
 import '../../../stores/reservation_store.dart';
@@ -170,6 +171,7 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
         final ok = await PaymentService().confirmSavedCardPayment(
           clientSecret: clientSecret,
           requiresAction: (pi['requiresAction'] as bool?) ?? false,
+          publishableKey: StripeContas.chaveDaResposta(pi),
         );
         if (!ok) {
           if (!mounted) return;
@@ -190,9 +192,11 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
             clientSecret,
             vertical: 'reserva_mesa',
             referenciaId: reservationId,
+            publishableKey: StripeContas.chaveDaResposta(pi),
           );
         } else {
           await apresentarFolhaCartao(
+            publishableKey: StripeContas.chaveDaResposta(pi), // duas contas
             SetupPaymentSheetParameters(
               paymentIntentClientSecret: clientSecret,
               merchantDisplayName: 'BORA APP'.tr,

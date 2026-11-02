@@ -17,6 +17,7 @@ import 'services/floating_bubble_service.dart';
 import 'services/foreground_service.dart';
 import 'services/incoming_job_alert.dart';
 import 'services/notification_service.dart';
+import 'services/stripe_contas.dart';
 import 'services/sound_service.dart';
 import 'services/web_presence.dart';
 import 'widgets/atalho_trabalho_em_curso.dart';
@@ -656,6 +657,10 @@ Future<void> main() async {
       );
     }
     Stripe.publishableKey = stripePublishableKey;
+    // Duas contas Stripe (02/11/2026): esta é a chave da conta PESSOAL (TVDE e
+    // recurso). A folha do cartão troca para a chave que o servidor devolver
+    // com cada pagamento (lib/services/stripe_contas.dart).
+    StripeContas.chaveDeArranque = stripePublishableKey;
     Stripe.merchantIdentifier = 'merchant.com.boraapp.app';
     // 2026-09-07 (missão ios-lancamento) — esquema de retorno do 3DS.
     //

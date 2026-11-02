@@ -26,14 +26,10 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const STRIPE_MODE = (Deno.env.get('BORA_STRIPE_MODE') ?? 'live').toLowerCase();
-const stripeSecretKey = STRIPE_MODE === 'test'
-  ? (Deno.env.get('STRIPE_TEST_SECRET_KEY') ?? '')
-  : (Deno.env.get('STRIPE_SECRET_KEY') ?? '');
-const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: '2023-10-16',
-  httpClient: Stripe.createFetchHttpClient(),
-});
+// Duas contas Stripe (missão stripe-empresa-2026-11-01): o painel vê AS DUAS contas. Cada cartão e
+// cada PaymentIntent sai marcado com `stripe_account`; o estorno passa a conta à função refund.
+import { type ContaStripe, CONTAS_STRIPE, colunaClienteStripe, estadoChaves, temChaveSecreta, stripePara } from '../_shared/stripe_contas.ts';
+const contasComChave = (): ContaStripe[] => CONTAS_STRIPE.filter((c) => temChaveSecreta(c));
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
@@ -79,55 +75,71 @@ Deno.serve(async (req: Request) => {
       if (!targetUserId) return json({ error: 'user_id_required' }, 400);
 
       const { data: row, error: selErr } = await admin
-        .from('users').select('stripe_customer_id').eq('id', targetUserId).maybeSingle();
+        .from('users').select('stripe_customer_id, stripe_customer_id_empresa').eq('id', targetUserId).maybeSingle();
       if (selErr) return json({ error: 'db_error', details: selErr.message }, 500);
 
-      const customerId = row?.stripe_customer_id as string | undefined;
-      if (!customerId) return json({ cards: [] });
-
-      const [pmList, customer] = await Promise.all([
-        stripe.paymentMethods.list({ customer: customerId, type: 'card', limit: 20 }),
-        stripe.customers.retrieve(customerId),
-      ]);
-      const defaultPm = (customer && !customer.deleted)
-        ? ((customer as Stripe.Customer).invoice_settings?.default_payment_method ?? null)
-        : null;
-      const defaultPmId = typeof defaultPm === 'string'
-        ? defaultPm
-        : (defaultPm as Stripe.PaymentMethod | null)?.id ?? null;
-
+      // duas contas: os cartões de cada conta, marcados com a conta
       // Só marca + últimos 4. O número completo nunca sai da Stripe.
-      return json({
-        cards: pmList.data.map((pm) => ({
-          id: pm.id,
-          brand: pm.card?.brand ?? 'card',
-          last4: pm.card?.last4 ?? '••••',
-          exp_month: pm.card?.exp_month ?? null,
-          exp_year: pm.card?.exp_year ?? null,
-          is_default: pm.id === defaultPmId,
-        })),
-      });
+      const cards: Record<string, unknown>[] = [];
+      for (const conta of contasComChave()) {
+        const customerId = (row as Record<string, unknown> | null)?.[colunaClienteStripe(conta)] as string | undefined;
+        if (!customerId) continue;
+        const stripe = stripePara(conta);
+        const [pmList, customer] = await Promise.all([
+          stripe.paymentMethods.list({ customer: customerId, type: 'card', limit: 20 }),
+          stripe.customers.retrieve(customerId),
+        ]);
+        const defaultPm = (customer && !customer.deleted)
+          ? ((customer as Stripe.Customer).invoice_settings?.default_payment_method ?? null)
+          : null;
+        const defaultPmId = typeof defaultPm === 'string'
+          ? defaultPm
+          : (defaultPm as Stripe.PaymentMethod | null)?.id ?? null;
+        for (const pm of pmList.data) {
+          cards.push({
+            id: pm.id,
+            brand: pm.card?.brand ?? 'card',
+            last4: pm.card?.last4 ?? '••••',
+            exp_month: pm.card?.exp_month ?? null,
+            exp_year: pm.card?.exp_year ?? null,
+            is_default: pm.id === defaultPmId,
+            stripe_account: conta,
+          });
+        }
+      }
+      return json({ cards });
     }
 
     // ── PaymentIntents parados à espera de 3DS ────────────────────────
     if (action === 'stuck_intents') {
       const limit = Math.min(Number(body?.limit ?? 100), 100);
-      const list = await stripe.paymentIntents.list({ limit });
-      const stuck = list.data.filter((pi) =>
-        pi.status === 'requires_action' || pi.status === 'requires_confirmation'
-      );
-      return json({
-        intents: stuck.map((pi) => ({
-          id: pi.id,
-          status: pi.status,
-          amount_cents: pi.amount,
-          currency: pi.currency,
-          created: pi.created,
-          customer: typeof pi.customer === 'string' ? pi.customer : pi.customer?.id ?? null,
-          metadata: pi.metadata ?? {},
-        })),
-        scanned: list.data.length,
-      });
+      // duas contas: lista das duas, cada PI marcado com a conta
+      const intents: Record<string, unknown>[] = [];
+      let scanned = 0;
+      for (const conta of contasComChave()) {
+        const list = await stripePara(conta).paymentIntents.list({ limit });
+        scanned += list.data.length;
+        for (const pi of list.data) {
+          if (pi.status !== 'requires_action' && pi.status !== 'requires_confirmation') continue;
+          intents.push({
+            id: pi.id,
+            status: pi.status,
+            amount_cents: pi.amount,
+            currency: pi.currency,
+            created: pi.created,
+            customer: typeof pi.customer === 'string' ? pi.customer : pi.customer?.id ?? null,
+            metadata: pi.metadata ?? {},
+            stripe_account: conta,
+          });
+        }
+      }
+      intents.sort((a, b) => Number(b.created) - Number(a.created));
+      return json({ intents, scanned });
+    }
+
+    // ── estado das duas contas (só nomes/booleans, nunca valores) ────────
+    if (action === 'contas') {
+      return json({ contas: estadoChaves() });
     }
 
     // ── estorno (delegado na EF blindada) ──────────────────────────
@@ -146,6 +158,7 @@ Deno.serve(async (req: Request) => {
           amount: amountCents / 100,
           userId: body?.user_id ?? null,
           orderId: body?.entity_id ?? null,
+          stripe_account: body?.stripe_account ?? null, // duas contas: a função refund confirma pela linha se vier vazio
         },
       });
       if (error) {

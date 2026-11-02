@@ -7,6 +7,7 @@ import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../models/carwash_models.dart';
 import '../../../services/payment_service.dart';
+import '../../../services/stripe_contas.dart';
 import '../../../services/saved_card_checkout.dart';
 import '../../../stores/carwash_store.dart';
 
@@ -78,13 +79,17 @@ class CarwashPaymentFlow {
         final ok = await PaymentService().confirmSavedCardPayment(
           clientSecret: clientSecret,
           requiresAction: (created['requiresAction'] as bool?) ?? false,
+          publishableKey: StripeContas.chaveDaResposta(created), // duas contas
         );
         if (!ok) {
           if (context.mounted) _snack(context, 'Pagamento não concluído.'.tr);
           return false;
         }
       } else {
-        await PaymentService().processPayment(clientSecret);
+        await PaymentService().processPayment(
+          clientSecret,
+          publishableKey: StripeContas.chaveDaResposta(created), // duas contas
+        );
       }
     } catch (_) {
       if (context.mounted) _snack(context, 'Pagamento não concluído.'.tr);

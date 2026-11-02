@@ -31,6 +31,7 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'platform_tag_service.dart';
+import 'stripe_contas.dart';
 
 /// Mensagem mostrada ao cliente quando o ecrã do cartão não abre.
 const String kMensagemFolhaCartaoNaoAbriu =
@@ -116,9 +117,15 @@ Future<void> apresentarFolhaCartao(
   SetupPaymentSheetParameters parametros, {
   required String vertical,
   String? referenciaId,
+  /// Duas contas Stripe (02/11/2026): a chave publicável que o servidor devolveu
+  /// com o pagamento (`publishable_key`). null = a do arranque (pessoal).
+  String? publishableKey,
 }) async {
   final segredo = parametros.paymentIntentClientSecret;
   final limite = Duration(seconds: await tempoLimiteFolhaCartao());
+
+  // 0) Duas contas: o SDK tem de estar na conta onde o PaymentIntent existe.
+  await StripeContas.usarChave(publishableKey);
 
   // 1) iOS: ligar a janela do Flutter ao Stripe.
   if (_ehIos) {

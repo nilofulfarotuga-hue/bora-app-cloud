@@ -30,6 +30,7 @@
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { secretKey } from '../_shared/keys.ts';
+import { STRIPE_MODE, localizarPaymentIntent, obterOuCriarClienteStripe, respostaConta, stripeDaLinha, stripeParaNovoPagamento } from '../_shared/stripe_contas.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -37,11 +38,9 @@ const corsHeaders = {
     'authorization, x-client-info, apikey, content-type',
 };
 
-const STRIPE_MODE = (Deno.env.get('BORA_STRIPE_MODE') ?? 'live').toLowerCase();
-const stripeKey = STRIPE_MODE === 'test'
-  ? (Deno.env.get('STRIPE_TEST_SECRET_KEY') ?? '')
-  : (Deno.env.get('STRIPE_SECRET_KEY') ?? '');
-const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' });
+// Duas contas Stripe (missão stripe-empresa-2026-11-01): a conta decide-se por reserva em
+// _shared/stripe_contas.ts (PI já criado → a conta gravada; pagamento novo → regra geral).
+// STRIPE_MODE vem de lá. O Stripe Customer vive na conta certa (obterOuCriarClienteStripe).
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
 const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
@@ -61,38 +60,8 @@ function toE164(raw: string): string {
   return '+351' + digits;
 }
 
-// v3 — Carteira Única: Stripe Customer idempotente por user (admin service-role;
-// RLS bloqueia update user-side de users.stripe_customer_id). Falha = non-blocking.
-// deno-lint-ignore no-explicit-any
-async function getOrCreateCustomer(admin: any, userId: string): Promise<string | null> {
-  try {
-    const { data: userRow } = await admin
-      .from('users').select('stripe_customer_id, email, name')
-      .eq('id', userId).maybeSingle();
-    if (userRow?.stripe_customer_id) return userRow.stripe_customer_id as string;
-    const customer = await stripe.customers.create({
-      email: (userRow?.email as string | undefined) ?? undefined,
-      name: (userRow?.name as string | undefined) ?? undefined,
-      metadata: { supabase_uid: userId },
-    });
-    const { error: updErr } = await admin
-      .from('users').update({ stripe_customer_id: customer.id })
-      .eq('id', userId).is('stripe_customer_id', null);
-    if (updErr) {
-      const { data: refetch } = await admin
-        .from('users').select('stripe_customer_id').eq('id', userId).maybeSingle();
-      const winner = refetch?.stripe_customer_id as string | undefined;
-      if (winner && winner !== customer.id) {
-        try { await stripe.customers.del(customer.id); } catch (_) { /* swallow */ }
-        return winner;
-      }
-    }
-    return customer.id;
-  } catch (err) {
-    console.error('[cleaning-checkout] getOrCreateCustomer error:', err);
-    return null;
-  }
-}
+// getOrCreateCustomer passou para _shared/stripe_contas.ts (obterOuCriarClienteStripe): o Customer
+// é criado na conta certa (users.stripe_customer_id ou stripe_customer_id_empresa).
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -121,6 +90,13 @@ Deno.serve(async (req: Request) => {
     if (bErr || !booking) return json({ error: 'booking_not_found' }, 404);
     if (booking.client_user_id !== user.id) return json({ error: 'booking_not_yours' }, 403);
 
+    // Duas contas Stripe: PI já criado nesta reserva → a conta gravada; pagamento novo → regra geral
+    // (app antiga → pessoal; stripe_contas_v2 + interruptor 'empresa' + chave → empresa).
+    const temPi = typeof booking.stripe_payment_intent_id === 'string' && booking.stripe_payment_intent_id.startsWith('pi_');
+    const { stripe, conta } = temPi
+      ? stripeDaLinha(booking)
+      : await stripeParaNovoPagamento(admin, { body, kind: 'cleaning', origem: 'cleaning-checkout' });
+
     const amountCents = Number(booking.total_cents ?? 0);
     if (!amountCents || amountCents < 50) return json({ error: 'amount_below_minimum' }, 400);
 
@@ -129,9 +105,9 @@ Deno.serve(async (req: Request) => {
       if (booking.payment_method !== 'card') return json({ error: 'not_card_booking' }, 400);
       if (booking.payment_status !== 'unpaid') return json({ error: 'already_paid' }, 400);
 
-      const customerId = await getOrCreateCustomer(admin, user.id);
+      const customerId = await obterOuCriarClienteStripe(admin, conta, user.id);
       const savedPmId = typeof body?.saved_pm_id === 'string' ? body.saved_pm_id : null;
-      const meta = { kind: 'cleaning', booking_id: bookingId, user_id: user.id };
+      const meta = { kind: 'cleaning', booking_id: bookingId, user_id: user.id, bora_conta: conta };
 
       let pi;
       try {
@@ -177,7 +153,7 @@ Deno.serve(async (req: Request) => {
 
       console.log('[cleaning-checkout create]', bookingId,
         `amount=€${(amountCents / 100).toFixed(2)}`, `mode=${STRIPE_MODE}`);
-      return json({ clientSecret: pi.client_secret, paymentIntentId: pi.id, amountCents, status: pi.status });
+      return json({ clientSecret: pi.client_secret, paymentIntentId: pi.id, amountCents, status: pi.status, ...respostaConta(conta) });
     }
 
     // ── CREATE_MBWAY (cobra na reserva; estorno automático em cancelamento) ─
@@ -207,7 +183,7 @@ Deno.serve(async (req: Request) => {
       }
       console.log('[cleaning-checkout create_mbway]', bookingId,
         `amount=€${(amountCents / 100).toFixed(2)}`, `status=${pi.status}`);
-      return json({ paymentIntentId: pi.id, status: pi.status, amountCents });
+      return json({ paymentIntentId: pi.id, status: pi.status, amountCents, stripe_account: conta });
     }
 
     // ── MARK_HELD (após PaymentSheet/push MB WAY confirmar) ─────────────────
@@ -216,8 +192,15 @@ Deno.serve(async (req: Request) => {
       if (!piId) return json({ error: 'payment_intent_required' }, 400);
 
       let pi;
-      try { pi = await stripe.paymentIntents.retrieve(piId); }
-      catch (_) { return json({ error: 'payment_intent_not_found' }, 404); }
+      const achado = await localizarPaymentIntent(piId, conta); // duas contas: onde o PI existe
+      if (!achado) return json({ error: 'payment_intent_not_found' }, 404);
+      pi = achado.pi;
+      const contaPi = achado.conta;
+      if (contaPi !== conta) console.warn('[cleaning-checkout] PI na conta', contaPi, 'e não', conta, piId);
+      {
+        const { error: contaErr } = await admin.from('cleaning_bookings').update({ stripe_account: contaPi }).eq('id', bookingId);
+        if (contaErr) console.error('[cleaning-checkout] stripe_account não gravado:', contaErr.message, bookingId);
+      }
 
       if (pi.metadata?.kind !== 'cleaning' || pi.metadata?.booking_id !== bookingId) {
         return json({ error: 'payment_kind_mismatch' }, 400);

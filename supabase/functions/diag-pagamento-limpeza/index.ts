@@ -7,17 +7,18 @@
 
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { exigirServidor } from '../_shared/chaves.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { secretKey } from '../_shared/keys.ts';
+import { STRIPE_MODE, contaDoPaymentIntent, stripePara } from '../_shared/stripe_contas.ts';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const STRIPE_MODE = (Deno.env.get('BORA_STRIPE_MODE') ?? 'live').toLowerCase();
-const stripeSecret = STRIPE_MODE === 'test'
-  ? (Deno.env.get('STRIPE_TEST_SECRET_KEY') ?? '')
-  : (Deno.env.get('STRIPE_SECRET_KEY') ?? '');
-const stripe = new Stripe(stripeSecret, { apiVersion: '2023-10-16' });
+// Duas contas Stripe (missão stripe-empresa-2026-11-01): cada PI lê-se na conta onde vive
+// (procura-se nas tabelas: cleaning_bookings.stripe_account) — _shared/stripe_contas.ts.
+const admin = createClient(Deno.env.get('SUPABASE_URL') ?? '', secretKey() || (Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''));
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -40,7 +41,8 @@ Deno.serve(async (req: Request) => {
   const out: unknown[] = [];
   for (const id of ids) {
     try {
-      const pi = await stripe.paymentIntents.retrieve(id);
+      const conta = await contaDoPaymentIntent(admin, id);
+      const pi = await stripePara(conta).paymentIntents.retrieve(id);
       if (pi.metadata?.kind !== 'cleaning') {
         out.push({ id, error: 'not_cleaning' });
         continue;
@@ -48,6 +50,7 @@ Deno.serve(async (req: Request) => {
       const e = pi.last_payment_error;
       out.push({
         id: pi.id,
+        stripe_account: conta,
         status: pi.status,
         amount: pi.amount,
         created: pi.created,

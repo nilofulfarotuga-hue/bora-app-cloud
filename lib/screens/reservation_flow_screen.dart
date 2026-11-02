@@ -12,6 +12,7 @@ import '../config/ios_launch_flags.dart';
 import '../config/app_colors.dart';
 import '../models/restaurant_model.dart';
 import '../services/folha_cartao.dart';
+import '../services/stripe_contas.dart';
 import '../services/payment_service.dart';
 import '../services/saved_card_checkout.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
@@ -149,6 +150,7 @@ class _ReservationFlowScreenState extends State<ReservationFlowScreen> {
           if (_notesController.text.trim().isNotEmpty)
             'notes': _notesController.text.trim(),
           if (auth.savedPmId != null) 'saved_pm_id': auth.savedPmId,
+          'stripe_contas_v2': true, // duas contas Stripe (02/11/2026)
         },
       );
       if (res.status >= 400) {
@@ -165,6 +167,7 @@ class _ReservationFlowScreenState extends State<ReservationFlowScreen> {
         final ok = await PaymentService().confirmSavedCardPayment(
           clientSecret: clientSecret,
           requiresAction: (data['requiresAction'] as bool?) ?? false,
+          publishableKey: StripeContas.chaveDaResposta(data),
         );
         if (!ok) {
           if (!mounted) return;
@@ -184,9 +187,11 @@ class _ReservationFlowScreenState extends State<ReservationFlowScreen> {
             clientSecret,
             vertical: 'reserva_mesa',
             referenciaId: reservationId,
+            publishableKey: StripeContas.chaveDaResposta(data),
           );
         } else {
           await apresentarFolhaCartao(
+            publishableKey: StripeContas.chaveDaResposta(data), // duas contas
             SetupPaymentSheetParameters(
               paymentIntentClientSecret: clientSecret,
               merchantDisplayName: 'Bora App',
@@ -282,6 +287,7 @@ class _ReservationFlowScreenState extends State<ReservationFlowScreen> {
           'client_name': _nameController.text.trim(),
           'client_phone': _phoneController.text.trim(),
           'phone': phone,
+          'stripe_contas_v2': true, // duas contas Stripe (02/11/2026)
           if (_notesController.text.trim().isNotEmpty)
             'notes': _notesController.text.trim(),
         },

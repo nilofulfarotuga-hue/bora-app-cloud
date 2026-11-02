@@ -14,6 +14,7 @@
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { secretKey } from '../_shared/keys.ts';
+import { stripeDaLinha } from '../_shared/stripe_contas.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,14 +22,8 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const STRIPE_MODE = (Deno.env.get('BORA_STRIPE_MODE') ?? 'live').toLowerCase();
-const stripeSecretKey = STRIPE_MODE === 'test'
-  ? (Deno.env.get('STRIPE_TEST_SECRET_KEY') ?? '')
-  : (Deno.env.get('STRIPE_SECRET_KEY') ?? '');
-const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: '2023-10-16',
-  httpClient: Stripe.createFetchHttpClient(),
-});
+// Duas contas Stripe (missão stripe-empresa-2026-11-01): o PI lê-se na conta gravada na
+// marcação (appointments.stripe_account) — _shared/stripe_contas.ts.
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -55,7 +50,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: appt, error: apptErr } = await supabase
       .from('appointments')
-      .select('id, client_user_id, status, deposit_pi')
+      .select('id, client_user_id, status, deposit_pi, stripe_account')
       .eq('id', body.appointment_id)
       .single();
 
@@ -70,6 +65,7 @@ Deno.serve(async (req: Request) => {
     }
     if (!appt.deposit_pi) return json({ status: 'pending', note: 'no deposit_pi yet' });
 
+    const { stripe } = stripeDaLinha(appt); // duas contas: a conta onde o sinal foi pago
     const intent = await stripe.paymentIntents.retrieve(appt.deposit_pi);
 
     if (intent.status === 'succeeded') {

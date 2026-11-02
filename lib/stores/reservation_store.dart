@@ -360,6 +360,7 @@ class ReservationStore extends ChangeNotifier {
           if (clientPhone != null && clientPhone.isNotEmpty)
             'client_phone': clientPhone,
           if (savedPmId != null) 'saved_pm_id': savedPmId,
+          'stripe_contas_v2': true, // duas contas Stripe (02/11/2026)
         },
       );
       if (response.data == null) {
@@ -401,6 +402,7 @@ class ReservationStore extends ChangeNotifier {
           'people': people,
           'reserved_for': reservedFor.toUtc().toIso8601String(),
           'phone': mbwayPhone,
+          'stripe_contas_v2': true, // duas contas Stripe (02/11/2026)
           if (combinedNotes != null && combinedNotes.isNotEmpty)
             'notes': combinedNotes,
           if (clientName != null && clientName.isNotEmpty)

@@ -13,6 +13,7 @@ import '../models/provider_service_model.dart';
 import '../models/service_provider_model.dart';
 import '../models/staff_member_model.dart';
 import '../services/folha_cartao.dart';
+import '../services/stripe_contas.dart';
 import '../services/payment_service.dart';
 
 /// BLOCO E (2026-07-28) — o parceiro está em `reschedule_only` e a marcação já
@@ -343,7 +344,7 @@ class ServicesStore extends ChangeNotifier {
 
       final response = await _supabase.functions.invoke(
         'create-mbway-appointment-payment-intent',
-        body: {'appointment_id': appointmentId, 'phone': mbwayPhone},
+        body: {'appointment_id': appointmentId, 'phone': mbwayPhone, 'stripe_contas_v2': true},
       );
       if (response.data == null) {
         throw Exception('Resposta vazia do servidor.');
@@ -414,6 +415,7 @@ class ServicesStore extends ChangeNotifier {
         body: {
           'appointment_id': appointmentId,
           if (savedPmId != null) 'saved_pm_id': savedPmId,
+          'stripe_contas_v2': true, // duas contas Stripe (02/11/2026)
         },
       );
       if (response.data == null) {
@@ -434,6 +436,7 @@ class ServicesStore extends ChangeNotifier {
         final ok = await PaymentService().confirmSavedCardPayment(
           clientSecret: clientSecret,
           requiresAction: (data['requiresAction'] as bool?) ?? false,
+          publishableKey: StripeContas.chaveDaResposta(data),
         );
         if (!ok) {
           return BookingResult(
@@ -448,6 +451,7 @@ class ServicesStore extends ChangeNotifier {
         // 2026-10-03: porta única (folha_cartao.dart) — tempo limite e
         // confirmação de que a folha apareceu no iPhone.
         await apresentarFolhaCartao(
+          publishableKey: StripeContas.chaveDaResposta(data), // duas contas
           SetupPaymentSheetParameters(
             paymentIntentClientSecret: clientSecret,
             merchantDisplayName: 'BORA APP',

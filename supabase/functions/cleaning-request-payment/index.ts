@@ -28,17 +28,16 @@
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { chaveSecreta, exigirServidor } from '../_shared/chaves.ts';
+import { STRIPE_MODE, stripeDaLinha } from '../_shared/stripe_contas.ts';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const STRIPE_MODE = (Deno.env.get('BORA_STRIPE_MODE') ?? 'live').toLowerCase();
-const stripeSecret = STRIPE_MODE === 'test'
-  ? (Deno.env.get('STRIPE_TEST_SECRET_KEY') ?? '')
-  : (Deno.env.get('STRIPE_SECRET_KEY') ?? '');
-const stripe = new Stripe(stripeSecret, { apiVersion: '2023-10-16' });
+// Duas contas Stripe (missão stripe-empresa-2026-11-01): a cobrança sai pela conta gravada na
+// reserva (cleaning_bookings.stripe_account) — _shared/stripe_contas.ts. O cliente Stripe é
+// passado às funções auxiliares (nunca uma variável global mudada por pedido).
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -65,7 +64,7 @@ function semNumeros(m: string): string {
 }
 
 // O telefone do último MB Way que este cliente pagou (é o que ele usa de certeza).
-async function telefoneDoUltimoMbWay(userId: string): Promise<string | null> {
+async function telefoneDoUltimoMbWay(stripe: Stripe, userId: string): Promise<string | null> {
   try {
     const r = await stripe.paymentIntents.search({
       query: `metadata['user_id']:'${userId}' AND status:'succeeded'`,
@@ -92,7 +91,7 @@ async function telefoneDoUltimoMbWay(userId: string): Promise<string | null> {
 // 19/10/2026 (revisor): não criar um segundo pedido enquanto o anterior desta reserva está
 // à espera do cliente (o cron e o botão do painel podiam juntar dois no telemóvel dele), nem
 // pedir de novo se a Stripe já tem um pagamento desta reserva (o webhook pode vir atrasado).
-async function pedidoJaExistente(bookingId: string): Promise<{ estado: string; pi: string } | null> {
+async function pedidoJaExistente(stripe: Stripe, bookingId: string): Promise<{ estado: string; pi: string } | null> {
   try {
     const r = await stripe.paymentIntents.search({
       query: `metadata['booking_id']:'${bookingId}'`,
@@ -127,11 +126,13 @@ Deno.serve(async (req: Request) => {
     const admin = createClient(supabaseUrl, chaveSecreta());
     const { data: b, error: bErr } = await admin
       .from('cleaning_bookings')
-      .select('id, client_user_id, payment_method, payment_status, status, total_cents, payment_request_count')
+      .select('id, client_user_id, payment_method, payment_status, status, total_cents, payment_request_count, stripe_account')
       .eq('id', bookingId)
       .maybeSingle();
     if (bErr) return json({ ok: false, error: 'booking_read_failed', details: bErr.message }, 500);
     if (!b) return json({ ok: false, error: 'booking_not_found' }, 404);
+    // duas contas: a Stripe da conta onde esta reserva foi/será paga
+    const { stripe, conta } = stripeDaLinha(b);
 
     if (b.payment_method !== 'mbway') return json({ ok: false, error: 'not_mbway' });
     if (b.payment_status !== 'unpaid') {
@@ -148,14 +149,14 @@ Deno.serve(async (req: Request) => {
       ? body.tentativa as number
       : Math.max(1, Number(b.payment_request_count ?? 0));
 
-    const existente = await pedidoJaExistente(bookingId);
+    const existente = await pedidoJaExistente(stripe, bookingId);
     if (existente) {
       console.log('[cleaning-request-payment]', bookingId, `tentativa=${tentativa}`,
         `nao_criado=${existente.estado}`, `pi=${existente.pi}`);
       return json({ ok: false, error: existente.estado, paymentIntentId: existente.pi, tentativa });
     }
 
-    let phone = await telefoneDoUltimoMbWay(b.client_user_id);
+    let phone = await telefoneDoUltimoMbWay(stripe, b.client_user_id);
     let origemTelefone = 'stripe';
     if (!phone) {
       const { data: u } = await admin.from('users').select('phone')

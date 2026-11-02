@@ -111,6 +111,7 @@ class WalletService {
     final body = <String, dynamic>{
       'amount_cents': amountCents,
       'payment_method': paymentMethod,
+      'stripe_contas_v2': true, // duas contas Stripe (02/11/2026)
     };
     if (paymentMethod == 'mbway' && mbwayPhone != null) {
       body['mbway_phone'] = mbwayPhone;

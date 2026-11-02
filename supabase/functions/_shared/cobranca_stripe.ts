@@ -30,6 +30,8 @@
 //   • Se a coluna tips.cobrada_junto ainda não existir (migração por aplicar), conta como 0.
 
 // deno-lint-ignore no-explicit-any
+import { chaveSecreta, contaGravada } from './stripe_contas.ts'; // duas contas (02/11/2026)
+
 type Cliente = any;
 
 export interface Pago {
@@ -83,11 +85,15 @@ export function totalPago(p: Pago): number {
   return p.totalCents > 0 ? Math.min(soma, p.totalCents) : soma;
 }
 
-export async function lerPagoDoPedido(admin: Cliente, stripeKey: string, orderId: string): Promise<Pago> {
+export async function lerPagoDoPedido(admin: Cliente, stripeKeyChamador: string, orderId: string): Promise<Pago> {
   const { data: o, error } = await admin.from('orders')
-    .select('id, payment_intent_id, stripe_charge_cents, wallet_applied_cents, tokens_applied_count, tokens_applied_value_cents, customer_total, total')
+    .select('id, payment_intent_id, stripe_charge_cents, wallet_applied_cents, tokens_applied_count, tokens_applied_value_cents, customer_total, total, stripe_account')
     .eq('id', orderId).maybeSingle();
   if (error || !o) throw new Error(`pedido_nao_lido: ${error?.message ?? orderId}`);
+  // Duas contas Stripe (missão stripe-empresa-2026-11-01): o PI deste pedido só existe na conta
+  // onde o dinheiro entrou (orders.stripe_account). A chave dessa conta manda; a do chamador é o
+  // recurso (pedidos antigos = pessoal = a chave que os chamadores sempre passaram).
+  const stripeKey = chaveSecreta(contaGravada(o.stripe_account)) || stripeKeyChamador;
   const pago: Pago = {
     piId: o.payment_intent_id ?? null,
     stripeCents: Math.max(0, Number(o.stripe_charge_cents ?? 0)),

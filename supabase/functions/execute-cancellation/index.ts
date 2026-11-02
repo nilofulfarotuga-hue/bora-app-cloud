@@ -35,11 +35,10 @@ import { lerPagoDoPedido, repartirReembolso, totalPago } from '../_shared/cobran
 import { secretKey } from '../_shared/keys.ts';
 import { devolverGorjetasDoPedido } from '../_shared/gorjeta_devolver.ts';
 import { chamarFuncao } from '../_shared/chamadas.ts';
+import { chaveSecreta, stripeDaLinha } from '../_shared/stripe_contas.ts';
 
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
-  apiVersion: '2023-10-16',
-  httpClient: Stripe.createFetchHttpClient(),
-});
+// Duas contas Stripe (missão stripe-empresa-2026-11-01): o reembolso sai pela conta onde o pedido
+// foi pago (orders.stripe_account) — _shared/stripe_contas.ts.
 
 // deno-lint-ignore no-explicit-any
 const json = (body: any, status = 200) =>
@@ -103,7 +102,7 @@ Deno.serve(async (req) => {
   // Load order
   const { data: order, error: oErr } = await admin
     .from('orders')
-    .select('id, user_id, status, payment_method, payment_intent_id, payment_status, total, estimated_total, final_total, customer_total, refund_amount, refund_method, refund_status, cancelled_at, tokens_applied_value_cents, tokens_applied_count')
+    .select('id, user_id, status, payment_method, payment_intent_id, payment_status, total, estimated_total, final_total, customer_total, refund_amount, refund_method, refund_status, cancelled_at, tokens_applied_value_cents, tokens_applied_count, stripe_account')
     .eq('id', cReq.order_id)
     .maybeSingle();
   if (oErr || !order) return json({ error: 'order_not_found' }, 404);
@@ -137,8 +136,10 @@ Deno.serve(async (req) => {
 
   // v15 (ronda 04/10 A.1/A.2): o que se devolve nunca passa do que foi pago, e cada parte
   // volta pela fonte: Stripe até ao que a Stripe cobrou; carteira+tokens para a carteira.
+  // duas contas: a Stripe da conta onde este pedido foi pago
+  const { stripe, conta } = stripeDaLinha(order);
   let pago;
-  try { pago = await lerPagoDoPedido(admin, Deno.env.get('STRIPE_SECRET_KEY') ?? '', order.id); }
+  try { pago = await lerPagoDoPedido(admin, chaveSecreta(conta), order.id); }
   catch (e) { await libertar(); return json({ error: 'paid_unknown', details: String(e) }, 502); }
   const pagoCents = totalPago(pago);
   // v16 (regra 28/10): tokens registados pelo servidor voltam como TOKENS (gatilho do banco);
@@ -226,7 +227,7 @@ Deno.serve(async (req) => {
 
   // v17 (gorjetas 30/10): a gorjeta volta INTEIRA, fora da taxa, pelo caminho aprovado.
   const gorjeta = await devolverGorjetasDoPedido(
-    admin, Deno.env.get('STRIPE_SECRET_KEY') ?? '', order.id,
+    admin, chaveSecreta(conta), order.id,
     method === 'wallet' ? 'carteira' : 'meio', `cancelamento aprovado (req ${cReq.id})`, user.id,
   );
   if (gorjeta.erros > 0) console.error('[execute-cancellation] gorjeta por devolver (a conferência tenta outra vez):', JSON.stringify(gorjeta.itens));

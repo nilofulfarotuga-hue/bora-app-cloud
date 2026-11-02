@@ -19,11 +19,10 @@ import { lerPagoDoPedido, repartirReembolso, totalPago } from '../_shared/cobran
 import { secretKey } from '../_shared/keys.ts';
 import { devolverGorjetasDoPedido } from '../_shared/gorjeta_devolver.ts';
 import { chamarFuncao } from '../_shared/chamadas.ts';
+import { chaveSecreta, stripeDaLinha } from '../_shared/stripe_contas.ts';
 
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
-  apiVersion: '2023-10-16',
-  httpClient: Stripe.createFetchHttpClient(),
-});
+// Duas contas Stripe (missão stripe-empresa-2026-11-01): o reembolso sai pela conta onde o pedido
+// foi pago (orders.stripe_account) — _shared/stripe_contas.ts.
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -122,7 +121,7 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
   const anonKey    = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
   const serviceKey = secretKey() ?? '';
-  const stripeKey  = Deno.env.get('STRIPE_SECRET_KEY') ?? '';
+  let stripeKey    = chaveSecreta('pessoal'); // duas contas: afinada abaixo pela conta do pedido
   if (!supabaseUrl || !anonKey || !serviceKey) {
     return jsonResponse({ error: 'server_misconfigured' }, 500);
   }
@@ -202,6 +201,10 @@ Deno.serve(async (req) => {
   // Antes mandava o total inteiro à Stripe: num pedido pago em parte com carteira/tokens
   // a Stripe recusava (mais do que o cobrado) e o reembolso ficava 'failed'; e um pedido
   // pago só com carteira/tokens (sem PI) nunca devolvia nada.
+  // duas contas: a Stripe da conta onde este pedido foi pago
+  const { data: contaRow } = await admin.from('orders').select('stripe_account').eq('id', orderId).maybeSingle();
+  const { stripe, conta } = stripeDaLinha(contaRow);
+  stripeKey = chaveSecreta(conta);
   let pago = null;
   try { pago = await lerPagoDoPedido(admin, stripeKey, orderId); }
   catch (e) { stripeError = `pago_nao_lido: ${String(e?.message ?? e)}`; }

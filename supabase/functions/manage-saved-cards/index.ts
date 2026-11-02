@@ -26,6 +26,7 @@
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { secretKey } from '../_shared/keys.ts';
+import { type ContaStripe, CONTAS_STRIPE, colunaClienteStripe, temChaveSecreta, stripePara } from '../_shared/stripe_contas.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -33,14 +34,9 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const STRIPE_MODE = (Deno.env.get('BORA_STRIPE_MODE') ?? 'live').toLowerCase();
-const stripeSecretKey = STRIPE_MODE === 'test'
-  ? (Deno.env.get('STRIPE_TEST_SECRET_KEY') ?? '')
-  : (Deno.env.get('STRIPE_SECRET_KEY') ?? '');
-const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: '2023-10-16',
-  httpClient: Stripe.createFetchHttpClient(),
-});
+// Duas contas Stripe (missão stripe-empresa-2026-11-01): o cartão pertence ao Customer de UMA
+// conta. O corpo pode dizer qual (`stripe_account`); senão procura-se nas duas (só nas que o
+// utilizador tem Customer e há chave).
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
 const anonKey     = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
@@ -83,7 +79,7 @@ Deno.serve(async (req: Request) => {
     const admin = createClient(supabaseUrl, serviceKey);
     const { data: row, error: selErr } = await admin
       .from('users')
-      .select('stripe_customer_id')
+      .select('stripe_customer_id, stripe_customer_id_empresa')
       .eq('id', user.id)
       .maybeSingle();
 
@@ -92,16 +88,31 @@ Deno.serve(async (req: Request) => {
       return json({ error: 'db_error', details: selErr.message }, 500);
     }
 
-    const customerId = row?.stripe_customer_id as string | undefined;
-    if (!customerId) return json({ error: 'no_customer' }, 404);
-
-    // Posse: o cartao tem de estar ligado a ESTE customer.
-    const pm = await stripe.paymentMethods.retrieve(pmId);
-    const pmCustomer = typeof pm.customer === 'string' ? pm.customer : pm.customer?.id ?? null;
-    if (pmCustomer !== customerId) {
+    // duas contas: candidatas = a pedida, ou todas as que têm Customer deste utilizador e chave
+    const pedida = body?.stripe_account;
+    const candidatas: ContaStripe[] = (pedida === 'pessoal' || pedida === 'empresa')
+      ? [pedida]
+      : CONTAS_STRIPE.filter((c) => !!row?.[colunaClienteStripe(c)] && temChaveSecreta(c));
+    let achada: { conta: ContaStripe; customerId: string } | null = null;
+    for (const c of candidatas) {
+      const customerId = row?.[colunaClienteStripe(c)] as string | undefined;
+      if (!customerId) continue;
+      try {
+        const pm = await stripePara(c).paymentMethods.retrieve(pmId);
+        const pmCustomer = typeof pm.customer === 'string' ? pm.customer : pm.customer?.id ?? null;
+        if (pmCustomer === customerId) { achada = { conta: c, customerId }; break; }
+      } catch (e) {
+        // o cartão não existe nesta conta: tenta a próxima
+        console.log('[manage-saved-cards] cartão não está na conta', c, String(e).slice(0, 120));
+      }
+    }
+    if (!achada) {
+      if (candidatas.length === 0) return json({ error: 'no_customer' }, 404);
       console.warn('[manage-saved-cards] ownership mismatch', { user: user.id, pmId });
       return json({ error: 'not_your_card' }, 403);
     }
+    const { conta, customerId } = achada;
+    const stripe = stripePara(conta);
 
     if (action === 'detach') {
       await stripe.paymentMethods.detach(pmId);
@@ -111,7 +122,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    return json({ ok: true, action, payment_method_id: pmId });
+    return json({ ok: true, action, payment_method_id: pmId, stripe_account: conta });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[manage-saved-cards] error:', msg);

@@ -12,11 +12,12 @@
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
-import { secretKey } from '../_shared/keys.ts'
   COMING_SOON_RESERVATION_MSG,
   comingSoonResponseBody,
   isRestaurantComingSoon,
 } from '../_shared/coming_soon.ts';
+import { secretKey } from '../_shared/keys.ts';
+import { respostaConta, stripeParaNovoPagamento } from '../_shared/stripe_contas.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -24,10 +25,8 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
-  apiVersion: '2023-10-16',
-  httpClient: Stripe.createFetchHttpClient(),
-});
+// Duas contas Stripe (missão stripe-empresa-2026-11-01): a conta decide-se por pagamento em
+// _shared/stripe_contas.ts (TVDE nunca passa aqui; app antiga → pessoal; interruptor → empresa).
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -54,6 +53,7 @@ Deno.serve(async (req: Request) => {
       client_phone?: string;
       notes?: string;
       idempotency_key?: string;
+      stripe_contas_v2?: boolean | string;
     };
 
     if (!body.restaurant_id || !body.people || !body.reserved_for) {
@@ -79,9 +79,13 @@ Deno.serve(async (req: Request) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
+    // Duas contas: a conta deste pré-pagamento (reserva de mesa = NÃO TVDE).
+    const { stripe, conta } = await stripeParaNovoPagamento(supabase, { body, origem: 'create-reservation-payment-intent' });
+
     const { data: rsv, error: rsvErr } = await supabase
       .from('reservations')
       .insert({
+        stripe_account: conta,
         client_user_id: user.id,
         restaurant_id: body.restaurant_id,
         people: body.people,
@@ -108,6 +112,7 @@ Deno.serve(async (req: Request) => {
         reservation_id: rsv.id,
         restaurant_id: body.restaurant_id,
         purpose: 'reservation_prepayment',
+        bora_conta: conta,
       },
     }, { idempotencyKey });
 
@@ -118,6 +123,7 @@ Deno.serve(async (req: Request) => {
       paymentIntentId: intent.id,
       clientSecret: intent.client_secret,
       amount_cents: cents,
+      ...respostaConta(conta), // duas contas: stripe_account + publishable_key
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

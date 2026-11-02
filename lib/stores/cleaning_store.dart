@@ -425,6 +425,7 @@ class CleaningStore extends ChangeNotifier {
         'action': 'create',
         'bookingId': bookingId,
         if (savedPmId != null) 'saved_pm_id': savedPmId,
+        'stripe_contas_v2': true, // duas contas Stripe (02/11/2026)
       });
       final data = res.data;
       if (data is Map && data['clientSecret'] != null) {
@@ -447,6 +448,7 @@ class CleaningStore extends ChangeNotifier {
         'action': 'create_mbway',
         'bookingId': bookingId,
         'phone': phone,
+        'stripe_contas_v2': true, // duas contas Stripe (02/11/2026)
       });
       final data = res.data;
       if (data is Map && data['paymentIntentId'] != null) {

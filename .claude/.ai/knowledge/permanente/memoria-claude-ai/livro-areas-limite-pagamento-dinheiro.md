@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-limite-pagamento-dinheiro
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-23
+ultima_confirmacao: 2026-11-02
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Limite de €40 em pagamento a dinheiro no [[bora-app]] — onde vive mesmo (4 sítios hardcoded) e prompt entregue para o tornar configurável por cliente
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-limite-pagamento-dinheiro`, origem `claude-ai`, atualizada em 2026-10-23T05:42:41.697519+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-limite-pagamento-dinheiro`, origem `claude-ai`, atualizada em 2026-11-02T20:12:58.425088+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas limite pagamento dinheiro · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/limite-pagamento-dinheiro.md), copiada a 23/10/2026. A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/limite-pagamento-dinheiro.md), copiada a 2026-11-02 20:12 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: limite-pagamento-dinheiro
@@ -35,4 +35,4 @@ aliases: [limite de dinheiro, max_cash_amount_cents, cash limit, pagar em dinhei
 - Logo, subir o limite exige BUILD NOVO — e o CI publica direto para produção a 100% (ver [[play-store-release]]).
 - [stated] PROMPT REGISTADO: `PROMPT_limite_dinheiro_por_cliente_2026-09-01.md`, entregue 01/09, MOTOR OPUS (janela Pro do Claude Code), sessão `limite-dinheiro-por-cliente`. Scope: coluna `client_wallets.cash_limit_override_cents` (NULL = usa o global, número = limite deste cliente), conta do Danilo sem limite na prática e todas as outras contas iguais a hoje; passar os 4 sítios a ler override do cliente → global → constante; campo no painel admin; prova nos dois casos (conta dele passa acima de €40, outra conta continua bloqueada). Estado: entregue como ficheiro; nada disparado
 - Contorno enquanto isso: manter o pedido abaixo de €40 ou dividir em dois pedidos.
-
+- [stated] REGRA (02/11/2026, pedido da Dona Isabel no Continente que travou no talão a 40,22 €): o limite dos 40 € em dinheiro só vale quando o CLIENTE faz o pedido; o que o estafeta acrescenta ou troca na loja depois (a pedido do cliente) pode passar dos 40 € e o talão nunca pode ficar preso por isso. Aplicado no gatilho `enforce_cash_payment_limit` por MCP (migração cash_limit_so_na_criacao_20261102; falta copiá-la para o repo)

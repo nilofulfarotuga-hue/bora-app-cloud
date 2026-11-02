@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-02T18:37:06.246252+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-02T20:37:06.064817+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-02 18:27 UTC. Páginas listadas: 511.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-02 20:12 UTC. Páginas listadas: 511.
 
 ## O que é o Bora
 
@@ -328,7 +328,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-areas-lancamento-ios — Lançamento do Bora no iPhone/App Store — decisão e autorização total do Danilo (07/09), o caminho escolhido (conta individual, Macs do GitH… (2026-10-23)
 - livro-areas-lavagem-auto — Serviço próprio de lavagem de carros com recolha e entrega dentro do Bora App — modelo, serviços e preços que o Danilo definiu a 26/08 (2026-10-23)
 - livro-areas-leonidas-chocolates — Loja de chocolates Leonidas (Guarda), indicada pelo Cauê do Goola — aberta no Bora a 01/10 como loja não-parceira (balcão + 15%); histórico… (2026-10-23)
-- livro-areas-limite-pagamento-dinheiro — Limite de €40 em pagamento a dinheiro no [[bora-app]] — onde vive mesmo (4 sítios hardcoded) e prompt entregue para o tornar configurável p… (2026-10-23)
+- livro-areas-limite-pagamento-dinheiro — Limite de €40 em pagamento a dinheiro no [[bora-app]] — onde vive mesmo (4 sítios hardcoded) e prompt entregue para o tornar configurável p… (2026-11-02)
 - livro-areas-limpeza-vertical — Bora App Limpeza (cleaning) vertical — Helpling-style booking and dispatch (2026-11-02)
 - livro-areas-livro-comum — "Livro comum" — o Danilo quer que Claude.ai, Hermes/Emerson, Claude Code e ChatGPT saibam todos o mesmo (tudo sobre ele e o Bora); ler ante… (2026-10-23)
 - livro-areas-lojas-takeaway-guarda — Restaurantes da Guarda (sushi, pizzarias, churrasqueira) que o Danilo quer montar no Bora como lojas não-parceiras de takeaway por telefone… (2026-10-25)

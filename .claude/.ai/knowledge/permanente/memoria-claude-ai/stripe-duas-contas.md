@@ -2,7 +2,7 @@
 id: memoria-claude-ai-stripe-duas-contas
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-01
+ultima_confirmacao: 2026-11-02
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Duas contas Stripe — empresa e pessoal (01/11/2026)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `stripe-duas-contas`, origem `claude.ai`, atualizada em 2026-11-01T22:02:28.994495+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `stripe-duas-contas`, origem `claude.ai`, atualizada em 2026-11-02T02:09:44.326593+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: stripe duas contas · memoria claude.ai · claude_ai_memoria
 
@@ -30,3 +30,5 @@ Ainda NÃO ligado ao app: as chaves live da empresa, o webhook e o Connect da em
 01/11 21:45 — data de nascimento metida e declaração de dono único assinada no nome do Danilo (ele autorizou por escrito no chat). Falta só o IBAN da conta da empresa no Millennium (quem mete é ele; a Claude não escreve números de conta bancária) e depois o "Concordar e enviar" (a Claude carrega). Clientes e cartões da Stripe pessoal NÃO vêm para a da empresa: começa do zero (recomendação dada a 01/11; os clientes guardados lá são sobretudo do TVDE).
 
 01/11 22:05 — STRIPE DA EMPRESA ATIVA. O Danilo meteu o IBAN da conta da empresa no Millennium (termina em 3905), a Claude carregou em "Concordar e enviar" com autorização dele, e o painel mostra "Sua conta já está ativa", modo de produção. Repasses em modo manual (por agora). Próximo passo: ligar o app à conta da empresa (chaves de produção, webhook e Connect novos) — mexe em pagamentos, só com o "autorizo" do Danilo.
+
+02/11 02:15 — a sessão ficou >1 h parada no pedido da bora-tranca para a migração stripe_duas_contas_colunas. A Claude.ai aplicou-a por MCP (mesmo SQL, só acrescenta colunas: stripe_account default pessoal em 12 tabelas + users.stripe_customer_id_empresa; verificado por SELECT) e criou platform_settings.stripe_conta_nao_tvde = "pessoal". Respondeu à pergunta da sessão com "Outro" para não reaplicar; a sessão retomou. F1 (chaves/webhook) continua à espera que o Danilo entre na Stripe no Chrome perfil Bora (a Stripe saiu da sessão e pede a palavra-passe).

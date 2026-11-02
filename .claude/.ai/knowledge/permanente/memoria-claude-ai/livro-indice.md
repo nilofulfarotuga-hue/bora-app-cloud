@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-02T01:07:07.762147+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-02T02:37:06.883459+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-02 00:49 UTC. Páginas listadas: 503.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-02 02:09 UTC. Páginas listadas: 503.
 
 ## O que é o Bora
 
@@ -569,7 +569,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - sistema-motores-e-portas — Quem faz o quê — uma porta só (atualizado 17/09/2026) (2026-09-17)
 - skills-indice — Índice das skills da pasta comum (Claude Code, Hermes, Claude.ai) — uma linha cada (2026-10-25)
 - stripe-declaracao-2026-11-01 — Stripe do Bora desde o início — extrato para o contabilista (01/11/2026) (2026-11-01)
-- stripe-duas-contas — Duas contas Stripe — empresa e pessoal (01/11/2026) (2026-11-01)
+- stripe-duas-contas — Duas contas Stripe — empresa e pessoal (01/11/2026) (2026-11-02)
 - tokens-metade-do-saldo-2026-10-14 — Tokens do cliente: metade do saldo + desconto chega à cobrança (14/10/2026) (2026-10-14)
 - whatsapp-a-discutir — WhatsApp — o que ainda está por discutir com o Danilo (esqueleto desligado) (2026-10-25)
 

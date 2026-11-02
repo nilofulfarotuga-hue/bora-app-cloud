@@ -101,3 +101,5 @@ confianca: auto
 | ceo-ai | 2026-11-01 | app-fechar-2026-11-01 (PC, Opus; 5 agentes + revisor) | B1–B8: 4 migrações aplicadas, notify-handyman publicada, 108 ficheiros; analyze 0 erros; 258 ficheiros/2847 testes verdes; 3 migrações recusadas pelo classificador → PROPOSTA_ | ok |
 | ceo-ai | 2026-11-02 | stripe-empresa-2026-11-01 retoma (PC, Opus) | SQL 05 sem DROP + erro antigo corrigido; 24+2 funções publicadas; provas 0,50 € empresa/pessoal sem cobrar; webhook empresa 5→3 eventos; 8 vermelhas para a Claude.ai | ok |
 | protocolo-missao-bora | 2026-11-02 | stripe-empresa-2026-11-01 retoma | e2e_log R0–R6 (ids ≥6139), relatório + Obsidian + livro; buraco da tranca (npx) reportado | ok |
+| ceo-ai | 2026-11-02 | chaves-varredura-2026-10-31 (PC, Opus) | 37 Edge Functions pela regra da casa + notify-client dono; varredor 99/0/23; vigia chaves e pagamentos provados; app com token da sessão; painel órfãos + saúde das chaves; P3/P4 no emulador não feitos (RAM) | ok |
+| trocar-chaves-servidor | 2026-11-02 | chaves-varredura-2026-10-31 (criada) | skill nova a partir da missão | ok |

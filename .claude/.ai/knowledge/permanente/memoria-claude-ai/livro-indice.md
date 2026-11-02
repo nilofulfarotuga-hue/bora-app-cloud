@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-02T00:37:03.040738+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-02T01:07:07.762147+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-02 00:31 UTC. Páginas listadas: 502.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-02 00:49 UTC. Páginas listadas: 503.
 
 ## O que é o Bora
 
@@ -34,7 +34,7 @@ Quer respostas curtas, em texto corrido e sem jargão, e que o trabalho se faça
 
 1. `erros-aprendidos` — as correções do Danilo; errou uma vez, nunca mais (atualizada 2026-11-01).
 2. `regras-do-danilo` — as regras dele; mandam em tudo (atualizada 2026-10-31).
-3. Estado vivo: `digest-2026-11-01-infra-claude-tudo` (2026-11-01).
+3. Estado vivo: `digest-2026-11-01-app-fechar` (2026-11-01).
 4. Antes de mexer em pedidos, estafetas, dinheiro ou migrações: `regras-operacao-agentes`.
 5. Ferramenta nova sem MCP? `livro-porta-unica` explica como ligar (Córtex por MCP, ou o ficheiro plano LIVRO.md com senha).
 
@@ -51,8 +51,9 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - erros-aprendidos — Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige) (2026-11-01)
 
-## digest (194)
+## digest (195)
 
+- digest-2026-11-01-app-fechar — Digest 01-02/11/2026 — missão app-fechar (Casa, peso, convidado, online, limpeza, assistente, robô, revisão humana) (2026-11-02)
 - digest-2026-11-01-infra-claude-tudo — Digest 01/11/2026: Claude sem ração em todos os robôs, Dipsy pelo porteiro, VPS arrumada, Bora Bastidores (2026-11-01)
 - digest-2026-11-01-fechar-tudo-claude-ai — Digest 01/11 noite — Claude.ai fechou a lista de pendências com 9 agentes em paralelo + missão no PC (2026-11-01)
 - digest-2026-11-01-assistente-cliente-claude — Digest 01/11 — Bora Assistente com Claude primeiro + 3 melhorias de 10/10; stories em breve (2026-11-01)

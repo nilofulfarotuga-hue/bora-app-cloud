@@ -71,6 +71,8 @@ import 'screens/admin/admin_tvde_rides_screen.dart';
 import 'screens/admin/admin_tvde_pagamentos_screen.dart';
 import 'screens/admin/admin_pendencias_operacao_screen.dart';
 import 'screens/admin/admin_web_health_screen.dart';
+import 'screens/admin/admin_orphan_payments_screen.dart';
+import 'screens/admin/admin_saude_chaves_screen.dart';
 import 'screens/admin/admin_motoristas_documentos_screen.dart';
 import 'screens/admin/admin_comprovativo_atividade_screen.dart';
 import 'screens/admin/admin_revisoes_screen.dart';
@@ -1089,6 +1091,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           '/admin/pendencias': (_) => const AdminPendenciasOperacaoScreen(),
           // [14/10] deep link do alarme "cliente não consegue pedir".
           '/admin/saude-web': (_) => const AdminWebHealthScreen(),
+          // [02/11, chaves-varredura] deep links dos avisos "PAGOU E NÃO TEM PEDIDO"
+          // (vigia_pago_sem_pedido) e "CHAVE RECUSADA" (vigia diário das chaves):
+          // não estavam registados — tocar no aviso não abria nada.
+          '/admin/orphans': (_) => const AdminOrphanPaymentsScreen(),
+          '/admin/system-health': (_) => const AdminSaudeChavesScreen(),
           // [Ficha legal · 23/09] deep link do aviso diário de documentos.
           '/admin/motoristas-documentos': (_) =>
               const AdminMotoristasDocumentosScreen(),

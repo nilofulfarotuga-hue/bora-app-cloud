@@ -100,3 +100,68 @@ previa. O que se mediu, o desenho novo (`_shared/chaves.ts`, `chaves-semear`, `v
 o estado função a função e o runbook da troca estão em **`docs/CHAVES-2026-10-16.md`**.
 Os passos 3, 5 e 6 acima continuam válidos (esperar pela maioria das instalações, desligar as
 legadas, repositório público/privado).
+
+## Varredura — 31/10 a 02/11/2026 (missão `chaves-varredura-2026-10-31`)
+
+Porquê: a 31/10 11:41 um cliente pagou 18,41 € e ficou sem pedido — `stripe-webhook` chamou a
+`finalize-order-from-intent` com a chave nova e levou 401 (a função lia o `role` de dentro do JWT).
+Antes de trocar ou desligar qualquer chave: skill **`trocar-chaves-servidor`**.
+
+### O que a porta (`verify_jwt`) aceita — medido a 31/10/2026
+
+| Chamada | `verify_jwt=true` | `verify_jwt=false` |
+|---|---|---|
+| `sb_secret` em `Authorization: Bearer` | passa à função | passa à função |
+| `sb_secret` só em `apikey` (sem `Authorization`) | passa à função | passa à função |
+| service_role legada (JWT) em `Bearer` | passa | passa |
+| chave pública / anon em `Bearer` | **passa** (a função tem de recusar) | passa |
+| JWT forjado | 401 `UNAUTHORIZED_LEGACY_JWT` | passa (a função tem de recusar) |
+| sem cabeçalho nenhum | 401 `UNAUTHORIZED_NO_AUTH_HEADER` | passa (a função tem de recusar) |
+
+Ou seja: a porta nunca chega. Toda a função confirma quem chama por `_shared/chaves.ts`.
+
+### O que o banco manda (31/10/2026)
+
+- Todas as rotinas do banco que chamam Edge Functions mandam a **service_role legada** em `Bearer`
+  (`vault.service_role_key`, `_service_role_key()`, `_dispatch_service_jwt()`; e desde 31/10 também
+  `_dispatch_jwt()`, que antes mandava a anon e dava 401 no `notify-tvde-client`). Só
+  `_provider_atividade_avisar`, `_robo_documentos_chamar` e `_robo_documentos_email` mandam já a nova
+  em `apikey`. As funções aceitam a legada confirmada no Auth; **no dia em que as legadas forem
+  desligadas, o cofre `service_role_key` tem de passar a `sb_secret_backend` antes** (vigia abaixo
+  avisa se não).
+- As outras Edge Functions mandam `secretKey()` (a `sb_secret` "default") em `apikey` + `Bearer`.
+- Só existe uma chave secreta nova (`default`). A `backend-2026-10` referida em `_shared/keys.ts` nunca
+  foi criada.
+- A app (cliente, estafeta, parceiro, painel) mandava a chave pública como `Bearer` nos avisos → 401.
+  Corrigido: token da sessão (`notification_service.dart`, `_post`).
+
+### O que ficou feito
+
+- 37 Edge Functions pela regra da casa (lista no commit `cb134328`), mais `notify-client` (aceita
+  `user_id`; utilizador só avisa a si próprio ou o cliente de um pedido em que é loja/estafeta) — todas
+  provadas do banco (legada, nova em Bearer, nova só em apikey: 200) e de fora (forjado e sem nada
+  recusados). Zona vermelha (`refund`, `finalize`, `dispatch-engine`, `stripe-webhook`,
+  `client-cancel-order`) aplicada pela Claude.ai a 01/11 a partir de
+  `docs/propostas/chaves-2026-10-31/zona-vermelha.md`.
+- Falhas de segurança fechadas pelo caminho: `register-partner` (lia o `sub` de um JWT sem assinatura),
+  `notify-tvde-driver` (não verificava quem chama: a chave pública mandava ofertas falsas),
+  `notify-client` (qualquer sessão mandava texto livre a qualquer cliente).
+- `_shared/chamadas.ts`: chamada Edge → Edge que escreve a falha em `e2e_log`
+  (fluxo `edge-chamada-falhou`).
+- `tools/varrer_chaves_funcoes.ts`: código (padrões proibidos) + no ar (cada função com ping, com a
+  chave nova em apikey + Bearer). A 02/11: 99 funções, 0 proibidas, 23/23 no ar.
+- Vigia diário (`_cron_saude_chaves_funcoes` 07:00 UTC, verificador ao minuto 6 de cada hora):
+  chama cada função do servidor com as duas chaves; 401/403 → "🔑 CHAVE RECUSADA" (sininho, push,
+  Telegram). Painel: **Saúde das chaves** (`/admin/system-health`, botão "Correr o vigia agora").
+- Vigia dos pagamentos (`_cron_vigia_pago_sem_pedido`, 5 em 5 min, da Claude.ai): provado a 02/11 com
+  um pagamento fictício (cura tentada → a finalize recusou na Stripe; aviso "PAGOU E NÃO TEM PEDIDO"
+  com push 3/3 e Telegram). Painel: **Pagamentos órfãos** (`/admin/orphans`) com "Criar o pedido agora".
+
+### Os 4 pagamentos "sem etiqueta" (18/10 a 27/10)
+
+Todos `card_present` (cobrados ao vivo com o telemóvel, Tap to Pay da Stripe), extrato "BORA APP", sem
+cliente nem descrição: 186,00 € e 291,53 € (27/10) são as contas semanais do Jai e do Vansh (nota no
+extrato do contabilista); 5,00 € (18/10) e 5,00 € (22/10) sem nenhuma pista na Stripe. **Nenhum é um
+pedido da app que se perdeu.** Atenção: o `stripe-webhook` v38+ põe um aviso "alto" no sininho também
+nestas cobranças ao vivo — sugestão de afinação (só "baixo" quando `payment_method_types` tem
+`card_present`) na proposta da zona vermelha.

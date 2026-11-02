@@ -154,6 +154,19 @@ Mudança (F4): antes de cada folha / confirmação / web checkout, a chave passa
 servidor devolveu (`publishable_key`), com `applySettings()` se mudou; TVDE continua na pessoal.
 Pedidos de criação de pagamento levam `stripe_contas_v2: true`.
 
+## 7.0 Estado às 07:00 de 02/11/2026 (retoma, Claude Code / Opus) — manda sobre a tabela de baixo
+
+| Fase | Estado (provado no e2e_log, fluxo `stripe-empresa-2026-11-01`, passos R0–R5) |
+|---|---|
+| F1 chaves | **feito** (sessão anterior, 04:54): 7 segredos STRIPE* no servidor |
+| F2 webhook | **feito**: `stripe-webhook-empresa` v1 no ar (verify_jwt=false); destino da empresa com os MESMOS 3 eventos da pessoal (corrigido: tinha 5). Versão da API do destino: empresa `2026-10-28.endive`, pessoal `2026-02-25.clover` (não se muda ao editar; o webhook só lê campos básicos — risco baixo, registado) |
+| F3 servidor | **24 funções publicadas** + `admin-payments` v12. SQL 01–03 e 05 aplicados (05 sem DROP + correção de um erro antigo da lista do painel). **Faltam as 8 da zona vermelha** → `docs/propostas/stripe-duas-contas/DEPLOY_ZONA_VERMELHA.md` (Claude.ai) |
+| F4 app | falta a proposta 04 (`order_store.dart`, zona vermelha) |
+| F5 painel | coluna "Conta Stripe" vem do banco (função `admin_list_payments` nova) |
+| F6 provas | **feito sem cobrar**: PI 0,50 € criado e cancelado na EMPRESA (`pi_3UXEwPGWwQxC9wR21J1qcJvg`) com o evento a chegar ao `stripe-webhook-empresa` com 200 (`stripe_account='empresa'`); idem na PESSOAL pelo código novo (`pi_3UXEylGlT3R2jCYp0CaKIZU8`). Modo de teste da empresa não feito: não há chaves de teste da empresa e o PC não tem RAM para emulador (1 GB) |
+| Interruptor | continua `"pessoal"`: mudar exige sessão de administrador (`admin_update_money_setting`) e só faz sentido depois das 8 funções |
+| F7 publicar | à espera de ordem do Danilo |
+
 ## 7. Estado por fase (02/11/2026 ~03:00) e o que falta, passo a passo
 
 A sessão de 02/11 (Claude Code, Fable) correu **sem o Danilo presente**: a tranca do repo

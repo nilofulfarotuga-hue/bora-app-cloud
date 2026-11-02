@@ -29,6 +29,7 @@ const corsHeaders = {
 // Duas contas Stripe (missão stripe-empresa-2026-11-01): o painel vê AS DUAS contas. Cada cartão e
 // cada PaymentIntent sai marcado com `stripe_account`; o estorno passa a conta à função refund.
 import { type ContaStripe, CONTAS_STRIPE, colunaClienteStripe, estadoChaves, temChaveSecreta, stripePara } from '../_shared/stripe_contas.ts';
+import { chamadaDoServidor } from '../_shared/chaves.ts';
 const contasComChave = (): ContaStripe[] => CONTAS_STRIPE.filter((c) => temChaveSecreta(c));
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
@@ -42,10 +43,69 @@ const json = (body: any, status = 200) =>
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 
+// ── prova de uma conta (F6 das duas contas, 02/11/2026) ────────────────────────────────────
+// Cria um PaymentIntent de 0,50 € SEM meio de pagamento e cancela-o logo: sem cartão não há
+// cobrança. Prova que a chave da conta escreve PaymentIntents e faz a Stripe mandar o evento
+// payment_intent.canceled ao webhook dessa conta (lá fica como "pagamento sem pedido", 200).
+// deno-lint-ignore no-explicit-any
+async function provaConta(admin: any, body: any, quem: string): Promise<Response> {
+  const conta: ContaStripe = body?.conta === 'pessoal' ? 'pessoal' : 'empresa';
+  if (!temChaveSecreta(conta)) return json({ ok: false, error: 'stripe_chave_em_falta', conta }, 409);
+  let r: Record<string, unknown>;
+  try {
+    const stripe = stripePara(conta);
+    const pi = await stripe.paymentIntents.create({
+      amount: 50,
+      currency: 'eur',
+      payment_method_types: ['card'],
+      description: 'Prova Bora duas contas (criado e cancelado logo, sem cobrança)',
+      metadata: { kind: 'prova_conta', bora_conta: conta, origem: 'admin-payments', quem },
+    });
+    const cancelado = await stripe.paymentIntents.cancel(pi.id, { cancellation_reason: 'abandoned' });
+    r = {
+      ok: cancelado.status === 'canceled', conta, payment_intent_id: pi.id, valor_cents: pi.amount,
+      estado_criado: pi.status, estado_final: cancelado.status, livemode: pi.livemode,
+    };
+  } catch (e) {
+    r = { ok: false, conta, error: e instanceof Error ? e.message : String(e) };
+  }
+  try {
+    await admin.from('e2e_log').insert({
+      fluxo: 'stripe-duas-contas', passo: 'prova_conta', estado: r.ok ? 'ok' : 'falhou',
+      detalhe: JSON.stringify({ ...r, quem }).slice(0, 2000), device: 'edge',
+      run_id: new Date().toISOString().slice(0, 10),
+    });
+  } catch (_) { /* o registo é melhor-esforço */ }
+  return json(r, r.ok ? 200 : 502);
+}
+
+// ── destinos de webhook de cada conta (só leitura: URL, estado e eventos; nunca o segredo) ──
+// A chave restrita da empresa pode não ter permissão de ler webhooks: aí vem o erro da Stripe.
+async function webhooksDasContas(): Promise<Record<string, unknown>> {
+  const out: Record<string, unknown> = {};
+  for (const conta of contasComChave()) {
+    try {
+      const lista = await stripePara(conta).webhookEndpoints.list({ limit: 20 });
+      out[conta] = lista.data.map((w: Stripe.WebhookEndpoint) => ({ id: w.id, url: w.url, status: w.status, versao_api: w.api_version ?? null, eventos: w.enabled_events }));
+    } catch (e) {
+      out[conta] = { erro: e instanceof Error ? e.message : String(e) };
+    }
+  }
+  return out;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
+    // A prova também se pode pedir do próprio servidor (pg_net com a chave do cofre), sem sessão.
+    const bodyCedo = await req.clone().json().catch(() => ({}));
+    const acaoCedo = String(bodyCedo?.action ?? '');
+    if ((acaoCedo === 'prova_conta' || acaoCedo === 'webhooks') && await chamadaDoServidor(req)) {
+      if (acaoCedo === 'webhooks') return json({ webhooks: await webhooksDasContas() });
+      return await provaConta(createClient(SUPABASE_URL, SERVICE_KEY), bodyCedo, 'servidor');
+    }
+
     const authHeader = req.headers.get('Authorization') ?? '';
     const token = authHeader.replace(/^Bearer\s+/i, '').trim();
     if (!token) return json({ error: 'missing_token' }, 401);
@@ -140,6 +200,16 @@ Deno.serve(async (req: Request) => {
     // ── estado das duas contas (só nomes/booleans, nunca valores) ────────
     if (action === 'contas') {
       return json({ contas: estadoChaves() });
+    }
+
+    // ── prova de uma conta: 0,50 € criado e cancelado logo (sem cobrança) ──
+    if (action === 'prova_conta') {
+      return await provaConta(admin, body, user.id);
+    }
+
+    // ── destinos de webhook das duas contas (só leitura) ──
+    if (action === 'webhooks') {
+      return json({ webhooks: await webhooksDasContas() });
     }
 
     // ── estorno (delegado na EF blindada) ──────────────────────────

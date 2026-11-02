@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-02T11:07:09.582543+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-02T15:07:10.477337+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-02 10:58 UTC. Páginas listadas: 509.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-02 14:52 UTC. Páginas listadas: 510.
 
 ## O que é o Bora
 
@@ -397,7 +397,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - relatorio-semanal-reels-2026-10-29 — Relatório semanal dos reels - 2026-10-29 (2026-10-29)
 - relatorio-semanal-reels-2026-11-02 — Relatório semanal dos reels - 2026-11-02 (2026-11-02)
 
-## prompt (31)
+## prompt (32)
 
 - prompt-auditoria-3-plataformas-2026-10-06 — Prompt de missão: auditoria das 3 plataformas (06/10) (2026-10-06)
 - prompt-boom-burger-2026-10-27 — PROMPT Boom! Burger — loja parceira + site premium (27/10/2026) (2026-10-27)
@@ -430,6 +430,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - prompt-stripe-empresa-2026-11-01 — Prompt — ligar o app à Stripe da empresa (01/11/2026) (2026-11-02)
 - prompt-talao-confirmar-loja-saldo-2026-10-28 — PROMPT 28/10 — Confirmar do talão, nome da loja, dinheiro a cobrar com saldo/tokens, reembolso no cancelamento (100% saldo ou meio original… (2026-10-28)
 - prompt-talao-confirmar-loja-saldo-2026-10-28-bloco-d — Adenda 18:30 ao prompt de 28/10 (talão Auchan/Divan): Bloco D novo — reembolso no cancelamento (2026-10-28)
+- prompt-zerar-2026-11-02 — Prompt "zerar" (02/11 15:10): chaves antigas, série de limpeza devolve, peso cobra no cartão + arrumações (2026-11-02)
 
 ## pesquisa (2)
 

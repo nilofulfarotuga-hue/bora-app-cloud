@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-limpeza-vertical
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-23
+ultima_confirmacao: 2026-11-02
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Bora App Limpeza (cleaning) vertical — Helpling-style booking and dispatch
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-limpeza-vertical`, origem `claude-ai`, atualizada em 2026-10-23T05:38:59.319019+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-limpeza-vertical`, origem `claude-ai`, atualizada em 2026-11-02T15:54:06.614845+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas limpeza vertical · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/limpeza-vertical.md), copiada a 23/10/2026. A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/limpeza-vertical.md), copiada a 02/11/2026 15:53 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: limpeza-vertical
@@ -43,4 +43,5 @@ FINAL WRITE
 - [stated] 15/10/2026: regra do Danilo — sempre que houver uma limpeza, a profissional tem de ver no app (campo próprio, português simples) o que tem de fazer conforme o tipo (Standard, Profunda…) e o que tem de levar (produtos sim ou não, aspirador, etc.); e o robô do suporte tem de saber explicar isso ao cliente
 - [stated] 19/10/2026: regra do Danilo — só se chama a limpadora se a limpeza estiver paga: MB Way tem de estar pago antes de chamar; dinheiro chama logo. Numa limpeza semanal vale o dia e a hora que o cliente programou (um reagendamento pontual não muda as seguintes)
 - [stated] 20/10/2026: regra do Danilo — o cadastro de TODOS os prestadores (limpadora, estafeta, motorista) tem de pedir e guardar o comprovativo de atividade aberta nas Finanças; e o pedido MB Way da limpeza tem de chegar ao cliente sozinho e a tempo antes do dia, senão a limpadora não vai
+- [stated] 02/11/2026: decidiu que quando o cliente carrega em "Parar a série", as limpezas futuras que já pagou voltam para a carteira dele
 

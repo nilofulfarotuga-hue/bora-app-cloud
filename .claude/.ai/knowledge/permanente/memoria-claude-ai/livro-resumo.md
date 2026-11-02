@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-resumo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-31
+ultima_confirmacao: 2026-11-01
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Livro do Bora — resumo para o ChatGPT (regras + erros + índice, sem pessoais), gerado
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-resumo`, origem `claude-code`, atualizada em 2026-10-31T23:40:16.662445+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-resumo`, origem `claude-code`, atualizada em 2026-11-01T23:40:14.344515+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro resumo · memoria claude.ai · claude_ai_memoria
 
-# Livro do Bora — resumo para o ChatGPT (2026-10-31)
+# Livro do Bora — resumo para o ChatGPT (2026-11-01)
 
 Lê isto antes de responder ao Danilo. É a mesma verdade que a Claude.ai, o Hermes, o Claude Code e o OpenCode leem (tabela public.claude_ai_memoria). Gerado todas as noites pela VPS; páginas pessoais ficam de fora.
 
@@ -197,6 +197,11 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 31/10 18:29 (quem errou: claude-ai): na resposta ao Ricardo ("o que disseste ontem?") escrevi seco — só "não dá para fazer fiado", a conta e "quando consegues mandar?"; ele achou grosso outra vez (repete o de 30/10) → reto sem ser grosso — lembrar com calma que ajudou porque o cliente pediu e achou que era só até lhe sair o pagamento; dizer que uma vez ou outra ajuda, mas fiado não consegue nem deixa passar de 20 €; a conta vai no fim, sem frase seca de cobrança.
 - 31/10 (claude-ai): 31/10: as missões no PC ficaram ~7 h paradas à espera de um Permitir que nunca apareceu ao Danilo; a Claude.ai só registava e voltava a ver de hora a hora. → Pedido de Permitir sem resposta em 15 min = a Claude.ai leva logo ao chat a lista numerada do que falta autorizar e faz por MCP com o "autorizo" dele; o que só o PC faz vai num prompt para ele colar numa sessão nova com "Ignorar permissões".
 - 31/10 (claude-code): li "n tem q muar a validade da chave" como "nao tem de mudar" e ate gravei aqui a regra ao contrario; ele queria "nao, TEM QUE mudar a validade" → mensagem curta comecada por "n": ler como "nao, ..." e confirmar o sentido antes de gravar regra; a chave da VPS dos robos (robos-vps-3) fica SEM data de fim, escolha dele
+- 01/11 (claude-ai): Devolvi ao Danilo uma lista de 42 pendências a pedir "autorizo" item a item e passei dias sem fechar nada; ele disse "antes estava tão bom, agora é uma palhaçada, você não ficar pedindo permissão para nada" (01/11/2026 19:56) → Quando ele pede, já está autorizado. Nunca devolver listas a pedir autorizo por item: executar tudo de uma vez com vários agentes em paralelo, e só juntar num ÚNICO pedido, no fim, o que mexe em dinheiro irreversível. Ele não clica em nada: eu clico, preencho, publico, crio chaves. Relatório só "fiz isto, falta isto".
+
+- 01/11 (claude-ai): às 20:19 mandei ao Jai a conta da semana com 214 € (28 € da semana + os 186 € de 24/10 "ainda em aberto"), mas ele já tinha pago os 186 € no cartão, no telemóvel do Danilo, a 27/10 (Stripe 27/10 16:50, 186,00 €). A nota só dizia "sem registo de pagamento nas conversas" e eu tratei isso como dívida. O Danilo: "já recebi pelo aeroporto, o dele é só essa semana, você mandou errado" → antes de cobrar um saldo antigo, confirmar na Stripe (stripe_extrato_contabilista) e no WhatsApp se já foi pago; "sem registo" não é "por pagar"; na dúvida, perguntar ao Danilo antes de enviar.
+- 01/11 (claude-ai): Mandei ao Jai (01/11 20:19) a conta da semana a dizer que os 186 € de 24/10 ainda estavam em aberto, só pela memória — ele já tinha pago por cartão a 27/10 (Stripe 16:50). O Jai ligou ao Danilo e teve de sair uma correção com pedido de desculpa. → Antes de mandar qualquer conta ou cobrança a alguém, confirmar o que já foi pago na BASE e na Stripe (payments/stripe_extrato_contabilista, orders pagos, ledger) — nunca só pela memória. Mandar só o que está mesmo por pagar.
+- 01/11 (claude-ai): 01/11 21:10: no relatório final disse que a mensagem para o Hugo e o resumo da Stripe estavam "na página mensagem-hugo-2026-11-01 do livro", em vez de os escrever aqui no chat; ele tinha pedido o relatório detalhado da Stripe e a mensagem ao Hugo para conferir → quando ele pede relatório, resumo ou mensagem para conferir, vai SEMPRE escrito por inteiro aqui no chat, detalhado; o livro e o Córtex são só cópia para os agentes, nunca o sítio para onde o mando ler
 
 
 ## Índice do livro (sem páginas pessoais)
@@ -213,6 +218,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - adendo-8-nota-telemovel-2026-10-29 — Nota ao adendo 8: o Enter na sessao do Harness e dado pelo Danilo no telemovel
 - adendo-9-checkin-escada-premios-2026-10-29 — ADENDO 9 (Danilo 22:20) - check-in diario: calendario de 30 dias e escada de premios "levanta ou continua" (um premio po
 - adendo-harness-servidor-remote-control-2026-10-29 — ADENDO para a missao do Harness (sessao DeepSeek Harness installation): no fim, servidor de Remote Control para duas ses
+- adendo-infra-2026-11-01 — Adendo à missão infra-claude-tudo-2026-11-01 (B10-B14: site /baixar, Meta ads, cartazes A3, grupos Facebook + Em Dia, st
 - adendo-vozes-omnivoice-2026-10-22 — Adendo de vozes: A/B do motor OmniVoice (k2-fsa) no filme Ep1
 - armadilha-ytdlp-cookies-chrome-windows — yt-dlp + cookies do Chrome no Windows: caminho morto (App-Bound Encryption)
 - arquivo-regras-do-danilo-2026-09-17 — ARQUIVO — regras do Danilo (versão de 17/09, substituída a 23/10)
@@ -416,6 +422,13 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - digest-2026-10-31-jai-sportsdunia-e-fatura-139 — Jai 31/10: SportsDunia, estilo das mensagens e fatura dos 139
 - digest-2026-10-31-meta-anuncios-g4 — Meta anúncios 31/10 — criativos refeitos, juiz ≥ 9, 4 anúncios LIGADOS
 - digest-2026-10-31-publicar-retoma — Claude Code 31/10 — publicar a retoma (base, alertas, envio)
+- digest-2026-11-01-assistente-cliente-claude — Digest 01/11 — Bora Assistente com Claude primeiro + 3 melhorias de 10/10; stories em breve
+- digest-2026-11-01-conta-jai-186-pago — Conta do Jai — 186 € de 24/10 já pagos; semana de 26/10 = 28 € (juntar à memória)
+- digest-2026-11-01-fechar-tudo-claude-ai — Digest 01/11 noite — Claude.ai fechou a lista de pendências com 9 agentes em paralelo + missão no PC
+- digest-2026-11-01-fecho-pendentes — Digest 01/11 — fecho dos pendentes (peso ao quilo, robô v30, limpeza, porteiro) publicado nas 3
+- digest-2026-11-01-infra-claude-tudo — Digest 01/11/2026: Claude sem ração em todos os robôs, Dipsy pelo porteiro, VPS arrumada, Bora Bastidores
+- digest-2026-11-01-mercadona-reaberta — Digest 01/11/2026 — Mercadona reaberta só com beleza e higiene
+- diretiva-plataformas-2024-2831 — Diretiva (UE) 2024/2831 trabalho em plataformas — o que obriga o Bora, estado em Portugal, o que está feito e checklist 
 - dsh-como-usar — Como usar o Dipsy (dsh)
 - dsh-como-usar-novidades-2026-10-31 — Dipsy: o que ficou novo a 31/10 (complemento da pagina dsh-como-usar)
 - em-dia-ios-copiar-pipeline-bora — Em Dia / iOS: nao escrever o CI do zero, copiar o da Bora que ja funciona
@@ -428,11 +441,14 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - erros-aprendidos — Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige)
 - estado-2026-09-13 — Estado do Bora a 13/09/2026 (auditoria da Claude.ai depois de 3-4 dias sem Claude)
 - fecho-2026-10-17-cancelamento-tardio — Fecho 17/10 — cancelamento tardio TVDE: publicado nas 3 plataformas (estado final do prompt prompt-cancelamento-tardio-2
+- fecho-outubro-2026 — Fecho de outubro/2026 (em nome individual) — por prestador, o que cada um faz, email corrigido
 - habilidades-propostas — Habilidades propostas pelo vigia (dinheiro/publicacao) — a Claude.ai decide
 - ideias-pendentes-decisao-danilo — Ideias grandes à espera da decisão do Danilo (29/10/2026)
 - ideias-videos-danilo — Ideias tiradas dos vídeos que o Danilo manda
 - jai-entrevista-kalinga-mensagem — Mensagem ao Jai — entrevista do Professor Kalinga já no site (30/10/2026)
 - jai-sportsdunia-mensagem — Confirmação para o Jai — artigo da SportsDunia no site (31/10/2026)
+- legal-gestao-algoritmica-prestadores — Como o Bora decide — informação sobre sistemas automáticos (Diretiva 2024/2831, art. 9.º-11.º) — texto para a app, v2026
+- legal-politica-suspensao-revisao-humana — Política de suspensão e revisão humana (nenhuma suspensão automática; motivo+quem+data; revisão por pessoa em 7 dias) — 
 - livro-areas-alertas-notificacoes — Alertas do Bora para o Danilo (Telegram + push admin persistente) — o que já dispara, por que caminho, e o que falta
 - livro-areas-analise-apps-emulador — Ideia do Danilo (08/10/2026) de usar emulador Android + agente de IA para testar bugs do Bora e comparar com iFood/Uber/
 - livro-areas-arandelas-quadros-jai — Trabalho de montar as arandelas de vidro e pendurar os quadros em casa do [[jai-agarwal]] — e o material que ficou a fal
@@ -571,6 +587,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - livro-claude-code-aprendeu — O que o Claude Code aprendeu sozinho (memória automática do PC), cópia
 - livro-claude-md-detalhe — Detalhe dos CLAUDE.md (repo e global) antes do corte de 23/10/2026
 - livro-faxina-2026-10-25 — Faxina do livro 2026-10-25 (proposta do escriba + revisão do critico; nada apagado)
+- livro-faxina-2026-11-01 — Faxina do livro 2026-11-01 (proposta do escriba + revisão do critico; nada apagado)
 - livro-hermes-aprendeu — O que o Hermes aprendeu sozinho (MEMORY.md + USER.md), cópia noturna
 - livro-hermes-skills — Skills do Hermes (as que criou + lista das de fábrica), cópia noturna
 - livro-hermes-soul-detalhe — Alma antiga do Hermes (SOUL.md de 611 linhas) antes do corte de 23/10/2026
@@ -585,6 +602,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - lojas-takeaway-precos — Lojas de takeaway por telefone: Bora (não-parceiro) contra Glovo e Uber Eats, Guarda, 29/10/2026
 - maiores-18-verificacao-idade — Maiores de 18 — tabaco e álcool com verificação de idade na entrega (aplicado 07/10/2026)
 - mapa-sessoes-contas — Mapa de sessões e contas — que conta está em que sítio (provado no ecrã a 17/09/2026)
+- mensagem-hugo-2026-11-01 — Mensagem ao Hugo (WhatsApp, grupo Contabilidade) — fecho de outubro e Stripe desde o início (CORRIGIDA 01/11 21:30)
 - mensagem-hugo-pendente-2026-10-29 — Mensagem para o Hugo (grupo Contabilidade) preparada 29/10 17:40 — por enviar quando o Danilo disser
 - mercadona-reabrir-loja — Mercadona Guarda — reabrir só com perfumaria/cosmética/higiene (preparado 14-15/10/2026)
 - meta-anuncios-2026-10-30-textos — Textos finais dos 2 anúncios Meta de 30/10/2026 (Instala e pede + Check-in diário)
@@ -597,6 +615,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - paridade-rea-2026-10-26 — Paridade REA 26/10 — Glovo, Uber Eats, iFood e Bora vistos de fora (resumo)
 - paridade-rea-2026-10-26-plano — PLANO de melhorias do Bora (paridade REA 26/10) — à espera da revisão da Claude.ai
 - paridade-uber-ifood-2026-10-13 — Paridade Bora vs Uber/Uber Eats/iFood + REA (vídeos de 13/10)
+- pendencias-2026-11-01 — Pendências dos últimos 30 dias (lista numerada dada ao Danilo a 01/11 ~19:35)
 - perfil — Quem é o Danilo
 - pesquisa-assistente-cliente-2026-10-07 — Pesquisa mundial para o assistente de compras IA do cliente (base da missão que vem depois do +18)
 - pesquisa-fatura-nif-2026-10-28 — Fatura com NIF, produto em falta e entrega grátis nos parceiros — pesquisa e decisões (28/10/2026)
@@ -630,6 +649,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - prompt-publica-e-fecha-2026-10-29-adendo-5 — Adendo 5 (29/10 19:18): revisão da conversa do dia — o que ainda faltava
 - prompt-publicar-retoma-2026-10-31 — Prompt PUBLICAR da retoma (31/10 20:00) — itens 2, 3 e 4 autorizados pelo Danilo 19:53
 - prompt-retoma-geral-2026-10-31 — PROMPT ÚNICO 31/10/2026 — parar, limpar a RAM e retomar todas as missões (Casa, motor Claude, Dipsy, lembretes)
+- prompt-stripe-empresa-2026-11-01 — Prompt — ligar o app à Stripe da empresa (01/11/2026)
 - prompt-talao-confirmar-loja-saldo-2026-10-28 — PROMPT 28/10 — Confirmar do talão, nome da loja, dinheiro a cobrar com saldo/tokens, reembolso no cancelamento (100% sal
 - prompt-talao-confirmar-loja-saldo-2026-10-28-bloco-d — Adenda 18:30 ao prompt de 28/10 (talão Auchan/Divan): Bloco D novo — reembolso no cancelamento
 - radar-2026-10-05 — Radar de vídeos 05/10 — filme (5 caminhos) e negócio
@@ -657,6 +677,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - radar-2026-10-28 — Radar de vídeos 28/10/2026 — 40 revistos, 6 novos, 7 pendentes
 - radar-2026-10-29 — Radar de vídeos 29/10/2026 — 20 revistos, 4 novos, 3 pendentes
 - radar-2026-10-31 — Radar de vídeos 31/10/2026 — 40 revistos, 3 novos, 14 pendentes
+- radar-2026-11-01 — Radar de vídeos 01/11/2026 — 40 revistos, 2 novos, 21 pendentes
 - reembolsos-b2-00-leia-me — reembolsos-b2-00-leia-me
 - reembolsos-b2-01-shared-cobranca — reembolsos-b2-01-shared-cobranca
 - reembolsos-b2-ef-admin-cancel-order — reembolsos-b2-ef-admin-cancel-order
@@ -668,6 +689,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - reembolsos-b2-ordem — reembolsos-b2-ordem
 - reembolsos-b2-sql-tokens — reembolsos-b2-sql-tokens
 - reembolsos-dashboard-passos — Reembolsos (Bloco 2) — passos para publicar pelo painel do Supabase (29/10/2026)
+- regra-gmail-links-embrulhados — REGRA para todos os agentes: emails com links NUNCA pelo conector Gmail (embrulha os links em google.com/url)
 - regras-checkin-v2-2026-10-30 — Check-in v2 — regras decididas pelo Danilo a 30/10/2026 (escada grande única + escada pequena mensal, só com compra)
 - regras-do-danilo — Regras do Danilo — versão 23/10/2026 (vale para Claude.ai, Hermes/Emerson, Claude Code, ChatGPT, OpenCode)
 - regras-operacao-agentes — O que podes e o que não podes fazer no Bora em produção (ChatGPT, OpenCode, Hermes, Claude Code)
@@ -681,6 +703,8 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - sistema-motores-e-portas — Quem faz o quê — uma porta só (atualizado 17/09/2026)
 - skills-indice — Índice das skills da pasta comum (Claude Code, Hermes, Claude.ai) — uma linha cada
 - sql-modo-demo-2026-10-27 — SQL do modo demonstracao (Boom! Burger) para o Claude.ai aplicar
+- stripe-declaracao-2026-11-01 — Stripe do Bora desde o início — extrato para o contabilista (01/11/2026)
+- stripe-duas-contas — Duas contas Stripe — empresa e pessoal (01/11/2026)
 - tokens-metade-do-saldo-2026-10-14 — Tokens do cliente: metade do saldo + desconto chega à cobrança (14/10/2026)
 - whatsapp-a-discutir — WhatsApp — o que ainda está por discutir com o Danilo (esqueleto desligado)
 

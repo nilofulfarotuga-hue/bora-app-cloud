@@ -289,7 +289,7 @@ class PaymentService {
     try {
       final response = await Supabase.instance.client.functions.invoke(
         'create-mbway-payment-intent',
-        body: {'order_id': orderId, 'phone': phone},
+        body: StripeContas.marcar({'order_id': orderId, 'phone': phone}), // duas contas Stripe (02/11/2026): MB Way dos pedidos
       );
       final body = response.data as Map<String, dynamic>?;
       if (body?['ok'] != true) {

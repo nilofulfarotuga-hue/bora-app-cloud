@@ -1,5 +1,10 @@
 # Chaves — o que falta nas funções de zona vermelha (31/10/2026)
 
+> **Estado a 02/11/2026:** pontos 1 a 5 **aplicados** pela Claude.ai a 01/11 (missão
+> zona-vermelha-2026-11-01: refund v28, dispatch-engine v64, stripe-webhook v38, client-cancel-order v32;
+> finalize v15 espelhada no repo). Provado a 02/11: varredor 99 funções, 0 com padrão proibido; vigia
+> 50/50 ok (refund e dispatch-engine já respondem `{"pong":true}`). Falta só o ponto 6 (abaixo).
+
 Missão `chaves-varredura-2026-10-31`. Autorização do Danilo de 31/10 12:19 ("Sim, eu autorizo… dá uma
 varredura em tudo… e aí sim, publica"). A `bora-tranca` do PC **nega** editar e publicar estas pastas
 (`refund/`, `finalize-order-from-intent/`, `dispatch-engine/`, `stripe-webhook/`, `client-cancel-order/`):
@@ -114,3 +119,18 @@ As duas chamadas a `notify-admin-urgent` são `admin.functions.invoke(...)` dent
 o supabase-js já manda `apikey` + `Bearer`, por isso passam. Falta só não falharem em silêncio: trocar por
 `chamarFuncao(admin, 'client-cancel-order', 'notify-admin-urgent', { … })` de `_shared/chamadas.ts`
 (4 testes verdes), que escreve a falha em `e2e_log` (fluxo `edge-chamada-falhou`).
+
+## 6. `stripe-webhook` — afinação do aviso "pagamento sem etiqueta" (02/11/2026)
+
+Os 4 pagamentos sem etiqueta de 18/10 a 27/10 eram **todos `card_present`** (cobrados ao vivo com o
+telemóvel, Tap to Pay da Stripe): 186,00 € e 291,53 € são as contas semanais do Jai e do Vansh; os dois de
+5,00 € não têm pista nenhuma na Stripe. Nenhum é um pedido da app perdido. Com a v38, cada cobrança ao
+vivo do Danilo põe um aviso **alto** no sininho. Sugestão, em `avisarPagamentoSemEtiqueta`:
+
+```ts
+const aoVivo = (intent.payment_method_types ?? []).includes('card_present');
+// severity: aoVivo ? 'low' : (sucesso ? 'high' : 'medium')
+// summary:  aoVivo ? `Cobrança ao vivo (Tap to Pay) de ${valor} € — sem pedido (normal)` : …
+```
+
+Só muda o aviso; o dinheiro e o resto do webhook ficam iguais.

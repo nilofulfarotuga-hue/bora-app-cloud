@@ -124,6 +124,7 @@ import 'admin_tvde_stuck_payments_screen.dart';
 import 'admin_tvde_subscriptions_screen.dart';
 import 'admin_wallets_screen.dart';
 import 'admin_web_health_screen.dart';
+import 'admin_saude_chaves_screen.dart';
 import 'admin_whatsapp_screen.dart';
 import 'admin_agentes_email_screen.dart';
 import 'admin_pendencias_operacao_screen.dart';
@@ -278,6 +279,17 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.teal,
       builder: () => const AdminWebHealthScreen(),
       keywords: const ['campo', 'falhas', 'morada', 'endereco', 'saude', 'travado', 'pedido', 'ligar', 'cliente', 'corrida'],
+    ),
+    // [02/11, chaves-varredura] O vigia diário das chaves (07:00): cada função do
+    // servidor testada com a chave antiga e a nova; vermelho = recusou a chave.
+    AdminMenuItem(
+      id: 'operacao_saude_das_chaves',
+      title: 'Saúde das chaves',
+      subtitle: 'Teste diário: o servidor ainda consegue chamar cada função (avisos, pagamentos, despacho)?',
+      icon: Icons.vpn_key_outlined,
+      color: Colors.teal,
+      builder: () => const AdminSaudeChavesScreen(),
+      keywords: const ['chave', 'chaves', 'saude', 'vigia', 'funcao', 'edge', 'servidor', '401', 'recusada'],
     ),
     AdminMenuItem(
       id: 'operacao_edicoes_pedidos',

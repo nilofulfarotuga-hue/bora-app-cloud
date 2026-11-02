@@ -2,7 +2,7 @@
 id: memoria-claude-ai-erros-aprendidos
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-01
+ultima_confirmacao: 2026-11-02
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-01T21:27:33.014787+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-02T06:01:29.131391+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: erros aprendidos · memoria claude.ai · claude_ai_memoria
 
@@ -123,4 +123,5 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - 01/11 (claude-ai): às 20:19 mandei ao Jai a conta da semana com 214 € (28 € da semana + os 186 € de 24/10 "ainda em aberto"), mas ele já tinha pago os 186 € no cartão, no telemóvel do Danilo, a 27/10 (Stripe 27/10 16:50, 186,00 €). A nota só dizia "sem registo de pagamento nas conversas" e eu tratei isso como dívida. O Danilo: "já recebi pelo aeroporto, o dele é só essa semana, você mandou errado" → antes de cobrar um saldo antigo, confirmar na Stripe (stripe_extrato_contabilista) e no WhatsApp se já foi pago; "sem registo" não é "por pagar"; na dúvida, perguntar ao Danilo antes de enviar.
 - 01/11 (claude-ai): Mandei ao Jai (01/11 20:19) a conta da semana a dizer que os 186 € de 24/10 ainda estavam em aberto, só pela memória — ele já tinha pago por cartão a 27/10 (Stripe 16:50). O Jai ligou ao Danilo e teve de sair uma correção com pedido de desculpa. → Antes de mandar qualquer conta ou cobrança a alguém, confirmar o que já foi pago na BASE e na Stripe (payments/stripe_extrato_contabilista, orders pagos, ledger) — nunca só pela memória. Mandar só o que está mesmo por pagar.
 - 01/11 (claude-ai): 01/11 21:10: no relatório final disse que a mensagem para o Hugo e o resumo da Stripe estavam "na página mensagem-hugo-2026-11-01 do livro", em vez de os escrever aqui no chat; ele tinha pedido o relatório detalhado da Stripe e a mensagem ao Hugo para conferir → quando ele pede relatório, resumo ou mensagem para conferir, vai SEMPRE escrito por inteiro aqui no chat, detalhado; o livro e o Córtex são só cópia para os agentes, nunca o sítio para onde o mando ler
+- 02/11 (claude-ai): (não é erro) registo: Bora Motorista fechado a 02/11/2026 06:00 por ordem do Danilo → TVDE de passageiros está DESLIGADO desde 02/11/2026 06:00 (tvde_passageiros_enabled=false). Só volta a ligar com ordem dele.
 

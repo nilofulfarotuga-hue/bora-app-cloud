@@ -532,6 +532,19 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 /// [10/10/2026] Tipo do push do botão "Testar o toque" (Edge `testar-toque`).
 const String kTipoTesteToque = 'teste_toque_oferta';
 
+/// [31/10/2026 chaves-varredura] Fases do pedido em que o SERVIDOR avisa o
+/// cliente sozinho (gatilho `trg_push_cliente_fase_pedido` em `orders` →
+/// `notify-client` com a chave do servidor). A app não manda estas — só as
+/// outras (ex.: `callingDriver`), com o token da sessão de quem está ligado.
+const Set<String> fasesAvisadasPeloServidor = {
+  'preparing',
+  'readyForPickup',
+  'driverAccepted',
+  'pickedUp',
+  'onTheWay',
+  'delivered',
+};
+
 /// Mostra o teste do toque: exactamente a mecânica de uma oferta (canal v4 a
 /// tocar pelo volume do alarme, em ciclo, ecrã inteiro), durante o tempo que
 /// o servidor mandar (30 s por defeito). Corre em qualquer isolate.
@@ -3320,13 +3333,18 @@ class NotificationService {
     });
   }
 
+  /// Aviso livre ao cliente de um pedido (código de entrega, encomenda aceite).
+  /// 31/10/2026: mandava `clientPhone`, que a notify-client nunca leu — dava
+  /// sempre 400 e o cliente não recebia nada. Vai o id do cliente e do pedido.
   Future<void> notifyClient({
-    required String clientPhone,
+    required String clientId,
+    required String orderId,
     required String title,
     required String body,
   }) async {
     await _post('notify-client', {
-      'clientPhone': clientPhone,
+      'clientId': clientId,
+      'orderId': orderId,
       'title': title,
       'body': body,
     });
@@ -3365,6 +3383,10 @@ class NotificationService {
     int? etaMinutes,
     String? serviceType, // BUG 3 — 'restaurant' | 'storeShopping' | etc
   }) async {
+    // 31/10/2026 (chaves-varredura): estas fases são avisadas pelo SERVIDOR
+    // (gatilho trg_push_cliente_fase_pedido em orders, com a chave do servidor).
+    // Mandá-las também daqui dava push a dobrar — e com a chave pública dava 401.
+    if (fasesAvisadasPeloServidor.contains(status)) return;
     final msg = _statusMessageForClient(
       status: status,
       vendorName: vendorName,
@@ -3444,19 +3466,35 @@ class NotificationService {
   static const String _supabaseUrl = String.fromEnvironment('SUPABASE_URL');
   static const String _anonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
+  /// Chama uma Edge Function de aviso em nome de QUEM ESTÁ LIGADO.
+  ///
+  /// 31/10/2026 (chaves-varredura): mandava a chave pública da app como
+  /// `Authorization: Bearer` — desde a troca de chaves (16/10) as funções
+  /// recusam-na (401: o cliente ficava sem "estafeta a caminho"). Agora vai o
+  /// token da SESSÃO do utilizador; a chave pública fica só no `apikey`. Sem
+  /// sessão não se chama nada (o servidor avisa o cliente sozinho nas fases do
+  /// pedido — gatilho trg_push_cliente_fase_pedido).
   Future<void> _post(String functionName, Map<String, dynamic> payload) async {
     const supabaseUrl = _supabaseUrl;
     const anonKey = _anonKey;
+    final sessao = Supabase.instance.client.auth.currentSession?.accessToken;
+    if (sessao == null || sessao.isEmpty) {
+      debugPrint('[NotificationService] _post($functionName) sem sessão — não enviado');
+      return;
+    }
     try {
-      await http.post(
+      final r = await http.post(
         Uri.parse('$supabaseUrl/functions/v1/$functionName'),
         headers: {
           'Content-Type': 'application/json',
           'apikey': anonKey,
-          'Authorization': 'Bearer $anonKey',
+          'Authorization': 'Bearer $sessao',
         },
         body: jsonEncode(payload),
       );
+      if (r.statusCode >= 400) {
+        debugPrint('[NotificationService] _post($functionName) HTTP ${r.statusCode}');
+      }
     } catch (e) {
       debugPrint('[NotificationService] _post($functionName) error: $e');
     }

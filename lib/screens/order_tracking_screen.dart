@@ -683,12 +683,14 @@ class _BottomCardState extends State<_BottomCard> {
 
   Future<void> _resendDeliveryCode() async {
     final order = widget.order;
-    final phone = order.clientPhone;
-    if (phone == null || phone.trim().isEmpty) return;
+    // 31/10/2026: vai pelo id do cliente (o telefone nunca foi lido pelo servidor).
+    final clientId = order.userId;
+    if (clientId == null || clientId.trim().isEmpty) return;
     if (_sendingCode) return;
     setState(() => _sendingCode = true);
     await NotificationService.instance.notifyClient(
-      clientPhone: phone,
+      clientId: clientId,
+      orderId: order.id,
       title: 'O seu código de entrega'.tr,
       body: 'Código: {0} — Mostre ao estafeta na entrega.'.trArgs([order.deliveryCode]),
     );

@@ -2,7 +2,7 @@
 id: memoria-claude-ai-prompt-stripe-empresa-2026-11-01
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-01
+ultima_confirmacao: 2026-11-02
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Prompt — ligar o app à Stripe da empresa (01/11/2026)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `prompt-stripe-empresa-2026-11-01`, origem `claude.ai`, atualizada em 2026-11-01T22:08:56.378153+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `prompt-stripe-empresa-2026-11-01`, origem `claude.ai`, atualizada em 2026-11-02T06:15:59.837089+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: prompt stripe empresa 2026 11 01 · memoria claude.ai · claude_ai_memoria
 
-REGISTO: prompt entregue a 01/11/2026 ~22:15 pela Claude.ai. Motor FABLE, sessão NOVA do Claude Code no PC (pasta bora_app, branch autonomous-night-2026-04-29). Autorização: «Autorizo» do Danilo às 22:03. Estado: à espera que a missão app-fechar-2026-11-01 acabe para arrancar (não pisar o mesmo repositório). Fluxo e2e_log: stripe-empresa-2026-11-01.
+REGISTO: prompt entregue a 01/11/2026 ~22:15 pela Claude.ai; LANÇADO a 02/11/2026 00:36 pela Claude.ai numa sessão nova do Claude Code no PC (ambiente Remote Control bora-app-cloud · Danilo, motor Fable 5.1, modo Automático) — sessão "Ligar app à Stripe empresa", https://claude.ai/code/session_01HPEpV8TqbMGfAxZbZkrQhU. Arrancou no F0 às 00:37 (provado na página da sessão). Autorização: «Autorizo» do Danilo às 22:03 de 01/11. Fluxo e2e_log: stripe-empresa-2026-11-01. Foi acrescentada uma NOTA DE ARRANQUE (app-fechar já enviou o código; só falta o build do iPhone dela).
 
 ⚠️ MODO PROTECÇÃO TOTAL ⚠️
 
@@ -114,3 +114,5 @@ REGRAS
 - Não mexer em preços, comissões, taxas, tokens nem Connect.
 - Não apagar dados de produção nem reescrever histórico git publicado.
 - Autonomia: não terminar o turno à espera; o que ficar bloqueado regista no e2e_log e salta para o seguinte. O Danilo só é chamado para o código da Stripe no telemóvel, se aparecer.
+
+02/11/2026 06:20 — RETOMA: a sessão antiga (session_01HPEpV8TqbMGfAxZbZkrQhU, Fable) parou e ficou parada. O Danilo mandou continuar numa janela nova com o Opus. Nova sessão: https://claude.ai/code/session_01HPEpVCiQJz5VkNWpbqKu2X (Opus 5.5, ambiente bora-app-cloud · Danilo). Prompt de retoma com: passo 0 = guardar em commit o que ficou na worktree antiga; regras novas = nunca DROP, parado mais de 5 min interrompe e regista; interruptor fica em pessoal até as provas F6; lojas só com ordem do Danilo. A sessão antiga só é arquivada depois de a nova confirmar o passo 0.

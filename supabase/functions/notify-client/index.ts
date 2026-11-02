@@ -21,13 +21,39 @@
 // Required Supabase secrets: FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { exigirCallerOk, secretKey } from '../_shared/keys.ts'
-import { respostaAoPing } from '../_shared/chaves.ts'
+import { secretKey } from '../_shared/keys.ts'
+import { exigirServidorOuUtilizador, respostaAoPing, type UtilizadorDoPedido } from '../_shared/chaves.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+
+const ADMIN_EMAILS = ['nilofulfarotuga@gmail.com', 'nilofulfaro@gmail.com']
+
+/** O utilizador pode avisar este cliente? Ele próprio, admin, ou a loja / o estafeta do pedido dele. */
+// deno-lint-ignore no-explicit-any
+async function utilizadorPodeAvisar(supabase: any, u: UtilizadorDoPedido | null, clientId: string, orderId?: string): Promise<boolean> {
+  if (!u) return false
+  if (u.id === clientId) return true
+  if (u.app_metadata?.role === 'admin' || ADMIN_EMAILS.includes(String(u.email ?? '').toLowerCase())) return true
+  if (!orderId) return false
+  const { data: o } = await supabase.from('orders')
+    .select('user_id, restaurant_id, assigned_driver_id, driver_id').eq('id', String(orderId)).maybeSingle()
+  if (!o || String(o.user_id) !== String(clientId)) return false
+  const estafetas = [o.assigned_driver_id, o.driver_id].filter((x: unknown) => x != null && String(x) !== '').map(String)
+  if (estafetas.length) {
+    const { data: ds } = await supabase.from('drivers').select('id').in('id', estafetas).eq('user_id', u.id).limit(1)
+    if (ds && ds.length) return true
+    // contas antigas em que drivers.id = user_id
+    if (estafetas.includes(u.id)) return true
+  }
+  if (o.restaurant_id) {
+    const { data: r } = await supabase.from('restaurants').select('user_id, user_').eq('id', o.restaurant_id).maybeSingle()
+    if (r && (r.user_id === u.id || r.user_ === u.id)) return true
+  }
+  return false
 }
 
 type OrderContext = {
@@ -45,8 +71,8 @@ Deno.serve(async (req) => {
   }
   // 16/10/2026 (chave nova): verify_jwt passa a false — quem chama tem de ser o servidor (chave secreta,
   // ou a legada confirmada no Auth) ou um utilizador com sessão válida. Ver _shared/keys.ts.
-  const bloqueio = await exigirCallerOk(req, corsHeaders)
-  if (bloqueio) return bloqueio
+  const quem = await exigirServidorOuUtilizador(req, corsHeaders)
+  if (quem.resposta) return quem.resposta
   const pong = await respostaAoPing(req, corsHeaders) // vigia diário das chaves (31/10/2026)
   if (pong) return pong
 
@@ -85,6 +111,14 @@ Deno.serve(async (req) => {
   }
 
   const supabase = createClient(supabaseUrl, serviceKey)
+
+  // 02/11/2026 (chaves-varredura) — FALHA FECHADA: qualquer conta com sessão mandava um aviso com
+  // título e texto livres a QUALQUER cliente. Um utilizador (não o servidor) só avisa: a si próprio;
+  // ou o cliente de um pedido em que é a loja ou o estafeta; ou se for admin.
+  if (!quem.servidor && !(await utilizadorPodeAvisar(supabase, quem.utilizador, clientId, orderId))) {
+    console.warn(`[notify-client] 403 utilizador=${quem.utilizador?.id} cliente=${clientId} pedido=${orderId ?? '-'}`)
+    return json({ ok: false, error: 'forbidden' }, 403)
+  }
 
   // DB query só para pushes de order (takeaway-aware). Skip para reserva/marcação.
   const isOrderPush = !notifType || notifType === 'order_status'

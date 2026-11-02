@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-boom-burger
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-31
+ultima_confirmacao: 2026-11-02
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Boom! Burger (hamburgueria artesanal da Guarda) — loja que o Danilo quer ganhar como parceira do Bora desde 27/10/2026; ler antes de falar dela, montar a loja ou listar parceiros
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-boom-burger`, origem `claude-ai`, atualizada em 2026-10-31T07:15:19.434509+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-boom-burger`, origem `claude-ai`, atualizada em 2026-11-02T22:13:34.022716+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas boom burger · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/boom-burger.md), copiada a 2026-10-31 07:14 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/boom-burger.md), copiada a 2026-11-02 22:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: boom-burger
@@ -34,4 +34,4 @@ aliases: [Boom Burger, Boom! Burger]
 - [stated] 30/10 06:06: mandou a revisão diária do WhatsApp da loja (robô da Boom: reserva sem resposta clara, "Quero vinho" sem lista direta, mensagem cortada) para ser consertado. PROMPT REGISTADO: adendo 12 (página claude_ai_memoria `adendo-12-robo-boom-revisao-2026-10-30`, sessão session_01HPEpVCfPzS9j8Nzb5E1fRc "Missão geral Bora 2026-10-28", MOTOR Opus 5.5), enviado 06:25. Scope: código do robô (listas por categoria completas, limpeza de formato, reservas com confirmação explícita, carrinho velho), revisor diário (lê também as respostas do robô, não corta mensagens), fotos que o Emanuel mandou a 29/10 22:07–22:18. Estado: a correr
 - [stated] 30/10 07:00 (seguimento da revisão do WhatsApp): adendo 12 fechou o robô da Boom em código (listas por categoria, formato, pedir_reserva, carrinho velho; VPS reiniciada 06:49) e o revisor diário (uma só revisão por dia, lê as respostas do robô). PROMPT REGISTADO: adendo 13 (página claude_ai_memoria `adendo-13-ios-fotos-vps-2026-10-30`, mesma sessão, MOTOR Opus 5.5). Scope: 1 teste a falhar no iPhone da publicação 5 (agendar nos mercados), fotos do Emanuel, memória do whatsapp-cerebro na VPS (388/400 MB), cópias divergentes do servidor_cerebro.py. Estado: a correr
 - [stated] 31/10 06:31: disse NÃO (item 10 da lista de propostas) a pôr na base os preços de balcão do preçário que o Emanuel mandou a 29/10 — os preços da Boom ficam como estão por agora
-
+- [stated] 02/11 19:28 o Emanuel mandou (pessoal e Bora) as fotos do Café de Paris e das sobremesas e pediu o Café de Paris "em primeiro lugar na app" como hambúrguer do mês (só mostrar, sem desconto). 21:05 o Danilo autorizou tudo: destaque grande na loja, faixa na página inicial, story + reel marcando a Boom, robô a oferecer o hambúrguer do mês, e o robô a parar quando ele escreve à mão (o Emanuel continua tratado como cliente porque testa). PROMPT REGISTADO: página do livro `prompt-boom-hamburguer-mes-2026-11-02` (MOTOR Opus 5.5), colado às ~21:25 na sessão do PC "Missão zerar-2026-11-02" (session_01HPEpVAGPaiWDPnrbGwZxmL), fluxo e2e_log boom-hamburguer-mes-2026-11-02. Scope: 5 fotos ao Storage, robô (dono_falou), cartão de destaque + painéis + publicar nas 3, story/reel. Já feito por MCP antes: Café de Paris em 1.º (categoria "Hambúrguer do Mês"), faixa na home, nota no robô, conversa do Emanuel silenciada 12 h. Estado: a correr

@@ -117,6 +117,53 @@ class SerieEstado {
   final DateTime? proxima;
 }
 
+/// Uma limpeza que o "Parar a série toda" vai cancelar (`cleaning_series_preview`).
+class SerieLimpezaACancelar {
+  const SerieLimpezaACancelar({
+    required this.id,
+    required this.paymentMethod,
+    required this.pago,
+    required this.devolveCents,
+  });
+
+  final String id;
+  final String paymentMethod;
+  final bool pago;
+  final int devolveCents;
+
+  factory SerieLimpezaACancelar.fromJson(Map<String, dynamic> j) =>
+      SerieLimpezaACancelar(
+        id: (j['id'] ?? '').toString(),
+        paymentMethod: (j['payment_method'] ?? '').toString(),
+        pago: j['pago'] == true,
+        devolveCents: (j['devolve_cents'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// O que "Parar a série toda" vai fazer (02/11/2026, zerar B2): as limpezas
+/// fora das 24 h são canceladas como uma limpeza só, e as já pagas voltam
+/// (total menos a taxa, que fora das 24 h é zero) ao cartão/MB Way usado.
+/// Sem leitura vale [vazia] — o ecrã não promete valores que não leu.
+class SeriePrevisao {
+  const SeriePrevisao({this.limpezas = const [], this.devolveCents = 0});
+
+  static const vazia = SeriePrevisao();
+
+  final List<SerieLimpezaACancelar> limpezas;
+  final int devolveCents;
+
+  factory SeriePrevisao.fromJson(Map<String, dynamic> j) {
+    final lista = (j['limpezas'] as List? ?? const [])
+        .whereType<Map>()
+        .map((m) => SerieLimpezaACancelar.fromJson(Map<String, dynamic>.from(m)))
+        .toList();
+    return SeriePrevisao(
+      limpezas: lista,
+      devolveCents: (j['devolve_cents'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
 /// Reserva de limpeza (linha de cleaning_bookings).
 class CleaningBooking {
   final String id;

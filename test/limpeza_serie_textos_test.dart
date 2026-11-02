@@ -57,15 +57,18 @@ class _Limpezas extends CleaningStore {
   _Limpezas({
     this.parada = false,
     this.proxima,
+    this.previsao = SeriePrevisao.vazia,
     List<CleaningBooking> lista = const [],
   }) : _lista = lista;
 
   final bool parada;
   final DateTime? proxima;
+  final SeriePrevisao previsao;
   final List<CleaningBooking> _lista;
 
   final List<String> canceladas = [];
   final List<String> seriesParadas = [];
+  final List<SeriePrevisao?> previsoesRecebidas = [];
   final List<String> lidas = [];
   final Map<String, SerieEstado> _estado = {};
 
@@ -104,23 +107,56 @@ class _Limpezas extends CleaningStore {
   }
 
   @override
-  Future<void> cancelSeries(String groupId) async {
+  Future<void> cancelSeries(String groupId, {SeriePrevisao? previsao}) async {
     seriesParadas.add(groupId);
+    previsoesRecebidas.add(previsao);
     _estado[groupId] = const SerieEstado(parada: true);
     notifyListeners();
   }
+
+  @override
+  Future<SeriePrevisao> previsaoSerie(String groupId) async => previsao;
 }
+
+/// Store só com a rede cortada: corre o cancelSeries VERDADEIRO e regista os
+/// pedidos de estorno (zerar B2, 02/11/2026).
+class _SerieSemRede extends CleaningStore {
+  final List<String> paradas = [];
+  final List<String> estornos = [];
+
+  @override
+  Future<void> pararSerieNoServidor(String groupId) async => paradas.add(groupId);
+  @override
+  Future<void> reversePayment(String bookingId) async => estornos.add(bookingId);
+  @override
+  Future<void> loadMyBookings() async {}
+}
+
+// A forma exata que o cleaning_series_preview devolveu na prova em rollback
+// (02/11/2026): cartão e MB Way pagos (3200 cada), MB Way por pagar.
+final _previsaoDoServidor = <String, dynamic>{
+  'n': 4,
+  'devolve_cents': 6400,
+  'limpezas': [
+    {'id': 'a', 'payment_method': 'card', 'pago': true, 'taxa_cents': 0, 'devolve_cents': 3200},
+    {'id': 'b', 'payment_method': 'mbway', 'pago': true, 'taxa_cents': 0, 'devolve_cents': 3200},
+    {'id': 'c', 'payment_method': 'mbway', 'pago': false, 'taxa_cents': 0, 'devolve_cents': 0},
+    {'id': 'd', 'payment_method': 'cash', 'pago': false, 'taxa_cents': 0, 'devolve_cents': 0},
+  ],
+};
 
 Future<_Limpezas> _abreAcompanhamento(
   WidgetTester t,
   CleaningBooking b, {
   bool parada = false,
   DateTime? proxima,
+  SeriePrevisao previsao = SeriePrevisao.vazia,
   List<CleaningBooking> lista = const [],
 }) async {
   await t.binding.setSurfaceSize(const Size(500, 2000));
   addTearDown(() => t.binding.setSurfaceSize(null));
-  final store = _Limpezas(parada: parada, proxima: proxima, lista: lista);
+  final store = _Limpezas(
+      parada: parada, proxima: proxima, previsao: previsao, lista: lista);
   await t.pumpWidget(ChangeNotifierProvider<CleaningStore>.value(
     value: store,
     child: MaterialApp(home: CleaningTrackingScreen(booking: b)),
@@ -343,6 +379,64 @@ void main() {
           '14/01 10:00');
       expect(CleaningLabels.diaHoraLisboa(DateTime.utc(2030, 7, 14, 9, 5)),
           '14/07 10:05');
+    });
+  });
+
+  group('B2 (02/11) — "Parar a série" devolve as limpezas pagas', () {
+    test('lê a previsão do servidor tal como vem', () {
+      final p = SeriePrevisao.fromJson(_previsaoDoServidor);
+      expect(p.devolveCents, 6400);
+      expect(p.limpezas.map((l) => l.id), ['a', 'b', 'c', 'd']);
+      expect(p.limpezas.where((l) => l.pago).length, 2);
+      expect(SeriePrevisao.fromJson(const {}).devolveCents, 0);
+    });
+
+    test('pede o estorno como numa limpeza só: não a dinheiro nem prémio',
+        () async {
+      final store = _SerieSemRede();
+      final previsao = SeriePrevisao.fromJson({
+        ..._previsaoDoServidor,
+        'limpezas': [
+          ...(_previsaoDoServidor['limpezas'] as List),
+          {'id': 'e', 'payment_method': 'premio', 'pago': false, 'devolve_cents': 0},
+        ],
+      });
+      await store.cancelSeries('g1', previsao: previsao);
+      expect(store.paradas, ['g1']);
+      // O estorno é no-op sem pagamento (igual ao cancelamento de uma só).
+      expect(store.estornos, ['a', 'b', 'c']);
+      expect(store.serieEmCache('g1')?.parada, isTrue);
+    });
+
+    testWidgets('o diálogo diz quanto volta e o aviso confirma o pedido',
+        (t) async {
+      final store = await _abreAcompanhamento(t, _reserva(),
+          proxima: _proximaServidor,
+          previsao: SeriePrevisao.fromJson(_previsaoDoServidor));
+      await t.tap(find.byKey(const Key('limpeza_parar_serie')));
+      await t.pumpAndSettle();
+
+      expect(
+          find.text('Voltam €64,00 ao cartão ou MB Way com que pagaste.'),
+          findsOneWidget);
+      await t.tap(find.text('Parar série'));
+      await t.pumpAndSettle();
+
+      expect(store.seriesParadas, ['g1']);
+      expect(store.previsoesRecebidas.single?.devolveCents, 6400,
+          reason: 'o estorno usa as limpezas que o cliente viu');
+      expect(find.text('Recorrência cancelada. A devolução de €64,00 foi pedida.'),
+          findsOneWidget);
+    });
+
+    testWidgets('sem nada pago, não promete devolução', (t) async {
+      await _abreAcompanhamento(t, _reserva(), proxima: _proximaServidor);
+      await t.tap(find.byKey(const Key('limpeza_parar_serie')));
+      await t.pumpAndSettle();
+      expect(find.byKey(const Key('limpeza_parar_serie_devolve')), findsNothing);
+      await t.tap(find.text('Parar série'));
+      await t.pumpAndSettle();
+      expect(find.text('Recorrência cancelada.'), findsOneWidget);
     });
   });
 }

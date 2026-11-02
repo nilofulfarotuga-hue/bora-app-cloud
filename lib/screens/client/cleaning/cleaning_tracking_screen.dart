@@ -283,6 +283,9 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
     final groupId = b.recurrenceGroupId;
     if (groupId == null) return;
     final store = context.read<CleaningStore>();
+    // 02/11/2026 (zerar B2): o servidor diz o que vai cancelar e quanto volta.
+    final previsao = await store.previsaoSerie(groupId);
+    if (!mounted) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -290,9 +293,25 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
         // Texto igual ao que o cancel_cleaning_series faz (01/11/2026): o
         // anterior dizia "a limpeza atual mantém-se", mas a atual também é
         // cancelada quando faltam mais de 24 h.
-        content: Text(
-            'Não se marcam mais limpezas desta série. As já marcadas para daqui a mais de 24 h são canceladas; as das próximas 24 h mantêm-se.'
-                .tr),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+                'Não se marcam mais limpezas desta série. As já marcadas para daqui a mais de 24 h são canceladas; as das próximas 24 h mantêm-se.'
+                    .tr),
+            if (previsao.devolveCents > 0) ...[
+              const SizedBox(height: Spacing.sm),
+              Text(
+                'Voltam {0} ao cartão ou MB Way com que pagaste.'
+                    .trArgs([CleaningLabels.euro(previsao.devolveCents)]),
+                key: const Key('limpeza_parar_serie_devolve'),
+                style: const TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -308,12 +327,16 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
     );
     if (confirmed != true || !mounted) return;
     try {
-      await store.cancelSeries(groupId);
+      await store.cancelSeries(groupId, previsao: previsao);
       // Esta limpeza pode ter sido cancelada pelo servidor (mais de 24 h).
       await store.refreshTracked();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Recorrência cancelada.'.tr)),
+        SnackBar(
+            content: Text(previsao.devolveCents > 0
+                ? 'Recorrência cancelada. A devolução de {0} foi pedida.'
+                    .trArgs([CleaningLabels.euro(previsao.devolveCents)])
+                : 'Recorrência cancelada.'.tr)),
       );
     } catch (_) {
       if (!mounted) return;

@@ -297,3 +297,28 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   `trg_suspensao_fecha_ao_reativar`, gatilho de auditoria das Aprendidas, `anon` sem `cleaning_series_next_at`.
   Os ficheiros no repo passaram a ter esses números de versão. A proteção da app (painel sem "suspensão
   temporária" para estafetas) já pode sair na próxima publicação.
+- **02/11/2026 ~15:20, missão `zerar-2026-11-02` (B1, chaves antigas)** — o classificador do modo automático
+  recusou ("Remote Shell Writes") trocar a chave nos dois `.env` da VPS (`/opt/whatsapp-bora/.env`, lido pelo
+  `whatsapp-cerebro`, e `/opt/assistente-negocio/.env`, lido pelo `assistente-negocio`). Os dois mandam a chave em
+  `apikey` + `Bearer` para o REST; provado a partir do banco que o REST aceita a `sb_secret` assim (200, inclusive
+  numa tabela privada). Feito sem a VPS: cofre do banco (`service_role_key` = sb_secret, cópia em
+  `service_role_key_legada_bkp_20261102`) e `backend/.env` do PC (cópia `.bak-legada-20261102`). Falta só isto
+  antes de desligar as legadas: correr, de uma sessão com a VPS liberada, o pipe
+  `node chave_secreta_stdout.mjs | ssh ... python3 trocar_env.py <os dois .env>` (scripts no relatório) e
+  `systemctl restart whatsapp-cerebro assistente-negocio`. Também por trocar: segredo do GitHub
+  `SUPABASE_SERVICE_ROLE_KEY` (só usado pelo CI para gravar `app_latest_version_code*` com `apikey`+`Bearer`).
+- **02/11/2026 ~16:30, missão `zerar-2026-11-02` (B4, página para a Google Play)** — o classificador recusou
+  ("Production Deploy") `bash deploy-cloudflare.sh` em `C:\BoraLocal\projetosflutter\bora-site`, como a 01/11.
+  Feito sem publicar: `apagar-conta.html` (como apagar na app — Perfil → Apagar conta — e por email, o que se apaga
+  e o que fica 10 anos anonimizado, igual à secção 6 da política de privacidade) e a página entra na lista do
+  script; commit local `0bd9522` no ramo `botoes-lojas-2026-10-15` do bora-site (sem push). Por causa disto não se
+  pôs o endereço na Play Console (Segurança dos dados → eliminação de conta): só depois de
+  `https://www.boraguarda.com/apagar-conta` responder 200.
+- **02/11/2026 ~16:45, missão `zerar-2026-11-02` (B4, alarme do filme)** — o alarme "Fábrica do episódio 1 parada"
+  NÃO é da VPS: sai do PC, do cão de guarda do BoraStudio (`C:\BoraLocal\BoraStudio\scripts\v5\tique_v5.py`,
+  `gritar_se_preciso`, `TELEGRAM_CADA_MIN = 180`), que corre pelas tarefas agendadas `BoraStudioRelogio` e
+  `BoraStudioCondutor` (15 em 15 min) e manda a frase ao Telegram por `agentes/telegram_vps.py` (daí parecer da VPS).
+  Na VPS não há cron, serviço nem tarefa do Hermes do filme. O classificador recusou ("Interfere With Workloads")
+  desligar as duas tarefas (`Disable-ScheduledTask -TaskName BoraStudioRelogio` e `... BoraStudioCondutor`; voltar:
+  `Enable-ScheduledTask`). Não se mexeu em nada do filme. Fica para uma sessão com o Danilo à frente ou para ele
+  dizer "desliga o tique do filme".

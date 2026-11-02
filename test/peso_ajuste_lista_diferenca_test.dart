@@ -27,8 +27,10 @@ AjustePeso _ajuste({
   required int novo,
   int qty = 1,
   String? metodo,
+  String? acerto,
 }) =>
     AjustePeso.fromMap(<String, dynamic>{
+      'settled_via': acerto,
       'id': 'aj-$produto',
       'order_id': '6a1b2c3d-0000-4000-8000-0000000000aa',
       'product_id': produto,
@@ -174,6 +176,76 @@ void main() {
     test('a soma é a do serviço (delta_client_cents)', () {
       expect(AjustesPesoService.somaDiferencaCents(_sobe), 164);
       expect(AjustesPesoService.somaDiferencaCents(_desce), -38);
+    });
+  });
+
+  group('B3 (02/11) — diferença a mais cobrada no cartão', () {
+    const vaiSer = 'A diferença vai ser cobrada no cartão com que pagaste.';
+    const foi = 'A diferença foi cobrada no cartão com que pagaste.';
+    const bora =
+        'O peso real saiu mais caro; a diferença fica por conta do Bora.';
+    List<AjustePeso> sobeCom(String? acerto) => [
+          _ajuste(
+              produto: 'cont-5050572',
+              nome: 'Melancia (~4 kg)',
+              est: 714,
+              novo: 906,
+              acerto: acerto),
+        ];
+
+    Future<String> frase(WidgetTester t,
+        {required PaymentMethod metodo,
+        String? acerto,
+        bool cobra = false}) async {
+      await t.pumpWidget(_app(AjustesPesoLista(
+          ajustes: sobeCom(acerto), metodoPagamento: metodo, cobraCartao: cobra)));
+      return _textoDe(t, _kFrase);
+    }
+
+    testWidgets('cartão, interruptor ligado, antes do talão: vai ser cobrada',
+        (t) async {
+      expect(await frase(t, metodo: PaymentMethod.card, cobra: true), vaiSer);
+    });
+    testWidgets('cartão, talão a cobrar (cartao_pendente)', (t) async {
+      expect(
+          await frase(t, metodo: PaymentMethod.card, acerto: 'cartao_pendente'),
+          vaiSer);
+    });
+    testWidgets('cartão cobrado: a linha do recibo diz que foi', (t) async {
+      expect(
+          await frase(t,
+              metodo: PaymentMethod.card, acerto: 'cartao_cobrado', cobra: true),
+          foi);
+      expect(_textoDe(t, _kDiferenca), 'Diferença: +1,92 €');
+    });
+    testWidgets('cobrança falhou (bora_assume): por conta do Bora', (t) async {
+      expect(
+          await frase(t,
+              metodo: PaymentMethod.card, acerto: 'bora_assume', cobra: true),
+          bora);
+    });
+    testWidgets('MB Way nunca é cobrado, mesmo com o interruptor', (t) async {
+      expect(await frase(t, metodo: PaymentMethod.mbway, cobra: true), bora);
+    });
+    testWidgets('interruptor desligado: igual a antes', (t) async {
+      expect(await frase(t, metodo: PaymentMethod.card), bora);
+    });
+    testWidgets('linha de produto que não havia não esconde a do cartão',
+        (t) async {
+      await t.pumpWidget(_app(AjustesPesoLista(ajustes: [
+        _ajuste(
+            produto: 'cont-x', nome: 'Pera', est: 200, novo: 150,
+            acerto: 'ignorado_nao_ha'),
+        ...sobeCom('cartao_cobrado'),
+      ], metodoPagamento: PaymentMethod.card)));
+      expect(_textoDe(t, _kFrase), foi);
+    });
+    testWidgets('em inglês', (t) async {
+      addTearDown(() => BoraLang.notifier.value = AppLang.pt);
+      BoraLang.notifier.value = AppLang.en;
+      expect(
+          await frase(t, metodo: PaymentMethod.card, acerto: 'cartao_cobrado'),
+          'The difference was charged to the card you paid with.');
     });
   });
 

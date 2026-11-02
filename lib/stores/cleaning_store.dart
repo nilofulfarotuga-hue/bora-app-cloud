@@ -311,12 +311,36 @@ class CleaningStore extends ChangeNotifier {
     }
   }
 
+  /// O que "Parar a série toda" vai cancelar e quanto volta
+  /// (`cleaning_series_preview`, só leitura). Erro = [SeriePrevisao.vazia].
+  Future<SeriePrevisao> previsaoSerie(String groupId) async {
+    try {
+      final res = await _sb.rpc('cleaning_series_preview',
+          params: {'p_group_id': groupId}).timeout(kAcaoTimeout);
+      return SeriePrevisao.fromJson(_asMap(res));
+    } catch (e) {
+      debugPrint('CleaningStore.previsaoSerie error => $e');
+      return SeriePrevisao.vazia;
+    }
+  }
+
   /// Pára a série inteira: não se geram mais limpezas e as já marcadas para
   /// daqui a mais de 24 h são canceladas sem taxa (`cancel_cleaning_series`).
-  Future<void> cancelSeries(String groupId) async {
+  ///
+  /// 02/11/2026 (zerar B2): cada uma é cancelada no servidor como uma limpeza
+  /// só e, como no cancelamento de uma só, a app pede o estorno das que não
+  /// são a dinheiro nem prémio ([reversePayment]; no-op sem pagamento).
+  /// [previsao] = as limpezas lidas antes de confirmar; sem ela, lê-se aqui.
+  Future<void> cancelSeries(String groupId, {SeriePrevisao? previsao}) async {
     _setBusy(true);
     try {
-      await _sb.rpc('cancel_cleaning_series', params: {'p_group_id': groupId}).timeout(kAcaoTimeout);
+      final alvo = previsao ?? await previsaoSerie(groupId);
+      await pararSerieNoServidor(groupId);
+      for (final l in alvo.limpezas) {
+        if (l.paymentMethod != 'cash' && l.paymentMethod != 'premio') {
+          await reversePayment(l.id);
+        }
+      }
       // O servidor gravou a paragem: o ecrã mostra "Série parada" já, mesmo
       // que a leitura de cleaning_recurrence_stops ainda não chegue.
       _series[groupId] = const SerieEstado(parada: true);
@@ -327,6 +351,12 @@ class CleaningStore extends ChangeNotifier {
     } finally {
       _setBusy(false);
     }
+  }
+
+  /// A chamada `cancel_cleaning_series` (separada para os testes sem rede).
+  @protected
+  Future<void> pararSerieNoServidor(String groupId) async {
+    await _sb.rpc('cancel_cleaning_series', params: {'p_group_id': groupId}).timeout(kAcaoTimeout);
   }
 
   // ── Série de recorrência (S1/S3, 01/11/2026) ──────────────────────────────

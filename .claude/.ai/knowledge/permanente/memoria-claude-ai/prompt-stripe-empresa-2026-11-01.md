@@ -10,7 +10,7 @@ estado: atual
 
 # Prompt — ligar o app à Stripe da empresa (01/11/2026)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `prompt-stripe-empresa-2026-11-01`, origem `claude.ai`, atualizada em 2026-11-02T00:31:03.88799+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `prompt-stripe-empresa-2026-11-01`, origem `claude.ai`, atualizada em 2026-11-02T06:15:59.837089+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: prompt stripe empresa 2026 11 01 · memoria claude.ai · claude_ai_memoria
 
@@ -114,3 +114,5 @@ REGRAS
 - Não mexer em preços, comissões, taxas, tokens nem Connect.
 - Não apagar dados de produção nem reescrever histórico git publicado.
 - Autonomia: não terminar o turno à espera; o que ficar bloqueado regista no e2e_log e salta para o seguinte. O Danilo só é chamado para o código da Stripe no telemóvel, se aparecer.
+
+02/11/2026 06:20 — RETOMA: a sessão antiga (session_01HPEpV8TqbMGfAxZbZkrQhU, Fable) parou e ficou parada. O Danilo mandou continuar numa janela nova com o Opus. Nova sessão: https://claude.ai/code/session_01HPEpVCiQJz5VkNWpbqKu2X (Opus 5.5, ambiente bora-app-cloud · Danilo). Prompt de retoma com: passo 0 = guardar em commit o que ficou na worktree antiga; regras novas = nunca DROP, parado mais de 5 min interrompe e regista; interruptor fica em pessoal até as provas F6; lojas só com ordem do Danilo. A sessão antiga só é arquivada depois de a nova confirmar o passo 0.

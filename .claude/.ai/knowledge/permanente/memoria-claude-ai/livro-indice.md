@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-02T06:07:06.671004+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-02T06:37:05.056307+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-02 06:01 UTC. Páginas listadas: 504.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-02 06:20 UTC. Páginas listadas: 505.
 
 ## O que é o Bora
 
@@ -34,7 +34,7 @@ Quer respostas curtas, em texto corrido e sem jargão, e que o trabalho se faça
 
 1. `erros-aprendidos` — as correções do Danilo; errou uma vez, nunca mais (atualizada 2026-11-02).
 2. `regras-do-danilo` — as regras dele; mandam em tudo (atualizada 2026-10-31).
-3. Estado vivo: `digest-2026-11-02-stripe-empresa` (2026-11-02).
+3. Estado vivo: `digest-2026-11-02-chaves-varredura` (2026-11-02).
 4. Antes de mexer em pedidos, estafetas, dinheiro ou migrações: `regras-operacao-agentes`.
 5. Ferramenta nova sem MCP? `livro-porta-unica` explica como ligar (Córtex por MCP, ou o ficheiro plano LIVRO.md com senha).
 
@@ -51,8 +51,9 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - erros-aprendidos — Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige) (2026-11-02)
 
-## digest (196)
+## digest (197)
 
+- digest-2026-11-02-chaves-varredura — Digest 02/11 — varredura das chaves (Claude Code PC) (2026-11-02)
 - digest-2026-11-02-stripe-empresa — Digest 02/11/2026 — missão stripe-empresa (duas contas Stripe) (2026-11-02)
 - digest-2026-11-01-app-fechar — Digest 01-02/11/2026 — missão app-fechar (Casa, peso, convidado, online, limpeza, assistente, robô, revisão humana) (2026-11-02)
 - digest-2026-11-01-infra-claude-tudo — Digest 01/11/2026: Claude sem ração em todos os robôs, Dipsy pelo porteiro, VPS arrumada, Bora Bastidores (2026-11-01)
@@ -578,7 +579,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 37 páginas com título [PESSOAL] (vida do Danilo). Não se listam aqui nem vão para o espelho público nem para o LIVRO.md; só se leem quando a tarefa é dele, e nunca vão para motores grátis que treinam com o conteúdo.
 
-## Skills partilhadas (151 no repo + 8 só na VPS)
+## Skills partilhadas (152 no repo + 8 só na VPS)
 
 Fonte única: `.claude/skills/` do repo (o Hermes lê o espelho em `/opt/data/cortex-brain/.claude/skills`). Diferenças VPS ↔ repo: `/opt/data/livro/skills/DIFERENCA.md`.
 
@@ -726,6 +727,7 @@ Fonte única: `.claude/skills/` do repo (o Hermes lê o espelho em `/opt/data/co
 - test-driven-development — Drives development with tests. Use when implementing any logic, fixing any bug, or changing any behavior. Use when you need to prove that code works,…
 - theme-factory — Toolkit for styling artifacts with a theme. These artifacts can be slides, docs, reportings, HTML landing pages, etc. There are 10 pre-set themes wit…
 - traduzir-ele-falou — Usa SEMPRE que o Danilo colar texto, print ou mensagem noutra língua (inglês, etc.), ou que for preciso escrever resposta em inglês para alguém como…
+- trocar-chaves-servidor — Usa SEMPRE antes de trocar, criar, desligar ou rodar QUALQUER chave ou segredo do servidor do Bora (chaves da Supabase — sb_secret, publishable, serv…
 - update-bora-knowledge — Deteta drift entre a skill bora-knowledge e a realidade do repo (Edge Functions em supabase/functions vs 08-edge-functions.md; pastas de skill vs IND…
 - update-design-token — Gera o diff (Modo A) para alterar um token de cor global em app_theme.dart/app_colors.dart + lista os ecrãs afetados (grep). NÃO toca lib/ sem --appl…
 - update-platform-setting — Altera UMA chave de platform_settings com segurança — dry-run gera SQL + impacto + chaves dependentes; --commit aplica + admin_audit_log + cria nota…

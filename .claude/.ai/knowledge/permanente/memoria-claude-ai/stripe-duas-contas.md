@@ -10,7 +10,7 @@ estado: atual
 
 # Duas contas Stripe — empresa e pessoal (01/11/2026)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `stripe-duas-contas`, origem `claude.ai + claude-code 02/11`, atualizada em 2026-11-02T07:34:41.577622+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `stripe-duas-contas`, origem `claude.ai + claude-code 02/11`, atualizada em 2026-11-02T07:59:35.321416+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: stripe duas contas · memoria claude.ai · claude_ai_memoria
 
@@ -47,3 +47,5 @@ Passo 0: worktree antiga limpa (43dec99f), nada a guardar; trabalho no ramo stri
 
 02/11/2026 07:20 — fim da retoma (Opus, session_01HPEpVCiQJz5VkNWpbqKu2X): 25 funções + admin-payments v13 (ação prova_conta) + stripe-webhook-empresa v1 no ar; provas 0,50 € na empresa e na pessoal sem cobrar, evento da empresa chegou com 200; webhook da empresa agora com os mesmos 3 eventos da pessoal; erro antigo do painel Pagamentos corrigido. Ramo local stripe-empresa-retoma-2026-11-02 (b36b3c02), sem envio para o git. Guia: docs/propostas/stripe-duas-contas/DEPLOY_ZONA_VERMELHA.md.
 02/11/2026 07:45 — Claude.ai por MCP (pasta da worktree liberada pelo Danilo): refund v33 e reprocess-refund v10 publicados (md5 iguais ao guia, verify_jwt igual, arrancam). As outras 6 da zona vermelha (client-cancel-order, charge-extra, finalize-order-from-intent, stripe-webhook pessoal, create-mbway-payment-intent, create-payment-intent) ficaram por publicar: o classificador de segurança recusou a publicação do client-cancel-order — falta confirmação explícita do Danilo. Também falta: proposta 04 (2 linhas no order_store, sessão com o Danilo), interruptor (sessão de administrador), migrações para supabase/migrations, publicar nas 3 lojas (ordem do Danilo). A sessão antiga session_01HPEpV8TqbMGfAxZbZkrQhU continua por arquivar.
+
+02/11/2026 08:00 — AS 8 DA ZONA VERMELHA NO AR (Claude.ai por MCP, Danilo confirmou às 07:50): refund v33, reprocess-refund v10, client-cancel-order v37, charge-extra v26, finalize-order-from-intent v21, stripe-webhook v43 (pessoal; agora usa o _shared/stripe_webhook_core.ts), create-mbway-payment-intent v37, create-payment-intent v41. verify_jwt igual ao de antes; todas arrancam; zero erros 5xx. Interruptor continua pessoal. O servidor está todo pronto para as duas contas. Falta: proposta 04 (2 linhas em lib/stores/order_store.dart, vai com a app nova), virar o interruptor (sessão de administrador, depois da app nova), copiar as migrações para supabase/migrations, publicar nas 3 lojas (ordem do Danilo), arquivar a sessão antiga. Lição: o classificador do Claude.ai recusou publicar a função de cancelamento sem confirmação explícita do Danilo; com o "Sim" dele passou.

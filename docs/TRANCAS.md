@@ -322,3 +322,8 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   desligar as duas tarefas (`Disable-ScheduledTask -TaskName BoraStudioRelogio` e `... BoraStudioCondutor`; voltar:
   `Enable-ScheduledTask`). Não se mexeu em nada do filme. Fica para uma sessão com o Danilo à frente ou para ele
   dizer "desliga o tique do filme".
+- **02/11/2026 ~17:00, missão `zerar-2026-11-02` (publicação)** — o classificador recusou (sem explicação)
+  `git push origin HEAD:autonomous-night-2026-04-29` do commit `ecf73229` (já por cima de origin `0d9cf385`,
+  analyze 0 erros, 2871 testes verdes com o Flutter 3.41.2, Juiz e zonas limpos). Enviado só o ramo
+  `zerar-2026-11-02` (não dispara CI) com pedido de junção em rascunho; juntar esse ramo no de produção é o que
+  publica web, Android e iPhone.

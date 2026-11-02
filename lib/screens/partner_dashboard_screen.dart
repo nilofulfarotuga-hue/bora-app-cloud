@@ -851,8 +851,9 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
       );
       cancelPartnerOrderNotification(order.id);
       // Aviso ao cliente pelos MESMOS canais do delivery (notify-client).
-      final phone = order.clientPhone;
-      if (phone != null && phone.isNotEmpty) {
+      // 31/10/2026: pelo id do cliente (o telefone nunca foi lido pelo servidor).
+      final clienteId = order.userId;
+      if (clienteId != null && clienteId.isNotEmpty) {
         final agendado = order.scheduledFor;
         final corpo = agendado != null
             ? 'A tua encomenda para o dia '
@@ -864,7 +865,8 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
             : 'Pedido aceite — fica pronto em ${_festasTempoLabel(minutos)}.';
         NotificationService.instance
             .notifyClient(
-              clientPhone: phone,
+              clientId: clienteId,
+              orderId: order.id,
               title: 'Encomenda aceite 🎉',
               body: corpo,
             )

@@ -466,7 +466,15 @@ serve(async (req) => {
   if (pong) return pong;
   try {
     const body = await req.json().catch(() => ({}));
-    const market: string = body.market ?? 'mercadona';
+    // 02/11/2026: sem "market" já não cai na Mercadona (a loja foi reaberta à mão a 01/11 só com
+    // beleza e higiene a preço de prateleira; o atualizador antigo desfazia isso — e2e 6006).
+    const market: string = String(body.market ?? '');
+    if (!market) {
+      return new Response(JSON.stringify({ ok: false, error: 'market_obrigatorio' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
     const pages: number = Math.min(Math.max(Number(body.pages ?? 30), 1), 90);
     const sleepMs: number = Math.max(Number(body.sleepMs ?? 1000), 1000); // BR §27.5
     const maxUpdates: number = Math.min(Math.max(Number(body.maxUpdates ?? 500), 0), 2000);
@@ -475,6 +483,13 @@ serve(async (req) => {
 
     switch (market) {
       case 'mercadona':
+        if (body.forcar_mercadona !== true) {
+          return new Response(JSON.stringify({ ok: false, error: 'mercadona_curada_a_mao',
+            detalhe: 'Mercadona reaberta a 01/11 só com beleza e higiene a preço de prateleira; o atualizador automático desfazia isso. Só com forcar_mercadona:true.' }), {
+            status: 409,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
         result = await updateMercadona();
         break;
       case 'continente':

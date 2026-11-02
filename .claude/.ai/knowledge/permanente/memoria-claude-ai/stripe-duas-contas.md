@@ -10,7 +10,7 @@ estado: atual
 
 # Duas contas Stripe — empresa e pessoal (01/11/2026)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `stripe-duas-contas`, origem `claude.ai + claude-code 02/11`, atualizada em 2026-11-02T07:59:35.321416+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `stripe-duas-contas`, origem `claude.ai + claude-code 02/11`, atualizada em 2026-11-02T10:33:13.433262+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: stripe duas contas · memoria claude.ai · claude_ai_memoria
 
@@ -49,3 +49,13 @@ Passo 0: worktree antiga limpa (43dec99f), nada a guardar; trabalho no ramo stri
 02/11/2026 07:45 — Claude.ai por MCP (pasta da worktree liberada pelo Danilo): refund v33 e reprocess-refund v10 publicados (md5 iguais ao guia, verify_jwt igual, arrancam). As outras 6 da zona vermelha (client-cancel-order, charge-extra, finalize-order-from-intent, stripe-webhook pessoal, create-mbway-payment-intent, create-payment-intent) ficaram por publicar: o classificador de segurança recusou a publicação do client-cancel-order — falta confirmação explícita do Danilo. Também falta: proposta 04 (2 linhas no order_store, sessão com o Danilo), interruptor (sessão de administrador), migrações para supabase/migrations, publicar nas 3 lojas (ordem do Danilo). A sessão antiga session_01HPEpV8TqbMGfAxZbZkrQhU continua por arquivar.
 
 02/11/2026 08:00 — AS 8 DA ZONA VERMELHA NO AR (Claude.ai por MCP, Danilo confirmou às 07:50): refund v33, reprocess-refund v10, client-cancel-order v37, charge-extra v26, finalize-order-from-intent v21, stripe-webhook v43 (pessoal; agora usa o _shared/stripe_webhook_core.ts), create-mbway-payment-intent v37, create-payment-intent v41. verify_jwt igual ao de antes; todas arrancam; zero erros 5xx. Interruptor continua pessoal. O servidor está todo pronto para as duas contas. Falta: proposta 04 (2 linhas em lib/stores/order_store.dart, vai com a app nova), virar o interruptor (sessão de administrador, depois da app nova), copiar as migrações para supabase/migrations, publicar nas 3 lojas (ordem do Danilo), arquivar a sessão antiga. Lição: o classificador do Claude.ai recusou publicar a função de cancelamento sem confirmação explícita do Danilo; com o "Sim" dele passou.
+
+## Publicação 02/11/2026 ~10:10 (Claude Code, Opus, mesma sessão)
+Publicado o commit c76c18be no autonomous-night-2026-04-29 (push normal 08:38 UTC, avanço direto, fiscal de segredos limpo): duas contas Stripe na app + MB Way dos pedidos com a bandeira stripe_contas_v2 (payment_service) + as 2 linhas do order_store (aplicadas pela Claude.ai no GitHub, commit c76c18be). Antes: analyze 0 erros e 24 testes verdes. WEB no ar (app.boraguarda.com/versao.json = c76c18be, run 253). ANDROID versionCode 706 enviado ao Google Play (internal+alpha+production; autoteste 3 perfis verde). IPHONE 1.0.35 build 224 no TestFlight mas NÃO submetida: a 1.0.34 está à espera de revisão na Apple (falta a Claude.ai tratar no painel). Interruptor em "empresa" desde 09:00 (Claude.ai, ordem do Danilo). Forçar atualização (app_min_supported_version_code) continua 0 — só depois de a Apple aprovar. Avisos: o CI grava app_latest_version_code_ios=224 com a build só no TestFlight (iPhones veem aviso de atualização sem versão nova na loja); a prova da folha do cartão no iPhone não corre por faltarem os segredos Stripe de teste no GitHub.
+
+## 02/11 10:33 — estado das 3 lojas (Claude.ai)
+- Web 1.0.4+705 no ar com a app nova (bandeira das duas contas).
+- Android 1.0.4+706 enviado para produção na Play, à espera da revisão do Google.
+- iPhone: IPA 1.0.35 build 224 VALID no TestFlight, mas NÃO submetida — a 1.0.34 (sem a bandeira) está WAITING_FOR_REVIEW desde ~23:30 de 01/11; não se cancela (volta ao fim da fila). Quando a Apple aprovar a 1.0.34 (email para boraappbora@gmail.com; costuma levar ~17h), dispara-se build_ios (enviar=true, submeter_revisao=true) para submeter a 1.0.35. Lembrete marcado para 17:00 (trig_0193WUf1qDHBKnUB8g4RghRq).
+- Interruptor stripe_conta_nao_tvde = 'empresa' desde 09:00. App antiga (sem bandeira) continua a pagar na pessoal, sem falhas. Forçar atualização só depois da 1.0.35 e da 706 aprovadas.
+

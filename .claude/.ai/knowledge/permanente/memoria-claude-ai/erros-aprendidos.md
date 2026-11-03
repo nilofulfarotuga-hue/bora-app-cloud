@@ -2,7 +2,7 @@
 id: memoria-claude-ai-erros-aprendidos
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-02
+ultima_confirmacao: 2026-11-03
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-02T18:27:32.192706+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-03T14:23:53.516279+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: erros aprendidos · memoria claude.ai · claude_ai_memoria
 
@@ -127,3 +127,5 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - 02/11 (claude-ai): 02/11 14:55: disse ao Danilo que a Casa estava desligada (casa_enabled=false) sem ver que a conta dele boraappbora estava na lista de testadores; ele abriu a web e viu a Casa publicada, mal acabada → antes de dizer que uma categoria está desligada, ver também quem a vê por exceção (casa_testadores, contas demo) e dizer isso; quando ele quer desligar, desligar para todos, incluindo os testadores
 - 02/11 (claude-ai): 02/11 17:57 (pedido da Dona Isabel, Continente): o pão avulso da padaria (Pão Bola de Mistura) estava por unidade sem opção de trocar o preço na balança — a marcação ao quilo de 26/10 e 31/10 só apanhou fruta, legumes e talho → pão avulso da padaria dos mercados (bolas, bijou, pão do dia sem embalagem) também é ao quilo; ao marcar produtos ao quilo, rever TODAS as secções de balcão (fruta, legumes, talho, peixaria, padaria, charcutaria ao corte), não só a fruta
 
+- 03/11 14:05 (Danilo corrigiu): na análise fiscal mandei perguntar ao Hugo se o IVA normal foi "por opção" e propus passar a empresa a isenta, quando já estava falado (28/10 o Hugo disse que não compensa o art. 53.º e o Danilo respondeu "ok, fica no normal" = regime normal escolhido, 5 anos); e deixei de fora tudo o que já conversámos sobre os parceiros. REGRA: antes de qualquer análise de assunto já falado, puxar TODAS as conversas antigas do tema (cada vertical: parceiros, não-parceiros, Favores, limpeza, serviços) e partir do que lá ficou decidido; nunca voltar a propor o que ele já fechou.
+- 03/11 14:23 (Danilo corrigiu): ele disse "você vai mandar esse texto aí" sobre as perguntas ao Hugo e eu abri o WhatsApp pessoal para enviar no grupo Contabilidade; ele parou-me: "não é pra enviar nada pra ninguém, é pra você fazer e me dar aqui a resposta". REGRA: "manda/faz o texto" sobre mensagens para terceiros = escrever o texto aqui no chat; só envio quando ele disser claramente "envia/manda para ele" depois de ver o texto.

@@ -10,7 +10,7 @@ estado: atual
 
 # Análise fiscal do Bora (entregas e serviços, sem TVDE) + conselho Gemini/ChatGPT/DeepSeek — 03/11/2026
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `analise-fiscal-bora-2026-11-03`, origem `claude.ai 03/11 14:05`, atualizada em 2026-11-03T13:51:21.627906+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `analise-fiscal-bora-2026-11-03`, origem `claude.ai 03/11 14:05`, atualizada em 2026-11-03T14:12:32.403215+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: analise fiscal bora 2026 11 03 · memoria claude.ai · claude_ai_memoria
 
@@ -35,3 +35,12 @@ CONSELHO: Gemini — A é legal mas acha impraticável pedir NIF nas grandes sup
 
 PERGUNTAS PARA O HUGO: ver resposta no chat de 03/11 (regime por opção?, art. 16.º n.º 6 c), faturação por terceiro no programa, entidade contratante, DAC7, certificado PME, dispensa de retenção, tokens/carteira).
 App (só depois do sim do Hugo): NIF obrigatório nos pedidos de mercado/Favor; ecrã do estafeta mostra "NIF para a fatura"; OCR do talão confere o NIF; cliente vê o talão; fatura da Bora só com o serviço.
+
+RONDA 2 (03/11 14:30, depois da correção do Danilo: regime normal FICA, escolhido por opção a 28/10; e puxar os parceiros):
+- PARCEIROS (modelo Goola/Boom, aceite pelo Hugo 28/10): loja fatura o balcão ao cliente (NIF se pedir); Bora fatura ao cliente o resto (margem escondida + 5% serviço + entrega + saco, 23% incluído); loja não paga comissão nem fatura à Bora. Conselho (3/3): certo. Acrescentos: dinheiro da loja numa conta de terceiros por loja (278), reconciliar Stripe; a Bora NÃO fatura nada à loja (só a avença da barbearia e as entregas chamadas pela própria loja); a taxa da Stripe é gasto da Bora; tokens num pedido de parceiro = despesa de promoção da Bora e a loja fatura o balcão inteiro (ChatGPT, art. 16.º n.º 5 c)). Hambúrguer 10 € (cliente 15,05): Bora fatura 5,05, IVA 0,94, estafeta 4,40 → −0,29 €.
+- Correção a levar ao Hugo: no fecho de outubro (mensagem de 01/11) pus Goola 1,65 € e Sabores 1,94 € como comissão a faturar às lojas; no modelo combinado a parte da Bora fatura-se aos CLIENTES (consumidor final), não às lojas.
+- Barbearia: barbeiro fatura o corte ao cliente; Bora fatura 20 €/mês + IVA ao barbeiro (depois dos 2 meses grátis); como cobrar a taxa da Stripe ao barbeiro = pergunta ao Hugo.
+- Reservas 3 €: 2 € adiantamento da refeição (da loja, conta de terceiros), 1 € serviço Bora 23%. Falta do cliente (Bora fica com 3 €): Gemini diz indemnização sem IVA; DeepSeek diz receita com IVA 23%; ChatGPT depende do contrato → Hugo decide (eu trataria com IVA por prudência).
+- NÃO-PARCEIROS E FAVORES (regime normal): regra por pedido — cliente pediu NIF → estafeta dá o NIF do cliente na caixa (mercadoria do cliente, art. 16.º n.º 6 c), Bora fatura só o serviço); não pediu → estafeta dá o NIF da Bora 519686233 (revenda: Bora deduz o IVA da compra e fatura os produtos com o IVA de cada um + taxas); nunca "consumidor final". Contas verificadas pelos 3 (comida 20 € a 6%): com NIF do cliente IVA 1,33 €; revenda 0,86 €; consumidor final 1,99 €. Fatura simplificada em nome da Bora só até 100 € (art. 40.º n.º 1 b)); acima, fatura normal. Comida pode ser 6%, 13% ou 23%. Farmácia: com o NIF do cliente (recomendado; ChatGPT diz que não é obrigação legal). Não se pode obrigar o cliente a dar NIF → as duas modalidades ficam.
+- LIMPEZA: profissional fatura ao cliente, Bora só os 15% (3/3). Decidir se os 15% incluem IVA ou são + IVA (ChatGPT).
+- ESTAFETAS: autofaturação fica por agora (decisão 07/10). Faturação por terceiro em nome do estafeta ao cliente (art. 29.º n.º 14 + art. 5.º DL 28/2019) é legal e viável com programa certificado (séries por estafeta, comunicação à AT, ThirdPartiesBillingIndicator no SAF-T); Gemini acha que não compensa já, DeepSeek/ChatGPT acham que sim se o volume justificar. Favor de 6 €: −0,12 € hoje → 0,81 € com o estafeta a faturar ao cliente. Perguntar ao Hugo se o programa dele faz isto.

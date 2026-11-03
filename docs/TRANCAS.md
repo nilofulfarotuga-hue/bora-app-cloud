@@ -307,3 +307,10 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   BEMVINDO, link `?de=reel-boom-cafe-paris` e @boomburger.artesanal): falta carregar em "Partilhar". Story, estado do
   WhatsApp da Bora, grupo "Marketing, vendas e propaganda Guarda" e envio dos links ao Danilo ficaram por fazer
   (mesmo tipo de ação). Ficheiros: `reel.mp4` e `story.png` (montados a 02/11 21:43, aprovados pelo Juiz com visão).
+
+- **03/11/2026 ~22:00, missão `fuku-anuncio-2026-11-03` (bloco 5 e fecho)** — (1) o classificador recusou
+  ("Credential Exploration") ler por SSH se o `.env` da VPS já tem `META_ADS_TOKEN` (só se contava a linha, sem
+  mostrar o valor). Não se insistiu: o resumo das 21:30 continua sem gasto e cliques. (2) A bora-tranca recusou
+  escrever o guião que subia as peças do anúncio do Fuku para `product-images/meta-2026-11-03/` (leu a variável que
+  carrega a chave do `backend/.env` como "segredo em texto claro"). Não contornado: as peças estão na Meta, no
+  Telegram do Danilo e em `Vídeos/Bora/fuku-anuncio-2026-11-03/` no PC.

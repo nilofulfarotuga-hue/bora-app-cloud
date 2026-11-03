@@ -456,7 +456,11 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
           borderRadius: BorderRadius.vertical(top: Radius.circular(Radii.xl)),
           boxShadow: AppColors.shadowNav,
         ),
-        child: Column(
+        child: Material(
+          // 03/11/2026: o ListTile pinta o toque nesta camada (o Flutter 3.47 avisa
+          // quando uma caixa com cor o tapa).
+          type: MaterialType.transparency,
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -843,6 +847,7 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                     }),
             ),
           ],
+        ),
         ),
     );
   }

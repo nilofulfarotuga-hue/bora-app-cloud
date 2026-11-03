@@ -124,6 +124,10 @@ class FaturaNifCard extends StatelessWidget {
           ),
           padding: const EdgeInsets.symmetric(
               horizontal: Spacing.lg, vertical: Spacing.sm),
+          child: Material(
+          // 03/11/2026: o ListTile pinta o toque nesta camada (o Flutter 3.47 avisa
+          // quando uma caixa com cor o tapa).
+          type: MaterialType.transparency,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -177,6 +181,7 @@ class FaturaNifCard extends StatelessWidget {
               ],
             ],
           ),
+        ),
         );
       },
     );

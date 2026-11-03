@@ -277,7 +277,11 @@ class _ReceitaDoDiaScreenState extends State<ReceitaDoDiaScreen> {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: AppColors.divider),
               ),
-              child: SwitchListTile(
+              // 03/11/2026: camada Material própria para o toque do ListTile
+              // (o Flutter 3.47 avisa quando a caixa com cor o tapa).
+              child: Material(
+                type: MaterialType.transparency,
+                child: SwitchListTile(
                 key: const Key('receita_aviso_switch'),
                 value: _hoje.avisoLigado,
                 onChanged: _aGravarAviso ? null : _mudarAviso,
@@ -291,6 +295,7 @@ class _ReceitaDoDiaScreenState extends State<ReceitaDoDiaScreen> {
                       .tr,
                   style: const TextStyle(fontSize: 12),
                 ),
+              ),
               ),
             ),
           ],

@@ -17,6 +17,7 @@ import 'admin_appointments_screen.dart';
 import 'admin_audit_log_screen.dart';
 import 'admin_businesses_screen.dart';
 import 'admin_cancellation_requests_screen.dart';
+import 'admin_autorizacao_promocoes_screen.dart';
 import 'admin_carrinhos_abandonados_screen.dart';
 import 'admin_cancellations_screen.dart';
 import 'admin_carwash_screen.dart';
@@ -1074,6 +1075,15 @@ List<AdminMenuSection> adminMenuSections() => [
       color: AppColors.primary,
       builder: () => const AdminCarrinhosAbandonadosScreen(),
       keywords: const ['carrinho', 'abandonado', 'largou', 'lembrete', 'push', 'recuperar'],
+    ),
+    AdminMenuItem(
+      id: 'clientes_autorizacao_promocoes',
+      title: 'Autorização de promoções',
+      subtitle: 'Quantos clientes aceitaram receber promoções (RGPD), quem e quando',
+      icon: Icons.mark_email_read_outlined,
+      color: AppColors.primary,
+      builder: () => const AdminAutorizacaoPromocoesScreen(),
+      keywords: const ['promocoes', 'marketing', 'opt-in', 'rgpd', 'autorizacao', 'novidades'],
     ),
     AdminMenuItem(
       id: 'clientes_reativacao',

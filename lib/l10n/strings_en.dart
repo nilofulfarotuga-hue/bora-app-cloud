@@ -5100,4 +5100,10 @@ const Map<String, String> kStringsEn = <String, String>{
       'Scheduled orders are not available right now.',
   'Não foi possível marcar a hora do pedido. Verifica a ligação e tenta de novo.':
       "We couldn't book the order time. Check your connection and try again.",
+  'Promoções e novidades':
+      'Offers and news',
+  'Queres receber promoções e novidades das lojas da Guarda? Podes mudar quando quiseres no Perfil.':
+      'Would you like to receive offers and news from shops in Guarda? You can change this anytime in your Profile.',
+  'Sim':
+      'Yes',
 };

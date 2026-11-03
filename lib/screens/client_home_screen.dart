@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
@@ -49,6 +51,7 @@ import 'festas_screen.dart';
 import 'sobremesas_screen.dart';
 
 import '../l10n/tr.dart';
+import '../widgets/pergunta_promocoes.dart';
 
 class ClientHomeScreen extends StatefulWidget {
   const ClientHomeScreen({super.key});
@@ -90,14 +93,24 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
       _detectLocation();
       // Sessão 6 §44 — abre RatingScreen se há pedido entregue ainda não avaliado.
       _checkUnratedOrders();
+      // 03/11/2026 (bloco H): pergunta das promoções, UMA vez, a quem nunca
+      // respondeu (inclui quem acabou de se registar). Espera uns segundos
+      // para não aparecer por cima da avaliação de um pedido.
+      _perguntaPromocoes = Timer(const Duration(seconds: 3), () {
+        if (!mounted || !(ModalRoute.of(context)?.isCurrent ?? false)) return;
+        PerguntaPromocoes.mostrarSeFaltar(context);
+      });
       // BUG 3 (2026-05-17) — attach Realtime listener on OrderStore.
       _orderStore = context.read<OrderStore>();
       _orderStore!.addListener(_onOrderStoreChanged);
     });
   }
 
+  Timer? _perguntaPromocoes;
+
   @override
   void dispose() {
+    _perguntaPromocoes?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _orderStore?.removeListener(_onOrderStoreChanged);
     super.dispose();

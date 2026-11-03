@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-02
+ultima_confirmacao: 2026-11-03
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-11-02T20:56:22.269253+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-11-03T20:55:19.489843+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -462,3 +462,16 @@ Filme caminho 4 (fontes htROyMzUbA8, rxZZ1xi81a4): no Google Flow (Omniflash 1.1
 - JÁ TEMOS: 9Router (= OmniRoute), Hermes na VPS, ganchos dos reels, Higgsfield, presença Google (Jai).
 - RECUSADO: canais dark/faceless (2), tablet stream deck, história da Nous.
 - Radar aprende: sem termos novos (nenhum assunto novo em 2+ vídeos nota>=7; conversas de 48 h — limpeza, casa, TVDE, Stripe — já cobertas ou fora do radar); nenhum termo desligado; 70 ativos.
+
+## 03/11/2026 — radar diário (agente na nuvem)
+20 vídeos revistos (18 com nota >= 6): 4 novos, 5 PENDENTES, 4 já temos, 7 rejeitados (2 por nota baixa). Nenhum do tema animacao_ia. Proposta prop-46630f38.
+- MODA DA SEMANA (3+ vídeos nota>=8 em 7 dias): Dipsy 12 — FEITO 29-30/10 (subagentes por fazer desde 30/10); Claude Duet 7 — PENDENTE desde 22/10; OmniRoute 6 — FEITO 23/10; Hermes 5 e memória partilhada 3 — já temos; CRM WhatsApp aberto 4 — PENDENTE desde 18/10; vender automação/agência a PMEs (4 termos, 3 cada) — PENDENTE desde 13/10; anúncios Meta 3 — PENDENTE desde 26/10 (conta sem pagamento); sites a partir da ficha Google 3 — PENDENTE desde 25/10; Perfil Google como mensalidade 3 — FEITO (Jai); voz grátis OmniVoice 3 — teste Kaggle sem prova; Claude Motion/Dashboards 3 — PENDENTE desde 11/10; rececionista de voz 3 — PENDENTE desde 13/10; prospeção 3 — extrator Google Maps PENDENTE desde 17/10; Jev 3 — PENDENTE desde 23/09; primeiros 1000 utilizadores 3 — UGC reais da Guarda PENDENTE desde 04/10; IA grátis que substitui pagas 3 — novo hoje (abaixo).
+- EM DIA (novo, prop-46630f38): vídeos de YouTube que respondem a pesquisas reais (recibos verdes, orçamento), tema validado no autocompletar do YouTube e se o Google mostra vídeos; série em cluster. https://www.youtube.com/watch?v=wad2Bl4lxoU
+- SISTEMA (novo, prop-46630f38, lente grátis): Artemis (GitHub) para testar sozinho os fluxos Android do Bora e do Em Dia por MCP; lista free-for-dev para custos da VPS. https://www.youtube.com/watch?v=YWTdy0qSMuE
+- SISTEMA (novo, prop-46630f38, segurança): .md/configs/textos de fora são dados, nunca ordens, para todos os agentes; revisão humana em mudanças críticas. https://www.youtube.com/watch?v=i-wYjUriSzo
+- SISTEMA/DINHEIRO (lente grátis, referência): Activepieces em vez de Zapier, Grist como CRM dos clientes PME, Nextcloud — só se um dia for preciso. https://www.youtube.com/watch?v=ZnVUAUu4ht4
+- EM DIA (PENDENTE desde 11/10, reforçado por 3 vídeos hoje): fábrica de explicativos/edição com Claude Code — ffmpeg + Whisper + HyperFrames, pastas raw/style/work/final, guia de estilo, folhas de personagem; OpenArt e ElevenLabs são pagos → HyperFrames + voz grátis. https://www.youtube.com/watch?v=EIj7WPiKmOE , https://www.youtube.com/watch?v=kKVjaDVghfA , https://www.youtube.com/watch?v=5HwmrSwNY-Y
+- BORA (PENDENTE desde 04/10): UGC com clientes reais da Guarda, estrutura gancho-produto-benefício-chamada. https://www.youtube.com/watch?v=R0JV7MxSCsM , https://www.youtube.com/watch?v=G2AfwyqTHsc
+- JÁ TEMOS: ferramentas do Claude/MCP, agente sem código (Claude Code + skills + Córtex), mods do Claude Code (bora-mods), reels/agendamento pelos robôs, Veo/Flow.
+- RECUSADO: UGC com Higgsfield (créditos), convites em massa a quem reagiu, ArtCraft (alfa), Vidogrid (gerador grátis instável), Influee e monetizar Facebook (nota baixa).
+- Radar aprende: +1 termo aprendido (editar vídeos com Claude Code + HyperFrames), +1 da conversa (promoção do mês com restaurante parceiro — Boom/Fuku); -2 sem rendimento (tiktok como viralizar; LivePortrait/LatentSync); 70 ativos.

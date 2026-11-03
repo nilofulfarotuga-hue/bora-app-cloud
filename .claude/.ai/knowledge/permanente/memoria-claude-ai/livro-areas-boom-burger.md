@@ -10,11 +10,11 @@ estado: atual
 
 # Boom! Burger (hamburgueria artesanal da Guarda) — loja que o Danilo quer ganhar como parceira do Bora desde 27/10/2026; ler antes de falar dela, montar a loja ou listar parceiros
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-boom-burger`, origem `claude-ai`, atualizada em 2026-11-03T07:13:51.310535+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-boom-burger`, origem `claude-ai`, atualizada em 2026-11-03T08:13:31.090355+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas boom burger · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/boom-burger.md), copiada a 03/11/2026 07:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/boom-burger.md), copiada a 2026-11-03 08:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: boom-burger
@@ -36,3 +36,4 @@ aliases: [Boom Burger, Boom! Burger]
 - [stated] 31/10 06:31: disse NÃO (item 10 da lista de propostas) a pôr na base os preços de balcão do preçário que o Emanuel mandou a 29/10 — os preços da Boom ficam como estão por agora
 - [stated] 02/11 19:28 o Emanuel mandou (pessoal e Bora) as fotos do Café de Paris e das sobremesas e pediu o Café de Paris "em primeiro lugar na app" como hambúrguer do mês (só mostrar, sem desconto). 21:05 o Danilo autorizou tudo: destaque grande na loja, faixa na página inicial, story + reel marcando a Boom, robô a oferecer o hambúrguer do mês, e o robô a parar quando ele escreve à mão (o Emanuel continua tratado como cliente porque testa). PROMPT REGISTADO: página do livro `prompt-boom-hamburguer-mes-2026-11-02` (MOTOR Opus 5.5), colado às ~21:25 na sessão do PC "Missão zerar-2026-11-02" (session_01HPEpVAGPaiWDPnrbGwZxmL), fluxo e2e_log boom-hamburguer-mes-2026-11-02. Scope: 5 fotos ao Storage, robô (dono_falou), cartão de destaque + painéis + publicar nas 3, story/reel. Já feito por MCP antes: Café de Paris em 1.º (categoria "Hambúrguer do Mês"), faixa na home, nota no robô, conversa do Emanuel silenciada 12 h. Estado: a correr
 - [stated] 03/11 06:57: o PC desligou-se a meio da missão (ambiente da sessão apagado). Antes de cair ficaram feitas e provadas as 5 fotos e a faixa da página inicial com foto; o conserto do robô ficou pronto mas sem publicar na VPS; o destaque grande não começou; o reel e o story não saíram. PROMPT REGISTADO: página do livro `prompt-boom-hamburguer-mes-retoma-2026-11-03` (MOTOR Opus 5.5), escrito às ~07:05 na sessão "PC do Danilo" (session_01HPEpV8VYHX4dCf8PX4Wesa, modo Ignorar permissões); o meu Enter foi travado pelo sistema. Estado: à espera do Enter dele
+- [stated] 03/11 07:43: aprovou as 6 propostas para manter o ritmo (aviso de carrinho esquecido, reel no anúncio da Boom, pedir autorização de promoções no registo, números dos anúncios no resumo, próximo anúncio depois de sexta) MENOS subir o anúncio da Boom: fica a 5 €/dia. Desconfia que os carrinhos são largados por causa da entrega + taxa e quer para essas lojas um plano igual ao do Continente/McDonald's/Burger King. PROMPT REGISTADO: página do livro `prompt-boom-hamburguer-mes-adendo1-2026-11-03` (blocos F a K, MOTOR Opus 5.5), escrito às ~07:55 na caixa da sessão "PC do Danilo" (session_01HPEpV8VYHX4dCf8PX4Wesa). Estado: à espera do Enter dele

@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-03T00:07:10.079905+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-03T07:07:10.669323+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-02 23:40 UTC. Páginas listadas: 513.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-03 07:02 UTC. Páginas listadas: 514.
 
 ## O que é o Bora
 
@@ -398,7 +398,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - relatorio-semanal-reels-2026-10-29 — Relatório semanal dos reels - 2026-10-29 (2026-10-29)
 - relatorio-semanal-reels-2026-11-02 — Relatório semanal dos reels - 2026-11-02 (2026-11-02)
 
-## prompt (33)
+## prompt (34)
 
 - prompt-auditoria-3-plataformas-2026-10-06 — Prompt de missão: auditoria das 3 plataformas (06/10) (2026-10-06)
 - prompt-boom-burger-2026-10-27 — PROMPT Boom! Burger — loja parceira + site premium (27/10/2026) (2026-10-27)
@@ -406,6 +406,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - prompt-boom-burger-adendo3-2026-10-27 — Prompt ADENDO 3 Boom! Burger (27/10 17:06) — consertar já o que ficou para trás (2026-10-27)
 - prompt-boom-burger-adendo4-2026-10-28 — PROMPT Boom! Burger — adendo 4 (fatura com NIF + entrega grátis preparada), 28/10/2026 (2026-10-28)
 - prompt-boom-hamburguer-mes-2026-11-02 — Prompt missão Boom hambúrguer do mês (02/11/2026) (2026-11-02)
+- prompt-boom-hamburguer-mes-retoma-2026-11-03 — Retoma da missão Boom hambúrguer do mês (03/11/2026) (2026-11-03)
 - prompt-cancelamento-tardio-2026-10-17 — Prompt: cancelamento tardio TVDE — app, painel e publicação nas 3 plataformas (17/10) — estado: a correr (2026-10-17)
 - prompt-casa-manutencao-2026-10-30 — Prompt: missão Casa & Manutenção (categoria nova, decisões do Danilo 30/10/2026) (2026-10-30)
 - prompt-dipsy-melhor-2026-10-31 — Missão Dipsy "melhor que o Claude Code" (31/10/2026) — decisões do Danilo 06:31 (2026-10-31)

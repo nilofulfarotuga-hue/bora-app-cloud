@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-03T13:37:05.667265+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-03T14:07:08.386283+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-03 13:32 UTC. Páginas listadas: 518.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-03 13:51 UTC. Páginas listadas: 519.
 
 ## O que é o Bora
 
@@ -453,7 +453,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - sql-modo-demo-2026-10-27 — SQL do modo demonstracao (Boom! Burger) para o Claude.ai aplicar (2026-10-27)
 
-## outras (132)
+## outras (133)
 
 - 00-LEIA-PRIMEIRO — Como usar esta memória (2026-10-23)
 - adendo-1-final-app-2026-10-29 — Adendo 1 da missão final-app-2026-10-29 (2026-10-29)
@@ -469,6 +469,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - adendo-harness-servidor-remote-control-2026-10-29 — ADENDO para a missao do Harness (sessao DeepSeek Harness installation): no fim, servidor de Remote Control para duas sessoes ao mesmo tempo (2026-10-29)
 - adendo-infra-2026-11-01 — Adendo à missão infra-claude-tudo-2026-11-01 (B10-B14: site /baixar, Meta ads, cartazes A3, grupos Facebook + Em Dia, stories) (2026-11-01)
 - adendo-vozes-omnivoice-2026-10-22 — Adendo de vozes: A/B do motor OmniVoice (k2-fsa) no filme Ep1 (2026-10-22)
+- analise-fiscal-bora-2026-11-03 — Análise fiscal do Bora (entregas e serviços, sem TVDE) + conselho Gemini/ChatGPT/DeepSeek — 03/11/2026 (2026-11-03)
 - armadilha-ytdlp-cookies-chrome-windows — yt-dlp + cookies do Chrome no Windows: caminho morto (App-Bound Encryption) (2026-09-17)
 - arquivo-regras-do-danilo-2026-09-17 — ARQUIVO — regras do Danilo (versão de 17/09, substituída a 23/10) (2026-10-23)
 - auditoria-3-plataformas-fecho — Auditoria das 3 plataformas — fecho das pendências (07/10/2026 noite) (2026-10-07)

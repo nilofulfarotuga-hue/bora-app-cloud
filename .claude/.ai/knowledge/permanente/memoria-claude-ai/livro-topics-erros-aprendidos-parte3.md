@@ -10,11 +10,11 @@ estado: atual
 
 # Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 3 de 3)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte3`, origem `claude-ai`, atualizada em 2026-11-03T15:16:15.916071+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte3`, origem `claude-ai`, atualizada em 2026-11-03T21:13:39.798378+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro topics erros aprendidos parte3 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md), copiada a 03/11/2026 15:20 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos. Parte 3 de 3.
+> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md), copiada a 03/11/2026 21:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos. Parte 3 de 3.
 
 - [stated] 27/10 22:25: mandei publicar o reel do Tesla no grupo "Brasileiros na Guarda" e no "Marketing, vendas e propaganda Guarda"; ele corrigiu: "o brasileiro agora só pode no marketing" → regra: propaganda da Bora em grupos de WhatsApp só no "Marketing, vendas e propaganda Guarda"; no "Brasileiros na Guarda" não se publica
 - [stated] 28/10 10:33 (na hora da demonstração da Boom): disse-lhe que as senhas das contas de demonstração estavam no Telegram e não lhas dei; ele não as tinha à mão e reclamou "você tem que me dar a senha" → regra: quando ele pede o login de uma conta de teste/demonstração, dou-lho logo aqui na conversa (e se eu não tiver a senha, reponho uma nova pelo servidor, testo e dou-a); nunca o mandar procurar no Telegram
@@ -43,4 +43,5 @@ estado: atual
 - [stated] 02/11 15:08: disse-lhe que a Casa estava desligada, mas a conta dele (boraappbora) estava na lista de testadores e ele viu-a publicada na web, mal acabada → regra: antes de dizer que uma categoria está desligada, ver também quem a vê por exceção (testadores, contas demo); quando ele manda desligar, desligar para todos
 - [stated] 02/11 17:57 (pedido da Dona Isabel, Continente): o pão avulso da padaria (Pão Bola de Mistura) estava por unidade sem opção de trocar o preço na balança — a marcação ao quilo de 26/10 e 31/10 só apanhou fruta, legumes e talho → regra: pão avulso da padaria dos mercados (bolas, bijou, pão do dia sem embalagem) também é ao quilo; ao marcar produtos ao quilo, rever TODAS as secções de balcão (fruta, legumes, talho, peixaria, padaria, charcutaria ao corte), não só a fruta
 - [stated] 03/11 14:47: no mercado, a fazer a compra para o Vansh, pediu "o NIF da empresa" e eu dei o da Bora (519686233); era o da Guarda FC SAD (518256430) → regra: compra ou serviço para o Vansh/Guarda FC = NIF da SAD; ler sempre o contexto do pedido antes de escolher qual "empresa"
+- [stated] 03/11 20:14: pediu uma missão para o "DeepC/Deep Sea" e que passasse ao "Gypsy"; li Gypsy como o ChatGPT e lancei a missão no Claude Code, e ele mandou parar ("é o Gypsy que vai fazer tudo") → regra: Gypsy/Gipsy/DeepC/Deep Sea = o Dipsy (DeepSeek Harness), nunca o ChatGPT; missão para o Dipsy não vai ao Claude Code. Hoje a guarda do Dipsy não o deixa publicar nem sair dos sites do Bora: dizer isso antes de agir
 

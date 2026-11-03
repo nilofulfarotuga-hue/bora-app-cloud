@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-03T21:37:03.483296+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-03T22:37:02.522477+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-03 21:13 UTC. Páginas listadas: 522.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-03 22:22 UTC. Páginas listadas: 523.
 
 ## O que é o Bora
 
@@ -34,7 +34,7 @@ Quer respostas curtas, em texto corrido e sem jargão, e que o trabalho se faça
 
 1. `erros-aprendidos` — as correções do Danilo; errou uma vez, nunca mais (atualizada 2026-11-03).
 2. `regras-do-danilo` — as regras dele; mandam em tudo (atualizada 2026-10-31).
-3. Estado vivo: `digest-2026-11-03-boom-continua` (2026-11-03).
+3. Estado vivo: `digest-2026-11-03-fuku-anuncio` (2026-11-03).
 4. Antes de mexer em pedidos, estafetas, dinheiro ou migrações: `regras-operacao-agentes`.
 5. Ferramenta nova sem MCP? `livro-porta-unica` explica como ligar (Córtex por MCP, ou o ficheiro plano LIVRO.md com senha).
 
@@ -51,8 +51,9 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - erros-aprendidos — Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige) (2026-11-03)
 
-## digest (202)
+## digest (203)
 
+- digest-2026-11-03-fuku-anuncio — Digest 03/11 — anúncio do Fuku Sushi na Meta publicado (2026-11-03)
 - digest-2026-11-03-boom-continua — Digest 03/11 — Boom e Fuku continua (PC) (2026-11-03)
 - digest-2026-11-03-boom-hamburguer-mes — Digest 03/11 — Boom hambúrguer do mês (retoma) (2026-11-03)
 - digest-2026-11-02-zerar — Claude Code 02/11 — zerar: chave nova no servidor, série de limpeza devolve, peso no cartão pronto (desligado), arrumações; app não publica… (2026-11-02)

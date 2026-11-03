@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-resumo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-01
+ultima_confirmacao: 2026-11-02
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Livro do Bora — resumo para o ChatGPT (regras + erros + índice, sem pessoais), gerado
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-resumo`, origem `claude-code`, atualizada em 2026-11-01T23:40:14.344515+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-resumo`, origem `claude-code`, atualizada em 2026-11-02T23:40:16.572259+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro resumo · memoria claude.ai · claude_ai_memoria
 
-# Livro do Bora — resumo para o ChatGPT (2026-11-01)
+# Livro do Bora — resumo para o ChatGPT (2026-11-02)
 
 Lê isto antes de responder ao Danilo. É a mesma verdade que a Claude.ai, o Hermes, o Claude Code e o OpenCode leem (tabela public.claude_ai_memoria). Gerado todas as noites pela VPS; páginas pessoais ficam de fora.
 
@@ -202,6 +202,9 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - 01/11 (claude-ai): às 20:19 mandei ao Jai a conta da semana com 214 € (28 € da semana + os 186 € de 24/10 "ainda em aberto"), mas ele já tinha pago os 186 € no cartão, no telemóvel do Danilo, a 27/10 (Stripe 27/10 16:50, 186,00 €). A nota só dizia "sem registo de pagamento nas conversas" e eu tratei isso como dívida. O Danilo: "já recebi pelo aeroporto, o dele é só essa semana, você mandou errado" → antes de cobrar um saldo antigo, confirmar na Stripe (stripe_extrato_contabilista) e no WhatsApp se já foi pago; "sem registo" não é "por pagar"; na dúvida, perguntar ao Danilo antes de enviar.
 - 01/11 (claude-ai): Mandei ao Jai (01/11 20:19) a conta da semana a dizer que os 186 € de 24/10 ainda estavam em aberto, só pela memória — ele já tinha pago por cartão a 27/10 (Stripe 16:50). O Jai ligou ao Danilo e teve de sair uma correção com pedido de desculpa. → Antes de mandar qualquer conta ou cobrança a alguém, confirmar o que já foi pago na BASE e na Stripe (payments/stripe_extrato_contabilista, orders pagos, ledger) — nunca só pela memória. Mandar só o que está mesmo por pagar.
 - 01/11 (claude-ai): 01/11 21:10: no relatório final disse que a mensagem para o Hugo e o resumo da Stripe estavam "na página mensagem-hugo-2026-11-01 do livro", em vez de os escrever aqui no chat; ele tinha pedido o relatório detalhado da Stripe e a mensagem ao Hugo para conferir → quando ele pede relatório, resumo ou mensagem para conferir, vai SEMPRE escrito por inteiro aqui no chat, detalhado; o livro e o Córtex são só cópia para os agentes, nunca o sítio para onde o mando ler
+- 02/11 (claude-ai): (não é erro) registo: Bora Motorista fechado a 02/11/2026 06:00 por ordem do Danilo → TVDE de passageiros está DESLIGADO desde 02/11/2026 06:00 (tvde_passageiros_enabled=false). Só volta a ligar com ordem dele.
+- 02/11 (claude-ai): 02/11 14:55: disse ao Danilo que a Casa estava desligada (casa_enabled=false) sem ver que a conta dele boraappbora estava na lista de testadores; ele abriu a web e viu a Casa publicada, mal acabada → antes de dizer que uma categoria está desligada, ver também quem a vê por exceção (casa_testadores, contas demo) e dizer isso; quando ele quer desligar, desligar para todos, incluindo os testadores
+- 02/11 (claude-ai): 02/11 17:57 (pedido da Dona Isabel, Continente): o pão avulso da padaria (Pão Bola de Mistura) estava por unidade sem opção de trocar o preço na balança — a marcação ao quilo de 26/10 e 31/10 só apanhou fruta, legumes e talho → pão avulso da padaria dos mercados (bolas, bijou, pão do dia sem embalagem) também é ao quilo; ao marcar produtos ao quilo, rever TODAS as secções de balcão (fruta, legumes, talho, peixaria, padaria, charcutaria ao corte), não só a fruta
 
 
 ## Índice do livro (sem páginas pessoais)
@@ -422,12 +425,18 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - digest-2026-10-31-jai-sportsdunia-e-fatura-139 — Jai 31/10: SportsDunia, estilo das mensagens e fatura dos 139
 - digest-2026-10-31-meta-anuncios-g4 — Meta anúncios 31/10 — criativos refeitos, juiz ≥ 9, 4 anúncios LIGADOS
 - digest-2026-10-31-publicar-retoma — Claude Code 31/10 — publicar a retoma (base, alertas, envio)
+- digest-2026-11-01-app-fechar — Digest 01-02/11/2026 — missão app-fechar (Casa, peso, convidado, online, limpeza, assistente, robô, revisão humana)
 - digest-2026-11-01-assistente-cliente-claude — Digest 01/11 — Bora Assistente com Claude primeiro + 3 melhorias de 10/10; stories em breve
 - digest-2026-11-01-conta-jai-186-pago — Conta do Jai — 186 € de 24/10 já pagos; semana de 26/10 = 28 € (juntar à memória)
 - digest-2026-11-01-fechar-tudo-claude-ai — Digest 01/11 noite — Claude.ai fechou a lista de pendências com 9 agentes em paralelo + missão no PC
 - digest-2026-11-01-fecho-pendentes — Digest 01/11 — fecho dos pendentes (peso ao quilo, robô v30, limpeza, porteiro) publicado nas 3
 - digest-2026-11-01-infra-claude-tudo — Digest 01/11/2026: Claude sem ração em todos os robôs, Dipsy pelo porteiro, VPS arrumada, Bora Bastidores
 - digest-2026-11-01-mercadona-reaberta — Digest 01/11/2026 — Mercadona reaberta só com beleza e higiene
+- digest-2026-11-02-chaves-varredura — Digest 02/11 — varredura das chaves (Claude Code PC)
+- digest-2026-11-02-stripe-empresa — Digest 02/11/2026 — missão stripe-empresa (duas contas Stripe)
+- digest-2026-11-02-stripe-retoma — Stripe duas contas — retoma Opus 02/11 — resultado
+- digest-2026-11-02-travadas-infra — Claude Code 02/11 — travadas da infra (site, gorjeta, artes, grupos, anuncios)
+- digest-2026-11-02-zerar — Claude Code 02/11 — zerar: chave nova no servidor, série de limpeza devolve, peso no cartão pronto (desligado), arrumaçõ
 - diretiva-plataformas-2024-2831 — Diretiva (UE) 2024/2831 trabalho em plataformas — o que obriga o Bora, estado em Portugal, o que está feito e checklist 
 - dsh-como-usar — Como usar o Dipsy (dsh)
 - dsh-como-usar-novidades-2026-10-31 — Dipsy: o que ficou novo a 31/10 (complemento da pagina dsh-como-usar)
@@ -438,6 +447,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - emdia-grupos-facebook — Em Dia — publicações em grupos de Facebook
 - engenharia-reversa — Engenharia reversa — método do Danilo para clonar o que já existe (pedido 17/10/2026)
 - engenharia-reversa-achados-2026-10-17 — Engenharia reversa — achados da pesquisa mundial de 17/10/2026 (REA, filme, navegador)
+- erro-2026-11-02-whatsapp-conversa-eu — Erro 02/11: artes mandadas para a conversa "Eu" do WhatsApp pessoal
 - erros-aprendidos — Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige)
 - estado-2026-09-13 — Estado do Bora a 13/09/2026 (auditoria da Claude.ai depois de 3-4 dias sem Claude)
 - fecho-2026-10-17-cancelamento-tardio — Fecho 17/10 — cancelamento tardio TVDE: publicado nas 3 plataformas (estado final do prompt prompt-cancelamento-tardio-2
@@ -627,6 +637,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - prompt-boom-burger-2026-10-27-texto-completo — PROMPT Boom! Burger — texto completo (27/10/2026)
 - prompt-boom-burger-adendo3-2026-10-27 — Prompt ADENDO 3 Boom! Burger (27/10 17:06) — consertar já o que ficou para trás
 - prompt-boom-burger-adendo4-2026-10-28 — PROMPT Boom! Burger — adendo 4 (fatura com NIF + entrega grátis preparada), 28/10/2026
+- prompt-boom-hamburguer-mes-2026-11-02 — Prompt missão Boom hambúrguer do mês (02/11/2026)
 - prompt-cancelamento-tardio-2026-10-17 — Prompt: cancelamento tardio TVDE — app, painel e publicação nas 3 plataformas (17/10) — estado: a correr
 - prompt-casa-manutencao-2026-10-30 — Prompt: missão Casa & Manutenção (categoria nova, decisões do Danilo 30/10/2026)
 - prompt-dipsy-melhor-2026-10-31 — Missão Dipsy "melhor que o Claude Code" (31/10/2026) — decisões do Danilo 06:31
@@ -635,6 +646,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - prompt-gorjetas-taxa-2026-10-30 — Prompt — gorjetas: taxa da Stripe na gorjeta paga depois e gorjeta do carrinho junto da compra (30/10/2026)
 - prompt-jai-site-sportsdunia-2026-10-31 — Prompt jai-site SportsDunia 31/10
 - prompt-maiores-18-2026-10-07 — Prompt: verificação de idade +18 (tabaco/álcool) — estado: PRONTO, NÃO LANÇADO (bloqueado: publica nas lojas, falta o Da
+- prompt-manha-2026-11-02-ignorar-permissoes — Prompt para a sessão do PC em "Ignorar permissões" (02/11): o que o classificador travou na infra (B10-B13, B15)
 - prompt-meta-anuncios-2026-10-30 — Prompt: 2 anúncios novos da Meta (instalar app + carrossel do check-in) e dados da empresa na Meta (30/10/2026)
 - prompt-missao-da-noite-2026-10-07 — Prompt MISSÃO DA NOITE 07/10 (FABLE) — Bora Assistente (prioridade) + fechar +18 + Gmail caça-clientes + Apple Foco + GP
 - prompt-missao-geral-2026-10-28 — PROMPT missão geral 28/10 (Divan + Boom + robô WhatsApp + cartazes + erros), parte 1/2
@@ -652,6 +664,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - prompt-stripe-empresa-2026-11-01 — Prompt — ligar o app à Stripe da empresa (01/11/2026)
 - prompt-talao-confirmar-loja-saldo-2026-10-28 — PROMPT 28/10 — Confirmar do talão, nome da loja, dinheiro a cobrar com saldo/tokens, reembolso no cancelamento (100% sal
 - prompt-talao-confirmar-loja-saldo-2026-10-28-bloco-d — Adenda 18:30 ao prompt de 28/10 (talão Auchan/Divan): Bloco D novo — reembolso no cancelamento
+- prompt-zerar-2026-11-02 — Prompt "zerar" (02/11 15:10): chaves antigas, série de limpeza devolve, peso cobra no cartão + arrumações
 - radar-2026-10-05 — Radar de vídeos 05/10 — filme (5 caminhos) e negócio
 - radar-2026-10-06 — Radar de vídeos 06/10 — negócio e reforços para o filme
 - radar-2026-10-07 — Radar de vídeos 07/10 — skills, mods do Claude Code e regras de reels
@@ -678,6 +691,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - radar-2026-10-29 — Radar de vídeos 29/10/2026 — 20 revistos, 4 novos, 3 pendentes
 - radar-2026-10-31 — Radar de vídeos 31/10/2026 — 40 revistos, 3 novos, 14 pendentes
 - radar-2026-11-01 — Radar de vídeos 01/11/2026 — 40 revistos, 2 novos, 21 pendentes
+- radar-2026-11-02 — Radar de vídeos 02/11/2026 — 40 revistos, 9 novos, 10 pendentes
 - reembolsos-b2-00-leia-me — reembolsos-b2-00-leia-me
 - reembolsos-b2-01-shared-cobranca — reembolsos-b2-01-shared-cobranca
 - reembolsos-b2-ef-admin-cancel-order — reembolsos-b2-ef-admin-cancel-order
@@ -696,6 +710,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - regras-reels-radar-2026-10-04 — Regras de reels Em Dia e Bora (radar 04/10)
 - relatorio-boom-burger-2026-10-27 — Boom! Burger — demonstração e consertos (27/10/2026, noite)
 - relatorio-semanal-reels-2026-10-29 — Relatório semanal dos reels - 2026-10-29
+- relatorio-semanal-reels-2026-11-02 — Relatório semanal dos reels - 2026-11-02
 - resposta-contabilista-iva-2026-10-28 — Resposta do Hugo (DC Consultores): IVA normal trimestral, programa de faturação, modelo aceite — 28/10/2026
 - resposta-contabilista-iva-parte2-2026-10-28 — Hugo (15:54-15:55): faturas emitidas pelo escritório, não ficar no art. 53.º, IVA não mexe na margem — e as contas de ou
 - robo-documentos-2026-10-29 — Robô fiscal de documentos — relatório (adendo 3, 29/10/2026)

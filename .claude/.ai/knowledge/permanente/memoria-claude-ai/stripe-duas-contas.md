@@ -2,7 +2,7 @@
 id: memoria-claude-ai-stripe-duas-contas
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-02
+ultima_confirmacao: 2026-11-03
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Duas contas Stripe — empresa e pessoal (01/11/2026)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `stripe-duas-contas`, origem `claude.ai + claude-code 02/11`, atualizada em 2026-11-02T10:33:13.433262+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `stripe-duas-contas`, origem `claude.ai + claude-code 02/11`, atualizada em 2026-11-03T11:02:28.577223+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: stripe duas contas · memoria claude.ai · claude_ai_memoria
 
@@ -58,4 +58,11 @@ Publicado o commit c76c18be no autonomous-night-2026-04-29 (push normal 08:38 UT
 - Android 1.0.4+706 enviado para produção na Play, à espera da revisão do Google.
 - iPhone: IPA 1.0.35 build 224 VALID no TestFlight, mas NÃO submetida — a 1.0.34 (sem a bandeira) está WAITING_FOR_REVIEW desde ~23:30 de 01/11; não se cancela (volta ao fim da fila). Quando a Apple aprovar a 1.0.34 (email para boraappbora@gmail.com; costuma levar ~17h), dispara-se build_ios (enviar=true, submeter_revisao=true) para submeter a 1.0.35. Lembrete marcado para 17:00 (trig_0193WUf1qDHBKnUB8g4RghRq).
 - Interruptor stripe_conta_nao_tvde = 'empresa' desde 09:00. App antiga (sem bandeira) continua a pagar na pessoal, sem falhas. Forçar atualização só depois da 1.0.35 e da 706 aprovadas.
+
+
+## 03/11 11:01 — missão fechada nas 3 plataformas (Claude.ai)
+- Primeiro pagamento real na Stripe da empresa: pedido a2948799, MB Way, 02/11 19:26, pago e entregue; webhook da empresa sem erro.
+- Forçar atualização: Android min 706 (desde 02/11 17:18); iPhone min 225 = 1.0.35 (desde 03/11 11:01, Apple aprovou 06:40 UTC). Web atualiza-se sozinha.
+- Interruptor stripe_conta_nao_tvde = 'empresa'. TVDE continua na conta pessoal.
+- Pendentes pequenos (reportados, não aplicados): CI escreve app_latest_version_code_ios logo após o upload (aviso de versão que ainda não está na loja); teste instável test/rastreio_interpolacao_test.dart:198 (tolerância 1e-9); charge-extra devolve 500 a GET sem corpo (devia ser 400/405).
 

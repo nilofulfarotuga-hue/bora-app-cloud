@@ -10,7 +10,7 @@ estado: atual
 
 # Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-03T14:23:53.516279+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-03T15:16:15.916071+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: erros aprendidos · memoria claude.ai · claude_ai_memoria
 
@@ -129,3 +129,4 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 
 - 03/11 14:05 (Danilo corrigiu): na análise fiscal mandei perguntar ao Hugo se o IVA normal foi "por opção" e propus passar a empresa a isenta, quando já estava falado (28/10 o Hugo disse que não compensa o art. 53.º e o Danilo respondeu "ok, fica no normal" = regime normal escolhido, 5 anos); e deixei de fora tudo o que já conversámos sobre os parceiros. REGRA: antes de qualquer análise de assunto já falado, puxar TODAS as conversas antigas do tema (cada vertical: parceiros, não-parceiros, Favores, limpeza, serviços) e partir do que lá ficou decidido; nunca voltar a propor o que ele já fechou.
 - 03/11 14:23 (Danilo corrigiu): ele disse "você vai mandar esse texto aí" sobre as perguntas ao Hugo e eu abri o WhatsApp pessoal para enviar no grupo Contabilidade; ele parou-me: "não é pra enviar nada pra ninguém, é pra você fazer e me dar aqui a resposta". REGRA: "manda/faz o texto" sobre mensagens para terceiros = escrever o texto aqui no chat; só envio quando ele disser claramente "envia/manda para ele" depois de ver o texto.
+- [stated] 03/11 14:47: no mercado, a fazer a compra para o Vansh, pediu "o NIF da empresa" e eu dei o da Bora (519686233); era o da Guarda FC SAD (518256430) → regra: compra ou serviço para o Vansh/Guarda FC = NIF da SAD; ler sempre o contexto do pedido antes de escolher qual "empresa"

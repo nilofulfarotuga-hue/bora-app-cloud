@@ -14,6 +14,7 @@ import '../models/cart_item.dart';
 import '../models/order_service_type.dart';
 import '../models/partner_product.dart';
 import '../models/restaurant_model.dart';
+import '../services/destaque_loja_service.dart';
 import '../services/order_eta_service.dart';
 import '../services/pricing_service.dart';
 import '../services/promocoes_service.dart';
@@ -32,6 +33,7 @@ import '../widgets/bora_assistant_fab.dart';
 import '../widgets/entrega_gratis_da_loja.dart';
 import '../widgets/modo_ocupado_ligado.dart';
 import '../widgets/preco_com_promocao.dart';
+import '../widgets/produto_destaque_loja.dart';
 import 'cart_screen.dart';
 import 'client/reservation/reservation_availability_screen.dart';
 import 'product_detail_screen.dart';
@@ -92,6 +94,8 @@ class RestaurantMenuScreen extends StatefulWidget {
     'complementos': '🍞',
     'rodízio': '🍕',
     'ofertas': '🎁',
+    // 02/11/2026 (boom-hamburguer-mes): a secção do produto em destaque.
+    'hambúrguer do mês': '🔥',
   };
 
   static String _emojiFor(String category) =>
@@ -135,10 +139,29 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
   int _activeSection = 0;
   bool _tabTapScrolling = false;
 
+  // 02/11/2026 (boom-hamburguer-mes, bloco C): produto em destaque no topo.
+  DestaqueLoja? _destaque;
+
   @override
   void initState() {
     super.initState();
     _menuScroll.addListener(_onMenuScroll);
+    DestaqueLojaService.instance.daLoja(widget.restaurantId).then((d) {
+      if (mounted && d != null) setState(() => _destaque = d);
+    });
+  }
+
+  /// O produto em destaque, se estiver entre os disponíveis desta loja.
+  PartnerProduct? _produtoEmDestaque(
+      Map<String, List<PartnerProduct>> grouped) {
+    final id = _destaque?.produtoId;
+    if (id == null) return null;
+    for (final lista in grouped.values) {
+      for (final p in lista) {
+        if (p.id == id) return p;
+      }
+    }
+    return null;
   }
 
   @override
@@ -292,6 +315,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
     final sections = grouped.entries.toList();
     _syncSectionTabs(sections.length);
     final model = restaurantStore.restaurantById(widget.restaurantId);
+    final destaque = _produtoEmDestaque(grouped);
 
     return CustomScrollView(
       controller: _menuScroll,
@@ -303,6 +327,15 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
             isPartner: widget.restaurant.isPartner,
           ),
         ),
+        if (destaque != null)
+          SliverToBoxAdapter(
+            child: ProdutoDestaqueLoja(
+              product: destaque,
+              rotulo: _destaque!.rotulo,
+              isPartnerStore: widget.restaurant.isPartner,
+              onAdd: () => _addToCart(destaque),
+            ),
+          ),
         SliverPersistentHeader(
           pinned: true,
           delegate: _SectionTabsDelegate(

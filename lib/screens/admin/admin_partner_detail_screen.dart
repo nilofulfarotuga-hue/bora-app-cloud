@@ -22,6 +22,7 @@ import '../../widgets/bora/bora_primary_button.dart';
 import '../../widgets/pausa_do_dia_editor.dart';
 import '../../widgets/private_bucket_image.dart';
 import '_admin_partner_edit_dialog.dart';
+import 'admin_destaque_loja_card.dart';
 import 'admin_product_prices_dialog.dart';
 import 'admin_suspensao_comum.dart';
 import '../../utils/hora_lisboa.dart';
@@ -454,6 +455,9 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
             const SizedBox(height: 24),
             AdminDadosFiscaisCard(restaurantId: widget.restaurantId),
           ],
+          // 02/11/2026 (boom-hamburguer-mes): produto em destaque no topo da loja.
+          const SizedBox(height: 24),
+          AdminDestaqueLojaCard(restaurantId: widget.restaurantId),
           const SizedBox(height: 24),
           _pedidoMinimoCard(),
           const SizedBox(height: 24),

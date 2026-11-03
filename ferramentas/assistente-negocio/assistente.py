@@ -555,8 +555,9 @@ def classificar(t, ct, texto, simular):
     try:
         # 29/10 (A.7/B.2j): so motores gratis; Groq a frente (3/3 certas, ~0,3 s) porque o Gemini gratis tem
         # 20 pedidos por modelo e por dia e este classificador corre em quase todas as mensagens.
-        msg, meta = motores.conversar(["groq:openai/gpt-oss-20b", "groq:qwen/qwen3.8-27b",
-                                       "gemini:gemini-3.1-flash-lite"], msgs)
+        # 31/10/2026 (missao motor-claude): Claude Haiku 5.5 pelo porteiro (P1, so enquanto houver credito), depois groq.
+        msg, meta = motores.conversar(["porteiro:perfil:claude-classificar", "groq:openai/gpt-oss-20b", "groq:qwen/qwen3.8-27b",
+                                       "groq:openai/gpt-oss-120b", "gemini:gemini-3.1-flash-lite"], msgs)
         m = re.search(r'"tipo"\s*:\s*"(\w+)"', msg.get("content") or "")
         return (m.group(1) if m else "negocio"), meta
     except motores.MotorFalhou:
@@ -869,10 +870,12 @@ def dono_falou(sessao, numero):
     t, porque = tenant_para(sessao, numero)
     if not t:
         return {"ok": False}
-    if t["mode"] == "teste" and porque == "allowlist":
-        # adendo 4 (29/10): em teste, o numero da allowlist e quem TESTA o robo (o dono da Bora); uma mensagem
-        # enviada a mao para ele nao pode calar o robo 12 h (foi o que aconteceu as 18:47 de 29/10).
-        return {"ok": False, "motivo": "numero de teste da allowlist: nao se silencia"}
+    if so_digitos(numero) == so_digitos(t.get("dono_destino")):
+        # adendo 4 (29/10): uma mensagem enviada a mao para o numero do proprio Danilo (dono_destino, quem testa)
+        # nao pode calar o robo 12 h (foi o que aconteceu as 18:47 de 29/10).
+        # 02/11/2026 (regra do Danilo, missao boom-hamburguer-mes): SO esse numero. Os outros da allowlist (o
+        # Emanuel da Boom, desde 02/11 11:40) sao clientes: se o Danilo escreve a mao, o robo cala-se (19:29-19:30).
+        return {"ok": False, "motivo": "numero do dono (dono_destino): nao se silencia"}
     contacto(t, so_digitos(numero))
     ate = agora() + dt.timedelta(hours=12)
     gravar_contacto(t, so_digitos(numero), {"silenciado_ate": iso(ate), "silenciado_motivo": "o dono escreveu nesta conversa"})

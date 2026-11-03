@@ -1,4 +1,5 @@
-"""Motores do Assistente de Negocio — chamadas com ferramentas (formato OpenAI), cadeia com reserva.
+"""[31/10/2026 missao motor-claude: porteiro do Claude a frente]
+Motores do Assistente de Negocio — chamadas com ferramentas (formato OpenAI), cadeia com reserva.
 
 Ordem: o motor principal do cliente (pago) primeiro; se falhar (sem chave, tecto, 429, 5xx), desce
 para a reserva. Cada resposta diz que motor respondeu, os tokens e o custo REAL (motores gratis = 0 €).
@@ -28,7 +29,15 @@ FORNECEDORES = {
     "gemini2": {"url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
                 "chave": "GEMINI_API_KEY_2", "pago": False},
     "groq": {"url": "https://api.groq.com/openai/v1/chat/completions", "chave": "GROQ_API_KEY", "pago": False},
+    # 31/10/2026 (missao motor-claude): o Motor Bora local com o PORTEIRO do credito do Claude.
+    # porteiro:perfil:claude-cliente -> Claude Sonnet 5.5 enquanto houver credito, senao a rotacao gratis.
+    # O credito e do plano do Danilo, nao do cliente: custo 0 para o orcamento do tenant (vai para ia_gastos).
+    "porteiro": {"url": "http://127.0.0.1:8792/v1/chat/completions", "chave": None, "pago": False, "porteiro": True,
+                 "cabecalhos": {"X-Motor-Origem": "assistente-negocio"}},
 }
+
+CLAUDE_PRIMEIRO = os.environ.get("CLAUDE_PRIMEIRO", "1") != "0"
+MORTOS = ("go", "gemini2")     # 29/10: go 401 (chave expirada), gemini2 402 (sem creditos)
 
 # EUR por 1 M de tokens (entrada, saida) — preco de tabela publico (USD x 0,92), outubro 2026.
 PRECO = {
@@ -56,6 +65,8 @@ def _castigar(motor, erro):
         seg = 90 if motor.startswith("groq") else 600
     elif "sem chave" in erro:
         seg = 3600
+    elif "HTTP 401" in erro or "HTTP 402" in erro or "HTTP 404" in erro:
+        seg = 6 * 3600      # 31/10: chave expirada / sem creditos / modelo morto -- nao insistir a cada mensagem
     else:
         return
     CASTIGO[motor] = time.time() + seg
@@ -76,12 +87,14 @@ def _achatar(mensagens):
     return out
 
 
-def _chamar(motor, mensagens, ferramentas, timeout=45):
+def _chamar(motor, mensagens, ferramentas, timeout=20):
     forn, _, modelo = motor.partition(":")
     f = FORNECEDORES.get(forn)
     if not f:
         raise MotorFalhou(f"fornecedor desconhecido {forn}")
-    chave = os.environ.get(f["chave"], "").strip()
+    chave = "motor-bora-local" if f.get("porteiro") else os.environ.get(f["chave"], "").strip()
+    if f.get("porteiro"):
+        timeout = max(timeout, 30)      # Claude ate 20 s + rotacao gratis
     if not chave:
         raise MotorFalhou(f"sem chave {f['chave']}")
     # `_de` marca que motor fez cada chamada de ferramenta. Se nao foi este, o historico vai em texto.
@@ -127,15 +140,28 @@ def _chamar(motor, mensagens, ferramentas, timeout=45):
     if f.get("pago"):
         pin, pout = PRECO.get(modelo, (0.5, 3.0))
         custo = (tin * pin + tout * pout) / 1e6
-    return j["choices"][0]["message"], {"motor": motor, "tokens_in": tin, "tokens_out": tout,
-                                        "custo_eur": custo, "ms": ms, "pago": bool(f.get("pago"))}
+    meta = {"motor": motor, "tokens_in": tin, "tokens_out": tout, "custo_eur": custo, "ms": ms, "pago": bool(f.get("pago"))}
+    if f.get("porteiro"):
+        # quem respondeu de facto (claude:claude-sonnet-5-5 ou groq:...), o que o porteiro decidiu e o custo do credito
+        meta["motor"] = j.get("model") or motor
+        meta["via"] = motor
+        meta["custo_usd_claude"] = float(uso.get("custo_usd") or 0)
+        mot = j.get("motor") or {}
+        meta["porteiro"] = mot.get("porteiro") or next((t.get("porteiro") for t in (mot.get("tentativas") or []) if isinstance(t, dict) and t.get("porteiro")), None)
+    return j["choices"][0]["message"], meta
 
 
 def conversar(cadeia, mensagens, ferramentas=None, pode_pago=True):
     """Tenta cada motor da cadeia por ordem. Devolve (mensagem, meta). meta['falhas'] lista o que caiu."""
     falhas = []
+    cadeia = list(cadeia or [])
+    if CLAUDE_PRIMEIRO and not any(str(c).startswith("porteiro:") for c in cadeia):
+        cadeia.insert(0, "porteiro:perfil:claude-cliente")
     for motor in cadeia:
         forn = motor.split(":", 1)[0]
+        if forn in MORTOS:
+            falhas.append(f"{motor}: fornecedor morto (29/10)")
+            continue
         if FORNECEDORES.get(forn, {}).get("pago") and not pode_pago:
             falhas.append(f"{motor}: orcamento do mes esgotado")
             continue
@@ -150,7 +176,8 @@ def conversar(cadeia, mensagens, ferramentas=None, pode_pago=True):
             except MotorFalhou as e:
                 txt = str(e)
                 # 503/500 = sobrecarga momentanea -> uma segunda tentativa; o resto desce logo
-                if tentativa == 0 and ("HTTP 503" in txt or "HTTP 500" in txt or "timeout" in txt.lower()):
+                # 31/10: so se repete em 500/503 rapidos; em timeout NAO (o cliente ficava ate ~90 s a espera)
+                if tentativa == 0 and ("HTTP 503" in txt or "HTTP 500" in txt) and "timeout" not in txt.lower():
                     time.sleep(1.5)
                     continue
                 falhas.append(f"{motor}: {txt[:160]}")

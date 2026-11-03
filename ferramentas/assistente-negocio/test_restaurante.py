@@ -1362,5 +1362,70 @@ class TestCarrinhoVelho(Base):
         self.assertFalse(k["payload"].get("suspenso"))
 
 
+class TestDonoEscreveAMao(Base):
+    """02/11/2026 19:29-19:30 (missao boom-hamburguer-mes): o Danilo escreveu a mao ao Emanuel (na allowlist desde 11:40)
+    e o robo continuou a pedir nome e morada. Regra nova: so o numero do proprio Danilo (dono_destino) nunca se silencia;
+    qualquer outra conversa, mesmo da allowlist, cala o robo 12 h quando o dono escreve."""
+
+    EMANUEL = "351900000001"  # o segundo numero da allowlist do cenario (inventado, so em memoria)
+
+    def test_dono_escreve_ao_cliente_da_allowlist_robo_calado(self):
+        r = A.dono_falou(SESSAO, self.EMANUEL)
+        self.assertTrue(r.get("ok"), r)
+        ct = next(c for c in self.f.t["assistant_contacts"] if c["numero"] == self.EMANUEL)
+        self.assertGreater(A.hora_local(ct["silenciado_ate"]), A.agora() + dt.timedelta(hours=11))
+        self.assertEqual(ct.get("silenciado_motivo"), "o dono escreveu nesta conversa")
+        # a mensagem seguinte do cliente nao tem resposta e fica marcada como o dono assumiu
+        out = A.atender(ev_de(self.EMANUEL, "Quero um Café de Paris para entregar"), simular=True)
+        self.assertEqual(out.get("acao"), "silencio-dono-assumiu", out)
+        self.assertEqual(out.get("respostas"), [])
+        entrada = [m for m in self.f.t["assistant_messages"] if m.get("numero") == self.EMANUEL and m.get("direcao") == "entrada"]
+        self.assertEqual(entrada[-1].get("decisao"), "silencio-dono-assumiu")
+
+    def test_mensagem_a_mao_para_o_numero_do_danilo_nao_cala_o_robo(self):
+        r = A.dono_falou(SESSAO, DANILO)
+        self.assertFalse(r.get("ok"), r)
+        self.assertIn("dono_destino", r.get("motivo", ""))
+        for c in self.f.t["assistant_contacts"]:
+            if c["numero"] == DANILO:
+                self.assertIsNone(c.get("silenciado_ate"))
+
+    def test_numero_fora_do_assistente_nao_mexe(self):
+        self.assertEqual(A.dono_falou(SESSAO, ESTRANHO), {"ok": False})
+
+
+class TestNovidadeDoMes(Base):
+    """03/11/2026 (missao boom-hamburguer-mes): "o que ha de novo?" mostrava o menu inteiro. Com produto em destaque
+    na loja, a resposta e o destaque (nome, preco normal da base, descricao sem repetir o selo)."""
+
+    CAFE = "f2ac93d2-9e77-4f02-8cbe-11a17ce91b32"
+
+    def setUp(self):
+        super().setUp()
+        self.f.t["products"].append({
+            "id": self.CAFE, "name": "Boom! Café de Paris", "price": 16.10, "category": "Hambúrguer do Mês",
+            "description": "Hambúrguer do mês. Pão brioche com sementes sésamo, molho Café de Paris, cogumelos e bacon.",
+            "allergens": [], "is_available": True, "esgotado_ate": None, "sort_order": 0,
+            "restaurant_id": "boom-burger-guarda"})
+        self.f.t["restaurants"][0].update(produto_destaque_id=self.CAFE, produto_destaque_rotulo="Hambúrguer do mês")
+
+    def test_o_que_ha_de_novo_apresenta_o_destaque_ao_preco_normal(self):
+        txt = R.resposta_rapida(self.t, {}, "Olá! O que há de novo?")
+        self.assertIn("hambúrguer do mês: Boom! Café de Paris, a 16,10 €", txt)
+        self.assertIn("molho Café de Paris, cogumelos e bacon", txt)
+        self.assertNotIn("Hambúrguer do mês. Pão", txt)  # o selo nao se repete
+        self.assertNotIn("Coca-Cola", txt)  # nao e o menu inteiro
+        self.assertIn("novidade", R.resposta_rapida(self.t, {}, "Têm novidades?"))
+
+    def test_sem_destaque_segue_como_antes(self):
+        self.f.t["restaurants"][0]["produto_destaque_id"] = None
+        txt = R.resposta_rapida(self.t, {}, "O que há de novo?")
+        self.assertNotIn("novidade da casa", txt or "")
+
+    def test_destaque_esgotado_nao_se_anuncia(self):
+        next(p for p in self.f.t["products"] if p["id"] == self.CAFE)["is_available"] = False
+        self.assertNotIn("novidade da casa", R.resposta_rapida(self.t, {}, "O que há de novo?") or "")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

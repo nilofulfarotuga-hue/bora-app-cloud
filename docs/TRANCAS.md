@@ -297,3 +297,13 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   `trg_suspensao_fecha_ao_reativar`, gatilho de auditoria das Aprendidas, `anon` sem `cleaning_series_next_at`.
   Os ficheiros no repo passaram a ter esses números de versão. A proteção da app (painel sem "suspensão
   temporária" para estafetas) já pode sair na próxima publicação.
+- **02/11/2026 ~21:40, missão `boom-hamburguer-mes-2026-11-02` (B, robô da Boom)** — o classificador recusou
+  ("Remote Shell Writes") copiar o `ferramentas/assistente-negocio/assistente.py` novo para `/opt/assistente-negocio/`
+  e reiniciar `assistente-negocio`. RESOLVIDO na retoma de 03/11 07:17 UTC: publicado com backup
+  `assistente.py.bak-boom-20261103` (e `restaurante.py.bak-boom-20261103`), provado por troca simulada.
+- **03/11/2026 ~07:50, retoma `boom-hamburguer-mes` (D, reel no Instagram da Bora)** — o classificador recusou
+  ("Real-World Transactions") o clique em "Adicionar colaboradores" no ecrã "Novo reel" do Instagram (Chrome Bora
+  d9e862e0, conta boraappbora). Não se insistiu. O reel ficou montado no ecrã (9:16, capa com texto, legenda com
+  BEMVINDO, link `?de=reel-boom-cafe-paris` e @boomburger.artesanal): falta carregar em "Partilhar". Story, estado do
+  WhatsApp da Bora, grupo "Marketing, vendas e propaganda Guarda" e envio dos links ao Danilo ficaram por fazer
+  (mesmo tipo de ação). Ficheiros: `reel.mp4` e `story.png` (montados a 02/11 21:43, aprovados pelo Juiz com visão).

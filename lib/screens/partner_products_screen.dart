@@ -6,11 +6,13 @@ import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../models/partner_product.dart';
 import '../models/restaurant_model.dart';
+import '../services/destaque_loja_service.dart';
 import '../services/partner_price_rules.dart';
 import '../stores/partner_product_store.dart';
 import '../utils/search_text.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
+import '../widgets/editor_destaque_loja.dart';
 import 'add_product_screen.dart';
 import 'product_options_manage_screen.dart';
 
@@ -34,6 +36,9 @@ class _PartnerProductsScreenState extends State<PartnerProductsScreen> {
     super.dispose();
   }
 
+  /// 02/11/2026 (boom-hamburguer-mes, bloco C): o produto em destaque da loja.
+  DestaqueLoja? _destaque;
+
   @override
   void initState() {
     super.initState();
@@ -41,6 +46,18 @@ class _PartnerProductsScreenState extends State<PartnerProductsScreen> {
       if (!mounted) return;
       context.read<PartnerProductStore>().selectRestaurant(widget.restaurant);
     });
+    _lerDestaque();
+  }
+
+  Future<void> _lerDestaque() async {
+    final d = await DestaqueLojaService.instance.daLoja(widget.restaurant.id);
+    if (mounted) setState(() => _destaque = d);
+  }
+
+  Future<void> _guardarDestaque(String? produtoId, String? rotulo) async {
+    await DestaqueLojaService.instance
+        .definirComoParceiro(widget.restaurant.id, produtoId, rotulo);
+    await _lerDestaque();
   }
 
   Future<void> _openAddProduct() async {
@@ -229,6 +246,18 @@ class _PartnerProductsScreenState extends State<PartnerProductsScreen> {
                       Padding(
                         // à direita fica o botão de ajuda (topRight)
                         padding: const EdgeInsets.fromLTRB(16, 16, 72, 0),
+                        child: EditorDestaqueLoja(
+                          key: ValueKey(
+                              '${_destaque?.produtoId}|${_destaque?.rotulo}'),
+                          produtos: [
+                            for (final p in todos) ProdutoEscolhivel(p.id, p.name),
+                          ],
+                          inicial: _destaque,
+                          onGuardar: _guardarDestaque,
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 72, 0),
                         child: TextField(
                           key: const Key('pesquisa_catalogo_parceiro'),
                           controller: _pesquisa,

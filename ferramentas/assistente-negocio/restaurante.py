@@ -311,8 +311,36 @@ def lista_categoria(t, texto):
     return cabeca + "\n\n" + "\n".join(corpo).strip() + "\n\n" + fim
 
 
+# 03/11/2026 (missao boom-hamburguer-mes): "o que ha de novo?" caia no MENU_RE ("o que ha") e saia o menu inteiro.
+# Pergunta de novidades -> o produto em destaque da loja (restaurants.produto_destaque_id/_rotulo, o mesmo cartao
+# grande da app). Preco da base, como o menu. Sem destaque = segue o caminho de sempre.
+NOVIDADE_RE = re.compile(r"\b(novidades?|(ha|tem|teem|temos) (alguma coisa |algo )?de novo|algo novo|coisa nova)\b", re.I)
+
+
+def resposta_novidade(t, texto):
+    tx = A.sem_acentos(texto or "")
+    if len(tx) > 120 or not NOVIDADE_RE.search(tx) or PEDIDO_RE.search(tx):
+        return None
+    L = loja(t) or {}
+    pid = L.get("produto_destaque_id")
+    p = next((x for x in produtos(t) if x["id"] == pid), None) if pid else None
+    if not p:
+        return None
+    rotulo = (L.get("produto_destaque_rotulo") or "").strip() or "Hambúrguer do mês"
+    desc = re.sub(r"^\s*" + re.escape(rotulo) + r"\.?\s*", "", (p.get("description") or "").strip(), flags=re.I)
+    if len(desc) > 300:
+        desc = desc[:297].rsplit(" ", 1)[0] + "…"
+    h = A.agora().hour
+    sauda = "Bom dia" if h < 12 else ("Boa tarde" if h < 20 else "Boa noite")
+    return (f"{sauda}! A novidade da casa é o {rotulo.lower()}: {p['name']}, a {euros(p['price'])}."
+            + (f" {desc}" if desc else "") + "\n\nQuer que lhe junte um ao pedido?")
+
+
 def resposta_rapida(t, ct, texto):
     """Menu/lista/precos pedidos de forma simples -> texto pronto, da base. None = segue para o motor."""
+    novidade = resposta_novidade(t, texto)
+    if novidade:
+        return novidade
     lista = lista_categoria(t, texto)
     if lista:
         return lista

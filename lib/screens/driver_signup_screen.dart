@@ -15,6 +15,7 @@ import '../services/driver_documentos.dart';
 import '../services/driver_foto_upload.dart';
 import '../services/legal_fields_service.dart';
 import '../services/multi_role_signup.dart';
+import '../services/tvde_visibilidade.dart';
 import '../stores/session_store.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
@@ -913,27 +914,33 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
               content: Column(
                 children: [
                   SegmentedButton<VehicleType>(
-                    segments: const [
-                      ButtonSegment(
+                    segments: [
+                      const ButtonSegment(
                         value: VehicleType.motorcycle,
                         label: Text('Moto'),
                         icon: Icon(Icons.two_wheeler),
                       ),
-                      ButtonSegment(
+                      const ButtonSegment(
                         value: VehicleType.car,
                         label: Text('Carro'),
                         icon: Icon(Icons.directions_car),
                       ),
-                      ButtonSegment(
+                      const ButtonSegment(
                         value: VehicleType.bicycle,
                         label: Text('Bicicleta'),
                         icon: Icon(Icons.pedal_bike),
                       ),
-                      ButtonSegment(
-                        value: VehicleType.carPassengers,
-                        label: Text('Carro — Passageiros'),
-                        icon: Icon(Icons.local_taxi),
-                      ),
+                      // 04/11/2026 (fechar-bora-motorista): o cadastro de
+                      // motorista de passageiros só aparece com
+                      // `tvde_app_visivel` aberto (um rascunho antigo que já
+                      // o tinha escolhido continua a vê-lo para poder mudar).
+                      if (TvdeVisibilidade.aberto ||
+                          _vehicleType == VehicleType.carPassengers)
+                        const ButtonSegment(
+                          value: VehicleType.carPassengers,
+                          label: Text('Carro — Passageiros'),
+                          icon: Icon(Icons.local_taxi),
+                        ),
                     ],
                     selected: {_vehicleType},
                     onSelectionChanged: (s) {

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:bora_app/models/tvde_ride.dart';
 import 'package:bora_app/services/notification_service.dart';
+import 'package:bora_app/services/tvde_visibilidade.dart';
 import 'package:bora_app/stores/tvde_driver_store.dart';
 import 'package:bora_app/widgets/tvde/tvde_offer_overlay_host.dart';
 import 'package:flutter/material.dart';
@@ -104,6 +105,8 @@ final _cartao = find.byKey(const Key('tvde_oferta_sobreposta'));
 final _expirada = find.byKey(const Key('tvde_oferta_expirada'));
 
 void main() {
+  // 04/11/2026: testes do Bora Motorista ABERTO (tvde_app_visivel).
+  setUpAll(() => TvdeVisibilidade.definirParaTeste(true));
   setUp(() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     debugLimparOfertasTvdeTratadas();

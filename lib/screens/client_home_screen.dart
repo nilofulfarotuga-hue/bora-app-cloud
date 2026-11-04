@@ -648,8 +648,10 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
     // "Nova categoria", pedem acesso com nome e telefone e o Danilo aprova no
     // painel (Pedidos de acesso TVDE). Enquanto o acesso nao foi lido nao se
     // desenha nenhum dos dois (evita mostrar a quem nao pode e o pisca-pisca).
+    // 04/11/2026 (fechar-bora-motorista): com `tvde_app_visivel` fechado
+    // NENHUM dos dois se desenha, nem a quem tem acesso.
     final tvde = context.watch<TvdeStore>();
-    if (tvde.tvdeAccess) {
+    if (tvde.mostrarBoraMotorista) {
       tiles.add(
         _TileData(
           label: 'Bora\nMotorista',
@@ -663,7 +665,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
           }),
         ),
       );
-    } else if (tvde.accessLoaded) {
+    } else if (tvde.mostrarCategoriaPorDescobrir) {
       tiles.add(
         _TileData(
           label: 'Nova\ncategoria',

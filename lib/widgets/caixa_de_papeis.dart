@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../services/papeis_de_trabalho.dart';
+import '../services/tvde_visibilidade.dart';
 
 /// A caixa "O que queres aceitar?" para quem acumula papéis.
 ///
@@ -73,6 +74,9 @@ class _CaixaDePapeisState extends State<CaixaDePapeis> {
               ),
             ),
             for (final p in _papeis)
+              // 04/11/2026 (fechar-bora-motorista): "Corridas de passageiros"
+              // só com `tvde_app_visivel` aberto.
+              if (p.papel != 'driver' || TvdeVisibilidade.aberto)
               SwitchListTile(
                 value: p.aceita,
                 activeThumbColor: AppColors.primary,

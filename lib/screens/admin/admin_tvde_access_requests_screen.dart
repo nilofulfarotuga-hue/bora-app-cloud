@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../services/tvde_visibilidade.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '_admin_rpc_errors.dart';
 import '../../utils/hora_lisboa_ext.dart';
@@ -342,7 +343,11 @@ class _RequestCard extends StatelessWidget {
 
   Widget _actions(BuildContext context, String status, bool tvdeAccess) {
     final children = <Widget>[];
-    final canApprove = status == 'pendente' || status == 'recusado';
+    // 04/11/2026 (fechar-bora-motorista): com o Bora Motorista fechado
+    // (tvde_app_visivel=false) não se aprova acesso — reabriria o servidor.
+    // Recusar e revogar continuam.
+    final canApprove = (status == 'pendente' || status == 'recusado') &&
+        TvdeVisibilidade.aberto;
     final canRefuse = status == 'pendente';
     final canRevoke = tvdeAccess || status == 'aprovado';
 

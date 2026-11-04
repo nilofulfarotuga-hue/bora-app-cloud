@@ -52,6 +52,7 @@ import 'support_screen.dart';
 import 'wallet_history_screen.dart';
 import 'client/assistant/assistant_memory_screen.dart';
 import '../services/assistant_service.dart';
+import '../services/tvde_visibilidade.dart';
 
 import '../l10n/tr.dart';
 import 'client_login_screen.dart';
@@ -666,7 +667,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         : 'Quero trabalhar no Bora'),
                     subtitle: Text(_roles.temAlgumPapel
                         ? 'Vê o que já fazes e acrescenta actividades'.tr
-                        : 'Entregas, corridas, limpeza, lavagem de carros ou Casa'),
+                        // 04/11/2026: sem corridas com o Bora Motorista fechado.
+                        : (TvdeVisibilidade.aberto
+                            ? 'Entregas, corridas, limpeza, lavagem de carros ou Casa'
+                            : 'Entregas, limpeza, lavagem de carros ou Casa')),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.push(
                       context,
@@ -942,7 +946,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         : 'Quero trabalhar no Bora'),
                     subtitle: Text(_roles.temAlgumPapel
                         ? 'Vê o que já fazes e acrescenta actividades'.tr
-                        : 'Entregas, corridas, limpeza, lavagem de carros ou Casa'),
+                        // 04/11/2026: sem corridas com o Bora Motorista fechado.
+                        : (TvdeVisibilidade.aberto
+                            ? 'Entregas, corridas, limpeza, lavagem de carros ou Casa'
+                            : 'Entregas, limpeza, lavagem de carros ou Casa')),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.push(
                       context,

@@ -14,12 +14,18 @@ import '../screens/client/tvde/tvde_ride_tracking_screen.dart';
 import '../stores/session_store.dart';
 import '../stores/tvde_store.dart';
 import 'notification_service.dart';
+import 'tvde_visibilidade.dart';
 import 'web_checkout.dart';
 
 /// Chamada uma vez no arranque, depois do primeiro fotograma. Não faz nada
 /// quando não há sessão de cliente nem corrida viva — que é o caso normal.
 Future<void> retomarCorridaTvdeViva() async {
   try {
+    // 04/11/2026 (fechar-bora-motorista): com `tvde_app_visivel` fechado a
+    // app nunca abre sozinha o ecrã de uma corrida. Lê-se primeiro (corre
+    // logo no arranque, antes de qualquer outra leitura).
+    await TvdeVisibilidade.refresh();
+    if (!TvdeVisibilidade.aberto) return;
     // Regresso de um pagamento web: quem abre o ecrã é a retoma do pagamento.
     if (lerPagamentoWebPendente() != null) return;
     if (Supabase.instance.client.auth.currentUser == null) return;
@@ -27,7 +33,7 @@ Future<void> retomarCorridaTvdeViva() async {
     if (Uri.base.toString().contains('/admin')) return;
 
     final ctx = NotificationService.navigatorKey.currentContext;
-    if (ctx == null) return;
+    if (ctx == null || !ctx.mounted) return;
     if (ctx.read<SessionStore>().role != UserRole.client) return;
 
     final store = ctx.read<TvdeStore>();

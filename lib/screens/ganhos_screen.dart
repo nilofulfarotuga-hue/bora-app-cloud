@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_colors.dart';
 import '../config/business_rules.dart' show BRTokens;
+import '../services/tvde_visibilidade.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/extrato_prestador_section.dart';
@@ -289,7 +290,11 @@ class _GanhosScreenState extends State<GanhosScreen> {
                       eur(semanaPassada['total_cents'] as num?),
                       (semanaPassada['tokens'] as num? ?? 0).toInt(),
                       nota: porPapel.length > 1
-                          ? 'so entregas e corridas'
+                          // 04/11/2026: sem "corridas" com o Bora Motorista
+                          // fechado (as somas não mudam).
+                          ? (TvdeVisibilidade.aberto
+                              ? 'so entregas e corridas'
+                              : 'so entregas')
                           : null),
                 ),
               ],
@@ -401,7 +406,8 @@ class _GanhosScreenState extends State<GanhosScreen> {
       };
 
   static String _tituloDoPapel(String papel) => switch (papel) {
-        'driver' => 'Entregas e corridas',
+        'driver' =>
+          TvdeVisibilidade.aberto ? 'Entregas e corridas' : 'Entregas',
         'cleaner' => 'Limpeza',
         'washer' => 'Lavagem de carros',
         // Casa e manutenção (31/10): nunca o nome técnico no ecrã.

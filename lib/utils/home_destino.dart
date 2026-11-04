@@ -14,6 +14,7 @@ import '../screens/product_detail_screen.dart';
 import '../screens/restaurants_screen.dart';
 import '../screens/sobremesas_screen.dart';
 import '../screens/stores_screen.dart';
+import '../services/tvde_visibilidade.dart';
 import '../stores/cart_store.dart';
 import '../stores/restaurant_store.dart';
 import 'business_opener.dart';
@@ -163,6 +164,9 @@ Widget? _ecraCategoria(String chave) {
       return const CasaCategoriaScreen();
     case 'motorista':
     case 'tvde':
+      // 04/11/2026 (fechar-bora-motorista): com `tvde_app_visivel` fechado
+      // uma faixa ou ligação antiga não abre nada (aviso "não disponível").
+      if (!TvdeVisibilidade.aberto) return null;
       // Passa pela porta: sem acesso mostra a categoria por descobrir.
       return const TvdeEntradaScreen();
     case 'assistente':

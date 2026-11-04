@@ -7,6 +7,7 @@ import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../stores/session_store.dart';
 import '../services/role_switch_helper.dart';
+import '../services/tvde_visibilidade.dart';
 import '../widgets/bora/bora_mascot.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/language_toggle.dart';
@@ -84,8 +85,11 @@ class RoleScreen extends StatelessWidget {
                   const SizedBox(height: Spacing.md),
                   _PortaDoPerfil(
                     rotulo: 'Sou Estafeta'.tr,
-                    paraQuem:
-                        'Entregar, fazer corridas, limpezas ou lavagens'.tr,
+                    // 04/11/2026: sem corridas com o Bora Motorista fechado.
+                    paraQuem: (TvdeVisibilidade.aberto
+                            ? 'Entregar, fazer corridas, limpezas ou lavagens'
+                            : 'Entregar, fazer limpezas ou lavagens')
+                        .tr,
                     icone: Icons.delivery_dining,
                     cor: AppColors.accent,
                     papel: UserRole.driver,

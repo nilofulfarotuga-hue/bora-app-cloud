@@ -25,6 +25,7 @@ import '../screens/client/tvde/tvde_ride_tracking_screen.dart';
 import '../stores/tvde_store.dart';
 import 'notification_service.dart';
 import 'payment_service.dart';
+import 'tvde_visibilidade.dart';
 import 'web_checkout.dart';
 
 /// Chamada uma vez no arranque da app web, depois do primeiro fotograma.
@@ -202,6 +203,9 @@ Future<void> _retomarPacote(
 }
 
 void _abrirAcompanhamento(BuildContext ctx) {
+  // 04/11/2026 (fechar-bora-motorista): o acerto do pagamento acima corre
+  // igual (dinheiro não se mexe); só o ecrã da corrida não abre.
+  if (!TvdeVisibilidade.aberto) return;
   Navigator.of(ctx).push(
     MaterialPageRoute(builder: (_) => const TvdeRideTrackingScreen()),
   );

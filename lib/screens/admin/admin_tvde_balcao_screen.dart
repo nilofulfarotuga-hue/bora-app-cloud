@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart' as ll;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../services/tvde_visibilidade.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/address_autocomplete_field.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
@@ -52,11 +53,16 @@ class _AdminTvdeBalcaoScreenState extends State<AdminTvdeBalcaoScreen> {
       child: Scaffold(
         backgroundColor: AppColors.background,
         appBar: const BoraScreenAppBar(title: 'Corridas de Balcão'),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: _novaCorrida,
-          icon: const Icon(Icons.add),
-          label: const Text('Nova corrida'),
-        ),
+        // 04/11/2026 (fechar-bora-motorista): com o Bora Motorista fechado
+        // (tvde_app_visivel=false) não se criam corridas de balcão; a lista
+        // continua para consulta.
+        floatingActionButton: TvdeVisibilidade.aberto
+            ? FloatingActionButton.extended(
+                onPressed: _novaCorrida,
+                icon: const Icon(Icons.add),
+                label: const Text('Nova corrida'),
+              )
+            : null,
         body: Column(
           children: [
             const Material(

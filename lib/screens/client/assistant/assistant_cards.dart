@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import '../../../config/app_colors.dart';
 import '../../../l10n/tr.dart';
 import '../../../services/assistant_service.dart';
+import '../../../services/tvde_visibilidade.dart';
 import '../../../widgets/bora/bora_accent_button.dart';
 import '../../../widgets/bora/maior_18.dart';
 import '../../../utils/euros.dart';
@@ -811,14 +812,20 @@ class AssistantAcoesChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (acoes.isEmpty) return const SizedBox.shrink();
+    // 04/11/2026 (fechar-bora-motorista): com `tvde_app_visivel` fechado o
+    // botão "abrir Bora Motorista" do assistente não se desenha.
+    final visiveis = [
+      for (final a in acoes)
+        if (a.tipo != 'abrir_tvde' || TvdeVisibilidade.aberto) a,
+    ];
+    if (visiveis.isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Wrap(
         spacing: 6,
         runSpacing: 6,
         children: [
-          for (final a in acoes)
+          for (final a in visiveis)
             ActionChip(
               avatar: Icon(icone(a.tipo), size: 16, color: AppColors.primaryDark),
               label: Text(a.rotulo),

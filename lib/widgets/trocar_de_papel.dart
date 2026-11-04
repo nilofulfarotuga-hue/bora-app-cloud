@@ -8,6 +8,7 @@ import '../screens/trabalhar_no_bora_screen.dart';
 import '../screens/washer/washer_home_screen.dart';
 import '../services/papeis_de_trabalho.dart';
 import '../services/roles_service.dart';
+import '../services/tvde_visibilidade.dart';
 
 /// SALTAR ENTRE PAPÉIS — sem sair e voltar a entrar.
 ///
@@ -58,13 +59,16 @@ Future<void> abrirTrocaDePapel(BuildContext context) async {
           const SizedBox(height: Spacing.sm),
           const Divider(height: 1),
           if (destinos.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(Spacing.lg),
+            Padding(
+              padding: const EdgeInsets.all(Spacing.lg),
               child: Text(
-                'Por agora só fazes entregas e corridas. Podes juntar limpeza, '
+                // 04/11/2026 (fechar-bora-motorista): sem corridas com o
+                // Bora Motorista fechado.
+                '${TvdeVisibilidade.aberto ? 'Por agora só fazes entregas e corridas.' : 'Por agora só fazes entregas.'}'
+                ' Podes juntar limpeza, '
                 'lavagem de carros ou Casa e manutenção à mesma conta.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textSecondary),
+                style: const TextStyle(color: AppColors.textSecondary),
               ),
             ),
           for (final d in destinos)
@@ -91,7 +95,9 @@ Future<void> abrirTrocaDePapel(BuildContext context) async {
             leading: const Icon(Icons.add_circle_outline,
                 color: AppColors.textSecondary),
             title: const Text('Juntar outra actividade'),
-            subtitle: const Text('Entregas, corridas, limpeza, lavagem ou Casa'),
+            subtitle: Text(TvdeVisibilidade.aberto
+                ? 'Entregas, corridas, limpeza, lavagem ou Casa'
+                : 'Entregas, limpeza, lavagem ou Casa'),
             onTap: () {
               Navigator.pop(ctx);
               Navigator.push(

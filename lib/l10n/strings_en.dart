@@ -1413,6 +1413,8 @@ const Map<String, String> kStringsEn = <String, String>{
   'Mesa': 'Table',
   'Mesas, corridas para mais tarde, limpezas e marcações aparecem todas aqui.':
       'Tables, rides for later, cleanings and appointments all show up here.',
+  'Mesas, limpezas e marcações aparecem todas aqui.':
+      'Tables, cleanings and appointments all show up here.',
   'Motorista confirmado': 'Driver confirmed',
   'Nada cancelado': 'Nothing cancelled',
   'Não conseguimos carregar: {0}. Puxa para baixo para tentar de novo.':
@@ -2505,6 +2507,7 @@ const Map<String, String> kStringsEn = <String, String>{
       'Deliver to the apartment (+€1.50)',
   'Entregar, fazer corridas, limpezas ou lavagens':
       'Deliver, drive, clean or wash',
+  'Entregar, fazer limpezas ou lavagens': 'Deliver, clean or wash',
   'Entregas rápidas\ne seguras':
       'Fast and safe\ndeliveries',
   'Entregas rápidas em Portugal':

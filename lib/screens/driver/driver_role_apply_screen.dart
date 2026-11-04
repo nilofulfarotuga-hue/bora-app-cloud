@@ -11,6 +11,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../services/legal_fields_service.dart';
+import '../../services/tvde_visibilidade.dart';
 import '../../widgets/bora/bora.dart';
 import '../../widgets/legal_fields_section.dart';
 import '../prestador/como_o_bora_decide_screen.dart';
@@ -245,7 +246,10 @@ class _DriverRoleApplyScreenState extends State<DriverRoleApplyScreen> {
                   prefixIcon: Icon(Icons.two_wheeler_outlined)),
               items: [
                 for (final e in _vehicles.entries)
-                  DropdownMenuItem(value: e.key, child: Text(e.value)),
+                  // 04/11/2026 (fechar-bora-motorista): "Carro (viagens /
+                  // TVDE)" só com `tvde_app_visivel` aberto.
+                  if (e.key != 'carro_passageiros' || TvdeVisibilidade.aberto)
+                    DropdownMenuItem(value: e.key, child: Text(e.value)),
               ],
               onChanged: (v) => setState(() => _vehicleType = v ?? 'motorcycle'),
             ),

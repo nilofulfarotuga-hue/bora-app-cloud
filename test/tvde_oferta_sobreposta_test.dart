@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:bora_app/models/tvde_ride.dart';
 import 'package:bora_app/services/notification_service.dart';
+import 'package:bora_app/services/tvde_visibilidade.dart';
 import 'package:bora_app/stores/tvde_driver_store.dart';
 import 'package:bora_app/widgets/tvde/tvde_offer_overlay_host.dart';
 import 'package:flutter/material.dart';
@@ -72,6 +73,8 @@ Widget _host(TvdeDriverStore store) => ChangeNotifierProvider.value(
     );
 
 void main() {
+  // 04/11/2026: testes do Bora Motorista ABERTO (tvde_app_visivel).
+  setUpAll(() => TvdeVisibilidade.definirParaTeste(true));
   group('cartão da oferta imediata', () {
     testWidgets('livre: "agora", ganho em grande, Aceitar e Recusar vivos',
         (tester) async {
@@ -314,6 +317,33 @@ void main() {
   });
 
   group('host global (por cima de qualquer ecrã)', () {
+    // 04/11/2026 (fechar-bora-motorista): fechado não desenha oferta nenhuma.
+    testWidgets(
+        'Bora Motorista fechado (tvde_app_visivel=false): nem a oferta '
+        'imediata nem a de reserva se desenham', (tester) async {
+      TvdeVisibilidade.definirParaTeste(false);
+      addTearDown(() => TvdeVisibilidade.definirParaTeste(true));
+      final store = TvdeDriverStore();
+      await tester.pumpWidget(_host(store));
+      store.debugInjectar(
+          oferta: _ride(
+              expira: DateTime.now().add(const Duration(seconds: 30))));
+      await tester.pump();
+      expect(find.byKey(const Key('tvde_oferta_sobreposta')), findsNothing);
+      expect(find.text('Aceitar'), findsNothing);
+      store.debugInjectar(
+          reserva: _ride(
+        id: 'res',
+        status: 'agendada',
+        marcada: DateTime.now().add(const Duration(hours: 2)),
+        reservaExpira: DateTime.now().add(const Duration(minutes: 4)),
+      ));
+      await tester.pump();
+      expect(find.byKey(const Key('tvde_reserva_sobreposta')), findsNothing);
+      store.debugInjectar();
+      await tester.pump();
+    });
+
     testWidgets(
         'a oferta imediata aparece por cima de uma rota empilhada e a de '
         'reserva também', (tester) async {

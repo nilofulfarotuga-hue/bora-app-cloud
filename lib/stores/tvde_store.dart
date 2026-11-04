@@ -12,6 +12,7 @@ import '../models/tvde_ride.dart';
 import '../models/tvde_subscription.dart';
 import '../services/notification_service.dart' show limparAvisosTvdeTerminados;
 import '../services/payment_service.dart';
+import '../services/tvde_visibilidade.dart';
 import '../utils/hora_lisboa.dart' show paredeLisboa;
 
 /// [21/10/2026 · A1] Parâmetro extra das RPCs que criam corridas
@@ -270,8 +271,28 @@ String estadoReservaPt(TvdeRide r) {
 }
 
 class TvdeStore extends ChangeNotifier {
+  TvdeStore() {
+    TvdeVisibilidade.visivel.addListener(_aoMudarVisibilidade);
+  }
+
   SupabaseClient get _sb => Supabase.instance.client;
   String? get _uid => _sb.auth.currentUser?.id;
+
+  // ── Interruptor geral (04/11/2026 · fechar-bora-motorista) ──────────────
+  /// `platform_settings.tvde_app_visivel`. Fechado (o valor de arranque e o
+  /// de qualquer leitura falhada) = o Bora Motorista não aparece em lado
+  /// nenhum da app, nem a quem tem `tvde_access`. Ver [TvdeVisibilidade].
+  bool get appVisivel => TvdeVisibilidade.aberto;
+
+  /// O ladrilho/entrada do Bora Motorista: interruptor aberto E acesso.
+  bool get mostrarBoraMotorista => appVisivel && _tvdeAccess;
+
+  /// O ladrilho "Nova categoria" (pedir acesso): interruptor aberto, acesso
+  /// já lido e sem acesso.
+  bool get mostrarCategoriaPorDescobrir =>
+      appVisivel && _accessLoaded && !_tvdeAccess;
+
+  void _aoMudarVisibilidade() => notifyListeners();
 
   // ── Acesso à categoria escondida ────────────────────────────────────────
   bool _tvdeAccess = false;
@@ -293,7 +314,9 @@ class TvdeStore extends ChangeNotifier {
   /// arranque e o de qualquer falha de leitura) = o ladrilho "Enviar
   /// Encomenda" abre o fluxo antigo, como sempre.
   bool _encomendasEnabled = false;
-  bool get encomendasEnabled => _encomendasEnabled;
+  /// 04/11/2026: as encomendas pelo motor do Bora Motorista também fecham
+  /// com o interruptor geral (o ladrilho volta ao fluxo antigo).
+  bool get encomendasEnabled => _encomendasEnabled && appVisivel;
 
   /// O que o ecrã de pedir está a pedir AGORA. Quem o põe é o
   /// [TvdeRequestRideScreen] ao abrir (passageiros por omissão, por isso o
@@ -468,6 +491,8 @@ class TvdeStore extends ChangeNotifier {
   ///   • em erro de sessão refresca a sessão e re-busca UMA vez antes de
   ///     desistir — e nunca esconde por erro transitório.
   Future<void> refreshAccess() async {
+    // 04/11/2026: o interruptor geral lê-se sempre, com ou sem sessão.
+    unawaited(TvdeVisibilidade.refresh());
     final uid = _uid;
     if (uid == null) return;
     // 21/10/2026 (A1): o interruptor das encomendas lê-se com o acesso, à
@@ -2381,6 +2406,7 @@ class TvdeStore extends ChangeNotifier {
 
   @override
   void dispose() {
+    TvdeVisibilidade.visivel.removeListener(_aoMudarVisibilidade);
     _unsubscribe();
     super.dispose();
   }

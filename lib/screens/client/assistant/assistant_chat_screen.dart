@@ -21,6 +21,7 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../../config/app_colors.dart';
 import '../../../l10n/tr.dart';
 import '../../../services/assistant_service.dart';
+import '../../../services/tvde_visibilidade.dart';
 import '../../../stores/cart_store.dart';
 import '../../../utils/home_destino.dart';
 import '../../../utils/safe_image_picker.dart';
@@ -465,6 +466,8 @@ class _AssistantChatScreenState extends State<AssistantChatScreen> {
           ),
         );
       case 'abrir_tvde':
+        // 04/11/2026: Bora Motorista fechado → não abre nada.
+        if (!TvdeVisibilidade.aberto) return;
         await Navigator.push(context,
             MaterialPageRoute(builder: (_) => const TvdeEntradaScreen()));
       case 'suporte_humano':

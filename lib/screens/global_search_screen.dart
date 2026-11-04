@@ -238,8 +238,9 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
                         }
                       },
                       decoration: InputDecoration(
-                        // Bora Motorista so se anuncia a quem tem acesso (30/09).
-                        hintText: context.watch<TvdeStore>().tvdeAccess
+                        // Bora Motorista so se anuncia a quem tem acesso (30/09)
+                        // e com o interruptor tvde_app_visivel aberto (04/11).
+                        hintText: context.watch<TvdeStore>().mostrarBoraMotorista
                             ? 'Lojas, produtos, serviços, motorista…'.tr
                             : 'Lojas, produtos e serviços…'.tr,
                         border: InputBorder.none,
@@ -314,7 +315,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
               // Bora Motorista so aparece a quem tem acesso (regra 30/09).
               // Casa (31/10) so com a categoria aberta (nasce desligada).
               if ((e.key != 'motorista' ||
-                      context.watch<TvdeStore>().tvdeAccess) &&
+                      context.watch<TvdeStore>().mostrarBoraMotorista) &&
                   (e.key != 'casa' || context.watch<CasaStore>().enabled))
               ActionChip(
                 label: Text(e.value.tr),
@@ -345,8 +346,9 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
   // ─── Resultados ────────────────────────────────────────────────────────
 
   Widget _resultados() {
-    // Bora Motorista so aparece a quem tem acesso (regra 30/09).
-    final tvde = context.watch<TvdeStore>().tvdeAccess;
+    // Bora Motorista so aparece a quem tem acesso (regra 30/09) e com o
+    // interruptor tvde_app_visivel aberto (04/11/2026).
+    final tvde = context.watch<TvdeStore>().mostrarBoraMotorista;
     // Casa (31/10): só com a categoria aberta, como o ladrilho da home.
     final casa = context.watch<CasaStore>().enabled;
     final atalhos = _atalhos

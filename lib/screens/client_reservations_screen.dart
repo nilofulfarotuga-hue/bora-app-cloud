@@ -10,6 +10,7 @@ import '../models/cleaning_models.dart';
 import '../models/falha_de_acao.dart';
 import '../models/reservation_model.dart';
 import '../models/tvde_ride.dart';
+import '../services/tvde_visibilidade.dart';
 import '../stores/cleaning_store.dart';
 import '../stores/reservation_store.dart';
 import '../stores/services_store.dart';
@@ -141,6 +142,8 @@ class _ClientReservationsScreenState extends State<ClientReservationsScreen>
         return mesas.error == null;
       }),
       tentar(TipoReserva.corrida, () async {
+        // 04/11/2026: Bora Motorista fechado → nada a carregar (nem a falhar).
+        if (!tvde.appVisivel) return true;
         // As agendadas (sem limite de quantidade) e o histórico (onde estão
         // as que já passaram a motorista atribuído aos 20 min, as feitas e
         // as canceladas).
@@ -282,6 +285,7 @@ class _ClientReservationsScreenState extends State<ClientReservationsScreen>
   /// histórico de corridas, que as mostra todas (o "As minhas reservas" só
   /// lista as que ainda estão 'agendada').
   Future<Widget?> _ecraDaCorrida(ItemReserva item, TvdeRide c) async {
+    if (!TvdeVisibilidade.aberto) return null; // Bora Motorista fechado (04/11)
     if (item.grupo != GrupoReserva.proximas) {
       return const TvdeRidesHistoryScreen();
     }
@@ -313,13 +317,17 @@ class _ClientReservationsScreenState extends State<ClientReservationsScreen>
     // realtime; das outras duas listas, a que falhou a última leitura ficou
     // com cópias velhas e vai para trás.
     final agendadasPrimeiro = !tvde.myReservationsFailed;
+    // 04/11/2026 (fechar-bora-motorista): com `tvde_app_visivel` fechado as
+    // corridas (marcadas, feitas e canceladas) não aparecem aqui.
     final dados = juntarReservas(
       mesas: mesas,
       corridas: [
-        if (tvde.activeRide != null) tvde.activeRide!,
-        if (agendadasPrimeiro) ...tvde.reservations,
-        ...tvde.history,
-        if (!agendadasPrimeiro) ...tvde.reservations,
+        if (tvde.appVisivel) ...[
+          if (tvde.activeRide != null) tvde.activeRide!,
+          if (agendadasPrimeiro) ...tvde.reservations,
+          ...tvde.history,
+          if (!agendadasPrimeiro) ...tvde.reservations,
+        ],
       ],
       limpezas: limpezas,
       marcacoes: marcacoes,
@@ -634,6 +642,8 @@ class _VazioProximas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 04/11/2026 (fechar-bora-motorista): interruptor `tvde_app_visivel`.
+    final motorista = TvdeVisibilidade.aberto;
     Widget atalho(IconData icon, String texto, String categoria) =>
         OutlinedButton.icon(
           onPressed: () => abrirCategoria(context, categoria),
@@ -665,7 +675,10 @@ class _VazioProximas extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Mesas, corridas para mais tarde, limpezas e marcações aparecem todas aqui.'
+            // 04/11/2026: com o Bora Motorista fechado não se fala de corridas.
+            (motorista
+                    ? 'Mesas, corridas para mais tarde, limpezas e marcações aparecem todas aqui.'
+                    : 'Mesas, limpezas e marcações aparecem todas aqui.')
                 .tr,
             textAlign: TextAlign.center,
             style: const TextStyle(
@@ -678,7 +691,8 @@ class _VazioProximas extends StatelessWidget {
             runSpacing: 8,
             children: [
               atalho(Icons.restaurant, 'Restaurantes'.tr, 'mesa'),
-              atalho(Icons.local_taxi_outlined, 'Motorista'.tr, 'motorista'),
+              if (motorista)
+                atalho(Icons.local_taxi_outlined, 'Motorista'.tr, 'motorista'),
               atalho(Icons.cleaning_services_outlined, 'Limpeza'.tr,
                   'limpeza'),
               atalho(Icons.content_cut, 'Serviços'.tr, 'servicos'),

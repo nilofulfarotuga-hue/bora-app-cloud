@@ -40,6 +40,7 @@ import 'admin_checkin_screen.dart';
 import 'admin_receitas_screen.dart';
 import 'admin_support_escalations_screen.dart';
 import 'admin_tvde_chats_screen.dart';
+import 'admin_bora_motorista_fechado_screen.dart';
 import 'admin_connect_payments_screen.dart';
 import 'admin_continente_prices_screen.dart';
 import 'admin_correcoes_preco_screen.dart';
@@ -605,13 +606,27 @@ List<AdminMenuSection> adminMenuSections() => [
     ),
     ],
   ),
+  // 04/11/2026 (fechar-bora-motorista): o Bora Motorista fechou nas apps
+  // (sem licença do IMT). A secção passa a ser o ARQUIVO: tudo continua a
+  // abrir para consulta (o contabilista precisa), e o primeiro item é o
+  // interruptor `tvde_app_visivel` para reabrir quando a licença sair.
+  // O id 'tvde' fica igual (é o que os favoritos guardam).
   AdminMenuSection(
     id: 'tvde',
-    title: 'Bora Motorista',
-    subtitle: 'Transporte de passageiros: corridas, motoristas, planos.',
-    icon: Icons.local_taxi,
-    color: const Color(0xFF0EA5E9),
+    title: 'Arquivo — Bora Motorista (fechado)',
+    subtitle: 'Fechado nas apps desde 04/11/2026. Só consulta: corridas, pagamentos, recibos, acertos, motoristas, pedidos de acesso.',
+    icon: Icons.inventory_2_outlined,
+    color: const Color(0xFF64748B),
     items: [
+    AdminMenuItem(
+      id: 'tvde_interruptor_app',
+      title: 'Interruptor do Bora Motorista',
+      subtitle: 'Fechado ou aberto nas apps (tvde_app_visivel): ver o estado, reabrir quando a licença do IMT sair, e quantas corridas estão guardadas',
+      icon: Icons.toggle_on_outlined,
+      color: const Color(0xFF64748B),
+      builder: () => const AdminBoraMotoristaFechadoScreen(),
+      keywords: const ['tvde', 'motorista', 'fechado', 'arquivo', 'interruptor', 'reabrir', 'licenca', 'imt', 'tvde_app_visivel', 'visivel'],
+    ),
     AdminMenuItem(
       id: 'tvde_corridas',
       title: 'Corridas',

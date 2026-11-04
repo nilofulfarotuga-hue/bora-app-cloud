@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:bora_app/models/tvde_ride.dart';
 import 'package:bora_app/screens/driver/tvde/tvde_offer_screen.dart';
 import 'package:bora_app/services/notification_service.dart';
+import 'package:bora_app/services/tvde_visibilidade.dart';
 import 'package:bora_app/stores/driver_store.dart';
 import 'package:bora_app/stores/tvde_driver_store.dart';
 import 'package:bora_app/widgets/tvde/tvde_offer_overlay_host.dart';
@@ -170,6 +171,8 @@ final _ecraOferta = find.byType(TvdeOfferScreen, skipOffstage: false);
 final _cartao = find.byKey(const Key('tvde_oferta_sobreposta'));
 
 void main() {
+  // 04/11/2026: testes do Bora Motorista ABERTO (tvde_app_visivel).
+  setUpAll(() => TvdeVisibilidade.definirParaTeste(true));
   setUp(() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     debugLimparOfertasTvdeTratadas();

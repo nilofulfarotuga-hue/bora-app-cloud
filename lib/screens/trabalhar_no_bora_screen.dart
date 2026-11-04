@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../services/roles_service.dart';
+import '../services/tvde_visibilidade.dart';
 import '../widgets/bora/bora.dart';
 import 'cleaner/cleaner_apply_screen.dart';
 import 'driver_signup_screen.dart';
@@ -126,7 +127,12 @@ class _TrabalharNoBoraScreenState extends State<TrabalharNoBoraScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final atividades = atividadesDisponiveis(_roles);
+    // 04/11/2026 (fechar-bora-motorista): "Corridas de passageiros" só com
+    // `tvde_app_visivel` aberto.
+    final atividades = [
+      for (final a in atividadesDisponiveis(_roles))
+        if (a.papel != 'driver' || TvdeVisibilidade.aberto) a,
+    ];
     return Scaffold(
       appBar: BoraScreenAppBar(title: 'Trabalhar no Bora'.tr),
       body: _loading

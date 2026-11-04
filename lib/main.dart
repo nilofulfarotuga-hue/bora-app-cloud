@@ -29,6 +29,7 @@ import 'services/retoma_corrida_tvde.dart';
 import 'services/retoma_pagamento_web.dart';
 import 'services/tvde_reservation_ready_handler.dart';
 import 'services/tvde_offer_action_handler.dart';
+import 'services/tvde_visibilidade.dart';
 import 'widgets/tvde/tvde_offer_overlay_host.dart';
 import 'widgets/trabalho_oferta_overlay_host.dart';
 import 'services/offer_presentation_gate.dart';
@@ -507,7 +508,13 @@ Future<void> main() async {
   // nível da app — não dentro de um ecrã. Estava no initState/dispose da
   // TvdeDriverHomeScreen, e com o ecrã de corrida por cima o gancho ficava a
   // null: a RPC corria pelo caminho headless mas a navegação nunca abria.
-  NotificationService.tvdeReservationReadyTap = tvdeConfirmarACaminhoGlobal;
+  // 04/11/2026 (fechar-bora-motorista): com `tvde_app_visivel` fechado os
+  // três ganchos TVDE abaixo não fazem nada (um aviso antigo de corrida não
+  // abre ecrã nenhum; a app fica onde estava).
+  NotificationService.tvdeReservationReadyTap = (rideId) {
+    if (!TvdeVisibilidade.aberto) return;
+    unawaited(tvdeConfirmarACaminhoGlobal(rideId));
+  };
 
   // [Oferta sobreposta 20/09 · C6] Os ganchos de RELER a oferta (imediata e
   // de reserva) também vivem aqui, ao nível da app. Estavam no initState/
@@ -517,6 +524,7 @@ Future<void> main() async {
   // (`TvdeOfferOverlayHost`, no builder do MaterialApp) desenha a oferta por
   // cima do que quer que esteja aberto.
   void relerOfertasTvde() {
+    if (!TvdeVisibilidade.aberto) return;
     final ctx = NotificationService.navigatorKey.currentContext;
     if (ctx == null || !ctx.mounted) return;
     unawaited(ctx.read<TvdeDriverStore>().reloadOffers());
@@ -528,6 +536,7 @@ Future<void> main() async {
   // [Oferta sobreposta 20/09 · Bloco 3] Aceitar/Recusar carregados na própria
   // notificação de oferta. Mesmo sítio, mesma razão: ao nível da app.
   NotificationService.tvdeOfferAction = (rideId, actionId) {
+    if (!TvdeVisibilidade.aberto) return;
     unawaited(tvdeResponderOfertaGlobal(rideId, actionId));
   };
 
@@ -1334,6 +1343,8 @@ class _ServerMirrorOnResumeState extends State<_ServerMirrorOnResume>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed || !mounted) return;
     context.read<OrderStore>().loadOrders();
+    // 04/11/2026: o interruptor do Bora Motorista relê-se ao voltar à app.
+    unawaited(TvdeVisibilidade.refresh());
     context.read<TvdeStore>().refreshActiveRide();
     context.read<CleaningStore>().refreshTracked();
     context.read<CarwashStore>().refreshTracked();
@@ -1412,7 +1423,16 @@ class _RootNavigator extends StatelessWidget {
           } else if (driver.vehicleType == VehicleType.carPassengers) {
             // TVDE — motorista de passageiros entra no modo passageiros (Plano §4).
             // O próprio ecrã gateia pending/rejected, igual ao DriverHomeScreen.
-            estafeta = const TvdeDriverHomeScreen();
+            // 04/11/2026 (fechar-bora-motorista): com `tvde_app_visivel`
+            // fechado entra na home normal do estafeta (os 4 motoristas de
+            // carro aprovados fazem também entregas: work_mode 'everything').
+            estafeta = ValueListenableBuilder<bool>(
+              valueListenable: TvdeVisibilidade.visivel,
+              builder: (_, aberto, __) => aberto
+                  ? const TvdeDriverHomeScreen()
+                  : const TermsGate(
+                      audience: 'estafeta', child: DriverHomeScreen()),
+            );
           } else {
             estafeta =
                 const TermsGate(audience: 'estafeta', child: DriverHomeScreen());

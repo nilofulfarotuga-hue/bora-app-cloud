@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:bora_app/models/tvde_ride.dart';
 import 'package:bora_app/screens/driver/tvde/tvde_offer_screen.dart';
 import 'package:bora_app/services/notification_service.dart';
+import 'package:bora_app/services/tvde_visibilidade.dart';
 import 'package:bora_app/services/tvde_offer_action_handler.dart';
 import 'package:bora_app/stores/driver_store.dart';
 import 'package:bora_app/stores/tvde_driver_store.dart';
@@ -257,6 +258,8 @@ Future<void> _passar(WidgetTester tester, Duration total) async {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  // 04/11/2026: testes do Bora Motorista ABERTO (tvde_app_visivel).
+  setUpAll(() => TvdeVisibilidade.definirParaTeste(true));
 
   setUpAll(() async {
     SharedPreferences.setMockInitialValues(<String, Object>{});

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:bora_app/services/papeis_de_trabalho.dart';
+import 'package:bora_app/services/tvde_visibilidade.dart';
 import 'package:bora_app/widgets/caixa_de_papeis.dart';
 
 import 'fabrica_de_fotos.dart';
@@ -14,6 +15,8 @@ import 'fabrica_de_fotos.dart';
 /// bicicleta não se podia inscrever sem ser motorista de TVDE.
 void main() {
   setUpAll(() async {
+    // 04/11/2026: desenho com o Bora Motorista ABERTO (tvde_app_visivel).
+    TvdeVisibilidade.definirParaTeste(true);
     await carregaFonteInter();
     await carregaFontesSdk();
   });

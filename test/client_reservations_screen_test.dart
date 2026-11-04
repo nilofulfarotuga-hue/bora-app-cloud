@@ -7,6 +7,7 @@ import 'package:bora_app/models/tvde_ride.dart';
 import 'package:bora_app/screens/client/services/booking_success_screen.dart';
 import 'package:bora_app/screens/client_reservations_screen.dart';
 import 'package:bora_app/screens/restaurants_screen.dart';
+import 'package:bora_app/services/tvde_visibilidade.dart';
 import 'package:bora_app/utils/home_destino.dart';
 import 'package:bora_app/stores/cleaning_store.dart';
 import 'package:bora_app/stores/reservation_store.dart';
@@ -187,6 +188,52 @@ Widget _ecraVazio() => MultiProvider(
     );
 
 void main() {
+  // 04/11/2026: por omissão estes testes são do Bora Motorista ABERTO
+  // (tvde_app_visivel); os do grupo "fechado" no fim fecham-no.
+  setUp(() => TvdeVisibilidade.definirParaTeste(true));
+
+  group('Bora Motorista fechado (tvde_app_visivel=false, 04/11/2026)', () {
+    setUp(() => TvdeVisibilidade.definirParaTeste(false));
+
+    testWidgets('a corrida marcada não aparece; mesa, limpeza e marcação sim',
+        (tester) async {
+      await tester.binding.setSurfaceSize(const Size(400, 1600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+          MaterialApp(home: _ecraComUmaDeCada(limpezaFalha: true)));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Corrida marcada'), findsNothing);
+      expect(find.textContaining('Para Hospital Sousa Martins'), findsNothing);
+      expect(find.text('Motorista confirmado'), findsNothing);
+      expect(find.text('Limpeza'), findsOneWidget);
+      expect(find.text('Marcação'), findsOneWidget);
+      expect(find.text('Mesa'), findsOneWidget);
+    });
+
+    testWidgets('vazio: sem atalho Motorista e sem falar de corridas',
+        (tester) async {
+      await tester.binding.setSurfaceSize(const Size(400, 1000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(MaterialApp(home: _ecraVazio()));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Ainda não tens nada marcado'), findsOneWidget);
+      expect(find.text('Motorista'), findsNothing);
+      expect(find.textContaining('corridas'), findsNothing);
+      expect(find.text('Mesas, limpezas e marcações aparecem todas aqui.'),
+          findsOneWidget);
+      expect(find.text('Restaurantes'), findsOneWidget);
+      expect(find.text('Limpeza'), findsOneWidget);
+    });
+
+    test('ligação antiga para "motorista"/"tvde" não abre ecrã nenhum', () {
+      expect(ecraDaCategoriaParaTeste('motorista'), isNull);
+      expect(ecraDaCategoriaParaTeste('tvde'), isNull);
+      expect(ecraDaCategoriaParaTeste('restaurantes'), isA<RestaurantsScreen>());
+    });
+  });
+
   testWidgets(
       'mostra mesa, corrida, limpeza e marcação; a limpeza falhada não apaga '
       'as outras', (tester) async {

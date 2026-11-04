@@ -11,6 +11,7 @@ import '../../config/app_spacing.dart';
 import '../../models/tvde_ride.dart';
 import '../../screens/driver/tvde/tvde_ride_active_screen.dart';
 import '../../services/notification_service.dart';
+import '../../services/tvde_visibilidade.dart';
 import '../../stores/tvde_driver_store.dart';
 import 'tvde_counter_ride_badge.dart';
 import 'tvde_pay_badge.dart';
@@ -268,7 +269,14 @@ class _TvdeOfferOverlayHostState extends State<TvdeOfferOverlayHost>
     final mostrada = TvdeOfferPresentation.corridaMostrada.value;
 
     Widget? cartao;
-    if (offer != null && offer.id != emEcraInteiro && offer.id != mostrada) {
+    // 04/11/2026 (fechar-bora-motorista): com `tvde_app_visivel` fechado não
+    // se desenha oferta nenhuma, imediata ou de reserva.
+    final aberto = TvdeVisibilidade.aberto;
+    if (!aberto) {
+      cartao = null;
+    } else if (offer != null &&
+        offer.id != emEcraInteiro &&
+        offer.id != mostrada) {
       cartao = TvdeOfferOverlayCard(
         key: ValueKey<String>('oferta-sobreposta-${offer.id}'),
         offer: offer,

@@ -10,11 +10,11 @@ estado: atual
 
 # Check-in diário e "Bora Todo Dia" do Bora App — tokens por dia, marcos com prémios de parceiros (10/15/30 dias) e a regra de 29/10 de um prémio por sequência; ler antes de mexer no check-in ou nos prémios
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-bora-todo-dia`, origem `claude-ai`, atualizada em 2026-11-04T10:13:04.346139+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-bora-todo-dia`, origem `claude-ai`, atualizada em 2026-11-04T11:13:15.914434+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas bora todo dia · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/bora-todo-dia.md), copiada a 2026-11-04 10:12 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/bora-todo-dia.md), copiada a 2026-11-04 11:12 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: bora-todo-dia

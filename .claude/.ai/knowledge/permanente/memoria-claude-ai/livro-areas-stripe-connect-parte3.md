@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-stripe-connect-parte3
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-02
+ultima_confirmacao: 2026-11-04
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Stripe Connect Express no Bora — decisão do Danilo, estado real (conta dele de motorista já ATIVA, Goola e Ouro e Prata por preencher, repasse automático ainda desligado), como gerar o link de cadastro, taxas por parceiro e plano por fases (parte 3 de 3)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-stripe-connect-parte3`, origem `claude-ai`, atualizada em 2026-11-02T07:25:53.587034+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-stripe-connect-parte3`, origem `claude-ai`, atualizada em 2026-11-04T21:13:32.954255+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas stripe connect parte3 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/stripe-connect.md), copiada a 2026-11-02 07:25 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos. (parte 3 de 3 — começa em livro-areas-stripe-connect)
+> Cópia da memória da Claude.ai (ficheiro /areas/stripe-connect.md), copiada a 2026-11-04 21:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos. (parte 3 de 3 — começa em livro-areas-stripe-connect)
 
 DIVERGÊNCIA DO VALOR DO TOKEN (achada pelo executor, confirmada por MCP 2026-08-13)
 - [stated] `tvde_request_ride` e `tvde_finish_ride` usam `p_tokens_to_apply * 5` (5 cêntimos por token) — cravado no SQL, sem ler definição nenhuma. Todo o resto (entregas, carteira, ecrãs do app, pacote online) usa `token_value_cents_x100`=50, ou seja 0,5 cêntimos. As RPCs do TVDE davam 10× o valor documentado (CLAUDE.md §5: 100 tokens = €0,50). Nunca se notou porque os tokens nunca chegavam a ser descontados no TVDE (BUG 2).
@@ -72,4 +72,5 @@ Stripe nova da empresa (24/10/2026)
 - [stated] A Stripe da empresa tem de ser TOTALMENTE separada da conta pessoal (login e email próprios, sem ligação nenhuma) e sem levar histórico, clientes ou cartões da conta pessoal — começa do zero
 - [stated] 01/11/2026: ABRIU a Stripe da empresa (na conta Google da Bora) e passou-a para eu gerir e preencher tudo ("agora vai ficar por sua conta"). A partir daí há DUAS Stripes — a da empresa e a pessoal dele — e tem de se saber dividir: usar sempre a conta certa em cada caminho
 - [stated] Para o email das contas da empresa decidiu usar, por enquanto, o domínio do Bora (boraguarda.com) em vez de criar um Gmail novo
+- [stated] 04/11/2026: com o banco online da empresa no Millennium ativo, mandou configurar a Stripe da empresa para o pagamento semanal das lojas "cair automaticamente" e refazer o acordo/registo de recebimento com o Emanuel ([[boom-burger]]) e o Cauã ([[goola-acai]] e [[sabores-de-casa]]); autorizou aceitar as responsabilidades do Connect na Stripe da empresa
 

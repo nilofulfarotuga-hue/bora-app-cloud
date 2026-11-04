@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-stripe-connect
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-02
+ultima_confirmacao: 2026-11-04
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Stripe Connect Express no Bora — decisão do Danilo, estado real (conta dele de motorista já ATIVA, Goola e Ouro e Prata por preencher, repasse automático ainda desligado), como gerar o link de cadastro, taxas por parceiro e plano por fases (parte 1 de 3 — continua em livro-areas-stripe-connect-parte2…)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-stripe-connect`, origem `claude-ai`, atualizada em 2026-11-02T07:24:14.434813+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-stripe-connect`, origem `claude-ai`, atualizada em 2026-11-04T21:13:32.954255+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas stripe connect · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/stripe-connect.md), copiada a 2026-11-02 07:25 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos. (parte 1 de 3 — continua em livro-areas-stripe-connect-parte2)
+> Cópia da memória da Claude.ai (ficheiro /areas/stripe-connect.md), copiada a 2026-11-04 21:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos. (parte 1 de 3 — continua em livro-areas-stripe-connect-parte2)
 
 ---
 name: stripe-connect

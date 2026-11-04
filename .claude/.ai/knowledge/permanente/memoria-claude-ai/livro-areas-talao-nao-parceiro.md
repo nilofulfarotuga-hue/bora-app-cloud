@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-talao-nao-parceiro
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-28
+ultima_confirmacao: 2026-11-04
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Ecrã do talão do estafeta em pedidos não-parceiros do [[bora-app]] — o que o Danilo exige do fluxo e o prompt entregue a 10/09 para o corrigir
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-talao-nao-parceiro`, origem `claude-ai`, atualizada em 2026-10-28T20:14:32.882065+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-talao-nao-parceiro`, origem `claude-ai`, atualizada em 2026-11-04T16:14:50.689684+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas talao nao parceiro · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/talao-nao-parceiro.md), copiada a 2026-10-28 20:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/talao-nao-parceiro.md), copiada a 04/11/2026 16:14 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: talao-nao-parceiro
@@ -31,3 +31,4 @@ aliases: [talão do estafeta, foto do talão, registar talão, talão não-parce
 - [stated] 28/10/2026 (pedido Auchan do Divan, ele próprio a entregar): o Confirmar do talão não fazia nada; quando é de uma loja (ex. Auchan) o estafeta tem de ver o nome da loja e a morada, não só a morada; quer que ao carregar em Confirmar saia logo para "a caminho"; disse "investiga tudo, conserta as coisas que tá errado". Destravado por MCP às 17:47; RPC do dinheiro a cobrar corrigida às ~18:00. PROMPT REGISTADO: página `prompt-talao-confirmar-loja-saldo-2026-10-28` em claude_ai_memoria (Opus 5.5, Claude Code do PC, fluxo e2e_log talao-auchan-divan-2026-10-28; blocos A Confirmar, B nome da loja, C dinheiro a cobrar, D tokens nos cancelamentos, E outros erros). Estado: por colar — o Claude Code do PC está sem sessão desde ~12h (precisa de voltar a entrar)
 - [stated] 28/10/2026 18:24-18:31: o Divan pagou-lhe 14,35 € em dinheiro no Auchan (o certo eram 3,31 €); ele descontou os 11,04 € no Favor seguinte do Divan (e5d03681, 18 € → cobrou 6,96 €). Não é para devolver nada à Cristina Batista pelos pedidos antigos. Viu que o cliente tinha o saldo descontado mas o ecrã do estafeta mandava cobrar o valor cheio — quer que não se repita. Feito por MCP: Favores a dinheiro também passam a descontar saldo/tokens (18:28). Prompt atualizado (Bloco C tarefa 5 = ecrã do estafeta usar sempre o cash_total_due; Bloco D = reembolso novo); adenda no livro `prompt-talao-confirmar-loja-saldo-2026-10-28-bloco-d`. Estado: por colar até ele voltar a entrar no Claude Code do PC
 - [stated] 28/10 18:46: mandou juntar a missão do talão do Divan com a da Boom num só prompt "10-10", revisto, para ele colar no PC. PROMPT REGISTADO: missao-geral-2026-10-28 (MOTOR Opus 5.5, sessão NOVA do Claude Code no PC, pasta bora-app-cloud), entregue no chat às ~19:50; substitui `prompt-talao-confirmar-loja-saldo-2026-10-28` e a adenda `-bloco-d`. Scope: etapa 1 estafeta (Confirmar do talão, nome da loja, valor a cobrar sempre do servidor, vigia), etapa 2 reembolso (MB Way/cartão por defeito ou 100% saldo, tokens voltam como tokens). Publicação considerada urgente, só com o "publica" dele. Estado: à espera de ele colar
+- [stated] 04/11/2026 15:18 (pedido Auchan do Ricardo, c53b29ef): o cliente pediu fatura com NIF e o NIF não apareceu ao estafeta em lado nenhum — mandou arrumar "urgente": o NIF tem de aparecer antes de pagar e no talão, obrigatório confirmar; se o cliente não pediu NIF, vai o da Bora; o estafeta segue na mesma. PROMPT REGISTADO: docs/prompts/PROMPT_nif_caixa_e_favor_2026-11-04.md no ramo nif-caixa-2026-11-04 (commit cd3adda, com a migração 20261104153000_nif_na_caixa_estafeta), MOTOR Opus 5.5, continuação na sessão "PC do Danilo", fluxo e2e_log nif-caixa-2026-11-04; blocos A servidor, B cartão do NIF + caixa obrigatória no talão + Favor em folha_favor.dart, C painel, D robô do talão confere o NIF, E resto do Favor do Divan (zona vermelha → lançador Favor-sem-tranca.cmd). Estado 15:28: à espera de a sessão acabar o envio do check-in (pergunta "Deixo seguir?" por responder)

@@ -260,7 +260,7 @@ class _CheckinDiarioCardState extends State<CheckinDiarioCard>
     if (!r.ok) {
       setState(() {
         _aDecidir = false;
-        _erroEscada = mensagemErroEscada(r.reason);
+        _erroEscada = mensagemErroEscada(r.reason, proximoPremioEm: r.proximoPremioEm);
       });
       if (r.reason != 'sem_rede') unawaited(_lerPremios());
       return;
@@ -289,7 +289,7 @@ class _CheckinDiarioCardState extends State<CheckinDiarioCard>
     if (!r.ok) {
       setState(() {
         _aDecidir = false;
-        _erroEscada = mensagemErroEscada(r.reason);
+        _erroEscada = mensagemErroEscada(r.reason, proximoPremioEm: r.proximoPremioEm);
       });
       if (r.reason != 'sem_rede') unawaited(_lerPremios());
       return;

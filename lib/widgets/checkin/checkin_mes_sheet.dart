@@ -67,6 +67,9 @@ class CheckinMesSheet extends StatelessWidget {
               const SizedBox(height: 12),
               _Progresso(estado: e),
               const SizedBox(height: 12),
+              // 04/11/2026: calendário com TODOS os prémios do mês.
+              CalendarioPremios(estado: e),
+              const SizedBox(height: 12),
               for (final m in e.marcos) ...[
                 _MarcoLinha(marco: m, diaMarco: e.diaMarco),
                 const SizedBox(height: 8),
@@ -97,6 +100,160 @@ class CheckinMesSheet extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Calendário do ciclo (04/11/2026, escada de prémios): um quadrado por dia.
+/// Dia com prémio: foto e nome curto. Dia sem prémio novo: os tokens do dia.
+/// Por baixo, que o prémio conquistado fica guardado e, se for o caso, quando
+/// é o próximo prémio (um a cada 30 dias).
+class CalendarioPremios extends StatelessWidget {
+  const CalendarioPremios({super.key, required this.estado});
+
+  final CheckinPremiosEstado estado;
+
+  @override
+  Widget build(BuildContext context) {
+    final e = estado;
+    final total = e.cicloDias <= 0 ? 30 : e.cicloDias;
+    final porDia = <int, CheckinMarco>{
+      for (final m in e.marcos)
+        if (m.dia >= 1 && m.dia <= total) m.dia: m,
+    };
+    final bloqueado = e.escada?.premioBloqueado() ?? false;
+    return Column(
+      key: const Key('checkin_calendario'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: total,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 5,
+            mainAxisSpacing: 6,
+            crossAxisSpacing: 6,
+            childAspectRatio: 0.78,
+          ),
+          itemBuilder: (_, i) {
+            final dia = i + 1;
+            return _DiaCalendario(
+              dia: dia,
+              marco: porDia[dia],
+              tokens: e.tokensDoDia(dia),
+              feito: e.diasSeguidos > 0 && dia <= e.diaMarco,
+              hoje: dia == e.diaDeHoje,
+            );
+          },
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Nos dias sem prémio novo ganhas os tokens do dia. O prémio que já conquistaste fica guardado.'.tr,
+          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.3),
+        ),
+        if (bloqueado) ...[
+          const SizedBox(height: 6),
+          Text(
+            'Próximo prémio disponível a {0}.'.trArgs([diaMes(e.escada!.proximoPremioEm)]),
+            key: const Key('checkin_proximo_premio_em'),
+            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _DiaCalendario extends StatelessWidget {
+  const _DiaCalendario({
+    required this.dia,
+    required this.marco,
+    required this.tokens,
+    required this.feito,
+    required this.hoje,
+  });
+
+  final int dia;
+  final CheckinMarco? marco;
+  final int tokens;
+  final bool feito;
+  final bool hoje;
+
+  bool get _temPremio => marco != null && marco!.tipo != 'tokens';
+
+  @override
+  Widget build(BuildContext context) {
+    final m = marco;
+    final fundo = feito
+        ? const Color(0xFFDCFCE7)
+        : _temPremio
+            ? const Color(0xFFFFF7ED)
+            : const Color(0xFFF9FAFB);
+    final borda = hoje
+        ? AppColors.primary
+        : _temPremio
+            ? AppColors.accent
+            : const Color(0xFFE5E7EB);
+    final Widget meio;
+    if (_temPremio) {
+      final foto = m!.fotoUrl;
+      meio = ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: foto == null
+            ? Icon(m.tipo == 'servico' ? Icons.cleaning_services_outlined : Icons.card_giftcard,
+                size: 26, color: AppColors.accent)
+            : Image.network(
+                foto,
+                width: 34,
+                height: 34,
+                fit: BoxFit.cover,
+                cacheWidth: 120,
+                errorBuilder: (_, __, ___) =>
+                    const Icon(Icons.card_giftcard, size: 26, color: AppColors.accent),
+              ),
+      );
+    } else {
+      meio = Text(
+        tokens > 0 ? '+$tokens' : '·',
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w800,
+          color: (m?.tipo == 'tokens') ? AppColors.accent : AppColors.textSecondary,
+        ),
+      );
+    }
+    return Container(
+      key: Key('checkin_cal_dia_$dia'),
+      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 4),
+      decoration: BoxDecoration(
+        color: fundo,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: borda, width: hoje ? 2 : 1),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text('$dia',
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: feito ? AppColors.primaryDark : AppColors.textSubtle)),
+          meio,
+          Text(
+            _temPremio ? _curto(m!.titulo.tr) : (tokens > 0 ? 'tokens'.tr : ''),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 8.5, height: 1.05, color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _curto(String t) {
+    final s = t.replaceFirst(RegExp(r'^(um|uma|o|a|os|as)\s+', caseSensitive: false), '');
+    return s.isEmpty ? t : '${s[0].toUpperCase()}${s.substring(1)}';
   }
 }
 

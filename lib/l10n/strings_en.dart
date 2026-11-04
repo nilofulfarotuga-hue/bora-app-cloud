@@ -5109,4 +5109,14 @@ const Map<String, String> kStringsEn = <String, String>{
       'Would you like to receive offers and news from shops in Guarda? You can change this anytime in your Profile.',
   'Sim':
       'Yes',
+  'Já levantaste um prémio há pouco tempo. O prémio fica guardado.':
+      'You claimed a prize recently. This prize stays saved.',
+  'Só podes levantar um prémio a cada 30 dias. O próximo fica disponível a {0}; até lá o prémio fica guardado.':
+      'You can claim one prize every 30 days. The next one is available on {0}; until then this prize stays saved.',
+  'Nos dias sem prémio novo ganhas os tokens do dia. O prémio que já conquistaste fica guardado.':
+      "On days without a new prize you earn that day's tokens. The prize you already won stays saved.",
+  'Próximo prémio disponível a {0}.':
+      'Next prize available on {0}.',
+  'tokens':
+      'tokens',
 };

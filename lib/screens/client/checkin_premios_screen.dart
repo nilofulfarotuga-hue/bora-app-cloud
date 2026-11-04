@@ -85,7 +85,7 @@ class _CheckinPremiosScreenState extends State<CheckinPremiosScreen> {
     if (!mounted) return;
     setState(() => _aLevantar = false);
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(r.ok ? 'Prémio levantado! Já está em "Por usar".'.tr : mensagemErroEscada(r.reason)),
+      content: Text(r.ok ? 'Prémio levantado! Já está em "Por usar".'.tr : mensagemErroEscada(r.reason, proximoPremioEm: r.proximoPremioEm)),
     ));
     await _ler();
   }

@@ -43,7 +43,19 @@ const _estados = <String, String>{
   'anulado': 'Anulado',
 };
 
-const _chavesMarcos = ['semana', 'salgados', 'acai', 'mes'];
+/// 04/11/2026: os degraus vêm todos do servidor (antes eram 4 fixos e os novos
+/// — Leonidas, Burger King, McDonald's, Tiago's, Fuku, Boom — não apareciam).
+List<String> chavesMarcosDe(Map<String, dynamic> defs) {
+  final lista = <MapEntry<String, int>>[];
+  for (final e in defs.entries) {
+    final v = e.value;
+    if (!e.key.startsWith('checkin_marco_') || v is! Map) continue;
+    if (v['dia'] == null || v['tipo'] == null) continue;
+    lista.add(MapEntry(e.key.substring('checkin_marco_'.length), int.tryParse('${v['dia']}') ?? 999));
+  }
+  lista.sort((a, b) => a.value.compareTo(b.value));
+  return [for (final e in lista) e.key];
+}
 
 class _AdminCheckinPremiosScreenState extends State<AdminCheckinPremiosScreen> {
   SupabaseClient get _db => Supabase.instance.client;
@@ -68,6 +80,10 @@ class _AdminCheckinPremiosScreenState extends State<AdminCheckinPremiosScreen> {
   final _busca = TextEditingController();
   final Map<String, Map<String, TextEditingController>> _marcoCampos = {};
   final Map<String, bool> _marcoAtivo = {};
+  final _intervalo = TextEditingController();
+  List<Map<String, dynamic>> _custos = [];
+
+  List<String> get _chavesMarcos => chavesMarcosDe(_defs);
 
   // Escada de prêmios.
   bool _escadaAtiva = true;
@@ -84,7 +100,7 @@ class _AdminCheckinPremiosScreenState extends State<AdminCheckinPremiosScreen> {
 
   @override
   void dispose() {
-    for (final c in [_teto, _validade, _ciclo, _pedidoDias, _lembreteDias, _busca, _escadaTexto]) {
+    for (final c in [_teto, _validade, _ciclo, _pedidoDias, _lembreteDias, _busca, _escadaTexto, _intervalo]) {
       c.dispose();
     }
     for (final m in _marcoCampos.values) {
@@ -110,7 +126,9 @@ class _AdminCheckinPremiosScreenState extends State<AdminCheckinPremiosScreen> {
       for (final r in (defs as List)) {
         final row = Map<String, dynamic>.from(r as Map);
         final k = '${row['key']}';
-        if (k.startsWith('checkin_marco_') || k.startsWith('checkin_escada_')) mapa[k] = row['value'];
+        if (k.startsWith('checkin_marco_') || k.startsWith('checkin_escada_') || k == 'checkin_premio_intervalo_dias') {
+          mapa[k] = row['value'];
+        }
       }
       final resumo = await _db.rpc('admin_checkin_premios_resumo');
       _defs = mapa;
@@ -123,6 +141,7 @@ class _AdminCheckinPremiosScreenState extends State<AdminCheckinPremiosScreen> {
       _ciclo.text = '${_int('checkin_marco_ciclo_dias', 30)}';
       _pedidoDias.text = '${_int('checkin_marco_pedido_pago_dias', 30)}';
       _lembreteDias.text = '${_int('checkin_marco_lembrete_dias', 3)}';
+      _intervalo.text = '${_int('checkin_premio_intervalo_dias', 30)}';
       _escadaAtiva = _bool('checkin_escada_ativa', true);
       _escadaTexto.text = _v('checkin_escada_texto') is String ? _v('checkin_escada_texto') as String : '';
       for (final c in _chavesMarcos) {
@@ -135,13 +154,18 @@ class _AdminCheckinPremiosScreenState extends State<AdminCheckinPremiosScreen> {
               'descricao': TextEditingController(),
               'valor_cents': TextEditingController(),
               'custo_cents': TextEditingController(),
+              'loja_id': TextEditingController(),
+              'produto_id': TextEditingController(),
             });
         campos['dia']!.text = '${m['dia'] ?? ''}';
         campos['titulo']!.text = '${m['titulo'] ?? ''}';
         campos['descricao']!.text = '${m['descricao'] ?? ''}';
         campos['valor_cents']!.text = '${m['valor_cents'] ?? ''}';
         campos['custo_cents']!.text = '${m['custo_cents'] ?? ''}';
+        campos['loja_id']!.text = '${m['loja_id'] ?? ''}';
+        campos['produto_id']!.text = '${m['produto_id'] ?? ''}';
       }
+      await _loadCustos();
       await _loadVales();
       await _loadEscada();
       if (!mounted) return;
@@ -163,6 +187,20 @@ class _AdminCheckinPremiosScreenState extends State<AdminCheckinPremiosScreen> {
     });
     _vales = [for (final x in (r as List)) Map<String, dynamic>.from(x as Map)];
     if (mounted) setState(() {});
+  }
+
+  /// Custo dos prêmios por mês e por loja. Falha à parte.
+  Future<void> _loadCustos() async {
+    try {
+      final r = await _db.rpc('admin_checkin_premios_custos', params: {'p_meses': 6});
+      _custos = [
+        if (r is List)
+          for (final x in r)
+            if (x is Map) Map<String, dynamic>.from(x),
+      ];
+    } catch (_) {
+      _custos = [];
+    }
   }
 
   /// Resumo e clientes da escada. Falha à parte: o resto do ecrã continua.
@@ -197,6 +235,9 @@ class _AdminCheckinPremiosScreenState extends State<AdminCheckinPremiosScreen> {
       'checkin_marco_pedido_pago_dias': (int.tryParse(_pedidoDias.text.trim()) ?? 30).clamp(1, 365),
       'checkin_marco_lembrete_dias': (int.tryParse(_lembreteDias.text.trim()) ?? 3).clamp(0, 30),
     };
+    if (_defs.containsKey('checkin_premio_intervalo_dias')) {
+      mudancas['checkin_premio_intervalo_dias'] = (int.tryParse(_intervalo.text.trim()) ?? 30).clamp(0, 365);
+    }
     for (final c in _chavesMarcos) {
       final atual = _v('checkin_marco_$c');
       final campos = _marcoCampos[c];
@@ -209,6 +250,8 @@ class _AdminCheckinPremiosScreenState extends State<AdminCheckinPremiosScreen> {
       if (atual['tipo'] == 'produto') {
         novo['valor_cents'] = int.tryParse(campos['valor_cents']!.text.trim()) ?? atual['valor_cents'];
         novo['custo_cents'] = int.tryParse(campos['custo_cents']!.text.trim()) ?? atual['custo_cents'];
+        if (campos['loja_id']!.text.trim().isNotEmpty) novo['loja_id'] = campos['loja_id']!.text.trim();
+        if (campos['produto_id']!.text.trim().isNotEmpty) novo['produto_id'] = campos['produto_id']!.text.trim();
       }
       mudancas['checkin_marco_$c'] = novo;
     }
@@ -379,10 +422,22 @@ class _AdminCheckinPremiosScreenState extends State<AdminCheckinPremiosScreen> {
                         _numero(_validade, 'Validade de cada vale (dias)'),
                         _numero(_ciclo, 'Ciclo dos marcos (dias; depois recomeça no 1)'),
                         _numero(_lembreteDias, 'Lembretes 11h/20h falam do marco quando faltam até (dias)'),
+                        if (_defs.containsKey('checkin_premio_intervalo_dias'))
+                          _numero(_intervalo,
+                              'Um prêmio levantado por pessoa a cada (dias; 0 = sem limite). Dentro do prazo o prêmio fica guardado.'),
                       ]),
-                      _secao('Marcos', [
+                      _secao('Marcos / degraus', [
                         for (final c in _chavesMarcos)
                           if (_marcoCampos[c] != null) _marcoEditor(c),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton.icon(
+                            key: const Key('admin_checkin_novo_degrau'),
+                            onPressed: _novoDegrau,
+                            icon: const Icon(Icons.add),
+                            label: const Text('Criar degrau novo'),
+                          ),
+                        ),
                       ]),
                       _secao('Escada de prêmios', [
                         const Text(
@@ -426,6 +481,7 @@ class _AdminCheckinPremiosScreenState extends State<AdminCheckinPremiosScreen> {
                       _secao('Resumo', [_resumoView()]),
                       _secao('Escada de prêmios — situação', [_escadaView()]),
                       _secao('A pagar às lojas', [_lojasView()]),
+                      _secao('Custo dos prêmios por mês e por loja', [_custosView()]),
                       _secao('Vales', [_valesView()]),
                     ],
                   ),
@@ -467,6 +523,16 @@ class _AdminCheckinPremiosScreenState extends State<AdminCheckinPremiosScreen> {
           title: const Text('Este marco está ligado'),
         ),
         _numero(campos['dia']!, 'Dia do marco'),
+        if (produto) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: TextField(controller: campos['loja_id'], decoration: const InputDecoration(labelText: 'Loja (id, ex.: boom-burger-guarda)')),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: TextField(controller: campos['produto_id'], decoration: const InputDecoration(labelText: 'Produto-prêmio (id do artigo escondido a 0 €)')),
+          ),
+        ],
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: TextField(controller: campos['titulo'], decoration: const InputDecoration(labelText: 'Título (o que o cliente lê)')),
@@ -486,6 +552,96 @@ class _AdminCheckinPremiosScreenState extends State<AdminCheckinPremiosScreen> {
           ),
       ],
     );
+  }
+
+  Widget _custosView() {
+    if (_custos.isEmpty) {
+      return const Text('Sem prêmios emitidos nos últimos 6 meses.');
+    }
+    String eur(Object? c) => '€${((num.tryParse('${c ?? 0}') ?? 0) / 100).toStringAsFixed(2)}';
+    final porMes = <String, num>{};
+    for (final c in _custos) {
+      porMes['${c['mes']}'] = (porMes['${c['mes']}'] ?? 0) + (num.tryParse('${c['custo_cents'] ?? 0}') ?? 0);
+    }
+    return Column(
+      key: const Key('admin_checkin_custos'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final e in porMes.entries)
+          Text('${e.key}: ${eur(e.value)} no total', style: const TextStyle(fontWeight: FontWeight.w700)),
+        const SizedBox(height: 6),
+        for (final c in _custos)
+          Text('${c['mes']} · ${c['loja']}: ${c['vales']} vales (${c['usados']} usados) · custo ${eur(c['custo_cents'])}'),
+        const SizedBox(height: 6),
+        AdminCsvButton(
+          nome: 'checkin_premios_custos',
+          colunas: const [
+            ('mes', 'mes'),
+            ('loja', 'loja'),
+            ('loja_id', 'loja_id'),
+            ('vales', 'vales'),
+            ('usados', 'usados'),
+            ('custo_cents', 'custo_centimos'),
+            ('custo_usados_cents', 'custo_usados_centimos'),
+          ],
+          linhas: () => _custos,
+        ),
+      ],
+    );
+  }
+
+  Future<void> _novoDegrau() async {
+    final campos = {
+      for (final k in ['chave', 'dia', 'titulo', 'descricao', 'loja_id', 'produto_id', 'valor_cents', 'custo_cents'])
+        k: TextEditingController(),
+    };
+    const rotulos = {
+      'chave': 'Chave curta (ex.: kebab_menu)',
+      'dia': 'Dia',
+      'titulo': 'Título (PT-PT, o que o cliente lê)',
+      'descricao': 'Descrição (PT-PT)',
+      'loja_id': 'Loja (id)',
+      'produto_id': 'Produto-prêmio (id do artigo a 0 €)',
+      'valor_cents': 'Valor para o cliente (cêntimos)',
+      'custo_cents': 'Custo para a Bora (cêntimos)',
+    };
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Criar degrau novo (nasce desligado)'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final e in rotulos.entries)
+                TextField(controller: campos[e.key], decoration: InputDecoration(labelText: e.value)),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Criar')),
+        ],
+      ),
+    );
+    final marco = <String, dynamic>{
+      'tipo': 'produto',
+      'dia': int.tryParse(campos['dia']!.text.trim()),
+      'titulo': campos['titulo']!.text.trim(),
+      'descricao': campos['descricao']!.text.trim(),
+      'loja_id': campos['loja_id']!.text.trim(),
+      'produto_id': campos['produto_id']!.text.trim(),
+      'valor_cents': int.tryParse(campos['valor_cents']!.text.trim()) ?? 0,
+      'custo_cents': int.tryParse(campos['custo_cents']!.text.trim()) ?? 0,
+      'ativo': false,
+    };
+    final chave = campos['chave']!.text.trim();
+    for (final c in campos.values) {
+      c.dispose();
+    }
+    if (ok != true || !mounted) return;
+    await _acao('admin_checkin_degrau_criar', {'p_chave': chave, 'p_marco': marco},
+        'Degrau criado (desligado). Liga-o na lista e salva.');
   }
 
   Widget _resumoView() {

@@ -51,6 +51,8 @@ class CheckinMarco {
     required this.atingido,
     required this.faltam,
     this.tokens,
+    this.fotoUrl,
+    this.lojaNome,
   });
 
   final String chave;
@@ -68,6 +70,10 @@ class CheckinMarco {
   /// Só no marco 'tokens': os tokens do Dia 7.
   final int? tokens;
 
+  /// 04/11/2026 (calendário com todos os prémios): foto do produto-prémio e loja.
+  final String? fotoUrl;
+  final String? lojaNome;
+
   factory CheckinMarco.fromJson(Map<String, dynamic> m) => CheckinMarco(
         chave: '${m['chave'] ?? ''}',
         dia: _int(m['dia']),
@@ -77,6 +83,8 @@ class CheckinMarco {
         atingido: m['atingido'] == true,
         faltam: _int(m['faltam']),
         tokens: m['tokens'] == null ? null : _int(m['tokens']),
+        fotoUrl: (m['foto_url'] ?? '').toString().trim().isEmpty ? null : '${m['foto_url']}',
+        lojaNome: (m['loja_nome'] ?? '').toString().trim().isEmpty ? null : '${m['loja_nome']}',
       );
 }
 
@@ -234,6 +242,8 @@ class CheckinEscada {
     this.levantados = 0,
     this.reinicioData,
     this.ultimoValeId,
+    this.proximoPremioEm,
+    this.intervaloDias = 30,
   });
 
   final bool ativa;
@@ -253,6 +263,15 @@ class CheckinEscada {
   final int levantados;
   final DateTime? reinicioData;
   final String? ultimoValeId;
+
+  /// 04/11/2026 (antiabuso): um prémio levantado a cada [intervaloDias]. Antes
+  /// desta data o "Levantar" não dá; o prémio conquistado fica guardado.
+  final DateTime? proximoPremioEm;
+  final int intervaloDias;
+
+  /// Ainda não pode levantar outro prémio.
+  bool premioBloqueado([DateTime? agora]) =>
+      proximoPremioEm != null && proximoPremioEm!.isAfter(agora ?? DateTime.now());
 
   /// Tem um prémio guardado e já não está à espera da escolha
   /// (escolheu continuar, ou falhou um dia com o prémio ainda garantido).
@@ -274,13 +293,19 @@ class CheckinEscada {
       levantados: _int(m['levantados']),
       reinicioData: _data(m['reinicio_data']),
       ultimoValeId: m['ultimo_vale_id'] == null ? null : '${m['ultimo_vale_id']}',
+      proximoPremioEm: _data(m['proximo_premio_em']),
+      intervaloDias: m['intervalo_dias'] == null ? 30 : _int(m['intervalo_dias']),
     );
   }
 }
 
 /// Resposta de "Levantar agora" / "Continuar".
 class CheckinEscadaResultado {
-  const CheckinEscadaResultado({required this.ok, this.reason, this.vale, this.estado});
+  const CheckinEscadaResultado(
+      {required this.ok, this.reason, this.vale, this.estado, this.proximoPremioEm});
+
+  /// Só com reason 'intervalo': quando pode levantar o próximo prémio.
+  final DateTime? proximoPremioEm;
 
   final bool ok;
 
@@ -302,13 +327,19 @@ class CheckinEscadaResultado {
       reason: m['reason'] == null ? null : '${m['reason']}',
       vale: v is Map ? CheckinVale.fromJson(v.cast<String, dynamic>()) : null,
       estado: e is Map ? CheckinPremiosEstado.fromJson(e.cast<String, dynamic>()) : null,
+      proximoPremioEm: _data(m['proximo_premio_em']),
     );
   }
 }
 
 /// Mensagem curta em PT-PT quando "Levantar" ou "Continuar" não deu.
-String mensagemErroEscada(String? reason) {
+String mensagemErroEscada(String? reason, {DateTime? proximoPremioEm}) {
   switch (reason) {
+    case 'intervalo':
+      return proximoPremioEm == null
+          ? 'Já levantaste um prémio há pouco tempo. O prémio fica guardado.'.tr
+          : 'Só podes levantar um prémio a cada 30 dias. O próximo fica disponível a {0}; até lá o prémio fica guardado.'
+              .trArgs([diaMes(proximoPremioEm)]);
     case 'sem_sessao':
       return 'Entra na tua conta para escolher o prémio.'.tr;
     case 'sem_premio':
@@ -339,7 +370,16 @@ class CheckinPremiosEstado {
     this.proximo,
     this.cicloInicio,
     this.escada,
+    this.tokensPorDia = const [],
   });
+
+  /// 04/11/2026: tokens de cada dia da semana de check-in (5,5,10,10,15,15,40),
+  /// para os dias do calendário sem prémio novo.
+  final List<int> tokensPorDia;
+
+  /// Tokens do dia [dia] da sequência (1..ciclo). 0 se não se sabe.
+  int tokensDoDia(int dia) =>
+      tokensPorDia.isEmpty || dia <= 0 ? 0 : tokensPorDia[(dia - 1) % tokensPorDia.length];
 
   final bool marcosAtivos;
   final int cicloDias;
@@ -391,6 +431,7 @@ class CheckinPremiosEstado {
         novos: novos,
         cicloInicio: parcial.cicloInicio,
         escada: parcial.escada ?? escada,
+        tokensPorDia: parcial.tokensPorDia.isEmpty ? tokensPorDia : parcial.tokensPorDia,
       );
 
   List<CheckinVale> get porUsar => vales.where((v) => v.ativo).toList();
@@ -446,8 +487,18 @@ class CheckinPremiosEstado {
       novos: (m['novos'] is List) ? (m['novos'] as List).map((e) => '$e').toList() : const [],
       cicloInicio: _data(m['ciclo_inicio']),
       escada: CheckinEscada.fromJson(m['escada']),
+      tokensPorDia: (m['tokens_por_dia'] is List)
+          ? (m['tokens_por_dia'] as List).map((e) => _int(e)).toList()
+          : const [],
     );
   }
+}
+
+/// "28/11" — dia e mês com dois algarismos.
+String diaMes(DateTime? d) {
+  if (d == null) return '';
+  final l = d.toLocal();
+  return '${l.day.toString().padLeft(2, '0')}/${l.month.toString().padLeft(2, '0')}';
 }
 
 /// O artigo-prémio devolvido pela reserva, para entrar no carrinho.

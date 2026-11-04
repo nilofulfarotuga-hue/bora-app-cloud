@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-03
+ultima_confirmacao: 2026-11-04
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-11-03T20:55:19.489843+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-11-04T20:55:47.46956+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -475,3 +475,19 @@ Filme caminho 4 (fontes htROyMzUbA8, rxZZ1xi81a4): no Google Flow (Omniflash 1.1
 - JÁ TEMOS: ferramentas do Claude/MCP, agente sem código (Claude Code + skills + Córtex), mods do Claude Code (bora-mods), reels/agendamento pelos robôs, Veo/Flow.
 - RECUSADO: UGC com Higgsfield (créditos), convites em massa a quem reagiu, ArtCraft (alfa), Vidogrid (gerador grátis instável), Influee e monetizar Facebook (nota baixa).
 - Radar aprende: +1 termo aprendido (editar vídeos com Claude Code + HyperFrames), +1 da conversa (promoção do mês com restaurante parceiro — Boom/Fuku); -2 sem rendimento (tiktok como viralizar; LivePortrait/LatentSync); 70 ativos.
+
+## 04/11/2026 — radar diário
+40 vídeos revistos (29 com nota >= 6): 5 novos, 8 pendentes, 10 já temos, 17 rejeitados (11 por nota baixa). Nenhum do tema animacao_ia. Proposta prop-31da0653.
+- MODA DA SEMANA (3+ vídeos nota>=8 em 7 dias): Dipsy 12 — FEITO 29-30/10 (subagentes por fazer desde 30/10; app Windows do Dipsy pendente desde 30/10); memória partilhada 6 e Hermes 3 — já temos; vender automação/agência a PMEs (vários termos) — PENDENTE desde 13/10; CRM WhatsApp aberto 4 — PENDENTE desde 18/10; Claude Duet 3 — PENDENTE desde 22/10; editar vídeos com Claude Code/HyperFrames 3 hoje — PENDENTE desde 11/10; voz grátis 3 — teste Kaggle sem prova; prospeção 3 — extrator Google Maps PENDENTE desde 17/10; rececionista de voz 3 — PENDENTE desde 13/10; sites a partir da ficha Google 3 — PENDENTE desde 25/10; anúncios Meta 3 — PENDENTE desde 26/10; Jev 3 — PENDENTE desde 23/09; Claude Motion 3 — PENDENTE desde 11/10; Perfil Google como mensalidade 3 — FEITO (Jai); Claude Code modo auto 3 — já temos.
+- DINHEIRO (novo, prop-31da0653): caça-clientes por email — pontuar PME de 0 a 15 antes de abordar; email com menos de 90 palavras, sem links, uma observação do negócio e uma pergunta. https://www.youtube.com/watch?v=F-CxvxpAHWc
+- DINHEIRO (novo, prop-31da0653): proposta às PMEs = problema do cliente primeiro, plano em 5 passos, 2-3 casos parecidos. https://www.youtube.com/watch?v=r-UBYBWIhy4
+- BORA (novo, prop-31da0653): medir se a entrega grátis acima do mínimo (Fuku 22 €) sobe o valor médio; sugerir bebida/extra barato quando o carrinho está perto do mínimo. https://www.youtube.com/watch?v=sOKf5U8KdIM
+- SISTEMA (novo, prop-31da0653): prompts dos agentes com sítio exato, números exatos e valores por defeito (regras do DeepSeek Harness). https://www.youtube.com/watch?v=XNf8bOaHVTo
+- SISTEMA (novo, lente grátis): filtro de dados pessoais antes de mandar texto aos modelos externos (confirmar projeto no GitHub); Diagram Design para o mapa dos agentes; travão de comandos destrutivos já temos (bora-tranca). https://www.youtube.com/watch?v=_S4b_teUe-o , https://www.youtube.com/watch?v=ezMa2woH6ig
+- EM DIA/BORA (PENDENTE desde 11/10, +4 vídeos nota 9 hoje): fábrica de edição e explicativos pelo Claude Code com ffmpeg/HyperFrames; Remotion, DaVinci e Tella aparecem nos vídeos mas fazemos só com ferramentas grátis. https://www.youtube.com/watch?v=6_rCyryA6hg , https://www.youtube.com/watch?v=UmBJApXS1-4 , https://www.youtube.com/watch?v=HzXD4GVqXwM
+- DINHEIRO (PENDENTE desde 13/10): pacote PMEs — atendente telefone/WhatsApp para clínicas e oficinas, vender antes de construir, vídeo-auditoria de 3 min antes de abordar; cortes de vídeos longos de empresários como serviço extra. https://www.youtube.com/watch?v=kOZDDEHy6EQ , https://www.youtube.com/watch?v=WopCWk13Qwo , https://www.youtube.com/watch?v=ygJRhChzw1U
+- JÁ TEMOS: REA (instalado 26/10), Dipsy/DeepSeek Harness (29-30/10), Hermes na VPS, Córtex, OmniRoute, atendente WhatsApp (Mister Navalha), agente com skills.
+- RECUSADO: várias contas Gemini para juntar créditos, Meta Vibes (parou no botão de conta), modelo local 27B (precisa placa), Pabbly e X7 (pagos).
+- Radar aprende: +2 termos da conversa (Stripe Connect repasse às lojas; check-in diário com prémios), sem termos aprendidos novos.
+
+- Correção 04/11: o termo do check-in diário já existia; entrou só 1 termo da conversa (Stripe Connect repasse às lojas) e saiu 1 sem rendimento (serviços de casa/marido de aluguer). 70 ativos.

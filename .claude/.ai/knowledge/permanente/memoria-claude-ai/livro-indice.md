@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-04T20:37:03.879077+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-04T21:07:02.598777+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-04 20:24 UTC. Páginas listadas: 530.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-04 20:55 UTC. Páginas listadas: 531.
 
 ## O que é o Bora
 
@@ -461,7 +461,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - sql-modo-demo-2026-10-27 — SQL do modo demonstracao (Boom! Burger) para o Claude.ai aplicar (2026-10-27)
 
-## outras (136)
+## outras (137)
 
 - 00-LEIA-PRIMEIRO — Como usar esta memória (2026-10-23)
 - adendo-1-final-app-2026-10-29 — Adendo 1 da missão final-app-2026-10-29 (2026-10-29)
@@ -507,7 +507,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - fecho-outubro-2026 — Fecho de outubro/2026 (em nome individual) — por prestador, o que cada um faz, email corrigido (2026-11-01)
 - habilidades-propostas — Habilidades propostas pelo vigia (dinheiro/publicacao) — a Claude.ai decide (2026-09-17)
 - ideias-pendentes-decisao-danilo — Ideias grandes à espera da decisão do Danilo (29/10/2026) (2026-10-29)
-- ideias-videos-danilo — Ideias tiradas dos vídeos que o Danilo manda (2026-11-03)
+- ideias-videos-danilo — Ideias tiradas dos vídeos que o Danilo manda (2026-11-04)
 - jai-entrevista-kalinga-mensagem — Mensagem ao Jai — entrevista do Professor Kalinga já no site (30/10/2026) (2026-10-30)
 - jai-sportsdunia-mensagem — Confirmação para o Jai — artigo da SportsDunia no site (31/10/2026) (2026-10-31)
 - legal-gestao-algoritmica-prestadores — Como o Bora decide — informação sobre sistemas automáticos (Diretiva 2024/2831, art. 9.º-11.º) — texto para a app, v2026-11-01 (2026-11-01)
@@ -577,6 +577,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - radar-2026-11-01 — Radar de vídeos 01/11/2026 — 40 revistos, 2 novos, 21 pendentes (2026-11-01)
 - radar-2026-11-02 — Radar de vídeos 02/11/2026 — 40 revistos, 9 novos, 10 pendentes (2026-11-02)
 - radar-2026-11-03 — Radar de vídeos 03/11/2026 — 20 revistos, 4 novos, 5 pendentes (2026-11-03)
+- radar-2026-11-04 — Radar de vídeos 04/11/2026 — 40 revistos, 5 novos, 8 pendentes (2026-11-04)
 - reembolsos-b2-00-leia-me — reembolsos-b2-00-leia-me (2026-10-29)
 - reembolsos-b2-01-shared-cobranca — reembolsos-b2-01-shared-cobranca (2026-10-29)
 - reembolsos-b2-ef-admin-cancel-order — reembolsos-b2-ef-admin-cancel-order (2026-10-29)

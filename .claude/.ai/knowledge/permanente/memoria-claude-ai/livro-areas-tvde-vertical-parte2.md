@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-tvde-vertical-parte2
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-01
+ultima_confirmacao: 2026-11-04
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Bora App TVDE ride-hailing vertical — dispatch, pricing, UI, payments (parte 2 de 4)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-tvde-vertical-parte2`, origem `claude-ai`, atualizada em 2026-11-01T21:16:12.907884+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-tvde-vertical-parte2`, origem `claude-ai`, atualizada em 2026-11-04T05:13:34.690435+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas tvde vertical parte2 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/tvde-vertical.md), copiada a 01/11/2026 21:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/tvde-vertical.md), copiada a 04/11/2026 05:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 - [stated] ACHADOS do executor nessa ronda: `TvdeRoundtripPrice` tinha CACHE ESTÁTICO por sessão (fazia sentido com preço global, mostraria o preço do pacote anterior com preço dinâmico) — removido; o ecrã de histórico tinha `_packageCents` preso ao fallback €8 — passou a ler o vale de cada corrida.
 - [stated] DECISÃO da Claude.ai (o executor parou a pedir autorização; o Danilo não quer decidir isto): o campo `tvde_roundtrip_discount_pct` DEVE ficar editável no painel admin — autoridade total no painel é regra dele e o dono mexer no próprio preço não é a mesma coisa que um agente mexer. Instrução dada para acrescentar a chave à whitelist de `admin_platform_settings_screen.dart`.

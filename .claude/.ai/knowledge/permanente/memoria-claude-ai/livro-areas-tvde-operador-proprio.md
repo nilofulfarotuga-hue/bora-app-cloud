@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-tvde-operador-proprio
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-23
+ultima_confirmacao: 2026-11-04
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Legalização do TVDE — empresa de operador própria (hipótese) e legalizar o Bora Motorista no IMT; decisões e ordem que o Danilo quer
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-tvde-operador-proprio`, origem `claude-ai`, atualizada em 2026-10-23T05:40:52.801221+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-tvde-operador-proprio`, origem `claude-ai`, atualizada em 2026-11-04T05:13:34.690435+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas tvde operador proprio · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/tvde-operador-proprio.md), copiada a 23/10/2026. A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/tvde-operador-proprio.md), copiada a 04/11/2026 05:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: tvde-operador-proprio
@@ -57,4 +57,6 @@ aliases: [operador TVDE, licença TVDE, IMT TVDE, frota, abrir empresa TVDE]
 - [stated] 20/10/2026: fechar o Bora Motorista aos clientes "por enquanto não" (supera o plano de 18/10 de fechar ainda esta semana)
 - [stated] 21/10/2026: quer as duas coisas — empresa como plataforma E continuar a trabalhar de motorista; decidiu deixar os códigos de atividade (CAE) da sociedade como estão até o IMT responder, e mandou explicar tudo ao contabilista (resposta do IMT de 15/10, cartas de 20/10, queixa ao Provedor) para ouvir a opinião dele antes de mexer
 - [stated] 22/10/2026: diz que abriu a firma como frota; pondera aproveitar isso para o seguro TVDE do carro (fica para depois)
+- [stated] 29/10/2026: o Bora Motorista passa a ÚLTIMO plano no trabalho do app — vai fechar essa categoria "logo logo" por ainda não estar legalizada e deixá-la de lado por algum tempo; o foco são as outras categorias (delivery, parceiros, serviços), que já funcionam, e a divulgação (supera o "por enquanto não" de 20/10 quanto ao fecho)
+- [stated] 04/11/2026: Bora Motorista fechado de vez até haver licença; diz que as corridas feitas até aqui eram no nome pessoal dele e que daqui para a frente é a empresa — vai resolver esse histórico com o contabilista
 

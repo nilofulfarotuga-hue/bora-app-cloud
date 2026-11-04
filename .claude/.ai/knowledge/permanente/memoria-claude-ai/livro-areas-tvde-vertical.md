@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-tvde-vertical
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-01
+ultima_confirmacao: 2026-11-04
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Bora App TVDE ride-hailing vertical — dispatch, pricing, UI, payments (parte 1 de 4 — continua em livro-areas-tvde-vertical-parte2…)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-tvde-vertical`, origem `claude-ai`, atualizada em 2026-11-01T21:15:20.659007+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-tvde-vertical`, origem `claude-ai`, atualizada em 2026-11-04T05:13:34.690435+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas tvde vertical · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/tvde-vertical.md), copiada a 01/11/2026 21:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/tvde-vertical.md), copiada a 04/11/2026 05:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: tvde-vertical

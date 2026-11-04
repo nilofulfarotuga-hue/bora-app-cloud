@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-tvde-vertical-parte3
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-01
+ultima_confirmacao: 2026-11-04
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Bora App TVDE ride-hailing vertical — dispatch, pricing, UI, payments (parte 3 de 4)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-tvde-vertical-parte3`, origem `claude-ai`, atualizada em 2026-11-01T21:17:04.245456+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-tvde-vertical-parte3`, origem `claude-ai`, atualizada em 2026-11-04T05:13:34.690435+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas tvde vertical parte3 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/tvde-vertical.md), copiada a 01/11/2026 21:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/tvde-vertical.md), copiada a 04/11/2026 05:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 - Evento de registo saiu com o motivo falso "aguarda payment_status=succeeded" (ramo else do `fn_tvde_dispatch_on_request`, mesmo defeito já corrigido em 20/08 para o caso 'agendada'). Não afeta nada, mas o ramo devia conhecer também a corrida atribuída à mão
 - ⚠️ CORRECÇÃO no mesmo dia: a corrida NÃO era para agora — o Danilo disse a seguir que é para **21/08 às 06:50**. Eu tinha assumido imediata e já tinha disparado o push "🚗 Nova corrida!" (22:09), que pode ter feito a Érika pensar que havia passageiro à espera. LIÇÃO: numa corrida de balcão perguntar/confirmar a HORA antes de criar; "toca direto pra X" não quer dizer agora

@@ -2,7 +2,7 @@
 id: memoria-claude-ai-erros-aprendidos
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-03
+ultima_confirmacao: 2026-11-04
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-03T20:14:22.85285+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-04T05:13:34.690435+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: erros aprendidos · memoria claude.ai · claude_ai_memoria
 
@@ -131,4 +131,5 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - 03/11 14:23 (Danilo corrigiu): ele disse "você vai mandar esse texto aí" sobre as perguntas ao Hugo e eu abri o WhatsApp pessoal para enviar no grupo Contabilidade; ele parou-me: "não é pra enviar nada pra ninguém, é pra você fazer e me dar aqui a resposta". REGRA: "manda/faz o texto" sobre mensagens para terceiros = escrever o texto aqui no chat; só envio quando ele disser claramente "envia/manda para ele" depois de ver o texto.
 - [stated] 03/11 14:47: no mercado, a fazer a compra para o Vansh, pediu "o NIF da empresa" e eu dei o da Bora (519686233); era o da Guarda FC SAD (518256430) → regra: compra ou serviço para o Vansh/Guarda FC = NIF da SAD; ler sempre o contexto do pedido antes de escolher qual "empresa"
 - 03/11 (claude-ai): 03/11 20:14: ele pediu missão para o "DeepC/Gypsy" e eu li Gypsy como ChatGPT, lancei a missão no Claude Code e ele mandou parar → Gypsy/Gipsy/DeepC/Deep Sea = o Dipsy (DeepSeek Harness), NÃO o ChatGPT. Quando ele diz que a missão é para o Dipsy, não a lanço no Claude Code; o Dipsy faz tudo (roteiro e arte incluídos). O Dipsy hoje não publica nem sai da lista de sites do Bora: dizer isso ANTES de agir e perguntar nada, só dar o caminho.
+- 04/11 (claude-ai): disse que a Izilda não conseguia agendar corrida "por não ter pedido de acesso", sem ver que ela tinha acesso e sem lembrar que a 01/11 ele mandou fechar o Bora Motorista para todos a partir de 02/11 06:00 (nunca tinha sido aplicado; saíram mais 6 corridas) → ordem de fechar/desligar uma categoria é aplicada no dia e hora que ele disser e provada por SELECT; antes de explicar porque um cliente não consegue usar algo, ver o acesso real dele e as decisões recentes sobre essa categoria.
 

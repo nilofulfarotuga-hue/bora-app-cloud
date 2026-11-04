@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../aviso_da_loja.dart';
 import '../../config/app_colors.dart';
 import '../../models/partner_product.dart';
 import '../../models/restaurant_model.dart';
@@ -160,6 +161,10 @@ class MarketStoreTab extends StatelessWidget {
         SliverToBoxAdapter(
           child: BannerPausaLoja(restaurantId: restaurant.id),
         ),
+
+        // 04/11/2026: aviso da loja (about_text) no topo, ao entrar — ex.:
+        // Mercadona · Beleza e Higiene, "por agora, só perfumaria...".
+        SliverToBoxAdapter(child: AvisoDaLoja(restaurantId: restaurant.id)),
 
         // ── 2. Identidade ─────────────────────────────────────────────────
         SliverToBoxAdapter(

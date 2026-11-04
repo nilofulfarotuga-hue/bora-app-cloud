@@ -27,6 +27,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { corsHeaders } from '../_shared/cors.ts';
 import { secretKey } from '../_shared/keys.ts';
+import { lerConfigEmbeddings, resumoTentativas, vetorDaPergunta } from '../_shared/embeddings.ts';
 import {
   claudePrimeiro,
   conversaParaClaude,
@@ -91,10 +92,6 @@ const WRITE_SHADOW_ACTION_TYPES = new Set([
 const SYSTEM_DELIM_OPEN = '<<<SYSTEM>>>';
 const SYSTEM_DELIM_CLOSE = '<<<END_SYSTEM>>>';
 
-const RAG_EMBED_ENDPOINT =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent';
-const RAG_EMBED_DIM = 768;
-const RAG_EMBED_TIMEOUT_MS = 1500;
 const RAG_MATCH_COUNT = 8;
 const RAG_DEDUP_PER_FILE = 2;
 const RAG_FINAL_LIMIT = 5;
@@ -686,82 +683,25 @@ async function buildRagContext(
   // deno-lint-ignore no-explicit-any
   adminClient: any,
 ): Promise<string> {
-  if (!GEMINI_API_KEY) return '';
-
+  // 03/11 (embeddings-supabase-2026-11-03): gte-small (grátis, 384) e Gemini (768), um de reserva do
+  // outro, pela ordem de platform_settings.embeddings_motor_primario_ajuda; cada motor com a sua cache.
+  // Sem vetor nenhum, o chat segue sem o contexto do manual, como antes quando o Gemini falhava.
   const queryNorm = userMessage.trim().toLowerCase().substring(0, 500);
-  const queryHash = await sha256Hex(queryNorm);
-  let queryEmbedding: number[] | null = null;
-
-  if (queryHash) {
-    const { data: cached } = await adminClient
-      .from('support_embedding_cache')
-      .select('embedding, hit_count')
-      .eq('query_hash', queryHash)
-      .maybeSingle();
-
-    if (cached?.embedding) {
-      try {
-        const raw = cached.embedding;
-        queryEmbedding = typeof raw === 'string' ? JSON.parse(raw) as number[] : raw as number[];
-      } catch {
-        queryEmbedding = null;
-      }
-      if (queryEmbedding && queryEmbedding.length === RAG_EMBED_DIM) {
-        await adminClient
-          .from('support_embedding_cache')
-          .update({ last_used_at: new Date().toISOString(), hit_count: (cached.hit_count ?? 1) + 1 })
-          .eq('query_hash', queryHash);
-      } else {
-        queryEmbedding = null;
-      }
-    }
-  }
-
-  if (!queryEmbedding) {
-    const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), RAG_EMBED_TIMEOUT_MS);
-    try {
-      const embRes = await fetch(RAG_EMBED_ENDPOINT, {
-        method: 'POST',
-        signal: ctrl.signal,
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
-        body: JSON.stringify({
-          content: { parts: [{ text: userMessage }] },
-          outputDimensionality: RAG_EMBED_DIM,
-          taskType: 'RETRIEVAL_QUERY',
-        }),
-      });
-      clearTimeout(tid);
-      if (embRes.ok) {
-        const embData = await embRes.json();
-        const values = embData?.embedding?.values;
-        if (Array.isArray(values) && values.length === RAG_EMBED_DIM) {
-          queryEmbedding = values;
-          if (queryHash) {
-            const embLit = `[${queryEmbedding.join(',')}]`;
-            await adminClient
-              .from('support_embedding_cache')
-              .upsert({ query_hash: queryHash, query_text: userMessage.substring(0, 500), embedding: embLit }, {
-                onConflict: 'query_hash',
-                ignoreDuplicates: true,
-              });
-          }
-        }
-      } else {
-        console.warn('[RAG] embedding http', embRes.status);
-      }
-    } catch (e) {
-      clearTimeout(tid);
-      console.warn('[RAG] embedding timeout/error:', (e as Error).message);
-    }
-  }
-
+  const queryHash = (await sha256Hex(queryNorm)) ?? '';
+  const cfg = await lerConfigEmbeddings(adminClient, 'ajuda');
+  const r = await vetorDaPergunta(adminClient, {
+    scope: 'support', hash: queryHash, textoCache: userMessage.substring(0, 500), textoVetor: userMessage.substring(0, 2000),
+    tabelaGemini: 'support_embedding_cache', cfg, chaveGemini: GEMINI_API_KEY,
+  });
+  if (!r.motor || r.tentativas.some((t) => !t.ok)) console.warn('[RAG] vetor:', resumoTentativas(r));
+  const queryEmbedding = r.vetor;
   if (!queryEmbedding) return '';
 
   const { data: chunks, error: matchErr } = await adminClient.rpc('match_knowledge', {
-    query_embedding: queryEmbedding,
+    query_embedding: `[${queryEmbedding.join(',')}]`,
     match_count: RAG_MATCH_COUNT,
-    min_similarity: RAG_MIN_SIMILARITY,
+    // o gte dá semelhanças mais altas a tudo: limiar próprio (definições)
+    min_similarity: r.motor === 'gte' ? cfg.gteAjudaMinSim : RAG_MIN_SIMILARITY,
   });
 
   if (matchErr) {

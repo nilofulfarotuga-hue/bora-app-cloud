@@ -29,6 +29,24 @@ do cesto com entrega (pesquisa em `claude_ai_memoria.pesquisa-assistente-cliente
   `assistant_products_without_embedding`, `admin_assistant_overview`, `assistant_conversation_add_usage`.
 - **Embeddings dos produtos**: job retomável `.claude/.ai/provas/bora-assistente-20261007/embed_products.cjs`
   (`MSYS_NO_PATHCONV=1 node embed_products.cjs`); corre em lote de 100, só os que faltam.
+- **Dois motores de vetores, sempre com reserva (03/11/2026, missão embeddings-supabase-2026-11-03)**:
+  gte-small grátis dentro da Edge Function (384, `Supabase.ai.Session`) e Gemini (768). Código único em
+  `supabase/functions/_shared/embeddings.ts` (cascata, cache por motor, orçamento). Ordem por assunto em
+  `platform_settings`: `embeddings_motor_primario_produtos` = **gte** (passou a prova: 35/40 contra 32/40
+  do Gemini e do texto) e `embeddings_motor_primario_ajuda` = **gemini** (o gte não passou no manual: 7/12
+  contra 10/12). Vetores gte em `product_embeddings_gte` (tabela ao lado; a de 768 fica igual),
+  `support_knowledge_chunks.embedding_gte` e cache `embedding_cache_gte`. `assistant_search_products` e
+  `match_knowledge` têm a MESMA assinatura e escolhem a coluna pelo tamanho do vetor (384/768) — por isso o
+  `assistant_basket_quote` não mudou. Limiares gte próprios: `assistant_gte_vec_bons_min` 0.86,
+  `assistant_gte_vec_boa_min` 0.89, `embeddings_gte_ajuda_min_sim` 0.82. Enchimento e manutenção pela
+  função `embeddings-gte` (só servidor/admin) e pelos agendamentos `embeddings-gte-manter` (2 min) e
+  `embeddings-gemini-novos` (hora a hora, 20). Provar a reserva sem mexer no código:
+  `embeddings_teste_falha = {"modo":"gte|gemini|todos","ate":"<ISO até 30 min>"}` e depois `{}`.
+  A resposta do assistente traz `motor_vetores` (também em `assistant_chat_messages.structured`).
+  ARMADILHA: o gte gasta PROCESSADOR da função (~115 ms por texto); acima de ~2 s por pedido a Edge
+  Function morre com 546 "CPU Time exceeded". Por isso `embeddings_gte_max_por_pedido` = 6 (o resto vai
+  pela reserva) e o enchimento faz ~10 textos por pedido. Os LOTES do Gemini têm quota diária pequena
+  (429 depois de ~900 num dia); as perguntas simples continuam a passar.
 - **Flutter**: `lib/screens/client/assistant/assistant_chat_screen.dart` (cartões, voz, foto, "Encher o
   carrinho"), FAB `BoraAssistantFab`, faixa da home (`home_banners` com tipo_destino='categoria',
   destino='assistente' — o CHECK da tabela não aceita 'assistente'), rota `/assistente`, memória do

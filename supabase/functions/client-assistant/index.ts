@@ -36,6 +36,13 @@ import {
   type MensagemClaude,
   type ModeloClaude,
 } from '../_shared/claude.ts';
+import {
+  type Assunto,
+  type ConfigEmbeddings,
+  lerConfigEmbeddings,
+  resumoTentativas,
+  vetorDaPergunta,
+} from '../_shared/embeddings.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -54,10 +61,6 @@ const ROBO_CLAUDE = 'edge-assistente';
 
 const SYSTEM_DELIM_OPEN = '<<<SYSTEM>>>';
 const SYSTEM_DELIM_CLOSE = '<<<END_SYSTEM>>>';
-const EMBED_ENDPOINT =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent';
-const EMBED_DIM = 768;
-const EMBED_TIMEOUT_MS = 2500;
 const HISTORY_LIMIT = 24;
 const MAX_IMAGENS = 6;
 const MAX_IMAGEM_CHARS = 6_000_000;
@@ -158,51 +161,44 @@ function toolNote(name: string, out: Json): string {
   }
 }
 
-// ─── Embeddings das perguntas (cache por hash) ─────────────────────────────
-async function embedQuery(adminClient: Json, text: string): Promise<number[] | null> {
-  if (!GEMINI_API_KEY) return null;
+// ─── Embeddings das perguntas ──────────────────────────────────────────────
+// 03/11 (embeddings-supabase-2026-11-03): dois motores, nunca sem reserva — gte-small (grátis, dentro
+// da função, 384) e Gemini (768). A ordem vem de platform_settings por assunto; cada motor tem a sua
+// cache. Sem vetor nenhum a pesquisa segue só por texto, como sempre. O tamanho do vetor diz à função
+// SQL que coluna usar. Uma "VetoresDoPedido" por pedido: guarda o orçamento de processador do gte e o
+// registo de que motor serviu (vai na resposta e em assistant_chat_messages.structured).
+type VetoresDoPedido = { registo: string[]; config: (a: Assunto) => Promise<ConfigEmbeddings> };
+
+function novosVetoresDoPedido(adminClient: Json): VetoresDoPedido {
+  const configs = new Map<Assunto, Promise<ConfigEmbeddings>>();
+  let orcamento: { gte: number } | undefined;
+  return {
+    registo: [],
+    config(a: Assunto) {
+      if (!configs.has(a)) {
+        configs.set(a, lerConfigEmbeddings(adminClient, a, orcamento).then((c) => {
+          orcamento ??= c.orcamento;
+          c.orcamento = orcamento;
+          return c;
+        }));
+      }
+      return configs.get(a)!;
+    },
+  };
+}
+
+async function embedQuery(adminClient: Json, text: string, vetores: VetoresDoPedido, assunto: Assunto = 'produtos'): Promise<number[] | null> {
   const norm = text.trim().toLowerCase().slice(0, 300);
   if (norm.length < 2) return null;
   const hash = await sha256Hex(norm);
-  try {
-    const { data: cached } = await adminClient
-      .from('assistant_embedding_cache').select('embedding, hit_count').eq('query_hash', hash).maybeSingle();
-    if (cached?.embedding) {
-      const raw = typeof cached.embedding === 'string' ? JSON.parse(cached.embedding) : cached.embedding;
-      if (Array.isArray(raw) && raw.length === EMBED_DIM) {
-        adminClient.from('assistant_embedding_cache')
-          .update({ last_used_at: new Date().toISOString(), hit_count: (cached.hit_count ?? 0) + 1 })
-          .eq('query_hash', hash).then(() => {});
-        return raw as number[];
-      }
-    }
-  } catch (e) {
-    console.warn('[EMB] cache read:', (e as Error).message);
-  }
-  const ctrl = new AbortController();
-  const tid = setTimeout(() => ctrl.abort(), EMBED_TIMEOUT_MS);
-  try {
-    const r = await fetch(EMBED_ENDPOINT, {
-      method: 'POST', signal: ctrl.signal,
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
-      body: JSON.stringify({
-        content: { parts: [{ text: norm }] }, outputDimensionality: EMBED_DIM, taskType: 'RETRIEVAL_QUERY',
-      }),
-    });
-    clearTimeout(tid);
-    if (!r.ok) { console.warn('[EMB] http', r.status); return null; }
-    const j = await r.json();
-    const values = j?.embedding?.values;
-    if (!Array.isArray(values) || values.length !== EMBED_DIM) return null;
-    adminClient.from('assistant_embedding_cache').upsert({
-      query_hash: hash, query_text: norm, embedding: `[${values.join(',')}]`,
-    }, { onConflict: 'query_hash', ignoreDuplicates: true }).then(() => {});
-    return values as number[];
-  } catch (e) {
-    clearTimeout(tid);
-    console.warn('[EMB] fail:', (e as Error).message);
-    return null;
-  }
+  const cfg = await vetores.config(assunto);
+  const r = await vetorDaPergunta(adminClient, {
+    scope: 'assistant', hash, textoCache: norm, textoVetor: norm,
+    tabelaGemini: 'assistant_embedding_cache', cfg, chaveGemini: GEMINI_API_KEY,
+  });
+  vetores.registo.push(`${assunto}:${r.motor ?? 'texto'}`);
+  if (!r.motor || r.tentativas.some((t) => !t.ok)) console.warn('[EMB]', assunto, resumoTentativas(r));
+  return r.vetor;
 }
 
 // ─── Gemini ─────────────────────────────────────────────────────────────────
@@ -590,6 +586,7 @@ Deno.serve(async (req: Request) => {
   try { payload = await req.json(); } catch { return jsonResponse({ ok: false, error: 'invalid json' }, 400); }
 
   const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  const vetores = novosVetoresDoPedido(adminClient);
   const { data: settingRows } = await adminClient.from('platform_settings').select('key, value').in('key', SETTING_KEYS);
   const s = settingsFrom((settingRows ?? []) as { key: string; value: Json }[]);
   if (!s.enabled) {
@@ -761,7 +758,7 @@ Deno.serve(async (req: Request) => {
         case 'search_products': {
           const query = String(args.query ?? '').slice(0, 120);
           const limit = Math.max(1, Math.min(20, Math.round(num(args.limit, 8))));
-          const emb = await embedQuery(adminClient, query);
+          const emb = await embedQuery(adminClient, query, vetores);
           const { data, error } = await adminClient.rpc('assistant_search_products', {
             p_query: query, p_restaurant_id: typeof args.restaurant_id === 'string' ? args.restaurant_id : null,
             p_limit: limit, p_embedding: emb ? `[${emb.join(',')}]` : null, p_per_store: false,
@@ -787,7 +784,7 @@ Deno.serve(async (req: Request) => {
           for (const it of itemsIn.slice(0, 40)) {
             const q = String(it?.query ?? '').trim().slice(0, 100);
             if (!q) continue;
-            const emb = await embedQuery(adminClient, q);
+            const emb = await embedQuery(adminClient, q, vetores);
             items.push({ query: q, quantity: Math.max(1, Math.min(50, Math.round(num(it?.quantity, 1)))), ...(emb ? { embedding: emb } : {}) });
           }
           if (items.length === 0) return { ok: false, error: 'lista vazia' };
@@ -929,9 +926,11 @@ Deno.serve(async (req: Request) => {
           // v8, melhoria 3: o manual do suporte (RAG) antes de "não sei"; o que encontra fica aprendido.
           const q = limparTexto(args.question ?? userMessage, 300);
           if (q.length < 3) return { ok: false, error: 'pergunta vazia' };
-          const emb = await embedQuery(adminClient, q);
+          const emb = await embedQuery(adminClient, q, vetores, 'ajuda');
           if (!emb) return { ok: true, data: { encontrado: false, nota: 'O manual não respondeu agora. Se não souberes, chama report_gap e diz ao cliente que a equipa confirma.' } };
-          const { data, error } = await adminClient.rpc('match_knowledge', { query_embedding: `[${emb.join(',')}]`, match_count: 8, min_similarity: 0.5 });
+          // o gte (384) dá semelhanças mais altas a tudo: limiar próprio, das definições
+          const minSim = emb.length === 384 ? (await vetores.config('ajuda')).gteAjudaMinSim : 0.5;
+          const { data, error } = await adminClient.rpc('match_knowledge', { query_embedding: `[${emb.join(',')}]`, match_count: 8, min_similarity: minSim });
           if (error) return { ok: false, error: error.message };
           const porFicheiro = new Map<string, number>();
           // O manual é interno (vault, business_rules, código). Trechos com dinheiro da casa, ganhos de
@@ -1249,6 +1248,8 @@ Deno.serve(async (req: Request) => {
     erro_tecnico: geminiError ? geminiError.slice(0, 300) : null, corrigido_carrinho: nudged, tentativa_resumida: retriedFlat,
     // v8
     comparacao, comparacao_pendente: comparacaoPendenteNova, fotos: imagens.length, motor: modelUsed,
+    // 03/11: que motor deu cada vetor (gte / gemini / texto = nenhum, pesquisa só por texto)
+    motor_vetores: vetores.registo,
   };
   // Custo: tarifa do Claude (já calculada pelo _shared/claude.ts) + tarifa Gemini das definições para o resto.
   const cost = custoClaudeUsd + (Math.max(0, tokensIn - tokensClaudeIn) * s.cost_in + Math.max(0, tokensOut - tokensClaudeOut) * s.cost_out) / 1_000_000;

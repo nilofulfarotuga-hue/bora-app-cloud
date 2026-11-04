@@ -1,0 +1,11 @@
+# Check-in — desconto, prémios não parceiros e aviso da Mercadona (continuação, 04/11/2026)
+
+Fiz isto. O orçamento do servidor já sabe aplicar o desconto do check-in. Se a compra no Continente chegar ao mínimo, tira os 3 € ao cliente e à margem da Bora, e o estafeta recebe exatamente o mesmo. Se não chegar, diz quanto falta. Provei isto com um produto real do Continente: com 7 unidades o total passa de 35,60 € para 32,60 € e o estafeta continua com 5,35 €; com 4 unidades não desconta e faltam 5,28 €.
+
+O aviso da Mercadona aparece agora no topo da loja, ao entrar: "Por agora, só perfumaria, cosmética e higiene...". A app antes não mostrava esse texto em loja nenhuma. Vi-o na web em produção, num navegador sem conta. A loja continua aberta e só tem à vista os 543 produtos de beleza e higiene. O iPhone da missão anterior foi entregue à App Store sem erros.
+
+Falta isto. O desconto ainda não sai no pagamento. O passo seguinte era a criação do pedido, e a tranca do Bora bloqueou-o, porque essa parte mexe em tokens e no saldo. É uma proibição que não se levanta com a tua autorização dentro desta sessão. Só uma sessão aberta por ti em modo seguro, ou a Claude.ai pelo Supabase com prova primeiro, o podem fazer. Por isso a app ainda não envia o vale, e nada muda para os clientes. O acerto do estafeta nos prémios das lojas não parceiras mexe no fecho da compra e no acerto semanal, que estão na mesma zona proibida, e não o tentei depois deste bloqueio. Como A e B não ficaram provados, os 11 degraus continuam desligados, como pediste.
+
+Erros que encontrei. Nas lojas não parceiras a comissão da Bora no pedido guarda só a taxa de serviço (0,99 €); com um desconto de 3 € fica negativa (−2,01 €). A margem verdadeira da Bora está no preço dos produtos, mas os relatórios que somam a comissão vão mostrar números negativos. A Mercadona Beleza mostra o selo "Frescura garantida", que não faz sentido em cosmética. As builds de Android e iPhone desta publicação ainda estavam a correr quando acabei.
+
+Próximo passo. Abrir uma sessão em modo seguro, ou pedir à Claude.ai, para aplicar o desconto na criação do pedido e o acerto do estafeta, com prova em pagamento em dinheiro. Depois ligar os 11 degraus.

@@ -1,0 +1,38 @@
+⚠️ MODO PROTECÇÃO TOTAL ⚠️
+MOTOR: Opus 5.5 · PORTA: sessão "PC do Danilo" (bora_app, Este computador, Ignorar permissões) — continuação, DEPOIS de acabares o envio da missão checkin-escada-premios-2026-11-04 · fluxo e2e_log: nif-caixa-2026-11-04
+Invoca o orquestrador CEO-AI em .claude/skills/ceo-ai/ (líder `estafeta` + `admin`; 2 a 4 agentes).
+
+ORDEM DO DANILO (04/11/2026 15:18, literal, por voz): "Tem que arrumar isso urgente. O NIF não apareceu para me colocar aqui. [...] na hora de tirar foto do talão, ou até antes, [...] tem que colocar é obrigatório colocar o NIF. Se ele pedir o NIF, já tinha que estar aqui [...] Ou se não for do cliente, eu acho que é o meu que tem que aparecer [...] Vê aí qual o fluxo melhor que você acha." E, na mesma mensagem: "tem que arrumar a questão do Divan [...] Ver o que faltou. Tem que arrumar, caramba."
+
+CASO REAL: pedido c53b29ef-19c8-48f7-b1ec-0b1830391783 (Ricardo Santos Rosa, Auchan, MB Way, hoje 14:55). O cliente pediu fatura com NIF no checkout (order_invoice_requests tem o NIF), mas o ecrã do estafeta NUNCA mostra o NIF em lado nenhum — o Danilo só o deu na caixa porque perguntou à Claude.ai. Verificado no código: o NIF existe para o cliente (fatura_nif_card, fatura_nif_pedido), para o parceiro (partner_fatura_service) e no painel (admin_fatura_nif_section), mas não há nada do lado do estafeta.
+
+REGRA DECIDIDA (análise fiscal de 03/11, ronda 2 — página analise-fiscal-bora-2026-11-03 do livro — e o Danilo hoje): em compra de loja NÃO-PARCEIRA (mercado, restaurante, loja) e em Favor com compra, o estafeta dá SEMPRE um NIF na caixa: o do cliente se o cliente pediu fatura; se não pediu, o da Bora (519686233, setting nif_compras_nao_parceiro). Nunca "consumidor final". Loja parceira: não se aplica (a loja fatura e já vê o NIF no painel dela). NÃO mexe em dinheiro e NUNCA trava a entrega.
+
+O QUE VAIS MEXER E PORQUÊ (só isto; outro erro que encontrares → REPORTA no e2e_log e no relatório, não corrijas calado):
+
+BLOCO A — servidor (já escrito pela Claude.ai, o cliente da Claude.ai cancelou-lhe o apply_migration)
+1. `git fetch origin nif-caixa-2026-11-04` e traz SÓ estes dois ficheiros: `git checkout origin/nif-caixa-2026-11-04 -- supabase/migrations/20261104153000_nif_na_caixa_estafeta_2026_11_04.sql docs/prompts/PROMPT_nif_caixa_e_favor_2026-11-04.md`.
+2. Lê a migração toda e aplica-a por MCP com o mesmo nome (nif_na_caixa_estafeta_2026_11_04). Só cria peças novas: setting nif_compras_nao_parceiro, tabela order_nif_caixa (RLS: só admin lê), RPCs estafeta_nif_para_fatura(p_order_id), estafeta_confirmar_nif_caixa(p_order_id, p_dado, p_motivo) (com "não dei" avisa o admin por notify_admin_event 'nif_nao_dado_na_caixa') e admin_nif_caixa_listar(p_dias). Nenhuma toca em funções de dinheiro.
+3. Prova por DO+RAISE (transação desfeita): com o JWT do estafeta do pedido c53b29ef → tipo 'cliente', nif 265148502; num pedido não-parceiro sem NIF pedido → tipo 'bora', nif 519686233; num pedido de loja parceira → aplica=false; outro utilizador → PEDIDO_NAO_E_TEU; confirmar "não dei" sem motivo → MOTIVO_EM_FALTA.
+
+BLOCO B — app do estafeta (PT-PT; padrão Glovo/Uber Eats: o NIF aparece com a lista de compras e outra vez no fecho)
+1. Widget novo `lib/widgets/nif_para_fatura_card.dart` (lê estafeta_nif_para_fatura; esconde-se se aplica=false ou sem rede): cartão bem visível, laranja #F97316, "NIF PARA A FATURA" + o número em grande (formato 265 148 502) + "Do cliente — pediu fatura" (com o nome se houver) ou "Da Bora — o cliente não pediu fatura" + botão "Copiar". Frase fixa: "Diz este NIF na caixa ANTES de pagar."
+2. Mostra-o: (a) no ecrã do pedido do estafeta enquanto vai à loja e enquanto compra (driver_map_screen.dart, pedidos não-parceiros e Favores com compra, antes do talão); (b) no Favor, em `lib/widgets/folha_favor.dart` por cima da folha (NÃO tocar em errand_execution_sheet.dart — zona vermelha), com dois botões "Dei o NIF" / "Não consegui" (este pede o motivo: "A loja não aceitou", "Esqueci-me", "Outro" + texto) que chamam estafeta_confirmar_nif_caixa.
+3. Talão (ReceiptCaptureSheet em driver_map_screen.dart, a folha "Quanto pagaste na caixa?"): o cartão do NIF no topo + caixa de marcar obrigatória "Dei este NIF na caixa e está no talão". O "Confirmar" só fica ativo com a caixa marcada OU com "Não consegui pôr o NIF" + motivo escolhido. Ao confirmar, chama estafeta_confirmar_nif_caixa em segundo plano (3 tentativas) e segue SEMPRE para o talão/entrega mesmo que esta chamada falhe — nunca trava a entrega nem mexe no finalizar_talao_nao_parceiro. Se o NIF mudar depois de o estafeta aceitar (o cliente pôs o NIF mais tarde), o cartão relê ao abrir a folha.
+4. Testes de widget: cartão cliente/bora/escondido; Confirmar desativado sem a caixa; "Não consegui" exige motivo; a falha da RPC não bloqueia o Confirmar.
+
+BLOCO C — painel admin (PT-BR, termos explicados entre parênteses)
+1. Na ficha do pedido (AdminFaturaNifSection em lib/widgets/admin/admin_fatura_nif_section.dart): "NIF na caixa (o que o entregador deu no caixa): 265148502 — do cliente — dado ✓ / não dado: motivo / ainda não confirmado".
+2. Ecrã novo "NIF nas compras" (Operação ou Financeiro) com admin_nif_caixa_listar: filtros 7/30 dias e "só os não dados", exportar CSV. Editar o NIF da Bora (setting nif_compras_nao_parceiro) no mesmo ecrã, com log_admin_action.
+
+BLOCO D — robô do talão (supabase/functions/ocr-receipt, NÃO é zona vermelha)
+Pede também ao modelo o NIF do adquirente impresso no talão; compara com order_nif_caixa/estafeta_nif_para_fatura; se faltar ou for outro → ocr_flagged e notify_admin_event 'nif_talao_diferente' com os dois números. Publica a função e prova com o talão do pedido c53b29ef (se a foto existir).
+
+BLOCO E — o resto do Favor do Divan (missão favor-diferenca-mbway-2026-11-03, e2e 6618 e 6620)
+O que a tua sessão já fez fica (banner "Pagar a diferença", ramo errand_extra do webhook, painel, "Marcar entregue sem código"). O que falta está atrás da tranca: (1) a migração da proposta docs/propostas/PROPOSTA_20261104_favor_diferencas_e_entrega_sem_codigo.md; (2) publicar o stripe-webhook (e stripe-webhook-empresa) com o ramo novo DEPOIS da migração; (3) blocos B e D no errand_execution_sheet.dart. A skill mods-bora diz que isto só sai numa sessão sem a tranca "por ordem dele" — a ordem está acima ("tem que arrumar a questão do Divan"; e a autorização do dinheiro do Favor é de 03/11 13:22, "Sim, eu autorizo").
+Por isso: escreve `docs/prompts/PROMPT_favor_zona_vermelha_2026-11-04.md` (só estes 3 pontos + publicar nas 3 + provas em DINHEIRO; mais nada, nenhum outro ficheiro de dinheiro) e cria no Ambiente de Trabalho do Danilo `C:\Users\danil\Desktop\Favor-sem-tranca.cmd` que abre a pasta bora_app numa sessão do Claude Code (Opus) sem a tranca e manda-a ler e executar esse ficheiro. Antes de escrever o lançador, confirma no `claude --help` qual é a opção que existe nesta versão para uma sessão sem os ganchos/plugins da tranca (a skill fala em --safe-mode; se não existir, a forma documentada que exista) — não inventes opções. Não abras tu essa sessão: o duplo clique é do Danilo. Regista no e2e_log o caminho do lançador.
+
+PUBLICAR: A, B, C e D juntos nas 3 (Play Store, App Store/TestFlight, web) e provar as 3 (versionCode do CI, build do iPhone enviada, main.dart.js com nif_para_fatura). Não mexer no versionCode. `git add` só os ficheiros desta missão. No fim: git push origin autonomous-night-2026-04-29. Cada bloco no e2e_log (fluxo nif-caixa-2026-11-04). Digest no livro (digest-2026-11-04-nif-caixa). Relatório curto em texto corrido: feito / falta.
+
+/ctx doctor
+/ctx stats

@@ -23,6 +23,7 @@ import '../stores/cart_store.dart';
 import '../stores/favorite_store.dart';
 import '../stores/restaurant_store.dart';
 import '../utils/cart_feedback.dart';
+import '../widgets/aviso_da_loja.dart';
 import '../widgets/bora/bora.dart';
 import '../widgets/bora/maior_18.dart';
 import '../widgets/bora/banner_pausa_loja.dart';
@@ -327,6 +328,8 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
             isPartner: widget.restaurant.isPartner,
           ),
         ),
+        // 04/11/2026: aviso da loja (about_text) no topo, ao entrar.
+        SliverToBoxAdapter(child: AvisoDaLoja(restaurantId: widget.restaurantId)),
         if (destaque != null)
           SliverToBoxAdapter(
             child: ProdutoDestaqueLoja(

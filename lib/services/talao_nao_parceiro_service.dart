@@ -46,6 +46,13 @@ class TalaoResultado {
   /// servidor gravou depois do talão, em EUR — já sem o saldo, os tokens e o
   /// crédito de menu (e sem a dívida antiga, que a app soma por cima). null
   /// quando a resposta não o traz (ex.: cartão/MB Way).
+  /// 04/11/2026 (prémio do check-in numa loja não parceira): o que a Bora
+  /// devolve ao estafeta pelo prémio que ele comprou no balcão (cêntimos).
+  int get premioCheckinCents {
+    final v = dados?['premio_checkin_cents'];
+    return v is num ? v.toInt() : 0;
+  }
+
   double? get cashTotalDueEur {
     final v = dados?['cash_total_due_cents'];
     return v is num ? v / 100.0 : null;

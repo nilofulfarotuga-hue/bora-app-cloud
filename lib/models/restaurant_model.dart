@@ -475,10 +475,18 @@ class RestaurantModel {
   /// Usa [belongsTo], por isso lê também `extra_categories`: a Goola Açaí
   /// (`restaurant` + `sobremesa`) e a Sabores de Casa (`restaurant` +
   /// `supermarket`) continuam a mostrá-lo.
+  ///
+  /// 04/11/2026: a Mercadona · Beleza e Higiene é `supermarket` mas só vende
+  /// perfumaria, cosmética e higiene — o nome da loja diz que não é comida.
   bool get podeAnunciarFrescura =>
-      belongsTo(BusinessCategory.restaurant) ||
-      belongsTo(BusinessCategory.supermarket) ||
-      belongsTo(BusinessCategory.sobremesa);
+      !_nomeSemComida.hasMatch(name) &&
+      (belongsTo(BusinessCategory.restaurant) ||
+          belongsTo(BusinessCategory.supermarket) ||
+          belongsTo(BusinessCategory.sobremesa));
+
+  static final RegExp _nomeSemComida = RegExp(
+      r'beleza|higiene|perfumaria|cosm[eé]tica|drogaria',
+      caseSensitive: false);
 
   /// Hora em PT-PT: "10:00" passa a "10h00".
   static String _horaBonita(String hhmm) => hhmm.replaceFirst(':', 'h');

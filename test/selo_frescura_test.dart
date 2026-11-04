@@ -122,4 +122,15 @@ void main() {
       );
     }
   });
+
+  test('04/11/2026: Mercadona · Beleza e Higiene (supermercado só de cosmética) não mostra', () {
+    final loja = _loja(
+        id: 'mercadona-guarda',
+        nome: 'Mercadona · Beleza e Higiene',
+        categoria: 'supermarket');
+    expect(loja.podeAnunciarFrescura, isFalse);
+    final continente =
+        _loja(id: 'continente', nome: 'Continente', categoria: 'supermarket');
+    expect(continente.podeAnunciarFrescura, isTrue);
+  });
 }

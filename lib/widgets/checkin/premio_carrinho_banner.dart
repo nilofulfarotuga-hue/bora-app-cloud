@@ -65,6 +65,39 @@ class _PremioCarrinhoBannerState extends State<PremioCarrinhoBanner> {
       );
     }
     if (e == null) return const SizedBox.shrink();
+    // 04/11/2026: prémio tipo DESCONTO desta loja — escolhe-se sozinho; quem
+    // decide se desconta é o servidor (mínimo da compra). Só com o pedido a
+    // levar o vale (CartStore.descontoCheckinNoPedido).
+    final d = CartStore.descontoCheckinNoPedido
+        ? e.valeDescontoParaLoja(cart.vendorRestaurantId)
+        : null;
+    if (d != null) {
+      if (cart.checkinValeId != d.id) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            context.read<CartStore>().definirValeDesconto(d.id, valorCents: d.valorCents);
+          }
+        });
+      }
+      final valor = _euros(d.valorCents);
+      if (cart.checkinDesconto > 0) {
+        return _caixa(
+          key: const Key('premio_desconto_aplicado'),
+          texto: 'Prémio Bora Todo Dia: menos {0} € neste pedido.'.trArgs([_euros((cart.checkinDesconto * 100).round())]),
+        );
+      }
+      if (cart.checkinDescontoFaltaCents > 0) {
+        return _caixa(
+          key: const Key('premio_desconto_falta'),
+          texto: 'Faltam {0} € para usares o teu prémio de {1} €'
+              .trArgs([_euros(cart.checkinDescontoFaltaCents), valor]),
+        );
+      }
+      return _caixa(
+        key: const Key('premio_desconto_loja'),
+        texto: 'Tens um prémio para esta loja: {0}.'.trArgs([d.titulo.tr]),
+      );
+    }
     final v = e.valeParaLoja(cart.vendorRestaurantId);
     if (v == null) return const SizedBox.shrink();
     return _caixa(
@@ -77,6 +110,9 @@ class _PremioCarrinhoBannerState extends State<PremioCarrinhoBanner> {
       ),
     );
   }
+
+  static String _euros(int cents) =>
+      (cents / 100).toStringAsFixed(2).replaceAll('.', ',');
 
   Widget _caixa({required Key key, required String texto, Widget? acao}) {
     return Container(

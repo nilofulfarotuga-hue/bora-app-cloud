@@ -19,6 +19,7 @@ import '../widgets/ajustes_peso_pedido.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/barra_pedido_ativo.dart' show BarraPedidoAtivoEstado;
 import '../widgets/errand_budget_banner.dart';
+import '../widgets/favor_diferenca_banner.dart';
 import '../widgets/foto_prova_entrega.dart';
 import '../widgets/fatura_nif_pedido.dart';
 import '../widgets/partilhar_localizacao_card.dart';
@@ -738,6 +739,7 @@ class _BottomCardState extends State<_BottomCard> {
               children: [
                 // ── 8.2 Banner de autorização de orçamento (errand) ──────
                 ErrandBudgetBanner(order: order),
+                FavorDiferencaBanner(order: order),
                 // ── Loja parceira mudou o pedido (acrescentar/em falta) ──
                 ClientOrderEditBanner(order: order),
                 // ── Foto de prova da entrega (adendo 4 · item 2) ─────────

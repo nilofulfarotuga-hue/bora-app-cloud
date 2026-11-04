@@ -100,6 +100,48 @@ function parseKm(raw: unknown): number | null {
 // v36 (ronda 04/10 A.7d) — gorjeta: grava o estado como o `confirm` do charge-tip
 // (gravarEstado): mesmo mapeamento Stripe → tips.status, paid_at, taxa, failure_reason,
 // e nunca volta atrás de succeeded/refunded.
+// 04/11/2026 (missão favor-diferenca-mbway-2026-11-03, bloco A) — DIFERENÇA DA COMPRA DE UM FAVOR.
+// O MB Way da diferença (Edge favor-cobrar-diferenca) leva metadata kind='errand_extra' e
+// pedido_id, SEM order_id de propósito: um MB Way recusado nunca pode pôr o pedido principal em
+// payment_status='failed'. Pago → a RPC acerta extra_charge_* e avisa estafeta e admin; falhou ou
+// expirou → só avisos (o cliente tem o botão "Pagar a diferença"). Nunca mexe no payment_status.
+// Idempotente: a RPC sai sem fazer nada quando aquele PaymentIntent já está pago.
+// Sem a RPC no ar (ainda por aplicar) só regista o erro e avisa o sininho: não devolve 500,
+// para a Stripe não repetir o evento dias seguidos.
+async function favorDiferencaResultado(intent: Stripe.PaymentIntent, eventType: string, eventId: string) {
+  const pedidoId = String(intent.metadata?.pedido_id ?? '');
+  if (!pedidoId) {
+    console.error('[stripe-webhook] errand_extra sem pedido_id:', intent.id);
+    await avisarPagamentoSemEtiqueta(intent, eventType, eventId);
+    return;
+  }
+  const pago = eventType === 'payment_intent.succeeded';
+  const { data, error } = await supabase.rpc('favor_diferenca_resultado', {
+    p_pedido: pedidoId,
+    p_payment_intent_id: intent.id,
+    p_valor_cents: Number(pago ? (intent.amount_received ?? intent.amount ?? 0) : (intent.amount ?? 0)),
+    p_pago: pago,
+    p_evento: eventType,
+  });
+  if (error) {
+    console.error('[stripe-webhook] favor_diferenca_resultado falhou:', error.message, intent.id);
+    try {
+      await supabase.from('admin_notifications').insert({
+        event_type: 'favor_diferenca_por_acertar',
+        severity: 'high',
+        entity_type: 'order',
+        entity_id: pedidoId,
+        summary: `Favor ${pedidoId.slice(0, 8)}: MB Way da diferença ${pago ? 'PAGO' : 'não pago'} (${intent.id}) e o servidor não acertou o pedido: ${error.message}`,
+        payload: { payment_intent_id: intent.id, evento: eventType, conta: CONTA },
+      });
+    } catch (e) {
+      console.error('[stripe-webhook] aviso favor_diferenca falhou:', String(e));
+    }
+    return;
+  }
+  console.log('[stripe-webhook] errand_extra', eventType, pedidoId, JSON.stringify(data), intent.id);
+}
+
 async function tipGravarEstado(intent: Stripe.PaymentIntent) {
   const tipId = intent.metadata?.tip_id ?? '';
   if (!tipId) {
@@ -712,6 +754,12 @@ export async function tratarWebhookStripe(req: Request, conta: ContaStripe): Pro
         break;
       }
 
+      // 04/11/2026 — diferença da compra de um Favor (antes dos ramos draft_id/order_id).
+      if (intent.metadata?.kind === 'errand_extra') {
+        await favorDiferencaResultado(intent, event.type, event.id);
+        break;
+      }
+
       // ⭐ TVDE (2026-08-13) — corridas TVDE. Tem de vir ANTES dos ramos
       // draft_id / order_id (entregas): um PI TVDE nao tem nenhum dos dois e
       // caia no `else` a escrever "missing metadata" sem marcar nada.
@@ -907,6 +955,13 @@ export async function tratarWebhookStripe(req: Request, conta: ContaStripe): Pro
       // v36 (ronda 04/10 A.7d) — GORJETA falhada/cancelada: mesmo estado que o confirm grava.
       if (intent.metadata?.kind === 'tip') {
         await tipGravarEstado(intent);
+        break;
+      }
+
+      // 04/11/2026 — MB Way da diferença de um Favor expirou/falhou: só avisos, nunca o
+      // payment_status do pedido principal.
+      if (intent.metadata?.kind === 'errand_extra') {
+        await favorDiferencaResultado(intent, event.type, event.id);
         break;
       }
 

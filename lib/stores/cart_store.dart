@@ -319,6 +319,50 @@ class CartStore extends ChangeNotifier {
   /// O carrinho já tem um artigo-prémio do check-in.
   bool get temArtigoPremio => _items.any((i) => ehArtigoPremio(i.productId));
 
+  // ── Prémio do check-in tipo DESCONTO (04/11/2026) ──
+  // O vale vai no orçamento (`quote_order_pricing`) e no `create_order` como
+  // `checkin_vale_id`. Quem decide se desconta é o servidor: só na loja do
+  // vale e com o subtotal no mínimo. Abaixo do mínimo devolve quanto falta.
+  //
+  // DESLIGADO até o `OrderStore.createOrder` mandar o `checkin_vale_id` (a
+  // tranca do Bora não deixa esta sessão mexer no order_store, zona do
+  // finalizePurchase). Com isto a false o carrinho nunca mostra um desconto
+  // que o pedido não leva: o total do ecrã é sempre o que se paga.
+  static bool descontoCheckinNoPedido = false;
+
+  String? _checkinValeId;
+  int _checkinValeValorCents = 0;
+
+  String? get checkinValeId => _checkinValeId;
+  int get checkinValeValorCents => _checkinValeValorCents;
+
+  /// Escolhe (ou larga, com `null`) o vale de desconto deste carrinho.
+  void definirValeDesconto(String? valeId, {int valorCents = 0}) {
+    final id = (valeId == null || valeId.isEmpty || !descontoCheckinNoPedido)
+        ? null
+        : valeId;
+    if (id == _checkinValeId &&
+        (id == null || valorCents == _checkinValeValorCents)) {
+      return;
+    }
+    _checkinValeId = id;
+    _checkinValeValorCents = id == null ? 0 : valorCents;
+    notifyListeners();
+  }
+
+  /// Desconto que o servidor aplicou (EUR). 0 sem quote ou abaixo do mínimo.
+  double get checkinDesconto {
+    if (_checkinValeId == null) return 0;
+    return (quoteDoCarrinho?['checkin_desconto'] as num?)?.toDouble() ?? 0;
+  }
+
+  /// Quanto falta (cêntimos) para o vale descontar. 0 quando já desconta.
+  int get checkinDescontoFaltaCents {
+    if (_checkinValeId == null) return 0;
+    final v = quoteDoCarrinho?['checkin_desconto_falta_cents'];
+    return v is num && v > 0 ? v.toInt() : 0;
+  }
+
   /// True quando a loja da sessão actual está em "Em breve" — a UI mostra o
   /// botão de adicionar/finalizar desactivado e [addItem] é ignorado.
   bool get vendorComingSoon => _vendorComingSoon;
@@ -812,6 +856,9 @@ class CartStore extends ChangeNotifier {
       total: (q?['customer_total'] as num?)?.toDouble() ??
           (local.customerTotal + taxaPedidoPequeno - entregaLocalPoupada),
       doServidor: q != null,
+      // O total do servidor já vem com o desconto tirado; a linha é só para
+      // o cliente ver de onde vem a diferença.
+      descontoPremio: eFavor ? 0 : checkinDesconto,
     );
   }
 
@@ -861,6 +908,7 @@ class CartStore extends ChangeNotifier {
       'destination_lat': _deliveryLocation!.latitude,
       'destination_lng': _deliveryLocation!.longitude,
       'wallet_applied_cents': walletAppliedCents,
+      if (_checkinValeId != null) 'checkin_vale_id': _checkinValeId,
       'include_debt': true, // BUG #1 frontend (2026-05-12): server inclui dívida wallet em charge_total + retorna debt_settle_cents
       'payment_method': 'card', // any non-cash, RPC ignora para quote
     };
@@ -1064,6 +1112,10 @@ class CartStore extends ChangeNotifier {
     _vendorComingSoon = vendorComingSoon;
     _vendorComingSoonText = vendorComingSoonText;
     _vendorIsFestas = vendorIsFestas;
+    if (_vendorRestaurantId != vendorRestaurantId) {
+      _checkinValeId = null;
+      _checkinValeValorCents = 0;
+    }
     _vendorRestaurantId = vendorRestaurantId;
     _vendorFechada = vendorFechada;
     _vendorAvisoFechada = vendorAvisoFechada;
@@ -1339,6 +1391,8 @@ class CartStore extends ChangeNotifier {
     _deixarAPorta = false;
     _tipCents = 0;
     _walletAppliedCents = 0;
+    _checkinValeId = null;
+    _checkinValeValorCents = 0;
     // D4 — takeaway agora é derivado de _serviceType. Reset = default restaurant.
     _serviceType = OrderServiceType.restaurant;
     _isCurbside = false;
@@ -1742,7 +1796,11 @@ class ResumoDoCarrinho {
     required this.taxaPedidoPequeno,
     required this.total,
     required this.doServidor,
+    this.descontoPremio = 0,
   });
+
+  /// Prémio Bora Todo Dia (desconto do check-in) já tirado ao [total], EUR.
+  final double descontoPremio;
 
   final double subtotal;
   final double taxaServico;

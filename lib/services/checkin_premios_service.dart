@@ -447,6 +447,16 @@ class CheckinPremiosEstado {
     return lista.isEmpty ? null : lista.first;
   }
 
+  /// Vale de DESCONTO (04/11/2026) usável nesta loja, o primeiro a acabar.
+  CheckinVale? valeDescontoParaLoja(String? lojaId) {
+    if (lojaId == null || lojaId.isEmpty) return null;
+    final lista = vales
+        .where((v) => v.tipo == 'desconto' && v.usavel && v.lojaId == lojaId)
+        .toList()
+      ..sort((a, b) => (a.validoAte ?? DateTime(9999)).compareTo(b.validoAte ?? DateTime(9999)));
+    return lista.isEmpty ? null : lista.first;
+  }
+
   factory CheckinPremiosEstado.fromJson(Map<String, dynamic> m) {
     final marcos = (m['marcos'] is List)
         ? (m['marcos'] as List)

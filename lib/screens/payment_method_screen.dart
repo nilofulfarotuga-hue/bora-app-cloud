@@ -676,6 +676,11 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                           _SummaryRow(
                               label: 'Taxa de pedido pequeno'.tr,
                               value: smallOrderFee),
+                        if (!isErrand && resumo.descontoPremio > 0)
+                          _SummaryRow(
+                              label: 'Prémio Bora Todo Dia'.tr,
+                              value: -resumo.descontoPremio,
+                              isDiscount: true),
                         if (apartmentSurcharge > 0)
                           _SummaryRow(
                             label: 'Entrega em apartamento'.tr,

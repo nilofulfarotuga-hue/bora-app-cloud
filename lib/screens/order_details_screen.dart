@@ -19,6 +19,7 @@ import '../widgets/reportar_problema_pedido.dart';
 import '../widgets/order_edit/client_order_edit_banner.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/errand_budget_banner.dart';
+import '../widgets/favor_diferenca_banner.dart';
 import '../widgets/foto_prova_entrega.dart';
 import '../widgets/fatura_nif_pedido.dart';
 import '../widgets/private_bucket_image.dart';
@@ -67,6 +68,7 @@ class OrderDetailsScreen extends StatelessWidget {
 
           // ── 8.2 Banner de autorização de orçamento (errand pending) ───
           ErrandBudgetBanner(order: liveOrder),
+          FavorDiferencaBanner(order: liveOrder),
 
           // ── Loja parceira mudou o pedido (acrescentar/em falta) ───────
           ClientOrderEditBanner(order: liveOrder),

@@ -2767,6 +2767,23 @@ const Map<String, String> kStringsEn = <String, String>{
   'Faltam {0} € para evitar a taxa de pedido pequeno':
       '{0} € to go to avoid the small order fee',
   'Faltam {0} € para a entrega grátis': '{0} € to go for free delivery',
+  'Enviámos um novo pedido MB Way. Tens poucos minutos para o aprovar na app MB Way.':
+      'We sent a new MB Way request. You have a few minutes to approve it in the MB Way app.',
+  'Já tens um pedido MB Way à espera. Aprova-o na app MB Way.':
+      'You already have an MB Way request waiting. Approve it in the MB Way app.',
+  'A diferença já está paga.':
+      'The difference is already paid.',
+  'Não foi possível enviar o pedido MB Way. Tenta outra vez daqui a pouco.':
+      'Could not send the MB Way request. Try again in a moment.',
+  'Falta pagar {0} € da compra do teu Favor: o estafeta comprou acima do orçado. O pedido MB Way expirou.':
+      '{0} € of your Favour purchase is still to pay: the courier bought above the estimate. The MB Way request expired.',
+  'Falta pagar {0} € da compra do teu Favor. Enviámos um pedido MB Way: aprova-o na app MB Way, tens poucos minutos.':
+      '{0} € of your Favour purchase is still to pay. We sent an MB Way request: approve it in the MB Way app, you have a few minutes.',
+  'Pagar a diferença':
+      'Pay the difference',
+  'Prémio Bora Todo Dia': 'Bora Every Day prize',
+  'Faltam {0} € para usares o teu prémio de {1} €': '{0} € to go to use your {1} € prize',
+  'Prémio Bora Todo Dia: menos {0} € neste pedido.': 'Bora Every Day prize: {0} € off this order.',
   'Entrega grátis': 'Free delivery',
   'Faltam {0}h para a marcação (mais de 24 horas).\n\nRegra: reembolso TOTAL de {1} de €{2} (5–10 dias úteis no cartão).':
       'There are {0}h to the appointment (more than 24 hours).\n\nRule: FULL refund of {1} of €{2} (5–10 business days on the card).',

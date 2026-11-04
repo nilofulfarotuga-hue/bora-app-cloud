@@ -9,6 +9,7 @@ import '../../widgets/private_bucket_image.dart';
 import '../../widgets/admin/admin_fatura_nif_section.dart';
 import '../../widgets/admin/admin_substituicao_section.dart';
 import '../../widgets/admin/admin_favor_passos_section.dart';
+import '../../widgets/admin/admin_entregue_sem_codigo_button.dart';
 import '../../widgets/admin/admin_ofertas_do_pedido_section.dart';
 import '../../utils/conta_do_dinheiro_admin.dart';
 import '../../utils/hora_lisboa.dart';
@@ -453,6 +454,13 @@ class _SummaryTab extends StatelessWidget {
             color: AppColors.error,
             enabled: _canCancel,
             onTap: onCancel,
+          ),
+          // 04/11/2026: o entregador esqueceu o código (PIN) — fecha com motivo
+          // e fica no log de auditoria. Só aparece em pedidos a caminho.
+          AdminEntregueSemCodigoButton(
+            orderId: order['id'] as String,
+            status: order['status'] as String? ?? '',
+            onDone: onReassigned,
           ),
           // P8 (2026-08-17) — Reatribuir estafeta. Só em pedido ativo (não
           // terminal). Chama a RPC admin_reassign_order (user_id, offer limpo,

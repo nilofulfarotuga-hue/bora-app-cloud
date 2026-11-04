@@ -4,6 +4,7 @@ import '../../config/app_colors.dart';
 
 import 'admin_order_edits_screen.dart';
 import 'admin_ajustes_peso_screen.dart';
+import 'admin_favor_diferencas_screen.dart';
 import 'admin_porteiro_screen.dart';
 import 'admin_pedidos_agendados_screen.dart';
 import 'admin_acerto_unificado_screen.dart';
@@ -312,6 +313,16 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.teal,
       builder: () => const AdminAjustesPesoScreen(),
       keywords: const ['peso', 'peso variavel', 'balanca', 'quilo', 'kg', 'ajuste', 'etiqueta', 'diferenca', 'mercado', 'nao parceiro', 'continente', 'auchan'],
+    ),
+    // 04/11/2026: Favores pagos por MB Way com compra acima do orçado.
+    AdminMenuItem(
+      id: 'operacao_favor_diferencas',
+      title: 'Diferenças de Favor',
+      subtitle: 'Favores pagos por MB Way em que a compra passou o orçado: quanto falta, estado do pedido MB Way (enviado, pago, expirou) e reenviar',
+      icon: Icons.send_to_mobile,
+      color: Colors.teal,
+      builder: () => const AdminFavorDiferencasScreen(),
+      keywords: const ['favor', 'diferenca', 'mbway', 'mb way', 'orcamento', 'compra', 'reenviar', 'expirou', 'pagar'],
     ),
     AdminMenuItem(
       id: 'operacao_pedidos_de_cancelamento',

@@ -60,6 +60,7 @@ import '../widgets/bora_foto_ecra_inteiro.dart';
 import '../widgets/favor_passos_card.dart';
 import '../widgets/payments/conta_curta_dinheiro_texto.dart';
 import '../widgets/substituicao_seletor.dart';
+import '../utils/premio_checkin_linha.dart';
 import '../widgets/bora/bora_bottom_action_bar.dart';
 
 // BUG 29: Google sobrepunha o nome da rua mais próxima (ex: "Alexandre
@@ -3030,6 +3031,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
   bool _temPesoVariavel(CartItem i) =>
       !_isPartnerStore &&
       !_isExtraItem(i) &&
+      !ehLinhaPremioCheckin(i.name, productId: i.productId) &&
       _pesoVariavel.contains(i.productId);
 
   /// Toque no preço de um produto ao quilo: o estafeta escreve o total da
@@ -3535,6 +3537,33 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                       // copyOrderItemsForDriverSheet) descartava
                                       // as opções.
                                       DriverItemOptions(item: item),
+                                      // 04/11/2026: prémio do check-in — o
+                                      // cliente não paga; o estafeta compra
+                                      // no balcão e a Bora devolve-lhe.
+                                      if (ehLinhaPremioCheckin(item.name, productId: item.productId))
+                                        Container(
+                                          key: Key(
+                                              'premio_cliente_${item.productId}'),
+                                          margin:
+                                              const EdgeInsets.only(top: 4),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFFF7ED),
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                            border: Border.all(
+                                                color: const Color(0xFFF97316)),
+                                          ),
+                                          child: const Text(
+                                            'PRÉMIO do cliente: compra no balcão, a Bora paga-te este valor',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: Color(0xFF9A3412),
+                                            ),
+                                          ),
+                                        ),
                                       if (_temPesoVariavel(item))
                                         Padding(
                                           padding:
@@ -3667,6 +3696,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                       ),
                                     ),
                                   ),
+                                  if (!ehLinhaPremioCheckin(item.name, productId: item.productId)) ...[
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: SizedBox(
@@ -3695,6 +3725,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                       ),
                                     ),
                                   ),
+                                  ],
                                 ],
                               ),
                             ],
@@ -4180,9 +4211,13 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                             order.status = OrderStatus.onTheWay;
                             orderStore.refresh();
                             nav.pop();
-                            messenger.showSnackBar(const SnackBar(
-                                content: Text(
-                                    'Talão registado — a seguir para a morada do cliente')));
+                            // 04/11/2026: prémio do check-in comprado no balcão.
+                            final premioCents = resultado.premioCheckinCents;
+                            messenger.showSnackBar(SnackBar(
+                                duration: Duration(seconds: premioCents > 0 ? 8 : 4),
+                                content: Text(premioCents > 0
+                                    ? 'Talão registado. A Bora devolve-te ${(premioCents / 100).toStringAsFixed(2).replaceAll('.', ',')} € do prémio no acerto.'
+                                    : 'Talão registado — a seguir para a morada do cliente')));
                             // [ronda 04/10 · #10] A seguir ao talão, o
                             // estafeta escolhe Google Maps ou Waze (antes
                             // abria sempre o Google Maps).

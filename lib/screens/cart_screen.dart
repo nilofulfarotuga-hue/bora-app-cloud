@@ -581,6 +581,35 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                         label: 'Taxa de pedido pequeno'.tr,
                         value: cartStore.smallOrderFee,
                       ),
+                    // 04/11/2026: prémio do check-in tipo desconto — o total
+                    // do servidor já vem sem ele; a linha mostra de onde vem.
+                    if (resumo.descontoPremio > 0)
+                      _SummaryRow(
+                        key: const Key('linha_desconto_premio'),
+                        label: 'Prémio Bora Todo Dia'.tr,
+                        value: -resumo.descontoPremio,
+                        valorTexto: '-${eur(resumo.descontoPremio)}',
+                      ),
+                    if (cartStore.checkinDescontoFaltaCents > 0)
+                      Padding(
+                        key: const Key('falta_desconto_premio'),
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          'Faltam {0} € para usares o teu prémio de {1} €'
+                              .trArgs([
+                            (cartStore.checkinDescontoFaltaCents / 100)
+                                .toStringAsFixed(2)
+                                .replaceAll('.', ','),
+                            (cartStore.checkinValeValorCents / 100)
+                                .toStringAsFixed(2)
+                                .replaceAll('.', ','),
+                          ]),
+                          style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.accent),
+                        ),
+                      ),
                     if (cartStore.faltaParaMinimo > 0)
                       _FaltaParaOMinimo(falta: cartStore.faltaParaMinimo),
                     if (!cartStore.isTakeaway &&
@@ -888,6 +917,7 @@ class _CurbsideForCart extends StatelessWidget {
 
 class _SummaryRow extends StatelessWidget {
   const _SummaryRow({
+    super.key,
     required this.label,
     required this.value,
     this.isStrong = false,

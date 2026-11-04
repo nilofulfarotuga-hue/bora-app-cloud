@@ -10,7 +10,7 @@ estado: atual
 
 # Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-04T05:13:34.690435+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-04T12:21:46.469238+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: erros aprendidos · memoria claude.ai · claude_ai_memoria
 
@@ -132,4 +132,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - [stated] 03/11 14:47: no mercado, a fazer a compra para o Vansh, pediu "o NIF da empresa" e eu dei o da Bora (519686233); era o da Guarda FC SAD (518256430) → regra: compra ou serviço para o Vansh/Guarda FC = NIF da SAD; ler sempre o contexto do pedido antes de escolher qual "empresa"
 - 03/11 (claude-ai): 03/11 20:14: ele pediu missão para o "DeepC/Gypsy" e eu li Gypsy como ChatGPT, lancei a missão no Claude Code e ele mandou parar → Gypsy/Gipsy/DeepC/Deep Sea = o Dipsy (DeepSeek Harness), NÃO o ChatGPT. Quando ele diz que a missão é para o Dipsy, não a lanço no Claude Code; o Dipsy faz tudo (roteiro e arte incluídos). O Dipsy hoje não publica nem sai da lista de sites do Bora: dizer isso ANTES de agir e perguntar nada, só dar o caminho.
 - 04/11 (claude-ai): disse que a Izilda não conseguia agendar corrida "por não ter pedido de acesso", sem ver que ela tinha acesso e sem lembrar que a 01/11 ele mandou fechar o Bora Motorista para todos a partir de 02/11 06:00 (nunca tinha sido aplicado; saíram mais 6 corridas) → ordem de fechar/desligar uma categoria é aplicada no dia e hora que ele disser e provada por SELECT; antes de explicar porque um cliente não consegue usar algo, ver o acesso real dele e as decisões recentes sobre essa categoria.
+- 04/11 (claude-ai): 04/11 11:13: li os avisos de ontem no Telegram e disse-lhe que o Divan ainda devia os 10,77 € do Favor dos pellets — o caso tinha sido fechado a 03/11 13:31 (o Divan pagou-lhe direto) e eu não puxei a conversa nem o e2e_log → aviso antigo do Telegram não é dívida; antes de dizer que alguém deve, ler a conversa do assunto e o e2e_log do pedido.
+- 04/11 (claude-ai): 04/11 11:23: mensagem em inglês a dizer que o Fred só volta na terça e só ele pode pagar; respondi "espero pelo Fred na terça" sem ver no recibo-jogador-gfc que os 440,02 € já tinham sido pagos a 03/11 → mensagem sobre pagamento = ver primeiro se a conta já está paga; se está, a resposta diz que já recebi e não há nada a pagar.
+- 04/11 (claude-ai): 04/11 11:24: escrevi a tradução da mensagem do Vansh e da resposta entre ferramentas e ela não lhe apareceu no ecrã; ele só viu o cartão em inglês e irritou-se → as duas traduções ("O Vansh falou" e "O que eu estou a responder") vão sempre por mensagem visível antes do cartão, ou como texto final depois da última ferramenta; nunca soltas no meio das ferramentas.
 

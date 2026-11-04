@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-resumo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-02
+ultima_confirmacao: 2026-11-03
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Livro do Bora — resumo para o ChatGPT (regras + erros + índice, sem pessoais), gerado
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-resumo`, origem `claude-code`, atualizada em 2026-11-02T23:40:16.572259+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-resumo`, origem `claude-code`, atualizada em 2026-11-03T23:40:07.384837+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro resumo · memoria claude.ai · claude_ai_memoria
 
-# Livro do Bora — resumo para o ChatGPT (2026-11-02)
+# Livro do Bora — resumo para o ChatGPT (2026-11-03)
 
 Lê isto antes de responder ao Danilo. É a mesma verdade que a Claude.ai, o Hermes, o Claude Code e o OpenCode leem (tabela public.claude_ai_memoria). Gerado todas as noites pela VPS; páginas pessoais ficam de fora.
 
@@ -206,6 +206,11 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - 02/11 (claude-ai): 02/11 14:55: disse ao Danilo que a Casa estava desligada (casa_enabled=false) sem ver que a conta dele boraappbora estava na lista de testadores; ele abriu a web e viu a Casa publicada, mal acabada → antes de dizer que uma categoria está desligada, ver também quem a vê por exceção (casa_testadores, contas demo) e dizer isso; quando ele quer desligar, desligar para todos, incluindo os testadores
 - 02/11 (claude-ai): 02/11 17:57 (pedido da Dona Isabel, Continente): o pão avulso da padaria (Pão Bola de Mistura) estava por unidade sem opção de trocar o preço na balança — a marcação ao quilo de 26/10 e 31/10 só apanhou fruta, legumes e talho → pão avulso da padaria dos mercados (bolas, bijou, pão do dia sem embalagem) também é ao quilo; ao marcar produtos ao quilo, rever TODAS as secções de balcão (fruta, legumes, talho, peixaria, padaria, charcutaria ao corte), não só a fruta
 
+- 03/11 14:05 (Danilo corrigiu): na análise fiscal mandei perguntar ao Hugo se o IVA normal foi "por opção" e propus passar a empresa a isenta, quando já estava falado (28/10 o Hugo disse que não compensa o art. 53.º e o Danilo respondeu "ok, fica no normal" = regime normal escolhido, 5 anos); e deixei de fora tudo o que já conversámos sobre os parceiros. REGRA: antes de qualquer análise de assunto já falado, puxar TODAS as conversas antigas do tema (cada vertical: parceiros, não-parceiros, Favores, limpeza, serviços) e partir do que lá ficou decidido; nunca voltar a propor o que ele já fechou.
+- 03/11 14:23 (Danilo corrigiu): ele disse "você vai mandar esse texto aí" sobre as perguntas ao Hugo e eu abri o WhatsApp pessoal para enviar no grupo Contabilidade; ele parou-me: "não é pra enviar nada pra ninguém, é pra você fazer e me dar aqui a resposta". REGRA: "manda/faz o texto" sobre mensagens para terceiros = escrever o texto aqui no chat; só envio quando ele disser claramente "envia/manda para ele" depois de ver o texto.
+- [stated] 03/11 14:47: no mercado, a fazer a compra para o Vansh, pediu "o NIF da empresa" e eu dei o da Bora (519686233); era o da Guarda FC SAD (518256430) → regra: compra ou serviço para o Vansh/Guarda FC = NIF da SAD; ler sempre o contexto do pedido antes de escolher qual "empresa"
+- 03/11 (claude-ai): 03/11 20:14: ele pediu missão para o "DeepC/Gypsy" e eu li Gypsy como ChatGPT, lancei a missão no Claude Code e ele mandou parar → Gypsy/Gipsy/DeepC/Deep Sea = o Dipsy (DeepSeek Harness), NÃO o ChatGPT. Quando ele diz que a missão é para o Dipsy, não a lanço no Claude Code; o Dipsy faz tudo (roteiro e arte incluídos). O Dipsy hoje não publica nem sai da lista de sites do Bora: dizer isso ANTES de agir e perguntar nada, só dar o caminho.
+
 
 ## Índice do livro (sem páginas pessoais)
 
@@ -223,6 +228,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - adendo-harness-servidor-remote-control-2026-10-29 — ADENDO para a missao do Harness (sessao DeepSeek Harness installation): no fim, servidor de Remote Control para duas ses
 - adendo-infra-2026-11-01 — Adendo à missão infra-claude-tudo-2026-11-01 (B10-B14: site /baixar, Meta ads, cartazes A3, grupos Facebook + Em Dia, st
 - adendo-vozes-omnivoice-2026-10-22 — Adendo de vozes: A/B do motor OmniVoice (k2-fsa) no filme Ep1
+- analise-fiscal-bora-2026-11-03 — Análise fiscal do Bora (entregas e serviços, sem TVDE) + conselho Gemini/ChatGPT/DeepSeek — 03/11/2026
 - armadilha-ytdlp-cookies-chrome-windows — yt-dlp + cookies do Chrome no Windows: caminho morto (App-Bound Encryption)
 - arquivo-regras-do-danilo-2026-09-17 — ARQUIVO — regras do Danilo (versão de 17/09, substituída a 23/10)
 - auditoria-3-plataformas-fecho — Auditoria das 3 plataformas — fecho das pendências (07/10/2026 noite)
@@ -437,6 +443,9 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - digest-2026-11-02-stripe-retoma — Stripe duas contas — retoma Opus 02/11 — resultado
 - digest-2026-11-02-travadas-infra — Claude Code 02/11 — travadas da infra (site, gorjeta, artes, grupos, anuncios)
 - digest-2026-11-02-zerar — Claude Code 02/11 — zerar: chave nova no servidor, série de limpeza devolve, peso no cartão pronto (desligado), arrumaçõ
+- digest-2026-11-03-boom-continua — Digest 03/11 — Boom e Fuku continua (PC)
+- digest-2026-11-03-boom-hamburguer-mes — Digest 03/11 — Boom hambúrguer do mês (retoma)
+- digest-2026-11-03-fuku-anuncio — Digest 03/11 — anúncio do Fuku Sushi na Meta publicado
 - diretiva-plataformas-2024-2831 — Diretiva (UE) 2024/2831 trabalho em plataformas — o que obriga o Bora, estado em Portugal, o que está feito e checklist 
 - dsh-como-usar — Como usar o Dipsy (dsh)
 - dsh-como-usar-novidades-2026-10-31 — Dipsy: o que ficou novo a 31/10 (complemento da pagina dsh-como-usar)
@@ -637,12 +646,17 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - prompt-boom-burger-2026-10-27-texto-completo — PROMPT Boom! Burger — texto completo (27/10/2026)
 - prompt-boom-burger-adendo3-2026-10-27 — Prompt ADENDO 3 Boom! Burger (27/10 17:06) — consertar já o que ficou para trás
 - prompt-boom-burger-adendo4-2026-10-28 — PROMPT Boom! Burger — adendo 4 (fatura com NIF + entrega grátis preparada), 28/10/2026
+- prompt-boom-continua-2026-11-03 — Prompt continuação Boom (03/11 12:20) — R, D, G, M, H, I, J, T
 - prompt-boom-hamburguer-mes-2026-11-02 — Prompt missão Boom hambúrguer do mês (02/11/2026)
+- prompt-boom-hamburguer-mes-adendo1-2026-11-03 — Adendo 1 (03/11 07:50): carrinho esquecido, anúncio da Boom, autorização de promoções, números dos anúncios, próximo anú
+- prompt-boom-hamburguer-mes-retoma-2026-11-03 — Retoma da missão Boom hambúrguer do mês (03/11/2026)
 - prompt-cancelamento-tardio-2026-10-17 — Prompt: cancelamento tardio TVDE — app, painel e publicação nas 3 plataformas (17/10) — estado: a correr
 - prompt-casa-manutencao-2026-10-30 — Prompt: missão Casa & Manutenção (categoria nova, decisões do Danilo 30/10/2026)
 - prompt-dipsy-melhor-2026-10-31 — Missão Dipsy "melhor que o Claude Code" (31/10/2026) — decisões do Danilo 06:31
+- prompt-favor-diferenca-mbway-2026-11-03 — Prompt Favor com compra a mais: MB Way da diferença (03/11 13:35)
 - prompt-fecho-pendentes-2026-10-31 — Prompt "fecho-pendentes" (31/10 22:10) — peso ao quilo, suporte com Claude, 4 pagamentos, 3 commits antigos, limpeza 5 m
 - prompt-final-app-2026-10-29 — Prompt missao final-app-2026-10-29
+- prompt-fuku-anuncio-2026-11-03 — Prompt missão anúncio Fuku Sushi na Meta (03/11/2026 20:30)
 - prompt-gorjetas-taxa-2026-10-30 — Prompt — gorjetas: taxa da Stripe na gorjeta paga depois e gorjeta do carrinho junto da compra (30/10/2026)
 - prompt-jai-site-sportsdunia-2026-10-31 — Prompt jai-site SportsDunia 31/10
 - prompt-maiores-18-2026-10-07 — Prompt: verificação de idade +18 (tabaco/álcool) — estado: PRONTO, NÃO LANÇADO (bloqueado: publica nas lojas, falta o Da
@@ -692,6 +706,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - radar-2026-10-31 — Radar de vídeos 31/10/2026 — 40 revistos, 3 novos, 14 pendentes
 - radar-2026-11-01 — Radar de vídeos 01/11/2026 — 40 revistos, 2 novos, 21 pendentes
 - radar-2026-11-02 — Radar de vídeos 02/11/2026 — 40 revistos, 9 novos, 10 pendentes
+- radar-2026-11-03 — Radar de vídeos 03/11/2026 — 20 revistos, 4 novos, 5 pendentes
 - reembolsos-b2-00-leia-me — reembolsos-b2-00-leia-me
 - reembolsos-b2-01-shared-cobranca — reembolsos-b2-01-shared-cobranca
 - reembolsos-b2-ef-admin-cancel-order — reembolsos-b2-ef-admin-cancel-order

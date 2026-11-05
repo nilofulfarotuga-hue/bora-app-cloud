@@ -1,0 +1,26 @@
+---
+id: memoria-claude-ai-livro-areas-robo-suporte
+tipo: conceito
+origem: [claude-ai, public.claude_ai_memoria]
+ultima_confirmacao: 2026-11-05
+zona: verde
+confianca: alta
+estado: atual
+---
+
+# Robô do suporte dentro da app Bora (support-chatbot) — o que o Danilo quer dele, caso da Jennifer (Boom! Burger) e missão de 05/11/2026 para o tornar super inteligente
+
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-robo-suporte`, origem `claude-ai`, atualizada em 2026-11-05T14:16:57.011251+00:00).
+> Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
+> Palavras-chave: livro areas robo suporte · memoria claude.ai · claude_ai_memoria
+
+> Cópia da memória da Claude.ai (ficheiro /areas/robo-suporte.md), copiada a 2026-11-05 14:16 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+
+---
+name: robo-suporte
+description: Robô do suporte dentro da app Bora (support-chatbot) — o que o Danilo quer dele, caso da Jennifer (Boom! Burger) e missão de 05/11/2026 para o tornar super inteligente
+sources: [chat]
+aliases: [robô do suporte, suporte da app, support-chatbot, chatbot de suporte, robô A]
+---
+- [stated] 05/11/2026 13:57: quer o robô do suporte "super inteligente" — "todo tipo de pergunta ele tem que responder, ele tem que ir buscar e responder"; mandou consertar depois de o robô dizer à cliente Jennifer (pedido da [[boom-burger]]) que não conseguia ver o desconto dos tokens
+- [stated] 05/11/2026: PROMPT REGISTADO — missão robo-suporte-inteligente-2026-11-05 (MOTOR Opus 5.5), colada por mim às ~14:03 na sessão "PC do Danilo" do Claude Code (session_01HPEpV8VYHX4dCf8PX4Wesa), fluxo e2e_log 'robo-suporte-inteligente-2026-11-05'. Scope: ferramentas de leitura novas (conta do pedido linha a linha com tokens e valor cobrado, código curto do pedido, histórico de tokens e carteira, marcações, lojas abertas/horários, produtos e preços, dados do próprio estafeta/parceiro), skills a apontar para ferramentas que não existem, regra "ir buscar antes de responder", modelo Sonnet no suporte, aviso ao Danilo por WhatsApp quando passa à equipa, linha do desconto de tokens no ecrã do pedido, painel admin do suporte, limpeza dos tickets antigos, provas com contas de teste. Estado: a correr

@@ -10,11 +10,11 @@ estado: atual
 
 # Decisão do Danilo (05/11/2026) sobre entregas a mais de ~10 km (caso Porto da Carne) e o escalão de km que ele propôs e não aplicou; ler antes de mexer em taxa de entrega por distância
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-entrega-longa-distancia`, origem `claude-ai`, atualizada em 2026-11-05T21:14:12.508346+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-entrega-longa-distancia`, origem `claude-ai`, atualizada em 2026-11-05T22:13:27.275609+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas entrega longa distancia · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/entrega-longa-distancia.md), copiada a 05/11/2026 21:12 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/entrega-longa-distancia.md), copiada a 05/11/2026 22:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: entrega-longa-distancia

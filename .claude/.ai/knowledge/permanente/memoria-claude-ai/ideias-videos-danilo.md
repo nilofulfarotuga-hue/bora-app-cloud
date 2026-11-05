@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-04
+ultima_confirmacao: 2026-11-05
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-11-04T20:55:47.46956+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-11-05T20:55:18.066508+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -491,3 +491,19 @@ Filme caminho 4 (fontes htROyMzUbA8, rxZZ1xi81a4): no Google Flow (Omniflash 1.1
 - Radar aprende: +2 termos da conversa (Stripe Connect repasse às lojas; check-in diário com prémios), sem termos aprendidos novos.
 
 - Correção 04/11: o termo do check-in diário já existia; entrou só 1 termo da conversa (Stripe Connect repasse às lojas) e saiu 1 sem rendimento (serviços de casa/marido de aluguer). 70 ativos.
+
+## 05/11/2026 — radar diário
+25 vídeos revistos (24 com nota >= 6): 2 novos, 8 pendentes, 6 já temos, 9 rejeitados (1 por nota baixa). Nenhum do tema animacao_ia. Proposta prop-03b58e8d.
+- MODA DA SEMANA (3+ vídeos nota>=8 em 7 dias): Dipsy 12 — FEITO 29-30/10 (subagentes e app Windows pendentes desde 30/10); vender automação/agência a PMEs (vários termos) — PENDENTE desde 13/10; prospeção 6 (+3 hoje) — caça-clientes FEITO, extrator Google Maps PENDENTE desde 17/10; CRM WhatsApp aberto 4 (+Deskcom hoje) — PENDENTE desde 18/10; sites com IA para negócios locais 3 (+1 hoje) — PENDENTE desde 25/10; Claude Duet 3 — PENDENTE desde 22/10; edição de vídeo com Claude Code/HyperFrames 3 — PENDENTE desde 11/10; voz grátis 3 — teste Kaggle sem prova; rececionista de voz 3 — PENDENTE desde 13/10; anúncios Meta 3 — parado desde 26/10 (pagamento da conta); Jev 3 — PENDENTE desde 23/09; Claude Motion 3 — PENDENTE desde 11/10; memória partilhada, WhatsApp atendente, Hermes, Claude Code modo auto — já temos; Perfil Google como mensalidade — FEITO (Jai).
+- EM DIA/BORA (novo, prop-03b58e8d): legendas dos robôs de redes na estrutura AIDA (atenção-interesse-desejo-ação). https://www.youtube.com/watch?v=DG0--xN1NRY
+- SISTEMA (novo, prop-03b58e8d): gravar o ecrã a fazer uma tarefa repetitiva e dar ao Claude Code para virar script Python com lotes e tratamento de erros. https://www.youtube.com/watch?v=9Rp3g09XpFs
+- DINHEIRO (PENDENTE desde 18/10): Deskcom (aberto, MIT, Docker na VPS 8 GB) — CRM de WhatsApp que audita o site de cada lead da planilha. https://www.youtube.com/watch?v=LE-Ulb8GkUs
+- DINHEIRO (PENDENTE desde 25/10): fazer o site antes e cobrar depois a PMEs sem site + mensalidade de manutenção; mandar amostra de site melhorado depois de analisar o site atual. Base44 (créditos) e Grok Bot (disparo em massa) ficam de fora; lente grátis: Claude Code + Cloudflare Pages. https://www.youtube.com/watch?v=UkcZh86qEnE , https://www.youtube.com/watch?v=MOluZHvWLqY
+- EM DIA (PENDENTE, prop-46630f38 de 03/11): vídeos de YouTube que respondem a pesquisas reais (ex.: como passar recibo verde rápido); exemplo de SaaS que faturou só com isso. https://www.youtube.com/watch?v=wSYbyNioaZQ
+- EM DIA (PENDENTE desde 09/10): guia em PDF como isca ("comenta GUIA"). https://www.youtube.com/watch?v=oROLqp_q07E
+- EM DIA/BORA (PENDENTE desde 11/10): Klap (cortes + agendamento) é pago; lente grátis = fábrica de edição com ffmpeg/Claude Code. https://www.youtube.com/watch?v=RFF9hR7yqCE
+- SISTEMA (PENDENTE, prop-2fb661c9): LALAL.AI é paga; lente grátis = VoiceStudio no Kaggle + Demucs (aberto) para separar faixas e limpar ruído. https://www.youtube.com/watch?v=mJuqD-874mU
+- BORA (parado desde 26/10): vários criativos/ganchos feitos com IA para anúncios — conta de anúncios sem pagamento. https://www.youtube.com/watch?v=UfDDfjPa0fI
+- JÁ TEMOS: Claude Code com subagentes e tarefas na nuvem, Hermes na VPS com travão (bora-tranca), agente aberto da DeepSeek (= Dipsy), CLAUDE.md/skills/MCP, caça-clientes por email, robôs de redes + Canva ligado.
+- RECUSADO: Pulso Social (2 vídeos), Meta Muse, white-label de delivery pago (Bib's), robôs de grupos do Facebook (FB Entra em Grupos, Turboflow), ComfyUI com API paga, disparo em massa por vários Gmails, Blox Hero (afiliado).
+- Radar aprende: sem termos aprendidos (repetidos só os já existentes ou recusados); +1 da conversa (chatbot de suporte com IA que consulta o pedido do cliente); -1 com menos rendimento (recibos verdes 2026 o que mudou); 70 ativos.

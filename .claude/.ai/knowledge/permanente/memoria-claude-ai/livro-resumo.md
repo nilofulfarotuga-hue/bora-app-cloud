@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-resumo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-03
+ultima_confirmacao: 2026-11-04
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Livro do Bora — resumo para o ChatGPT (regras + erros + índice, sem pessoais), gerado
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-resumo`, origem `claude-code`, atualizada em 2026-11-03T23:40:07.384837+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-resumo`, origem `claude-code`, atualizada em 2026-11-04T23:40:08.489014+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro resumo · memoria claude.ai · claude_ai_memoria
 
-# Livro do Bora — resumo para o ChatGPT (2026-11-03)
+# Livro do Bora — resumo para o ChatGPT (2026-11-04)
 
 Lê isto antes de responder ao Danilo. É a mesma verdade que a Claude.ai, o Hermes, o Claude Code e o OpenCode leem (tabela public.claude_ai_memoria). Gerado todas as noites pela VPS; páginas pessoais ficam de fora.
 
@@ -210,6 +210,10 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - 03/11 14:23 (Danilo corrigiu): ele disse "você vai mandar esse texto aí" sobre as perguntas ao Hugo e eu abri o WhatsApp pessoal para enviar no grupo Contabilidade; ele parou-me: "não é pra enviar nada pra ninguém, é pra você fazer e me dar aqui a resposta". REGRA: "manda/faz o texto" sobre mensagens para terceiros = escrever o texto aqui no chat; só envio quando ele disser claramente "envia/manda para ele" depois de ver o texto.
 - [stated] 03/11 14:47: no mercado, a fazer a compra para o Vansh, pediu "o NIF da empresa" e eu dei o da Bora (519686233); era o da Guarda FC SAD (518256430) → regra: compra ou serviço para o Vansh/Guarda FC = NIF da SAD; ler sempre o contexto do pedido antes de escolher qual "empresa"
 - 03/11 (claude-ai): 03/11 20:14: ele pediu missão para o "DeepC/Gypsy" e eu li Gypsy como ChatGPT, lancei a missão no Claude Code e ele mandou parar → Gypsy/Gipsy/DeepC/Deep Sea = o Dipsy (DeepSeek Harness), NÃO o ChatGPT. Quando ele diz que a missão é para o Dipsy, não a lanço no Claude Code; o Dipsy faz tudo (roteiro e arte incluídos). O Dipsy hoje não publica nem sai da lista de sites do Bora: dizer isso ANTES de agir e perguntar nada, só dar o caminho.
+- 04/11 (claude-ai): disse que a Izilda não conseguia agendar corrida "por não ter pedido de acesso", sem ver que ela tinha acesso e sem lembrar que a 01/11 ele mandou fechar o Bora Motorista para todos a partir de 02/11 06:00 (nunca tinha sido aplicado; saíram mais 6 corridas) → ordem de fechar/desligar uma categoria é aplicada no dia e hora que ele disser e provada por SELECT; antes de explicar porque um cliente não consegue usar algo, ver o acesso real dele e as decisões recentes sobre essa categoria.
+- 04/11 (claude-ai): 04/11 11:13: li os avisos de ontem no Telegram e disse-lhe que o Divan ainda devia os 10,77 € do Favor dos pellets — o caso tinha sido fechado a 03/11 13:31 (o Divan pagou-lhe direto) e eu não puxei a conversa nem o e2e_log → aviso antigo do Telegram não é dívida; antes de dizer que alguém deve, ler a conversa do assunto e o e2e_log do pedido.
+- 04/11 (claude-ai): 04/11 11:23: mensagem em inglês a dizer que o Fred só volta na terça e só ele pode pagar; respondi "espero pelo Fred na terça" sem ver no recibo-jogador-gfc que os 440,02 € já tinham sido pagos a 03/11 → mensagem sobre pagamento = ver primeiro se a conta já está paga; se está, a resposta diz que já recebi e não há nada a pagar.
+- 04/11 (claude-ai): 04/11 11:24: escrevi a tradução da mensagem do Vansh e da resposta entre ferramentas e ela não lhe apareceu no ecrã; ele só viu o cartão em inglês e irritou-se → as duas traduções ("O Vansh falou" e "O que eu estou a responder") vão sempre por mensagem visível antes do cartão, ou como texto final depois da última ferramenta; nunca soltas no meio das ferramentas.
 
 
 ## Índice do livro (sem páginas pessoais)
@@ -446,6 +450,10 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - digest-2026-11-03-boom-continua — Digest 03/11 — Boom e Fuku continua (PC)
 - digest-2026-11-03-boom-hamburguer-mes — Digest 03/11 — Boom hambúrguer do mês (retoma)
 - digest-2026-11-03-fuku-anuncio — Digest 03/11 — anúncio do Fuku Sushi na Meta publicado
+- digest-2026-11-04-checkin-desconto-mercadona — Digest 04/11 tarde — check-in desconto e aviso Mercadona
+- digest-2026-11-04-checkin-escada-premios — Digest 04/11 — escada de prémios do check-in
+- digest-2026-11-04-checkin-premios-fecho — Digest 04/11 — check-in prémios e Favor (fecho)
+- digest-2026-11-04-fechar-bora-motorista — Claude Code 04/11 — Bora Motorista fechado nas apps, no painel e no site
 - diretiva-plataformas-2024-2831 — Diretiva (UE) 2024/2831 trabalho em plataformas — o que obriga o Bora, estado em Portugal, o que está feito e checklist 
 - dsh-como-usar — Como usar o Dipsy (dsh)
 - dsh-como-usar-novidades-2026-10-31 — Dipsy: o que ficou novo a 31/10 (complemento da pagina dsh-como-usar)
@@ -453,6 +461,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - em-dia-iphone-identificador — Em Dia / iPhone: identificadores da Apple (bundle id, app id, SKU)
 - em-dia-play-classificacao-conteudo — Em Dia / Play: respostas da classificacao IARC e o que muda quando as assinaturas abrirem
 - em-dia-site-bloqueios-apple — Em Dia / site: tres coisas no site que chumbam a revisao da Apple
+- embeddings-supabase-2026-11-03 — Motor grátis de vetores com Gemini de reserva — 03-04/11 Claude Code
 - emdia-grupos-facebook — Em Dia — publicações em grupos de Facebook
 - engenharia-reversa — Engenharia reversa — método do Danilo para clonar o que já existe (pedido 17/10/2026)
 - engenharia-reversa-achados-2026-10-17 — Engenharia reversa — achados da pesquisa mundial de 17/10/2026 (REA, filme, navegador)
@@ -616,6 +625,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - livro-topics-erros-aprendidos — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde
 - livro-topics-erros-aprendidos-parte2 — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde
 - livro-topics-erros-aprendidos-parte3 — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde
+- livro-topics-erros-aprendidos-parte4 — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde
 - livro-topics-prioridades — Como o Danilo decide prioridades no negócio — foco dos próximos meses e regras de desempate quando duas coisas competem 
 - livro-topics-regras-motores-e-prompts — Regras do Danilo sobre que motor/ferramenta usar (Fable, Opus, ChatGPT, GLM, Gemini, OpenCode) e sessões no Chrome — ler
 - lojas-takeaway-precos — Lojas de takeaway por telefone: Bora (não-parceiro) contra Glovo e Uber Eats, Guarda, 29/10/2026
@@ -652,6 +662,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - prompt-boom-hamburguer-mes-retoma-2026-11-03 — Retoma da missão Boom hambúrguer do mês (03/11/2026)
 - prompt-cancelamento-tardio-2026-10-17 — Prompt: cancelamento tardio TVDE — app, painel e publicação nas 3 plataformas (17/10) — estado: a correr
 - prompt-casa-manutencao-2026-10-30 — Prompt: missão Casa & Manutenção (categoria nova, decisões do Danilo 30/10/2026)
+- prompt-connect-empresa-2026-11-04 — Prompt — Connect na Stripe da empresa e repasse automático às lojas (04/11/2026)
 - prompt-dipsy-melhor-2026-10-31 — Missão Dipsy "melhor que o Claude Code" (31/10/2026) — decisões do Danilo 06:31
 - prompt-favor-diferenca-mbway-2026-11-03 — Prompt Favor com compra a mais: MB Way da diferença (03/11 13:35)
 - prompt-fecho-pendentes-2026-10-31 — Prompt "fecho-pendentes" (31/10 22:10) — peso ao quilo, suporte com Claude, 4 pagamentos, 3 commits antigos, limpeza 5 m
@@ -707,6 +718,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - radar-2026-11-01 — Radar de vídeos 01/11/2026 — 40 revistos, 2 novos, 21 pendentes
 - radar-2026-11-02 — Radar de vídeos 02/11/2026 — 40 revistos, 9 novos, 10 pendentes
 - radar-2026-11-03 — Radar de vídeos 03/11/2026 — 20 revistos, 4 novos, 5 pendentes
+- radar-2026-11-04 — Radar de vídeos 04/11/2026 — 40 revistos, 5 novos, 8 pendentes
 - reembolsos-b2-00-leia-me — reembolsos-b2-00-leia-me
 - reembolsos-b2-01-shared-cobranca — reembolsos-b2-01-shared-cobranca
 - reembolsos-b2-ef-admin-cancel-order — reembolsos-b2-ef-admin-cancel-order

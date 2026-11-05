@@ -17,13 +17,14 @@ import { homedir } from 'node:os'
 import { isAbsolute, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-const PROJETOS_PRODUCAO = new Set(['ojykpzwqrtusfeakzrna', 'tgdmgtmknbwhcqoxtjbs']) // Bora, Em Dia
+// Projetos Supabase de ensaio. Tudo o resto conta como producao. So se muda a mao.
+const PROJETOS_ENSAIO = new Set([])
 const RAMO_ENSAIO = /^ai\/\d{4}-\d{2}-\d{2}-[\w.-]+$/
 const SO_POR_RPC =
-  'orders|tvde_rides|appointments|drivers|client_wallets|wallets|wallet_[a-z_]+|ledger|ledger_[a-z_]+|bora_tokens|driver_balances|payouts'
+  'orders|order_items|tvde_rides|appointments|drivers|client_wallets|wallets|wallet_[a-z_]+|ledger|ledger_[a-z_]+|bora_tokens|driver_balances|[a-z_]*payouts|payments|platform_settings'
 
 const CAMINHO_SEGREDO =
-  /(^|[\\/])(\.env(?!\.(example|sample|template)$)[^\\/]*|\.dart_defines[^\\/]*|\.credentials\.json|key\.properties|[^\\/]*\.(jks|keystore|pem|p12|pfx)|id_(rsa|ed25519)[^\\/]*|\.supabase-token[^\\/]*|_segredos|\.dsh[\\/]secrets)([\\/]|$)/i
+  /(^|[\\/])(\.env(?![^\\/]*\.(example|sample|template)$)[^\\/]*|[^\\/]+\.env|\.dev\.vars|\.dart_defines[^\\/]*|\.credentials\.json|\.git-credentials|\.netrc|\.npmrc|key\.properties[^\\/]*|[^\\/]*\.(jks|keystore|pem|p12|p8|pfx)|[^\\/]*(service-account|firebase-adminsdk)[^\\/]*\.json|id_(rsa|ed25519)(?![^\\/]*\.pub$)[^\\/]*|\.supabase-token[^\\/]*|\.supabase[\\/]access-token|\.config[\\/]gh[\\/]hosts\.yml|\.aws[\\/]credentials|_segredos|\.dsh[\\/]secrets)([\\/]|$)/i
 const SEGREDOS = [
   /\b[sr]k_live_[0-9a-zA-Z]{16,}/,
   /\bwhsec_[0-9a-zA-Z]{16,}/,
@@ -32,23 +33,36 @@ const SEGREDOS = [
   /\bgithub_pat_[0-9a-zA-Z_]{30,}/,
   /\bAKIA[0-9A-Z]{16}\b/,
   /\bxox[abp]-[0-9a-zA-Z-]{20,}/,
+  /\bsk-ant-api\d\d-[\w-]{20,}/,
+  /\bsk-proj-[\w-]{20,}/,
+  /\bre_[0-9a-zA-Z]{20,}/,
+  /\bAIza[0-9A-Za-z_-]{35}\b/,
+  /\b\d{8,10}:AA[0-9A-Za-z_-]{30,}/,
+  /postgres(ql)?:\/\/[^:\s/]+:[^@\s<$]{6,}@/,
   /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
 ]
 const JWT = /\beyJ[0-9a-zA-Z_-]{10,}\.(eyJ[0-9a-zA-Z_-]{10,})\.[0-9a-zA-Z_-]{10,}/g
+const NOME_SEGREDO = /(KEY|TOKEN|SECRET|PASSWORD|DATABASE_URL|DB_URL)$/i
+const NOME_PUBLICO = /(ANON|PUBLISHABLE)/i
 
 const A_TRAVA = /(^|[\\/])\.claude[\\/](settings(\.local)?\.json|hooks[\\/]trava-modo-automatico)/i
-const INTOCAVEL = /(^|[\\/])(_?backups?|bkp_[^\\/]*|\.git|provas|_QUARENTENA)([\\/]|$)/i
-const SCRIPT_PUBLICA = /(^|[\\/])(deploy|publica|publicar|release)[^\\/]*\.(sh|ps1|cmd|bat|py|mjs|js)$/i
+const INTOCAVEL = /(^|[\\/])(_?backups?[^\\/]*|bkp_[^\\/]*|\.git|provas|_QUARENTENA)([\\/]|$)/i
+const SCRIPT_PUBLICA = /(^|[\\/])[^\\/]*(deploy|publica|publish)[^\\/]*\.(sh|ps1|cmd|bat|py|mjs|js)$/i
 
-const SO_LE_NOMES = new Set([
-  'ls', 'dir', 'test', '[', 'test-path', 'get-childitem', 'gci', 'echo', 'printf', 'write-output',
-  'write-host', 'flutter', 'dart', 'which', 'where', 'git',
+// Estes usam o ficheiro sem mostrar o conteudo, ou so dizem se existe.
+const SO_USAM = new Set([
+  'ls', 'dir', 'test', '[', 'test-path', 'get-childitem', 'gci', 'echo', 'printf', 'write-output', 'write-host',
+  'flutter', 'dart', 'which', 'where', 'git', 'ssh', 'scp', 'sftp', 'ssh-keygen', 'keytool', 'openssl',
 ])
-const SO_LE = new Set([...SO_LE_NOMES, 'cat', 'type', 'get-content', 'gc', 'head', 'tail', 'grep', 'rg', 'findstr', 'select-string', 'diff', 'fc'])
+const ESCREVE = new Set([
+  'cp', 'copy', 'mv', 'move', 'rm', 'del', 'tee', 'ln', 'mklink', 'set-content', 'sc', 'add-content', 'ac', 'out-file',
+  'copy-item', 'cpi', 'move-item', 'mi', 'remove-item', 'ri', 'rename-item', 'ren', 'new-item', 'ni',
+])
 const PROCURA = new Set(['grep', 'rg', 'egrep', 'fgrep', 'findstr', 'select-string', 'sls'])
 const APAGA = new Set(['rm', 'del', 'erase', 'rd', 'rmdir', 'remove-item', 'ri', 'unlink', 'shred'])
-const EMBRULHOS = new Set(['sudo', 'env', 'command', 'exec', 'time', 'nohup', 'call', 'start'])
-const INTERPRETES = new Set(['bash', 'sh', 'zsh', 'dash', 'powershell', 'pwsh', 'python', 'python3', 'py', 'node', 'bun', 'cmd'])
+const EMBRULHOS = new Set(['sudo', 'env', 'command', 'exec', 'nohup', 'call', 'start', 'xargs', 'wsl'])
+const PALAVRAS = new Set(['if', 'then', 'else', 'elif', 'do', 'while', 'until', 'time', '!'])
+const INTERPRETES = new Set(['bash', 'sh', 'zsh', 'dash', 'powershell', 'pwsh', 'python', 'python3', 'py', 'node', 'bun'])
 
 // ---------- SQL ----------
 
@@ -83,6 +97,7 @@ function limpaSql(sql) {
 function avaliaSql(sql, ambiente) {
   if (ambiente !== 'producao') return null
   const s = limpaSql(sql)
+  if (/\bvault\.decrypted_secrets\b/.test(s)) return 'ler os segredos do vault'
   if (/\btruncate\b/.test(s)) return 'TRUNCATE em producao'
   if (/\bdrop\s+[a-z]/.test(s) && !/\balter\s+table\b[^;]*\bdrop\b/.test(s)) return 'DROP em producao'
   if (/\bdelete\s+from\b/.test(s)) return 'DELETE em producao: nunca se apagam dados de producao'
@@ -94,7 +109,7 @@ function avaliaSql(sql, ambiente) {
     .replace(/\bcreate\s+table\s+(if\s+not\s+exists\s+)?("?public"?\.)?"?bkp_[a-z0-9_]+"?/g, ' ')
     .replace(/\balter\s+table\s+("?public"?\.)?"?bkp_[a-z0-9_]+"?\s+enable\s+row\s+level\s+security/g, ' ')
     .replace(/\bcreate\s+temp(orary)?\s+table\b/g, ' ')
-  if (/\b(create|alter|grant|revoke|reindex)\b/.test(semBackup)) return 'mudanca de estrutura em producao: migration so em local/dev; publica a Claude.ai'
+  if (/\b(create|alter|grant|revoke|reindex)\b/.test(semBackup)) return 'mudanca de estrutura em producao: migration so em local; publica a Claude.ai'
   return null
 }
 
@@ -114,6 +129,7 @@ function segmentos(cmd) {
   let cur = ''
   let tem = false
   let q = null
+  let pipe = false
   const fechaTok = () => {
     if (tem) toks.push(cur)
     cur = ''
@@ -121,7 +137,10 @@ function segmentos(cmd) {
   }
   const fechaSeg = () => {
     fechaTok()
-    if (toks.length) segs.push({ toks, corpos })
+    if (toks.length) {
+      segs.push({ toks, corpos, pipe })
+      pipe = false
+    }
     toks = []
     corpos = []
   }
@@ -130,10 +149,25 @@ function segmentos(cmd) {
     const d = cmd[i + 1]
     if (q) {
       if (c === q) q = null
-      else if (c === '\\' && q === '"' && (d === '"' || d === '\\')) {
+      else if (c === '\\' && q === '"' && d === '"') {
+        // "C:\pasta\" fecha a aspa: a barra e do caminho, nao escapa nada.
+        const fim = cmd[i + 2] === undefined || /[\s;|&)]/.test(cmd[i + 2])
+        if (fim && /^([A-Za-z]:[\\/]|\.{0,2}[\\/])/.test(cur)) {
+          cur += c
+          q = null
+        } else cur += d
+        i++
+      } else if (c === '\\' && q === '"' && d === '\\') {
         cur += d
         i++
       } else cur += c
+      continue
+    }
+    if (c === '@' && (d === "'" || d === '"') && !tem && /^\r?\n/.test(cmd.slice(i + 2, i + 4))) {
+      const f = cmd.indexOf(`\n${d}@`, i + 2)
+      cur += cmd.slice(i + 2, f < 0 ? cmd.length : f)
+      tem = true
+      i = f < 0 ? cmd.length : f + 2
       continue
     }
     if (c === '"' || c === "'") {
@@ -148,6 +182,11 @@ function segmentos(cmd) {
         i += m[0].length - 1
         continue
       }
+    }
+    if ((c === '\\' || c === '`') && /^\r?\n/.test(cmd.slice(i + 1, i + 3))) {
+      fechaTok()
+      i += d === '\r' ? 2 : 1
+      continue
     }
     if (c === '\n') {
       for (const tag of pend) {
@@ -164,9 +203,10 @@ function segmentos(cmd) {
       while (i + 1 < cmd.length && cmd[i + 1] !== '\n') i++
       continue
     }
-    if (c === ';' || c === '|' || (c === '&' && cmd[i - 1] !== '>')) {
+    if (';|{}()'.includes(c) || (c === '&' && cmd[i - 1] !== '>')) {
       fechaSeg()
-      if (d === c) i++
+      if (c === '|' && d !== '|') pipe = true
+      if ((c === '|' || c === '&') && d === c) i++
       continue
     }
     if (/\s/.test(c)) {
@@ -186,8 +226,8 @@ const programa = t =>
 function semPrefixos(toks) {
   const t = toks.slice()
   while (t.length) {
-    if (/^\$env:/i.test(t[0])) {
-      t.splice(0, t[1] === '=' ? 3 : 1)
+    if (/^\$[\w:]+$/.test(t[0]) && t[1] === '=') {
+      t.splice(0, 2)
       continue
     }
     if (/^[A-Za-z_]\w*=/.test(t[0]) || t[0].startsWith('-')) {
@@ -195,7 +235,7 @@ function semPrefixos(toks) {
       continue
     }
     const p = programa(t[0])
-    if (EMBRULHOS.has(p) && t.length > 1) {
+    if (PALAVRAS.has(p) || (EMBRULHOS.has(p) && t.length > 1)) {
       t.shift()
       continue
     }
@@ -204,7 +244,7 @@ function semPrefixos(toks) {
       while (t[0]?.startsWith('-')) t.shift()
       continue
     }
-    if (/^(pnpm|yarn)$/.test(p) && /^(dlx|exec)$/.test(t[1] ?? '')) {
+    if (/^(pnpm|yarn|npm|bundle)$/.test(p) && /^(dlx|exec)$/.test(t[1] ?? '')) {
       t.splice(0, 2)
       continue
     }
@@ -235,7 +275,7 @@ function alvosRedir(args) {
 }
 
 function valor(args, nome) {
-  const k = args.indexOf(nome)
+  const k = args.findIndex(a => a.toLowerCase() === nome.toLowerCase())
   if (k >= 0) return args[k + 1]
   const a = args.find(x => x.startsWith(`${nome}=`))
   return a ? a.slice(nome.length + 1) : undefined
@@ -251,7 +291,8 @@ function caminho(p, base) {
 function segredoEm(txt) {
   for (const p of SEGREDOS) {
     const m = txt.match(p)
-    if (m) return `${m[0].slice(0, 7)}...`
+    // sk_live_xxxxxxxx num documento e um exemplo, nao uma chave
+    if (m && !/(.)\1{7,}/.test(m[0])) return `${m[0].slice(0, 7)}...`
   }
   for (const m of txt.matchAll(JWT)) {
     try {
@@ -265,23 +306,27 @@ function segredoEm(txt) {
 
 function avaliaSegredoShell(prog, t) {
   const args = t.slice(1)
-  for (const a of alvosRedir(args)) if (CAMINHO_SEGREDO.test(a)) return `escrever em ficheiro de segredos (${a})`
-  if (prog === 'printenv' && !args.length) return 'mostrar as variaveis de ambiente'
-  if (prog === 'env' && !args.length) return 'mostrar as variaveis de ambiente'
-  if (/^(get-childitem|gci|dir|ls)$/.test(prog) && args.some(a => /^env:/i.test(a))) return 'mostrar as variaveis de ambiente'
-  if (/^(echo|printf|write-output|write-host)$/.test(prog) && args.some(a => /\$(env:)?\{?[A-Z0-9_]*(KEY|TOKEN|SECRET|PASSWORD)\b/i.test(a)))
-    return 'mostrar um segredo guardado em variavel'
+  for (const a of alvosRedir(t)) if (CAMINHO_SEGREDO.test(a)) return `escrever em ficheiro de segredos (${a})`
+  const nomeMau = n => NOME_SEGREDO.test(n) && !NOME_PUBLICO.test(n)
+  if (prog === 'printenv' && args.some(nomeMau)) return 'mostrar um segredo guardado em variavel'
+  if (/^(get-childitem|gci|get-item|gi|dir|ls)$/.test(prog)) {
+    const env = args.find(a => /^env:/i.test(a))
+    if (env !== undefined && (/^env:\*?$/i.test(env) || nomeMau(env))) return 'mostrar as variaveis de ambiente'
+  }
+  if (/^(echo|printf|write-output|write-host)$/.test(prog)) {
+    for (const a of args) for (const m of a.matchAll(/\$(?:env:)?\{?([A-Za-z0-9_]+)/g)) if (nomeMau(m[1])) return 'mostrar um segredo guardado em variavel'
+  }
   if (prog === 'git') {
     const sub = args.find(a => !a.startsWith('-'))
     if (!/^(show|cat-file|diff|log|grep|archive|blame)$/.test(sub ?? '')) return null
-  } else if (SO_LE_NOMES.has(prog)) return null
+  } else if (SO_USAM.has(prog)) return null
   let lista = semRedir(args)
-  if (PROCURA.has(prog)) {
+  if (PROCURA.has(prog) && !lista.some(a => /^-path$/i.test(a))) {
     const k = lista.findIndex(a => !a.startsWith('-'))
     lista = lista.filter((_, i) => i !== k)
   }
-  for (const a of lista) {
-    const v = a.replace(/^--?[\w-]+=/, '').replace(/^[^:\\/]+:(?![\\/])/, '')
+  for (const a of [t[0], ...lista]) {
+    const v = a.replace(/^--?[\w-]+=/, '').replace(/^[^:]+:(?![\\/])/, '')
     if (CAMINHO_SEGREDO.test(v)) return `ficheiro de segredos (${v}): usa so variaveis de ambiente`
   }
   return null
@@ -310,7 +355,12 @@ function destinosDoPushSemRefspec(cwd) {
 
 function avaliaPush(a, cwd) {
   const pos = []
-  for (const x of a) {
+  for (let k = 0; k < a.length; k++) {
+    const x = a[k]
+    if (x === '-o' || x === '--push-option' || x === '--repo') {
+      k++
+      continue
+    }
     if (/^--(force|force-with-lease|force-if-includes)(=|$)/.test(x) || /^-[a-zA-Z]*f[a-zA-Z]*$/.test(x)) return 'push forcado reescreve a historia'
     if (x === '--delete' || /^-[a-zA-Z]*d[a-zA-Z]*$/.test(x)) return 'push --delete apaga um ramo remoto'
     if (/^--(mirror|all|tags|prune)$/.test(x)) return `push ${x} mexe em mais do que o ramo de ensaio`
@@ -336,8 +386,21 @@ function avaliaPush(a, cwd) {
   return null
 }
 
+function avaliaAdd(a, cwd) {
+  for (const f of a.filter(x => !x.startsWith('-'))) {
+    if (CAMINHO_SEGREDO.test(f)) return `ficheiro de segredos no commit (${f})`
+    try {
+      const s = segredoEm(readFileSync(caminho(f, cwd), 'utf8'))
+      if (s) return `segredo em ${f} (${s})`
+    } catch {
+      // pasta ou ficheiro que ja nao existe: o commit ainda passa pelo crivo
+    }
+  }
+  return null
+}
+
 function avaliaCommit(a, cwd) {
-  if (a.includes('--no-verify') || a.includes('-n')) return 'commit a saltar os ganchos (--no-verify)'
+  if (a.includes('--no-verify') || a.some(x => /^-[a-zA-Z]*n[a-zA-Z]*$/.test(x))) return 'commit a saltar os ganchos (--no-verify)'
   const tudo = a.includes('--all') || a.some(x => /^-[a-zA-Z]*a[a-zA-Z]*$/.test(x))
   const base = tudo ? ['diff', 'HEAD'] : ['diff', '--cached']
   let nomes
@@ -346,7 +409,7 @@ function avaliaCommit(a, cwd) {
     nomes = git(cwd, ...base, '--name-only')
     diff = git(cwd, ...base, '-U0', '--no-color')
   } catch {
-    return null
+    return 'nao consegui ver o que vai no commit'
   }
   for (const n of nomes.split('\n')) if (n && CAMINHO_SEGREDO.test(n)) return `ficheiro de segredos no commit (${n})`
   const novas = diff.split('\n').filter(l => l.startsWith('+') && !l.startsWith('+++'))
@@ -367,6 +430,7 @@ function avaliaGit(args, dir) {
   const sub = args[i]
   const a = semRedir(args.slice(i + 1))
   if (sub === 'push') return avaliaPush(a, cwd)
+  if (sub === 'add') return avaliaAdd(a, cwd)
   if (sub === 'commit') return avaliaCommit(a, cwd)
   if (sub === 'filter-branch' || sub === 'filter-repo') return `git ${sub} reescreve a historia`
   if (sub === 'reflog' && a[0] === 'expire') return 'reflog expire apaga pontos de restauro'
@@ -383,38 +447,46 @@ function avaliaGh(a) {
   if (g === 'pr' && s === 'merge') return 'gh pr merge publica: quem junta ao ramo principal e a Claude.ai'
   if (g === 'release' && /^(create|upload|edit|delete)$/.test(s ?? '')) return 'gh release publica'
   if (g === 'workflow' && /^(run|enable|disable)$/.test(s ?? '')) return 'gh workflow mexe no CI que publica'
+  if (g === 'run' && s === 'rerun') return 'gh run rerun pode voltar a publicar'
   if (g === 'repo' && /^(delete|rename|archive|edit)$/.test(s ?? '')) return `gh repo ${s}`
   if ((g === 'secret' || g === 'variable') && /^(set|delete)$/.test(s ?? '')) return `gh ${g} ${s}`
+  if (g === 'auth' && s === 'token') return 'mostrar o token do GitHub'
   if (g === 'api') {
-    const metodo = valor(a, '-X') ?? valor(a, '--method') ?? ''
-    const escreve = (metodo && !/^get$/i.test(metodo)) || a.some(x => /^(-f|-F|--field|--raw-field|--input)$/.test(x))
+    const metodo = valor(a, '-X') ?? valor(a, '--method') ?? a.find(x => /^-X\w/.test(x))?.slice(2) ?? ''
+    const escreve = metodo ? !/^get$/i.test(metodo) : a.some(x => /^(-f|-F|--field|--raw-field|--input)$/.test(x))
     if (/^delete$/i.test(metodo)) return 'gh api DELETE'
+    if (a.includes('graphql') && a.some(x => /mutation/i.test(x) && /(merge|delete)/i.test(x))) return 'gh api graphql a juntar ou apagar'
     const rota = a.slice(1).find(x => /repos\//.test(x)) ?? ''
-    if (escreve && /\/(merges?|git\/refs|dispatches|releases|contents)\b/.test(rota)) return 'gh api a escrever no repositorio sem passar pelo ramo de ensaio'
+    if (escreve && /\/(merges?|git\/refs|dispatches|releases|contents|rerun)\b/.test(rota)) return 'gh api a escrever no repositorio sem passar pelo ramo de ensaio'
   }
   return null
 }
 
 function avaliaWrangler(a) {
+  if (a.includes('--dry-run')) return null
   const pos = a.filter(x => !x.startsWith('-'))
   if (pos[0] === 'pages' && /^(deploy|publish)$/.test(pos[1] ?? ''))
     return RAMO_ENSAIO.test(valor(a, '--branch') ?? '') ? null : 'wrangler pages deploy publica o site; pre-visualizacao so com --branch ai/...'
   if (/^(deploy|publish|rollback)$/.test(pos[0] ?? ''))
     return /^(dev|test|teste|staging|preview)$/i.test(valor(a, '--env') ?? '') ? null : 'wrangler deploy publica em producao'
-  if (pos[0] === 'secret') return 'wrangler secret mexe nos segredos de producao'
+  if (pos[0] === 'versions' && pos[1] === 'deploy') return 'wrangler versions deploy publica em producao'
+  if (pos.includes('delete')) return 'wrangler a apagar em producao'
+  if (pos[0] === 'secret' && pos[1] !== 'list') return 'wrangler secret mexe nos segredos de producao'
   if (pos[0] === 'd1' && a.includes('--remote')) return 'wrangler d1 --remote mexe na base de producao'
   return null
 }
 
 function avaliaSupabase(a) {
+  if (a.includes('--dry-run')) return null
   const pos = a.filter(x => !x.startsWith('-'))
   const k = pos.slice(0, 2).join(' ')
   const url = valor(a, '--db-url')
   const local = a.includes('--local') || (url !== undefined && ambienteConexao(url) === 'local')
   if (k === 'functions deploy' || k === 'functions delete') return 'Edge Function em producao: publica a Claude.ai'
   if (k === 'secrets set' || k === 'secrets unset') return 'segredos de producao'
-  if ((k === 'db push' || k === 'migration repair') && !local) return 'migration em producao: so em local/dev'
-  if ((k === 'db reset' || k === 'migration up') && a.includes('--linked')) return 'supabase --linked mexe na base de producao'
+  if (k === 'projects api-keys') return 'mostrar as chaves do projeto'
+  if ((k === 'db push' || k === 'migration repair') && !local) return 'migration em producao: so em local'
+  if ((k === 'db reset' || k === 'migration up') && (a.includes('--linked') || (url !== undefined && !local))) return 'supabase a mexer na base de producao'
   if (k === 'projects delete') return 'apagar projeto'
   return null
 }
@@ -445,6 +517,7 @@ function avaliaStripe(a) {
   const pos = a.filter(x => !x.startsWith('-'))
   const chave = valor(a, '--api-key')
   const aoVivo = a.includes('--live') || (chave !== undefined && !/^sk_test|TEST/.test(chave))
+  if (pos[0] === 'config' || a.includes('--print-secret')) return 'mostrar as chaves da Stripe'
   if (aoVivo && /^(payouts?|transfers?|topups?)$/.test(pos[0] ?? '') && !/^(list|retrieve)$/.test(pos[1] ?? ''))
     return 'Stripe ao vivo: transferencias, levantamentos e payouts nunca'
   return null
@@ -452,9 +525,14 @@ function avaliaStripe(a) {
 
 function avaliaHttp(a) {
   const txt = a.join(' ')
-  if (!/api\.stripe\.com\/v1\/(payouts|transfers|topups)/i.test(txt)) return null
-  const escreve = /(^|\s)(-d|--data[\w-]*|-F|--form|-Body)(\s|=)|(-X|--request|-Method)\s+(post|put|delete)/i.test(txt)
-  return escreve && !/sk_test|TEST/.test(txt) ? 'Stripe ao vivo: transferencias, levantamentos e payouts nunca' : null
+  const metodo = txt.match(/(?:-X|--request|-Method)[\s=]*(\w+)/i)?.[1] ?? ''
+  const escreve = metodo ? !/^(get|head)$/i.test(metodo) : /(^|\s)(-d|--data[\w-]*|-F|--form|-Body)(\s|=)/i.test(txt)
+  if (!escreve) return null
+  if (/api\.stripe\.com\/v1\/(payouts|transfers|topups)/i.test(txt) && !/sk_test|TEST/.test(txt)) return 'Stripe ao vivo: transferencias, levantamentos e payouts nunca'
+  if (/api\.supabase\.com\/v1\/projects/i.test(txt)) return 'API de gestao do Supabase a escrever em producao'
+  const rest = txt.match(/\.supabase\.co\/rest\/v1\/([a-z_]+)/i)
+  if (rest && !/^(rpc|e2e_log|claude_ai_memoria)$/.test(rest[1])) return 'escrita direta em producao pelo REST do Supabase'
+  return null
 }
 
 function avaliaPublicar(prog, a) {
@@ -462,25 +540,30 @@ function avaliaPublicar(prog, a) {
   if (prog === 'netlify' && a[0] === 'deploy' && a.includes('--prod')) return 'netlify --prod publica'
   if (prog === 'firebase' && a[0] === 'deploy') return 'firebase deploy publica'
   if (prog === 'fastlane' || prog === 'pilot') return 'envio para as lojas: publica a Claude.ai'
-  if ((prog === 'flutter' || prog === 'dart') && a[0] === 'pub' && a[1] === 'publish') return 'pub publish'
+  if (prog === 'gradlew' && a.some(x => /^publish/i.test(x))) return 'gradlew publish: publica a Claude.ai'
+  if ((prog === 'flutter' || prog === 'dart') && a[0] === 'pub' && a[1] === 'publish' && !a.includes('--dry-run')) return 'pub publish'
   if (/^(npm|pnpm|yarn|bun)$/.test(prog)) {
     if (a[0] === 'publish') return 'npm publish'
-    if (/^(run|run-script)$/.test(a[0] ?? '') && /deploy|publish|release/i.test(a[1] ?? '')) return `script ${a[1]} publica`
+    if (/^(run|run-script)$/.test(a[0] ?? '') && /^(deploy|publish|release)\b/i.test(a[1] ?? '')) return `script ${a[1]} publica`
   }
   return null
 }
 
 // ---------- o comando inteiro ----------
 
-function avaliaSegmento({ toks, corpos }, dir, fundo) {
+function avaliaSegmento({ toks, corpos }, dir, fundo, anterior) {
   const t = semPrefixos(toks)
-  if (!t.length) return { motivo: /^(env|printenv)$/.test(programa(toks[0] ?? '')) ? 'mostrar as variaveis de ambiente' : null }
+  if (toks.length === 1) {
+    if (/^(env|printenv|set)$/.test(programa(toks[0]))) return { motivo: 'mostrar as variaveis de ambiente' }
+    const v = toks[0].match(/^\$env:(\w+)$/i)
+    if (v && NOME_SEGREDO.test(v[1]) && !NOME_PUBLICO.test(v[1])) return { motivo: 'mostrar um segredo guardado em variavel' }
+  }
+  if (!t.length) return null
   const prog = programa(t[0])
   const args = t.slice(1)
   const limpo = semRedir(args)
 
   if (/^(cd|set-location|sl|pushd)$/.test(prog)) return { dir: caminho(args[0] ?? '.', dir) }
-  if (toks.length === 1 && /^(env|printenv|set)$/.test(programa(toks[0]))) return { motivo: 'mostrar as variaveis de ambiente' }
 
   let dentro = null
   if (/^(bash|sh|zsh|dash)$/.test(prog)) {
@@ -493,6 +576,7 @@ function avaliaSegmento({ toks, corpos }, dir, fundo) {
     const k = limpo.findIndex(a => /^\/c$/i.test(a))
     if (k >= 0) dentro = limpo.slice(k + 1).join(' ')
   } else if (/^(eval|invoke-expression|iex)$/.test(prog)) dentro = limpo.join(' ')
+  else if (/^(start-process|saps)$/.test(prog)) dentro = `${limpo.find(a => !a.startsWith('-')) ?? ''} ${valor(limpo, '-ArgumentList') ?? ''}`
   if (dentro !== null) {
     const m = avaliaShell(dentro, dir, fundo + 1)
     if (m) return { motivo: m }
@@ -502,14 +586,25 @@ function avaliaSegmento({ toks, corpos }, dir, fundo) {
       const m = avaliaShell(c, dir, fundo + 1)
       if (m) return { motivo: m }
     }
+  if (/^(python|python3|py|node|bun)$/.test(prog)) {
+    const k = limpo.findIndex(a => /^-(c|e|p)$/.test(a))
+    if (k >= 0) {
+      const m = avaliaCodigo(limpo[k + 1] ?? '', dir)
+      if (m) return { motivo: m }
+    }
+  }
 
-  const candidatos = INTERPRETES.has(prog) ? limpo.slice(0, 3) : [t[0]]
-  const script = candidatos.find(x => SCRIPT_PUBLICA.test(x))
+  const soVe = limpo.includes('--check') || limpo.includes('-n')
+  const script = !soVe && (INTERPRETES.has(prog) ? limpo : [t[0]]).find(x => SCRIPT_PUBLICA.test(x))
   if (script) return { motivo: `script de publicacao (${script}): publica a Claude.ai` }
 
-  if (APAGA.has(prog) && limpo.some(a => INTOCAVEL.test(a))) return { motivo: 'apagar backups, provas ou .git' }
-  if (!SO_LE.has(prog) && t.some(a => A_TRAVA.test(a))) return { motivo: 'mexer nos settings ou na propria trava' }
-  for (const a of alvosRedir(args)) if (A_TRAVA.test(a)) return { motivo: 'mexer nos settings ou na propria trava' }
+  const alvos = anterior ? [...limpo, ...anterior] : limpo
+  if (APAGA.has(prog) && alvos.some(a => INTOCAVEL.test(a))) return { motivo: 'apagar backups, provas ou .git' }
+  if (prog === 'find' && limpo.includes('-delete') && limpo.some(a => INTOCAVEL.test(a))) return { motivo: 'apagar backups, provas ou .git' }
+  if (prog === 'robocopy' && limpo.some(a => /^\/(mir|purge)$/i.test(a)) && limpo.some(a => INTOCAVEL.test(a))) return { motivo: 'apagar backups, provas ou .git' }
+
+  const mexeNaTrava = (ESCREVE.has(prog) || (prog === 'sed' && limpo.some(a => /^-i/.test(a)))) && t.some(a => A_TRAVA.test(a))
+  if (mexeNaTrava || alvosRedir(t).some(a => A_TRAVA.test(a))) return { motivo: 'mexer nos settings ou na propria trava' }
   if (prog === 'setx' && /^CLAUDE/i.test(limpo[0] ?? '')) return { motivo: 'mexer nas variaveis do Claude Code' }
   if (t.some(a => /SetEnvironmentVariable/i.test(a)) && t.some(a => /CLAUDE/i.test(a))) return { motivo: 'mexer nas variaveis do Claude Code' }
 
@@ -530,13 +625,17 @@ function avaliaSegmento({ toks, corpos }, dir, fundo) {
 
 function avaliaShell(cmd, cwd, fundo = 0) {
   if (fundo > 4) return 'comando demasiado encadeado para ler'
+  const s = segredoEm(cmd)
+  if (s) return `segredo em texto claro no comando (${s}): usa variavel de ambiente`
   let dir = cwd
+  let anterior = null
   for (const seg of segmentos(cmd)) {
-    const v = avaliaSegmento(seg, dir, fundo)
+    const v = avaliaSegmento(seg, dir, fundo, seg.pipe ? anterior : null)
     if (v?.motivo) return v.motivo
     if (v?.dir) dir = v.dir
+    anterior = seg.toks
   }
-  for (const m of cmd.matchAll(/\$\(([^()]+)\)/g)) {
+  for (const m of cmd.replace(/'[^']*'/g, ' ').matchAll(/\$\(([^()]+)\)/g)) {
     const r = avaliaShell(m[1], dir, fundo + 1)
     if (r) return r
   }
@@ -544,7 +643,7 @@ function avaliaShell(cmd, cwd, fundo = 0) {
 }
 
 function avaliaFicheiro(tool, i) {
-  const alvos = [i.file_path, i.notebook_path, i.path, i.glob].filter(x => typeof x === 'string')
+  const alvos = [i.file_path, i.notebook_path, i.path, i.glob].filter(x => typeof x === 'string' && !x.startsWith('!'))
   for (const a of alvos) if (CAMINHO_SEGREDO.test(a)) return `ficheiro de segredos (${a}): usa so variaveis de ambiente`
   if (tool === 'Read' || tool === 'Grep') return null
   for (const a of alvos) if (A_TRAVA.test(a)) return 'mexer nos settings ou na propria trava'
@@ -554,9 +653,16 @@ function avaliaFicheiro(tool, i) {
   return s ? `segredo em texto claro (${s}): usa variavel de ambiente` : null
 }
 
-// Ferramentas MCP que correm comandos contam como terminal.
+// Codigo que corre comandos conta como terminal.
 function avaliaCodigo(codigo, cwd) {
-  for (const m of String(codigo).matchAll(/['"`]((?:git|gh|psql|supabase|npx|wrangler|vercel|firebase|stripe)\s[^'"`]*)['"`]/g)) {
+  const txt = String(codigo)
+  for (const m of txt.matchAll(/['"`]([^'"`\n]*)['"`]/g)) if (CAMINHO_SEGREDO.test(m[1])) return `ficheiro de segredos (${m[1]})`
+  for (const m of txt.matchAll(/\[?\s*['"](git|gh|psql|supabase|wrangler|vercel|firebase|stripe)['"]\s*,\s*\[?([^\]]*)\]/g)) {
+    const resto = [...m[2].matchAll(/['"]([^'"]*)['"]/g)].map(x => x[1]).join(' ')
+    const r = avaliaShell(`${m[1]} ${resto}`, cwd, 1)
+    if (r) return r
+  }
+  for (const m of txt.matchAll(/['"`]((?:git|gh|psql|supabase|npx|wrangler|vercel|firebase|stripe)\s[^'"`]*)['"`]/g)) {
     const r = avaliaShell(m[1].replace(/\$\{[^}]*\}/g, 'X'), cwd, 1)
     if (r) return r
   }
@@ -565,16 +671,17 @@ function avaliaCodigo(codigo, cwd) {
 
 function avaliaMcp(nome, i, cwd) {
   const base = nome.split('__').pop()
-  if (base === 'execute_sql' || base === 'apply_migration') {
-    const ambiente = !i.project_id || PROJETOS_PRODUCAO.has(i.project_id) ? 'producao' : 'teste'
-    if (base === 'apply_migration' && ambiente === 'producao') return 'migration em producao: so em local/dev; publica a Claude.ai'
-    return avaliaSql(String(i.query ?? ''), ambiente)
+  for (const k of ['path', 'file_path']) if (typeof i[k] === 'string' && CAMINHO_SEGREDO.test(i[k])) return `ficheiro de segredos (${i[k]})`
+  if (/^(execute_sql|apply_migration|run_sql|execute_query)$/.test(base) || (base === 'query' && /postgres|sql/i.test(nome))) {
+    const ambiente = PROJETOS_ENSAIO.has(i.project_id) ? 'teste' : 'producao'
+    if (base === 'apply_migration' && ambiente === 'producao') return 'migration em producao: so em local; publica a Claude.ai'
+    return avaliaSql(String(i.query ?? i.sql ?? ''), ambiente)
   }
   if (/^(deploy|publish)_/.test(base)) return `${base}: publica a Claude.ai`
-  if (/^(merge_branch|create_edge_function_secret|pause_project|restore_project|confirm_project_publication_review)$/.test(base))
+  if (/^(merge_branch|merge_pull_request|delete_branch|reset_branch|rebase_branch|create_edge_function_secret|pause_project|restore_project|delete_project|confirm_project_publication_review)$/.test(base))
     return `${base} mexe em producao: publica a Claude.ai`
-  if (/stripe/i.test(nome) && /(payout|transfer)/i.test(base) && !/^(list|get|retrieve)/.test(base))
-    return 'Stripe: transferencias, levantamentos e payouts nunca'
+  if (/^(push_files|create_or_update_file)$/.test(base) && !RAMO_ENSAIO.test(String(i.branch ?? ''))) return `${base} fora do ramo de ensaio ai/`
+  if (/^(create|send|make|execute)_/.test(base) && /(^|_)(payouts?|transfers?)(_|$)/.test(base)) return 'transferencias, levantamentos e payouts nunca'
   if (base === 'ctx_batch_execute') {
     for (const c of Array.isArray(i.commands) ? i.commands : []) {
       const r = avaliaShell(String(c?.command ?? ''), cwd)
@@ -590,10 +697,9 @@ function avaliaMcp(nome, i, cwd) {
 
 export function avalia(tool, input, ctx = {}) {
   const cwd = ctx.cwd || process.cwd()
-  if (tool === 'Bash' || tool === 'PowerShell') return avaliaShell(String(input.command ?? ''), cwd)
   if (/^(Read|Grep|Edit|Write|MultiEdit|NotebookEdit)$/.test(tool)) return avaliaFicheiro(tool, input)
   if (String(tool).startsWith('mcp__')) return avaliaMcp(tool, input, cwd)
-  return null
+  return typeof input.command === 'string' ? avaliaShell(input.command, cwd) : null
 }
 
 // ---------- gancho ----------
@@ -606,7 +712,6 @@ function bloqueia(motivo, dados) {
     // um registo que falha nunca abre a trava
   }
   const texto = `TRAVA do modo automatico: BLOQUEADO - ${motivo}. Nao contornes: regista no e2e_log, reporta e segue com o resto.`
-  // Prova de 05/11: com a tranca a aprovar o Read, o exit 2 nao travou a leitura; o deny em JSON e que manda.
   // writeSync porque no Windows um pipe e assincrono e o process.exit cortava a resposta.
   writeSync(1, JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: texto } }))
   process.exit(0)

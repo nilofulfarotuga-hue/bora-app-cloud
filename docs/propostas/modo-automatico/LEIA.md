@@ -31,7 +31,10 @@ da missão, e apertam uma:
 
 ## O que se provou
 
-- Testes: `node trava-modo-automatico.test.mjs`. Contra uma trava vazia a mesma bateria falha.
+- Testes: `node trava-modo-automatico.test.mjs`, 160 casos a bloquear e 74 a deixar passar. Contra uma
+  trava vazia a mesma bateria dá 170 falhas.
+- Um verificador de contexto limpo tentou derrubar a primeira versão com 524 entradas e achou 16 buracos
+  e 13 falsos alarmes. Os casos dele entraram nos testes; o que ficou de fora está nos limites abaixo.
 - Sessões reais do Claude Code em modo sem caixas, numa pasta de ensaio com um `.env` falso:
   - `gh pr merge` foi bloqueado.
   - A leitura do `.env` **passou** com a trava sozinha, em `Read` e em `cat`. A causa: a aprovação
@@ -51,9 +54,13 @@ agendadas que chamam `claude -p` foram vistas: nenhuma publica.
 ## Limites honestos
 
 - A trava lê comandos, não o que um script faz por dentro. Um programa próprio que use uma chave de
-  produção não se vê.
-- `ssh` para a VPS não está coberto.
+  produção não se vê, nem um `fetch` escrito em código.
+- `ssh` para a VPS não está coberto: o que corre lá dentro não se lê.
 - `grep -r` numa pasta pode passar por um `.env` que não esteja no `.gitignore`.
+- Um alvo guardado numa variável não se resolve: `foreach ($d in "backups") { Remove-Item $d }` passa.
+- `git reset --hard` e `git clean -f` ficam com a tranca, que já os recusa.
+- Qualquer projeto Supabase fora da lista `PROJETOS_ENSAIO` conta como produção. A lista está vazia:
+  um ramo de ensaio do Supabase só funciona depois de o Danilo o acrescentar à mão.
 - É uma rede contra erros de um agente, não contra um atacante a disfarçar comandos.
 - O CI `revisao.yml` nunca correu: só corre depois de estar no ramo. O modelo `revisao-site.yml` também não.
 - Os outros repositórios com GitHub ainda não têm CI de revisão: um projeto de cada vez, com a mesma regra.

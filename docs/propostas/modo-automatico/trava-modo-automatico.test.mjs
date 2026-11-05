@@ -15,9 +15,10 @@ const PROD = 'ojykpzwqrtusfeakzrna'
 const SQL = 'mcp__x__execute_sql'
 const MIG = 'mcp__x__apply_migration'
 const sh = command => ['Bash', { command }]
+const ps = command => ['PowerShell', { command }]
 const q = (query, project_id = PROD) => [SQL, { query, project_id }]
 // Segredos falsos montados aos bocados: nenhum existe como texto neste ficheiro.
-const falso = { stripe: 'sk_' + 'live_' + 'a'.repeat(24), gh: 'gh' + 'p_' + 'b'.repeat(36) }
+const falso = { stripe: 'sk_' + 'live_' + 'aB3dE5'.repeat(4), gh: 'gh' + 'p_' + 'aB3dE5'.repeat(6) }
 
 const BLOQUEIA = [
   ['DELETE em producao', q('delete from public.produtos where id = 1')],
@@ -105,6 +106,82 @@ const BLOQUEIA = [
   ['settings por copia', sh('cp x C:/Users/danil/.claude/settings.json')],
   ['settings por redirecionamento', sh('echo {} > ~/.claude/settings.json')],
   ['setx nas variaveis', ['PowerShell', { command: 'setx CLAUDE_CODE_PLUGIN_DIRS ""' }]],
+  // Buracos achados pelo verificador de contexto limpo, a 05/11.
+  ['projeto desconhecido conta como producao', q('delete from orders', 'abcdefghijklmnopqrst')],
+  ['migration em projeto desconhecido', [MIG, { project_id: 'abcdefghijklmnopqrst', name: 'x', query: 'select 1' }]],
+  ['chave sql em vez de query', [SQL, { project_id: PROD, sql: 'delete from orders' }]],
+  ['MCP postgres', ['mcp__postgres__query', { sql: 'delete from orders' }]],
+  ['UPDATE platform_settings', q("update platform_settings set value = '1' where key = 'x'")],
+  ['UPDATE payments', q("update payments set status = 'x'")],
+  ['UPDATE driver_payouts', q("update driver_payouts set status = 'paid'")],
+  ['ler o vault', q('select name, decrypted_secret from vault.decrypted_secrets')],
+  ['if do PowerShell', ps('if ($?) { git push --force origin main }')],
+  ['for do bash', sh('for b in a b; do git push origin :$b; done')],
+  ['atribuicao no PowerShell', ps('$r = git push --force origin main 2>&1')],
+  ['ForEach-Object', ps('git branch -r | ForEach-Object { git push origin --delete $_ }')],
+  ['xargs', sh('echo main | xargs git push --force origin')],
+  ['barra final dentro de aspas', ps('cd "C:\\x\\"; git push --force origin main')],
+  ['apagar com barra final', ps('Remove-Item -Recurse "C:\\Users\\danil\\Desktop\\Bora\\backups\\"')],
+  ['Monitor', ['Monitor', { command: 'git push --force origin main' }]],
+  ['ctx_execute_file num .env', ['mcp__p__ctx_execute_file', { path: 'C:/x/.env', language: 'javascript', code: 'x' }]],
+  ['ctx_index num .env', ['mcp__p__ctx_index', { path: 'C:/x/.env' }]],
+  ['subprocess', ['mcp__p__ctx_execute', { language: 'python', code: 'subprocess.run(["git","push","--force","origin","main"])' }]],
+  ['execFileSync', ['mcp__p__ctx_execute', { language: 'javascript', code: "execFileSync('git',['push','--force','origin','main'])" }]],
+  ['open .env no sandbox', ['mcp__p__ctx_execute', { language: 'python', code: "open('.env').read()" }]],
+  ['REST DELETE', sh('curl -X DELETE "https://abc.supabase.co/rest/v1/orders?status=eq.pending" -H "apikey: $K"')],
+  ['REST PATCH', sh('curl -X PATCH "https://abc.supabase.co/rest/v1/orders?id=eq.1" -d "{}"')],
+  ['API de gestao', sh('curl -X POST https://api.supabase.com/v1/projects/abc/database/query -d "{}"')],
+  ['Invoke-RestMethod', ps('Invoke-RestMethod -Method Delete -Uri https://abc.supabase.co/rest/v1/orders?id=eq.1')],
+  ['db reset por url de producao', sh('supabase db reset --db-url postgresql://postgres@db.abc.supabase.co:5432/postgres')],
+  ['api-keys', sh('supabase projects api-keys --project-ref abc')],
+  ['.p8', sh('cat android/AuthKey_ABC1234567.p8')],
+  ['conta de servico', ['Read', { file_path: 'C:/x/play-service-account.json' }]],
+  ['firebase admin', ['Read', { file_path: 'C:/x/firebase-adminsdk-abcde-1234.json' }]],
+  ['.dev.vars', sh('cat .dev.vars')],
+  ['hosts do gh', sh('cat ~/.config/gh/hosts.yml')],
+  ['.git-credentials', sh('cat ~/.git-credentials')],
+  ['prod.env', sh('cat config/prod.env')],
+  ['git show de outro ramo', sh('git show origin/autonomous-night-2026-04-29:.env')],
+  ['python -c', sh('python -c "print(open(\'.env\').read())"')],
+  ['node -e', sh('node -e "console.log(require(\'fs\').readFileSync(\'.env\',\'utf8\'))"')],
+  ['ReadAllText', ps('[System.IO.File]::ReadAllText(".env")')],
+  ['Select-String -Path', ps('Select-String -Path .env -Pattern KEY')],
+  ['printenv com nome', sh('printenv STRIPE_SECRET_KEY')],
+  ['$env sozinho', ps('$env:STRIPE_SECRET_KEY')],
+  ['Get-Item Env', ps('Get-Item Env:STRIPE_SECRET_KEY')],
+  ['gh auth token', sh('gh auth token')],
+  ['stripe config', sh('stripe config --list')],
+  ['print-secret', sh('stripe listen --print-secret')],
+  ['echo do URL da base', sh('echo $DATABASE_URL')],
+  ['segredo por echo', sh('echo "K=' + falso.stripe + '" >> notas.txt')],
+  ['segredo por heredoc', sh("cat > docs/x.md <<'EOF'\n" + falso.stripe + '\nEOF')],
+  ['Set-Content com segredo', ps('Set-Content -Path docs\\x.md -Value "K=' + falso.stripe + '"')],
+  ['URL de base com password', ['Write', { file_path: 'C:/x/a.md', content: 'postgresql://postgres.abc:' + 'Zq9' + 'xW2kP@aws-0-eu-west-3.pooler.supabase.com:6543/postgres' }]],
+  ['token do Telegram', ['Write', { file_path: 'C:/x/a.md', content: '1234567890:AA' + 'Hc3d'.repeat(9) }]],
+  ['commit -nm', sh('git commit -nm x')],
+  ['git add .env', sh('git add .env')],
+  ['listar e apagar backups', ps('Get-ChildItem .\\backups -Recurse | Remove-Item -Recurse -Force')],
+  ['find -delete', sh('find backups -type f -delete')],
+  ['backup com data', sh('rm -rf backup_2026-10-01')],
+  ['robocopy /MIR', ps('robocopy C:\\vazio C:\\x\\backups /MIR')],
+  ['deploy com bandeiras', ps('powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\deploy.ps1')],
+  ['build_and_deploy', sh('sh ./scripts/build_and_deploy.sh')],
+  ['publish-web', sh('node scripts/publish-web.mjs')],
+  ['gh run rerun', sh('gh run rerun 123456')],
+  ['gh api -XDELETE', sh('gh api -XDELETE repos/o/r/git/refs/heads/x')],
+  ['graphql merge', sh("gh api graphql -f query='mutation { mergePullRequest(input:{}) { x } }'")],
+  ['wrangler delete', sh('wrangler delete')],
+  ['wrangler versions deploy', sh('wrangler versions deploy')],
+  ['r2 delete', sh('wrangler r2 bucket delete bora-assets')],
+  ['npm exec wrangler', sh('npm exec -- wrangler deploy')],
+  ['gradlew', sh('./gradlew publishReleaseBundle')],
+  ['bundle exec fastlane', sh('bundle exec fastlane ios beta')],
+  ['payout por MCP sem stripe no nome', ['mcp__695fcf69__create_payout', { amount: 1000 }]],
+  ['merge por MCP', ['mcp__github__merge_pull_request', {}]],
+  ['push_files para main', ['mcp__github__push_files', { branch: 'main' }]],
+  ['Start-Process', ps('Start-Process git -ArgumentList "push --force origin main"')],
+  ['Invoke-Command', ps('Invoke-Command -ScriptBlock { git push -f origin main }')],
+  ['wsl', sh('wsl git push --force origin main')],
 ]
 
 const DEIXA = [
@@ -117,8 +194,6 @@ const DEIXA = [
   ['palavra delete dentro de texto', q("select * from e2e_log where detalhe like '%delete from orders%'")],
   ['palavra drop em comentario', q('select 1 -- drop table x')],
   ['for update nao e escrita', q('select * from orders where id = 1 for update')],
-  ['projeto de ensaio aceita tudo', q('drop table x', 'abcdefghijklmnopqrst')],
-  ['migration em ramo de teste', [MIG, { project_id: 'abcdefghijklmnopqrst', name: 'x', query: 'create table x(id int)' }]],
   ['psql local', sh('psql -h localhost -p 54322 -c "truncate x"')],
   ['psql 127.0.0.1', sh('psql "postgresql://postgres@127.0.0.1:54322/postgres" -c "drop table x"')],
   ['supabase local', sh('supabase db reset')],
@@ -160,6 +235,31 @@ const DEIXA = [
   ['worktree remove', sh('git worktree remove C:/BoraLocal/wt-x')],
   ['ferramenta sem regra', ['mcp__x__cortex_buscar', { query: 'x' }]],
   ['node a ler git log', ['mcp__p__ctx_execute', { language: 'javascript', code: "execSync('git log -1')" }]],
+  // Falsos alarmes achados pelo verificador de contexto limpo, a 05/11.
+  ['ssh para a VPS', sh('ssh -i ~/.ssh/id_ed25519_vps root@srv1786862.hstgr.cloud "docker exec x ls /opt/data"')],
+  ['scp', sh('scp -i ~/.ssh/id_ed25519_vps ./relatorio.md root@x:/opt/data/')],
+  ['chave publica', sh('cat ~/.ssh/id_ed25519.pub')],
+  ['testar a trava', sh('node ~/.claude/hooks/trava-modo-automatico.test.mjs')],
+  ['node --check na trava', sh('node --check ~/.claude/hooks/trava-modo-automatico.mjs')],
+  ['ver settings com jq', sh('jq .hooks ~/.claude/settings.json')],
+  ['.env.production.example', ['Read', { file_path: 'C:/x/.env.production.example' }]],
+  ['push com -o', sh('git push -o ci.skip origin ai/2026-11-05-x')],
+  ['push em duas linhas', sh('git push origin \\\n  ai/2026-11-05-x')],
+  ['here-string com apostrofo', ps("Write-Output @'\ntrava: don't deixar git push --force\n- git push --force origin main\n'@")],
+  ['$( dentro de aspas simples', sh("echo 'use $(git push --force) assim'")],
+  ['dry-run supabase', sh('supabase db push --dry-run')],
+  ['dry-run wrangler', sh('wrangler deploy --dry-run --outdir dist')],
+  ['dry-run pub', sh('dart pub publish --dry-run')],
+  ['node --check num deploy', sh('node --check scripts/deploy_web.mjs')],
+  ['notas de versao', sh('python scripts/release_notes.py')],
+  ['npm build:release', sh('npm run build:release')],
+  ['exemplo de chave num documento', ['Write', { file_path: 'C:/x/a.md', content: 'STRIPE=sk_' + 'live_' + 'x'.repeat(24) }]],
+  ['gh api GET com -f', sh('gh api -X GET repos/o/r/contents/lib -f ref=ai/2026-11-05-x')],
+  ['wrangler secret list', sh('wrangler secret list')],
+  ['chave publica do Supabase', ps('echo $env:SUPABASE_ANON_KEY')],
+  ['uma variavel do ambiente', ps('Get-ChildItem Env:FLUTTER_ROOT')],
+  ['keytool', sh('keytool -list -v -keystore android/app/upload-keystore.jks')],
+  ['Grep com exclusao', ['Grep', { pattern: 'x', glob: '!**/.env*' }]],
 ]
 
 let falhas = 0
@@ -207,6 +307,7 @@ try {
   g(rep, 'add', 'b.txt')
   verifica('commit limpo passa', !avalia('Bash', { command: 'git commit -m b' }, ctx))
   writeFileSync(join(rep, 'c.dart'), `const k = '${falso.stripe}';\n`)
+  verifica('add com segredo bloqueia', !!avalia('Bash', { command: 'git add c.dart' }, ctx))
   g(rep, 'add', 'c.dart')
   verifica('commit com segredo bloqueia', !!avalia('Bash', { command: 'git commit -m c' }, ctx))
   g(rep, 'rm', '-q', '--cached', 'c.dart')

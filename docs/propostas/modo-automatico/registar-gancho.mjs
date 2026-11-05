@@ -3,10 +3,10 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 
 const [, , ficheiro, gancho, modo] = process.argv
-const MATCHER = 'Bash|PowerShell|Read|Grep|Edit|Write|MultiEdit|NotebookEdit|mcp__.*'
+const MATCHER = 'Bash|PowerShell|Monitor|Read|Grep|Edit|Write|MultiEdit|NotebookEdit|mcp__.*'
 const barras = p => p.replace(/\\/g, '/')
 
-const cfg = JSON.parse(readFileSync(ficheiro, 'utf8').replace(/^﻿/, ''))
+const cfg = JSON.parse(readFileSync(ficheiro, 'utf8').replace(/^\uFEFF/, ''))
 cfg.hooks ??= {}
 const outros = (cfg.hooks.PreToolUse ?? []).filter(e => !JSON.stringify(e).includes('trava-modo-automatico'))
 if (modo === '--tirar') cfg.hooks.PreToolUse = outros

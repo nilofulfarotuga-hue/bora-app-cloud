@@ -49,7 +49,8 @@ Erro encontrado pelo caminho: conserta na hora se estiver no âmbito, senão rep
 
 - **Flutter:** `flutter analyze`, `flutter test`, build. Respeita o portão de memória (800 MB).
 - **Web:** lint, build e ligações.
-- **Supabase:** SQL, RLS, funções e SELECT de prova. Migrations só em local ou em ramo de ensaio.
+- **Supabase:** SQL, RLS, funções e SELECT de prova. Migrations só em ambiente local; sem ele, fica
+  a proposta pronta em `docs/propostas` e aplica-a o Claude.ai.
 - **Stripe:** só modo de teste, webhooks e idempotência.
 - **Obsidian:** ligações e estrutura. Ler, não reorganizar.
 - **Sem repositório remoto:** ramo local e testes locais; diz no relatório que não há pedido de revisão.
@@ -59,8 +60,8 @@ Erro encontrado pelo caminho: conserta na hora se estiver no âmbito, senão rep
 Bloqueiam sem perguntar, mesmo em "Ignorar permissões". Ficheiro: `~/.claude/hooks/trava-modo-automatico.mjs`.
 Se esse ficheiro não existir, a trava ainda não foi ligada e **estas regras valem à mesma**.
 
-- DELETE, DROP e TRUNCATE em produção. Local e projeto de ensaio ficam livres; destino que não se
-  consegue identificar conta como produção.
+- DELETE, DROP e TRUNCATE em produção. O ambiente local fica livre; destino que não se consegue
+  identificar conta como produção.
 - `git push --force`, reescrever história, apagar ramos remotos ou backups.
 - Envio para qualquer ramo que não seja `ai/AAAA-MM-DD-descricao`.
 - Transferências, levantamentos e payouts do Stripe ao vivo.

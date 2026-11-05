@@ -39,6 +39,19 @@ String? contaCurtaDinheiro(OrderModel o) {
   return partes.join(' · ');
 }
 
+/// 05/11/2026 (caso do pedido 9124cfa5): pago por cartão ou MB Way com tokens,
+/// saldo ou crédito — o valor que saiu de facto, para o cliente ver a conta
+/// fechar (total menos desconto = pago). Só mostra o que já está no pedido; não
+/// muda nada do que se cobra. null em dinheiro, sem desconto ou ainda por pagar.
+double? pagoPorCartaoOuMbWay(OrderModel o) {
+  if (o.paymentMethod == PaymentMethod.cash) return null;
+  if (o.paymentStatus != PaymentStatus.paid) return null;
+  final jaPago = o.jaPagoSemDinheiro;
+  if (jaPago <= 0) return null;
+  final pago = (o.finalTotal ?? o.total) - jaPago;
+  return pago < 0 ? 0 : pago;
+}
+
 /// Para os ecrãs do cliente: quanto paga em dinheiro à porta e quanto já
 /// pagou com saldo/tokens/crédito de menu. null quando não é dinheiro ou não
 /// há nada pago antes (aí o "Total" já é o que paga).

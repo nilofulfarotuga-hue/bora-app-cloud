@@ -102,6 +102,7 @@ import 'admin_send_notification_screen.dart';
 import 'admin_service_providers_screen.dart';
 import 'admin_skill_suggestions_screen.dart';
 import 'admin_stuck_reservations_screen.dart';
+import 'admin_suporte_central_screen.dart';
 import 'admin_support_stats_screen.dart';
 import 'admin_support_tickets_screen.dart';
 import 'admin_tvde_access_requests_screen.dart';
@@ -1541,6 +1542,16 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.indigo,
       builder: () => const AdminKnowledgeScreen(),
       keywords: const ['base', 'conhecimento', 'knowledge', 'leem', 'robos'],
+    ),
+    // 05/11/2026: autoridade total sobre o robô do suporte.
+    AdminMenuItem(
+      id: 'robos_central_suporte',
+      title: 'Central do robô do suporte',
+      subtitle: 'Cada conversa com as ferramentas usadas, perguntas sem resposta, propor skill, ligar/desligar ferramentas e skills, trocar o modelo e exportar',
+      icon: Icons.support_agent,
+      color: Colors.deepPurple,
+      builder: () => const AdminSuporteCentralScreen(),
+      keywords: const ['robo', 'suporte', 'conversas', 'ferramentas', 'skills', 'modelo', 'sem resposta', 'chatbot'],
     ),
     AdminMenuItem(
       id: 'robos_estatisticas_suporte_ia',

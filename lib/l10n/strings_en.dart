@@ -2767,6 +2767,7 @@ const Map<String, String> kStringsEn = <String, String>{
   'Faltam {0} € para evitar a taxa de pedido pequeno':
       '{0} € to go to avoid the small order fee',
   'Faltam {0} € para a entrega grátis': '{0} € to go for free delivery',
+  'Desconto de tokens': 'Token discount',
   'Enviámos um novo pedido MB Way. Tens poucos minutos para o aprovar na app MB Way.':
       'We sent a new MB Way request. You have a few minutes to approve it in the MB Way app.',
   'Já tens um pedido MB Way à espera. Aprova-o na app MB Way.':

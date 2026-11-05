@@ -819,6 +819,20 @@ class _OrderInfoCard extends StatelessWidget {
                   ? eur(order.totalWithDebt)
                   : eur((order.finalTotal ?? order.total)),
               bold: true),
+          // 05/11/2026: com tokens, a conta fecha à vista do cliente: total,
+          // menos o desconto, igual ao pago.
+          if (order.tokensAppliedValueCents > 0)
+            _Row(
+                key: const Key('linha_desconto_tokens'),
+                label: 'Desconto de tokens'.tr,
+                value: '-${eur(order.tokensAppliedValueCents / 100)}',
+                cor: const Color(0xFF16A34A)),
+          if (pagoPorCartaoOuMbWay(order) case final pago?)
+            _Row(
+                key: const Key('linha_pago'),
+                label: 'Pago'.tr,
+                value: eur(pago),
+                bold: true),
           if (dinheiro != null) ...[
             _Row(
                 label: 'Já pago com saldo/tokens'.tr,
@@ -1318,11 +1332,18 @@ class _Card extends StatelessWidget {
 }
 
 class _Row extends StatelessWidget {
-  const _Row({required this.label, required this.value, this.bold = false});
+  const _Row({
+    super.key,
+    required this.label,
+    required this.value,
+    this.bold = false,
+    this.cor,
+  });
 
   final String label;
   final String value;
   final bool bold;
+  final Color? cor;
 
   @override
   Widget build(BuildContext context) {
@@ -1339,6 +1360,7 @@ class _Row extends StatelessWidget {
             style: TextStyle(
               fontSize: 14,
               fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+              color: cor,
             ),
           ),
         ],

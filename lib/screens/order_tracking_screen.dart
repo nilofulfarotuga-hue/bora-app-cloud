@@ -1233,6 +1233,20 @@ class _BottomCardState extends State<_BottomCard> {
                             : (order.finalTotal ?? order.total),
                         isStrong: true,
                       ),
+                      // 05/11/2026: com tokens, a conta fecha à vista do
+                      // cliente: total, menos o desconto, igual ao pago.
+                      if (order.tokensAppliedValueCents > 0)
+                        _SummaryRow(
+                            key: const Key('linha_desconto_tokens'),
+                            label: 'Desconto de tokens'.tr,
+                            value: -(order.tokensAppliedValueCents / 100),
+                            isDiscount: true),
+                      if (pagoPorCartaoOuMbWay(order) case final pago?)
+                        _SummaryRow(
+                            key: const Key('linha_pago'),
+                            label: 'Pago'.tr,
+                            value: pago,
+                            isStrong: true),
                       if (dinheiroDoCliente(order) case final d?) ...[
                         _SummaryRow(
                             label: 'Já pago com saldo/tokens'.tr,
@@ -1678,6 +1692,7 @@ class _EtaBadge extends StatelessWidget {
 // `isDiscount` para mostrar valores negativos (saldo aplicado).
 class _SummaryRow extends StatelessWidget {
   const _SummaryRow({
+    super.key,
     required this.label,
     required this.value,
     this.isStrong = false,

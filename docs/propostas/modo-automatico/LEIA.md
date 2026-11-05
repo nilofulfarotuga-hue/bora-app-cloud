@@ -1,8 +1,10 @@
-# Modo automático seguro: o que falta ligar
+# Modo automático seguro: como se liga
 
-> Missão `modo-automatico-seguro-2026-11-05`. Tudo aqui está testado e **ainda desligado**.
+> Missão `modo-automatico-seguro-2026-11-05`. Primeiro clique do Danilo a 05/11 às 20:37: trava, regras,
+> guardas e CI ligados. Falta um segundo clique para `guardas-sem-pergunta.patch`: sem ele, um "Permitir"
+> na pergunta da tranca ainda publica. O instalador é o mesmo e pode correr as vezes que for preciso.
 
-## Porque não ficou ligado
+## Porque não se liga sozinho
 
 A tranca recusou escrever em `.claude/hooks/` e em `.github/workflows/` e está na lista dela
 `.claude/settings.json`. É a regra: nenhum agente muda as próprias trancas. Não se contornou por outro
@@ -14,20 +16,26 @@ caminho. Liga-se com um duplo clique do Danilo em `ATIVAR-MODO-AUTOMATICO.cmd`, 
 2. Copia `trava-modo-automatico.mjs` para `~/.claude/hooks/` e regista-a nos settings globais.
 3. Acrescenta aos settings as regras que recusam ler ficheiros de segredos.
 4. Corre os testes com a cópia instalada. Se falharem, volta tudo atrás sozinho.
-5. Aplica `guardas-ramo-ai.patch` na pasta principal do bora_app (ver abaixo).
-6. Põe `revisao.yml` no ramo de ensaio, com o mesmo remendo, e envia esse ramo. Não publica nada.
+5. Aplica `guardas-ramo-ai.patch` e `guardas-sem-pergunta.patch` na pasta principal do bora_app (ver abaixo).
+6. Põe `revisao.yml` no ramo de ensaio, com os mesmos remendos, e envia esse ramo. Não publica nada.
 
 Para desligar: `DESATIVAR-MODO-AUTOMATICO.cmd`, no mesmo sítio. Só vale em sessões abertas depois.
 
 ## O que muda nas guardas antigas
 
-Quatro mudanças pequenas, em `guardas-ramo-ai.patch`. Afrouxam duas coisas de propósito, por ordem
-da missão, e apertam uma:
+Dois remendos. O primeiro, `guardas-ramo-ai.patch`, afrouxa duas coisas de propósito, por ordem da missão:
 
 - `git-guardrails.py` passa a aceitar os ramos `ai/AAAA-MM-DD-...`. Sem isto, nenhum ramo de ensaio se envia.
 - A tranca deixa de perguntar ao enviar para esses ramos: não publicam nada.
 - A tranca deixa de aprovar sozinha o que toca em segredos. Sem isto, o `cat .env` passa.
-- Um teste novo da tranca para o primeiro caso.
+
+O segundo, `guardas-sem-pergunta.patch`, aperta:
+
+- `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy de Edge Functions passam a ser
+  recusados, em vez de perguntar. Sem isto, um "Permitir" passa por cima da trava e publica.
+- A exceção são as cópias `bkp_`, que têm de continuar a funcionar: são o ponto de restauro.
+- A lista de segredos que a tranca não aprova sozinha fica igual à da trava.
+- Os testes da tranca mudam com isto: 45 passam.
 
 ## O que se provou
 
@@ -42,6 +50,8 @@ da missão, e apertam uma:
   - Com as regras de leitura, o `Read` ficou bloqueado e o `cat` passou.
   - Com as regras e a tranca remendada, os dois ficaram bloqueados.
   - Ler `nota.txt` e `.env.example` continuou a funcionar.
+  - Depois do primeiro clique, com um "Permitir" simulado, o envio para `main` **passou** por cima da
+    trava num remoto falso. Com `guardas-sem-pergunta.patch`, foi recusado e o ramo `ai/` seguiu.
 - Instalador ensaiado numa casa falsa: instala, não duplica, desinstala igual ao original, e volta
   atrás sozinho com uma trava estragada.
 

@@ -44,8 +44,19 @@ faz por dentro. É uma rede contra erros de um agente, não contra um atacante.
 **Próximo passo.** O Danilo faz duplo clique em `ATIVAR-MODO-AUTOMATICO.cmd`. Depois disso, nenhuma sessão do Claude Code
 volta a enviar para o ramo principal nem a fazer deploy, e tudo passa pelo Claude.ai.
 
+## Depois do primeiro clique (05/11, 20:37)
+
+O Danilo clicou e a instalação correu: trava e regras nos settings, guardas corrigidas, CI enviado. Numa sessão nova,
+com os settings verdadeiros, o `.env` e o `gh pr merge` ficaram bloqueados e o ramo `ai/` seguiu sem pergunta.
+
+Mas o envio para `main` só foi recusado porque ninguém estava lá para responder à pergunta da tranca. Testei com um
+"Permitir" simulado, num remoto falso, e o envio passou por cima da trava: `main` subiu para 2 commits. O texto acima que
+diz que depois do clique nenhuma sessão publica estava errado. A correção é `guardas-sem-pergunta.patch`: a tranca deixa
+de perguntar e recusa logo. Numa cópia, os 45 testes da tranca passam e, numa sessão real, `main` ficou intacto. Precisa
+de um segundo clique, porque a tranca continua a não deixar um agente mexer nela.
+
 ## PARA O DANILO
 
-1. Ligar: duplo clique em `ATIVAR-MODO-AUTOMATICO.cmd`. Fazê-lo com nenhuma missão a meio de publicar.
+1. Segundo clique em `ATIVAR-MODO-AUTOMATICO.cmd`. Fazê-lo com nenhuma missão a meio de publicar.
 2. O livro ainda diz "toda a sessão acaba com o envio para o servidor" (`regras-do-danilo`, secção 7) e "Claude Code =
    publicar". A skill passa à frente, mas as páginas contradizem-na. Quem as atualiza é o Claude.ai.

@@ -12,11 +12,24 @@ $pasta = $PSScriptRoot
 $settings = Join-Path $Casa '.claude\settings.json'
 $gancho = Join-Path $Casa '.claude\hooks\trava-modo-automatico.mjs'
 $registo = Join-Path $Casa '.claude\modo-automatico-instalacao.log'
-$patch = Join-Path $pasta 'guardas-ramo-ai.patch'
+$remendos = 'guardas-ramo-ai.patch', 'guardas-sem-pergunta.patch' | ForEach-Object { Join-Path $pasta $_ }
 
 function Diz($texto) {
   Write-Host $texto
   Add-Content -Encoding utf8 -Path $registo -Value "$(Get-Date -Format s) $texto"
+}
+
+# O ultimo remendo ja aplicado quer dizer que estao todos.
+function AplicaGuardas($dir) {
+  git -C $dir apply --check --reverse --ignore-whitespace $remendos[-1] 2>$null
+  if ($LASTEXITCODE -eq 0) { return $true }
+  foreach ($p in $remendos) {
+    git -C $dir apply --check --reverse --ignore-whitespace $p 2>$null
+    if ($LASTEXITCODE -eq 0) { continue }
+    git -C $dir apply --ignore-whitespace $p
+    if ($LASTEXITCODE -ne 0) { return $false }
+  }
+  return $true
 }
 
 $copia = "$settings.bak-modo-automatico-$(Get-Date -Format yyyyMMdd-HHmmss)"
@@ -42,24 +55,17 @@ try {
 }
 if ($SoGancho) { exit 0 }
 
-# As guardas antigas passam a aceitar os ramos de ensaio ai/ (correm da arvore principal).
-git -C $Repo apply --check --reverse --ignore-whitespace $patch 2>$null
-if ($LASTEXITCODE -eq 0) {
-  Diz 'As guardas antigas ja aceitavam os ramos ai/.'
-} else {
-  git -C $Repo apply --ignore-whitespace $patch
-  if ($LASTEXITCODE -ne 0) { Diz 'FALHOU: nao consegui mudar as guardas antigas. A trava fica ligada; os push de ensaio continuam presos.'; exit 1 }
-  Diz 'Guardas antigas: ramos ai/ aceites.'
-}
+# As guardas antigas correm da arvore principal: aceitam os ramos ai/ e deixam de perguntar ao publicar.
+if (-not (AplicaGuardas $Repo)) { Diz 'FALHOU: nao consegui mudar as guardas antigas. Um Permitir ainda pode publicar.'; exit 1 }
+Diz 'Guardas antigas: ramos ai/ aceites e publicar recusado sem pergunta.'
 
 # O CI e as guardas entram no ramo de ensaio e seguem no pedido de revisao, sem publicar.
 Copy-Item (Join-Path $pasta 'revisao.yml') (Join-Path $Ensaio '.github\workflows\revisao.yml') -Force
-git -C $Ensaio apply --check --reverse --ignore-whitespace $patch 2>$null
-if ($LASTEXITCODE -ne 0) { git -C $Ensaio apply --ignore-whitespace $patch }
-git -C $Ensaio add .github/workflows/revisao.yml .claude/hooks/git-guardrails.py .claude/plugins/bora-mods/hooks/regras.ts .claude/plugins/bora-mods/hooks/tranca.test.ts
+if (-not (AplicaGuardas $Ensaio)) { Diz 'FALHOU: nao consegui pôr as guardas no ramo de ensaio.'; exit 1 }
+git -C $Ensaio add .github/workflows/revisao.yml .claude/hooks/git-guardrails.py .claude/plugins/bora-mods/README.md .claude/plugins/bora-mods/hooks/regras.ts .claude/plugins/bora-mods/hooks/tranca.ts .claude/plugins/bora-mods/hooks/tranca.test.ts
 git -C $Ensaio diff --cached --quiet
 if ($LASTEXITCODE -ne 0) {
-  git -C $Ensaio commit -q -m 'ci(revisao): testes em cada pedido de revisao e ramos ai/ nas guardas'
+  git -C $Ensaio commit -q -m 'fix(tranca): publicar nega sem perguntar'
   if ($LASTEXITCODE -ne 0) { Diz 'FALHOU: nao consegui gravar o CI no ramo de ensaio.'; exit 1 }
 }
 git -C $Ensaio push origin "${Ramo}:${Ramo}"

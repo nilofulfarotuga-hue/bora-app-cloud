@@ -20,7 +20,8 @@ if (!cfg.hooks.PreToolUse.length) delete cfg.hooks.PreToolUse
 // gancho nas leituras (prova de 05/11), mas nao passa por cima destas regras.
 const LEITURAS = [
   '.env', '.env.local', '.env.production', '.env.development', '.dart_defines', '.dart_defines.*', '*.jks', '*.keystore',
-  '*.pem', '*.p12', 'key.properties', '.credentials.json', '.supabase-token*', '_segredos/**',
+  '*.pem', '*.p12', '*.p8', 'key.properties', '.credentials.json', '.supabase-token*', '_segredos/**', '.dev.vars',
+  '.git-credentials', '.netrc', '.npmrc', '*service-account*.json', 'firebase-adminsdk*.json',
 ].map(p => `Read(**/${p})`)
 cfg.permissions ??= {}
 const deny = (cfg.permissions.deny ?? []).filter(r => !LEITURAS.includes(r))

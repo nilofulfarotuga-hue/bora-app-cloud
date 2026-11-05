@@ -2,19 +2,19 @@
 id: memoria-claude-ai-livro-areas-play-store-release
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-23
+ultima_confirmacao: 2026-11-05
 zona: verde
 confianca: alta
 estado: atual
 ---
 
-# Bora App release pipeline nas 3 plataformas (Play Store/Android, iOS/App Store, web) — CI/CD, regras de paridade, histórico de envios e rejeições
+# Bora App release pipeline nas 3 plataformas (Play Store/Android, iOS/App Store, web) — CI/CD, regras de paridade, histórico de envios e rejeições (parte 1 de 2 — continua em livro-areas-play-store-release-parte2…)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-play-store-release`, origem `claude-ai`, atualizada em 2026-10-23T05:39:13.911249+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-play-store-release`, origem `claude-ai`, atualizada em 2026-11-05T13:21:53.540079+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas play store release · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/play-store-release.md), copiada a 23/10/2026. A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/play-store-release.md), copiada a 05/11/2026 13:20 (hora de Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: play-store-release
@@ -82,5 +82,3 @@ Web deploy parity (2026-07-20) — see [[bora-app]]
 - [stated] Rollout faseado NÃO aplicado e porquê (limitação real da action, não preguiça): a action aplica UM único `status` a todos os tracks do mesmo step — `inProgress`+10% travaria também o `internal` e o `alpha`, o oposto do pretendido. Segundo step separado não serve porque o mesmo versionCode é rejeitado. Motivo escrito no próprio workflow.
 - [stated] `internal` mantido e listado em primeiro, para o telemóvel do Danilo continuar a receber primeiro.
 - [stated] `.github/**` NÃO está no `paths-ignore` do build_android.yml (só `**.md` e `.claude/**`) — mexer no workflow dispara sempre uma build, o que é útil para testar fixes de CI de imediato.
-
-- [stated] 06/10: repetiu e mandou gravar — publicar é SEMPRE Play Store + Apple + web, e todo conserto tem de ser verificado nas três. Pediu auditoria de tudo o que já foi arrumado, a ver o que falta em cada plataforma, com muito cuidado para não estragar o que funciona. PROMPT REGISTADO (histórico): página `prompt-auditoria-3-plataformas-2026-10-06` em claude_ai_memoria, MOTOR FABLE, na mesma sessão do PC (session_01N6YCAfxPPofroZk5Xtibi4) DEPOIS da missão do cartão preso. Estado: entregue à sessão às 19:40 (fica na fila, arranca depois do cartão preso)

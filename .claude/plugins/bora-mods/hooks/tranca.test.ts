@@ -155,6 +155,13 @@ describe('passa (chega ao Claude Code)', () => {
     expect(d.corridas).toEqual(['Bash'])
   })
 
+  test('git push para ramo de ensaio ai/: não pergunta, não publica nada', async ($, on) => {
+    const d = dubles(on)
+    const r = await $.tool.call({ tool: 'Bash', command: 'git push origin ai/2026-11-05-x' })
+    expect(r.deny).toBeUndefined()
+    expect(d.perguntas).toEqual([])
+  })
+
   test('mensagem de commit com "--force" entre aspas não bloqueia', async ($, on) => {
     const d = dubles(on)
     const r = await $.tool.call({ tool: 'Bash', command: 'git commit -m "nunca usar git push --force"' })

@@ -189,6 +189,13 @@ function eContextoSql(seg: string[]): boolean {
   return /^(psql|pg_dump|pg_restore|supabase)$/.test(c) || seg.some(x => /PGPASSWORD|postgres(ql)?:\/\//.test(x))
 }
 
+// Ramo de ensaio do modo automatico: não publica nada, não precisa de pergunta.
+function pushDeEnsaio(args: string[]): boolean {
+  const pos = args.filter(a => !a.startsWith('-'))
+  const destino = (pos[1] ?? '').replace(/^.*:/, '').replace(/^refs\/heads\//, '')
+  return pos.length === 2 && /^ai\/\d{4}-\d{2}-\d{2}-[\w.-]+$/.test(destino)
+}
+
 export function avaliaComando(comando: string, ctx: Contexto): Veredito {
   const segs = segmentos(comando)
   let pedePush = false
@@ -199,7 +206,7 @@ export function avaliaComando(comando: string, ctx: Contexto): Veredito {
       const { sub, args } = g
       if (sub === 'push') {
         if (pushForcado(args)) return nega('git push forçado (bandeira de força ou refspec com +)')
-        pedePush = true
+        if (!pushDeEnsaio(args)) pedePush = true
       }
       if (sub === 'add' && args.some(a => ['-A', '--all', '.', ':/', './', '*'].includes(a))) {
         return nega('git add -A / git add . (arrasta trabalho alheio; adiciona por caminho)')
@@ -512,7 +519,13 @@ function segmentoSoLeitura(t: string[]): boolean {
   return false
 }
 
+// Prova de 05/11: o allow daqui passa por cima do deny da trava do modo automatico.
+// Segredos nunca se aprovam sozinhos.
+const TOCA_SEGREDO =
+  /(^|[\s"'\\/=:])(\.env(?!\.(example|sample|template)\b)|\.dart_defines|\.credentials\.json|key\.properties)|\.(jks|keystore|pem|p12|pfx)\b/i
+
 export function aprovaSemPerguntar(tool: string, args: Args, raizes: string[]): string | null {
+  if (TOCA_SEGREDO.test(`${str(args.file_path)} ${str(args.path)} ${str(args.command)}`)) return null
   if (SEMPRE_SIM.has(tool)) return 'leitura'
   if (tool === 'Agent' || tool === 'Task') {
     return /^(Explore|Plan)$/.test(str(args.subagent_type)) ? 'agente só de leitura' : null

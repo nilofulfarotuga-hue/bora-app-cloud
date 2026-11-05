@@ -2,19 +2,19 @@
 id: memoria-claude-ai-livro-topics-erros-aprendidos-parte4
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-04
+ultima_confirmacao: 2026-11-05
 zona: verde
 confianca: alta
 estado: atual
 ---
 
-# Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 4 de 4)
+# Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 4 de 5 — continua em livro-topics-erros-aprendidos-parte5)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte4`, origem `claude-ai`, atualizada em 2026-11-04T12:21:46.469238+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte4`, origem `claude-ai`, atualizada em 2026-11-05T21:14:12.508346+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro topics erros aprendidos parte4 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 4 de 4), copiada a 04/11/2026 12:17 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 4 de 5), copiada a 05/11/2026 21:12 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 - [stated] 28/10 12:34: na mensagem ao Emanuel (Boom! Burger) escrevi que ele fatura o preço de balcão "tal como já faz com a Glovo"; ele corrigiu: na Glovo o Emanuel fatura o preço que aparece ao cliente na app, porque a Glovo lhe cobra 30%; na Bora fatura só o preço de balcão, porque a Bora não lhe cobra comissão → regra: nunca dizer ao parceiro que a fatura na Bora é igual à da Glovo/Uber; se comparar, é para mostrar essa diferença. Também tirou da mensagem a entrega grátis (ele próprio conversa com o Emanuel: tinha-lhe dito acima de 20 €, agora é 30 €) e mandou tirar o "Equipa Bora": o Emanuel já sabe que ele é o dono e a mensagem vai do número pessoal dele, na voz dele, natural
 - [stated] 28/10 12:41: dei-lhe a mensagem nova para o Emanuel só num cartão de mensagem e ele reclamou irritado: "me dá a mensagem aqui em texto corrido, pra me ler aqui" → regra: mensagem para ele ler ou rever vai sempre escrita no próprio chat, em texto corrido; cartão só se ele pedir, e nunca no lugar do texto

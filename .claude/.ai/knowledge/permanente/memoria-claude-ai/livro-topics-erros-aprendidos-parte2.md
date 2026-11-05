@@ -2,19 +2,19 @@
 id: memoria-claude-ai-livro-topics-erros-aprendidos-parte2
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-04
+ultima_confirmacao: 2026-11-05
 zona: verde
 confianca: alta
 estado: atual
 ---
 
-# Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 2 de 4 — continua em livro-topics-erros-aprendidos-parte3)
+# Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 2 de 5 — continua em livro-topics-erros-aprendidos-parte3)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte2`, origem `claude-ai`, atualizada em 2026-11-04T12:20:16.022057+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte2`, origem `claude-ai`, atualizada em 2026-11-05T21:14:12.508346+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro topics erros aprendidos parte2 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 2 de 4), copiada a 04/11/2026 12:17 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 2 de 5), copiada a 05/11/2026 21:12 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 - [stated] 16/10: ele mandou print com várias mensagens em inglês (Jai e a mãe) e eu juntei a tradução num resumo misturado com as minhas explicações; ele reclamou irritado "tem que me traduzir o que eles estão falando" → regra: print com mensagens noutra língua = primeiro traduzir CADA mensagem, uma por uma, com quem disse, palavra por palavra; só depois explicações e respostas
 - [stated] 16/10: disse que a página do jornal O Interior ainda não estava no site do Jai porque a leitura da página não a mostrou — estava no ar desde 23/09 (e2e_log jai-mes2-28-09); e à mãe do Jai inventei uma pergunta (aeroporto/hora) quando ela só mandou um lembrete → regra: antes de dizer o estado de qualquer trabalho, procurar no e2e_log pelo fluxo e nas conversas antigas; e traduzir só o que a pessoa disse, sem lhe pôr perguntas na boca

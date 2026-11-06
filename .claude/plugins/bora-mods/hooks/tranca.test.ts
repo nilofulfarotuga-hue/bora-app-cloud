@@ -148,10 +148,9 @@ describe('A · nega', () => {
 
 describe('passa (chega ao Claude Code)', () => {
   test('git commit -F - && git push: o -F da mensagem NÃO é força (falso positivo antigo)', async ($, on) => {
-    const d = dubles(on, { resposta: 'Permitir' })
-    const r = await $.tool.call({ tool: 'Bash', command: 'git commit -q -F - <<\'MSG\'\nfix: -f e --force no texto\nMSG\ngit push origin autonomous-night-2026-04-29' })
+    const d = dubles(on)
+    const r = await $.tool.call({ tool: 'Bash', command: 'git commit -q -F - <<\'MSG\'\nfix: -f e --force no texto\nMSG\ngit push origin ai/2026-11-05-x' })
     expect(r.deny).toBeUndefined()
-    expect(d.perguntas[0]).toMatch(/Play Store a 100%/)
     expect(d.corridas).toEqual(['Bash'])
   })
 
@@ -184,27 +183,36 @@ describe('passa (chega ao Claude Code)', () => {
   })
 })
 
-describe('B · pergunta', () => {
-  test('git push normal: pergunta; "Recusar" nega', async ($, on) => {
-    const d = dubles(on, { resposta: 'Recusar' })
+describe('B · publicar nega sem perguntar', () => {
+  test('git push ao ramo principal nega, mesmo com "Permitir" à espera', async ($, on) => {
+    const d = dubles(on, { resposta: 'Permitir' })
     const r = await $.tool.call({ tool: 'Bash', command: 'git push origin autonomous-night-2026-04-29' })
-    expect(d.perguntas.length).toBe(1)
-    expect(r.deny).toMatch(/não autorizou/)
+    expect(d.perguntas).toEqual([])
+    expect(r.deny).toMatch(/publica o Claude\.ai/)
     expect(d.corridas).toEqual([])
   })
 
-  test('git push normal: "Permitir" deixa correr', async ($, on) => {
+  test('deploy de Edge Function fora da lista nega', async ($, on) => {
     const d = dubles(on, { resposta: 'Permitir' })
-    const r = await $.tool.call({ tool: 'Bash', command: 'git push origin autonomous-night-2026-04-29' })
-    expect(r.deny).toBeUndefined()
-    expect(d.corridas).toEqual(['Bash'])
+    const r = await $.tool.call({ tool: 'mcp__claude_ai_Supabase__deploy_edge_function', project_id: 'x', name: 'notify-partner', files: [] })
+    expect(d.perguntas).toEqual([])
+    expect(r.deny).toMatch(/BLOQUEADO/)
   })
 
-  test('deploy de Edge Function fora da lista pergunta', async ($, on) => {
-    const d = dubles(on, { resposta: 'Recusar' })
-    const r = await $.tool.call({ tool: 'mcp__claude_ai_Supabase__deploy_edge_function', project_id: 'x', name: 'notify-partner', files: [] })
-    expect(d.perguntas[0]).toMatch(/notify-partner/)
-    expect(r.deny).toMatch(/não autorizou/)
+  test('migration nega; a cópia bkp_ passa', async ($, on) => {
+    const d = dubles(on, { resposta: 'Permitir' })
+    const r = await $.tool.call({ tool: 'mcp__claude_ai_Supabase__apply_migration', project_id: 'x', name: 'm', query: 'create table t (id int)' })
+    expect(r.deny).toMatch(/BLOQUEADO/)
+    const b = await $.tool.call({ tool: 'mcp__claude_ai_Supabase__execute_sql', project_id: 'x', query: 'create table public.bkp_produtos_20261105 as select * from produtos' })
+    expect(b.deny).toBeUndefined()
+    expect(d.perguntas).toEqual([])
+  })
+
+  test('segredos nunca se aprovam sozinhos', async ($, on) => {
+    dubles(on)
+    for (const command of ['cat .env', 'cat ~/.git-credentials', 'cat chave.p8', 'cat ~/.config/gh/hosts.yml']) {
+      expect((await $.tool.check({ tool: 'Bash', input: { command } }))?.decision).not.toBe('allow')
+    }
   })
 })
 

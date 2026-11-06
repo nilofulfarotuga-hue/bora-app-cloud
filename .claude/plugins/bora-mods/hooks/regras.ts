@@ -324,7 +324,11 @@ export function avaliaSql(sqlBruto: string, ctx: Contexto, eMigracao: boolean, d
       pergunta: 'bora-tranca: o Claude quer aplicar uma migration na base de PRODUÇÃO. Deixo seguir?',
     }
   }
-  if (/\b(create|alter)\s+(table|index|type|view|materialized\s+view|function|trigger|policy|schema)\b|\b(grant|revoke)\b/.test(sql)) {
+  // a copia bkp_ e o ponto de restauro antes de corrigir: nao e publicar
+  const semBackup = sql
+    .replace(/\bcreate\s+table\s+(if\s+not\s+exists\s+)?(public\.)?"?bkp_[a-z0-9_]+"?/g, ' ')
+    .replace(/\balter\s+table\s+(public\.)?"?bkp_[a-z0-9_]+"?\s+enable\s+row\s+level\s+security/g, ' ')
+  if (/\b(create|alter)\s+(table|index|type|view|materialized\s+view|function|trigger|policy|schema)\b|\b(grant|revoke)\b/.test(semBackup)) {
     return {
       acao: 'pergunta',
       motivo: 'DDL em produção',
@@ -522,7 +526,7 @@ function segmentoSoLeitura(t: string[]): boolean {
 // Prova de 05/11: o allow daqui passa por cima do deny da trava do modo automatico.
 // Segredos nunca se aprovam sozinhos.
 const TOCA_SEGREDO =
-  /(^|[\s"'\\/=:])(\.env(?!\.(example|sample|template)\b)|\.dart_defines|\.credentials\.json|key\.properties)|\.(jks|keystore|pem|p12|pfx)\b/i
+  /(^|[\s"'\\/=:])(\.env(?!\.(example|sample|template)\b)|\.dev\.vars|\.dart_defines|\.credentials\.json|\.git-credentials|\.netrc|\.npmrc|key\.properties|\.supabase|\.aws|_segredos)|[\w-]\.env\b|hosts\.yml|service-account|firebase-adminsdk|id_(rsa|ed25519)(?!\S*\.pub)|\.(jks|keystore|pem|p12|p8|pfx)\b/i
 
 export function aprovaSemPerguntar(tool: string, args: Args, raizes: string[]): string | null {
   if (TOCA_SEGREDO.test(`${str(args.file_path)} ${str(args.path)} ${str(args.command)}`)) return null

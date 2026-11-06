@@ -4,8 +4,9 @@
 //  A) NEGA  (tool.call, sem next): zonas vermelhas, push forçado, git add -A,
 //     apagar recursivo, SQL destrutivo em dinheiro, deploy protegido,
 //     workflows do CI, segredos. Nunca se desarma por comando.
-//  B) PERGUNTA ao Danilo ($.ui.ask): git push, migration, DDL, deploy de
-//     Edge Function fora da lista. Sem resposta / `claude -p` = Recusar.
+//  B) PUBLICAR nega sem perguntar: git push fora de ai/, migration, DDL, deploy
+//     de Edge Function. Publica o Claude.ai (skill modo-automatico, 05/11/2026).
+//     Prova: um "Permitir" na pergunta antiga passava por cima da trava.
 //  C) APROVA sem caixa (tool.check): só leitura e edições em zona verde.
 //     /tranca-off N desarma SÓ esta parte por N minutos.
 //  D) Falhou? Nega (fail-closed) nos dois ganchos.
@@ -23,7 +24,6 @@ import {
   semSegredos,
   type Contexto,
   type ListasBanco,
-  type Veredito,
   type Zonas,
 } from './regras'
 
@@ -32,9 +32,7 @@ const CHAVE_OFF = 'tranca.allowOffAte'
 const FINTABLE_PADRAO = 'orders|wallets|ledger|ledger_entries|bora_tokens'
 
 // contagem desta sessão (recomeça se o módulo recarregar)
-const conta = { nega: 0, pergunta: 0, aprova: 0 }
-// chamadas que o Danilo autorizou na pergunta: o tool.check não volta a perguntar
-const autorizadas = new Set<string>()
+const conta = { nega: 0, aprova: 0 }
 // o $.fs.write não é atómico: as escritas do log passam por uma fila
 let filaLog: Promise<void> = Promise.resolve()
 
@@ -118,43 +116,17 @@ async function idSessao($: EngineInterface): Promise<string> {
   }
 }
 
-async function perguntar($: EngineInterface, v: Veredito & { acao: 'pergunta' }): Promise<boolean> {
-  try {
-    const r = await $.ui.ask(v.pergunta, { header: 'bora-tranca', options: ['Recusar', 'Permitir'] })
-    return r === 'Permitir'
-  } catch {
-    // dispensada, ou `claude -p` (ninguém para responder): Recusar
-    return false
-  }
-}
-
 async function guarda($: EngineInterface, e: { tool: string; tool_use_id: string }): Promise<{ deny: string } | null> {
   const args = argsDe(e)
   const v = avaliaChamada(e.tool, args, await contexto($, e.tool, args))
-  if (v.acao === 'nega') {
+  if (v.acao === 'nega' || v.acao === 'pergunta') {
     conta.nega++
-    const texto = `bora-tranca: BLOQUEADO ${e.tool} — ${v.motivo}. Não contornes: reporta no e2e_log e ao Danilo.`
+    const porque = v.acao === 'pergunta' ? `${v.motivo} é publicar: publica o Claude.ai` : v.motivo
+    const texto = `bora-tranca: BLOQUEADO ${e.tool} — ${porque}. Não contornes: reporta no e2e_log e ao Danilo.`
     $.ui.log(texto)
     $.ui.notice(e.tool_use_id, 'bloqueado pela bora-tranca')
     await anotar($, { sessao: await idSessao($), tool: e.tool, decisao: 'nega', motivo: v.motivo, resumo: resumo(e.tool, args) })
     return { deny: texto }
-  }
-  if (v.acao === 'pergunta') {
-    conta.pergunta++
-    const sim = await perguntar($, v)
-    await anotar($, {
-      sessao: await idSessao($),
-      tool: e.tool,
-      decisao: sim ? 'pergunta-permitida' : 'pergunta-recusada',
-      motivo: v.motivo,
-      resumo: resumo(e.tool, args),
-    })
-    if (!sim) {
-      const texto = `bora-tranca: o Danilo não autorizou (${v.motivo}). Não tentes outro caminho; reporta.`
-      $.ui.log(texto)
-      return { deny: texto }
-    }
-    autorizadas.add(e.tool_use_id)
   }
   return null
 }
@@ -190,9 +162,6 @@ export function registarTranca(on: On): void {
     // cinto e suspensórios: o que a guarda nega nunca é aprovado aqui
     const v = avaliaChamada(e.tool, args, await contexto($, e.tool, args))
     if (v.acao === 'nega') return { decision: 'deny', reason: `bora-tranca: ${v.motivo}` }
-    if (e.tool_use_id !== undefined && autorizadas.delete(e.tool_use_id)) {
-      return { decision: 'allow', reason: 'bora-tranca: autorizado pelo Danilo na pergunta' }
-    }
     if (v.acao === 'pergunta') return next(e)
     const ate = Number((await $.store.get(CHAVE_OFF).catch(() => 0)) ?? 0)
     if (ate > (await $.clock.now())) return next(e)
@@ -215,7 +184,7 @@ export function registarTranca(on: On): void {
         : 'aprovações automáticas ligadas'
     return {
       text: [
-        `bora-tranca · nesta sessão: ${conta.nega} bloqueadas · ${conta.pergunta} perguntas · ${conta.aprova} aprovadas sem caixa · ${off}`,
+        `bora-tranca · nesta sessão: ${conta.nega} bloqueadas · ${conta.aprova} aprovadas sem caixa · ${off}`,
         `log: .claude/.ai/mods/${LOG}`,
         ...(linhas.length ? linhas : ['(log vazio)']),
       ].join('\n'),

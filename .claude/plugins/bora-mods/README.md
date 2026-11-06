@@ -16,9 +16,10 @@ Este plugin tem cinco, ligados por esta ordem (a ordem conta: a tranca vem prime
      `supabase db reset`; SQL destrutivo nas tabelas de dinheiro; UPDATE/INSERT/DELETE direto
      em orders/drivers/wallets… (regra 16/09); políticas RLS de dinheiro; DDL de funções de
      dinheiro; deploy das Edge Functions protegidas (lista PROTSLUG lida do `protege-banco.sh`).
-   - **Pergunta ao Danilo** (Recusar por defeito, e sempre Recusar em `claude -p`): `git push`
-     normal ("isto publica na Play Store a 100%"), migrations, mudanças de estrutura na base,
-     deploy de outras Edge Functions.
+   - **Publicar nega sem perguntar** (modo automático seguro, 05/11/2026): `git push` fora dos
+     ramos `ai/`, migrations, mudanças de estrutura na base (menos as cópias `bkp_`), deploy de
+     outras Edge Functions. Publica o Claude.ai. Antes havia pergunta, mas um "Permitir" passava
+     por cima da trava do modo automático.
    - **Aprova sem caixa de permissão** só o que é leitura: Read/Grep/Glob, `git status/log/diff`,
      `flutter analyze/test/pub get`, SELECT de uma instrução sem funções desconhecidas, listagens
      do Supabase e do Córtex, edições em `lib/`, `test/`, `docs/` e `*.md` fora das zonas.

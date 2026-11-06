@@ -1,0 +1,26 @@
+# Modelo para sites com repositorio no GitHub (bora-site, guarda-fc-site).
+# So verifica ligacoes internas: nao tem segredos e nao publica.
+name: Revisao
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  site:
+    name: Ligacoes do site
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Ligacoes internas
+        run: npx -y linkinator@6 . --recurse --skip "^https?://"

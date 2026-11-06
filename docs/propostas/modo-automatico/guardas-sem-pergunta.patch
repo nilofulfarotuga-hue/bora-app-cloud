@@ -1,0 +1,214 @@
+diff --git a/.claude/plugins/bora-mods/README.md b/.claude/plugins/bora-mods/README.md
+index da4778f..e1383f7 100644
+--- a/.claude/plugins/bora-mods/README.md
++++ b/.claude/plugins/bora-mods/README.md
+@@ -16,9 +16,10 @@ Este plugin tem cinco, ligados por esta ordem (a ordem conta: a tranca vem prime
+      `supabase db reset`; SQL destrutivo nas tabelas de dinheiro; UPDATE/INSERT/DELETE direto
+      em orders/drivers/wallets… (regra 16/09); políticas RLS de dinheiro; DDL de funções de
+      dinheiro; deploy das Edge Functions protegidas (lista PROTSLUG lida do `protege-banco.sh`).
+-   - **Pergunta ao Danilo** (Recusar por defeito, e sempre Recusar em `claude -p`): `git push`
+-     normal ("isto publica na Play Store a 100%"), migrations, mudanças de estrutura na base,
+-     deploy de outras Edge Functions.
++   - **Publicar nega sem perguntar** (modo automático seguro, 05/11/2026): `git push` fora dos
++     ramos `ai/`, migrations, mudanças de estrutura na base (menos as cópias `bkp_`), deploy de
++     outras Edge Functions. Publica o Claude.ai. Antes havia pergunta, mas um "Permitir" passava
++     por cima da trava do modo automático.
+    - **Aprova sem caixa de permissão** só o que é leitura: Read/Grep/Glob, `git status/log/diff`,
+      `flutter analyze/test/pub get`, SELECT de uma instrução sem funções desconhecidas, listagens
+      do Supabase e do Córtex, edições em `lib/`, `test/`, `docs/` e `*.md` fora das zonas.
+diff --git a/.claude/plugins/bora-mods/hooks/regras.ts b/.claude/plugins/bora-mods/hooks/regras.ts
+index 53bc21c..31e42b1 100644
+--- a/.claude/plugins/bora-mods/hooks/regras.ts
++++ b/.claude/plugins/bora-mods/hooks/regras.ts
+@@ -324,7 +324,11 @@ export function avaliaSql(sqlBruto: string, ctx: Contexto, eMigracao: boolean, d
+       pergunta: 'bora-tranca: o Claude quer aplicar uma migration na base de PRODUÇÃO. Deixo seguir?',
+     }
+   }
+-  if (/\b(create|alter)\s+(table|index|type|view|materialized\s+view|function|trigger|policy|schema)\b|\b(grant|revoke)\b/.test(sql)) {
++  // a copia bkp_ e o ponto de restauro antes de corrigir: nao e publicar
++  const semBackup = sql
++    .replace(/\bcreate\s+table\s+(if\s+not\s+exists\s+)?(public\.)?"?bkp_[a-z0-9_]+"?/g, ' ')
++    .replace(/\balter\s+table\s+(public\.)?"?bkp_[a-z0-9_]+"?\s+enable\s+row\s+level\s+security/g, ' ')
++  if (/\b(create|alter)\s+(table|index|type|view|materialized\s+view|function|trigger|policy|schema)\b|\b(grant|revoke)\b/.test(semBackup)) {
+     return {
+       acao: 'pergunta',
+       motivo: 'DDL em produção',
+@@ -522,7 +526,7 @@ function segmentoSoLeitura(t: string[]): boolean {
+ // Prova de 05/11: o allow daqui passa por cima do deny da trava do modo automatico.
+ // Segredos nunca se aprovam sozinhos.
+ const TOCA_SEGREDO =
+-  /(^|[\s"'\\/=:])(\.env(?!\.(example|sample|template)\b)|\.dart_defines|\.credentials\.json|key\.properties)|\.(jks|keystore|pem|p12|pfx)\b/i
++  /(^|[\s"'\\/=:])(\.env(?!\.(example|sample|template)\b)|\.dev\.vars|\.dart_defines|\.credentials\.json|\.git-credentials|\.netrc|\.npmrc|key\.properties|\.supabase|\.aws|_segredos)|[\w-]\.env\b|hosts\.yml|service-account|firebase-adminsdk|id_(rsa|ed25519)(?!\S*\.pub)|\.(jks|keystore|pem|p12|p8|pfx)\b/i
+ 
+ export function aprovaSemPerguntar(tool: string, args: Args, raizes: string[]): string | null {
+   if (TOCA_SEGREDO.test(`${str(args.file_path)} ${str(args.path)} ${str(args.command)}`)) return null
+diff --git a/.claude/plugins/bora-mods/hooks/tranca.test.ts b/.claude/plugins/bora-mods/hooks/tranca.test.ts
+index c046ec3..532eafd 100644
+--- a/.claude/plugins/bora-mods/hooks/tranca.test.ts
++++ b/.claude/plugins/bora-mods/hooks/tranca.test.ts
+@@ -148,10 +148,9 @@ describe('A · nega', () => {
+ 
+ describe('passa (chega ao Claude Code)', () => {
+   test('git commit -F - && git push: o -F da mensagem NÃO é força (falso positivo antigo)', async ($, on) => {
+-    const d = dubles(on, { resposta: 'Permitir' })
+-    const r = await $.tool.call({ tool: 'Bash', command: 'git commit -q -F - <<\'MSG\'\nfix: -f e --force no texto\nMSG\ngit push origin autonomous-night-2026-04-29' })
++    const d = dubles(on)
++    const r = await $.tool.call({ tool: 'Bash', command: 'git commit -q -F - <<\'MSG\'\nfix: -f e --force no texto\nMSG\ngit push origin ai/2026-11-05-x' })
+     expect(r.deny).toBeUndefined()
+-    expect(d.perguntas[0]).toMatch(/Play Store a 100%/)
+     expect(d.corridas).toEqual(['Bash'])
+   })
+ 
+@@ -184,27 +183,36 @@ describe('passa (chega ao Claude Code)', () => {
+   })
+ })
+ 
+-describe('B · pergunta', () => {
+-  test('git push normal: pergunta; "Recusar" nega', async ($, on) => {
+-    const d = dubles(on, { resposta: 'Recusar' })
++describe('B · publicar nega sem perguntar', () => {
++  test('git push ao ramo principal nega, mesmo com "Permitir" à espera', async ($, on) => {
++    const d = dubles(on, { resposta: 'Permitir' })
+     const r = await $.tool.call({ tool: 'Bash', command: 'git push origin autonomous-night-2026-04-29' })
+-    expect(d.perguntas.length).toBe(1)
+-    expect(r.deny).toMatch(/não autorizou/)
++    expect(d.perguntas).toEqual([])
++    expect(r.deny).toMatch(/publica o Claude\.ai/)
+     expect(d.corridas).toEqual([])
+   })
+ 
+-  test('git push normal: "Permitir" deixa correr', async ($, on) => {
++  test('deploy de Edge Function fora da lista nega', async ($, on) => {
+     const d = dubles(on, { resposta: 'Permitir' })
+-    const r = await $.tool.call({ tool: 'Bash', command: 'git push origin autonomous-night-2026-04-29' })
+-    expect(r.deny).toBeUndefined()
+-    expect(d.corridas).toEqual(['Bash'])
++    const r = await $.tool.call({ tool: 'mcp__claude_ai_Supabase__deploy_edge_function', project_id: 'x', name: 'notify-partner', files: [] })
++    expect(d.perguntas).toEqual([])
++    expect(r.deny).toMatch(/BLOQUEADO/)
+   })
+ 
+-  test('deploy de Edge Function fora da lista pergunta', async ($, on) => {
+-    const d = dubles(on, { resposta: 'Recusar' })
+-    const r = await $.tool.call({ tool: 'mcp__claude_ai_Supabase__deploy_edge_function', project_id: 'x', name: 'notify-partner', files: [] })
+-    expect(d.perguntas[0]).toMatch(/notify-partner/)
+-    expect(r.deny).toMatch(/não autorizou/)
++  test('migration nega; a cópia bkp_ passa', async ($, on) => {
++    const d = dubles(on, { resposta: 'Permitir' })
++    const r = await $.tool.call({ tool: 'mcp__claude_ai_Supabase__apply_migration', project_id: 'x', name: 'm', query: 'create table t (id int)' })
++    expect(r.deny).toMatch(/BLOQUEADO/)
++    const b = await $.tool.call({ tool: 'mcp__claude_ai_Supabase__execute_sql', project_id: 'x', query: 'create table public.bkp_produtos_20261105 as select * from produtos' })
++    expect(b.deny).toBeUndefined()
++    expect(d.perguntas).toEqual([])
++  })
++
++  test('segredos nunca se aprovam sozinhos', async ($, on) => {
++    dubles(on)
++    for (const command of ['cat .env', 'cat ~/.git-credentials', 'cat chave.p8', 'cat ~/.config/gh/hosts.yml']) {
++      expect((await $.tool.check({ tool: 'Bash', input: { command } }))?.decision).not.toBe('allow')
++    }
+   })
+ })
+ 
+diff --git a/.claude/plugins/bora-mods/hooks/tranca.ts b/.claude/plugins/bora-mods/hooks/tranca.ts
+index 533bae1..9c2c083 100644
+--- a/.claude/plugins/bora-mods/hooks/tranca.ts
++++ b/.claude/plugins/bora-mods/hooks/tranca.ts
+@@ -4,8 +4,9 @@
+ //  A) NEGA  (tool.call, sem next): zonas vermelhas, push forçado, git add -A,
+ //     apagar recursivo, SQL destrutivo em dinheiro, deploy protegido,
+ //     workflows do CI, segredos. Nunca se desarma por comando.
+-//  B) PERGUNTA ao Danilo ($.ui.ask): git push, migration, DDL, deploy de
+-//     Edge Function fora da lista. Sem resposta / `claude -p` = Recusar.
++//  B) PUBLICAR nega sem perguntar: git push fora de ai/, migration, DDL, deploy
++//     de Edge Function. Publica o Claude.ai (skill modo-automatico, 05/11/2026).
++//     Prova: um "Permitir" na pergunta antiga passava por cima da trava.
+ //  C) APROVA sem caixa (tool.check): só leitura e edições em zona verde.
+ //     /tranca-off N desarma SÓ esta parte por N minutos.
+ //  D) Falhou? Nega (fail-closed) nos dois ganchos.
+@@ -23,7 +24,6 @@ import {
+   semSegredos,
+   type Contexto,
+   type ListasBanco,
+-  type Veredito,
+   type Zonas,
+ } from './regras'
+ 
+@@ -32,9 +32,7 @@ const CHAVE_OFF = 'tranca.allowOffAte'
+ const FINTABLE_PADRAO = 'orders|wallets|ledger|ledger_entries|bora_tokens'
+ 
+ // contagem desta sessão (recomeça se o módulo recarregar)
+-const conta = { nega: 0, pergunta: 0, aprova: 0 }
+-// chamadas que o Danilo autorizou na pergunta: o tool.check não volta a perguntar
+-const autorizadas = new Set<string>()
++const conta = { nega: 0, aprova: 0 }
+ // o $.fs.write não é atómico: as escritas do log passam por uma fila
+ let filaLog: Promise<void> = Promise.resolve()
+ 
+@@ -118,44 +116,18 @@ async function idSessao($: EngineInterface): Promise<string> {
+   }
+ }
+ 
+-async function perguntar($: EngineInterface, v: Veredito & { acao: 'pergunta' }): Promise<boolean> {
+-  try {
+-    const r = await $.ui.ask(v.pergunta, { header: 'bora-tranca', options: ['Recusar', 'Permitir'] })
+-    return r === 'Permitir'
+-  } catch {
+-    // dispensada, ou `claude -p` (ninguém para responder): Recusar
+-    return false
+-  }
+-}
+-
+ async function guarda($: EngineInterface, e: { tool: string; tool_use_id: string }): Promise<{ deny: string } | null> {
+   const args = argsDe(e)
+   const v = avaliaChamada(e.tool, args, await contexto($, e.tool, args))
+-  if (v.acao === 'nega') {
++  if (v.acao === 'nega' || v.acao === 'pergunta') {
+     conta.nega++
+-    const texto = `bora-tranca: BLOQUEADO ${e.tool} — ${v.motivo}. Não contornes: reporta no e2e_log e ao Danilo.`
++    const porque = v.acao === 'pergunta' ? `${v.motivo} é publicar: publica o Claude.ai` : v.motivo
++    const texto = `bora-tranca: BLOQUEADO ${e.tool} — ${porque}. Não contornes: reporta no e2e_log e ao Danilo.`
+     $.ui.log(texto)
+     $.ui.notice(e.tool_use_id, 'bloqueado pela bora-tranca')
+     await anotar($, { sessao: await idSessao($), tool: e.tool, decisao: 'nega', motivo: v.motivo, resumo: resumo(e.tool, args) })
+     return { deny: texto }
+   }
+-  if (v.acao === 'pergunta') {
+-    conta.pergunta++
+-    const sim = await perguntar($, v)
+-    await anotar($, {
+-      sessao: await idSessao($),
+-      tool: e.tool,
+-      decisao: sim ? 'pergunta-permitida' : 'pergunta-recusada',
+-      motivo: v.motivo,
+-      resumo: resumo(e.tool, args),
+-    })
+-    if (!sim) {
+-      const texto = `bora-tranca: o Danilo não autorizou (${v.motivo}). Não tentes outro caminho; reporta.`
+-      $.ui.log(texto)
+-      return { deny: texto }
+-    }
+-    autorizadas.add(e.tool_use_id)
+-  }
+   return null
+ }
+ 
+@@ -190,9 +162,6 @@ export function registarTranca(on: On): void {
+     // cinto e suspensórios: o que a guarda nega nunca é aprovado aqui
+     const v = avaliaChamada(e.tool, args, await contexto($, e.tool, args))
+     if (v.acao === 'nega') return { decision: 'deny', reason: `bora-tranca: ${v.motivo}` }
+-    if (e.tool_use_id !== undefined && autorizadas.delete(e.tool_use_id)) {
+-      return { decision: 'allow', reason: 'bora-tranca: autorizado pelo Danilo na pergunta' }
+-    }
+     if (v.acao === 'pergunta') return next(e)
+     const ate = Number((await $.store.get(CHAVE_OFF).catch(() => 0)) ?? 0)
+     if (ate > (await $.clock.now())) return next(e)
+@@ -215,7 +184,7 @@ export function registarTranca(on: On): void {
+         : 'aprovações automáticas ligadas'
+     return {
+       text: [
+-        `bora-tranca · nesta sessão: ${conta.nega} bloqueadas · ${conta.pergunta} perguntas · ${conta.aprova} aprovadas sem caixa · ${off}`,
++        `bora-tranca · nesta sessão: ${conta.nega} bloqueadas · ${conta.aprova} aprovadas sem caixa · ${off}`,
+         `log: .claude/.ai/mods/${LOG}`,
+         ...(linhas.length ? linhas : ['(log vazio)']),
+       ].join('\n'),

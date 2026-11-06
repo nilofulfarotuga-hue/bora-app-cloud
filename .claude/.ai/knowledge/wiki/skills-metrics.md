@@ -103,3 +103,5 @@ confianca: auto
 | protocolo-missao-bora | 2026-11-02 | stripe-empresa-2026-11-01 retoma | e2e_log R0–R6 (ids ≥6139), relatório + Obsidian + livro; buraco da tranca (npx) reportado | ok |
 | ceo-ai | 2026-11-02 | chaves-varredura-2026-10-31 (PC, Opus) | 37 Edge Functions pela regra da casa + notify-client dono; varredor 99/0/23; vigia chaves e pagamentos provados; app com token da sessão; painel órfãos + saúde das chaves; P3/P4 no emulador não feitos (RAM) | ok |
 | trocar-chaves-servidor | 2026-11-02 | chaves-varredura-2026-10-31 (criada) | skill nova a partir da missão | ok |
+| ceo-ai | 2026-11-05 | modo-automatico-seguro-2026-11-05 (PC, Opus) | inventário, trava testada em sessões reais, skill, CI e remendo preparados; ativação pendente do clique do Danilo (zonas da tranca) | parcial |
+| modo-automatico | 2026-11-05 | modo-automatico-seguro-2026-11-05 (criada) | skill nova a partir da missão | ok |

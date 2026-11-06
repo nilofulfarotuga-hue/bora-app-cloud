@@ -1,0 +1,41 @@
+# Testes em cada pedido de revisao. So corre testes: nao tem segredos e nao publica.
+name: Revisao
+
+on:
+  pull_request:
+    branches: [autonomous-night-2026-04-29]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: revisao-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  testes:
+    name: Analise e testes
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.41.2
+          channel: stable
+          cache: true
+
+      - name: Dependencias
+        run: flutter pub get
+
+      - name: Analise
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Testes
+        run: flutter test
+
+      - name: Trava do modo automatico
+        run: node docs/propostas/modo-automatico/trava-modo-automatico.test.mjs

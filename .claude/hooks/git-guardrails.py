@@ -40,6 +40,8 @@ import sys
 
 # Ramos para onde o push e permitido. Editar aqui se o ramo de trabalho mudar.
 RAMOS_PERMITIDOS = ["autonomous-night-2026-04-29"]
+# Ramos de ensaio do modo automatico: nao publicam nada.
+RAMO_ENSAIO = r"^ai/\d{4}-\d{2}-\d{2}-[\w.-]+$"
 
 # (regex, motivo) - operacoes destrutivas, sempre bloqueadas.
 # O push forcado saiu desta lista: quem o decide agora e o _push_forcado.py, que
@@ -144,7 +146,7 @@ def main():
         bloqueia("push forcado reescreve a historia remota (modo grosseiro)", cru)
 
     for ramo in ramos_do_push(comando):
-        if ramo not in RAMOS_PERMITIDOS:
+        if ramo not in RAMOS_PERMITIDOS and not re.match(RAMO_ENSAIO, ramo):
             bloqueia(
                 "push para '%s'; so e permitido: %s"
                 % (ramo, ", ".join(RAMOS_PERMITIDOS)),

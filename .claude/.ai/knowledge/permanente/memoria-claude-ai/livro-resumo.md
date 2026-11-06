@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-resumo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-04
+ultima_confirmacao: 2026-11-05
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Livro do Bora — resumo para o ChatGPT (regras + erros + índice, sem pessoais), gerado
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-resumo`, origem `claude-code`, atualizada em 2026-11-04T23:40:08.489014+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-resumo`, origem `claude-code`, atualizada em 2026-11-05T23:40:08.663814+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro resumo · memoria claude.ai · claude_ai_memoria
 
-# Livro do Bora — resumo para o ChatGPT (2026-11-04)
+# Livro do Bora — resumo para o ChatGPT (2026-11-05)
 
 Lê isto antes de responder ao Danilo. É a mesma verdade que a Claude.ai, o Hermes, o Claude Code e o OpenCode leem (tabela public.claude_ai_memoria). Gerado todas as noites pela VPS; páginas pessoais ficam de fora.
 
@@ -214,6 +214,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - 04/11 (claude-ai): 04/11 11:13: li os avisos de ontem no Telegram e disse-lhe que o Divan ainda devia os 10,77 € do Favor dos pellets — o caso tinha sido fechado a 03/11 13:31 (o Divan pagou-lhe direto) e eu não puxei a conversa nem o e2e_log → aviso antigo do Telegram não é dívida; antes de dizer que alguém deve, ler a conversa do assunto e o e2e_log do pedido.
 - 04/11 (claude-ai): 04/11 11:23: mensagem em inglês a dizer que o Fred só volta na terça e só ele pode pagar; respondi "espero pelo Fred na terça" sem ver no recibo-jogador-gfc que os 440,02 € já tinham sido pagos a 03/11 → mensagem sobre pagamento = ver primeiro se a conta já está paga; se está, a resposta diz que já recebi e não há nada a pagar.
 - 04/11 (claude-ai): 04/11 11:24: escrevi a tradução da mensagem do Vansh e da resposta entre ferramentas e ela não lhe apareceu no ecrã; ele só viu o cartão em inglês e irritou-se → as duas traduções ("O Vansh falou" e "O que eu estou a responder") vão sempre por mensagem visível antes do cartão, ou como texto final depois da última ferramenta; nunca soltas no meio das ferramentas.
+- 05/11 (claude-ai): 05/11 20:16: disse que os pedidos do McDonald's e do Jyosmi não tinham talão registado e calculei o lucro com o preço de balcão da app; ele tinha registado o talão do McDonald's com foto — a minha consulta com várias instruções devolveu só o resultado da última e não vi a tabela order_receipts_v2 → ver sempre uma consulta de cada vez (ou conferir que vieram todos os resultados) e, antes de dizer que falta talão, ler order_receipts_v2 e o bucket receipts; lucro de pedido não-parceiro usa o valor do TALÃO (driver_typed_total_cents), nunca o preço da app.
 
 
 ## Índice do livro (sem páginas pessoais)
@@ -454,6 +455,8 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - digest-2026-11-04-checkin-escada-premios — Digest 04/11 — escada de prémios do check-in
 - digest-2026-11-04-checkin-premios-fecho — Digest 04/11 — check-in prémios e Favor (fecho)
 - digest-2026-11-04-fechar-bora-motorista — Claude Code 04/11 — Bora Motorista fechado nas apps, no painel e no site
+- digest-2026-11-05-modo-automatico-seguro — Claude Code 05/11 — modo automático seguro (por ligar)
+- digest-2026-11-05-robo-suporte — Digest 05/11 — robô do suporte inteligente
 - diretiva-plataformas-2024-2831 — Diretiva (UE) 2024/2831 trabalho em plataformas — o que obriga o Bora, estado em Portugal, o que está feito e checklist 
 - dsh-como-usar — Como usar o Dipsy (dsh)
 - dsh-como-usar-novidades-2026-10-31 — Dipsy: o que ficou novo a 31/10 (complemento da pagina dsh-como-usar)
@@ -514,6 +517,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - livro-areas-encomendas-festa — Categoria nova "Encomendas para Festa" (bolos, salgados, doces por encomenda com data marcada) + abordagem à doceira da 
 - livro-areas-endereco-web-cliente — Campo de morada do cliente na WEB do [[bora-app]] — cliente presa sem conseguir escrever endereço (31/08), causa achada 
 - livro-areas-entrada-login-bora — Portas de entrada do [[bora-app]] (cliente, estafeta, parceiro) — regras que o Danilo fixou e prompt de auditoria entreg
+- livro-areas-entrega-longa-distancia — Decisão do Danilo (05/11/2026) sobre entregas a mais de ~10 km (caso Porto da Carne) e o escalão de km que ele propôs e 
 - livro-areas-favores-paragem-casa — Regra do Danilo para Favores (errands) com "passar em casa primeiro" no bora-app — o que o estafeta tem de ver; ler ante
 - livro-areas-fechar-pendencias-missao — Super-missão "fechar pendências" (20/10/2026) do bora-app — blocos 0,B,C,D,A1,A2,A3,E,H,I,J,G, o que já fechou e o promp
 - livro-areas-fecho-semanal — Regras do Danilo para o acerto semanal do [[bora-app]] (recibos automáticos, comprovativo ao marcar pago, cobrança autom
@@ -552,7 +556,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - livro-areas-limite-pagamento-dinheiro — Limite de €40 em pagamento a dinheiro no [[bora-app]] — onde vive mesmo (4 sítios hardcoded) e prompt entregue para o to
 - livro-areas-limpeza-vertical — Bora App Limpeza (cleaning) vertical — Helpling-style booking and dispatch
 - livro-areas-livro-comum — "Livro comum" — o Danilo quer que Claude.ai, Hermes/Emerson, Claude Code e ChatGPT saibam todos o mesmo (tudo sobre ele 
-- livro-areas-lojas-takeaway-guarda — Restaurantes da Guarda (sushi, pizzarias, churrasqueira) que o Danilo quer montar no Bora como lojas não-parceiras de ta
+- livro-areas-lojas-takeaway-guarda — Restaurantes da Guarda (sushi, pizzarias, churrasqueira) não-parceiros de takeaway por telefone no Bora — escolhidos e e
 - livro-areas-luan-pladur — Luan Almeida (pladur/obras, Guarda) — prospect que chegou pelo WhatsApp a 04/10; Danilo ofereceu site grátis e pensar nu
 - livro-areas-marca-ja-esta — Nome novo da marca da app do Danilo ("Já Está", substitui "Bora") — ler antes de falar de nome, marca, logótipo, domínio
 - livro-areas-marketing-parceiros — Propaganda do Bora com parceiros — recrutamento de parceiros e regra dos cartazes com QR para as lojas (Mister Navalha, 
@@ -577,6 +581,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - livro-areas-partsflow — PartsFlow — site/catálogo de peças de telemóvel que o Danilo fez para o Azhar (Karachi LCD, Lisboa)
 - livro-areas-plano-especial-cliente — Preços de corridas TVDE feitos à medida de um cliente concreto (fora dos planos semanal/quinzenal/mensal) — regra do Dan
 - livro-areas-play-store-release — Bora App release pipeline nas 3 plataformas (Play Store/Android, iOS/App Store, web) — CI/CD, regras de paridade, histór
+- livro-areas-play-store-release-parte2 — Bora App release pipeline nas 3 plataformas (Play Store/Android, iOS/App Store, web) — CI/CD, regras de paridade, histór
 - livro-areas-por-do-sol — Pôr do Sol Kebab & Pizza House (Rua Formosa, Guarda) — loja NÃO-PARCEIRA no Bora, encomenda por takeaway; telefone, preç
 - livro-areas-precos-catalogo-nao-parceiro — Regras que o Danilo fixou para o preço base dos produtos de lojas não-parceiras do [[bora-app]] (robot do talão + qual a
 - livro-areas-produtos-peso-variavel — Regra do Danilo (26/10/2026) para produtos ao quilo nos mercados do [[bora-app]] — o estafeta troca o preço e o cliente 
@@ -586,6 +591,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - livro-areas-radar-ia-parte3 — Radar semanal de novidades de IA (bot batedor do Hermes) + vereditos sobre ferramentas (DeepSeek Harness, Jev/TypeSafe) 
 - livro-areas-recibo-cliente-produto-falta — Regras que o Danilo fixou para mexer no conteúdo de um pedido já feito (produto em falta, acrescentar produto) e para o 
 - livro-areas-regras-lancamento-categorias — Regras fixas do Danilo para lançar QUALQUER categoria, loja ou serviço novo no Bora — ler ANTES de planear ou montar pro
+- livro-areas-robo-suporte — Robô do suporte dentro da app Bora (support-chatbot) — o que o Danilo quer dele, caso da Jennifer (Boom! Burger) e missã
 - livro-areas-sabores-de-casa — Sabores de Casa Açaí (mercado BR + açaí, Guarda) — parceiro no app + mini-site cinematográfico de presente (esquema Ouro
 - livro-areas-semente-da-luz — "A Semente da Luz" — biblical animated children's series (Kaggle GPU, Wan 2.2 I2V, multi-agent quality system)
 - livro-areas-sistema-sem-travas — Pedido do Danilo (15/10/2026) para o sistema ficar automático sem pedir permissão a cada passo — auditoria das trancas n
@@ -626,6 +632,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - livro-topics-erros-aprendidos-parte2 — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde
 - livro-topics-erros-aprendidos-parte3 — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde
 - livro-topics-erros-aprendidos-parte4 — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde
+- livro-topics-erros-aprendidos-parte5 — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde
 - livro-topics-prioridades — Como o Danilo decide prioridades no negócio — foco dos próximos meses e regras de desempate quando duas coisas competem 
 - livro-topics-regras-motores-e-prompts — Regras do Danilo sobre que motor/ferramenta usar (Fable, Opus, ChatGPT, GLM, Gemini, OpenCode) e sessões no Chrome — ler
 - lojas-takeaway-precos — Lojas de takeaway por telefone: Bora (não-parceiro) contra Glovo e Uber Eats, Guarda, 29/10/2026
@@ -686,6 +693,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - prompt-publica-e-fecha-2026-10-29-adendo-5 — Adendo 5 (29/10 19:18): revisão da conversa do dia — o que ainda faltava
 - prompt-publicar-retoma-2026-10-31 — Prompt PUBLICAR da retoma (31/10 20:00) — itens 2, 3 e 4 autorizados pelo Danilo 19:53
 - prompt-retoma-geral-2026-10-31 — PROMPT ÚNICO 31/10/2026 — parar, limpar a RAM e retomar todas as missões (Casa, motor Claude, Dipsy, lembretes)
+- prompt-robo-suporte-inteligente-2026-11-05 — Missão robô do suporte super inteligente (05/11/2026)
 - prompt-stripe-empresa-2026-11-01 — Prompt — ligar o app à Stripe da empresa (01/11/2026)
 - prompt-talao-confirmar-loja-saldo-2026-10-28 — PROMPT 28/10 — Confirmar do talão, nome da loja, dinheiro a cobrar com saldo/tokens, reembolso no cancelamento (100% sal
 - prompt-talao-confirmar-loja-saldo-2026-10-28-bloco-d — Adenda 18:30 ao prompt de 28/10 (talão Auchan/Divan): Bloco D novo — reembolso no cancelamento
@@ -719,6 +727,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - radar-2026-11-02 — Radar de vídeos 02/11/2026 — 40 revistos, 9 novos, 10 pendentes
 - radar-2026-11-03 — Radar de vídeos 03/11/2026 — 20 revistos, 4 novos, 5 pendentes
 - radar-2026-11-04 — Radar de vídeos 04/11/2026 — 40 revistos, 5 novos, 8 pendentes
+- radar-2026-11-05 — Radar de vídeos 05/11/2026 — 25 revistos, 2 novos, 8 pendentes
 - reembolsos-b2-00-leia-me — reembolsos-b2-00-leia-me
 - reembolsos-b2-01-shared-cobranca — reembolsos-b2-01-shared-cobranca
 - reembolsos-b2-ef-admin-cancel-order — reembolsos-b2-ef-admin-cancel-order

@@ -72,5 +72,6 @@ agendadas que chamam `claude -p` foram vistas: nenhuma publica.
 - Qualquer projeto Supabase fora da lista `PROJETOS_ENSAIO` conta como produção. A lista está vazia:
   um ramo de ensaio do Supabase só funciona depois de o Danilo o acrescentar à mão.
 - É uma rede contra erros de um agente, não contra um atacante a disfarçar comandos.
-- O CI `revisao.yml` nunca correu: só corre depois de estar no ramo. O modelo `revisao-site.yml` também não.
+- O CI `revisao.yml` já correu no pedido de revisão: 2911 testes da app e a bateria da trava passaram. O
+  `analyze` deu 270 avisos e só trava com erros. O modelo `revisao-site.yml` nunca correu.
 - Os outros repositórios com GitHub ainda não têm CI de revisão: um projeto de cada vez, com a mesma regra.

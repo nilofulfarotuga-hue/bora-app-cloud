@@ -15,7 +15,7 @@ volta atrás sozinho se a trava estiver estragada. Enviei o ramo de ensaio e abr
 escrever em `.claude/hooks/` e em `.github/workflows/`, e `.claude/settings.json` está na mesma lista. A regra dela é que
 nenhum agente muda as próprias trancas, e não a contornei. Liga-se com um duplo clique do Danilo em
 `ATIVAR-MODO-AUTOMATICO.cmd`, no Ambiente de Trabalho. Até lá, as regras novas valem só por escrito na skill. O CI de
-revisão nunca correu: só corre depois do clique. Os outros repositórios com GitHub ainda não têm CI de revisão.
+revisão só corre depois do clique (resultado mais abaixo). Os outros repositórios com GitHub ainda não têm CI de revisão.
 
 Sobre os settings sem pedidos de permissão, não mudei nada. Em "Ignorar permissões" o Claude Code já não mostra caixas,
 e `skipDangerousModePermissionPrompt` já estava ligado. Afrouxar permissões nos settings é mexer em segurança do sistema,
@@ -54,6 +54,10 @@ Mas o envio para `main` só foi recusado porque ninguém estava lá para respond
 diz que depois do clique nenhuma sessão publica estava errado. A correção é `guardas-sem-pergunta.patch`: a tranca deixa
 de perguntar e recusa logo. Numa cópia, os 45 testes da tranca passam e, numa sessão real, `main` ficou intacto. Precisa
 de um segundo clique, porque a tranca continua a não deixar um agente mexer nela.
+
+O CI de revisão já correu no pedido, duas vezes, e deu verde. Confirmei no registo: 2911 testes da app passaram, a
+bateria da trava deu 0 falhas e o `analyze` deu 270 avisos, que não param o CI. A 06/11 a memória desceu a 201 MB, abaixo
+do portão de 400. Segui porque só li estado e escrevi texto.
 
 ## PARA O DANILO
 

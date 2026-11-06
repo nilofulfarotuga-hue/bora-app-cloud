@@ -2,7 +2,7 @@
 id: memoria-claude-ai-caminhos-animacao-filme
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-02
+ultima_confirmacao: 2026-11-06
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Filme das filhas — 5 caminhos grátis para o desenho (revisto 05/10 com os 50 vídeos)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-11-02T20:56:22.269253+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-11-06T20:57:33.238327+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: caminhos animacao filme · memoria claude.ai · claude_ai_memoria
 
@@ -125,3 +125,9 @@ Nenhum vídeo novo do tema animacao_ia. Do termo "desenho animado grátis sem pl
 - Subir clipes a 4K e suavizar movimento (o vídeo usa VideoProc, pago): lente grátis = Real-ESRGAN + RIFE no Kaggle com GPU. https://www.youtube.com/watch?v=w-2EyWLnxyc
 - Agnes AI (créditos grátis diários, instável, filas) e Roar.art (ilimitado, espera longa) para imagem→vídeo — testar com a personagem; o vídeo não fala de consistência. https://www.youtube.com/watch?v=9JLOaVRkHW0
 - Animação de bonecos em SVG feita pelo Claude + HyperFrames (aberto) — simples demais para o filme, serve para explicativos. https://www.youtube.com/watch?v=BttMI1uDOMU
+
+## 06/11/2026 — radar diário (sem vídeos do tema animacao_ia; 5 do filme vindos de outras pesquisas)
+- Duração do episódio (caminho 1): Google Flow em sequência usando o fim do clipe anterior como início do seguinte — confirma o "estender cenas" registado 10/10, ainda não feito; o vídeo diz que precisa da versão Pro. https://www.youtube.com/watch?v=k3FwAfKrPBU
+- Consistência da história: curtas feitos pelo Claude em código com "bíblia da série" verificada por agente (furos de roteiro) e medição de cortes/silêncios dos vídeos de referência. https://www.youtube.com/watch?v=4e74CFd0F1E
+- Poupar clipes: animar só a camada que mexe (fundo parado em imagem, personagem por cima) — truque da colagem com Claude + Google Flow. https://www.youtube.com/watch?v=11-0lvGltVA
+- Fora: Kling + stickman (pago/recusado), Anijan (junta Kling/Seedance, créditos, sem prova de personagem fixo).

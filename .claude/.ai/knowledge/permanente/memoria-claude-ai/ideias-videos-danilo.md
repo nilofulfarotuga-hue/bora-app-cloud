@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-05
+ultima_confirmacao: 2026-11-06
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-11-05T20:55:18.066508+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-11-06T20:57:32.327981+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -507,3 +507,20 @@ Filme caminho 4 (fontes htROyMzUbA8, rxZZ1xi81a4): no Google Flow (Omniflash 1.1
 - JÁ TEMOS: Claude Code com subagentes e tarefas na nuvem, Hermes na VPS com travão (bora-tranca), agente aberto da DeepSeek (= Dipsy), CLAUDE.md/skills/MCP, caça-clientes por email, robôs de redes + Canva ligado.
 - RECUSADO: Pulso Social (2 vídeos), Meta Muse, white-label de delivery pago (Bib's), robôs de grupos do Facebook (FB Entra em Grupos, Turboflow), ComfyUI com API paga, disparo em massa por vários Gmails, Blox Hero (afiliado).
 - Radar aprende: sem termos aprendidos (repetidos só os já existentes ou recusados); +1 da conversa (chatbot de suporte com IA que consulta o pedido do cliente); -1 com menos rendimento (recibos verdes 2026 o que mudou); 70 ativos.
+
+## 06/11/2026 — radar diário
+40 vídeos revistos (35 com nota >= 6): 4 novos, 20 pendentes, 5 já temos, 11 rejeitados (5 por nota baixa). Nenhum do tema animacao_ia (5 do filme vindos de outras pesquisas). Proposta prop-ca31cc9d.
+- MODA DA SEMANA (3+ vídeos nota>=8 em 7 dias): Dipsy/DeepSeek Harness 12+5+4+3 — FEITO 29-30/10; anúncios Meta 6 — PARADO desde 26/10 (pagamento da conta); Jev 6 (+3 hoje) — PENDENTE desde 23/09; agente que trabalha sozinho e dá dinheiro 6 / vender automação e agência a PMEs (vários termos) — PENDENTE desde 13/10; Perfil Google como mensalidade 6 — FEITO (Jai); prospeção 6 — caça-clientes FEITO, extrator Google Maps PENDENTE desde 17/10; animação estilo Vox com Claude 5 — PENDENTE desde 11/10; Claude Code modo auto 5 — feito 05/11 mas DESLIGADO até o Danilo dar duplo clique em ATIVAR-MODO-AUTOMATICO; CRM WhatsApp aberto 4 — PENDENTE desde 18/10; chatbot de suporte que consulta o pedido 3 — FEITO 05/11 (robô do suporte); sites com IA para negócios locais 3+3 — PENDENTE desde 25/10; edição com Claude Code/HyperFrames 3 — PENDENTE desde 11/10; Claude Duet 3 — PENDENTE desde 22/10; voz grátis OmniVoice 3 — teste Kaggle sem prova; rececionista de voz 3 — PENDENTE desde 13/10; micro-SaaS 3 — PENDENTE desde 21/10; memória partilhada, Hermes, skills, atendente WhatsApp — já temos.
+- DINHEIRO (novo, prop-ca31cc9d): caça-clientes nunca pelo domínio principal — domínio secundário aquecido (comprar = decisão do Danilo); escolher PMEs por sinais de intenção (vagas de emprego, queixas públicas). https://www.youtube.com/watch?v=_HqdiRjh5aU
+- DINHEIRO (novo, prop-ca31cc9d): julgar o caça-clientes por volume antes de trocar de ferramenta (~1 reunião por 1.000 contactos no vídeo); pitch sobre gargalo, não sobre IA; folha sobre onde ficam os dados e quem mantém. https://www.youtube.com/watch?v=h8VwtISoohI
+- EM DIA (novo, prop-ca31cc9d): alerta de limite de gasto + resumo semanal de despesas (confirmar se já existe; Base44 fora, créditos). https://www.youtube.com/watch?v=jAFW2uaLq-U
+- EM DIA (novo, prop-ca31cc9d, olhar por fora): onboarding do Organizer e do Minhas Economias + queixas da Play Store deles para dores e ganchos. https://www.youtube.com/watch?v=-56jNWirRbQ
+- SISTEMA (PENDENTE desde 08/10): contador de consumo de tokens (mod Burn Meter) — sem prova de feito; mais útil agora com o limite do plano apertado. https://www.youtube.com/watch?v=BgbJFggbTVE
+- BORA (PENDENTE desde 01/10): reativar clientes parados com push e código de desconto (o vídeo mostra o mesmo em barbearias e pet shops). https://www.youtube.com/watch?v=Pf-_Pr2iNS0
+- DINHEIRO (PENDENTE, prop-2f8e76dc de 30/10): pacote de avaliações Google para PMEs (GoHighLevel pago → Claude Code + Hermes) + pedido oficial de remoção de avaliações falsas; referência de preço Perfil Google: R$800 setup + R$600/mês. https://www.youtube.com/watch?v=dd1WF9hWbEU , https://www.youtube.com/watch?v=uwc1qndZcNM , https://www.youtube.com/watch?v=_pfUDcM8o-E
+- SISTEMA (PENDENTE desde 23/09): Jev — 3 vídeos hoje (classificar, decidir, ligar ao Gemini por MCP). https://www.youtube.com/watch?v=MQg1-JAky1E , https://www.youtube.com/watch?v=KvpQ16XlUv0 , https://www.youtube.com/watch?v=X20dy6cINa8
+- EM DIA/BORA (PENDENTE desde 11/10): animação/motion em código pelo Claude (Vox, colagem animando só a camada que mexe, shorts com skill, HyperFrames). https://www.youtube.com/watch?v=xBQLMlbBxcI , https://www.youtube.com/watch?v=11-0lvGltVA , https://www.youtube.com/watch?v=KfLXoc6kkug , https://www.youtube.com/watch?v=y4YupFxhAog
+- BORA (PARADO desde 26/10, pagamento): anúncios — custo máximo por pedido pela margem, público amplo só na Guarda, TikTok/Instagram direto para WhatsApp. https://www.youtube.com/watch?v=WxtZ6k93RJw , https://www.youtube.com/watch?v=7cxF9a1GOPg , https://www.youtube.com/watch?v=9K9uNe1IeKs
+- JÁ TEMOS: robô do suporte que consulta o pedido (05/11; Zip Chat é Shopify e pago), Perfil Google como mensalidade (Jai), Gemini/AI Studio.
+- RECUSADO: Pabbly (2 vídeos, pago), Kling/stickman, ElevenLabs, Anijan (créditos), conteúdo genérico.
+- Radar aprende: +1 termo aprendido (gestão de avaliações Google com IA para negócios locais), +1 da conversa (ChatGPT Images para o estúdio de imagem); -2 sem rendimento (convencer restaurante a entrar na app; diretiva europeia das plataformas); 70 ativos.

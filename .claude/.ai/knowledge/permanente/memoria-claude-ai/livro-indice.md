@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-06T00:07:04.033278+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-06T05:07:03.325565+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-05 23:40 UTC. Páginas listadas: 539.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-06 04:45 UTC. Páginas listadas: 539.
 
 ## O que é o Bora
 
@@ -53,7 +53,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 ## digest (209)
 
-- digest-2026-11-05-modo-automatico-seguro — Claude Code 05/11 — modo automático seguro (por ligar) (2026-11-05)
+- digest-2026-11-05-modo-automatico-seguro — Claude Code 05/11 — modo automático seguro (por ligar) (2026-11-06)
 - digest-2026-11-05-robo-suporte — Digest 05/11 — robô do suporte inteligente (2026-11-05)
 - digest-2026-11-04-checkin-premios-fecho — Digest 04/11 — check-in prémios e Favor (fecho) (2026-11-04)
 - digest-2026-11-04-checkin-desconto-mercadona — Digest 04/11 tarde — check-in desconto e aviso Mercadona (2026-11-04)

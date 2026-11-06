@@ -2,6 +2,9 @@
 
 Missão `modo-automatico-seguro-2026-11-05`. Ramo de ensaio `ai/2026-11-05-modo-automatico-seguro`.
 
+> **Estado a 06/11, 05:15: tudo ligado e provado.** O texto abaixo conta a missão por ordem; o que diz "desligado" ou
+> "falta" foi resolvido nos dois cliques do Danilo. O estado final está na secção "Depois do segundo clique".
+
 **Fiz isto.** Fiz o inventário de todos os projetos em `docs/INVENTARIO_PROJETOS.md`. Criei a skill `modo-automatico`,
 que já vale em todas as pastas e no Dipsy, e pus a linha que aponta para ela no `CLAUDE.md` global, no do bora_app e em
 mais onze projetos. Construí a trava automática com 160 casos que tem de bloquear e 74 que tem de deixar passar, e
@@ -59,8 +62,24 @@ O CI de revisão já correu no pedido, duas vezes, e deu verde. Confirmei no reg
 bateria da trava deu 0 falhas e o `analyze` deu 270 avisos, que não param o CI. A 06/11 a memória desceu a 201 MB, abaixo
 do portão de 400. Segui porque só li estado e escrevi texto.
 
-## PARA O DANILO
+## Depois do segundo clique (06/11, 05:15)
 
-1. Segundo clique em `ATIVAR-MODO-AUTOMATICO.cmd`. Fazê-lo com nenhuma missão a meio de publicar.
+A instalação correu e a tranca já não tem pergunta. Numa sessão nova, com a tranca e os settings verdadeiros e um remoto
+falso nesta máquina: `Read` do `.env`, `cat .env` e `cat` de um `.p8` falso ficaram bloqueados e o segredo não apareceu;
+`gh pr merge`, `git push origin HEAD:main` e `git push --force` foram recusados sem pergunta, e `main` ficou com 1 commit;
+o ramo `ai/` seguiu; a leitura normal funcionou. Os 45 testes da tranca instalada passam.
+
+O atalho de desligar passou para `~/.claude/modo-automatico/`, para não depender da pasta de trabalho.
+
+Não provei em sessão real a recusa de uma migration, nem a cópia `bkp_`, porque isso mexeria na base de produção. Estão
+provadas pelos testes da tranca e da trava.
+
+## PARA O CLAUDE.AI
+
+1. Juntar o pedido bora-app-cloud#6. Não se testou se o Claude.ai o consegue fazer. Juntar publica, porque traz
+   `.github/workflows/revisao.yml`. Se não conseguir, nada do Claude Code publica: o Danilo tem de saber.
 2. O livro ainda diz "toda a sessão acaba com o envio para o servidor" (`regras-do-danilo`, secção 7) e "Claude Code =
-   publicar". A skill passa à frente, mas as páginas contradizem-na. Quem as atualiza é o Claude.ai.
+   publicar". A skill passa à frente, mas as páginas contradizem-na.
+3. A pasta principal do bora_app tem os dois remendos por gravar, em cima de 439 commits de atraso. Ao pô-la em dia,
+   depois de juntar, esses ficheiros vêm iguais do servidor.
+4. Os outros repositórios com GitHub ainda não têm CI de revisão.

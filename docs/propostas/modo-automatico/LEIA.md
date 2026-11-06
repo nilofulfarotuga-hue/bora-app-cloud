@@ -1,8 +1,7 @@
 # Modo automático seguro: como se liga
 
-> Missão `modo-automatico-seguro-2026-11-05`. Primeiro clique do Danilo a 05/11 às 20:37: trava, regras,
-> guardas e CI ligados. Falta um segundo clique para `guardas-sem-pergunta.patch`: sem ele, um "Permitir"
-> na pergunta da tranca ainda publica. O instalador é o mesmo e pode correr as vezes que for preciso.
+> Missão `modo-automatico-seguro-2026-11-05`. Ligado por dois cliques do Danilo: 05/11 às 20:37 e 06/11 às
+> 05:15. O instalador pode correr as vezes que for preciso.
 
 ## Porque não se liga sozinho
 
@@ -19,7 +18,8 @@ caminho. Liga-se com um duplo clique do Danilo em `ATIVAR-MODO-AUTOMATICO.cmd`, 
 5. Aplica `guardas-ramo-ai.patch` e `guardas-sem-pergunta.patch` na pasta principal do bora_app (ver abaixo).
 6. Põe `revisao.yml` no ramo de ensaio, com os mesmos remendos, e envia esse ramo. Não publica nada.
 
-Para desligar: `DESATIVAR-MODO-AUTOMATICO.cmd`, no mesmo sítio. Só vale em sessões abertas depois.
+Para desligar: `DESATIVAR-MODO-AUTOMATICO.cmd`, no mesmo sítio, que corre a cópia fixa em
+`~/.claude/modo-automatico/`. Só vale em sessões abertas depois.
 
 ## O que muda nas guardas antigas
 

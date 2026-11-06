@@ -82,9 +82,9 @@
 - O comando `git worktree add -b ramo origin/principal` deixa o ramo novo a seguir o ramo de
   produção. Um `git push` sem destino pode ir parar lá. Criar sempre com `--no-track`.
 - A aprovação automática da tranca passa por cima do "não" de outros ganchos. Provado com leitura de
-  `.env`: ver `docs/propostas/modo-automatico/LEIA.md`.
-- O `git-guardrails` do bora_app recusa enviar para qualquer ramo que não seja o principal, o que
-  impede o ramo de ensaio. Corrigido no remendo por aplicar, na mesma pasta.
+  `.env` e com um envio para `main`: ver `docs/propostas/modo-automatico/LEIA.md`. Corrigido a 06/11.
+- O `git-guardrails` do bora_app recusava enviar para qualquer ramo que não fosse o principal, o que
+  impedia o ramo de ensaio. Corrigido a 05/11.
 - `gh` no PC não tem a permissão `workflow`: pode impedir o envio de um ficheiro de CI.
 - Só têm GitHub, logo só podem ter CI: bora_app, em_dia, BoraStudio, bora-site, guarda-fc-site,
   partsflow_demo, propostas. Os restantes só têm testes locais.

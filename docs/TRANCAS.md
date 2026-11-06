@@ -325,3 +325,7 @@ Danilo em `ATIVAR-MODO-AUTOMATICO.cmd`. Registo: `e2e_log` fluxo `modo-automatic
 Defeito novo, provado em sessões reais: o `allow` do `tool.check` da tranca passa por cima do "não" de outro gancho
 `PreToolUse`. Com a trava nova sozinha, o `Read` e o `cat` de um `.env` falso passaram, apesar de ela ter recusado. Só
 o `deny` dos settings e a tranca sem aprovar é que travam. Corrigido no remendo `guardas-ramo-ai.patch`, por aplicar.
+
+Atualização de 06/11/2026: remendos aplicados pelo Danilo (05/11 às 20:37 e 06/11 às 05:15). A tranca deixou de
+perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy são recusados logo, menos as cópias
+`bkp_`. Um "Permitir" passava por cima da trava, provado num remoto falso. A tabela de cima é anterior a isto.

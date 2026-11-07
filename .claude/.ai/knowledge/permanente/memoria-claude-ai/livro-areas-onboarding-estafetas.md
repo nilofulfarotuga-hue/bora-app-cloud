@@ -10,11 +10,11 @@ estado: atual
 
 # Regras do Danilo para candidatos a prestador do Bora (estafeta, limpeza, lavagem): aprovação, documentos em falta, fila de espera, o que dizer-lhes
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-onboarding-estafetas`, origem `claude-ai`, atualizada em 2026-11-07T19:13:18.469364+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-onboarding-estafetas`, origem `claude-ai`, atualizada em 2026-11-07T20:15:38.634857+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas onboarding estafetas · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/onboarding-estafetas.md), copiada a 07/11/2026 19:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/onboarding-estafetas.md), copiada a 07/11/2026 20:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: onboarding-estafetas
@@ -28,4 +28,3 @@ aliases: [candidatos a estafeta, fila de espera estafetas, aprovar estafeta, can
 - [stated] Estafeta não aprovado NÃO pode ficar online nem receber pedidos até ele aprovar
 - [stated] 29/10/2026: a aprovação de candidatos (estafeta, limpeza, lavagem, qualquer papel) é só ele que faz, por enquanto; quer um robô de IA (uma das que já tem, sem pagar mais) que confira os documentos enviados — p. ex. se o comprovativo de atividade é mesmo das Finanças — e, se estiver errado ou faltar algo, mande sozinho mensagem ao candidato a dizer os documentos em falta
 - [stated] 07/11/2026: o estafeta/motorista tem de ver no próprio app TUDO o que lhe falta na conta e poder enviar/atualizar lá ("ele não vê o que está faltando, tem que aparecer tudo") — caso Valdemir, sem opção no app para confirmar a atividade; prompt de conserto escrito (ecrã de pendências no app + lista no painel admin), por colar no Claude Code quando o PC ligar
-

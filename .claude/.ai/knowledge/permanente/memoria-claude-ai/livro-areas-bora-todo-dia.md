@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-bora-todo-dia
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-04
+ultima_confirmacao: 2026-11-07
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Check-in diário e "Bora Todo Dia" do Bora App — tokens por dia, marcos com prémios de parceiros (10/15/30 dias) e a regra de 29/10 de um prémio por sequência; ler antes de mexer no check-in ou nos prémios
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-bora-todo-dia`, origem `claude-ai`, atualizada em 2026-11-04T11:13:15.914434+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-bora-todo-dia`, origem `claude-ai`, atualizada em 2026-11-07T19:13:35.912488+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas bora todo dia · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/bora-todo-dia.md), copiada a 2026-11-04 11:12 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/bora-todo-dia.md), copiada a 07/11/2026 19:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: bora-todo-dia
@@ -37,3 +37,5 @@ aliases: [Bora Todo Dia, uso diário, jogos com tokens, receitas diárias, hábi
 - [stated] 30/10 20:23-21:38 (regras novas, "vai"): cada conta tem direito a UMA escada grande (ideia dele: até 45 dias; primeira semana só tokens; depois prémios das lojas do mais barato para o mais caro, os mais vendidos de cada loja; o prémio grande, limpeza ou carro, só no fim); para avançar o cliente tem de estar elegível (ter comprado algo na app); regras não podem ser difíceis. Depois da grande, escada pequena de 30 dias que repete: aos 15 dias um prémio de pouco valor e aos 30 um pouco maior mas barato, também só com compra. Regras fechadas por mim na página claude_ai_memoria `regras-checkin-v2-2026-10-30`; implementação na missão da semana seguinte
 - [stated] 04/11/2026: quer o hambúrguer do mês da Boom como prémio do check-in um ou dois dias antes da limpeza (sem pedir preço especial ao Emanuel), e encher quase todos os dias da escada com prémios de várias lojas, do mais barato ao mais caro: Fuku Sushi, um Big Mac só (menu paga a diferença), um barato do Burger King, chocolate Leonidas, um desconto numa compra no Continente e num cosmético da Mercadona (Auchan e os outros mercados não); regras bem explicadas ao cliente. Pediu a proposta primeiro aqui, passada pelo conselho
 - [stated] 04/11/2026 09:58: depois do conselho, disse "vai" à escada de 30 dias (prémios do dia 8 ao 30 do mais barato ao mais caro, hambúrguer do mês da Boom ao dia 28, limpeza/lavagem ao dia 30) — substitui a escada de 45 dias de 30/10
+- [stated] 07/11/2026: ideia nova — notificação diária a todos os clientes com um restaurante por dia (rotativo), ou o restaurante em que cada cliente mais clicou; mandou gravar para fazer. Também diz que o check-in "não terminou" (falta acabar coisas), vai-me lembrando; entra na missão grande de domingo à noite (ver [[missao-domingo-noite]])
+

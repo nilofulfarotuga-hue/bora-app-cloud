@@ -2,7 +2,7 @@
 id: memoria-claude-ai-erros-aprendidos
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-05
+ultima_confirmacao: 2026-11-07
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-05T21:14:12.508346+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-07T19:13:35.912488+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: erros aprendidos · memoria claude.ai · claude_ai_memoria
 
@@ -136,4 +136,5 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - 04/11 (claude-ai): 04/11 11:23: mensagem em inglês a dizer que o Fred só volta na terça e só ele pode pagar; respondi "espero pelo Fred na terça" sem ver no recibo-jogador-gfc que os 440,02 € já tinham sido pagos a 03/11 → mensagem sobre pagamento = ver primeiro se a conta já está paga; se está, a resposta diz que já recebi e não há nada a pagar.
 - 04/11 (claude-ai): 04/11 11:24: escrevi a tradução da mensagem do Vansh e da resposta entre ferramentas e ela não lhe apareceu no ecrã; ele só viu o cartão em inglês e irritou-se → as duas traduções ("O Vansh falou" e "O que eu estou a responder") vão sempre por mensagem visível antes do cartão, ou como texto final depois da última ferramenta; nunca soltas no meio das ferramentas.
 - 05/11 (claude-ai): 05/11 20:16: disse que os pedidos do McDonald's e do Jyosmi não tinham talão registado e calculei o lucro com o preço de balcão da app; ele tinha registado o talão do McDonald's com foto — a minha consulta com várias instruções devolveu só o resultado da última e não vi a tabela order_receipts_v2 → ver sempre uma consulta de cada vez (ou conferir que vieram todos os resultados) e, antes de dizer que falta talão, ler order_receipts_v2 e o bucket receipts; lucro de pedido não-parceiro usa o valor do TALÃO (driver_typed_total_cents), nunca o preço da app.
+- 07/11 18:42 (Claude.ai): disse que o Valdemir devia €3,24 (banco: €1,77 pendente + €1,47 calculado) sem ver se já tinha pago; ele corrigiu "já pagou tudo, não deve nada" → dívida de motorista só se lista se a conversa confirmar; o banco mostra "pendente" mesmo quando o Danilo já recebeu à mão. Ao responder "quanto deve", dizer o que o banco mostra e perguntar se já pagou, ou ler as conversas antigas primeiro.
 

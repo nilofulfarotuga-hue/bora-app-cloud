@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-06
+ultima_confirmacao: 2026-11-07
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-11-06T20:57:32.327981+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-11-07T20:56:09.434003+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -524,3 +524,19 @@ Filme caminho 4 (fontes htROyMzUbA8, rxZZ1xi81a4): no Google Flow (Omniflash 1.1
 - JÁ TEMOS: robô do suporte que consulta o pedido (05/11; Zip Chat é Shopify e pago), Perfil Google como mensalidade (Jai), Gemini/AI Studio.
 - RECUSADO: Pabbly (2 vídeos, pago), Kling/stickman, ElevenLabs, Anijan (créditos), conteúdo genérico.
 - Radar aprende: +1 termo aprendido (gestão de avaliações Google com IA para negócios locais), +1 da conversa (ChatGPT Images para o estúdio de imagem); -2 sem rendimento (convencer restaurante a entrar na app; diretiva europeia das plataformas); 70 ativos.
+
+## 07/11/2026 — radar diário
+40 vídeos revistos (39 com nota >= 6): 8 novos, 20 pendentes, 6 já temos, 6 rejeitados (1 por nota baixa). Nenhum do tema animacao_ia. Proposta prop-bfe857d7.
+- MODA DA SEMANA (3+ vídeos nota>=8 em 7 dias): CRM WhatsApp aberto/DeskCRM 8 (+4 hoje) — PENDENTE desde 18/10; Claude Duet 6 (+3) — PENDENTE desde 22/10 (sem acesso em PT); Claude Design/Motion 6 (+3) — PENDENTE desde 11/10; anúncios Meta 6 — PARADO desde 26/10 (pagamento); Hermes 6 (+4) — já temos, atualização 0.23 nova hoje; Perfil Google como mensalidade 6 — FEITO (Jai); sites para PMEs 5 (+2) — PENDENTE desde 25/10; rececionista de voz 5 — PENDENTE desde 13/10; OmniRoute/9Router/Free LLM API 5 (+3) — OmniRoute FEITO 23/10, Free LLM API PENDENTE desde 15/10; Antigravity 5 — recusado (Claude Code faz o mesmo), Gemini Notebook pendente desde 26/10; vender automação/agência a PMEs (vários termos) — PENDENTE desde 13/10; REA 3 — FEITO 26/10; Jev 3 — PENDENTE desde 23/09.
+- SISTEMA (novo, prop-bfe857d7): Hermes 0.23 Hearth (WebApp no telemóvel, gateway único, rewind) só por túnel privado; plugins do marketplace só abertos e revistos pelo critico. https://www.youtube.com/watch?v=6c3U9_ub1UU , https://www.youtube.com/watch?v=bXa22Wb1H08 , https://www.youtube.com/watch?v=15waA0i5zwA
+- BORA (novo, prop-bfe857d7): Claude Design ligado ao repo para desenhar os ecrãs da missão de domingo antes de programar. https://www.youtube.com/watch?v=COJAZQM1aeQ
+- BORA/DINHEIRO (novo, prop-bfe857d7): GEO — IA de pesquisa prefere avaliações recentes e detalhadas e texto rico (cardápio, zona, diferenciais) nas páginas das lojas e na ficha Google. https://www.youtube.com/watch?v=sOPWsAFDHNs , https://www.youtube.com/watch?v=AvIrIvhFFPA
+- EM DIA (novo, prop-bfe857d7): reels "coisas que não valem o dinheiro"/mitos de finanças; ver o que engaja na pesquisa do Instagram antes do tema. https://www.youtube.com/watch?v=gBrL7HFeSjw , https://www.youtube.com/watch?v=MqOikd3h6As
+- DINHEIRO (PENDENTE desde 18/10): DeskCRM (MIT) pode usar a assinatura ChatGPT Plus como motor e ser revendido como SaaS às PMEs. https://www.youtube.com/watch?v=uBGBXGIOYLQ , https://www.youtube.com/watch?v=beUF9DRAUqs
+- SISTEMA (PENDENTE desde 15/10): Free LLM API como reserva extra dentro do OmniRoute, só sem dados de clientes. https://www.youtube.com/watch?v=exkQTYOm47c
+- DINHEIRO (PENDENTE, estúdio de imagem semana de 09/11): cartazes e ensaios com ChatGPT Images + referência do Pinterest. https://www.youtube.com/watch?v=zWyZBX9K9Go
+- DINHEIRO (PENDENTE desde 25/10): sites de PMEs com uma página por serviço e por localidade. https://www.youtube.com/watch?v=R4jUmVKubFs
+- JÁ TEMOS: 9Router (= OmniRoute), REA (26/10), Hermes na VPS (ElfHosted pago dispensado), Higgsfield para fotos de comida.
+- RECUSADO: Antigravity/Stitch (2), tradução multi-agente Gemini, HitPaw (pago), anúncio de concorrente da limpeza, vídeo de crédito.
+
+- Radar aprende 07/11: +1 termo aprendido (GEO — ser recomendado pelo ChatGPT/Gemini), +1 da conversa (notificação diária e check-in para abrir a app todos os dias, missão de domingo); -2 sem rendimento (promoção do mês com restaurante; check-in diário antigo, fundido no novo); 70 ativos.

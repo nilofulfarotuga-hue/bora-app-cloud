@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-08T21:07:03.107413+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-08T21:37:03.070074+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-08 21:04 UTC. Páginas listadas: 561.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-08 21:31 UTC. Páginas listadas: 567.
 
 ## O que é o Bora
 
@@ -34,7 +34,7 @@ Quer respostas curtas, em texto corrido e sem jargão, e que o trabalho se faça
 
 1. `erros-aprendidos` — as correções do Danilo; errou uma vez, nunca mais (atualizada 2026-11-08).
 2. `regras-do-danilo` — as regras dele; mandam em tudo (atualizada 2026-10-31).
-3. Estado vivo: `digest-2026-11-08-m2` (2026-11-08).
+3. Estado vivo: `digest-2026-11-08-m3` (2026-11-08).
 4. Antes de mexer em pedidos, estafetas, dinheiro ou migrações: `regras-operacao-agentes`.
 5. Ferramenta nova sem MCP? `livro-porta-unica` explica como ligar (Córtex por MCP, ou o ficheiro plano LIVRO.md com senha).
 
@@ -51,8 +51,9 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - erros-aprendidos — Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige) (2026-11-08)
 
-## digest (214)
+## digest (215)
 
+- digest-2026-11-08-m3 — Digest 08/11 — m3: Dipsy com internet registada e pergunta antes de dinheiro (2026-11-08)
 - digest-2026-11-08-m2 — Missão m2 08/11 — A minha conta do estafeta, fila de espera, faixa e mira (2026-11-08)
 - digest-2026-11-08-m7 — Digest 08/11/2026 — missão M7 (Stripe, parceiros, radar, leis) (2026-11-08)
 - digest-2026-11-08-m6 — Digest 08/11 — M6 crescimento, Hermes, porteiro, redes, Jyosmi, restaurante do dia (2026-11-08)
@@ -474,7 +475,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - sql-modo-demo-2026-10-27 — SQL do modo demonstracao (Boom! Burger) para o Claude.ai aplicar (2026-10-27)
 
-## outras (154)
+## outras (159)
 
 - 00-LEIA-PRIMEIRO — Como usar esta memória (2026-10-23)
 - adendo-1-final-app-2026-10-29 — Adendo 1 da missão final-app-2026-10-29 (2026-10-29)
@@ -568,13 +569,18 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - playbook-redes-emdia — Playbook das redes — Em Dia (28/09) (2026-09-28)
 - proposta-m1-2026-11-08-edge-favor-cobrar-diferenca — M1 08/11 — Edge favor-cobrar-diferenca (index.ts, verify_jwt=false) (2026-11-08)
 - proposta-m1-2026-11-08-edge-recibo-pedido-cliente — M1 08/11 — Edge nova recibo-pedido-cliente (index.ts, verify_jwt=false) (2026-11-08)
-- proposta-m1-2026-11-08-leia-primeiro — M1 08/11 — guia para aplicar e publicar (Claude.ai) (2026-11-08)
+- proposta-m1-2026-11-08-edge-taloes-copia-diaria — M1 adendo 1 — Edge nova taloes-copia-diaria (index.ts; verify_jwt=false) (2026-11-08)
+- proposta-m1-2026-11-08-edge-taloes-zip-mes — M1 adendo 1 — Edge nova taloes-zip-mes (index.ts; verify_jwt=false) (2026-11-08)
+- proposta-m1-2026-11-08-edge-upload-receipt — M1 adendo 1 — Edge upload-receipt v2 (index.ts completo; nunca substitui, confirma no servidor) (2026-11-08)
+- proposta-m1-2026-11-08-leia-primeiro — M1 08/11 — guia para aplicar e publicar (Claude.ai), com o adendo 1 dos talões (2026-11-08)
 - proposta-m1-2026-11-08-patch-charge-tip — M1 08/11 — remendo charge-tip (taxa proporcional das gorjetas junto) (2026-11-08)
+- proposta-m1-2026-11-08-patch-fecho-mensal — M1 adendo 1 — remendo fecho-mensal-contabilista (talões do mês no email) (2026-11-08)
 - proposta-m1-2026-11-08-patch-notify-client — M1 08/11 — remendo notify-client (toque persistente) (2026-11-08)
 - proposta-m1-2026-11-08-sql-01 — M1 08/11 — SQL 01 diferenças MB Way + entregue sem código (2026-11-08)
 - proposta-m1-2026-11-08-sql-02 — M1 08/11 — SQL 02 aprovação com tecto + finalize remendado (2026-11-08)
 - proposta-m1-2026-11-08-sql-03 — M1 08/11 — SQL 03 NIF ao estafeta + recibo por email (2026-11-08)
 - proposta-m1-2026-11-08-sql-04 — M1 08/11 — SQL 04 gorjeta, ganho do dia, robô do talão (2026-11-08)
+- proposta-m1-2026-11-08-sql-07 — M1 adendo 1 — SQL 07 talões guardados para sempre (2026-11-08)
 - radar-2026-10-05 — Radar de vídeos 05/10 — filme (5 caminhos) e negócio (2026-10-05)
 - radar-2026-10-06 — Radar de vídeos 06/10 — negócio e reforços para o filme (2026-10-06)
 - radar-2026-10-07 — Radar de vídeos 07/10 — skills, mods do Claude Code e regras de reels (2026-10-07)

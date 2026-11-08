@@ -8,13 +8,13 @@ confianca: alta
 estado: atual
 ---
 
-# M1 08/11 — guia para aplicar e publicar (Claude.ai)
+# M1 08/11 — guia para aplicar e publicar (Claude.ai), com o adendo 1 dos talões
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `proposta-m1-2026-11-08-leia-primeiro`, origem `claude-code`, atualizada em 2026-11-08T20:59:30.92096+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `proposta-m1-2026-11-08-leia-primeiro`, origem `claude-code`, atualizada em 2026-11-08T21:31:57.894466+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: proposta m1 2026 11 08 leia primeiro · memoria claude.ai · claude_ai_memoria
 
-Missão m1-dinheiro-favores-2026-11-08 (Claude Code do PC, 08/11/2026). Ficheiro: docs/propostas/m1-dinheiro-favores-2026-11-08/LEIA-PRIMEIRO.md. Copiado para o livro porque a bora-tranca recusa o git push (também do ramo de ensaio) — o ramo ai/2026-11-08-m1-dinheiro-favores está só no PC.
+Missão m1-dinheiro-favores-2026-11-08 (Claude Code do PC, 08/11/2026). Ficheiro: docs/propostas/m1-dinheiro-favores-2026-11-08/LEIA-PRIMEIRO.md. Copiado para o livro porque a bora-tranca recusa o git push (também do ramo de ensaio).
 
 ```md
 # Missão m1-dinheiro-favores-2026-11-08 — guia para aplicar e publicar (Claude.ai)
@@ -71,6 +71,21 @@ Guardar o md5 de cada uma antes e depois no `e2e_log` (fluxo `m1-dinheiro-favore
 "Comprar só até X €"/"Cancelar Favor", espera do MB Way, cartão do NIF por cima da foto do talão. Não toca em
 `_finalizePurchase`. Aplicar com `git apply docs/propostas/m1-dinheiro-favores-2026-11-08/06_errand_execution_sheet_tecto.patch`
 (`git apply --check` passa a 08/11) e correr `flutter analyze` + `flutter test` antes de juntar.
+
+## 2c. Adendo 1 — talões guardados para sempre (pedido do Danilo 08/11 20:39)
+
+1. SQL `07_taloes_guardados_para_sempre.sql` → migração `20261108220000_m1_taloes_guardados` (md5 no
+   `e2e_log`, fluxo `m1-adendo1-taloes-guardados-2026-11-08`). Depois do 03. Importa as fotos antigas para
+   `order_receipt_fotos` sem mexer nos ficheiros e agenda o cron `taloes-copia-diaria`.
+2. Publicar `upload-receipt` (repo; nunca substitui, confirma no servidor) **ao mesmo tempo** que a app nova ou
+   antes — a app antiga continua a funcionar com ele (caminho novo, mesma resposta + campos a mais).
+3. Publicar `taloes-zip-mes` e `taloes-copia-diaria` (novas, verify_jwt=false: conferem quem chama no código) e
+   `fecho-mensal-contabilista` (repo = ar + bloco dos talões).
+4. Cópia no Google Drive da Bora: criar na conta Google da Bora a pasta "Talões", autorizar uma vez o Drive
+   (OAuth, âmbito drive.file) e gravar os segredos das Edge `GOOGLE_DRIVE_CLIENT_ID`, `GOOGLE_DRIVE_CLIENT_SECRET`,
+   `GOOGLE_DRIVE_REFRESH_TOKEN`, `GOOGLE_DRIVE_PASTA_TALOES`; depois `taloes_copia_drive_ativa = true` no painel.
+   Até lá a função só regista "por_configurar". Nunca apaga nada.
+5. App: remendo `08_errand_sheet_talao_pendente.patch` aplica-se DEPOIS do 06 (folha do Favor, zona vermelha).
 
 ## 3. Provas depois de aplicar (com rollback, conta demo, nunca dinheiro real)
 

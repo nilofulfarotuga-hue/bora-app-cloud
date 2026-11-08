@@ -2,21 +2,20 @@
 id: memoria-claude-ai-livro-topics-erros-aprendidos-parte3
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-05
+ultima_confirmacao: 2026-11-08
 zona: verde
 confianca: alta
 estado: atual
 ---
 
-# Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 3 de 5 — continua em livro-topics-erros-aprendidos-parte4)
+# Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 3 de 5)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte3`, origem `claude-ai`, atualizada em 2026-11-05T21:14:12.508346+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte3`, origem `claude-ai`, atualizada em 2026-11-08T18:16:18.798032+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro topics erros aprendidos parte3 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 3 de 5), copiada a 05/11/2026 21:12 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 3 de 5), copiada a 08/11/2026 18:14 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
-- [stated] 21/10: na mensagem ao contabilista sobre os códigos de atividade e a resposta do IMT escrevi como se o Danilo soubesse de leis (artigos, acórdãos) → regra: mensagem a contabilista/advogado/entidade com pesquisa jurídica tem de dizer que ele fez a pesquisa com ajuda de IA e não percebe de leis; tom humilde de quem pede opinião, nunca de quem ensina. REFORÇO 21/10: falar da IA UMA vez só ("fiz uma pesquisa com IA") e a mensagem curta, sem artigos nem acórdãos — ele achou longa e com IA demais
 - [stated] 22/10: na resposta ao Hugo (contabilista, grupo da Segurança Social) pus passaporte, oferta do número da Segurança Social e um lembrete da pergunta dos códigos/IMT → regra: ele queria só "Obrigado, Hugo. Vou enviar o cartão de residência." Resposta a pedido simples = uma linha, só o que ele vai mandar; não acrescentar documentos, ofertas nem lembrar perguntas antigas
 - [stated] 22/10: nas ideias de vídeos para as redes pus a Ouro e Prata entre os parceiros a promover; ele corrigiu "Ouro e Prata está fora" (loja coming_soon desde 25/09 e proibida nas redes desde 05/10) → regra: antes de listar parceiros para propaganda, confirmar na base quem está ativo (coming_soon=false) e o que está proibido nas redes; Ouro e Prata nunca entra
 - [stated] 22/10: na ideia do "carro voador" (hype do Roadster da Tesla) troquei o carro por um saco a voar por causa da regra "nada de motorista de carro"; ele corrigiu: "é um carro de delivery com o logo da Bora voando, só pra pegar o hype" → regra: a proibição é de carro de PASSAGEIROS/TVDE; carro de ENTREGAS com a marca Bora pode aparecer. Quando ele dá uma ideia, fazer a ideia dele, não trocá-la por outra
@@ -39,7 +38,4 @@ estado: atual
 - [stated] 27/10: na resposta à Boom! Burger sobre "porque não fizeram publicidade pela cidade" pus "levamos o cartaz com QR para o balcão e o autocolante para a porta" → regra certa: não falar de QR nem de autocolante ao lojista; quando ele disser "pode abrir a loja", a loja abre logo e é o Danilo que vai lá levar o autocolante e o QR em mão
 - [stated] 27/10: ele mandou print do Jai a pedir para ir ao estádio e eu pus no cartão "I'm coming to the stadium" sem saber se ele podia; estava a almoçar com a família e mandou dizer que agora não estava disponível → regra: quando o print pede que ele vá a algum lado e ele não disse se pode, não decidir por ele; perguntar numa linha "podes ir agora?" antes de fazer o cartão
 - [stated] 27/10: achei um erro na app (o painel do parceiro da Boom! Burger mostra "112" produtos quando são 56) e disse-lhe que "ficou anotado" para depois; ele corrigiu: "sempre quando for achando problema, já tem que ir consertando, não pode ficar nada pra depois" → regra: erro que encontro é mandado consertar NA HORA (MCP já, ou prompt ao Claude Code), nunca fica "anotado para depois"; e rever o que já ficou para trás e mandar arrumar tudo
-- [stated] 27/10 22:18: insisti duas vezes (de manhã e à noite) para ele apagar dos 3 grupos os cartazes das vagas que saíram do número pessoal; ele não quer: "deixa lá, já pôs isso, agora deixa" → regra: não voltar a pedir para apagar esses cartazes; daqui para a frente, tudo o que se publicar em grupos sai sempre pelo WhatsApp da Bora
-- [stated] 27/10 22:25: mandei publicar o reel do Tesla no grupo "Brasileiros na Guarda" e no "Marketing, vendas e propaganda Guarda"; ele corrigiu: "o brasileiro agora só pode no marketing" → regra: propaganda da Bora em grupos de WhatsApp só no "Marketing, vendas e propaganda Guarda"; no "Brasileiros na Guarda" não se publica
-- [stated] 28/10 10:33 (na hora da demonstração da Boom): disse-lhe que as senhas das contas de demonstração estavam no Telegram e não lhas dei; ele não as tinha à mão e reclamou "você tem que me dar a senha" → regra: quando ele pede o login de uma conta de teste/demonstração, dou-lho logo aqui na conversa (e se eu não tiver a senha, reponho uma nova pelo servidor, testo e dou-a); nunca o mandar procurar no Telegram
 

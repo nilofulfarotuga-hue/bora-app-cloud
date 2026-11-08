@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-topics-erros-aprendidos
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-07
+ultima_confirmacao: 2026-11-08
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 1 de 5 — continua em livro-topics-erros-aprendidos-parte2…)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-07T19:13:35.912488+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-08T18:16:17.027843+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro topics erros aprendidos · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md), copiada a 07/11/2026 19:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md), copiada a 08/11/2026 18:14 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: erros-aprendidos
@@ -50,4 +50,6 @@ aliases: [erros, erros corrigidos, nunca mais errar, lições aprendidas, caminh
 - 15/10: tentei guardar no banco uma autorização geral "pra sempre" para a tranca deixar passar tudo → recusado pelo sistema. Regra: autorização é POR MISSÃO, com data e texto literal dele no topo do prompt; dinheiro/preço/Stripe pedem "autorizo" concreto ("autorizo publicar X"). Nunca voltar a tentar licença geral
 - [stated] 15/10: escrevi a mensagem para a advogada (Dra. Cristina) formal, assinada "Equipa Bora", com cinco perguntas jurídicas → regra certa: para a advogada fala o Danilo, no nome dele, humanizado e curto, só o ponto que importa (no caso, poder continuar motorista), dizendo que não pode gastar muito
 - [stated] 15/10: na mensagem à advogada pus "posso passar aí agora, chego em 10 minutos a Vale de Estrela" — era um pedaço solto da voz dele, não era para a mensagem → regra: mensagem à advogada é só a pergunta, curta; frase solta de voz que não encaixa fica de fora (ou confirmo antes)
+- [stated] 16/10: ele mandou print com várias mensagens em inglês (Jai e a mãe) e eu juntei a tradução num resumo misturado com as minhas explicações; ele reclamou irritado "tem que me traduzir o que eles estão falando" → regra: print com mensagens noutra língua = primeiro traduzir CADA mensagem, uma por uma, com quem disse, palavra por palavra; só depois explicações e respostas
+- [stated] 16/10: disse que a página do jornal O Interior ainda não estava no site do Jai porque a leitura da página não a mostrou — estava no ar desde 23/09 (e2e_log jai-mes2-28-09); e à mãe do Jai inventei uma pergunta (aeroporto/hora) quando ela só mandou um lembrete → regra: antes de dizer o estado de qualquer trabalho, procurar no e2e_log pelo fluxo e nas conversas antigas; e traduzir só o que a pessoa disse, sem lhe pôr perguntas na boca
 

@@ -428,3 +428,38 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
    quando o envio tem exatamente dois argumentos; o `2>&1` no fim contou como um terceiro e passou a "publicar".
    Depois do "Sim, deixa" do Danilo, o envio simples passou: ramo `ai/2026-11-08-m8-junto-e-testado`, pedido de
    revisão n.º 7. Foi a mesma armadilha nas sessões M1 a M7.
+
+## 08/11 — travas desligadas por ordem do Danilo; o que fica proibido por regra escrita
+
+Missão `m10-noite-toda-sem-travas-2026-11-08`. Ordem literal do Danilo às 23:16: "Tira todas as travas que tá
+atrapalhando aí". AUTORIZO dele (08/11/2026) para desligar as travas que nós escrevemos.
+
+O que se fez (e2e_log, passo `00-desligar`, id 7240). Uma sessão `claude --safe-mode` (o caminho que o README da
+tranca indica para mexer nela por ordem do Danilo) correu `DESLIGAR-M10.ps1`:
+
+- A trava do modo automático saiu do `~/.claude/settings.json` e o ficheiro passou a
+  `~/.claude/hooks/trava-modo-automatico.mjs.desligado-20261108`.
+- No `.claude/settings.json` do repo saíram os ganchos `protege-dinheiro.sh` e `protege-banco.sh`. O
+  `git-guardrails.sh` fica (só nega forçar e apagar).
+- A bora-tranca foi reduzida à lista PROIBIDO (`tranca.ts`, função `aindaProibido`). Continua a negar: apagar
+  recursivo, push forçado, `reset --hard`, `git add -A`, `supabase db reset`, segredos (ficheiros e texto claro),
+  DROP/TRUNCATE/DELETE sem WHERE em tabelas de dinheiro, `platform_settings` financeiro, RLS de dinheiro,
+  `pricing_service.dart`, a versão do `pubspec`, e UPDATE/INSERT/DELETE direto em orders/drivers/carteiras fora
+  de um corpo de função. Deixa passar o resto (push, migrations, DDL, deploy, zonas autorizadas).
+- Ficam as 21 regras `deny` de leitura de ficheiros de segredos no `~/.claude/settings.json`.
+- Cópias em `C:\Users\danil\.claude\modo-automatico\bak-20261108-m10`. Voltar ao normal:
+  `powershell -File C:\Users\danil\.claude\modo-automatico\RESTAURAR-M10.ps1` (vale para as sessões abertas
+  depois).
+
+Armadilha aprendida: a bora-tranca é carregada em memória quando a sessão arranca. Mudar o `tranca.ts` não muda a
+sessão que já está aberta; só as sessões novas apanham a versão nova. A trava do modo automático é um comando que
+corre a cada chamada: sai logo de efeito.
+
+Lista PROIBIDO que vale por regra escrita (mesmo sem nenhum gancho a negar): DROP/TRUNCATE/DELETE em massa ou
+apagar dados de produção; expor ou mexer em segredos reais (service_role, chaves Stripe, tokens) — só ler nomes;
+mudar preços, comissões, taxas ou o que uma coisa custa; ligar os degraus de desconto do check-in no
+`create_order`; ativar Connect ou mexer na Stripe; enviar mensagens a clientes, estafetas, parceiros, Hugo ou Jai;
+publicar em redes sociais; reescrever histórico git já publicado. Produção: pedidos a estafetas só por `ops_*`.
+
+Provas: DDL em produção (`public._prova_travas_m10`, RLS ligada) passou; deploy por MCP (`prova-m10`) passou; o
+envio git passou nas sessões novas (a orquestradora, aberta antes, continuou com a tranca antiga).

@@ -118,6 +118,9 @@ class _S extends State<AdminRobotSuggestionsScreen> {
     if (msg.contains('sugestao_nao_encontrada')) {
       return 'Sugestão não encontrada — atualiza a lista.';
     }
+    if (msg.contains('SUSPENSAO_SEM_MOTIVO')) {
+      return 'Escreve o motivo da suspensão (mínimo 10 letras).';
+    }
     if (msg.contains('setting_fora_da_whitelist_robot')) {
       return 'Esta configuração é protegida — altera em Configurações da Plataforma.';
     }
@@ -138,23 +141,53 @@ class _S extends State<AdminRobotSuggestionsScreen> {
 
   Future<void> _apply(Map<String, dynamic> s) async {
     final payload = s['payload_execucao'] as Map?;
+    // 02/11/2026 (zerar B4): esconder uma loja é suspender o parceiro — o
+    // motivo é obrigatório (mín. 10 letras), como em admin_suspender_prestador.
+    final escondeLoja = payload?['type'] == 'hide_store';
+    final motivoCtrl = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Aprovar e aplicar'),
-        content: Text(
-            'Executar agora o payload "${payload?['type']}" desta sugestão?\n\n'
-            'A ação é registrada em auditoria.'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Executar agora o payload "${payload?['type']}" desta sugestão?\n\n'
+                'A ação é registrada em auditoria.'),
+            if (escondeLoja) ...[
+              const SizedBox(height: 12),
+              TextField(
+                key: const Key('robot_apply_motivo'),
+                controller: motivoCtrl,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Motivo da suspensão da loja (mín. 10 letras)',
+                  helperText: 'Escrito por uma pessoa. Vai para Revisões e para o parceiro.',
+                ),
+              ),
+            ],
+          ],
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Voltar')),
           FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Aplicar')),
         ],
       ),
     );
+    final motivo = motivoCtrl.text.trim();
+    motivoCtrl.dispose();
     if (ok != true) return;
+    if (escondeLoja && motivo.length < 10) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Escreve o motivo da suspensão (mínimo 10 letras).')));
+      }
+      return;
+    }
     try {
-      final res = await Supabase.instance.client
-          .rpc('robot_apply_suggestion', params: {'p_suggestion_id': s['id']});
+      final res = await Supabase.instance.client.rpc('robot_apply_suggestion_motivo',
+          params: {'p_suggestion_id': s['id'], 'p_motivo': escondeLoja ? motivo : null});
       if (mounted) {
         Navigator.of(context).popUntil((r) => r.settings.name != '_robotDetail');
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(

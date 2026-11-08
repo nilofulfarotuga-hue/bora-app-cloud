@@ -165,3 +165,32 @@ extrato do contabilista); 5,00 € (18/10) e 5,00 € (22/10) sem nenhuma pista 
 pedido da app que se perdeu.** Atenção: o `stripe-webhook` v38+ põe um aviso "alto" no sininho também
 nestas cobranças ao vivo — sugestão de afinação (só "baixo" quando `payment_method_types` tem
 `card_present`) na proposta da zona vermelha.
+
+## Troca do servidor — 02/11/2026 (missão `zerar-2026-11-02`, B1)
+
+Autorização do Danilo de 02/11 14:46 ("Dois tem que fazer"): desligar as chaves legadas, por esta ordem.
+
+**(a) Servidor — FEITO 15:02 UTC.** Uma alavanca só: `vault.service_role_key` passou a ter a `sb_secret`
+(a mesma de `sb_secret_backend`). Cópia da legada em `vault.service_role_key_legada_bkp_20261102`; voltar atrás
+= `vault.update_secret` do `service_role_key` com essa cópia. Todas as 85 rotinas do banco e os 9 crons que
+chamam Edge Functions leem esse nome (diretamente, `_service_role_key()`, `_dispatch_jwt()`,
+`_dispatch_service_jwt()`); nenhuma chama `rest/v1`, `auth/v1` ou `storage/v1`. Por isso o **Bloco 3**
+(`20261016100000_chave_nova_banco_manda_apikey.sql`, que reescrevia 85 corpos por regex) **não se aplica**:
+ficou desnecessário. O banco manda agora a `sb_secret` só em `Authorization: Bearer` (a porta e
+`chamadaDoServidor` aceitam-na assim). Provas: vigia ronda `8fb06634` 50/50 ok; as 17 funções fora do vigia
+sondadas (pong/400 de corpo, nunca 401); tráfego real 15:02–16:21 = 226×200, 4×400 (sondas de propósito),
+0×401/403, 0×5xx. O REST aceita a `sb_secret` em `apikey` + `Bearer` (provado a partir do banco).
+Fora do banco: `backend/.env` do PC trocado (cópia `.bak-legada-20261102`); **por trocar** os dois `.env`
+da VPS (`/opt/whatsapp-bora/.env`, `/opt/assistente-negocio/.env`; o classificador recusou a escrita remota,
+ver `docs/TRANCAS.md`) e o segredo do GitHub `SUPABASE_SERVICE_ROLE_KEY` (só o CI o usa, em `apikey`+`Bearer`).
+
+**(b) Obrigar a atualizar — À ESPERA DA APPLE.** A app desde 15/10 já traz a chave pública nova (o
+`main.dart.js` publicado tem `sb_publishable`, 0 JWT legados); só as instalações anteriores trazem a anon
+legada. Na App Store PT está a 1.0.33; a 1.0.34 espera revisão e a 1.0.35 (build 224) está só no TestFlight.
+Quando a versão nova estiver à venda: `app_min_supported_version_code_ios` = build à venda e
+`app_min_supported_version_code` = 706 (hoje ambos 0).
+
+**(c) Desligar as legadas — DEPOIS de (b) e dos `.env` da VPS e do GitHub.** Management API com o token da
+CLI: `PUT https://api.supabase.com/v1/projects/ojykpzwqrtusfeakzrna/api-keys/legacy?enabled=false`
+(o GET devolve hoje `{"enabled":true}`). Voltar atrás: `enabled=true`. Depois: ronda do vigia e os caminhos
+de dinheiro outra vez.

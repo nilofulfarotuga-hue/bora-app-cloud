@@ -55,6 +55,16 @@ const Map<String, String> kStringsEn = <String, String>{
       'Could not send your answer. Try again.',
   'Fica atento ao telemóvel: se o preço na loja for diferente, o estafeta vai pedir a tua aprovação e tens 3 minutos para responder.':
       'Keep an eye on your phone: if the price at the shop is different, the courier will ask for your approval and you will have 3 minutes to answer.',
+  // 02/11/2026 (zerar B2): "Parar a série toda" diz quanto volta. Acrescentado a mao.
+  'Voltam {0} ao cartão ou MB Way com que pagaste.':
+      '{0} goes back to the card or MB Way you paid with.',
+  'Recorrência cancelada. A devolução de {0} foi pedida.':
+      'Recurrence cancelled. The refund of {0} has been requested.',
+  // 02/11/2026 (zerar B3): diferença de peso cobrada no cartão.
+  'A diferença foi cobrada no cartão com que pagaste.':
+      'The difference was charged to the card you paid with.',
+  'A diferença vai ser cobrada no cartão com que pagaste.':
+      'The difference will be charged to the card you paid with.',
   // 01/11/2026 (app-fechar B1, Casa): erros do profissional (C9), acerto da
   // semana (C8) e aviso sem horarios (C10)
   // (tool/l10n/traducoes/pt-en-37-casa-fecho-b1.json). Acrescentado a mao.

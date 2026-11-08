@@ -42,6 +42,7 @@ class AjustesPesoPedido extends StatefulWidget {
 
 class _AjustesPesoPedidoState extends State<AjustesPesoPedido> {
   List<AjustePeso> _ajustes = const <AjustePeso>[];
+  bool _cobraCartao = false;
 
   @override
   void initState() {
@@ -72,8 +73,14 @@ class _AjustesPesoPedidoState extends State<AjustesPesoPedido> {
   Future<void> _carregar() async {
     try {
       final lista = await AjustesPesoService.instance.doPedido(widget.orderId);
+      final cobra = lista.isEmpty
+          ? false
+          : await AjustesPesoService.instance.cobraDiferencaNoCartao();
       if (!mounted) return;
-      setState(() => _ajustes = lista);
+      setState(() {
+        _ajustes = lista;
+        _cobraCartao = cobra;
+      });
     } catch (e) {
       debugPrint('[AjustesPesoPedido] ${widget.orderId}: $e');
     }
@@ -84,6 +91,7 @@ class _AjustesPesoPedidoState extends State<AjustesPesoPedido> {
         ajustes: _ajustes,
         margem: widget.margem,
         metodoPagamento: widget.metodoPagamento,
+        cobraCartao: _cobraCartao,
       );
 }
 
@@ -102,6 +110,7 @@ class AjustesPesoLista extends StatelessWidget {
     required this.ajustes,
     this.margem = EdgeInsets.zero,
     this.metodoPagamento,
+    this.cobraCartao = false,
   });
 
   final List<AjustePeso> ajustes;
@@ -109,6 +118,10 @@ class AjustesPesoLista extends StatelessWidget {
 
   /// Do pedido. Sem ele, usa o `payment_method` gravado na linha do ajuste.
   final PaymentMethod? metodoPagamento;
+
+  /// `weight_adjust_card_charge_enabled` (02/11/2026, zerar B3): o fecho do
+  /// talão cobra a diferença a mais no cartão.
+  final bool cobraCartao;
 
   /// "Ajustado ao peso: 1,12 € → 1,40 €", já no idioma ativo.
   static String linha(AjustePeso a) =>
@@ -127,13 +140,27 @@ class AjustesPesoLista extends StatelessWidget {
 
   /// O que acontece à diferença (P2). Null quando não há nada a dizer
   /// (método desconhecido, ou cartão/MB Way sem diferença).
-  static String? fraseDoPagamento(PaymentMethod? metodo, int deltaCents) {
+  ///
+  /// 02/11/2026 (zerar B3): mais caro no CARTÃO com [cobraCartao] ligado é
+  /// cobrado no fecho do talão (`cobrar-diferenca-peso`); [acerto] é o
+  /// `settled_via` das linhas: 'cartao_cobrado' (cobrado), 'cartao_pendente'
+  /// (a cobrar), 'bora_assume' (não deu: a Bora paga). MB Way nunca é cobrado.
+  static String? fraseDoPagamento(PaymentMethod? metodo, int deltaCents,
+      {String? acerto, bool cobraCartao = false}) {
     if (metodo == null) return null;
     if (metodo == PaymentMethod.cash) {
       return 'Pagas o valor final ao estafeta na entrega.'.tr;
     }
-    // Cartão e MB Way: a cobrança já foi feita na encomenda.
+    // Cartão e MB Way: a cobrança principal já foi feita na encomenda.
     if (deltaCents > 0) {
+      if (metodo == PaymentMethod.card) {
+        if (acerto == 'cartao_cobrado') {
+          return 'A diferença foi cobrada no cartão com que pagaste.'.tr;
+        }
+        if (acerto == 'cartao_pendente' || (acerto == null && cobraCartao)) {
+          return 'A diferença vai ser cobrada no cartão com que pagaste.'.tr;
+        }
+      }
       return 'O peso real saiu mais caro; a diferença fica por conta do Bora.'
           .tr;
     }
@@ -163,6 +190,20 @@ class AjustesPesoLista extends StatelessWidget {
     return null;
   }
 
+  /// O `settled_via` das linhas (o talão grava o mesmo em todas, menos as de
+  /// produtos que não havia: 'ignorado_nao_ha'). O do cartão manda. Null antes
+  /// do fecho do talão.
+  static String? _acertoDasLinhas(Iterable<AjustePeso> linhas) {
+    final vias = linhas
+        .map((a) => a.settledVia?.trim() ?? '')
+        .where((v) => v.isNotEmpty)
+        .toSet();
+    for (final v in const ['cartao_cobrado', 'cartao_pendente', 'bora_assume']) {
+      if (vias.contains(v)) return v;
+    }
+    return vias.isEmpty ? null : vias.first;
+  }
+
   @override
   Widget build(BuildContext context) {
     final mudados = AjustesPesoService.soMudados(ajustes);
@@ -170,7 +211,8 @@ class AjustesPesoLista extends StatelessWidget {
     final cinza = Colors.grey.shade600;
     final diferenca = AjustesPesoService.somaDiferencaCents(mudados);
     final frase = fraseDoPagamento(
-        metodoPagamento ?? _metodoDasLinhas(mudados), diferenca);
+        metodoPagamento ?? _metodoDasLinhas(mudados), diferenca,
+        acerto: _acertoDasLinhas(mudados), cobraCartao: cobraCartao);
     return Padding(
       padding: margem,
       child: Container(

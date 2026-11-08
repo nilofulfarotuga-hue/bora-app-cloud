@@ -92,6 +92,7 @@ import 'admin_promo_codes_screen.dart';
 import 'admin_home_banners_screen.dart';
 import 'admin_ratings_screen.dart';
 import 'admin_receipts_screen.dart';
+import 'admin_taloes_screen.dart';
 import 'admin_referrals_screen.dart';
 import 'admin_reservations_config_screen.dart';
 import 'admin_reservations_metrics_screen.dart';
@@ -506,6 +507,20 @@ List<AdminMenuSection> adminMenuSections() => [
       color: AppColors.accent,
       builder: () => const AdminReceiptsScreen(),
       keywords: const ['compras', 'entregador', 'estafetas', 'mercado', 'reembolso', 'reembolsos', 'taloes'],
+    ),
+    // 08/11/2026 (m1, adendo 1): toda foto de talão guardada 10 anos (papel
+    // fiscal); filtro por mês, loja e entregador, ZIP do mês e pedidos sem talão.
+    AdminMenuItem(
+      id: 'dinheiro_taloes_guardados',
+      title: 'Talões (fotos guardadas 10 anos)',
+      subtitle: 'Todas as fotos de talão por mês, loja e entregador, com valor e NIF usado; baixar o mês num ZIP para o contabilista e ver pedidos entregues sem talão',
+      icon: Icons.photo_library_outlined,
+      color: AppColors.primary,
+      builder: () => const AdminTaloesScreen(),
+      keywords: const [
+        'talão', 'talao', 'talões', 'taloes', 'recibo', 'recibos', 'zip', 'contabilista',
+        'fatura', 'factura', 'nif', 'foto', 'fotos', 'drive', 'papel fiscal', 'sem talao', 'sem talão',
+      ],
     ),
     AdminMenuItem(
       id: 'dinheiro_precos_por_talao',

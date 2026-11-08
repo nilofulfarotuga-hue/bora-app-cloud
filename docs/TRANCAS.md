@@ -337,3 +337,11 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   seu ramo. Não contornado. O servidor (guia, 4 SQL, 2 Edge, 2 remendos) ficou no livro, páginas
   `proposta-m1-2026-11-08-*`; os ecrãs ficam no ramo local do PC. Decisão para o Danilo/Claude.ai: deixar a tranca
   aceitar `git push origin ai/AAAA-MM-DD-…` (sem --force), como a trava já aceita.
+
+- **08/11/2026 ~22:00, missão `m1-dinheiro-favores-2026-11-08`, ADENDO 1 (talões guardados)** — (1) a bora-tranca
+  recusou outra vez editar `lib/widgets/errand_execution_sheet.dart` (até numa cópia fora do repo): a fila de talões
+  no Favor ficou no remendo `docs/propostas/m1-dinheiro-favores-2026-11-08/08_errand_sheet_talao_pendente.patch`
+  (aplica-se DEPOIS do 06; `git apply --check` passa). (2) A trava recusou usar a chave SSH da VPS
+  (`~/.ssh/id_ed25519_vps`): a 2.ª cópia dos talões não foi montada na VPS; ficou a Edge `taloes-copia-diaria`
+  (Google Drive da Bora), à espera de autorizar o Drive uma vez. (3) Publicar (`git push` para produção, deploy das
+  Edge, migração 07) continua bloqueado como no resto da missão.

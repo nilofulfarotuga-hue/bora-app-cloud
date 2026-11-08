@@ -8,7 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import '../utils/safe_image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../services/receipt_upload_service.dart';
+import '../services/talao_pendente_service.dart';
 import '../services/weight_portions.dart';
 
 import 'package:flutter/foundation.dart'
@@ -2972,8 +2972,13 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
   /// [ronda 04/10 · #5] Talão já fotografado (e, se chegou a subir, o caminho
   /// no servidor). Se o fecho falhar, a próxima tentativa usa ESTA foto em vez
   /// de obrigar o estafeta a fotografar outra vez o talão.
-  (File, int)? _talaoGuardado;
-  String? _caminhoTalaoGuardado;
+  /// M1 08/11/2026: a foto vive na fila do telemóvel (TalaoPendenteService),
+  /// guardada ANTES de subir e com o mesmo fotoId em todas as tentativas.
+  TalaoPendente? _talaoPendente;
+
+  /// M1 08/11/2026: "Talão guardado no servidor ✓" só depois de o servidor
+  /// confirmar o ficheiro.
+  bool _talaoNoServidor = false;
 
   /// 28/10/2026: o aviso que trava a compra aparece DENTRO desta folha, por
   /// cima do "Confirmar compra" (por SnackBar ficava escondido atrás dela).
@@ -4032,6 +4037,19 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                   ),
                 ),
               const SizedBox(height: 16),
+              if (_talaoNoServidor)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    'Talão guardado no servidor ✓',
+                    key: const Key('talao_no_servidor'),
+                    style: TextStyle(
+                      color: Colors.green.shade700,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
               if (_erroConfirmar != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
@@ -4136,41 +4154,78 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                           if (useV2) {
                             // [ronda 04/10 · #5] Tentativa anterior falhou:
                             // usa a foto já tirada (não pede outra).
-                            final result = _talaoGuardado ??
-                                await _captureReceiptForV2(context, order);
-                            if (!mounted) return;
-                            if (result == null) return; // cancelado
-                            _talaoGuardado = result;
-                            final photoFile = result.$1;
-                            final totalCents = result.$2;
+                            // M1 08/11/2026 ("toda foto de talão ... nunca se
+                            // pode perder"): a foto é PRIMEIRO guardada no
+                            // telemóvel e só depois sobe, sempre com o mesmo
+                            // fotoId (o servidor não duplica nem substitui).
+                            // App fechada a meio: ao reabrir o pedido usa-se a
+                            // foto guardada, ou tira-se outra, que fica como
+                            // extra (a primeira nunca se apaga).
+                            var talao = _talaoPendente;
+                            if (talao == null) {
+                              await TalaoPendenteService.carregar();
+                              if (!mounted) return;
+                              final anterior =
+                                  TalaoPendenteService.ultimoDo(order.id);
+                              if (anterior != null) {
+                                final usar = await _perguntarTalaoGuardado(
+                                    context, anterior);
+                                if (!mounted) return;
+                                if (usar == null) return; // fechou o aviso
+                                if (usar) talao = anterior;
+                              }
+                            }
+                            if (talao == null) {
+                              final result =
+                                  await _captureReceiptForV2(context, order);
+                              if (!mounted) return;
+                              if (result == null) return; // cancelado
+                              talao = await TalaoPendenteService.guardar(
+                                orderId: order.id,
+                                foto: result.$1,
+                                totalCents: result.$2,
+                              );
+                              if (!mounted) return;
+                            }
+                            _talaoPendente = talao;
+                            final totalCents = talao.totalCents;
 
                             // BUG #1 v2 (sessão exec 2026-05-12 pós-teste) —
                             // Upload via Edge Function `upload-receipt` em vez
                             // de storage.from() directo. Bypass storage rate
                             // limits, validação server-side completa, mensagens
                             // erro PT-PT por código.
-                            String storagePath;
-                            try {
-                              storagePath = _caminhoTalaoGuardado ??
-                                  await ReceiptUploadService.uploadReceipt(
-                                    orderId: order.id,
-                                    photoFile: photoFile,
-                                    totalCents: totalCents,
-                                  ).timeout(_limiteEnvioFoto);
-                              _caminhoTalaoGuardado = storagePath;
-                            } on TimeoutException {
-                              // A foto fica em _talaoGuardado: o próximo
-                              // toque reenvia-a sem pedir outra.
+                            // M1 08/11/2026: pela fila (TalaoPendenteService).
+                            // Falhou → a foto fica no telemóvel, sobe sozinha
+                            // e o próximo toque reenvia a MESMA foto.
+                            final String storagePath;
+                            final jaNoServidor =
+                                talao.enviado ? talao.path : null;
+                            if (jaNoServidor != null) {
+                              storagePath = jaNoServidor;
+                            } else {
+                              final caminho = await TalaoPendenteService.enviar(
+                                talao,
+                                limite: _limiteEnvioFoto,
+                              );
                               if (!mounted) return;
-                              setState(() => _erroConfirmar = _avisoLigacaoLenta);
-                              return;
-                            } catch (e) {
-                              debugPrint(
-                                  '[driver_map] receipt upload error: $e');
-                              if (!mounted) return;
-                              await _showUploadErrorDialog(context);
-                              return;
+                              final atual = TalaoPendenteService.porFotoId(
+                                      talao.fotoId) ??
+                                  talao;
+                              if (caminho == null) {
+                                if (atual.estado ==
+                                    TalaoPendente.estadoSemFicheiro) {
+                                  _talaoPendente = null; // pede outra foto
+                                }
+                                setState(() => _erroConfirmar =
+                                    TalaoPendenteService.avisoNaoEnviado(
+                                        atual));
+                                return;
+                              }
+                              _talaoPendente = atual;
+                              storagePath = caminho;
                             }
+                            setState(() => _talaoNoServidor = true);
 
                             // 2026-09-13 — UMA SÓ função no servidor para TODO
                             // o não-parceiro (mercado, restaurante, loja,
@@ -4209,8 +4264,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                               );
                               return;
                             }
-                            _talaoGuardado = null;
-                            _caminhoTalaoGuardado = null;
+                            _talaoPendente = null;
                             // Estado local imediato; o realtime confirma a seguir.
                             order.isPurchaseFinalized = true;
                             // 28/10/2026 (C3): o valor a cobrar é o que o
@@ -4292,23 +4346,49 @@ Future<void> _showTalaoErrorDialog(BuildContext context, String mensagem) async 
   );
 }
 
-/// BUG C (sessão exec 2026-05-12) — AlertDialog PT-PT quando upload falha.
-/// Substitui SnackBar transient (4s) por dialog modal mais visível.
-Future<void> _showUploadErrorDialog(BuildContext context) async {
-  await showDialog<void>(
+/// M1 08/11/2026: este pedido já tem uma foto de talão guardada (a app fechou
+/// depois da foto, ou a folha foi reaberta). true = usar essa foto; false =
+/// tirar outra, que fica como extra (a primeira nunca se apaga); null = fechou.
+/// Substitui o diálogo genérico "Falha ao enviar talão" (BUG C, 2026-05-12):
+/// uma falha de envio já não perde a foto, mostra o aviso dentro da folha.
+Future<bool?> _perguntarTalaoGuardado(
+    BuildContext context, TalaoPendente talao) {
+  final valor =
+      (talao.totalCents / 100).toStringAsFixed(2).replaceAll('.', ',');
+  return showDialog<bool>(
     context: context,
-    builder: (_) => AlertDialog(
-      icon: const Icon(Icons.error_outline, color: Colors.red, size: 48),
-      title: const Text('Falha ao enviar talão'),
-      content: const Text(
-        'Não foi possível guardar a foto do talão. Verifica a tua '
-        'ligação à internet e tenta de novo.\n\n'
-        'Se o problema persistir, contacta o admin.',
+    builder: (ctx) => AlertDialog(
+      title: const Text('Já tens a foto do talão'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image(
+                image: boraLocalImage(talao.localPath),
+                height: 140,
+                fit: BoxFit.cover,
+                errorBuilder: (c, e, s) => const SizedBox.shrink(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(talao.enviado
+                ? 'A foto do talão deste pedido ($valor €) já está guardada '
+                    'no servidor. Queres usar esta foto?'
+                : 'A foto do talão deste pedido ($valor €) ficou guardada no '
+                    'telemóvel e ainda não subiu. Queres usar esta foto?'),
+          ],
+        ),
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('OK'),
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: const Text('Tirar outra foto'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: const Text('Usar esta foto'),
         ),
       ],
     ),

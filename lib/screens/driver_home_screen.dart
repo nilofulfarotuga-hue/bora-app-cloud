@@ -44,6 +44,7 @@ import '../services/notification_service.dart';
 import '../services/permission_gate_service.dart';
 import '../services/push_token_service.dart';
 import '../services/sound_service.dart';
+import '../services/talao_pendente_service.dart';
 import '../services/web_presence.dart';
 import '../widgets/driver_web_cards.dart';
 import '../widgets/driver_push_warning_card.dart';
@@ -140,6 +141,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     // BUG 3: observe app lifecycle to re-run safety net on resume
     // (apanha admin approve/ban/delete enquanto app esteve em background).
     WidgetsBinding.instance.addObserver(this);
+    // M1 08/11/2026: fotos de talão que ficaram no telemóvel (sem rede ou app
+    // fechada) sobem sozinhas — já e de 60 em 60 s. Idempotente.
+    TalaoPendenteService.iniciarReenvioAutomatico();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
@@ -360,6 +364,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.resumed && mounted) {
       _enforceEffectiveStatus();
+      // M1 08/11/2026: voltou a rede/app → tenta já os talões pendentes.
+      unawaited(TalaoPendenteService.reenviarPendentes());
       // Safety net: garante heartbeat ligado no resume (idempotente).
       final driver = context.read<DriverStore>().currentDriver;
       if (driver?.isOnline == true) {

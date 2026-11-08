@@ -48,12 +48,17 @@ Deno.serve(async (req) => {
   const ini = new Date(Date.UTC(ano, m - 1, 1) - 2 * 3600 * 1000).toISOString()
   const fim = new Date(Date.UTC(m === 12 ? ano + 1 : ano, m === 12 ? 0 : m, 1) + 2 * 3600 * 1000).toISOString()
 
-  const { data: fotos, error } = await admin.from('order_receipt_fotos')
-    .select('order_id, bucket, path, total_cents, recebida_em, driver_uid')
-    .gte('recebida_em', ini).lt('recebida_em', fim).order('recebida_em').limit(MAX_FOTOS + 1)
-  if (error) return json({ ok: false, error: 'leitura_falhou', detalhe: error.message }, 500)
-  const doMes = (fotos ?? []).filter((f) => mesLisboa(f.recebida_em) === mes)
-  if (doMes.length > MAX_FOTOS) return json({ ok: false, error: 'demasiadas_fotos', max: MAX_FOTOS }, 413)
+  // lê o mês inteiro (sem cortar antes dos filtros); o limite conta-se depois de filtrar
+  const fotos: any[] = []
+  for (let de = 0; ; de += 1000) {
+    const { data, error } = await admin.from('order_receipt_fotos')
+      .select('order_id, bucket, path, total_cents, recebida_em, driver_uid')
+      .gte('recebida_em', ini).lt('recebida_em', fim).order('recebida_em').range(de, de + 999)
+    if (error) return json({ ok: false, error: 'leitura_falhou', detalhe: error.message }, 500)
+    fotos.push(...(data ?? []))
+    if (!data || data.length < 1000 || fotos.length > 20000) break
+  }
+  const doMes = fotos.filter((f) => mesLisboa(f.recebida_em) === mes)
 
   const ids = [...new Set(doMes.map((f) => f.order_id))]
   const pedidos: Record<string, any> = {}
@@ -62,6 +67,15 @@ Deno.serve(async (req) => {
       .in('id', ids.slice(i, i + 200))
     for (const o of data ?? []) pedidos[o.id] = o
   }
+  // o pedido pode guardar o id de login do estafeta OU o id da ficha (drivers.id): resolve sempre para o login
+  const fichas = [...new Set(Object.values(pedidos).map((o: any) => o.assigned_driver_id).filter(Boolean))]
+  const loginDaFicha: Record<string, string> = {}
+  for (let i = 0; i < fichas.length; i += 200) {
+    const lote = fichas.slice(i, i + 200)
+    const { data } = await admin.from('drivers').select('id, user_id').in('id', lote)
+    for (const d of data ?? []) loginDaFicha[d.id] = d.user_id
+  }
+  const estafetaDe = (f: any) => f.driver_uid ?? loginDaFicha[pedidos[f.order_id]?.assigned_driver_id] ?? pedidos[f.order_id]?.assigned_driver_id ?? null
   const nifs: Record<string, string> = {}
   for (const id of ids) {
     const { data } = await admin.rpc('_talao_nif_usado', { p_order_id: id })
@@ -72,9 +86,10 @@ Deno.serve(async (req) => {
   const escolhidas = doMes.filter((f) => {
     const o = pedidos[f.order_id] ?? {}
     if (loja && !(String(o.restaurant_id ?? '').toLowerCase() === loja || String(o.vendor_name ?? '').toLowerCase().includes(loja))) return false
-    if (driver && f.driver_uid !== driver && o.assigned_driver_id !== driver) return false
+    if (driver && estafetaDe(f) !== driver) return false
     return true
   })
+  if (escolhidas.length > MAX_FOTOS) return json({ ok: false, error: 'demasiadas_fotos', max: MAX_FOTOS, fotos: escolhidas.length }, 413)
 
   const ficheiros: Record<string, Uint8Array> = {}
   const linhas = ['pedido;data;loja;estafeta_uid;valor_escrito_eur;nif_usado;ficheiro']
@@ -85,7 +100,7 @@ Deno.serve(async (req) => {
     const o = pedidos[f.order_id] ?? {}
     const nomeZip = `${String(o.vendor_name ?? 'loja').replace(/[^\w-]+/g, '_')}/${f.order_id.slice(0, 8)}_${f.path.split('/').pop()}`
     ficheiros[nomeZip] = new Uint8Array(await blob.arrayBuffer())
-    linhas.push([f.order_id, f.recebida_em, csv(o.vendor_name ?? o.restaurant_id ?? ''), f.driver_uid ?? o.assigned_driver_id ?? '',
+    linhas.push([f.order_id, f.recebida_em, csv(o.vendor_name ?? o.restaurant_id ?? ''), estafetaDe(f) ?? '',
       f.total_cents == null ? '' : (f.total_cents / 100).toFixed(2).replace('.', ','), nifs[f.order_id] ?? '', nomeZip].join(';'))
   }
   ficheiros['indice.csv'] = new TextEncoder().encode('﻿' + linhas.join('\r\n') + '\r\n')

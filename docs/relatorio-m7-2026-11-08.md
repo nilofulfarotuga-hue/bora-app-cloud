@@ -123,7 +123,8 @@ a "Pedidos" na barra do cliente) tem testes que dependem do texto e fica para a 
    o interruptor continua em "pessoal".
 3. **Enviar as mensagens.** Os textos estão prontos e esperam o teu "sim" a todas juntas.
 4. **Publicar a app** (hora de chegada, aviso de chegada à loja, textos, painel). Quem publica é a
-   Claude.ai, depois de rever o ramo.
+   Claude.ai, depois de rever o ramo. O ramo ficou só no PC, porque a tranca não deixou enviá-lo para o
+   GitHub ("publica o Claude.ai"). A Claude.ai envia-o e abre o pedido de revisão.
 5. **Testes completos.** Corri a análise e os testes dos ficheiros que mudei. A bateria inteira
    (163 ficheiros) não coube, porque a memória do PC estava em 305 a 741 MB com outras missões a
    compilar. Passa antes da publicação.

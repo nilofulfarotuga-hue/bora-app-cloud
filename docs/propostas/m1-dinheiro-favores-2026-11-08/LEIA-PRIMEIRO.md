@@ -43,6 +43,16 @@ O 04 substitui `meu_ganho_ao_vivo` (igual ao do ar + linha "gorjetas") e `catalo
 
 Guardar o md5 de cada uma antes e depois no `e2e_log` (fluxo `m1-dinheiro-favores-2026-11-08`).
 
+## 2b. App do estafeta — remendo da folha do Favor (zona vermelha da tranca)
+
+`lib/widgets/errand_execution_sheet.dart` está em `.claude/plugins/bora-mods/zonas-vermelhas.json`
+(`_finalizePurchase`), por isso a sessão do PC não o pôde editar. O fluxo novo vive no widget
+`lib/widgets/favor_teto_compra_card.dart` (já no ramo); o remendo
+`06_errand_execution_sheet_tecto.patch` liga-o à folha: tecto em grande, "O preço é maior" com foto, contador,
+"Comprar só até X €"/"Cancelar Favor", espera do MB Way, cartão do NIF por cima da foto do talão. Não toca em
+`_finalizePurchase`. Aplicar com `git apply docs/propostas/m1-dinheiro-favores-2026-11-08/06_errand_execution_sheet_tecto.patch`
+(`git apply --check` passa a 08/11) e correr `flutter analyze` + `flutter test` antes de juntar.
+
 ## 3. Provas depois de aplicar (com rollback, conta demo, nunca dinheiro real)
 
 ```sql

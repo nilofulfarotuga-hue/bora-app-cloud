@@ -49,6 +49,7 @@ import '../utils/valor_em_centimos.dart';
 import '../widgets/address_text.dart';
 import '../widgets/cliente_nome_destaque.dart';
 import '../widgets/driver_chat_fab.dart';
+import '../widgets/driver_invoice_nif_card.dart';
 import '../widgets/driver_item_options.dart';
 import '../widgets/entrega_marcada_estafeta.dart';
 import 'driver_order_action_helper.dart';
@@ -3379,6 +3380,15 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
               // produto. Sem escolha não desenha nada.
               SubstituicaoLinhaEstafeta(
                   preferencia: order.substitutionPreference),
+              // M1 08/11/2026: NIF da fatura para pedir na caixa da loja
+              // NÃO-parceira (o que o cliente pediu, ou o da Bora). Esconde-se
+              // sozinho num erro; a função recusa a loja parceira.
+              if (!_isPartnerStore &&
+                  (order.serviceType == OrderServiceType.storeShopping ||
+                      order.serviceType == OrderServiceType.restaurant)) ...[
+                const SizedBox(height: 8),
+                DriverInvoiceNifCard(orderId: order.id),
+              ],
               const SizedBox(height: 6),
               // ── Progress text ──
               Text(
@@ -4315,7 +4325,8 @@ Future<(File, int)?> _captureReceiptForV2(
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     builder: (sheetCtx) {
-      return ReceiptCaptureSheet(isCash: isCash);
+      // Só chega aqui o não-parceiro (useV2): mostra o NIF da fatura.
+      return ReceiptCaptureSheet(isCash: isCash, orderId: order.id);
     },
   );
 }
@@ -4324,8 +4335,12 @@ Future<(File, int)?> _captureReceiptForV2(
 /// de widget (28/10/2026): os avisos aparecem DENTRO dela.
 @visibleForTesting
 class ReceiptCaptureSheet extends StatefulWidget {
-  const ReceiptCaptureSheet({super.key, required this.isCash});
+  const ReceiptCaptureSheet({super.key, required this.isCash, this.orderId});
   final bool isCash;
+
+  /// M1 08/11/2026: com o pedido, mostra o NIF da fatura (loja não-parceira).
+  /// Sem ele (teste de widget) não chama o servidor.
+  final String? orderId;
 
   @override
   State<ReceiptCaptureSheet> createState() => _ReceiptCaptureSheetState();
@@ -4475,6 +4490,10 @@ class _ReceiptCaptureSheetState extends State<ReceiptCaptureSheet> {
               style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
               textAlign: TextAlign.center,
             ),
+            if (widget.orderId != null) ...[
+              const SizedBox(height: 12),
+              DriverInvoiceNifCard(orderId: widget.orderId!),
+            ],
             const SizedBox(height: 16),
             GestureDetector(
               onTap: _takePhoto,

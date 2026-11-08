@@ -328,3 +328,6 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   ficheiro já tem, desde antes, o texto do cabeçalho de chave privada usado para ler a conta de serviço do Firebase.
   Não contornado: a mudança do toque persistente ficou em
   `docs/propostas/m1-dinheiro-favores-2026-11-08/05_notify-client_toque_persistente.patch` e o ficheiro voltou ao original.
+  (4) A bora-tranca recusou editar `lib/widgets/errand_execution_sheet.dart` (zona vermelha `_finalizePurchase`).
+  Não contornado: o fluxo novo do estafeta ficou no widget `lib/widgets/favor_teto_compra_card.dart` e a ligação à
+  folha em `docs/propostas/m1-dinheiro-favores-2026-11-08/06_errand_execution_sheet_tecto.patch` (aplica-se limpo).

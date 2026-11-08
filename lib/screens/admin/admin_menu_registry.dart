@@ -316,14 +316,15 @@ List<AdminMenuSection> adminMenuSections() => [
       keywords: const ['peso', 'peso variavel', 'balanca', 'quilo', 'kg', 'ajuste', 'etiqueta', 'diferenca', 'mercado', 'nao parceiro', 'continente', 'auchan'],
     ),
     // 04/11/2026: Favores pagos por MB Way com compra acima do orçado.
+    // 08/11/2026: no topo, Favores à espera de aprovação do cliente (teto).
     AdminMenuItem(
       id: 'operacao_favor_diferencas',
       title: 'Diferenças de Favor',
-      subtitle: 'Favores pagos por MB Way em que a compra passou o orçado: quanto falta, estado do pedido MB Way (enviado, pago, expirou) e reenviar',
+      subtitle: 'Favores à espera de aprovação do cliente (preço acima do teto, aprovar pelo cliente) e Favores pagos por MB Way em que a compra passou o orçado: quanto falta, estado do pedido MB Way (enviado, pago, expirou) e reenviar',
       icon: Icons.send_to_mobile,
       color: Colors.teal,
       builder: () => const AdminFavorDiferencasScreen(),
-      keywords: const ['favor', 'diferenca', 'mbway', 'mb way', 'orcamento', 'compra', 'reenviar', 'expirou', 'pagar'],
+      keywords: const ['favor', 'diferenca', 'mbway', 'mb way', 'orcamento', 'compra', 'reenviar', 'expirou', 'pagar', 'aprovacao', 'aprovar', 'teto', 'tecto', 'preco maior'],
     ),
     AdminMenuItem(
       id: 'operacao_pedidos_de_cancelamento',

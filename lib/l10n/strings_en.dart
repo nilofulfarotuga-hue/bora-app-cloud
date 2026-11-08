@@ -16,6 +16,45 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 08/11/2026 (m1-dinheiro-favores): aprovacao do preco do Favor pelo
+  // cliente (cartao do pedido) e aviso no formulario do Favor
+  // (tool/l10n/traducoes/pt-en-38-favor-aprovacao-cliente.json). Acrescentado a mao.
+  'Aprova o preço do teu Favor':
+      'Approve the price of your errand',
+  'O estafeta está na loja: o total é {0} (podia comprar até {1}).':
+      'The courier is at the shop: the total is {0} (they could spend up to {1}).',
+  'Foto da etiqueta':
+      'Photo of the price tag',
+  'Tens {0} para responder.':
+      'You have {0} to answer.',
+  'O tempo acabou — o estafeta pode comprar só até {0} ou cancelar.':
+      'Time is up — the courier can buy only up to {0} or cancel.',
+  'Aprovar {0}':
+      'Approve {0}',
+  'Comprar só até {0}':
+      'Buy only up to {0}',
+  'Cancelar Favor':
+      'Cancel errand',
+  'Cancelar o Favor?':
+      'Cancel the errand?',
+  'O estafeta não compra nada e pedimos ao suporte para fechar o teu Favor.':
+      'The courier will not buy anything and we will ask support to close your errand.',
+  'Aprovado. Se pagaste por MB Way, aprova também o pedido que chega à app MB Way.':
+      'Approved. If you paid with MB Way, also approve the request that arrives in the MB Way app.',
+  'Aprovado. O estafeta já pode comprar.':
+      'Approved. The courier can buy now.',
+  'Combinado: o estafeta compra só até {0}.':
+      'Agreed: the courier will buy only up to {0}.',
+  'Pedimos o cancelamento do teu Favor. O suporte vai fechar o pedido.':
+      'We have asked to cancel your errand. Support will close the order.',
+  'Este pedido de aprovação já foi respondido.':
+      'This approval request has already been answered.',
+  'Este Favor já terminou.':
+      'This errand has already ended.',
+  'Não foi possível responder. Tenta outra vez.':
+      'Could not send your answer. Try again.',
+  'Fica atento ao telemóvel: se o preço na loja for diferente, o estafeta vai pedir a tua aprovação e tens 3 minutos para responder.':
+      'Keep an eye on your phone: if the price at the shop is different, the courier will ask for your approval and you will have 3 minutes to answer.',
   // 01/11/2026 (app-fechar B1, Casa): erros do profissional (C9), acerto da
   // semana (C8) e aviso sem horarios (C10)
   // (tool/l10n/traducoes/pt-en-37-casa-fecho-b1.json). Acrescentado a mao.

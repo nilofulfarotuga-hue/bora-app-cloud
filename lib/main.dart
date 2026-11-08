@@ -14,6 +14,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'services/app_update_service.dart';
 import 'services/floating_bubble_service.dart';
+import 'utils/home_destino.dart' show abrirLojaPorId;
 import 'services/foreground_service.dart';
 import 'services/incoming_job_alert.dart';
 import 'services/notification_service.dart';
@@ -581,6 +582,24 @@ Future<void> main() async {
     const marca = 'weekly_closeout_';
     final semana = ref.startsWith(marca) ? ref.substring(marca.length) : null;
     nav.pushNamed(rota, arguments: semana);
+  };
+
+  // [08/11/2026 · m6] Tocar no aviso "Restaurante do dia" abre essa loja pelo
+  // mesmo caminho das listas (abrirLojaPorId). Ao nível da app, pela mesma
+  // razão dos ganchos acima. Com a app a arrancar do zero (getInitialMessage)
+  // o Navigator pode ainda não existir: tenta outra vez daqui a 2 s, uma vez.
+  NotificationService.abrirLoja = (restaurantId) {
+    if (restaurantId.isEmpty) return;
+    void abrir() {
+      final ctx = NotificationService.navigatorKey.currentContext;
+      if (ctx != null) unawaited(abrirLojaPorId(ctx, restaurantId));
+    }
+
+    if (NotificationService.navigatorKey.currentContext != null) {
+      abrir();
+    } else {
+      Future<void>.delayed(const Duration(seconds: 2), abrir);
+    }
   };
 
   // TODO: remover após diagnóstico — handlers globais de crash.

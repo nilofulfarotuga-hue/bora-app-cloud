@@ -40,6 +40,7 @@ const DOMINIOS_PERMITIDOS = new Set([
   'www.lidl.pt',
   'www.google.com',            // favicons usados como logo de loja
   'ojykpzwqrtusfeakzrna.supabase.co',
+  'strangeroasis.com',         // fotos da Jyosmi Sushi tiradas do site da loja (08/11/2026)
 ]);
 
 export async function onRequestGet({ request }) {

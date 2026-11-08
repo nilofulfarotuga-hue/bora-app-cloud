@@ -532,6 +532,11 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 /// [10/10/2026] Tipo do push do botão "Testar o toque" (Edge `testar-toque`).
 const String kTipoTesteToque = 'teste_toque_oferta';
 
+/// [08/11/2026 · m6] Tipo do aviso diário "Restaurante do dia"
+/// (`restaurante_do_dia_processar` → Edge `push-clientes-alvo`, com
+/// `restaurant_id` no data). O toque abre essa loja.
+const String kTipoRestauranteDoDia = 'restaurante_do_dia';
+
 /// [31/10/2026 chaves-varredura] Fases do pedido em que o SERVIDOR avisa o
 /// cliente sozinho (gatilho `trg_push_cliente_fase_pedido` em `orders` →
 /// `notify-client` com a chave do servidor). A app não manda estas — só as
@@ -659,6 +664,12 @@ void _onLocalNotifTap(NotificationResponse response) {
     if (_kDriverAssignmentTypes.contains(data['type'])) {
       NotificationService.driverOrdersReload
           ?.call(data['orderId']?.toString() ?? '');
+      return;
+    }
+    // [08/11/2026 · m6] "Restaurante do dia" com a app aberta: abre a loja.
+    if (data['type'] == kTipoRestauranteDoDia) {
+      NotificationService.abrirLoja
+          ?.call(data['restaurant_id']?.toString() ?? '');
       return;
     }
     if (data['type'] == 'admin_generic' || data['type'] == 'crosstalk_critical') {
@@ -1480,6 +1491,13 @@ Future<void> _entregarAccaoTvdeAFrio(String rideId, String accao) async {
 /// ou Android com o aviso do próprio FCM): abre o trabalho dessa categoria.
 void _abrirTrabalhoDoPush(RemoteMessage msg) {
   final type = msg.data['type']?.toString();
+  // [08/11/2026 · m6] "Restaurante do dia" (push-clientes-alvo com
+  // restaurant_id): o toque abre a loja sugerida.
+  if (type == kTipoRestauranteDoDia) {
+    NotificationService.abrirLoja
+        ?.call(msg.data['restaurant_id']?.toString() ?? '');
+    return;
+  }
   // [31/10/2026] Toque no push "Preço ajustado ao peso" (notify-client,
   // `order_weight_adjusted`, com orderId): abre o pedido do cliente.
   if (type == kTipoAjustePeso) {
@@ -2254,6 +2272,10 @@ class NotificationService {
   /// `ref` traz o assunto (ex.: `weekly_closeout_2026-08-30` → a semana).
   /// Registado no `main.dart`, ao nível da app — nunca dentro de um ecrã.
   static void Function(String rota, String ref)? abrirAdmin;
+
+  /// [08/11/2026 · m6] Tocar no aviso "Restaurante do dia" abre essa loja.
+  /// Registado no `main.dart`, ao nível da app — nunca dentro de um ecrã.
+  static void Function(String restaurantId)? abrirLoja;
 
   /// [Estafeta web 2026-09-16] O ecrã do estafeta liga aqui um "relê os
   /// pedidos" — chamado quando chega (ou é tocado) um aviso da Edge

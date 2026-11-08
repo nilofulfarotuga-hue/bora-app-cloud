@@ -314,3 +314,12 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   escrever o guião que subia as peças do anúncio do Fuku para `product-images/meta-2026-11-03/` (leu a variável que
   carrega a chave do `backend/.env` como "segredo em texto claro"). Não contornado: as peças estão na Meta, no
   Telegram do Danilo e em `Vídeos/Bora/fuku-anuncio-2026-11-03/` no PC.
+
+- **08/11/2026 ~20:15-21:00, missão `m6-crescimento-hermes-2026-11-08`** — (1) a trava do modo automático recusou um
+  `ssh` com um patch Python em heredoc por ler a variável `env` (lista de propostas enviadas) como "mostrar as variáveis
+  de ambiente". Não contornado: o patch foi escrito em ficheiro e enviado por `scp` (caminho já documentado), sem
+  mudar o que fazia. (2) A bora-tranca recusou outra vez o Edit em `lib/stores/order_store.dart` (zona vermelha
+  `finalizePurchase`) para mandar `checkin_vale_id` ao `create_order`. Não contornado: os 6 degraus de desconto do
+  check-in continuam desligados; o que falta está em `docs/propostas/PROPOSTA_20261104_*` (precisa do AUTORIZO do
+  Danilo e da Claude.ai). (3) A bora-tranca recusou `rm -r` de uma pasta de cópia que a própria sessão criou
+  (`ferramentas/vps/voz/`); ficou por apagar, fora do commit.

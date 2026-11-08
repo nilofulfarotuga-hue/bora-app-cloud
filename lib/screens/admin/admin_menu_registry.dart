@@ -39,6 +39,7 @@ import 'admin_reativacao_screen.dart';
 import 'admin_checkin_premios_screen.dart';
 import 'admin_checkin_screen.dart';
 import 'admin_receitas_screen.dart';
+import 'admin_restaurante_do_dia_screen.dart';
 import 'admin_support_escalations_screen.dart';
 import 'admin_tvde_chats_screen.dart';
 import 'admin_bora_motorista_fechado_screen.dart';
@@ -1147,6 +1148,15 @@ List<AdminMenuSection> adminMenuSections() => [
       color: AppColors.primary,
       builder: () => const AdminReceitasScreen(),
       keywords: const ['receita', 'receitas', 'cozinha', 'todo dia', 'aviso', 'ingredientes', 'carrinho'],
+    ),
+    AdminMenuItem(
+      id: 'clientes_restaurante_do_dia',
+      title: 'Restaurante do dia',
+      subtitle: 'Aviso diário com um restaurante e um prato: ligar/desligar, hora (17:30), rotação e últimos envios',
+      icon: Icons.storefront_outlined,
+      color: AppColors.primary,
+      builder: () => const AdminRestauranteDoDiaScreen(),
+      keywords: const ['restaurante', 'do dia', 'notificacao', 'push', 'aviso', 'rotacao', 'jantar', '17:30'],
     ),
     AdminMenuItem(
       id: 'clientes_personalizacao',
